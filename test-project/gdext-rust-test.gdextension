@@ -1,0 +1,5 @@
+[configuration]
+entry_symbol = "gdext_rust_test"
+
+[libraries]
+windows.64 = "res://native/target/debug/native.dll"

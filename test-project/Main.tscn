@@ -1,0 +1,41 @@
+[gd_scene load_steps=8 format=3 uid="uid://cic8m2y1sdx2l"]
+
+[ext_resource type="Script" path="res://Main.gd" id="1_ou8h8"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_yt430"]
+sky_horizon_color = Color(0.466667, 0.647059, 0.709804, 1)
+ground_bottom_color = Color(0.294118, 0.141176, 0.447059, 1)
+ground_horizon_color = Color(0.466667, 0.647059, 0.709804, 1)
+ground_curve = 0.0336359
+
+[sub_resource type="Sky" id="Sky_53gvg"]
+sky_material = SubResource( "ProceduralSkyMaterial_yt430" )
+
+[sub_resource type="Environment" id="Environment_8duhl"]
+background_mode = 2
+sky = SubResource( "Sky_53gvg" )
+
+[sub_resource type="CameraEffects" id="CameraEffects_cxnmj"]
+
+[sub_resource type="SphereMesh" id="SphereMesh_3d8e4"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_j23k2"]
+
+[node name="Main" type="Node3D"]
+script = ExtResource( "1_ou8h8" )
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 3, 5)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource( "Environment_8duhl" )
+camera_effects = SubResource( "CameraEffects_cxnmj" )
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource( "SphereMesh_3d8e4" )
+surface_material_override/0 = SubResource( "StandardMaterial3D_j23k2" )
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.644738, 0.501111, -0.577236, 0, 0.755145, 0.655558, 0.764404, -0.422663, 0.48687, -10.6121, 6.98067, 5)
+
+[node name="RustTest" type="RustTest" parent="."]
