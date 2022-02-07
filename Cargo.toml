@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "gdext-sys",
+    "gdext-builtin",
+    "gdext-codegen",
+    "gdext-class"
+]

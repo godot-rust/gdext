@@ -1,0 +1,3 @@
+[submodule "thirdparty/godot-headers"]
+	path = thirdparty/godot-headers
+	url = https://github.com/godotengine/godot-headers/
