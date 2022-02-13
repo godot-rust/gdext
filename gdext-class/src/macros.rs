@@ -244,3 +244,112 @@ macro_rules! gdext_wrap_method {
         )
     };
 }
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! gdext_virtual_method_inner {
+    (
+        $type_name:ty,
+        $map_method:ident,
+        fn $method_name:ident(
+            self
+            $(,$pname:ident : $pty:ty)*
+        ) -> $retty:ty
+    ) => {
+        Some({
+            unsafe extern "C" fn call(
+                instance: gdext_sys::GDExtensionClassInstancePtr,
+                args: *const gdext_sys::GDNativeTypePtr,
+                ret: gdext_sys::GDNativeTypePtr,
+            ) {
+                let instance = &mut *(instance as *mut $type_name);
+                let mut idx = 0;
+
+                $(
+                    let $pname = <$pty as gdext_builtin::PtrCallArg>::from_ptr_call_arg(args.offset(idx));
+                    idx += 1;
+                )*
+
+                let ret_val = instance.$method_name($(
+                    $pname,
+                )*);
+                <$retty as gdext_builtin::PtrCallArg>::to_ptr_call_arg(ret_val, ret);
+            }
+            call
+        })
+    };
+}
+
+#[macro_export]
+macro_rules! gdext_virtual_method_body {
+    // mutable
+    (
+        $type_name:ty,
+        fn $method_name:ident(
+            &mut self
+            $(,$pname:ident : $pty:ty)*
+            $(,)?
+        ) -> $retty:ty
+    ) => {
+        $crate::gdext_virtual_method_inner!(
+            $type_name,
+            map_mut,
+            fn $method_name(
+                self
+                $(,$pname : $pty)*
+            ) -> $retty
+        )
+    };
+    // immutable
+    (
+        $type_name:ty,
+        fn $method_name:ident(
+            &self
+            $(,$pname:ident : $pty:ty)*
+            $(,)?
+        ) -> $retty:ty
+    ) => {
+        $crate::gdext_virtual_method_inner!(
+            $type_name,
+            map,
+            fn $method_name(
+                self
+                $(,$pname : $pty)*
+            ) -> $retty
+        )
+    };
+    // mutable without return type
+    (
+        $type_name:ty,
+        fn $method_name:ident(
+            &mut self
+            $(,$pname:ident : $pty:ty)*
+            $(,)?
+        )
+    ) => {
+        $crate::gdext_virtual_method_body!(
+            $type_name,
+            fn $method_name(
+                &mut self
+                $(,$pname : $pty)*
+            ) -> ()
+        )
+    };
+    // immutable without return type
+    (
+        $type_name:ty,
+        fn $method_name:ident(
+            &self
+            $(,$pname:ident : $pty:ty)*
+            $(,)?
+        )
+    ) => {
+        $crate::gdext_virtual_method_body!(
+            $type_name,
+            fn $method_name(
+                &self
+                $(,$pname : $pty)*
+            ) -> ()
+        )
+    };
+}

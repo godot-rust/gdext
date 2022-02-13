@@ -125,13 +125,3 @@ pub unsafe fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods
 
     T::register_methods();
 }
-
-#[macro_export]
-macro_rules! gdext_class_method_info {
-    (fn $name:ident()) => {
-        gdext_class_method_info!(fn $name() -> ())
-    };
-    (fn $name:ident() -> $ret_ty:ty) => {
-
-    };
-}

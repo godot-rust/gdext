@@ -1,6 +1,6 @@
 use std::ffi::CStr;
 
-use gdext_builtin::string::GodotString;
+use gdext_builtin::{string::GodotString, vector2::Vector2, vector3::Vector3};
 
 pub trait PropertyInfoBuilder {
     fn variant_type() -> gdext_sys::GDNativeVariantType;
@@ -25,9 +25,24 @@ impl PropertyInfoBuilder for GodotString {
     }
 }
 
+//
+/*
 impl PropertyInfoBuilder for &GodotString {
     fn variant_type() -> gdext_sys::GDNativeVariantType {
         gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING
+    }
+}
+*/
+
+impl PropertyInfoBuilder for Vector2 {
+    fn variant_type() -> gdext_sys::GDNativeVariantType {
+        gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR2
+    }
+}
+
+impl PropertyInfoBuilder for Vector3 {
+    fn variant_type() -> gdext_sys::GDNativeVariantType {
+        gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR3
     }
 }
 
