@@ -2,13 +2,13 @@ use std::ffi::CStr;
 
 use gdext_sys::{self as sys, interface_fn};
 
-pub struct Ref<T: GodotClass>(T);
+pub mod macros;
+pub mod property_info;
 
 pub trait GodotClass {
     type Base: GodotClass;
-    const IS_REFERENCE_COUNTED: bool;
 
-    fn class_name() -> &'static str;
+    fn class_name() -> String;
 
     fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
         self.upcast().native_object_ptr()
@@ -26,6 +26,7 @@ pub trait GodotExtensionClass: GodotClass {
 
 pub trait GodotExtensionClassMethods {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual;
+    fn register_methods();
 }
 
 /// # Safety
@@ -121,4 +122,16 @@ pub unsafe fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods
         parent_class_name.as_ptr() as *const _,
         &creation_info as *const _,
     );
+
+    T::register_methods();
+}
+
+#[macro_export]
+macro_rules! gdext_class_method_info {
+    (fn $name:ident()) => {
+        gdext_class_method_info!(fn $name() -> ())
+    };
+    (fn $name:ident() -> $ret_ty:ty) => {
+
+    };
 }

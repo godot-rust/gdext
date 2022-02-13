@@ -3,10 +3,11 @@
     non_camel_case_types,
     non_upper_case_globals,
     non_snake_case,
-    deref_nullptr
+    deref_nullptr,
+    clippy::redundant_static_lifetimes
 )]
 
-use std::{cell::RefCell, mem::MaybeUninit};
+use std::mem::MaybeUninit;
 
 include!(concat!(env!("OUT_DIR"), "/gdnative_interface.rs"));
 
@@ -36,10 +37,18 @@ pub unsafe fn get_interface() -> &'static GDNativeInterface {
     &*INTERFACE.as_ptr()
 }
 
+/// # Safety
+///
+/// - The `library` pointer must be the pointer given by Godot at initialisation.
+/// - This function must not be called from multiple threads.
+/// - This funnction must be called before any use of [`get_library`].
 pub unsafe fn set_library(library: GDNativeExtensionClassLibraryPtr) {
     LIBRARY = MaybeUninit::new(library);
 }
 
+/// # Safety
+///
+/// The library must have been initialised with [`set_library`] before calling this function.
 #[inline(always)]
 pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
     *LIBRARY.as_ptr()

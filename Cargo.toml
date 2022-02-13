@@ -3,5 +3,8 @@ members = [
     "gdext-sys",
     "gdext-builtin",
     "gdext-codegen",
-    "gdext-class"
+    "gdext-class",
+
+    # test project
+    "test-project/native"
 ]

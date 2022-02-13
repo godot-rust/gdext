@@ -9,6 +9,6 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-gdext-sys = { path = "../../gdext-rust/gdext-sys" }
-gdext-builtin = { path = "../../gdext-rust/gdext-builtin" }
-gdext-class = { path = "../../gdext-rust/gdext-class" }
+gdext-sys = { path = "../../gdext-sys" }
+gdext-builtin = { path = "../../gdext-builtin" }
+gdext-class = { path = "../../gdext-class" }

@@ -1,4 +1,6 @@
-use gdext_builtin::{string::GodotString, variant::Variant, vector2::Vector2, vector3::Vector3};
+use gdext_builtin::{
+    string::GodotString, variant::Variant, vector2::Vector2, vector3::Vector3, PtrCallArg,
+};
 use gdext_class::*;
 use gdext_sys::{self as sys, interface_fn};
 
@@ -6,10 +8,9 @@ pub struct Node3D(sys::GDNativeObjectPtr);
 
 impl GodotClass for Node3D {
     type Base = Node3D;
-    const IS_REFERENCE_COUNTED: bool = false;
 
-    fn class_name() -> &'static str {
-        "Node3D"
+    fn class_name() -> String {
+        "Node3D".to_string()
     }
 
     fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
@@ -31,10 +32,9 @@ pub struct RustTest {
 
 impl GodotClass for RustTest {
     type Base = Node3D;
-    const IS_REFERENCE_COUNTED: bool = Self::Base::IS_REFERENCE_COUNTED;
 
-    fn class_name() -> &'static str {
-        "RustTest"
+    fn class_name() -> String {
+        "RustTest".to_string()
     }
 
     fn upcast(&self) -> &Self::Base {
@@ -52,14 +52,25 @@ impl GodotExtensionClass for RustTest {
     }
 }
 
+impl RustTest {
+    fn test_method(&mut self, some_int: u64, some_string: GodotString) -> GodotString {
+        let msg = format!("Hello from `RustTest.test_method()`, you passed some_int={some_int} and some_string={some_string}");
+        msg.into()
+    }
+
+    fn add(&self, a: i32, b: i32) -> i64 {
+        a as i64 + b as i64
+    }
+}
+
 impl GodotExtensionClassMethods for RustTest {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
         match name {
             "_ready" => Some({
                 unsafe extern "C" fn call(
-                    inst: sys::GDExtensionClassInstancePtr,
-                    args: *const sys::GDNativeTypePtr,
-                    ret: sys::GDNativeTypePtr,
+                    _inst: sys::GDExtensionClassInstancePtr,
+                    _args: *const sys::GDNativeTypePtr,
+                    _ret: sys::GDNativeTypePtr,
                 ) {
                     eprintln!("hello!!");
                 }
@@ -69,10 +80,10 @@ impl GodotExtensionClassMethods for RustTest {
                 unsafe extern "C" fn call(
                     inst: sys::GDExtensionClassInstancePtr,
                     args: *const sys::GDNativeTypePtr,
-                    ret: sys::GDNativeTypePtr,
+                    _ret: sys::GDNativeTypePtr,
                 ) {
                     let _inst = &mut *(inst as *mut RustTest);
-                    let delta = *(*args as *const f64);
+                    let _delta = f64::from_ptr_call_arg(args.offset(0));
 
                     //dbg!(delta);
                 }
@@ -80,6 +91,16 @@ impl GodotExtensionClassMethods for RustTest {
             }),
             _ => None,
         }
+    }
+
+    fn register_methods() {
+        gdext_wrap_method!(RustTest,
+            fn test_method(&mut self, some_int: u64, some_string: GodotString) -> GodotString
+        );
+
+        gdext_wrap_method!(RustTest,
+            fn add(&self, a: i32, b: i32) -> i64
+        );
     }
 }
 
