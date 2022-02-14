@@ -29,8 +29,7 @@ pub trait GodotExtensionClassMethods {
     fn register_methods();
 }
 
-/// # Safety
-pub unsafe fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
+pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
     let creation_info = sys::GDNativeExtensionClassCreationInfo {
         set_func: None,
         get_func: None,
@@ -116,12 +115,14 @@ pub unsafe fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods
     let class_name = format!("{}\0", T::class_name());
     let parent_class_name = format!("{}\0", T::Base::class_name());
 
-    interface_fn!(classdb_register_extension_class)(
-        sys::get_library(),
-        class_name.as_ptr() as *const _,
-        parent_class_name.as_ptr() as *const _,
-        &creation_info as *const _,
-    );
+    unsafe {
+        interface_fn!(classdb_register_extension_class)(
+            sys::get_library(),
+            class_name.as_ptr() as *const _,
+            parent_class_name.as_ptr() as *const _,
+            &creation_info as *const _,
+        );
+    }
 
     T::register_methods();
 }

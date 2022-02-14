@@ -1,4 +1,7 @@
-use gdext_builtin::{string::GodotString, variant::Variant, vector2::Vector2, vector3::Vector3};
+use gdext_builtin::{
+    gdext_init, gdext_print_warning, string::GodotString, variant::Variant, vector2::Vector2,
+    vector3::Vector3, InitLevel,
+};
 use gdext_class::*;
 use gdext_sys::{self as sys, interface_fn};
 
@@ -69,7 +72,7 @@ impl RustTest {
     }
 
     fn _ready(&mut self) {
-        eprintln!("Hello from _ready()!");
+        gdext_print_warning!("Hello from _ready()!");
     }
 
     fn _process(&mut self, delta: f64) {
@@ -107,54 +110,13 @@ impl GodotExtensionClassMethods for RustTest {
     }
 }
 
-#[no_mangle]
-unsafe extern "C" fn gdext_rust_test(
-    interface: *const sys::GDNativeInterface,
-    library: sys::GDNativeExtensionClassLibraryPtr,
-    init: *mut sys::GDNativeInitialization,
-) {
-    sys::set_interface(interface);
-    sys::set_library(library);
+gdext_init!(gdext_rust_test, |init: &mut gdext_builtin::InitOptions| {
+    init.register_init_function(InitLevel::Scene, || {
+        register_class::<RustTest>();
 
-    *init = sys::GDNativeInitialization {
-        minimum_initialization_level:
-            sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_SCENE,
-        userdata: std::ptr::null_mut(),
-        initialize: Some(initialise),
-        deinitialize: Some(deinitialise),
-    };
-
-    interface_fn!(print_warning)(
-        b"Hello there!\0".as_ptr() as *const _,
-        b"gdext_rust_test\0".as_ptr() as *const _,
-        concat!(file!(), "\0").as_ptr() as *const _,
-        line!() as _,
-    );
-
-    variant_tests();
-
-    eprintln!("teeest");
-}
-
-unsafe extern "C" fn initialise(
-    _userdata: *mut std::ffi::c_void,
-    init_level: sys::GDNativeInitializationLevel,
-) {
-    eprintln!("hello from initialise with level {}", init_level);
-
-    if init_level != sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_SCENE {
-        return;
-    }
-
-    register_class::<RustTest>();
-}
-
-extern "C" fn deinitialise(
-    _userdata: *mut std::ffi::c_void,
-    init_level: sys::GDNativeInitializationLevel,
-) {
-    eprintln!("hello from deinitialise with level {}", init_level);
-}
+        variant_tests();
+    });
+});
 
 fn variant_tests() {
     let _v = Variant::nil();
