@@ -61,6 +61,7 @@ impl InitOptions {
 
     pub fn register_init_function(&mut self, level: InitLevel, f: impl FnOnce() + 'static) {
         self.init_levels.insert(level, Box::new(f));
+        self.lowest_level = self.lowest_level.min(level);
     }
 
     pub fn register_deinit_function(&mut self, level: InitLevel, f: impl FnOnce() + 'static) {
