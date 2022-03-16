@@ -38,7 +38,7 @@ macro_rules! gdext_wrap_method_inner {
             const NUM_ARGS: usize = gdext_wrap_method_parameter_count!($($pname,)*);
 
             let method_info = sys::GDNativeExtensionClassMethodInfo {
-                name: concat!(stringify!($method_name), "\0").as_bytes().as_ptr() as *const _,
+                name: concat!(stringify!($method_name), "\0").as_ptr() as *const i8,
                 method_userdata: std::ptr::null_mut(),
                 call_func: Some({
                     unsafe extern "C" fn call(
