@@ -67,6 +67,10 @@ impl RustTest {
         a as i64 + b as i64 + c.length() as i64
     }
 
+    fn print_int(&self, i: i8) {
+        println!("printing int: {i}");
+    }
+
     fn vec_add(&self, a: Vector2, b: Vector2) -> Vector2 {
         a + b
     }
@@ -102,6 +106,10 @@ impl GodotExtensionClassMethods for RustTest {
 
         gdext_wrap_method!(RustTest,
             fn add(&self, a: i32, b: i32, c: Vector2) -> i64
+        );
+
+        gdext_wrap_method!(RustTest,
+            fn print_int(&self, i: i8)
         );
 
         gdext_wrap_method!(RustTest,
