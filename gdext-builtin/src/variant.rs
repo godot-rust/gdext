@@ -283,4 +283,10 @@ mod conversions {
             }
         }
     }
+
+    impl From<()> for Variant {
+        fn from(_unit: ()) -> Self {
+            Self::nil()
+        }
+    }
 }

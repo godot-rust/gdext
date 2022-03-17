@@ -19,6 +19,12 @@ pub trait PropertyInfoBuilder {
     }
 }
 
+impl PropertyInfoBuilder for () {
+    fn variant_type() -> gdext_sys::GDNativeVariantType {
+        gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_NIL
+    }
+}
+
 impl PropertyInfoBuilder for GodotString {
     fn variant_type() -> gdext_sys::GDNativeVariantType {
         gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING
