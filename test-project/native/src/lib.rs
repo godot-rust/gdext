@@ -5,6 +5,9 @@ use gdext_builtin::{
 use gdext_class::*;
 use gdext_sys::{self as sys, interface_fn};
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Node3D (base)
+
 pub struct Node3D(sys::GDNativeObjectPtr);
 
 impl GodotClass for Node3D {
@@ -26,6 +29,35 @@ impl GodotClass for Node3D {
         self
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// RefCounted (base)
+
+#[derive(Debug)]
+pub struct RefCounted(sys::GDNativeObjectPtr);
+
+impl GodotClass for RefCounted {
+    type Base = RefCounted;
+
+    fn class_name() -> String {
+        "RefCounted".to_string()
+    }
+
+    fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
+        self.0
+    }
+
+    fn upcast(&self) -> &Self::Base {
+        self
+    }
+
+    fn upcast_mut(&mut self) -> &mut Self::Base {
+        self
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// RustTest
 
 pub struct RustTest {
     base: Node3D,
@@ -50,6 +82,8 @@ impl GodotClass for RustTest {
 
 impl GodotExtensionClass for RustTest {
     fn construct(base: sys::GDNativeObjectPtr) -> Self {
+        println!("[RustTest] construct");
+
         RustTest {
             base: Node3D(base),
             time: 0.0,
@@ -67,12 +101,12 @@ impl RustTest {
         a as i64 + b as i64 + c.length() as i64
     }
 
-    fn print_int(&self, i: i8) {
-        println!("printing int: {i}");
-    }
-
     fn vec_add(&self, a: Vector2, b: Vector2) -> Vector2 {
         a + b
+    }
+
+    fn accept_obj(&self, obj: Obj<Entity>) {
+        println!("Accepted obj:\n\t{:?}", obj.inner())
     }
 
     fn _ready(&mut self) {
@@ -92,6 +126,8 @@ impl RustTest {
 
 impl GodotExtensionClassMethods for RustTest {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
+        println!("[RustTest] virtual_call: {name}");
+
         match name {
             "_ready" => gdext_virtual_method_body!(RustTest, fn _ready(&mut self)),
             "_process" => gdext_virtual_method_body!(RustTest, fn _process(&mut self, delta: f64)),
@@ -100,6 +136,12 @@ impl GodotExtensionClassMethods for RustTest {
     }
 
     fn register_methods() {
+        println!("[RustTest] register_methods");
+
+        gdext_wrap_method!(RustTest,
+            fn accept_obj(&self, obj: Obj<Entity>)
+        );
+
         gdext_wrap_method!(RustTest,
             fn test_method(&mut self, some_int: u64, some_string: GodotString) -> GodotString
         );
@@ -109,18 +151,71 @@ impl GodotExtensionClassMethods for RustTest {
         );
 
         gdext_wrap_method!(RustTest,
-            fn print_int(&self, i: i8)
-        );
-
-        gdext_wrap_method!(RustTest,
             fn vec_add(&self, a: Vector2, b: Vector2) -> Vector2
         );
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Entity
+
+#[derive(Debug)]
+pub struct Entity {
+    base: RefCounted,
+    name: String,
+    hitpoints: i32,
+}
+
+impl GodotClass for Entity {
+    type Base = RefCounted;
+
+    fn class_name() -> String {
+        "Entity".to_string()
+    }
+
+    fn upcast(&self) -> &Self::Base {
+        &self.base
+    }
+
+    fn upcast_mut(&mut self) -> &mut Self::Base {
+        &mut self.base
+    }
+}
+
+impl GodotExtensionClass for Entity {
+    fn construct(base: sys::GDNativeObjectPtr) -> Self {
+        Entity {
+            base: RefCounted(base),
+            name: "No name yet".to_string(),
+            hitpoints: 100,
+        }
+    }
+}
+
+impl GodotExtensionClassMethods for Entity {
+    fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
+        match name {
+            //"_ready" => gdext_virtual_method_body!(RustTest, fn _ready(&mut self)),
+            _ => None,
+        }
+    }
+
+    fn register_methods() {
+        //gdext_wrap_method!(Entity,
+        //    fn test_method(&mut self, some_int: u64, some_string: GodotString) -> GodotString
+        //);
+    }
+}
+
+impl Entity {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Init + Test
+
 gdext_init!(gdext_rust_test, |init: &mut gdext_builtin::InitOptions| {
     init.register_init_function(InitLevel::Scene, || {
         register_class::<RustTest>();
+        register_class::<Entity>();
 
         variant_tests();
     });

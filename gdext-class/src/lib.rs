@@ -3,7 +3,10 @@ use std::ffi::CStr;
 use gdext_sys::{self as sys, interface_fn};
 
 pub mod macros;
+mod obj;
 pub mod property_info;
+
+pub use obj::*;
 
 pub trait GodotClass {
     type Base: GodotClass;
