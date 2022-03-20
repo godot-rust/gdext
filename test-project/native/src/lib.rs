@@ -109,8 +109,29 @@ impl RustTest {
         println!("Accepted obj:\n\t{:?}", obj.inner())
     }
 
+    fn return_obj(&self) -> Obj<Entity> {
+        println!("Return obj");
+
+        /* let entity: Entity = todo!();
+        let boks = Box::new(entity);
+        let eternal = Box::leak(boks);
+        let user_data = eternal as *mut Entity as *mut _;
+
+        let ptr = unsafe { instantiate_obj::<Entity>(user_data) };*/
+
+        let ptr = unsafe {
+            interface_fn!(classdb_construct_object)("Entity\0".as_ptr() as *const _)
+        };
+        //let instance = Box::new(T::construct(obj));
+        //let instance_ptr = Box::into_raw(instance);
+
+        println!("Return obj 2: {:?}", ptr);
+        Obj::from_sys(ptr)
+    }
+
     fn _ready(&mut self) {
-        gdext_print_warning!("Hello from _ready()!");
+        //gdext_print_warning!("Hello from _ready()!");
+        println!("[Rust] _ready()");
     }
 
     fn _process(&mut self, delta: f64) {
@@ -140,6 +161,10 @@ impl GodotExtensionClassMethods for RustTest {
 
         gdext_wrap_method!(RustTest,
             fn accept_obj(&self, obj: Obj<Entity>)
+        );
+
+        gdext_wrap_method!(RustTest,
+            fn return_obj(&self) -> Obj<Entity>
         );
 
         gdext_wrap_method!(RustTest,
@@ -174,16 +199,20 @@ impl GodotClass for Entity {
     }
 
     fn upcast(&self) -> &Self::Base {
-        &self.base
+        todo!()
+        //&self.base
     }
 
     fn upcast_mut(&mut self) -> &mut Self::Base {
-        &mut self.base
+        //&mut self.base
+        todo!()
     }
 }
 
 impl GodotExtensionClass for Entity {
     fn construct(base: sys::GDNativeObjectPtr) -> Self {
+        println!("[Entity] construct");
+
         Entity {
             base: RefCounted(base),
             name: "No name yet".to_string(),

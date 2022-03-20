@@ -18,4 +18,8 @@ func _ready():
 	var res_vec := rust_test.vec_add(Vector2(1, 2), Vector2(3, 4))
 	print(res_vec)
 
+
+	var obj = rust_test.return_obj()
+	print("obj has value: ", obj)
+
 	print("[GDScript] end _ready")

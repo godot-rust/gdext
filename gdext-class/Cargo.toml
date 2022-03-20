@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 gdext-sys = { path = "../gdext-sys" }
 gdext-builtin = { path = "../gdext-builtin" }
+once_cell = "1.8"

@@ -129,3 +129,35 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
 
     T::register_methods();
 }
+
+pub unsafe extern "C" fn do_instance<T: GodotExtensionClass>(
+    _class_userdata: *mut std::ffi::c_void,
+) -> *mut std::ffi::c_void {
+    let class_name = format!("{}\0", T::class_name());
+    let parent_class_name = format!("{}\0", T::Base::class_name());
+
+    let obj = interface_fn!(classdb_construct_object)(parent_class_name.as_ptr() as *const _);
+    let instance = Box::new(T::construct(obj));
+    let instance_ptr = Box::into_raw(instance);
+
+    interface_fn!(object_set_instance)(
+        obj,
+        class_name.as_ptr() as *const _,
+        instance_ptr as *mut _,
+    );
+
+    let binding_data_callbacks = sys::GDNativeInstanceBindingCallbacks {
+        create_callback: None,
+        free_callback: None,
+        reference_callback: None,
+    };
+
+    interface_fn!(object_set_instance_binding)(
+        obj,
+        sys::get_library() as *mut _,
+        instance_ptr as *mut _,
+        &binding_data_callbacks,
+    );
+
+    obj
+}
