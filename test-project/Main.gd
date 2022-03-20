@@ -12,6 +12,7 @@ func _init():
 
 func _ready():
 	print("[GDScript] _ready")
+	print("self._to_string(): ", self)
 
 	var msg := rust_test.test_method(12, "hello from GDScript")
 	print(msg)
@@ -21,8 +22,8 @@ func _ready():
 	print(res_vec)
 
 	var obj = rust_test.return_obj()
-	print("obj has value: ", obj)
-	print("obj has _to_string(): ", obj._to_string())
+	print("obj._to_string(): ", obj)
+	print("obj._to_string() [explicit]: ", obj._to_string())
 
 	print("[GDScript] end _ready")
 

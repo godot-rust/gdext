@@ -1,3 +1,4 @@
+use std::ffi::CString;
 use std::{convert::Infallible, mem::MaybeUninit, str::FromStr};
 
 use gdext_sys::{self as sys, interface_fn};
@@ -22,9 +23,21 @@ impl GodotString {
     pub fn as_mut_ptr(&mut self) -> sys::GDNativeStringPtr {
         self.0.as_mut_ptr() as *mut _
     }
+
     #[doc(hidden)]
     pub fn as_ptr(&self) -> sys::GDNativeStringPtr {
         self.0.as_ptr() as *mut _
+    }
+
+    #[doc(hidden)]
+    pub fn as_c_string(&self) -> *const std::os::raw::c_char {
+        // TODO make this less hacky and leaky
+        let s: String = self.into();
+
+        let c = CString::new(s).unwrap();
+        let ptr = c.as_ptr();
+        std::mem::forget(c);
+        ptr
     }
 
     pub fn new() -> Self {
@@ -90,17 +103,23 @@ impl From<&str> for GodotString {
 
 impl std::fmt::Display for GodotString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = unsafe {
-            let len = interface_fn!(string_to_utf8_chars)(self.as_ptr(), std::ptr::null_mut(), 0);
+        let s = String::from(self);
+        f.write_str(s.as_str())
+    }
+}
+
+impl From<&GodotString> for String {
+    fn from(string: &GodotString) -> Self {
+        unsafe {
+            let len = interface_fn!(string_to_utf8_chars)(string.as_ptr(), std::ptr::null_mut(), 0);
 
             assert!(len >= 0);
             let mut buf = vec![0u8; len as usize];
 
-            interface_fn!(string_to_utf8_chars)(self.as_ptr(), buf.as_mut_ptr() as *mut i8, len);
+            interface_fn!(string_to_utf8_chars)(string.as_ptr(), buf.as_mut_ptr() as *mut i8, len);
 
             String::from_utf8_unchecked(buf)
-        };
-        f.write_str(s.as_str())
+        }
     }
 }
 

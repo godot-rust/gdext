@@ -1,3 +1,4 @@
+use gdext_builtin::string::GodotString;
 use std::ffi::CStr;
 
 use gdext_sys::{self as sys, interface_fn};
@@ -25,11 +26,17 @@ pub trait GodotExtensionClass: GodotClass {
 
     fn reference(&mut self) {}
     fn unreference(&mut self) {}
+    fn has_to_string() -> bool {
+        false
+    }
 }
 
 pub trait GodotExtensionClassMethods {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual;
     fn register_methods();
+    fn to_string(&self) -> GodotString {
+        GodotString::new()
+    }
 }
 
 pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
@@ -39,7 +46,21 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
         get_property_list_func: None,
         free_property_list_func: None,
         notification_func: None,
-        to_string_func: None,
+        to_string_func: if T::has_to_string() {
+            Some({
+                unsafe extern "C" fn to_string<T: GodotExtensionClassMethods>(
+                    instance: *mut std::ffi::c_void,
+                ) -> *const std::os::raw::c_char {
+                    let instance = &mut *(instance as *mut T);
+                    let string = instance.to_string();
+
+                    string.as_c_string()
+                }
+                to_string::<T>
+            })
+        } else {
+            None
+        },
         reference_func: Some({
             unsafe extern "C" fn reference<T: GodotExtensionClass>(
                 instance: *mut std::ffi::c_void,

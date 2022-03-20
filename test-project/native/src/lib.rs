@@ -218,14 +218,19 @@ impl GodotExtensionClass for Entity {
             hitpoints: 100,
         }
     }
+
+    fn has_to_string() -> bool {
+        true
+    }
 }
 
 impl GodotExtensionClassMethods for Entity {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
+        println!("[Entity] virtual_call: {name}");
         match name {
-            "_to_string" => {
-                gdext_virtual_method_body!(Entity, fn _to_string(&mut self) -> GodotString)
-            }
+            //"xy" => {
+            //    gdext_virtual_method_body!(Entity, fn xy(&mut self))
+            //}
             _ => None,
         }
     }
@@ -235,15 +240,15 @@ impl GodotExtensionClassMethods for Entity {
             fn _to_string(&mut self) -> GodotString
         );
     }
+
+    fn to_string(&self) -> GodotString {
+        return self._to_string()
+    }
 }
 
 impl Entity {
-    fn _to_string(&mut self) -> GodotString {
-        //gdext_print_warning!("Hello from _ready()!");
-        println!("[Entity] _to_string()");
-
-        let s = format!("{:?}", self);
-        GodotString::from(&s)
+    fn _to_string(&self) -> GodotString {
+        format!("{self:?}").into()
     }
 }
 
