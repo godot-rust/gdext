@@ -119,9 +119,8 @@ impl RustTest {
 
         let ptr = unsafe { instantiate_obj::<Entity>(user_data) };*/
 
-        let ptr = unsafe {
-            interface_fn!(classdb_construct_object)("Entity\0".as_ptr() as *const _)
-        };
+        let ptr =
+            unsafe { interface_fn!(classdb_construct_object)("Entity\0".as_ptr() as *const _) };
         //let instance = Box::new(T::construct(obj));
         //let instance_ptr = Box::into_raw(instance);
 
@@ -224,19 +223,29 @@ impl GodotExtensionClass for Entity {
 impl GodotExtensionClassMethods for Entity {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
         match name {
-            //"_ready" => gdext_virtual_method_body!(RustTest, fn _ready(&mut self)),
+            "_to_string" => {
+                gdext_virtual_method_body!(Entity, fn _to_string(&mut self) -> GodotString)
+            }
             _ => None,
         }
     }
 
     fn register_methods() {
-        //gdext_wrap_method!(Entity,
-        //    fn test_method(&mut self, some_int: u64, some_string: GodotString) -> GodotString
-        //);
+        gdext_wrap_method!(Entity,
+            fn _to_string(&mut self) -> GodotString
+        );
     }
 }
 
-impl Entity {}
+impl Entity {
+    fn _to_string(&mut self) -> GodotString {
+        //gdext_print_warning!("Hello from _ready()!");
+        println!("[Entity] _to_string()");
+
+        let s = format!("{:?}", self);
+        GodotString::from(&s)
+    }
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Init + Test

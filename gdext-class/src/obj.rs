@@ -47,7 +47,7 @@ impl<T: GodotExtensionClass> From<Obj<T>> for Variant {
 
             println!("Convert to variant: {:?}", obj.opaque_ptr);
 
-//            CONSTR(v.as_mut_ptr(), &obj.opaque_ptr as *mut _);
+            // CONSTR(v.as_mut_ptr(), &obj.opaque_ptr as *mut _);
             CONSTR(v.as_mut_ptr(), &obj.opaque_ptr as *const _ as *mut _);
 
             //todo!("variant not yet impl");

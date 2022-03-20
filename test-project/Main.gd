@@ -21,5 +21,8 @@ func _ready():
 
 	var obj = rust_test.return_obj()
 	print("obj has value: ", obj)
+	print("obj has _to_string(): ", obj._to_string())
 
 	print("[GDScript] end _ready")
+
+	get_tree().quit()
