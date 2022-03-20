@@ -2,6 +2,7 @@ use std::mem::MaybeUninit;
 
 use gdext_sys::{self as sys, interface_fn};
 
+// Size is dependent on type and build config, can be read from a JSON in the future
 #[cfg(not(feature = "real_is_double"))]
 const SIZE_IN_BYTES: u64 = 24;
 #[cfg(feature = "real_is_double")]

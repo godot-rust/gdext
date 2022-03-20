@@ -6,6 +6,7 @@ use once_cell::sync::Lazy;
 
 use crate::PtrCallArg;
 
+// Size is dependent on type and build config, can be read from a JSON in the future
 #[cfg(target_pointer_width = "32")]
 const SIZE_IN_BYTES: u64 = 4;
 #[cfg(target_pointer_width = "64")]

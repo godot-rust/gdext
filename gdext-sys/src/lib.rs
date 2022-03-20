@@ -58,9 +58,6 @@ pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
 #[doc(hidden)]
 macro_rules! interface_fn {
     ($name:ident) => {{
-        fn unoption<T>(x: &Option<T>) -> &T {
-            unsafe { std::mem::transmute(x) }
-        }
-        (unoption(&$crate::get_interface().$name))
+        unsafe { $crate::get_interface().$name.unwrap_unchecked() }
     }};
 }
