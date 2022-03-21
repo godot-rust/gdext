@@ -1,9 +1,24 @@
 use gdext_builtin::{
-    gdext_init, gdext_print_warning, string::GodotString, variant::Variant, vector2::Vector2,
-    vector3::Vector3, InitLevel,
+    gdext_init, string::GodotString, variant::Variant, vector2::Vector2, vector3::Vector3,
+    InitLevel,
 };
 use gdext_class::*;
 use gdext_sys::{self as sys, interface_fn};
+
+#[cfg(feature = "trace")]
+macro_rules! log {
+    ()                          => (println!());
+    ($fmt:literal)              => (println!($fmt));
+    ($fmt:literal, $($arg:tt)*) => (println!($fmt, ($($arg)*));)
+}
+
+#[cfg(not(feature = "trace"))]
+// TODO find a better way than sink-writing to avoid warnings, #[allow(unused_variables)] doesn't work
+macro_rules! log {
+    ()                          => ({});
+    ($fmt:literal)              => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt); });
+    ($fmt:literal, $($arg:tt)*) => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt, ($($arg)*)); };)
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Node3D (base)
@@ -82,7 +97,7 @@ impl GodotClass for RustTest {
 
 impl GodotExtensionClass for RustTest {
     fn construct(base: sys::GDNativeObjectPtr) -> Self {
-        println!("[RustTest] construct");
+        log!("[RustTest] construct");
 
         RustTest {
             base: Node3D(base),
@@ -106,11 +121,11 @@ impl RustTest {
     }
 
     fn accept_obj(&self, obj: Obj<Entity>) {
-        println!("Accepted obj with id {:x}", obj.instance_id());
+        log!("[RustTest] accept_obj: id={:x}", obj.instance_id());
     }
 
     fn return_obj(&self) -> Obj<Entity> {
-        println!("Return obj");
+        log!("[RustTest] return_obj()");
 
         /* let entity: Entity = todo!();
         let boks = Box::new(entity);
@@ -123,14 +138,11 @@ impl RustTest {
             unsafe { interface_fn!(classdb_construct_object)("Entity\0".as_ptr() as *const _) };
         //let instance = Box::new(T::construct(obj));
         //let instance_ptr = Box::into_raw(instance);
-
-        println!("Return obj 2: {:?}", ptr);
         Obj::from_sys(ptr)
     }
 
     fn _ready(&mut self) {
-        //gdext_print_warning!("Hello from _ready()!");
-        println!("[Rust] _ready()");
+        log!("[RustTest] _ready()");
     }
 
     fn _process(&mut self, delta: f64) {
@@ -139,14 +151,14 @@ impl RustTest {
         let mod_after = self.time % 1.0;
 
         if mod_before > mod_after {
-            eprintln!("Boop! {}", self.time);
+            log!("[RustTest] _process(): {}", self.time);
         }
     }
 }
 
 impl GodotExtensionClassMethods for RustTest {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-        println!("[RustTest] virtual_call: {name}");
+        log!("[RustTest] virtual_call: {name}");
 
         match name {
             "_ready" => gdext_virtual_method_body!(RustTest, fn _ready(&mut self)),
@@ -156,7 +168,7 @@ impl GodotExtensionClassMethods for RustTest {
     }
 
     fn register_methods() {
-        println!("[RustTest] register_methods");
+        log!("[RustTest] register_methods");
 
         gdext_wrap_method!(RustTest,
             fn accept_obj(&self, obj: Obj<Entity>)
@@ -210,7 +222,7 @@ impl GodotClass for Entity {
 
 impl GodotExtensionClass for Entity {
     fn construct(base: sys::GDNativeObjectPtr) -> Self {
-        println!("[Entity] construct");
+        log!("[Entity] construct");
 
         Entity {
             base: RefCounted(base),
@@ -226,7 +238,7 @@ impl GodotExtensionClass for Entity {
 
 impl GodotExtensionClassMethods for Entity {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-        println!("[Entity] virtual_call: {name}");
+        log!("[Entity] virtual_call: {name}");
         match name {
             //"xy" => {
             //    gdext_virtual_method_body!(Entity, fn xy(&mut self))

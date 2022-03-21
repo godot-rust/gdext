@@ -8,6 +8,10 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+default = []
+trace = []
+
 [dependencies]
 gdext-sys = { path = "../../gdext-sys" }
 gdext-builtin = { path = "../../gdext-builtin" }
