@@ -1,27 +1,40 @@
 use crate::property_info::PropertyInfoBuilder;
-use crate::{sys, GodotExtensionClass};
+use crate::{sys, sys::interface_fn, GodotExtensionClass};
 use gdext_builtin::variant::Variant;
 use gdext_builtin::PtrCallArg;
-use gdext_sys::interface_fn;
 use once_cell::sync::Lazy;
 use std::marker::PhantomData;
 
 pub struct Obj<T: GodotExtensionClass> {
-    opaque_ptr: *mut std::ffi::c_void,
-    _internal: PhantomData<*const T>,
+    // Note: this may not be a pointer behind the scenes -- consider using an opaque [u8; SIZE_FROM_JSON]
+    opaque_ptr: *mut std::ffi::c_void, // this is a sys::GDNativeObjectPtr
+    _marker: PhantomData<*const T>,
 }
 
 impl<T: GodotExtensionClass> Obj<T> {
-    pub fn from_sys(ptr: gdext_sys::GDNativeObjectPtr) -> Self {
+    pub fn from_sys(ptr: sys::GDNativeObjectPtr) -> Self {
         Self {
             opaque_ptr: ptr,
-            _internal: PhantomData,
+            _marker: PhantomData,
         }
     }
 
     // explicit deref for testing purposes
     pub fn inner(&self) -> &T {
         todo!()
+    }
+
+    pub fn instance_id(&self) -> u64 {
+        unsafe {
+            interface_fn!(object_get_instance_id)(self.opaque_ptr)
+        }
+    }
+
+    pub fn from_instance_id(instance_id: u64) -> Self {
+        unsafe {
+            let ptr = interface_fn!(object_get_instance_from_id)(instance_id);
+            Obj::from_sys(ptr)
+        }
     }
 }
 
@@ -43,14 +56,10 @@ impl<T: GodotExtensionClass> From<Obj<T>> for Variant {
                 .unwrap()
             });
             let mut v = Variant::uninit();
-            //CONSTR(v.as_mut_ptr(), &obj as *const _ as *mut _);
 
             println!("Convert to variant: {:?}", obj.opaque_ptr);
-
-            // CONSTR(v.as_mut_ptr(), &obj.opaque_ptr as *mut _);
             CONSTR(v.as_mut_ptr(), &obj.opaque_ptr as *const _ as *mut _);
 
-            //todo!("variant not yet impl");
             v
         }
     }

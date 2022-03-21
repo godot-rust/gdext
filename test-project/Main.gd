@@ -25,6 +25,12 @@ func _ready():
 	print("obj._to_string(): ", obj)
 	print("obj._to_string() [explicit]: ", obj._to_string())
 
+	var id = obj.get_instance_id()
+	var obj2 = instance_from_id(id)
+	print("obj2._to_string(): ", obj2)
+
+	rust_test.accept_obj(obj)
+
 	print("[GDScript] end _ready")
 
 	var gd = GdClass.new()
