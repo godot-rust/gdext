@@ -2,6 +2,7 @@ use crate::property_info::PropertyInfoBuilder;
 use crate::{sys, sys::interface_fn, GodotExtensionClass};
 use gdext_builtin::variant::Variant;
 use gdext_builtin::PtrCallArg;
+use gdext_sys::GDNativeObjectPtr;
 use once_cell::sync::Lazy;
 use std::marker::PhantomData;
 
@@ -25,9 +26,7 @@ impl<T: GodotExtensionClass> Obj<T> {
     }
 
     pub fn instance_id(&self) -> u64 {
-        unsafe {
-            interface_fn!(object_get_instance_id)(self.opaque_ptr)
-        }
+        unsafe { interface_fn!(object_get_instance_id)(self.opaque_ptr) }
     }
 
     pub fn from_instance_id(instance_id: u64) -> Self {
@@ -39,8 +38,23 @@ impl<T: GodotExtensionClass> Obj<T> {
 }
 
 impl<T: GodotExtensionClass> From<&Variant> for Obj<T> {
-    fn from(var: &Variant) -> Self {
-        todo!()
+    fn from(v: &Variant) -> Self {
+        unsafe {
+            static CONSTR: Lazy<
+                unsafe extern "C" fn(sys::GDNativeTypePtr, sys::GDNativeVariantPtr),
+            > = Lazy::new(|| unsafe {
+                interface_fn!(get_variant_to_type_constructor)(
+                    sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_OBJECT,
+                )
+                .unwrap()
+            });
+
+            let mut field = [0 as u8; std::mem::size_of::<GDNativeObjectPtr>()];
+            CONSTR(&mut field as *mut _ as *mut _, v.as_ptr());
+            let ptr = *(&mut field as *mut _ as *mut _);
+
+            Obj::from_sys(ptr)
+        }
     }
 }
 

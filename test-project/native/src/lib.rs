@@ -107,7 +107,7 @@ impl RustTest {
 
     fn accept_obj(&self, obj: Obj<Entity>) {
         println!("Accepted obj with a id: {}", obj.instance_id())
-//        println!("Accepted obj with id:\n\t{:?}", obj.inner())
+        //        println!("Accepted obj with id:\n\t{:?}", obj.inner())
     }
 
     fn return_obj(&self) -> Obj<Entity> {
@@ -243,7 +243,7 @@ impl GodotExtensionClassMethods for Entity {
     }
 
     fn to_string(&self) -> GodotString {
-        return self._to_string()
+        return self._to_string();
     }
 }
 
