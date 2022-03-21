@@ -25,11 +25,7 @@ func _ready():
 	print("obj._to_string(): ", obj)
 	print("obj._to_string() [explicit]: ", obj._to_string())
 
-	var id = obj.get_instance_id()
-	print("instance id: ", id)
-	var obj2 = instance_from_id(id)
-	print("obj2._to_string(): ", obj2)
-
+	print_instance_id(obj)
 	rust_test.accept_obj(obj)
 
 	print("[GDScript] end _ready")
@@ -38,3 +34,10 @@ func _ready():
 	print("gd: ", gd)
 
 	get_tree().quit()
+
+
+func print_instance_id(obj):
+	var full = obj.get_instance_id()
+	var low = full & 0xFFFFFFFF
+	var high = (full / 4294967296) & 0xFFFFFFFF # Not '>> 32' because GDScript disallows shift of negative numbers
+	print("instance id: %x%x" % [high, low])

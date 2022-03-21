@@ -106,8 +106,7 @@ impl RustTest {
     }
 
     fn accept_obj(&self, obj: Obj<Entity>) {
-        println!("Accepted obj with a id: {}", obj.instance_id())
-        //        println!("Accepted obj with id:\n\t{:?}", obj.inner())
+        println!("Accepted obj with id {:x}", obj.instance_id());
     }
 
     fn return_obj(&self) -> Obj<Entity> {

@@ -49,11 +49,9 @@ impl<T: GodotExtensionClass> From<&Variant> for Obj<T> {
                 .unwrap()
             });
 
-            let mut field = [0 as u8; std::mem::size_of::<GDNativeObjectPtr>()];
-            CONSTR(&mut field as *mut _ as *mut _, v.as_ptr());
-            let ptr = *(&mut field as *mut _ as *mut _);
-
-            Obj::from_sys(ptr)
+            let mut opaque = std::mem::MaybeUninit::<GDNativeObjectPtr>::uninit();
+            CONSTR(opaque.as_mut_ptr() as *mut _, v.as_ptr());
+            Obj::from_sys(opaque.assume_init())
         }
     }
 }
