@@ -9,7 +9,7 @@ use gdext_sys::{self as sys, interface_fn};
 macro_rules! log {
     ()                          => (println!());
     ($fmt:literal)              => (println!($fmt));
-    ($fmt:literal, $($arg:tt)*) => (println!($fmt, ($($arg)*));)
+    ($fmt:literal, $($arg:tt)*) => (println!($fmt, $($arg)*);)
 }
 
 #[cfg(not(feature = "trace"))]
@@ -17,7 +17,7 @@ macro_rules! log {
 macro_rules! log {
     ()                          => ({});
     ($fmt:literal)              => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt); });
-    ($fmt:literal, $($arg:tt)*) => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt, ($($arg)*)); };)
+    ($fmt:literal, $($arg:tt)*) => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt, $($arg)*); };)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -121,7 +121,8 @@ impl RustTest {
     }
 
     fn accept_obj(&self, obj: Obj<Entity>) {
-        log!("[RustTest] accept_obj: id={:x}", obj.instance_id());
+        //log!("[RustTest] accept_obj: id={:x}, dec={}", obj.instance_id(), obj.instance_id() as i64);
+        log!("[RustTest] accept_obj: id={}", obj.instance_id() as i64);
     }
 
     fn return_obj(&self) -> Obj<Entity> {
@@ -139,7 +140,7 @@ impl RustTest {
         //let instance = Box::new(T::construct(obj));
         //let instance_ptr = Box::into_raw(instance);
 
-        unsafe { Obj::from_sys_ptr(ptr) }
+        unsafe { Obj::from_sys(ptr) }
     }
 
     fn _ready(&mut self) {

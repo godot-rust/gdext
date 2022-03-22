@@ -21,23 +21,38 @@ func _ready():
 	var res_vec := rust_test.vec_add(Vector2(1, 2), Vector2(3, 4))
 	print(res_vec)
 
+	print_instance_id(self, "self")
+	print_instance_id(GdClass.new(), "new")
+	print_instance_id($MeshInstance3D, "mesh")
+	print_instance_id($WorldEnvironment, "env")
+	print_instance_id($DirectionalLight3D, "light")
+
+	print()
+	print("----------------------------")
 	var obj = rust_test.return_obj()
 	print("obj._to_string(): ", obj)
 	print("obj._to_string() [explicit]: ", obj._to_string())
-
-	print_instance_id(obj)
+	print_instance_id(obj, "entity")
 	rust_test.accept_obj(obj)
+	print("----------------------------")
+	print()
 
 	print("[GDScript] end _ready")
-
-	var gd = GdClass.new()
-	print("gd: ", gd)
-
 	get_tree().quit()
 
 
-func print_instance_id(obj):
+func print_instance_id(obj, msg=null):
 	var full = obj.get_instance_id()
-	var low = full & 0xFFFFFFFF
-	var high = (full / 4294967296) & 0xFFFFFFFF # Not '>> 32' because GDScript disallows shift of negative numbers
-	print("instance id: %x%x" % [high, low])
+#	var low = full & 0xFFFFFFFF
+#	var high = (full / 4294967296) & 0xFFFFFFFF # Not '>> 32' because GDScript disallows shift of negative numbers
+
+#	if msg == null:
+#		print("instance id: %x%x" % [high, low])
+#	else:
+#		print("instance id: %x%x  (%s)" % [high, low, msg])
+
+	if msg == null:
+		print("instance id: ", full)
+	else:
+		print("instance id: ", full, " (", msg, ")")
+	print("  _to_string(): ", obj)
