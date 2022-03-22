@@ -8,7 +8,6 @@ edition = "2021"
 [features]
 "real_is_double" = []
 
-[dependencies]
-
 [build-dependencies]
 bindgen = "0.59"
+gdext-codegen = { path = "../gdext-codegen" }

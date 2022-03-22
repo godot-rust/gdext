@@ -1,3 +1,8 @@
 .vscode
+.idea
 target/
 Cargo.lock
+
+# Input JSONs and code generation
+/gdext-codegen/input/
+/gdext-sys/src/gen/

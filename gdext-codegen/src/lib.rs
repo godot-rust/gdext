@@ -1,3 +1,7 @@
+mod api_parser;
+
+pub use api_parser::ApiParser;
+
 #[cfg(test)]
 mod tests {
     #[test]

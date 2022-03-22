@@ -1,3 +1,4 @@
+use gdext_codegen as gen;
 use std::{env, path::PathBuf};
 
 fn main() {
@@ -14,4 +15,6 @@ fn main() {
     bindings
         .write_to_file(out_path.join("gdnative_interface.rs"))
         .expect("could not write gdnative_interface Rust bindings!");
+
+    gen::ApiParser::generate_file();
 }
