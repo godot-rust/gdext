@@ -13,21 +13,19 @@ const SIZE_IN_BYTES: u64 = 4;
 const SIZE_IN_BYTES: u64 = 8;
 
 #[repr(C, align(8))]
-pub struct GodotString(MaybeUninit<[u8; SIZE_IN_BYTES as usize]>);
+pub struct GodotString {
+    opaque: [u8; SIZE_IN_BYTES as usize],
+}
 
 impl GodotString {
-    fn uninit() -> Self {
-        Self(MaybeUninit::uninit())
-    }
-
     #[doc(hidden)]
     pub fn as_mut_ptr(&mut self) -> sys::GDNativeStringPtr {
-        self.0.as_mut_ptr() as *mut _
+        &mut self.opaque as *mut _ as sys::GDNativeStringPtr
     }
 
     #[doc(hidden)]
     pub fn as_ptr(&self) -> sys::GDNativeStringPtr {
-        self.0.as_ptr() as *mut _
+        &self.opaque as *const _ as sys::GDNativeStringPtr
     }
 
     #[doc(hidden)]
@@ -43,8 +41,6 @@ impl GodotString {
 
     pub fn new() -> Self {
         unsafe {
-            let mut s = Self::uninit();
-
             static CONSTR: Lazy<
                 unsafe extern "C" fn(sys::GDNativeTypePtr, *const sys::GDNativeTypePtr),
             > = Lazy::new(|| unsafe {
@@ -54,8 +50,16 @@ impl GodotString {
                 )
                 .unwrap()
             });
-            CONSTR(s.as_mut_ptr(), std::ptr::null());
-            s
+
+            let mut opaque = MaybeUninit::<[u8; SIZE_IN_BYTES as usize]>::uninit();
+            CONSTR(
+                opaque.as_mut_ptr() as sys::GDNativeTypePtr,
+                std::ptr::null(),
+            );
+
+            GodotString {
+                opaque: opaque.assume_init(),
+            }
         }
     }
 
@@ -128,15 +132,19 @@ impl FromStr for GodotString {
     type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut res = Self::uninit();
+        let mut opaque = MaybeUninit::<[u8; SIZE_IN_BYTES as usize]>::uninit();
+
         let b = s.as_bytes();
         unsafe {
             interface_fn!(string_new_with_utf8_chars_and_len)(
-                res.as_mut_ptr(),
+                &mut opaque as *mut _ as sys::GDNativeStringPtr,
                 b.as_ptr() as *mut _,
                 b.len() as i64,
             );
-            Ok(res)
+
+            Ok(Self {
+                opaque: opaque.assume_init(),
+            })
         }
     }
 }
