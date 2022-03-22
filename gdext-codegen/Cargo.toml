@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 miniserde = "0.1.16"
 quote = "1"
+proc-macro2 = "1"
