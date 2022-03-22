@@ -59,16 +59,19 @@ impl ApiParser {
         } = tokens;
 
         let tokens = quote! {
+            #![allow(dead_code)]
+            use crate::{GDNativeVariantPtr, GDNativeTypePtr};
+
             pub mod types {
                 #(#opaque_types)*
             }
 
-            pub struct CachedFns {
+            pub struct InterfaceCache {
                 #(#from_variant_decls)*
             }
 
-            impl CachedFns {
-                fn new() -> Self {
+            impl InterfaceCache {
+                pub(crate) unsafe fn new(interface: &crate::GDNativeInterface) -> Self {
                     Self {
                         #(#from_variant_inits)*
                     }
@@ -117,11 +120,12 @@ impl ApiParser {
                         .name
                         .strip_prefix("TYPE_")
                         .expect("Enum name begins with 'TYPE_'");
-                    let value = ty.value;
 
-                    if name == "MAX" {
+                    if name == "NIL" || name == "MAX" {
                         continue;
                     }
+
+                    let value = ty.value;
                     variant_enumerators.push(Self::quote_enumerator(name, value));
 
                     let (decl, init) = Self::quote_from_variant(name);
@@ -164,14 +168,15 @@ impl ApiParser {
         let variant_type =
             format_ident!("GDNativeVariantType_GDNATIVE_VARIANT_TYPE_{}", upper_name);
 
-        // FIXME can't directly save as static, load dynamically
+        // Field declaration
         let decl = quote! {
-            #fn_name: unsafe extern "C" fn(crate::GDNativeVariantPtr, crate::GDNativeTypePtr),
+            pub #fn_name: unsafe extern "C" fn(GDNativeVariantPtr, GDNativeTypePtr),
         };
 
+        // Field initialization in new()
         let init = quote! {
-            #fn_name: unsafe {
-                let ctor_fn = crate::get_interface().get_variant_from_type_constructor.unwrap_unchecked();
+            #fn_name: {
+                let ctor_fn = interface.get_variant_from_type_constructor.unwrap();
                 ctor_fn(crate:: #variant_type).unwrap()
             },
         };

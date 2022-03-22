@@ -9,6 +9,7 @@
 
 pub use gen::extensions::types;
 
+use crate::gen::extensions::InterfaceCache;
 use std::mem::MaybeUninit;
 
 include!(concat!(env!("OUT_DIR"), "/gdnative_interface.rs"));
@@ -25,14 +26,15 @@ pub type real = f32;
 pub type real = f64;
 
 static mut INTERFACE: MaybeUninit<GDNativeInterface> = MaybeUninit::uninit();
-
 static mut LIBRARY: MaybeUninit<GDNativeExtensionClassLibraryPtr> = MaybeUninit::uninit();
+static mut CACHE: Option<InterfaceCache> = None;
 
 /// # Safety
 ///
 /// The `interface` pointer must be a valid pointer to a [`GDNativeInterface`] object.
 pub unsafe fn set_interface(interface: *const GDNativeInterface) {
     INTERFACE = MaybeUninit::new(*interface);
+    CACHE = Some(InterfaceCache::new(&*interface))
 }
 
 /// # Safety
@@ -47,7 +49,7 @@ pub unsafe fn get_interface() -> &'static GDNativeInterface {
 ///
 /// - The `library` pointer must be the pointer given by Godot at initialisation.
 /// - This function must not be called from multiple threads.
-/// - This funnction must be called before any use of [`get_library`].
+/// - This function must be called before any use of [`get_library`].
 pub unsafe fn set_library(library: GDNativeExtensionClassLibraryPtr) {
     LIBRARY = MaybeUninit::new(library);
 }
@@ -58,6 +60,14 @@ pub unsafe fn set_library(library: GDNativeExtensionClassLibraryPtr) {
 #[inline(always)]
 pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
     *LIBRARY.as_ptr()
+}
+
+/// # Safety
+///
+/// The interface must have been initialised with [`set_interface`] before calling this function.
+#[inline(always)]
+pub unsafe fn get_cache() -> &'static InterfaceCache {
+    CACHE.as_ref().unwrap_unchecked()
 }
 
 #[macro_export]
