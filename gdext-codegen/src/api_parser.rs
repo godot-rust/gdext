@@ -42,8 +42,8 @@ struct EnumValue {
 struct Tokens {
     opaque_types: Vec<TokenStream>,
     variant_enumerators: Vec<TokenStream>,
-    from_variant_decls: Vec<TokenStream>,
-    from_variant_inits: Vec<TokenStream>,
+    variant_conv_decls: Vec<TokenStream>,
+    variant_conv_inits: Vec<TokenStream>,
 }
 
 pub struct ApiParser {}
@@ -54,8 +54,8 @@ impl ApiParser {
         let Tokens {
             opaque_types,
             variant_enumerators,
-            from_variant_decls,
-            from_variant_inits,
+            variant_conv_decls,
+            variant_conv_inits,
         } = tokens;
 
         let tokens = quote! {
@@ -67,13 +67,13 @@ impl ApiParser {
             }
 
             pub struct InterfaceCache {
-                #(#from_variant_decls)*
+                #(#variant_conv_decls)*
             }
 
             impl InterfaceCache {
                 pub(crate) unsafe fn new(interface: &crate::GDNativeInterface) -> Self {
                     Self {
-                        #(#from_variant_inits)*
+                        #(#variant_conv_inits)*
                     }
                 }
             }
@@ -100,8 +100,8 @@ impl ApiParser {
 
         let mut opaque_types = vec![];
         let mut variant_enumerators = vec![];
-        let mut from_variant_decls = vec![];
-        let mut from_variant_inits = vec![];
+        let mut variant_conv_decls = vec![];
+        let mut variant_conv_inits = vec![];
 
         for class in &model.builtin_class_sizes {
             if &class.build_configuration == build_config {
@@ -128,9 +128,9 @@ impl ApiParser {
                     let value = ty.value;
                     variant_enumerators.push(Self::quote_enumerator(name, value));
 
-                    let (decl, init) = Self::quote_from_variant(name);
-                    from_variant_decls.push(decl);
-                    from_variant_inits.push(init);
+                    let (decl, init) = Self::quote_variant_convs(name);
+                    variant_conv_decls.push(decl);
+                    variant_conv_inits.push(init);
                 }
 
                 break;
@@ -140,8 +140,8 @@ impl ApiParser {
         Tokens {
             opaque_types,
             variant_enumerators,
-            from_variant_decls,
-            from_variant_inits,
+            variant_conv_decls,
+            variant_conv_inits,
         }
     }
 
@@ -163,20 +163,27 @@ impl ApiParser {
         }
     }
 
-    fn quote_from_variant(upper_name: &str) -> (TokenStream, TokenStream) {
-        let fn_name = format_ident!("variant_from_{}", upper_name.to_lowercase());
+    fn quote_variant_convs(upper_name: &str) -> (TokenStream, TokenStream) {
+        let from_name = format_ident!("variant_from_{}", upper_name.to_lowercase());
+        let to_name = format_ident!("variant_to_{}", upper_name.to_lowercase());
+
         let variant_type =
             format_ident!("GDNativeVariantType_GDNATIVE_VARIANT_TYPE_{}", upper_name);
 
         // Field declaration
         let decl = quote! {
-            pub #fn_name: unsafe extern "C" fn(GDNativeVariantPtr, GDNativeTypePtr),
+            pub #from_name: unsafe extern "C" fn(GDNativeVariantPtr, GDNativeTypePtr),
+            pub #to_name: unsafe extern "C" fn(GDNativeTypePtr, GDNativeVariantPtr),
         };
 
         // Field initialization in new()
         let init = quote! {
-            #fn_name: {
+            #from_name: {
                 let ctor_fn = interface.get_variant_from_type_constructor.unwrap();
+                ctor_fn(crate:: #variant_type).unwrap()
+            },
+            #to_name: {
+                let ctor_fn = interface.get_variant_to_type_constructor.unwrap();
                 ctor_fn(crate:: #variant_type).unwrap()
             },
         };
