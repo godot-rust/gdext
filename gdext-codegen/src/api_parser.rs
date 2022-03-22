@@ -42,7 +42,8 @@ struct EnumValue {
 struct Tokens {
     opaque_types: Vec<TokenStream>,
     variant_enumerators: Vec<TokenStream>,
-    from_variant_fns: Vec<TokenStream>,
+    from_variant_decls: Vec<TokenStream>,
+    from_variant_inits: Vec<TokenStream>,
 }
 
 pub struct ApiParser {}
@@ -53,7 +54,8 @@ impl ApiParser {
         let Tokens {
             opaque_types,
             variant_enumerators,
-            from_variant_fns,
+            from_variant_decls,
+            from_variant_inits,
         } = tokens;
 
         let tokens = quote! {
@@ -61,8 +63,16 @@ impl ApiParser {
                 #(#opaque_types)*
             }
 
-            pub mod variant_conv {
-                #(#from_variant_fns)*
+            pub struct CachedFns {
+                #(#from_variant_decls)*
+            }
+
+            impl CachedFns {
+                fn new() -> Self {
+                    Self {
+                        #(#from_variant_inits)*
+                    }
+                }
             }
 
             pub enum VariantType {
@@ -87,7 +97,8 @@ impl ApiParser {
 
         let mut opaque_types = vec![];
         let mut variant_enumerators = vec![];
-        let mut from_variant_fns = vec![];
+        let mut from_variant_decls = vec![];
+        let mut from_variant_inits = vec![];
 
         for class in &model.builtin_class_sizes {
             if &class.build_configuration == build_config {
@@ -112,7 +123,10 @@ impl ApiParser {
                         continue;
                     }
                     variant_enumerators.push(Self::quote_enumerator(name, value));
-                    from_variant_fns.push(Self::quote_from_variant(name));
+
+                    let (decl, init) = Self::quote_from_variant(name);
+                    from_variant_decls.push(decl);
+                    from_variant_inits.push(init);
                 }
 
                 break;
@@ -122,7 +136,8 @@ impl ApiParser {
         Tokens {
             opaque_types,
             variant_enumerators,
-            from_variant_fns,
+            from_variant_decls,
+            from_variant_inits,
         }
     }
 
@@ -144,18 +159,24 @@ impl ApiParser {
         }
     }
 
-    fn quote_from_variant(upper_name: &str) -> TokenStream {
+    fn quote_from_variant(upper_name: &str) -> (TokenStream, TokenStream) {
         let fn_name = format_ident!("variant_from_{}", upper_name.to_lowercase());
         let variant_type =
             format_ident!("GDNativeVariantType_GDNATIVE_VARIANT_TYPE_{}", upper_name);
 
         // FIXME can't directly save as static, load dynamically
-        quote! {
-            static #fn_name: unsafe extern "C" fn(crate::GDNativeVariantPtr, crate::GDNativeTypePtr) = unsafe {
+        let decl = quote! {
+            #fn_name: unsafe extern "C" fn(crate::GDNativeVariantPtr, crate::GDNativeTypePtr),
+        };
+
+        let init = quote! {
+            #fn_name: unsafe {
                 let ctor_fn = crate::get_interface().get_variant_from_type_constructor.unwrap_unchecked();
                 ctor_fn(crate:: #variant_type).unwrap()
-            };
-        }
+            },
+        };
+
+        (decl, init)
     }
 
     //#[cfg(feature = "formatted")]
