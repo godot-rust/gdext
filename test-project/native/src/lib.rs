@@ -138,7 +138,8 @@ impl RustTest {
             unsafe { interface_fn!(classdb_construct_object)("Entity\0".as_ptr() as *const _) };
         //let instance = Box::new(T::construct(obj));
         //let instance_ptr = Box::into_raw(instance);
-        Obj::from_sys(ptr)
+
+        unsafe { Obj::from_sys_ptr(ptr) }
     }
 
     fn _ready(&mut self) {

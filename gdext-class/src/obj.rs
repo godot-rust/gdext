@@ -6,15 +6,22 @@ use std::marker::PhantomData;
 use std::mem::MaybeUninit;
 
 pub struct Obj<T: GodotExtensionClass> {
-    // Note: this may not be a pointer behind the scenes -- consider using an opaque [u8; SIZE_FROM_JSON]
-    opaque_ptr: *mut std::ffi::c_void, // this is a sys::GDNativeObjectPtr
+    opaque: sys::types::OpaqueObject, // typically passed as a sys::GDNativeObjectPtr
     _marker: PhantomData<*const T>,
 }
 
 impl<T: GodotExtensionClass> Obj<T> {
-    pub fn from_sys(ptr: sys::GDNativeObjectPtr) -> Self {
+    pub fn from_sys(opaque: sys::types::OpaqueObject) -> Self {
         Self {
-            opaque_ptr: ptr,
+            opaque,
+            _marker: PhantomData,
+        }
+    }
+
+    pub unsafe fn from_sys_ptr(ptr: sys::GDNativeObjectPtr) -> Self {
+        let opaque = std::mem::transmute(ptr);
+        Self {
+            opaque,
             _marker: PhantomData,
         }
     }
@@ -25,13 +32,18 @@ impl<T: GodotExtensionClass> Obj<T> {
     }
 
     pub fn instance_id(&self) -> u64 {
-        unsafe { interface_fn!(object_get_instance_id)(self.opaque_ptr) }
+        unsafe {
+            interface_fn!(object_get_instance_id)(
+                &self.opaque as *const _ as sys::GDNativeObjectPtr,
+            )
+        }
     }
 
     pub fn from_instance_id(instance_id: u64) -> Self {
         unsafe {
             let ptr = interface_fn!(object_get_instance_from_id)(instance_id);
-            Obj::from_sys(ptr)
+
+            Obj::from_sys_ptr(ptr)
         }
     }
 }
@@ -41,7 +53,7 @@ impl<T: GodotExtensionClass> From<&Variant> for Obj<T> {
         unsafe {
             let converter = sys::get_cache().variant_to_object;
 
-            let mut opaque = MaybeUninit::<sys::GDNativeObjectPtr>::uninit();
+            let mut opaque = MaybeUninit::<sys::types::OpaqueObject>::uninit();
             converter(opaque.as_mut_ptr() as *mut _, variant.as_ptr());
 
             Obj::from_sys(opaque.assume_init())
@@ -56,7 +68,7 @@ impl<T: GodotExtensionClass> From<Obj<T>> for Variant {
             let mut raw = MaybeUninit::<sys::types::OpaqueVariant>::uninit();
             converter(
                 raw.as_mut_ptr() as sys::GDNativeVariantPtr,
-                &obj.opaque_ptr as *const _ as *mut _,
+                &obj.opaque as *const _ as sys::GDNativeObjectPtr,
             );
             raw.assume_init()
         };
