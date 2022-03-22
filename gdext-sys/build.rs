@@ -17,7 +17,7 @@ fn main() {
         .write_to_file(out_path.join("gdnative_interface.rs"))
         .expect("could not write gdnative_interface Rust bindings!");
 
-    let gen_path =         concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen");
+    let gen_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen");
 
     gen::ApiParser::generate_file(Path::new(gen_path));
 }

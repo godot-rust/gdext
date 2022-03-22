@@ -1,8 +1,8 @@
 use std::ffi::CString;
 use std::{convert::Infallible, mem::MaybeUninit, str::FromStr};
 
-use gdext_sys::{self as sys, interface_fn};
 use gdext_sys::types::OpaqueString;
+use gdext_sys::{self as sys, interface_fn};
 use once_cell::sync::Lazy;
 
 use crate::PtrCallArg;
