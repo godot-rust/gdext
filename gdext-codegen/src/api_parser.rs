@@ -159,7 +159,7 @@ impl ApiParser {
         let (first, rest) = name.split_at(1);
         let ident = format_ident!("Opaque{}{}", first.to_uppercase(), rest);
         quote! {
-            pub type #ident = [u8; #size];
+            pub type #ident = crate::opaque::Opaque<#size>;
         }
     }
 

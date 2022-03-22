@@ -7,16 +7,18 @@
     clippy::redundant_static_lifetimes
 )]
 
-pub use gen::extensions::types;
-
-use crate::gen::extensions::InterfaceCache;
-use std::mem::MaybeUninit;
-
 include!(concat!(env!("OUT_DIR"), "/gdnative_interface.rs"));
 
+mod opaque;
 mod gen {
     pub(crate) mod extensions;
 }
+
+use gen::extensions::InterfaceCache;
+use std::mem::MaybeUninit;
+
+//pub use opaque::Opaque;
+pub use gen::extensions::types;
 
 #[allow(non_camel_case_types)]
 #[cfg(feature = "real_is_float")]

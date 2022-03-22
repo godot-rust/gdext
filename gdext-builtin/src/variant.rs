@@ -26,12 +26,12 @@ impl Variant {
 
     #[doc(hidden)]
     pub fn as_mut_ptr(&mut self) -> sys::GDNativeVariantPtr {
-        &mut self.opaque as *mut _ as sys::GDNativeVariantPtr
+        self.opaque.to_sys_mut()
     }
 
     #[doc(hidden)]
     pub fn as_ptr(&self) -> sys::GDNativeVariantPtr {
-        &self.opaque as *const _ as sys::GDNativeVariantPtr
+        self.opaque.to_sys()
     }
 }
 
@@ -53,7 +53,7 @@ impl Clone for Variant {
 impl Drop for Variant {
     fn drop(&mut self) {
         unsafe {
-            interface_fn!(variant_destroy)(self.as_ptr());
+            interface_fn!(variant_destroy)(self.as_mut_ptr());
         }
     }
 }
