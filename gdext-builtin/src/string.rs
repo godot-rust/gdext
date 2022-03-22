@@ -2,19 +2,14 @@ use std::ffi::CString;
 use std::{convert::Infallible, mem::MaybeUninit, str::FromStr};
 
 use gdext_sys::{self as sys, interface_fn};
+use gdext_sys::types::OpaqueString;
 use once_cell::sync::Lazy;
 
 use crate::PtrCallArg;
 
-// Size is dependent on type and build config, can be read from a JSON in the future
-#[cfg(target_pointer_width = "32")]
-const SIZE_IN_BYTES: u64 = 4;
-#[cfg(target_pointer_width = "64")]
-const SIZE_IN_BYTES: u64 = 8;
-
 #[repr(C, align(8))]
 pub struct GodotString {
-    opaque: [u8; SIZE_IN_BYTES as usize],
+    opaque: OpaqueString,
 }
 
 impl GodotString {
@@ -51,7 +46,7 @@ impl GodotString {
                 .unwrap()
             });
 
-            let mut opaque = MaybeUninit::<[u8; SIZE_IN_BYTES as usize]>::uninit();
+            let mut opaque = MaybeUninit::<OpaqueString>::uninit();
             CONSTR(
                 opaque.as_mut_ptr() as sys::GDNativeTypePtr,
                 std::ptr::null(),
@@ -132,7 +127,7 @@ impl FromStr for GodotString {
     type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut opaque = MaybeUninit::<[u8; SIZE_IN_BYTES as usize]>::uninit();
+        let mut opaque = MaybeUninit::<OpaqueString>::uninit();
 
         let b = s.as_bytes();
         unsafe {

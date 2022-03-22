@@ -30,11 +30,10 @@ pub struct ApiParser {}
 
 impl ApiParser {
     pub fn generate_file(gen_path: &Path) {
-        let consts = Self::load_extension_api();
+        let types = Self::load_extension_api();
         let tokens = quote! {
-            #[allow(non_upper_case_globals)]
-            mod constants {
-                #(#consts)*
+            pub mod types {
+                #(#types)*
             }
         };
 
@@ -47,7 +46,7 @@ impl ApiParser {
     }
 
     fn load_extension_api() -> Vec<TokenStream> {
-        let build_config = "float_32"; // TODO infer this
+        let build_config = "float_64"; // TODO infer this
 
         let path = concat!(env!("CARGO_MANIFEST_DIR"), "/input/extension_api.json");
         let json = std::fs::read_to_string(path).expect(&format!("failed to open file {:?}", path));
@@ -58,9 +57,11 @@ impl ApiParser {
         for class in &model.builtin_class_sizes {
             if &class.build_configuration == build_config {
                 for ClassSize { name, size } in &class.sizes {
-                    let name = format_ident!("SIZE_{}", name);
+                    // Capitalize: "int" -> "Int"
+                    let (first, rest) = name.split_at(1);
+                    let ident = format_ident!("Opaque{}{}", first.to_uppercase(), rest);
                     result.push(quote! {
-                        const #name: usize = #size;
+                        pub type #ident = [u8; #size];
                     });
                 }
             }
@@ -91,7 +92,5 @@ impl ApiParser {
                 println!("Error: {}", err);
             }
         }
-
-        panic!("FORMATTERED!");
     }
 }

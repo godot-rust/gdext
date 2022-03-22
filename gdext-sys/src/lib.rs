@@ -7,6 +7,12 @@
     clippy::redundant_static_lifetimes
 )]
 
+mod gen {
+    pub(crate) mod extensions;
+}
+
+pub use gen::extensions::types;
+
 use std::mem::MaybeUninit;
 
 include!(concat!(env!("OUT_DIR"), "/gdnative_interface.rs"));
