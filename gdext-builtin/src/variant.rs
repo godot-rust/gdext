@@ -1,5 +1,6 @@
 use std::mem::MaybeUninit;
 
+use gdext_sys::types::OpaqueVariant;
 use gdext_sys::{self as sys, interface_fn};
 
 // Size is dependent on type and build config, can be read from a JSON in the future
@@ -9,40 +10,49 @@ const SIZE_IN_BYTES: u64 = 24;
 const SIZE_IN_BYTES: u64 = 40;
 
 #[repr(C, align(8))]
-pub struct Variant(MaybeUninit<[u8; SIZE_IN_BYTES as usize]>);
+pub struct Variant {
+    opaque: OpaqueVariant,
+}
 
 impl Variant {
+    pub fn nil() -> Self {
+        let mut raw = MaybeUninit::<OpaqueVariant>::uninit();
+        let opaque = unsafe {
+            interface_fn!(variant_new_nil)(raw.as_mut_ptr() as sys::GDNativeVariantPtr);
+            raw.assume_init()
+        };
+
+        Self { opaque }
+    }
+
     #[doc(hidden)]
-    pub fn uninit() -> Self {
-        Self(MaybeUninit::uninit())
+    pub fn from_sys(opaque: OpaqueVariant) -> Self {
+        Self { opaque }
     }
 
     #[doc(hidden)]
     pub fn as_mut_ptr(&mut self) -> sys::GDNativeVariantPtr {
-        self.0.as_ptr() as *mut _
+        &mut self.opaque as *mut _ as sys::GDNativeVariantPtr
     }
 
     #[doc(hidden)]
     pub fn as_ptr(&self) -> sys::GDNativeVariantPtr {
-        self.0.as_ptr() as *mut _
-    }
-
-    pub fn nil() -> Self {
-        unsafe {
-            let mut v = Self::uninit();
-            interface_fn!(variant_new_nil)(v.as_mut_ptr());
-            v
-        }
+        &self.opaque as *const _ as sys::GDNativeVariantPtr
     }
 }
 
 impl Clone for Variant {
     fn clone(&self) -> Self {
-        unsafe {
-            let mut v = Self::uninit();
-            interface_fn!(variant_new_copy)(v.as_mut_ptr(), self.as_ptr());
-            v
-        }
+        let mut raw = MaybeUninit::<OpaqueVariant>::uninit();
+        let opaque = unsafe {
+            interface_fn!(variant_new_copy)(
+                raw.as_mut_ptr() as sys::GDNativeVariantPtr,
+                self.as_ptr(),
+            );
+            raw.assume_init()
+        };
+
+        Self { opaque }
     }
 }
 
@@ -55,9 +65,9 @@ impl Drop for Variant {
 }
 
 mod conversions {
-    use gdext_sys as sys;
-    use crate::{string::GodotString, vector2::Vector2, vector3::Vector3};
     use super::Variant;
+    use crate::{string::GodotString, vector2::Vector2, vector3::Vector3};
+    use gdext_sys as sys;
 
     macro_rules! impl_variant_conversions {
         ($T:ty, $from_fn:ident, $to_fn:ident) => {
@@ -66,9 +76,16 @@ mod conversions {
                     unsafe {
                         let converter = sys::get_cache().$from_fn;
 
-                        let mut variant = Variant::uninit();
-                        converter(variant.as_mut_ptr(), &value as *const _ as *mut _);
-                        variant
+                        let mut raw =
+                            std::mem::MaybeUninit::<$crate::sys::types::OpaqueVariant>::uninit();
+                        converter(
+                            raw.as_mut_ptr() as $crate::sys::GDNativeVariantPtr,
+                            &value as *const _ as *mut _,
+                        );
+
+                        Self {
+                            opaque: raw.assume_init(),
+                        }
                     }
                 }
             }
@@ -84,7 +101,7 @@ mod conversions {
                     }
                 }
             }
-        }
+        };
     }
 
     macro_rules! impl_variant_int_conversions {
@@ -124,9 +141,15 @@ mod conversions {
             unsafe {
                 let converter = sys::get_cache().variant_from_string;
 
-                let mut variant = Variant::uninit();
-                converter(variant.as_mut_ptr(), value as *const _ as *mut _);
-                variant
+                let mut raw = std::mem::MaybeUninit::<crate::sys::types::OpaqueVariant>::uninit();
+                converter(
+                    raw.as_mut_ptr() as crate::sys::GDNativeVariantPtr,
+                    &value as *const _ as *mut _,
+                );
+
+                Self {
+                    opaque: raw.assume_init(),
+                }
             }
         }
     }

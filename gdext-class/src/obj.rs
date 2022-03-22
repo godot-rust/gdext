@@ -2,9 +2,8 @@ use crate::property_info::PropertyInfoBuilder;
 use crate::{sys, sys::interface_fn, GodotExtensionClass};
 use gdext_builtin::variant::Variant;
 use gdext_builtin::PtrCallArg;
-use gdext_sys::GDNativeObjectPtr;
-use once_cell::sync::Lazy;
 use std::marker::PhantomData;
+use std::mem::MaybeUninit;
 
 pub struct Obj<T: GodotExtensionClass> {
     // Note: this may not be a pointer behind the scenes -- consider using an opaque [u8; SIZE_FROM_JSON]
@@ -38,19 +37,13 @@ impl<T: GodotExtensionClass> Obj<T> {
 }
 
 impl<T: GodotExtensionClass> From<&Variant> for Obj<T> {
-    fn from(v: &Variant) -> Self {
+    fn from(variant: &Variant) -> Self {
         unsafe {
-            static CONSTR: Lazy<
-                unsafe extern "C" fn(sys::GDNativeTypePtr, sys::GDNativeVariantPtr),
-            > = Lazy::new(|| unsafe {
-                interface_fn!(get_variant_to_type_constructor)(
-                    sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_OBJECT,
-                )
-                .unwrap()
-            });
+            let converter = sys::get_cache().variant_to_object;
 
-            let mut opaque = std::mem::MaybeUninit::<GDNativeObjectPtr>::uninit();
-            CONSTR(opaque.as_mut_ptr() as *mut _, v.as_ptr());
+            let mut opaque = MaybeUninit::<sys::GDNativeObjectPtr>::uninit();
+            converter(opaque.as_mut_ptr() as *mut _, variant.as_ptr());
+
             Obj::from_sys(opaque.assume_init())
         }
     }
@@ -58,26 +51,21 @@ impl<T: GodotExtensionClass> From<&Variant> for Obj<T> {
 
 impl<T: GodotExtensionClass> From<Obj<T>> for Variant {
     fn from(obj: Obj<T>) -> Self {
-        unsafe {
-            static CONSTR: Lazy<
-                unsafe extern "C" fn(sys::GDNativeVariantPtr, sys::GDNativeTypePtr),
-            > = Lazy::new(|| unsafe {
-                interface_fn!(get_variant_from_type_constructor)(
-                    sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_OBJECT,
-                )
-                .unwrap()
-            });
-            let mut v = Variant::uninit();
+        let opaque = unsafe {
+            let converter = sys::get_cache().variant_from_object;
+            let mut raw = MaybeUninit::<sys::types::OpaqueVariant>::uninit();
+            converter(
+                raw.as_mut_ptr() as sys::GDNativeVariantPtr,
+                &obj.opaque_ptr as *const _ as *mut _,
+            );
+            raw.assume_init()
+        };
 
-            println!("Convert to variant: {:?}", obj.opaque_ptr);
-            CONSTR(v.as_mut_ptr(), &obj.opaque_ptr as *const _ as *mut _);
-
-            v
-        }
+        Self::from_sys(opaque)
     }
 }
 impl<T: GodotExtensionClass> From<&Obj<T>> for Variant {
-    fn from(obj: &Obj<T>) -> Self {
+    fn from(_obj: &Obj<T>) -> Self {
         todo!()
     }
 }

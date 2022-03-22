@@ -7,6 +7,7 @@ pub mod vector3;
 
 pub mod macros;
 
+use gdext_sys as sys;
 use std::collections::BTreeMap;
 
 pub use glam;
