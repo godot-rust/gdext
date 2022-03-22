@@ -55,86 +55,39 @@ impl Drop for Variant {
 }
 
 mod conversions {
-    use gdext_sys::{self as sys, interface_fn};
-    use once_cell::sync::Lazy;
-
+    use gdext_sys as sys;
     use crate::{string::GodotString, vector2::Vector2, vector3::Vector3};
-
     use super::Variant;
 
-    impl From<bool> for Variant {
-        fn from(b: bool) -> Self {
-            unsafe {
-                static CONSTR: Lazy<
-                    unsafe extern "C" fn(sys::GDNativeVariantPtr, sys::GDNativeTypePtr),
-                > = Lazy::new(|| unsafe {
-                    interface_fn!(get_variant_from_type_constructor)(
-                        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_BOOL,
-                    )
-                    .unwrap()
-                });
-                let mut v = Variant::uninit();
-                CONSTR(v.as_mut_ptr(), &b as *const _ as *mut _);
-                v
+    macro_rules! impl_variant_conversions {
+        ($T:ty, $from_fn:ident, $to_fn:ident) => {
+            impl From<$T> for Variant {
+                fn from(value: $T) -> Self {
+                    unsafe {
+                        let converter = sys::get_cache().$from_fn;
+
+                        let mut variant = Variant::uninit();
+                        converter(variant.as_mut_ptr(), &value as *const _ as *mut _);
+                        variant
+                    }
+                }
+            }
+
+            impl From<&Variant> for $T {
+                fn from(variant: &Variant) -> Self {
+                    unsafe {
+                        let converter = sys::get_cache().$to_fn;
+
+                        let mut value = <$T>::default();
+                        converter(&mut value as *mut _ as *mut _, variant.as_ptr());
+                        value
+                    }
+                }
             }
         }
     }
 
-    impl From<&Variant> for bool {
-        fn from(v: &Variant) -> Self {
-            unsafe {
-                static CONSTR: Lazy<
-                    unsafe extern "C" fn(sys::GDNativeTypePtr, sys::GDNativeVariantPtr),
-                > = Lazy::new(|| unsafe {
-                    interface_fn!(get_variant_to_type_constructor)(
-                        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_BOOL,
-                    )
-                    .unwrap()
-                });
-                let mut res = false;
-                CONSTR(&mut res as *mut _ as *mut _, v.as_ptr());
-                res
-            }
-        }
-    }
-
-    impl From<i64> for Variant {
-        fn from(i: i64) -> Self {
-            unsafe {
-                static CONSTR: Lazy<
-                    unsafe extern "C" fn(sys::GDNativeVariantPtr, sys::GDNativeTypePtr),
-                > = Lazy::new(|| unsafe {
-                    interface_fn!(get_variant_from_type_constructor)(
-                        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_INT,
-                    )
-                    .unwrap()
-                });
-                let mut v = Variant::uninit();
-                CONSTR(v.as_mut_ptr(), &i as *const _ as *mut _);
-                v
-            }
-        }
-    }
-
-    impl From<&Variant> for i64 {
-        fn from(v: &Variant) -> Self {
-            unsafe {
-                static CONSTR: Lazy<
-                    unsafe extern "C" fn(sys::GDNativeTypePtr, sys::GDNativeVariantPtr),
-                > = Lazy::new(|| unsafe {
-                    interface_fn!(get_variant_to_type_constructor)(
-                        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_INT,
-                    )
-                    .unwrap()
-                });
-                let mut res = 0;
-                CONSTR(&mut res as *mut _ as *mut _, v.as_ptr());
-                res
-            }
-        }
-    }
-
-    macro_rules! from_int {
+    macro_rules! impl_variant_int_conversions {
         ($name:ty) => {
             impl From<$name> for Variant {
                 fn from(i: $name) -> Self {
@@ -150,141 +103,35 @@ mod conversions {
         };
     }
 
-    from_int!(u8);
-    from_int!(u16);
-    from_int!(u32);
-    from_int!(u64);
+    impl_variant_conversions!(bool, variant_from_bool, variant_to_bool);
+    impl_variant_conversions!(i64, variant_from_int, variant_to_int);
+    impl_variant_conversions!(Vector2, variant_from_vector2, variant_to_vector2);
+    impl_variant_conversions!(Vector3, variant_from_vector3, variant_to_vector3);
+    impl_variant_conversions!(GodotString, variant_from_string, variant_to_string);
 
-    from_int!(i8);
-    from_int!(i16);
-    from_int!(i32);
+    impl_variant_int_conversions!(u8);
+    impl_variant_int_conversions!(u16);
+    impl_variant_int_conversions!(u32);
+    impl_variant_int_conversions!(u64);
 
-    impl From<Vector2> for Variant {
-        fn from(vec: Vector2) -> Self {
-            unsafe {
-                static CONSTR: Lazy<
-                    unsafe extern "C" fn(sys::GDNativeVariantPtr, sys::GDNativeTypePtr),
-                > = Lazy::new(|| unsafe {
-                    interface_fn!(get_variant_from_type_constructor)(
-                        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR2,
-                    )
-                    .unwrap()
-                });
-                let mut v = Variant::uninit();
-                CONSTR(v.as_mut_ptr(), &vec as *const _ as *mut _);
-                v
-            }
-        }
-    }
+    impl_variant_int_conversions!(i8);
+    impl_variant_int_conversions!(i16);
+    impl_variant_int_conversions!(i32);
 
-    impl From<&Variant> for Vector2 {
-        fn from(v: &Variant) -> Self {
-            unsafe {
-                static CONSTR: Lazy<
-                    unsafe extern "C" fn(sys::GDNativeTypePtr, sys::GDNativeVariantPtr),
-                > = Lazy::new(|| unsafe {
-                    interface_fn!(get_variant_to_type_constructor)(
-                        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR2,
-                    )
-                    .unwrap()
-                });
-                let mut vec = Vector2::ZERO;
-                CONSTR(&mut vec as *mut _ as *mut _, v.as_ptr());
-                vec
-            }
-        }
-    }
-
-    impl From<Vector3> for Variant {
-        fn from(vec: Vector3) -> Self {
-            unsafe {
-                static CONSTR: Lazy<
-                    unsafe extern "C" fn(sys::GDNativeVariantPtr, sys::GDNativeTypePtr),
-                > = Lazy::new(|| unsafe {
-                    interface_fn!(get_variant_from_type_constructor)(
-                        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR3,
-                    )
-                    .unwrap()
-                });
-                let mut v = Variant::uninit();
-                CONSTR(v.as_mut_ptr(), &vec as *const _ as *mut _);
-                v
-            }
-        }
-    }
-
-    impl From<&Variant> for Vector3 {
-        fn from(v: &Variant) -> Self {
-            unsafe {
-                static CONSTR: Lazy<
-                    unsafe extern "C" fn(sys::GDNativeTypePtr, sys::GDNativeVariantPtr),
-                > = Lazy::new(|| unsafe {
-                    interface_fn!(get_variant_to_type_constructor)(
-                        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR3,
-                    )
-                    .unwrap()
-                });
-                let mut vec = Vector3::ZERO;
-                CONSTR(&mut vec as *mut _ as *mut _, v.as_ptr());
-                vec
-            }
-        }
-    }
-
-    impl From<GodotString> for Variant {
-        fn from(mut s: GodotString) -> Self {
-            unsafe {
-                static CONSTR: Lazy<
-                    unsafe extern "C" fn(sys::GDNativeVariantPtr, sys::GDNativeTypePtr),
-                > = Lazy::new(|| unsafe {
-                    interface_fn!(get_variant_from_type_constructor)(
-                        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
-                    )
-                    .unwrap()
-                });
-                let mut v = Variant::uninit();
-                CONSTR(v.as_mut_ptr(), s.as_mut_ptr());
-                v
-            }
-        }
-    }
-
+    // Strings by ref
     impl From<&GodotString> for Variant {
-        fn from(s: &GodotString) -> Self {
+        fn from(value: &GodotString) -> Self {
             unsafe {
-                static CONSTR: Lazy<
-                    unsafe extern "C" fn(sys::GDNativeVariantPtr, sys::GDNativeTypePtr),
-                > = Lazy::new(|| unsafe {
-                    interface_fn!(get_variant_from_type_constructor)(
-                        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
-                    )
-                    .unwrap()
-                });
-                let mut v = Variant::uninit();
-                CONSTR(v.as_mut_ptr(), s.as_ptr());
-                v
+                let converter = sys::get_cache().variant_from_string;
+
+                let mut variant = Variant::uninit();
+                converter(variant.as_mut_ptr(), value as *const _ as *mut _);
+                variant
             }
         }
     }
 
-    impl From<&Variant> for GodotString {
-        fn from(v: &Variant) -> Self {
-            unsafe {
-                static CONSTR: Lazy<
-                    unsafe extern "C" fn(sys::GDNativeTypePtr, sys::GDNativeVariantPtr),
-                > = Lazy::new(|| unsafe {
-                    interface_fn!(get_variant_to_type_constructor)(
-                        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
-                    )
-                    .unwrap()
-                });
-                let mut vec = GodotString::new();
-                CONSTR(&mut vec as *mut _ as *mut _, v.as_ptr());
-                vec
-            }
-        }
-    }
-
+    // Unit
     impl From<()> for Variant {
         fn from(_unit: ()) -> Self {
             Self::nil()
