@@ -196,6 +196,7 @@ impl GodotExtensionClassMethods for RustTest {
 // Entity
 
 #[derive(Debug)]
+#[allow(dead_code)] // TODO
 pub struct Entity {
     base: RefCounted,
     name: String,

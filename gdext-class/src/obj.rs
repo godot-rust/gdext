@@ -71,11 +71,11 @@ impl<T: GodotExtensionClass> From<&Obj<T>> for Variant {
 }
 
 impl<T: GodotExtensionClass> PtrCallArg for Obj<T> {
-    unsafe fn from_ptr_call_arg(arg: *const gdext_sys::GDNativeTypePtr) -> Self {
+    unsafe fn from_ptr_call_arg(_arg: *const gdext_sys::GDNativeTypePtr) -> Self {
         todo!()
     }
 
-    unsafe fn to_ptr_call_arg(self, arg: gdext_sys::GDNativeTypePtr) {
+    unsafe fn to_ptr_call_arg(self, _arg: gdext_sys::GDNativeTypePtr) {
         todo!()
     }
 }
