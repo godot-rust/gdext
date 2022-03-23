@@ -160,7 +160,12 @@ impl Drop for GodotString {
 
 impl PtrCallArg for GodotString {
     unsafe fn from_ptr_call_arg(arg: *const gdext_sys::GDNativeTypePtr) -> Self {
-        Clone::clone(&*(arg as *mut GodotString))
+        // C++: arg is String**
+        //Clone::clone(&*(arg as *mut GodotString))
+        //let arg = *arg;
+        Self {
+            opaque: OpaqueString::from_value_sys(*arg as *mut _),
+        }
     }
 
     unsafe fn to_ptr_call_arg(self, arg: gdext_sys::GDNativeTypePtr) {

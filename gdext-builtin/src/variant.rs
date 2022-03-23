@@ -1,5 +1,3 @@
-use std::mem::MaybeUninit;
-
 use gdext_sys::types::OpaqueVariant;
 use gdext_sys::{self as sys, interface_fn};
 
@@ -10,10 +8,10 @@ pub struct Variant {
 
 impl Variant {
     pub fn nil() -> Self {
-        let mut raw = MaybeUninit::<OpaqueVariant>::uninit();
         let opaque = unsafe {
-            interface_fn!(variant_new_nil)(raw.as_mut_ptr() as sys::GDNativeVariantPtr);
-            raw.assume_init()
+            OpaqueVariant::with_init(|ptr| {
+                interface_fn!(variant_new_nil)(ptr);
+            })
         };
 
         Self { opaque }
@@ -37,15 +35,11 @@ impl Variant {
 
 impl Clone for Variant {
     fn clone(&self) -> Self {
-        let mut raw = MaybeUninit::<OpaqueVariant>::uninit();
         let opaque = unsafe {
-            interface_fn!(variant_new_copy)(
-                raw.as_mut_ptr() as sys::GDNativeVariantPtr,
-                self.as_ptr(),
-            );
-            raw.assume_init()
+            OpaqueVariant::with_init(|ptr| {
+                interface_fn!(variant_new_copy)(ptr, self.as_ptr());
+            })
         };
-
         Self { opaque }
     }
 }
@@ -53,7 +47,7 @@ impl Clone for Variant {
 impl Drop for Variant {
     fn drop(&mut self) {
         unsafe {
-            interface_fn!(variant_destroy)(self.as_mut_ptr());
+            interface_fn!(variant_destroy)(self.opaque.to_sys_mut());
         }
     }
 }
@@ -68,18 +62,12 @@ mod conversions {
             impl From<$T> for Variant {
                 fn from(value: $T) -> Self {
                     unsafe {
-                        let converter = sys::get_cache().$from_fn;
+                        let opaque = $crate::sys::types::OpaqueVariant::with_init(|ptr| {
+                            let converter = sys::get_cache().$from_fn;
+                            converter(ptr, &value as *const _ as *mut _);
+                        });
 
-                        let mut raw =
-                            std::mem::MaybeUninit::<$crate::sys::types::OpaqueVariant>::uninit();
-                        converter(
-                            raw.as_mut_ptr() as $crate::sys::GDNativeVariantPtr,
-                            &value as *const _ as *mut _,
-                        );
-
-                        Self {
-                            opaque: raw.assume_init(),
-                        }
+                        Self { opaque }
                     }
                 }
             }
@@ -87,9 +75,9 @@ mod conversions {
             impl From<&Variant> for $T {
                 fn from(variant: &Variant) -> Self {
                     unsafe {
-                        let converter = sys::get_cache().$to_fn;
-
                         let mut value = <$T>::default();
+
+                        let converter = sys::get_cache().$to_fn;
                         converter(&mut value as *mut _ as *mut _, variant.as_ptr());
                         value
                     }
@@ -133,17 +121,12 @@ mod conversions {
     impl From<&GodotString> for Variant {
         fn from(value: &GodotString) -> Self {
             unsafe {
-                let converter = sys::get_cache().variant_from_string;
+                let opaque = sys::types::OpaqueVariant::with_init(|ptr| {
+                    let converter = sys::get_cache().variant_from_string;
+                    converter(ptr, &value as *const _ as *mut _);
+                });
 
-                let mut raw = std::mem::MaybeUninit::<crate::sys::types::OpaqueVariant>::uninit();
-                converter(
-                    raw.as_mut_ptr() as crate::sys::GDNativeVariantPtr,
-                    &value as *const _ as *mut _,
-                );
-
-                Self {
-                    opaque: raw.assume_init(),
-                }
+                Self { opaque }
             }
         }
     }

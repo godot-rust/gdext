@@ -108,7 +108,11 @@ impl GodotExtensionClass for RustTest {
 
 impl RustTest {
     fn test_method(&mut self, some_int: u64, some_string: GodotString) -> GodotString {
-        let msg = format!("Hello from `RustTest.test_method()`, you passed some_int={some_int} and some_string={some_string}");
+        //let id = Obj::emplace(self).instance_id();
+        let msg = format!(
+            "Hello from `RustTest.test_method()`:\
+            \n\tyou passed some_int={some_int} and some_string={some_string}"
+        );
         msg.into()
     }
 
@@ -140,7 +144,7 @@ impl RustTest {
         //let instance = Box::new(T::construct(obj));
         //let instance_ptr = Box::into_raw(instance);
 
-        unsafe { Obj::from_sys(ptr) }
+        Obj::from_sys(ptr)
     }
 
     fn _ready(&mut self) {

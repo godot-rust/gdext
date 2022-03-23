@@ -1,11 +1,11 @@
 #![macro_use]
 
+pub mod godot_ffi;
+pub mod macros;
 pub mod string;
 pub mod variant;
 pub mod vector2;
 pub mod vector3;
-
-pub mod macros;
 
 use gdext_sys as sys;
 use std::collections::BTreeMap;
