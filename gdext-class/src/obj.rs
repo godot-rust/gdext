@@ -1,11 +1,13 @@
 use crate::property_info::PropertyInfoBuilder;
 use crate::{sys, sys::interface_fn, GodotExtensionClass};
+use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::variant::Variant;
-use gdext_builtin::PtrCallArg;
+use gdext_builtin::{impl_ffi_as_pointer, PtrCallArg};
 use gdext_sys::types::OpaqueObject;
 use std::marker::PhantomData;
 
-pub struct Obj<T: GodotExtensionClass> {
+// TODO which bounds to add on struct itself?
+pub struct Obj<T> {
     // Note: this may not be a pointer behind the scenes -- consider using an opaque [u8; SIZE_FROM_JSON]
     opaque: OpaqueObject,
     _marker: PhantomData<*const T>,
@@ -16,26 +18,11 @@ impl<T: GodotExtensionClass> Obj<T> {
         todo!()
     }
 
-    pub fn from_sys(ptr: sys::GDNativeObjectPtr) -> Self {
-        print!("Obj::from_sys: ptr={:?}", ptr);
-
-        let s = Self {
-            opaque: unsafe { std::mem::transmute(ptr) },
-            //opaque: unsafe { OpaqueObject::from_value_sys(ptr) },
-            //opaque: unsafe { OpaqueObject::from_sys(ptr) },
-            _marker: PhantomData,
-        };
-
-        println!(", opaque={}", s.opaque);
-        s
-    }
-
-    pub fn from_opaque(opaque: OpaqueObject) -> Self {
+    fn from_opaque(opaque: OpaqueObject) -> Self {
         print!("Obj::from_opaque: opaque={}", opaque);
 
         let s = Self {
             opaque,
-            //opaque: unsafe { OpaqueObject::from_sys(ptr) },
             _marker: PhantomData,
         };
 
@@ -65,12 +52,16 @@ impl<T: GodotExtensionClass> Obj<T> {
     }*/
 }
 
+impl<T: GodotExtensionClass> GodotFfi for Obj<T> {
+    impl_ffi_as_pointer!();
+}
+
 impl<T: GodotExtensionClass> From<&Variant> for Obj<T> {
     fn from(variant: &Variant) -> Self {
         unsafe {
             let opaque = OpaqueObject::with_init(|ptr| {
                 let converter = sys::get_cache().variant_to_object;
-                converter(ptr, variant.as_ptr());
+                converter(ptr, variant.sys());
             });
 
             Obj::from_opaque(opaque)
@@ -81,12 +72,10 @@ impl<T: GodotExtensionClass> From<&Variant> for Obj<T> {
 impl<T: GodotExtensionClass> From<Obj<T>> for Variant {
     fn from(obj: Obj<T>) -> Self {
         unsafe {
-            let opaque = sys::types::OpaqueVariant::with_init(|ptr| {
+            Self::from_sys_init(|opaque_ptr| {
                 let converter = sys::get_cache().variant_from_object;
-                converter(ptr, obj.opaque.to_sys());
-            });
-
-            Self::from_sys(opaque)
+                converter(opaque_ptr, obj.opaque.to_sys());
+            })
         }
     }
 }

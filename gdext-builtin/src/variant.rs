@@ -1,5 +1,7 @@
+use crate::godot_ffi::GodotFfi;
+use crate::impl_ffi_as_value;
+use gdext_sys::interface_fn;
 use gdext_sys::types::OpaqueVariant;
-use gdext_sys::{self as sys, interface_fn};
 
 #[repr(C, align(8))]
 pub struct Variant {
@@ -8,52 +10,43 @@ pub struct Variant {
 
 impl Variant {
     pub fn nil() -> Self {
-        let opaque = unsafe {
-            OpaqueVariant::with_init(|ptr| {
+         unsafe {
+             Self::from_sys_init(|ptr| {
                 interface_fn!(variant_new_nil)(ptr);
             })
-        };
+        }
+    }
 
+    fn from_opaque(opaque: OpaqueVariant) -> Self {
         Self { opaque }
-    }
-
-    #[doc(hidden)]
-    pub fn from_sys(opaque: OpaqueVariant) -> Self {
-        Self { opaque }
-    }
-
-    #[doc(hidden)]
-    pub fn as_mut_ptr(&mut self) -> sys::GDNativeVariantPtr {
-        self.opaque.to_sys_mut()
-    }
-
-    #[doc(hidden)]
-    pub fn as_ptr(&self) -> sys::GDNativeVariantPtr {
-        self.opaque.to_sys()
     }
 }
 
 impl Clone for Variant {
     fn clone(&self) -> Self {
-        let opaque = unsafe {
-            OpaqueVariant::with_init(|ptr| {
-                interface_fn!(variant_new_copy)(ptr, self.as_ptr());
+         unsafe {
+            Self::from_sys_init(|ptr| {
+                interface_fn!(variant_new_copy)(ptr, self.sys());
             })
-        };
-        Self { opaque }
+        }
     }
 }
 
 impl Drop for Variant {
     fn drop(&mut self) {
         unsafe {
-            interface_fn!(variant_destroy)(self.opaque.to_sys_mut());
+            interface_fn!(variant_destroy)(self.sys_mut());
         }
     }
 }
 
+impl GodotFfi for Variant {
+    impl_ffi_as_value!();
+}
+
 mod conversions {
     use super::Variant;
+    use crate::godot_ffi::GodotFfi;
     use crate::{string::GodotString, vector2::Vector2, vector3::Vector3};
     use gdext_sys as sys;
 
@@ -62,12 +55,10 @@ mod conversions {
             impl From<$T> for Variant {
                 fn from(value: $T) -> Self {
                     unsafe {
-                        let opaque = $crate::sys::types::OpaqueVariant::with_init(|ptr| {
+                        Self::from_sys_init(|ptr| {
                             let converter = sys::get_cache().$from_fn;
-                            converter(ptr, &value as *const _ as *mut _);
-                        });
-
-                        Self { opaque }
+                            converter(ptr, &value as *const _ as *mut std::ffi::c_void);
+                        })
                     }
                 }
             }
@@ -78,7 +69,7 @@ mod conversions {
                         let mut value = <$T>::default();
 
                         let converter = sys::get_cache().$to_fn;
-                        converter(&mut value as *mut _ as *mut _, variant.as_ptr());
+                        converter(&mut value as *mut _ as *mut std::ffi::c_void, variant.sys());
                         value
                     }
                 }
@@ -121,12 +112,10 @@ mod conversions {
     impl From<&GodotString> for Variant {
         fn from(value: &GodotString) -> Self {
             unsafe {
-                let opaque = sys::types::OpaqueVariant::with_init(|ptr| {
+                 Self::from_sys_init(|ptr| {
                     let converter = sys::get_cache().variant_from_string;
-                    converter(ptr, &value as *const _ as *mut _);
-                });
-
-                Self { opaque }
+                    converter(ptr, &value as *const _ as *mut std::ffi::c_void);
+                })
             }
         }
     }

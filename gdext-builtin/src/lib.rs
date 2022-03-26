@@ -7,7 +7,6 @@ pub mod variant;
 pub mod vector2;
 pub mod vector3;
 
-use gdext_sys as sys;
 use std::collections::BTreeMap;
 
 pub use glam;

@@ -1,11 +1,12 @@
 use std::ffi::CString;
 use std::{convert::Infallible, mem::MaybeUninit, str::FromStr};
 
+use crate::godot_ffi::GodotFfi;
 use gdext_sys::types::OpaqueString;
 use gdext_sys::{self as sys, interface_fn};
 use once_cell::sync::Lazy;
 
-use crate::PtrCallArg;
+use crate::{impl_ffi_as_value, PtrCallArg};
 
 #[repr(C, align(8))]
 pub struct GodotString {
@@ -13,16 +14,6 @@ pub struct GodotString {
 }
 
 impl GodotString {
-    #[doc(hidden)]
-    pub fn as_mut_ptr(&mut self) -> sys::GDNativeStringPtr {
-        &mut self.opaque as *mut _ as sys::GDNativeStringPtr
-    }
-
-    #[doc(hidden)]
-    pub fn as_ptr(&self) -> sys::GDNativeStringPtr {
-        &self.opaque as *const _ as sys::GDNativeStringPtr
-    }
-
     #[doc(hidden)]
     pub fn as_c_string(&self) -> *const std::os::raw::c_char {
         // TODO make this less hacky and leaky
@@ -46,16 +37,12 @@ impl GodotString {
                 .unwrap()
             });
 
-            let mut opaque = MaybeUninit::<OpaqueString>::uninit();
-            CONSTR(
-                opaque.as_mut_ptr() as sys::GDNativeTypePtr,
-                std::ptr::null(),
-            );
-
-            GodotString {
-                opaque: opaque.assume_init(),
-            }
+            Self::from_sys_init(|opaque_ptr| CONSTR(opaque_ptr, std::ptr::null()))
         }
+    }
+
+    fn from_opaque(opaque: OpaqueString) -> Self {
+        Self { opaque }
     }
 
     pub fn from(s: &str) -> Self {
@@ -72,8 +59,6 @@ impl Default for GodotString {
 impl Clone for GodotString {
     fn clone(&self) -> Self {
         unsafe {
-            let mut s = Self::new();
-
             static CONSTR: Lazy<
                 unsafe extern "C" fn(sys::GDNativeTypePtr, *const sys::GDNativeTypePtr),
             > = Lazy::new(|| unsafe {
@@ -83,8 +68,10 @@ impl Clone for GodotString {
                 )
                 .unwrap()
             });
-            CONSTR(s.as_mut_ptr(), self.as_ptr() as *const _);
-            s
+
+            Self::from_sys_init(|opaque_ptr| {
+                CONSTR(opaque_ptr, &self.sys() as *const *mut std::ffi::c_void)
+            })
         }
     }
 }
@@ -111,12 +98,12 @@ impl std::fmt::Display for GodotString {
 impl From<&GodotString> for String {
     fn from(string: &GodotString) -> Self {
         unsafe {
-            let len = interface_fn!(string_to_utf8_chars)(string.as_ptr(), std::ptr::null_mut(), 0);
+            let len = interface_fn!(string_to_utf8_chars)(string.sys(), std::ptr::null_mut(), 0);
 
             assert!(len >= 0);
             let mut buf = vec![0u8; len as usize];
 
-            interface_fn!(string_to_utf8_chars)(string.as_ptr(), buf.as_mut_ptr() as *mut i8, len);
+            interface_fn!(string_to_utf8_chars)(string.sys(), buf.as_mut_ptr() as *mut i8, len);
 
             String::from_utf8_unchecked(buf)
         }
@@ -153,9 +140,13 @@ impl Drop for GodotString {
                 )
                 .unwrap()
             });
-            DESTR(self.as_mut_ptr());
+            DESTR(self.sys_mut());
         }
     }
+}
+
+impl GodotFfi for GodotString {
+    impl_ffi_as_value!();
 }
 
 impl PtrCallArg for GodotString {

@@ -1,3 +1,4 @@
+use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::{
     gdext_init, string::GodotString, variant::Variant, vector2::Vector2, vector3::Vector3,
     InitLevel,
@@ -109,6 +110,9 @@ impl GodotExtensionClass for RustTest {
 impl RustTest {
     fn test_method(&mut self, some_int: u64, some_string: GodotString) -> GodotString {
         //let id = Obj::emplace(self).instance_id();
+
+        let some_string = some_string.clone();
+
         let msg = format!(
             "Hello from `RustTest.test_method()`:\
             \n\tyou passed some_int={some_int} and some_string={some_string}"
@@ -144,7 +148,7 @@ impl RustTest {
         //let instance = Box::new(T::construct(obj));
         //let instance_ptr = Box::into_raw(instance);
 
-        Obj::from_sys(ptr)
+        unsafe { Obj::from_sys(ptr) }
     }
 
     fn _ready(&mut self) {
