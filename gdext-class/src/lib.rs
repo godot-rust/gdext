@@ -54,7 +54,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
                     let instance = &mut *(instance as *mut T);
                     let string = instance.to_string();
 
-                    string.as_c_string()
+                    string.leak_c_string()
                 }
                 to_string::<T>
             })

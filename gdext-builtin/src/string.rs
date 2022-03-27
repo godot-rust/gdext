@@ -14,17 +14,6 @@ pub struct GodotString {
 }
 
 impl GodotString {
-    #[doc(hidden)]
-    pub fn as_c_string(&self) -> *const std::os::raw::c_char {
-        // TODO make this less hacky and leaky
-        let s: String = self.into();
-
-        let c = CString::new(s).unwrap();
-        let ptr = c.as_ptr();
-        std::mem::forget(c);
-        ptr
-    }
-
     pub fn new() -> Self {
         unsafe {
             static CONSTR: Lazy<
@@ -47,6 +36,19 @@ impl GodotString {
 
     pub fn from(s: &str) -> Self {
         Self::from_str(s).unwrap()
+    }
+
+    // TODO remove this method
+    // it's currently used for _to_string(), which has a const char* return type,
+    // however Godot devs already announced to change it to a GDNativeStringPtr parameter.
+    #[doc(hidden)]
+    pub fn leak_c_string(&self) -> *const std::os::raw::c_char {
+        let s: String = self.into();
+
+        let c = CString::new(s).unwrap();
+        let ptr = c.as_ptr();
+        std::mem::forget(c);
+        ptr
     }
 }
 
@@ -177,3 +179,4 @@ impl PtrCallArg for &GodotString {
     }
 }
 */
+
