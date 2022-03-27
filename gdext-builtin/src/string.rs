@@ -6,7 +6,7 @@ use gdext_sys::types::OpaqueString;
 use gdext_sys::{self as sys, interface_fn};
 use once_cell::sync::Lazy;
 
-use crate::{impl_ffi_as_value, PtrCallArg};
+use crate::impl_ffi_as_value;
 
 #[repr(C, align(8))]
 pub struct GodotString {
@@ -149,19 +149,6 @@ impl Drop for GodotString {
 
 impl GodotFfi for GodotString {
     impl_ffi_as_value!();
-}
-
-impl PtrCallArg for GodotString {
-    unsafe fn ptrcall_read(arg: gdext_sys::GDNativeTypePtr) -> Self {
-        // C++: arg is String*
-        Self::from_sys(arg)
-    }
-
-    unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr) {
-        //std::ptr::copy(ret, self.sys(), 1);
-        //std::ptr::write(ret as *mut OpaqueString, &self.opaque as *mut _)
-        self.write_sys(ret);
-    }
 }
 
 // While this is a nice optimisation for ptrcalls, it's not easily possible

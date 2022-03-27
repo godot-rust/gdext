@@ -157,8 +157,8 @@ pub trait PtrCallArg {
     unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr);
 }
 
-// Blanked implementation for all `GodotFfi` classes
-/*impl<T: GodotFfi> PtrCallArg for T {
+// Blanket implementation for all `GodotFfi` classes
+impl<T: GodotFfi> PtrCallArg for T {
     unsafe fn ptrcall_read(arg: gdext_sys::GDNativeTypePtr) -> Self {
         Self::from_sys(arg)
     }
@@ -166,7 +166,7 @@ pub trait PtrCallArg {
     unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr) {
         self.write_sys(ret);
     }
-}*/
+}
 
 macro_rules! impl_ptr_call_arg_num {
     ($t:ty) => {

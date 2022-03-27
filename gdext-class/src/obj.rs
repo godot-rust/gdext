@@ -2,7 +2,7 @@ use crate::property_info::PropertyInfoBuilder;
 use crate::{sys, sys::interface_fn, GodotExtensionClass};
 use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::variant::Variant;
-use gdext_builtin::{impl_ffi_as_pointer, PtrCallArg};
+use gdext_builtin::impl_ffi_as_pointer;
 use gdext_sys::types::OpaqueObject;
 use std::marker::PhantomData;
 
@@ -83,23 +83,6 @@ impl<T: GodotExtensionClass> From<Obj<T>> for Variant {
 impl<T: GodotExtensionClass> From<&Obj<T>> for Variant {
     fn from(_obj: &Obj<T>) -> Self {
         todo!()
-    }
-}
-
-impl<T: GodotExtensionClass> PtrCallArg for Obj<T> {
-    unsafe fn ptrcall_read(_arg: gdext_sys::GDNativeTypePtr) -> Self {
-        //Clone::clone(&*(arg as *mut Obj<T>))
-        todo!()
-    }
-
-    unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr) {
-        // arg: Object** in C++
-
-        println!("ptrcall_write: opaque={}", self.opaque);
-        std::ptr::write(ret as *mut OpaqueObject, self.opaque);
-
-        //todo!("not impl: ptr={:?}", _arg)
-        //std::ptr::write(arg as *mut Obj<T>, self);
     }
 }
 

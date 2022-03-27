@@ -25,23 +25,3 @@ impl GodotFfi for Vector2 {
         *(dst as *mut Vector2) = *self;
     }
 }
-
-impl crate::PtrCallArg for Vector2 {
-    unsafe fn ptrcall_read(arg: gdext_sys::GDNativeTypePtr) -> Self {
-        Self::from_sys(arg)
-    }
-
-    unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr) {
-        self.write_sys(ret);
-    }
-}
-
-/*impl PtrCallArg for Vector2 {
-    unsafe fn ptrcall_read(arg: gdext_sys::GDNativeTypePtr) -> Self {
-        *(arg as *const Vector2)
-    }
-
-    unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr) {
-        *(ret as *mut Vector2) = self;
-    }
-}*/

@@ -52,9 +52,7 @@ macro_rules! impl_ffi_as_pointer {
         }
 
         unsafe fn write_sys(&self, dst: *mut std::ffi::c_void) {
-            // std::mem::transmute(self.opaque)
-            //std::ptr::write(dst as *mut, self.opaque)
-            todo!()
+            std::ptr::write(dst as *mut _, self.opaque);
         }
     };
 }
