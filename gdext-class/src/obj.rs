@@ -32,8 +32,18 @@ impl<T: GodotExtensionClass> Obj<T> {
 
     // explicit deref for testing purposes
     pub fn inner(&self) -> &T {
-        //let binding = interface_fn!(object_get_instance_binding);
-        todo!()
+        let callbacks = sys::GDNativeInstanceBindingCallbacks {
+            create_callback: None,
+            free_callback: None,
+            reference_callback: None,
+        };
+
+        let binding = unsafe {
+            let token = sys::get_library();
+            interface_fn!(object_get_instance_binding)(self.sys(), token, &callbacks)
+        };
+
+        unsafe { &*(binding as *const T) }
     }
 
     pub fn instance_id(&self) -> u64 {

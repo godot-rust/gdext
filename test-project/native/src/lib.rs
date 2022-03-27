@@ -130,7 +130,7 @@ impl RustTest {
 
     fn accept_obj(&self, obj: Obj<Entity>) {
         //log!("[RustTest] accept_obj: id={:x}, dec={}", obj.instance_id(), obj.instance_id() as i64);
-        log!("[RustTest] accept_obj: id={}", obj.instance_id() as i64);
+        log!("[RustTest] accept_obj:\n  id={},\n  obj={:?}", obj.instance_id() as i64, obj.inner());
     }
 
     fn return_obj(&self) -> Obj<Entity> {
@@ -152,9 +152,10 @@ impl RustTest {
     }
 
     fn find_obj(&self, instance_id: u64) -> Obj<Entity> {
-        log!("[RustTest] find_obj(): {}", instance_id);
-
-        Obj::from_instance_id(instance_id).expect("Obj is null")
+        let obj = Obj::from_instance_id(instance_id).expect("Obj is null");
+        let inner = obj.inner();
+        log!("[RustTest] find_obj():\n  id={},\n  obj={:?}", instance_id, inner);
+        obj
     }
 
     fn _ready(&mut self) {
