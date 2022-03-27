@@ -79,14 +79,14 @@ macro_rules! gdext_wrap_method_inner {
                         let mut idx = 0;
 
                         $(
-                            let $pname = <$pty as gdext_builtin::PtrCallArg>::from_ptr_call_arg(args.offset(idx));
+                            let $pname = <$pty as gdext_builtin::PtrCallArg>::ptrcall_read(*args.offset(idx));
                             idx += 1;
                         )*
 
                         let ret_val = instance.$method_name($(
                             $pname,
                         )*);
-                        <$retty as gdext_builtin::PtrCallArg>::to_ptr_call_arg(ret_val, ret);
+                        <$retty as gdext_builtin::PtrCallArg>::ptrcall_write(ret_val, ret);
                     }
 
                     call
@@ -266,14 +266,14 @@ macro_rules! gdext_virtual_method_inner {
                 let mut idx = 0;
 
                 $(
-                    let $pname = <$pty as gdext_builtin::PtrCallArg>::from_ptr_call_arg(args.offset(idx));
+                    let $pname = <$pty as gdext_builtin::PtrCallArg>::ptrcall_read(*args.offset(idx));
                     idx += 1;
                 )*
 
                 let ret_val = instance.$method_name($(
                     $pname,
                 )*);
-                <$retty as gdext_builtin::PtrCallArg>::to_ptr_call_arg(ret_val, ret);
+                <$retty as gdext_builtin::PtrCallArg>::ptrcall_write(ret_val, ret);
             }
             call
         })

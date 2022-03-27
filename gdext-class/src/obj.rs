@@ -87,16 +87,16 @@ impl<T: GodotExtensionClass> From<&Obj<T>> for Variant {
 }
 
 impl<T: GodotExtensionClass> PtrCallArg for Obj<T> {
-    unsafe fn from_ptr_call_arg(_arg: *const gdext_sys::GDNativeTypePtr) -> Self {
+    unsafe fn ptrcall_read(_arg: gdext_sys::GDNativeTypePtr) -> Self {
         //Clone::clone(&*(arg as *mut Obj<T>))
         todo!()
     }
 
-    unsafe fn to_ptr_call_arg(self, arg: gdext_sys::GDNativeTypePtr) {
+    unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr) {
         // arg: Object** in C++
 
-        println!("to_ptr_call_arg: opaque={}", self.opaque);
-        std::ptr::write(arg as *mut OpaqueObject, self.opaque);
+        println!("ptrcall_write: opaque={}", self.opaque);
+        std::ptr::write(ret as *mut OpaqueObject, self.opaque);
 
         //todo!("not impl: ptr={:?}", _arg)
         //std::ptr::write(arg as *mut Obj<T>, self);

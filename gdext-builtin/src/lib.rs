@@ -145,7 +145,7 @@ pub trait PtrCallArg {
     ///
     /// Implementations of this function will use pointer casting and must make
     /// sure that the proper types are expected as they are provided by Godot.
-    unsafe fn from_ptr_call_arg(arg: *const gdext_sys::GDNativeTypePtr) -> Self;
+    unsafe fn ptrcall_read(arg: gdext_sys::GDNativeTypePtr) -> Self;
 
     /// Write a value to a ptrcall argument or return value.
     ///
@@ -153,18 +153,18 @@ pub trait PtrCallArg {
     ///
     /// Implementations of this function will use pointer casting and must make
     /// sure that the proper types are provided as they are expected by Godot.
-    unsafe fn to_ptr_call_arg(self, arg: gdext_sys::GDNativeTypePtr);
+    unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr);
 }
 
 macro_rules! impl_ptr_call_arg_num {
     ($t:ty) => {
         impl PtrCallArg for $t {
-            unsafe fn from_ptr_call_arg(arg: *const gdext_sys::GDNativeTypePtr) -> Self {
-                *(*arg as *mut $t)
+            unsafe fn ptrcall_read(arg: gdext_sys::GDNativeTypePtr) -> Self {
+                *(arg as *mut $t)
             }
 
-            unsafe fn to_ptr_call_arg(self, arg: gdext_sys::GDNativeTypePtr) {
-                *(arg as *mut $t) = self;
+            unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr) {
+                *(ret as *mut $t) = self;
             }
         }
     };
@@ -184,9 +184,9 @@ impl_ptr_call_arg_num!(f32);
 impl_ptr_call_arg_num!(f64);
 
 impl PtrCallArg for () {
-    unsafe fn from_ptr_call_arg(_arg: *const gdext_sys::GDNativeTypePtr) -> Self {}
+    unsafe fn ptrcall_read(_arg: gdext_sys::GDNativeTypePtr) -> Self {}
 
-    unsafe fn to_ptr_call_arg(self, _arg: gdext_sys::GDNativeTypePtr) {
+    unsafe fn ptrcall_write(self, _arg: gdext_sys::GDNativeTypePtr) {
         // do nothing
     }
 }

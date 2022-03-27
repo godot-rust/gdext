@@ -38,7 +38,9 @@ macro_rules! impl_ffi_as_pointer {
 
         unsafe fn from_sys_init(init: impl FnOnce(*mut std::ffi::c_void)) -> Self {
             let mut raw = std::mem::MaybeUninit::uninit();
-            init(std::ptr::read(raw.as_mut_ptr() as *mut *mut std::ffi::c_void));
+            init(std::ptr::read(
+                raw.as_mut_ptr() as *mut *mut std::ffi::c_void
+            ));
 
             Self::from_opaque(raw.assume_init())
         }

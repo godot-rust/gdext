@@ -152,17 +152,17 @@ impl GodotFfi for GodotString {
 }
 
 impl PtrCallArg for GodotString {
-    unsafe fn from_ptr_call_arg(arg: *const gdext_sys::GDNativeTypePtr) -> Self {
+    unsafe fn ptrcall_read(arg: gdext_sys::GDNativeTypePtr) -> Self {
         // C++: arg is String**
         //Clone::clone(&*(arg as *mut GodotString))
         //let arg = *arg;
         Self {
-            opaque: OpaqueString::from_value_sys(*arg as *mut _),
+            opaque: OpaqueString::from_value_sys(arg as *mut _),
         }
     }
 
-    unsafe fn to_ptr_call_arg(self, arg: gdext_sys::GDNativeTypePtr) {
-        std::ptr::write(arg as *mut GodotString, self);
+    unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr) {
+        std::ptr::write(ret as *mut GodotString, self);
     }
 }
 
@@ -170,13 +170,12 @@ impl PtrCallArg for GodotString {
 // to pass in &GodotString when doing varcalls.
 /*
 impl PtrCallArg for &GodotString {
-    unsafe fn from_ptr_call_arg(arg: *const gdext_sys::GDNativeTypePtr) -> Self {
+    unsafe fn ptrcall_read(arg: *const gdext_sys::GDNativeTypePtr) -> Self {
         &*(*arg as *const GodotString)
     }
 
-    unsafe fn to_ptr_call_arg(self, arg: gdext_sys::GDNativeTypePtr) {
-        std::ptr::write(arg as *mut GodotString, self.clone());
+    unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr) {
+        std::ptr::write(ret as *mut GodotString, self.clone());
     }
 }
 */
-
