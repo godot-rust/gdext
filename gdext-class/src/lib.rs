@@ -21,6 +21,24 @@ pub trait GodotClass {
     fn upcast_mut(&mut self) -> &mut Self::Base;
 }
 
+/// Utility to convert `String` to C `const char*`.
+/// Cannot be a function since the backing string must be retained.
+pub(crate) struct ClassName {
+    backing: String,
+}
+
+impl ClassName {
+    pub fn new<T: GodotClass>() -> Self {
+        Self {
+            backing: format!("{}\0", T::class_name()),
+        }
+    }
+
+    pub fn c_str(&self) -> *const ::std::os::raw::c_char {
+        self.backing.as_ptr() as *const _
+    }
+}
+
 pub trait GodotExtensionClass: GodotClass {
     fn construct(base: sys::GDNativeObjectPtr) -> Self;
 
@@ -83,17 +101,16 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
             unsafe extern "C" fn instance<T: GodotExtensionClass>(
                 _class_userdata: *mut std::ffi::c_void,
             ) -> *mut std::ffi::c_void {
-                let class_name = format!("{}\0", T::class_name());
-                let parent_class_name = format!("{}\0", T::Base::class_name());
+                let class_name = ClassName::new::<T>();
+                let parent_class_name = ClassName::new::<T::Base>();
 
-                let obj =
-                    interface_fn!(classdb_construct_object)(parent_class_name.as_ptr() as *const _);
+                let obj = interface_fn!(classdb_construct_object)(parent_class_name.c_str());
                 let instance = Box::new(T::construct(obj));
                 let instance_ptr = Box::into_raw(instance);
 
                 interface_fn!(object_set_instance)(
                     obj,
-                    class_name.as_ptr() as *const _,
+                    class_name.c_str(),
                     instance_ptr as *mut _,
                 );
 
@@ -136,14 +153,14 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
         class_userdata: std::ptr::null_mut(),
     };
 
-    let class_name = format!("{}\0", T::class_name());
-    let parent_class_name = format!("{}\0", T::Base::class_name());
+    let class_name = ClassName::new::<T>();
+    let parent_class_name = ClassName::new::<T::Base>();
 
     unsafe {
         interface_fn!(classdb_register_extension_class)(
             sys::get_library(),
-            class_name.as_ptr() as *const _,
-            parent_class_name.as_ptr() as *const _,
+            class_name.c_str(),
+            parent_class_name.c_str(),
             &creation_info as *const _,
         );
     }
