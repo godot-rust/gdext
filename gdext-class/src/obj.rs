@@ -1,5 +1,5 @@
 use crate::property_info::PropertyInfoBuilder;
-use crate::{sys, sys::interface_fn, GodotExtensionClass};
+use crate::{sys, sys::interface_fn, ClassName, GodotExtensionClass};
 use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::impl_ffi_as_pointer;
 use gdext_builtin::variant::Variant;
@@ -15,7 +15,11 @@ pub struct Obj<T> {
 
 impl<T: GodotExtensionClass> Obj<T> {
     pub fn new(_rust_obj: T) -> Self {
-        todo!()
+        let class_name = ClassName::new::<T>();
+
+        let ptr = unsafe { interface_fn!(classdb_construct_object)(class_name.c_str()) };
+
+        unsafe { Obj::from_sys(ptr) }
     }
 
     fn from_opaque(opaque: OpaqueObject) -> Self {

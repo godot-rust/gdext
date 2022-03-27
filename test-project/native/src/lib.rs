@@ -1,4 +1,3 @@
-use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::{
     gdext_init, string::GodotString, variant::Variant, vector2::Vector2, vector3::Vector3,
     InitLevel,
@@ -130,31 +129,33 @@ impl RustTest {
 
     fn accept_obj(&self, obj: Obj<Entity>) {
         //log!("[RustTest] accept_obj: id={:x}, dec={}", obj.instance_id(), obj.instance_id() as i64);
-        log!("[RustTest] accept_obj:\n  id={},\n  obj={:?}", obj.instance_id() as i64, obj.inner());
+        log!(
+            "[RustTest] accept_obj:\n  id={},\n  obj={:?}",
+            obj.instance_id() as i64,
+            obj.inner()
+        );
     }
 
     fn return_obj(&self) -> Obj<Entity> {
         log!("[RustTest] return_obj()");
 
-        /* let entity: Entity = todo!();
-        let boks = Box::new(entity);
-        let eternal = Box::leak(boks);
-        let user_data = eternal as *mut Entity as *mut _;
+        let rust_obj = Entity {
+            base: RefCounted(std::ptr::null_mut()),
+            name: "New name!".to_string(),
+            hitpoints: 20,
+        };
 
-        let ptr = unsafe { instantiate_obj::<Entity>(user_data) };*/
-
-        let ptr =
-            unsafe { interface_fn!(classdb_construct_object)("Entity\0".as_ptr() as *const _) };
-        //let instance = Box::new(T::construct(obj));
-        //let instance_ptr = Box::into_raw(instance);
-
-        unsafe { Obj::from_sys(ptr) }
+        Obj::new(rust_obj)
     }
 
     fn find_obj(&self, instance_id: u64) -> Obj<Entity> {
         let obj = Obj::from_instance_id(instance_id).expect("Obj is null");
         let inner = obj.inner();
-        log!("[RustTest] find_obj():\n  id={},\n  obj={:?}", instance_id, inner);
+        log!(
+            "[RustTest] find_obj():\n  id={},\n  obj={:?}",
+            instance_id,
+            inner
+        );
         obj
     }
 

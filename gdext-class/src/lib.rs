@@ -108,11 +108,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
                 let instance = Box::new(T::construct(obj));
                 let instance_ptr = Box::into_raw(instance);
 
-                interface_fn!(object_set_instance)(
-                    obj,
-                    class_name.c_str(),
-                    instance_ptr as *mut _,
-                );
+                interface_fn!(object_set_instance)(obj, class_name.c_str(), instance_ptr as *mut _);
 
                 let binding_data_callbacks = sys::GDNativeInstanceBindingCallbacks {
                     create_callback: None,
