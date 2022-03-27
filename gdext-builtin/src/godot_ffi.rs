@@ -22,6 +22,8 @@ pub trait GodotFfi {
     fn sys_mut(&mut self) -> *mut c_void {
         self.sys()
     }
+
+    unsafe fn write_sys(&self, dst: *mut c_void);
 }
 
 /// Implements the `GodotFfi` methods for a type with `Opaque` data that stores a pointer type
@@ -48,6 +50,12 @@ macro_rules! impl_ffi_as_pointer {
         fn sys(&self) -> *mut std::ffi::c_void {
             unsafe { std::mem::transmute(self.opaque) }
         }
+
+        unsafe fn write_sys(&self, dst: *mut std::ffi::c_void) {
+            // std::mem::transmute(self.opaque)
+            //std::ptr::write(dst as *mut, self.opaque)
+            todo!()
+        }
     };
 }
 
@@ -72,6 +80,10 @@ macro_rules! impl_ffi_as_value {
 
         fn sys(&self) -> *mut std::ffi::c_void {
             &self.opaque as *const _ as *mut std::ffi::c_void
+        }
+
+        unsafe fn write_sys(&self, dst: *mut std::ffi::c_void) {
+            std::ptr::write(dst as *mut _, self.opaque)
         }
     };
 }

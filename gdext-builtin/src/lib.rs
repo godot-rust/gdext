@@ -9,6 +9,7 @@ pub mod vector3;
 
 use std::collections::BTreeMap;
 
+use crate::godot_ffi::GodotFfi;
 pub use glam;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -155,6 +156,17 @@ pub trait PtrCallArg {
     /// sure that the proper types are provided as they are expected by Godot.
     unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr);
 }
+
+// Blanked implementation for all `GodotFfi` classes
+/*impl<T: GodotFfi> PtrCallArg for T {
+    unsafe fn ptrcall_read(arg: gdext_sys::GDNativeTypePtr) -> Self {
+        Self::from_sys(arg)
+    }
+
+    unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr) {
+        self.write_sys(ret);
+    }
+}*/
 
 macro_rules! impl_ptr_call_arg_num {
     ($t:ty) => {

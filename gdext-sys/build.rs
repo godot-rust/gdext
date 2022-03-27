@@ -20,4 +20,6 @@ fn main() {
     let gen_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen");
 
     gen::ApiParser::generate_file(Path::new(gen_path));
+
+    println!("cargo:rerun-if-changed=../thirdparty/godot-headers/godot/gdnative_interface.h");
 }

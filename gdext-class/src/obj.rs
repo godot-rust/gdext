@@ -102,6 +102,7 @@ impl<T: GodotExtensionClass> PtrCallArg for Obj<T> {
         //std::ptr::write(arg as *mut Obj<T>, self);
     }
 }
+
 impl<T: GodotExtensionClass> PropertyInfoBuilder for Obj<T> {
     fn variant_type() -> gdext_sys::GDNativeVariantType {
         gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_OBJECT
