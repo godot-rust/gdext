@@ -1,8 +1,8 @@
 use crate::property_info::PropertyInfoBuilder;
 use crate::{sys, sys::interface_fn, GodotExtensionClass};
 use gdext_builtin::godot_ffi::GodotFfi;
-use gdext_builtin::variant::Variant;
 use gdext_builtin::impl_ffi_as_pointer;
+use gdext_builtin::variant::Variant;
 use gdext_sys::types::OpaqueObject;
 use std::marker::PhantomData;
 
@@ -32,24 +32,26 @@ impl<T: GodotExtensionClass> Obj<T> {
 
     // explicit deref for testing purposes
     pub fn inner(&self) -> &T {
+        //let binding = interface_fn!(object_get_instance_binding);
         todo!()
     }
 
     pub fn instance_id(&self) -> u64 {
-        println!("Obj::instance_id: opaque={}", self.opaque);
-
-        //unsafe { interface_fn!(object_get_instance_id)(self.opaque_ptr) }
-        // unsafe { interface_fn!(object_get_instance_id)(transmute(self.opaque)) }
-        //unsafe { interface_fn!(object_get_instance_id)(self.opaque.to_value_sys()) }
-        unsafe { interface_fn!(object_get_instance_id)(std::mem::transmute(self.opaque)) }
+        // Note: bit 'id & (1 << 63)' determines if the instance is ref-counted
+        unsafe { interface_fn!(object_get_instance_id)(self.sys()) }
     }
 
-    /*pub fn from_instance_id(instance_id: u64) -> Self {
+    pub fn from_instance_id(instance_id: u64) -> Option<Self> {
         unsafe {
             let ptr = interface_fn!(object_get_instance_from_id)(instance_id);
-            Obj::from_sys(ptr)
+
+            if ptr.is_null() {
+                None
+            } else {
+                Some(Obj::from_sys(ptr))
+            }
         }
-    }*/
+    }
 }
 
 impl<T: GodotExtensionClass> GodotFfi for Obj<T> {

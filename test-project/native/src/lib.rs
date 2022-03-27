@@ -151,6 +151,12 @@ impl RustTest {
         unsafe { Obj::from_sys(ptr) }
     }
 
+    fn find_obj(&self, instance_id: u64) -> Obj<Entity> {
+        log!("[RustTest] find_obj(): {}", instance_id);
+
+        Obj::from_instance_id(instance_id).expect("Obj is null")
+    }
+
     fn _ready(&mut self) {
         log!("[RustTest] _ready()");
     }
@@ -186,6 +192,10 @@ impl GodotExtensionClassMethods for RustTest {
 
         gdext_wrap_method!(RustTest,
             fn return_obj(&self) -> Obj<Entity>
+        );
+
+        gdext_wrap_method!(RustTest,
+            fn find_obj(&self, instance_id: u64) -> Obj<Entity>
         );
 
         gdext_wrap_method!(RustTest,

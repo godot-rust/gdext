@@ -38,6 +38,8 @@ func _ready():
 	print_instance_id(obj, "entity")
 	rust_test.accept_obj(obj)
 	print("----------------------------")
+	var obj2 = rust_test.find_obj(obj.get_instance_id())
+	print("obj2._to_string(): ", obj2)
 	print()
 
 	print("[GDScript] end _ready")

@@ -34,6 +34,8 @@ pub trait GodotFfi {
 macro_rules! impl_ffi_as_pointer {
     () => {
         unsafe fn from_sys(opaque_ptr: *mut std::ffi::c_void) -> Self {
+            debug_assert!(!opaque_ptr.is_null());
+
             let opaque = std::mem::transmute(opaque_ptr);
             Self::from_opaque(opaque)
         }
