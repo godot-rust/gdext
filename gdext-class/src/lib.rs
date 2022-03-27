@@ -68,11 +68,12 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
             Some({
                 unsafe extern "C" fn to_string<T: GodotExtensionClassMethods>(
                     instance: *mut std::ffi::c_void,
-                ) -> *const std::os::raw::c_char {
+                    out_string: *mut std::ffi::c_void,
+                ) {
                     let instance = &mut *(instance as *mut T);
-                    let string = instance.to_string();
 
-                    string.leak_c_string()
+                    // TODO use sys_write()
+                    *(out_string as *mut GodotString) = instance.to_string();
                 }
                 to_string::<T>
             })
@@ -146,6 +147,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
             }
             get_virtual::<T>
         }),
+        get_rid_func: None,
         class_userdata: std::ptr::null_mut(),
     };
 
