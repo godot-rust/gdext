@@ -1,4 +1,5 @@
 use crate::godot_exe;
+use std::collections::HashSet;
 
 use miniserde::{json, Deserialize};
 use proc_macro2::TokenStream;
@@ -11,6 +12,7 @@ use std::path::Path;
 #[derive(Deserialize)]
 struct ExtensionApi {
     builtin_class_sizes: Vec<ClassSizes>,
+    builtin_classes: Vec<BuiltinClass>,
     global_enums: Vec<GlobalEnum>,
 }
 
@@ -24,6 +26,12 @@ struct ClassSizes {
 struct ClassSize {
     name: String,
     size: usize,
+}
+
+#[derive(Deserialize)]
+struct BuiltinClass {
+    name: String,
+    has_destructor: bool,
 }
 
 #[derive(Deserialize)]
@@ -114,22 +122,36 @@ impl ApiParser {
             }
         }
 
+        // Find variant types, for which `variant_get_ptr_destructor` returns a non-null function pointer.
+        // List is directly sourced from extension_api.json (information would also be in variant_destruct.cpp).
+        let mut has_destructor_set = HashSet::new();
+        for class in &model.builtin_classes {
+            if class.has_destructor {
+                has_destructor_set.insert(class.name.to_lowercase()); // normalized
+            }
+        }
+        let has_destructor_set = has_destructor_set;
+
         for enum_ in &model.global_enums {
             if &enum_.name == "Variant.Type" {
                 for ty in &enum_.values {
-                    let name = ty
+                    let type_name = ty
                         .name
                         .strip_prefix("TYPE_")
                         .expect("Enum name begins with 'TYPE_'");
 
-                    if name == "NIL" || name == "MAX" {
+                    if type_name == "NIL" || type_name == "MAX" {
                         continue;
                     }
 
-                    let value = ty.value;
-                    variant_enumerators.push(Self::quote_enumerator(name, value));
+                    // Lowercase without underscore, to map SHOUTY_CASE to shoutycase
+                    let normalized = type_name.to_lowercase().replace("_", "");
+                    let has_destructor = has_destructor_set.contains(&normalized);
 
-                    let (decl, init) = Self::quote_variant_convs(name);
+                    let value = ty.value;
+                    variant_enumerators.push(Self::quote_enumerator(type_name, value));
+
+                    let (decl, init) = Self::quote_variant_convs(type_name, has_destructor);
                     variant_conv_decls.push(decl);
                     variant_conv_inits.push(init);
                 }
@@ -164,17 +186,41 @@ impl ApiParser {
         }
     }
 
-    fn quote_variant_convs(upper_name: &str) -> (TokenStream, TokenStream) {
-        let from_name = format_ident!("variant_from_{}", upper_name.to_lowercase());
-        let to_name = format_ident!("variant_to_{}", upper_name.to_lowercase());
+    fn quote_variant_convs(upper_name: &str, has_destructor: bool) -> (TokenStream, TokenStream) {
+        let lowercase = upper_name.to_lowercase();
+
+        let from_name = format_ident!("variant_from_{}", lowercase);
+        let to_name = format_ident!("variant_to_{}", lowercase);
 
         let variant_type =
             format_ident!("GDNativeVariantType_GDNATIVE_VARIANT_TYPE_{}", upper_name);
+
+        let destroy_decl_tokens: TokenStream;
+        let destroy_init_tokens: TokenStream;
+
+        if has_destructor {
+            let destroy = format_ident!("destroy_{}", lowercase);
+
+            destroy_decl_tokens = quote! {
+                pub #destroy: unsafe extern "C" fn(GDNativeTypePtr),
+            };
+
+            destroy_init_tokens = quote! {
+                #destroy: {
+                    let dtor_fn = interface.variant_get_ptr_destructor.unwrap();
+                    dtor_fn(crate:: #variant_type).unwrap()
+                },
+            };
+        } else {
+            destroy_decl_tokens = TokenStream::new();
+            destroy_init_tokens = TokenStream::new();
+        }
 
         // Field declaration
         let decl = quote! {
             pub #from_name: unsafe extern "C" fn(GDNativeVariantPtr, GDNativeTypePtr),
             pub #to_name: unsafe extern "C" fn(GDNativeTypePtr, GDNativeVariantPtr),
+            #destroy_decl_tokens
         };
 
         // Field initialization in new()
@@ -187,6 +233,7 @@ impl ApiParser {
                 let ctor_fn = interface.get_variant_to_type_constructor.unwrap();
                 ctor_fn(crate:: #variant_type).unwrap()
             },
+            #destroy_init_tokens
         };
 
         (decl, init)
