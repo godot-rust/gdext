@@ -189,8 +189,8 @@ impl ApiParser {
     fn quote_variant_convs(upper_name: &str, has_destructor: bool) -> (TokenStream, TokenStream) {
         let lowercase = upper_name.to_lowercase();
 
-        let from_name = format_ident!("variant_from_{}", lowercase);
-        let to_name = format_ident!("variant_to_{}", lowercase);
+        let to_variant = format_ident!("{}_to_variant", lowercase);
+        let from_variant = format_ident!("{}_from_variant", lowercase);
 
         let variant_type =
             format_ident!("GDNativeVariantType_GDNATIVE_VARIANT_TYPE_{}", upper_name);
@@ -199,7 +199,7 @@ impl ApiParser {
         let destroy_init_tokens: TokenStream;
 
         if has_destructor {
-            let destroy = format_ident!("destroy_{}", lowercase);
+            let destroy = format_ident!("{}_destroy", lowercase);
 
             destroy_decl_tokens = quote! {
                 pub #destroy: unsafe extern "C" fn(GDNativeTypePtr),
@@ -218,18 +218,18 @@ impl ApiParser {
 
         // Field declaration
         let decl = quote! {
-            pub #from_name: unsafe extern "C" fn(GDNativeVariantPtr, GDNativeTypePtr),
-            pub #to_name: unsafe extern "C" fn(GDNativeTypePtr, GDNativeVariantPtr),
+            pub #to_variant: unsafe extern "C" fn(GDNativeVariantPtr, GDNativeTypePtr),
+            pub #from_variant: unsafe extern "C" fn(GDNativeTypePtr, GDNativeVariantPtr),
             #destroy_decl_tokens
         };
 
         // Field initialization in new()
         let init = quote! {
-            #from_name: {
+            #to_variant: {
                 let ctor_fn = interface.get_variant_from_type_constructor.unwrap();
                 ctor_fn(crate:: #variant_type).unwrap()
             },
-            #to_name: {
+            #from_variant: {
                 let ctor_fn = interface.get_variant_to_type_constructor.unwrap();
                 ctor_fn(crate:: #variant_type).unwrap()
             },

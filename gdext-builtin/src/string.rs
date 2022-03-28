@@ -136,7 +136,7 @@ impl FromStr for GodotString {
 impl Drop for GodotString {
     fn drop(&mut self) {
         unsafe {
-            let destructor = sys::get_cache().destroy_string;
+            let destructor = sys::get_cache().string_destroy;
             destructor(self.sys_mut());
         }
     }

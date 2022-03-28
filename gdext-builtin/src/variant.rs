@@ -93,11 +93,11 @@ mod conversions {
         };
     }
 
-    impl_variant_conversions!(bool, variant_from_bool, variant_to_bool);
-    impl_variant_conversions!(i64, variant_from_int, variant_to_int);
-    impl_variant_conversions!(Vector2, variant_from_vector2, variant_to_vector2);
-    impl_variant_conversions!(Vector3, variant_from_vector3, variant_to_vector3);
-    impl_variant_conversions!(GodotString, variant_from_string, variant_to_string);
+    impl_variant_conversions!(bool, bool_to_variant, bool_from_variant);
+    impl_variant_conversions!(i64, int_to_variant, int_from_variant);
+    impl_variant_conversions!(Vector2, vector2_to_variant, vector2_from_variant);
+    impl_variant_conversions!(Vector3, vector3_to_variant, vector3_from_variant);
+    impl_variant_conversions!(GodotString, string_to_variant, string_from_variant);
 
     impl_variant_int_conversions!(u8);
     impl_variant_int_conversions!(u16);
@@ -113,7 +113,7 @@ mod conversions {
         fn from(value: &GodotString) -> Self {
             unsafe {
                 Self::from_sys_init(|ptr| {
-                    let converter = sys::get_cache().variant_from_string;
+                    let converter = sys::get_cache().string_to_variant;
                     converter(ptr, &value as *const _ as *mut std::ffi::c_void);
                 })
             }
