@@ -31,7 +31,21 @@ struct ClassSize {
 #[derive(Deserialize)]
 struct BuiltinClass {
     name: String,
+    constructors: Vec<Constructor>,
     has_destructor: bool,
+}
+
+#[derive(Deserialize)]
+struct Constructor {
+    index: usize,
+    arguments: Option<Vec<ConstructorArg>>,
+}
+
+#[derive(Deserialize)]
+struct ConstructorArg {
+    name: String,
+    #[serde(rename = "type")]
+    type_: String,
 }
 
 #[derive(Deserialize)]
@@ -54,6 +68,20 @@ struct Tokens {
     variant_enumerators: Vec<TokenStream>,
     variant_fn_decls: Vec<TokenStream>,
     variant_fn_inits: Vec<TokenStream>,
+}
+
+struct TypeNames {
+    /// "PackedVector2Array"
+    pascal_case: String,
+
+    /// "packed_vector2_array"
+    snake_case: String,
+
+    /// "PACKED_VECTOR2_ARRAY"
+    shout_case: String,
+
+    /// GDNativeVariantType_GDNATIVE_VARIANT_TYPE_PACKED_VECTOR2_ARRAY
+    sys_variant_type: Ident,
 }
 
 pub struct ApiParser {}
@@ -136,29 +164,48 @@ impl ApiParser {
         for enum_ in &model.global_enums {
             if &enum_.name == "Variant.Type" {
                 for ty in &enum_.values {
-                    let type_name = ty
+                    let shout_case = ty
                         .name
                         .strip_prefix("TYPE_")
                         .expect("Enum name begins with 'TYPE_'");
 
-                    if type_name == "NIL" || type_name == "MAX" {
+                    if shout_case == "NIL" || shout_case == "MAX" {
                         continue;
                     }
 
                     // Lowercase without underscore, to map SHOUTY_CASE to shoutycase
-                    let normalized = type_name.to_lowercase().replace("_", "");
+                    let normalized = shout_case.to_lowercase().replace("_", "");
 
+                    let pascal_case: String;
                     let has_destructor: bool;
+                    let constructors: Option<&Vec<Constructor>>;
                     if let Some(class) = class_map.get(&normalized) {
+                        pascal_case = class.name.clone();
                         has_destructor = class.has_destructor;
+                        constructors = Some(&class.constructors);
                     } else {
+                        assert_eq!(normalized, "object");
+                        pascal_case = "Object".to_string();
                         has_destructor = false;
+                        constructors = None;
                     }
 
-                    let value = ty.value;
-                    variant_enumerators.push(Self::quote_enumerator(type_name, value));
+                    let type_names = TypeNames {
+                        pascal_case,
+                        snake_case: shout_case.to_lowercase(),
+                        shout_case: shout_case.to_string(),
+                        sys_variant_type: format_ident!(
+                            "GDNativeVariantType_GDNATIVE_VARIANT_TYPE_{}",
+                            shout_case
+                        ),
+                    };
 
-                    let (decl, init) = Self::quote_variant_convs(type_name, has_destructor);
+                    let value = ty.value;
+                    variant_enumerators.push(Self::quote_enumerator(&type_names, value));
+
+                    let (decl, init) =
+                        Self::quote_variant_fns(&type_names, has_destructor, constructors);
+
                     variant_fn_decls.push(decl);
                     variant_fn_inits.push(init);
                 }
@@ -175,8 +222,8 @@ impl ApiParser {
         }
     }
 
-    fn quote_enumerator(name: &str, value: i32) -> TokenStream {
-        let enumerator = format_ident!("{}", name);
+    fn quote_enumerator(type_names: &TypeNames, value: i32) -> TokenStream {
+        let enumerator = format_ident!("{}", type_names.shout_case);
         let value = proc_macro2::Literal::i32_unsuffixed(value);
 
         quote! {
@@ -193,22 +240,25 @@ impl ApiParser {
         }
     }
 
-    fn quote_variant_convs(upper_name: &str, has_destructor: bool) -> (TokenStream, TokenStream) {
-        let lowercase = upper_name.to_lowercase();
+    fn quote_variant_fns(
+        type_names: &TypeNames,
+        has_destructor: bool,
+        constructors: Option<&Vec<Constructor>>,
+    ) -> (TokenStream, TokenStream) {
+        let (destroy_decls, destroy_inits) = Self::quote_destroy_fns(&type_names, has_destructor);
 
-        let to_variant = format_ident!("{}_to_variant", lowercase);
-        let from_variant = format_ident!("{}_from_variant", lowercase);
+        let (construct_decls, construct_inits) =
+            Self::quote_construct_fns(&type_names, constructors);
 
-        let variant_type =
-            format_ident!("GDNativeVariantType_GDNATIVE_VARIANT_TYPE_{}", upper_name);
-
-        let (destroy_decls, destroy_inits) =
-            Self::quote_destroy_fns(lowercase, &variant_type, has_destructor);
+        let to_variant = format_ident!("{}_to_variant", type_names.snake_case);
+        let from_variant = format_ident!("{}_from_variant", type_names.snake_case);
+        let variant_type = &type_names.sys_variant_type;
 
         // Field declaration
         let decl = quote! {
             pub #to_variant: unsafe extern "C" fn(GDNativeVariantPtr, GDNativeTypePtr),
             pub #from_variant: unsafe extern "C" fn(GDNativeTypePtr, GDNativeVariantPtr),
+            #construct_decls
             #destroy_decls
         };
 
@@ -222,22 +272,78 @@ impl ApiParser {
                 let ctor_fn = interface.get_variant_to_type_constructor.unwrap();
                 ctor_fn(crate:: #variant_type).unwrap()
             },
+            #construct_inits
             #destroy_inits
         };
 
         (decl, init)
     }
 
+    fn quote_construct_fns(
+        type_names: &TypeNames,
+        constructors: Option<&Vec<Constructor>>,
+    ) -> (TokenStream, TokenStream) {
+        let constructors = match constructors {
+            Some(c) => c,
+            None => return (TokenStream::new(), TokenStream::new()),
+        };
+
+        // Constructor vec layout:
+        //   [0]: default constructor
+        //   [1]: copy constructor
+        //  rest: not interesting for now
+
+        // Sanity checks -- ensure format is as expected
+        for (i, c) in constructors.iter().enumerate() {
+            assert_eq!(i, c.index);
+        }
+
+        assert!(constructors[0].arguments.is_none());
+
+        if let Some(args) = &constructors[1].arguments {
+            assert_eq!(args.len(), 1);
+            assert_eq!(args[0].name, "from");
+            assert_eq!(args[0].type_, type_names.pascal_case);
+        } else {
+            panic!(
+                "type {}: no constructor args found for copy constructor",
+                type_names.pascal_case
+            );
+        }
+
+        let construct_default = format_ident!("{}_construct_default", type_names.snake_case);
+        let construct_copy = format_ident!("{}_construct_copy", type_names.snake_case);
+        let variant_type = &type_names.sys_variant_type;
+
+        let decls = quote! {
+            pub #construct_default: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
+            pub #construct_copy: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
+        };
+
+        let inits = quote! {
+            #construct_default: {
+                let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
+                ctor_fn(crate:: #variant_type, 0i32).unwrap()
+            },
+            #construct_copy: {
+                let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
+                ctor_fn(crate:: #variant_type, 1i32).unwrap()
+            },
+        };
+
+        (decls, inits)
+    }
+
     fn quote_destroy_fns(
-        lowercase: String,
-        variant_type: &Ident,
+        type_names: &TypeNames,
         has_destructor: bool,
     ) -> (TokenStream, TokenStream) {
         if !has_destructor {
             return (TokenStream::new(), TokenStream::new());
         }
 
-        let destroy = format_ident!("{}_destroy", lowercase);
+        let destroy = format_ident!("{}_destroy", type_names.snake_case);
+        let variant_type = &type_names.sys_variant_type;
 
         let decls = quote! {
             pub #destroy: unsafe extern "C" fn(GDNativeTypePtr),
