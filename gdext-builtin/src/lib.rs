@@ -165,6 +165,7 @@ impl<T: GodotFfi> PtrCallArg for T {
 
     unsafe fn ptrcall_write(self, ret: gdext_sys::GDNativeTypePtr) {
         self.write_sys(ret);
+        std::mem::forget(self); // TODO double-check
     }
 }
 

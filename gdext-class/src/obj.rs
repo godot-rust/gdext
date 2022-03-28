@@ -1,5 +1,5 @@
 use crate::property_info::PropertyInfoBuilder;
-use crate::{sys, sys::interface_fn, ClassName, GodotExtensionClass};
+use crate::{sys, sys::interface_fn, ClassName, GodotClass};
 use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::impl_ffi_as_pointer;
 use gdext_builtin::variant::Variant;
@@ -7,13 +7,12 @@ use gdext_sys::types::OpaqueObject;
 use std::marker::PhantomData;
 
 // TODO which bounds to add on struct itself?
-pub struct Obj<T> {
-    // Note: this may not be a pointer behind the scenes -- consider using an opaque [u8; SIZE_FROM_JSON]
+pub struct Obj<T: GodotClass> {
     opaque: OpaqueObject,
     _marker: PhantomData<*const T>,
 }
 
-impl<T: GodotExtensionClass> Obj<T> {
+impl<T: GodotClass> Obj<T> {
     pub fn new(_rust_obj: T) -> Self {
         let class_name = ClassName::new::<T>();
 
@@ -68,11 +67,21 @@ impl<T: GodotExtensionClass> Obj<T> {
     }
 }
 
-impl<T: GodotExtensionClass> GodotFfi for Obj<T> {
+/*
+// TODO enable once ownership is clear -- see also forget() in ptrcall_write()
+impl<T: GodotClass> Drop for Obj<T>{
+    fn drop(&mut self) {
+        println!("Obj::drop()");
+        unsafe { interface_fn!(object_destroy)(self.sys_mut()); }
+    }
+}
+*/
+
+impl<T: GodotClass> GodotFfi for Obj<T> {
     impl_ffi_as_pointer!();
 }
 
-impl<T: GodotExtensionClass> From<&Variant> for Obj<T> {
+impl<T: GodotClass> From<&Variant> for Obj<T> {
     fn from(variant: &Variant) -> Self {
         unsafe {
             let opaque = OpaqueObject::with_init(|ptr| {
@@ -85,7 +94,7 @@ impl<T: GodotExtensionClass> From<&Variant> for Obj<T> {
     }
 }
 
-impl<T: GodotExtensionClass> From<Obj<T>> for Variant {
+impl<T: GodotClass> From<Obj<T>> for Variant {
     fn from(obj: Obj<T>) -> Self {
         unsafe {
             Self::from_sys_init(|opaque_ptr| {
@@ -96,13 +105,13 @@ impl<T: GodotExtensionClass> From<Obj<T>> for Variant {
     }
 }
 
-impl<T: GodotExtensionClass> From<&Obj<T>> for Variant {
+impl<T: GodotClass> From<&Obj<T>> for Variant {
     fn from(_obj: &Obj<T>) -> Self {
         todo!()
     }
 }
 
-impl<T: GodotExtensionClass> PropertyInfoBuilder for Obj<T> {
+impl<T: GodotClass> PropertyInfoBuilder for Obj<T> {
     fn variant_type() -> gdext_sys::GDNativeVariantType {
         gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_OBJECT
     }
