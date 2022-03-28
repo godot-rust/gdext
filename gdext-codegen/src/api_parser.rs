@@ -1,8 +1,8 @@
 use crate::godot_exe;
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use miniserde::{json, Deserialize};
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use std::path::Path;
 
@@ -124,13 +124,14 @@ impl ApiParser {
 
         // Find variant types, for which `variant_get_ptr_destructor` returns a non-null function pointer.
         // List is directly sourced from extension_api.json (information would also be in variant_destruct.cpp).
-        let mut has_destructor_set = HashSet::new();
+        let mut class_map = HashMap::new();
         for class in &model.builtin_classes {
-            if class.has_destructor {
-                has_destructor_set.insert(class.name.to_lowercase()); // normalized
-            }
+            let normalized_name = class.name.to_lowercase();
+
+            class_map.insert(normalized_name, class);
         }
-        let has_destructor_set = has_destructor_set;
+
+        let class_map = class_map;
 
         for enum_ in &model.global_enums {
             if &enum_.name == "Variant.Type" {
@@ -146,7 +147,13 @@ impl ApiParser {
 
                     // Lowercase without underscore, to map SHOUTY_CASE to shoutycase
                     let normalized = type_name.to_lowercase().replace("_", "");
-                    let has_destructor = has_destructor_set.contains(&normalized);
+
+                    let has_destructor: bool;
+                    if let Some(class) = class_map.get(&normalized) {
+                        has_destructor = class.has_destructor;
+                    } else {
+                        has_destructor = false;
+                    }
 
                     let value = ty.value;
                     variant_enumerators.push(Self::quote_enumerator(type_name, value));
@@ -195,32 +202,14 @@ impl ApiParser {
         let variant_type =
             format_ident!("GDNativeVariantType_GDNATIVE_VARIANT_TYPE_{}", upper_name);
 
-        let destroy_decl_tokens: TokenStream;
-        let destroy_init_tokens: TokenStream;
-
-        if has_destructor {
-            let destroy = format_ident!("{}_destroy", lowercase);
-
-            destroy_decl_tokens = quote! {
-                pub #destroy: unsafe extern "C" fn(GDNativeTypePtr),
-            };
-
-            destroy_init_tokens = quote! {
-                #destroy: {
-                    let dtor_fn = interface.variant_get_ptr_destructor.unwrap();
-                    dtor_fn(crate:: #variant_type).unwrap()
-                },
-            };
-        } else {
-            destroy_decl_tokens = TokenStream::new();
-            destroy_init_tokens = TokenStream::new();
-        }
+        let (destroy_decls, destroy_inits) =
+            Self::quote_destroy_fns(lowercase, &variant_type, has_destructor);
 
         // Field declaration
         let decl = quote! {
             pub #to_variant: unsafe extern "C" fn(GDNativeVariantPtr, GDNativeTypePtr),
             pub #from_variant: unsafe extern "C" fn(GDNativeTypePtr, GDNativeVariantPtr),
-            #destroy_decl_tokens
+            #destroy_decls
         };
 
         // Field initialization in new()
@@ -233,10 +222,34 @@ impl ApiParser {
                 let ctor_fn = interface.get_variant_to_type_constructor.unwrap();
                 ctor_fn(crate:: #variant_type).unwrap()
             },
-            #destroy_init_tokens
+            #destroy_inits
         };
 
         (decl, init)
+    }
+
+    fn quote_destroy_fns(
+        lowercase: String,
+        variant_type: &Ident,
+        has_destructor: bool,
+    ) -> (TokenStream, TokenStream) {
+        if !has_destructor {
+            return (TokenStream::new(), TokenStream::new());
+        }
+
+        let destroy = format_ident!("{}_destroy", lowercase);
+
+        let decls = quote! {
+            pub #destroy: unsafe extern "C" fn(GDNativeTypePtr),
+        };
+
+        let inits = quote! {
+            #destroy: {
+                let dtor_fn = interface.variant_get_ptr_destructor.unwrap();
+                dtor_fn(crate:: #variant_type).unwrap()
+            },
+        };
+        (decls, inits)
     }
 
     //#[cfg(feature = "formatted")]
