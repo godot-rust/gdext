@@ -52,8 +52,8 @@ struct EnumValue {
 struct Tokens {
     opaque_types: Vec<TokenStream>,
     variant_enumerators: Vec<TokenStream>,
-    variant_conv_decls: Vec<TokenStream>,
-    variant_conv_inits: Vec<TokenStream>,
+    variant_fn_decls: Vec<TokenStream>,
+    variant_fn_inits: Vec<TokenStream>,
 }
 
 pub struct ApiParser {}
@@ -64,8 +64,8 @@ impl ApiParser {
         let Tokens {
             opaque_types,
             variant_enumerators,
-            variant_conv_decls,
-            variant_conv_inits,
+            variant_fn_decls,
+            variant_fn_inits,
         } = tokens;
 
         let tokens = quote! {
@@ -77,13 +77,13 @@ impl ApiParser {
             }
 
             pub struct InterfaceCache {
-                #(#variant_conv_decls)*
+                #(#variant_fn_decls)*
             }
 
             impl InterfaceCache {
                 pub(crate) unsafe fn new(interface: &crate::GDNativeInterface) -> Self {
                     Self {
-                        #(#variant_conv_inits)*
+                        #(#variant_fn_inits)*
                     }
                 }
             }
@@ -109,8 +109,8 @@ impl ApiParser {
 
         let mut opaque_types = vec![];
         let mut variant_enumerators = vec![];
-        let mut variant_conv_decls = vec![];
-        let mut variant_conv_inits = vec![];
+        let mut variant_fn_decls = vec![];
+        let mut variant_fn_inits = vec![];
 
         for class in &model.builtin_class_sizes {
             if &class.build_configuration == build_config {
@@ -152,8 +152,8 @@ impl ApiParser {
                     variant_enumerators.push(Self::quote_enumerator(type_name, value));
 
                     let (decl, init) = Self::quote_variant_convs(type_name, has_destructor);
-                    variant_conv_decls.push(decl);
-                    variant_conv_inits.push(init);
+                    variant_fn_decls.push(decl);
+                    variant_fn_inits.push(init);
                 }
 
                 break;
@@ -163,8 +163,8 @@ impl ApiParser {
         Tokens {
             opaque_types,
             variant_enumerators,
-            variant_conv_decls,
-            variant_conv_inits,
+            variant_fn_decls,
+            variant_fn_inits,
         }
     }
 

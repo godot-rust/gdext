@@ -136,13 +136,8 @@ impl FromStr for GodotString {
 impl Drop for GodotString {
     fn drop(&mut self) {
         unsafe {
-            static DESTR: Lazy<unsafe extern "C" fn(sys::GDNativeTypePtr)> = Lazy::new(|| unsafe {
-                interface_fn!(variant_get_ptr_destructor)(
-                    sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
-                )
-                .unwrap()
-            });
-            DESTR(self.sys_mut());
+            let destructor = sys::get_cache().destroy_string;
+            destructor(self.sys_mut());
         }
     }
 }
