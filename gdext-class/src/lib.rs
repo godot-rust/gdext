@@ -1,3 +1,4 @@
+use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::string::GodotString;
 use std::ffi::CStr;
 
@@ -71,9 +72,11 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
                     out_string: *mut std::ffi::c_void,
                 ) {
                     let instance = &mut *(instance as *mut T);
+                    let string = instance.to_string();
 
-                    // TODO use sys_write()
-                    *(out_string as *mut GodotString) = instance.to_string();
+                    // Transfer ownership to Godot, disable destructor
+                    string.write_sys(out_string);
+                    std::mem::forget(string);
                 }
                 to_string::<T>
             })
