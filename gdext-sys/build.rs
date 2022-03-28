@@ -3,8 +3,9 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 fn main() {
+    let header_path = "../thirdparty/godot-headers/godot/gdnative_interface.h";
     let bindings = bindgen::Builder::default()
-        .header("../thirdparty/godot-headers/godot/gdnative_interface.h")
+        .header(header_path)
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
@@ -21,5 +22,5 @@ fn main() {
 
     gen::ApiParser::generate_file(Path::new(gen_path));
 
-    println!("cargo:rerun-if-changed=../thirdparty/godot-headers/godot/gdnative_interface.h");
+    println!("cargo:rerun-if-changed={}", header_path);
 }

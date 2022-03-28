@@ -1,3 +1,5 @@
+use crate::godot_exe;
+
 use miniserde::{json, Deserialize};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -94,8 +96,7 @@ impl ApiParser {
     fn load_extension_api() -> Tokens {
         let build_config = "float_64"; // TODO infer this
 
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/input/extension_api.json");
-        let json = std::fs::read_to_string(path).expect(&format!("failed to open file {:?}", path));
+        let json: String = godot_exe::load_extension_api_json();
         let model: ExtensionApi = json::from_str(&json).expect("failed to deserialize JSON");
 
         let mut opaque_types = vec![];

@@ -1,4 +1,5 @@
 mod api_parser;
+mod godot_exe;
 
 pub use api_parser::ApiParser;
 
