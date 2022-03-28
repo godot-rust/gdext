@@ -315,6 +315,7 @@ impl ApiParser {
         let construct_copy = format_ident!("{}_construct_copy", type_names.snake_case);
         let variant_type = &type_names.sys_variant_type;
 
+        // Generic signature:  fn(base: GDNativeTypePtr, args: *const GDNativeTypePtr)
         let decls = quote! {
             pub #construct_default: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
             pub #construct_copy: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),

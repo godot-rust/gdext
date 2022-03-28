@@ -3,8 +3,7 @@ use std::{convert::Infallible, mem::MaybeUninit, str::FromStr};
 
 use crate::godot_ffi::GodotFfi;
 use gdext_sys::types::OpaqueString;
-use gdext_sys::{self as sys, interface_fn};
-use once_cell::sync::Lazy;
+use gdext_sys::{self as sys, get_cache, interface_fn};
 
 use crate::impl_ffi_as_value;
 
@@ -16,17 +15,10 @@ pub struct GodotString {
 impl GodotString {
     pub fn new() -> Self {
         unsafe {
-            static CONSTR: Lazy<
-                unsafe extern "C" fn(sys::GDNativeTypePtr, *const sys::GDNativeTypePtr),
-            > = Lazy::new(|| unsafe {
-                interface_fn!(variant_get_ptr_constructor)(
-                    sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
-                    0,
-                )
-                .unwrap()
-            });
-
-            Self::from_sys_init(|opaque_ptr| CONSTR(opaque_ptr, std::ptr::null()))
+            Self::from_sys_init(|opaque_ptr| {
+                let ctor = get_cache().string_construct_default;
+                ctor(opaque_ptr, std::ptr::null_mut());
+            })
         }
     }
 
@@ -61,18 +53,9 @@ impl Default for GodotString {
 impl Clone for GodotString {
     fn clone(&self) -> Self {
         unsafe {
-            static CONSTR: Lazy<
-                unsafe extern "C" fn(sys::GDNativeTypePtr, *const sys::GDNativeTypePtr),
-            > = Lazy::new(|| unsafe {
-                interface_fn!(variant_get_ptr_constructor)(
-                    sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
-                    1,
-                )
-                .unwrap()
-            });
-
             Self::from_sys_init(|opaque_ptr| {
-                CONSTR(opaque_ptr, &self.sys() as *const *mut std::ffi::c_void)
+                let ctor = get_cache().string_construct_copy;
+                ctor(opaque_ptr, &self.sys() as *const sys::GDNativeTypePtr);
             })
         }
     }
