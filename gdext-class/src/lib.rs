@@ -4,8 +4,10 @@ use std::ffi::CStr;
 
 use gdext_sys::{self as sys, interface_fn};
 
-pub mod macros;
 mod obj;
+mod storage;
+
+pub mod macros;
 pub mod property_info;
 
 pub use obj::*;
@@ -106,13 +108,17 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
                 _class_userdata: *mut std::ffi::c_void,
             ) -> *mut std::ffi::c_void {
                 let class_name = ClassName::new::<T>();
-                let parent_class_name = ClassName::new::<T::Base>();
+                let base_class_name = ClassName::new::<T::Base>();
 
-                let obj = interface_fn!(classdb_construct_object)(parent_class_name.c_str());
-                let instance = Box::new(T::construct(obj));
+                let base = interface_fn!(classdb_construct_object)(base_class_name.c_str());
+                let instance = Box::new(T::construct(base));
                 let instance_ptr = Box::into_raw(instance);
 
-                interface_fn!(object_set_instance)(obj, class_name.c_str(), instance_ptr as *mut _);
+                interface_fn!(object_set_instance)(
+                    base,
+                    class_name.c_str(),
+                    instance_ptr as *mut _,
+                );
 
                 let binding_data_callbacks = sys::GDNativeInstanceBindingCallbacks {
                     create_callback: None,
@@ -121,13 +127,13 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
                 };
 
                 interface_fn!(object_set_instance_binding)(
-                    obj,
+                    base,
                     sys::get_library() as *mut _,
                     instance_ptr as *mut _,
                     &binding_data_callbacks,
                 );
 
-                obj
+                base
             }
             instance::<T>
         }),
