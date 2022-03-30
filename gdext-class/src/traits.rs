@@ -13,6 +13,11 @@ pub trait GodotClass {
     //fn upcast_mut(&mut self) -> &mut Self::Base;
 }
 
+pub trait GodotMethods: GodotClass {
+    //fn construct(base: Obj<Self::Base>) -> Self;
+    fn construct(base: *mut std::ffi::c_void) -> Self;
+}
+
 pub trait GodotExtensionClass: GodotClass {
     //fn construct(base: sys::GDNativeObjectPtr) -> Self;
 
@@ -23,7 +28,7 @@ pub trait GodotExtensionClass: GodotClass {
     }
 }
 
-pub trait GodotExtensionClassMethods {
+pub trait GodotExtensionClassMethods: GodotClass {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual;
     fn register_methods();
     fn to_string(&self) -> GodotString {

@@ -5,7 +5,7 @@ use crate::traits::*;
 use gdext_builtin::godot_ffi::GodotFfi as _;
 use gdext_sys::interface_fn;
 
-pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Default>() {
+pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + GodotMethods>() {
     let creation_info = sys::GDNativeExtensionClassCreationInfo {
         set_func: None,
         get_func: None,
@@ -52,7 +52,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Defa
             unreference::<T>
         }),
         create_instance_func: Some({
-            unsafe extern "C" fn instance<T: GodotClass + Default>(
+            unsafe extern "C" fn instance<T: GodotClass + GodotMethods>(
                 _class_userdata: *mut std::ffi::c_void,
             ) -> *mut std::ffi::c_void {
                 let class_name = ClassName::new::<T>();

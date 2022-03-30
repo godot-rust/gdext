@@ -4,6 +4,7 @@ use gdext_builtin::{
 };
 use gdext_class::*;
 use gdext_sys::{self as sys, interface_fn};
+use std::ffi::c_void;
 
 #[cfg(feature = "trace")]
 macro_rules! log {
@@ -95,6 +96,13 @@ impl GodotClass for RustTest {
     // }
 }
 
+impl GodotMethods for RustTest {
+    fn construct(base: *mut std::ffi::c_void) -> Self {
+        log!("[RustTest] construct: base={base:?}");
+        RustTest::new(base)
+    }
+}
+
 impl GodotExtensionClass for RustTest {
     // fn construct(base: sys::GDNativeObjectPtr) -> Self {
     //     log!("[RustTest] construct");
@@ -106,15 +114,11 @@ impl GodotExtensionClass for RustTest {
     // }
 }
 
-impl Default for RustTest {
-    fn default() -> Self {
-        log!("[RustTest] default");
-
+impl RustTest {
+    fn new(base: *mut std::ffi::c_void) -> Self {
         Self { time: 0.0 }
     }
-}
 
-impl RustTest {
     fn test_method(&mut self, some_int: u64, some_string: GodotString) -> GodotString {
         //let id = Obj::emplace(self).instance_id();
 
@@ -232,9 +236,9 @@ pub struct Entity {
     hitpoints: i32,
 }
 
-impl Default for Entity {
-    fn default() -> Self {
-        log!("[Entity] default");
+impl GodotMethods for Entity {
+    fn construct(base: *mut c_void) -> Self {
+        log!("[Entity] construct: base={base:?}");
 
         Entity {
             name: "No name yet".to_string(),
