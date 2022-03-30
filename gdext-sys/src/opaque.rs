@@ -71,22 +71,3 @@ impl<const N: usize> std::fmt::Display for Opaque<N> {
         write!(f, "^{:?}", self.storage)
     }
 }
-
-/*
-macro_rules! static_assert {
-    ($condition:expr) => {
-        const _: &() = &[()][1 - ($condition) as usize];
-    }
-}
-
-unsafe fn transmute<T: Copy, U: Copy>(mut from: T) -> U {
-    static_assert!(size_of::<T>() == size_of::<U>());
-
-    let ptr = &mut from as *mut T as *mut U;
-    *ptr
-}
-
-static_assert!(size_of::<*const u8>() == 8);
-static_assert!(align_of::<*const u8>() >= align_of::<u128>());
-static_assert!(5>3);
-*/

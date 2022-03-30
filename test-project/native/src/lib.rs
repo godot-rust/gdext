@@ -32,17 +32,17 @@ impl GodotClass for Node3D {
         "Node3D".to_string()
     }
 
-    fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
-        self.0
-    }
+    // fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
+    //     self.0
+    // }
 
-    fn upcast(&self) -> &Self::Base {
-        self
-    }
-
-    fn upcast_mut(&mut self) -> &mut Self::Base {
-        self
-    }
+    // fn upcast(&self) -> &Self::Base {
+    //     self
+    // }
+    //
+    // fn upcast_mut(&mut self) -> &mut Self::Base {
+    //     self
+    // }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -58,24 +58,24 @@ impl GodotClass for RefCounted {
         "RefCounted".to_string()
     }
 
-    fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
-        self.0
-    }
+    // fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
+    //     self.0
+    // }
 
-    fn upcast(&self) -> &Self::Base {
-        self
-    }
-
-    fn upcast_mut(&mut self) -> &mut Self::Base {
-        self
-    }
+    // fn upcast(&self) -> &Self::Base {
+    //     self
+    // }
+    //
+    // fn upcast_mut(&mut self) -> &mut Self::Base {
+    //     self
+    // }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // RustTest
 
 pub struct RustTest {
-    base: Node3D,
+    //base: Node3D,
     time: f64,
 }
 
@@ -86,23 +86,31 @@ impl GodotClass for RustTest {
         "RustTest".to_string()
     }
 
-    fn upcast(&self) -> &Self::Base {
-        &self.base
-    }
-
-    fn upcast_mut(&mut self) -> &mut Self::Base {
-        &mut self.base
-    }
+    // fn upcast(&self) -> &Self::Base {
+    //     &self.base
+    // }
+    //
+    // fn upcast_mut(&mut self) -> &mut Self::Base {
+    //     &mut self.base
+    // }
 }
 
 impl GodotExtensionClass for RustTest {
-    fn construct(base: sys::GDNativeObjectPtr) -> Self {
-        log!("[RustTest] construct");
+    // fn construct(base: sys::GDNativeObjectPtr) -> Self {
+    //     log!("[RustTest] construct");
+    //
+    //     RustTest {
+    //         base: Node3D(base),
+    //         time: 0.0,
+    //     }
+    // }
+}
 
-        RustTest {
-            base: Node3D(base),
-            time: 0.0,
-        }
+impl Default for RustTest {
+    fn default() -> Self {
+        log!("[RustTest] default");
+
+        Self { time: 0.0 }
     }
 }
 
@@ -140,7 +148,6 @@ impl RustTest {
         log!("[RustTest] return_obj()");
 
         let rust_obj = Entity {
-            base: RefCounted(std::ptr::null_mut()),
             name: "New name!".to_string(),
             hitpoints: 20,
         };
@@ -220,9 +227,20 @@ impl GodotExtensionClassMethods for RustTest {
 #[derive(Debug)]
 #[allow(dead_code)] // TODO
 pub struct Entity {
-    base: RefCounted,
+    // base: RefCounted,
     name: String,
     hitpoints: i32,
+}
+
+impl Default for Entity {
+    fn default() -> Self {
+        log!("[Entity] default");
+
+        Entity {
+            name: "No name yet".to_string(),
+            hitpoints: 100,
+        }
+    }
 }
 
 impl GodotClass for Entity {
@@ -232,27 +250,27 @@ impl GodotClass for Entity {
         "Entity".to_string()
     }
 
-    fn upcast(&self) -> &Self::Base {
-        todo!()
-        //&self.base
-    }
-
-    fn upcast_mut(&mut self) -> &mut Self::Base {
-        //&mut self.base
-        todo!()
-    }
+    // fn upcast(&self) -> &Self::Base {
+    //     todo!()
+    //     //&self.base
+    // }
+    //
+    // fn upcast_mut(&mut self) -> &mut Self::Base {
+    //     //&mut self.base
+    //     todo!()
+    // }
 }
 
 impl GodotExtensionClass for Entity {
-    fn construct(base: sys::GDNativeObjectPtr) -> Self {
-        log!("[Entity] construct");
-
-        Entity {
-            base: RefCounted(base),
-            name: "No name yet".to_string(),
-            hitpoints: 100,
-        }
-    }
+    // fn construct(base: sys::GDNativeObjectPtr) -> Self {
+    //     log!("[Entity] construct");
+    //
+    //     Entity {
+    //         base: RefCounted(base),
+    //         name: "No name yet".to_string(),
+    //         hitpoints: 100,
+    //     }
+    // }
 
     fn has_to_string() -> bool {
         true

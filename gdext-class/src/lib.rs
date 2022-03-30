@@ -1,7 +1,7 @@
 use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::string::GodotString;
-use std::ffi::CStr;
 
+use crate::storage::{as_storage, InstanceStorage};
 use gdext_sys::{self as sys, interface_fn};
 
 mod obj;
@@ -12,16 +12,21 @@ pub mod property_info;
 
 pub use obj::*;
 
+#[doc(hidden)]
+pub mod private {
+    pub use crate::storage::as_storage;
+}
+
 pub trait GodotClass {
     type Base: GodotClass;
 
     fn class_name() -> String;
 
-    fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
-        self.upcast().native_object_ptr()
-    }
-    fn upcast(&self) -> &Self::Base;
-    fn upcast_mut(&mut self) -> &mut Self::Base;
+    // fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
+    //     self.upcast().native_object_ptr()
+    // }
+    //fn upcast(&self) -> &Self::Base;
+    //fn upcast_mut(&mut self) -> &mut Self::Base;
 }
 
 /// Utility to convert `String` to C `const char*`.
@@ -37,13 +42,13 @@ impl ClassName {
         }
     }
 
-    pub fn c_str(&self) -> *const ::std::os::raw::c_char {
+    pub fn c_str(&self) -> *const std::os::raw::c_char {
         self.backing.as_ptr() as *const _
     }
 }
 
 pub trait GodotExtensionClass: GodotClass {
-    fn construct(base: sys::GDNativeObjectPtr) -> Self;
+    //fn construct(base: sys::GDNativeObjectPtr) -> Self;
 
     fn reference(&mut self) {}
     fn unreference(&mut self) {}
@@ -60,7 +65,7 @@ pub trait GodotExtensionClassMethods {
     }
 }
 
-pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
+pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Default>() {
     let creation_info = sys::GDNativeExtensionClassCreationInfo {
         set_func: None,
         get_func: None,
@@ -73,7 +78,8 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
                     instance: *mut std::ffi::c_void,
                     out_string: *mut std::ffi::c_void,
                 ) {
-                    let instance = &mut *(instance as *mut T);
+                    let storage = as_storage::<T>(instance);
+                    let instance = storage.get();
                     let string = instance.to_string();
 
                     // Transfer ownership to Godot, disable destructor
@@ -89,7 +95,8 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
             unsafe extern "C" fn reference<T: GodotExtensionClass>(
                 instance: *mut std::ffi::c_void,
             ) {
-                let instance = &mut *(instance as *mut T);
+                let storage = as_storage::<T>(instance);
+                let instance = storage.get_mut();
                 instance.reference();
             }
             reference::<T>
@@ -98,26 +105,27 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
             unsafe extern "C" fn unreference<T: GodotExtensionClass>(
                 instance: *mut std::ffi::c_void,
             ) {
-                let instance = &mut *(instance as *mut T);
+                let storage = as_storage::<T>(instance);
+                let instance = storage.get_mut();
                 instance.unreference();
             }
             unreference::<T>
         }),
         create_instance_func: Some({
-            unsafe extern "C" fn instance<T: GodotExtensionClass>(
+            unsafe extern "C" fn instance<T: GodotClass + Default>(
                 _class_userdata: *mut std::ffi::c_void,
             ) -> *mut std::ffi::c_void {
                 let class_name = ClassName::new::<T>();
                 let base_class_name = ClassName::new::<T::Base>();
 
                 let base = interface_fn!(classdb_construct_object)(base_class_name.c_str());
-                let instance = Box::new(T::construct(base));
-                let instance_ptr = Box::into_raw(instance);
+                let instance = InstanceStorage::<T>::construct_default(base);
+                let instance_ptr = instance.into_raw();
 
                 interface_fn!(object_set_instance)(
                     base,
                     class_name.c_str(),
-                    instance_ptr as *mut _,
+                    instance_ptr as *mut std::ffi::c_void,
                 );
 
                 let binding_data_callbacks = sys::GDNativeInstanceBindingCallbacks {
@@ -129,7 +137,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
                 interface_fn!(object_set_instance_binding)(
                     base,
                     sys::get_library() as *mut _,
-                    instance_ptr as *mut _,
+                    instance_ptr as *mut std::ffi::c_void,
                     &binding_data_callbacks,
                 );
 
@@ -142,7 +150,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
                 _class_user_data: *mut std::ffi::c_void,
                 instance: *mut std::ffi::c_void,
             ) {
-                Box::from_raw(instance as *mut T);
+                Box::from_raw(as_storage::<T>(instance));
             }
             free::<T>
         }),
@@ -151,7 +159,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods>() {
                 _class_user_data: *mut std::ffi::c_void,
                 p_name: *const std::os::raw::c_char,
             ) -> sys::GDNativeExtensionClassCallVirtual {
-                let name = CStr::from_ptr(p_name);
+                let name = std::ffi::CStr::from_ptr(p_name);
                 T::virtual_call(name.to_str().unwrap())
             }
             get_virtual::<T>

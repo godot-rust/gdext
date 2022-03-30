@@ -1,5 +1,5 @@
 use crate::property_info::PropertyInfoBuilder;
-use crate::{sys, sys::interface_fn, ClassName, GodotClass};
+use crate::{sys, sys::interface_fn, ClassName, GodotClass, InstanceStorage};
 use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::impl_ffi_as_pointer;
 use gdext_builtin::variant::Variant;
@@ -46,7 +46,10 @@ impl<T: GodotClass> Obj<T> {
             interface_fn!(object_get_instance_binding)(self.sys(), token, &callbacks)
         };
 
-        unsafe { &*(binding as *const T) }
+        unsafe {
+            let storage = &*(binding as *const InstanceStorage<T>);
+            storage.get()
+        }
     }
 
     pub fn instance_id(&self) -> u64 {
