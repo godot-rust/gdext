@@ -1,9 +1,11 @@
 use crate::property_info::PropertyInfoBuilder;
-use crate::{sys, sys::interface_fn, ClassName, GodotClass, InstanceStorage};
+use crate::{sys, ClassName, GodotClass};
 use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::impl_ffi_as_pointer;
 use gdext_builtin::variant::Variant;
+use gdext_sys::interface_fn;
 use gdext_sys::types::OpaqueObject;
+
 use std::marker::PhantomData;
 
 // TODO which bounds to add on struct itself?
@@ -47,7 +49,7 @@ impl<T: GodotClass> Obj<T> {
         };
 
         unsafe {
-            let storage = &*(binding as *const InstanceStorage<T>);
+            let storage = crate::private::as_storage::<T>(binding);
             storage.get()
         }
     }

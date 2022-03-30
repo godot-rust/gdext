@@ -1,4 +1,4 @@
-use gdext_sys as sys;
+use crate::sys;
 
 /// Co-locates the user's instance (pure Rust) with the Godot "base" object.
 ///
