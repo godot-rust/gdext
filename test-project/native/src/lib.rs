@@ -128,6 +128,9 @@ impl RustTest {
 
     fn accept_obj(&self, obj: Obj<Entity>) {
         //out!("[RustTest] accept_obj: id={:x}, dec={}", obj.instance_id(), obj.instance_id() as i64);
+        let m = obj.inner_mut();
+        m.hitpoints -= 10;
+
         out!(
             "[RustTest] accept_obj:\n  id={},\n  obj={:?}",
             obj.instance_id() as i64,

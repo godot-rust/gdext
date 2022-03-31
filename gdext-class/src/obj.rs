@@ -6,6 +6,7 @@ use gdext_builtin::variant::Variant;
 use gdext_sys::interface_fn;
 use gdext_sys::types::OpaqueObject;
 
+use crate::storage::InstanceStorage;
 use std::marker::PhantomData;
 
 // TODO which bounds to add on struct itself?
@@ -37,21 +38,11 @@ impl<T: GodotClass> Obj<T> {
 
     // explicit deref for testing purposes
     pub fn inner(&self) -> &T {
-        let callbacks = sys::GDNativeInstanceBindingCallbacks {
-            create_callback: None,
-            free_callback: None,
-            reference_callback: None,
-        };
+        self.storage().get()
+    }
 
-        let binding = unsafe {
-            let token = sys::get_library();
-            interface_fn!(object_get_instance_binding)(self.sys(), token, &callbacks)
-        };
-
-        unsafe {
-            let storage = crate::private::as_storage::<T>(binding);
-            storage.get()
-        }
+    pub fn inner_mut(&self) -> &mut T {
+        self.storage().get_mut()
     }
 
     pub fn instance_id(&self) -> u64 {
@@ -68,6 +59,20 @@ impl<T: GodotClass> Obj<T> {
             } else {
                 Some(Obj::from_sys(ptr))
             }
+        }
+    }
+
+    fn storage(&self) -> &mut InstanceStorage<T> {
+        let callbacks = sys::GDNativeInstanceBindingCallbacks {
+            create_callback: None,
+            free_callback: None,
+            reference_callback: None,
+        };
+
+        unsafe {
+            let token = sys::get_library();
+            let binding = interface_fn!(object_get_instance_binding)(self.sys(), token, &callbacks);
+            crate::private::as_storage::<T>(binding)
         }
     }
 }
