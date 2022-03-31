@@ -4,6 +4,10 @@ const GdClass = preload("res://GdClass.gd")
 
 @onready var rust_test := $RustTest as RustTest
 
+var c
+var d
+var e
+
 func _init():
 	print("[GDScript] _init")
 
@@ -33,17 +37,23 @@ func _ready():
 	print()
 	print("----------------------------")
 	var obj = rust_test.return_obj()
-	print("obj._to_string(): ", obj)
-	print("obj._to_string() [explicit]: ", obj._to_string())
 	print_instance_id(obj, "entity")
 	rust_test.accept_obj(obj)
 	print("----------------------------")
-	var obj2 = rust_test.find_obj(obj.get_instance_id())
-	print("obj2._to_string(): ", obj2)
+
+	if true:
+		var obj2 = rust_test.find_obj(obj.get_instance_id())
+		print_instance_id(obj2, "entity (via get_instance_id)")
+		# note: end of scope doesn't unreference
+
+	#print("Create some more refs...") # note: adding variables doesn't call reference()
+	#c = obj
+	#rust_test.accept_obj(obj)
 	print()
 
 	print("[GDScript] end _ready")
 	get_tree().quit()
+	print("[GDScript] after quit")
 
 
 func print_instance_id(obj, msg=null):

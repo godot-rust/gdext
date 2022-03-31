@@ -36,8 +36,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
                 instance: *mut std::ffi::c_void,
             ) {
                 let storage = as_storage::<T>(instance);
-                let instance = storage.get_mut();
-                instance.reference();
+                storage.inc_ref();
             }
             reference::<T>
         }),
@@ -46,8 +45,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
                 instance: *mut std::ffi::c_void,
             ) {
                 let storage = as_storage::<T>(instance);
-                let instance = storage.get_mut();
-                instance.unreference();
+                storage.dec_ref();
             }
             unreference::<T>
         }),
@@ -90,7 +88,8 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
                 _class_user_data: *mut std::ffi::c_void,
                 instance: *mut std::ffi::c_void,
             ) {
-                Box::from_raw(as_storage::<T>(instance));
+                let storage = as_storage::<T>(instance);
+                Box::from_raw(storage);
             }
             free::<T>
         }),

@@ -1,7 +1,8 @@
 use crate::sys;
 use gdext_builtin::string::GodotString;
+use std::fmt::Debug;
 
-pub trait GodotClass {
+pub trait GodotClass: Debug {
     type Base: GodotClass;
 
     fn class_name() -> String;

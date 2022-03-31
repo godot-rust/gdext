@@ -6,24 +6,10 @@ use gdext_class::*;
 use gdext_sys::{self as sys, interface_fn};
 use std::ffi::c_void;
 
-#[cfg(feature = "trace")]
-macro_rules! log {
-    ()                          => (println!());
-    ($fmt:literal)              => (println!($fmt));
-    ($fmt:literal, $($arg:tt)*) => (println!($fmt, $($arg)*);)
-}
-
-#[cfg(not(feature = "trace"))]
-// TODO find a better way than sink-writing to avoid warnings, #[allow(unused_variables)] doesn't work
-macro_rules! log {
-    ()                          => ({});
-    ($fmt:literal)              => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt); });
-    ($fmt:literal, $($arg:tt)*) => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt, $($arg)*); };)
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Node3D (base)
 
+#[derive(Debug)]
 pub struct Node3D(sys::GDNativeObjectPtr);
 
 impl GodotClass for Node3D {
@@ -75,6 +61,7 @@ impl GodotClass for RefCounted {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // RustTest
 
+#[derive(Debug)]
 pub struct RustTest {
     //base: Node3D,
     time: f64,
@@ -98,14 +85,14 @@ impl GodotClass for RustTest {
 
 impl GodotMethods for RustTest {
     fn construct(base: *mut std::ffi::c_void) -> Self {
-        log!("[RustTest] construct: base={base:?}");
+        out!("[RustTest] construct: base={base:?}");
         RustTest::new(base)
     }
 }
 
 impl GodotExtensionClass for RustTest {
     // fn construct(base: sys::GDNativeObjectPtr) -> Self {
-    //     log!("[RustTest] construct");
+    //     out!("[RustTest] construct");
     //
     //     RustTest {
     //         base: Node3D(base),
@@ -140,8 +127,8 @@ impl RustTest {
     }
 
     fn accept_obj(&self, obj: Obj<Entity>) {
-        //log!("[RustTest] accept_obj: id={:x}, dec={}", obj.instance_id(), obj.instance_id() as i64);
-        log!(
+        //out!("[RustTest] accept_obj: id={:x}, dec={}", obj.instance_id(), obj.instance_id() as i64);
+        out!(
             "[RustTest] accept_obj:\n  id={},\n  obj={:?}",
             obj.instance_id() as i64,
             obj.inner()
@@ -149,7 +136,7 @@ impl RustTest {
     }
 
     fn return_obj(&self) -> Obj<Entity> {
-        log!("[RustTest] return_obj()");
+        out!("[RustTest] return_obj()");
 
         let rust_obj = Entity {
             name: "New name!".to_string(),
@@ -162,7 +149,7 @@ impl RustTest {
     fn find_obj(&self, instance_id: u64) -> Obj<Entity> {
         let obj = Obj::from_instance_id(instance_id).expect("Obj is null");
         let inner = obj.inner();
-        log!(
+        out!(
             "[RustTest] find_obj():\n  id={},\n  obj={:?}",
             instance_id,
             inner
@@ -171,7 +158,7 @@ impl RustTest {
     }
 
     fn _ready(&mut self) {
-        log!("[RustTest] _ready()");
+        out!("[RustTest] _ready()");
     }
 
     fn _process(&mut self, delta: f64) {
@@ -180,14 +167,14 @@ impl RustTest {
         let mod_after = self.time % 1.0;
 
         if mod_before > mod_after {
-            log!("[RustTest] _process(): {}", self.time);
+            out!("[RustTest] _process(): {}", self.time);
         }
     }
 }
 
 impl GodotExtensionClassMethods for RustTest {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-        log!("[RustTest] virtual_call: {name}");
+        out!("[RustTest] virtual_call: {name}");
 
         match name {
             "_ready" => gdext_virtual_method_body!(RustTest, fn _ready(&mut self)),
@@ -197,7 +184,7 @@ impl GodotExtensionClassMethods for RustTest {
     }
 
     fn register_methods() {
-        log!("[RustTest] register_methods");
+        out!("[RustTest] register_methods");
 
         gdext_wrap_method!(RustTest,
             fn accept_obj(&self, obj: Obj<Entity>)
@@ -238,7 +225,7 @@ pub struct Entity {
 
 impl GodotMethods for Entity {
     fn construct(base: *mut c_void) -> Self {
-        log!("[Entity] construct: base={base:?}");
+        out!("[Entity] construct: base={base:?}");
 
         Entity {
             name: "No name yet".to_string(),
@@ -267,7 +254,7 @@ impl GodotClass for Entity {
 
 impl GodotExtensionClass for Entity {
     // fn construct(base: sys::GDNativeObjectPtr) -> Self {
-    //     log!("[Entity] construct");
+    //     out!("[Entity] construct");
     //
     //     Entity {
     //         base: RefCounted(base),
@@ -283,7 +270,7 @@ impl GodotExtensionClass for Entity {
 
 impl GodotExtensionClassMethods for Entity {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-        log!("[Entity] virtual_call: {name}");
+        out!("[Entity] virtual_call: {name}");
         match name {
             //"xy" => {
             //    gdext_virtual_method_body!(Entity, fn xy(&mut self))

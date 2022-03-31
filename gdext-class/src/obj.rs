@@ -24,14 +24,14 @@ impl<T: GodotClass> Obj<T> {
     }
 
     fn from_opaque(opaque: OpaqueObject) -> Self {
-        print!("Obj::from_opaque: opaque={}", opaque);
+        //print!("Obj::from_opaque: opaque={}", opaque);
 
         let s = Self {
             opaque,
             _marker: PhantomData,
         };
 
-        println!(", self.opaque={}", s.opaque);
+        //println!(", self.opaque={}", s.opaque);
         s
     }
 
