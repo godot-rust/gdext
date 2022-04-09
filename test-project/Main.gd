@@ -36,13 +36,29 @@ func _ready():
 
 	print()
 	print("----------------------------")
+	if true: #scope
+		var manual_mem = RustTest.new()
+		var id = manual_mem.get_instance_id()
+		manual_mem.free()
+		#manual_mem.return_obj()
+		var restored = instance_from_id(id)
+		print("restored:  ", restored)
+		print("is null:   ", restored == null)
+		print("typeof:    ", typeof(restored))
+		print("valid:     ", is_instance_valid(restored))
+		print("id valid:  ", is_instance_id_valid(id))
+		#print("get_class: ", restored.get_class()) # fails
+		#restored.return_obj()
+	print("----------------------------")
+
+
 	var obj = rust_test.return_obj()
 	print_instance_id(obj, "entity")
 	rust_test.accept_obj(obj)
-	print("----------------------------")
 
-	if true:
+	if true: #scope
 		var obj2 = rust_test.find_obj(obj.get_instance_id())
+		print_instance_id(obj, "entity (again)")
 		print_instance_id(obj2, "entity (via get_instance_id)")
 		# note: end of scope doesn't unreference
 
