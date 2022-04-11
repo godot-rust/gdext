@@ -5,7 +5,7 @@ use crate::godot_ffi::GodotFfi;
 use gdext_sys::types::OpaqueString;
 use gdext_sys::{self as sys, get_cache, interface_fn};
 
-use crate::impl_ffi_as_value;
+use crate::impl_ffi_as_opaque_pointer;
 
 #[repr(C, align(8))]
 pub struct GodotString {
@@ -126,7 +126,7 @@ impl Drop for GodotString {
 }
 
 impl GodotFfi for GodotString {
-    impl_ffi_as_value!();
+    impl_ffi_as_opaque_pointer!();
 }
 
 // While this is a nice optimisation for ptrcalls, it's not easily possible

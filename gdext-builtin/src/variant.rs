@@ -1,5 +1,5 @@
 use crate::godot_ffi::GodotFfi;
-use crate::impl_ffi_as_value;
+use crate::impl_ffi_as_opaque_pointer;
 use gdext_sys::interface_fn;
 use gdext_sys::types::OpaqueVariant;
 
@@ -41,7 +41,7 @@ impl Drop for Variant {
 }
 
 impl GodotFfi for Variant {
-    impl_ffi_as_value!();
+    impl_ffi_as_opaque_pointer!();
 }
 
 mod conversions {

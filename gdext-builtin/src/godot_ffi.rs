@@ -31,7 +31,7 @@ pub trait GodotFfi {
 ///
 /// Expects a `from_opaque()` constructor and a `opaque` field.
 #[macro_export]
-macro_rules! impl_ffi_as_pointer {
+macro_rules! impl_ffi_as_opaque_inplace_pointer {
     () => {
         unsafe fn from_sys(opaque_ptr: *mut std::ffi::c_void) -> Self {
             debug_assert!(!opaque_ptr.is_null());
@@ -64,7 +64,7 @@ macro_rules! impl_ffi_as_pointer {
 ///
 /// Expects a `from_opaque()` constructor and a `opaque` field.
 #[macro_export]
-macro_rules! impl_ffi_as_value {
+macro_rules! impl_ffi_as_opaque_pointer {
     () => {
         unsafe fn from_sys(opaque_ptr: *mut std::ffi::c_void) -> Self {
             let opaque = std::ptr::read(opaque_ptr as *mut _);

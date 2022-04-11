@@ -1,7 +1,7 @@
 use crate::property_info::PropertyInfoBuilder;
 use crate::{sys, ClassName, GodotClass};
 use gdext_builtin::godot_ffi::GodotFfi;
-use gdext_builtin::impl_ffi_as_pointer;
+use gdext_builtin::impl_ffi_as_opaque_inplace_pointer;
 use gdext_builtin::variant::Variant;
 use gdext_sys::interface_fn;
 use gdext_sys::types::OpaqueObject;
@@ -88,7 +88,7 @@ impl<T: GodotClass> Drop for Obj<T>{
 */
 
 impl<T: GodotClass> GodotFfi for Obj<T> {
-    impl_ffi_as_pointer!();
+    impl_ffi_as_opaque_inplace_pointer!();
 }
 
 impl<T: GodotClass> From<&Variant> for Obj<T> {
