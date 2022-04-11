@@ -13,7 +13,8 @@ use std::path::Path;
 struct ExtensionApi {
     builtin_class_sizes: Vec<ClassSizes>,
     builtin_classes: Vec<BuiltinClass>,
-    global_enums: Vec<GlobalEnum>,
+    classes: Vec<Class>,
+    global_enums: Vec<Enum>,
 }
 
 #[derive(Deserialize)]
@@ -36,29 +37,61 @@ struct BuiltinClass {
 }
 
 #[derive(Deserialize)]
-struct Constructor {
-    index: usize,
-    arguments: Option<Vec<ConstructorArg>>,
+struct Class {
+    name: String,
+    is_refcounted: bool,
+    is_instantiable: bool,
+    inherits: String,
+    api_type: String,
+    constants: Vec<Constant>,
+    enums: Vec<Enum>,
+    methods: Vec<Method>
 }
 
 #[derive(Deserialize)]
-struct ConstructorArg {
+struct Constructor {
+    index: usize,
+    arguments: Option<Vec<MethodArg>>,
+}
+
+#[derive(Deserialize)]
+struct MethodArg {
     name: String,
     #[serde(rename = "type")]
     type_: String,
 }
 
 #[derive(Deserialize)]
-struct GlobalEnum {
-    name: String,
-    values: Vec<EnumValue>,
+struct MethodReturn {
+    #[serde(rename = "type")]
+    type_: String,
 }
 
 #[derive(Deserialize)]
-struct EnumValue {
+struct Enum {
+    name: String,
+    values: Vec<Constant>,
+}
+
+#[derive(Deserialize)]
+struct Constant {
     name: String,
     value: i32,
 }
+
+#[derive(Deserialize)]
+struct Method {
+    name: String,
+    is_const: bool,
+    is_vararg: bool,
+    is_static: bool,
+    is_virtual: bool,
+    hash: u64,
+    arguments: Vec<MethodArg>,
+    return_value: Option<MethodReturn>
+}
+
+
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
