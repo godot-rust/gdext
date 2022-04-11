@@ -87,3 +87,32 @@ macro_rules! impl_ffi_as_opaque_pointer {
         }
     };
 }
+
+/// Implements the `GodotFfi` methods for a type implemented with standard Rust fields
+/// (not opaque).
+///
+/// The size of the corresponding sys type (the `N` in `Opaque*<N>`) must not be bigger than `size_of::<Self>()`.
+/// This cannot be checked easily, because Self cannot be used in size_of(). There would of course be workarounds.
+#[macro_export]
+macro_rules! impl_ffi_as_value {
+    () => {
+        unsafe fn from_sys(opaque_ptr: *mut std::ffi::c_void) -> Self {
+            *(opaque_ptr as *mut Self)
+        }
+
+        unsafe fn from_sys_init(init: impl FnOnce(*mut std::ffi::c_void)) -> Self {
+            let mut raw = std::mem::MaybeUninit::<Self>::uninit();
+            init(raw.as_mut_ptr() as *mut std::ffi::c_void);
+
+            raw.assume_init()
+        }
+
+        fn sys(&self) -> *mut std::ffi::c_void {
+            self as *const Self as *mut std::ffi::c_void
+        }
+
+        unsafe fn write_sys(&self, dst: *mut std::ffi::c_void) {
+            *(dst as *mut Self) = *self;
+        }
+    };
+}

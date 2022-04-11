@@ -1,5 +1,6 @@
 #![macro_use]
 
+pub mod color;
 pub mod godot_ffi;
 pub mod macros;
 pub mod string;

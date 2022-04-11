@@ -142,5 +142,7 @@ impl ClassName {
 
 #[macro_export]
 macro_rules! c_str {
-    ($str:literal) => { (concat!($str, "\0")).as_ptr() as *const std::os::raw::c_char };
+    ($str:literal) => {
+        (concat!($str, "\0")).as_ptr() as *const std::os::raw::c_char
+    };
 }

@@ -235,8 +235,10 @@ impl ApiParser {
         // Capitalize: "int" -> "Int"
         let (first, rest) = name.split_at(1);
         let ident = format_ident!("Opaque{}{}", first.to_uppercase(), rest);
+        //let upper = format_ident!("SIZE_{}", name.to_uppercase());
         quote! {
             pub type #ident = crate::opaque::Opaque<#size>;
+            //pub const #upper: usize = #size;
         }
     }
 

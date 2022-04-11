@@ -79,3 +79,14 @@ macro_rules! interface_fn {
         unsafe { $crate::get_interface().$name.unwrap_unchecked() }
     }};
 }
+
+#[macro_export]
+macro_rules! static_assert {
+    ($expr:expr, $msg:literal) => {
+        const _: u8 = if $expr {
+            0
+        } else {
+            panic!(concat!("Static assertion failed: ", $msg))
+        };
+    };
+}
