@@ -48,7 +48,7 @@ macro_rules! impl_ffi_as_opaque_inplace_pointer {
             // ));
 
             init(std::mem::transmute(raw.as_mut_ptr())); // <- this was the OpaqueObject::with_init() version
-            //init(std::mem::transmute(raw));
+                                                         //init(std::mem::transmute(raw));
 
             Self::from_opaque(raw.assume_init())
         }

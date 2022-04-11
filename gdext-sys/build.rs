@@ -20,7 +20,8 @@ fn main() {
 
     let gen_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen");
 
-    gen::ApiParser::generate_file(Path::new(gen_path));
+    let (api, build_config) = gen::load_extension_api();
+    gen::generate_central_file(&api, build_config, Path::new(gen_path));
 
     println!("cargo:rerun-if-changed={}", header_path);
 }
