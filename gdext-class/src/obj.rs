@@ -24,7 +24,7 @@ impl<T: GodotClass> Obj<T> {
         unsafe { Obj::from_sys(ptr) }
     }
 
-    fn from_opaque(opaque: OpaqueObject) -> Self {
+   fn from_opaque(opaque: OpaqueObject) -> Self {
         //print!("Obj::from_opaque: opaque={}", opaque);
 
         let s = Self {

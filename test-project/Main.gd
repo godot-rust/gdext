@@ -20,8 +20,11 @@ func _ready():
 
 	var msg := rust_test.test_method(12, "hello from GDScript")
 	print(msg)
-	#get_tree().quit()
-	#return
+
+	rust_test.call_base_method()
+
+	get_tree().quit()
+	return
 
 	var res := rust_test.add(4, 6, Vector2(3, 5))
 	print(res)

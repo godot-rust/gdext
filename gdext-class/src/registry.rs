@@ -139,3 +139,8 @@ impl ClassName {
         self.backing.as_ptr() as *const _
     }
 }
+
+#[macro_export]
+macro_rules! c_str {
+    ($str:literal) => { (concat!($str, "\0")).as_ptr() as *const std::os::raw::c_char };
+}

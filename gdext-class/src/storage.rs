@@ -4,7 +4,7 @@ use crate::{out, sys, GodotClass, GodotMethods};
 ///
 /// This design does not force the user to keep the base object intrusively in his own struct.
 pub struct InstanceStorage<T: GodotClass> {
-    base: sys::GDNativeObjectPtr,
+    _base: sys::GDNativeObjectPtr,
     // base: Obj<T::Base>,
     user_instance: Option<T>, // lateinit
     refcount: i32,
@@ -23,7 +23,7 @@ impl<T: GodotMethods + GodotClass> InstanceStorage<T> {
         );
         Self {
             //base: unsafe { Obj::<T::Base>::from_sys(base) },
-            base,
+            _base: base,
             user_instance: Some(instance),
             refcount,
         }

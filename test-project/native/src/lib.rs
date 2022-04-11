@@ -1,3 +1,4 @@
+use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::{
     gdext_init, string::GodotString, variant::Variant, vector2::Vector2, vector3::Vector3,
     InitLevel,
@@ -11,6 +12,33 @@ use std::ffi::c_void;
 
 #[derive(Debug)]
 pub struct Node3D(sys::GDNativeObjectPtr);
+
+impl Node3D {
+    fn to_global(&self, arg: Vector3) -> Vector3 {
+        let obj = self.0;
+
+        let result = unsafe {
+            let class_name = c_str!("Node3D");
+            let method_name = c_str!("to_global");
+            let hash = 135374120;
+
+            let method_bind = interface_fn!(classdb_get_method_bind)(class_name, method_name, hash);
+
+            let call_fn = interface_fn!(object_method_bind_ptrcall);
+
+            let mut args = [arg.sys()];
+            let args_ptr = args.as_mut_ptr();
+
+            Vector3::from_sys_init(|opaque_ptr| {
+                call_fn(method_bind, obj, args_ptr, opaque_ptr);
+            })
+        };
+
+        //let result = result_obj.inner();
+        out!("Node3D::to_global({:?}) = {:?}", arg, result);
+        result
+    }
+}
 
 impl GodotClass for Node3D {
     type Base = Node3D;
@@ -63,7 +91,7 @@ impl GodotClass for RefCounted {
 
 #[derive(Debug)]
 pub struct RustTest {
-    //base: Node3D,
+    base: Node3D,
     time: f64,
 }
 
@@ -84,9 +112,13 @@ impl GodotClass for RustTest {
 }
 
 impl GodotMethods for RustTest {
-    fn construct(base: *mut std::ffi::c_void) -> Self {
-        out!("[RustTest] construct: base={base:?}");
-        RustTest::new(base)
+    fn construct(base_ptr: *mut std::ffi::c_void) -> Self {
+        out!("[RustTest] construct: base={base_ptr:?}");
+
+        // FIXME build Rust object to represent Godot's own types, like Node3D
+        //let obj = unsafe { Obj::from_sys(base) };
+        let obj = Node3D(base_ptr);
+        RustTest::new(obj)
     }
 }
 
@@ -102,8 +134,15 @@ impl GodotExtensionClass for RustTest {
 }
 
 impl RustTest {
-    fn new(base: *mut std::ffi::c_void) -> Self {
-        Self { time: 0.0 }
+    // fn new(base: *mut std::ffi::c_void) -> Self {
+    //     Self { time: 0.0 }
+    // }
+
+    fn new(base: Node3D) -> Self {
+        out!("[RustTest] new.");
+        // out!("[RustTest] new: base={:?}", base.inner());
+
+        Self { time: 0.0, base }
     }
 
     fn test_method(&mut self, some_int: u64, some_string: GodotString) -> GodotString {
@@ -160,6 +199,11 @@ impl RustTest {
         obj
     }
 
+    fn call_base_method(&self) -> Vector3 {
+        let arg = Vector3::new(2.0, 3.0, 4.0);
+        self.base.to_global(arg)
+    }
+
     fn _ready(&mut self) {
         out!("[RustTest] _ready()");
     }
@@ -211,6 +255,10 @@ impl GodotExtensionClassMethods for RustTest {
 
         gdext_wrap_method!(RustTest,
             fn vec_add(&self, a: Vector2, b: Vector2) -> Vector2
+        );
+
+        gdext_wrap_method!(RustTest,
+            fn call_base_method(&self) -> Vector3
         );
     }
 }
