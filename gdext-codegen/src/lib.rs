@@ -1,9 +1,12 @@
 mod api_parser;
 mod central_generator;
+mod class_generator;
 mod godot_exe;
+mod util;
 
 pub use api_parser::load_extension_api;
 pub use central_generator::generate_central_file;
+pub use class_generator::generate_class_files;
 
 use std::path::Path;
 

@@ -19,9 +19,11 @@ fn main() {
         .expect("could not write gdnative_interface Rust bindings!");
 
     let gen_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen");
+    let gen_path = Path::new(gen_path);
 
     let (api, build_config) = gen::load_extension_api();
-    gen::generate_central_file(&api, build_config, Path::new(gen_path));
+    gen::generate_central_file(&api, build_config, gen_path);
+    gen::generate_class_files(&api, build_config, &gen_path.join("classes"));
 
     println!("cargo:rerun-if-changed={}", header_path);
 }
