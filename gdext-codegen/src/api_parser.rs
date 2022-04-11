@@ -37,30 +37,13 @@ pub struct Class {
     pub name: String,
     pub is_refcounted: bool,
     pub is_instantiable: bool,
-    pub inherits: String,
+    pub inherits: Option<String>,
     pub api_type: String,
-    pub constants: Vec<Constant>,
-    pub enums: Vec<Enum>,
-    pub methods: Vec<Method>,
-}
-
-#[derive(Deserialize)]
-pub struct Constructor {
-    pub index: usize,
-    pub arguments: Option<Vec<MethodArg>>,
-}
-
-#[derive(Deserialize)]
-pub struct MethodArg {
-    pub name: String,
-    #[serde(rename = "type")]
-    pub type_: String,
-}
-
-#[derive(Deserialize)]
-pub struct MethodReturn {
-    #[serde(rename = "type")]
-    pub type_: String,
+    pub constants: Option<Vec<Constant>>,
+    pub enums: Option<Vec<Enum>>,
+    pub methods: Option<Vec<Method>>,
+    pub properties: Option<Vec<Property>>,
+    pub signals: Option<Vec<Signal>>,
 }
 
 #[derive(Deserialize)]
@@ -76,15 +59,50 @@ pub struct Constant {
 }
 
 #[derive(Deserialize)]
+pub struct Property {
+    #[serde(rename = "type")]
+    type_: String,
+    name: String,
+    setter: String,
+    getter: String,
+    index: isize, // can be -1
+}
+
+#[derive(Deserialize)]
+pub struct Signal {
+    name: String,
+    arguments: Option<Vec<MethodArg>>,
+}
+
+#[derive(Deserialize)]
+pub struct Constructor {
+    pub index: usize,
+    pub arguments: Option<Vec<MethodArg>>,
+}
+
+#[derive(Deserialize)]
 pub struct Method {
     pub name: String,
     pub is_const: bool,
     pub is_vararg: bool,
     pub is_static: bool,
     pub is_virtual: bool,
-    pub hash: u64,
-    pub arguments: Vec<MethodArg>,
+    pub hash: Option<u64>,
+    pub arguments: Option<Vec<MethodArg>>,
     pub return_value: Option<MethodReturn>,
+}
+
+#[derive(Deserialize)]
+pub struct MethodArg {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub type_: String,
+}
+
+#[derive(Deserialize)]
+pub struct MethodReturn {
+    #[serde(rename = "type")]
+    pub type_: String,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
