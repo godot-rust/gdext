@@ -185,7 +185,10 @@ impl RustTest {
             hitpoints: 20,
         };
 
-        Obj::new(rust_obj)
+        out!("-- new");
+        let r = Obj::new(rust_obj);
+        out!("-- end new");
+        r
     }
 
     fn find_obj(&self, instance_id: u64) -> Obj<Entity> {

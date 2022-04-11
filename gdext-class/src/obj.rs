@@ -93,23 +93,23 @@ impl<T: GodotClass> GodotFfi for Obj<T> {
 
 impl<T: GodotClass> From<&Variant> for Obj<T> {
     fn from(variant: &Variant) -> Self {
+       // println!("!!TODO!! Variant to Obj<T>");
         unsafe {
-            let opaque = OpaqueObject::with_init(|ptr| {
+            Self::from_sys_init(|opaque_ptr| {
                 let converter = sys::get_cache().object_from_variant;
-                converter(ptr, variant.sys());
-            });
-
-            Obj::from_opaque(opaque)
+                converter(opaque_ptr, variant.sys());
+            })
         }
     }
 }
 
 impl<T: GodotClass> From<Obj<T>> for Variant {
     fn from(obj: Obj<T>) -> Self {
+        println!("!!TODO!! Variant from Obj<T>");
         unsafe {
             Self::from_sys_init(|opaque_ptr| {
                 let converter = sys::get_cache().object_to_variant;
-                converter(opaque_ptr, obj.opaque.to_sys());
+                converter(opaque_ptr, obj.sys()); // this was OpaqueObject::to_sys(), converting pointer, not value
             })
         }
     }

@@ -30,6 +30,7 @@ pub trait GodotFfi {
 /// (e.g. string, object).
 ///
 /// Expects a `from_opaque()` constructor and a `opaque` field.
+// TODO make sure this whole thing is correct, especially from_sys_init()
 #[macro_export]
 macro_rules! impl_ffi_as_opaque_inplace_pointer {
     () => {
@@ -42,9 +43,12 @@ macro_rules! impl_ffi_as_opaque_inplace_pointer {
 
         unsafe fn from_sys_init(init: impl FnOnce(*mut std::ffi::c_void)) -> Self {
             let mut raw = std::mem::MaybeUninit::uninit();
-            init(std::ptr::read(
-                raw.as_mut_ptr() as *mut *mut std::ffi::c_void
-            ));
+            // init(std::ptr::read(
+            //     raw.as_mut_ptr() as *mut *mut std::ffi::c_void
+            // ));
+
+            init(std::mem::transmute(raw.as_mut_ptr())); // <- this was the OpaqueObject::with_init() version
+            //init(std::mem::transmute(raw));
 
             Self::from_opaque(raw.assume_init())
         }
