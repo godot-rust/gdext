@@ -2,12 +2,16 @@
 
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
-use std::path::Path;
-use std::str::FromStr;
+use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 
-pub fn generate_class_files(api: &ExtensionApi, _build_config: &str, gen_path: &Path) {
+pub fn generate_class_files(
+    api: &ExtensionApi,
+    _build_config: &str,
+    gen_path: &Path,
+    out_files: &mut Vec<PathBuf>,
+) {
     let _ = std::fs::create_dir(gen_path);
 
     // TODO no limit after testing
@@ -18,7 +22,7 @@ pub fn generate_class_files(api: &ExtensionApi, _build_config: &str, gen_path: &
         let out_path = gen_path.join(format!("{}.rs", class.name));
         std::fs::write(&out_path, string).expect("failed to write extension file");
 
-        crate::format_file_if_needed(&out_path);
+        out_files.push(out_path);
     }
 }
 

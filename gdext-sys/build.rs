@@ -21,9 +21,16 @@ fn main() {
     let gen_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen");
     let gen_path = Path::new(gen_path);
 
+    let mut out_files = vec![];
     let (api, build_config) = gen::load_extension_api();
-    gen::generate_central_file(&api, build_config, gen_path);
-    gen::generate_class_files(&api, build_config, &gen_path.join("classes"));
+    gen::generate_central_file(&api, build_config, gen_path, &mut out_files);
+    gen::generate_class_files(
+        &api,
+        build_config,
+        &gen_path.join("classes"),
+        &mut out_files,
+    );
+    gen::rustfmt_if_needed(out_files);
 
     println!("cargo:rerun-if-changed={}", header_path);
 }

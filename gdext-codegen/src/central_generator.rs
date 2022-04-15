@@ -3,7 +3,7 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 
@@ -28,7 +28,12 @@ struct TypeNames {
     sys_variant_type: Ident,
 }
 
-pub fn generate_central_file(api: &ExtensionApi, build_config: &str, gen_path: &Path) {
+pub fn generate_central_file(
+    api: &ExtensionApi,
+    build_config: &str,
+    gen_path: &Path,
+    out_files: &mut Vec<PathBuf>,
+) {
     let tokens = load_extension_api(api, build_config);
     let Tokens {
         opaque_types,
@@ -68,7 +73,7 @@ pub fn generate_central_file(api: &ExtensionApi, build_config: &str, gen_path: &
     let out_path = gen_path.join("extensions.rs");
     std::fs::write(&out_path, string).expect("failed to write extension file");
 
-    crate::format_file_if_needed(&out_path);
+    out_files.push(out_path);
 }
 
 fn load_extension_api(model: &ExtensionApi, build_config: &str) -> Tokens {

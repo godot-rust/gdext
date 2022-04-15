@@ -8,3 +8,23 @@ members = [
     # test project
     "test-project/native"
 ]
+
+# These dependencies don't need to be debugged, make build scripts run faster
+[profile.dev.package.bindgen]
+debug = 0
+opt-level = 3
+[profile.dev.package.miniserde]
+debug = 0
+opt-level = 3
+[profile.dev.package.mini-internal]
+debug = 0
+opt-level = 3
+[profile.dev.package.quote]
+debug = 0
+opt-level = 3
+[profile.dev.package.proc-macro2]
+debug = 0
+opt-level = 3
+[profile.dev.package.syn]
+debug = 0
+opt-level = 3

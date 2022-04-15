@@ -8,7 +8,7 @@ pub use api_parser::load_extension_api;
 pub use central_generator::generate_central_file;
 pub use class_generator::generate_class_files;
 
-use std::path::Path;
+use std::path::PathBuf;
 
 #[cfg(test)]
 mod tests {
@@ -19,26 +19,21 @@ mod tests {
 }
 
 //#[cfg(feature = "formatted")]
-pub(crate) fn format_file_if_needed(output_rs: &Path) {
-    print!(
-        "Formatting generated file: {}... ",
-        output_rs
-            .canonicalize()
-            .unwrap()
-            .as_os_str()
-            .to_str()
-            .unwrap()
-    );
+pub fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
+    print!("Format {} generated files...", out_files.len());
 
-    let output = std::process::Command::new("rustup")
+    let mut process = std::process::Command::new("rustup");
+    process
         .arg("run")
         .arg("stable")
         .arg("rustfmt")
-        .arg("--edition=2021")
-        .arg(output_rs)
-        .output();
+        .arg("--edition=2021");
 
-    match output {
+    for file in out_files {
+        process.arg(file);
+    }
+
+    match process.output() {
         Ok(_) => println!("Done."),
         Err(err) => {
             println!("Failed.");
