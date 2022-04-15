@@ -20,7 +20,7 @@ mod tests {
 
 //#[cfg(feature = "formatted")]
 pub fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
-    print!("Format {} generated files...", out_files.len());
+    //print!("Format {} generated files...", out_files.len());
 
     let mut process = std::process::Command::new("rustup");
     process
@@ -30,6 +30,7 @@ pub fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
         .arg("--edition=2021");
 
     for file in out_files {
+        //println!("Format {file:?}");
         process.arg(file);
     }
 

@@ -32,6 +32,7 @@ fn main() {
     let central_time = now.elapsed().as_millis();
 
     let now = std::time::Instant::now();
+    // Note: deletes entire gen_path directory!
     gen::generate_class_files(
         &api,
         build_config,
@@ -50,4 +51,5 @@ fn main() {
     println!("  gen-central:   {central_time}");
     println!("  gen-class:     {class_time}");
     println!("  fmt:           {fmt_time}");
+    //panic!("Just to output timing")
 }
