@@ -22,15 +22,32 @@ fn main() {
     let gen_path = Path::new(gen_path);
 
     let mut out_files = vec![];
+
+    let now = std::time::Instant::now();
     let (api, build_config) = gen::load_extension_api();
+    let load_time = now.elapsed().as_millis();
+
+    let now = std::time::Instant::now();
     gen::generate_central_file(&api, build_config, gen_path, &mut out_files);
+    let central_time = now.elapsed().as_millis();
+
+    let now = std::time::Instant::now();
     gen::generate_class_files(
         &api,
         build_config,
         &gen_path.join("classes"),
         &mut out_files,
     );
+    let class_time = now.elapsed().as_millis();
+
+    let now = std::time::Instant::now();
     gen::rustfmt_if_needed(out_files);
+    let fmt_time = now.elapsed().as_millis();
 
     println!("cargo:rerun-if-changed={}", header_path);
+    println!("Times [ms]:");
+    println!("  load-json:     {load_time}");
+    println!("  gen-central:   {central_time}");
+    println!("  gen-class:     {class_time}");
+    println!("  fmt:           {fmt_time}");
 }
