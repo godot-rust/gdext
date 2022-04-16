@@ -12,6 +12,7 @@ include!(concat!(env!("OUT_DIR"), "/gdnative_interface.rs"));
 mod opaque;
 mod gen {
     pub(crate) mod extensions;
+    pub(crate) mod classes;
 }
 mod godot_ffi;
 mod ptrcall;

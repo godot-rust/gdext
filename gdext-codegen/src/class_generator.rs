@@ -3,6 +3,7 @@
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::path::{Path, PathBuf};
+use heck::ToSnakeCase as _;
 
 use crate::api_parser::*;
 
@@ -17,19 +18,30 @@ pub fn generate_class_files(
 
     // TODO no limit after testing
     let selected = ["Object", "Node", "Node3D", "RefCounted"];
+    let mut modules = vec![];
     for class in api.classes.iter() {
         if !selected.contains(&class.name.as_str()) {
             continue;
         }
 
-        let tokens = make_class(class);
-        let string = tokens.to_string();
+        let file_contents = make_class(class).to_string();
 
-        let out_path = gen_path.join(format!("{}.rs", class.name));
-        std::fs::write(&out_path, string).expect("failed to write class file");
+        let module_name = to_module_name(class);
+        let out_path = gen_path.join(format!("{}.rs", module_name));
+        std::fs::write(&out_path, file_contents).expect("failed to write class file");
 
+        modules.push(ident(&module_name));
         out_files.push(out_path);
     }
+
+    let mod_contents = make_module_file(modules).to_string();
+    let out_path =  gen_path.join("mod.rs");
+    std::fs::write(&out_path, mod_contents).expect("failed to write mod.rs file");
+    out_files.push(out_path);
+}
+
+fn to_module_name(class: &Class) -> String {
+    class.name.to_snake_case()
 }
 
 fn make_class(class: &Class) -> TokenStream {
@@ -45,6 +57,12 @@ fn make_class(class: &Class) -> TokenStream {
         impl #name {
             #methods
         }
+    }
+}
+
+fn make_module_file(modules: Vec<Ident>) -> TokenStream {
+    quote! {
+        #( pub mod #modules; )*
     }
 }
 
@@ -137,8 +155,8 @@ fn make_call(return_value: &Option<MethodReturn>) -> TokenStream {
             let return_ty = to_rust_type(&ret.type_).to_token_stream();
 
             quote! {
-                #return_ty::from_sys_init(|opaque_ptr| {
-                    call_fn(method_bind, self.sys, args_ptr, opaque_ptr);
+                <#return_ty as ::gdext_sys::PtrCall>::ptrcall_read_init(|ret_ptr| {
+                    call_fn(method_bind, self.sys, args_ptr, ret_ptr);
                 })
             }
         }

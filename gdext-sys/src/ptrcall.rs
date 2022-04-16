@@ -1,8 +1,9 @@
+use std::mem::MaybeUninit;
 use crate as sys;
 use sys::GodotFfi;
 
 /// Implemented for types which can be passed as arguments and return values from Godot's `ptrcall` FFI.
-pub trait PtrCall {
+pub trait PtrCall where Self:Sized {
     /// Read an argument value from a ptrcall argument.
     ///
     /// # Safety
@@ -10,6 +11,15 @@ pub trait PtrCall {
     /// Implementations of this function will use pointer casting and must make
     /// sure that the proper types are expected as they are provided by Godot.
     unsafe fn ptrcall_read(arg: sys::GDNativeTypePtr) -> Self;
+
+    unsafe fn ptrcall_read_init(init: impl FnOnce(sys::GDNativeTypePtr)) -> Self {
+        let mut arg = MaybeUninit::uninit();
+        init(arg.as_mut_ptr() as *mut _);
+
+        //let arg = arg.assume_init();
+        //Self::ptrcall_read(arg)
+        arg.assume_init()
+    }
 
     /// Write a value to a ptrcall argument or return value.
     ///
@@ -24,6 +34,10 @@ pub trait PtrCall {
 impl<T: GodotFfi> PtrCall for T {
     unsafe fn ptrcall_read(arg: sys::GDNativeTypePtr) -> Self {
         Self::from_sys(arg)
+    }
+
+    unsafe fn ptrcall_read_init(init: impl FnOnce(sys::GDNativeTypePtr)) -> Self {
+        Self::from_sys_init(init)
     }
 
     unsafe fn ptrcall_write(self, ret: sys::GDNativeTypePtr) {
