@@ -11,14 +11,13 @@ include!(concat!(env!("OUT_DIR"), "/gdnative_interface.rs"));
 
 mod opaque;
 mod gen {
+    //pub(crate) mod classes;
     pub(crate) mod extensions;
-    pub(crate) mod classes;
 }
 mod godot_ffi;
 mod ptrcall;
 
 use gen::extensions::InterfaceCache;
-use std::mem::MaybeUninit;
 
 //pub use opaque::Opaque;
 pub use gen::extensions::types;
@@ -32,15 +31,17 @@ pub type real = f32;
 #[cfg(feature = "real_is_double")]
 pub type real = f64;
 
-static mut INTERFACE: MaybeUninit<GDNativeInterface> = MaybeUninit::uninit();
-static mut LIBRARY: MaybeUninit<GDNativeExtensionClassLibraryPtr> = MaybeUninit::uninit();
+// Late-init globals
+// TODO maybe they can be combined to a single object? (at least cache + library can for sure)
+static mut INTERFACE: Option<GDNativeInterface> = None;
+static mut LIBRARY: Option<GDNativeExtensionClassLibraryPtr> = None;
 static mut CACHE: Option<InterfaceCache> = None;
 
 /// # Safety
 ///
 /// The `interface` pointer must be a valid pointer to a [`GDNativeInterface`] object.
 pub unsafe fn set_interface(interface: *const GDNativeInterface) {
-    INTERFACE = MaybeUninit::new(*interface);
+    INTERFACE = Some(*interface);
     CACHE = Some(InterfaceCache::new(&*interface))
 }
 
@@ -49,7 +50,7 @@ pub unsafe fn set_interface(interface: *const GDNativeInterface) {
 /// The interface must have been initialised with [`set_interface`] before calling this function.
 #[inline(always)]
 pub unsafe fn get_interface() -> &'static GDNativeInterface {
-    &*INTERFACE.as_ptr()
+   unwrap_ref_unchecked(&INTERFACE)
 }
 
 /// # Safety
@@ -58,7 +59,7 @@ pub unsafe fn get_interface() -> &'static GDNativeInterface {
 /// - This function must not be called from multiple threads.
 /// - This function must be called before any use of [`get_library`].
 pub unsafe fn set_library(library: GDNativeExtensionClassLibraryPtr) {
-    LIBRARY = MaybeUninit::new(library);
+    LIBRARY = Some(library);
 }
 
 /// # Safety
@@ -66,7 +67,7 @@ pub unsafe fn set_library(library: GDNativeExtensionClassLibraryPtr) {
 /// The library must have been initialised with [`set_library`] before calling this function.
 #[inline(always)]
 pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
-    *LIBRARY.as_ptr()
+    LIBRARY.unwrap_unchecked()
 }
 
 /// # Safety
@@ -74,7 +75,7 @@ pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
 /// The interface must have been initialised with [`set_interface`] before calling this function.
 #[inline(always)]
 pub unsafe fn get_cache() -> &'static InterfaceCache {
-    CACHE.as_ref().unwrap_unchecked()
+    unwrap_ref_unchecked(&CACHE)
 }
 
 #[macro_export]
@@ -94,4 +95,14 @@ macro_rules! static_assert {
             panic!(concat!("Static assertion failed: ", $msg))
         };
     };
+}
+
+/// Combination of `as_ref()` and `unwrap_unchecked()`, but without the case differentiation in
+/// the former (thus raw pointer access in release mode)
+unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
+    debug_assert!(opt.is_some(), "unchecked access to Option::None");
+    match opt {
+        Some(ref val) => val,
+        None => std::hint::unreachable_unchecked(),
+    }
 }

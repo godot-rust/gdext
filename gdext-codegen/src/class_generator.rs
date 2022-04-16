@@ -47,7 +47,7 @@ fn make_class(class: &Class) -> TokenStream {
 
     quote! {
         pub struct #name {
-            sys: ::gdext_sys::GDNativeObjectPtr,
+            sys: crate::GDNativeObjectPtr,
         }
 
         impl #name {
@@ -151,7 +151,7 @@ fn make_call(return_value: &Option<MethodReturn>) -> TokenStream {
             let return_ty = to_rust_type(&ret.type_).to_token_stream();
 
             quote! {
-                <#return_ty as ::gdext_sys::PtrCall>::ptrcall_read_init(|ret_ptr| {
+                <#return_ty as crate::PtrCall>::ptrcall_read_init(|ret_ptr| {
                     call_fn(method_bind, self.sys, args_ptr, ret_ptr);
                 })
             }
