@@ -18,8 +18,9 @@ fn main() {
         .write_to_file(out_path.join("gdnative_interface.rs"))
         .expect("could not write gdnative_interface Rust bindings!");
 
-    let gen_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen");
-    let gen_path = Path::new(gen_path);
+    let sys_gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen"));
+    let class_gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../gdext-class/src/gen"));
+    println!(">>>> OUT: {}", class_gen_path.display());
 
     let mut out_files = vec![];
 
@@ -28,20 +29,22 @@ fn main() {
     let load_time = now.elapsed().as_millis();
 
     let now = std::time::Instant::now();
-    gen::generate_central_file(&api, build_config, gen_path, &mut out_files);
+    gen::generate_central_file(&api, build_config, sys_gen_path, &mut out_files);
     let central_time = now.elapsed().as_millis();
 
+    // Class files -- currently output in gdext-class; could maybe be separated cleaner
     let now = std::time::Instant::now();
-    // Note: deletes entire gen_path directory!
+    // Note: deletes entire generated directory!
     gen::generate_class_files(
         &api,
         build_config,
-        &gen_path.join("classes"),
+        &class_gen_path.join("classes"),
         &mut out_files,
     );
     let class_time = now.elapsed().as_millis();
 
     let now = std::time::Instant::now();
+
     gen::rustfmt_if_needed(out_files);
     let fmt_time = now.elapsed().as_millis();
 
@@ -53,3 +56,9 @@ fn main() {
     println!("  fmt:           {fmt_time}");
     //panic!("Just to output timing")
 }
+
+/*fn rerun_if_any_changed(paths: &Vec<PathBuf>){
+    for path in paths {
+        println!("cargo:rerun-if-changed={}", path.display());
+    }
+}*/

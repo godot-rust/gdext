@@ -14,7 +14,7 @@ pub fn generate_class_files(
     out_files: &mut Vec<PathBuf>,
 ) {
     let _ = std::fs::remove_dir_all(gen_path);
-    std::fs::create_dir(gen_path).expect("create classes directory");
+    std::fs::create_dir_all(gen_path).expect("create classes directory");
 
     // TODO no limit after testing
     let selected = ["Object", "Node", "Node3D", "RefCounted"];
@@ -46,8 +46,10 @@ fn make_class(class: &Class) -> TokenStream {
     let methods = make_methods(&class.methods, &class.name);
 
     quote! {
+        use gdext_sys as sys;
+
         pub struct #name {
-            sys: crate::GDNativeObjectPtr,
+            sys: sys::GDNativeObjectPtr,
         }
 
         impl #name {
@@ -126,9 +128,9 @@ fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
     quote! {
         pub fn #method_name(&self, #(#params),* ) {
             let result = unsafe {
-                let method_bind = crate::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
+                let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
 
-                let call_fn = crate::interface_fn!(object_method_bind_ptrcall);
+                let call_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
                 let mut args = [
                     #(
@@ -151,7 +153,7 @@ fn make_call(return_value: &Option<MethodReturn>) -> TokenStream {
             let return_ty = to_rust_type(&ret.type_).to_token_stream();
 
             quote! {
-                <#return_ty as crate::PtrCall>::ptrcall_read_init(|ret_ptr| {
+                <#return_ty as sys::PtrCall>::ptrcall_read_init(|ret_ptr| {
                     call_fn(method_bind, self.sys, args_ptr, ret_ptr);
                 })
             }

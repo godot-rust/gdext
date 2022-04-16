@@ -12,6 +12,10 @@ pub use traits::*;
 
 use gdext_sys as sys;
 
+mod gen {
+    pub(crate) mod classes;
+}
+
 #[doc(hidden)]
 pub mod private {
     pub use crate::storage::as_storage;
