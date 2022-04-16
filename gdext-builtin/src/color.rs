@@ -1,5 +1,4 @@
-use crate::godot_ffi::GodotFfi;
-use crate::impl_ffi_as_value;
+use crate::sys::{impl_ffi_as_value, GodotFfi};
 
 #[repr(C)]
 #[derive(Copy, Clone)]

@@ -27,7 +27,7 @@ pub trait GodotFfi {
 }
 
 /// Implements the `GodotFfi` methods for a type with `Opaque` data that stores a pointer type
-/// (e.g. string, object).
+/// (e.g. string, variant).
 ///
 /// Expects a `from_opaque()` constructor and a `opaque` field.
 // TODO make sure this whole thing is correct, especially from_sys_init()

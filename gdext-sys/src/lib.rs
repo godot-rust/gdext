@@ -13,15 +13,19 @@ mod opaque;
 mod gen {
     pub(crate) mod extensions;
 }
+mod godot_ffi;
+mod ptrcall_arg;
 
 use gen::extensions::InterfaceCache;
 use std::mem::MaybeUninit;
 
 //pub use opaque::Opaque;
 pub use gen::extensions::types;
+pub use godot_ffi::GodotFfi;
+pub use ptrcall_arg::PtrCallArg;
 
 #[allow(non_camel_case_types)]
-#[cfg(feature = "real_is_float")]
+#[cfg(not(feature = "real_is_double"))]
 pub type real = f32;
 #[allow(non_camel_case_types)]
 #[cfg(feature = "real_is_double")]

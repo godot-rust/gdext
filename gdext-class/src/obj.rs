@@ -1,10 +1,10 @@
 use crate::property_info::PropertyInfoBuilder;
-use crate::{sys, ClassName, GodotClass};
-use gdext_builtin::godot_ffi::GodotFfi;
-use gdext_builtin::impl_ffi_as_opaque_inplace_pointer;
+use crate::{ClassName, GodotClass};
 use gdext_builtin::variant::Variant;
-use gdext_sys::interface_fn;
-use gdext_sys::types::OpaqueObject;
+
+use gdext_sys as sys;
+use sys::types::OpaqueObject;
+use sys::{impl_ffi_as_opaque_inplace_pointer, interface_fn, GodotFfi};
 
 use crate::storage::InstanceStorage;
 use std::marker::PhantomData;

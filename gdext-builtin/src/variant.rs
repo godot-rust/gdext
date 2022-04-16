@@ -1,7 +1,6 @@
-use crate::godot_ffi::GodotFfi;
-use crate::impl_ffi_as_opaque_pointer;
-use gdext_sys::interface_fn;
-use gdext_sys::types::OpaqueVariant;
+use gdext_sys as sys;
+use sys::types::OpaqueVariant;
+use sys::{impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
 
 #[repr(C, align(8))]
 pub struct Variant {
@@ -46,9 +45,9 @@ impl GodotFfi for Variant {
 
 mod conversions {
     use super::Variant;
-    use crate::godot_ffi::GodotFfi;
     use crate::{string::GodotString, vector2::Vector2, vector3::Vector3};
     use gdext_sys as sys;
+    use sys::GodotFfi;
 
     macro_rules! impl_variant_conversions {
         ($T:ty, $from_fn:ident, $to_fn:ident) => {

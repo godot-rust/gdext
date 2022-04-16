@@ -35,6 +35,7 @@ macro_rules! gdext_wrap_method_inner {
         ) -> $retty:ty
     ) => {
         unsafe {
+            use ::gdext_sys as sys;
             const NUM_ARGS: usize = gdext_wrap_method_parameter_count!($($pname,)*);
 
             let method_info = sys::GDNativeExtensionClassMethodInfo {
@@ -82,7 +83,7 @@ macro_rules! gdext_wrap_method_inner {
                         let mut idx = 0;
 
                         $(
-                            let $pname = <$pty as gdext_builtin::PtrCallArg>::ptrcall_read(*args.offset(idx));
+                            let $pname = <$pty as sys::PtrCallArg>::ptrcall_read(*args.offset(idx));
                             idx += 1;
                         )*
 
@@ -90,7 +91,7 @@ macro_rules! gdext_wrap_method_inner {
                             $pname,
                         )*);
 
-                        <$retty as gdext_builtin::PtrCallArg>::ptrcall_write(ret_val, ret);
+                        <$retty as sys::PtrCallArg>::ptrcall_write(ret_val, ret);
                     }
 
                     call
@@ -105,7 +106,7 @@ macro_rules! gdext_wrap_method_inner {
                         n: i32,
                     ) -> sys::GDNativeVariantType {
                         // return value first
-                        let types: [gdext_sys::GDNativeVariantType; NUM_ARGS + 1] = [
+                        let types: [sys::GDNativeVariantType; NUM_ARGS + 1] = [
                             <$retty as $crate::property_info::PropertyInfoBuilder>::variant_type(),
                             $(
                                 <$pty as $crate::property_info::PropertyInfoBuilder>::variant_type(),
@@ -122,7 +123,7 @@ macro_rules! gdext_wrap_method_inner {
                         ret: *mut sys::GDNativePropertyInfo,
                     ) {
                         // return value fist
-                        let infos: [gdext_sys::GDNativePropertyInfo; NUM_ARGS + 1] = [
+                        let infos: [sys::GDNativePropertyInfo; NUM_ARGS + 1] = [
                             <$retty as $crate::property_info::PropertyInfoBuilder>::property_info(std::ffi::CStr::from_bytes_with_nul_unchecked("\0".as_bytes())),
                             $(
                                 <$pty as $crate::property_info::PropertyInfoBuilder>::property_info(std::ffi::CStr::from_bytes_with_nul_unchecked(concat!(stringify!($pname), "\0").as_bytes())),
@@ -139,7 +140,7 @@ macro_rules! gdext_wrap_method_inner {
                         n: i32,
                     ) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
                         // return value first
-                        let metas: [gdext_sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS + 1] = [
+                        let metas: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS + 1] = [
                             <$retty as $crate::property_info::PropertyInfoBuilder>::metadata(),
                             $(
                                 <$pty as $crate::property_info::PropertyInfoBuilder>::metadata(),
@@ -156,7 +157,7 @@ macro_rules! gdext_wrap_method_inner {
             let name = std::ffi::CStr::from_bytes_with_nul_unchecked(concat!(stringify!($type_name), "\0").as_bytes());
 
             interface_fn!(classdb_register_extension_class_method)(
-                gdext_sys::get_library() as *mut _,
+                sys::get_library() as *mut _,
                 name.as_ptr(),
                 &method_info as *const _,
             );
@@ -262,22 +263,22 @@ macro_rules! gdext_virtual_method_inner {
     ) => {
         Some({
             unsafe extern "C" fn call(
-                instance: gdext_sys::GDExtensionClassInstancePtr,
-                args: *const gdext_sys::GDNativeTypePtr,
-                ret: gdext_sys::GDNativeTypePtr,
+                instance: sys::GDExtensionClassInstancePtr,
+                args: *const sys::GDNativeTypePtr,
+                ret: sys::GDNativeTypePtr,
             ) {
                 let instance = &mut *(instance as *mut $type_name);
                 let mut idx = 0;
 
                 $(
-                    let $pname = <$pty as gdext_builtin::PtrCallArg>::ptrcall_read(*args.offset(idx));
+                    let $pname = <$pty as sys::PtrCallArg>::ptrcall_read(*args.offset(idx));
                     idx += 1;
                 )*
 
                 let ret_val = instance.$method_name($(
                     $pname,
                 )*);
-                <$retty as gdext_builtin::PtrCallArg>::ptrcall_write(ret_val, ret);
+                <$retty as sys::PtrCallArg>::ptrcall_write(ret_val, ret);
             }
             call
         })

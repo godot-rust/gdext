@@ -1,11 +1,9 @@
 use std::ffi::CString;
 use std::{convert::Infallible, mem::MaybeUninit, str::FromStr};
 
-use crate::godot_ffi::GodotFfi;
-use gdext_sys::types::OpaqueString;
-use gdext_sys::{self as sys, get_cache, interface_fn};
-
-use crate::impl_ffi_as_opaque_pointer;
+use gdext_sys as sys;
+use sys::types::OpaqueString;
+use sys::{get_cache, impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
 
 #[repr(C, align(8))]
 pub struct GodotString {

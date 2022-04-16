@@ -1,9 +1,9 @@
 use crate::private::as_storage;
 use crate::storage::InstanceStorage;
-use crate::sys;
 use crate::traits::*;
-use gdext_builtin::godot_ffi::GodotFfi as _;
-use gdext_sys::interface_fn;
+
+use gdext_sys as sys;
+use sys::{interface_fn, GodotFfi as _};
 
 pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + GodotMethods>() {
     let creation_info = sys::GDNativeExtensionClassCreationInfo {

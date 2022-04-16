@@ -1,11 +1,12 @@
-use gdext_builtin::godot_ffi::GodotFfi;
 use gdext_builtin::{
     gdext_init, string::GodotString, variant::Variant, vector2::Vector2, vector3::Vector3,
     InitLevel,
 };
 use gdext_class::*;
-use gdext_sys::{self as sys, interface_fn};
+
+use gdext_sys as sys;
 use std::ffi::c_void;
+use sys::{interface_fn, GodotFfi};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Node3D (base)
@@ -158,11 +159,11 @@ impl RustTest {
     }
 
     fn add(&self, a: i32, b: i32, c: Vector2) -> i64 {
-        a as i64 + b as i64 + c.length() as i64
+        a as i64 + b as i64 + c.inner().length() as i64
     }
 
     fn vec_add(&self, a: Vector2, b: Vector2) -> Vector2 {
-        a + b
+        Vector2::from_inner(a.inner() + b.inner())
     }
 
     fn accept_obj(&self, obj: Obj<Entity>) {
