@@ -3,9 +3,9 @@
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::path::{Path, PathBuf};
-use heck::ToSnakeCase as _;
 
 use crate::api_parser::*;
+use crate::util::to_module_name;
 
 pub fn generate_class_files(
     api: &ExtensionApi,
@@ -26,7 +26,7 @@ pub fn generate_class_files(
 
         let file_contents = make_class(class).to_string();
 
-        let module_name = to_module_name(class);
+        let module_name = to_module_name(&class.name);
         let out_path = gen_path.join(format!("{}.rs", module_name));
         std::fs::write(&out_path, file_contents).expect("failed to write class file");
 
@@ -38,10 +38,6 @@ pub fn generate_class_files(
     let out_path =  gen_path.join("mod.rs");
     std::fs::write(&out_path, mod_contents).expect("failed to write mod.rs file");
     out_files.push(out_path);
-}
-
-fn to_module_name(class: &Class) -> String {
-    class.name.to_snake_case()
 }
 
 fn make_class(class: &Class) -> TokenStream {
@@ -115,7 +111,7 @@ fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
     let mut params = vec![];
     let mut args = vec![];
     for arg in method_args.iter() {
-        let param_name = ident(&arg.name);
+        let param_name = ident_escaped(&arg.name);
         let param_ty = to_rust_type(&arg.type_);
         params.push(quote! { #param_name: #param_ty });
         args.push(param_name);
@@ -130,9 +126,9 @@ fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
     quote! {
         pub fn #method_name(&self, #(#params),* ) {
             let result = unsafe {
-                let method_bind = interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
+                let method_bind = crate::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
 
-                let call_fn = interface_fn!(object_method_bind_ptrcall);
+                let call_fn = crate::interface_fn!(object_method_bind_ptrcall);
 
                 let mut args = [
                     #(
@@ -170,6 +166,17 @@ fn make_call(return_value: &Option<MethodReturn>) -> TokenStream {
 
 fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
+}
+
+fn ident_escaped(s: &str) -> Ident {
+    // note: could also use Ident::parse(s) from syn, but currently this crate doesn't depend on it
+
+    let transformed = match s {
+        "type" => "type_",
+        s => s
+    };
+
+    ident(transformed)
 }
 
 fn c_str(s: &str) -> Literal {
