@@ -1,6 +1,6 @@
 use crate::property_info::PropertyInfoBuilder;
 use crate::{ClassName, GodotClass};
-use gdext_builtin::variant::Variant;
+use gdext_builtin::Variant;
 
 use gdext_sys as sys;
 use sys::types::OpaqueObject;

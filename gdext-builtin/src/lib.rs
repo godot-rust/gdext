@@ -1,16 +1,25 @@
 #![macro_use]
 
-pub mod color;
 pub mod macros;
-pub mod string;
-pub mod variant;
-pub mod vector2;
-pub mod vector3;
+
+mod color;
+mod others;
+mod string;
+mod variant;
+mod vector2;
+mod vector3;
+
+pub use color::*;
+pub use others::*;
+pub use string::*;
+pub use variant::*;
+pub use vector2::*;
+pub use vector3::*;
+
+pub use glam;
 
 use gdext_sys as sys;
 use std::collections::BTreeMap;
-
-pub use glam;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum InitLevel {

@@ -1,5 +1,5 @@
 use crate::sys;
-use gdext_builtin::string::GodotString;
+use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
 pub trait GodotClass: Debug {
