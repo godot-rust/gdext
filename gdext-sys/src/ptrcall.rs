@@ -1,7 +1,8 @@
 use crate as sys;
 use sys::GodotFfi;
 
-pub trait PtrCallArg {
+/// Implemented for types which can be passed as arguments and return values from Godot's `ptrcall` FFI.
+pub trait PtrCall {
     /// Read an argument value from a ptrcall argument.
     ///
     /// # Safety
@@ -20,7 +21,7 @@ pub trait PtrCallArg {
 }
 
 // Blanket implementation for all `GodotFfi` classes
-impl<T: GodotFfi> PtrCallArg for T {
+impl<T: GodotFfi> PtrCall for T {
     unsafe fn ptrcall_read(arg: sys::GDNativeTypePtr) -> Self {
         Self::from_sys(arg)
     }
@@ -31,9 +32,9 @@ impl<T: GodotFfi> PtrCallArg for T {
     }
 }
 
-macro_rules! impl_ptr_call_arg_num {
+macro_rules! impl_ptrcall_num {
     ($t:ty) => {
-        impl PtrCallArg for $t {
+        impl PtrCall for $t {
             unsafe fn ptrcall_read(arg: sys::GDNativeTypePtr) -> Self {
                 *(arg as *mut $t)
             }
@@ -45,20 +46,20 @@ macro_rules! impl_ptr_call_arg_num {
     };
 }
 
-impl_ptr_call_arg_num!(u8);
-impl_ptr_call_arg_num!(u16);
-impl_ptr_call_arg_num!(u32);
-impl_ptr_call_arg_num!(u64);
+impl_ptrcall_num!(u8);
+impl_ptrcall_num!(u16);
+impl_ptrcall_num!(u32);
+impl_ptrcall_num!(u64);
 
-impl_ptr_call_arg_num!(i8);
-impl_ptr_call_arg_num!(i16);
-impl_ptr_call_arg_num!(i32);
-impl_ptr_call_arg_num!(i64);
+impl_ptrcall_num!(i8);
+impl_ptrcall_num!(i16);
+impl_ptrcall_num!(i32);
+impl_ptrcall_num!(i64);
 
-impl_ptr_call_arg_num!(f32);
-impl_ptr_call_arg_num!(f64);
+impl_ptrcall_num!(f32);
+impl_ptrcall_num!(f64);
 
-impl PtrCallArg for () {
+impl PtrCall for () {
     unsafe fn ptrcall_read(_arg: sys::GDNativeTypePtr) -> Self {}
 
     unsafe fn ptrcall_write(self, _arg: sys::GDNativeTypePtr) {

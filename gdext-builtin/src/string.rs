@@ -130,7 +130,7 @@ impl GodotFfi for GodotString {
 // While this is a nice optimisation for ptrcalls, it's not easily possible
 // to pass in &GodotString when doing varcalls.
 /*
-impl PtrCallArg for &GodotString {
+impl PtrCall for &GodotString {
     unsafe fn from_ptr_call_arg(arg: *const gdext_sys::GDNativeTypePtr) -> Self {
         &*(*arg as *const GodotString)
     }

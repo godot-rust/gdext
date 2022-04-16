@@ -14,7 +14,7 @@ mod gen {
     pub(crate) mod extensions;
 }
 mod godot_ffi;
-mod ptrcall_arg;
+mod ptrcall;
 
 use gen::extensions::InterfaceCache;
 use std::mem::MaybeUninit;
@@ -22,7 +22,7 @@ use std::mem::MaybeUninit;
 //pub use opaque::Opaque;
 pub use gen::extensions::types;
 pub use godot_ffi::GodotFfi;
-pub use ptrcall_arg::PtrCallArg;
+pub use ptrcall::PtrCall;
 
 #[allow(non_camel_case_types)]
 #[cfg(not(feature = "real_is_double"))]
