@@ -7,6 +7,25 @@ use std::path::{Path, PathBuf};
 use crate::api_parser::*;
 use crate::util::to_module_name;
 
+// Workaround for limiting number of types as long as implementation is incomplete
+const KNOWN_TYPES: [&str; 11] = [
+    // builtin:
+    "bool",
+    "int",
+    "float",
+    "String",
+    "Vector2",
+    "Vector3",
+    "Color",
+    // classes:
+    "Object",
+    "Node",
+    "Node3D",
+    "RefCounted",
+];
+
+const SELECTED: [&str; 4] = ["Object", "Node", "Node3D", "RefCounted"];
+
 pub fn generate_class_files(
     api: &ExtensionApi,
     _build_config: &str,
@@ -17,10 +36,9 @@ pub fn generate_class_files(
     std::fs::create_dir_all(gen_path).expect("create classes directory");
 
     // TODO no limit after testing
-    let selected = ["Object", "Node", "Node3D", "RefCounted"];
     let mut modules = vec![];
     for class in api.classes.iter() {
-        if !selected.contains(&class.name.as_str()) {
+        if !SELECTED.contains(&class.name.as_str()) {
             continue;
         }
 
@@ -35,7 +53,7 @@ pub fn generate_class_files(
     }
 
     let mod_contents = make_module_file(modules).to_string();
-    let out_path =  gen_path.join("mod.rs");
+    let out_path = gen_path.join("mod.rs");
     std::fs::write(&out_path, mod_contents).expect("failed to write mod.rs file");
     out_files.push(out_path);
 }
@@ -47,6 +65,7 @@ fn make_class(class: &Class) -> TokenStream {
 
     quote! {
         use gdext_sys as sys;
+        use gdext_builtin::*;
 
         pub struct #name {
             sys: sys::GDNativeObjectPtr,
@@ -91,6 +110,20 @@ fn is_method_excluded(method: &Method) -> bool {
     //   These are anyway not accessible in GDScript since that language has no pointers.
     //   As such support could be added later (if at all), with possibly safe interfaces (e.g. Vec for void*+size pairs)
 
+    // FIXME remove when impl complete
+    if method
+        .return_value
+        .as_ref()
+        .map_or(false, |ret| !KNOWN_TYPES.contains(&ret.type_.as_str()))
+        || method.arguments.as_ref().map_or(false, |args| {
+            args.iter()
+                .any(|arg| !KNOWN_TYPES.contains(&arg.type_.as_str()))
+        })
+    {
+        return true;
+    }
+    // -- end.
+
     method.name.starts_with("_")
         || method
             .return_value
@@ -116,7 +149,7 @@ fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
         let param_name = ident_escaped(&arg.name);
         let param_ty = to_rust_type(&arg.type_);
         params.push(quote! { #param_name: #param_ty });
-        args.push(param_name);
+        args.push(quote! { <#param_ty as sys::PtrCall>::ptrcall_write_return(#param_name) });
     }
 
     let method_name = ident(&method.name);
@@ -134,7 +167,7 @@ fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
 
                 let mut args = [
                     #(
-                        #args.sys()
+                        #args
                     ),*
                 ];
                 let args_ptr = args.as_mut_ptr();
@@ -175,14 +208,17 @@ fn ident_escaped(s: &str) -> Ident {
 
     let transformed = match s {
         "type" => "type_",
-        s => s
+        s => s,
     };
 
     ident(transformed)
 }
 
-fn c_str(s: &str) -> Literal {
-    Literal::string(&format!("{}\0", s))
+fn c_str(s: &str) -> TokenStream {
+    let s = Literal::string(&format!("{}\0", s));
+    quote! {
+        #s.as_ptr() as *const i8
+    }
 }
 
 fn to_rust_type(ty: &str) -> Ident {
@@ -206,6 +242,12 @@ fn to_rust_type(ty: &str) -> Ident {
         assert!(parts.next().is_none(), "Unrecognized enum type '{}'", ty);
         result
     } else {
+        let ty = match ty {
+            "int" => "i32",
+            "float" => "f32", // TODO double vs float
+            other => other,
+        };
+
         ident(ty)
     }
 }

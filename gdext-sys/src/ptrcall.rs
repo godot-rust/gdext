@@ -1,9 +1,12 @@
-use std::mem::MaybeUninit;
 use crate as sys;
+use std::mem::MaybeUninit;
 use sys::GodotFfi;
 
 /// Implemented for types which can be passed as arguments and return values from Godot's `ptrcall` FFI.
-pub trait PtrCall where Self:Sized {
+pub trait PtrCall
+where
+    Self: Sized,
+{
     /// Read an argument value from a ptrcall argument.
     ///
     /// # Safety
@@ -28,6 +31,13 @@ pub trait PtrCall where Self:Sized {
     /// Implementations of this function will use pointer casting and must make
     /// sure that the proper types are provided as they are expected by Godot.
     unsafe fn ptrcall_write(self, ret: sys::GDNativeTypePtr);
+
+    unsafe fn ptrcall_write_return(mut self) -> sys::GDNativeTypePtr {
+        // let mut ret = MaybeUninit::uninit();
+        // self.ptrcall_write(*ret.as_mut_ptr());
+        // ret.assume_init()
+        &mut self as *mut Self as sys::GDNativeTypePtr
+    }
 }
 
 // Blanket implementation for all `GodotFfi` classes

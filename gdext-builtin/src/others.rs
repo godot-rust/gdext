@@ -5,20 +5,20 @@ use sys::{impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
 
 macro_rules! impl_builtin_stub {
     ($Class:ident, $OpaqueTy:ident) => {
-		#[repr(C)]
+        #[repr(C)]
         pub struct $Class {
             opaque: sys::types::$OpaqueTy,
         }
 
-        impl $Class  {
+        impl $Class {
             fn from_opaque(opaque: sys::types::$OpaqueTy) -> Self {
                 Self { opaque }
             }
         }
 
-		impl GodotFfi for $Class {
-			impl_ffi_as_opaque_pointer!();
-		}
+        impl GodotFfi for $Class {
+            impl_ffi_as_opaque_pointer!();
+        }
     };
 }
 

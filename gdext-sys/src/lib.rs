@@ -49,7 +49,7 @@ pub unsafe fn set_interface(interface: *const GDNativeInterface) {
 /// The interface must have been initialised with [`set_interface`] before calling this function.
 #[inline(always)]
 pub unsafe fn get_interface() -> &'static GDNativeInterface {
-   unwrap_ref_unchecked(&INTERFACE)
+    unwrap_ref_unchecked(&INTERFACE)
 }
 
 /// # Safety

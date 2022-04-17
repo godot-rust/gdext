@@ -87,7 +87,7 @@ pub struct Method {
     pub is_vararg: bool,
     pub is_static: bool,
     pub is_virtual: bool,
-    pub hash: Option<u64>,
+    pub hash: Option<i64>,
     pub arguments: Option<Vec<MethodArg>>,
     pub return_value: Option<MethodReturn>,
 }

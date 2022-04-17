@@ -19,8 +19,10 @@ fn main() {
         .expect("could not write gdnative_interface Rust bindings!");
 
     let sys_gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen"));
-    let class_gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../gdext-class/src/gen"));
-    println!(">>>> OUT: {}", class_gen_path.display());
+    let class_gen_path = Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../gdext-class/src/gen"
+    ));
 
     let mut out_files = vec![];
 
