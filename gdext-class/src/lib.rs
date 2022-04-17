@@ -16,6 +16,10 @@ mod gen {
     pub(crate) mod classes;
 }
 
+pub mod api {
+    pub use super::gen::classes::*;
+}
+
 #[doc(hidden)]
 pub mod private {
     pub use crate::storage::as_storage;

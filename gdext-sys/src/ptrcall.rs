@@ -83,6 +83,8 @@ impl_ptrcall_num!(i64);
 impl_ptrcall_num!(f32);
 impl_ptrcall_num!(f64);
 
+impl_ptrcall_num!(bool);
+
 impl PtrCall for () {
     unsafe fn ptrcall_read(_arg: sys::GDNativeTypePtr) -> Self {}
 

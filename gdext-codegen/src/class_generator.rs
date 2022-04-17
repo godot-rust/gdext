@@ -48,7 +48,9 @@ pub fn generate_class_files(
         let out_path = gen_path.join(format!("{}.rs", module_name));
         std::fs::write(&out_path, file_contents).expect("failed to write class file");
 
-        modules.push(ident(&module_name));
+        let class_ident = ident(&class.name);
+        let module_ident = ident(&module_name);
+        modules.push((class_ident, module_ident));
         out_files.push(out_path);
     }
 
@@ -60,13 +62,23 @@ pub fn generate_class_files(
 
 fn make_class(class: &Class) -> TokenStream {
     //let sys = TokenStream::from_str("::gdext_sys");
+    let base = match class.inherits.as_ref() {
+        Some(base) => {
+            let base = ident(base);
+            quote! { crate::api::#base }
+        }
+        None => quote! { () },
+    };
     let name = ident(&class.name);
     let methods = make_methods(&class.methods, &class.name);
+
+    let name_str = Literal::string(&class.name);
 
     quote! {
         use gdext_sys as sys;
         use gdext_builtin::*;
 
+        #[derive(Debug)]
         pub struct #name {
             sys: sys::GDNativeObjectPtr,
         }
@@ -74,12 +86,36 @@ fn make_class(class: &Class) -> TokenStream {
         impl #name {
             #methods
         }
+
+        impl sys::PtrCall for #name {
+            unsafe fn ptrcall_read(arg: sys::GDNativeTypePtr) -> Self {
+                Self { sys: arg }
+            }
+            unsafe fn ptrcall_write(self, ret: sys::GDNativeTypePtr) {
+                std::ptr::write(ret as *mut _, self.sys);
+            }
+        }
+        impl crate::traits::GodotClass for #name {
+            type Base = #base;
+            fn class_name() -> String {
+                #name_str.to_string()
+            }
+        }
     }
+    // note: TypePtr -> ObjectPtr conversion OK?
 }
 
-fn make_module_file(modules: Vec<Ident>) -> TokenStream {
+fn make_module_file(classes_and_modules: Vec<(Ident, Ident)>) -> TokenStream {
+    let decls = classes_and_modules.into_iter().map(|(class, module)| {
+        let vis = TokenStream::new(); // TODO pub if other symbols
+        quote! {
+            #vis mod #module;
+            pub use #module::#class;
+        }
+    });
+
     quote! {
-        #( pub mod #modules; )*
+        #( #decls )*
     }
 }
 
@@ -156,10 +192,11 @@ fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
     let c_method_name = c_str(&method.name);
     let c_class_name = c_str(class_name);
     let hash = method.hash;
-    let call = make_call(&method.return_value);
+
+    let (return_decl, call) = make_return(&method.return_value);
 
     quote! {
-        pub fn #method_name(&self, #(#params),* ) {
+        pub fn #method_name(&self, #(#params),* ) #return_decl {
             let result = unsafe {
                 let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
 
@@ -180,23 +217,29 @@ fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
     }
 }
 
-fn make_call(return_value: &Option<MethodReturn>) -> TokenStream {
+fn make_return(return_value: &Option<MethodReturn>) -> (TokenStream, TokenStream) {
+    let return_decl;
+    let call;
     match return_value {
         Some(ret) => {
             let return_ty = to_rust_type(&ret.type_).to_token_stream();
 
-            quote! {
+            return_decl = quote! { -> #return_ty };
+            call = quote! {
                 <#return_ty as sys::PtrCall>::ptrcall_read_init(|ret_ptr| {
                     call_fn(method_bind, self.sys, args_ptr, ret_ptr);
                 })
-            }
+            };
         }
         None => {
-            quote! {
+            return_decl = TokenStream::new();
+            call = quote! {
                 call_fn(method_bind, self.sys, args_ptr, std::ptr::null_mut());
-            }
+            };
         }
     }
+
+    (return_decl, call)
 }
 
 fn ident(s: &str) -> Ident {
@@ -244,7 +287,8 @@ fn to_rust_type(ty: &str) -> Ident {
     } else {
         let ty = match ty {
             "int" => "i32",
-            "float" => "f32", // TODO double vs float
+            "float" => "f32",          // TODO double vs float
+            "String" => "GodotString", // TODO double vs float
             other => other,
         };
 

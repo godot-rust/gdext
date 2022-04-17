@@ -33,3 +33,9 @@ impl Vector2 {
 impl GodotFfi for Vector2 {
     impl_ffi_as_value!();
 }
+
+impl std::fmt::Display for Vector2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.inner.fmt(f)
+    }
+}

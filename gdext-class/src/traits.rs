@@ -14,6 +14,14 @@ pub trait GodotClass: Debug {
     //fn upcast_mut(&mut self) -> &mut Self::Base;
 }
 
+impl GodotClass for () {
+    type Base = ();
+
+    fn class_name() -> String {
+        "(no base)".to_string()
+    }
+}
+
 pub trait GodotMethods: GodotClass {
     //fn construct(base: Obj<Self::Base>) -> Self;
     fn construct(base: *mut std::ffi::c_void) -> Self;

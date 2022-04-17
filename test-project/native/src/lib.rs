@@ -1,16 +1,16 @@
-use gdext_builtin::{
-    gdext_init, string::GodotString, variant::Variant, vector2::Vector2, vector3::Vector3,
-    InitLevel,
-};
+use gdext_builtin::{gdext_init, GodotString, InitLevel, Variant, Vector2, Vector3};
+
+use gdext_class::api::Node3D;
 use gdext_class::*;
 
 use gdext_sys as sys;
+use gdext_sys::PtrCall;
 use std::ffi::c_void;
 use sys::{interface_fn, GodotFfi};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Node3D (base)
-
+/*
 #[derive(Debug)]
 pub struct Node3D(sys::GDNativeObjectPtr);
 
@@ -39,27 +39,7 @@ impl Node3D {
         out!("Node3D::to_global({:?}) = {:?}", arg, result);
         result
     }
-}
-
-impl GodotClass for Node3D {
-    type Base = Node3D;
-
-    fn class_name() -> String {
-        "Node3D".to_string()
-    }
-
-    // fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
-    //     self.0
-    // }
-
-    // fn upcast(&self) -> &Self::Base {
-    //     self
-    // }
-    //
-    // fn upcast_mut(&mut self) -> &mut Self::Base {
-    //     self
-    // }
-}
+}*/
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // RefCounted (base)
@@ -118,7 +98,7 @@ impl GodotMethods for RustTest {
 
         // FIXME build Rust object to represent Godot's own types, like Node3D
         //let obj = unsafe { Obj::from_sys(base) };
-        let obj = Node3D(base_ptr);
+        let obj = unsafe { Node3D::ptrcall_read(base_ptr) };
         RustTest::new(obj)
     }
 }
@@ -204,8 +184,14 @@ impl RustTest {
     }
 
     fn call_base_method(&self) -> Vector3 {
+        println!("to_global()...");
+        //return Vector3::new(1.0, 2.0,3.0);
+
         let arg = Vector3::new(2.0, 3.0, 4.0);
-        self.base.to_global(arg)
+        let res = self.base.to_global(arg);
+
+        println!("to_global({arg}) == {res}");
+        res
     }
 
     fn _ready(&mut self) {
@@ -359,7 +345,7 @@ gdext_init!(gdext_rust_test, |init: &mut gdext_builtin::InitOptions| {
         register_class::<RustTest>();
         register_class::<Entity>();
 
-        variant_tests();
+        //variant_tests();
     });
 });
 

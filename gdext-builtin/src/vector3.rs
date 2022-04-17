@@ -23,3 +23,11 @@ impl Vector3 {
 impl GodotFfi for Vector3 {
     impl_ffi_as_value!();
 }
+
+impl std::fmt::Display for Vector3 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        //let Inner {x, y, z} = self.inner;
+        //write!(f, "({x}, {y}, {z})")
+        self.inner.fmt(f)
+    }
+}

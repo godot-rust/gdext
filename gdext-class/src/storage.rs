@@ -1,4 +1,5 @@
 use crate::{out, sys, GodotClass, GodotMethods};
+use std::fmt::Debug;
 
 /// Co-locates the user's instance (pure Rust) with the Godot "base" object.
 ///
