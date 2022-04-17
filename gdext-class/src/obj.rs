@@ -8,6 +8,7 @@ use sys::{impl_ffi_as_opaque_inplace_pointer, interface_fn, GodotFfi};
 
 use crate::storage::InstanceStorage;
 use std::marker::PhantomData;
+use std::mem::MaybeUninit;
 
 // TODO which bounds to add on struct itself?
 pub struct Obj<T: GodotClass> {
@@ -63,11 +64,7 @@ impl<T: GodotClass> Obj<T> {
     }
 
     fn storage(&self) -> &mut InstanceStorage<T> {
-        let callbacks = sys::GDNativeInstanceBindingCallbacks {
-            create_callback: None,
-            free_callback: None,
-            reference_callback: None,
-        };
+        let callbacks = crate::storage::nop_instance_callbacks();
 
         unsafe {
             let token = sys::get_library();
@@ -93,12 +90,32 @@ impl<T: GodotClass> GodotFfi for Obj<T> {
 
 impl<T: GodotClass> From<&Variant> for Obj<T> {
     fn from(variant: &Variant) -> Self {
-        // println!("!!TODO!! Variant to Obj<T>");
+        println!("!!TODO!! Variant to Obj<T>");
         unsafe {
-            Self::from_sys_init(|opaque_ptr| {
+            // Self::from_sys_init(|opaque_ptr| {
+            //     let converter = sys::get_cache().object_from_variant;
+            //     converter(opaque_ptr, variant.sys());
+            // })
+
+            /*let opq = OpaqueObject::with_value_init(|opaque_ptr| {
+
+                // C++:
+                // static void type_from_variant(void *p_value, void *p_variant) {
+                // 		Object **value = reinterpret_cast<Object **>(p_value);
+                // 		*value = VariantInternalAccessor<Object *>::get(reinterpret_cast<Variant *>(p_variant));
+                // 	}
                 let converter = sys::get_cache().object_from_variant;
                 converter(opaque_ptr, variant.sys());
-            })
+            });*/
+            let mut opaque = MaybeUninit::<OpaqueObject>::zeroed();
+
+            let converter = sys::get_cache().object_from_variant;
+            //            converter(std::mem::transmute(&opaque as *mut _), variant.sys());
+            converter(opaque.as_mut_ptr() as *mut _, variant.sys());
+
+            let opaque = opaque.assume_init();
+
+            Self::from_opaque(opaque)
         }
     }
 }

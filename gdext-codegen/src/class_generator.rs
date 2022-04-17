@@ -79,6 +79,7 @@ fn make_class(class: &Class) -> TokenStream {
         use gdext_builtin::*;
 
         #[derive(Debug)]
+        //#[repr(C)]
         pub struct #name {
             sys: sys::GDNativeObjectPtr,
         }

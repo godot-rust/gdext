@@ -1,4 +1,5 @@
 use crate as sys;
+use crate::GDNativeTypePtr;
 use std::mem::MaybeUninit;
 use sys::GodotFfi;
 
@@ -52,7 +53,11 @@ impl<T: GodotFfi> PtrCall for T {
 
     unsafe fn ptrcall_write(self, ret: sys::GDNativeTypePtr) {
         self.write_sys(ret);
-        std::mem::forget(self); // TODO double-check
+        //std::mem::forget(self); // TODO double-check
+    }
+
+    unsafe fn ptrcall_write_return(self) -> sys::GDNativeTypePtr {
+        self.sys()
     }
 }
 

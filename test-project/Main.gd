@@ -18,11 +18,16 @@ func _ready():
 	print("[GDScript] _ready")
 	print("self._to_string(): ", self)
 
-	var msg := rust_test.test_method(12, "hello from GDScript")
-	print(msg)
+#	var msg := rust_test.test_method(12, "hello from GDScript")
+#	print(msg)
+
+	var node = Node3D.new()
+	print("Correct to_global(): ", node.to_global(Vector3(2.0, 3.0, 4.0)))
 
 	print("<--")
-	rust_test.call_base_method()
+
+	rust_test.call_node_method(node)
+	#rust_test.call_base_method()
 	print("-->")
 
 	get_tree().quit()

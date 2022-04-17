@@ -194,6 +194,17 @@ impl RustTest {
         res
     }
 
+    fn call_node_method(&self, node: Obj<Node3D>) -> Vector3 {
+        println!("call_node_method - to_global()...");
+        //return Vector3::new(1.0, 2.0,3.0);
+
+        let arg = Vector3::new(2.0, 3.0, 4.0);
+        let res = node.inner().to_global(arg);
+
+        println!("call_node_method - to_global({arg}) == {res}");
+        res
+    }
+
     fn _ready(&mut self) {
         out!("[RustTest] _ready()");
     }
@@ -249,6 +260,10 @@ impl GodotExtensionClassMethods for RustTest {
 
         gdext_wrap_method!(RustTest,
             fn call_base_method(&self) -> Vector3
+        );
+
+        gdext_wrap_method!(RustTest,
+            fn call_node_method(&self, node: Obj<Node3D>) -> Vector3
         );
     }
 }

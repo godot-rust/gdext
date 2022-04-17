@@ -66,11 +66,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
                     instance_ptr as *mut std::ffi::c_void,
                 );
 
-                let binding_data_callbacks = sys::GDNativeInstanceBindingCallbacks {
-                    create_callback: None,
-                    free_callback: None,
-                    reference_callback: None,
-                };
+                let binding_data_callbacks = crate::storage::nop_instance_callbacks();
 
                 interface_fn!(object_set_instance_binding)(
                     base,
