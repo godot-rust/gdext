@@ -93,7 +93,7 @@ impl GodotClass for RustTest {
 }
 
 impl GodotMethods for RustTest {
-    fn construct(base_ptr: *mut std::ffi::c_void) -> Self {
+    fn construct(base_ptr: sys::GDNativeObjectPtr) -> Self {
         out!("[RustTest] construct: base={base_ptr:?}");
 
         // FIXME build Rust object to represent Godot's own types, like Node3D
@@ -288,7 +288,7 @@ pub struct Entity {
 }
 
 impl GodotMethods for Entity {
-    fn construct(base: *mut c_void) -> Self {
+    fn construct(base: sys::GDNativeObjectPtr) -> Self {
         out!("[Entity] construct: base={base:?}");
 
         Entity {

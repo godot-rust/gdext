@@ -15,15 +15,15 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
         to_string_func: if T::has_to_string() {
             Some({
                 unsafe extern "C" fn to_string<T: GodotExtensionClassMethods>(
-                    instance: *mut std::ffi::c_void,
-                    out_string: *mut std::ffi::c_void,
+                    instance: sys::GDExtensionClassInstancePtr,
+                    out_string: sys::GDNativeStringPtr,
                 ) {
                     let storage = as_storage::<T>(instance);
                     let instance = storage.get();
                     let string = instance.to_string();
 
                     // Transfer ownership to Godot, disable destructor
-                    string.write_sys(out_string);
+                    string.write_string_sys(out_string);
                     std::mem::forget(string);
                 }
                 to_string::<T>
@@ -33,7 +33,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
         },
         reference_func: Some({
             unsafe extern "C" fn reference<T: GodotExtensionClass>(
-                instance: *mut std::ffi::c_void,
+                instance: sys::GDExtensionClassInstancePtr,
             ) {
                 let storage = as_storage::<T>(instance);
                 storage.inc_ref();
@@ -42,7 +42,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
         }),
         unreference_func: Some({
             unsafe extern "C" fn unreference<T: GodotExtensionClass>(
-                instance: *mut std::ffi::c_void,
+                instance: sys::GDExtensionClassInstancePtr,
             ) {
                 let storage = as_storage::<T>(instance);
                 storage.dec_ref();
@@ -52,7 +52,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
         create_instance_func: Some({
             unsafe extern "C" fn instance<T: GodotClass + GodotMethods>(
                 _class_userdata: *mut std::ffi::c_void,
-            ) -> *mut std::ffi::c_void {
+            ) -> sys::GDNativeObjectPtr {
                 let class_name = ClassName::new::<T>();
                 let base_class_name = ClassName::new::<T::Base>();
 
@@ -82,7 +82,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
         free_instance_func: Some({
             unsafe extern "C" fn free<T: GodotExtensionClass>(
                 _class_user_data: *mut std::ffi::c_void,
-                instance: *mut std::ffi::c_void,
+                instance: sys::GDExtensionClassInstancePtr,
             ) {
                 let storage = as_storage::<T>(instance);
                 Box::from_raw(storage);

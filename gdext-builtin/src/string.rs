@@ -40,6 +40,16 @@ impl GodotString {
         std::mem::forget(c);
         ptr
     }
+
+    #[doc(hidden)]
+    pub fn string_sys(&self) -> sys::GDNativeStringPtr {
+        self.sys() as sys::GDNativeStringPtr
+    }
+
+    #[doc(hidden)]
+    pub unsafe fn write_string_sys(&self, dst: sys::GDNativeStringPtr) {
+        std::ptr::write(dst as *mut _, self.opaque)
+    }
 }
 
 impl Default for GodotString {
@@ -81,12 +91,17 @@ impl std::fmt::Display for GodotString {
 impl From<&GodotString> for String {
     fn from(string: &GodotString) -> Self {
         unsafe {
-            let len = interface_fn!(string_to_utf8_chars)(string.sys(), std::ptr::null_mut(), 0);
+            let len =
+                interface_fn!(string_to_utf8_chars)(string.string_sys(), std::ptr::null_mut(), 0);
 
             assert!(len >= 0);
             let mut buf = vec![0u8; len as usize];
 
-            interface_fn!(string_to_utf8_chars)(string.sys(), buf.as_mut_ptr() as *mut i8, len);
+            interface_fn!(string_to_utf8_chars)(
+                string.string_sys(),
+                buf.as_mut_ptr() as *mut i8,
+                len,
+            );
 
             String::from_utf8_unchecked(buf)
         }
@@ -124,7 +139,7 @@ impl Drop for GodotString {
 }
 
 impl GodotFfi for GodotString {
-    impl_ffi_as_opaque_pointer!();
+    impl_ffi_as_opaque_pointer!(sys::GDNativeTypePtr);
 }
 
 // While this is a nice optimisation for ptrcalls, it's not easily possible

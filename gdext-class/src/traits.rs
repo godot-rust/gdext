@@ -29,7 +29,7 @@ impl GodotClass for () {
 
 pub trait GodotMethods: GodotClass {
     //fn construct(base: Obj<Self::Base>) -> Self;
-    fn construct(base: *mut std::ffi::c_void) -> Self;
+    fn construct(base: sys::GDNativeObjectPtr) -> Self;
 }
 
 pub trait GodotExtensionClass: GodotClass {

@@ -89,7 +89,7 @@ impl<T: GodotClass> Drop for InstanceStorage<T> {
 ///
 /// Note: returns reference with unbounded lifetime; intended for local usage
 pub unsafe fn as_storage<'u, T: GodotClass>(
-    instance_ptr: *mut std::ffi::c_void,
+    instance_ptr: sys::GDExtensionClassInstancePtr,
 ) -> &'u mut InstanceStorage<T> {
     &mut *(instance_ptr as *mut InstanceStorage<T>)
 }

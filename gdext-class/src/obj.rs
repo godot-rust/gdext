@@ -4,7 +4,7 @@ use gdext_builtin::Variant;
 
 use gdext_sys as sys;
 use sys::types::OpaqueObject;
-use sys::{impl_ffi_as_opaque_inplace_pointer, interface_fn, GodotFfi};
+use sys::{impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
 
 use crate::storage::InstanceStorage;
 use std::marker::PhantomData;
@@ -12,6 +12,8 @@ use std::mem::MaybeUninit;
 
 // TODO which bounds to add on struct itself?
 pub struct Obj<T: GodotClass> {
+    // Note: `opaque` mirrors GDNativeObjectPtr == Object* in C++, i.e. the bytes represent a pointer
+    // to receive a GDNativeTypePtr == GDNativeObjectPtr* == Object**, we need to get the address of this
     opaque: OpaqueObject,
     _marker: PhantomData<*const T>,
 }
@@ -22,7 +24,7 @@ impl<T: GodotClass> Obj<T> {
 
         let ptr = unsafe { interface_fn!(classdb_construct_object)(class_name.c_str()) };
 
-        unsafe { Obj::from_sys(ptr) }
+        unsafe { Obj::from_obj_sys(ptr) }
     }
 
     fn from_opaque(opaque: OpaqueObject) -> Self {
@@ -40,8 +42,8 @@ impl<T: GodotClass> Obj<T> {
     // explicit deref for testing purposes
     pub fn inner(&self) -> &T {
         if T::ENGINE_CLASS {
-            unsafe { std::mem::transmute(self.opaque) }
-            //unsafe { &*(&self.opaque as *const OpaqueObject as *const T) }
+            unsafe { std::mem::transmute(self.opaque) } //TODO:check
+                                                        //unsafe { &*(&self.opaque as *const OpaqueObject as *const T) }
         } else {
             self.storage().get()
         }
@@ -53,7 +55,7 @@ impl<T: GodotClass> Obj<T> {
 
     pub fn instance_id(&self) -> u64 {
         // Note: bit 'id & (1 << 63)' determines if the instance is ref-counted
-        unsafe { interface_fn!(object_get_instance_id)(self.sys()) }
+        unsafe { interface_fn!(object_get_instance_id)(self.obj_sys()) }
     }
 
     pub fn from_instance_id(instance_id: u64) -> Option<Self> {
@@ -63,7 +65,7 @@ impl<T: GodotClass> Obj<T> {
             if ptr.is_null() {
                 None
             } else {
-                Some(Obj::from_sys(ptr))
+                Some(Obj::from_obj_sys(ptr))
 
                 //let opaque = OpaqueObject::from_value_sys(ptr);
                 //Some(Obj::from_opaque(opaque))
@@ -76,9 +78,20 @@ impl<T: GodotClass> Obj<T> {
 
         unsafe {
             let token = sys::get_library();
-            let binding = interface_fn!(object_get_instance_binding)(self.sys(), token, &callbacks);
+            let binding =
+                interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
             crate::private::as_storage::<T>(binding)
         }
+    }
+
+    pub fn obj_sys(&self) -> sys::GDNativeObjectPtr {
+        unsafe { std::mem::transmute(self.opaque) }
+    }
+
+    pub unsafe fn from_obj_sys(object_ptr: sys::GDNativeObjectPtr) -> Self {
+        Self::from_opaque(OpaqueObject::from_value_sys(
+            object_ptr as *mut std::ffi::c_void,
+        ))
     }
 }
 
@@ -93,7 +106,8 @@ impl<T: GodotClass> Drop for Obj<T>{
 */
 
 impl<T: GodotClass> GodotFfi for Obj<T> {
-    impl_ffi_as_opaque_inplace_pointer!();
+    //impl_ffi_as_opaque_inplace_pointer!(sys::GDNativeObjectPtr);
+    impl_ffi_as_opaque_pointer!(sys::GDNativeTypePtr);
 }
 
 impl<T: GodotClass> From<&Variant> for Obj<T> {

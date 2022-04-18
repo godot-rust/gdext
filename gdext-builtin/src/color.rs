@@ -1,4 +1,5 @@
-use crate::sys::{impl_ffi_as_value, GodotFfi};
+use gdext_sys as sys;
+use sys::{impl_ffi_as_value, GodotFfi};
 
 #[repr(C)]
 #[derive(Copy, Clone)]

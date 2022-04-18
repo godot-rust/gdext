@@ -42,7 +42,7 @@ where
 }
 
 // Blanket implementation for all `GodotFfi` classes
-impl<T: GodotFfi> PtrCall for T {
+impl<T: GodotFfi<SysPointer = sys::GDNativeTypePtr>> PtrCall for T {
     unsafe fn ptrcall_read(arg: sys::GDNativeTypePtr) -> Self {
         Self::from_sys(arg)
     }

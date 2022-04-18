@@ -40,7 +40,7 @@ impl Drop for Variant {
 }
 
 impl GodotFfi for Variant {
-    impl_ffi_as_opaque_pointer!();
+    impl_ffi_as_opaque_pointer!(sys::GDNativeVariantPtr);
 }
 
 mod conversions {
@@ -54,9 +54,11 @@ mod conversions {
             impl From<$T> for Variant {
                 fn from(value: $T) -> Self {
                     unsafe {
-                        Self::from_sys_init(|ptr| {
+                        Self::from_sys_init(|variant_ptr| {
                             let converter = sys::get_cache().$from_fn;
-                            converter(ptr, &value as *const _ as *mut std::ffi::c_void);
+                            //converter(variant_ptr, &value as *const _ as *mut std::ffi::c_void);
+                            converter(variant_ptr, &value as *const _ as sys::GDNativeTypePtr);
+                            //converter(variant_ptr, value.sys()); // TODO: use trait?
                         })
                     }
                 }
@@ -68,7 +70,9 @@ mod conversions {
                         let mut value = <$T>::default();
 
                         let converter = sys::get_cache().$to_fn;
-                        converter(&mut value as *mut _ as *mut std::ffi::c_void, variant.sys());
+                        //converter(&mut value as *mut _ as *mut std::ffi::c_void, variant.sys());
+                        converter(&mut value as *mut _ as sys::GDNativeTypePtr, variant.sys());
+                        //converter(value.sys(), variant.sys()); // TODO: use trait?
                         value
                     }
                 }
@@ -113,7 +117,8 @@ mod conversions {
             unsafe {
                 Self::from_sys_init(|ptr| {
                     let converter = sys::get_cache().string_to_variant;
-                    converter(ptr, &value as *const _ as *mut std::ffi::c_void);
+                    //converter(ptr, &value as *const _ as *mut std::ffi::c_void);
+                    converter(ptr, value.sys()); // TODO:CHECK
                 })
             }
         }

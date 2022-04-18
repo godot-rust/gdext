@@ -17,7 +17,7 @@ macro_rules! impl_builtin_stub {
         }
 
         impl GodotFfi for $Class {
-            impl_ffi_as_opaque_pointer!();
+            impl_ffi_as_opaque_pointer!(sys::GDNativeTypePtr);
         }
     };
 }
