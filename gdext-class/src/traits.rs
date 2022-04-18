@@ -2,6 +2,10 @@ use crate::sys;
 use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
+pub trait EngineClass {
+    fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
+}
+
 pub trait GodotClass: Debug {
     const ENGINE_CLASS: bool = false;
     type Base: GodotClass;

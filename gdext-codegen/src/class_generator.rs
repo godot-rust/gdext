@@ -2,6 +2,7 @@
 
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
@@ -26,6 +27,17 @@ const KNOWN_TYPES: [&str; 11] = [
 
 const SELECTED: [&str; 4] = ["Object", "Node", "Node3D", "RefCounted"];
 
+#[derive(Default)]
+struct Context<'a> {
+    engine_classes: HashSet<&'a str>,
+}
+
+impl<'a> Context<'a> {
+    fn is_engine_class(&self, class_name: &str) -> bool {
+        self.engine_classes.contains(class_name)
+    }
+}
+
 pub fn generate_class_files(
     api: &ExtensionApi,
     _build_config: &str,
@@ -35,6 +47,16 @@ pub fn generate_class_files(
     let _ = std::fs::remove_dir_all(gen_path);
     std::fs::create_dir_all(gen_path).expect("create classes directory");
 
+    let mut ctx = Context::default();
+    for class in api.classes.iter() {
+        if !SELECTED.contains(&class.name.as_str()) {
+            continue;
+        }
+
+        println!("-- add engine class {}", class.name);
+        ctx.engine_classes.insert(class.name.as_str());
+    }
+
     // TODO no limit after testing
     let mut modules = vec![];
     for class in api.classes.iter() {
@@ -42,7 +64,7 @@ pub fn generate_class_files(
             continue;
         }
 
-        let file_contents = make_class(class).to_string();
+        let file_contents = make_class(class, &ctx).to_string();
 
         let module_name = to_module_name(&class.name);
         let out_path = gen_path.join(format!("{}.rs", module_name));
@@ -60,7 +82,7 @@ pub fn generate_class_files(
     out_files.push(out_path);
 }
 
-fn make_class(class: &Class) -> TokenStream {
+fn make_class(class: &Class, ctx: &Context) -> TokenStream {
     //let sys = TokenStream::from_str("::gdext_sys");
     let base = match class.inherits.as_ref() {
         Some(base) => {
@@ -70,37 +92,34 @@ fn make_class(class: &Class) -> TokenStream {
         None => quote! { () },
     };
     let name = ident(&class.name);
-    let methods = make_methods(&class.methods, &class.name);
+    let methods = make_methods(&class.methods, &class.name, ctx);
 
     let name_str = Literal::string(&class.name);
 
     quote! {
         use gdext_sys as sys;
         use gdext_builtin::*;
+        use crate::{Obj, AsArg};
 
         #[derive(Debug)]
         //#[repr(C)]
         pub struct #name {
-            sys: sys::GDNativeObjectPtr,
+            object_ptr: sys::GDNativeObjectPtr,
         }
 
         impl #name {
             #methods
-        }
-
-        impl sys::PtrCall for #name {
-            unsafe fn ptrcall_read(arg: sys::GDNativeTypePtr) -> Self {
-                Self { sys: arg }
-            }
-            unsafe fn ptrcall_write(self, ret: sys::GDNativeTypePtr) {
-                std::ptr::write(ret as *mut _, self.sys);
-            }
         }
         impl crate::traits::GodotClass for #name {
             const ENGINE_CLASS: bool = true;
             type Base = #base;
             fn class_name() -> String {
                 #name_str.to_string()
+            }
+        }
+        impl crate::traits::EngineClass for #name {
+            fn as_object_ptr(&self) -> sys::GDNativeObjectPtr {
+                self.object_ptr
             }
         }
     }
@@ -121,7 +140,7 @@ fn make_module_file(classes_and_modules: Vec<(Ident, Ident)>) -> TokenStream {
     }
 }
 
-fn make_methods(methods: &Option<Vec<Method>>, class_name: &str) -> TokenStream {
+fn make_methods(methods: &Option<Vec<Method>>, class_name: &str, ctx: &Context) -> TokenStream {
     let methods = match methods {
         Some(m) => m,
         None => return TokenStream::new(),
@@ -129,7 +148,7 @@ fn make_methods(methods: &Option<Vec<Method>>, class_name: &str) -> TokenStream 
 
     let definitions = methods
         .iter()
-        .map(|method| make_method_definition(method, class_name));
+        .map(|method| make_method_definition(method, class_name, ctx));
 
     quote! {
         #( #definitions )*
@@ -173,7 +192,7 @@ fn is_method_excluded(method: &Method) -> bool {
             .map_or(false, |args| args.iter().any(|arg| arg.type_.contains("*")))
 }
 
-fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
+fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> TokenStream {
     if is_method_excluded(method) {
         return TokenStream::new();
     }
@@ -182,12 +201,22 @@ fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
     let method_args = method.arguments.as_ref().unwrap_or(&empty);
 
     let mut params = vec![];
-    let mut args = vec![];
+    let mut call_exprs = vec![];
     for arg in method_args.iter() {
         let param_name = ident_escaped(&arg.name);
-        let param_ty = to_rust_type(&arg.type_);
+        let param = to_rust_type(&arg.type_, ctx);
+        let param_ty = param.tokens;
+
         params.push(quote! { #param_name: #param_ty });
-        args.push(quote! { <#param_ty as sys::PtrCall>::ptrcall_write_return(#param_name) });
+        if param.is_engine_class {
+            call_exprs.push(quote! {
+                <#param_ty as AsArg>::as_arg_ptr(&#param_name)
+            });
+        } else {
+            call_exprs.push(quote! {
+                <#param_ty as sys::PtrCall>::ptrcall_write_return(#param_name)
+            });
+        }
     }
 
     let method_name = ident(&method.name);
@@ -195,7 +224,7 @@ fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
     let c_class_name = c_str(class_name);
     let hash = method.hash;
 
-    let (return_decl, call) = make_return(&method.return_value);
+    let (return_decl, call) = make_return(&method.return_value, ctx);
 
     quote! {
         pub fn #method_name(&self, #(#params),* ) #return_decl {
@@ -206,7 +235,7 @@ fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
 
                 let mut args = [
                     #(
-                        #args
+                        #call_exprs
                     ),*
                 ];
                 let args_ptr = args.as_mut_ptr();
@@ -219,24 +248,24 @@ fn make_method_definition(method: &Method, class_name: &str) -> TokenStream {
     }
 }
 
-fn make_return(return_value: &Option<MethodReturn>) -> (TokenStream, TokenStream) {
+fn make_return(return_value: &Option<MethodReturn>, ctx: &Context) -> (TokenStream, TokenStream) {
     let return_decl;
     let call;
     match return_value {
         Some(ret) => {
-            let return_ty = to_rust_type(&ret.type_).to_token_stream();
+            let return_ty = to_rust_type(&ret.type_, ctx).tokens;
 
             return_decl = quote! { -> #return_ty };
             call = quote! {
                 <#return_ty as sys::PtrCall>::ptrcall_read_init(|ret_ptr| {
-                    call_fn(method_bind, self.sys, args_ptr, ret_ptr);
+                    call_fn(method_bind, self.object_ptr, args_ptr, ret_ptr);
                 })
             };
         }
         None => {
             return_decl = TokenStream::new();
             call = quote! {
-                call_fn(method_bind, self.sys, args_ptr, std::ptr::null_mut());
+                call_fn(method_bind, self.object_ptr, args_ptr, std::ptr::null_mut());
             };
         }
     }
@@ -266,14 +295,14 @@ fn c_str(s: &str) -> TokenStream {
     }
 }
 
-fn to_rust_type(ty: &str) -> Ident {
+fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
     //println!("to_rust_ty: {ty}");
 
     if let Some(remain) = ty.strip_prefix("enum::") {
         let mut parts = remain.split(".");
 
         let first = parts.next().unwrap();
-        let result = match parts.next() {
+        let ident = match parts.next() {
             Some(second) => {
                 // enum::Animation.LoopMode
                 format_ident!("{}{}", first, second) // TODO better
@@ -285,15 +314,34 @@ fn to_rust_type(ty: &str) -> Ident {
         };
 
         assert!(parts.next().is_none(), "Unrecognized enum type '{}'", ty);
-        result
-    } else {
-        let ty = match ty {
-            "int" => "i32",
-            "float" => "f32",          // TODO double vs float
-            "String" => "GodotString", // TODO double vs float
-            other => other,
+        return RustTy {
+            tokens: ident.to_token_stream(),
+            is_engine_class: false,
         };
-
-        ident(ty)
     }
+
+    if ctx.is_engine_class(ty) {
+        let ty = ident(ty);
+        return RustTy {
+            tokens: quote! { Obj<#ty> },
+            is_engine_class: true,
+        };
+    }
+
+    let ty = match ty {
+        "int" => "i32",
+        "float" => "f32",          // TODO double vs float
+        "String" => "GodotString", // TODO double vs float
+        other => other,
+    };
+
+    return RustTy {
+        tokens: ident(ty).to_token_stream(),
+        is_engine_class: false,
+    };
+}
+
+struct RustTy {
+    tokens: TokenStream,
+    is_engine_class: bool,
 }

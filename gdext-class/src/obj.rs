@@ -41,6 +41,7 @@ impl<T: GodotClass> Obj<T> {
     pub fn inner(&self) -> &T {
         if T::ENGINE_CLASS {
             unsafe { std::mem::transmute(self.opaque) }
+            //unsafe { &*(&self.opaque as *const OpaqueObject as *const T) }
         } else {
             self.storage().get()
         }
@@ -63,6 +64,9 @@ impl<T: GodotClass> Obj<T> {
                 None
             } else {
                 Some(Obj::from_sys(ptr))
+
+                //let opaque = OpaqueObject::from_value_sys(ptr);
+                //Some(Obj::from_opaque(opaque))
             }
         }
     }

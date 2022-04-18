@@ -98,7 +98,11 @@ impl GodotMethods for RustTest {
 
         // FIXME build Rust object to represent Godot's own types, like Node3D
         //let obj = unsafe { Obj::from_sys(base) };
-        let obj = unsafe { Node3D::ptrcall_read(base_ptr) };
+        let obj = unsafe {
+            Node3D {
+                object_ptr: base_ptr,
+            }
+        };
         RustTest::new(obj)
     }
 }
@@ -201,6 +205,7 @@ impl RustTest {
 
         let arg = Vector3::new(2.0, 3.0, 4.0);
 
+        let node = Obj::<Node3D>::from_instance_id(node.instance_id()).unwrap();
         let inner = node.inner();
         let res = inner.to_global(arg);
 
