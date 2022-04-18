@@ -39,7 +39,11 @@ impl<T: GodotClass> Obj<T> {
 
     // explicit deref for testing purposes
     pub fn inner(&self) -> &T {
-        self.storage().get()
+        if T::ENGINE_CLASS {
+            unsafe { std::mem::transmute(self.opaque) }
+        } else {
+            self.storage().get()
+        }
     }
 
     pub fn inner_mut(&self) -> &mut T {

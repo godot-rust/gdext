@@ -97,6 +97,7 @@ fn make_class(class: &Class) -> TokenStream {
             }
         }
         impl crate::traits::GodotClass for #name {
+            const ENGINE_CLASS: bool = true;
             type Base = #base;
             fn class_name() -> String {
                 #name_str.to_string()

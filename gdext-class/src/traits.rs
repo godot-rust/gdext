@@ -3,6 +3,7 @@ use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
 pub trait GodotClass: Debug {
+    const ENGINE_CLASS: bool = false;
     type Base: GodotClass;
 
     fn class_name() -> String;
