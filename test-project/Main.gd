@@ -31,8 +31,8 @@ func _ready():
 	#rust_test.call_base_method()
 	print("-->")
 
-	get_tree().quit()
-	return
+#	get_tree().quit()
+#	return
 
 	var res := rust_test.add(4, 6, Vector2(3, 5))
 	print(res)

@@ -103,8 +103,9 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
 
         #[derive(Debug)]
         //#[repr(C)]
+        // TODO: un-pub field
         pub struct #name {
-            object_ptr: sys::GDNativeObjectPtr,
+            pub object_ptr: sys::GDNativeObjectPtr,
         }
 
         impl #name {
@@ -120,6 +121,10 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         impl crate::traits::EngineClass for #name {
             fn as_object_ptr(&self) -> sys::GDNativeObjectPtr {
                 self.object_ptr
+            }
+            fn as_type_ptr(&self) -> sys::GDNativeTypePtr {
+                // TODO:mut
+                &self.object_ptr as *const sys::GDNativeObjectPtr as sys::GDNativeTypePtr
             }
         }
     }

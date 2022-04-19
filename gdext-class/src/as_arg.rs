@@ -23,6 +23,7 @@ impl<T: GodotClass> AsArg for Obj<T> {
 impl<T: EngineClass> Sealed for &T {}
 impl<T: EngineClass> AsArg for &T {
     fn as_arg_ptr(&self) -> sys::GDNativeTypePtr {
-        self.as_object_ptr() as _ // TODO:check
+        //&mut self.as_object_ptr() as *mut sys::GDNativeObjectPtr as _ // TODO:check
+        self.as_type_ptr()
     }
 }

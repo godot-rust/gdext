@@ -368,7 +368,7 @@ gdext_init!(gdext_rust_test, |init: &mut gdext_builtin::InitOptions| {
         register_class::<RustTest>();
         register_class::<Entity>();
 
-        //variant_tests();
+        variant_tests();
     });
 });
 

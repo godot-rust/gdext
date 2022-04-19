@@ -4,6 +4,7 @@ use std::fmt::Debug;
 
 pub trait EngineClass {
     fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
+    fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
 }
 
 pub trait GodotClass: Debug {
