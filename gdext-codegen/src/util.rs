@@ -1,3 +1,6 @@
+use proc_macro2::{Ident, Literal, TokenStream};
+use quote::{format_ident, quote};
+
 pub fn to_module_name(class_name: &str) -> String {
     // Remove underscores and make peekable
     let mut class_chars = class_name.bytes().filter(|&ch| ch != b'_').peekable();
@@ -130,4 +133,30 @@ mod tests {
             assert_eq!(*expected, actual, "Input: {}", class_name);
         });
     }
+}
+
+pub fn ident(s: &str) -> Ident {
+    format_ident!("{}", s)
+}
+
+pub fn ident_escaped(s: &str) -> Ident {
+    // note: could also use Ident::parse(s) from syn, but currently this crate doesn't depend on it
+
+    let transformed = match s {
+        "type" => "type_",
+        s => s,
+    };
+
+    ident(transformed)
+}
+
+pub fn c_str(s: &str) -> TokenStream {
+    let s = Literal::string(&format!("{}\0", s));
+    quote! {
+        #s.as_ptr() as *const i8
+    }
+}
+
+pub fn strlit(s: &str) -> Literal {
+    Literal::string(s)
 }

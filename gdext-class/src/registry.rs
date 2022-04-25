@@ -3,7 +3,7 @@ use crate::storage::InstanceStorage;
 use crate::traits::*;
 
 use gdext_sys as sys;
-use sys::{interface_fn, GodotFfi as _};
+use sys::interface_fn;
 
 pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + GodotMethods>() {
     let creation_info = sys::GDNativeExtensionClassCreationInfo {

@@ -1,12 +1,12 @@
 //! Generates a file for each Godot class
 
-use proc_macro2::{Ident, Literal, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::util::to_module_name;
+use crate::util::{c_str, ident, ident_escaped, strlit, to_module_name};
 
 // Workaround for limiting number of types as long as implementation is incomplete
 const KNOWN_TYPES: [&str; 11] = [
@@ -94,7 +94,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
     let name = ident(&class.name);
     let methods = make_methods(&class.methods, &class.name, ctx);
 
-    let name_str = Literal::string(&class.name);
+    let name_str = strlit(&class.name);
 
     quote! {
         use gdext_sys as sys;
@@ -276,28 +276,6 @@ fn make_return(return_value: &Option<MethodReturn>, ctx: &Context) -> (TokenStre
     }
 
     (return_decl, call)
-}
-
-fn ident(s: &str) -> Ident {
-    format_ident!("{}", s)
-}
-
-fn ident_escaped(s: &str) -> Ident {
-    // note: could also use Ident::parse(s) from syn, but currently this crate doesn't depend on it
-
-    let transformed = match s {
-        "type" => "type_",
-        s => s,
-    };
-
-    ident(transformed)
-}
-
-fn c_str(s: &str) -> TokenStream {
-    let s = Literal::string(&format!("{}\0", s));
-    quote! {
-        #s.as_ptr() as *const i8
-    }
 }
 
 fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {

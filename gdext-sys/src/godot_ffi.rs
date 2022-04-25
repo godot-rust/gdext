@@ -1,5 +1,3 @@
-use crate as sys;
-
 /// Adds methods to convert from and to Godot FFI pointers.
 pub trait GodotFfi {
     type SysPointer;

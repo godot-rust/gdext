@@ -1,3 +1,6 @@
+// TODO remove this warning once impl is complete
+#![allow(dead_code)]
+
 use crate::godot_exe;
 
 use miniserde::{json, Deserialize};
@@ -85,7 +88,7 @@ pub struct Method {
     pub name: String,
     pub is_const: bool,
     pub is_vararg: bool,
-    pub is_static: bool,
+    //pub is_static: bool,
     pub is_virtual: bool,
     pub hash: Option<i64>,
     pub arguments: Option<Vec<MethodArg>>,

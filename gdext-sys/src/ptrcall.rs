@@ -1,5 +1,4 @@
 use crate as sys;
-use crate::GDNativeTypePtr;
 use std::mem::MaybeUninit;
 use sys::GodotFfi;
 

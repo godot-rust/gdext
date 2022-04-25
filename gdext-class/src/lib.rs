@@ -15,6 +15,7 @@ pub use traits::*;
 use gdext_sys as sys;
 
 mod gen {
+    #[allow(unused_imports)]
     pub(crate) mod classes;
 }
 

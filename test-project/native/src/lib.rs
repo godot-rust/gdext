@@ -4,9 +4,7 @@ use gdext_class::api::Node3D;
 use gdext_class::*;
 
 use gdext_sys as sys;
-use gdext_sys::PtrCall;
-use std::ffi::c_void;
-use sys::{interface_fn, GodotFfi};
+use sys::interface_fn;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Node3D (base)
@@ -98,11 +96,10 @@ impl GodotMethods for RustTest {
 
         // FIXME build Rust object to represent Godot's own types, like Node3D
         //let obj = unsafe { Obj::from_sys(base) };
-        let obj = unsafe {
-            Node3D {
-                object_ptr: base_ptr,
-            }
+        let obj = Node3D {
+            object_ptr: base_ptr,
         };
+
         RustTest::new(obj)
     }
 }

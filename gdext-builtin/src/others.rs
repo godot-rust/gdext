@@ -1,7 +1,7 @@
 // Stub for various other built-in classes, which are currently incomplete, but whose types
 // are required for codegen
 use gdext_sys as sys;
-use sys::{impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
+use sys::{impl_ffi_as_opaque_pointer, GodotFfi};
 
 macro_rules! impl_builtin_stub {
     ($Class:ident, $OpaqueTy:ident) => {

@@ -85,7 +85,7 @@ fn load_extension_api(model: &ExtensionApi, build_config: &str) -> Tokens {
     for class in &model.builtin_class_sizes {
         if &class.build_configuration == build_config {
             for ClassSize { name, size } in &class.sizes {
-                opaque_types.push(quote_opaque_type(name, *size));
+                opaque_types.push(make_opaque_type(name, *size));
             }
 
             break;
@@ -143,9 +143,9 @@ fn load_extension_api(model: &ExtensionApi, build_config: &str) -> Tokens {
                 };
 
                 let value = ty.value;
-                variant_enumerators.push(quote_enumerator(&type_names, value));
+                variant_enumerators.push(make_enumerator(&type_names, value));
 
-                let (decl, init) = quote_variant_fns(&type_names, has_destructor, constructors);
+                let (decl, init) = make_variant_fns(&type_names, has_destructor, constructors);
 
                 variant_fn_decls.push(decl);
                 variant_fn_inits.push(init);
@@ -163,7 +163,7 @@ fn load_extension_api(model: &ExtensionApi, build_config: &str) -> Tokens {
     }
 }
 
-fn quote_enumerator(type_names: &TypeNames, value: i32) -> TokenStream {
+fn make_enumerator(type_names: &TypeNames, value: i32) -> TokenStream {
     let enumerator = format_ident!("{}", type_names.shout_case);
     let value = proc_macro2::Literal::i32_unsuffixed(value);
 
@@ -172,7 +172,7 @@ fn quote_enumerator(type_names: &TypeNames, value: i32) -> TokenStream {
     }
 }
 
-fn quote_opaque_type(name: &str, size: usize) -> TokenStream {
+fn make_opaque_type(name: &str, size: usize) -> TokenStream {
     // Capitalize: "int" -> "Int"
     let (first, rest) = name.split_at(1);
     let ident = format_ident!("Opaque{}{}", first.to_uppercase(), rest);
@@ -183,17 +183,19 @@ fn quote_opaque_type(name: &str, size: usize) -> TokenStream {
     }
 }
 
-fn quote_variant_fns(
+fn make_variant_fns(
     type_names: &TypeNames,
     has_destructor: bool,
     constructors: Option<&Vec<Constructor>>,
 ) -> (TokenStream, TokenStream) {
-    let (destroy_decls, destroy_inits) = quote_destroy_fns(&type_names, has_destructor);
+    let (destroy_decls, destroy_inits) = make_destroy_fns(&type_names, has_destructor);
 
-    let (construct_decls, construct_inits) = quote_construct_fns(&type_names, constructors);
+    let (construct_decls, construct_inits) = make_construct_fns(&type_names, constructors);
 
     let to_variant = format_ident!("{}_to_variant", type_names.snake_case);
     let from_variant = format_ident!("{}_from_variant", type_names.snake_case);
+    let to_variant_error = format_load_error(&to_variant);
+    let from_variant_error = format_load_error(&from_variant);
     let variant_type = &type_names.sys_variant_type;
 
     // Field declaration
@@ -208,11 +210,11 @@ fn quote_variant_fns(
     let init = quote! {
         #to_variant: {
             let ctor_fn = interface.get_variant_from_type_constructor.unwrap();
-            ctor_fn(crate:: #variant_type).unwrap()
+            ctor_fn(crate:: #variant_type).expect(#to_variant_error)
         },
-        #from_variant: {
+        #from_variant:  {
             let ctor_fn = interface.get_variant_to_type_constructor.unwrap();
-            ctor_fn(crate:: #variant_type).unwrap()
+            ctor_fn(crate:: #variant_type).expect(#from_variant_error)
         },
         #construct_inits
         #destroy_inits
@@ -221,7 +223,7 @@ fn quote_variant_fns(
     (decl, init)
 }
 
-fn quote_construct_fns(
+fn make_construct_fns(
     type_names: &TypeNames,
     constructors: Option<&Vec<Constructor>>,
 ) -> (TokenStream, TokenStream) {
@@ -255,6 +257,8 @@ fn quote_construct_fns(
 
     let construct_default = format_ident!("{}_construct_default", type_names.snake_case);
     let construct_copy = format_ident!("{}_construct_copy", type_names.snake_case);
+    let construct_default_error = format_load_error(&construct_default);
+    let construct_copy_error = format_load_error(&construct_copy);
     let variant_type = &type_names.sys_variant_type;
 
     // Generic signature:  fn(base: GDNativeTypePtr, args: *const GDNativeTypePtr)
@@ -266,18 +270,18 @@ fn quote_construct_fns(
     let inits = quote! {
         #construct_default: {
             let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
-            ctor_fn(crate:: #variant_type, 0i32).unwrap()
+            ctor_fn(crate:: #variant_type, 0i32).expect(#construct_default_error)
         },
         #construct_copy: {
             let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
-            ctor_fn(crate:: #variant_type, 1i32).unwrap()
+            ctor_fn(crate:: #variant_type, 1i32).expect(#construct_copy_error)
         },
     };
 
     (decls, inits)
 }
 
-fn quote_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStream, TokenStream) {
+fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStream, TokenStream) {
     if !has_destructor {
         return (TokenStream::new(), TokenStream::new());
     }
@@ -296,4 +300,8 @@ fn quote_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStre
         },
     };
     (decls, inits)
+}
+
+fn format_load_error(ident: &Ident) -> String {
+    format!("failed to load GDExtension function `{}`", ident)
 }
