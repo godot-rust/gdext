@@ -1,3 +1,4 @@
+use crate::godot_version::parse_godot_version;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -21,11 +22,13 @@ pub fn load_extension_api_json() -> String {
         dump_extension_api(&godot_bin, json_path);
     }
 
-    std::fs::read_to_string(json_path).expect(&format!("failed to open file {}", json_path.display()))
+    std::fs::read_to_string(json_path)
+        .expect(&format!("failed to open file {}", json_path.display()))
 }
 
 fn has_version_changed(godot_bin: &Path) -> bool {
     let version_path = Path::new(GODOT_VERSION_PATH);
+    rerun_on_changed(version_path);
 
     let current_version = read_godot_version(&godot_bin);
     let changed = match std::fs::read_to_string(version_path) {
@@ -51,7 +54,23 @@ fn read_godot_version(godot_bin: &Path) -> String {
             godot_bin.display()
         ));
 
-    String::from_utf8(output.stderr).expect("convert Godot version to UTF-8")
+    let output = String::from_utf8(output.stdout).expect("convert Godot version to UTF-8");
+
+    match parse_godot_version(&output) {
+        Ok(parsed) => {
+            assert!(
+                parsed.major == 4,
+                "Only Godot versions >= 4.0 are supported; found version {}.",
+                output.trim()
+            );
+
+            parsed.full_string
+        }
+        Err(e) => {
+            // Don't treat this as fatal error
+            panic!("failed to parse Godot version '{}': {}", output, e)
+        }
+    }
 }
 
 fn dump_extension_api(godot_bin: &Path, out_file: &Path) {

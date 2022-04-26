@@ -2,6 +2,7 @@ mod api_parser;
 mod central_generator;
 mod class_generator;
 mod godot_exe;
+mod godot_version;
 mod util;
 
 pub use api_parser::load_extension_api;

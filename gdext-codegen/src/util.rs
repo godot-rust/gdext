@@ -129,7 +129,7 @@ mod tests {
             ("GDScript", "gdscript"),
         ];
         tests.iter().for_each(|(class_name, expected)| {
-            let actual = module_name_from_class_name(class_name);
+            let actual = to_module_name(class_name);
             assert_eq!(*expected, actual, "Input: {}", class_name);
         });
     }

@@ -9,3 +9,7 @@ quote = "1"
 proc-macro2 = "1"
 which = "4"
 #heck = "0.4"
+
+# Version >= 1.5.5 for security: https://blog.rust-lang.org/2022/03/08/cve-2022-24713.html
+# 'unicode-gencat' needed for \d, see: https://docs.rs/regex/1.5.5/regex/#unicode-features
+regex = { version = "1.5.5", default-features = false, features = ["std", "unicode-gencat"] }
