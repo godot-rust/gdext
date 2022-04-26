@@ -3,28 +3,61 @@ use std::process::Command;
 
 /// Commands related to Godot executable
 
+const GODOT_VERSION_PATH: &'static str =
+    concat!(env!("CARGO_MANIFEST_DIR"), "/input/godot_version.txt");
+
 const EXTENSION_API_PATH: &'static str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/input/extension_api.json");
 
 pub fn load_extension_api_json() -> String {
-    let path = Path::new(EXTENSION_API_PATH);
-    rerun_on_changed(path);
+    let json_path = Path::new(EXTENSION_API_PATH);
+    rerun_on_changed(json_path);
 
-    match std::fs::read_to_string(path) {
-        Ok(json) => json,
-        Err(_) => {
-            dump_extension_api(path);
-            std::fs::read_to_string(path).expect(&format!("failed to open file {:?}", path))
-        }
-    }
-}
-
-fn dump_extension_api(path: &Path) {
-    let cwd = path.parent().unwrap();
     let godot_bin = locate_godot_binary();
     rerun_on_changed(&godot_bin);
 
-    Command::new(&godot_bin)
+    // Regnerate API JSON if first time or Godot version is different
+    if !json_path.exists() || has_version_changed(&godot_bin) {
+        dump_extension_api(&godot_bin, json_path);
+    }
+
+    std::fs::read_to_string(json_path).expect(&format!("failed to open file {}", json_path.display()))
+}
+
+fn has_version_changed(godot_bin: &Path) -> bool {
+    let version_path = Path::new(GODOT_VERSION_PATH);
+
+    let current_version = read_godot_version(&godot_bin);
+    let changed = match std::fs::read_to_string(version_path) {
+        Ok(last_version) => current_version != last_version,
+        Err(_) => true,
+    };
+
+    if changed {
+        std::fs::write(version_path, current_version).expect(&format!(
+            "write Godot version to file {}",
+            version_path.display()
+        ));
+    }
+    changed
+}
+
+fn read_godot_version(godot_bin: &Path) -> String {
+    let output = Command::new(&godot_bin)
+        .arg("--version")
+        .output()
+        .expect(&format!(
+            "failed to invoke Godot executable '{}'",
+            godot_bin.display()
+        ));
+
+    String::from_utf8(output.stderr).expect("convert Godot version to UTF-8")
+}
+
+fn dump_extension_api(godot_bin: &Path, out_file: &Path) {
+    let cwd = out_file.parent().unwrap();
+
+    Command::new(godot_bin)
         .current_dir(cwd)
         .arg("--no-window")
         .arg("--dump-extension-api")
