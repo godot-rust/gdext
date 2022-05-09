@@ -27,7 +27,6 @@ pub enum InitLevel {
     Servers,
     Scene,
     Editor,
-    Driver,
 }
 
 impl InitLevel {
@@ -38,7 +37,6 @@ impl InitLevel {
             sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_SERVERS => Self::Servers,
             sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_SCENE => Self::Scene,
             sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_EDITOR => Self::Editor,
-            sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_DRIVER => Self::Driver,
             _ => Self::Scene,
         }
     }
@@ -49,7 +47,6 @@ impl InitLevel {
             Self::Servers => sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_SERVERS,
             Self::Scene => sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_SCENE,
             Self::Editor => sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_EDITOR,
-            Self::Driver => sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_DRIVER,
         }
     }
 }
