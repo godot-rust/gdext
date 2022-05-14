@@ -89,9 +89,8 @@ impl<T: GodotClass> Obj<T> {
     }
 
     pub unsafe fn from_obj_sys(object_ptr: sys::GDNativeObjectPtr) -> Self {
-        Self::from_opaque(OpaqueObject::from_value_sys(
-            object_ptr as *mut std::ffi::c_void,
-        ))
+        let r =  std::mem::transmute(object_ptr);
+        Self::from_opaque(r)
     }
 }
 

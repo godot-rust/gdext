@@ -203,7 +203,12 @@ impl RustTest {
         let arg = Vector3::new(2.0, 3.0, 4.0);
 
         let node = Obj::<Node3D>::from_instance_id(node.instance_id()).unwrap();
-        let inner = node.inner();
+        //let inner = node.inner();
+        let object_ptr = node.obj_sys();
+        dbg!(object_ptr);
+        dbg!(node.object_ptr);
+
+        let inner = Node3D { object_ptr: node.object_ptr };
         let res = inner.to_global(arg);
 
         println!("  to_global({arg}) == {res}");
