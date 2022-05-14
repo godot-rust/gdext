@@ -89,7 +89,7 @@ impl<T: GodotClass> Obj<T> {
     }
 
     pub unsafe fn from_obj_sys(object_ptr: sys::GDNativeObjectPtr) -> Self {
-        let r =  std::mem::transmute(object_ptr);
+        let r = std::mem::transmute(object_ptr);
         Self::from_opaque(r)
     }
 }

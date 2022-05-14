@@ -30,13 +30,14 @@ where
     ///
     /// Implementations of this function will use pointer casting and must make
     /// sure that the proper types are provided as they are expected by Godot.
-    unsafe fn ptrcall_write(self, ret: sys::GDNativeTypePtr);
+    unsafe fn ptrcall_write(&self, ret: sys::GDNativeTypePtr);
 
-    unsafe fn ptrcall_write_return(mut self) -> sys::GDNativeTypePtr {
+    // Note: must not take 'self' by value, because that creates a copy and delivers a dangling pointer
+    unsafe fn ptrcall_write_return(&self) -> sys::GDNativeTypePtr {
         // let mut ret = MaybeUninit::uninit();
         // self.ptrcall_write(*ret.as_mut_ptr());
         // ret.assume_init()
-        &mut self as *mut Self as sys::GDNativeTypePtr
+        self as *const Self as sys::GDNativeTypePtr
     }
 }
 
@@ -50,12 +51,12 @@ impl<T: GodotFfi<SysPointer = sys::GDNativeTypePtr>> PtrCall for T {
         Self::from_sys_init(init)
     }
 
-    unsafe fn ptrcall_write(self, ret: sys::GDNativeTypePtr) {
+    unsafe fn ptrcall_write(&self, ret: sys::GDNativeTypePtr) {
         self.write_sys(ret);
         //std::mem::forget(self); // TODO double-check
     }
 
-    unsafe fn ptrcall_write_return(self) -> sys::GDNativeTypePtr {
+    unsafe fn ptrcall_write_return(&self) -> sys::GDNativeTypePtr {
         self.sys()
     }
 }
@@ -67,8 +68,8 @@ macro_rules! impl_ptrcall_num {
                 *(arg as *mut $t)
             }
 
-            unsafe fn ptrcall_write(self, ret: sys::GDNativeTypePtr) {
-                *(ret as *mut $t) = self;
+            unsafe fn ptrcall_write(&self, ret: sys::GDNativeTypePtr) {
+                *(ret as *mut $t) = *self;
             }
         }
     };
@@ -92,7 +93,7 @@ impl_ptrcall_num!(bool);
 impl PtrCall for () {
     unsafe fn ptrcall_read(_arg: sys::GDNativeTypePtr) -> Self {}
 
-    unsafe fn ptrcall_write(self, _arg: sys::GDNativeTypePtr) {
+    unsafe fn ptrcall_write(&self, _arg: sys::GDNativeTypePtr) {
         // do nothing
     }
 }

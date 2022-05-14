@@ -219,7 +219,7 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
             });
         } else {
             call_exprs.push(quote! {
-                <#param_ty as sys::PtrCall>::ptrcall_write_return(#param_name)
+                <#param_ty as sys::PtrCall>::ptrcall_write_return(&#param_name)
             });
         }
     }

@@ -22,7 +22,7 @@ func _ready():
 #	print(msg)
 
 	var node = Node3D.new()
-	print("Correct to_global(): ", node.to_global(Vector3(2.0, 3.0, 4.0)))
+	#print("Correct to_global(): ", node.to_global(Vector3(2.0, 3.0, 4.0)))
 	print("  instance_id (gd): ", node.get_instance_id())
 
 	print("<--")

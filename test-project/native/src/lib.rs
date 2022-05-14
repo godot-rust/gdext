@@ -1,9 +1,11 @@
 use gdext_builtin::{gdext_init, GodotString, InitLevel, Variant, Vector2, Vector3};
+use std::ptr::addr_of;
 
 use gdext_class::api::Node3D;
 use gdext_class::*;
 
 use gdext_sys as sys;
+use gdext_sys::GodotFfi;
 use sys::interface_fn;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -206,12 +208,21 @@ impl RustTest {
         //let inner = node.inner();
         let object_ptr = node.obj_sys();
         dbg!(object_ptr);
-        dbg!(node.object_ptr);
 
-        let inner = Node3D { object_ptr: node.object_ptr };
+        /*let inner = Node3D { object_ptr: node.object_ptr };
         let res = inner.to_global(arg);
 
-        println!("  to_global({arg}) == {res}");
+        println!("  to_global({arg}) == {res}");*/
+
+        let inner = Node3D { object_ptr };
+        let arg = Vector3::new(11.0, 22.0, 33.0);
+        dbg!(addr_of!(arg));
+        dbg!(arg.sys());
+        inner.set_position(arg);
+        let res = inner.get_position();
+        println!("  get_position() == {res}");
+
+        std::process::exit(27);
         res
     }
 

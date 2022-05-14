@@ -91,7 +91,7 @@ macro_rules! gdext_wrap_method_inner {
                             $pname,
                         )*);
 
-                        <$retty as sys::PtrCall>::ptrcall_write(ret_val, ret);
+                        <$retty as sys::PtrCall>::ptrcall_write(&ret_val, ret);
                     }
 
                     call
@@ -278,7 +278,7 @@ macro_rules! gdext_virtual_method_inner {
                 let ret_val = instance.$method_name($(
                     $pname,
                 )*);
-                <$retty as sys::PtrCall>::ptrcall_write(ret_val, ret);
+                <$retty as sys::PtrCall>::ptrcall_write(&ret_val, ret);
             }
             call
         })
