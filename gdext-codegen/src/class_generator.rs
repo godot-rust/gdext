@@ -105,20 +105,22 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         //#[repr(C)]
         // TODO: un-pub field
         pub struct #name {
-            pub object_ptr: sys::GDNativeObjectPtr,
+            object_ptr: sys::GDNativeObjectPtr,
         }
-
         impl #name {
             #methods
         }
         impl crate::traits::GodotClass for #name {
-            const ENGINE_CLASS: bool = true;
             type Base = #base;
+            //type ClassType = crate::traits::marker::TagEngineClass;
             fn class_name() -> String {
                 #name_str.to_string()
             }
         }
         impl crate::traits::EngineClass for #name {
+            fn from_object_ptr(object_ptr: sys::GDNativeObjectPtr) -> Self {
+                Self { object_ptr }
+            }
             fn as_object_ptr(&self) -> sys::GDNativeObjectPtr {
                 self.object_ptr
             }

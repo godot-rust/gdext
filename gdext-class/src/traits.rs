@@ -1,17 +1,28 @@
-use crate::sys;
+use crate::{sys, Obj};
 use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
-pub trait EngineClass {
+pub trait EngineClass: GodotClass {
+    fn from_object_ptr(object_ptr: sys::GDNativeObjectPtr) -> Self;
     fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
     fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
+
+    fn from_obj(obj: &Obj<Self>) -> &Self {
+        Self::from_object_ptr(obj.obj_sys())
+    }
 }
 
-pub trait GodotClass: Debug {
-    const ENGINE_CLASS: bool = false;
+pub trait GodotClass: Debug
+where
+    Self: Sized,
+{
     type Base: GodotClass;
+    //type ClassType: marker::ClassType;
 
     fn class_name() -> String;
+    fn from_obj(obj: &Obj<Self>) -> &Self {
+        obj.storage().get()
+    }
 
     // fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
     //     self.upcast().native_object_ptr()
@@ -22,6 +33,7 @@ pub trait GodotClass: Debug {
 
 impl GodotClass for () {
     type Base = ();
+    //type ClassType = marker::TagEngineClass;
 
     fn class_name() -> String {
         "(no base)".to_string()
