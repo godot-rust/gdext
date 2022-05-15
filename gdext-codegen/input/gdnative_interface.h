@@ -133,13 +133,13 @@ typedef enum {
 
 } GDNativeVariantOperator;
 
-typedef void *GDNativeVariantPtr;
-typedef void *GDNativeStringNamePtr;
-typedef void *GDNativeStringPtr;
-typedef void *GDNativeObjectPtr;
-typedef void *GDNativeTypePtr;
-typedef void *GDNativeExtensionPtr;
-typedef void *GDNativeMethodBindPtr;
+typedef struct TagVariant *GDNativeVariantPtr;
+typedef struct TagStringName *GDNativeStringNamePtr;
+typedef struct TagString *GDNativeStringPtr;
+typedef struct TagObject *GDNativeObjectPtr;
+typedef struct TagType *GDNativeTypePtr;
+typedef struct TagExtension *GDNativeExtensionPtr;
+typedef struct TagMethodBind *GDNativeMethodBindPtr;
 typedef int64_t GDNativeInt;
 typedef uint8_t GDNativeBool;
 typedef uint64_t GDObjectInstanceID;
