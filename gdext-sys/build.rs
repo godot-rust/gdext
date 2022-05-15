@@ -3,7 +3,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 fn main() {
-    let header_path = "../thirdparty/godot-headers/godot/gdnative_interface.h";
+    let header_path = "../gdext-codegen/input/gdnative_interface.h";
     let bindings = bindgen::Builder::default()
         .header(header_path)
         // Tell cargo to invalidate the built crate whenever any of the

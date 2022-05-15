@@ -5,10 +5,10 @@ use std::process::Command;
 /// Commands related to Godot executable
 
 const GODOT_VERSION_PATH: &'static str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/input/godot_version.txt");
+    concat!(env!("CARGO_MANIFEST_DIR"), "/input/gen/godot_version.txt");
 
 const EXTENSION_API_PATH: &'static str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/input/extension_api.json");
+    concat!(env!("CARGO_MANIFEST_DIR"), "/input/gen/extension_api.json");
 
 pub fn load_extension_api_json() -> String {
     let json_path = Path::new(EXTENSION_API_PATH);

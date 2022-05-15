@@ -4,6 +4,6 @@ target/
 Cargo.lock
 
 # Input JSONs and code generation
-/gdext-codegen/input/
+/gdext-codegen/input/gen/
 /gdext-sys/src/gen/
 /gdext-class/src/gen/
