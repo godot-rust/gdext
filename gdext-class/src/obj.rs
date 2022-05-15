@@ -1,6 +1,6 @@
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{ClassName, EngineClass, GodotClass};
+use crate::{ClassName, GodotClass};
 
 use gdext_builtin::Variant;
 use gdext_sys as sys;
@@ -15,12 +15,8 @@ use std::mem::MaybeUninit;
 pub struct Obj<T: GodotClass> {
     // Note: `opaque` mirrors GDNativeObjectPtr == Object* in C++, i.e. the bytes represent a pointer
     // to receive a GDNativeTypePtr == GDNativeObjectPtr* == Object**, we need to get the address of this
-    opaque: OpaqueObject,
+    pub opaque: OpaqueObject,
     _marker: PhantomData<*const T>,
-}
-
-trait MakeInner {
-    fn make_inner(obj_pointer: sys::GDNativeObjectPtr) -> Self;
 }
 
 impl<T: GodotClass> Obj<T> {
@@ -46,7 +42,8 @@ impl<T: GodotClass> Obj<T> {
 
     // explicit deref for testing purposes
     pub fn inner(&self) -> &T {
-        T::from_obj(self)
+        use crate::marker::ClassType;
+        T::ClassType::extract_from_obj(self)
     }
 
     pub fn inner_mut(&self) -> &mut T {

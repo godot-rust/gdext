@@ -2,7 +2,7 @@ mod as_arg;
 mod obj;
 mod registry;
 mod storage;
-mod traits;
+pub mod traits;
 
 pub mod macros;
 pub mod property_info;

@@ -2,13 +2,41 @@ use crate::{sys, Obj};
 use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
+pub mod marker {
+    use crate::{GodotClass, Obj};
+
+    pub trait ClassType {
+        fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T;
+    }
+
+    pub enum EngineClass {}
+    impl ClassType for EngineClass {
+        fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T {
+            unsafe { std::mem::transmute(&obj.opaque) }
+        }
+    }
+
+    pub enum UserClass {}
+    impl ClassType for UserClass {
+        fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T {
+            obj.storage().get()
+        }
+    }
+}
+
 pub trait EngineClass: GodotClass {
     fn from_object_ptr(object_ptr: sys::GDNativeObjectPtr) -> Self;
     fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
     fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
 
     fn from_obj(obj: &Obj<Self>) -> &Self {
-        Self::from_object_ptr(obj.obj_sys())
+        let inst = Self::from_object_ptr(obj.obj_sys());
+
+        Box::leak(Box::new(inst))
+
+        /*unsafe {
+            std::mem::transmute(obj.opaque)
+        }*/
     }
 }
 
@@ -17,12 +45,9 @@ where
     Self: Sized,
 {
     type Base: GodotClass;
-    //type ClassType: marker::ClassType;
+    type ClassType: marker::ClassType;
 
     fn class_name() -> String;
-    fn from_obj(obj: &Obj<Self>) -> &Self {
-        obj.storage().get()
-    }
 
     // fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
     //     self.upcast().native_object_ptr()
@@ -33,7 +58,7 @@ where
 
 impl GodotClass for () {
     type Base = ();
-    //type ClassType = marker::TagEngineClass;
+    type ClassType = marker::EngineClass;
 
     fn class_name() -> String {
         "(no base)".to_string()

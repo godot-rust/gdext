@@ -1,71 +1,10 @@
 use gdext_builtin::{gdext_init, GodotString, InitLevel, Variant, Vector2, Vector3};
-use std::ptr::addr_of;
 
 use gdext_class::api::Node3D;
 use gdext_class::*;
 
 use gdext_sys as sys;
-use gdext_sys::GodotFfi;
 use sys::interface_fn;
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Node3D (base)
-/*
-#[derive(Debug)]
-pub struct Node3D(sys::GDNativeObjectPtr);
-
-impl Node3D {
-    fn to_global(&self, arg: Vector3) -> Vector3 {
-        let obj = self.0;
-
-        let result = unsafe {
-            let class_name = c_str!("Node3D");
-            let method_name = c_str!("to_global");
-            let hash = 135374120;
-
-            let method_bind = interface_fn!(classdb_get_method_bind)(class_name, method_name, hash);
-
-            let call_fn = interface_fn!(object_method_bind_ptrcall);
-
-            let mut args = [arg.sys()];
-            let args_ptr = args.as_mut_ptr();
-
-            Vector3::from_sys_init(|opaque_ptr| {
-                call_fn(method_bind, obj, args_ptr, opaque_ptr);
-            })
-        };
-
-        //let result = result_obj.inner();
-        out!("Node3D::to_global({:?}) = {:?}", arg, result);
-        result
-    }
-}*/
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// RefCounted (base)
-
-#[derive(Debug)]
-pub struct RefCounted(sys::GDNativeObjectPtr);
-
-impl GodotClass for RefCounted {
-    type Base = RefCounted;
-
-    fn class_name() -> String {
-        "RefCounted".to_string()
-    }
-
-    // fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
-    //     self.0
-    // }
-
-    // fn upcast(&self) -> &Self::Base {
-    //     self
-    // }
-    //
-    // fn upcast_mut(&mut self) -> &mut Self::Base {
-    //     self
-    // }
-}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // RustTest
@@ -78,6 +17,7 @@ pub struct RustTest {
 
 impl GodotClass for RustTest {
     type Base = Node3D;
+    type ClassType = marker::UserClass;
 
     fn class_name() -> String {
         "RustTest".to_string()
@@ -98,9 +38,7 @@ impl GodotMethods for RustTest {
 
         // FIXME build Rust object to represent Godot's own types, like Node3D
         //let obj = unsafe { Obj::from_sys(base) };
-        let obj = Node3D {
-            object_ptr: base_ptr,
-        };
+        let obj = Node3D::from_object_ptr(base_ptr);
 
         RustTest::new(obj)
     }
@@ -200,28 +138,14 @@ impl RustTest {
     fn call_node_method(&self, node: Obj<Node3D>) -> Vector3 {
         println!("call_node_method - to_global()...");
         println!("  instance_id: {}", node.instance_id());
-        //return Vector3::new(1.0, 2.0,3.0);
-
-        let arg = Vector3::new(2.0, 3.0, 4.0);
 
         let node = Obj::<Node3D>::from_instance_id(node.instance_id()).unwrap();
         let inner = node.inner();
-        let object_ptr = node.obj_sys();
-        dbg!(object_ptr);
-
-        /*let res = inner.to_global(arg);
-
-        println!("  to_global({arg}) == {res}");*/
-
-        //let inner = Node3D { object_ptr };
         let arg = Vector3::new(11.0, 22.0, 33.0);
-        dbg!(addr_of!(arg));
-        dbg!(arg.sys());
         inner.set_position(arg);
+
         let res = inner.get_position();
         println!("  get_position() == {res}");
-
-        std::process::exit(27);
         res
     }
 
@@ -311,7 +235,8 @@ impl GodotMethods for Entity {
 }
 
 impl GodotClass for Entity {
-    type Base = RefCounted;
+    type Base = gdext_class::api::RefCounted;
+    type ClassType = gdext_class::traits::marker::UserClass;
 
     fn class_name() -> String {
         "Entity".to_string()
