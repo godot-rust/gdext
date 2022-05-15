@@ -75,6 +75,8 @@ fn read_godot_version(godot_bin: &Path) -> String {
 
 fn dump_extension_api(godot_bin: &Path, out_file: &Path) {
     let cwd = out_file.parent().unwrap();
+    std::fs::create_dir_all(cwd).expect(&format!("create directory '{}'", cwd.display()));
+    println!("Dump extension API to dir '{}'...", cwd.display());
 
     Command::new(godot_bin)
         .current_dir(cwd)
