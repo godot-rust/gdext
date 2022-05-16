@@ -1,9 +1,16 @@
+# IDEs
 .vscode
 .idea
-target/
+.run
+
+# Rust
+target
 Cargo.lock
 
-# Input JSONs and code generation
+# Godot
+.godot
+
+# This project: input JSONs and code generation
 /gdext-codegen/input/gen/
 /gdext-sys/src/gen/
 /gdext-class/src/gen/
