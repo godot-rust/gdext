@@ -42,7 +42,7 @@ impl<T: GodotClass> Obj<T> {
 
     // explicit deref for testing purposes
     pub fn inner(&self) -> &T {
-        use crate::marker::ClassType;
+        use crate::marker::ClassType as _;
         T::ClassType::extract_from_obj(self)
     }
 

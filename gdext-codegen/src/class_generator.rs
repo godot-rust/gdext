@@ -95,6 +95,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
     let methods = make_methods(&class.methods, &class.name, ctx);
 
     let name_str = strlit(&class.name);
+    let name_cstr = c_str(&class.name);
 
     quote! {
         use gdext_sys as sys;
@@ -108,6 +109,13 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
             object_ptr: sys::GDNativeObjectPtr,
         }
         impl #name {
+            pub fn new() -> Obj<Self> {
+                unsafe {
+                    let object_ptr = sys::interface_fn!(classdb_construct_object)(#name_cstr);
+                    //let instance = Self { object_ptr };
+                    Obj::from_obj_sys(object_ptr)
+                }
+            }
             #methods
         }
         impl crate::traits::GodotClass for #name {

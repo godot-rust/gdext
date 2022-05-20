@@ -1,4 +1,4 @@
-use crate::{sys, Obj};
+use crate::sys;
 use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
@@ -24,20 +24,10 @@ pub mod marker {
     }
 }
 
-pub trait EngineClass: GodotClass {
+pub trait EngineClass {
     fn from_object_ptr(object_ptr: sys::GDNativeObjectPtr) -> Self;
     fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
     fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
-
-    fn from_obj(obj: &Obj<Self>) -> &Self {
-        let inst = Self::from_object_ptr(obj.obj_sys());
-
-        Box::leak(Box::new(inst))
-
-        /*unsafe {
-            std::mem::transmute(obj.opaque)
-        }*/
-    }
 }
 
 pub trait GodotClass: Debug
@@ -48,12 +38,6 @@ where
     type ClassType: marker::ClassType;
 
     fn class_name() -> String;
-
-    // fn native_object_ptr(&self) -> sys::GDNativeObjectPtr {
-    //     self.upcast().native_object_ptr()
-    // }
-    //fn upcast(&self) -> &Self::Base;
-    //fn upcast_mut(&mut self) -> &mut Self::Base;
 }
 
 impl GodotClass for () {
