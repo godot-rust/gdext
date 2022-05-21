@@ -6,7 +6,7 @@ use gdext_builtin::Variant;
 use gdext_sys as sys;
 
 use sys::types::OpaqueObject;
-use sys::{impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
+use sys::{impl_ffi_as_opaque_pointer, interface_fn, static_assert_eq_size, GodotFfi};
 
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
@@ -162,3 +162,9 @@ impl<T: GodotClass> PropertyInfoBuilder for Obj<T> {
         gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_OBJECT
     }
 }
+
+static_assert_eq_size!(
+    sys::GDNativeObjectPtr,
+    sys::types::OpaqueObject,
+    "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
+);

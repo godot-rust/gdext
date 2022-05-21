@@ -85,14 +85,26 @@ macro_rules! interface_fn {
     }};
 }
 
+/// Verifies a condition at compile time.
+// https://blog.rust-lang.org/2021/12/02/Rust-1.57.0.html#panic-in-const-contexts
 #[macro_export]
 macro_rules! static_assert {
-    ($expr:expr, $msg:literal) => {
-        const _: u8 = if $expr {
-            0
-        } else {
-            panic!(concat!("Static assertion failed: ", $msg))
-        };
+    ($cond:expr) => {
+        const _: () = assert!($cond);
+    };
+    ($cond:expr, $msg:literal) => {
+        const _: () = assert!($cond, $msg);
+    };
+}
+
+/// Verifies at compile time that two types `T` and `U` have the same size.
+#[macro_export]
+macro_rules! static_assert_eq_size {
+    ($T:ty, $U:ty) => {
+        gdext_sys::static_assert!(std::mem::size_of::<$T>() == std::mem::size_of::<$U>());
+    };
+    ($T:ty, $U:ty, $msg:literal) => {
+        gdext_sys::static_assert!(std::mem::size_of::<$T>() == std::mem::size_of::<$U>(), $msg);
     };
 }
 
