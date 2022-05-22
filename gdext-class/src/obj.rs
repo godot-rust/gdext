@@ -111,30 +111,10 @@ impl<T: GodotClass> From<&Variant> for Obj<T> {
     fn from(variant: &Variant) -> Self {
         println!("!!TODO!! Variant to Obj<T>");
         unsafe {
-            // Self::from_sys_init(|opaque_ptr| {
-            //     let converter = sys::get_cache().object_from_variant;
-            //     converter(opaque_ptr, variant.sys());
-            // })
-
-            /*let opq = OpaqueObject::with_value_init(|opaque_ptr| {
-
-                // C++:
-                // static void type_from_variant(void *p_value, void *p_variant) {
-                // 		Object **value = reinterpret_cast<Object **>(p_value);
-                // 		*value = VariantInternalAccessor<Object *>::get(reinterpret_cast<Variant *>(p_variant));
-                // 	}
+            Self::from_sys_init(|type_ptr| {
                 let converter = sys::get_cache().object_from_variant;
-                converter(opaque_ptr, variant.sys());
-            });*/
-            let mut opaque = MaybeUninit::<OpaqueObject>::zeroed();
-
-            let converter = sys::get_cache().object_from_variant;
-            //            converter(std::mem::transmute(&opaque as *mut _), variant.sys());
-            converter(opaque.as_mut_ptr() as *mut _, variant.sys());
-
-            let opaque = opaque.assume_init();
-
-            Self::from_opaque(opaque)
+                converter(type_ptr, variant.sys());
+            })
         }
     }
 }
@@ -143,9 +123,9 @@ impl<T: GodotClass> From<Obj<T>> for Variant {
     fn from(obj: Obj<T>) -> Self {
         println!("!!TODO!! Variant from Obj<T>");
         unsafe {
-            Self::from_sys_init(|opaque_ptr| {
+            Self::from_sys_init(|variant_ptr| {
                 let converter = sys::get_cache().object_to_variant;
-                converter(opaque_ptr, obj.sys()); // this was OpaqueObject::to_sys(), converting pointer, not value
+                converter(variant_ptr, obj.sys()); // this was OpaqueObject::to_sys(), converting pointer, not value
             })
         }
     }

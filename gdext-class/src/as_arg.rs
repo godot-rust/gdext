@@ -16,7 +16,7 @@ pub trait AsArg: private::Sealed {
 impl<T: GodotClass> Sealed for Obj<T> {}
 impl<T: GodotClass> AsArg for Obj<T> {
     fn as_arg_ptr(&self) -> sys::GDNativeTypePtr {
-        self.sys() as _ // TODO:check
+        self.sys()
     }
 }
 
