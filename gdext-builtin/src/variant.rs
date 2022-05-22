@@ -1,6 +1,8 @@
+use crate::GodotString;
 use gdext_sys as sys;
+use std::fmt;
 use sys::types::OpaqueVariant;
-use sys::{impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
+use sys::{impl_ffi_as_opaque_pointer, interface_fn};
 
 #[repr(C, align(8))]
 pub struct Variant {
@@ -10,22 +12,34 @@ pub struct Variant {
 impl Variant {
     pub fn nil() -> Self {
         unsafe {
-            Self::from_sys_init(|ptr| {
+            Self::from_var_sys_init(|ptr| {
                 interface_fn!(variant_new_nil)(ptr);
             })
         }
     }
 
+    #[allow(unused_mut)]
+    fn stringify(&self) -> GodotString {
+        let mut result = GodotString::new();
+        unsafe {
+            interface_fn!(variant_stringify)(self.var_sys(), result.string_sys());
+        }
+        result
+    }
+
     fn from_opaque(opaque: OpaqueVariant) -> Self {
         Self { opaque }
     }
+
+    // Conversions from/to Godot C++ `Variant*` pointers
+    impl_ffi_as_opaque_pointer!(sys::GDNativeVariantPtr; from_var_sys, from_var_sys_init, var_sys, write_var_sys);
 }
 
 impl Clone for Variant {
     fn clone(&self) -> Self {
         unsafe {
-            Self::from_sys_init(|ptr| {
-                interface_fn!(variant_new_copy)(ptr, self.sys());
+            Self::from_var_sys_init(|ptr| {
+                interface_fn!(variant_new_copy)(ptr, self.var_sys());
             })
         }
     }
@@ -34,15 +48,16 @@ impl Clone for Variant {
 impl Drop for Variant {
     fn drop(&mut self) {
         unsafe {
-            interface_fn!(variant_destroy)(self.sys_mut());
+            interface_fn!(variant_destroy)(self.var_sys());
         }
     }
 }
 
-impl GodotFfi for Variant {
-    // FIXME
-    type SysPointer = sys::GDNativeVariantPtr;
-    impl_ffi_as_opaque_pointer!(, sys::GDNativeVariantPtr; from_sys, from_sys_init, sys, write_sys);
+impl fmt::Display for Variant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = self.stringify();
+        write!(f, "{}", s)
+    }
 }
 
 mod conversions {
@@ -56,7 +71,7 @@ mod conversions {
             impl From<$T> for Variant {
                 fn from(value: $T) -> Self {
                     unsafe {
-                        Self::from_sys_init(|variant_ptr| {
+                        Self::from_var_sys_init(|variant_ptr| {
                             let converter = sys::get_cache().$from_fn;
                             //converter(variant_ptr, &value as *const _ as *mut std::ffi::c_void);
                             converter(variant_ptr, &value as *const _ as sys::GDNativeTypePtr);
@@ -73,7 +88,10 @@ mod conversions {
 
                         let converter = sys::get_cache().$to_fn;
                         //converter(&mut value as *mut _ as *mut std::ffi::c_void, variant.sys());
-                        converter(&mut value as *mut _ as sys::GDNativeTypePtr, variant.sys());
+                        converter(
+                            &mut value as *mut _ as sys::GDNativeTypePtr,
+                            variant.var_sys(),
+                        );
                         //converter(value.sys(), variant.sys()); // TODO: use trait?
                         value
                     }
@@ -117,10 +135,9 @@ mod conversions {
     impl From<&GodotString> for Variant {
         fn from(value: &GodotString) -> Self {
             unsafe {
-                Self::from_sys_init(|ptr| {
+                Self::from_var_sys_init(|ptr| {
                     let converter = sys::get_cache().string_to_variant;
-                    //converter(ptr, &value as *const _ as *mut std::ffi::c_void);
-                    converter(ptr, value.sys()); // TODO:CHECK
+                    converter(ptr, value.sys());
                 })
             }
         }

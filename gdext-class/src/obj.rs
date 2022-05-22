@@ -107,7 +107,7 @@ impl<T: GodotClass> From<&Variant> for Obj<T> {
         unsafe {
             Self::from_sys_init(|type_ptr| {
                 let converter = sys::get_cache().object_from_variant;
-                converter(type_ptr, variant.sys());
+                converter(type_ptr, variant.var_sys());
             })
         }
     }
@@ -117,7 +117,7 @@ impl<T: GodotClass> From<Obj<T>> for Variant {
     fn from(obj: Obj<T>) -> Self {
         println!("!!TODO!! Variant from Obj<T>");
         unsafe {
-            Self::from_sys_init(|variant_ptr| {
+            Self::from_var_sys_init(|variant_ptr| {
                 let converter = sys::get_cache().object_to_variant;
                 converter(variant_ptr, obj.sys());
             })

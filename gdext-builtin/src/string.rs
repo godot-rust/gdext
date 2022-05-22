@@ -23,10 +23,6 @@ impl GodotString {
         Self { opaque }
     }
 
-    pub fn from(s: &str) -> Self {
-        Self::from_str(s).unwrap()
-    }
-
     // #[doc(hidden)]
     // pub fn string_sys(&self) -> sys::GDNativeStringPtr {
     //     self.sys() as sys::GDNativeStringPtr
@@ -74,7 +70,7 @@ impl From<String> for GodotString {
 
 impl From<&str> for GodotString {
     fn from(val: &str) -> Self {
-        GodotString::from(val)
+        GodotString::from_str(val).unwrap()
     }
 }
 
