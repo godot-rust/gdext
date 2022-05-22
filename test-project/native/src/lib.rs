@@ -17,7 +17,7 @@ pub struct RustTest {
 
 impl GodotClass for RustTest {
     type Base = Node3D;
-    type ClassType = marker::UserClass;
+    type Declarer = marker::UserClass;
 
     fn class_name() -> String {
         "RustTest".to_string()
@@ -237,7 +237,7 @@ impl GodotMethods for Entity {
 
 impl GodotClass for Entity {
     type Base = gdext_class::api::RefCounted;
-    type ClassType = gdext_class::traits::marker::UserClass;
+    type Declarer = gdext_class::traits::marker::UserClass;
 
     fn class_name() -> String {
         "Entity".to_string()

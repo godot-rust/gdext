@@ -5,19 +5,29 @@ use std::fmt::Debug;
 pub mod marker {
     use crate::{GodotClass, Obj};
 
-    pub trait ClassType {
+    pub trait ClassDeclarer {
         fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T;
     }
 
     pub enum EngineClass {}
-    impl ClassType for EngineClass {
+    impl ClassDeclarer for EngineClass {
         fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T {
-            unsafe { std::mem::transmute(&obj.opaque) }
+            // This relies on Obj<Node3D> having the layout as Node3D (as an example),
+            // which also needs #[repr(transparent)]:
+            //
+            // struct Obj<T: GodotClass> {
+            //     opaque: OpaqueObject,         <- size of GDNativeObjectPtr
+            //     _marker: PhantomData,         <- ZST
+            // }
+            // struct Node3D {
+            //     object_ptr: sys::GDNativeObjectPtr,
+            // }
+            unsafe { std::mem::transmute::<&Obj<T>, &T>(obj) }
         }
     }
 
     pub enum UserClass {}
-    impl ClassType for UserClass {
+    impl ClassDeclarer for UserClass {
         fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T {
             obj.storage().get()
         }
@@ -35,14 +45,14 @@ where
     Self: Sized,
 {
     type Base: GodotClass;
-    type ClassType: marker::ClassType;
+    type Declarer: marker::ClassDeclarer;
 
     fn class_name() -> String;
 }
 
 impl GodotClass for () {
     type Base = ();
-    type ClassType = marker::EngineClass;
+    type Declarer = marker::EngineClass;
 
     fn class_name() -> String {
         "(no base)".to_string()

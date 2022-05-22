@@ -103,8 +103,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         use crate::{Obj, AsArg};
 
         #[derive(Debug)]
-        //#[repr(C)]
-        // TODO: un-pub field
+        #[repr(transparent)]
         pub struct #name {
             object_ptr: sys::GDNativeObjectPtr,
         }
@@ -120,7 +119,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         }
         impl crate::traits::GodotClass for #name {
             type Base = #base;
-            type ClassType = crate::traits::marker::EngineClass;
+            type Declarer = crate::traits::marker::EngineClass;
             fn class_name() -> String {
                 #name_str.to_string()
             }

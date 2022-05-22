@@ -9,41 +9,44 @@ use sys::types::OpaqueObject;
 use sys::{impl_ffi_as_opaque_pointer, interface_fn, static_assert_eq_size, GodotFfi};
 
 use std::marker::PhantomData;
-use std::mem::MaybeUninit;
 
 // TODO which bounds to add on struct itself?
+#[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
 pub struct Obj<T: GodotClass> {
-    // Note: `opaque` mirrors GDNativeObjectPtr == Object* in C++, i.e. the bytes represent a pointer
-    // to receive a GDNativeTypePtr == GDNativeObjectPtr* == Object**, we need to get the address of this
-    pub opaque: OpaqueObject,
+    // Note: `opaque` has the same layout as GDNativeObjectPtr == Object* in C++, i.e. the bytes represent a pointer
+    // To receive a GDNativeTypePtr == GDNativeObjectPtr* == Object**, we need to get the address of this
+    // Hence separate sys() for GDNativeTypePtr, and obj_sys() for GDNativeObjectPtr.
+    // The former is the standard FFI type, while the latter is used in object-specific GDExtension APIs.
+    opaque: OpaqueObject,
     _marker: PhantomData<*const T>,
 }
+
+// Size equality check (should additionally be covered by mem::transmute())
+static_assert_eq_size!(
+    sys::GDNativeObjectPtr,
+    sys::types::OpaqueObject,
+    "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
+);
 
 impl<T: GodotClass> Obj<T> {
     pub fn new(_rust_obj: T) -> Self {
         let class_name = ClassName::new::<T>();
-
         let ptr = unsafe { interface_fn!(classdb_construct_object)(class_name.c_str()) };
 
         unsafe { Obj::from_obj_sys(ptr) }
     }
 
     fn from_opaque(opaque: OpaqueObject) -> Self {
-        //print!("Obj::from_opaque: opaque={}", opaque);
-
-        let s = Self {
+        Self {
             opaque,
             _marker: PhantomData,
-        };
-
-        //println!(", self.opaque={}", s.opaque);
-        s
+        }
     }
 
     // explicit deref for testing purposes
     pub fn inner(&self) -> &T {
-        use crate::marker::ClassType as _;
-        T::ClassType::extract_from_obj(self)
+        use crate::marker::ClassDeclarer as _;
+        T::Declarer::extract_from_obj(self)
     }
 
     pub fn inner_mut(&self) -> &mut T {
@@ -64,9 +67,6 @@ impl<T: GodotClass> Obj<T> {
                 None
             } else {
                 Some(Obj::from_obj_sys(ptr))
-
-                //let opaque = OpaqueObject::from_value_sys(ptr);
-                //Some(Obj::from_opaque(opaque))
             }
         }
     }
@@ -82,12 +82,17 @@ impl<T: GodotClass> Obj<T> {
         }
     }
 
+    /// Returns FFI pointer for contexts where C++ expects `Object*`
+    /// This is different from `sys()` which returns sys::GDNativeTypePtr, a `void*` pointing to different types depending on context
+    #[doc(hidden)]
     pub fn obj_sys(&self) -> sys::GDNativeObjectPtr {
-        unsafe { std::mem::transmute(self.opaque) }
+        unsafe { std::mem::transmute::<OpaqueObject, sys::GDNativeObjectPtr>(self.opaque) }
     }
 
+    /// Construct from FFI pointer where C++ returns `Object*`
+    #[doc(hidden)]
     pub unsafe fn from_obj_sys(object_ptr: sys::GDNativeObjectPtr) -> Self {
-        let r = std::mem::transmute(object_ptr);
+        let r = std::mem::transmute::<sys::GDNativeObjectPtr, OpaqueObject>(object_ptr);
         Self::from_opaque(r)
     }
 }
@@ -125,7 +130,7 @@ impl<T: GodotClass> From<Obj<T>> for Variant {
         unsafe {
             Self::from_sys_init(|variant_ptr| {
                 let converter = sys::get_cache().object_to_variant;
-                converter(variant_ptr, obj.sys()); // this was OpaqueObject::to_sys(), converting pointer, not value
+                converter(variant_ptr, obj.sys());
             })
         }
     }
@@ -142,9 +147,3 @@ impl<T: GodotClass> PropertyInfoBuilder for Obj<T> {
         gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_OBJECT
     }
 }
-
-static_assert_eq_size!(
-    sys::GDNativeObjectPtr,
-    sys::types::OpaqueObject,
-    "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
-);
