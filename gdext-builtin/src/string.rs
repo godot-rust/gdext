@@ -1,4 +1,4 @@
-use std::{convert::Infallible, mem::MaybeUninit, str::FromStr};
+use std::{convert::Infallible, fmt, str::FromStr};
 
 use gdext_sys as sys;
 use sys::types::OpaqueString;
@@ -22,24 +22,6 @@ impl GodotString {
     fn from_opaque(opaque: OpaqueString) -> Self {
         Self { opaque }
     }
-
-    // #[doc(hidden)]
-    // pub fn string_sys(&self) -> sys::GDNativeStringPtr {
-    //     self.sys() as sys::GDNativeStringPtr
-    // }
-    //
-    // #[doc(hidden)]
-    // pub unsafe fn write_string_sys(&self, dst: sys::GDNativeStringPtr) {
-    //     std::ptr::write(dst as *mut OpaqueString, self.opaque)
-    // }
-
-    // Conversions from/to Godot C++ `Object*` pointers
-    // define_ffi_methods! {
-    //     for sys::GDNativeStringPtr {
-    //         //sys => string_sys,
-    //         write_sys => write_string_sys,
-    //     }
-    // }
 
     impl_ffi_as_opaque_pointer!(sys::GDNativeStringPtr; from_string_sys, from_string_sys_init, string_sys, write_string_sys);
 }
@@ -74,8 +56,8 @@ impl From<&str> for GodotString {
     }
 }
 
-impl std::fmt::Display for GodotString {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for GodotString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = String::from(self);
         f.write_str(s.as_str())
     }
@@ -106,20 +88,16 @@ impl FromStr for GodotString {
     type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut opaque = MaybeUninit::<OpaqueString>::uninit();
-
         let b = s.as_bytes();
-        unsafe {
-            interface_fn!(string_new_with_utf8_chars_and_len)(
-                &mut opaque as *mut _ as sys::GDNativeStringPtr,
-                b.as_ptr() as *mut _,
-                b.len() as i64,
-            );
 
-            Ok(Self {
-                opaque: opaque.assume_init(),
+        let result = unsafe {
+            Self::from_string_sys_init(|ptr| {
+                let ctor = interface_fn!(string_new_with_utf8_chars_and_len);
+                ctor(ptr, b.as_ptr() as *const i8, b.len() as i64);
             })
-        }
+        };
+
+        Ok(result)
     }
 }
 

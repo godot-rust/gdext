@@ -73,9 +73,7 @@ mod conversions {
                     unsafe {
                         Self::from_var_sys_init(|variant_ptr| {
                             let converter = sys::get_cache().$from_fn;
-                            //converter(variant_ptr, &value as *const _ as *mut std::ffi::c_void);
-                            converter(variant_ptr, &value as *const _ as sys::GDNativeTypePtr);
-                            //converter(variant_ptr, value.sys()); // TODO: use trait?
+                            converter(variant_ptr, value.sys());
                         })
                     }
                 }
@@ -83,16 +81,17 @@ mod conversions {
 
             impl From<&Variant> for $T {
                 fn from(variant: &Variant) -> Self {
-                    unsafe {
-                        let mut value = <$T>::default();
+                    // In contrast to T -> Variant, the conversion Variant -> T assumes
+                    // that the destination is initialized (at least for some T). For example:
+                    // void String::operator=(const String &p_str) { _cowdata._ref(p_str._cowdata); }
+                    // does a copy-on-write and explodes if this->_cowdata is not initialized.
+                    // We can thus NOT use Self::from_sys_init().
 
+                    let mut value = <$T>::default();
+
+                    unsafe {
                         let converter = sys::get_cache().$to_fn;
-                        //converter(&mut value as *mut _ as *mut std::ffi::c_void, variant.sys());
-                        converter(
-                            &mut value as *mut _ as sys::GDNativeTypePtr,
-                            variant.var_sys(),
-                        );
-                        //converter(value.sys(), variant.sys()); // TODO: use trait?
+                        converter(value.sys_mut(), variant.var_sys());
                         value
                     }
                 }

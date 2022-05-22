@@ -161,3 +161,18 @@ macro_rules! impl_ffi_as_value {
         }
     };
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation for common types (needs to be this crate due to orphan rule)
+mod scalars {
+    use crate as sys;
+    use super::GodotFfi;
+
+    impl GodotFfi for bool {
+        impl_ffi_as_value!();
+    }
+
+    impl GodotFfi for i64 {
+        impl_ffi_as_value!();
+    }
+}

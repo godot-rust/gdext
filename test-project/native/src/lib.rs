@@ -153,7 +153,15 @@ impl RustTest {
         let copy = string.clone();
         let back = copy.to_string();
         let variant = Variant::from(&copy);
+        // drop(back);
+        // drop(copy);
+        // drop(string);
+        println!("var: {variant}");
+
+        println!("<<");
         let back2 = GodotString::from(&variant);
+
+        println!(">>");
 
         println!(
             "string={}\ncopy=  {}\nback=  {}\nvar=   {}\nback2= {}",
