@@ -40,7 +40,9 @@ impl Drop for Variant {
 }
 
 impl GodotFfi for Variant {
-    impl_ffi_as_opaque_pointer!(sys::GDNativeVariantPtr);
+    // FIXME
+    type SysPointer = sys::GDNativeVariantPtr;
+    impl_ffi_as_opaque_pointer!(, sys::GDNativeVariantPtr; from_sys, from_sys_init, sys, write_sys);
 }
 
 mod conversions {

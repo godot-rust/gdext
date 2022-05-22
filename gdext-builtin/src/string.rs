@@ -1,4 +1,3 @@
-use std::ffi::CString;
 use std::{convert::Infallible, mem::MaybeUninit, str::FromStr};
 
 use gdext_sys as sys;
@@ -28,28 +27,25 @@ impl GodotString {
         Self::from_str(s).unwrap()
     }
 
-    // TODO remove this method
-    // it's currently used for _to_string(), which has a const char* return type,
-    // however Godot devs already announced to change it to a GDNativeStringPtr parameter.
-    #[doc(hidden)]
-    pub fn leak_c_string(&self) -> *const std::os::raw::c_char {
-        let s: String = self.into();
+    // #[doc(hidden)]
+    // pub fn string_sys(&self) -> sys::GDNativeStringPtr {
+    //     self.sys() as sys::GDNativeStringPtr
+    // }
+    //
+    // #[doc(hidden)]
+    // pub unsafe fn write_string_sys(&self, dst: sys::GDNativeStringPtr) {
+    //     std::ptr::write(dst as *mut OpaqueString, self.opaque)
+    // }
 
-        let c = CString::new(s).unwrap();
-        let ptr = c.as_ptr();
-        std::mem::forget(c);
-        ptr
-    }
+    // Conversions from/to Godot C++ `Object*` pointers
+    // define_ffi_methods! {
+    //     for sys::GDNativeStringPtr {
+    //         //sys => string_sys,
+    //         write_sys => write_string_sys,
+    //     }
+    // }
 
-    #[doc(hidden)]
-    pub fn string_sys(&self) -> sys::GDNativeStringPtr {
-        self.sys() as sys::GDNativeStringPtr
-    }
-
-    #[doc(hidden)]
-    pub unsafe fn write_string_sys(&self, dst: sys::GDNativeStringPtr) {
-        std::ptr::write(dst as *mut OpaqueString, self.opaque)
-    }
+    impl_ffi_as_opaque_pointer!(sys::GDNativeStringPtr; from_string_sys, from_string_sys_init, string_sys, write_string_sys);
 }
 
 impl Default for GodotString {
@@ -141,7 +137,7 @@ impl Drop for GodotString {
 }
 
 impl GodotFfi for GodotString {
-    impl_ffi_as_opaque_pointer!(sys::GDNativeTypePtr);
+    impl_ffi_as_opaque_pointer!();
 }
 
 // While this is a nice optimisation for ptrcalls, it's not easily possible

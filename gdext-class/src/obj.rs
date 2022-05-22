@@ -8,6 +8,7 @@ use gdext_sys as sys;
 use sys::types::OpaqueObject;
 use sys::{impl_ffi_as_opaque_pointer, interface_fn, static_assert_eq_size, GodotFfi};
 
+use gdext_sys::impl_ffi_as_opaque;
 use std::marker::PhantomData;
 
 // TODO which bounds to add on struct itself?
@@ -82,19 +83,8 @@ impl<T: GodotClass> Obj<T> {
         }
     }
 
-    /// Returns FFI pointer for contexts where C++ expects `Object*`
-    /// This is different from `sys()` which returns sys::GDNativeTypePtr, a `void*` pointing to different types depending on context
-    #[doc(hidden)]
-    pub fn obj_sys(&self) -> sys::GDNativeObjectPtr {
-        unsafe { std::mem::transmute::<OpaqueObject, sys::GDNativeObjectPtr>(self.opaque) }
-    }
-
-    /// Construct from FFI pointer where C++ returns `Object*`
-    #[doc(hidden)]
-    pub unsafe fn from_obj_sys(object_ptr: sys::GDNativeObjectPtr) -> Self {
-        let r = std::mem::transmute::<sys::GDNativeObjectPtr, OpaqueObject>(object_ptr);
-        Self::from_opaque(r)
-    }
+    // Conversions from/to Godot C++ `Object*` pointers
+    impl_ffi_as_opaque!(sys::GDNativeObjectPtr; from_obj_sys, from_obj_sys_init, obj_sys, write_obj_sys);
 }
 
 /*
@@ -108,8 +98,7 @@ impl<T: GodotClass> Drop for Obj<T>{
 */
 
 impl<T: GodotClass> GodotFfi for Obj<T> {
-    //impl_ffi_as_opaque_inplace_pointer!(sys::GDNativeObjectPtr);
-    impl_ffi_as_opaque_pointer!(sys::GDNativeTypePtr);
+    impl_ffi_as_opaque_pointer!();
 }
 
 impl<T: GodotClass> From<&Variant> for Obj<T> {
