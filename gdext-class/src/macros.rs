@@ -1,5 +1,12 @@
 #![macro_use]
 
+#[macro_export]
+macro_rules! c_str {
+    ($str:literal) => {
+        (concat!($str, "\0")).as_ptr() as *const std::os::raw::c_char
+    };
+}
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! gdext_wrap_method_parameter_count {
@@ -157,11 +164,10 @@ macro_rules! gdext_wrap_method_inner {
             let name = std::ffi::CStr::from_bytes_with_nul_unchecked(concat!(stringify!($type_name), "\0").as_bytes());
 
             interface_fn!(classdb_register_extension_class_method)(
-                sys::get_library() as *mut _,
+                sys::get_library(),
                 name.as_ptr(),
-                &method_info as *const _,
+                std::ptr::addr_of!(method_info),
             );
-
         }
     };
 }

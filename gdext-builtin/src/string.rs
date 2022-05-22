@@ -3,7 +3,7 @@ use std::{convert::Infallible, mem::MaybeUninit, str::FromStr};
 
 use gdext_sys as sys;
 use sys::types::OpaqueString;
-use sys::{get_cache, impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
+use sys::{impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
 
 #[repr(C, align(8))]
 pub struct GodotString {
@@ -14,7 +14,7 @@ impl GodotString {
     pub fn new() -> Self {
         unsafe {
             Self::from_sys_init(|opaque_ptr| {
-                let ctor = get_cache().string_construct_default;
+                let ctor = sys::get_cache().string_construct_default;
                 ctor(opaque_ptr, std::ptr::null_mut());
             })
         }
@@ -48,7 +48,7 @@ impl GodotString {
 
     #[doc(hidden)]
     pub unsafe fn write_string_sys(&self, dst: sys::GDNativeStringPtr) {
-        std::ptr::write(dst as *mut _, self.opaque)
+        std::ptr::write(dst as *mut OpaqueString, self.opaque)
     }
 }
 
@@ -62,8 +62,9 @@ impl Clone for GodotString {
     fn clone(&self) -> Self {
         unsafe {
             Self::from_sys_init(|opaque_ptr| {
-                let ctor = get_cache().string_construct_copy;
-                ctor(opaque_ptr, &self.sys() as *const sys::GDNativeTypePtr);
+                let ctor = sys::get_cache().string_construct_copy;
+                let sys = self.sys();
+                ctor(opaque_ptr, std::ptr::addr_of!(sys));
             })
         }
     }
@@ -103,7 +104,8 @@ impl From<&GodotString> for String {
                 len,
             );
 
-            String::from_utf8_unchecked(buf)
+            // Note: could use from_utf8_unchecked() but for now prefer safety
+            String::from_utf8(buf).unwrap()
         }
     }
 }

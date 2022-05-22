@@ -59,19 +59,16 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
                 let base = interface_fn!(classdb_construct_object)(base_class_name.c_str());
                 let instance = InstanceStorage::<T>::construct_default(base);
                 let instance_ptr = instance.into_raw();
+                let instance_ptr = instance_ptr as *mut std::ffi::c_void;
 
-                interface_fn!(object_set_instance)(
-                    base,
-                    class_name.c_str(),
-                    instance_ptr as *mut std::ffi::c_void,
-                );
+                interface_fn!(object_set_instance)(base, class_name.c_str(), instance_ptr);
 
                 let binding_data_callbacks = crate::storage::nop_instance_callbacks();
 
                 interface_fn!(object_set_instance_binding)(
                     base,
-                    sys::get_library() as *mut _,
-                    instance_ptr as *mut std::ffi::c_void,
+                    sys::get_library(),
+                    instance_ptr,
                     &binding_data_callbacks,
                 );
 
@@ -111,7 +108,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
             sys::get_library(),
             class_name.c_str(),
             parent_class_name.c_str(),
-            &creation_info as *const _,
+            std::ptr::addr_of!(creation_info),
         );
     }
 
@@ -134,11 +131,4 @@ impl ClassName {
     pub fn c_str(&self) -> *const std::os::raw::c_char {
         self.backing.as_ptr() as *const _
     }
-}
-
-#[macro_export]
-macro_rules! c_str {
-    ($str:literal) => {
-        (concat!($str, "\0")).as_ptr() as *const std::os::raw::c_char
-    };
 }

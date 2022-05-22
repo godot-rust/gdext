@@ -1,4 +1,5 @@
 use gdext_builtin::{gdext_init, GodotString, InitLevel, Variant, Vector2, Vector3};
+use std::str::FromStr;
 
 use gdext_class::api::Node3D;
 use gdext_class::*;
@@ -147,6 +148,13 @@ impl RustTest {
 
         let res = inner.get_position();
         println!("  get_position() == {res}");
+
+        let string = GodotString::from_str("hello string").unwrap();
+        let copy = string.clone();
+        let back = copy.to_string();
+
+        println!("string={}, copy={}, back={}", string, copy, back);
+
         res
     }
 
