@@ -6,6 +6,7 @@ members = [
     "gdext-class",
 
     # test project
+    "itest/rust",
     "test-project/native"
 ]
 

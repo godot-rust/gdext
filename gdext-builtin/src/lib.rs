@@ -105,7 +105,7 @@ pub static mut INIT_OPTIONS: Option<InitOptions> = None;
 macro_rules! gdext_init {
     ($name:ident, $f:expr) => {
         #[no_mangle]
-        unsafe extern "C" fn gdext_rust_test(
+        unsafe extern "C" fn $name(
             interface: *const ::gdext_sys::GDNativeInterface,
             library: ::gdext_sys::GDNativeExtensionClassLibraryPtr,
             init: *mut ::gdext_sys::GDNativeInitialization,

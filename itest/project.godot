@@ -11,5 +11,5 @@ config_version=5
 [application]
 
 config/name="IntegrationTests"
-config/icon="res://icon.png"
+run/main_scene="res://TestRunner.tscn"
 config/features=PackedStringArray("4.0", "Vulkan Clustered")

@@ -1,0 +1,15 @@
+[package]
+name = "itest"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[features]
+default = []
+
+[dependencies]
+gdext-sys = { path = "../../gdext-sys" }
+gdext-builtin = { path = "../../gdext-builtin" }
+gdext-class = { path = "../../gdext-class" }
