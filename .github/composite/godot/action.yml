@@ -2,6 +2,14 @@ name: godot
 description: "Run Godot integration tests"
 
 inputs:
+  artifact_name:
+    required: true
+    description: "Name of the compiled Godot artifact to download"
+
+  github_pat:
+    required: true
+    description: "GitHub PAT (personal access token) to download artifacts from other repos"
+
   rust_toolchain:
     required: false
     default: 'stable'
@@ -24,22 +32,25 @@ runs:
       with:
         path: ${{ runner.temp }}/godot_bin
         #key: godot-${{ runner.os }}-v${{ inputs.godot_ver }}
+        key: ${{ inputs.artifact_name }}
 
     - name: "Download Godot artifact (if not cached)"
+      if: steps.cache-godot.outputs.cache-hit != 'true'
       # https://github.com/dawidd6/action-download-artifact
       uses: dawidd6/action-download-artifact@v2
       with:
         # Downloads and unzips the artifact with {name} of the latest run of specified {workflow}
-        github_token: ${{ secrets.ARTIFACT_DOWNLOADER_PAT }}
+        path: ${{ runner.temp }}/godot_bin
+        github_token: ${{ inputs.github_pat }}
         repo: Bromeon/godot-nightly
         branch: master
         workflow: compile-godot.yml
         workflow_conclusion: success
-        name: godot-linux
+        name: ${{ inputs.artifact_name }}
 
     - name: "Inspect Godot version"
       run: |
-        echo "GODOT_BIN=./godot.linuxbsd.opt.debug.64" >> $GITHUB_ENV
+        echo "GODOT_BIN=${{ runner.temp }}/godot_bin/godot.linuxbsd.opt.debug.64" >> $GITHUB_ENV
         godotVer=$($GODOT_BIN --version || true)
         gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
         echo "### Godot Integration tests " >> $GITHUB_STEP_SUMMARY

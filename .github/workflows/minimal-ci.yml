@@ -27,7 +27,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - run: pwd
       - name: "Run Godot integration test"
         uses: ./.github/composite/godot
-        #with:
+        with:
+          artifact_name: godot-linux
+          github_pat: ${{ secrets.ARTIFACT_DOWNLOADER_PAT }}
           #godot_ver: ${{ matrix.godot }}
