@@ -8,16 +8,6 @@
 
 config_version=5
 
-_global_script_classes=[{
-"base": "RefCounted",
-"class": &"GdClass",
-"language": &"GDScript",
-"path": "res://GdClass.gd"
-}]
-_global_script_class_icons={
-"GdClass": ""
-}
-
 [application]
 
 config/name="gdext-rust-test"
@@ -28,3 +18,13 @@ config/features=PackedStringArray("4.0")
 [rendering]
 
 environment/defaults/default_environment="res://default_env.tres"
+
+_global_script_classes=[{
+"base": "RefCounted",
+"class": &"GdClass",
+"language": &"GDScript",
+"path": "res://GdClass.gd"
+}]
+_global_script_class_icons={
+"GdClass": ""
+}
