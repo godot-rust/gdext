@@ -26,16 +26,16 @@ runs:
   steps:
     - uses: actions/checkout@v2
 
-    - name: "Check cache for installed Godot version"
-      id: "cache-godot"
-      uses: actions/cache@v2
-      with:
-        path: ${{ runner.temp }}/godot_bin
-        #key: godot-${{ runner.os }}-v${{ inputs.godot_ver }}
-        key: ${{ inputs.artifact_name }}
+#    - name: "Check cache for installed Godot version"
+#      id: "cache-godot"
+#      uses: actions/cache@v2
+#      with:
+#        path: ${{ runner.temp }}/godot_bin
+#        #key: godot-${{ runner.os }}-v${{ inputs.godot_ver }}
+#        key: ${{ inputs.artifact_name }}
 
-    - name: "Download Godot artifact (if not cached)"
-      if: steps.cache-godot.outputs.cache-hit != 'true'
+    - name: "Download Godot artifact"
+#      if: steps.cache-godot.outputs.cache-hit != 'true'
       # https://github.com/dawidd6/action-download-artifact
       uses: dawidd6/action-download-artifact@v2
       with:
@@ -47,15 +47,27 @@ runs:
         workflow: compile-godot.yml
         workflow_conclusion: success
         name: ${{ inputs.artifact_name }}
+        # Search for the last workflow run, which stored an artifact named as in `name` input
+        search_artifacts: true
+
+    - name: "Store variable to Godot binary"
+      run: |
+        echo "GODOT_BIN=${{ runner.temp }}/godot_bin/godot.linuxbsd.tools.64" >> $GITHUB_ENV
+      shell: bash
 
     - name: "Inspect Godot version"
       run: |
-        echo "GODOT_BIN=${{ runner.temp }}/godot_bin/godot.linuxbsd.opt.debug.64" >> $GITHUB_ENV
+        chmod +x $GODOT_BIN
         godotVer=$($GODOT_BIN --version || true)
         gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
         echo "### Godot Integration tests " >> $GITHUB_STEP_SUMMARY
         echo "Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)." >> $GITHUB_STEP_SUMMARY
       shell: bash
+
+    - name: "Install Rust"
+      uses: ./.github/composite/rust
+      with:
+        rust: ${{ inputs.rust_toolchain }}
 
     - name: "Build godot-rust"
       run: |
