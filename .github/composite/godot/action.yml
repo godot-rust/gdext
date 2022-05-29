@@ -1,0 +1,58 @@
+name: godot
+description: "Run Godot integration tests"
+
+inputs:
+  rust_toolchain:
+    required: false
+    default: 'stable'
+    description: "Rust toolchain specifier (e.g. 'nightly')"
+
+  rust_extra_args:
+    required: false
+    default: ''
+    description: "Extra command line arguments for 'cargo build', e.g. features"
+
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v2
+
+    - name: "Check cache for installed Godot version"
+      id: "cache-godot"
+      uses: actions/cache@v2
+      with:
+        path: ${{ runner.temp }}/godot_bin
+        #key: godot-${{ runner.os }}-v${{ inputs.godot_ver }}
+
+    - name: "Download Godot artifact (if not cached)"
+      # https://github.com/dawidd6/action-download-artifact
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        # Downloads and unzips the artifact with {name} of the latest run of specified {workflow}
+        github_token: ${{ secrets.ARTIFACT_DOWNLOADER_PAT }}
+        repo: Bromeon/godot-nightly
+        branch: master
+        workflow: compile-godot.yml
+        workflow_conclusion: success
+        name: godot-linux
+
+    - name: "Inspect Godot version"
+      run: |
+        echo "GODOT_BIN=./godot.linuxbsd.opt.debug.64" >> $GITHUB_ENV
+        godotVer=$($GODOT_BIN --version || true)
+        gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
+        echo "### Godot Integration tests " >> $GITHUB_STEP_SUMMARY
+        echo "Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)." >> $GITHUB_STEP_SUMMARY
+      shell: bash
+
+    - name: "Build godot-rust"
+      run: |
+        cargo build -p itest ${{ inputs.rust_extra_args }}
+      shell: bash
+
+    - name: "Run Godot integration tests"
+      run: |
+        cd itest
+        $GODOT_BIN
+      shell: bash
