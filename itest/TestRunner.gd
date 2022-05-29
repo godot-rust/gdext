@@ -1,9 +1,17 @@
 extends Node
 
-
 func _ready():
-	pass # Replace with function body.
+	var tests := IntegrationTests.new()
+	var status := tests.run()
+	
+	print()
+	var exit_code: bool
+	if status:
+		print(" All tests PASSED.")
+		exit_code = 0
+	else:
+		print(" Tests FAILED.")
+		exit_code = 1
 
-
-func _process(delta):
-	pass
+	print(" -- exiting.")
+	get_tree().quit(exit_code)

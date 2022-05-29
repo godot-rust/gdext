@@ -12,4 +12,4 @@ default = []
 [dependencies]
 gdext-sys = { path = "../../gdext-sys" }
 gdext-builtin = { path = "../../gdext-builtin" }
-gdext-class = { path = "../../gdext-class" }
+gdext-class = { path = "../../gdext-class", features = ["trace"] }

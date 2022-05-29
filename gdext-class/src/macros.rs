@@ -41,9 +41,11 @@ macro_rules! gdext_wrap_method_inner {
             $(, #[opt] $opt_pname:ident : $opt_pty:ty)*
         ) -> $retty:ty
     ) => {
+        use gdext_sys as sys;
+        use gdext_builtin::Variant;
+
         unsafe {
-            use ::gdext_sys as sys;
-            const NUM_ARGS: usize = gdext_wrap_method_parameter_count!($($pname,)*);
+            const NUM_ARGS: usize = $crate::gdext_wrap_method_parameter_count!($($pname,)*);
 
             let method_info = sys::GDNativeExtensionClassMethodInfo {
                 name: concat!(stringify!($method_name), "\0").as_ptr() as *const i8,
@@ -106,7 +108,7 @@ macro_rules! gdext_wrap_method_inner {
                 method_flags:
                     sys::GDNativeExtensionClassMethodFlags_GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as _,
                 argument_count: NUM_ARGS as _,
-                has_return_value: gdext_wrap_method_has_return_value!($retty) as u8,
+                has_return_value: $crate::gdext_wrap_method_has_return_value!($retty) as u8,
                 get_argument_type_func: Some({
                     extern "C" fn get_type(
                         _method_data: *mut std::ffi::c_void,
@@ -163,7 +165,7 @@ macro_rules! gdext_wrap_method_inner {
 
             let name = std::ffi::CStr::from_bytes_with_nul_unchecked(concat!(stringify!($type_name), "\0").as_bytes());
 
-            interface_fn!(classdb_register_extension_class_method)(
+            sys::interface_fn!(classdb_register_extension_class_method)(
                 sys::get_library(),
                 name.as_ptr(),
                 std::ptr::addr_of!(method_info),
@@ -267,7 +269,10 @@ macro_rules! gdext_virtual_method_inner {
             $(,$pname:ident : $pty:ty)*
         ) -> $retty:ty
     ) => {
+
         Some({
+            use gdext_sys as sys;
+
             unsafe extern "C" fn call(
                 instance: sys::GDExtensionClassInstancePtr,
                 args: *const sys::GDNativeTypePtr,

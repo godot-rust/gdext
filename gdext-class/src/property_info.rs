@@ -25,6 +25,12 @@ impl PropertyInfoBuilder for () {
     }
 }
 
+impl PropertyInfoBuilder for bool {
+    fn variant_type() -> gdext_sys::GDNativeVariantType {
+        gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_BOOL
+    }
+}
+
 impl PropertyInfoBuilder for GodotString {
     fn variant_type() -> gdext_sys::GDNativeVariantType {
         gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING
