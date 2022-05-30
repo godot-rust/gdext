@@ -124,11 +124,30 @@ mod conversions {
     impl_variant_int_conversions!(u8);
     impl_variant_int_conversions!(u16);
     impl_variant_int_conversions!(u32);
-    impl_variant_int_conversions!(u64);
+    // u64 only TryFrom
 
     impl_variant_int_conversions!(i8);
     impl_variant_int_conversions!(i16);
     impl_variant_int_conversions!(i32);
+
+    impl TryFrom<u64> for Variant {
+        type Error = std::num::TryFromIntError;
+
+        fn try_from(value: u64) -> Result<Self, Self::Error> {
+            i64::try_from(value).map(|i| Variant::from(i))
+        }
+    }
+
+    impl TryFrom<&Variant> for u64 {
+        type Error = std::num::TryFromIntError;
+
+        fn try_from(variant: &Variant) -> Result<Self, Self::Error> {
+            match i64::try_from(variant) {
+                Ok(i) => u64::try_from(i),
+                Err(_) => unreachable!(),
+            }
+        }
+    }
 
     // Strings by ref
     impl From<&GodotString> for Variant {
