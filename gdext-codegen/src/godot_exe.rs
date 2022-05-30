@@ -55,11 +55,13 @@ fn read_godot_version(godot_bin: &Path) -> String {
         ));
 
     let output = String::from_utf8(output.stdout).expect("convert Godot version to UTF-8");
+    println!("Godot version: {}", output);
 
     match parse_godot_version(&output) {
         Ok(parsed) => {
-            assert!(
-                parsed.major == 4,
+            assert_eq!(
+                parsed.major,
+                4,
                 "Only Godot versions >= 4.0 are supported; found version {}.",
                 output.trim()
             );
@@ -80,7 +82,7 @@ fn dump_extension_api(godot_bin: &Path, out_file: &Path) {
 
     Command::new(godot_bin)
         .current_dir(cwd)
-        .arg("--no-window")
+        .arg("--headless")
         .arg("--dump-extension-api")
         .arg(cwd)
         .output()
@@ -88,6 +90,8 @@ fn dump_extension_api(godot_bin: &Path, out_file: &Path) {
             "failed to invoke Godot executable '{}'",
             godot_bin.display()
         ));
+
+    println!("Generated {}/extension_api.json.", cwd.display());
 }
 
 fn locate_godot_binary() -> PathBuf {
