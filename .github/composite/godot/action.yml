@@ -77,5 +77,5 @@ runs:
     - name: "Run Godot integration tests"
       run: |
         cd itest
-        $GODOT_BIN
+        $GODOT_BIN --headless
       shell: bash
