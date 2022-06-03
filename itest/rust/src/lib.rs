@@ -3,12 +3,13 @@ use gdext_class::{
     api, gdext_virtual_method_body, gdext_wrap_method, out, GodotClass, GodotExtensionClass,
     GodotExtensionClassMethods, GodotMethods,
 };
+mod string_test;
 mod variant_test;
 
 fn run_tests() -> bool {
     let mut ok = true;
     ok &= variant_test::run();
-
+    ok &= string_test::run();
     ok
 }
 // ----------------------------------------------------------------------------------------------------------------------------------------------
