@@ -1,16 +1,47 @@
 use crate::godot_itest;
 use gdext_builtin::{GodotString, Variant};
+use std::fmt::Debug;
 
 pub fn run() -> bool {
     let mut ok = true;
+    ok &= variant_conversions();
     ok &= variant_display();
     ok
 }
 
-// fn variant_conversions() {
-//     (Variant::from(18446744073709551615u64), "18446744073709551615"),
-//
-// }
+godot_itest! { variant_conversions {
+    roundtrip(false);
+    roundtrip(true);
+    roundtrip(GodotString::from("some string"));
+
+    // unsigned
+    roundtrip(0u8);
+    roundtrip(255u8);
+    roundtrip(0u16);
+    roundtrip(65535u16);
+    roundtrip(0u32);
+    roundtrip(4294967295u32);
+
+    // signed
+    roundtrip(127i8);
+    roundtrip(-128i8);
+    roundtrip(32767i16);
+    roundtrip(-32768i16);
+    roundtrip(2147483647i32);
+    roundtrip(-2147483648i32);
+    roundtrip(9223372036854775807i64);
+}}
+
+fn roundtrip<T>(value: T)
+where
+    for<'a> T: From<&'a Variant> + Debug + PartialEq + Clone, // TODO use From<Variant>
+    Variant: From<T>,
+{
+    let variant = Variant::from(value.clone());
+    let back = T::from(&variant);
+
+    assert_eq!(value, back);
+}
 
 godot_itest! { variant_display {
     let cases = [
@@ -34,6 +65,8 @@ godot_itest! { variant_display {
         (Variant::from(-32768i16), "-32768"),
         (Variant::from(2147483647i32), "2147483647"),
         (Variant::from(-2147483648i32), "-2147483648"),
+        (Variant::from(9223372036854775807i64), "9223372036854775807"),
+        (Variant::from(-9223372036854775808i64), "-9223372036854775808"),
     ];
 
     for (variant, string) in cases {

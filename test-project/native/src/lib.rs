@@ -5,7 +5,6 @@ use gdext_class::api::Node3D;
 use gdext_class::*;
 
 use gdext_sys as sys;
-use sys::interface_fn;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // RustTest
@@ -68,7 +67,7 @@ impl RustTest {
         Self { time: 0.0, base }
     }
 
-    fn test_method(&mut self, some_int: u64, some_string: GodotString) -> GodotString {
+    fn test_method(&mut self, some_int: i64, some_string: GodotString) -> GodotString {
         //let id = Obj::emplace(self).instance_id();
 
         let some_string = some_string.clone();
@@ -114,8 +113,8 @@ impl RustTest {
         r
     }
 
-    fn find_obj(&self, instance_id: u64) -> Obj<Entity> {
-        let obj = Obj::from_instance_id(instance_id).expect("Obj is null");
+    fn find_obj(&self, instance_id: i64) -> Obj<Entity> {
+        let obj = Obj::from_instance_id(instance_id as u64).expect("Obj is null");
         let inner = obj.inner();
         out!(
             "[RustTest] find_obj():\n  id={},\n  obj={:?}",
@@ -209,11 +208,11 @@ impl GodotExtensionClassMethods for RustTest {
         );
 
         gdext_wrap_method!(RustTest,
-            fn find_obj(&self, instance_id: u64) -> Obj<Entity>
+            fn find_obj(&self, instance_id: i64) -> Obj<Entity>
         );
 
         gdext_wrap_method!(RustTest,
-            fn test_method(&mut self, some_int: u64, some_string: GodotString) -> GodotString
+            fn test_method(&mut self, some_int: i64, some_string: GodotString) -> GodotString
         );
 
         gdext_wrap_method!(RustTest,

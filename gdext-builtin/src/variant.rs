@@ -167,4 +167,14 @@ mod conversions {
             Self::nil()
         }
     }
+    // not possible due to orphan rule
+    // impl<T> From<Variant> for T
+    // where
+    //     T: From<&Variant>,
+    // {
+    //     fn from(variant: Variant) -> Self {
+    //         // same as &Variant, but consume
+    //         T::from(&variant)
+    //     }
+    // }
 }

@@ -41,10 +41,10 @@ macro_rules! gdext_wrap_method_inner {
             $(, #[opt] $opt_pname:ident : $opt_pty:ty)*
         ) -> $retty:ty
     ) => {
-        use gdext_sys as sys;
-        use gdext_builtin::Variant;
-
         unsafe {
+            use gdext_sys as sys;
+            use gdext_builtin::Variant;
+
             const NUM_ARGS: usize = $crate::gdext_wrap_method_parameter_count!($($pname,)*);
 
             let method_info = sys::GDNativeExtensionClassMethodInfo {

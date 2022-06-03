@@ -1,6 +1,10 @@
 use std::{convert::Infallible, fmt, str::FromStr};
 
 use gdext_sys as sys;
+use gdext_sys::{
+    GDNativeVariantOperator_GDNATIVE_VARIANT_OP_EQUAL,
+    GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
+};
 use sys::types::OpaqueString;
 use sys::{impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
 
@@ -56,13 +60,6 @@ impl From<&str> for GodotString {
     }
 }
 
-impl fmt::Display for GodotString {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = String::from(self);
-        f.write_str(s.as_str())
-    }
-}
-
 impl From<&GodotString> for String {
     fn from(string: &GodotString) -> Self {
         unsafe {
@@ -98,6 +95,37 @@ impl FromStr for GodotString {
         };
 
         Ok(result)
+    }
+}
+
+impl fmt::Display for GodotString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = String::from(self);
+        f.write_str(s.as_str())
+    }
+}
+
+impl fmt::Debug for GodotString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = String::from(self);
+        write!(f, "GodotString(\"{s}\")")
+    }
+}
+
+impl PartialEq for GodotString {
+    fn eq(&self, other: &Self) -> bool {
+        unsafe {
+            let comparator = interface_fn!(variant_get_ptr_operator_evaluator)(
+                GDNativeVariantOperator_GDNATIVE_VARIANT_OP_EQUAL,
+                GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
+                GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
+            )
+            .unwrap();
+
+            let mut result: bool = false;
+            comparator(self.sys(), other.sys(), result.sys_mut());
+            result
+        }
     }
 }
 
