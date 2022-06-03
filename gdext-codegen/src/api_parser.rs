@@ -33,6 +33,14 @@ pub struct BuiltinClass {
     pub name: String,
     pub constructors: Vec<Constructor>,
     pub has_destructor: bool,
+    pub operators: Vec<Operator>,
+}
+
+#[derive(Deserialize)]
+pub struct Operator {
+    pub name: String,
+    pub right_type: Option<String>, // null if unary
+    pub return_type: String,
 }
 
 #[derive(Deserialize)]

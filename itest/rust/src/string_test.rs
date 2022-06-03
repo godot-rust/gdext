@@ -1,5 +1,5 @@
-use gdext_builtin::GodotString;
 use crate::godot_itest;
+use gdext_builtin::GodotString;
 
 pub fn run() -> bool {
     let mut ok = true;
@@ -7,7 +7,7 @@ pub fn run() -> bool {
     ok
 }
 
- // TODO use tests from godot-rust/gdnative here
+// TODO use tests from godot-rust/gdnative here
 godot_itest! { string_operators {
     let string = GodotString::from("some string");
     let second = GodotString::from("some string");

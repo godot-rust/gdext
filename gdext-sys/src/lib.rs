@@ -11,15 +11,15 @@ include!(concat!(env!("OUT_DIR"), "/gdnative_interface.rs"));
 
 mod opaque;
 mod gen {
-    pub(crate) mod extensions;
+    pub(crate) mod central;
 }
 mod godot_ffi;
 mod ptrcall;
 
-use gen::extensions::InterfaceCache;
+use gen::central::InterfaceCache;
 
 //pub use opaque::Opaque;
-pub use gen::extensions::types;
+pub use gen::central::types;
 pub use godot_ffi::GodotFfi;
 pub use ptrcall::PtrCall;
 

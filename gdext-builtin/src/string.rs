@@ -1,10 +1,6 @@
 use std::{convert::Infallible, fmt, str::FromStr};
 
 use gdext_sys as sys;
-use gdext_sys::{
-    GDNativeVariantOperator_GDNATIVE_VARIANT_OP_EQUAL,
-    GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
-};
 use sys::types::OpaqueString;
 use sys::{impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
 
@@ -115,15 +111,10 @@ impl fmt::Debug for GodotString {
 impl PartialEq for GodotString {
     fn eq(&self, other: &Self) -> bool {
         unsafe {
-            let comparator = interface_fn!(variant_get_ptr_operator_evaluator)(
-                GDNativeVariantOperator_GDNATIVE_VARIANT_OP_EQUAL,
-                GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
-                GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING,
-            )
-            .unwrap();
+            let operator = sys::get_cache().string_operator_equal;
 
             let mut result: bool = false;
-            comparator(self.sys(), other.sys(), result.sys_mut());
+            operator(self.sys(), other.sys(), result.sys_mut());
             result
         }
     }

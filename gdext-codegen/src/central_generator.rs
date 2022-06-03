@@ -70,8 +70,8 @@ pub fn generate_central_file(
     let string = tokens.to_string();
 
     let _ = std::fs::create_dir(gen_path);
-    let out_path = gen_path.join("extensions.rs");
-    std::fs::write(&out_path, string).expect("failed to write extension file");
+    let out_path = gen_path.join("central.rs");
+    std::fs::write(&out_path, string).expect("failed to write central extension file");
 
     out_files.push(out_path);
 }
@@ -103,6 +103,7 @@ fn load_extension_api(model: &ExtensionApi, build_config: &str) -> Tokens {
 
     let class_map = class_map;
 
+    // Find enum with variant types, and generate mapping code
     for enum_ in &model.global_enums {
         if &enum_.name == "Variant.Type" {
             for ty in &enum_.values {
@@ -118,18 +119,23 @@ fn load_extension_api(model: &ExtensionApi, build_config: &str) -> Tokens {
                 // Lowercase without underscore, to map SHOUTY_CASE to shoutycase
                 let normalized = shout_case.to_lowercase().replace("_", "");
 
+                // TODO cut down on the number of cached functions generated
+                // e.g. there's no point in providing operator< for int
                 let pascal_case: String;
                 let has_destructor: bool;
                 let constructors: Option<&Vec<Constructor>>;
+                let operators: Option<&Vec<Operator>>;
                 if let Some(class) = class_map.get(&normalized) {
                     pascal_case = class.name.clone();
                     has_destructor = class.has_destructor;
                     constructors = Some(&class.constructors);
+                    operators = Some(&class.operators);
                 } else {
                     assert_eq!(normalized, "object");
                     pascal_case = "Object".to_string();
                     has_destructor = false;
                     constructors = None;
+                    operators = None;
                 }
 
                 let type_names = TypeNames {
@@ -145,7 +151,8 @@ fn load_extension_api(model: &ExtensionApi, build_config: &str) -> Tokens {
                 let value = ty.value;
                 variant_enumerators.push(make_enumerator(&type_names, value));
 
-                let (decl, init) = make_variant_fns(&type_names, has_destructor, constructors);
+                let (decl, init) =
+                    make_variant_fns(&type_names, has_destructor, constructors, operators);
 
                 variant_fn_decls.push(decl);
                 variant_fn_inits.push(init);
@@ -187,21 +194,28 @@ fn make_variant_fns(
     type_names: &TypeNames,
     has_destructor: bool,
     constructors: Option<&Vec<Constructor>>,
+    operators: Option<&Vec<Operator>>,
 ) -> (TokenStream, TokenStream) {
-    let (destroy_decls, destroy_inits) = make_destroy_fns(&type_names, has_destructor);
-
     let (construct_decls, construct_inits) = make_construct_fns(&type_names, constructors);
+    let (destroy_decls, destroy_inits) = make_destroy_fns(&type_names, has_destructor);
+    let (op_eq_decls, op_eq_inits) = make_operator_fns(&type_names, operators, "==", "EQUAL");
+    let (op_lt_decls, op_lt_inits) = make_operator_fns(&type_names, operators, "<", "LESS");
 
     let to_variant = format_ident!("{}_to_variant", type_names.snake_case);
     let from_variant = format_ident!("{}_from_variant", type_names.snake_case);
+
     let to_variant_error = format_load_error(&to_variant);
     let from_variant_error = format_load_error(&from_variant);
+
     let variant_type = &type_names.sys_variant_type;
+    let variant_type = quote! { crate:: #variant_type };
 
     // Field declaration
     let decl = quote! {
         pub #to_variant: unsafe extern "C" fn(GDNativeVariantPtr, GDNativeTypePtr),
         pub #from_variant: unsafe extern "C" fn(GDNativeTypePtr, GDNativeVariantPtr),
+        #op_eq_decls
+        #op_lt_decls
         #construct_decls
         #destroy_decls
     };
@@ -210,12 +224,14 @@ fn make_variant_fns(
     let init = quote! {
         #to_variant: {
             let ctor_fn = interface.get_variant_from_type_constructor.unwrap();
-            ctor_fn(crate:: #variant_type).expect(#to_variant_error)
+            ctor_fn(#variant_type).expect(#to_variant_error)
         },
         #from_variant:  {
             let ctor_fn = interface.get_variant_to_type_constructor.unwrap();
-            ctor_fn(crate:: #variant_type).expect(#from_variant_error)
+            ctor_fn(#variant_type).expect(#from_variant_error)
         },
+        #op_eq_inits
+        #op_lt_inits
         #construct_inits
         #destroy_inits
     };
@@ -300,6 +316,46 @@ fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStrea
         },
     };
     (decls, inits)
+}
+
+fn make_operator_fns(
+    type_names: &TypeNames,
+    operators: Option<&Vec<Operator>>,
+    json_name: &str,
+    sys_name: &str,
+) -> (TokenStream, TokenStream) {
+    if operators.is_none() || !operators.unwrap().iter().any(|op| &op.name == json_name) {
+        return (TokenStream::new(), TokenStream::new());
+    }
+
+    let operator = format_ident!(
+        "{}_operator_{}",
+        type_names.snake_case,
+        sys_name.to_lowercase()
+    );
+    let error = format_load_error(&operator);
+
+    let variant_type = &type_names.sys_variant_type;
+    let variant_type = quote! { crate:: #variant_type };
+    let sys_ident = format_ident!("GDNativeVariantOperator_GDNATIVE_VARIANT_OP_{}", sys_name);
+
+    // Field declaration
+    let decl = quote! {
+        pub #operator: unsafe extern "C" fn(GDNativeTypePtr, GDNativeTypePtr, GDNativeTypePtr),
+    };
+
+    // Field initialization in new()
+    let init = quote! {
+        #operator: {
+            let op_finder = interface.variant_get_ptr_operator_evaluator.unwrap();
+            op_finder(
+                crate::#sys_ident,
+                #variant_type,
+                #variant_type,
+            ).expect(#error)
+        },
+    };
+    (decl, init)
 }
 
 fn format_load_error(ident: &Ident) -> String {
