@@ -168,11 +168,37 @@ mod scalars {
     use super::GodotFfi;
     use crate as sys;
 
-    impl GodotFfi for bool {
-        impl_ffi_as_value!();
+    macro_rules! impl_godot_ffi {
+        ($T:ty) => {
+            impl GodotFfi for $T {
+                impl_ffi_as_value!();
+            }
+        };
     }
 
-    impl GodotFfi for i64 {
-        impl_ffi_as_value!();
+    impl_godot_ffi!(bool);
+    impl_godot_ffi!(i64);
+    impl_godot_ffi!(i32); // FIXME remove
+    impl_godot_ffi!(f64);
+
+    impl GodotFfi for () {
+        type SysPointer = sys::GDNativeTypePtr;
+
+        unsafe fn from_sys(_ptr: Self::SysPointer) -> Self {
+            // Do nothing
+        }
+
+        unsafe fn from_sys_init(_init: impl FnOnce(Self::SysPointer)) -> Self {
+            // Do nothing
+        }
+
+        fn sys(&self) -> Self::SysPointer {
+            // ZST dummy pointer
+            self as *const _ as Self::SysPointer
+        }
+
+        unsafe fn write_sys(&self, _dst: Self::SysPointer) {
+            // Do nothing
+        }
     }
 }

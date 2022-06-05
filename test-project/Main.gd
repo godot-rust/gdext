@@ -21,7 +21,7 @@ func _ready():
 #	var msg := rust_test.test_method(12, "hello from GDScript")
 #	print(msg)
 
-	var node = Node3D.new()
+	var node: Node3D = Node3D.new()
 	#print("Correct to_global(): ", node.to_global(Vector3(2.0, 3.0, 4.0)))
 	print("  instance_id (gd): ", node.get_instance_id())
 

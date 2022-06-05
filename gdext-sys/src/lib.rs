@@ -14,14 +14,12 @@ mod gen {
     pub(crate) mod central;
 }
 mod godot_ffi;
-mod ptrcall;
 
 use gen::central::InterfaceCache;
 
 //pub use opaque::Opaque;
 pub use gen::central::types;
 pub use godot_ffi::GodotFfi;
-pub use ptrcall::PtrCall;
 
 #[allow(non_camel_case_types)]
 #[cfg(not(feature = "real_is_double"))]

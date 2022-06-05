@@ -59,6 +59,7 @@ macro_rules! gdext_wrap_method_inner {
                         ret: sys::GDNativeVariantPtr,
                         err: *mut sys::GDNativeCallError,
                     ) {
+                        println!("varcall: {}", stringify!($method_name));
                         let storage = ::gdext_class::private::as_storage::<$type_name>(instance);
                         let instance = storage.get_mut();
 
@@ -86,13 +87,14 @@ macro_rules! gdext_wrap_method_inner {
                         args: *const sys::GDNativeTypePtr,
                         ret: sys::GDNativeTypePtr,
                     ) {
+                        println!("ptrcall: {}", stringify!($method_name));
                         let storage = ::gdext_class::private::as_storage::<$type_name>(instance);
                         let instance = storage.get_mut();
 
                         let mut idx = 0;
 
                         $(
-                            let $pname = <$pty as sys::PtrCall>::ptrcall_read(*args.offset(idx));
+                            let $pname = <$pty as sys::GodotFfi>::from_sys(*args.offset(idx));
                             idx += 1;
                         )*
 
@@ -100,7 +102,7 @@ macro_rules! gdext_wrap_method_inner {
                             $pname,
                         )*);
 
-                        <$retty as sys::PtrCall>::ptrcall_write(&ret_val, ret);
+                        <$retty as sys::GodotFfi>::write_sys(&ret_val, ret);
                     }
 
                     call
@@ -282,14 +284,14 @@ macro_rules! gdext_virtual_method_inner {
                 let mut idx = 0;
 
                 $(
-                    let $pname = <$pty as sys::PtrCall>::ptrcall_read(*args.offset(idx));
+                    let $pname = <$pty as sys::GodotFfi>::from_sys(*args.offset(idx));
                     idx += 1;
                 )*
 
                 let ret_val = instance.$method_name($(
                     $pname,
                 )*);
-                <$retty as sys::PtrCall>::ptrcall_write(&ret_val, ret);
+                <$retty as sys::GodotFfi>::write_sys(&ret_val, ret);
             }
             call
         })

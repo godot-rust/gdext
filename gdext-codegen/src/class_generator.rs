@@ -228,7 +228,7 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
             });
         } else {
             call_exprs.push(quote! {
-                <#param_ty as sys::PtrCall>::ptrcall_write_return(&#param_name)
+                <#param_ty as sys::GodotFfi>::sys(&#param_name)
             });
         }
     }
@@ -271,7 +271,7 @@ fn make_return(return_value: &Option<MethodReturn>, ctx: &Context) -> (TokenStre
 
             return_decl = quote! { -> #return_ty };
             call = quote! {
-                <#return_ty as sys::PtrCall>::ptrcall_read_init(|ret_ptr| {
+                <#return_ty as sys::GodotFfi>::from_sys_init(|ret_ptr| {
                     call_fn(method_bind, self.object_ptr, args_ptr, ret_ptr);
                 })
             };
@@ -320,10 +320,13 @@ fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
         };
     }
 
+    // Note: GodotFfi must be implemented for each of these types
+    // Do not implement for non-canonical types which aren't used in Godot FFI APIs (like i16)
+    // TODO double vs float
     let ty = match ty {
-        "int" => "i32",
-        "float" => "f32",          // TODO double vs float
-        "String" => "GodotString", // TODO double vs float
+        "int" => "i64",
+        "float" => "f64",
+        "String" => "GodotString",
         other => other,
     };
 
