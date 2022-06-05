@@ -108,15 +108,10 @@ impl fmt::Debug for GodotString {
     }
 }
 
-impl PartialEq for GodotString {
-    fn eq(&self, other: &Self) -> bool {
-        unsafe {
-            let operator = sys::get_cache().string_operator_equal;
-
-            let mut result: bool = false;
-            operator(self.sys(), other.sys(), result.sys_mut());
-            result
-        }
+impl_traits_as_sys! {
+    for GodotString {
+        Eq => string_operator_equal;
+        Ord => string_operator_less;
     }
 }
 
