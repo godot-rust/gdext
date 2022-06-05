@@ -37,8 +37,8 @@ impl Clone for GodotString {
         unsafe {
             Self::from_sys_init(|opaque_ptr| {
                 let ctor = sys::get_cache().string_construct_copy;
-                let sys = self.sys();
-                ctor(opaque_ptr, std::ptr::addr_of!(sys));
+                let args = [self.sys()];
+                ctor(opaque_ptr, args.as_ptr());
             })
         }
     }

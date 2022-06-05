@@ -6,9 +6,10 @@ use gdext_builtin::Variant;
 use gdext_sys as sys;
 
 use sys::types::OpaqueObject;
-use sys::{impl_ffi_as_opaque_pointer, interface_fn, static_assert_eq_size, GodotFfi};
+use sys::{
+    impl_ffi_as_opaque, impl_ffi_as_opaque_pointer, interface_fn, static_assert_eq_size, GodotFfi,
+};
 
-use gdext_sys::impl_ffi_as_opaque;
 use std::marker::PhantomData;
 
 // TODO which bounds to add on struct itself?

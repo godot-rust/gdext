@@ -1,14 +1,16 @@
 use crate::godot_itest;
 use gdext_builtin::GodotString;
 
+// TODO use tests from godot-rust/gdnative
+
 pub fn run() -> bool {
     let mut ok = true;
     ok &= string_equality();
     ok &= string_ordering();
+    ok &= string_clone();
     ok
 }
 
-// TODO use tests from godot-rust/gdnative here
 godot_itest! { string_equality {
     let string = GodotString::from("some string");
     let second = GodotString::from("some string");
@@ -26,4 +28,11 @@ godot_itest! { string_ordering {
     assert!(low <= high);
     assert!(high > low);
     assert!(high >= low);
+}}
+
+godot_itest! { string_clone {
+    let first = GodotString::from("some string");
+    let cloned = first.clone();
+
+    assert_eq!(first, cloned);
 }}
