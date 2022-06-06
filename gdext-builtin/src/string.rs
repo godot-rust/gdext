@@ -24,6 +24,17 @@ impl GodotString {
     }
 
     impl_ffi_as_opaque_pointer!(sys::GDNativeStringPtr; from_string_sys, from_string_sys_init, string_sys, write_string_sys);
+
+    #[doc(hidden)]
+    pub fn leak_string_sys(self) -> sys::GDNativeStringPtr {
+        let ptr = self.string_sys();
+        std::mem::forget(self);
+        ptr
+    }
+}
+
+impl GodotFfi for GodotString {
+    impl_ffi_as_opaque_pointer!();
 }
 
 impl Default for GodotString {
@@ -122,10 +133,6 @@ impl Drop for GodotString {
             destructor(self.sys_mut());
         }
     }
-}
-
-impl GodotFfi for GodotString {
-    impl_ffi_as_opaque_pointer!();
 }
 
 // While this is a nice optimisation for ptrcalls, it's not easily possible

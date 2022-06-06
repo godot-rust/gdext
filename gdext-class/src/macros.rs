@@ -135,9 +135,9 @@ macro_rules! gdext_wrap_method_inner {
                     ) {
                         // Return value is the first "argument"
                         let infos: [sys::GDNativePropertyInfo; NUM_ARGS + 1] = [
-                            <$retty as $crate::property_info::PropertyInfoBuilder>::property_info(std::ffi::CStr::from_bytes_with_nul_unchecked("\0".as_bytes())),
+                            <$retty as $crate::property_info::PropertyInfoBuilder>::property_info(""),
                             $(
-                                <$pty as $crate::property_info::PropertyInfoBuilder>::property_info(std::ffi::CStr::from_bytes_with_nul_unchecked(concat!(stringify!($pname), "\0").as_bytes())),
+                                <$pty as $crate::property_info::PropertyInfoBuilder>::property_info(stringify!($pname)),
                             )*
                         ];
 

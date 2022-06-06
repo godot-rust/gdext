@@ -1,21 +1,24 @@
-use std::ffi::CStr;
-
 use gdext_builtin::{GodotString, Vector2, Vector3};
+use gdext_sys as sys;
 
 pub trait PropertyInfoBuilder {
-    fn variant_type() -> gdext_sys::GDNativeVariantType;
-    fn property_info(name: &CStr) -> gdext_sys::GDNativePropertyInfo {
-        gdext_sys::GDNativePropertyInfo {
-            type_: Self::variant_type() as _,
-            name: name.as_ptr(),
-            class_name: std::ptr::null(),
+    fn variant_type() -> sys::GDNativeVariantType;
+
+    fn property_info(name: &str) -> sys::GDNativePropertyInfo {
+        let property_name = GodotString::from(name);
+
+        sys::GDNativePropertyInfo {
+            type_: Self::variant_type() as u32,
+            name: property_name.leak_string_sys(),
+            class_name: std::ptr::null_mut(),
             hint: 0,
-            hint_string: std::ptr::null(),
+            hint_string: std::ptr::null_mut(),
             usage: 7, // Default, TODO generate global enums
         }
     }
-    fn metadata() -> gdext_sys::GDNativeExtensionClassMethodArgumentMetadata {
-        gdext_sys::GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_NONE
+
+    fn metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
+        sys::GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_NONE
     }
 }
 
