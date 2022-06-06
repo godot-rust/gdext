@@ -114,7 +114,9 @@ impl RustTest {
     }
 
     fn find_obj(&self, instance_id: i64) -> Obj<Entity> {
-        let obj = Obj::from_instance_id(instance_id as u64).expect("Obj is null");
+        out!("[RustTest] find_obj()...");
+
+        let obj = Obj::<Entity>::from_instance_id(instance_id as u64).expect("Obj is null");
         let inner = obj.inner();
         out!(
             "[RustTest] find_obj():\n  id={},\n  obj={:?}",

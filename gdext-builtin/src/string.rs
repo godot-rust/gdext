@@ -12,9 +12,9 @@ pub struct GodotString {
 impl GodotString {
     pub fn new() -> Self {
         unsafe {
-            Self::from_sys_init(|opaque_ptr| {
+            Self::from_sys_init(|self_ptr| {
                 let ctor = sys::get_cache().string_construct_default;
-                ctor(opaque_ptr, std::ptr::null_mut());
+                ctor(self_ptr, std::ptr::null_mut());
             })
         }
     }
@@ -46,12 +46,18 @@ impl Default for GodotString {
 impl Clone for GodotString {
     fn clone(&self) -> Self {
         unsafe {
-            Self::from_sys_init(|opaque_ptr| {
+            Self::from_sys_init(|self_ptr| {
                 let ctor = sys::get_cache().string_construct_copy;
                 let args = [self.sys()];
-                ctor(opaque_ptr, args.as_ptr());
+                ctor(self_ptr, args.as_ptr());
             })
         }
+    }
+}
+
+impl From<&String> for GodotString {
+    fn from(s: &String) -> GodotString {
+        GodotString::from(s.as_str())
     }
 }
 

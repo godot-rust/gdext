@@ -315,20 +315,29 @@ fn make_construct_fns(
 fn make_extra_constructors(type_names: &TypeNames) -> (Vec<Ident>, Vec<i32>, Vec<String>) {
     // TODO instead of finding ctors by index, more robust would be to look up from JSON
     let one_vec = match type_names.pascal_case.as_str() {
+        "NodePath" => {
+            vec![("node_path_from_string", 2)]
+        }
         "StringName" => {
-            let ctor_name = ident("string_name_from_string");
-            let index = 2;
-            let error = format_load_error(&ctor_name);
-            vec![(ctor_name, index, error)]
+            vec![("string_name_from_string", 2)]
+        }
+        "String" => {
+            vec![
+                ("string_from_string_name", 2), //
+                ("string_from_node_path", 3),
+            ]
         }
         _ => vec![],
     };
 
     // unzip() for 3
     (
-        one_vec.iter().map(|(v, _, _)| v.clone()).collect(),
-        one_vec.iter().map(|(_, v, _)| v.clone()).collect(),
-        one_vec.into_iter().map(|(_, _, v)| v).collect(),
+        one_vec.iter().map(|(name, _)| ident(name)).collect(),
+        one_vec.iter().map(|(_, index)| *index).collect(),
+        one_vec
+            .iter()
+            .map(|(name, _)| format_load_error(name))
+            .collect(),
     )
 }
 
@@ -393,6 +402,9 @@ fn make_operator_fns(
     (decl, init)
 }
 
-fn format_load_error(ident: &Ident) -> String {
-    format!("failed to load GDExtension function `{}`", ident)
+fn format_load_error(ident: &impl std::fmt::Display) -> String {
+    format!(
+        "failed to load GDExtension function `{}`",
+        ident.to_string()
+    )
 }

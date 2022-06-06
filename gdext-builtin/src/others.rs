@@ -2,6 +2,7 @@
 // are required for codegen
 use crate::GodotString;
 use gdext_sys as sys;
+use gdext_sys::impl_ffi_as_opaque;
 use sys::{impl_ffi_as_opaque_pointer, GodotFfi};
 
 macro_rules! impl_builtin_stub {
@@ -50,11 +51,32 @@ impl StringName {
 impl GodotFfi for StringName {
     impl_ffi_as_opaque_pointer!();
 }
-impl From<GodotString> for StringName {
-    fn from(s: GodotString) -> Self {
+impl Default for StringName {
+    fn default() -> Self {
+        unsafe {
+            Self::from_sys_init(|self_ptr| {
+                let ctor = sys::get_cache().string_name_construct_default;
+                ctor(self_ptr, std::ptr::null_mut());
+            })
+        }
+    }
+}
+impl From<&GodotString> for StringName {
+    fn from(s: &GodotString) -> Self {
         unsafe {
             Self::from_sys_init(|self_ptr| {
                 let ctor = sys::get_cache().string_name_from_string;
+                let args = [s.sys()];
+                ctor(self_ptr, args.as_ptr());
+            })
+        }
+    }
+}
+impl From<&StringName> for GodotString {
+    fn from(s: &StringName) -> Self {
+        unsafe {
+            Self::from_sys_init(|self_ptr| {
+                let ctor = sys::get_cache().string_from_string_name;
                 let args = [s.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
