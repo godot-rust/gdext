@@ -108,15 +108,15 @@ macro_rules! gdext_wrap_method_inner {
                     call
                 }),
                 method_flags:
-                    sys::GDNativeExtensionClassMethodFlags_GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as _,
-                argument_count: NUM_ARGS as _,
+                    sys::GDNativeExtensionClassMethodFlags_GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
+                argument_count: NUM_ARGS as u32,
                 has_return_value: $crate::gdext_wrap_method_has_return_value!($retty) as u8,
                 get_argument_type_func: Some({
                     extern "C" fn get_type(
                         _method_data: *mut std::ffi::c_void,
                         n: i32,
                     ) -> sys::GDNativeVariantType {
-                        // return value first
+                        // Return value is the first "argument"
                         let types: [sys::GDNativeVariantType; NUM_ARGS + 1] = [
                             <$retty as $crate::property_info::PropertyInfoBuilder>::variant_type(),
                             $(
@@ -133,7 +133,7 @@ macro_rules! gdext_wrap_method_inner {
                         n: i32,
                         ret: *mut sys::GDNativePropertyInfo,
                     ) {
-                        // return value fist
+                        // Return value is the first "argument"
                         let infos: [sys::GDNativePropertyInfo; NUM_ARGS + 1] = [
                             <$retty as $crate::property_info::PropertyInfoBuilder>::property_info(std::ffi::CStr::from_bytes_with_nul_unchecked("\0".as_bytes())),
                             $(
@@ -150,7 +150,7 @@ macro_rules! gdext_wrap_method_inner {
                         _method_data: *mut std::ffi::c_void,
                         n: i32,
                     ) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
-                        // return value first
+                        // Return value is the first "argument"
                         let metas: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS + 1] = [
                             <$retty as $crate::property_info::PropertyInfoBuilder>::metadata(),
                             $(
