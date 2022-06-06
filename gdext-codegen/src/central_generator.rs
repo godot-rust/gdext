@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
+use crate::util::ident;
 
 struct Tokens {
     opaque_types: Vec<TokenStream>,
@@ -251,6 +252,7 @@ fn make_construct_fns(
     // Constructor vec layout:
     //   [0]: default constructor
     //   [1]: copy constructor
+    //   [2]: (optional) typically the most common conversion constructor (e.g. StringName -> String)
     //  rest: not interesting for now
 
     // Sanity checks -- ensure format is as expected
@@ -277,10 +279,16 @@ fn make_construct_fns(
     let construct_copy_error = format_load_error(&construct_copy);
     let variant_type = &type_names.sys_variant_type;
 
+    let (construct_extra, construct_extra_index, construct_extra_error) =
+        make_extra_constructors(type_names);
+
     // Generic signature:  fn(base: GDNativeTypePtr, args: *const GDNativeTypePtr)
     let decls = quote! {
         pub #construct_default: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
         pub #construct_copy: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
+        #(
+            pub #construct_extra: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
+        )*
     };
 
     let inits = quote! {
@@ -292,9 +300,36 @@ fn make_construct_fns(
             let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
             ctor_fn(crate:: #variant_type, 1i32).expect(#construct_copy_error)
         },
+        #(
+            #construct_extra: {
+                let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
+                ctor_fn(crate:: #variant_type, #construct_extra_index).expect(#construct_extra_error)
+            },
+        )*
     };
 
     (decls, inits)
+}
+
+/// Lists special cases for useful constructors
+fn make_extra_constructors(type_names: &TypeNames) -> (Vec<Ident>, Vec<i32>, Vec<String>) {
+    // TODO instead of finding ctors by index, more robust would be to look up from JSON
+    let one_vec = match type_names.pascal_case.as_str() {
+        "StringName" => {
+            let ctor_name = ident("string_name_from_string");
+            let index = 2;
+            let error = format_load_error(&ctor_name);
+            vec![(ctor_name, index, error)]
+        }
+        _ => vec![],
+    };
+
+    // unzip() for 3
+    (
+        one_vec.iter().map(|(v, _, _)| v.clone()).collect(),
+        one_vec.iter().map(|(_, v, _)| v.clone()).collect(),
+        one_vec.into_iter().map(|(_, _, v)| v).collect(),
+    )
 }
 
 fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStream, TokenStream) {
