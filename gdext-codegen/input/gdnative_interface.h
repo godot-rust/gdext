@@ -199,15 +199,15 @@ typedef uint64_t (*GDNativeExtensionClassGetRID)(GDExtensionClassInstancePtr p_i
 
 typedef struct {
 	uint32_t type;
-	GDNativeStringPtr name;
-	GDNativeStringNamePtr class_name;
+	const char *name;
+	const char *class_name;
 	uint32_t hint;
-	GDNativeStringPtr hint_string;
+	const char *hint_string;
 	uint32_t usage;
 } GDNativePropertyInfo;
 
 typedef struct {
-	GDNativeStringPtr name;
+	const char *name;
 	GDNativePropertyInfo return_value;
 	uint32_t flags; // From GDNativeExtensionClassMethodFlags
 	int32_t id;
@@ -413,8 +413,6 @@ typedef struct {
 	GDNativeBool (*variant_iter_init)(const GDNativeVariantPtr p_self, GDNativeVariantPtr r_iter, GDNativeBool *r_valid);
 	GDNativeBool (*variant_iter_next)(const GDNativeVariantPtr p_self, GDNativeVariantPtr r_iter, GDNativeBool *r_valid);
 	void (*variant_iter_get)(const GDNativeVariantPtr p_self, GDNativeVariantPtr r_iter, GDNativeVariantPtr r_ret, GDNativeBool *r_valid);
-	GDNativeInt (*variant_hash)(const GDNativeVariantPtr p_self);
-	GDNativeInt (*variant_recursive_hash)(const GDNativeVariantPtr p_self, GDNativeInt p_recursion_count);
 	GDNativeBool (*variant_hash_compare)(const GDNativeVariantPtr p_self, const GDNativeVariantPtr p_other);
 	GDNativeBool (*variant_booleanize)(const GDNativeVariantPtr p_self);
 	void (*variant_sub)(const GDNativeVariantPtr p_a, const GDNativeVariantPtr p_b, GDNativeVariantPtr r_dst);
@@ -476,10 +474,6 @@ typedef struct {
 	GDNativeInt (*string_to_wide_chars)(const GDNativeStringPtr p_self, wchar_t *r_text, GDNativeInt p_max_write_length);
 	char32_t *(*string_operator_index)(GDNativeStringPtr p_self, GDNativeInt p_index);
 	const char32_t *(*string_operator_index_const)(const GDNativeStringPtr p_self, GDNativeInt p_index);
-
-	// UNDO THIS
-	void (*string_name_new_with_utf8_chars)(GDNativeStringNamePtr r_dest, const char *p_contents);
-	GDNativeStringNamePtr (*string_name_create)(const char *p_contents);
 
 	/* Packed array functions */
 
