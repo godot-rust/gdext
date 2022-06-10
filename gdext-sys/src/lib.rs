@@ -13,11 +13,13 @@ mod opaque;
 mod gen {
     pub(crate) mod central;
 }
+mod global_registry;
 mod godot_ffi;
 
 use gen::central::InterfaceCache;
 
 //pub use opaque::Opaque;
+use crate::global_registry::GlobalRegistry;
 pub use gen::central::types;
 pub use godot_ffi::GodotFfi;
 
@@ -32,14 +34,16 @@ pub type real = f64;
 // TODO maybe they can be combined to a single object? (at least cache + library can for sure)
 static mut INTERFACE: Option<GDNativeInterface> = None;
 static mut LIBRARY: Option<GDNativeExtensionClassLibraryPtr> = None;
-static mut CACHE: Option<InterfaceCache> = None;
+static mut METHOD_TABLE: Option<InterfaceCache> = None;
+static mut REGISTRY: Option<GlobalRegistry> = None;
 
 /// # Safety
 ///
 /// The `interface` pointer must be a valid pointer to a [`GDNativeInterface`] object.
 pub unsafe fn set_interface(interface: *const GDNativeInterface) {
     INTERFACE = Some(*interface);
-    CACHE = Some(InterfaceCache::new(&*interface))
+    METHOD_TABLE = Some(InterfaceCache::new(&*interface));
+    REGISTRY = Some(GlobalRegistry::default());
 }
 
 /// # Safety
@@ -72,7 +76,15 @@ pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
 /// The interface must have been initialised with [`set_interface`] before calling this function.
 #[inline(always)]
 pub unsafe fn get_cache() -> &'static InterfaceCache {
-    unwrap_ref_unchecked(&CACHE)
+    unwrap_ref_unchecked(&METHOD_TABLE)
+}
+
+/// # Safety
+///
+/// The interface must have been initialised with [`set_interface`] before calling this function.
+#[inline(always)]
+pub unsafe fn get_registry() -> &'static mut GlobalRegistry {
+    unwrap_ref_unchecked_mut(&mut REGISTRY)
 }
 
 #[macro_export]
@@ -112,6 +124,14 @@ unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
     debug_assert!(opt.is_some(), "unchecked access to Option::None");
     match opt {
         Some(ref val) => val,
+        None => std::hint::unreachable_unchecked(),
+    }
+}
+
+unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
+    debug_assert!(opt.is_some(), "unchecked access to Option::None");
+    match opt {
+        Some(ref mut val) => val,
         None => std::hint::unreachable_unchecked(),
     }
 }

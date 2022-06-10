@@ -2,7 +2,7 @@ use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
 use crate::{ClassName, GodotClass};
 
-use gdext_builtin::{GodotString, StringName, Variant};
+use gdext_builtin::Variant;
 use gdext_sys as sys;
 
 use sys::types::OpaqueObject;
@@ -138,24 +138,15 @@ impl<T: GodotClass> PropertyInfoBuilder for Obj<T> {
     }
 
     fn property_info(name: &str) -> sys::GDNativePropertyInfo {
-        let property_name = GodotString::from(name);
-        // let x = GodotString::from(T::class_name());
-        // let class_name = StringName::from(&x);
-        let cn = format!("{}\0", T::class_name());
+        let reg = unsafe { sys::get_registry() };
 
-        //let class_namez = unsafe { interface_fn!(string_name_create)(cn.as_ptr() as *const i8) };
-        let class_name = StringName::default();
-        unsafe {
-            interface_fn!(string_name_new_with_utf8_chars)(
-                class_name.string_sys(),
-                cn.as_ptr() as *const i8,
-            )
-        };
+        let property_name = reg.c_string(name);
+        let class_name = reg.c_string(&T::class_name());
 
         gdext_sys::GDNativePropertyInfo {
             type_: Self::variant_type() as _,
-            name: property_name.leak_string_sys(),
-            class_name: class_name.leak_string_sys(),
+            name: property_name,
+            class_name,
             hint: 0,
             hint_string: std::ptr::null_mut(),
             usage: 7, // Default, TODO generate global enums

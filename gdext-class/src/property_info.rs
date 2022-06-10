@@ -4,12 +4,11 @@ use gdext_sys as sys;
 pub trait PropertyInfoBuilder {
     fn variant_type() -> sys::GDNativeVariantType;
 
-    fn property_info(name: &str) -> sys::GDNativePropertyInfo {
-        let property_name = GodotString::from(name);
-
+    fn property_info(property_name: &str) -> sys::GDNativePropertyInfo {
+        let reg = unsafe { sys::get_registry() };
         sys::GDNativePropertyInfo {
             type_: Self::variant_type() as u32,
-            name: property_name.leak_string_sys(),
+            name: reg.c_string(property_name),
             class_name: std::ptr::null_mut(),
             hint: 0,
             hint_string: std::ptr::null_mut(),

@@ -1,7 +1,7 @@
 // Stub for various other built-in classes, which are currently incomplete, but whose types
 // are required for codegen
+use crate::GodotString;
 use gdext_sys as sys;
-use gdext_sys::impl_ffi_as_opaque;
 use sys::{impl_ffi_as_opaque_pointer, GodotFfi};
 
 macro_rules! impl_builtin_stub {
