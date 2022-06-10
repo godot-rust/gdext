@@ -51,11 +51,11 @@ pub fn generate_central_file(
             #(#opaque_types)*
         }
 
-        pub struct InterfaceCache {
+        pub struct GlobalMethodTable {
             #(#variant_fn_decls)*
         }
 
-        impl InterfaceCache {
+        impl GlobalMethodTable {
             pub(crate) unsafe fn new(interface: &crate::GDNativeInterface) -> Self {
                 Self {
                     #(#variant_fn_inits)*

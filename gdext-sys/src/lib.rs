@@ -16,10 +16,10 @@ mod gen {
 mod global_registry;
 mod godot_ffi;
 
-use gen::central::InterfaceCache;
-
 //pub use opaque::Opaque;
-use crate::global_registry::GlobalRegistry;
+use global_registry::GlobalRegistry;
+use gen::central::GlobalMethodTable;
+
 pub use gen::central::types;
 pub use godot_ffi::GodotFfi;
 
@@ -34,7 +34,7 @@ pub type real = f64;
 // TODO maybe they can be combined to a single object? (at least cache + library can for sure)
 static mut INTERFACE: Option<GDNativeInterface> = None;
 static mut LIBRARY: Option<GDNativeExtensionClassLibraryPtr> = None;
-static mut METHOD_TABLE: Option<InterfaceCache> = None;
+static mut METHOD_TABLE: Option<GlobalMethodTable> = None;
 static mut REGISTRY: Option<GlobalRegistry> = None;
 
 /// # Safety
@@ -42,7 +42,7 @@ static mut REGISTRY: Option<GlobalRegistry> = None;
 /// The `interface` pointer must be a valid pointer to a [`GDNativeInterface`] object.
 pub unsafe fn set_interface(interface: *const GDNativeInterface) {
     INTERFACE = Some(*interface);
-    METHOD_TABLE = Some(InterfaceCache::new(&*interface));
+    METHOD_TABLE = Some(GlobalMethodTable::new(&*interface));
     REGISTRY = Some(GlobalRegistry::default());
 }
 
@@ -75,7 +75,7 @@ pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
 ///
 /// The interface must have been initialised with [`set_interface`] before calling this function.
 #[inline(always)]
-pub unsafe fn get_cache() -> &'static InterfaceCache {
+pub unsafe fn method_table() -> &'static GlobalMethodTable {
     unwrap_ref_unchecked(&METHOD_TABLE)
 }
 

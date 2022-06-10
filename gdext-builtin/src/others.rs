@@ -54,7 +54,7 @@ impl Default for StringName {
     fn default() -> Self {
         unsafe {
             Self::from_sys_init(|self_ptr| {
-                let ctor = sys::get_cache().string_name_construct_default;
+                let ctor = sys::method_table().string_name_construct_default;
                 ctor(self_ptr, std::ptr::null_mut());
             })
         }
@@ -64,7 +64,7 @@ impl From<&GodotString> for StringName {
     fn from(s: &GodotString) -> Self {
         unsafe {
             Self::from_sys_init(|self_ptr| {
-                let ctor = sys::get_cache().string_name_from_string;
+                let ctor = sys::method_table().string_name_from_string;
                 let args = [s.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
@@ -75,7 +75,7 @@ impl From<&StringName> for GodotString {
     fn from(s: &StringName) -> Self {
         unsafe {
             Self::from_sys_init(|self_ptr| {
-                let ctor = sys::get_cache().string_from_string_name;
+                let ctor = sys::method_table().string_from_string_name;
                 let args = [s.sys()];
                 ctor(self_ptr, args.as_ptr());
             })

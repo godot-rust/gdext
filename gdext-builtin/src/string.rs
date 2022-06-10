@@ -13,7 +13,7 @@ impl GodotString {
     pub fn new() -> Self {
         unsafe {
             Self::from_sys_init(|self_ptr| {
-                let ctor = sys::get_cache().string_construct_default;
+                let ctor = sys::method_table().string_construct_default;
                 ctor(self_ptr, std::ptr::null_mut());
             })
         }
@@ -47,7 +47,7 @@ impl Clone for GodotString {
     fn clone(&self) -> Self {
         unsafe {
             Self::from_sys_init(|self_ptr| {
-                let ctor = sys::get_cache().string_construct_copy;
+                let ctor = sys::method_table().string_construct_copy;
                 let args = [self.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
@@ -135,7 +135,7 @@ impl_traits_as_sys! {
 impl Drop for GodotString {
     fn drop(&mut self) {
         unsafe {
-            let destructor = sys::get_cache().string_destroy;
+            let destructor = sys::method_table().string_destroy;
             destructor(self.sys_mut());
         }
     }

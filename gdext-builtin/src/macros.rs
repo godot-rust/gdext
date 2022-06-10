@@ -89,7 +89,7 @@ macro_rules! impl_basic_trait_as_sys {
             #[inline]
             fn eq(&self, other: &Self) -> bool {
                 unsafe {
-                    let operator = gdext_sys::get_cache().$gd_method;
+                    let operator = gdext_sys::method_table().$gd_method;
 
                     let mut result: bool = false;
                     operator(self.sys(), other.sys(), result.sys_mut());
@@ -109,7 +109,7 @@ macro_rules! impl_basic_trait_as_sys {
             #[inline]
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
                 let op_less = |lhs, rhs| unsafe {
-                    let operator = gdext_sys::get_cache().$gd_method;
+                    let operator = gdext_sys::method_table().$gd_method;
 
                     let mut result: bool = false;
                     operator(lhs, rhs, result.sys_mut());

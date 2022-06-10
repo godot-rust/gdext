@@ -72,7 +72,7 @@ mod conversions {
                 fn from(value: $T) -> Self {
                     unsafe {
                         Self::from_var_sys_init(|variant_ptr| {
-                            let converter = sys::get_cache().$from_fn;
+                            let converter = sys::method_table().$from_fn;
                             converter(variant_ptr, value.sys());
                         })
                     }
@@ -90,7 +90,7 @@ mod conversions {
                     let mut value = <$T>::default();
 
                     unsafe {
-                        let converter = sys::get_cache().$to_fn;
+                        let converter = sys::method_table().$to_fn;
                         converter(value.sys_mut(), variant.var_sys());
                         value
                     }
@@ -154,7 +154,7 @@ mod conversions {
         fn from(value: &GodotString) -> Self {
             unsafe {
                 Self::from_var_sys_init(|ptr| {
-                    let converter = sys::get_cache().string_to_variant;
+                    let converter = sys::method_table().string_to_variant;
                     converter(ptr, value.sys());
                 })
             }
