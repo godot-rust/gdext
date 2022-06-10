@@ -139,7 +139,18 @@ impl<T: GodotClass> PropertyInfoBuilder for Obj<T> {
 
     fn property_info(name: &str) -> sys::GDNativePropertyInfo {
         let property_name = GodotString::from(name);
-        let class_name = StringName::from(GodotString::from(T::class_name()));
+        // let x = GodotString::from(T::class_name());
+        // let class_name = StringName::from(&x);
+        let cn = format!("{}\0", T::class_name());
+
+        //let class_namez = unsafe { interface_fn!(string_name_create)(cn.as_ptr() as *const i8) };
+        let class_name = StringName::default();
+        unsafe {
+            interface_fn!(string_name_new_with_utf8_chars)(
+                class_name.string_sys(),
+                cn.as_ptr() as *const i8,
+            )
+        };
 
         gdext_sys::GDNativePropertyInfo {
             type_: Self::variant_type() as _,

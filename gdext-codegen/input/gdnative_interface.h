@@ -477,6 +477,10 @@ typedef struct {
 	char32_t *(*string_operator_index)(GDNativeStringPtr p_self, GDNativeInt p_index);
 	const char32_t *(*string_operator_index_const)(const GDNativeStringPtr p_self, GDNativeInt p_index);
 
+	// UNDO THIS
+	void (*string_name_new_with_utf8_chars)(GDNativeStringNamePtr r_dest, const char *p_contents);
+	GDNativeStringNamePtr (*string_name_create)(const char *p_contents);
+
 	/* Packed array functions */
 
 	uint8_t *(*packed_byte_array_operator_index)(GDNativeTypePtr p_self, GDNativeInt p_index); // p_self should be a PackedByteArray
