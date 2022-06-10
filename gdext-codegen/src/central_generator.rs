@@ -16,7 +16,7 @@ struct Tokens {
 }
 
 struct TypeNames {
-    /// "PackedVector2Array"
+    /// "int" or "PackedVector2Array"
     pascal_case: String,
 
     /// "packed_vector2_array"
@@ -249,6 +249,10 @@ fn make_construct_fns(
         None => return (TokenStream::new(), TokenStream::new()),
     };
 
+    if is_trivial(type_names) {
+        return (TokenStream::new(), TokenStream::new());
+    }
+
     // Constructor vec layout:
     //   [0]: default constructor
     //   [1]: copy constructor
@@ -342,7 +346,7 @@ fn make_extra_constructors(type_names: &TypeNames) -> (Vec<Ident>, Vec<i32>, Vec
 }
 
 fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStream, TokenStream) {
-    if !has_destructor {
+    if !has_destructor || is_trivial(type_names) {
         return (TokenStream::new(), TokenStream::new());
     }
 
@@ -368,7 +372,10 @@ fn make_operator_fns(
     json_name: &str,
     sys_name: &str,
 ) -> (TokenStream, TokenStream) {
-    if operators.is_none() || !operators.unwrap().iter().any(|op| &op.name == json_name) {
+    if operators.is_none()
+        || !operators.unwrap().iter().any(|op| &op.name == json_name)
+        || is_trivial(type_names)
+    {
         return (TokenStream::new(), TokenStream::new());
     }
 
@@ -407,4 +414,12 @@ fn format_load_error(ident: &impl std::fmt::Display) -> String {
         "failed to load GDExtension function `{}`",
         ident.to_string()
     )
+}
+
+/// Returns true if the type is so trivial that most of its operations are directly provided by Rust, and there is no need
+/// to expose the construct/destruct/operator methods from Godot
+fn is_trivial(type_names: &TypeNames) -> bool {
+    let list = ["bool", "int", "float"];
+
+    list.contains(&type_names.pascal_case.as_str())
 }
