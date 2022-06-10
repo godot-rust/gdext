@@ -50,6 +50,13 @@ pub unsafe fn initialize(
     interface: *const GDNativeInterface,
     library: GDNativeExtensionClassLibraryPtr,
 ) {
+    let ver = std::ffi::CStr::from_ptr((*interface).version_string);
+    println!(
+        "Initialize GDExtension interface: {}",
+        ver.to_str().unwrap()
+    );
+    //dbg!(*interface);
+
     BINDING = Some(GodotBinding {
         interface: *interface,
         method_table: GlobalMethodTable::new(&*interface),
