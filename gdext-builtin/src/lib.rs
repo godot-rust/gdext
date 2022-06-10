@@ -110,8 +110,7 @@ macro_rules! gdext_init {
             library: ::gdext_sys::GDNativeExtensionClassLibraryPtr,
             init: *mut ::gdext_sys::GDNativeInitialization,
         ) {
-            ::gdext_sys::set_interface(interface);
-            ::gdext_sys::set_library(library);
+            ::gdext_sys::initialize(interface, library);
 
             let mut init_options = $crate::InitOptions::new();
 

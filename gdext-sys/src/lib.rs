@@ -17,8 +17,8 @@ mod global_registry;
 mod godot_ffi;
 
 //pub use opaque::Opaque;
-use global_registry::GlobalRegistry;
 use gen::central::GlobalMethodTable;
+use global_registry::GlobalRegistry;
 
 pub use gen::central::types;
 pub use godot_ffi::GodotFfi;
@@ -31,60 +31,63 @@ pub type real = f32;
 pub type real = f64;
 
 // Late-init globals
-// TODO maybe they can be combined to a single object? (at least cache + library can for sure)
-static mut INTERFACE: Option<GDNativeInterface> = None;
-static mut LIBRARY: Option<GDNativeExtensionClassLibraryPtr> = None;
-static mut METHOD_TABLE: Option<GlobalMethodTable> = None;
-static mut REGISTRY: Option<GlobalRegistry> = None;
+static mut BINDING: Option<GodotBinding> = None;
 
-/// # Safety
-///
-/// The `interface` pointer must be a valid pointer to a [`GDNativeInterface`] object.
-pub unsafe fn set_interface(interface: *const GDNativeInterface) {
-    INTERFACE = Some(*interface);
-    METHOD_TABLE = Some(GlobalMethodTable::new(&*interface));
-    REGISTRY = Some(GlobalRegistry::default());
+struct GodotBinding {
+    interface: GDNativeInterface,
+    library: GDNativeExtensionClassLibraryPtr,
+    method_table: GlobalMethodTable,
+    registry: GlobalRegistry,
 }
 
 /// # Safety
 ///
-/// The interface must have been initialised with [`set_interface`] before calling this function.
-#[inline(always)]
-pub unsafe fn get_interface() -> &'static GDNativeInterface {
-    unwrap_ref_unchecked(&INTERFACE)
-}
-
-/// # Safety
-///
+/// - The `interface` pointer must be a valid pointer to a [`GDNativeInterface`] object.
 /// - The `library` pointer must be the pointer given by Godot at initialisation.
 /// - This function must not be called from multiple threads.
 /// - This function must be called before any use of [`get_library`].
-pub unsafe fn set_library(library: GDNativeExtensionClassLibraryPtr) {
-    LIBRARY = Some(library);
+pub unsafe fn initialize(
+    interface: *const GDNativeInterface,
+    library: GDNativeExtensionClassLibraryPtr,
+) {
+    BINDING = Some(GodotBinding {
+        interface: *interface,
+        method_table: GlobalMethodTable::new(&*interface),
+        registry: GlobalRegistry::default(),
+        library,
+    });
 }
 
 /// # Safety
 ///
-/// The library must have been initialised with [`set_library`] before calling this function.
+/// The interface must have been initialised with [`initialize`] before calling this function.
+#[inline(always)]
+pub unsafe fn get_interface() -> &'static GDNativeInterface {
+    &unwrap_ref_unchecked(&BINDING).interface
+}
+
+/// # Safety
+///
+/// The library must have been initialised with [`initialize`] before calling this function.
 #[inline(always)]
 pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
-    LIBRARY.unwrap_unchecked()
+    unwrap_ref_unchecked(&BINDING).library
 }
 
 /// # Safety
 ///
-/// The interface must have been initialised with [`set_interface`] before calling this function.
+/// The interface must have been initialised with [`initialize`] before calling this function.
 #[inline(always)]
 pub unsafe fn method_table() -> &'static GlobalMethodTable {
-    unwrap_ref_unchecked(&METHOD_TABLE)
+    &unwrap_ref_unchecked(&BINDING).method_table
 }
 
 /// # Safety
 ///
-/// The interface must have been initialised with [`set_interface`] before calling this function.
+/// The interface must have been initialised with [`initialize`] before calling this function.
 #[inline(always)]
 pub unsafe fn get_registry() -> &'static mut GlobalRegistry {
-    unwrap_ref_unchecked_mut(&mut REGISTRY)
+    &mut unwrap_ref_unchecked_mut(&mut BINDING).registry
 }
 
 #[macro_export]
