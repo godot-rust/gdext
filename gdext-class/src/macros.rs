@@ -20,6 +20,7 @@ macro_rules! gdext_wrap_method_parameter_count {
 
 #[doc(hidden)]
 #[macro_export]
+// Note: this only works if the _argument_ (not parameter) is not a :ty, otherwise it will always match the 2nd branch
 macro_rules! gdext_wrap_method_has_return_value {
     (()) => {
         false
@@ -39,7 +40,7 @@ macro_rules! gdext_wrap_method_inner {
             self
             $(,$pname:ident : $pty:ty)*
             $(, #[opt] $opt_pname:ident : $opt_pty:ty)*
-        ) -> $retty:ty
+        ) -> $($retty:tt)+ // Note: can't be ty, as that cannot be matched to tokens anymore
     ) => {
         unsafe {
             use gdext_sys as sys;
@@ -102,7 +103,7 @@ macro_rules! gdext_wrap_method_inner {
                             $pname,
                         )*);
 
-                        <$retty as sys::GodotFfi>::write_sys(&ret_val, ret);
+                        <$($retty)+ as sys::GodotFfi>::write_sys(&ret_val, ret);
                     }
 
                     call
@@ -110,7 +111,7 @@ macro_rules! gdext_wrap_method_inner {
                 method_flags:
                     sys::GDNativeExtensionClassMethodFlags_GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
                 argument_count: NUM_ARGS as u32,
-                has_return_value: $crate::gdext_wrap_method_has_return_value!($retty) as u8,
+                has_return_value: $crate::gdext_wrap_method_has_return_value!($($retty)+) as u8,
                 get_argument_type_func: Some({
                     extern "C" fn get_type(
                         _method_data: *mut std::ffi::c_void,
@@ -118,7 +119,7 @@ macro_rules! gdext_wrap_method_inner {
                     ) -> sys::GDNativeVariantType {
                         // Return value is the first "argument"
                         let types: [sys::GDNativeVariantType; NUM_ARGS + 1] = [
-                            <$retty as $crate::property_info::PropertyInfoBuilder>::variant_type(),
+                            <$($retty)+ as $crate::property_info::PropertyInfoBuilder>::variant_type(),
                             $(
                                 <$pty as $crate::property_info::PropertyInfoBuilder>::variant_type(),
                             )*
@@ -135,7 +136,7 @@ macro_rules! gdext_wrap_method_inner {
                     ) {
                         // Return value is the first "argument"
                         let infos: [sys::GDNativePropertyInfo; NUM_ARGS + 1] = [
-                            <$retty as $crate::property_info::PropertyInfoBuilder>::property_info(""),
+                            <$($retty)+ as $crate::property_info::PropertyInfoBuilder>::property_info(""),
                             $(
                                 <$pty as $crate::property_info::PropertyInfoBuilder>::property_info(stringify!($pname)),
                             )*
@@ -152,7 +153,7 @@ macro_rules! gdext_wrap_method_inner {
                     ) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
                         // Return value is the first "argument"
                         let metas: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS + 1] = [
-                            <$retty as $crate::property_info::PropertyInfoBuilder>::metadata(),
+                            <$($retty)+ as $crate::property_info::PropertyInfoBuilder>::metadata(),
                             $(
                                 <$pty as $crate::property_info::PropertyInfoBuilder>::metadata(),
                             )*
@@ -230,10 +231,11 @@ macro_rules! gdext_wrap_method {
             $(,)?
         )
     ) => {
-        $crate::gdext_wrap_method!(
+         $crate::gdext_wrap_method_inner!(
             $type_name,
+            map_mut,
             fn $method_name(
-                &mut self
+                self
                 $(,$pname : $pty)*
                 $(,#[opt] $opt_pname : $opt_pty)*
             ) -> ()
@@ -249,10 +251,11 @@ macro_rules! gdext_wrap_method {
             $(,)?
         )
     ) => {
-        $crate::gdext_wrap_method!(
+          $crate::gdext_wrap_method_inner!(
             $type_name,
+            map,
             fn $method_name(
-                &self
+                self
                 $(,$pname : $pty)*
                 $(,#[opt] $opt_pname : $opt_pty)*
             ) -> ()

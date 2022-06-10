@@ -143,7 +143,7 @@ impl<T: GodotClass> PropertyInfoBuilder for Obj<T> {
         let property_name = reg.c_string(name);
         let class_name = reg.c_string(&T::class_name());
 
-        gdext_sys::GDNativePropertyInfo {
+        sys::GDNativePropertyInfo {
             type_: Self::variant_type() as _,
             name: property_name,
             class_name,

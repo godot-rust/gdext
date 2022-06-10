@@ -26,8 +26,10 @@ impl GlobalRegistry {
         let value = CString::new(s).expect(&format!("Invalid string '{s}'"));
 
         if let Some(existing) = self.c_strings.get(&value) {
+            //println!("<<< Cache '{s}'");
             existing.as_ptr()
         } else {
+            //println!(">>> Store '{s}'     [total={}]", self.c_strings.len()+1);
             let copy = value.clone();
             self.c_strings.insert(value);
             let new = self.c_strings.get(&copy).unwrap();

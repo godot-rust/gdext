@@ -63,12 +63,12 @@ func _ready():
 	print("----------------------------")
 
 
-	var obj = rust_test.return_obj()
+	var obj: Entity = rust_test.return_obj()
 	print_instance_id(obj, "entity")
 	rust_test.accept_obj(obj)
 
 	if true: #scope
-		var obj2 = rust_test.find_obj(obj.get_instance_id())
+		var obj2: Entity = rust_test.find_obj(obj.get_instance_id())
 		print_instance_id(obj, "entity (again)")
 		print_instance_id(obj2, "entity (via get_instance_id)")
 		# note: end of scope doesn't unreference
