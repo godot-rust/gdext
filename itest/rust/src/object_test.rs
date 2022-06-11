@@ -1,5 +1,5 @@
 use crate::godot_itest;
-use gdext_builtin::Vector3;
+use gdext_builtin::{Variant, Vector3};
 use gdext_class::api::Node3D;
 use gdext_class::marker::UserClass;
 use gdext_class::{GodotClass, GodotExtensionClass, GodotExtensionClassMethods, GodotMethods, Obj};
@@ -18,6 +18,8 @@ pub fn run() -> bool {
     ok &= object_user_roundtrip_write();
     ok &= object_engine_roundtrip();
     ok &= object_instance_id();
+    ok &= object_user_convert_variant();
+    ok &= object_engine_convert_variant();
     ok
 }
 
@@ -81,6 +83,29 @@ godot_itest! { object_instance_id {
 
     let obj2 = Obj::<ObjPayload>::from_instance_id(id);
     assert_eq!(obj2.inner().value, value);
+}}
+
+godot_itest! { object_user_convert_variant {
+    let value: i16 = 17943;
+    let user = ObjPayload { value };
+
+    let obj: Obj<ObjPayload> = Obj::new(user);
+    let variant = Variant::from(&obj);
+    let obj2 = Obj::<ObjPayload>::from(&variant);
+
+    assert_eq!(obj2.inner().value, value);
+}}
+
+godot_itest! { object_engine_convert_variant {
+    let pos = Vector3::new(1.0, 2.0, 3.0);
+
+    let obj: Obj<Node3D> = Node3D::new();
+    obj.inner().set_position(pos);
+
+    let variant = Variant::from(&obj);
+    let obj2 = Obj::<Node3D>::from(&variant);
+
+    assert_eq!(obj2.inner().get_position(), pos);
 }}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

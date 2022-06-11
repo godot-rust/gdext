@@ -29,7 +29,7 @@ impl<T: GodotMethods + GodotClass> InstanceStorage<T> {
 impl<T: GodotClass> InstanceStorage<T> {
     pub fn construct_uninit(base: sys::GDNativeObjectPtr) -> Self {
         let refcount = 1;
-        out!("[Storage] construct_uninit:  refcount: {}", refcount);
+        //out!("[Storage] construct_uninit:  refcount: {}", refcount);
 
         Self {
             base,

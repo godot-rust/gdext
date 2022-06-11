@@ -9,6 +9,7 @@ use sys::types::OpaqueObject;
 use sys::{impl_ffi_as_opaque_value, interface_fn, static_assert_eq_size, GodotFfi};
 
 use std::marker::PhantomData;
+use std::ptr;
 
 // TODO which bounds to add on struct itself?
 #[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
@@ -127,7 +128,6 @@ impl<T: GodotClass> GodotFfi for Obj<T> {
 
 impl<T: GodotClass> From<&Variant> for Obj<T> {
     fn from(variant: &Variant) -> Self {
-        println!("!!TODO!! Variant to Obj<T>");
         unsafe {
             Self::from_sys_init(|self_ptr| {
                 let converter = sys::method_table().object_from_variant;
@@ -139,19 +139,22 @@ impl<T: GodotClass> From<&Variant> for Obj<T> {
 
 impl<T: GodotClass> From<Obj<T>> for Variant {
     fn from(obj: Obj<T>) -> Self {
-        println!("!!TODO!! Variant from Obj<T>");
-        unsafe {
-            Self::from_var_sys_init(|variant_ptr| {
-                let converter = sys::method_table().object_to_variant;
-                converter(variant_ptr, obj.sys());
-            })
-        }
+        Variant::from(&obj)
     }
 }
 
 impl<T: GodotClass> From<&Obj<T>> for Variant {
-    fn from(_obj: &Obj<T>) -> Self {
-        todo!()
+    fn from(obj: &Obj<T>) -> Self {
+        unsafe {
+            Self::from_var_sys_init(|variant_ptr| {
+                let converter = sys::method_table().object_to_variant;
+
+                // Note: this is a special case because of an inconsistency in Godot, where sometimes the equivalency is
+                // GDNativeTypePtr == Object** and sometimes GDNativeTypePtr == Object*. Here, it is the former, thus extra pointer.
+                let type_ptr = obj.sys();
+                converter(variant_ptr, ptr::addr_of!(type_ptr) as *mut _);
+            })
+        }
     }
 }
 
@@ -171,7 +174,7 @@ impl<T: GodotClass> PropertyInfoBuilder for Obj<T> {
             name: property_name,
             class_name,
             hint: 0,
-            hint_string: std::ptr::null_mut(),
+            hint_string: ptr::null_mut(),
             usage: 7, // Default, TODO generate global enums
         }
     }
