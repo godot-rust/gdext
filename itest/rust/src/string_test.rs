@@ -1,6 +1,5 @@
 use crate::godot_itest;
 use gdext_builtin::{GodotString, StringName};
-use gdext_sys::{self as sys};
 
 // TODO use tests from godot-rust/gdnative
 

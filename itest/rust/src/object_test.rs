@@ -3,8 +3,8 @@ use gdext_builtin::Vector3;
 use gdext_class::api::Node3D;
 use gdext_class::marker::UserClass;
 use gdext_class::{GodotClass, GodotExtensionClass, GodotExtensionClassMethods, GodotMethods, Obj};
-use gdext_sys::{self as sys, GDNativeExtensionClassCallVirtual, GDNativeObjectPtr, GodotFfi};
-use std::fmt::{Debug, Formatter};
+use gdext_sys as sys;
+use sys::GodotFfi;
 
 pub(crate) fn register() {
     gdext_class::register_class::<ObjPayload>();
@@ -12,10 +12,37 @@ pub(crate) fn register() {
 
 pub fn run() -> bool {
     let mut ok = true;
-   // ok &= object_engine_roundtrip();
+    ok &= object_construct_default();
+    ok &= object_construct_value();
     ok &= object_user_roundtrip();
+    ok &= object_engine_roundtrip();
+    ok &= object_instance_id();
     ok
 }
+
+godot_itest! { object_construct_default {
+    let obj = Obj::<ObjPayload>::new_default();
+    assert_eq!(obj.inner().value, 111);
+}}
+
+godot_itest! { object_construct_value {
+    let obj = Obj::new(ObjPayload { value: 222 });
+    assert_eq!(obj.inner().value, 222);
+}}
+
+godot_itest! { object_user_roundtrip {
+    let value: i16 = 17943;
+    let user = ObjPayload { value };
+
+    let obj: Obj<ObjPayload> = Obj::new(user);
+    assert_eq!(obj.inner().value, value);
+
+    let ptr = obj.sys();
+    // TODO drop/release?
+
+    let obj2 = unsafe { Obj::<ObjPayload>::from_sys(ptr) };
+    assert_eq!(obj2.inner().value, value);
+}}
 
 godot_itest! { object_engine_roundtrip {
     let pos = Vector3::new(1.0, 2.0, 3.0);
@@ -31,23 +58,20 @@ godot_itest! { object_engine_roundtrip {
     assert_eq!(obj2.inner().get_position(), pos);
 }}
 
-godot_itest! { object_user_roundtrip {
+godot_itest! { object_instance_id {
     let value: i16 = 17943;
     let user = ObjPayload { value };
 
     let obj: Obj<ObjPayload> = Obj::new(user);
-    assert_eq!(obj.inner().value, value);
+    let id = obj.instance_id();
 
-    // TODO drop/release?
-    let ptr = obj.sys();
-
-    let obj2 = unsafe { Obj::<ObjPayload>::from_sys(ptr) };
+    let obj2 = Obj::<ObjPayload>::from_instance_id(id);
     assert_eq!(obj2.inner().value, value);
 }}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ObjPayload {
     value: i16,
 }
@@ -62,11 +86,13 @@ impl GodotClass for ObjPayload {
 }
 impl GodotExtensionClass for ObjPayload {}
 impl GodotExtensionClassMethods for ObjPayload {
-    fn virtual_call(_name: &str) -> GDNativeExtensionClassCallVirtual { todo!() }
+    fn virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
+        todo!()
+    }
     fn register_methods() {}
 }
-impl GodotMethods for ObjPayload{
-    fn construct(_base: GDNativeObjectPtr) -> Self {
-        ObjPayload { value: 0 }
+impl GodotMethods for ObjPayload {
+    fn construct(_base: sys::GDNativeObjectPtr) -> Self {
+        ObjPayload { value: 111 }
     }
 }

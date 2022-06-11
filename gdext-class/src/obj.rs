@@ -1,6 +1,6 @@
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{ClassName, GodotClass};
+use crate::{ClassName, GodotClass, GodotMethods};
 
 use gdext_builtin::Variant;
 use gdext_sys as sys;
@@ -30,12 +30,29 @@ static_assert_eq_size!(
     "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
 );
 
-impl<T: GodotClass> Obj<T> {
-    pub fn new(_rust_obj: T) -> Self {
+impl<T: GodotClass + GodotMethods> Obj<T> {
+    pub fn new_default() -> Self {
         let class_name = ClassName::new::<T>();
-        let ptr = unsafe { interface_fn!(classdb_construct_object)(class_name.c_str()) };
+        let result = unsafe {
+            let ptr = interface_fn!(classdb_construct_object)(class_name.c_str());
+            Obj::from_obj_sys(ptr)
+        };
 
-        unsafe { Obj::from_obj_sys(ptr) }
+        result.storage().initialize_default();
+        result
+    }
+}
+
+impl<T: GodotClass> Obj<T> {
+    pub fn new(user_object: T) -> Self {
+        let class_name = ClassName::new::<T>();
+        let result = unsafe {
+            let ptr = interface_fn!(classdb_construct_object)(class_name.c_str());
+            Obj::from_obj_sys(ptr)
+        };
+
+        result.storage().initialize(user_object);
+        result
     }
 
     fn from_opaque(opaque: OpaqueObject) -> Self {

@@ -57,7 +57,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
                 let base_class_name = ClassName::new::<T::Base>();
 
                 let base = interface_fn!(classdb_construct_object)(base_class_name.c_str());
-                let instance = InstanceStorage::<T>::construct_default(base);
+                let instance = InstanceStorage::<T>::construct_uninit(base);
                 let instance_ptr = instance.into_raw();
                 let instance_ptr = instance_ptr as *mut std::ffi::c_void;
 
@@ -97,7 +97,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
             get_virtual::<T>
         }),
         get_rid_func: None,
-        class_userdata: std::ptr::null_mut(),
+        class_userdata: std::ptr::null_mut(), // will be passed to create fn, but global per class
     };
 
     let class_name = ClassName::new::<T>();

@@ -4,39 +4,48 @@ use crate::{out, sys, GodotClass, GodotMethods};
 ///
 /// This design does not force the user to keep the base object intrusively in his own struct.
 pub struct InstanceStorage<T: GodotClass> {
-    _base: sys::GDNativeObjectPtr,
+    base: sys::GDNativeObjectPtr,
     // base: Obj<T::Base>,
     user_instance: Option<T>, // lateinit
     refcount: i32,
 }
 
 impl<T: GodotMethods + GodotClass> InstanceStorage<T> {
-    pub fn construct_default(base: sys::GDNativeObjectPtr) -> Self {
-        // TODO find a user-friendly repr for base (Obj? T::Base? etc)
-        let instance = T::construct(base);
+    pub fn initialize_default(&mut self) {
+        self.initialize(T::construct(self.base));
+    }
 
-        let refcount = 1;
-        out!(
-            "[Storage] construct_def: {:?}\n  refcount: {}",
-            instance,
-            refcount
-        );
-        Self {
-            //base: unsafe { Obj::<T::Base>::from_sys(base) },
-            _base: base,
-            user_instance: Some(instance),
-            refcount,
-        }
+    pub fn get_mut_lateinit(&mut self) -> &mut T {
+        // We need to provide lazy initialization for ptrcalls and varcalls coming from the engine.
+        // The `create_instance_func` callback cannot know yet how to initialize the instance (a user
+        // could provide an initial value, or use default construction). Since this method is used
+        // for both construction from Rust (through Obj) and from GDScript (through T.new()), this
+        // initializes the value lazily.
+        self.user_instance
+            .get_or_insert_with(|| T::construct(self.base))
     }
 }
 
 impl<T: GodotClass> InstanceStorage<T> {
-    /*pub fn construct(base: sys::GDNativeObjectPtr, user_instance: T) -> Self {
+    pub fn construct_uninit(base: sys::GDNativeObjectPtr) -> Self {
+        let refcount = 1;
+        out!("[Storage] construct_uninit:  refcount: {}", refcount);
+
         Self {
             base,
-            user_instance: Some(user_instance),
+            user_instance: None,
+            refcount,
         }
-    }*/
+    }
+
+    pub fn initialize(&mut self, value: T) {
+        assert!(
+            self.user_instance.is_none(),
+            "Cannot initialize user instance multiple times"
+        );
+
+        self.user_instance = Some(value);
+    }
 
     pub(crate) fn inc_ref(&mut self) {
         self.refcount += 1;
@@ -64,13 +73,13 @@ impl<T: GodotClass> InstanceStorage<T> {
     pub fn get(&self) -> &T {
         self.user_instance
             .as_ref()
-            .expect("InstanceStorage not initialized")
+            .expect("get(): user instance not initialized")
     }
 
     pub fn get_mut(&mut self) -> &mut T {
         self.user_instance
             .as_mut()
-            .expect("InstanceStorage not initialized")
+            .expect("get_mut(): user instance not initialized")
     }
 }
 

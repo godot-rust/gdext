@@ -3,9 +3,9 @@ use gdext_class::{
     api, gdext_virtual_method_body, gdext_wrap_method, out, GodotClass, GodotExtensionClass,
     GodotExtensionClassMethods, GodotMethods,
 };
+mod object_test;
 mod string_test;
 mod variant_test;
-mod object_test;
 
 fn run_tests() -> bool {
     let mut ok = true;
@@ -131,5 +131,5 @@ macro_rules! godot_itest {
         $(
             $crate::godot_test_impl!($test_name $body);
         )*
-    }
+    };
 }
