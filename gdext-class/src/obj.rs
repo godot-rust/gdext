@@ -124,7 +124,7 @@ impl<T: GodotClass> Drop for Obj<T>{
 */
 
 impl<T: GodotClass> GodotFfi for Obj<T> {
-    impl_ffi_as_opaque_pointer!();
+    impl_ffi_as_opaque!();
 }
 
 impl<T: GodotClass> From<&Variant> for Obj<T> {
