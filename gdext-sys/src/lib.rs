@@ -23,12 +23,12 @@ use global_registry::GlobalRegistry;
 pub use gen::central::types;
 pub use godot_ffi::GodotFfi;
 
-#[allow(non_camel_case_types)]
-#[cfg(not(feature = "real_is_double"))]
+// #[allow(non_camel_case_types)]
+// #[cfg(not(feature = "real_is_double"))]
 pub type real = f32;
-#[allow(non_camel_case_types)]
-#[cfg(feature = "real_is_double")]
-pub type real = f64;
+// #[allow(non_camel_case_types)]
+// #[cfg(feature = "real_is_double")]
+// pub type real = f64;
 
 // Late-init globals
 static mut BINDING: Option<GodotBinding> = None;

@@ -1,12 +1,12 @@
 use gdext_sys as sys;
 use sys::{impl_ffi_as_value, real, GodotFfi};
 
-#[cfg(not(feature = "real_is_double"))]
+//#[cfg(not(feature = "real_is_double"))]
 type Inner = glam::f32::Vec3;
-#[cfg(feature = "real_is_double")]
-type Inner = glam::f64::DVec3;
+// #[cfg(feature = "real_is_double")]
+// type Inner = glam::f64::DVec3;
 
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug, PartialEq)]
 #[repr(C)]
 pub struct Vector3 {
     inner: Inner,
