@@ -1,30 +1,30 @@
+use crate as sys;
+
 /// Adds methods to convert from and to Godot FFI pointers.
 #[doc(hidden)]
 pub trait GodotFfi {
-    type SysPointer;
-
     /// Construct from Godot opaque pointer.
-    unsafe fn from_sys(opaque_ptr: Self::SysPointer) -> Self;
+    unsafe fn from_sys(ptr: sys::GDNativeTypePtr) -> Self;
 
     /// Construct uninitialized opaque data, then initialize it with `init` function.
-    unsafe fn from_sys_init(init: impl FnOnce(Self::SysPointer)) -> Self;
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Self;
 
     /// Return Godot opaque pointer, for an immutable operation.
     ///
     /// Note that this is a `*mut` pointer despite taking `&self` by shared-ref.
     /// This is because most of Godot's native API is not const-correct. This can still
     /// enhance user code (calling `sys_mut` ensures no aliasing at the time of the call).
-    fn sys(&self) -> Self::SysPointer;
+    fn sys(&self) -> sys::GDNativeTypePtr;
 
     /// Return Godot opaque pointer, for a mutable operation.
     ///
     /// Should usually not be overridden; behaves like `sys()` but ensures no aliasing
     /// at the time of the call (not necessarily during any subsequent modifications though).
-    fn sys_mut(&mut self) -> Self::SysPointer {
+    fn sys_mut(&mut self) -> sys::GDNativeTypePtr {
         self.sys()
     }
 
-    unsafe fn write_sys(&self, dst: Self::SysPointer);
+    unsafe fn write_sys(&self, dst: sys::GDNativeTypePtr);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -36,24 +36,22 @@ pub trait GodotFfi {
 ///
 /// Expects a `from_opaque()` constructor and a `opaque` field.
 #[macro_export]
-macro_rules! impl_ffi_as_opaque {
-
+macro_rules! impl_ffi_as_opaque_value {
     // impl GodotFfi for T
     () => {
-        type SysPointer = sys::GDNativeTypePtr;
-        impl_ffi_as_opaque!(, Self::SysPointer; from_sys, from_sys_init, sys, write_sys);
+        impl_ffi_as_opaque_value!(, sys::GDNativeTypePtr; from_sys, from_sys_init, sys, write_sys);
     };
 
     // impl T
     ($Ptr:ty; $from_sys:ident, $from_sys_init:ident, $sys:ident, $write_sys:ident) => {
-        impl_ffi_as_opaque!(pub, $Ptr; $from_sys, $from_sys_init, $sys, $write_sys);
+        impl_ffi_as_opaque_value!(pub, $Ptr; $from_sys, $from_sys_init, $sys, $write_sys);
     };
 
     // (internal)
     ($vis:vis, $Ptr:ty; $from_sys:ident, $from_sys_init:ident, $sys:ident, $write_sys:ident) => {
         #[doc(hidden)]
-        $vis unsafe fn $from_sys(opaque_ptr: $Ptr) -> Self {
-            let opaque = std::mem::transmute(opaque_ptr);
+        $vis unsafe fn $from_sys(ptr: $Ptr) -> Self {
+            let opaque = std::mem::transmute(ptr);
             Self::from_opaque(opaque)
         }
 
@@ -84,8 +82,7 @@ macro_rules! impl_ffi_as_opaque {
 macro_rules! impl_ffi_as_opaque_pointer {
     // impl GodotFfi for T
     () => {
-        type SysPointer = sys::GDNativeTypePtr;
-        impl_ffi_as_opaque_pointer!(, Self::SysPointer; from_sys, from_sys_init, sys, write_sys);
+        impl_ffi_as_opaque_pointer!(, sys::GDNativeTypePtr; from_sys, from_sys_init, sys, write_sys);
     };
 
     // impl T
@@ -96,8 +93,8 @@ macro_rules! impl_ffi_as_opaque_pointer {
     // (internal)
     ($vis:vis, $Ptr:ty; $from_sys:ident, $from_sys_init:ident, $sys:ident, $write_sys:ident) => {
         #[doc(hidden)]
-        $vis unsafe fn $from_sys(opaque_ptr: $Ptr) -> Self {
-            let opaque = std::ptr::read(opaque_ptr as *mut _);
+        $vis unsafe fn $from_sys(ptr: $Ptr) -> Self {
+            let opaque = std::ptr::read(ptr as *mut _);
             Self::from_opaque(opaque)
         }
 
@@ -116,6 +113,7 @@ macro_rules! impl_ffi_as_opaque_pointer {
 
         #[doc(hidden)]
         $vis unsafe fn $write_sys(&self, dst: $Ptr) {
+            // Note: this is the same impl as for impl_ffi_as_opaque_value, which is... interesting
             std::ptr::write(dst as *mut _, self.opaque)
         }
     };
@@ -127,22 +125,21 @@ macro_rules! impl_ffi_as_opaque_pointer {
 /// The size of the corresponding sys type (the `N` in `Opaque*<N>`) must not be bigger than `size_of::<Self>()`.
 /// This cannot be checked easily, because Self cannot be used in size_of(). There would of course be workarounds.
 #[macro_export]
-macro_rules! impl_ffi_as_value {
+macro_rules! impl_ffi_as_self_value {
     // impl GodotFfi for T
     () => {
-        type SysPointer = sys::GDNativeTypePtr;
-        impl_ffi_as_value!(, Self::SysPointer; from_sys, from_sys_init, sys, write_sys);
+        impl_ffi_as_self_value!(, sys::GDNativeTypePtr; from_sys, from_sys_init, sys, write_sys);
     };
 
     // impl T
     ($Ptr:ty; $from_sys:ident, $from_sys_init:ident, $sys:ident, $write_sys:ident) => {
-        impl_ffi_as_value!(pub, $Ptr; $from_sys, $from_sys_init, $sys, $write_sys);
+        impl_ffi_as_self_value!(pub, $Ptr; $from_sys, $from_sys_init, $sys, $write_sys);
     };
 
     // (internal)
     ($vis:vis, $Ptr:ty; $from_sys:ident, $from_sys_init:ident, $sys:ident, $write_sys:ident) => {
-        $vis unsafe fn $from_sys(opaque_ptr: $Ptr) -> Self {
-            *(opaque_ptr as *mut Self)
+        $vis unsafe fn $from_sys(ptr: $Ptr) -> Self {
+            *(ptr as *mut Self)
         }
 
         $vis unsafe fn $from_sys_init(init: impl FnOnce($Ptr)) -> Self {
@@ -152,7 +149,7 @@ macro_rules! impl_ffi_as_value {
             raw.assume_init()
         }
 
-        $vis fn sys(&self) -> sys::GDNativeTypePtr {
+        $vis fn sys(&self) -> $Ptr {
             self as *const Self as $Ptr
         }
 
@@ -171,7 +168,7 @@ mod scalars {
     macro_rules! impl_godot_ffi {
         ($T:ty) => {
             impl GodotFfi for $T {
-                impl_ffi_as_value!();
+                impl_ffi_as_self_value!();
             }
         };
     }
@@ -182,22 +179,20 @@ mod scalars {
     impl_godot_ffi!(f64);
 
     impl GodotFfi for () {
-        type SysPointer = sys::GDNativeTypePtr;
-
-        unsafe fn from_sys(_ptr: Self::SysPointer) -> Self {
+        unsafe fn from_sys(_ptr: sys::GDNativeTypePtr) -> Self {
             // Do nothing
         }
 
-        unsafe fn from_sys_init(_init: impl FnOnce(Self::SysPointer)) -> Self {
+        unsafe fn from_sys_init(_init: impl FnOnce(sys::GDNativeTypePtr)) -> Self {
             // Do nothing
         }
 
-        fn sys(&self) -> Self::SysPointer {
+        fn sys(&self) -> sys::GDNativeTypePtr {
             // ZST dummy pointer
-            self as *const _ as Self::SysPointer
+            self as *const _ as sys::GDNativeTypePtr
         }
 
-        unsafe fn write_sys(&self, _dst: Self::SysPointer) {
+        unsafe fn write_sys(&self, _dst: sys::GDNativeTypePtr) {
             // Do nothing
         }
     }

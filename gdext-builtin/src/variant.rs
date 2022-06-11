@@ -12,8 +12,8 @@ pub struct Variant {
 impl Variant {
     pub fn nil() -> Self {
         unsafe {
-            Self::from_var_sys_init(|ptr| {
-                interface_fn!(variant_new_nil)(ptr);
+            Self::from_var_sys_init(|variant_ptr| {
+                interface_fn!(variant_new_nil)(variant_ptr);
             })
         }
     }
@@ -38,8 +38,8 @@ impl Variant {
 impl Clone for Variant {
     fn clone(&self) -> Self {
         unsafe {
-            Self::from_var_sys_init(|ptr| {
-                interface_fn!(variant_new_copy)(ptr, self.var_sys());
+            Self::from_var_sys_init(|variant_ptr| {
+                interface_fn!(variant_new_copy)(variant_ptr, self.var_sys());
             })
         }
     }
@@ -153,9 +153,9 @@ mod conversions {
     impl From<&GodotString> for Variant {
         fn from(value: &GodotString) -> Self {
             unsafe {
-                Self::from_var_sys_init(|ptr| {
+                Self::from_var_sys_init(|variant_ptr| {
                     let converter = sys::method_table().string_to_variant;
-                    converter(ptr, value.sys());
+                    converter(variant_ptr, value.sys());
                 })
             }
         }

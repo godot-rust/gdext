@@ -6,9 +6,7 @@ use gdext_builtin::Variant;
 use gdext_sys as sys;
 
 use sys::types::OpaqueObject;
-use sys::{
-    impl_ffi_as_opaque, impl_ffi_as_opaque_pointer, interface_fn, static_assert_eq_size, GodotFfi,
-};
+use sys::{impl_ffi_as_opaque_value, interface_fn, static_assert_eq_size, GodotFfi};
 
 use std::marker::PhantomData;
 
@@ -110,7 +108,7 @@ impl<T: GodotClass> Obj<T> {
     }
 
     // Conversions from/to Godot C++ `Object*` pointers
-    impl_ffi_as_opaque!(sys::GDNativeObjectPtr; from_obj_sys, from_obj_sys_init, obj_sys, write_obj_sys);
+    impl_ffi_as_opaque_value!(sys::GDNativeObjectPtr; from_obj_sys, from_obj_sys_init, obj_sys, write_obj_sys);
 }
 
 /*
@@ -124,16 +122,16 @@ impl<T: GodotClass> Drop for Obj<T>{
 */
 
 impl<T: GodotClass> GodotFfi for Obj<T> {
-    impl_ffi_as_opaque!();
+    impl_ffi_as_opaque_value!();
 }
 
 impl<T: GodotClass> From<&Variant> for Obj<T> {
     fn from(variant: &Variant) -> Self {
         println!("!!TODO!! Variant to Obj<T>");
         unsafe {
-            Self::from_sys_init(|type_ptr| {
+            Self::from_sys_init(|self_ptr| {
                 let converter = sys::method_table().object_from_variant;
-                converter(type_ptr, variant.var_sys());
+                converter(self_ptr, variant.var_sys());
             })
         }
     }

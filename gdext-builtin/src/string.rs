@@ -101,9 +101,9 @@ impl FromStr for GodotString {
         let b = s.as_bytes();
 
         let result = unsafe {
-            Self::from_string_sys_init(|ptr| {
+            Self::from_string_sys_init(|string_ptr| {
                 let ctor = interface_fn!(string_new_with_utf8_chars_and_len);
-                ctor(ptr, b.as_ptr() as *const i8, b.len() as i64);
+                ctor(string_ptr, b.as_ptr() as *const i8, b.len() as i64);
             })
         };
 

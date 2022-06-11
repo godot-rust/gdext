@@ -271,8 +271,8 @@ fn make_return(return_value: &Option<MethodReturn>, ctx: &Context) -> (TokenStre
 
             return_decl = quote! { -> #return_ty };
             call = quote! {
-                <#return_ty as sys::GodotFfi>::from_sys_init(|ret_ptr| {
-                    call_fn(method_bind, self.object_ptr, args_ptr, ret_ptr);
+                <#return_ty as sys::GodotFfi>::from_sys_init(|return_ptr| {
+                    call_fn(method_bind, self.object_ptr, args_ptr, return_ptr);
                 })
             };
         }
