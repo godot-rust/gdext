@@ -49,20 +49,20 @@ impl<T: GodotClass> InstanceStorage<T> {
 
     pub(crate) fn inc_ref(&mut self) {
         self.refcount += 1;
-        out!(
-            "[Storage] inc_ref: {:?}\n  refcount: {}",
-            self.get(),
-            self.refcount
-        );
+        // out!(
+        //     "[Storage] inc_ref: {:?}\n  refcount: {}",
+        //     self.get(),
+        //     self.refcount
+        // );
     }
 
     pub(crate) fn dec_ref(&mut self) {
         self.refcount -= 1;
-        out!(
-            "[Storage] dec_ref: {:?}\n  refcount: {}",
-            self.get(),
-            self.refcount
-        );
+        // out!(
+        //     "[Storage] dec_ref: {:?}\n  refcount: {}",
+        //     self.get(),
+        //     self.refcount
+        // );
     }
 
     #[must_use]
@@ -87,7 +87,7 @@ impl<T: GodotClass> Drop for InstanceStorage<T> {
     fn drop(&mut self) {
         out!(
             "[Storage] drop: {:?}\n  refcount: {}",
-            self.get(),
+            self.user_instance,
             self.refcount
         );
     }

@@ -88,7 +88,6 @@ impl RustTest {
     }
 
     fn accept_obj(&self, mut obj: Obj<Entity>) {
-        //out!("[RustTest] accept_obj: id={:x}, dec={}", obj.instance_id(), obj.instance_id() as i64);
         let m = obj.inner_mut();
         m.hitpoints -= 10;
 
@@ -100,17 +99,20 @@ impl RustTest {
     }
 
     fn return_obj(&self) -> Obj<Entity> {
-        out!("[RustTest] return_obj()");
-
         let rust_obj = Entity {
             name: "New name!".to_string(),
             hitpoints: 20,
         };
 
-        out!("-- new");
-        let r = Obj::new(rust_obj);
-        out!("-- end new");
-        r
+        let obj = Obj::new(rust_obj);
+
+        out!(
+            "[RustTest] return_obj:\n  id={},\n  obj={:?}",
+            obj.instance_id() as i64,
+            obj.inner()
+        );
+
+        obj
     }
 
     fn find_obj(&self, instance_id: i64) -> Obj<Entity> {

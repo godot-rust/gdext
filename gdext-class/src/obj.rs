@@ -55,11 +55,36 @@ impl<T: GodotClass> Obj<T> {
         result
     }
 
+    pub fn try_from_instance_id(instance_id: u64) -> Option<Self> {
+        unsafe {
+            let ptr = interface_fn!(object_get_instance_from_id)(instance_id);
+
+            if ptr.is_null() {
+                None
+            } else {
+                Some(Obj::from_obj_sys(ptr))
+            }
+        }
+    }
+
+    pub fn from_instance_id(instance_id: u64) -> Self {
+        Self::try_from_instance_id(instance_id).expect(&format!(
+            "Instance ID {} does not belong to a valid object of class '{}'",
+            instance_id,
+            T::class_name()
+        ))
+    }
+
     fn from_opaque(opaque: OpaqueObject) -> Self {
         Self {
             opaque,
             _marker: PhantomData,
         }
+    }
+
+    pub fn instance_id(&self) -> u64 {
+        // Note: bit 'id & (1 << 63)' determines if the instance is ref-counted
+        unsafe { interface_fn!(object_get_instance_id)(self.obj_sys()) }
     }
 
     // explicit deref for testing purposes
@@ -71,23 +96,6 @@ impl<T: GodotClass> Obj<T> {
     pub fn inner_mut(&mut self) -> &mut T {
         use crate::marker::ClassDeclarer as _;
         T::Declarer::extract_from_obj_mut(self)
-    }
-
-    pub fn instance_id(&self) -> u64 {
-        // Note: bit 'id & (1 << 63)' determines if the instance is ref-counted
-        unsafe { interface_fn!(object_get_instance_id)(self.obj_sys()) }
-    }
-
-    pub fn from_instance_id(instance_id: u64) -> Option<Self> {
-        unsafe {
-            let ptr = interface_fn!(object_get_instance_from_id)(instance_id);
-
-            if ptr.is_null() {
-                None
-            } else {
-                Some(Obj::from_obj_sys(ptr))
-            }
-        }
     }
 
     pub(crate) fn storage(&self) -> &mut InstanceStorage<T> {

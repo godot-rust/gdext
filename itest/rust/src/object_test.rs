@@ -14,7 +14,8 @@ pub fn run() -> bool {
     let mut ok = true;
     ok &= object_construct_default();
     ok &= object_construct_value();
-    ok &= object_user_roundtrip();
+    ok &= object_user_roundtrip_return();
+    ok &= object_user_roundtrip_write();
     ok &= object_engine_roundtrip();
     ok &= object_instance_id();
     ok
@@ -30,7 +31,7 @@ godot_itest! { object_construct_value {
     assert_eq!(obj.inner().value, 222);
 }}
 
-godot_itest! { object_user_roundtrip {
+godot_itest! { object_user_roundtrip_return {
     let value: i16 = 17943;
     let user = ObjPayload { value };
 
@@ -41,6 +42,19 @@ godot_itest! { object_user_roundtrip {
     // TODO drop/release?
 
     let obj2 = unsafe { Obj::<ObjPayload>::from_sys(ptr) };
+    assert_eq!(obj2.inner().value, value);
+}}
+
+godot_itest! { object_user_roundtrip_write {
+    let value: i16 = 17943;
+    let user = ObjPayload { value };
+
+    let obj: Obj<ObjPayload> = Obj::new(user);
+    assert_eq!(obj.inner().value, value);
+
+    // TODO drop/release?
+
+    let obj2 = unsafe { Obj::<ObjPayload>::from_sys_init(|ptr| obj.write_sys(ptr)) };
     assert_eq!(obj2.inner().value, value);
 }}
 
