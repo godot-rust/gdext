@@ -5,7 +5,7 @@ use crate::traits::*;
 use gdext_sys as sys;
 use sys::interface_fn;
 
-pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + GodotMethods>() {
+pub fn register_class<T: GodotExtensionClass + DefaultConstructible>() {
     let creation_info = sys::GDNativeExtensionClassCreationInfo {
         set_func: None,
         get_func: None,
@@ -14,7 +14,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
         notification_func: None,
         to_string_func: if T::has_to_string() {
             Some({
-                unsafe extern "C" fn to_string<T: GodotExtensionClassMethods>(
+                unsafe extern "C" fn to_string<T: GodotExtensionClass>(
                     instance: sys::GDExtensionClassInstancePtr,
                     out_string: sys::GDNativeStringPtr,
                 ) {
@@ -32,7 +32,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
             None
         },
         reference_func: Some({
-            unsafe extern "C" fn reference<T: GodotExtensionClass>(
+            unsafe extern "C" fn reference<T: GodotClass>(
                 instance: sys::GDExtensionClassInstancePtr,
             ) {
                 let storage = as_storage::<T>(instance);
@@ -41,7 +41,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
             reference::<T>
         }),
         unreference_func: Some({
-            unsafe extern "C" fn unreference<T: GodotExtensionClass>(
+            unsafe extern "C" fn unreference<T: GodotClass>(
                 instance: sys::GDExtensionClassInstancePtr,
             ) {
                 let storage = as_storage::<T>(instance);
@@ -50,7 +50,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
             unreference::<T>
         }),
         create_instance_func: Some({
-            unsafe extern "C" fn instance<T: GodotClass + GodotMethods>(
+            unsafe extern "C" fn instance<T: GodotClass + DefaultConstructible>(
                 _class_userdata: *mut std::ffi::c_void,
             ) -> sys::GDNativeObjectPtr {
                 let class_name = ClassName::new::<T>();
@@ -77,7 +77,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
             instance::<T>
         }),
         free_instance_func: Some({
-            unsafe extern "C" fn free<T: GodotExtensionClass>(
+            unsafe extern "C" fn free<T: GodotClass>(
                 _class_user_data: *mut std::ffi::c_void,
                 instance: sys::GDExtensionClassInstancePtr,
             ) {
@@ -87,7 +87,7 @@ pub fn register_class<T: GodotExtensionClass + GodotExtensionClassMethods + Godo
             free::<T>
         }),
         get_virtual_func: Some({
-            unsafe extern "C" fn get_virtual<T: GodotExtensionClassMethods>(
+            unsafe extern "C" fn get_virtual<T: GodotExtensionClass>(
                 _class_user_data: *mut std::ffi::c_void,
                 p_name: *const std::os::raw::c_char,
             ) -> sys::GDNativeExtensionClassCallVirtual {

@@ -32,7 +32,7 @@ impl GodotClass for RustTest {
     // }
 }
 
-impl GodotMethods for RustTest {
+impl DefaultConstructible for RustTest {
     fn construct(base_ptr: sys::GDNativeObjectPtr) -> Self {
         out!("[RustTest] construct: base={base_ptr:?}");
 
@@ -42,17 +42,6 @@ impl GodotMethods for RustTest {
 
         RustTest::new(obj)
     }
-}
-
-impl GodotExtensionClass for RustTest {
-    // fn construct(base: sys::GDNativeObjectPtr) -> Self {
-    //     out!("[RustTest] construct");
-    //
-    //     RustTest {
-    //         base: Node3D(base),
-    //         time: 0.0,
-    //     }
-    // }
 }
 
 impl RustTest {
@@ -189,7 +178,7 @@ impl RustTest {
     }
 }
 
-impl GodotExtensionClassMethods for RustTest {
+impl GodotExtensionClass for RustTest {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
         out!("[RustTest] virtual_call: {name}");
 
@@ -248,7 +237,7 @@ pub struct Entity {
     hitpoints: i32,
 }
 
-impl GodotMethods for Entity {
+impl DefaultConstructible for Entity {
     fn construct(base: sys::GDNativeObjectPtr) -> Self {
         out!("[Entity] construct: base={base:?}");
 
@@ -292,9 +281,7 @@ impl GodotExtensionClass for Entity {
     fn has_to_string() -> bool {
         true
     }
-}
 
-impl GodotExtensionClassMethods for Entity {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
         out!("[Entity] virtual_call: {name}");
         match name {

@@ -1,8 +1,9 @@
 use gdext_class::marker::UserClass;
 use gdext_class::{
-    api, gdext_virtual_method_body, gdext_wrap_method, out, GodotClass, GodotExtensionClass,
-    GodotExtensionClassMethods, GodotMethods,
+    api, gdext_virtual_method_body, gdext_wrap_method, out, DefaultConstructible, GodotClass,
+    GodotExtensionClass,
 };
+
 mod object_test;
 mod string_test;
 mod variant_test;
@@ -41,9 +42,7 @@ impl GodotClass for IntegrationTests {
     }
 }
 
-impl GodotExtensionClass for IntegrationTests {}
-
-impl GodotExtensionClassMethods for IntegrationTests {
+impl GodotExtensionClass for IntegrationTests {
     fn virtual_call(name: &str) -> gdext_sys::GDNativeExtensionClassCallVirtual {
         out!("[IntegrationTests] virtual_call: {name}");
 
@@ -60,7 +59,7 @@ impl GodotExtensionClassMethods for IntegrationTests {
     }
 }
 
-impl GodotMethods for IntegrationTests {
+impl DefaultConstructible for IntegrationTests {
     fn construct(_base: gdext_sys::GDNativeObjectPtr) -> Self {
         Self {}
     }

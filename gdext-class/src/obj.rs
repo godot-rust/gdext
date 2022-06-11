@@ -1,15 +1,14 @@
-use crate::property_info::PropertyInfoBuilder;
-use crate::storage::InstanceStorage;
-use crate::{ClassName, GodotClass, GodotMethods};
+use std::marker::PhantomData;
+use std::ptr;
 
 use gdext_builtin::Variant;
 use gdext_sys as sys;
-
 use sys::types::OpaqueObject;
 use sys::{impl_ffi_as_opaque_value, interface_fn, static_assert_eq_size, GodotFfi};
 
-use std::marker::PhantomData;
-use std::ptr;
+use crate::property_info::PropertyInfoBuilder;
+use crate::storage::InstanceStorage;
+use crate::{ClassName, DefaultConstructible, GodotClass};
 
 // TODO which bounds to add on struct itself?
 #[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
@@ -29,7 +28,7 @@ static_assert_eq_size!(
     "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
 );
 
-impl<T: GodotClass + GodotMethods> Obj<T> {
+impl<T: GodotClass + DefaultConstructible> Obj<T> {
     pub fn new_default() -> Self {
         let class_name = ClassName::new::<T>();
         let result = unsafe {

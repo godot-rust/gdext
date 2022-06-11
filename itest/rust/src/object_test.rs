@@ -1,10 +1,11 @@
-use crate::godot_itest;
 use gdext_builtin::{Variant, Vector3};
 use gdext_class::api::Node3D;
 use gdext_class::marker::UserClass;
-use gdext_class::{GodotClass, GodotExtensionClass, GodotExtensionClassMethods, GodotMethods, Obj};
+use gdext_class::{DefaultConstructible, GodotClass, GodotExtensionClass, Obj};
 use gdext_sys as sys;
 use sys::GodotFfi;
+
+use crate::godot_itest;
 
 pub(crate) fn register() {
     gdext_class::register_class::<ObjPayload>();
@@ -123,14 +124,13 @@ impl GodotClass for ObjPayload {
         "ObjPayload".to_string()
     }
 }
-impl GodotExtensionClass for ObjPayload {}
-impl GodotExtensionClassMethods for ObjPayload {
+impl GodotExtensionClass for ObjPayload {
     fn virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
         todo!()
     }
     fn register_methods() {}
 }
-impl GodotMethods for ObjPayload {
+impl DefaultConstructible for ObjPayload {
     fn construct(_base: sys::GDNativeObjectPtr) -> Self {
         ObjPayload { value: 111 }
     }

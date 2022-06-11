@@ -43,6 +43,7 @@ pub mod marker {
 }
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[allow(dead_code)]
 pub mod mem {
     pub trait Memory {}
 
@@ -87,22 +88,18 @@ impl GodotClass for () {
     }
 }
 
-pub trait GodotMethods: GodotClass {
+pub trait DefaultConstructible: GodotClass {
     //fn construct(base: Obj<Self::Base>) -> Self;
     fn construct(base: sys::GDNativeObjectPtr) -> Self;
 }
 
 pub trait GodotExtensionClass: GodotClass {
-    //fn construct(base: sys::GDNativeObjectPtr) -> Self;
-
-    fn reference(&mut self) {}
-    fn unreference(&mut self) {}
+    // fn reference(&mut self) {}
+    // fn unreference(&mut self) {}
     fn has_to_string() -> bool {
         false
     }
-}
 
-pub trait GodotExtensionClassMethods: GodotClass {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual;
     fn register_methods();
     fn to_string(&self) -> GodotString {
