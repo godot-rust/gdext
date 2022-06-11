@@ -5,13 +5,20 @@ use gdext_class::{
 };
 mod string_test;
 mod variant_test;
+mod object_test;
 
 fn run_tests() -> bool {
     let mut ok = true;
+    ok &= object_test::run();
     ok &= variant_test::run();
     ok &= string_test::run();
     ok
 }
+
+fn register_classes() {
+    object_test::register();
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
@@ -64,6 +71,7 @@ gdext_builtin::gdext_init!(itest_init, |init: &mut gdext_builtin::InitOptions| {
     init.register_init_function(gdext_builtin::InitLevel::Scene, || {
         out!("  register_class()");
         gdext_class::register_class::<IntegrationTests>();
+        register_classes();
     });
 });
 
