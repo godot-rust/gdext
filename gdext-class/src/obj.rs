@@ -51,9 +51,9 @@ impl<T: GodotClass> Obj<T> {
         T::Declarer::extract_from_obj(self)
     }
 
-    pub fn inner_mut(&self) -> &mut T {
-        // TODO
-        self.storage().get_mut()
+    pub fn inner_mut(&mut self) -> &mut T {
+        use crate::marker::ClassDeclarer as _;
+        T::Declarer::extract_from_obj_mut(self)
     }
 
     pub fn instance_id(&self) -> u64 {

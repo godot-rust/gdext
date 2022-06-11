@@ -7,6 +7,7 @@ pub mod marker {
 
     pub trait ClassDeclarer {
         fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T;
+        fn extract_from_obj_mut<T: GodotClass>(obj: &mut Obj<T>) -> &mut T;
     }
 
     pub enum EngineClass {}
@@ -24,12 +25,19 @@ pub mod marker {
             // }
             unsafe { std::mem::transmute::<&Obj<T>, &T>(obj) }
         }
+
+        fn extract_from_obj_mut<T: GodotClass>(obj: &mut Obj<T>) -> &mut T {
+            unsafe { std::mem::transmute::<&mut Obj<T>, &mut T>(obj) }
+        }
     }
 
     pub enum UserClass {}
     impl ClassDeclarer for UserClass {
         fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T {
             obj.storage().get()
+        }
+        fn extract_from_obj_mut<T: GodotClass>(obj: &mut Obj<T>) -> &mut T {
+            obj.storage().get_mut()
         }
     }
 }

@@ -87,7 +87,7 @@ impl RustTest {
         Vector2::from_inner(a.inner() + b.inner())
     }
 
-    fn accept_obj(&self, obj: Obj<Entity>) {
+    fn accept_obj(&self, mut obj: Obj<Entity>) {
         //out!("[RustTest] accept_obj: id={:x}, dec={}", obj.instance_id(), obj.instance_id() as i64);
         let m = obj.inner_mut();
         m.hitpoints -= 10;
