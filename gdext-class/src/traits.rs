@@ -41,6 +41,24 @@ pub mod marker {
         }
     }
 }
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+pub mod mem {
+    pub trait Memory {}
+
+    pub struct StaticRefCount {}
+    impl Memory for StaticRefCount {}
+
+    pub struct DynamicRefCount {
+        is_refcounted: bool,
+    }
+    impl Memory for DynamicRefCount {}
+
+    pub struct ManualMemory {}
+    impl Memory for ManualMemory {}
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub trait EngineClass {
     fn from_object_ptr(object_ptr: sys::GDNativeObjectPtr) -> Self;
@@ -54,6 +72,7 @@ where
 {
     type Base: GodotClass;
     type Declarer: marker::ClassDeclarer;
+    //type Memory: mem::Memory;
 
     fn class_name() -> String;
 }
@@ -61,6 +80,7 @@ where
 impl GodotClass for () {
     type Base = ();
     type Declarer = marker::EngineClass;
+    //type Memory = mem::ManualMemory;
 
     fn class_name() -> String {
         "(no base)".to_string()

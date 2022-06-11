@@ -164,13 +164,15 @@ impl<T: GodotClass> PropertyInfoBuilder for Obj<T> {
     }
 
     fn property_info(name: &str) -> sys::GDNativePropertyInfo {
+        // Note: filling this information properly is important so that Godot can use ptrcalls instead of varcalls
+        // (requires typed GDScript + sufficient information from the extension side)
         let reg = unsafe { sys::get_registry() };
 
         let property_name = reg.c_string(name);
         let class_name = reg.c_string(&T::class_name());
 
         sys::GDNativePropertyInfo {
-            type_: Self::variant_type() as _,
+            type_: Self::variant_type() as u32,
             name: property_name,
             class_name,
             hint: 0,
