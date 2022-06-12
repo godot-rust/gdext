@@ -8,7 +8,7 @@ use sys::{impl_ffi_as_opaque_value, interface_fn, static_assert_eq_size, GodotFf
 
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{ClassName, DefaultConstructible, GodotClass};
+use crate::{ClassName, DefaultConstructible, GodotClass, InstanceId};
 
 // TODO which bounds to add on struct itself?
 #[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
@@ -53,9 +53,9 @@ impl<T: GodotClass> Obj<T> {
         result
     }
 
-    pub fn try_from_instance_id(instance_id: u64) -> Option<Self> {
+    pub fn try_from_instance_id(instance_id: InstanceId) -> Option<Self> {
         unsafe {
-            let ptr = interface_fn!(object_get_instance_from_id)(instance_id);
+            let ptr = interface_fn!(object_get_instance_from_id)(instance_id.to_u64());
 
             if ptr.is_null() {
                 None
@@ -65,7 +65,7 @@ impl<T: GodotClass> Obj<T> {
         }
     }
 
-    pub fn from_instance_id(instance_id: u64) -> Self {
+    pub fn from_instance_id(instance_id: InstanceId) -> Self {
         Self::try_from_instance_id(instance_id).expect(&format!(
             "Instance ID {} does not belong to a valid object of class '{}'",
             instance_id,
@@ -80,9 +80,10 @@ impl<T: GodotClass> Obj<T> {
         }
     }
 
-    pub fn instance_id(&self) -> u64 {
+    pub fn instance_id(&self) -> InstanceId {
         // Note: bit 'id & (1 << 63)' determines if the instance is ref-counted
-        unsafe { interface_fn!(object_get_instance_id)(self.obj_sys()) }
+        let id = unsafe { interface_fn!(object_get_instance_id)(self.obj_sys()) };
+        InstanceId::from_u64(id)
     }
 
     // explicit deref for testing purposes
@@ -150,6 +151,7 @@ impl<T: GodotClass> From<&Obj<T>> for Variant {
 
                 // Note: this is a special case because of an inconsistency in Godot, where sometimes the equivalency is
                 // GDNativeTypePtr == Object** and sometimes GDNativeTypePtr == Object*. Here, it is the former, thus extra pointer.
+                // Reported at https://github.com/godotengine/godot/issues/61967
                 let type_ptr = obj.sys();
                 converter(variant_ptr, ptr::addr_of!(type_ptr) as *mut _);
             })

@@ -39,7 +39,7 @@ pub trait GodotFfi {
 macro_rules! impl_ffi_as_opaque_value {
     // impl GodotFfi for T
     () => {
-        impl_ffi_as_opaque_value!(, sys::GDNativeTypePtr; from_sys, from_sys_init, sys, write_sys);
+        impl_ffi_as_opaque_value!(, gdext_sys::GDNativeTypePtr; from_sys, from_sys_init, sys, write_sys);
     };
 
     // impl T
@@ -82,7 +82,7 @@ macro_rules! impl_ffi_as_opaque_value {
 macro_rules! impl_ffi_as_opaque_pointer {
     // impl GodotFfi for T
     () => {
-        impl_ffi_as_opaque_pointer!(, sys::GDNativeTypePtr; from_sys, from_sys_init, sys, write_sys);
+        impl_ffi_as_opaque_pointer!(, $crate::GDNativeTypePtr; from_sys, from_sys_init, sys, write_sys);
     };
 
     // impl T
@@ -128,7 +128,7 @@ macro_rules! impl_ffi_as_opaque_pointer {
 macro_rules! impl_ffi_as_self_value {
     // impl GodotFfi for T
     () => {
-        impl_ffi_as_self_value!(, sys::GDNativeTypePtr; from_sys, from_sys_init, sys, write_sys);
+        impl_ffi_as_self_value!(, $crate::GDNativeTypePtr; from_sys, from_sys_init, sys, write_sys);
     };
 
     // impl T

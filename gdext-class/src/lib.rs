@@ -1,4 +1,5 @@
 mod as_arg;
+mod instance_id;
 mod obj;
 mod registry;
 mod storage;
@@ -8,6 +9,7 @@ pub mod macros;
 pub mod property_info;
 
 pub use as_arg::*;
+pub use instance_id::*;
 pub use obj::*;
 pub use registry::*;
 pub use traits::*;

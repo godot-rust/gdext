@@ -2,11 +2,6 @@
 use std::collections::HashSet;
 use std::ffi::CString;
 
-#[derive(Default)]
-pub struct GlobalRegistry {
-    c_strings: HashSet<CString>,
-}
-
 // Retains values indefinitely (effectively 'static).
 //
 // This is unfortunately necessary with the current GDExtension design.
@@ -21,6 +16,13 @@ pub struct GlobalRegistry {
 // the next callback is invoked, which can overwrite the string value. If the same memory locations would be reused
 // by accident, Godot would mostly display the wrong strings (logic error instead of UB). With significantly large
 // buffers (CString::reserve()), UB could be avoided entirely.
+//
+// Reported at https://github.com/godotengine/godot/issues/61968
+#[derive(Default)]
+pub struct GlobalRegistry {
+    c_strings: HashSet<CString>,
+}
+
 impl GlobalRegistry {
     pub fn c_string(&mut self, s: &str) -> *const i8 {
         let value = CString::new(s).expect(&format!("Invalid string '{s}'"));

@@ -1,3 +1,4 @@
+use crate::InstanceId;
 use gdext_builtin::{GodotString, Vector2, Vector3};
 use gdext_sys as sys;
 
@@ -83,3 +84,5 @@ property_info_integer!(i8, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE
 property_info_integer!(i16, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16);
 property_info_integer!(i32, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32);
 property_info_integer!(i64, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
+
+property_info_integer!(InstanceId, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);

@@ -82,7 +82,7 @@ impl RustTest {
 
         out!(
             "[RustTest] accept_obj:\n  id={},\n  obj={:?}",
-            obj.instance_id() as i64,
+            obj.instance_id(),
             obj.inner()
         );
     }
@@ -97,17 +97,17 @@ impl RustTest {
 
         out!(
             "[RustTest] return_obj:\n  id={},\n  obj={:?}",
-            obj.instance_id() as i64,
+            obj.instance_id(),
             obj.inner()
         );
 
         obj
     }
 
-    fn find_obj(&self, instance_id: i64) -> Obj<Entity> {
+    fn find_obj(&self, instance_id: InstanceId) -> Obj<Entity> {
         out!("[RustTest] find_obj()...");
 
-        let obj = Obj::<Entity>::try_from_instance_id(instance_id as u64).expect("Obj is null");
+        let obj = Obj::<Entity>::try_from_instance_id(instance_id).expect("Obj is null");
         let inner = obj.inner();
         out!(
             "[RustTest] find_obj():\n  id={},\n  obj={:?}",
@@ -201,7 +201,7 @@ impl GodotExtensionClass for RustTest {
         );
 
         gdext_wrap_method!(RustTest,
-            fn find_obj(&self, instance_id: i64) -> Obj<Entity>
+            fn find_obj(&self, instance_id: InstanceId) -> Obj<Entity>
         );
 
         gdext_wrap_method!(RustTest,
