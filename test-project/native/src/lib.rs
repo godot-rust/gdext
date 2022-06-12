@@ -11,7 +11,7 @@ use gdext_sys as sys;
 
 #[derive(Debug)]
 pub struct RustTest {
-    base: Node3D,
+    base: Obj<Node3D>,
     time: f64,
 }
 
@@ -38,7 +38,7 @@ impl DefaultConstructible for RustTest {
 
         // FIXME build Rust object to represent Godot's own types, like Node3D
         //let obj = unsafe { Obj::from_sys(base) };
-        let obj = Node3D::from_object_ptr(base_ptr);
+        let obj = unsafe { Obj::<Node3D>::from_obj_sys(base_ptr) };
 
         RustTest::new(obj)
     }
@@ -49,7 +49,7 @@ impl RustTest {
     //     Self { time: 0.0 }
     // }
 
-    fn new(base: Node3D) -> Self {
+    fn new(base: Obj<Node3D>) -> Self {
         out!("[RustTest] new.");
         // out!("[RustTest] new: base={:?}", base.inner());
 
@@ -122,7 +122,7 @@ impl RustTest {
         //return Vector3::new(1.0, 2.0,3.0);
 
         let arg = Vector3::new(2.0, 3.0, 4.0);
-        let res = self.base.to_global(arg);
+        let res = self.base.inner().to_global(arg);
 
         println!("to_global({arg}) == {res}");
         res

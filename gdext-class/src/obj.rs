@@ -159,6 +159,12 @@ impl<T: GodotClass> From<&Obj<T>> for Variant {
     }
 }
 
+impl<T: GodotClass> std::fmt::Debug for Obj<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Obj {{ instance_id: {} }}", self.instance_id())
+    }
+}
+
 impl<T: GodotClass> PropertyInfoBuilder for Obj<T> {
     fn variant_type() -> sys::GDNativeVariantType {
         gdext_sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_OBJECT

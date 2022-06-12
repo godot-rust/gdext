@@ -62,7 +62,6 @@ pub mod mem {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub trait EngineClass {
-    fn from_object_ptr(object_ptr: sys::GDNativeObjectPtr) -> Self;
     fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
     fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
 }
@@ -107,4 +106,7 @@ pub trait GodotExtensionClass: GodotClass {
     }
 }
 
-pub trait Subclass<Derived> {}
+/// A struct `Derived` implementing `Subclass<Base>` expresses that `Derived` inherits `Base` in the Godot hierarchy.
+///
+/// This trait is implemented for all Godot engine classes, even for non-direct relations (e.g. `Node3D` implements `Subclass<Object>`).
+pub trait Subclass<Base> {}

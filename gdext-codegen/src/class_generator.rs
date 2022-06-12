@@ -131,16 +131,12 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
             }
         }
         impl crate::traits::EngineClass for #name {
-            fn from_object_ptr(object_ptr: sys::GDNativeObjectPtr) -> Self {
-                Self { object_ptr }
-            }
-            fn as_object_ptr(&self) -> sys::GDNativeObjectPtr {
-                self.object_ptr
-            }
-            fn as_type_ptr(&self) -> sys::GDNativeTypePtr {
-                // TODO:mut
-                &self.object_ptr as *const sys::GDNativeObjectPtr as sys::GDNativeTypePtr
-            }
+             fn as_object_ptr(&self) -> sys::GDNativeObjectPtr {
+                 self.object_ptr
+             }
+             fn as_type_ptr(&self) -> sys::GDNativeTypePtr {
+                std::ptr::addr_of!(self.object_ptr) as sys::GDNativeTypePtr
+             }
         }
         #(
             impl crate::traits::Subclass<#name> for crate::api::#all_bases {}
