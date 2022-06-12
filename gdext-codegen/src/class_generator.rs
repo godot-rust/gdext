@@ -2,7 +2,7 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote, ToTokens};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
@@ -27,17 +27,6 @@ const KNOWN_TYPES: [&str; 11] = [
 
 const SELECTED: [&str; 4] = ["Object", "Node", "Node3D", "RefCounted"];
 
-#[derive(Default)]
-struct Context<'a> {
-    engine_classes: HashSet<&'a str>,
-}
-
-impl<'a> Context<'a> {
-    fn is_engine_class(&self, class_name: &str) -> bool {
-        self.engine_classes.contains(class_name)
-    }
-}
-
 pub fn generate_class_files(
     api: &ExtensionApi,
     _build_config: &str,
@@ -47,15 +36,7 @@ pub fn generate_class_files(
     let _ = std::fs::remove_dir_all(gen_path);
     std::fs::create_dir_all(gen_path).expect("create classes directory");
 
-    let mut ctx = Context::default();
-    for class in api.classes.iter() {
-        if !SELECTED.contains(&class.name.as_str()) {
-            continue;
-        }
-
-        println!("-- add engine class {}", class.name);
-        ctx.engine_classes.insert(class.name.as_str());
-    }
+    let ctx = build_context(api);
 
     // TODO no limit after testing
     let mut modules = vec![];
@@ -82,6 +63,26 @@ pub fn generate_class_files(
     out_files.push(out_path);
 }
 
+fn build_context(api: &ExtensionApi) -> Context {
+    let mut ctx = Context::default();
+    for class in api.classes.iter() {
+        let class_name = class.name.as_str();
+        if !SELECTED.contains(&class_name) {
+            continue;
+        }
+
+        println!("-- add engine class {}", class_name);
+        ctx.engine_classes.insert(class_name);
+
+        if let Some(base) = class.inherits.as_ref() {
+            println!("  -- inherits {}", base);
+            ctx.inheritance_tree
+                .insert(class_name.to_string(), base.clone());
+        }
+    }
+    ctx
+}
+
 fn make_class(class: &Class, ctx: &Context) -> TokenStream {
     //let sys = TokenStream::from_str("::gdext_sys");
     let base = match class.inherits.as_ref() {
@@ -96,6 +97,11 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
 
     let name_str = strlit(&class.name);
     let name_cstr = c_str(&class.name);
+
+    let all_bases = ctx.inheritance_tree.map_all_bases(&class.name, |base| {
+        //quote! {}
+        ident(base)
+    });
 
     quote! {
         use gdext_sys as sys;
@@ -136,6 +142,9 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
                 &self.object_ptr as *const sys::GDNativeObjectPtr as sys::GDNativeTypePtr
             }
         }
+        #(
+            impl crate::traits::Subclass<#name> for crate::api::#all_bases {}
+        )*
     }
     // note: TypePtr -> ObjectPtr conversion OK?
 }
@@ -336,7 +345,47 @@ fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
     };
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 struct RustTy {
     tokens: TokenStream,
     is_engine_class: bool,
+}
+
+#[derive(Default)]
+struct Context<'a> {
+    engine_classes: HashSet<&'a str>,
+    inheritance_tree: InheritanceTree,
+}
+
+impl<'a> Context<'a> {
+    fn is_engine_class(&self, class_name: &str) -> bool {
+        self.engine_classes.contains(class_name)
+    }
+}
+
+#[derive(Default)]
+struct InheritanceTree {
+    derived_to_base: HashMap<String, String>,
+}
+
+impl InheritanceTree {
+    pub fn insert(&mut self, derived: String, base: String) {
+        let existing = self.derived_to_base.insert(derived, base);
+        assert!(existing.is_none(), "Duplicate inheritance insert");
+    }
+
+    pub fn map_all_bases<T>(&self, derived: &str, apply: impl Fn(&str) -> T) -> Vec<T> {
+        let mut maybe_base = derived;
+        let mut result = vec![];
+        loop {
+            if let Some(base) = self.derived_to_base.get(maybe_base).map(String::as_str) {
+                result.push(apply(base));
+                maybe_base = base;
+            } else {
+                break;
+            }
+        }
+        result
+    }
 }

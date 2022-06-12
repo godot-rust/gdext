@@ -106,3 +106,5 @@ pub trait GodotExtensionClass: GodotClass {
         GodotString::new()
     }
 }
+
+pub trait Subclass<Derived> {}
