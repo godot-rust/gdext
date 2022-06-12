@@ -139,7 +139,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
              }
         }
         #(
-            impl crate::traits::Subclass<#name> for crate::api::#all_bases {}
+            impl crate::traits::Inherits<crate::api::#all_bases> for #name {}
         )*
     }
     // note: TypePtr -> ObjectPtr conversion OK?

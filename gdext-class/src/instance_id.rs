@@ -29,6 +29,7 @@ impl InstanceId {
     }
 
     /// Returns if the object being referred-to is inheriting `RefCounted`
+    #[allow(dead_code)]
     pub(crate) fn is_ref_counted(self) -> bool {
         self.value & (1u64 << 63) != 0
     }

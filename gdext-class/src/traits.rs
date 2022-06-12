@@ -1,6 +1,8 @@
-use crate::sys;
+use crate::{sys, ClassName};
 use gdext_builtin::GodotString;
+use gdext_sys::{interface_fn};
 use std::fmt::Debug;
+use std::ptr::addr_of;
 
 pub mod marker {
     use crate::{GodotClass, Obj};
@@ -64,6 +66,25 @@ pub mod mem {
 pub trait EngineClass {
     fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
     fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
+
+    fn upcast<Base>(&self) -> &Base
+        where
+            Base: GodotClass,
+            Self: Inherits<Base>,
+    {
+        // Transmuting unsafe { std::mem::transmute<&Self, &Base>(self) } is probably not safe, since
+        // C++ static_cast class casts may yield a different pointer (VTable offset, virtual inheritance etc.)
+
+        let class_name = ClassName::new::<Base>();
+        unsafe {
+            let class_tag = interface_fn!(classdb_get_class_tag)(class_name.c_str());
+            let cast_object_ptr = interface_fn!(object_cast_to)(self.as_object_ptr(), class_tag);
+
+            let cast_struct_ptr = addr_of!(cast_object_ptr) as *const Base;
+            &*cast_struct_ptr // -> &Base
+        }
+        // FIXME this can't work because the pointer needs to be stored somewhere, and &Base points to something that goes out of scope -> UB
+    }
 }
 
 pub trait GodotClass: Debug
@@ -106,7 +127,8 @@ pub trait GodotExtensionClass: GodotClass {
     }
 }
 
-/// A struct `Derived` implementing `Subclass<Base>` expresses that `Derived` inherits `Base` in the Godot hierarchy.
+/// A struct `Derived` implementing `Inherits<Base>` expresses that `Derived` inherits `Base` in the Godot hierarchy.
 ///
-/// This trait is implemented for all Godot engine classes, even for non-direct relations (e.g. `Node3D` implements `Subclass<Object>`).
-pub trait Subclass<Base> {}
+/// This trait is implemented for all Godot engine classes, even for non-direct relations (e.g. `Node3D` implements `Inherits<Object>`).
+// note: could also be named `SubclassOf`
+pub trait Inherits<Base> {}
