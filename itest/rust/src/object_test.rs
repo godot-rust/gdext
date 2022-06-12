@@ -1,7 +1,7 @@
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node3D, Object};
 use gdext_class::marker::UserClass;
-use gdext_class::{DefaultConstructible, GodotClass, GodotExtensionClass, Obj, EngineClass};
+use gdext_class::{DefaultConstructible, GodotClass, GodotExtensionClass, Obj};
 use gdext_sys as sys;
 use sys::GodotFfi;
 
@@ -111,15 +111,12 @@ godot_itest! { object_engine_convert_variant {
 }}
 
 godot_itest! { object_upcast{
-    let obj: Obj<Node3D> = Node3D::new();
-    let id = obj.instance_id();
+    let node3d: Obj<Node3D> = Node3D::new();
+    let id = node3d.instance_id();
 
-    let node3d = obj.inner();
     let object = node3d.upcast::<Object>();
-
-    println!("all good");
-    assert_eq!(object.get_class(), GodotString::from("Node3D"));
-    println!("all very good");
+    assert_eq!(object.instance_id(), id);
+    assert_eq!(object.inner().get_class(), GodotString::from("Node3D"));
 }}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

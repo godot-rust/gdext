@@ -8,7 +8,7 @@ use sys::{impl_ffi_as_opaque_value, interface_fn, static_assert_eq_size, GodotFf
 
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{ClassName, DefaultConstructible, GodotClass, InstanceId};
+use crate::{ClassName, DefaultConstructible, GodotClass, Inherits, InstanceId};
 
 // TODO which bounds to add on struct itself?
 #[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
@@ -105,6 +105,27 @@ impl<T: GodotClass> Obj<T> {
             let binding =
                 interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
             crate::private::as_storage::<T>(binding)
+        }
+    }
+
+    // Convert into a smart pointer to a base class. Always succeeds.
+    pub fn upcast<Base>(self) -> Obj<Base>
+        where
+            Base: GodotClass,
+            T: Inherits<Base>,
+    {
+        // Transmuting unsafe { std::mem::transmute<&T, &Base>(self.inner()) } is probably not safe, since
+        // C++ static_cast class casts *may* yield a different pointer (VTable offset, virtual inheritance etc.)
+        // If this were safe, we could also provide an upcast on &Node etc. directly, as the resulting &Base could
+        // point to the same instance (not allowed for &mut!). But the pointer needs to be stored somewhere, and
+        // Obj<T> provides the storage -- &Node on its own doesn't have any.
+
+        let class_name = ClassName::new::<Base>();
+        unsafe {
+            let class_tag = interface_fn!(classdb_get_class_tag)(class_name.c_str());
+            let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
+
+            Obj::from_obj_sys(cast_object_ptr)
         }
     }
 
