@@ -108,11 +108,46 @@ impl<T: GodotClass> Obj<T> {
         }
     }
 
-    // Convert into a smart pointer to a base class. Always succeeds.
+    /// Upcast: onvert into a smart pointer to a base class. Always succeeds.
     pub fn upcast<Base>(self) -> Obj<Base>
         where
             Base: GodotClass,
             T: Inherits<Base>,
+    {
+        self.ffi_cast()
+            .expect("Upcast failed. This is a bug; please report it.")
+    }
+
+    /// Downcast: try to convert into a smart pointer to a derived class.
+    ///
+    /// Returns `None` if the class' dynamic type is not `Derived` or one of its subclasses.
+    pub fn try_cast<Derived>(self) -> Option<Obj<Derived>>
+        where
+            Derived: GodotClass + Inherits<T>,
+    {
+        self.ffi_cast()
+    }
+
+    /// Downcast: convert into a smart pointer to a derived class. Always succeeds.
+    ///
+    /// # Panics
+    /// If the class' dynamic type is not `Derived` or one of its subclasses. Use [`Self::try_cast()`] if you want to check the result.
+    pub fn cast<Derived>(self) -> Obj<Derived>
+        where
+            Derived: GodotClass + Inherits<T>,
+    {
+        self.ffi_cast().unwrap_or_else(|| {
+            panic!(
+                "Downcast from {from} to {to} failed; correct the code or use try_cast().",
+                from = T::class_name(),
+                to = Derived::class_name()
+            )
+        })
+    }
+
+    fn ffi_cast<U>(self) -> Option<Obj<U>>
+        where
+            U: GodotClass,
     {
         // Transmuting unsafe { std::mem::transmute<&T, &Base>(self.inner()) } is probably not safe, since
         // C++ static_cast class casts *may* yield a different pointer (VTable offset, virtual inheritance etc.)
@@ -120,12 +155,16 @@ impl<T: GodotClass> Obj<T> {
         // point to the same instance (not allowed for &mut!). But the pointer needs to be stored somewhere, and
         // Obj<T> provides the storage -- &Node on its own doesn't have any.
 
-        let class_name = ClassName::new::<Base>();
+        let class_name = ClassName::new::<U>();
         unsafe {
             let class_tag = interface_fn!(classdb_get_class_tag)(class_name.c_str());
             let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
 
-            Obj::from_obj_sys(cast_object_ptr)
+            if cast_object_ptr.is_null() {
+                None
+            } else {
+                Some(Obj::from_obj_sys(cast_object_ptr))
+            }
         }
     }
 

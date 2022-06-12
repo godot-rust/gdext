@@ -1,5 +1,5 @@
 use gdext_builtin::{GodotString, Variant, Vector3};
-use gdext_class::api::{Node3D, Object};
+use gdext_class::api::{Node, Node3D, Object};
 use gdext_class::marker::UserClass;
 use gdext_class::{DefaultConstructible, GodotClass, GodotExtensionClass, Obj};
 use gdext_sys as sys;
@@ -22,6 +22,8 @@ pub fn run() -> bool {
     ok &= object_user_convert_variant();
     ok &= object_engine_convert_variant();
     ok &= object_upcast();
+    ok &= object_downcast();
+    ok &= object_bad_downcast();
     ok
 }
 
@@ -110,13 +112,33 @@ godot_itest! { object_engine_convert_variant {
     assert_eq!(obj2.inner().get_position(), pos);
 }}
 
-godot_itest! { object_upcast{
+godot_itest! { object_upcast {
     let node3d: Obj<Node3D> = Node3D::new();
     let id = node3d.instance_id();
 
     let object = node3d.upcast::<Object>();
     assert_eq!(object.instance_id(), id);
     assert_eq!(object.inner().get_class(), GodotString::from("Node3D"));
+}}
+
+godot_itest! { object_downcast {
+    let pos = Vector3::new(1.0, 2.0, 3.0);
+    let node3d: Obj<Node3D> = Node3D::new();
+    node3d.inner().set_position(pos);
+    let id = node3d.instance_id();
+
+    let object = node3d.upcast::<Object>();
+    let node: Obj<Node> = object.cast::<Node>();
+    let node3d: Obj<Node3D> = node.try_cast::<Node3D>().expect("try_cast");
+
+    assert_eq!(node3d.instance_id(), id);
+    assert_eq!(node3d.inner().get_position(), pos);
+}}
+
+godot_itest! { object_bad_downcast {
+    let object: Obj<Object> = Object::new();
+    let node3d: Option<Obj<Node3D>> = object.try_cast::<Node3D>();
+    assert!(node3d.is_none());
 }}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
