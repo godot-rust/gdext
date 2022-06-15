@@ -1,5 +1,5 @@
 use gdext_sys as sys;
-use sys::{impl_ffi_as_self_value, GodotFfi};
+use sys::{ffi_methods, GodotFfi};
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -18,5 +18,5 @@ impl Color {
 }
 
 impl GodotFfi for Color {
-    impl_ffi_as_self_value!();
+    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
 }

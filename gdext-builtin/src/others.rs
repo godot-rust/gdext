@@ -2,7 +2,7 @@
 // are required for codegen
 use crate::GodotString;
 use gdext_sys as sys;
-use sys::{impl_ffi_as_opaque_pointer, GodotFfi};
+use sys::{ffi_methods, GodotFfi};
 
 macro_rules! impl_builtin_stub {
     ($Class:ident, $OpaqueTy:ident) => {
@@ -18,7 +18,7 @@ macro_rules! impl_builtin_stub {
         }
 
         impl GodotFfi for $Class {
-            impl_ffi_as_opaque_pointer!();
+            ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
         }
     };
 }
@@ -38,7 +38,14 @@ impl StringName {
         Self { opaque }
     }
 
-    impl_ffi_as_opaque_pointer!(sys::GDNativeStringNamePtr; from_string_sys, from_string_sys_init, string_sys, write_string_sys);
+    ffi_methods! {
+        type sys::GDNativeStringNamePtr = *mut Opaque;
+
+        fn from_string_sys = from_sys;
+        fn from_string_sys_init = from_sys_init;
+        fn string_sys = sys;
+        fn write_string_sys = write_sys;
+    }
 
     #[doc(hidden)]
     pub fn leak_string_sys(self) -> sys::GDNativeStringNamePtr {
@@ -48,7 +55,7 @@ impl StringName {
     }
 }
 impl GodotFfi for StringName {
-    impl_ffi_as_opaque_pointer!();
+    ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
 }
 impl Default for StringName {
     fn default() -> Self {

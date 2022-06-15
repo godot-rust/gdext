@@ -1,5 +1,5 @@
 use gdext_sys as sys;
-use sys::{impl_ffi_as_self_value, real, GodotFfi};
+use sys::{ffi_methods, real, GodotFfi};
 
 //#[cfg(not(feature = "real_is_double"))]
 type Inner = glam::f32::Vec3;
@@ -21,7 +21,7 @@ impl Vector3 {
 }
 
 impl GodotFfi for Vector3 {
-    impl_ffi_as_self_value!();
+    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
 }
 
 impl std::fmt::Display for Vector3 {

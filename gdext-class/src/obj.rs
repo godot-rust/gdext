@@ -4,7 +4,7 @@ use std::ptr;
 use gdext_builtin::Variant;
 use gdext_sys as sys;
 use sys::types::OpaqueObject;
-use sys::{impl_ffi_as_opaque_value, interface_fn, static_assert_eq_size, GodotFfi};
+use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
@@ -110,9 +110,9 @@ impl<T: GodotClass> Obj<T> {
 
     /// Upcast: onvert into a smart pointer to a base class. Always succeeds.
     pub fn upcast<Base>(self) -> Obj<Base>
-        where
-            Base: GodotClass,
-            T: Inherits<Base>,
+    where
+        Base: GodotClass,
+        T: Inherits<Base>,
     {
         self.ffi_cast()
             .expect("Upcast failed. This is a bug; please report it.")
@@ -122,8 +122,8 @@ impl<T: GodotClass> Obj<T> {
     ///
     /// Returns `None` if the class' dynamic type is not `Derived` or one of its subclasses.
     pub fn try_cast<Derived>(self) -> Option<Obj<Derived>>
-        where
-            Derived: GodotClass + Inherits<T>,
+    where
+        Derived: GodotClass + Inherits<T>,
     {
         self.ffi_cast()
     }
@@ -133,8 +133,8 @@ impl<T: GodotClass> Obj<T> {
     /// # Panics
     /// If the class' dynamic type is not `Derived` or one of its subclasses. Use [`Self::try_cast()`] if you want to check the result.
     pub fn cast<Derived>(self) -> Obj<Derived>
-        where
-            Derived: GodotClass + Inherits<T>,
+    where
+        Derived: GodotClass + Inherits<T>,
     {
         self.ffi_cast().unwrap_or_else(|| {
             panic!(
@@ -146,8 +146,8 @@ impl<T: GodotClass> Obj<T> {
     }
 
     fn ffi_cast<U>(self) -> Option<Obj<U>>
-        where
-            U: GodotClass,
+    where
+        U: GodotClass,
     {
         // Transmuting unsafe { std::mem::transmute<&T, &Base>(self.inner()) } is probably not safe, since
         // C++ static_cast class casts *may* yield a different pointer (VTable offset, virtual inheritance etc.)
@@ -169,7 +169,14 @@ impl<T: GodotClass> Obj<T> {
     }
 
     // Conversions from/to Godot C++ `Object*` pointers
-    impl_ffi_as_opaque_value!(sys::GDNativeObjectPtr; from_obj_sys, from_obj_sys_init, obj_sys, write_obj_sys);
+    ffi_methods! {
+        type sys::GDNativeObjectPtr = Opaque;
+
+        fn from_obj_sys = from_sys;
+        fn from_obj_sys_init = from_sys_init;
+        fn obj_sys = sys;
+        fn write_obj_sys = write_sys;
+    }
 }
 
 /*
@@ -183,7 +190,7 @@ impl<T: GodotClass> Drop for Obj<T>{
 */
 
 impl<T: GodotClass> GodotFfi for Obj<T> {
-    impl_ffi_as_opaque_value!();
+    ffi_methods! { type sys::GDNativeTypePtr = Opaque; .. }
 }
 
 impl<T: GodotClass> From<&Variant> for Obj<T> {

@@ -1,5 +1,5 @@
 use gdext_builtin::Variant;
-use gdext_sys::{impl_ffi_as_self_value, GodotFfi};
+use gdext_sys::{self as sys, ffi_methods, GodotFfi};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 /// Represents an instance ID.
@@ -42,7 +42,7 @@ impl Display for InstanceId {
 }
 
 impl GodotFfi for InstanceId {
-    impl_ffi_as_self_value!();
+    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
 }
 
 impl From<&Variant> for InstanceId {

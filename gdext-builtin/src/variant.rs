@@ -2,7 +2,7 @@ use crate::GodotString;
 use gdext_sys as sys;
 use std::fmt;
 use sys::types::OpaqueVariant;
-use sys::{impl_ffi_as_opaque_pointer, interface_fn};
+use sys::{ffi_methods, interface_fn};
 
 #[repr(C, align(8))]
 pub struct Variant {
@@ -32,7 +32,14 @@ impl Variant {
     }
 
     // Conversions from/to Godot C++ `Variant*` pointers
-    impl_ffi_as_opaque_pointer!(sys::GDNativeVariantPtr; from_var_sys, from_var_sys_init, var_sys, write_var_sys);
+    ffi_methods! {
+        type sys::GDNativeVariantPtr = *mut Opaque;
+
+        fn from_var_sys = from_sys;
+        fn from_var_sys_init = from_sys_init;
+        fn var_sys = sys;
+        fn write_var_sys = write_sys;
+    }
 }
 
 impl Clone for Variant {

@@ -1,8 +1,7 @@
 use std::{convert::Infallible, fmt, str::FromStr};
 
-use gdext_sys as sys;
+use gdext_sys::{self as sys, ffi_methods, interface_fn, GodotFfi};
 use sys::types::OpaqueString;
-use sys::{impl_ffi_as_opaque_pointer, interface_fn, GodotFfi};
 
 #[repr(C, align(8))]
 pub struct GodotString {
@@ -23,7 +22,14 @@ impl GodotString {
         Self { opaque }
     }
 
-    impl_ffi_as_opaque_pointer!(sys::GDNativeStringPtr; from_string_sys, from_string_sys_init, string_sys, write_string_sys);
+    ffi_methods! {
+        type sys::GDNativeStringPtr = *mut Opaque;
+
+        fn from_string_sys = from_sys;
+        fn from_string_sys_init = from_sys_init;
+        fn string_sys = sys;
+        fn write_string_sys = write_sys;
+    }
 
     // #[doc(hidden)]
     // pub fn leak_string_sys(self) -> sys::GDNativeStringPtr {
@@ -34,7 +40,7 @@ impl GodotString {
 }
 
 impl GodotFfi for GodotString {
-    impl_ffi_as_opaque_pointer!();
+    ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
 }
 
 impl Default for GodotString {
