@@ -40,7 +40,21 @@ impl GodotString {
 }
 
 impl GodotFfi for GodotString {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
+    ffi_methods! {
+        type sys::GDNativeTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn write_sys;
+    }
+
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Self {
+        // Can't use uninitialized pointer -- String CoW implementation in C++ expects that on assignment,
+        // the target CoW pointer is either initialized or nullptr
+
+        let mut result = Self::default();
+        init_fn(result.sys_mut());
+        result
+    }
 }
 
 impl Default for GodotString {

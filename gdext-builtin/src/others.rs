@@ -54,9 +54,25 @@ impl StringName {
         ptr
     }
 }
+
 impl GodotFfi for StringName {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
+    ffi_methods! {
+        type sys::GDNativeTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn write_sys;
+    }
+
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Self {
+        // Can't use uninitialized pointer -- StringName implementation in C++ expects that on assignment,
+        // the target type is a valid string (possibly empty)
+
+        let mut result = Self::default();
+        init_fn(result.sys_mut());
+        result
+    }
 }
+
 impl Default for StringName {
     fn default() -> Self {
         unsafe {
