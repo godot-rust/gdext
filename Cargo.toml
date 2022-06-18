@@ -7,7 +7,7 @@ members = [
 
     # test project
     "itest/rust",
-    "test-project/native"
+    "demo-project/rust"
 ]
 
 # These dependencies don't need to be debugged, make build scripts run faster

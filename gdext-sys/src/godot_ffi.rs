@@ -12,7 +12,7 @@ pub trait GodotFfi {
     /// Return Godot opaque pointer, for an immutable operation.
     ///
     /// Note that this is a `*mut` pointer despite taking `&self` by shared-ref.
-    /// This is because most of Godot's native API is not const-correct. This can still
+    /// This is because most of Godot's rust API is not const-correct. This can still
     /// enhance user code (calling `sys_mut` ensures no aliasing at the time of the call).
     fn sys(&self) -> sys::GDNativeTypePtr;
 

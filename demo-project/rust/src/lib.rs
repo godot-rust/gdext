@@ -312,13 +312,15 @@ impl Entity {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Init + Test
 
-gdext_init!(gdext_rust_test, |init: &mut gdext_builtin::InitOptions| {
+gdext_init!(demo_init, |init: &mut gdext_builtin::InitOptions| {
+    print!("Demo init... ");
     init.register_init_function(InitLevel::Scene, || {
         register_class::<RustTest>();
         register_class::<Entity>();
 
         variant_tests();
     });
+    println!("Initialized.");
 });
 
 fn variant_tests() {
