@@ -10,12 +10,7 @@ pub struct GodotString {
 
 impl GodotString {
     pub fn new() -> Self {
-        unsafe {
-            Self::from_sys_init(|self_ptr| {
-                let ctor = sys::method_table().string_construct_default;
-                ctor(self_ptr, std::ptr::null_mut());
-            })
-        }
+        Self::default()
     }
 
     fn from_opaque(opaque: OpaqueString) -> Self {
@@ -59,7 +54,18 @@ impl GodotFfi for GodotString {
 
 impl Default for GodotString {
     fn default() -> Self {
-        Self::new()
+        // Note: can't use from_sys_init(), as that calls the default constructor
+        // (because most assignments expect initialized target type)
+
+        let mut uninit = std::mem::MaybeUninit::<GodotString>::uninit();
+
+        unsafe {
+            let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
+            let ctor = sys::method_table().string_construct_default;
+            ctor(self_ptr, std::ptr::null_mut());
+
+            uninit.assume_init()
+        }
     }
 }
 

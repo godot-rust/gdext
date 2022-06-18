@@ -75,11 +75,16 @@ impl GodotFfi for StringName {
 
 impl Default for StringName {
     fn default() -> Self {
+        // Note: can't use from_sys_init(), as that calls the default constructor
+
+        let mut uninit = std::mem::MaybeUninit::<StringName>::uninit();
+
         unsafe {
-            Self::from_sys_init(|self_ptr| {
-                let ctor = sys::method_table().string_name_construct_default;
-                ctor(self_ptr, std::ptr::null_mut());
-            })
+            let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
+            let ctor = sys::method_table().string_name_construct_default;
+            ctor(self_ptr, std::ptr::null_mut());
+
+            uninit.assume_init()
         }
     }
 }
