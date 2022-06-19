@@ -48,31 +48,77 @@ pub mod mem {
     use crate::{GodotClass, Obj};
 
     pub trait Memory {
+        fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>);
         fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>);
+        fn maybe_dec_ref<T: GodotClass>(obj: &Obj<T>) -> bool;
     }
 
+    /// Memory managed through Godot reference counter (always present).
+    /// This is used for `RefCounted` classes and derived.
     pub struct StaticRefCount {}
     impl Memory for StaticRefCount {
-        fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>) {
+        fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>) {
+            println!("  Stat::init");
             obj.as_ref_counted(|refc| {
-                let success = refc.reference();
-                assert!(success);
+                let success = refc.init_ref();
+                assert!(success, "init_ref() failed");
             });
         }
-    }
 
-    pub struct DynamicRefCount {
-        is_refcounted: bool,
-    }
-    impl Memory for DynamicRefCount {
         fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>) {
-            todo!()
+            println!("  Stat::inc");
+            obj.as_ref_counted(|refc| {
+                let success = refc.reference();
+                assert!(success, "reference() failed");
+            });
+        }
+
+        fn maybe_dec_ref<T: GodotClass>(obj: &Obj<T>) -> bool {
+            obj.as_ref_counted(|refc| {
+                let is_last = refc.unreference();
+                println!("  Stat::dec (last={is_last})");
+                is_last
+            })
         }
     }
 
+    /// Memory managed through Godot reference counter, if present; otherwise manual.
+    /// This is used only for `Object` classes.
+    pub struct DynamicRefCount {}
+    impl Memory for DynamicRefCount {
+        fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>) {
+            println!("  Dyn::init");
+            if obj.instance_id().is_ref_counted() {
+                StaticRefCount::maybe_init_ref(obj);
+            }
+        }
+
+        fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>) {
+            println!("  Dyn::inc");
+            if obj.instance_id().is_ref_counted() {
+                StaticRefCount::maybe_inc_ref(obj);
+            }
+        }
+
+        fn maybe_dec_ref<T: GodotClass>(obj: &Obj<T>) -> bool {
+            println!("  Dyn::dec");
+            if obj.instance_id().is_ref_counted() {
+                StaticRefCount::maybe_dec_ref(obj)
+            } else {
+                false
+            }
+        }
+    }
+
+    /// No memory management, user responsible for not leaking.
+    /// This is used for all `Object` derivates, except `RefCounted` (and except `Object` itself).
     pub struct ManualMemory {}
     impl Memory for ManualMemory {
+        fn maybe_init_ref<T: GodotClass>(_obj: &Obj<T>) {}
         fn maybe_inc_ref<T: GodotClass>(_obj: &Obj<T>) {}
+        fn maybe_dec_ref<T: GodotClass>(_obj: &Obj<T>) -> bool {
+            false
+        }
     }
 }
 

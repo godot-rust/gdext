@@ -1,14 +1,16 @@
 use gdext_builtin::{GodotString, Variant, Vector3};
-use gdext_class::api::{Node, Node3D, Object};
-use gdext_class::marker::UserClass;
-use gdext_class::{mem, DefaultConstructible, GodotClass, GodotExtensionClass, Obj};
+use gdext_class::api::{Node, Node3D, Object, RefCounted};
+use gdext_class::{marker, mem, DefaultConstructible, GodotClass, GodotExtensionClass, Obj, Share};
 use gdext_sys as sys;
+use std::cell::RefCell;
+use std::rc::Rc;
 use sys::GodotFfi;
 
 use crate::godot_itest;
 
 pub(crate) fn register() {
     gdext_class::register_class::<ObjPayload>();
+    gdext_class::register_class::<Tracker>();
 }
 
 pub fn run() -> bool {
@@ -24,6 +26,7 @@ pub fn run() -> bool {
     ok &= object_upcast();
     ok &= object_downcast();
     ok &= object_bad_downcast();
+    ok &= object_share_drop();
     ok
 }
 
@@ -144,16 +147,31 @@ godot_itest! { object_bad_downcast {
     assert!(node3d.is_none());
 }}
 
+godot_itest! { object_share_drop {
+    let drop_count = Rc::new(RefCell::new(0));
+
+    let object: Obj<Tracker> = Obj::new(Tracker { drop_count: Rc::clone(&drop_count) });
+    assert_eq!(*drop_count.borrow(), 0);
+
+    let shared = object.share();
+    assert_eq!(*drop_count.borrow(), 0);
+
+    drop(shared);
+    assert_eq!(*drop_count.borrow(), 0);
+
+    drop(object);
+    assert_eq!(*drop_count.borrow(), 1);
+}}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct ObjPayload {
     value: i16,
 }
-
 impl GodotClass for ObjPayload {
     type Base = Node3D;
-    type Declarer = UserClass;
+    type Declarer = marker::UserClass;
     type Mem = mem::ManualMemory;
 
     fn class_name() -> String {
@@ -169,5 +187,38 @@ impl GodotExtensionClass for ObjPayload {
 impl DefaultConstructible for ObjPayload {
     fn construct(_base: sys::GDNativeObjectPtr) -> Self {
         ObjPayload { value: 111 }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Tracker {
+    drop_count: Rc<RefCell<i32>>,
+}
+impl GodotClass for Tracker {
+    type Base = RefCounted;
+    type Declarer = marker::UserClass;
+    type Mem = mem::StaticRefCount;
+
+    fn class_name() -> String {
+        "Tracker".to_string()
+    }
+}
+impl GodotExtensionClass for Tracker {
+    fn virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
+        todo!()
+    }
+    fn register_methods() {}
+}
+impl DefaultConstructible for Tracker {
+    fn construct(_base: sys::GDNativeObjectPtr) -> Self {
+        panic!("not invoked")
+    }
+}
+impl Drop for Tracker {
+    fn drop(&mut self) {
+        println!("    Tracker::drop()");
+        *self.drop_count.borrow_mut() += 1;
     }
 }

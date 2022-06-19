@@ -6,6 +6,7 @@ use gdext_sys as sys;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
+use crate::mem::Memory;
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
 use crate::{
@@ -39,6 +40,7 @@ impl<T: GodotClass + DefaultConstructible> Obj<T> {
         };
 
         result.storage().initialize_default();
+        T::Mem::maybe_init_ref(&result);
         result
     }
 }
@@ -52,6 +54,7 @@ impl<T: GodotClass> Obj<T> {
         };
 
         result.storage().initialize(user_object);
+        T::Mem::maybe_init_ref(&result);
         result
     }
 
@@ -186,10 +189,11 @@ impl<T: GodotClass> Obj<T> {
         }
     }
 
-    pub(crate) fn as_ref_counted(&self, apply: impl Fn(&mut api::RefCounted)) {
+    pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut api::RefCounted) -> R) -> R {
         let mut tmp = unsafe { self.ffi_cast::<api::RefCounted>() }.unwrap();
-        apply(tmp.inner_mut());
+        let return_val = apply(tmp.inner_mut());
         std::mem::forget(tmp); // no ownership transfer
+        return_val
     }
 
     // Conversions from/to Godot C++ `Object*` pointers
@@ -203,28 +207,31 @@ impl<T: GodotClass> Obj<T> {
     }
 }
 
-/*
-// TODO enable once ownership is clear -- see also forget() in ptrcall_write()
-impl<T: GodotClass> Drop for Obj<T>{
-    fn drop(&mut self) {
-        println!("Obj::drop()");
-        unsafe { interface_fn!(object_destroy)(self.sys_mut()); }
-    }
-}
-*/
-
 impl<T: GodotClass> GodotFfi for Obj<T> {
     ffi_methods! { type sys::GDNativeTypePtr = Opaque; .. }
 }
 
-impl<T> Share for Obj<T>
-where
-    T: GodotClass,
-{
+impl<T: GodotClass> Share for Obj<T> {
     fn share(&self) -> Self {
-        use traits::mem::Memory as _;
+        println!("Obj::share()");
         T::Mem::maybe_inc_ref(&self);
         Self::from_opaque(self.opaque)
+    }
+}
+
+impl<T: GodotClass> Drop for Obj<T> {
+    fn drop(&mut self) {
+        println!("Obj::drop()");
+        let is_last = T::Mem::maybe_dec_ref(&self); // may drop
+        if is_last {
+            let inner = self.inner_mut();
+            unsafe {
+                ptr::drop_in_place(inner as *mut _);
+            }
+        }
+        // unsafe {
+        //     interface_fn!(object_destroy)(self.sys_mut());
+        // }
     }
 }
 
