@@ -145,7 +145,7 @@ macro_rules! gdext_init {
 
         fn __static_type_check() {
             // Ensures that the init function matches the signature advertised in FFI header
-		    let _unused: ::gdext_sys::GDNativeInitializationFunction = Some($name);
+            let _unused: ::gdext_sys::GDNativeInitializationFunction = Some($name);
         }
     };
 }

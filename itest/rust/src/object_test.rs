@@ -1,7 +1,7 @@
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object};
 use gdext_class::marker::UserClass;
-use gdext_class::{DefaultConstructible, GodotClass, GodotExtensionClass, Obj};
+use gdext_class::{mem, DefaultConstructible, GodotClass, GodotExtensionClass, Obj};
 use gdext_sys as sys;
 use sys::GodotFfi;
 
@@ -26,6 +26,9 @@ pub fn run() -> bool {
     ok &= object_bad_downcast();
     ok
 }
+
+// TODO:
+// * make sure that ptrcalls are used when possible (ie. when type info available; maybe GDScript integration test)
 
 godot_itest! { object_construct_default {
     let obj = Obj::<ObjPayload>::new_default();
@@ -151,6 +154,7 @@ pub struct ObjPayload {
 impl GodotClass for ObjPayload {
     type Base = Node3D;
     type Declarer = UserClass;
+    type Mem = mem::ManualMemory;
 
     fn class_name() -> String {
         "ObjPayload".to_string()

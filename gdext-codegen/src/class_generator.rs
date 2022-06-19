@@ -98,10 +98,15 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
     let name_str = strlit(&class.name);
     let name_cstr = c_str(&class.name);
 
-    let all_bases = ctx.inheritance_tree.map_all_bases(&class.name, |base| {
-        //quote! {}
-        ident(base)
-    });
+    let all_bases = ctx.inheritance_tree.map_all_bases(&class.name, ident);
+
+    let memory = if &class.name == "Object" {
+        ident("DynamicRefCount")
+    } else if class.is_refcounted {
+        ident("StaticRefCount")
+    } else {
+        ident("ManualMemory")
+    };
 
     quote! {
         use gdext_sys as sys;
@@ -126,6 +131,8 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         impl crate::traits::GodotClass for #name {
             type Base = #base;
             type Declarer = crate::traits::marker::EngineClass;
+            type Mem = crate::traits::mem::#memory;
+
             fn class_name() -> String {
                 #name_str.to_string()
             }

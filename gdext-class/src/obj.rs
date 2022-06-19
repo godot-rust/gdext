@@ -8,7 +8,9 @@ use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{ClassName, DefaultConstructible, GodotClass, Inherits, InstanceId};
+use crate::{
+    api, traits, ClassName, DefaultConstructible, GodotClass, Inherits, InstanceId, Share,
+};
 
 // TODO which bounds to add on struct itself?
 #[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
@@ -114,18 +116,20 @@ impl<T: GodotClass> Obj<T> {
         Base: GodotClass,
         T: Inherits<Base>,
     {
-        self.ffi_cast()
+        self.owned_cast()
             .expect("Upcast failed. This is a bug; please report it.")
     }
 
     /// Downcast: try to convert into a smart pointer to a derived class.
     ///
-    /// Returns `None` if the class' dynamic type is not `Derived` or one of its subclasses.
+    /// If `T`'s dynamic type is not `Derived` or one of its subclasses, `None` is returned
+    /// and the reference is dropped. Otherwise, `Some` is returned and the ownership is moved
+    /// to the returned value.
     pub fn try_cast<Derived>(self) -> Option<Obj<Derived>>
     where
         Derived: GodotClass + Inherits<T>,
     {
-        self.ffi_cast()
+        self.owned_cast()
     }
 
     /// Downcast: convert into a smart pointer to a derived class. Always succeeds.
@@ -136,7 +140,7 @@ impl<T: GodotClass> Obj<T> {
     where
         Derived: GodotClass + Inherits<T>,
     {
-        self.ffi_cast().unwrap_or_else(|| {
+        self.owned_cast().unwrap_or_else(|| {
             panic!(
                 "Downcast from {from} to {to} failed; correct the code or use try_cast().",
                 from = T::class_name(),
@@ -145,27 +149,47 @@ impl<T: GodotClass> Obj<T> {
         })
     }
 
-    fn ffi_cast<U>(self) -> Option<Obj<U>>
+    fn owned_cast<U>(self) -> Option<Obj<U>>
     where
         U: GodotClass,
     {
-        // Transmuting unsafe { std::mem::transmute<&T, &Base>(self.inner()) } is probably not safe, since
-        // C++ static_cast class casts *may* yield a different pointer (VTable offset, virtual inheritance etc.)
-        // If this were safe, we could also provide an upcast on &Node etc. directly, as the resulting &Base could
+        // Transmuting unsafe { std::mem::transmute<&T, &Base>(self.inner()) } is probably not sound, since
+        // C++ static_cast class casts *may* yield a different pointer (VTable offset, virtual inheritance etc.).
+        // It *seems* to work at the moment (June 2022), but this is no indication it's not UB.
+        // If this were sound, we could also provide an upcast on &Node etc. directly, as the resulting &Base could
         // point to the same instance (not allowed for &mut!). But the pointer needs to be stored somewhere, and
         // Obj<T> provides the storage -- &Node on its own doesn't have any.
 
-        let class_name = ClassName::new::<U>();
-        unsafe {
-            let class_tag = interface_fn!(classdb_get_class_tag)(class_name.c_str());
-            let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
-
-            if cast_object_ptr.is_null() {
-                None
-            } else {
-                Some(Obj::from_obj_sys(cast_object_ptr))
-            }
+        let result = unsafe { self.ffi_cast::<U>() };
+        if result.is_some() {
+            // duplicated ref, one must be wiped
+            std::mem::forget(self);
         }
+
+        result
+    }
+
+    // Note: does not transfer ownership and is thus unsafe. Also operates on shared ref.
+    // Either the parameter or the return value *must* be forgotten (since reference counts are not updated).
+    unsafe fn ffi_cast<U>(&self) -> Option<Obj<U>>
+    where
+        U: GodotClass,
+    {
+        let class_name = ClassName::new::<U>();
+        let class_tag = interface_fn!(classdb_get_class_tag)(class_name.c_str());
+        let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
+
+        if cast_object_ptr.is_null() {
+            None
+        } else {
+            Some(Obj::from_obj_sys(cast_object_ptr))
+        }
+    }
+
+    pub(crate) fn as_ref_counted(&self, apply: impl Fn(&mut api::RefCounted)) {
+        let mut tmp = unsafe { self.ffi_cast::<api::RefCounted>() }.unwrap();
+        apply(tmp.inner_mut());
+        std::mem::forget(tmp); // no ownership transfer
     }
 
     // Conversions from/to Godot C++ `Object*` pointers
@@ -191,6 +215,17 @@ impl<T: GodotClass> Drop for Obj<T>{
 
 impl<T: GodotClass> GodotFfi for Obj<T> {
     ffi_methods! { type sys::GDNativeTypePtr = Opaque; .. }
+}
+
+impl<T> Share for Obj<T>
+where
+    T: GodotClass,
+{
+    fn share(&self) -> Self {
+        use traits::mem::Memory as _;
+        T::Mem::maybe_inc_ref(&self);
+        Self::from_opaque(self.opaque)
+    }
 }
 
 impl<T: GodotClass> From<&Variant> for Obj<T> {

@@ -1,7 +1,7 @@
 use gdext_class::marker::UserClass;
 use gdext_class::{
-    api, gdext_virtual_method_body, gdext_wrap_method, out, DefaultConstructible, GodotClass,
-    GodotExtensionClass,
+    api, gdext_virtual_method_body, gdext_wrap_method, out, traits, DefaultConstructible,
+    GodotClass, GodotExtensionClass,
 };
 
 mod object_test;
@@ -36,6 +36,7 @@ impl IntegrationTests {
 impl GodotClass for IntegrationTests {
     type Base = api::Node;
     type Declarer = UserClass;
+    type Mem = traits::mem::ManualMemory;
 
     fn class_name() -> String {
         "IntegrationTests".to_string()

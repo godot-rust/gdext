@@ -45,18 +45,35 @@ pub mod marker {
 
 #[allow(dead_code)]
 pub mod mem {
-    pub trait Memory {}
+    use crate::{GodotClass, Obj};
+
+    pub trait Memory {
+        fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>);
+    }
 
     pub struct StaticRefCount {}
-    impl Memory for StaticRefCount {}
+    impl Memory for StaticRefCount {
+        fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>) {
+            obj.as_ref_counted(|refc| {
+                let success = refc.reference();
+                assert!(success);
+            });
+        }
+    }
 
     pub struct DynamicRefCount {
         is_refcounted: bool,
     }
-    impl Memory for DynamicRefCount {}
+    impl Memory for DynamicRefCount {
+        fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>) {
+            todo!()
+        }
+    }
 
     pub struct ManualMemory {}
-    impl Memory for ManualMemory {}
+    impl Memory for ManualMemory {
+        fn maybe_inc_ref<T: GodotClass>(_obj: &Obj<T>) {}
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -72,7 +89,7 @@ where
 {
     type Base: GodotClass;
     type Declarer: marker::ClassDeclarer;
-    //type Memory: mem::Memory;
+    type Mem: mem::Memory;
 
     fn class_name() -> String;
 }
@@ -80,7 +97,7 @@ where
 impl GodotClass for () {
     type Base = ();
     type Declarer = marker::EngineClass;
-    //type Memory = mem::ManualMemory;
+    type Mem = mem::ManualMemory;
 
     fn class_name() -> String {
         "(no base)".to_string()
@@ -104,6 +121,10 @@ pub trait GodotExtensionClass: GodotClass {
     fn to_string(&self) -> GodotString {
         GodotString::new()
     }
+}
+
+pub trait Share {
+    fn share(&self) -> Self;
 }
 
 /// A struct `Derived` implementing `Inherits<Base>` expresses that `Derived` inherits `Base` in the Godot hierarchy.
