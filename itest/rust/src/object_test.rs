@@ -1,6 +1,8 @@
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
-use gdext_class::{marker, mem, DefaultConstructible, GodotClass, GodotExtensionClass, Obj, Share};
+use gdext_class::{
+    marker, mem, out, DefaultConstructible, GodotClass, GodotExtensionClass, Obj, Share,
+};
 use gdext_sys as sys;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -218,7 +220,7 @@ impl DefaultConstructible for Tracker {
 }
 impl Drop for Tracker {
     fn drop(&mut self) {
-        println!("    Tracker::drop()");
+        out!("      Tracker::drop");
         *self.drop_count.borrow_mut() += 1;
     }
 }

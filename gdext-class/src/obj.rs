@@ -6,12 +6,11 @@ use gdext_sys as sys;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
+use crate::marker::ClassDeclarer;
 use crate::mem::Memory;
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{
-    api, traits, ClassName, DefaultConstructible, GodotClass, Inherits, InstanceId, Share,
-};
+use crate::{api, out, ClassName, DefaultConstructible, GodotClass, Inherits, InstanceId, Share};
 
 // TODO which bounds to add on struct itself?
 #[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
@@ -93,12 +92,10 @@ impl<T: GodotClass> Obj<T> {
 
     // explicit deref for testing purposes
     pub fn inner(&self) -> &T {
-        use crate::marker::ClassDeclarer as _;
         T::Declarer::extract_from_obj(self)
     }
 
     pub fn inner_mut(&mut self) -> &mut T {
-        use crate::marker::ClassDeclarer as _;
         T::Declarer::extract_from_obj_mut(self)
     }
 
@@ -213,7 +210,7 @@ impl<T: GodotClass> GodotFfi for Obj<T> {
 
 impl<T: GodotClass> Share for Obj<T> {
     fn share(&self) -> Self {
-        println!("Obj::share()");
+        out!("Obj::share");
         T::Mem::maybe_inc_ref(&self);
         Self::from_opaque(self.opaque)
     }
@@ -221,17 +218,14 @@ impl<T: GodotClass> Share for Obj<T> {
 
 impl<T: GodotClass> Drop for Obj<T> {
     fn drop(&mut self) {
-        println!("Obj::drop()");
+        out!("Obj::drop");
         let is_last = T::Mem::maybe_dec_ref(&self); // may drop
         if is_last {
-            let inner = self.inner_mut();
+            //T::Declarer::destroy(self);
             unsafe {
-                ptr::drop_in_place(inner as *mut _);
+                interface_fn!(object_destroy)(self.obj_sys());
             }
         }
-        // unsafe {
-        //     interface_fn!(object_destroy)(self.sys_mut());
-        // }
     }
 }
 

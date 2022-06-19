@@ -36,6 +36,7 @@ pub mod marker {
         fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T {
             obj.storage().get()
         }
+
         fn extract_from_obj_mut<T: GodotClass>(obj: &mut Obj<T>) -> &mut T {
             obj.storage().get_mut()
         }
@@ -45,7 +46,7 @@ pub mod marker {
 
 #[allow(dead_code)]
 pub mod mem {
-    use crate::{GodotClass, Obj};
+    use crate::{out, GodotClass, Obj};
 
     pub trait Memory {
         fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>);
@@ -58,7 +59,7 @@ pub mod mem {
     pub struct StaticRefCount {}
     impl Memory for StaticRefCount {
         fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>) {
-            println!("  Stat::init");
+            out!("  Stat::init");
             obj.as_ref_counted(|refc| {
                 let success = refc.init_ref();
                 assert!(success, "init_ref() failed");
@@ -66,7 +67,7 @@ pub mod mem {
         }
 
         fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>) {
-            println!("  Stat::inc");
+            out!("  Stat::inc");
             obj.as_ref_counted(|refc| {
                 let success = refc.reference();
                 assert!(success, "reference() failed");
@@ -74,9 +75,10 @@ pub mod mem {
         }
 
         fn maybe_dec_ref<T: GodotClass>(obj: &Obj<T>) -> bool {
+            out!("  Stat::dec");
             obj.as_ref_counted(|refc| {
                 let is_last = refc.unreference();
-                println!("  Stat::dec (last={is_last})");
+                out!("  +-- was last={is_last}");
                 is_last
             })
         }
@@ -87,21 +89,21 @@ pub mod mem {
     pub struct DynamicRefCount {}
     impl Memory for DynamicRefCount {
         fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>) {
-            println!("  Dyn::init");
+            out!("  Dyn::init");
             if obj.instance_id().is_ref_counted() {
                 StaticRefCount::maybe_init_ref(obj);
             }
         }
 
         fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>) {
-            println!("  Dyn::inc");
+            out!("  Dyn::inc");
             if obj.instance_id().is_ref_counted() {
                 StaticRefCount::maybe_inc_ref(obj);
             }
         }
 
         fn maybe_dec_ref<T: GodotClass>(obj: &Obj<T>) -> bool {
-            println!("  Dyn::dec");
+            out!("  Dyn::dec");
             if obj.instance_id().is_ref_counted() {
                 StaticRefCount::maybe_dec_ref(obj)
             } else {

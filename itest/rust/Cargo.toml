@@ -8,8 +8,9 @@ crate-type = ["cdylib"]
 
 [features]
 default = []
+trace = ["gdext-class/trace"]
 
 [dependencies]
 gdext-sys = { path = "../../gdext-sys" }
 gdext-builtin = { path = "../../gdext-builtin" }
-gdext-class = { path = "../../gdext-class", features = ["trace"] }
+gdext-class = { path = "../../gdext-class" }

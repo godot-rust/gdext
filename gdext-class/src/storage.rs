@@ -7,7 +7,7 @@ pub struct InstanceStorage<T: GodotClass> {
     base: sys::GDNativeObjectPtr,
     // base: Obj<T::Base>,
     user_instance: Option<T>, // lateinit
-    refcount: i32,
+                              //destroyed: bool,
 }
 
 impl<T: DefaultConstructible + GodotClass> InstanceStorage<T> {
@@ -28,13 +28,13 @@ impl<T: DefaultConstructible + GodotClass> InstanceStorage<T> {
 
 impl<T: GodotClass> InstanceStorage<T> {
     pub fn construct_uninit(base: sys::GDNativeObjectPtr) -> Self {
-        let refcount = 1;
+        // let refcount = 1;
         //out!("[Storage] construct_uninit:  refcount: {}", refcount);
 
         Self {
             base,
             user_instance: None,
-            refcount,
+            //destroyed: false,
         }
     }
 
@@ -47,23 +47,28 @@ impl<T: GodotClass> InstanceStorage<T> {
         self.user_instance = Some(value);
     }
 
-    pub(crate) fn inc_ref(&mut self) {
-        self.refcount += 1;
-        // out!(
-        //     "[Storage] inc_ref: {:?}\n  refcount: {}",
-        //     self.get(),
-        //     self.refcount
-        // );
+    pub(crate) fn on_inc_ref(&mut self) {
+        // self.refcount += 1;
+        out!("    Storage::on_inc_ref -- {:?}", self.get());
     }
 
-    pub(crate) fn dec_ref(&mut self) {
-        self.refcount -= 1;
-        // out!(
-        //     "[Storage] dec_ref: {:?}\n  refcount: {}",
-        //     self.get(),
-        //     self.refcount
-        // );
+    pub(crate) fn on_dec_ref(&mut self) {
+        // self.refcount -= 1;
+        out!("  | Storage::on_dec_ref -- {:?}", self.get());
     }
+
+    /* pub fn destroy(&mut self) {
+        assert!(
+            self.user_instance.is_some(),
+            "Cannot destroy user instance which is not yet initialized"
+        );
+        assert!(
+            !self.destroyed,
+            "Cannot destroy user instance multiple times"
+        );
+        self.user_instance = None; // drops T
+                                   // TODO drop entire Storage
+    }*/
 
     #[must_use]
     pub fn into_raw(self) -> *mut Self {
@@ -85,11 +90,7 @@ impl<T: GodotClass> InstanceStorage<T> {
 
 impl<T: GodotClass> Drop for InstanceStorage<T> {
     fn drop(&mut self) {
-        out!(
-            "[Storage] drop: {:?}\n  refcount: {}",
-            self.user_instance,
-            self.refcount
-        );
+        out!("    Storage::drop -- {:?}", self.user_instance);
     }
 }
 

@@ -36,7 +36,7 @@ pub fn register_class<T: GodotExtensionClass + DefaultConstructible>() {
                 instance: sys::GDExtensionClassInstancePtr,
             ) {
                 let storage = as_storage::<T>(instance);
-                storage.inc_ref();
+                storage.on_inc_ref();
             }
             reference::<T>
         }),
@@ -45,7 +45,7 @@ pub fn register_class<T: GodotExtensionClass + DefaultConstructible>() {
                 instance: sys::GDExtensionClassInstancePtr,
             ) {
                 let storage = as_storage::<T>(instance);
-                storage.dec_ref();
+                storage.on_dec_ref();
             }
             unreference::<T>
         }),
