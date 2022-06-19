@@ -109,7 +109,7 @@ macro_rules! gdext_init {
             interface: *const ::gdext_sys::GDNativeInterface,
             library: ::gdext_sys::GDNativeExtensionClassLibraryPtr,
             init: *mut ::gdext_sys::GDNativeInitialization,
-        ) {
+        ) -> ::gdext_sys::GDNativeBool {
             ::gdext_sys::initialize(interface, library);
 
             let mut init_options = $crate::InitOptions::new();
@@ -124,6 +124,7 @@ macro_rules! gdext_init {
             };
 
             $crate::INIT_OPTIONS = Some(init_options);
+            true as u8 // TODO allow user to propagate failure
         }
 
         unsafe extern "C" fn initialise(
@@ -140,6 +141,11 @@ macro_rules! gdext_init {
         ) {
             let init_options = $crate::INIT_OPTIONS.as_mut().unwrap();
             init_options.run_deinit_function($crate::InitLevel::from_sys(init_level));
+        }
+
+        fn __static_type_check() {
+            // Ensures that the init function matches the signature advertised in FFI header
+		    let _unused: ::gdext_sys::GDNativeInitializationFunction = Some($name);
         }
     };
 }
