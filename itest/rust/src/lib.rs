@@ -4,10 +4,10 @@ use gdext_class::{
     GodotClass, GodotExtensionClass,
 };
 
+mod gdscript_ffi_test;
 mod object_test;
 mod string_test;
 mod variant_test;
-mod gdscript_ffi_test;
 
 fn run_tests() -> bool {
     let mut ok = true;

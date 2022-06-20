@@ -1,11 +1,12 @@
 [workspace]
 members = [
-    "gdext-sys",
-    "gdext-builtin",
     "gdext-codegen",
+    "gdext-sys",
+    "gdext-macros",
+    "gdext-builtin",
     "gdext-class",
 
-    # test project
+    # Godot integration
     "itest/rust",
     "demo-project/rust"
 ]
