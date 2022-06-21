@@ -25,6 +25,7 @@ jobs:
   integration-test-godot:
     name: itest-godot
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v2
 
