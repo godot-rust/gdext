@@ -1,5 +1,5 @@
 use crate::util::ident;
-use proc_macro2::{Ident, TokenStream, TokenTree};
+use proc_macro2::{Ident, Punct, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::collections::HashMap;
@@ -65,14 +65,6 @@ pub fn derive_godot_class(input: TokenStream) -> Result<TokenStream, Error> {
     Ok(result)
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-enum KvToken {
-    KeyOrEnd,
-    Equals,
-    Value,
-    Comma,
-}
-
 #[derive(Clone, Eq, PartialEq, Debug)]
 enum KvValue {
     None,
@@ -82,67 +74,113 @@ enum KvValue {
 
 // parses (a="hey", b=342)
 fn parse_kv_group(value: &AttributeValue) -> Result<HashMap<String, KvValue>, Error> {
-    let tokens = value.get_value_tokens();
-
-    let mut map = HashMap::new();
-
-    let mut expect_next = KvToken::KeyOrEnd;
-    let mut last_key = None;
-
     // FSM with possible flows:
     //
-    //  [start]  ------> KeyOrEnd ----> Equals
-    //                 /  ^  |           |
-    //                /   |  v           v
-    //   [end]  <----´-- Comma <------ Value
-    //
+    //  [start]* ------>  Key*  ----> Equals
+    //                    ^  |          |
+    //                    |  v          v
+    //                   Comma* <----- Value*
+    //  [end] <-- *
+    #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+    enum KvState {
+        Start,
+        Key,
+        Equals,
+        Value,
+        Comma,
+    }
+
+    let mut map: HashMap<String, KvValue> = HashMap::new();
+    let mut state = KvState::Start;
+    let mut last_key: Option<String> = None;
+
+    // can't be a closure because closures borrow greedy, and we'd need borrowing only at invocation time (lazy)
+    macro_rules! insert_kv {
+        ($value:expr) => {
+            let key = last_key.take().unwrap();
+            map.insert(key, $value);
+        };
+    }
+
+    let tokens = value.get_value_tokens();
     println!("all tokens: {tokens:?}");
     for tk in tokens {
         // Key
-        println!("-- {tk:?} @ {expect_next:?}");
-        match tk {
-            TokenTree::Group(group) => {
-                unimplemented!("Only key=value syntax supported")
-            }
-            TokenTree::Ident(ident) => {
-                if expect_next == KvToken::KeyOrEnd {
-                    last_key = Some(ident);
-                    expect_next = KvToken::Equals;
-                } else if expect_next == KvToken::Value {
-                    map.insert(last_key.unwrap().to_string(), KvValue::Ident(ident.clone()));
-                    expect_next = KvToken::Comma;
-                    last_key = None;
+        println!("-- {state:?} -> {tk:?}");
+
+        match state {
+            KvState::Start => match tk {
+                // key ...
+                TokenTree::Ident(ident) => {
+                    let key = last_key.replace(ident.to_string());
+                    assert!(key.is_none());
+                    state = KvState::Key;
+                }
+                _ => bail("attribute must start with key", tk)?,
+            },
+            KvState::Key => {
+                match tk {
+                    TokenTree::Punct(punct) => {
+                        if punct.as_char() == '=' {
+                            // key = ...
+                            state = KvState::Equals;
+                        } else if punct.as_char() == ',' {
+                            // key, ...
+                            insert_kv!(KvValue::None);
+                            state = KvState::Comma;
+                        } else {
+                            bail("key must be followed by either '=' or ','", tk)?;
+                        }
+                    }
+                    _ => {
+                        bail("key must be followed by either '=' or ','", tk)?;
+                    }
                 }
             }
-            TokenTree::Punct(punct) => {
-                if expect_next == KvToken::Equals && punct.as_char() == '=' {
-                    expect_next = KvToken::Value;
-                } else if expect_next == KvToken::Comma && punct.as_char() == ',' {
-                    expect_next = KvToken::KeyOrEnd;
-                } else {
-                    bail(
-                        &format!(
-                            "Unexpected punctuation token '{}' in macro attributes",
-                            punct.as_char()
-                        ),
-                        punct,
-                    )?;
+            KvState::Equals => match tk {
+                // key = value ...
+                TokenTree::Ident(ident) => {
+                    insert_kv!(KvValue::Ident(ident.clone()));
+                    state = KvState::Value;
                 }
-            }
-            TokenTree::Literal(lit) => {
-                if expect_next == KvToken::Value {
-                    map.insert(last_key.unwrap().to_string(), KvValue::Str(lit.to_string()));
-                    expect_next = KvToken::Comma;
-                    last_key = None;
-                } else {
-                    bail("Unexpected literal in macro attributes", lit)?;
+                // key = "value" ...
+                TokenTree::Literal(lit) => {
+                    insert_kv!(KvValue::Str(lit.to_string()));
+                    state = KvState::Value;
+                } // TODO non-string literals
+                _ => bail("'=' sign must be followed by a value", tk)?,
+            },
+            KvState::Value => match tk {
+                // key = value, ...
+                TokenTree::Punct(punct) => {
+                    if punct.as_char() == ',' {
+                        state = KvState::Comma;
+                    } else {
+                        bail("value must be followed by a ','", tk)?;
+                    }
                 }
-            }
+                _ => bail("value must be followed by a ','", tk)?,
+            },
+            KvState::Comma => match tk {
+                // , key ...
+                TokenTree::Ident(ident) => {
+                    let key = last_key.replace(ident.to_string());
+                    assert!(key.is_none());
+                    state = KvState::Key;
+                }
+                _ => bail("',' must be followed by the next key", tk)?,
+            },
         }
-        println!("   {tk:?} @ {expect_next:?}");
+
+        println!("   {state:?} -> {tk:?}");
     }
-    if expect_next != KvToken::KeyOrEnd && expect_next != KvToken::Comma {
-        bail("Macro attributes ended unexpectedly", value)?;
+
+    // No more tokens, make sure it ends in a valid state
+    match state {
+        KvState::Start | KvState::Key | KvState::Value | KvState::Comma => {}
+        KvState::Equals => {
+            bail("unexpected end of macro attributes", value)?;
+        }
     }
 
     Ok(map)
