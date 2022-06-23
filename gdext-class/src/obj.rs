@@ -10,7 +10,7 @@ use crate::marker::ClassDeclarer;
 use crate::mem::Memory;
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{api, out, ClassName, GodotDefault, GodotClass, Inherits, InstanceId, Share};
+use crate::{api, out, ClassName, GodotClass, GodotDefault, Inherits, InstanceId, Share};
 
 // TODO which bounds to add on struct itself?
 #[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass

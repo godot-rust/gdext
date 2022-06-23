@@ -11,7 +11,7 @@ struct RustApi {
     pure_rust: i32,
 
     #[base]
-    some_base: Obj<Node3D>
+    some_base: Obj<Node3D>,
 }
 
 pub fn run() -> bool {

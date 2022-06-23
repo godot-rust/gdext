@@ -1,5 +1,8 @@
 use gdext_class::marker::UserClass;
-use gdext_class::{api, gdext_virtual_method_body, gdext_wrap_method, out, traits, GodotDefault, GodotClass, GodotExtensionClass, Obj};
+use gdext_class::{
+    api, gdext_virtual_method_body, gdext_wrap_method, out, traits, GodotClass, GodotDefault,
+    GodotExtensionClass, Obj,
+};
 
 mod gdscript_ffi_test;
 mod object_test;

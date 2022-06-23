@@ -1,8 +1,6 @@
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
-use gdext_class::{
-    marker, mem, out, GodotDefault, GodotClass, GodotExtensionClass, Obj, Share,
-};
+use gdext_class::{marker, mem, out, GodotClass, GodotDefault, GodotExtensionClass, Obj, Share};
 use gdext_sys as sys;
 use std::cell::RefCell;
 use std::rc::Rc;

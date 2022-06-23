@@ -15,6 +15,6 @@ pub fn derive_native_class(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn godot(meta: TokenStream, input: TokenStream) -> TokenStream {
+pub fn godot(_meta: TokenStream, _input: TokenStream) -> TokenStream {
     todo!()
 }

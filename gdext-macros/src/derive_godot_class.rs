@@ -1,23 +1,9 @@
 use crate::util::ident;
 use proc_macro2::{Ident, Punct, TokenStream, TokenTree};
+use quote::quote;
 use quote::spanned::Spanned;
-use quote::{quote, ToTokens, TokenStreamExt};
 use std::collections::HashMap;
-use std::mem;
 use venial::{AttributeValue, Error, NamedField, StructFields, TyExpr};
-
-struct ExportedField {
-    name: Ident,
-    ty: TyExpr,
-}
-impl ExportedField {
-    fn new(field: &NamedField) -> Self {
-        Self {
-            name: field.name.clone(),
-            ty: field.ty.clone(),
-        }
-    }
-}
 
 pub fn derive_godot_class(input: TokenStream) -> Result<TokenStream, Error> {
     let decl = venial::parse_declaration(input)?;
@@ -53,10 +39,12 @@ pub fn derive_godot_class(input: TokenStream) -> Result<TokenStream, Error> {
     let mut exported_fields = vec![];
     let mut base_field = Option::<ExportedField>::None;
 
-    for (mut field, _punct) in fields {
-        for mut attr in field.attributes.iter() {
+    for (field, _punct) in fields {
+        let mut is_base = false;
+
+        // #[base] or #[export]
+        for attr in field.attributes.iter() {
             if let Some(path) = attr.get_single_path_segment() {
-                let mut is_base = false;
                 if path.to_string() == "base" {
                     is_base = true;
                     if let Some(prev_base) = base_field {
@@ -72,11 +60,12 @@ pub fn derive_godot_class(input: TokenStream) -> Result<TokenStream, Error> {
                 } else if path.to_string() == "export" {
                     exported_fields.push(ExportedField::new(&field))
                 }
-
-                if !is_base {
-                    all_field_names.push(field.name.clone())
-                }
             }
+        }
+
+        // Exported or Rust-only fields
+        if !is_base {
+            all_field_names.push(field.name.clone())
         }
     }
 
@@ -100,7 +89,7 @@ pub fn derive_godot_class(input: TokenStream) -> Result<TokenStream, Error> {
         impl gdext_class::traits::GodotClass for #class_name {
             type Base = gdext_class::api::#base;
             type Declarer = gdext_class::marker::UserClass;
-            type Mem = Self::Base::Mem;
+            type Mem = <Self::Base as gdext_class::traits::GodotClass>::Mem;
 
             fn class_name() -> String {
                 #class_name_str.to_string()
@@ -117,6 +106,22 @@ pub fn derive_godot_class(input: TokenStream) -> Result<TokenStream, Error> {
     };
 
     Ok(result)
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// General helpers
+
+struct ExportedField {
+    name: Ident,
+    ty: TyExpr,
+}
+impl ExportedField {
+    fn new(field: &NamedField) -> Self {
+        Self {
+            name: field.name.clone(),
+            ty: field.ty.clone(),
+        }
+    }
 }
 
 fn create_default(
@@ -145,6 +150,16 @@ fn create_default(
         }
     }
 }
+
+fn bail<R, T>(msg: &str, tokens: T) -> Result<R, Error>
+where
+    T: Spanned,
+{
+    Err(Error::new_at_span(tokens.__span(), msg))
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Key-value parsing
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 enum KvValue {
@@ -265,11 +280,4 @@ fn parse_kv_group(value: &AttributeValue) -> Result<HashMap<String, KvValue>, Er
     }
 
     Ok(map)
-}
-
-fn bail<R, T>(msg: &str, tokens: T) -> Result<R, Error>
-where
-    T: Spanned,
-{
-    Err(Error::new_at_span(tokens.__span(), msg))
 }

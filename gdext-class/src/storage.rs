@@ -1,4 +1,4 @@
-use crate::{out, sys, GodotDefault, GodotClass, Obj};
+use crate::{out, sys, GodotClass, GodotDefault, Obj};
 
 /// Co-locates the user's instance (pure Rust) with the Godot "base" object.
 ///
@@ -25,8 +25,7 @@ impl<T: GodotDefault + GodotClass> InstanceStorage<T> {
         // for both construction from Rust (through Obj) and from GDScript (through T.new()), this
         // initializes the value lazily.
         let base = self.consume_base();
-        self.user_instance
-            .get_or_insert_with(|| T::construct(base))
+        self.user_instance.get_or_insert_with(|| T::construct(base))
     }
 }
 
