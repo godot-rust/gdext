@@ -187,7 +187,7 @@ impl GodotExtensionClass for ObjPayload {
     fn register_methods() {}
 }
 impl DefaultConstructible for ObjPayload {
-    fn construct(_base: sys::GDNativeObjectPtr) -> Self {
+    fn construct(_base: Obj<Self::Base>) -> Self {
         ObjPayload { value: 111 }
     }
 }
@@ -214,7 +214,7 @@ impl GodotExtensionClass for Tracker {
     fn register_methods() {}
 }
 impl DefaultConstructible for Tracker {
-    fn construct(_base: sys::GDNativeObjectPtr) -> Self {
+    fn construct(_base: Obj<Self::Base>) -> Self {
         panic!("not invoked")
     }
 }

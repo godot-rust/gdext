@@ -1,4 +1,4 @@
-use crate::sys;
+use crate::{sys, Obj};
 use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
@@ -153,8 +153,7 @@ impl GodotClass for () {
 }
 
 pub trait DefaultConstructible: GodotClass {
-    //fn construct(base: Obj<Self::Base>) -> Self;
-    fn construct(base: sys::GDNativeObjectPtr) -> Self;
+    fn construct(base: Obj<Self::Base>) -> Self;
 }
 
 pub trait GodotExtensionClass: GodotClass {

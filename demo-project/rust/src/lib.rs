@@ -18,6 +18,7 @@ pub struct RustTest {
 impl GodotClass for RustTest {
     type Base = Node3D;
     type Declarer = marker::UserClass;
+    type Mem = mem::ManualMemory;
 
     fn class_name() -> String {
         "RustTest".to_string()
@@ -33,22 +34,14 @@ impl GodotClass for RustTest {
 }
 
 impl DefaultConstructible for RustTest {
-    fn construct(base_ptr: sys::GDNativeObjectPtr) -> Self {
-        out!("[RustTest] construct: base={base_ptr:?}");
+    fn construct(base: Obj<Self::Base>) -> Self {
+        out!("[RustTest] construct: base={base:?}");
 
-        // FIXME build Rust object to represent Godot's own types, like Node3D
-        //let obj = unsafe { Obj::from_sys(base) };
-        let obj = unsafe { Obj::<Node3D>::from_obj_sys(base_ptr) };
-
-        RustTest::new(obj)
+        RustTest::new(base)
     }
 }
 
 impl RustTest {
-    // fn new(base: *mut std::ffi::c_void) -> Self {
-    //     Self { time: 0.0 }
-    // }
-
     fn new(base: Obj<Node3D>) -> Self {
         out!("[RustTest] new.");
         // out!("[RustTest] new: base={:?}", base.inner());
@@ -238,7 +231,7 @@ pub struct Entity {
 }
 
 impl DefaultConstructible for Entity {
-    fn construct(base: sys::GDNativeObjectPtr) -> Self {
+    fn construct(_base: Obj<Self::Base>) -> Self {
         out!("[Entity] construct: base={base:?}");
 
         Entity {
@@ -251,6 +244,7 @@ impl DefaultConstructible for Entity {
 impl GodotClass for Entity {
     type Base = gdext_class::api::RefCounted;
     type Declarer = gdext_class::traits::marker::UserClass;
+    type Mem = gdext_class::traits::mem::StaticRefCount;
 
     fn class_name() -> String {
         "Entity".to_string()

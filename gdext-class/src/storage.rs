@@ -1,18 +1,21 @@
-use crate::{out, sys, DefaultConstructible, GodotClass};
+use crate::{out, sys, DefaultConstructible, GodotClass, Obj};
 
 /// Co-locates the user's instance (pure Rust) with the Godot "base" object.
 ///
 /// This design does not force the user to keep the base object intrusively in his own struct.
 pub struct InstanceStorage<T: GodotClass> {
-    base: sys::GDNativeObjectPtr,
-    // base: Obj<T::Base>,
-    user_instance: Option<T>, // lateinit
-                              //destroyed: bool,
+    // Raw pointer, but can be converted to Obj<T::Base> at most once; then becomes "used" (null)
+    // This is done lazily to avoid taking ownership (potentially increasing ref-pointer)
+    base_ptr: sys::GDNativeObjectPtr,
+
+    // lateinit; see get_mut_lateinit()
+    user_instance: Option<T>,
 }
 
 impl<T: DefaultConstructible + GodotClass> InstanceStorage<T> {
     pub fn initialize_default(&mut self) {
-        self.initialize(T::construct(self.base));
+        let base = self.consume_base();
+        self.initialize(T::construct(base));
     }
 
     pub fn get_mut_lateinit(&mut self) -> &mut T {
@@ -21,8 +24,9 @@ impl<T: DefaultConstructible + GodotClass> InstanceStorage<T> {
         // could provide an initial value, or use default construction). Since this method is used
         // for both construction from Rust (through Obj) and from GDScript (through T.new()), this
         // initializes the value lazily.
+        let base = self.consume_base();
         self.user_instance
-            .get_or_insert_with(|| T::construct(self.base))
+            .get_or_insert_with(|| T::construct(base))
     }
 }
 
@@ -32,9 +36,8 @@ impl<T: GodotClass> InstanceStorage<T> {
         //out!("[Storage] construct_uninit:  refcount: {}", refcount);
 
         Self {
-            base,
+            base_ptr: base,
             user_instance: None,
-            //destroyed: false,
         }
     }
 
@@ -85,6 +88,16 @@ impl<T: GodotClass> InstanceStorage<T> {
         self.user_instance
             .as_mut()
             .expect("get_mut(): user instance not initialized")
+    }
+
+    fn consume_base(&mut self) -> Obj<T::Base> {
+        // Check that this method is called at most once
+        assert!(
+            !self.base_ptr.is_null(),
+            "Instance base has already been consumed"
+        );
+        let base = std::mem::replace(&mut self.base_ptr, std::ptr::null_mut());
+        unsafe { Obj::from_obj_sys(base) }
     }
 }
 

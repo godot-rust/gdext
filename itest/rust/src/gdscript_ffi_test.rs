@@ -1,6 +1,6 @@
 use gdext_macros::GodotClass;
 
-#[derive(GodotClass)]
+#[derive(GodotClass, Debug)]
 #[godot(base = Node3D)]
 struct RustApi {
     i: i32,
