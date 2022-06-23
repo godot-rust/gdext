@@ -42,7 +42,7 @@ runs:
         # Downloads and unzips the artifact with {name} of the latest run of specified {workflow}
         path: ${{ runner.temp }}/godot_bin
         github_token: ${{ inputs.github_pat }}
-        repo: Bromeon/godot-nightly
+        repo: Bromeon/godot4-nightly
         branch: master
         workflow: compile-godot.yml
         workflow_conclusion: success
@@ -76,6 +76,6 @@ runs:
 
     - name: "Run Godot integration tests"
       run: |
-        cd itest
+        cd itest/godot
         $GODOT_BIN --headless
       shell: bash
