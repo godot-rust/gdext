@@ -1,4 +1,4 @@
-use crate::{out, sys, DefaultConstructible, GodotClass, Obj};
+use crate::{out, sys, GodotDefault, GodotClass, Obj};
 
 /// Co-locates the user's instance (pure Rust) with the Godot "base" object.
 ///
@@ -12,7 +12,7 @@ pub struct InstanceStorage<T: GodotClass> {
     user_instance: Option<T>,
 }
 
-impl<T: DefaultConstructible + GodotClass> InstanceStorage<T> {
+impl<T: GodotDefault + GodotClass> InstanceStorage<T> {
     pub fn initialize_default(&mut self) {
         let base = self.consume_base();
         self.initialize(T::construct(base));

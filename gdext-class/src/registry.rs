@@ -5,7 +5,7 @@ use crate::traits::*;
 use gdext_sys as sys;
 use sys::interface_fn;
 
-pub fn register_class<T: GodotExtensionClass + DefaultConstructible>() {
+pub fn register_class<T: GodotExtensionClass + GodotDefault>() {
     let creation_info = sys::GDNativeExtensionClassCreationInfo {
         set_func: None,
         get_func: None,
@@ -50,7 +50,7 @@ pub fn register_class<T: GodotExtensionClass + DefaultConstructible>() {
             unreference::<T>
         }),
         create_instance_func: Some({
-            unsafe extern "C" fn instance<T: GodotClass + DefaultConstructible>(
+            unsafe extern "C" fn instance<T: GodotClass + GodotDefault>(
                 _class_userdata: *mut std::ffi::c_void,
             ) -> sys::GDNativeObjectPtr {
                 let class_name = ClassName::new::<T>();

@@ -1,5 +1,5 @@
 use gdext_class::marker::UserClass;
-use gdext_class::{api, gdext_virtual_method_body, gdext_wrap_method, out, traits, DefaultConstructible, GodotClass, GodotExtensionClass, Obj};
+use gdext_class::{api, gdext_virtual_method_body, gdext_wrap_method, out, traits, GodotDefault, GodotClass, GodotExtensionClass, Obj};
 
 mod gdscript_ffi_test;
 mod object_test;
@@ -59,7 +59,7 @@ impl GodotExtensionClass for IntegrationTests {
     }
 }
 
-impl DefaultConstructible for IntegrationTests {
+impl GodotDefault for IntegrationTests {
     fn construct(_base: Obj<Self::Base>) -> Self {
         Self {}
     }

@@ -1,7 +1,7 @@
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
 use gdext_class::{
-    marker, mem, out, DefaultConstructible, GodotClass, GodotExtensionClass, Obj, Share,
+    marker, mem, out, GodotDefault, GodotClass, GodotExtensionClass, Obj, Share,
 };
 use gdext_sys as sys;
 use std::cell::RefCell;
@@ -186,7 +186,7 @@ impl GodotExtensionClass for ObjPayload {
     }
     fn register_methods() {}
 }
-impl DefaultConstructible for ObjPayload {
+impl GodotDefault for ObjPayload {
     fn construct(_base: Obj<Self::Base>) -> Self {
         ObjPayload { value: 111 }
     }
@@ -213,7 +213,7 @@ impl GodotExtensionClass for Tracker {
     }
     fn register_methods() {}
 }
-impl DefaultConstructible for Tracker {
+impl GodotDefault for Tracker {
     fn construct(_base: Obj<Self::Base>) -> Self {
         panic!("not invoked")
     }

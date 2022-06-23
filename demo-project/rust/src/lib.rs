@@ -33,7 +33,7 @@ impl GodotClass for RustTest {
     // }
 }
 
-impl DefaultConstructible for RustTest {
+impl GodotDefault for RustTest {
     fn construct(base: Obj<Self::Base>) -> Self {
         out!("[RustTest] construct: base={base:?}");
 
@@ -230,7 +230,7 @@ pub struct Entity {
     hitpoints: i32,
 }
 
-impl DefaultConstructible for Entity {
+impl GodotDefault for Entity {
     fn construct(_base: Obj<Self::Base>) -> Self {
         out!("[Entity] construct: base={base:?}");
 

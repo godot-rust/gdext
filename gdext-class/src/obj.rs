@@ -10,7 +10,7 @@ use crate::marker::ClassDeclarer;
 use crate::mem::Memory;
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{api, out, ClassName, DefaultConstructible, GodotClass, Inherits, InstanceId, Share};
+use crate::{api, out, ClassName, GodotDefault, GodotClass, Inherits, InstanceId, Share};
 
 // TODO which bounds to add on struct itself?
 #[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
@@ -30,7 +30,7 @@ static_assert_eq_size!(
     "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
 );
 
-impl<T: GodotClass + DefaultConstructible> Obj<T> {
+impl<T: GodotClass + GodotDefault> Obj<T> {
     pub fn new_default() -> Self {
         let class_name = ClassName::new::<T>();
         let result = unsafe {

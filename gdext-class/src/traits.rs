@@ -152,7 +152,7 @@ impl GodotClass for () {
     }
 }
 
-pub trait DefaultConstructible: GodotClass {
+pub trait GodotDefault: GodotClass {
     fn construct(base: Obj<Self::Base>) -> Self;
 }
 
