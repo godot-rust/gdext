@@ -4,7 +4,7 @@ use proc_macro2::TokenStream as TokenStream2;
 mod derive_godot_class;
 mod util;
 
-#[proc_macro_derive(GodotClass, attributes(godot, property))]
+#[proc_macro_derive(GodotClass, attributes(godot, property, export, base))]
 pub fn derive_native_class(input: TokenStream) -> TokenStream {
     let input2 = TokenStream2::from(input);
     let result2: TokenStream2 = match derive_godot_class::derive_godot_class(input2) {

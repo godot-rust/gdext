@@ -3,7 +3,21 @@ use proc_macro2::{Ident, Punct, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::collections::HashMap;
-use venial::{AttributeValue, Error};
+use std::mem;
+use venial::{AttributeValue, Error, NamedField, StructFields, TyExpr};
+
+struct ExportedField {
+    name: Ident,
+    ty: TyExpr,
+}
+impl ExportedField {
+    fn new(field: &NamedField) -> Self {
+        Self {
+            name: field.name.clone(),
+            ty: field.ty.clone(),
+        }
+    }
+}
 
 pub fn derive_godot_class(input: TokenStream) -> Result<TokenStream, Error> {
     let decl = venial::parse_declaration(input)?;
@@ -24,6 +38,48 @@ pub fn derive_godot_class(input: TokenStream) -> Result<TokenStream, Error> {
         }
     }
 
+    let fields: Vec<(NamedField, Punct)> = match &class.fields {
+        StructFields::Unit => {
+            vec![]
+        }
+        StructFields::Tuple(_) => bail(
+            "#[derive(GodotClass)] not supported for tuple structs",
+            &class.fields,
+        )?,
+        StructFields::Named(fields) => fields.fields.inner.clone(),
+    };
+
+    let mut all_field_names = vec![];
+    let mut exported_fields = vec![];
+    let mut base_field = Option::<ExportedField>::None;
+
+    for (mut field, _punct) in fields {
+        for mut attr in field.attributes.iter() {
+            if let Some(path) = attr.get_single_path_segment() {
+                let mut is_base = false;
+                if path.to_string() == "base" {
+                    is_base = true;
+                    if let Some(prev_base) = base_field {
+                        bail(
+                            &format!(
+                                "#[base] allowed for at most 1 field, already applied to '{}'",
+                                prev_base.name
+                            ),
+                            attr,
+                        )?;
+                    }
+                    base_field = Some(ExportedField::new(&field))
+                } else if path.to_string() == "export" {
+                    exported_fields.push(ExportedField::new(&field))
+                }
+
+                if !is_base {
+                    all_field_names.push(field.name.clone())
+                }
+            }
+        }
+    }
+
     let mut base = ident("RefCounted");
     if let Some((span, mut map)) = godot_attr {
         if let Some(kv_value) = map.remove("base") {
@@ -37,32 +93,57 @@ pub fn derive_godot_class(input: TokenStream) -> Result<TokenStream, Error> {
 
     let class_name = &class.name;
     let class_name_str = class.name.to_string();
+    let default = create_default(class_name, base_field, all_field_names);
     //let fields = class.field_tokens().to_token_stream();
 
     let result = quote! {
         impl gdext_class::traits::GodotClass for #class_name {
             type Base = gdext_class::api::#base;
-            // type Declarer = marker::UserClass;
-            // type Mem = mem::ManualMemory;
+            type Declarer = gdext_class::marker::UserClass;
+            type Mem = Self::Base::Mem;
 
             fn class_name() -> String {
                 #class_name_str.to_string()
             }
         }
+        #default
         // impl GodotExtensionClass for #class_name {
         //     fn virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
         //         todo!()
         //     }
         //     fn register_methods() {}
         // }
-        // impl DefaultConstructible for ObjPayload {
-        //     fn construct(_base: sys::GDNativeObjectPtr) -> Self {
-        //         #class_name { }
-        //     }
-        // }
+
     };
 
     Ok(result)
+}
+
+fn create_default(
+    class_name: &Ident,
+    base_field: Option<ExportedField>,
+    all_field_names: Vec<Ident>,
+) -> TokenStream {
+    let base_init = if let Some(ExportedField { name, .. }) = base_field {
+        quote! { #name: base, }
+    } else {
+        TokenStream::new()
+    };
+
+    let rest_init = all_field_names.into_iter().map(|field| {
+        quote! { #field: std::default::Default::default(), }
+    });
+
+    quote! {
+        impl gdext_class::traits::DefaultConstructible for #class_name {
+            fn construct(base: gdext_class::Obj<Self::Base>) -> Self {
+                Self {
+                    #( #rest_init )*
+                    #base_init
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
