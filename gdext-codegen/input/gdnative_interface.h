@@ -301,7 +301,7 @@ typedef struct {
 
 /* SCRIPT INSTANCE EXTENSION */
 
-typedef void *GDNativeExtensionScriptInstanceDataPtr; // Pointer to custom ScriptInstance rust implementation
+typedef void *GDNativeExtensionScriptInstanceDataPtr; // Pointer to custom ScriptInstance native implementation
 
 typedef GDNativeBool (*GDNativeExtensionScriptInstanceSet)(GDNativeExtensionScriptInstanceDataPtr p_instance, const GDNativeStringNamePtr p_name, const GDNativeVariantPtr p_value);
 typedef GDNativeBool (*GDNativeExtensionScriptInstanceGet)(GDNativeExtensionScriptInstanceDataPtr p_instance, const GDNativeStringNamePtr p_name, GDNativeVariantPtr r_ret);
