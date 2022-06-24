@@ -3,12 +3,12 @@
 
 use crate::godot_exe;
 
-use miniserde::{json, Deserialize};
+use nanoserde::{DeJson};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // JSON models
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct ExtensionApi {
     pub builtin_class_sizes: Vec<ClassSizes>,
     pub builtin_classes: Vec<BuiltinClass>,
@@ -16,19 +16,19 @@ pub struct ExtensionApi {
     pub global_enums: Vec<Enum>,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct ClassSizes {
     pub build_configuration: String,
     pub sizes: Vec<ClassSize>,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct ClassSize {
     pub name: String,
     pub size: usize,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct BuiltinClass {
     pub name: String,
     pub constructors: Vec<Constructor>,
@@ -36,14 +36,14 @@ pub struct BuiltinClass {
     pub operators: Vec<Operator>,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct Operator {
     pub name: String,
     pub right_type: Option<String>, // null if unary
     pub return_type: String,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct Class {
     pub name: String,
     pub is_refcounted: bool,
@@ -57,41 +57,41 @@ pub struct Class {
     pub signals: Option<Vec<Signal>>,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct Enum {
     pub name: String,
     pub values: Vec<Constant>,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct Constant {
     pub name: String,
     pub value: i32,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct Property {
-    #[serde(rename = "type")]
+    #[nserde(rename = "type")]
     type_: String,
     name: String,
     setter: String,
     getter: String,
-    index: isize, // can be -1
+    index: i32, // can be -1
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct Signal {
     name: String,
     arguments: Option<Vec<MethodArg>>,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct Constructor {
     pub index: usize,
     pub arguments: Option<Vec<MethodArg>>,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct Method {
     pub name: String,
     pub is_const: bool,
@@ -103,16 +103,16 @@ pub struct Method {
     pub return_value: Option<MethodReturn>,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct MethodArg {
     pub name: String,
-    #[serde(rename = "type")]
+    #[nserde(rename = "type")]
     pub type_: String,
 }
 
-#[derive(Deserialize)]
+#[derive(DeJson)]
 pub struct MethodReturn {
-    #[serde(rename = "type")]
+    #[nserde(rename = "type")]
     pub type_: String,
 }
 
@@ -126,6 +126,6 @@ pub fn load_extension_api() -> (ExtensionApi, &'static str) {
     let build_config = "float_64"; // TODO infer this
 
     let json: String = godot_exe::load_extension_api_json();
-    let model: ExtensionApi = json::from_str(&json).expect("failed to deserialize JSON");
+    let model: ExtensionApi = DeJson::deserialize_json(&json).expect("failed to deserialize JSON");
     (model, build_config)
 }
