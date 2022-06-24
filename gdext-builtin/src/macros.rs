@@ -48,6 +48,8 @@ macro_rules! gdext_print_script_error {
     };
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 macro_rules! impl_basic_trait_as_sys {
     ( Drop for $Type:ty => $gd_method:ident ) => {
         impl Drop for $Type {

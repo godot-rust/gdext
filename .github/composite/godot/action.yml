@@ -75,10 +75,18 @@ runs:
       shell: bash
 
     - name: "Run Godot integration tests"
+      # Aborts immediately if Godot outputs certain keywords (would otherwise stall until CI runner times out).
+      # Explanation:
+      # * tee:      still output logs while scanning for errors
+      # * grep -q:  no output, use exit code 0 if found -> thus also &&
+      # * pkill:    stop Godot execution (since it hangs in headless mode); simple 'head -1' did not work as expected
+      # * exit:     the terminated process would return 143, but this is more explicit and future-proof
       run: |
         cd itest/godot
-        ($GODOT_BIN --headless 2>&1 | grep "ERROR:" -q) && {
-          echo "Encountered GDScript error during integration test, abort..."
-          exit 1
-        }
+        $GODOT_BIN --headless 2>&1 | tee >(grep "SCRIPT ERROR:" -q && {
+          printf "\nGodot engine encountered error, abort...";
+          pkill godot
+          echo ":x: Aborted due to an error during Godot execution." >> $GITHUB_STEP_SUMMARY
+          exit 2
+        })
       shell: bash
