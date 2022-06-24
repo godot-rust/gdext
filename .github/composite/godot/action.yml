@@ -77,5 +77,8 @@ runs:
     - name: "Run Godot integration tests"
       run: |
         cd itest/godot
-        $GODOT_BIN --headless
+        ($GODOT_BIN --headless 2>&1 | grep "ERROR:" -q) && {
+          echo "Encountered GDScript error during integration test, abort..."
+          exit 1
+        }
       shell: bash
