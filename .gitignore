@@ -9,6 +9,7 @@ Cargo.lock
 
 # Godot (extension list needed to run tests without prior editor opening)
 .godot
+godot.log
 !/itest/.godot/extension_list.cfg
 *.import
 
@@ -22,3 +23,4 @@ Cargo.lock
 /build.bat
 /run.bat
 config.toml
+exp.rs
