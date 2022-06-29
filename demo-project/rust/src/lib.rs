@@ -231,7 +231,7 @@ pub struct Entity {
 }
 
 impl GodotDefault for Entity {
-    fn construct(_base: Obj<Self::Base>) -> Self {
+    fn construct(base: Obj<Self::Base>) -> Self {
         out!("[Entity] construct: base={base:?}");
 
         Entity {

@@ -14,25 +14,29 @@ pub struct InstanceStorage<T: GodotClass> {
 
 impl<T: GodotDefault + GodotClass> InstanceStorage<T> {
     pub fn initialize_default(&mut self) {
-        let base = self.consume_base();
+        out!("    Storage::initialize_default");
+        let base = Self::consume_base(&mut self.base_ptr);
         self.initialize(T::construct(base));
     }
 
     pub fn get_mut_lateinit(&mut self) -> &mut T {
+        out!("    Storage::get_mut_lateinit");
+
         // We need to provide lazy initialization for ptrcalls and varcalls coming from the engine.
         // The `create_instance_func` callback cannot know yet how to initialize the instance (a user
         // could provide an initial value, or use default construction). Since this method is used
         // for both construction from Rust (through Obj) and from GDScript (through T.new()), this
         // initializes the value lazily.
-        let base = self.consume_base();
-        self.user_instance.get_or_insert_with(|| T::construct(base))
+        self.user_instance.get_or_insert_with(|| {
+            let base = Self::consume_base(&mut self.base_ptr);
+            T::construct(base)
+        })
     }
 }
 
 impl<T: GodotClass> InstanceStorage<T> {
     pub fn construct_uninit(base: sys::GDNativeObjectPtr) -> Self {
-        // let refcount = 1;
-        //out!("[Storage] construct_uninit:  refcount: {}", refcount);
+        out!("    Storage::construct_uninit");
 
         Self {
             base_ptr: base,
@@ -89,13 +93,14 @@ impl<T: GodotClass> InstanceStorage<T> {
             .expect("get_mut(): user instance not initialized")
     }
 
-    fn consume_base(&mut self) -> Obj<T::Base> {
+    // Note: not &mut self, to only borrow one field and not the entire struct
+    fn consume_base(base_ptr: &mut sys::GDNativeObjectPtr) -> Obj<T::Base> {
         // Check that this method is called at most once
         assert!(
-            !self.base_ptr.is_null(),
+            !base_ptr.is_null(),
             "Instance base has already been consumed"
         );
-        let base = std::mem::replace(&mut self.base_ptr, std::ptr::null_mut());
+        let base = std::mem::replace(base_ptr, std::ptr::null_mut());
         unsafe { Obj::from_obj_sys(base) }
     }
 }
