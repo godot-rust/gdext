@@ -1,6 +1,6 @@
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
-use gdext_class::{marker, mem, out, GodotClass, GodotDefault, GodotExtensionClass, Obj, Share};
+use gdext_class::{dom, mem, out, GodotClass, GodotDefault, GodotExtensionClass, Obj, Share};
 use gdext_sys as sys;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -171,7 +171,7 @@ pub struct ObjPayload {
 }
 impl GodotClass for ObjPayload {
     type Base = Node3D;
-    type Declarer = marker::UserClass;
+    type Declarer = dom::UserDomain;
     type Mem = mem::ManualMemory;
 
     fn class_name() -> String {
@@ -198,7 +198,7 @@ pub struct Tracker {
 }
 impl GodotClass for Tracker {
     type Base = RefCounted;
-    type Declarer = marker::UserClass;
+    type Declarer = dom::UserDomain;
     type Mem = mem::StaticRefCount;
 
     fn class_name() -> String {

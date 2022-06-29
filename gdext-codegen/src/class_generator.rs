@@ -130,7 +130,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         }
         impl crate::traits::GodotClass for #name {
             type Base = #base;
-            type Declarer = crate::traits::marker::EngineClass;
+            type Declarer = crate::traits::dom::EngineDomain;
             type Mem = crate::traits::mem::#memory;
 
             fn class_name() -> String {

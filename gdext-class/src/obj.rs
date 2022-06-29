@@ -6,7 +6,7 @@ use gdext_sys as sys;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
-use crate::marker::ClassDeclarer;
+use crate::dom::Domain;
 use crate::mem::Memory;
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;

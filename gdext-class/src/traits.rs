@@ -2,16 +2,16 @@ use crate::{sys, Obj};
 use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
-pub mod marker {
+pub mod dom {
     use crate::{GodotClass, Obj};
 
-    pub trait ClassDeclarer {
+    pub trait Domain {
         fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T;
         fn extract_from_obj_mut<T: GodotClass>(obj: &mut Obj<T>) -> &mut T;
     }
 
-    pub enum EngineClass {}
-    impl ClassDeclarer for EngineClass {
+    pub enum EngineDomain {}
+    impl Domain for EngineDomain {
         fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T {
             // This relies on Obj<Node3D> having the layout as Node3D (as an example),
             // which also needs #[repr(transparent)]:
@@ -31,8 +31,8 @@ pub mod marker {
         }
     }
 
-    pub enum UserClass {}
-    impl ClassDeclarer for UserClass {
+    pub enum UserDomain {}
+    impl Domain for UserDomain {
         fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T {
             obj.storage().get()
         }
@@ -44,7 +44,6 @@ pub mod marker {
 }
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[allow(dead_code)]
 pub mod mem {
     use crate::{out, GodotClass, Obj};
 
@@ -136,7 +135,7 @@ where
     Self: Sized,
 {
     type Base: GodotClass;
-    type Declarer: marker::ClassDeclarer;
+    type Declarer: dom::Domain;
     type Mem: mem::Memory;
 
     fn class_name() -> String;
@@ -144,7 +143,7 @@ where
 
 impl GodotClass for () {
     type Base = ();
-    type Declarer = marker::EngineClass;
+    type Declarer = dom::EngineDomain;
     type Mem = mem::ManualMemory;
 
     fn class_name() -> String {

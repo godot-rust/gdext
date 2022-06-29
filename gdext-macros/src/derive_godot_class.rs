@@ -88,7 +88,7 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
     let result = quote! {
         impl gdext_class::traits::GodotClass for #class_name {
             type Base = gdext_class::api::#base;
-            type Declarer = gdext_class::marker::UserClass;
+            type Declarer = gdext_class::dom::UserDomain;
             type Mem = <Self::Base as gdext_class::traits::GodotClass>::Mem;
 
             fn class_name() -> String {

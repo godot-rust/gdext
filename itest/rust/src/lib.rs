@@ -1,4 +1,4 @@
-use gdext_class::marker::UserClass;
+use gdext_class::dom::UserDomain;
 use gdext_class::{
     api, gdext_virtual_method_body, gdext_wrap_method, out, traits, GodotClass, GodotDefault,
     GodotExtensionClass, Obj,
@@ -37,7 +37,7 @@ impl IntegrationTests {
 
 impl GodotClass for IntegrationTests {
     type Base = api::Node;
-    type Declarer = UserClass;
+    type Declarer = UserDomain;
     type Mem = traits::mem::ManualMemory;
 
     fn class_name() -> String {

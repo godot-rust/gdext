@@ -18,7 +18,7 @@ pub struct RustTest {
 
 impl GodotClass for RustTest {
     type Base = Node3D;
-    type Declarer = marker::UserClass;
+    type Declarer = dom::UserDomain;
     type Mem = mem::ManualMemory;
 
     fn class_name() -> String {
@@ -246,7 +246,7 @@ impl GodotDefault for Entity {
 
 impl GodotClass for Entity {
     type Base = gdext_class::api::RefCounted;
-    type Declarer = gdext_class::traits::marker::UserClass;
+    type Declarer = gdext_class::traits::dom::UserDomain;
     type Mem = gdext_class::traits::mem::StaticRefCount;
 
     fn class_name() -> String {
