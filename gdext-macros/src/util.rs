@@ -9,9 +9,10 @@ pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
 }
 
-// pub fn strlit(s: &str) -> Literal {
-//     Literal::string(s)
-// }
+#[allow(dead_code)]
+pub fn strlit(s: &str) -> Literal {
+    Literal::string(s)
+}
 
 pub fn bail<R, T>(msg: &str, tokens: T) -> Result<R, Error>
 where

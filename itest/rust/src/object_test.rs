@@ -1,6 +1,6 @@
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
-use gdext_class::{dom, mem, out, GodotClass, GodotDefault, GodotExtensionClass, Obj, Share};
+use gdext_class::{dom, mem, out, GodotClass, GodotDefault, GodotExtensionClass, Obj, Share, GodotMethods};
 use gdext_sys as sys;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -187,6 +187,11 @@ impl GodotExtensionClass for ObjPayload {
 impl GodotDefault for ObjPayload {
     fn construct(_base: Obj<Self::Base>) -> Self {
         ObjPayload { value: 111 }
+    }
+}
+impl GodotMethods for Tracker {
+    fn construct(base: Obj<Self::Base>) -> Self {
+        todo!()
     }
 }
 

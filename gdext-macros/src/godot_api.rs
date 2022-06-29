@@ -1,13 +1,13 @@
 use crate::util::bail;
 use proc_macro2::TokenStream;
 use quote::quote;
-use venial::{Error, ImplMember};
+use venial::{ Declaration, Error, Function, Impl, ImplMember};
 
 pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
     let input_decl = venial::parse_declaration(input)?;
-    let decl = match input_decl.as_impl() {
-        Some(decl) => decl,
-        None => bail(
+    let mut decl = match input_decl {
+        Declaration::Impl(decl) => decl,
+        _ => bail(
             "#[godot_api] can only be applied on impl blocks",
             input_decl,
         )?,
@@ -16,43 +16,20 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
     if decl.trait_name.is_some() {
         bail(
             "#[godot_api] can only be applied on inherent impls, not on trait impls",
-            decl,
+            &decl,
         )?;
     }
 
     if decl.impl_generic_params.is_some() || decl.self_generic_args.is_some() {
         bail(
             "#[godot_api] currently does not support generic arguments",
-            decl,
+            &decl,
         )?;
     }
 
+    let methods = process_godot_fns(&mut decl)?;
+
     let class_name = &decl.self_name;
-
-    let mut methods = vec![];
-    for item in decl.body.members.iter() {
-        if let ImplMember::Method(method) = item {
-            let mut godot_attr_iter = method
-                .attributes
-                .iter()
-                .filter(|attr| attr.get_single_path_segment().unwrap() == "godot");
-
-            let _godot_attr = if let Some(found) = godot_attr_iter.next() {
-                let val = found.value.clone();
-                if godot_attr_iter.next().is_some() {
-                    bail("at most one #[godot] attribute per method allowed", method)?;
-                }
-                val
-            } else {
-                continue;
-            };
-
-            let mut method = method.clone();
-            method.body = None;
-            methods.push(method);
-        }
-    }
-
     let result = quote! {
         #decl
 
@@ -65,10 +42,45 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
             fn register_methods() {
                 #(
                     gdext_class::gdext_wrap_method!(#class_name, #methods);
+                    //#methods
                 )*
             }
         }
     };
 
     Ok(result)
+}
+
+fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
+    let mut method_signatures = vec![];
+    for item in decl.body.members.iter_mut() {
+        let method = if let ImplMember::Method(method) = item {
+            method
+        } else {
+            continue;
+        };
+
+        let mut found = None;
+        for (index, attr) in method.attributes.iter().enumerate() {
+            if attr.get_single_path_segment().unwrap() == "godot" {
+                if found.is_some() {
+                    bail("at most one #[godot] attribute per method allowed", &method)?;
+                } else {
+                    found = Some((index, attr.value.clone()));
+                }
+            }
+        }
+
+        if let Some((index, _attr_val)) = found {
+            // Remaining code no longer has attribute -- rest stays
+            method.attributes.remove(index);
+
+            // Signatures are the same thing without body
+            let mut sig = method.clone();
+            sig.body = None;
+            method_signatures.push(sig);
+        }
+    }
+
+    Ok(method_signatures)
 }

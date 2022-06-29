@@ -155,6 +155,31 @@ pub trait GodotDefault: GodotClass {
     fn construct(base: Obj<Self::Base>) -> Self;
 }
 
+pub trait GodotMethods: GodotClass {
+    // Some methods that were called:
+    // _enter_tree
+    // _input
+    // _shortcut_input
+    // _unhandled_input
+    // _unhandled_key_input
+    // _process
+    // _physics_process
+    // _ready
+
+    fn construct(base: Obj<Self::Base>) -> Self {
+        unimplemented!()
+    }
+    fn ready(&mut self) {
+        unimplemented!()
+    }
+    fn process(&mut self, delta: f64) {
+        unimplemented!()
+    }
+    fn to_string(&self) -> GodotString {
+        unimplemented!()
+    }
+}
+
 pub trait GodotExtensionClass: GodotClass {
     // fn reference(&mut self) {}
     // fn unreference(&mut self) {}

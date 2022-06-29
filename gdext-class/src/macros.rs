@@ -189,7 +189,7 @@ macro_rules! gdext_wrap_method {
             $(,$pname:ident : $pty:ty)*
             $(,#[opt] $opt_pname:ident : $opt_pty:ty)*
             $(,)?
-        ) -> $retty:ty
+        ) -> $retty:ty;
     ) => {
         $crate::gdext_wrap_method_inner!(
             $type_name,
@@ -209,7 +209,7 @@ macro_rules! gdext_wrap_method {
             $(,$pname:ident : $pty:ty)*
             $(,#[opt] $opt_pname:ident : $opt_pty:ty)*
             $(,)?
-        ) -> $retty:ty
+        ) -> $retty:ty;
     ) => {
         $crate::gdext_wrap_method_inner!(
             $type_name,
@@ -229,7 +229,7 @@ macro_rules! gdext_wrap_method {
             $(,$pname:ident : $pty:ty)*
             $(,#[opt] $opt_pname:ident : $opt_pty:ty)*
             $(,)?
-        )
+        );
     ) => {
          $crate::gdext_wrap_method_inner!(
             $type_name,
@@ -249,7 +249,7 @@ macro_rules! gdext_wrap_method {
             $(,$pname:ident : $pty:ty)*
             $(,#[opt] $opt_pname:ident : $opt_pty:ty)*
             $(,)?
-        )
+        );
     ) => {
           $crate::gdext_wrap_method_inner!(
             $type_name,

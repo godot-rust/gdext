@@ -51,6 +51,7 @@ impl RustTest {
         Self { time: 0.0, base }
     }
 
+    #[godot]
     fn test_method(&mut self, some_int: i64, some_string: GodotString) -> GodotString {
         //let id = Obj::emplace(self).instance_id();
 
@@ -63,15 +64,22 @@ impl RustTest {
         msg.into()
     }
 
+    #[godot]
     fn add(&self, a: i32, b: i32, c: Vector2) -> i64 {
         a as i64 + b as i64 + c.inner().length() as i64
     }
 
+    #[godot]
     fn vec_add(&self, a: Vector2, b: Vector2) -> Vector2 {
         Vector2::from_inner(a.inner() + b.inner())
     }
 
-    fn accept_obj(&self, mut obj: Obj<Entity>) {
+    // FIXME: allow mut params
+    //fn accept_obj(&self, mut obj: Obj<Entity>) {
+
+    #[godot]
+    fn accept_obj(&self, obj: Obj<Entity>) {
+        let mut obj = obj;
         let m = obj.inner_mut();
         m.hitpoints -= 10;
 
@@ -82,6 +90,7 @@ impl RustTest {
         );
     }
 
+    #[godot]
     fn return_obj(&self) -> Obj<Entity> {
         let rust_obj = Entity {
             name: "New name!".to_string(),
@@ -99,6 +108,7 @@ impl RustTest {
         obj
     }
 
+    #[godot]
     fn find_obj(&self, instance_id: InstanceId) -> Obj<Entity> {
         out!("[RustTest] find_obj()...");
 
@@ -112,6 +122,7 @@ impl RustTest {
         obj
     }
 
+    #[godot]
     fn call_base_method(&self) -> Vector3 {
         println!("to_global()...");
         //return Vector3::new(1.0, 2.0,3.0);
@@ -123,6 +134,7 @@ impl RustTest {
         res
     }
 
+    #[godot]
     fn call_node_method(&self, node: Obj<Node3D>) -> Vector3 {
         println!("call_node_method - to_global()...");
         println!("  instance_id: {}", node.instance_id());
@@ -291,7 +303,7 @@ impl GodotExtensionClass for Entity {
 
     fn register_methods() {
         gdext_wrap_method!(Entity,
-            fn _to_string(&mut self) -> GodotString
+            fn _to_string(&mut self) -> GodotString;
         );
     }
 
