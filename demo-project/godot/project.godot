@@ -12,7 +12,6 @@ config_version=5
 
 config/name="gdext-rust-test"
 run/main_scene="res://Main.tscn"
-config/icon="res://icon.png"
 config/features=PackedStringArray("4.0")
 
 [rendering]

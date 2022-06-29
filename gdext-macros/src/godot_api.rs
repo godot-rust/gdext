@@ -57,8 +57,10 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
         #decl
 
         impl gdext_class::traits::GodotExtensionClass for #class_name {
-            fn virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-                todo!()
+            fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
+                println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
+
+                None // TODO
             }
             fn register_methods() {
                 #(
