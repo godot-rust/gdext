@@ -1,11 +1,11 @@
-use crate::util::ident;
+use crate::util::{bail, ident};
 use proc_macro2::{Ident, Punct, TokenStream, TokenTree};
 use quote::quote;
 use quote::spanned::Spanned;
 use std::collections::HashMap;
 use venial::{AttributeValue, Error, NamedField, StructFields, TyExpr};
 
-pub fn derive_godot_class(input: TokenStream) -> Result<TokenStream, Error> {
+pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
     let decl = venial::parse_declaration(input)?;
 
     let class = decl.as_struct().ok_or(Error::new("Not a valid struct"))?;
@@ -149,13 +149,6 @@ fn create_default(
             }
         }
     }
-}
-
-fn bail<R, T>(msg: &str, tokens: T) -> Result<R, Error>
-where
-    T: Spanned,
-{
-    Err(Error::new_at_span(tokens.__span(), msg))
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

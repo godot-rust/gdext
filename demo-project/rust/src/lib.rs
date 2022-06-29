@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use gdext_class::api::Node3D;
 use gdext_class::*;
+use gdext_macros::godot_api;
 
 use gdext_sys as sys;
 
@@ -41,6 +42,7 @@ impl GodotDefault for RustTest {
     }
 }
 
+#[godot_api]
 impl RustTest {
     fn new(base: Obj<Node3D>) -> Self {
         out!("[RustTest] new.");
@@ -171,6 +173,7 @@ impl RustTest {
     }
 }
 
+/*
 impl GodotExtensionClass for RustTest {
     fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
         out!("[RustTest] virtual_call: {name}");
@@ -217,7 +220,7 @@ impl GodotExtensionClass for RustTest {
             fn call_node_method(&self, node: Obj<Node3D>) -> Vector3
         );
     }
-}
+}*/
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Entity

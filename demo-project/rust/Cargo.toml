@@ -14,3 +14,4 @@ trace = ["gdext-class/trace"]
 gdext-sys = { path = "../../gdext-sys" }
 gdext-builtin = { path = "../../gdext-builtin" }
 gdext-class = { path = "../../gdext-class" }
+gdext-macros = { path = "../../gdext-macros" }
