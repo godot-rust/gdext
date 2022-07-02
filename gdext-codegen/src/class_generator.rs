@@ -250,21 +250,28 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
     let c_class_name = c_str(class_name);
     let hash = method.hash;
 
+    // TODO safety
+    let receiver = if method.is_const {
+        quote!(&self)
+    } else {
+        quote!(&mut self)
+    };
+
     let (return_decl, call) = make_return(&method.return_value, ctx);
 
     quote! {
-        pub fn #method_name(&self, #(#params),* ) #return_decl {
+        pub fn #method_name(#receiver, #(#params),* ) #return_decl {
             let result = unsafe {
                 let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
 
                 let call_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
-                let mut args = [
+                let args = [
                     #(
                         #call_exprs
                     ),*
                 ];
-                let args_ptr = args.as_mut_ptr();
+                let args_ptr = args.as_ptr();
 
                 #call
             };

@@ -83,8 +83,8 @@ fn object_user_roundtrip_write() {
 fn object_engine_roundtrip() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
 
-    let obj: Obj<Node3D> = Node3D::new();
-    obj.inner().set_position(pos);
+    let mut obj: Obj<Node3D> = Node3D::new();
+    obj.inner_mut().set_position(pos);
     assert_eq!(obj.inner().get_position(), pos);
 
     // TODO drop/release?
@@ -122,8 +122,8 @@ fn object_user_convert_variant() {
 fn object_engine_convert_variant() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
 
-    let obj: Obj<Node3D> = Node3D::new();
-    obj.inner().set_position(pos);
+    let mut obj: Obj<Node3D> = Node3D::new();
+    obj.inner_mut().set_position(pos);
 
     let variant = Variant::from(&obj);
     let obj2 = Obj::<Node3D>::from(&variant);
@@ -144,8 +144,8 @@ fn object_upcast() {
 #[itest]
 fn object_downcast() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
-    let node3d: Obj<Node3D> = Node3D::new();
-    node3d.inner().set_position(pos);
+    let mut node3d: Obj<Node3D> = Node3D::new();
+    node3d.inner_mut().set_position(pos);
     let id = node3d.instance_id();
 
     let object = node3d.upcast::<Object>();
