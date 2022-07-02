@@ -58,7 +58,6 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
 /// Codegen for `#[godot_api] impl GodotMethods for MyType`
 fn transform_trait_impl(decl: Impl) -> Result<TokenStream, Error> {
-
     let ok = match decl.trait_ty.as_ref().unwrap().as_path() {
         Some((path, None)) => path.last().is_some() && path.last().unwrap() == "GodotMethods",
         _ => false,
