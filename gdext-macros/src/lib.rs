@@ -16,6 +16,9 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, godot_api::transform)
 }
 
+/// Similar to `#[test]`, but runs an integration test with Godot.
+///
+/// Transforms the `fn` into one returning `bool` (success of the test), which must be called explicitly.
 #[proc_macro_attribute]
 pub fn itest(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, itest::transform)

@@ -1,4 +1,4 @@
-use crate::godot_itest;
+use crate::itest;
 use gdext_builtin::{GodotString, Variant};
 use std::fmt::Debug;
 
@@ -9,7 +9,8 @@ pub fn run() -> bool {
     ok
 }
 
-godot_itest! { variant_conversions {
+#[itest]
+fn variant_conversions() {
     roundtrip(false);
     roundtrip(true);
     roundtrip(GodotString::from("some string"));
@@ -30,7 +31,7 @@ godot_itest! { variant_conversions {
     roundtrip(2147483647i32);
     roundtrip(-2147483648i32);
     roundtrip(9223372036854775807i64);
-}}
+}
 
 fn roundtrip<T>(value: T)
 where
@@ -43,13 +44,17 @@ where
     assert_eq!(value, back);
 }
 
-godot_itest! { variant_display {
+#[itest]
+fn variant_display() {
     let cases = [
         (Variant::nil(), "null"),
         (Variant::from(false), "false"),
         (Variant::from(true), "true"),
-        (Variant::from(GodotString::from("some string")), "some string"),
-
+        (
+            Variant::from(GodotString::from("some string")),
+            "some string",
+        ),
+        //
         // unsigned
         (Variant::from(0u8), "0"),
         (Variant::from(255u8), "255"),
@@ -57,7 +62,7 @@ godot_itest! { variant_display {
         (Variant::from(65535u16), "65535"),
         (Variant::from(0u32), "0"),
         (Variant::from(4294967295u32), "4294967295"),
-
+        //
         // signed
         (Variant::from(127i8), "127"),
         (Variant::from(-128i8), "-128"),
@@ -66,10 +71,13 @@ godot_itest! { variant_display {
         (Variant::from(2147483647i32), "2147483647"),
         (Variant::from(-2147483648i32), "-2147483648"),
         (Variant::from(9223372036854775807i64), "9223372036854775807"),
-        (Variant::from(-9223372036854775808i64), "-9223372036854775808"),
+        (
+            Variant::from(-9223372036854775808i64),
+            "-9223372036854775808",
+        ),
     ];
 
     for (variant, string) in cases {
         assert_eq!(&variant.to_string(), string);
     }
-}}
+}
