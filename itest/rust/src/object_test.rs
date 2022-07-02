@@ -27,6 +27,8 @@ pub fn run() -> bool {
     ok &= object_downcast();
     ok &= object_bad_downcast();
     ok &= object_user_upcast();
+    ok &= object_user_downcast();
+    ok &= object_user_bad_downcast();
     ok &= object_share_drop();
     ok
 }
@@ -145,19 +147,38 @@ godot_itest! { object_downcast {
 godot_itest! { object_bad_downcast {
     let object: Obj<Object> = Object::new();
     let node3d: Option<Obj<Node3D>> = object.try_cast::<Node3D>();
+
     assert!(node3d.is_none());
 }}
 
 godot_itest! { object_user_upcast {
-    let value: i16 = 17943;
-    let user = ObjPayload { value };
-
-    let obj: Obj<ObjPayload> = Obj::new(user);
+    let obj = user_object();
     let id = obj.instance_id();
 
     let object = obj.upcast::<Object>();
     assert_eq!(object.instance_id(), id);
     assert_eq!(object.inner().get_class(), GodotString::from("ObjPayload"));
+}}
+
+godot_itest! { object_user_downcast {
+    let obj = user_object();
+    let id = obj.instance_id();
+
+    let object = obj.upcast::<Object>();
+    let intermediate: Obj<Node3D> = object.cast::<Node3D>();
+    assert_eq!(intermediate.instance_id(), id);
+
+    let concrete: Obj<ObjPayload> = intermediate.try_cast::<ObjPayload>().expect("try_cast");
+    assert_eq!(concrete.instance_id(), id);
+    assert_eq!(concrete.inner().value, 17943);
+}}
+
+godot_itest! { object_user_bad_downcast {
+    let obj = user_object();
+    let object = obj.upcast::<Object>();
+    let node3d: Option<Obj<RefCounted>> = object.try_cast::<RefCounted>();
+
+    assert!(node3d.is_none());
 }}
 
 godot_itest! { object_share_drop {
@@ -177,6 +198,13 @@ godot_itest! { object_share_drop {
 }}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[inline(never)] // force to move "out of scope", can trigger potential dangling pointer errors
+fn user_object() -> Obj<ObjPayload> {
+    let value: i16 = 17943;
+    let user = ObjPayload { value };
+    Obj::new(user)
+}
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct ObjPayload {
@@ -208,6 +236,8 @@ impl GodotMethods for Tracker {
     }
 }
 impl Inherits<Object> for ObjPayload {}
+impl Inherits<Node> for ObjPayload {}
+impl Inherits<Node3D> for ObjPayload {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

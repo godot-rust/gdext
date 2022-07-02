@@ -134,4 +134,10 @@ macro_rules! godot_itest {
             $crate::godot_test_impl!($test_name $body);
         )*
     };
+    // Convenience
+    ($(fn $test_name:ident () $body:block)*) => {
+        $(
+            $crate::godot_test_impl!($test_name $body);
+        )*
+    };
 }
