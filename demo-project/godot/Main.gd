@@ -14,7 +14,7 @@ func _init():
 	print("[GDScript] end _init")
 
 
-func _ready():
+func _ready2():
 	print("[GDScript] _ready")
 	print("self._to_string(): ", self)
 
@@ -62,6 +62,7 @@ func _ready():
 		#restored.return_obj()
 	print("----------------------------")
 
+func _ready():
 
 	var obj: Entity = rust_test.return_obj()
 	print_instance_id(obj, "entity")

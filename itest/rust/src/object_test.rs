@@ -1,6 +1,6 @@
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
-use gdext_class::{dom, mem, out, GodotClass, GodotDefault, GodotExtensionClass, Obj, Share, GodotMethods};
+use gdext_class::{dom, mem, out, GodotClass, GodotDefault, GodotExtensionClass, Obj, Share, GodotMethods, Inherits};
 use gdext_sys as sys;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -26,6 +26,7 @@ pub fn run() -> bool {
     ok &= object_upcast();
     ok &= object_downcast();
     ok &= object_bad_downcast();
+    ok &= object_user_upcast();
     ok &= object_share_drop();
     ok
 }
@@ -147,6 +148,18 @@ godot_itest! { object_bad_downcast {
     assert!(node3d.is_none());
 }}
 
+godot_itest! { object_user_upcast {
+    let value: i16 = 17943;
+    let user = ObjPayload { value };
+
+    let obj: Obj<ObjPayload> = Obj::new(user);
+    let id = obj.instance_id();
+
+    let object = obj.upcast::<Object>();
+    assert_eq!(object.instance_id(), id);
+    assert_eq!(object.inner().get_class(), GodotString::from("ObjPayload"));
+}}
+
 godot_itest! { object_share_drop {
     let drop_count = Rc::new(RefCell::new(0));
 
@@ -194,6 +207,7 @@ impl GodotMethods for Tracker {
         todo!()
     }
 }
+impl Inherits<Object> for ObjPayload {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

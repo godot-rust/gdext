@@ -166,13 +166,13 @@ pub trait GodotMethods: GodotClass {
     // _physics_process
     // _ready
 
-    fn construct(base: Obj<Self::Base>) -> Self {
+    fn construct(_base: Obj<Self::Base>) -> Self {
         unimplemented!()
     }
     fn ready(&mut self) {
         unimplemented!()
     }
-    fn process(&mut self, delta: f64) {
+    fn process(&mut self, _delta: f64) {
         unimplemented!()
     }
     fn to_string(&self) -> GodotString {

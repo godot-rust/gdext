@@ -4,7 +4,7 @@
 [ext_resource type="Script" path="res://Simple.gd" id="2_gmtlc"]
 
 [node name="TestRunner" type="Node"]
-script = ExtResource( "1_wdbrf" )
+script = ExtResource("1_wdbrf")
 
 [node name="Simple" type="Node" parent="."]
-script = ExtResource( "2_gmtlc" )
+script = ExtResource("2_gmtlc")

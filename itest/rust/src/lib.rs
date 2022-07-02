@@ -58,7 +58,7 @@ impl GodotExtensionClass for IntegrationTests {
     fn register_methods() {
         out!("[IntegrationTests] register_methods");
 
-        gdext_wrap_method!(IntegrationTests, fn run(&mut self) -> bool);
+        gdext_wrap_method!( IntegrationTests, fn run(&mut self) -> bool; );
     }
 }
 
