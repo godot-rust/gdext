@@ -188,7 +188,7 @@ impl<T: GodotClass> Obj<T> {
 
     pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut api::RefCounted) -> R) -> R {
         let tmp = unsafe { self.ffi_cast::<api::RefCounted>() };
-        let mut tmp = tmp.unwrap();
+        let mut tmp = tmp.expect("object expected to inherit RefCounted");
         let return_val = apply(tmp.inner_mut());
         std::mem::forget(tmp); // no ownership transfer
         return_val

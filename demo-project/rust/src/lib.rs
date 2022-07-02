@@ -1,7 +1,7 @@
 use gdext_builtin::{gdext_init, GodotString, InitLevel, Variant, Vector2, Vector3};
 use std::str::FromStr;
 
-use gdext_class::api::Node3D;
+use gdext_class::api::{Node3D, RefCounted};
 use gdext_class::*;
 use gdext_macros::godot_api;
 
@@ -80,8 +80,13 @@ impl RustTest {
     #[godot]
     fn accept_obj(&self, obj: Obj<Entity>) {
         let mut obj = obj;
-        let m = obj.inner_mut();
-        m.hitpoints -= 10;
+
+        //let obj = Obj::new(Entity { name: "h".to_string(), hitpoints: 77 }); // upcasting local object works
+        let up: Obj<RefCounted> = obj.share().upcast(); // FIXME Godot cast to RefCount panics
+        out!("upcast: up={:?}", up);
+
+        // let m = obj.inner_mut();
+        // m.hitpoints -= 10;
 
         out!(
             "[RustTest] accept_obj:\n  id={},\n  obj={:?}",
@@ -245,6 +250,8 @@ pub struct Entity {
     hitpoints: i32,
 }
 
+impl Inherits<RefCounted> for Entity {}
+
 impl GodotDefault for Entity {
     fn construct(base: Obj<Self::Base>) -> Self {
         out!("[Entity] construct: base={base:?}");
@@ -308,7 +315,7 @@ impl GodotExtensionClass for Entity {
     }
 
     fn to_string(&self) -> GodotString {
-        return GodotString::from("nothing");//self.to_string();
+        return GodotString::from("nothing"); //self.to_string();
     }
 }
 
