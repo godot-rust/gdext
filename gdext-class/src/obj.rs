@@ -110,6 +110,14 @@ impl<T: GodotClass> Obj<T> {
         }
     }
 
+    /// Needed to initialize ref count -- must be explicitly invoked.
+    ///
+    /// Could be made part of FFI methods, but there are some edge cases where this is not intended.
+    pub(crate) fn ready(self) -> Self {
+        T::Mem::maybe_inc_ref(&self);
+        self
+    }
+
     /// Upcast: onvert into a smart pointer to a base class. Always succeeds.
     pub fn upcast<Base>(self) -> Obj<Base>
     where
@@ -212,8 +220,7 @@ impl<T: GodotClass> GodotFfi for Obj<T> {
 impl<T: GodotClass> Share for Obj<T> {
     fn share(&self) -> Self {
         out!("Obj::share");
-        T::Mem::maybe_inc_ref(&self);
-        Self::from_opaque(self.opaque)
+        Self::from_opaque(self.opaque).ready()
     }
 }
 
@@ -222,8 +229,11 @@ impl<T: GodotClass> Drop for Obj<T> {
         let st = self.storage();
         out!("Obj::drop (byGodot={})", st.destroyed_by_godot());
         out!("    objd;  self={:?}, val={:?}", st as *mut _, st.lifecycle);
-        out!("    objd2; self={:?}, val={}", st as *mut _, st.destroyed_by_godot());
-
+        out!(
+            "    objd2; self={:?}, val={}",
+            st as *mut _,
+            st.destroyed_by_godot()
+        );
 
         // If destruction is triggered by Godot, Storage already knows about it, no need to notify it
         if !self.storage().destroyed_by_godot() {
@@ -241,10 +251,11 @@ impl<T: GodotClass> Drop for Obj<T> {
 impl<T: GodotClass> From<&Variant> for Obj<T> {
     fn from(variant: &Variant) -> Self {
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            let result = Self::from_sys_init(|self_ptr| {
                 let converter = sys::method_table().object_from_variant;
                 converter(self_ptr, variant.var_sys());
-            })
+            });
+            result.ready()
         }
     }
 }

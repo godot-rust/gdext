@@ -170,8 +170,10 @@ impl<T: GodotClass> InstanceStorage<T> {
             !base_ptr.is_null(),
             "Instance base has already been consumed"
         );
-        let base = std::mem::replace(base_ptr, std::ptr::null_mut());
-        unsafe { Obj::from_obj_sys(base) }
+
+        let base = mem::replace(base_ptr, std::ptr::null_mut());
+        let obj = unsafe { Obj::from_obj_sys(base) };
+        obj.ready()
     }
 }
 

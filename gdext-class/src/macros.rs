@@ -96,6 +96,8 @@ macro_rules! gdext_wrap_method_inner {
 
                         $(
                             let $pname = <$pty as sys::GodotFfi>::from_sys(*args.offset(idx));
+                            // FIXME update refcount, e.g. Obj::ready() or T::Mem::maybe_inc_ref(&result);
+                            // possibly in from_sys() directly; what about from_sys_init() and from_{obj|str}_sys()?
                             idx += 1;
                         )*
 
