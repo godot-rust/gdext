@@ -1,21 +1,40 @@
-use gdext_class::api::Node3D;
-use gdext_class::Obj;
-use gdext_macros::GodotClass;
+use gdext_class::api::RefCounted;
+use gdext_class::{GodotClass, Obj};
+use gdext_macros::{GodotClass, godot_api};
 
 #[derive(GodotClass, Debug)]
-#[godot(base = Node3D)]
-struct RustApi {
-    #[export]
-    exp: i32,
-
-    pure_rust: i32,
+#[godot(base = RefCounted)]
+struct RustFfi {
+    to_mirror: i64,
 
     #[base]
-    some_base: Obj<Node3D>,
+    some_base: Obj<RefCounted>,
 }
 
-pub fn run() -> bool {
+#[godot_api]
+impl RustFfi {
+    #[godot]
+    fn create_int(&self) -> i64 {
+        -468192231
+    }
+
+    #[godot]
+    fn accept_int(&self, i: i64) -> bool {
+        i == -468192231
+    }
+
+    #[godot]
+    fn mirror_int(&self, i: i64) -> i64 {
+        i
+    }
+}
+
+pub(crate) fn run() -> bool {
     let mut ok = true;
 
     ok
+}
+
+pub(crate) fn register() {
+    gdext_class::register_class::<RustFfi>();
 }

@@ -39,7 +39,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
         #decl
 
         impl gdext_class::traits::GodotExtensionClass for #self_class {
-            fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
+            fn virtual_call(name: &str) -> gdext_sys::GDNativeExtensionClassCallVirtual {
                 println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
 
                 None // TODO

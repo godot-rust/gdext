@@ -1,10 +1,10 @@
-[gd_scene load_steps=3 format=3 uid="uid://cxw10toi33ven"]
+[gd_scene load_steps=3 format=3 uid="uid://tvu7uhyw3s7e"]
 
 [ext_resource type="Script" path="res://TestRunner.gd" id="1_wdbrf"]
-[ext_resource type="Script" path="res://Simple.gd" id="2_gmtlc"]
+[ext_resource type="Script" path="res://FfiTests.gd" id="2_gmtlc"]
 
 [node name="TestRunner" type="Node"]
 script = ExtResource("1_wdbrf")
 
-[node name="Simple" type="Node" parent="."]
+[node name="FfiTests" type="Node" parent="."]
 script = ExtResource("2_gmtlc")

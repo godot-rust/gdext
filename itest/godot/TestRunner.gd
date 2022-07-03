@@ -1,11 +1,13 @@
 extends Node
 
 func _ready():
-	var tests := IntegrationTests.new()
-	var status := tests.run()
-	
+	var rust_tests := IntegrationTests.new()
+	var gdscript_tests := $FfiTests
+	#var status: bool = rust_tests.run() && gdscript_tests.run()
+	var status: bool = gdscript_tests.run()
+
 	print()
-	var exit_code: bool
+	var exit_code: int
 	if status:
 		print(" All tests PASSED.")
 		exit_code = 0
