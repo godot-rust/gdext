@@ -82,7 +82,8 @@ pub fn register_class<T: GodotExtensionClass + GodotDefault>() {
                 instance: sys::GDExtensionClassInstancePtr,
             ) {
                 let storage = as_storage::<T>(instance);
-                Box::from_raw(storage);
+                storage.mark_destroyed_by_godot();
+                Box::from_raw(storage as *mut InstanceStorage<_>); // aka. drop
             }
             free::<T>
         }),

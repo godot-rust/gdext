@@ -219,12 +219,20 @@ impl<T: GodotClass> Share for Obj<T> {
 
 impl<T: GodotClass> Drop for Obj<T> {
     fn drop(&mut self) {
-        out!("Obj::drop");
-        let is_last = T::Mem::maybe_dec_ref(&self); // may drop
-        if is_last {
-            //T::Declarer::destroy(self);
-            unsafe {
-                interface_fn!(object_destroy)(self.obj_sys());
+        let st = self.storage();
+        out!("Obj::drop (byGodot={})", st.destroyed_by_godot());
+        out!("    objd;  self={:?}, val={:?}", st as *mut _, st.lifecycle);
+        out!("    objd2; self={:?}, val={}", st as *mut _, st.destroyed_by_godot());
+
+
+        // If destruction is triggered by Godot, Storage already knows about it, no need to notify it
+        if !self.storage().destroyed_by_godot() {
+            let is_last = T::Mem::maybe_dec_ref(&self); // may drop
+            if is_last {
+                //T::Declarer::destroy(self);
+                unsafe {
+                    interface_fn!(object_destroy)(self.obj_sys());
+                }
             }
         }
     }

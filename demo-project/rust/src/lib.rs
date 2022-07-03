@@ -145,8 +145,8 @@ impl RustTest {
         println!("  instance_id: {}", node.instance_id());
 
         //let node = Obj::<Node3D>::from_instance_id(node.instance_id()).unwrap();
-        let node = Node3D::new();
-        let inner = node.inner();
+        let mut node = Node3D::new();
+        let inner = node.inner_mut();
         let arg = Vector3::new(11.0, 22.0, 33.0);
         inner.set_position(arg);
 

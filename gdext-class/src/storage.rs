@@ -1,4 +1,6 @@
 use crate::{out, sys, GodotClass, GodotDefault, Obj};
+use std::any::type_name;
+use std::mem;
 
 /// Co-locates the user's instance (pure Rust) with the Godot "base" object.
 ///
@@ -9,58 +11,103 @@ pub struct InstanceStorage<T: GodotClass> {
     base_ptr: sys::GDNativeObjectPtr,
 
     // lateinit; see get_mut_lateinit()
+    // FIXME should be RefCell, to avoid multi-aliasing (mut borrows from multiple shared Obj<T>)
     user_instance: Option<T>,
+
+    // Declared after `user_instance`, is dropped last
+    pub lifecycle: Lifecycle,
+
+    last_drop: LastDrop,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum Lifecycle {
+    Initializing,
+    Alive,
+    Destroying,
+    Dead, // reading this would typically already be too late, only best-effort in case of UB
+}
+
+struct LastDrop;
+impl Drop for LastDrop {
+    fn drop(&mut self) {
+        println!("LAST DROP");
+    }
 }
 
 impl<T: GodotDefault + GodotClass> InstanceStorage<T> {
     pub fn initialize_default(&mut self) {
-        out!("    Storage::initialize_default");
+        out!("    Storage::initialize_default  <{}>", type_name::<T>());
+
         let base = Self::consume_base(&mut self.base_ptr);
         self.initialize(T::construct(base));
     }
 
     pub fn get_mut_lateinit(&mut self) -> &mut T {
-        out!("    Storage::get_mut_lateinit");
+        out!("    Storage::get_mut_lateinit      <{}>", type_name::<T>());
 
         // We need to provide lazy initialization for ptrcalls and varcalls coming from the engine.
         // The `create_instance_func` callback cannot know yet how to initialize the instance (a user
         // could provide an initial value, or use default construction). Since this method is used
         // for both construction from Rust (through Obj) and from GDScript (through T.new()), this
         // initializes the value lazily.
-        self.user_instance.get_or_insert_with(|| {
+        let result = self.user_instance.get_or_insert_with(|| {
+            out!("    Storage::lateinit              <{}>", type_name::<T>());
+
             let base = Self::consume_base(&mut self.base_ptr);
             T::construct(base)
-        })
+        });
+
+        assert!(matches!(
+            self.lifecycle,
+            Lifecycle::Initializing | Lifecycle::Alive
+        ));
+        self.lifecycle = Lifecycle::Alive;
+
+        result
     }
 }
 
 impl<T: GodotClass> InstanceStorage<T> {
     pub fn construct_uninit(base: sys::GDNativeObjectPtr) -> Self {
-        out!("    Storage::construct_uninit");
+        out!("    Storage::construct_uninit      <{}>", type_name::<T>());
 
         Self {
             base_ptr: base,
             user_instance: None,
+            lifecycle: Lifecycle::Initializing,
+            last_drop: LastDrop,
         }
     }
 
     pub fn initialize(&mut self, value: T) {
+        out!("    Storage::initialize          <{}>", type_name::<T>());
         assert!(
             self.user_instance.is_none(),
             "Cannot initialize user instance multiple times"
         );
+        assert!(matches!(self.lifecycle, Lifecycle::Initializing));
 
         self.user_instance = Some(value);
+        self.lifecycle = Lifecycle::Alive;
     }
 
     pub(crate) fn on_inc_ref(&mut self) {
         // self.refcount += 1;
-        out!("    Storage::on_inc_ref -- {:?}", self.get());
+        out!(
+            "    Storage::on_inc_ref            <{}> -- {:?}",
+            type_name::<T>(),
+            self.user_instance
+        );
     }
 
     pub(crate) fn on_dec_ref(&mut self) {
         // self.refcount -= 1;
-        out!("  | Storage::on_dec_ref -- {:?}", self.get());
+        out!(
+            "  | Storage::on_dec_ref            <{}> -- {:?}",
+            type_name::<T>(),
+            self.user_instance
+        );
     }
 
     /* pub fn destroy(&mut self) {
@@ -93,6 +140,29 @@ impl<T: GodotClass> InstanceStorage<T> {
             .expect("get_mut(): user instance not initialized")
     }
 
+    pub fn mark_destroyed_by_godot(&mut self) {
+        out!(
+            "    Storage::mark_destroyed_by_godot -- {:?}",
+            self.user_instance
+        );
+        self.lifecycle = Lifecycle::Destroying;
+        out!(
+            "    mark;  self={:?}, val={:?}",
+            self as *mut _,
+            self.lifecycle
+        );
+    }
+
+    #[inline(always)]
+    pub fn destroyed_by_godot(&self) -> bool {
+        out!(
+            "    is_d;  self={:?}, val={:?}",
+            self as *const _,
+            self.lifecycle
+        );
+        matches!(self.lifecycle, Lifecycle::Destroying | Lifecycle::Dead)
+    }
+
     // Note: not &mut self, to only borrow one field and not the entire struct
     fn consume_base(base_ptr: &mut sys::GDNativeObjectPtr) -> Obj<T::Base> {
         // Check that this method is called at most once
@@ -107,7 +177,17 @@ impl<T: GodotClass> InstanceStorage<T> {
 
 impl<T: GodotClass> Drop for InstanceStorage<T> {
     fn drop(&mut self) {
-        out!("    Storage::drop -- {:?}", self.user_instance);
+        out!(
+            "    Storage::drop                  <{}> -- {:?}",
+            type_name::<T>(),
+            self.user_instance
+        );
+        //let _ = mem::take(&mut self.user_instance);
+        out!(
+            "    Storage::drop end              <{}>  -- {:?}",
+            type_name::<T>(),
+            self.user_instance
+        );
     }
 }
 

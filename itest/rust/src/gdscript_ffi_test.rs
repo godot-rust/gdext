@@ -1,6 +1,6 @@
 use gdext_class::api::RefCounted;
 use gdext_class::{GodotClass, Obj};
-use gdext_macros::{GodotClass, godot_api};
+use gdext_macros::{godot_api, GodotClass};
 
 #[derive(GodotClass, Debug)]
 #[godot(base = RefCounted)]

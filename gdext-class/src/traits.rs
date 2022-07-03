@@ -58,7 +58,7 @@ pub mod mem {
     pub struct StaticRefCount {}
     impl Memory for StaticRefCount {
         fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>) {
-            out!("  Stat::init");
+            out!("  Stat::init  <{}>", std::any::type_name::<T>());
             obj.as_ref_counted(|refc| {
                 let success = refc.init_ref();
                 assert!(success, "init_ref() failed");
@@ -66,7 +66,7 @@ pub mod mem {
         }
 
         fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>) {
-            out!("  Stat::inc");
+            out!("  Stat::inc   <{}>", std::any::type_name::<T>());
             obj.as_ref_counted(|refc| {
                 let success = refc.reference();
                 assert!(success, "reference() failed");
@@ -74,7 +74,7 @@ pub mod mem {
         }
 
         fn maybe_dec_ref<T: GodotClass>(obj: &Obj<T>) -> bool {
-            out!("  Stat::dec");
+            out!("  Stat::dec   <{}>", std::any::type_name::<T>());
             obj.as_ref_counted(|refc| {
                 let is_last = refc.unreference();
                 out!("  +-- was last={is_last}");
@@ -88,21 +88,21 @@ pub mod mem {
     pub struct DynamicRefCount {}
     impl Memory for DynamicRefCount {
         fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>) {
-            out!("  Dyn::init");
+            out!("  Dyn::init  <{}>", std::any::type_name::<T>());
             if obj.instance_id().is_ref_counted() {
                 StaticRefCount::maybe_init_ref(obj);
             }
         }
 
         fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>) {
-            out!("  Dyn::inc");
+            out!("  Dyn::inc   <{}>", std::any::type_name::<T>());
             if obj.instance_id().is_ref_counted() {
                 StaticRefCount::maybe_inc_ref(obj);
             }
         }
 
         fn maybe_dec_ref<T: GodotClass>(obj: &Obj<T>) -> bool {
-            out!("  Dyn::dec");
+            out!("  Dyn::dec   <{}>", std::any::type_name::<T>());
             if obj.instance_id().is_ref_counted() {
                 StaticRefCount::maybe_dec_ref(obj)
             } else {
