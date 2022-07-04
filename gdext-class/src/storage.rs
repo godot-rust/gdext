@@ -16,6 +16,7 @@ pub struct InstanceStorage<T: GodotClass> {
 
     // Declared after `user_instance`, is dropped last
     pub lifecycle: Lifecycle,
+    godot_ref_count: i32,
 
     last_drop: LastDrop,
 }
@@ -76,6 +77,7 @@ impl<T: GodotClass> InstanceStorage<T> {
             base_ptr: base,
             user_instance: None,
             lifecycle: Lifecycle::Initializing,
+            godot_ref_count: 1,
             last_drop: LastDrop,
         }
     }
@@ -93,18 +95,20 @@ impl<T: GodotClass> InstanceStorage<T> {
     }
 
     pub(crate) fn on_inc_ref(&mut self) {
-        // self.refcount += 1;
+        self.godot_ref_count += 1;
         out!(
-            "    Storage::on_inc_ref            <{}> -- {:?}",
+            "    Storage::on_inc_ref (rc={})     <{}> -- {:?}",
+            self.godot_ref_count,
             type_name::<T>(),
             self.user_instance
         );
     }
 
     pub(crate) fn on_dec_ref(&mut self) {
-        // self.refcount -= 1;
+        self.godot_ref_count -= 1;
         out!(
-            "  | Storage::on_dec_ref            <{}> -- {:?}",
+            "  | Storage::on_dec_ref (rc={})     <{}> -- {:?}",
+            self.godot_ref_count,
             type_name::<T>(),
             self.user_instance
         );
@@ -180,7 +184,8 @@ impl<T: GodotClass> InstanceStorage<T> {
 impl<T: GodotClass> Drop for InstanceStorage<T> {
     fn drop(&mut self) {
         out!(
-            "    Storage::drop                  <{}> -- {:?}",
+            "    Storage::drop (rc={})           <{}> -- {:?}",
+            self.godot_ref_count,
             type_name::<T>(),
             self.user_instance
         );
