@@ -30,7 +30,9 @@ pub type real = f32;
 // #[cfg(feature = "real_is_double")]
 // pub type real = f64;
 
-// Late-init globals
+/// Late-init globals
+// Note: static mut is _very_ dangerous. Here a bit less so, since modification happens only once (during init) and no
+// &mut references are handed out (except for registry, see below). Overall, UnsafeCell/RefCell + Sync might be a safer abstraction.
 static mut BINDING: Option<GodotBinding> = None;
 
 struct GodotBinding {
@@ -92,6 +94,9 @@ pub unsafe fn method_table() -> &'static GlobalMethodTable {
 /// # Safety
 ///
 /// The interface must have been initialised with [`initialize`] before calling this function.
+///
+/// Calling this while another place holds a reference (threads, re-entrancy, iteration, etc) is immediate undefined behavior.
+// note: could potentially avoid &mut aliasing, using UnsafeCell/RefCell
 #[inline(always)]
 pub unsafe fn get_registry() -> &'static mut GlobalRegistry {
     &mut unwrap_ref_unchecked_mut(&mut BINDING).registry

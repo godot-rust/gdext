@@ -177,7 +177,14 @@ impl<T: GodotClass> InstanceStorage<T> {
 
         let base = mem::replace(base_ptr, std::ptr::null_mut());
         let obj = unsafe { Obj::from_obj_sys(base) };
-        obj.ready()
+
+        // This object does not contribute to the strong count, otherwise we create a reference cycle:
+        // 1. RefCounted (dropped in GDScript)
+        // 2. holds user T (via extension instance and storage)
+        // 3. holds #[base] RefCounted (last ref, dropped in T destructor, but T is never destroyed because this ref keeps storage alive)
+        // Note that if late-init never happened on self, we have the same behavior (still a raw pointer instead of weak Obj)
+        // TODO prevent overwrite/move out inside user's T?
+        obj.weak()
     }
 }
 
@@ -201,6 +208,7 @@ impl<T: GodotClass> Drop for InstanceStorage<T> {
 /// Interprets the opaque pointer as pointing to `InstanceStorage<T>`.
 ///
 /// Note: returns reference with unbounded lifetime; intended for local usage
+// FIXME unbounded ref AND &mut out of thin air is a huge hazard -- consider using with_storage(ptr, closure) and drop_storage(ptr)
 pub unsafe fn as_storage<'u, T: GodotClass>(
     instance_ptr: sys::GDExtensionClassInstancePtr,
 ) -> &'u mut InstanceStorage<T> {

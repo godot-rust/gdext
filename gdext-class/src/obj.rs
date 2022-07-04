@@ -13,13 +13,15 @@ use crate::storage::InstanceStorage;
 use crate::{api, out, ClassName, GodotClass, GodotDefault, Inherits, InstanceId, Share};
 
 // TODO which bounds to add on struct itself?
-#[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
+//#[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
+// FIXME repr-transparent
 pub struct Obj<T: GodotClass> {
     // Note: `opaque` has the same layout as GDNativeObjectPtr == Object* in C++, i.e. the bytes represent a pointer
     // To receive a GDNativeTypePtr == GDNativeObjectPtr* == Object**, we need to get the address of this
     // Hence separate sys() for GDNativeTypePtr, and obj_sys() for GDNativeObjectPtr.
     // The former is the standard FFI type, while the latter is used in object-specific GDExtension APIs.
     opaque: OpaqueObject,
+    is_weak: bool,
     _marker: PhantomData<*const T>,
 }
 
@@ -80,6 +82,7 @@ impl<T: GodotClass> Obj<T> {
     fn from_opaque(opaque: OpaqueObject) -> Self {
         Self {
             opaque,
+            is_weak: false,
             _marker: PhantomData,
         }
     }
@@ -115,6 +118,11 @@ impl<T: GodotClass> Obj<T> {
     /// Could be made part of FFI methods, but there are some edge cases where this is not intended.
     pub(crate) fn ready(self) -> Self {
         T::Mem::maybe_inc_ref(&self);
+        self
+    }
+
+    pub(crate) fn weak(mut self) -> Self {
+        self.is_weak = true;
         self
     }
 
@@ -226,8 +234,13 @@ impl<T: GodotClass> Share for Obj<T> {
 
 impl<T: GodotClass> Drop for Obj<T> {
     fn drop(&mut self) {
+        out!("Obj::drop   <{}>", std::any::type_name::<T>());
+        if self.is_weak {
+            out!("  - skipped as weak");
+            return;
+        }
+
         let st = self.storage();
-        out!("Obj::drop (byGodot={})", st.destroyed_by_godot());
         out!("    objd;  self={:?}, val={:?}", st as *mut _, st.lifecycle);
         out!(
             "    objd2; self={:?}, val={}",
@@ -263,6 +276,7 @@ impl<T: GodotClass> From<&Variant> for Obj<T> {
 impl<T: GodotClass> From<Obj<T>> for Variant {
     fn from(obj: Obj<T>) -> Self {
         Variant::from(&obj)
+        // drops original object here
     }
 }
 
