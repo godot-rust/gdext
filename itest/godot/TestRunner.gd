@@ -16,4 +16,5 @@ func _ready():
 		exit_code = 1
 
 	print(" -- exiting.")
+	rust_tests.free()
 	get_tree().quit(exit_code)
