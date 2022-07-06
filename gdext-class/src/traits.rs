@@ -3,6 +3,7 @@ use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
 pub mod dom {
+    use gdext_sys::types::OpaqueObject;
     use crate::{GodotClass, Obj};
 
     pub trait Domain {
@@ -23,11 +24,11 @@ pub mod dom {
             // struct Node3D {
             //     object_ptr: sys::GDNativeObjectPtr,
             // }
-            unsafe { std::mem::transmute::<&Obj<T>, &T>(obj) }
+            unsafe { std::mem::transmute::<&OpaqueObject, &T>(&obj.opaque) }
         }
 
         fn extract_from_obj_mut<T: GodotClass>(obj: &mut Obj<T>) -> &mut T {
-            unsafe { std::mem::transmute::<&mut Obj<T>, &mut T>(obj) }
+            unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut obj.opaque) }
         }
     }
 

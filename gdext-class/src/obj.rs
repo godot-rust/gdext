@@ -20,7 +20,8 @@ pub struct Obj<T: GodotClass> {
     // To receive a GDNativeTypePtr == GDNativeObjectPtr* == Object**, we need to get the address of this
     // Hence separate sys() for GDNativeTypePtr, and obj_sys() for GDNativeObjectPtr.
     // The former is the standard FFI type, while the latter is used in object-specific GDExtension APIs.
-    opaque: OpaqueObject,
+    // pub(crate) because accessed in traits::dom
+    pub(crate) opaque: OpaqueObject,
     is_weak: bool,
     _marker: PhantomData<*const T>,
 }
