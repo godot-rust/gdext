@@ -7,13 +7,13 @@ pub mod dom {
     use gdext_sys::types::OpaqueObject;
 
     pub trait Domain {
-        fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T;
-        fn extract_from_obj_mut<T: GodotClass>(obj: &mut Obj<T>) -> &mut T;
+        fn extract_from_obj<T: GodotClass<Declarer = Self>>(obj: &Obj<T>) -> &T;
+        fn extract_from_obj_mut<T: GodotClass<Declarer = Self>>(obj: &mut Obj<T>) -> &mut T;
     }
 
     pub enum EngineDomain {}
     impl Domain for EngineDomain {
-        fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T {
+        fn extract_from_obj<T: GodotClass<Declarer = Self>>(obj: &Obj<T>) -> &T {
             // This relies on Obj<Node3D> having the layout as Node3D (as an example),
             // which also needs #[repr(transparent)]:
             //
@@ -27,18 +27,18 @@ pub mod dom {
             unsafe { std::mem::transmute::<&OpaqueObject, &T>(&obj.opaque) }
         }
 
-        fn extract_from_obj_mut<T: GodotClass>(obj: &mut Obj<T>) -> &mut T {
+        fn extract_from_obj_mut<T: GodotClass<Declarer = Self>>(obj: &mut Obj<T>) -> &mut T {
             unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut obj.opaque) }
         }
     }
 
     pub enum UserDomain {}
     impl Domain for UserDomain {
-        fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T {
+        fn extract_from_obj<T: GodotClass<Declarer = Self>>(obj: &Obj<T>) -> &T {
             obj.storage().get()
         }
 
-        fn extract_from_obj_mut<T: GodotClass>(obj: &mut Obj<T>) -> &mut T {
+        fn extract_from_obj_mut<T: GodotClass<Declarer = Self>>(obj: &mut Obj<T>) -> &mut T {
             obj.storage().get_mut()
         }
     }
@@ -113,7 +113,7 @@ pub mod mem {
     }
 
     /// No memory management, user responsible for not leaking.
-    /// This is used for all `Object` derivates, except `RefCounted` (and except `Object` itself).
+    /// This is used for all `Object` derivates, which are not `RefCounted`. `Object` itself is also excluded.
     pub struct ManualMemory {}
     impl Memory for ManualMemory {
         fn maybe_init_ref<T: GodotClass>(_obj: &Obj<T>) {}

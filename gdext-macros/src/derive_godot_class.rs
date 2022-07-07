@@ -261,7 +261,7 @@ fn parse_kv_group(value: &AttributeValue) -> Result<HashMap<String, KvValue>, Er
             },
         }
 
-        println!("   {state:?} -> {tk:?}");
+        //println!("   {state:?} -> {tk:?}");
     }
 
     // No more tokens, make sure it ends in a valid state

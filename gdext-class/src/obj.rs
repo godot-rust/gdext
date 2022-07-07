@@ -10,7 +10,7 @@ use crate::dom::Domain;
 use crate::mem::Memory;
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{api, out, ClassName, GodotClass, GodotDefault, Inherits, InstanceId, Share};
+use crate::{api, dom, out, ClassName, GodotClass, GodotDefault, Inherits, InstanceId, Share};
 
 // TODO which bounds to add on struct itself?
 //#[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
@@ -32,33 +32,8 @@ static_assert_eq_size!(
     "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
 );
 
-impl<T: GodotClass + GodotDefault> Obj<T> {
-    pub fn new_default() -> Self {
-        let class_name = ClassName::new::<T>();
-        let result = unsafe {
-            let ptr = interface_fn!(classdb_construct_object)(class_name.c_str());
-            Obj::from_obj_sys(ptr)
-        };
-
-        result.storage().initialize_default();
-        T::Mem::maybe_init_ref(&result);
-        result
-    }
-}
-
+/// The methods in this impl block are available for any `T`.
 impl<T: GodotClass> Obj<T> {
-    pub fn new(user_object: T) -> Self {
-        let class_name = ClassName::new::<T>();
-        let result = unsafe {
-            let ptr = interface_fn!(classdb_construct_object)(class_name.c_str());
-            Obj::from_obj_sys(ptr)
-        };
-
-        result.storage().initialize(user_object);
-        T::Mem::maybe_init_ref(&result);
-        result
-    }
-
     pub fn try_from_instance_id(instance_id: InstanceId) -> Option<Self> {
         unsafe {
             let ptr = interface_fn!(object_get_instance_from_id)(instance_id.to_u64());
@@ -99,17 +74,6 @@ impl<T: GodotClass> Obj<T> {
 
     pub fn inner_mut(&mut self) -> &mut T {
         T::Declarer::extract_from_obj_mut(self)
-    }
-
-    pub(crate) fn storage(&self) -> &mut InstanceStorage<T> {
-        let callbacks = crate::storage::nop_instance_callbacks();
-
-        unsafe {
-            let token = sys::get_library();
-            let binding =
-                interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
-            crate::private::as_storage::<T>(binding)
-        }
     }
 
     /// Needed to initialize ref count -- must be explicitly invoked.
@@ -215,6 +179,52 @@ impl<T: GodotClass> Obj<T> {
     }
 }
 
+/// The methods in this impl block are only available for user-declared `T`, that is,
+/// structs with `#[derive(GodotClass)]` but not Godot classes like `Node` or `RefCounted`.
+impl<T> Obj<T>
+where
+    T: GodotClass<Declarer = dom::UserDomain>,
+{
+    pub fn new_default() -> Self
+    where
+        T: GodotDefault,
+    {
+        let class_name = ClassName::new::<T>();
+        let result = unsafe {
+            let ptr = interface_fn!(classdb_construct_object)(class_name.c_str());
+            Obj::from_obj_sys(ptr)
+        };
+
+        result.storage().initialize_default();
+        T::Mem::maybe_init_ref(&result);
+        result
+    }
+
+    pub fn new(user_object: T) -> Self {
+        let class_name = ClassName::new::<T>();
+        let result = unsafe {
+            let ptr = interface_fn!(classdb_construct_object)(class_name.c_str());
+            Obj::from_obj_sys(ptr)
+        };
+
+        result.storage().initialize(user_object);
+        T::Mem::maybe_init_ref(&result);
+        result
+    }
+
+    /// Storage object associated with the extension instance
+    pub(crate) fn storage(&self) -> &mut InstanceStorage<T> {
+        let callbacks = crate::storage::nop_instance_callbacks();
+
+        unsafe {
+            let token = sys::get_library();
+            let binding =
+                interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
+            crate::private::as_storage::<T>(binding)
+        }
+    }
+}
+
 impl<T: GodotClass> GodotFfi for Obj<T> {
     ffi_methods! { type sys::GDNativeTypePtr = Opaque; .. }
 }
@@ -229,14 +239,16 @@ impl<T: GodotClass> Share for Obj<T> {
 impl<T: GodotClass> Drop for Obj<T> {
     fn drop(&mut self) {
         out!("Obj::drop   <{}>", std::any::type_name::<T>());
+        let is_last = T::Mem::maybe_dec_ref(&self); // may drop
+        if is_last {
+            unsafe {
+                interface_fn!(object_destroy)(self.obj_sys());
+            }
+        }
 
-        let st = self.storage();
+        /*let st = self.storage();
         out!("    objd;  self={:?}, val={:?}", st as *mut _, st.lifecycle);
-        out!(
-            "    objd2; self={:?}, val={}",
-            st as *mut _,
-            st.destroyed_by_godot()
-        );
+        //out!("    objd2; self={:?}, val={:?}", st as *mut _, st.lifecycle);
 
         // If destruction is triggered by Godot, Storage already knows about it, no need to notify it
         if !self.storage().destroyed_by_godot() {
@@ -247,9 +259,12 @@ impl<T: GodotClass> Drop for Obj<T> {
                     interface_fn!(object_destroy)(self.obj_sys());
                 }
             }
-        }
+        }*/
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Trait impls
 
 impl<T: GodotClass> From<&Variant> for Obj<T> {
     fn from(variant: &Variant) -> Self {
