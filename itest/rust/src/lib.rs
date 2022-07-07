@@ -1,7 +1,7 @@
 use gdext_class::dom::UserDomain;
 use gdext_class::{
-    api, gdext_virtual_method_body, gdext_wrap_method, out, traits, GodotClass, GodotDefault,
-    GodotExtensionClass, Obj,
+    api, gdext_virtual_method_body, gdext_wrap_method, out, traits, Base, GodotClass, GodotDefault,
+    GodotExtensionClass,
 };
 use gdext_macros::itest;
 
@@ -65,7 +65,7 @@ impl GodotExtensionClass for IntegrationTests {
 }
 
 impl GodotDefault for IntegrationTests {
-    fn construct(_base: Obj<Self::Base>) -> Self {
+    fn construct(_base: Base<Self::Base>) -> Self {
         Self {}
     }
 }

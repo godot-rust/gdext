@@ -22,7 +22,6 @@ pub struct Obj<T: GodotClass> {
     // The former is the standard FFI type, while the latter is used in object-specific GDExtension APIs.
     // pub(crate) because accessed in traits::dom
     pub(crate) opaque: OpaqueObject,
-    is_weak: bool,
     _marker: PhantomData<*const T>,
 }
 
@@ -83,7 +82,6 @@ impl<T: GodotClass> Obj<T> {
     fn from_opaque(opaque: OpaqueObject) -> Self {
         Self {
             opaque,
-            is_weak: false,
             _marker: PhantomData,
         }
     }
@@ -119,11 +117,6 @@ impl<T: GodotClass> Obj<T> {
     /// Could be made part of FFI methods, but there are some edge cases where this is not intended.
     pub(crate) fn ready(self) -> Self {
         T::Mem::maybe_inc_ref(&self);
-        self
-    }
-
-    pub(crate) fn weak(mut self) -> Self {
-        self.is_weak = true;
         self
     }
 
@@ -236,10 +229,6 @@ impl<T: GodotClass> Share for Obj<T> {
 impl<T: GodotClass> Drop for Obj<T> {
     fn drop(&mut self) {
         out!("Obj::drop   <{}>", std::any::type_name::<T>());
-        if self.is_weak {
-            out!("  - skipped as weak");
-            return;
-        }
 
         let st = self.storage();
         out!("    objd;  self={:?}, val={:?}", st as *mut _, st.lifecycle);

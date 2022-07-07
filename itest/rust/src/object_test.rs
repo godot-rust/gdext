@@ -2,8 +2,8 @@ use crate::itest;
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
 use gdext_class::{
-    dom, mem, out, GodotClass, GodotDefault, GodotExtensionClass, GodotMethods, Inherits, Obj,
-    Share,
+    dom, mem, out, Base, GodotClass, GodotDefault, GodotExtensionClass, GodotMethods, Inherits,
+    Obj, Share,
 };
 use gdext_sys as sys;
 use std::cell::RefCell;
@@ -245,7 +245,7 @@ impl GodotExtensionClass for ObjPayload {
     fn register_methods() {}
 }
 impl GodotDefault for ObjPayload {
-    fn construct(_base: Obj<Self::Base>) -> Self {
+    fn construct(_base: Base<Self::Base>) -> Self {
         ObjPayload { value: 111 }
     }
 }
@@ -280,7 +280,7 @@ impl GodotExtensionClass for Tracker {
     fn register_methods() {}
 }
 impl GodotDefault for Tracker {
-    fn construct(_base: Obj<Self::Base>) -> Self {
+    fn construct(_base: Base<Self::Base>) -> Self {
         panic!("not invoked")
     }
 }

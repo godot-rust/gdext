@@ -1,5 +1,5 @@
 use gdext_class::api::RefCounted;
-use gdext_class::{GodotClass, Obj};
+use gdext_class::Base;
 use gdext_macros::{godot_api, GodotClass};
 
 #[derive(GodotClass, Debug)]
@@ -8,7 +8,7 @@ struct RustFfi {
     to_mirror: i64,
 
     #[base]
-    some_base: Obj<RefCounted>,
+    some_base: Base<RefCounted>,
 }
 
 #[godot_api]

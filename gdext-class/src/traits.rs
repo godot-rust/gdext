@@ -1,10 +1,10 @@
-use crate::{sys, Obj};
+use crate::{sys, Base, Obj};
 use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
 pub mod dom {
-    use gdext_sys::types::OpaqueObject;
     use crate::{GodotClass, Obj};
+    use gdext_sys::types::OpaqueObject;
 
     pub trait Domain {
         fn extract_from_obj<T: GodotClass>(obj: &Obj<T>) -> &T;
@@ -126,16 +126,11 @@ pub mod mem {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-pub trait EngineClass {
-    fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
-    fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
-}
-
 pub trait GodotClass: Debug
 where
     Self: Sized,
 {
-    type Base: GodotClass;
+    type Base: GodotClass; // not EngineClass because it can be ()
     type Declarer: dom::Domain;
     type Mem: mem::Memory;
 
@@ -152,8 +147,13 @@ impl GodotClass for () {
     }
 }
 
+pub trait EngineClass: GodotClass {
+    fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
+    fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
+}
+
 pub trait GodotDefault: GodotClass {
-    fn construct(base: Obj<Self::Base>) -> Self;
+    fn construct(base: Base<Self::Base>) -> Self;
 }
 
 pub trait GodotMethods: GodotClass {

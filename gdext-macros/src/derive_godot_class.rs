@@ -141,7 +141,7 @@ fn create_default(
 
     quote! {
         impl gdext_class::traits::GodotDefault for #class_name {
-            fn construct(base: gdext_class::Obj<Self::Base>) -> Self {
+            fn construct(base: gdext_class::Base<Self::Base>) -> Self {
                 Self {
                     #( #rest_init )*
                     #base_init

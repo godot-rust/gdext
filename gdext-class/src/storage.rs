@@ -1,4 +1,4 @@
-use crate::{out, sys, GodotClass, GodotDefault, Obj};
+use crate::{out, sys, Base, GodotClass, GodotDefault, Obj};
 use std::any::type_name;
 use std::mem;
 
@@ -18,7 +18,7 @@ pub struct InstanceStorage<T: GodotClass> {
     pub lifecycle: Lifecycle,
     godot_ref_count: i32,
 
-    last_drop: LastDrop,
+    _last_drop: LastDrop,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -78,7 +78,7 @@ impl<T: GodotClass> InstanceStorage<T> {
             user_instance: None,
             lifecycle: Lifecycle::Initializing,
             godot_ref_count: 1,
-            last_drop: LastDrop,
+            _last_drop: LastDrop,
         }
     }
 
@@ -168,7 +168,7 @@ impl<T: GodotClass> InstanceStorage<T> {
     }
 
     // Note: not &mut self, to only borrow one field and not the entire struct
-    fn consume_base(base_ptr: &mut sys::GDNativeObjectPtr) -> Obj<T::Base> {
+    fn consume_base(base_ptr: &mut sys::GDNativeObjectPtr) -> Base<T::Base> {
         // Check that this method is called at most once
         assert!(
             !base_ptr.is_null(),
@@ -183,8 +183,7 @@ impl<T: GodotClass> InstanceStorage<T> {
         // 2. holds user T (via extension instance and storage)
         // 3. holds #[base] RefCounted (last ref, dropped in T destructor, but T is never destroyed because this ref keeps storage alive)
         // Note that if late-init never happened on self, we have the same behavior (still a raw pointer instead of weak Obj)
-        // TODO prevent overwrite/move out inside user's T?
-        obj.weak()
+        Base::from_obj(obj)
     }
 }
 
