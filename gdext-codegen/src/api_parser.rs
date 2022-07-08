@@ -14,6 +14,7 @@ pub struct ExtensionApi {
     pub builtin_classes: Vec<BuiltinClass>,
     pub classes: Vec<Class>,
     pub global_enums: Vec<Enum>,
+    pub utility_functions: Vec<UtilityFunction>,
 }
 
 #[derive(DeJson)]
@@ -68,7 +69,6 @@ pub struct Constant {
     pub name: String,
     pub value: i32,
 }
-
 #[derive(DeJson)]
 pub struct Property {
     #[nserde(rename = "type")]
@@ -92,6 +92,16 @@ pub struct Constructor {
 }
 
 #[derive(DeJson)]
+pub struct UtilityFunction {
+    pub name: String,
+    pub return_type: Option<String>,
+    pub category: String,
+    pub is_vararg: bool,
+    pub hash: i64,
+    pub arguments: Option<Vec<MethodArg>>,
+}
+
+#[derive(DeJson)]
 pub struct Method {
     pub name: String,
     pub is_const: bool,
@@ -103,7 +113,7 @@ pub struct Method {
     pub return_value: Option<MethodReturn>,
 }
 
-#[derive(DeJson)]
+#[derive(DeJson, Clone)]
 pub struct MethodArg {
     pub name: String,
     #[nserde(rename = "type")]

@@ -6,13 +6,16 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
+use crate::class_generator::make_method_definition;
 use crate::util::ident;
+use crate::Context;
 
-struct Tokens {
+struct CentralItems {
     opaque_types: Vec<TokenStream>,
     variant_enumerators: Vec<TokenStream>,
     variant_fn_decls: Vec<TokenStream>,
     variant_fn_inits: Vec<TokenStream>,
+    utility_fn_defs: Vec<TokenStream>,
 }
 
 struct TypeNames {
@@ -29,19 +32,20 @@ struct TypeNames {
     sys_variant_type: Ident,
 }
 
-pub fn generate_central_file(
+pub(crate) fn generate_central_file(
     api: &ExtensionApi,
+    ctx: &Context,
     build_config: &str,
     gen_path: &Path,
     out_files: &mut Vec<PathBuf>,
 ) {
-    let tokens = load_extension_api(api, build_config);
-    let Tokens {
+    let CentralItems {
         opaque_types,
         variant_enumerators,
         variant_fn_decls,
         variant_fn_inits,
-    } = tokens;
+        utility_fn_defs,
+    } = make_central_items(api, ctx, build_config);
 
     let tokens = quote! {
         #![allow(dead_code)]
@@ -63,6 +67,10 @@ pub fn generate_central_file(
             }
         }
 
+        pub mod utilities {
+            #(#utility_fn_defs)*
+        }
+
         pub enum VariantType {
             #(#variant_enumerators),*
         }
@@ -77,12 +85,8 @@ pub fn generate_central_file(
     out_files.push(out_path);
 }
 
-fn load_extension_api(model: &ExtensionApi, build_config: &str) -> Tokens {
+fn make_central_items(model: &ExtensionApi, ctx: &Context, build_config: &str) -> CentralItems {
     let mut opaque_types = vec![];
-    let mut variant_enumerators = vec![];
-    let mut variant_fn_decls = vec![];
-    let mut variant_fn_inits = vec![];
-
     for class in &model.builtin_class_sizes {
         if &class.build_configuration == build_config {
             for ClassSize { name, size } in &class.sizes {
@@ -105,6 +109,9 @@ fn load_extension_api(model: &ExtensionApi, build_config: &str) -> Tokens {
     let class_map = class_map;
 
     // Find enum with variant types, and generate mapping code
+    let mut variant_enumerators = vec![];
+    let mut variant_fn_decls = vec![];
+    let mut variant_fn_inits = vec![];
     for enum_ in &model.global_enums {
         if &enum_.name == "Variant.Type" {
             for ty in &enum_.values {
@@ -163,11 +170,32 @@ fn load_extension_api(model: &ExtensionApi, build_config: &str) -> Tokens {
         }
     }
 
-    Tokens {
+    let mut utility_fn_defs = vec![];
+    for f in &model.utility_functions {
+        // note: category unused -> could be their own mod
+        let method = Method {
+            name: f.name.clone(),
+            is_const: true,
+            is_vararg: f.is_vararg,
+            is_virtual: false,
+            hash: Some(f.hash),
+            arguments: f.arguments.clone(),
+            return_value: f
+                .return_type
+                .as_ref()
+                .map(|ret| MethodReturn { type_: ret.clone() }),
+        };
+
+        let def = make_method_definition(&method, "nun", ctx);
+        utility_fn_defs.push(def);
+    }
+
+    CentralItems {
         opaque_types,
         variant_enumerators,
         variant_fn_decls,
         variant_fn_inits,
+        utility_fn_defs,
     }
 }
 

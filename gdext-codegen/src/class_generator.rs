@@ -2,33 +2,15 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote, ToTokens};
-use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::util::{c_str, ident, ident_escaped, strlit, to_module_name};
+use crate::{Context, RustTy, KNOWN_TYPES, SELECTED_CLASSES};
 
-// Workaround for limiting number of types as long as implementation is incomplete
-const KNOWN_TYPES: [&str; 11] = [
-    // builtin:
-    "bool",
-    "int",
-    "float",
-    "String",
-    "Vector2",
-    "Vector3",
-    "Color",
-    // classes:
-    "Object",
-    "Node",
-    "Node3D",
-    "RefCounted",
-];
-
-const SELECTED: [&str; 4] = ["Object", "Node", "Node3D", "RefCounted"];
-
-pub fn generate_class_files(
+pub(crate) fn generate_class_files(
     api: &ExtensionApi,
+    ctx: &Context,
     _build_config: &str,
     gen_path: &Path,
     out_files: &mut Vec<PathBuf>,
@@ -36,12 +18,10 @@ pub fn generate_class_files(
     let _ = std::fs::remove_dir_all(gen_path);
     std::fs::create_dir_all(gen_path).expect("create classes directory");
 
-    let ctx = build_context(api);
-
     // TODO no limit after testing
     let mut modules = vec![];
     for class in api.classes.iter() {
-        if !SELECTED.contains(&class.name.as_str()) {
+        if !SELECTED_CLASSES.contains(&class.name.as_str()) {
             continue;
         }
 
@@ -61,26 +41,6 @@ pub fn generate_class_files(
     let out_path = gen_path.join("mod.rs");
     std::fs::write(&out_path, mod_contents).expect("failed to write mod.rs file");
     out_files.push(out_path);
-}
-
-fn build_context(api: &ExtensionApi) -> Context {
-    let mut ctx = Context::default();
-    for class in api.classes.iter() {
-        let class_name = class.name.as_str();
-        if !SELECTED.contains(&class_name) {
-            continue;
-        }
-
-        println!("-- add engine class {}", class_name);
-        ctx.engine_classes.insert(class_name);
-
-        if let Some(base) = class.inherits.as_ref() {
-            println!("  -- inherits {}", base);
-            ctx.inheritance_tree
-                .insert(class_name.to_string(), base.clone());
-        }
-    }
-    ctx
 }
 
 fn make_class(class: &Class, ctx: &Context) -> TokenStream {
@@ -218,7 +178,11 @@ fn is_method_excluded(method: &Method) -> bool {
             .map_or(false, |args| args.iter().any(|arg| arg.type_.contains("*")))
 }
 
-fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> TokenStream {
+pub(crate) fn make_method_definition(
+    method: &Method,
+    class_name: &str,
+    ctx: &Context,
+) -> TokenStream {
     if is_method_excluded(method) {
         return TokenStream::new();
     }
@@ -353,49 +317,4 @@ fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
         tokens: ident(ty).to_token_stream(),
         is_engine_class: false,
     };
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-struct RustTy {
-    tokens: TokenStream,
-    is_engine_class: bool,
-}
-
-#[derive(Default)]
-struct Context<'a> {
-    engine_classes: HashSet<&'a str>,
-    inheritance_tree: InheritanceTree,
-}
-
-impl<'a> Context<'a> {
-    fn is_engine_class(&self, class_name: &str) -> bool {
-        self.engine_classes.contains(class_name)
-    }
-}
-
-#[derive(Default)]
-struct InheritanceTree {
-    derived_to_base: HashMap<String, String>,
-}
-
-impl InheritanceTree {
-    pub fn insert(&mut self, derived: String, base: String) {
-        let existing = self.derived_to_base.insert(derived, base);
-        assert!(existing.is_none(), "Duplicate inheritance insert");
-    }
-
-    pub fn map_all_bases<T>(&self, derived: &str, apply: impl Fn(&str) -> T) -> Vec<T> {
-        let mut maybe_base = derived;
-        let mut result = vec![];
-        loop {
-            if let Some(base) = self.derived_to_base.get(maybe_base).map(String::as_str) {
-                result.push(apply(base));
-                maybe_base = base;
-            } else {
-                break;
-            }
-        }
-        result
-    }
 }

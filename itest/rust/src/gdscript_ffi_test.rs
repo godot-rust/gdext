@@ -4,8 +4,6 @@ use gdext_class::api::RefCounted;
 use gdext_class::Base;
 use gdext_macros::{godot_api, GodotClass};
 
-
-
 #[derive(GodotClass, Debug)]
 #[godot(base = RefCounted)]
 struct RustFfi {
