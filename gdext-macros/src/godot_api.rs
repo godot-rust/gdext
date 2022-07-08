@@ -70,7 +70,7 @@ fn transform_trait_impl(decl: Impl) -> Result<TokenStream, Error> {
         );
     }
 
-    let self_class = &decl.self_ty;
+    let _self_class = &decl.self_ty;
     let result = quote! {
         #decl
 

@@ -160,6 +160,16 @@ impl<T: GodotClass> Obj<T> {
         }
     }
 
+    pub fn free(&mut self) {
+        // self.as_object(|object| {
+        //     object.free();
+        // })
+
+        unsafe {
+            interface_fn!(object_destroy)(self.obj_sys());
+        }
+    }
+
     pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut api::RefCounted) -> R) -> R {
         let tmp = unsafe { self.ffi_cast::<api::RefCounted>() };
         let mut tmp = tmp.expect("object expected to inherit RefCounted");
@@ -167,6 +177,14 @@ impl<T: GodotClass> Obj<T> {
         std::mem::forget(tmp); // no ownership transfer
         return_val
     }
+
+    // pub(crate) fn as_object<R>(&self, apply: impl Fn(&mut api::Object) -> R) -> R {
+    //     let tmp = unsafe { self.ffi_cast::<api::Object>() };
+    //     let mut tmp = tmp.expect("object expected to inherit Object; should never fail");
+    //     let return_val = apply(tmp.inner_mut());
+    //     std::mem::forget(tmp); // no ownership transfer
+    //     return_val
+    // }
 
     // Conversions from/to Godot C++ `Object*` pointers
     ffi_methods! {

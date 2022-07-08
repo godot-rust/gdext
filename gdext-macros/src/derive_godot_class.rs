@@ -113,13 +113,13 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
 
 struct ExportedField {
     name: Ident,
-    ty: TyExpr,
+    _ty: TyExpr,
 }
 impl ExportedField {
     fn new(field: &NamedField) -> Self {
         Self {
             name: field.name.clone(),
-            ty: field.ty.clone(),
+            _ty: field.ty.clone(),
         }
     }
 }
