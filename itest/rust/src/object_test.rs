@@ -250,7 +250,7 @@ impl GodotDefault for ObjPayload {
     }
 }
 impl GodotMethods for Tracker {
-    fn construct(base: Obj<Self::Base>) -> Self {
+    fn construct(_base: Obj<Self::Base>) -> Self {
         todo!()
     }
 }

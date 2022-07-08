@@ -1,6 +1,10 @@
+#![allow(dead_code)]
+
 use gdext_class::api::RefCounted;
 use gdext_class::Base;
 use gdext_macros::{godot_api, GodotClass};
+
+
 
 #[derive(GodotClass, Debug)]
 #[godot(base = RefCounted)]
@@ -30,8 +34,7 @@ impl RustFfi {
 }
 
 pub(crate) fn run() -> bool {
-    let mut ok = true;
-
+    let ok = true;
     ok
 }
 
