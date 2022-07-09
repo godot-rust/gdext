@@ -12,7 +12,8 @@ use gdext_sys as sys;
 
 #[derive(Debug)]
 pub struct RustTest {
-    base: Obj<Node3D>,
+    base: Base<Node3D>,
+    #[allow(dead_code)]
     time: f64,
 }
 
@@ -44,7 +45,7 @@ impl GodotDefault for RustTest {
 
 #[godot_api]
 impl RustTest {
-    fn new(base: Obj<Node3D>) -> Self {
+    fn new(base: Base<Node3D>) -> Self {
         out!("[RustTest] new.");
         // out!("[RustTest] new: base={:?}", base.inner());
 
@@ -85,8 +86,8 @@ impl RustTest {
         let up: Obj<RefCounted> = obj.share().upcast(); // FIXME Godot cast to RefCount panics
         out!("upcast: up={:?}", up);
 
-        // let m = obj.inner_mut();
-        // m.hitpoints -= 10;
+        let m = obj.inner_mut();
+        m.hitpoints -= 10;
 
         out!(
             "[RustTest] accept_obj:\n  id={},\n  obj={:?}",

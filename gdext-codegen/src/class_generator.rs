@@ -5,7 +5,7 @@ use quote::{format_ident, quote, ToTokens};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::util::{c_str, ident, ident_escaped, strlit, to_module_name};
+use crate::util::{c_str, ident, ident_escaped, safe_ident, strlit, to_module_name};
 use crate::{Context, RustTy, KNOWN_TYPES, SELECTED_CLASSES};
 
 pub(crate) fn generate_class_files(
@@ -153,7 +153,7 @@ fn is_method_excluded(method: &Method) -> bool {
     //   These are anyway not accessible in GDScript since that language has no pointers.
     //   As such support could be added later (if at all), with possibly safe interfaces (e.g. Vec for void*+size pairs)
 
-    // FIXME remove when impl complete
+    // -- FIXME remove when impl complete
     if method
         .return_value
         .as_ref()
@@ -178,62 +178,46 @@ fn is_method_excluded(method: &Method) -> bool {
             .map_or(false, |args| args.iter().any(|arg| arg.type_.contains("*")))
 }
 
-pub(crate) fn make_method_definition(
-    method: &Method,
-    class_name: &str,
-    ctx: &Context,
-) -> TokenStream {
+fn is_function_excluded(function: &UtilityFunction) -> bool {
+    function
+        .return_type
+        .as_ref()
+        .map_or(false, |ret| !KNOWN_TYPES.contains(&ret.as_str()))
+        || function.arguments.as_ref().map_or(false, |args| {
+            args.iter()
+                .any(|arg| !KNOWN_TYPES.contains(&arg.type_.as_str()))
+        })
+}
+
+fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> TokenStream {
     if is_method_excluded(method) {
         return TokenStream::new();
     }
 
-    let empty = vec![];
-    let method_args = method.arguments.as_ref().unwrap_or(&empty);
+    let (params, arg_exprs) = make_params(&method.arguments, ctx);
 
-    let mut params = vec![];
-    let mut call_exprs = vec![];
-    for arg in method_args.iter() {
-        let param_name = ident_escaped(&arg.name);
-        let param = to_rust_type(&arg.type_, ctx);
-        let param_ty = param.tokens;
-
-        params.push(quote! { #param_name: #param_ty });
-        if param.is_engine_class {
-            call_exprs.push(quote! {
-                <#param_ty as AsArg>::as_arg_ptr(&#param_name)
-            });
-        } else {
-            call_exprs.push(quote! {
-                <#param_ty as sys::GodotFfi>::sys(&#param_name)
-            });
-        }
-    }
-
-    let method_name = ident(&method.name);
+    let method_name = safe_ident(&method.name);
     let c_method_name = c_str(&method.name);
     let c_class_name = c_str(class_name);
     let hash = method.hash;
 
-    // TODO safety
+    // TODO &mut safety
     let receiver = if method.is_const {
         quote!(&self)
     } else {
         quote!(&mut self)
     };
 
-    let (return_decl, call) = make_return(&method.return_value, ctx);
+    let (return_decl, call) = make_method_return(&method.return_value, ctx);
 
     quote! {
-        pub fn #method_name(#receiver, #(#params),* ) #return_decl {
+        pub fn #method_name( #receiver, #( #params ),* ) #return_decl {
             let result = unsafe {
                 let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
-
                 let call_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
                 let args = [
-                    #(
-                        #call_exprs
-                    ),*
+                    #( #arg_exprs ),*
                 ];
                 let args_ptr = args.as_ptr();
 
@@ -245,7 +229,70 @@ pub(crate) fn make_method_definition(
     }
 }
 
-fn make_return(return_value: &Option<MethodReturn>, ctx: &Context) -> (TokenStream, TokenStream) {
+pub(crate) fn make_function_definition(function: &UtilityFunction, ctx: &Context) -> TokenStream {
+    if is_function_excluded(function) {
+        return TokenStream::new();
+    }
+
+    let (params, arg_exprs) = make_params(&function.arguments, ctx);
+
+    let function_name = safe_ident(&function.name);
+    let c_function_name = c_str(&function.name);
+    let hash = function.hash;
+
+    let (return_decl, call) = make_utility_return(&function.return_type, ctx);
+
+    quote! {
+        pub fn #function_name( #( #params ),* ) #return_decl {
+            let result = unsafe {
+                let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(#c_function_name, #hash);
+                let call_fn = call_fn.unwrap_unchecked();
+
+                let args = [
+                    #( #arg_exprs ),*
+                ];
+                let args_ptr = args.as_ptr();
+
+                #call
+            };
+
+            result
+        }
+    }
+}
+
+fn make_params(
+    method_args: &Option<Vec<MethodArg>>,
+    ctx: &Context,
+) -> (Vec<TokenStream>, Vec<TokenStream>) {
+    let empty = vec![];
+    let method_args = method_args.as_ref().unwrap_or(&empty);
+
+    let mut params = vec![];
+    let mut arg_exprs = vec![];
+    for arg in method_args.iter() {
+        let param_name = ident_escaped(&arg.name);
+        let param = to_rust_type(&arg.type_, ctx);
+        let param_ty = param.tokens;
+
+        params.push(quote! { #param_name: #param_ty });
+        if param.is_engine_class {
+            arg_exprs.push(quote! {
+                <#param_ty as AsArg>::as_arg_ptr(&#param_name)
+            });
+        } else {
+            arg_exprs.push(quote! {
+                <#param_ty as sys::GodotFfi>::sys(&#param_name)
+            });
+        }
+    }
+    (params, arg_exprs)
+}
+
+fn make_method_return(
+    return_value: &Option<MethodReturn>,
+    ctx: &Context,
+) -> (TokenStream, TokenStream) {
     let return_decl;
     let call;
     match return_value {
@@ -263,6 +310,31 @@ fn make_return(return_value: &Option<MethodReturn>, ctx: &Context) -> (TokenStre
             return_decl = TokenStream::new();
             call = quote! {
                 call_fn(method_bind, self.object_ptr, args_ptr, std::ptr::null_mut());
+            };
+        }
+    }
+
+    (return_decl, call)
+}
+
+fn make_utility_return(return_value: &Option<String>, ctx: &Context) -> (TokenStream, TokenStream) {
+    let return_decl;
+    let call;
+    match return_value {
+        Some(ret) => {
+            let return_ty = to_rust_type(&ret, ctx).tokens;
+
+            return_decl = quote! { -> #return_ty };
+            call = quote! {
+                <#return_ty as sys::GodotFfi>::from_sys_init(|return_ptr| {
+                    call_fn(return_ptr, args_ptr, args.len() as i32);
+                })
+            };
+        }
+        None => {
+            return_decl = TokenStream::new();
+            call = quote! {
+                call_fn(std::ptr::null_mut(), args_ptr, args.len() as i32);
             };
         }
     }

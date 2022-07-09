@@ -1,12 +1,9 @@
-//! Generates extensions.rs and many globally accessible symbols.
-
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::class_generator::make_method_definition;
 use crate::util::ident;
 use crate::Context;
 
@@ -15,7 +12,6 @@ struct CentralItems {
     variant_enumerators: Vec<TokenStream>,
     variant_fn_decls: Vec<TokenStream>,
     variant_fn_inits: Vec<TokenStream>,
-    utility_fn_defs: Vec<TokenStream>,
 }
 
 struct TypeNames {
@@ -34,7 +30,7 @@ struct TypeNames {
 
 pub(crate) fn generate_central_file(
     api: &ExtensionApi,
-    ctx: &Context,
+    _ctx: &Context,
     build_config: &str,
     gen_path: &Path,
     out_files: &mut Vec<PathBuf>,
@@ -44,8 +40,7 @@ pub(crate) fn generate_central_file(
         variant_enumerators,
         variant_fn_decls,
         variant_fn_inits,
-        utility_fn_defs,
-    } = make_central_items(api, ctx, build_config);
+    } = make_central_items(api, build_config);
 
     let tokens = quote! {
         #![allow(dead_code)]
@@ -67,10 +62,6 @@ pub(crate) fn generate_central_file(
             }
         }
 
-        pub mod utilities {
-            #(#utility_fn_defs)*
-        }
-
         pub enum VariantType {
             #(#variant_enumerators),*
         }
@@ -85,9 +76,9 @@ pub(crate) fn generate_central_file(
     out_files.push(out_path);
 }
 
-fn make_central_items(model: &ExtensionApi, ctx: &Context, build_config: &str) -> CentralItems {
+fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
     let mut opaque_types = vec![];
-    for class in &model.builtin_class_sizes {
+    for class in &api.builtin_class_sizes {
         if &class.build_configuration == build_config {
             for ClassSize { name, size } in &class.sizes {
                 opaque_types.push(make_opaque_type(name, *size));
@@ -100,7 +91,7 @@ fn make_central_items(model: &ExtensionApi, ctx: &Context, build_config: &str) -
     // Find variant types, for which `variant_get_ptr_destructor` returns a non-null function pointer.
     // List is directly sourced from extension_api.json (information would also be in variant_destruct.cpp).
     let mut class_map = HashMap::new();
-    for class in &model.builtin_classes {
+    for class in &api.builtin_classes {
         let normalized_name = class.name.to_lowercase();
 
         class_map.insert(normalized_name, class);
@@ -112,7 +103,7 @@ fn make_central_items(model: &ExtensionApi, ctx: &Context, build_config: &str) -
     let mut variant_enumerators = vec![];
     let mut variant_fn_decls = vec![];
     let mut variant_fn_inits = vec![];
-    for enum_ in &model.global_enums {
+    for enum_ in &api.global_enums {
         if &enum_.name == "Variant.Type" {
             for ty in &enum_.values {
                 let shout_case = ty
@@ -170,32 +161,11 @@ fn make_central_items(model: &ExtensionApi, ctx: &Context, build_config: &str) -
         }
     }
 
-    let mut utility_fn_defs = vec![];
-    for f in &model.utility_functions {
-        // note: category unused -> could be their own mod
-        let method = Method {
-            name: f.name.clone(),
-            is_const: true,
-            is_vararg: f.is_vararg,
-            is_virtual: false,
-            hash: Some(f.hash),
-            arguments: f.arguments.clone(),
-            return_value: f
-                .return_type
-                .as_ref()
-                .map(|ret| MethodReturn { type_: ret.clone() }),
-        };
-
-        let def = make_method_definition(&method, "nun", ctx);
-        utility_fn_defs.push(def);
-    }
-
     CentralItems {
         opaque_types,
         variant_enumerators,
         variant_fn_decls,
         variant_fn_inits,
-        utility_fn_defs,
     }
 }
 

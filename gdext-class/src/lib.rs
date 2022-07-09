@@ -21,10 +21,12 @@ use gdext_sys as sys;
 mod gen {
     #[allow(unused_imports)]
     pub(crate) mod classes;
+    pub mod utilities;
 }
 
 pub mod api {
     pub use super::gen::classes::*;
+    pub use super::gen::utilities;
 }
 
 #[doc(hidden)]

@@ -139,6 +139,29 @@ pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
 }
 
+#[rustfmt::skip]
+pub fn safe_ident(s: &str) -> Ident {
+    // See also: https://doc.rust-lang.org/reference/keywords.html
+    match s {
+        // Lexer
+        | "as" | "break" | "const" | "continue" | "crate" | "else" | "enum" | "extern" | "false" | "fn" | "for" | "if"
+        | "impl" | "in" | "let" | "loop" | "match" | "mod" | "move" | "mut" | "pub" | "ref" | "return" | "self" | "Self"
+        | "static" | "struct" | "super" | "trait" | "true" | "type" | "unsafe" | "use" | "where" | "while"
+
+        // Lexer 2018+
+        | "async" | "await" | "dyn"
+
+        // Reserved
+        | "abstract" | "become" | "box" | "do" | "final" | "macro" | "override" | "priv" | "typeof" | "unsized" | "virtual" | "yield"
+
+        // Reserved 2018+
+        | "try"
+           => format_ident!("{}_", s),
+
+         _ => ident(s)
+    }
+}
+
 pub fn ident_escaped(s: &str) -> Ident {
     // note: could also use Ident::parse(s) from syn, but currently this crate doesn't depend on it
 
