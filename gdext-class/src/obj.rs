@@ -41,7 +41,7 @@ impl<T: GodotClass> Obj<T> {
             if ptr.is_null() {
                 None
             } else {
-                Some(Obj::from_obj_sys(ptr))
+                Some(Obj::from_obj_sys(ptr).ready())
             }
         }
     }
@@ -99,6 +99,7 @@ impl<T: GodotClass> Obj<T> {
     /// If `T`'s dynamic type is not `Derived` or one of its subclasses, `None` is returned
     /// and the reference is dropped. Otherwise, `Some` is returned and the ownership is moved
     /// to the returned value.
+    // TODO consider Result<Obj<Derived>, Self> so that user can still use original object (e.g. to free if manual)
     pub fn try_cast<Derived>(self) -> Option<Obj<Derived>>
     where
         Derived: GodotClass + Inherits<T>,
@@ -116,7 +117,7 @@ impl<T: GodotClass> Obj<T> {
     {
         self.owned_cast().unwrap_or_else(|| {
             panic!(
-                "Downcast from {from} to {to} failed; correct the code or use try_cast().",
+                "downcast from {from} to {to} failed; correct the code or use try_cast()",
                 from = T::class_name(),
                 to = Derived::class_name()
             )
@@ -161,6 +162,8 @@ impl<T: GodotClass> Obj<T> {
     }
 
     pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut api::RefCounted) -> R) -> R {
+        debug_assert!(self.is_valid(), "as_ref_counted() on freed instance; maybe forgot to increment reference count?");
+
         let tmp = unsafe { self.ffi_cast::<api::RefCounted>() };
         let mut tmp = tmp.expect("object expected to inherit RefCounted");
         let return_val = apply(tmp.inner_mut());
@@ -175,6 +178,10 @@ impl<T: GodotClass> Obj<T> {
     //     std::mem::forget(tmp); // no ownership transfer
     //     return_val
     // }
+
+    fn is_valid(&self) -> bool {
+        api::utilities::is_instance_id_valid(self.instance_id().to_i64())
+    }
 
     // Conversions from/to Godot C++ `Object*` pointers
     ffi_methods! {
@@ -256,10 +263,7 @@ where
             "called free() on Obj<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types."
         );
 
-        assert!(
-            api::utilities::is_instance_id_valid(self.instance_id().to_i64()),
-            "called free() on already destroyed object"
-        );
+        assert!(self.is_valid(), "called free() on already destroyed object");
 
         unsafe {
             interface_fn!(object_destroy)(self.obj_sys());

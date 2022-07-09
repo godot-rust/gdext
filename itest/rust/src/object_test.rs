@@ -25,9 +25,9 @@ pub fn run() -> bool {
     ok &= object_instance_id();
     ok &= object_user_convert_variant();
     ok &= object_engine_convert_variant();
-    ok &= object_upcast();
-    ok &= object_downcast();
-    ok &= object_bad_downcast();
+    ok &= object_engine_upcast();
+    ok &= object_engine_downcast();
+    ok &= object_engine_bad_downcast();
     ok &= object_user_upcast();
     ok &= object_user_downcast();
     ok &= object_user_bad_downcast();
@@ -88,11 +88,11 @@ fn object_engine_roundtrip() {
     obj.inner_mut().set_position(pos);
     assert_eq!(obj.inner().get_position(), pos);
 
-    // TODO drop/release?
     let ptr = obj.sys();
 
     let obj2 = unsafe { Obj::<Node3D>::from_sys(ptr) };
     assert_eq!(obj2.inner().get_position(), pos);
+    obj.free();
 }
 
 #[itest]
@@ -130,20 +130,24 @@ fn object_engine_convert_variant() {
     let obj2 = Obj::<Node3D>::from(&variant);
 
     assert_eq!(obj2.inner().get_position(), pos);
+    obj.free();
 }
 
 #[itest]
-fn object_upcast() {
+fn object_engine_upcast() {
     let node3d: Obj<Node3D> = Node3D::new();
     let id = node3d.instance_id();
 
     let object = node3d.upcast::<Object>();
     assert_eq!(object.instance_id(), id);
     assert_eq!(object.inner().get_class(), GodotString::from("Node3D"));
+
+    // Deliberate free on upcast object
+    object.free();
 }
 
 #[itest]
-fn object_downcast() {
+fn object_engine_downcast() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
     let mut node3d: Obj<Node3D> = Node3D::new();
     node3d.inner_mut().set_position(pos);
@@ -155,14 +159,18 @@ fn object_downcast() {
 
     assert_eq!(node3d.instance_id(), id);
     assert_eq!(node3d.inner().get_position(), pos);
+
+    node3d.free();
 }
 
 #[itest]
-fn object_bad_downcast() {
+fn object_engine_bad_downcast() {
     let object: Obj<Object> = Object::new();
+    let free_ref = object.share();
     let node3d: Option<Obj<Node3D>> = object.try_cast::<Node3D>();
 
     assert!(node3d.is_none());
+    free_ref.free();
 }
 
 #[itest]
@@ -181,7 +189,7 @@ fn object_user_downcast() {
     let id = obj.instance_id();
 
     let object = obj.upcast::<Object>();
-    let intermediate: Obj<Node3D> = object.cast::<Node3D>();
+    let intermediate: Obj<RefCounted> = object.cast::<RefCounted>();
     assert_eq!(intermediate.instance_id(), id);
 
     let concrete: Obj<ObjPayload> = intermediate.try_cast::<ObjPayload>().expect("try_cast");
@@ -193,7 +201,7 @@ fn object_user_downcast() {
 fn object_user_bad_downcast() {
     let obj = user_object();
     let object = obj.upcast::<Object>();
-    let node3d: Option<Obj<RefCounted>> = object.try_cast::<RefCounted>();
+    let node3d: Option<Obj<Node>> = object.try_cast::<Node>();
 
     assert!(node3d.is_none());
 }
@@ -242,9 +250,9 @@ pub struct ObjPayload {
     value: i16,
 }
 impl GodotClass for ObjPayload {
-    type Base = Node3D;
+    type Base = RefCounted;
     type Declarer = dom::UserDomain;
-    type Mem = mem::ManualMemory;
+    type Mem = mem::StaticRefCount;
 
     fn class_name() -> String {
         "ObjPayload".to_string()
@@ -267,8 +275,7 @@ impl GodotMethods for Tracker {
     }
 }
 impl Inherits<Object> for ObjPayload {}
-impl Inherits<Node> for ObjPayload {}
-impl Inherits<Node3D> for ObjPayload {}
+impl Inherits<RefCounted> for ObjPayload {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
