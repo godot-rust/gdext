@@ -165,6 +165,11 @@ impl<T: GodotClass> Obj<T> {
         //     object.free();
         // })
 
+        assert!(
+            api::utilities::is_instance_id_valid(self.instance_id().to_i64()),
+            "called free() on already destroyed object"
+        );
+
         unsafe {
             interface_fn!(object_destroy)(self.obj_sys());
         }

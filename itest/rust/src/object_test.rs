@@ -31,6 +31,7 @@ pub fn run() -> bool {
     ok &= object_user_upcast();
     ok &= object_user_downcast();
     ok &= object_user_bad_downcast();
+    ok &= object_engine_manual_drop();
     ok &= object_share_drop();
     ok
 }
@@ -198,7 +199,17 @@ fn object_user_bad_downcast() {
 }
 
 #[itest]
-fn object_share_drop() {
+fn object_engine_manual_drop() {
+    let panic =  std::panic::catch_unwind(|| {
+        let mut node = Node3D::new();
+        node.free();
+        node.free();
+    });
+    assert!(panic.is_err(), "double free() panics");
+}
+
+#[itest]
+fn object_user_share_drop() {
     let drop_count = Rc::new(RefCell::new(0));
 
     let object: Obj<Tracker> = Obj::new(Tracker {
