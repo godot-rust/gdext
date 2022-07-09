@@ -32,7 +32,7 @@ pub fn run() -> bool {
     ok &= object_user_downcast();
     ok &= object_user_bad_downcast();
     ok &= object_engine_manual_drop();
-    ok &= object_share_drop();
+    ok &= object_user_share_drop();
     ok
 }
 
@@ -200,10 +200,11 @@ fn object_user_bad_downcast() {
 
 #[itest]
 fn object_engine_manual_drop() {
-    let panic =  std::panic::catch_unwind(|| {
-        let mut node = Node3D::new();
+    let panic = std::panic::catch_unwind(|| {
+        let node = Node3D::new();
+        let node2 = node.share();
         node.free();
-        node.free();
+        node2.free();
     });
     assert!(panic.is_err(), "double free() panics");
 }

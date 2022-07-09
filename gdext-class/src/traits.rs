@@ -2,16 +2,22 @@ use crate::{sys, Base, Obj};
 use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
+mod private {
+    pub trait Sealed {}
+}
+
 pub mod dom {
+    use super::private::Sealed;
     use crate::{GodotClass, Obj};
     use gdext_sys::types::OpaqueObject;
 
-    pub trait Domain {
+    pub trait Domain: Sealed {
         fn extract_from_obj<T: GodotClass<Declarer = Self>>(obj: &Obj<T>) -> &T;
         fn extract_from_obj_mut<T: GodotClass<Declarer = Self>>(obj: &mut Obj<T>) -> &mut T;
     }
 
     pub enum EngineDomain {}
+    impl Sealed for EngineDomain {}
     impl Domain for EngineDomain {
         fn extract_from_obj<T: GodotClass<Declarer = Self>>(obj: &Obj<T>) -> &T {
             // This relies on Obj<Node3D> having the layout as Node3D (as an example),
@@ -33,6 +39,7 @@ pub mod dom {
     }
 
     pub enum UserDomain {}
+    impl Sealed for UserDomain {}
     impl Domain for UserDomain {
         fn extract_from_obj<T: GodotClass<Declarer = Self>>(obj: &Obj<T>) -> &T {
             obj.storage().get()
@@ -46,17 +53,21 @@ pub mod dom {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub mod mem {
+    use super::private::Sealed;
     use crate::{out, GodotClass, Obj};
 
-    pub trait Memory {
+    pub trait Memory: Sealed {
         fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>);
         fn maybe_inc_ref<T: GodotClass>(obj: &Obj<T>);
         fn maybe_dec_ref<T: GodotClass>(obj: &Obj<T>) -> bool;
+        fn is_ref_counted<T: GodotClass>(obj: &Obj<T>) -> bool;
     }
+    pub trait PossiblyManual {}
 
     /// Memory managed through Godot reference counter (always present).
     /// This is used for `RefCounted` classes and derived.
     pub struct StaticRefCount {}
+    impl Sealed for StaticRefCount {}
     impl Memory for StaticRefCount {
         fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>) {
             out!("  Stat::init  <{}>", std::any::type_name::<T>());
@@ -82,11 +93,16 @@ pub mod mem {
                 is_last
             })
         }
+
+        fn is_ref_counted<T: GodotClass>(_obj: &Obj<T>) -> bool {
+            true
+        }
     }
 
     /// Memory managed through Godot reference counter, if present; otherwise manual.
     /// This is used only for `Object` classes.
     pub struct DynamicRefCount {}
+    impl Sealed for DynamicRefCount {}
     impl Memory for DynamicRefCount {
         fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>) {
             out!("  Dyn::init  <{}>", std::any::type_name::<T>());
@@ -110,18 +126,28 @@ pub mod mem {
                 false
             }
         }
+
+        fn is_ref_counted<T: GodotClass>(obj: &Obj<T>) -> bool {
+            obj.instance_id().is_ref_counted()
+        }
     }
+    impl PossiblyManual for DynamicRefCount {}
 
     /// No memory management, user responsible for not leaking.
     /// This is used for all `Object` derivates, which are not `RefCounted`. `Object` itself is also excluded.
     pub struct ManualMemory {}
+    impl Sealed for ManualMemory {}
     impl Memory for ManualMemory {
         fn maybe_init_ref<T: GodotClass>(_obj: &Obj<T>) {}
         fn maybe_inc_ref<T: GodotClass>(_obj: &Obj<T>) {}
         fn maybe_dec_ref<T: GodotClass>(_obj: &Obj<T>) -> bool {
             false
         }
+        fn is_ref_counted<T: GodotClass>(_obj: &Obj<T>) -> bool {
+            false
+        }
     }
+    impl PossiblyManual for ManualMemory {}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

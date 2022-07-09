@@ -10,7 +10,7 @@ use crate::dom::Domain;
 use crate::mem::Memory;
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{api, dom, out, ClassName, GodotClass, GodotDefault, Inherits, InstanceId, Share};
+use crate::{api, dom, mem, out, ClassName, GodotClass, GodotDefault, Inherits, InstanceId, Share};
 
 // TODO which bounds to add on struct itself?
 //#[repr(transparent)] // needed for safe transmute between object and a field, see EngineClass
@@ -160,21 +160,6 @@ impl<T: GodotClass> Obj<T> {
         }
     }
 
-    pub fn free(&mut self) {
-        // self.as_object(|object| {
-        //     object.free();
-        // })
-
-        assert!(
-            api::utilities::is_instance_id_valid(self.instance_id().to_i64()),
-            "called free() on already destroyed object"
-        );
-
-        unsafe {
-            interface_fn!(object_destroy)(self.obj_sys());
-        }
-    }
-
     pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut api::RefCounted) -> R) -> R {
         let tmp = unsafe { self.ffi_cast::<api::RefCounted>() };
         let mut tmp = tmp.expect("object expected to inherit RefCounted");
@@ -244,6 +229,40 @@ where
             let binding =
                 interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
             crate::private::as_storage::<T>(binding)
+        }
+    }
+}
+
+/// The methods in this impl block are only available for objects `T` that are manually managed,
+/// i.e. anything that is not `RefCounted` or inherited from it.
+impl<T, M> Obj<T>
+where
+    T: GodotClass<Mem = M>,
+    M: mem::PossiblyManual + mem::Memory,
+{
+    // Destroy the manually-managed Godot object.
+    //
+    // Consumes this smart pointer. All other smart pointers to the same object
+    //
+    // This operation is **safe** and effectively prevents double-free.
+    //
+    // # Panics
+    // When the referred-to object has already been destroyed, or when this is invoked on an upcast `Obj<Object>`
+    // that dynamically points to a reference-counted type.
+    pub fn free(self) {
+        // Runtime check in case of T=Object, no-op otherwise
+        assert!(
+            !T::Mem::is_ref_counted(&self),
+            "called free() on Obj<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types."
+        );
+
+        assert!(
+            api::utilities::is_instance_id_valid(self.instance_id().to_i64()),
+            "called free() on already destroyed object"
+        );
+
+        unsafe {
+            interface_fn!(object_destroy)(self.obj_sys());
         }
     }
 }

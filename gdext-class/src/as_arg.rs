@@ -8,7 +8,7 @@ mod private {
 }
 use private::Sealed;
 
-pub trait AsArg: private::Sealed {
+pub trait AsArg: Sealed {
     #[doc(hidden)]
     fn as_arg_ptr(&self) -> sys::GDNativeTypePtr;
 }
