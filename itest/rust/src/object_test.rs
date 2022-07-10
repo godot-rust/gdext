@@ -86,7 +86,7 @@ fn object_user_roundtrip_write() {
 fn object_engine_roundtrip() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
 
-    let mut obj: Obj<Node3D> = Node3D::new();
+    let mut obj: Obj<Node3D> = Node3D::new_alloc();
     obj.inner_mut().set_position(pos);
     assert_eq!(obj.inner().get_position(), pos);
 
@@ -125,7 +125,7 @@ fn object_user_convert_variant() {
 fn object_engine_convert_variant() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
 
-    let mut obj: Obj<Node3D> = Node3D::new();
+    let mut obj: Obj<Node3D> = Node3D::new_alloc();
     obj.inner_mut().set_position(pos);
 
     let variant = Variant::from(&obj);
@@ -137,7 +137,7 @@ fn object_engine_convert_variant() {
 
 #[itest]
 fn object_engine_upcast() {
-    let node3d: Obj<Node3D> = Node3D::new();
+    let node3d: Obj<Node3D> = Node3D::new_alloc();
     let id = node3d.instance_id();
 
     let object = node3d.upcast::<Object>();
@@ -151,7 +151,7 @@ fn object_engine_upcast() {
 #[itest]
 fn object_engine_downcast() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
-    let mut node3d: Obj<Node3D> = Node3D::new();
+    let mut node3d: Obj<Node3D> = Node3D::new_alloc();
     node3d.inner_mut().set_position(pos);
     let id = node3d.instance_id();
 
@@ -167,7 +167,7 @@ fn object_engine_downcast() {
 
 #[itest]
 fn object_engine_bad_downcast() {
-    let object: Obj<Object> = Object::new();
+    let object: Obj<Object> = Object::new_alloc();
     let free_ref = object.share();
     let node3d: Option<Obj<Node3D>> = object.try_cast::<Node3D>();
 
@@ -211,7 +211,7 @@ fn object_user_bad_downcast() {
 #[itest]
 fn object_engine_manual_drop() {
     let panic = std::panic::catch_unwind(|| {
-        let node = Node3D::new();
+        let node = Node3D::new_alloc();
         let node2 = node.share();
         node.free();
         node2.free();

@@ -53,6 +53,11 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         None => quote! { () },
     };
     let name = ident(&class.name);
+    let (new, new_attrs) = if class.is_refcounted {
+        (ident("new"), TokenStream::new())
+    } else {
+        (ident("new_alloc"), quote! { #[must_use] })
+    };
     let methods = make_methods(&class.methods, &class.name, ctx);
 
     let name_str = strlit(&class.name);
@@ -79,7 +84,8 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
             object_ptr: sys::GDNativeObjectPtr,
         }
         impl #name {
-            pub fn new() -> Obj<Self> {
+            #new_attrs
+            pub fn #new() -> Obj<Self> {
                 unsafe {
                     let object_ptr = sys::interface_fn!(classdb_construct_object)(#name_cstr);
                     //let instance = Self { object_ptr };
