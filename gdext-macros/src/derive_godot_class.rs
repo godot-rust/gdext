@@ -1,28 +1,17 @@
 use crate::util::{bail, ident};
-use proc_macro2::{Ident, Punct, TokenStream, TokenTree};
+use crate::ParseResult;
+use proc_macro2::{Ident, Punct, Span, TokenStream, TokenTree};
 use quote::quote;
 use quote::spanned::Spanned;
 use std::collections::HashMap;
-use venial::{AttributeValue, Error, NamedField, StructFields, TyExpr};
+use venial::{Attribute, AttributeValue, NamedField, StructFields, TyExpr};
 
-pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
+pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let decl = venial::parse_declaration(input)?;
 
-    let class = decl.as_struct().ok_or(Error::new("Not a valid struct"))?;
-
-    let mut godot_attr = None;
-
-    for attr in class.attributes.iter() {
-        let path = &attr.path;
-        if path.len() == 1 || path[0].to_string() == "godot" {
-            if godot_attr.is_some() {
-                bail("Only one #[godot] attribute per struct allowed", attr)?;
-            }
-
-            let map = parse_kv_group(&attr.value)?;
-            godot_attr = Some((attr.__span(), map));
-        }
-    }
+    let class = decl
+        .as_struct()
+        .ok_or(venial::Error::new("Not a valid struct"))?;
 
     let fields: Vec<(NamedField, Punct)> = match &class.fields {
         StructFields::Unit => {
@@ -70,7 +59,8 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
     }
 
     let mut base = ident("RefCounted");
-    if let Some((span, mut map)) = godot_attr {
+
+    if let Some((span, mut map)) = parse_godot_attr(&class.attributes) {
         if let Some(kv_value) = map.remove("base") {
             if let KvValue::Ident(override_base) = kv_value {
                 base = override_base;
@@ -106,6 +96,26 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
     };
 
     Ok(result)
+}
+
+/// Parses a `#[godot(...)]` attribute
+fn parse_godot_attr(attributes: &Vec<Attribute>) -> ParseResult<Option<(Span, KvMap)>> {
+    let mut godot_attr = None;
+    for attr in attributes.iter() {
+        let path = &attr.path;
+        if path.len() == 1 || path[0].to_string() == "godot" {
+            if godot_attr.is_some() {
+                bail(
+                    "Only one #[godot] attribute per item (struct, fn, ...) allowed",
+                    attr,
+                )?;
+            }
+
+            let map = parse_kv_group(&attr.value)?;
+            godot_attr = Some((attr.__span(), map));
+        }
+    }
+    Ok(godot_attr)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -161,8 +171,10 @@ enum KvValue {
     Ident(Ident),
 }
 
+type KvMap = HashMap<String, KvValue>;
+
 // parses (a="hey", b=342)
-fn parse_kv_group(value: &AttributeValue) -> Result<HashMap<String, KvValue>, Error> {
+fn parse_kv_group(value: &AttributeValue) -> ParseResult<KvMap> {
     // FSM with possible flows:
     //
     //  [start]* ------>  Key*  ----> Equals
@@ -179,7 +191,7 @@ fn parse_kv_group(value: &AttributeValue) -> Result<HashMap<String, KvValue>, Er
         Comma,
     }
 
-    let mut map: HashMap<String, KvValue> = HashMap::new();
+    let mut map: KvMap = HashMap::new();
     let mut state = KvState::Start;
     let mut last_key: Option<String> = None;
 

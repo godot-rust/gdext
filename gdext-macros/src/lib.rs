@@ -26,6 +26,8 @@ pub fn itest(_meta: TokenStream, input: TokenStream) -> TokenStream {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+type ParseResult<T> = Result<T, venial::Error>;
+
 fn translate<F>(input: TokenStream, transform: F) -> TokenStream
 where
     F: FnOnce(TokenStream2) -> Result<TokenStream2, venial::Error>,
