@@ -30,7 +30,7 @@ type ParseResult<T> = Result<T, venial::Error>;
 
 fn translate<F>(input: TokenStream, transform: F) -> TokenStream
 where
-    F: FnOnce(TokenStream2) -> Result<TokenStream2, venial::Error>,
+    F: FnOnce(TokenStream2) -> ParseResult<TokenStream2>,
 {
     let input2 = TokenStream2::from(input);
     let result2: TokenStream2 = match transform(input2) {

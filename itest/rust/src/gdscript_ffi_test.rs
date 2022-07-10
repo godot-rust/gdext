@@ -1,11 +1,11 @@
 #![allow(dead_code)]
 
 use gdext_class::api::RefCounted;
-use gdext_class::Base;
+use gdext_class::{Base,  GodotMethods};
 use gdext_macros::{godot_api, GodotClass};
 
 #[derive(GodotClass, Debug)]
-#[godot(base = RefCounted)]
+#[godot(base=RefCounted, new=fn)]
 struct RustFfi {
     to_mirror: i64,
 
@@ -28,6 +28,17 @@ impl RustFfi {
     #[godot]
     fn mirror_int(&self, i: i64) -> i64 {
         i
+    }
+}
+
+
+#[godot_api]
+impl GodotMethods for RustFfi {
+    fn construct(base: Base<Self::Base>) -> Self {
+       Self {
+           to_mirror: 77,
+           some_base: base
+       }
     }
 }
 

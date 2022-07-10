@@ -1,4 +1,4 @@
-use crate::{sys, Base, Obj};
+use crate::{sys, Base};
 use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
@@ -191,7 +191,8 @@ pub trait GodotDefault: GodotClass {
     fn construct(base: Base<Self::Base>) -> Self;
 }
 
-pub trait GodotMethods: GodotClass {
+#[allow(unused_variables)]
+pub trait GodotMethods where Self: GodotClass {
     // Some methods that were called:
     // _enter_tree
     // _input
@@ -202,13 +203,13 @@ pub trait GodotMethods: GodotClass {
     // _physics_process
     // _ready
 
-    fn construct(_base: Obj<Self::Base>) -> Self {
+    fn construct(base: Base<Self::Base>) -> Self {
         unimplemented!()
     }
     fn ready(&mut self) {
-        unimplemented!()
+        unreachable!()
     }
-    fn process(&mut self, _delta: f64) {
+    fn process(&mut self, delta: f64) {
         unimplemented!()
     }
     fn to_string(&self) -> GodotString {

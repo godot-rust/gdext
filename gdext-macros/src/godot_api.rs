@@ -58,21 +58,33 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
 /// Codegen for `#[godot_api] impl GodotMethods for MyType`
 fn transform_trait_impl(decl: Impl) -> Result<TokenStream, Error> {
-    let ok = match decl.trait_ty.as_ref().unwrap().as_path() {
+    match decl.trait_ty.as_ref().unwrap().as_path() {
         Some((path, None)) => path.last().is_some() && path.last().unwrap() == "GodotMethods",
-        _ => false,
-    };
-
-    if !ok {
-        return bail(
+        _ => bail(
             "#[godot_api] for trait impls requires trait to be `GodotMethods`",
             &decl,
-        );
+        )?,
+    };
+
+    //let mut godot_default = TokenStream::new();
+
+    let _class_name = &decl.self_ty;
+    for item in decl.body.members.iter() {
+        let method = if let ImplMember::Method(f) = item {
+            f
+        } else {
+            continue;
+        };
+
+        match method.name.to_string().as_str() {
+            "new" => {}
+            _ => {}
+        }
     }
 
-    let _self_class = &decl.self_ty;
     let result = quote! {
         #decl
+        //#godot_default
 
         // impl gdext_class::traits::GodotExtensionClass for #self_class {
         //

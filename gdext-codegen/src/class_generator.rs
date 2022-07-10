@@ -53,6 +53,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         None => quote! { () },
     };
     let name = ident(&class.name);
+    // TODO separate constructor singleton() for singletons
     let (new, new_attrs) = if class.is_refcounted {
         (ident("new"), TokenStream::new())
     } else {

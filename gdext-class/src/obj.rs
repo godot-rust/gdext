@@ -15,11 +15,22 @@ use crate::{api, dom, mem, out, ClassName, GodotClass, GodotDefault, Inherits, I
 /// Smart pointer to objects owned by the Godot engine.
 ///
 /// This smart pointer can only hold _objects_ in the Godot sense: instances of Godot classes (`Node`, `RefCounted`, etc.)
-/// or user-declared structs (`#[derive(GodotClass)]`). It does _not_ hold built-in types (`Vector3`, `Color`, `i32`).
+/// or user-declared structs (`#[derive(GodotClass)]`). It does **not** hold built-in types (`Vector3`, `Color`, `i32`).
 ///
-/// This smart pointer different behavior depending on `T`'s associated types, which are categorized as follows:
-/// * **Base**: the immediate superclass of `T`. This is always a Godot engine class.
-/// * **
+/// This smart pointer behaves differently depending on `T`'s associated types, see [`GodotClass`] for their documentation.
+/// In particular, the memory management strategy is fully dependent on `T`:
+///
+/// * Objects of type `RefCounted` or inherited from it are **reference-counted**. This means that every time a smart pointer is
+///   shared using [`Share::share()`], the reference counter is incremented, and every time one is dropped, it is decremented.
+///   This ensures that the last reference (either in Rust or Godot) will deallocate the object and call `T`'s destructor.
+///
+/// * Objects inheriting from `Object` which are not `RefCounted` (or inherited) are **manually-managed**.
+///   Their destructor is not automatically called (unless they are part of the scene tree). Creating an `Obj<T>` means that
+///   you are responsible of explicitly deallocating such objects using [`Obj::free()`].
+///
+/// * For `T=Object`, the memory strategy is determined **dynamically**. Due to polymorphism, an `Obj<T>` can point to either
+///   reference-counted or manually-managed types at runtime. The behavior corresponds to one of the two previous points.
+///   Note that if the dynamic type is also `Object`, the memory is manually-managed.
 pub struct Obj<T: GodotClass> {
     // Note: `opaque` has the same layout as GDNativeObjectPtr == Object* in C++, i.e. the bytes represent a pointer
     // To receive a GDNativeTypePtr == GDNativeObjectPtr* == Object**, we need to get the address of this
