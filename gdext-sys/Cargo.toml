@@ -9,5 +9,5 @@ edition = "2021"
 "real_is_double" = []
 
 [build-dependencies]
-bindgen = "0.59"
+bindgen = { version = "0.60.1", default-features = false, features = [] }
 gdext-codegen = { path = "../gdext-codegen" }
