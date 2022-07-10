@@ -34,7 +34,7 @@ impl RustFfi {
 
 #[godot_api]
 impl GodotMethods for RustFfi {
-    fn construct(base: Base<Self::Base>) -> Self {
+    fn init(base: Base<Self::Base>) -> Self {
        Self {
            to_mirror: 77,
            some_base: base

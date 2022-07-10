@@ -65,7 +65,7 @@ impl GodotExtensionClass for IntegrationTests {
 }
 
 impl GodotDefault for IntegrationTests {
-    fn construct(_base: Base<Self::Base>) -> Self {
+    fn godot_default(_base: Base<Self::Base>) -> Self {
         Self {}
     }
 }

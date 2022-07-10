@@ -41,7 +41,7 @@ impl<T: GodotDefault + GodotClass> InstanceStorage<T> {
         out!("    Storage::initialize_default  <{}>", type_name::<T>());
 
         let base = Self::consume_base(&mut self.base_ptr);
-        self.initialize(T::construct(base));
+        self.initialize(T::godot_default(base));
     }
 
     pub fn get_mut_lateinit(&mut self) -> &mut T {
@@ -56,7 +56,7 @@ impl<T: GodotDefault + GodotClass> InstanceStorage<T> {
             out!("    Storage::lateinit              <{}>", type_name::<T>());
 
             let base = Self::consume_base(&mut self.base_ptr);
-            T::construct(base)
+            T::godot_default(base)
         });
 
         assert!(matches!(

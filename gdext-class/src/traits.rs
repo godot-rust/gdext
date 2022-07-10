@@ -188,7 +188,7 @@ pub trait EngineClass: GodotClass {
 }
 
 pub trait GodotDefault: GodotClass {
-    fn construct(base: Base<Self::Base>) -> Self;
+    fn godot_default(base: Base<Self::Base>) -> Self;
 }
 
 #[allow(unused_variables)]
@@ -203,7 +203,7 @@ pub trait GodotMethods where Self: GodotClass {
     // _physics_process
     // _ready
 
-    fn construct(base: Base<Self::Base>) -> Self {
+    fn init(base: Base<Self::Base>) -> Self {
         unimplemented!()
     }
     fn ready(&mut self) {

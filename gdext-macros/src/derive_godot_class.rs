@@ -207,7 +207,7 @@ fn create_default_auto(class_name: &Ident, fields: Fields) -> TokenStream {
 
     quote! {
         impl gdext_class::traits::GodotDefault for #class_name {
-            fn construct(base: gdext_class::Base<Self::Base>) -> Self {
+            fn godot_default(base: gdext_class::Base<Self::Base>) -> Self {
                 Self {
                     #( #rest_init )*
                     #base_init
@@ -220,8 +220,8 @@ fn create_default_auto(class_name: &Ident, fields: Fields) -> TokenStream {
 fn create_default_fn(class_name: &Ident) -> TokenStream {
     quote! {
         impl gdext_class::traits::GodotDefault for #class_name {
-            fn construct(base: gdext_class::Base<Self::Base>) -> Self {
-                <Self as gdext_class::traits::GodotMethods>::construct(base)
+            fn godot_default(base: gdext_class::Base<Self::Base>) -> Self {
+                <Self as gdext_class::traits::GodotMethods>::init(base)
             }
         }
     }

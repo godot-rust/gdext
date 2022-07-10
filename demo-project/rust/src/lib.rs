@@ -36,7 +36,7 @@ impl GodotClass for RustTest {
 }
 
 impl GodotDefault for RustTest {
-    fn construct(base: Base<Self::Base>) -> Self {
+    fn godot_default(base: Base<Self::Base>) -> Self {
         out!("[RustTest] construct: base={base:?}");
 
         RustTest::new(base)
@@ -254,7 +254,7 @@ pub struct Entity {
 impl Inherits<RefCounted> for Entity {}
 
 impl GodotDefault for Entity {
-    fn construct(base: Base<Self::Base>) -> Self {
+    fn godot_default(base: Base<Self::Base>) -> Self {
         out!("[Entity] construct: base={base:?}");
 
         Entity {

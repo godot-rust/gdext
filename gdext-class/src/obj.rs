@@ -120,7 +120,8 @@ impl<T: GodotClass> Obj<T> {
     /// Looks up the given instance ID and returns the associated object.
     ///
     /// # Panics
-    /// If the instance ID does not match a currently live object.
+    /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
+    /// is not compatible with `T`.
     pub fn from_instance_id(instance_id: InstanceId) -> Self {
         Self::try_from_instance_id(instance_id).expect(&format!(
             "Instance ID {} does not belong to a valid object of class '{}'",

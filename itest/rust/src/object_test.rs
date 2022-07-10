@@ -267,12 +267,12 @@ impl GodotExtensionClass for ObjPayload {
     fn register_methods() {}
 }
 impl GodotDefault for ObjPayload {
-    fn construct(_base: Base<Self::Base>) -> Self {
+    fn godot_default(_base: Base<Self::Base>) -> Self {
         ObjPayload { value: 111 }
     }
 }
 impl GodotMethods for Tracker {
-    fn construct(_base: Base<Self::Base>) -> Self {
+    fn init(_base: Base<Self::Base>) -> Self {
         todo!()
     }
 }
@@ -301,7 +301,7 @@ impl GodotExtensionClass for Tracker {
     fn register_methods() {}
 }
 impl GodotDefault for Tracker {
-    fn construct(_base: Base<Self::Base>) -> Self {
+    fn godot_default(_base: Base<Self::Base>) -> Self {
         panic!("not invoked")
     }
 }
