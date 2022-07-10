@@ -152,12 +152,21 @@ pub mod mem {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Makes `T` eligible to be managed by Godot and stored in [`Obj<T>`][crate::Obj] pointers.
+///
+/// The behavior of types implementing this trait is influenced by the associated types; check their documentation for information.
 pub trait GodotClass: Debug
 where
     Self: Sized,
 {
+    /// The immediate superclass of `T`. This is always a Godot engine class.
     type Base: GodotClass; // not EngineClass because it can be ()
+
+    /// Whether this class is a core Godot class provided by the engine, or declared by the user as a Rust struct.
+    // TODO what about GDScript user classes?
     type Declarer: dom::Domain;
+
+    /// Defines the memory strategy.
     type Mem: mem::Memory;
 
     fn class_name() -> String;
@@ -221,12 +230,17 @@ pub trait GodotExtensionClass: GodotClass {
     }
 }
 
+/// Trait to create more references from a smart pointer or collection.
 pub trait Share {
+    /// Creates a new reference that points to the same object.
+    ///
+    /// If the referred-to object is reference-counted, this will increment the count.
     fn share(&self) -> Self;
 }
 
-/// A struct `Derived` implementing `Inherits<Base>` expresses that `Derived` inherits `Base` in the Godot hierarchy.
+/// A struct `Derived` implementing `Inherits<Base>` expresses that `Derived` _strictly_ inherits `Base` in the Godot hierarchy.
 ///
 /// This trait is implemented for all Godot engine classes, even for non-direct relations (e.g. `Node3D` implements `Inherits<Object>`).
-// note: could also be named `SubclassOf`
+///
+/// The trait is not reflexive: `T` never implements `Inherits<T>`.
 pub trait Inherits<Base> {}
