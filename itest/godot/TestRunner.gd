@@ -4,7 +4,6 @@ func _ready():
 	var rust_tests := IntegrationTests.new()
 	var gdscript_tests := $FfiTests
 	var status: bool = rust_tests.run() && gdscript_tests.run()
-	#var status: bool = gdscript_tests.run()
 
 	print()
 	var exit_code: int
