@@ -16,11 +16,11 @@ pub fn strlit(s: &str) -> Literal {
     Literal::string(s)
 }
 
-pub fn bail<R, T>(msg: &str, tokens: T) -> Result<R, Error>
+pub fn bail<R, T>(msg: impl AsRef<str>, tokens: T) -> Result<R, Error>
 where
     T: Spanned,
 {
-    Err(Error::new_at_span(tokens.__span(), msg))
+    Err(Error::new_at_span(tokens.__span(), msg.as_ref()))
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

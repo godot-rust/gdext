@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use gdext_class::api::RefCounted;
-use gdext_class::{Base,  GodotMethods};
+use gdext_class::{Base, GodotMethods};
 use gdext_macros::{godot_api, GodotClass};
 
 #[derive(GodotClass, Debug)]
@@ -31,14 +31,13 @@ impl RustFfi {
     }
 }
 
-
 #[godot_api]
 impl GodotMethods for RustFfi {
     fn init(base: Base<Self::Base>) -> Self {
-       Self {
-           to_mirror: 77,
-           some_base: base
-       }
+        Self {
+            to_mirror: 77,
+            some_base: base,
+        }
     }
 }
 

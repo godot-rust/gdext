@@ -2,12 +2,14 @@ extends Node
 
 func run() -> bool:
 	print("Run GDScript tests...")
-	var status := test_int()
+	var ok = true
+	#ok = ok && test_int()
+	ok = ok && test_to_string()
 	print("[GD] RustFfi now out of scope.")
 
-	print("GDScript tests done (passed=", status, ")")
+	print("GDScript tests done (passed=", ok, ")")
 
-	return status
+	return ok
 
 func test_int() -> bool:
 	var ffi = RustFfi.new()
@@ -21,3 +23,11 @@ func test_int() -> bool:
 
 	print("[GD] end of method, RustFfi should go out of scope...")
 	return ok && mirrored == from_gdscript
+
+func test_to_string() -> bool:
+	var ffi = VirtualMethods.new()
+	var s = str(ffi)
+
+	print("to_string: ", s)
+	print("to_string: ", ffi)
+	return true

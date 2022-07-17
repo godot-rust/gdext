@@ -78,7 +78,8 @@ fn transform_trait_impl(decl: Impl) -> Result<TokenStream, Error> {
 
         match method.name.to_string().as_str() {
             "new" => {}
-            _ => {}
+            "to_string" => {}
+            m => return bail(format!("Unsupported GodotMethods method: {}", m), method),
         }
     }
 

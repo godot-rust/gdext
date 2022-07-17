@@ -192,7 +192,10 @@ pub trait GodotDefault: GodotClass {
 }
 
 #[allow(unused_variables)]
-pub trait GodotMethods where Self: GodotClass {
+pub trait GodotMethods
+where
+    Self: GodotClass,
+{
     // Some methods that were called:
     // _enter_tree
     // _input
