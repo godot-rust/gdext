@@ -38,12 +38,8 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let result = quote! {
         #decl
 
-        impl gdext_class::traits::GodotExtensionClass for #self_class {
-            fn virtual_call(name: &str) -> gdext_sys::GDNativeExtensionClassCallVirtual {
-                println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
+        impl gdext_class::traits::UserMethodBinds for #self_class {
 
-                None // TODO
-            }
             fn register_methods() {
                 #(
                     gdext_class::gdext_wrap_method!(#self_class, #methods);
@@ -68,7 +64,7 @@ fn transform_trait_impl(decl: Impl) -> Result<TokenStream, Error> {
 
     //let mut godot_default = TokenStream::new();
 
-    let _class_name = &decl.self_ty;
+    let self_class = &decl.self_ty;
     for item in decl.body.members.iter() {
         let method = if let ImplMember::Method(f) = item {
             f
@@ -77,7 +73,7 @@ fn transform_trait_impl(decl: Impl) -> Result<TokenStream, Error> {
         };
 
         match method.name.to_string().as_str() {
-            "new" => {}
+            "init" => {}
             "to_string" => {}
             m => return bail(format!("Unsupported GodotMethods method: {}", m), method),
         }
@@ -87,10 +83,13 @@ fn transform_trait_impl(decl: Impl) -> Result<TokenStream, Error> {
         #decl
         //#godot_default
 
-        // impl gdext_class::traits::GodotExtensionClass for #self_class {
-        //
-        //
-        // }
+        impl gdext_class::traits::UserVirtuals for #self_class {
+            fn virtual_call(name: &str) -> gdext_sys::GDNativeExtensionClassCallVirtual {
+                println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
+
+                None // TODO
+            }
+        }
     };
 
     Ok(result)

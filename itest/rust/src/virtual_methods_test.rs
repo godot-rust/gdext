@@ -20,7 +20,7 @@ impl VirtualMethodTest {}
 #[godot_api]
 impl GodotMethods for VirtualMethodTest {
     fn to_string(&self) -> GodotString {
-        format!("VirtualMethods[integer={}]", self.integer).into()
+        format!("VirtualMethodTest[integer={}]", self.integer).into()
     }
 }
 

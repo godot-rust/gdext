@@ -5,7 +5,7 @@ use crate::traits::*;
 use gdext_sys as sys;
 use sys::interface_fn;
 
-pub fn register_class<T: GodotExtensionClass>() {
+pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
     let creation_info = sys::GDNativeExtensionClassCreationInfo {
         set_func: None,
         get_func: None,
@@ -14,13 +14,13 @@ pub fn register_class<T: GodotExtensionClass>() {
         notification_func: None,
         to_string_func: if T::has_to_string() {
             Some({
-                unsafe extern "C" fn to_string<T: GodotExtensionClass>(
+                unsafe extern "C" fn to_string<T: GodotMethods>(
                     instance: sys::GDExtensionClassInstancePtr,
                     out_string: sys::GDNativeStringPtr,
                 ) {
                     let storage = as_storage::<T>(instance);
                     let instance = storage.get();
-                    let string = instance.to_string();
+                    let string = GodotMethods::to_string(instance);
 
                     // Transfer ownership to Godot, disable destructor
                     string.write_string_sys(out_string);
@@ -88,7 +88,7 @@ pub fn register_class<T: GodotExtensionClass>() {
             free::<T>
         }),
         get_virtual_func: Some({
-            unsafe extern "C" fn get_virtual<T: GodotExtensionClass>(
+            unsafe extern "C" fn get_virtual<T: UserVirtuals>(
                 _class_user_data: *mut std::ffi::c_void,
                 p_name: *const std::os::raw::c_char,
             ) -> sys::GDNativeExtensionClassCallVirtual {

@@ -1,7 +1,7 @@
 use gdext_class::dom::UserDomain;
 use gdext_class::{
     api, gdext_virtual_method_body, gdext_wrap_method, out, traits, Base, GodotClass, GodotDefault,
-    GodotExtensionClass,
+    GodotMethods, UserMethodBinds, UserVirtuals,
 };
 use gdext_macros::itest;
 
@@ -50,7 +50,15 @@ impl GodotClass for IntegrationTests {
     }
 }
 
-impl GodotExtensionClass for IntegrationTests {
+impl UserMethodBinds for IntegrationTests {
+    fn register_methods() {
+        out!("[IntegrationTests] register_methods");
+
+        gdext_wrap_method!(IntegrationTests, fn run(&mut self) -> bool;);
+    }
+}
+
+impl UserVirtuals for IntegrationTests {
     fn virtual_call(name: &str) -> gdext_sys::GDNativeExtensionClassCallVirtual {
         out!("[IntegrationTests] virtual_call: {name}");
 
@@ -59,12 +67,6 @@ impl GodotExtensionClass for IntegrationTests {
             _ => None,
         }
     }
-
-    fn register_methods() {
-        out!("[IntegrationTests] register_methods");
-
-        gdext_wrap_method!(IntegrationTests, fn run(&mut self) -> bool;);
-    }
 }
 
 impl GodotDefault for IntegrationTests {
@@ -72,6 +74,8 @@ impl GodotDefault for IntegrationTests {
         Self {}
     }
 }
+
+impl GodotMethods for IntegrationTests {}
 
 gdext_builtin::gdext_init!(itest_init, |init: &mut gdext_builtin::InitOptions| {
     out!("itest_init()");

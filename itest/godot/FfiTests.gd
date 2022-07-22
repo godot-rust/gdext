@@ -25,7 +25,7 @@ func test_int() -> bool:
 	return ok && mirrored == from_gdscript
 
 func test_to_string() -> bool:
-	var ffi = VirtualMethods.new()
+	var ffi = VirtualMethodTest.new()
 	var s = str(ffi)
 
 	print("to_string: ", s)

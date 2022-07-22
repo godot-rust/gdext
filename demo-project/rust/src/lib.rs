@@ -284,7 +284,7 @@ impl GodotClass for Entity {
     // }
 }
 
-impl GodotExtensionClass for Entity {
+impl UserMethodBinds for Entity {
     // fn construct(base: sys::GDNativeObjectPtr) -> Self {
     //     out!("[Entity] construct");
     //

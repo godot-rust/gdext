@@ -220,17 +220,23 @@ where
     }
 }
 
-pub trait GodotExtensionClass: GodotClass {
+pub trait UserMethodBinds: GodotClass {
     // fn reference(&mut self) {}
     // fn unreference(&mut self) {}
+    fn register_methods();
+}
+
+pub trait UserVirtuals: GodotClass {
     fn has_to_string() -> bool {
         false
     }
 
-    fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual;
-    fn register_methods();
-    fn to_string(&self) -> GodotString {
-        GodotString::new()
+    fn virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
+        None // TODO
+    }
+
+    fn internal_to_string(&self) -> GodotString {
+        unimplemented!()
     }
 }
 

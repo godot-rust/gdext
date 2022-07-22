@@ -2,8 +2,8 @@ use crate::itest;
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
 use gdext_class::{
-    dom, mem, out, Base, GodotClass, GodotDefault, GodotExtensionClass, GodotMethods, Inherits,
-    Obj, Share,
+    dom, mem, out, Base, GodotClass, GodotDefault, GodotMethods, Inherits, Obj, Share,
+    UserMethodBinds, UserVirtuals,
 };
 use gdext_sys as sys;
 use std::cell::RefCell;
@@ -260,18 +260,16 @@ impl GodotClass for ObjPayload {
         "ObjPayload".to_string()
     }
 }
-impl GodotExtensionClass for ObjPayload {
-    fn virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-        todo!()
-    }
+impl UserMethodBinds for ObjPayload {
     fn register_methods() {}
 }
+impl UserVirtuals for ObjPayload {}
 impl GodotDefault for ObjPayload {
     fn godot_default(_base: Base<Self::Base>) -> Self {
         ObjPayload { value: 111 }
     }
 }
-impl GodotMethods for Tracker {
+impl GodotMethods for ObjPayload {
     fn init(_base: Base<Self::Base>) -> Self {
         todo!()
     }
@@ -294,12 +292,11 @@ impl GodotClass for Tracker {
         "Tracker".to_string()
     }
 }
-impl GodotExtensionClass for Tracker {
-    fn virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-        todo!()
-    }
+impl UserMethodBinds for Tracker {
     fn register_methods() {}
 }
+impl UserVirtuals for Tracker {}
+impl GodotMethods for Tracker {}
 impl GodotDefault for Tracker {
     fn godot_default(_base: Base<Self::Base>) -> Self {
         panic!("not invoked")
