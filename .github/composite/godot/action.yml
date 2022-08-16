@@ -52,7 +52,7 @@ runs:
 
     - name: "Store variable to Godot binary"
       run: |
-        echo "GODOT_BIN=${{ runner.temp }}/godot_bin/godot.linuxbsd.tools.64" >> $GITHUB_ENV
+        echo "GODOT_BIN=${{ runner.temp }}/godot_bin/godot.linuxbsd.tools.x86_64" >> $GITHUB_ENV
       shell: bash
 
     - name: "Inspect Godot version"
@@ -60,8 +60,28 @@ runs:
         chmod +x $GODOT_BIN
         godotVer=$($GODOT_BIN --version || true)
         gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
-        echo "### Godot Integration tests " >> $GITHUB_STEP_SUMMARY
+        echo "### Godot Integration tests" >> $GITHUB_STEP_SUMMARY
         echo "Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)." >> $GITHUB_STEP_SUMMARY
+      shell: bash
+
+    # Note: if this fails, run `git diff -R > tweaks.patch` after updating the file manually
+    - name: "Copy and compare GDExtension header"
+      run: |
+        mkdir -p gdext-codegen/input
+        cp ${{ runner.temp }}/godot_bin/gdnative_interface.h gdext-codegen/input/gdnative_interface.h
+        git apply gdext-codegen/input/tweak.patch -v
+        git diff --exit-code --quiet || {
+        	echo "gdnative_interface.h is not up-to-date; abort."
+        	echo ""
+        
+            echo "### :x: Outdated GDExtension API header" > $GITHUB_STEP_SUMMARY
+            echo "gdnative_interface.h contains the following differences.  " >> $GITHUB_STEP_SUMMARY
+            echo "After manually updating file, run:   \`git diff -R > gdext-codegen/input/tweak.patch\`." >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
+            git diff >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        	exit 1
+        }
       shell: bash
 
     - name: "Install Rust"
@@ -84,9 +104,9 @@ runs:
       run: |
         cd itest/godot
         $GODOT_BIN --headless 2>&1 | tee >(grep "SCRIPT ERROR:" -q && {
-          printf "\nGodot engine encountered error, abort...";
-          pkill godot
-          echo ":x: Aborted due to an error during Godot execution." >> $GITHUB_STEP_SUMMARY
-          exit 2
+        	printf "\nGodot engine encountered error, abort...";
+        	pkill godot
+        	echo ":x: Aborted due to an error during Godot execution." >> $GITHUB_STEP_SUMMARY
+        	exit 2
         })
       shell: bash
