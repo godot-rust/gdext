@@ -60,7 +60,7 @@ pub(crate) fn parse_kv_group(value: &venial::AttributeValue) -> ParseResult<KvMa
     // can't be a closure because closures borrow greedy, and we'd need borrowing only at invocation time (lazy)
     macro_rules! insert_kv {
         ($value:expr) => {
-            let key = last_key.take().unwrap();
+            let key = last_key.take().expect("last_key.take");
             map.insert(key, $value);
         };
     }

@@ -1,5 +1,5 @@
 use crate::util::bail;
-use proc_macro2::TokenStream;
+use proc_macro2::{Punct, Spacing, TokenStream};
 use quote::quote;
 use venial::{Declaration, Error, Function, Impl, ImplMember};
 
@@ -54,8 +54,11 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
 /// Codegen for `#[godot_api] impl GodotMethods for MyType`
 fn transform_trait_impl(decl: Impl) -> Result<TokenStream, Error> {
-    match decl.trait_ty.as_ref().unwrap().as_path() {
-        Some((path, None)) => path.last().is_some() && path.last().unwrap() == "GodotMethods",
+    match decl.trait_ty.as_ref().expect("Impl::trait_ty").as_path() {
+        Some(path) => path
+            .segments
+            .last()
+            .map_or(false, |seg| seg.ident == "GodotMethods"),
         _ => bail(
             "#[godot_api] for trait impls requires trait to be `GodotMethods`",
             &decl,
@@ -65,7 +68,7 @@ fn transform_trait_impl(decl: Impl) -> Result<TokenStream, Error> {
     //let mut godot_default = TokenStream::new();
 
     let self_class = &decl.self_ty;
-    for item in decl.body.members.iter() {
+    for item in decl.body_items.iter() {
         let method = if let ImplMember::Method(f) = item {
             f
         } else {
@@ -97,7 +100,7 @@ fn transform_trait_impl(decl: Impl) -> Result<TokenStream, Error> {
 
 fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
     let mut method_signatures = vec![];
-    for item in decl.body.members.iter_mut() {
+    for item in decl.body_items.iter_mut() {
         let method = if let ImplMember::Method(method) = item {
             method
         } else {
@@ -106,7 +109,11 @@ fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
 
         let mut found = None;
         for (index, attr) in method.attributes.iter().enumerate() {
-            if attr.get_single_path_segment().unwrap() == "godot" {
+            if attr
+                .get_single_path_segment()
+                .expect("get_single_path_segment")
+                == "godot"
+            {
                 if found.is_some() {
                     bail("at most one #[godot] attribute per method allowed", &method)?;
                 } else {
@@ -122,6 +129,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
             // Signatures are the same thing without body
             let mut sig = method.clone();
             sig.body = None;
+            sig.tk_semicolon = Some(Punct::new(';', Spacing::Alone));
             method_signatures.push(sig);
         }
     }

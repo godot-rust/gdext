@@ -93,7 +93,7 @@ pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
                 p_name: *const std::os::raw::c_char,
             ) -> sys::GDNativeExtensionClassCallVirtual {
                 let name = std::ffi::CStr::from_ptr(p_name);
-                T::virtual_call(name.to_str().unwrap())
+                T::virtual_call(name.to_str().expect("T::virtual_call"))
             }
             get_virtual::<T>
         }),

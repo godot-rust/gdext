@@ -134,7 +134,7 @@ macro_rules! impl_basic_trait_as_sys {
         impl Ord for $Type {
             #[inline]
             fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-                PartialOrd::partial_cmp(self, other).unwrap()
+                PartialOrd::partial_cmp(self, other).expect("PartialOrd::partial_cmp")
             }
         }
     };

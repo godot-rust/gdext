@@ -95,7 +95,7 @@ impl From<String> for GodotString {
 
 impl From<&str> for GodotString {
     fn from(val: &str) -> Self {
-        GodotString::from_str(val).unwrap()
+        GodotString::from_str(val).expect("From<&str>")
     }
 }
 
@@ -115,7 +115,7 @@ impl From<&GodotString> for String {
             );
 
             // Note: could use from_utf8_unchecked() but for now prefer safety
-            String::from_utf8(buf).unwrap()
+            String::from_utf8(buf).expect("String::from_utf8")
         }
     }
 }
