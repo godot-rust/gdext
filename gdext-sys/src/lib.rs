@@ -15,6 +15,7 @@ mod gen {
 }
 mod global_registry;
 mod godot_ffi;
+mod plugins;
 
 //pub use opaque::Opaque;
 use gen::central::GlobalMethodTable;
