@@ -41,7 +41,9 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
         //     }
         //     fn register_methods() {}
         // }
-
+        impl gdext_class::traits::UserMethodBinds for #class_name {
+            fn register_methods() {} // TODO
+        }
     })
 }
 
