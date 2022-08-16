@@ -29,6 +29,10 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - name: "Install LLVM"
+        uses: ./.github/composite/llvm
+        #if: ${{ matrix.os.id == 'windows-latest' }}
+
       - name: "Run Godot integration test"
         uses: ./.github/composite/godot
         with:

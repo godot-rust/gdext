@@ -1,0 +1,26 @@
+name: llvm
+description: "Install LLVM + Clang, with caching"
+
+#inputs:
+#  llvm:
+#    required: false
+#    default: 'true'
+#    description: "Whether LLVM should be installed ('true' by default)"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Cache LLVM and Clang
+      id: cache-llvm
+      # Note: conditionals not yet supported; see https://github.com/actions/runner/issues/834
+      # if: ${{ inputs.llvm == 'true' }}
+      uses: actions/cache@v3
+      with:
+        path: ${{ runner.temp }}/llvm
+        key: llvm-10.0
+    - uses: KyleMayes/install-llvm-action@v1
+      # if: ${{ inputs.llvm == 'true' }}
+      with:
+        version: "10.0"
+        directory: ${{ runner.temp }}/llvm
+        cached: ${{ steps.cache-llvm.outputs.cache-hit }}
