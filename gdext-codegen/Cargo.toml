@@ -2,6 +2,7 @@
 name = "gdext-codegen"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.63"
 
 [dependencies]
 quote = "1"
