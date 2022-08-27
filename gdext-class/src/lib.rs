@@ -5,6 +5,7 @@ mod obj;
 mod registry;
 mod storage;
 
+pub mod builder;
 pub mod macros;
 pub mod property_info;
 pub mod traits;

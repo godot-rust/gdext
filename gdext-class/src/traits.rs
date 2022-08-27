@@ -240,6 +240,10 @@ pub trait UserVirtuals: GodotClass {
     }
 }
 
+// pub struct UserVirtuals<T> {
+//     to_string: Option<fn(&T) -> GodotString>,
+// }
+
 /// Trait to create more references from a smart pointer or collection.
 pub trait Share {
     /// Creates a new reference that points to the same object.

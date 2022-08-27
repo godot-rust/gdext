@@ -92,6 +92,7 @@ macro_rules! gdext_wrap_method_inner {
                         let storage = ::gdext_class::private::as_storage::<$type_name>(instance);
                         let instance = storage.get_mut_lateinit();
 
+                        // TODO reuse code, see ((1))
                         let mut idx = 0;
 
                         $(
@@ -286,6 +287,7 @@ macro_rules! gdext_virtual_method_inner {
                 ret: sys::GDNativeTypePtr,
             ) {
                 let instance = &mut *(instance as *mut $type_name);
+                // TODO reuse code, see ((1))
                 let mut idx = 0;
 
                 $(
