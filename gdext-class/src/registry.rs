@@ -11,6 +11,8 @@ pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
         get_func: None,
         get_property_list_func: None,
         free_property_list_func: None,
+        property_can_revert_func: None,
+        property_get_revert_func: None,
         notification_func: None,
         to_string_func: if T::has_to_string() {
             Some({
