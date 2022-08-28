@@ -60,8 +60,11 @@ runs:
         chmod +x $GODOT_BIN
         godotVer=$($GODOT_BIN --version || true)
         gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
-        echo "_Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)._" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "GODOT_BUILT_FROM=_Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)._" >> $GITHUB_ENV
+        
+        # By default, output error (will be displayed unless overwritten)
+        echo "### :x: Godot integration tests failed" > $GITHUB_STEP_SUMMARY
+        echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
       shell: bash
 
     # Note: if this fails, run `git diff -R > tweaks.patch` after updating the file manually
@@ -107,9 +110,11 @@ runs:
         $GODOT_BIN --headless 2>&1 | tee >(grep "SCRIPT ERROR:" -q && {
         	printf "\nGodot engine encountered error, abort...";
         	pkill godot
-        	echo "### :x: Godot runtime error" >> $GITHUB_STEP_SUMMARY
+        	echo "### :x: Godot runtime error" > $GITHUB_STEP_SUMMARY
+            echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
         	echo "Aborted due to an error during Godot execution." >> $GITHUB_STEP_SUMMARY
         	exit 2
         })
-        echo "### :heavy_check_mark: Godot integration tests passed" >> $GITHUB_STEP_SUMMARY
+        echo "### :heavy_check_mark: Godot integration tests passed" > $GITHUB_STEP_SUMMARY
+        echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
       shell: bash
