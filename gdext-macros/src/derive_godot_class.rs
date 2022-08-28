@@ -16,6 +16,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let fields = parse_fields(class)?;
 
     let base_ty = &struct_cfg.base_ty;
+    let base_ty_str = struct_cfg.base_ty.to_string();
     let class_name = &class.name;
     let class_name_str = class.name.to_string();
     let default = match struct_cfg.new_mode {
@@ -44,6 +45,15 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
         // impl gdext_class::traits::UserMethodBinds for #class_name {
         //     fn register_methods() {} // TODO
         // }
+
+        gdext_sys::plugin_add!(GDEXT_CLASS_REGISTRY; gdext_class::registry::ClassPlugin {
+            name: #class_name_str,
+            component: gdext_class::registry::PluginComponent::Basic {
+                base_class_name: #base_ty_str,
+                default_create_fn: todo!(),
+                free_fn: todo!(),
+            },
+        });
     })
 }
 

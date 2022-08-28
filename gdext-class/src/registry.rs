@@ -5,6 +5,59 @@ use crate::traits::*;
 use gdext_sys as sys;
 use sys::interface_fn;
 
+pub(crate) struct ClassPlugin {
+    class_name: &'static str,
+    component: PluginComponent,
+}
+
+pub(crate) enum PluginComponent {
+    /// Class definition itself, must always be available
+    Basic {
+        base_class_name: &'static str,
+
+        default_create_fn: Option<
+            unsafe extern "C" fn(
+                _class_userdata: *mut std::ffi::c_void, //
+            ) -> sys::GDNativeObjectPtr,
+        >,
+
+        free_fn: unsafe extern "C" fn(
+            _class_user_data: *mut std::ffi::c_void,
+            instance: sys::GDExtensionClassInstancePtr,
+        ),
+    },
+
+    /// Constructor defined by user
+    UserConstruct {
+        create_fn: unsafe extern "C" fn(
+            _class_userdata: *mut std::ffi::c_void, //
+        ) -> sys::GDNativeObjectPtr,
+    },
+
+    /// Methods in `#[godot_api] impl MyClass`
+    UserMethodBinds {
+        registration_method: fn(), //
+    },
+
+    /// Other lifecycle methods in `#[godot_api] impl GodotVirtuals for MyClass`
+    UserVirtuals {
+        get_virtual_fn: unsafe extern "C" fn(
+            _class_user_data: *mut std::ffi::c_void,
+            p_name: *const std::os::raw::c_char,
+        ) -> sys::GDNativeExtensionClassCallVirtual,
+    },
+
+    /// Custom `to_string` method
+    ToString {
+        to_string_fn: unsafe extern "C" fn(
+            instance: sys::GDExtensionClassInstancePtr,
+            out_string: sys::GDNativeStringPtr,
+        ),
+    },
+}
+
+sys::plugin_registry!(GDEXT_CLASS_REGISTRY: ClassPlugin);
+
 pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
     let creation_info = sys::GDNativeExtensionClassCreationInfo {
         set_func: None,
