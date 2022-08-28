@@ -39,15 +39,15 @@ macro_rules! gdext_wrap_method_inner {
         $map_method:ident,
         fn $method_name:ident(
             self
-            $(, $arg:ident : $Param:ty)*
-            $(, #[opt] $opt_pname:ident : $opt_pty:ty)*
-        ) -> $($Ret:tt)+ // Note: can't be ty, as that cannot be matched to tokens anymore
+            $(, $param:ident : $ParamTy:ty)*
+            $(, #[opt] $opt_param:ident : $OptParamTy:ty)*
+        ) -> $($RetTy:tt)+ // Note: can't be ty, as that cannot be matched to tokens anymore
     ) => {
         unsafe {
             use gdext_sys as sys;
             use gdext_builtin::Variant;
 
-            const NUM_ARGS: usize = $crate::gdext_wrap_method_parameter_count!($($arg,)*);
+            const NUM_ARGS: usize = $crate::gdext_wrap_method_parameter_count!($($param,)*);
 
             let method_info = sys::GDNativeExtensionClassMethodInfo {
                 name: concat!(stringify!($method_name), "\0").as_ptr() as *const i8,
@@ -64,7 +64,7 @@ macro_rules! gdext_wrap_method_inner {
                         $crate::gdext_varcall!(
                             instance_ptr, args, ret, err;
                             $Class;
-                            fn $method_name(self $(, $arg: $Param)*) -> $($Ret)+
+                            fn $method_name(self $(, $param: $ParamTy)*) -> $($RetTy)+
                         );
                     }
 
@@ -80,7 +80,7 @@ macro_rules! gdext_wrap_method_inner {
                         $crate::gdext_ptrcall!(
                             instance_ptr, args, ret;
                             $Class;
-                            fn $method_name(self $(, $arg: $Param)*) -> $($Ret)+
+                            fn $method_name(self $(, $param: $ParamTy)*) -> $($RetTy)+
                         );
                     }
 
@@ -89,7 +89,7 @@ macro_rules! gdext_wrap_method_inner {
                 method_flags:
                     sys::GDNativeExtensionClassMethodFlags_GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
                 argument_count: NUM_ARGS as u32,
-                has_return_value: $crate::gdext_wrap_method_has_return_value!($($Ret)+) as u8,
+                has_return_value: $crate::gdext_wrap_method_has_return_value!($($RetTy)+) as u8,
                 get_argument_type_func: Some({
                     extern "C" fn get_type(
                         _method_data: *mut std::ffi::c_void,
@@ -97,9 +97,9 @@ macro_rules! gdext_wrap_method_inner {
                     ) -> sys::GDNativeVariantType {
                         // Return value is the first "argument"
                         let types: [sys::GDNativeVariantType; NUM_ARGS + 1] = [
-                            <$($Ret)+ as $crate::property_info::PropertyInfoBuilder>::variant_type(),
+                            <$($RetTy)+ as $crate::property_info::PropertyInfoBuilder>::variant_type(),
                             $(
-                                <$Param as $crate::property_info::PropertyInfoBuilder>::variant_type(),
+                                <$ParamTy as $crate::property_info::PropertyInfoBuilder>::variant_type(),
                             )*
                         ];
                         types[(n + 1) as usize]
@@ -114,9 +114,9 @@ macro_rules! gdext_wrap_method_inner {
                     ) {
                         // Return value is the first "argument"
                         let infos: [sys::GDNativePropertyInfo; NUM_ARGS + 1] = [
-                            <$($Ret)+ as $crate::property_info::PropertyInfoBuilder>::property_info(""),
+                            <$($RetTy)+ as $crate::property_info::PropertyInfoBuilder>::property_info(""),
                             $(
-                                <$Param as $crate::property_info::PropertyInfoBuilder>::property_info(stringify!($arg)),
+                                <$ParamTy as $crate::property_info::PropertyInfoBuilder>::property_info(stringify!($param)),
                             )*
                         ];
 
@@ -131,9 +131,9 @@ macro_rules! gdext_wrap_method_inner {
                     ) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
                         // Return value is the first "argument"
                         let metas: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS + 1] = [
-                            <$($Ret)+ as $crate::property_info::PropertyInfoBuilder>::metadata(),
+                            <$($RetTy)+ as $crate::property_info::PropertyInfoBuilder>::metadata(),
                             $(
-                                <$Param as $crate::property_info::PropertyInfoBuilder>::metadata(),
+                                <$ParamTy as $crate::property_info::PropertyInfoBuilder>::metadata(),
                             )*
                         ];
                         metas[(n + 1) as usize]
@@ -161,81 +161,84 @@ macro_rules! gdext_wrap_method_inner {
 macro_rules! gdext_wrap_method {
     // mutable
     (
-        $type_name:ty,
+        $Class:ty,
         fn $method_name:ident(
             &mut self
-            $(,$pname:ident : $pty:ty)*
-            $(,#[opt] $opt_pname:ident : $opt_pty:ty)*
+            $(, $param:ident : $ParamTy:ty)*
+            $(, #[opt] $opt_param:ident : $OptParamTy:ty)*
             $(,)?
-        ) -> $retty:ty;
+        ) -> $RetTy:ty;
     ) => {
         $crate::gdext_wrap_method_inner!(
-            $type_name,
+            $Class,
             map_mut,
             fn $method_name(
                 self
-                $(,$pname : $pty)*
-                $(,#[opt] $opt_pname : $opt_pty)*
-            ) -> $retty
+                $(, $param : $ParamTy)*
+                $(, #[opt] $opt_param : $OptParamTy)*
+            ) -> $RetTy
         )
     };
+
     // immutable
     (
-        $type_name:ty,
+        $Class:ty,
         fn $method_name:ident(
             &self
-            $(,$pname:ident : $pty:ty)*
-            $(,#[opt] $opt_pname:ident : $opt_pty:ty)*
+            $(, $arg:ident : $Param:ty)*
+            $(, #[opt] $opt_arg:ident : $OptParam:ty)*
             $(,)?
-        ) -> $retty:ty;
+        ) -> $RetTy:ty;
     ) => {
         $crate::gdext_wrap_method_inner!(
-            $type_name,
+            $Class,
             map,
             fn $method_name(
                 self
-                $(,$pname : $pty)*
-                $(,#[opt] $opt_pname : $opt_pty)*
-            ) -> $retty
+                $(, $arg : $Param)*
+                $(, #[opt] $opt_arg : $OptParam)*
+            ) -> $RetTy
         )
     };
+
     // mutable without return type
     (
-        $type_name:ty,
+        $Class:ty,
         fn $method_name:ident(
             &mut self
-            $(,$pname:ident : $pty:ty)*
-            $(,#[opt] $opt_pname:ident : $opt_pty:ty)*
+            $(, $param:ident : $ParamTy:ty)*
+            $(, #[opt] $opt_param:ident : $OptParamTy:ty)*
             $(,)?
         );
     ) => {
          $crate::gdext_wrap_method_inner!(
-            $type_name,
+            $Class,
             map_mut,
             fn $method_name(
                 self
-                $(,$pname : $pty)*
-                $(,#[opt] $opt_pname : $opt_pty)*
+                $(, $param : $ParamTy)*
+                $(, #[opt] $opt_param : $OptParamTy)*
             ) -> ()
         )
     };
+
     // immutable without return type
     (
-        $type_name:ty,
+        $Class:ty,
         fn $method_name:ident(
             &self
-            $(,$pname:ident : $pty:ty)*
-            $(,#[opt] $opt_pname:ident : $opt_pty:ty)*
+            $(, $param:ident : $ParamTy:ty)*
+            $(, #[opt] $opt_param:ident : $OptParamTy:ty)*
             $(,)?
         );
     ) => {
           $crate::gdext_wrap_method_inner!(
-            $type_name,
+            $Class,
             map,
             fn $method_name(
                 self
-                $(,$pname : $pty)*
-                $(,#[opt] $opt_pname : $opt_pty)*
+                $(, $param : $ParamTy)*
+                $(, #[opt] $opt_param : $OptParamTy)*
             ) -> ()
         )
     };
@@ -271,6 +274,84 @@ macro_rules! gdext_virtual_method_inner {
     };
 }
 
+#[macro_export]
+macro_rules! gdext_virtual_method_body {
+    // mutable
+    (
+        $Class:ty,
+        fn $method_name:ident(
+            &mut self
+            $(, $param:ident : $ParamTy:ty)*
+            $(,)?
+        ) -> $RetTy:ty
+    ) => {
+        $crate::gdext_virtual_method_inner!(
+            $Class,
+            map_mut,
+            fn $method_name(
+                self
+                $(, $param : $ParamTy)*
+            ) -> $RetTy
+        )
+    };
+
+    // immutable
+    (
+        $Class:ty,
+        fn $method_name:ident(
+            &self
+            $(, $param:ident : $ParamTy:ty)*
+            $(,)?
+        ) -> $RetTy:ty
+    ) => {
+        $crate::gdext_virtual_method_inner!(
+            $Class,
+            map,
+            fn $method_name(
+                self
+                $(,$param : $ParamTy)*
+            ) -> $RetTy
+        )
+    };
+
+    // mutable without return type
+    (
+        $Class:ty,
+        fn $method_name:ident(
+            &mut self
+            $(, $param:ident : $ParamTy:ty)*
+            $(,)?
+        )
+    ) => {
+        $crate::gdext_virtual_method_body!(
+            $Class,
+            fn $method_name(
+                &mut self
+                $(, $param : $ParamTy)*
+            ) -> ()
+        )
+    };
+
+    // immutable without return type
+    (
+        $Class:ty,
+        fn $method_name:ident(
+            &self
+            $(, $param:ident : $ParamTy:ty)*
+            $(,)?
+        )
+    ) => {
+        $crate::gdext_virtual_method_body!(
+            $Class,
+            fn $method_name(
+                &self
+                $(, $param : $ParamTy)*
+            ) -> ()
+        )
+    };
+}
+
+
 #[doc(hidden)]
 #[macro_export]
 macro_rules! gdext_ptrcall {
@@ -279,8 +360,8 @@ macro_rules! gdext_ptrcall {
         $Class:ty;
         fn $method_name:ident(
             self
-            $(, $arg:ident : $Param:ty)*
-        ) -> $( $Ret:tt )+
+            $(, $arg:ident : $ParamTy:ty)*
+        ) -> $( $RetTy:tt )+
     ) => {
         println!("ptrcall: {}", stringify!($method_name));
         let storage = ::gdext_class::private::as_storage::<$Class>($instance_ptr);
@@ -288,7 +369,7 @@ macro_rules! gdext_ptrcall {
 
         let mut idx = 0;
         $(
-            let $arg = <$Param as sys::GodotFfi>::from_sys(*$args.offset(idx));
+            let $arg = <$ParamTy as sys::GodotFfi>::from_sys(*$args.offset(idx));
             // FIXME update refcount, e.g. Obj::ready() or T::Mem::maybe_inc_ref(&result);
             // possibly in from_sys() directly; what about from_sys_init() and from_{obj|str}_sys()?
             idx += 1;
@@ -298,7 +379,7 @@ macro_rules! gdext_ptrcall {
             $arg,
         )*);
 
-        <$($Ret)+ as sys::GodotFfi>::write_sys(&ret_val, $ret);
+        <$($RetTy)+ as sys::GodotFfi>::write_sys(&ret_val, $ret);
     };
 }
 
@@ -310,8 +391,8 @@ macro_rules! gdext_varcall {
         $Class:ty;
         fn $method_name:ident(
             self
-            $(, $arg:ident : $Param:ty)*
-        ) -> $( $Ret:tt )+
+            $(, $arg:ident : $ParamTy:ty)*
+        ) -> $( $RetTy:tt )+
     ) => {
         println!("varcall: {}", stringify!($method_name));
         let storage = ::gdext_class::private::as_storage::<$Class>($instance_ptr);
@@ -319,7 +400,7 @@ macro_rules! gdext_varcall {
 
         let mut idx = 0;
         $(
-            let $arg = <$Param as From<&Variant>>::from(&*(*$args.offset(idx) as *mut Variant));
+            let $arg = <$ParamTy as From<&Variant>>::from(&*(*$args.offset(idx) as *mut Variant));
             idx += 1;
         )*
 
@@ -329,79 +410,5 @@ macro_rules! gdext_varcall {
 
         *($ret as *mut Variant) = Variant::from(ret_val);
         (*$err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
-    };
-}
-
-#[macro_export]
-macro_rules! gdext_virtual_method_body {
-    // mutable
-    (
-        $type_name:ty,
-        fn $method_name:ident(
-            &mut self
-            $(,$pname:ident : $pty:ty)*
-            $(,)?
-        ) -> $retty:ty
-    ) => {
-        $crate::gdext_virtual_method_inner!(
-            $type_name,
-            map_mut,
-            fn $method_name(
-                self
-                $(,$pname : $pty)*
-            ) -> $retty
-        )
-    };
-    // immutable
-    (
-        $type_name:ty,
-        fn $method_name:ident(
-            &self
-            $(,$pname:ident : $pty:ty)*
-            $(,)?
-        ) -> $retty:ty
-    ) => {
-        $crate::gdext_virtual_method_inner!(
-            $type_name,
-            map,
-            fn $method_name(
-                self
-                $(,$pname : $pty)*
-            ) -> $retty
-        )
-    };
-    // mutable without return type
-    (
-        $type_name:ty,
-        fn $method_name:ident(
-            &mut self
-            $(,$pname:ident : $pty:ty)*
-            $(,)?
-        )
-    ) => {
-        $crate::gdext_virtual_method_body!(
-            $type_name,
-            fn $method_name(
-                &mut self
-                $(,$pname : $pty)*
-            ) -> ()
-        )
-    };
-    // immutable without return type
-    (
-        $type_name:ty,
-        fn $method_name:ident(
-            &self
-            $(,$pname:ident : $pty:ty)*
-            $(,)?
-        )
-    ) => {
-        $crate::gdext_virtual_method_body!(
-            $type_name,
-            fn $method_name(
-                &self
-                $(,$pname : $pty)*
-            ) -> ()
-        )
     };
 }
