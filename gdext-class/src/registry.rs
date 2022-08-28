@@ -7,11 +7,13 @@ use crate::traits::*;
 use gdext_sys as sys;
 use sys::interface_fn;
 
+#[derive(Debug)]
 pub struct ClassPlugin {
     pub class_name: &'static str,
     pub component: PluginComponent,
 }
 
+#[derive(Debug)]
 pub enum PluginComponent {
     /// Class definition itself, must always be available
     Basic {

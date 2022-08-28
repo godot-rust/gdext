@@ -35,6 +35,10 @@ struct IntegrationTests {}
 
 impl IntegrationTests {
     fn run(&mut self) -> bool {
+        println!("Registered plugins:");
+        gdext_class::private::list_plugins();
+        println!("\n\n");
+
         println!("Run Godot integration tests...");
         run_tests()
     }

@@ -32,10 +32,16 @@ pub mod api {
 
 #[doc(hidden)]
 pub mod private {
-    pub use crate::registry::{ClassPlugin, PluginComponent};
+    pub use crate::registry::{c_api, ClassPlugin, PluginComponent};
     pub use crate::storage::as_storage;
 
-    gdext_sys::plugin_registry!(GDEXT_CLASS_REGISTRY: crate::registry::ClassPlugin);
+    gdext_sys::plugin_registry!(GDEXT_CLASS_REGISTRY: ClassPlugin);
+
+    pub fn list_plugins() {
+        gdext_sys::plugin_foreach!(GDEXT_CLASS_REGISTRY; |elem: &ClassPlugin| {
+            dbg!(elem);
+        });
+    }
 }
 
 #[cfg(feature = "trace")]

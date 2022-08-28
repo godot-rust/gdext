@@ -25,6 +25,13 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
         GodotDefaultMode::None => TokenStream::new(),
     };
 
+    let prv = quote! { gdext_class::private };
+    let create_fn = if matches!(struct_cfg.new_mode, GodotDefaultMode::None) {
+        quote! { None }
+    } else {
+        quote! { Some(#prv::c_api::create::<#class_name>) }
+    };
+
     Ok(quote! {
         impl gdext_class::traits::GodotClass for #class_name {
             type Base = gdext_class::api::#base_ty;
@@ -46,12 +53,12 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
         //     fn register_methods() {} // TODO
         // }
 
-        gdext_sys::plugin_add!(gdext_class::private::; GDEXT_CLASS_REGISTRY; gdext_class::private::ClassPlugin {
+        gdext_sys::plugin_add!(GDEXT_CLASS_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_str,
-            component: gdext_class::private::PluginComponent::Basic {
+            component: #prv::PluginComponent::Basic {
                 base_class_name: #base_ty_str,
-                default_create_fn: todo!(),
-                free_fn: todo!(),
+                default_create_fn: #create_fn,
+                free_fn: #prv::c_api::free::<#class_name>,
             },
         });
     })
