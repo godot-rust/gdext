@@ -38,9 +38,8 @@ macro_rules! gdext_wrap_method_inner {
         $Class:ty,
         $map_method:ident,
         fn $method_name:ident(
-            self
-            $(, $param:ident : $ParamTy:ty)*
-            $(, #[opt] $opt_param:ident : $OptParamTy:ty)*
+            $( $param:ident : $ParamTy:ty, )*
+            $( #[opt] $opt_param:ident : $OptParamTy:ty, )*
         ) -> $($RetTy:tt)+ // Note: can't be ty, as that cannot be matched to tokens anymore
     ) => {
         unsafe {
@@ -64,7 +63,7 @@ macro_rules! gdext_wrap_method_inner {
                         $crate::gdext_varcall!(
                             instance_ptr, args, ret, err;
                             $Class;
-                            fn $method_name(self $(, $param: $ParamTy)*) -> $($RetTy)+
+                            fn $method_name( $( $param: $ParamTy, )* ) -> $( $RetTy )+
                         );
                     }
 
@@ -80,7 +79,7 @@ macro_rules! gdext_wrap_method_inner {
                         $crate::gdext_ptrcall!(
                             instance_ptr, args, ret;
                             $Class;
-                            fn $method_name(self $(, $param: $ParamTy)*) -> $($RetTy)+
+                            fn $method_name( $( $param: $ParamTy, )* ) -> $( $RetTy )+
                         );
                     }
 
@@ -173,7 +172,6 @@ macro_rules! gdext_wrap_method {
             $Class,
             map_mut,
             fn $method_name(
-                self
                 $(, $param : $ParamTy)*
                 $(, #[opt] $opt_param : $OptParamTy)*
             ) -> $RetTy
@@ -194,9 +192,8 @@ macro_rules! gdext_wrap_method {
             $Class,
             map,
             fn $method_name(
-                self
-                $(, $arg : $Param)*
-                $(, #[opt] $opt_arg : $OptParam)*
+                $( $arg : $Param, )*
+                $( #[opt] $opt_arg : $OptParam, )*
             ) -> $RetTy
         )
     };
@@ -206,19 +203,19 @@ macro_rules! gdext_wrap_method {
         $Class:ty,
         fn $method_name:ident(
             &mut self
-            $(, $param:ident : $ParamTy:ty)*
-            $(, #[opt] $opt_param:ident : $OptParamTy:ty)*
+            $(, $param:ident : $ParamTy:ty )*
+            $(, #[opt] $opt_param:ident : $OptParamTy:ty )*
             $(,)?
         );
     ) => {
-         $crate::gdext_wrap_method_inner!(
+        // recurse this macro
+        $crate::gdext_wrap_method!(
             $Class,
-            map_mut,
             fn $method_name(
-                self
-                $(, $param : $ParamTy)*
-                $(, #[opt] $opt_param : $OptParamTy)*
-            ) -> ()
+                &mut self,
+                $(, $param : $ParamTy )*
+                $(, #[opt] $opt_param : $OptParamTy )*
+            ) -> ();
         )
     };
 
@@ -227,19 +224,19 @@ macro_rules! gdext_wrap_method {
         $Class:ty,
         fn $method_name:ident(
             &self
-            $(, $param:ident : $ParamTy:ty)*
-            $(, #[opt] $opt_param:ident : $OptParamTy:ty)*
+            $(, $param:ident : $ParamTy:ty )*
+            $(, #[opt] $opt_param:ident : $OptParamTy:ty )*
             $(,)?
         );
     ) => {
-          $crate::gdext_wrap_method_inner!(
+        // recurse this macro
+        $crate::gdext_wrap_method!(
             $Class,
-            map,
             fn $method_name(
-                self
-                $(, $param : $ParamTy)*
-                $(, #[opt] $opt_param : $OptParamTy)*
-            ) -> ()
+                &self
+                $(, $param : $ParamTy )*
+                $(, #[opt] $opt_param : $OptParamTy )*
+            ) -> ();
         )
     };
 }
@@ -251,8 +248,7 @@ macro_rules! gdext_virtual_method_inner {
         $Class:ty,
         $map_method:ident,
         fn $method_name:ident(
-            self
-            $(, $arg:ident : $Param:ty)*
+            $( $arg:ident : $Param:ty, )*
         ) -> $Ret:ty
     ) => {
         Some({
@@ -266,7 +262,7 @@ macro_rules! gdext_virtual_method_inner {
                 $crate::gdext_ptrcall!(
                     instance_ptr, args, ret;
                     $Class;
-                    fn $method_name(self $(, $arg: $Param)*) -> $Ret
+                    fn $method_name( $( $arg : $Param, )* ) -> $Ret
                 );
             }
             call
@@ -289,8 +285,7 @@ macro_rules! gdext_virtual_method_body {
             $Class,
             map_mut,
             fn $method_name(
-                self
-                $(, $param : $ParamTy)*
+                $( $param : $ParamTy, )*
             ) -> $RetTy
         )
     };
@@ -308,8 +303,7 @@ macro_rules! gdext_virtual_method_body {
             $Class,
             map,
             fn $method_name(
-                self
-                $(,$param : $ParamTy)*
+                $( $param : $ParamTy, )*
             ) -> $RetTy
         )
     };
@@ -323,11 +317,12 @@ macro_rules! gdext_virtual_method_body {
             $(,)?
         )
     ) => {
+        // recurse this macro
         $crate::gdext_virtual_method_body!(
             $Class,
             fn $method_name(
                 &mut self
-                $(, $param : $ParamTy)*
+                $(, $param : $ParamTy )*
             ) -> ()
         )
     };
@@ -341,11 +336,12 @@ macro_rules! gdext_virtual_method_body {
             $(,)?
         )
     ) => {
+        // recurse this macro
         $crate::gdext_virtual_method_body!(
             $Class,
             fn $method_name(
                 &self
-                $(, $param : $ParamTy)*
+                $(, $param : $ParamTy )*
             ) -> ()
         )
     };
@@ -359,8 +355,7 @@ macro_rules! gdext_ptrcall {
         $instance_ptr:ident, $args:ident, $ret:ident;
         $Class:ty;
         fn $method_name:ident(
-            self
-            $(, $arg:ident : $ParamTy:ty)*
+            $( $arg:ident : $ParamTy:ty, )*
         ) -> $( $RetTy:tt )+
     ) => {
         println!("ptrcall: {}", stringify!($method_name));
@@ -390,8 +385,7 @@ macro_rules! gdext_varcall {
         $instance_ptr:ident, $args:ident, $ret:ident, $err:ident;
         $Class:ty;
         fn $method_name:ident(
-            self
-            $(, $arg:ident : $ParamTy:ty)*
+            $( $arg:ident : $ParamTy:ty, )*
         ) -> $( $RetTy:tt )+
     ) => {
         println!("varcall: {}", stringify!($method_name));
