@@ -19,6 +19,7 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[allow(dead_code)] // TODO rm
+#[must_use]
 pub struct MethodBuilder<'cb, C, F> {
     class_builder: &'cb mut ClassBuilder<C>,
     name: &'cb str,
@@ -27,11 +28,12 @@ pub struct MethodBuilder<'cb, C, F> {
 
 impl<'cb, C, F> MethodBuilder<'cb, C, F> {
     pub(super) fn new(class_builder: &'cb mut ClassBuilder<C>, name: &'cb str, method: F) -> Self {
-
         Self {
             class_builder,
             name,
-            method
+            method,
         }
     }
+
+    pub fn done(self) {}
 }

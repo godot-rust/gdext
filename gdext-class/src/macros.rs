@@ -35,19 +35,19 @@ macro_rules! gdext_wrap_method_has_return_value {
 #[macro_export]
 macro_rules! gdext_wrap_method_inner {
     (
-        $type_name:ty,
+        $Class:ty,
         $map_method:ident,
         fn $method_name:ident(
             self
-            $(,$pname:ident : $pty:ty)*
+            $(, $arg:ident : $Param:ty)*
             $(, #[opt] $opt_pname:ident : $opt_pty:ty)*
-        ) -> $($retty:tt)+ // Note: can't be ty, as that cannot be matched to tokens anymore
+        ) -> $($Ret:tt)+ // Note: can't be ty, as that cannot be matched to tokens anymore
     ) => {
         unsafe {
             use gdext_sys as sys;
             use gdext_builtin::Variant;
 
-            const NUM_ARGS: usize = $crate::gdext_wrap_method_parameter_count!($($pname,)*);
+            const NUM_ARGS: usize = $crate::gdext_wrap_method_parameter_count!($($arg,)*);
 
             let method_info = sys::GDNativeExtensionClassMethodInfo {
                 name: concat!(stringify!($method_name), "\0").as_ptr() as *const i8,
@@ -55,29 +55,17 @@ macro_rules! gdext_wrap_method_inner {
                 call_func: Some({
                     unsafe extern "C" fn call(
                         _method_data: *mut std::ffi::c_void,
-                        instance: sys::GDExtensionClassInstancePtr,
+                        instance_ptr: sys::GDExtensionClassInstancePtr,
                         args: *const sys::GDNativeVariantPtr,
                         _arg_count: sys::GDNativeInt,
                         ret: sys::GDNativeVariantPtr,
                         err: *mut sys::GDNativeCallError,
                     ) {
-                        println!("varcall: {}", stringify!($method_name));
-                        let storage = ::gdext_class::private::as_storage::<$type_name>(instance);
-                        let instance = storage.get_mut_lateinit();
-
-                        let mut idx = 0;
-
-                        $(
-                            let $pname = <$pty as From<&Variant>>::from(&*(*args.offset(idx) as *mut Variant));
-                            idx += 1;
-                        )*
-
-                        let ret_val = instance.$method_name($(
-                            $pname,
-                        )*);
-
-                        *(ret as *mut Variant) = Variant::from(ret_val);
-                        (*err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
+                        $crate::gdext_varcall!(
+                            instance_ptr, args, ret, err;
+                            $Class;
+                            fn $method_name(self $(, $arg: $Param)*) -> $($Ret)+
+                        );
                     }
 
                     call
@@ -85,29 +73,15 @@ macro_rules! gdext_wrap_method_inner {
                 ptrcall_func: Some({
                     unsafe extern "C" fn call(
                         _method_data: *mut std::ffi::c_void,
-                        instance: sys::GDExtensionClassInstancePtr,
+                        instance_ptr: sys::GDExtensionClassInstancePtr,
                         args: *const sys::GDNativeTypePtr,
                         ret: sys::GDNativeTypePtr,
                     ) {
-                        println!("ptrcall: {}", stringify!($method_name));
-                        let storage = ::gdext_class::private::as_storage::<$type_name>(instance);
-                        let instance = storage.get_mut_lateinit();
-
-                        // TODO reuse code, see ((1))
-                        let mut idx = 0;
-
-                        $(
-                            let $pname = <$pty as sys::GodotFfi>::from_sys(*args.offset(idx));
-                            // FIXME update refcount, e.g. Obj::ready() or T::Mem::maybe_inc_ref(&result);
-                            // possibly in from_sys() directly; what about from_sys_init() and from_{obj|str}_sys()?
-                            idx += 1;
-                        )*
-
-                        let ret_val = instance.$method_name($(
-                            $pname,
-                        )*);
-
-                        <$($retty)+ as sys::GodotFfi>::write_sys(&ret_val, ret);
+                        $crate::gdext_ptrcall!(
+                            instance_ptr, args, ret;
+                            $Class;
+                            fn $method_name(self $(, $arg: $Param)*) -> $($Ret)+
+                        );
                     }
 
                     call
@@ -115,7 +89,7 @@ macro_rules! gdext_wrap_method_inner {
                 method_flags:
                     sys::GDNativeExtensionClassMethodFlags_GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
                 argument_count: NUM_ARGS as u32,
-                has_return_value: $crate::gdext_wrap_method_has_return_value!($($retty)+) as u8,
+                has_return_value: $crate::gdext_wrap_method_has_return_value!($($Ret)+) as u8,
                 get_argument_type_func: Some({
                     extern "C" fn get_type(
                         _method_data: *mut std::ffi::c_void,
@@ -123,9 +97,9 @@ macro_rules! gdext_wrap_method_inner {
                     ) -> sys::GDNativeVariantType {
                         // Return value is the first "argument"
                         let types: [sys::GDNativeVariantType; NUM_ARGS + 1] = [
-                            <$($retty)+ as $crate::property_info::PropertyInfoBuilder>::variant_type(),
+                            <$($Ret)+ as $crate::property_info::PropertyInfoBuilder>::variant_type(),
                             $(
-                                <$pty as $crate::property_info::PropertyInfoBuilder>::variant_type(),
+                                <$Param as $crate::property_info::PropertyInfoBuilder>::variant_type(),
                             )*
                         ];
                         types[(n + 1) as usize]
@@ -140,9 +114,9 @@ macro_rules! gdext_wrap_method_inner {
                     ) {
                         // Return value is the first "argument"
                         let infos: [sys::GDNativePropertyInfo; NUM_ARGS + 1] = [
-                            <$($retty)+ as $crate::property_info::PropertyInfoBuilder>::property_info(""),
+                            <$($Ret)+ as $crate::property_info::PropertyInfoBuilder>::property_info(""),
                             $(
-                                <$pty as $crate::property_info::PropertyInfoBuilder>::property_info(stringify!($pname)),
+                                <$Param as $crate::property_info::PropertyInfoBuilder>::property_info(stringify!($arg)),
                             )*
                         ];
 
@@ -157,9 +131,9 @@ macro_rules! gdext_wrap_method_inner {
                     ) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
                         // Return value is the first "argument"
                         let metas: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS + 1] = [
-                            <$($retty)+ as $crate::property_info::PropertyInfoBuilder>::metadata(),
+                            <$($Ret)+ as $crate::property_info::PropertyInfoBuilder>::metadata(),
                             $(
-                                <$pty as $crate::property_info::PropertyInfoBuilder>::metadata(),
+                                <$Param as $crate::property_info::PropertyInfoBuilder>::metadata(),
                             )*
                         ];
                         metas[(n + 1) as usize]
@@ -170,7 +144,7 @@ macro_rules! gdext_wrap_method_inner {
                 default_arguments: std::ptr::null_mut(),
             };
 
-            let name = std::ffi::CStr::from_bytes_with_nul_unchecked(concat!(stringify!($type_name), "\0").as_bytes());
+            let name = std::ffi::CStr::from_bytes_with_nul_unchecked(concat!(stringify!($Class), "\0").as_bytes());
 
             sys::interface_fn!(classdb_register_extension_class_method)(
                 sys::get_library(),
@@ -271,38 +245,90 @@ macro_rules! gdext_wrap_method {
 #[macro_export]
 macro_rules! gdext_virtual_method_inner {
     (
-        $type_name:ty,
+        $Class:ty,
         $map_method:ident,
         fn $method_name:ident(
             self
-            $(,$pname:ident : $pty:ty)*
-        ) -> $retty:ty
+            $(, $arg:ident : $Param:ty)*
+        ) -> $Ret:ty
     ) => {
-
         Some({
             use gdext_sys as sys;
 
             unsafe extern "C" fn call(
-                instance: sys::GDExtensionClassInstancePtr,
+                instance_ptr: sys::GDExtensionClassInstancePtr,
                 args: *const sys::GDNativeTypePtr,
                 ret: sys::GDNativeTypePtr,
             ) {
-                let instance = &mut *(instance as *mut $type_name);
-                // TODO reuse code, see ((1))
-                let mut idx = 0;
-
-                $(
-                    let $pname = <$pty as sys::GodotFfi>::from_sys(*args.offset(idx));
-                    idx += 1;
-                )*
-
-                let ret_val = instance.$method_name($(
-                    $pname,
-                )*);
-                <$retty as sys::GodotFfi>::write_sys(&ret_val, ret);
+                $crate::gdext_ptrcall!(
+                    instance_ptr, args, ret;
+                    $Class;
+                    fn $method_name(self $(, $arg: $Param)*) -> $Ret
+                );
             }
             call
         })
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! gdext_ptrcall {
+    (
+        $instance_ptr:ident, $args:ident, $ret:ident;
+        $Class:ty;
+        fn $method_name:ident(
+            self
+            $(, $arg:ident : $Param:ty)*
+        ) -> $( $Ret:tt )+
+    ) => {
+        println!("ptrcall: {}", stringify!($method_name));
+        let storage = ::gdext_class::private::as_storage::<$Class>($instance_ptr);
+        let instance = storage.get_mut_lateinit();
+
+        let mut idx = 0;
+        $(
+            let $arg = <$Param as sys::GodotFfi>::from_sys(*$args.offset(idx));
+            // FIXME update refcount, e.g. Obj::ready() or T::Mem::maybe_inc_ref(&result);
+            // possibly in from_sys() directly; what about from_sys_init() and from_{obj|str}_sys()?
+            idx += 1;
+        )*
+
+        let ret_val = instance.$method_name($(
+            $arg,
+        )*);
+
+        <$($Ret)+ as sys::GodotFfi>::write_sys(&ret_val, $ret);
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! gdext_varcall {
+    (
+        $instance_ptr:ident, $args:ident, $ret:ident, $err:ident;
+        $Class:ty;
+        fn $method_name:ident(
+            self
+            $(, $arg:ident : $Param:ty)*
+        ) -> $( $Ret:tt )+
+    ) => {
+        println!("varcall: {}", stringify!($method_name));
+        let storage = ::gdext_class::private::as_storage::<$Class>($instance_ptr);
+        let instance = storage.get_mut_lateinit();
+
+        let mut idx = 0;
+        $(
+            let $arg = <$Param as From<&Variant>>::from(&*(*$args.offset(idx) as *mut Variant));
+            idx += 1;
+        )*
+
+        let ret_val = instance.$method_name($(
+            $arg,
+        )*);
+
+        *($ret as *mut Variant) = Variant::from(ret_val);
+        (*$err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
     };
 }
 

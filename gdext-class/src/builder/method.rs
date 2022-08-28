@@ -1,16 +1,16 @@
-use crate::GodotClass;
-use gdext_builtin::Variant;
-use gdext_sys as sys;
-use std::borrow::Cow;
-use std::ffi::CStr;
+// use crate::GodotClass;
+// use gdext_builtin::Variant;
+// use gdext_sys as sys;
+// use std::borrow::Cow;
+// use std::ffi::CStr;
 
-pub trait Method<C> {
-    type ReturnType;
-    type ParamTypes;
-
-    fn method_name(&self) -> Cow<CStr>;
-    fn ptrcall(&mut self, instance: &mut C, args: Self::ParamTypes) -> Self::ReturnType;
-}
+// pub trait Method<C> {
+//     type ReturnType;
+//     type ParamTypes;
+//
+//     fn method_name(&self) -> Cow<CStr>;
+//     fn ptrcall(&mut self, instance: &mut C, args: Self::ParamTypes) -> Self::ReturnType;
+// }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 /*
@@ -53,77 +53,77 @@ macro_rules! count_idents {
 macro_rules! impl_code_method {
 // 	( $( $Param:ident ),* ) => {
     ( $( $Param:ident $arg:ident ),* ) => {
-		impl<C, F, R, $( $Param ),*> CodeMethod<C, R, ( $( $Param, )* )> for F
-		where
-			C: $crate::GodotClass + $crate::GodotDefault, // TODO only GodotClass
-			F: Fn(&C, $( $Param ),* ) -> R,
-			$(
-				$Param: sys::GodotFfi,
-			)*
-			R: sys::GodotFfi + 'static,
-		{
-			const PARAM_COUNT: usize = count_idents!($( $Param, )*);
+        impl<C, F, R, $( $Param ),*> CodeMethod<C, R, ( $( $Param, )* )> for F
+        where
+            C: $crate::GodotClass + $crate::GodotDefault, // TODO only GodotClass
+            F: Fn(&C, $( $Param ),* ) -> R,
+            $(
+                $Param: sys::GodotFfi,
+            )*
+            R: sys::GodotFfi + 'static,
+        {
+            const PARAM_COUNT: usize = count_idents!($( $Param, )*);
 
-			// Varcall
-			#[inline]
-			#[allow(unused_variables, unused_assignments, unused_mut)]
-			unsafe fn varcall(
-				&mut self,
-				instance: sys::GDExtensionClassInstancePtr,
-				args: *const sys::GDNativeTypePtr,
-				ret: sys::GDNativeTypePtr,
-				err: *mut sys::GDNativeCallError,
-			) {
-				let storage = ::gdext_class::private::as_storage::<C>(instance);
-				let instance = storage.get_mut_lateinit();
+            // Varcall
+            #[inline]
+            #[allow(unused_variables, unused_assignments, unused_mut)]
+            unsafe fn varcall(
+                &mut self,
+                instance: sys::GDExtensionClassInstancePtr,
+                args: *const sys::GDNativeTypePtr,
+                ret: sys::GDNativeTypePtr,
+                err: *mut sys::GDNativeCallError,
+            ) {
+                let storage = ::gdext_class::private::as_storage::<C>(instance);
+                let instance = storage.get_mut_lateinit();
 
-				let mut idx = 0;
+                let mut idx = 0;
 
-				$(
-					let $arg = <$Param as From<&Variant>>::from(&*(*args.offset(idx) as *mut Variant));
-					idx += 1;
-				)*
+                $(
+                    let $arg = <$Param as From<&Variant>>::from(&*(*args.offset(idx) as *mut Variant));
+                    idx += 1;
+                )*
 
-				let ret_val = self(&instance, $(
-					$arg,
-				)*);
+                let ret_val = self(&instance, $(
+                    $arg,
+                )*);
 
-				*(ret as *mut Variant) = Variant::from(ret_val);
-				(*err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
-			}
+                *(ret as *mut Variant) = Variant::from(ret_val);
+                (*err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
+            }
 
 
-			// Ptrcall
-			#[inline]
-			#[allow(unused_variables, unused_assignments, unused_mut)]
-			unsafe fn ptrcall(
-				&mut self,
-				instance: sys::GDExtensionClassInstancePtr,
-				args: *const sys::GDNativeTypePtr,
-				ret: sys::GDNativeTypePtr,
-			) {
-				let storage = $crate::private::as_storage::<C>(instance);
-				let instance = storage.get_mut_lateinit();
+            // Ptrcall
+            #[inline]
+            #[allow(unused_variables, unused_assignments, unused_mut)]
+            unsafe fn ptrcall(
+                &mut self,
+                instance: sys::GDExtensionClassInstancePtr,
+                args: *const sys::GDNativeTypePtr,
+                ret: sys::GDNativeTypePtr,
+            ) {
+                let storage = $crate::private::as_storage::<C>(instance);
+                let instance = storage.get_mut_lateinit();
 
-				// TODO reuse code, see ((1))
-				let mut idx = 0;
+                // TODO reuse code, see ((1))
+                let mut idx = 0;
 
-				$(
-					let $arg = <$Param as sys::GodotFfi>::from_sys(*args.offset(idx));
-					// FIXME update refcount, e.g. Obj::ready() or T::Mem::maybe_inc_ref(&result);
-					// possibly in from_sys() directly; what about from_sys_init() and from_{obj|str}_sys()?
-					idx += 1;
-				)*
+                $(
+                    let $arg = <$Param as sys::GodotFfi>::from_sys(*args.offset(idx));
+                    // FIXME update refcount, e.g. Obj::ready() or T::Mem::maybe_inc_ref(&result);
+                    // possibly in from_sys() directly; what about from_sys_init() and from_{obj|str}_sys()?
+                    idx += 1;
+                )*
 
-				let ret_val = self(&instance, $(
-					$arg,
-				)*);
+                let ret_val = self(&instance, $(
+                    $arg,
+                )*);
 
-				<R as sys::GodotFfi>::write_sys(&ret_val, ret);
-			}
-		}
+                <R as sys::GodotFfi>::write_sys(&ret_val, ret);
+            }
+        }
 
-	};
+    };
 }
 
 impl_code_method!();

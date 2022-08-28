@@ -38,5 +38,5 @@ pub(crate) fn register() {
 
 #[itest]
 fn test_to_string() {
-    let obj = Obj::<VirtualMethodTest>::new_default();
+    let _obj = Obj::<VirtualMethodTest>::new_default();
 }
