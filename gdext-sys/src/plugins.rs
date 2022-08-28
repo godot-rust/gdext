@@ -10,7 +10,7 @@
 #[macro_export]
 macro_rules! plugin_registry {
     ($registry:ident: $Type:ty) => {
-        paste::paste! {
+        $crate::paste::paste! {
             #[used]
             #[allow(non_upper_case_globals)]
             static [< __godot_rust_plugin_ $registry >]:
@@ -44,7 +44,7 @@ macro_rules! plugin_add {
                 #[cfg_attr(target_os = "android", link_section = ".text.startup")]
                 #[cfg_attr(target_os = "linux", link_section = ".text.startup")]
                 extern "C" fn __inner_init() {
-                	let mut guard = paste::paste!( [< __godot_rust_plugin_ $registry >] )
+                	let mut guard = $crate::paste::paste!( [< __godot_rust_plugin_ $registry >] )
                         .lock()
                         .unwrap();
                     guard.push($plugin);
@@ -60,7 +60,7 @@ macro_rules! plugin_add {
 #[macro_export]
 macro_rules! plugin_foreach {
     ($registry:ident; $closure:expr) => {
-        let guard = paste::paste!( [< __godot_rust_plugin_ $registry >] )
+        let guard = $crate::paste::paste!( [< __godot_rust_plugin_ $registry >] )
             .lock()
             .unwrap();
 

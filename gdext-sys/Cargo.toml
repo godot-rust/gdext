@@ -9,7 +9,7 @@ rust-version = "1.63"
 [features]
 "real_is_double" = []
 
-[dev-dependencies]
+[dependencies]
 paste = "1"
 
 [build-dependencies]

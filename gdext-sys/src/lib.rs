@@ -17,6 +17,11 @@ mod global_registry;
 mod godot_ffi;
 mod plugins;
 
+// See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
+// and https://users.rust-lang.org/t/proc-macros-using-third-party-crate/42465/4
+#[doc(hidden)]
+pub use ::paste;
+
 //pub use opaque::Opaque;
 use gen::central::GlobalMethodTable;
 use global_registry::GlobalRegistry;
