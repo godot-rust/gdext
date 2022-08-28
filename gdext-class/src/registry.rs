@@ -68,90 +68,15 @@ pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
         property_get_revert_func: None,
         notification_func: None,
         to_string_func: if T::has_to_string() {
-            Some({
-                unsafe extern "C" fn to_string<T: GodotMethods>(
-                    instance: sys::GDExtensionClassInstancePtr,
-                    out_string: sys::GDNativeStringPtr,
-                ) {
-                    let storage = as_storage::<T>(instance);
-                    let instance = storage.get();
-                    let string = GodotMethods::to_string(instance);
-
-                    // Transfer ownership to Godot, disable destructor
-                    string.write_string_sys(out_string);
-                    std::mem::forget(string);
-                }
-                to_string::<T>
-            })
+            Some(c_api::to_string::<T>)
         } else {
             None
         },
-        reference_func: Some({
-            unsafe extern "C" fn reference<T: GodotClass>(
-                instance: sys::GDExtensionClassInstancePtr,
-            ) {
-                let storage = as_storage::<T>(instance);
-                storage.on_inc_ref();
-            }
-            reference::<T>
-        }),
-        unreference_func: Some({
-            unsafe extern "C" fn unreference<T: GodotClass>(
-                instance: sys::GDExtensionClassInstancePtr,
-            ) {
-                let storage = as_storage::<T>(instance);
-                storage.on_dec_ref();
-            }
-            unreference::<T>
-        }),
-        create_instance_func: Some({
-            unsafe extern "C" fn create<T: GodotClass>(
-                _class_userdata: *mut std::ffi::c_void,
-            ) -> sys::GDNativeObjectPtr {
-                let class_name = ClassName::new::<T>();
-                let base_class_name = ClassName::new::<T::Base>();
-
-                let base = interface_fn!(classdb_construct_object)(base_class_name.c_str());
-                let instance = InstanceStorage::<T>::construct_uninit(base);
-                let instance_ptr = instance.into_raw();
-                let instance_ptr = instance_ptr as *mut std::ffi::c_void;
-
-                interface_fn!(object_set_instance)(base, class_name.c_str(), instance_ptr);
-
-                let binding_data_callbacks = crate::storage::nop_instance_callbacks();
-
-                interface_fn!(object_set_instance_binding)(
-                    base,
-                    sys::get_library(),
-                    instance_ptr,
-                    &binding_data_callbacks,
-                );
-
-                base
-            }
-            create::<T>
-        }),
-        free_instance_func: Some({
-            unsafe extern "C" fn free<T: GodotClass>(
-                _class_user_data: *mut std::ffi::c_void,
-                instance: sys::GDExtensionClassInstancePtr,
-            ) {
-                let storage = as_storage::<T>(instance);
-                storage.mark_destroyed_by_godot();
-                Box::from_raw(storage as *mut InstanceStorage<_>); // aka. drop
-            }
-            free::<T>
-        }),
-        get_virtual_func: Some({
-            unsafe extern "C" fn get_virtual<T: UserVirtuals>(
-                _class_user_data: *mut std::ffi::c_void,
-                p_name: *const std::os::raw::c_char,
-            ) -> sys::GDNativeExtensionClassCallVirtual {
-                let name = std::ffi::CStr::from_ptr(p_name);
-                T::virtual_call(name.to_str().expect("T::virtual_call"))
-            }
-            get_virtual::<T>
-        }),
+        reference_func: Some(c_api::reference::<T>),
+        unreference_func: Some(c_api::unreference::<T>),
+        create_instance_func: Some(c_api::create::<T>),
+        free_instance_func: Some(c_api::free::<T>),
+        get_virtual_func: Some(c_api::get_virtual::<T>),
         get_rid_func: None,
         class_userdata: std::ptr::null_mut(), // will be passed to create fn, but global per class
     };
@@ -186,5 +111,76 @@ impl ClassName {
 
     pub fn c_str(&self) -> *const std::os::raw::c_char {
         self.backing.as_ptr() as *const _
+    }
+}
+
+pub mod c_api {
+    use super::*;
+
+    pub unsafe extern "C" fn create<T: GodotClass>(
+        _class_userdata: *mut std::ffi::c_void,
+    ) -> sys::GDNativeObjectPtr {
+        let class_name = ClassName::new::<T>();
+        let base_class_name = ClassName::new::<T::Base>();
+
+        let base = interface_fn!(classdb_construct_object)(base_class_name.c_str());
+        let instance = InstanceStorage::<T>::construct_uninit(base);
+        let instance_ptr = instance.into_raw();
+        let instance_ptr = instance_ptr as *mut std::ffi::c_void;
+
+        interface_fn!(object_set_instance)(base, class_name.c_str(), instance_ptr);
+
+        let binding_data_callbacks = crate::storage::nop_instance_callbacks();
+
+        interface_fn!(object_set_instance_binding)(
+            base,
+            sys::get_library(),
+            instance_ptr,
+            &binding_data_callbacks,
+        );
+
+        base
+    }
+
+    pub unsafe extern "C" fn free<T: GodotClass>(
+        _class_user_data: *mut std::ffi::c_void,
+        instance: sys::GDExtensionClassInstancePtr,
+    ) {
+        let storage = as_storage::<T>(instance);
+        storage.mark_destroyed_by_godot();
+        Box::from_raw(storage as *mut InstanceStorage<_>); // aka. drop
+    }
+
+    pub unsafe extern "C" fn get_virtual<T: UserVirtuals>(
+        _class_user_data: *mut std::ffi::c_void,
+        p_name: *const std::os::raw::c_char,
+    ) -> sys::GDNativeExtensionClassCallVirtual {
+        let name = std::ffi::CStr::from_ptr(p_name);
+        T::virtual_call(name.to_str().expect("T::virtual_call"))
+    }
+
+    pub unsafe extern "C" fn to_string<T: GodotMethods>(
+        instance: sys::GDExtensionClassInstancePtr,
+        out_string: sys::GDNativeStringPtr,
+    ) {
+        let storage = as_storage::<T>(instance);
+        let instance = storage.get();
+        let string = GodotMethods::to_string(instance);
+
+        // Transfer ownership to Godot, disable destructor
+        string.write_string_sys(out_string);
+        std::mem::forget(string);
+    }
+
+    pub unsafe extern "C" fn reference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {
+        let storage = as_storage::<T>(instance);
+        storage.on_inc_ref();
+    }
+
+    pub unsafe extern "C" fn unreference<T: GodotClass>(
+        instance: sys::GDExtensionClassInstancePtr,
+    ) {
+        let storage = as_storage::<T>(instance);
+        storage.on_dec_ref();
     }
 }
