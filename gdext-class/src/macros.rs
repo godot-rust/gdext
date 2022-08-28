@@ -7,6 +7,7 @@ macro_rules! c_str {
     };
 }
 
+// TODO code duplication ((2))
 #[doc(hidden)]
 #[macro_export]
 macro_rules! gdext_wrap_method_parameter_count {
