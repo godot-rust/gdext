@@ -1,3 +1,5 @@
+#![allow(dead_code)] // FIXME
+
 use crate::private::as_storage;
 use crate::storage::InstanceStorage;
 use crate::traits::*;
@@ -5,12 +7,12 @@ use crate::traits::*;
 use gdext_sys as sys;
 use sys::interface_fn;
 
-pub(crate) struct ClassPlugin {
-    class_name: &'static str,
-    component: PluginComponent,
+pub struct ClassPlugin {
+    pub class_name: &'static str,
+    pub component: PluginComponent,
 }
 
-pub(crate) enum PluginComponent {
+pub enum PluginComponent {
     /// Class definition itself, must always be available
     Basic {
         base_class_name: &'static str,
@@ -55,8 +57,6 @@ pub(crate) enum PluginComponent {
         ),
     },
 }
-
-sys::plugin_registry!(GDEXT_CLASS_REGISTRY: ClassPlugin);
 
 pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
     let creation_info = sys::GDNativeExtensionClassCreationInfo {

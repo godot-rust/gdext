@@ -46,9 +46,9 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
         //     fn register_methods() {} // TODO
         // }
 
-        gdext_sys::plugin_add!(GDEXT_CLASS_REGISTRY; gdext_class::registry::ClassPlugin {
-            name: #class_name_str,
-            component: gdext_class::registry::PluginComponent::Basic {
+        gdext_sys::plugin_add!(gdext_class::private::; GDEXT_CLASS_REGISTRY; gdext_class::private::ClassPlugin {
+            class_name: #class_name_str,
+            component: gdext_class::private::PluginComponent::Basic {
                 base_class_name: #base_ty_str,
                 default_create_fn: todo!(),
                 free_fn: todo!(),
