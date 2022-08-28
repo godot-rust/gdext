@@ -20,12 +20,13 @@ macro_rules! plugin_registry {
     };
 }
 
-/// Register a plugin to a registry
 #[doc(hidden)]
 #[macro_export]
-#[rustfmt::skip] // paste's [< >] syntax chokes fmt
-macro_rules! plugin_add {
-    ( $registry:ident; $plugin:expr ) => {
+#[cfg_attr(rustfmt, rustfmt::skip)] 
+// ^ skip: paste's [< >] syntax chokes fmt
+//   cfg_attr: workaround for https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
+macro_rules! plugin_add_inner {
+    ($registry:ident; $plugin:expr; $( $path_tt:tt )* ) => {
         const _: () = {
             #[allow(non_upper_case_globals)]
             #[used]
@@ -45,39 +46,7 @@ macro_rules! plugin_add {
                 #[cfg_attr(target_os = "android", link_section = ".text.startup")]
                 #[cfg_attr(target_os = "linux", link_section = ".text.startup")]
                 extern "C" fn __inner_init() {
-                	let mut guard = $crate::paste::paste!( [< __godot_rust_plugin_ $registry >] )
-                        .lock()
-                        .unwrap();
-                    guard.push($plugin);
-                }
-                __inner_init
-            };
-        };
-    };
-
-
-
-	 ( $($qual:ident ::)+ ; $registry:ident; $plugin:expr ) => {
-        const _: () = {
-            #[allow(non_upper_case_globals)]
-            #[used]
-            // Windows:
-            #[cfg_attr(target_os = "windows", link_section = ".CRT$XCU")]
-            // MacOS + iOS:
-            #[cfg_attr(target_os = "ios", link_section = "__DATA,__mod_init_func")]
-            #[cfg_attr(target_os = "macos", link_section = "__DATA,__mod_init_func")]
-            // Linux, Android, BSD:
-            #[cfg_attr(target_os = "android", link_section = ".init_array")]
-            #[cfg_attr(target_os = "dragonfly", link_section = ".init_array")]
-            #[cfg_attr(target_os = "freebsd", link_section = ".init_array")]
-            #[cfg_attr(target_os = "linux", link_section = ".init_array")]
-            #[cfg_attr(target_os = "netbsd", link_section = ".init_array")]
-            #[cfg_attr(target_os = "openbsd", link_section = ".init_array")]
-            static __init: extern "C" fn() = {
-                #[cfg_attr(target_os = "android", link_section = ".text.startup")]
-                #[cfg_attr(target_os = "linux", link_section = ".text.startup")]
-                extern "C" fn __inner_init() {
-                	let mut guard =  $crate::paste::paste!( $($qual ::)+ [< __godot_rust_plugin_ $registry >] )
+                	let mut guard = $crate::paste::paste!( $( $path_tt )* [< __godot_rust_plugin_ $registry >] )
                         .lock()
                         .unwrap();
                     guard.push($plugin);
@@ -88,12 +57,25 @@ macro_rules! plugin_add {
     };
 }
 
+/// Register a plugin to a registry
+#[doc(hidden)]
+#[macro_export]
+macro_rules! plugin_add {
+    ( $registry:ident; $plugin:expr ) => {
+		$crate::plugin_add_inner!($registry; $plugin; );
+	};
+
+    ( $registry:ident in $path:path; $plugin:expr ) => {
+		$crate::plugin_add_inner!($registry; $plugin; $path ::);
+	};
+}
+
 /// Iterate over all plugins in unspecified order
 #[doc(hidden)]
 #[macro_export]
-macro_rules! plugin_foreach {
-    ($registry:ident; $closure:expr) => {
-        let guard = $crate::paste::paste!( [< __godot_rust_plugin_ $registry >] )
+macro_rules! plugin_foreach_inner {
+    ( $registry:ident; $closure:expr; $( $path_tt:tt )* ) => {
+        let guard = $crate::paste::paste!( $( $path_tt )* [< __godot_rust_plugin_ $registry >] )
             .lock()
             .unwrap();
 
@@ -101,6 +83,19 @@ macro_rules! plugin_foreach {
             $closure(e);
         }
     };
+}
+
+/// Register a plugin to a registry
+#[doc(hidden)]
+#[macro_export]
+macro_rules! plugin_foreach {
+    ( $registry:ident; $closure:expr ) => {
+		$crate::plugin_foreach_inner!($registry; $closure; );
+	};
+
+    ( $registry:ident in $path:path; $closure:expr ) => {
+		$crate::plugin_foreach_inner!($registry; $closure; $path ::);
+	};
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
