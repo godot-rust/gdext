@@ -42,7 +42,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
             fn register_methods() {
                 #(
-                    gdext_class::gdext_wrap_method!(#self_class, #methods);
+                    gdext_class::gdext_register_method!(#self_class, #methods);
                     //#methods
                 )*
             }

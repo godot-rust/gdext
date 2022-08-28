@@ -46,7 +46,7 @@ macro_rules! count_idents {
         0
     };
     ($name:ident, $($other:ident,)*) => {
-        1 + $crate::gdext_wrap_method_parameter_count!($($other,)*)
+        1 + $crate::gdext_count_idents!($($other,)*)
     }
 }
 

@@ -10,19 +10,19 @@ macro_rules! c_str {
 // TODO code duplication ((2))
 #[doc(hidden)]
 #[macro_export]
-macro_rules! gdext_wrap_method_parameter_count {
+macro_rules! gdext_count_idents {
     () => {
         0
     };
     ($name:ident, $($other:ident,)*) => {
-        1 + $crate::gdext_wrap_method_parameter_count!($($other,)*)
+        1 + $crate::gdext_count_idents!($($other,)*)
     }
 }
 
 #[doc(hidden)]
 #[macro_export]
 // Note: this only works if the _argument_ (not parameter) is not a :ty, otherwise it will always match the 2nd branch
-macro_rules! gdext_wrap_method_has_return_value {
+macro_rules! gdext_is_not_unit {
     (()) => {
         false
     };
@@ -33,7 +33,7 @@ macro_rules! gdext_wrap_method_has_return_value {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! gdext_wrap_method_inner {
+macro_rules! gdext_register_method_inner {
     (
         $Class:ty,
         $map_method:ident,
@@ -46,13 +46,13 @@ macro_rules! gdext_wrap_method_inner {
             use gdext_sys as sys;
             use gdext_builtin::Variant;
 
-            const NUM_ARGS: usize = $crate::gdext_wrap_method_parameter_count!($($param,)*);
+            const NUM_ARGS: usize = $crate::gdext_count_idents!($( $param, )*);
 
             let method_info = sys::GDNativeExtensionClassMethodInfo {
                 name: concat!(stringify!($method_name), "\0").as_ptr() as *const i8,
                 method_userdata: std::ptr::null_mut(),
                 call_func: Some({
-                    unsafe extern "C" fn call(
+                    unsafe extern "C" fn function(
                         _method_data: *mut std::ffi::c_void,
                         instance_ptr: sys::GDExtensionClassInstancePtr,
                         args: *const sys::GDNativeVariantPtr,
@@ -67,10 +67,10 @@ macro_rules! gdext_wrap_method_inner {
                         );
                     }
 
-                    call
+                    function
                 }),
                 ptrcall_func: Some({
-                    unsafe extern "C" fn call(
+                    unsafe extern "C" fn function(
                         _method_data: *mut std::ffi::c_void,
                         instance_ptr: sys::GDExtensionClassInstancePtr,
                         args: *const sys::GDNativeTypePtr,
@@ -83,12 +83,12 @@ macro_rules! gdext_wrap_method_inner {
                         );
                     }
 
-                    call
+                    function
                 }),
                 method_flags:
                     sys::GDNativeExtensionClassMethodFlags_GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
                 argument_count: NUM_ARGS as u32,
-                has_return_value: $crate::gdext_wrap_method_has_return_value!($($RetTy)+) as u8,
+                has_return_value: $crate::gdext_is_not_unit!($($RetTy)+) as u8,
                 get_argument_type_func: Some({
                     extern "C" fn get_type(
                         _method_data: *mut std::ffi::c_void,
@@ -156,8 +156,11 @@ macro_rules! gdext_wrap_method_inner {
 
 /// Convenience macro to wrap an object's method into a function pointer
 /// that can be passed to the engine when registering a class.
+//
+// Note: code duplicated with gdext_virtual_method_callback
+#[doc(hidden)]
 #[macro_export]
-macro_rules! gdext_wrap_method {
+macro_rules! gdext_register_method {
     // mutable
     (
         $Class:ty,
@@ -168,7 +171,7 @@ macro_rules! gdext_wrap_method {
             $(,)?
         ) -> $RetTy:ty;
     ) => {
-        $crate::gdext_wrap_method_inner!(
+        $crate::gdext_register_method_inner!(
             $Class,
             map_mut,
             fn $method_name(
@@ -188,7 +191,7 @@ macro_rules! gdext_wrap_method {
             $(,)?
         ) -> $RetTy:ty;
     ) => {
-        $crate::gdext_wrap_method_inner!(
+        $crate::gdext_register_method_inner!(
             $Class,
             map,
             fn $method_name(
@@ -209,7 +212,7 @@ macro_rules! gdext_wrap_method {
         );
     ) => {
         // recurse this macro
-        $crate::gdext_wrap_method!(
+        $crate::gdext_register_method!(
             $Class,
             fn $method_name(
                 &mut self,
@@ -230,7 +233,7 @@ macro_rules! gdext_wrap_method {
         );
     ) => {
         // recurse this macro
-        $crate::gdext_wrap_method!(
+        $crate::gdext_register_method!(
             $Class,
             fn $method_name(
                 &self
@@ -243,7 +246,7 @@ macro_rules! gdext_wrap_method {
 
 #[doc(hidden)]
 #[macro_export]
-macro_rules! gdext_virtual_method_inner {
+macro_rules! gdext_virtual_method_callback_inner {
     (
         $Class:ty,
         $map_method:ident,
@@ -254,7 +257,7 @@ macro_rules! gdext_virtual_method_inner {
         Some({
             use gdext_sys as sys;
 
-            unsafe extern "C" fn call(
+            unsafe extern "C" fn function(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
                 args: *const sys::GDNativeTypePtr,
                 ret: sys::GDNativeTypePtr,
@@ -265,13 +268,17 @@ macro_rules! gdext_virtual_method_inner {
                     fn $method_name( $( $arg : $Param, )* ) -> $Ret
                 );
             }
-            call
+            function
         })
     };
 }
 
+/// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
+//
+// Note: code duplicated with gdext_virtual_method_callback
+#[doc(hidden)]
 #[macro_export]
-macro_rules! gdext_virtual_method_body {
+macro_rules! gdext_virtual_method_callback {
     // mutable
     (
         $Class:ty,
@@ -281,7 +288,7 @@ macro_rules! gdext_virtual_method_body {
             $(,)?
         ) -> $RetTy:ty
     ) => {
-        $crate::gdext_virtual_method_inner!(
+        $crate::gdext_virtual_method_callback_inner!(
             $Class,
             map_mut,
             fn $method_name(
@@ -299,7 +306,7 @@ macro_rules! gdext_virtual_method_body {
             $(,)?
         ) -> $RetTy:ty
     ) => {
-        $crate::gdext_virtual_method_inner!(
+        $crate::gdext_virtual_method_callback_inner!(
             $Class,
             map,
             fn $method_name(
@@ -318,7 +325,7 @@ macro_rules! gdext_virtual_method_body {
         )
     ) => {
         // recurse this macro
-        $crate::gdext_virtual_method_body!(
+        $crate::gdext_virtual_method_callback!(
             $Class,
             fn $method_name(
                 &mut self
@@ -337,7 +344,7 @@ macro_rules! gdext_virtual_method_body {
         )
     ) => {
         // recurse this macro
-        $crate::gdext_virtual_method_body!(
+        $crate::gdext_virtual_method_callback!(
             $Class,
             fn $method_name(
                 &self
@@ -346,7 +353,6 @@ macro_rules! gdext_virtual_method_body {
         )
     };
 }
-
 
 #[doc(hidden)]
 #[macro_export]

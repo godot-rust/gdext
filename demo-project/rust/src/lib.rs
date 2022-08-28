@@ -197,8 +197,8 @@ impl GodotExtensionClass for RustTest {
         out!("[RustTest] virtual_call: {name}");
 
         match name {
-            "_ready" => gdext_virtual_method_body!(RustTest, fn _ready(&mut self)),
-            "_process" => gdext_virtual_method_body!(RustTest, fn _process(&mut self, delta: f64)),
+            "_ready" => gdext_virtual_method_callback!(RustTest, fn _ready(&mut self)),
+            "_process" => gdext_virtual_method_callback!(RustTest, fn _process(&mut self, delta: f64)),
             _ => None,
         }
     }
@@ -206,35 +206,35 @@ impl GodotExtensionClass for RustTest {
     fn register_methods() {
         out!("[RustTest] register_methods");
 
-        gdext_wrap_method!(RustTest,
+        gdext_register_method!(RustTest,
             fn accept_obj(&self, obj: Obj<Entity>)
         );
 
-        gdext_wrap_method!(RustTest,
+        gdext_register_method!(RustTest,
             fn return_obj(&self) -> Obj<Entity>
         );
 
-        gdext_wrap_method!(RustTest,
+        gdext_register_method!(RustTest,
             fn find_obj(&self, instance_id: InstanceId) -> Obj<Entity>
         );
 
-        gdext_wrap_method!(RustTest,
+        gdext_register_method!(RustTest,
             fn test_method(&mut self, some_int: i64, some_string: GodotString) -> GodotString
         );
 
-        gdext_wrap_method!(RustTest,
+        gdext_register_method!(RustTest,
             fn add(&self, a: i32, b: i32, c: Vector2) -> i64
         );
 
-        gdext_wrap_method!(RustTest,
+        gdext_register_method!(RustTest,
             fn vec_add(&self, a: Vector2, b: Vector2) -> Vector2
         );
 
-        gdext_wrap_method!(RustTest,
+        gdext_register_method!(RustTest,
             fn call_base_method(&self) -> Vector3
         );
 
-        gdext_wrap_method!(RustTest,
+        gdext_register_method!(RustTest,
             fn call_node_method(&self, node: Obj<Node3D>) -> Vector3
         );
     }
@@ -303,14 +303,14 @@ impl UserMethodBinds for Entity {
         out!("[Entity] virtual_call: {name}");
         match name {
             //"xy" => {
-            //    gdext_virtual_method_body!(Entity, fn xy(&mut self))
+            //    gdext_virtual_method_callback!(Entity, fn xy(&mut self))
             //}
             _ => None,
         }
     }
 
     fn register_methods() {
-        // gdext_wrap_method!(Entity,
+        // gdext_register_method!(Entity,
         //     fn _to_string(&mut self) -> GodotString;
         // );
     }
