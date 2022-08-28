@@ -1,4 +1,4 @@
-use crate::util::{bail, ident, KvMap, KvValue};
+use crate::util::{bail, ensure_kv_empty, ident, KvMap, KvValue};
 use crate::{util, ParseResult};
 use proc_macro2::{Ident, Punct, Span, TokenStream};
 use quote::quote;
@@ -85,12 +85,13 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
                 )?,
             }
         }*/
-        if let Some(kv_value) = map.remove("no_default") {
+        if let Some(kv_value) = map.remove("no_init") {
             match kv_value {
                 KvValue::None => has_default_new = false,
-                _ => bail("Argument 'no_default' must not have a value", span)?,
+                _ => bail("Argument 'no_init' must not have a value", span)?,
             }
         }
+        ensure_kv_empty(map, span)?;
     }
 
     Ok(ClassAttributes {

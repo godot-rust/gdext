@@ -1,7 +1,7 @@
 // Note: some code duplication with codegen crate
 
 use crate::ParseResult;
-use proc_macro2::{Ident, Literal, TokenTree};
+use proc_macro2::{Ident, Literal, Span, TokenTree};
 use quote::format_ident;
 use quote::spanned::Spanned;
 use std::collections::HashMap;
@@ -147,4 +147,15 @@ pub(crate) fn parse_kv_group(value: &venial::AttributeValue) -> ParseResult<KvMa
     }
 
     Ok(map)
+}
+
+/// At the end of processing a KV map, make sure it runs
+/// TODO refactor to a wrapper class and maybe destructor
+pub(crate) fn ensure_kv_empty(map: KvMap, span: Span) -> ParseResult<()> {
+    if map.is_empty() {
+        Ok(())
+    } else {
+        let msg = &format!("Attribute contains unknown keys: {:?}", map.keys());
+        bail(msg, span)
+    }
 }
