@@ -5,7 +5,7 @@ use proc_macro2::{Ident, Literal, Span, TokenTree};
 use quote::format_ident;
 use quote::spanned::Spanned;
 use std::collections::HashMap;
-use venial::Error;
+use venial::{Error, Function};
 
 pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
@@ -21,6 +21,14 @@ where
     T: Spanned,
 {
     Err(Error::new_at_span(tokens.__span(), msg.as_ref()))
+}
+
+pub fn reduce_to_signature(function: &Function) -> Function {
+    let mut reduced = function.clone();
+    reduced.attributes.clear();
+    reduced.tk_semicolon = None;
+
+    reduced
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

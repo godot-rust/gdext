@@ -21,10 +21,13 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let class_name_str = class.name.to_string();
 
     let prv = quote! { gdext_class::private };
-    let (default_impl, create_fn) = if struct_cfg.has_default_new {
-        (create_default_auto(class_name, fields), quote! { Some(#prv::c_api::create::<#class_name>) } )
+    let (default_impl, create_fn);
+    if struct_cfg.has_default_new {
+        default_impl = create_default_auto(class_name, fields);
+        create_fn = quote! { Some(#prv::c_api::create::<#class_name>) };
     } else {
-        (TokenStream::new(),quote! { None })
+        default_impl = TokenStream::new();
+        create_fn = quote! { None };
     };
 
     Ok(quote! {
@@ -50,7 +53,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
 
         gdext_sys::plugin_add!(GDEXT_CLASS_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_str,
-            component: #prv::PluginComponent::Basic {
+            component: #prv::PluginComponent::ClassDef {
                 base_class_name: #base_ty_str,
                 default_create_fn: #create_fn,
                 free_fn: #prv::c_api::free::<#class_name>,

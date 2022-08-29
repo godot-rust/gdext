@@ -16,7 +16,7 @@ pub struct ClassPlugin {
 #[derive(Debug)]
 pub enum PluginComponent {
     /// Class definition itself, must always be available
-    Basic {
+    ClassDef {
         base_class_name: &'static str,
 
         default_create_fn: Option<
@@ -31,32 +31,29 @@ pub enum PluginComponent {
         ),
     },
 
-    /// Constructor defined by user
-    UserConstruct {
-        create_fn: unsafe extern "C" fn(
-            _class_userdata: *mut std::ffi::c_void, //
-        ) -> sys::GDNativeObjectPtr,
-    },
-
-    /// Methods in `#[godot_api] impl MyClass`
+    /// Collected from `#[godot_api] impl MyClass`
     UserMethodBinds {
         registration_method: fn(), //
     },
 
-    /// Other lifecycle methods in `#[godot_api] impl GodotVirtuals for MyClass`
+    /// Collected from `#[godot_api] impl GodotMethods for MyClass`
     UserVirtuals {
-        get_virtual_fn: unsafe extern "C" fn(
-            _class_user_data: *mut std::ffi::c_void,
-            p_name: *const std::os::raw::c_char,
-        ) -> sys::GDNativeExtensionClassCallVirtual,
-    },
+        /// User-defined `init` function
+        user_create_fn: unsafe extern "C" fn(
+            _class_userdata: *mut std::ffi::c_void, //
+        ) -> sys::GDNativeObjectPtr,
 
-    /// Custom `to_string` method
-    ToString {
+        /// User-defined `to_string` function
         to_string_fn: unsafe extern "C" fn(
             instance: sys::GDExtensionClassInstancePtr,
             out_string: sys::GDNativeStringPtr,
         ),
+
+        /// Callback for other virtuals
+        get_virtual_fn: unsafe extern "C" fn(
+            _class_user_data: *mut std::ffi::c_void,
+            p_name: *const std::os::raw::c_char,
+        ) -> sys::GDNativeExtensionClassCallVirtual,
     },
 }
 

@@ -191,6 +191,7 @@ pub trait GodotDefault: GodotClass {
     fn godot_default(base: Base<Self::Base>) -> Self;
 }
 
+// Note: keep in sync with VIRTUAL_METHOD_NAMES in godot_api.rs
 #[allow(unused_variables)]
 pub trait GodotMethods
 where
@@ -213,6 +214,9 @@ where
         unreachable!()
     }
     fn process(&mut self, delta: f64) {
+        unimplemented!()
+    }
+    fn physics_process(&mut self, delta: f64) {
         unimplemented!()
     }
     fn to_string(&self) -> GodotString {
