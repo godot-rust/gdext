@@ -39,15 +39,19 @@ pub enum PluginComponent {
     /// Collected from `#[godot_api] impl GodotMethods for MyClass`
     UserVirtuals {
         /// User-defined `init` function
-        user_create_fn: unsafe extern "C" fn(
-            _class_userdata: *mut std::ffi::c_void, //
-        ) -> sys::GDNativeObjectPtr,
+        user_create_fn: Option<
+            unsafe extern "C" fn(
+                _class_userdata: *mut std::ffi::c_void, //
+            ) -> sys::GDNativeObjectPtr,
+        >,
 
         /// User-defined `to_string` function
-        to_string_fn: unsafe extern "C" fn(
-            instance: sys::GDExtensionClassInstancePtr,
-            out_string: sys::GDNativeStringPtr,
-        ),
+        to_string_fn: Option<
+            unsafe extern "C" fn(
+                instance: sys::GDExtensionClassInstancePtr,
+                out_string: sys::GDNativeStringPtr,
+            ),
+        >,
 
         /// Callback for other virtuals
         get_virtual_fn: unsafe extern "C" fn(

@@ -6,7 +6,7 @@ use gdext_class::{Base, GodotMethods, Obj};
 use gdext_macros::{godot_api, itest, GodotClass};
 
 #[derive(GodotClass, Debug)]
-#[godot(no_init, base=RefCounted)]
+#[godot(init, base=RefCounted)]
 struct VirtualMethodTest {
     #[base]
     some_base: Base<RefCounted>,
