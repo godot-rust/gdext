@@ -86,6 +86,8 @@ pub enum PluginComponent {
 }
 
 pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
+    println!("Manually register class {}", std::any::type_name::<T>());
+
     let godot_params = sys::GDNativeExtensionClassCreationInfo {
         set_func: None,
         get_func: None,

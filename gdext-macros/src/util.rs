@@ -2,8 +2,8 @@
 
 use crate::ParseResult;
 use proc_macro2::{Ident, Literal, Span, TokenTree};
-use quote::format_ident;
 use quote::spanned::Spanned;
+use quote::{format_ident, quote};
 use std::collections::HashMap;
 use venial::{Error, Function};
 
@@ -166,4 +166,33 @@ pub(crate) fn ensure_kv_empty(map: KvMap, span: Span) -> ParseResult<()> {
         let msg = &format!("Attribute contains unknown keys: {:?}", map.keys());
         bail(msg, span)
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[test]
+fn test_parse_kv_none() {
+    let input = quote! {
+        #[attr(key=value)]
+        fn func();
+    };
+    let decl = venial::parse_declaration(input);
+
+    let attrs = &decl
+        .as_ref()
+        .expect("decl")
+        .as_function()
+        .expect("fn")
+        .attributes;
+    assert_eq!(attrs.len(), 1);
+    let attr_value = &attrs[0].value;
+
+    let parsed = parse_kv_group(attr_value).expect("parse");
+
+    dbg!(&parsed);
+
+    assert_eq!(
+        parsed.get("key"),
+        Some(&KvValue::Ident(Ident::new("value", Span::call_site())))
+    );
 }
