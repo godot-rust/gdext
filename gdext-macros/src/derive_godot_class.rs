@@ -24,7 +24,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let (godot_init_impl, create_fn);
     if struct_cfg.has_generated_init {
         godot_init_impl = make_godot_init_impl(class_name, fields);
-        create_fn = quote! { Some(#prv::c_api::create::<#class_name>) };
+        create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
     } else {
         godot_init_impl = TokenStream::new();
         create_fn = quote! { None };
@@ -48,7 +48,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
             component: #prv::PluginComponent::ClassDef {
                 base_class_name: #base_ty_str,
                 generated_create_fn: #create_fn,
-                free_fn: #prv::c_api::free::<#class_name>,
+                free_fn: #prv::callbacks::free::<#class_name>,
             },
         });
     })

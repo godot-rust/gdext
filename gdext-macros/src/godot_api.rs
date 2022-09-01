@@ -4,6 +4,9 @@ use proc_macro2::{Ident, Punct, Spacing, TokenStream};
 use quote::quote;
 use venial::{Declaration, Error, Function, Impl, ImplMember};
 
+// Note: keep in sync with trait GodotMethods
+const VIRTUAL_METHOD_NAMES: [&'static str; 3] = ["ready", "process", "physics_process"];
+
 pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
     let input_decl = venial::parse_declaration(input)?;
     let decl = match input_decl {
@@ -55,6 +58,45 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     Ok(result)
 }
 
+fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
+    let mut method_signatures = vec![];
+    for item in decl.body_items.iter_mut() {
+        let method = if let ImplMember::Method(method) = item {
+            method
+        } else {
+            continue;
+        };
+
+        let mut found = None;
+        for (index, attr) in method.attributes.iter().enumerate() {
+            if attr
+                .get_single_path_segment()
+                .expect("get_single_path_segment")
+                == "godot"
+            {
+                if found.is_some() {
+                    bail("at most one #[godot] attribute per method allowed", &method)?;
+                } else {
+                    found = Some((index, attr.value.clone()));
+                }
+            }
+        }
+
+        if let Some((index, _attr_val)) = found {
+            // Remaining code no longer has attribute -- rest stays
+            method.attributes.remove(index);
+
+            // Signatures are the same thing without body
+            let mut sig = method.clone();
+            sig.body = None;
+            sig.tk_semicolon = Some(Punct::new(';', Spacing::Alone));
+            method_signatures.push(sig);
+        }
+    }
+
+    Ok(method_signatures)
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Codegen for `#[godot_api] impl GodotMethods for MyType`
@@ -81,7 +123,9 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         let method_name = method.name.to_string();
         match method_name.as_str() {
             "register_class" => {
-                register_fn = quote! { Some(#prv::c_api::user_register_fn::<#class_name>) };
+                register_fn = quote! { Some(#prv::ErasedRegisterFn {
+                    raw: #prv::callbacks::register_class_by_builder::<#class_name>
+                }) };
             }
 
             "init" => {
@@ -92,11 +136,11 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                         }
                     }
                 };
-                create_fn = quote! { Some(#prv::c_api::create::<#class_name>) };
+                create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
             }
 
             "to_string" => {
-                to_string_fn = quote! { Some(#prv::c_api::to_string::<#class_name>) };
+                to_string_fn = quote! { Some(#prv::callbacks::to_string::<#class_name>) };
             }
 
             // Other virtual methods, like ready, process etc.
@@ -140,7 +184,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                 user_register_fn: #register_fn,
                 user_create_fn: #create_fn,
                 user_to_string_fn: #to_string_fn,
-                get_virtual_fn: #prv::c_api::get_virtual::<#class_name>,
+                get_virtual_fn: #prv::callbacks::get_virtual::<#class_name>,
             },
         });
     };
@@ -184,45 +228,3 @@ fn extract_typename(ty: &venial::TyExpr) -> Option<venial::PathSegment> {
         _ => None,
     }
 }
-
-fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
-    let mut method_signatures = vec![];
-    for item in decl.body_items.iter_mut() {
-        let method = if let ImplMember::Method(method) = item {
-            method
-        } else {
-            continue;
-        };
-
-        let mut found = None;
-        for (index, attr) in method.attributes.iter().enumerate() {
-            if attr
-                .get_single_path_segment()
-                .expect("get_single_path_segment")
-                == "godot"
-            {
-                if found.is_some() {
-                    bail("at most one #[godot] attribute per method allowed", &method)?;
-                } else {
-                    found = Some((index, attr.value.clone()));
-                }
-            }
-        }
-
-        if let Some((index, _attr_val)) = found {
-            // Remaining code no longer has attribute -- rest stays
-            method.attributes.remove(index);
-
-            // Signatures are the same thing without body
-            let mut sig = method.clone();
-            sig.body = None;
-            sig.tk_semicolon = Some(Punct::new(';', Spacing::Alone));
-            method_signatures.push(sig);
-        }
-    }
-
-    Ok(method_signatures)
-}
-
-// Note: keep in sync with trait GodotMethods
-const VIRTUAL_METHOD_NAMES: [&'static str; 3] = ["ready", "process", "physics_process"];

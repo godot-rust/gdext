@@ -32,7 +32,7 @@ pub mod api {
 
 #[doc(hidden)]
 pub mod private {
-    pub use crate::registry::{c_api, ClassPlugin, PluginComponent};
+    pub use crate::registry::{callbacks, ClassPlugin, PluginComponent, ErasedRegisterFn};
     pub use crate::storage::as_storage;
 
     gdext_sys::plugin_registry!(GDEXT_CLASS_REGISTRY: ClassPlugin);

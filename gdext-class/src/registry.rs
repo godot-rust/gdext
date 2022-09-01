@@ -22,12 +22,12 @@ pub struct ErasedRegisterFn {
     // Wrapper needed because Debug can't be derived on function pointers with reference parameters, so this won't work:
     // pub type ErasedRegisterFn = fn(&mut dyn std::any::Any);
     // (see https://stackoverflow.com/q/53380040)
-    raw: fn(&mut dyn std::any::Any),
+    pub raw: fn(&mut dyn std::any::Any),
 }
 
 impl std::fmt::Debug for ErasedRegisterFn {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:x}", self.raw as u8)
+        write!(f, "0x{:0>16x}", self.raw as u64)
     }
 }
 
@@ -95,15 +95,15 @@ pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
         property_get_revert_func: None,
         notification_func: None,
         to_string_func: if T::has_to_string() {
-            Some(c_api::to_string::<T>)
+            Some(callbacks::to_string::<T>)
         } else {
             None
         },
-        reference_func: Some(c_api::reference::<T>),
-        unreference_func: Some(c_api::unreference::<T>),
-        create_instance_func: Some(c_api::create::<T>),
-        free_instance_func: Some(c_api::free::<T>),
-        get_virtual_func: Some(c_api::get_virtual::<T>),
+        reference_func: Some(callbacks::reference::<T>),
+        unreference_func: Some(callbacks::unreference::<T>),
+        create_instance_func: Some(callbacks::create::<T>),
+        free_instance_func: Some(callbacks::free::<T>),
+        get_virtual_func: Some(callbacks::get_virtual::<T>),
         get_rid_func: None,
         class_userdata: ptr::null_mut(), // will be passed to create fn, but global per class
     };
@@ -116,7 +116,7 @@ pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
         parent_class_name,
         generated_register_fn: None,
         user_register_fn: Some(ErasedRegisterFn {
-            raw: c_api::register_class_by_builder::<T>,
+            raw: callbacks::register_class_by_builder::<T>,
         }),
         godot_params,
     });
@@ -219,7 +219,7 @@ impl ClassName {
     }
 }
 
-pub mod c_api {
+pub mod callbacks {
     use super::*;
     use crate::builder::ClassBuilder;
 

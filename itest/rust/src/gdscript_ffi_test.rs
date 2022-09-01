@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use gdext_class::api::RefCounted;
+use gdext_class::builder::ClassBuilder;
 use gdext_class::{Base, GodotMethods};
 use gdext_macros::{godot_api, GodotClass};
 
@@ -33,6 +34,10 @@ impl RustFfi {
 
 #[godot_api]
 impl GodotMethods for RustFfi {
+    fn register_class(_builder: &mut ClassBuilder<Self>) {
+        println!("Register class RustFfi!");
+    }
+
     fn init(base: Base<Self::Base>) -> Self {
         Self {
             to_mirror: 77,

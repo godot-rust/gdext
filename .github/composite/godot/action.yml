@@ -108,7 +108,7 @@ runs:
       run: |
         cd itest/godot
         $GODOT_BIN --headless 2>&1 | tee >(grep "SCRIPT ERROR:" -q && {
-        	printf "\nGodot engine encountered error, abort...";
+        	printf "\n -- Godot engine encountered error, abort...\n";
         	pkill godot
         	echo "### :x: Godot runtime error" > $GITHUB_STEP_SUMMARY
             echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
