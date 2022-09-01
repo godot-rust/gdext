@@ -37,10 +37,8 @@ pub mod private {
 
     gdext_sys::plugin_registry!(GDEXT_CLASS_REGISTRY: ClassPlugin);
 
-    pub fn list_plugins() {
-        gdext_sys::plugin_foreach!(GDEXT_CLASS_REGISTRY; |elem: &ClassPlugin| {
-            dbg!(elem);
-        });
+    pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
+        gdext_sys::plugin_foreach!(GDEXT_CLASS_REGISTRY; visitor);
     }
 }
 

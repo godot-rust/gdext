@@ -1,3 +1,4 @@
+use crate::builder::ClassBuilder;
 use crate::{sys, Base};
 use gdext_builtin::GodotString;
 use std::fmt::Debug;
@@ -155,7 +156,7 @@ pub mod mem {
 /// Makes `T` eligible to be managed by Godot and stored in [`Obj<T>`][crate::Obj] pointers.
 ///
 /// The behavior of types implementing this trait is influenced by the associated types; check their documentation for information.
-pub trait GodotClass: Debug
+pub trait GodotClass: Debug + 'static
 where
     Self: Sized,
 {
@@ -207,9 +208,12 @@ where
     // _physics_process
     // _ready
 
+    fn register_class(builder: &mut ClassBuilder<Self>) {}
+
     fn init(base: Base<Self::Base>) -> Self {
         unimplemented!()
     }
+
     fn ready(&mut self) {
         unreachable!()
     }

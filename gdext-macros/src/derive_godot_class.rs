@@ -47,7 +47,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
             class_name: #class_name_str,
             component: #prv::PluginComponent::ClassDef {
                 base_class_name: #base_ty_str,
-                default_create_fn: #create_fn,
+                generated_create_fn: #create_fn,
                 free_fn: #prv::c_api::free::<#class_name>,
             },
         });

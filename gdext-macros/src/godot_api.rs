@@ -32,6 +32,8 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Codegen for `#[godot_api] impl MyType`
 fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let methods = process_godot_fns(&mut decl)?;
@@ -53,12 +55,15 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     Ok(result)
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Codegen for `#[godot_api] impl GodotMethods for MyType`
 fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let class_name = validate_trait_impl(&original_impl)?;
     let class_name_str = class_name.to_string();
 
     let mut godot_init_impl = TokenStream::new();
+    let mut register_fn = quote! { None };
     let mut create_fn = quote! { None };
     let mut to_string_fn = quote! { None };
     let mut virtual_methods = vec![];
@@ -75,6 +80,10 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
         let method_name = method.name.to_string();
         match method_name.as_str() {
+            "register_class" => {
+                register_fn = quote! { Some(#prv::c_api::user_register_fn::<#class_name>) };
+            }
+
             "init" => {
                 godot_init_impl = quote! {
                     impl gdext_class::traits::GodotDefault for #class_name {
@@ -128,8 +137,9 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         gdext_sys::plugin_add!(GDEXT_CLASS_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_str,
             component: #prv::PluginComponent::UserVirtuals {
+                user_register_fn: #register_fn,
                 user_create_fn: #create_fn,
-                to_string_fn: #to_string_fn,
+                user_to_string_fn: #to_string_fn,
                 get_virtual_fn: #prv::c_api::get_virtual::<#class_name>,
             },
         });

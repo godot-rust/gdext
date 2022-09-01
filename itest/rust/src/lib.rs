@@ -35,10 +35,6 @@ struct IntegrationTests {}
 
 impl IntegrationTests {
     fn run(&mut self) -> bool {
-        println!("Registered plugins:");
-        gdext_class::private::list_plugins();
-        println!("\n\n");
-
         println!("Run Godot integration tests...");
         run_tests()
     }
@@ -85,8 +81,9 @@ gdext_builtin::gdext_init!(itest_init, |init: &mut gdext_builtin::InitOptions| {
     out!("itest_init()");
     init.register_init_function(gdext_builtin::InitLevel::Scene, || {
         out!("  register_class()");
-        gdext_class::register_class::<IntegrationTests>();
-        register_classes();
+        //gdext_class::register_class::<IntegrationTests>();
+        gdext_class::auto_register_classes();
+        //register_classes();
     });
 });
 

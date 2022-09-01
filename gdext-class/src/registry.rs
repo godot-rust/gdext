@@ -3,6 +3,9 @@
 use crate::private::as_storage;
 use crate::storage::InstanceStorage;
 use crate::traits::*;
+use std::collections::HashMap;
+use std::fmt::Formatter;
+use std::ptr;
 
 use gdext_sys as sys;
 use sys::interface_fn;
@@ -13,13 +16,28 @@ pub struct ClassPlugin {
     pub component: PluginComponent,
 }
 
+/// Type-erased function object, holding a `register_class` function.
+#[derive(Copy, Clone)]
+pub struct ErasedRegisterFn {
+    // Wrapper needed because Debug can't be derived on function pointers with reference parameters, so this won't work:
+    // pub type ErasedRegisterFn = fn(&mut dyn std::any::Any);
+    // (see https://stackoverflow.com/q/53380040)
+    raw: fn(&mut dyn std::any::Any),
+}
+
+impl std::fmt::Debug for ErasedRegisterFn {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:x}", self.raw as u8)
+    }
+}
+
 #[derive(Debug)]
 pub enum PluginComponent {
     /// Class definition itself, must always be available
     ClassDef {
         base_class_name: &'static str,
 
-        default_create_fn: Option<
+        generated_create_fn: Option<
             unsafe extern "C" fn(
                 _class_userdata: *mut std::ffi::c_void, //
             ) -> sys::GDNativeObjectPtr,
@@ -33,11 +51,17 @@ pub enum PluginComponent {
 
     /// Collected from `#[godot_api] impl MyClass`
     UserMethodBinds {
-        registration_method: fn(), //
+        /// Callback to library-generated function which registers functions in the `impl`
+        ///
+        /// Always present since that's the entire point of this `impl` block.
+        generated_register_fn: ErasedRegisterFn,
     },
 
     /// Collected from `#[godot_api] impl GodotMethods for MyClass`
     UserVirtuals {
+        /// Callback to user-defined `register_class` function
+        user_register_fn: Option<ErasedRegisterFn>,
+
         /// User-defined `init` function
         user_create_fn: Option<
             unsafe extern "C" fn(
@@ -46,7 +70,7 @@ pub enum PluginComponent {
         >,
 
         /// User-defined `to_string` function
-        to_string_fn: Option<
+        user_to_string_fn: Option<
             unsafe extern "C" fn(
                 instance: sys::GDExtensionClassInstancePtr,
                 out_string: sys::GDNativeStringPtr,
@@ -62,7 +86,7 @@ pub enum PluginComponent {
 }
 
 pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
-    let creation_info = sys::GDNativeExtensionClassCreationInfo {
+    let godot_params = sys::GDNativeExtensionClassCreationInfo {
         set_func: None,
         get_func: None,
         get_property_list_func: None,
@@ -81,26 +105,98 @@ pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
         free_instance_func: Some(c_api::free::<T>),
         get_virtual_func: Some(c_api::get_virtual::<T>),
         get_rid_func: None,
-        class_userdata: std::ptr::null_mut(), // will be passed to create fn, but global per class
+        class_userdata: ptr::null_mut(), // will be passed to create fn, but global per class
     };
 
-    let class_name = ClassName::new::<T>();
-    let parent_class_name = ClassName::new::<T::Base>();
+    let class_name = Some(ClassName::new::<T>());
+    let parent_class_name = Some(ClassName::new::<T::Base>());
 
+    register_class_raw(ClassRegistrationInfo {
+        class_name,
+        parent_class_name,
+        generated_register_fn: None,
+        user_register_fn: Some(ErasedRegisterFn {
+            raw: c_api::register_class_by_builder::<T>,
+        }),
+        godot_params,
+    });
+}
+
+struct ClassRegistrationInfo {
+    class_name: Option<ClassName>,
+    parent_class_name: Option<ClassName>,
+    generated_register_fn: Option<ErasedRegisterFn>,
+    user_register_fn: Option<ErasedRegisterFn>,
+    godot_params: sys::GDNativeExtensionClassCreationInfo,
+}
+
+/// Lets Godot know about all classes that have self-registered through the plugin system.
+pub fn auto_register_classes() {
+    println!("Auto-register classes...");
+
+    // Note: many errors are already caught by the compiler, before this runtime validation even takes place:
+    // * missing #[derive(GodotClass)] or impl GodotClass for T
+    // * duplicate impl GodotInit for T
+    //
+
+    let mut map = HashMap::<ClassName, ClassRegistrationInfo>::new();
+
+    crate::private::iterate_plugins(|elem: &ClassPlugin| {
+        println!("* Plugin: {elem:#?}");
+
+        let name = ClassName::from_static(elem.class_name);
+        let c = map.entry(name).or_insert_with(default_creation_info);
+
+        match elem.component {
+            PluginComponent::ClassDef {
+                base_class_name,
+                generated_create_fn,
+                free_fn,
+            } => {
+                c.parent_class_name = Some(ClassName::from_static(base_class_name));
+                c.godot_params.create_instance_func = generated_create_fn;
+                c.godot_params.free_instance_func = Some(free_fn);
+            }
+
+            PluginComponent::UserMethodBinds {
+                generated_register_fn,
+            } => {
+                c.generated_register_fn = Some(generated_register_fn);
+            }
+
+            PluginComponent::UserVirtuals {
+                user_register_fn,
+                user_create_fn,
+                user_to_string_fn,
+                get_virtual_fn,
+            } => {
+                c.user_register_fn = user_register_fn;
+                c.godot_params.create_instance_func = user_create_fn;
+                c.godot_params.to_string_func = user_to_string_fn;
+                c.godot_params.get_virtual_func = Some(get_virtual_fn);
+            }
+        }
+    });
+
+    println!("All classes auto-registered.");
+}
+
+fn register_class_raw(info: ClassRegistrationInfo) {
     unsafe {
         interface_fn!(classdb_register_extension_class)(
             sys::get_library(),
-            class_name.c_str(),
-            parent_class_name.c_str(),
-            std::ptr::addr_of!(creation_info),
+            info.class_name.expect("class defined (class_name)").c_str(),
+            info.parent_class_name
+                .expect("class defined (parent_class_name)")
+                .c_str(),
+            ptr::addr_of!(info.godot_params),
         );
     }
-
-    T::register_methods();
 }
 
 /// Utility to convert `String` to C `const char*`.
 /// Cannot be a function since the backing string must be retained.
+#[derive(Eq, PartialEq, Hash)]
 pub(crate) struct ClassName {
     backing: String,
 }
@@ -112,6 +208,12 @@ impl ClassName {
         }
     }
 
+    fn from_static(string: &'static str) -> Self {
+        Self {
+            backing: format!("{}\0", string),
+        }
+    }
+
     pub fn c_str(&self) -> *const std::os::raw::c_char {
         self.backing.as_ptr() as *const _
     }
@@ -119,6 +221,7 @@ impl ClassName {
 
 pub mod c_api {
     use super::*;
+    use crate::builder::ClassBuilder;
 
     pub unsafe extern "C" fn create<T: GodotClass>(
         _class_userdata: *mut std::ffi::c_void,
@@ -185,5 +288,44 @@ pub mod c_api {
     ) {
         let storage = as_storage::<T>(instance);
         storage.on_dec_ref();
+    }
+
+    pub fn register_class_by_builder<T: GodotClass + GodotMethods>(
+        class_builder: &mut dyn std::any::Any,
+    ) {
+        let class_builder = class_builder
+            .downcast_mut::<ClassBuilder<T>>()
+            .expect("bad type erasure");
+
+        T::register_class(class_builder);
+    }
+}
+
+// Substitute for Default impl
+// Yes, bindgen can implement Default, but only for _all_ types (with single exceptions).
+// For FFI types, it's better to have explicit initialization in the general case though.
+fn default_creation_info() -> ClassRegistrationInfo {
+    ClassRegistrationInfo {
+        class_name: None,
+        parent_class_name: None,
+        generated_register_fn: None,
+        user_register_fn: None,
+        godot_params: sys::GDNativeExtensionClassCreationInfo {
+            set_func: None,
+            get_func: None,
+            get_property_list_func: None,
+            free_property_list_func: None,
+            property_can_revert_func: None,
+            property_get_revert_func: None,
+            notification_func: None,
+            to_string_func: None,
+            reference_func: None,
+            unreference_func: None,
+            create_instance_func: None,
+            free_instance_func: None,
+            get_virtual_func: None,
+            get_rid_func: None,
+            class_userdata: ptr::null_mut(),
+        },
     }
 }
