@@ -38,8 +38,12 @@ pub fn reduce_to_signature(function: &Function) -> Function {
 pub(crate) enum KvValue {
     /// Key only, no value.
     None,
-    /// Literal like `"hello"`, `20`, `3.4`. Unlike the proc macro type, this includes `true` and `false`.
+
+    /// Literal like `"hello"`, `20`, `3.4`.
+    /// Unlike the proc macro type, this includes `true` and `false` as well as negative literals `-32`.
+    /// Complex expressions are not supported though.
     Lit(String),
+
     /// Identifier like `hello`.
     Ident(Ident),
 }
@@ -67,6 +71,7 @@ pub(crate) fn parse_kv_group(value: &venial::AttributeValue) -> ParseResult<KvMa
     let mut map: KvMap = HashMap::new();
     let mut state = KvState::Start;
     let mut last_key: Option<String> = None;
+    let mut is_negative: bool = false;
 
     // can't be a closure because closures borrow greedily, and we'd need borrowing only at invocation time (lazy)
     macro_rules! insert_kv {
@@ -124,8 +129,14 @@ pub(crate) fn parse_kv_group(value: &venial::AttributeValue) -> ParseResult<KvMa
                 }
                 // key = "value" ...
                 TokenTree::Literal(lit) => {
-                    insert_kv!(KvValue::Lit(lit.to_string()));
+                    let prefix = if is_negative { "-" } else { "" };
+                    insert_kv!(KvValue::Lit(format!("{prefix}{lit}")));
                     state = KvState::Value;
+                }
+                // key = - ...
+                TokenTree::Punct(punct) if punct.as_char() == '-' => {
+                    is_negative = true;
+                    // state remains
                 }
                 _ => bail("'=' sign must be followed by an identifier or literal", tk)?,
             },
@@ -145,6 +156,7 @@ pub(crate) fn parse_kv_group(value: &venial::AttributeValue) -> ParseResult<KvMa
                 TokenTree::Ident(ident) => {
                     let key = last_key.replace(ident.to_string());
                     assert!(key.is_none());
+                    is_negative = false;
                     state = KvState::Key;
                 }
                 _ => bail("',' must be followed by the next key", tk)?,
@@ -274,7 +286,7 @@ fn test_parse_kv_mixed() {
             "forever".to_string() => KvValue::None,
             "key".to_string() => KvValue::Lit("\"string\"".to_string()),
             "default".to_string() => KvValue::Lit("-820".to_string()),
-            "fn".to_string() => KvValue::Lit("my_function".to_string()),
+            "fn".to_string() => KvValue::Ident(ident("my_function")),
             "alone".to_string() => KvValue::None,
         ),
     );
