@@ -3,6 +3,7 @@
 use crate::private::as_storage;
 use crate::storage::InstanceStorage;
 use crate::traits::*;
+
 use std::collections::HashMap;
 use std::fmt::Formatter;
 use std::ptr;
@@ -25,13 +26,27 @@ pub struct ErasedRegisterFn {
     pub raw: fn(&mut dyn std::any::Any),
 }
 
+// impl ErasedRegisterFn {
+//     pub fn from_concrete<T>(function: fn(&mut ClassBuilder<T>)) -> Self {
+//         let erased_fn = |class_builder: &mut dyn std::any::Any| {
+//             let class_builder = class_builder
+//                 .downcast_mut::<ClassBuilder<T>>()
+//                 .expect("bad type erasure");
+//
+//             function(class_builder);
+//         };
+//
+//         Self { raw: erased_fn }
+//     }
+// }
+
 impl std::fmt::Debug for ErasedRegisterFn {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "0x{:0>16x}", self.raw as u64)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PluginComponent {
     /// Class definition itself, must always be available
     ClassDef {
@@ -110,12 +125,9 @@ pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
         class_userdata: ptr::null_mut(), // will be passed to create fn, but global per class
     };
 
-    let class_name = Some(ClassName::new::<T>());
-    let parent_class_name = Some(ClassName::new::<T::Base>());
-
     register_class_raw(ClassRegistrationInfo {
-        class_name,
-        parent_class_name,
+        class_name: ClassName::new::<T>(),
+        parent_class_name: Some(ClassName::new::<T::Base>()),
         generated_register_fn: None,
         user_register_fn: Some(ErasedRegisterFn {
             raw: callbacks::register_class_by_builder::<T>,
@@ -124,8 +136,9 @@ pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
     });
 }
 
+#[derive(Debug)]
 struct ClassRegistrationInfo {
-    class_name: Option<ClassName>,
+    class_name: ClassName,
     parent_class_name: Option<ClassName>,
     generated_register_fn: Option<ErasedRegisterFn>,
     user_register_fn: Option<ErasedRegisterFn>,
@@ -147,41 +160,14 @@ pub fn auto_register_classes() {
         println!("* Plugin: {elem:#?}");
 
         let name = ClassName::from_static(elem.class_name);
-        let c = map
+        let class_info = map
             .entry(name.clone())
-            .or_insert_with(default_creation_info);
-        c.class_name = Some(name);
+            .or_insert_with(|| default_creation_info(name));
 
-        match elem.component {
-            PluginComponent::ClassDef {
-                base_class_name,
-                generated_create_fn,
-                free_fn,
-            } => {
-                c.parent_class_name = Some(ClassName::from_static(base_class_name));
-                c.godot_params.create_instance_func = generated_create_fn;
-                c.godot_params.free_instance_func = Some(free_fn);
-            }
-
-            PluginComponent::UserMethodBinds {
-                generated_register_fn,
-            } => {
-                c.generated_register_fn = Some(generated_register_fn);
-            }
-
-            PluginComponent::UserVirtuals {
-                user_register_fn,
-                user_create_fn,
-                user_to_string_fn,
-                get_virtual_fn,
-            } => {
-                c.user_register_fn = user_register_fn;
-                c.godot_params.create_instance_func = user_create_fn;
-                c.godot_params.to_string_func = user_to_string_fn;
-                c.godot_params.get_virtual_func = Some(get_virtual_fn);
-            }
-        }
+        fill_class_info(elem.component.clone(), class_info);
     });
+
+    println!("Class-map: {map:#?}");
 
     for info in map.into_values() {
         register_class_raw(info);
@@ -190,22 +176,70 @@ pub fn auto_register_classes() {
     println!("All classes auto-registered.");
 }
 
+fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
+    println!("   --> comp:  {component:?}");
+    match component {
+        PluginComponent::ClassDef {
+            base_class_name,
+            generated_create_fn,
+            free_fn,
+        } => {
+            c.parent_class_name = Some(ClassName::from_static(base_class_name));
+            c.godot_params.create_instance_func = generated_create_fn;
+            c.godot_params.free_instance_func = Some(free_fn);
+        }
+
+        PluginComponent::UserMethodBinds {
+            generated_register_fn,
+        } => {
+            c.generated_register_fn = Some(generated_register_fn);
+        }
+
+        PluginComponent::UserVirtuals {
+            user_register_fn,
+            user_create_fn,
+            user_to_string_fn,
+            get_virtual_fn,
+        } => {
+            c.user_register_fn = user_register_fn;
+            c.godot_params.create_instance_func = user_create_fn;
+            c.godot_params.to_string_func = user_to_string_fn;
+            c.godot_params.get_virtual_func = Some(get_virtual_fn);
+        }
+    }
+}
+
 fn register_class_raw(info: ClassRegistrationInfo) {
+    // First register class...
     unsafe {
         interface_fn!(classdb_register_extension_class)(
             sys::get_library(),
-            info.class_name.expect("class defined (class_name)").c_str(),
+            info.class_name.c_str(),
             info.parent_class_name
                 .expect("class defined (parent_class_name)")
                 .c_str(),
             ptr::addr_of!(info.godot_params),
         );
     }
+
+    // ...then custom symbols
+
+    //let mut class_builder = crate::builder::ClassBuilder::<?>::new();
+    let mut class_builder = 0; // TODO dummy argument; see callbacks
+
+    // First call generated (proc-macro) registration function, then user-defined one.
+    // This mimics the intuition that proc-macros are running "before" normal runtime code.
+    if let Some(register_fn) = info.generated_register_fn {
+        (register_fn.raw)(&mut class_builder);
+    }
+    if let Some(register_fn) = info.user_register_fn {
+        (register_fn.raw)(&mut class_builder);
+    }
 }
 
 /// Utility to convert `String` to C `const char*`.
 /// Cannot be a function since the backing string must be retained.
-#[derive(Eq, PartialEq, Hash, Clone)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub(crate) struct ClassName {
     backing: String,
 }
@@ -300,22 +334,35 @@ pub mod callbacks {
     }
 
     pub fn register_class_by_builder<T: GodotClass + GodotMethods>(
-        class_builder: &mut dyn std::any::Any,
+        _class_builder: &mut dyn std::any::Any,
     ) {
-        let class_builder = class_builder
-            .downcast_mut::<ClassBuilder<T>>()
-            .expect("bad type erasure");
+        // TODO use actual argument, once class builder carries state
+        // let class_builder = class_builder
+        //     .downcast_mut::<ClassBuilder<T>>()
+        //     .expect("bad type erasure");
 
-        T::register_class(class_builder);
+        let mut class_builder = ClassBuilder::new();
+        T::register_class(&mut class_builder);
+    }
+
+    pub fn register_user_binds<T: GodotClass + UserMethodBinds>(
+        _class_builder: &mut dyn std::any::Any,
+    ) {
+        // let class_builder = class_builder
+        //     .downcast_mut::<ClassBuilder<T>>()
+        //     .expect("bad type erasure");
+
+        //T::register_methods(class_builder);
+        T::register_methods();
     }
 }
 
 // Substitute for Default impl
 // Yes, bindgen can implement Default, but only for _all_ types (with single exceptions).
 // For FFI types, it's better to have explicit initialization in the general case though.
-fn default_creation_info() -> ClassRegistrationInfo {
+fn default_creation_info(class_name: ClassName) -> ClassRegistrationInfo {
     ClassRegistrationInfo {
-        class_name: None,
+        class_name,
         parent_class_name: None,
         generated_register_fn: None,
         user_register_fn: None,

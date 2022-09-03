@@ -11,6 +11,10 @@ impl<C> ClassBuilder<C>
 where
     C: GodotClass,
 {
+    pub(crate) fn new() -> Self {
+        Self { _c: PhantomData }
+    }
+
     pub fn virtual_method<'cb, F>(&'cb mut self, name: &'cb str, method: F) -> MethodBuilder<C, F> {
         MethodBuilder::new(self, name, method)
     }

@@ -39,20 +39,34 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
 
 /// Codegen for `#[godot_api] impl MyType`
 fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
+    let class_name = validate_trait_impl(&decl, false)?;
+    let class_name_str = class_name.to_string();
+    //let register_fn = format_ident!("__godot_rust_register_{}", class_name_str);
+    //#[allow(non_snake_case)]
+
     let methods = process_godot_fns(&mut decl)?;
-    let self_class = &decl.self_ty;
+    let prv = quote! { gdext_class::private };
+
     let result = quote! {
         #decl
 
-        impl gdext_class::traits::UserMethodBinds for #self_class {
-
+        impl gdext_class::traits::UserMethodBinds for #class_name {
+            //fn register_methods(_builder: &mut gdext_class::builder::ClassBuilder<Self>) {
             fn register_methods() {
                 #(
-                    gdext_class::gdext_register_method!(#self_class, #methods);
-                    //#methods
+                    gdext_class::gdext_register_method!(#class_name, #methods);
                 )*
             }
         }
+
+        gdext_sys::plugin_add!(GDEXT_CLASS_REGISTRY in #prv; #prv::ClassPlugin {
+            class_name: #class_name_str,
+            component: #prv::PluginComponent::UserMethodBinds {
+                generated_register_fn: #prv::ErasedRegisterFn {
+                    raw: #prv::callbacks::register_user_binds::<#class_name>,
+                },
+            },
+        });
     };
 
     Ok(result)
@@ -101,7 +115,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
 
 /// Codegen for `#[godot_api] impl GodotMethods for MyType`
 fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
-    let class_name = validate_trait_impl(&original_impl)?;
+    let class_name = validate_trait_impl(&original_impl, true)?;
     let class_name_str = class_name.to_string();
 
     let mut godot_init_impl = TokenStream::new();
@@ -193,14 +207,16 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 }
 
 /// Make sure that in `impl Trait for Self`, both `Trait` and `Self` are good
-fn validate_trait_impl(original_impl: &Impl) -> ParseResult<Ident> {
-    // impl Trait for Self -- validate Trait
-    let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
-    if !extract_typename(&trait_name).map_or(false, |seg| seg.ident == "GodotMethods") {
-        return bail(
-            "#[godot_api] for trait impls requires trait to be `GodotMethods`",
-            &original_impl,
-        );
+fn validate_trait_impl(original_impl: &Impl, has_trait: bool) -> ParseResult<Ident> {
+    if has_trait {
+        // impl Trait for Self -- validate Trait
+        let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
+        if !extract_typename(&trait_name).map_or(false, |seg| seg.ident == "GodotMethods") {
+            return bail(
+                "#[godot_api] for trait impls requires trait to be `GodotMethods`",
+                &original_impl,
+            );
+        }
     }
 
     // impl Trait for Self -- validate Self
@@ -209,13 +225,13 @@ fn validate_trait_impl(original_impl: &Impl) -> ParseResult<Ident> {
             Ok(segment.ident)
         } else {
             bail(
-                "#[godot_api] for trait impls does currently not support generic arguments",
+                "#[godot_api] for does currently not support generic arguments",
                 &original_impl,
             )
         }
     } else {
         bail(
-            "#[godot_api] for trait impls requires Self type to be a simple path",
+            "#[godot_api] requires Self type to be a simple path",
             &original_impl,
         )
     }

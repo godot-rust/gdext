@@ -1,9 +1,5 @@
-use gdext_class::dom::UserDomain;
-use gdext_class::{
-    api, gdext_register_method, gdext_virtual_method_callback, out, traits, Base, GodotClass,
-    GodotDefault, GodotMethods, UserMethodBinds, UserVirtuals,
-};
-use gdext_macros::itest;
+use gdext_class::out;
+use gdext_macros::{godot_api, itest, GodotClass};
 
 mod gdscript_ffi_test;
 mod object_test;
@@ -30,52 +26,18 @@ fn register_classes() {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-#[derive(Debug)]
+#[derive(GodotClass, Debug)]
+#[godot(base=Node, init)]
 struct IntegrationTests {}
 
+#[godot_api]
 impl IntegrationTests {
+    #[godot]
     fn run(&mut self) -> bool {
         println!("Run Godot integration tests...");
         run_tests()
     }
 }
-
-impl GodotClass for IntegrationTests {
-    type Base = api::Node;
-    type Declarer = UserDomain;
-    type Mem = traits::mem::ManualMemory;
-
-    fn class_name() -> String {
-        "IntegrationTests".to_string()
-    }
-}
-
-impl UserMethodBinds for IntegrationTests {
-    fn register_methods() {
-        out!("[IntegrationTests] register_methods");
-
-        gdext_register_method!(IntegrationTests, fn run(&mut self) -> bool;);
-    }
-}
-
-impl UserVirtuals for IntegrationTests {
-    fn virtual_call(name: &str) -> gdext_sys::GDNativeExtensionClassCallVirtual {
-        out!("[IntegrationTests] virtual_call: {name}");
-
-        match name {
-            "run" => gdext_virtual_method_callback!(IntegrationTests, fn run(&mut self) -> bool),
-            _ => None,
-        }
-    }
-}
-
-impl GodotDefault for IntegrationTests {
-    fn godot_default(_base: Base<Self::Base>) -> Self {
-        Self {}
-    }
-}
-
-impl GodotMethods for IntegrationTests {}
 
 gdext_builtin::gdext_init!(itest_init, |init: &mut gdext_builtin::InitOptions| {
     out!("itest_init()");
@@ -83,7 +45,7 @@ gdext_builtin::gdext_init!(itest_init, |init: &mut gdext_builtin::InitOptions| {
         out!("  register_class()");
         //gdext_class::register_class::<IntegrationTests>();
         gdext_class::auto_register_classes();
-        //register_classes();
+        register_classes();
     });
 });
 

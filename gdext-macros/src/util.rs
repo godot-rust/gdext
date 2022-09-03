@@ -2,8 +2,8 @@
 
 use crate::ParseResult;
 use proc_macro2::{Ident, Literal, Span, TokenTree};
+use quote::format_ident;
 use quote::spanned::Spanned;
-use quote::{format_ident};
 use std::collections::HashMap;
 use venial::{Error, Function};
 
