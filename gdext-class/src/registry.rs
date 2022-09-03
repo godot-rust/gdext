@@ -147,7 +147,10 @@ pub fn auto_register_classes() {
         println!("* Plugin: {elem:#?}");
 
         let name = ClassName::from_static(elem.class_name);
-        let c = map.entry(name).or_insert_with(default_creation_info);
+        let c = map
+            .entry(name.clone())
+            .or_insert_with(default_creation_info);
+        c.class_name = Some(name);
 
         match elem.component {
             PluginComponent::ClassDef {
@@ -180,6 +183,10 @@ pub fn auto_register_classes() {
         }
     });
 
+    for info in map.into_values() {
+        register_class_raw(info);
+    }
+
     println!("All classes auto-registered.");
 }
 
@@ -198,7 +205,7 @@ fn register_class_raw(info: ClassRegistrationInfo) {
 
 /// Utility to convert `String` to C `const char*`.
 /// Cannot be a function since the backing string must be retained.
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Clone)]
 pub(crate) struct ClassName {
     backing: String,
 }

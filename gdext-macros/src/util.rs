@@ -1,9 +1,9 @@
 // Note: some code duplication with codegen crate
 
 use crate::ParseResult;
-use proc_macro2::{Ident, Literal, Span, TokenStream, TokenTree};
+use proc_macro2::{Ident, Literal, Span, TokenTree};
 use quote::spanned::Spanned;
-use quote::{format_ident, quote};
+use quote::{format_ident};
 use std::collections::HashMap;
 use venial::{Error, Function};
 
@@ -194,7 +194,11 @@ pub(crate) fn ensure_kv_empty(map: KvMap, span: Span) -> ParseResult<()> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-macro_rules! hash_map {
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    macro_rules! hash_map {
     (
         $($key:expr => $value:expr),*
         $(,)?
@@ -209,85 +213,86 @@ macro_rules! hash_map {
     };
 }
 
-fn expect_parsed(input_tokens: TokenStream, output_map: KvMap) {
-    let input = quote! {
-        #input_tokens
-        fn func();
-    };
-    let decl = venial::parse_declaration(input);
+    fn expect_parsed(input_tokens: TokenStream, output_map: KvMap) {
+        let input = quote! {
+            #input_tokens
+            fn func();
+        };
+        let decl = venial::parse_declaration(input);
 
-    let attrs = &decl
-        .as_ref()
-        .expect("decl")
-        .as_function()
-        .expect("fn")
-        .attributes;
+        let attrs = &decl
+            .as_ref()
+            .expect("decl")
+            .as_function()
+            .expect("fn")
+            .attributes;
 
-    assert_eq!(attrs.len(), 1);
-    let attr_value = &attrs[0].value;
-    let mut parsed = parse_kv_group(attr_value).expect("parse");
+        assert_eq!(attrs.len(), 1);
+        let attr_value = &attrs[0].value;
+        let mut parsed = parse_kv_group(attr_value).expect("parse");
 
-    dbg!(&parsed);
+        dbg!(&parsed);
 
-    for (key, value) in output_map {
-        assert_eq!(parsed.remove(&key), Some(value));
+        for (key, value) in output_map {
+            assert_eq!(parsed.remove(&key), Some(value));
+        }
+
+        assert!(parsed.is_empty(), "Remaining entries in map");
     }
 
-    assert!(parsed.is_empty(), "Remaining entries in map");
-}
+    #[test]
+    fn test_parse_kv_just_key() {
+        expect_parsed(
+            quote! {
+                #[attr(just_key)]
+            },
+            hash_map!(
+                "just_key".to_string() => KvValue::None,
+            ),
+        );
+    }
 
-#[test]
-fn test_parse_kv_just_key() {
-    expect_parsed(
-        quote! {
-            #[attr(just_key)]
-        },
-        hash_map!(
-            "just_key".to_string() => KvValue::None,
-        ),
-    );
-}
+    #[test]
+    fn test_parse_kv_key_ident() {
+        expect_parsed(
+            quote! {
+                #[attr(key=value)]
+            },
+            hash_map!(
+                "key".to_string() => KvValue::Ident(ident("value")),
+            ),
+        );
+    }
 
-#[test]
-fn test_parse_kv_key_ident() {
-    expect_parsed(
-        quote! {
-            #[attr(key=value)]
-        },
-        hash_map!(
-            "key".to_string() => KvValue::Ident(ident("value")),
-        ),
-    );
-}
+    #[test]
+    fn test_parse_kv_key_lit() {
+        expect_parsed(
+            quote! {
+                #[attr(key="string", pos=32, neg=-32, bool=true, float=3.4)]
+            },
+            hash_map!(
+                "key".to_string() => KvValue::Lit("\"string\"".to_string()),
+                "pos".to_string() => KvValue::Lit("32".to_string()),
+                "neg".to_string() => KvValue::Lit("-32".to_string()),
+                "bool".to_string() => KvValue::Lit("true".to_string()),
+                "float".to_string() => KvValue::Lit("3.4".to_string()),
+            ),
+        );
+    }
 
-#[test]
-fn test_parse_kv_key_lit() {
-    expect_parsed(
-        quote! {
-            #[attr(key="string", pos=32, neg=-32, bool=true, float=3.4)]
-        },
-        hash_map!(
-            "key".to_string() => KvValue::Lit("\"string\"".to_string()),
-            "pos".to_string() => KvValue::Lit("32".to_string()),
-            "neg".to_string() => KvValue::Lit("-32".to_string()),
-            "bool".to_string() => KvValue::Lit("true".to_string()),
-            "float".to_string() => KvValue::Lit("3.4".to_string()),
-        ),
-    );
-}
-
-#[test]
-fn test_parse_kv_mixed() {
-    expect_parsed(
-        quote! {
-            #[attr(forever, key="string", default=-820, fn=my_function, alone)]
-        },
-        hash_map!(
-            "forever".to_string() => KvValue::None,
-            "key".to_string() => KvValue::Lit("\"string\"".to_string()),
-            "default".to_string() => KvValue::Lit("-820".to_string()),
-            "fn".to_string() => KvValue::Ident(ident("my_function")),
-            "alone".to_string() => KvValue::None,
-        ),
-    );
+    #[test]
+    fn test_parse_kv_mixed() {
+        expect_parsed(
+            quote! {
+                #[attr(forever, key="string", default=-820, fn=my_function, alone)]
+            },
+            hash_map!(
+                "forever".to_string() => KvValue::None,
+                "key".to_string() => KvValue::Lit("\"string\"".to_string()),
+                "default".to_string() => KvValue::Lit("-820".to_string()),
+                "fn".to_string() => KvValue::Ident(ident("my_function")),
+                "alone".to_string() => KvValue::None,
+            ),
+        );
+    }
 }

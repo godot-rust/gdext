@@ -6,7 +6,7 @@ use gdext_class::{Base, GodotMethods};
 use gdext_macros::{godot_api, GodotClass};
 
 #[derive(GodotClass, Debug)]
-#[godot(base=RefCounted, no_init)]
+#[godot(base=RefCounted)]
 struct RustFfi {
     to_mirror: i64,
 
