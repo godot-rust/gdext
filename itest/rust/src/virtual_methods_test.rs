@@ -30,9 +30,9 @@ pub(crate) fn run() -> bool {
     ok
 }
 
-pub(crate) fn register() {
-    gdext_class::register_class::<VirtualMethodTest>();
-}
+// pub(crate) fn register() {
+//     gdext_class::register_class::<VirtualMethodTest>();
+// }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

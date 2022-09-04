@@ -1,19 +1,18 @@
 use crate::itest;
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
-use gdext_class::{
-    dom, mem, out, Base, GodotClass, GodotDefault, GodotMethods, Inherits, Obj, Share,
-    UserMethodBinds, UserVirtuals,
-};
+
+use gdext_class::{out, Obj, Share, GodotMethods, Base};
+use gdext_macros::{godot_api, GodotClass};
 use gdext_sys as sys;
 use std::cell::RefCell;
 use std::rc::Rc;
 use sys::GodotFfi;
 
-pub(crate) fn register() {
-    gdext_class::register_class::<ObjPayload>();
-    gdext_class::register_class::<Tracker>();
-}
+// pub(crate) fn register() {
+//     gdext_class::register_class::<ObjPayload>();
+//     gdext_class::register_class::<Tracker>();
+// }
 
 pub fn run() -> bool {
     let mut ok = true;
@@ -247,43 +246,26 @@ fn user_object() -> Obj<ObjPayload> {
     Obj::new(user)
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(GodotClass, Debug, Eq, PartialEq)]
+//#[godot(init)]
 pub struct ObjPayload {
     value: i16,
 }
-impl GodotClass for ObjPayload {
-    type Base = RefCounted;
-    type Declarer = dom::UserDomain;
-    type Mem = mem::StaticRefCount;
 
-    fn class_name() -> String {
-        "ObjPayload".to_string()
-    }
-}
-impl UserMethodBinds for ObjPayload {
-    fn register_methods() {}
-}
-impl UserVirtuals for ObjPayload {}
-impl GodotDefault for ObjPayload {
-    fn godot_default(_base: Base<Self::Base>) -> Self {
-        ObjPayload { value: 111 }
-    }
-}
+#[godot_api]
 impl GodotMethods for ObjPayload {
     fn init(_base: Base<Self::Base>) -> Self {
-        todo!()
+        Self { value: 111 }
     }
 }
-impl Inherits<Object> for ObjPayload {}
-impl Inherits<RefCounted> for ObjPayload {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(GodotClass, Debug, Eq, PartialEq)]
 pub struct Tracker {
     drop_count: Rc<RefCell<i32>>,
 }
-impl GodotClass for Tracker {
+/*impl GodotClass for Tracker {
     type Base = RefCounted;
     type Declarer = dom::UserDomain;
     type Mem = mem::StaticRefCount;
@@ -301,7 +283,7 @@ impl GodotDefault for Tracker {
     fn godot_default(_base: Base<Self::Base>) -> Self {
         panic!("not invoked")
     }
-}
+}*/
 impl Drop for Tracker {
     fn drop(&mut self) {
         out!("      Tracker::drop");

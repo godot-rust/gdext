@@ -275,7 +275,7 @@ pub mod callbacks {
         let base = interface_fn!(classdb_construct_object)(base_class_name.c_str());
         let instance = InstanceStorage::<T>::construct_uninit(base);
         let instance_ptr = instance.into_raw();
-        let instance_ptr = instance_ptr as *mut std::ffi::c_void;
+        let instance_ptr = instance_ptr as *mut std::ffi::c_void; // TODO GDExtensionClassInstancePtr
 
         interface_fn!(object_set_instance)(base, class_name.c_str(), instance_ptr);
 

@@ -1,8 +1,8 @@
 use crate::util::{bail, ensure_kv_empty, ident, KvMap, KvValue};
 use crate::{util, ParseResult};
 use proc_macro2::{Ident, Punct, Span, TokenStream};
-use quote::{format_ident, quote};
 use quote::spanned::Spanned;
+use quote::{format_ident, quote};
 use venial::{Attribute, NamedField, Struct, StructFields, TyExpr};
 
 pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {

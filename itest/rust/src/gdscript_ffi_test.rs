@@ -51,6 +51,6 @@ pub(crate) fn run() -> bool {
     ok
 }
 
-pub(crate) fn register() {
-    gdext_class::register_class::<RustFfi>();
-}
+// pub(crate) fn register() {
+//     gdext_class::register_class::<RustFfi>();
+// }

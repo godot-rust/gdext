@@ -17,11 +17,11 @@ fn run_tests() -> bool {
     ok
 }
 
-fn register_classes() {
-    object_test::register();
-    gdscript_ffi_test::register();
-    virtual_methods_test::register();
-}
+// fn register_classes() {
+//     object_test::register();
+//     gdscript_ffi_test::register();
+//     virtual_methods_test::register();
+// }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
@@ -45,7 +45,7 @@ gdext_builtin::gdext_init!(itest_init, |init: &mut gdext_builtin::InitOptions| {
         out!("  register_class()");
         //gdext_class::register_class::<IntegrationTests>();
         gdext_class::auto_register_classes();
-        register_classes();
+        //register_classes();
     });
 });
 
