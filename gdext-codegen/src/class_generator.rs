@@ -63,6 +63,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
 
     let name_str = strlit(&class.name);
     let name_cstr = c_str(&class.name);
+    let inherits_macro = format_ident!("gdext_inherits_transitive_{}", &class.name);
 
     let all_bases = ctx.inheritance_tree.map_all_bases(&class.name, ident);
 
@@ -115,6 +116,17 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         #(
             impl crate::traits::Inherits<crate::api::#all_bases> for #name {}
         )*
+
+        #[macro_export]
+        #[allow(non_snake_case)]
+        macro_rules! #inherits_macro {
+            ($Class:ident) => {
+                impl gdext_class::traits::Inherits<gdext_class::api::#name> for $Class {}
+                #(
+                    impl gdext_class::traits::Inherits<gdext_class::api::#all_bases> for $Class {}
+                )*
+            }
+        }
     }
     // note: TypePtr -> ObjectPtr conversion OK?
 }

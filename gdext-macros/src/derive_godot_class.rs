@@ -1,7 +1,7 @@
 use crate::util::{bail, ensure_kv_empty, ident, KvMap, KvValue};
 use crate::{util, ParseResult};
 use proc_macro2::{Ident, Punct, Span, TokenStream};
-use quote::quote;
+use quote::{format_ident, quote};
 use quote::spanned::Spanned;
 use venial::{Attribute, NamedField, Struct, StructFields, TyExpr};
 
@@ -19,6 +19,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let base_ty_str = struct_cfg.base_ty.to_string();
     let class_name = &class.name;
     let class_name_str = class.name.to_string();
+    let inherits_macro = format_ident!("gdext_inherits_transitive_{}", &base_ty_str);
 
     let prv = quote! { gdext_class::private };
     let (godot_init_impl, create_fn);
@@ -51,6 +52,8 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
                 free_fn: #prv::callbacks::free::<#class_name>,
             },
         });
+
+        gdext_class::#inherits_macro!(#class_name);
     })
 }
 
