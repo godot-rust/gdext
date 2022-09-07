@@ -93,6 +93,8 @@ where
             let token = sys::get_library();
             let binding =
                 interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
+
+            debug_assert!(!binding.is_null(), "null instance binding");
             crate::private::as_storage::<T>(binding)
         }
     }
@@ -309,7 +311,11 @@ where
             "called free() on Obj<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types."
         );
 
-        assert!(self.is_valid(), "called free() on already destroyed object");
+        //assert!(self.is_valid(), "called free() on already destroyed object");
+
+        if !self.is_valid() {
+            panic!("called free() on already destroyed object");
+        }
 
         unsafe {
             interface_fn!(object_destroy)(self.obj_sys());

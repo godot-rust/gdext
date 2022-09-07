@@ -5,7 +5,7 @@ use crate::storage::InstanceStorage;
 use crate::traits::*;
 
 use std::collections::HashMap;
-use std::fmt::Formatter;
+use std::fmt::{Display, Formatter};
 use std::ptr;
 
 use gdext_sys as sys;
@@ -157,7 +157,7 @@ pub fn auto_register_classes() {
     let mut map = HashMap::<ClassName, ClassRegistrationInfo>::new();
 
     crate::private::iterate_plugins(|elem: &ClassPlugin| {
-        println!("* Plugin: {elem:#?}");
+        //println!("* Plugin: {elem:#?}");
 
         let name = ClassName::from_static(elem.class_name);
         let class_info = map
@@ -170,6 +170,7 @@ pub fn auto_register_classes() {
     println!("Class-map: {map:#?}");
 
     for info in map.into_values() {
+        println!(">> Reg class:   {}", info.class_name);
         register_class_raw(info);
     }
 
@@ -177,7 +178,8 @@ pub fn auto_register_classes() {
 }
 
 fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
-    println!("   --> comp:  {component:?}");
+    // println!("|   reg (before):    {c:?}");
+    // println!("|   comp:            {component:?}");
     match component {
         PluginComponent::ClassDef {
             base_class_name,
@@ -207,6 +209,8 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             c.godot_params.get_virtual_func = Some(get_virtual_fn);
         }
     }
+    // println!("|   reg (after):     {c:?}");
+    // println!();
 }
 
 fn register_class_raw(info: ClassRegistrationInfo) {
@@ -262,6 +266,12 @@ impl ClassName {
     }
 }
 
+impl Display for ClassName{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.backing[..self.backing.len()-1])
+    }
+}
+
 pub mod callbacks {
     use super::*;
     use crate::builder::ClassBuilder;
@@ -271,6 +281,8 @@ pub mod callbacks {
     ) -> sys::GDNativeObjectPtr {
         let class_name = ClassName::new::<T>();
         let base_class_name = ClassName::new::<T::Base>();
+
+        println!(">>>>> CREATE: {}", class_name.backing);
 
         let base = interface_fn!(classdb_construct_object)(base_class_name.c_str());
         let instance = InstanceStorage::<T>::construct_uninit(base);
