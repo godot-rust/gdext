@@ -187,7 +187,10 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             free_fn,
         } => {
             c.parent_class_name = Some(ClassName::from_static(base_class_name));
-            c.godot_params.create_instance_func = generated_create_fn;
+            fill_into(
+                &mut c.godot_params.create_instance_func,
+                generated_create_fn,
+            );
             c.godot_params.free_instance_func = Some(free_fn);
         }
 
@@ -204,13 +207,21 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             get_virtual_fn,
         } => {
             c.user_register_fn = user_register_fn;
-            c.godot_params.create_instance_func = user_create_fn;
+            fill_into(&mut c.godot_params.create_instance_func, user_create_fn);
             c.godot_params.to_string_func = user_to_string_fn;
             c.godot_params.get_virtual_func = Some(get_virtual_fn);
         }
     }
     // println!("|   reg (after):     {c:?}");
     // println!();
+}
+
+fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) {
+    match (dst, src) {
+        (dst @ None, src) => *dst = src,
+        (Some(_), Some(_)) => panic!("option already filled"),
+        (Some(_), None) => { /* do nothing */ }
+    }
 }
 
 fn register_class_raw(info: ClassRegistrationInfo) {
