@@ -277,9 +277,9 @@ impl ClassName {
     }
 }
 
-impl Display for ClassName{
+impl Display for ClassName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &self.backing[..self.backing.len()-1])
+        write!(f, "{}", &self.backing[..self.backing.len() - 1])
     }
 }
 

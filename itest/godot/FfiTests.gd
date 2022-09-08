@@ -4,12 +4,18 @@ func run() -> bool:
 	print("Run GDScript tests...")
 	var ok = true
 	#ok = ok && test_int()
+	#ok = ok && test_missing_init()
 	ok = ok && test_to_string()
 	print("[GD] RustFfi now out of scope.")
 
 	print("GDScript tests done (passed=", ok, ")")
 
 	return ok
+
+func test_missing_init() -> bool:
+	var obj = WithoutInit.new()
+	print("[GD] WithoutInit is: ", obj)
+	return true
 
 func test_int() -> bool:
 	var ffi = RustFfi.new()

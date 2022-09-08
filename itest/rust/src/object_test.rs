@@ -2,7 +2,7 @@ use crate::itest;
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
 
-use gdext_class::{out, Obj, Share, GodotMethods, Base};
+use gdext_class::{out, Base, GodotMethods, Obj, Share};
 use gdext_macros::{godot_api, GodotClass};
 use gdext_sys as sys;
 use std::cell::RefCell;

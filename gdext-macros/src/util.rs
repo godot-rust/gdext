@@ -197,21 +197,23 @@ pub(crate) fn ensure_kv_empty(map: KvMap, span: Span) -> ParseResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proc_macro2::TokenStream;
+    use quote::quote;
 
     macro_rules! hash_map {
-    (
-        $($key:expr => $value:expr),*
-        $(,)?
-    ) => {
-        {
-            let mut map = std::collections::HashMap::new();
-            $(
-                map.insert($key, $value);
-            )*
-            map
-        }
-    };
-}
+        (
+            $($key:expr => $value:expr),*
+            $(,)?
+        ) => {
+            {
+                let mut map = std::collections::HashMap::new();
+                $(
+                    map.insert($key, $value);
+                )*
+                map
+            }
+        };
+    }
 
     fn expect_parsed(input_tokens: TokenStream, output_map: KvMap) {
         let input = quote! {

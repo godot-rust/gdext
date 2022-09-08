@@ -159,7 +159,7 @@ fn parse_godot_attr(attributes: &Vec<Attribute>) -> ParseResult<Option<(Span, Kv
     let mut godot_attr = None;
     for attr in attributes.iter() {
         let path = &attr.path;
-        if path.len() == 1 || path[0].to_string() == "godot" {
+        if path.len() == 1 && path[0].to_string() == "godot" {
             if godot_attr.is_some() {
                 bail(
                     "Only one #[godot] attribute per item (struct, fn, ...) allowed",
