@@ -220,8 +220,8 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
     });
 
     quote! {
-        impl gdext_class::traits::GodotDefault for #class_name {
-            fn godot_default(base: gdext_class::Base<Self::Base>) -> Self {
+        impl gdext_class::traits::cap::GodotInit for #class_name {
+            fn __godot_init(base: gdext_class::Base<Self::Base>) -> Self {
                 Self {
                     #( #rest_init )*
                     #base_init

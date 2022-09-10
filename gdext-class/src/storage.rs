@@ -1,4 +1,4 @@
-use crate::{out, sys, Base, ClassName, ClassRuntimeInfo, GodotClass, GodotDefault, Obj};
+use crate::{cap, out, sys, Base, ClassName, ClassRuntimeInfo, GodotClass, Obj};
 use std::any::type_name;
 use std::mem;
 
@@ -36,21 +36,23 @@ impl Drop for LastDrop {
     }
 }
 
-impl<T: GodotDefault + GodotClass> InstanceStorage<T> {
+/// For classes that are Godot-constructible
+impl<T: cap::GodotInit> InstanceStorage<T> {
     pub fn initialize_default(&mut self) {
         out!("    Storage::initialize_default  <{}>", type_name::<T>());
 
         let base = Self::consume_base(&mut self.base_ptr);
-        self.initialize(T::godot_default(base));
+        self.initialize(T::__godot_init(base));
     }
 
     pub fn get_mut_lateinit(&mut self) -> &mut T {
         out!("    Storage::get_mut_lateinit      <{}>", type_name::<T>());
 
-        self.lateinit(|base| T::godot_default(base))
+        self.lateinit(|base| T::__godot_init(base))
     }
 }
 
+/// For all Godot extension classes
 impl<T: GodotClass> InstanceStorage<T> {
     pub fn construct_uninit(base: sys::GDNativeObjectPtr) -> Self {
         out!("    Storage::construct_uninit      <{}>", type_name::<T>());

@@ -159,7 +159,7 @@ struct ClassRegistrationInfo {
     godot_params: sys::GDNativeExtensionClassCreationInfo,
 }
 
-pub fn register_class<T: GodotMethods + GodotDefault>() {
+pub fn register_class<T: GodotMethods + cap::GodotInit + UserVirtuals>() {
     // TODO: provide overloads with only some trait impls
 
     println!("Manually register class {}", std::any::type_name::<T>());
@@ -425,17 +425,17 @@ pub mod callbacks {
     // Safe, higher-level methods
 
     /// Abstracts the `GodotInit` away, for contexts where this trait bound is not statically available
-    pub fn erased_init<T: GodotDefault>(base: Box<dyn Any>) -> Box<dyn Any> {
+    pub fn erased_init<T: cap::GodotInit>(base: Box<dyn Any>) -> Box<dyn Any> {
         let concrete = base
             .downcast::<Base<<T as GodotClass>::Base>>()
             .expect("erased_init: bad type erasure");
         let extracted: Base<_> = sys::unbox(concrete);
 
-        let instance = T::godot_default(extracted);
+        let instance = T::__godot_init(extracted);
         Box::new(instance)
     }
 
-    pub fn register_class_by_builder<T: GodotClass + GodotMethods>(_class_builder: &mut dyn Any) {
+    pub fn register_class_by_builder<T: GodotMethods>(_class_builder: &mut dyn Any) {
         // TODO use actual argument, once class builder carries state
         // let class_builder = class_builder
         //     .downcast_mut::<ClassBuilder<T>>()
@@ -445,7 +445,7 @@ pub mod callbacks {
         T::register_class(&mut class_builder);
     }
 
-    pub fn register_user_binds<T: GodotClass + UserMethodBinds>(_class_builder: &mut dyn Any) {
+    pub fn register_user_binds<T: UserMethodBinds>(_class_builder: &mut dyn Any) {
         // let class_builder = class_builder
         //     .downcast_mut::<ClassBuilder<T>>()
         //     .expect("bad type erasure");

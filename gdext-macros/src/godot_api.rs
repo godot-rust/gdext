@@ -145,8 +145,8 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
             "init" => {
                 godot_init_impl = quote! {
-                    impl gdext_class::traits::GodotDefault for #class_name {
-                        fn godot_default(base: gdext_class::Base<Self::Base>) -> Self {
+                    impl gdext_class::traits::cap::GodotInit for #class_name {
+                        fn __godot_init(base: gdext_class::Base<Self::Base>) -> Self {
                             <Self as gdext_class::traits::GodotMethods>::init(base)
                         }
                     }

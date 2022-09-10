@@ -280,7 +280,7 @@ impl UserMethodBinds for Tracker {
 impl UserVirtuals for Tracker {}
 impl GodotMethods for Tracker {}
 impl GodotDefault for Tracker {
-    fn godot_default(_base: Base<Self::Base>) -> Self {
+    fn __godot_init(_base: Base<Self::Base>) -> Self {
         panic!("not invoked")
     }
 }*/

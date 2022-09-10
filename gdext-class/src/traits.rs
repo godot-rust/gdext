@@ -189,10 +189,6 @@ pub trait EngineClass: GodotClass {
     fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
 }
 
-pub trait GodotDefault: GodotClass {
-    fn godot_default(base: Base<Self::Base>) -> Self;
-}
-
 #[allow(unused_variables)]
 pub trait GodotMethods
 where
@@ -227,6 +223,25 @@ where
     }
     fn to_string(&self) -> GodotString {
         unimplemented!()
+    }
+}
+
+/// Capability traits, providing dedicated functionalities for Godot classes
+pub mod cap {
+    use super::*;
+
+    /// Trait for all classes that are constructible from the Godot engine.
+    ///
+    /// Godot can only construct user-provided classes in one way: with the default
+    /// constructor. This is what happens when you write `MyClass.new()` in GDScript.
+    /// You can disable this constructor by not providing an `init` method for your
+    /// class; in that case construction fails.
+    ///
+    /// This trait is not manually implemented, and you cannot call its method.
+    /// Instead, the trait will be provided to you by the proc macros, and you can
+    /// use it as a bound.
+    pub trait GodotInit: GodotClass {
+        fn __godot_init(base: Base<Self::Base>) -> Self;
     }
 }
 

@@ -10,7 +10,7 @@ use crate::dom::Domain as _;
 use crate::mem::Memory as _;
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{api, dom, mem, out, ClassName, GodotClass, GodotDefault, Inherits, InstanceId, Share};
+use crate::{api, cap, dom, mem, out, ClassName, GodotClass, Inherits, InstanceId, Share};
 
 /// Smart pointer to objects owned by the Godot engine.
 ///
@@ -72,7 +72,7 @@ where
     /// This is equivalent to the GDScript expression `T.new()`.
     pub fn new_default() -> Self
     where
-        T: GodotDefault,
+        T: cap::GodotInit,
     {
         let class_name = ClassName::new::<T>();
         let result = unsafe {
