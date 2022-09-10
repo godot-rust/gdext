@@ -3,6 +3,150 @@ use crate::{sys, Base};
 use gdext_builtin::GodotString;
 use std::fmt::Debug;
 
+/// Makes `T` eligible to be managed by Godot and stored in [`Obj<T>`][crate::Obj] pointers.
+///
+/// The behavior of types implementing this trait is influenced by the associated types; check their documentation for information.
+pub trait GodotClass: Debug + 'static
+where
+    Self: Sized,
+{
+    /// The immediate superclass of `T`. This is always a Godot engine class.
+    type Base: GodotClass; // not EngineClass because it can be ()
+
+    /// Whether this class is a core Godot class provided by the engine, or declared by the user as a Rust struct.
+    // TODO what about GDScript user classes?
+    type Declarer: dom::Domain;
+
+    /// Defines the memory strategy.
+    type Mem: mem::Memory;
+
+    fn class_name() -> String;
+}
+
+/// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
+impl GodotClass for () {
+    type Base = ();
+    type Declarer = dom::EngineDomain;
+    type Mem = mem::ManualMemory;
+
+    fn class_name() -> String {
+        "(no base)".to_string()
+    }
+}
+
+/// Extension API for Godot classes, used with `#[godot_api]`.
+///
+/// Helps with adding custom functionality:
+/// * `init` constructors
+/// * `to_string` method
+/// * Custom register methods (builder style)
+/// * All the lifecycle methods like `ready`, `process` etc.
+///
+/// This trait is special in that it needs to be used in combination with the `#[godot_api]`
+/// proc-macro attribute to ensure proper registration of its methods. All methods have
+/// default implementations, so you can select precisely which functionality you want to have.
+/// Those default implementations are never called however, the proc-macro detects what you implement.
+///
+/// Do not call any of these methods directly -- they are an interface to Godot. Functionality
+/// described here is available through other means (e.g. `init` via `Gd::new_default`).
+#[allow(unused_variables)]
+pub trait GodotExt
+where
+    Self: GodotClass,
+{
+    // Note: keep in sync with VIRTUAL_METHOD_NAMES in godot_api.rs
+
+    // Some methods that were called:
+    // _enter_tree
+    // _input
+    // _shortcut_input
+    // _unhandled_input
+    // _unhandled_key_input
+    // _process
+    // _physics_process
+    // _ready
+
+    fn register_class(builder: &mut ClassBuilder<Self>) {}
+
+    fn init(base: Base<Self::Base>) -> Self {
+        unimplemented!()
+    }
+
+    fn ready(&mut self) {
+        unreachable!()
+    }
+    fn process(&mut self, delta: f64) {
+        unimplemented!()
+    }
+    fn physics_process(&mut self, delta: f64) {
+        unimplemented!()
+    }
+    fn to_string(&self) -> GodotString {
+        unimplemented!()
+    }
+}
+
+/// Trait to create more references from a smart pointer or collection.
+pub trait Share {
+    /// Creates a new reference that points to the same object.
+    ///
+    /// If the referred-to object is reference-counted, this will increment the count.
+    fn share(&self) -> Self;
+}
+
+/// A struct `Derived` implementing `Inherits<Base>` expresses that `Derived` _strictly_ inherits `Base` in the Godot hierarchy.
+///
+/// This trait is implemented for all Godot engine classes, even for non-direct relations (e.g. `Node3D` implements `Inherits<Object>`). Deriving [`GodotClass`] for custom classes will achieve the same: all direct and indirect base
+/// classes of your extension class will be wired up using the `Inherits` relation.
+///
+/// The trait is not reflexive: `T` never implements `Inherits<T>`.
+pub trait Inherits<Base> {}
+
+/// Auto-implemented for all engine-native classes
+pub trait EngineClass: GodotClass {
+    fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
+    fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Capability traits, providing dedicated functionalities for Godot classes
+pub mod cap {
+    use super::*;
+
+    /// Trait for all classes that are constructible from the Godot engine.
+    ///
+    /// Godot can only construct user-provided classes in one way: with the default
+    /// constructor. This is what happens when you write `MyClass.new()` in GDScript.
+    /// You can disable this constructor by not providing an `init` method for your
+    /// class; in that case construction fails.
+    ///
+    /// This trait is not manually implemented, and you cannot call its method.
+    /// Instead, the trait will be provided to you by the proc macros, and you can
+    /// use it as a bound.
+    pub trait GodotInit: GodotClass {
+        #[doc(hidden)]
+        fn __godot_init(base: Base<Self::Base>) -> Self;
+    }
+
+    /// Auto-implemented for `#[godot_api] impl MyClass` blocks
+    pub trait ImplementsGodotApi: GodotClass {
+        #[doc(hidden)]
+        fn __register_methods();
+    }
+
+    /// Auto-implemented for `#[godot_api] impl GodotExt for MyClass` blocks
+    pub trait ImplementsGodotExt: GodotClass {
+        #[doc(hidden)]
+        fn __virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
+            None // TODO
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Domain + Memory classifiers
+
 mod private {
     pub trait Sealed {}
 }
@@ -150,145 +294,3 @@ pub mod mem {
     }
     impl PossiblyManual for ManualMemory {}
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Makes `T` eligible to be managed by Godot and stored in [`Obj<T>`][crate::Obj] pointers.
-///
-/// The behavior of types implementing this trait is influenced by the associated types; check their documentation for information.
-pub trait GodotClass: Debug + 'static
-where
-    Self: Sized,
-{
-    /// The immediate superclass of `T`. This is always a Godot engine class.
-    type Base: GodotClass; // not EngineClass because it can be ()
-
-    /// Whether this class is a core Godot class provided by the engine, or declared by the user as a Rust struct.
-    // TODO what about GDScript user classes?
-    type Declarer: dom::Domain;
-
-    /// Defines the memory strategy.
-    type Mem: mem::Memory;
-
-    fn class_name() -> String;
-}
-
-/// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
-impl GodotClass for () {
-    type Base = ();
-    type Declarer = dom::EngineDomain;
-    type Mem = mem::ManualMemory;
-
-    fn class_name() -> String {
-        "(no base)".to_string()
-    }
-}
-
-pub trait EngineClass: GodotClass {
-    fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
-    fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
-}
-
-/// Extension API for Godot classes, used with `#[godot_api]`.
-///
-/// Helps with adding custom functionality:
-/// * `init` constructors
-/// * `to_string` method
-/// * Custom register methods (builder style)
-/// * All the lifecycle methods like `ready`, `process` etc.
-///
-/// This trait is special in that it needs to be used in combination with the `#[godot_api]`
-/// proc-macro attribute to ensure proper registration of its methods. All methods have
-/// default implementations, so you can select precisely which functionality you want to have.
-/// Those default implementations are never called however, the proc-macro detects what you implement.
-///
-/// Do not call any of these methods directly -- they are an interface to Godot. Functionality
-/// described here is available through other means (e.g. `init` via `Gd::new_default`).
-#[allow(unused_variables)]
-pub trait GodotExt
-where
-    Self: GodotClass,
-{
-    // Note: keep in sync with VIRTUAL_METHOD_NAMES in godot_api.rs
-
-    // Some methods that were called:
-    // _enter_tree
-    // _input
-    // _shortcut_input
-    // _unhandled_input
-    // _unhandled_key_input
-    // _process
-    // _physics_process
-    // _ready
-
-    fn register_class(builder: &mut ClassBuilder<Self>) {}
-
-    fn init(base: Base<Self::Base>) -> Self {
-        unimplemented!()
-    }
-
-    fn ready(&mut self) {
-        unreachable!()
-    }
-    fn process(&mut self, delta: f64) {
-        unimplemented!()
-    }
-    fn physics_process(&mut self, delta: f64) {
-        unimplemented!()
-    }
-    fn to_string(&self) -> GodotString {
-        unimplemented!()
-    }
-}
-
-/// Capability traits, providing dedicated functionalities for Godot classes
-pub mod cap {
-    use super::*;
-
-    /// Trait for all classes that are constructible from the Godot engine.
-    ///
-    /// Godot can only construct user-provided classes in one way: with the default
-    /// constructor. This is what happens when you write `MyClass.new()` in GDScript.
-    /// You can disable this constructor by not providing an `init` method for your
-    /// class; in that case construction fails.
-    ///
-    /// This trait is not manually implemented, and you cannot call its method.
-    /// Instead, the trait will be provided to you by the proc macros, and you can
-    /// use it as a bound.
-    pub trait GodotInit: GodotClass {
-        #[doc(hidden)]
-        fn __godot_init(base: Base<Self::Base>) -> Self;
-    }
-
-    /// Auto-implemented for `#[godot_api] impl MyClass` blocks
-    pub trait ImplementsGodotApi: GodotClass {
-        #[doc(hidden)]
-        fn __register_methods();
-    }
-
-    /// Auto-implemented for `#[godot_api] impl GodotExt for MyClass` blocks
-    pub trait ImplementsGodotExt: GodotClass {
-        #[doc(hidden)]
-        fn __virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-            None // TODO
-        }
-    }
-}
-
-/// Trait to create more references from a smart pointer or collection.
-pub trait Share {
-    /// Creates a new reference that points to the same object.
-    ///
-    /// If the referred-to object is reference-counted, this will increment the count.
-    fn share(&self) -> Self;
-}
-
-/// A struct `Derived` implementing `Inherits<Base>` expresses that `Derived` _strictly_ inherits `Base` in the Godot hierarchy.
-///
-/// This trait is implemented for all Godot engine classes, even for non-direct relations (e.g. `Node3D` implements `Inherits<Object>`). Deriving [`GodotClass`] for custom classes will achieve the same: all direct and indirect base
-/// classes of your extension class will be wired up using the `Inherits` relation.
-///
-/// The trait is not reflexive: `T` never implements `Inherits<T>`.
-pub trait Inherits<Base> {}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
