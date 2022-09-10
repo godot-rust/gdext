@@ -2,7 +2,7 @@ use crate::itest;
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
 
-use gdext_class::{out, Base, GodotMethods, Obj, Share};
+use gdext_class::{out, Base, GodotExt, Obj, Share};
 use gdext_macros::{godot_api, GodotClass};
 use gdext_sys as sys;
 use std::cell::RefCell;
@@ -253,7 +253,7 @@ pub struct ObjPayload {
 }
 
 #[godot_api]
-impl GodotMethods for ObjPayload {
+impl GodotExt for ObjPayload {
     fn init(_base: Base<Self::Base>) -> Self {
         Self { value: 111 }
     }
@@ -278,7 +278,7 @@ impl UserMethodBinds for Tracker {
     fn register_methods() {}
 }
 impl UserVirtuals for Tracker {}
-impl GodotMethods for Tracker {}
+impl GodotExt for Tracker {}
 impl GodotDefault for Tracker {
     fn __godot_init(_base: Base<Self::Base>) -> Self {
         panic!("not invoked")

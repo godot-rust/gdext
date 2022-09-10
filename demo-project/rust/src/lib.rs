@@ -321,7 +321,7 @@ impl cap::ImplementsGodotApi for Entity {
 }
 
 #[godot_api]
-impl GodotMethods for Entity {
+impl GodotExt for Entity {
     fn to_string(&self) -> GodotString {
         format!("{self:?}").into()
     }

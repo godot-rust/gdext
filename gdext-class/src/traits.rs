@@ -189,8 +189,23 @@ pub trait EngineClass: GodotClass {
     fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
 }
 
+/// Extension API for Godot classes, used with `#[godot_api]`.
+///
+/// Helps with adding custom functionality:
+/// * `init` constructors
+/// * `to_string` method
+/// * Custom register methods (builder style)
+/// * All the lifecycle methods like `ready`, `process` etc.
+///
+/// This trait is special in that it needs to be used in combination with the `#[godot_api]`
+/// proc-macro attribute to ensure proper registration of its methods. All methods have
+/// default implementations, so you can select precisely which functionality you want to have.
+/// Those default implementations are never called however, the proc-macro detects what you implement.
+///
+/// Do not call any of these methods directly -- they are an interface to Godot. Functionality
+/// described here is available through other means (e.g. `init` via `Gd::new_default`).
 #[allow(unused_variables)]
-pub trait GodotMethods
+pub trait GodotExt
 where
     Self: GodotClass,
 {
@@ -253,6 +268,7 @@ pub mod cap {
 
     /// Auto-implemented for `#[godot_api] impl GodotExt for MyClass` blocks
     pub trait ImplementsGodotExt: GodotClass {
+        #[doc(hidden)]
         fn __virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
             None // TODO
         }
@@ -274,3 +290,5 @@ pub trait Share {
 ///
 /// The trait is not reflexive: `T` never implements `Inherits<T>`.
 pub trait Inherits<Base> {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------

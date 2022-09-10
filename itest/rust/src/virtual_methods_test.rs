@@ -2,7 +2,7 @@
 
 use gdext_builtin::GodotString;
 use gdext_class::api::RefCounted;
-use gdext_class::{Base, GodotMethods, Obj};
+use gdext_class::{Base, GodotExt, Obj};
 use gdext_macros::{godot_api, itest, GodotClass};
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
@@ -26,7 +26,7 @@ struct VirtualMethodTest {
 impl VirtualMethodTest {}
 
 #[godot_api]
-impl GodotMethods for VirtualMethodTest {
+impl GodotExt for VirtualMethodTest {
     fn to_string(&self) -> GodotString {
         format!("VirtualMethodTest[integer={}]", self.integer).into()
     }

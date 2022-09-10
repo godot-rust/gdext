@@ -4,7 +4,7 @@ use proc_macro2::{Ident, Punct, Spacing, TokenStream};
 use quote::quote;
 use venial::{Declaration, Error, Function, Impl, ImplMember};
 
-// Note: keep in sync with trait GodotMethods
+// Note: keep in sync with trait GodotExt
 const VIRTUAL_METHOD_NAMES: [&'static str; 3] = ["ready", "process", "physics_process"];
 
 pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
@@ -113,7 +113,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Codegen for `#[godot_api] impl GodotMethods for MyType`
+/// Codegen for `#[godot_api] impl GodotExt for MyType`
 fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let class_name = validate_trait_impl(&original_impl, true)?;
     let class_name_str = class_name.to_string();
@@ -147,7 +147,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                 godot_init_impl = quote! {
                     impl gdext_class::traits::cap::GodotInit for #class_name {
                         fn __godot_init(base: gdext_class::Base<Self::Base>) -> Self {
-                            <Self as gdext_class::traits::GodotMethods>::init(base)
+                            <Self as gdext_class::traits::GodotExt>::init(base)
                         }
                     }
                 };
@@ -174,7 +174,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
             // Unknown methods which are declared inside trait impl are not supported (possibly compiler catches those first anyway)
             other_name => {
                 return bail(
-                    format!("Unsupported GodotMethods method: {}", other_name),
+                    format!("Unsupported GodotExt method: {}", other_name),
                     method,
                 )
             }
@@ -218,9 +218,9 @@ fn validate_trait_impl(original_impl: &Impl, has_trait: bool) -> ParseResult<Ide
     if has_trait {
         // impl Trait for Self -- validate Trait
         let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
-        if !extract_typename(&trait_name).map_or(false, |seg| seg.ident == "GodotMethods") {
+        if !extract_typename(&trait_name).map_or(false, |seg| seg.ident == "GodotExt") {
             return bail(
-                "#[godot_api] for trait impls requires trait to be `GodotMethods`",
+                "#[godot_api] for trait impls requires trait to be `GodotExt`",
                 &original_impl,
             );
         }

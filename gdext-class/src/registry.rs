@@ -80,7 +80,7 @@ pub enum PluginComponent {
         generated_register_fn: ErasedRegisterFn,
     },
 
-    /// Collected from `#[godot_api] impl GodotMethods for MyClass`
+    /// Collected from `#[godot_api] impl GodotExt for MyClass`
     UserVirtuals {
         /// Callback to user-defined `register_class` function
         user_register_fn: Option<ErasedRegisterFn>,
@@ -159,7 +159,7 @@ struct ClassRegistrationInfo {
     godot_params: sys::GDNativeExtensionClassCreationInfo,
 }
 
-pub fn register_class<T: GodotMethods + cap::GodotInit + cap::ImplementsGodotExt>() {
+pub fn register_class<T: GodotExt + cap::GodotInit + cap::ImplementsGodotExt>() {
     // TODO: provide overloads with only some trait impls
 
     println!("Manually register class {}", std::any::type_name::<T>());
@@ -394,7 +394,7 @@ pub mod callbacks {
         T::__virtual_call(name.to_str().expect("T::virtual_call"))
     }
 
-    pub unsafe extern "C" fn to_string<T: GodotMethods>(
+    pub unsafe extern "C" fn to_string<T: GodotExt>(
         instance: sys::GDExtensionClassInstancePtr,
         out_string: sys::GDNativeStringPtr,
     ) {
@@ -403,7 +403,7 @@ pub mod callbacks {
         // statically implement the GodotInit trait (and if it doesn't, it will already be initialized).
         let storage = as_storage::<T>(instance);
         let instance = storage.get_dyn_lateinit();
-        let string = GodotMethods::to_string(instance);
+        let string = GodotExt::to_string(instance);
 
         // Transfer ownership to Godot, disable destructor
         string.write_string_sys(out_string);
@@ -435,7 +435,7 @@ pub mod callbacks {
         Box::new(instance)
     }
 
-    pub fn register_class_by_builder<T: GodotMethods>(_class_builder: &mut dyn Any) {
+    pub fn register_class_by_builder<T: GodotExt>(_class_builder: &mut dyn Any) {
         // TODO use actual argument, once class builder carries state
         // let class_builder = class_builder
         //     .downcast_mut::<ClassBuilder<T>>()
