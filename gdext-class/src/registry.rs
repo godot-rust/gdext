@@ -3,11 +3,15 @@
 use crate::private::as_storage;
 use crate::storage::InstanceStorage;
 use crate::traits::*;
+use std::any::Any;
 
+use once_cell::unsync::Lazy;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ptr;
+use std::sync::Mutex;
 
+use crate::Base;
 use gdext_sys as sys;
 use sys::interface_fn;
 
@@ -23,24 +27,24 @@ pub struct ErasedRegisterFn {
     // Wrapper needed because Debug can't be derived on function pointers with reference parameters, so this won't work:
     // pub type ErasedRegisterFn = fn(&mut dyn std::any::Any);
     // (see https://stackoverflow.com/q/53380040)
-    pub raw: fn(&mut dyn std::any::Any),
+    pub raw: fn(&mut dyn Any),
 }
 
-// impl ErasedRegisterFn {
-//     pub fn from_concrete<T>(function: fn(&mut ClassBuilder<T>)) -> Self {
-//         let erased_fn = |class_builder: &mut dyn std::any::Any| {
-//             let class_builder = class_builder
-//                 .downcast_mut::<ClassBuilder<T>>()
-//                 .expect("bad type erasure");
-//
-//             function(class_builder);
-//         };
-//
-//         Self { raw: erased_fn }
-//     }
-// }
+/// Type-erased function object, holding a `init` function.
+#[derive(Copy, Clone)]
+pub struct ErasedInitFn {
+    // Wrapper needed because Debug can't be derived on function pointers with reference parameters, so this won't work:
+    // pub type ErasedRegisterFn = fn(&mut dyn std::any::Any);
+    // (see https://stackoverflow.com/q/53380040)
+    pub raw: fn(Box<dyn Any>) -> Box<dyn Any>,
+}
 
 impl std::fmt::Debug for ErasedRegisterFn {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{:0>16x}", self.raw as u64)
+    }
+}
+impl std::fmt::Debug for ErasedInitFn {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "0x{:0>16x}", self.raw as u64)
     }
@@ -52,11 +56,15 @@ pub enum PluginComponent {
     ClassDef {
         base_class_name: &'static str,
 
+        /// Godot low-level`create` function, wired up to library-generated `init`
         generated_create_fn: Option<
             unsafe extern "C" fn(
                 _class_userdata: *mut std::ffi::c_void, //
             ) -> sys::GDNativeObjectPtr,
         >,
+
+        /// Type-erased version of `init`
+        generated_erased_init_fn: Option<ErasedInitFn>,
 
         free_fn: unsafe extern "C" fn(
             _class_user_data: *mut std::ffi::c_void,
@@ -77,12 +85,15 @@ pub enum PluginComponent {
         /// Callback to user-defined `register_class` function
         user_register_fn: Option<ErasedRegisterFn>,
 
-        /// User-defined `init` function
+        /// Godot low-level`create` function, wired up to the user's `init`
         user_create_fn: Option<
             unsafe extern "C" fn(
                 _class_userdata: *mut std::ffi::c_void, //
             ) -> sys::GDNativeObjectPtr,
         >,
+
+        /// Type-erased version of `init`
+        user_erased_init_fn: Option<ErasedInitFn>,
 
         /// User-defined `to_string` function
         user_to_string_fn: Option<
@@ -100,7 +111,55 @@ pub enum PluginComponent {
     },
 }
 
-pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Information that is stored at runtime for each class, even after plugin components are unloaded.
+#[derive(Clone)]
+pub(crate) struct ClassRuntimeInfo {
+    /// `create` function -- either user/library generated or not available
+    /*pub create_fn: Option<
+        unsafe extern "C" fn(
+            _class_userdata: *mut std::ffi::c_void, //
+        ) -> sys::GDNativeObjectPtr,
+    >,*/
+    pub erased_init_fn: Option<ErasedInitFn>,
+}
+
+impl ClassRuntimeInfo {
+    fn insert(class_name: ClassName, info: Self) {
+        let mut guard = GDEXT_CLASS_RUNTIME_MAP.lock().unwrap();
+        if guard.insert(class_name.clone(), info).is_some() {
+            panic!("class `{}` already added to runtime", class_name);
+        }
+    }
+
+    pub(crate) fn get(class_name: &ClassName) -> Self {
+        let guard = GDEXT_CLASS_RUNTIME_MAP.lock().unwrap();
+        guard
+            .get(class_name)
+            .expect("class not added to runtime")
+            .clone()
+    }
+}
+
+// TODO: RwLock and not Mutex, because this is only populated at loading time and then no longer accessed mutably
+// TODO: move to user-data ptr per class
+static GDEXT_CLASS_RUNTIME_MAP: Mutex<Lazy<HashMap<ClassName, ClassRuntimeInfo>>> =
+    Mutex::new(Lazy::new(|| HashMap::new()));
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(Debug)]
+struct ClassRegistrationInfo {
+    class_name: ClassName,
+    parent_class_name: Option<ClassName>,
+    generated_register_fn: Option<ErasedRegisterFn>,
+    user_register_fn: Option<ErasedRegisterFn>,
+    init_fn: Option<ErasedInitFn>,
+    godot_params: sys::GDNativeExtensionClassCreationInfo,
+}
+
+pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods + GodotDefault>() {
     println!("Manually register class {}", std::any::type_name::<T>());
 
     let godot_params = sys::GDNativeExtensionClassCreationInfo {
@@ -132,17 +191,11 @@ pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods>() {
         user_register_fn: Some(ErasedRegisterFn {
             raw: callbacks::register_class_by_builder::<T>,
         }),
+        init_fn: Some(ErasedInitFn {
+            raw: callbacks::erased_init::<T>,
+        }),
         godot_params,
     });
-}
-
-#[derive(Debug)]
-struct ClassRegistrationInfo {
-    class_name: ClassName,
-    parent_class_name: Option<ClassName>,
-    generated_register_fn: Option<ErasedRegisterFn>,
-    user_register_fn: Option<ErasedRegisterFn>,
-    godot_params: sys::GDNativeExtensionClassCreationInfo,
 }
 
 /// Lets Godot know about all classes that have self-registered through the plugin system.
@@ -184,6 +237,7 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
         PluginComponent::ClassDef {
             base_class_name,
             generated_create_fn,
+            generated_erased_init_fn,
             free_fn,
         } => {
             c.parent_class_name = Some(ClassName::from_static(base_class_name));
@@ -191,6 +245,7 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
                 &mut c.godot_params.create_instance_func,
                 generated_create_fn,
             );
+            fill_into(&mut c.init_fn, generated_erased_init_fn);
             c.godot_params.free_instance_func = Some(free_fn);
         }
 
@@ -203,11 +258,13 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
         PluginComponent::UserVirtuals {
             user_register_fn,
             user_create_fn,
+            user_erased_init_fn,
             user_to_string_fn,
             get_virtual_fn,
         } => {
             c.user_register_fn = user_register_fn;
             fill_into(&mut c.godot_params.create_instance_func, user_create_fn);
+            fill_into(&mut c.init_fn, user_erased_init_fn);
             c.godot_params.to_string_func = user_to_string_fn;
             c.godot_params.get_virtual_func = Some(get_virtual_fn);
         }
@@ -237,7 +294,7 @@ fn register_class_raw(info: ClassRegistrationInfo) {
         );
     }
 
-    // ...then custom symbols
+    // ...then custom symbols...
 
     //let mut class_builder = crate::builder::ClassBuilder::<?>::new();
     let mut class_builder = 0; // TODO dummy argument; see callbacks
@@ -250,6 +307,14 @@ fn register_class_raw(info: ClassRegistrationInfo) {
     if let Some(register_fn) = info.user_register_fn {
         (register_fn.raw)(&mut class_builder);
     }
+
+    // ...and finally the runtime map
+    ClassRuntimeInfo::insert(
+        info.class_name,
+        ClassRuntimeInfo {
+            erased_init_fn: info.init_fn,
+        },
+    );
 }
 
 /// Utility to convert `String` to C `const char*`.
@@ -356,9 +421,20 @@ pub mod callbacks {
         storage.on_dec_ref();
     }
 
-    pub fn register_class_by_builder<T: GodotClass + GodotMethods>(
-        _class_builder: &mut dyn std::any::Any,
-    ) {
+    // Safe, higher-level methods
+
+    /// Abstracts the `GodotInit` away, for contexts where this trait bound is not statically available
+    pub fn erased_init<T: GodotDefault>(base: Box<dyn Any>) -> Box<dyn Any> {
+        let concrete = base
+            .downcast::<Base<<T as GodotClass>::Base>>()
+            .expect("erased_init: bad type erasure");
+        let extracted: Base<_> = sys::unbox(concrete);
+
+        let instance = T::godot_default(extracted);
+        Box::new(instance)
+    }
+
+    pub fn register_class_by_builder<T: GodotClass + GodotMethods>(_class_builder: &mut dyn Any) {
         // TODO use actual argument, once class builder carries state
         // let class_builder = class_builder
         //     .downcast_mut::<ClassBuilder<T>>()
@@ -368,9 +444,7 @@ pub mod callbacks {
         T::register_class(&mut class_builder);
     }
 
-    pub fn register_user_binds<T: GodotClass + UserMethodBinds>(
-        _class_builder: &mut dyn std::any::Any,
-    ) {
+    pub fn register_user_binds<T: GodotClass + UserMethodBinds>(_class_builder: &mut dyn Any) {
         // let class_builder = class_builder
         //     .downcast_mut::<ClassBuilder<T>>()
         //     .expect("bad type erasure");
@@ -389,6 +463,7 @@ fn default_creation_info(class_name: ClassName) -> ClassRegistrationInfo {
         parent_class_name: None,
         generated_register_fn: None,
         user_register_fn: None,
+        init_fn: None,
         godot_params: sys::GDNativeExtensionClassCreationInfo {
             set_func: None,
             get_func: None,

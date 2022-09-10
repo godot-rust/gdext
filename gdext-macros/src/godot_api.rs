@@ -121,6 +121,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let mut godot_init_impl = TokenStream::new();
     let mut register_fn = quote! { None };
     let mut create_fn = quote! { None };
+    let mut erased_init_fn = quote! { None };
     let mut to_string_fn = quote! { None };
     let mut virtual_methods = vec![];
     let mut virtual_method_names = vec![];
@@ -151,6 +152,11 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                     }
                 };
                 create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
+                erased_init_fn = quote! {
+                    Some(#prv::ErasedInitFn {
+                        raw: #prv::callbacks::erased_init::<#class_name>,
+                    })
+                };
             }
 
             "to_string" => {
@@ -197,6 +203,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
             component: #prv::PluginComponent::UserVirtuals {
                 user_register_fn: #register_fn,
                 user_create_fn: #create_fn,
+                user_erased_init_fn: #erased_init_fn,
                 user_to_string_fn: #to_string_fn,
                 get_virtual_fn: #prv::callbacks::get_virtual::<#class_name>,
             },

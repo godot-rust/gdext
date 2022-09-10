@@ -156,3 +156,9 @@ unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
         None => std::hint::unreachable_unchecked(),
     }
 }
+
+/// Extract value from box before `into_inner()` is stable
+pub fn unbox<T>(value: Box<T>) -> T {
+    // Deref-move is a Box magic feature; see https://stackoverflow.com/a/42264074
+    *value
+}
