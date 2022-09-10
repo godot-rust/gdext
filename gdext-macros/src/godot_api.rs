@@ -50,9 +50,9 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let result = quote! {
         #decl
 
-        impl gdext_class::traits::UserMethodBinds for #class_name {
-            //fn register_methods(_builder: &mut gdext_class::builder::ClassBuilder<Self>) {
-            fn register_methods() {
+        impl gdext_class::traits::cap::ImplementsGodotApi for #class_name {
+            //fn __register_methods(_builder: &mut gdext_class::builder::ClassBuilder<Self>) {
+            fn __register_methods() {
                 #(
                     gdext_class::gdext_register_method!(#class_name, #methods);
                 )*
@@ -185,8 +185,8 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         #original_impl
         #godot_init_impl
 
-        impl gdext_class::traits::UserVirtuals for #class_name {
-            fn virtual_call(name: &str) -> gdext_sys::GDNativeExtensionClassCallVirtual {
+        impl gdext_class::traits::cap::ImplementsGodotExt for #class_name {
+            fn __virtual_call(name: &str) -> gdext_sys::GDNativeExtensionClassCallVirtual {
                 println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
 
                 match name {

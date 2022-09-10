@@ -159,7 +159,7 @@ struct ClassRegistrationInfo {
     godot_params: sys::GDNativeExtensionClassCreationInfo,
 }
 
-pub fn register_class<T: GodotMethods + cap::GodotInit + UserVirtuals>() {
+pub fn register_class<T: GodotMethods + cap::GodotInit + cap::ImplementsGodotExt>() {
     // TODO: provide overloads with only some trait impls
 
     println!("Manually register class {}", std::any::type_name::<T>());
@@ -386,12 +386,12 @@ pub mod callbacks {
         Box::from_raw(storage as *mut InstanceStorage<_>); // aka. drop
     }
 
-    pub unsafe extern "C" fn get_virtual<T: UserVirtuals>(
+    pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotExt>(
         _class_user_data: *mut std::ffi::c_void,
         p_name: *const std::os::raw::c_char,
     ) -> sys::GDNativeExtensionClassCallVirtual {
         let name = std::ffi::CStr::from_ptr(p_name);
-        T::virtual_call(name.to_str().expect("T::virtual_call"))
+        T::__virtual_call(name.to_str().expect("T::virtual_call"))
     }
 
     pub unsafe extern "C" fn to_string<T: GodotMethods>(
@@ -445,13 +445,13 @@ pub mod callbacks {
         T::register_class(&mut class_builder);
     }
 
-    pub fn register_user_binds<T: UserMethodBinds>(_class_builder: &mut dyn Any) {
+    pub fn register_user_binds<T: cap::ImplementsGodotApi>(_class_builder: &mut dyn Any) {
         // let class_builder = class_builder
         //     .downcast_mut::<ClassBuilder<T>>()
         //     .expect("bad type erasure");
 
         //T::register_methods(class_builder);
-        T::register_methods();
+        T::__register_methods();
     }
 }
 

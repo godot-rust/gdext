@@ -241,17 +241,21 @@ pub mod cap {
     /// Instead, the trait will be provided to you by the proc macros, and you can
     /// use it as a bound.
     pub trait GodotInit: GodotClass {
+        #[doc(hidden)]
         fn __godot_init(base: Base<Self::Base>) -> Self;
     }
-}
 
-pub trait UserMethodBinds: GodotClass {
-    fn register_methods();
-}
+    /// Auto-implemented for `#[godot_api] impl MyClass` blocks
+    pub trait ImplementsGodotApi: GodotClass {
+        #[doc(hidden)]
+        fn __register_methods();
+    }
 
-pub trait UserVirtuals: GodotClass {
-    fn virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-        None // TODO
+    /// Auto-implemented for `#[godot_api] impl GodotExt for MyClass` blocks
+    pub trait ImplementsGodotExt: GodotClass {
+        fn __virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
+            None // TODO
+        }
     }
 }
 

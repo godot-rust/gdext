@@ -284,7 +284,7 @@ impl GodotClass for Entity {
     // }
 }
 
-impl UserMethodBinds for Entity {
+impl cap::ImplementsGodotApi for Entity {
     // fn construct(base: sys::GDNativeObjectPtr) -> Self {
     //     out!("[Entity] construct");
     //
@@ -309,7 +309,7 @@ impl UserMethodBinds for Entity {
         }
     }
 
-    fn register_methods() {
+    fn __register_methods() {
         // gdext_register_method!(Entity,
         //     fn _to_string(&mut self) -> GodotString;
         // );
