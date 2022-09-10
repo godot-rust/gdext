@@ -173,6 +173,7 @@ where
     fn class_name() -> String;
 }
 
+/// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
 impl GodotClass for () {
     type Base = ();
     type Declarer = dom::EngineDomain;
@@ -192,12 +193,13 @@ pub trait GodotDefault: GodotClass {
     fn godot_default(base: Base<Self::Base>) -> Self;
 }
 
-// Note: keep in sync with VIRTUAL_METHOD_NAMES in godot_api.rs
 #[allow(unused_variables)]
 pub trait GodotMethods
 where
     Self: GodotClass,
 {
+    // Note: keep in sync with VIRTUAL_METHOD_NAMES in godot_api.rs
+
     // Some methods that were called:
     // _enter_tree
     // _input
@@ -229,28 +231,14 @@ where
 }
 
 pub trait UserMethodBinds: GodotClass {
-    // fn reference(&mut self) {}
-    // fn unreference(&mut self) {}
     fn register_methods();
 }
 
 pub trait UserVirtuals: GodotClass {
-    fn has_to_string() -> bool {
-        false
-    }
-
     fn virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
         None // TODO
     }
-
-    fn internal_to_string(&self) -> GodotString {
-        unimplemented!()
-    }
 }
-
-// pub struct UserVirtuals<T> {
-//     to_string: Option<fn(&T) -> GodotString>,
-// }
 
 /// Trait to create more references from a smart pointer or collection.
 pub trait Share {
@@ -262,7 +250,8 @@ pub trait Share {
 
 /// A struct `Derived` implementing `Inherits<Base>` expresses that `Derived` _strictly_ inherits `Base` in the Godot hierarchy.
 ///
-/// This trait is implemented for all Godot engine classes, even for non-direct relations (e.g. `Node3D` implements `Inherits<Object>`).
+/// This trait is implemented for all Godot engine classes, even for non-direct relations (e.g. `Node3D` implements `Inherits<Object>`). Deriving [`GodotClass`] for custom classes will achieve the same: all direct and indirect base
+/// classes of your extension class will be wired up using the `Inherits` relation.
 ///
 /// The trait is not reflexive: `T` never implements `Inherits<T>`.
 pub trait Inherits<Base> {}

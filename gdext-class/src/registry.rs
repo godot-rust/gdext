@@ -159,7 +159,9 @@ struct ClassRegistrationInfo {
     godot_params: sys::GDNativeExtensionClassCreationInfo,
 }
 
-pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods + GodotDefault>() {
+pub fn register_class<T: GodotMethods + GodotDefault>() {
+    // TODO: provide overloads with only some trait impls
+
     println!("Manually register class {}", std::any::type_name::<T>());
 
     let godot_params = sys::GDNativeExtensionClassCreationInfo {
@@ -170,11 +172,7 @@ pub fn register_class<T: UserMethodBinds + UserVirtuals + GodotMethods + GodotDe
         property_can_revert_func: None,
         property_get_revert_func: None,
         notification_func: None,
-        to_string_func: if T::has_to_string() {
-            Some(callbacks::to_string::<T>)
-        } else {
-            None
-        },
+        to_string_func: Some(callbacks::to_string::<T>),
         reference_func: Some(callbacks::reference::<T>),
         unreference_func: Some(callbacks::unreference::<T>),
         create_instance_func: Some(callbacks::create::<T>),
