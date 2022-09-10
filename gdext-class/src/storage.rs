@@ -47,25 +47,7 @@ impl<T: GodotDefault + GodotClass> InstanceStorage<T> {
     pub fn get_mut_lateinit(&mut self) -> &mut T {
         out!("    Storage::get_mut_lateinit      <{}>", type_name::<T>());
 
-        // We need to provide lazy initialization for ptrcalls and varcalls coming from the engine.
-        // The `create_instance_func` callback cannot know yet how to initialize the instance (a user
-        // could provide an initial value, or use default construction). Since this method is used
-        // for both construction from Rust (through Obj) and from GDScript (through T.new()), this
-        // initializes the value lazily.
-        let result = self.user_instance.get_or_insert_with(|| {
-            out!("    Storage::lateinit              <{}>", type_name::<T>());
-
-            let base = Self::consume_base(&mut self.base_ptr);
-            T::godot_default(base)
-        });
-
-        assert!(matches!(
-            self.lifecycle,
-            Lifecycle::Initializing | Lifecycle::Alive
-        ));
-        self.lifecycle = Lifecycle::Alive;
-
-        result
+        self.lateinit(|base| T::godot_default(base))
     }
 }
 
@@ -135,26 +117,32 @@ impl<T: GodotClass> InstanceStorage<T> {
     pub fn get_dyn_lateinit(&mut self) -> &T {
         out!("    Storage::get_dyn_lateinit      <{}>", type_name::<T>());
 
-        // We need to provide lazy initialization for ptrcalls and varcalls coming from the engine.
-        // The `create_instance_func` callback cannot know yet how to initialize the instance (a user
-        // could provide an initial value, or use default construction). Since this method is used
-        // for both construction from Rust (through Obj) and from GDScript (through T.new()), this
-        // initializes the value lazily.
-        let result = self.user_instance.get_or_insert_with(|| {
-            out!("    Storage::dyn_lateinit          <{}>", type_name::<T>());
-
-            let base = Self::consume_base(&mut self.base_ptr);
-            // T::godot_default(base)
+        self.lateinit(|base| {
             let class_info = ClassRuntimeInfo::get(&ClassName::new::<T>());
             if let Some(erased_init_fn) = class_info.erased_init_fn {
                 // Optimization: use type-erased Base with same layout, avoid boxing
                 let any_base = Box::new(base);
                 let result = (erased_init_fn.raw)(any_base);
-                let instance= result.downcast::<T>().expect("erased_init_fn result: bad type erasure");
+                let instance = result.downcast::<T>().expect("erased_init_fn result: bad type erasure");
                 sys::unbox(instance)
             } else {
                 panic!("no init method available; should not have been constructed from GDScript in the first place")
             }
+        })
+    }
+
+    fn lateinit(&mut self, mut lazy_init: impl FnMut(Base<T::Base>) -> T) -> &mut T {
+        // We need to provide lazy initialization for ptrcalls and varcalls coming from the engine.
+        // The `create_instance_func` callback cannot know yet how to initialize the instance (a user
+        // could provide an initial value, or use default construction). Since this method is used
+        // for both construction from Rust (through Obj) and from GDScript (through T.new()), this
+        // initializes the value lazily.
+
+        out!("    Storage::lateinit              <{}>", type_name::<T>());
+
+        let result = self.user_instance.get_or_insert_with(|| {
+            let base = Self::consume_base(&mut self.base_ptr);
+            lazy_init(base)
         });
 
         assert!(matches!(
