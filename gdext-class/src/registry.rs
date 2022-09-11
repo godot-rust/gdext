@@ -350,31 +350,42 @@ pub mod callbacks {
     use super::*;
     use crate::builder::ClassBuilder;
 
-    pub unsafe extern "C" fn create<T: GodotClass>(
+    pub unsafe extern "C" fn create<T: cap::GodotInit>(
         _class_userdata: *mut std::ffi::c_void,
     ) -> sys::GDNativeObjectPtr {
+        create_custom(T::__godot_init)
+    }
+
+    pub(crate) fn create_custom<T, F>(make_user_instance: F) -> sys::GDNativeObjectPtr
+    where
+        T: GodotClass,
+        F: FnOnce(Base<T::Base>) -> T,
+    {
         let class_name = ClassName::new::<T>();
         let base_class_name = ClassName::new::<T::Base>();
 
         println!(">>>>> CREATE: {}", class_name.backing);
 
-        let base = interface_fn!(classdb_construct_object)(base_class_name.c_str());
-        let instance = InstanceStorage::<T>::construct_uninit(base);
+        let base_ptr = unsafe { interface_fn!(classdb_construct_object)(base_class_name.c_str()) };
+        let base = unsafe { Base::from_sys(base_ptr) };
+
+        let user_instance = make_user_instance(base);
+        let instance = InstanceStorage::<T>::construct(user_instance);
         let instance_ptr = instance.into_raw();
         let instance_ptr = instance_ptr as *mut std::ffi::c_void; // TODO GDExtensionClassInstancePtr
 
-        interface_fn!(object_set_instance)(base, class_name.c_str(), instance_ptr);
-
         let binding_data_callbacks = crate::storage::nop_instance_callbacks();
+        unsafe {
+            interface_fn!(object_set_instance)(base_ptr, class_name.c_str(), instance_ptr);
+            interface_fn!(object_set_instance_binding)(
+                base_ptr,
+                sys::get_library(),
+                instance_ptr,
+                &binding_data_callbacks,
+            );
+        }
 
-        interface_fn!(object_set_instance_binding)(
-            base,
-            sys::get_library(),
-            instance_ptr,
-            &binding_data_callbacks,
-        );
-
-        base
+        base_ptr
     }
 
     pub unsafe extern "C" fn free<T: GodotClass>(
@@ -402,7 +413,7 @@ pub mod callbacks {
         // string representation, before get_mut_lateinit() is called. Type is erased because T might not
         // statically implement the GodotInit trait (and if it doesn't, it will already be initialized).
         let storage = as_storage::<T>(instance);
-        let instance = storage.get_dyn_lateinit();
+        let instance = storage.get(); //_dyn_lateinit();
         let string = GodotExt::to_string(instance);
 
         // Transfer ownership to Godot, disable destructor

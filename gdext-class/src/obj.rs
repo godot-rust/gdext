@@ -10,7 +10,9 @@ use crate::dom::Domain as _;
 use crate::mem::Memory as _;
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{api, cap, dom, mem, out, ClassName, GodotClass, Inherits, InstanceId, Share};
+use crate::{
+    api, callbacks, cap, dom, mem, out, ClassName, GodotClass, Inherits, InstanceId, Share,
+};
 
 /// Smart pointer to objects owned by the Godot engine.
 ///
@@ -55,14 +57,21 @@ where
     T: GodotClass<Declarer = dom::UserDomain>,
 {
     /// Moves a user-created object into this smart pointer, submitting ownership to the Godot engine.
+    ///
+    /// This is only useful for types `T` which do not store their base objects (if they have a base,
+    /// you cannot construct them standalone).
     pub fn new(user_object: T) -> Self {
-        let class_name = ClassName::new::<T>();
-        let result = unsafe {
-            let ptr = interface_fn!(classdb_construct_object)(class_name.c_str());
+        /*let result = unsafe {
+            //let ptr = interface_fn!(classdb_construct_object)(class_name.c_str());
+            let ptr = callbacks::create::<T>(ptr::null_mut());
             Obj::from_obj_sys(ptr)
         };
 
-        result.storage().initialize(user_object);
+        result.storage().initialize(user_object);*/
+
+        let object_ptr = callbacks::create_custom(move |_base| user_object);
+        let result = unsafe { Obj::from_obj_sys(object_ptr) };
+
         T::Mem::maybe_init_ref(&result);
         result
     }
@@ -74,13 +83,21 @@ where
     where
         T: cap::GodotInit,
     {
-        let class_name = ClassName::new::<T>();
+        /*let class_name = ClassName::new::<T>();
         let result = unsafe {
             let ptr = interface_fn!(classdb_construct_object)(class_name.c_str());
             Obj::from_obj_sys(ptr)
         };
 
         result.storage().initialize_default();
+        T::Mem::maybe_init_ref(&result);
+        result*/
+
+        let result = unsafe {
+            let object_ptr = callbacks::create::<T>(ptr::null_mut());
+            Obj::from_obj_sys(object_ptr)
+        };
+
         T::Mem::maybe_init_ref(&result);
         result
     }

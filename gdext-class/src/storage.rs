@@ -1,18 +1,10 @@
-use crate::{cap, out, sys, Base, ClassName, ClassRuntimeInfo, GodotClass, Obj};
+use crate::{cap, out, sys, GodotClass};
 use std::any::type_name;
-use std::mem;
 
-/// Co-locates the user's instance (pure Rust) with the Godot "base" object.
-///
-/// This design does not force the user to keep the base object intrusively in his own struct.
+/// Manages storage and lifecycle of user's extension class instances.
 pub struct InstanceStorage<T: GodotClass> {
-    // Raw pointer, but can be converted to Obj<T::Base> at most once; then becomes "used" (null)
-    // This is done lazily to avoid taking ownership (potentially increasing ref-pointer)
-    base_ptr: sys::GDNativeObjectPtr,
-
-    // lateinit; see get_mut_lateinit()
     // FIXME should be RefCell, to avoid multi-aliasing (mut borrows from multiple shared Obj<T>)
-    user_instance: Option<T>,
+    user_instance: T,
 
     // Declared after `user_instance`, is dropped last
     pub lifecycle: Lifecycle,
@@ -23,7 +15,6 @@ pub struct InstanceStorage<T: GodotClass> {
 
 #[derive(Copy, Clone, Debug)]
 pub enum Lifecycle {
-    Initializing,
     Alive,
     Destroying,
     Dead, // reading this would typically already be too late, only best-effort in case of UB
@@ -36,47 +27,17 @@ impl Drop for LastDrop {
     }
 }
 
-/// For classes that are Godot-constructible
-impl<T: cap::GodotInit> InstanceStorage<T> {
-    pub fn initialize_default(&mut self) {
-        out!("    Storage::initialize_default  <{}>", type_name::<T>());
-
-        let base = Self::consume_base(&mut self.base_ptr);
-        self.initialize(T::__godot_init(base));
-    }
-
-    pub fn get_mut_lateinit(&mut self) -> &mut T {
-        out!("    Storage::get_mut_lateinit      <{}>", type_name::<T>());
-
-        self.lateinit(|base| T::__godot_init(base))
-    }
-}
-
 /// For all Godot extension classes
 impl<T: GodotClass> InstanceStorage<T> {
-    pub fn construct_uninit(base: sys::GDNativeObjectPtr, has_gdscript_init: bool) -> Self {
-        out!("    Storage::construct_uninit      <{}>", type_name::<T>());
+    pub fn construct(user_instance: T) -> Self {
+        out!("    Storage::construct             <{}>", type_name::<T>());
 
         Self {
-            base_ptr: base,
-            user_instance: None,
-            has_gdscript_init,
-            lifecycle: Lifecycle::Initializing,
+            user_instance,
+            lifecycle: Lifecycle::Alive,
             godot_ref_count: 1,
             _last_drop: LastDrop,
         }
-    }
-
-    pub fn initialize(&mut self, value: T) {
-        out!("    Storage::initialize          <{}>", type_name::<T>());
-        assert!(
-            self.user_instance.is_none(),
-            "Cannot initialize user instance multiple times"
-        );
-        assert!(matches!(self.lifecycle, Lifecycle::Initializing));
-
-        self.user_instance = Some(value);
-        self.lifecycle = Lifecycle::Alive;
     }
 
     pub(crate) fn on_inc_ref(&mut self) {
@@ -117,56 +78,12 @@ impl<T: GodotClass> InstanceStorage<T> {
         Box::into_raw(Box::new(self))
     }
 
-    pub fn get_dyn_lateinit(&mut self) -> &T {
-        out!("    Storage::get_dyn_lateinit      <{}>", type_name::<T>());
-
-        self.lateinit(|base| {
-            let class_info = ClassRuntimeInfo::get(&ClassName::new::<T>());
-            if let Some(erased_init_fn) = class_info.erased_init_fn {
-                // Optimization: use type-erased Base with same layout, avoid boxing
-                let any_base = Box::new(base);
-                let result = (erased_init_fn.raw)(any_base);
-                let instance = result.downcast::<T>().expect("erased_init_fn result: bad type erasure");
-                sys::unbox(instance)
-            } else {
-                panic!("no init method available; should not have been constructed from GDScript in the first place")
-            }
-        })
-    }
-
-    fn lateinit(&mut self, mut lazy_init: impl FnMut(Base<T::Base>) -> T) -> &mut T {
-        // We need to provide lazy initialization for ptrcalls and varcalls coming from the engine.
-        // The `create_instance_func` callback cannot know yet how to initialize the instance (a user
-        // could provide an initial value, or use default construction). Since this method is used
-        // for both construction from Rust (through Obj) and from GDScript (through T.new()), this
-        // initializes the value lazily.
-
-        out!("    Storage::lateinit              <{}>", type_name::<T>());
-
-        let result = self.user_instance.get_or_insert_with(|| {
-            let base = Self::consume_base(&mut self.base_ptr);
-            lazy_init(base)
-        });
-
-        assert!(matches!(
-            self.lifecycle,
-            Lifecycle::Initializing | Lifecycle::Alive
-        ));
-        self.lifecycle = Lifecycle::Alive;
-
-        result
-    }
-
     pub fn get(&self) -> &T {
-        self.user_instance
-            .as_ref()
-            .expect("get(): user instance not initialized")
+        &self.user_instance
     }
 
     pub fn get_mut(&mut self) -> &mut T {
-        self.user_instance
-            .as_mut()
-            .expect("get_mut(): user instance not initialized")
+        &mut self.user_instance
     }
 
     pub fn mark_destroyed_by_godot(&mut self) {
@@ -190,25 +107,6 @@ impl<T: GodotClass> InstanceStorage<T> {
             self.lifecycle
         );
         matches!(self.lifecycle, Lifecycle::Destroying | Lifecycle::Dead)
-    }
-
-    // Note: not &mut self, to only borrow one field and not the entire struct
-    fn consume_base(base_ptr: &mut sys::GDNativeObjectPtr) -> Base<T::Base> {
-        // Check that this method is called at most once
-        assert!(
-            !base_ptr.is_null(),
-            "Instance base has already been consumed"
-        );
-
-        let base = mem::replace(base_ptr, std::ptr::null_mut());
-        let obj = unsafe { Obj::from_obj_sys(base) };
-
-        // This object does not contribute to the strong count, otherwise we create a reference cycle:
-        // 1. RefCounted (dropped in GDScript)
-        // 2. holds user T (via extension instance and storage)
-        // 3. holds #[base] RefCounted (last ref, dropped in T destructor, but T is never destroyed because this ref keeps storage alive)
-        // Note that if late-init never happened on self, we have the same behavior (still a raw pointer instead of weak Obj)
-        Base::from_obj(obj)
     }
 }
 

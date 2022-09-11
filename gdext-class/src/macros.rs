@@ -367,7 +367,7 @@ macro_rules! gdext_ptrcall {
     ) => {
         println!("ptrcall: {}", stringify!($method_name));
         let storage = ::gdext_class::private::as_storage::<$Class>($instance_ptr);
-        let instance = storage.get_mut_lateinit();
+        let instance = storage.get_mut();
 
         let mut idx = 0;
         $(
@@ -397,7 +397,7 @@ macro_rules! gdext_varcall {
     ) => {
         println!("varcall: {}", stringify!($method_name));
         let storage = ::gdext_class::private::as_storage::<$Class>($instance_ptr);
-        let instance = storage.get_mut_lateinit();
+        let instance = storage.get_mut();
 
         let mut idx = 0;
         $(

@@ -1,4 +1,5 @@
 use crate::{GodotClass, Obj};
+use gdext_sys as sys;
 use std::mem::ManuallyDrop;
 
 /// Smart pointer holding a Godot base class inside a user's `GodotClass`.
@@ -25,7 +26,21 @@ pub struct Base<T: GodotClass> {
 }
 
 impl<T: GodotClass> Base<T> {
-    pub(crate) fn from_obj(obj: Obj<T>) -> Self {
+    // Note: not &mut self, to only borrow one field and not the entire struct
+    pub(crate) unsafe fn from_sys(base_ptr: sys::GDNativeObjectPtr) -> Self {
+        assert!(!base_ptr.is_null(), "instance base is null pointer");
+
+        let obj = Obj::from_obj_sys(base_ptr);
+
+        // This object does not contribute to the strong count, otherwise we create a reference cycle:
+        // 1. RefCounted (dropped in GDScript)
+        // 2. holds user T (via extension instance and storage)
+        // 3. holds #[base] RefCounted (last ref, dropped in T destructor, but T is never destroyed because this ref keeps storage alive)
+        // Note that if late-init never happened on self, we have the same behavior (still a raw pointer instead of weak Obj)
+        Base::from_obj(obj)
+    }
+
+    fn from_obj(obj: Obj<T>) -> Self {
         Self {
             obj: ManuallyDrop::new(obj),
         }
