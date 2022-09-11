@@ -65,7 +65,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
 
     // #[godot] attribute on struct
     if let Some((span, mut map)) = parse_godot_attr(&class.attributes)? {
-        println!(">>> CLASS {class}, MAP: {map:?}", class = class.name);
+        //println!(">>> CLASS {class}, MAP: {map:?}", class = class.name);
 
         if let Some(kv_value) = map.remove("base") {
             if let KvValue::Ident(override_base) = kv_value {

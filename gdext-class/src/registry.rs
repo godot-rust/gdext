@@ -156,7 +156,7 @@ pub fn auto_register_classes() {
         fill_class_info(elem.component.clone(), class_info);
     });
 
-    println!("Class-map: {map:#?}");
+    //out!("Class-map: {map:#?}");
 
     for info in map.into_values() {
         println!(">> Reg class:   {}", info.class_name);
@@ -290,7 +290,7 @@ pub mod callbacks {
         let class_name = ClassName::new::<T>();
         let base_class_name = ClassName::new::<T::Base>();
 
-        println!(">>>>> CREATE: {}", class_name.backing);
+        //out!("create callback: {}", class_name.backing);
 
         let base_ptr = unsafe { interface_fn!(classdb_construct_object)(base_class_name.c_str()) };
         let base = unsafe { Base::from_sys(base_ptr) };
