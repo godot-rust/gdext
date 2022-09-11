@@ -54,7 +54,7 @@ impl RustTest {
 
     #[godot]
     fn test_method(&mut self, some_int: i64, some_string: GodotString) -> GodotString {
-        //let id = Obj::emplace(self).instance_id();
+        //let id = Gd::emplace(self).instance_id();
 
         let some_string = some_string.clone();
 
@@ -76,14 +76,14 @@ impl RustTest {
     }
 
     // FIXME: allow mut params
-    //fn accept_obj(&self, mut obj: Obj<Entity>) {
+    //fn accept_obj(&self, mut obj: Gd<Entity>) {
 
     #[godot]
-    fn accept_obj(&self, obj: Obj<Entity>) {
+    fn accept_obj(&self, obj: Gd<Entity>) {
         let mut obj = obj;
 
-        //let obj = Obj::new(Entity { name: "h".to_string(), hitpoints: 77 }); // upcasting local object works
-        let up: Obj<RefCounted> = obj.share().upcast(); // FIXME Godot cast to RefCount panics
+        //let obj = Gd::new(Entity { name: "h".to_string(), hitpoints: 77 }); // upcasting local object works
+        let up: Gd<RefCounted> = obj.share().upcast(); // FIXME Godot cast to RefCount panics
         out!("upcast: up={:?}", up);
 
         let m = obj.inner_mut();
@@ -97,13 +97,13 @@ impl RustTest {
     }
 
     #[godot]
-    fn return_obj(&self) -> Obj<Entity> {
+    fn return_obj(&self) -> Gd<Entity> {
         let rust_obj = Entity {
             name: "New name!".to_string(),
             hitpoints: 20,
         };
 
-        let obj = Obj::new(rust_obj);
+        let obj = Gd::new(rust_obj);
 
         out!(
             "[RustTest] return_obj:\n  id={},\n  obj={:?}",
@@ -115,10 +115,10 @@ impl RustTest {
     }
 
     #[godot]
-    fn find_obj(&self, instance_id: InstanceId) -> Obj<Entity> {
+    fn find_obj(&self, instance_id: InstanceId) -> Gd<Entity> {
         out!("[RustTest] find_obj()...");
 
-        let obj = Obj::<Entity>::try_from_instance_id(instance_id).expect("Obj is null");
+        let obj = Gd::<Entity>::try_from_instance_id(instance_id).expect("Gd is null");
         let inner = obj.inner();
         out!(
             "[RustTest] find_obj():\n  id={},\n  obj={:?}",
@@ -141,11 +141,11 @@ impl RustTest {
     }
 
     #[godot]
-    fn call_node_method(&self, node: Obj<Node3D>) -> Vector3 {
+    fn call_node_method(&self, node: Gd<Node3D>) -> Vector3 {
         println!("call_node_method - to_global()...");
         println!("  instance_id: {}", node.instance_id());
 
-        //let node = Obj::<Node3D>::from_instance_id(node.instance_id()).unwrap();
+        //let node = Gd::<Node3D>::from_instance_id(node.instance_id()).unwrap();
         let mut node = Node3D::new_alloc();
         let inner = node.inner_mut();
         let arg = Vector3::new(11.0, 22.0, 33.0);
@@ -207,15 +207,15 @@ impl GodotExtensionClass for RustTest {
         out!("[RustTest] register_methods");
 
         gdext_register_method!(RustTest,
-            fn accept_obj(&self, obj: Obj<Entity>)
+            fn accept_obj(&self, obj: Gd<Entity>)
         );
 
         gdext_register_method!(RustTest,
-            fn return_obj(&self) -> Obj<Entity>
+            fn return_obj(&self) -> Gd<Entity>
         );
 
         gdext_register_method!(RustTest,
-            fn find_obj(&self, instance_id: InstanceId) -> Obj<Entity>
+            fn find_obj(&self, instance_id: InstanceId) -> Gd<Entity>
         );
 
         gdext_register_method!(RustTest,
@@ -235,7 +235,7 @@ impl GodotExtensionClass for RustTest {
         );
 
         gdext_register_method!(RustTest,
-            fn call_node_method(&self, node: Obj<Node3D>) -> Vector3
+            fn call_node_method(&self, node: Gd<Node3D>) -> Vector3
         );
     }
 }*/

@@ -78,7 +78,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
     quote! {
         use gdext_sys as sys;
         use gdext_builtin::*;
-        use crate::obj::Obj;
+        use crate::obj::Gd;
         use crate::traits::AsArg;
 
         #[derive(Debug)]
@@ -88,11 +88,11 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         }
         impl #name {
             #new_attrs
-            pub fn #new() -> Obj<Self> {
+            pub fn #new() -> Gd<Self> {
                 unsafe {
                     let object_ptr = sys::interface_fn!(classdb_construct_object)(#name_cstr);
                     //let instance = Self { object_ptr };
-                    Obj::from_obj_sys(object_ptr)
+                    Gd::from_obj_sys(object_ptr)
                 }
             }
             #methods
@@ -388,7 +388,7 @@ fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
     if ctx.is_engine_class(ty) {
         let ty = ident(ty);
         return RustTy {
-            tokens: quote! { Obj<#ty> },
+            tokens: quote! { Gd<#ty> },
             is_engine_class: true,
         };
     }

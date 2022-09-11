@@ -372,7 +372,7 @@ macro_rules! gdext_ptrcall {
         let mut idx = 0;
         $(
             let $arg = <$ParamTy as sys::GodotFfi>::from_sys(*$args.offset(idx));
-            // FIXME update refcount, e.g. Obj::ready() or T::Mem::maybe_inc_ref(&result);
+            // FIXME update refcount, e.g. Gd::ready() or T::Mem::maybe_inc_ref(&result);
             // possibly in from_sys() directly; what about from_sys_init() and from_{obj|str}_sys()?
             idx += 1;
         )*

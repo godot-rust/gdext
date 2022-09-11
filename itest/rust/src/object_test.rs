@@ -1,7 +1,7 @@
 use crate::itest;
 use gdext_builtin::{GodotString, Variant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
-use gdext_class::obj::{Base, Obj};
+use gdext_class::obj::{Base, Gd};
 use gdext_class::out;
 use gdext_class::traits::{GodotExt, Share};
 use gdext_macros::{godot_api, GodotClass};
@@ -42,13 +42,13 @@ pub fn run() -> bool {
 
 #[itest]
 fn object_construct_default() {
-    let obj = Obj::<ObjPayload>::new_default();
+    let obj = Gd::<ObjPayload>::new_default();
     assert_eq!(obj.inner().value, 111);
 }
 
 #[itest]
 fn object_construct_value() {
-    let obj = Obj::new(ObjPayload { value: 222 });
+    let obj = Gd::new(ObjPayload { value: 222 });
     assert_eq!(obj.inner().value, 222);
 }
 
@@ -58,13 +58,13 @@ fn object_user_roundtrip_return() {
     let value: i16 = 17943;
     let user = ObjPayload { value };
 
-    let obj: Obj<ObjPayload> = Obj::new(user);
+    let obj: Gd<ObjPayload> = Gd::new(user);
     assert_eq!(obj.inner().value, value);
 
     let ptr = obj.sys();
     // TODO drop/release?
 
-    let obj2 = unsafe { Obj::<ObjPayload>::from_sys(ptr) };
+    let obj2 = unsafe { Gd::<ObjPayload>::from_sys(ptr) };
     assert_eq!(obj2.inner().value, value);
 }
 
@@ -73,12 +73,12 @@ fn object_user_roundtrip_write() {
     let value: i16 = 17943;
     let user = ObjPayload { value };
 
-    let obj: Obj<ObjPayload> = Obj::new(user);
+    let obj: Gd<ObjPayload> = Gd::new(user);
     assert_eq!(obj.inner().value, value);
 
     // TODO drop/release?
 
-    let obj2 = unsafe { Obj::<ObjPayload>::from_sys_init(|ptr| obj.write_sys(ptr)) };
+    let obj2 = unsafe { Gd::<ObjPayload>::from_sys_init(|ptr| obj.write_sys(ptr)) };
     assert_eq!(obj2.inner().value, value);
 }
 */
@@ -87,13 +87,13 @@ fn object_user_roundtrip_write() {
 fn object_engine_roundtrip() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
 
-    let mut obj: Obj<Node3D> = Node3D::new_alloc();
+    let mut obj: Gd<Node3D> = Node3D::new_alloc();
     obj.inner_mut().set_position(pos);
     assert_eq!(obj.inner().get_position(), pos);
 
     let ptr = obj.sys();
 
-    let obj2 = unsafe { Obj::<Node3D>::from_sys(ptr) };
+    let obj2 = unsafe { Gd::<Node3D>::from_sys(ptr) };
     assert_eq!(obj2.inner().get_position(), pos);
     obj.free();
 }
@@ -103,10 +103,10 @@ fn object_instance_id() {
     let value: i16 = 17943;
     let user = ObjPayload { value };
 
-    let obj: Obj<ObjPayload> = Obj::new(user);
+    let obj: Gd<ObjPayload> = Gd::new(user);
     let id = obj.instance_id();
 
-    let obj2 = Obj::<ObjPayload>::from_instance_id(id);
+    let obj2 = Gd::<ObjPayload>::from_instance_id(id);
     assert_eq!(obj2.inner().value, value);
 }
 
@@ -115,9 +115,9 @@ fn object_user_convert_variant() {
     let value: i16 = 17943;
     let user = ObjPayload { value };
 
-    let obj: Obj<ObjPayload> = Obj::new(user);
+    let obj: Gd<ObjPayload> = Gd::new(user);
     let variant = Variant::from(&obj);
-    let obj2 = Obj::<ObjPayload>::from(&variant);
+    let obj2 = Gd::<ObjPayload>::from(&variant);
 
     assert_eq!(obj2.inner().value, value);
 }
@@ -126,11 +126,11 @@ fn object_user_convert_variant() {
 fn object_engine_convert_variant() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
 
-    let mut obj: Obj<Node3D> = Node3D::new_alloc();
+    let mut obj: Gd<Node3D> = Node3D::new_alloc();
     obj.inner_mut().set_position(pos);
 
     let variant = Variant::from(&obj);
-    let obj2 = Obj::<Node3D>::from(&variant);
+    let obj2 = Gd::<Node3D>::from(&variant);
 
     assert_eq!(obj2.inner().get_position(), pos);
     obj.free();
@@ -138,7 +138,7 @@ fn object_engine_convert_variant() {
 
 #[itest]
 fn object_engine_upcast() {
-    let node3d: Obj<Node3D> = Node3D::new_alloc();
+    let node3d: Gd<Node3D> = Node3D::new_alloc();
     let id = node3d.instance_id();
 
     let object = node3d.upcast::<Object>();
@@ -152,13 +152,13 @@ fn object_engine_upcast() {
 #[itest]
 fn object_engine_downcast() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
-    let mut node3d: Obj<Node3D> = Node3D::new_alloc();
+    let mut node3d: Gd<Node3D> = Node3D::new_alloc();
     node3d.inner_mut().set_position(pos);
     let id = node3d.instance_id();
 
     let object = node3d.upcast::<Object>();
-    let node: Obj<Node> = object.cast::<Node>();
-    let node3d: Obj<Node3D> = node.try_cast::<Node3D>().expect("try_cast");
+    let node: Gd<Node> = object.cast::<Node>();
+    let node3d: Gd<Node3D> = node.try_cast::<Node3D>().expect("try_cast");
 
     assert_eq!(node3d.instance_id(), id);
     assert_eq!(node3d.inner().get_position(), pos);
@@ -168,9 +168,9 @@ fn object_engine_downcast() {
 
 #[itest]
 fn object_engine_bad_downcast() {
-    let object: Obj<Object> = Object::new_alloc();
+    let object: Gd<Object> = Object::new_alloc();
     let free_ref = object.share();
-    let node3d: Option<Obj<Node3D>> = object.try_cast::<Node3D>();
+    let node3d: Option<Gd<Node3D>> = object.try_cast::<Node3D>();
 
     assert!(node3d.is_none());
     free_ref.free();
@@ -192,10 +192,10 @@ fn object_user_downcast() {
     let id = obj.instance_id();
 
     let object = obj.upcast::<Object>();
-    let intermediate: Obj<RefCounted> = object.cast::<RefCounted>();
+    let intermediate: Gd<RefCounted> = object.cast::<RefCounted>();
     assert_eq!(intermediate.instance_id(), id);
 
-    let concrete: Obj<ObjPayload> = intermediate.try_cast::<ObjPayload>().expect("try_cast");
+    let concrete: Gd<ObjPayload> = intermediate.try_cast::<ObjPayload>().expect("try_cast");
     assert_eq!(concrete.instance_id(), id);
     assert_eq!(concrete.inner().value, 17943);
 }
@@ -204,7 +204,7 @@ fn object_user_downcast() {
 fn object_user_bad_downcast() {
     let obj = user_object();
     let object = obj.upcast::<Object>();
-    let node3d: Option<Obj<Node>> = object.try_cast::<Node>();
+    let node3d: Option<Gd<Node>> = object.try_cast::<Node>();
 
     assert!(node3d.is_none());
 }
@@ -224,7 +224,7 @@ fn object_engine_manual_drop() {
 fn object_user_share_drop() {
     let drop_count = Rc::new(RefCell::new(0));
 
-    let object: Obj<Tracker> = Obj::new(Tracker {
+    let object: Gd<Tracker> = Gd::new(Tracker {
         drop_count: Rc::clone(&drop_count),
     });
     assert_eq!(*drop_count.borrow(), 0);
@@ -242,10 +242,10 @@ fn object_user_share_drop() {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[inline(never)] // force to move "out of scope", can trigger potential dangling pointer errors
-fn user_object() -> Obj<ObjPayload> {
+fn user_object() -> Gd<ObjPayload> {
     let value: i16 = 17943;
     let user = ObjPayload { value };
-    Obj::new(user)
+    Gd::new(user)
 }
 
 #[derive(GodotClass, Debug, Eq, PartialEq)]

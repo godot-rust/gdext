@@ -1,7 +1,7 @@
 use gdext_sys as sys;
 use sys::GodotFfi;
 
-use crate::obj::Obj;
+use crate::obj::Gd;
 use crate::traits::{EngineClass, GodotClass};
 
 mod private {
@@ -14,8 +14,8 @@ pub trait AsArg: Sealed {
     fn as_arg_ptr(&self) -> sys::GDNativeTypePtr;
 }
 
-impl<T: GodotClass> Sealed for Obj<T> {}
-impl<T: GodotClass> AsArg for Obj<T> {
+impl<T: GodotClass> Sealed for Gd<T> {}
+impl<T: GodotClass> AsArg for Gd<T> {
     fn as_arg_ptr(&self) -> sys::GDNativeTypePtr {
         self.sys()
     }

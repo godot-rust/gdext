@@ -2,7 +2,7 @@
 
 use gdext_builtin::GodotString;
 use gdext_class::api::RefCounted;
-use gdext_class::obj::{Base, Obj};
+use gdext_class::obj::{Base, Gd};
 use gdext_class::traits::GodotExt;
 use gdext_macros::{godot_api, itest, GodotClass};
 
@@ -47,6 +47,6 @@ pub(crate) fn run() -> bool {
 
 #[itest]
 fn test_to_string() {
-    let _obj = Obj::<VirtualMethodTest>::new_default();
+    let _obj = Gd::<VirtualMethodTest>::new_default();
     dbg!(_obj);
 }
