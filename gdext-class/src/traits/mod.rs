@@ -124,7 +124,7 @@ pub mod cap {
     /// You can disable this constructor by not providing an `init` method for your
     /// class; in that case construction fails.
     ///
-    /// This trait is not manually implemented, and you cannot call its method.
+    /// This trait is not manually implemented, and you cannot call any methods.
     /// Instead, the trait will be provided to you by the proc macros, and you can
     /// use it as a bound.
     pub trait GodotInit: GodotClass {
@@ -141,9 +141,7 @@ pub mod cap {
     /// Auto-implemented for `#[godot_api] impl GodotExt for MyClass` blocks
     pub trait ImplementsGodotExt: GodotClass {
         #[doc(hidden)]
-        fn __virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-            None // TODO
-        }
+        fn __virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual;
     }
 }
 

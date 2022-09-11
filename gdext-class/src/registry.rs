@@ -320,7 +320,7 @@ pub mod callbacks {
     ) {
         let storage = as_storage::<T>(instance);
         storage.mark_destroyed_by_godot();
-        Box::from_raw(storage as *mut InstanceStorage<_>); // aka. drop
+        let _drop = Box::from_raw(storage as *mut InstanceStorage<_>);
     }
 
     pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotExt>(

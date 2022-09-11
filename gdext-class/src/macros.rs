@@ -94,6 +94,7 @@ macro_rules! gdext_register_method_inner {
                         _method_data: *mut std::ffi::c_void,
                         n: i32,
                     ) -> sys::GDNativeVariantType {
+                        // TODO use match or so to avoid useless evaluation of entire array
                         // Return value is the first "argument"
                         let types: [sys::GDNativeVariantType; NUM_ARGS + 1] = [
                             <$($RetTy)+ as $crate::property_info::PropertyInfoBuilder>::variant_type(),

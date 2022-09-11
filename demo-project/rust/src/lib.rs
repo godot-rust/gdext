@@ -2,52 +2,29 @@ use gdext_builtin::{gdext_init, GodotString, InitLevel, Variant, Vector2, Vector
 use std::str::FromStr;
 
 use gdext_class::api::{Node3D, RefCounted};
-use gdext_class::*;
-use gdext_macros::godot_api;
+use gdext_class::obj::{Base, Gd, InstanceId};
+use gdext_class::out;
+use gdext_class::traits::{GodotExt, Share};
+use gdext_macros::{godot_api, GodotClass};
 
 use gdext_sys as sys;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // RustTest
 
-#[derive(Debug)]
+#[derive(GodotClass, Debug)]
+#[godot(base = Node3D)]
 pub struct RustTest {
+    #[base]
     base: Base<Node3D>,
     #[allow(dead_code)]
     time: f64,
 }
 
-impl GodotClass for RustTest {
-    type Base = Node3D;
-    type Declarer = dom::UserDomain;
-    type Mem = mem::ManualMemory;
-
-    fn class_name() -> String {
-        "RustTest".to_string()
-    }
-
-    // fn upcast(&self) -> &Self::Base {
-    //     &self.base
-    // }
-    //
-    // fn upcast_mut(&mut self) -> &mut Self::Base {
-    //     &mut self.base
-    // }
-}
-
-impl cap::GodotInit for RustTest {
-    fn __godot_init(base: Base<Self::Base>) -> Self {
-        out!("[RustTest] construct: base={base:?}");
-
-        RustTest::new(base)
-    }
-}
-
 #[godot_api]
 impl RustTest {
     fn new(base: Base<Node3D>) -> Self {
-        out!("[RustTest] new.");
-        // out!("[RustTest] new: base={:?}", base.inner());
+        out!("[RustTest] construct: base={base:?}");
 
         Self { time: 0.0, base }
     }
@@ -86,13 +63,15 @@ impl RustTest {
         let up: Gd<RefCounted> = obj.share().upcast(); // FIXME Godot cast to RefCount panics
         out!("upcast: up={:?}", up);
 
-        let m = obj.inner_mut();
-        m.hitpoints -= 10;
+        {
+            let mut m = obj.bind_mut();
+            m.hitpoints -= 10;
+        }
 
         out!(
             "[RustTest] accept_obj:\n  id={},\n  obj={:?}",
             obj.instance_id(),
-            obj.inner()
+            obj.bind()
         );
     }
 
@@ -108,7 +87,7 @@ impl RustTest {
         out!(
             "[RustTest] return_obj:\n  id={},\n  obj={:?}",
             obj.instance_id(),
-            obj.inner()
+            obj.bind()
         );
 
         obj
@@ -119,12 +98,14 @@ impl RustTest {
         out!("[RustTest] find_obj()...");
 
         let obj = Gd::<Entity>::try_from_instance_id(instance_id).expect("Gd is null");
-        let inner = obj.inner();
-        out!(
+        {
+            let inner = obj.bind();
+            out!(
             "[RustTest] find_obj():\n  id={},\n  obj={:?}",
             instance_id,
             inner
         );
+        }
         obj
     }
 
@@ -134,7 +115,7 @@ impl RustTest {
         //return Vector3::new(1.0, 2.0,3.0);
 
         let arg = Vector3::new(2.0, 3.0, 4.0);
-        let res = self.base.inner().to_global(arg);
+        let res = self.base.to_global(arg);
 
         println!("to_global({arg}) == {res}");
         res
@@ -147,11 +128,10 @@ impl RustTest {
 
         //let node = Gd::<Node3D>::from_instance_id(node.instance_id()).unwrap();
         let mut node = Node3D::new_alloc();
-        let inner = node.inner_mut();
         let arg = Vector3::new(11.0, 22.0, 33.0);
-        inner.set_position(arg);
+        node.set_position(arg);
 
-        let res = inner.get_position();
+        let res = node.get_position();
         println!("  get_position() == {res}");
 
         let string = GodotString::from_str("hello string").unwrap();
@@ -175,12 +155,19 @@ impl RustTest {
 
         res
     }
+}
 
-    fn _ready(&mut self) {
+//#[godot_api]
+impl GodotExt for RustTest {
+    fn init(base: Base<Self::Base>) -> Self {
+        Self::new(base)
+    }
+
+    fn ready(&mut self) {
         out!("[RustTest] _ready()");
     }
 
-    fn _process(&mut self, delta: f64) {
+    fn process(&mut self, delta: f64) {
         let mod_before = self.time % 1.0;
         self.time += delta;
         let mod_after = self.time % 1.0;
@@ -191,70 +178,18 @@ impl RustTest {
     }
 }
 
-/*
-impl GodotExtensionClass for RustTest {
-    fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-        out!("[RustTest] virtual_call: {name}");
-
-        match name {
-            "_ready" => gdext_virtual_method_callback!(RustTest, fn _ready(&mut self)),
-            "_process" => gdext_virtual_method_callback!(RustTest, fn _process(&mut self, delta: f64)),
-            _ => None,
-        }
-    }
-
-    fn register_methods() {
-        out!("[RustTest] register_methods");
-
-        gdext_register_method!(RustTest,
-            fn accept_obj(&self, obj: Gd<Entity>)
-        );
-
-        gdext_register_method!(RustTest,
-            fn return_obj(&self) -> Gd<Entity>
-        );
-
-        gdext_register_method!(RustTest,
-            fn find_obj(&self, instance_id: InstanceId) -> Gd<Entity>
-        );
-
-        gdext_register_method!(RustTest,
-            fn test_method(&mut self, some_int: i64, some_string: GodotString) -> GodotString
-        );
-
-        gdext_register_method!(RustTest,
-            fn add(&self, a: i32, b: i32, c: Vector2) -> i64
-        );
-
-        gdext_register_method!(RustTest,
-            fn vec_add(&self, a: Vector2, b: Vector2) -> Vector2
-        );
-
-        gdext_register_method!(RustTest,
-            fn call_base_method(&self) -> Vector3
-        );
-
-        gdext_register_method!(RustTest,
-            fn call_node_method(&self, node: Gd<Node3D>) -> Vector3
-        );
-    }
-}*/
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Entity
 
-#[derive(Debug)]
-#[allow(dead_code)] // TODO
+#[derive(GodotClass, Debug)]
 pub struct Entity {
-    // base: RefCounted,
+    #[allow(dead_code)]
     name: String,
     hitpoints: i32,
 }
 
-impl Inherits<RefCounted> for Entity {}
-
-impl GodotInit for Entity {
-    fn __godot_init(base: Base<Self::Base>) -> Self {
+impl GodotExt for Entity {
+    fn init(base: Base<Self::Base>) -> Self {
         out!("[Entity] construct: base={base:?}");
 
         Entity {
@@ -262,66 +197,7 @@ impl GodotInit for Entity {
             hitpoints: 100,
         }
     }
-}
 
-impl GodotClass for Entity {
-    type Base = gdext_class::api::RefCounted;
-    type Declarer = gdext_class::traits::dom::UserDomain;
-    type Mem = gdext_class::traits::mem::StaticRefCount;
-
-    fn class_name() -> String {
-        "Entity".to_string()
-    }
-
-    // fn upcast(&self) -> &Self::Base {
-    //     todo!()
-    //     //&self.base
-    // }
-    //
-    // fn upcast_mut(&mut self) -> &mut Self::Base {
-    //     //&mut self.base
-    //     todo!()
-    // }
-}
-
-impl cap::ImplementsGodotApi for Entity {
-    // fn construct(base: sys::GDNativeObjectPtr) -> Self {
-    //     out!("[Entity] construct");
-    //
-    //     Entity {
-    //         base: RefCounted(base),
-    //         name: "No name yet".to_string(),
-    //         hitpoints: 100,
-    //     }
-    // }
-
-    // fn has_to_string() -> bool {
-    //     true
-    // }
-
-    fn virtual_call(name: &str) -> sys::GDNativeExtensionClassCallVirtual {
-        out!("[Entity] virtual_call: {name}");
-        match name {
-            //"xy" => {
-            //    gdext_virtual_method_callback!(Entity, fn xy(&mut self))
-            //}
-            _ => None,
-        }
-    }
-
-    fn __register_methods() {
-        // gdext_register_method!(Entity,
-        //     fn _to_string(&mut self) -> GodotString;
-        // );
-    }
-
-    fn to_string(&self) -> GodotString {
-        return GodotString::from("nothing"); //self.to_string();
-    }
-}
-
-#[godot_api]
-impl GodotExt for Entity {
     fn to_string(&self) -> GodotString {
         format!("{self:?}").into()
     }
@@ -333,8 +209,8 @@ impl GodotExt for Entity {
 gdext_init!(demo_init, |init: &mut gdext_builtin::InitOptions| {
     print!("Demo init... ");
     init.register_init_function(InitLevel::Scene, || {
-        register_class::<RustTest>();
-        register_class::<Entity>();
+        // register_class::<RustTest>();
+        // register_class::<Entity>();
 
         variant_tests();
     });
