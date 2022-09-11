@@ -89,12 +89,19 @@ where
     pub(crate) fn storage(&self) -> &mut InstanceStorage<T> {
         let callbacks = crate::storage::nop_instance_callbacks();
 
+        // FIXME:
+        // called from Obj::new() -- tries to get binding, but binding uninitialized because no creator fn
+        // need to break cyclic dep
         unsafe {
             let token = sys::get_library();
             let binding =
                 interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
 
-            debug_assert!(!binding.is_null(), "null instance binding");
+            debug_assert!(
+                !binding.is_null(),
+                "Class {} -- null instance; does the class have a Godot creator function?",
+                std::any::type_name::<T>()
+            );
             crate::private::as_storage::<T>(binding)
         }
     }

@@ -47,7 +47,7 @@ where
 #[itest]
 fn variant_display() {
     let cases = [
-        (Variant::nil(), "null"),
+        (Variant::nil(), "<null>"),
         (Variant::from(false), "false"),
         (Variant::from(true), "true"),
         (

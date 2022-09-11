@@ -54,12 +54,13 @@ impl<T: cap::GodotInit> InstanceStorage<T> {
 
 /// For all Godot extension classes
 impl<T: GodotClass> InstanceStorage<T> {
-    pub fn construct_uninit(base: sys::GDNativeObjectPtr) -> Self {
+    pub fn construct_uninit(base: sys::GDNativeObjectPtr, has_gdscript_init: bool) -> Self {
         out!("    Storage::construct_uninit      <{}>", type_name::<T>());
 
         Self {
             base_ptr: base,
             user_instance: None,
+            has_gdscript_init,
             lifecycle: Lifecycle::Initializing,
             godot_ref_count: 1,
             _last_drop: LastDrop,
