@@ -3,11 +3,12 @@ use crate::traits::GodotClass;
 use gdext_sys as sys;
 
 use std::any::type_name;
+use std::cell;
 
 /// Manages storage and lifecycle of user's extension class instances.
 pub struct InstanceStorage<T: GodotClass> {
     // FIXME should be RefCell, to avoid multi-aliasing (mut borrows from multiple shared Obj<T>)
-    user_instance: T,
+    user_instance: cell::RefCell<T>,
 
     // Declared after `user_instance`, is dropped last
     pub lifecycle: Lifecycle,
@@ -36,7 +37,7 @@ impl<T: GodotClass> InstanceStorage<T> {
         out!("    Storage::construct             <{}>", type_name::<T>());
 
         Self {
-            user_instance,
+            user_instance: cell::RefCell::new(user_instance),
             lifecycle: Lifecycle::Alive,
             godot_ref_count: 1,
             _last_drop: LastDrop,
@@ -81,12 +82,12 @@ impl<T: GodotClass> InstanceStorage<T> {
         Box::into_raw(Box::new(self))
     }
 
-    pub fn get(&self) -> &T {
-        &self.user_instance
+    pub fn get(&self) -> cell::Ref<T> {
+        self.user_instance.borrow()
     }
 
-    pub fn get_mut(&mut self) -> &mut T {
-        &mut self.user_instance
+    pub fn get_mut(&mut self) -> cell::RefMut<T> {
+        self.user_instance.borrow_mut()
     }
 
     pub fn mark_destroyed_by_godot(&mut self) {

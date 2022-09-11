@@ -1,4 +1,5 @@
 use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
 use std::ptr;
 
 use gdext_builtin::Variant;
@@ -6,7 +7,7 @@ use gdext_sys as sys;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
-use crate::obj::InstanceId;
+use crate::obj::{GdMut, GdRef, InstanceId};
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
 use crate::traits::dom::Domain as _;
@@ -102,6 +103,14 @@ where
         result
     }
 
+    pub fn bind(&self) -> GdRef<T> {
+        GdRef::from_cell(self.storage().get())
+    }
+
+    pub fn bind_mut(&mut self) -> GdMut<T> {
+        GdMut::from_cell(self.storage().get_mut())
+    }
+
     /// Storage object associated with the extension instance
     pub(crate) fn storage(&self) -> &mut InstanceStorage<T> {
         let callbacks = crate::storage::nop_instance_callbacks();
@@ -135,7 +144,7 @@ impl<T: GodotClass> Gd<T> {
             if ptr.is_null() {
                 None
             } else {
-                Some(Gd::from_obj_sys(ptr).ready())
+                Some(Gd::<T>::from_obj_sys(ptr).ready())
             }
         }
     }
@@ -166,18 +175,10 @@ impl<T: GodotClass> Gd<T> {
     /// If this object is no longer alive (registered in Godot's object database).
     pub fn instance_id(&self) -> InstanceId {
         // FIXME panic when freed
+        // TODO this overlaps with Object::get_instance_id()
         // Note: bit 'id & (1 << 63)' determines if the instance is ref-counted
         let id = unsafe { interface_fn!(object_get_instance_id)(self.obj_sys()) };
         InstanceId::from_u64(id)
-    }
-
-    // explicit deref for testing purposes
-    pub fn inner(&self) -> &T {
-        T::Declarer::extract_from_obj(self)
-    }
-
-    pub fn inner_mut(&mut self) -> &mut T {
-        T::Declarer::extract_from_obj_mut(self)
     }
 
     /// Needed to initialize ref count -- must be explicitly invoked.
@@ -280,7 +281,9 @@ impl<T: GodotClass> Gd<T> {
 
         let tmp = unsafe { self.ffi_cast::<api::RefCounted>() };
         let mut tmp = tmp.expect("object expected to inherit RefCounted");
-        let return_val = apply(tmp.inner_mut());
+        let return_val =
+            <api::RefCounted as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
+
         std::mem::forget(tmp); // no ownership transfer
         return_val
     }
@@ -341,6 +344,36 @@ where
         unsafe {
             interface_fn!(object_destroy)(self.obj_sys());
         }
+    }
+}
+
+impl<T> Deref for Gd<T>
+where
+    T: GodotClass<Declarer = dom::EngineDomain>,
+{
+    // This relies on Gd<Node3D> having the layout as Node3D (as an example),
+    // which also needs #[repr(transparent)]:
+    //
+    // struct Gd<T: GodotClass> {
+    //     opaque: OpaqueObject,         <- size of GDNativeObjectPtr
+    //     _marker: PhantomData,         <- ZST
+    // }
+    // struct Node3D {
+    //     object_ptr: sys::GDNativeObjectPtr,
+    // }
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { std::mem::transmute::<&OpaqueObject, &T>(&self.opaque) }
+    }
+}
+
+impl<T> DerefMut for Gd<T>
+where
+    T: GodotClass<Declarer = dom::EngineDomain>,
+{
+    fn deref_mut(&mut self) -> &mut T {
+        unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut self.opaque) }
     }
 }
 

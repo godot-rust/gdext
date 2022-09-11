@@ -157,46 +157,38 @@ mod private {
 pub mod dom {
     use super::private::Sealed;
     use crate::obj::Gd;
-    use crate::sys;
     use crate::traits::GodotClass;
-    use sys::types::OpaqueObject;
+    use std::ops::DerefMut;
 
     pub trait Domain: Sealed {
-        fn extract_from_obj<T: GodotClass<Declarer = Self>>(obj: &Gd<T>) -> &T;
-        fn extract_from_obj_mut<T: GodotClass<Declarer = Self>>(obj: &mut Gd<T>) -> &mut T;
+        fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
+        where
+            T: GodotClass<Declarer = Self>,
+            F: FnOnce(&mut T) -> R;
     }
 
     pub enum EngineDomain {}
     impl Sealed for EngineDomain {}
     impl Domain for EngineDomain {
-        fn extract_from_obj<T: GodotClass<Declarer = Self>>(obj: &Gd<T>) -> &T {
-            // This relies on Gd<Node3D> having the layout as Node3D (as an example),
-            // which also needs #[repr(transparent)]:
-            //
-            // struct Gd<T: GodotClass> {
-            //     opaque: OpaqueObject,         <- size of GDNativeObjectPtr
-            //     _marker: PhantomData,         <- ZST
-            // }
-            // struct Node3D {
-            //     object_ptr: sys::GDNativeObjectPtr,
-            // }
-            unsafe { std::mem::transmute::<&OpaqueObject, &T>(&obj.opaque) }
-        }
-
-        fn extract_from_obj_mut<T: GodotClass<Declarer = Self>>(obj: &mut Gd<T>) -> &mut T {
-            unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut obj.opaque) }
+        fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
+        where
+            T: GodotClass<Declarer = EngineDomain>,
+            F: FnOnce(&mut T) -> R,
+        {
+            closure(obj.deref_mut())
         }
     }
 
     pub enum UserDomain {}
     impl Sealed for UserDomain {}
     impl Domain for UserDomain {
-        fn extract_from_obj<T: GodotClass<Declarer = Self>>(obj: &Gd<T>) -> &T {
-            obj.storage().get()
-        }
-
-        fn extract_from_obj_mut<T: GodotClass<Declarer = Self>>(obj: &mut Gd<T>) -> &mut T {
-            obj.storage().get_mut()
+        fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
+        where
+            T: GodotClass<Declarer = Self>,
+            F: FnOnce(&mut T) -> R,
+        {
+            let mut guard = obj.bind_mut();
+            closure(guard.deref_mut())
         }
     }
 }

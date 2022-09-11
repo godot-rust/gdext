@@ -43,13 +43,13 @@ pub fn run() -> bool {
 #[itest]
 fn object_construct_default() {
     let obj = Gd::<ObjPayload>::new_default();
-    assert_eq!(obj.inner().value, 111);
+    assert_eq!(obj.bind().value, 111);
 }
 
 #[itest]
 fn object_construct_value() {
     let obj = Gd::new(ObjPayload { value: 222 });
-    assert_eq!(obj.inner().value, 222);
+    assert_eq!(obj.bind().value, 222);
 }
 
 /*
@@ -74,12 +74,12 @@ fn object_user_roundtrip_write() {
     let user = ObjPayload { value };
 
     let obj: Gd<ObjPayload> = Gd::new(user);
-    assert_eq!(obj.inner().value, value);
+    assert_eq!(obj.bind().value, value);
 
     // TODO drop/release?
 
     let obj2 = unsafe { Gd::<ObjPayload>::from_sys_init(|ptr| obj.write_sys(ptr)) };
-    assert_eq!(obj2.inner().value, value);
+    assert_eq!(obj2.bind().value, value);
 }
 */
 
@@ -88,13 +88,13 @@ fn object_engine_roundtrip() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
 
     let mut obj: Gd<Node3D> = Node3D::new_alloc();
-    obj.inner_mut().set_position(pos);
-    assert_eq!(obj.inner().get_position(), pos);
+    obj.set_position(pos);
+    assert_eq!(obj.get_position(), pos);
 
     let ptr = obj.sys();
 
     let obj2 = unsafe { Gd::<Node3D>::from_sys(ptr) };
-    assert_eq!(obj2.inner().get_position(), pos);
+    assert_eq!(obj2.get_position(), pos);
     obj.free();
 }
 
@@ -107,7 +107,7 @@ fn object_instance_id() {
     let id = obj.instance_id();
 
     let obj2 = Gd::<ObjPayload>::from_instance_id(id);
-    assert_eq!(obj2.inner().value, value);
+    assert_eq!(obj2.bind().value, value);
 }
 
 #[itest]
@@ -119,7 +119,7 @@ fn object_user_convert_variant() {
     let variant = Variant::from(&obj);
     let obj2 = Gd::<ObjPayload>::from(&variant);
 
-    assert_eq!(obj2.inner().value, value);
+    assert_eq!(obj2.bind().value, value);
 }
 
 #[itest]
@@ -127,12 +127,12 @@ fn object_engine_convert_variant() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
 
     let mut obj: Gd<Node3D> = Node3D::new_alloc();
-    obj.inner_mut().set_position(pos);
+    obj.set_position(pos);
 
     let variant = Variant::from(&obj);
     let obj2 = Gd::<Node3D>::from(&variant);
 
-    assert_eq!(obj2.inner().get_position(), pos);
+    assert_eq!(obj2.get_position(), pos);
     obj.free();
 }
 
@@ -143,7 +143,7 @@ fn object_engine_upcast() {
 
     let object = node3d.upcast::<Object>();
     assert_eq!(object.instance_id(), id);
-    assert_eq!(object.inner().get_class(), GodotString::from("Node3D"));
+    assert_eq!(object.get_class(), GodotString::from("Node3D"));
 
     // Deliberate free on upcast object
     object.free();
@@ -153,7 +153,7 @@ fn object_engine_upcast() {
 fn object_engine_downcast() {
     let pos = Vector3::new(1.0, 2.0, 3.0);
     let mut node3d: Gd<Node3D> = Node3D::new_alloc();
-    node3d.inner_mut().set_position(pos);
+    node3d.set_position(pos);
     let id = node3d.instance_id();
 
     let object = node3d.upcast::<Object>();
@@ -161,7 +161,7 @@ fn object_engine_downcast() {
     let node3d: Gd<Node3D> = node.try_cast::<Node3D>().expect("try_cast");
 
     assert_eq!(node3d.instance_id(), id);
-    assert_eq!(node3d.inner().get_position(), pos);
+    assert_eq!(node3d.get_position(), pos);
 
     node3d.free();
 }
@@ -183,7 +183,7 @@ fn object_user_upcast() {
 
     let object = obj.upcast::<Object>();
     assert_eq!(object.instance_id(), id);
-    assert_eq!(object.inner().get_class(), GodotString::from("ObjPayload"));
+    assert_eq!(object.get_class(), GodotString::from("ObjPayload"));
 }
 
 #[itest]
@@ -197,7 +197,7 @@ fn object_user_downcast() {
 
     let concrete: Gd<ObjPayload> = intermediate.try_cast::<ObjPayload>().expect("try_cast");
     assert_eq!(concrete.instance_id(), id);
-    assert_eq!(concrete.inner().value, 17943);
+    assert_eq!(concrete.bind().value, 17943);
 }
 
 #[itest]

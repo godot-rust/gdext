@@ -46,14 +46,6 @@ impl<T: GodotClass> Base<T> {
             obj: ManuallyDrop::new(obj),
         }
     }
-
-    pub fn inner(&self) -> &T {
-        self.obj.inner()
-    }
-
-    pub fn inner_mut(&mut self) -> &mut T {
-        self.obj.inner_mut()
-    }
 }
 
 impl<T: GodotClass> std::fmt::Debug for Base<T> {

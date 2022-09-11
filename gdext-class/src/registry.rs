@@ -335,12 +335,9 @@ pub mod callbacks {
         instance: sys::GDExtensionClassInstancePtr,
         out_string: sys::GDNativeStringPtr,
     ) {
-        // Lazy/late init is necessary, if the GDScript instantiates a T using `T.new()` and directly uses its
-        // string representation, before get_mut_lateinit() is called. Type is erased because T might not
-        // statically implement the GodotInit trait (and if it doesn't, it will already be initialized).
         let storage = as_storage::<T>(instance);
-        let instance = storage.get(); //_dyn_lateinit();
-        let string = GodotExt::to_string(instance);
+        let instance = storage.get();
+        let string = <T as GodotExt>::to_string(&*instance);
 
         // Transfer ownership to Godot, disable destructor
         string.write_string_sys(out_string);
