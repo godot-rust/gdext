@@ -22,19 +22,13 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let inherits_macro = format_ident!("gdext_inherits_transitive_{}", &base_ty_str);
 
     let prv = quote! { gdext_class::private };
-    let (godot_init_impl, create_fn, erased_init_fn);
+    let (godot_init_impl, create_fn);
     if struct_cfg.has_generated_init {
         godot_init_impl = make_godot_init_impl(class_name, fields);
         create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
-        erased_init_fn = quote! {
-            Some(#prv::ErasedInitFn {
-                raw: #prv::callbacks::erased_init::<#class_name>,
-            })
-        };
     } else {
         godot_init_impl = TokenStream::new();
         create_fn = quote! { None };
-        erased_init_fn = quote! { None };
     };
 
     Ok(quote! {
@@ -55,7 +49,6 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
             component: #prv::PluginComponent::ClassDef {
                 base_class_name: #base_ty_str,
                 generated_create_fn: #create_fn,
-                generated_erased_init_fn: #erased_init_fn,
                 free_fn: #prv::callbacks::free::<#class_name>,
             },
         });
