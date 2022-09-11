@@ -1,4 +1,7 @@
-use crate::{out, sys, GodotClass};
+use crate::out;
+use crate::traits::GodotClass;
+use gdext_sys as sys;
+
 use std::any::type_name;
 
 /// Manages storage and lifecycle of user's extension class instances.

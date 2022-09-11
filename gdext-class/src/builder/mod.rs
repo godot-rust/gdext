@@ -1,4 +1,4 @@
-use crate::GodotClass;
+use crate::traits::GodotClass;
 use std::marker::PhantomData;
 
 mod method;

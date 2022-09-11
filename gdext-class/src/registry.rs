@@ -3,15 +3,14 @@
 use crate::private::as_storage;
 use crate::storage::InstanceStorage;
 use crate::traits::*;
-use std::any::Any;
+use gdext_sys as sys;
 
+use sys::interface_fn;
+
+use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ptr;
-
-use crate::Base;
-use gdext_sys as sys;
-use sys::interface_fn;
 
 #[derive(Debug)]
 pub struct ClassPlugin {
@@ -275,6 +274,7 @@ impl Display for ClassName {
 pub mod callbacks {
     use super::*;
     use crate::builder::ClassBuilder;
+    use crate::obj::Base;
 
     pub unsafe extern "C" fn create<T: cap::GodotInit>(
         _class_userdata: *mut std::ffi::c_void,

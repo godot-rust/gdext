@@ -78,7 +78,8 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
     quote! {
         use gdext_sys as sys;
         use gdext_builtin::*;
-        use crate::{Obj, AsArg};
+        use crate::obj::Obj;
+        use crate::traits::AsArg;
 
         #[derive(Debug)]
         #[repr(transparent)]

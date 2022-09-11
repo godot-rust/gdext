@@ -1,4 +1,4 @@
-use crate::InstanceId;
+use crate::obj::InstanceId;
 use gdext_builtin::{GodotString, Vector2, Vector3};
 use gdext_sys as sys;
 

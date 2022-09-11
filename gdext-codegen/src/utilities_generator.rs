@@ -22,7 +22,7 @@ pub(crate) fn generate_utilities_file(
     let tokens = quote! {
         use gdext_sys as sys;
         use gdext_builtin::*;
-        use crate::Obj;
+        use crate::obj::Obj;
         use crate::api::Object;
 
         #(#utility_fn_defs)*

@@ -6,15 +6,20 @@ use gdext_sys as sys;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
-use crate::dom::Domain as _;
-use crate::mem::Memory as _;
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
-use crate::{
-    api, callbacks, cap, dom, mem, out, ClassName, GodotClass, Inherits, InstanceId, Share,
-};
+use crate::traits::dom::Domain as _;
+use crate::traits::mem::Memory as _;
+use crate::traits::{cap, dom, mem, GodotClass, Inherits, Share};
+use crate::{api, callbacks, out, ClassName};
 
+mod base;
 mod guards;
+mod instance_id;
+
+pub use base::*;
+pub use guards::*;
+pub use instance_id::*;
 
 /// Smart pointer to objects owned by the Godot engine.
 ///

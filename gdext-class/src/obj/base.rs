@@ -1,5 +1,6 @@
-use crate::{GodotClass, Obj};
-use gdext_sys as sys;
+use crate::obj::Obj;
+use crate::sys;
+use crate::traits::GodotClass;
 use std::mem::ManuallyDrop;
 
 /// Smart pointer holding a Godot base class inside a user's `GodotClass`.

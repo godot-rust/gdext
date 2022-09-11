@@ -1,7 +1,12 @@
 use crate::builder::ClassBuilder;
-use crate::{sys, Base};
+use crate::obj::Base;
 use gdext_builtin::GodotString;
+use gdext_sys as sys;
 use std::fmt::Debug;
+
+mod as_arg;
+
+pub use as_arg::*;
 
 /// Makes `T` eligible to be managed by Godot and stored in [`Obj<T>`][crate::Obj] pointers.
 ///
@@ -30,7 +35,6 @@ impl GodotClass for () {
     type Mem = mem::ManualMemory;
 
     const CLASS_NAME: &'static str = "(no base)";
-
 }
 
 /// Extension API for Godot classes, used with `#[godot_api]`.
@@ -152,8 +156,10 @@ mod private {
 
 pub mod dom {
     use super::private::Sealed;
-    use crate::{GodotClass, Obj};
-    use gdext_sys::types::OpaqueObject;
+    use crate::obj::Obj;
+    use crate::sys;
+    use crate::traits::GodotClass;
+    use sys::types::OpaqueObject;
 
     pub trait Domain: Sealed {
         fn extract_from_obj<T: GodotClass<Declarer = Self>>(obj: &Obj<T>) -> &T;
@@ -198,7 +204,9 @@ pub mod dom {
 
 pub mod mem {
     use super::private::Sealed;
-    use crate::{out, GodotClass, Obj};
+    use crate::obj::Obj;
+    use crate::out;
+    use crate::traits::GodotClass;
 
     pub trait Memory: Sealed {
         fn maybe_init_ref<T: GodotClass>(obj: &Obj<T>);

@@ -2,7 +2,8 @@
 
 use gdext_builtin::GodotString;
 use gdext_class::api::RefCounted;
-use gdext_class::{Base, GodotExt, Obj};
+use gdext_class::obj::{Base, Obj};
+use gdext_class::traits::GodotExt;
 use gdext_macros::{godot_api, itest, GodotClass};
 
 /// Simple class, that deliberately has no constructor accessible from GDScript

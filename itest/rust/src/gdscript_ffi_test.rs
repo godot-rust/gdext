@@ -2,7 +2,8 @@
 
 use gdext_class::api::RefCounted;
 use gdext_class::builder::ClassBuilder;
-use gdext_class::{Base, GodotExt};
+use gdext_class::obj::Base;
+use gdext_class::traits::GodotExt;
 use gdext_macros::{godot_api, GodotClass};
 
 #[derive(GodotClass, Debug)]
