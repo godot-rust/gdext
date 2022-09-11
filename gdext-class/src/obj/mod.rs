@@ -14,6 +14,8 @@ use crate::{
     api, callbacks, cap, dom, mem, out, ClassName, GodotClass, Inherits, InstanceId, Share,
 };
 
+mod guards;
+
 /// Smart pointer to objects owned by the Godot engine.
 ///
 /// This smart pointer can only hold _objects_ in the Godot sense: instances of Godot classes (`Node`, `RefCounted`, etc.)
