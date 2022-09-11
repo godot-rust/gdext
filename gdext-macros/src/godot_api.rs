@@ -1,6 +1,6 @@
 use crate::util::bail;
 use crate::{util, ParseResult};
-use proc_macro2::{Ident, Punct, Spacing, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use venial::{Declaration, Error, Function, Impl, ImplMember};
 
@@ -103,7 +103,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
             // Signatures are the same thing without body
             let mut sig = method.clone();
             sig.body = None;
-            sig.tk_semicolon = Some(Punct::new(';', Spacing::Alone));
+            sig.tk_semicolon = None;
             method_signatures.push(sig);
         }
     }

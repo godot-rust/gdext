@@ -171,14 +171,14 @@ macro_rules! gdext_register_method {
             $(, $param:ident : $ParamTy:ty)*
             $(, #[opt] $opt_param:ident : $OptParamTy:ty)*
             $(,)?
-        ) -> $RetTy:ty;
+        ) -> $RetTy:ty
     ) => {
         $crate::gdext_register_method_inner!(
             $Class,
             map_mut,
             fn $method_name(
-                $(, $param : $ParamTy)*
-                $(, #[opt] $opt_param : $OptParamTy)*
+                $( $param : $ParamTy, )*
+                $( #[opt] $opt_param : $OptParamTy, )*
             ) -> $RetTy
         )
     };
@@ -191,7 +191,7 @@ macro_rules! gdext_register_method {
             $(, $arg:ident : $Param:ty)*
             $(, #[opt] $opt_arg:ident : $OptParam:ty)*
             $(,)?
-        ) -> $RetTy:ty;
+        ) -> $RetTy:ty
     ) => {
         $crate::gdext_register_method_inner!(
             $Class,
@@ -211,16 +211,16 @@ macro_rules! gdext_register_method {
             $(, $param:ident : $ParamTy:ty )*
             $(, #[opt] $opt_param:ident : $OptParamTy:ty )*
             $(,)?
-        );
+        )
     ) => {
         // recurse this macro
         $crate::gdext_register_method!(
             $Class,
             fn $method_name(
                 &mut self,
-                $(, $param : $ParamTy )*
-                $(, #[opt] $opt_param : $OptParamTy )*
-            ) -> ();
+                $( $param : $ParamTy, )*
+                $( #[opt] $opt_param : $OptParamTy, )*
+            ) -> ()
         )
     };
 
@@ -232,16 +232,16 @@ macro_rules! gdext_register_method {
             $(, $param:ident : $ParamTy:ty )*
             $(, #[opt] $opt_param:ident : $OptParamTy:ty )*
             $(,)?
-        );
+        )
     ) => {
         // recurse this macro
         $crate::gdext_register_method!(
             $Class,
             fn $method_name(
-                &self
-                $(, $param : $ParamTy )*
-                $(, #[opt] $opt_param : $OptParamTy )*
-            ) -> ();
+                &self,
+                $( $param : $ParamTy, )*
+                $( #[opt] $opt_param : $OptParamTy, )*
+            ) -> ()
         )
     };
 }
