@@ -37,9 +37,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
             type Declarer = gdext_class::dom::UserDomain;
             type Mem = <Self::Base as gdext_class::traits::GodotClass>::Mem;
 
-            fn class_name() -> String {
-                #class_name_str.to_string()
-            }
+            const CLASS_NAME: &'static str = #class_name_str;
         }
 
         #godot_init_impl

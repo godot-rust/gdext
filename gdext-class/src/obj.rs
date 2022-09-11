@@ -152,7 +152,7 @@ impl<T: GodotClass> Obj<T> {
         Self::try_from_instance_id(instance_id).expect(&format!(
             "Instance ID {} does not belong to a valid object of class '{}'",
             instance_id,
-            T::class_name()
+            T::CLASS_NAME
         ))
     }
 
@@ -232,8 +232,8 @@ impl<T: GodotClass> Obj<T> {
         self.owned_cast().unwrap_or_else(|| {
             panic!(
                 "downcast from {from} to {to} failed; correct the code or use try_cast()",
-                from = T::class_name(),
-                to = Derived::class_name()
+                from = T::CLASS_NAME,
+                to = Derived::CLASS_NAME
             )
         })
     }
@@ -447,7 +447,7 @@ impl<T: GodotClass> PropertyInfoBuilder for Obj<T> {
         let reg = unsafe { sys::get_registry() };
 
         let property_name = reg.c_string(name);
-        let class_name = reg.c_string(&T::class_name());
+        let class_name = reg.c_string(T::CLASS_NAME);
 
         sys::GDNativePropertyInfo {
             type_: Self::variant_type() as u32,

@@ -20,7 +20,7 @@ where
     /// Defines the memory strategy.
     type Mem: mem::Memory;
 
-    fn class_name() -> String;
+    const CLASS_NAME: &'static str;
 }
 
 /// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
@@ -29,9 +29,8 @@ impl GodotClass for () {
     type Declarer = dom::EngineDomain;
     type Mem = mem::ManualMemory;
 
-    fn class_name() -> String {
-        "(no base)".to_string()
-    }
+    const CLASS_NAME: &'static str = "(no base)";
+
 }
 
 /// Extension API for Godot classes, used with `#[godot_api]`.

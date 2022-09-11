@@ -101,9 +101,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
             type Declarer = crate::traits::dom::EngineDomain;
             type Mem = crate::traits::mem::#memory;
 
-            fn class_name() -> String {
-                #name_str.to_string()
-            }
+            const CLASS_NAME: &'static str = #name_str;
         }
         impl crate::traits::EngineClass for #name {
              fn as_object_ptr(&self) -> sys::GDNativeObjectPtr {

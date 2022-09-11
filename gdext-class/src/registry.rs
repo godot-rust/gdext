@@ -251,7 +251,7 @@ pub(crate) struct ClassName {
 impl ClassName {
     pub fn new<T: GodotClass>() -> Self {
         Self {
-            backing: format!("{}\0", T::class_name()),
+            backing: format!("{}\0", T::CLASS_NAME),
         }
     }
 
