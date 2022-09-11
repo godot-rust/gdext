@@ -1,7 +1,9 @@
 use std::cell;
+use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
 /// Immutably bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
+#[derive(Debug)]
 pub struct GdRef<'a, T> {
     cell_ref: cell::Ref<'a, T>,
 }
@@ -23,6 +25,7 @@ impl<T> Deref for GdRef<'_, T> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Mutably and exclusively bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
+#[derive(Debug)]
 pub struct GdMut<'a, T> {
     cell_ref: cell::RefMut<'a, T>,
 }

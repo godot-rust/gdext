@@ -1,6 +1,7 @@
 use gdext_class::out;
 use gdext_macros::{godot_api, itest, GodotClass};
 
+mod base_test;
 mod gdscript_ffi_test;
 mod object_test;
 mod string_test;
@@ -9,10 +10,11 @@ mod virtual_methods_test;
 
 fn run_tests() -> bool {
     let mut ok = true;
-    ok &= object_test::run();
-    ok &= variant_test::run();
-    ok &= string_test::run();
+    ok &= base_test::run();
     ok &= gdscript_ffi_test::run();
+    ok &= object_test::run();
+    ok &= string_test::run();
+    ok &= variant_test::run();
     ok &= virtual_methods_test::run();
     ok
 }

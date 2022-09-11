@@ -2,6 +2,7 @@ use crate::obj::Gd;
 use crate::sys;
 use crate::traits::GodotClass;
 use std::mem::ManuallyDrop;
+use std::ops::{Deref, DerefMut};
 
 /// Smart pointer holding a Godot base class inside a user's `GodotClass`.
 ///
@@ -50,6 +51,22 @@ impl<T: GodotClass> Base<T> {
 
 impl<T: GodotClass> std::fmt::Debug for Base<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Base {{ instance_id: {} }}", self.obj.instance_id())
+        write!(f, "Base {{ id: {} }}", self.obj.instance_id())
+    }
+}
+
+impl<T: GodotClass> Deref for Base<T> {
+    type Target = Gd<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.obj
+    }
+}
+
+// Note: having DerefMut is almost equivalent to directly storing Gd<T>
+// Main difference is that an existing Gd<T> cannot be used as the base, and mem::take/replace() don't work as easily
+impl<T: GodotClass> DerefMut for Base<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.obj
     }
 }
