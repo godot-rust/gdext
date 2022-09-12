@@ -3,6 +3,8 @@ use quote::{format_ident, quote};
 use std::io::Write;
 use std::path::Path;
 
+type IoResult = std::io::Result<()>;
+
 macro_rules! push {
     ($inputs:ident; $ident:ident : $ty:ty = $val:expr; $gd_ty:ident) => {
         $inputs.push(Input {
@@ -93,10 +95,49 @@ fn write_gdscript_code(
     inputs: &Vec<Input>,
     in_template_path: &Path,
     out_file_path: &Path,
-) -> std::io::Result<()> {
+) -> IoResult {
+    // let once_part: &str;
+    // let repeat_part: &str;
+    // {
+    //     let template = std::fs::read_to_string(in_template_path)?;
+    //     let mut spliter = template.splitn(2, "#---");
+    //     once_part = spliter.next().expect("once part available");
+    //     repeat_part = spliter.next().expect("repeat part available");
+    //     assert!(
+    //         spliter.next().is_none(),
+    //         "only one delimiter in template allowed"
+    //     );
+    // }
+
     let template = std::fs::read_to_string(in_template_path)?;
     let mut file = std::fs::File::create(out_file_path)?;
 
+    // let (mut last_start, mut prev_end) = (0, 0);
+    let mut last = 0;
+
+    let ranges = find_repeated_ranges(&template);
+    dbg!(&ranges);
+    for m in ranges {
+        file.write_all(&template[last..m.before_start].as_bytes())?;
+
+        replace_parts(&template[m.start..m.end], inputs, |replacement| {
+            file.write_all(replacement.as_bytes())?;
+            Ok(())
+        })?;
+
+        last = m.after_end;
+    }
+    file.write_all(&template[last..].as_bytes())?;
+    // file.write_all("\n\n".as_bytes())?;
+
+    Ok(())
+}
+
+fn replace_parts(
+    repeat_part: &str,
+    inputs: &Vec<Input>,
+    mut visitor: impl FnMut(&str) -> IoResult,
+) -> IoResult {
     for input in inputs {
         let Input {
             ident,
@@ -105,14 +146,54 @@ fn write_gdscript_code(
             ..
         } = input;
 
-        let replaced = template
+        let replaced = repeat_part
             .replace("IDENT", ident)
             .replace("TYPE", gdscript_ty)
             .replace("VAL", &rust_val.to_string());
 
-        file.write_all(replaced.as_bytes())?;
-        file.write_all("\n\n".as_bytes())?;
+        visitor(&replaced)?;
     }
 
     Ok(())
+}
+
+fn find_repeated_ranges(entire: &str) -> Vec<Match> {
+    const START_PAT: &'static str = "#(";
+    const END_PAT: &'static str = "#)";
+
+    let mut search_start = 0;
+    let mut found = vec![];
+    loop {
+        if let Some(start) = entire[search_start..].find(START_PAT) {
+            let before_start = search_start + start;
+            let start = before_start + START_PAT.len();
+            if let Some(end) = entire[start..].find(END_PAT) {
+                let end = start + end;
+                let after_end = end + END_PAT.len();
+
+                println!("Found {start}..{end}");
+                found.push(Match {
+                    before_start,
+                    start,
+                    end,
+                    after_end,
+                });
+                search_start = after_end;
+            } else {
+                panic!("unmatched start pattern without end");
+            }
+        } else {
+            break;
+        }
+    }
+
+    found
+}
+
+#[derive(Debug)]
+struct Match {
+    before_start: usize,
+    start: usize,
+    end: usize,
+    after_end: usize,
 }
