@@ -16,3 +16,7 @@ gdext-sys = { path = "../../gdext-sys" }
 gdext-macros = { path = "../../gdext-macros" }
 gdext-builtin = { path = "../../gdext-builtin" }
 gdext-class = { path = "../../gdext-class" }
+
+[build-dependencies]
+quote = "1"
+proc-macro2 = "1"

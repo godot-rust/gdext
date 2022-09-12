@@ -14,9 +14,7 @@ godot.log
 *.import
 
 # This project: input JSONs and code generation
-/gdext-codegen/input/gen/
-/gdext-sys/src/gen/
-/gdext-class/src/gen/
+gen
 
 # Temporary tweaks, remove later
 /script

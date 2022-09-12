@@ -20,10 +20,9 @@ func test_missing_init() -> bool:
 func test_int() -> bool:
 	var ffi = RustFfi.new()
 	print("[GD] RustFfi constructed: ", ffi.get_instance_id())
-#	var from_rust = ffi.create_int()
-#	var ok: bool = ffi.accept_int(from_rust)
-	var ok = true
-	
+	var from_rust = ffi.return_int()
+	var ok: bool = ffi.accept_int(from_rust)
+
 	var from_gdscript = 38821
 	var mirrored = ffi.mirror_int(from_gdscript)
 
