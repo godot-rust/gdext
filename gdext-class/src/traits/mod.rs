@@ -2,7 +2,6 @@ use crate::builder::ClassBuilder;
 use crate::obj::Base;
 use gdext_builtin::GodotString;
 use gdext_sys as sys;
-use std::fmt::Debug;
 
 mod as_arg;
 
@@ -11,7 +10,7 @@ pub use as_arg::*;
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
 ///
 /// The behavior of types implementing this trait is influenced by the associated types; check their documentation for information.
-pub trait GodotClass: Debug + 'static
+pub trait GodotClass: 'static
 where
     Self: Sized,
 {

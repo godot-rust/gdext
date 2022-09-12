@@ -39,7 +39,7 @@ pub mod private {
 macro_rules! out {
     ()                          => (eprintln!());
     ($fmt:literal)              => (eprintln!($fmt));
-    ($fmt:literal, $($arg:tt)*) => (eprintln!($fmt, $($arg)*);)
+    ($fmt:literal, $($arg:tt)*) => (eprintln!($fmt, $($arg)*));
 }
 
 #[cfg(not(feature = "trace"))]
