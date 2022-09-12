@@ -6,24 +6,48 @@ use std::path::Path;
 type IoResult = std::io::Result<()>;
 
 macro_rules! push {
-    ($inputs:ident; $ident:ident : $ty:ty = $val:expr; $gd_ty:ident) => {
+    ($inputs:ident; $gdscript_ty:ident, $rust_ty:ty, $val:expr) => {
+        push!($inputs; $gdscript_ty, $rust_ty, $val, $val);
+    };
+
+    ($inputs:ident; $gdscript_ty:ident, $rust_ty:ty, $gdscript_val:expr, $rust_val:expr) => {
         $inputs.push(Input {
-            ident: stringify!($ident),
-            rust_ty: quote! { $ty },
-            rust_val: quote! { $val },
-            gdscript_ty: stringify!($gd_ty),
+            ident: stringify!($rust_ty).to_lowercase(),
+            gdscript_ty: stringify!($gdscript_ty),
+            gdscript_val: stringify!($gdscript_val),
+            rust_ty: quote! { $rust_ty },
+            rust_val: quote! { $rust_val },
         });
     };
 }
 
-fn main() {
+// Edit this to change involved types
+fn collect_inputs() -> Vec<Input> {
     let mut inputs = vec![];
-    push!(inputs; int: i32 = 42; int);
-    push!(inputs; bool: bool = true; bool);
 
+    // Scalar
+    push!(inputs; int, i64, -922337203685477580);
+    push!(inputs; int, i32, -2147483647);
+    //push!(inputs; int, i16, -32767);
+    //push!(inputs; int, i8, -128);
+    // push!(inputs; float, f64, 127.83);
+    push!(inputs; bool, bool, true);
+    push!(inputs; String, GodotString, "hello", "hello".into());
+
+    // Composite
+    push!(inputs; int, InstanceId, -1, InstanceId::from_u64(0xFFFFFFFFFFFFFFFF));
+
+    inputs
+}
+
+fn main() {
+    let inputs = collect_inputs();
     let methods = generate_rust_methods(&inputs);
 
     let rust_tokens = quote::quote! {
+        use gdext_builtin::*;
+        use gdext_class::obj::InstanceId;
+
         #[derive(gdext_macros::GodotClass)]
         #[godot(init)]
         struct GenFfi {}
@@ -38,7 +62,7 @@ fn main() {
     let godot_input_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../godot/input"));
     let godot_output_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../godot/gen"));
 
-    let rust_file = rust_output_dir.join("rust_ffi.rs");
+    let rust_file = rust_output_dir.join("gen_ffi.rs");
     let gdscript_template = godot_input_dir.join("GenFfiTests.template.gd");
     let gdscript_file = godot_output_dir.join("GenFfiTests.gd");
 
@@ -49,14 +73,14 @@ fn main() {
         .expect("write to GDScript file");
 
     println!("cargo:rerun-if-changed={}", gdscript_template.display());
-
 }
 
 struct Input {
-    ident: &'static str,
+    ident: String,
+    gdscript_ty: &'static str,
+    gdscript_val: &'static str,
     rust_ty: TokenStream,
     rust_val: TokenStream,
-    gdscript_ty: &'static str,
 }
 
 fn generate_rust_methods(inputs: &Vec<Input>) -> Vec<TokenStream> {
@@ -93,6 +117,9 @@ fn generate_rust_methods(inputs: &Vec<Input>) -> Vec<TokenStream> {
         })
         .collect()
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// GDScript templating and generation
 
 fn write_gdscript_code(
     inputs: &Vec<Input>,
@@ -131,14 +158,14 @@ fn replace_parts(
         let Input {
             ident,
             gdscript_ty,
-            rust_val,
+            gdscript_val,
             ..
         } = input;
 
         let replaced = repeat_part
-            .replace("IDENT", ident)
+            .replace("IDENT", &ident)
             .replace("TYPE", gdscript_ty)
-            .replace("VAL", &rust_val.to_string());
+            .replace("VAL", &gdscript_val.to_string());
 
         visitor(&replaced)?;
     }

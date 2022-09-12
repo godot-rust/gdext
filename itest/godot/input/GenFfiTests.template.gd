@@ -4,7 +4,10 @@ func run() -> bool:
 	var ffi = GenFfi.new()
 	print("[GD] GenFfi constructed: ", ffi.get_instance_id())
 	var ok := true#(
-	ok = ok && test_varcall_IDENT(ffi)#)
+	if !test_varcall_IDENT(ffi):
+		ok = false
+		push_error("  -- FFI test failed: test_varcall_IDENT")
+	#)
 
 	print("[GD] GenFfi destructing...")
 	return ok
