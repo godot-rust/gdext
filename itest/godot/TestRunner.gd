@@ -2,8 +2,12 @@ extends Node
 
 func _ready():
 	var rust_tests := IntegrationTests.new()
-	var gdscript_tests := $FfiTests
-	var status: bool = rust_tests.run() && gdscript_tests.run()
+
+	var rust = rust_tests.run()
+	var manual = $ManualFfiTests.run()
+	var generated = $GenFfiTests.run()
+
+	var status: bool = rust && manual && generated
 
 	print()
 	var exit_code: int

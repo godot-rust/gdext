@@ -26,10 +26,10 @@ fn main() {
     let rust_tokens = quote::quote! {
         #[derive(gdext_macros::GodotClass)]
         #[godot(init)]
-        struct RustFfi {}
+        struct GenFfi {}
 
         #[gdext_macros::godot_api]
-        impl RustFfi {
+        impl GenFfi {
             #(#methods)*
         }
     };
@@ -39,14 +39,17 @@ fn main() {
     let godot_output_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../godot/gen"));
 
     let rust_file = rust_output_dir.join("rust_ffi.rs");
-    let gdscript_template = godot_input_dir.join("FfiTestsTemplate.gd");
-    let gdscript_file = godot_output_dir.join("FfiTests.gd");
+    let gdscript_template = godot_input_dir.join("GenFfiTests.template.gd");
+    let gdscript_file = godot_output_dir.join("GenFfiTests.gd");
 
     std::fs::create_dir_all(rust_output_dir).expect("create Rust parent dir");
     std::fs::create_dir_all(godot_output_dir).expect("create GDScript parent dir");
     std::fs::write(rust_file, rust_tokens.to_string()).expect("write to Rust file");
     write_gdscript_code(&inputs, &gdscript_template, &gdscript_file)
         .expect("write to GDScript file");
+
+    println!("cargo:rerun-if-changed={}", gdscript_template.display());
+
 }
 
 struct Input {
@@ -96,19 +99,6 @@ fn write_gdscript_code(
     in_template_path: &Path,
     out_file_path: &Path,
 ) -> IoResult {
-    // let once_part: &str;
-    // let repeat_part: &str;
-    // {
-    //     let template = std::fs::read_to_string(in_template_path)?;
-    //     let mut spliter = template.splitn(2, "#---");
-    //     once_part = spliter.next().expect("once part available");
-    //     repeat_part = spliter.next().expect("repeat part available");
-    //     assert!(
-    //         spliter.next().is_none(),
-    //         "only one delimiter in template allowed"
-    //     );
-    // }
-
     let template = std::fs::read_to_string(in_template_path)?;
     let mut file = std::fs::File::create(out_file_path)?;
 
@@ -128,7 +118,6 @@ fn write_gdscript_code(
         last = m.after_end;
     }
     file.write_all(&template[last..].as_bytes())?;
-    // file.write_all("\n\n".as_bytes())?;
 
     Ok(())
 }

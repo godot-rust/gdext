@@ -1,10 +1,14 @@
-[gd_scene load_steps=3 format=3 uid="uid://tvu7uhyw3s7e"]
+[gd_scene load_steps=4 format=3 uid="uid://dgcj68l8n6wpb"]
 
 [ext_resource type="Script" path="res://TestRunner.gd" id="1_wdbrf"]
-[ext_resource type="Script" path="res://FfiTests.gd" id="2_gmtlc"]
+[ext_resource type="Script" path="res://ManualFfiTests.gd" id="2_gmtlc"]
+[ext_resource type="Script" path="res://gen/GenFfiTests.gd" id="3_vivae"]
 
 [node name="TestRunner" type="Node"]
 script = ExtResource("1_wdbrf")
 
-[node name="FfiTests" type="Node" parent="."]
+[node name="ManualFfiTests" type="Node" parent="."]
 script = ExtResource("2_gmtlc")
+
+[node name="GenFfiTests" type="Node" parent="."]
+script = ExtResource("3_vivae")
