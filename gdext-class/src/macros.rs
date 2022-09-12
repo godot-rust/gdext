@@ -383,6 +383,8 @@ macro_rules! gdext_ptrcall {
         )*);
 
         <$($RetTy)+ as sys::GodotFfi>::write_sys(&ret_val, $ret);
+        // FIXME should be inc_ref instead of forget
+        std::mem::forget(ret_val);
     };
 }
 

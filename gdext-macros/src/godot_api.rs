@@ -101,9 +101,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
             method.attributes.remove(index);
 
             // Signatures are the same thing without body
-            let mut sig = method.clone();
-            sig.body = None;
-            sig.tk_semicolon = None;
+            let sig = util::reduce_to_signature(&method);
             method_signatures.push(sig);
         }
     }
@@ -185,7 +183,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
                 match name {
                     #(
-                        #virtual_method_names => gdext_class::gdext_virtual_method_callback!(#class_name, #virtual_methods),
+                       #virtual_method_names => gdext_class::gdext_virtual_method_callback!(#class_name, #virtual_methods),
                     )*
                     _ => None,
                 }

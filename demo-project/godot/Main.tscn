@@ -15,7 +15,7 @@ sky_material = SubResource( "ProceduralSkyMaterial_yt430" )
 background_mode = 2
 sky = SubResource( "Sky_53gvg" )
 
-[sub_resource type="CameraEffects" id="CameraEffects_cxnmj"]
+[sub_resource type="CameraAttributes" id="CameraAttributes_cxnmj"]
 
 [sub_resource type="SphereMesh" id="SphereMesh_3d8e4"]
 
@@ -29,7 +29,7 @@ transform = Transform3D(1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 3, 5)
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource( "Environment_8duhl" )
-camera_effects = SubResource( "CameraEffects_cxnmj" )
+camera_effects = SubResource( "CameraAttributes_cxnmj" )
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="."]
 mesh = SubResource( "SphereMesh_3d8e4" )

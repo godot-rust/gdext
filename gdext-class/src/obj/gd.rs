@@ -274,10 +274,12 @@ impl<T: GodotClass> Gd<T> {
     }
 
     pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut api::RefCounted) -> R) -> R {
-        debug_assert!(
-            self.is_valid(),
-            "as_ref_counted() on freed instance; maybe forgot to increment reference count?"
-        );
+        if !self.is_valid() {
+            debug_assert!(
+                self.is_valid(),
+                "as_ref_counted() on freed instance; maybe forgot to increment reference count?"
+            );
+        }
 
         let tmp = unsafe { self.ffi_cast::<api::RefCounted>() };
         let mut tmp = tmp.expect("object expected to inherit RefCounted");

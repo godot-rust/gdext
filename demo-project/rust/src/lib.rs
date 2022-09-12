@@ -59,7 +59,7 @@ impl RustTest {
     fn accept_obj(&self, obj: Gd<Entity>) {
         let mut obj = obj;
 
-        //let obj = Gd::new(Entity { name: "h".to_string(), hitpoints: 77 }); // upcasting local object works
+        //let obj = Gd::new(Entity { name: "h".to_string(), hitpoints: 77 }); // upcacsting local object works
         let up: Gd<RefCounted> = obj.share().upcast(); // FIXME Godot cast to RefCount panics
         out!("upcast: up={:?}", up);
 
@@ -101,10 +101,10 @@ impl RustTest {
         {
             let inner = obj.bind();
             out!(
-            "[RustTest] find_obj():\n  id={},\n  obj={:?}",
-            instance_id,
-            inner
-        );
+                "[RustTest] find_obj():\n  id={},\n  obj={:?}",
+                instance_id,
+                inner
+            );
         }
         obj
     }
@@ -157,7 +157,7 @@ impl RustTest {
     }
 }
 
-//#[godot_api]
+#[godot_api]
 impl GodotExt for RustTest {
     fn init(base: Base<Self::Base>) -> Self {
         Self::new(base)
@@ -188,6 +188,7 @@ pub struct Entity {
     hitpoints: i32,
 }
 
+#[godot_api]
 impl GodotExt for Entity {
     fn init(base: Base<Self::Base>) -> Self {
         out!("[Entity] construct: base={base:?}");
@@ -211,48 +212,7 @@ gdext_init!(demo_init, |init: &mut gdext_builtin::InitOptions| {
     init.register_init_function(InitLevel::Scene, || {
         // register_class::<RustTest>();
         // register_class::<Entity>();
-
-        variant_tests();
+        gdext_class::auto_register_classes();
     });
     println!("Initialized.");
 });
-
-fn variant_tests() {
-    let _v = Variant::nil();
-
-    let _v = Variant::from(false);
-
-    {
-        let vec = Vector2::new(1.0, 4.0);
-        let vec_var = Variant::from(vec);
-
-        dbg!(Vector2::from(&vec_var));
-    }
-
-    {
-        let vec = Vector3::new(1.0, 4.0, 6.0);
-        let vec_var = Variant::from(vec);
-
-        dbg!(Vector3::from(&vec_var));
-    }
-
-    {
-        let s = GodotString::from("Hello from Rust! ♥");
-        dbg!(s.to_string());
-    }
-
-    {
-        let s = GodotString::new();
-        dbg!(s.to_string());
-    }
-
-    {
-        let x = Variant::from(12u32);
-        dbg!(u32::from(&x));
-    }
-
-    {
-        let x = Variant::from(true);
-        dbg!(bool::from(&x));
-    }
-}

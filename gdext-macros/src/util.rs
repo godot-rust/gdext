@@ -27,6 +27,7 @@ pub fn reduce_to_signature(function: &Function) -> Function {
     let mut reduced = function.clone();
     reduced.attributes.clear();
     reduced.tk_semicolon = None;
+    reduced.body = None;
 
     reduced
 }
