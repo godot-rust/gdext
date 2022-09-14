@@ -1,5 +1,5 @@
 use crate::itest;
-use gdext_builtin::{GodotString, Variant};
+use gdext_builtin::{FromVariant, GodotString, ToVariant, Variant};
 use std::fmt::Debug;
 
 pub fn run() -> bool {
@@ -35,11 +35,10 @@ fn variant_conversions() {
 
 fn roundtrip<T>(value: T)
 where
-    for<'a> T: From<&'a Variant> + Debug + PartialEq + Clone, // TODO use From<Variant>
-    Variant: From<T>,
+    T: FromVariant + ToVariant + Debug + PartialEq + Clone,
 {
-    let variant = Variant::from(value.clone());
-    let back = T::from(&variant);
+    let variant = value.to_variant();
+    let back = T::from_variant(&variant);
 
     assert_eq!(value, back);
 }
@@ -48,31 +47,28 @@ where
 fn variant_display() {
     let cases = [
         (Variant::nil(), "<null>"),
-        (Variant::from(false), "false"),
-        (Variant::from(true), "true"),
-        (
-            Variant::from(GodotString::from("some string")),
-            "some string",
-        ),
+        (false.to_variant(), "false"),
+        (true.to_variant(), "true"),
+        (GodotString::from("some string").to_variant(), "some string"),
         //
         // unsigned
-        (Variant::from(0u8), "0"),
-        (Variant::from(255u8), "255"),
-        (Variant::from(0u16), "0"),
-        (Variant::from(65535u16), "65535"),
-        (Variant::from(0u32), "0"),
-        (Variant::from(4294967295u32), "4294967295"),
+        ((0u8).to_variant(), "0"),
+        ((255u8).to_variant(), "255"),
+        ((0u16).to_variant(), "0"),
+        ((65535u16).to_variant(), "65535"),
+        ((0u32).to_variant(), "0"),
+        ((4294967295u32).to_variant(), "4294967295"),
         //
         // signed
-        (Variant::from(127i8), "127"),
-        (Variant::from(-128i8), "-128"),
-        (Variant::from(32767i16), "32767"),
-        (Variant::from(-32768i16), "-32768"),
-        (Variant::from(2147483647i32), "2147483647"),
-        (Variant::from(-2147483648i32), "-2147483648"),
-        (Variant::from(9223372036854775807i64), "9223372036854775807"),
+        ((127i8).to_variant(), "127"),
+        ((-128i8).to_variant(), "-128"),
+        ((32767i16).to_variant(), "32767"),
+        ((-32768i16).to_variant(), "-32768"),
+        ((2147483647i32).to_variant(), "2147483647"),
+        ((-2147483648i32).to_variant(), "-2147483648"),
+        ((9223372036854775807i64).to_variant(), "9223372036854775807"),
         (
-            Variant::from(-9223372036854775808i64),
+            (-9223372036854775808i64).to_variant(),
             "-9223372036854775808",
         ),
     ];

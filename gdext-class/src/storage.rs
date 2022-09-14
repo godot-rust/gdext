@@ -47,7 +47,7 @@ impl<T: GodotClass> InstanceStorage<T> {
     pub(crate) fn on_inc_ref(&mut self) {
         self.godot_ref_count += 1;
         out!(
-            "    Storage::on_inc_ref (rc={})     <{}>",// -- {:?}",
+            "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
             self.godot_ref_count,
             type_name::<T>(),
             //self.user_instance
@@ -57,7 +57,7 @@ impl<T: GodotClass> InstanceStorage<T> {
     pub(crate) fn on_dec_ref(&mut self) {
         self.godot_ref_count -= 1;
         out!(
-            "  | Storage::on_dec_ref (rc={})     <{}>",// -- {:?}",
+            "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
             self.godot_ref_count,
             type_name::<T>(),
             //self.user_instance
@@ -92,8 +92,8 @@ impl<T: GodotClass> InstanceStorage<T> {
 
     pub fn mark_destroyed_by_godot(&mut self) {
         out!(
-            "    Storage::mark_destroyed_by_godot",// -- {:?}",
-            //self.user_instance
+            "    Storage::mark_destroyed_by_godot", // -- {:?}",
+                                                    //self.user_instance
         );
         self.lifecycle = Lifecycle::Destroying;
         out!(
@@ -117,14 +117,14 @@ impl<T: GodotClass> InstanceStorage<T> {
 impl<T: GodotClass> Drop for InstanceStorage<T> {
     fn drop(&mut self) {
         out!(
-            "    Storage::drop (rc={})           <{}>",// -- {:?}",
+            "    Storage::drop (rc={})           <{}>", // -- {:?}",
             self.godot_ref_count,
             type_name::<T>(),
             //self.user_instance
         );
         //let _ = mem::take(&mut self.user_instance);
         out!(
-            "    Storage::drop end              <{}>",//  -- {:?}",
+            "    Storage::drop end              <{}>", //  -- {:?}",
             type_name::<T>(),
             //self.user_instance
         );

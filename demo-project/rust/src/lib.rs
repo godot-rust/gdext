@@ -1,4 +1,4 @@
-use gdext_builtin::{gdext_init, GodotString, InitLevel, Variant, Vector2, Vector3};
+use gdext_builtin::{gdext_init, FromVariant, GodotString, InitLevel, ToVariant, Vector2, Vector3};
 use std::str::FromStr;
 
 use gdext_class::api::{Node3D, RefCounted};
@@ -137,14 +137,14 @@ impl RustTest {
         let string = GodotString::from_str("hello string").unwrap();
         let copy = string.clone();
         let back = copy.to_string();
-        let variant = Variant::from(&copy);
+        let variant = copy.to_variant();
         // drop(back);
         // drop(copy);
         // drop(string);
         println!("var: {variant}");
 
         println!("<<");
-        let back2 = GodotString::from(&variant);
+        let back2 = GodotString::from_variant(&variant);
 
         println!(">>");
 

@@ -404,7 +404,7 @@ macro_rules! gdext_varcall {
 
         let mut idx = 0;
         $(
-            let $arg = <$ParamTy as From<&Variant>>::from(&*(*$args.offset(idx) as *mut Variant));
+            let $arg = <$ParamTy as ::gdext_builtin::FromVariant>::from_variant(&*(*$args.offset(idx) as *mut Variant));
             idx += 1;
         )*
 
@@ -412,7 +412,7 @@ macro_rules! gdext_varcall {
             $arg,
         )*);
 
-        *($ret as *mut Variant) = Variant::from(ret_val);
+        *($ret as *mut ::gdext_builtin::Variant) = <$($RetTy)+ as ::gdext_builtin::ToVariant>::to_variant(&ret_val);
         (*$err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
     };
 }

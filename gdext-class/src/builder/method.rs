@@ -80,7 +80,7 @@ macro_rules! impl_code_method {
                 let mut idx = 0;
 
                 $(
-                    let $arg = <$Param as From<&Variant>>::from(&*(*args.offset(idx) as *mut Variant));
+                    let $arg = <$Param as FromVariant::from_variant(&*(*args.offset(idx) as *mut Variant));
                     idx += 1;
                 )*
 

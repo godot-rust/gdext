@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 
-use gdext_builtin::Variant;
+use gdext_builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
 use gdext_sys as sys;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
@@ -427,38 +427,34 @@ impl<T: GodotClass> Share for Gd<T> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait impls
 
-impl<T: GodotClass> From<&Variant> for Gd<T> {
-    fn from(variant: &Variant) -> Self {
-        unsafe {
+impl<T: GodotClass> FromVariant for Gd<T> {
+    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+        let result = unsafe {
             let result = Self::from_sys_init(|self_ptr| {
                 let converter = sys::method_table().object_from_variant;
                 converter(self_ptr, variant.var_sys());
             });
             result.ready()
-        }
+        };
+
+        Ok(result)
     }
 }
 
-impl<T: GodotClass> From<Gd<T>> for Variant {
-    fn from(obj: Gd<T>) -> Self {
-        Variant::from(&obj)
-        // drops original object here
-    }
-}
-
-impl<T: GodotClass> From<&Gd<T>> for Variant {
-    fn from(obj: &Gd<T>) -> Self {
-        unsafe {
-            Self::from_var_sys_init(|variant_ptr| {
+impl<T: GodotClass> ToVariant for Gd<T> {
+    fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
+        let variant = unsafe {
+            Variant::from_var_sys_init(|variant_ptr| {
                 let converter = sys::method_table().object_to_variant;
 
                 // Note: this is a special case because of an inconsistency in Godot, where sometimes the equivalency is
                 // GDNativeTypePtr == Object** and sometimes GDNativeTypePtr == Object*. Here, it is the former, thus extra pointer.
                 // Reported at https://github.com/godotengine/godot/issues/61967
-                let type_ptr = obj.sys();
+                let type_ptr = self.sys();
                 converter(variant_ptr, ptr::addr_of!(type_ptr) as *mut _);
             })
-        }
+        };
+        Ok(variant)
     }
 }
 

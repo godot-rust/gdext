@@ -1,5 +1,5 @@
 use crate::itest;
-use gdext_builtin::{GodotString, Variant, Vector3};
+use gdext_builtin::{FromVariant, GodotString, ToVariant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
 use gdext_class::obj::{Base, Gd};
 use gdext_class::out;
@@ -113,8 +113,8 @@ fn object_user_convert_variant() {
     let user = ObjPayload { value };
 
     let obj: Gd<ObjPayload> = Gd::new(user);
-    let variant = Variant::from(&obj);
-    let obj2 = Gd::<ObjPayload>::from(&variant);
+    let variant = obj.to_variant();
+    let obj2 = Gd::<ObjPayload>::from_variant(&variant);
 
     assert_eq!(obj2.bind().value, value);
 }
@@ -126,8 +126,8 @@ fn object_engine_convert_variant() {
     let mut obj: Gd<Node3D> = Node3D::new_alloc();
     obj.set_position(pos);
 
-    let variant = Variant::from(&obj);
-    let obj2 = Gd::<Node3D>::from(&variant);
+    let variant = obj.to_variant();
+    let obj2 = Gd::<Node3D>::from_variant(&variant);
 
     assert_eq!(obj2.get_position(), pos);
     obj.free();

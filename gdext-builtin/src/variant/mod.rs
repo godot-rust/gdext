@@ -4,6 +4,10 @@ use std::fmt;
 use sys::types::OpaqueVariant;
 use sys::{ffi_methods, interface_fn};
 
+mod variant_traits;
+
+pub use variant_traits::*;
+
 #[repr(C, align(8))]
 pub struct Variant {
     opaque: OpaqueVariant,
@@ -67,27 +71,37 @@ impl fmt::Display for Variant {
     }
 }
 
+impl fmt::Debug for Variant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // TODO include variant type name
+        let s = self.stringify();
+        write!(f, "Variant({})", s)
+    }
+}
+
 mod conversions {
-    use super::Variant;
+    use super::*;
     use crate::{string::GodotString, vector2::Vector2, vector3::Vector3};
     use gdext_sys as sys;
     use sys::GodotFfi;
 
     macro_rules! impl_variant_conversions {
         ($T:ty, $from_fn:ident, $to_fn:ident) => {
-            impl From<$T> for Variant {
-                fn from(value: $T) -> Self {
-                    unsafe {
-                        Self::from_var_sys_init(|variant_ptr| {
+            impl ToVariant for $T {
+                fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
+                    let variant = unsafe {
+                        Variant::from_var_sys_init(|variant_ptr| {
                             let converter = sys::method_table().$from_fn;
-                            converter(variant_ptr, value.sys());
+                            converter(variant_ptr, self.sys());
                         })
-                    }
+                    };
+
+                    Ok(variant)
                 }
             }
 
-            impl From<&Variant> for $T {
-                fn from(variant: &Variant) -> Self {
+            impl FromVariant for $T {
+                fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
                     // In contrast to T -> Variant, the conversion Variant -> T assumes
                     // that the destination is initialized (at least for some T). For example:
                     // void String::operator=(const String &p_str) { _cowdata._ref(p_str._cowdata); }
@@ -95,28 +109,29 @@ mod conversions {
                     // We can thus NOT use Self::from_sys_init().
 
                     let mut value = <$T>::default();
-
-                    unsafe {
+                    let result = unsafe {
                         let converter = sys::method_table().$to_fn;
                         converter(value.sys_mut(), variant.var_sys());
                         value
-                    }
+                    };
+
+                    Ok(result)
                 }
             }
         };
     }
 
     macro_rules! impl_variant_int_conversions {
-        ($name:ty) => {
-            impl From<$name> for Variant {
-                fn from(i: $name) -> Self {
-                    Variant::from(i as i64)
+        ($T:ty) => {
+            impl ToVariant for $T {
+                fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
+                    Ok((*self as i64).to_variant())
                 }
             }
 
-            impl From<&Variant> for $name {
-                fn from(i: &Variant) -> Self {
-                    i64::from(i) as $name
+            impl FromVariant for $T {
+                fn try_from_variant(i: &Variant) -> Result<Self, VariantConversionError> {
+                    Ok(i64::from_variant(i) as $T)
                 }
             }
         };
@@ -131,26 +146,24 @@ mod conversions {
     impl_variant_int_conversions!(u8);
     impl_variant_int_conversions!(u16);
     impl_variant_int_conversions!(u32);
-    // u64 only TryFrom
+    // u64 is fallible; see below
 
     impl_variant_int_conversions!(i8);
     impl_variant_int_conversions!(i16);
     impl_variant_int_conversions!(i32);
 
-    impl TryFrom<u64> for Variant {
-        type Error = std::num::TryFromIntError;
-
-        fn try_from(value: u64) -> Result<Self, Self::Error> {
-            i64::try_from(value).map(|i| Variant::from(i))
+    impl ToVariant for u64 {
+        fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
+            i64::try_from(*self)
+                .map(|i| i.to_variant())
+                .map_err(|_e| VariantConversionError)
         }
     }
 
-    impl TryFrom<&Variant> for u64 {
-        type Error = std::num::TryFromIntError;
-
-        fn try_from(variant: &Variant) -> Result<Self, Self::Error> {
-            match i64::try_from(variant) {
-                Ok(i) => u64::try_from(i),
+    impl FromVariant for u64 {
+        fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+            match i64::try_from_variant(variant) {
+                Ok(i) => u64::try_from(i).map_err(|_e| VariantConversionError),
                 Err(_) => unreachable!(),
             }
         }
@@ -169,15 +182,15 @@ mod conversions {
     }
 
     // Unit
-    impl From<()> for Variant {
-        fn from(_unit: ()) -> Self {
-            Self::nil()
+    impl ToVariant for () {
+        fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
+            Ok(Variant::nil())
         }
     }
     // not possible due to orphan rule
     // impl<T> From<Variant> for T
     // where
-    //     T: From<&Variant>,
+    //     T: FromVariant,
     // {
     //     fn from(variant: Variant) -> Self {
     //         // same as &Variant, but consume

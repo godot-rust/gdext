@@ -1,4 +1,4 @@
-use gdext_builtin::Variant;
+use gdext_builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
 use gdext_sys::{self as sys, ffi_methods, GodotFfi};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
@@ -45,22 +45,16 @@ impl GodotFfi for InstanceId {
     ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
 }
 
-impl From<&Variant> for InstanceId {
-    fn from(variant: &Variant) -> Self {
-        let int = i64::from(variant);
-        InstanceId::from_i64(int)
+impl FromVariant for InstanceId {
+    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+        let int = i64::from_variant(variant);
+        Ok(InstanceId::from_i64(int))
     }
 }
 
-impl From<Variant> for InstanceId {
-    fn from(variant: Variant) -> Self {
-        InstanceId::from(&variant)
-    }
-}
-
-impl From<InstanceId> for Variant {
-    fn from(instance_id: InstanceId) -> Self {
-        let int = instance_id.to_i64();
-        Variant::from(int)
+impl ToVariant for InstanceId {
+    fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
+        let int = self.to_i64();
+        Ok(int.to_variant())
     }
 }
