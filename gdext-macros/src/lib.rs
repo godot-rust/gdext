@@ -2,6 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 
 mod derive_godot_class;
+mod gdextension;
 mod godot_api;
 mod itest;
 mod util;
@@ -22,6 +23,11 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn itest(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, itest::transform)
+}
+
+#[proc_macro_attribute]
+pub fn gdextension(_meta: TokenStream, input: TokenStream) -> TokenStream {
+    translate(input, gdextension::transform)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
