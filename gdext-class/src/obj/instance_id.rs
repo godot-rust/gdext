@@ -53,8 +53,8 @@ impl FromVariant for InstanceId {
 }
 
 impl ToVariant for InstanceId {
-    fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
+    fn to_variant(&self) -> Variant {
         let int = self.to_i64();
-        Ok(int.to_variant())
+        int.to_variant()
     }
 }

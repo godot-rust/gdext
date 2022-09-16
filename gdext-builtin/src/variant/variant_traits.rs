@@ -16,7 +16,7 @@ pub trait FromVariant: Sized {
 }
 
 pub trait ToVariant {
-    fn try_to_variant(&self) -> Result<Variant, VariantConversionError>;
+    /*fn try_to_variant(&self) -> Result<Variant, VariantConversionError>;
 
     fn to_variant(&self) -> Variant {
         Self::try_to_variant(self).unwrap_or_else(|e| {
@@ -26,7 +26,9 @@ pub trait ToVariant {
                 e
             )
         })
-    }
+    }*/
+
+    fn to_variant(&self) -> Variant;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

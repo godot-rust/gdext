@@ -442,7 +442,7 @@ impl<T: GodotClass> FromVariant for Gd<T> {
 }
 
 impl<T: GodotClass> ToVariant for Gd<T> {
-    fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
+    fn to_variant(&self) -> Variant {
         let variant = unsafe {
             Variant::from_var_sys_init(|variant_ptr| {
                 let converter = sys::method_table().object_to_variant;
@@ -454,7 +454,8 @@ impl<T: GodotClass> ToVariant for Gd<T> {
                 converter(variant_ptr, ptr::addr_of!(type_ptr) as *mut _);
             })
         };
-        Ok(variant)
+
+        variant
     }
 }
 

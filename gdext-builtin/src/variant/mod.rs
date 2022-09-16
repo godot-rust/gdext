@@ -88,7 +88,7 @@ mod conversions {
     macro_rules! impl_variant_conversions {
         ($T:ty, $from_fn:ident, $to_fn:ident) => {
             impl ToVariant for $T {
-                fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
+                fn to_variant(&self) -> Variant {
                     let variant = unsafe {
                         Variant::from_var_sys_init(|variant_ptr| {
                             let converter = sys::method_table().$from_fn;
@@ -96,7 +96,7 @@ mod conversions {
                         })
                     };
 
-                    Ok(variant)
+                    variant
                 }
             }
 
@@ -124,8 +124,8 @@ mod conversions {
     macro_rules! impl_variant_int_conversions {
         ($T:ty) => {
             impl ToVariant for $T {
-                fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
-                    Ok((*self as i64).to_variant())
+                fn to_variant(&self) -> Variant {
+                    i64::from(*self).to_variant()
                 }
             }
 
@@ -152,7 +152,7 @@ mod conversions {
     impl_variant_int_conversions!(i16);
     impl_variant_int_conversions!(i32);
 
-    impl ToVariant for u64 {
+    /*impl ToVariant for u64 {
         fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
             i64::try_from(*self)
                 .map(|i| i.to_variant())
@@ -167,7 +167,7 @@ mod conversions {
                 Err(_) => unreachable!(),
             }
         }
-    }
+    }*/
 
     // Strings by ref
     impl From<&GodotString> for Variant {
@@ -183,10 +183,11 @@ mod conversions {
 
     // Unit
     impl ToVariant for () {
-        fn try_to_variant(&self) -> Result<Variant, VariantConversionError> {
-            Ok(Variant::nil())
+        fn to_variant(&self) -> Variant {
+            Variant::nil()
         }
     }
+
     // not possible due to orphan rule
     // impl<T> From<Variant> for T
     // where
