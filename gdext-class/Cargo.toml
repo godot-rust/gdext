@@ -6,6 +6,7 @@ rust-version = "1.63"
 
 [features]
 trace = []
+convenience = ["gdext-builtin/convenience"]
 
 [dependencies]
 gdext-sys = { path = "../gdext-sys" }

@@ -3,6 +3,7 @@ use crate::Variant;
 pub trait FromVariant: Sized {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError>;
 
+    #[cfg(feature = "convenience")]
     fn from_variant(variant: &Variant) -> Self {
         Self::try_from_variant(variant).unwrap_or_else(|e| {
             panic!(

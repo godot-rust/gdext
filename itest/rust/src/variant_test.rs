@@ -38,7 +38,7 @@ where
     T: FromVariant + ToVariant + Debug + PartialEq + Clone,
 {
     let variant = value.to_variant();
-    let back = T::from_variant(&variant);
+    let back = T::try_from_variant(&variant).unwrap();
 
     assert_eq!(value, back);
 }

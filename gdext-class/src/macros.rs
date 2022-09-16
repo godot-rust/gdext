@@ -404,7 +404,14 @@ macro_rules! gdext_varcall {
 
         let mut idx = 0;
         $(
-            let $arg = <$ParamTy as ::gdext_builtin::FromVariant>::from_variant(&*(*$args.offset(idx) as *mut Variant));
+            let variant = &*(*$args.offset(idx) as *mut Variant);
+            let $arg = <$ParamTy as ::gdext_builtin::FromVariant>::try_from_variant(variant)
+                .unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
+                    method = stringify!($method_name),
+                    index = idx,
+                    param = stringify!($ParamTy), //std::any::type_name::<$ParamTy>
+                    arg = variant,
+                ));
             idx += 1;
         )*
 
