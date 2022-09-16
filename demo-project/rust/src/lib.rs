@@ -1,4 +1,4 @@
-use gdext_builtin::{gdext_init, FromVariant, GodotString, InitLevel, ToVariant, Vector2, Vector3};
+use gdext_builtin::{FromVariant, GodotString, ToVariant, Vector2, Vector3};
 use std::str::FromStr;
 
 use gdext_class::api::{Node3D, RefCounted};
@@ -208,11 +208,8 @@ impl GodotExt for Entity {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Init + Test
 
-struct Demo;
+struct MyGame;
+impl ExtensionLib for MyGame {}
 
 #[gdextension]
-impl ExtensionLib for Demo {
-    fn load_library(handle: &mut InitHandle) -> bool {
-        todo!()
-    }
-}
+fn demo_init(handle: &mut InitHandle);

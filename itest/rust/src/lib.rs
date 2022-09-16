@@ -1,5 +1,5 @@
-use gdext_class::out;
-use gdext_macros::{godot_api, itest, GodotClass};
+use gdext_class::init::InitHandle;
+use gdext_macros::{gdextension, godot_api, itest, GodotClass};
 
 mod base_test;
 mod gdscript_ffi_test;
@@ -41,15 +41,8 @@ impl IntegrationTests {
     }
 }
 
-gdext_builtin::gdext_init!(itest_init, |init: &mut gdext_builtin::InitOptions| {
-    out!("itest_init()");
-    init.register_init_function(gdext_builtin::InitLevel::Scene, || {
-        out!("  register_class()");
-        //gdext_class::register_class::<IntegrationTests>();
-        gdext_class::auto_register_classes();
-        //register_classes();
-    });
-});
+#[gdextension]
+fn itest_init(handle: &mut InitHandle);
 
 #[doc(hidden)]
 #[macro_export]

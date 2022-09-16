@@ -43,7 +43,5 @@ macro_rules! gdext_init {
             $crate::init::handle = Some(handle);
             true as u8 // TODO allow user to propagate failure
         }
-
-
     };
 }
