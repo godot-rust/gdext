@@ -1,28 +1,68 @@
 use gdext_sys as sys;
 use std::collections::btree_map::BTreeMap;
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
 #[doc(hidden)]
-pub static mut INIT_OPTIONS: Option<InitHandle> = None;
+pub fn __gdext_load_library<E: ExtensionLib>(
+    interface: *const sys::GDNativeInterface,
+    library: sys::GDNativeExtensionClassLibraryPtr,
+    init: *mut sys::GDNativeInitialization,
+) -> sys::GDNativeBool {
+    unsafe { sys::initialize(interface, library) };
 
-struct LoadResult {
-    success: bool,
+    let mut handle = InitHandle::new();
+
+    let success = E::load_library(&mut handle);
+    // No early exit, unclear if Godot still requires output parameters to be set
+
+    let godot_init_params = sys::GDNativeInitialization {
+        minimum_initialization_level: handle.lowest_init_level().to_sys(),
+        userdata: std::ptr::null_mut(),
+        initialize: Some(ffi_initialize_layer),
+        deinitialize: Some(ffi_deinitialize_layer),
+    };
+
+    unsafe {
+        *init = godot_init_params;
+        INIT_HANDLE = Some(handle);
+    }
+
+    success as u8
 }
 
-pub trait ExtensionLib {
-    fn load_library(mut handle: InitHandle) -> bool {
-        handle.register_layer(InitLevel::Scene, default_layer);
+unsafe extern "C" fn ffi_initialize_layer(
+    _userdata: *mut std::ffi::c_void,
+    init_level: sys::GDNativeInitializationLevel,
+) {
+    let handle = INIT_HANDLE.as_mut().unwrap();
+    handle.run_init_function(InitLevel::from_sys(init_level));
+}
 
+unsafe extern "C" fn ffi_deinitialize_layer(
+    _userdata: *mut std::ffi::c_void,
+    init_level: sys::GDNativeInitializationLevel,
+) {
+    let handle = INIT_HANDLE.as_mut().unwrap();
+    handle.run_deinit_function(InitLevel::from_sys(init_level));
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// FIXME make safe
+#[doc(hidden)]
+pub static mut INIT_HANDLE: Option<InitHandle> = None;
+
+pub trait ExtensionLib {
+    const ENTRY_POINT: &'static str = "gdextension_init";
+
+    fn load_library(handle: &mut InitHandle) -> bool {
+        handle.register_layer(InitLevel::Scene, DefaultLayer);
         true
     }
 }
 
 pub trait ExtensionLayer {
-    type UserData;
-
-    fn initialize(level: InitLevel, user_data: &mut Self::UserData);
-    fn deinitialize(level: InitLevel, user_data: &mut Self::UserData);
+    fn initialize(&mut self);
+    fn deinitialize(&mut self);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -30,14 +70,13 @@ pub trait ExtensionLayer {
 struct DefaultLayer;
 
 impl ExtensionLayer for DefaultLayer {
-    type UserData = ();
-
-    fn initialize(level: InitLevel, user_data: &mut Self::UserData) {
-        todo!()
+    fn initialize(&mut self) {
+        crate::auto_register_classes();
     }
 
-    fn deinitialize(level: InitLevel, user_data: &mut Self::UserData) {
-        todo!()
+    fn deinitialize(&mut self) {
+        // Nothing -- note that any cleanup task should be performed outside of this method,
+        // as the user is free to use a different impl, so cleanup code may not be run.
     }
 }
 
@@ -54,35 +93,30 @@ impl InitHandle {
         }
     }
 
-    pub fn register_layer(&mut self, level: InitLevel, layer: impl ExtensionLayer<UserData = ()>) {
-        self.layers.insert(level, Box::new(layer));
-    }
-
-    pub fn register_layer_with<T>(
-        &mut self,
-        level: InitLevel,
-        layer: impl ExtensionLayer<UserData = T>,
-        user_data: T,
-    ) {
+    pub fn register_layer(&mut self, level: InitLevel, layer: impl ExtensionLayer) {
         self.layers.insert(level, Box::new(layer));
     }
 
     pub fn lowest_init_level(&self) -> InitLevel {
         self.layers
-            .first_key_value()
+            .iter()
+            .next()
             .map(|(k, _v)| *k)
             .unwrap_or(InitLevel::Scene)
     }
 
     pub fn run_init_function(&mut self, level: InitLevel) {
-        if let Some(f) = self.init_levels.remove(&level) {
-            f();
+        // if let Some(f) = self.init_levels.remove(&level) {
+        //     f();
+        // }
+        if let Some(layer) = self.layers.get_mut(&level) {
+            layer.initialize()
         }
     }
 
     pub fn run_deinit_function(&mut self, level: InitLevel) {
-        if let Some(f) = self.deinit_levels.remove(&level) {
-            f();
+        if let Some(layer) = self.layers.get_mut(&level) {
+            layer.deinitialize()
         }
     }
 }

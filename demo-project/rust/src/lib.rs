@@ -2,10 +2,11 @@ use gdext_builtin::{gdext_init, FromVariant, GodotString, InitLevel, ToVariant, 
 use std::str::FromStr;
 
 use gdext_class::api::{Node3D, RefCounted};
+use gdext_class::init::{ExtensionLib, InitHandle};
 use gdext_class::obj::{Base, Gd, InstanceId};
 use gdext_class::out;
 use gdext_class::traits::{GodotExt, Share};
-use gdext_macros::{godot_api, GodotClass};
+use gdext_macros::{gdextension, godot_api, GodotClass};
 
 use gdext_sys as sys;
 
@@ -207,12 +208,11 @@ impl GodotExt for Entity {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Init + Test
 
-gdext_init!(demo_init, |init: &mut gdext_builtin::InitOptions| {
-    print!("Demo init... ");
-    init.register_init_function(InitLevel::Scene, || {
-        // register_class::<RustTest>();
-        // register_class::<Entity>();
-        gdext_class::auto_register_classes();
-    });
-    println!("Initialized.");
-});
+struct Demo;
+
+#[gdextension]
+impl ExtensionLib for Demo {
+    fn load_library(handle: &mut InitHandle) -> bool {
+        todo!()
+    }
+}

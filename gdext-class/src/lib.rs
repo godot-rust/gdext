@@ -1,9 +1,10 @@
-pub mod obj;
 mod registry;
 mod storage;
 
 pub mod builder;
+pub mod init;
 pub mod macros;
+pub mod obj;
 pub mod property_info;
 pub mod traits;
 
