@@ -130,8 +130,8 @@ mod conversions {
             }
 
             impl FromVariant for $T {
-                fn try_from_variant(i: &Variant) -> Result<Self, VariantConversionError> {
-                    Ok(i64::from_variant(i) as $T)
+                fn try_from_variant(v: &Variant) -> Result<Self, VariantConversionError> {
+                    i64::try_from_variant(v).map(|i| i as $T)
                 }
             }
         };

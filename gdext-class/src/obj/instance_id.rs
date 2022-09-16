@@ -47,8 +47,7 @@ impl GodotFfi for InstanceId {
 
 impl FromVariant for InstanceId {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-        let int = i64::from_variant(variant);
-        Ok(InstanceId::from_i64(int))
+        i64::try_from_variant(variant).map(|i| InstanceId::from_i64(i))
     }
 }
 
