@@ -5,6 +5,7 @@ use std::fmt::Debug;
 pub fn run() -> bool {
     let mut ok = true;
     ok &= variant_conversions();
+    ok &= variant_forbidden_conversions();
     ok &= variant_display();
     ok
 }
@@ -33,6 +34,11 @@ fn variant_conversions() {
     roundtrip(9223372036854775807i64);
 }
 
+#[itest]
+fn variant_forbidden_conversions() {
+    truncate_bad::<i8>(128);
+}
+
 fn roundtrip<T>(value: T)
 where
     T: FromVariant + ToVariant + Debug + PartialEq + Clone,
@@ -41,6 +47,16 @@ where
     let back = T::try_from_variant(&variant).unwrap();
 
     assert_eq!(value, back);
+}
+
+fn truncate_bad<T>(original_value: i64)
+where
+    T: FromVariant,
+{
+    let variant = original_value.to_variant();
+    let result = T::try_from_variant(variant);
+
+    result.expect_err();
 }
 
 #[itest]
