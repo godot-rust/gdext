@@ -41,7 +41,7 @@ fn variant_forbidden_conversions() {
 
 fn roundtrip<T>(value: T)
 where
-    T: FromVariant + ToVariant + Debug + PartialEq + Clone,
+    T: FromVariant + ToVariant + PartialEq + Debug,
 {
     let variant = value.to_variant();
     let back = T::try_from_variant(&variant).unwrap();
@@ -54,9 +54,15 @@ where
     T: FromVariant,
 {
     let variant = original_value.to_variant();
-    let result = T::try_from_variant(variant);
+    let result = T::try_from_variant(&variant);
 
-    result.expect_err();
+    if result.is_ok() {
+        panic!(
+            "{} - T::try_from_variant({}) should fail",
+            std::any::type_name::<T>(),
+            variant
+        );
+    }
 }
 
 #[itest]

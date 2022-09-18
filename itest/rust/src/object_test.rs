@@ -107,20 +107,6 @@ fn object_instance_id() {
     assert_eq!(obj2.bind().value, value);
 }
 
-#[cfg(feature = "convenience")]
-macro_rules! convenient {
-    ($Ty:ty : from_variant($expr:expr)) => {
-        $ty::from_variant($expr)
-    };
-}
-
-#[cfg(not(feature = "convenience"))]
-macro_rules! convenient {
-    ($Ty:ty : from_variant($expr:expr)) => {
-        <$Ty>::try_from_variant($expr).unwrap()
-    };
-}
-
 #[itest]
 fn object_user_convert_variant() {
     let value: i16 = 17943;
@@ -128,7 +114,7 @@ fn object_user_convert_variant() {
 
     let obj: Gd<ObjPayload> = Gd::new(user);
     let variant = obj.to_variant();
-    let obj2 = convenient! { Gd::<ObjPayload>:from_variant(&variant) };
+    let obj2 = Gd::<ObjPayload>::from_variant(&variant);
 
     assert_eq!(obj2.bind().value, value);
 }
@@ -141,7 +127,7 @@ fn object_engine_convert_variant() {
     obj.set_position(pos);
 
     let variant = obj.to_variant();
-    let obj2 = convenient! { Gd::<Node3D>:from_variant(&variant) };
+    let obj2 = Gd::<Node3D>::from_variant(&variant);
 
     assert_eq!(obj2.get_position(), pos);
     obj.free();

@@ -154,6 +154,7 @@ impl<T: GodotClass> Gd<T> {
     /// # Panics
     /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
     /// is not compatible with `T`.
+    #[cfg(feature = "convenience")]
     pub fn from_instance_id(instance_id: InstanceId) -> Self {
         Self::try_from_instance_id(instance_id).expect(&format!(
             "Instance ID {} does not belong to a valid object of class '{}'",
@@ -219,10 +220,11 @@ impl<T: GodotClass> Gd<T> {
         self.owned_cast()
     }
 
-    /// **Downcast:** convert into a smart pointer to a derived class. Always succeeds.
+    /// **Downcast:** convert into a smart pointer to a derived class. Panics on error.
     ///
     /// # Panics
     /// If the class' dynamic type is not `Derived` or one of its subclasses. Use [`Self::try_cast()`] if you want to check the result.
+    #[cfg(feature = "convenience")]
     pub fn cast<Derived>(self) -> Gd<Derived>
     where
         Derived: GodotClass + Inherits<T>,

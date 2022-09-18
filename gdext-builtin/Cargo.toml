@@ -9,6 +9,7 @@ rust-version = "1.63"
 [features]
 #"real_is_double" = ["gdext-sys/real_is_double"]
 convenience = []
+default = ["convenience"]
 
 [dependencies]
 gdext-sys = { path = "../gdext-sys" }
