@@ -89,7 +89,7 @@ property_info_integer!(InstanceId, GDNativeExtensionClassMethodArgumentMetadata_
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-trait SignatureTuple {
+pub trait SignatureTuple {
     fn variant_type(index: usize) -> sys::GDNativeVariantType;
     fn param_metadata(index: usize) -> sys::GDNativeExtensionClassMethodArgumentMetadata;
     fn property_info(index: usize, param_name: &str) -> sys::GDNativePropertyInfo;
@@ -159,3 +159,34 @@ impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3, P3: 4, P4: 5, P5: 6, P6: 7)
 impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3, P3: 4, P4: 5, P5: 6, P6: 7, P7: 8);
 impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3, P3: 4, P4: 5, P5: 6, P6: 7, P7: 8, P8: 9);
 impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3, P3: 4, P4: 5, P5: 6, P6: 7, P7: 8, P8: 9, P9: 10);
+
+// Re-exported to crate::private
+#[doc(hidden)]
+pub mod func_callbacks {
+    use super::*;
+
+    pub extern "C" fn get_type<S: SignatureTuple>(
+        _method_data: *mut std::ffi::c_void,
+        n: i32,
+    ) -> sys::GDNativeVariantType {
+        S::variant_type((n + 1) as usize)
+    }
+
+    pub extern "C" fn get_info<S: SignatureTuple>(
+        _method_data: *mut std::ffi::c_void,
+        n: i32,
+        ret: *mut sys::GDNativePropertyInfo,
+    ) {
+        // Return value is the first "argument"
+        let info = S::property_info((n + 1) as usize, "TODO");
+        unsafe { *ret = info };
+    }
+
+    pub extern "C" fn get_metadata<S: SignatureTuple>(
+        _method_data: *mut std::ffi::c_void,
+        n: i32,
+    ) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
+        // Return value is the first "argument"
+        S::param_metadata((n + 1) as usize)
+    }
+}

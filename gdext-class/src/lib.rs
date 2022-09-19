@@ -25,6 +25,7 @@ pub mod api {
 
 #[doc(hidden)]
 pub mod private {
+    pub use crate::property_info::func_callbacks;
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
     pub use crate::storage::as_storage;
 

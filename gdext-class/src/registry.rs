@@ -271,6 +271,7 @@ impl Display for ClassName {
     }
 }
 
+// Re-exported to crate::private
 pub mod callbacks {
     use super::*;
     use crate::builder::ClassBuilder;

@@ -89,57 +89,9 @@ macro_rules! gdext_register_method_inner {
                     sys::GDNativeExtensionClassMethodFlags_GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
                 argument_count: NUM_ARGS as u32,
                 has_return_value: $crate::gdext_is_not_unit!($($RetTy)+) as u8,
-                get_argument_type_func: Some({
-                    extern "C" fn get_type(
-                        _method_data: *mut std::ffi::c_void,
-                        n: i32,
-                    ) -> sys::GDNativeVariantType {
-                        // TODO use match or so to avoid useless evaluation of entire array
-                        // Return value is the first "argument"
-                        let types: [sys::GDNativeVariantType; NUM_ARGS + 1] = [
-                            <$($RetTy)+ as $crate::property_info::PropertyInfoBuilder>::variant_type(),
-                            $(
-                                <$ParamTy as $crate::property_info::PropertyInfoBuilder>::variant_type(),
-                            )*
-                        ];
-                        types[(n + 1) as usize]
-                    }
-                    get_type
-                }),
-                get_argument_info_func: Some({
-                    unsafe extern "C" fn get_info(
-                        _method_data: *mut std::ffi::c_void,
-                        n: i32,
-                        ret: *mut sys::GDNativePropertyInfo,
-                    ) {
-                        // Return value is the first "argument"
-                        let infos: [sys::GDNativePropertyInfo; NUM_ARGS + 1] = [
-                            <$($RetTy)+ as $crate::property_info::PropertyInfoBuilder>::property_info(""),
-                            $(
-                                <$ParamTy as $crate::property_info::PropertyInfoBuilder>::property_info(stringify!($param)),
-                            )*
-                        ];
-
-                        *ret = infos[(n + 1) as usize];
-                    }
-                    get_info
-                }),
-                get_argument_metadata_func: Some({
-                    extern "C" fn get_meta(
-                        _method_data: *mut std::ffi::c_void,
-                        n: i32,
-                    ) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
-                        // Return value is the first "argument"
-                        let metas: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS + 1] = [
-                            <$($RetTy)+ as $crate::property_info::PropertyInfoBuilder>::param_metadata(),
-                            $(
-                                <$ParamTy as $crate::property_info::PropertyInfoBuilder>::param_metadata(),
-                            )*
-                        ];
-                        metas[(n + 1) as usize]
-                    }
-                    get_meta
-                }),
+                get_argument_type_func: Some(gdext_class::private::func_callbacks::get_type::<( $($RetTy)+, $($ParamTy),* )>),
+                get_argument_info_func: Some(gdext_class::private::func_callbacks::get_info::<( $($RetTy)+, $($ParamTy),* )>),
+                get_argument_metadata_func: Some(gdext_class::private::func_callbacks::get_metadata::<( $($RetTy)+, $($ParamTy),* )>),
                 default_argument_count: 0,
                 default_arguments: std::ptr::null_mut(),
             };
