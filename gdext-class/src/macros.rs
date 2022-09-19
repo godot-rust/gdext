@@ -60,10 +60,24 @@ macro_rules! gdext_register_method_inner {
                         ret: sys::GDNativeVariantPtr,
                         err: *mut sys::GDNativeCallError,
                     ) {
-                        $crate::gdext_varcall!(
-                            instance_ptr, args, ret, err;
-                            $Class;
-                            fn $method_name( $( $param: $ParamTy, )* ) -> $( $RetTy )+
+                        // $crate::gdext_varcall!(
+                        //     instance_ptr, args, ret, err;
+                        //     $Class;
+                        //     fn $method_name( $( $param: $ParamTy, )* ) -> $( $RetTy )+
+                        // );
+
+                        < ($($RetTy)+, $($ParamTy,)*) as gdext_class::property_info::SignatureTuple >::varcall::< $Class >(
+                            instance_ptr,
+                            args,
+                            ret,
+                            err,
+                            move |inst, params| {
+                                let ( $($param,)* ) = params;
+                                inst.$method_name($(
+                                    $param,
+                                )*)
+                            },
+                            stringify!($method_name),
                         );
                     }
 

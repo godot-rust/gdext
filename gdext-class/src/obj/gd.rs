@@ -103,6 +103,7 @@ where
         result
     }
 
+    // Note: possible names: write/read, hold/hold_mut, r/w, r/rw, ...
     pub fn bind(&self) -> GdRef<T> {
         GdRef::from_cell(self.storage().get())
     }
