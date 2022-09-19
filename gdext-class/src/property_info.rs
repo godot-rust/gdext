@@ -90,9 +90,21 @@ property_info_integer!(InstanceId, GDNativeExtensionClassMethodArgumentMetadata_
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub trait SignatureTuple {
+    type Params;
+    type Ret;
+
     fn variant_type(index: usize) -> sys::GDNativeVariantType;
     fn param_metadata(index: usize) -> sys::GDNativeExtensionClassMethodArgumentMetadata;
     fn property_info(index: usize, param_name: &str) -> sys::GDNativePropertyInfo;
+
+    fn varcall<C: GodotClass>(
+        instance_ptr: sys::GDExtensionClassInstancePtr,
+        args_ptr: *const sys::GDNativeVariantPtr,
+        ret: sys::GDNativeVariantPtr,
+        err: *mut sys::GDNativeCallError,
+        func: impl FnMut(&mut C, Self::Params) -> Self::Ret,
+        method_name: &str,
+    );
 }
 
 // impl<P, const N: usize> Sig for [P; N]
@@ -111,17 +123,28 @@ pub trait SignatureTuple {
 //     }
 // }
 //
+use crate::traits::GodotClass;
+use gdext_builtin::{FromVariant, ToVariant, Variant};
 
 macro_rules! impl_signature_for_tuple {
-    ($($Ty:ident : $n:literal),+) => {
-        impl<$($Ty,)+> SignatureTuple for ($($Ty,)+)
-            where $( $Ty : PropertyInfoBuilder, )+
+    (
+        $R:ident : 0
+        $(, $Ty:ident : $n:literal)*
+    ) => {
+        #[allow(unused_variables)]
+        impl<$R, $($Ty,)*> SignatureTuple for ($R, $($Ty,)*)
+            where $R: PropertyInfoBuilder + ToVariant,
+               $( $Ty: PropertyInfoBuilder + FromVariant, )*
         {
+            type Params = ($($Ty,)*);
+            type Ret = $R;
+
             fn variant_type(index: usize) -> sys::GDNativeVariantType {
                 match index {
+                    0 => $R::variant_type(),
                     $(
                         $n => $Ty::variant_type(),
-                    )+
+                    )*
                     _ => unreachable!("variant_type: unavailable for index {}", index),
                     //_ => sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_NIL
                 }
@@ -129,19 +152,72 @@ macro_rules! impl_signature_for_tuple {
 
             fn param_metadata(index: usize) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
                 match index {
+                    0 => $R::param_metadata(),
                     $(
                         $n => $Ty::param_metadata(),
-                    )+
+                    )*
                     _ => unreachable!("param_metadata: unavailable for index {}", index),
                 }
             }
 
             fn property_info(index: usize, param_name: &str) -> sys::GDNativePropertyInfo {
                 match index {
+                    0 => $R::property_info(param_name),
                     $(
                         $n => $Ty::property_info(param_name),
-                    )+
+                    )*
                     _ => unreachable!("property_info: unavailable for index {}", index),
+                }
+            }
+
+            // fn args_from_variant(args: *const sys::GDNativeVariantPtr) {
+            //     $(
+            //         let variant = &*(*args.offset(idx) as *mut Variant); // TODO from_var_sys
+            //         let $arg = <$ParamTy as >::try_from_variant(variant)
+            //             .unwrap()
+            //             /*.unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
+            //                 method = stringify!($method_name),
+            //                 index = idx,
+            //                 param = stringify!($ParamTy), //std::any::type_name::<$ParamTy>
+            //                 arg = variant,
+            //             ));*/
+            //     )*
+            // }
+
+            fn varcall<C : GodotClass>(
+				instance_ptr: sys::GDExtensionClassInstancePtr,
+                args_ptr: *const sys::GDNativeVariantPtr,
+                ret: sys::GDNativeVariantPtr,
+                err: *mut sys::GDNativeCallError,
+                mut func: impl FnMut(&mut C, Self::Params) -> Self::Ret,
+                method_name: &str,
+            ) {
+    	        println!("varcall: {}", method_name);
+
+                let storage = unsafe { crate::private::as_storage::<C>(instance_ptr) };
+                let mut instance = storage.get_mut();
+
+                let args = ( $( {
+                    let variant = unsafe { &*(*args_ptr.offset($n) as *mut Variant) }; // TODO from_var_sys
+                    let arg = <$Ty as FromVariant>::try_from_variant(variant)
+                        .unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
+                            method = method_name,
+                            index = $n,
+                            param = stringify!($Ty), //std::any::type_name::<$ParamTy>
+                            arg = variant,
+                        ));
+                    arg
+                }, )* );
+
+                // let ret_val = func(instance, $(
+                //     args[$n - 1],
+                // )*);
+
+				let ret_val = func(&mut *instance, args);
+                let ret_variant = <$R as ToVariant>::to_variant(&ret_val); // TODO write_sys
+				unsafe {
+                    *(ret as *mut Variant) = ret_variant;
+                    (*err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
                 }
             }
         }

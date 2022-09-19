@@ -60,10 +60,24 @@ macro_rules! gdext_register_method_inner {
                         ret: sys::GDNativeVariantPtr,
                         err: *mut sys::GDNativeCallError,
                     ) {
-                        $crate::gdext_varcall!(
-                            instance_ptr, args, ret, err;
-                            $Class;
-                            fn $method_name( $( $param: $ParamTy, )* ) -> $( $RetTy )+
+                        // $crate::gdext_varcall!(
+                        //     instance_ptr, args, ret, err;
+                        //     $Class;
+                        //     fn $method_name( $( $param: $ParamTy, )* ) -> $( $RetTy )+
+                        // );
+
+                        < ($($RetTy)+, $($ParamTy,)*) as gdext_class::property_info::SignatureTuple >::varcall::< $Class >(
+                            instance_ptr,
+                            args,
+                            ret,
+                            err,
+                            |inst, params| {
+                                let ( $($param,)* ) = params;
+                                inst.$method_name($(
+                                    $param,
+                                )*)
+                            },
+                            stringify!($method_name),
                         );
                     }
 
@@ -350,28 +364,28 @@ macro_rules! gdext_varcall {
             $( $arg:ident : $ParamTy:ty, )*
         ) -> $( $RetTy:tt )+
     ) => {
-        println!("varcall: {}", stringify!($method_name));
-        let storage = ::gdext_class::private::as_storage::<$Class>($instance_ptr);
-        let mut instance = storage.get_mut();
-
-        let mut idx = 0;
-        $(
-            let variant = &*(*$args.offset(idx) as *mut Variant);
-            let $arg = <$ParamTy as ::gdext_builtin::FromVariant>::try_from_variant(variant)
-                .unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
-                    method = stringify!($method_name),
-                    index = idx,
-                    param = stringify!($ParamTy), //std::any::type_name::<$ParamTy>
-                    arg = variant,
-                ));
-            idx += 1;
-        )*
-
-        let ret_val = instance.$method_name($(
-            $arg,
-        )*);
-
-        *($ret as *mut ::gdext_builtin::Variant) = <$($RetTy)+ as ::gdext_builtin::ToVariant>::to_variant(&ret_val);
-        (*$err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
+        // println!("varcall: {}", stringify!($method_name));
+        // let storage = ::gdext_class::private::as_storage::<$Class>($instance_ptr);
+        // let mut instance = storage.get_mut();
+        //
+        // let mut idx = 0;
+        // $(
+        //     let variant = &*(*$args.offset(idx) as *mut Variant);
+        //     let $arg = <$ParamTy as ::gdext_builtin::FromVariant>::try_from_variant(variant)
+        //         .unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
+        //             method = stringify!($method_name),
+        //             index = idx,
+        //             param = stringify!($ParamTy), //std::any::type_name::<$ParamTy>
+        //             arg = variant,
+        //         ));
+        //     idx += 1;
+        // )*
+        //
+        // let ret_val = instance.$method_name($(
+        //     $arg,
+        // )*);
+        //
+        // *($ret as *mut ::gdext_builtin::Variant) = <$($RetTy)+ as ::gdext_builtin::ToVariant>::to_variant(&ret_val);
+        // (*$err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
     };
 }
