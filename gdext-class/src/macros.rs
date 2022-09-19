@@ -131,9 +131,9 @@ macro_rules! gdext_register_method_inner {
                     ) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
                         // Return value is the first "argument"
                         let metas: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS + 1] = [
-                            <$($RetTy)+ as $crate::property_info::PropertyInfoBuilder>::metadata(),
+                            <$($RetTy)+ as $crate::property_info::PropertyInfoBuilder>::param_metadata(),
                             $(
-                                <$ParamTy as $crate::property_info::PropertyInfoBuilder>::metadata(),
+                                <$ParamTy as $crate::property_info::PropertyInfoBuilder>::param_metadata(),
                             )*
                         ];
                         metas[(n + 1) as usize]
