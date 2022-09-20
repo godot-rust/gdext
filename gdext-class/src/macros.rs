@@ -71,7 +71,7 @@ macro_rules! gdext_register_method_inner {
                             args,
                             ret,
                             err,
-                            move |inst, params| {
+                            |inst, params| {
                                 let ( $($param,)* ) = params;
                                 inst.$method_name($(
                                     $param,

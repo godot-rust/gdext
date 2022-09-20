@@ -93,9 +93,9 @@ pub trait SignatureTuple {
     type Params;
     type Ret;
 
-    fn variant_type(index: usize) -> sys::GDNativeVariantType;
-    fn param_metadata(index: usize) -> sys::GDNativeExtensionClassMethodArgumentMetadata;
-    fn property_info(index: usize, param_name: &str) -> sys::GDNativePropertyInfo;
+    fn variant_type(index: i32) -> sys::GDNativeVariantType;
+    fn param_metadata(index: i32) -> sys::GDNativeExtensionClassMethodArgumentMetadata;
+    fn property_info(index: i32, param_name: &str) -> sys::GDNativePropertyInfo;
 
     fn varcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
@@ -128,62 +128,52 @@ use gdext_builtin::{FromVariant, ToVariant, Variant};
 
 macro_rules! impl_signature_for_tuple {
     (
-        $R:ident : 0
-        $(, $Ty:ident : $n:literal)*
+        $R:ident
+        $(, $Pn:ident : $n:literal)*
     ) => {
         #[allow(unused_variables)]
-        impl<$R, $($Ty,)*> SignatureTuple for ($R, $($Ty,)*)
+        impl<$R, $($Pn,)*> SignatureTuple for ($R, $($Pn,)*)
             where $R: PropertyInfoBuilder + ToVariant,
-               $( $Ty: PropertyInfoBuilder + FromVariant, )*
+               $( $Pn: PropertyInfoBuilder + FromVariant, )*
         {
-            type Params = ($($Ty,)*);
+            type Params = ($($Pn,)*);
             type Ret = $R;
 
-            fn variant_type(index: usize) -> sys::GDNativeVariantType {
+            #[inline]
+            fn variant_type(index: i32) -> sys::GDNativeVariantType {
                 match index {
-                    0 => $R::variant_type(),
+                    -1 => $R::variant_type(),
                     $(
-                        $n => $Ty::variant_type(),
+                        $n => $Pn::variant_type(),
                     )*
                     _ => unreachable!("variant_type: unavailable for index {}", index),
                     //_ => sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_NIL
                 }
             }
 
-            fn param_metadata(index: usize) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
+            #[inline]
+            fn param_metadata(index: i32) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
                 match index {
-                    0 => $R::param_metadata(),
+                    -1 => $R::param_metadata(),
                     $(
-                        $n => $Ty::param_metadata(),
+                        $n => $Pn::param_metadata(),
                     )*
                     _ => unreachable!("param_metadata: unavailable for index {}", index),
                 }
             }
 
-            fn property_info(index: usize, param_name: &str) -> sys::GDNativePropertyInfo {
+            #[inline]
+            fn property_info(index: i32, param_name: &str) -> sys::GDNativePropertyInfo {
                 match index {
-                    0 => $R::property_info(param_name),
+                    -1 => $R::property_info(param_name),
                     $(
-                        $n => $Ty::property_info(param_name),
+                        $n => $Pn::property_info(param_name),
                     )*
                     _ => unreachable!("property_info: unavailable for index {}", index),
                 }
             }
 
-            // fn args_from_variant(args: *const sys::GDNativeVariantPtr) {
-            //     $(
-            //         let variant = &*(*args.offset(idx) as *mut Variant); // TODO from_var_sys
-            //         let $arg = <$ParamTy as >::try_from_variant(variant)
-            //             .unwrap()
-            //             /*.unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
-            //                 method = stringify!($method_name),
-            //                 index = idx,
-            //                 param = stringify!($ParamTy), //std::any::type_name::<$ParamTy>
-            //                 arg = variant,
-            //             ));*/
-            //     )*
-            // }
-
+            #[inline]
             fn varcall<C : GodotClass>(
 				instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDNativeVariantPtr,
@@ -199,19 +189,15 @@ macro_rules! impl_signature_for_tuple {
 
                 let args = ( $( {
                     let variant = unsafe { &*(*args_ptr.offset($n) as *mut Variant) }; // TODO from_var_sys
-                    let arg = <$Ty as FromVariant>::try_from_variant(variant)
+                    let arg = <$Pn as FromVariant>::try_from_variant(variant)
                         .unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
                             method = method_name,
                             index = $n,
-                            param = stringify!($Ty), //std::any::type_name::<$ParamTy>
+                            param = stringify!($Pn), //std::any::type_name::<$ParamTy>
                             arg = variant,
                         ));
                     arg
                 }, )* );
-
-                // let ret_val = func(instance, $(
-                //     args[$n - 1],
-                // )*);
 
 				let ret_val = func(&mut *instance, args);
                 let ret_variant = <$R as ToVariant>::to_variant(&ret_val); // TODO write_sys
@@ -224,17 +210,17 @@ macro_rules! impl_signature_for_tuple {
     };
 }
 
-impl_signature_for_tuple!(R: 0);
-impl_signature_for_tuple!(R: 0, P0: 1);
-impl_signature_for_tuple!(R: 0, P0: 1, P1: 2);
-impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3);
-impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3, P3: 4);
-impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3, P3: 4, P4: 5);
-impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3, P3: 4, P4: 5, P5: 6);
-impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3, P3: 4, P4: 5, P5: 6, P6: 7);
-impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3, P3: 4, P4: 5, P5: 6, P6: 7, P7: 8);
-impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3, P3: 4, P4: 5, P5: 6, P6: 7, P7: 8, P8: 9);
-impl_signature_for_tuple!(R: 0, P0: 1, P1: 2, P2: 3, P3: 4, P4: 5, P5: 6, P6: 7, P7: 8, P8: 9, P9: 10);
+impl_signature_for_tuple!(R);
+impl_signature_for_tuple!(R, P0: 0);
+impl_signature_for_tuple!(R, P0: 0, P1: 1);
+impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2);
+impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3);
+impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4);
+impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5);
+impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6);
+impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7);
+impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8);
+impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9);
 
 // Re-exported to crate::private
 #[doc(hidden)]
@@ -245,7 +231,7 @@ pub mod func_callbacks {
         _method_data: *mut std::ffi::c_void,
         n: i32,
     ) -> sys::GDNativeVariantType {
-        S::variant_type((n + 1) as usize)
+        S::variant_type(n)
     }
 
     pub extern "C" fn get_info<S: SignatureTuple>(
@@ -254,7 +240,7 @@ pub mod func_callbacks {
         ret: *mut sys::GDNativePropertyInfo,
     ) {
         // Return value is the first "argument"
-        let info = S::property_info((n + 1) as usize, "TODO");
+        let info = S::property_info(n, "TODO");
         unsafe { *ret = info };
     }
 
@@ -263,6 +249,6 @@ pub mod func_callbacks {
         n: i32,
     ) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
         // Return value is the first "argument"
-        S::param_metadata((n + 1) as usize)
+        S::param_metadata(n)
     }
 }
