@@ -105,6 +105,16 @@ pub trait SignatureTuple {
         func: fn(&mut C, Self::Params) -> Self::Ret,
         method_name: &str,
     );
+
+    // Note: this method imposes extra bounds on GodotFfi, which may not be implemented for user types.
+    // We could fall back to varcalls in such cases, and not require GodotFfi categorically.
+    fn ptrcall<C : GodotClass>(
+        instance_ptr: sys::GDExtensionClassInstancePtr,
+        args_ptr: *const sys::GDNativeTypePtr,
+        ret: sys::GDNativeTypePtr,
+        func: fn(&mut C, Self::Params) -> Self::Ret,
+        method_name: &str,
+    );
 }
 
 // impl<P, const N: usize> Sig for [P; N]
@@ -133,8 +143,8 @@ macro_rules! impl_signature_for_tuple {
     ) => {
         #[allow(unused_variables)]
         impl<$R, $($Pn,)*> SignatureTuple for ($R, $($Pn,)*)
-            where $R: PropertyInfoBuilder + ToVariant,
-               $( $Pn: PropertyInfoBuilder + FromVariant, )*
+            where $R: PropertyInfoBuilder + ToVariant + sys::GodotFfi,
+               $( $Pn: PropertyInfoBuilder + FromVariant + sys::GodotFfi, )*
         {
             type Params = ($($Pn,)*);
             type Ret = $R;
@@ -187,17 +197,19 @@ macro_rules! impl_signature_for_tuple {
                 let storage = unsafe { crate::private::as_storage::<C>(instance_ptr) };
                 let mut instance = storage.get_mut();
 
-                let args = ( $( {
-                    let variant = unsafe { &*(*args_ptr.offset($n) as *mut Variant) }; // TODO from_var_sys
-                    let arg = <$Pn as FromVariant>::try_from_variant(variant)
-                        .unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
-                            method = method_name,
-                            index = $n,
-                            param = stringify!($Pn), //std::any::type_name::<$ParamTy>
-                            arg = variant,
-                        ));
-                    arg
-                }, )* );
+                let args = ( $(
+                    {
+                        let variant = unsafe { &*(*args_ptr.offset($n) as *mut Variant) }; // TODO from_var_sys
+                        let arg = <$Pn as FromVariant>::try_from_variant(variant)
+                            .unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
+                                method = method_name,
+                                index = $n,
+                                param = stringify!($Pn), //std::any::type_name::<$ParamTy>
+                                arg = variant,
+                            ));
+                        arg
+                    },
+                )* );
 
 				let ret_val = func(&mut *instance, args);
                 let ret_variant = <$R as ToVariant>::to_variant(&ret_val); // TODO write_sys
@@ -205,6 +217,29 @@ macro_rules! impl_signature_for_tuple {
                     *(ret as *mut Variant) = ret_variant;
                     (*err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
                 }
+            }
+
+            #[inline]
+            fn ptrcall<C : GodotClass>(
+				instance_ptr: sys::GDExtensionClassInstancePtr,
+                args_ptr: *const sys::GDNativeTypePtr,
+                ret: sys::GDNativeTypePtr,
+                func: fn(&mut C, Self::Params) -> Self::Ret,
+                method_name: &str,
+            ) {
+                println!("ptrcall: {}", method_name);
+                let storage = unsafe { crate::private::as_storage::<C>(instance_ptr) };
+                let mut instance = storage.get_mut();
+
+				let args = ( $(
+                    unsafe { <$Pn as sys::GodotFfi>::from_sys(*args_ptr.offset($n)) },
+                )* );
+
+                let ret_val = func(&mut *instance, args);
+				unsafe { <$R as sys::GodotFfi>::write_sys(&ret_val, ret); }
+
+                // FIXME should be inc_ref instead of forget
+				std::mem::forget(ret_val);
             }
         }
     };

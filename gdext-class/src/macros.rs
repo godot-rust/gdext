@@ -73,9 +73,7 @@ macro_rules! gdext_register_method_inner {
                             err,
                             |inst, params| {
                                 let ( $($param,)* ) = params;
-                                inst.$method_name($(
-                                    $param,
-                                )*)
+                                inst.$method_name( $( $param, )* )
                             },
                             stringify!($method_name),
                         );
@@ -90,10 +88,21 @@ macro_rules! gdext_register_method_inner {
                         args: *const sys::GDNativeTypePtr,
                         ret: sys::GDNativeTypePtr,
                     ) {
-                        $crate::gdext_ptrcall!(
+                        /*$crate::gdext_ptrcall!(
                             instance_ptr, args, ret;
                             $Class;
                             fn $method_name( $( $param: $ParamTy, )* ) -> $( $RetTy )+
+                        );*/
+
+                         < ($($RetTy)+, $($ParamTy,)*) as gdext_class::property_info::SignatureTuple >::ptrcall::< $Class >(
+                            instance_ptr,
+                            args,
+                            ret,
+                            |inst, params| {
+                                let ( $($param,)* ) = params;
+                                inst.$method_name( $( $param, )* )
+                            },
+                            stringify!($method_name),
                         );
                     }
 
