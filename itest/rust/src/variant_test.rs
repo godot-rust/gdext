@@ -1,6 +1,6 @@
 use crate::itest;
 use gdext_builtin::{FromVariant, GodotString, ToVariant, Variant};
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 pub fn run() -> bool {
     let mut ok = true;
@@ -51,16 +51,17 @@ where
 
 fn truncate_bad<T>(original_value: i64)
 where
-    T: FromVariant,
+    T: FromVariant + Display,
 {
     let variant = original_value.to_variant();
     let result = T::try_from_variant(&variant);
 
-    if result.is_ok() {
+    if let Ok(back) = result {
         panic!(
-            "{} - T::try_from_variant({}) should fail",
+            "{} - T::try_from_variant({}) should fail, but resulted in {}",
             std::any::type_name::<T>(),
-            variant
+            variant,
+            back
         );
     }
 }

@@ -204,7 +204,7 @@ macro_rules! impl_signature_for_tuple {
                             .unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
                                 method = method_name,
                                 index = $n,
-                                param = stringify!($Pn), //std::any::type_name::<$ParamTy>
+                                param = std::any::type_name::<$Pn>(),
                                 arg = variant,
                             ));
                         arg
