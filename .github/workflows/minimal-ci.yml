@@ -39,3 +39,27 @@ jobs:
           artifact_name: godot-linux
           github_pat: ${{ secrets.ARTIFACT_DOWNLOADER_PAT }}
           #godot_ver: ${{ matrix.godot }}
+
+  license-guard:
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/master'
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: "Check and fix license headers"
+        uses: apache/skywalking-eyes/header@v0.4.0
+        with:
+          # log: debug # optional: set the log level. The default value is `info`.
+          config: .github/external-config/licenserc.yml
+          # token: # optional: the token that license eye uses when it needs to comment on the pull request. Set to empty ("") to disable commenting on pull request. The default value is ${{ github.token }}
+          # mode: # optional: Which mode License-Eye should be run in. Choices are `check` or `fix`. The default value is `check`.
+          mode: fix
+
+      - name: "Commit changes"
+        uses: EndBug/add-and-commit@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          author_name: 'Godot-Rust Automation'
+          author_email: 'actions@github.com'
+          message: 'Auto-apply license headers'
