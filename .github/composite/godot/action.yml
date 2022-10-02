@@ -52,7 +52,7 @@ runs:
 
     - name: "Store variable to Godot binary"
       run: |
-        echo "GODOT_BIN=${{ runner.temp }}/godot_bin/godot.linuxbsd.tools.x86_64" >> $GITHUB_ENV
+        echo "GODOT_BIN=${{ runner.temp }}/godot_bin/godot.linuxbsd.editor.dev.x86_64" >> $GITHUB_ENV
       shell: bash
 
     - name: "Inspect Godot version"
