@@ -1,6 +1,7 @@
 use crate::obj::InstanceId;
 use gdext_builtin::{GodotString, Vector2, Vector3};
 use gdext_sys as sys;
+use std::fmt::Debug;
 
 pub trait PropertyInfoBuilder {
     fn variant_type() -> sys::GDNativeVariantType;
@@ -143,8 +144,8 @@ macro_rules! impl_signature_for_tuple {
     ) => {
         #[allow(unused_variables)]
         impl<$R, $($Pn,)*> SignatureTuple for ($R, $($Pn,)*)
-            where $R: PropertyInfoBuilder + ToVariant + sys::GodotSerialize,
-               $( $Pn: PropertyInfoBuilder + FromVariant + sys::GodotSerialize, )*
+            where $R: PropertyInfoBuilder + ToVariant + sys::GodotFuncMarshal + Debug,
+               $( $Pn: PropertyInfoBuilder + FromVariant + sys::GodotFuncMarshal + Debug, )*
         {
             type Params = ($($Pn,)*);
             type Ret = $R;
@@ -201,14 +202,8 @@ macro_rules! impl_signature_for_tuple {
                     {
                         let variant = unsafe { &*(*args_ptr.offset($n) as *mut Variant) }; // TODO from_var_sys
                         let arg = <$Pn as FromVariant>::try_from_variant(variant)
-                            .unwrap_or_else(|e| panic!(
-                                "{method}: parameter [{index}] has type {param}, \
-                                which is unable to store Variant argument {arg}",
-                                method = method_name,
-                                index = $n,
-                                param = std::any::type_name::<$Pn>(),
-                                arg = variant,
-                            ));
+                            .unwrap_or_else(|e| param_error::<$Pn>(method_name, $n, variant));
+
                         arg
                     },
                 )* );
@@ -234,17 +229,33 @@ macro_rules! impl_signature_for_tuple {
                 let mut instance = storage.get_mut();
 
 				let args = ( $(
-                    unsafe { <$Pn as sys::GodotSerialize>::try_from_sys(*args_ptr.offset($n)) }.unwrap(),
+                    unsafe { <$Pn as sys::GodotFuncMarshal>::try_from_sys(*args_ptr.offset($n)) }
+                        .unwrap_or_else(|e| param_error::<$Pn>(method_name, $n, &e)),
                 )* );
 
                 let ret_val = func(&mut *instance, args);
-				unsafe { <$R as sys::GodotSerialize>::try_write_sys(&ret_val, ret) }.unwrap();
+				unsafe { <$R as sys::GodotFuncMarshal>::try_write_sys(&ret_val, ret) }
+                    .unwrap_or_else(|e| return_error::<$R>(method_name, &e));
 
                 // FIXME should be inc_ref instead of forget
 				std::mem::forget(ret_val);
             }
         }
     };
+}
+
+fn param_error<P>(method_name: &str, index: i32, arg: &impl Debug) -> ! {
+    let param_ty = std::any::type_name::<P>();
+    panic!(
+        "{method_name}: parameter [{index}] has type {param_ty}, which is unable to store argument {arg:?}",
+    );
+}
+
+fn return_error<R>(method_name: &str, arg: &impl Debug) -> ! {
+    let return_ty = std::any::type_name::<R>();
+    panic!(
+        "{method_name}: return type {return_ty} is unable to store value {arg:?}",
+    );
 }
 
 impl_signature_for_tuple!(R);

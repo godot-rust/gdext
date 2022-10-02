@@ -1,4 +1,5 @@
 use crate as sys;
+use std::fmt::Debug;
 
 /// Adds methods to convert from and to Godot FFI pointers.
 #[doc(hidden)]
@@ -27,12 +28,17 @@ pub trait GodotFfi {
     unsafe fn write_sys(&self, dst: sys::GDNativeTypePtr);
 }
 
-pub trait GodotSerialize: Sized {
-    #[must_use]
-    unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Option<Self>;
+/// Trait implemented for all types that can be passed to and from user-defined `#[func]` methods
+/// through Godot's _ptrcall_ calling convention.
+pub trait GodotFuncMarshal: Sized {
+    /// Intermediate type through which Self is converted, and which can cause failure.
+    type Via: Debug;
 
-    #[must_use]
-    unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Option<()>;
+    /// Used for function arguments. On failure, the argument which can't be converted to Self is returned.
+    unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Result<Self, Self::Via>;
+
+    /// Used for function return values. On failure, `self` which can't be converted to Via is returned.
+    unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Result<(), Self>;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -202,10 +208,11 @@ macro_rules! ffi_methods {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation for common types (needs to be this crate due to orphan rule)
 mod scalars {
-    use super::{GodotFfi, GodotSerialize};
+    use super::{GodotFfi, GodotFuncMarshal};
     use crate as sys;
+    use std::convert::Infallible;
 
-    macro_rules! impl_godot_serialize {
+    macro_rules! impl_godot_marshalling {
         ($T:ty) => {
             impl GodotFfi for $T {
                 ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
@@ -216,31 +223,33 @@ mod scalars {
             // implicit bounds:
             //    T: TryFrom<Via>, Copy
             //    Via: TryFrom<T>, GodotFfi
-            impl GodotSerialize for $T {
-                unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Option<Self> {
+            impl GodotFuncMarshal for $T {
+                type Via = $Via;
+
+                unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Result<Self, $Via> {
                     let via = <$Via as GodotFfi>::from_sys(ptr);
-                    Self::try_from(via).ok()
+                    Self::try_from(via).map_err(|_| via)
                 }
 
-                unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Option<()> {
-                    if let Ok(via) = <$Via>::try_from(*self) {
-                        <$Via as GodotFfi>::write_sys(&via, dst);
-                        Some(())
-                    } else {
-                        None
-                    }
+                unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Result<(), Self> {
+                    <$Via>::try_from(*self)
+                        .and_then(|via| {
+                            <$Via as GodotFfi>::write_sys(&via, dst);
+                            Ok(())
+                        })
+                        .map_err(|_| *self)
                 }
             }
         };
     }
 
     // Directly implements GodotFfi + GodotSerialize (through blanket impl)
-    impl_godot_serialize!(bool);
-    impl_godot_serialize!(i64);
-    impl_godot_serialize!(f64);
+    impl_godot_marshalling!(bool);
+    impl_godot_marshalling!(i64);
+    impl_godot_marshalling!(f64);
 
     // Only implements GodotSerialize
-    impl_godot_serialize!(i32 as i64);
+    impl_godot_marshalling!(i32 as i64);
 
     impl GodotFfi for () {
         unsafe fn from_sys(_ptr: sys::GDNativeTypePtr) -> Self {
@@ -261,17 +270,19 @@ mod scalars {
         }
     }
 
-    impl<T> GodotSerialize for T
+    impl<T> GodotFuncMarshal for T
     where
         T: GodotFfi,
     {
-        unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Option<Self> {
-            Some(Self::from_sys(ptr))
+        type Via = Infallible;
+
+        unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Result<Self, Infallible> {
+            Ok(Self::from_sys(ptr))
         }
 
-        unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Option<()> {
+        unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Result<(), Self> {
             self.write_sys(dst);
-            Some(())
+            Ok(())
         }
     }
 }
