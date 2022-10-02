@@ -108,7 +108,7 @@ pub trait SignatureTuple {
 
     // Note: this method imposes extra bounds on GodotFfi, which may not be implemented for user types.
     // We could fall back to varcalls in such cases, and not require GodotFfi categorically.
-    fn ptrcall<C : GodotClass>(
+    fn ptrcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
         args_ptr: *const sys::GDNativeTypePtr,
         ret: sys::GDNativeTypePtr,
@@ -143,8 +143,8 @@ macro_rules! impl_signature_for_tuple {
     ) => {
         #[allow(unused_variables)]
         impl<$R, $($Pn,)*> SignatureTuple for ($R, $($Pn,)*)
-            where $R: PropertyInfoBuilder + ToVariant + sys::GodotFfi,
-               $( $Pn: PropertyInfoBuilder + FromVariant + sys::GodotFfi, )*
+            where $R: PropertyInfoBuilder + ToVariant + sys::GodotSerialize,
+               $( $Pn: PropertyInfoBuilder + FromVariant + sys::GodotSerialize, )*
         {
             type Params = ($($Pn,)*);
             type Ret = $R;
@@ -201,7 +201,9 @@ macro_rules! impl_signature_for_tuple {
                     {
                         let variant = unsafe { &*(*args_ptr.offset($n) as *mut Variant) }; // TODO from_var_sys
                         let arg = <$Pn as FromVariant>::try_from_variant(variant)
-                            .unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
+                            .unwrap_or_else(|e| panic!(
+                                "{method}: parameter [{index}] has type {param}, \
+                                which is unable to store Variant argument {arg}",
                                 method = method_name,
                                 index = $n,
                                 param = std::any::type_name::<$Pn>(),
@@ -232,11 +234,11 @@ macro_rules! impl_signature_for_tuple {
                 let mut instance = storage.get_mut();
 
 				let args = ( $(
-                    unsafe { <$Pn as sys::GodotFfi>::from_sys(*args_ptr.offset($n)) },
+                    unsafe { <$Pn as sys::GodotSerialize>::try_from_sys(*args_ptr.offset($n)) }.unwrap(),
                 )* );
 
                 let ret_val = func(&mut *instance, args);
-				unsafe { <$R as sys::GodotFfi>::write_sys(&ret_val, ret); }
+				unsafe { <$R as sys::GodotSerialize>::try_write_sys(&ret_val, ret) }.unwrap();
 
                 // FIXME should be inc_ref instead of forget
 				std::mem::forget(ret_val);

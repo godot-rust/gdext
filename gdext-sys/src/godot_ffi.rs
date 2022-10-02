@@ -27,6 +27,14 @@ pub trait GodotFfi {
     unsafe fn write_sys(&self, dst: sys::GDNativeTypePtr);
 }
 
+pub trait GodotSerialize: Sized {
+    #[must_use]
+    unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Option<Self>;
+
+    #[must_use]
+    unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Option<()>;
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros to choose a certain implementation of `GodotFfi` trait for GDNativeTypePtr;
 // or a free-standing `impl` for concrete sys pointers such as GDNativeObjectPtr.
@@ -194,21 +202,45 @@ macro_rules! ffi_methods {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation for common types (needs to be this crate due to orphan rule)
 mod scalars {
-    use super::GodotFfi;
+    use super::{GodotFfi, GodotSerialize};
     use crate as sys;
 
-    macro_rules! impl_godot_ffi {
+    macro_rules! impl_godot_serialize {
         ($T:ty) => {
             impl GodotFfi for $T {
                 ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
             }
         };
+
+        ($T:ty as $Via:ty) => {
+            // implicit bounds:
+            //    T: TryFrom<Via>, Copy
+            //    Via: TryFrom<T>, GodotFfi
+            impl GodotSerialize for $T {
+                unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Option<Self> {
+                    let via = <$Via as GodotFfi>::from_sys(ptr);
+                    Self::try_from(via).ok()
+                }
+
+                unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Option<()> {
+                    if let Ok(via) = <$Via>::try_from(*self) {
+                        <$Via as GodotFfi>::write_sys(&via, dst);
+                        Some(())
+                    } else {
+                        None
+                    }
+                }
+            }
+        };
     }
 
-    impl_godot_ffi!(bool);
-    impl_godot_ffi!(i64);
-    impl_godot_ffi!(i32); // FIXME remove
-    impl_godot_ffi!(f64);
+    // Directly implements GodotFfi + GodotSerialize (through blanket impl)
+    impl_godot_serialize!(bool);
+    impl_godot_serialize!(i64);
+    impl_godot_serialize!(f64);
+
+    // Only implements GodotSerialize
+    impl_godot_serialize!(i32 as i64);
 
     impl GodotFfi for () {
         unsafe fn from_sys(_ptr: sys::GDNativeTypePtr) -> Self {
@@ -226,6 +258,20 @@ mod scalars {
 
         unsafe fn write_sys(&self, _dst: sys::GDNativeTypePtr) {
             // Do nothing
+        }
+    }
+
+    impl<T> GodotSerialize for T
+    where
+        T: GodotFfi,
+    {
+        unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Option<Self> {
+            Some(Self::from_sys(ptr))
+        }
+
+        unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Option<()> {
+            self.write_sys(dst);
+            Some(())
         }
     }
 }

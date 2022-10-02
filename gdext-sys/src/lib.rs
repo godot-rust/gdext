@@ -27,7 +27,7 @@ use gen::central::GlobalMethodTable;
 use global_registry::GlobalRegistry;
 
 pub use gen::central::types;
-pub use godot_ffi::GodotFfi;
+pub use godot_ffi::{GodotFfi, GodotSerialize};
 
 // #[allow(non_camel_case_types)]
 // #[cfg(not(feature = "real_is_double"))]

@@ -27,7 +27,7 @@ fn collect_inputs() -> Vec<Input> {
 
     // Scalar
     push!(inputs; int, i64, -922337203685477580);
-    push!(inputs; int, i32, -2147483647);
+    push!(inputs; int, i32, -2147483648);
     //push!(inputs; int, i16, -32767);
     //push!(inputs; int, i8, -128);
     // push!(inputs; float, f64, 127.83);
@@ -68,11 +68,38 @@ fn main() {
 
     std::fs::create_dir_all(rust_output_dir).expect("create Rust parent dir");
     std::fs::create_dir_all(godot_output_dir).expect("create GDScript parent dir");
-    std::fs::write(rust_file, rust_tokens.to_string()).expect("write to Rust file");
+    std::fs::write(&rust_file, rust_tokens.to_string()).expect("write to Rust file");
     write_gdscript_code(&inputs, &gdscript_template, &gdscript_file)
         .expect("write to GDScript file");
 
     println!("cargo:rerun-if-changed={}", gdscript_template.display());
+
+    rustfmt_if_needed(vec![rust_file]);
+}
+
+// TODO remove, or remove code duplication with codegen
+fn rustfmt_if_needed(out_files: Vec<std::path::PathBuf>) {
+    //print!("Format {} generated files...", out_files.len());
+
+    let mut process = std::process::Command::new("rustup");
+    process
+        .arg("run")
+        .arg("stable")
+        .arg("rustfmt")
+        .arg("--edition=2021");
+
+    for file in out_files {
+        //println!("Format {file:?}");
+        process.arg(file);
+    }
+
+    match process.output() {
+        Ok(_) => println!("Done."),
+        Err(err) => {
+            println!("Failed.");
+            println!("Error: {}", err);
+        }
+    }
 }
 
 struct Input {
