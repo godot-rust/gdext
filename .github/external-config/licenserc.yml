@@ -1,0 +1,17 @@
+header:
+  license:
+    spdx-id: MPL-2.0
+
+  paths:
+    - '**/*.rs'
+    - '**/*.gd'
+
+  comment: on-failure
+
+  language:
+    GDScript:
+      extensions: ['.gd']
+      comment_style_id: 'Hashtag'
+    Rust:
+      extensions: ['.rs']
+      comment_style_id: 'SlashAsterisk'
