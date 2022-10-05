@@ -11,6 +11,6 @@ proc-macro = true
 quote = "1"
 proc-macro2 = "1"
 #venial = "0.4"
-venial = { git = "https://github.com/Bromeon/venial.git", branch = "feature/mod" }
+venial = { git = "https://github.com/Bromeon/venial.git", branch = "refactor/parse-utils" }
 #venial = { git = "https://github.com/PoignardAzur/venial.git", branch = "main" }
 #syn = { version = "1", features = ["full", "extra-traits", "visit", "visit-mut"] }

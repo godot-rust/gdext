@@ -9,18 +9,19 @@ mod central_generator;
 mod class_generator;
 mod godot_exe;
 mod godot_version;
+mod special_cases;
 mod util;
 mod utilities_generator;
 
-use crate::api_parser::ExtensionApi;
-use api_parser::load_extension_api;
+use api_parser::{load_extension_api, ExtensionApi};
 use central_generator::generate_central_file;
 use class_generator::generate_class_files;
+use utilities_generator::generate_utilities_file;
+
 use proc_macro2::TokenStream;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::path::{Path, PathBuf};
-use utilities_generator::generate_utilities_file;
 
 // macro_rules! local_path {
 //     ($path:lit) => {

@@ -19,7 +19,7 @@ pub use registry::*;
 use gdext_sys as sys;
 
 mod gen {
-    #[allow(unused_imports)]
+    #[allow(unused_imports, dead_code)]
     pub(crate) mod classes;
     pub mod utilities;
 }

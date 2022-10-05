@@ -259,9 +259,7 @@ fn param_error<P>(method_name: &str, index: i32, arg: &impl Debug) -> ! {
 
 fn return_error<R>(method_name: &str, arg: &impl Debug) -> ! {
     let return_ty = std::any::type_name::<R>();
-    panic!(
-        "{method_name}: return type {return_ty} is unable to store value {arg:?}",
-    );
+    panic!("{method_name}: return type {return_ty} is unable to store value {arg:?}",);
 }
 
 impl_signature_for_tuple!(R);

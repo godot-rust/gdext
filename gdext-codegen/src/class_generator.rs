@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::util::{c_str, ident, ident_escaped, safe_ident, strlit, to_module_name};
-use crate::{Context, RustTy, KNOWN_TYPES, SELECTED_CLASSES};
+use crate::{special_cases, Context, RustTy, KNOWN_TYPES, SELECTED_CLASSES};
 
 pub(crate) fn generate_class_files(
     api: &ExtensionApi,
@@ -27,7 +27,9 @@ pub(crate) fn generate_class_files(
     // TODO no limit after testing
     let mut modules = vec![];
     for class in api.classes.iter() {
-        if !SELECTED_CLASSES.contains(&class.name.as_str()) {
+        if !SELECTED_CLASSES.contains(&class.name.as_str())
+            || special_cases::is_class_deleted(&class.name.as_str())
+        {
             continue;
         }
 
@@ -214,7 +216,7 @@ fn is_function_excluded(function: &UtilityFunction) -> bool {
 }
 
 fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> TokenStream {
-    if is_method_excluded(method) {
+    if is_method_excluded(method) || special_cases::is_deleted(class_name, &method.name) {
         return TokenStream::new();
     }
 
@@ -234,8 +236,14 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
 
     let (return_decl, call) = make_method_return(&method.return_value, ctx);
 
+    let vis = if special_cases::is_private(class_name, &method.name) {
+        quote! { pub(crate) }
+    } else {
+        quote! { pub }
+    };
+
     quote! {
-        pub fn #method_name( #receiver, #( #params ),* ) #return_decl {
+        #vis fn #method_name( #receiver, #( #params ),* ) #return_decl {
             let result = unsafe {
                 let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
                 let call_fn = sys::interface_fn!(object_method_bind_ptrcall);
