@@ -362,19 +362,20 @@ impl<T> Deref for Gd<T>
 where
     T: GodotClass<Declarer = dom::EngineDomain>,
 {
-    // This relies on Gd<Node3D> having the layout as Node3D (as an example),
-    // which also needs #[repr(transparent)]:
-    //
-    // struct Gd<T: GodotClass> {
-    //     opaque: OpaqueObject,         <- size of GDNativeObjectPtr
-    //     _marker: PhantomData,         <- ZST
-    // }
-    // struct Node3D {
-    //     object_ptr: sys::GDNativeObjectPtr,
-    // }
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
+        // SAFETY:
+        // This relies on Gd<Node3D> having the layout as Node3D (as an example),
+        // which also needs #[repr(transparent)]:
+        //
+        // struct Gd<T: GodotClass> {
+        //     opaque: OpaqueObject,         <- size of GDNativeObjectPtr
+        //     _marker: PhantomData,         <- ZST
+        // }
+        // struct Node3D {
+        //     object_ptr: sys::GDNativeObjectPtr,
+        // }
         unsafe { std::mem::transmute::<&OpaqueObject, &T>(&self.opaque) }
     }
 }
@@ -384,6 +385,7 @@ where
     T: GodotClass<Declarer = dom::EngineDomain>,
 {
     fn deref_mut(&mut self) -> &mut T {
+        // SAFETY: see Deref
         unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut self.opaque) }
     }
 }

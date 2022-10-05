@@ -32,6 +32,8 @@ pub fn run() -> bool {
     ok &= object_instance_id();
     ok &= object_user_convert_variant();
     ok &= object_engine_convert_variant();
+    ok &= object_engine_up_deref();
+    ok &= object_engine_up_deref_mut();
     ok &= object_engine_upcast();
     ok &= object_engine_downcast();
     ok &= object_engine_bad_downcast();
@@ -137,6 +139,34 @@ fn object_engine_convert_variant() {
 
     assert_eq!(obj2.get_position(), pos);
     obj.free();
+}
+
+#[itest]
+fn object_engine_up_deref() {
+    let node3d: Gd<Node3D> = Node3D::new_alloc();
+    let id = node3d.instance_id();
+
+    // Deref chain: Gd<Node3D> -> &Node3D -> &Node -> &Object
+    assert_eq!(node3d.instance_id(), id);
+    assert_eq!(node3d.get_class(), GodotString::from("Node3D"));
+
+    node3d.free();
+}
+
+#[itest]
+fn object_engine_up_deref_mut() {
+    let mut node3d: Gd<Node3D> = Node3D::new_alloc();
+
+    // DerefMut chain: Gd<Node3D> -> &mut Node3D -> &mut Node -> &mut Object
+    node3d.set_message_translation(true);
+    assert_eq!(node3d.can_translate_messages(), true);
+
+    // DerefMut chain: &mut Node3D -> ...
+    let node3d_ref = &mut *node3d;
+    node3d_ref.set_message_translation(false);
+    assert_eq!(node3d_ref.can_translate_messages(), false);
+
+    node3d.free();
 }
 
 #[itest]

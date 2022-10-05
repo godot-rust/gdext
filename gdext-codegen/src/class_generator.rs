@@ -123,6 +123,20 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         #(
             impl crate::traits::Inherits<crate::api::#all_bases> for #name {}
         )*
+        impl std::ops::Deref for #name {
+            type Target = #base;
+
+            fn deref(&self) -> &Self::Target {
+                // SAFETY: same assumptions as `impl Deref for Gd<T>`, see there for comments
+                unsafe { std::mem::transmute::<&Self, &Self::Target>(self) }
+            }
+        }
+        impl std::ops::DerefMut for #name {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                // SAFETY: see above
+                unsafe { std::mem::transmute::<&mut Self, &mut Self::Target>(self) }
+            }
+        }
 
         #[macro_export]
         #[allow(non_snake_case)]
