@@ -7,7 +7,7 @@
 use crate::itest;
 use gdext_builtin::{FromVariant, GodotString, ToVariant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
-use gdext_class::obj::{Base, Gd};
+use gdext_class::obj::{Base, Gd, InstanceId};
 use gdext_class::out;
 use gdext_class::traits::{GodotExt, Share};
 use gdext_macros::{godot_api, GodotClass};
@@ -30,6 +30,8 @@ pub fn run() -> bool {
     ok &= object_user_roundtrip_write();
     ok &= object_engine_roundtrip();
     ok &= object_instance_id();
+    ok &= object_instance_id_when_freed();
+    ok &= object_from_invalid_instance_id();
     ok &= object_user_convert_variant();
     ok &= object_engine_convert_variant();
     ok &= object_engine_up_deref();
@@ -113,6 +115,23 @@ fn object_instance_id() {
 
     let obj2 = Gd::<ObjPayload>::from_instance_id(id);
     assert_eq!(obj2.bind().value, value);
+}
+
+#[itest]
+fn object_instance_id_when_freed() {
+    let node: Gd<Node3D> = Node3D::new_alloc();
+    node.share().free(); // destroys object without moving out of reference
+
+    let panic = std::panic::catch_unwind(|| node.instance_id());
+    assert!(panic.is_err(), "instance_id() on dead object panics");
+}
+
+#[itest]
+fn object_from_invalid_instance_id() {
+    let id = InstanceId::from_u64(0xDEADBEEF);
+
+    let obj2 = Gd::<ObjPayload>::try_from_instance_id(id);
+    assert!(obj2.is_none());
 }
 
 #[itest]
