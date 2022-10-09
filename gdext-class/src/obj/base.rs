@@ -57,7 +57,11 @@ impl<T: GodotClass> Base<T> {
 
 impl<T: GodotClass> std::fmt::Debug for Base<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Base {{ id: {} }}", self.obj.instance_id())
+        if let Some(id) = self.instance_id_or_none() {
+            write!(f, "Base{{ id: {} }}", id)
+        } else {
+            write!(f, "Base{{ freed object }}")
+        }
     }
 }
 

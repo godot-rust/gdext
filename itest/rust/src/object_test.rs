@@ -120,10 +120,10 @@ fn object_instance_id() {
 #[itest]
 fn object_instance_id_when_freed() {
     let node: Gd<Node3D> = Node3D::new_alloc();
-    assert!(node.is_valid());
+    assert!(node.is_instance_valid());
 
     node.share().free(); // destroys object without moving out of reference
-    assert!(!node.is_valid());
+    assert!(!node.is_instance_valid());
 
     expect_panic("instance_id() on dead object", || {
         node.instance_id();

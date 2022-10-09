@@ -193,11 +193,29 @@ impl<T: GodotClass> Gd<T> {
     pub fn instance_id(&self) -> InstanceId {
         self.instance_id_or_none().unwrap_or_else(|| {
             panic!(
-                "failed to call instance_id() on destroyed object {self:?}; \
-                try instance_id_or_none() or keep your objects alive"
+                "failed to call instance_id() on destroyed object; \
+                use instance_id_or_none() or keep your objects alive"
             )
         })
     }
+
+    /// Checks if this smart pointer points to a live object (read description!).
+    ///
+    /// Using this method is often indicative of bad design -- you should dispose of your pointers once an object is
+    /// destroyed. However, this method exists because GDScript offers it and there may be **rare** use cases.
+    ///
+    /// Do not use this method to check if you can safely access an object. Accessing dead objects is generally safe
+    /// and will panic in a defined manner. Encountering such panics is almost always a bug you should fix, and not a
+    /// runtime condition to check against.
+    pub fn is_instance_valid(&self) -> bool {
+        // TODO Is this really necessary, or is Godot's instance_id() guaranteed to return 0 for destroyed objects?
+        if let Some(id) = self.instance_id_or_none() {
+            api::utilities::is_instance_id_valid(id.to_i64())
+        } else {
+            false
+        }
+    }
+
     /// Needed to initialize ref count -- must be explicitly invoked.
     ///
     /// Could be made part of FFI methods, but there are some edge cases where this is not intended.
@@ -292,12 +310,10 @@ impl<T: GodotClass> Gd<T> {
     }
 
     pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut api::RefCounted) -> R) -> R {
-        if !self.is_valid() {
-            debug_assert!(
-                self.is_valid(),
-                "as_ref_counted() on freed instance; maybe forgot to increment reference count?"
-            );
-        }
+        debug_assert!(
+            self.is_instance_valid(),
+            "as_ref_counted() on freed instance; maybe forgot to increment reference count?"
+        );
 
         let tmp = unsafe { self.ffi_cast::<api::RefCounted>() };
         let mut tmp = tmp.expect("object expected to inherit RefCounted");
@@ -315,10 +331,6 @@ impl<T: GodotClass> Gd<T> {
     //     std::mem::forget(tmp); // no ownership transfer
     //     return_val
     // }
-
-    pub fn is_valid(&self) -> bool {
-        api::utilities::is_instance_id_valid(self.instance_id().to_i64())
-    }
 
     // Conversions from/to Godot C++ `Object*` pointers
     ffi_methods! {
@@ -355,11 +367,10 @@ where
 			"called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types."
 		);
 
-        //assert!(self.is_valid(), "called free() on already destroyed object");
-
-        if !self.is_valid() {
-            panic!("called free() on already destroyed object");
-        }
+        assert!(
+            self.is_instance_valid(),
+            "called free() on already destroyed object"
+        );
 
         unsafe {
             interface_fn!(object_destroy)(self.obj_sys());
@@ -481,7 +492,12 @@ impl<T: GodotClass> ToVariant for Gd<T> {
 
 impl<T: GodotClass> std::fmt::Debug for Gd<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Gd {{ id: {} }}", self.instance_id())
+        // If you change this, don't forget to update Base::fmt()
+        if let Some(id) = self.instance_id_or_none() {
+            write!(f, "Gd{{ id: {} }}", id)
+        } else {
+            write!(f, "Gd{{ freed object }}")
+        }
     }
 }
 
