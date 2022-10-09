@@ -42,3 +42,10 @@ pub trait ToVariant {
 
 #[derive(Debug)]
 pub struct VariantConversionError;
+/*pub enum VariantConversionError {
+    /// Variant type does not match expected type
+    BadType,
+
+    /// Variant value cannot be represented in target type
+    BadValue,
+}*/

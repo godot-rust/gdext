@@ -177,18 +177,27 @@ impl<T: GodotClass> Gd<T> {
         }
     }
 
-    /// Returns the instance ID of this object.
+    /// Returns the instance ID of this object, or `None` if the object is dead.
+    ///
+    pub fn instance_id_or_none(&self) -> Option<InstanceId> {
+        // Note: bit 'id & (1 << 63)' determines if the instance is ref-counted
+        let id = unsafe { interface_fn!(object_get_instance_id)(self.obj_sys()) };
+        InstanceId::try_from_u64(id)
+    }
+
+    /// Returns the instance ID of this object (panics when dead).
     ///
     /// # Panics
     /// If this object is no longer alive (registered in Godot's object database).
+    #[cfg(feature = "convenience")]
     pub fn instance_id(&self) -> InstanceId {
-        // FIXME panic when freed
-        // TODO this overlaps with Object::get_instance_id()
-        // Note: bit 'id & (1 << 63)' determines if the instance is ref-counted
-        let id = unsafe { interface_fn!(object_get_instance_id)(self.obj_sys()) };
-        InstanceId::from_u64(id)
+        self.instance_id_or_none().unwrap_or_else(|| {
+            panic!(
+                "failed to call instance_id() on destroyed object {self:?}; \
+                try instance_id_or_none() or keep your objects alive"
+            )
+        })
     }
-
     /// Needed to initialize ref count -- must be explicitly invoked.
     ///
     /// Could be made part of FFI methods, but there are some edge cases where this is not intended.
@@ -307,7 +316,7 @@ impl<T: GodotClass> Gd<T> {
     //     return_val
     // }
 
-    fn is_valid(&self) -> bool {
+    pub fn is_valid(&self) -> bool {
         api::utilities::is_instance_id_valid(self.instance_id().to_i64())
     }
 

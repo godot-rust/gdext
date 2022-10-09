@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::itest;
+use crate::{expect_panic, itest};
 use gdext_builtin::{FromVariant, GodotString, ToVariant, Vector3};
 use gdext_class::api::{Node, Node3D, Object, RefCounted};
 use gdext_class::obj::{Base, Gd, InstanceId};
@@ -24,26 +24,26 @@ use sys::GodotFfi;
 
 pub fn run() -> bool {
     let mut ok = true;
-    ok &= object_construct_default();
-    ok &= object_construct_value();
-    ok &= object_user_roundtrip_return();
-    ok &= object_user_roundtrip_write();
-    ok &= object_engine_roundtrip();
-    ok &= object_instance_id();
+    // ok &= object_construct_default();
+    // ok &= object_construct_value();
+    // ok &= object_user_roundtrip_return();
+    // ok &= object_user_roundtrip_write();
+    // ok &= object_engine_roundtrip();
+    // ok &= object_instance_id();
     ok &= object_instance_id_when_freed();
-    ok &= object_from_invalid_instance_id();
-    ok &= object_user_convert_variant();
-    ok &= object_engine_convert_variant();
-    ok &= object_engine_up_deref();
-    ok &= object_engine_up_deref_mut();
-    ok &= object_engine_upcast();
-    ok &= object_engine_downcast();
-    ok &= object_engine_bad_downcast();
-    ok &= object_user_upcast();
-    ok &= object_user_downcast();
-    ok &= object_user_bad_downcast();
-    ok &= object_engine_manual_drop();
-    ok &= object_user_share_drop();
+    // ok &= object_from_invalid_instance_id();
+    // ok &= object_user_convert_variant();
+    // ok &= object_engine_convert_variant();
+    // ok &= object_engine_up_deref();
+    // ok &= object_engine_up_deref_mut();
+    // ok &= object_engine_upcast();
+    // ok &= object_engine_downcast();
+    // ok &= object_engine_bad_downcast();
+    // ok &= object_user_upcast();
+    // ok &= object_user_downcast();
+    // ok &= object_user_bad_downcast();
+    // ok &= object_engine_manual_drop();
+    // ok &= object_user_share_drop();
     ok
 }
 
@@ -120,15 +120,19 @@ fn object_instance_id() {
 #[itest]
 fn object_instance_id_when_freed() {
     let node: Gd<Node3D> = Node3D::new_alloc();
-    node.share().free(); // destroys object without moving out of reference
+    assert!(node.is_valid());
 
-    let panic = std::panic::catch_unwind(|| node.instance_id());
-    assert!(panic.is_err(), "instance_id() on dead object panics");
+    node.share().free(); // destroys object without moving out of reference
+    assert!(!node.is_valid());
+
+    expect_panic("instance_id() on dead object", || {
+        node.instance_id();
+    });
 }
 
 #[itest]
 fn object_from_invalid_instance_id() {
-    let id = InstanceId::from_u64(0xDEADBEEF);
+    let id = InstanceId::try_from_i64(0xDEADBEEF).unwrap();
 
     let obj2 = Gd::<ObjPayload>::try_from_instance_id(id);
     assert!(obj2.is_none());

@@ -6,6 +6,7 @@
 
 use gdext_class::init::InitHandle;
 use gdext_macros::{gdextension, godot_api, itest, GodotClass};
+use std::panic::UnwindSafe;
 
 mod base_test;
 mod gdscript_ffi_test;
@@ -113,4 +114,13 @@ macro_rules! godot_itest {
             $crate::godot_test_impl!($test_name $body);
         )*
     };
+}
+
+pub(crate) fn expect_panic(context: &str, code: impl FnOnce() + UnwindSafe) {
+    let panic = std::panic::catch_unwind(code);
+    assert!(
+        panic.is_err(),
+        "code should have panicked but did not: {}",
+        context
+    );
 }

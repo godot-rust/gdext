@@ -41,7 +41,7 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; String, GodotString, "hello", "hello".into());
 
     // Composite
-    push!(inputs; int, InstanceId, -1, InstanceId::from_u64(0xFFFFFFFFFFFFFFFF));
+    push!(inputs; int, InstanceId, -1, InstanceId::try_from_i64(0xFFFFFFFFFFFFFFF).unwrap());
 
     inputs
 }
