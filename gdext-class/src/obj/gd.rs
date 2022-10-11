@@ -362,19 +362,24 @@ where
     /// that dynamically points to a reference-counted type.
     pub fn free(self) {
         // Runtime check in case of T=Object, no-op otherwise
-        assert!(
-			!T::Mem::is_ref_counted(&self),
+        let ref_counted = T::Mem::is_ref_counted(&self);
+        assert_ne!(
+			ref_counted, Some(true),
 			"called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types."
 		);
 
+        // If ref_counted returned None, that means the instance was destroyed
         assert!(
-            self.is_instance_valid(),
+            ref_counted == Some(false) && self.is_instance_valid(),
             "called free() on already destroyed object"
         );
 
+        // This destroys the Storage instance, no need to run destructor again
         unsafe {
             interface_fn!(object_destroy)(self.obj_sys());
         }
+
+        std::mem::forget(self);
     }
 }
 

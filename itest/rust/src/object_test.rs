@@ -24,26 +24,28 @@ use sys::GodotFfi;
 
 pub fn run() -> bool {
     let mut ok = true;
-    // ok &= object_construct_default();
-    // ok &= object_construct_value();
-    // ok &= object_user_roundtrip_return();
-    // ok &= object_user_roundtrip_write();
-    // ok &= object_engine_roundtrip();
-    // ok &= object_instance_id();
+    ok &= object_construct_default();
+    ok &= object_construct_value();
+    ok &= object_user_roundtrip_return();
+    ok &= object_user_roundtrip_write();
+    ok &= object_engine_roundtrip();
+    ok &= object_instance_id();
     ok &= object_instance_id_when_freed();
-    // ok &= object_from_invalid_instance_id();
-    // ok &= object_user_convert_variant();
-    // ok &= object_engine_convert_variant();
-    // ok &= object_engine_up_deref();
-    // ok &= object_engine_up_deref_mut();
-    // ok &= object_engine_upcast();
-    // ok &= object_engine_downcast();
-    // ok &= object_engine_bad_downcast();
-    // ok &= object_user_upcast();
-    // ok &= object_user_downcast();
-    // ok &= object_user_bad_downcast();
-    // ok &= object_engine_manual_drop();
-    // ok &= object_user_share_drop();
+    ok &= object_from_invalid_instance_id();
+    ok &= object_from_instance_id_inherits_type();
+    ok &= object_from_instance_id_unrelated_type();
+    ok &= object_user_convert_variant();
+    ok &= object_engine_convert_variant();
+    ok &= object_engine_up_deref();
+    ok &= object_engine_up_deref_mut();
+    ok &= object_engine_upcast();
+    ok &= object_engine_downcast();
+    ok &= object_engine_bad_downcast();
+    ok &= object_user_upcast();
+    ok &= object_user_downcast();
+    ok &= object_user_bad_downcast();
+    ok &= object_engine_manual_drop();
+    ok &= object_user_share_drop();
     ok
 }
 
@@ -136,6 +138,27 @@ fn object_from_invalid_instance_id() {
 
     let obj2 = Gd::<ObjPayload>::try_from_instance_id(id);
     assert!(obj2.is_none());
+}
+
+#[itest]
+fn object_from_instance_id_inherits_type() {
+    let descr = GodotString::from("some very long description");
+
+    let mut node: Gd<Node3D> = Node3D::new_alloc();
+    node.set_editor_description(descr.clone());
+
+    let id = node.instance_id();
+
+    let node_as_base = Gd::<Node>::from_instance_id(id);
+    assert_eq!(node_as_base.instance_id(), id);
+    assert_eq!(node_as_base.get_editor_description(), descr);
+
+    node_as_base.free();
+}
+
+#[itest]
+fn object_from_instance_id_unrelated_type() {
+
 }
 
 #[itest]

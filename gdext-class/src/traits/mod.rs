@@ -204,10 +204,17 @@ pub mod mem {
     use crate::traits::GodotClass;
 
     pub trait Memory: Sealed {
+        /// Initialize reference counter
         fn maybe_init_ref<T: GodotClass>(obj: &Gd<T>);
+
+        /// If ref-counted, then increment count
         fn maybe_inc_ref<T: GodotClass>(obj: &Gd<T>);
+
+        /// If ref-counted, then decrement count
         fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool;
-        fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> bool;
+
+        /// Check if ref-counted, return `None` if information is not available (dynamic and object dead)
+        fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> Option<bool>;
     }
     pub trait PossiblyManual {}
 
@@ -241,8 +248,8 @@ pub mod mem {
             })
         }
 
-        fn is_ref_counted<T: GodotClass>(_obj: &Gd<T>) -> bool {
-            true
+        fn is_ref_counted<T: GodotClass>(_obj: &Gd<T>) -> Option<bool> {
+            Some(true)
         }
     }
 
@@ -274,10 +281,12 @@ pub mod mem {
             }
         }
 
-        fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> bool {
-            obj.instance_id().is_ref_counted()
+        fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> Option<bool> {
+            // Return `None` if object is dead
+            obj.instance_id_or_none().map(|id| id.is_ref_counted())
         }
     }
+
     impl PossiblyManual for DynamicRefCount {}
 
     /// No memory management, user responsible for not leaking.
@@ -290,8 +299,8 @@ pub mod mem {
         fn maybe_dec_ref<T: GodotClass>(_obj: &Gd<T>) -> bool {
             false
         }
-        fn is_ref_counted<T: GodotClass>(_obj: &Gd<T>) -> bool {
-            false
+        fn is_ref_counted<T: GodotClass>(_obj: &Gd<T>) -> Option<bool> {
+            Some(false)
         }
     }
     impl PossiblyManual for ManualMemory {}
