@@ -428,6 +428,8 @@ impl<T: GodotClass> GodotFfi for Gd<T> {
 ///   To destroy manually-managed `Gd` pointers, you need to call [`Self::free()`].
 impl<T: GodotClass> Drop for Gd<T> {
     fn drop(&mut self) {
+        // No-op for manually managed objects
+
         out!("Gd::drop   <{}>", std::any::type_name::<T>());
         let is_last = T::Mem::maybe_dec_ref(&self); // may drop
         if is_last {

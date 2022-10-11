@@ -44,7 +44,9 @@ pub fn run() -> bool {
     ok &= object_user_upcast();
     ok &= object_user_downcast();
     ok &= object_user_bad_downcast();
-    ok &= object_engine_manual_drop();
+    ok &= object_engine_manual_free();
+    ok &= object_engine_manual_double_free();
+    ok &= object_engine_refcounted_free();
     ok &= object_user_share_drop();
     ok
 }
@@ -289,14 +291,32 @@ fn object_user_bad_downcast() {
 }
 
 #[itest]
-fn object_engine_manual_drop() {
-    let panic = std::panic::catch_unwind(|| {
+fn object_engine_manual_free() {
+    // Tests if no panic or memory leak
+
+    {
+        let node = Node3D::new_alloc();
+        let node2 = node.share();
+        node2.free();
+    } // drop(node)
+}
+
+#[itest]
+fn object_engine_manual_double_free() {
+    expect_panic("double free()", || {
         let node = Node3D::new_alloc();
         let node2 = node.share();
         node.free();
         node2.free();
     });
-    assert!(panic.is_err(), "double free() panics");
+}
+
+#[itest]
+fn object_engine_refcounted_free() {
+    let node = RefCounted::new();
+    let node2 = node.share().upcast();
+
+    expect_panic("calling free() on RefCounted object", || node2.free())
 }
 
 #[itest]
