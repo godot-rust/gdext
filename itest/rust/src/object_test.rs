@@ -160,7 +160,14 @@ fn object_from_instance_id_inherits_type() {
 
 #[itest]
 fn object_from_instance_id_unrelated_type() {
+    let node: Gd<Node3D> = Node3D::new_alloc();
+    let id = node.instance_id();
 
+    let obj = Gd::<RefCounted>::try_from_instance_id(id);
+    assert!(
+        obj.is_none(),
+        "try_from_instance_id() with bad type must fail"
+    );
 }
 
 #[itest]
