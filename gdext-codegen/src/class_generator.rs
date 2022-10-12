@@ -391,25 +391,60 @@ fn make_utility_return(return_value: &Option<String>, ctx: &Context) -> (TokenSt
 fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
     //println!("to_rust_ty: {ty}");
 
-    if let Some(remain) = ty.strip_prefix("enum::") {
-        let mut parts = remain.split(".");
+    // if let Some(remain) = ty.strip_prefix("enum::") {
+    //     let mut parts = remain.split(".");
+    //
+    //     let first = parts.next().unwrap();
+    //     let ident = match parts.next() {
+    //         Some(second) => {
+    //             // enum::Animation.LoopMode
+    //             format_ident!("{}{}", first, second) // TODO better
+    //         }
+    //         None => {
+    //             // enum::Error
+    //             format_ident!("{}", first)
+    //         }
+    //     };
+    //
+    //     assert!(parts.next().is_none(), "Unrecognized enum type '{}'", ty);
+    //     return RustTy {
+    //         tokens: ident.to_token_stream(),
+    //         is_engine_class: false,
+    //     };
+    // }
 
-        let first = parts.next().unwrap();
-        let ident = match parts.next() {
-            Some(second) => {
-                // enum::Animation.LoopMode
-                format_ident!("{}{}", first, second) // TODO better
-            }
-            None => {
-                // enum::Error
-                format_ident!("{}", first)
-            }
-        };
-
-        assert!(parts.next().is_none(), "Unrecognized enum type '{}'", ty);
+    // TODO: newtypes for enums & bitfields?
+    //   - more verbose to use and complicated to implement
+    //   - lack of inherent associated types makes module structure awkward
+    //   - need to implement bitwise traits for bitfields
+    //   - API breaks often in Godot
+    //   - prior art = used i64 constants for gdnative
+    //   + but type safety!
+    if ty.starts_with("bitfield::") || ty.starts_with("enum::") {
         return RustTy {
-            tokens: ident.to_token_stream(),
+            tokens: ident("i32").to_token_stream(),
             is_engine_class: false,
+        };
+    } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
+        // Don't trigger on PackedScene ;P
+        if packed_arr_ty.ends_with("Array") {
+            return RustTy {
+                tokens: ident(packed_arr_ty).to_token_stream(),
+                is_engine_class: false,
+            };
+        }
+    } else if let Some(arr_ty) = ty.strip_prefix("typedarray::") {
+        return if let Some(packed_arr_ty) = arr_ty.strip_prefix("Packed") {
+            RustTy {
+                tokens: ident(packed_arr_ty).to_token_stream(),
+                is_engine_class: false,
+            }
+        } else {
+            let arr_ty = to_rust_type(arr_ty, ctx).tokens;
+            RustTy {
+                tokens: quote!(TypedArray<#arr_ty>),
+                is_engine_class: false,
+            }
         };
     }
 
@@ -428,6 +463,7 @@ fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
         "int" => "i64",
         "float" => "f64",
         "String" => "GodotString",
+        "Error" => "GodotError",
         other => other,
     };
 

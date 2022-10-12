@@ -45,3 +45,29 @@ impl std::fmt::Display for Vector2 {
         self.inner.fmt(f)
     }
 }
+
+type IInner = glam::IVec2;
+
+#[derive(Default, Copy, Clone, Debug)]
+#[repr(C)]
+pub struct Vector2i {
+    inner: IInner,
+}
+
+impl Vector2i {
+    pub fn new(x: i32, y: i32) -> Self {
+        Self {
+            inner: IInner::new(x, y),
+        }
+    }
+}
+
+impl GodotFfi for Vector2i {
+    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
+}
+
+impl std::fmt::Display for Vector2i {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.inner.fmt(f)
+    }
+}
