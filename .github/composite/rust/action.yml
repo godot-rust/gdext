@@ -26,6 +26,6 @@ runs:
         override: true # use selected toolchain for remainder of this step
         components: ${{ inputs.components }}
 
-    - uses: Swatinem/rust-cache@v1
+    - uses: Swatinem/rust-cache@v2
       with:
-        sharedKey: ${{ inputs.cache-key }}
+        shared-key: ${{ inputs.cache-key }}
