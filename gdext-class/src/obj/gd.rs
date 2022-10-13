@@ -144,15 +144,15 @@ impl<T: GodotClass> Gd<T> {
     /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
     /// is not compatible with `T`, then `None` is returned.
     pub fn try_from_instance_id(instance_id: InstanceId) -> Option<Self> {
-        // FIXME: check dynamic type
-        unsafe {
-            let ptr = interface_fn!(object_get_instance_from_id)(instance_id.to_u64());
+        // SAFETY: Godot looks up ID in ObjectDB and returns null if not found
+        let ptr = unsafe { interface_fn!(object_get_instance_from_id)(instance_id.to_u64()) };
 
-            if ptr.is_null() {
-                None
-            } else {
-                Some(Gd::<T>::from_obj_sys(ptr).ready())
-            }
+        if ptr.is_null() {
+            None
+        } else {
+            // SAFETY: assumes that the returned GDNativeObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
+            let untyped = unsafe { Gd::<api::Object>::from_obj_sys(ptr).ready() };
+            untyped.owned_cast::<T>()
         }
     }
 
@@ -163,11 +163,13 @@ impl<T: GodotClass> Gd<T> {
     /// is not compatible with `T`.
     #[cfg(feature = "convenience")]
     pub fn from_instance_id(instance_id: InstanceId) -> Self {
-        Self::try_from_instance_id(instance_id).expect(&format!(
-            "Instance ID {} does not belong to a valid object of class '{}'",
-            instance_id,
-            T::CLASS_NAME
-        ))
+        Self::try_from_instance_id(instance_id).unwrap_or_else(|| {
+            panic!(
+                "Instance ID {} does not belong to a valid object of class '{}'",
+                instance_id,
+                T::CLASS_NAME
+            )
+        })
     }
 
     fn from_opaque(opaque: OpaqueObject) -> Self {
@@ -276,12 +278,12 @@ impl<T: GodotClass> Gd<T> {
     where
         U: GodotClass,
     {
-        // Transmuting unsafe { std::mem::transmute<&T, &Base>(self.inner()) } is probably not sound, since
-        // C++ static_cast class casts *may* yield a different pointer (VTable offset, virtual inheritance etc.).
-        // It *seems* to work at the moment (June 2022), but this is no indication it's not UB.
-        // If this were sound, we could also provide an upcast on &Node etc. directly, as the resulting &Base could
-        // point to the same instance (not allowed for &mut!). But the pointer needs to be stored somewhere, and
-        // Gd<T> provides the storage -- &Node on its own doesn't have any.
+        // The unsafe { std::mem::transmute<&T, &Base>(self.inner()) } relies on the C++ static_cast class casts
+        // to return the same pointer, however in theory those may yield a different pointer (VTable offset,
+        // virtual inheritance etc.). It *seems* to work so far, but this is no indication it's not UB.
+        //
+        // The Deref/DerefMut impls for T implement an "implicit upcast" on the object (not Gd) level and
+        // rely on this (e.g. &Node3D -> &Node).
 
         let result = unsafe { self.ffi_cast::<U>() };
         if result.is_some() {

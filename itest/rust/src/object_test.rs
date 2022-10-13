@@ -168,6 +168,8 @@ fn object_from_instance_id_unrelated_type() {
         obj.is_none(),
         "try_from_instance_id() with bad type must fail"
     );
+
+    node.free();
 }
 
 #[itest]
