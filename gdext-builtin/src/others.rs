@@ -51,6 +51,14 @@ impl StringName {
     }
 }
 
+impl Drop for StringName {
+    fn drop(&mut self) {
+        unsafe {
+            (sys::method_table().string_name_destroy)(self.sys());
+        }
+    }
+}
+
 impl GodotFfi for StringName {
     ffi_methods! {
         type sys::GDNativeTypePtr = *mut Opaque;
