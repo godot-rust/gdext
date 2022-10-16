@@ -52,13 +52,13 @@ fn main() {
 
     let rust_tokens = quote::quote! {
         use gdext_builtin::*;
-        use gdext_class::obj::InstanceId;
+        use godot_core::obj::InstanceId;
 
-        #[derive(gdext_macros::GodotClass)]
+        #[derive(godot_macros::GodotClass)]
         #[godot(init)]
         struct GenFfi {}
 
-        #[gdext_macros::godot_api]
+        #[godot_macros::godot_api]
         impl GenFfi {
             #(#methods)*
         }

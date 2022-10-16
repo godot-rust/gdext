@@ -1,0 +1,15 @@
+[package]
+name = "godot-core"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.63"
+
+[features]
+trace = []
+convenience = ["gdext-builtin/convenience"]
+default = ["convenience"]
+
+[dependencies]
+godot-ffi = { path = "../godot-ffi" }
+gdext-builtin = { path = "../gdext-builtin" }
+once_cell = "1.8"

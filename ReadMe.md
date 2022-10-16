@@ -25,7 +25,7 @@ We currently only have a GitHub version, crates.io releases are planned once mor
 In your Cargo.toml, add:
 
 ```toml
-gdextension = { git = "https://github.com/godot-rust/gdextension", branch = "master" }
+godot = { git = "https://github.com/godot-rust/gdextension", branch = "master" }
 ```
 To get the latest changes, you can regularly run a `cargo update` (possibly breaking). Keep your `Cargo.lock` file under version control, so that it's easy to revert updates.
 

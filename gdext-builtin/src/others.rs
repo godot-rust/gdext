@@ -7,7 +7,7 @@
 // Stub for various other built-in classes, which are currently incomplete, but whose types
 // are required for codegen
 use crate::GodotString;
-use gdext_sys as sys;
+use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 // TODO: Swap more inner math types with glam types

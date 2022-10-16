@@ -4,8 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use gdext_class::init::InitHandle;
-use gdext_macros::{gdextension, godot_api, itest, GodotClass};
+use godot_core::init::InitHandle;
+use godot_macros::{gdextension, godot_api, itest, GodotClass};
 use std::panic::UnwindSafe;
 
 mod base_test;

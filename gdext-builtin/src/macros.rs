@@ -12,7 +12,7 @@ macro_rules! gdext_print_warning {
         unsafe {
             let msg = format!("{}\0", format_args!($($args,)*));
 
-            gdext_sys::interface_fn!(print_warning)(
+            godot_ffi::interface_fn!(print_warning)(
                 msg.as_bytes().as_ptr() as *const _,
                 "<function unset>\0".as_bytes().as_ptr() as *const _,
                 concat!(file!(), "\0").as_ptr() as *const _,
@@ -28,7 +28,7 @@ macro_rules! gdext_print_error {
         unsafe {
             let msg = format!("{}\0", format_args!($($args,)*));
 
-            gdext_sys::interface_fn!(print_error)(
+            godot_ffi::interface_fn!(print_error)(
                 msg.as_bytes().as_ptr() as *const _,
                 "<function unset>\0".as_bytes().as_ptr() as *const _,
                 concat!(file!(), "\0").as_ptr() as *const _,
@@ -44,7 +44,7 @@ macro_rules! gdext_print_script_error {
         unsafe {
             let msg = format!("{}\0", format_args!($($args,)*));
 
-            gdext_sys::interface_fn!(print_script_error)(
+            godot_ffi::interface_fn!(print_script_error)(
                 msg.as_bytes().as_ptr() as *const _,
                 "<function unset>\0".as_bytes().as_ptr() as *const _,
                 concat!(file!(), "\0").as_ptr() as *const _,
@@ -97,7 +97,7 @@ macro_rules! impl_basic_trait_as_sys {
             #[inline]
             fn eq(&self, other: &Self) -> bool {
                 unsafe {
-                    let operator = gdext_sys::method_table().$gd_method;
+                    let operator = godot_ffi::method_table().$gd_method;
 
                     let mut result: bool = false;
                     operator(self.sys(), other.sys(), result.sys_mut());
@@ -117,7 +117,7 @@ macro_rules! impl_basic_trait_as_sys {
             #[inline]
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
                 let op_less = |lhs, rhs| unsafe {
-                    let operator = gdext_sys::method_table().$gd_method;
+                    let operator = godot_ffi::method_table().$gd_method;
 
                     let mut result: bool = false;
                     operator(lhs, rhs, result.sys_mut());

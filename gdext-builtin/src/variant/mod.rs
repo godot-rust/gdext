@@ -5,7 +5,7 @@
  */
 
 use crate::GodotString;
-use gdext_sys as sys;
+use godot_ffi as sys;
 use std::fmt;
 use sys::types::OpaqueVariant;
 use sys::{ffi_methods, interface_fn};
@@ -88,7 +88,7 @@ impl fmt::Debug for Variant {
 mod conversions {
     use super::*;
     use crate::{string::GodotString, vector2::Vector2, vector3::Vector3};
-    use gdext_sys as sys;
+    use godot_ffi as sys;
     use sys::GodotFfi;
 
     macro_rules! impl_variant_conversions {

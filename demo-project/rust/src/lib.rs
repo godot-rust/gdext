@@ -7,14 +7,14 @@
 use gdext_builtin::{FromVariant, GodotString, ToVariant, Vector2, Vector3};
 use std::str::FromStr;
 
-use gdext_class::api::{Node3D, RefCounted};
-use gdext_class::init::{ExtensionLib, InitHandle};
-use gdext_class::obj::{Base, Gd, InstanceId};
-use gdext_class::out;
-use gdext_class::traits::{GodotExt, Share};
-use gdext_macros::{gdextension, godot_api, GodotClass};
+use godot_core::api::{Node3D, RefCounted};
+use godot_core::init::{ExtensionLib, InitHandle};
+use godot_core::obj::{Base, Gd, InstanceId};
+use godot_core::out;
+use godot_core::traits::{GodotExt, Share};
+use godot_macros::{gdextension, godot_api, GodotClass};
 
-use gdext_sys as sys;
+use godot_ffi as sys;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // RustTest

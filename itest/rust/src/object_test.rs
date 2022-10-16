@@ -6,20 +6,20 @@
 
 use crate::{expect_panic, itest};
 use gdext_builtin::{FromVariant, GodotString, ToVariant, Vector3};
-use gdext_class::api::{Node, Node3D, Object, RefCounted};
-use gdext_class::obj::{Base, Gd, InstanceId};
-use gdext_class::out;
-use gdext_class::traits::{GodotExt, Share};
-use gdext_macros::{godot_api, GodotClass};
-use gdext_sys as sys;
+use godot_core::api::{Node, Node3D, Object, RefCounted};
+use godot_core::obj::{Base, Gd, InstanceId};
+use godot_core::out;
+use godot_core::traits::{GodotExt, Share};
+use godot_ffi as sys;
+use godot_macros::{godot_api, GodotClass};
 
 use std::cell::RefCell;
 use std::rc::Rc;
 use sys::GodotFfi;
 
 // pub(crate) fn register() {
-//     gdext_class::register_class::<ObjPayload>();
-//     gdext_class::register_class::<Tracker>();
+//     godot_core::register_class::<ObjPayload>();
+//     godot_core::register_class::<Tracker>();
 // }
 
 pub fn run() -> bool {

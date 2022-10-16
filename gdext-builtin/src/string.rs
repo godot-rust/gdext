@@ -6,7 +6,7 @@
 
 use std::{convert::Infallible, fmt, str::FromStr};
 
-use gdext_sys::{self as sys, ffi_methods, interface_fn, GodotFfi};
+use godot_ffi::{self as sys, ffi_methods, interface_fn, GodotFfi};
 use sys::types::OpaqueString;
 
 #[repr(C, align(8))]
@@ -177,11 +177,11 @@ impl Drop for GodotString {
 // to pass in &GodotString when doing varcalls.
 /*
 impl PtrCall for &GodotString {
-    unsafe fn from_ptr_call_arg(arg: *const gdext_sys::GDNativeTypePtr) -> Self {
+    unsafe fn from_ptr_call_arg(arg: *const godot_ffi::GDNativeTypePtr) -> Self {
         &*(*arg as *const GodotString)
     }
 
-    unsafe fn to_ptr_call_arg(self, arg: gdext_sys::GDNativeTypePtr) {
+    unsafe fn to_ptr_call_arg(self, arg: godot_ffi::GDNativeTypePtr) {
         std::ptr::write(arg as *mut GodotString, self.clone());
     }
 }

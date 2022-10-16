@@ -33,17 +33,17 @@ macro_rules! gdext_init {
     ($name:ident, $f:expr) => {
         #[no_mangle]
         unsafe extern "C" fn $name(
-            interface: *const ::gdext_sys::GDNativeInterface,
-            library: ::gdext_sys::GDNativeExtensionClassLibraryPtr,
-            init: *mut ::gdext_sys::GDNativeInitialization,
-        ) -> ::gdext_sys::GDNativeBool {
-            ::gdext_sys::initialize(interface, library);
+            interface: *const ::godot_ffi::GDNativeInterface,
+            library: ::godot_ffi::GDNativeExtensionClassLibraryPtr,
+            init: *mut ::godot_ffi::GDNativeInitialization,
+        ) -> ::godot_ffi::GDNativeBool {
+            ::godot_ffi::initialize(interface, library);
 
             let mut handle = $crate::init::InitHandle::new();
 
             ($f)(&mut handle);
 
-            *init = ::gdext_sys::GDNativeInitialization {
+            *init = ::godot_ffi::GDNativeInitialization {
                 minimum_initialization_level: handle.lowest_init_level().to_sys(),
                 userdata: std::ptr::null_mut(),
                 initialize: Some(initialise),

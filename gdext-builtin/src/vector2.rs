@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use gdext_sys as sys;
+use godot_ffi as sys;
 use sys::real;
 use sys::{ffi_methods, GodotFfi};
 

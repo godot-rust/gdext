@@ -9,13 +9,13 @@ crate-type = ["cdylib"]
 
 [features]
 default = []
-trace = ["gdext-class/trace"]
+trace = ["godot-core/trace"]
 
 [dependencies]
-gdext-sys = { path = "../../gdext-sys" }
-gdext-macros = { path = "../../gdext-macros" }
+godot-ffi = { path = "../../godot-ffi" }
+godot-macros = { path = "../../godot-macros" }
 gdext-builtin = { path = "../../gdext-builtin" }
-gdext-class = { path = "../../gdext-class" }
+godot-core = { path = "../../godot-core" }
 
 [build-dependencies]
 quote = "1"

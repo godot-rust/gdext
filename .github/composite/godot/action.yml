@@ -70,9 +70,9 @@ runs:
     # Note: if this fails, run `git diff -R > tweaks.patch` after updating the file manually
     - name: "Copy and compare GDExtension header"
       run: |
-        mkdir -p gdext-codegen/input
-        cp ${{ runner.temp }}/godot_bin/gdnative_interface.h gdext-codegen/input/gdnative_interface.h
-        git apply gdext-codegen/input/tweak.patch -v
+        mkdir -p godot-codegen/input
+        cp ${{ runner.temp }}/godot_bin/gdnative_interface.h godot-codegen/input/gdnative_interface.h
+        git apply godot-codegen/input/tweak.patch -v
         git diff --exit-code --quiet || {
             echo "gdnative_interface.h is not up-to-date; abort."
             echo ""
