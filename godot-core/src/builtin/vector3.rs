@@ -40,7 +40,7 @@ impl std::fmt::Display for Vector3 {
 
 type IInner = glam::IVec3;
 
-#[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Default, Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct Vector3i {
     inner: IInner,

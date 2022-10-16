@@ -48,7 +48,7 @@ impl std::fmt::Display for Vector2 {
 
 type IInner = glam::IVec2;
 
-#[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Default, Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(C)]
 pub struct Vector2i {
     inner: IInner,

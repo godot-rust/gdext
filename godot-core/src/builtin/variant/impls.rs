@@ -135,6 +135,7 @@ mod impls {
     impl_variant_traits!(Vector4, vector4_to_variant, vector4_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR4);
     impl_variant_traits!(Vector2i, vector2i_to_variant, vector2i_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR2I);
     impl_variant_traits!(Vector3i, vector3i_to_variant, vector3i_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR3I);
+    impl_variant_traits!(Color, color_to_variant, color_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_COLOR);
     impl_variant_traits!(GodotString, string_to_variant, string_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING);
 
 

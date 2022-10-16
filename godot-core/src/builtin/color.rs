@@ -8,8 +8,8 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 #[repr(C)]
-#[derive(Copy, Clone)]
-struct Color {
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct Color {
     pub r: f32,
     pub g: f32,
     pub b: f32,
@@ -25,4 +25,10 @@ impl Color {
 
 impl GodotFfi for Color {
     ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
+}
+
+impl Default for Color {
+    fn default() -> Self {
+        Self::new(0.0, 0.0, 0.0, 1.0)
+    }
 }

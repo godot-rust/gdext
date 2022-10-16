@@ -147,7 +147,7 @@ impl Default for InitHandle {
 }
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum InitLevel {
     Core,
     Servers,
