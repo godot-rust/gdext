@@ -13,7 +13,6 @@ use std::cell;
 
 /// Manages storage and lifecycle of user's extension class instances.
 pub struct InstanceStorage<T: GodotClass> {
-    // FIXME should be RefCell, to avoid multi-aliasing (mut borrows from multiple shared Obj<T>)
     user_instance: cell::RefCell<T>,
 
     // Declared after `user_instance`, is dropped last

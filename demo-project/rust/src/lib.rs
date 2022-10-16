@@ -59,15 +59,10 @@ impl RustTest {
         Vector2::from_inner(a.inner() + b.inner())
     }
 
-    // FIXME: allow mut params
-    //fn accept_obj(&self, mut obj: Gd<Entity>) {
-
     #[godot]
-    fn accept_obj(&self, obj: Gd<Entity>) {
-        let mut obj = obj;
-
+    fn accept_obj(&self, mut obj: Gd<Entity>) {
         //let obj = Gd::new(Entity { name: "h".to_string(), hitpoints: 77 }); // upcacsting local object works
-        let up: Gd<RefCounted> = obj.share().upcast(); // FIXME Godot cast to RefCount panics
+        let up: Gd<RefCounted> = obj.share().upcast();
         out!("upcast: up={:?}", up);
 
         {

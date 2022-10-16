@@ -524,7 +524,7 @@ impl<T: GodotClass> PropertyInfoBuilder for Gd<T> {
         let class_name = reg.c_string(T::CLASS_NAME);
 
         sys::GDNativePropertyInfo {
-            type_: Self::variant_type() as u32,
+            type_: Self::variant_type(),
             name: property_name,
             class_name,
             hint: 0,

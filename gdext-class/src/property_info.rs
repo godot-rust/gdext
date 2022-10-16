@@ -15,7 +15,7 @@ pub trait PropertyInfoBuilder {
     fn property_info(property_name: &str) -> sys::GDNativePropertyInfo {
         let reg = unsafe { sys::get_registry() };
         sys::GDNativePropertyInfo {
-            type_: Self::variant_type() as u32,
+            type_: Self::variant_type(),
             name: reg.c_string(property_name),
             class_name: std::ptr::null_mut(),
             hint: 0,
