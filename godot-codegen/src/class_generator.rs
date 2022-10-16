@@ -111,6 +111,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
     let constructor = make_constructor(class, ctx, name_cstr);
 
     let methods = make_methods(&class.methods, &class.name, ctx);
+    let enums = make_enums(&class.enums, &class.name, ctx);
     let inherits_macro = format_ident!("gdext_inherits_transitive_{}", &class.name);
     let all_bases = ctx.inheritance_tree.map_all_bases(&class.name, ident);
 
@@ -181,6 +182,8 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
                 )*
             }
         }
+
+        #enums
     }
     // note: TypePtr -> ObjectPtr conversion OK?
 }
@@ -208,6 +211,21 @@ fn make_methods(methods: &Option<Vec<Method>>, class_name: &str, ctx: &Context) 
     let definitions = methods
         .iter()
         .map(|method| make_method_definition(method, class_name, ctx));
+
+    quote! {
+        #( #definitions )*
+    }
+}
+
+fn make_enums(enums: &Option<Vec<Enum>>, class_name: &str, ctx: &Context) -> TokenStream {
+    let enums = match enums {
+        Some(e) => e,
+        None => return TokenStream::new(),
+    };
+
+    let definitions = enums
+        .iter()
+        .map(|enum_| make_enum_definition(enum_, class_name, ctx));
 
     quote! {
         #( #definitions )*
@@ -419,6 +437,39 @@ fn make_utility_return(return_value: &Option<String>, ctx: &Context) -> (TokenSt
     }
 
     (return_decl, call)
+}
+
+fn make_enum_definition(enum_: &Enum, class_name: &str, ctx: &Context) -> TokenStream {
+    let enum_name = ident(&enum_.name);
+
+    let enumerators = enum_.values.iter().map(|enumerator| {
+        let name = ident(&enumerator.name);
+        let ordinal = &enumerator.value;
+        quote! {
+            pub const #name: Self = Self { ord: #ordinal };
+        }
+    });
+
+    // Enumerator ordinal stored as i32, since that's enough to hold all current values.
+    // Public interface is i64 though, for forward compatibility.
+    quote! {
+        #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+        struct #enum_name {
+            ord: i32
+        }
+        impl #enum_name {
+            /// Ordinal value of the enumerator, as specified in Godot.
+            /// This is not necessarily unique.
+            pub const fn ord(self) -> i64 {
+                self.ord as i64
+            }
+
+            #(
+                #enumerators
+            )*
+        }
+
+    }
 }
 
 fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {

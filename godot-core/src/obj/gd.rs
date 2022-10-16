@@ -363,6 +363,8 @@ where
     /// When the referred-to object has already been destroyed, or when this is invoked on an upcast `Gd<Object>`
     /// that dynamically points to a reference-counted type.
     pub fn free(self) {
+        // TODO disallow for singletons, either only at runtime or both at compile time (new memory policy) and runtime
+
         // Runtime check in case of T=Object, no-op otherwise
         let ref_counted = T::Mem::is_ref_counted(&self);
         assert_ne!(

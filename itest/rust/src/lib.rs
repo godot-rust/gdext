@@ -9,6 +9,7 @@ use godot_macros::{gdextension, godot_api, itest, GodotClass};
 use std::panic::UnwindSafe;
 
 mod base_test;
+mod enum_test;
 mod gdscript_ffi_test;
 mod object_test;
 mod singleton_test;
@@ -20,6 +21,7 @@ fn run_tests() -> bool {
     let mut ok = true;
     ok &= base_test::run();
     ok &= gdscript_ffi_test::run();
+    ok &= enum_test::run();
     ok &= object_test::run();
     ok &= singleton_test::run();
     ok &= string_test::run();
