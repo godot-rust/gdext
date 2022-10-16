@@ -412,7 +412,12 @@ where
     T: GodotClass<Declarer = dom::EngineDomain>,
 {
     fn deref_mut(&mut self) -> &mut T {
-        // SAFETY: see Deref
+        // SAFETY: see also Deref
+        //
+        // The resulting &mut T is transmuted from &mut OpaqueObject, i.e. a *pointer* to the `opaque` field.
+        // `opaque` itself has a different *address* for each Gd instance, meaning that two simultaneous
+        // DerefMut borrows on two Gd instances will not alias, *even if* the underlying Godot object is the
+        // same (i.e. `opaque` has the same value, but not address).
         unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut self.opaque) }
     }
 }

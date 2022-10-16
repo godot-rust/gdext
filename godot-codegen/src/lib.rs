@@ -63,6 +63,11 @@ pub fn generate() {
 
 fn build_context(api: &ExtensionApi) -> Context {
     let mut ctx = Context::default();
+
+    for class in api.singletons.iter() {
+        ctx.singletons.insert(class.name.as_str());
+    }
+
     for class in api.classes.iter() {
         let class_name = class.name.as_str();
         if !SELECTED_CLASSES.contains(&class_name) {
@@ -117,12 +122,16 @@ struct RustTy {
 #[derive(Default)]
 struct Context<'a> {
     engine_classes: HashSet<&'a str>,
+    singletons: HashSet<&'a str>,
     inheritance_tree: InheritanceTree,
 }
 
 impl<'a> Context<'a> {
     fn is_engine_class(&self, class_name: &str) -> bool {
         self.engine_classes.contains(class_name)
+    }
+    fn is_singleton(&self, class_name: &str) -> bool {
+        self.singletons.contains(class_name)
     }
 }
 

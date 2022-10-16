@@ -21,6 +21,7 @@ pub struct ExtensionApi {
     pub classes: Vec<Class>,
     pub global_enums: Vec<Enum>,
     pub utility_functions: Vec<UtilityFunction>,
+    pub singletons: Vec<Singleton>,
 }
 
 #[derive(DeJson)]
@@ -65,6 +66,14 @@ pub struct Class {
 }
 
 #[derive(DeJson)]
+pub struct Singleton {
+    pub name: String,
+    // Note: `type` currently has always same value as `name`, thus redundant
+    // #[nserde(rename = "type")]
+    // type_: String,
+}
+
+#[derive(DeJson)]
 pub struct Enum {
     pub name: String,
     pub values: Vec<Constant>,
@@ -75,6 +84,7 @@ pub struct Constant {
     pub name: String,
     pub value: i32,
 }
+
 #[derive(DeJson)]
 pub struct Property {
     #[nserde(rename = "type")]

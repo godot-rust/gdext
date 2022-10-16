@@ -51,6 +51,49 @@ pub(crate) fn generate_class_files(
     out_files.push(out_path);
 }
 
+fn make_constructor(class: &Class, ctx: &Context, class_name_cstr: TokenStream) -> TokenStream {
+    if ctx.is_singleton(&class.name) {
+        // Note: we cannot return &'static mut Self, as this would be very easy to mutably alias.
+        // &'static Self would be possible, but we would lose the whole mutability information (even if that
+        // is best-effort and not strict Rust mutability, it makes the API much more usable).
+        // As long as the user has multiple Gd smart pointers to the same singletons, only the internal raw pointers.
+        // See also Deref/DerefMut impl for Gd.
+        quote! {
+            pub fn singleton() -> Gd<Self> {
+                unsafe {
+                    let object_ptr = sys::interface_fn!(global_get_singleton)(#class_name_cstr);
+                    Gd::from_obj_sys(object_ptr)
+                }
+            }
+        }
+    } else if !class.is_instantiable {
+        // Abstract base classes or non-singleton classes without constructor
+        TokenStream::new()
+    } else if class.is_refcounted {
+        // RefCounted, Resource, etc
+        quote! {
+            pub fn new() -> Gd<Self> {
+                unsafe {
+                    let object_ptr = sys::interface_fn!(classdb_construct_object)(#class_name_cstr);
+                    //let instance = Self { object_ptr };
+                    Gd::from_obj_sys(object_ptr)
+                }
+            }
+        }
+    } else {
+        // Manually managed classes: Object, Node etc
+        quote! {
+            #[must_use]
+            pub fn new_alloc() -> Gd<Self> {
+                unsafe {
+                    let object_ptr = sys::interface_fn!(classdb_construct_object)(#class_name_cstr);
+                    Gd::from_obj_sys(object_ptr)
+                }
+            }
+        }
+    }
+}
+
 fn make_class(class: &Class, ctx: &Context) -> TokenStream {
     //let sys = TokenStream::from_str("::godot_ffi");
     let base = match class.inherits.as_ref() {
@@ -60,19 +103,15 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         }
         None => quote! { () },
     };
-    let name = ident(&class.name);
-    // TODO separate constructor singleton() for singletons
-    let (new, new_attrs) = if class.is_refcounted {
-        (ident("new"), TokenStream::new())
-    } else {
-        (ident("new_alloc"), quote! { #[must_use] })
-    };
-    let methods = make_methods(&class.methods, &class.name, ctx);
 
+    let name = ident(&class.name);
     let name_str = strlit(&class.name);
     let name_cstr = c_str(&class.name);
-    let inherits_macro = format_ident!("gdext_inherits_transitive_{}", &class.name);
 
+    let constructor = make_constructor(class, ctx, name_cstr);
+
+    let methods = make_methods(&class.methods, &class.name, ctx);
+    let inherits_macro = format_ident!("gdext_inherits_transitive_{}", &class.name);
     let all_bases = ctx.inheritance_tree.map_all_bases(&class.name, ident);
 
     let memory = if &class.name == "Object" {
@@ -96,14 +135,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
             object_ptr: sys::GDNativeObjectPtr,
         }
         impl #name {
-            #new_attrs
-            pub fn #new() -> Gd<Self> {
-                unsafe {
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(#name_cstr);
-                    //let instance = Self { object_ptr };
-                    Gd::from_obj_sys(object_ptr)
-                }
-            }
+            #constructor
             #methods
         }
         impl crate::traits::GodotClass for #name {
