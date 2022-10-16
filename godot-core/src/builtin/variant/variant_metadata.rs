@@ -4,12 +4,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::*;
-use crate::obj::InstanceId;
 use godot_ffi as sys;
 use std::fmt::Debug;
 
-pub trait PropertyInfoBuilder {
+pub trait VariantMetadata {
     fn variant_type() -> sys::GDNativeVariantType;
 
     fn property_info(property_name: &str) -> sys::GDNativePropertyInfo {
@@ -28,68 +26,6 @@ pub trait PropertyInfoBuilder {
         sys::GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_NONE
     }
 }
-
-macro_rules! property_info {
-    ($Type:ty, $variant_type:ident) => {
-        impl PropertyInfoBuilder for $Type {
-            fn variant_type() -> sys::GDNativeVariantType {
-                sys::$variant_type
-            }
-        }
-    };
-}
-
-macro_rules! property_info_int {
-    ($Type:ty, $meta:ident) => {
-        impl PropertyInfoBuilder for $Type {
-            fn variant_type() -> sys::GDNativeVariantType {
-                sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_INT
-            }
-
-            fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
-                sys::$meta
-            }
-        }
-    };
-}
-
-macro_rules! property_info_float {
-    ($Type:ty, $meta:ident) => {
-        impl PropertyInfoBuilder for $Type {
-            fn variant_type() -> sys::GDNativeVariantType {
-                sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_FLOAT
-            }
-
-            fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
-                sys::$meta
-            }
-        }
-    };
-}
-
-property_info!((), GDNativeVariantType_GDNATIVE_VARIANT_TYPE_NIL);
-property_info!(bool, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_BOOL);
-property_info!(GodotString, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING);
-property_info!(Vector2, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR2);
-property_info!(Vector3, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR3);
-property_info!(Vector4, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR4);
-property_info!(Vector2i, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR2I);
-property_info!(Vector3i, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR3I);
-
-property_info_int!(u8, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT8);
-property_info_int!(u16, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT16);
-property_info_int!(u32, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT32);
-property_info_int!(u64, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT64);
-
-property_info_int!(i8, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8);
-property_info_int!(i16, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16);
-property_info_int!(i32, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32);
-property_info_int!(i64, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
-
-property_info_int!(InstanceId, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
-
-property_info_float!(f32, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_FLOAT);
-property_info_float!(f64, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -123,7 +59,7 @@ pub trait SignatureTuple {
 
 // impl<P, const N: usize> Sig for [P; N]
 // impl<P, T0> Sig for (T0)
-// where P: PropertyInfoBuilder {
+// where P: VariantMetadata {
 //     fn variant_type(index: usize) -> sys::GDNativeVariantType {
 //           Self[index]::
 //     }
@@ -147,8 +83,8 @@ macro_rules! impl_signature_for_tuple {
     ) => {
         #[allow(unused_variables)]
         impl<$R, $($Pn,)*> SignatureTuple for ($R, $($Pn,)*)
-            where $R: PropertyInfoBuilder + ToVariant + sys::GodotFuncMarshal + Debug,
-               $( $Pn: PropertyInfoBuilder + FromVariant + sys::GodotFuncMarshal + Debug, )*
+            where $R: VariantMetadata + ToVariant + sys::GodotFuncMarshal + Debug,
+               $( $Pn: VariantMetadata + FromVariant + sys::GodotFuncMarshal + Debug, )*
         {
             type Params = ($($Pn,)*);
             type Ret = $R;

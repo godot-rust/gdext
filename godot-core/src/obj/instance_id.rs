@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
+use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError, VariantMetadata};
 use godot_ffi as sys;
 use godot_ffi::{ffi_methods, GodotFfi};
 use std::fmt::{Display, Formatter, Result as FmtResult};
@@ -77,20 +77,29 @@ impl ToVariant for InstanceId {
     }
 }
 
-/*
-TODO, this is only possible if gdext-builtin and godot-core crates are merged, due to orphan rule
-Rust rationale: if upstream crate later adds blanket `impl FromVariant for Option<T>`, this would collide
+impl VariantMetadata for InstanceId {
+    fn variant_type() -> sys::GDNativeVariantType {
+        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_INT
+    }
 
-impl FromVariant for Option<InstanceId> {
-    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-        i64::try_from_variant(variant).and_then(|i| InstanceId::try_from_i64(i))
+    fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
+        sys::GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64
     }
 }
 
-impl ToVariant for Option<InstanceId> {
-    fn to_variant(&self) -> Variant {
-        let int = self.to_i64();
-        int.to_variant()
-    }
-}
-*/
+// Note: Option impl is only possible as long as `FromVariant` and `InstanceId` are in same crate.
+// (Rust rationale: if upstream crate later adds blanket `impl FromVariant for Option<T>`, this would collide)
+
+// impl FromVariant for Option<InstanceId> {
+//     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+//         i64::try_from_variant(variant)
+//             .and_then(|i| InstanceId::try_from_i64(i).ok_or(VariantConversionError))
+//     }
+// }
+//
+// impl ToVariant for Option<InstanceId> {
+//     fn to_variant(&self) -> Variant {
+//         let int = self.to_i64();
+//         int.to_variant()
+//     }
+// }

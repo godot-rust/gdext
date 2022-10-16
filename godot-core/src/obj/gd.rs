@@ -12,9 +12,9 @@ use godot_ffi as sys;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
+use crate::builtin::VariantMetadata;
 use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
 use crate::obj::{GdMut, GdRef, InstanceId};
-use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;
 use crate::traits::dom::Domain as _;
 use crate::traits::mem::Memory as _;
@@ -510,7 +510,7 @@ impl<T: GodotClass> std::fmt::Debug for Gd<T> {
     }
 }
 
-impl<T: GodotClass> PropertyInfoBuilder for Gd<T> {
+impl<T: GodotClass> VariantMetadata for Gd<T> {
     fn variant_type() -> sys::GDNativeVariantType {
         godot_ffi::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_OBJECT
     }

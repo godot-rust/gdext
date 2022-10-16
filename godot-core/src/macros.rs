@@ -72,7 +72,7 @@ macro_rules! gdext_register_method_inner {
                         //     fn $method_name( $( $param: $ParamTy, )* ) -> $( $RetTy )+
                         // );
 
-                        < ($($RetTy)+, $($ParamTy,)*) as godot_core::property_info::SignatureTuple >::varcall::< $Class >(
+                        < ($($RetTy)+, $($ParamTy,)*) as godot_core::builtin::SignatureTuple >::varcall::< $Class >(
                             instance_ptr,
                             args,
                             ret,
@@ -100,7 +100,7 @@ macro_rules! gdext_register_method_inner {
                             fn $method_name( $( $param: $ParamTy, )* ) -> $( $RetTy )+
                         );*/
 
-                         < ($($RetTy)+, $($ParamTy,)*) as godot_core::property_info::SignatureTuple >::ptrcall::< $Class >(
+                         < ($($RetTy)+, $($ParamTy,)*) as godot_core::builtin::SignatureTuple >::ptrcall::< $Class >(
                             instance_ptr,
                             args,
                             ret,

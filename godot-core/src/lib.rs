@@ -12,7 +12,6 @@ pub mod builtin;
 pub mod init;
 pub mod macros;
 pub mod obj;
-pub mod property_info;
 pub mod traits;
 
 pub use registry::*;
@@ -32,7 +31,7 @@ pub mod api {
 
 #[doc(hidden)]
 pub mod private {
-    pub use crate::property_info::func_callbacks;
+    pub use crate::builtin::func_callbacks;
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
     pub use crate::storage::as_storage;
 
