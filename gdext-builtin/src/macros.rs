@@ -159,3 +159,37 @@ macro_rules! impl_traits_as_sys {
         )*
     )
 }
+
+macro_rules! impl_builtin_stub {
+    ($Class:ident, $OpaqueTy:ident) => {
+        #[repr(C)]
+        pub struct $Class {
+            opaque: sys::types::$OpaqueTy,
+        }
+
+        impl $Class {
+            fn from_opaque(opaque: sys::types::$OpaqueTy) -> Self {
+                Self { opaque }
+            }
+        }
+
+        impl GodotFfi for $Class {
+            ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
+        }
+    };
+}
+
+macro_rules! impl_builtin_froms {
+    ($To:ty; $($From:ty => $from_fn:ident),* $(,)?) => {
+        $(impl From<&$From> for $To {
+            fn from(other: &$From) -> Self {
+                unsafe {
+                    Self::from_sys_init(|ptr| {
+                        let converter = sys::method_table().$from_fn;
+                        converter(ptr, [other.sys()].as_ptr());
+                    })
+                }
+            }
+        })*
+    };
+}

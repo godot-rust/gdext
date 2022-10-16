@@ -10,26 +10,16 @@ use crate::GodotString;
 use gdext_sys as sys;
 use sys::{ffi_methods, GodotFfi};
 
-macro_rules! impl_builtin_stub {
-    ($Class:ident, $OpaqueTy:ident) => {
-        #[repr(C)]
-        pub struct $Class {
-            opaque: sys::types::$OpaqueTy,
-        }
+// TODO: Swap more inner math types with glam types
+impl_builtin_stub!(AABB, OpaqueAABB);
+impl_builtin_stub!(Basis, OpaqueBasis);
+impl_builtin_stub!(Plane, OpaquePlane);
+impl_builtin_stub!(Quaternion, OpaqueQuaternion);
+impl_builtin_stub!(Rect2, OpaqueRect2);
+impl_builtin_stub!(Rect2i, OpaqueRect2i);
 
-        impl $Class {
-            fn from_opaque(opaque: sys::types::$OpaqueTy) -> Self {
-                Self { opaque }
-            }
-        }
-
-        impl GodotFfi for $Class {
-            ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
-        }
-    };
-}
-
-impl_builtin_stub!(Array, OpaqueArray);
+impl_builtin_stub!(RID, OpaqueRID);
+impl_builtin_stub!(Callable, OpaqueCallable);
 impl_builtin_stub!(Dictionary, OpaqueDictionary);
 impl_builtin_stub!(Transform2D, OpaqueTransform2D);
 impl_builtin_stub!(Transform3D, OpaqueTransform3D);
@@ -58,6 +48,14 @@ impl StringName {
         let ptr = self.string_sys();
         std::mem::forget(self);
         ptr
+    }
+}
+
+impl Drop for StringName {
+    fn drop(&mut self) {
+        unsafe {
+            (sys::method_table().string_name_destroy)(self.sys());
+        }
     }
 }
 

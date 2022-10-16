@@ -8,57 +8,55 @@ use gdext_sys as sys;
 use sys::{ffi_methods, real, GodotFfi};
 
 //#[cfg(not(feature = "real_is_double"))]
-type Inner = glam::f32::Vec3;
+type Inner = glam::f32::Vec4;
 // #[cfg(feature = "real_is_double")]
-// type Inner = glam::f64::DVec3;
+// type Inner = glam::f64::DVec4;
 
 #[derive(Default, Copy, Clone, Debug, PartialEq)]
 #[repr(C)]
-pub struct Vector3 {
+pub struct Vector4 {
     inner: Inner,
 }
 
-impl Vector3 {
-    pub fn new(x: real, y: real, z: real) -> Self {
+impl Vector4 {
+    pub fn new(x: real, y: real, z: real, w: real) -> Self {
         Self {
-            inner: Inner::new(x, y, z),
+            inner: Inner::new(x, y, z, w),
         }
     }
 }
 
-impl GodotFfi for Vector3 {
+impl GodotFfi for Vector4 {
     ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
 }
 
-impl std::fmt::Display for Vector3 {
+impl std::fmt::Display for Vector4 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        //let Inner {x, y, z} = self.inner;
-        //write!(f, "({x}, {y}, {z})")
         self.inner.fmt(f)
     }
 }
 
-type IInner = glam::IVec3;
+type IInner = glam::IVec4;
 
 #[derive(Default, Copy, Clone, Debug)]
 #[repr(C)]
-pub struct Vector3i {
+pub struct Vector4i {
     inner: IInner,
 }
 
-impl Vector3i {
-    pub fn new(x: i32, y: i32, z: i32) -> Self {
+impl Vector4i {
+    pub fn new(x: i32, y: i32, z: i32, w: i32) -> Self {
         Self {
-            inner: IInner::new(x, y, z),
+            inner: IInner::new(x, y, z, w),
         }
     }
 }
 
-impl GodotFfi for Vector3i {
+impl GodotFfi for Vector4i {
     ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
 }
 
-impl std::fmt::Display for Vector3i {
+impl std::fmt::Display for Vector4i {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.inner.fmt(f)
     }

@@ -8,19 +8,23 @@
 
 pub mod macros;
 
+mod arrays;
 mod color;
 mod others;
 mod string;
 mod variant;
 mod vector2;
 mod vector3;
+mod vector4;
 
+pub use arrays::*;
 pub use color::*;
 pub use others::*;
 pub use string::*;
 pub use variant::*;
 pub use vector2::*;
 pub use vector3::*;
+pub use vector4::*;
 
 pub use glam;
 

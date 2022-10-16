@@ -10,7 +10,6 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::util::ident;
 use crate::Context;
 
 struct CentralItems {
@@ -32,6 +31,15 @@ struct TypeNames {
 
     /// GDNativeVariantType_GDNATIVE_VARIANT_TYPE_PACKED_VECTOR2_ARRAY
     sys_variant_type: Ident,
+}
+
+/// Allows collecting all builtin TypeNames before generating methods
+struct BuiltinTypeInfo<'a> {
+    value: i32,
+    type_names: TypeNames,
+    has_destructor: bool,
+    constructors: Option<&'a Vec<Constructor>>,
+    operators: Option<&'a Vec<Operator>>,
 }
 
 pub(crate) fn generate_central_file(
@@ -105,12 +113,15 @@ fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
 
     let class_map = class_map;
 
+    let mut builtin_types_map = HashMap::new();
+
     // Find enum with variant types, and generate mapping code
     let mut variant_enumerators = vec![];
     let mut variant_fn_decls = vec![];
     let mut variant_fn_inits = vec![];
     for enum_ in &api.global_enums {
         if &enum_.name == "Variant.Type" {
+            // Collect all `BuiltinTypeInfo`s
             for ty in &enum_.values {
                 let shout_case = ty
                     .name
@@ -154,10 +165,30 @@ fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
                 };
 
                 let value = ty.value;
-                variant_enumerators.push(make_enumerator(&type_names, value));
 
-                let (decl, init) =
-                    make_variant_fns(&type_names, has_destructor, constructors, operators);
+                builtin_types_map.insert(
+                    type_names.pascal_case.clone(),
+                    BuiltinTypeInfo {
+                        value,
+                        type_names,
+                        has_destructor,
+                        constructors,
+                        operators,
+                    },
+                );
+            }
+
+            // Generate builtin methods, now with info for all types available
+            for ty in builtin_types_map.values() {
+                variant_enumerators.push(make_enumerator(&ty.type_names, ty.value));
+
+                let (decl, init) = make_variant_fns(
+                    &ty.type_names,
+                    ty.has_destructor,
+                    ty.constructors,
+                    ty.operators,
+                    &builtin_types_map,
+                );
 
                 variant_fn_decls.push(decl);
                 variant_fn_inits.push(init);
@@ -200,11 +231,13 @@ fn make_variant_fns(
     has_destructor: bool,
     constructors: Option<&Vec<Constructor>>,
     operators: Option<&Vec<Operator>>,
+    builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (TokenStream, TokenStream) {
-    let (construct_decls, construct_inits) = make_construct_fns(&type_names, constructors);
-    let (destroy_decls, destroy_inits) = make_destroy_fns(&type_names, has_destructor);
-    let (op_eq_decls, op_eq_inits) = make_operator_fns(&type_names, operators, "==", "EQUAL");
-    let (op_lt_decls, op_lt_inits) = make_operator_fns(&type_names, operators, "<", "LESS");
+    let (construct_decls, construct_inits) =
+        make_construct_fns(&type_names, constructors, builtin_types);
+    let (destroy_decls, destroy_inits) = make_destroy_fns(type_names, has_destructor);
+    let (op_eq_decls, op_eq_inits) = make_operator_fns(type_names, operators, "==", "EQUAL");
+    let (op_lt_decls, op_lt_inits) = make_operator_fns(type_names, operators, "<", "LESS");
 
     let to_variant = format_ident!("{}_to_variant", type_names.snake_case);
     let from_variant = format_ident!("{}_from_variant", type_names.snake_case);
@@ -247,6 +280,7 @@ fn make_variant_fns(
 fn make_construct_fns(
     type_names: &TypeNames,
     constructors: Option<&Vec<Constructor>>,
+    builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (TokenStream, TokenStream) {
     let constructors = match constructors {
         Some(c) => c,
@@ -261,7 +295,7 @@ fn make_construct_fns(
     //   [0]: default constructor
     //   [1]: copy constructor
     //   [2]: (optional) typically the most common conversion constructor (e.g. StringName -> String)
-    //  rest: not interesting for now
+    //  rest: (optional) other conversion constructors and multi-arg constructors (e.g. Vector3(x, y, z))
 
     // Sanity checks -- ensure format is as expected
     for (i, c) in constructors.iter().enumerate() {
@@ -287,16 +321,14 @@ fn make_construct_fns(
     let construct_copy_error = format_load_error(&construct_copy);
     let variant_type = &type_names.sys_variant_type;
 
-    let (construct_extra, construct_extra_index, construct_extra_error) =
-        make_extra_constructors(type_names);
+    let (construct_extra_decls, construct_extra_inits) =
+        make_extra_constructors(type_names, constructors, builtin_types);
 
     // Generic signature:  fn(base: GDNativeTypePtr, args: *const GDNativeTypePtr)
     let decls = quote! {
         pub #construct_default: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
         pub #construct_copy: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
-        #(
-            pub #construct_extra: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
-        )*
+        #(#construct_extra_decls)*
     };
 
     let inits = quote! {
@@ -308,45 +340,52 @@ fn make_construct_fns(
             let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
             ctor_fn(crate:: #variant_type, 1i32).expect(#construct_copy_error)
         },
-        #(
-            #construct_extra: {
-                let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
-                ctor_fn(crate:: #variant_type, #construct_extra_index).expect(#construct_extra_error)
-            },
-        )*
+        #(#construct_extra_inits)*
     };
 
     (decls, inits)
 }
 
 /// Lists special cases for useful constructors
-fn make_extra_constructors(type_names: &TypeNames) -> (Vec<Ident>, Vec<i32>, Vec<String>) {
-    // TODO instead of finding ctors by index, more robust would be to look up from JSON
-    let one_vec = match type_names.pascal_case.as_str() {
-        "NodePath" => {
-            vec![("node_path_from_string", 2)]
+fn make_extra_constructors(
+    type_names: &TypeNames,
+    constructors: &Vec<Constructor>,
+    builtin_types: &HashMap<String, BuiltinTypeInfo>,
+) -> (Vec<TokenStream>, Vec<TokenStream>) {
+    let mut extra_decls = Vec::with_capacity(constructors.len() - 2);
+    let mut extra_inits = Vec::with_capacity(constructors.len() - 2);
+    let variant_type = &type_names.sys_variant_type;
+    for i in 2..constructors.len() {
+        let ctor = &constructors[i];
+        if let Some(args) = &ctor.arguments {
+            let type_name = &type_names.snake_case;
+            let ident = if args.len() == 1 && args[0].name == "from" {
+                // Conversion constructor is named according to the source type
+                // String(NodePath from) => string_from_node_path
+                let arg_type = &builtin_types[&args[0].type_].type_names.snake_case;
+                format_ident!("{type_name}_from_{arg_type}")
+            } else {
+                // Type-specific constructor is named according to the argument names
+                // Vector3(float x, float y, float z) => vector3_from_x_y_z
+                let arg_names = args
+                    .iter()
+                    .fold(String::new(), |acc, arg| acc + &arg.name + "_");
+                format_ident!("{type_name}_from_{arg_names}")
+            };
+            let err = format_load_error(&ident);
+            extra_decls.push(quote! {
+                pub #ident: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
+            });
+            let i = i as i32;
+            extra_inits.push(quote! {
+               #ident: {
+                    let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
+                    ctor_fn(crate:: #variant_type, #i).expect(#err)
+                },
+            });
         }
-        "StringName" => {
-            vec![("string_name_from_string", 2)]
-        }
-        "String" => {
-            vec![
-                ("string_from_string_name", 2), //
-                ("string_from_node_path", 3),
-            ]
-        }
-        _ => vec![],
-    };
-
-    // unzip() for 3
-    (
-        one_vec.iter().map(|(name, _)| ident(name)).collect(),
-        one_vec.iter().map(|(_, index)| *index).collect(),
-        one_vec
-            .iter()
-            .map(|(name, _)| format_load_error(name))
-            .collect(),
-    )
+    }
+    (extra_decls, extra_inits)
 }
 
 fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStream, TokenStream) {
