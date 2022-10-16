@@ -5,7 +5,7 @@
  */
 
 use crate::itest;
-use gdext_builtin::{FromVariant, GodotString, ToVariant, Variant};
+use godot_core::builtin::{FromVariant, GodotString, ToVariant, Variant};
 use std::fmt::{Debug, Display};
 
 pub fn run() -> bool {

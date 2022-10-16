@@ -4,10 +4,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use gdext_builtin::{FromVariant, GodotString, ToVariant, Vector2, Vector3};
 use std::str::FromStr;
 
 use godot_core::api::{Node3D, RefCounted};
+use godot_core::builtin::{FromVariant, GodotString, ToVariant, Vector2, Vector3};
 use godot_core::init::{ExtensionLib, InitHandle};
 use godot_core::obj::{Base, Gd, InstanceId};
 use godot_core::out;
@@ -59,8 +59,10 @@ impl RustTest {
         Vector2::from_inner(a.inner() + b.inner())
     }
 
+    // FIXME allow 'mut obj'
     #[godot]
-    fn accept_obj(&self, mut obj: Gd<Entity>) {
+    fn accept_obj(&self, obj: Gd<Entity>) {
+        let mut obj = obj;
         //let obj = Gd::new(Entity { name: "h".to_string(), hitpoints: 77 }); // upcacsting local object works
         let up: Gd<RefCounted> = obj.share().upcast();
         out!("upcast: up={:?}", up);

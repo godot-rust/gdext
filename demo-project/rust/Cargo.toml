@@ -12,6 +12,5 @@ trace = ["godot-core/trace"]
 
 [dependencies]
 godot-ffi = { path = "../../godot-ffi" }
-gdext-builtin = { path = "../../gdext-builtin", features = ["convenience"] }
 godot-core = { path = "../../godot-core", features = ["convenience"] }
 godot-macros = { path = "../../godot-macros" }

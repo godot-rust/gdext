@@ -6,7 +6,7 @@
 
 // Stub for various other built-in classes, which are currently incomplete, but whose types
 // are required for codegen
-use crate::GodotString;
+use crate::builtin::GodotString;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 

@@ -4,8 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::{FromVariant, Variant};
 use godot_ffi as sys;
+
+use crate::builtin::{FromVariant, Variant};
 use std::marker::PhantomData;
 use sys::{ffi_methods, interface_fn, types::*, GodotFfi};
 

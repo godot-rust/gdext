@@ -4,8 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use gdext_builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
-use godot_ffi::{self as sys, ffi_methods, GodotFfi};
+use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
+use godot_ffi as sys;
+use godot_ffi::{ffi_methods, GodotFfi};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 /// Represents a non-zero instance ID.

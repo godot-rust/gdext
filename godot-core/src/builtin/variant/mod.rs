@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::GodotString;
+use crate::builtin::GodotString;
 use godot_ffi as sys;
 use std::fmt;
 use sys::types::OpaqueVariant;
@@ -87,7 +87,7 @@ impl fmt::Debug for Variant {
 
 mod conversions {
     use super::*;
-    use crate::{string::GodotString, vector2::Vector2, vector3::Vector3};
+    use crate::builtin::{GodotString, Vector2, Vector3};
     use godot_ffi as sys;
     use sys::GodotFfi;
 

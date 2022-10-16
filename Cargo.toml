@@ -3,7 +3,6 @@ members = [
     "godot-codegen",
     "godot-ffi",
     "godot-macros",
-    "gdext-builtin",
     "godot-core",
 
     # Godot integration

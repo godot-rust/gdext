@@ -50,7 +50,7 @@ macro_rules! gdext_register_method_inner {
     ) => {
         unsafe {
             use godot_ffi as sys;
-            use gdext_builtin::Variant;
+            use godot_core::builtin::Variant;
 
             const NUM_ARGS: usize = $crate::gdext_count_idents!($( $param, )*);
 
@@ -347,6 +347,8 @@ macro_rules! gdext_ptrcall {
             $( $arg:ident : $ParamTy:ty, )*
         ) -> $( $RetTy:tt )+
     ) => {
+        use godot_ffi as sys;
+
         println!("ptrcall: {}", stringify!($method_name));
         let storage = ::godot_core::private::as_storage::<$Class>($instance_ptr);
         let mut instance = storage.get_mut();
@@ -379,6 +381,9 @@ macro_rules! gdext_varcall {
             $( $arg:ident : $ParamTy:ty, )*
         ) -> $( $RetTy:tt )+
     ) => {
+        use godot_core::builtin::{FromVariant, ToVariant, Variant};
+        use godot_ffi as sys;
+
         println!("varcall: {}", stringify!($method_name));
         let storage = ::godot_core::private::as_storage::<$Class>($instance_ptr);
         let mut instance = storage.get_mut();
@@ -386,7 +391,7 @@ macro_rules! gdext_varcall {
         let mut idx = 0;
         $(
             let variant = &*(*$args.offset(idx) as *mut Variant);
-            let $arg = <$ParamTy as ::gdext_builtin::FromVariant>::try_from_variant(variant)
+            let $arg = <$ParamTy as FromVariant>::try_from_variant(variant)
                 .unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
                     method = stringify!($method_name),
                     index = idx,
@@ -400,7 +405,7 @@ macro_rules! gdext_varcall {
             $arg,
         )*);
 
-        *($ret as *mut ::gdext_builtin::Variant) = <$($RetTy)+ as ::gdext_builtin::ToVariant>::to_variant(&ret_val);
+        *($ret as *mut Variant) = <$($RetTy)+ as ToVariant>::to_variant(&ret_val);
         (*$err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
     };
 }

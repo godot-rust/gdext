@@ -5,7 +5,7 @@
  */
 
 // use crate::GodotClass;
-// use gdext_builtin::Variant;
+// use godot_core::Variant;
 // use godot_ffi as sys;
 // use std::borrow::Cow;
 // use std::ffi::CStr;

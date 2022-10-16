@@ -6,8 +6,8 @@
 
 #![allow(dead_code)]
 
-use gdext_builtin::GodotString;
 use godot_core::api::RefCounted;
+use godot_core::builtin::GodotString;
 use godot_core::obj::{Base, Gd};
 use godot_core::traits::GodotExt;
 use godot_macros::{godot_api, itest, GodotClass};

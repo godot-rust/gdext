@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::Variant;
+use crate::builtin::Variant;
 
 pub trait FromVariant: Sized {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError>;

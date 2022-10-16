@@ -51,7 +51,7 @@ fn main() {
     let methods = generate_rust_methods(&inputs);
 
     let rust_tokens = quote::quote! {
-        use gdext_builtin::*;
+        use godot_core::builtin::*;
         use godot_core::obj::InstanceId;
 
         #[derive(godot_macros::GodotClass)]

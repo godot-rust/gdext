@@ -27,7 +27,7 @@ pub(crate) fn generate_utilities_file(
 
     let tokens = quote! {
         use godot_ffi as sys;
-        use gdext_builtin::*;
+        use crate::builtin::*;
         use crate::obj::Gd;
         use crate::api::Object;
 

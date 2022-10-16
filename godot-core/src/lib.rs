@@ -8,6 +8,7 @@ mod registry;
 mod storage;
 
 pub mod builder;
+pub mod builtin;
 pub mod init;
 pub mod macros;
 pub mod obj;

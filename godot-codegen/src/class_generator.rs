@@ -85,7 +85,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
 
     quote! {
         use godot_ffi as sys;
-        use gdext_builtin::*;
+        use crate::builtin::*;
         use crate::obj::Gd;
         use crate::traits::AsArg;
 

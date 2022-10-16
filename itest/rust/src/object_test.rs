@@ -5,8 +5,8 @@
  */
 
 use crate::{expect_panic, itest};
-use gdext_builtin::{FromVariant, GodotString, ToVariant, Vector3};
 use godot_core::api::{Node, Node3D, Object, RefCounted};
+use godot_core::builtin::{FromVariant, GodotString, ToVariant, Vector3};
 use godot_core::obj::{Base, Gd, InstanceId};
 use godot_core::out;
 use godot_core::traits::{GodotExt, Share};

@@ -5,8 +5,8 @@
  */
 
 use crate::builder::ClassBuilder;
+use crate::builtin::GodotString;
 use crate::obj::Base;
-use gdext_builtin::GodotString;
 use godot_ffi as sys;
 
 mod as_arg;

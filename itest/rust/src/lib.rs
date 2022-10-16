@@ -69,7 +69,7 @@ macro_rules! godot_test_impl {
                 ).is_ok();
 
                 if !ok {
-                    gdext_builtin::gdext_print_error!("   !! Test {} failed", str_name);
+                    godot_core::gdext_print_error!("   !! Test {} failed", str_name);
                 }
 
                 ok

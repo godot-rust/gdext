@@ -8,11 +8,11 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 
-use gdext_builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
 use godot_ffi as sys;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
+use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
 use crate::obj::{GdMut, GdRef, InstanceId};
 use crate::property_info::PropertyInfoBuilder;
 use crate::storage::InstanceStorage;

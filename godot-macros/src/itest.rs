@@ -45,7 +45,7 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
             ).is_ok();
 
             if !ok {
-                gdext_builtin::gdext_print_error!(#error_msg);
+                godot_core::gdext_print_error!(#error_msg);
             }
 
             ok

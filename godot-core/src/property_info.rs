@@ -4,8 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::builtin::{GodotString, Vector2, Vector3};
 use crate::obj::InstanceId;
-use gdext_builtin::{GodotString, Vector2, Vector3};
 use godot_ffi as sys;
 use std::fmt::Debug;
 
@@ -140,8 +140,8 @@ pub trait SignatureTuple {
 //     }
 // }
 //
+use crate::builtin::{FromVariant, ToVariant, Variant};
 use crate::traits::GodotClass;
-use gdext_builtin::{FromVariant, ToVariant, Variant};
 
 macro_rules! impl_signature_for_tuple {
     (
