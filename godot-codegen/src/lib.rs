@@ -155,14 +155,17 @@ impl InheritanceTree {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared config
 // Workaround for limiting number of types as long as implementation is incomplete
-const KNOWN_TYPES: [&str; 11] = [
+const KNOWN_TYPES: [&str; 14] = [
     // builtin:
     "bool",
     "int",
     "float",
     "String",
     "Vector2",
+    "Vector2i",
     "Vector3",
+    "Vector3i",
+    "Vector4",
     "Color",
     // classes:
     "Object",

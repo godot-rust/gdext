@@ -87,7 +87,7 @@ impl fmt::Debug for Variant {
 
 mod conversions {
     use super::*;
-    use crate::builtin::{GodotString, Vector2, Vector3};
+    use crate::builtin::*;
     use godot_ffi as sys;
     use sys::GodotFfi;
 
@@ -146,8 +146,12 @@ mod conversions {
 
     impl_variant_conversions!(bool, bool_to_variant, bool_from_variant);
     impl_variant_conversions!(i64, int_to_variant, int_from_variant);
+    impl_variant_conversions!(f64, float_to_variant, float_from_variant);
     impl_variant_conversions!(Vector2, vector2_to_variant, vector2_from_variant);
     impl_variant_conversions!(Vector3, vector3_to_variant, vector3_from_variant);
+    impl_variant_conversions!(Vector4, vector4_to_variant, vector4_from_variant);
+    impl_variant_conversions!(Vector2i, vector2i_to_variant, vector2i_from_variant);
+    impl_variant_conversions!(Vector3i, vector3i_to_variant, vector3i_from_variant);
     impl_variant_conversions!(GodotString, string_to_variant, string_from_variant);
 
     impl_variant_int_conversions!(u8);
@@ -175,6 +179,20 @@ mod conversions {
             }
         }
     }*/
+
+    // f32
+    impl ToVariant for f32 {
+        fn to_variant(&self) -> Variant {
+            let double = *self as f64;
+            f64::to_variant(&double)
+        }
+    }
+
+    impl FromVariant for f32 {
+        fn try_from_variant(v: &Variant) -> Result<Self, VariantConversionError> {
+            f64::try_from_variant(v).map(|double| double as f32)
+        }
+    }
 
     // Strings by ref
     impl From<&GodotString> for Variant {

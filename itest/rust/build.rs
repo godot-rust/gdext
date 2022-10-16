@@ -34,11 +34,17 @@ fn collect_inputs() -> Vec<Input> {
     // Scalar
     push!(inputs; int, i64, -922337203685477580);
     push!(inputs; int, i32, -2147483648);
-    //push!(inputs; int, i16, -32767);
-    //push!(inputs; int, i8, -128);
-    // push!(inputs; float, f64, 127.83);
+    push!(inputs; int, i16, -32767);
+    push!(inputs; int, i8, -128);
+    push!(inputs; float, f32, 12.5);
+    push!(inputs; float, f64, 127.83156478);
     push!(inputs; bool, bool, true);
     push!(inputs; String, GodotString, "hello", "hello".into());
+    push!(inputs; Vector2, Vector2, Vector2(12.5, -3.5), Vector2::new(12.5, -3.5));
+    push!(inputs; Vector3, Vector3, Vector3(117.5, 100.0, -323.25), Vector3::new(117.5, 100.0, -323.25));
+    push!(inputs; Vector4, Vector4, Vector4(-18.5, 24.75, -1.25, 777.875), Vector4::new(-18.5, 24.75, -1.25, 777.875));
+    push!(inputs; Vector2i, Vector2i, Vector2i(-2147483648, 2147483647), Vector2i::new(-2147483648, 2147483647));
+    push!(inputs; Vector3i, Vector3i, Vector3i(-1, -2147483648, 2147483647), Vector3i::new(-1, -2147483648, 2147483647));
 
     // Composite
     push!(inputs; int, InstanceId, -1, InstanceId::try_from_i64(0xFFFFFFFFFFFFFFF).unwrap());

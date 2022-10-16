@@ -13,7 +13,7 @@ type Inner = glam::f32::Vec2;
 #[cfg(feature = "real_is_double")]
 type Inner = glam::f64::DVec2;
 
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug, PartialEq)]
 #[repr(C)]
 pub struct Vector2 {
     inner: Inner,
@@ -48,7 +48,7 @@ impl std::fmt::Display for Vector2 {
 
 type IInner = glam::IVec2;
 
-#[derive(Default, Copy, Clone, Debug)]
+#[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct Vector2i {
     inner: IInner,

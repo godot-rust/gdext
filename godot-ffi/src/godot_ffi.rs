@@ -247,15 +247,42 @@ mod scalars {
                 }
             }
         };
+
+        ($T:ty as $Via:ty; lossy) => {
+            // implicit bounds:
+            //    T: TryFrom<Via>, Copy
+            //    Via: TryFrom<T>, GodotFfi
+            impl GodotFuncMarshal for $T {
+                type Via = $Via;
+
+                unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Result<Self, $Via> {
+                    let via = <$Via as GodotFfi>::from_sys(ptr);
+                    Ok(via as Self)
+                }
+
+                unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Result<(), Self> {
+                    let via = *self as $Via;
+                    <$Via as GodotFfi>::write_sys(&via, dst);
+                    Ok(())
+                }
+            }
+        };
     }
 
-    // Directly implements GodotFfi + GodotSerialize (through blanket impl)
+    // Directly implements GodotFfi + GodotFuncMarshal (through blanket impl)
     impl_godot_marshalling!(bool);
     impl_godot_marshalling!(i64);
     impl_godot_marshalling!(f64);
 
-    // Only implements GodotSerialize
+    // Only implements GodotFuncMarshal
     impl_godot_marshalling!(i32 as i64);
+    impl_godot_marshalling!(u32 as i64);
+    impl_godot_marshalling!(i16 as i64);
+    impl_godot_marshalling!(u16 as i64);
+    impl_godot_marshalling!(i8 as i64);
+    impl_godot_marshalling!(u8 as i64);
+
+    impl_godot_marshalling!(f32 as f64; lossy);
 
     impl GodotFfi for () {
         unsafe fn from_sys(_ptr: sys::GDNativeTypePtr) -> Self {
