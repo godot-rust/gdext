@@ -115,87 +115,90 @@ fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
 
     let mut builtin_types_map = HashMap::new();
 
-    // Find enum with variant types, and generate mapping code
-    let mut variant_enumerators = vec![];
-    let mut variant_fn_decls = vec![];
-    let mut variant_fn_inits = vec![];
-    for enum_ in &api.global_enums {
-        if &enum_.name == "Variant.Type" {
-            // Collect all `BuiltinTypeInfo`s
-            for ty in &enum_.values {
-                let shout_case = ty
-                    .name
-                    .strip_prefix("TYPE_")
-                    .expect("Enum name begins with 'TYPE_'");
+    let found_enum = api
+        .global_enums
+        .iter()
+        .find(|e| &e.name == "Variant.Type")
+        .expect("Missing enum for VariantType in JSON");
 
-                if shout_case == "NIL" || shout_case == "MAX" {
-                    continue;
-                }
+    // Collect all `BuiltinTypeInfo`s
+    for ty in &found_enum.values {
+        let shout_case = ty
+            .name
+            .strip_prefix("TYPE_")
+            .expect("Enum name begins with 'TYPE_'");
 
-                // Lowercase without underscore, to map SHOUTY_CASE to shoutycase
-                let normalized = shout_case.to_lowercase().replace("_", "");
-
-                // TODO cut down on the number of cached functions generated
-                // e.g. there's no point in providing operator< for int
-                let pascal_case: String;
-                let has_destructor: bool;
-                let constructors: Option<&Vec<Constructor>>;
-                let operators: Option<&Vec<Operator>>;
-                if let Some(class) = class_map.get(&normalized) {
-                    pascal_case = class.name.clone();
-                    has_destructor = class.has_destructor;
-                    constructors = Some(&class.constructors);
-                    operators = Some(&class.operators);
-                } else {
-                    assert_eq!(normalized, "object");
-                    pascal_case = "Object".to_string();
-                    has_destructor = false;
-                    constructors = None;
-                    operators = None;
-                }
-
-                let type_names = TypeNames {
-                    pascal_case,
-                    snake_case: shout_case.to_lowercase(),
-                    shout_case: shout_case.to_string(),
-                    sys_variant_type: format_ident!(
-                        "GDNativeVariantType_GDNATIVE_VARIANT_TYPE_{}",
-                        shout_case
-                    ),
-                };
-
-                let value = ty.value;
-
-                builtin_types_map.insert(
-                    type_names.pascal_case.clone(),
-                    BuiltinTypeInfo {
-                        value,
-                        type_names,
-                        has_destructor,
-                        constructors,
-                        operators,
-                    },
-                );
-            }
-
-            // Generate builtin methods, now with info for all types available
-            for ty in builtin_types_map.values() {
-                variant_enumerators.push(make_enumerator(&ty.type_names, ty.value));
-
-                let (decl, init) = make_variant_fns(
-                    &ty.type_names,
-                    ty.has_destructor,
-                    ty.constructors,
-                    ty.operators,
-                    &builtin_types_map,
-                );
-
-                variant_fn_decls.push(decl);
-                variant_fn_inits.push(init);
-            }
-
-            break;
+        if shout_case == "NIL" || shout_case == "MAX" {
+            continue;
         }
+
+        // Lowercase without underscore, to map SHOUTY_CASE to shoutycase
+        let normalized = shout_case.to_lowercase().replace("_", "");
+
+        // TODO cut down on the number of cached functions generated
+        // e.g. there's no point in providing operator< for int
+        let pascal_case: String;
+        let has_destructor: bool;
+        let constructors: Option<&Vec<Constructor>>;
+        let operators: Option<&Vec<Operator>>;
+        if let Some(class) = class_map.get(&normalized) {
+            pascal_case = class.name.clone();
+            has_destructor = class.has_destructor;
+            constructors = Some(&class.constructors);
+            operators = Some(&class.operators);
+        } else {
+            assert_eq!(normalized, "object");
+            pascal_case = "Object".to_string();
+            has_destructor = false;
+            constructors = None;
+            operators = None;
+        }
+
+        let type_names = TypeNames {
+            pascal_case,
+            snake_case: shout_case.to_lowercase(),
+            shout_case: shout_case.to_string(),
+            sys_variant_type: format_ident!(
+                "GDNativeVariantType_GDNATIVE_VARIANT_TYPE_{}",
+                shout_case
+            ),
+        };
+
+        let value = ty.value;
+
+        builtin_types_map.insert(
+            type_names.pascal_case.clone(),
+            BuiltinTypeInfo {
+                value,
+                type_names,
+                has_destructor,
+                constructors,
+                operators,
+            },
+        );
+    }
+
+    // Generate builtin methods, now with info for all types available.
+    // Pre-allocate empty vectors, so we can directly store each element at its correct position (since HashMap
+    // has different element order on each run, generated code would otherwise no longer be deterministic).
+    let mut variant_enumerators = vec![TokenStream::new(); builtin_types_map.len()];
+    let mut variant_fn_decls = variant_enumerators.clone();
+    let mut variant_fn_inits = variant_enumerators.clone();
+
+    for ty in builtin_types_map.values() {
+        let (decl, init) = make_variant_fns(
+            &ty.type_names,
+            ty.has_destructor,
+            ty.constructors,
+            ty.operators,
+            &builtin_types_map,
+        );
+
+        // Assign enum constant directly at right position
+        let index = ty.value as usize - 1;
+        variant_enumerators[index] = make_enumerator(&ty.type_names, ty.value);
+        variant_fn_decls[index] = decl;
+        variant_fn_inits[index] = init;
     }
 
     CentralItems {
