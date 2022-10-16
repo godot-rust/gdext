@@ -29,6 +29,7 @@ impl_builtin_stub!(NodePath, OpaqueNodePath);
 pub struct StringName {
     opaque: sys::types::OpaqueStringName,
 }
+
 impl StringName {
     fn from_opaque(opaque: sys::types::OpaqueStringName) -> Self {
         Self { opaque }
@@ -92,6 +93,7 @@ impl Default for StringName {
         }
     }
 }
+
 impl From<&GodotString> for StringName {
     fn from(s: &GodotString) -> Self {
         unsafe {
@@ -103,6 +105,7 @@ impl From<&GodotString> for StringName {
         }
     }
 }
+
 impl From<&StringName> for GodotString {
     fn from(s: &StringName) -> Self {
         unsafe {

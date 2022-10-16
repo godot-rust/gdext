@@ -155,7 +155,7 @@ impl InheritanceTree {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared config
 // Workaround for limiting number of types as long as implementation is incomplete
-const KNOWN_TYPES: [&str; 14] = [
+const KNOWN_TYPES: [&str; 22] = [
     // builtin:
     "bool",
     "int",
@@ -172,6 +172,27 @@ const KNOWN_TYPES: [&str; 14] = [
     "Node",
     "Node3D",
     "RefCounted",
+    "Resource",
+    "ResourceLoader",
+    "FileAccess",
+    "AStar2D",
+    "Camera3D",
+    "IP",
+    "Input",
+    "OS",
 ];
 
-const SELECTED_CLASSES: [&str; 4] = ["Object", "Node", "Node3D", "RefCounted"];
+const SELECTED_CLASSES: [&str; 12] = [
+    "Object",
+    "Node",
+    "Node3D",
+    "RefCounted",
+    "Resource",
+    "ResourceLoader",
+    "FileAccess",
+    "AStar2D",
+    "Camera3D",
+    "IP",
+    "Input",
+    "OS",
+];
