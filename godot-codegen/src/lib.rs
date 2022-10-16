@@ -18,7 +18,7 @@ use central_generator::generate_central_file;
 use class_generator::generate_class_files;
 use utilities_generator::generate_utilities_file;
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::path::{Path, PathBuf};
@@ -159,6 +159,17 @@ impl InheritanceTree {
         }
         result
     }
+}
+
+struct GeneratedClass {
+    tokens: TokenStream,
+    has_pub_module: bool,
+}
+
+struct GeneratedModule {
+    class_ident: Ident,
+    module_ident: Ident,
+    is_pub: bool,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

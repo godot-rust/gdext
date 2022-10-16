@@ -6,13 +6,15 @@
 
 //! Generates a file for each Godot class
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::util::{c_str, ident, ident_escaped, safe_ident, strlit, to_module_name};
-use crate::{special_cases, Context, RustTy, KNOWN_TYPES, SELECTED_CLASSES};
+use crate::{
+    special_cases, Context, GeneratedClass, GeneratedModule, RustTy, KNOWN_TYPES, SELECTED_CLASSES,
+};
 
 pub(crate) fn generate_class_files(
     api: &ExtensionApi,
@@ -33,7 +35,8 @@ pub(crate) fn generate_class_files(
             continue;
         }
 
-        let file_contents = make_class(class, &ctx).to_string();
+        let generated_class = make_class(class, &ctx);
+        let file_contents = generated_class.tokens.to_string();
 
         let module_name = to_module_name(&class.name);
         let out_path = gen_path.join(format!("{}.rs", module_name));
@@ -41,7 +44,11 @@ pub(crate) fn generate_class_files(
 
         let class_ident = ident(&class.name);
         let module_ident = ident(&module_name);
-        modules.push((class_ident, module_ident));
+        modules.push(GeneratedModule {
+            class_ident,
+            module_ident,
+            is_pub: generated_class.has_pub_module,
+        });
         out_files.push(out_path);
     }
 
@@ -94,7 +101,7 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_cstr: TokenStream) 
     }
 }
 
-fn make_class(class: &Class, ctx: &Context) -> TokenStream {
+fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
     //let sys = TokenStream::from_str("::godot_ffi");
     let base = match class.inherits.as_ref() {
         Some(base) => {
@@ -115,6 +122,8 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
     let inherits_macro = format_ident!("gdext_inherits_transitive_{}", &class.name);
     let all_bases = ctx.inheritance_tree.map_all_bases(&class.name, ident);
 
+    let has_pub_module = !enums.is_empty();
+
     let memory = if &class.name == "Object" {
         ident("DynamicRefCount")
     } else if class.is_refcounted {
@@ -123,7 +132,7 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         ident("ManualMemory")
     };
 
-    quote! {
+    let tokens = quote! {
         use godot_ffi as sys;
         use crate::api::*;
         use crate::builtin::*;
@@ -184,16 +193,28 @@ fn make_class(class: &Class, ctx: &Context) -> TokenStream {
         }
 
         #enums
-    }
+    };
     // note: TypePtr -> ObjectPtr conversion OK?
+
+    GeneratedClass {
+        tokens,
+        has_pub_module,
+    }
 }
 
-fn make_module_file(classes_and_modules: Vec<(Ident, Ident)>) -> TokenStream {
-    let decls = classes_and_modules.into_iter().map(|(class, module)| {
-        let vis = TokenStream::new(); // TODO pub if other symbols
+fn make_module_file(classes_and_modules: Vec<GeneratedModule>) -> TokenStream {
+    let decls = classes_and_modules.into_iter().map(|m| {
+        let GeneratedModule {
+            module_ident,
+            class_ident,
+            is_pub,
+        } = m;
+
+        let vis = is_pub.then_some(quote! { pub });
+
         quote! {
-            #vis mod #module;
-            pub use #module::#class;
+            #vis mod #module_ident;
+            pub use #module_ident::#class_ident;
         }
     });
 
@@ -223,9 +244,7 @@ fn make_enums(enums: &Option<Vec<Enum>>, class_name: &str, ctx: &Context) -> Tok
         None => return TokenStream::new(),
     };
 
-    let definitions = enums
-        .iter()
-        .map(|enum_| make_enum_definition(enum_, class_name, ctx));
+    let definitions = enums.iter().map(|enum_| make_enum_definition(enum_));
 
     quote! {
         #( #definitions )*
@@ -439,7 +458,7 @@ fn make_utility_return(return_value: &Option<String>, ctx: &Context) -> (TokenSt
     (return_decl, call)
 }
 
-fn make_enum_definition(enum_: &Enum, class_name: &str, ctx: &Context) -> TokenStream {
+fn make_enum_definition(enum_: &Enum) -> TokenStream {
     let enum_name = ident(&enum_.name);
 
     let enumerators = enum_.values.iter().map(|enumerator| {
@@ -454,7 +473,7 @@ fn make_enum_definition(enum_: &Enum, class_name: &str, ctx: &Context) -> TokenS
     // Public interface is i64 though, for forward compatibility.
     quote! {
         #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
-        struct #enum_name {
+        pub struct #enum_name {
             ord: i32
         }
         impl #enum_name {
