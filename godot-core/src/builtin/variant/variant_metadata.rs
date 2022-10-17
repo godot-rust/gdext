@@ -23,7 +23,7 @@ pub trait VariantMetadata {
     }
 
     fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
-        sys::GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_NONE
+        sys::GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_NONE
     }
 }
 
@@ -97,7 +97,7 @@ macro_rules! impl_signature_for_tuple {
                         $n => $Pn::variant_type(),
                     )*
                     _ => unreachable!("variant_type: unavailable for index {}", index),
-                    //_ => sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_NIL
+                    //_ => sys::GDNATIVE_VARIANT_TYPE_NIL
                 }
             }
 
@@ -151,7 +151,7 @@ macro_rules! impl_signature_for_tuple {
                 let ret_variant = <$R as ToVariant>::to_variant(&ret_val); // TODO write_sys
 				unsafe {
                     *(ret as *mut Variant) = ret_variant;
-                    (*err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
+                    (*err).error = sys::GDNATIVE_CALL_OK;
                 }
             }
 

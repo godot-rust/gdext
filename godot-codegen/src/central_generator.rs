@@ -29,7 +29,7 @@ struct TypeNames {
     /// "PACKED_VECTOR2_ARRAY"
     shout_case: String,
 
-    /// GDNativeVariantType_GDNATIVE_VARIANT_TYPE_PACKED_VECTOR2_ARRAY
+    /// GDNATIVE_VARIANT_TYPE_PACKED_VECTOR2_ARRAY
     sys_variant_type: Ident,
 }
 
@@ -158,10 +158,7 @@ fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
             pascal_case,
             snake_case: shout_case.to_lowercase(),
             shout_case: shout_case.to_string(),
-            sys_variant_type: format_ident!(
-                "GDNativeVariantType_GDNATIVE_VARIANT_TYPE_{}",
-                shout_case
-            ),
+            sys_variant_type: format_ident!("GDNATIVE_VARIANT_TYPE_{}", shout_case),
         };
 
         let value = ty.value;
@@ -434,7 +431,7 @@ fn make_operator_fns(
 
     let variant_type = &type_names.sys_variant_type;
     let variant_type = quote! { crate:: #variant_type };
-    let sys_ident = format_ident!("GDNativeVariantOperator_GDNATIVE_VARIANT_OP_{}", sys_name);
+    let sys_ident = format_ident!("GDNATIVE_VARIANT_OP_{}", sys_name);
 
     // Field declaration
     let decl = quote! {

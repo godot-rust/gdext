@@ -35,7 +35,7 @@ impl Variant {
 
     /// Checks whether the variant is empty (`null` value in GDScript).
     pub fn is_nil(&self) -> bool {
-        self.get_type() == sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_NIL
+        self.get_type() == sys::GDNATIVE_VARIANT_TYPE_NIL
     }
 
     fn get_type(&self) -> sys::GDNativeVariantType {

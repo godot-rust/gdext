@@ -159,10 +159,10 @@ impl InitLevel {
     #[doc(hidden)]
     pub fn from_sys(level: godot_ffi::GDNativeInitializationLevel) -> Self {
         match level {
-            sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_CORE => Self::Core,
-            sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_SERVERS => Self::Servers,
-            sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_SCENE => Self::Scene,
-            sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_EDITOR => Self::Editor,
+            sys::GDNATIVE_INITIALIZATION_CORE => Self::Core,
+            sys::GDNATIVE_INITIALIZATION_SERVERS => Self::Servers,
+            sys::GDNATIVE_INITIALIZATION_SCENE => Self::Scene,
+            sys::GDNATIVE_INITIALIZATION_EDITOR => Self::Editor,
             _ => {
                 println!("WARNING: unknown initialization level {}", level);
                 Self::Scene
@@ -172,10 +172,10 @@ impl InitLevel {
     #[doc(hidden)]
     pub fn to_sys(self) -> godot_ffi::GDNativeInitializationLevel {
         match self {
-            Self::Core => sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_CORE,
-            Self::Servers => sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_SERVERS,
-            Self::Scene => sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_SCENE,
-            Self::Editor => sys::GDNativeInitializationLevel_GDNATIVE_INITIALIZATION_EDITOR,
+            Self::Core => sys::GDNATIVE_INITIALIZATION_CORE,
+            Self::Servers => sys::GDNATIVE_INITIALIZATION_SERVERS,
+            Self::Scene => sys::GDNATIVE_INITIALIZATION_SCENE,
+            Self::Editor => sys::GDNATIVE_INITIALIZATION_EDITOR,
         }
     }
 }

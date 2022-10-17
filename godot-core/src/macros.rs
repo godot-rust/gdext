@@ -115,7 +115,7 @@ macro_rules! gdext_register_method_inner {
                     function
                 }),
                 method_flags:
-                    sys::GDNativeExtensionClassMethodFlags_GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
+                    sys::GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
                 argument_count: NUM_ARGS as u32,
                 has_return_value: $crate::gdext_is_not_unit!($($RetTy)+) as u8,
                 get_argument_type_func: Some(godot_core::private::func_callbacks::get_type::<( $($RetTy)+, $($ParamTy),* )>),

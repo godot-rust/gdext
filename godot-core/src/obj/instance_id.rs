@@ -122,10 +122,10 @@ impl ToVariant for Option<InstanceId> {
 
 impl VariantMetadata for InstanceId {
     fn variant_type() -> sys::GDNativeVariantType {
-        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_INT
+        sys::GDNATIVE_VARIANT_TYPE_INT
     }
 
     fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
-        sys::GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64
+        sys::GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64
     }
 }

@@ -85,7 +85,7 @@ macro_rules! impl_variant_traits_int {
 
         impl VariantMetadata for $T {
             fn variant_type() -> sys::GDNativeVariantType {
-                sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_INT
+                sys::GDNATIVE_VARIANT_TYPE_INT
             }
 
             fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
@@ -112,7 +112,7 @@ macro_rules! impl_variant_traits_float {
 
         impl VariantMetadata for $T {
             fn variant_type() -> sys::GDNativeVariantType {
-                sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_FLOAT
+                sys::GDNATIVE_VARIANT_TYPE_FLOAT
             }
 
             fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
@@ -129,30 +129,30 @@ macro_rules! impl_variant_traits_float {
 mod impls {
     use super::*;
 
-    impl_variant_traits!(bool, bool_to_variant, bool_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_BOOL);
-    impl_variant_traits!(Vector2, vector2_to_variant, vector2_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR2);
-    impl_variant_traits!(Vector3, vector3_to_variant, vector3_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR3);
-    impl_variant_traits!(Vector4, vector4_to_variant, vector4_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR4);
-    impl_variant_traits!(Vector2i, vector2i_to_variant, vector2i_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR2I);
-    impl_variant_traits!(Vector3i, vector3i_to_variant, vector3i_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_VECTOR3I);
-    impl_variant_traits!(Color, color_to_variant, color_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_COLOR);
-    impl_variant_traits!(GodotString, string_to_variant, string_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_STRING);
+    impl_variant_traits!(bool, bool_to_variant, bool_from_variant, GDNATIVE_VARIANT_TYPE_BOOL);
+    impl_variant_traits!(Vector2, vector2_to_variant, vector2_from_variant, GDNATIVE_VARIANT_TYPE_VECTOR2);
+    impl_variant_traits!(Vector3, vector3_to_variant, vector3_from_variant, GDNATIVE_VARIANT_TYPE_VECTOR3);
+    impl_variant_traits!(Vector4, vector4_to_variant, vector4_from_variant, GDNATIVE_VARIANT_TYPE_VECTOR4);
+    impl_variant_traits!(Vector2i, vector2i_to_variant, vector2i_from_variant, GDNATIVE_VARIANT_TYPE_VECTOR2I);
+    impl_variant_traits!(Vector3i, vector3i_to_variant, vector3i_from_variant, GDNATIVE_VARIANT_TYPE_VECTOR3I);
+    impl_variant_traits!(Color, color_to_variant, color_from_variant, GDNATIVE_VARIANT_TYPE_COLOR);
+    impl_variant_traits!(GodotString, string_to_variant, string_from_variant, GDNATIVE_VARIANT_TYPE_STRING);
 
 
-    impl_variant_traits!(i64, int_to_variant, int_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_INT,
-        GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
-    impl_variant_traits_int!(i8, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8);
-    impl_variant_traits_int!(i16, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16);
-    impl_variant_traits_int!(i32, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32);
+    impl_variant_traits!(i64, int_to_variant, int_from_variant, GDNATIVE_VARIANT_TYPE_INT,
+        GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
+    impl_variant_traits_int!(i8, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8);
+    impl_variant_traits_int!(i16, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16);
+    impl_variant_traits_int!(i32, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32);
 
-    impl_variant_traits_int!(u8, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT8);
-    impl_variant_traits_int!(u16, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT16);
-    impl_variant_traits_int!(u32, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT32);
+    impl_variant_traits_int!(u8, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT8);
+    impl_variant_traits_int!(u16, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT16);
+    impl_variant_traits_int!(u32, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT32);
     // u64 is not supported, because it cannot be represented on GDScript side, and converting to i64 is error-prone.
 
-    impl_variant_traits!(f64, float_to_variant, float_from_variant, GDNativeVariantType_GDNATIVE_VARIANT_TYPE_FLOAT,
-        GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE);
-    impl_variant_traits_float!(f32, GDNativeExtensionClassMethodArgumentMetadata_GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_FLOAT);
+    impl_variant_traits!(f64, float_to_variant, float_from_variant, GDNATIVE_VARIANT_TYPE_FLOAT,
+        GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE);
+    impl_variant_traits_float!(f32, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_FLOAT);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -167,6 +167,6 @@ impl ToVariant for () {
 
 impl VariantMetadata for () {
     fn variant_type() -> sys::GDNativeVariantType {
-        sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_NIL
+        sys::GDNATIVE_VARIANT_TYPE_NIL
     }
 }

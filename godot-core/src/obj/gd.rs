@@ -519,7 +519,7 @@ impl<T: GodotClass> std::fmt::Debug for Gd<T> {
 
 impl<T: GodotClass> VariantMetadata for Gd<T> {
     fn variant_type() -> sys::GDNativeVariantType {
-        godot_ffi::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_OBJECT
+        sys::GDNATIVE_VARIANT_TYPE_OBJECT
     }
 
     fn property_info(name: &str) -> sys::GDNativePropertyInfo {
