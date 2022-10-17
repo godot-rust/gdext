@@ -10,12 +10,15 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
+use crate::util::{ident, to_rust_builtin_type};
 use crate::Context;
 
 struct CentralItems {
     opaque_types: Vec<TokenStream>,
-    variant_enumerator_names: Vec<Ident>,
-    variant_enumerator_ords: Vec<Literal>,
+    variant_enumerators_shout: Vec<Ident>,
+    variant_enumerators_pascal: Vec<Ident>,
+    variant_enum_rust_types: Vec<Ident>,
+    variant_enum_ords: Vec<Literal>,
     variant_fn_decls: Vec<TokenStream>,
     variant_fn_inits: Vec<TokenStream>,
 }
@@ -43,22 +46,25 @@ struct BuiltinTypeInfo<'a> {
     operators: Option<&'a Vec<Operator>>,
 }
 
-pub(crate) fn generate_central_file(
+pub(crate) fn generate_central_files(
     api: &ExtensionApi,
     _ctx: &Context,
     build_config: &str,
-    gen_path: &Path,
+    sys_gen_path: &Path,
+    core_gen_path: &Path,
     out_files: &mut Vec<PathBuf>,
 ) {
     let CentralItems {
         opaque_types,
-        variant_enumerator_names,
-        variant_enumerator_ords,
+        variant_enumerators_shout,
+        variant_enumerators_pascal,
+        variant_enum_rust_types,
+        variant_enum_ords,
         variant_fn_decls,
         variant_fn_inits,
     } = make_central_items(api, build_config);
 
-    let tokens = quote! {
+    let sys_tokens = quote! {
         #![allow(dead_code)]
         use crate::{GDNativeVariantPtr, GDNativeTypePtr};
 
@@ -82,7 +88,7 @@ pub(crate) fn generate_central_file(
         pub enum VariantType {
             NIL = 0,
             #(
-                #variant_enumerator_names = #variant_enumerator_ords,
+                #variant_enumerators_shout = #variant_enum_ords,
             )*
         }
 
@@ -93,7 +99,7 @@ pub(crate) fn generate_central_file(
                 match enumerator {
                     0 => Self::NIL,
                     #(
-                        #variant_enumerator_ords => Self::#variant_enumerator_names,
+                        #variant_enum_ords => Self::#variant_enumerators_shout,
                     )*
                     _ => unreachable!("Invalid variant type {}", enumerator)
                 }
@@ -106,12 +112,29 @@ pub(crate) fn generate_central_file(
         }
     };
 
-    let string = tokens.to_string();
+    let core_tokens = quote! {
+        use crate::builtin::*;
 
-    let _ = std::fs::create_dir(gen_path);
-    let out_path = gen_path.join("central.rs");
-    std::fs::write(&out_path, string).expect("failed to write central extension file");
+        #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+        pub enum VariantDispatch {
+            Nil,
+            #(
+                #variant_enumerators_pascal(#variant_enum_rust_types),
+            )*
+        }
+    };
 
+    let sys_string = sys_tokens.to_string();
+    let core_string = core_tokens.to_string();
+
+    let _ = std::fs::create_dir(sys_gen_path);
+    let out_path = sys_gen_path.join("central.rs");
+    std::fs::write(&out_path, sys_string).expect("failed to write central extension file");
+    out_files.push(out_path);
+
+    let _ = std::fs::create_dir(core_gen_path);
+    let out_path = core_gen_path.join("central.rs");
+    std::fs::write(&out_path, core_string).expect("failed to write central extension file");
     out_files.push(out_path);
 }
 
@@ -203,10 +226,16 @@ fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
     // Generate builtin methods, now with info for all types available.
     // Separate vectors because that makes usage in quote! easier.
     let len = builtin_types_map.len();
-    let mut variant_enumerator_names = Vec::with_capacity(len);
-    let mut variant_enumerator_ords = Vec::with_capacity(len);
-    let mut variant_fn_decls = Vec::with_capacity(len);
-    let mut variant_fn_inits = Vec::with_capacity(len);
+
+    let mut result = CentralItems {
+        opaque_types,
+        variant_enumerators_shout: Vec::with_capacity(len),
+        variant_enumerators_pascal: Vec::with_capacity(len),
+        variant_enum_rust_types: Vec::with_capacity(len),
+        variant_enum_ords: Vec::with_capacity(len),
+        variant_fn_decls: Vec::with_capacity(len),
+        variant_fn_inits: Vec::with_capacity(len),
+    };
 
     let mut builtin_types: Vec<_> = builtin_types_map.values().collect();
     builtin_types.sort_by_key(|info| info.value);
@@ -221,28 +250,29 @@ fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
             &builtin_types_map,
         );
 
-        let (name, ord) = make_enumerator(&ty.type_names, ty.value);
+        let (shout_name, pascal_name, rust_ty, ord) = make_enumerator(&ty.type_names, ty.value);
 
-        variant_enumerator_names.push(name);
-        variant_enumerator_ords.push(ord);
-        variant_fn_decls.push(decl);
-        variant_fn_inits.push(init);
+        result.variant_enumerators_shout.push(shout_name);
+        result.variant_enumerators_pascal.push(pascal_name);
+        result.variant_enum_rust_types.push(rust_ty);
+        result.variant_enum_ords.push(ord);
+        result.variant_fn_decls.push(decl);
+        result.variant_fn_inits.push(init);
     }
 
-    CentralItems {
-        opaque_types,
-        variant_enumerator_names,
-        variant_enumerator_ords,
-        variant_fn_decls,
-        variant_fn_inits,
-    }
+    result
 }
 
-fn make_enumerator(type_names: &TypeNames, value: i32) -> (Ident, Literal) {
-    let enumerator = format_ident!("{}", type_names.shout_case);
+fn make_enumerator(type_names: &TypeNames, value: i32) -> (Ident, Ident, Ident, Literal) {
+    let shout_name = format_ident!("{}", type_names.shout_case);
+
+    let (first, rest) = type_names.pascal_case.split_at(1);
+
+    let pascal_name = format_ident!("{}{}", first.to_uppercase(), rest);
+    let rust_ty = to_rust_builtin_type(&type_names.pascal_case);
     let ord = Literal::i32_unsuffixed(value);
 
-    (enumerator, ord)
+    (shout_name, pascal_name, ident(rust_ty), ord)
 }
 
 fn make_opaque_type(name: &str, size: usize) -> TokenStream {

@@ -17,7 +17,7 @@ mod utilities_generator;
 mod tests;
 
 use api_parser::{load_extension_api, ExtensionApi};
-use central_generator::generate_central_file;
+use central_generator::generate_central_files;
 use class_generator::generate_class_files;
 use utilities_generator::generate_utilities_file;
 
@@ -37,7 +37,14 @@ pub fn generate() {
     //     let now = std::time::Instant::now();
     //     let elapsed = now.elapsed().as_millis();
 
-    let sys_gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../godot-ffi/src/gen"));
+    let central_sys_gen_path = Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"), //
+        "/../godot-ffi/src/gen"
+    ));
+    let central_core_gen_path = Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../godot-core/src/gen"
+    ));
     let class_gen_path = Path::new(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/../godot-core/src/gen"
@@ -48,7 +55,15 @@ pub fn generate() {
     let (api, build_config) = load_extension_api();
     let ctx = build_context(&api);
 
-    generate_central_file(&api, &ctx, build_config, sys_gen_path, &mut out_files);
+    generate_central_files(
+        &api,
+        &ctx,
+        build_config,
+        central_sys_gen_path,
+        central_core_gen_path,
+        &mut out_files,
+    );
+
     generate_utilities_file(&api, &ctx, class_gen_path, &mut out_files);
 
     // Class files -- currently output in godot-core; could maybe be separated cleaner

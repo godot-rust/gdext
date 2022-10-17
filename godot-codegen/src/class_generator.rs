@@ -11,7 +11,9 @@ use quote::{format_ident, quote, ToTokens};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::util::{c_str, ident, ident_escaped, safe_ident, strlit, to_module_name};
+use crate::util::{
+    c_str, ident, ident_escaped, safe_ident, strlit, to_module_name, to_rust_builtin_type,
+};
 use crate::{
     special_cases, Context, GeneratedClass, GeneratedModule, RustTy, KNOWN_TYPES, SELECTED_CLASSES,
 };
@@ -569,16 +571,7 @@ fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
         };
     }
 
-    // Note: GodotFfi must be implemented for each of these types
-    // Do not implement for non-canonical types which aren't used in Godot FFI APIs (like i16)
-    // TODO double vs float
-    let ty = match ty {
-        "int" => "i64",
-        "float" => "f64",
-        "String" => "GodotString",
-        "Error" => "GodotError",
-        other => other,
-    };
+    let ty = to_rust_builtin_type(ty);
 
     return RustTy {
         tokens: ident(ty).to_token_stream(),

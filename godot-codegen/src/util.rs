@@ -136,3 +136,17 @@ pub fn c_str(s: &str) -> TokenStream {
 pub fn strlit(s: &str) -> Literal {
     Literal::string(s)
 }
+
+pub fn to_rust_builtin_type(ty: &str) -> &str {
+    // Note: GodotFfi must be implemented for each of these types
+    // Do not implement for non-canonical types which aren't used in Godot FFI APIs (like i16)
+    // TODO double vs float
+
+    match ty {
+        "int" => "i64",
+        "float" => "f64",
+        "String" => "GodotString",
+        "Error" => "GodotError",
+        other => other,
+    }
+}
