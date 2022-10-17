@@ -6,6 +6,7 @@
 
 use crate::itest;
 use godot_core::api::OS;
+use godot_core::builtin::GodotString;
 use godot_core::obj::Gd;
 
 pub fn run() -> bool {
@@ -40,7 +41,13 @@ fn singleton_from_instance_id() {
 #[itest]
 fn singleton_is_operational() {
     let os: Gd<OS> = OS::singleton();
-    let pid = os.get_process_id();
-    let running = os.is_process_running(pid);
-    assert!(running, "own process is running");
+    let key = GodotString::from("MY_TEST_ENV");
+    let value = GodotString::from("SOME_VALUE");
+
+    // set_environment is const, for some reason
+    let is_ok = os.set_environment(key.clone(), value.clone());
+    assert!(is_ok);
+
+    let read_value = os.get_environment(key);
+    assert_eq!(read_value, value);
 }
