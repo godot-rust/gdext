@@ -24,11 +24,24 @@ pub struct Variant {
 }
 
 impl Variant {
+    /// Create an empty variant (`null` value in GDScript).
     pub fn nil() -> Self {
         unsafe {
             Self::from_var_sys_init(|variant_ptr| {
                 interface_fn!(variant_new_nil)(variant_ptr);
             })
+        }
+    }
+
+    /// Checks whether the variant is empty (`null` value in GDScript).
+    pub fn is_nil(&self) -> bool {
+        self.get_type() == sys::GDNativeVariantType_GDNATIVE_VARIANT_TYPE_NIL
+    }
+
+    fn get_type(&self) -> sys::GDNativeVariantType {
+        unsafe {
+            let ty: sys::GDNativeVariantType = interface_fn!(variant_get_type)(self.var_sys());
+            ty
         }
     }
 

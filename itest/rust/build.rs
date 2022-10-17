@@ -48,7 +48,7 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; Vector3i, Vector3i, Vector3i(-1, -2147483648, 2147483647), Vector3i::new(-1, -2147483648, 2147483647));
 
     // Composite
-    push!(inputs; int, InstanceId, -1, InstanceId::try_from_i64(0xFFFFFFFFFFFFFFF).unwrap());
+    push!(inputs; int, InstanceId, -1, InstanceId::from_nonzero(0xFFFFFFFFFFFFFFF));
 
     inputs
 }

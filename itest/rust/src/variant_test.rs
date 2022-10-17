@@ -6,10 +6,12 @@
 
 use crate::itest;
 use godot_core::builtin::{FromVariant, GodotString, ToVariant, Variant};
+use godot_core::obj::InstanceId;
 use std::fmt::{Debug, Display};
 
 pub fn run() -> bool {
     let mut ok = true;
+    ok &= variant_nil();
     ok &= variant_conversions();
     ok &= variant_forbidden_conversions();
     ok &= variant_display();
@@ -17,10 +19,22 @@ pub fn run() -> bool {
 }
 
 #[itest]
+fn variant_nil() {
+    let variant = Variant::nil();
+    assert!(variant.is_nil());
+
+    let variant = 12345i32.to_variant();
+    assert!(!variant.is_nil());
+}
+
+#[itest]
 fn variant_conversions() {
     roundtrip(false);
     roundtrip(true);
     roundtrip(GodotString::from("some string"));
+    roundtrip(InstanceId::from_nonzero(-9223372036854775808i64));
+    // roundtrip(Some(InstanceId::from_nonzero(9223372036854775807i64)));
+    // roundtrip(Option::<InstanceId>::None);
 
     // unsigned
     roundtrip(0u8);
@@ -49,6 +63,9 @@ fn roundtrip<T>(value: T)
 where
     T: FromVariant + ToVariant + PartialEq + Debug,
 {
+    // TODO test other roundtrip (first FromVariant, then ToVariant)
+    // Some values can be represented in Variant, but not in T (e.g. Variant(0i64) -> Option<InstanceId> -> Variant is lossy)
+
     let variant = value.to_variant();
     let back = T::try_from_variant(&variant).unwrap();
 
