@@ -13,6 +13,9 @@ mod special_cases;
 mod util;
 mod utilities_generator;
 
+#[cfg(test)]
+mod tests;
+
 use api_parser::{load_extension_api, ExtensionApi};
 use central_generator::generate_central_file;
 use class_generator::generate_class_files;

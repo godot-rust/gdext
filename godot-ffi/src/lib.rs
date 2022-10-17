@@ -32,8 +32,8 @@ pub use ::paste;
 use gen::central::GlobalMethodTable;
 use global_registry::GlobalRegistry;
 
+pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
 pub use gen::central::types;
-pub use godot_ffi::{GodotFfi, GodotFuncMarshal};
 
 // #[allow(non_camel_case_types)]
 // #[cfg(not(feature = "real_is_double"))]

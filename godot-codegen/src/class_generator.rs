@@ -6,7 +6,7 @@
 
 //! Generates a file for each Godot class
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::path::{Path, PathBuf};
 
@@ -241,7 +241,7 @@ fn make_methods(methods: &Option<Vec<Method>>, class_name: &str, ctx: &Context) 
     }
 }
 
-fn make_enums(enums: &Option<Vec<Enum>>, class_name: &str, ctx: &Context) -> TokenStream {
+fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &str, _ctx: &Context) -> TokenStream {
     let enums = match enums {
         Some(e) => e,
         None => return TokenStream::new(),
@@ -465,7 +465,7 @@ fn make_enum_definition(enum_: &Enum) -> TokenStream {
     let enum_name = ident(&enum_.name);
 
     let enumerators = enum_.values.iter().map(|enumerator| {
-        let name = ident(&enumerator.name);
+        let name = make_enumerator_name(&enumerator.name, &enum_.name);
         let ordinal = &enumerator.value;
         quote! {
             pub const #name: Self = Self { ord: #ordinal };
@@ -492,6 +492,13 @@ fn make_enum_definition(enum_: &Enum) -> TokenStream {
         }
 
     }
+}
+
+fn make_enumerator_name(enumerator_name: &str, _enum_name: &str) -> Ident {
+    // TODO strip prefixes of `enum_name` appearing in `enumerator_name`
+    // tons of variantions, see test cases in lib.rs
+
+    ident(enumerator_name)
 }
 
 fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {

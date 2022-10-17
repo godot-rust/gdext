@@ -88,59 +88,6 @@ pub fn to_module_name(class_name: &str) -> String {
     result
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn module_name_generator() {
-        let tests = vec![
-            // A number of test cases to cover some possibilities:
-            // * Underscores are removed
-            // * First character is always lowercased
-            // * lowercase to an uppercase inserts an underscore
-            //   - FooBar => foo_bar
-            // * two capital letter words does not separate the capital letters:
-            //   - FooBBaz => foo_bbaz (lower, cap, cap, lower)
-            // * many-capital letters to lowercase inserts an underscore before the last uppercase letter:
-            //   - FOOBar => boo_bar
-            // underscores
-            ("Ab_Cdefg", "ab_cdefg"),
-            ("_Abcd", "abcd"),
-            ("Abcd_", "abcd"),
-            // first and last
-            ("Abcdefg", "abcdefg"),
-            ("abcdefG", "abcdef_g"),
-            // more than 2 caps
-            ("ABCDefg", "abc_defg"),
-            ("AbcDEFg", "abc_de_fg"),
-            ("AbcdEF10", "abcd_ef10"),
-            ("AbcDEFG", "abc_defg"),
-            ("ABCDEFG", "abcdefg"),
-            ("ABC", "abc"),
-            // Lowercase to an uppercase
-            ("AbcDefg", "abc_defg"),
-            // Only 2 caps
-            ("ABcdefg", "abcdefg"),
-            ("ABcde2G", "abcde_2g"),
-            ("AbcDEfg", "abc_defg"),
-            ("ABcDe2G", "abc_de_2g"),
-            ("abcdeFG", "abcde_fg"),
-            ("AB", "ab"),
-            // Lowercase to an uppercase
-            ("AbcdefG", "abcdef_g"), // PosX => pos_x
-            // text changes
-            ("FooVec3Uni", "foo_vec3_uni"),
-            ("GDNative", "gdnative_"),
-            ("GDScript", "gdscript"),
-        ];
-        tests.iter().for_each(|(class_name, expected)| {
-            let actual = to_module_name(class_name);
-            assert_eq!(*expected, actual, "Input: {}", class_name);
-        });
-    }
-}
-
 pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
 }
