@@ -122,8 +122,6 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
     let inherits_macro = format_ident!("gdext_inherits_transitive_{}", &class.name);
     let all_bases = ctx.inheritance_tree.map_all_bases(&class.name, ident);
 
-    let has_pub_module = !enums.is_empty();
-
     let memory = if &class.name == "Object" {
         ident("DynamicRefCount")
     } else if class.is_refcounted {
@@ -132,6 +130,7 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
         ident("ManualMemory")
     };
 
+    // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
         use godot_ffi as sys;
         use crate::api::*;
@@ -139,56 +138,60 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
         use crate::obj::Gd;
         use crate::traits::AsArg;
 
-        #[derive(Debug)]
-        #[repr(transparent)]
-        pub struct #name {
-            object_ptr: sys::GDNativeObjectPtr,
-        }
-        impl #name {
-            #constructor
-            #methods
-        }
-        impl crate::traits::GodotClass for #name {
-            type Base = #base;
-            type Declarer = crate::traits::dom::EngineDomain;
-            type Mem = crate::traits::mem::#memory;
+        pub(super) mod re_export {
+            use super::*;
 
-            const CLASS_NAME: &'static str = #name_str;
-        }
-        impl crate::traits::EngineClass for #name {
-             fn as_object_ptr(&self) -> sys::GDNativeObjectPtr {
-                 self.object_ptr
-             }
-             fn as_type_ptr(&self) -> sys::GDNativeTypePtr {
-                std::ptr::addr_of!(self.object_ptr) as sys::GDNativeTypePtr
-             }
-        }
-        #(
-            impl crate::traits::Inherits<crate::api::#all_bases> for #name {}
-        )*
-        impl std::ops::Deref for #name {
-            type Target = #base;
-
-            fn deref(&self) -> &Self::Target {
-                // SAFETY: same assumptions as `impl Deref for Gd<T>`, see there for comments
-                unsafe { std::mem::transmute::<&Self, &Self::Target>(self) }
+            #[derive(Debug)]
+            #[repr(transparent)]
+            pub struct #name {
+                object_ptr: sys::GDNativeObjectPtr,
             }
-        }
-        impl std::ops::DerefMut for #name {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                // SAFETY: see above
-                unsafe { std::mem::transmute::<&mut Self, &mut Self::Target>(self) }
+            impl #name {
+                #constructor
+                #methods
             }
-        }
+            impl crate::traits::GodotClass for #name {
+                type Base = #base;
+                type Declarer = crate::traits::dom::EngineDomain;
+                type Mem = crate::traits::mem::#memory;
 
-        #[macro_export]
-        #[allow(non_snake_case)]
-        macro_rules! #inherits_macro {
-            ($Class:ident) => {
-                impl godot_core::traits::Inherits<godot_core::api::#name> for $Class {}
-                #(
-                    impl godot_core::traits::Inherits<godot_core::api::#all_bases> for $Class {}
-                )*
+                const CLASS_NAME: &'static str = #name_str;
+            }
+            impl crate::traits::EngineClass for #name {
+                 fn as_object_ptr(&self) -> sys::GDNativeObjectPtr {
+                     self.object_ptr
+                 }
+                 fn as_type_ptr(&self) -> sys::GDNativeTypePtr {
+                    std::ptr::addr_of!(self.object_ptr) as sys::GDNativeTypePtr
+                 }
+            }
+            #(
+                impl crate::traits::Inherits<crate::api::#all_bases> for #name {}
+            )*
+            impl std::ops::Deref for #name {
+                type Target = #base;
+
+                fn deref(&self) -> &Self::Target {
+                    // SAFETY: same assumptions as `impl Deref for Gd<T>`, see there for comments
+                    unsafe { std::mem::transmute::<&Self, &Self::Target>(self) }
+                }
+            }
+            impl std::ops::DerefMut for #name {
+                fn deref_mut(&mut self) -> &mut Self::Target {
+                    // SAFETY: see above
+                    unsafe { std::mem::transmute::<&mut Self, &mut Self::Target>(self) }
+                }
+            }
+
+            #[macro_export]
+            #[allow(non_snake_case)]
+            macro_rules! #inherits_macro {
+                ($Class:ident) => {
+                    impl godot_core::traits::Inherits<godot_core::api::#name> for $Class {}
+                    #(
+                        impl godot_core::traits::Inherits<godot_core::api::#all_bases> for $Class {}
+                    )*
+                }
             }
         }
 
@@ -198,7 +201,7 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
 
     GeneratedClass {
         tokens,
-        has_pub_module,
+        has_pub_module: !enums.is_empty(),
     }
 }
 
@@ -214,7 +217,7 @@ fn make_module_file(classes_and_modules: Vec<GeneratedModule>) -> TokenStream {
 
         quote! {
             #vis mod #module_ident;
-            pub use #module_ident::#class_ident;
+            pub use #module_ident::re_export::#class_ident;
         }
     });
 
