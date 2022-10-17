@@ -109,15 +109,9 @@ pub fn register_class<T: GodotExt + cap::GodotInit + cap::ImplementsGodotExt>() 
     // TODO: provide overloads with only some trait impls
 
     println!("Manually register class {}", std::any::type_name::<T>());
+    let class_name = ClassName::new::<T>();
 
     let godot_params = sys::GDNativeExtensionClassCreationInfo {
-        set_func: None,
-        get_func: None,
-        get_property_list_func: None,
-        free_property_list_func: None,
-        property_can_revert_func: None,
-        property_get_revert_func: None,
-        notification_func: None,
         to_string_func: Some(callbacks::to_string::<T>),
         reference_func: Some(callbacks::reference::<T>),
         unreference_func: Some(callbacks::unreference::<T>),
@@ -126,10 +120,11 @@ pub fn register_class<T: GodotExt + cap::GodotInit + cap::ImplementsGodotExt>() 
         get_virtual_func: Some(callbacks::get_virtual::<T>),
         get_rid_func: None,
         class_userdata: ptr::null_mut(), // will be passed to create fn, but global per class
+        ..default_creation_info()
     };
 
     register_class_raw(ClassRegistrationInfo {
-        class_name: ClassName::new::<T>(),
+        class_name,
         parent_class_name: Some(ClassName::new::<T::Base>()),
         generated_register_fn: None,
         user_register_fn: Some(ErasedRegisterFn {
@@ -156,7 +151,7 @@ pub fn auto_register_classes() {
         let name = ClassName::from_static(elem.class_name);
         let class_info = map
             .entry(name.clone())
-            .or_insert_with(|| default_creation_info(name));
+            .or_insert_with(|| default_registration_info(name));
 
         fill_class_info(elem.component.clone(), class_info);
     });
@@ -399,28 +394,34 @@ pub mod callbacks {
 // Substitute for Default impl
 // Yes, bindgen can implement Default, but only for _all_ types (with single exceptions).
 // For FFI types, it's better to have explicit initialization in the general case though.
-fn default_creation_info(class_name: ClassName) -> ClassRegistrationInfo {
+fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
     ClassRegistrationInfo {
         class_name,
         parent_class_name: None,
         generated_register_fn: None,
         user_register_fn: None,
-        godot_params: sys::GDNativeExtensionClassCreationInfo {
-            set_func: None,
-            get_func: None,
-            get_property_list_func: None,
-            free_property_list_func: None,
-            property_can_revert_func: None,
-            property_get_revert_func: None,
-            notification_func: None,
-            to_string_func: None,
-            reference_func: None,
-            unreference_func: None,
-            create_instance_func: None,
-            free_instance_func: None,
-            get_virtual_func: None,
-            get_rid_func: None,
-            class_userdata: ptr::null_mut(),
-        },
+        godot_params: default_creation_info(),
+    }
+}
+
+fn default_creation_info() -> sys::GDNativeExtensionClassCreationInfo {
+    sys::GDNativeExtensionClassCreationInfo {
+        is_abstract: false as u8,
+        is_virtual: false as u8,
+        set_func: None,
+        get_func: None,
+        get_property_list_func: None,
+        free_property_list_func: None,
+        property_can_revert_func: None,
+        property_get_revert_func: None,
+        notification_func: None,
+        to_string_func: None,
+        reference_func: None,
+        unreference_func: None,
+        create_instance_func: None,
+        free_instance_func: None,
+        get_virtual_func: None,
+        get_rid_func: None,
+        class_userdata: ptr::null_mut(),
     }
 }
