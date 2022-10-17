@@ -21,7 +21,9 @@ use central_generator::generate_central_files;
 use class_generator::generate_class_files;
 use utilities_generator::generate_utilities_file;
 
+use crate::util::ident;
 use proc_macro2::{Ident, TokenStream};
+use quote::ToTokens;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use std::path::{Path, PathBuf};
@@ -137,8 +139,20 @@ struct RustTy {
     is_engine_class: bool,
 }
 
+impl RustTy {
+    fn normal_ident(name: &str) -> Self {
+        Self {
+            tokens: ident(name).to_token_stream(),
+            is_engine_class: false,
+        }
+    }
+    // fn engine(tokens: impl ToTokens) -> Self {
+    //     Self { tokens: tokens.to_token_stream(), is_engine_class: true }
+    // }
+}
+
 #[derive(Default)]
-struct Context<'a> {
+pub(crate) struct Context<'a> {
     engine_classes: HashSet<&'a str>,
     singletons: HashSet<&'a str>,
     inheritance_tree: InheritanceTree,
@@ -154,7 +168,7 @@ impl<'a> Context<'a> {
 }
 
 #[derive(Default)]
-struct InheritanceTree {
+pub(crate) struct InheritanceTree {
     derived_to_base: HashMap<String, String>,
 }
 

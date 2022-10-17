@@ -10,14 +10,14 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::util::{ident, to_rust_builtin_type};
+use crate::util::to_rust_type;
 use crate::Context;
 
 struct CentralItems {
     opaque_types: Vec<TokenStream>,
     variant_enumerators_shout: Vec<Ident>,
     variant_enumerators_pascal: Vec<Ident>,
-    variant_enum_rust_types: Vec<Ident>,
+    variant_enum_rust_types: Vec<TokenStream>,
     variant_enum_ords: Vec<Literal>,
     variant_fn_decls: Vec<TokenStream>,
     variant_fn_inits: Vec<TokenStream>,
@@ -48,7 +48,7 @@ struct BuiltinTypeInfo<'a> {
 
 pub(crate) fn generate_central_files(
     api: &ExtensionApi,
-    _ctx: &Context,
+    ctx: &Context,
     build_config: &str,
     sys_gen_path: &Path,
     core_gen_path: &Path,
@@ -62,7 +62,7 @@ pub(crate) fn generate_central_files(
         variant_enum_ords,
         variant_fn_decls,
         variant_fn_inits,
-    } = make_central_items(api, build_config);
+    } = make_central_items(api, build_config, ctx);
 
     let sys_tokens = quote! {
         #![allow(dead_code)]
@@ -138,7 +138,7 @@ pub(crate) fn generate_central_files(
     out_files.push(out_path);
 }
 
-fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
+fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> CentralItems {
     let mut opaque_types = vec![];
     for class in &api.builtin_class_sizes {
         if &class.build_configuration == build_config {
@@ -250,7 +250,8 @@ fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
             &builtin_types_map,
         );
 
-        let (shout_name, pascal_name, rust_ty, ord) = make_enumerator(&ty.type_names, ty.value);
+        let (shout_name, pascal_name, rust_ty, ord) =
+            make_enumerator(&ty.type_names, ty.value, ctx);
 
         result.variant_enumerators_shout.push(shout_name);
         result.variant_enumerators_pascal.push(pascal_name);
@@ -263,16 +264,20 @@ fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
     result
 }
 
-fn make_enumerator(type_names: &TypeNames, value: i32) -> (Ident, Ident, Ident, Literal) {
+fn make_enumerator(
+    type_names: &TypeNames,
+    value: i32,
+    ctx: &Context,
+) -> (Ident, Ident, TokenStream, Literal) {
     let shout_name = format_ident!("{}", type_names.shout_case);
 
     let (first, rest) = type_names.pascal_case.split_at(1);
 
     let pascal_name = format_ident!("{}{}", first.to_uppercase(), rest);
-    let rust_ty = to_rust_builtin_type(&type_names.pascal_case);
+    let rust_ty = to_rust_type(&type_names.pascal_case, ctx);
     let ord = Literal::i32_unsuffixed(value);
 
-    (shout_name, pascal_name, ident(rust_ty), ord)
+    (shout_name, pascal_name, rust_ty.tokens, ord)
 }
 
 fn make_opaque_type(name: &str, size: usize) -> TokenStream {

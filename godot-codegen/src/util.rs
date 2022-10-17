@@ -4,6 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::{Context, RustTy};
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
 
@@ -137,16 +138,84 @@ pub fn strlit(s: &str) -> Literal {
     Literal::string(s)
 }
 
-pub fn to_rust_builtin_type(ty: &str) -> &str {
-    // Note: GodotFfi must be implemented for each of these types
-    // Do not implement for non-canonical types which aren't used in Godot FFI APIs (like i16)
-    // TODO double vs float
-
-    match ty {
+fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
+    let result = match ty {
         "int" => "i64",
         "float" => "f64",
         "String" => "GodotString",
         "Error" => "GodotError",
-        other => other,
+        _ => return None,
+    };
+    Some(result)
+}
+
+pub(crate) fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
+    // TODO cache in Context
+
+    if let Some(hardcoded) = to_hardcoded_rust_type(ty) {
+        return RustTy::normal_ident(hardcoded);
     }
+
+    //println!("to_rust_ty: {ty}");
+
+    // Check hardcoded ones first
+
+    // if let Some(remain) = ty.strip_prefix("enum::") {
+    //     let mut parts = remain.split(".");
+    //
+    //     let first = parts.next().unwrap();
+    //     let ident = match parts.next() {
+    //         Some(second) => {
+    //             // enum::Animation.LoopMode
+    //             format_ident!("{}{}", first, second) // TODO better
+    //         }
+    //         None => {
+    //             // enum::Error
+    //             format_ident!("{}", first)
+    //         }
+    //     };
+    //
+    //     assert!(parts.next().is_none(), "Unrecognized enum type '{}'", ty);
+    //     return RustTy {
+    //         tokens: ident.to_token_stream(),
+    //         is_engine_class: false,
+    //     };
+    // }
+
+    // TODO: newtypes for enums & bitfields?
+    //   - more verbose to use and complicated to implement
+    //   - lack of inherent associated types makes module structure awkward
+    //   - need to implement bitwise traits for bitfields
+    //   - API breaks often in Godot
+    //   - prior art = used i64 constants for gdnative
+    //   + but type safety!
+    if ty.starts_with("bitfield::") || ty.starts_with("enum::") {
+        return RustTy::normal_ident("i32");
+    } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
+        // Don't trigger on PackedScene ;P
+        if packed_arr_ty.ends_with("Array") {
+            return RustTy::normal_ident(packed_arr_ty);
+        }
+    } else if let Some(arr_ty) = ty.strip_prefix("typedarray::") {
+        return if let Some(packed_arr_ty) = arr_ty.strip_prefix("Packed") {
+            return RustTy::normal_ident(packed_arr_ty);
+        } else {
+            let arr_ty = to_rust_type(arr_ty, ctx).tokens;
+            RustTy {
+                tokens: quote! { TypedArray<#arr_ty> },
+                is_engine_class: false,
+            }
+        };
+    }
+
+    if ctx.is_engine_class(ty) {
+        let ty = ident(ty);
+        return RustTy {
+            tokens: quote! { Gd<#ty> },
+            is_engine_class: true,
+        };
+    }
+
+    // Unchanged
+    return RustTy::normal_ident(ty);
 }
