@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -14,7 +14,8 @@ use crate::Context;
 
 struct CentralItems {
     opaque_types: Vec<TokenStream>,
-    variant_enumerators: Vec<TokenStream>,
+    variant_enumerator_names: Vec<Ident>,
+    variant_enumerator_ords: Vec<Literal>,
     variant_fn_decls: Vec<TokenStream>,
     variant_fn_inits: Vec<TokenStream>,
 }
@@ -51,7 +52,8 @@ pub(crate) fn generate_central_file(
 ) {
     let CentralItems {
         opaque_types,
-        variant_enumerators,
+        variant_enumerator_names,
+        variant_enumerator_ords,
         variant_fn_decls,
         variant_fn_inits,
     } = make_central_items(api, build_config);
@@ -76,8 +78,31 @@ pub(crate) fn generate_central_file(
             }
         }
 
+        #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
         pub enum VariantType {
-            #(#variant_enumerators),*
+            NIL = 0,
+            #(
+                #variant_enumerator_names = #variant_enumerator_ords,
+            )*
+        }
+
+        impl VariantType {
+            #[doc(hidden)]
+            pub fn from_sys(enumerator: crate::GDNativeVariantType) -> Self {
+                // Annoying, but only stable alternative is transmute(), which dictates enum size
+                match enumerator {
+                    0 => Self::NIL,
+                    #(
+                        #variant_enumerator_ords => Self::#variant_enumerator_names,
+                    )*
+                    _ => unreachable!("Invalid variant type {}", enumerator)
+                }
+            }
+
+            #[doc(hidden)]
+            pub fn to_sys(self) -> crate::GDNativeVariantType {
+                self as _
+            }
         }
     };
 
@@ -176,13 +201,18 @@ fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
     }
 
     // Generate builtin methods, now with info for all types available.
-    // Pre-allocate empty vectors, so we can directly store each element at its correct position (since HashMap
-    // has different element order on each run, generated code would otherwise no longer be deterministic).
-    let mut variant_enumerators = vec![TokenStream::new(); builtin_types_map.len()];
-    let mut variant_fn_decls = variant_enumerators.clone();
-    let mut variant_fn_inits = variant_enumerators.clone();
+    // Separate vectors because that makes usage in quote! easier.
+    let len = builtin_types_map.len();
+    let mut variant_enumerator_names = Vec::with_capacity(len);
+    let mut variant_enumerator_ords = Vec::with_capacity(len);
+    let mut variant_fn_decls = Vec::with_capacity(len);
+    let mut variant_fn_inits = Vec::with_capacity(len);
 
-    for ty in builtin_types_map.values() {
+    let mut builtin_types: Vec<_> = builtin_types_map.values().collect();
+    builtin_types.sort_by_key(|info| info.value);
+
+    // Note: NIL is not part of this iteration, it will be added manually
+    for ty in builtin_types {
         let (decl, init) = make_variant_fns(
             &ty.type_names,
             ty.has_destructor,
@@ -191,28 +221,28 @@ fn make_central_items(api: &ExtensionApi, build_config: &str) -> CentralItems {
             &builtin_types_map,
         );
 
-        // Assign enum constant directly at right position
-        let index = ty.value as usize - 1;
-        variant_enumerators[index] = make_enumerator(&ty.type_names, ty.value);
-        variant_fn_decls[index] = decl;
-        variant_fn_inits[index] = init;
+        let (name, ord) = make_enumerator(&ty.type_names, ty.value);
+
+        variant_enumerator_names.push(name);
+        variant_enumerator_ords.push(ord);
+        variant_fn_decls.push(decl);
+        variant_fn_inits.push(init);
     }
 
     CentralItems {
         opaque_types,
-        variant_enumerators,
+        variant_enumerator_names,
+        variant_enumerator_ords,
         variant_fn_decls,
         variant_fn_inits,
     }
 }
 
-fn make_enumerator(type_names: &TypeNames, value: i32) -> TokenStream {
+fn make_enumerator(type_names: &TypeNames, value: i32) -> (Ident, Literal) {
     let enumerator = format_ident!("{}", type_names.shout_case);
-    let value = proc_macro2::Literal::i32_unsuffixed(value);
+    let ord = Literal::i32_unsuffixed(value);
 
-    quote! {
-       #enumerator = #value
-    }
+    (enumerator, ord)
 }
 
 fn make_opaque_type(name: &str, size: usize) -> TokenStream {
