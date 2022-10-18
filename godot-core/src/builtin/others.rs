@@ -106,6 +106,13 @@ impl From<&GodotString> for StringName {
     }
 }
 
+impl From<&str> for StringName {
+    fn from(s: &str) -> Self {
+        let intermediate = GodotString::from(s);
+        Self::from(&intermediate)
+    }
+}
+
 impl From<&StringName> for GodotString {
     fn from(s: &StringName) -> Self {
         unsafe {

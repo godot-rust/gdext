@@ -6,6 +6,7 @@
 
 use crate::builtin::GodotString;
 use godot_ffi as sys;
+use godot_ffi::GodotFfi;
 use std::fmt;
 use sys::types::OpaqueVariant;
 use sys::{ffi_methods, interface_fn};
@@ -35,10 +36,22 @@ impl Variant {
 
     /// Checks whether the variant is empty (`null` value in GDScript).
     pub fn is_nil(&self) -> bool {
-        self.get_type() == sys::GDNATIVE_VARIANT_TYPE_NIL
+        self.sys_type() == sys::GDNATIVE_VARIANT_TYPE_NIL
     }
 
-    fn get_type(&self) -> sys::GDNativeVariantType {
+    /*
+    pub fn get_type(&self) -> VariantType {
+
+    }
+
+    pub fn evaluate(op: ) {
+        unsafe {
+            let mut is_valid= false as u8;
+            interface_fn!(variant_evaluate)(self.var_sys(), result.string_sys());
+        }
+    }*/
+
+    pub(crate) fn sys_type(&self) -> sys::GDNativeVariantType {
         unsafe {
             let ty: sys::GDNativeVariantType = interface_fn!(variant_get_type)(self.var_sys());
             ty
@@ -69,6 +82,10 @@ impl Variant {
     }
 }
 
+impl GodotFfi for Variant {
+    ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
+}
+
 impl Clone for Variant {
     fn clone(&self) -> Self {
         unsafe {
@@ -86,6 +103,13 @@ impl Drop for Variant {
         }
     }
 }
+
+// impl Eq for Variant {}
+// impl PartialEq for Variant {
+//     fn eq(&self, other: &Self) -> bool {
+//         unsafe { sys::method_table().ope }
+//     }
+// }
 
 impl fmt::Display for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

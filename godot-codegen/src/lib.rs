@@ -207,18 +207,20 @@ struct GeneratedModule {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared config
 // Workaround for limiting number of types as long as implementation is incomplete
-const KNOWN_TYPES: [&str; 22] = [
+const KNOWN_TYPES: &[&str] = &[
     // builtin:
     "bool",
     "int",
     "float",
     "String",
+    "StringName",
     "Vector2",
     "Vector2i",
     "Vector3",
     "Vector3i",
     "Vector4",
     "Color",
+    "Variant",
     // classes:
     "Object",
     "Node",
@@ -234,7 +236,7 @@ const KNOWN_TYPES: [&str; 22] = [
     "OS",
 ];
 
-const SELECTED_CLASSES: [&str; 12] = [
+const SELECTED_CLASSES: &[&str] = &[
     "Object",
     "Node",
     "Node3D",

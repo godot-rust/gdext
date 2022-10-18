@@ -170,3 +170,22 @@ impl VariantMetadata for () {
         sys::GDNATIVE_VARIANT_TYPE_NIL
     }
 }
+
+impl ToVariant for Variant {
+    fn to_variant(&self) -> Variant {
+        self.clone()
+    }
+}
+
+impl FromVariant for Variant {
+    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+        Ok(variant.clone())
+    }
+}
+
+// Variant itself
+impl VariantMetadata for Variant {
+    fn variant_type() -> sys::GDNativeVariantType {
+        sys::GDNATIVE_VARIANT_TYPE_NIL
+    }
+}

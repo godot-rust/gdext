@@ -6,7 +6,7 @@
 
 use crate::{expect_panic, itest};
 use godot_core::api::{Node, Node3D, Object, RefCounted};
-use godot_core::builtin::{FromVariant, GodotString, ToVariant, Vector3};
+use godot_core::builtin::{FromVariant, GodotString, StringName, ToVariant, Vector3};
 use godot_core::obj::{Base, Gd, InstanceId};
 use godot_core::out;
 use godot_core::traits::{GodotExt, Share};
@@ -48,6 +48,7 @@ pub fn run() -> bool {
     ok &= object_engine_manual_double_free();
     ok &= object_engine_refcounted_free();
     ok &= object_user_share_drop();
+    ok &= object_call();
     ok
 }
 
@@ -345,6 +346,19 @@ fn object_user_share_drop() {
 
     drop(object);
     assert_eq!(*drop_count.borrow(), 1);
+}
+
+#[itest]
+fn object_call() {
+    return;
+    let mut obj = Node3D::new_alloc().upcast::<Object>();
+
+    let static_id = obj.instance_id();
+    let reflect_id_variant = obj.call(StringName::from("get_instance_id"));
+
+    let reflect_id = InstanceId::from_variant(&reflect_id_variant);
+
+    assert_eq!(static_id, reflect_id);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
