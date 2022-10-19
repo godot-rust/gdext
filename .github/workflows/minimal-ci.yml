@@ -4,13 +4,20 @@
 
 name: Minimal CI
 
-#env:
-
 on:
   push:
   pull_request:
 #    branches:
 #      - master
+
+env:
+  # Environment variables used by toolchain
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUST_BACKTRACE: 1
+
+  # Custom variables
+  GDEXT_FEATURES: 'godot-core/convenience'
 
 defaults:
   run:
@@ -22,16 +29,57 @@ defaults:
 #  cancel-in-progress: true
 
 jobs:
+#  rustfmt:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v3
+#      - name: "Install Rust"
+#        uses: ./.github/composite/rust
+#        with:
+#          rust: stable
+#          components: rustfmt
+#      - name: "Check rustfmt"
+#        run: cargo fmt --all -- --check
+
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+      - name: "Compile tests"
+        run: cargo test --workspace --features ${GDEXT_FEATURES} --no-run
+      - name: "Test"
+        run: cargo test --workspace --features ${GDEXT_FEATURES}
+
   integration-test-godot:
     name: itest-godot
-    runs-on: ubuntu-latest
     timeout-minutes: 20
+    runs-on: ${{ matrix.os.id }}
+    continue-on-error: ${{ matrix.rust.toolchain == 'nightly' }}
+    strategy:
+      fail-fast: false # cancel all jobs as soon as one fails?
+      matrix:
+        # Order this way because macOS typically has the longest duration, followed by Windows, so it benefits total workflow execution time.
+        # Additionally, the 'linux (msrv *)' special case will then be listed next to the other 'linux' jobs.
+        # Note: Windows uses '--target x86_64-pc-windows-msvc' by default as Cargo argument.
+        os:
+          - { name: macos,   id: macos-latest }
+          - { name: windows, id: windows-latest }
+          - { name: linux,   id: ubuntu-latest }
+
     steps:
       - uses: actions/checkout@v3
 
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+#        with:
+#          rust: ${{ matrix.rust.toolchain }}
+#          cache-key: ${{ matrix.rust.special }} # 'minimal-deps' or empty/not defined
+
       - name: "Install LLVM"
         uses: ./.github/composite/llvm
-        #if: ${{ matrix.os.id == 'windows-latest' }}
+        if: ${{ matrix.os.id != 'macos-latest' }}
 
       - name: "Run Godot integration test"
         uses: ./.github/composite/godot
