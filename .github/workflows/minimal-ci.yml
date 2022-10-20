@@ -59,8 +59,14 @@ jobs:
       - uses: actions/checkout@v3
       - name: "Install Rust"
         uses: ./.github/composite/rust
+
+      # TODO seems unneeded in GDNative...?
+      - name: "Install LLVM"
+        uses: ./.github/composite/llvm
+
       - name: "Compile tests"
         run: cargo test --workspace --features ${GDEXT_FEATURES} --no-run
+
       - name: "Test"
         run: cargo test --workspace --features ${GDEXT_FEATURES}
 
@@ -77,7 +83,7 @@ jobs:
         # Note: Windows uses '--target x86_64-pc-windows-msvc' by default as Cargo argument.
         include:
           - name: macos
-            os: macos-latest
+            os: macos-12
             rust-toolchain: stable
             godot-binary: godot.macos.editor.dev.x86_64
 
@@ -93,16 +99,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: "Install Rust"
-        uses: ./.github/composite/rust
-        with:
-          rust: ${{ matrix.rust-toolchain }}
-#          cache-key: ${{ matrix.rust.special }} # 'minimal-deps' or empty/not defined
-
-      - name: "Install LLVM"
-        uses: ./.github/composite/llvm
-#        if: ${{ matrix.os.id != 'macos-latest' }}
 
       - name: "Run Godot integration test"
         uses: ./.github/composite/godot

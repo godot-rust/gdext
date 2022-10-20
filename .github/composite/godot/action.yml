@@ -58,9 +58,12 @@ runs:
         # Search for the last workflow run, which stored an artifact named as in `name` input
         search_artifacts: true
 
+    # Replaces also backspaces on Windows, since they cause problems in Bash
     - name: "Store variable to Godot binary"
       run: |
-        echo "GODOT_BIN=${{ runner.temp }}/godot_bin/${{ inputs.binary-filename }}" >> $GITHUB_ENV
+        runnerDir=$(echo "${{ runner.temp }}" | sed "s!\\\\!/!")
+        echo "RUNNER_DIR=$runnerDir" >> $GITHUB_ENV
+        echo "GODOT_BIN=$runnerDir/godot_bin/${{ inputs.binary-filename }}" >> $GITHUB_ENV
       shell: bash
 
     # The chmod seems still necessary, although applied before uploading artifact. Possibly modes are not preserved.
@@ -79,9 +82,10 @@ runs:
 
     # Note: if this fails, run `git diff -R > tweaks.patch` after updating the file manually
     - name: "Copy and compare GDExtension header"
+      if: inputs.artifact-name == 'linux'
       run: |
         mkdir -p godot-codegen/input
-        cp ${{ runner.temp }}/godot_bin/gdnative_interface.h godot-codegen/input/gdnative_interface.h
+        cp $RUNNER_DIR/godot_bin/gdnative_interface.h godot-codegen/input/gdnative_interface.h
         git apply godot-codegen/input/tweak.patch -v
         git diff --exit-code --quiet || {
             echo "gdnative_interface.h is not up-to-date; abort."
@@ -102,6 +106,9 @@ runs:
       uses: ./.github/composite/rust
       with:
         rust: ${{ inputs.rust-toolchain }}
+
+    - name: "Install LLVM"
+      uses: ./.github/composite/llvm
 
     - name: "Build godot-rust"
       run: |
