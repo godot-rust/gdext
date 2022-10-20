@@ -6,20 +6,24 @@ name: godot
 description: "Run Godot integration tests"
 
 inputs:
-  artifact_name:
+  artifact-name:
     required: true
     description: "Name of the compiled Godot artifact to download"
 
-  github_pat:
+  binary-filename:
+    required: true
+    description: "Filename of the Godot executable"
+
+  github-pat:
     required: true
     description: "GitHub PAT (personal access token) to download artifacts from other repos"
 
-  rust_toolchain:
+  rust-toolchain:
     required: false
     default: 'stable'
     description: "Rust toolchain specifier (e.g. 'nightly')"
 
-  rust_extra_args:
+  rust-extra-args:
     required: false
     default: ''
     description: "Extra command line arguments for 'cargo build', e.g. features"
@@ -35,8 +39,8 @@ runs:
 #      uses: actions/cache@v3
 #      with:
 #        path: ${{ runner.temp }}/godot_bin
-#        #key: godot-${{ runner.os }}-v${{ inputs.godot_ver }}
-#        key: ${{ inputs.artifact_name }}
+#        #key: godot-${{ runner.os }}-v${{ inputs.godot-ver }}
+#        key: ${{ inputs.artifact-name }}
 
     - name: "Download Godot artifact"
 #      if: steps.cache-godot.outputs.cache-hit != 'true'
@@ -45,23 +49,24 @@ runs:
       with:
         # Downloads and unzips the artifact with {name} of the latest run of specified {workflow}
         path: ${{ runner.temp }}/godot_bin
-        github_token: ${{ inputs.github_pat }}
+        github_token: ${{ inputs.github-pat }}
         repo: Bromeon/godot4-nightly
         branch: master
         workflow: compile-godot.yml
         workflow_conclusion: success
-        name: ${{ inputs.artifact_name }}
+        name: ${{ inputs.artifact-name }}
         # Search for the last workflow run, which stored an artifact named as in `name` input
         search_artifacts: true
 
     - name: "Store variable to Godot binary"
       run: |
-        echo "GODOT_BIN=${{ runner.temp }}/godot_bin/godot.linuxbsd.editor.dev.x86_64" >> $GITHUB_ENV
+        echo "GODOT_BIN=${{ runner.temp }}/godot_bin/${{ inputs.binary-filename }}" >> $GITHUB_ENV
       shell: bash
 
+    # The chmod seems still necessary, although applied before uploading artifact. Possibly modes are not preserved.
     - name: "Inspect Godot version"
       run: |
-        chmod +x $GODOT_BIN
+        #chmod +x $GODOT_BIN
         godotVer=$($GODOT_BIN --version || true)
         gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
         echo "GODOT_BUILT_FROM=_Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)._" >> $GITHUB_ENV
@@ -95,11 +100,11 @@ runs:
     - name: "Install Rust"
       uses: ./.github/composite/rust
       with:
-        rust: ${{ inputs.rust_toolchain }}
+        rust: ${{ inputs.rust-toolchain }}
 
     - name: "Build godot-rust"
       run: |
-        cargo build -p itest ${{ inputs.rust_extra_args }}
+        cargo build -p itest ${{ inputs.rust-extra-args }}
       shell: bash
 
     - name: "Run Godot integration tests"
