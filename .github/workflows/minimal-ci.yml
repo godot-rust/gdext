@@ -6,6 +6,14 @@
 # Run when someone opens a PR and adds commits to the PR (this is recognized as a push to master)
 # Includes basic checks and unit/integration checks on Linux only
 
+# Known issues:
+# 1. Error "Unable to process file command 'env' successfully." means there was an attempt to store multiline-content in a GitHub env var.
+#    This should be done as in https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings:
+#       echo 'VAR<<EOF' >> $GITHUB_ENV
+#       curl https://example.lab >> $GITHUB_ENV
+#       echo 'EOF' >> $GITHUB_ENV
+
+
 name: Minimal CI
 
 on:

@@ -64,10 +64,11 @@ runs:
       shell: bash
 
     # The chmod seems still necessary, although applied before uploading artifact. Possibly modes are not preserved.
+    # The `| xargs` pattern trims the output, since printed version may contain extra newline, which causes problems in env vars.
     - name: "Inspect Godot version"
       run: |
-        #chmod +x $GODOT_BIN
-        godotVer=$($GODOT_BIN --version || true)
+        chmod +x $GODOT_BIN
+        godotVer=$($GODOT_BIN --version | xargs || true)
         gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
         echo "GODOT_BUILT_FROM=_Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)._" >> $GITHUB_ENV
         
