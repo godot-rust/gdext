@@ -1,3 +1,7 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 # Minimal CI workflow
 # Run when someone opens a PR and adds commits to the PR (this is recognized as a push to master)
 # Includes basic checks and unit/integration checks on Linux only
