@@ -127,14 +127,26 @@ pub(crate) fn generate_central_files(
     let sys_string = sys_tokens.to_string();
     let core_string = core_tokens.to_string();
 
-    let _ = std::fs::create_dir(sys_gen_path);
+    let _ = std::fs::create_dir_all(sys_gen_path);
     let out_path = sys_gen_path.join("central.rs");
-    std::fs::write(&out_path, sys_string).expect("failed to write central extension file");
+    std::fs::write(&out_path, sys_string).unwrap_or_else(|e| {
+        panic!(
+            "failed to write sys/central file to {};\n\t{}",
+            out_path.display(),
+            e
+        )
+    });
     out_files.push(out_path);
 
-    let _ = std::fs::create_dir(core_gen_path);
+    let _ = std::fs::create_dir_all(core_gen_path);
     let out_path = core_gen_path.join("central.rs");
-    std::fs::write(&out_path, core_string).expect("failed to write central extension file");
+    std::fs::write(&out_path, core_string).unwrap_or_else(|e| {
+        panic!(
+            "failed to write core/central file to {};\n\t{}",
+            out_path.display(),
+            e
+        )
+    });
     out_files.push(out_path);
 }
 

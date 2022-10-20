@@ -19,8 +19,13 @@ pub use registry::*;
 use godot_ffi as sys;
 
 mod gen {
+    // TODO do this path stuff properly
+
     #[allow(unused_imports, dead_code)]
+    #[path = "../../../godot-ffi/src/gen/core/classes/mod.rs"]
     pub(crate) mod classes;
+
+    #[path = "../../../godot-ffi/src/gen/core/utilities.rs"]
     pub mod utilities;
 }
 

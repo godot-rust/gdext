@@ -25,7 +25,6 @@ use crate::util::ident;
 use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
 use std::collections::{HashMap, HashSet};
-use std::env;
 use std::path::{Path, PathBuf};
 
 // macro_rules! local_path {
@@ -34,23 +33,14 @@ use std::path::{Path, PathBuf};
 //     };
 // }
 
-pub fn generate() {
+pub fn generate_sys_files(sys_out_dir: &Path, core_out_dir: &Path) {
     // Time measurement:
     //     let now = std::time::Instant::now();
     //     let elapsed = now.elapsed().as_millis();
 
-    let central_sys_gen_path = Path::new(concat!(
-        env!("CARGO_MANIFEST_DIR"), //
-        "/../godot-ffi/src/gen"
-    ));
-    let central_core_gen_path = Path::new(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../godot-core/src/gen"
-    ));
-    let class_gen_path = Path::new(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../godot-core/src/gen"
-    ));
+    let central_sys_gen_path = sys_out_dir;
+    let central_core_gen_path = core_out_dir;
+    let class_gen_path = core_out_dir;
 
     let mut out_files = vec![];
 

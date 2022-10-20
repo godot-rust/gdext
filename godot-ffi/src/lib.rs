@@ -15,12 +15,13 @@
 
 include!(concat!(env!("OUT_DIR"), "/gdnative_interface.rs"));
 
-mod opaque;
-mod gen {
-    pub(crate) mod central;
-}
+#[path = "gen/sys/central.rs"]
+pub(crate) mod central;
+
 mod global_registry;
 mod godot_ffi;
+mod opaque;
+
 mod plugins;
 
 // See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
@@ -29,11 +30,11 @@ mod plugins;
 pub use ::paste;
 
 //pub use opaque::Opaque;
-use gen::central::GlobalMethodTable;
+use central::*;
 use global_registry::GlobalRegistry;
 
 pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
-pub use gen::central::types;
+pub use central::types;
 
 // #[allow(non_camel_case_types)]
 // #[cfg(not(feature = "real_is_double"))]

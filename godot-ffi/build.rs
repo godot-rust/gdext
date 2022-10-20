@@ -7,7 +7,7 @@
 use bindgen::Builder;
 use godot_codegen as gen;
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn main() {
     // For custom path on macOS, iOS, Android etc: see gdnative-sys/build.rs
@@ -32,7 +32,10 @@ fn main() {
         .write_to_file(out_path.join("gdnative_interface.rs"))
         .expect("could not write gdnative_interface Rust bindings!");
 
-    gen::generate();
+    gen::generate_sys_files(
+        Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/sys")),
+        Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/core")),
+    );
 }
 
 //#[cfg(target_os = "macos")]
