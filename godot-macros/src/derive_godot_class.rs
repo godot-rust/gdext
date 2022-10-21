@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{bail, ensure_kv_empty, ident, KvMap, KvValue};
+use crate::util::{bail, ensure_kv_empty, ident, path_is_single, KvMap, KvValue};
 use crate::{util, ParseResult};
 use proc_macro2::{Ident, Punct, Span, TokenStream};
 use quote::spanned::Spanned;
@@ -163,7 +163,7 @@ fn parse_godot_attr(attributes: &Vec<Attribute>) -> ParseResult<Option<(Span, Kv
     let mut godot_attr = None;
     for attr in attributes.iter() {
         let path = &attr.path;
-        if path.len() == 1 && path[0].to_string() == "godot" {
+        if path_is_single(path, "godot") {
             if godot_attr.is_some() {
                 bail(
                     "Only one #[godot] attribute per item (struct, fn, ...) allowed",

@@ -4,77 +4,60 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{bail, ident};
-use proc_macro2::{Delimiter, Group, TokenStream};
+use crate::util::{bail, parse_kv_group, path_is_single, KvValue};
+use proc_macro2::TokenStream;
 use quote::quote;
-use std::mem;
 use venial::Declaration;
 
-pub fn transform(input: TokenStream) -> Result<TokenStream, venial::Error> {
-    let decl = venial::parse_declaration(input)?;
-
-    let func = match decl {
-        Declaration::Function(f) => f,
-        _ => return bail("#[gdextension] can only be applied to functions", &decl),
+pub fn transform(meta: TokenStream, input: TokenStream) -> Result<TokenStream, venial::Error> {
+    // Hack because venial doesn't support direct meta parsing yet
+    let input = quote! {
+        #[gdextension(#meta)]
+        #input
     };
 
-    if !func.attributes.is_empty()
-        || func.generic_params.is_some()
-        || func.qualifiers.tk_default.is_some()
-        || func.qualifiers.tk_const.is_some()
-        || func.qualifiers.tk_async.is_some()
-        || func.qualifiers.tk_unsafe.is_some()
-        || func.qualifiers.tk_extern.is_some()
-        || func.qualifiers.extern_abi.is_some()
-        || func.return_ty.is_some()
-        || func.where_clause.is_some()
-    {
-        return bail(
-            &format!(
-                "#[gdextension] function signature must be of these two:\n\
-                  \tfn {f}(handle: &mut InitHandle) {{ ... }}\n\
-                  \tfn {f}(handle: &mut InitHandle);",
-                f = func.name
-            ),
-            &func,
-        );
+    let decl = venial::parse_declaration(input)?;
+
+    let mut impl_decl = match decl {
+        Declaration::Impl(item) => item,
+        _ => return bail("#[gdextension] can only be applied to trait impls", &decl),
+    };
+
+    let mut entry_point = None;
+    for attr in impl_decl.attributes.drain(..) {
+        if path_is_single(&attr.path, "gdextension") {
+            for (k, v) in parse_kv_group(&attr.value).expect("#[gdextension] has invalid arguments")
+            {
+                match (k.as_str(), v) {
+                    ("entry_point", KvValue::Ident(f)) => entry_point = Some(f),
+                    _ => return bail(&format!("#[gdextension]: invalid argument `{k}`"), attr),
+                }
+            }
+        }
     }
 
-    let mut func = func;
-    if func.body.is_none() {
-        let delim = Delimiter::Brace;
-        let body = quote! {
-            godot_core::init::__gdext_default_init(handle);
-        };
-
-        func.body = Some(Group::new(delim, body));
-        func.tk_semicolon = None;
-    }
-
-    let internal_func_name = ident("__gdext_user_init");
-    let extern_fn_name = mem::replace(&mut func.name, internal_func_name.clone());
+    let entry_point = entry_point.unwrap(); //_or(ident("gdext_init"));
+    let impl_ty = &impl_decl.self_ty;
 
     Ok(quote! {
-        #func
+        #impl_decl
 
         #[no_mangle]
-        unsafe extern "C" fn #extern_fn_name(
+        unsafe extern "C" fn #entry_point(
             interface: *const ::godot_ffi::GDNativeInterface,
             library: ::godot_ffi::GDNativeExtensionClassLibraryPtr,
             init: *mut ::godot_ffi::GDNativeInitialization,
         ) -> ::godot_ffi::GDNativeBool {
-            ::godot_core::init::__gdext_load_library(
-                #internal_func_name,
+            ::godot_core::init::__gdext_load_library::<#impl_ty>(
                 interface,
                 library,
                 init
             )
         }
 
-        #[allow(dead_code)]
-        const fn __gdext_static_type_check() {
+        fn __static_type_check() {
             // Ensures that the init function matches the signature advertised in FFI header
-            let _unused: ::godot_ffi::GDNativeInitializationFunction = Some(#extern_fn_name);
+            let _unused: ::godot_ffi::GDNativeInitializationFunction = Some(#entry_point);
         }
     })
 }

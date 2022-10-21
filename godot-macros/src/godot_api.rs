@@ -45,7 +45,7 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
 
 /// Codegen for `#[godot_api] impl MyType`
 fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
-    let class_name = validate_trait_impl(&decl, false)?;
+    let class_name = validate_trait_impl(&decl, "godot_api", None)?;
     let class_name_str = class_name.to_string();
     //let register_fn = format_ident!("__godot_rust_register_{}", class_name_str);
     //#[allow(non_snake_case)]
@@ -119,7 +119,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
 
 /// Codegen for `#[godot_api] impl GodotExt for MyType`
 fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
-    let class_name = validate_trait_impl(&original_impl, true)?;
+    let class_name = validate_trait_impl(&original_impl, "godot_api", Some("GodotExt"))?;
     let class_name_str = class_name.to_string();
 
     let mut godot_init_impl = TokenStream::new();
@@ -211,13 +211,17 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 }
 
 /// Make sure that in `impl Trait for Self`, both `Trait` and `Self` are good
-fn validate_trait_impl(original_impl: &Impl, has_trait: bool) -> ParseResult<Ident> {
-    if has_trait {
+fn validate_trait_impl(
+    original_impl: &Impl,
+    attr: &str,
+    expected_trait: Option<&str>,
+) -> ParseResult<Ident> {
+    if let Some(expected_trait) = expected_trait {
         // impl Trait for Self -- validate Trait
         let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
-        if !extract_typename(&trait_name).map_or(false, |seg| seg.ident == "GodotExt") {
+        if !extract_typename(&trait_name).map_or(false, |seg| seg.ident == expected_trait) {
             return bail(
-                "#[godot_api] for trait impls requires trait to be `GodotExt`",
+                format!("#[{attr}] for trait impls requires trait to be `{expected_trait}`"),
                 &original_impl,
             );
         }
@@ -229,13 +233,13 @@ fn validate_trait_impl(original_impl: &Impl, has_trait: bool) -> ParseResult<Ide
             Ok(segment.ident)
         } else {
             bail(
-                "#[godot_api] for does currently not support generic arguments",
+                format!("#[{attr}] for does currently not support generic arguments"),
                 &original_impl,
             )
         }
     } else {
         bail(
-            "#[godot_api] requires Self type to be a simple path",
+            format!("#[{attr}] requires Self type to be a simple path"),
             &original_impl,
         )
     }

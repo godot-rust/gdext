@@ -305,3 +305,7 @@ mod tests {
         );
     }
 }
+
+pub(crate) fn path_is_single(path: &Vec<TokenTree>, expected: &str) -> bool {
+    path.len() == 1 && path[0].to_string() == expected
+}

@@ -32,8 +32,8 @@ pub fn itest(_meta: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn gdextension(_meta: TokenStream, input: TokenStream) -> TokenStream {
-    translate(input, gdextension::transform)
+pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {
+    translate_meta(meta, input, gdextension::transform)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -46,6 +46,19 @@ where
 {
     let input2 = TokenStream2::from(input);
     let result2: TokenStream2 = match transform(input2) {
+        Ok(output) => output,
+        Err(error) => error.to_compile_error(),
+    };
+    TokenStream::from(result2)
+}
+
+fn translate_meta<F>(meta: TokenStream, input: TokenStream, transform: F) -> TokenStream
+where
+    F: FnOnce(TokenStream2, TokenStream2) -> ParseResult<TokenStream2>,
+{
+    let input2 = TokenStream2::from(input);
+    let meta2 = TokenStream2::from(meta);
+    let result2: TokenStream2 = match transform(meta2, input2) {
         Ok(output) => output,
         Err(error) => error.to_compile_error(),
     };

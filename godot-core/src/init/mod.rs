@@ -8,8 +8,7 @@ use godot_ffi as sys;
 use std::collections::btree_map::BTreeMap;
 
 #[doc(hidden)]
-pub fn __gdext_load_library(
-    user_init: fn(&mut InitHandle),
+pub fn __gdext_load_library<E: ExtensionLib>(
     interface: *const sys::GDNativeInterface,
     library: sys::GDNativeExtensionClassLibraryPtr,
     init: *mut sys::GDNativeInitialization,
@@ -18,7 +17,7 @@ pub fn __gdext_load_library(
 
     let mut handle = InitHandle::new();
 
-    user_init(&mut handle);
+    let success = E::load_library(&mut handle);
     // No early exit, unclear if Godot still requires output parameters to be set
 
     let godot_init_params = sys::GDNativeInitialization {
@@ -28,13 +27,13 @@ pub fn __gdext_load_library(
         deinitialize: Some(ffi_deinitialize_layer),
     };
 
-    let result = handle.success as u8;
+    let is_success = /*handle.*/success as u8;
     unsafe {
         *init = godot_init_params;
         INIT_HANDLE = Some(handle);
     }
 
-    result
+    is_success
 }
 
 #[doc(hidden)]
@@ -97,14 +96,14 @@ impl ExtensionLayer for DefaultLayer {
 
 pub struct InitHandle {
     layers: BTreeMap<InitLevel, Box<dyn ExtensionLayer>>,
-    success: bool,
+    // success: bool,
 }
 
 impl InitHandle {
     pub fn new() -> Self {
         Self {
             layers: BTreeMap::new(),
-            success: true,
+            // success: true,
         }
     }
 
@@ -112,9 +111,9 @@ impl InitHandle {
         self.layers.insert(level, Box::new(layer));
     }
 
-    pub fn mark_failed(&mut self) {
-        self.success = false;
-    }
+    // pub fn mark_failed(&mut self) {
+    //     self.success = false;
+    // }
 
     pub fn lowest_init_level(&self) -> InitLevel {
         self.layers
