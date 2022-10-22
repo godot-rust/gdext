@@ -1,5 +1,5 @@
 [configuration]
-entry_symbol = "demo_init"
+entry_symbol = "gdextension_rust_init"
 
 [libraries]
 linux.64 = "res://../../target/debug/libdemo.so"

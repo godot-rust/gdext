@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_core::init::InitHandle;
+use godot_core::init::ExtensionLibrary;
 use godot_macros::{gdextension, godot_api, itest, GodotClass};
 use std::panic::UnwindSafe;
 
@@ -52,8 +52,8 @@ impl IntegrationTests {
     }
 }
 
-#[gdextension]
-fn itest_init(handle: &mut InitHandle);
+#[gdextension(entry_point=itest_init)]
+unsafe impl ExtensionLibrary for IntegrationTests {}
 
 #[doc(hidden)]
 #[macro_export]

@@ -8,7 +8,7 @@ use godot_ffi as sys;
 use std::collections::btree_map::BTreeMap;
 
 #[doc(hidden)]
-pub fn __gdext_load_library<E: ExtensionLib>(
+pub fn __gdext_load_library<E: ExtensionLibrary>(
     interface: *const sys::GDNativeInterface,
     library: sys::GDNativeExtensionClassLibraryPtr,
     init: *mut sys::GDNativeInitialization,
@@ -63,9 +63,7 @@ unsafe extern "C" fn ffi_deinitialize_layer(
 #[doc(hidden)]
 pub static mut INIT_HANDLE: Option<InitHandle> = None;
 
-pub trait ExtensionLib {
-    const ENTRY_POINT: &'static str = "gdextension_init";
-
+pub unsafe trait ExtensionLibrary {
     fn load_library(handle: &mut InitHandle) -> bool {
         handle.register_layer(InitLevel::Scene, DefaultLayer);
         true

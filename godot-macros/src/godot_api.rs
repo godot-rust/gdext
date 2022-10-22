@@ -4,9 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::util;
 use crate::util::bail;
-use crate::{util, ParseResult};
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
 use venial::{Declaration, Error, Function, Impl, ImplMember};
 
@@ -45,7 +45,7 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
 
 /// Codegen for `#[godot_api] impl MyType`
 fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
-    let class_name = validate_trait_impl(&decl, "godot_api", None)?;
+    let class_name = util::validate_impl(&decl, None, "godot_api")?;
     let class_name_str = class_name.to_string();
     //let register_fn = format_ident!("__godot_rust_register_{}", class_name_str);
     //#[allow(non_snake_case)]
@@ -119,7 +119,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<Vec<Function>, Error> {
 
 /// Codegen for `#[godot_api] impl GodotExt for MyType`
 fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
-    let class_name = validate_trait_impl(&original_impl, "godot_api", Some("GodotExt"))?;
+    let class_name = util::validate_impl(&original_impl, Some("GodotExt"), "godot_api")?;
     let class_name_str = class_name.to_string();
 
     let mut godot_init_impl = TokenStream::new();
@@ -208,47 +208,4 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     };
 
     Ok(result)
-}
-
-/// Make sure that in `impl Trait for Self`, both `Trait` and `Self` are good
-fn validate_trait_impl(
-    original_impl: &Impl,
-    attr: &str,
-    expected_trait: Option<&str>,
-) -> ParseResult<Ident> {
-    if let Some(expected_trait) = expected_trait {
-        // impl Trait for Self -- validate Trait
-        let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
-        if !extract_typename(&trait_name).map_or(false, |seg| seg.ident == expected_trait) {
-            return bail(
-                format!("#[{attr}] for trait impls requires trait to be `{expected_trait}`"),
-                &original_impl,
-            );
-        }
-    }
-
-    // impl Trait for Self -- validate Self
-    if let Some(segment) = extract_typename(&original_impl.self_ty) {
-        if segment.generic_args.is_none() {
-            Ok(segment.ident)
-        } else {
-            bail(
-                format!("#[{attr}] for does currently not support generic arguments"),
-                &original_impl,
-            )
-        }
-    } else {
-        bail(
-            format!("#[{attr}] requires Self type to be a simple path"),
-            &original_impl,
-        )
-    }
-}
-
-/// Gets the right-most type name in the path
-fn extract_typename(ty: &venial::TyExpr) -> Option<venial::PathSegment> {
-    match ty.as_path() {
-        Some(mut path) => path.segments.pop(),
-        _ => None,
-    }
 }

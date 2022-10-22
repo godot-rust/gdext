@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{bail, parse_kv_group, path_is_single, KvValue};
+use crate::util::{bail, ident, parse_kv_group, path_is_single, validate_impl, KvValue};
 use proc_macro2::TokenStream;
 use quote::quote;
 use venial::Declaration;
@@ -23,6 +23,14 @@ pub fn transform(meta: TokenStream, input: TokenStream) -> Result<TokenStream, v
         _ => return bail("#[gdextension] can only be applied to trait impls", &decl),
     };
 
+    validate_impl(&impl_decl, Some("ExtensionLibrary"), "gdextension")?;
+    if impl_decl.tk_unsafe.is_none() {
+        return bail(
+            "`impl ExtensionLibrary` must be marked unsafe, to confirm your opt-in to godot-rust's safety model", 
+            impl_decl.tk_impl
+        );
+    }
+
     let mut entry_point = None;
     for attr in impl_decl.attributes.drain(..) {
         if path_is_single(&attr.path, "gdextension") {
@@ -36,7 +44,7 @@ pub fn transform(meta: TokenStream, input: TokenStream) -> Result<TokenStream, v
         }
     }
 
-    let entry_point = entry_point.unwrap(); //_or(ident("gdext_init"));
+    let entry_point = entry_point.unwrap_or(ident("gdextension_rust_init"));
     let impl_ty = &impl_decl.self_ty;
 
     Ok(quote! {

@@ -11,7 +11,7 @@ use proc_macro2::{Ident, Literal, Span, TokenTree};
 use quote::format_ident;
 use quote::spanned::Spanned;
 use std::collections::HashMap;
-use venial::{Error, Function};
+use venial::{Error, Function, Impl};
 
 pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
@@ -196,6 +196,51 @@ pub(crate) fn ensure_kv_empty(map: KvMap, span: Span) -> ParseResult<()> {
     } else {
         let msg = &format!("Attribute contains unknown keys: {:?}", map.keys());
         bail(msg, span)
+    }
+}
+
+/// Validates either:
+/// a) the declaration is `impl Trait for SomeType`, if `expected_trait` is `Some("Trait")`  
+/// b) the declaration is `impl SomeType`, if `expected_trait` is `None`
+pub(crate) fn validate_impl(
+    original_impl: &Impl,
+    expected_trait: Option<&str>,
+    attr: &str,
+) -> ParseResult<Ident> {
+    if let Some(expected_trait) = expected_trait {
+        // impl Trait for Self -- validate Trait
+        let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
+        if !extract_typename(&trait_name).map_or(false, |seg| seg.ident == expected_trait) {
+            return bail(
+                format!("#[{attr}] for trait impls requires trait to be `{expected_trait}`"),
+                &original_impl,
+            );
+        }
+    }
+
+    // impl Trait for Self -- validate Self
+    if let Some(segment) = extract_typename(&original_impl.self_ty) {
+        if segment.generic_args.is_none() {
+            Ok(segment.ident)
+        } else {
+            bail(
+                format!("#[{attr}] for does currently not support generic arguments"),
+                &original_impl,
+            )
+        }
+    } else {
+        bail(
+            format!("#[{attr}] requires Self type to be a simple path"),
+            &original_impl,
+        )
+    }
+}
+
+/// Gets the right-most type name in the path
+fn extract_typename(ty: &venial::TyExpr) -> Option<venial::PathSegment> {
+    match ty.as_path() {
+        Some(mut path) => path.segments.pop(),
+        _ => None,
     }
 }
 

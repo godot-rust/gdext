@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 use godot_core::api::{Node3D, RefCounted};
 use godot_core::builtin::{FromVariant, GodotString, ToVariant, Vector2, Vector3};
-use godot_core::init::ExtensionLib;
+use godot_core::init::ExtensionLibrary;
 use godot_core::obj::{Base, Gd, InstanceId};
 use godot_core::out;
 use godot_core::traits::{GodotExt, Share};
@@ -213,5 +213,5 @@ impl GodotExt for Entity {
 
 struct MyGame;
 
-#[gdextension(entry_point=demo_init)]
-impl ExtensionLib for MyGame {}
+#[gdextension]
+unsafe impl ExtensionLibrary for MyGame {}
