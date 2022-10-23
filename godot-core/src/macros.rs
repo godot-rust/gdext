@@ -66,12 +66,6 @@ macro_rules! gdext_register_method_inner {
                         ret: sys::GDNativeVariantPtr,
                         err: *mut sys::GDNativeCallError,
                     ) {
-                        // $crate::gdext_varcall!(
-                        //     instance_ptr, args, ret, err;
-                        //     $Class;
-                        //     fn $method_name( $( $param: $ParamTy, )* ) -> $( $RetTy )+
-                        // );
-
                         < ($($RetTy)+, $($ParamTy,)*) as godot_core::builtin::SignatureTuple >::varcall::< $Class >(
                             instance_ptr,
                             args,
@@ -94,13 +88,7 @@ macro_rules! gdext_register_method_inner {
                         args: *const sys::GDNativeTypePtr,
                         ret: sys::GDNativeTypePtr,
                     ) {
-                        /*$crate::gdext_ptrcall!(
-                            instance_ptr, args, ret;
-                            $Class;
-                            fn $method_name( $( $param: $ParamTy, )* ) -> $( $RetTy )+
-                        );*/
-
-                         < ($($RetTy)+, $($ParamTy,)*) as godot_core::builtin::SignatureTuple >::ptrcall::< $Class >(
+                        < ($($RetTy)+, $($ParamTy,)*) as godot_core::builtin::SignatureTuple >::ptrcall::< $Class >(
                             instance_ptr,
                             args,
                             ret,
@@ -368,44 +356,5 @@ macro_rules! gdext_ptrcall {
         <$($RetTy)+ as sys::GodotFfi>::write_sys(&ret_val, $ret);
         // FIXME should be inc_ref instead of forget
         std::mem::forget(ret_val);
-    };
-}
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! gdext_varcall {
-    (
-        $instance_ptr:ident, $args:ident, $ret:ident, $err:ident;
-        $Class:ty;
-        fn $method_name:ident(
-            $( $arg:ident : $ParamTy:ty, )*
-        ) -> $( $RetTy:tt )+
-    ) => {
-        use godot_core::builtin::{FromVariant, ToVariant, Variant};
-        use godot_ffi as sys;
-
-        println!("varcall: {}", stringify!($method_name));
-        let storage = ::godot_core::private::as_storage::<$Class>($instance_ptr);
-        let mut instance = storage.get_mut();
-
-        let mut idx = 0;
-        $(
-            let variant = &*(*$args.offset(idx) as *mut Variant);
-            let $arg = <$ParamTy as FromVariant>::try_from_variant(variant)
-                .unwrap_or_else(|e| panic!("{method}: parameter {index} has type {param}, but argument was {arg}",
-                    method = stringify!($method_name),
-                    index = idx,
-                    param = stringify!($ParamTy), //std::any::type_name::<$ParamTy>
-                    arg = variant,
-                ));
-            idx += 1;
-        )*
-
-        let ret_val = instance.$method_name($(
-            $arg,
-        )*);
-
-        *($ret as *mut Variant) = <$($RetTy)+ as ToVariant>::to_variant(&ret_val);
-        (*$err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
     };
 }
