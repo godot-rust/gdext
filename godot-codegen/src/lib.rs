@@ -29,17 +29,7 @@ use quote::ToTokens;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-// macro_rules! local_path {
-//     ($path:lit) => {
-//         Path::new(concat!(env!("CARGO_MANIFEST_DIR"), $path))
-//     };
-// }
-
 pub fn generate_sys_files(sys_out_dir: &Path, core_out_dir: &Path) {
-    // Time measurement:
-    //     let now = std::time::Instant::now();
-    //     let elapsed = now.elapsed().as_millis();
-
     let central_sys_gen_path = sys_out_dir;
     let central_core_gen_path = core_out_dir;
     let class_gen_path = core_out_dir;

@@ -41,6 +41,9 @@ struct TypeNames {
 struct BuiltinTypeInfo<'a> {
     value: i32,
     type_names: TypeNames,
+
+    /// If `variant_get_ptr_destructor` returns a non-null function pointer for this type.
+    /// List is directly sourced from extension_api.json (information would also be in variant_destruct.cpp).
     has_destructor: bool,
     constructors: Option<&'a Vec<Constructor>>,
     operators: Option<&'a Vec<Operator>>,
@@ -54,15 +57,38 @@ pub(crate) fn generate_central_files(
     core_gen_path: &Path,
     out_files: &mut Vec<PathBuf>,
 ) {
+    let central_items = make_central_items(api, build_config, ctx);
+
+    let sys_code = make_sys_code(&central_items);
+    let core_code = make_core_code(&central_items);
+
+    write_files(sys_gen_path, sys_code, out_files);
+    write_files(core_gen_path, core_code, out_files);
+}
+
+fn write_files(gen_path: &Path, code: String, out_files: &mut Vec<PathBuf>) {
+    let _ = std::fs::create_dir_all(gen_path);
+    let out_path = gen_path.join("central.rs");
+
+    std::fs::write(&out_path, code).unwrap_or_else(|e| {
+        panic!(
+            "failed to write code file to {};\n\t{}",
+            out_path.display(),
+            e
+        )
+    });
+    out_files.push(out_path);
+}
+
+fn make_sys_code(central_items: &CentralItems) -> String {
     let CentralItems {
         opaque_types,
         variant_enumerators_shout,
-        variant_enumerators_pascal,
-        variant_enum_rust_types,
         variant_enum_ords,
         variant_fn_decls,
         variant_fn_inits,
-    } = make_central_items(api, build_config, ctx);
+        ..
+    } = central_items;
 
     let sys_tokens = quote! {
         #![allow(dead_code)]
@@ -112,6 +138,16 @@ pub(crate) fn generate_central_files(
         }
     };
 
+    sys_tokens.to_string()
+}
+
+fn make_core_code(central_items: &CentralItems) -> String {
+    let CentralItems {
+        variant_enumerators_pascal,
+        variant_enum_rust_types,
+        ..
+    } = central_items;
+
     let core_tokens = quote! {
         use crate::builtin::*;
 
@@ -124,30 +160,7 @@ pub(crate) fn generate_central_files(
         }
     };
 
-    let sys_string = sys_tokens.to_string();
-    let core_string = core_tokens.to_string();
-
-    let _ = std::fs::create_dir_all(sys_gen_path);
-    let out_path = sys_gen_path.join("central.rs");
-    std::fs::write(&out_path, sys_string).unwrap_or_else(|e| {
-        panic!(
-            "failed to write sys/central file to {};\n\t{}",
-            out_path.display(),
-            e
-        )
-    });
-    out_files.push(out_path);
-
-    let _ = std::fs::create_dir_all(core_gen_path);
-    let out_path = core_gen_path.join("central.rs");
-    std::fs::write(&out_path, core_string).unwrap_or_else(|e| {
-        panic!(
-            "failed to write core/central file to {};\n\t{}",
-            out_path.display(),
-            e
-        )
-    });
-    out_files.push(out_path);
+    core_tokens.to_string()
 }
 
 fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> CentralItems {
@@ -162,8 +175,52 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
         }
     }
 
-    // Find variant types, for which `variant_get_ptr_destructor` returns a non-null function pointer.
-    // List is directly sourced from extension_api.json (information would also be in variant_destruct.cpp).
+    let class_map = collect_builtin_classes(api);
+    let builtin_types_map = collect_builtin_types(api, &class_map);
+
+    // Generate builtin methods, now with info for all types available.
+    // Separate vectors because that makes usage in quote! easier.
+    let len = builtin_types_map.len();
+
+    let mut result = CentralItems {
+        opaque_types,
+        variant_enumerators_shout: Vec::with_capacity(len),
+        variant_enumerators_pascal: Vec::with_capacity(len),
+        variant_enum_rust_types: Vec::with_capacity(len),
+        variant_enum_ords: Vec::with_capacity(len),
+        variant_fn_decls: Vec::with_capacity(len),
+        variant_fn_inits: Vec::with_capacity(len),
+    };
+
+    let mut builtin_types: Vec<_> = builtin_types_map.values().collect();
+    builtin_types.sort_by_key(|info| info.value);
+
+    // Note: NIL is not part of this iteration, it will be added manually
+    for ty in builtin_types {
+        // Note: both are token streams, containing multiple function declarations/initializations
+        let (decls, inits) = make_variant_fns(
+            &ty.type_names,
+            ty.has_destructor,
+            ty.constructors,
+            ty.operators,
+            &builtin_types_map,
+        );
+
+        let (shout_name, pascal_name, rust_ty, ord) =
+            make_enumerator(&ty.type_names, ty.value, ctx);
+
+        result.variant_enumerators_shout.push(shout_name);
+        result.variant_enumerators_pascal.push(pascal_name);
+        result.variant_enum_rust_types.push(rust_ty);
+        result.variant_enum_ords.push(ord);
+        result.variant_fn_decls.push(decls);
+        result.variant_fn_inits.push(inits);
+    }
+
+    result
+}
+
+fn collect_builtin_classes(api: &ExtensionApi) -> HashMap<String, &BuiltinClass> {
     let mut class_map = HashMap::new();
     for class in &api.builtin_classes {
         let normalized_name = class.name.to_lowercase();
@@ -171,22 +228,26 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
         class_map.insert(normalized_name, class);
     }
 
-    let class_map = class_map;
+    class_map
+}
 
-    let mut builtin_types_map = HashMap::new();
-
+fn collect_builtin_types<'a>(
+    api: &'a ExtensionApi,
+    class_map: &HashMap<String, &'a BuiltinClass>,
+) -> HashMap<String, BuiltinTypeInfo<'a>> {
     let found_enum = api
         .global_enums
         .iter()
         .find(|e| &e.name == "Variant.Type")
-        .expect("Missing enum for VariantType in JSON");
+        .expect("missing enum for VariantType in JSON");
 
     // Collect all `BuiltinTypeInfo`s
+    let mut builtin_types_map = HashMap::new();
     for ty in &found_enum.values {
         let shout_case = ty
             .name
             .strip_prefix("TYPE_")
-            .expect("Enum name begins with 'TYPE_'");
+            .expect("enum name begins with 'TYPE_'");
 
         if shout_case == "NIL" || shout_case == "MAX" {
             continue;
@@ -234,46 +295,7 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
             },
         );
     }
-
-    // Generate builtin methods, now with info for all types available.
-    // Separate vectors because that makes usage in quote! easier.
-    let len = builtin_types_map.len();
-
-    let mut result = CentralItems {
-        opaque_types,
-        variant_enumerators_shout: Vec::with_capacity(len),
-        variant_enumerators_pascal: Vec::with_capacity(len),
-        variant_enum_rust_types: Vec::with_capacity(len),
-        variant_enum_ords: Vec::with_capacity(len),
-        variant_fn_decls: Vec::with_capacity(len),
-        variant_fn_inits: Vec::with_capacity(len),
-    };
-
-    let mut builtin_types: Vec<_> = builtin_types_map.values().collect();
-    builtin_types.sort_by_key(|info| info.value);
-
-    // Note: NIL is not part of this iteration, it will be added manually
-    for ty in builtin_types {
-        let (decl, init) = make_variant_fns(
-            &ty.type_names,
-            ty.has_destructor,
-            ty.constructors,
-            ty.operators,
-            &builtin_types_map,
-        );
-
-        let (shout_name, pascal_name, rust_ty, ord) =
-            make_enumerator(&ty.type_names, ty.value, ctx);
-
-        result.variant_enumerators_shout.push(shout_name);
-        result.variant_enumerators_pascal.push(pascal_name);
-        result.variant_enum_rust_types.push(rust_ty);
-        result.variant_enum_ords.push(ord);
-        result.variant_fn_decls.push(decl);
-        result.variant_fn_inits.push(init);
-    }
-
-    result
+    builtin_types_map
 }
 
 fn make_enumerator(
@@ -432,6 +454,7 @@ fn make_extra_constructors(
     let mut extra_decls = Vec::with_capacity(constructors.len() - 2);
     let mut extra_inits = Vec::with_capacity(constructors.len() - 2);
     let variant_type = &type_names.sys_variant_type;
+
     for i in 2..constructors.len() {
         let ctor = &constructors[i];
         if let Some(args) = &ctor.arguments {
@@ -444,15 +467,18 @@ fn make_extra_constructors(
             } else {
                 // Type-specific constructor is named according to the argument names
                 // Vector3(float x, float y, float z) => vector3_from_x_y_z
-                let arg_names = args
+                let mut arg_names = args
                     .iter()
                     .fold(String::new(), |acc, arg| acc + &arg.name + "_");
+                arg_names.pop(); // remove trailing '_'
                 format_ident!("{type_name}_from_{arg_names}")
             };
+
             let err = format_load_error(&ident);
             extra_decls.push(quote! {
                 pub #ident: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
             });
+
             let i = i as i32;
             extra_inits.push(quote! {
                #ident: {
@@ -462,6 +488,7 @@ fn make_extra_constructors(
             });
         }
     }
+
     (extra_decls, extra_inits)
 }
 
@@ -483,6 +510,7 @@ fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStrea
             dtor_fn(crate:: #variant_type).unwrap()
         },
     };
+
     (decls, inits)
 }
 
@@ -526,6 +554,7 @@ fn make_operator_fns(
             ).expect(#error)
         },
     };
+
     (decl, init)
 }
 
