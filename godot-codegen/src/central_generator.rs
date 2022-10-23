@@ -15,12 +15,11 @@ use crate::{ident, Context};
 
 struct CentralItems {
     opaque_types: Vec<TokenStream>,
-    variant_enumerators_shout: Vec<Ident>,
-    variant_enumerators_pascal: Vec<Ident>,
-    variant_enum_rust_types: Vec<TokenStream>,
-    variant_enum_ords: Vec<Literal>,
-    variant_op_enumerators_shout: Vec<Ident>,
-    variant_op_enum_ords: Vec<Literal>,
+    variant_ty_enumerators_pascal: Vec<Ident>,
+    variant_ty_enumerators_rust: Vec<TokenStream>,
+    variant_ty_enumerators_ord: Vec<Literal>,
+    variant_op_enumerators_pascal: Vec<Ident>,
+    variant_op_enumerators_ord: Vec<Literal>,
     variant_fn_decls: Vec<TokenStream>,
     variant_fn_inits: Vec<TokenStream>,
 }
@@ -33,7 +32,7 @@ struct TypeNames {
     snake_case: String,
 
     /// "PACKED_VECTOR2_ARRAY"
-    shout_case: String,
+    //shout_case: String,
 
     /// GDNATIVE_VARIANT_TYPE_PACKED_VECTOR2_ARRAY
     sys_variant_type: Ident,
@@ -85,10 +84,10 @@ fn write_files(gen_path: &Path, code: String, out_files: &mut Vec<PathBuf>) {
 fn make_sys_code(central_items: &CentralItems) -> String {
     let CentralItems {
         opaque_types,
-        variant_enumerators_shout,
-        variant_enum_ords,
-        variant_op_enumerators_shout,
-        variant_op_enum_ords,
+        variant_ty_enumerators_pascal,
+        variant_ty_enumerators_ord,
+        variant_op_enumerators_pascal,
+        variant_op_enumerators_ord,
         variant_fn_decls,
         variant_fn_inits,
         ..
@@ -116,9 +115,9 @@ fn make_sys_code(central_items: &CentralItems) -> String {
 
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
         pub enum VariantType {
-            NIL = 0,
+            Nil = 0,
             #(
-                #variant_enumerators_shout = #variant_enum_ords,
+                #variant_ty_enumerators_pascal = #variant_ty_enumerators_ord,
             )*
         }
 
@@ -127,9 +126,9 @@ fn make_sys_code(central_items: &CentralItems) -> String {
             pub fn from_sys(enumerator: crate::GDNativeVariantType) -> Self {
                 // Annoying, but only stable alternative is transmute(), which dictates enum size
                 match enumerator {
-                    0 => Self::NIL,
+                    0 => Self::Nil,
                     #(
-                        #variant_enum_ords => Self::#variant_enumerators_shout,
+                        #variant_ty_enumerators_ord => Self::#variant_ty_enumerators_pascal,
                     )*
                     _ => unreachable!("invalid variant type {}", enumerator)
                 }
@@ -144,7 +143,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
         pub enum VariantOperator {
             #(
-                #variant_op_enumerators_shout = #variant_op_enum_ords,
+                #variant_op_enumerators_pascal = #variant_op_enumerators_ord,
             )*
         }
 
@@ -153,7 +152,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
             pub fn from_sys(enumerator: crate::GDNativeVariantOperator) -> Self {
                 match enumerator {
                     #(
-                        #variant_op_enum_ords => Self::#variant_op_enumerators_shout,
+                        #variant_op_enumerators_ord => Self::#variant_op_enumerators_pascal,
                     )*
                     _ => unreachable!("invalid variant operator {}", enumerator)
                 }
@@ -171,8 +170,8 @@ fn make_sys_code(central_items: &CentralItems) -> String {
 
 fn make_core_code(central_items: &CentralItems) -> String {
     let CentralItems {
-        variant_enumerators_pascal,
-        variant_enum_rust_types,
+        variant_ty_enumerators_pascal,
+        variant_ty_enumerators_rust,
         ..
     } = central_items;
 
@@ -183,7 +182,7 @@ fn make_core_code(central_items: &CentralItems) -> String {
         pub enum VariantDispatch {
             Nil,
             #(
-                #variant_enumerators_pascal(#variant_enum_rust_types),
+                #variant_ty_enumerators_pascal(#variant_ty_enumerators_rust),
             )*
         }
     };
@@ -213,12 +212,11 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
 
     let mut result = CentralItems {
         opaque_types,
-        variant_enumerators_shout: Vec::with_capacity(len),
-        variant_enumerators_pascal: Vec::with_capacity(len),
-        variant_enum_rust_types: Vec::with_capacity(len),
-        variant_enum_ords: Vec::with_capacity(len),
-        variant_op_enumerators_shout: Vec::new(),
-        variant_op_enum_ords: Vec::new(),
+        variant_ty_enumerators_pascal: Vec::with_capacity(len),
+        variant_ty_enumerators_rust: Vec::with_capacity(len),
+        variant_ty_enumerators_ord: Vec::with_capacity(len),
+        variant_op_enumerators_pascal: Vec::new(),
+        variant_op_enumerators_ord: Vec::new(),
         variant_fn_decls: Vec::with_capacity(len),
         variant_fn_inits: Vec::with_capacity(len),
     };
@@ -237,13 +235,11 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
             &builtin_types_map,
         );
 
-        let (shout_name, pascal_name, rust_ty, ord) =
-            make_enumerator(&ty.type_names, ty.value, ctx);
+        let (pascal_name, rust_ty, ord) = make_enumerator(&ty.type_names, ty.value, ctx);
 
-        result.variant_enumerators_shout.push(shout_name);
-        result.variant_enumerators_pascal.push(pascal_name);
-        result.variant_enum_rust_types.push(rust_ty);
-        result.variant_enum_ords.push(ord);
+        result.variant_ty_enumerators_pascal.push(pascal_name);
+        result.variant_ty_enumerators_rust.push(rust_ty);
+        result.variant_ty_enumerators_ord.push(ord);
         result.variant_fn_decls.push(decls);
         result.variant_fn_inits.push(inits);
     }
@@ -258,9 +254,11 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
             continue;
         }
 
-        result.variant_op_enumerators_shout.push(ident(&name));
         result
-            .variant_op_enum_ords
+            .variant_op_enumerators_pascal
+            .push(ident(&shout_to_pascal(name)));
+        result
+            .variant_op_enumerators_ord
             .push(Literal::i32_unsuffixed(op.value));
     }
 
@@ -270,7 +268,7 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
 fn collect_builtin_classes(api: &ExtensionApi) -> HashMap<String, &BuiltinClass> {
     let mut class_map = HashMap::new();
     for class in &api.builtin_classes {
-        let normalized_name = class.name.to_lowercase();
+        let normalized_name = class.name.to_ascii_lowercase();
 
         class_map.insert(normalized_name, class);
     }
@@ -301,7 +299,7 @@ fn collect_builtin_types<'a>(
         }
 
         // Lowercase without underscore, to map SHOUTY_CASE to shoutycase
-        let normalized = shout_case.to_lowercase().replace("_", "");
+        let normalized = shout_case.to_ascii_lowercase().replace("_", "");
 
         // TODO cut down on the number of cached functions generated
         // e.g. there's no point in providing operator< for int
@@ -324,8 +322,8 @@ fn collect_builtin_types<'a>(
 
         let type_names = TypeNames {
             pascal_case,
-            snake_case: shout_case.to_lowercase(),
-            shout_case: shout_case.to_string(),
+            snake_case: shout_case.to_ascii_lowercase(),
+            //shout_case: shout_case.to_string(),
             sys_variant_type: format_ident!("GDNATIVE_VARIANT_TYPE_{}", shout_case),
         };
 
@@ -359,16 +357,15 @@ fn make_enumerator(
     type_names: &TypeNames,
     value: i32,
     ctx: &Context,
-) -> (Ident, Ident, TokenStream, Literal) {
-    let shout_name = format_ident!("{}", type_names.shout_case);
-
+) -> (Ident, TokenStream, Literal) {
+    //let shout_name = format_ident!("{}", type_names.shout_case);
     let (first, rest) = type_names.pascal_case.split_at(1);
 
     let pascal_name = format_ident!("{}{}", first.to_uppercase(), rest);
     let rust_ty = to_rust_type(&type_names.pascal_case, ctx);
     let ord = Literal::i32_unsuffixed(value);
 
-    (shout_name, pascal_name, rust_ty.tokens, ord)
+    (pascal_name, rust_ty.tokens, ord)
 }
 
 fn make_opaque_type(name: &str, size: usize) -> TokenStream {
@@ -587,7 +584,7 @@ fn make_operator_fns(
     let operator = format_ident!(
         "{}_operator_{}",
         type_names.snake_case,
-        sys_name.to_lowercase()
+        sys_name.to_ascii_lowercase()
     );
     let error = format_load_error(&operator);
 
@@ -628,4 +625,23 @@ fn is_trivial(type_names: &TypeNames) -> bool {
     let list = ["bool", "int", "float"];
 
     list.contains(&type_names.pascal_case.as_str())
+}
+
+fn shout_to_pascal(shout_case: &str) -> String {
+    let mut result = String::with_capacity(shout_case.len());
+    let mut next_upper = true;
+
+    for ch in shout_case.chars() {
+        if next_upper {
+            assert_ne!(ch, '_'); // no double underscore
+            result.push(ch); // unchanged
+            next_upper = false;
+        } else if ch == '_' {
+            next_upper = true;
+        } else {
+            result.push(ch.to_ascii_lowercase());
+        }
+    }
+
+    result
 }

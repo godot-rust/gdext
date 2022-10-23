@@ -18,7 +18,7 @@ macro_rules! push {
 
     ($inputs:ident; $gdscript_ty:ident, $rust_ty:ty, $gdscript_val:expr, $rust_val:expr) => {
         $inputs.push(Input {
-            ident: stringify!($rust_ty).to_lowercase(),
+            ident: stringify!($rust_ty).to_ascii_lowercase(),
             gdscript_ty: stringify!($gdscript_ty),
             gdscript_val: stringify!($gdscript_val),
             rust_ty: quote! { $rust_ty },
