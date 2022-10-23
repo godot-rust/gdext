@@ -14,32 +14,34 @@ description: "Install LLVM + Clang, with caching"
 runs:
   using: "composite"
   steps:
+    # Replaces also backspaces on Windows, since they cause problems in Bash
+    - name: "Set up install dir"
+      run: |
+        installDir=$(echo "${{ runner.temp }}/llvm" | sed "s!\\\\!/!")
+        echo "LLVM_INSTALL_DIR=$installDir" >> $GITHUB_ENV
+      shell: bash
+
     - name: "Cache LLVM and clang"
       id: cache-llvm
       # Note: conditionals not yet supported; see https://github.com/actions/runner/issues/834
       # if: ${{ inputs.llvm == 'true' }}
       uses: actions/cache@v3
       with:
-        path: |
-          C:/Program Files/LLVM
-          ./llvm
+#        path: |
+#          C:/Program Files/LLVM
+#          ./llvm
+        path: ${{ env.LLVM_INSTALL_DIR }}
         key: llvm-10.0
-
-    # Replaces also backspaces on Windows, since they cause problems in Bash
-#    - name: "Set up install dir"
-#      run: |
-#        installDir=$(echo "${{ runner.temp }}/llvm" | sed "s!\\\\!/!")
-#        echo "LLVM_DIR=$installDir" >> $GITHUB_ENV
-#      shell: bash
 
     - uses: KyleMayes/install-llvm-action@v1
       # if: ${{ inputs.llvm == 'true' }}
       with:
         version: "10.0"
+        directory: ${{ env.LLVM_INSTALL_DIR }}
         cached: ${{ steps.cache-llvm.outputs.cache-hit }}
-        #directory: ${{ env.LLVM_DIR }}
 
-#    - name: "Print LLVM dir"
-#      #run: ls -ls $LLVM_DIR/lib
-#      run: ls -la /Users/runner/work/gdextension/gdextension/llvm/lib
-#      shell: bash
+    - name: "Print LLVM dir"
+      #run: ls -ls $LLVM_DIR/lib
+      run: |
+        echo "LLVM_PATH: $LLVM_PATH"
+      shell: bash

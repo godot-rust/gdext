@@ -4,20 +4,25 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use bindgen::Builder;
 use godot_codegen as gen;
 use std::env;
 use std::path::PathBuf;
 
 fn main() {
+    // For custom path on macOS, iOS, Android etc: see gdnative-sys/build.rs
+
     let header_path = "../godot-codegen/input/gdnative_interface.h";
     println!("cargo:rerun-if-changed={}", header_path);
 
-    let bindings = bindgen::Builder::default()
+    let builder = bindgen::Builder::default()
         .header(header_path)
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
-        .prepend_enum_name(false)
+        .prepend_enum_name(false);
+
+    let bindings = configure_platform_specific(builder)
         .generate()
         .expect("unable to generate gdnative_interface.h bindings");
 
@@ -29,6 +34,30 @@ fn main() {
 
     gen::generate();
 }
+
+//#[cfg(target_os = "macos")]
+fn configure_platform_specific(builder: Builder) -> Builder {
+    let target_vendor = env::var("CARGO_CFG_TARGET_VENDOR").unwrap();
+    if target_vendor == "apple" {
+        eprintln!("Build selected for macOS.");
+        let path = env::var("LLVM_PATH ").expect("env var 'LLVM_PATH' not set");
+
+        builder
+            .clang_arg("-I")
+            .clang_arg(format!("{path}/include"))
+            .clang_arg("-L")
+            .clang_arg(format!("{path}/lib"))
+    } else {
+        eprintln!("Build selected for Linux/Windows.");
+        builder
+    }
+}
+
+// #[cfg(not(target_os = "macos"))]
+// fn configure_platform_specific(builder: Builder) -> Builder {
+//     println!("Build selected for Linux/Windows.");
+//     builder
+// }
 
 /*fn rerun_if_any_changed(paths: &Vec<PathBuf>){
     for path in paths {

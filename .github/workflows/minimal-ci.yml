@@ -53,22 +53,22 @@ jobs:
 #      - name: "Check rustfmt"
 #        run: cargo fmt --all -- --check
 
-  unit-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: "Install Rust"
-        uses: ./.github/composite/rust
-
-      # TODO seems unneeded in GDNative...?
-      - name: "Install LLVM"
-        uses: ./.github/composite/llvm
-
-      - name: "Compile tests"
-        run: cargo test --workspace --features ${GDEXT_FEATURES} --no-run
-
-      - name: "Test"
-        run: cargo test --workspace --features ${GDEXT_FEATURES}
+#  unit-test:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v3
+#      - name: "Install Rust"
+#        uses: ./.github/composite/rust
+#
+#      # TODO seems unneeded in GDNative...?
+#      - name: "Install LLVM"
+#        uses: ./.github/composite/llvm
+#
+#      - name: "Compile tests"
+#        run: cargo test --workspace --features ${GDEXT_FEATURES} --no-run
+#
+#      - name: "Test"
+#        run: cargo test --workspace --features ${GDEXT_FEATURES}
 
   integration-test-godot:
     name: itest-godot-${{ matrix.name }}
@@ -82,10 +82,10 @@ jobs:
         # Additionally, the 'linux (msrv *)' special case will then be listed next to the other 'linux' jobs.
         # Note: Windows uses '--target x86_64-pc-windows-msvc' by default as Cargo argument.
         include:
-          - name: macos
-            os: macos-12
-            rust-toolchain: stable
-            godot-binary: godot.macos.editor.dev.x86_64
+#          - name: macos
+#            os: macos-12
+#            rust-toolchain: stable
+#            godot-binary: godot.macos.editor.dev.x86_64
 
           - name: windows
             os: windows-latest
