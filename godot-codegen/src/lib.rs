@@ -12,6 +12,7 @@ mod godot_version;
 mod special_cases;
 mod util;
 mod utilities_generator;
+mod watch;
 
 #[cfg(test)]
 mod tests;
@@ -22,6 +23,7 @@ use class_generator::generate_class_files;
 use utilities_generator::generate_utilities_file;
 
 use crate::util::ident;
+use crate::watch::StopWatch;
 use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
 use std::collections::{HashMap, HashSet};
@@ -44,8 +46,11 @@ pub fn generate_sys_files(sys_out_dir: &Path, core_out_dir: &Path) {
 
     let mut out_files = vec![];
 
-    let (api, build_config) = load_extension_api();
+    let mut watch = StopWatch::start();
+
+    let (api, build_config) = load_extension_api(&mut watch);
     let ctx = build_context(&api);
+    watch.record("build_context");
 
     generate_central_files(
         &api,
@@ -55,8 +60,10 @@ pub fn generate_sys_files(sys_out_dir: &Path, core_out_dir: &Path) {
         central_core_gen_path,
         &mut out_files,
     );
+    watch.record("generate_central_files");
 
     generate_utilities_file(&api, &ctx, class_gen_path, &mut out_files);
+    watch.record("generate_utilities_file");
 
     // Class files -- currently output in godot-core; could maybe be separated cleaner
     // Note: deletes entire generated directory!
@@ -67,8 +74,12 @@ pub fn generate_sys_files(sys_out_dir: &Path, core_out_dir: &Path) {
         &class_gen_path.join("classes"),
         &mut out_files,
     );
+    watch.record("generate_class_files");
 
     rustfmt_if_needed(out_files);
+    watch.record("rustfmt");
+
+    watch.write_stats_to(&sys_out_dir.join("build_stats.txt"));
 }
 
 fn build_context(api: &ExtensionApi) -> Context {

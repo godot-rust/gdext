@@ -5,6 +5,7 @@
  */
 
 use crate::godot_version::parse_godot_version;
+use crate::StopWatch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -16,20 +17,24 @@ const GODOT_VERSION_PATH: &'static str =
 const EXTENSION_API_PATH: &'static str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/input/gen/extension_api.json");
 
-pub fn load_extension_api_json() -> String {
+pub fn load_extension_api_json(watch: &mut StopWatch) -> String {
     let json_path = Path::new(EXTENSION_API_PATH);
     rerun_on_changed(json_path);
 
     let godot_bin = locate_godot_binary();
     rerun_on_changed(&godot_bin);
+    watch.record("locate_godot");
 
     // Regnerate API JSON if first time or Godot version is different
     if !json_path.exists() || has_version_changed(&godot_bin) {
         dump_extension_api(&godot_bin, json_path);
+        watch.record("dump_extension_api");
     }
 
-    std::fs::read_to_string(json_path)
-        .expect(&format!("failed to open file {}", json_path.display()))
+    let result = std::fs::read_to_string(json_path)
+        .expect(&format!("failed to open file {}", json_path.display()));
+    watch.record("read_json_file");
+    result
 }
 
 fn has_version_changed(godot_bin: &Path) -> bool {

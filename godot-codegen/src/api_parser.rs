@@ -7,7 +7,7 @@
 // TODO remove this warning once impl is complete
 #![allow(dead_code)]
 
-use crate::godot_exe;
+use crate::{godot_exe, StopWatch};
 
 use nanoserde::DeJson;
 
@@ -153,13 +153,16 @@ pub struct MethodReturn {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-pub fn load_extension_api() -> (ExtensionApi, &'static str) {
+pub fn load_extension_api(watch: &mut StopWatch) -> (ExtensionApi, &'static str) {
     // For float/double inference, see:
     // * https://github.com/godotengine/godot-proposals/issues/892
     // * https://github.com/godotengine/godot-cpp/pull/728
     let build_config = "float_64"; // TODO infer this
 
-    let json: String = godot_exe::load_extension_api_json();
+    let json: String = godot_exe::load_extension_api_json(watch);
+
     let model: ExtensionApi = DeJson::deserialize_json(&json).expect("failed to deserialize JSON");
+    watch.record("deserialize_json");
+
     (model, build_config)
 }
