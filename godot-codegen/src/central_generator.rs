@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::util::to_rust_type;
-use crate::Context;
+use crate::{ident, Context};
 
 struct CentralItems {
     opaque_types: Vec<TokenStream>,
@@ -19,6 +19,8 @@ struct CentralItems {
     variant_enumerators_pascal: Vec<Ident>,
     variant_enum_rust_types: Vec<TokenStream>,
     variant_enum_ords: Vec<Literal>,
+    variant_op_enumerators_shout: Vec<Ident>,
+    variant_op_enum_ords: Vec<Literal>,
     variant_fn_decls: Vec<TokenStream>,
     variant_fn_inits: Vec<TokenStream>,
 }
@@ -85,6 +87,8 @@ fn make_sys_code(central_items: &CentralItems) -> String {
         opaque_types,
         variant_enumerators_shout,
         variant_enum_ords,
+        variant_op_enumerators_shout,
+        variant_op_enum_ords,
         variant_fn_decls,
         variant_fn_inits,
         ..
@@ -127,12 +131,36 @@ fn make_sys_code(central_items: &CentralItems) -> String {
                     #(
                         #variant_enum_ords => Self::#variant_enumerators_shout,
                     )*
-                    _ => unreachable!("Invalid variant type {}", enumerator)
+                    _ => unreachable!("invalid variant type {}", enumerator)
                 }
             }
 
             #[doc(hidden)]
             pub fn to_sys(self) -> crate::GDNativeVariantType {
+                self as _
+            }
+        }
+
+        #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+        pub enum VariantOperator {
+            #(
+                #variant_op_enumerators_shout = #variant_op_enum_ords,
+            )*
+        }
+
+        impl VariantOperator {
+            #[doc(hidden)]
+            pub fn from_sys(enumerator: crate::GDNativeVariantOperator) -> Self {
+                match enumerator {
+                    #(
+                        #variant_op_enum_ords => Self::#variant_op_enumerators_shout,
+                    )*
+                    _ => unreachable!("invalid variant operator {}", enumerator)
+                }
+            }
+
+            #[doc(hidden)]
+            pub fn to_sys(self) -> crate::GDNativeVariantOperator {
                 self as _
             }
         }
@@ -177,6 +205,7 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
 
     let class_map = collect_builtin_classes(api);
     let builtin_types_map = collect_builtin_types(api, &class_map);
+    let variant_operators = collect_variant_operators(api);
 
     // Generate builtin methods, now with info for all types available.
     // Separate vectors because that makes usage in quote! easier.
@@ -188,6 +217,8 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
         variant_enumerators_pascal: Vec::with_capacity(len),
         variant_enum_rust_types: Vec::with_capacity(len),
         variant_enum_ords: Vec::with_capacity(len),
+        variant_op_enumerators_shout: Vec::new(),
+        variant_op_enum_ords: Vec::new(),
         variant_fn_decls: Vec::with_capacity(len),
         variant_fn_inits: Vec::with_capacity(len),
     };
@@ -215,6 +246,22 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
         result.variant_enum_ords.push(ord);
         result.variant_fn_decls.push(decls);
         result.variant_fn_inits.push(inits);
+    }
+
+    for op in variant_operators {
+        let name = op
+            .name
+            .strip_prefix("OP_")
+            .expect("expected `OP_` prefix for variant operators");
+
+        if name == "MAX" {
+            continue;
+        }
+
+        result.variant_op_enumerators_shout.push(ident(&name));
+        result
+            .variant_op_enum_ords
+            .push(Literal::i32_unsuffixed(op.value));
     }
 
     result
@@ -296,6 +343,16 @@ fn collect_builtin_types<'a>(
         );
     }
     builtin_types_map
+}
+
+fn collect_variant_operators(api: &ExtensionApi) -> Vec<&Constant> {
+    let found_enum = api
+        .global_enums
+        .iter()
+        .find(|e| &e.name == "Variant.Operator")
+        .expect("missing enum for VariantOperator in JSON");
+
+    found_enum.values.iter().collect()
 }
 
 fn make_enumerator(
