@@ -14,18 +14,27 @@ members = [
 [profile.dev.package.bindgen]
 debug = 0
 opt-level = 3
-#[profile.dev.package.miniserde]
-#debug = 0
-#opt-level = 3
-#[profile.dev.package.mini-internal]
-#debug = 0
-#opt-level = 3
+
+[profile.dev.package.nanoserde]
+debug = 0
+opt-level = 3
+
 [profile.dev.package.quote]
 debug = 0
 opt-level = 3
+
 [profile.dev.package.proc-macro2]
 debug = 0
 opt-level = 3
-#[profile.dev.package.syn]
+
+[profile.dev.package.venial]
+debug = 0
+opt-level = 3
+
+[profile.dev.package.godot-codegen]
+debug = 0
+opt-level = 3
+
+#[profile.dev.package.regex]
 #debug = 0
 #opt-level = 3
