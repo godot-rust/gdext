@@ -7,7 +7,7 @@
 use crate::builtin::GodotString;
 use godot_ffi as sys;
 use godot_ffi::GodotFfi;
-use std::fmt;
+use std::{fmt, ptr};
 use sys::types::OpaqueVariant;
 use sys::{ffi_methods, interface_fn};
 
@@ -18,6 +18,10 @@ mod variant_traits;
 pub use impls::*;
 pub use variant_metadata::*;
 pub use variant_traits::*;
+
+pub use sys::{VariantOperator, VariantType};
+
+// pub use crate::gen::central::*;
 
 #[repr(C, align(8))]
 pub struct Variant {
@@ -39,17 +43,35 @@ impl Variant {
         self.sys_type() == sys::GDNATIVE_VARIANT_TYPE_NIL
     }
 
-    /*
+    // TODO test
     pub fn get_type(&self) -> VariantType {
-
+        let ty_sys = unsafe { interface_fn!(variant_get_type)(self.var_sys()) };
+        VariantType::from_sys(ty_sys)
     }
 
-    pub fn evaluate(op: ) {
+    // TODO test
+    #[allow(unused_mut)]
+    pub fn evaluate(&self, rhs: &Variant, op: VariantOperator) -> Option<Variant> {
+        let op_sys = op.to_sys();
+        let mut is_valid = false as u8;
+
+        let mut result = Variant::nil();
         unsafe {
-            let mut is_valid= false as u8;
-            interface_fn!(variant_evaluate)(self.var_sys(), result.string_sys());
+            interface_fn!(variant_evaluate)(
+                op_sys,
+                self.var_sys(),
+                rhs.var_sys(),
+                result.var_sys(),
+                ptr::addr_of_mut!(is_valid),
+            )
+        };
+
+        if is_valid == 1 {
+            Some(result)
+        } else {
+            None
         }
-    }*/
+    }
 
     pub(crate) fn sys_type(&self) -> sys::GDNativeVariantType {
         unsafe {

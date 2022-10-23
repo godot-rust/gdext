@@ -30,11 +30,10 @@ mod plugins;
 pub use ::paste;
 
 //pub use opaque::Opaque;
-use central::*;
 use global_registry::GlobalRegistry;
 
 pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
-pub use central::types;
+pub use central::*;
 
 // #[allow(non_camel_case_types)]
 // #[cfg(not(feature = "real_is_double"))]

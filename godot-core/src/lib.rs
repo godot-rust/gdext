@@ -27,6 +27,9 @@ mod gen {
 
     #[path = "../../../godot-ffi/src/gen/core/utilities.rs"]
     pub mod utilities;
+
+    // #[path = "../../../godot-ffi/src/gen/core/central.rs"]
+    // pub mod central_core;
 }
 
 pub mod api {
