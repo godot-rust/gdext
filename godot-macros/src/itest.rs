@@ -40,15 +40,17 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
         pub fn #test_name() -> bool {
             println!(#init_msg);
 
-            let ok = ::std::panic::catch_unwind(
+            let result = ::std::panic::catch_unwind(
                 || #body
-            ).is_ok();
+            );
 
-            if !ok {
+            if let Err(e) = result {
                 godot_core::gdext_print_error!(#error_msg);
+                godot_core::private::print_panic(e);
+                false
+            } else {
+                true
             }
-
-            ok
         }
     })
 }

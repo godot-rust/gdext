@@ -48,6 +48,17 @@ pub mod private {
     pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
         godot_ffi::plugin_foreach!(godot_core_REGISTRY; visitor);
     }
+
+    pub fn print_panic(err: Box<dyn std::any::Any + Send>) {
+        if let Some(s) = err.downcast_ref::<&'static str>() {
+            gdext_print_error!("rust-panic:  {}", s);
+        } else if let Some(s) = err.downcast_ref::<String>() {
+            gdext_print_error!("rust-panic:  {}", s);
+        } else {
+            // FIXME expr needs to be escaped
+            gdext_print_error!("rust-panic of type ID {:?}", (err.type_id()));
+        }
+    }
 }
 
 #[cfg(feature = "trace")]
