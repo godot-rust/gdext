@@ -5,8 +5,9 @@
  */
 
 use crate::itest;
-use godot_core::builtin::{FromVariant, GodotString, ToVariant, Variant};
+use godot_core::builtin::{FromVariant, GodotString, ToVariant, Variant, Vector2, Vector3};
 use godot_core::obj::InstanceId;
+use godot_ffi::{VariantOperator, VariantType};
 use std::fmt::{Debug, Display};
 
 pub fn run() -> bool {
@@ -15,6 +16,9 @@ pub fn run() -> bool {
     ok &= variant_conversions();
     ok &= variant_forbidden_conversions();
     ok &= variant_display();
+    ok &= variant_get_type();
+    ok &= variant_equal();
+    ok &= variant_evaluate();
     ok
 }
 
@@ -59,34 +63,50 @@ fn variant_forbidden_conversions() {
     truncate_bad::<i8>(128);
 }
 
-fn roundtrip<T>(value: T)
-where
-    T: FromVariant + ToVariant + PartialEq + Debug,
-{
-    // TODO test other roundtrip (first FromVariant, then ToVariant)
-    // Some values can be represented in Variant, but not in T (e.g. Variant(0i64) -> Option<InstanceId> -> Variant is lossy)
+#[itest]
+fn variant_get_type() {
+    let variant = Variant::nil();
+    assert_eq!(variant.get_type(), VariantType::Nil);
 
-    let variant = value.to_variant();
-    let back = T::try_from_variant(&variant).unwrap();
+    let variant = 74i32.to_variant();
+    assert_eq!(variant.get_type(), VariantType::Int);
 
-    assert_eq!(value, back);
+    let variant = true.to_variant();
+    assert_eq!(variant.get_type(), VariantType::Bool);
+
+    let variant = GodotString::from("hello").to_variant();
+    assert_eq!(variant.get_type(), VariantType::String);
 }
 
-fn truncate_bad<T>(original_value: i64)
-where
-    T: FromVariant + Display,
-{
-    let variant = original_value.to_variant();
-    let result = T::try_from_variant(&variant);
+#[itest]
+fn variant_equal() {
+    assert_eq!(Variant::nil(), ().to_variant());
+    assert_eq!(Variant::from(77), 77.to_variant());
 
-    if let Ok(back) = result {
-        panic!(
-            "{} - T::try_from_variant({}) should fail, but resulted in {}",
-            std::any::type_name::<T>(),
-            variant,
-            back
-        );
-    }
+    equal(77, (), false);
+    equal(77, 78, false);
+
+    assert_ne!(77.to_variant(), Variant::nil());
+    assert_ne!(77.to_variant(), 78.to_variant());
+
+    //equal(77, 77.0, false)
+    equal(Vector3::new(1.0, 2.0, 3.0), Vector2::new(1.0, 2.0), false);
+    equal(1, true, false);
+    equal(false, 0, false);
+    equal(GodotString::from("String"), 33, false);
+}
+
+#[itest]
+fn variant_evaluate() {
+    evaluate(VariantOperator::Add, 20, -39, -19);
+    evaluate(VariantOperator::Greater, 20, 19, true);
+    evaluate(VariantOperator::Equal, 20, 20.0, true);
+    evaluate(VariantOperator::NotEqual, 20, 20.0, false);
+    evaluate(VariantOperator::Multiply, 5, 2.5, 12.5);
+
+    evaluate_fail(VariantOperator::Equal, 1, true);
+    evaluate_fail(VariantOperator::Equal, 0, false);
+    evaluate_fail(VariantOperator::Subtract, 2, Vector3::new(1.0, 2.0, 3.0));
 }
 
 #[itest]
@@ -122,4 +142,72 @@ fn variant_display() {
     for (variant, string) in cases {
         assert_eq!(&variant.to_string(), string);
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+fn roundtrip<T>(value: T)
+where
+    T: FromVariant + ToVariant + PartialEq + Debug,
+{
+    // TODO test other roundtrip (first FromVariant, then ToVariant)
+    // Some values can be represented in Variant, but not in T (e.g. Variant(0i64) -> Option<InstanceId> -> Variant is lossy)
+
+    let variant = value.to_variant();
+    let back = T::try_from_variant(&variant).unwrap();
+
+    assert_eq!(value, back);
+}
+
+fn truncate_bad<T>(original_value: i64)
+where
+    T: FromVariant + Display,
+{
+    let variant = original_value.to_variant();
+    let result = T::try_from_variant(&variant);
+
+    if let Ok(back) = result {
+        panic!(
+            "{} - T::try_from_variant({}) should fail, but resulted in {}",
+            std::any::type_name::<T>(),
+            variant,
+            back
+        );
+    }
+}
+
+fn equal<T, U>(lhs: T, rhs: U, expected: bool)
+where
+    T: ToVariant,
+    U: ToVariant,
+{
+    if expected {
+        assert_eq!(lhs.to_variant(), rhs.to_variant());
+    } else {
+        assert_ne!(lhs.to_variant(), rhs.to_variant());
+    }
+}
+
+fn evaluate<T, U, E>(op: VariantOperator, lhs: T, rhs: U, expected: E)
+where
+    T: ToVariant,
+    U: ToVariant,
+    E: ToVariant,
+{
+    let lhs = lhs.to_variant();
+    let rhs = rhs.to_variant();
+    let expected = expected.to_variant();
+
+    assert_eq!(lhs.evaluate(&rhs, op), Some(expected));
+}
+
+fn evaluate_fail<T, U>(op: VariantOperator, lhs: T, rhs: U)
+where
+    T: ToVariant,
+    U: ToVariant,
+{
+    let lhs = lhs.to_variant();
+    let rhs = rhs.to_variant();
+
+    assert_eq!(lhs.evaluate(&rhs, op), None);
 }

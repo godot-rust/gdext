@@ -38,6 +38,31 @@ impl Variant {
         }
     }
 
+    /// Create a variant holding a non-nil value.
+    ///
+    /// Equivalent to `value.to_variant()`.
+    pub fn from<T: ToVariant>(value: T) -> Self {
+        value.to_variant()
+    }
+
+    /// Convert to type `T`, panicking on failure.
+    ///
+    /// Equivalent to `T::from_variant(&self)`.
+    ///
+    /// # Panics
+    /// When this variant holds a different type.
+    #[cfg(feature = "convenience")]
+    pub fn to<T: FromVariant>(&self) -> T {
+        T::from_variant(self)
+    }
+
+    /// Convert to type `T`, returning `Err` on failure.
+    ///
+    /// Equivalent to `T::try_from_variant(&self)`.
+    pub fn try_to<T: FromVariant>(&self) -> Result<T, VariantConversionError> {
+        T::try_from_variant(self)
+    }
+
     /// Checks whether the variant is empty (`null` value in GDScript).
     pub fn is_nil(&self) -> bool {
         self.sys_type() == sys::GDNATIVE_VARIANT_TYPE_NIL
@@ -123,6 +148,14 @@ impl Drop for Variant {
         unsafe {
             interface_fn!(variant_destroy)(self.var_sys());
         }
+    }
+}
+
+impl PartialEq for Variant {
+    fn eq(&self, other: &Self) -> bool {
+        Self::evaluate(self, other, VariantOperator::Equal)
+            .map(|v| v.to::<bool>())
+            .unwrap_or(false) // if there is no defined conversion, then they are non-equal
     }
 }
 
