@@ -137,6 +137,7 @@ mod impls {
     impl_variant_traits!(Vector3i, vector3i_to_variant, vector3i_from_variant, GDNATIVE_VARIANT_TYPE_VECTOR3I);
     impl_variant_traits!(Color, color_to_variant, color_from_variant, GDNATIVE_VARIANT_TYPE_COLOR);
     impl_variant_traits!(GodotString, string_to_variant, string_from_variant, GDNATIVE_VARIANT_TYPE_STRING);
+    impl_variant_traits!(StringName, string_name_to_variant, string_name_from_variant, GDNATIVE_VARIANT_TYPE_STRING_NAME);
 
 
     impl_variant_traits!(i64, int_to_variant, int_from_variant, GDNATIVE_VARIANT_TYPE_INT,

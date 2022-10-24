@@ -5,9 +5,12 @@
  */
 
 use crate::itest;
-use godot_core::builtin::{FromVariant, GodotString, ToVariant, Variant, Vector2, Vector3};
+use godot_core::builtin::{
+    FromVariant, GodotString, StringName, ToVariant, Variant, Vector2, Vector3,
+};
 use godot_core::obj::InstanceId;
 use godot_ffi::{VariantOperator, VariantType};
+use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 
 pub fn run() -> bool {
@@ -19,6 +22,7 @@ pub fn run() -> bool {
     ok &= variant_get_type();
     ok &= variant_equal();
     ok &= variant_evaluate();
+    ok &= variant_evaluate_total_order();
     ok
 }
 
@@ -96,6 +100,7 @@ fn variant_equal() {
     equal(GodotString::from("String"), 33, false);
 }
 
+#[rustfmt::skip]
 #[itest]
 fn variant_evaluate() {
     evaluate(VariantOperator::Add, 20, -39, -19);
@@ -104,9 +109,41 @@ fn variant_evaluate() {
     evaluate(VariantOperator::NotEqual, 20, 20.0, false);
     evaluate(VariantOperator::Multiply, 5, 2.5, 12.5);
 
+    evaluate(VariantOperator::Equal, GodotString::from("hello"), GodotString::from("hello"), true);
+    evaluate(VariantOperator::Equal, GodotString::from("hello"), StringName::from("hello"), true);
+    evaluate(VariantOperator::Equal, StringName::from("rust"), GodotString::from("rust"), true);
+    evaluate(VariantOperator::Equal, StringName::from("rust"), StringName::from("rust"), true);
+
+    evaluate(VariantOperator::NotEqual, GodotString::from("hello"), GodotString::from("hallo"), true);
+    evaluate(VariantOperator::NotEqual, GodotString::from("hello"), StringName::from("hallo"), true);
+    evaluate(VariantOperator::NotEqual, StringName::from("rust"), GodotString::from("rest"), true);
+    evaluate(VariantOperator::NotEqual, StringName::from("rust"), StringName::from("rest"), true);
+
     evaluate_fail(VariantOperator::Equal, 1, true);
     evaluate_fail(VariantOperator::Equal, 0, false);
     evaluate_fail(VariantOperator::Subtract, 2, Vector3::new(1.0, 2.0, 3.0));
+}
+
+#[itest]
+fn variant_evaluate_total_order() {
+    // See also Godot 4 source: variant_op.cpp
+
+    // NaN incorrect in Godot
+    // use VariantOperator::{Equal, Greater, GreaterEqual, Less, LessEqual, NotEqual};
+    // for op in [Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual] {
+    //     evaluate(op, f64::NAN, f64::NAN, false);
+    // }
+
+    total_order(-5, -4, Ordering::Less);
+    total_order(-5, -4.0, Ordering::Less);
+    total_order(-5.0, -4, Ordering::Less);
+
+    total_order(-5, -5, Ordering::Equal);
+    total_order(-5, -5.0, Ordering::Equal);
+    total_order(-5.0, -5, Ordering::Equal);
+
+    total_order(gstr("hello"), gstr("hello"), Ordering::Equal);
+    total_order(gstr("hello"), gstr("hell"), Ordering::Greater);
 }
 
 #[itest]
@@ -210,4 +247,61 @@ where
     let rhs = rhs.to_variant();
 
     assert_eq!(lhs.evaluate(&rhs, op), None);
+}
+
+fn total_order<T, U>(lhs: T, rhs: U, expected_order: Ordering)
+where
+    T: ToVariant,
+    U: ToVariant,
+{
+    fn eval(v: Option<Variant>) -> bool {
+        v.expect("comparison is valid").to::<bool>()
+    }
+
+    let lhs = lhs.to_variant();
+    let rhs = rhs.to_variant();
+
+    let eq = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::Equal));
+    let ne = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::NotEqual));
+    let lt = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::Less));
+    let le = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::LessEqual));
+    let gt = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::Greater));
+    let ge = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::GreaterEqual));
+
+    let true_rels;
+    let false_rels;
+
+    match expected_order {
+        Ordering::Less => {
+            true_rels = [ne, lt, le];
+            false_rels = [eq, gt, ge];
+        }
+        Ordering::Equal => {
+            true_rels = [eq, le, ge];
+            false_rels = [ne, lt, gt];
+        }
+        Ordering::Greater => {
+            true_rels = [ne, gt, ge];
+            false_rels = [eq, lt, le];
+        }
+    }
+
+    for rel in true_rels {
+        assert!(
+            rel,
+            "total_order(rel=true, lhs={:?}, rhs={:?}, exp={:?})",
+            lhs, rhs, expected_order
+        );
+    }
+    for rel in false_rels {
+        assert!(
+            !rel,
+            "total_order(rel=false, lhs={:?}, rhs={:?}, exp={:?})",
+            lhs, rhs, expected_order
+        );
+    }
+}
+
+fn gstr(s: &str) -> GodotString {
+    GodotString::from(s)
 }

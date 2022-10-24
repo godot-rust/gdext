@@ -17,8 +17,8 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
         _ => return bail("#[itest] can only be applied to functions", &input_decl),
     };
 
-    if !func.attributes.is_empty()
-        || func.generic_params.is_some()
+    // Note: allow attributes for things like #[rustfmt] or #[clippy]
+    if func.generic_params.is_some()
         || !func.params.is_empty()
         || func.return_ty.is_some()
         || func.where_clause.is_some()
