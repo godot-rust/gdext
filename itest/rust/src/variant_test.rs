@@ -39,7 +39,7 @@ fn variant_nil() {
 fn variant_conversions() {
     roundtrip(false);
     roundtrip(true);
-    roundtrip(GodotString::from("some string"));
+    roundtrip(gstr("some string"));
     roundtrip(InstanceId::from_nonzero(-9223372036854775808i64));
     // roundtrip(Some(InstanceId::from_nonzero(9223372036854775807i64)));
     // roundtrip(Option::<InstanceId>::None);
@@ -78,7 +78,7 @@ fn variant_get_type() {
     let variant = true.to_variant();
     assert_eq!(variant.get_type(), VariantType::Bool);
 
-    let variant = GodotString::from("hello").to_variant();
+    let variant = gstr("hello").to_variant();
     assert_eq!(variant.get_type(), VariantType::String);
 }
 
@@ -97,7 +97,7 @@ fn variant_equal() {
     equal(Vector3::new(1.0, 2.0, 3.0), Vector2::new(1.0, 2.0), false);
     equal(1, true, false);
     equal(false, 0, false);
-    equal(GodotString::from("String"), 33, false);
+    equal(gstr("String"), 33, false);
 }
 
 #[rustfmt::skip]
@@ -109,15 +109,15 @@ fn variant_evaluate() {
     evaluate(VariantOperator::NotEqual, 20, 20.0, false);
     evaluate(VariantOperator::Multiply, 5, 2.5, 12.5);
 
-    evaluate(VariantOperator::Equal, GodotString::from("hello"), GodotString::from("hello"), true);
-    evaluate(VariantOperator::Equal, GodotString::from("hello"), StringName::from("hello"), true);
-    evaluate(VariantOperator::Equal, StringName::from("rust"), GodotString::from("rust"), true);
-    evaluate(VariantOperator::Equal, StringName::from("rust"), StringName::from("rust"), true);
+    evaluate(VariantOperator::Equal, gstr("hello"), gstr("hello"), true);
+    evaluate(VariantOperator::Equal, gstr("hello"), gname("hello"), true);
+    evaluate(VariantOperator::Equal, gname("rust"), gstr("rust"), true);
+    evaluate(VariantOperator::Equal, gname("rust"), gname("rust"), true);
 
-    evaluate(VariantOperator::NotEqual, GodotString::from("hello"), GodotString::from("hallo"), true);
-    evaluate(VariantOperator::NotEqual, GodotString::from("hello"), StringName::from("hallo"), true);
-    evaluate(VariantOperator::NotEqual, StringName::from("rust"), GodotString::from("rest"), true);
-    evaluate(VariantOperator::NotEqual, StringName::from("rust"), StringName::from("rest"), true);
+    evaluate(VariantOperator::NotEqual, gstr("hello"), gstr("hallo"), true);
+    evaluate(VariantOperator::NotEqual, gstr("hello"), gname("hallo"), true);
+    evaluate(VariantOperator::NotEqual, gname("rust"), gstr("rest"), true);
+    evaluate(VariantOperator::NotEqual, gname("rust"), gname("rest"), true);
 
     evaluate_fail(VariantOperator::Equal, 1, true);
     evaluate_fail(VariantOperator::Equal, 0, false);
@@ -152,7 +152,7 @@ fn variant_display() {
         (Variant::nil(), "<null>"),
         (false.to_variant(), "false"),
         (true.to_variant(), "true"),
-        (GodotString::from("some string").to_variant(), "some string"),
+        (gstr("some string").to_variant(), "some string"),
         //
         // unsigned
         ((0u8).to_variant(), "0"),
@@ -304,4 +304,8 @@ where
 
 fn gstr(s: &str) -> GodotString {
     GodotString::from(s)
+}
+
+fn gname(s: &str) -> StringName {
+    StringName::from(s)
 }
