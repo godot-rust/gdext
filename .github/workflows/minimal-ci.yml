@@ -74,7 +74,7 @@ jobs:
     name: itest-godot-${{ matrix.name }}
     timeout-minutes: 15
     runs-on: ${{ matrix.os }}
-    continue-on-error: true
+    continue-on-error: false
     strategy:
       fail-fast: false # cancel all jobs as soon as one fails?
       matrix:

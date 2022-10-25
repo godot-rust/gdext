@@ -74,20 +74,17 @@ runs:
         godotVer=$($GODOT_BIN --version | xargs || true)
         gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
         echo "GODOT_BUILT_FROM=_Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)._" >> $GITHUB_ENV
-        
-        # By default, output error (will be displayed unless overwritten)
-        echo "### :x: Godot integration tests failed" > $GITHUB_STEP_SUMMARY
-        echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
       shell: bash
 
     # Note: if this fails, run `git diff -R > tweaks.patch` after updating the file manually
     - name: "Copy and compare GDExtension header"
-      if: inputs.artifact-name == 'linux'
+      if: inputs.artifact-name == 'godot-linux'
       run: |
         mkdir -p godot-codegen/input
         cp $RUNNER_DIR/godot_bin/gdnative_interface.h godot-codegen/input/gdnative_interface.h
         git apply godot-codegen/input/tweak.patch -v
         git diff --exit-code --quiet || {
+            echo "OUTCOME=header-diff" >> $GITHUB_ENV
             echo "gdnative_interface.h is not up-to-date; abort."
             echo ""
             
@@ -124,14 +121,50 @@ runs:
       # * exit:     the terminated process would return 143, but this is more explicit and future-proof
       run: |
         cd itest/godot
+        echo "OUTCOME=itest" >> $GITHUB_ENV
         $GODOT_BIN --headless 2>&1 | tee >(grep "SCRIPT ERROR:" -q && {
         	printf "\n -- Godot engine encountered error, abort...\n";
         	pkill godot
-        	echo "### :x: Godot runtime error" > $GITHUB_STEP_SUMMARY
-            echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
-        	echo "Aborted due to an error during Godot execution." >> $GITHUB_STEP_SUMMARY
+            echo "OUTCOME=godot-runtime" >> $GITHUB_ENV
         	exit 2
         })
-        echo "### :heavy_check_mark: Godot integration tests passed" > $GITHUB_STEP_SUMMARY
-        echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
+        
+        echo "OUTCOME=success" >> $GITHUB_ENV
       shell: bash
+
+    - name: "Conclusion"
+      run: |
+        echo "Evaluate conclusion ($OUTCOME)"
+        
+        case $OUTCOME in
+          "success")
+            echo "### :heavy_check_mark: Godot integration tests passed" > $GITHUB_STEP_SUMMARY
+            echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
+            ;;
+        
+          "godot-runtime")
+            echo "### :x: Godot runtime error" > $GITHUB_STEP_SUMMARY
+            echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
+        	echo "Aborted due to an error during Godot execution." >> $GITHUB_STEP_SUMMARY
+            exit 2
+            ;;
+        
+          "itest")
+            echo "### :x: Godot integration tests failed" > $GITHUB_STEP_SUMMARY
+            echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
+            exit 3
+            ;;
+        
+          "header-diff")
+            # already written
+            ;;
+
+          *)
+            echo "### :x: Unknown error occurred" > $GITHUB_STEP_SUMMARY
+            echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
+            exit 4
+            ;;
+        esac
+
+      shell: bash
+      if: always()
