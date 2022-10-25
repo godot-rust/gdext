@@ -23,12 +23,6 @@ on:
 #      - master
 
 env:
-  # Environment variables used by toolchain
-  CARGO_TERM_COLOR: always
-  CARGO_INCREMENTAL: 0
-  RUST_BACKTRACE: 1
-
-  # Custom variables
   GDEXT_FEATURES: 'godot-core/convenience'
 
 defaults:

@@ -22,13 +22,29 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: ${{ inputs.rust }}
-        override: true # use selected toolchain for remainder of this step
-        components: ${{ inputs.components }}
+    - name: "Configure"
+      id: configure
+      run: |
+        echo "components=$( for c in ${cs//,/ }; do echo -n ' --component' $c; done )" >> $GITHUB_OUTPUT
+      env:
+        cs: ${{ inputs.components }}
+      shell: bash
+
+    - name: "Rustup"
+      run: |
+        rustup toolchain install ${{ inputs.rust }} --profile minimal --no-self-update ${{ steps.configure.outputs.components }}
+        rustup default ${{ inputs.rust }}
+      shell: bash
 
     - uses: Swatinem/rust-cache@v2
       with:
         shared-key: ${{ inputs.cache-key }}
+
+    - name: "Set environment variables used by toolchain"
+      run: |
+        echo CARGO_TERM_COLOR=always >> $GITHUB_ENV
+        echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV
+        echo RUST_BACKTRACE=1 >> $GITHUB_ENV
+        
+        rustc --version --verbose
+      shell: bash
