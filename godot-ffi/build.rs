@@ -27,14 +27,21 @@ fn main() {
         .expect("unable to generate gdnative_interface.h bindings");
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let out_path = PathBuf::from(&out_dir);
     bindings
         .write_to_file(out_path.join("gdnative_interface.rs"))
         .expect("could not write gdnative_interface Rust bindings!");
 
     gen::generate_sys_files(
-        Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/sys")),
-        Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/core")),
+        Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../target/godot-gen/sys"
+        )),
+        Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../target/godot-gen/core"
+        )),
     );
 }
 

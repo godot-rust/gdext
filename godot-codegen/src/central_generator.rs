@@ -94,7 +94,6 @@ fn make_sys_code(central_items: &CentralItems) -> String {
     } = central_items;
 
     let sys_tokens = quote! {
-        #![allow(dead_code)]
         use crate::{GDNativeVariantPtr, GDNativeTypePtr};
 
         pub mod types {

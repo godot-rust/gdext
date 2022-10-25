@@ -22,11 +22,13 @@ mod gen {
     // TODO do this path stuff properly
 
     #[allow(unused_imports, dead_code)]
-    #[path = "../../../godot-ffi/src/gen/core/classes/mod.rs"]
-    pub(crate) mod classes;
+    pub(crate) mod classes {
+        include!(godot_ffi::codegen_path!("core/classes/mod.rs"));
+    }
 
-    #[path = "../../../godot-ffi/src/gen/core/utilities.rs"]
-    pub mod utilities;
+    pub mod utilities {
+        include!(godot_ffi::codegen_path!("core/utilities.rs"));
+    }
 
     // #[path = "../../../godot-ffi/src/gen/core/central.rs"]
     // pub mod central_core;

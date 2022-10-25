@@ -15,8 +15,9 @@
 
 include!(concat!(env!("OUT_DIR"), "/gdnative_interface.rs"));
 
-#[path = "gen/sys/central.rs"]
-pub(crate) mod central;
+pub(crate) mod central {
+    include!(crate::codegen_path!("sys/central.rs"));
+}
 
 mod global_registry;
 mod godot_ffi;
@@ -167,4 +168,12 @@ unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
 pub fn unbox<T>(value: Box<T>) -> T {
     // Deref-move is a Box magic feature; see https://stackoverflow.com/a/42264074
     *value
+}
+
+/// Path for shared output of generated files
+#[macro_export]
+macro_rules! codegen_path {
+    ($path:literal) => {
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../target/godot-gen/", $path)
+    };
 }
