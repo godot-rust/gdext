@@ -4,14 +4,29 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use bindgen::Builder;
 use godot_codegen as gen;
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+
+// Note: duplicated in lib.rs
+macro_rules! codegen_path {
+    ($path:literal) => {
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../target/godot-gen/", $path)
+    };
+}
 
 fn main() {
     // For custom path on macOS, iOS, Android etc: see gdnative-sys/build.rs
 
+    run_bindgen(Path::new(codegen_path!("gdnative_interface.rs")));
+
+    gen::generate_sys_files(
+        Path::new(codegen_path!("sys")),
+        Path::new(codegen_path!("core")),
+    );
+}
+
+fn run_bindgen(out_file: &Path) {
     let header_path = "../godot-codegen/input/gdnative_interface.h";
     println!("cargo:rerun-if-changed={}", header_path);
 
@@ -22,31 +37,25 @@ fn main() {
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .prepend_enum_name(false);
 
+    std::fs::create_dir_all(
+        out_file
+            .parent()
+            .expect("bindgen output file has parent dir"),
+    )
+    .expect("create bindgen output dir");
+
     let bindings = configure_platform_specific(builder)
         .generate()
-        .expect("unable to generate gdnative_interface.h bindings");
+        .expect("failed generate gdnative_interface.h bindings");
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_dir = env::var("OUT_DIR").unwrap();
-    let out_path = PathBuf::from(&out_dir);
     bindings
-        .write_to_file(out_path.join("gdnative_interface.rs"))
-        .expect("could not write gdnative_interface Rust bindings!");
-
-    gen::generate_sys_files(
-        Path::new(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../target/godot-gen/sys"
-        )),
-        Path::new(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../target/godot-gen/core"
-        )),
-    );
+        .write_to_file(out_file)
+        .expect("failed write gdnative_interface.h bindings to file");
 }
 
 //#[cfg(target_os = "macos")]
-fn configure_platform_specific(builder: Builder) -> Builder {
+fn configure_platform_specific(builder: bindgen::Builder) -> bindgen::Builder {
     let target_vendor = env::var("CARGO_CFG_TARGET_VENDOR").unwrap();
     if target_vendor == "apple" {
         eprintln!("Build selected for macOS.");

@@ -13,7 +13,7 @@
     clippy::redundant_static_lifetimes
 )]
 
-include!(concat!(env!("OUT_DIR"), "/gdnative_interface.rs"));
+include!(codegen_path!("gdnative_interface.rs"));
 
 pub(crate) mod central {
     include!(crate::codegen_path!("sys/central.rs"));
@@ -171,6 +171,7 @@ pub fn unbox<T>(value: Box<T>) -> T {
 }
 
 /// Path for shared output of generated files
+// Note: duplicated in build.rs
 #[macro_export]
 macro_rules! codegen_path {
     ($path:literal) => {
