@@ -19,15 +19,23 @@ pub use registry::*;
 use godot_ffi as sys;
 
 mod gen {
-    // TODO do this path stuff properly
-
     #[allow(unused_imports, dead_code)]
     pub(crate) mod classes {
-        include!(godot_ffi::codegen_path!("core/classes/mod.rs"));
+        // Path to core/classes/mod.rs
+        // Do not write macro for this, as it confuses IDEs -- just search&replace
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../target/godot-gen/core/classes/mod.rs"
+        ));
     }
 
     pub mod utilities {
-        include!(godot_ffi::codegen_path!("core/utilities.rs"));
+        // Path to core/utilities.rs
+        // Do not write macro for this, as it confuses IDEs -- just search&replace
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../target/godot-gen/core/utilities.rs"
+        ));
     }
 
     // #[path = "../../../godot-ffi/src/gen/core/central.rs"]

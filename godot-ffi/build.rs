@@ -8,7 +8,8 @@ use godot_codegen as gen;
 use std::env;
 use std::path::Path;
 
-// Note: duplicated in lib.rs
+// Note: this macro is fine during codegen, but not for building module structures
+// It confuses IDEs, and can cause symbols not to be found
 macro_rules! codegen_path {
     ($path:literal) => {
         concat!(env!("CARGO_MANIFEST_DIR"), "/../target/godot-gen/", $path)

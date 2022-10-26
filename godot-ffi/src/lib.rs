@@ -13,10 +13,20 @@
     clippy::redundant_static_lifetimes
 )]
 
-include!(codegen_path!("gdnative_interface.rs"));
+// Path to gdnative_interface.rs
+// Do not write macro for this, as it confuses IDEs -- just search&replace
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../target/godot-gen/gdnative_interface.rs"
+));
 
 pub(crate) mod central {
-    include!(crate::codegen_path!("sys/central.rs"));
+    // Path to sys/central.rs
+    // Do not write macro for this, as it confuses IDEs -- just search&replace
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../target/godot-gen/sys/central.rs"
+    ));
 }
 
 mod global_registry;
@@ -168,13 +178,4 @@ unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
 pub fn unbox<T>(value: Box<T>) -> T {
     // Deref-move is a Box magic feature; see https://stackoverflow.com/a/42264074
     *value
-}
-
-/// Path for shared output of generated files
-// Note: duplicated in build.rs
-#[macro_export]
-macro_rules! codegen_path {
-    ($path:literal) => {
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../target/godot-gen/", $path)
-    };
 }
