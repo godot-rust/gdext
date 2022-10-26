@@ -9,7 +9,7 @@ use godot_core::builtin::{
     FromVariant, GodotString, StringName, ToVariant, Variant, Vector2, Vector3,
 };
 use godot_core::obj::InstanceId;
-use godot_ffi::{VariantOperator, VariantType};
+use godot_ffi::{ GodotFfi, VariantOperator, VariantType};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 
@@ -23,6 +23,8 @@ pub fn run() -> bool {
     ok &= variant_equal();
     ok &= variant_evaluate();
     ok &= variant_evaluate_total_order();
+    ok &= variant_sys_conversion();
+    ok &= variant_sys_conversion2();
     ok
 }
 
@@ -179,6 +181,32 @@ fn variant_display() {
     for (variant, string) in cases {
         assert_eq!(&variant.to_string(), string);
     }
+}
+
+#[itest]
+fn variant_sys_conversion() {
+    let v = Variant::from(7);
+    let ptr = v.sys();
+
+    let v2 = unsafe { Variant::from_sys(ptr) };
+    assert_eq!(v2, v);
+}
+
+#[itest]
+fn variant_sys_conversion2() {
+    /*
+    let buffer = [0u8; 50];
+
+    let v = Variant::from(7);
+    unsafe { v.write_sys(buffer.as_mut_ptr()) };
+
+    let v2 = unsafe {
+        Variant::from_sys_init(|ptr| {
+            std::ptr::copy(buffer.as_ptr(), ptr as *mut u8, std::mem::size_of_val(*ptr))
+        })
+    };
+    assert_eq!(v2, v);
+    */
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
