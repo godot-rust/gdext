@@ -7,7 +7,7 @@
 use crate::itest;
 
 use godot_core::api::utilities::*;
-use godot_core::builtin::{ToVariant, Variant};
+use godot_core::builtin::Variant;
 
 pub fn run() -> bool {
     let mut ok = true;
@@ -38,6 +38,10 @@ fn utilities_wrap() {
     let output = wrap(Variant::from(3.4), Variant::from(2.0), Variant::from(3.0));
     assert_eq!(output, Variant::from(2.4));
 
-    let output = wrap(Variant::from(-5.7), Variant::from(-3.0), Variant::from(-2.0));
+    let output = wrap(
+        Variant::from(-5.7),
+        Variant::from(-3.0),
+        Variant::from(-2.0),
+    );
     assert_eq!(output, Variant::from(-2.7));
 }

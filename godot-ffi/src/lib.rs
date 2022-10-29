@@ -179,3 +179,11 @@ pub fn unbox<T>(value: Box<T>) -> T {
     // Deref-move is a Box magic feature; see https://stackoverflow.com/a/42264074
     *value
 }
+
+pub fn default_call_error() -> GDNativeCallError {
+    GDNativeCallError {
+        error: GDNATIVE_CALL_OK,
+        argument: -1,
+        expected: -1,
+    }
+}

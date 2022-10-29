@@ -307,7 +307,8 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
         return TokenStream::new();
     }
 
-    let (params, arg_exprs) = make_params(&method.arguments, ctx);
+    let is_varcall = method.is_vararg;
+    let (params, arg_exprs) = make_params(&method.arguments, is_varcall, ctx);
 
     let method_name = safe_ident(&method.name);
     let c_method_name = c_str(&method.name);
@@ -321,7 +322,7 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
         quote!(&mut self)
     };
 
-    let (return_decl, call) = make_method_return(&method.return_value, ctx);
+    let (return_decl, call) = make_method_return(&method.return_value, is_varcall, ctx);
 
     let vis = if special_cases::is_private(class_name, &method.name) {
         quote! { pub(crate) }
@@ -329,31 +330,59 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
         quote! { pub }
     };
 
-    quote! {
-        #vis fn #method_name( #receiver, #( #params ),* ) #return_decl {
-            let result = unsafe {
-                let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
-                let call_fn = sys::interface_fn!(object_method_bind_ptrcall);
+    if is_varcall {
+        // varcall (using varargs)
+        quote! {
+            #vis fn #method_name( #receiver #(, #params )*, varargs: &[Variant]) #return_decl {
+                let result = unsafe {
+                    let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
+                    let call_fn = sys::interface_fn!(object_method_bind_call);
 
-                let args = [
-                    #( #arg_exprs ),*
-                ];
-                let args_ptr = args.as_ptr();
+                    let explicit_args = [
+                        #( #arg_exprs ),*
+                    ];
+                    let mut args = Vec::new();
+                    args.extend(explicit_args.iter().map(Variant::var_sys));
+                    args.extend(varargs.iter().map(Variant::var_sys));
 
-                #call
-            };
+                    let args_ptr = args.as_ptr();
 
-            result
+                    #call
+                };
+
+                result
+            }
+        }
+    } else {
+        // ptrcall
+        quote! {
+            #vis fn #method_name( #receiver, #( #params ),* ) #return_decl {
+                let result = unsafe {
+                    let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
+                    let call_fn = sys::interface_fn!(object_method_bind_ptrcall);
+
+                    let args = [
+                        #( #arg_exprs ),*
+                    ];
+                    let args_ptr = args.as_ptr();
+
+                    #call
+                };
+
+                result
+            }
         }
     }
 }
 
 pub(crate) fn make_function_definition(function: &UtilityFunction, ctx: &Context) -> TokenStream {
-    if is_function_excluded(function) {
+    // TODO support vararg functions
+    if is_function_excluded(function) || function.is_vararg {
         return TokenStream::new();
     }
 
-    let (params, arg_exprs) = make_params(&function.arguments, ctx);
+    let is_vararg = function.is_vararg;
+    let (params, arg_exprs) = make_params(&function.arguments, is_vararg, ctx);
 
     let function_name = safe_ident(&function.name);
     let c_function_name = c_str(&function.name);
@@ -382,6 +411,7 @@ pub(crate) fn make_function_definition(function: &UtilityFunction, ctx: &Context
 
 fn make_params(
     method_args: &Option<Vec<MethodArg>>,
+    is_varcall: bool,
     ctx: &Context,
 ) -> (Vec<TokenStream>, Vec<TokenStream>) {
     let empty = vec![];
@@ -395,7 +425,11 @@ fn make_params(
         let param_ty = param.tokens;
 
         params.push(quote! { #param_name: #param_ty });
-        if param.is_engine_class {
+        if is_varcall {
+            arg_exprs.push(quote! {
+                <#param_ty as ToVariant>::to_variant(&#param_name)
+            });
+        } else if param.is_engine_class {
             arg_exprs.push(quote! {
                 <#param_ty as AsArg>::as_arg_ptr(&#param_name)
             });
@@ -410,28 +444,46 @@ fn make_params(
 
 fn make_method_return(
     return_value: &Option<MethodReturn>,
+    is_varcall: bool,
     ctx: &Context,
 ) -> (TokenStream, TokenStream) {
+    let return_ty;
     let return_decl;
-    let call;
     match return_value {
         Some(ret) => {
-            let return_ty = to_rust_type(&ret.type_, ctx).tokens;
-
+            return_ty = Some(to_rust_type(&ret.type_, ctx).tokens);
             return_decl = quote! { -> #return_ty };
-            call = quote! {
+        }
+        None => {
+            return_ty = None;
+            return_decl = TokenStream::new();
+        }
+    };
+
+    let call = match (is_varcall, return_ty) {
+        (true, _ret) => {
+            // TODO use Result instead of panic on error
+            quote! {
+                Variant::from_var_sys_init(|return_ptr| {
+                    let mut err = sys::default_call_error();
+                    call_fn(method_bind, self.object_ptr, args_ptr, args.len() as i64, return_ptr, std::ptr::addr_of_mut!(err));
+                    assert_eq!(err.error, sys::GDNATIVE_CALL_OK);
+                })
+            }
+        }
+        (false, Some(return_ty)) => {
+            quote! {
                 <#return_ty as sys::GodotFfi>::from_sys_init(|return_ptr| {
                     call_fn(method_bind, self.object_ptr, args_ptr, return_ptr);
                 })
-            };
+            }
         }
-        None => {
-            return_decl = TokenStream::new();
-            call = quote! {
+        (false, None) => {
+            quote! {
                 call_fn(method_bind, self.object_ptr, args_ptr, std::ptr::null_mut());
-            };
+            }
         }
-    }
+    };
 
     (return_decl, call)
 }

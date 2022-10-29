@@ -127,6 +127,17 @@ impl Variant {
         fn var_sys = sys;
         fn write_var_sys = write_sys;
     }
+
+    /*#[doc(hidden)]
+    pub unsafe fn from_var_sys_init(init_fn: impl FnOnce(sys::GDNativeVariantPtr)) -> Self {
+        // Can't use uninitialized pointer -- Variant implementation in C++ expects that on assignment,
+        // the target pointer is an initialized Variant
+
+        #[allow(unused_mut)]
+        let mut result = Self::default();
+        init_fn(result.var_sys());
+        result
+    }*/
 }
 
 impl GodotFfi for Variant {

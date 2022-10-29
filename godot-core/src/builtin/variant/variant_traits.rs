@@ -14,8 +14,8 @@ pub trait FromVariant: Sized {
         Self::try_from_variant(variant).unwrap_or_else(|e| {
             panic!(
                 "failed to convert from variant {:?} to {}; {:?}",
-                std::any::type_name::<Self>(),
                 variant,
+                std::any::type_name::<Self>(),
                 e
             )
         })

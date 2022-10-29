@@ -6,7 +6,7 @@
 
 use crate::{expect_panic, itest};
 use godot_core::api::{Node, Node3D, Object, RefCounted};
-use godot_core::builtin::{FromVariant, GodotString, StringName, ToVariant, Vector3};
+use godot_core::builtin::{FromVariant, GodotString, StringName, ToVariant, Variant, Vector3};
 use godot_core::obj::{Base, Gd, InstanceId};
 use godot_core::out;
 use godot_core::traits::{GodotExt, Share};
@@ -48,7 +48,8 @@ pub fn run() -> bool {
     ok &= object_engine_manual_double_free();
     ok &= object_engine_refcounted_free();
     ok &= object_user_share_drop();
-    ok &= object_call();
+    ok &= object_call_no_args();
+    ok &= object_call_with_args();
     ok
 }
 
@@ -349,16 +350,33 @@ fn object_user_share_drop() {
 }
 
 #[itest]
-fn object_call() {
-    return;
-    let mut obj = Node3D::new_alloc().upcast::<Object>();
+fn object_call_no_args() {
+    let mut node = Node3D::new_alloc().upcast::<Object>();
 
-    let static_id = obj.instance_id();
-    let reflect_id_variant = obj.call(StringName::from("get_instance_id"));
+    let static_id = node.instance_id();
+    let reflect_id_variant = node.call(StringName::from("get_instance_id"), &[]);
 
     let reflect_id = InstanceId::from_variant(&reflect_id_variant);
 
     assert_eq!(static_id, reflect_id);
+    node.free();
+}
+
+#[itest]
+fn object_call_with_args() {
+    let mut node = Node3D::new_alloc();
+
+    let expected_pos = Vector3::new(2.5, 6.42, -1.11);
+
+    let none = node.call(
+        StringName::from("set_position"),
+        &[expected_pos.to_variant()],
+    );
+    let actual_pos = node.call(StringName::from("get_position"), &[]);
+
+    assert_eq!(none, Variant::nil());
+    assert_eq!(actual_pos, expected_pos.to_variant());
+    node.free();
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
