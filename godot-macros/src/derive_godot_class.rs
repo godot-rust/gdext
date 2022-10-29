@@ -25,9 +25,9 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let base_ty_str = struct_cfg.base_ty.to_string();
     let class_name = &class.name;
     let class_name_str = class.name.to_string();
-    let inherits_macro = format_ident!("gdext_inherits_transitive_{}", &base_ty_str);
+    let inherits_macro = format_ident!("class_inherits_transitive_{}", &base_ty_str);
 
-    let prv = quote! { godot_core::private };
+    let prv = quote! { ::godot::private };
     let (godot_init_impl, create_fn);
     if struct_cfg.has_generated_init {
         godot_init_impl = make_godot_init_impl(class_name, fields);
@@ -38,17 +38,17 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     };
 
     Ok(quote! {
-        impl godot_core::traits::GodotClass for #class_name {
-            type Base = godot_core::api::#base_ty;
-            type Declarer = godot_core::traits::dom::UserDomain;
-            type Mem = <Self::Base as godot_core::traits::GodotClass>::Mem;
+        impl ::godot::traits::GodotClass for #class_name {
+            type Base = ::godot::api::#base_ty;
+            type Declarer = ::godot::traits::dom::UserDomain;
+            type Mem = <Self::Base as ::godot::traits::GodotClass>::Mem;
 
             const CLASS_NAME: &'static str = #class_name_str;
         }
 
         #godot_init_impl
 
-        godot_ffi::plugin_add!(godot_core_REGISTRY in #prv; #prv::ClassPlugin {
+        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_str,
             component: #prv::PluginComponent::ClassDef {
                 base_class_name: #base_ty_str,
@@ -57,7 +57,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
             },
         });
 
-        godot_core::#inherits_macro!(#class_name);
+        #prv::#inherits_macro!(#class_name);
     })
 }
 
@@ -217,8 +217,8 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
     });
 
     quote! {
-        impl godot_core::traits::cap::GodotInit for #class_name {
-            fn __godot_init(base: godot_core::obj::Base<Self::Base>) -> Self {
+        impl ::godot::traits::cap::GodotInit for #class_name {
+            fn __godot_init(base: ::godot::obj::Base<Self::Base>) -> Self {
                 Self {
                     #( #rest_init )*
                     #base_init

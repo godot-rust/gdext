@@ -4,6 +4,7 @@ members = [
     "godot-ffi",
     "godot-macros",
     "godot-core",
+    "godot",
 
     # Godot integration
     "itest/rust",

@@ -5,11 +5,9 @@
  */
 
 use crate::itest;
-use godot_core::builtin::{
-    FromVariant, GodotString, StringName, ToVariant, Variant, Vector2, Vector3,
-};
-use godot_core::obj::InstanceId;
-use godot_ffi::{GodotFfi, VariantOperator, VariantType};
+use godot::builtin::{FromVariant, GodotString, StringName, ToVariant, Variant, Vector2, Vector3};
+use godot::obj::InstanceId;
+use godot::sys::{GodotFfi, VariantOperator, VariantType};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 

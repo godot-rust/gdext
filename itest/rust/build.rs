@@ -59,14 +59,14 @@ fn main() {
     let methods = generate_rust_methods(&inputs);
 
     let rust_tokens = quote::quote! {
-        use godot_core::builtin::*;
-        use godot_core::obj::InstanceId;
+        use godot::builtin::*;
+        use godot::obj::InstanceId;
 
-        #[derive(godot_macros::GodotClass)]
+        #[derive(godot::macros::GodotClass)]
         #[godot(init)]
         struct GenFfi {}
 
-        #[godot_macros::godot_api]
+        #[godot::macros::godot_api]
         impl GenFfi {
             #(#methods)*
         }

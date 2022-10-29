@@ -4,18 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// use godot::api::RefCounted;
-// use godot::obj::Base;
-// use godot::macros::itest;
+pub use godot_core::{api, builtin, init, log, obj, sys, traits};
+pub use godot_macros as macros;
 
-pub(crate) fn run() -> bool {
-    true
-}
-/*
-#[itest]
-fn base_test_is_weak() {
-    let obj = RefCounted::new();
-
-
-}
-*/
+#[doc(hidden)]
+pub use godot_core::private;

@@ -5,7 +5,7 @@
  */
 
 use crate::itest;
-use godot_core::builtin::{GodotString, StringName};
+use godot::builtin::{GodotString, StringName};
 
 // TODO use tests from godot-rust/gdnative
 

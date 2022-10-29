@@ -6,8 +6,8 @@
 
 use crate::itest;
 
-use godot_core::api::utilities::*;
-use godot_core::builtin::Variant;
+use godot::api::utilities::*;
+use godot::builtin::Variant;
 
 pub fn run() -> bool {
     let mut ok = true;

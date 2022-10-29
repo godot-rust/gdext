@@ -5,9 +5,9 @@
  */
 
 use crate::itest;
-use godot_core::api::OS;
-use godot_core::builtin::GodotString;
-use godot_core::obj::Gd;
+use godot::api::OS;
+use godot::builtin::GodotString;
+use godot::obj::Gd;
 
 pub fn run() -> bool {
     let mut ok = true;

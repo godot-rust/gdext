@@ -47,6 +47,7 @@ pub(crate) fn generate_class_files(
         modules.push(GeneratedModule {
             class_ident,
             module_ident,
+            inherits_macro_ident: generated_class.inherits_macro_ident,
             is_pub: generated_class.has_pub_module,
         });
         out_files.push(out_path);
@@ -119,7 +120,7 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
 
     let methods = make_methods(&class.methods, &class.name, ctx);
     let enums = make_enums(&class.enums, &class.name, ctx);
-    let inherits_macro = format_ident!("gdext_inherits_transitive_{}", &class.name);
+    let inherits_macro = format_ident!("class_inherits_transitive_{}", &class.name);
     let all_bases = ctx.inheritance_tree.map_all_bases(&class.name, ident);
 
     let memory = if &class.name == "Object" {
@@ -187,9 +188,9 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
             #[allow(non_snake_case)]
             macro_rules! #inherits_macro {
                 ($Class:ident) => {
-                    impl godot_core::traits::Inherits<godot_core::api::#name> for $Class {}
+                    impl ::godot::traits::Inherits<::godot::api::#name> for $Class {}
                     #(
-                        impl godot_core::traits::Inherits<godot_core::api::#all_bases> for $Class {}
+                        impl ::godot::traits::Inherits<::godot::api::#all_bases> for $Class {}
                     )*
                 }
             }
@@ -201,16 +202,18 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
 
     GeneratedClass {
         tokens,
+        inherits_macro_ident: inherits_macro,
         has_pub_module: !enums.is_empty(),
     }
 }
 
 fn make_module_file(classes_and_modules: Vec<GeneratedModule>) -> TokenStream {
-    let decls = classes_and_modules.into_iter().map(|m| {
+    let decls = classes_and_modules.iter().map(|m| {
         let GeneratedModule {
             module_ident,
             class_ident,
             is_pub,
+            ..
         } = m;
 
         let vis = is_pub.then_some(quote! { pub });
@@ -221,8 +224,27 @@ fn make_module_file(classes_and_modules: Vec<GeneratedModule>) -> TokenStream {
         }
     });
 
+    let macros = classes_and_modules.iter().map(|m| {
+        let GeneratedModule {
+            inherits_macro_ident,
+            ..
+        } = m;
+
+        // We cannot re-export the following, because macro is in the crate root
+        // pub use #module_ident::re_export::#inherits_macro_ident;
+        quote! {
+            pub use #inherits_macro_ident;
+        }
+    });
+
     quote! {
         #( #decls )*
+
+        #[doc(hidden)]
+        pub mod inherit_macros {
+            pub use crate::*;
+            #( #macros )*
+        }
     }
 }
 

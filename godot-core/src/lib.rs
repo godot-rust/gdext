@@ -10,13 +10,14 @@ mod storage;
 pub mod builder;
 pub mod builtin;
 pub mod init;
+pub mod log;
 pub mod macros;
 pub mod obj;
 pub mod traits;
 
 pub use registry::*;
 
-use godot_ffi as sys;
+pub use godot_ffi as sys;
 
 mod gen {
     #[allow(unused_imports, dead_code)]
@@ -50,23 +51,28 @@ pub mod api {
 #[doc(hidden)]
 pub mod private {
     pub use crate::builtin::func_callbacks;
+    pub use crate::gen::classes::inherit_macros::*;
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
     pub use crate::storage::as_storage;
 
-    godot_ffi::plugin_registry!(godot_core_REGISTRY: ClassPlugin);
+    pub use crate::{gdext_register_method, gdext_register_method_inner};
+
+    use crate::sys;
+
+    sys::plugin_registry!(__GODOT_PLUGIN_REGISTRY: ClassPlugin);
 
     pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
-        godot_ffi::plugin_foreach!(godot_core_REGISTRY; visitor);
+        sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
     }
 
     pub fn print_panic(err: Box<dyn std::any::Any + Send>) {
         if let Some(s) = err.downcast_ref::<&'static str>() {
-            gdext_print_error!("rust-panic:  {}", s);
+            godot_error!("rust-panic:  {}", s);
         } else if let Some(s) = err.downcast_ref::<String>() {
-            gdext_print_error!("rust-panic:  {}", s);
+            godot_error!("rust-panic:  {}", s);
         } else {
             // FIXME expr needs to be escaped
-            gdext_print_error!("rust-panic of type ID {:?}", (err.type_id()));
+            godot_error!("rust-panic of type ID {:?}", (err.type_id()));
         }
     }
 }

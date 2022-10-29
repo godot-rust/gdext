@@ -186,12 +186,14 @@ impl InheritanceTree {
 
 struct GeneratedClass {
     tokens: TokenStream,
+    inherits_macro_ident: Ident,
     has_pub_module: bool,
 }
 
 struct GeneratedModule {
     class_ident: Ident,
     module_ident: Ident,
+    inherits_macro_ident: Ident,
     is_pub: bool,
 }
 

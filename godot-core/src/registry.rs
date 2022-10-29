@@ -13,11 +13,11 @@ use godot_ffi as sys;
 
 use sys::interface_fn;
 
+use crate::out;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ptr;
-use crate::out;
 
 #[derive(Debug)]
 pub struct ClassPlugin {

@@ -45,8 +45,8 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
             );
 
             if let Err(e) = result {
-                godot_core::gdext_print_error!(#error_msg);
-                godot_core::private::print_panic(e);
+                ::godot::log::godot_error!(#error_msg);
+                ::godot::private::print_panic(e);
                 false
             } else {
                 true

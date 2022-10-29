@@ -4,8 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_core::init::ExtensionLibrary;
-use godot_macros::{gdextension, godot_api, itest, GodotClass};
+use godot::init::ExtensionLibrary;
+use godot::macros::{gdextension, godot_api, itest, GodotClass};
 use std::panic::UnwindSafe;
 
 mod base_test;
@@ -75,7 +75,7 @@ macro_rules! godot_test_impl {
                 ).is_ok();
 
                 if !ok {
-                    godot_core::gdext_print_error!("   !! Test {} failed", str_name);
+                    godot::log::godot_error!("   !! Test {} failed", str_name);
                 }
 
                 ok

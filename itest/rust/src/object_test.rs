@@ -5,21 +5,19 @@
  */
 
 use crate::{expect_panic, itest};
-use godot_core::api::{Node, Node3D, Object, RefCounted};
-use godot_core::builtin::{FromVariant, GodotString, StringName, ToVariant, Variant, Vector3};
-use godot_core::obj::{Base, Gd, InstanceId};
-use godot_core::out;
-use godot_core::traits::{GodotExt, Share};
-use godot_ffi as sys;
-use godot_macros::{godot_api, GodotClass};
+use godot::api::{Node, Node3D, Object, RefCounted};
+use godot::builtin::{FromVariant, GodotString, StringName, ToVariant, Variant, Vector3};
+use godot::macros::{godot_api, GodotClass};
+use godot::obj::{Base, Gd, InstanceId};
+use godot::sys::GodotFfi;
+use godot::traits::{GodotExt, Share};
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use sys::GodotFfi;
 
 // pub(crate) fn register() {
-//     godot_core::register_class::<ObjPayload>();
-//     godot_core::register_class::<Tracker>();
+//     godot::register_class::<ObjPayload>();
+//     godot::register_class::<Tracker>();
 // }
 
 pub fn run() -> bool {
@@ -407,28 +405,9 @@ impl GodotExt for ObjPayload {
 pub struct Tracker {
     drop_count: Rc<RefCell<i32>>,
 }
-/*impl GodotClass for Tracker {
-    type Base = RefCounted;
-    type Declarer = dom::UserDomain;
-    type Mem = mem::StaticRefCount;
-
-    fn class_name() -> String {
-        "Tracker".to_string()
-    }
-}
-impl UserMethodBinds for Tracker {
-    fn register_methods() {}
-}
-impl UserVirtuals for Tracker {}
-impl GodotExt for Tracker {}
-impl GodotDefault for Tracker {
-    fn __godot_init(_base: Base<Self::Base>) -> Self {
-        panic!("not invoked")
-    }
-}*/
 impl Drop for Tracker {
     fn drop(&mut self) {
-        out!("      Tracker::drop");
+        //println!("      Tracker::drop");
         *self.drop_count.borrow_mut() += 1;
     }
 }

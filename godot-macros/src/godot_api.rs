@@ -51,21 +51,21 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     //#[allow(non_snake_case)]
 
     let methods = process_godot_fns(&mut decl)?;
-    let prv = quote! { godot_core::private };
+    let prv = quote! { ::godot::private };
 
     let result = quote! {
         #decl
 
-        impl godot_core::traits::cap::ImplementsGodotApi for #class_name {
-            //fn __register_methods(_builder: &mut godot_core::builder::ClassBuilder<Self>) {
+        impl ::godot::traits::cap::ImplementsGodotApi for #class_name {
+            //fn __register_methods(_builder: &mut ::godot::builder::ClassBuilder<Self>) {
             fn __register_methods() {
                 #(
-                    godot_core::gdext_register_method!(#class_name, #methods);
+                    ::godot::private::gdext_register_method!(#class_name, #methods);
                 )*
             }
         }
 
-        godot_ffi::plugin_add!(godot_core_REGISTRY in #prv; #prv::ClassPlugin {
+        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_str,
             component: #prv::PluginComponent::UserMethodBinds {
                 generated_register_fn: #prv::ErasedRegisterFn {
@@ -129,7 +129,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let mut virtual_methods = vec![];
     let mut virtual_method_names = vec![];
 
-    let prv = quote! { godot_core::private };
+    let prv = quote! { ::godot::private };
 
     for item in original_impl.body_items.iter() {
         let method = if let ImplMember::Method(f) = item {
@@ -148,9 +148,9 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
             "init" => {
                 godot_init_impl = quote! {
-                    impl godot_core::traits::cap::GodotInit for #class_name {
-                        fn __godot_init(base: godot_core::obj::Base<Self::Base>) -> Self {
-                            <Self as godot_core::traits::GodotExt>::init(base)
+                    impl ::godot::traits::cap::GodotInit for #class_name {
+                        fn __godot_init(base: ::godot::obj::Base<Self::Base>) -> Self {
+                            <Self as ::godot::traits::GodotExt>::init(base)
                         }
                     }
                 };
@@ -183,20 +183,20 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         #original_impl
         #godot_init_impl
 
-        impl godot_core::traits::cap::ImplementsGodotExt for #class_name {
-            fn __virtual_call(name: &str) -> godot_ffi::GDNativeExtensionClassCallVirtual {
+        impl ::godot::traits::cap::ImplementsGodotExt for #class_name {
+            fn __virtual_call(name: &str) -> ::godot::sys::GDNativeExtensionClassCallVirtual {
                 println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
 
                 match name {
                     #(
-                       #virtual_method_names => godot_core::gdext_virtual_method_callback!(#class_name, #virtual_methods),
+                       #virtual_method_names => ::godot::gdext_virtual_method_callback!(#class_name, #virtual_methods),
                     )*
                     _ => None,
                 }
             }
         }
 
-        godot_ffi::plugin_add!(godot_core_REGISTRY in #prv; #prv::ClassPlugin {
+        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_str,
             component: #prv::PluginComponent::UserVirtuals {
                 user_register_fn: #register_fn,

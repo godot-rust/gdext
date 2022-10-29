@@ -49,8 +49,8 @@ macro_rules! gdext_register_method_inner {
         ) -> $($RetTy:tt)+ // Note: can't be ty, as that cannot be matched to tokens anymore
     ) => {
         unsafe {
-            use godot_ffi as sys;
-            use godot_core::builtin::Variant;
+            use $crate::sys;
+            use $crate::builtin::{Variant, SignatureTuple};
 
             const NUM_ARGS: usize = $crate::gdext_count_idents!($( $param, )*);
 
@@ -66,7 +66,7 @@ macro_rules! gdext_register_method_inner {
                         ret: sys::GDNativeVariantPtr,
                         err: *mut sys::GDNativeCallError,
                     ) {
-                        < ($($RetTy)+, $($ParamTy,)*) as godot_core::builtin::SignatureTuple >::varcall::< $Class >(
+                        < ($($RetTy)+, $($ParamTy,)*) as SignatureTuple >::varcall::< $Class >(
                             instance_ptr,
                             args,
                             ret,
@@ -88,7 +88,7 @@ macro_rules! gdext_register_method_inner {
                         args: *const sys::GDNativeTypePtr,
                         ret: sys::GDNativeTypePtr,
                     ) {
-                        < ($($RetTy)+, $($ParamTy,)*) as godot_core::builtin::SignatureTuple >::ptrcall::< $Class >(
+                        < ($($RetTy)+, $($ParamTy,)*) as SignatureTuple >::ptrcall::< $Class >(
                             instance_ptr,
                             args,
                             ret,
@@ -106,16 +106,16 @@ macro_rules! gdext_register_method_inner {
                     sys::GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
                 argument_count: NUM_ARGS as u32,
                 has_return_value: $crate::gdext_is_not_unit!($($RetTy)+) as u8,
-                get_argument_type_func: Some(godot_core::private::func_callbacks::get_type::<( $($RetTy)+, $($ParamTy),* )>),
-                get_argument_info_func: Some(godot_core::private::func_callbacks::get_info::<( $($RetTy)+, $($ParamTy),* )>),
-                get_argument_metadata_func: Some(godot_core::private::func_callbacks::get_metadata::<( $($RetTy)+, $($ParamTy),* )>),
+                get_argument_type_func: Some($crate::private::func_callbacks::get_type::<( $($RetTy)+, $($ParamTy),* )>),
+                get_argument_info_func: Some($crate::private::func_callbacks::get_info::<( $($RetTy)+, $($ParamTy),* )>),
+                get_argument_metadata_func: Some($crate::private::func_callbacks::get_metadata::<( $($RetTy)+, $($ParamTy),* )>),
                 default_argument_count: 0,
                 default_arguments: std::ptr::null_mut(),
             };
 
             let name = std::ffi::CStr::from_bytes_with_nul_unchecked(concat!(stringify!($Class), "\0").as_bytes());
 
-            godot_core::out!("   Register fn:   {}::{}", stringify!($Class), stringify!($method_name));
+            $crate::out!("   Register fn:   {}::{}", stringify!($Class), stringify!($method_name));
             sys::interface_fn!(classdb_register_extension_class_method)(
                 sys::get_library(),
                 name.as_ptr(),

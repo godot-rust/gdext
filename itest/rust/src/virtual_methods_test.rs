@@ -6,11 +6,11 @@
 
 #![allow(dead_code)]
 
-use godot_core::api::RefCounted;
-use godot_core::builtin::GodotString;
-use godot_core::obj::{Base, Gd};
-use godot_core::traits::GodotExt;
-use godot_macros::{godot_api, itest, GodotClass};
+use godot::api::RefCounted;
+use godot::builtin::GodotString;
+use godot::macros::{godot_api, itest, GodotClass};
+use godot::obj::{Base, Gd};
+use godot::traits::GodotExt;
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
 #[derive(GodotClass, Debug)]
@@ -46,7 +46,7 @@ pub(crate) fn run() -> bool {
 }
 
 // pub(crate) fn register() {
-//     godot_core::register_class::<VirtualMethodTest>();
+//     godot::register_class::<VirtualMethodTest>();
 // }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

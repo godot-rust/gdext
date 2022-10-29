@@ -9,12 +9,13 @@ crate-type = ["cdylib"]
 
 [features]
 default = []
-trace = ["godot-core/trace"]
+trace = ["godot/trace"]
 
 [dependencies]
-godot-ffi = { path = "../../godot-ffi" }
-godot-macros = { path = "../../godot-macros" }
-godot-core = { path = "../../godot-core" }
+#godot-ffi = { path = "../../godot-ffi" }
+#godot-macros = { path = "../../godot-macros" }
+#godot-core = { path = "../../godot-core" }
+godot = { path = "../../godot" }
 
 [build-dependencies]
 quote = "1"

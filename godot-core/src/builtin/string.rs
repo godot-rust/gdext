@@ -6,8 +6,9 @@
 
 use std::{convert::Infallible, fmt, str::FromStr};
 
-use godot_ffi::{self as sys, ffi_methods, interface_fn, GodotFfi};
+use godot_ffi as sys;
 use sys::types::OpaqueString;
+use sys::{ffi_methods, interface_fn, GodotFfi};
 
 #[repr(C, align(8))]
 pub struct GodotString {
