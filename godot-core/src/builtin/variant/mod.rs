@@ -130,7 +130,21 @@ impl Variant {
 }
 
 impl GodotFfi for Variant {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
+    ffi_methods! {
+        type sys::GDNativeTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn write_sys;
+    }
+
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Self {
+        // Can't use uninitialized pointer -- Variant implementation in C++ expects that on assignment,
+        // the target pointer is an initialized Variant
+
+        let mut result = Self::default();
+        init_fn(result.sys_mut());
+        result
+    }
 }
 
 impl Clone for Variant {
@@ -148,6 +162,12 @@ impl Drop for Variant {
         unsafe {
             interface_fn!(variant_destroy)(self.var_sys());
         }
+    }
+}
+
+impl Default for Variant {
+    fn default() -> Self {
+        Self::nil()
     }
 }
 

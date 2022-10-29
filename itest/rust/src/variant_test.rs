@@ -9,7 +9,7 @@ use godot_core::builtin::{
     FromVariant, GodotString, StringName, ToVariant, Variant, Vector2, Vector3,
 };
 use godot_core::obj::InstanceId;
-use godot_ffi::{ GodotFfi, VariantOperator, VariantType};
+use godot_ffi::{GodotFfi, VariantOperator, VariantType};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 
@@ -87,6 +87,7 @@ fn variant_get_type() {
 #[itest]
 fn variant_equal() {
     assert_eq!(Variant::nil(), ().to_variant());
+    assert_eq!(Variant::nil(), Variant::default());
     assert_eq!(Variant::from(77), 77.to_variant());
 
     equal(77, (), false);

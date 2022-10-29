@@ -1,0 +1,43 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+use crate::itest;
+
+use godot_core::api::utilities::*;
+use godot_core::builtin::{ToVariant, Variant};
+
+pub fn run() -> bool {
+    let mut ok = true;
+    ok &= utilities_abs();
+    ok &= utilities_sign();
+    ok &= utilities_wrap();
+    ok
+}
+
+#[itest]
+fn utilities_abs() {
+    let input = Variant::from(-7);
+    let output = abs(input);
+
+    assert_eq!(output, Variant::from(7));
+}
+
+#[itest]
+fn utilities_sign() {
+    let input = Variant::from(-7);
+    let output = sign(input);
+
+    assert_eq!(output, Variant::from(-1));
+}
+
+#[itest]
+fn utilities_wrap() {
+    let output = wrap(Variant::from(3.4), Variant::from(2.0), Variant::from(3.0));
+    assert_eq!(output, Variant::from(2.4));
+
+    let output = wrap(Variant::from(-5.7), Variant::from(-3.0), Variant::from(-2.0));
+    assert_eq!(output, Variant::from(-2.7));
+}
