@@ -4,7 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+#[doc(inline)]
 pub use godot_core::{api, builtin, init, log, obj, sys, traits};
+#[doc(inline)]
 pub use godot_macros as macros;
 
 #[doc(hidden)]

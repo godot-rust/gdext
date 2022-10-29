@@ -13,3 +13,7 @@ default = ["convenience"]
 godot-ffi = { path = "../godot-ffi" }
 once_cell = "1.8"
 glam = "0.17"
+
+# Reverse dev dependencies so doctests can use `godot::` prefix
+[dev-dependencies]
+godot = { path = "../godot" }

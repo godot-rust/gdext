@@ -29,17 +29,20 @@ use crate::{api, callbacks, out, ClassName};
 /// This smart pointer behaves differently depending on `T`'s associated types, see [`GodotClass`] for their documentation.
 /// In particular, the memory management strategy is fully dependent on `T`:
 ///
-/// * Objects of type `RefCounted` or inherited from it are **reference-counted**. This means that every time a smart pointer is
+/// * Objects of type [`RefCounted`] or inherited from it are **reference-counted**. This means that every time a smart pointer is
 ///   shared using [`Share::share()`], the reference counter is incremented, and every time one is dropped, it is decremented.
 ///   This ensures that the last reference (either in Rust or Godot) will deallocate the object and call `T`'s destructor.
 ///
-/// * Objects inheriting from `Object` which are not `RefCounted` (or inherited) are **manually-managed**.
+/// * Objects inheriting from [`Object`] which are not `RefCounted` (or inherited) are **manually-managed**.
 ///   Their destructor is not automatically called (unless they are part of the scene tree). Creating a `Gd<T>` means that
 ///   you are responsible of explicitly deallocating such objects using [`Gd::free()`].
 ///
 /// * For `T=Object`, the memory strategy is determined **dynamically**. Due to polymorphism, a `Gd<T>` can point to either
 ///   reference-counted or manually-managed types at runtime. The behavior corresponds to one of the two previous points.
 ///   Note that if the dynamic type is also `Object`, the memory is manually-managed.
+///
+/// [`Object`]: crate::api::Object
+/// [`RefCounted`]: crate::api::RefCounted
 pub struct Gd<T: GodotClass> {
     // Note: `opaque` has the same layout as GDNativeObjectPtr == Object* in C++, i.e. the bytes represent a pointer
     // To receive a GDNativeTypePtr == GDNativeObjectPtr* == Object**, we need to get the address of this
@@ -57,8 +60,8 @@ static_assert_eq_size!(
     "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
 );
 
-/// The methods in this impl block are only available for user-declared `T`, that is,
-/// structs with `#[derive(GodotClass)]` but not Godot classes like `Node` or `RefCounted`.
+/// _The methods in this impl block are only available for user-declared `T`, that is,
+/// structs with `#[derive(GodotClass)]` but not Godot classes like `Node` or `RefCounted`._
 impl<T> Gd<T>
 where
     T: GodotClass<Declarer = dom::UserDomain>,
@@ -109,11 +112,33 @@ where
         result
     }
 
+    /// Hands out a guard for a shared borrow, through which the user instance can be read.
+    ///
+    /// The pattern is very similar to interior mutability with standard [`RefCell`][std::cell::RefCell].
+    /// You can either have multiple `GdRef` shared guards, or a single `GdMut` exclusive guard to a Rust
+    /// `GodotClass` instance, independently of how many `Gd` smart pointers point to it. There are runtime
+    /// checks to ensure that Rust safety rules (e.g. no `&` and `&mut` coexistence) are upheld.
+    ///
+    /// # Panics
+    /// * If another `Gd` smart pointer pointing to the same Rust instance has a live `GdMut` guard bound.
+    /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&mut T`
+    ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
     // Note: possible names: write/read, hold/hold_mut, r/w, r/rw, ...
     pub fn bind(&self) -> GdRef<T> {
         GdRef::from_cell(self.storage().get())
     }
 
+    /// Hands out a guard for an exclusive borrow, through which the user instance can be read and written.
+    ///
+    /// The pattern is very similar to interior mutability with standard [`RefCell`][std::cell::RefCell].
+    /// You can either have multiple `GdRef` shared guards, or a single `GdMut` exclusive guard to a Rust
+    /// `GodotClass` instance, independently of how many `Gd` smart pointers point to it. There are runtime
+    /// checks to ensure that Rust safety rules (e.g. no `&mut` aliasing) are upheld.
+    ///
+    /// # Panics
+    /// * If another `Gd` smart pointer pointing to the same Rust instance has a live `GdRef` or `GdMut` guard bound.
+    /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&T` or `&mut T`
+    ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
     pub fn bind_mut(&mut self) -> GdMut<T> {
         GdMut::from_cell(self.storage().get_mut())
     }
@@ -137,7 +162,7 @@ where
     }
 }
 
-/// The methods in this impl block are available for any `T`.
+/// _The methods in this impl block are available for any `T`._
 impl<T: GodotClass> Gd<T> {
     /// Looks up the given instance ID and returns the associated object, if possible.
     ///
@@ -345,8 +370,8 @@ impl<T: GodotClass> Gd<T> {
     }
 }
 
-/// The methods in this impl block are only available for objects `T` that are manually managed,
-/// i.e. anything that is not `RefCounted` or inherited from it.
+/// _The methods in this impl block are only available for objects `T` that are manually managed,
+/// i.e. anything that is not `RefCounted` or inherited from it._
 impl<T, M> Gd<T>
 where
     T: GodotClass<Mem = M>,
@@ -359,9 +384,12 @@ where
     ///
     /// This operation is **safe** and effectively prevents double-free.
     ///
+    /// Not calling `free()` on manually-managed instances causes memory leaks, unless their ownership is delegated, for
+    /// example to the node tree in case of nodes.
+    ///
     /// # Panics
-    /// When the referred-to object has already been destroyed, or when this is invoked on an upcast `Gd<Object>`
-    /// that dynamically points to a reference-counted type.
+    /// * When the referred-to object has already been destroyed.
+    /// * When this is invoked on an upcast `Gd<Object>` that dynamically points to a reference-counted type (i.e. operation not supported).
     pub fn free(self) {
         // TODO disallow for singletons, either only at runtime or both at compile time (new memory policy) and runtime
 

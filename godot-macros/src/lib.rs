@@ -31,6 +31,19 @@ pub fn itest(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, itest::transform)
 }
 
+/// Defines the global entry point for the GDExtension library.
+///
+/// Typical usage:
+/// ```
+/// use godot::init::{gdextension, ExtensionLibrary};
+///
+/// // This is just a type tag without any functionality
+/// struct MyExtension;
+///
+/// #[gdextension]
+/// unsafe impl ExtensionLibrary for MyExtension {}
+/// ```
+///
 #[proc_macro_attribute]
 pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {
     translate_meta(meta, input, gdextension::transform)

@@ -120,7 +120,7 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
 
     let methods = make_methods(&class.methods, &class.name, ctx);
     let enums = make_enums(&class.enums, &class.name, ctx);
-    let inherits_macro = format_ident!("class_inherits_transitive_{}", &class.name);
+    let inherits_macro = format_ident!("inherits_transitive_{}", &class.name);
     let all_bases = ctx.inheritance_tree.map_all_bases(&class.name, ident);
 
     let memory = if &class.name == "Object" {
@@ -241,7 +241,7 @@ fn make_module_file(classes_and_modules: Vec<GeneratedModule>) -> TokenStream {
         #( #decls )*
 
         #[doc(hidden)]
-        pub mod inherit_macros {
+        pub mod class_macros {
             pub use crate::*;
             #( #macros )*
         }

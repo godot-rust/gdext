@@ -22,6 +22,7 @@ macro_rules! godot_warn {
 
 #[macro_export]
 macro_rules! godot_error {
+    // FIXME expr needs to be parenthesised, see usages
     ($($args:tt),* $(,)?) => {
         unsafe {
             let msg = format!("{}\0", format_args!($($args,)*));

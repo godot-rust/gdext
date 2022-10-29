@@ -12,3 +12,4 @@ default = ["convenience"]
 [dependencies]
 godot-core = { path = "../godot-core" }
 godot-macros = { path = "../godot-macros" }
+

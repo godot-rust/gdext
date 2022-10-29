@@ -51,13 +51,12 @@ pub mod api {
 #[doc(hidden)]
 pub mod private {
     pub use crate::builtin::func_callbacks;
-    pub use crate::gen::classes::inherit_macros::*;
+    pub use crate::gen::classes::class_macros;
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
     pub use crate::storage::as_storage;
-
     pub use crate::{gdext_register_method, gdext_register_method_inner};
 
-    use crate::sys;
+    use crate::{log, sys};
 
     sys::plugin_registry!(__GODOT_PLUGIN_REGISTRY: ClassPlugin);
 
@@ -67,12 +66,11 @@ pub mod private {
 
     pub fn print_panic(err: Box<dyn std::any::Any + Send>) {
         if let Some(s) = err.downcast_ref::<&'static str>() {
-            godot_error!("rust-panic:  {}", s);
+            log::godot_error!("rust-panic:  {}", s);
         } else if let Some(s) = err.downcast_ref::<String>() {
-            godot_error!("rust-panic:  {}", s);
+            log::godot_error!("rust-panic:  {}", s);
         } else {
-            // FIXME expr needs to be escaped
-            godot_error!("rust-panic of type ID {:?}", (err.type_id()));
+            log::godot_error!("rust-panic of type ID {:?}", (err.type_id()));
         }
     }
 }

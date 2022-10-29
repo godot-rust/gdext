@@ -8,7 +8,9 @@ use std::cell;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
-/// Immutably bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
+/// Immutably/shared bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
+///
+/// See [`Gd::bind`][crate::obj::Gd::bind] for usage.
 #[derive(Debug)]
 pub struct GdRef<'a, T> {
     cell_ref: cell::Ref<'a, T>,
@@ -28,9 +30,13 @@ impl<T> Deref for GdRef<'_, T> {
     }
 }
 
+// TODO Clone or Share
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Mutably and exclusively bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
+/// Mutably/exclusively bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
+///
+/// See [`Gd::bind_mut`][crate::obj::Gd::bind_mut] for usage.
 #[derive(Debug)]
 pub struct GdMut<'a, T> {
     cell_ref: cell::RefMut<'a, T>,

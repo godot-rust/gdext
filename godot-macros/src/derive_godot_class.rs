@@ -25,7 +25,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let base_ty_str = struct_cfg.base_ty.to_string();
     let class_name = &class.name;
     let class_name_str = class.name.to_string();
-    let inherits_macro = format_ident!("class_inherits_transitive_{}", &base_ty_str);
+    let inherits_macro = format_ident!("inherits_transitive_{}", &base_ty_str);
 
     let prv = quote! { ::godot::private };
     let (godot_init_impl, create_fn);
@@ -57,7 +57,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
             },
         });
 
-        #prv::#inherits_macro!(#class_name);
+        #prv::class_macros::#inherits_macro!(#class_name);
     })
 }
 

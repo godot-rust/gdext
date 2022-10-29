@@ -10,7 +10,7 @@ use crate::traits::GodotClass;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
-/// Smart pointer holding a Godot base class inside a user's `GodotClass`.
+/// Restricted version of `Gd`, to hold the base instance inside a user's `GodotClass`.
 ///
 /// Behaves similarly to [`Gd`][crate::obj::Gd], but is more constrained. Cannot be constructed by the user.
 pub struct Base<T: GodotClass> {
