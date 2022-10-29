@@ -115,7 +115,7 @@ macro_rules! gdext_register_method_inner {
 
             let name = std::ffi::CStr::from_bytes_with_nul_unchecked(concat!(stringify!($Class), "\0").as_bytes());
 
-            println!("   >> Reg fn:   {}::{}", stringify!($Class), stringify!($method_name));
+            godot_core::out!("   Register fn:   {}::{}", stringify!($Class), stringify!($method_name));
             sys::interface_fn!(classdb_register_extension_class_method)(
                 sys::get_library(),
                 name.as_ptr(),
@@ -337,7 +337,7 @@ macro_rules! gdext_ptrcall {
     ) => {
         use godot_ffi as sys;
 
-        println!("ptrcall: {}", stringify!($method_name));
+        godot_core::out!("ptrcall: {}", stringify!($method_name));
         let storage = ::godot_core::private::as_storage::<$Class>($instance_ptr);
         let mut instance = storage.get_mut();
 

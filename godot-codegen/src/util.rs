@@ -116,17 +116,6 @@ pub fn safe_ident(s: &str) -> Ident {
     }
 }
 
-pub fn ident_escaped(s: &str) -> Ident {
-    // note: could also use Ident::parse(s) from syn, but currently this crate doesn't depend on it
-
-    let transformed = match s {
-        "type" => "type_",
-        s => s,
-    };
-
-    ident(transformed)
-}
-
 pub fn c_str(s: &str) -> TokenStream {
     let s = Literal::string(&format!("{}\0", s));
     quote! {

@@ -132,7 +132,7 @@ macro_rules! impl_signature_for_tuple {
                 func: fn(&mut C, Self::Params) -> Self::Ret,
                 method_name: &str,
             ) {
-    	        println!("varcall: {}", method_name);
+    	        $crate::out!("varcall: {}", method_name);
 
                 let storage = unsafe { crate::private::as_storage::<C>(instance_ptr) };
                 let mut instance = storage.get_mut();
@@ -163,7 +163,8 @@ macro_rules! impl_signature_for_tuple {
                 func: fn(&mut C, Self::Params) -> Self::Ret,
                 method_name: &str,
             ) {
-                println!("ptrcall: {}", method_name);
+                $crate::out!("ptrcall: {}", method_name);
+
                 let storage = unsafe { crate::private::as_storage::<C>(instance_ptr) };
                 let mut instance = storage.get_mut();
 

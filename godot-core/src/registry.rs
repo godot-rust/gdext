@@ -17,6 +17,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::ptr;
+use crate::out;
 
 #[derive(Debug)]
 pub struct ClassPlugin {
@@ -108,7 +109,7 @@ struct ClassRegistrationInfo {
 pub fn register_class<T: GodotExt + cap::GodotInit + cap::ImplementsGodotExt>() {
     // TODO: provide overloads with only some trait impls
 
-    println!("Manually register class {}", std::any::type_name::<T>());
+    out!("Manually register class {}", std::any::type_name::<T>());
     let class_name = ClassName::new::<T>();
 
     let godot_params = sys::GDNativeExtensionClassCreationInfo {
@@ -136,7 +137,7 @@ pub fn register_class<T: GodotExt + cap::GodotInit + cap::ImplementsGodotExt>() 
 
 /// Lets Godot know about all classes that have self-registered through the plugin system.
 pub fn auto_register_classes() {
-    println!("Auto-register classes...");
+    out!("Auto-register classes...");
 
     // Note: many errors are already caught by the compiler, before this runtime validation even takes place:
     // * missing #[derive(GodotClass)] or impl GodotClass for T
@@ -146,7 +147,7 @@ pub fn auto_register_classes() {
     let mut map = HashMap::<ClassName, ClassRegistrationInfo>::new();
 
     crate::private::iterate_plugins(|elem: &ClassPlugin| {
-        //println!("* Plugin: {elem:#?}");
+        //out!("* Plugin: {elem:#?}");
 
         let name = ClassName::from_static(elem.class_name);
         let class_info = map
@@ -159,16 +160,16 @@ pub fn auto_register_classes() {
     //out!("Class-map: {map:#?}");
 
     for info in map.into_values() {
-        println!(">> Reg class:   {}", info.class_name);
+        out!("Register class:   {}", info.class_name);
         register_class_raw(info);
     }
 
-    println!("All classes auto-registered.");
+    out!("All classes auto-registered.");
 }
 
 fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
-    // println!("|   reg (before):    {c:?}");
-    // println!("|   comp:            {component:?}");
+    // out!("|   reg (before):    {c:?}");
+    // out!("|   comp:            {component:?}");
     match component {
         PluginComponent::ClassDef {
             base_class_name,
@@ -201,8 +202,8 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             c.godot_params.get_virtual_func = Some(get_virtual_fn);
         }
     }
-    // println!("|   reg (after):     {c:?}");
-    // println!();
+    // out!("|   reg (after):     {c:?}");
+    // out!();
 }
 
 fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) {

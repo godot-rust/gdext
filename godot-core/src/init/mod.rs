@@ -161,7 +161,7 @@ impl InitLevel {
             sys::GDNATIVE_INITIALIZATION_SCENE => Self::Scene,
             sys::GDNATIVE_INITIALIZATION_EDITOR => Self::Editor,
             _ => {
-                println!("WARNING: unknown initialization level {}", level);
+                eprintln!("WARNING: unknown initialization level {}", level);
                 Self::Scene
             }
         }

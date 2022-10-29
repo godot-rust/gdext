@@ -11,7 +11,7 @@ use quote::{format_ident, quote};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::util::{c_str, ident, ident_escaped, safe_ident, strlit, to_module_name, to_rust_type};
+use crate::util::{c_str, ident, safe_ident, strlit, to_module_name, to_rust_type};
 use crate::{
     special_cases, Context, GeneratedClass, GeneratedModule, KNOWN_TYPES, SELECTED_CLASSES,
 };
@@ -420,7 +420,7 @@ fn make_params(
     let mut params = vec![];
     let mut arg_exprs = vec![];
     for arg in method_args.iter() {
-        let param_name = ident_escaped(&arg.name);
+        let param_name = safe_ident(&arg.name);
         let param = to_rust_type(&arg.type_, ctx);
         let param_ty = param.tokens;
 

@@ -18,8 +18,6 @@ pub struct InstanceStorage<T: GodotClass> {
     // Declared after `user_instance`, is dropped last
     pub lifecycle: Lifecycle,
     godot_ref_count: i32,
-
-    _last_drop: LastDrop,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -27,13 +25,6 @@ pub enum Lifecycle {
     Alive,
     Destroying,
     Dead, // reading this would typically already be too late, only best-effort in case of UB
-}
-
-struct LastDrop;
-impl Drop for LastDrop {
-    fn drop(&mut self) {
-        println!("LAST DROP");
-    }
 }
 
 /// For all Godot extension classes
@@ -45,7 +36,6 @@ impl<T: GodotClass> InstanceStorage<T> {
             user_instance: cell::RefCell::new(user_instance),
             lifecycle: Lifecycle::Alive,
             godot_ref_count: 1,
-            _last_drop: LastDrop,
         }
     }
 
