@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::ExtensionApi;
+use crate::{ExtensionApi, RustTy};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
@@ -12,6 +12,7 @@ pub(crate) struct Context<'a> {
     engine_classes: HashSet<&'a str>,
     singletons: HashSet<&'a str>,
     inheritance_tree: InheritanceTree,
+    cached_rust_types: HashMap<String, RustTy>,
 }
 
 impl<'a> Context<'a> {
@@ -39,14 +40,26 @@ impl<'a> Context<'a> {
         }
         ctx
     }
+
     pub fn is_engine_class(&self, class_name: &str) -> bool {
         self.engine_classes.contains(class_name)
     }
+
     pub fn is_singleton(&self, class_name: &str) -> bool {
         self.singletons.contains(class_name)
     }
+
     pub fn inheritance_tree(&self) -> &InheritanceTree {
         &self.inheritance_tree
+    }
+
+    pub fn find_rust_type(&'a self, ty: &str) -> Option<&'a RustTy> {
+        self.cached_rust_types.get(ty)
+    }
+
+    pub fn insert_rust_type(&mut self, ty: &str, resolved: RustTy) {
+        let prev = self.cached_rust_types.insert(ty.to_string(), resolved);
+        assert!(prev.is_none(), "no overwrites of RustTy");
     }
 }
 

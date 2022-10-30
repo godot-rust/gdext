@@ -391,7 +391,7 @@ fn make_enumerator(
     //let shout_name = format_ident!("{}", type_names.shout_case);
     let (first, rest) = type_names.pascal_case.split_at(1);
 
-    let pascal_name = format_ident!("{}{}", first.to_uppercase(), rest);
+    let pascal_name = format_ident!("{}{}", first.to_ascii_uppercase(), rest);
     let rust_ty = to_rust_type(&type_names.pascal_case, ctx);
     let ord = Literal::i32_unsuffixed(value);
 
@@ -401,7 +401,7 @@ fn make_enumerator(
 fn make_opaque_type(name: &str, size: usize) -> TokenStream {
     // Capitalize: "int" -> "Int"
     let (first, rest) = name.split_at(1);
-    let ident = format_ident!("Opaque{}{}", first.to_uppercase(), rest);
+    let ident = format_ident!("Opaque{}{}", first.to_ascii_uppercase(), rest);
     //let upper = format_ident!("SIZE_{}", name.to_uppercase());
     quote! {
         pub type #ident = crate::opaque::Opaque<#size>;
