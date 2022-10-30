@@ -47,3 +47,10 @@ pub fn is_private(class_name: &str, method_name: &str) -> bool {
         => true, _ => false
     }
 }
+
+pub fn maybe_renamed<'c, 'm>(class_name: &'c str, method_name: &'m str) -> &'m str {
+    match (class_name, method_name) {
+        ("GDScript", "new") => "instance",
+        _ => method_name,
+    }
+}

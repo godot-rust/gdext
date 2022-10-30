@@ -81,9 +81,9 @@ fn build_context(api: &ExtensionApi) -> Context {
 
     for class in api.classes.iter() {
         let class_name = class.name.as_str();
-        if !SELECTED_CLASSES.contains(&class_name) {
-            continue;
-        }
+        // if !SELECTED_CLASSES.contains(&class_name) {
+        //     continue;
+        // }
 
         println!("-- add engine class {}", class_name);
         ctx.engine_classes.insert(class_name);
@@ -200,6 +200,7 @@ struct GeneratedModule {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared config
 // Workaround for limiting number of types as long as implementation is incomplete
+/*
 const KNOWN_TYPES: &[&str] = &[
     // builtin:
     "bool",
@@ -243,3 +244,4 @@ const SELECTED_CLASSES: &[&str] = &[
     "Input",
     "OS",
 ];
+*/

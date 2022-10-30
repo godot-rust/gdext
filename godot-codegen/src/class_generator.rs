@@ -6,14 +6,17 @@
 
 //! Generates a file for each Godot class
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::util::{c_str, ident, safe_ident, strlit, to_module_name, to_rust_type};
 use crate::{
-    special_cases, Context, GeneratedClass, GeneratedModule, KNOWN_TYPES, SELECTED_CLASSES,
+    special_cases,
+    Context,
+    GeneratedClass,
+    GeneratedModule, //KNOWN_TYPES, SELECTED_CLASSES,
 };
 
 pub(crate) fn generate_class_files(
@@ -29,9 +32,10 @@ pub(crate) fn generate_class_files(
     // TODO no limit after testing
     let mut modules = vec![];
     for class in api.classes.iter() {
-        if !SELECTED_CLASSES.contains(&class.name.as_str())
-            || special_cases::is_class_deleted(&class.name.as_str())
-        {
+        if
+        /* !SELECTED_CLASSES.contains(&class.name.as_str())
+        ||*/
+        special_cases::is_class_deleted(&class.name.as_str()) {
             continue;
         }
 
@@ -289,7 +293,7 @@ fn is_method_excluded(method: &Method) -> bool {
     //   As such support could be added later (if at all), with possibly safe interfaces (e.g. Vec for void*+size pairs)
 
     // -- FIXME remove when impl complete
-    if method
+    /*if method
         .return_value
         .as_ref()
         .map_or(false, |ret| !KNOWN_TYPES.contains(&ret.type_.as_str()))
@@ -299,7 +303,7 @@ fn is_method_excluded(method: &Method) -> bool {
         })
     {
         return true;
-    }
+    }*/
     // -- end.
 
     method.name.starts_with("_")
@@ -313,15 +317,16 @@ fn is_method_excluded(method: &Method) -> bool {
             .map_or(false, |args| args.iter().any(|arg| arg.type_.contains("*")))
 }
 
-fn is_function_excluded(function: &UtilityFunction) -> bool {
-    function
-        .return_type
-        .as_ref()
-        .map_or(false, |ret| !KNOWN_TYPES.contains(&ret.as_str()))
-        || function.arguments.as_ref().map_or(false, |args| {
-            args.iter()
-                .any(|arg| !KNOWN_TYPES.contains(&arg.type_.as_str()))
-        })
+fn is_function_excluded(_function: &UtilityFunction) -> bool {
+    false
+    /*function
+    .return_type
+    .as_ref()
+    .map_or(false, |ret| !KNOWN_TYPES.contains(&ret.as_str()))
+    || function.arguments.as_ref().map_or(false, |args| {
+        args.iter()
+            .any(|arg| !KNOWN_TYPES.contains(&arg.type_.as_str()))
+    })*/
 }
 
 fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> TokenStream {
@@ -332,7 +337,8 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
     let is_varcall = method.is_vararg;
     let (params, arg_exprs) = make_params(&method.arguments, is_varcall, ctx);
 
-    let method_name = safe_ident(&method.name);
+    let method_name = special_cases::maybe_renamed(class_name, &method.name);
+    let method_name = safe_ident(method_name);
     let c_method_name = c_str(&method.name);
     let c_class_name = c_str(class_name);
     let hash = method.hash;
@@ -540,7 +546,7 @@ fn make_enum_definition(enum_: &Enum) -> TokenStream {
 
     let enumerators = enum_.values.iter().map(|enumerator| {
         let name = make_enumerator_name(&enumerator.name, &enum_.name);
-        let ordinal = &enumerator.value;
+        let ordinal = Literal::i32_unsuffixed(enumerator.value);
         quote! {
             pub const #name: Self = Self { ord: #ordinal };
         }
