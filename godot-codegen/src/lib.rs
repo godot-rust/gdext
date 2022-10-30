@@ -29,7 +29,7 @@ use quote::ToTokens;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-pub fn generate_sys_files(sys_out_dir: &Path, core_out_dir: &Path) {
+pub fn generate_all_files(sys_out_dir: &Path, core_out_dir: &Path, stats_out_dir: &Path) {
     let central_sys_gen_path = sys_out_dir;
     let central_core_gen_path = core_out_dir;
     let class_gen_path = core_out_dir;
@@ -68,8 +68,7 @@ pub fn generate_sys_files(sys_out_dir: &Path, core_out_dir: &Path) {
 
     rustfmt_if_needed(out_files);
     watch.record("rustfmt");
-
-    watch.write_stats_to(&sys_out_dir.join("build_stats.txt"));
+    watch.write_stats_to(&stats_out_dir.join("codegen-stats.txt"));
 }
 
 fn build_context(api: &ExtensionApi) -> Context {
@@ -99,27 +98,27 @@ fn build_context(api: &ExtensionApi) -> Context {
 
 //#[cfg(feature = "formatted")]
 fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
-    //print!("Format {} generated files...", out_files.len());
+    println!("Format {} generated files...", out_files.len());
 
-    let mut process = std::process::Command::new("rustup");
-    process
-        .arg("run")
-        .arg("stable")
-        .arg("rustfmt")
-        .arg("--edition=2021");
+    for files in out_files.chunks(20) {
+        let mut process = std::process::Command::new("rustup");
+        process
+            .arg("run")
+            .arg("stable")
+            .arg("rustfmt")
+            .arg("--edition=2021");
 
-    for file in out_files {
-        //println!("Format {file:?}");
-        process.arg(file);
-    }
-
-    match process.output() {
-        Ok(_) => println!("Done."),
-        Err(err) => {
-            println!("Failed.");
-            println!("Error: {}", err);
+        println!("  Format {} files...", files.len());
+        for file in files {
+            process.arg(file);
         }
+
+        process
+            .output()
+            .unwrap_or_else(|err| panic!("during godot-rust codegen, rustfmt failed:\n   {err}"));
     }
+
+    println!("Rustfmt completed.");
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

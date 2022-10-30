@@ -26,7 +26,7 @@ mod gen {
         // Do not write macro for this, as it confuses IDEs -- just search&replace
         include!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../target/godot-gen/core/classes/obj"
+            "/../target/godot-gen/core/classes/mod.rs"
         ));
     }
 
@@ -39,6 +39,7 @@ mod gen {
         ));
     }
 
+    #[allow(non_upper_case_globals, non_snake_case)]
     pub mod central_core {
         // Path to core/utilities.rs
         // Do not write macro for this, as it confuses IDEs -- just search&replace

@@ -21,9 +21,10 @@ fn main() {
 
     run_bindgen(Path::new(codegen_path!("gdnative_interface.rs")));
 
-    gen::generate_sys_files(
+    gen::generate_all_files(
         Path::new(codegen_path!("sys")),
         Path::new(codegen_path!("core")),
+        Path::new(codegen_path!("")),
     );
 }
 

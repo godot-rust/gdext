@@ -40,6 +40,7 @@ pub(crate) fn generate_class_files(
         let module_name = to_module_name(&class.name);
         let out_path = gen_path.join(format!("{}.rs", module_name));
         std::fs::write(&out_path, file_contents).expect("failed to write class file");
+        out_files.push(out_path);
 
         let class_ident = ident(&class.name);
         let module_ident = ident(&module_name);
@@ -49,12 +50,11 @@ pub(crate) fn generate_class_files(
             inherits_macro_ident: generated_class.inherits_macro_ident,
             is_pub: generated_class.has_pub_module,
         });
-        out_files.push(out_path);
     }
 
     let mod_contents = make_module_file(modules).to_string();
-    let out_path = gen_path.join("obj");
-    std::fs::write(&out_path, mod_contents).expect("failed to write obj file");
+    let out_path = gen_path.join("mod.rs");
+    std::fs::write(&out_path, mod_contents).expect("failed to write mod.rs file");
     out_files.push(out_path);
 }
 

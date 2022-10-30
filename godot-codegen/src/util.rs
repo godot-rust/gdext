@@ -10,11 +10,16 @@ use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
 
 pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
+    // TODO enums which have unique ords could be represented as Rust enums
+    // This would allow exhaustive matches (or at least auto-completed matches + #[non_exhaustive]). But even without #[non_exhaustive],
+    // this might be a forward compatibility hazard, if Godot deprecates enumerators and adds new ones with existing ords.
+
     let enum_name = ident(&enum_.name());
 
     let values = enum_.values();
     let mut enumerators = Vec::with_capacity(values.len());
-    let mut matches = Vec::with_capacity(values.len());
+    // let mut matches = Vec::with_capacity(values.len());
+    let mut unique_ords = Vec::with_capacity(values.len());
 
     for enumerator in values {
         let name = make_enumerator_name(&enumerator.name, &enum_.name());
@@ -23,10 +28,15 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
         enumerators.push(quote! {
             pub const #name: Self = Self { ord: #ordinal };
         });
-        matches.push(quote! {
-            #ordinal => Some(Self::#name),
-        });
+        // matches.push(quote! {
+        //     #ordinal => Some(Self::#name),
+        // });
+        unique_ords.push(enumerator.value);
     }
+
+    // They are not necessarily in order
+    unique_ords.sort();
+    unique_ords.dedup();
 
     let bitfield_ops = if enum_.is_bitfield() {
         let tokens = quote! {
@@ -63,11 +73,17 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
             )*
         }
         impl crate::obj::EngineEnum for #enum_name {
+            // fn try_from_ord(ord: i32) -> Option<Self> {
+            //     match ord {
+            //         #(
+            //             #matches
+            //         )*
+            //         _ => None,
+            //     }
+            // }
             fn try_from_ord(ord: i32) -> Option<Self> {
                 match ord {
-                    #(
-                        #matches
-                    )*
+                    #( ord @ #unique_ords )|* => Some(Self { ord }),
                     _ => None,
                 }
             }
