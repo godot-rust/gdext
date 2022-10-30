@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.63"
 
+[features]
+codegen-fmt = []
+
 [dependencies]
 quote = "1"
 proc-macro2 = "1"

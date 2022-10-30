@@ -96,7 +96,7 @@ fn build_context(api: &ExtensionApi) -> Context {
     ctx
 }
 
-//#[cfg(feature = "formatted")]
+#[cfg(feature = "codegen-fmt")]
 fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
     println!("Format {} generated files...", out_files.len());
 
@@ -120,6 +120,9 @@ fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
 
     println!("Rustfmt completed.");
 }
+
+#[cfg(not(feature = "codegen-fmt"))]
+fn rustfmt_if_needed(_out_files: Vec<PathBuf>) {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared utility types

@@ -5,9 +5,10 @@ edition = "2021"
 rust-version = "1.63"
 
 [features]
+default = ["convenience"]
 trace = []
 convenience = []
-default = ["convenience"]
+codegen-fmt = ["godot-core/codegen-fmt"]
 
 [dependencies]
 godot-core = { path = "../godot-core" }

@@ -20,7 +20,7 @@ pub use registry::*;
 pub use godot_ffi as sys;
 
 mod gen {
-    #[allow(unused_imports, dead_code)]
+    #[allow(unused_imports, dead_code, non_upper_case_globals, non_snake_case)]
     pub(crate) mod classes {
         // Path to core/classes/obj
         // Do not write macro for this, as it confuses IDEs -- just search&replace
