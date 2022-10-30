@@ -13,7 +13,7 @@ use crate::Context;
 
 pub(crate) fn generate_utilities_file(
     api: &ExtensionApi,
-    ctx: &Context,
+    ctx: &mut Context,
     gen_path: &Path,
     out_files: &mut Vec<PathBuf>,
 ) {

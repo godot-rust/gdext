@@ -244,7 +244,7 @@ fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
     Some(result)
 }
 
-pub(crate) fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
+pub(crate) fn to_rust_type(ty: &str, ctx: &mut Context) -> RustTy {
     // TODO cache in Context
 
     if let Some(hardcoded) = to_hardcoded_rust_type(ty) {

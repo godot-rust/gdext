@@ -16,7 +16,7 @@ use crate::{special_cases, util, Context, GeneratedClass, GeneratedModule, RustT
 
 pub(crate) fn generate_class_files(
     api: &ExtensionApi,
-    ctx: &Context,
+    ctx: &mut Context,
     _build_config: &str,
     gen_path: &Path,
     out_files: &mut Vec<PathBuf>,
@@ -34,7 +34,7 @@ pub(crate) fn generate_class_files(
             continue;
         }
 
-        let generated_class = make_class(class, &ctx);
+        let generated_class = make_class(class, ctx);
         let file_contents = generated_class.tokens.to_string();
 
         let module_name = to_module_name(&class.name);
@@ -101,7 +101,7 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_cstr: TokenStream) 
     }
 }
 
-fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
+fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
     //let sys = TokenStream::from_str("::godot_ffi");
     let base = match class.inherits.as_ref() {
         Some(base) => {
@@ -120,7 +120,7 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
     let methods = make_methods(&class.methods, &class.name, ctx);
     let enums = make_enums(&class.enums, &class.name, ctx);
     let inherits_macro = format_ident!("inherits_transitive_{}", &class.name);
-    let all_bases = ctx.inheritance_tree.map_all_bases(&class.name, ident);
+    let all_bases = ctx.inheritance_tree().map_all_bases(&class.name, ident);
 
     let memory = if &class.name == "Object" {
         ident("DynamicRefCount")
@@ -246,7 +246,7 @@ fn make_module_file(classes_and_modules: Vec<GeneratedModule>) -> TokenStream {
     }
 }
 
-fn make_methods(methods: &Option<Vec<Method>>, class_name: &str, ctx: &Context) -> TokenStream {
+fn make_methods(methods: &Option<Vec<Method>>, class_name: &str, ctx: &mut Context) -> TokenStream {
     let methods = match methods {
         Some(m) => m,
         None => return TokenStream::new(),
@@ -323,7 +323,7 @@ fn is_function_excluded(_function: &UtilityFunction) -> bool {
     })*/
 }
 
-fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> TokenStream {
+fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) -> TokenStream {
     if is_method_excluded(method) || special_cases::is_deleted(class_name, &method.name) {
         return TokenStream::new();
     }
@@ -393,7 +393,10 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
     }
 }
 
-pub(crate) fn make_function_definition(function: &UtilityFunction, ctx: &Context) -> TokenStream {
+pub(crate) fn make_function_definition(
+    function: &UtilityFunction,
+    ctx: &mut Context,
+) -> TokenStream {
     // TODO support vararg functions
     if is_function_excluded(function) || function.is_vararg {
         return TokenStream::new();
@@ -430,7 +433,7 @@ pub(crate) fn make_function_definition(function: &UtilityFunction, ctx: &Context
 fn make_params(
     method_args: &Option<Vec<MethodArg>>,
     is_varcall: bool,
-    ctx: &Context,
+    ctx: &mut Context,
 ) -> (Vec<TokenStream>, Vec<TokenStream>) {
     let empty = vec![];
     let method_args = method_args.as_ref().unwrap_or(&empty);
@@ -462,7 +465,7 @@ fn make_params(
 fn make_method_return(
     return_value: &Option<MethodReturn>,
     is_varcall: bool,
-    ctx: &Context,
+    ctx: &mut Context,
 ) -> (TokenStream, TokenStream) {
     let return_ty;
     let return_decl;
@@ -520,7 +523,10 @@ fn make_method_return(
     (return_decl, call)
 }
 
-fn make_utility_return(return_value: &Option<String>, ctx: &Context) -> (TokenStream, TokenStream) {
+fn make_utility_return(
+    return_value: &Option<String>,
+    ctx: &mut Context,
+) -> (TokenStream, TokenStream) {
     let return_decl;
     let call;
     match return_value {

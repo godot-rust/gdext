@@ -53,7 +53,7 @@ struct BuiltinTypeInfo<'a> {
 
 pub(crate) fn generate_central_files(
     api: &ExtensionApi,
-    ctx: &Context,
+    ctx: &mut Context,
     build_config: &str,
     sys_gen_path: &Path,
     core_gen_path: &Path,
@@ -209,7 +209,7 @@ fn make_core_code(central_items: &CentralItems) -> String {
     core_tokens.to_string()
 }
 
-fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> CentralItems {
+fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context) -> CentralItems {
     let mut opaque_types = vec![];
     for class in &api.builtin_class_sizes {
         if &class.build_configuration == build_config {
@@ -386,7 +386,7 @@ fn collect_variant_operators(api: &ExtensionApi) -> Vec<&Constant> {
 fn make_enumerator(
     type_names: &TypeNames,
     value: i32,
-    ctx: &Context,
+    ctx: &mut Context,
 ) -> (Ident, TokenStream, Literal) {
     //let shout_name = format_ident!("{}", type_names.shout_case);
     let (first, rest) = type_names.pascal_case.split_at(1);

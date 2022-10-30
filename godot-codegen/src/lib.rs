@@ -7,6 +7,7 @@
 mod api_parser;
 mod central_generator;
 mod class_generator;
+mod context;
 mod godot_exe;
 mod godot_version;
 mod special_cases;
@@ -20,13 +21,13 @@ mod tests;
 use api_parser::{load_extension_api, ExtensionApi};
 use central_generator::generate_central_files;
 use class_generator::generate_class_files;
+use context::Context;
+use util::ident;
 use utilities_generator::generate_utilities_file;
+use watch::StopWatch;
 
-use crate::util::ident;
-use crate::watch::StopWatch;
 use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
-use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 pub fn generate_all_files(sys_out_dir: &Path, core_out_dir: &Path, stats_out_dir: &Path) {
@@ -39,12 +40,12 @@ pub fn generate_all_files(sys_out_dir: &Path, core_out_dir: &Path, stats_out_dir
     let mut watch = StopWatch::start();
 
     let (api, build_config) = load_extension_api(&mut watch);
-    let ctx = build_context(&api);
+    let mut ctx = Context::build_from_api(&api);
     watch.record("build_context");
 
     generate_central_files(
         &api,
-        &ctx,
+        &mut ctx,
         build_config,
         central_sys_gen_path,
         central_core_gen_path,
@@ -52,14 +53,14 @@ pub fn generate_all_files(sys_out_dir: &Path, core_out_dir: &Path, stats_out_dir
     );
     watch.record("generate_central_files");
 
-    generate_utilities_file(&api, &ctx, class_gen_path, &mut out_files);
+    generate_utilities_file(&api, &mut ctx, class_gen_path, &mut out_files);
     watch.record("generate_utilities_file");
 
     // Class files -- currently output in godot-core; could maybe be separated cleaner
     // Note: deletes entire generated directory!
     generate_class_files(
         &api,
-        &ctx,
+        &mut ctx,
         build_config,
         &class_gen_path.join("classes"),
         &mut out_files,
@@ -69,31 +70,6 @@ pub fn generate_all_files(sys_out_dir: &Path, core_out_dir: &Path, stats_out_dir
     rustfmt_if_needed(out_files);
     watch.record("rustfmt");
     watch.write_stats_to(&stats_out_dir.join("codegen-stats.txt"));
-}
-
-fn build_context(api: &ExtensionApi) -> Context {
-    let mut ctx = Context::default();
-
-    for class in api.singletons.iter() {
-        ctx.singletons.insert(class.name.as_str());
-    }
-
-    for class in api.classes.iter() {
-        let class_name = class.name.as_str();
-        // if !SELECTED_CLASSES.contains(&class_name) {
-        //     continue;
-        // }
-
-        println!("-- add engine class {}", class_name);
-        ctx.engine_classes.insert(class_name);
-
-        if let Some(base) = class.inherits.as_ref() {
-            println!("  -- inherits {}", base);
-            ctx.inheritance_tree
-                .insert(class_name.to_string(), base.clone());
-        }
-    }
-    ctx
 }
 
 #[cfg(feature = "codegen-fmt")]
@@ -150,48 +126,6 @@ impl ToTokens for RustTy {
             RustTy::EngineClass(path) => path.to_tokens(tokens),
             //RustTy::Other(path) => path.to_tokens(tokens),
         }
-    }
-}
-
-#[derive(Default)]
-pub(crate) struct Context<'a> {
-    engine_classes: HashSet<&'a str>,
-    singletons: HashSet<&'a str>,
-    inheritance_tree: InheritanceTree,
-}
-
-impl<'a> Context<'a> {
-    fn is_engine_class(&self, class_name: &str) -> bool {
-        self.engine_classes.contains(class_name)
-    }
-    fn is_singleton(&self, class_name: &str) -> bool {
-        self.singletons.contains(class_name)
-    }
-}
-
-#[derive(Default)]
-pub(crate) struct InheritanceTree {
-    derived_to_base: HashMap<String, String>,
-}
-
-impl InheritanceTree {
-    pub fn insert(&mut self, derived: String, base: String) {
-        let existing = self.derived_to_base.insert(derived, base);
-        assert!(existing.is_none(), "Duplicate inheritance insert");
-    }
-
-    pub fn map_all_bases<T>(&self, derived: &str, apply: impl Fn(&str) -> T) -> Vec<T> {
-        let mut maybe_base = derived;
-        let mut result = vec![];
-        loop {
-            if let Some(base) = self.derived_to_base.get(maybe_base).map(String::as_str) {
-                result.push(apply(base));
-                maybe_base = base;
-            } else {
-                break;
-            }
-        }
-        result
     }
 }
 
