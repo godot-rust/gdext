@@ -39,12 +39,19 @@ mod gen {
         ));
     }
 
-    // #[path = "../../../godot-ffi/src/gen/core/central.rs"]
-    // pub mod central_core;
+    pub mod central_core {
+        // Path to core/utilities.rs
+        // Do not write macro for this, as it confuses IDEs -- just search&replace
+        include!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../target/godot-gen/core/central.rs"
+        ));
+    }
 }
 
 /// Godot engine classes and methods.
 pub mod engine {
+    pub use super::gen::central_core::global;
     pub use super::gen::classes::*;
     pub use super::gen::utilities;
 }

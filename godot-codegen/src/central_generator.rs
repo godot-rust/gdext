@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::util::to_rust_type;
-use crate::{ident, Context};
+use crate::{ident, util, Context};
 
 struct CentralItems {
     opaque_types: Vec<TokenStream>,
@@ -22,6 +22,7 @@ struct CentralItems {
     variant_op_enumerators_ord: Vec<Literal>,
     variant_fn_decls: Vec<TokenStream>,
     variant_fn_inits: Vec<TokenStream>,
+    global_enum_defs: Vec<TokenStream>,
 }
 
 struct TypeNames {
@@ -171,6 +172,7 @@ fn make_core_code(central_items: &CentralItems) -> String {
     let CentralItems {
         variant_ty_enumerators_pascal,
         variant_ty_enumerators_rust,
+        global_enum_defs,
         ..
     } = central_items;
 
@@ -183,6 +185,10 @@ fn make_core_code(central_items: &CentralItems) -> String {
             #(
                 #variant_ty_enumerators_pascal(#variant_ty_enumerators_rust),
             )*
+        }
+
+        pub mod global {
+            #( #global_enum_defs )*
         }
     };
 
@@ -218,6 +224,7 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
         variant_op_enumerators_ord: Vec::new(),
         variant_fn_decls: Vec::with_capacity(len),
         variant_fn_inits: Vec::with_capacity(len),
+        global_enum_defs: Vec::new(),
     };
 
     let mut builtin_types: Vec<_> = builtin_types_map.values().collect();
@@ -261,6 +268,16 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &Context) -> 
             .push(Literal::i32_unsuffixed(op.value));
     }
 
+    for enum_ in api.global_enums.iter() {
+        // Skip those enums which are already explicitly handled
+        if matches!(enum_.name.as_str(), "Variant.Type" | "Variant.Operator") {
+            continue;
+        }
+
+        let def = util::make_enum_definition(enum_);
+        result.global_enum_defs.push(def);
+    }
+
     result
 }
 
@@ -279,7 +296,7 @@ fn collect_builtin_types<'a>(
     api: &'a ExtensionApi,
     class_map: &HashMap<String, &'a BuiltinClass>,
 ) -> HashMap<String, BuiltinTypeInfo<'a>> {
-    let found_enum = api
+    let variant_type_enum = api
         .global_enums
         .iter()
         .find(|e| &e.name == "Variant.Type")
@@ -287,7 +304,7 @@ fn collect_builtin_types<'a>(
 
     // Collect all `BuiltinTypeInfo`s
     let mut builtin_types_map = HashMap::new();
-    for ty in &found_enum.values {
+    for ty in &variant_type_enum.values {
         let shout_case = ty
             .name
             .strip_prefix("TYPE_")
@@ -343,13 +360,13 @@ fn collect_builtin_types<'a>(
 }
 
 fn collect_variant_operators(api: &ExtensionApi) -> Vec<&Constant> {
-    let found_enum = api
+    let variant_operator_enum = api
         .global_enums
         .iter()
         .find(|e| &e.name == "Variant.Operator")
         .expect("missing enum for VariantOperator in JSON");
 
-    found_enum.values.iter().collect()
+    variant_operator_enum.values.iter().collect()
 }
 
 fn make_enumerator(

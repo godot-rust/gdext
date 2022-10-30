@@ -6,18 +6,13 @@
 
 //! Generates a file for each Godot class
 
-use proc_macro2::{Ident, Literal, TokenStream};
+use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::util::{c_str, ident, safe_ident, strlit, to_module_name, to_rust_type};
-use crate::{
-    special_cases,
-    Context,
-    GeneratedClass,
-    GeneratedModule, //KNOWN_TYPES, SELECTED_CLASSES,
-};
+use crate::{special_cases, util, Context, GeneratedClass, GeneratedModule};
 
 pub(crate) fn generate_class_files(
     api: &ExtensionApi,
@@ -267,13 +262,13 @@ fn make_methods(methods: &Option<Vec<Method>>, class_name: &str, ctx: &Context) 
     }
 }
 
-fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &str, _ctx: &Context) -> TokenStream {
+fn make_enums(enums: &Option<Vec<ClassEnum>>, _class_name: &str, _ctx: &Context) -> TokenStream {
     let enums = match enums {
         Some(e) => e,
         None => return TokenStream::new(),
     };
 
-    let definitions = enums.iter().map(|enum_| make_enum_definition(enum_));
+    let definitions = enums.iter().map(|e| util::make_enum_definition(e));
 
     quote! {
         #( #definitions )*
@@ -539,44 +534,4 @@ fn make_utility_return(return_value: &Option<String>, ctx: &Context) -> (TokenSt
     }
 
     (return_decl, call)
-}
-
-fn make_enum_definition(enum_: &Enum) -> TokenStream {
-    let enum_name = ident(&enum_.name);
-
-    let enumerators = enum_.values.iter().map(|enumerator| {
-        let name = make_enumerator_name(&enumerator.name, &enum_.name);
-        let ordinal = Literal::i32_unsuffixed(enumerator.value);
-        quote! {
-            pub const #name: Self = Self { ord: #ordinal };
-        }
-    });
-
-    // Enumerator ordinal stored as i32, since that's enough to hold all current values.
-    // Public interface is i64 though, for forward compatibility.
-    quote! {
-        #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
-        pub struct #enum_name {
-            ord: i32
-        }
-        impl #enum_name {
-            /// Ordinal value of the enumerator, as specified in Godot.
-            /// This is not necessarily unique.
-            pub const fn ord(self) -> i64 {
-                self.ord as i64
-            }
-
-            #(
-                #enumerators
-            )*
-        }
-
-    }
-}
-
-fn make_enumerator_name(enumerator_name: &str, _enum_name: &str) -> Ident {
-    // TODO strip prefixes of `enum_name` appearing in `enumerator_name`
-    // tons of variantions, see test cases in lib.rs
-
-    ident(enumerator_name)
 }

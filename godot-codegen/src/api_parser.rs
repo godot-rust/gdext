@@ -59,7 +59,7 @@ pub struct Class {
     pub inherits: Option<String>,
     // pub api_type: String,
     // pub constants: Option<Vec<Constant>>,
-    pub enums: Option<Vec<Enum>>,
+    pub enums: Option<Vec<ClassEnum>>,
     pub methods: Option<Vec<Method>>,
     // pub properties: Option<Vec<Property>>,
     // pub signals: Option<Vec<Signal>>,
@@ -74,7 +74,7 @@ pub struct Singleton {
 }
 
 #[derive(DeJson)]
-pub struct Enum {
+pub struct ClassEnum {
     pub name: String,
     pub is_bitfield: bool,
     pub values: Vec<Constant>,
@@ -148,6 +148,31 @@ pub struct MethodArg {
 pub struct MethodReturn {
     #[nserde(rename = "type")]
     pub type_: String,
+}
+
+pub trait Enum {
+    fn name(&self) -> &str;
+    fn values(&self) -> &Vec<Constant>;
+}
+
+impl Enum for ClassEnum {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn values(&self) -> &Vec<Constant> {
+        &self.values
+    }
+}
+
+impl Enum for GlobalEnum {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn values(&self) -> &Vec<Constant> {
+        &self.values
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

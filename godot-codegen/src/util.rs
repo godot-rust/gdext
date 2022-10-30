@@ -4,9 +4,55 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::api_parser::Enum;
 use crate::{Context, RustTy};
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
+
+pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
+    let enum_name = ident(&enum_.name());
+
+    let enumerators = enum_.values().iter().map(|enumerator| {
+        let name = make_enumerator_name(&enumerator.name, &enum_.name());
+        let ordinal = Literal::i32_unsuffixed(enumerator.value);
+        quote! {
+            pub const #name: Self = Self { ord: #ordinal };
+        }
+    });
+
+    // Enumerator ordinal stored as i32, since that's enough to hold all current values.
+    // Public interface is i64 though, for forward compatibility.
+    quote! {
+        #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+        pub struct #enum_name {
+            ord: i32
+        }
+        impl #enum_name {
+            /// Ordinal value of the enumerator, as specified in Godot.
+            /// This is not necessarily unique.
+            pub const fn ord(self) -> i64 {
+                self.ord as i64
+            }
+
+            #(
+                #enumerators
+            )*
+        }
+    }
+}
+
+fn make_enum_name(enum_name: &str) -> Ident {
+    // TODO clean up enum name
+
+    ident(enum_name)
+}
+
+fn make_enumerator_name(enumerator_name: &str, _enum_name: &str) -> Ident {
+    // TODO strip prefixes of `enum_name` appearing in `enumerator_name`
+    // tons of variantions, see test cases in lib.rs
+
+    ident(enumerator_name)
+}
 
 pub fn to_module_name(class_name: &str) -> String {
     // Remove underscores and make peekable
@@ -132,7 +178,9 @@ fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
         "int" => "i64",
         "float" => "f64",
         "String" => "GodotString",
-        "Error" => "GodotError",
+        //"enum::Error" => "GodotError",
+        "enum::Variant.Type" => "VariantType",
+        "enum::Variant.Operator" => "VariantOperator", // currently not used, but future-proof
         _ => return None,
     };
     Some(result)
@@ -178,8 +226,22 @@ pub(crate) fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
     //   - API breaks often in Godot
     //   - prior art = used i64 constants for gdnative
     //   + but type safety!
-    if ty.starts_with("bitfield::") || ty.starts_with("enum::") {
+    if ty.starts_with("bitfield::") {
         return RustTy::normal_ident("i32");
+    } else if let Some(qualified_enum) = ty.strip_prefix("enum::") {
+        let tokens = if let Some((class, enum_)) = qualified_enum.split_once('.') {
+            // Class-local enum
+
+            let module = ident(&to_module_name(class));
+            let enum_ty = make_enum_name(enum_);
+            quote! { #module::#enum_ty }
+        } else {
+            // Global enum
+            let enum_ty = make_enum_name(qualified_enum);
+            quote! { global::#enum_ty }
+        };
+
+        return RustTy::engine(tokens);
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {

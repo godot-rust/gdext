@@ -137,9 +137,12 @@ impl RustTy {
             is_engine_class: false,
         }
     }
-    // fn engine(tokens: impl ToTokens) -> Self {
-    //     Self { tokens: tokens.to_token_stream(), is_engine_class: true }
-    // }
+    fn engine(tokens: impl ToTokens) -> Self {
+        Self {
+            tokens: tokens.to_token_stream(),
+            is_engine_class: true,
+        }
+    }
 }
 
 #[derive(Default)]
