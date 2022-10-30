@@ -46,13 +46,6 @@ use global_registry::GlobalRegistry;
 pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
 pub use central::*;
 
-// #[allow(non_camel_case_types)]
-// #[cfg(not(feature = "real_is_double"))]
-pub type real = f32;
-// #[allow(non_camel_case_types)]
-// #[cfg(feature = "real_is_double")]
-// pub type real = f64;
-
 /// Late-init globals
 // Note: static mut is _very_ dangerous. Here a bit less so, since modification happens only once (during init) and no
 // &mut references are handed out (except for registry, see below). Overall, UnsafeCell/RefCell + Sync might be a safer abstraction.

@@ -5,13 +5,10 @@
  */
 
 use godot_ffi as sys;
-use sys::real;
 use sys::{ffi_methods, GodotFfi};
 
-#[cfg(not(feature = "real_is_double"))]
 type Inner = glam::f32::Vec2;
-#[cfg(feature = "real_is_double")]
-type Inner = glam::f64::DVec2;
+//type Inner = glam::f64::DVec2;
 
 #[derive(Default, Copy, Clone, Debug, PartialEq)]
 #[repr(C)]
@@ -20,7 +17,7 @@ pub struct Vector2 {
 }
 
 impl Vector2 {
-    pub fn new(x: real, y: real) -> Self {
+    pub fn new(x: f32, y: f32) -> Self {
         Self {
             inner: Inner::new(x, y),
         }
