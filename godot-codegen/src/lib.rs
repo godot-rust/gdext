@@ -127,20 +127,36 @@ fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
 
 struct RustTy {
     tokens: TokenStream,
-    is_engine_class: bool,
+    is_engine_type: bool,
+    is_enum: bool,
 }
 
 impl RustTy {
-    fn normal_ident(name: &str) -> Self {
-        Self {
-            tokens: ident(name).to_token_stream(),
-            is_engine_class: false,
-        }
+    fn builtin_ident(name: &str) -> Self {
+        Self::builtin(ident(name))
     }
-    fn engine(tokens: impl ToTokens) -> Self {
+
+    fn builtin(tokens: impl ToTokens) -> Self {
         Self {
             tokens: tokens.to_token_stream(),
-            is_engine_class: true,
+            is_engine_type: false,
+            is_enum: false,
+        }
+    }
+
+    fn engine_enum(tokens: impl ToTokens) -> Self {
+        Self {
+            tokens: tokens.to_token_stream(),
+            is_engine_type: true,
+            is_enum: true,
+        }
+    }
+
+    fn engine_class(tokens: impl ToTokens) -> Self {
+        Self {
+            tokens: tokens.to_token_stream(),
+            is_engine_type: true,
+            is_enum: false,
         }
     }
 }

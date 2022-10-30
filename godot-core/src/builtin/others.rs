@@ -4,6 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 // Stub for various other built-in classes, which are currently incomplete, but whose types
 // are required for codegen
 use crate::builtin::GodotString;
@@ -93,6 +94,24 @@ impl Default for StringName {
 
             uninit.assume_init()
         }
+    }
+}
+
+impl Display for StringName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        // TODO consider using GDScript built-in to_string()
+
+        let s = GodotString::from(self);
+        <GodotString as Display>::fmt(&s, f)
+    }
+}
+
+impl Debug for StringName {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        // TODO consider using GDScript built-in to_string()
+
+        let s = GodotString::from(self);
+        <GodotString as Debug>::fmt(&s, f)
     }
 }
 

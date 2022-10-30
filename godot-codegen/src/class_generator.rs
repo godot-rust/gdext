@@ -356,7 +356,7 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
         // varcall (using varargs)
         quote! {
             #vis fn #method_name( #receiver #(, #params )*, varargs: &[Variant]) #return_decl {
-                let result = unsafe {
+                unsafe {
                     let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
                     let call_fn = sys::interface_fn!(object_method_bind_call);
 
@@ -370,16 +370,14 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
                     let args_ptr = args.as_ptr();
 
                     #call
-                };
-
-                result
+                }
             }
         }
     } else {
         // ptrcall
         quote! {
             #vis fn #method_name( #receiver, #( #params ),* ) #return_decl {
-                let result = unsafe {
+                unsafe {
                     let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
                     let call_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
@@ -389,9 +387,7 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &Context) -> T
                     let args_ptr = args.as_ptr();
 
                     #call
-                };
-
-                result
+                }
             }
         }
     }
@@ -451,7 +447,7 @@ fn make_params(
             arg_exprs.push(quote! {
                 <#param_ty as ToVariant>::to_variant(&#param_name)
             });
-        } else if param.is_engine_class {
+        } else if param.is_engine_type && !param.is_enum {
             arg_exprs.push(quote! {
                 <#param_ty as AsArg>::as_arg_ptr(&#param_name)
             });
@@ -483,7 +479,7 @@ fn make_method_return(
     };
 
     let call = match (is_varcall, return_ty) {
-        (true, _ret) => {
+        (true, Some(_return_ty)) => {
             // TODO use Result instead of panic on error
             quote! {
                 Variant::from_var_sys_init(|return_ptr| {
@@ -491,6 +487,14 @@ fn make_method_return(
                     call_fn(method_bind, self.object_ptr, args_ptr, args.len() as i64, return_ptr, std::ptr::addr_of_mut!(err));
                     assert_eq!(err.error, sys::GDNATIVE_CALL_OK);
                 })
+            }
+        }
+        (true, None) => {
+            // TODO use Result instead of panic on error
+            quote! {
+                let mut err = sys::default_call_error();
+                call_fn(method_bind, self.object_ptr, args_ptr, args.len() as i64, std::ptr::null_mut(), std::ptr::addr_of_mut!(err));
+                assert_eq!(err.error, sys::GDNATIVE_CALL_OK);
             }
         }
         (false, Some(return_ty)) => {

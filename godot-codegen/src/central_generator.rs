@@ -95,7 +95,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
     } = central_items;
 
     let sys_tokens = quote! {
-        use crate::{GDNativeVariantPtr, GDNativeTypePtr};
+        use crate::{GDNativeVariantPtr, GDNativeTypePtr, GodotFfi, ffi_methods};
 
         pub mod types {
             #(#opaque_types)*
@@ -114,6 +114,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
         }
 
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+        #[repr(i32)]
         pub enum VariantType {
             Nil = 0,
             #(
@@ -123,7 +124,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
 
         impl VariantType {
             #[doc(hidden)]
-            pub fn from_sys(enumerator: crate::GDNativeVariantType) -> Self {
+            pub fn from_ord(enumerator: crate::GDNativeVariantType) -> Self {
                 // Annoying, but only stable alternative is transmute(), which dictates enum size
                 match enumerator {
                     0 => Self::Nil,
@@ -135,12 +136,17 @@ fn make_sys_code(central_items: &CentralItems) -> String {
             }
 
             #[doc(hidden)]
-            pub fn to_sys(self) -> crate::GDNativeVariantType {
+            pub fn to_ord(self) -> crate::GDNativeVariantType {
                 self as _
             }
         }
 
+        impl GodotFfi for VariantType {
+            ffi_methods! { type GDNativeTypePtr = *mut Self; .. }
+        }
+
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+        #[repr(i32)]
         pub enum VariantOperator {
             #(
                 #variant_op_enumerators_pascal = #variant_op_enumerators_ord,
@@ -149,7 +155,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
 
         impl VariantOperator {
             #[doc(hidden)]
-            pub fn from_sys(enumerator: crate::GDNativeVariantOperator) -> Self {
+            pub fn from_ord(enumerator: crate::GDNativeVariantOperator) -> Self {
                 match enumerator {
                     #(
                         #variant_op_enumerators_ord => Self::#variant_op_enumerators_pascal,
@@ -159,9 +165,13 @@ fn make_sys_code(central_items: &CentralItems) -> String {
             }
 
             #[doc(hidden)]
-            pub fn to_sys(self) -> crate::GDNativeVariantOperator {
+            pub fn to_ord(self) -> crate::GDNativeVariantOperator {
                 self as _
             }
+        }
+
+        impl GodotFfi for VariantOperator {
+            ffi_methods! { type GDNativeTypePtr = *mut Self; .. }
         }
     };
 
@@ -176,12 +186,13 @@ fn make_core_code(central_items: &CentralItems) -> String {
         ..
     } = central_items;
 
+    // TODO impl PartialOrd, Hash for VariantDispatch
     let core_tokens = quote! {
         use crate::builtin::*;
         use crate::engine::Object;
         use crate::obj::Gd;
 
-        #[derive(Clone, PartialEq, PartialOrd, Hash, Debug)]
+        #[derive(Clone, PartialEq, Debug)]
         pub enum VariantDispatch {
             Nil,
             #(
@@ -190,6 +201,7 @@ fn make_core_code(central_items: &CentralItems) -> String {
         }
 
         pub mod global {
+            use crate::sys;
             #( #global_enum_defs )*
         }
     };

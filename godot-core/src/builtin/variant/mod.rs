@@ -71,13 +71,13 @@ impl Variant {
     // TODO test
     pub fn get_type(&self) -> VariantType {
         let ty_sys = unsafe { interface_fn!(variant_get_type)(self.var_sys()) };
-        VariantType::from_sys(ty_sys)
+        VariantType::from_ord(ty_sys)
     }
 
     // TODO test
     #[allow(unused_mut)]
     pub fn evaluate(&self, rhs: &Variant, op: VariantOperator) -> Option<Variant> {
-        let op_sys = op.to_sys();
+        let op_sys = op.to_ord();
         let mut is_valid = false as u8;
 
         let mut result = Variant::nil();

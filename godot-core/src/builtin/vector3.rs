@@ -70,8 +70,14 @@ impl std::fmt::Display for Vector3i {
 
 // TODO auto-generate this, alongside all the other builtin type's enums
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[repr(i32)]
 pub enum Vector3Axis {
     X,
     Y,
     Z,
+}
+
+impl GodotFfi for Vector3Axis {
+    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
 }

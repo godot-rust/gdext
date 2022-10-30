@@ -40,9 +40,10 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
         None
     };
 
-    // Enumerator ordinal stored as i32, since that's enough to hold all current values.
-    // Public interface is i64 though, for forward compatibility.
+    // Enumerator ordinal stored as i32, since that's enough to hold all current values and the default repr in C++.
+    // Public interface is i64 though, for consistency (and possibly forward compatibility?).
     quote! {
+        #[repr(transparent)]
         #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
         pub struct #enum_name {
             ord: i32
@@ -57,6 +58,9 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
             #(
                 #enumerators
             )*
+        }
+        impl sys::GodotFfi for #enum_name {
+            sys::ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
         }
         #bitfield_ops
     }
@@ -202,7 +206,7 @@ fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
         //"enum::Error" => "GodotError",
         "enum::Variant.Type" => "VariantType",
         "enum::Variant.Operator" => "VariantOperator", // currently not used, but future-proof
-        "vector_3::Axis" => "Vector3Axis",             // TODO automate this
+        "enum::Vector3.Axis" => "Vector3Axis",         // TODO automate this
         _ => return None,
     };
     Some(result)
@@ -212,45 +216,13 @@ pub(crate) fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
     // TODO cache in Context
 
     if let Some(hardcoded) = to_hardcoded_rust_type(ty) {
-        return RustTy::normal_ident(hardcoded);
+        return RustTy::builtin_ident(hardcoded);
     }
 
-    //println!("to_rust_ty: {ty}");
-
-    // Check hardcoded ones first
-
-    // if let Some(remain) = ty.strip_prefix("enum::") {
-    //     let mut parts = remain.split(".");
-    //
-    //     let first = parts.next().unwrap();
-    //     let ident = match parts.next() {
-    //         Some(second) => {
-    //             // enum::Animation.LoopMode
-    //             format_ident!("{}{}", first, second) // TODO better
-    //         }
-    //         None => {
-    //             // enum::Error
-    //             format_ident!("{}", first)
-    //         }
-    //     };
-    //
-    //     assert!(parts.next().is_none(), "Unrecognized enum type '{}'", ty);
-    //     return RustTy {
-    //         tokens: ident.to_token_stream(),
-    //         is_engine_class: false,
-    //     };
-    // }
-
-    // TODO: newtypes for enums & bitfields?
-    //   - more verbose to use and complicated to implement
-    //   - lack of inherent associated types makes module structure awkward
-    //   - need to implement bitwise traits for bitfields
-    //   - API breaks often in Godot
-    //   - prior art = used i64 constants for gdnative
-    //   + but type safety!
-    if ty.starts_with("bitfield::") {
-        return RustTy::normal_ident("i32");
-    } else if let Some(qualified_enum) = ty.strip_prefix("enum::") {
+    let qualified_enum = ty
+        .strip_prefix("enum::")
+        .or_else(|| ty.strip_prefix("bitfield::"));
+    if let Some(qualified_enum) = qualified_enum {
         let tokens = if let Some((class, enum_)) = qualified_enum.split_once('.') {
             // Class-local enum
 
@@ -263,32 +235,26 @@ pub(crate) fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
             quote! { global::#enum_ty }
         };
 
-        return RustTy::engine(tokens);
+        return RustTy::engine_enum(tokens);
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {
-            return RustTy::normal_ident(packed_arr_ty);
+            return RustTy::builtin_ident(packed_arr_ty);
         }
     } else if let Some(arr_ty) = ty.strip_prefix("typedarray::") {
         return if let Some(packed_arr_ty) = arr_ty.strip_prefix("Packed") {
-            return RustTy::normal_ident(packed_arr_ty);
+            return RustTy::builtin_ident(packed_arr_ty);
         } else {
             let arr_ty = to_rust_type(arr_ty, ctx).tokens;
-            RustTy {
-                tokens: quote! { TypedArray<#arr_ty> },
-                is_engine_class: false,
-            }
+            RustTy::builtin(quote! { TypedArray<#arr_ty> })
         };
     }
 
     if ctx.is_engine_class(ty) {
         let ty = ident(ty);
-        return RustTy {
-            tokens: quote! { Gd<#ty> },
-            is_engine_class: true,
-        };
+        return RustTy::engine_class(quote! { Gd<#ty> });
     }
 
     // Unchanged
-    return RustTy::normal_ident(ty);
+    return RustTy::builtin_ident(ty);
 }

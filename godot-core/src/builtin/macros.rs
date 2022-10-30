@@ -113,6 +113,7 @@ macro_rules! impl_traits_as_sys {
 macro_rules! impl_builtin_stub {
     ($Class:ident, $OpaqueTy:ident) => {
         #[repr(C)]
+        #[derive(Copy, Clone)]
         pub struct $Class {
             opaque: sys::types::$OpaqueTy,
         }
