@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#![macro_use]
+//! Built-in types like `Vector2`, `GodotString` or `Variant`.
 
 mod macros;
 

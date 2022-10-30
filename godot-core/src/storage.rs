@@ -4,8 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::obj::GodotClass;
 use crate::out;
-use crate::traits::GodotClass;
 use godot_ffi as sys;
 
 use std::any::type_name;

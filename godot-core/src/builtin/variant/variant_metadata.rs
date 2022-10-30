@@ -74,7 +74,7 @@ pub trait SignatureTuple {
 // }
 //
 use crate::builtin::{FromVariant, ToVariant, Variant};
-use crate::traits::GodotClass;
+use crate::obj::GodotClass;
 
 macro_rules! impl_signature_for_tuple {
     (

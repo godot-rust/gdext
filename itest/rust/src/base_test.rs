@@ -4,9 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// use godot::api::RefCounted;
+// use godot::engine::RefCounted;
 // use godot::obj::Base;
-// use godot::macros::itest;
+// use godot::test::itest;
 
 pub(crate) fn run() -> bool {
     true

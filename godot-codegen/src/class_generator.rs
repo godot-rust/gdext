@@ -54,8 +54,8 @@ pub(crate) fn generate_class_files(
     }
 
     let mod_contents = make_module_file(modules).to_string();
-    let out_path = gen_path.join("mod.rs");
-    std::fs::write(&out_path, mod_contents).expect("failed to write mod.rs file");
+    let out_path = gen_path.join("obj");
+    std::fs::write(&out_path, mod_contents).expect("failed to write obj file");
     out_files.push(out_path);
 }
 
@@ -107,7 +107,7 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
     let base = match class.inherits.as_ref() {
         Some(base) => {
             let base = ident(base);
-            quote! { crate::api::#base }
+            quote! { crate::engine::#base }
         }
         None => quote! { () },
     };
@@ -134,10 +134,10 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
         use godot_ffi as sys;
-        use crate::api::*;
+        use crate::engine::*;
         use crate::builtin::*;
         use crate::obj::Gd;
-        use crate::traits::AsArg;
+        use crate::obj::AsArg;
 
         pub(super) mod re_export {
             use super::*;
@@ -151,14 +151,14 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
                 #constructor
                 #methods
             }
-            impl crate::traits::GodotClass for #name {
+            impl crate::obj::GodotClass for #name {
                 type Base = #base;
-                type Declarer = crate::traits::dom::EngineDomain;
-                type Mem = crate::traits::mem::#memory;
+                type Declarer = crate::obj::dom::EngineDomain;
+                type Mem = crate::obj::mem::#memory;
 
                 const CLASS_NAME: &'static str = #name_str;
             }
-            impl crate::traits::EngineClass for #name {
+            impl crate::obj::EngineClass for #name {
                  fn as_object_ptr(&self) -> sys::GDNativeObjectPtr {
                      self.object_ptr
                  }
@@ -167,7 +167,7 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
                  }
             }
             #(
-                impl crate::traits::Inherits<crate::api::#all_bases> for #name {}
+                impl crate::obj::Inherits<crate::engine::#all_bases> for #name {}
             )*
             impl std::ops::Deref for #name {
                 type Target = #base;
@@ -188,9 +188,9 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
             #[allow(non_snake_case)]
             macro_rules! #inherits_macro {
                 ($Class:ident) => {
-                    impl ::godot::traits::Inherits<::godot::api::#name> for $Class {}
+                    impl ::godot::obj::Inherits<::godot::engine::#name> for $Class {}
                     #(
-                        impl ::godot::traits::Inherits<::godot::api::#all_bases> for $Class {}
+                        impl ::godot::obj::Inherits<::godot::engine::#all_bases> for $Class {}
                     )*
                 }
             }

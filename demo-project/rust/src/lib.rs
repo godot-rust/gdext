@@ -6,12 +6,12 @@
 
 use std::str::FromStr;
 
-use godot_core::api::{Node3D, RefCounted};
 use godot_core::builtin::{FromVariant, GodotString, ToVariant, Vector2, Vector3};
+use godot_core::engine::{Node3D, RefCounted};
 use godot_core::init::ExtensionLibrary;
 use godot_core::obj::{Base, Gd, InstanceId};
+use godot_core::obj::{GodotExt, Share};
 use godot_core::out;
-use godot_core::traits::{GodotExt, Share};
 use godot_macros::{gdextension, godot_api, GodotClass};
 
 use godot_ffi as sys;
@@ -63,7 +63,7 @@ impl RustTest {
     #[godot]
     fn accept_obj(&self, obj: Gd<Entity>) {
         let mut obj = obj;
-        //let obj = Gd::new(Entity { name: "h".to_string(), hitpoints: 77 }); // upcacsting local object works
+        //let obj = Gd::new(Entity { name: "h".to_string(), hitpoints: 77 }); // upcacsting local obj works
         let up: Gd<RefCounted> = obj.share().upcast();
         out!("upcast: up={:?}", up);
 

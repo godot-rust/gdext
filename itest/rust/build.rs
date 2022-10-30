@@ -62,11 +62,11 @@ fn main() {
         use godot::builtin::*;
         use godot::obj::InstanceId;
 
-        #[derive(godot::macros::GodotClass)]
+        #[derive(godot::bind::GodotClass)]
         #[godot(init)]
         struct GenFfi {}
 
-        #[godot::macros::godot_api]
+        #[godot::bind::godot_api]
         impl GenFfi {
             #(#methods)*
         }

@@ -38,10 +38,10 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     };
 
     Ok(quote! {
-        impl ::godot::traits::GodotClass for #class_name {
-            type Base = ::godot::api::#base_ty;
-            type Declarer = ::godot::traits::dom::UserDomain;
-            type Mem = <Self::Base as ::godot::traits::GodotClass>::Mem;
+        impl ::godot::obj::GodotClass for #class_name {
+            type Base = ::godot::engine::#base_ty;
+            type Declarer = ::godot::obj::dom::UserDomain;
+            type Mem = <Self::Base as ::godot::obj::GodotClass>::Mem;
 
             const CLASS_NAME: &'static str = #class_name_str;
         }
@@ -217,7 +217,7 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
     });
 
     quote! {
-        impl ::godot::traits::cap::GodotInit for #class_name {
+        impl ::godot::obj::cap::GodotInit for #class_name {
             fn __godot_init(base: ::godot::obj::Base<Self::Base>) -> Self {
                 Self {
                     #( #rest_init )*

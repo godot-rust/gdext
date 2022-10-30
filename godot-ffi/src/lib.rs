@@ -67,7 +67,7 @@ struct GodotBinding {
 
 /// # Safety
 ///
-/// - The `interface` pointer must be a valid pointer to a [`GDNativeInterface`] object.
+/// - The `interface` pointer must be a valid pointer to a [`GDNativeInterface`] obj.
 /// - The `library` pointer must be the pointer given by Godot at initialisation.
 /// - This function must not be called from multiple threads.
 /// - This function must be called before any use of [`get_library`].

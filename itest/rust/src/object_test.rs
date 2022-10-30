@@ -5,12 +5,12 @@
  */
 
 use crate::{expect_panic, itest};
-use godot::api::{Node, Node3D, Object, RefCounted};
+use godot::bind::{godot_api, GodotClass, GodotExt};
 use godot::builtin::{FromVariant, GodotString, StringName, ToVariant, Variant, Vector3};
-use godot::macros::{godot_api, GodotClass};
+use godot::engine::{Node, Node3D, Object, RefCounted};
+use godot::obj::Share;
 use godot::obj::{Base, Gd, InstanceId};
 use godot::sys::GodotFfi;
-use godot::traits::{GodotExt, Share};
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -126,10 +126,10 @@ fn object_instance_id_when_freed() {
     let node: Gd<Node3D> = Node3D::new_alloc();
     assert!(node.is_instance_valid());
 
-    node.share().free(); // destroys object without moving out of reference
+    node.share().free(); // destroys obj without moving out of reference
     assert!(!node.is_instance_valid());
 
-    expect_panic("instance_id() on dead object", || {
+    expect_panic("instance_id() on dead obj", || {
         node.instance_id();
     });
 }
@@ -235,7 +235,7 @@ fn object_engine_upcast() {
     assert_eq!(object.instance_id(), id);
     assert_eq!(object.get_class(), GodotString::from("Node3D"));
 
-    // Deliberate free on upcast object
+    // Deliberate free on upcast obj
     object.free();
 }
 
@@ -325,7 +325,7 @@ fn object_engine_refcounted_free() {
     let node = RefCounted::new();
     let node2 = node.share().upcast();
 
-    expect_panic("calling free() on RefCounted object", || node2.free())
+    expect_panic("calling free() on RefCounted obj", || node2.free())
 }
 
 #[itest]

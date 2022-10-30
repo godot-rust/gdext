@@ -4,8 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::init::ExtensionLibrary;
-use godot::macros::{gdextension, godot_api, itest, GodotClass};
+use godot::bind::{godot_api, GodotClass};
+use godot::init::{gdextension, ExtensionLibrary};
+use godot::test::itest;
 use std::panic::UnwindSafe;
 
 mod base_test;

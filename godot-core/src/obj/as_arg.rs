@@ -7,8 +7,7 @@
 use godot_ffi as sys;
 use sys::GodotFfi;
 
-use crate::obj::Gd;
-use crate::traits::{EngineClass, GodotClass};
+use crate::obj::{EngineClass, Gd, GodotClass};
 
 mod private {
     pub trait Sealed {}

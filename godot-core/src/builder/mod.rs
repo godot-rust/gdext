@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::traits::GodotClass;
+use crate::obj::GodotClass;
 use std::marker::PhantomData;
 
 mod method;

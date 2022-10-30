@@ -6,13 +6,14 @@
 
 #![allow(dead_code)] // FIXME
 
+use crate::obj::*;
 use crate::private::as_storage;
 use crate::storage::InstanceStorage;
-use crate::traits::*;
 use godot_ffi as sys;
 
 use sys::interface_fn;
 
+use crate::bind::GodotExt;
 use crate::out;
 use std::any::Any;
 use std::collections::HashMap;
@@ -25,7 +26,7 @@ pub struct ClassPlugin {
     pub component: PluginComponent,
 }
 
-/// Type-erased function object, holding a `register_class` function.
+/// Type-erased function obj, holding a `register_class` function.
 #[derive(Copy, Clone)]
 pub struct ErasedRegisterFn {
     // Wrapper needed because Debug can't be derived on function pointers with reference parameters, so this won't work:
@@ -276,6 +277,7 @@ impl Display for ClassName {
 // Re-exported to crate::private
 pub mod callbacks {
     use super::*;
+    use crate::bind::GodotExt;
     use crate::builder::ClassBuilder;
     use crate::obj::Base;
 

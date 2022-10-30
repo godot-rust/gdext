@@ -5,8 +5,8 @@
  */
 
 use crate::obj::Gd;
+use crate::obj::GodotClass;
 use crate::sys;
-use crate::traits::GodotClass;
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
@@ -40,7 +40,7 @@ impl<T: GodotClass> Base<T> {
 
         let obj = Gd::from_obj_sys(base_ptr);
 
-        // This object does not contribute to the strong count, otherwise we create a reference cycle:
+        // This obj does not contribute to the strong count, otherwise we create a reference cycle:
         // 1. RefCounted (dropped in GDScript)
         // 2. holds user T (via extension instance and storage)
         // 3. holds #[base] RefCounted (last ref, dropped in T destructor, but T is never destroyed because this ref keeps storage alive)
@@ -60,7 +60,7 @@ impl<T: GodotClass> std::fmt::Debug for Base<T> {
         if let Some(id) = self.instance_id_or_none() {
             write!(f, "Base{{ id: {} }}", id)
         } else {
-            write!(f, "Base{{ freed object }}")
+            write!(f, "Base{{ freed obj }}")
         }
     }
 }

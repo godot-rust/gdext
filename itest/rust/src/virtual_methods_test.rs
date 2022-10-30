@@ -6,11 +6,11 @@
 
 #![allow(dead_code)]
 
-use godot::api::RefCounted;
+use godot::bind::{godot_api, GodotClass, GodotExt};
 use godot::builtin::GodotString;
-use godot::macros::{godot_api, itest, GodotClass};
+use godot::engine::RefCounted;
 use godot::obj::{Base, Gd};
-use godot::traits::GodotExt;
+use godot::test::itest;
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
 #[derive(GodotClass, Debug)]

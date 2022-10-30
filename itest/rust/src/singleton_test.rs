@@ -5,8 +5,8 @@
  */
 
 use crate::itest;
-use godot::api::OS;
 use godot::builtin::GodotString;
+use godot::engine::OS;
 use godot::obj::Gd;
 
 pub fn run() -> bool {

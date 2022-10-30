@@ -56,7 +56,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let result = quote! {
         #decl
 
-        impl ::godot::traits::cap::ImplementsGodotApi for #class_name {
+        impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
             //fn __register_methods(_builder: &mut ::godot::builder::ClassBuilder<Self>) {
             fn __register_methods() {
                 #(
@@ -148,9 +148,9 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
             "init" => {
                 godot_init_impl = quote! {
-                    impl ::godot::traits::cap::GodotInit for #class_name {
+                    impl ::godot::obj::cap::GodotInit for #class_name {
                         fn __godot_init(base: ::godot::obj::Base<Self::Base>) -> Self {
-                            <Self as ::godot::traits::GodotExt>::init(base)
+                            <Self as ::godot::bind::GodotExt>::init(base)
                         }
                     }
                 };
@@ -183,7 +183,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         #original_impl
         #godot_init_impl
 
-        impl ::godot::traits::cap::ImplementsGodotExt for #class_name {
+        impl ::godot::obj::cap::ImplementsGodotExt for #class_name {
             fn __virtual_call(name: &str) -> ::godot::sys::GDNativeExtensionClassCallVirtual {
                 println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
 

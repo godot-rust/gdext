@@ -4,14 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builder::ClassBuilder;
-use crate::builtin::GodotString;
 use crate::obj::Base;
+
 use godot_ffi as sys;
-
-mod as_arg;
-
-pub use as_arg::*;
 
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
 ///
@@ -42,63 +37,11 @@ impl GodotClass for () {
     const CLASS_NAME: &'static str = "(no base)";
 }
 
-/// Extension API for Godot classes, used with `#[godot_api]`.
-///
-/// Helps with adding custom functionality:
-/// * `init` constructors
-/// * `to_string` method
-/// * Custom register methods (builder style)
-/// * All the lifecycle methods like `ready`, `process` etc.
-///
-/// This trait is special in that it needs to be used in combination with the `#[godot_api]`
-/// proc-macro attribute to ensure proper registration of its methods. All methods have
-/// default implementations, so you can select precisely which functionality you want to have.
-/// Those default implementations are never called however, the proc-macro detects what you implement.
-///
-/// Do not call any of these methods directly -- they are an interface to Godot. Functionality
-/// described here is available through other means (e.g. `init` via `Gd::new_default`).
-#[allow(unused_variables)]
-pub trait GodotExt
-where
-    Self: GodotClass,
-{
-    // Note: keep in sync with VIRTUAL_METHOD_NAMES in godot_api.rs
-
-    // Some methods that were called:
-    // _enter_tree
-    // _input
-    // _shortcut_input
-    // _unhandled_input
-    // _unhandled_key_input
-    // _process
-    // _physics_process
-    // _ready
-
-    fn register_class(builder: &mut ClassBuilder<Self>) {}
-
-    fn init(base: Base<Self::Base>) -> Self {
-        unimplemented!()
-    }
-
-    fn ready(&mut self) {
-        unreachable!()
-    }
-    fn process(&mut self, delta: f64) {
-        unimplemented!()
-    }
-    fn physics_process(&mut self, delta: f64) {
-        unimplemented!()
-    }
-    fn to_string(&self) -> GodotString {
-        unimplemented!()
-    }
-}
-
 /// Trait to create more references from a smart pointer or collection.
 pub trait Share {
-    /// Creates a new reference that points to the same object.
+    /// Creates a new reference that points to the same obj.
     ///
-    /// If the referred-to object is reference-counted, this will increment the count.
+    /// If the referred-to obj is reference-counted, this will increment the count.
     fn share(&self) -> Self;
 }
 
@@ -159,8 +102,7 @@ mod private {
 
 pub mod dom {
     use super::private::Sealed;
-    use crate::obj::Gd;
-    use crate::traits::GodotClass;
+    use crate::obj::{Gd, GodotClass};
     use std::ops::DerefMut;
 
     pub trait Domain: Sealed {
@@ -195,13 +137,13 @@ pub mod dom {
         }
     }
 }
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub mod mem {
     use super::private::Sealed;
-    use crate::obj::Gd;
+    use crate::obj::{Gd, GodotClass};
     use crate::out;
-    use crate::traits::GodotClass;
 
     pub trait Memory: Sealed {
         /// Initialize reference counter
@@ -213,7 +155,7 @@ pub mod mem {
         /// If ref-counted, then decrement count
         fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool;
 
-        /// Check if ref-counted, return `None` if information is not available (dynamic and object dead)
+        /// Check if ref-counted, return `None` if information is not available (dynamic and obj dead)
         fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> Option<bool>;
     }
     pub trait PossiblyManual {}
@@ -282,7 +224,7 @@ pub mod mem {
         }
 
         fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> Option<bool> {
-            // Return `None` if object is dead
+            // Return `None` if obj is dead
             obj.instance_id_or_none().map(|id| id.is_ref_counted())
         }
     }

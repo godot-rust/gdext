@@ -7,13 +7,13 @@
 mod registry;
 mod storage;
 
+pub mod bind;
 pub mod builder;
 pub mod builtin;
 pub mod init;
 pub mod log;
 pub mod macros;
 pub mod obj;
-pub mod traits;
 
 pub use registry::*;
 
@@ -22,11 +22,11 @@ pub use godot_ffi as sys;
 mod gen {
     #[allow(unused_imports, dead_code)]
     pub(crate) mod classes {
-        // Path to core/classes/mod.rs
+        // Path to core/classes/obj
         // Do not write macro for this, as it confuses IDEs -- just search&replace
         include!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../target/godot-gen/core/classes/mod.rs"
+            "/../target/godot-gen/core/classes/obj"
         ));
     }
 
@@ -43,7 +43,8 @@ mod gen {
     // pub mod central_core;
 }
 
-pub mod api {
+/// Godot engine classes and methods.
+pub mod engine {
     pub use super::gen::classes::*;
     pub use super::gen::utilities;
 }

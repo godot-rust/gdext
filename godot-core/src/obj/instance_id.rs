@@ -52,7 +52,7 @@ impl InstanceId {
         self.value as i64
     }
 
-    /// Returns if the object being referred-to is inheriting `RefCounted`.
+    /// Returns if the obj being referred-to is inheriting `RefCounted`.
     ///
     /// This involves no engine round-trip, as the information is encoded in the ID itself.
     pub fn is_ref_counted(self) -> bool {

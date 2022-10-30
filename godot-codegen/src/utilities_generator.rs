@@ -29,7 +29,7 @@ pub(crate) fn generate_utilities_file(
         use godot_ffi as sys;
         use crate::builtin::*;
         use crate::obj::Gd;
-        use crate::api::Object;
+        use crate::engine::Object;
 
         #(#utility_fn_defs)*
     };

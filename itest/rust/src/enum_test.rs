@@ -5,7 +5,7 @@
  */
 
 use crate::itest;
-use godot::api::{file_access, ip, os};
+use godot::engine::{file_access, ip, os};
 use std::collections::HashSet;
 
 pub fn run() -> bool {
