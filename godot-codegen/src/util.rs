@@ -20,6 +20,26 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
         }
     });
 
+    let bitfield_ops = if enum_.is_bitfield() {
+        let tokens = quote! {
+            impl #enum_name {
+                pub const UNSET: Self = Self { ord: 0 };
+            }
+
+            impl std::ops::BitOr for #enum_name {
+                type Output = Self;
+
+                fn bitor(self, rhs: Self) -> Self::Output {
+                    Self { ord: self.ord | rhs.ord }
+                }
+            }
+        };
+
+        Some(tokens)
+    } else {
+        None
+    };
+
     // Enumerator ordinal stored as i32, since that's enough to hold all current values.
     // Public interface is i64 though, for forward compatibility.
     quote! {
@@ -38,6 +58,7 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
                 #enumerators
             )*
         }
+        #bitfield_ops
     }
 }
 
@@ -181,6 +202,7 @@ fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
         //"enum::Error" => "GodotError",
         "enum::Variant.Type" => "VariantType",
         "enum::Variant.Operator" => "VariantOperator", // currently not used, but future-proof
+        "vector_3::Axis" => "Vector3Axis",             // TODO automate this
         _ => return None,
     };
     Some(result)

@@ -153,6 +153,7 @@ pub struct MethodReturn {
 pub trait Enum {
     fn name(&self) -> &str;
     fn values(&self) -> &Vec<Constant>;
+    fn is_bitfield(&self) -> bool;
 }
 
 impl Enum for ClassEnum {
@@ -163,6 +164,10 @@ impl Enum for ClassEnum {
     fn values(&self) -> &Vec<Constant> {
         &self.values
     }
+
+    fn is_bitfield(&self) -> bool {
+        self.is_bitfield
+    }
 }
 
 impl Enum for GlobalEnum {
@@ -172,6 +177,10 @@ impl Enum for GlobalEnum {
 
     fn values(&self) -> &Vec<Constant> {
         &self.values
+    }
+
+    fn is_bitfield(&self) -> bool {
+        false
     }
 }
 

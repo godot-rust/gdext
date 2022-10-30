@@ -18,7 +18,6 @@ gen
 
 # Temporary tweaks, remove later
 /script
-/build.bat
-/run.bat
+*.bat
 config.toml
 exp.rs

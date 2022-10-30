@@ -38,6 +38,8 @@ impl std::fmt::Display for Vector3 {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 type IInner = glam::IVec3;
 
 #[derive(Default, Copy, Clone, Debug, Eq, PartialEq)]
@@ -62,4 +64,14 @@ impl std::fmt::Display for Vector3i {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.inner.fmt(f)
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// TODO auto-generate this, alongside all the other builtin type's enums
+
+pub enum Vector3Axis {
+    X,
+    Y,
+    Z,
 }
