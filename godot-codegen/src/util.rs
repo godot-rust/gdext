@@ -12,13 +12,21 @@ use quote::{format_ident, quote};
 pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
     let enum_name = ident(&enum_.name());
 
-    let enumerators = enum_.values().iter().map(|enumerator| {
+    let values = enum_.values();
+    let mut enumerators = Vec::with_capacity(values.len());
+    let mut matches = Vec::with_capacity(values.len());
+
+    for enumerator in values {
         let name = make_enumerator_name(&enumerator.name, &enum_.name());
         let ordinal = Literal::i32_unsuffixed(enumerator.value);
-        quote! {
+
+        enumerators.push(quote! {
             pub const #name: Self = Self { ord: #ordinal };
-        }
-    });
+        });
+        matches.push(quote! {
+            #ordinal => Some(Self::#name),
+        });
+    }
 
     let bitfield_ops = if enum_.is_bitfield() {
         let tokens = quote! {
@@ -42,6 +50,7 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
 
     // Enumerator ordinal stored as i32, since that's enough to hold all current values and the default repr in C++.
     // Public interface is i64 though, for consistency (and possibly forward compatibility?).
+    // TODO maybe generalize GodotFfi over EngineEnum trait
     quote! {
         #[repr(transparent)]
         #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
@@ -49,15 +58,22 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
             ord: i32
         }
         impl #enum_name {
-            /// Ordinal value of the enumerator, as specified in Godot.
-            /// This is not necessarily unique.
-            pub const fn ord(self) -> i64 {
-                self.ord as i64
-            }
-
             #(
                 #enumerators
             )*
+        }
+        impl crate::obj::EngineEnum for #enum_name {
+            fn try_from_ord(ord: i32) -> Option<Self> {
+                match ord {
+                    #(
+                        #matches
+                    )*
+                    _ => None,
+                }
+            }
+            fn ord(self) -> i32 {
+                self.ord
+            }
         }
         impl sys::GodotFfi for #enum_name {
             sys::ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }

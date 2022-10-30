@@ -5,6 +5,7 @@
  */
 
 use crate::builtin::Variant;
+use crate::obj::EngineEnum;
 
 pub trait FromVariant: Sized {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError>;
@@ -49,3 +50,18 @@ pub struct VariantConversionError;
     /// Variant value cannot be represented in target type
     BadValue,
 }*/
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+impl<T: EngineEnum> ToVariant for T {
+    fn to_variant(&self) -> Variant {
+        <i32 as ToVariant>::to_variant(&self.ord())
+    }
+}
+
+impl<T: EngineEnum> FromVariant for T {
+    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+        <i32 as FromVariant>::try_from_variant(variant)
+            .and_then(|int| Self::try_from_ord(int).ok_or(VariantConversionError))
+    }
+}

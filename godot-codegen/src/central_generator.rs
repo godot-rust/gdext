@@ -186,13 +186,13 @@ fn make_core_code(central_items: &CentralItems) -> String {
         ..
     } = central_items;
 
-    // TODO impl PartialOrd, Hash for VariantDispatch
+    // TODO impl Clone, Debug, PartialEq, PartialOrd, Hash for VariantDispatch
+    // But this requires that all the variant types support this
     let core_tokens = quote! {
         use crate::builtin::*;
         use crate::engine::Object;
         use crate::obj::Gd;
 
-        #[derive(Clone, PartialEq, Debug)]
         pub enum VariantDispatch {
             Nil,
             #(

@@ -53,10 +53,24 @@ pub trait Share {
 /// The trait is not reflexive: `T` never implements `Inherits<T>`.
 pub trait Inherits<Base> {}
 
-/// Auto-implemented for all engine-native classes
+/// Auto-implemented for all engine-provided classes
 pub trait EngineClass: GodotClass {
     fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
     fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
+}
+
+/// Auto-implemented for all engine-provided enums
+pub trait EngineEnum: Copy {
+    fn try_from_ord(ord: i32) -> Option<Self>;
+
+    /// Ordinal value of the enumerator, as specified in Godot.
+    /// This is not necessarily unique.
+    fn ord(self) -> i32;
+
+    fn from_ord(ord: i32) -> Self {
+        Self::try_from_ord(ord)
+            .unwrap_or_else(|| panic!("ordinal {ord} does not map to any enumerator"))
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

@@ -18,6 +18,7 @@ pub fn run() -> bool {
 
 #[itest]
 fn enum_ords_correct() {
+    use godot::obj::EngineEnum;
     assert_eq!(ip::ResolverStatus::RESOLVER_STATUS_NONE.ord(), 0);
     assert_eq!(ip::ResolverStatus::RESOLVER_STATUS_WAITING.ord(), 1);
     assert_eq!(ip::ResolverStatus::RESOLVER_STATUS_DONE.ord(), 2);

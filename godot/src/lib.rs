@@ -42,4 +42,7 @@ pub mod prelude {
     pub use super::init::{gdextension, ExtensionLayer, ExtensionLibrary, InitHandle, InitLevel};
     pub use super::log::*;
     pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, Share};
+
+    // Make trait methods available
+    pub use super::obj::EngineEnum as _;
 }
