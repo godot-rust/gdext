@@ -178,6 +178,8 @@ fn make_core_code(central_items: &CentralItems) -> String {
 
     let core_tokens = quote! {
         use crate::builtin::*;
+        use crate::engine::Object;
+        use crate::obj::Gd;
 
         #[derive(Clone, PartialEq, PartialOrd, Hash, Debug)]
         pub enum VariantDispatch {

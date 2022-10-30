@@ -135,8 +135,7 @@ fn make_class(class: &Class, ctx: &Context) -> GeneratedClass {
         use godot_ffi as sys;
         use crate::engine::*;
         use crate::builtin::*;
-        use crate::obj::Gd;
-        use crate::obj::AsArg;
+        use crate::obj::{AsArg, Gd};
 
         pub(super) mod re_export {
             use super::*;
