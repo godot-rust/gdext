@@ -5,7 +5,7 @@
  */
 
 use proc_macro2::{Ident, Literal, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -395,7 +395,7 @@ fn make_enumerator(
     let rust_ty = to_rust_type(&type_names.pascal_case, ctx);
     let ord = Literal::i32_unsuffixed(value);
 
-    (pascal_name, rust_ty.tokens, ord)
+    (pascal_name, rust_ty.to_token_stream(), ord)
 }
 
 fn make_opaque_type(name: &str, size: usize) -> TokenStream {

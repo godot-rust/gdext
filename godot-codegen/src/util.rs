@@ -216,12 +216,13 @@ pub(crate) fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
     // TODO cache in Context
 
     if let Some(hardcoded) = to_hardcoded_rust_type(ty) {
-        return RustTy::builtin_ident(hardcoded);
+        return RustTy::BuiltinIdent(ident(hardcoded));
     }
 
     let qualified_enum = ty
         .strip_prefix("enum::")
         .or_else(|| ty.strip_prefix("bitfield::"));
+
     if let Some(qualified_enum) = qualified_enum {
         let tokens = if let Some((class, enum_)) = qualified_enum.split_once('.') {
             // Class-local enum
@@ -235,26 +236,26 @@ pub(crate) fn to_rust_type(ty: &str, ctx: &Context) -> RustTy {
             quote! { global::#enum_ty }
         };
 
-        return RustTy::engine_enum(tokens);
+        return RustTy::EngineEnum(tokens);
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {
-            return RustTy::builtin_ident(packed_arr_ty);
+            return RustTy::BuiltinIdent(ident(packed_arr_ty));
         }
     } else if let Some(arr_ty) = ty.strip_prefix("typedarray::") {
         return if let Some(packed_arr_ty) = arr_ty.strip_prefix("Packed") {
-            return RustTy::builtin_ident(packed_arr_ty);
+            return RustTy::BuiltinIdent(ident(packed_arr_ty));
         } else {
-            let arr_ty = to_rust_type(arr_ty, ctx).tokens;
-            RustTy::builtin(quote! { TypedArray<#arr_ty> })
+            let arr_ty = to_rust_type(arr_ty, ctx);
+            RustTy::BuiltinGeneric(quote! { TypedArray<#arr_ty> })
         };
     }
 
     if ctx.is_engine_class(ty) {
         let ty = ident(ty);
-        return RustTy::engine_class(quote! { Gd<#ty> });
+        return RustTy::EngineClass(quote! { Gd<#ty> });
     }
 
     // Unchanged
-    return RustTy::builtin_ident(ty);
+    RustTy::BuiltinIdent(ident(ty))
 }

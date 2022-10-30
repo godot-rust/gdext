@@ -125,38 +125,28 @@ fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared utility types
 
-struct RustTy {
-    tokens: TokenStream,
-    is_engine_type: bool,
-    is_enum: bool,
+enum RustTy {
+    /// `bool`, `Vector3i`
+    BuiltinIdent(Ident),
+
+    /// `TypedArray<i32>`
+    BuiltinGeneric(TokenStream),
+
+    /// `module::Enum`
+    EngineEnum(TokenStream),
+
+    /// `Gd<Node>`
+    EngineClass(TokenStream),
 }
 
-impl RustTy {
-    fn builtin_ident(name: &str) -> Self {
-        Self::builtin(ident(name))
-    }
-
-    fn builtin(tokens: impl ToTokens) -> Self {
-        Self {
-            tokens: tokens.to_token_stream(),
-            is_engine_type: false,
-            is_enum: false,
-        }
-    }
-
-    fn engine_enum(tokens: impl ToTokens) -> Self {
-        Self {
-            tokens: tokens.to_token_stream(),
-            is_engine_type: true,
-            is_enum: true,
-        }
-    }
-
-    fn engine_class(tokens: impl ToTokens) -> Self {
-        Self {
-            tokens: tokens.to_token_stream(),
-            is_engine_type: true,
-            is_enum: false,
+impl ToTokens for RustTy {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            RustTy::BuiltinIdent(ident) => ident.to_tokens(tokens),
+            RustTy::BuiltinGeneric(path) => path.to_tokens(tokens),
+            RustTy::EngineEnum(path) => path.to_tokens(tokens),
+            RustTy::EngineClass(path) => path.to_tokens(tokens),
+            //RustTy::Other(path) => path.to_tokens(tokens),
         }
     }
 }

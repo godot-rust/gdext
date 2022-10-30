@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::util::{c_str, ident, safe_ident, strlit, to_module_name, to_rust_type};
-use crate::{special_cases, util, Context, GeneratedClass, GeneratedModule};
+use crate::{special_cases, util, Context, GeneratedClass, GeneratedModule, RustTy};
 
 pub(crate) fn generate_class_files(
     api: &ExtensionApi,
@@ -439,17 +439,16 @@ fn make_params(
     let mut arg_exprs = vec![];
     for arg in method_args.iter() {
         let param_name = safe_ident(&arg.name);
-        let param = to_rust_type(&arg.type_, ctx);
-        let param_ty = param.tokens;
+        let param_ty = to_rust_type(&arg.type_, ctx);
 
         params.push(quote! { #param_name: #param_ty });
         if is_varcall {
             arg_exprs.push(quote! {
                 <#param_ty as ToVariant>::to_variant(&#param_name)
             });
-        } else if param.is_engine_type && !param.is_enum {
+        } else if let RustTy::EngineClass(path) = param_ty {
             arg_exprs.push(quote! {
-                <#param_ty as AsArg>::as_arg_ptr(&#param_name)
+                <#path as AsArg>::as_arg_ptr(&#param_name)
             });
         } else {
             arg_exprs.push(quote! {
@@ -469,7 +468,7 @@ fn make_method_return(
     let return_decl;
     match return_value {
         Some(ret) => {
-            return_ty = Some(to_rust_type(&ret.type_, ctx).tokens);
+            return_ty = Some(to_rust_type(&ret.type_, ctx));
             return_decl = quote! { -> #return_ty };
         }
         None => {
@@ -479,14 +478,21 @@ fn make_method_return(
     };
 
     let call = match (is_varcall, return_ty) {
-        (true, Some(_return_ty)) => {
+        (true, Some(return_ty)) => {
+            // If the return type is not Variant, then convert to concrete target type
+            let return_expr = match return_ty {
+                RustTy::BuiltinIdent(ident) if ident == "Variant" => quote! { variant },
+                _ => quote! { variant.to() },
+            };
+
             // TODO use Result instead of panic on error
             quote! {
-                Variant::from_var_sys_init(|return_ptr| {
+                let variant = Variant::from_var_sys_init(|return_ptr| {
                     let mut err = sys::default_call_error();
                     call_fn(method_bind, self.object_ptr, args_ptr, args.len() as i64, return_ptr, std::ptr::addr_of_mut!(err));
                     assert_eq!(err.error, sys::GDNATIVE_CALL_OK);
-                })
+                });
+                #return_expr
             }
         }
         (true, None) => {
@@ -519,7 +525,7 @@ fn make_utility_return(return_value: &Option<String>, ctx: &Context) -> (TokenSt
     let call;
     match return_value {
         Some(ret) => {
-            let return_ty = to_rust_type(&ret, ctx).tokens;
+            let return_ty = to_rust_type(&ret, ctx);
 
             return_decl = quote! { -> #return_ty };
             call = quote! {
