@@ -53,4 +53,38 @@ macro_rules! godot_script_error {
     };
 }
 
-pub use crate::{godot_error, godot_script_error, godot_warn};
+#[macro_export]
+macro_rules! godot_print {
+    ($($arg:tt)*) => {
+        $crate::log::print(&[
+            $crate::builtin::Variant::from(
+                $crate::builtin::GodotString::from(
+                    format!($($arg)*)
+                )
+            )
+        ])
+    };
+}
+
+pub use crate::{godot_error, godot_print, godot_script_error, godot_warn};
+
+use crate::builtin::Variant;
+use crate::sys::{self, GodotFfi};
+
+pub fn print(varargs: &[Variant]) {
+    unsafe {
+        let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(
+            "print\0".as_ptr() as *const i8,
+            2648703342i64,
+        );
+        let call_fn = call_fn.unwrap_unchecked();
+
+        let mut args = Vec::new();
+        args.extend(varargs.iter().map(Variant::sys));
+
+        let args_ptr = args.as_ptr();
+        let _variant = Variant::from_sys_init(|return_ptr| {
+            call_fn(return_ptr, args_ptr, args.len() as i32);
+        });
+    }
+}
