@@ -22,14 +22,16 @@ pub trait AsArg: Sealed {
 impl<T: GodotClass> Sealed for Gd<T> {}
 impl<T: GodotClass> AsArg for Gd<T> {
     fn as_arg_ptr(&self) -> sys::GDNativeTypePtr {
+        // Pass argument to engine: increment refcount
+        <T::Mem as crate::obj::mem::Memory>::maybe_inc_ref(self);
         self.sys()
     }
 }
 
-impl<T: EngineClass> Sealed for &T {}
-impl<T: EngineClass> AsArg for &T {
-    fn as_arg_ptr(&self) -> sys::GDNativeTypePtr {
-        //&mut self.as_object_ptr() as *mut sys::GDNativeObjectPtr as _ // TODO:check
-        self.as_type_ptr()
-    }
-}
+// impl<T: EngineClass> Sealed for &T {}
+// impl<T: EngineClass> AsArg for &T {
+//     fn as_arg_ptr(&self) -> sys::GDNativeTypePtr {
+//         // TODO what if this is dropped by the user? Same behavior as Gd<T>, no?
+//         self.as_type_ptr()
+//     }
+// }
