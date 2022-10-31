@@ -10,16 +10,15 @@ mod storage;
 pub mod bind;
 pub mod builder;
 pub mod builtin;
+pub mod engine;
 pub mod init;
 pub mod log;
 pub mod macros;
 pub mod obj;
-pub mod engine;
 
 pub use registry::*;
 
 pub use godot_ffi as sys;
-
 
 #[doc(hidden)]
 pub mod private {

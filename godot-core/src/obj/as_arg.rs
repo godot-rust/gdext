@@ -7,7 +7,7 @@
 use godot_ffi as sys;
 use sys::GodotFfi;
 
-use crate::obj::{EngineClass, Gd, GodotClass};
+use crate::obj::{Gd, GodotClass};
 
 mod private {
     pub trait Sealed {}
@@ -31,7 +31,7 @@ impl<T: GodotClass> AsArg for Gd<T> {
 // impl<T: EngineClass> Sealed for &T {}
 // impl<T: EngineClass> AsArg for &T {
 //     fn as_arg_ptr(&self) -> sys::GDNativeTypePtr {
-//         // TODO what if this is dropped by the user? Same behavior as Gd<T>, no?
+//         // TODO what if this is dropped by the user after the call? Same behavior as Gd<T>, no?
 //         self.as_type_ptr()
 //     }
 // }
