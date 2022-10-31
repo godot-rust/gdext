@@ -9,6 +9,7 @@ default = ["convenience"]
 trace = []
 convenience = []
 codegen-fmt = ["godot-ffi/codegen-fmt"]
+minimal = ["godot-ffi/minimal"]
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi" }

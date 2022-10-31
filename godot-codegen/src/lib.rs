@@ -109,10 +109,20 @@ enum RustTy {
     BuiltinIdent(Ident),
 
     /// `TypedArray<i32>`
-    BuiltinGeneric(TokenStream),
+    BuiltinArray(TokenStream),
+
+    /// `TypedArray<Gd<PhysicsBody3D>>`
+    EngineArray {
+        tokens: TokenStream,
+        elem_class: String,
+    },
 
     /// `module::Enum`
-    EngineEnum(TokenStream),
+    EngineEnum {
+        tokens: TokenStream,
+        /// `None` for globals
+        surrounding_class: Option<String>,
+    },
 
     /// `Gd<Node>`
     EngineClass(TokenStream),
@@ -122,8 +132,9 @@ impl ToTokens for RustTy {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             RustTy::BuiltinIdent(ident) => ident.to_tokens(tokens),
-            RustTy::BuiltinGeneric(path) => path.to_tokens(tokens),
-            RustTy::EngineEnum(path) => path.to_tokens(tokens),
+            RustTy::BuiltinArray(path) => path.to_tokens(tokens),
+            RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
+            RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass(path) => path.to_tokens(tokens),
             //RustTy::Other(path) => path.to_tokens(tokens),
         }
@@ -145,49 +156,39 @@ struct GeneratedModule {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared config
-// Workaround for limiting number of types as long as implementation is incomplete
-/*
-const KNOWN_TYPES: &[&str] = &[
-    // builtin:
-    "bool",
-    "int",
-    "float",
-    "String",
-    "StringName",
-    "Vector2",
-    "Vector2i",
-    "Vector3",
-    "Vector3i",
-    "Vector4",
-    "Color",
-    "Variant",
-    // classes:
-    "Object",
-    "Node",
-    "Node3D",
-    "RefCounted",
-    "Resource",
-    "ResourceLoader",
-    "FileAccess",
-    "AStar2D",
-    "Camera3D",
-    "IP",
-    "Input",
-    "OS",
-];
 
+// Classes for minimal config
+#[cfg(feature = "minimal")]
 const SELECTED_CLASSES: &[&str] = &[
-    "Object",
+    "AnimatedSprite2D",
+    "Area2D",
+    "BaseButton",
+    "Button",
+    "Camera2D",
+    "Camera3D",
+    "CanvasItem",
+    "CanvasLayer",
+    "CollisionObject2D",
+    "CollisionShape2D",
+    "Control",
+    "Input",
+    "Label",
+    "MainLoop",
+    "Marker2D",
     "Node",
+    "Node2D",
     "Node3D",
+    "Node3DGizmo",
+    "Object",
+    "PackedScene",
+    "PathFollow2D",
+    "PhysicsBody2D",
     "RefCounted",
     "Resource",
     "ResourceLoader",
-    "FileAccess",
-    "AStar2D",
-    "Camera3D",
-    "IP",
-    "Input",
-    "OS",
+    "RigidBody2D",
+    "SceneTree",
+    "Sprite2D",
+    "SpriteFrames",
+    "Timer",
 ];
-*/

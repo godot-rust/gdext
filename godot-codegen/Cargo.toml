@@ -6,6 +6,7 @@ rust-version = "1.63"
 
 [features]
 codegen-fmt = []
+minimal = ["codegen-fmt"] # note: should be additive, i.e. inverted
 
 [dependencies]
 quote = "1"

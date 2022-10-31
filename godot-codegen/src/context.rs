@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Default)]
 pub(crate) struct Context<'a> {
     engine_classes: HashSet<&'a str>,
+    builtin_types: HashSet<&'a str>,
     singletons: HashSet<&'a str>,
     inheritance_tree: InheritanceTree,
     cached_rust_types: HashMap<String, RustTy>,
@@ -23,11 +24,17 @@ impl<'a> Context<'a> {
             ctx.singletons.insert(class.name.as_str());
         }
 
+        for builtin in api.builtin_classes.iter() {
+            let ty_name = builtin.name.as_str();
+            ctx.builtin_types.insert(ty_name);
+        }
+
         for class in api.classes.iter() {
             let class_name = class.name.as_str();
-            // if !SELECTED_CLASSES.contains(&class_name) {
-            //     continue;
-            // }
+            #[cfg(feature = "minimal")]
+            if !crate::SELECTED_CLASSES.contains(&class_name) {
+                continue;
+            }
 
             println!("-- add engine class {}", class_name);
             ctx.engine_classes.insert(class_name);
@@ -41,8 +48,12 @@ impl<'a> Context<'a> {
         ctx
     }
 
-    pub fn is_engine_class(&self, class_name: &str) -> bool {
-        self.engine_classes.contains(class_name)
+    // pub fn is_engine_class(&self, class_name: &str) -> bool {
+    //     self.engine_classes.contains(class_name)
+    // }
+
+    pub fn is_builtin(&self, ty_name: &str) -> bool {
+        self.builtin_types.contains(ty_name)
     }
 
     pub fn is_singleton(&self, class_name: &str) -> bool {

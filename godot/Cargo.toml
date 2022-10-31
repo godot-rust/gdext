@@ -9,6 +9,7 @@ default = ["convenience"]
 trace = []
 convenience = []
 codegen-fmt = ["godot-core/codegen-fmt"]
+minimal = ["godot-core/minimal"]
 
 [dependencies]
 godot-core = { path = "../godot-core" }

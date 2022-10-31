@@ -24,13 +24,14 @@ pub(crate) fn generate_class_files(
     let _ = std::fs::remove_dir_all(gen_path);
     std::fs::create_dir_all(gen_path).expect("create classes directory");
 
-    // TODO no limit after testing
     let mut modules = vec![];
     for class in api.classes.iter() {
-        if
-        /* !SELECTED_CLASSES.contains(&class.name.as_str())
-        ||*/
-        special_cases::is_class_deleted(&class.name.as_str()) {
+        #[cfg(feature = "minimal")]
+        if !crate::SELECTED_CLASSES.contains(&class.name.as_str()) {
+            continue;
+        }
+
+        if special_cases::is_class_deleted(&class.name.as_str()) {
             continue;
         }
 
@@ -274,7 +275,25 @@ fn make_enums(enums: &Option<Vec<ClassEnum>>, _class_name: &str, _ctx: &Context)
     }
 }
 
-fn is_method_excluded(method: &Method) -> bool {
+#[cfg(feature = "minimal")]
+fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
+    let is_class_excluded = |class: &str| !crate::SELECTED_CLASSES.contains(&class);
+
+    match to_rust_type(ty, ctx) {
+        RustTy::BuiltinIdent(_) => false,
+        RustTy::BuiltinArray(_) => false,
+        RustTy::EngineArray { elem_class, .. } => is_class_excluded(elem_class.as_str()),
+        RustTy::EngineEnum {
+            surrounding_class, ..
+        } => match surrounding_class.as_ref() {
+            None => false,
+            Some(class) => is_class_excluded(class.as_str()),
+        },
+        RustTy::EngineClass(_) => is_class_excluded(ty),
+    }
+}
+
+fn is_method_excluded(method: &Method, #[allow(unused_variables)] ctx: &mut Context) -> bool {
     // Currently excluded:
     //
     // * Private virtual methods designed for override; skip for now
@@ -287,17 +306,18 @@ fn is_method_excluded(method: &Method) -> bool {
     //   As such support could be added later (if at all), with possibly safe interfaces (e.g. Vec for void*+size pairs)
 
     // -- FIXME remove when impl complete
-    /*if method
+    #[cfg(feature = "minimal")]
+    if method
         .return_value
         .as_ref()
-        .map_or(false, |ret| !KNOWN_TYPES.contains(&ret.type_.as_str()))
+        .map_or(false, |ret| is_type_excluded(&ret.type_.as_str(), ctx))
         || method.arguments.as_ref().map_or(false, |args| {
             args.iter()
-                .any(|arg| !KNOWN_TYPES.contains(&arg.type_.as_str()))
+                .any(|arg| is_type_excluded(&arg.type_.as_str(), ctx))
         })
     {
         return true;
-    }*/
+    }
     // -- end.
 
     method.name.starts_with("_")
@@ -311,20 +331,25 @@ fn is_method_excluded(method: &Method) -> bool {
             .map_or(false, |args| args.iter().any(|arg| arg.type_.contains("*")))
 }
 
-fn is_function_excluded(_function: &UtilityFunction) -> bool {
+#[cfg(not(feature = "minimal"))]
+fn is_function_excluded(_function: &UtilityFunction, _ctx: &mut Context) -> bool {
     false
-    /*function
-    .return_type
-    .as_ref()
-    .map_or(false, |ret| !KNOWN_TYPES.contains(&ret.as_str()))
-    || function.arguments.as_ref().map_or(false, |args| {
-        args.iter()
-            .any(|arg| !KNOWN_TYPES.contains(&arg.type_.as_str()))
-    })*/
+}
+
+#[cfg(feature = "minimal")]
+fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
+    function
+        .return_type
+        .as_ref()
+        .map_or(false, |ret| is_type_excluded(&ret.as_str(), ctx))
+        || function.arguments.as_ref().map_or(false, |args| {
+            args.iter()
+                .any(|arg| is_type_excluded(&arg.type_.as_str(), ctx))
+        })
 }
 
 fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) -> TokenStream {
-    if is_method_excluded(method) || special_cases::is_deleted(class_name, &method.name) {
+    if is_method_excluded(method, ctx) || special_cases::is_deleted(class_name, &method.name) {
         return TokenStream::new();
     }
 
@@ -398,7 +423,7 @@ pub(crate) fn make_function_definition(
     ctx: &mut Context,
 ) -> TokenStream {
     // TODO support vararg functions
-    if is_function_excluded(function) || function.is_vararg {
+    if function.is_vararg || is_function_excluded(function, ctx) {
         return TokenStream::new();
     }
 

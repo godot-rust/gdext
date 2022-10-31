@@ -268,38 +268,51 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
         .or_else(|| ty.strip_prefix("bitfield::"));
 
     if let Some(qualified_enum) = qualified_enum {
-        let tokens = if let Some((class, enum_)) = qualified_enum.split_once('.') {
+        return if let Some((class, enum_)) = qualified_enum.split_once('.') {
             // Class-local enum
-
             let module = ident(&to_module_name(class));
             let enum_ty = make_enum_name(enum_);
-            quote! { #module::#enum_ty }
+
+            RustTy::EngineEnum {
+                tokens: quote! { #module::#enum_ty },
+                surrounding_class: Some(class.to_string()),
+            }
         } else {
             // Global enum
             let enum_ty = make_enum_name(qualified_enum);
-            quote! { global::#enum_ty }
-        };
 
-        return RustTy::EngineEnum(tokens);
+            RustTy::EngineEnum {
+                tokens: quote! { global::#enum_ty },
+                surrounding_class: None,
+            }
+        };
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {
             return RustTy::BuiltinIdent(ident(packed_arr_ty));
         }
-    } else if let Some(arr_ty) = ty.strip_prefix("typedarray::") {
-        return if let Some(packed_arr_ty) = arr_ty.strip_prefix("Packed") {
+    } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
+        if let Some(packed_arr_ty) = elem_ty.strip_prefix("Packed") {
             return RustTy::BuiltinIdent(ident(packed_arr_ty));
+        }
+
+        let rust_elem_ty = to_rust_type(elem_ty, ctx);
+        return if ctx.is_builtin(elem_ty) {
+            RustTy::BuiltinArray(quote! { TypedArray<#rust_elem_ty> })
         } else {
-            let arr_ty = to_rust_type(arr_ty, ctx);
-            RustTy::BuiltinGeneric(quote! { TypedArray<#arr_ty> })
+            RustTy::EngineArray {
+                tokens: quote! { TypedArray<#rust_elem_ty> },
+                elem_class: elem_ty.to_string(),
+            }
         };
     }
 
-    if ctx.is_engine_class(ty) {
+    // Note: do not check if it's a known engine class, because that will not work in minimal mode (since not all classes are stored)
+    if ctx.is_builtin(ty) {
+        // Unchanged
+        RustTy::BuiltinIdent(ident(ty))
+    } else {
         let ty = ident(ty);
-        return RustTy::EngineClass(quote! { Gd<#ty> });
+        RustTy::EngineClass(quote! { Gd<#ty> })
     }
-
-    // Unchanged
-    RustTy::BuiltinIdent(ident(ty))
 }
