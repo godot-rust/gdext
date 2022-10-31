@@ -7,6 +7,8 @@
 // Stub for various other built-in classes, which are currently incomplete, but whose types
 // are required for codegen
 use crate::builtin::GodotString;
+use crate::engine::Object;
+use crate::obj::{Gd, GodotClass};
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
@@ -42,5 +44,23 @@ impl From<&GodotString> for NodePath {
 impl From<&str> for NodePath {
     fn from(path: &str) -> Self {
         Self::from(&GodotString::from(path))
+    }
+}
+
+impl Callable {
+    pub fn from_object_method<T, S>(object: Gd<T>, method: S) -> Self
+    where
+        T: GodotClass, // + Inherits<Object>,
+        S: Into<GodotString>,
+    {
+        // upcast not needed
+        let method = method.into();
+        unsafe {
+            Self::from_sys_init(|self_ptr| {
+                let ctor = sys::method_table().callable_from_object_method;
+                let args = [object.sys(), method.sys()];
+                ctor(self_ptr, args.as_ptr());
+            })
+        }
     }
 }

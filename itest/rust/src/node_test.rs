@@ -7,14 +7,23 @@
 use crate::itest;
 use godot::builtin::NodePath;
 use godot::engine::{global, node, Node, Node3D, NodeExt, PackedScene, SceneTree};
+use godot::log::godot_print;
 use godot::obj::Share;
 
 pub fn run() -> bool {
     let mut ok = true;
+    ok &= node_print();
     ok &= node_get_node();
     //ok &= node_scene_tree();
     ok
 }
+
+// TODO move to other test
+#[itest]
+fn node_print() {
+    godot_print!("Test print, bool={} and int={}", true, 32);
+}
+
 
 #[itest]
 fn node_get_node() {

@@ -20,6 +20,12 @@ pub fn is_deleted(class_name: &str, method_name: &str) -> bool {
         //| ("Object", "to_string")
         | ("Object", "get_instance_id")
 
+        // Thread APIs
+        | ("ResourceLoader", "load_threaded_get")
+        | ("ResourceLoader", "load_threaded_get_status")
+        | ("ResourceLoader", "load_threaded_request")
+        // also: enum ThreadLoadStatus
+
         => true, _ => false
     }
 }
@@ -27,6 +33,7 @@ pub fn is_deleted(class_name: &str, method_name: &str) -> bool {
 #[rustfmt::skip]
 pub fn is_class_deleted(class_name: &str) -> bool {
     match class_name {
+        // Thread APIs
         | "Thread"
         | "Mutex"
         | "Semaphore"

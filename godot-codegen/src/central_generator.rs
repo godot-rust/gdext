@@ -187,6 +187,7 @@ fn make_core_code(central_items: &CentralItems) -> String {
     } = central_items;
 
     // TODO impl Clone, Debug, PartialEq, PartialOrd, Hash for VariantDispatch
+    // TODO could use try_to().unwrap_unchecked(), since type is already verified. Also directly overload from_variant().
     // But this requires that all the variant types support this
     let core_tokens = quote! {
         use crate::builtin::*;
@@ -198,6 +199,21 @@ fn make_core_code(central_items: &CentralItems) -> String {
             #(
                 #variant_ty_enumerators_pascal(#variant_ty_enumerators_rust),
             )*
+        }
+
+        #[cfg(FALSE)]
+        impl FromVariant for VariantDispatch {
+            fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+                let dispatch = match variant.get_type() {
+                    VariantType::Nil => Self::Nil,
+                    #(
+                        VariantType::#variant_ty_enumerators_pascal
+                            => Self::#variant_ty_enumerators_pascal(variant.to::<#variant_ty_enumerators_rust>()),
+                    )*
+                };
+
+                Ok(dispatch)
+            }
         }
 
         pub mod global {

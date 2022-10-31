@@ -185,11 +185,11 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
         impl ::godot::obj::cap::ImplementsGodotExt for #class_name {
             fn __virtual_call(name: &str) -> ::godot::sys::GDNativeExtensionClassCallVirtual {
-                println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
+                //println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
 
                 match name {
                     #(
-                       #virtual_method_names => ::godot::gdext_virtual_method_callback!(#class_name, #virtual_methods),
+                       #virtual_method_names => #prv::gdext_virtual_method_callback!(#class_name, #virtual_methods),
                     )*
                     _ => None,
                 }

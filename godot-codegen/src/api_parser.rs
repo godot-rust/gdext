@@ -137,6 +137,15 @@ pub struct Method {
     pub return_value: Option<MethodReturn>,
 }
 
+impl Method {
+    pub fn map_args<R>(&self, f: impl FnOnce(&Vec<MethodArg>) -> R) -> R {
+        match self.arguments.as_ref() {
+            Some(args) => f(args),
+            None => f(&vec![]),
+        }
+    }
+}
+
 #[derive(DeJson, Clone)]
 pub struct MethodArg {
     pub name: String,

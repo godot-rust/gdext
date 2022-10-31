@@ -26,7 +26,9 @@ pub mod private {
     pub use crate::engine::gen::classes::class_macros;
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
     pub use crate::storage::as_storage;
-    pub use crate::{gdext_register_method, gdext_register_method_inner};
+    pub use crate::{
+        gdext_register_method, gdext_register_method_inner, gdext_virtual_method_callback,
+    };
 
     use crate::{log, sys};
 

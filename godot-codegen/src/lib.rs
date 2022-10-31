@@ -114,6 +114,7 @@ enum RustTy {
     /// `TypedArray<Gd<PhysicsBody3D>>`
     EngineArray {
         tokens: TokenStream,
+        #[allow(dead_code)] // only read in minimal config
         elem_class: String,
     },
 
@@ -121,6 +122,7 @@ enum RustTy {
     EngineEnum {
         tokens: TokenStream,
         /// `None` for globals
+        #[allow(dead_code)] // only read in minimal config
         surrounding_class: Option<String>,
     },
 
@@ -162,6 +164,7 @@ struct GeneratedModule {
 const SELECTED_CLASSES: &[&str] = &[
     "AnimatedSprite2D",
     "Area2D",
+    "AudioStreamPlayer",
     "BaseButton",
     "Button",
     "Camera2D",

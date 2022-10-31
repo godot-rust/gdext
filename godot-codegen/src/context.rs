@@ -24,6 +24,7 @@ impl<'a> Context<'a> {
             ctx.singletons.insert(class.name.as_str());
         }
 
+        ctx.builtin_types.insert("Variant"); // not part of builtin_classes
         for builtin in api.builtin_classes.iter() {
             let ty_name = builtin.name.as_str();
             ctx.builtin_types.insert(ty_name);

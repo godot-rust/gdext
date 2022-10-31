@@ -226,7 +226,7 @@ macro_rules! gdext_virtual_method_callback_inner {
         ) -> $Ret:ty
     ) => {
         Some({
-            use godot_ffi as sys;
+            use $crate::sys;
 
             unsafe extern "C" fn function(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
@@ -335,10 +335,10 @@ macro_rules! gdext_ptrcall {
             $( $arg:ident : $ParamTy:ty, )*
         ) -> $( $RetTy:tt )+
     ) => {
-        use godot_ffi as sys;
+        use $crate::sys;
 
-        godot_core::out!("ptrcall: {}", stringify!($method_name));
-        let storage = ::godot_core::private::as_storage::<$Class>($instance_ptr);
+        $crate::out!("ptrcall: {}", stringify!($method_name));
+        let storage = $crate::private::as_storage::<$Class>($instance_ptr);
         let mut instance = storage.get_mut();
 
         let mut idx = 0;

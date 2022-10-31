@@ -357,7 +357,18 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
     let (params, arg_exprs) = make_params(&method.arguments, is_varcall, ctx);
 
     let method_name = special_cases::maybe_renamed(class_name, &method.name);
+    /*if method.map_args(|args| args.is_empty()) {
+        // Getters (i.e. 0 arguments) will be stripped of their `get_` prefix, to conform to Rust convention
+        if let Some(remainder) = method_name.strip_prefix("get_") {
+            // Do not apply for get_16 etc
+            // TODO also not for get_u16 etc, in StreamPeer
+            if !remainder.chars().nth(0).unwrap().is_ascii_digit() {
+                method_name = remainder;
+            }
+        }
+    }*/
     let method_name = safe_ident(method_name);
+
     let c_method_name = c_str(&method.name);
     let c_class_name = c_str(class_name);
     let hash = method.hash;

@@ -31,6 +31,7 @@ where
 
 pub fn reduce_to_signature(function: &Function) -> Function {
     let mut reduced = function.clone();
+    reduced.vis_marker = None; // TODO needed?
     reduced.attributes.clear();
     reduced.tk_semicolon = None;
     reduced.body = None;
