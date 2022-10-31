@@ -14,53 +14,17 @@ pub mod init;
 pub mod log;
 pub mod macros;
 pub mod obj;
+pub mod engine;
 
 pub use registry::*;
 
 pub use godot_ffi as sys;
 
-mod gen {
-    #[allow(unused_imports, dead_code, non_upper_case_globals, non_snake_case)]
-    pub(crate) mod classes {
-        // Path to core/classes/obj
-        // Do not write macro for this, as it confuses IDEs -- just search&replace
-        include!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../target/godot-gen/core/classes/mod.rs"
-        ));
-    }
-
-    pub mod utilities {
-        // Path to core/utilities.rs
-        // Do not write macro for this, as it confuses IDEs -- just search&replace
-        include!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../target/godot-gen/core/utilities.rs"
-        ));
-    }
-
-    #[allow(non_upper_case_globals, non_snake_case)]
-    pub mod central_core {
-        // Path to core/utilities.rs
-        // Do not write macro for this, as it confuses IDEs -- just search&replace
-        include!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../target/godot-gen/core/central.rs"
-        ));
-    }
-}
-
-/// Godot engine classes and methods.
-pub mod engine {
-    pub use super::gen::central_core::global;
-    pub use super::gen::classes::*;
-    pub use super::gen::utilities;
-}
 
 #[doc(hidden)]
 pub mod private {
     pub use crate::builtin::func_callbacks;
-    pub use crate::gen::classes::class_macros;
+    pub use crate::engine::gen::classes::class_macros;
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
     pub use crate::storage::as_storage;
     pub use crate::{gdext_register_method, gdext_register_method_inner};
