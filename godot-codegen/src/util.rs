@@ -40,10 +40,9 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
 
     let bitfield_ops = if enum_.is_bitfield() {
         let tokens = quote! {
-            impl #enum_name {
-                pub const UNSET: Self = Self { ord: 0 };
-            }
-
+            // impl #enum_name {
+            //     pub const UNSET: Self = Self { ord: 0 };
+            // }
             impl std::ops::BitOr for #enum_name {
                 type Output = Self;
 

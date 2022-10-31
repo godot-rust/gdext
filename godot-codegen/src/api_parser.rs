@@ -180,7 +180,8 @@ impl Enum for GlobalEnum {
     }
 
     fn is_bitfield(&self) -> bool {
-        false
+        // Hack until this is exported in the JSON
+        self.name.contains("Flag")
     }
 }
 
