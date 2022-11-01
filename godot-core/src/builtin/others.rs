@@ -6,7 +6,7 @@
 
 // Stub for various other built-in classes, which are currently incomplete, but whose types
 // are required for codegen
-use crate::builtin::GodotString;
+use crate::builtin::{GodotString, Vector2};
 use crate::engine::Object;
 use crate::obj::{Gd, GodotClass};
 use godot_ffi as sys;
@@ -28,6 +28,22 @@ impl_builtin_stub!(RID, OpaqueRID);
 impl_builtin_stub!(Callable, OpaqueCallable);
 impl_builtin_stub!(Signal, OpaqueSignal);
 impl_builtin_stub!(Dictionary, OpaqueDictionary);
+
+#[repr(C)]
+struct InnerRect {
+    position: Vector2,
+    size: Vector2,
+}
+
+impl Rect2 {
+    pub fn size(self) -> Vector2 {
+        self.inner().size
+    }
+
+    fn inner(self) -> InnerRect {
+        unsafe { std::mem::transmute(self) }
+    }
+}
 
 impl From<&GodotString> for NodePath {
     fn from(path: &GodotString) -> Self {

@@ -194,6 +194,7 @@ fn make_core_code(central_items: &CentralItems) -> String {
         use crate::engine::Object;
         use crate::obj::Gd;
 
+        #[allow(dead_code)]
         pub enum VariantDispatch {
             Nil,
             #(

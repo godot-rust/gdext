@@ -8,6 +8,7 @@ use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError, Va
 use godot_ffi as sys;
 use godot_ffi::{ffi_methods, GodotFfi};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
+use std::num::NonZeroU64;
 
 /// Represents a non-zero instance ID.
 ///
@@ -19,7 +20,7 @@ pub struct InstanceId {
     //
     // Methods converting to/from u64 exist only because GDExtension tends to work with u64. However, user-facing APIs
     // interact with GDScript, which uses i64. Not having two representations avoids confusion about negative values.
-    value: u64,
+    value: NonZeroU64,
 }
 
 impl InstanceId {
@@ -41,27 +42,23 @@ impl InstanceId {
 
     // Private: see rationale above
     pub(crate) fn try_from_u64(id: u64) -> Option<Self> {
-        if id == 0 {
-            None
-        } else {
-            Some(InstanceId { value: id })
-        }
+        NonZeroU64::new(id).map(|value| Self { value })
     }
 
     pub fn to_i64(self) -> i64 {
-        self.value as i64
+        self.to_u64() as i64
     }
 
     /// Returns if the obj being referred-to is inheriting `RefCounted`.
     ///
-    /// This involves no engine round-trip, as the information is encoded in the ID itself.
+    /// This is a very fast operation and involves no engine round-trip, as the information is encoded in the ID itself.
     pub fn is_ref_counted(self) -> bool {
-        self.value & (1u64 << 63) != 0
+        self.to_u64() & (1u64 << 63) != 0
     }
 
     // Private: see rationale above
     pub(crate) fn to_u64(self) -> u64 {
-        self.value
+        self.value.get()
     }
 }
 

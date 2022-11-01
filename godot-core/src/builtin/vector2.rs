@@ -31,6 +31,17 @@ impl Vector2 {
     pub fn inner(self) -> Inner {
         self.inner
     }
+
+    // Hacks for example
+    // pub fn length(self) -> f32 {
+    //     self.inner.length()
+    // }
+    // pub fn normalized(self) -> Vector2 {
+    //     Self::from_inner(self.inner.normalize())
+    // }
+    pub fn rotated(self, angle: f32) -> Self {
+        Self::from_inner(glam::Affine2::from_angle(angle).transform_vector2(self.inner))
+    }
 }
 
 impl GodotFfi for Vector2 {

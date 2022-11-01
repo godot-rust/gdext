@@ -3,6 +3,9 @@ name = "godot-core"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.63"
+license = "MPL-2.0"
+keywords = ["gamedev", "godot", "engine", "2d", "3d"] # possibly: "ffi"
+categories = ["game-engines", "graphics"]
 
 [features]
 default = ["convenience"]
@@ -14,7 +17,9 @@ minimal = ["godot-ffi/minimal"]
 [dependencies]
 godot-ffi = { path = "../godot-ffi" }
 once_cell = "1.8"
-glam = "0.22"
+
+# See https://docs.rs/glam/latest/glam/index.html#feature-gates
+glam = { version = "0.22", features = ["debug-glam-assert", "scalar-math"] }
 
 # Reverse dev dependencies so doctests can use `godot::` prefix
 [dev-dependencies]
