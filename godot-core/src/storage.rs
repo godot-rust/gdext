@@ -78,11 +78,23 @@ impl<T: GodotClass> InstanceStorage<T> {
     }
 
     pub fn get(&self) -> cell::Ref<T> {
-        self.user_instance.borrow()
+        self.user_instance.try_borrow().unwrap_or_else(|_e| {
+            panic!(
+                "Gd<T>::bind() failed, already bound; T = {}.\n  \
+                 Make sure there is no &mut T live at the time.",
+                type_name::<T>()
+            )
+        })
     }
 
     pub fn get_mut(&mut self) -> cell::RefMut<T> {
-        self.user_instance.borrow_mut()
+        self.user_instance.try_borrow_mut().unwrap_or_else(|_e| {
+            panic!(
+                "Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
+                 Make sure there is no &T or &mut T live at the time.",
+                type_name::<T>()
+            )
+        })
     }
 
     pub fn mark_destroyed_by_godot(&mut self) {
