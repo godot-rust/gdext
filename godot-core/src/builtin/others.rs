@@ -4,10 +4,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt::{Display, Formatter, Result as FmtResult};
+
 // Stub for various other built-in classes, which are currently incomplete, but whose types
 // are required for codegen
 use crate::builtin::{GodotString, Vector2};
-use crate::engine::Object;
 use crate::obj::{Gd, GodotClass};
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
@@ -57,9 +58,28 @@ impl From<&GodotString> for NodePath {
     }
 }
 
+impl From<&NodePath> for GodotString {
+    fn from(path: &NodePath) -> Self {
+        unsafe {
+            Self::from_sys_init(|self_ptr| {
+                let ctor = sys::method_table().string_from_node_path;
+                let args = [path.sys()];
+                ctor(self_ptr, args.as_ptr());
+            })
+        }
+    }
+}
+
 impl From<&str> for NodePath {
     fn from(path: &str) -> Self {
         Self::from(&GodotString::from(path))
+    }
+}
+
+impl Display for NodePath {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let string = GodotString::from(self);
+        <GodotString as Display>::fmt(&string, f)
     }
 }
 
