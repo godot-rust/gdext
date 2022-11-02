@@ -27,7 +27,7 @@ use utilities_generator::generate_utilities_file;
 use watch::StopWatch;
 
 use proc_macro2::{Ident, TokenStream};
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 use std::path::{Path, PathBuf};
 
 pub fn generate_all_files(sys_out_dir: &Path, core_out_dir: &Path, stats_out_dir: &Path) {
@@ -128,6 +128,15 @@ enum RustTy {
 
     /// `Gd<Node>`
     EngineClass(TokenStream),
+}
+
+impl RustTy {
+    pub fn return_decl(&self) -> TokenStream {
+        match self {
+            Self::EngineClass(tokens) => quote! { -> Option<#tokens> },
+            other => quote! { -> #other },
+        }
+    }
 }
 
 impl ToTokens for RustTy {

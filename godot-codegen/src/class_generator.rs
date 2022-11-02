@@ -503,16 +503,17 @@ fn make_method_return(
     is_varcall: bool,
     ctx: &mut Context,
 ) -> (TokenStream, TokenStream) {
-    let return_ty;
-    let return_decl;
+    let return_decl: TokenStream;
+    let return_ty: Option<RustTy>;
     match return_value {
         Some(ret) => {
-            return_ty = Some(to_rust_type(&ret.type_, ctx));
-            return_decl = quote! { -> #return_ty };
+            let ty = to_rust_type(&ret.type_, ctx);
+            return_decl = ty.return_decl();
+            return_ty = Some(ty);
         }
         None => {
-            return_ty = None;
             return_decl = TokenStream::new();
+            return_ty = None;
         }
     };
 
@@ -542,6 +543,13 @@ fn make_method_return(
                 assert_eq!(err.error, sys::GDNATIVE_CALL_OK);
             }
         }
+        (false, Some(RustTy::EngineClass(return_ty))) => {
+            quote! {
+                <#return_ty>::from_sys_init_opt(|return_ptr| {
+                    call_fn(method_bind, self.object_ptr, args_ptr, return_ptr);
+                })
+            }
+        }
         (false, Some(return_ty)) => {
             quote! {
                 <#return_ty as sys::GodotFfi>::from_sys_init(|return_ptr| {
@@ -564,25 +572,38 @@ fn make_utility_return(
     ctx: &mut Context,
 ) -> (TokenStream, TokenStream) {
     let return_decl;
-    let call;
-    match return_value {
-        Some(ret) => {
-            let return_ty = to_rust_type(&ret, ctx);
+    let return_ty;
 
-            return_decl = quote! { -> #return_ty };
-            call = quote! {
+    if let Some(ret) = return_value {
+        let ty = to_rust_type(&ret, ctx);
+        return_decl = ty.return_decl();
+        return_ty = Some(ty);
+    } else {
+        return_decl = TokenStream::new();
+        return_ty = None;
+    }
+
+    let call = match return_ty {
+        Some(RustTy::EngineClass(return_ty)) => {
+            quote! {
+                <#return_ty>::from_sys_init_opt(|return_ptr| {
+                    call_fn(return_ptr, args_ptr, args.len() as i32);
+                })
+            }
+        }
+        Some(return_ty) => {
+            quote! {
                 <#return_ty as sys::GodotFfi>::from_sys_init(|return_ptr| {
                     call_fn(return_ptr, args_ptr, args.len() as i32);
                 })
-            };
+            }
         }
         None => {
-            return_decl = TokenStream::new();
-            call = quote! {
+            quote! {
                 call_fn(std::ptr::null_mut(), args_ptr, args.len() as i32);
-            };
+            }
         }
-    }
+    };
 
     (return_decl, call)
 }

@@ -456,6 +456,21 @@ impl<T: GodotClass> GodotFfi for Gd<T> {
     ffi_methods! { type sys::GDNativeTypePtr = Opaque; .. }
 }
 
+impl<T: GodotClass> Gd<T> {
+    #[doc(hidden)]
+    pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Option<Self> {
+        let mut raw: *mut std::ffi::c_void = ptr::null_mut();
+        let type_ptr = ptr::addr_of_mut!(raw) as sys::GDNativeTypePtr;
+        init_fn(type_ptr);
+
+        if raw.is_null() {
+            None
+        } else {
+            Some(Self::from_sys(type_ptr))
+        }
+    }
+}
+
 /// Destructor with semantics depending on memory strategy.
 ///
 /// * If this `Gd` smart pointer holds a reference-counted type, this will decrement the reference counter.
