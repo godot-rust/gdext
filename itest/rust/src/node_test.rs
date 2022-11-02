@@ -6,7 +6,7 @@
 
 use crate::itest;
 use godot::builtin::NodePath;
-use godot::engine::{global, node, Node, Node3D, NodeExt, PackedScene, SceneTree};
+use godot::engine::{node, Node, Node3D, NodeExt};
 use godot::log::godot_print;
 use godot::obj::Share;
 

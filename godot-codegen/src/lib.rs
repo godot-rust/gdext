@@ -184,6 +184,8 @@ const SELECTED_CLASSES: &[&str] = &[
     "CollisionShape2D",
     "Control",
     "Input",
+    "OS",
+    "FileAccess",
     "Label",
     "MainLoop",
     "Marker2D",

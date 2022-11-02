@@ -6,7 +6,7 @@
 
 use crate::itest;
 use godot::builtin::GodotString;
-use godot::engine::OS;
+use godot::engine::{Input, OS};
 use godot::obj::Gd;
 
 pub fn run() -> bool {
@@ -19,10 +19,10 @@ pub fn run() -> bool {
 
 #[itest]
 fn singleton_is_unique() {
-    let a: Gd<OS> = OS::singleton();
+    let a: Gd<Input> = Input::singleton();
     let id_a = a.instance_id();
 
-    let b: Gd<OS> = OS::singleton();
+    let b: Gd<Input> = Input::singleton();
     let id_b = b.instance_id();
 
     assert_eq!(id_a, id_b, "Singletons have same instance ID");

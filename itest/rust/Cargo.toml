@@ -12,7 +12,7 @@ default = []
 trace = ["godot/trace"]
 
 [dependencies]
-godot = { path = "../../godot" }
+godot = { path = "../../godot", features = ["minimal"] }
 
 [build-dependencies]
 quote = "1"
