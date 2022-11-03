@@ -28,6 +28,8 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let inherits_macro = format_ident!("inherits_transitive_{}", &base_ty_str);
 
     let prv = quote! { ::godot::private };
+    let deref_impl = make_deref_impl(class_name, &fields);
+
     let (godot_init_impl, create_fn);
     if struct_cfg.has_generated_init {
         godot_init_impl = make_godot_init_impl(class_name, fields);
@@ -47,6 +49,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
         }
 
         #godot_init_impl
+        #deref_impl
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_str,
@@ -223,6 +226,29 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
                     #( #rest_init )*
                     #base_init
                 }
+            }
+        }
+    }
+}
+
+fn make_deref_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
+    let base_field = if let Some(ExportedField { name, .. }) = &fields.base_field {
+        name
+    } else {
+        return TokenStream::new();
+    };
+
+    quote! {
+        impl std::ops::Deref for #class_name {
+            type Target = <Self as ::godot::obj::GodotClass>::Base;
+
+            fn deref(&self) -> &Self::Target {
+                &*self.#base_field
+            }
+        }
+        impl std::ops::DerefMut for #class_name {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut *self.#base_field
             }
         }
     }

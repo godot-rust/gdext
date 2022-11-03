@@ -53,6 +53,7 @@ pub fn run() -> bool {
 
 // TODO:
 // * make sure that ptrcalls are used when possible (ie. when type info available; maybe GDScript integration test)
+// * Deref impl for user-defined types
 
 #[itest]
 fn object_construct_default() {
