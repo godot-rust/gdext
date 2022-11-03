@@ -9,6 +9,7 @@
 // Re-exports of generated symbols
 use crate::builtin::{GodotString, NodePath};
 use crate::engine::resource_loader::CacheMode;
+use crate::obj::dom::EngineDomain;
 use crate::obj::{Gd, GodotClass, Inherits};
 pub use gen::central_core::global;
 pub use gen::classes::*;
@@ -46,46 +47,66 @@ pub(super) mod gen {
     }
 }
 
-/// Extension trait with convenience functions for the node tree
+/// Extension trait with convenience functions for the node tree.
 pub trait NodeExt {
+    /// Retrieves the node at path `path`, panicking if not found or bad type.
+    ///
+    /// # Panics
+    /// If the node is not found, or if it does not have type `T` or inherited.
     fn get_node_as<T>(&self, path: impl Into<NodePath>) -> Gd<T>
+    where
+        T: GodotClass + Inherits<Node>,
+    {
+        let path = path.into();
+
+        self.try_get_node_as(path).unwrap_or_else(|| {
+            panic!(
+                "There is no node of type {ty} path `{path}`",
+                ty = T::CLASS_NAME
+            )
+        })
+    }
+
+    /// Retrieves the node at path `path` (fallible).
+    ///
+    /// If the node is not found, or if it does not have type `T` or inherited,
+    /// `None` will be returned.
+    fn try_get_node_as<T>(&self, path: impl Into<NodePath>) -> Option<Gd<T>>
     where
         T: GodotClass + Inherits<Node>;
 }
 
 impl NodeExt for Node {
-    fn get_node_as<T>(&self, path: impl Into<NodePath>) -> Gd<T>
+    fn try_get_node_as<T>(&self, path: impl Into<NodePath>) -> Option<Gd<T>>
     where
         T: GodotClass + Inherits<Node>,
     {
         let path = path.into();
 
-        let node = self
-            .get_node(path)
-            .unwrap_or_else(|| panic!("There is no node at path `{path}`"));
-        node.cast::<T>()
+        // TODO differentiate errors (not found, bad type) with Result
+        self.get_node_or_null(path)
+            .and_then(|node| node.try_cast::<T>())
     }
 }
 
 impl<U> NodeExt for Gd<U>
 where
-    U: GodotClass + Inherits<Node>,
+    U: GodotClass<Declarer = EngineDomain> + Inherits<Node>,
 {
-    fn get_node_as<T>(&self, path: impl Into<NodePath>) -> Gd<T>
+    fn try_get_node_as<T>(&self, path: impl Into<NodePath>) -> Option<Gd<T>>
     where
         T: GodotClass + Inherits<Node>,
     {
-        // TODO easier impl, no share(), but ideally also don't add too many bounds
-        let path = path.into();
+        // TODO this could be implemented without share(), but currently lacks the proper bounds
+        // This would need more sophisticated upcast design, e.g. T::upcast_{ref|mut}::<U>() for indirect relations
+        // to make the indirect Deref more explicit
 
         use crate::obj::Share;
-        let node = self
-            .share()
-            .upcast::<Node>()
-            .get_node(path)
-            .unwrap_or_else(|| panic!("There is no node at path `{path}`"));
 
-        node.cast::<T>()
+        let path = path.into();
+        let node = self.share().upcast::<Node>();
+
+        <Node as NodeExt>::try_get_node_as(&*node, path)
     }
 }
 
