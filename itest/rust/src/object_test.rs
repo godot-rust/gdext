@@ -27,6 +27,8 @@ pub fn run() -> bool {
     ok &= object_user_roundtrip_return();
     ok &= object_user_roundtrip_write();
     ok &= object_engine_roundtrip();
+    ok &= object_display();
+    ok &= object_debug();
     ok &= object_instance_id();
     ok &= object_instance_id_when_freed();
     ok &= object_from_invalid_instance_id();
@@ -107,6 +109,30 @@ fn object_engine_roundtrip() {
 
     let obj2 = unsafe { Gd::<Node3D>::from_sys(ptr) };
     assert_eq!(obj2.get_position(), pos);
+    obj.free();
+}
+
+#[itest]
+fn object_display() {
+    let obj = Node3D::new_alloc();
+    let id = obj.instance_id();
+
+    let actual = format!(".:{obj}:.");
+    let expected = format!(".:<Node3D#{id}>:.");
+
+    assert_eq!(actual, expected);
+    obj.free();
+}
+
+#[itest]
+fn object_debug() {
+    let obj = Node3D::new_alloc();
+    let id = obj.instance_id();
+
+    let actual = format!(".:{obj:?}:.");
+    let expected = format!(".:Gd{{ id: {id} }}:.");
+
+    assert_eq!(actual, expected);
     obj.free();
 }
 

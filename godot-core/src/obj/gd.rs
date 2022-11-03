@@ -4,6 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
@@ -12,8 +13,8 @@ use godot_ffi as sys;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
-use crate::builtin::VariantMetadata;
 use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
+use crate::builtin::{GodotString, VariantMetadata};
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
 use crate::obj::{cap, dom, mem, GodotClass, Inherits, Share};
@@ -351,13 +352,18 @@ impl<T: GodotClass> Gd<T> {
         return_val
     }
 
-    // pub(crate) fn as_object<R>(&self, apply: impl Fn(&mut engine::Object) -> R) -> R {
-    //     let tmp = unsafe { self.ffi_cast::<engine::Object>() };
-    //     let mut tmp = tmp.expect("obj expected to inherit Object; should never fail");
-    //     let return_val = apply(tmp.inner_mut());
-    //     std::mem::forget(tmp); // no ownership transfer
-    //     return_val
-    // }
+    pub(crate) fn as_object<R>(&self, apply: impl Fn(&mut engine::Object) -> R) -> R {
+        // Note: no validity check; this could be called by to_string(), which can be called on dead instances
+
+        let tmp = unsafe { self.ffi_cast::<engine::Object>() };
+        let mut tmp = tmp.expect("obj expected to inherit Object; should never fail");
+        // let return_val = apply(tmp.inner_mut());
+        let return_val =
+            <engine::Object as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
+
+        std::mem::forget(tmp); // no ownership transfer
+        return_val
+    }
 
     // Conversions from/to Godot C++ `Object*` pointers
     ffi_methods! {
@@ -557,8 +563,23 @@ impl<T: GodotClass> ToVariant for Gd<T> {
     }
 }
 
-impl<T: GodotClass> std::fmt::Debug for Gd<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T> Display for Gd<T>
+where
+    T: GodotClass<Declarer = dom::EngineDomain>,
+{
+    // TODO support for user objects? should it return the engine repr, or a custom <T as Display>::fmt()?
+    // If the latter, we would need to do something like impl<T> Display for Gd<T> where T: Display,
+    // and thus implement it for each class separately (or blanket GodotClass/EngineClass/...).
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let string: GodotString = self.as_object(|obj| engine::Object::to_string(obj));
+
+        <GodotString as Display>::fmt(&string, f)
+    }
+}
+
+impl<T: GodotClass> Debug for Gd<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         // If you change this, don't forget to update Base::fmt()
         if let Some(id) = self.instance_id_or_none() {
             write!(f, "Gd{{ id: {} }}", id)
