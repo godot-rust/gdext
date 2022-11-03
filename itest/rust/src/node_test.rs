@@ -14,6 +14,7 @@ pub fn run() -> bool {
     let mut ok = true;
     ok &= node_print();
     ok &= node_get_node();
+    ok &= node_get_node_fail();
     //ok &= node_scene_tree();
     ok
 }
@@ -23,7 +24,6 @@ pub fn run() -> bool {
 fn node_print() {
     godot_print!("Test print, bool={} and int={}", true, 32);
 }
-
 
 #[itest]
 fn node_get_node() {
@@ -52,10 +52,22 @@ fn node_get_node() {
     assert_eq!(found.instance_id(), child_id);
 
     // Deref via &T
-    let found = grandparent.get_node_as::<Node3D>(NodePath::from("parent/child"));
+    let found = grandparent.try_get_node_as::<Node3D>(NodePath::from("parent/child"));
+    let found = found.expect("try_get_node_as() returned Some(..)");
     assert_eq!(found.instance_id(), child_id);
 
     grandparent.free();
+}
+
+#[itest]
+fn node_get_node_fail() {
+    let mut child = Node3D::new_alloc();
+    child.set_name("child".into());
+
+    let found = child.try_get_node_as::<Node3D>(NodePath::from("non-existent"));
+    assert!(found.is_none());
+
+    child.free();
 }
 
 /*

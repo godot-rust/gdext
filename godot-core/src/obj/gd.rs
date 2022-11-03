@@ -457,16 +457,24 @@ impl<T: GodotClass> GodotFfi for Gd<T> {
 }
 
 impl<T: GodotClass> Gd<T> {
-    #[doc(hidden)]
     pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Option<Self> {
-        let mut raw: *mut std::ffi::c_void = ptr::null_mut();
-        let type_ptr = ptr::addr_of_mut!(raw) as sys::GDNativeTypePtr;
-        init_fn(type_ptr);
+        // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
 
-        if raw.is_null() {
+        // Much elegant
+        let mut is_null = false;
+        let outer_fn = |ptr| {
+            init_fn(ptr);
+            if ptr.is_null() {
+                is_null = true;
+            }
+        };
+
+        // TODO forget, ready etc
+        let gd = Self::from_sys_init(outer_fn);
+        if is_null {
             None
         } else {
-            Some(Self::from_sys(type_ptr))
+            Some(gd)
         }
     }
 }
