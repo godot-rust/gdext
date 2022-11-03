@@ -37,8 +37,8 @@ pub mod prelude {
     pub use super::bind::{godot_api, GodotClass, GodotExt};
     pub use super::builtin::*;
     pub use super::engine::{
-        utilities, AudioStreamPlayer, Camera2D, Camera3D, Input, Node, Node2D, Node3D, Object,
-        PackedScene, RefCounted, Resource, SceneTree,
+        load, try_load, utilities, AudioStreamPlayer, Camera2D, Camera3D, Input, Node, Node2D,
+        Node3D, Object, PackedScene, RefCounted, Resource, SceneTree,
     };
     pub use super::init::{gdextension, ExtensionLayer, ExtensionLibrary, InitHandle, InitLevel};
     pub use super::log::*;
