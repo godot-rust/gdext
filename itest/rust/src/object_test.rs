@@ -130,7 +130,7 @@ fn object_debug() {
     let id = obj.instance_id();
 
     let actual = format!(".:{obj:?}:.");
-    let expected = format!(".:Gd{{ id: {id} }}:.");
+    let expected = format!(".:Gd {{ id: {id}, class: Node3D }}:.");
 
     assert_eq!(actual, expected);
     obj.free();

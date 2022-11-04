@@ -4,9 +4,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::builtin::GodotString;
 use crate::obj::Gd;
 use crate::obj::GodotClass;
-use crate::sys;
+use crate::{engine, sys};
+use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
@@ -55,13 +57,23 @@ impl<T: GodotClass> Base<T> {
     }
 }
 
-impl<T: GodotClass> std::fmt::Debug for Base<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<T: GodotClass> Debug for Base<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         if let Some(id) = self.instance_id_or_none() {
-            write!(f, "Base{{ id: {} }}", id)
+            let class: GodotString = self.as_object(|obj| engine::Object::get_class(obj));
+
+            write!(f, "Base {{ id: {}, class: {} }}", id, class)
         } else {
-            write!(f, "Base{{ freed obj }}")
+            write!(f, "Base {{ freed obj }}")
         }
+    }
+}
+
+impl<T: GodotClass> Display for Base<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        let string: GodotString = self.as_object(|obj| engine::Object::to_string(obj));
+
+        <GodotString as Display>::fmt(&string, f)
     }
 }
 

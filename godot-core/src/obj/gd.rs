@@ -582,9 +582,11 @@ impl<T: GodotClass> Debug for Gd<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         // If you change this, don't forget to update Base::fmt()
         if let Some(id) = self.instance_id_or_none() {
-            write!(f, "Gd{{ id: {} }}", id)
+            let class: GodotString = self.as_object(|obj| engine::Object::get_class(obj));
+
+            write!(f, "Gd {{ id: {id}, class: {class} }}")
         } else {
-            write!(f, "Gd{{ freed obj }}")
+            write!(f, "Gd {{ freed obj }}")
         }
     }
 }

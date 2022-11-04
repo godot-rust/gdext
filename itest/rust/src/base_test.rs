@@ -4,18 +4,86 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// use godot::engine::RefCounted;
-// use godot::obj::Base;
-// use godot::test::itest;
+use crate::itest;
+use godot::prelude::*;
 
 pub(crate) fn run() -> bool {
-    true
+    let mut ok = true;
+    ok &= base_instance_id();
+    ok &= base_deref();
+    ok &= base_display();
+    ok &= base_debug();
+
+    ok
 }
+
 /*
 #[itest]
 fn base_test_is_weak() {
     let obj = RefCounted::new();
-
-
 }
 */
+
+#[itest]
+fn base_instance_id() {
+    let obj = Gd::<BaseHolder>::new_default();
+    let obj_id = obj.instance_id();
+    let base_id = obj.bind().base.instance_id();
+
+    assert_eq!(obj_id, base_id);
+    obj.free();
+}
+
+#[itest]
+fn base_deref() {
+    let mut obj = Gd::<BaseHolder>::new_default();
+
+    {
+        let mut guard = obj.bind_mut();
+        let pos = Vector2::new(-5.5, 7.0);
+        guard.set_position(pos); // GdMut as DerefMut
+
+        assert_eq!(guard.base.get_position(), pos);
+    }
+
+    obj.free();
+}
+
+#[itest]
+fn base_display() {
+    let obj = Gd::<BaseHolder>::new_default();
+    {
+        let guard = obj.bind();
+        let id = guard.base.instance_id();
+
+        // We expect the dynamic type to be part of Godot's to_string(), so BaseHolder and not Node2D
+        let actual = format!(".:{}:.", guard.base);
+        let expected = format!(".:<BaseHolder#{id}>:.");
+
+        assert_eq!(actual, expected);
+    }
+    obj.free();
+}
+
+#[itest]
+fn base_debug() {
+    let obj = Gd::<BaseHolder>::new_default();
+    {
+        let guard = obj.bind();
+        let id = guard.base.instance_id();
+
+        // We expect the dynamic type to be part of Godot's to_string(), so BaseHolder and not Node2D
+        let actual = format!(".:{:?}:.", guard.base);
+        let expected = format!(".:Base {{ id: {id}, class: BaseHolder }}:.");
+
+        assert_eq!(actual, expected);
+    }
+    obj.free();
+}
+
+#[derive(GodotClass)]
+#[godot(init, base=Node2D)]
+struct BaseHolder {
+    #[base]
+    base: Base<Node2D>,
+}
