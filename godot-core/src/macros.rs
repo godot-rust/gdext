@@ -66,17 +66,28 @@ macro_rules! gdext_register_method_inner {
                         ret: sys::GDNativeVariantPtr,
                         err: *mut sys::GDNativeCallError,
                     ) {
-                        < ($($RetTy)+, $($ParamTy,)*) as SignatureTuple >::varcall::< $Class >(
-                            instance_ptr,
-                            args,
-                            ret,
-                            err,
-                            |inst, params| {
-                                let ( $($param,)* ) = params;
-                                inst.$method_name( $( $param, )* )
-                            },
-                            stringify!($method_name),
-                        );
+                        let result = ::std::panic::catch_unwind(|| {
+                            < ($($RetTy)+, $($ParamTy,)*) as SignatureTuple >::varcall::< $Class >(
+                                instance_ptr,
+                                args,
+                                ret,
+                                err,
+                                |inst, params| {
+                                    let ( $($param,)* ) = params;
+                                    inst.$method_name( $( $param, )* )
+                                },
+                                stringify!($method_name),
+                            )
+                        });
+
+                        if let Err(e) = result {
+                            $crate::log::godot_error!("Rust function panicked: {}", stringify!($method_name));
+                            $crate::private::print_panic(e);
+
+                            // Signal error and set return type to Nil
+                            (*err).error = sys::GDNATIVE_CALL_ERROR_INVALID_METHOD; // no better fitting enum?
+                            sys::interface_fn!(variant_new_nil)(ret);
+                        }
                     }
 
                     function
@@ -88,16 +99,25 @@ macro_rules! gdext_register_method_inner {
                         args: *const sys::GDNativeTypePtr,
                         ret: sys::GDNativeTypePtr,
                     ) {
-                        < ($($RetTy)+, $($ParamTy,)*) as SignatureTuple >::ptrcall::< $Class >(
-                            instance_ptr,
-                            args,
-                            ret,
-                            |inst, params| {
-                                let ( $($param,)* ) = params;
-                                inst.$method_name( $( $param, )* )
-                            },
-                            stringify!($method_name),
-                        );
+                        let result = ::std::panic::catch_unwind(|| {
+                            < ($($RetTy)+, $($ParamTy,)*) as SignatureTuple >::ptrcall::< $Class >(
+                                instance_ptr,
+                                args,
+                                ret,
+                                |inst, params| {
+                                    let ( $($param,)* ) = params;
+                                    inst.$method_name( $( $param, )* )
+                                },
+                                stringify!($method_name),
+                            );
+                        });
+
+                        if let Err(e) = result {
+                            $crate::log::godot_error!("Rust function panicked: {}", stringify!($method_name));
+                            $crate::private::print_panic(e);
+
+                            // TODO set return value to T::default()?
+                        }
                     }
 
                     function
