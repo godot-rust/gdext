@@ -44,7 +44,7 @@ pub mod private {
         } else if let Some(s) = err.downcast_ref::<String>() {
             log::godot_error!("rust-panic:  {}", s);
         } else {
-            log::godot_error!("rust-panic of type ID {:?}", (err.type_id()));
+            log::godot_error!("rust-panic of type ID {:?}", err.type_id());
         }
     }
 }

@@ -6,9 +6,9 @@
 
 #[macro_export]
 macro_rules! godot_warn {
-    ($($args:tt),* $(,)?) => {
+    ($fmt:literal $(, $args:expr)* $(,)?) => {
         unsafe {
-            let msg = format!("{}\0", format_args!($($args,)*));
+            let msg = format!("{}\0", format_args!($fmt $(, $args)*));
 
             $crate::sys::interface_fn!(print_warning)(
                 msg.as_bytes().as_ptr() as *const _,
@@ -23,9 +23,10 @@ macro_rules! godot_warn {
 #[macro_export]
 macro_rules! godot_error {
     // FIXME expr needs to be parenthesised, see usages
-    ($($args:tt),* $(,)?) => {
+    ($fmt:literal $(, $args:expr)* $(,)?) => {
+    //($($args:tt),* $(,)?) => {
         unsafe {
-            let msg = format!("{}\0", format_args!($($args,)*));
+            let msg = format!("{}\0", format_args!($fmt $(, $args)*));
 
             $crate::sys::interface_fn!(print_error)(
                 msg.as_bytes().as_ptr() as *const _,
@@ -39,9 +40,9 @@ macro_rules! godot_error {
 
 #[macro_export]
 macro_rules! godot_script_error {
-    ($($args:tt),* $(,)?) => {
+    ($fmt:literal $(, $args:expr)* $(,)?) => {
         unsafe {
-            let msg = format!("{}\0", format_args!($($args,)*));
+            let msg = format!("{}\0", format_args!($fmt $(, $args)*));
 
             $crate::sys::interface_fn!(print_script_error)(
                 msg.as_bytes().as_ptr() as *const _,
@@ -55,11 +56,11 @@ macro_rules! godot_script_error {
 
 #[macro_export]
 macro_rules! godot_print {
-    ($($arg:tt)*) => {
+    ($fmt:literal $(, $args:expr)* $(,)?) => {
         $crate::log::print(&[
             $crate::builtin::Variant::from(
                 $crate::builtin::GodotString::from(
-                    format!($($arg)*)
+                    format!($fmt $(, $args)*)
                 )
             )
         ])
