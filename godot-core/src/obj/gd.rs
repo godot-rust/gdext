@@ -470,7 +470,11 @@ impl<T: GodotClass> Gd<T> {
         let mut is_null = false;
         let outer_fn = |ptr| {
             init_fn(ptr);
-            if ptr.is_null() {
+
+            // ptr has type TypePtr = OpaqueObject* = Object** (in other words, the opaque encodes an Object*)
+            // we don't need to know if Object** is null, but if Object* (modified through Object**) is null.
+            let opaque_ptr = ptr as *const OpaqueObject;
+            if is_zeroed(*opaque_ptr) {
                 is_null = true;
             }
         };
@@ -483,6 +487,10 @@ impl<T: GodotClass> Gd<T> {
             Some(gd)
         }
     }
+}
+
+fn is_zeroed(opaque: OpaqueObject) -> bool {
+    unsafe { std::mem::transmute::<OpaqueObject, u64>(opaque) == 0 }
 }
 
 /// Destructor with semantics depending on memory strategy.
