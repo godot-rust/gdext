@@ -178,7 +178,7 @@ impl<T: GodotClass> Gd<T> {
         } else {
             // SAFETY: assumes that the returned GDNativeObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
             let untyped = unsafe { Gd::<engine::Object>::from_obj_sys(ptr).ready() };
-            untyped.owned_cast::<T>()
+            untyped.owned_cast::<T>().ok()
         }
     }
 
@@ -279,7 +279,7 @@ impl<T: GodotClass> Gd<T> {
     where
         Derived: GodotClass + Inherits<T>,
     {
-        self.owned_cast()
+        self.owned_cast().ok()
     }
 
     /// **Downcast:** convert into a smart pointer to a derived class. Panics on error.
@@ -291,16 +291,17 @@ impl<T: GodotClass> Gd<T> {
     where
         Derived: GodotClass + Inherits<T>,
     {
-        self.owned_cast().unwrap_or_else(|| {
+        self.owned_cast().unwrap_or_else(|from_obj| {
             panic!(
-                "downcast from {from} to {to} failed; correct the code or use try_cast()",
+                "downcast from {from} to {to} failed; instance {from_obj:?}",
                 from = T::CLASS_NAME,
-                to = Derived::CLASS_NAME
+                to = Derived::CLASS_NAME,
             )
         })
     }
 
-    fn owned_cast<U>(self) -> Option<Gd<U>>
+    /// Returns `Ok(cast_obj)` on success, `Err(self)` on error
+    fn owned_cast<U>(self) -> Result<Gd<U>, Self>
     where
         U: GodotClass,
     {
@@ -312,12 +313,14 @@ impl<T: GodotClass> Gd<T> {
         // rely on this (e.g. &Node3D -> &Node).
 
         let result = unsafe { self.ffi_cast::<U>() };
-        if result.is_some() {
-            // duplicated ref, one must be wiped
-            std::mem::forget(self);
+        match result {
+            Some(cast_obj) => {
+                // duplicated ref, one must be wiped
+                std::mem::forget(self);
+                Ok(cast_obj)
+            }
+            None => Err(self),
         }
-
-        result
     }
 
     // Note: does not transfer ownership and is thus unsafe. Also operates on shared ref.
