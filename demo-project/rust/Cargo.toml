@@ -7,5 +7,5 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-godot = { path = "../../godot" }
+godot = { path = "../../godot", features = ["codegen-fmt"] }
 rand = "0.8"
