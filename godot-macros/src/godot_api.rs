@@ -165,7 +165,8 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
             known_name if VIRTUAL_METHOD_NAMES.contains(&known_name) => {
                 let method = util::reduce_to_signature(method);
 
-                virtual_method_names.push(method_name);
+                // Godot-facing name begins with underscore
+                virtual_method_names.push(format!("_{method_name}"));
                 virtual_methods.push(method);
             }
 
@@ -173,7 +174,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
             other_name => {
                 return bail(
                     format!("Unsupported GodotExt method: {}", other_name),
-                    method,
+                    &method.name,
                 )
             }
         }

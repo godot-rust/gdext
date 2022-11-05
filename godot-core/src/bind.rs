@@ -48,7 +48,7 @@ where
     }
 
     fn ready(&mut self) {
-        unreachable!()
+        unimplemented!()
     }
     fn process(&mut self, delta: f64) {
         unimplemented!()
