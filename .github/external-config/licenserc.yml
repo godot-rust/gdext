@@ -2,6 +2,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+# File format: see https://github.com/apache/skywalking-eyes/blob/main/test/testdata/.licenserc_language_config_test.yaml
+
 header:
   license:
     spdx-id: MPL-2.0
@@ -10,6 +12,9 @@ header:
     - '**/*.rs'
     - '**/*.gd'
     - '.github/**/*.yml'
+
+  paths-ignore:
+    - 'demo-project'
 
   comment: on-failure
 
