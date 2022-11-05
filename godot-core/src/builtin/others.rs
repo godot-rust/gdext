@@ -8,7 +8,7 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 
 // Stub for various other built-in classes, which are currently incomplete, but whose types
 // are required for codegen
-use crate::builtin::{GodotString, Vector2};
+use crate::builtin::{GodotString, StringName, Vector2};
 use crate::obj::{Gd, GodotClass};
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
@@ -87,7 +87,7 @@ impl Callable {
     pub fn from_object_method<T, S>(object: Gd<T>, method: S) -> Self
     where
         T: GodotClass, // + Inherits<Object>,
-        S: Into<GodotString>,
+        S: Into<StringName>,
     {
         // upcast not needed
         let method = method.into();
