@@ -58,4 +58,4 @@ speed_scale = 2.0
 process_material = SubResource("7")
 texture = ExtResource("2")
 
-[connection signal="body_entered" from="." to="." method="_on_Player_body_entered"]
+[connection signal="body_entered" from="." to="." method="on_player_body_entered"]

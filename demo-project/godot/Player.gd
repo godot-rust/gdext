@@ -1,3 +1,5 @@
+# This .gd file is not used, it just serves as a comparison with the godot-rust implementation.
+
 extends Area2D
 
 signal hit

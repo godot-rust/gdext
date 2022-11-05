@@ -24,29 +24,24 @@ const MOB_TYPES: [MobType; 3] = [MobType::Walk, MobType::Swim, MobType::Fly];
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass)]
-#[godot(base=RigidBody2D)]
+#[class(base=RigidBody2D)]
 pub struct Mob {
     pub min_speed: f32,
     pub max_speed: f32,
+
+    #[base]
     base: Base<RigidBody2D>,
 }
 
 #[godot_api]
 impl Mob {
-    #[godot]
-    fn _ready(&mut self) {
-        let mut rng = rand::thread_rng();
-        let mut animated_sprite = self.base.get_node_as::<AnimatedSprite2D>("animated_sprite");
-        animated_sprite.set_animation(MOB_TYPES.choose(&mut rng).unwrap().to_str())
-    }
-
-    #[godot]
-    fn on_visibility_screen_exited(&self) {
+    #[func]
+    fn on_visibility_screen_exited(&mut self) {
         self.base.queue_free();
     }
 
-    #[godot]
-    fn on_start_game(&self) {
+    #[func]
+    fn on_start_game(&mut self) {
         self.base.queue_free();
     }
 }
@@ -59,5 +54,16 @@ impl GodotExt for Mob {
             max_speed: 250.0,
             base,
         }
+    }
+
+    fn ready(&mut self) {
+        let mut rng = rand::thread_rng();
+        let animation_name = MOB_TYPES.choose(&mut rng).unwrap().to_str();
+
+        let mut sprite = self
+            .base
+            .get_node_as::<AnimatedSprite2D>("AnimatedSprite2D");
+        sprite.set_animation(animation_name.as_str().into());
+        sprite.set_playing(true);
     }
 }
