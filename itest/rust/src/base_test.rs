@@ -82,7 +82,7 @@ fn base_debug() {
 }
 
 #[derive(GodotClass)]
-#[godot(init, base=Node2D)]
+#[class(init, base=Node2D)]
 struct BaseHolder {
     #[base]
     base: Base<Node2D>,

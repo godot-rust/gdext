@@ -14,14 +14,14 @@ use godot::test::itest;
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
 #[derive(GodotClass, Debug)]
-#[godot(base=RefCounted)]
+#[class(base=RefCounted)]
 struct WithoutInit {
     #[base]
     some_base: Base<RefCounted>,
 }
 
 #[derive(GodotClass, Debug)]
-#[godot(init, base=RefCounted)]
+#[class(init, base=RefCounted)]
 struct VirtualMethodTest {
     #[base]
     some_base: Base<RefCounted>,

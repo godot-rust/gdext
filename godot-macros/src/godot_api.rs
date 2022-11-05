@@ -180,7 +180,7 @@ fn extract_attributes(method: &Function) -> Result<Option<BoundAttr>, Error> {
             .expect("get_single_path_segment");
 
         // Note: can't use match without constructing new string, because ident
-        let new_found = if attr_name == "godot" {
+        let new_found = if attr_name == "func" {
             Some(BoundAttr {
                 attr_name: attr_name.clone(),
                 index,
@@ -202,7 +202,7 @@ fn extract_attributes(method: &Function) -> Result<Option<BoundAttr>, Error> {
         // Validate at most 1 attribute
         if found.is_some() && new_found.is_some() {
             bail(
-                "at most one #[godot] or #[signal] attribute per method allowed",
+                "at most one #[func] or #[signal] attribute per method allowed",
                 &method.name,
             )?;
         }

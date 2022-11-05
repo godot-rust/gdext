@@ -45,12 +45,12 @@ fn run_tests() -> bool {
 // Implementation
 
 #[derive(GodotClass, Debug)]
-#[godot(base=Node, init)]
+#[class(base=Node, init)]
 struct IntegrationTests {}
 
 #[godot_api]
 impl IntegrationTests {
-    #[godot]
+    #[func]
     fn run(&mut self) -> bool {
         println!("Run Godot integration tests...");
         run_tests()

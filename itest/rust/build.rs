@@ -63,7 +63,7 @@ fn main() {
         use godot::obj::InstanceId;
 
         #[derive(godot::bind::GodotClass)]
-        #[godot(init)]
+        #[class(init)]
         struct GenFfi {}
 
         #[godot::bind::godot_api]
@@ -140,17 +140,17 @@ fn generate_rust_methods(inputs: &Vec<Input>) -> Vec<TokenStream> {
             let mirror_method = format_ident!("mirror_{}", ident);
 
             quote! {
-                #[godot]
+                #[func]
                 fn #return_method(&self) -> #rust_ty {
                     #rust_val
                 }
 
-                #[godot]
+                #[func]
                 fn #accept_method(&self, i: #rust_ty) -> bool {
                     i == #rust_val
                 }
 
-                #[godot]
+                #[func]
                 fn #mirror_method(&self, i: #rust_ty) -> #rust_ty {
                     i
                 }

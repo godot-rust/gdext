@@ -414,7 +414,7 @@ fn user_object() -> Gd<ObjPayload> {
 }
 
 #[derive(GodotClass, Debug, Eq, PartialEq)]
-//#[godot(init)]
+//#[class(init)]
 pub struct ObjPayload {
     value: i16,
 }

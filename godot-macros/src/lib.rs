@@ -13,7 +13,7 @@ mod godot_api;
 mod itest;
 mod util;
 
-#[proc_macro_derive(GodotClass, attributes(godot, property, export, base))]
+#[proc_macro_derive(GodotClass, attributes(class, property, export, base, signal))]
 pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)
 }
@@ -44,6 +44,9 @@ pub fn itest(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// unsafe impl ExtensionLibrary for MyExtension {}
 /// ```
 ///
+/// # Safety
+/// By using godot-rust, you opt-in to the library's safety requirements (to be described in detail).
+/// The library cannot enforce any guarantees outside Rust code, which means users need to adhere to certain rules for a safe usage.
 #[proc_macro_attribute]
 pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {
     translate_meta(meta, input, gdextension::transform)
