@@ -63,15 +63,15 @@ runs:
       run: |
         runnerDir=$(echo "${{ runner.temp }}" | sed "s!\\\\!/!")
         echo "RUNNER_DIR=$runnerDir" >> $GITHUB_ENV
-        echo "GODOT_BIN=$runnerDir/godot_bin/${{ inputs.binary-filename }}" >> $GITHUB_ENV
+        echo "GODOT4_BIN=$runnerDir/godot_bin/${{ inputs.binary-filename }}" >> $GITHUB_ENV
       shell: bash
 
     # The chmod seems still necessary, although applied before uploading artifact. Possibly modes are not preserved.
     # The `| xargs` pattern trims the output, since printed version may contain extra newline, which causes problems in env vars.
     - name: "Inspect Godot version"
       run: |
-        chmod +x $GODOT_BIN
-        godotVer=$($GODOT_BIN --version | xargs || true)
+        chmod +x $GODOT4_BIN
+        godotVer=$($GODOT4_BIN --version | xargs || true)
         gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
         echo "GODOT_BUILT_FROM=_Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)._" >> $GITHUB_ENV
       shell: bash
@@ -122,7 +122,7 @@ runs:
       run: |
         cd itest/godot
         echo "OUTCOME=itest" >> $GITHUB_ENV
-        $GODOT_BIN --headless 2>&1 | tee >(grep "SCRIPT ERROR:" -q && {
+        $GODOT4_BIN --headless 2>&1 | tee >(grep "SCRIPT ERROR:" -q && {
         	printf "\n -- Godot engine encountered error, abort...\n";
         	pkill godot
             echo "OUTCOME=godot-runtime" >> $GITHUB_ENV

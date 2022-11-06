@@ -23,6 +23,15 @@ However, the library can serve as a playground for experimenting.
 
 ## Getting started
 
+### Toolchain
+
+You need to have LLVM installed to use `bindgen`, see [the book](https://godot-rust.github.io/book/getting-started/setup.html#llvm) for instructions.
+
+To find a version of Godot 4, the library expects either an executable of name `godot4` in the PATH, or an environment variable `GODOT4_BIN`
+containing the path to the executable (including filename).
+
+### Project setup
+
 We currently only have a GitHub version, crates.io releases are planned once more of the foundation is ready.  
 In your Cargo.toml, add:
 
@@ -51,8 +60,13 @@ To register the GDExtension library with Godot, you need to create two files rel
     ```
     res://MyExt.gdextension
     ```
+
+### Examples
+
 We highly recommend to have a look at a working example in the `examples/dodge-the-creeps` directory.
 This integrates a small game with Godot and has all the necessary steps set up.
+
+API documentation can be generated locally using `cargo doc -p godot --no-deps --open`.
 
 Support for macOS is still ongoing, there is currently **no** support for Android, iOS or WASM.
 Contributions in this regard are very welcome!

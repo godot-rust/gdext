@@ -106,15 +106,15 @@ fn dump_extension_api(godot_bin: &Path, out_file: &Path) {
 }
 
 fn locate_godot_binary() -> PathBuf {
-    if let Ok(string) = std::env::var("GODOT_BIN") {
-        println!("Found GODOT_BIN with path to executable: '{}'", string);
+    if let Ok(string) = std::env::var("GODOT4_BIN") {
+        println!("Found GODOT4_BIN with path to executable: '{}'", string);
         PathBuf::from(string)
     } else if let Ok(path) = which::which("godot4") {
         println!("Found 'godot4' executable in PATH: {}", path.display());
         path
     } else {
         panic!(
-            "Bindings generation requires 'godot4' executable or a GODOT_BIN \
+            "Bindings generation requires 'godot4' executable or a GODOT4_BIN \
                  environment variable (with the path to the executable)."
         )
     }
