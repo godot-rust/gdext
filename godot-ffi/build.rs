@@ -61,7 +61,7 @@ fn configure_platform_specific(builder: bindgen::Builder) -> bindgen::Builder {
     let target_vendor = env::var("CARGO_CFG_TARGET_VENDOR").unwrap();
     if target_vendor == "apple" {
         eprintln!("Build selected for macOS.");
-        let path = env::var("LLVM_PATH ").expect("env var 'LLVM_PATH' not set");
+        let path = env::var("LLVM_PATH").expect("env var 'LLVM_PATH' not set");
 
         builder
             .clang_arg("-I")
