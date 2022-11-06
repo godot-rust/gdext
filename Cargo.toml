@@ -8,7 +8,7 @@ members = [
 
     # Godot integration
     "itest/rust",
-    "demo-project/rust"
+    "examples/dodge-the-creeps/rust"
 ]
 
 # These dependencies don't need to be debugged, make build scripts run faster

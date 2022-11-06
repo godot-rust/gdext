@@ -1,0 +1,6 @@
+[configuration]
+entry_symbol = "gdextension_rust_init"
+
+[libraries]
+linux.64 = "res://../../../target/debug/libdodge_the_creeps.so"
+windows.64 = "res://../../../target/debug/dodge_the_creeps.dll"

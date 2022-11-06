@@ -1,6 +1,0 @@
-[configuration]
-entry_symbol = "gdextension_rust_init"
-
-[libraries]
-linux.64 = "res://../../target/debug/libdemo.so"
-windows.64 = "res://../../target/debug/demo.dll"
