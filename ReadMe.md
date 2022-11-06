@@ -1,3 +1,5 @@
+![logo.png](assets/gdextension-ferris.png)
+
 # Rust bindings for GDExtension
 
 This is an early-stage library to bind the **Rust** language to **Godot 4**.
