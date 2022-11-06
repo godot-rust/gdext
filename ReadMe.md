@@ -16,18 +16,44 @@ Its _GDExtension_ API allows integrating third-party languages and libraries.
 >   Resolving the above two points has currently more weight than a stable API.
 
 So we do not recommend building a larger project in GDExtension-Rust yet.
-However, the library can serve as a playground for experimenting or smaller projects, such as game jams. 
+However, the library can serve as a playground for experimenting. 
 
 
-## Usage
+## Getting started
 
 We currently only have a GitHub version, crates.io releases are planned once more of the foundation is ready.  
 In your Cargo.toml, add:
 
 ```toml
+[dependencies]
 godot = { git = "https://github.com/godot-rust/gdextension", branch = "master" }
 ```
 To get the latest changes, you can regularly run a `cargo update` (possibly breaking). Keep your `Cargo.lock` file under version control, so that it's easy to revert updates.
+
+To register the GDExtension library with Godot, you need to create two files relative to your Godot project folder:
+
+1. First, add `res://MyExt.gdextension`, which is the equivalent of `.gdnlib` for GDNative.  
+   
+   The `[configuration]` section should be copied as-is.  
+   The `[libraries]` section should be updated to match the paths of your dynamic Rust libraries.
+    ```ini
+    [configuration]
+    entry_symbol = "gdextension_rust_init"
+    
+    [libraries]
+    linux.64 = "res://../rust/target/debug/lib{my_ext}.so"
+    windows.64 = "res://../rust/target/debug/{my_ext}.dll"
+    ```
+
+2. A second file `res://.godot/extension_list.cfg` simply lists the path to your first file:
+    ```
+    res://MyExt.gdextension
+    ```
+We highly recommend to have a look at a working example in the `examples/dodge-the-creeps` directory.
+This integrates a small game with Godot and has all the necessary steps set up.
+
+Support for macOS is still ongoing, there is currently **no** support for Android, iOS or WASM.
+Contributions in this regard are very welcome!
 
 If you need help, join our [Discord] server and ask in the `#help` channel!
 
