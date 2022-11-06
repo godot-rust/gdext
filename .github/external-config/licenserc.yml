@@ -14,7 +14,7 @@ header:
     - '.github/**/*.yml'
 
   paths-ignore:
-    - 'demo-project'
+    - 'examples'
 
   comment: on-failure
 

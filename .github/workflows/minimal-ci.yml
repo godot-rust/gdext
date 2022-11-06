@@ -99,7 +99,6 @@ jobs:
         with:
           artifact-name: godot-${{ matrix.name }}
           binary-filename: ${{ matrix.godot-binary }}
-          github-pat: ${{ secrets.ARTIFACT_DOWNLOADER_PAT }}
           #godot_ver: ${{ matrix.godot }}
 
   license-guard:

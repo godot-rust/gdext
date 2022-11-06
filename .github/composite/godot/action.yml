@@ -14,10 +14,6 @@ inputs:
     required: true
     description: "Filename of the Godot executable"
 
-  github-pat:
-    required: true
-    description: "GitHub PAT (personal access token) to download artifacts from other repos"
-
   rust-toolchain:
     required: false
     default: 'stable'
@@ -34,36 +30,26 @@ runs:
   steps:
     - uses: actions/checkout@v3
 
-#    - name: "Check cache for installed Godot version"
-#      id: "cache-godot"
-#      uses: actions/cache@v3
-#      with:
-#        path: ${{ runner.temp }}/godot_bin
-#        #key: godot-${{ runner.os }}-v${{ inputs.godot-ver }}
-#        key: ${{ inputs.artifact-name }}
-
-    - name: "Download Godot artifact"
-#      if: steps.cache-godot.outputs.cache-hit != 'true'
-      # https://github.com/dawidd6/action-download-artifact
-      uses: dawidd6/action-download-artifact@v2
-      with:
-        # Downloads and unzips the artifact with {name} of the latest run of specified {workflow}
-        path: ${{ runner.temp }}/godot_bin
-        github_token: ${{ inputs.github-pat }}
-        repo: Bromeon/godot4-nightly
-        branch: master
-        workflow: compile-godot.yml
-        workflow_conclusion: success
-        name: ${{ inputs.artifact-name }}
-        # Search for the last workflow run, which stored an artifact named as in `name` input
-        search_artifacts: true
-
     # Replaces also backspaces on Windows, since they cause problems in Bash
     - name: "Store variable to Godot binary"
       run: |
         runnerDir=$(echo "${{ runner.temp }}" | sed "s!\\\\!/!")
         echo "RUNNER_DIR=$runnerDir" >> $GITHUB_ENV
         echo "GODOT4_BIN=$runnerDir/godot_bin/${{ inputs.binary-filename }}" >> $GITHUB_ENV
+      shell: bash
+
+#    - name: "Check cache for installed Godot version"
+#      id: "cache-godot"
+#      uses: actions/cache@v3
+#      with:
+#        path: ${{ runner.temp }}/godot_bin
+#        key: ${{ inputs.artifact-name }}-v${{ inputs.godot-ver }}
+
+    - name: "Download Godot artifact"
+#      if: steps.cache-godot.outputs.cache-hit != 'true'
+      run: |
+        curl https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot/master/${{ inputs.artifact-name }}.zip -Lo artifact.zip
+        unzip artifact.zip -d $RUNNER_DIR/godot_bin
       shell: bash
 
     # The chmod seems still necessary, although applied before uploading artifact. Possibly modes are not preserved.
@@ -133,6 +119,7 @@ runs:
       shell: bash
 
     - name: "Conclusion"
+      if: always()
       run: |
         echo "Evaluate conclusion ($OUTCOME)"
         
@@ -165,6 +152,4 @@ runs:
             exit 4
             ;;
         esac
-
       shell: bash
-      if: always()
