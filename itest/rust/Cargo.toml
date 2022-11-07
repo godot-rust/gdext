@@ -8,11 +8,12 @@ rust-version = "1.63"
 crate-type = ["cdylib"]
 
 [features]
-default = []
+default = ["minimal"]
 trace = ["godot/trace"]
+minimal = ["godot/minimal"]
 
 [dependencies]
-godot = { path = "../../godot", features = ["minimal"] }
+godot = { path = "../../godot" }
 
 [build-dependencies]
 quote = "1"

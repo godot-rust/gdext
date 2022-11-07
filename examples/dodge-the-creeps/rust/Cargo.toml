@@ -7,6 +7,10 @@ publish = false
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+default = ["minimal"]
+minimal = ["godot/minimal"]
+
 [dependencies]
-godot = { path = "../../../godot", features = ["minimal"] }
+godot = { path = "../../../godot" }
 rand = "0.8"
