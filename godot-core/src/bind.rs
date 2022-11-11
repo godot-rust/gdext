@@ -25,7 +25,7 @@ use crate::obj::GodotClass;
 /// Do not call any of these methods directly -- they are an interface to Godot. Functionality
 /// described here is available through other means (e.g. `init` via `Gd::new_default`).
 #[allow(unused_variables)]
-pub trait GodotExt
+pub trait GodotExt: crate::private::You_forgot_the_attribute__godot_api
 where
     Self: GodotClass,
 {

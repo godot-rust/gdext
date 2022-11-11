@@ -22,6 +22,10 @@ pub use godot_ffi as sys;
 
 #[doc(hidden)]
 pub mod private {
+    // If someone forgets #[godot_api], this causes a compile error, rather than virtual functions not being called at runtime.
+    #[allow(non_camel_case_types)]
+    pub trait You_forgot_the_attribute__godot_api {}
+
     pub use crate::builtin::func_callbacks;
     pub use crate::engine::gen::classes::class_macros;
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
