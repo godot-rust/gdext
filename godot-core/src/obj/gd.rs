@@ -468,32 +468,32 @@ impl<T: GodotClass> GodotFfi for Gd<T> {
 impl<T: GodotClass> Gd<T> {
     pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Option<Self> {
         // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
+        // This method could be simplified if it would modify the object directly and not wrap from_sys_init().
 
         // Much elegant
         let mut is_null = false;
-        let outer_fn = |ptr| {
-            init_fn(ptr);
+        let outer_fn = |return_ptr| {
+            // ptr has type GDNativeTypePtr = GDNativeObjectPtr* = OpaqueObject* = Object**
+            // (in other words, the opaque struct encodes an Object*; or, the type-ptr contains the _address_ of an object-ptr)
+            let object_ptr_ptr = return_ptr as *mut sys::GDNativeObjectPtr;
+            *object_ptr_ptr = ptr::null_mut();
 
-            // ptr has type TypePtr = OpaqueObject* = Object** (in other words, the opaque encodes an Object*)
+            init_fn(return_ptr);
+
             // we don't need to know if Object** is null, but if Object* (modified through Object**) is null.
-            let opaque_ptr = ptr as *const OpaqueObject;
-            if is_zeroed(*opaque_ptr) {
+            if (*object_ptr_ptr).is_null() {
                 is_null = true;
             }
         };
 
-        // TODO forget, ready etc
         let gd = Self::from_sys_init(outer_fn);
         if is_null {
+            std::mem::forget(gd); // null Gd is not a valid state which destructor should handle
             None
         } else {
             Some(gd)
         }
     }
-}
-
-fn is_zeroed(opaque: OpaqueObject) -> bool {
-    unsafe { std::mem::transmute::<OpaqueObject, u64>(opaque) == 0 }
 }
 
 /// Destructor with semantics depending on memory strategy.
