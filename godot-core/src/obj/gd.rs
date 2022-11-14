@@ -468,30 +468,20 @@ impl<T: GodotClass> GodotFfi for Gd<T> {
 impl<T: GodotClass> Gd<T> {
     pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Option<Self> {
         // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
-        // This method could be simplified if it would modify the object directly and not wrap from_sys_init().
 
-        // Much elegant
-        let mut is_null = false;
-        let outer_fn = |return_ptr| {
-            // ptr has type GDNativeTypePtr = GDNativeObjectPtr* = OpaqueObject* = Object**
-            // (in other words, the opaque struct encodes an Object*; or, the type-ptr contains the _address_ of an object-ptr)
-            let object_ptr_ptr = return_ptr as *mut sys::GDNativeObjectPtr;
-            *object_ptr_ptr = ptr::null_mut();
+        // return_ptr has type GDNativeTypePtr = GDNativeObjectPtr* = OpaqueObject* = Object**
+        // (in other words, the type-ptr contains the _address_ of an object-ptr).
+        let mut object_ptr: sys::GDNativeObjectPtr = ptr::null_mut();
+        let return_ptr: *mut sys::GDNativeObjectPtr = ptr::addr_of_mut!(object_ptr);
 
-            init_fn(return_ptr);
+        init_fn(return_ptr as sys::GDNativeTypePtr);
 
-            // we don't need to know if Object** is null, but if Object* (modified through Object**) is null.
-            if (*object_ptr_ptr).is_null() {
-                is_null = true;
-            }
-        };
-
-        let gd = Self::from_sys_init(outer_fn);
-        if is_null {
-            std::mem::forget(gd); // null Gd is not a valid state which destructor should handle
+        // We don't need to know if Object** is null, but if Object* is null; return_ptr has the address of a local (never null).
+        if object_ptr.is_null() {
             None
         } else {
-            Some(gd)
+            let obj = Gd::from_obj_sys(object_ptr); // equivalent to Gd::from_sys(return_ptr)
+            Some(obj)
         }
     }
 }
