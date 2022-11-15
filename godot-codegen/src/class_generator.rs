@@ -11,7 +11,7 @@ use quote::{format_ident, quote};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::util::{c_str, ident, safe_ident, strlit, to_module_name, to_rust_type};
+use crate::util::{ ident, safe_ident, string_name, strlit, to_module_name, to_rust_type};
 use crate::{special_cases, util, Context, GeneratedClass, GeneratedModule, RustTy};
 
 pub(crate) fn generate_class_files(
@@ -59,7 +59,7 @@ pub(crate) fn generate_class_files(
     out_files.push(out_path);
 }
 
-fn make_constructor(class: &Class, ctx: &Context, class_name_cstr: TokenStream) -> TokenStream {
+fn make_constructor(class: &Class, ctx: &Context, class_name_strn: TokenStream) -> TokenStream {
     if ctx.is_singleton(&class.name) {
         // Note: we cannot return &'static mut Self, as this would be very easy to mutably alias.
         // &'static Self would be possible, but we would lose the whole mutability information (even if that
@@ -69,7 +69,7 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_cstr: TokenStream) 
         quote! {
             pub fn singleton() -> Gd<Self> {
                 unsafe {
-                    let object_ptr = sys::interface_fn!(global_get_singleton)(#class_name_cstr);
+                    let object_ptr = sys::interface_fn!(global_get_singleton)(#class_name_strn);
                     Gd::from_obj_sys(object_ptr)
                 }
             }
@@ -82,7 +82,7 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_cstr: TokenStream) 
         quote! {
             pub fn new() -> Gd<Self> {
                 unsafe {
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(#class_name_cstr);
+                    let object_ptr = sys::interface_fn!(classdb_construct_object)(#class_name_strn);
                     //let instance = Self { object_ptr };
                     Gd::from_obj_sys(object_ptr)
                 }
@@ -94,7 +94,7 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_cstr: TokenStream) 
             #[must_use]
             pub fn new_alloc() -> Gd<Self> {
                 unsafe {
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(#class_name_cstr);
+                    let object_ptr = sys::interface_fn!(classdb_construct_object)(#class_name_strn);
                     Gd::from_obj_sys(object_ptr)
                 }
             }
@@ -114,9 +114,9 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
 
     let name = ident(&class.name);
     let name_str = strlit(&class.name);
-    let name_cstr = c_str(&class.name);
+    let name_strn = string_name(&class.name);
 
-    let constructor = make_constructor(class, ctx, name_cstr);
+    let constructor = make_constructor(class, ctx, name_strn);
 
     let methods = make_methods(&class.methods, &class.name, ctx);
     let enums = make_enums(&class.enums, &class.name, ctx);
@@ -369,8 +369,8 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
     }*/
     let method_name = safe_ident(method_name);
 
-    let c_method_name = c_str(&method.name);
-    let c_class_name = c_str(class_name);
+    let c_method_name = string_name(&method.name);
+    let c_class_name = string_name(class_name);
     let hash = method.hash;
 
     // TODO &mut safety
@@ -442,7 +442,7 @@ pub(crate) fn make_function_definition(
     let (params, arg_exprs) = make_params(&function.arguments, is_vararg, ctx);
 
     let function_name = safe_ident(&function.name);
-    let c_function_name = c_str(&function.name);
+    let c_function_name = string_name(&function.name);
     let hash = function.hash;
 
     let (return_decl, call) = make_utility_return(&function.return_type, ctx);

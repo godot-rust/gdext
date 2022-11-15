@@ -11,10 +11,9 @@ pub trait VariantMetadata {
     fn variant_type() -> sys::GDNativeVariantType;
 
     fn property_info(property_name: &str) -> sys::GDNativePropertyInfo {
-        let reg = unsafe { sys::get_registry() };
         sys::GDNativePropertyInfo {
             type_: Self::variant_type(),
-            name: reg.c_string(property_name),
+            name: StringName::from(property_name).leak_string_sys(),
             class_name: std::ptr::null_mut(),
             hint: 0,
             hint_string: std::ptr::null_mut(),
@@ -73,7 +72,7 @@ pub trait SignatureTuple {
 //     }
 // }
 //
-use crate::builtin::{FromVariant, ToVariant, Variant};
+use crate::builtin::{FromVariant, StringName, ToVariant, Variant};
 use crate::obj::GodotClass;
 
 macro_rules! impl_signature_for_tuple {

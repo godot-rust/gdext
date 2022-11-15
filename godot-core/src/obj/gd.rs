@@ -13,8 +13,9 @@ use godot_ffi as sys;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
-use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
+use crate::builtin::{FromVariant, StringName, ToVariant, Variant, VariantConversionError};
 use crate::builtin::{GodotString, VariantMetadata};
+use crate::engine::global::PropertyUsageFlags;
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
 use crate::obj::{cap, dom, mem, GodotClass, Inherits, Share};
@@ -330,7 +331,7 @@ impl<T: GodotClass> Gd<T> {
         U: GodotClass,
     {
         let class_name = ClassName::new::<U>();
-        let class_tag = interface_fn!(classdb_get_class_tag)(class_name.c_str());
+        let class_tag = interface_fn!(classdb_get_class_tag)(class_name.leak_string_name());
         let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
 
         if cast_object_ptr.is_null() {
@@ -608,12 +609,13 @@ impl<T: GodotClass> VariantMetadata for Gd<T> {
     }
 
     fn property_info(name: &str) -> sys::GDNativePropertyInfo {
+        use crate::obj::traits::EngineEnum as _;
+
         // Note: filling this information properly is important so that Godot can use ptrcalls instead of varcalls
         // (requires typed GDScript + sufficient information from the extension side)
-        let reg = unsafe { sys::get_registry() };
 
-        let property_name = reg.c_string(name);
-        let class_name = reg.c_string(T::CLASS_NAME);
+        let property_name = StringName::from(name).leak_string_sys();
+        let class_name = ClassName::new::<T>().leak_string_name();
 
         sys::GDNativePropertyInfo {
             type_: Self::variant_type(),
@@ -621,7 +623,7 @@ impl<T: GodotClass> VariantMetadata for Gd<T> {
             class_name,
             hint: 0,
             hint_string: ptr::null_mut(),
-            usage: 7, // Default, TODO generate global enums
+            usage: PropertyUsageFlags::PROPERTY_USAGE_DEFAULT.ord() as u32,
         }
     }
 }

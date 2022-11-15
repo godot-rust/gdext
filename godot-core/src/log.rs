@@ -69,13 +69,13 @@ macro_rules! godot_print {
 
 pub use crate::{godot_error, godot_print, godot_script_error, godot_warn};
 
-use crate::builtin::Variant;
+use crate::builtin::{StringName, Variant};
 use crate::sys::{self, GodotFfi};
 
 pub fn print(varargs: &[Variant]) {
     unsafe {
         let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(
-            "print\0".as_ptr() as *const i8,
+            StringName::from("print").leak_string_sys(),
             2648703342i64,
         );
         let call_fn = call_fn.unwrap_unchecked();

@@ -56,7 +56,7 @@ impl IntegrationTests {
         run_tests()
     }
 }
-
+1
 #[gdextension(entry_point=itest_init)]
 unsafe impl ExtensionLibrary for IntegrationTests {}
 

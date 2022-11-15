@@ -65,7 +65,7 @@ impl BoundAttr {
 fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let class_name = util::validate_impl(&decl, None, "godot_api")?;
     let class_name_str = class_name.to_string();
-    let class_name_cstr = util::c_str(&class_name_str);
+    let class_name_cstr = util::string_name(&class_name_str);
 
     //let register_fn = format_ident!("__godot_rust_register_{}", class_name_str);
     //#[allow(non_snake_case)]
@@ -73,7 +73,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let (funcs, signals) = process_godot_fns(&mut decl)?;
     let signal_cstrs = signals
         .into_iter()
-        .map(|ident| util::c_str(ident.to_string().as_str()));
+        .map(|ident| util::string_name(ident.to_string().as_str()));
 
     let prv = quote! { ::godot::private };
 

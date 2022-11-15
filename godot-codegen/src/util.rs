@@ -219,10 +219,10 @@ pub fn safe_ident(s: &str) -> Ident {
 }
 
 // Code duplicated between here and godot-macros
-pub fn c_str(s: &str) -> TokenStream {
-    let s = Literal::string(&format!("{}\0", s));
+pub fn string_name(s: &str) -> TokenStream {
+    // For c_str:   #s.as_ptr() as *const i8
     quote! {
-        #s.as_ptr() as *const i8
+        StringName::from(#s).leak_string_sys()
     }
 }
 

@@ -30,6 +30,7 @@ impl StringName {
     }
 
     #[doc(hidden)]
+    #[must_use]
     pub fn leak_string_sys(self) -> sys::GDNativeStringNamePtr {
         let ptr = self.string_sys();
         std::mem::forget(self);
