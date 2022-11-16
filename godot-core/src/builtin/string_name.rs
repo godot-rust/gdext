@@ -36,6 +36,12 @@ impl StringName {
         std::mem::forget(self);
         ptr
     }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn leak_raw(c_str: &str) -> sys::GDNativeStringNamePtr {
+        Self::from(c_str).leak_string_sys()
+    }
 }
 
 impl Drop for StringName {

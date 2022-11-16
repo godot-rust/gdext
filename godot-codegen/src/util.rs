@@ -222,7 +222,7 @@ pub fn safe_ident(s: &str) -> Ident {
 pub fn string_name(s: &str) -> TokenStream {
     // For c_str:   #s.as_ptr() as *const i8
     quote! {
-        StringName::from(#s).leak_string_sys()
+        StringName::leak_raw(#s)
     }
 }
 

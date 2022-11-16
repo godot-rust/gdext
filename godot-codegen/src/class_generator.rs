@@ -11,7 +11,7 @@ use quote::{format_ident, quote};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::util::{ ident, safe_ident, string_name, strlit, to_module_name, to_rust_type};
+use crate::util::{ident, safe_ident, string_name, strlit, to_module_name, to_rust_type};
 use crate::{special_cases, util, Context, GeneratedClass, GeneratedModule, RustTy};
 
 pub(crate) fn generate_class_files(

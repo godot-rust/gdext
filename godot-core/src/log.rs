@@ -75,7 +75,7 @@ use crate::sys::{self, GodotFfi};
 pub fn print(varargs: &[Variant]) {
     unsafe {
         let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(
-            StringName::from("print").leak_string_sys(),
+            StringName::leak_raw("print"),
             2648703342i64,
         );
         let call_fn = call_fn.unwrap_unchecked();

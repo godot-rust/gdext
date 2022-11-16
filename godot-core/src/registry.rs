@@ -271,7 +271,7 @@ impl ClassName {
 
     #[must_use]
     pub fn leak_string_name(&self) -> sys::GDNativeStringNamePtr {
-        StringName::from(self.backing.as_str()).leak_string_sys()
+        StringName::leak_raw(self.backing.as_str())
     }
 }
 

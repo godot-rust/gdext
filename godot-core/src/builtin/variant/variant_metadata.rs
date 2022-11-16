@@ -13,7 +13,7 @@ pub trait VariantMetadata {
     fn property_info(property_name: &str) -> sys::GDNativePropertyInfo {
         sys::GDNativePropertyInfo {
             type_: Self::variant_type(),
-            name: StringName::from(property_name).leak_string_sys(),
+            name: StringName::leak_raw(property_name),
             class_name: std::ptr::null_mut(),
             hint: 0,
             hint_string: std::ptr::null_mut(),
