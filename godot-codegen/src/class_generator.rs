@@ -6,12 +6,12 @@
 
 //! Generates a file for each Godot class
 
-use proc_macro2::TokenStream;
+use proc_macro2::{Literal, TokenStream};
 use quote::{format_ident, quote};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::util::{ident, safe_ident, string_name, strlit, to_module_name, to_rust_type};
+use crate::util::{ident, safe_ident, strlit, to_module_name, to_rust_type};
 use crate::{special_cases, util, Context, GeneratedClass, GeneratedModule, RustTy};
 
 pub(crate) fn generate_class_files(
@@ -59,7 +59,7 @@ pub(crate) fn generate_class_files(
     out_files.push(out_path);
 }
 
-fn make_constructor(class: &Class, ctx: &Context, class_name_strn: TokenStream) -> TokenStream {
+fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> TokenStream {
     if ctx.is_singleton(&class.name) {
         // Note: we cannot return &'static mut Self, as this would be very easy to mutably alias.
         // &'static Self would be possible, but we would lose the whole mutability information (even if that
@@ -69,7 +69,8 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_strn: TokenStream) 
         quote! {
             pub fn singleton() -> Gd<Self> {
                 unsafe {
-                    let object_ptr = sys::interface_fn!(global_get_singleton)(#class_name_strn);
+                    let class_name = StringName::from(#class_name_str);
+                    let object_ptr = sys::interface_fn!(global_get_singleton)(class_name.leak_string_sys());
                     Gd::from_obj_sys(object_ptr)
                 }
             }
@@ -82,7 +83,8 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_strn: TokenStream) 
         quote! {
             pub fn new() -> Gd<Self> {
                 unsafe {
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(#class_name_strn);
+                    let class_name = StringName::from(#class_name_str);
+                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.leak_string_sys());
                     //let instance = Self { object_ptr };
                     Gd::from_obj_sys(object_ptr)
                 }
@@ -94,7 +96,8 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_strn: TokenStream) 
             #[must_use]
             pub fn new_alloc() -> Gd<Self> {
                 unsafe {
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(#class_name_strn);
+                    let class_name = StringName::from(#class_name_str);
+                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.leak_string_sys());
                     Gd::from_obj_sys(object_ptr)
                 }
             }
@@ -114,9 +117,8 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
 
     let name = ident(&class.name);
     let name_str = strlit(&class.name);
-    let name_strn = string_name(&class.name);
 
-    let constructor = make_constructor(class, ctx, name_strn);
+    let constructor = make_constructor(class, ctx, &name_str);
 
     let methods = make_methods(&class.methods, &class.name, ctx);
     let enums = make_enums(&class.enums, &class.name, ctx);
@@ -356,7 +358,7 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
     let is_varcall = method.is_vararg;
     let (params, arg_exprs) = make_params(&method.arguments, is_varcall, ctx);
 
-    let method_name = special_cases::maybe_renamed(class_name, &method.name);
+    let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
     /*if method.map_args(|args| args.is_empty()) {
         // Getters (i.e. 0 arguments) will be stripped of their `get_` prefix, to conform to Rust convention
         if let Some(remainder) = method_name.strip_prefix("get_") {
@@ -367,10 +369,7 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
             }
         }
     }*/
-    let method_name = safe_ident(method_name);
-
-    let c_method_name = string_name(&method.name);
-    let c_class_name = string_name(class_name);
+    let method_name = safe_ident(method_name_str);
     let hash = method.hash;
 
     // TODO &mut safety
@@ -393,7 +392,13 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
         quote! {
             #vis fn #method_name( #receiver #(, #params )*, varargs: &[Variant]) #return_decl {
                 unsafe {
-                    let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
+                    let class_name = StringName::from(#class_name);
+                    let method_name = StringName::from(#method_name_str);
+                    let method_bind = sys::interface_fn!(classdb_get_method_bind)(
+                        class_name.leak_string_sys(),
+                        method_name.leak_string_sys(),
+                        #hash
+                    );
                     let call_fn = sys::interface_fn!(object_method_bind_call);
 
                     let explicit_args = [
@@ -414,7 +419,13 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
         quote! {
             #vis fn #method_name( #receiver, #( #params ),* ) #return_decl {
                 unsafe {
-                    let method_bind = sys::interface_fn!(classdb_get_method_bind)(#c_class_name, #c_method_name, #hash);
+                    let class_name = StringName::from(#class_name);
+                    let method_name = StringName::from(#method_name_str);
+                    let method_bind = sys::interface_fn!(classdb_get_method_bind)(
+                        class_name.leak_string_sys(),
+                        method_name.leak_string_sys(),
+                        #hash
+                    );
                     let call_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
                     let args = [
@@ -441,8 +452,8 @@ pub(crate) fn make_function_definition(
     let is_vararg = function.is_vararg;
     let (params, arg_exprs) = make_params(&function.arguments, is_vararg, ctx);
 
-    let function_name = safe_ident(&function.name);
-    let c_function_name = string_name(&function.name);
+    let function_name_str = &function.name;
+    let function_name = safe_ident(function_name_str);
     let hash = function.hash;
 
     let (return_decl, call) = make_utility_return(&function.return_type, ctx);
@@ -450,7 +461,8 @@ pub(crate) fn make_function_definition(
     quote! {
         pub fn #function_name( #( #params ),* ) #return_decl {
             let result = unsafe {
-                let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(#c_function_name, #hash);
+                let function_name = StringName::from(#function_name_str);
+                let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(function_name.leak_string_sys(), #hash);
                 let call_fn = call_fn.unwrap_unchecked();
 
                 let args = [

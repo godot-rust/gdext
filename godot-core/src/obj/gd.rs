@@ -614,13 +614,13 @@ impl<T: GodotClass> VariantMetadata for Gd<T> {
         // Note: filling this information properly is important so that Godot can use ptrcalls instead of varcalls
         // (requires typed GDScript + sufficient information from the extension side)
 
-        let property_name = StringName::leak_raw(name);
-        let class_name = ClassName::new::<T>().leak_string_name();
+        let property_name = StringName::from(name);
+        let class_name = ClassName::new::<T>();
 
         sys::GDNativePropertyInfo {
             type_: Self::variant_type(),
-            name: property_name,
-            class_name,
+            name: property_name.leak_string_sys(),
+            class_name: class_name.leak_string_name(),
             hint: 0,
             hint_string: ptr::null_mut(),
             usage: PropertyUsageFlags::PROPERTY_USAGE_DEFAULT.ord() as u32,

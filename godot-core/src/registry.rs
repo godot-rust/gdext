@@ -219,16 +219,23 @@ fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) {
 
 fn register_class_raw(info: ClassRegistrationInfo) {
     // First register class...
+
+    let class_name = info.class_name;
+    let parent_class_name = info
+        .parent_class_name
+        .expect("class defined (parent_class_name)");
+
     unsafe {
         interface_fn!(classdb_register_extension_class)(
             sys::get_library(),
-            info.class_name.leak_string_name(),
-            info.parent_class_name
-                .expect("class defined (parent_class_name)")
-                .leak_string_name(),
+            class_name.leak_string_name(),
+            parent_class_name.leak_string_name(),
             ptr::addr_of!(info.godot_params),
         );
     }
+
+    // std::mem::forget(class_name);
+    // std::mem::forget(parent_class_name);
 
     // ...then custom symbols
 
@@ -249,35 +256,31 @@ fn register_class_raw(info: ClassRegistrationInfo) {
 /// Cannot be a function since the backing string must be retained.
 #[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub(crate) struct ClassName {
-    backing: String,
+    backing: StringName,
 }
 
 impl ClassName {
     pub fn new<T: GodotClass>() -> Self {
         Self {
-            backing: format!("{}\0", T::CLASS_NAME),
+            backing: StringName::from(T::CLASS_NAME),
         }
     }
 
     fn from_static(string: &'static str) -> Self {
         Self {
-            backing: format!("{}\0", string),
+            backing: StringName::from(string),
         }
     }
 
-    pub fn c_str(&self) -> *const std::os::raw::c_char {
-        self.backing.as_ptr() as *const _
-    }
-
     #[must_use]
-    pub fn leak_string_name(&self) -> sys::GDNativeStringNamePtr {
-        StringName::leak_raw(self.backing.as_str())
+    pub fn leak_string_name(self) -> sys::GDNativeStringNamePtr {
+        self.backing.leak_string_sys()
     }
 }
 
 impl Display for ClassName {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &self.backing[..self.backing.len() - 1])
+        self.backing.fmt(f)
     }
 }
 
@@ -328,6 +331,8 @@ pub mod callbacks {
             );
         }
 
+        // std::mem::forget(class_name);
+        // std::mem::forget(base_class_name);
         base_ptr
     }
 

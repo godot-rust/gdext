@@ -11,9 +11,11 @@ pub trait VariantMetadata {
     fn variant_type() -> sys::GDNativeVariantType;
 
     fn property_info(property_name: &str) -> sys::GDNativePropertyInfo {
+        let property_name = StringName::from(property_name);
+
         sys::GDNativePropertyInfo {
             type_: Self::variant_type(),
-            name: StringName::leak_raw(property_name),
+            name: property_name.leak_string_sys(),
             class_name: std::ptr::null_mut(),
             hint: 0,
             hint_string: std::ptr::null_mut(),

@@ -137,8 +137,11 @@ macro_rules! gdext_register_method_inner {
             let mut arguments_metadata: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS]
                 = std::array::from_fn(|i| Sig::param_metadata(i as i32));
 
+            let class_name = StringName::from(stringify!($Class));
+            let method_name = StringName::from(stringify!($method_name));
+
             let method_info = sys::GDNativeExtensionClassMethodInfo {
-                name: StringName::leak_raw(concat!(stringify!($method_name), "\0")),
+                name: method_name.leak_string_sys(),
                 method_userdata: std::ptr::null_mut(),
                 call_func: Some(varcall_func),
                 ptrcall_func: Some(ptrcall_func),
@@ -153,14 +156,15 @@ macro_rules! gdext_register_method_inner {
                 default_arguments: std::ptr::null_mut(),
             };
 
-            let class_name = StringName::leak_raw(concat!(stringify!($Class), "\0"));
-
             $crate::out!("   Register fn:   {}::{}", stringify!($Class), stringify!($method_name));
             sys::interface_fn!(classdb_register_extension_class_method)(
                 sys::get_library(),
-                class_name,
+                class_name.leak_string_sys(),
                 std::ptr::addr_of!(method_info),
             );
+
+            // std::mem::forget(class_name);
+            // std::mem::forget(method_name);
         }
     };
 }

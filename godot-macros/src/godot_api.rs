@@ -65,15 +65,12 @@ impl BoundAttr {
 fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let class_name = util::validate_impl(&decl, None, "godot_api")?;
     let class_name_str = class_name.to_string();
-    let class_name_cstr = util::string_name(&class_name_str);
 
     //let register_fn = format_ident!("__godot_rust_register_{}", class_name_str);
     //#[allow(non_snake_case)]
 
     let (funcs, signals) = process_godot_fns(&mut decl)?;
-    let signal_cstrs = signals
-        .into_iter()
-        .map(|ident| util::string_name(ident.to_string().as_str()));
+    let signal_name_strs = signals.into_iter().map(|ident| ident.to_string());
 
     let prv = quote! { ::godot::private };
 
@@ -88,12 +85,14 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
                 )*
 
                 unsafe {
+                    let class_name = ::godot::builtin::StringName::from(#class_name_str);
                     use ::godot::sys;
                     #(
+                        let signal_name = ::godot::builtin::StringName::new(#signal_name_strs);
                         sys::interface_fn!(classdb_register_extension_class_signal)(
                             sys::get_library(),
-                            #class_name_cstr,
-                            #signal_cstrs,
+                            class_name.leak_string_sys(),
+                            signal_name.leak_string_sys(),
                             std::ptr::null(), // NULL only valid for zero parameters, in current impl; maybe better empty slice
                             0,
                         );

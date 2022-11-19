@@ -24,24 +24,47 @@ impl StringName {
     ffi_methods! {
         type sys::GDNativeStringNamePtr = *mut Opaque;
 
+        // Note: unlike from_sys, from_string_sys does not default-construct instance first. Typical usage in C++ is placement new.
         fn from_string_sys = from_sys;
         fn from_string_sys_init = from_sys_init;
         fn string_sys = sys;
         fn write_string_sys = write_sys;
     }
 
+    /// Do not call on temporary objects!
+    // Important: do not abstract over this with a function taking &str and returning GDNativeStringNamePtr.
+    // This does not work, because it needs an intermediate StringName object which must stay valid, as long
+    // as the pointer is in use. The right way to do it is to keep a local StringName (not temporary) around.
     #[doc(hidden)]
     #[must_use]
-    pub fn leak_string_sys(self) -> sys::GDNativeStringNamePtr {
+    pub fn leak_string_sys(&self) -> sys::GDNativeStringNamePtr {
         let ptr = self.string_sys();
-        std::mem::forget(self);
+        //std::mem::forget(self);
+
+        let boks = Box::new(self.clone());
+        let ptr = boks.string_sys();
+        println!("Cloned: '{}' -> '{}'", self,&*boks);
+        Box::leak(boks);
+
         ptr
     }
+}
 
-    #[doc(hidden)]
-    #[must_use]
-    pub fn leak_raw(c_str: &str) -> sys::GDNativeStringNamePtr {
-        Self::from(c_str).leak_string_sys()
+impl GodotFfi for StringName {
+    ffi_methods! {
+        type sys::GDNativeTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn write_sys;
+    }
+
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Self {
+        // Can't use uninitialized pointer -- StringName implementation in C++ expects that on assignment,
+        // the target type is a valid string (possibly empty)
+
+        let mut result = Self::default();
+        init_fn(result.sys_mut());
+        result
     }
 }
 
@@ -62,24 +85,6 @@ impl Clone for StringName {
                 ctor(self_ptr, args.as_ptr());
             })
         }
-    }
-}
-
-impl GodotFfi for StringName {
-    ffi_methods! {
-        type sys::GDNativeTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn write_sys;
-    }
-
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Self {
-        // Can't use uninitialized pointer -- StringName implementation in C++ expects that on assignment,
-        // the target type is a valid string (possibly empty)
-
-        let mut result = Self::default();
-        init_fn(result.sys_mut());
-        result
     }
 }
 
