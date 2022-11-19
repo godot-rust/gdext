@@ -101,8 +101,15 @@ impl From<String> for GodotString {
 }
 
 impl From<&str> for GodotString {
-    fn from(val: &str) -> Self {
-        GodotString::from_str(val).expect("From<&str>")
+    fn from(s: &str) -> Self {
+        let bytes = s.as_bytes();
+
+        unsafe {
+            Self::from_string_sys_init(|string_ptr| {
+                let ctor = interface_fn!(string_new_with_utf8_chars_and_len);
+                ctor(string_ptr, bytes.as_ptr() as *const i8, bytes.len() as i64);
+            })
+        }
     }
 }
 
@@ -131,16 +138,7 @@ impl FromStr for GodotString {
     type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let b = s.as_bytes();
-
-        let result = unsafe {
-            Self::from_string_sys_init(|string_ptr| {
-                let ctor = interface_fn!(string_new_with_utf8_chars_and_len);
-                ctor(string_ptr, b.as_ptr() as *const i8, b.len() as i64);
-            })
-        };
-
-        Ok(result)
+        Ok(Self::from(s))
     }
 }
 

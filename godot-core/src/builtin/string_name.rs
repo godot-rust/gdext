@@ -9,6 +9,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
+use std::hash::{Hash, Hasher};
 
 #[repr(C)]
 pub struct StringName {
@@ -48,6 +49,18 @@ impl Drop for StringName {
     fn drop(&mut self) {
         unsafe {
             (sys::method_table().string_name_destroy)(self.sys());
+        }
+    }
+}
+
+impl Clone for StringName {
+    fn clone(&self) -> Self {
+        unsafe {
+            Self::from_sys_init(|self_ptr| {
+                let ctor = sys::method_table().string_name_construct_copy;
+                let args = [self.sys()];
+                ctor(self_ptr, args.as_ptr());
+            })
         }
     }
 }
@@ -101,6 +114,22 @@ impl Debug for StringName {
 
         let s = GodotString::from(self);
         <GodotString as Debug>::fmt(&s, f)
+    }
+}
+
+impl_traits_as_sys! {
+    for StringName {
+        Eq => string_name_operator_equal;
+        Ord => string_name_operator_less;
+    }
+}
+
+impl Hash for StringName {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // TODO use Godot hash via codegen
+        // C++: internal::gdn_interface->variant_get_ptr_builtin_method(GDNATIVE_VARIANT_TYPE_STRING_NAME, "hash", 171192809);
+
+        self.to_string().hash(state)
     }
 }
 
