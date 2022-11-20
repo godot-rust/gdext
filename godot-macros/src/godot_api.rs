@@ -88,7 +88,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
                     let class_name = ::godot::builtin::StringName::from(#class_name_str);
                     use ::godot::sys;
                     #(
-                        let signal_name = ::godot::builtin::StringName::new(#signal_name_strs);
+                        let signal_name = ::godot::builtin::StringName::from(#signal_name_strs);
                         sys::interface_fn!(classdb_register_extension_class_signal)(
                             sys::get_library(),
                             class_name.string_sys(),
