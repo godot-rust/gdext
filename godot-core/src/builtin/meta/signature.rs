@@ -5,37 +5,16 @@
  */
 
 use godot_ffi as sys;
+use godot_ffi::VariantType;
 use std::fmt::Debug;
-
-pub trait VariantMetadata {
-    fn variant_type() -> sys::GDNativeVariantType;
-
-    fn property_info(property_name: &str) -> sys::GDNativePropertyInfo {
-        let reg = unsafe { sys::get_registry() };
-        sys::GDNativePropertyInfo {
-            type_: Self::variant_type(),
-            name: reg.c_string(property_name),
-            class_name: std::ptr::null_mut(),
-            hint: 0,
-            hint_string: std::ptr::null_mut(),
-            usage: 7, // Default, TODO generate global enums
-        }
-    }
-
-    fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
-        sys::GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_NONE
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub trait SignatureTuple {
     type Params;
     type Ret;
 
-    fn variant_type(index: i32) -> sys::GDNativeVariantType;
+    fn variant_type(index: i32) -> VariantType;
+    fn property_info(index: i32, param_name: &str) -> PropertyInfo;
     fn param_metadata(index: i32) -> sys::GDNativeExtensionClassMethodArgumentMetadata;
-    fn property_info(index: i32, param_name: &str) -> sys::GDNativePropertyInfo;
 
     fn varcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
@@ -73,6 +52,7 @@ pub trait SignatureTuple {
 //     }
 // }
 //
+use crate::builtin::meta::*;
 use crate::builtin::{FromVariant, ToVariant, Variant};
 use crate::obj::GodotClass;
 
@@ -90,7 +70,7 @@ macro_rules! impl_signature_for_tuple {
             type Ret = $R;
 
             #[inline]
-            fn variant_type(index: i32) -> sys::GDNativeVariantType {
+            fn variant_type(index: i32) -> sys::VariantType {
                 match index {
                     -1 => $R::variant_type(),
                     $(
@@ -113,7 +93,7 @@ macro_rules! impl_signature_for_tuple {
             }
 
             #[inline]
-            fn property_info(index: i32, param_name: &str) -> sys::GDNativePropertyInfo {
+            fn property_info(index: i32, param_name: &str) -> PropertyInfo {
                 match index {
                     -1 => $R::property_info(param_name),
                     $(
@@ -207,34 +187,3 @@ impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6);
 impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7);
 impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8);
 impl_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9);
-
-// Re-exported to crate::private
-#[doc(hidden)]
-pub mod func_callbacks {
-    use super::*;
-
-    pub extern "C" fn get_type<S: SignatureTuple>(
-        _method_data: *mut std::ffi::c_void,
-        n: i32,
-    ) -> sys::GDNativeVariantType {
-        S::variant_type(n)
-    }
-
-    pub extern "C" fn get_info<S: SignatureTuple>(
-        _method_data: *mut std::ffi::c_void,
-        n: i32,
-        ret: *mut sys::GDNativePropertyInfo,
-    ) {
-        // Return value is the first "argument"
-        let info = S::property_info(n, "TODO");
-        unsafe { *ret = info };
-    }
-
-    pub extern "C" fn get_metadata<S: SignatureTuple>(
-        _method_data: *mut std::ffi::c_void,
-        n: i32,
-    ) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
-        // Return value is the first "argument"
-        S::param_metadata(n)
-    }
-}

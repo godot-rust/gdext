@@ -14,10 +14,12 @@ use godot_ffi as sys;
 use sys::interface_fn;
 
 use crate::bind::GodotExt;
+use crate::builtin::meta::ClassName;
+use crate::builtin::StringName;
 use crate::out;
 use std::any::Any;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Formatter, Result as FmtResult};
 use std::ptr;
 
 #[derive(Debug)]
@@ -35,8 +37,8 @@ pub struct ErasedRegisterFn {
     pub raw: fn(&mut dyn Any),
 }
 
-impl std::fmt::Debug for ErasedRegisterFn {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl Debug for ErasedRegisterFn {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "0x{:0>16x}", self.raw as u64)
     }
 }
@@ -83,15 +85,16 @@ pub enum PluginComponent {
         /// User-defined `to_string` function
         user_to_string_fn: Option<
             unsafe extern "C" fn(
-                instance: sys::GDExtensionClassInstancePtr,
-                out_string: sys::GDNativeStringPtr,
+                p_instance: sys::GDExtensionClassInstancePtr,
+                r_is_valid: *mut sys::GDNativeBool,
+                p_out: sys::GDNativeStringPtr,
             ),
         >,
 
         /// Callback for other virtuals
         get_virtual_fn: unsafe extern "C" fn(
-            _class_user_data: *mut std::ffi::c_void,
-            p_name: *const std::os::raw::c_char,
+            p_userdata: *mut std::os::raw::c_void,
+            p_name: sys::GDNativeStringNamePtr,
         ) -> sys::GDNativeExtensionClassCallVirtual,
     },
 }
@@ -217,16 +220,23 @@ fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) {
 
 fn register_class_raw(info: ClassRegistrationInfo) {
     // First register class...
+
+    let class_name = info.class_name;
+    let parent_class_name = info
+        .parent_class_name
+        .expect("class defined (parent_class_name)");
+
     unsafe {
         interface_fn!(classdb_register_extension_class)(
             sys::get_library(),
-            info.class_name.c_str(),
-            info.parent_class_name
-                .expect("class defined (parent_class_name)")
-                .c_str(),
+            class_name.string_sys(),
+            parent_class_name.string_sys(),
             ptr::addr_of!(info.godot_params),
         );
     }
+
+    // std::mem::forget(class_name);
+    // std::mem::forget(parent_class_name);
 
     // ...then custom symbols
 
@@ -240,37 +250,6 @@ fn register_class_raw(info: ClassRegistrationInfo) {
     }
     if let Some(register_fn) = info.user_register_fn {
         (register_fn.raw)(&mut class_builder);
-    }
-}
-
-/// Utility to convert `String` to C `const char*`.
-/// Cannot be a function since the backing string must be retained.
-#[derive(Eq, PartialEq, Hash, Clone, Debug)]
-pub(crate) struct ClassName {
-    backing: String,
-}
-
-impl ClassName {
-    pub fn new<T: GodotClass>() -> Self {
-        Self {
-            backing: format!("{}\0", T::CLASS_NAME),
-        }
-    }
-
-    fn from_static(string: &'static str) -> Self {
-        Self {
-            backing: format!("{}\0", string),
-        }
-    }
-
-    pub fn c_str(&self) -> *const std::os::raw::c_char {
-        self.backing.as_ptr() as *const _
-    }
-}
-
-impl Display for ClassName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &self.backing[..self.backing.len() - 1])
     }
 }
 
@@ -297,7 +276,8 @@ pub mod callbacks {
 
         //out!("create callback: {}", class_name.backing);
 
-        let base_ptr = unsafe { interface_fn!(classdb_construct_object)(base_class_name.c_str()) };
+        let base_ptr =
+            unsafe { interface_fn!(classdb_construct_object)(base_class_name.string_sys()) };
         let base = unsafe { Base::from_sys(base_ptr) };
 
         let user_instance = make_user_instance(base);
@@ -307,7 +287,7 @@ pub mod callbacks {
 
         let binding_data_callbacks = crate::storage::nop_instance_callbacks();
         unsafe {
-            interface_fn!(object_set_instance)(base_ptr, class_name.c_str(), instance_ptr);
+            interface_fn!(object_set_instance)(base_ptr, class_name.string_sys(), instance_ptr);
             interface_fn!(object_set_instance_binding)(
                 base_ptr,
                 sys::get_library(),
@@ -316,6 +296,8 @@ pub mod callbacks {
             );
         }
 
+        // std::mem::forget(class_name);
+        // std::mem::forget(base_class_name);
         base_ptr
     }
 
@@ -330,16 +312,22 @@ pub mod callbacks {
 
     pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotExt>(
         _class_user_data: *mut std::ffi::c_void,
-        p_name: *const std::os::raw::c_char,
+        name: sys::GDNativeStringNamePtr,
     ) -> sys::GDNativeExtensionClassCallVirtual {
-        let name = std::ffi::CStr::from_ptr(p_name);
-        T::__virtual_call(name.to_str().expect("T::virtual_call"))
+        let method_name = StringName::from_string_sys(name);
+        let method_name = method_name.to_string();
+
+        T::__virtual_call(method_name.as_str())
     }
 
     pub unsafe extern "C" fn to_string<T: GodotExt>(
         instance: sys::GDExtensionClassInstancePtr,
+        _is_valid: *mut sys::GDNativeBool,
         out_string: sys::GDNativeStringPtr,
     ) {
+        // Note: to_string currently always succeeds, as it is only provided for classes that have a working implementation.
+        // is_valid output parameter thus not needed.
+
         let storage = as_storage::<T>(instance);
         let instance = storage.get();
         let string = <T as GodotExt>::to_string(&*instance);

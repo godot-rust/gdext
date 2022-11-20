@@ -9,6 +9,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
+use std::hash::{Hash, Hasher};
 
 #[repr(C)]
 pub struct StringName {
@@ -23,25 +24,11 @@ impl StringName {
     ffi_methods! {
         type sys::GDNativeStringNamePtr = *mut Opaque;
 
+        // Note: unlike from_sys, from_string_sys does not default-construct instance first. Typical usage in C++ is placement new.
         fn from_string_sys = from_sys;
         fn from_string_sys_init = from_sys_init;
         fn string_sys = sys;
         fn write_string_sys = write_sys;
-    }
-
-    #[doc(hidden)]
-    pub fn leak_string_sys(self) -> sys::GDNativeStringNamePtr {
-        let ptr = self.string_sys();
-        std::mem::forget(self);
-        ptr
-    }
-}
-
-impl Drop for StringName {
-    fn drop(&mut self) {
-        unsafe {
-            (sys::method_table().string_name_destroy)(self.sys());
-        }
     }
 }
 
@@ -60,6 +47,15 @@ impl GodotFfi for StringName {
         let mut result = Self::default();
         init_fn(result.sys_mut());
         result
+    }
+}
+
+impl_builtin_traits! {
+    for StringName {
+        Clone => string_name_construct_copy;
+        Drop => string_name_destroy;
+        Eq => string_name_operator_equal;
+        Ord => string_name_operator_less;
     }
 }
 
@@ -94,6 +90,15 @@ impl Debug for StringName {
 
         let s = GodotString::from(self);
         <GodotString as Debug>::fmt(&s, f)
+    }
+}
+
+impl Hash for StringName {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // TODO use Godot hash via codegen
+        // C++: internal::gdn_interface->variant_get_ptr_builtin_method(GDNATIVE_VARIANT_TYPE_STRING_NAME, "hash", 171192809);
+
+        self.to_string().hash(state)
     }
 }
 

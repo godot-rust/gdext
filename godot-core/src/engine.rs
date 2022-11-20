@@ -58,10 +58,11 @@ pub trait NodeExt {
         T: GodotClass + Inherits<Node>,
     {
         let path = path.into();
+        let copy = path.clone(); // TODO avoid copy
 
         self.try_get_node_as(path).unwrap_or_else(|| {
             panic!(
-                "There is no node of type {ty} path `{path}`",
+                "There is no node of type {ty} path `{copy}`",
                 ty = T::CLASS_NAME
             )
         })

@@ -7,9 +7,9 @@
 // Note: some code duplication with codegen crate
 
 use crate::ParseResult;
-use proc_macro2::{Ident, Literal, Span, TokenStream, TokenTree};
+use proc_macro2::{Ident, Literal, Span, TokenTree};
+use quote::format_ident;
 use quote::spanned::Spanned;
-use quote::{format_ident, quote};
 use std::collections::HashMap;
 use venial::{Error, Function, Impl};
 
@@ -37,14 +37,6 @@ pub fn reduce_to_signature(function: &Function) -> Function {
     reduced.body = None;
 
     reduced
-}
-
-// Code duplicated between here and godot-codegen
-pub fn c_str(s: &str) -> TokenStream {
-    let s = Literal::string(&format!("{}\0", s));
-    quote! {
-        #s.as_ptr() as *const i8
-    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

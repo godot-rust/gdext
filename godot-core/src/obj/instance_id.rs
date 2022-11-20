@@ -4,9 +4,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError, VariantMetadata};
+use crate::builtin::meta::VariantMetadata;
+use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
 use godot_ffi as sys;
-use godot_ffi::{ffi_methods, GodotFfi};
+use godot_ffi::{ffi_methods, GodotFfi, VariantType};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::num::NonZeroU64;
 
@@ -118,8 +119,8 @@ impl ToVariant for Option<InstanceId> {
 */
 
 impl VariantMetadata for InstanceId {
-    fn variant_type() -> sys::GDNativeVariantType {
-        sys::GDNATIVE_VARIANT_TYPE_INT
+    fn variant_type() -> VariantType {
+        VariantType::Int
     }
 
     fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {

@@ -50,97 +50,136 @@ macro_rules! gdext_register_method_inner {
     ) => {
         unsafe {
             use $crate::sys;
-            use $crate::builtin::{Variant, SignatureTuple};
+            use $crate::builtin::{Variant, StringName};
+            use $crate::builtin::meta::*;
 
             const NUM_ARGS: usize = $crate::gdext_count_idents!($( $param, )*);
 
+            type Sig = ( $($RetTy)+, $($ParamTy),* );
+
+            let varcall_func = {
+                unsafe extern "C" fn function(
+                    _method_data: *mut std::ffi::c_void,
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args: *const sys::GDNativeVariantPtr,
+                    _arg_count: sys::GDNativeInt,
+                    ret: sys::GDNativeVariantPtr,
+                    err: *mut sys::GDNativeCallError,
+                ) {
+                    let result = ::std::panic::catch_unwind(|| {
+                        <Sig as SignatureTuple>::varcall::< $Class >(
+                            instance_ptr,
+                            args,
+                            ret,
+                            err,
+                            |inst, params| {
+                                let ( $($param,)* ) = params;
+                                inst.$method_name( $( $param, )* )
+                            },
+                            stringify!($method_name),
+                        )
+                    });
+
+                    if let Err(e) = result {
+                        $crate::log::godot_error!("Rust function panicked: {}", stringify!($method_name));
+                        $crate::private::print_panic(e);
+
+                        // Signal error and set return type to Nil
+                        (*err).error = sys::GDNATIVE_CALL_ERROR_INVALID_METHOD; // no better fitting enum?
+                        sys::interface_fn!(variant_new_nil)(ret);
+                    }
+                }
+
+                function
+            };
+
+            let ptrcall_func = {
+                unsafe extern "C" fn function(
+                    _method_data: *mut std::ffi::c_void,
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args: *const sys::GDNativeTypePtr,
+                    ret: sys::GDNativeTypePtr,
+                ) {
+                    let result = ::std::panic::catch_unwind(|| {
+                        <Sig as SignatureTuple>::ptrcall::< $Class >(
+                            instance_ptr,
+                            args,
+                            ret,
+                            |inst, params| {
+                                let ( $($param,)* ) = params;
+                                inst.$method_name( $( $param, )* )
+                            },
+                            stringify!($method_name),
+                        );
+                    });
+
+                    if let Err(e) = result {
+                        $crate::log::godot_error!("Rust function panicked: {}", stringify!($method_name));
+                        $crate::private::print_panic(e);
+
+                        // TODO set return value to T::default()?
+                    }
+                }
+
+                function
+            };
+
+            // Return value meta-information
+            let has_return_value: bool = $crate::gdext_is_not_unit!($($RetTy)+);
+            let return_value_info = Sig::property_info(-1, "");
+            let mut return_value_info_sys = return_value_info.property_sys();
+            let return_value_metadata = Sig::param_metadata(-1);
+
+            // Arguments meta-information
+            let argument_count = NUM_ARGS as u32;
+            let mut arguments_info: [PropertyInfo; NUM_ARGS] = {
+                let mut i = -1i32;
+                [$(
+                    {
+                        i += 1;
+                        let prop = Sig::property_info(i, stringify!($param));
+                        //OnceArg::new(prop)
+                        prop
+                    },
+                )*]
+            };
+            let mut arguments_info_sys: [sys::GDNativePropertyInfo; NUM_ARGS]
+                = std::array::from_fn(|i| arguments_info[i].property_sys());
+//                = std::array::from_fn(|i| arguments_info[i].once_sys());
+            let mut arguments_metadata: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS]
+                = std::array::from_fn(|i| Sig::param_metadata(i as i32));
+
+            let class_name = StringName::from(stringify!($Class));
+            let method_name = StringName::from(stringify!($method_name));
+
+            // println!("REG {class_name}::{method_name}");
+            // println!("  ret {return_value_info:?}");
+
             let method_info = sys::GDNativeExtensionClassMethodInfo {
-                name: concat!(stringify!($method_name), "\0").as_ptr() as *const i8,
+                name: method_name.string_sys(),
                 method_userdata: std::ptr::null_mut(),
-                call_func: Some({
-                    unsafe extern "C" fn function(
-                        _method_data: *mut std::ffi::c_void,
-                        instance_ptr: sys::GDExtensionClassInstancePtr,
-                        args: *const sys::GDNativeVariantPtr,
-                        _arg_count: sys::GDNativeInt,
-                        ret: sys::GDNativeVariantPtr,
-                        err: *mut sys::GDNativeCallError,
-                    ) {
-                        let result = ::std::panic::catch_unwind(|| {
-                            < ($($RetTy)+, $($ParamTy,)*) as SignatureTuple >::varcall::< $Class >(
-                                instance_ptr,
-                                args,
-                                ret,
-                                err,
-                                |inst, params| {
-                                    let ( $($param,)* ) = params;
-                                    inst.$method_name( $( $param, )* )
-                                },
-                                stringify!($method_name),
-                            )
-                        });
-
-                        if let Err(e) = result {
-                            $crate::log::godot_error!("Rust function panicked: {}", stringify!($method_name));
-                            $crate::private::print_panic(e);
-
-                            // Signal error and set return type to Nil
-                            (*err).error = sys::GDNATIVE_CALL_ERROR_INVALID_METHOD; // no better fitting enum?
-                            sys::interface_fn!(variant_new_nil)(ret);
-                        }
-                    }
-
-                    function
-                }),
-                ptrcall_func: Some({
-                    unsafe extern "C" fn function(
-                        _method_data: *mut std::ffi::c_void,
-                        instance_ptr: sys::GDExtensionClassInstancePtr,
-                        args: *const sys::GDNativeTypePtr,
-                        ret: sys::GDNativeTypePtr,
-                    ) {
-                        let result = ::std::panic::catch_unwind(|| {
-                            < ($($RetTy)+, $($ParamTy,)*) as SignatureTuple >::ptrcall::< $Class >(
-                                instance_ptr,
-                                args,
-                                ret,
-                                |inst, params| {
-                                    let ( $($param,)* ) = params;
-                                    inst.$method_name( $( $param, )* )
-                                },
-                                stringify!($method_name),
-                            );
-                        });
-
-                        if let Err(e) = result {
-                            $crate::log::godot_error!("Rust function panicked: {}", stringify!($method_name));
-                            $crate::private::print_panic(e);
-
-                            // TODO set return value to T::default()?
-                        }
-                    }
-
-                    function
-                }),
-                method_flags:
-                    sys::GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
-                argument_count: NUM_ARGS as u32,
-                has_return_value: $crate::gdext_is_not_unit!($($RetTy)+) as u8,
-                get_argument_type_func: Some($crate::private::func_callbacks::get_type::<( $($RetTy)+, $($ParamTy),* )>),
-                get_argument_info_func: Some($crate::private::func_callbacks::get_info::<( $($RetTy)+, $($ParamTy),* )>),
-                get_argument_metadata_func: Some($crate::private::func_callbacks::get_metadata::<( $($RetTy)+, $($ParamTy),* )>),
+                call_func: Some(varcall_func),
+                ptrcall_func: Some(ptrcall_func),
+                method_flags: sys::GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
+                has_return_value: has_return_value as u8,
+                return_value_info: std::ptr::addr_of_mut!(return_value_info_sys),
+                return_value_metadata,
+                argument_count,
+                arguments_info: arguments_info_sys.as_mut_ptr(),
+                arguments_metadata: arguments_metadata.as_mut_ptr(),
                 default_argument_count: 0,
                 default_arguments: std::ptr::null_mut(),
             };
 
-            let name = std::ffi::CStr::from_bytes_with_nul_unchecked(concat!(stringify!($Class), "\0").as_bytes());
-
             $crate::out!("   Register fn:   {}::{}", stringify!($Class), stringify!($method_name));
             sys::interface_fn!(classdb_register_extension_class_method)(
                 sys::get_library(),
-                name.as_ptr(),
+                class_name.string_sys(),
                 std::ptr::addr_of!(method_info),
             );
+
+            // std::mem::forget(class_name);
+            // std::mem::forget(method_name);
         }
     };
 }

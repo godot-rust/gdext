@@ -4,11 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::fmt::{Display, Formatter, Result as FmtResult};
-
 // Stub for various other built-in classes, which are currently incomplete, but whose types
 // are required for codegen
-use crate::builtin::{GodotString, StringName, Vector2};
+use crate::builtin::{StringName, Vector2};
 use crate::obj::{Gd, GodotClass};
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
@@ -24,7 +22,6 @@ impl_builtin_stub!(Basis, OpaqueBasis);
 impl_builtin_stub!(Transform2D, OpaqueTransform2D);
 impl_builtin_stub!(Transform3D, OpaqueTransform3D);
 impl_builtin_stub!(Projection, OpaqueProjection);
-impl_builtin_stub!(NodePath, OpaqueNodePath);
 impl_builtin_stub!(RID, OpaqueRID);
 impl_builtin_stub!(Callable, OpaqueCallable);
 impl_builtin_stub!(Signal, OpaqueSignal);
@@ -43,43 +40,6 @@ impl Rect2 {
 
     fn inner(self) -> InnerRect {
         unsafe { std::mem::transmute(self) }
-    }
-}
-
-impl From<&GodotString> for NodePath {
-    fn from(path: &GodotString) -> Self {
-        unsafe {
-            Self::from_sys_init(|self_ptr| {
-                let ctor = sys::method_table().node_path_from_string;
-                let args = [path.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
-    }
-}
-
-impl From<&NodePath> for GodotString {
-    fn from(path: &NodePath) -> Self {
-        unsafe {
-            Self::from_sys_init(|self_ptr| {
-                let ctor = sys::method_table().string_from_node_path;
-                let args = [path.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
-    }
-}
-
-impl From<&str> for NodePath {
-    fn from(path: &str) -> Self {
-        Self::from(&GodotString::from(path))
-    }
-}
-
-impl Display for NodePath {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let string = GodotString::from(self);
-        <GodotString as Display>::fmt(&string, f)
     }
 }
 

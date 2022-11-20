@@ -6,7 +6,7 @@ rust-version = "1.63"
 
 [features]
 default = ["convenience"]
-trace = []
+trace = ["godot-core/trace"]
 convenience = []
 codegen-fmt = ["godot-core/codegen-fmt"]
 minimal = ["godot-core/minimal"]

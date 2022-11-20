@@ -17,6 +17,9 @@ pub fn run() -> bool {
     ok &= string_clone();
     ok &= string_name_conversion();
     ok &= string_name_default_construct();
+    ok &= string_name_eq_hash();
+    ok &= string_name_ord();
+    ok &= string_name_clone();
     ok
 }
 
@@ -75,4 +78,19 @@ fn string_name_default_construct() {
     let back = GodotString::from(&name);
 
     assert_eq!(back, GodotString::new());
+}
+
+#[itest]
+fn string_name_eq_hash() {
+    // TODO
+}
+
+#[itest]
+fn string_name_ord() {
+    // TODO
+}
+
+#[itest]
+fn string_name_clone() {
+    // TODO
 }
