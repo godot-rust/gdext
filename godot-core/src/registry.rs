@@ -221,17 +221,16 @@ fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) {
 fn register_class_raw(info: ClassRegistrationInfo) {
     // First register class...
 
-    let class_name = info.class_name.into_once();
+    let class_name = info.class_name;
     let parent_class_name = info
         .parent_class_name
-        .expect("class defined (parent_class_name)")
-        .into_once();
+        .expect("class defined (parent_class_name)");
 
     unsafe {
         interface_fn!(classdb_register_extension_class)(
             sys::get_library(),
-            class_name.leak_sys(),
-            parent_class_name.leak_sys(),
+            class_name.string_sys(),
+            parent_class_name.string_sys(),
             ptr::addr_of!(info.godot_params),
         );
     }
@@ -272,13 +271,13 @@ pub mod callbacks {
         T: GodotClass,
         F: FnOnce(Base<T::Base>) -> T,
     {
-        let class_name = ClassName::new::<T>().into_once();
-        let base_class_name = ClassName::new::<T::Base>().into_once();
+        let class_name = ClassName::new::<T>();
+        let base_class_name = ClassName::new::<T::Base>();
 
         //out!("create callback: {}", class_name.backing);
 
         let base_ptr =
-            unsafe { interface_fn!(classdb_construct_object)(base_class_name.leak_sys()) };
+            unsafe { interface_fn!(classdb_construct_object)(base_class_name.string_sys()) };
         let base = unsafe { Base::from_sys(base_ptr) };
 
         let user_instance = make_user_instance(base);
@@ -288,7 +287,7 @@ pub mod callbacks {
 
         let binding_data_callbacks = crate::storage::nop_instance_callbacks();
         unsafe {
-            interface_fn!(object_set_instance)(base_ptr, class_name.leak_sys(), instance_ptr);
+            interface_fn!(object_set_instance)(base_ptr, class_name.string_sys(), instance_ptr);
             interface_fn!(object_set_instance_binding)(
                 base_ptr,
                 sys::get_library(),

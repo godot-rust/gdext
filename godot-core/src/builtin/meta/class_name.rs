@@ -34,10 +34,6 @@ impl ClassName {
     pub fn string_sys(&self) -> sys::GDNativeStringNamePtr {
         self.backing.string_sys()
     }
-
-    pub(crate) fn into_once(self) -> OnceString {
-        OnceString::from_owned(self.backing)
-    }
 }
 
 impl Display for ClassName {

@@ -146,7 +146,6 @@ impl fmt::Debug for GodotString {
     }
 }
 
-
 // While this is a nice optimisation for ptrcalls, it's not easily possible
 // to pass in &GodotString when doing varcalls.
 /*

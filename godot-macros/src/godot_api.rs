@@ -85,14 +85,14 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
                 )*
 
                 unsafe {
-                    let class_name = ::godot::builtin::OnceString::new(#class_name_str);
+                    let class_name = ::godot::builtin::StringName::from(#class_name_str);
                     use ::godot::sys;
                     #(
                         let signal_name = ::godot::builtin::StringName::new(#signal_name_strs);
                         sys::interface_fn!(classdb_register_extension_class_signal)(
                             sys::get_library(),
-                            class_name.leak_sys(),
-                            signal_name.leak_sys(),
+                            class_name.string_sys(),
+                            signal_name.string_sys(),
                             std::ptr::null(), // NULL only valid for zero parameters, in current impl; maybe better empty slice
                             0,
                         );

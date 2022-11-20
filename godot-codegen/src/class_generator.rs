@@ -69,8 +69,8 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
         quote! {
             pub fn singleton() -> Gd<Self> {
                 unsafe {
-                    let class_name = OnceString::new(#class_name_str);
-                    let object_ptr = sys::interface_fn!(global_get_singleton)(class_name.leak_sys());
+                    let class_name = StringName::from(#class_name_str);
+                    let object_ptr = sys::interface_fn!(global_get_singleton)(class_name.string_sys());
                     Gd::from_obj_sys(object_ptr)
                 }
             }
@@ -83,8 +83,8 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
         quote! {
             pub fn new() -> Gd<Self> {
                 unsafe {
-                    let class_name = OnceString::new(#class_name_str);
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.leak_sys());
+                    let class_name = StringName::from(#class_name_str);
+                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.string_sys());
                     //let instance = Self { object_ptr };
                     Gd::from_obj_sys(object_ptr)
                 }
@@ -96,8 +96,8 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
             #[must_use]
             pub fn new_alloc() -> Gd<Self> {
                 unsafe {
-                    let class_name = OnceString::new(#class_name_str);
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.leak_sys());
+                    let class_name = StringName::from(#class_name_str);
+                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.string_sys());
                     Gd::from_obj_sys(object_ptr)
                 }
             }
@@ -392,11 +392,11 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
         quote! {
             #vis fn #method_name( #receiver #(, #params )*, varargs: &[Variant]) #return_decl {
                 unsafe {
-                    let class_name = OnceString::new(#class_name);
-                    let method_name = OnceString::new(#method_name_str);
+                    let class_name = StringName::from(#class_name);
+                    let method_name = StringName::from(#method_name_str);
                     let method_bind = sys::interface_fn!(classdb_get_method_bind)(
-                        class_name.leak_sys(),
-                        method_name.leak_sys(),
+                        class_name.string_sys(),
+                        method_name.string_sys(),
                         #hash
                     );
                     let call_fn = sys::interface_fn!(object_method_bind_call);
@@ -419,11 +419,11 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
         quote! {
             #vis fn #method_name( #receiver, #( #params ),* ) #return_decl {
                 unsafe {
-                    let class_name = OnceString::new(#class_name);
-                    let method_name = OnceString::new(#method_name_str);
+                    let class_name = StringName::from(#class_name);
+                    let method_name = StringName::from(#method_name_str);
                     let method_bind = sys::interface_fn!(classdb_get_method_bind)(
-                        class_name.leak_sys(),
-                        method_name.leak_sys(),
+                        class_name.string_sys(),
+                        method_name.string_sys(),
                         #hash
                     );
                     let call_fn = sys::interface_fn!(object_method_bind_ptrcall);
@@ -461,8 +461,8 @@ pub(crate) fn make_function_definition(
     quote! {
         pub fn #function_name( #( #params ),* ) #return_decl {
             let result = unsafe {
-                let function_name = OnceString::new(#function_name_str);
-                let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(function_name.leak_sys(), #hash);
+                let function_name = StringName::from(#function_name_str);
+                let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(function_name.string_sys(), #hash);
                 let call_fn = call_fn.unwrap_unchecked();
 
                 let args = [
