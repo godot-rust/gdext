@@ -331,8 +331,8 @@ impl<T: GodotClass> Gd<T> {
     where
         U: GodotClass,
     {
-        let class_name = ClassName::new::<U>();
-        let class_tag = interface_fn!(classdb_get_class_tag)(class_name.leak_string_name());
+        let class_name = ClassName::new::<U>().into_once();
+        let class_tag = interface_fn!(classdb_get_class_tag)(class_name.leak_sys());
         let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
 
         if cast_object_ptr.is_null() {

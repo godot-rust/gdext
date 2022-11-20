@@ -127,7 +127,7 @@ macro_rules! gdext_register_method_inner {
             // Return value meta-information
             let has_return_value: bool = $crate::gdext_is_not_unit!($($RetTy)+);
             let return_value_info = Sig::property_info(-1, "");
-            let mut return_value_info_sys = return_value_info.sys();
+            let mut return_value_info_sys = return_value_info.property_sys();
             let return_value_metadata = Sig::param_metadata(-1);
 
             // Arguments meta-information
@@ -135,22 +135,28 @@ macro_rules! gdext_register_method_inner {
             let mut arguments_info: [PropertyInfo; NUM_ARGS] = {
                 let mut i = -1i32;
                 [$(
-                    { i += 1; Sig::property_info(i, stringify!($param)) },
+                    {
+                        i += 1;
+                        let prop = Sig::property_info(i, stringify!($param));
+                        //OnceArg::new(prop)
+                        prop
+                    },
                 )*]
             };
             let mut arguments_info_sys: [sys::GDNativePropertyInfo; NUM_ARGS]
-                = std::array::from_fn(|i| arguments_info[i].sys());
+                = std::array::from_fn(|i| arguments_info[i].property_sys());
+//                = std::array::from_fn(|i| arguments_info[i].once_sys());
             let mut arguments_metadata: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS]
                 = std::array::from_fn(|i| Sig::param_metadata(i as i32));
 
-            let class_name = StringName::from(stringify!($Class));
-            let method_name = StringName::from(stringify!($method_name));
+            let class_name = OnceString::new(stringify!($Class));
+            let method_name = OnceString::new(stringify!($method_name));
 
-            println!("REG {class_name}::{method_name}");
-            println!("  ret {return_value_info:?}");
+            // println!("REG {class_name}::{method_name}");
+            // println!("  ret {return_value_info:?}");
 
             let method_info = sys::GDNativeExtensionClassMethodInfo {
-                name: method_name.leak_string_sys(),
+                name: method_name.leak_sys(),
                 method_userdata: std::ptr::null_mut(),
                 call_func: Some(varcall_func),
                 ptrcall_func: Some(ptrcall_func),
@@ -168,7 +174,7 @@ macro_rules! gdext_register_method_inner {
             $crate::out!("   Register fn:   {}::{}", stringify!($Class), stringify!($method_name));
             sys::interface_fn!(classdb_register_extension_class_method)(
                 sys::get_library(),
-                class_name.leak_string_sys(),
+                class_name.leak_sys(),
                 std::ptr::addr_of!(method_info),
             );
 

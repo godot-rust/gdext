@@ -5,9 +5,11 @@
  */
 
 mod class_name;
+mod once_string;
 mod signature;
 
 pub use class_name::*;
+pub use once_string::*;
 pub use signature::*;
 
 use crate::builtin::*;
@@ -66,7 +68,7 @@ impl PropertyInfo {
     }
 
     /// Converts to the FFI type. Keep this object allocated while using that!
-    pub fn sys(&self) -> sys::GDNativePropertyInfo {
+    pub fn property_sys(&self) -> sys::GDNativePropertyInfo {
         use crate::obj::EngineEnum as _;
 
         sys::GDNativePropertyInfo {

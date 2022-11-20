@@ -32,13 +32,6 @@ impl GodotString {
         fn string_sys = sys;
         fn write_string_sys = write_sys;
     }
-
-    // #[doc(hidden)]
-    // pub fn leak_string_sys(self) -> sys::GDNativeStringPtr {
-    //     let ptr = self.string_sys();
-    //     std::mem::forget(self);
-    //     ptr
-    // }
 }
 
 impl GodotFfi for GodotString {

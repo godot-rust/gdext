@@ -29,3 +29,5 @@ pub use variant::*;
 pub use vector2::*;
 pub use vector3::*;
 pub use vector4::*;
+
+pub use meta::OnceString;

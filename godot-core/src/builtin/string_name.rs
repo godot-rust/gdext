@@ -30,24 +30,6 @@ impl StringName {
         fn string_sys = sys;
         fn write_string_sys = write_sys;
     }
-
-    /// Do not call on temporary objects!
-    // Important: do not abstract over this with a function taking &str and returning GDNativeStringNamePtr.
-    // This does not work, because it needs an intermediate StringName object which must stay valid, as long
-    // as the pointer is in use. The right way to do it is to keep a local StringName (not temporary) around.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn leak_string_sys(&self) -> sys::GDNativeStringNamePtr {
-        let ptr = self.string_sys();
-        //std::mem::forget(self);
-
-        let boks = Box::new(self.clone());
-        let ptr = boks.string_sys();
-        println!("Cloned: '{}' -> '{}'", self, &*boks);
-        Box::leak(boks);
-
-        ptr
-    }
 }
 
 impl GodotFfi for StringName {

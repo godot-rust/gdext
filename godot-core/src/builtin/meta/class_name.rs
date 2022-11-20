@@ -35,9 +35,8 @@ impl ClassName {
         self.backing.string_sys()
     }
 
-    #[must_use]
-    pub fn leak_string_name(self) -> sys::GDNativeStringNamePtr {
-        self.backing.leak_string_sys()
+    pub(crate) fn into_once(self) -> OnceString {
+        OnceString::from_owned(self.backing)
     }
 }
 
