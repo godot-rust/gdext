@@ -124,7 +124,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
 
         impl VariantType {
             #[doc(hidden)]
-            pub fn from_ord(enumerator: crate::GDNativeVariantType) -> Self {
+            pub fn from_sys(enumerator: crate::GDNativeVariantType) -> Self {
                 // Annoying, but only stable alternative is transmute(), which dictates enum size
                 match enumerator {
                     0 => Self::Nil,
@@ -136,7 +136,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
             }
 
             #[doc(hidden)]
-            pub fn to_ord(self) -> crate::GDNativeVariantType {
+            pub fn sys(self) -> crate::GDNativeVariantType {
                 self as _
             }
         }
@@ -155,7 +155,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
 
         impl VariantOperator {
             #[doc(hidden)]
-            pub fn from_ord(enumerator: crate::GDNativeVariantOperator) -> Self {
+            pub fn from_sys(enumerator: crate::GDNativeVariantOperator) -> Self {
                 match enumerator {
                     #(
                         #variant_op_enumerators_ord => Self::#variant_op_enumerators_pascal,
@@ -165,7 +165,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
             }
 
             #[doc(hidden)]
-            pub fn to_ord(self) -> crate::GDNativeVariantOperator {
+            pub fn sys(self) -> crate::GDNativeVariantOperator {
                 self as _
             }
         }

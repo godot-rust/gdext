@@ -43,7 +43,7 @@ impl StringName {
 
         let boks = Box::new(self.clone());
         let ptr = boks.string_sys();
-        println!("Cloned: '{}' -> '{}'", self,&*boks);
+        println!("Cloned: '{}' -> '{}'", self, &*boks);
         Box::leak(boks);
 
         ptr

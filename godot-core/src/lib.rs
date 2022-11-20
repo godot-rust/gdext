@@ -26,7 +26,6 @@ pub mod private {
     #[allow(non_camel_case_types)]
     pub trait You_forgot_the_attribute__godot_api {}
 
-    pub use crate::builtin::func_callbacks;
     pub use crate::engine::gen::classes::class_macros;
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
     pub use crate::storage::as_storage;

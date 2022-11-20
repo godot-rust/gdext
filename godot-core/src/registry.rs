@@ -14,11 +14,12 @@ use godot_ffi as sys;
 use sys::interface_fn;
 
 use crate::bind::GodotExt;
+use crate::builtin::meta::ClassName;
 use crate::builtin::StringName;
 use crate::out;
 use std::any::Any;
 use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Formatter, Result as FmtResult};
 use std::ptr;
 
 #[derive(Debug)]
@@ -36,8 +37,8 @@ pub struct ErasedRegisterFn {
     pub raw: fn(&mut dyn Any),
 }
 
-impl std::fmt::Debug for ErasedRegisterFn {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl Debug for ErasedRegisterFn {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "0x{:0>16x}", self.raw as u64)
     }
 }
@@ -249,38 +250,6 @@ fn register_class_raw(info: ClassRegistrationInfo) {
     }
     if let Some(register_fn) = info.user_register_fn {
         (register_fn.raw)(&mut class_builder);
-    }
-}
-
-/// Utility to convert `String` to C `const char*`.
-/// Cannot be a function since the backing string must be retained.
-#[derive(Eq, PartialEq, Hash, Clone, Debug)]
-pub(crate) struct ClassName {
-    backing: StringName,
-}
-
-impl ClassName {
-    pub fn new<T: GodotClass>() -> Self {
-        Self {
-            backing: StringName::from(T::CLASS_NAME),
-        }
-    }
-
-    fn from_static(string: &'static str) -> Self {
-        Self {
-            backing: StringName::from(string),
-        }
-    }
-
-    #[must_use]
-    pub fn leak_string_name(self) -> sys::GDNativeStringNamePtr {
-        self.backing.leak_string_sys()
-    }
-}
-
-impl Display for ClassName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.backing.fmt(f)
     }
 }
 

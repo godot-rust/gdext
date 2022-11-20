@@ -10,18 +10,19 @@ use std::ops::{Deref, DerefMut};
 use std::ptr;
 
 use godot_ffi as sys;
+use godot_ffi::VariantType;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
+use crate::builtin::meta::{ClassName, PropertyInfo, VariantMetadata};
+use crate::builtin::GodotString;
 use crate::builtin::{FromVariant, StringName, ToVariant, Variant, VariantConversionError};
-use crate::builtin::{GodotString, VariantMetadata};
-use crate::engine::global::PropertyUsageFlags;
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
 use crate::obj::{cap, dom, mem, GodotClass, Inherits, Share};
 use crate::obj::{GdMut, GdRef, InstanceId};
 use crate::storage::InstanceStorage;
-use crate::{callbacks, engine, out, ClassName};
+use crate::{callbacks, engine, out};
 
 /// Smart pointer to objects owned by the Godot engine.
 ///
@@ -604,26 +605,15 @@ impl<T: GodotClass> Debug for Gd<T> {
 }
 
 impl<T: GodotClass> VariantMetadata for Gd<T> {
-    fn variant_type() -> sys::GDNativeVariantType {
-        sys::GDNATIVE_VARIANT_TYPE_OBJECT
+    fn variant_type() -> VariantType {
+        VariantType::Object
     }
 
-    fn property_info(name: &str) -> sys::GDNativePropertyInfo {
-        use crate::obj::traits::EngineEnum as _;
-
-        // Note: filling this information properly is important so that Godot can use ptrcalls instead of varcalls
-        // (requires typed GDScript + sufficient information from the extension side)
-
-        let property_name = StringName::from(name);
-        let class_name = ClassName::new::<T>();
-
-        sys::GDNativePropertyInfo {
-            type_: Self::variant_type(),
-            name: property_name.leak_string_sys(),
-            class_name: class_name.leak_string_name(),
-            hint: 0,
-            hint_string: ptr::null_mut(),
-            usage: PropertyUsageFlags::PROPERTY_USAGE_DEFAULT.ord() as u32,
-        }
+    fn property_info(property_name: &str) -> PropertyInfo {
+        PropertyInfo::new(
+            Self::variant_type(),
+            ClassName::new::<T>(),
+            StringName::from(property_name),
+        )
     }
 }

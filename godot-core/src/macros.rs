@@ -50,7 +50,8 @@ macro_rules! gdext_register_method_inner {
     ) => {
         unsafe {
             use $crate::sys;
-            use $crate::builtin::{Variant, SignatureTuple, StringName};
+            use $crate::builtin::{Variant, StringName};
+            use $crate::builtin::meta::*;
 
             const NUM_ARGS: usize = $crate::gdext_count_idents!($( $param, )*);
 
@@ -123,22 +124,30 @@ macro_rules! gdext_register_method_inner {
                 function
             };
 
+            // Return value meta-information
             let has_return_value: bool = $crate::gdext_is_not_unit!($($RetTy)+);
-            let mut return_value_info = Sig::property_info(-1, "");
+            let return_value_info = Sig::property_info(-1, "");
+            let mut return_value_info_sys = return_value_info.sys();
             let return_value_metadata = Sig::param_metadata(-1);
 
+            // Arguments meta-information
             let argument_count = NUM_ARGS as u32;
-            let mut arguments_info = {
+            let mut arguments_info: [PropertyInfo; NUM_ARGS] = {
                 let mut i = -1i32;
                 [$(
                     { i += 1; Sig::property_info(i, stringify!($param)) },
                 )*]
             };
+            let mut arguments_info_sys: [sys::GDNativePropertyInfo; NUM_ARGS]
+                = std::array::from_fn(|i| arguments_info[i].sys());
             let mut arguments_metadata: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS]
                 = std::array::from_fn(|i| Sig::param_metadata(i as i32));
 
             let class_name = StringName::from(stringify!($Class));
             let method_name = StringName::from(stringify!($method_name));
+
+            println!("REG {class_name}::{method_name}");
+            println!("  ret {return_value_info:?}");
 
             let method_info = sys::GDNativeExtensionClassMethodInfo {
                 name: method_name.leak_string_sys(),
@@ -147,10 +156,10 @@ macro_rules! gdext_register_method_inner {
                 ptrcall_func: Some(ptrcall_func),
                 method_flags: sys::GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
                 has_return_value: has_return_value as u8,
-                return_value_info: std::ptr::addr_of_mut!(return_value_info),
+                return_value_info: std::ptr::addr_of_mut!(return_value_info_sys),
                 return_value_metadata,
                 argument_count,
-                arguments_info: arguments_info.as_mut_ptr(),
+                arguments_info: arguments_info_sys.as_mut_ptr(),
                 arguments_metadata: arguments_metadata.as_mut_ptr(),
                 default_argument_count: 0,
                 default_arguments: std::ptr::null_mut(),

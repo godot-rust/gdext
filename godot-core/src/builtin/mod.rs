@@ -18,6 +18,8 @@ mod vector2;
 mod vector3;
 mod vector4;
 
+pub mod meta;
+
 pub use arrays::*;
 pub use color::*;
 pub use others::*;

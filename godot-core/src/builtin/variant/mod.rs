@@ -12,11 +12,9 @@ use sys::types::OpaqueVariant;
 use sys::{ffi_methods, interface_fn};
 
 mod impls;
-mod variant_metadata;
 mod variant_traits;
 
 pub use impls::*;
-pub use variant_metadata::*;
 pub use variant_traits::*;
 
 pub use sys::{VariantOperator, VariantType};
@@ -71,13 +69,13 @@ impl Variant {
     // TODO test
     pub fn get_type(&self) -> VariantType {
         let ty_sys = unsafe { interface_fn!(variant_get_type)(self.var_sys()) };
-        VariantType::from_ord(ty_sys)
+        VariantType::from_sys(ty_sys)
     }
 
     // TODO test
     #[allow(unused_mut)]
     pub fn evaluate(&self, rhs: &Variant, op: VariantOperator) -> Option<Variant> {
-        let op_sys = op.to_ord();
+        let op_sys = op.sys();
         let mut is_valid = false as u8;
 
         let mut result = Variant::nil();
