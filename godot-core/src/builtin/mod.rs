@@ -10,6 +10,7 @@ mod macros;
 
 mod arrays;
 mod color;
+mod node_path;
 mod others;
 mod string;
 mod string_name;
@@ -22,6 +23,7 @@ pub mod meta;
 
 pub use arrays::*;
 pub use color::*;
+pub use node_path::*;
 pub use others::*;
 pub use string::*;
 pub use string_name::*;

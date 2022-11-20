@@ -50,23 +50,12 @@ impl GodotFfi for StringName {
     }
 }
 
-impl Drop for StringName {
-    fn drop(&mut self) {
-        unsafe {
-            (sys::method_table().string_name_destroy)(self.sys());
-        }
-    }
-}
-
-impl Clone for StringName {
-    fn clone(&self) -> Self {
-        unsafe {
-            Self::from_sys_init(|self_ptr| {
-                let ctor = sys::method_table().string_name_construct_copy;
-                let args = [self.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
+impl_builtin_traits! {
+    for StringName {
+        Clone => string_name_construct_copy;
+        Drop => string_name_destroy;
+        Eq => string_name_operator_equal;
+        Ord => string_name_operator_less;
     }
 }
 
@@ -101,13 +90,6 @@ impl Debug for StringName {
 
         let s = GodotString::from(self);
         <GodotString as Debug>::fmt(&s, f)
-    }
-}
-
-impl_traits_as_sys! {
-    for StringName {
-        Eq => string_name_operator_equal;
-        Ord => string_name_operator_less;
     }
 }
 

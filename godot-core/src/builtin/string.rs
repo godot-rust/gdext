@@ -69,15 +69,12 @@ impl Default for GodotString {
     }
 }
 
-impl Clone for GodotString {
-    fn clone(&self) -> Self {
-        unsafe {
-            Self::from_sys_init(|self_ptr| {
-                let ctor = sys::method_table().string_construct_copy;
-                let args = [self.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
+impl_builtin_traits! {
+    for GodotString {
+        Clone => string_construct_copy;
+        Drop => string_destroy;
+        Eq => string_operator_equal;
+        Ord => string_operator_less;
     }
 }
 
@@ -149,21 +146,6 @@ impl fmt::Debug for GodotString {
     }
 }
 
-impl_traits_as_sys! {
-    for GodotString {
-        Eq => string_operator_equal;
-        Ord => string_operator_less;
-    }
-}
-
-impl Drop for GodotString {
-    fn drop(&mut self) {
-        unsafe {
-            let destructor = sys::method_table().string_destroy;
-            destructor(self.sys_mut());
-        }
-    }
-}
 
 // While this is a nice optimisation for ptrcalls, it's not easily possible
 // to pass in &GodotString when doing varcalls.

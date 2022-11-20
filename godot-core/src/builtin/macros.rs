@@ -6,12 +6,16 @@
 
 #![macro_use]
 
-macro_rules! impl_basic_trait_as_sys {
-    ( Drop for $Type:ty => $gd_method:ident ) => {
-        impl Drop for $Type {
+macro_rules! impl_builtin_traits_inner {
+    ( Default for $Type:ty => $gd_method:ident ) => {
+        impl Default for $Type {
             #[inline]
-            fn drop(&mut self) {
-                unsafe { (get_api().$gd_method)(self.sys_mut()) }
+            fn default() -> Self {
+                unsafe {
+                    let mut gd_val = sys::$GdType::default();
+                    (sys::method_table().$gd_method)(&mut gd_val);
+                    <$Type>::from_sys(gd_val)
+                }
             }
         }
     };
@@ -21,22 +25,23 @@ macro_rules! impl_basic_trait_as_sys {
             #[inline]
             fn clone(&self) -> Self {
                 unsafe {
-                    let mut result = sys::$GdType::default();
-                    (get_api().$gd_method)(&mut result, self.sys());
-                    <$Type>::from_sys(result)
+                    Self::from_sys_init(|self_ptr| {
+                        let ctor = sys::method_table().$gd_method;
+                        let args = [self.sys()];
+                        ctor(self_ptr, args.as_ptr());
+                    })
                 }
             }
         }
     };
 
-    ( Default for $Type:ty => $gd_method:ident ) => {
-        impl Default for $Type {
+    ( Drop for $Type:ty => $gd_method:ident ) => {
+        impl Drop for $Type {
             #[inline]
-            fn default() -> Self {
+            fn drop(&mut self) {
                 unsafe {
-                    let mut gd_val = sys::$GdType::default();
-                    (get_api().$gd_method)(&mut gd_val);
-                    <$Type>::from_sys(gd_val)
+                    let destructor = sys::method_table().$gd_method;
+            	    destructor(self.sys_mut());
                 }
             }
         }
@@ -58,7 +63,7 @@ macro_rules! impl_basic_trait_as_sys {
     };
 
     ( Eq for $Type:ty => $gd_method:ident ) => {
-		impl_basic_trait_as_sys!(PartialEq for $Type => $gd_method);
+		impl_builtin_traits_inner!(PartialEq for $Type => $gd_method);
         impl Eq for $Type {}
     };
 
@@ -86,7 +91,7 @@ macro_rules! impl_basic_trait_as_sys {
     };
 
     ( Ord for $Type:ty => $gd_method:ident ) => {
-        impl_basic_trait_as_sys!(PartialOrd for $Type => $gd_method);
+        impl_builtin_traits_inner!(PartialOrd for $Type => $gd_method);
         impl Ord for $Type {
             #[inline]
             fn cmp(&self, other: &Self) -> std::cmp::Ordering {
@@ -96,16 +101,16 @@ macro_rules! impl_basic_trait_as_sys {
     };
 }
 
-macro_rules! impl_traits_as_sys {
+macro_rules! impl_builtin_traits {
     (
         for $Type:ty {
             $( $Trait:ident => $gd_method:ident; )*
         }
     ) => (
         $(
-            impl_basic_trait_as_sys!(
+            impl_builtin_traits_inner! {
                 $Trait for $Type => $gd_method
-            );
+            }
         )*
     )
 }
