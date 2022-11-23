@@ -25,9 +25,12 @@ pub fn load_extension_api_json(watch: &mut StopWatch) -> String {
     rerun_on_changed(&godot_bin);
     watch.record("locate_godot");
 
-    // Regnerate API JSON if first time or Godot version is different
-    if !json_path.exists() || has_version_changed(&godot_bin) {
+    // Regenerate API JSON if first time or Godot version is different
+    let version = read_godot_version(&godot_bin);
+    if !json_path.exists() || has_version_changed(&version) {
         dump_extension_api(&godot_bin, json_path);
+        update_version_file(&version);
+
         watch.record("dump_extension_api");
     }
 
@@ -37,23 +40,23 @@ pub fn load_extension_api_json(watch: &mut StopWatch) -> String {
     result
 }
 
-fn has_version_changed(godot_bin: &Path) -> bool {
+fn has_version_changed(current_version: &str) -> bool {
+    let version_path = Path::new(GODOT_VERSION_PATH);
+
+    match std::fs::read_to_string(version_path) {
+        Ok(last_version) => current_version != last_version,
+        Err(_) => true,
+    }
+}
+
+fn update_version_file(version: &str) {
     let version_path = Path::new(GODOT_VERSION_PATH);
     rerun_on_changed(version_path);
 
-    let current_version = read_godot_version(&godot_bin);
-    let changed = match std::fs::read_to_string(version_path) {
-        Ok(last_version) => current_version != last_version,
-        Err(_) => true,
-    };
-
-    if changed {
-        std::fs::write(version_path, current_version).expect(&format!(
-            "write Godot version to file {}",
-            version_path.display()
-        ));
-    }
-    changed
+    std::fs::write(version_path, version).expect(&format!(
+        "write Godot version to file {}",
+        version_path.display()
+    ));
 }
 
 fn read_godot_version(godot_bin: &Path) -> String {
