@@ -221,14 +221,7 @@ pub(crate) fn validate_impl(
 
     // impl Trait for Self -- validate Self
     if let Some(segment) = extract_typename(&original_impl.self_ty) {
-        if segment.generic_args.is_none() {
-            Ok(segment.ident)
-        } else {
-            bail(
-                format!("#[{attr}] for does currently not support generic arguments"),
-                &original_impl,
-            )
-        }
+        Ok(segment.ident)
     } else {
         bail(
             format!("#[{attr}] requires Self type to be a simple path"),
