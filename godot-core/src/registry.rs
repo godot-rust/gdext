@@ -314,8 +314,10 @@ pub mod callbacks {
         _class_user_data: *mut std::ffi::c_void,
         name: sys::GDNativeStringNamePtr,
     ) -> sys::GDNativeExtensionClassCallVirtual {
-        let method_name = StringName::from_string_sys(name);
-        let method_name = method_name.to_string();
+        // This string is not ours, so we cannot call the destructor on it.
+        let borrowed_string = StringName::from_string_sys(name);
+        let method_name = borrowed_string.to_string();
+        std::mem::forget(borrowed_string);
 
         T::__virtual_call(method_name.as_str())
     }

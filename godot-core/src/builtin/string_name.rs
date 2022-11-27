@@ -53,7 +53,7 @@ impl GodotFfi for StringName {
 impl_builtin_traits! {
     for StringName {
         Clone => string_name_construct_copy;
-        // Drop => string_name_destroy;
+        Drop => string_name_destroy;
         Eq => string_name_operator_equal;
         Ord => string_name_operator_less;
     }
