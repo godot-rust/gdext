@@ -34,7 +34,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
 
     let (godot_init_impl, create_fn);
     if struct_cfg.has_generated_init {
-        godot_init_impl = make_godot_init_impl(class_name, where_clause, generics, fields);
+        godot_init_impl = make_godot_init_impl(class_name, generics, where_clause, fields);
         create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
     } else {
         godot_init_impl = TokenStream::new();
@@ -210,7 +210,7 @@ impl ExportedField {
     }
 }
 
-fn make_godot_init_impl(class_name: &Ident, where_clause: &Option<WhereClause>, generics: &Option<GenericParamList>, fields: Fields) -> TokenStream {
+fn make_godot_init_impl(class_name: &Ident, generics: &Option<GenericParamList>, where_clause: &Option<WhereClause>, fields: Fields) -> TokenStream {
     let base_init = if let Some(ExportedField { name, .. }) = fields.base_field {
         quote! { #name: base, }
     } else {
