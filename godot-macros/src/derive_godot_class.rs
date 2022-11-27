@@ -9,7 +9,7 @@ use crate::{util, ParseResult};
 use proc_macro2::{Ident, Punct, Span, TokenStream};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote};
-use venial::{Attribute, NamedField, Struct, StructFields, TyExpr};
+use venial::{Attribute, GenericParamList, NamedField, Struct, StructFields, TyExpr, WhereClause};
 
 pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let decl = venial::parse_declaration(input)?;
@@ -25,14 +25,16 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let base_ty_str = struct_cfg.base_ty.to_string();
     let class_name = &class.name;
     let class_name_str = class.name.to_string();
+    let generics = &class.generic_params;
+    let where_clause = &class.where_clause;
     let inherits_macro = format_ident!("inherits_transitive_{}", &base_ty_str);
 
     let prv = quote! { ::godot::private };
-    let deref_impl = make_deref_impl(class_name, &fields);
+    let deref_impl = make_deref_impl(class_name, generics, where_clause, &fields);
 
     let (godot_init_impl, create_fn);
     if struct_cfg.has_generated_init {
-        godot_init_impl = make_godot_init_impl(class_name, fields);
+        godot_init_impl = make_godot_init_impl(class_name, where_clause, generics, fields);
         create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
     } else {
         godot_init_impl = TokenStream::new();
@@ -40,7 +42,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     };
 
     Ok(quote! {
-        impl ::godot::obj::GodotClass for #class_name {
+        impl #generics ::godot::obj::GodotClass for #class_name #generics #where_clause {
             type Base = ::godot::engine::#base_ty;
             type Declarer = ::godot::obj::dom::UserDomain;
             type Mem = <Self::Base as ::godot::obj::GodotClass>::Mem;
@@ -208,7 +210,7 @@ impl ExportedField {
     }
 }
 
-fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
+fn make_godot_init_impl(class_name: &Ident, where_clause: &Option<WhereClause>, generics: &Option<GenericParamList>, fields: Fields) -> TokenStream {
     let base_init = if let Some(ExportedField { name, .. }) = fields.base_field {
         quote! { #name: base, }
     } else {
@@ -220,7 +222,7 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
     });
 
     quote! {
-        impl ::godot::obj::cap::GodotInit for #class_name {
+        impl #generics ::godot::obj::cap::GodotInit for #class_name #generics #where_clause {
             fn __godot_init(base: ::godot::obj::Base<Self::Base>) -> Self {
                 Self {
                     #( #rest_init )*
@@ -231,7 +233,7 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
     }
 }
 
-fn make_deref_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
+fn make_deref_impl(class_name: &Ident, generics: &Option<GenericParamList>, where_clause: &Option<WhereClause>, fields: &Fields) -> TokenStream {
     let base_field = if let Some(ExportedField { name, .. }) = &fields.base_field {
         name
     } else {
@@ -239,14 +241,14 @@ fn make_deref_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     };
 
     quote! {
-        impl std::ops::Deref for #class_name {
+        impl #generics std::ops::Deref for #class_name #generics #where_clause {
             type Target = <Self as ::godot::obj::GodotClass>::Base;
 
             fn deref(&self) -> &Self::Target {
                 &*self.#base_field
             }
         }
-        impl std::ops::DerefMut for #class_name {
+        impl #generics std::ops::DerefMut for #class_name #generics #where_clause {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut *self.#base_field
             }

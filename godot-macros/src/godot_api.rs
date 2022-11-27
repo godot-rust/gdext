@@ -23,13 +23,6 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
         )?,
     };
 
-    if decl.impl_generic_params.is_some() {
-        bail(
-            "#[godot_api] currently does not support generic parameters",
-            &decl,
-        )?;
-    }
-
     if decl.self_ty.as_path().is_none() {
         return bail("invalid Self type for #[godot_api] impl", decl);
     };
@@ -71,13 +64,15 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
     let (funcs, signals) = process_godot_fns(&mut decl)?;
     let signal_name_strs = signals.into_iter().map(|ident| ident.to_string());
+    let generics = &decl.impl_generic_params;
+    let where_clause = &decl.where_clause;
 
     let prv = quote! { ::godot::private };
 
     let result = quote! {
         #decl
 
-        impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
+        impl #generics ::godot::obj::cap::ImplementsGodotApi for #class_name #generics #where_clause {
             //fn __register_methods(_builder: &mut ::godot::builder::ClassBuilder<Self>) {
             fn __register_methods() {
                 #(
@@ -218,6 +213,8 @@ fn extract_attributes(method: &Function) -> Result<Option<BoundAttr>, Error> {
 fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let class_name = util::validate_impl(&original_impl, Some("GodotExt"), "godot_api")?;
     let class_name_str = class_name.to_string();
+    let generics = &original_impl.impl_generic_params;
+    let where_clause = &original_impl.where_clause;
 
     let mut godot_init_impl = TokenStream::new();
     let mut register_fn = quote! { None };
@@ -245,7 +242,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
             "init" => {
                 godot_init_impl = quote! {
-                    impl ::godot::obj::cap::GodotInit for #class_name {
+                    impl #generics ::godot::obj::cap::GodotInit for #class_name #generics #where_clause {
                         fn __godot_init(base: ::godot::obj::Base<Self::Base>) -> Self {
                             <Self as ::godot::bind::GodotExt>::init(base)
                         }
