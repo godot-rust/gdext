@@ -17,8 +17,11 @@ Its _GDExtension_ API allows integrating third-party languages and libraries.
 > * No stability guarantees. APIs will break frequently (for releases, we try to take SemVer seriously though).
 >   Resolving the above two points has currently more weight than a stable API.
 
-So we do not recommend building a larger project in GDExtension-Rust yet.
-However, the library can serve as a playground for experimenting. 
+We do not recommend building a larger project in GDExtension-Rust yet.
+However, the library can serve as a playground for experimenting.
+
+To get an overview of currently supported features, consult [#24](https://github.com/godot-rust/gdextension/issues/24).  
+At this point, there is **no** support for Android, iOS or WASM. Contributions are very welcome!
 
 
 ## Getting started
@@ -57,7 +60,8 @@ To register the GDExtension library with Godot, you need to create two files rel
     macos.64 = "res://../rust/target/debug/{my_ext}.dylib"
     ```
 
-2. A second file `res://.godot/extension_list.cfg` simply lists the path to your first file:
+2. A second file `res://.godot/extension_list.cfg` should be generated once you open the Godot editor for the first time.
+   If not, you can also manually create it, simply containing the Godot path to your `.gdextension` file:
     ```
     res://MyExt.gdextension
     ```
@@ -69,10 +73,7 @@ This integrates a small game with Godot and has all the necessary steps set up.
 
 API documentation can be generated locally using `cargo doc -p godot --no-deps --open`.
 
-Support for macOS is still ongoing, there is currently **no** support for Android, iOS or WASM.
-Contributions in this regard are very welcome!
-
-If you need help, join our [Discord] server and ask in the `#help` channel!
+If you need help, join our [Discord] server and ask in the `#help-gdextension` channel!
 
 
 ## License
@@ -94,6 +95,6 @@ to talk to the developers in the `#gdext-dev` channel on [Discord]!
 
 
 [Godot]: https://godotengine.org
-[`gdnative`]: https://github.com/godot-rust/godot-rust
+[`gdnative`]: https://github.com/godot-rust/gdnative
 [mpl]: https://www.mozilla.org/en-US/MPL/
 [Discord]: https://discord.gg/aKUCJ8rJsc
