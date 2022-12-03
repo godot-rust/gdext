@@ -65,13 +65,43 @@ fn configure_platform_specific(builder: bindgen::Builder) -> bindgen::Builder {
 
         builder
             .clang_arg("-I")
-            .clang_arg(format!("{path}/include"))
+            // .clang_arg(format!("{path}/include"))
+            .clang_arg(apple_include_path().expect("apple include path"))
             .clang_arg("-L")
             .clang_arg(format!("{path}/lib"))
     } else {
         eprintln!("Build selected for Linux/Windows.");
         builder
     }
+}
+
+fn apple_include_path() -> Result<String, std::io::Error> {
+    use std::process::Command;
+
+    let target = std::env::var("TARGET").unwrap();
+    let platform = if target.contains("apple-darwin") {
+        "macosx"
+    } else if target == "x86_64-apple-ios" || target == "aarch64-apple-ios-sim" {
+        "iphonesimulator"
+    } else if target == "aarch64-apple-ios" {
+        "iphoneos"
+    } else {
+        panic!("not building for macOS or iOS");
+    };
+
+    // run `xcrun --sdk iphoneos --show-sdk-path`
+    let output = Command::new("xcrun")
+        .args(["--sdk", platform, "--show-sdk-path"])
+        .output()?
+        .stdout;
+    let prefix = std::str::from_utf8(&output)
+        .expect("invalid output from `xcrun`")
+        .trim_end();
+
+    let suffix = "usr/include";
+    let directory = format!("{}/{}", prefix, suffix);
+
+    Ok(directory)
 }
 
 // #[cfg(not(target_os = "macos"))]
