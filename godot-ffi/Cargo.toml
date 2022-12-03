@@ -9,6 +9,7 @@ rust-version = "1.63"
 [features]
 codegen-fmt = ["godot-codegen/codegen-fmt"]
 minimal = ["godot-codegen/minimal"]
+codegen-disabled = ["godot-codegen/codegen-disabled"]
 
 [dependencies]
 paste = "1"

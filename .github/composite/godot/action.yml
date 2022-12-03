@@ -92,6 +92,7 @@ runs:
 
     - name: "Install LLVM"
       uses: ./.github/composite/llvm
+      # TODO only run it on systems needed
 
     - name: "Build godot-rust"
       run: |

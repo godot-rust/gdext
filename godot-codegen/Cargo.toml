@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.63"
 
+# Note: features not additive, but this is an internal crate
 [features]
+codegen-disabled = [] # if active, nothing is generated (for unit tests)
 codegen-fmt = []
-minimal = ["codegen-fmt"] # note: should be additive, i.e. inverted
+minimal = ["codegen-fmt"]
 
 [dependencies]
 quote = "1"

@@ -31,6 +31,12 @@ use quote::{quote, ToTokens};
 use std::path::{Path, PathBuf};
 
 pub fn generate_all_files(sys_out_dir: &Path, core_out_dir: &Path, stats_out_dir: &Path) {
+    // When invoked by another crate during unit-test (not integration test), don't run generator
+    // cfg! is easier to handle than #[cfg] regarding all the imports, and neither code size nor performance matter in unit-test
+    if cfg!(feature = "codegen-disabled") {
+        return;
+    }
+
     let central_sys_gen_path = sys_out_dir;
     let central_core_gen_path = core_out_dir;
     let class_gen_path = core_out_dir;

@@ -38,7 +38,7 @@ mod plugins;
 // See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
 // and https://users.rust-lang.org/t/proc-macros-using-third-party-crate/42465/4
 #[doc(hidden)]
-pub use ::paste;
+pub use paste;
 
 //pub use opaque::Opaque;
 use global_registry::GlobalRegistry;
@@ -46,11 +46,10 @@ use global_registry::GlobalRegistry;
 pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
 pub use central::*;
 
-/// Late-init globals
-// Note: static mut is _very_ dangerous. Here a bit less so, since modification happens only once (during init) and no
-// &mut references are handed out (except for registry, see below). Overall, UnsafeCell/RefCell + Sync might be a safer abstraction.
-static mut BINDING: Option<GodotBinding> = None;
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Real implementation, when Godot engine is running
 
+#[cfg(not(test))]
 struct GodotBinding {
     interface: GDNativeInterface,
     library: GDNativeExtensionClassLibraryPtr,
@@ -58,12 +57,19 @@ struct GodotBinding {
     registry: GlobalRegistry,
 }
 
+/// Late-init globals
+// Note: static mut is _very_ dangerous. Here a bit less so, since modification happens only once (during init) and no
+// &mut references are handed out (except for registry, see below). Overall, UnsafeCell/RefCell + Sync might be a safer abstraction.
+#[cfg(not(test))]
+static mut BINDING: Option<GodotBinding> = None;
+
 /// # Safety
 ///
 /// - The `interface` pointer must be a valid pointer to a [`GDNativeInterface`] obj.
 /// - The `library` pointer must be the pointer given by Godot at initialisation.
 /// - This function must not be called from multiple threads.
 /// - This function must be called before any use of [`get_library`].
+#[cfg(not(test))]
 pub unsafe fn initialize(
     interface: *const GDNativeInterface,
     library: GDNativeExtensionClassLibraryPtr,
@@ -86,6 +92,7 @@ pub unsafe fn initialize(
 /// # Safety
 ///
 /// The interface must have been initialised with [`initialize`] before calling this function.
+#[cfg(not(test))]
 #[inline(always)]
 pub unsafe fn get_interface() -> &'static GDNativeInterface {
     &unwrap_ref_unchecked(&BINDING).interface
@@ -94,6 +101,7 @@ pub unsafe fn get_interface() -> &'static GDNativeInterface {
 /// # Safety
 ///
 /// The library must have been initialised with [`initialize`] before calling this function.
+#[cfg(not(test))]
 #[inline(always)]
 pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
     unwrap_ref_unchecked(&BINDING).library
@@ -102,6 +110,7 @@ pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
 /// # Safety
 ///
 /// The interface must have been initialised with [`initialize`] before calling this function.
+#[cfg(not(test))]
 #[inline(always)]
 pub unsafe fn method_table() -> &'static GlobalMethodTable {
     &unwrap_ref_unchecked(&BINDING).method_table
@@ -113,10 +122,40 @@ pub unsafe fn method_table() -> &'static GlobalMethodTable {
 ///
 /// Calling this while another place holds a reference (threads, re-entrancy, iteration, etc) is immediate undefined behavior.
 // note: could potentially avoid &mut aliasing, using UnsafeCell/RefCell
+#[cfg(not(test))]
 #[inline(always)]
 pub unsafe fn get_registry() -> &'static mut GlobalRegistry {
     &mut unwrap_ref_unchecked_mut(&mut BINDING).registry
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Stubs when in unit-test (without Godot)
+
+#[cfg(test)]
+#[inline(always)]
+pub unsafe fn get_interface() -> &'static GDNativeInterface {
+    unimplemented!("Not available in unit-tests; needs Godot engine to run.")
+}
+
+#[cfg(test)]
+#[inline(always)]
+pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
+    unimplemented!("Not available in unit-tests; needs Godot engine to run.")
+}
+
+#[cfg(test)]
+#[inline(always)]
+pub unsafe fn method_table() -> &'static GlobalMethodTable {
+    unimplemented!("Not available in unit-tests; needs Godot engine to run.")
+}
+
+#[cfg(test)]
+#[inline(always)]
+pub unsafe fn get_registry() -> &'static mut GlobalRegistry {
+    unimplemented!("Not available in unit-tests; needs Godot engine to run.")
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[macro_export]
 #[doc(hidden)]
@@ -151,6 +190,7 @@ macro_rules! static_assert_eq_size {
 
 /// Combination of `as_ref()` and `unwrap_unchecked()`, but without the case differentiation in
 /// the former (thus raw pointer access in release mode)
+#[cfg(not(test))]
 unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
     debug_assert!(opt.is_some(), "unchecked access to Option::None");
     match opt {
@@ -159,6 +199,7 @@ unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
     }
 }
 
+#[cfg(not(test))]
 unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
     debug_assert!(opt.is_some(), "unchecked access to Option::None");
     match opt {

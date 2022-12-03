@@ -7,6 +7,9 @@ rust-version = "1.63"
 [lib]
 proc-macro = true
 
+[dev-dependencies]
+godot = { path = "../godot" } # doctest
+
 [dependencies]
 quote = "1"
 proc-macro2 = "1"

@@ -4,9 +4,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_codegen as gen;
 use std::env;
 use std::path::Path;
+
+#[cfg(not(test))]
+use godot_codegen as gen;
 
 // Note: this macro is fine during codegen, but not for building module structures
 // It confuses IDEs, and can cause symbols not to be found
