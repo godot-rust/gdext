@@ -12,17 +12,14 @@ use godot_codegen as gen;
 
 fn main() {
     // For custom path on macOS, iOS, Android etc: see gdnative-sys/build.rs
+    let gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/"));
 
-    run_bindgen(Path::new(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/src/gen/gdnative_interface.rs"
-    )));
+    if gen_path.exists() {
+        std::fs::remove_dir_all(gen_path).unwrap_or_else(|e| panic!("failed to delete dir: {e}"));
+    }
 
-    gen::generate_sys_files(Path::new(concat!(
-        //
-        env!("CARGO_MANIFEST_DIR"),
-        "/src/gen/"
-    )));
+    run_bindgen(&gen_path.join("gdnative_interface.rs"));
+    gen::generate_sys_files(gen_path);
 }
 
 fn run_bindgen(out_file: &Path) {
