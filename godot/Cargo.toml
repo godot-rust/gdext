@@ -15,3 +15,5 @@ minimal = ["godot-core/minimal"]
 godot-core = { path = "../godot-core" }
 godot-macros = { path = "../godot-macros" }
 
+[dev-dependencies]
+godot-core = { path = "../godot-core", features = ["unit-test"] }

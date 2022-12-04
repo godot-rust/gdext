@@ -8,12 +8,13 @@
 
 // Re-exports of generated symbols
 use crate::builtin::{GodotString, NodePath};
-use crate::engine::resource_loader::CacheMode;
+use crate::obj::dom::EngineDomain;
+use crate::obj::{Gd, GodotClass, Inherits};
+use resource_loader::CacheMode;
+
 pub use crate::gen::central::global;
 pub use crate::gen::classes::*;
 pub use crate::gen::utilities;
-use crate::obj::dom::EngineDomain;
-use crate::obj::{Gd, GodotClass, Inherits};
 
 /// Extension trait with convenience functions for the node tree.
 pub trait NodeExt {
@@ -139,6 +140,32 @@ where
 {
     load_impl(&path.into())
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Utilities for crate
+
+pub(crate) fn debug_string<T>(
+    ptr: &Gd<T>,
+    f: &mut std::fmt::Formatter<'_>,
+    ty: &str,
+) -> std::fmt::Result {
+    if let Some(id) = ptr.instance_id_or_none() {
+        let class: GodotString = ptr.as_object(|obj| Object::get_class(obj));
+
+        write!(f, "{ty} {{ id: {id}, class: {class} }}")
+    } else {
+        write!(f, "{ty} {{ freed obj }}")
+    }
+}
+
+pub(crate) fn display_string<T>(ptr: &Gd<T>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let string: GodotString = ptr.as_object(|obj| Object::to_string(obj));
+
+    <GodotString as std::fmt::Display>::fmt(&string, f)
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation of this file
 
 // Separate function, to avoid constructing string twice
 // Note that more optimizations than that likely make no sense, as loading is quite expensive

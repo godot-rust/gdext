@@ -9,7 +9,7 @@ rust-version = "1.63"
 [features]
 codegen-fmt = ["godot-codegen/codegen-fmt"]
 minimal = ["godot-codegen/minimal"]
-codegen-disabled = ["godot-codegen/codegen-disabled"]
+unit-test = ["godot-codegen/codegen-disabled"] # If this crate is built for a downstream unit test
 
 [dependencies]
 paste = "1"

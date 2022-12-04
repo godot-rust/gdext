@@ -13,7 +13,7 @@ macro_rules! impl_builtin_traits_inner {
             fn default() -> Self {
                 unsafe {
                     let mut gd_val = sys::$GdType::default();
-                    (sys::method_table().$gd_method)(&mut gd_val);
+                    ::godot_ffi::builtin_fn!($gd_method)(&mut gd_val);
                     <$Type>::from_sys(gd_val)
                 }
             }
@@ -26,7 +26,7 @@ macro_rules! impl_builtin_traits_inner {
             fn clone(&self) -> Self {
                 unsafe {
                     Self::from_sys_init(|self_ptr| {
-                        let ctor = sys::method_table().$gd_method;
+                        let ctor = ::godot_ffi::builtin_fn!($gd_method);
                         let args = [self.sys()];
                         ctor(self_ptr, args.as_ptr());
                     })
@@ -40,7 +40,7 @@ macro_rules! impl_builtin_traits_inner {
             #[inline]
             fn drop(&mut self) {
                 unsafe {
-                    let destructor = sys::method_table().$gd_method;
+                    let destructor = ::godot_ffi::builtin_fn!($gd_method @1);
             	    destructor(self.sys_mut());
                 }
             }
@@ -52,10 +52,10 @@ macro_rules! impl_builtin_traits_inner {
             #[inline]
             fn eq(&self, other: &Self) -> bool {
                 unsafe {
-                    let operator = godot_ffi::method_table().$gd_method;
-
-                    let mut result: bool = false;
-                    operator(self.sys(), other.sys(), result.sys_mut());
+                    let mut result = false;
+                    ::godot_ffi::builtin_call! {
+                        $gd_method(self.sys(), other.sys(), result.sys_mut())
+                    };
                     result
                 }
             }
@@ -72,10 +72,10 @@ macro_rules! impl_builtin_traits_inner {
             #[inline]
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
                 let op_less = |lhs, rhs| unsafe {
-                    let operator = godot_ffi::method_table().$gd_method;
-
-                    let mut result: bool = false;
-                    operator(lhs, rhs, result.sys_mut());
+                    let mut result = false;
+                    ::godot_ffi::builtin_call! {
+                        $gd_method(lhs, rhs, result.sys_mut())
+                    };
                     result
                 };
 
@@ -141,8 +141,10 @@ macro_rules! impl_builtin_froms {
             fn from(other: &$From) -> Self {
                 unsafe {
                     Self::from_sys_init(|ptr| {
-                        let converter = sys::method_table().$from_fn;
-                        converter(ptr, [other.sys()].as_ptr());
+                        let args = [other.sys()];
+                        ::godot_ffi::builtin_call! {
+                            $from_fn(ptr, args.as_ptr())
+                        }
                     })
                 }
             }

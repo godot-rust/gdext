@@ -13,6 +13,7 @@ trace = []
 convenience = []
 codegen-fmt = ["godot-ffi/codegen-fmt"]
 minimal = ["godot-ffi/minimal"]
+unit-test = ["godot-ffi/unit-test", "godot-codegen/codegen-disabled"] # If this crate is built for a downstream unit test
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi" }
@@ -24,7 +25,7 @@ glam = { version = "0.22", features = ["debug-glam-assert", "scalar-math"] }
 # Reverse dev dependencies so doctests can use `godot::` prefix
 [dev-dependencies]
 godot = { path = "../godot" }
-godot-ffi = { path = "../godot-ffi", features = ["codegen-disabled"] } # unit-test
+godot-ffi = { path = "../godot-ffi", features = ["unit-test"] } # unit-test
 
 [build-dependencies]
 godot-codegen = { path = "../godot-codegen" }

@@ -7,6 +7,16 @@
 use godot_ffi as sys;
 use std::collections::btree_map::BTreeMap;
 
+#[cfg(feature = "unit-test")]
+pub fn __gdext_load_library<E: ExtensionLibrary>(
+    interface: *const sys::GDNativeInterface,
+    library: sys::GDNativeExtensionClassLibraryPtr,
+    init: *mut sys::GDNativeInitialization,
+) -> sys::GDNativeBool {
+    sys::panic_no_godot!(__gdext_load_library)
+}
+
+#[cfg(not(feature = "unit-test"))]
 #[doc(hidden)]
 pub fn __gdext_load_library<E: ExtensionLibrary>(
     interface: *const sys::GDNativeInterface,

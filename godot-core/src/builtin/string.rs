@@ -61,8 +61,9 @@ impl Default for GodotString {
 
         unsafe {
             let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
-            let ctor = sys::method_table().string_construct_default;
-            ctor(self_ptr, std::ptr::null_mut());
+            let ctor = sys::builtin_call! {
+                string_construct_default(self_ptr, std::ptr::null_mut())
+            };
 
             uninit.assume_init()
         }

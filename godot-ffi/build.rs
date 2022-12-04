@@ -7,9 +7,6 @@
 use std::env;
 use std::path::Path;
 
-#[cfg(not(test))]
-use godot_codegen as gen;
-
 fn main() {
     // For custom path on macOS, iOS, Android etc: see gdnative-sys/build.rs
     let gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/"));
@@ -19,7 +16,9 @@ fn main() {
     }
 
     run_bindgen(&gen_path.join("gdnative_interface.rs"));
-    gen::generate_sys_files(gen_path);
+
+    #[cfg(not(feature = "unit-test"))]
+    godot_codegen::generate_sys_files(gen_path);
 }
 
 fn run_bindgen(out_file: &Path) {

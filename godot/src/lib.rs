@@ -36,15 +36,15 @@ pub use godot_core::private;
 pub mod prelude {
     pub use super::bind::{godot_api, GodotClass, GodotExt};
     pub use super::builtin::*;
-    pub use super::engine::{
-        load, try_load, utilities, AudioStreamPlayer, Camera2D, Camera3D, Input, Node, Node2D,
-        Node3D, Object, PackedScene, RefCounted, Resource, SceneTree,
-    };
+    // pub use super::engine::{
+    //     load, try_load, utilities, AudioStreamPlayer, Camera2D, Camera3D, Input, Node, Node2D,
+    //     Node3D, Object, PackedScene, RefCounted, Resource, SceneTree,
+    // };
     pub use super::init::{gdextension, ExtensionLayer, ExtensionLibrary, InitHandle, InitLevel};
     pub use super::log::*;
     pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, Share};
 
     // Make trait methods available
-    pub use super::engine::NodeExt as _;
+    // pub use super::engine::NodeExt as _;
     pub use super::obj::EngineEnum as _;
 }

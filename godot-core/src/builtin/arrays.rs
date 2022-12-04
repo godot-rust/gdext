@@ -73,7 +73,7 @@ impl<T> Clone for TypedArray<T> {
     fn clone(&self) -> Self {
         unsafe {
             Self::from_sys_init(|opaque_ptr| {
-                let ctor = sys::method_table().array_construct_copy;
+                let ctor = sys::builtin_fn!(array_construct_copy);
                 ctor(opaque_ptr, &self.sys() as *const sys::GDNativeTypePtr);
             })
         }
@@ -85,7 +85,7 @@ impl<T> GodotFfi for TypedArray<T> {
 impl<T> Drop for TypedArray<T> {
     fn drop(&mut self) {
         unsafe {
-            let destructor = sys::method_table().array_destroy;
+            let destructor = sys::builtin_fn!(array_destroy @1);
             destructor(self.sys_mut());
         }
     }

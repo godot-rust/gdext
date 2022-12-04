@@ -33,6 +33,7 @@ struct InnerRect {
     size: Vector2,
 }
 
+#[cfg(not(feature = "unit-test"))]
 impl Rect2 {
     pub fn size(self) -> Vector2 {
         self.inner().size
@@ -53,7 +54,7 @@ impl Callable {
         let method = method.into();
         unsafe {
             Self::from_sys_init(|self_ptr| {
-                let ctor = sys::method_table().callable_from_object_method;
+                let ctor = sys::builtin_fn!(callable_from_object_method);
                 let args = [object.sys(), method.sys()];
                 ctor(self_ptr, args.as_ptr());
             })

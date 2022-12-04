@@ -13,5 +13,6 @@ fn main() {
         std::fs::remove_dir_all(gen_path).unwrap_or_else(|e| panic!("failed to delete dir: {e}"));
     }
 
+    #[cfg(not(feature = "unit-test"))]
     godot_codegen::generate_core_files(gen_path);
 }

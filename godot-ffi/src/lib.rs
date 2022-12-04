@@ -16,8 +16,15 @@
     deref_nullptr,
     clippy::redundant_static_lifetimes
 )]
+
 pub(crate) mod gen {
+    #[cfg(not(feature = "unit-test"))]
     pub mod central;
+
+    #[cfg(feature = "unit-test")]
+    #[path = "../gen_central_stub.rs"]
+    pub mod central;
+
     pub mod gdnative_interface;
 }
 
@@ -31,25 +38,26 @@ mod plugins;
 #[doc(hidden)]
 pub use paste;
 
-pub use gen::gdnative_interface::*;
-pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal}; // needs `crate::`
+pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
 
-#[cfg(not(test))]
+pub use gen::central::*;
+pub use gen::gdnative_interface::*; // needs `crate::`
+
+#[cfg(not(feature = "unit-test"))]
 #[doc(inline)]
 pub use real_impl::*;
 
-#[cfg(test)]
+#[cfg(feature = "unit-test")]
 #[doc(inline)]
 pub use test_impl::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Real implementation, when Godot engine is running
 
-#[cfg(not(test))]
+#[cfg(not(feature = "unit-test"))]
 mod real_impl {
-    pub use super::gen::central::*;
-    use super::gen::gdnative_interface::*;
     use super::global_registry::GlobalRegistry;
+    use super::*;
 
     struct GodotBinding {
         interface: GDNativeInterface,
@@ -141,6 +149,7 @@ mod real_impl {
         }
     }
 
+    #[doc(hidden)]
     pub fn default_call_error() -> GDNativeCallError {
         GDNativeCallError {
             error: GDNATIVE_CALL_OK,
@@ -148,12 +157,28 @@ mod real_impl {
             expected: -1,
         }
     }
+
+    #[macro_export]
+    #[doc(hidden)]
+    macro_rules! builtin_fn {
+        ($name:ident $(, @1)?) => {
+            $crate::method_table().$name
+        };
+    }
+
+    #[macro_export]
+    #[doc(hidden)]
+    macro_rules! builtin_call {
+        ($name:ident ( $($args:expr),* $(,)? )) => {
+            ($crate::method_table().$name)( $($args),* )
+        };
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Stubs when in unit-test (without Godot)
 
-#[cfg(test)]
+#[cfg(feature = "unit-test")]
 mod test_impl {
     use super::gen::gdnative_interface::*;
     use super::global_registry::GlobalRegistry;
@@ -162,22 +187,64 @@ mod test_impl {
 
     #[inline(always)]
     pub unsafe fn get_interface() -> &'static GDNativeInterface {
-        unimplemented!("Not available in unit-tests; needs Godot engine to run.")
+        crate::panic_no_godot!(get_interface)
     }
 
     #[inline(always)]
     pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
-        unimplemented!("Not available in unit-tests; needs Godot engine to run.")
+        crate::panic_no_godot!(get_library)
     }
 
     #[inline(always)]
     pub unsafe fn method_table() -> &'static GlobalMethodTable {
-        unimplemented!("Not available in unit-tests; needs Godot engine to run.")
+        crate::panic_no_godot!(method_table)
     }
 
     #[inline(always)]
     pub unsafe fn get_registry() -> &'static mut GlobalRegistry {
-        unimplemented!("Not available in unit-tests; needs Godot engine to run.")
+        crate::panic_no_godot!(get_registry)
+    }
+
+    #[macro_export]
+    #[doc(hidden)]
+    macro_rules! builtin_fn {
+        // Don't use ! because of warnings
+        ($name:ident) => {{
+            #[allow(unreachable_code)]
+            fn panic2<T, U>(t: T, u: U) -> () {
+                panic!("builtin_fn! unavailable in unit-tests; needs Godot engine");
+                ()
+            }
+            panic2
+        }};
+        ($name:ident @1) => {{
+            #[allow(unreachable_code)]
+            fn panic1<T>(t: T) -> () {
+                panic!("builtin_fn! unavailable in unit-tests; needs Godot engine");
+                ()
+            }
+            panic1
+        }};
+    }
+
+    // Possibly interesting: https://stackoverflow.com/a/40234666
+    #[macro_export]
+    #[doc(hidden)]
+    macro_rules! panic_no_godot {
+        ($symbol:expr) => {
+            panic!(concat!(
+                stringify!($symbol),
+                " unavailable in unit-tests; needs Godot engine"
+            ))
+        };
+    }
+
+    #[macro_export]
+    #[doc(hidden)]
+    macro_rules! builtin_call {
+        ($name:ident ( $($args:expr),* $(,)? )) => {
+            $crate::panic_no_godot!(builtin_call)
+        };
     }
 }
 

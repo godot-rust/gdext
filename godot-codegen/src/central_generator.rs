@@ -115,7 +115,6 @@ fn make_sys_code(central_items: &CentralItems) -> String {
         }
 
         impl GlobalMethodTable {
-            #[cfg(not(test))]
             pub(crate) unsafe fn new(interface: &crate::GDNativeInterface) -> Self {
                 Self {
                     #(#variant_fn_inits)*
