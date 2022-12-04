@@ -19,7 +19,7 @@ mod watch;
 mod tests;
 
 use api_parser::{load_extension_api, ExtensionApi};
-use central_generator::generate_central_files;
+use central_generator::{generate_core_central_file, generate_sys_central_file};
 use class_generator::generate_class_files;
 use context::Context;
 use util::ident;
@@ -30,36 +30,46 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use std::path::{Path, PathBuf};
 
-pub fn generate_all_files(sys_out_dir: &Path, core_out_dir: &Path, stats_out_dir: &Path) {
+pub fn generate_sys_files(sys_gen_path: &Path) {
     // When invoked by another crate during unit-test (not integration test), don't run generator
     // cfg! is easier to handle than #[cfg] regarding all the imports, and neither code size nor performance matter in unit-test
     if cfg!(feature = "codegen-disabled") {
         return;
     }
 
-    let central_sys_gen_path = sys_out_dir;
-    let central_core_gen_path = core_out_dir;
-    let class_gen_path = core_out_dir;
-
     let mut out_files = vec![];
-
     let mut watch = StopWatch::start();
 
     let (api, build_config) = load_extension_api(&mut watch);
     let mut ctx = Context::build_from_api(&api);
     watch.record("build_context");
 
-    generate_central_files(
-        &api,
-        &mut ctx,
-        build_config,
-        central_sys_gen_path,
-        central_core_gen_path,
-        &mut out_files,
-    );
-    watch.record("generate_central_files");
+    generate_sys_central_file(&api, &mut ctx, build_config, sys_gen_path, &mut out_files);
+    watch.record("generate_central_file");
 
-    generate_utilities_file(&api, &mut ctx, class_gen_path, &mut out_files);
+    rustfmt_if_needed(out_files);
+    watch.record("rustfmt");
+    watch.write_stats_to(&sys_gen_path.join("codegen-stats.txt"));
+}
+
+pub fn generate_core_files(core_gen_path: &Path) {
+    // When invoked by another crate during unit-test (not integration test), don't run generator
+    // cfg! is easier to handle than #[cfg] regarding all the imports, and neither code size nor performance matter in unit-test
+    if cfg!(feature = "codegen-disabled") {
+        return;
+    }
+
+    let mut out_files = vec![];
+    let mut watch = StopWatch::start();
+
+    let (api, build_config) = load_extension_api(&mut watch);
+    let mut ctx = Context::build_from_api(&api);
+    watch.record("build_context");
+
+    generate_core_central_file(&api, &mut ctx, build_config, core_gen_path, &mut out_files);
+    watch.record("generate_central_file");
+
+    generate_utilities_file(&api, &mut ctx, core_gen_path, &mut out_files);
     watch.record("generate_utilities_file");
 
     // Class files -- currently output in godot-core; could maybe be separated cleaner
@@ -68,14 +78,14 @@ pub fn generate_all_files(sys_out_dir: &Path, core_out_dir: &Path, stats_out_dir
         &api,
         &mut ctx,
         build_config,
-        &class_gen_path.join("classes"),
+        &core_gen_path.join("classes"),
         &mut out_files,
     );
     watch.record("generate_class_files");
 
     rustfmt_if_needed(out_files);
     watch.record("rustfmt");
-    watch.write_stats_to(&stats_out_dir.join("codegen-stats.txt"));
+    watch.write_stats_to(&core_gen_path.join("codegen-stats.txt"));
 }
 
 #[cfg(feature = "codegen-fmt")]

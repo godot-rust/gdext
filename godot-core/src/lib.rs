@@ -20,13 +20,21 @@ pub use registry::*;
 
 pub use godot_ffi as sys;
 
+// Output of generated code. Mimics the file structure, symbols are re-exported.
+#[allow(unused_imports, dead_code, non_upper_case_globals, non_snake_case)]
+mod gen {
+    pub mod central;
+    pub mod classes;
+    pub mod utilities;
+}
+
 #[doc(hidden)]
 pub mod private {
     // If someone forgets #[godot_api], this causes a compile error, rather than virtual functions not being called at runtime.
     #[allow(non_camel_case_types)]
     pub trait You_forgot_the_attribute__godot_api {}
 
-    pub use crate::engine::gen::classes::class_macros;
+    pub use crate::gen::classes::class_macros;
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
     pub use crate::storage::as_storage;
     pub use crate::{

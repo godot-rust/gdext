@@ -25,3 +25,6 @@ glam = { version = "0.22", features = ["debug-glam-assert", "scalar-math"] }
 [dev-dependencies]
 godot = { path = "../godot" }
 godot-ffi = { path = "../godot-ffi", features = ["codegen-disabled"] } # unit-test
+
+[build-dependencies]
+godot-codegen = { path = "../godot-codegen" }

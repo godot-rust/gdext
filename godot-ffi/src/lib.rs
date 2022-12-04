@@ -13,20 +13,10 @@
     clippy::redundant_static_lifetimes
 )]
 
-// Path to gdnative_interface.rs
-// Do not write macro for this, as it confuses IDEs -- just search&replace
-include!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../target/godot-gen/gdnative_interface.rs"
-));
-
-pub(crate) mod central {
-    // Path to sys/central.rs
-    // Do not write macro for this, as it confuses IDEs -- just search&replace
-    include!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../target/godot-gen/sys/central.rs"
-    ));
+// Output of generated code. Mimics the file structure, symbols are re-exported.
+pub(crate) mod gen {
+    pub mod central;
+    pub mod gdnative_interface;
 }
 
 mod global_registry;
@@ -44,7 +34,9 @@ pub use paste;
 use global_registry::GlobalRegistry;
 
 pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
-pub use central::*;
+
+pub use gen::central::*;
+pub use gen::gdnative_interface::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Real implementation, when Godot engine is running

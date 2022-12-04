@@ -10,24 +10,19 @@ use std::path::Path;
 #[cfg(not(test))]
 use godot_codegen as gen;
 
-// Note: this macro is fine during codegen, but not for building module structures
-// It confuses IDEs, and can cause symbols not to be found
-macro_rules! codegen_path {
-    ($path:literal) => {
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../target/godot-gen/", $path)
-    };
-}
-
 fn main() {
     // For custom path on macOS, iOS, Android etc: see gdnative-sys/build.rs
 
-    run_bindgen(Path::new(codegen_path!("gdnative_interface.rs")));
+    run_bindgen(Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/gen/gdnative_interface.rs"
+    )));
 
-    gen::generate_all_files(
-        Path::new(codegen_path!("sys")),
-        Path::new(codegen_path!("core")),
-        Path::new(codegen_path!("")),
-    );
+    gen::generate_sys_files(Path::new(concat!(
+        //
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/gen/"
+    )));
 }
 
 fn run_bindgen(out_file: &Path) {

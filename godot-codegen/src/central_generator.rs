@@ -51,20 +51,29 @@ struct BuiltinTypeInfo<'a> {
     operators: Option<&'a Vec<Operator>>,
 }
 
-pub(crate) fn generate_central_files(
+pub(crate) fn generate_sys_central_file(
     api: &ExtensionApi,
     ctx: &mut Context,
     build_config: &str,
     sys_gen_path: &Path,
+    out_files: &mut Vec<PathBuf>,
+) {
+    let central_items = make_central_items(api, build_config, ctx);
+    let sys_code = make_sys_code(&central_items);
+
+    write_files(sys_gen_path, sys_code, out_files);
+}
+
+pub(crate) fn generate_core_central_file(
+    api: &ExtensionApi,
+    ctx: &mut Context,
+    build_config: &str,
     core_gen_path: &Path,
     out_files: &mut Vec<PathBuf>,
 ) {
     let central_items = make_central_items(api, build_config, ctx);
-
-    let sys_code = make_sys_code(&central_items);
     let core_code = make_core_code(&central_items);
 
-    write_files(sys_gen_path, sys_code, out_files);
     write_files(core_gen_path, core_code, out_files);
 }
 
