@@ -19,14 +19,7 @@ mod vector2;
 mod vector3;
 mod vector4;
 
-// #[cfg(not(feature = "unit-test"))]
 pub mod meta;
-//
-// #[cfg(feature = "unit-test")]
-// pub mod meta {
-// 	mod class_name;
-// 	pub use class_name::*;
-// }
 
 pub use arrays::*;
 pub use color::*;

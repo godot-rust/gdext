@@ -8,7 +8,7 @@
 // The concrete values matter much less than having a structure at all, to avoid thousands of upstream
 // conditional compilation differentiations.
 
-use crate::{ffi_methods, GDNativeTypePtr, GDNativeVariantPtr, GodotFfi};
+use crate::{ffi_methods, GDNativeTypePtr, /*GDNativeVariantPtr,*/ GodotFfi};
 pub mod types {
     pub type OpaqueNil = crate::opaque::Opaque<0usize>;
     pub type OpaqueBool = crate::opaque::Opaque<1usize>;
@@ -50,12 +50,12 @@ pub mod types {
     pub type OpaquePackedColorArray = crate::opaque::Opaque<16usize>;
     pub type OpaqueVariant = crate::opaque::Opaque<24usize>;
 }
-pub struct GlobalMethodTable {}
-impl GlobalMethodTable {
-    // pub(crate) unsafe fn new(interface: &crate::GDNativeInterface) -> Self {
-    //     Self {}
-    // }
-}
+// pub struct GlobalMethodTable {}
+// impl GlobalMethodTable {
+//     pub(crate) unsafe fn new(interface: &crate::GDNativeInterface) -> Self {
+//         Self {}
+//     }
+// }
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[repr(i32)]
 pub enum VariantType {

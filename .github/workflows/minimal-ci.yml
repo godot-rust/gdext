@@ -95,10 +95,10 @@ jobs:
         if: matrix.name == 'macos'
 
       - name: "Compile tests"
-        run: cargo test --workspace --features ${GDEXT_FEATURES} --no-run
+        run: cargo test --workspace --features unit-test,${GDEXT_FEATURES} --no-run
 
       - name: "Test"
-        run: cargo test --workspace --features ${GDEXT_FEATURES} ${{ matrix.testflags }}
+        run: cargo test --workspace --features unit-test,${GDEXT_FEATURES} ${{ matrix.testflags }}
 
 
   integration-test-godot:

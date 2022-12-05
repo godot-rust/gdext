@@ -24,7 +24,7 @@ glam = { version = "0.22", features = ["debug-glam-assert", "scalar-math"] }
 
 # Reverse dev dependencies so doctests can use `godot::` prefix
 [dev-dependencies]
-godot = { path = "../godot" }
+#godot = { path = "../godot" } # when re-enabling, add unit-test feature to `godot`, or it will mess things up
 godot-ffi = { path = "../godot-ffi", features = ["unit-test"] } # unit-test
 
 [build-dependencies]
