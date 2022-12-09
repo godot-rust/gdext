@@ -144,7 +144,7 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utilities for crate
 
-pub(crate) fn debug_string<T>(
+pub(crate) fn debug_string<T: GodotClass>(
     ptr: &Gd<T>,
     f: &mut std::fmt::Formatter<'_>,
     ty: &str,
@@ -158,7 +158,10 @@ pub(crate) fn debug_string<T>(
     }
 }
 
-pub(crate) fn display_string<T>(ptr: &Gd<T>, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+pub(crate) fn display_string<T: GodotClass>(
+    ptr: &Gd<T>,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
     let string: GodotString = ptr.as_object(|obj| Object::to_string(obj));
 
     <GodotString as std::fmt::Display>::fmt(&string, f)

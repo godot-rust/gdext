@@ -14,7 +14,7 @@
 // which would be necessary because `cargo test` runs both test/doctest, and downstream crates may need the feature as
 // workaround https://github.com/rust-lang/rust/issues/59168#issuecomment-962214945. However, this *also* does not work,
 // as #[cfg(doctest)] is currently near-useless for conditional compilation: https://github.com/rust-lang/rust/issues/67295.
-// As if this weren't enough, even our compile error here does not appear as the first error message, but the 4th or so.
+// Yet even then, our compile error here is only one of many, as the compiler tries to build doctest without hitting this.
 #[cfg(all(test, not(feature = "unit-test")))]
 compile_error!("Running `cargo test` requires `--features unit-test`.");
 
@@ -34,22 +34,18 @@ pub mod obj;
 pub use godot_ffi as sys;
 pub use registry::*;
 
-#[cfg(not(feature = "unit-test"))]
+#[cfg(not(any(test, feature = "unit-test")))]
 pub mod engine;
 
 // Output of generated code. Mimics the file structure, symbols are re-exported.
-#[cfg(not(feature = "unit-test"))]
+#[rustfmt::skip]
 #[allow(unused_imports, dead_code, non_upper_case_globals, non_snake_case)]
-mod gen {
-    pub mod central;
-    pub mod classes;
-    pub mod utilities;
-}
+mod gen;
 
-#[cfg(any(feature = "unit-test"))]
+#[cfg(feature = "unit-test")]
 mod test_stubs;
-#[cfg(any(feature = "unit-test"))]
-use test_stubs::*;
+#[cfg(feature = "unit-test")]
+pub use test_stubs::*;
 
 #[doc(hidden)]
 pub mod private {

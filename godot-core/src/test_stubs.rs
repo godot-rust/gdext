@@ -6,19 +6,6 @@
 
 use super::sys;
 
-pub mod gen {
-    pub mod central {
-        pub mod global {}
-    }
-    pub mod classes {
-        pub struct Node {}
-        pub struct Resource {}
-
-        pub mod class_macros {}
-    }
-    pub mod utilities {}
-}
-
 /*pub mod callbacks {
     use super::sys;
     use crate::obj::{Base, GodotClass};

@@ -4,6 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+#[cfg(test)]
+compile_error!("`cargo test` not supported for integration test -- use `cargo run`.");
+
 use godot::bind::{godot_api, GodotClass};
 use godot::init::{gdextension, ExtensionLibrary};
 use godot::test::itest;

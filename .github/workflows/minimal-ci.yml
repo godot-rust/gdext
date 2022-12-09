@@ -26,6 +26,7 @@ on:
 
 env:
   GDEXT_FEATURES: 'godot-core/convenience'
+  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
 
 defaults:
   run:
@@ -95,10 +96,10 @@ jobs:
         if: matrix.name == 'macos'
 
       - name: "Compile tests"
-        run: cargo test --workspace --features unit-test,${GDEXT_FEATURES} --no-run
+        run: cargo test $GDEXT_CRATE_ARGS --features unit-test,$GDEXT_FEATURES --no-run
 
       - name: "Test"
-        run: cargo test --workspace --features unit-test,${GDEXT_FEATURES} ${{ matrix.testflags }}
+        run: cargo test $GDEXT_CRATE_ARGS --features unit-test,$GDEXT_FEATURES ${{ matrix.testflags }}
 
 
   integration-test-godot:

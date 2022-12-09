@@ -61,7 +61,37 @@ pub(crate) fn generate_sys_central_file(
     let central_items = make_central_items(api, build_config, ctx);
     let sys_code = make_sys_code(&central_items);
 
-    write_files(sys_gen_path, sys_code, out_files);
+    write_file(sys_gen_path, "central.rs", sys_code, out_files);
+}
+
+pub(crate) fn generate_core_mod_file(
+    core_gen_path: &Path,
+    out_files: &mut Vec<PathBuf>,
+    stubs_only: bool,
+) {
+    // When invoked by another crate during unit-test (not integration test), don't run generator
+    let code = if stubs_only {
+        quote! {
+            pub mod central {
+                pub mod global {}
+            }
+            pub mod classes {
+                pub struct Node {}
+                pub struct Resource {}
+
+                pub mod class_macros {}
+            }
+            pub mod utilities {}
+        }
+    } else {
+        quote! {
+            pub mod central;
+            pub mod classes;
+            pub mod utilities;
+        }
+    };
+
+    write_file(core_gen_path, "mod.rs", code.to_string(), out_files);
 }
 
 pub(crate) fn generate_core_central_file(
@@ -74,12 +104,17 @@ pub(crate) fn generate_core_central_file(
     let central_items = make_central_items(api, build_config, ctx);
     let core_code = make_core_code(&central_items);
 
-    write_files(core_gen_path, core_code, out_files);
+    write_file(core_gen_path, "central.rs", core_code, out_files);
 }
 
-fn write_files(gen_path: &Path, code: String, out_files: &mut Vec<PathBuf>) {
+pub(crate) fn write_file(
+    gen_path: &Path,
+    filename: &str,
+    code: String,
+    out_files: &mut Vec<PathBuf>,
+) {
     let _ = std::fs::create_dir_all(gen_path);
-    let out_path = gen_path.join("central.rs");
+    let out_path = gen_path.join(filename);
 
     std::fs::write(&out_path, code).unwrap_or_else(|e| {
         panic!(

@@ -19,7 +19,9 @@ mod watch;
 mod tests;
 
 use api_parser::{load_extension_api, ExtensionApi};
-use central_generator::{generate_core_central_file, generate_sys_central_file};
+use central_generator::{
+    generate_core_central_file, generate_core_mod_file, generate_sys_central_file,
+};
 use class_generator::generate_class_files;
 use context::Context;
 use util::ident;
@@ -52,15 +54,15 @@ pub fn generate_sys_files(sys_gen_path: &Path) {
     watch.write_stats_to(&sys_gen_path.join("codegen-stats.txt"));
 }
 
-pub fn generate_core_files(core_gen_path: &Path) {
-    // When invoked by another crate during unit-test (not integration test), don't run generator
-    // cfg! is easier to handle than #[cfg] regarding all the imports, and neither code size nor performance matter in unit-test
-    if cfg!(feature = "codegen-disabled") {
-        return;
-    }
-
+pub fn generate_core_files(core_gen_path: &Path, stubs_only: bool) {
     let mut out_files = vec![];
     let mut watch = StopWatch::start();
+
+    generate_core_mod_file(core_gen_path, &mut out_files, stubs_only);
+    if stubs_only {
+        rustfmt_if_needed(out_files);
+        return;
+    }
 
     let (api, build_config) = load_extension_api(&mut watch);
     let mut ctx = Context::build_from_api(&api);

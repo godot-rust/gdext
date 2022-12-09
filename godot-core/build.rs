@@ -13,6 +13,8 @@ fn main() {
         std::fs::remove_dir_all(gen_path).unwrap_or_else(|e| panic!("failed to delete dir: {e}"));
     }
 
-    #[cfg(not(feature = "unit-test"))]
-    godot_codegen::generate_core_files(gen_path);
+    // Note: cannot use cfg!(test) because that isn't recognizable from build files.
+    // See https://github.com/rust-lang/cargo/issues/1581, which was closed without a solution.
+    let stubs_only = cfg!(feature = "unit-test");
+    godot_codegen::generate_core_files(gen_path, stubs_only);
 }
