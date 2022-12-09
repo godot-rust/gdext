@@ -17,8 +17,8 @@ fn main() {
 
     run_bindgen(&gen_path.join("gdnative_interface.rs"));
 
-    #[cfg(not(feature = "unit-test"))]
-    godot_codegen::generate_sys_files(gen_path);
+    let stubs_only = cfg!(feature = "unit-test");
+    godot_codegen::generate_sys_files(gen_path, stubs_only);
 }
 
 fn run_bindgen(out_file: &Path) {

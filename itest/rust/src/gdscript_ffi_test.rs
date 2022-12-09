@@ -6,6 +6,7 @@
 
 #![allow(dead_code)]
 
+#[rustfmt::skip]
 #[path = "gen/gen_ffi.rs"]
 mod gen_ffi;
 

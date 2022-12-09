@@ -6,7 +6,6 @@ rust-version = "1.63"
 
 # Note: features not additive, but this is an internal crate
 [features]
-codegen-disabled = [] # if active, nothing is generated (for unit tests)
 codegen-fmt = []
 minimal = ["codegen-fmt"]
 

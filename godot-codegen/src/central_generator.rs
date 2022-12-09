@@ -64,6 +64,28 @@ pub(crate) fn generate_sys_central_file(
     write_file(sys_gen_path, "central.rs", sys_code, out_files);
 }
 
+pub(crate) fn generate_sys_mod_file(
+    core_gen_path: &Path,
+    out_files: &mut Vec<PathBuf>,
+    stubs_only: bool,
+) {
+    // When invoked by another crate during unit-test (not integration test), don't run generator
+    let code = if stubs_only {
+        quote! {
+            #[path = "../gen_central_stub.rs"]
+            pub mod central;
+            pub mod gdnative_interface;
+        }
+    } else {
+        quote! {
+            pub mod central;
+            pub mod gdnative_interface;
+        }
+    };
+
+    write_file(core_gen_path, "mod.rs", code.to_string(), out_files);
+}
+
 pub(crate) fn generate_core_mod_file(
     core_gen_path: &Path,
     out_files: &mut Vec<PathBuf>,

@@ -9,6 +9,9 @@
 #![cfg_attr(test, allow(unused))]
 
 // Output of generated code. Mimics the file structure, symbols are re-exported.
+// Note: accessing `gen` *may* still work without explicitly specifying `unit-test` feature,
+// but stubs are generated for consistency with how godot-core depends on godot-codegen.
+#[rustfmt::skip]
 #[allow(
     non_camel_case_types,
     non_upper_case_globals,
@@ -16,17 +19,7 @@
     deref_nullptr,
     clippy::redundant_static_lifetimes
 )]
-
-pub(crate) mod gen {
-    #[cfg(not(feature = "unit-test"))]
-    pub mod central;
-
-    #[cfg(feature = "unit-test")]
-    #[path = "../gen_central_stub.rs"]
-    pub mod central;
-
-    pub mod gdnative_interface;
-}
+pub(crate) mod gen;
 
 mod global_registry;
 mod godot_ffi;
@@ -161,7 +154,7 @@ mod real_impl {
     #[macro_export]
     #[doc(hidden)]
     macro_rules! builtin_fn {
-        ($name:ident $(, @1)?) => {
+        ($name:ident $(@1)?) => {
             $crate::method_table().$name
         };
     }
