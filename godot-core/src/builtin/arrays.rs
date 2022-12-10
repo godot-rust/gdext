@@ -72,16 +72,27 @@ impl<T> TypedArray<T> {
 impl<T> Clone for TypedArray<T> {
     fn clone(&self) -> Self {
         unsafe {
-            Self::from_sys_init(|opaque_ptr| {
-                let ctor = sys::builtin_fn!(array_construct_copy);
-                ctor(opaque_ptr, &self.sys() as *const sys::GDNativeTypePtr);
+            Self::from_sys_init(|self_ptr| {
+                let ctor = ::godot_ffi::builtin_fn!(array_construct_copy);
+                let mut args = [self.sys_const()];
+                ctor(self_ptr, args.as_mut_ptr());
             })
         }
     }
 }
+
+// TODO enable this:
+// impl_builtin_traits! {
+//     for TypedArray<T> {
+//         Clone => array_construct_copy;
+//         Drop => array_destroy;
+//     }
+// }
+
 impl<T> GodotFfi for TypedArray<T> {
     ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
 }
+
 impl<T> Drop for TypedArray<T> {
     fn drop(&mut self) {
         unsafe {

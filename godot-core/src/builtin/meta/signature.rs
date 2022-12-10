@@ -18,7 +18,7 @@ pub trait SignatureTuple {
 
     fn varcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
-        args_ptr: *const sys::GDNativeVariantPtr,
+        args_ptr: *mut sys::GDNativeConstVariantPtr,
         ret: sys::GDNativeVariantPtr,
         err: *mut sys::GDNativeCallError,
         func: fn(&mut C, Self::Params) -> Self::Ret,
@@ -29,7 +29,7 @@ pub trait SignatureTuple {
     // We could fall back to varcalls in such cases, and not require GodotFfi categorically.
     fn ptrcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
-        args_ptr: *const sys::GDNativeTypePtr,
+        args_ptr: *mut sys::GDNativeConstTypePtr,
         ret: sys::GDNativeTypePtr,
         func: fn(&mut C, Self::Params) -> Self::Ret,
         method_name: &str,
@@ -106,7 +106,7 @@ macro_rules! impl_signature_for_tuple {
             #[inline]
             fn varcall<C : GodotClass>(
 				instance_ptr: sys::GDExtensionClassInstancePtr,
-                args_ptr: *const sys::GDNativeVariantPtr,
+                args_ptr: *mut sys::GDNativeConstVariantPtr,
                 ret: sys::GDNativeVariantPtr,
                 err: *mut sys::GDNativeCallError,
                 func: fn(&mut C, Self::Params) -> Self::Ret,
@@ -138,7 +138,7 @@ macro_rules! impl_signature_for_tuple {
             #[inline]
             fn ptrcall<C : GodotClass>(
 				instance_ptr: sys::GDExtensionClassInstancePtr,
-                args_ptr: *const sys::GDNativeTypePtr,
+                args_ptr: *mut sys::GDNativeConstTypePtr,
                 ret: sys::GDNativeTypePtr,
                 func: fn(&mut C, Self::Params) -> Self::Ret,
                 method_name: &str,

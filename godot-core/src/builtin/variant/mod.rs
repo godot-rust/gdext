@@ -123,6 +123,11 @@ impl Variant {
         fn write_var_sys = write_sys;
     }
 
+    #[doc(hidden)]
+    pub fn var_sys_const(&self) -> sys::GDNativeConstVariantPtr {
+        sys::to_const_ptr(self.var_sys())
+    }
+
     /*#[doc(hidden)]
     pub unsafe fn from_var_sys_init(init_fn: impl FnOnce(sys::GDNativeVariantPtr)) -> Self {
         // Can't use uninitialized pointer -- Variant implementation in C++ expects that on assignment,

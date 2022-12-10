@@ -405,10 +405,10 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
                         #( #arg_exprs ),*
                     ];
                     let mut __args = Vec::new();
-                    __args.extend(__explicit_args.iter().map(Variant::var_sys));
-                    __args.extend(varargs.iter().map(Variant::var_sys));
+                    __args.extend(__explicit_args.iter().map(Variant::var_sys_const));
+                    __args.extend(varargs.iter().map(Variant::var_sys_const));
 
-                    let __args_ptr = __args.as_ptr();
+                    let __args_ptr = __args.as_mut_ptr();
 
                     #call
                 }
@@ -428,10 +428,10 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
                     );
                     let __call_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
-                    let __args = [
+                    let mut __args = [
                         #( #arg_exprs ),*
                     ];
-                    let __args_ptr = __args.as_ptr();
+                    let __args_ptr = __args.as_mut_ptr();
 
                     #call
                 }
@@ -465,10 +465,10 @@ pub(crate) fn make_function_definition(
                 let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
                 let __call_fn = __call_fn.unwrap_unchecked();
 
-                let __args = [
+                let mut __args = [
                     #( #arg_exprs ),*
                 ];
-                let __args_ptr = __args.as_ptr();
+                let __args_ptr = __args.as_mut_ptr();
 
                 #call
             };
@@ -503,7 +503,7 @@ fn make_params(
             });
         } else {
             arg_exprs.push(quote! {
-                <#param_ty as sys::GodotFfi>::sys(&#param_name)
+                <#param_ty as sys::GodotFfi>::sys_const(&#param_name)
             });
         }
     }

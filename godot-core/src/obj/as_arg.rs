@@ -16,15 +16,15 @@ use private::Sealed;
 
 pub trait AsArg: Sealed {
     #[doc(hidden)]
-    fn as_arg_ptr(&self) -> sys::GDNativeTypePtr;
+    fn as_arg_ptr(&self) -> sys::GDNativeConstTypePtr;
 }
 
 impl<T: GodotClass> Sealed for Gd<T> {}
 impl<T: GodotClass> AsArg for Gd<T> {
-    fn as_arg_ptr(&self) -> sys::GDNativeTypePtr {
+    fn as_arg_ptr(&self) -> sys::GDNativeConstTypePtr {
         // Pass argument to engine: increment refcount
         <T::Mem as crate::obj::mem::Memory>::maybe_inc_ref(self);
-        self.sys()
+        self.sys_const()
     }
 }
 

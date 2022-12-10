@@ -94,7 +94,7 @@ pub enum PluginComponent {
         /// Callback for other virtuals
         get_virtual_fn: unsafe extern "C" fn(
             p_userdata: *mut std::os::raw::c_void,
-            p_name: sys::GDNativeStringNamePtr,
+            p_name: sys::GDNativeConstStringNamePtr,
         ) -> sys::GDNativeExtensionClassCallVirtual,
     },
 }
@@ -312,10 +312,10 @@ pub mod callbacks {
 
     pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotExt>(
         _class_user_data: *mut std::ffi::c_void,
-        name: sys::GDNativeStringNamePtr,
+        name: sys::GDNativeConstStringNamePtr,
     ) -> sys::GDNativeExtensionClassCallVirtual {
         // This string is not ours, so we cannot call the destructor on it.
-        let borrowed_string = StringName::from_string_sys(name);
+        let borrowed_string = StringName::from_string_sys(sys::force_mut_ptr(name));
         let method_name = borrowed_string.to_string();
         std::mem::forget(borrowed_string);
 

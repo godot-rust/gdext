@@ -279,3 +279,15 @@ pub fn unbox<T>(value: Box<T>) -> T {
     // Deref-move is a Box magic feature; see https://stackoverflow.com/a/42264074
     *value
 }
+
+/// Explicitly cast away `const` from a pointer, similar to C++ `const_cast`.
+///
+/// The `as` conversion simultaneously doing 10 other things, potentially causing unintended transmutations.
+pub fn force_mut_ptr<T>(ptr: *const T) -> *mut T {
+    ptr as *mut T
+}
+
+/// Add `const` to a mut ptr.
+pub fn to_const_ptr<T>(ptr: *mut T) -> *const T {
+    ptr as *const T
+}

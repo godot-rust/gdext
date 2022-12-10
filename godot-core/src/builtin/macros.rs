@@ -27,8 +27,8 @@ macro_rules! impl_builtin_traits_inner {
                 unsafe {
                     Self::from_sys_init(|self_ptr| {
                         let ctor = ::godot_ffi::builtin_fn!($gd_method);
-                        let args = [self.sys()];
-                        ctor(self_ptr, args.as_ptr());
+                        let mut args = [self.sys_const()];
+                        ctor(self_ptr, args.as_mut_ptr());
                     })
                 }
             }
@@ -141,9 +141,9 @@ macro_rules! impl_builtin_froms {
             fn from(other: &$From) -> Self {
                 unsafe {
                     Self::from_sys_init(|ptr| {
-                        let args = [other.sys()];
+                        let mut args = [other.sys_const()];
                         ::godot_ffi::builtin_call! {
-                            $from_fn(ptr, args.as_ptr())
+                            $from_fn(ptr, args.as_mut_ptr())
                         }
                     })
                 }

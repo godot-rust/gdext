@@ -161,7 +161,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
     } = central_items;
 
     let sys_tokens = quote! {
-        use crate::{GDNativeVariantPtr, GDNativeTypePtr, GodotFfi, ffi_methods};
+        use crate::{GDNativeVariantPtr, GDNativeTypePtr, GDNativeConstTypePtr, GodotFfi, ffi_methods};
 
         pub mod types {
             #(#opaque_types)*
@@ -592,8 +592,8 @@ fn make_construct_fns(
 
     // Generic signature:  fn(base: GDNativeTypePtr, args: *const GDNativeTypePtr)
     let decls = quote! {
-        pub #construct_default: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
-        pub #construct_copy: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
+        pub #construct_default: unsafe extern "C" fn(GDNativeTypePtr, *mut GDNativeConstTypePtr),
+        pub #construct_copy: unsafe extern "C" fn(GDNativeTypePtr, *mut GDNativeConstTypePtr),
         #(#construct_extra_decls)*
     };
 
@@ -643,7 +643,7 @@ fn make_extra_constructors(
 
             let err = format_load_error(&ident);
             extra_decls.push(quote! {
-                pub #ident: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
+                pub #ident: unsafe extern "C" fn(GDNativeTypePtr, *mut GDNativeConstTypePtr),
             });
 
             let i = i as i32;
@@ -707,7 +707,7 @@ fn make_operator_fns(
 
     // Field declaration
     let decl = quote! {
-        pub #operator: unsafe extern "C" fn(GDNativeTypePtr, GDNativeTypePtr, GDNativeTypePtr),
+        pub #operator: unsafe extern "C" fn(GDNativeConstTypePtr, GDNativeConstTypePtr, GDNativeTypePtr),
     };
 
     // Field initialization in new()

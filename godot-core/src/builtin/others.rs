@@ -55,8 +55,8 @@ impl Callable {
         unsafe {
             Self::from_sys_init(|self_ptr| {
                 let ctor = sys::builtin_fn!(callable_from_object_method);
-                let args = [object.sys(), method.sys()];
-                ctor(self_ptr, args.as_ptr());
+                let mut args = [object.sys_const(), method.sys_const()];
+                ctor(self_ptr, args.as_mut_ptr());
             })
         }
     }

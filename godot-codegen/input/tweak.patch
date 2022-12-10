@@ -1,24 +1,32 @@
-diff --git b/godot-codegen/input/gdnative_interface.h a/godot-codegen/input/gdnative_interface.h
-index 041a6e5..c1b932a 100644
---- b/godot-codegen/input/gdnative_interface.h
-+++ a/godot-codegen/input/gdnative_interface.h
-@@ -136,13 +136,13 @@ typedef enum {
+diff --git a/godot-codegen/input/gdnative_interface.h b/godot-codegen/input/gdnative_interface.h
+index 486f5be..304ccdf 100644
+--- a/godot-codegen/input/gdnative_interface.h
++++ b/godot-codegen/input/gdnative_interface.h
+@@ -140,17 +140,17 @@ typedef enum {
  
  } GDNativeVariantOperator;
  
 -typedef void *GDNativeVariantPtr;
+-typedef const void *GDNativeConstVariantPtr;
 -typedef void *GDNativeStringNamePtr;
+-typedef const void *GDNativeConstStringNamePtr;
 -typedef void *GDNativeStringPtr;
+-typedef const void *GDNativeConstStringPtr;
 -typedef void *GDNativeObjectPtr;
+-typedef const void *GDNativeConstObjectPtr;
 -typedef void *GDNativeTypePtr;
--typedef void *GDNativeExtensionPtr;
--typedef void *GDNativeMethodBindPtr;
+-typedef const void *GDNativeConstTypePtr;
+-typedef const void *GDNativeMethodBindPtr;
 +typedef struct TagVariant *GDNativeVariantPtr;
++typedef const struct TagVariant *GDNativeConstVariantPtr;
 +typedef struct TagStringName *GDNativeStringNamePtr;
++typedef const struct TagStringName *GDNativeConstStringNamePtr;
 +typedef struct TagString *GDNativeStringPtr;
++typedef const struct TagString *GDNativeConstStringPtr;
 +typedef struct TagObject *GDNativeObjectPtr;
++typedef const struct TagObject *GDNativeConstObjectPtr;
 +typedef struct TagType *GDNativeTypePtr;
-+typedef struct TagExtension *GDNativeExtensionPtr;
++typedef const struct TagType *GDNativeConstTypePtr;
 +typedef struct TagMethodBind *GDNativeMethodBindPtr;
  typedef int64_t GDNativeInt;
  typedef uint8_t GDNativeBool;

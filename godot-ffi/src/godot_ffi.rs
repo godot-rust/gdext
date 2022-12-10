@@ -31,7 +31,13 @@ pub trait GodotFfi {
         self.sys()
     }
 
-    unsafe fn write_sys(&self, dst: sys::GDNativeTypePtr);
+	// TODO check if sys() can take over this
+	fn sys_const(&self) -> sys::GDNativeConstTypePtr {
+		self.sys()
+	}
+
+
+	unsafe fn write_sys(&self, dst: sys::GDNativeTypePtr);
 }
 
 /// Trait implemented for all types that can be passed to and from user-defined `#[func]` methods
