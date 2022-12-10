@@ -31,13 +31,14 @@ pub trait GodotFfi {
         self.sys()
     }
 
-	// TODO check if sys() can take over this
-	fn sys_const(&self) -> sys::GDNativeConstTypePtr {
-		self.sys()
-	}
+    // TODO check if sys() can take over this
+    // also, from_sys() might take *const T
+    // possibly separate 2 pointer types
+    fn sys_const(&self) -> sys::GDNativeConstTypePtr {
+        self.sys()
+    }
 
-
-	unsafe fn write_sys(&self, dst: sys::GDNativeTypePtr);
+    unsafe fn write_sys(&self, dst: sys::GDNativeTypePtr);
 }
 
 /// Trait implemented for all types that can be passed to and from user-defined `#[func]` methods

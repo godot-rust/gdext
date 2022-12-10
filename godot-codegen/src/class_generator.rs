@@ -408,7 +408,7 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
                     __args.extend(__explicit_args.iter().map(Variant::var_sys_const));
                     __args.extend(varargs.iter().map(Variant::var_sys_const));
 
-                    let __args_ptr = __args.as_mut_ptr();
+                    let __args_ptr = __args.as_ptr();
 
                     #call
                 }
@@ -428,10 +428,10 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
                     );
                     let __call_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
-                    let mut __args = [
+                    let __args = [
                         #( #arg_exprs ),*
                     ];
-                    let __args_ptr = __args.as_mut_ptr();
+                    let __args_ptr = __args.as_ptr();
 
                     #call
                 }
@@ -465,10 +465,10 @@ pub(crate) fn make_function_definition(
                 let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
                 let __call_fn = __call_fn.unwrap_unchecked();
 
-                let mut __args = [
+                let __args = [
                     #( #arg_exprs ),*
                 ];
-                let __args_ptr = __args.as_mut_ptr();
+                let __args_ptr = __args.as_ptr();
 
                 #call
             };

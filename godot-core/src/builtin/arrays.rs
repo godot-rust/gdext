@@ -74,8 +74,8 @@ impl<T> Clone for TypedArray<T> {
         unsafe {
             Self::from_sys_init(|self_ptr| {
                 let ctor = ::godot_ffi::builtin_fn!(array_construct_copy);
-                let mut args = [self.sys_const()];
-                ctor(self_ptr, args.as_mut_ptr());
+                let args = [self.sys_const()];
+                ctor(self_ptr, args.as_ptr());
             })
         }
     }

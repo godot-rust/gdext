@@ -108,8 +108,8 @@ impl From<&GodotString> for StringName {
         unsafe {
             Self::from_sys_init(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_name_from_string);
-                let mut args = [s.sys_const()];
-                ctor(self_ptr, args.as_mut_ptr());
+                let args = [s.sys_const()];
+                ctor(self_ptr, args.as_ptr());
             })
         }
     }
@@ -127,8 +127,8 @@ impl From<&StringName> for GodotString {
         unsafe {
             Self::from_sys_init(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_string_name);
-                let mut args = [s.sys_const()];
-                ctor(self_ptr, args.as_mut_ptr());
+                let args = [s.sys_const()];
+                ctor(self_ptr, args.as_ptr());
             })
         }
     }

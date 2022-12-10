@@ -28,8 +28,8 @@ impl From<&GodotString> for NodePath {
         unsafe {
             Self::from_sys_init(|self_ptr| {
                 let ctor = sys::builtin_fn!(node_path_from_string);
-                let mut args = [path.sys_const()];
-                ctor(self_ptr, args.as_mut_ptr());
+                let args = [path.sys_const()];
+                ctor(self_ptr, args.as_ptr());
             })
         }
     }
@@ -40,8 +40,8 @@ impl From<&NodePath> for GodotString {
         unsafe {
             Self::from_sys_init(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_node_path);
-                let mut args = [path.sys_const()];
-                ctor(self_ptr, args.as_mut_ptr());
+                let args = [path.sys_const()];
+                ctor(self_ptr, args.as_ptr());
             })
         }
     }

@@ -18,7 +18,7 @@ pub trait SignatureTuple {
 
     fn varcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
-        args_ptr: *mut sys::GDNativeConstVariantPtr,
+        args_ptr: *const sys::GDNativeConstVariantPtr,
         ret: sys::GDNativeVariantPtr,
         err: *mut sys::GDNativeCallError,
         func: fn(&mut C, Self::Params) -> Self::Ret,
@@ -29,7 +29,7 @@ pub trait SignatureTuple {
     // We could fall back to varcalls in such cases, and not require GodotFfi categorically.
     fn ptrcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
-        args_ptr: *mut sys::GDNativeConstTypePtr,
+        args_ptr: *const sys::GDNativeConstTypePtr,
         ret: sys::GDNativeTypePtr,
         func: fn(&mut C, Self::Params) -> Self::Ret,
         method_name: &str,
@@ -106,7 +106,7 @@ macro_rules! impl_signature_for_tuple {
             #[inline]
             fn varcall<C : GodotClass>(
 				instance_ptr: sys::GDExtensionClassInstancePtr,
-                args_ptr: *mut sys::GDNativeConstVariantPtr,
+                args_ptr: *const sys::GDNativeConstVariantPtr,
                 ret: sys::GDNativeVariantPtr,
                 err: *mut sys::GDNativeCallError,
                 func: fn(&mut C, Self::Params) -> Self::Ret,
@@ -138,7 +138,7 @@ macro_rules! impl_signature_for_tuple {
             #[inline]
             fn ptrcall<C : GodotClass>(
 				instance_ptr: sys::GDExtensionClassInstancePtr,
-                args_ptr: *mut sys::GDNativeConstTypePtr,
+                args_ptr: *const sys::GDNativeConstTypePtr,
                 ret: sys::GDNativeTypePtr,
                 func: fn(&mut C, Self::Params) -> Self::Ret,
                 method_name: &str,
@@ -149,7 +149,11 @@ macro_rules! impl_signature_for_tuple {
                 let mut instance = storage.get_mut();
 
 				let args = ( $(
-                    unsafe { <$Pn as sys::GodotFuncMarshal>::try_from_sys(*args_ptr.offset($n)) }
+                    unsafe {
+                        <$Pn as sys::GodotFuncMarshal>::try_from_sys(
+                            sys::force_mut_ptr(*args_ptr.offset($n))
+                        )
+                    }
                         .unwrap_or_else(|e| param_error::<$Pn>(method_name, $n, &e)),
                 )* );
 

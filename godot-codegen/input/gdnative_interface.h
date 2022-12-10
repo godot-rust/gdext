@@ -176,8 +176,8 @@ typedef struct {
 typedef void (*GDNativeVariantFromTypeConstructorFunc)(GDNativeVariantPtr, GDNativeTypePtr);
 typedef void (*GDNativeTypeFromVariantConstructorFunc)(GDNativeTypePtr, GDNativeVariantPtr);
 typedef void (*GDNativePtrOperatorEvaluator)(GDNativeConstTypePtr p_left, GDNativeConstTypePtr p_right, GDNativeTypePtr r_result);
-typedef void (*GDNativePtrBuiltInMethod)(GDNativeTypePtr p_base, GDNativeConstTypePtr *p_args, GDNativeTypePtr r_return, int p_argument_count);
-typedef void (*GDNativePtrConstructor)(GDNativeTypePtr p_base, GDNativeConstTypePtr *p_args);
+typedef void (*GDNativePtrBuiltInMethod)(GDNativeTypePtr p_base, const GDNativeConstTypePtr *p_args, GDNativeTypePtr r_return, int p_argument_count);
+typedef void (*GDNativePtrConstructor)(GDNativeTypePtr p_base, const GDNativeConstTypePtr *p_args);
 typedef void (*GDNativePtrDestructor)(GDNativeTypePtr p_base);
 typedef void (*GDNativePtrSetter)(GDNativeTypePtr p_base, GDNativeConstTypePtr p_value);
 typedef void (*GDNativePtrGetter)(GDNativeConstTypePtr p_base, GDNativeTypePtr r_value);
@@ -186,7 +186,7 @@ typedef void (*GDNativePtrIndexedGetter)(GDNativeConstTypePtr p_base, GDNativeIn
 typedef void (*GDNativePtrKeyedSetter)(GDNativeTypePtr p_base, GDNativeConstTypePtr p_key, GDNativeConstTypePtr p_value);
 typedef void (*GDNativePtrKeyedGetter)(GDNativeConstTypePtr p_base, GDNativeConstTypePtr p_key, GDNativeTypePtr r_value);
 typedef uint32_t (*GDNativePtrKeyedChecker)(GDNativeConstVariantPtr p_base, GDNativeConstVariantPtr p_key);
-typedef void (*GDNativePtrUtilityFunction)(GDNativeTypePtr r_return, GDNativeConstTypePtr *p_arguments, int p_argument_count);
+typedef void (*GDNativePtrUtilityFunction)(GDNativeTypePtr r_return, const GDNativeConstTypePtr *p_arguments, int p_argument_count);
 
 typedef GDNativeObjectPtr (*GDNativeClassConstructor)();
 
@@ -240,7 +240,7 @@ typedef void (*GDNativeExtensionClassNotification)(GDExtensionClassInstancePtr p
 typedef void (*GDNativeExtensionClassToString)(GDExtensionClassInstancePtr p_instance, GDNativeBool *r_is_valid, GDNativeStringPtr p_out);
 typedef void (*GDNativeExtensionClassReference)(GDExtensionClassInstancePtr p_instance);
 typedef void (*GDNativeExtensionClassUnreference)(GDExtensionClassInstancePtr p_instance);
-typedef void (*GDNativeExtensionClassCallVirtual)(GDExtensionClassInstancePtr p_instance, GDNativeConstTypePtr *p_args, GDNativeTypePtr r_ret);
+typedef void (*GDNativeExtensionClassCallVirtual)(GDExtensionClassInstancePtr p_instance, const GDNativeConstTypePtr *p_args, GDNativeTypePtr r_ret);
 typedef GDNativeObjectPtr (*GDNativeExtensionClassCreateInstance)(void *p_userdata);
 typedef void (*GDNativeExtensionClassFreeInstance)(void *p_userdata, GDExtensionClassInstancePtr p_instance);
 typedef GDNativeExtensionClassCallVirtual (*GDNativeExtensionClassGetVirtual)(void *p_userdata, GDNativeConstStringNamePtr p_name);
@@ -293,8 +293,8 @@ typedef enum {
 	GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE
 } GDNativeExtensionClassMethodArgumentMetadata;
 
-typedef void (*GDNativeExtensionClassMethodCall)(void *method_userdata, GDExtensionClassInstancePtr p_instance, GDNativeConstVariantPtr *p_args, GDNativeInt p_argument_count, GDNativeVariantPtr r_return, GDNativeCallError *r_error);
-typedef void (*GDNativeExtensionClassMethodPtrCall)(void *method_userdata, GDExtensionClassInstancePtr p_instance, GDNativeConstTypePtr *p_args, GDNativeTypePtr r_ret);
+typedef void (*GDNativeExtensionClassMethodCall)(void *method_userdata, GDExtensionClassInstancePtr p_instance, const GDNativeConstVariantPtr *p_args, GDNativeInt p_argument_count, GDNativeVariantPtr r_return, GDNativeCallError *r_error);
+typedef void (*GDNativeExtensionClassMethodPtrCall)(void *method_userdata, GDExtensionClassInstancePtr p_instance, const GDNativeConstTypePtr *p_args, GDNativeTypePtr r_ret);
 
 typedef struct {
 	GDNativeStringNamePtr name;
@@ -342,7 +342,7 @@ typedef void (*GDNativeExtensionScriptInstanceFreeMethodList)(GDNativeExtensionS
 
 typedef GDNativeBool (*GDNativeExtensionScriptInstanceHasMethod)(GDNativeExtensionScriptInstanceDataPtr p_instance, GDNativeConstStringNamePtr p_name);
 
-typedef void (*GDNativeExtensionScriptInstanceCall)(GDNativeExtensionScriptInstanceDataPtr p_self, GDNativeConstStringNamePtr p_method, GDNativeConstVariantPtr *p_args, GDNativeInt p_argument_count, GDNativeVariantPtr r_return, GDNativeCallError *r_error);
+typedef void (*GDNativeExtensionScriptInstanceCall)(GDNativeExtensionScriptInstanceDataPtr p_self, GDNativeConstStringNamePtr p_method, const GDNativeConstVariantPtr *p_args, GDNativeInt p_argument_count, GDNativeVariantPtr r_return, GDNativeCallError *r_error);
 typedef void (*GDNativeExtensionScriptInstanceNotification)(GDNativeExtensionScriptInstanceDataPtr p_instance, int32_t p_what);
 typedef void (*GDNativeExtensionScriptInstanceToString)(GDNativeExtensionScriptInstanceDataPtr p_instance, GDNativeBool *r_is_valid, GDNativeStringPtr r_out);
 
@@ -427,8 +427,8 @@ typedef struct {
 	void (*variant_destroy)(GDNativeVariantPtr p_self);
 
 	/* variant type */
-	void (*variant_call)(GDNativeVariantPtr p_self, GDNativeConstStringNamePtr p_method, GDNativeConstVariantPtr *p_args, GDNativeInt p_argument_count, GDNativeVariantPtr r_return, GDNativeCallError *r_error);
-	void (*variant_call_static)(GDNativeVariantType p_type, GDNativeConstStringNamePtr p_method, GDNativeConstVariantPtr *p_args, GDNativeInt p_argument_count, GDNativeVariantPtr r_return, GDNativeCallError *r_error);
+	void (*variant_call)(GDNativeVariantPtr p_self, GDNativeConstStringNamePtr p_method, const GDNativeConstVariantPtr *p_args, GDNativeInt p_argument_count, GDNativeVariantPtr r_return, GDNativeCallError *r_error);
+	void (*variant_call_static)(GDNativeVariantType p_type, GDNativeConstStringNamePtr p_method, const GDNativeConstVariantPtr *p_args, GDNativeInt p_argument_count, GDNativeVariantPtr r_return, GDNativeCallError *r_error);
 	void (*variant_evaluate)(GDNativeVariantOperator p_op, GDNativeConstVariantPtr p_a, GDNativeConstVariantPtr p_b, GDNativeVariantPtr r_return, GDNativeBool *r_valid);
 	void (*variant_set)(GDNativeVariantPtr p_self, GDNativeConstVariantPtr p_key, GDNativeConstVariantPtr p_value, GDNativeBool *r_valid);
 	void (*variant_set_named)(GDNativeVariantPtr p_self, GDNativeConstStringNamePtr p_key, GDNativeConstVariantPtr p_value, GDNativeBool *r_valid);
@@ -463,7 +463,7 @@ typedef struct {
 	GDNativePtrBuiltInMethod (*variant_get_ptr_builtin_method)(GDNativeVariantType p_type, GDNativeConstStringNamePtr p_method, GDNativeInt p_hash);
 	GDNativePtrConstructor (*variant_get_ptr_constructor)(GDNativeVariantType p_type, int32_t p_constructor);
 	GDNativePtrDestructor (*variant_get_ptr_destructor)(GDNativeVariantType p_type);
-	void (*variant_construct)(GDNativeVariantType p_type, GDNativeVariantPtr p_base, GDNativeConstVariantPtr *p_args, int32_t p_argument_count, GDNativeCallError *r_error);
+	void (*variant_construct)(GDNativeVariantType p_type, GDNativeVariantPtr p_base, const GDNativeConstVariantPtr *p_args, int32_t p_argument_count, GDNativeCallError *r_error);
 	GDNativePtrSetter (*variant_get_ptr_setter)(GDNativeVariantType p_type, GDNativeConstStringNamePtr p_member);
 	GDNativePtrGetter (*variant_get_ptr_getter)(GDNativeVariantType p_type, GDNativeConstStringNamePtr p_member);
 	GDNativePtrIndexedSetter (*variant_get_ptr_indexed_setter)(GDNativeVariantType p_type);
@@ -537,8 +537,8 @@ typedef struct {
 
 	/* OBJECT */
 
-	void (*object_method_bind_call)(GDNativeMethodBindPtr p_method_bind, GDNativeObjectPtr p_instance, GDNativeConstVariantPtr *p_args, GDNativeInt p_arg_count, GDNativeVariantPtr r_ret, GDNativeCallError *r_error);
-	void (*object_method_bind_ptrcall)(GDNativeMethodBindPtr p_method_bind, GDNativeObjectPtr p_instance, GDNativeConstTypePtr *p_args, GDNativeTypePtr r_ret);
+	void (*object_method_bind_call)(GDNativeMethodBindPtr p_method_bind, GDNativeObjectPtr p_instance, const GDNativeConstVariantPtr *p_args, GDNativeInt p_arg_count, GDNativeVariantPtr r_ret, GDNativeCallError *r_error);
+	void (*object_method_bind_ptrcall)(GDNativeMethodBindPtr p_method_bind, GDNativeObjectPtr p_instance, const GDNativeConstTypePtr *p_args, GDNativeTypePtr r_ret);
 	void (*object_destroy)(GDNativeObjectPtr p_o);
 	GDNativeObjectPtr (*global_get_singleton)(GDNativeConstStringNamePtr p_name);
 

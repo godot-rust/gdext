@@ -592,8 +592,8 @@ fn make_construct_fns(
 
     // Generic signature:  fn(base: GDNativeTypePtr, args: *const GDNativeTypePtr)
     let decls = quote! {
-        pub #construct_default: unsafe extern "C" fn(GDNativeTypePtr, *mut GDNativeConstTypePtr),
-        pub #construct_copy: unsafe extern "C" fn(GDNativeTypePtr, *mut GDNativeConstTypePtr),
+        pub #construct_default: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeConstTypePtr),
+        pub #construct_copy: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeConstTypePtr),
         #(#construct_extra_decls)*
     };
 
@@ -643,7 +643,7 @@ fn make_extra_constructors(
 
             let err = format_load_error(&ident);
             extra_decls.push(quote! {
-                pub #ident: unsafe extern "C" fn(GDNativeTypePtr, *mut GDNativeConstTypePtr),
+                pub #ident: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeConstTypePtr),
             });
 
             let i = i as i32;

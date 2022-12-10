@@ -61,7 +61,7 @@ macro_rules! gdext_register_method_inner {
                 unsafe extern "C" fn function(
                     _method_data: *mut std::ffi::c_void,
                     instance_ptr: sys::GDExtensionClassInstancePtr,
-                    args: *mut sys::GDNativeConstVariantPtr,
+                    args: *const sys::GDNativeConstVariantPtr,
                     _arg_count: sys::GDNativeInt,
                     ret: sys::GDNativeVariantPtr,
                     err: *mut sys::GDNativeCallError,
@@ -97,7 +97,7 @@ macro_rules! gdext_register_method_inner {
                 unsafe extern "C" fn function(
                     _method_data: *mut std::ffi::c_void,
                     instance_ptr: sys::GDExtensionClassInstancePtr,
-                    args: *mut sys::GDNativeConstTypePtr,
+                    args: *const sys::GDNativeConstTypePtr,
                     ret: sys::GDNativeTypePtr,
                 ) {
                     let result = ::std::panic::catch_unwind(|| {
