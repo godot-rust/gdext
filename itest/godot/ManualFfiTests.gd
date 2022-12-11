@@ -25,3 +25,9 @@ func test_to_string() -> bool:
 	print("to_string: ", s)
 	print("to_string: ", ffi)
 	return true
+	
+func test_export() -> bool:
+	var obj = HasProperty.new()
+	obj.val = 5
+	print("[GD] HasProperty's property is: ", obj.val, " and should be 5")
+	return obj.val == 5

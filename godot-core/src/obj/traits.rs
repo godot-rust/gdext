@@ -100,6 +100,11 @@ pub mod cap {
         fn __register_methods();
     }
 
+    pub trait ImplementsGodotExports: GodotClass {
+        #[doc(hidden)]
+        fn __register_exports();
+    }
+
     /// Auto-implemented for `#[godot_api] impl GodotExt for MyClass` blocks
     pub trait ImplementsGodotExt: GodotClass {
         #[doc(hidden)]
