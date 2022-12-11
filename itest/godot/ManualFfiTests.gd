@@ -9,6 +9,7 @@ func run() -> bool:
 	var ok = true
 	#ok = ok && test_missing_init()
 	ok = ok && test_to_string()
+	ok = ok && test_export()
 
 	print("[GD] ManualFfi tested (passed=", ok, ")")
 	return ok
@@ -28,6 +29,20 @@ func test_to_string() -> bool:
 	
 func test_export() -> bool:
 	var obj = HasProperty.new()
-	obj.val = 5
-	print("[GD] HasProperty's property is: ", obj.val, " and should be 5")
-	return obj.val == 5
+
+	obj.int_val = 5
+	print("[GD] HasProperty's int_val property is: ", obj.int_val, " and should be 5")
+	var int_val_correct = obj.int_val == 5
+
+	obj.string_val = "test val"
+	print("[GD] HasProperty's string_val property is: ", obj.string_val, " and should be \"test val\"")
+	var string_val_correct = obj.string_val == "test val"
+
+	var node = Node.new()
+	obj.object_val = node
+	print("[GD] HasProperty's object_val property is: ", obj.object_val, " and should be ", node)
+	var object_val_correct = obj.object_val == node
+
+	obj.free()
+
+	return int_val_correct && string_val_correct && object_val_correct

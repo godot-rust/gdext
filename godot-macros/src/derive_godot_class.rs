@@ -228,6 +228,7 @@ struct ExportedField {
     field: Field,
     getter: String,
     setter: String,
+    variant_type: String,
 }
 
 impl ExportedField {
@@ -235,39 +236,37 @@ impl ExportedField {
         field: Field,
         attr: &Attribute,
         mut map: KvMap,
-    ) -> Result<ExportedField, venial::Error> {
-        let export_getter: String;
-        let export_setter: String;
-        if let Some(getter) = map.remove("getter") {
-            if let KvValue::Lit(getter) = getter {
-                export_getter = getter;
-            } else {
-                return Err(bail_error(
-                    "#[property] attribute with a non-literal getter",
-                    attr,
-                ));
-            }
-        } else {
-            return Err(bail_error("#[property] attribute without a getter", attr));
-        }
-        if let Some(setter) = map.remove("setter") {
-            if let KvValue::Lit(setter) = setter {
-                export_setter = setter;
-            } else {
-                return Err(bail_error(
-                    "#[property] attribute with a non-literal setter",
-                    attr,
-                ));
-            }
-        } else {
-            return Err(bail_error("#[property] attribute without a setter", attr));
-        }
+    ) -> ParseResult<ExportedField> {
+        let getter = Self::require_key_value(&mut map, "getter", attr)?;
+        let setter = Self::require_key_value(&mut map, "setter", attr)?;
+        let variant_type = Self::require_key_value(&mut map, "variant_type", attr)?;
+
         ensure_kv_empty(map, attr.__span())?;
+
         return Ok(ExportedField {
             field,
-            getter: export_getter,
-            setter: export_setter,
+            getter,
+            setter,
+            variant_type,
         });
+    }
+
+    fn require_key_value(map: &mut KvMap, key: &str, attr: &Attribute) -> ParseResult<String> {
+        if let Some(value) = map.remove(key) {
+            if let KvValue::Lit(value) = value {
+                return Ok(value);
+            } else {
+                return bail(
+                    format!(
+                        "#[export] attribute {} with a non-literal variant_type",
+                        key
+                    ),
+                    attr,
+                )?;
+            }
+        } else {
+            return bail(format!("#[export] attribute without a {}", key), attr);
+        }
     }
 }
 
@@ -326,10 +325,12 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             let name = exported_field.field.name.to_string();
             let getter = proc_macro2::Literal::from_str(&exported_field.getter).unwrap();
             let setter = proc_macro2::Literal::from_str(&exported_field.setter).unwrap();
+            let vtype = &exported_field.variant_type;
+            let variant_type: TokenStream = vtype[1..vtype.len() - 1].parse().unwrap();
             quote! {
                 let class_name = ::godot::builtin::StringName::from(#class_name::CLASS_NAME);
                 let property_info = ::godot::builtin::meta::PropertyInfo::new(
-                    ::godot::sys::VariantType::Int,
+                    #variant_type,
                     ::godot::builtin::meta::ClassName::new::<#class_name>(),
                     ::godot::builtin::StringName::from(#name),
                 );
