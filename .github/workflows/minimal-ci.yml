@@ -38,17 +38,17 @@ defaults:
 #  cancel-in-progress: true
 
 jobs:
-#  rustfmt:
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v3
-#      - name: "Install Rust"
-#        uses: ./.github/composite/rust
-#        with:
-#          rust: stable
-#          components: rustfmt
-#      - name: "Check rustfmt"
-#        run: cargo fmt --all -- --check
+  rustfmt:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+        with:
+          rust: stable
+          components: rustfmt
+      - name: "Check rustfmt"
+        run: cargo fmt --all -- --check
 
   unit-test:
     name: test (${{ matrix.name }})
@@ -106,7 +106,7 @@ jobs:
     name: itest-godot (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     continue-on-error: false
-    timeout-minutes: 15
+    timeout-minutes: 24
     strategy:
       fail-fast: false # cancel all jobs as soon as one fails?
       matrix:
@@ -142,7 +142,7 @@ jobs:
           #godot_ver: ${{ matrix.godot }}
 
   license-guard:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     if: github.ref != 'refs/heads/master'
     steps:
       - uses: actions/checkout@v3
