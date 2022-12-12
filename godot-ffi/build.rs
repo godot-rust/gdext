@@ -4,28 +4,21 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_codegen as gen;
 use std::env;
 use std::path::Path;
 
-// Note: this macro is fine during codegen, but not for building module structures
-// It confuses IDEs, and can cause symbols not to be found
-macro_rules! codegen_path {
-    ($path:literal) => {
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../target/godot-gen/", $path)
-    };
-}
-
 fn main() {
     // For custom path on macOS, iOS, Android etc: see gdnative-sys/build.rs
+    let gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/"));
 
-    run_bindgen(Path::new(codegen_path!("gdnative_interface.rs")));
+    if gen_path.exists() {
+        std::fs::remove_dir_all(gen_path).unwrap_or_else(|e| panic!("failed to delete dir: {e}"));
+    }
 
-    gen::generate_all_files(
-        Path::new(codegen_path!("sys")),
-        Path::new(codegen_path!("core")),
-        Path::new(codegen_path!("")),
-    );
+    run_bindgen(&gen_path.join("gdnative_interface.rs"));
+
+    let stubs_only = cfg!(feature = "unit-test");
+    godot_codegen::generate_sys_files(gen_path, stubs_only);
 }
 
 fn run_bindgen(out_file: &Path) {
@@ -65,13 +58,43 @@ fn configure_platform_specific(builder: bindgen::Builder) -> bindgen::Builder {
 
         builder
             .clang_arg("-I")
-            .clang_arg(format!("{path}/include"))
+            // .clang_arg(format!("{path}/include"))
+            .clang_arg(apple_include_path().expect("apple include path"))
             .clang_arg("-L")
             .clang_arg(format!("{path}/lib"))
     } else {
         eprintln!("Build selected for Linux/Windows.");
         builder
     }
+}
+
+fn apple_include_path() -> Result<String, std::io::Error> {
+    use std::process::Command;
+
+    let target = std::env::var("TARGET").unwrap();
+    let platform = if target.contains("apple-darwin") {
+        "macosx"
+    } else if target == "x86_64-apple-ios" || target == "aarch64-apple-ios-sim" {
+        "iphonesimulator"
+    } else if target == "aarch64-apple-ios" {
+        "iphoneos"
+    } else {
+        panic!("not building for macOS or iOS");
+    };
+
+    // run `xcrun --sdk iphoneos --show-sdk-path`
+    let output = Command::new("xcrun")
+        .args(["--sdk", platform, "--show-sdk-path"])
+        .output()?
+        .stdout;
+    let prefix = std::str::from_utf8(&output)
+        .expect("invalid output from `xcrun`")
+        .trim_end();
+
+    let suffix = "usr/include";
+    let directory = format!("{}/{}", prefix, suffix);
+
+    Ok(directory)
 }
 
 // #[cfg(not(target_os = "macos"))]

@@ -15,11 +15,8 @@ mod impls;
 mod variant_traits;
 
 pub use impls::*;
-pub use variant_traits::*;
-
 pub use sys::{VariantOperator, VariantType};
-
-// pub use crate::gen::central::*;
+pub use variant_traits::*;
 
 #[repr(C, align(8))]
 pub struct Variant {
@@ -126,6 +123,11 @@ impl Variant {
         fn write_var_sys = write_sys;
     }
 
+    #[doc(hidden)]
+    pub fn var_sys_const(&self) -> sys::GDNativeConstVariantPtr {
+        sys::to_const_ptr(self.var_sys())
+    }
+
     /*#[doc(hidden)]
     pub unsafe fn from_var_sys_init(init_fn: impl FnOnce(sys::GDNativeVariantPtr)) -> Self {
         // Can't use uninitialized pointer -- Variant implementation in C++ expects that on assignment,
@@ -191,7 +193,7 @@ impl PartialEq for Variant {
 // impl Eq for Variant {}
 // impl PartialEq for Variant {
 //     fn eq(&self, other: &Self) -> bool {
-//         unsafe { sys::method_table().ope }
+//         unsafe { builtin_fn!(ope) }
 //     }
 // }
 

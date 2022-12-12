@@ -51,26 +51,92 @@ struct BuiltinTypeInfo<'a> {
     operators: Option<&'a Vec<Operator>>,
 }
 
-pub(crate) fn generate_central_files(
+pub(crate) fn generate_sys_central_file(
     api: &ExtensionApi,
     ctx: &mut Context,
     build_config: &str,
     sys_gen_path: &Path,
+    out_files: &mut Vec<PathBuf>,
+) {
+    let central_items = make_central_items(api, build_config, ctx);
+    let sys_code = make_sys_code(&central_items);
+
+    write_file(sys_gen_path, "central.rs", sys_code, out_files);
+}
+
+pub(crate) fn generate_sys_mod_file(
+    core_gen_path: &Path,
+    out_files: &mut Vec<PathBuf>,
+    stubs_only: bool,
+) {
+    // When invoked by another crate during unit-test (not integration test), don't run generator
+    let code = if stubs_only {
+        quote! {
+            #[path = "../gen_central_stub.rs"]
+            pub mod central;
+            pub mod gdnative_interface;
+        }
+    } else {
+        quote! {
+            pub mod central;
+            pub mod gdnative_interface;
+        }
+    };
+
+    write_file(core_gen_path, "mod.rs", code.to_string(), out_files);
+}
+
+pub(crate) fn generate_core_mod_file(
+    core_gen_path: &Path,
+    out_files: &mut Vec<PathBuf>,
+    stubs_only: bool,
+) {
+    // When invoked by another crate during unit-test (not integration test), don't run generator
+    let code = if stubs_only {
+        quote! {
+            pub mod central {
+                pub mod global {}
+            }
+            pub mod classes {
+                pub struct Node {}
+                pub struct Resource {}
+
+                pub mod class_macros {}
+            }
+            pub mod utilities {}
+        }
+    } else {
+        quote! {
+            pub mod central;
+            pub mod classes;
+            pub mod utilities;
+        }
+    };
+
+    write_file(core_gen_path, "mod.rs", code.to_string(), out_files);
+}
+
+pub(crate) fn generate_core_central_file(
+    api: &ExtensionApi,
+    ctx: &mut Context,
+    build_config: &str,
     core_gen_path: &Path,
     out_files: &mut Vec<PathBuf>,
 ) {
     let central_items = make_central_items(api, build_config, ctx);
-
-    let sys_code = make_sys_code(&central_items);
     let core_code = make_core_code(&central_items);
 
-    write_files(sys_gen_path, sys_code, out_files);
-    write_files(core_gen_path, core_code, out_files);
+    write_file(core_gen_path, "central.rs", core_code, out_files);
 }
 
-fn write_files(gen_path: &Path, code: String, out_files: &mut Vec<PathBuf>) {
+pub(crate) fn write_file(
+    gen_path: &Path,
+    filename: &str,
+    code: String,
+    out_files: &mut Vec<PathBuf>,
+) {
     let _ = std::fs::create_dir_all(gen_path);
-    let out_path = gen_path.join("central.rs");
+    let out_path = gen_path.join(filename);
 
     std::fs::write(&out_path, code).unwrap_or_else(|e| {
         panic!(
@@ -95,7 +161,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
     } = central_items;
 
     let sys_tokens = quote! {
-        use crate::{GDNativeVariantPtr, GDNativeTypePtr, GodotFfi, ffi_methods};
+        use crate::{GDNativeVariantPtr, GDNativeTypePtr, GDNativeConstTypePtr, GodotFfi, ffi_methods};
 
         pub mod types {
             #(#opaque_types)*
@@ -526,8 +592,8 @@ fn make_construct_fns(
 
     // Generic signature:  fn(base: GDNativeTypePtr, args: *const GDNativeTypePtr)
     let decls = quote! {
-        pub #construct_default: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
-        pub #construct_copy: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
+        pub #construct_default: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeConstTypePtr),
+        pub #construct_copy: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeConstTypePtr),
         #(#construct_extra_decls)*
     };
 
@@ -577,7 +643,7 @@ fn make_extra_constructors(
 
             let err = format_load_error(&ident);
             extra_decls.push(quote! {
-                pub #ident: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeTypePtr),
+                pub #ident: unsafe extern "C" fn(GDNativeTypePtr, *const GDNativeConstTypePtr),
             });
 
             let i = i as i32;
@@ -641,7 +707,7 @@ fn make_operator_fns(
 
     // Field declaration
     let decl = quote! {
-        pub #operator: unsafe extern "C" fn(GDNativeTypePtr, GDNativeTypePtr, GDNativeTypePtr),
+        pub #operator: unsafe extern "C" fn(GDNativeConstTypePtr, GDNativeConstTypePtr, GDNativeTypePtr),
     };
 
     // Field initialization in new()

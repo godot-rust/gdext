@@ -67,8 +67,9 @@ impl Default for StringName {
 
         unsafe {
             let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
-            let ctor = sys::method_table().string_name_construct_default;
-            ctor(self_ptr, std::ptr::null_mut());
+            sys::builtin_call! {
+                string_name_construct_default(self_ptr, std::ptr::null_mut())
+            };
 
             uninit.assume_init()
         }
@@ -106,8 +107,8 @@ impl From<&GodotString> for StringName {
     fn from(s: &GodotString) -> Self {
         unsafe {
             Self::from_sys_init(|self_ptr| {
-                let ctor = sys::method_table().string_name_from_string;
-                let args = [s.sys()];
+                let ctor = sys::builtin_fn!(string_name_from_string);
+                let args = [s.sys_const()];
                 ctor(self_ptr, args.as_ptr());
             })
         }
@@ -125,8 +126,8 @@ impl From<&StringName> for GodotString {
     fn from(s: &StringName) -> Self {
         unsafe {
             Self::from_sys_init(|self_ptr| {
-                let ctor = sys::method_table().string_from_string_name;
-                let args = [s.sys()];
+                let ctor = sys::builtin_fn!(string_from_string_name);
+                let args = [s.sys_const()];
                 ctor(self_ptr, args.as_ptr());
             })
         }

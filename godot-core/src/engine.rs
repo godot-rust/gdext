@@ -8,44 +8,13 @@
 
 // Re-exports of generated symbols
 use crate::builtin::{GodotString, NodePath};
-use crate::engine::resource_loader::CacheMode;
 use crate::obj::dom::EngineDomain;
 use crate::obj::{Gd, GodotClass, Inherits};
-pub use gen::central_core::global;
-pub use gen::classes::*;
-pub use gen::utilities;
+use resource_loader::CacheMode;
 
-/// Output of generated code.
-pub(super) mod gen {
-    #[allow(unused_imports, dead_code, non_upper_case_globals, non_snake_case)]
-    pub(crate) mod classes {
-        // Path to core/classes/obj
-        // Do not write macro for this, as it confuses IDEs -- just search&replace
-        include!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../target/godot-gen/core/classes/mod.rs"
-        ));
-    }
-
-    pub mod utilities {
-        // Path to core/utilities.rs
-        // Do not write macro for this, as it confuses IDEs -- just search&replace
-        include!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../target/godot-gen/core/utilities.rs"
-        ));
-    }
-
-    #[allow(non_upper_case_globals, non_snake_case)]
-    pub mod central_core {
-        // Path to core/utilities.rs
-        // Do not write macro for this, as it confuses IDEs -- just search&replace
-        include!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../target/godot-gen/core/central.rs"
-        ));
-    }
-}
+pub use crate::gen::central::global;
+pub use crate::gen::classes::*;
+pub use crate::gen::utilities;
 
 /// Extension trait with convenience functions for the node tree.
 pub trait NodeExt {
@@ -171,6 +140,35 @@ where
 {
     load_impl(&path.into())
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Utilities for crate
+
+pub(crate) fn debug_string<T: GodotClass>(
+    ptr: &Gd<T>,
+    f: &mut std::fmt::Formatter<'_>,
+    ty: &str,
+) -> std::fmt::Result {
+    if let Some(id) = ptr.instance_id_or_none() {
+        let class: GodotString = ptr.as_object(|obj| Object::get_class(obj));
+
+        write!(f, "{ty} {{ id: {id}, class: {class} }}")
+    } else {
+        write!(f, "{ty} {{ freed obj }}")
+    }
+}
+
+pub(crate) fn display_string<T: GodotClass>(
+    ptr: &Gd<T>,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    let string: GodotString = ptr.as_object(|obj| Object::to_string(obj));
+
+    <GodotString as std::fmt::Display>::fmt(&string, f)
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation of this file
 
 // Separate function, to avoid constructing string twice
 // Note that more optimizations than that likely make no sense, as loading is quite expensive

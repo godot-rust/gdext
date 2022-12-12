@@ -10,8 +10,11 @@ trace = ["godot-core/trace"]
 convenience = []
 codegen-fmt = ["godot-core/codegen-fmt"]
 minimal = ["godot-core/minimal"]
+unit-test = []
 
 [dependencies]
 godot-core = { path = "../godot-core" }
 godot-macros = { path = "../godot-macros" }
 
+#[dev-dependencies]
+#godot-core = { path = "../godot-core", features = ["unit-test"] }

@@ -82,7 +82,7 @@ pub fn print(varargs: &[Variant]) {
         let call_fn = call_fn.unwrap_unchecked();
 
         let mut args = Vec::new();
-        args.extend(varargs.iter().map(Variant::sys));
+        args.extend(varargs.iter().map(Variant::sys_const));
 
         let args_ptr = args.as_ptr();
         let _variant = Variant::from_sys_init(|return_ptr| {

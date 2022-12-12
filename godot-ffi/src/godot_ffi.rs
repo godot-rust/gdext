@@ -31,6 +31,13 @@ pub trait GodotFfi {
         self.sys()
     }
 
+    // TODO check if sys() can take over this
+    // also, from_sys() might take *const T
+    // possibly separate 2 pointer types
+    fn sys_const(&self) -> sys::GDNativeConstTypePtr {
+        self.sys()
+    }
+
     unsafe fn write_sys(&self, dst: sys::GDNativeTypePtr);
 }
 
@@ -133,13 +140,13 @@ macro_rules! ffi_methods_one {
 	};
 	(SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys:ident = sys) => {
 		$( #[$attr] )? $vis
-		fn sys(&self) -> $Ptr {
+		fn $sys(&self) -> $Ptr {
             self as *const Self as $Ptr
         }
 	};
 	(SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $write_sys:ident = write_sys) => {
 		$( #[$attr] )? $vis
-		unsafe fn write_sys(&self, dst: $Ptr) {
+		unsafe fn $write_sys(&self, dst: $Ptr) {
             *(dst as *mut Self) = *self;
         }
 	};

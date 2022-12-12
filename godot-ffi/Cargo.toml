@@ -9,10 +9,11 @@ rust-version = "1.63"
 [features]
 codegen-fmt = ["godot-codegen/codegen-fmt"]
 minimal = ["godot-codegen/minimal"]
+unit-test = [] # If this crate is built for a downstream unit test
 
 [dependencies]
 paste = "1"
 
 [build-dependencies]
-bindgen = { version = "0.60.1", default-features = false, features = [] }
+bindgen = { version = "0.63.0", default-features = false, features = ["runtime"] }
 godot-codegen = { path = "../godot-codegen" }

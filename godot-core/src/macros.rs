@@ -61,7 +61,7 @@ macro_rules! gdext_register_method_inner {
                 unsafe extern "C" fn function(
                     _method_data: *mut std::ffi::c_void,
                     instance_ptr: sys::GDExtensionClassInstancePtr,
-                    args: *const sys::GDNativeVariantPtr,
+                    args: *const sys::GDNativeConstVariantPtr,
                     _arg_count: sys::GDNativeInt,
                     ret: sys::GDNativeVariantPtr,
                     err: *mut sys::GDNativeCallError,
@@ -97,7 +97,7 @@ macro_rules! gdext_register_method_inner {
                 unsafe extern "C" fn function(
                     _method_data: *mut std::ffi::c_void,
                     instance_ptr: sys::GDExtensionClassInstancePtr,
-                    args: *const sys::GDNativeTypePtr,
+                    args: *const sys::GDNativeConstTypePtr,
                     ret: sys::GDNativeTypePtr,
                 ) {
                     let result = ::std::panic::catch_unwind(|| {
@@ -289,7 +289,7 @@ macro_rules! gdext_virtual_method_callback_inner {
 
             unsafe extern "C" fn function(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
-                args: *const sys::GDNativeTypePtr,
+                args: *const sys::GDNativeConstTypePtr,
                 ret: sys::GDNativeTypePtr,
             ) {
                 $crate::gdext_ptrcall!(
@@ -402,7 +402,7 @@ macro_rules! gdext_ptrcall {
 
         let mut idx = 0;
         $(
-            let $arg = <$ParamTy as sys::GodotFfi>::from_sys(*$args.offset(idx));
+            let $arg = <$ParamTy as sys::GodotFfi>::from_sys(sys::force_mut_ptr(*$args.offset(idx)));
             // FIXME update refcount, e.g. Gd::ready() or T::Mem::maybe_inc_ref(&result);
             // possibly in from_sys() directly; what about from_sys_init() and from_{obj|str}_sys()?
             idx += 1;

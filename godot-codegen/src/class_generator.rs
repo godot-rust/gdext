@@ -69,9 +69,9 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
         quote! {
             pub fn singleton() -> Gd<Self> {
                 unsafe {
-                    let class_name = StringName::from(#class_name_str);
-                    let object_ptr = sys::interface_fn!(global_get_singleton)(class_name.string_sys());
-                    Gd::from_obj_sys(object_ptr)
+                    let __class_name = StringName::from(#class_name_str);
+                    let __object_ptr = sys::interface_fn!(global_get_singleton)(__class_name.string_sys());
+                    Gd::from_obj_sys(__object_ptr)
                 }
             }
         }
@@ -83,10 +83,10 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
         quote! {
             pub fn new() -> Gd<Self> {
                 unsafe {
-                    let class_name = StringName::from(#class_name_str);
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.string_sys());
+                    let __class_name = StringName::from(#class_name_str);
+                    let __object_ptr = sys::interface_fn!(classdb_construct_object)(__class_name.string_sys());
                     //let instance = Self { object_ptr };
-                    Gd::from_obj_sys(object_ptr)
+                    Gd::from_obj_sys(__object_ptr)
                 }
             }
         }
@@ -96,9 +96,9 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
             #[must_use]
             pub fn new_alloc() -> Gd<Self> {
                 unsafe {
-                    let class_name = StringName::from(#class_name_str);
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.string_sys());
-                    Gd::from_obj_sys(object_ptr)
+                    let __class_name = StringName::from(#class_name_str);
+                    let __object_ptr = sys::interface_fn!(classdb_construct_object)(__class_name.string_sys());
+                    Gd::from_obj_sys(__object_ptr)
                 }
             }
         }
@@ -392,23 +392,23 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
         quote! {
             #vis fn #method_name( #receiver #(, #params )*, varargs: &[Variant]) #return_decl {
                 unsafe {
-                    let class_name = StringName::from(#class_name);
-                    let method_name = StringName::from(#method_name_str);
-                    let method_bind = sys::interface_fn!(classdb_get_method_bind)(
-                        class_name.string_sys(),
-                        method_name.string_sys(),
+                    let __class_name = StringName::from(#class_name);
+                    let __method_name = StringName::from(#method_name_str);
+                    let __method_bind = sys::interface_fn!(classdb_get_method_bind)(
+                        __class_name.string_sys(),
+                        __method_name.string_sys(),
                         #hash
                     );
-                    let call_fn = sys::interface_fn!(object_method_bind_call);
+                    let __call_fn = sys::interface_fn!(object_method_bind_call);
 
-                    let explicit_args = [
+                    let __explicit_args = [
                         #( #arg_exprs ),*
                     ];
-                    let mut args = Vec::new();
-                    args.extend(explicit_args.iter().map(Variant::var_sys));
-                    args.extend(varargs.iter().map(Variant::var_sys));
+                    let mut __args = Vec::new();
+                    __args.extend(__explicit_args.iter().map(Variant::var_sys_const));
+                    __args.extend(varargs.iter().map(Variant::var_sys_const));
 
-                    let args_ptr = args.as_ptr();
+                    let __args_ptr = __args.as_ptr();
 
                     #call
                 }
@@ -419,19 +419,19 @@ fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) 
         quote! {
             #vis fn #method_name( #receiver, #( #params ),* ) #return_decl {
                 unsafe {
-                    let class_name = StringName::from(#class_name);
-                    let method_name = StringName::from(#method_name_str);
-                    let method_bind = sys::interface_fn!(classdb_get_method_bind)(
-                        class_name.string_sys(),
-                        method_name.string_sys(),
+                    let __class_name = StringName::from(#class_name);
+                    let __method_name = StringName::from(#method_name_str);
+                    let __method_bind = sys::interface_fn!(classdb_get_method_bind)(
+                        __class_name.string_sys(),
+                        __method_name.string_sys(),
                         #hash
                     );
-                    let call_fn = sys::interface_fn!(object_method_bind_ptrcall);
+                    let __call_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
-                    let args = [
+                    let __args = [
                         #( #arg_exprs ),*
                     ];
-                    let args_ptr = args.as_ptr();
+                    let __args_ptr = __args.as_ptr();
 
                     #call
                 }
@@ -461,14 +461,14 @@ pub(crate) fn make_function_definition(
     quote! {
         pub fn #function_name( #( #params ),* ) #return_decl {
             let result = unsafe {
-                let function_name = StringName::from(#function_name_str);
-                let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(function_name.string_sys(), #hash);
-                let call_fn = call_fn.unwrap_unchecked();
+                let __function_name = StringName::from(#function_name_str);
+                let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
+                let __call_fn = __call_fn.unwrap_unchecked();
 
-                let args = [
+                let __args = [
                     #( #arg_exprs ),*
                 ];
-                let args_ptr = args.as_ptr();
+                let __args_ptr = __args.as_ptr();
 
                 #call
             };
@@ -503,7 +503,7 @@ fn make_params(
             });
         } else {
             arg_exprs.push(quote! {
-                <#param_ty as sys::GodotFfi>::sys(&#param_name)
+                <#param_ty as sys::GodotFfi>::sys_const(&#param_name)
             });
         }
     }
@@ -540,9 +540,9 @@ fn make_method_return(
             // TODO use Result instead of panic on error
             quote! {
                 let variant = Variant::from_var_sys_init(|return_ptr| {
-                    let mut err = sys::default_call_error();
-                    call_fn(method_bind, self.object_ptr, args_ptr, args.len() as i64, return_ptr, std::ptr::addr_of_mut!(err));
-                    assert_eq!(err.error, sys::GDNATIVE_CALL_OK);
+                    let mut __err = sys::default_call_error();
+                    __call_fn(__method_bind, self.object_ptr, __args_ptr, __args.len() as i64, return_ptr, std::ptr::addr_of_mut!(__err));
+                    assert_eq!(__err.error, sys::GDNATIVE_CALL_OK);
                 });
                 #return_expr
             }
@@ -550,28 +550,28 @@ fn make_method_return(
         (true, None) => {
             // TODO use Result instead of panic on error
             quote! {
-                let mut err = sys::default_call_error();
-                call_fn(method_bind, self.object_ptr, args_ptr, args.len() as i64, std::ptr::null_mut(), std::ptr::addr_of_mut!(err));
-                assert_eq!(err.error, sys::GDNATIVE_CALL_OK);
+                let mut __err = sys::default_call_error();
+                __call_fn(__method_bind, self.object_ptr, __args_ptr, __args.len() as i64, std::ptr::null_mut(), std::ptr::addr_of_mut!(__err));
+                assert_eq!(__err.error, sys::GDNATIVE_CALL_OK);
             }
         }
         (false, Some(RustTy::EngineClass(return_ty))) => {
             quote! {
                 <#return_ty>::from_sys_init_opt(|return_ptr| {
-                    call_fn(method_bind, self.object_ptr, args_ptr, return_ptr);
+                    __call_fn(__method_bind, self.object_ptr, __args_ptr, return_ptr);
                 })
             }
         }
         (false, Some(return_ty)) => {
             quote! {
                 <#return_ty as sys::GodotFfi>::from_sys_init(|return_ptr| {
-                    call_fn(method_bind, self.object_ptr, args_ptr, return_ptr);
+                    __call_fn(__method_bind, self.object_ptr, __args_ptr, return_ptr);
                 })
             }
         }
         (false, None) => {
             quote! {
-                call_fn(method_bind, self.object_ptr, args_ptr, std::ptr::null_mut());
+                __call_fn(__method_bind, self.object_ptr, __args_ptr, std::ptr::null_mut());
             }
         }
     };
@@ -599,20 +599,20 @@ fn make_utility_return(
         Some(RustTy::EngineClass(return_ty)) => {
             quote! {
                 <#return_ty>::from_sys_init_opt(|return_ptr| {
-                    call_fn(return_ptr, args_ptr, args.len() as i32);
+                    __call_fn(return_ptr, __args_ptr, __args.len() as i32);
                 })
             }
         }
         Some(return_ty) => {
             quote! {
                 <#return_ty as sys::GodotFfi>::from_sys_init(|return_ptr| {
-                    call_fn(return_ptr, args_ptr, args.len() as i32);
+                    __call_fn(return_ptr, __args_ptr, __args.len() as i32);
                 })
             }
         }
         None => {
             quote! {
-                call_fn(std::ptr::null_mut(), args_ptr, args.len() as i32);
+                __call_fn(std::ptr::null_mut(), __args_ptr, __args.len() as i32);
             }
         }
     };

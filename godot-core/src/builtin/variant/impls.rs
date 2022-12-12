@@ -7,6 +7,7 @@
 use super::*;
 use crate::builtin::meta::VariantMetadata;
 use crate::builtin::*;
+use crate::obj::EngineEnum;
 use godot_ffi as sys;
 use sys::GodotFfi;
 
@@ -31,7 +32,7 @@ macro_rules! impl_variant_traits {
             fn to_variant(&self) -> Variant {
                 let variant = unsafe {
                     Variant::from_var_sys_init(|variant_ptr| {
-                        let converter = sys::method_table().$from_fn;
+                        let converter = sys::builtin_fn!($from_fn);
                         converter(variant_ptr, self.sys());
                     })
                 };
@@ -50,7 +51,7 @@ macro_rules! impl_variant_traits {
 
                 let mut value = <$T>::default();
                 let result = unsafe {
-                    let converter = sys::method_table().$to_fn;
+                    let converter = sys::builtin_fn!($to_fn);
                     converter(value.sys_mut(), variant.var_sys());
                     value
                 };
@@ -187,5 +188,18 @@ impl FromVariant for Variant {
 impl VariantMetadata for Variant {
     fn variant_type() -> VariantType {
         VariantType::Nil // FIXME is this correct? what else to use? is this called at all?
+    }
+}
+
+impl<T: EngineEnum> ToVariant for T {
+    fn to_variant(&self) -> Variant {
+        <i32 as ToVariant>::to_variant(&self.ord())
+    }
+}
+
+impl<T: EngineEnum> FromVariant for T {
+    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+        <i32 as FromVariant>::try_from_variant(variant)
+            .and_then(|int| Self::try_from_ord(int).ok_or(VariantConversionError))
     }
 }

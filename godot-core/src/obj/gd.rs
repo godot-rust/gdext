@@ -15,7 +15,6 @@ use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
 use crate::builtin::meta::{ClassName, PropertyInfo, VariantMetadata};
-use crate::builtin::GodotString;
 use crate::builtin::{FromVariant, StringName, ToVariant, Variant, VariantConversionError};
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
@@ -538,7 +537,7 @@ impl<T: GodotClass> FromVariant for Gd<T> {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
         let result = unsafe {
             let result = Self::from_sys_init(|self_ptr| {
-                let converter = sys::method_table().object_from_variant;
+                let converter = sys::builtin_fn!(object_from_variant);
                 converter(self_ptr, variant.var_sys());
             });
             result.ready()
@@ -552,13 +551,13 @@ impl<T: GodotClass> ToVariant for Gd<T> {
     fn to_variant(&self) -> Variant {
         let variant = unsafe {
             Variant::from_var_sys_init(|variant_ptr| {
-                let converter = sys::method_table().object_to_variant;
+                let converter = sys::builtin_fn!(object_to_variant);
 
                 // Note: this is a special case because of an inconsistency in Godot, where sometimes the equivalency is
                 // GDNativeTypePtr == Object** and sometimes GDNativeTypePtr == Object*. Here, it is the former, thus extra pointer.
                 // Reported at https://github.com/godotengine/godot/issues/61967
                 let type_ptr = self.sys();
-                converter(variant_ptr, ptr::addr_of!(type_ptr) as *mut _);
+                converter(variant_ptr, ptr::addr_of!(type_ptr) as sys::GDNativeTypePtr);
             })
         };
 
@@ -575,22 +574,13 @@ where
     // and thus implement it for each class separately (or blanket GodotClass/EngineClass/...).
 
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        let string: GodotString = self.as_object(|obj| engine::Object::to_string(obj));
-
-        <GodotString as Display>::fmt(&string, f)
+        engine::display_string(self, f)
     }
 }
 
 impl<T: GodotClass> Debug for Gd<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        // If you change this, don't forget to update Base::fmt()
-        if let Some(id) = self.instance_id_or_none() {
-            let class: GodotString = self.as_object(|obj| engine::Object::get_class(obj));
-
-            write!(f, "Gd {{ id: {id}, class: {class} }}")
-        } else {
-            write!(f, "Gd {{ freed obj }}")
-        }
+        engine::debug_string(self, f, "Gd")
     }
 }
 
