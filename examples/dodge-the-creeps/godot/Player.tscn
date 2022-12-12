@@ -1,9 +1,9 @@
 [gd_scene load_steps=12 format=3 uid="uid://4vwrqjegqwpj"]
 
-[ext_resource type="Texture2D" uid="uid://ftkxr8r4qghp" path="res://art/playerGrey_walk1.png" id="2"]
-[ext_resource type="Texture2D" uid="uid://couyhcegeihme" path="res://art/playerGrey_walk2.png" id="3"]
-[ext_resource type="Texture2D" uid="uid://b4yyoafu8bi0q" path="res://art/playerGrey_up1.png" id="4"]
-[ext_resource type="Texture2D" uid="uid://bko65a0nd66st" path="res://art/playerGrey_up2.png" id="5"]
+[ext_resource type="Texture2D" uid="uid://bei50n77gmlml" path="res://art/playerGrey_walk1.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://bdkoaa5a3c44c" path="res://art/playerGrey_walk2.png" id="3"]
+[ext_resource type="Texture2D" uid="uid://qpg7fsh1wnd6" path="res://art/playerGrey_up1.png" id="4"]
+[ext_resource type="Texture2D" uid="uid://c4vx8t665is8j" path="res://art/playerGrey_up2.png" id="5"]
 
 [sub_resource type="SpriteFrames" id="1"]
 animations = [{
@@ -41,6 +41,7 @@ scale_curve = SubResource("6")
 color_ramp = SubResource("4")
 
 [node name="Player" type="Player"]
+visible = false
 z_index = 10
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
