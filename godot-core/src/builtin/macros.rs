@@ -130,7 +130,7 @@ macro_rules! impl_builtin_stub {
         }
 
         impl GodotFfi for $Class {
-            ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
+            ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
         }
     };
 }

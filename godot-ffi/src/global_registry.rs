@@ -45,7 +45,7 @@ impl GlobalRegistry {
         }
     }
 
-    // fn property_info<T>(&mut self, property_name: &str) -> sys::GDNativePropertyInfo {
+    // fn property_info<T>(&mut self, property_name: &str) -> sys::GDExtensionPropertyInfo {
     //
     // }
 }

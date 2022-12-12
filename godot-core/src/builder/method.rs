@@ -32,16 +32,16 @@ where
     unsafe fn varcall(
         &mut self,
         instance: sys::GDExtensionClassInstancePtr,
-        args: *const sys::GDNativeTypePtr,
-        ret: sys::GDNativeTypePtr,
-        err: *mut sys::GDNativeCallError,
+        args: *const sys::GDExtensionTypePtr,
+        ret: sys::GDExtensionTypePtr,
+        err: *mut sys::GDExtensionCallError,
     );
 
     unsafe fn ptrcall(
         &mut self,
         instance: sys::GDExtensionClassInstancePtr,
-        args: *const sys::GDNativeTypePtr,
-        ret: sys::GDNativeTypePtr,
+        args: *const sys::GDExtensionTypePtr,
+        ret: sys::GDExtensionTypePtr,
     );
 }
 
@@ -76,9 +76,9 @@ macro_rules! impl_code_method {
             unsafe fn varcall(
                 &mut self,
                 instance: sys::GDExtensionClassInstancePtr,
-                args: *const sys::GDNativeTypePtr,
-                ret: sys::GDNativeTypePtr,
-                err: *mut sys::GDNativeCallError,
+                args: *const sys::GDExtensionTypePtr,
+                ret: sys::GDExtensionTypePtr,
+                err: *mut sys::GDExtensionCallError,
             ) {
                 let storage = ::godot_core::private::as_storage::<C>(instance);
                 let instance = storage.get_mut_lateinit();
@@ -95,7 +95,7 @@ macro_rules! impl_code_method {
                 )*);
 
                 *(ret as *mut Variant) = Variant::from(ret_val);
-                (*err).error = sys::GDNativeCallErrorType_GDNATIVE_CALL_OK;
+                (*err).error = sys::GDExtensionCallErrorType_GDEXTENSION_CALL_OK;
             }
 
 
@@ -105,8 +105,8 @@ macro_rules! impl_code_method {
             unsafe fn ptrcall(
                 &mut self,
                 instance: sys::GDExtensionClassInstancePtr,
-                args: *const sys::GDNativeTypePtr,
-                ret: sys::GDNativeTypePtr,
+                args: *const sys::GDExtensionTypePtr,
+                ret: sys::GDExtensionTypePtr,
             ) {
                 let storage = $crate::private::as_storage::<C>(instance);
                 let instance = storage.get_mut_lateinit();

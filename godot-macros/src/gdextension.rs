@@ -52,10 +52,10 @@ pub fn transform(meta: TokenStream, input: TokenStream) -> Result<TokenStream, v
 
         #[no_mangle]
         unsafe extern "C" fn #entry_point(
-            interface: *const ::godot::sys::GDNativeInterface,
-            library: ::godot::sys::GDNativeExtensionClassLibraryPtr,
-            init: *mut ::godot::sys::GDNativeInitialization,
-        ) -> ::godot::sys::GDNativeBool {
+            interface: *const ::godot::sys::GDExtensionInterface,
+            library: ::godot::sys::GDExtensionClassLibraryPtr,
+            init: *mut ::godot::sys::GDExtensionInitialization,
+        ) -> ::godot::sys::GDExtensionBool {
             ::godot::init::__gdext_load_library::<#impl_ty>(
                 interface,
                 library,
@@ -65,7 +65,7 @@ pub fn transform(meta: TokenStream, input: TokenStream) -> Result<TokenStream, v
 
         fn __static_type_check() {
             // Ensures that the init function matches the signature advertised in FFI header
-            let _unused: ::godot::sys::GDNativeInitializationFunction = Some(#entry_point);
+            let _unused: ::godot::sys::GDExtensionInitializationFunction = Some(#entry_point);
         }
     })
 }

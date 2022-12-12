@@ -284,7 +284,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         impl ::godot::private::You_forgot_the_attribute__godot_api for #class_name {}
 
         impl ::godot::obj::cap::ImplementsGodotExt for #class_name {
-            fn __virtual_call(name: &str) -> ::godot::sys::GDNativeExtensionClassCallVirtual {
+            fn __virtual_call(name: &str) -> ::godot::sys::GDExtensionClassCallVirtual {
                 //println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
 
                 match name {

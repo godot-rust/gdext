@@ -20,7 +20,7 @@ impl NodePath {
 }
 
 impl GodotFfi for NodePath {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
 impl From<&GodotString> for NodePath {

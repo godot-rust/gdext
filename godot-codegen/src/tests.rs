@@ -45,7 +45,7 @@ fn module_name_generator() {
         ("AbcdefG", "abcdef_g"), // PosX => pos_x
         // text changes
         ("FooVec3Uni", "foo_vec3_uni"),
-        ("GDNative", "gdnative_"),
+        ("GDExtension", "gdextension_"),
         ("GDScript", "gdscript"),
     ];
     tests.iter().for_each(|(class_name, expected)| {

@@ -150,10 +150,10 @@ pub unsafe fn as_storage<'u, T: GodotClass>(
     &mut *(instance_ptr as *mut InstanceStorage<T>)
 }
 
-pub fn nop_instance_callbacks() -> sys::GDNativeInstanceBindingCallbacks {
+pub fn nop_instance_callbacks() -> sys::GDExtensionInstanceBindingCallbacks {
     // These could also be null pointers, if they are definitely not invoked (e.g. create_callback only passed to object_get_instance_binding(),
     // when there is already a binding). Current "empty but not null" impl corresponds to godot-cpp (wrapped.hpp).
-    sys::GDNativeInstanceBindingCallbacks {
+    sys::GDExtensionInstanceBindingCallbacks {
         create_callback: Some(create_callback),
         free_callback: Some(free_callback),
         reference_callback: Some(reference_callback),
@@ -178,7 +178,7 @@ extern "C" fn free_callback(
 extern "C" fn reference_callback(
     _p_token: *mut std::os::raw::c_void,
     _p_binding: *mut std::os::raw::c_void,
-    _p_reference: sys::GDNativeBool,
-) -> sys::GDNativeBool {
+    _p_reference: sys::GDExtensionBool,
+) -> sys::GDExtensionBool {
     true as u8
 }

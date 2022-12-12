@@ -53,7 +53,7 @@ pub enum PluginComponent {
         generated_create_fn: Option<
             unsafe extern "C" fn(
                 _class_userdata: *mut std::ffi::c_void, //
-            ) -> sys::GDNativeObjectPtr,
+            ) -> sys::GDExtensionObjectPtr,
         >,
 
         free_fn: unsafe extern "C" fn(
@@ -79,23 +79,23 @@ pub enum PluginComponent {
         user_create_fn: Option<
             unsafe extern "C" fn(
                 _class_userdata: *mut std::ffi::c_void, //
-            ) -> sys::GDNativeObjectPtr,
+            ) -> sys::GDExtensionObjectPtr,
         >,
 
         /// User-defined `to_string` function
         user_to_string_fn: Option<
             unsafe extern "C" fn(
                 p_instance: sys::GDExtensionClassInstancePtr,
-                r_is_valid: *mut sys::GDNativeBool,
-                p_out: sys::GDNativeStringPtr,
+                r_is_valid: *mut sys::GDExtensionBool,
+                p_out: sys::GDExtensionStringPtr,
             ),
         >,
 
         /// Callback for other virtuals
         get_virtual_fn: unsafe extern "C" fn(
             p_userdata: *mut std::os::raw::c_void,
-            p_name: sys::GDNativeConstStringNamePtr,
-        ) -> sys::GDNativeExtensionClassCallVirtual,
+            p_name: sys::GDExtensionConstStringNamePtr,
+        ) -> sys::GDExtensionClassCallVirtual,
     },
 }
 
@@ -107,7 +107,7 @@ struct ClassRegistrationInfo {
     parent_class_name: Option<ClassName>,
     generated_register_fn: Option<ErasedRegisterFn>,
     user_register_fn: Option<ErasedRegisterFn>,
-    godot_params: sys::GDNativeExtensionClassCreationInfo,
+    godot_params: sys::GDExtensionClassCreationInfo,
 }
 
 pub fn register_class<T: GodotExt + cap::GodotInit + cap::ImplementsGodotExt>() {
@@ -116,7 +116,7 @@ pub fn register_class<T: GodotExt + cap::GodotInit + cap::ImplementsGodotExt>() 
     out!("Manually register class {}", std::any::type_name::<T>());
     let class_name = ClassName::new::<T>();
 
-    let godot_params = sys::GDNativeExtensionClassCreationInfo {
+    let godot_params = sys::GDExtensionClassCreationInfo {
         to_string_func: Some(callbacks::to_string::<T>),
         reference_func: Some(callbacks::reference::<T>),
         unreference_func: Some(callbacks::unreference::<T>),
@@ -262,11 +262,11 @@ pub mod callbacks {
 
     pub unsafe extern "C" fn create<T: cap::GodotInit>(
         _class_userdata: *mut std::ffi::c_void,
-    ) -> sys::GDNativeObjectPtr {
+    ) -> sys::GDExtensionObjectPtr {
         create_custom(T::__godot_init)
     }
 
-    pub(crate) fn create_custom<T, F>(make_user_instance: F) -> sys::GDNativeObjectPtr
+    pub(crate) fn create_custom<T, F>(make_user_instance: F) -> sys::GDExtensionObjectPtr
     where
         T: GodotClass,
         F: FnOnce(Base<T::Base>) -> T,
@@ -312,8 +312,8 @@ pub mod callbacks {
 
     pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotExt>(
         _class_user_data: *mut std::ffi::c_void,
-        name: sys::GDNativeConstStringNamePtr,
-    ) -> sys::GDNativeExtensionClassCallVirtual {
+        name: sys::GDExtensionConstStringNamePtr,
+    ) -> sys::GDExtensionClassCallVirtual {
         // This string is not ours, so we cannot call the destructor on it.
         let borrowed_string = StringName::from_string_sys(sys::force_mut_ptr(name));
         let method_name = borrowed_string.to_string();
@@ -324,8 +324,8 @@ pub mod callbacks {
 
     pub unsafe extern "C" fn to_string<T: GodotExt>(
         instance: sys::GDExtensionClassInstancePtr,
-        _is_valid: *mut sys::GDNativeBool,
-        out_string: sys::GDNativeStringPtr,
+        _is_valid: *mut sys::GDExtensionBool,
+        out_string: sys::GDExtensionStringPtr,
     ) {
         // Note: to_string currently always succeeds, as it is only provided for classes that have a working implementation.
         // is_valid output parameter thus not needed.
@@ -397,8 +397,8 @@ fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
     }
 }
 
-fn default_creation_info() -> sys::GDNativeExtensionClassCreationInfo {
-    sys::GDNativeExtensionClassCreationInfo {
+fn default_creation_info() -> sys::GDExtensionClassCreationInfo {
+    sys::GDExtensionClassCreationInfo {
         is_abstract: false as u8,
         is_virtual: false as u8,
         set_func: None,

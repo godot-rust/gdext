@@ -16,12 +16,12 @@ use private::Sealed;
 
 pub trait AsArg: Sealed {
     #[doc(hidden)]
-    fn as_arg_ptr(&self) -> sys::GDNativeConstTypePtr;
+    fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr;
 }
 
 impl<T: GodotClass> Sealed for Gd<T> {}
 impl<T: GodotClass> AsArg for Gd<T> {
-    fn as_arg_ptr(&self) -> sys::GDNativeConstTypePtr {
+    fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
         // Pass argument to engine: increment refcount
         <T::Mem as crate::obj::mem::Memory>::maybe_inc_ref(self);
         self.sys_const()
@@ -30,7 +30,7 @@ impl<T: GodotClass> AsArg for Gd<T> {
 
 // impl<T: EngineClass> Sealed for &T {}
 // impl<T: EngineClass> AsArg for &T {
-//     fn as_arg_ptr(&self) -> sys::GDNativeTypePtr {
+//     fn as_arg_ptr(&self) -> sys::GDExtensionTypePtr {
 //         // TODO what if this is dropped by the user after the call? Same behavior as Gd<T>, no?
 //         self.as_type_ptr()
 //     }

@@ -11,34 +11,34 @@ use std::fmt::Debug;
 #[doc(hidden)]
 pub trait GodotFfi {
     /// Construct from Godot opaque pointer.
-    unsafe fn from_sys(ptr: sys::GDNativeTypePtr) -> Self;
+    unsafe fn from_sys(ptr: sys::GDExtensionTypePtr) -> Self;
 
     /// Construct uninitialized opaque data, then initialize it with `init` function.
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Self;
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self;
 
     /// Return Godot opaque pointer, for an immutable operation.
     ///
     /// Note that this is a `*mut` pointer despite taking `&self` by shared-ref.
     /// This is because most of Godot's rust API is not const-correct. This can still
     /// enhance user code (calling `sys_mut` ensures no aliasing at the time of the call).
-    fn sys(&self) -> sys::GDNativeTypePtr;
+    fn sys(&self) -> sys::GDExtensionTypePtr;
 
     /// Return Godot opaque pointer, for a mutable operation.
     ///
     /// Should usually not be overridden; behaves like `sys()` but ensures no aliasing
     /// at the time of the call (not necessarily during any subsequent modifications though).
-    fn sys_mut(&mut self) -> sys::GDNativeTypePtr {
+    fn sys_mut(&mut self) -> sys::GDExtensionTypePtr {
         self.sys()
     }
 
     // TODO check if sys() can take over this
     // also, from_sys() might take *const T
     // possibly separate 2 pointer types
-    fn sys_const(&self) -> sys::GDNativeConstTypePtr {
+    fn sys_const(&self) -> sys::GDExtensionConstTypePtr {
         self.sys()
     }
 
-    unsafe fn write_sys(&self, dst: sys::GDNativeTypePtr);
+    unsafe fn write_sys(&self, dst: sys::GDExtensionTypePtr);
 }
 
 /// Trait implemented for all types that can be passed to and from user-defined `#[func]` methods
@@ -48,15 +48,15 @@ pub trait GodotFuncMarshal: Sized {
     type Via: Debug;
 
     /// Used for function arguments. On failure, the argument which can't be converted to Self is returned.
-    unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Result<Self, Self::Via>;
+    unsafe fn try_from_sys(ptr: sys::GDExtensionTypePtr) -> Result<Self, Self::Via>;
 
     /// Used for function return values. On failure, `self` which can't be converted to Via is returned.
-    unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Result<(), Self>;
+    unsafe fn try_write_sys(&self, dst: sys::GDExtensionTypePtr) -> Result<(), Self>;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Macros to choose a certain implementation of `GodotFfi` trait for GDNativeTypePtr;
-// or a free-standing `impl` for concrete sys pointers such as GDNativeObjectPtr.
+// Macros to choose a certain implementation of `GodotFfi` trait for GDExtensionTypePtr;
+// or a free-standing `impl` for concrete sys pointers such as GDExtensionObjectPtr.
 // See doc comment of `ffi_methods!` for information
 
 #[macro_export]
@@ -228,7 +228,7 @@ mod scalars {
     macro_rules! impl_godot_marshalling {
         ($T:ty) => {
             impl GodotFfi for $T {
-                ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
+                ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
             }
         };
 
@@ -239,12 +239,12 @@ mod scalars {
             impl GodotFuncMarshal for $T {
                 type Via = $Via;
 
-                unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Result<Self, $Via> {
+                unsafe fn try_from_sys(ptr: sys::GDExtensionTypePtr) -> Result<Self, $Via> {
                     let via = <$Via as GodotFfi>::from_sys(ptr);
                     Self::try_from(via).map_err(|_| via)
                 }
 
-                unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Result<(), Self> {
+                unsafe fn try_write_sys(&self, dst: sys::GDExtensionTypePtr) -> Result<(), Self> {
                     <$Via>::try_from(*self)
                         .and_then(|via| {
                             <$Via as GodotFfi>::write_sys(&via, dst);
@@ -262,12 +262,12 @@ mod scalars {
             impl GodotFuncMarshal for $T {
                 type Via = $Via;
 
-                unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Result<Self, $Via> {
+                unsafe fn try_from_sys(ptr: sys::GDExtensionTypePtr) -> Result<Self, $Via> {
                     let via = <$Via as GodotFfi>::from_sys(ptr);
                     Ok(via as Self)
                 }
 
-                unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Result<(), Self> {
+                unsafe fn try_write_sys(&self, dst: sys::GDExtensionTypePtr) -> Result<(), Self> {
                     let via = *self as $Via;
                     <$Via as GodotFfi>::write_sys(&via, dst);
                     Ok(())
@@ -292,20 +292,20 @@ mod scalars {
     impl_godot_marshalling!(f32 as f64; lossy);
 
     impl GodotFfi for () {
-        unsafe fn from_sys(_ptr: sys::GDNativeTypePtr) -> Self {
+        unsafe fn from_sys(_ptr: sys::GDExtensionTypePtr) -> Self {
             // Do nothing
         }
 
-        unsafe fn from_sys_init(_init: impl FnOnce(sys::GDNativeTypePtr)) -> Self {
+        unsafe fn from_sys_init(_init: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
             // Do nothing
         }
 
-        fn sys(&self) -> sys::GDNativeTypePtr {
+        fn sys(&self) -> sys::GDExtensionTypePtr {
             // ZST dummy pointer
-            self as *const _ as sys::GDNativeTypePtr
+            self as *const _ as sys::GDExtensionTypePtr
         }
 
-        unsafe fn write_sys(&self, _dst: sys::GDNativeTypePtr) {
+        unsafe fn write_sys(&self, _dst: sys::GDExtensionTypePtr) {
             // Do nothing
         }
     }
@@ -316,11 +316,11 @@ mod scalars {
     {
         type Via = Infallible;
 
-        unsafe fn try_from_sys(ptr: sys::GDNativeTypePtr) -> Result<Self, Infallible> {
+        unsafe fn try_from_sys(ptr: sys::GDExtensionTypePtr) -> Result<Self, Infallible> {
             Ok(Self::from_sys(ptr))
         }
 
-        unsafe fn try_write_sys(&self, dst: sys::GDNativeTypePtr) -> Result<(), Self> {
+        unsafe fn try_write_sys(&self, dst: sys::GDExtensionTypePtr) -> Result<(), Self> {
             self.write_sys(dst);
             Ok(())
         }

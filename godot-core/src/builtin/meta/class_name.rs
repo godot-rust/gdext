@@ -31,7 +31,7 @@ impl ClassName {
         }
     }
 
-    pub fn string_sys(&self) -> sys::GDNativeStringNamePtr {
+    pub fn string_sys(&self) -> sys::GDExtensionStringNamePtr {
         self.backing.string_sys()
     }
 }

@@ -45,7 +45,7 @@ impl Vector2 {
 }
 
 impl GodotFfi for Vector2 {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
 impl std::fmt::Display for Vector2 {
@@ -73,7 +73,7 @@ impl Vector2i {
 }
 
 impl GodotFfi for Vector2i {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
 impl std::fmt::Display for Vector2i {

@@ -8,7 +8,7 @@
 // The concrete values matter much less than having a structure at all, to avoid thousands of upstream
 // conditional compilation differentiations.
 
-use crate::{ffi_methods, GDNativeTypePtr, /*GDNativeVariantPtr,*/ GodotFfi};
+use crate::{ffi_methods, GDExtensionTypePtr, /*GDExtensionVariantPtr,*/ GodotFfi};
 pub mod types {
     pub type OpaqueNil = crate::opaque::Opaque<0usize>;
     pub type OpaqueBool = crate::opaque::Opaque<1usize>;
@@ -52,7 +52,7 @@ pub mod types {
 }
 // pub struct GlobalMethodTable {}
 // impl GlobalMethodTable {
-//     pub(crate) unsafe fn new(interface: &crate::GDNativeInterface) -> Self {
+//     pub(crate) unsafe fn new(interface: &crate::GDExtensionInterface) -> Self {
 //         Self {}
 //     }
 // }
@@ -100,7 +100,7 @@ pub enum VariantType {
 }
 impl VariantType {
     #[doc(hidden)]
-    pub fn from_sys(enumerator: crate::GDNativeVariantType) -> Self {
+    pub fn from_sys(enumerator: crate::GDExtensionVariantType) -> Self {
         match enumerator {
             0 => Self::Nil,
             1 => Self::Bool,
@@ -144,12 +144,12 @@ impl VariantType {
         }
     }
     #[doc(hidden)]
-    pub fn sys(self) -> crate::GDNativeVariantType {
+    pub fn sys(self) -> crate::GDExtensionVariantType {
         self as _
     }
 }
 impl GodotFfi for VariantType {
-    ffi_methods! { type GDNativeTypePtr = * mut Self ; .. }
+    ffi_methods! { type GDExtensionTypePtr = * mut Self ; .. }
 }
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[repr(i32)]
@@ -182,7 +182,7 @@ pub enum VariantOperator {
 }
 impl VariantOperator {
     #[doc(hidden)]
-    pub fn from_sys(enumerator: crate::GDNativeVariantOperator) -> Self {
+    pub fn from_sys(enumerator: crate::GDExtensionVariantOperator) -> Self {
         match enumerator {
             0 => Self::Equal,
             1 => Self::NotEqual,
@@ -213,10 +213,10 @@ impl VariantOperator {
         }
     }
     #[doc(hidden)]
-    pub fn sys(self) -> crate::GDNativeVariantOperator {
+    pub fn sys(self) -> crate::GDExtensionVariantOperator {
         self as _
     }
 }
 impl GodotFfi for VariantOperator {
-    ffi_methods! { type GDNativeTypePtr = * mut Self ; .. }
+    ffi_methods! { type GDExtensionTypePtr = * mut Self ; .. }
 }

@@ -25,7 +25,7 @@ impl Vector3 {
 }
 
 impl GodotFfi for Vector3 {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
 impl std::fmt::Display for Vector3 {
@@ -55,7 +55,7 @@ impl Vector3i {
 }
 
 impl GodotFfi for Vector3i {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
 impl std::fmt::Display for Vector3i {
@@ -77,5 +77,5 @@ pub enum Vector3Axis {
 }
 
 impl GodotFfi for Vector3Axis {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

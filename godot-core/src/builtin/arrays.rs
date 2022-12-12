@@ -90,7 +90,7 @@ impl<T> Clone for TypedArray<T> {
 // }
 
 impl<T> GodotFfi for TypedArray<T> {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Opaque; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
 impl<T> Drop for TypedArray<T> {

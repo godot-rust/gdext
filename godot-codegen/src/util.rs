@@ -91,7 +91,7 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
             }
         }
         impl sys::GodotFfi for #enum_name {
-            sys::ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
+            sys::ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
         }
         #bitfield_ops
     }
@@ -176,16 +176,16 @@ pub fn to_module_name(class_name: &str) -> String {
     if let Some(range) = result.find("_vec_3").map(|i| i..i + 6) {
         result.replace_range(range, "_vec3_")
     }
-    if let Some(range) = result.find("gd_native").map(|i| i..i + 9) {
-        result.replace_range(range, "gdnative")
+    if let Some(range) = result.find("gd_extension").map(|i| i..i + 12) {
+        result.replace_range(range, "gdextension")
     }
     if let Some(range) = result.find("gd_script").map(|i| i..i + 9) {
         result.replace_range(range, "gdscript")
     }
 
-    // To prevent clobbering `gdnative` during a glob import we rename it to `gdnative_`
-    if result == "gdnative" {
-        return "gdnative_".into();
+    // Exclude from glob imports "gdextension"
+    if result == "gdextension" {
+        return "gdextension_".to_string();
     }
 
     result

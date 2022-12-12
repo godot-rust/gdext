@@ -1,33 +1,33 @@
-diff --git a/godot-codegen/input/gdnative_interface.h b/godot-codegen/input/gdnative_interface.h
+diff --git a/godot-codegen/input/gdextension_interface.h b/godot-codegen/input/gdextension_interface.h
 index 486f5be..304ccdf 100644
---- a/godot-codegen/input/gdnative_interface.h
-+++ b/godot-codegen/input/gdnative_interface.h
+--- a/godot-codegen/input/gdextension_interface.h
++++ b/godot-codegen/input/gdextension_interface.h
 @@ -140,17 +140,17 @@ typedef enum {
  
- } GDNativeVariantOperator;
+ } GDExtensionVariantOperator;
  
--typedef void *GDNativeVariantPtr;
--typedef const void *GDNativeConstVariantPtr;
--typedef void *GDNativeStringNamePtr;
--typedef const void *GDNativeConstStringNamePtr;
--typedef void *GDNativeStringPtr;
--typedef const void *GDNativeConstStringPtr;
--typedef void *GDNativeObjectPtr;
--typedef const void *GDNativeConstObjectPtr;
--typedef void *GDNativeTypePtr;
--typedef const void *GDNativeConstTypePtr;
--typedef const void *GDNativeMethodBindPtr;
-+typedef struct TagVariant *GDNativeVariantPtr;
-+typedef const struct TagVariant *GDNativeConstVariantPtr;
-+typedef struct TagStringName *GDNativeStringNamePtr;
-+typedef const struct TagStringName *GDNativeConstStringNamePtr;
-+typedef struct TagString *GDNativeStringPtr;
-+typedef const struct TagString *GDNativeConstStringPtr;
-+typedef struct TagObject *GDNativeObjectPtr;
-+typedef const struct TagObject *GDNativeConstObjectPtr;
-+typedef struct TagType *GDNativeTypePtr;
-+typedef const struct TagType *GDNativeConstTypePtr;
-+typedef struct TagMethodBind *GDNativeMethodBindPtr;
- typedef int64_t GDNativeInt;
- typedef uint8_t GDNativeBool;
+-typedef void *GDExtensionVariantPtr;
+-typedef const void *GDExtensionConstVariantPtr;
+-typedef void *GDExtensionStringNamePtr;
+-typedef const void *GDExtensionConstStringNamePtr;
+-typedef void *GDExtensionStringPtr;
+-typedef const void *GDExtensionConstStringPtr;
+-typedef void *GDExtensionObjectPtr;
+-typedef const void *GDExtensionConstObjectPtr;
+-typedef void *GDExtensionTypePtr;
+-typedef const void *GDExtensionConstTypePtr;
+-typedef const void *GDExtensionMethodBindPtr;
++typedef struct TagVariant *GDExtensionVariantPtr;
++typedef const struct TagVariant *GDExtensionConstVariantPtr;
++typedef struct TagStringName *GDExtensionStringNamePtr;
++typedef const struct TagStringName *GDExtensionConstStringNamePtr;
++typedef struct TagString *GDExtensionStringPtr;
++typedef const struct TagString *GDExtensionConstStringPtr;
++typedef struct TagObject *GDExtensionObjectPtr;
++typedef const struct TagObject *GDExtensionConstObjectPtr;
++typedef struct TagType *GDExtensionTypePtr;
++typedef const struct TagType *GDExtensionConstTypePtr;
++typedef struct TagMethodBind *GDExtensionMethodBindPtr;
+ typedef int64_t GDExtensionInt;
+ typedef uint8_t GDExtensionBool;
  typedef uint64_t GDObjectInstanceID;

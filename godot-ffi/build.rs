@@ -15,14 +15,14 @@ fn main() {
         std::fs::remove_dir_all(gen_path).unwrap_or_else(|e| panic!("failed to delete dir: {e}"));
     }
 
-    run_bindgen(&gen_path.join("gdnative_interface.rs"));
+    run_bindgen(&gen_path.join("gdextension_interface.rs"));
 
     let stubs_only = cfg!(feature = "unit-test");
     godot_codegen::generate_sys_files(gen_path, stubs_only);
 }
 
 fn run_bindgen(out_file: &Path) {
-    let header_path = "../godot-codegen/input/gdnative_interface.h";
+    let header_path = "../godot-codegen/input/gdextension_interface.h";
     println!("cargo:rerun-if-changed={}", header_path);
 
     let builder = bindgen::Builder::default()
@@ -41,12 +41,12 @@ fn run_bindgen(out_file: &Path) {
 
     let bindings = configure_platform_specific(builder)
         .generate()
-        .expect("failed generate gdnative_interface.h bindings");
+        .expect("failed generate gdextension_interface.h bindings");
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
     bindings
         .write_to_file(out_file)
-        .expect("failed write gdnative_interface.h bindings to file");
+        .expect("failed write gdextension_interface.h bindings to file");
 }
 
 //#[cfg(target_os = "macos")]
