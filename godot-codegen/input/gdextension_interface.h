@@ -140,17 +140,17 @@ typedef enum {
 
 } GDExtensionVariantOperator;
 
-typedef void *GDExtensionVariantPtr;
-typedef const void *GDExtensionConstVariantPtr;
-typedef void *GDExtensionStringNamePtr;
-typedef const void *GDExtensionConstStringNamePtr;
-typedef void *GDExtensionStringPtr;
-typedef const void *GDExtensionConstStringPtr;
-typedef void *GDExtensionObjectPtr;
-typedef const void *GDExtensionConstObjectPtr;
-typedef void *GDExtensionTypePtr;
-typedef const void *GDExtensionConstTypePtr;
-typedef const void *GDExtensionMethodBindPtr;
+typedef struct TagVariant *GDExtensionVariantPtr;
+typedef const struct TagVariant *GDExtensionConstVariantPtr;
+typedef struct TagStringName *GDExtensionStringNamePtr;
+typedef const struct TagStringName *GDExtensionConstStringNamePtr;
+typedef struct TagString *GDExtensionStringPtr;
+typedef const struct TagString *GDExtensionConstStringPtr;
+typedef struct TagObject *GDExtensionObjectPtr;
+typedef const struct TagObject *GDExtensionConstObjectPtr;
+typedef struct TagType *GDExtensionTypePtr;
+typedef const struct TagType *GDExtensionConstTypePtr;
+typedef struct TagMethodBind *GDExtensionMethodBindPtr;
 typedef int64_t GDExtensionInt;
 typedef uint8_t GDExtensionBool;
 typedef uint64_t GDObjectInstanceID;
