@@ -14,15 +14,13 @@
 #       echo 'EOF' >> $GITHUB_ENV
 
 
-name: Minimal CI
+name: Full CI
 
 on:
   push:
     branches:
-      - master
-  pull_request:
-#    branches:
-#      - master
+      - staging
+      - trying
 
 env:
   GDEXT_FEATURES: 'godot-core/convenience'
@@ -51,7 +49,7 @@ jobs:
         run: cargo fmt --all -- --check
 
   unit-test:
-    name: test (${{ matrix.name }})
+    name: unit-test (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     continue-on-error: false
     strategy:
@@ -102,7 +100,7 @@ jobs:
         run: cargo test $GDEXT_CRATE_ARGS --features unit-test,$GDEXT_FEATURES ${{ matrix.testflags }}
 
 
-  integration-test-godot:
+  itest-godot:
     name: itest-godot (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     continue-on-error: false
@@ -143,7 +141,6 @@ jobs:
 
   license-guard:
     runs-on: ubuntu-20.04
-    if: github.ref != 'refs/heads/master'
     steps:
       - uses: actions/checkout@v3
 
@@ -155,13 +152,16 @@ jobs:
           # token: # optional: the token that license eye uses when it needs to comment on the pull request.
           # Set to empty ("") to disable commenting on pull request. The default value is ${{ github.token }}
           # mode: # optional: Which mode License-Eye should be run in. Choices are `check` or `fix`. The default value is `check`.
-          mode: fix
+          mode: check
 
-      - name: "Commit changes"
-        uses: EndBug/add-and-commit@v9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          author_name: 'Godot-Rust Automation'
-          author_email: 'actions@github.com'
-          message: 'Auto-apply license headers'
+  full-ci:
+    if: github.event_name == 'push' && success()
+    needs:
+      - rustfmt
+      - unit-test
+      - itest-godot
+      - license-guard
+    runs-on: ubuntu-20.04
+    steps:
+      - name: "Mark the job as a success"
+        run: exit 0

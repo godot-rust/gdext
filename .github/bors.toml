@@ -1,0 +1,3 @@
+block_labels = ["status: duplicate", "status: wontfix"]
+delete_merged_branches = true
+status = ["full-ci"]
