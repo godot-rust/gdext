@@ -1,8 +1,8 @@
-diff --git a/godot-codegen/input/gdextension_interface.h b/godot-codegen/input/gdextension_interface.h
-index 486f5be..304ccdf 100644
---- a/godot-codegen/input/gdextension_interface.h
-+++ b/godot-codegen/input/gdextension_interface.h
-@@ -140,17 +140,17 @@ typedef enum {
+diff --git b/godot-codegen/input/gdextension_interface.h a/godot-codegen/input/gdextension_interface.h
+index 0b7615f..6db266e 100644
+--- b/godot-codegen/input/gdextension_interface.h
++++ a/godot-codegen/input/gdextension_interface.h
+@@ -140,22 +140,22 @@ typedef enum {
  
  } GDExtensionVariantOperator;
  
@@ -31,3 +31,10 @@ index 486f5be..304ccdf 100644
  typedef int64_t GDExtensionInt;
  typedef uint8_t GDExtensionBool;
  typedef uint64_t GDObjectInstanceID;
+-typedef void *GDExtensionRefPtr;
+-typedef const void *GDExtensionConstRefPtr;
++typedef struct TagExtensionRef *GDExtensionRefPtr;
++typedef const struct TagExtensionRef *GDExtensionConstRefPtr;
+ 
+ /* VARIANT DATA I/O */
+ 
