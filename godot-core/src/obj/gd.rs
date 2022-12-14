@@ -46,9 +46,9 @@ use crate::{callbacks, engine, out};
 /// [`Object`]: crate::engine::Object
 /// [`RefCounted`]: crate::engine::RefCounted
 pub struct Gd<T: GodotClass> {
-    // Note: `opaque` has the same layout as GDNativeObjectPtr == Object* in C++, i.e. the bytes represent a pointer
-    // To receive a GDNativeTypePtr == GDNativeObjectPtr* == Object**, we need to get the address of this
-    // Hence separate sys() for GDNativeTypePtr, and obj_sys() for GDNativeObjectPtr.
+    // Note: `opaque` has the same layout as GDExtensionObjectPtr == Object* in C++, i.e. the bytes represent a pointer
+    // To receive a GDExtensionTypePtr == GDExtensionObjectPtr* == Object**, we need to get the address of this
+    // Hence separate sys() for GDExtensionTypePtr, and obj_sys() for GDExtensionObjectPtr.
     // The former is the standard FFI type, while the latter is used in obj-specific GDExtension engines.
     // pub(crate) because accessed in obj::dom
     pub(crate) opaque: OpaqueObject,
@@ -57,7 +57,7 @@ pub struct Gd<T: GodotClass> {
 
 // Size equality check (should additionally be covered by mem::transmute())
 static_assert_eq_size!(
-    sys::GDNativeObjectPtr,
+    sys::GDExtensionObjectPtr,
     sys::types::OpaqueObject,
     "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
 );
@@ -177,7 +177,7 @@ impl<T: GodotClass> Gd<T> {
         if ptr.is_null() {
             None
         } else {
-            // SAFETY: assumes that the returned GDNativeObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
+            // SAFETY: assumes that the returned GDExtensionObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
             let untyped = unsafe { Gd::<engine::Object>::from_obj_sys(ptr).ready() };
             untyped.owned_cast::<T>().ok()
         }
@@ -371,7 +371,7 @@ impl<T: GodotClass> Gd<T> {
 
     // Conversions from/to Godot C++ `Object*` pointers
     ffi_methods! {
-        type sys::GDNativeObjectPtr = Opaque;
+        type sys::GDExtensionObjectPtr = Opaque;
 
         fn from_obj_sys = from_sys;
         fn from_obj_sys_init = from_sys_init;
@@ -437,11 +437,11 @@ where
         // which also needs #[repr(transparent)]:
         //
         // struct Gd<T: GodotClass> {
-        //     opaque: OpaqueObject,         <- size of GDNativeObjectPtr
+        //     opaque: OpaqueObject,         <- size of GDExtensionObjectPtr
         //     _marker: PhantomData,         <- ZST
         // }
         // struct Node3D {
-        //     object_ptr: sys::GDNativeObjectPtr,
+        //     object_ptr: sys::GDExtensionObjectPtr,
         // }
         unsafe { std::mem::transmute::<&OpaqueObject, &T>(&self.opaque) }
     }
@@ -463,19 +463,19 @@ where
 }
 
 impl<T: GodotClass> GodotFfi for Gd<T> {
-    ffi_methods! { type sys::GDNativeTypePtr = Opaque; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = Opaque; .. }
 }
 
 impl<T: GodotClass> Gd<T> {
-    pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Option<Self> {
+    pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Option<Self> {
         // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
 
-        // return_ptr has type GDNativeTypePtr = GDNativeObjectPtr* = OpaqueObject* = Object**
+        // return_ptr has type GDExtensionTypePtr = GDExtensionObjectPtr* = OpaqueObject* = Object**
         // (in other words, the type-ptr contains the _address_ of an object-ptr).
-        let mut object_ptr: sys::GDNativeObjectPtr = ptr::null_mut();
-        let return_ptr: *mut sys::GDNativeObjectPtr = ptr::addr_of_mut!(object_ptr);
+        let mut object_ptr: sys::GDExtensionObjectPtr = ptr::null_mut();
+        let return_ptr: *mut sys::GDExtensionObjectPtr = ptr::addr_of_mut!(object_ptr);
 
-        init_fn(return_ptr as sys::GDNativeTypePtr);
+        init_fn(return_ptr as sys::GDExtensionTypePtr);
 
         // We don't need to know if Object** is null, but if Object* is null; return_ptr has the address of a local (never null).
         if object_ptr.is_null() {
@@ -554,10 +554,13 @@ impl<T: GodotClass> ToVariant for Gd<T> {
                 let converter = sys::builtin_fn!(object_to_variant);
 
                 // Note: this is a special case because of an inconsistency in Godot, where sometimes the equivalency is
-                // GDNativeTypePtr == Object** and sometimes GDNativeTypePtr == Object*. Here, it is the former, thus extra pointer.
+                // GDExtensionTypePtr == Object** and sometimes GDExtensionTypePtr == Object*. Here, it is the former, thus extra pointer.
                 // Reported at https://github.com/godotengine/godot/issues/61967
                 let type_ptr = self.sys();
-                converter(variant_ptr, ptr::addr_of!(type_ptr) as sys::GDNativeTypePtr);
+                converter(
+                    variant_ptr,
+                    ptr::addr_of!(type_ptr) as sys::GDExtensionTypePtr,
+                );
             })
         };
 

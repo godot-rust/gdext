@@ -146,7 +146,7 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
             #[derive(Debug)]
             #[repr(transparent)]
             pub struct #name {
-                object_ptr: sys::GDNativeObjectPtr,
+                object_ptr: sys::GDExtensionObjectPtr,
             }
             impl #name {
                 #constructor
@@ -160,11 +160,11 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
                 const CLASS_NAME: &'static str = #name_str;
             }
             impl crate::obj::EngineClass for #name {
-                 fn as_object_ptr(&self) -> sys::GDNativeObjectPtr {
+                 fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr {
                      self.object_ptr
                  }
-                 fn as_type_ptr(&self) -> sys::GDNativeTypePtr {
-                    std::ptr::addr_of!(self.object_ptr) as sys::GDNativeTypePtr
+                 fn as_type_ptr(&self) -> sys::GDExtensionTypePtr {
+                    std::ptr::addr_of!(self.object_ptr) as sys::GDExtensionTypePtr
                  }
             }
             #(
@@ -542,7 +542,7 @@ fn make_method_return(
                 let variant = Variant::from_var_sys_init(|return_ptr| {
                     let mut __err = sys::default_call_error();
                     __call_fn(__method_bind, self.object_ptr, __args_ptr, __args.len() as i64, return_ptr, std::ptr::addr_of_mut!(__err));
-                    assert_eq!(__err.error, sys::GDNATIVE_CALL_OK);
+                    assert_eq!(__err.error, sys::GDEXTENSION_CALL_OK);
                 });
                 #return_expr
             }
@@ -552,7 +552,7 @@ fn make_method_return(
             quote! {
                 let mut __err = sys::default_call_error();
                 __call_fn(__method_bind, self.object_ptr, __args_ptr, __args.len() as i64, std::ptr::null_mut(), std::ptr::addr_of_mut!(__err));
-                assert_eq!(__err.error, sys::GDNATIVE_CALL_OK);
+                assert_eq!(__err.error, sys::GDEXTENSION_CALL_OK);
             }
         }
         (false, Some(RustTy::EngineClass(return_ty))) => {

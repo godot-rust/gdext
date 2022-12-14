@@ -25,7 +25,7 @@ impl GodotString {
     }
 
     ffi_methods! {
-        type sys::GDNativeStringPtr = *mut Opaque;
+        type sys::GDExtensionStringPtr = *mut Opaque;
 
         fn from_string_sys = from_sys;
         fn from_string_sys_init = from_sys_init;
@@ -36,13 +36,13 @@ impl GodotString {
 
 impl GodotFfi for GodotString {
     ffi_methods! {
-        type sys::GDNativeTypePtr = *mut Opaque;
+        type sys::GDExtensionTypePtr = *mut Opaque;
         fn from_sys;
         fn sys;
         fn write_sys;
     }
 
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Self {
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         // Can't use uninitialized pointer -- String CoW implementation in C++ expects that on assignment,
         // the target CoW pointer is either initialized or nullptr
 
@@ -151,11 +151,11 @@ impl fmt::Debug for GodotString {
 // to pass in &GodotString when doing varcalls.
 /*
 impl PtrCall for &GodotString {
-    unsafe fn from_ptr_call_arg(arg: *const godot_ffi::GDNativeTypePtr) -> Self {
+    unsafe fn from_ptr_call_arg(arg: *const godot_ffi::GDExtensionTypePtr) -> Self {
         &*(*arg as *const GodotString)
     }
 
-    unsafe fn to_ptr_call_arg(self, arg: godot_ffi::GDNativeTypePtr) {
+    unsafe fn to_ptr_call_arg(self, arg: godot_ffi::GDExtensionTypePtr) {
         std::ptr::write(arg as *mut GodotString, self.clone());
     }
 }

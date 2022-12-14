@@ -24,7 +24,7 @@ impl Color {
 }
 
 impl GodotFfi for Color {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
 impl Default for Color {

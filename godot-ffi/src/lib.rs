@@ -34,7 +34,7 @@ pub use paste;
 pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
 
 pub use gen::central::*;
-pub use gen::gdnative_interface::*; // needs `crate::`
+pub use gen::gdextension_interface::*; // needs `crate::`
 
 #[cfg(not(feature = "unit-test"))]
 #[doc(inline)]
@@ -53,8 +53,8 @@ mod real_impl {
     use super::*;
 
     struct GodotBinding {
-        interface: GDNativeInterface,
-        library: GDNativeExtensionClassLibraryPtr,
+        interface: GDExtensionInterface,
+        library: GDExtensionClassLibraryPtr,
         method_table: GlobalMethodTable,
         registry: GlobalRegistry,
     }
@@ -66,13 +66,13 @@ mod real_impl {
 
     /// # Safety
     ///
-    /// - The `interface` pointer must be a valid pointer to a [`GDNativeInterface`] obj.
+    /// - The `interface` pointer must be a valid pointer to a [`GDExtensionInterface`] obj.
     /// - The `library` pointer must be the pointer given by Godot at initialisation.
     /// - This function must not be called from multiple threads.
     /// - This function must be called before any use of [`get_library`].
     pub unsafe fn initialize(
-        interface: *const GDNativeInterface,
-        library: GDNativeExtensionClassLibraryPtr,
+        interface: *const GDExtensionInterface,
+        library: GDExtensionClassLibraryPtr,
     ) {
         let ver = std::ffi::CStr::from_ptr((*interface).version_string);
         println!(
@@ -93,7 +93,7 @@ mod real_impl {
     ///
     /// The interface must have been initialised with [`initialize`] before calling this function.
     #[inline(always)]
-    pub unsafe fn get_interface() -> &'static GDNativeInterface {
+    pub unsafe fn get_interface() -> &'static GDExtensionInterface {
         &unwrap_ref_unchecked(&BINDING).interface
     }
 
@@ -101,7 +101,7 @@ mod real_impl {
     ///
     /// The library must have been initialised with [`initialize`] before calling this function.
     #[inline(always)]
-    pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
+    pub unsafe fn get_library() -> GDExtensionClassLibraryPtr {
         unwrap_ref_unchecked(&BINDING).library
     }
 
@@ -143,9 +143,9 @@ mod real_impl {
     }
 
     #[doc(hidden)]
-    pub fn default_call_error() -> GDNativeCallError {
-        GDNativeCallError {
-            error: GDNATIVE_CALL_OK,
+    pub fn default_call_error() -> GDExtensionCallError {
+        GDExtensionCallError {
+            error: GDEXTENSION_CALL_OK,
             argument: -1,
             expected: -1,
         }
@@ -173,18 +173,18 @@ mod real_impl {
 
 #[cfg(feature = "unit-test")]
 mod test_impl {
-    use super::gen::gdnative_interface::*;
+    use super::gen::gdextension_interface::*;
     use super::global_registry::GlobalRegistry;
 
     pub struct GlobalMethodTable {}
 
     #[inline(always)]
-    pub unsafe fn get_interface() -> &'static GDNativeInterface {
+    pub unsafe fn get_interface() -> &'static GDExtensionInterface {
         crate::panic_no_godot!(get_interface)
     }
 
     #[inline(always)]
-    pub unsafe fn get_library() -> GDNativeExtensionClassLibraryPtr {
+    pub unsafe fn get_library() -> GDExtensionClassLibraryPtr {
         crate::panic_no_godot!(get_library)
     }
 

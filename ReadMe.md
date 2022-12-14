@@ -7,7 +7,7 @@ This is an early-stage library to bind the **Rust** language to **Godot 4**.
 [Godot] is an open-source game engine, whose upcoming version 4.0 brings several improvements.
 Its _GDExtension_ API allows integrating third-party languages and libraries.
 
-> **Note**: if you are looking for a Rust binding for GDNative (Godot 3), checkout [`gdnative`].
+> **Note**: if you are looking for a Rust binding for GDExtension (Godot 3), checkout [`gdnative`].
 
 > **Warning**: this library is experimental and rapidly evolving. In particular, this means:
 > * Lots of bugs. A lot of the scaffolding is still being ironed out. 
@@ -46,7 +46,7 @@ To get the latest changes, you can regularly run a `cargo update` (possibly brea
 
 To register the GDExtension library with Godot, you need to create two files relative to your Godot project folder:
 
-1. First, add `res://MyExt.gdextension`, which is the equivalent of `.gdnlib` for GDNative.  
+1. First, add `res://MyExt.gdextension`, which is the equivalent of `.gdnlib` for GDExtension.  
    
    The `[configuration]` section should be copied as-is.  
    The `[libraries]` section should be updated to match the paths of your dynamic Rust libraries.

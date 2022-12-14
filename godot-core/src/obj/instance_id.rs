@@ -76,7 +76,7 @@ impl Debug for InstanceId {
 }
 
 impl GodotFfi for InstanceId {
-    ffi_methods! { type sys::GDNativeTypePtr = *mut Self; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
 impl FromVariant for InstanceId {
@@ -123,7 +123,7 @@ impl VariantMetadata for InstanceId {
         VariantType::Int
     }
 
-    fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
-        sys::GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64
+    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64
     }
 }

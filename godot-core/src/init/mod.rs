@@ -9,20 +9,20 @@ use std::collections::btree_map::BTreeMap;
 
 #[cfg(any(test, feature = "unit-test"))]
 pub fn __gdext_load_library<E: ExtensionLibrary>(
-    interface: *const sys::GDNativeInterface,
-    library: sys::GDNativeExtensionClassLibraryPtr,
-    init: *mut sys::GDNativeInitialization,
-) -> sys::GDNativeBool {
+    interface: *const sys::GDExtensionInterface,
+    library: sys::GDExtensionClassLibraryPtr,
+    init: *mut sys::GDExtensionInitialization,
+) -> sys::GDExtensionBool {
     sys::panic_no_godot!(__gdext_load_library)
 }
 
 #[cfg(not(any(test, feature = "unit-test")))]
 #[doc(hidden)]
 pub fn __gdext_load_library<E: ExtensionLibrary>(
-    interface: *const sys::GDNativeInterface,
-    library: sys::GDNativeExtensionClassLibraryPtr,
-    init: *mut sys::GDNativeInitialization,
-) -> sys::GDNativeBool {
+    interface: *const sys::GDExtensionInterface,
+    library: sys::GDExtensionClassLibraryPtr,
+    init: *mut sys::GDExtensionInitialization,
+) -> sys::GDExtensionBool {
     unsafe { sys::initialize(interface, library) };
 
     let mut handle = InitHandle::new();
@@ -30,7 +30,7 @@ pub fn __gdext_load_library<E: ExtensionLibrary>(
     let success = E::load_library(&mut handle);
     // No early exit, unclear if Godot still requires output parameters to be set
 
-    let godot_init_params = sys::GDNativeInitialization {
+    let godot_init_params = sys::GDExtensionInitialization {
         minimum_initialization_level: handle.lowest_init_level().to_sys(),
         userdata: std::ptr::null_mut(),
         initialize: Some(ffi_initialize_layer),
@@ -53,7 +53,7 @@ pub fn __gdext_default_init(handle: &mut InitHandle) {
 
 unsafe extern "C" fn ffi_initialize_layer(
     _userdata: *mut std::ffi::c_void,
-    init_level: sys::GDNativeInitializationLevel,
+    init_level: sys::GDExtensionInitializationLevel,
 ) {
     let handle = INIT_HANDLE.as_mut().unwrap();
     handle.run_init_function(InitLevel::from_sys(init_level));
@@ -61,7 +61,7 @@ unsafe extern "C" fn ffi_initialize_layer(
 
 unsafe extern "C" fn ffi_deinitialize_layer(
     _userdata: *mut std::ffi::c_void,
-    init_level: sys::GDNativeInitializationLevel,
+    init_level: sys::GDExtensionInitializationLevel,
 ) {
     let handle = INIT_HANDLE.as_mut().unwrap();
     handle.run_deinit_function(InitLevel::from_sys(init_level));
@@ -164,12 +164,12 @@ pub enum InitLevel {
 
 impl InitLevel {
     #[doc(hidden)]
-    pub fn from_sys(level: godot_ffi::GDNativeInitializationLevel) -> Self {
+    pub fn from_sys(level: godot_ffi::GDExtensionInitializationLevel) -> Self {
         match level {
-            sys::GDNATIVE_INITIALIZATION_CORE => Self::Core,
-            sys::GDNATIVE_INITIALIZATION_SERVERS => Self::Servers,
-            sys::GDNATIVE_INITIALIZATION_SCENE => Self::Scene,
-            sys::GDNATIVE_INITIALIZATION_EDITOR => Self::Editor,
+            sys::GDEXTENSION_INITIALIZATION_CORE => Self::Core,
+            sys::GDEXTENSION_INITIALIZATION_SERVERS => Self::Servers,
+            sys::GDEXTENSION_INITIALIZATION_SCENE => Self::Scene,
+            sys::GDEXTENSION_INITIALIZATION_EDITOR => Self::Editor,
             _ => {
                 eprintln!("WARNING: unknown initialization level {}", level);
                 Self::Scene
@@ -177,12 +177,12 @@ impl InitLevel {
         }
     }
     #[doc(hidden)]
-    pub fn to_sys(self) -> godot_ffi::GDNativeInitializationLevel {
+    pub fn to_sys(self) -> godot_ffi::GDExtensionInitializationLevel {
         match self {
-            Self::Core => sys::GDNATIVE_INITIALIZATION_CORE,
-            Self::Servers => sys::GDNATIVE_INITIALIZATION_SERVERS,
-            Self::Scene => sys::GDNATIVE_INITIALIZATION_SCENE,
-            Self::Editor => sys::GDNATIVE_INITIALIZATION_EDITOR,
+            Self::Core => sys::GDEXTENSION_INITIALIZATION_CORE,
+            Self::Servers => sys::GDEXTENSION_INITIALIZATION_SERVERS,
+            Self::Scene => sys::GDEXTENSION_INITIALIZATION_SCENE,
+            Self::Editor => sys::GDEXTENSION_INITIALIZATION_EDITOR,
         }
     }
 }

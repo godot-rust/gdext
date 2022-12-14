@@ -60,7 +60,7 @@ impl Variant {
 
     /// Checks whether the variant is empty (`null` value in GDScript).
     pub fn is_nil(&self) -> bool {
-        self.sys_type() == sys::GDNATIVE_VARIANT_TYPE_NIL
+        self.sys_type() == sys::GDEXTENSION_VARIANT_TYPE_NIL
     }
 
     // TODO test
@@ -93,9 +93,9 @@ impl Variant {
         }
     }
 
-    pub(crate) fn sys_type(&self) -> sys::GDNativeVariantType {
+    pub(crate) fn sys_type(&self) -> sys::GDExtensionVariantType {
         unsafe {
-            let ty: sys::GDNativeVariantType = interface_fn!(variant_get_type)(self.var_sys());
+            let ty: sys::GDExtensionVariantType = interface_fn!(variant_get_type)(self.var_sys());
             ty
         }
     }
@@ -115,7 +115,7 @@ impl Variant {
 
     // Conversions from/to Godot C++ `Variant*` pointers
     ffi_methods! {
-        type sys::GDNativeVariantPtr = *mut Opaque;
+        type sys::GDExtensionVariantPtr = *mut Opaque;
 
         fn from_var_sys = from_sys;
         fn from_var_sys_init = from_sys_init;
@@ -124,12 +124,12 @@ impl Variant {
     }
 
     #[doc(hidden)]
-    pub fn var_sys_const(&self) -> sys::GDNativeConstVariantPtr {
+    pub fn var_sys_const(&self) -> sys::GDExtensionConstVariantPtr {
         sys::to_const_ptr(self.var_sys())
     }
 
     /*#[doc(hidden)]
-    pub unsafe fn from_var_sys_init(init_fn: impl FnOnce(sys::GDNativeVariantPtr)) -> Self {
+    pub unsafe fn from_var_sys_init(init_fn: impl FnOnce(sys::GDExtensionVariantPtr)) -> Self {
         // Can't use uninitialized pointer -- Variant implementation in C++ expects that on assignment,
         // the target pointer is an initialized Variant
 
@@ -142,13 +142,13 @@ impl Variant {
 
 impl GodotFfi for Variant {
     ffi_methods! {
-        type sys::GDNativeTypePtr = *mut Opaque;
+        type sys::GDExtensionTypePtr = *mut Opaque;
         fn from_sys;
         fn sys;
         fn write_sys;
     }
 
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDNativeTypePtr)) -> Self {
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         // Can't use uninitialized pointer -- Variant implementation in C++ expects that on assignment,
         // the target pointer is an initialized Variant
 

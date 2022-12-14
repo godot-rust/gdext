@@ -55,8 +55,8 @@ pub trait Inherits<Base> {}
 
 /// Auto-implemented for all engine-provided classes
 pub trait EngineClass: GodotClass {
-    fn as_object_ptr(&self) -> sys::GDNativeObjectPtr;
-    fn as_type_ptr(&self) -> sys::GDNativeTypePtr;
+    fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr;
+    fn as_type_ptr(&self) -> sys::GDExtensionTypePtr;
 }
 
 /// Auto-implemented for all engine-provided enums
@@ -103,7 +103,7 @@ pub mod cap {
     /// Auto-implemented for `#[godot_api] impl GodotExt for MyClass` blocks
     pub trait ImplementsGodotExt: GodotClass {
         #[doc(hidden)]
-        fn __virtual_call(_name: &str) -> sys::GDNativeExtensionClassCallVirtual;
+        fn __virtual_call(_name: &str) -> sys::GDExtensionClassCallVirtual;
     }
 }
 

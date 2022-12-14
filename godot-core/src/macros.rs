@@ -61,10 +61,10 @@ macro_rules! gdext_register_method_inner {
                 unsafe extern "C" fn function(
                     _method_data: *mut std::ffi::c_void,
                     instance_ptr: sys::GDExtensionClassInstancePtr,
-                    args: *const sys::GDNativeConstVariantPtr,
-                    _arg_count: sys::GDNativeInt,
-                    ret: sys::GDNativeVariantPtr,
-                    err: *mut sys::GDNativeCallError,
+                    args: *const sys::GDExtensionConstVariantPtr,
+                    _arg_count: sys::GDExtensionInt,
+                    ret: sys::GDExtensionVariantPtr,
+                    err: *mut sys::GDExtensionCallError,
                 ) {
                     let result = ::std::panic::catch_unwind(|| {
                         <Sig as SignatureTuple>::varcall::< $Class >(
@@ -85,7 +85,7 @@ macro_rules! gdext_register_method_inner {
                         $crate::private::print_panic(e);
 
                         // Signal error and set return type to Nil
-                        (*err).error = sys::GDNATIVE_CALL_ERROR_INVALID_METHOD; // no better fitting enum?
+                        (*err).error = sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD; // no better fitting enum?
                         sys::interface_fn!(variant_new_nil)(ret);
                     }
                 }
@@ -97,8 +97,8 @@ macro_rules! gdext_register_method_inner {
                 unsafe extern "C" fn function(
                     _method_data: *mut std::ffi::c_void,
                     instance_ptr: sys::GDExtensionClassInstancePtr,
-                    args: *const sys::GDNativeConstTypePtr,
-                    ret: sys::GDNativeTypePtr,
+                    args: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
                 ) {
                     let result = ::std::panic::catch_unwind(|| {
                         <Sig as SignatureTuple>::ptrcall::< $Class >(
@@ -143,10 +143,10 @@ macro_rules! gdext_register_method_inner {
                     },
                 )*]
             };
-            let mut arguments_info_sys: [sys::GDNativePropertyInfo; NUM_ARGS]
+            let mut arguments_info_sys: [sys::GDExtensionPropertyInfo; NUM_ARGS]
                 = std::array::from_fn(|i| arguments_info[i].property_sys());
 //                = std::array::from_fn(|i| arguments_info[i].once_sys());
-            let mut arguments_metadata: [sys::GDNativeExtensionClassMethodArgumentMetadata; NUM_ARGS]
+            let mut arguments_metadata: [sys::GDExtensionClassMethodArgumentMetadata; NUM_ARGS]
                 = std::array::from_fn(|i| Sig::param_metadata(i as i32));
 
             let class_name = StringName::from(stringify!($Class));
@@ -155,12 +155,12 @@ macro_rules! gdext_register_method_inner {
             // println!("REG {class_name}::{method_name}");
             // println!("  ret {return_value_info:?}");
 
-            let method_info = sys::GDNativeExtensionClassMethodInfo {
+            let method_info = sys::GDExtensionClassMethodInfo {
                 name: method_name.string_sys(),
                 method_userdata: std::ptr::null_mut(),
                 call_func: Some(varcall_func),
                 ptrcall_func: Some(ptrcall_func),
-                method_flags: sys::GDNATIVE_EXTENSION_METHOD_FLAGS_DEFAULT as u32,
+                method_flags: sys::GDEXTENSION_METHOD_FLAGS_DEFAULT as u32,
                 has_return_value: has_return_value as u8,
                 return_value_info: std::ptr::addr_of_mut!(return_value_info_sys),
                 return_value_metadata,
@@ -289,8 +289,8 @@ macro_rules! gdext_virtual_method_callback_inner {
 
             unsafe extern "C" fn function(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
-                args: *const sys::GDNativeConstTypePtr,
-                ret: sys::GDNativeTypePtr,
+                args: *const sys::GDExtensionConstTypePtr,
+                ret: sys::GDExtensionTypePtr,
             ) {
                 $crate::gdext_ptrcall!(
                     instance_ptr, args, ret;

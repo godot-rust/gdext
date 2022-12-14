@@ -21,7 +21,7 @@ macro_rules! impl_variant_traits {
 
     ($T:ty, $from_fn:ident, $to_fn:ident, $variant_type:ident, $param_metadata:ident) => {
         impl_variant_traits!(@@ $T, $from_fn, $to_fn, $variant_type;
-            fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
+            fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
                 sys::$param_metadata
             }
         );
@@ -90,7 +90,7 @@ macro_rules! impl_variant_traits_int {
                 VariantType::Int
             }
 
-            fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
+            fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
                 sys::$param_metadata
             }
         }
@@ -117,7 +117,7 @@ macro_rules! impl_variant_traits_float {
                 VariantType::Float
             }
 
-            fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
+            fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
                 sys::$param_metadata
             }
         }
@@ -142,18 +142,18 @@ mod impls {
     impl_variant_traits!(StringName, string_name_to_variant, string_name_from_variant, StringName);
 
 
-    impl_variant_traits!(i64, int_to_variant, int_from_variant, Int, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
-    impl_variant_traits_int!(i8, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8);
-    impl_variant_traits_int!(i16, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16);
-    impl_variant_traits_int!(i32, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32);
+    impl_variant_traits!(i64, int_to_variant, int_from_variant, Int, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
+    impl_variant_traits_int!(i8, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8);
+    impl_variant_traits_int!(i16, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16);
+    impl_variant_traits_int!(i32, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32);
 
-    impl_variant_traits_int!(u8, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT8);
-    impl_variant_traits_int!(u16, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT16);
-    impl_variant_traits_int!(u32, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT32);
+    impl_variant_traits_int!(u8, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT8);
+    impl_variant_traits_int!(u16, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT16);
+    impl_variant_traits_int!(u32, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT32);
     // u64 is not supported, because it cannot be represented on GDScript side, and implicitly converting to i64 is error-prone.
 
-    impl_variant_traits!(f64, float_to_variant, float_from_variant, Float, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE);
-    impl_variant_traits_float!(f32, GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_FLOAT);
+    impl_variant_traits!(f64, float_to_variant, float_from_variant, Float, GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE);
+    impl_variant_traits_float!(f32, GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_FLOAT);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

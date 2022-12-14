@@ -12,11 +12,11 @@ use super::sys;
 
     pub unsafe extern "C" fn create<T>(
         _class_userdata: *mut std::ffi::c_void,
-    ) -> sys::GDNativeObjectPtr {
+    ) -> sys::GDExtensionObjectPtr {
         sys::panic_no_godot!(create)
     }
 
-    pub(crate) fn create_custom<T, F>(_make_user_instance: F) -> sys::GDNativeObjectPtr
+    pub(crate) fn create_custom<T, F>(_make_user_instance: F) -> sys::GDExtensionObjectPtr
     where
         T: GodotClass,
         F: FnOnce(Base<T::Base>) -> T,

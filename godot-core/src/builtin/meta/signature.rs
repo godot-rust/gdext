@@ -14,13 +14,13 @@ pub trait SignatureTuple {
 
     fn variant_type(index: i32) -> VariantType;
     fn property_info(index: i32, param_name: &str) -> PropertyInfo;
-    fn param_metadata(index: i32) -> sys::GDNativeExtensionClassMethodArgumentMetadata;
+    fn param_metadata(index: i32) -> sys::GDExtensionClassMethodArgumentMetadata;
 
     fn varcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
-        args_ptr: *const sys::GDNativeConstVariantPtr,
-        ret: sys::GDNativeVariantPtr,
-        err: *mut sys::GDNativeCallError,
+        args_ptr: *const sys::GDExtensionConstVariantPtr,
+        ret: sys::GDExtensionVariantPtr,
+        err: *mut sys::GDExtensionCallError,
         func: fn(&mut C, Self::Params) -> Self::Ret,
         method_name: &str,
     );
@@ -29,8 +29,8 @@ pub trait SignatureTuple {
     // We could fall back to varcalls in such cases, and not require GodotFfi categorically.
     fn ptrcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
-        args_ptr: *const sys::GDNativeConstTypePtr,
-        ret: sys::GDNativeTypePtr,
+        args_ptr: *const sys::GDExtensionConstTypePtr,
+        ret: sys::GDExtensionTypePtr,
         func: fn(&mut C, Self::Params) -> Self::Ret,
         method_name: &str,
     );
@@ -39,15 +39,15 @@ pub trait SignatureTuple {
 // impl<P, const N: usize> Sig for [P; N]
 // impl<P, T0> Sig for (T0)
 // where P: VariantMetadata {
-//     fn variant_type(index: usize) -> sys::GDNativeVariantType {
+//     fn variant_type(index: usize) -> sys::GDExtensionVariantType {
 //           Self[index]::
 //     }
 //
-//     fn param_metadata(index: usize) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
+//     fn param_metadata(index: usize) -> sys::GDExtensionClassMethodArgumentMetadata {
 //         todo!()
 //     }
 //
-//     fn property_info(index: usize, param_name: &str) -> sys::GDNativePropertyInfo {
+//     fn property_info(index: usize, param_name: &str) -> sys::GDExtensionPropertyInfo {
 //         todo!()
 //     }
 // }
@@ -77,12 +77,12 @@ macro_rules! impl_signature_for_tuple {
                         $n => $Pn::variant_type(),
                     )*
                     _ => unreachable!("variant_type: unavailable for index {}", index),
-                    //_ => sys::GDNATIVE_VARIANT_TYPE_NIL
+                    //_ => sys::GDEXTENSION_VARIANT_TYPE_NIL
                 }
             }
 
             #[inline]
-            fn param_metadata(index: i32) -> sys::GDNativeExtensionClassMethodArgumentMetadata {
+            fn param_metadata(index: i32) -> sys::GDExtensionClassMethodArgumentMetadata {
                 match index {
                     -1 => $R::param_metadata(),
                     $(
@@ -106,9 +106,9 @@ macro_rules! impl_signature_for_tuple {
             #[inline]
             fn varcall<C : GodotClass>(
 				instance_ptr: sys::GDExtensionClassInstancePtr,
-                args_ptr: *const sys::GDNativeConstVariantPtr,
-                ret: sys::GDNativeVariantPtr,
-                err: *mut sys::GDNativeCallError,
+                args_ptr: *const sys::GDExtensionConstVariantPtr,
+                ret: sys::GDExtensionVariantPtr,
+                err: *mut sys::GDExtensionCallError,
                 func: fn(&mut C, Self::Params) -> Self::Ret,
                 method_name: &str,
             ) {
@@ -131,15 +131,15 @@ macro_rules! impl_signature_for_tuple {
                 let ret_variant = <$R as ToVariant>::to_variant(&ret_val); // TODO write_sys
 				unsafe {
                     *(ret as *mut Variant) = ret_variant;
-                    (*err).error = sys::GDNATIVE_CALL_OK;
+                    (*err).error = sys::GDEXTENSION_CALL_OK;
                 }
             }
 
             #[inline]
             fn ptrcall<C : GodotClass>(
 				instance_ptr: sys::GDExtensionClassInstancePtr,
-                args_ptr: *const sys::GDNativeConstTypePtr,
-                ret: sys::GDNativeTypePtr,
+                args_ptr: *const sys::GDExtensionConstTypePtr,
+                ret: sys::GDExtensionTypePtr,
                 func: fn(&mut C, Self::Params) -> Self::Ret,
                 method_name: &str,
             ) {

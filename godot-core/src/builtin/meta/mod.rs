@@ -30,14 +30,14 @@ pub trait VariantMetadata {
         )
     }
 
-    fn param_metadata() -> sys::GDNativeExtensionClassMethodArgumentMetadata {
-        sys::GDNATIVE_EXTENSION_METHOD_ARGUMENT_METADATA_NONE
+    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
     }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Rusty abstraction of sys::GDNativePropertyInfo
+/// Rusty abstraction of sys::GDExtensionPropertyInfo
 /// Keeps the actual allocated values (the sys equivalent only keeps pointers, which fall out of scope)
 #[derive(Debug)]
 pub struct PropertyInfo {
@@ -66,10 +66,10 @@ impl PropertyInfo {
     }
 
     /// Converts to the FFI type. Keep this object allocated while using that!
-    pub fn property_sys(&self) -> sys::GDNativePropertyInfo {
+    pub fn property_sys(&self) -> sys::GDExtensionPropertyInfo {
         use crate::obj::EngineEnum as _;
 
-        sys::GDNativePropertyInfo {
+        sys::GDExtensionPropertyInfo {
             type_: self.variant_type.sys(),
             name: self.property_name.string_sys(),
             class_name: self.class_name.string_sys(),
