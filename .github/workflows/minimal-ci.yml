@@ -1,0 +1,101 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+# Minimal CI workflow
+# Run when someone opens a PR and adds commits to the PR (this is recognized as a push to master)
+# Includes basic checks and unit/integration checks on Linux only
+
+name: Minimal CI
+
+on:
+  pull_request:
+    branches:
+      - master
+
+env:
+  GDEXT_FEATURES: 'godot-core/convenience'
+  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
+
+defaults:
+  run:
+    shell: bash
+
+# If a new commit is pushed before the old one's CI has completed (on the same branch), abort previous run
+#concurrency:
+#  group: ${{ github.head_ref }}
+#  cancel-in-progress: true
+
+jobs:
+  rustfmt:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+        with:
+          rust: stable
+          components: rustfmt
+      - name: "Check rustfmt"
+        run: cargo fmt --all -- --check
+
+
+  unit-test:
+    name: unit-test
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+
+      - name: "Install LLVM"
+        uses: ./.github/composite/llvm
+        if: matrix.name == 'macos'
+
+      - name: "Compile tests"
+        run: cargo test $GDEXT_CRATE_ARGS --features unit-test,$GDEXT_FEATURES --no-run
+
+      - name: "Test"
+        run: cargo test $GDEXT_CRATE_ARGS --features unit-test,$GDEXT_FEATURES ${{ matrix.testflags }}
+
+
+  itest-godot:
+    name: itest-godot
+    runs-on: ubuntu-20.04
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Run Godot integration test"
+        uses: ./.github/composite/godot
+        with:
+          artifact-name: godot-linux
+          binary-filename: godot.linuxbsd.editor.dev.x86_64
+          #godot_ver: ${{ matrix.godot }}
+
+
+  license-guard:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Check and fix license headers"
+        uses: apache/skywalking-eyes/header@v0.4.0
+        with:
+          # log: debug # optional: set the log level. The default value is `info`.
+          config: .github/external-config/licenserc.yml
+          # token: # optional: the token that license eye uses when it needs to comment on the pull request.
+          # Set to empty ("") to disable commenting on pull request. The default value is ${{ github.token }}
+          # mode: # optional: Which mode License-Eye should be run in. Choices are `check` or `fix`. The default value is `check`.
+          mode: fix
+
+      - name: "Commit changes"
+        uses: EndBug/add-and-commit@v9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          author_name: 'Godot-Rust Automation'
+          author_email: 'actions@github.com'
+          message: 'Auto-apply license headers'
+

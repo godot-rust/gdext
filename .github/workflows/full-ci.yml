@@ -2,17 +2,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# Minimal CI workflow
-# Run when someone opens a PR and adds commits to the PR (this is recognized as a push to master)
-# Includes basic checks and unit/integration checks on Linux only
-
-# Known issues:
-# 1. Error "Unable to process file command 'env' successfully." means there was an attempt to store multiline-content in a GitHub env var.
-#    This should be done as in https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#multiline-strings:
-#       echo 'VAR<<EOF' >> $GITHUB_ENV
-#       curl https://example.lab >> $GITHUB_ENV
-#       echo 'EOF' >> $GITHUB_ENV
-
+# Full CI workflow
+# Run before merging. Rebases on master to make sure CI passes for latest integration, not only for the PR at the time of creation.
 
 name: Full CI
 
@@ -48,6 +39,7 @@ jobs:
       - name: "Check rustfmt"
         run: cargo fmt --all -- --check
 
+
   unit-test:
     name: unit-test (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
@@ -73,21 +65,30 @@ jobs:
             os: ubuntu-20.04
             rust-toolchain: stable
 
+          - name: linux-minimal-deps
+            os: ubuntu-20.04
+            rust-toolchain: stable
+            rust-special: minimal-deps
+
     steps:
       - uses: actions/checkout@v3
 
       - name: "Install Rust"
         uses: ./.github/composite/rust
+        with:
+          rust: stable
+          cache-key: ${{ matrix.rust-special }} # 'minimal-deps' or empty/not defined
+
+      - name: "Install Rust nightly (minimal deps)"
+        uses: ./.github/composite/rust
+        with:
+          rust: nightly
+          cache-key: minimal-deps-nightly
+        if: ${{ matrix.rust-special == 'minimal-deps' }}
 
       - name: "Install minimal dependency versions from Cargo"
         run: cargo +nightly update -Z minimal-versions
-        if: ${{ matrix.rust.special == 'minimal-deps' }}
-
-      - name: "Install Rust"
-        uses: ./.github/composite/rust
-        with:
-          rust: stable
-          cache-key: ${{ matrix.rust.special }} # 'minimal-deps' or empty/not defined
+        if: ${{ matrix.rust-special == 'minimal-deps' }}
 
       - name: "Install LLVM"
         uses: ./.github/composite/llvm
@@ -139,12 +140,13 @@ jobs:
           binary-filename: ${{ matrix.godot-binary }}
           #godot_ver: ${{ matrix.godot }}
 
+
   license-guard:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
 
-      - name: "Check and fix license headers"
+      - name: "Check license headers"
         uses: apache/skywalking-eyes/header@v0.4.0
         with:
           # log: debug # optional: set the log level. The default value is `info`.
@@ -153,6 +155,7 @@ jobs:
           # Set to empty ("") to disable commenting on pull request. The default value is ${{ github.token }}
           # mode: # optional: Which mode License-Eye should be run in. Choices are `check` or `fix`. The default value is `check`.
           mode: check
+
 
   full-ci:
     if: github.event_name == 'push' && success()
