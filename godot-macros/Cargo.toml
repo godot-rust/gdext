@@ -3,6 +3,9 @@ name = "godot-macros"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.63"
+license = "MPL-2.0"
+keywords = ["gamedev", "godot", "engine", "derive", "macro"]
+categories = ["game-engines", "graphics"]
 
 [lib]
 proc-macro = true

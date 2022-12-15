@@ -32,7 +32,8 @@ impl<'a> Context<'a> {
 
         for class in api.classes.iter() {
             let class_name = class.name.as_str();
-            #[cfg(feature = "minimal")]
+
+            #[cfg(not(feature = "codegen-full"))]
             if !crate::SELECTED_CLASSES.contains(&class_name) {
                 continue;
             }

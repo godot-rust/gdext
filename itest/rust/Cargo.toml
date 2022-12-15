@@ -3,6 +3,7 @@ name = "itest"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.63"
+publish = false
 
 [lib]
 crate-type = ["cdylib"]
@@ -12,7 +13,7 @@ default = []
 trace = ["godot/trace"]
 
 [dependencies]
-godot = { path = "../../godot", features = ["minimal"] }
+godot = { path = "../../godot", default-features = false, features = ["formatted", "convenience"] }
 
 [build-dependencies]
 quote = "1"
