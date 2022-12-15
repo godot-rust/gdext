@@ -36,7 +36,8 @@ runs:
         rustup default ${{ inputs.rust }}
       shell: bash
 
-    - uses: Swatinem/rust-cache@v2
+    - name: "Reuse cached dependencies"
+      uses: Swatinem/rust-cache@v2
       with:
         shared-key: ${{ inputs.cache-key }}
 

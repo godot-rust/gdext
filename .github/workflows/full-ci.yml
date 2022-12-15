@@ -1,0 +1,170 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+# Full CI workflow
+# Run before merging. Rebases on master to make sure CI passes for latest integration, not only for the PR at the time of creation.
+
+name: Full CI
+
+on:
+  push:
+    branches:
+      - staging
+      - trying
+
+env:
+  GDEXT_FEATURES: 'godot-core/convenience'
+  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
+
+defaults:
+  run:
+    shell: bash
+
+# If a new commit is pushed before the old one's CI has completed (on the same branch), abort previous run
+#concurrency:
+#  group: ${{ github.head_ref }}
+#  cancel-in-progress: true
+
+jobs:
+  rustfmt:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+        with:
+          rust: stable
+          components: rustfmt
+      - name: "Check rustfmt"
+        run: cargo fmt --all -- --check
+
+
+  unit-test:
+    name: unit-test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: false
+    strategy:
+      fail-fast: false # cancel all jobs as soon as one fails?
+      matrix:
+        # Order this way because macOS typically has the longest duration, followed by Windows, so it benefits total workflow execution time.
+        # Additionally, the 'linux (msrv *)' special case will then be listed next to the other 'linux' jobs.
+        # Note: Windows uses '--target x86_64-pc-windows-msvc' by default as Cargo argument.
+        include:
+          - name: macos
+            os: macos-11
+            rust-toolchain: stable
+
+          - name: windows
+            os: windows-latest
+            rust-toolchain: stable-x86_64-pc-windows-msvc
+
+          # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
+          # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
+          - name: linux
+            os: ubuntu-20.04
+            rust-toolchain: stable
+
+          - name: linux-minimal-deps
+            os: ubuntu-20.04
+            rust-toolchain: stable
+            rust-special: minimal-deps
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+        with:
+          rust: stable
+          cache-key: ${{ matrix.rust-special }} # 'minimal-deps' or empty/not defined
+
+      - name: "Install Rust nightly (minimal deps)"
+        uses: ./.github/composite/rust
+        with:
+          rust: nightly
+          cache-key: minimal-deps-nightly
+        if: ${{ matrix.rust-special == 'minimal-deps' }}
+
+      - name: "Install minimal dependency versions from Cargo"
+        run: cargo +nightly update -Z minimal-versions
+        if: ${{ matrix.rust-special == 'minimal-deps' }}
+
+      - name: "Install LLVM"
+        uses: ./.github/composite/llvm
+        if: matrix.name == 'macos'
+
+      - name: "Compile tests"
+        run: cargo test $GDEXT_CRATE_ARGS --features unit-test,$GDEXT_FEATURES --no-run
+
+      - name: "Test"
+        run: cargo test $GDEXT_CRATE_ARGS --features unit-test,$GDEXT_FEATURES ${{ matrix.testflags }}
+
+
+  itest-godot:
+    name: itest-godot (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: false
+    timeout-minutes: 24
+    strategy:
+      fail-fast: false # cancel all jobs as soon as one fails?
+      matrix:
+        # Order this way because macOS typically has the longest duration, followed by Windows, so it benefits total workflow execution time.
+        # Additionally, the 'linux (msrv *)' special case will then be listed next to the other 'linux' jobs.
+        # Note: Windows uses '--target x86_64-pc-windows-msvc' by default as Cargo argument.
+        include:
+          - name: macos
+            os: macos-12
+            rust-toolchain: stable
+            godot-binary: godot.macos.editor.dev.x86_64
+
+          - name: windows
+            os: windows-latest
+            rust-toolchain: stable-x86_64-pc-windows-msvc
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+
+          # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
+          # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
+          - name: linux
+            os: ubuntu-20.04
+            rust-toolchain: stable
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Run Godot integration test"
+        uses: ./.github/composite/godot
+        with:
+          artifact-name: godot-${{ matrix.name }}
+          binary-filename: ${{ matrix.godot-binary }}
+          #godot_ver: ${{ matrix.godot }}
+
+
+  license-guard:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Check license headers"
+        uses: apache/skywalking-eyes/header@v0.4.0
+        with:
+          # log: debug # optional: set the log level. The default value is `info`.
+          config: .github/external-config/licenserc.yml
+          # token: # optional: the token that license eye uses when it needs to comment on the pull request.
+          # Set to empty ("") to disable commenting on pull request. The default value is ${{ github.token }}
+          # mode: # optional: Which mode License-Eye should be run in. Choices are `check` or `fix`. The default value is `check`.
+          mode: check
+
+
+  full-ci:
+    if: github.event_name == 'push' && success()
+    needs:
+      - rustfmt
+      - unit-test
+      - itest-godot
+      - license-guard
+    runs-on: ubuntu-20.04
+    steps:
+      - name: "Mark the job as a success"
+        run: exit 0
