@@ -3,13 +3,18 @@ name = "godot"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.63"
+license = "MPL-2.0"
+keywords = ["gamedev", "godot", "engine", "2d", "3d"] # possibly: "ffi"
+categories = ["game-engines", "graphics"]
 
 [features]
-default = ["convenience"]
+default = ["convenience", "codegen-full"]
+convenience = ["godot-core/convenience"]
+formatted = ["godot-core/codegen-fmt"]
 trace = ["godot-core/trace"]
-convenience = []
-codegen-fmt = ["godot-core/codegen-fmt"]
-minimal = ["godot-core/minimal"]
+
+# Private features, they are under no stability guarantee
+codegen-full = ["godot-core/codegen-full"]
 unit-test = []
 
 [dependencies]

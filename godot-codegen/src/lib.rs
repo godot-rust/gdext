@@ -188,7 +188,7 @@ struct GeneratedModule {
 // Shared config
 
 // Classes for minimal config
-#[cfg(feature = "minimal")]
+#[cfg(not(feature = "codegen-full"))]
 const SELECTED_CLASSES: &[&str] = &[
     "AnimatedSprite2D",
     "Area2D",

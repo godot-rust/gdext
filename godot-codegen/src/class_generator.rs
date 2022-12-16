@@ -26,7 +26,7 @@ pub(crate) fn generate_class_files(
 
     let mut modules = vec![];
     for class in api.classes.iter() {
-        #[cfg(feature = "minimal")]
+        #[cfg(not(feature = "codegen-full"))]
         if !crate::SELECTED_CLASSES.contains(&class.name.as_str()) {
             continue;
         }
@@ -277,7 +277,7 @@ fn make_enums(enums: &Option<Vec<ClassEnum>>, _class_name: &str, _ctx: &Context)
     }
 }
 
-#[cfg(feature = "minimal")]
+#[cfg(not(feature = "codegen-full"))]
 fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     let is_class_excluded = |class: &str| !crate::SELECTED_CLASSES.contains(&class);
 
@@ -308,7 +308,7 @@ fn is_method_excluded(method: &Method, #[allow(unused_variables)] ctx: &mut Cont
     //   As such support could be added later (if at all), with possibly safe interfaces (e.g. Vec for void*+size pairs)
 
     // -- FIXME remove when impl complete
-    #[cfg(feature = "minimal")]
+    #[cfg(not(feature = "codegen-full"))]
     if method
         .return_value
         .as_ref()
@@ -333,12 +333,12 @@ fn is_method_excluded(method: &Method, #[allow(unused_variables)] ctx: &mut Cont
             .map_or(false, |args| args.iter().any(|arg| arg.type_.contains("*")))
 }
 
-#[cfg(not(feature = "minimal"))]
+#[cfg(feature = "codegen-full")]
 fn is_function_excluded(_function: &UtilityFunction, _ctx: &mut Context) -> bool {
     false
 }
 
-#[cfg(feature = "minimal")]
+#[cfg(not(feature = "codegen-full"))]
 fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
     function
         .return_type

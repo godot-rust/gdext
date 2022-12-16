@@ -8,11 +8,11 @@ keywords = ["gamedev", "godot", "engine", "2d", "3d"] # possibly: "ffi"
 categories = ["game-engines", "graphics"]
 
 [features]
-default = ["convenience"]
+default = []
 trace = []
-convenience = []
 codegen-fmt = ["godot-ffi/codegen-fmt"]
-minimal = ["godot-ffi/minimal"]
+codegen-full = ["godot-codegen/codegen-full"]
+convenience = []
 unit-test = ["godot-ffi/unit-test"] # If this crate is built for a downstream unit test
 
 [dependencies]
