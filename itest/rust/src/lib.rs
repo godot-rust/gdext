@@ -14,6 +14,7 @@ use std::panic::UnwindSafe;
 
 mod base_test;
 mod enum_test;
+mod export_test;
 mod gdscript_ffi_test;
 mod node_test;
 mod object_test;
@@ -30,6 +31,7 @@ fn run_tests() -> bool {
     ok &= node_test::run();
     ok &= enum_test::run();
     ok &= object_test::run();
+    ok &= export_test::run();
     ok &= singleton_test::run();
     ok &= string_test::run();
     ok &= utilities_test::run();

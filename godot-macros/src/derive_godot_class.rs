@@ -4,7 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{bail, ensure_kv_empty, ident, path_is_single, KvMap, KvValue};
+use crate::util::{
+    bail, bail_error, ensure_kv_empty, ident, parse_kv_group, path_is_single, KvMap, KvValue,
+};
 use crate::{util, ParseResult};
 use proc_macro2::{Ident, Punct, Span, TokenStream};
 use quote::spanned::Spanned;
@@ -30,6 +32,8 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let prv = quote! { ::godot::private };
     let deref_impl = make_deref_impl(class_name, &fields);
 
+    let godot_exports_impl = make_exports_impl(class_name, &fields);
+
     let (godot_init_impl, create_fn);
     if struct_cfg.has_generated_init {
         godot_init_impl = make_godot_init_impl(class_name, fields);
@@ -49,6 +53,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
         }
 
         #godot_init_impl
+        #godot_exports_impl
         #deref_impl
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
@@ -111,7 +116,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
 fn parse_fields(class: &Struct) -> ParseResult<Fields> {
     let mut all_field_names = vec![];
     let mut exported_fields = vec![];
-    let mut base_field = Option::<ExportedField>::None;
+    let mut base_field = Option::<Field>::None;
 
     let fields: Vec<(NamedField, Punct)> = match &class.fields {
         StructFields::Unit => {
@@ -142,9 +147,18 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
                             attr,
                         )?;
                     }
-                    base_field = Some(ExportedField::new(&field))
+                    base_field = Some(Field::new(&field))
                 } else if path == "export" {
-                    exported_fields.push(ExportedField::new(&field))
+                    match parse_kv_group(&attr.value) {
+                        Ok(export_kv) => {
+                            let exported_field =
+                                ExportedField::new_from_kv(Field::new(&field), &attr, export_kv)?;
+                            exported_fields.push(exported_field);
+                        }
+                        Err(error) => {
+                            return Err(error);
+                        }
+                    }
                 }
             }
         }
@@ -158,6 +172,7 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
     Ok(Fields {
         all_field_names,
         base_field,
+        exported_fields,
     })
 }
 
@@ -191,15 +206,16 @@ struct ClassAttributes {
 
 struct Fields {
     all_field_names: Vec<Ident>,
-    base_field: Option<ExportedField>,
+    base_field: Option<Field>,
+    exported_fields: Vec<ExportedField>,
 }
 
-struct ExportedField {
+struct Field {
     name: Ident,
     _ty: TyExpr,
 }
 
-impl ExportedField {
+impl Field {
     fn new(field: &NamedField) -> Self {
         Self {
             name: field.name.clone(),
@@ -208,8 +224,54 @@ impl ExportedField {
     }
 }
 
+struct ExportedField {
+    field: Field,
+    getter: String,
+    setter: String,
+    variant_type: String,
+}
+
+impl ExportedField {
+    pub fn new_from_kv(
+        field: Field,
+        attr: &Attribute,
+        mut map: KvMap,
+    ) -> ParseResult<ExportedField> {
+        let getter = Self::require_key_value(&mut map, "getter", attr)?;
+        let setter = Self::require_key_value(&mut map, "setter", attr)?;
+        let variant_type = Self::require_key_value(&mut map, "variant_type", attr)?;
+
+        ensure_kv_empty(map, attr.__span())?;
+
+        return Ok(ExportedField {
+            field,
+            getter,
+            setter,
+            variant_type,
+        });
+    }
+
+    fn require_key_value(map: &mut KvMap, key: &str, attr: &Attribute) -> ParseResult<String> {
+        if let Some(value) = map.remove(key) {
+            if let KvValue::Lit(value) = value {
+                return Ok(value);
+            } else {
+                return bail(
+                    format!(
+                        "#[export] attribute {} with a non-literal variant_type",
+                        key
+                    ),
+                    attr,
+                )?;
+            }
+        } else {
+            return bail(format!("#[export] attribute without a {}", key), attr);
+        }
+    }
+}
+
 fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
-    let base_init = if let Some(ExportedField { name, .. }) = fields.base_field {
+    let base_init = if let Some(Field { name, .. }) = fields.base_field {
         quote! { #name: base, }
     } else {
         TokenStream::new()
@@ -232,7 +294,7 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
 }
 
 fn make_deref_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
-    let base_field = if let Some(ExportedField { name, .. }) = &fields.base_field {
+    let base_field = if let Some(Field { name, .. }) = &fields.base_field {
         name
     } else {
         return TokenStream::new();
@@ -249,6 +311,52 @@ fn make_deref_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         impl std::ops::DerefMut for #class_name {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut *self.#base_field
+            }
+        }
+    }
+}
+
+fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
+    let export_tokens = fields
+        .exported_fields
+        .iter()
+        .map(|exported_field: &ExportedField| {
+            use std::str::FromStr;
+            let name = exported_field.field.name.to_string();
+            let getter = proc_macro2::Literal::from_str(&exported_field.getter).unwrap();
+            let setter = proc_macro2::Literal::from_str(&exported_field.setter).unwrap();
+            let vtype = &exported_field.variant_type;
+            let variant_type: TokenStream = vtype[1..vtype.len() - 1].parse().unwrap();
+            quote! {
+                let class_name = ::godot::builtin::StringName::from(#class_name::CLASS_NAME);
+                let property_info = ::godot::builtin::meta::PropertyInfo::new(
+                    #variant_type,
+                    ::godot::builtin::meta::ClassName::new::<#class_name>(),
+                    ::godot::builtin::StringName::from(#name),
+                );
+                let property_info_sys = property_info.property_sys();
+
+                let getter_string_name = ::godot::builtin::StringName::from(#getter);
+                let setter_string_name = ::godot::builtin::StringName::from(#setter);
+                unsafe {
+                    ::godot::sys::interface_fn!(classdb_register_extension_class_property)(
+                        ::godot::sys::get_library(),
+                        class_name.string_sys(),
+                        std::ptr::addr_of!(property_info_sys),
+                        setter_string_name.string_sys(),
+                        getter_string_name.string_sys(),
+                    );
+                }
+            }
+        });
+    quote! {
+        impl ::godot::obj::cap::ImplementsGodotExports for #class_name {
+            fn __register_exports() {
+                #(
+                    {
+                        #export_tokens
+                    }
+                )*
             }
         }
     }
