@@ -15,8 +15,12 @@
 // workaround https://github.com/rust-lang/rust/issues/59168#issuecomment-962214945. However, this *also* does not work,
 // as #[cfg(doctest)] is currently near-useless for conditional compilation: https://github.com/rust-lang/rust/issues/67295.
 // Yet even then, our compile error here is only one of many, as the compiler tries to build doctest without hitting this.
-#[cfg(all(test, not(feature = "unit-test")))]
-compile_error!("Running `cargo test` requires `--features unit-test`.");
+#[cfg(all(
+    test,                       // `cargo test`
+    not(feature = "unit-test"), // but forgot `--features unit-test`
+    not(gdext_clippy)           // and not `cargo clippy --cfg gdext_clippy` (this implicitly enables `test`)
+))]
+compile_error!("Running `cargo test` requires `--features unit-test`; `cargo clippy` requires `--cfg gdext_clippy`");
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -34,12 +38,13 @@ pub mod obj;
 pub use godot_ffi as sys;
 pub use registry::*;
 
-#[cfg(not(any(test, feature = "unit-test")))]
+#[cfg(not(feature = "unit-test"))]
 pub mod engine;
 
 // Output of generated code. Mimics the file structure, symbols are re-exported.
 #[rustfmt::skip]
 #[allow(unused_imports, dead_code, non_upper_case_globals, non_snake_case)]
+#[allow(clippy::too_many_arguments)]
 mod gen;
 
 #[cfg(feature = "unit-test")]
