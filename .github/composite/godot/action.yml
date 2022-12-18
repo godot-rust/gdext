@@ -109,7 +109,7 @@ runs:
       run: |
         cd itest/godot
         echo "OUTCOME=itest" >> $GITHUB_ENV
-        $GODOT4_BIN --headless 2>&1 | tee >(grep "SCRIPT ERROR:" -q && {
+        $GODOT4_BIN --headless 2>&1 | tee "${{ runner.temp }}/log.txt" | tee >(grep "SCRIPT ERROR:" -q && {
         	printf "\n -- Godot engine encountered error, abort...\n";
         	pkill godot
             echo "OUTCOME=godot-runtime" >> $GITHUB_ENV
@@ -117,6 +117,14 @@ runs:
         })
         
         echo "OUTCOME=success" >> $GITHUB_ENV
+      shell: bash
+
+    - name: "Check for memory leaks"
+      run: |
+        if grep -q "ObjectDB instances leaked at exit" "${{ runner.temp }}/log.txt"; then
+          echo "OUTCOME=godot-leak" >> $GITHUB_ENV
+          exit 2
+        fi
       shell: bash
 
     - name: "Conclusion"
@@ -137,10 +145,17 @@ runs:
             exit 2
             ;;
         
+          "godot-leak")
+            echo "### :x: Memory leak" > $GITHUB_STEP_SUMMARY
+            echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
+        	echo "Integration tests cause memory leaks." >> $GITHUB_STEP_SUMMARY
+            exit 3
+            ;;
+        
           "itest")
             echo "### :x: Godot integration tests failed" > $GITHUB_STEP_SUMMARY
             echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
-            exit 3
+            exit 4
             ;;
         
           "header-diff")
@@ -150,7 +165,7 @@ runs:
           *)
             echo "### :x: Unknown error occurred" > $GITHUB_STEP_SUMMARY
             echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
-            exit 4
+            exit 5
             ;;
         esac
       shell: bash
