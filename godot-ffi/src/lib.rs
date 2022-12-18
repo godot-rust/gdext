@@ -275,6 +275,7 @@ macro_rules! static_assert_eq_size {
 }
 
 /// Extract value from box before `into_inner()` is stable
+#[allow(clippy::boxed_local)] // false positive
 pub fn unbox<T>(value: Box<T>) -> T {
     // Deref-move is a Box magic feature; see https://stackoverflow.com/a/42264074
     *value

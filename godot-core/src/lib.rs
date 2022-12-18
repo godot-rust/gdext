@@ -43,8 +43,9 @@ pub mod engine;
 
 // Output of generated code. Mimics the file structure, symbols are re-exported.
 #[rustfmt::skip]
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_snake_case)]
-#[allow(clippy::too_many_arguments)]
+#[allow(unused_imports, dead_code, non_upper_case_globals, non_snake_case, clippy::too_many_arguments, clippy::let_and_return, clippy::new_ret_no_self)]
+#[allow(clippy::upper_case_acronyms)] // TODO remove this line once we transform names
+#[allow(clippy::wrong_self_convention)] // TODO remove once to_string is const
 mod gen;
 
 #[cfg(feature = "unit-test")]

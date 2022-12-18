@@ -31,22 +31,10 @@ pub fn itest(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, itest::transform)
 }
 
-/// Defines the global entry point for the GDExtension library.
+/// Proc-macro attribute to be used in combination with the [`ExtensionLibrary`] trait.
 ///
-/// Typical usage:
-/// ```
-/// use godot::init::{gdextension, ExtensionLibrary};
-///
-/// // This is just a type tag without any functionality
-/// struct MyExtension;
-///
-/// #[gdextension]
-/// unsafe impl ExtensionLibrary for MyExtension {}
-/// ```
-///
-/// # Safety
-/// By using godot-rust, you opt-in to the library's safety requirements (to be described in detail).
-/// The library cannot enforce any guarantees outside Rust code, which means users need to adhere to certain rules for a safe usage.
+/// [`ExtensionLibrary`]: crate::init::ExtensionLibrary
+// FIXME intra-doc link
 #[proc_macro_attribute]
 pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {
     translate_meta(meta, input, gdextension::transform)

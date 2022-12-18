@@ -6,6 +6,7 @@
 
 // TODO remove this warning once impl is complete
 #![allow(dead_code)]
+#![allow(clippy::question_mark)] // in #[derive(DeJson)]
 
 use crate::{godot_exe, StopWatch};
 

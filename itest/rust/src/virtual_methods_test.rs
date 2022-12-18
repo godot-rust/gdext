@@ -54,5 +54,4 @@ pub(crate) fn run() -> bool {
 #[itest]
 fn test_to_string() {
     let _obj = Gd::<VirtualMethodTest>::new_default();
-    dbg!(_obj);
 }

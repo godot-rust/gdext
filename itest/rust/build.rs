@@ -124,7 +124,7 @@ struct Input {
     rust_val: TokenStream,
 }
 
-fn generate_rust_methods(inputs: &Vec<Input>) -> Vec<TokenStream> {
+fn generate_rust_methods(inputs: &[Input]) -> Vec<TokenStream> {
     inputs
         .iter()
         .map(|input| {
@@ -174,9 +174,8 @@ fn write_gdscript_code(
     let mut last = 0;
 
     let ranges = find_repeated_ranges(&template);
-    dbg!(&ranges);
     for m in ranges {
-        file.write_all(&template[last..m.before_start].as_bytes())?;
+        file.write_all(template[last..m.before_start].as_bytes())?;
 
         replace_parts(&template[m.start..m.end], inputs, |replacement| {
             file.write_all(replacement.as_bytes())?;
@@ -185,7 +184,7 @@ fn write_gdscript_code(
 
         last = m.after_end;
     }
-    file.write_all(&template[last..].as_bytes())?;
+    file.write_all(template[last..].as_bytes())?;
 
     Ok(())
 }
@@ -204,9 +203,9 @@ fn replace_parts(
         } = input;
 
         let replaced = repeat_part
-            .replace("IDENT", &ident)
+            .replace("IDENT", ident)
             .replace("TYPE", gdscript_ty)
-            .replace("VAL", &gdscript_val.to_string());
+            .replace("VAL", gdscript_val.as_ref());
 
         visitor(&replaced)?;
     }
@@ -215,32 +214,28 @@ fn replace_parts(
 }
 
 fn find_repeated_ranges(entire: &str) -> Vec<Match> {
-    const START_PAT: &'static str = "#(";
-    const END_PAT: &'static str = "#)";
+    const START_PAT: &str = "#(";
+    const END_PAT: &str = "#)";
 
     let mut search_start = 0;
     let mut found = vec![];
-    loop {
-        if let Some(start) = entire[search_start..].find(START_PAT) {
-            let before_start = search_start + start;
-            let start = before_start + START_PAT.len();
-            if let Some(end) = entire[start..].find(END_PAT) {
-                let end = start + end;
-                let after_end = end + END_PAT.len();
+    while let Some(start) = entire[search_start..].find(START_PAT) {
+        let before_start = search_start + start;
+        let start = before_start + START_PAT.len();
+        if let Some(end) = entire[start..].find(END_PAT) {
+            let end = start + end;
+            let after_end = end + END_PAT.len();
 
-                println!("Found {start}..{end}");
-                found.push(Match {
-                    before_start,
-                    start,
-                    end,
-                    after_end,
-                });
-                search_start = after_end;
-            } else {
-                panic!("unmatched start pattern without end");
-            }
+            println!("Found {start}..{end}");
+            found.push(Match {
+                before_start,
+                start,
+                end,
+                after_end,
+            });
+            search_start = after_end;
         } else {
-            break;
+            panic!("unmatched start pattern without end");
         }
     }
 

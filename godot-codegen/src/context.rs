@@ -38,11 +38,11 @@ impl<'a> Context<'a> {
                 continue;
             }
 
-            println!("-- add engine class {}", class_name);
+            println!("-- add engine class {class_name}");
             ctx.engine_classes.insert(class_name);
 
             if let Some(base) = class.inherits.as_ref() {
-                println!("  -- inherits {}", base);
+                println!("  -- inherits {base}");
                 ctx.inheritance_tree
                     .insert(class_name.to_string(), base.clone());
             }
@@ -90,13 +90,10 @@ impl InheritanceTree {
     pub fn map_all_bases<T>(&self, derived: &str, apply: impl Fn(&str) -> T) -> Vec<T> {
         let mut maybe_base = derived;
         let mut result = vec![];
-        loop {
-            if let Some(base) = self.derived_to_base.get(maybe_base).map(String::as_str) {
-                result.push(apply(base));
-                maybe_base = base;
-            } else {
-                break;
-            }
+
+        while let Some(base) = self.derived_to_base.get(maybe_base).map(String::as_str) {
+            result.push(apply(base));
+            maybe_base = base;
         }
         result
     }

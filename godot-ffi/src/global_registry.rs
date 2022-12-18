@@ -31,7 +31,7 @@ pub struct GlobalRegistry {
 
 impl GlobalRegistry {
     pub fn c_string(&mut self, s: &str) -> *const i8 {
-        let value = CString::new(s).expect(&format!("Invalid string '{s}'"));
+        let value = CString::new(s).unwrap_or_else(|_| panic!("Invalid string '{s}'"));
 
         if let Some(existing) = self.c_strings.get(&value) {
             //println!("<<< Cache '{s}'");

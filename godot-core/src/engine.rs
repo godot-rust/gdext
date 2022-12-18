@@ -162,7 +162,7 @@ pub(crate) fn display_string<T: GodotClass>(
     ptr: &Gd<T>,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
-    let string: GodotString = ptr.as_object(|obj| Object::to_string(obj));
+    let string: GodotString = ptr.as_object(Object::to_string);
 
     <GodotString as std::fmt::Display>::fmt(&string, f)
 }

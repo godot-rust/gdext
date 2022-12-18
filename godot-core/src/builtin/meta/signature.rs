@@ -8,6 +8,7 @@ use godot_ffi as sys;
 use godot_ffi::VariantType;
 use std::fmt::Debug;
 
+#[doc(hidden)]
 pub trait SignatureTuple {
     type Params;
     type Ret;
@@ -16,7 +17,7 @@ pub trait SignatureTuple {
     fn property_info(index: i32, param_name: &str) -> PropertyInfo;
     fn param_metadata(index: i32) -> sys::GDExtensionClassMethodArgumentMetadata;
 
-    fn varcall<C: GodotClass>(
+    unsafe fn varcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
         args_ptr: *const sys::GDExtensionConstVariantPtr,
         ret: sys::GDExtensionVariantPtr,
@@ -27,7 +28,7 @@ pub trait SignatureTuple {
 
     // Note: this method imposes extra bounds on GodotFfi, which may not be implemented for user types.
     // We could fall back to varcalls in such cases, and not require GodotFfi categorically.
-    fn ptrcall<C: GodotClass>(
+    unsafe fn ptrcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
         args_ptr: *const sys::GDExtensionConstTypePtr,
         ret: sys::GDExtensionTypePtr,
@@ -104,7 +105,7 @@ macro_rules! impl_signature_for_tuple {
             }
 
             #[inline]
-            fn varcall<C : GodotClass>(
+            unsafe fn varcall<C : GodotClass>(
 				instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
                 ret: sys::GDExtensionVariantPtr,
@@ -136,7 +137,7 @@ macro_rules! impl_signature_for_tuple {
             }
 
             #[inline]
-            fn ptrcall<C : GodotClass>(
+            unsafe fn ptrcall<C : GodotClass>(
 				instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,

@@ -146,6 +146,8 @@ where
     }
 
     /// Storage obj associated with the extension instance
+    // FIXME proper + safe interior mutability, also that Clippy is happy
+    #[allow(clippy::mut_from_ref)]
     pub(crate) fn storage(&self) -> &mut InstanceStorage<T> {
         let callbacks = crate::storage::nop_instance_callbacks();
 
@@ -467,6 +469,13 @@ impl<T: GodotClass> GodotFfi for Gd<T> {
 }
 
 impl<T: GodotClass> Gd<T> {
+    /// Runs `init_fn` on the address of a pointer (initialized to null). If that pointer is still null after the `init_fn` call,
+    /// then `None` will be returned; otherwise `from_obj_sys(ptr)`.
+    ///
+    /// # Safety
+    /// `init_fn` must be a function that correctly handles an "type pointer" pointing to an "object pointer"
+    #[doc(hidden)]
+    // TODO unsafe on init_fn instead of this fn?
     pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Option<Self> {
         // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
 
@@ -499,7 +508,7 @@ impl<T: GodotClass> Drop for Gd<T> {
         // No-op for manually managed objects
 
         out!("Gd::drop   <{}>", std::any::type_name::<T>());
-        let is_last = T::Mem::maybe_dec_ref(&self); // may drop
+        let is_last = T::Mem::maybe_dec_ref(self); // may drop
         if is_last {
             unsafe {
                 interface_fn!(object_destroy)(self.obj_sys());
@@ -549,7 +558,7 @@ impl<T: GodotClass> FromVariant for Gd<T> {
 
 impl<T: GodotClass> ToVariant for Gd<T> {
     fn to_variant(&self) -> Variant {
-        let variant = unsafe {
+        unsafe {
             Variant::from_var_sys_init(|variant_ptr| {
                 let converter = sys::builtin_fn!(object_to_variant);
 
@@ -562,9 +571,7 @@ impl<T: GodotClass> ToVariant for Gd<T> {
                     ptr::addr_of!(type_ptr) as sys::GDExtensionTypePtr,
                 );
             })
-        };
-
-        variant
+        }
     }
 }
 

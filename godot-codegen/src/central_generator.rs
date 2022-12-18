@@ -295,7 +295,7 @@ fn make_core_code(central_items: &CentralItems) -> String {
 fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context) -> CentralItems {
     let mut opaque_types = vec![];
     for class in &api.builtin_class_sizes {
-        if &class.build_configuration == build_config {
+        if class.build_configuration == build_config {
             for ClassSize { name, size } in &class.sizes {
                 opaque_types.push(make_opaque_type(name, *size));
             }
@@ -412,7 +412,7 @@ fn collect_builtin_types<'a>(
         }
 
         // Lowercase without underscore, to map SHOUTY_CASE to shoutycase
-        let normalized = shout_case.to_ascii_lowercase().replace("_", "");
+        let normalized = shout_case.to_ascii_lowercase().replace('_', "");
 
         // TODO cut down on the number of cached functions generated
         // e.g. there's no point in providing operator< for int
@@ -500,7 +500,7 @@ fn make_variant_fns(
     builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (TokenStream, TokenStream) {
     let (construct_decls, construct_inits) =
-        make_construct_fns(&type_names, constructors, builtin_types);
+        make_construct_fns(type_names, constructors, builtin_types);
     let (destroy_decls, destroy_inits) = make_destroy_fns(type_names, has_destructor);
     let (op_eq_decls, op_eq_inits) = make_operator_fns(type_names, operators, "==", "EQUAL");
     let (op_lt_decls, op_lt_inits) = make_operator_fns(type_names, operators, "<", "LESS");
@@ -622,8 +622,7 @@ fn make_extra_constructors(
     let mut extra_inits = Vec::with_capacity(constructors.len() - 2);
     let variant_type = &type_names.sys_variant_type;
 
-    for i in 2..constructors.len() {
-        let ctor = &constructors[i];
+    for (i, ctor) in constructors.iter().enumerate().skip(2) {
         if let Some(args) = &ctor.arguments {
             let type_name = &type_names.snake_case;
             let ident = if args.len() == 1 && args[0].name == "from" {
@@ -688,7 +687,7 @@ fn make_operator_fns(
     sys_name: &str,
 ) -> (TokenStream, TokenStream) {
     if operators.is_none()
-        || !operators.unwrap().iter().any(|op| &op.name == json_name)
+        || !operators.unwrap().iter().any(|op| op.name == json_name)
         || is_trivial(type_names)
     {
         return (TokenStream::new(), TokenStream::new());
@@ -726,10 +725,7 @@ fn make_operator_fns(
 }
 
 fn format_load_error(ident: &impl std::fmt::Display) -> String {
-    format!(
-        "failed to load GDExtension function `{}`",
-        ident.to_string()
-    )
+    format!("failed to load GDExtension function `{ident}`")
 }
 
 /// Returns true if the type is so trivial that most of its operations are directly provided by Rust, and there is no need

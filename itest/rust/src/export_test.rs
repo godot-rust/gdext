@@ -7,10 +7,9 @@
 use godot::prelude::*;
 
 pub(crate) fn run() -> bool {
-    let ok = true;
     // No tests currently, tests using HasProperty are in Godot scripts.
 
-    ok
+    true
 }
 
 #[derive(GodotClass)]
@@ -42,7 +41,7 @@ struct HasProperty {
 impl HasProperty {
     #[func]
     pub fn get_int_val(&self) -> i32 {
-        return self.int_val;
+        self.int_val
     }
 
     #[func]
@@ -52,7 +51,7 @@ impl HasProperty {
 
     #[func]
     pub fn get_string_val(&self) -> GodotString {
-        return self.string_val.clone();
+        self.string_val.clone()
     }
 
     #[func]
@@ -63,9 +62,9 @@ impl HasProperty {
     #[func]
     pub fn get_object_val(&self) -> Variant {
         if let Some(object_val) = self.object_val.as_ref() {
-            return object_val.to_variant();
+            object_val.to_variant()
         } else {
-            return Variant::nil();
+            Variant::nil()
         }
     }
 

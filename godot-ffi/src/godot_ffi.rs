@@ -48,9 +48,15 @@ pub trait GodotFuncMarshal: Sized {
     type Via: Debug;
 
     /// Used for function arguments. On failure, the argument which can't be converted to Self is returned.
+    ///
+    /// # Safety
+    /// The value behind `ptr` must be the C FFI type that corresponds to `Self`.
     unsafe fn try_from_sys(ptr: sys::GDExtensionTypePtr) -> Result<Self, Self::Via>;
 
     /// Used for function return values. On failure, `self` which can't be converted to Via is returned.
+    ///
+    /// # Safety
+    /// The value behind `ptr` must be the C FFI type that corresponds to `Self`.
     unsafe fn try_write_sys(&self, dst: sys::GDExtensionTypePtr) -> Result<(), Self>;
 }
 
