@@ -10,6 +10,7 @@ use proc_macro2::TokenStream as TokenStream2;
 mod derive_godot_class;
 mod gdextension;
 mod godot_api;
+mod godot_cfg;
 mod itest;
 mod util;
 
