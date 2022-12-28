@@ -1,13 +1,11 @@
-use crate::godot_cfg::{
-    GodotConditionalCompilation, GodotConditionalCompilationError, GodotConfigurationPredicate,
-};
+use super::*;
 use proc_macro2::Group;
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct GodotConfigurationNot(pub(crate) GodotConfigurationPredicate);
 
 impl TryFrom<Group> for GodotConfigurationNot {
-    type Error = GodotConditionalCompilationError;
+    type Error = GodotConditionCompilationError;
 
     fn try_from(group: Group) -> Result<Self, Self::Error> {
         let tokens: Vec<_> = group.stream().into_iter().collect();
@@ -28,10 +26,7 @@ impl TryFrom<Group> for GodotConfigurationNot {
                     likely_group,
                 ))?))
             }
-            n => Err(Self::Error::UnableToParse(format!(
-                "not may only have one predicate inside it, found {}: {}",
-                n, group
-            ))),
+            n => Err(Self::Error::IncorrectNumberOfNotArguments(n, group)),
         }
     }
 }
@@ -45,7 +40,6 @@ impl GodotConditionalCompilation for GodotConfigurationNot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::godot_cfg::option::GodotConfigurationOption;
     use proc_macro2::TokenStream;
     use std::str::FromStr;
 

@@ -1,14 +1,11 @@
-use crate::godot_cfg::list::{
-    GodotConfigurationPredicateList, GodotConfigurationPredicateListError,
-};
-use crate::godot_cfg::GodotConditionalCompilation;
+use super::*;
 use proc_macro2::Group;
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct GodotConfigurationAll(pub(crate) GodotConfigurationPredicateList);
 
 impl TryFrom<Group> for GodotConfigurationAll {
-    type Error = GodotConfigurationPredicateListError;
+    type Error = GodotConditionCompilationError;
 
     fn try_from(group: Group) -> Result<Self, Self::Error> {
         Ok(Self(GodotConfigurationPredicateList::try_from(group)?))

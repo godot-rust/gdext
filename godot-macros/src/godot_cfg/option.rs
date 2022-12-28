@@ -1,48 +1,5 @@
-use crate::godot_cfg::GodotConditionalCompilation;
+use super::*;
 use proc_macro2::{Ident, TokenTree};
-use std::error::Error;
-use std::fmt::{Display, Formatter};
-
-/// Possible errors when trying to pass a cfg option
-#[derive(Debug, Clone)]
-pub enum GodotConfigurationOptionError {
-    UnsupportedOption(Ident),
-    // OptionRequiresValue(Ident),
-    // OptionDoesNotSupportValue(Ident),
-    InvalidToken(TokenTree),
-}
-
-impl Display for GodotConfigurationOptionError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let ve: venial::Error = self.clone().into();
-        write!(f, "{}", ve)
-    }
-}
-
-impl Error for GodotConfigurationOptionError {}
-
-impl Into<venial::Error> for GodotConfigurationOptionError {
-    fn into(self) -> venial::Error {
-        match self {
-            Self::UnsupportedOption(ident) => {
-                let message = format!("Unsupported conditional compilation option: {}", &ident);
-                venial::Error::new_at_tokens(ident, message)
-            }
-            // Self::OptionRequiresValue(ident) => {
-            //     let message = format!("Conditional compilation option requires a value: {}", &ident);
-            //     venial::Error::new_at_tokens(ident, message)
-            // }
-            // Self::OptionDoesNotSupportValue(ident) => {
-            //     let message = format!("Conditional compilation option does not support a value: {}", &ident);
-            //     venial::Error::new_at_tokens(ident, message)
-            // }
-            Self::InvalidToken(tt) => {
-                let message = format!("Invalid conditional compilation option: {}", &tt);
-                venial::Error::new_at_tokens(tt, message)
-            }
-        }
-    }
-}
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub enum GodotConfigurationOption {
@@ -85,13 +42,13 @@ impl GodotConditionalCompilation for GodotConfigurationOption {
             // Self::TargetVendor(s) => cfg!(target_vendor = s),
             // Self::TargetHasAtomic(s) => cfg!(target_has_atomic = s),
             // Self::Panic(s) => cfg!(panic = s),
-            _ => todo!("(Unreachable) Work out how to evaluate cfg with an arbitrary string)"),
+            // _ => todo!("(Unreachable) Work out how to evaluate cfg with an arbitrary string)"),
         }
     }
 }
 
 impl TryFrom<&Ident> for GodotConfigurationOption {
-    type Error = GodotConfigurationOptionError;
+    type Error = GodotConditionCompilationError;
 
     fn try_from(ident: &Ident) -> Result<Self, Self::Error> {
         let ident_string = ident.to_string();
@@ -113,19 +70,19 @@ impl TryFrom<&Ident> for GodotConfigurationOption {
             // | "target_vendor"
             // | "target_has_atomic"
             // | "panic" => Err(Self::Error::OptionRequiresValue(ident.clone())),
-            _ => Err(Self::Error::UnsupportedOption(ident.clone())),
+            _ => Err(Self::Error::OptionUnsupported(ident.clone())),
         }
     }
 }
 
 impl TryFrom<TokenTree> for GodotConfigurationOption {
-    type Error = GodotConfigurationOptionError;
+    type Error = GodotConditionCompilationError;
 
     fn try_from(tt: TokenTree) -> Result<Self, Self::Error> {
         if let TokenTree::Ident(ident) = &tt {
             ident.try_into()
         } else {
-            Err(Self::Error::InvalidToken(tt))
+            Err(Self::Error::OptionInvalidToken(tt))
         }
     }
 }
@@ -152,12 +109,12 @@ mod tests {
     }
 
     #[test]
-    fn test_unsupported_option() {
+    fn test_option_unsupported() {
         let ts = TokenStream::from_str("not_a_real_option").unwrap();
         let tt = ts.into_iter().next().unwrap();
         let result = GodotConfigurationOption::try_from(tt);
         match result {
-            Err(GodotConfigurationOptionError::UnsupportedOption(_)) => {}
+            Err(GodotConditionCompilationError::OptionUnsupported(_)) => {}
             _ => panic!("incorrect error returned {:?}", result),
         }
     }
@@ -168,7 +125,7 @@ mod tests {
         let tt = ts.into_iter().next().unwrap();
         let result = GodotConfigurationOption::try_from(tt);
         match result {
-            Err(GodotConfigurationOptionError::InvalidToken(_)) => {}
+            Err(GodotConditionCompilationError::OptionInvalidToken(_)) => {}
             _ => panic!("incorrect error returned {:?}", result),
         }
 
@@ -176,7 +133,7 @@ mod tests {
         let tt = ts.into_iter().next().unwrap();
         let result = GodotConfigurationOption::try_from(tt);
         match result {
-            Err(GodotConfigurationOptionError::InvalidToken(_)) => {}
+            Err(GodotConditionCompilationError::OptionInvalidToken(_)) => {}
             _ => panic!("incorrect error returned {:?}", result),
         }
 
@@ -184,7 +141,7 @@ mod tests {
         let tt = ts.into_iter().next().unwrap();
         let result = GodotConfigurationOption::try_from(tt);
         match result {
-            Err(GodotConfigurationOptionError::InvalidToken(_)) => {}
+            Err(GodotConditionCompilationError::OptionInvalidToken(_)) => {}
             _ => panic!("incorrect error returned {:?}", result),
         }
     }

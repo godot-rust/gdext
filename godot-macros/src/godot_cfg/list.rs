@@ -1,41 +1,6 @@
-use crate::godot_cfg::{GodotConditionalCompilationError, GodotConfigurationPredicate};
+use super::*;
 use proc_macro2::{Group, TokenTree};
-use std::error::Error;
-use std::fmt::{Display, Formatter};
 use std::ops::Deref;
-
-#[derive(Debug, Clone)]
-pub enum GodotConfigurationPredicateListError {
-    UnexpectedTokenInGroup(Group, TokenTree),
-    GodotConditionalCompilationError(GodotConditionalCompilationError),
-}
-
-impl Display for GodotConfigurationPredicateListError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let ve: venial::Error = self.clone().into();
-        write!(f, "{}", ve)
-    }
-}
-
-impl Error for GodotConfigurationPredicateListError {}
-
-impl Into<venial::Error> for GodotConfigurationPredicateListError {
-    fn into(self) -> venial::Error {
-        match self {
-            Self::UnexpectedTokenInGroup(group, tt) => {
-                let message = format!("Unexpected token found in group: {}, {}", &group, &tt);
-                venial::Error::new_at_tokens(group, message)
-            }
-            Self::GodotConditionalCompilationError(error) => venial::Error::new(error.to_string()),
-        }
-    }
-}
-
-impl From<GodotConditionalCompilationError> for GodotConfigurationPredicateListError {
-    fn from(error: GodotConditionalCompilationError) -> Self {
-        Self::GodotConditionalCompilationError(error)
-    }
-}
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct GodotConfigurationPredicateList(pub(crate) Vec<GodotConfigurationPredicate>);
@@ -49,7 +14,7 @@ impl Deref for GodotConfigurationPredicateList {
 }
 
 impl TryFrom<Group> for GodotConfigurationPredicateList {
-    type Error = GodotConfigurationPredicateListError;
+    type Error = GodotConditionCompilationError;
 
     fn try_from(group: Group) -> Result<Self, Self::Error> {
         let mut inner = vec![];
@@ -79,12 +44,12 @@ impl TryFrom<Group> for GodotConfigurationPredicateList {
                         }
                         // Anything else
                         Some(tt) => {
-                            return Err(Self::Error::UnexpectedTokenInGroup(group, tt.clone()))
+                            return Err(Self::Error::ListUnexpectedTokenInGroup(group, tt.clone()))
                         }
                     }
                 }
                 // Anything else
-                Some(tt) => return Err(Self::Error::UnexpectedTokenInGroup(group, tt.clone())),
+                Some(tt) => return Err(Self::Error::ListUnexpectedTokenInGroup(group, tt.clone())),
             }
         }
         Ok(Self(inner))
@@ -94,7 +59,6 @@ impl TryFrom<Group> for GodotConfigurationPredicateList {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::godot_cfg::option::GodotConfigurationOption;
     use proc_macro2::TokenStream;
     use std::str::FromStr;
 
