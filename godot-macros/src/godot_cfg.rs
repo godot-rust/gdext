@@ -2,26 +2,29 @@ use proc_macro2::{Group, Ident, TokenTree};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
+use crate::godot_cfg::option::{GodotConfigurationOption, GodotConfigurationOptionError};
+
+mod option;
 
 #[derive(Debug)]
 pub enum GodotConditionalCompilationError {
-    MissingValueForOption(String),
-    UnsupportedOption(String),
     UnableToParse(String),
+    VenialError(venial::Error),
+}
+
+impl From<GodotConfigurationOptionError> for GodotConditionalCompilationError {
+    fn from(value: GodotConfigurationOptionError) -> Self {
+        Self::VenialError(value.into())
+    }
 }
 
 impl Display for GodotConditionalCompilationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::MissingValueForOption(e) => {
-                write!(f, "Key '{}' requires a value", e)
-            }
-            Self::UnsupportedOption(e) => {
-                write!(f, "Unsupported Configuration Option '{}'", e)
-            }
             Self::UnableToParse(e) => {
                 write!(f, "Unable to parse '{}'", e)
             }
+            Self::VenialError(e) => write!(f, "{}", e)
         }
     }
 }
@@ -52,10 +55,10 @@ impl GodotConditionalCompilation for GodotConfigurationPredicate {
     }
 }
 
-impl TryFrom<Ident> for GodotConfigurationPredicate {
+impl TryFrom<&Ident> for GodotConfigurationPredicate {
     type Error = GodotConditionalCompilationError;
 
-    fn try_from(ident: Ident) -> Result<Self, Self::Error> {
+    fn try_from(ident: &Ident) -> Result<Self, Self::Error> {
         Ok(Self::Option(GodotConfigurationOption::try_from(ident)?))
     }
 }
@@ -65,7 +68,7 @@ impl TryFrom<TokenTree> for GodotConfigurationPredicate {
 
     fn try_from(tt: TokenTree) -> Result<Self, Self::Error> {
         match tt {
-            TokenTree::Ident(ident) => Self::try_from(ident),
+            TokenTree::Ident(ident) => Self::try_from(&ident),
             _ => Err(Self::Error::UnableToParse(tt.to_string())),
         }
     }
@@ -98,124 +101,6 @@ impl TryFrom<(TokenTree, TokenTree)> for GodotConfigurationPredicate {
                 tokens.0.to_string(),
                 tokens.1.to_string()
             ))),
-        }
-    }
-}
-
-// Currently only Test and DocTest are supported. I'm not sure the other things supported by cfg!
-// necessarily make sense to toggle the rest of the godot on or off but they can be added here later
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
-enum GodotConfigurationIdentifier {
-    Test,
-    DocTest,
-    // Feature,
-}
-
-impl GodotConfigurationIdentifier {
-    fn requires_value(&self) -> bool {
-        match self {
-            Self::Test => false,
-            Self::DocTest => false,
-            // Self::Feature => true,
-        }
-    }
-}
-
-impl TryFrom<&Ident> for GodotConfigurationIdentifier {
-    type Error = GodotConditionalCompilationError;
-
-    fn try_from(ident: &Ident) -> Result<Self, Self::Error> {
-        // ToDo: Is there a better way to do this?
-        let ident_string = ident.to_string();
-        match ident_string.as_str() {
-            "test" => Ok(Self::Test),
-            "doctest" => Ok(Self::DocTest),
-            // "feature" => Ok(Self::Feature),
-            _ => Err(Self::Error::UnsupportedOption(ident_string)),
-        }
-    }
-}
-
-impl TryFrom<Ident> for GodotConfigurationIdentifier {
-    type Error = GodotConditionalCompilationError;
-
-    fn try_from(value: Ident) -> Result<Self, Self::Error> {
-        (&value).try_into()
-    }
-}
-
-impl Display for GodotConfigurationIdentifier {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Test => write!(f, "test"),
-            Self::DocTest => write!(f, "doctest"),
-            // Self::Feature => write!(f, "feature"),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub struct GodotConfigurationOption {
-    identifier: GodotConfigurationIdentifier,
-    value: String,
-}
-
-impl TryFrom<&Ident> for GodotConfigurationOption {
-    type Error = GodotConditionalCompilationError;
-
-    fn try_from(ident: &Ident) -> Result<Self, Self::Error> {
-        let identifier: GodotConfigurationIdentifier = ident.try_into()?;
-        if !identifier.requires_value() {
-            Ok(Self {
-                identifier,
-                value: "".to_string(),
-            })
-        } else {
-            Err(Self::Error::MissingValueForOption(identifier.to_string()))
-        }
-    }
-}
-
-impl TryFrom<Ident> for GodotConfigurationOption {
-    type Error = GodotConditionalCompilationError;
-
-    fn try_from(value: Ident) -> Result<Self, Self::Error> {
-        (&value).try_into()
-    }
-}
-
-impl TryFrom<TokenTree> for GodotConfigurationOption {
-    type Error = GodotConditionalCompilationError;
-
-    fn try_from(tt: TokenTree) -> Result<Self, Self::Error> {
-        if let TokenTree::Ident(ident) = &tt {
-            return ident.try_into();
-        }
-        if let TokenTree::Group(group) = &tt {
-            let tokens: Vec<_> = group.stream().into_iter().collect();
-            match &tokens[..] {
-                [TokenTree::Ident(key), TokenTree::Punct(punct), TokenTree::Ident(value)] => {
-                    if punct.as_char() == '=' {
-                        return Ok(Self {
-                            identifier: key.try_into()?,
-                            value: value.to_string(),
-                        });
-                    }
-                }
-                _ => {}
-            }
-        }
-        Err(Self::Error::UnableToParse(tt.to_string()))
-    }
-}
-
-impl GodotConditionalCompilation for GodotConfigurationOption {
-    fn should_compile(&self) -> bool {
-        match self.identifier {
-            GodotConfigurationIdentifier::Test => cfg!(test),
-            GodotConfigurationIdentifier::DocTest => cfg!(doctest),
-            // ToDo: Find a way to do this
-            // GodotConfigurationIdentifier::Feature => cfg!(feature = self.value.as_str()),
         }
     }
 }
@@ -351,32 +236,7 @@ mod tests {
     use proc_macro2::TokenStream;
     use std::str::FromStr;
 
-    #[test]
-    fn test_option() {
-        let ts = TokenStream::from_str("test").unwrap();
-        let tt = ts.into_iter().next().unwrap();
-        let predicate: GodotConfigurationOption = tt.try_into().unwrap();
-        assert!(predicate.should_compile());
-        assert_eq!(
-            predicate,
-            GodotConfigurationOption {
-                identifier: GodotConfigurationIdentifier::Test,
-                value: "".to_string(),
-            }
-        );
 
-        let ts = TokenStream::from_str("doctest").unwrap();
-        let tt = ts.into_iter().next().unwrap();
-        let predicate: GodotConfigurationOption = tt.try_into().unwrap();
-        assert!(!predicate.should_compile());
-        assert_eq!(
-            predicate,
-            GodotConfigurationOption {
-                identifier: GodotConfigurationIdentifier::DocTest,
-                value: "".to_string(),
-            }
-        );
-    }
 
     #[test]
     fn test_predicate_list() {
@@ -387,14 +247,8 @@ mod tests {
             assert_eq!(
                 list,
                 GodotConfigurationPredicateList(vec![
-                    GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                        identifier: GodotConfigurationIdentifier::Test,
-                        value: "".to_string(),
-                    }),
-                    GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                        identifier: GodotConfigurationIdentifier::DocTest,
-                        value: "".to_string(),
-                    }),
+                    GodotConfigurationPredicate::Option(GodotConfigurationOption ::Test),
+                    GodotConfigurationPredicate::Option(GodotConfigurationOption ::DocTest),
                 ])
             )
         } else {
@@ -415,14 +269,8 @@ mod tests {
             predicate,
             GodotConfigurationPredicate::All(Box::new(GodotConfigurationAll(
                 GodotConfigurationPredicateList(vec![
-                    GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                        identifier: GodotConfigurationIdentifier::Test,
-                        value: "".to_string(),
-                    }),
-                    GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                        identifier: GodotConfigurationIdentifier::Test,
-                        value: "".to_string(),
-                    }),
+                    GodotConfigurationPredicate::Option(GodotConfigurationOption::Test),
+                    GodotConfigurationPredicate::Option(GodotConfigurationOption::Test),
                 ])
             )))
         );
@@ -438,14 +286,8 @@ mod tests {
             predicate,
             GodotConfigurationPredicate::All(Box::new(GodotConfigurationAll(
                 GodotConfigurationPredicateList(vec![
-                    GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                        identifier: GodotConfigurationIdentifier::Test,
-                        value: "".to_string(),
-                    }),
-                    GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                        identifier: GodotConfigurationIdentifier::DocTest,
-                        value: "".to_string(),
-                    }),
+                    GodotConfigurationPredicate::Option(GodotConfigurationOption::Test),
+                    GodotConfigurationPredicate::Option(GodotConfigurationOption ::DocTest),
                 ])
             )))
         );
@@ -464,14 +306,8 @@ mod tests {
             predicate,
             GodotConfigurationPredicate::Any(Box::new(GodotConfigurationAny(
                 GodotConfigurationPredicateList(vec![
-                    GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                        identifier: GodotConfigurationIdentifier::Test,
-                        value: "".to_string(),
-                    }),
-                    GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                        identifier: GodotConfigurationIdentifier::DocTest,
-                        value: "".to_string(),
-                    }),
+                    GodotConfigurationPredicate::Option(GodotConfigurationOption ::Test),
+                    GodotConfigurationPredicate::Option(GodotConfigurationOption::DocTest),
                 ])
             )))
         );
@@ -485,11 +321,7 @@ mod tests {
             predicate,
             GodotConfigurationPredicate::Any(Box::new(GodotConfigurationAny(
                 GodotConfigurationPredicateList(vec![GodotConfigurationPredicate::Option(
-                    GodotConfigurationOption {
-                        identifier: GodotConfigurationIdentifier::DocTest,
-                        value: "".to_string(),
-                    }
-                ),])
+                    GodotConfigurationOption::DocTest),])
             )))
         );
     }
@@ -504,10 +336,7 @@ mod tests {
         assert_eq!(
             predicate,
             GodotConfigurationPredicate::Not(Box::new(GodotConfigurationNot(
-                GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                    identifier: GodotConfigurationIdentifier::Test,
-                    value: "".to_string(),
-                })
+                GodotConfigurationPredicate::Option(GodotConfigurationOption ::Test)
             )))
         );
 
@@ -520,10 +349,7 @@ mod tests {
             predicate,
             GodotConfigurationPredicate::Not(Box::new(GodotConfigurationNot(
                 GodotConfigurationPredicate::Not(Box::new(GodotConfigurationNot(
-                    GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                        identifier: GodotConfigurationIdentifier::Test,
-                        value: "".to_string(),
-                    })
+                    GodotConfigurationPredicate::Option(GodotConfigurationOption::Test)
                 )))
             )))
         );
@@ -544,22 +370,13 @@ mod tests {
                 GodotConfigurationPredicateList(vec![
                     GodotConfigurationPredicate::All(Box::new(GodotConfigurationAll(
                         GodotConfigurationPredicateList(vec![
-                            GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                                identifier: GodotConfigurationIdentifier::Test,
-                                value: "".to_string(),
-                            }),
+                            GodotConfigurationPredicate::Option(GodotConfigurationOption::Test),
                             GodotConfigurationPredicate::Not(Box::new(GodotConfigurationNot(
-                                GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                                    identifier: GodotConfigurationIdentifier::DocTest,
-                                    value: "".to_string(),
-                                })
+                                GodotConfigurationPredicate::Option(GodotConfigurationOption::DocTest)
                             ))),
                         ])
                     ))),
-                    GodotConfigurationPredicate::Option(GodotConfigurationOption {
-                        identifier: GodotConfigurationIdentifier::DocTest,
-                        value: "".to_string(),
-                    }),
+                    GodotConfigurationPredicate::Option(GodotConfigurationOption::DocTest),
                 ])
             )))
         )
