@@ -1,6 +1,6 @@
-use std::error::Error;
 use crate::godot_cfg::GodotConditionalCompilation;
 use proc_macro2::{Ident, TokenTree};
+use std::error::Error;
 use std::fmt::{Display, Formatter};
 
 /// Possible errors when trying to pass a cfg option
@@ -85,7 +85,7 @@ impl GodotConditionalCompilation for GodotConfigurationOption {
             // Self::TargetVendor(s) => cfg!(target_vendor = s),
             // Self::TargetHasAtomic(s) => cfg!(target_has_atomic = s),
             // Self::Panic(s) => cfg!(panic = s),
-            _ => todo!("(Unreachable) Work out how to evaluate cfg with an arbitrary string)")
+            _ => todo!("(Unreachable) Work out how to evaluate cfg with an arbitrary string)"),
         }
     }
 }
@@ -142,19 +142,13 @@ mod tests {
         let tt = ts.into_iter().next().unwrap();
         let option: GodotConfigurationOption = tt.try_into().unwrap();
         assert!(option.should_compile());
-        assert_eq!(
-            option,
-            GodotConfigurationOption::Test
-        );
+        assert_eq!(option, GodotConfigurationOption::Test);
 
         let ts = TokenStream::from_str("doctest").unwrap();
         let tt = ts.into_iter().next().unwrap();
         let option: GodotConfigurationOption = tt.try_into().unwrap();
         assert!(!option.should_compile());
-        assert_eq!(
-            option,
-            GodotConfigurationOption::DocTest
-        );
+        assert_eq!(option, GodotConfigurationOption::DocTest);
     }
 
     #[test]
@@ -163,7 +157,7 @@ mod tests {
         let tt = ts.into_iter().next().unwrap();
         let result = GodotConfigurationOption::try_from(tt);
         match result {
-            Err(GodotConfigurationOptionError::UnsupportedOption(_)) => {},
+            Err(GodotConfigurationOptionError::UnsupportedOption(_)) => {}
             _ => panic!("incorrect error returned {:?}", result),
         }
     }
@@ -174,7 +168,7 @@ mod tests {
         let tt = ts.into_iter().next().unwrap();
         let result = GodotConfigurationOption::try_from(tt);
         match result {
-            Err(GodotConfigurationOptionError::InvalidToken(_)) => {},
+            Err(GodotConfigurationOptionError::InvalidToken(_)) => {}
             _ => panic!("incorrect error returned {:?}", result),
         }
 
@@ -182,7 +176,7 @@ mod tests {
         let tt = ts.into_iter().next().unwrap();
         let result = GodotConfigurationOption::try_from(tt);
         match result {
-            Err(GodotConfigurationOptionError::InvalidToken(_)) => {},
+            Err(GodotConfigurationOptionError::InvalidToken(_)) => {}
             _ => panic!("incorrect error returned {:?}", result),
         }
 
@@ -190,7 +184,7 @@ mod tests {
         let tt = ts.into_iter().next().unwrap();
         let result = GodotConfigurationOption::try_from(tt);
         match result {
-            Err(GodotConfigurationOptionError::InvalidToken(_)) => {},
+            Err(GodotConfigurationOptionError::InvalidToken(_)) => {}
             _ => panic!("incorrect error returned {:?}", result),
         }
     }
