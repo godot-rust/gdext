@@ -3,7 +3,7 @@ use proc_macro2::{Group, TokenTree};
 use std::ops::Deref;
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub struct GodotConfigurationPredicateList(pub(crate) Vec<GodotConfigurationPredicate>);
+pub(super) struct GodotConfigurationPredicateList(pub(crate) Vec<GodotConfigurationPredicate>);
 
 impl Deref for GodotConfigurationPredicateList {
     type Target = Vec<GodotConfigurationPredicate>;
@@ -18,7 +18,7 @@ impl TryFrom<Group> for GodotConfigurationPredicateList {
 
     fn try_from(group: Group) -> Result<Self, Self::Error> {
         let mut inner = vec![];
-        let mut iter = group.clone().stream().into_iter().peekable();
+        let mut iter = group.stream().into_iter().peekable();
         loop {
             let next = iter.next();
             if next.is_none() {
@@ -49,7 +49,7 @@ impl TryFrom<Group> for GodotConfigurationPredicateList {
                     }
                 }
                 // Anything else
-                Some(tt) => return Err(Self::Error::ListUnexpectedTokenInGroup(group, tt.clone())),
+                Some(tt) => return Err(Self::Error::ListUnexpectedTokenInGroup(group, tt)),
             }
         }
         Ok(Self(inner))

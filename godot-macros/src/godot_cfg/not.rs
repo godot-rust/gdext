@@ -2,7 +2,7 @@ use super::*;
 use proc_macro2::Group;
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub struct GodotConfigurationNot(pub(crate) GodotConfigurationPredicate);
+pub(super) struct GodotConfigurationNot(pub(crate) GodotConfigurationPredicate);
 
 impl TryFrom<Group> for GodotConfigurationNot {
     type Error = GodotConditionCompilationError;

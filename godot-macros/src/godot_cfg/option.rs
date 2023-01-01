@@ -2,7 +2,7 @@ use super::*;
 use proc_macro2::{Ident, TokenTree};
 
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub enum GodotConfigurationOption {
+pub(super) enum GodotConfigurationOption {
     Test,
     DocTest,
     Unix,

@@ -14,13 +14,12 @@ use not::*;
 use option::*;
 use predicate::*;
 
-pub trait GodotConditionalCompilation {
+trait GodotConditionalCompilation {
     fn should_compile(&self) -> bool;
 }
 
 pub fn should_compile(ts: proc_macro2::TokenStream) -> Result<bool, venial::Error> {
-    let predicate = GodotConfigurationPredicate::try_from(ts)
-        .map_err(|e| e.into())?;
+    let predicate = GodotConfigurationPredicate::try_from(ts)?;
     Ok(predicate.should_compile())
 }
 

@@ -3,7 +3,7 @@ use proc_macro2::{Group, Ident, TokenStream, TokenTree};
 
 // ConfigurationPredicate doesn't seem to be accessible so we'll make our own.
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq)]
-pub enum GodotConfigurationPredicate {
+pub(super) enum GodotConfigurationPredicate {
     Option(GodotConfigurationOption),
     All(Box<GodotConfigurationAll>),
     Any(Box<GodotConfigurationAny>),
