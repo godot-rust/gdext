@@ -59,6 +59,7 @@ impl TryFrom<TokenTree> for GodotConfigurationPredicate {
     fn try_from(tt: TokenTree) -> Result<Self, Self::Error> {
         match tt {
             TokenTree::Ident(ident) => Self::try_from(&ident),
+            TokenTree::Group(group) => Self::try_from(group.stream()),
             _ => Err(Self::Error::PredicateExpectedIdentGotOther(tt)),
         }
     }

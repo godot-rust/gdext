@@ -81,7 +81,11 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
     let mut has_generated_init = false;
     let mut should_compile = true;
 
-    if let Some(attr) = class.attributes.iter().find(|attr| attr.path[0].to_string() == "godot_cfg") {
+    if let Some(attr) = class
+        .attributes
+        .iter()
+        .find(|attr| attr.path[0].to_string() == "godot_cfg")
+    {
         match godot_cfg(attr.value.to_token_stream()) {
             Ok(b) => should_compile = b,
             Err(e) => return bail(e.to_string(), attr),

@@ -14,12 +14,14 @@ mod godot_cfg;
 mod itest;
 mod util;
 
-#[proc_macro_derive(
-    GodotClass,
-    attributes(class, property, export, base, signal, godot_cfg)
-)]
+#[proc_macro_derive(GodotClass, attributes(class, property, export, base, signal))]
 pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)
+}
+
+#[proc_macro_attribute]
+pub fn godot_cfg(meta: TokenStream, input: TokenStream) -> TokenStream {
+    translate_meta(meta, input, godot_cfg::transform)
 }
 
 #[proc_macro_attribute]

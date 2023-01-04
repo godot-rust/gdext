@@ -20,7 +20,7 @@ pub mod bind {
     pub use godot_core::bind::*;
 
     // Re-exports
-    pub use godot_macros::{godot_api, GodotClass};
+    pub use godot_macros::{godot_api, godot_cfg, GodotClass};
 }
 
 /// Testing facilities (unstable).
@@ -34,7 +34,7 @@ pub use godot_core::private;
 
 /// Often-imported symbols.
 pub mod prelude {
-    pub use super::bind::{godot_api, GodotClass, GodotExt};
+    pub use super::bind::{godot_api, godot_cfg, GodotClass, GodotExt};
     pub use super::builtin::*;
     #[cfg(not(feature = "unit-test"))]
     pub use super::engine::{
