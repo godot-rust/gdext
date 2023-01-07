@@ -96,12 +96,8 @@ fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
     println!("Format {} generated files...", out_files.len());
 
     for files in out_files.chunks(20) {
-        let mut process = std::process::Command::new("rustup");
-        process
-            .arg("run")
-            .arg("stable")
-            .arg("rustfmt")
-            .arg("--edition=2021");
+        let mut process = std::process::Command::new("rustfmt");
+        process.arg("--edition=2021");
 
         println!("  Format {} files...", files.len());
         for file in files {
