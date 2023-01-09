@@ -1,32 +1,8 @@
-mod all;
-mod any;
-mod error;
-mod list;
-mod not;
-mod option;
-mod predicate;
-
 use crate::ParseResult;
-use all::*;
-use any::*;
-use error::*;
-use list::*;
-use not::*;
-use option::*;
-use predicate::*;
 use proc_macro2::{Delimiter, Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use std::str::FromStr;
 use venial::{Attribute, AttributeValue, Declaration, GroupSpan, ImplMember, StructFields};
-
-trait GodotConditionalCompilation {
-    fn should_compile(&self) -> bool;
-}
-
-pub fn should_compile(ts: proc_macro2::TokenStream) -> Result<bool, venial::Error> {
-    let predicate = GodotConfigurationPredicate::try_from(ts)?;
-    Ok(predicate.should_compile())
-}
 
 pub fn transform(meta: TokenStream, input: TokenStream) -> ParseResult<TokenStream> {
     let mut decl = venial::parse_declaration(input)?;
@@ -238,18 +214,5 @@ fn decorate_methods(cfg_inner: &TokenStream, decl: &mut Declaration) {
                 .map(|path| !GODOT_CLASS_FIELDS.contains(&path.to_string().as_str()))
                 .unwrap_or(true)
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use proc_macro2::TokenStream;
-    use std::str::FromStr;
-
-    #[test]
-    fn test_should_compile() {
-        let ts = TokenStream::from_str("any(all(test, not(doctest)), doctest)").unwrap();
-        assert!(should_compile(ts).unwrap());
     }
 }
