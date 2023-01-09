@@ -24,10 +24,6 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let struct_cfg = parse_struct_attributes(class)?;
     let fields = parse_fields(class)?;
 
-    if !struct_cfg.should_compile {
-        return Ok(TokenStream::new());
-    }
-
     let base_ty = &struct_cfg.base_ty;
     let base_ty_str = struct_cfg.base_ty.to_string();
     let class_name = &class.name;
