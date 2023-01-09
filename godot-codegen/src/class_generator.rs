@@ -444,8 +444,7 @@ pub(crate) fn make_function_definition(
     function: &UtilityFunction,
     ctx: &mut Context,
 ) -> TokenStream {
-    // TODO support vararg functions
-    if function.is_vararg || is_function_excluded(function, ctx) {
+    if is_function_excluded(function, ctx) {
         return TokenStream::new();
     }
 
@@ -456,21 +455,49 @@ pub(crate) fn make_function_definition(
     let function_name = safe_ident(function_name_str);
     let hash = function.hash;
 
-    let (return_decl, call) = make_utility_return(&function.return_type, ctx);
+    let (return_decl, call) = make_utility_return(&function.return_type, is_vararg, ctx);
 
-    quote! {
-        pub fn #function_name( #( #params ),* ) #return_decl {
-            unsafe {
-                let __function_name = StringName::from(#function_name_str);
-                let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
-                let __call_fn = __call_fn.unwrap_unchecked();
+    if is_vararg {
+        quote! {
+            pub fn #function_name( #( #params , )* varargs: &[Variant]) #return_decl {
+                unsafe {
+                    let __function_name = StringName::from(#function_name_str);
+                    let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
+                    let __call_fn = __call_fn.unwrap_unchecked();
 
-                let __args = [
-                    #( #arg_exprs ),*
-                ];
-                let __args_ptr = __args.as_ptr();
+                    let __explicit_args = [
+                        #( #arg_exprs ),*
+                    ];
+                    let mut __args = Vec::new();
+                    {
+                        use godot_ffi::GodotFfi;
+                        __args.extend(__explicit_args.iter().map(|variant| { Variant::sys_const(variant) }));
+                        __args.extend(varargs.iter().map(|variant| { Variant::sys_const(variant) }));
+                    }
 
-                #call
+                    let __args_ptr = __args.as_ptr();
+
+                    #call
+                }
+            }
+        }
+    } else {
+        quote! {
+            pub fn #function_name( #( #params ),* ) #return_decl {
+                let result = unsafe {
+                    let __function_name = StringName::from(#function_name_str);
+                    let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
+                    let __call_fn = __call_fn.unwrap_unchecked();
+
+                    let __args = [
+                        #( #arg_exprs ),*
+                    ];
+                    let __args_ptr = __args.as_ptr();
+
+                    #call
+                };
+
+                result
             }
         }
     }
@@ -579,6 +606,7 @@ fn make_method_return(
 
 fn make_utility_return(
     return_value: &Option<String>,
+    is_vararg: bool,
     ctx: &mut Context,
 ) -> (TokenStream, TokenStream) {
     let return_decl;
@@ -593,22 +621,42 @@ fn make_utility_return(
         return_ty = None;
     }
 
-    let call = match return_ty {
-        Some(RustTy::EngineClass(return_ty)) => {
+    let call = match (is_vararg, return_ty) {
+        (true, Some(return_ty)) => {
+            // If the return type is not Variant, then convert to concrete target type
+            let return_expr = match return_ty {
+                RustTy::BuiltinIdent(ident) if ident == "Variant" => quote! { variant },
+                _ => quote! { variant.to() },
+            };
+
+            quote! {
+                use godot_ffi::GodotFfi;
+                let variant = Variant::from_sys_init(|return_ptr| {
+                    __call_fn(return_ptr, __args_ptr, __args.len() as i32);
+                });
+                #return_expr
+            }
+        }
+        (true, None) => {
+            quote! {
+                __call_fn(std::ptr::null_mut(), __args_ptr, __args.len() as i32);
+            }
+        }
+        (false, Some(RustTy::EngineClass(return_ty))) => {
             quote! {
                 <#return_ty>::from_sys_init_opt(|return_ptr| {
                     __call_fn(return_ptr, __args_ptr, __args.len() as i32);
                 })
             }
         }
-        Some(return_ty) => {
+        (false, Some(return_ty)) => {
             quote! {
                 <#return_ty as sys::GodotFfi>::from_sys_init(|return_ptr| {
                     __call_fn(return_ptr, __args_ptr, __args.len() as i32);
                 })
             }
         }
-        None => {
+        (false, None) => {
             quote! {
                 __call_fn(std::ptr::null_mut(), __args_ptr, __args.len() as i32);
             }
