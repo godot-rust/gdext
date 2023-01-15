@@ -3,12 +3,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
 use std::fmt;
+use std::ops::*;
 
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
+use crate::builtin::math::*;
 use crate::builtin::{inner, Vector2i};
 
 /// Vector used for 2D math using floating point coordinates.
@@ -70,11 +71,6 @@ impl Vector2 {
         }
     }
 
-    /// Returns the result of rotating this vector by `angle` (in radians).
-    pub fn rotated(self, angle: f32) -> Self {
-        Self::from_glam(glam::Affine2::from_angle(angle).transform_vector2(self.to_glam()))
-    }
-
     /// Converts the corresponding `glam` type to `Self`.
     fn from_glam(v: glam::Vec2) -> Self {
         Self::new(v.x, v.y)
@@ -83,6 +79,213 @@ impl Vector2 {
     /// Converts `self` to the corresponding `glam` type.
     fn to_glam(self) -> glam::Vec2 {
         glam::Vec2::new(self.x, self.y)
+    }
+
+    pub fn angle(self) -> f32 {
+        self.y.atan2(self.x)
+    }
+
+    pub fn angle_to(self, to: Self) -> f32 {
+        self.to_glam().angle_between(to.to_glam())
+    }
+
+    pub fn angle_to_point(self, to: Self) -> f32 {
+        (to - self).angle()
+    }
+
+    pub fn aspect(self) -> f32 {
+        self.x / self.y
+    }
+
+    pub fn bezier_derivative(self, control_1: Self, control_2: Self, end: Self, t: f32) -> Self {
+        let x = bezier_derivative(self.x, control_1.x, control_2.x, end.x, t);
+        let y = bezier_derivative(self.y, control_1.y, control_2.y, end.y, t);
+
+        Self::new(x, y)
+    }
+
+    pub fn bezier_interpolate(self, control_1: Self, control_2: Self, end: Self, t: f32) -> Self {
+        let x = bezier_interpolate(self.x, control_1.x, control_2.x, end.x, t);
+        let y = bezier_interpolate(self.y, control_1.y, control_2.y, end.y, t);
+
+        Self::new(x, y)
+    }
+
+    pub fn bounce(self, normal: Self) -> Self {
+        -self.reflect(normal)
+    }
+
+    pub fn ceil(self) -> Self {
+        Self::from_glam(self.to_glam().ceil())
+    }
+
+    pub fn clamp(self, min: Self, max: Self) -> Self {
+        Self::from_glam(self.to_glam().clamp(min.to_glam(), max.to_glam()))
+    }
+
+    pub fn cross(self, with: Self) -> f32 {
+        self.to_glam().perp_dot(with.to_glam())
+    }
+
+    pub fn cubic_interpolate(self, b: Self, pre_a: Self, post_b: Self, weight: f32) -> Self {
+        let x = cubic_interpolate(self.x, b.x, pre_a.x, post_b.x, weight);
+        let y = cubic_interpolate(self.y, b.y, pre_a.y, post_b.y, weight);
+
+        Self::new(x, y)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn cubic_interpolate_in_time(
+        self,
+        b: Self,
+        pre_a: Self,
+        post_b: Self,
+        weight: f32,
+        b_t: f32,
+        pre_a_t: f32,
+        post_b_t: f32,
+    ) -> Self {
+        let x = cubic_interpolate_in_time(
+            self.x, b.x, pre_a.x, post_b.x, weight, b_t, pre_a_t, post_b_t,
+        );
+        let y = cubic_interpolate_in_time(
+            self.y, b.y, pre_a.y, post_b.y, weight, b_t, pre_a_t, post_b_t,
+        );
+
+        Self::new(x, y)
+    }
+
+    pub fn direction_to(self, to: Self) -> Self {
+        (to - self).normalized()
+    }
+
+    pub fn distance_squared_to(self, to: Self) -> f32 {
+        (to - self).length_squared()
+    }
+
+    pub fn distance_to(self, to: Self) -> f32 {
+        (to - self).length()
+    }
+
+    pub fn dot(self, other: Self) -> f32 {
+        self.to_glam().dot(other.to_glam())
+    }
+
+    pub fn floor(self) -> Self {
+        Self::from_glam(self.to_glam().floor())
+    }
+
+    pub fn from_angle(angle: f32) -> Self {
+        Self::from_glam(glam::Vec2::from_angle(angle))
+    }
+
+    pub fn is_equal_approx(self, to: Self) -> bool {
+        is_equal_approx(self.x, to.x) && is_equal_approx(self.y, to.y)
+    }
+
+    pub fn is_finite(self) -> bool {
+        self.to_glam().is_finite()
+    }
+
+    pub fn is_normalized(self) -> bool {
+        self.to_glam().is_normalized()
+    }
+
+    pub fn is_zero_approx(self) -> bool {
+        is_zero_approx(self.x) && is_zero_approx(self.y)
+    }
+
+    pub fn length_squared(self) -> f32 {
+        self.to_glam().length_squared()
+    }
+
+    pub fn lerp(self, to: Self, weight: f32) -> Self {
+        Self::from_glam(self.to_glam().lerp(to.to_glam(), weight))
+    }
+
+    pub fn limit_length(self, length: Option<f32>) -> Self {
+        Self::from_glam(self.to_glam().clamp_length_max(length.unwrap_or(1.0)))
+    }
+
+    pub fn max_axis_index(self) -> Vector2Axis {
+        if self.x < self.y {
+            Vector2Axis::Y
+        } else {
+            Vector2Axis::X
+        }
+    }
+
+    pub fn min_axis_index(self) -> Vector2Axis {
+        if self.x < self.y {
+            Vector2Axis::X
+        } else {
+            Vector2Axis::Y
+        }
+    }
+
+    pub fn move_toward(self, to: Self, delta: f32) -> Self {
+        let vd = to - self;
+        let len = vd.length();
+        if len <= delta || len < CMP_EPSILON {
+            to
+        } else {
+            self + vd / len * delta
+        }
+    }
+
+    pub fn orthogonal(self) -> Self {
+        Self::new(self.y, -self.x)
+    }
+
+    pub fn posmod(self, pmod: f32) -> Self {
+        Self::new(fposmod(self.x, pmod), fposmod(self.y, pmod))
+    }
+
+    pub fn posmodv(self, modv: Self) -> Self {
+        Self::new(fposmod(self.x, modv.x), fposmod(self.y, modv.y))
+    }
+
+    pub fn project(self, b: Self) -> Self {
+        Self::from_glam(self.to_glam().project_onto(b.to_glam()))
+    }
+
+    pub fn reflect(self, normal: Self) -> Self {
+        Self::from_glam(self.to_glam().reject_from(normal.to_glam()))
+    }
+
+    pub fn round(self) -> Self {
+        Self::from_glam(self.to_glam().round())
+    }
+
+    pub fn sign(self) -> Self {
+        Self::new(sign(self.x), sign(self.y))
+    }
+
+    // TODO compare with gdnative implementation:
+    // https://github.com/godot-rust/gdnative/blob/master/gdnative-core/src/core_types/vector3.rs#L335-L343
+    pub fn slerp(self, to: Self, weight: f32) -> Self {
+        let start_length_sq = self.length_squared();
+        let end_length_sq = to.length_squared();
+        if start_length_sq == 0.0 || end_length_sq == 0.0 {
+            return self.lerp(to, weight);
+        }
+        let start_length = start_length_sq.sqrt();
+        let result_length = lerp(start_length, end_length_sq.sqrt(), weight);
+        let angle = self.angle_to(to);
+        self.rotated(angle * weight) * (result_length / start_length)
+    }
+
+    pub fn slide(self, normal: Self) -> Self {
+        self - normal * self.dot(normal)
+    }
+
+    pub fn snapped(self, step: Self) -> Self {
+        Self::new(snapped(self.x, step.x), snapped(self.y, step.y))
+    }
+
+    /// Returns the result of rotating this vector by `angle` (in radians).
+    pub fn rotated(self, angle: f32) -> Self {
+        Self::from_glam(glam::Affine2::from_angle(angle).transform_vector2(self.to_glam()))
     }
 
     #[doc(hidden)]
