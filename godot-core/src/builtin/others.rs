@@ -16,7 +16,7 @@ use sys::{ffi_methods, GodotFfi};
 impl_builtin_stub!(Rect2, OpaqueRect2);
 impl_builtin_stub!(Rect2i, OpaqueRect2i);
 impl_builtin_stub!(Plane, OpaquePlane);
-impl_builtin_stub!(Quaternion, OpaqueQuaternion);
+//impl_builtin_stub!(Quaternion, OpaqueQuaternion);
 impl_builtin_stub!(AABB, OpaqueAABB);
 impl_builtin_stub!(Basis, OpaqueBasis);
 impl_builtin_stub!(Transform2D, OpaqueTransform2D);

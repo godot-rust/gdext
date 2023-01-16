@@ -7,11 +7,15 @@
 //! Built-in types like `Vector2`, `GodotString` or `Variant`.
 
 mod macros;
+mod vector_macros;
 
 mod arrays;
 mod color;
+mod math;
 mod node_path;
 mod others;
+mod quaternion;
+mod real;
 mod string;
 mod string_name;
 mod variant;
@@ -23,8 +27,11 @@ pub mod meta;
 
 pub use arrays::*;
 pub use color::*;
+pub use math::*;
 pub use node_path::*;
 pub use others::*;
+pub use quaternion::*;
+pub use real::*;
 pub use string::*;
 pub use string_name::*;
 pub use variant::*;
