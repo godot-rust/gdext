@@ -45,8 +45,7 @@ fn singleton_is_operational() {
     let value = GodotString::from("SOME_VALUE");
 
     // set_environment is const, for some reason
-    let is_ok = os.set_environment(key.clone(), value.clone());
-    assert!(is_ok);
+    os.set_environment(key.clone(), value.clone());
 
     let read_value = os.get_environment(key);
     assert_eq!(read_value, value);

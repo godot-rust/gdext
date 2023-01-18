@@ -6,7 +6,7 @@
 
 use crate::itest;
 use godot::engine::input::CursorShape;
-use godot::engine::{file_access, os};
+use godot::engine::{file_access, time};
 use std::collections::HashSet;
 
 pub fn run() -> bool {
@@ -52,18 +52,18 @@ fn enum_equality() {
 #[itest]
 fn enum_hash() {
     let mut months = HashSet::new();
-    months.insert(os::Month::MONTH_JANUARY);
-    months.insert(os::Month::MONTH_FEBRUARY);
-    months.insert(os::Month::MONTH_MARCH);
-    months.insert(os::Month::MONTH_APRIL);
-    months.insert(os::Month::MONTH_MAY);
-    months.insert(os::Month::MONTH_JUNE);
-    months.insert(os::Month::MONTH_JULY);
-    months.insert(os::Month::MONTH_AUGUST);
-    months.insert(os::Month::MONTH_SEPTEMBER);
-    months.insert(os::Month::MONTH_OCTOBER);
-    months.insert(os::Month::MONTH_NOVEMBER);
-    months.insert(os::Month::MONTH_DECEMBER);
+    months.insert(time::Month::MONTH_JANUARY);
+    months.insert(time::Month::MONTH_FEBRUARY);
+    months.insert(time::Month::MONTH_MARCH);
+    months.insert(time::Month::MONTH_APRIL);
+    months.insert(time::Month::MONTH_MAY);
+    months.insert(time::Month::MONTH_JUNE);
+    months.insert(time::Month::MONTH_JULY);
+    months.insert(time::Month::MONTH_AUGUST);
+    months.insert(time::Month::MONTH_SEPTEMBER);
+    months.insert(time::Month::MONTH_OCTOBER);
+    months.insert(time::Month::MONTH_NOVEMBER);
+    months.insert(time::Month::MONTH_DECEMBER);
 
     assert_eq!(months.len(), 12);
 }
