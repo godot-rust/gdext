@@ -89,10 +89,14 @@ jobs:
         uses: ./.github/composite/rust
 
       - name: "Compile tests"
-        run: cargo test $GDEXT_CRATE_ARGS --features unit-test,$GDEXT_FEATURES --no-run
+        run: cargo test $GDEXT_CRATE_ARGS --features $GDEXT_FEATURES --no-run
+        env:
+          RUSTFLAGS: --cfg=gdext_test
 
       - name: "Test"
-        run: cargo test $GDEXT_CRATE_ARGS --features unit-test,$GDEXT_FEATURES ${{ matrix.testflags }}
+        run: cargo test $GDEXT_CRATE_ARGS --features $GDEXT_FEATURES
+        env:
+          RUSTFLAGS: --cfg=gdext_test
 
 
   itest-godot:

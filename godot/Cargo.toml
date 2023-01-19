@@ -15,11 +15,7 @@ trace = ["godot-core/trace"]
 
 # Private features, they are under no stability guarantee
 codegen-full = ["godot-core/codegen-full"]
-unit-test = []
 
 [dependencies]
 godot-core = { path = "../godot-core" }
 godot-macros = { path = "../godot-macros" }
-
-#[dev-dependencies]
-#godot-core = { path = "../godot-core", features = ["unit-test"] }

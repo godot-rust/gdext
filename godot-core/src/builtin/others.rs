@@ -33,7 +33,7 @@ struct InnerRect {
     size: Vector2,
 }
 
-#[cfg(not(feature = "unit-test"))]
+#[cfg(not(gdext_test))]
 impl Rect2 {
     pub fn size(self) -> Vector2 {
         self.inner().size

@@ -10,8 +10,9 @@ categories = ["game-engines", "graphics"]
 [lib]
 proc-macro = true
 
+# Reverse dev dependencies so doctests can use `godot::` prefix
 [dev-dependencies]
-godot = { path = "../godot" } #, features = ["unit-test"] } # doctest
+godot = { path = "../godot" }
 
 [dependencies]
 quote = "1"

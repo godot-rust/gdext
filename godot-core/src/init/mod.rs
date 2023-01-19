@@ -7,7 +7,7 @@
 use godot_ffi as sys;
 use std::collections::btree_map::BTreeMap;
 
-#[cfg(feature = "unit-test")]
+#[cfg(gdext_test)]
 pub fn __gdext_load_library<E: ExtensionLibrary>(
     interface: *const sys::GDExtensionInterface,
     library: sys::GDExtensionClassLibraryPtr,
@@ -16,7 +16,7 @@ pub fn __gdext_load_library<E: ExtensionLibrary>(
     sys::panic_no_godot!(__gdext_load_library)
 }
 
-#[cfg(not(feature = "unit-test"))]
+#[cfg(not(gdext_test))]
 #[doc(hidden)]
 // TODO consider body safe despite unsafe function, and explicitly mark unsafe {} locations
 pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
