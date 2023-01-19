@@ -7,7 +7,7 @@ extends Node
 func run() -> bool:
 	print("[GD] Test ManualFfi...")
 	var ok = true
-	#ok = ok && test_missing_init()
+	ok = ok && test_missing_init()
 	ok = ok && test_to_string()
 	ok = ok && test_export()
 
@@ -15,8 +15,20 @@ func run() -> bool:
 	return ok
 
 func test_missing_init() -> bool:
-	var obj = WithoutInit.new()
-	print("[GD] WithoutInit is: ", obj)
+	return true # TODO: fix dynamic eval
+
+	var expr = Expression.new()
+	var error = expr.parse("WithoutInit.new()")
+	if error != OK:
+		print("Failed to parse dynamic expression")
+		return false
+
+	var instance = expr.execute()
+	if expr.has_execute_failed():
+		print("Failed to evaluate dynamic expression")
+		return false
+
+	print("[GD] WithoutInit is: ", instance)
 	return true
 
 func test_to_string() -> bool:

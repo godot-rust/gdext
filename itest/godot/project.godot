@@ -12,4 +12,4 @@ config_version=5
 
 config/name="IntegrationTests"
 run/main_scene="res://TestRunner.tscn"
-config/features=PackedStringArray("4.0", "Vulkan Clustered")
+config/features=PackedStringArray("4.0")
