@@ -471,8 +471,8 @@ pub(crate) fn make_function_definition(
                     let mut __args = Vec::new();
                     {
                         use godot_ffi::GodotFfi;
-                        __args.extend(__explicit_args.iter().map(|variant| { Variant::sys_const(variant) }));
-                        __args.extend(varargs.iter().map(|variant| { Variant::sys_const(variant) }));
+                        __args.extend(__explicit_args.iter().map(Variant::sys_const));
+                        __args.extend(varargs.iter().map(Variant::sys_const));
                     }
 
                     let __args_ptr = __args.as_ptr();
@@ -484,7 +484,7 @@ pub(crate) fn make_function_definition(
     } else {
         quote! {
             pub fn #function_name( #( #params ),* ) #return_decl {
-                let result = unsafe {
+                unsafe {
                     let __function_name = StringName::from(#function_name_str);
                     let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
                     let __call_fn = __call_fn.unwrap_unchecked();
@@ -495,9 +495,7 @@ pub(crate) fn make_function_definition(
                     let __args_ptr = __args.as_ptr();
 
                     #call
-                };
-
-                result
+                }
             }
         }
     }
