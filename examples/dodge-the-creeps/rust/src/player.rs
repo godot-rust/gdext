@@ -62,7 +62,7 @@ impl GodotExt for Player {
             .base
             .get_node_as::<AnimatedSprite2D>("AnimatedSprite2D");
 
-        let mut velocity = Vector2::new(0.0, 0.0).inner();
+        let mut velocity = Vector2::new(0.0, 0.0);
 
         // Note: exact=false by default, in Rust we have to provide it explicitly
         let input = Input::singleton();
@@ -80,7 +80,7 @@ impl GodotExt for Player {
         }
 
         if velocity.length() > 0.0 {
-            velocity = velocity.normalize() * self.speed;
+            velocity = velocity.normalized() * self.speed;
 
             let animation;
 
@@ -101,10 +101,10 @@ impl GodotExt for Player {
         }
 
         let change = velocity * delta as f32;
-        let position = self.base.get_global_position().inner() + change;
+        let position = self.base.get_global_position() + change;
         let position = Vector2::new(
-            position.x.max(0.0).min(self.screen_size.inner().x),
-            position.y.max(0.0).min(self.screen_size.inner().y),
+            position.x.max(0.0).min(self.screen_size.x),
+            position.y.max(0.0).min(self.screen_size.y),
         );
         self.base.set_global_position(position);
     }
