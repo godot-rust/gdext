@@ -14,6 +14,7 @@ pub fn run() -> bool {
     ok &= utilities_abs();
     ok &= utilities_sign();
     ok &= utilities_wrap();
+    ok &= utilities_max();
     ok
 }
 
@@ -44,4 +45,21 @@ fn utilities_wrap() {
         Variant::from(-2.0),
     );
     assert_eq!(output, Variant::from(-2.7));
+}
+
+#[itest]
+fn utilities_max() {
+    let output = max(
+        Variant::from(1.0),
+        Variant::from(3.0),
+        &[Variant::from(5.0), Variant::from(7.0)],
+    );
+    assert_eq!(output, Variant::from(7.0));
+
+    let output = max(
+        Variant::from(-1.0),
+        Variant::from(-3.0),
+        &[Variant::from(-5.0), Variant::from(-7.0)],
+    );
+    assert_eq!(output, Variant::from(-1.0));
 }
