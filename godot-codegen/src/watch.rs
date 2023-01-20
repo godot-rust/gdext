@@ -75,7 +75,7 @@ impl StopWatch {
 }
 
 fn log10(n: u128) -> usize {
-    std::iter::successors(Some(n), |&n| (n >= 10).then(|| n / 10)).count()
+    std::iter::successors(Some(n), |&n| (n >= 10).then_some(n / 10)).count()
 }
 
 struct Metric {

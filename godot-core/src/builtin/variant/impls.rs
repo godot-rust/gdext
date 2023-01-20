@@ -128,6 +128,7 @@ macro_rules! impl_variant_traits_float {
 // General impls
 
 #[rustfmt::skip]
+#[allow(clippy::module_inception)]
 mod impls {
     use super::*;
 

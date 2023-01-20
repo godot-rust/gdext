@@ -56,5 +56,6 @@ func test_export() -> bool:
 	var object_val_correct = obj.object_val == node
 
 	obj.free()
+	node.free()
 
 	return int_val_correct && string_val_correct && object_val_correct

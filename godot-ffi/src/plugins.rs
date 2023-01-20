@@ -28,7 +28,8 @@ macro_rules! plugin_registry {
 
 #[doc(hidden)]
 #[macro_export]
-#[cfg_attr(rustfmt, rustfmt::skip)] 
+#[allow(clippy::deprecated_cfg_attr)]
+#[cfg_attr(rustfmt, rustfmt::skip)]
 // ^ skip: paste's [< >] syntax chokes fmt
 //   cfg_attr: workaround for https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
 macro_rules! plugin_add_inner {

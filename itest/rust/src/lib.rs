@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#[cfg(test)]
+#[cfg(all(test, not(gdext_clippy)))]
 compile_error!("`cargo test` not supported for integration test -- use `cargo run`.");
 
 use godot::bind::{godot_api, GodotClass};

@@ -12,7 +12,6 @@ categories = ["game-engines", "graphics"]
 [features]
 codegen-fmt = ["godot-codegen/codegen-fmt"]
 #codegen-full = ["godot-codegen/codegen-full"]
-unit-test = [] # If this crate is built for a downstream unit test
 
 [dependencies]
 paste = "1"

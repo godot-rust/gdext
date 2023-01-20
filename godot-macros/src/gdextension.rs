@@ -38,13 +38,13 @@ pub fn transform(meta: TokenStream, input: TokenStream) -> Result<TokenStream, v
             {
                 match (k.as_str(), v) {
                     ("entry_point", KvValue::Ident(f)) => entry_point = Some(f),
-                    _ => return bail(&format!("#[gdextension]: invalid argument `{k}`"), attr),
+                    _ => return bail(format!("#[gdextension]: invalid argument `{k}`"), attr),
                 }
             }
         }
     }
 
-    let entry_point = entry_point.unwrap_or(ident("gdextension_rust_init"));
+    let entry_point = entry_point.unwrap_or_else(|| ident("gdextension_rust_init"));
     let impl_ty = &impl_decl.self_ty;
 
     Ok(quote! {

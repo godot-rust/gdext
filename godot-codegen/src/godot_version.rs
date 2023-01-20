@@ -33,7 +33,7 @@ pub fn parse_godot_version(version_str: &str) -> Result<GodotVersion, Box<dyn Er
         r#"(\d+)\.(\d+)(?:\.(\d+))?\.(alpha|beta|dev|stable)[0-9]*\.(?:mono\.)?(?:[a-z_]+\.([a-f0-9]+)|official)"#,
     )?;
 
-    let fail = || format!("Version substring cannot be parsed: `{}`", version_str);
+    let fail = || format!("Version substring cannot be parsed: `{version_str}`");
     let caps = regex.captures(version_str).ok_or_else(fail)?;
 
     Ok(GodotVersion {

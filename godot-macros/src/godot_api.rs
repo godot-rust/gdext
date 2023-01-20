@@ -11,7 +11,7 @@ use quote::quote;
 use venial::{AttributeValue, Declaration, Error, Function, Impl, ImplMember};
 
 // Note: keep in sync with trait GodotExt
-const VIRTUAL_METHOD_NAMES: [&'static str; 3] = ["ready", "process", "physics_process"];
+const VIRTUAL_METHOD_NAMES: [&str; 3] = ["ready", "process", "physics_process"];
 
 pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
     let input_decl = venial::parse_declaration(input)?;
@@ -126,7 +126,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Ident>), Err
             continue;
         };
 
-        if let Some(attr) = extract_attributes(&method)? {
+        if let Some(attr) = extract_attributes(method)? {
             // Remaining code no longer has attribute -- rest stays
             method.attributes.remove(attr.index);
 
@@ -137,22 +137,22 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Ident>), Err
                 || method.qualifiers.tk_extern.is_some()
                 || method.qualifiers.extern_abi.is_some()
             {
-                return attr.bail("fn qualifiers are not allowed", &method);
+                return attr.bail("fn qualifiers are not allowed", method);
             }
 
             if method.generic_params.is_some() {
-                return attr.bail("generic fn parameters are not supported", &method);
+                return attr.bail("generic fn parameters are not supported", method);
             }
 
             match attr.ty {
                 BoundAttrType::Func(_attr) => {
                     // Signatures are the same thing without body
-                    let sig = util::reduce_to_signature(&method);
+                    let sig = util::reduce_to_signature(method);
                     func_signatures.push(sig);
                 }
                 BoundAttrType::Signal(ref _attr_val) => {
                     if !method.params.is_empty() || method.return_ty.is_some() {
-                        return attr.bail("parameters and return types not yet supported", &method);
+                        return attr.bail("parameters and return types not yet supported", method);
                     }
 
                     signal_idents.push(method.name.clone());

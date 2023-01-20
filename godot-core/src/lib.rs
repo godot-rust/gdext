@@ -5,18 +5,22 @@
  */
 
 // If running in tests, a lot of symbols are unused or panic early
-#![cfg_attr(feature = "unit-test", allow(unreachable_code, unused))]
+#![cfg_attr(gdext_test, allow(unreachable_code, unused))]
 
 // More test hacks...
 //
 // Technically, `cargo test -p godot-core` *could* be supported by this abomination:
-//   #[cfg(not(any(test, doctest, feature = "unit-test"))]
+//   #[cfg(not(any(test, doctest, gdext_test))]
 // which would be necessary because `cargo test` runs both test/doctest, and downstream crates may need the feature as
 // workaround https://github.com/rust-lang/rust/issues/59168#issuecomment-962214945. However, this *also* does not work,
 // as #[cfg(doctest)] is currently near-useless for conditional compilation: https://github.com/rust-lang/rust/issues/67295.
 // Yet even then, our compile error here is only one of many, as the compiler tries to build doctest without hitting this.
-#[cfg(all(test, not(feature = "unit-test")))]
-compile_error!("Running `cargo test` requires `--features unit-test`.");
+#[cfg(all(
+    test,                       // `cargo test`
+    not(gdext_test),            // but forgot `--cfg gdext_test`
+    not(gdext_clippy)           // and is not `cargo clippy --cfg gdext_clippy` (this implicitly enables `test`)
+))]
+compile_error!("Running `cargo test` requires `--cfg gdext_test`; `cargo clippy` requires `--cfg gdext_clippy`");
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -34,17 +38,21 @@ pub mod obj;
 pub use godot_ffi as sys;
 pub use registry::*;
 
-#[cfg(not(any(test, feature = "unit-test")))]
+#[cfg(not(any(gdext_test, doctest)))]
 pub mod engine;
 
 // Output of generated code. Mimics the file structure, symbols are re-exported.
 #[rustfmt::skip]
-#[allow(unused_imports, dead_code, non_upper_case_globals, non_snake_case)]
+#[allow(unused_imports, dead_code, non_upper_case_globals, non_snake_case, clippy::too_many_arguments, clippy::let_and_return, clippy::new_ret_no_self)]
+#[allow(clippy::upper_case_acronyms)] // TODO remove this line once we transform names
+#[allow(clippy::wrong_self_convention)] // TODO remove once to_string is const
 mod gen;
 
-#[cfg(feature = "unit-test")]
+// For some buggy reason, during doctest, the --cfg flag is not always considered, leading to monstrosities
+// such as #[cfg(not(any(gdext_test, doctest)))].
+#[cfg(any(gdext_test, doctest))]
 mod test_stubs;
-#[cfg(feature = "unit-test")]
+#[cfg(any(gdext_test, doctest))]
 pub use test_stubs::*;
 
 #[doc(hidden)]

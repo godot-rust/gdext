@@ -14,7 +14,7 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
     // This would allow exhaustive matches (or at least auto-completed matches + #[non_exhaustive]). But even without #[non_exhaustive],
     // this might be a forward compatibility hazard, if Godot deprecates enumerators and adds new ones with existing ords.
 
-    let enum_name = ident(&enum_.name());
+    let enum_name = ident(enum_.name());
 
     let values = enum_.values();
     let mut enumerators = Vec::with_capacity(values.len());
@@ -22,7 +22,7 @@ pub fn make_enum_definition(enum_: &dyn Enum) -> TokenStream {
     let mut unique_ords = Vec::with_capacity(values.len());
 
     for enumerator in values {
-        let name = make_enumerator_name(&enumerator.name, &enum_.name());
+        let name = make_enumerator_name(&enumerator.name, enum_.name());
         let ordinal = Literal::i32_unsuffixed(enumerator.value);
 
         enumerators.push(quote! {

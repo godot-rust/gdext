@@ -15,6 +15,6 @@ fn main() {
 
     // Note: cannot use cfg!(test) because that isn't recognizable from build files.
     // See https://github.com/rust-lang/cargo/issues/1581, which was closed without a solution.
-    let stubs_only = cfg!(feature = "unit-test");
+    let stubs_only = cfg!(gdext_test);
     godot_codegen::generate_core_files(gen_path, stubs_only);
 }

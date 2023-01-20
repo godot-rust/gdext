@@ -31,13 +31,52 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
+
       - name: "Install Rust"
         uses: ./.github/composite/rust
         with:
           rust: stable
           components: rustfmt
+
       - name: "Check rustfmt"
         run: cargo fmt --all -- --check
+
+
+  clippy:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+
+      # TODO get rid of Godot binary, once the JSON is either versioned or fetched from somewhere
+      # Replaces also backspaces on Windows, since they cause problems in Bash
+      - name: "Store variable to Godot binary"
+        run: |
+          runnerDir=$(echo "${{ runner.temp }}" | sed "s!\\\\!/!")
+          echo "RUNNER_DIR=$runnerDir" >> $GITHUB_ENV
+          echo "GODOT4_BIN=$runnerDir/godot_bin/godot.linuxbsd.editor.dev.x86_64" >> $GITHUB_ENV
+
+#      - name: "Check cache for installed Godot version"
+#        id: "cache-godot"
+#        uses: actions/cache@v3
+#        with:
+#          path: ${{ runner.temp }}/godot_bin
+#          key: ${{ inputs.artifact-name }}-v${{ inputs.godot-ver }}
+
+      - name: "Download Godot artifact"
+#        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          curl https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot/master/godot-linux.zip -Lo artifact.zip
+          unzip artifact.zip -d $RUNNER_DIR/godot_bin
+
+      - name: "Prepare Godot executable"
+        run: |
+          chmod +x $GODOT4_BIN
+
+      - name: "Check clippy"
+        run: cargo clippy --features $GDEXT_FEATURES $GDEXT_CRATE_ARGS -- --cfg gdext_clippy -D clippy::style -D clippy::complexity -D clippy::perf -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented
 
 
   unit-test:
@@ -49,15 +88,15 @@ jobs:
       - name: "Install Rust"
         uses: ./.github/composite/rust
 
-      - name: "Install LLVM"
-        uses: ./.github/composite/llvm
-        if: matrix.name == 'macos'
-
       - name: "Compile tests"
-        run: cargo test $GDEXT_CRATE_ARGS --features unit-test,$GDEXT_FEATURES --no-run
+        run: cargo test $GDEXT_CRATE_ARGS --features $GDEXT_FEATURES --no-run
+        env:
+          RUSTFLAGS: --cfg=gdext_test
 
       - name: "Test"
-        run: cargo test $GDEXT_CRATE_ARGS --features unit-test,$GDEXT_FEATURES ${{ matrix.testflags }}
+        run: cargo test $GDEXT_CRATE_ARGS --features $GDEXT_FEATURES
+        env:
+          RUSTFLAGS: --cfg=gdext_test
 
 
   itest-godot:

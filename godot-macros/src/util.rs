@@ -22,13 +22,6 @@ pub fn strlit(s: &str) -> Literal {
     Literal::string(s)
 }
 
-pub fn bail_error<T>(msg: impl AsRef<str>, tokens: T) -> Error
-where
-    T: Spanned,
-{
-    Error::new_at_span(tokens.__span(), msg.as_ref())
-}
-
 pub fn bail<R, T>(msg: impl AsRef<str>, tokens: T) -> Result<R, Error>
 where
     T: Spanned,
@@ -218,10 +211,10 @@ pub(crate) fn validate_impl(
     if let Some(expected_trait) = expected_trait {
         // impl Trait for Self -- validate Trait
         let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
-        if !extract_typename(&trait_name).map_or(false, |seg| seg.ident == expected_trait) {
+        if !extract_typename(trait_name).map_or(false, |seg| seg.ident == expected_trait) {
             return bail(
                 format!("#[{attr}] for trait impls requires trait to be `{expected_trait}`"),
-                &original_impl,
+                original_impl,
             );
         }
     }
@@ -233,13 +226,13 @@ pub(crate) fn validate_impl(
         } else {
             bail(
                 format!("#[{attr}] for does currently not support generic arguments"),
-                &original_impl,
+                original_impl,
             )
         }
     } else {
         bail(
             format!("#[{attr}] requires Self type to be a simple path"),
-            &original_impl,
+            original_impl,
         )
     }
 }
@@ -292,8 +285,6 @@ mod tests {
         assert_eq!(attrs.len(), 1);
         let attr_value = &attrs[0].value;
         let mut parsed = parse_kv_group(attr_value).expect("parse");
-
-        dbg!(&parsed);
 
         for (key, value) in output_map {
             assert_eq!(parsed.remove(&key), Some(value));

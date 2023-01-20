@@ -24,7 +24,7 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
         || func.where_clause.is_some()
     {
         return bail(
-            &format!("#[itest] must be of form:  fn {}() {{ ... }}", func.name),
+            format!("#[itest] must be of form:  fn {}() {{ ... }}", func.name),
             &func,
         );
     }

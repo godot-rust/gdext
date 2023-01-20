@@ -22,6 +22,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter, Result as FmtResult};
 use std::ptr;
 
+/// Piece of information that is gathered by the self-registration ("plugin") system.
 #[derive(Debug)]
 pub struct ClassPlugin {
     pub class_name: &'static str,
@@ -39,10 +40,11 @@ pub struct ErasedRegisterFn {
 
 impl Debug for ErasedRegisterFn {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        write!(f, "0x{:0>16x}", self.raw as u64)
+        write!(f, "0x{:0>16x}", self.raw as usize)
     }
 }
 
+/// Represents the data part of a [`ClassPlugin`] instance.
 #[derive(Debug, Clone)]
 pub enum PluginComponent {
     /// Class definition itself, must always be available
@@ -110,6 +112,7 @@ struct ClassRegistrationInfo {
     godot_params: sys::GDExtensionClassCreationInfo,
 }
 
+/// Registers a class with static type information.
 pub fn register_class<T: GodotExt + cap::GodotInit + cap::ImplementsGodotExt>() {
     // TODO: provide overloads with only some trait impls
 
@@ -171,6 +174,7 @@ pub fn auto_register_classes() {
     out!("All classes auto-registered.");
 }
 
+/// Populate `c` with all the relevant data from `component` (depending on component type).
 fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
     // out!("|   reg (before):    {c:?}");
     // out!("|   comp:            {component:?}");
@@ -210,6 +214,7 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
     // out!();
 }
 
+/// If `src` is occupied, it moves the value into `dst`, while ensuring that no previous value is present in `dst`.
 fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) {
     match (dst, src) {
         (dst @ None, src) => *dst = src,
@@ -218,6 +223,7 @@ fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) {
     }
 }
 
+/// Registers a class with given the dynamic type information `info`.
 fn register_class_raw(info: ClassRegistrationInfo) {
     // First register class...
 
@@ -253,7 +259,10 @@ fn register_class_raw(info: ClassRegistrationInfo) {
     }
 }
 
-// Re-exported to crate::private
+/// Callbacks that are passed as function pointers to Godot upon class registration.
+///
+/// Re-exported to `crate::private`
+#[allow(clippy::missing_safety_doc)]
 pub mod callbacks {
     use super::*;
     use crate::bind::GodotExt;

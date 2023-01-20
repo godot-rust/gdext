@@ -25,6 +25,7 @@ use crate::obj::GodotClass;
 /// Do not call any of these methods directly -- they are an interface to Godot. Functionality
 /// described here is available through other means (e.g. `init` via `Gd::new_default`).
 #[allow(unused_variables)]
+#[allow(clippy::unimplemented)] // TODO consider using panic! with specific message, possibly generated code
 pub trait GodotExt: crate::private::You_forgot_the_attribute__godot_api
 where
     Self: GodotClass,

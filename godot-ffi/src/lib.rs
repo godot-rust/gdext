@@ -9,7 +9,7 @@
 #![cfg_attr(test, allow(unused))]
 
 // Output of generated code. Mimics the file structure, symbols are re-exported.
-// Note: accessing `gen` *may* still work without explicitly specifying `unit-test` feature,
+// Note: accessing `gen` *may* still work without explicitly specifying `--cfg gdext_test` flag,
 // but stubs are generated for consistency with how godot-core depends on godot-codegen.
 #[rustfmt::skip]
 #[allow(
@@ -36,18 +36,18 @@ pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
 pub use gen::central::*;
 pub use gen::gdextension_interface::*; // needs `crate::`
 
-#[cfg(not(feature = "unit-test"))]
+#[cfg(not(any(gdext_test, doctest)))]
 #[doc(inline)]
 pub use real_impl::*;
 
-#[cfg(feature = "unit-test")]
+#[cfg(gdext_test)]
 #[doc(inline)]
 pub use test_impl::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Real implementation, when Godot engine is running
 
-#[cfg(not(feature = "unit-test"))]
+#[cfg(not(any(gdext_test, doctest)))]
 mod real_impl {
     use super::global_registry::GlobalRegistry;
     use super::*;
@@ -171,7 +171,7 @@ mod real_impl {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Stubs when in unit-test (without Godot)
 
-#[cfg(feature = "unit-test")]
+#[cfg(gdext_test)]
 mod test_impl {
     use super::gen::gdextension_interface::*;
     use super::global_registry::GlobalRegistry;
@@ -205,7 +205,7 @@ mod test_impl {
         ($name:ident) => {{
             #[allow(unreachable_code)]
             fn panic2<T, U>(t: T, u: U) -> () {
-                panic!("builtin_fn! unavailable in unit-tests; needs Godot engine");
+                panic!("builtin_fn! unavailable in unit tests; needs Godot engine");
                 ()
             }
             panic2
@@ -213,7 +213,7 @@ mod test_impl {
         ($name:ident @1) => {{
             #[allow(unreachable_code)]
             fn panic1<T>(t: T) -> () {
-                panic!("builtin_fn! unavailable in unit-tests; needs Godot engine");
+                panic!("builtin_fn! unavailable in unit tests; needs Godot engine");
                 ()
             }
             panic1
@@ -227,7 +227,7 @@ mod test_impl {
         ($symbol:expr) => {
             panic!(concat!(
                 stringify!($symbol),
-                " unavailable in unit-tests; needs Godot engine"
+                " unavailable in unit tests; needs Godot engine"
             ))
         };
     }
@@ -275,6 +275,7 @@ macro_rules! static_assert_eq_size {
 }
 
 /// Extract value from box before `into_inner()` is stable
+#[allow(clippy::boxed_local)] // false positive
 pub fn unbox<T>(value: Box<T>) -> T {
     // Deref-move is a Box magic feature; see https://stackoverflow.com/a/42264074
     *value

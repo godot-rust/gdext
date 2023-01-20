@@ -31,7 +31,7 @@ pub(crate) fn generate_class_files(
             continue;
         }
 
-        if special_cases::is_class_deleted(&class.name.as_str()) {
+        if special_cases::is_class_deleted(class.name.as_str()) {
             continue;
         }
 
@@ -39,7 +39,7 @@ pub(crate) fn generate_class_files(
         let file_contents = generated_class.tokens.to_string();
 
         let module_name = to_module_name(&class.name);
-        let out_path = gen_path.join(format!("{}.rs", module_name));
+        let out_path = gen_path.join(format!("{module_name}.rs"));
         std::fs::write(&out_path, file_contents).expect("failed to write class file");
         out_files.push(out_path);
 
@@ -312,25 +312,25 @@ fn is_method_excluded(method: &Method, #[allow(unused_variables)] ctx: &mut Cont
     if method
         .return_value
         .as_ref()
-        .map_or(false, |ret| is_type_excluded(&ret.type_.as_str(), ctx))
+        .map_or(false, |ret| is_type_excluded(ret.type_.as_str(), ctx))
         || method.arguments.as_ref().map_or(false, |args| {
             args.iter()
-                .any(|arg| is_type_excluded(&arg.type_.as_str(), ctx))
+                .any(|arg| is_type_excluded(arg.type_.as_str(), ctx))
         })
     {
         return true;
     }
     // -- end.
 
-    method.name.starts_with("_")
+    method.name.starts_with('_')
         || method
             .return_value
             .as_ref()
-            .map_or(false, |ret| ret.type_.contains("*"))
+            .map_or(false, |ret| ret.type_.contains('*'))
         || method
             .arguments
             .as_ref()
-            .map_or(false, |args| args.iter().any(|arg| arg.type_.contains("*")))
+            .map_or(false, |args| args.iter().any(|arg| arg.type_.contains('*')))
 }
 
 #[cfg(feature = "codegen-full")]
@@ -343,10 +343,10 @@ fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
     function
         .return_type
         .as_ref()
-        .map_or(false, |ret| is_type_excluded(&ret.as_str(), ctx))
+        .map_or(false, |ret| is_type_excluded(ret.as_str(), ctx))
         || function.arguments.as_ref().map_or(false, |args| {
             args.iter()
-                .any(|arg| is_type_excluded(&arg.type_.as_str(), ctx))
+                .any(|arg| is_type_excluded(arg.type_.as_str(), ctx))
         })
 }
 
@@ -460,7 +460,7 @@ pub(crate) fn make_function_definition(
 
     quote! {
         pub fn #function_name( #( #params ),* ) #return_decl {
-            let result = unsafe {
+            unsafe {
                 let __function_name = StringName::from(#function_name_str);
                 let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
                 let __call_fn = __call_fn.unwrap_unchecked();
@@ -471,9 +471,7 @@ pub(crate) fn make_function_definition(
                 let __args_ptr = __args.as_ptr();
 
                 #call
-            };
-
-            result
+            }
         }
     }
 }
@@ -587,7 +585,7 @@ fn make_utility_return(
     let return_ty;
 
     if let Some(ret) = return_value {
-        let ty = to_rust_type(&ret, ctx);
+        let ty = to_rust_type(ret, ctx);
         return_decl = ty.return_decl();
         return_ty = Some(ty);
     } else {

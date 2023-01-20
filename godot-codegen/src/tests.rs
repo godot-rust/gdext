@@ -50,7 +50,7 @@ fn module_name_generator() {
     ];
     tests.iter().for_each(|(class_name, expected)| {
         let actual = to_module_name(class_name);
-        assert_eq!(*expected, actual, "Input: {}", class_name);
+        assert_eq!(*expected, actual, "Input: {class_name}");
     });
 }
 
