@@ -180,16 +180,12 @@ macro_rules! impl_vector_operators {
         impl_scalar_vector_binary_operator!($Vector, $Scalar, ($($components),*), Mul, mul);
         impl_vector_vector_binary_operator!($Vector, $Scalar, ($($components),*), Div, div);
         impl_vector_scalar_binary_operator!($Vector, $Scalar, ($($components),*), Div, div);
-        impl_vector_vector_binary_operator!($Vector, $Scalar, ($($components),*), Rem, rem);
-        impl_vector_scalar_binary_operator!($Vector, $Scalar, ($($components),*), Rem, rem);
         impl_vector_vector_assign_operator!($Vector, $Scalar, ($($components),*), AddAssign, add_assign);
         impl_vector_vector_assign_operator!($Vector, $Scalar, ($($components),*), SubAssign, sub_assign);
         impl_vector_vector_assign_operator!($Vector, $Scalar, ($($components),*), MulAssign, mul_assign);
         impl_vector_scalar_assign_operator!($Vector, $Scalar, ($($components),*), MulAssign, mul_assign);
         impl_vector_vector_assign_operator!($Vector, $Scalar, ($($components),*), DivAssign, div_assign);
         impl_vector_scalar_assign_operator!($Vector, $Scalar, ($($components),*), DivAssign, div_assign);
-        impl_vector_vector_assign_operator!($Vector, $Scalar, ($($components),*), RemAssign, rem_assign);
-        impl_vector_scalar_assign_operator!($Vector, $Scalar, ($($components),*), RemAssign, rem_assign);
     }
 }
 
@@ -205,7 +201,7 @@ macro_rules! impl_vector_index {
         // Name of the enum type for the axes, for example `Vector2Axis`.
         $AxisEnum:ty,
         // Names of the enum variants, with parenthes, for example `(X, Y)`.
-        ($($AxisVariants:ident),*)$(,)?
+        ($($AxisVariants:ident),*)
     ) => {
         impl std::ops::Index<$AxisEnum> for $Vector {
             type Output = $Scalar;
@@ -243,7 +239,7 @@ macro_rules! impl_common_vector_fns {
                 Self::from_glam(self.to_glam().abs())
             }
         }
-    }
+    };
 }
 
 /// Implements common constants and methods for floating-point type vectors. Works for any vector
@@ -271,5 +267,5 @@ macro_rules! impl_float_vector_fns {
                 Self::from_glam(self.to_glam().normalize_or_zero())
             }
         }
-    }
+    };
 }

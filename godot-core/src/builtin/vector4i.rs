@@ -14,7 +14,7 @@ use crate::builtin::Vector4;
 /// Vector used for 4D math using integer coordinates.
 ///
 /// 4-element structure that can be used to represent 4D grid coordinates or sets of integers.
-/// 
+///
 /// It uses integer coordinates and is therefore preferable to [`Vector4`] when exact precision is
 /// required. Note that the values are limited to 32 bits, and unlike [`Vector4`] this cannot be
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`] if 64-bit values are
@@ -44,13 +44,18 @@ impl Vector4i {
 
     /// Constructs a new `Vector4i` with all components set to `v`.
     pub const fn splat(v: i32) -> Self {
-        Self { x: v, y: v, z: v, w: v }
+        Self::new(v, v, v, v)
     }
 
     /// Constructs a new `Vector4i` from a [`Vector4`]. The floating point coordinates will be
     /// truncated.
     pub const fn from_vector3(v: Vector4) -> Self {
-        Self { x: v.x as i32, y: v.y as i32, z: v.z as i32, w: v.w as i32 }
+        Self {
+            x: v.x as i32,
+            y: v.y as i32,
+            z: v.z as i32,
+            w: v.w as i32,
+        }
     }
 
     /// Zero vector, a vector with all components set to `0`.
@@ -70,7 +75,7 @@ impl Vector4i {
     }
 }
 
-/// Formats this vector in the same way the Godot engine would.
+/// Formats the vector like Godot: `(x, y, z, w)`.
 impl fmt::Display for Vector4i {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({}, {}, {}, {})", self.x, self.y, self.z, self.w)

@@ -18,7 +18,7 @@ use crate::builtin::Vector4i;
 /// It uses floating-point coordinates of 32-bit precision, unlike the engine's `float` type which
 /// is always 64-bit. The engine can be compiled with the option `precision=double` to use 64-bit
 /// vectors, but this is not yet supported in the `gdextension` crate.
-/// 
+///
 /// See [`Vector4i`] for its integer counterpart.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 #[repr(C)]
@@ -46,12 +46,17 @@ impl Vector4 {
 
     /// Returns a new `Vector4` with all components set to `v`.
     pub const fn splat(v: f32) -> Self {
-        Self { x: v, y: v, z: v, w: v }
+        Self::new(v, v, v, v)
     }
 
     /// Constructs a new `Vector3` from a [`Vector3i`].
     pub const fn from_vector4i(v: Vector4i) -> Self {
-        Self { x: v.x as f32, y: v.y as f32, z: v.z as f32, w: v.w as f32 }
+        Self {
+            x: v.x as f32,
+            y: v.y as f32,
+            z: v.z as f32,
+            w: v.w as f32,
+        }
     }
 
     /// Zero vector, a vector with all components set to `0.0`.
@@ -60,7 +65,7 @@ impl Vector4 {
     /// One vector, a vector with all components set to `1.0`.
     pub const ONE: Self = Self::splat(1.0);
 
-    /// Infinity vector, a vector with all components set to `INFIINTY`.
+    /// Infinity vector, a vector with all components set to `f32::INFINITY`.
     pub const INF: Self = Self::splat(f32::INFINITY);
 
     /// Converts the corresponding `glam` type to `Self`.
@@ -74,7 +79,7 @@ impl Vector4 {
     }
 }
 
-/// Formats this vector in the same way the Godot engine would.
+/// Formats the vector like Godot: `(x, y, z, w)`.
 impl fmt::Display for Vector4 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({}, {}, {}, {})", self.x, self.y, self.z, self.w)

@@ -19,7 +19,7 @@ use crate::builtin::Vector2i;
 /// It uses floating-point coordinates of 32-bit precision, unlike the engine's `float` type which
 /// is always 64-bit. The engine can be compiled with the option `precision=double` to use 64-bit
 /// vectors, but this is not yet supported in the `gdextension` crate.
-/// 
+///
 /// See [`Vector2i`] for its integer counterpart.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 #[repr(C)]
@@ -30,47 +30,45 @@ pub struct Vector2 {
     pub y: f32,
 }
 
-impl_vector_operators!(Vector2, f32, (x, y));
-impl_vector_index!(Vector2, f32, (x, y), Vector2Axis, (X, Y));
-impl_common_vector_fns!(Vector2, f32);
-impl_float_vector_fns!(Vector2, f32);
-
 impl Vector2 {
+    /// Vector with all components set to `0.0`.
+    pub const ZERO: Self = Self::splat(0.0);
+
+    /// Vector with all components set to `1.0`.
+    pub const ONE: Self = Self::splat(1.0);
+
+    /// Vector with all components set to `f32::INFINITY`.
+    pub const INF: Self = Self::splat(f32::INFINITY);
+
+    /// Unit vector in -X direction (right in 2D coordinate system).
+    pub const LEFT: Self = Self::new(-1.0, 0.0);
+
+    /// Unit vector in +X direction (right in 2D coordinate system).
+    pub const RIGHT: Self = Self::new(1.0, 0.0);
+
+    /// Unit vector in -Y direction (up in 2D coordinate system).
+    pub const UP: Self = Self::new(0.0, -1.0);
+
+    /// Unit vector in +Y direction (down in 2D coordinate system).
+    pub const DOWN: Self = Self::new(0.0, 1.0);
+
     /// Constructs a new `Vector2` from the given `x` and `y`.
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
 
-    /// Constructs a new `Vector2` with all components set to `v`.
+    /// Constructs a new `Vector2` with both components set to `v`.
     pub const fn splat(v: f32) -> Self {
-        Self { x: v, y: v }
+        Self::new(v, v)
     }
 
     /// Constructs a new `Vector2` from a [`Vector2i`].
     pub const fn from_vector2i(v: Vector2i) -> Self {
-        Self { x: v.x as f32, y: v.y as f32 }
+        Self {
+            x: v.x as f32,
+            y: v.y as f32,
+        }
     }
-
-    /// Zero vector, a vector with all components set to `0.0`.
-    pub const ZERO: Self = Self::splat(0.0);
-
-    /// One vector, a vector with all components set to `1.0`.
-    pub const ONE: Self = Self::splat(1.0);
-
-    /// Infinity vector, a vector with all components set to `INFIINTY`.
-    pub const INF: Self = Self::splat(f32::INFINITY);
-
-    /// Left unit vector. Represents the direction of left.
-    pub const LEFT: Self = Self::new(-1.0, 0.0);
-
-    /// Right unit vector. Represents the direction of right.
-    pub const RIGHT: Self = Self::new(1.0, 0.0);
-
-    /// Up unit vector. Y is down in 2D, so this vector points -Y.
-    pub const UP: Self = Self::new(0.0, -1.0);
-
-    /// Down unit vector. Y is down in 2D, so this vector points +Y.
-    pub const DOWN: Self = Self::new(0.0, 1.0);
 
     /// Returns the result of rotating this vector by `angle` (in radians).
     pub fn rotated(self, angle: f32) -> Self {
@@ -88,12 +86,17 @@ impl Vector2 {
     }
 }
 
-/// Formats this vector in the same way the Godot engine would.
+/// Formats the vector like Godot: `(x, y)`.
 impl fmt::Display for Vector2 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "({}, {})", self.x, self.y)
     }
 }
+
+impl_common_vector_fns!(Vector2, f32);
+impl_float_vector_fns!(Vector2, f32);
+impl_vector_operators!(Vector2, f32, (x, y));
+impl_vector_index!(Vector2, f32, (x, y), Vector2Axis, (X, Y));
 
 impl GodotFfi for Vector2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
