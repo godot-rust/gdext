@@ -81,11 +81,7 @@ where
 
         result.storage().initialize(user_object);*/
 
-        let object_ptr = callbacks::create_custom(move |_base| user_object);
-        let result = unsafe { Gd::from_obj_sys(object_ptr) };
-
-        T::Mem::maybe_init_ref(&result);
-        result
+        Self::with_base(move |_base| user_object)
     }
 
     /// Creates a default-constructed instance of `T` inside a smart pointer.
@@ -109,6 +105,40 @@ where
             let object_ptr = callbacks::create::<T>(ptr::null_mut());
             Gd::from_obj_sys(object_ptr)
         };
+
+        T::Mem::maybe_init_ref(&result);
+        result
+    }
+
+    // FIXME use ```no_run instead of ```ignore, as soon as unit test #[cfg] mess is cleaned up
+    /// Creates a `Gd<T>` using a function that constructs a `T` from a provided base.
+    ///
+    /// Imagine you have a type `T`, which has a `#[base]` field that you cannot default-initialize.
+    /// The `init` function provides you with a `Base<T::Base>` object that you can use inside your `T`, which
+    /// is then wrapped in a `Gd<T>`.
+    ///
+    /// Example:
+    /// ```ignore
+    /// # use godot::prelude::*;
+    /// #[derive(GodotClass)]
+    /// #[class(init, base=Node2D)]
+    /// struct MyClass {
+    ///     #[base]
+    ///     my_base: Base<Node2D>,
+    ///     other_field: i32,
+    /// }
+    ///
+    /// let obj = Gd::<MyClass>::with_base(|my_base| {
+    ///     // accepts the base and returns a constructed object containing it
+    ///     MyClass { my_base, other_field: 732 }
+    /// });
+    /// ```
+    pub fn with_base<F>(init: F) -> Self
+    where
+        F: FnOnce(crate::obj::Base<T::Base>) -> T,
+    {
+        let object_ptr = callbacks::create_custom(init);
+        let result = unsafe { Gd::from_obj_sys(object_ptr) };
 
         T::Mem::maybe_init_ref(&result);
         result

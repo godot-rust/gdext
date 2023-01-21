@@ -13,6 +13,7 @@ pub(crate) fn run() -> bool {
     ok &= base_deref();
     ok &= base_display();
     ok &= base_debug();
+    ok &= base_with_init();
 
     ok
 }
@@ -81,9 +82,25 @@ fn base_debug() {
     obj.free();
 }
 
+#[itest]
+fn base_with_init() {
+    let obj = Gd::<BaseHolder>::with_base(|mut base| {
+        base.set_rotation(11.0);
+        BaseHolder { base, i: 732 }
+    });
+
+    {
+        let guard = obj.bind();
+        assert_eq!(guard.i, 732);
+        assert_eq!(guard.get_rotation(), 11.0);
+    }
+    obj.free();
+}
+
 #[derive(GodotClass)]
 #[class(init, base=Node2D)]
 struct BaseHolder {
     #[base]
     base: Base<Node2D>,
+    i: i32,
 }
