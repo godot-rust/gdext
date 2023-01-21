@@ -264,7 +264,7 @@ fn make_methods(methods: &Option<Vec<Method>>, class_name: &str, ctx: &mut Conte
     }
 }
 
-fn make_enums(enums: &Option<Vec<ClassEnum>>, _class_name: &str, _ctx: &Context) -> TokenStream {
+fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &str, _ctx: &Context) -> TokenStream {
     let enums = match enums {
         Some(e) => e,
         None => return TokenStream::new(),

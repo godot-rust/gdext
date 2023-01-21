@@ -456,7 +456,7 @@ fn collect_builtin_types<'a>(
     builtin_types_map
 }
 
-fn collect_variant_operators(api: &ExtensionApi) -> Vec<&Constant> {
+fn collect_variant_operators(api: &ExtensionApi) -> Vec<&EnumConstant> {
     let variant_operator_enum = api
         .global_enums
         .iter()

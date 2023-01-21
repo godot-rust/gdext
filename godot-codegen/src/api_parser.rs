@@ -20,7 +20,7 @@ pub struct ExtensionApi {
     pub builtin_class_sizes: Vec<ClassSizes>,
     pub builtin_classes: Vec<BuiltinClass>,
     pub classes: Vec<Class>,
-    pub global_enums: Vec<GlobalEnum>,
+    pub global_enums: Vec<Enum>,
     pub utility_functions: Vec<UtilityFunction>,
     pub singletons: Vec<Singleton>,
 }
@@ -60,7 +60,7 @@ pub struct Class {
     pub inherits: Option<String>,
     // pub api_type: String,
     // pub constants: Option<Vec<Constant>>,
-    pub enums: Option<Vec<ClassEnum>>,
+    pub enums: Option<Vec<Enum>>,
     pub methods: Option<Vec<Method>>,
     // pub properties: Option<Vec<Property>>,
     // pub signals: Option<Vec<Signal>>,
@@ -75,21 +75,14 @@ pub struct Singleton {
 }
 
 #[derive(DeJson)]
-pub struct ClassEnum {
+pub struct Enum {
     pub name: String,
     pub is_bitfield: bool,
-    pub values: Vec<Constant>,
-}
-
-// Same as above, but no bitfield
-#[derive(DeJson)]
-pub struct GlobalEnum {
-    pub name: String,
-    pub values: Vec<Constant>,
+    pub values: Vec<EnumConstant>,
 }
 
 #[derive(DeJson)]
-pub struct Constant {
+pub struct EnumConstant {
     pub name: String,
     pub value: i32,
 }
@@ -158,41 +151,6 @@ pub struct MethodArg {
 pub struct MethodReturn {
     #[nserde(rename = "type")]
     pub type_: String,
-}
-
-pub trait Enum {
-    fn name(&self) -> &str;
-    fn values(&self) -> &Vec<Constant>;
-    fn is_bitfield(&self) -> bool;
-}
-
-impl Enum for ClassEnum {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn values(&self) -> &Vec<Constant> {
-        &self.values
-    }
-
-    fn is_bitfield(&self) -> bool {
-        self.is_bitfield
-    }
-}
-
-impl Enum for GlobalEnum {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn values(&self) -> &Vec<Constant> {
-        &self.values
-    }
-
-    fn is_bitfield(&self) -> bool {
-        // Hack until this is exported in the JSON
-        self.name.contains("Flag")
-    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
