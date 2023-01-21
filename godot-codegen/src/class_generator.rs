@@ -249,7 +249,11 @@ fn make_module_file(classes_and_modules: Vec<GeneratedModule>) -> TokenStream {
     }
 }
 
-fn make_methods(methods: &Option<Vec<Method>>, class_name: &str, ctx: &mut Context) -> TokenStream {
+fn make_methods(
+    methods: &Option<Vec<ClassMethod>>,
+    class_name: &str,
+    ctx: &mut Context,
+) -> TokenStream {
     let methods = match methods {
         Some(m) => m,
         None => return TokenStream::new(),
@@ -270,7 +274,7 @@ fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &str, _ctx: &Context) -> T
         None => return TokenStream::new(),
     };
 
-    let definitions = enums.iter().map(|e| util::make_enum_definition(e));
+    let definitions = enums.iter().map(util::make_enum_definition);
 
     quote! {
         #( #definitions )*
@@ -295,7 +299,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     }
 }
 
-fn is_method_excluded(method: &Method, #[allow(unused_variables)] ctx: &mut Context) -> bool {
+fn is_method_excluded(method: &ClassMethod, #[allow(unused_variables)] ctx: &mut Context) -> bool {
     // Currently excluded:
     //
     // * Private virtual methods designed for override; skip for now
@@ -350,7 +354,11 @@ fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
         })
 }
 
-fn make_method_definition(method: &Method, class_name: &str, ctx: &mut Context) -> TokenStream {
+fn make_method_definition(
+    method: &ClassMethod,
+    class_name: &str,
+    ctx: &mut Context,
+) -> TokenStream {
     if is_method_excluded(method, ctx) || special_cases::is_deleted(class_name, &method.name) {
         return TokenStream::new();
     }
