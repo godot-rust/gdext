@@ -23,6 +23,7 @@ pub fn run() -> bool {
     ok &= variant_evaluate_total_order();
     ok &= variant_sys_conversion();
     ok &= variant_sys_conversion2();
+    ok &= variant_object_nullptr();
     ok
 }
 
@@ -195,6 +196,32 @@ fn variant_sys_conversion() {
 
     let v2 = unsafe { Variant::from_sys(ptr) };
     assert_eq!(v2, v);
+}
+
+#[itest]
+fn variant_object_nullptr() {
+    // Some Variants that are of type Object actually contain a null pointer.
+    // The should report their type as Nil instead, so that they don't create invalid Gd<T> objects.
+    let variant;
+    unsafe {
+        // Create a variant from a null object pointer.
+        variant = Variant::from_var_sys_init(|self_ptr| {
+            let null_pointer: godot::sys::GDExtensionObjectPtr = std::ptr::null_mut();
+            let converter = godot::sys::builtin_fn!(object_to_variant);
+            converter(
+                self_ptr,
+                std::ptr::addr_of!(null_pointer) as godot::sys::GDExtensionTypePtr,
+            );
+        });
+
+        // Get the variant's internal type and ensure that it is actually still an Object.
+        let sys_type: godot::sys::GDExtensionVariantType =
+            godot::sys::interface_fn!(variant_get_type)(variant.var_sys());
+        assert_eq!(sys_type, godot::sys::GDEXTENSION_VARIANT_TYPE_OBJECT);
+    }
+
+    // The actual test of the public API, ensure that the variant's type is Nil even though the internal type is Object.
+    assert_eq!(variant.get_type(), VariantType::Nil);
 }
 
 #[itest]

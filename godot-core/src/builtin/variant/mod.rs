@@ -60,13 +60,38 @@ impl Variant {
 
     /// Checks whether the variant is empty (`null` value in GDScript).
     pub fn is_nil(&self) -> bool {
-        self.sys_type() == sys::GDEXTENSION_VARIANT_TYPE_NIL
+        // Use get_type rather than sys_type to include checking for the case where the variant is an object but with a null pointer.
+        self.get_type() == VariantType::Nil
     }
 
     // TODO test
+    /// Converts the sys_type to the VariantType.
+    /// Also handles the case where a variant's type is Object but it has a null pointer, instead returning Nil.
     pub fn get_type(&self) -> VariantType {
-        let ty_sys = unsafe { interface_fn!(variant_get_type)(self.var_sys()) };
-        VariantType::from_sys(ty_sys)
+        let sys_type = self.sys_type();
+
+        // There is a special case when the Variant is an Object, but the Object* is null.
+        let is_an_object = sys_type == sys::GDEXTENSION_VARIANT_TYPE_OBJECT;
+        let is_a_null_object = if is_an_object {
+            // Only call object_from_variant if the Variant is of type Object.
+            unsafe {
+                // object_from_variant expects sys::GDExtensionTypePtr, which is essentially an Object**.
+                // The type that sys::GDExtensionTypePtr isn't the actual rust type it would dereference to, but instead GDExtensionObjectPtr.
+                let mut object_ptr: sys::GDExtensionObjectPtr = std::ptr::null_mut();
+                let object_ptr_ptr = std::ptr::addr_of_mut!(object_ptr) as sys::GDExtensionTypePtr;
+                let converter = sys::builtin_fn!(object_from_variant);
+                converter(object_ptr_ptr, self.var_sys());
+                object_ptr.is_null()
+            }
+        } else {
+            false
+        };
+
+        if is_a_null_object {
+            VariantType::Nil
+        } else {
+            VariantType::from_sys(sys_type)
+        }
     }
 
     // TODO test
