@@ -6,7 +6,7 @@
 
 //! Generates a file for each Godot class
 
-use proc_macro2::{Literal, TokenStream};
+use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
 use std::path::{Path, PathBuf};
 
@@ -139,6 +139,7 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
         use crate::engine::*;
         use crate::builtin::*;
         use crate::obj::{AsArg, Gd};
+        use sys::GodotFfi as _;
 
         pub(super) mod re_export {
             use super::*;
@@ -362,11 +363,6 @@ fn make_method_definition(
     if is_method_excluded(method, ctx) || special_cases::is_deleted(class_name, &method.name) {
         return TokenStream::new();
     }
-
-    let is_varcall = method.is_vararg;
-    let (params, arg_exprs) = make_params(&method.arguments, is_varcall, ctx);
-
-    let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
     /*if method.map_args(|args| args.is_empty()) {
         // Getters (i.e. 0 arguments) will be stripped of their `get_` prefix, to conform to Rust convention
         if let Some(remainder) = method_name.strip_prefix("get_") {
@@ -377,78 +373,60 @@ fn make_method_definition(
             }
         }
     }*/
-    let method_name = safe_ident(method_name_str);
-    let hash = method.hash;
 
-    // TODO &mut safety
+    let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
     let receiver = if method.is_const {
-        quote!(&self)
+        quote! { &self, }
     } else {
-        quote!(&mut self)
+        quote! { &mut self, }
     };
-
-    let (return_decl, call) = make_method_return(&method.return_value, is_varcall, ctx);
-
-    let vis = if special_cases::is_private(class_name, &method.name) {
-        quote! { pub(crate) }
-    } else {
-        quote! { pub }
-    };
-
+    let hash = method.hash;
+    let is_varcall = method.is_vararg;
+    let variant_ffi;
+    let function_provider;
     if is_varcall {
-        // varcall (using varargs)
-        quote! {
-            #vis fn #method_name( #receiver #(, #params )*, varargs: &[Variant]) #return_decl {
-                unsafe {
-                    let __class_name = StringName::from(#class_name);
-                    let __method_name = StringName::from(#method_name_str);
-                    let __method_bind = sys::interface_fn!(classdb_get_method_bind)(
-                        __class_name.string_sys(),
-                        __method_name.string_sys(),
-                        #hash
-                    );
-                    let __call_fn = sys::interface_fn!(object_method_bind_call);
-
-                    let __explicit_args = [
-                        #( #arg_exprs ),*
-                    ];
-                    let mut __args = Vec::new();
-                    __args.extend(__explicit_args.iter().map(Variant::var_sys_const));
-                    __args.extend(varargs.iter().map(Variant::var_sys_const));
-
-                    let __args_ptr = __args.as_ptr();
-
-                    #call
-                }
-            }
-        }
+        variant_ffi = Some(VariantFfi {
+            sys_method: ident("var_sys_const"),
+            from_sys_init_method: ident("from_var_sys_init"),
+        });
+        function_provider = ident("object_method_bind_call");
     } else {
-        // ptrcall
-        quote! {
-            #vis fn #method_name( #receiver, #( #params ),* ) #return_decl {
-                unsafe {
-                    let __class_name = StringName::from(#class_name);
-                    let __method_name = StringName::from(#method_name_str);
-                    let __method_bind = sys::interface_fn!(classdb_get_method_bind)(
-                        __class_name.string_sys(),
-                        __method_name.string_sys(),
-                        #hash
-                    );
-                    let __call_fn = sys::interface_fn!(object_method_bind_ptrcall);
-
-                    let __args = [
-                        #( #arg_exprs ),*
-                    ];
-                    let __args_ptr = __args.as_ptr();
-
-                    #call
-                }
-            }
-        }
+        variant_ffi = None;
+        function_provider = ident("object_method_bind_ptrcall");
     }
+
+    let init_code = quote! {
+        let __class_name = StringName::from(#class_name);
+        let __method_name = StringName::from(#method_name_str);
+        let __method_bind = sys::interface_fn!(classdb_get_method_bind)(
+            __class_name.string_sys(),
+            __method_name.string_sys(),
+            #hash
+        );
+        let __call_fn = sys::interface_fn!(#function_provider);
+    };
+    let varcall_invocation = quote! {
+        __call_fn(__method_bind, self.object_ptr, __args_ptr, __args.len() as i64, return_ptr, std::ptr::addr_of_mut!(__err));
+    };
+    let ptrcall_invocation = quote! {
+        __call_fn(__method_bind, self.object_ptr, __args_ptr, return_ptr);
+    };
+
+    make_function_definition(
+        method_name_str,
+        special_cases::is_private(class_name, &method.name),
+        receiver,
+        &method.arguments,
+        method.return_value.as_ref(),
+        variant_ffi,
+        init_code,
+        &varcall_invocation,
+        &ptrcall_invocation,
+        ctx,
+    )
 }
 
-pub(crate) fn make_function_definition(
+pub(crate) fn make_utility_function_definition(
     function: &UtilityFunction,
     ctx: &mut Context,
 ) -> TokenStream {
@@ -456,53 +434,110 @@ pub(crate) fn make_function_definition(
         return TokenStream::new();
     }
 
-    let is_vararg = function.is_vararg;
-    let (params, arg_exprs) = make_params(&function.arguments, is_vararg, ctx);
-
     let function_name_str = &function.name;
-    let function_name = safe_ident(function_name_str);
+    let return_value = function.return_type.as_ref().map(|type_| MethodReturn {
+        type_: type_.clone(),
+    });
     let hash = function.hash;
+    let variant_ffi = function.is_vararg.then_some(VariantFfi {
+        sys_method: ident("sys_const"),
+        from_sys_init_method: ident("from_sys_init"),
+    });
+    let init_code = quote! {
+        let __function_name = StringName::from(#function_name_str);
+        let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
+        let __call_fn = __call_fn.unwrap_unchecked();
+    };
+    let invocation = quote! {
+        __call_fn(return_ptr, __args_ptr, __args.len() as i32);
+    };
 
-    let (return_decl, call) = make_utility_return(&function.return_type, is_vararg, ctx);
+    make_function_definition(
+        &function.name,
+        false,
+        TokenStream::new(),
+        &function.arguments,
+        return_value.as_ref(),
+        variant_ffi,
+        init_code,
+        &invocation,
+        &invocation,
+        ctx,
+    )
+}
 
-    if is_vararg {
+/// Defines which methods to use to convert between `Variant` and FFI (either variant ptr or type ptr)
+struct VariantFfi {
+    sys_method: Ident,
+    from_sys_init_method: Ident,
+}
+
+#[allow(clippy::too_many_arguments)] // adding a struct/trait that's used only here, one time, reduces complexity by precisely 0%
+fn make_function_definition(
+    function_name: &str,
+    is_private: bool,
+    receiver: TokenStream,
+    method_args: &Option<Vec<MethodArg>>,
+    return_value: Option<&MethodReturn>,
+    variant_ffi: Option<VariantFfi>,
+    init_code: TokenStream,
+    varcall_invocation: &TokenStream,
+    ptrcall_invocation: &TokenStream,
+    ctx: &mut Context,
+) -> TokenStream {
+    let vis = if is_private {
+        quote! { pub(crate) }
+    } else {
+        quote! { pub }
+    };
+
+    let is_varcall = variant_ffi.is_some();
+    let fn_name = safe_ident(function_name);
+    let (params, arg_exprs) = make_params(method_args, is_varcall, ctx);
+    let (return_decl, call_code) = make_return(
+        return_value,
+        variant_ffi.as_ref(),
+        varcall_invocation,
+        ptrcall_invocation,
+        ctx,
+    );
+
+    if let Some(variant_ffi) = variant_ffi.as_ref() {
+        // varcall (using varargs)
+        let sys_method = &variant_ffi.sys_method;
         quote! {
-            pub fn #function_name( #( #params , )* varargs: &[Variant]) #return_decl {
+            #vis fn #fn_name( #receiver #( #params, )* varargs: &[Variant]) #return_decl {
                 unsafe {
-                    let __function_name = StringName::from(#function_name_str);
-                    let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
-                    let __call_fn = __call_fn.unwrap_unchecked();
+                    #init_code
 
                     let __explicit_args = [
                         #( #arg_exprs ),*
                     ];
+
                     let mut __args = Vec::new();
-                    {
-                        use godot_ffi::GodotFfi;
-                        __args.extend(__explicit_args.iter().map(Variant::sys_const));
-                        __args.extend(varargs.iter().map(Variant::sys_const));
-                    }
+                    __args.extend(__explicit_args.iter().map(Variant::#sys_method));
+                    __args.extend(varargs.iter().map(Variant::#sys_method));
 
                     let __args_ptr = __args.as_ptr();
 
-                    #call
+                    #call_code
                 }
             }
         }
     } else {
+        // ptrcall
         quote! {
-            pub fn #function_name( #( #params ),* ) #return_decl {
+            #vis fn #fn_name( #receiver #( #params, )* ) #return_decl {
                 unsafe {
-                    let __function_name = StringName::from(#function_name_str);
-                    let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
-                    let __call_fn = __call_fn.unwrap_unchecked();
+                    #init_code
 
                     let __args = [
                         #( #arg_exprs ),*
                     ];
+
                     let __args_ptr = __args.as_ptr();
 
-                    #call
+                    #call_code
                 }
             }
         }
@@ -541,85 +576,18 @@ fn make_params(
     (params, arg_exprs)
 }
 
-fn make_method_return(
-    return_value: &Option<MethodReturn>,
-    is_varcall: bool,
+fn make_return(
+    return_value: Option<&MethodReturn>,
+    variant_ffi: Option<&VariantFfi>,
+    varcall_invocation: &TokenStream,
+    ptrcall_invocation: &TokenStream,
     ctx: &mut Context,
 ) -> (TokenStream, TokenStream) {
     let return_decl: TokenStream;
     let return_ty: Option<RustTy>;
-    match return_value {
-        Some(ret) => {
-            let ty = to_rust_type(&ret.type_, ctx);
-            return_decl = ty.return_decl();
-            return_ty = Some(ty);
-        }
-        None => {
-            return_decl = TokenStream::new();
-            return_ty = None;
-        }
-    };
-
-    let call = match (is_varcall, return_ty) {
-        (true, Some(return_ty)) => {
-            // If the return type is not Variant, then convert to concrete target type
-            let return_expr = match return_ty {
-                RustTy::BuiltinIdent(ident) if ident == "Variant" => quote! { variant },
-                _ => quote! { variant.to() },
-            };
-
-            // TODO use Result instead of panic on error
-            quote! {
-                let variant = Variant::from_var_sys_init(|return_ptr| {
-                    let mut __err = sys::default_call_error();
-                    __call_fn(__method_bind, self.object_ptr, __args_ptr, __args.len() as i64, return_ptr, std::ptr::addr_of_mut!(__err));
-                    assert_eq!(__err.error, sys::GDEXTENSION_CALL_OK);
-                });
-                #return_expr
-            }
-        }
-        (true, None) => {
-            // TODO use Result instead of panic on error
-            quote! {
-                let mut __err = sys::default_call_error();
-                __call_fn(__method_bind, self.object_ptr, __args_ptr, __args.len() as i64, std::ptr::null_mut(), std::ptr::addr_of_mut!(__err));
-                assert_eq!(__err.error, sys::GDEXTENSION_CALL_OK);
-            }
-        }
-        (false, Some(RustTy::EngineClass(return_ty))) => {
-            quote! {
-                <#return_ty>::from_sys_init_opt(|return_ptr| {
-                    __call_fn(__method_bind, self.object_ptr, __args_ptr, return_ptr);
-                })
-            }
-        }
-        (false, Some(return_ty)) => {
-            quote! {
-                <#return_ty as sys::GodotFfi>::from_sys_init(|return_ptr| {
-                    __call_fn(__method_bind, self.object_ptr, __args_ptr, return_ptr);
-                })
-            }
-        }
-        (false, None) => {
-            quote! {
-                __call_fn(__method_bind, self.object_ptr, __args_ptr, std::ptr::null_mut());
-            }
-        }
-    };
-
-    (return_decl, call)
-}
-
-fn make_utility_return(
-    return_value: &Option<String>,
-    is_vararg: bool,
-    ctx: &mut Context,
-) -> (TokenStream, TokenStream) {
-    let return_decl;
-    let return_ty;
 
     if let Some(ret) = return_value {
-        let ty = to_rust_type(ret, ctx);
+        let ty = to_rust_type(&ret.type_, ctx);
         return_decl = ty.return_decl();
         return_ty = Some(ty);
     } else {
@@ -627,44 +595,54 @@ fn make_utility_return(
         return_ty = None;
     }
 
-    let call = match (is_vararg, return_ty) {
-        (true, Some(return_ty)) => {
+    let call = match (variant_ffi, return_ty) {
+        (Some(variant_ffi), Some(return_ty)) => {
             // If the return type is not Variant, then convert to concrete target type
             let return_expr = match return_ty {
                 RustTy::BuiltinIdent(ident) if ident == "Variant" => quote! { variant },
                 _ => quote! { variant.to() },
             };
+            let from_sys_init_method = &variant_ffi.from_sys_init_method;
 
+            // Note: __err may remain unused if the #call does not handle errors (e.g. utility fn, ptrcall, ...)
+            // TODO use Result instead of panic on error
             quote! {
-                use godot_ffi::GodotFfi;
-                let variant = Variant::from_sys_init(|return_ptr| {
-                    __call_fn(return_ptr, __args_ptr, __args.len() as i32);
+                let variant = Variant::#from_sys_init_method(|return_ptr| {
+                    let mut __err = sys::default_call_error();
+                    #varcall_invocation
+                    assert_eq!(__err.error, sys::GDEXTENSION_CALL_OK);
                 });
                 #return_expr
             }
         }
-        (true, None) => {
+        (Some(_), None) => {
+            // Note: __err may remain unused if the #call does not handle errors (e.g. utility fn, ptrcall, ...)
+            // TODO use Result instead of panic on error
             quote! {
-                __call_fn(std::ptr::null_mut(), __args_ptr, __args.len() as i32);
+                let mut __err = sys::default_call_error();
+                let return_ptr = std::ptr::null_mut();
+                #varcall_invocation
+                assert_eq!(__err.error, sys::GDEXTENSION_CALL_OK);
             }
         }
-        (false, Some(RustTy::EngineClass(return_ty))) => {
+        (None, Some(RustTy::EngineClass(return_ty))) => {
             quote! {
                 <#return_ty>::from_sys_init_opt(|return_ptr| {
-                    __call_fn(return_ptr, __args_ptr, __args.len() as i32);
+                    #ptrcall_invocation
                 })
             }
         }
-        (false, Some(return_ty)) => {
+        (None, Some(return_ty)) => {
             quote! {
                 <#return_ty as sys::GodotFfi>::from_sys_init(|return_ptr| {
-                    __call_fn(return_ptr, __args_ptr, __args.len() as i32);
+                    #ptrcall_invocation
                 })
             }
         }
-        (false, None) => {
+        (None, None) => {
             quote! {
-                __call_fn(std::ptr::null_mut(), __args_ptr, __args.len() as i32);
+                let return_ptr = std::ptr::null_mut();
+                #ptrcall_invocation
             }
         }
     };
