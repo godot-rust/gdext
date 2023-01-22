@@ -13,7 +13,7 @@ use crate::builtin::Vector3i;
 
 /// Vector used for 3D math using floating point coordinates.
 ///
-/// 3-element structure that can be used to represent positions in 2D space or any other triple of
+/// 3-element structure that can be used to represent positions in 3D space or any other triple of
 /// numeric values.
 ///
 /// It uses floating-point coordinates of 32-bit precision, unlike the engine's `float` type which
