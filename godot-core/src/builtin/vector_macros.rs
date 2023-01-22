@@ -18,7 +18,7 @@ macro_rules! impl_vector_unary_operator {
         // Name of the operator trait, for example `Neg`.
         $Operator:ident,
         // Name of the function on the operator trait, for example `neg`.
-        $func:ident$(,)?
+        $func:ident
     ) => {
         impl std::ops::$Operator for $Vector {
             type Output = Self;
@@ -44,7 +44,7 @@ macro_rules! impl_vector_vector_binary_operator {
         // Name of the operator trait, for example `Add`.
         $Operator:ident,
         // Name of the function on the operator trait, for example `add`.
-        $func:ident$(,)?
+        $func:ident
     ) => {
         impl std::ops::$Operator for $Vector {
             type Output = Self;
@@ -71,7 +71,7 @@ macro_rules! impl_vector_scalar_binary_operator {
         // Name of the operator trait, for example `Add`.
         $Operator:ident,
         // Name of the function on the operator trait, for example `add`.
-        $func:ident$(,)?
+        $func:ident
     ) => {
         impl std::ops::$Operator<$Scalar> for $Vector {
             type Output = Self;
@@ -98,7 +98,7 @@ macro_rules! impl_scalar_vector_binary_operator {
         // Name of the operator trait, for example `Add`.
         $Operator:ident,
         // Name of the function on the operator trait, for example `add`.
-        $func:ident$(,)?
+        $func:ident
     ) => {
         impl std::ops::$Operator<$Vector> for $Scalar {
             type Output = $Vector;
@@ -125,7 +125,7 @@ macro_rules! impl_vector_vector_assign_operator {
         // Name of the operator trait, for example `AddAssign`.
         $Operator:ident,
         // Name of the function on the operator trait, for example `add_assign`.
-        $func:ident$(,)?
+        $func:ident
     ) => {
         impl std::ops::$Operator for $Vector {
             fn $func(&mut self, rhs: $Vector) {
@@ -150,7 +150,7 @@ macro_rules! impl_vector_scalar_assign_operator {
         // Name of the operator trait, for example `AddAssign`.
         $Operator:ident,
         // Name of the function on the operator trait, for example `add_assign`.
-        $func:ident$(,)?
+        $func:ident
     ) => {
         impl std::ops::$Operator<$Scalar> for $Vector {
             fn $func(&mut self, rhs: $Scalar) {
@@ -170,7 +170,7 @@ macro_rules! impl_vector_operators {
         // Type of each individual component, for example `f32`.
         $Scalar:ty,
         // Names of the components, with parentheses, for example `(x, y)`.
-        ($($components:ident),*)$(,)?
+        ($($components:ident),*)
     ) => {
         impl_vector_unary_operator!($Vector, $Scalar, ($($components),*), Neg, neg);
         impl_vector_vector_binary_operator!($Vector, $Scalar, ($($components),*), Add, add);
