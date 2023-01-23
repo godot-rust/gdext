@@ -79,7 +79,6 @@ mod real_impl {
             "Initialize GDExtension interface: {}",
             ver.to_str().unwrap()
         );
-        //dbg!(*interface);
 
         BINDING = Some(GodotBinding {
             interface: *interface,

@@ -282,11 +282,12 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {
-            return RustTy::BuiltinIdent(ident(packed_arr_ty));
+            return RustTy::BuiltinIdent(ident(ty));
+            //return RustTy::BuiltinIdent(ident(packed_arr_ty));
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
-        if let Some(packed_arr_ty) = elem_ty.strip_prefix("Packed") {
-            return RustTy::BuiltinIdent(ident(packed_arr_ty));
+        if let Some(_packed_arr_ty) = elem_ty.strip_prefix("Packed") {
+            return RustTy::BuiltinIdent(ident(elem_ty));
         }
 
         let rust_elem_ty = to_rust_type(elem_ty, ctx);

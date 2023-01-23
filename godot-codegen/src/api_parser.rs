@@ -207,6 +207,14 @@ pub struct MethodReturn {
     // pub meta: Option<String>,
 }
 
+impl MethodReturn {
+    pub fn from_type(type_: &str) -> Self {
+        Self {
+            type_: type_.to_owned(),
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 

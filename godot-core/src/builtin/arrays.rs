@@ -6,42 +6,43 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{FromVariant, Variant};
+use crate::builtin::{inner, FromVariant, Variant};
 use std::marker::PhantomData;
-use sys::{ffi_methods, interface_fn, types::*, GodotFfi};
+use sys::types::*;
+use sys::{ffi_methods, interface_fn, GodotFfi};
 
 impl_builtin_stub!(Array, OpaqueArray);
-impl_builtin_stub!(ByteArray, OpaquePackedByteArray);
-impl_builtin_stub!(ColorArray, OpaquePackedColorArray);
-impl_builtin_stub!(Float32Array, OpaquePackedFloat32Array);
-impl_builtin_stub!(Float64Array, OpaquePackedFloat64Array);
-impl_builtin_stub!(Int32Array, OpaquePackedInt32Array);
-impl_builtin_stub!(Int64Array, OpaquePackedInt64Array);
-impl_builtin_stub!(StringArray, OpaquePackedStringArray);
-impl_builtin_stub!(Vector2Array, OpaquePackedVector2Array);
-impl_builtin_stub!(Vector3Array, OpaquePackedVector3Array);
+impl_builtin_stub!(PackedByteArray, OpaquePackedByteArray);
+impl_builtin_stub!(PackedColorArray, OpaquePackedColorArray);
+impl_builtin_stub!(PackedFloat32Array, OpaquePackedFloat32Array);
+impl_builtin_stub!(PackedFloat64Array, OpaquePackedFloat64Array);
+impl_builtin_stub!(PackedInt32Array, OpaquePackedInt32Array);
+impl_builtin_stub!(PackedInt64Array, OpaquePackedInt64Array);
+impl_builtin_stub!(PackedStringArray, OpaquePackedStringArray);
+impl_builtin_stub!(PackedVector2Array, OpaquePackedVector2Array);
+impl_builtin_stub!(PackedVector3Array, OpaquePackedVector3Array);
 
 impl_builtin_froms!(Array;
-    ByteArray => array_from_packed_byte_array,
-    ColorArray => array_from_packed_color_array,
-    Float32Array => array_from_packed_float32_array,
-    Float64Array => array_from_packed_float64_array,
-    Int32Array => array_from_packed_int32_array,
-    Int64Array => array_from_packed_int64_array,
-    StringArray => array_from_packed_string_array,
-    Vector2Array => array_from_packed_vector2_array,
-    Vector3Array => array_from_packed_vector3_array,
+    PackedByteArray => array_from_packed_byte_array,
+    PackedColorArray => array_from_packed_color_array,
+    PackedFloat32Array => array_from_packed_float32_array,
+    PackedFloat64Array => array_from_packed_float64_array,
+    PackedInt32Array => array_from_packed_int32_array,
+    PackedInt64Array => array_from_packed_int64_array,
+    PackedStringArray => array_from_packed_string_array,
+    PackedVector2Array => array_from_packed_vector2_array,
+    PackedVector3Array => array_from_packed_vector3_array,
 );
 
-impl_builtin_froms!(ByteArray; Array => packed_byte_array_from_array);
-impl_builtin_froms!(ColorArray; Array => packed_color_array_from_array);
-impl_builtin_froms!(Float32Array; Array => packed_float32_array_from_array);
-impl_builtin_froms!(Float64Array; Array => packed_float64_array_from_array);
-impl_builtin_froms!(Int32Array; Array => packed_int32_array_from_array);
-impl_builtin_froms!(Int64Array; Array => packed_int64_array_from_array);
-impl_builtin_froms!(StringArray; Array => packed_string_array_from_array);
-impl_builtin_froms!(Vector2Array; Array => packed_vector2_array_from_array);
-impl_builtin_froms!(Vector3Array; Array => packed_vector3_array_from_array);
+impl_builtin_froms!(PackedByteArray; Array => packed_byte_array_from_array);
+impl_builtin_froms!(PackedColorArray; Array => packed_color_array_from_array);
+impl_builtin_froms!(PackedFloat32Array; Array => packed_float32_array_from_array);
+impl_builtin_froms!(PackedFloat64Array; Array => packed_float64_array_from_array);
+impl_builtin_froms!(PackedInt32Array; Array => packed_int32_array_from_array);
+impl_builtin_froms!(PackedInt64Array; Array => packed_int64_array_from_array);
+impl_builtin_froms!(PackedStringArray; Array => packed_string_array_from_array);
+impl_builtin_froms!(PackedVector2Array; Array => packed_vector2_array_from_array);
+impl_builtin_froms!(PackedVector3Array; Array => packed_vector3_array_from_array);
 
 impl Array {
     pub fn get(&self, index: i64) -> Option<Variant> {
@@ -52,6 +53,20 @@ impl Array {
             }
             Some((*ptr).clone())
         }
+    }
+
+    #[cfg(not(any(gdext_test, doctest)))]
+    #[doc(hidden)]
+    pub fn as_inner(&mut self) -> inner::InnerArray {
+        inner::InnerArray { outer: self }
+    }
+}
+
+impl_builtin_traits! {
+    for Array {
+        Default => array_construct_default;
+        Clone => array_construct_copy;
+        Drop => array_destroy;
     }
 }
 
