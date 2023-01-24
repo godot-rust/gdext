@@ -18,7 +18,7 @@ pub(crate) fn run() -> bool {
 
 #[itest]
 fn test_builtins_vector2() {
-    let mut vec = Vector2::new(3.0, -4.0);
+    let vec = Vector2::new(3.0, -4.0);
     let inner: InnerVector2 = vec.as_inner();
 
     let len_sq = inner.length_squared();
@@ -33,7 +33,7 @@ fn test_builtins_vector2() {
 
 #[itest]
 fn test_builtins_array() {
-    let mut array = Array::default();
+    let array = Array::default();
     let mut inner: InnerArray = array.as_inner();
 
     let a = 7.to_variant();
@@ -51,7 +51,7 @@ fn test_builtins_array() {
 #[itest]
 fn test_builtins_callable() {
     let obj = Node2D::new_alloc();
-    let mut cb = Callable::from_object_method(obj.share(), "set_position");
+    let cb = Callable::from_object_method(obj.share(), "set_position");
     let inner: InnerCallable = cb.as_inner();
 
     assert_eq!(inner.is_null(), false);

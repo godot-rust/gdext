@@ -63,8 +63,8 @@ impl Callable {
 
     #[cfg(not(any(gdext_test, doctest)))]
     #[doc(hidden)]
-    pub fn as_inner(&mut self) -> inner::InnerCallable {
-        inner::InnerCallable { outer: self }
+    pub fn as_inner(&self) -> inner::InnerCallable {
+        inner::InnerCallable::from_outer(self)
     }
 }
 

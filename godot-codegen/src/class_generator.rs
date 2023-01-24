@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! Generates a file for each Godot class
+//! Generates a file for each Godot engine + builtin class
 
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
@@ -267,10 +267,7 @@ fn make_builtin_class(
     } else {
         panic!("Rust type `{}` categorized wrong", class.name)
     };
-    // let opaque_name = format_ident!("Opaque{}", class.name);
 
-    // let constructor = make_constructor(class, ctx, &name_str);
-    let constructor = quote! {};
     let class_enums = class.enums.as_ref().map(|class_enums| {
         class_enums
             .iter()
@@ -289,19 +286,21 @@ fn make_builtin_class(
         use crate::sys::GodotFfi as _;
         use crate::engine::Object;
 
-        // #[derive(Debug)]
         #[repr(transparent)]
         pub struct #inner_class<'a> {
-            // opaque: sys::types::#opaque_name,
-            pub outer: &'a mut #outer_class
+            _outer_lifetime: std::marker::PhantomData<&'a ()>,
+            sys_ptr: sys::GDExtensionTypePtr,
         }
         impl<'a> #inner_class<'a> {
-            #constructor
+            pub fn from_outer(outer: &#outer_class) -> Self {
+                Self {
+                    _outer_lifetime: std::marker::PhantomData,
+                    sys_ptr: outer.sys(),
+                }
+            }
+
             #methods
         }
-        // impl sys::GodotFfi for #class_name {
-        //     sys::ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
-        // }
 
         #enums
     };
@@ -573,11 +572,13 @@ fn make_builtin_method_definition(
     }
 
     let method_name_str = &method.name;
+
     let receiver = if method.is_const {
         quote! { &self, }
     } else {
         quote! { &mut self, }
     };
+
     let return_value = method.return_type.as_deref().map(MethodReturn::from_type);
     let hash = method.hash;
     let is_varcall = method.is_vararg;
@@ -595,7 +596,7 @@ fn make_builtin_method_definition(
         let __call_fn = __call_fn.unwrap_unchecked();
     };
     let ptrcall_invocation = quote! {
-        __call_fn(self.outer.sys(), __args_ptr, return_ptr, __args.len() as i32);
+        __call_fn(self.sys_ptr, __args_ptr, return_ptr, __args.len() as i32);
     };
 
     make_function_definition(

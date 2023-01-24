@@ -57,8 +57,8 @@ impl Array {
 
     #[cfg(not(any(gdext_test, doctest)))]
     #[doc(hidden)]
-    pub fn as_inner(&mut self) -> inner::InnerArray {
-        inner::InnerArray { outer: self }
+    pub fn as_inner(&self) -> inner::InnerArray {
+        inner::InnerArray::from_outer(self)
     }
 }
 

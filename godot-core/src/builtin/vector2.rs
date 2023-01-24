@@ -87,8 +87,8 @@ impl Vector2 {
 
     #[cfg(not(any(gdext_test, doctest)))]
     #[doc(hidden)]
-    pub fn as_inner(&mut self) -> inner::InnerVector2 {
-        inner::InnerVector2 { outer: self }
+    pub fn as_inner(&self) -> inner::InnerVector2 {
+        inner::InnerVector2::from_outer(self)
     }
 }
 
