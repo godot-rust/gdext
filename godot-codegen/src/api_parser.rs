@@ -20,7 +20,7 @@ pub struct ExtensionApi {
     pub builtin_class_sizes: Vec<ClassSizes>,
     pub builtin_classes: Vec<BuiltinClass>,
     pub classes: Vec<Class>,
-    pub global_enums: Vec<GlobalEnum>,
+    pub global_enums: Vec<Enum>,
     pub utility_functions: Vec<UtilityFunction>,
     pub singletons: Vec<Singleton>,
 }
@@ -40,16 +40,15 @@ pub struct ClassSize {
 #[derive(DeJson)]
 pub struct BuiltinClass {
     pub name: String,
+    pub indexing_return_type: Option<String>,
+    pub is_keyed: bool,
+    pub members: Option<Vec<Member>>,
+    pub constants: Option<Vec<Constant>>,
+    pub enums: Option<Vec<BuiltinClassEnum>>, // no bitfield
+    pub operators: Vec<Operator>,
+    pub methods: Option<Vec<BuiltinClassMethod>>,
     pub constructors: Vec<Constructor>,
     pub has_destructor: bool,
-    pub operators: Vec<Operator>,
-}
-
-#[derive(DeJson)]
-pub struct Operator {
-    pub name: String,
-    pub right_type: Option<String>, // null if unary
-    pub return_type: String,
 }
 
 #[derive(DeJson)]
@@ -60,8 +59,8 @@ pub struct Class {
     pub inherits: Option<String>,
     // pub api_type: String,
     // pub constants: Option<Vec<Constant>>,
-    pub enums: Option<Vec<ClassEnum>>,
-    pub methods: Option<Vec<Method>>,
+    pub enums: Option<Vec<Enum>>,
+    pub methods: Option<Vec<ClassMethod>>,
     // pub properties: Option<Vec<Property>>,
     // pub signals: Option<Vec<Signal>>,
 }
@@ -75,23 +74,54 @@ pub struct Singleton {
 }
 
 #[derive(DeJson)]
-pub struct ClassEnum {
+pub struct Enum {
     pub name: String,
     pub is_bitfield: bool,
-    pub values: Vec<Constant>,
+    pub values: Vec<EnumConstant>,
 }
 
-// Same as above, but no bitfield
 #[derive(DeJson)]
-pub struct GlobalEnum {
+pub struct BuiltinClassEnum {
     pub name: String,
-    pub values: Vec<Constant>,
+    pub values: Vec<EnumConstant>,
+}
+
+impl BuiltinClassEnum {
+    pub(crate) fn to_enum(&self) -> Enum {
+        Enum {
+            name: self.name.clone(),
+            is_bitfield: false,
+            values: self.values.clone(),
+        }
+    }
+}
+
+#[derive(DeJson, Clone)]
+pub struct EnumConstant {
+    pub name: String,
+    pub value: i32,
 }
 
 #[derive(DeJson)]
 pub struct Constant {
     pub name: String,
-    pub value: i32,
+    #[nserde(rename = "type")]
+    pub type_: String,
+    pub value: String,
+}
+
+#[derive(DeJson)]
+pub struct Operator {
+    pub name: String,
+    pub right_type: Option<String>, // null if unary
+    pub return_type: String,
+}
+
+#[derive(DeJson)]
+pub struct Member {
+    pub name: String,
+    #[nserde(rename = "type")]
+    pub type_: String,
 }
 
 #[derive(DeJson)]
@@ -127,18 +157,29 @@ pub struct UtilityFunction {
 }
 
 #[derive(DeJson)]
-pub struct Method {
+pub struct BuiltinClassMethod {
+    pub name: String,
+    pub return_type: Option<String>,
+    pub is_vararg: bool,
+    pub is_const: bool,
+    pub is_static: bool,
+    pub hash: Option<i64>,
+    pub arguments: Option<Vec<MethodArg>>,
+}
+
+#[derive(DeJson)]
+pub struct ClassMethod {
     pub name: String,
     pub is_const: bool,
     pub is_vararg: bool,
     //pub is_static: bool,
     pub is_virtual: bool,
     pub hash: Option<i64>,
-    pub arguments: Option<Vec<MethodArg>>,
     pub return_value: Option<MethodReturn>,
+    pub arguments: Option<Vec<MethodArg>>,
 }
 
-impl Method {
+impl ClassMethod {
     pub fn map_args<R>(&self, f: impl FnOnce(&Vec<MethodArg>) -> R) -> R {
         match self.arguments.as_ref() {
             Some(args) => f(args),
@@ -147,51 +188,30 @@ impl Method {
     }
 }
 
+// Example: set_point_weight_scale ->
+// [ {name: "id", type: "int", meta: "int64"},
+//   {name: "weight_scale", type: "float", meta: "float"},
 #[derive(DeJson, Clone)]
 pub struct MethodArg {
     pub name: String,
     #[nserde(rename = "type")]
     pub type_: String,
+    // pub meta: Option<String>,
 }
 
+// Example: get_available_point_id -> {type: "int", meta: "int64"}
 #[derive(DeJson)]
 pub struct MethodReturn {
     #[nserde(rename = "type")]
     pub type_: String,
+    // pub meta: Option<String>,
 }
 
-pub trait Enum {
-    fn name(&self) -> &str;
-    fn values(&self) -> &Vec<Constant>;
-    fn is_bitfield(&self) -> bool;
-}
-
-impl Enum for ClassEnum {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn values(&self) -> &Vec<Constant> {
-        &self.values
-    }
-
-    fn is_bitfield(&self) -> bool {
-        self.is_bitfield
-    }
-}
-
-impl Enum for GlobalEnum {
-    fn name(&self) -> &str {
-        &self.name
-    }
-
-    fn values(&self) -> &Vec<Constant> {
-        &self.values
-    }
-
-    fn is_bitfield(&self) -> bool {
-        // Hack until this is exported in the JSON
-        self.name.contains("Flag")
+impl MethodReturn {
+    pub fn from_type(type_: &str) -> Self {
+        Self {
+            type_: type_.to_owned(),
+        }
     }
 }
 

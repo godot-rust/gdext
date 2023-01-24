@@ -25,30 +25,30 @@ struct CentralItems {
     global_enum_defs: Vec<TokenStream>,
 }
 
-struct TypeNames {
+pub(crate) struct TypeNames {
     /// "int" or "PackedVector2Array"
-    pascal_case: String,
+    pub pascal_case: String,
 
     /// "packed_vector2_array"
-    snake_case: String,
+    pub snake_case: String,
 
     /// "PACKED_VECTOR2_ARRAY"
-    //shout_case: String,
+    //pub shout_case: String,
 
     /// GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR2_ARRAY
-    sys_variant_type: Ident,
+    pub sys_variant_type: Ident,
 }
 
 /// Allows collecting all builtin TypeNames before generating methods
-struct BuiltinTypeInfo<'a> {
-    value: i32,
-    type_names: TypeNames,
+pub(crate) struct BuiltinTypeInfo<'a> {
+    pub value: i32,
+    pub type_names: TypeNames,
 
     /// If `variant_get_ptr_destructor` returns a non-null function pointer for this type.
     /// List is directly sourced from extension_api.json (information would also be in variant_destruct.cpp).
-    has_destructor: bool,
-    constructors: Option<&'a Vec<Constructor>>,
-    operators: Option<&'a Vec<Operator>>,
+    pub has_destructor: bool,
+    pub constructors: Option<&'a Vec<Constructor>>,
+    pub operators: Option<&'a Vec<Operator>>,
 }
 
 pub(crate) fn generate_sys_central_file(
@@ -103,12 +103,14 @@ pub(crate) fn generate_core_mod_file(
 
                 pub mod class_macros {}
             }
+            pub mod builtin_classes {}
             pub mod utilities {}
         }
     } else {
         quote! {
             pub mod central;
             pub mod classes;
+            pub mod builtin_classes;
             pub mod utilities;
         }
     };
@@ -304,8 +306,7 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context)
         }
     }
 
-    let class_map = collect_builtin_classes(api);
-    let builtin_types_map = collect_builtin_types(api, &class_map);
+    let builtin_types_map = collect_builtin_types(api);
     let variant_operators = collect_variant_operators(api);
 
     // Generate builtin methods, now with info for all types available.
@@ -389,10 +390,10 @@ fn collect_builtin_classes(api: &ExtensionApi) -> HashMap<String, &BuiltinClass>
     class_map
 }
 
-fn collect_builtin_types<'a>(
-    api: &'a ExtensionApi,
-    class_map: &HashMap<String, &'a BuiltinClass>,
-) -> HashMap<String, BuiltinTypeInfo<'a>> {
+/// Returns map from "PackedStringArray" to all the info
+pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, BuiltinTypeInfo<'_>> {
+    let class_map = collect_builtin_classes(api);
+
     let variant_type_enum = api
         .global_enums
         .iter()
@@ -456,7 +457,7 @@ fn collect_builtin_types<'a>(
     builtin_types_map
 }
 
-fn collect_variant_operators(api: &ExtensionApi) -> Vec<&Constant> {
+fn collect_variant_operators(api: &ExtensionApi) -> Vec<&EnumConstant> {
     let variant_operator_enum = api
         .global_enums
         .iter()

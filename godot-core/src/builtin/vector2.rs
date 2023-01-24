@@ -9,7 +9,7 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::Vector2i;
+use crate::builtin::{inner, Vector2i};
 
 /// Vector used for 2D math using floating point coordinates.
 ///
@@ -83,6 +83,12 @@ impl Vector2 {
     /// Converts `self` to the corresponding `glam` type.
     fn to_glam(self) -> glam::Vec2 {
         glam::Vec2::new(self.x, self.y)
+    }
+
+    #[cfg(not(any(gdext_test, doctest)))]
+    #[doc(hidden)]
+    pub fn as_inner(&self) -> inner::InnerVector2 {
+        inner::InnerVector2::from_outer(self)
     }
 }
 

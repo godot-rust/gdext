@@ -13,6 +13,7 @@ use godot::test::itest;
 use std::panic::UnwindSafe;
 
 mod base_test;
+mod builtin_test;
 mod enum_test;
 mod export_test;
 mod gdscript_ffi_test;
@@ -27,11 +28,12 @@ mod virtual_methods_test;
 fn run_tests() -> bool {
     let mut ok = true;
     ok &= base_test::run();
+    ok &= builtin_test::run();
+    ok &= enum_test::run();
+    ok &= export_test::run();
     ok &= gdscript_ffi_test::run();
     ok &= node_test::run();
-    ok &= enum_test::run();
     ok &= object_test::run();
-    ok &= export_test::run();
     ok &= singleton_test::run();
     ok &= string_test::run();
     ok &= utilities_test::run();

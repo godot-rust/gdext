@@ -11,10 +11,18 @@ macro_rules! impl_builtin_traits_inner {
         impl Default for $Type {
             #[inline]
             fn default() -> Self {
+                // Note: can't use from_sys_init(), as that calls the default constructor
+                // (because most assignments expect initialized target type)
+
+                let mut uninit = std::mem::MaybeUninit::<$Type>::uninit();
+
                 unsafe {
-                    let mut gd_val = sys::$GdType::default();
-                    ::godot_ffi::builtin_fn!($gd_method)(&mut gd_val);
-                    <$Type>::from_sys(gd_val)
+                    let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
+                    sys::builtin_call! {
+                        $gd_method(self_ptr, std::ptr::null_mut())
+                    };
+
+                    uninit.assume_init()
                 }
             }
         }
@@ -99,6 +107,21 @@ macro_rules! impl_builtin_traits_inner {
             }
         }
     };
+
+    ( FromVariant for $Type:ty => $gd_method:ident ) => {
+        impl $crate::builtin::variant::FromVariant for $Type {
+            fn try_from_variant(variant: &$crate::builtin::Variant) -> Result<Self, $crate::builtin::variant::VariantConversionError> {
+                let result = unsafe {
+                    Self::from_sys_init(|self_ptr| {
+                        let converter = sys::builtin_fn!($gd_method);
+                        converter(self_ptr, variant.var_sys());
+                    })
+                };
+
+                Ok(result)
+            }
+        }
+    };
 }
 
 macro_rules! impl_builtin_traits {
@@ -116,9 +139,10 @@ macro_rules! impl_builtin_traits {
 }
 
 macro_rules! impl_builtin_stub {
+    // ($Class:ident, $OpaqueTy:ident $( ; )? $( $Traits:ident ),* ) => {
     ($Class:ident, $OpaqueTy:ident) => {
         #[repr(C)]
-        #[derive(Copy, Clone)]
+        // #[derive(Copy, Clone)]
         pub struct $Class {
             opaque: sys::types::$OpaqueTy,
         }

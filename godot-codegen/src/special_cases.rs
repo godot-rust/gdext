@@ -55,9 +55,14 @@ pub fn is_private(class_name: &str, method_name: &str) -> bool {
     }
 }
 
+pub fn is_builtin_type_deleted(class_name: &str) -> bool {
+    class_name == "Nil" || class_name.chars().next().unwrap().is_ascii_lowercase()
+}
+
 pub fn maybe_renamed<'m>(class_name: &str, method_name: &'m str) -> &'m str {
     match (class_name, method_name) {
-        ("GDScript", "new") => "instantiate",
+        // GDScript, GDScriptNativeClass, possibly more in the future
+        (_, "new") => "instantiate",
         _ => method_name,
     }
 }

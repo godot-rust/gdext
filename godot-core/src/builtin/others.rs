@@ -6,7 +6,7 @@
 
 // Stub for various other built-in classes, which are currently incomplete, but whose types
 // are required for codegen
-use crate::builtin::{StringName, Vector2};
+use crate::builtin::{inner, StringName, Vector2};
 use crate::obj::{Gd, GodotClass};
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
@@ -59,5 +59,17 @@ impl Callable {
                 ctor(self_ptr, args.as_ptr());
             })
         }
+    }
+
+    #[cfg(not(any(gdext_test, doctest)))]
+    #[doc(hidden)]
+    pub fn as_inner(&self) -> inner::InnerCallable {
+        inner::InnerCallable::from_outer(self)
+    }
+}
+
+impl_builtin_traits! {
+    for Callable {
+        FromVariant => callable_from_variant;
     }
 }

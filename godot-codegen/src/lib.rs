@@ -23,7 +23,7 @@ use central_generator::{
     generate_core_central_file, generate_core_mod_file, generate_sys_central_file,
     generate_sys_mod_file,
 };
-use class_generator::generate_class_files;
+use class_generator::{generate_builtin_class_files, generate_class_files};
 use context::Context;
 use util::ident;
 use utilities_generator::generate_utilities_file;
@@ -86,12 +86,21 @@ pub fn generate_core_files(core_gen_path: &Path, stubs_only: bool) {
     );
     watch.record("generate_class_files");
 
+    generate_builtin_class_files(
+        &api,
+        &mut ctx,
+        build_config,
+        &core_gen_path.join("builtin_classes"),
+        &mut out_files,
+    );
+    watch.record("generate_builtin_class_files");
+
     rustfmt_if_needed(out_files);
     watch.record("rustfmt");
     watch.write_stats_to(&core_gen_path.join("codegen-stats.txt"));
 }
 
-#[cfg(feature = "codegen-fmt")]
+// #[cfg(feature = "codegen-fmt")]
 fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
     println!("Format {} generated files...", out_files.len());
 
@@ -111,9 +120,9 @@ fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
 
     println!("Rustfmt completed.");
 }
-
-#[cfg(not(feature = "codegen-fmt"))]
-fn rustfmt_if_needed(_out_files: Vec<PathBuf>) {}
+//
+// #[cfg(not(feature = "codegen-fmt"))]
+// fn rustfmt_if_needed(_out_files: Vec<PathBuf>) {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared utility types
@@ -173,11 +182,20 @@ struct GeneratedClass {
     has_pub_module: bool,
 }
 
-struct GeneratedModule {
+struct GeneratedBuiltin {
+    tokens: TokenStream,
+}
+
+struct GeneratedClassModule {
     class_ident: Ident,
     module_ident: Ident,
     inherits_macro_ident: Ident,
     is_pub: bool,
+}
+
+struct GeneratedBuiltinModule {
+    class_ident: Ident,
+    module_ident: Ident,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

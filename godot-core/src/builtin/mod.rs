@@ -64,3 +64,23 @@ pub use vector3::*;
 pub use vector3i::*;
 pub use vector4::*;
 pub use vector4i::*;
+
+#[doc(hidden)]
+pub mod inner {
+    #[cfg(not(gdext_test))]
+    pub use crate::gen::builtin_classes::*;
+}
+
+// pub struct PackedArray<T> {
+// 	_phantom: std::marker::PhantomData<T>
+// }
+//
+// pub type PackedByteArray = PackedArray<u8>;
+// pub type PackedInt32Array = PackedArray<i32>;
+// pub type PackedInt64Array = PackedArray<i64>;
+// pub type PackedFloat32Array = PackedArray<f32>;
+// pub type PackedFloat64Array = PackedArray<f64>;
+// pub type PackedStringArray = PackedArray<GodotString>;
+// pub type PackedVector2Array = PackedArray<Vector2>;
+// pub type PackedVector3Array = PackedArray<Vector3>;
+// pub type PackedColorArray = PackedArray<Color>;

@@ -8,7 +8,7 @@ use quote::quote;
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::class_generator::make_function_definition;
+use crate::class_generator::make_utility_function_definition;
 use crate::Context;
 
 pub(crate) fn generate_utilities_file(
@@ -21,7 +21,7 @@ pub(crate) fn generate_utilities_file(
     for utility_fn in &api.utility_functions {
         // note: category unused -> could be their own mod
 
-        let def = make_function_definition(utility_fn, ctx);
+        let def = make_utility_function_definition(utility_fn, ctx);
         utility_fn_defs.push(def);
     }
 
@@ -30,6 +30,7 @@ pub(crate) fn generate_utilities_file(
         use crate::builtin::*;
         use crate::obj::Gd;
         use crate::engine::Object;
+        use sys::GodotFfi as _;
 
         #(#utility_fn_defs)*
     };
