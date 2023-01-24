@@ -41,6 +41,9 @@ In your Cargo.toml, add:
 ```toml
 [dependencies]
 godot = { git = "https://github.com/godot-rust/gdextension", branch = "master" }
+
+[lib]
+crate-type = ["cdylib"]
 ```
 To get the latest changes, you can regularly run a `cargo update` (possibly breaking). Keep your `Cargo.lock` file under version control, so that it's easy to revert updates.
 
