@@ -141,6 +141,7 @@ mod impls {
     impl_variant_traits!(Color, color_to_variant, color_from_variant, Color);
     impl_variant_traits!(GodotString, string_to_variant, string_from_variant, String);
     impl_variant_traits!(StringName, string_name_to_variant, string_name_from_variant, StringName);
+    impl_variant_traits!(Array, array_to_variant, array_from_variant, Array);
 
 
     impl_variant_traits!(i64, int_to_variant, int_from_variant, Int, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
