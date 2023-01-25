@@ -101,7 +101,7 @@ impl Variant {
     }
 
     #[allow(unused_mut)]
-    fn stringify(&self) -> GodotString {
+    pub(crate) fn stringify(&self) -> GodotString {
         let mut result = GodotString::new();
         unsafe {
             interface_fn!(variant_stringify)(self.var_sys(), result.string_sys());

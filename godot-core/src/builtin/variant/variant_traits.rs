@@ -40,7 +40,7 @@ pub trait ToVariant {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct VariantConversionError;
 /*pub enum VariantConversionError {
     /// Variant type does not match expected type
