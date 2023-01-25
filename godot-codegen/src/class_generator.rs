@@ -6,13 +6,13 @@
 
 //! Generates a file for each Godot engine + builtin class
 
-use proc_macro2::{Ident, Literal, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
-use crate::util::{ident, safe_ident, strlit, to_module_name, to_rust_type};
+use crate::util::{ident, make_class_name, make_module_name, safe_ident, to_pascal_case, to_rust_type};
 use crate::{
     special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
     GeneratedClassModule, RustTy,
@@ -39,19 +39,18 @@ pub(crate) fn generate_class_files(
             continue;
         }
 
-        let generated_class = make_class(class, ctx);
+        let rust_class = make_class_name(&class.name);
+        let rust_module = make_module_name(&class.name);
+        let generated_class = make_class(class, &rust_class, ctx);
         let file_contents = generated_class.tokens.to_string();
 
-        let module_name = to_module_name(&class.name);
-        let out_path = gen_path.join(format!("{module_name}.rs"));
+        let out_path = gen_path.join(format!("{rust_module}.rs"));
         std::fs::write(&out_path, file_contents).expect("failed to write class file");
         out_files.push(out_path);
 
-        let class_ident = ident(&class.name);
-        let module_ident = ident(&module_name);
         modules.push(GeneratedClassModule {
-            class_ident,
-            module_ident,
+            class_ident: rust_class,
+            module_ident: rust_module,
             inherits_macro_ident: generated_class.inherits_macro_ident,
             is_pub: generated_class.has_pub_module,
         });
@@ -87,13 +86,12 @@ pub(crate) fn generate_builtin_class_files(
         let inner_class = format_ident!("Inner{}", class.name);
         let generated_class = make_builtin_class(class, &inner_class, type_info, ctx);
         let file_contents = generated_class.tokens.to_string();
+        let module_ident = make_module_name(&class.name);
 
-        let module_name = to_module_name(&class.name);
-        let out_path = gen_path.join(format!("{module_name}.rs"));
+        let out_path = gen_path.join(format!("{module_ident}.rs"));
         std::fs::write(&out_path, file_contents).expect("failed to write class file");
         out_files.push(out_path);
 
-        let module_ident = ident(&module_name);
         modules.push(GeneratedBuiltinModule {
             class_ident: inner_class,
             module_ident,
@@ -106,8 +104,9 @@ pub(crate) fn generate_builtin_class_files(
     out_files.push(out_path);
 }
 
-fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> TokenStream {
-    if ctx.is_singleton(&class.name) {
+fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
+    let godot_class_name = &class.name;
+    if ctx.is_singleton(godot_class_name) {
         // Note: we cannot return &'static mut Self, as this would be very easy to mutably alias.
         // &'static Self would be possible, but we would lose the whole mutability information (even if that
         // is best-effort and not strict Rust mutability, it makes the API much more usable).
@@ -116,7 +115,7 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
         quote! {
             pub fn singleton() -> Gd<Self> {
                 unsafe {
-                    let __class_name = StringName::from(#class_name_str);
+                    let __class_name = StringName::from(#godot_class_name);
                     let __object_ptr = sys::interface_fn!(global_get_singleton)(__class_name.string_sys());
                     Gd::from_obj_sys(__object_ptr)
                 }
@@ -130,7 +129,7 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
         quote! {
             pub fn new() -> Gd<Self> {
                 unsafe {
-                    let __class_name = StringName::from(#class_name_str);
+                    let __class_name = StringName::from(#godot_class_name);
                     let __object_ptr = sys::interface_fn!(classdb_construct_object)(__class_name.string_sys());
                     //let instance = Self { object_ptr };
                     Gd::from_obj_sys(__object_ptr)
@@ -143,7 +142,7 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
             #[must_use]
             pub fn new_alloc() -> Gd<Self> {
                 unsafe {
-                    let __class_name = StringName::from(#class_name_str);
+                    let __class_name = StringName::from(#godot_class_name);
                     let __object_ptr = sys::interface_fn!(classdb_construct_object)(__class_name.string_sys());
                     Gd::from_obj_sys(__object_ptr)
                 }
@@ -152,27 +151,28 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
     }
 }
 
-fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
-    //let sys = TokenStream::from_str("::godot_ffi");
+fn make_class(class: &Class, rust_class:&Ident, ctx: &mut Context) -> GeneratedClass {
+    // Strings
+    let godot_class_name = &class.name;
+
+    // Idents and tokens
     let base = match class.inherits.as_ref() {
         Some(base) => {
-            let base = ident(base);
+            let base = ident(&to_pascal_case(base));
             quote! { crate::engine::#base }
         }
         None => quote! { () },
     };
 
-    let name = ident(&class.name);
-    let name_str = strlit(&class.name);
+    let constructor = make_constructor(class, ctx);
+    let methods = make_methods(&class.methods, &godot_class_name, ctx);
+    let enums = make_enums(&class.enums, &godot_class_name, ctx);
+    let inherits_macro = format_ident!("inherits_transitive_{}", rust_class);
+    let all_bases = ctx
+        .inheritance_tree()
+        .collect_all_bases(rust_class);
 
-    let constructor = make_constructor(class, ctx, &name_str);
-
-    let methods = make_methods(&class.methods, &class.name, ctx);
-    let enums = make_enums(&class.enums, &class.name, ctx);
-    let inherits_macro = format_ident!("inherits_transitive_{}", &class.name);
-    let all_bases = ctx.inheritance_tree().map_all_bases(&class.name, ident);
-
-    let memory = if &class.name == "Object" {
+    let memory = if rust_class == "Object" {
         ident("DynamicRefCount")
     } else if class.is_refcounted {
         ident("StaticRefCount")
@@ -193,21 +193,21 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
 
             #[derive(Debug)]
             #[repr(transparent)]
-            pub struct #name {
+            pub struct #rust_class {
                 object_ptr: sys::GDExtensionObjectPtr,
             }
-            impl #name {
+            impl #rust_class {
                 #constructor
                 #methods
             }
-            impl crate::obj::GodotClass for #name {
+            impl crate::obj::GodotClass for #rust_class {
                 type Base = #base;
                 type Declarer = crate::obj::dom::EngineDomain;
                 type Mem = crate::obj::mem::#memory;
 
-                const CLASS_NAME: &'static str = #name_str;
+                const CLASS_NAME: &'static str = #godot_class_name;
             }
-            impl crate::obj::EngineClass for #name {
+            impl crate::obj::EngineClass for #rust_class {
                  fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr {
                      self.object_ptr
                  }
@@ -216,9 +216,9 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
                  }
             }
             #(
-                impl crate::obj::Inherits<crate::engine::#all_bases> for #name {}
+                impl crate::obj::Inherits<crate::engine::#all_bases> for #rust_class {}
             )*
-            impl std::ops::Deref for #name {
+            impl std::ops::Deref for #rust_class {
                 type Target = #base;
 
                 fn deref(&self) -> &Self::Target {
@@ -226,7 +226,7 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
                     unsafe { std::mem::transmute::<&Self, &Self::Target>(self) }
                 }
             }
-            impl std::ops::DerefMut for #name {
+            impl std::ops::DerefMut for #rust_class {
                 fn deref_mut(&mut self) -> &mut Self::Target {
                     // SAFETY: see above
                     unsafe { std::mem::transmute::<&mut Self, &mut Self::Target>(self) }
@@ -237,7 +237,7 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
             #[allow(non_snake_case)]
             macro_rules! #inherits_macro {
                 ($Class:ident) => {
-                    impl ::godot::obj::Inherits<::godot::engine::#name> for $Class {}
+                    impl ::godot::obj::Inherits<::godot::engine::#rust_class> for $Class {}
                     #(
                         impl ::godot::obj::Inherits<::godot::engine::#all_bases> for $Class {}
                     )*
@@ -371,7 +371,7 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
 
 fn make_methods(
     methods: &Option<Vec<ClassMethod>>,
-    class_name: &str,
+    godot_class_name: &str,
     ctx: &mut Context,
 ) -> TokenStream {
     let methods = match methods {
@@ -381,7 +381,7 @@ fn make_methods(
 
     let definitions = methods
         .iter()
-        .map(|method| make_method_definition(method, class_name, ctx));
+        .map(|method| make_method_definition(method, godot_class_name, ctx));
 
     quote! {
         #( #definitions )*
@@ -496,10 +496,11 @@ fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
 
 fn make_method_definition(
     method: &ClassMethod,
-    class_name: &str,
+    godot_class_name: &str,
     ctx: &mut Context,
 ) -> TokenStream {
-    if is_method_excluded(method, ctx) || special_cases::is_deleted(class_name, &method.name) {
+    if is_method_excluded(method, ctx) || special_cases::is_deleted(godot_class_name, &method.name)
+    {
         return TokenStream::new();
     }
     /*if method.map_args(|args| args.is_empty()) {
@@ -513,7 +514,7 @@ fn make_method_definition(
         }
     }*/
 
-    let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
+    let method_name_str = special_cases::maybe_renamed(godot_class_name, &method.name);
     let receiver = if method.is_const {
         quote! { &self, }
     } else {
@@ -530,7 +531,7 @@ fn make_method_definition(
     };
 
     let init_code = quote! {
-        let __class_name = StringName::from(#class_name);
+        let __class_name = StringName::from(#godot_class_name);
         let __method_name = StringName::from(#method_name_str);
         let __method_bind = sys::interface_fn!(classdb_get_method_bind)(
             __class_name.string_sys(),
@@ -548,7 +549,7 @@ fn make_method_definition(
 
     make_function_definition(
         method_name_str,
-        special_cases::is_private(class_name, &method.name),
+        special_cases::is_private(godot_class_name, &method.name),
         receiver,
         &method.arguments,
         method.return_value.as_ref(),

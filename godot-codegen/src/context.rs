@@ -6,6 +6,8 @@
 
 use crate::{ExtensionApi, RustTy};
 use std::collections::{HashMap, HashSet};
+use proc_macro2::Ident;
+use crate::util::make_class_name;
 
 #[derive(Default)]
 pub(crate) struct Context<'a> {
@@ -18,6 +20,7 @@ pub(crate) struct Context<'a> {
 
 impl<'a> Context<'a> {
     pub fn build_from_api(api: &'a ExtensionApi) -> Self {
+        // TODO possibly add a data structure containing both Godot JSON ident and Rust mapped one
         let mut ctx = Context::default();
 
         for class in api.singletons.iter() {
@@ -44,7 +47,7 @@ impl<'a> Context<'a> {
             if let Some(base) = class.inherits.as_ref() {
                 println!("  -- inherits {base}");
                 ctx.inheritance_tree
-                    .insert(class_name.to_string(), base.clone());
+                    .insert(make_class_name(class_name), make_class_name(base));
             }
         }
         ctx
@@ -76,23 +79,24 @@ impl<'a> Context<'a> {
     }
 }
 
+/// Maintains class hierarchy. Uses Rust class names, not Godot ones.
 #[derive(Default)]
 pub(crate) struct InheritanceTree {
-    derived_to_base: HashMap<String, String>,
+    derived_to_base: HashMap<Ident, Ident>,
 }
 
 impl InheritanceTree {
-    pub fn insert(&mut self, derived: String, base: String) {
-        let existing = self.derived_to_base.insert(derived, base);
+    pub fn insert(&mut self, rust_derived: Ident, rust_base: Ident) {
+        let existing = self.derived_to_base.insert(rust_derived, rust_base);
         assert!(existing.is_none(), "Duplicate inheritance insert");
     }
 
-    pub fn map_all_bases<T>(&self, derived: &str, apply: impl Fn(&str) -> T) -> Vec<T> {
-        let mut maybe_base = derived;
+    pub fn collect_all_bases(&self, rust_derived: &Ident) -> Vec<Ident> {
+        let mut maybe_base = rust_derived;
         let mut result = vec![];
 
-        while let Some(base) = self.derived_to_base.get(maybe_base).map(String::as_str) {
-            result.push(apply(base));
+        while let Some(base) = self.derived_to_base.get(maybe_base) {
+            result.push(base.clone());
             maybe_base = base;
         }
         result
