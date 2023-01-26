@@ -10,6 +10,8 @@ use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
+use super::{FromVariant, ToVariant, Variant, VariantConversionError};
+
 #[repr(C, align(8))]
 pub struct GodotString {
     opaque: OpaqueString,
@@ -144,6 +146,24 @@ impl fmt::Debug for GodotString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = String::from(self);
         write!(f, "GodotString(\"{s}\")")
+    }
+}
+
+impl ToVariant for &str {
+    fn to_variant(&self) -> Variant {
+        GodotString::from(*self).to_variant()
+    }
+}
+
+impl ToVariant for String {
+    fn to_variant(&self) -> Variant {
+        GodotString::from(self).to_variant()
+    }
+}
+
+impl FromVariant for String {
+    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+        Ok(GodotString::try_from_variant(variant)?.to_string())
     }
 }
 
