@@ -37,6 +37,7 @@ mod vector_macros;
 
 mod arrays;
 mod color;
+mod dictionary;
 mod node_path;
 mod others;
 mod packed_array;
@@ -54,6 +55,7 @@ pub mod meta;
 
 pub use arrays::*;
 pub use color::*;
+pub use dictionary::*;
 pub use node_path::*;
 pub use others::*;
 pub use packed_array::*;

@@ -15,6 +15,7 @@ use std::panic::UnwindSafe;
 mod array_test;
 mod base_test;
 mod builtin_test;
+mod dictionary_test;
 mod enum_test;
 mod export_test;
 mod gdscript_ffi_test;
@@ -40,6 +41,7 @@ fn run_tests() -> bool {
     ok &= string_test::run();
     ok &= array_test::run();
     ok &= packed_array_test::run();
+    ok &= dictionary_test::run();
     ok &= utilities_test::run();
     ok &= variant_test::run();
     ok &= virtual_methods_test::run();
