@@ -6,6 +6,7 @@
 
 use crate::{expect_panic, itest};
 use godot::builtin::{Array, FromVariant, GodotString, ToVariant};
+use godot::prelude::Share;
 
 pub fn run() -> bool {
     let mut ok = true;
@@ -14,10 +15,13 @@ pub fn run() -> bool {
     ok &= array_from_iterator();
     ok &= array_from();
     ok &= array_try_to_vec();
-    ok &= array_into_iterator();
-    ok &= array_clone();
-    // ok &= array_duplicate_deep();
+    ok &= array_iter_shared();
     ok &= array_hash();
+    ok &= array_share();
+    ok &= array_duplicate_shallow();
+    ok &= array_duplicate_deep();
+    ok &= array_slice_shallow();
+    ok &= array_slice_deep();
     ok &= array_get();
     ok &= array_first_last();
     ok &= array_binary_search();
@@ -69,24 +73,12 @@ fn array_try_to_vec() {
 }
 
 #[itest]
-fn array_into_iterator() {
+fn array_iter_shared() {
     let array = Array::from(&[1, 2]);
-    let mut iter = array.into_iter();
+    let mut iter = array.iter_shared();
     assert_eq!(iter.next(), Some(1.to_variant()));
     assert_eq!(iter.next(), Some(2.to_variant()));
     assert_eq!(iter.next(), None);
-}
-
-#[itest]
-fn array_clone() {
-    let subarray = Array::from(&[2, 3]);
-    let array = Array::from(&[1.to_variant(), subarray.to_variant()]);
-    #[allow(clippy::redundant_clone)]
-    let clone = array.clone();
-    Array::try_from_variant(&clone.get(1))
-        .unwrap()
-        .set(0, 4.to_variant());
-    assert_eq!(subarray.get(0), 4.to_variant());
 }
 
 #[itest]
@@ -96,15 +88,65 @@ fn array_hash() {
     array.hash();
 }
 
-// TODO: enable once the implementation no longer segfaults
-// #[itest]
-// fn array_duplicate_deep() {
-//     let subarray = Array::from(&[2, 3]);
-//     let array = Array::from(&[1.to_variant(), subarray.to_variant()]);
-//     let mut clone = array.duplicate_deep();
-//     Array::try_from_variant(clone.get(1)).unwrap().set(0, 4.to_variant());
-//     assert_eq!(subarray.get(0), 3.to_variant());
-// }
+#[itest]
+fn array_share() {
+    let mut array = Array::from(&[1, 2]);
+    let shared = array.share();
+    array.set(0, 3.to_variant());
+    assert_eq!(shared.get(0), 3.to_variant());
+}
+
+#[itest]
+fn array_duplicate_shallow() {
+    let subarray = Array::from(&[2, 3]);
+    let array = Array::from(&[1.to_variant(), subarray.to_variant()]);
+    let duplicate = array.duplicate_shallow();
+    Array::try_from_variant(&duplicate.get(1))
+        .unwrap()
+        .set(0, 4.to_variant());
+    assert_eq!(subarray.get(0), 4.to_variant());
+}
+
+#[itest]
+fn array_duplicate_deep() {
+    let subarray = Array::from(&[2, 3]);
+    let array = Array::from(&[1.to_variant(), subarray.to_variant()]);
+    let duplicate = array.duplicate_deep();
+    Array::try_from_variant(&duplicate.get(1))
+        .unwrap()
+        .set(0, 4.to_variant());
+    assert_eq!(subarray.get(0), 2.to_variant());
+}
+
+#[itest]
+fn array_slice_shallow() {
+    let array = Array::from(&[0, 1, 2, 3, 4, 5]);
+    let slice = array.slice_shallow(5, 1, Some(-2));
+    assert_eq!(slice.try_to_vec::<i64>().unwrap(), vec![5, 3]);
+
+    let subarray = Array::from(&[2, 3]);
+    let array = Array::from(&[1.to_variant(), subarray.to_variant()]);
+    let slice = array.slice_shallow(1, 2, None);
+    Array::try_from_variant(&slice.get(0))
+        .unwrap()
+        .set(0, 4.to_variant());
+    assert_eq!(subarray.get(0), 4.to_variant());
+}
+
+#[itest]
+fn array_slice_deep() {
+    let array = Array::from(&[0, 1, 2, 3, 4, 5]);
+    let slice = array.slice_deep(5, 1, Some(-2));
+    assert_eq!(slice.try_to_vec::<i64>().unwrap(), vec![5, 3]);
+
+    let subarray = Array::from(&[2, 3]);
+    let array = Array::from(&[1.to_variant(), subarray.to_variant()]);
+    let slice = array.slice_deep(1, 2, None);
+    Array::try_from_variant(&slice.get(0))
+        .unwrap()
+        .set(0, 4.to_variant());
+    assert_eq!(subarray.get(0), 2.to_variant());
+}
 
 #[itest]
 fn array_get() {

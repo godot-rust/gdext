@@ -7,6 +7,7 @@
 use godot_ffi as sys;
 
 use crate::builtin::{inner, FromVariant, ToVariant, Variant, VariantConversionError};
+use crate::obj::Share;
 use std::fmt;
 use std::marker::PhantomData;
 use sys::types::*;
@@ -19,7 +20,15 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 ///
 /// Unlike GDScript, all indices and sizes are unsigned, so negative indices are not supported.
 ///
-/// # Safety
+/// # Reference semantics
+///
+/// Like in GDScript, `Array` acts as a reference type: multiple `Array` instances may refer to the
+/// same underlying array, and changes to one are visible in the other.
+///
+/// To create a copy that shares data with the original array, use [`Share::share()`]. If you want
+/// to create a copy of the data, use [`duplicate_shallow()`] or [`duplicate_deep()`].
+///
+/// # Thread safety
 ///
 /// Usage is safe if the `Array` is used on a single thread only. Concurrent reads on different
 /// threads are also safe, but any writes must be externally synchronized. The Rust compiler will
@@ -112,12 +121,15 @@ impl Array {
         Ok(vec)
     }
 
-    /// Implements iteration over an `Array` by reference, but returns (cheap) copies of the
-    /// `Variant`s in the array.
-    pub fn iter(&self) -> ArrayIterator<'_> {
+    /// Returns an iterator over the `Array` by reference. Instead of references to elements as you
+    /// might expect, the iterator returns a (cheap, shallow) copy of each element.
+    ///
+    /// Notice that it's possible to modify the `Array` through another reference while iterating
+    /// over it. This will not result in unsoundness or crashes, but will cause the iterator to
+    /// behave in an unspecified way.
+    pub fn iter_shared(&self) -> ArrayIterator<'_> {
         ArrayIterator {
-            start: self.ptr(0),
-            len: self.len(),
+            array: self,
             next_idx: 0,
             _phantom: PhantomData,
         }
@@ -135,15 +147,68 @@ impl Array {
         self.as_inner().resize(to_i64(size));
     }
 
-    // TODO: find out why this segfaults (even on an empty array, regardless of deep = true/false)
-    // /// Returns a deep copy of the array. All nested arrays and dictionaries are duplicated and
-    // /// will not be shared with the original array. Note that any `Object`-derived elements will
-    // /// still be shallow copied.
-    // ///
-    // /// To create a shallow copy, use `clone()` instead.
-    // pub fn duplicate_deep(&self) -> Self {
-    //     self.as_inner().duplicate(true)
-    // }
+    /// Returns a shallow copy of the array. All array elements are copied, but any reference types
+    /// (such as `Array`, `Dictionary` and `Object`) will still refer to the same value.
+    ///
+    /// To create a deep copy, use [`duplicate_deep()`] instead. To create a new reference to the
+    /// same array data, use [`share()`].
+    pub fn duplicate_shallow(&self) -> Self {
+        self.as_inner().duplicate(false)
+    }
+
+    /// Returns a deep copy of the array. All nested arrays and dictionaries are duplicated and
+    /// will not be shared with the original array. Note that any `Object`-derived elements will
+    /// still be shallow copied.
+    ///
+    /// To create a shallow copy, use [`duplicate_shallow()`] instead. To create a new reference to
+    /// the same array data, use [`share()`].
+    pub fn duplicate_deep(&self) -> Self {
+        self.as_inner().duplicate(true)
+    }
+
+    /// Returns the slice of the `Array`, from `begin` (inclusive) to `end` (exclusive), as a new
+    /// `Array`.
+    ///
+    /// The values of `begin` and `end` will be clamped to the array size.
+    ///
+    /// If specified, `step` is the relative index between source elements. It can be negative,
+    /// in which case `begin` must be higher than `end`. For example,
+    /// `Array::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
+    ///
+    /// Array elements are copied to the slice, but any reference types (such as `Array`,
+    /// `Dictionary` and `Object`) will still refer to the same value. To create a deep copy, use
+    /// [`slice_deep()`] instead.
+    pub fn slice_shallow(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
+        assert_ne!(step, Some(0));
+        let len = self.len();
+        let begin = begin.min(len);
+        let end = end.min(len);
+        let step = step.unwrap_or(1);
+        self.as_inner()
+            .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), false)
+    }
+
+    /// Returns the slice of the `Array`, from `begin` (inclusive) to `end` (exclusive), as a new
+    /// `Array`.
+    ///
+    /// The values of `begin` and `end` will be clamped to the array size.
+    ///
+    /// If specified, `step` is the relative index between source elements. It can be negative,
+    /// in which case `begin` must be higher than `end`. For example,
+    /// `Array::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
+    ///
+    /// All nested arrays and dictionaries are duplicated and will not be shared with the original
+    /// array. Note that any `Object`-derived elements will still be shallow copied. To create a
+    /// shallow copy, use [`slice_shallow()`] instead.
+    pub fn slice_deep(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
+        let len = self.len();
+        let begin = begin.min(len);
+        let end = end.min(len);
+        let step = step.unwrap_or(1);
+        assert!(step != 0);
+        self.as_inner()
+            .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), true)
+    }
 
     /// Returns the value at the specified index as a `Variant`. To convert to a specific type, use
     /// the available conversion methods on `Variant`, such as [`Variant::try_to`] or
@@ -364,36 +429,52 @@ impl Array {
         );
     }
 
+    /// Returns a pointer to the element at the given index.
+    ///
+    /// # Panics
+    ///
+    /// If `index` is out of bounds.
     fn ptr(&self, index: usize) -> *const Variant {
-        if self.is_empty() {
-            std::ptr::null()
-        } else {
-            self.check_bounds(index);
-            // SAFETY: We just checked that the index is not out of bounds.
-            let ptr = unsafe {
-                let item_ptr: sys::GDExtensionVariantPtr =
-                    (interface_fn!(array_operator_index_const))(self.sys(), to_i64(index));
-                item_ptr as *const Variant
-            };
-            assert!(!ptr.is_null());
-            ptr
-        }
+        self.check_bounds(index);
+        // SAFETY: We just checked that the index is not out of bounds.
+        let ptr = unsafe { self.ptr_unchecked(index) };
+        assert!(!ptr.is_null());
+        ptr
     }
 
+    /// Returns a mutable pointer to the element at the given index.
+    ///
+    /// # Panics
+    ///
+    /// If `index` is out of bounds.
     fn ptr_mut(&self, index: usize) -> *mut Variant {
-        if self.is_empty() {
-            std::ptr::null_mut()
-        } else {
-            self.check_bounds(index);
-            // SAFETY: We just checked that the index is not out of bounds.
-            let ptr = unsafe {
-                let item_ptr: sys::GDExtensionVariantPtr =
-                    (interface_fn!(array_operator_index))(self.sys(), to_i64(index));
-                item_ptr as *mut Variant
-            };
-            assert!(!ptr.is_null());
-            ptr
-        }
+        self.check_bounds(index);
+        // SAFETY: We just checked that the index is not out of bounds.
+        let ptr = unsafe { self.ptr_mut_unchecked(index) };
+        assert!(!ptr.is_null());
+        ptr
+    }
+
+    /// Returns a pointer to the element at the given index.
+    ///
+    /// # Safety
+    ///
+    /// Calling this with an out-of-bounds index is undefined behavior.
+    unsafe fn ptr_unchecked(&self, index: usize) -> *const Variant {
+        let item_ptr: sys::GDExtensionVariantPtr =
+            (interface_fn!(array_operator_index_const))(self.sys(), to_i64(index));
+        item_ptr as *const Variant
+    }
+
+    /// Returns a mutable pointer to the element at the given index.
+    ///
+    /// # Safety
+    ///
+    /// Calling this with an out-of-bounds index is undefined behavior.
+    unsafe fn ptr_mut_unchecked(&self, index: usize) -> *mut Variant {
+        let item_ptr: sys::GDExtensionVariantPtr =
+            (interface_fn!(array_operator_index))(self.sys(), to_i64(index));
+        item_ptr as *mut Variant
     }
 
     #[doc(hidden)]
@@ -456,31 +537,24 @@ impl<T: ToVariant> Extend<T> for Array {
     }
 }
 
-/// See [`Array::iter()`].
-#[cfg(not(any(gdext_test, doctest)))]
-impl<'a> IntoIterator for &'a Array {
-    type Item = Variant;
-    type IntoIter = ArrayIterator<'a>;
-    fn into_iter(self) -> Self::IntoIter {
-        self.iter()
-    }
-}
-
 pub struct ArrayIterator<'a> {
-    start: *const Variant,
-    len: usize,
+    array: &'a Array,
     next_idx: usize,
     _phantom: PhantomData<&'a Array>,
 }
 
+#[cfg(not(any(gdext_test, doctest)))]
 impl<'a> Iterator for ArrayIterator<'a> {
     type Item = Variant;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.next_idx < self.len {
-            let offset = to_isize(self.next_idx);
+        if self.next_idx < self.array.len() {
+            let idx = self.next_idx;
             self.next_idx += 1;
-            unsafe { Some((*self.start.offset(offset)).clone()) }
+            // Using `ptr_unchecked` rather than going through `get()` so we can avoid a second
+            // bounds check.
+            // SAFETY: We just checked that the index is not out of bounds.
+            Some(unsafe { (*self.array.ptr_unchecked(idx)).clone() })
         } else {
             None
         }
@@ -494,16 +568,46 @@ impl fmt::Debug for Array {
     }
 }
 
+/// Creates a new reference to the data in this array. Changes to the original array will be
+/// reflected in the copy and vice versa.
+///
+/// To create a (mostly) independent copy instead, see [`Array::duplicate_shallow()`] and
+/// [`Array::duplicate_deep()`].
+impl Share for Array {
+    fn share(&self) -> Self {
+        unsafe {
+            Self::from_sys_init(|self_ptr| {
+                let ctor = ::godot_ffi::builtin_fn!(array_construct_copy);
+                let args = [self.sys_const()];
+                ctor(self_ptr, args.as_ptr());
+            })
+        }
+    }
+}
+
 impl_builtin_traits! {
     for Array {
         Default => array_construct_default;
-        Clone => array_construct_copy;
         Drop => array_destroy;
     }
 }
 
 impl GodotFfi for Array {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+    ffi_methods! {
+        type sys::GDExtensionTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn write_sys;
+    }
+
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+        // Can't use uninitialized pointer -- Array CoW implementation in C++ expects that on
+        // assignment, the target CoW pointer is either initialized or nullptr
+
+        let mut result = Self::default();
+        init_fn(result.sys_mut());
+        result
+    }
 }
 
 fn to_i64(i: usize) -> i64 {
