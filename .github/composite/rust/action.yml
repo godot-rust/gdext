@@ -10,13 +10,20 @@ inputs:
     required: false
     description: "Rust toolchain, e.g. 'stable' or 'nightly'"
     default: stable
+
   components:
     required: false
     description: "Components array"
     default: ''
+
   cache-key:
     required: false
     description: "Extra key to resolve cache"
+    default: ''
+
+  with-llvm:
+    required: false
+    description: "Set to 'true' if LLVM should be installed"
     default: ''
 
 runs:
@@ -40,6 +47,10 @@ runs:
       uses: Swatinem/rust-cache@v2
       with:
         shared-key: ${{ inputs.cache-key }}
+
+    - name: "Install LLVM"
+      uses: ./.github/composite/llvm
+      if: ${{ inputs.with-llvm == 'true' }}
 
     - name: "Set environment variables used by toolchain"
       run: |

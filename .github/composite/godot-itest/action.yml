@@ -24,39 +24,27 @@ inputs:
     default: ''
     description: "Extra command line arguments for 'cargo build', e.g. features"
 
+  with-llvm:
+    required: false
+    description: "Set to 'true' if LLVM should be installed"
+    default: ''
+
 
 runs:
   using: "composite"
   steps:
     - uses: actions/checkout@v3
 
-    # Replaces also backspaces on Windows, since they cause problems in Bash
-    - name: "Store variable to Godot binary"
-      run: |
-        runnerDir=$(echo "${{ runner.temp }}" | sed "s!\\\\!/!")
-        echo "RUNNER_DIR=$runnerDir" >> $GITHUB_ENV
-        echo "GODOT4_BIN=$runnerDir/godot_bin/${{ inputs.binary-filename }}" >> $GITHUB_ENV
-      shell: bash
-
-#    - name: "Check cache for installed Godot version"
-#      id: "cache-godot"
-#      uses: actions/cache@v3
-#      with:
-#        path: ${{ runner.temp }}/godot_bin
-#        key: ${{ inputs.artifact-name }}-v${{ inputs.godot-ver }}
-
-    - name: "Download Godot artifact"
-#      if: steps.cache-godot.outputs.cache-hit != 'true'
-      run: |
-        curl https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot/master/${{ inputs.artifact-name }}.zip -Lo artifact.zip
-        unzip artifact.zip -d $RUNNER_DIR/godot_bin
-      shell: bash
+    - name: "Install Godot"
+      uses: ./.github/composite/godot-install
+      with:
+        artifact-name: ${{ inputs.artifact-name }}
+        binary-filename: ${{ inputs.binary-filename }}
 
     # The chmod seems still necessary, although applied before uploading artifact. Possibly modes are not preserved.
     # The `| xargs` pattern trims the output, since printed version may contain extra newline, which causes problems in env vars.
     - name: "Inspect Godot version"
       run: |
-        chmod +x $GODOT4_BIN
         godotVer=$($GODOT4_BIN --version | xargs || true)
         gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
         echo "GODOT_BUILT_FROM=_Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)._" >> $GITHUB_ENV
@@ -89,10 +77,7 @@ runs:
       uses: ./.github/composite/rust
       with:
         rust: ${{ inputs.rust-toolchain }}
-
-    - name: "Install LLVM"
-      uses: ./.github/composite/llvm
-      # TODO only run it on systems needed
+        with-llvm: ${{ inputs.with-llvm }}
 
     - name: "Build godot-rust"
       run: |

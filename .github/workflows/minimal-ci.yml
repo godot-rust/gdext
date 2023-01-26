@@ -15,16 +15,16 @@ on:
 
 env:
   GDEXT_FEATURES: 'godot-core/convenience'
-  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
+#  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
 
 defaults:
   run:
     shell: bash
 
 # If a new commit is pushed before the old one's CI has completed (on the same branch), abort previous run
-#concurrency:
-#  group: ${{ github.head_ref }}
-#  cancel-in-progress: true
+concurrency:
+  group: ${{ github.head_ref }}
+  cancel-in-progress: true
 
 jobs:
   rustfmt:
@@ -52,31 +52,14 @@ jobs:
 
       # TODO get rid of Godot binary, once the JSON is either versioned or fetched from somewhere
       # Replaces also backspaces on Windows, since they cause problems in Bash
-      - name: "Store variable to Godot binary"
-        run: |
-          runnerDir=$(echo "${{ runner.temp }}" | sed "s!\\\\!/!")
-          echo "RUNNER_DIR=$runnerDir" >> $GITHUB_ENV
-          echo "GODOT4_BIN=$runnerDir/godot_bin/godot.linuxbsd.editor.dev.x86_64" >> $GITHUB_ENV
-
-#      - name: "Check cache for installed Godot version"
-#        id: "cache-godot"
-#        uses: actions/cache@v3
-#        with:
-#          path: ${{ runner.temp }}/godot_bin
-#          key: ${{ inputs.artifact-name }}-v${{ inputs.godot-ver }}
-
-      - name: "Download Godot artifact"
-#        if: steps.cache-godot.outputs.cache-hit != 'true'
-        run: |
-          curl https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot/master/godot-linux.zip -Lo artifact.zip
-          unzip artifact.zip -d $RUNNER_DIR/godot_bin
-
-      - name: "Prepare Godot executable"
-        run: |
-          chmod +x $GODOT4_BIN
+      - name: "Install Godot"
+        uses: ./.github/composite/godot-install
+        with:
+          artifact-name: godot-linux
+          binary-filename: godot.linuxbsd.editor.dev.x86_64
 
       - name: "Check clippy"
-        run: cargo clippy --features $GDEXT_FEATURES $GDEXT_CRATE_ARGS -- --cfg gdext_clippy -D clippy::style -D clippy::complexity -D clippy::perf -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented
+        run: cargo clippy -- -D clippy::style -D clippy::complexity -D clippy::perf -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented
 
 
   unit-test:
@@ -88,26 +71,28 @@ jobs:
       - name: "Install Rust"
         uses: ./.github/composite/rust
 
+      - name: "Install Godot"
+        uses: ./.github/composite/godot-install
+        with:
+          artifact-name: godot-linux
+          binary-filename: godot.linuxbsd.editor.dev.x86_64
+
       - name: "Compile tests"
-        run: cargo test $GDEXT_CRATE_ARGS --features $GDEXT_FEATURES --no-run
-        env:
-          RUSTFLAGS: --cfg=gdext_test
+        run: cargo test $GDEXT_FEATURES --no-run
 
       - name: "Test"
-        run: cargo test $GDEXT_CRATE_ARGS --features $GDEXT_FEATURES
-        env:
-          RUSTFLAGS: --cfg=gdext_test
+        run: cargo test $GDEXT_FEATURES
 
 
-  itest-godot:
-    name: itest-godot
+  godot-itest:
+    name: godot-itest
     runs-on: ubuntu-20.04
     timeout-minutes: 24
     steps:
       - uses: actions/checkout@v3
 
       - name: "Run Godot integration test"
-        uses: ./.github/composite/godot
+        uses: ./.github/composite/godot-itest
         with:
           artifact-name: godot-linux
           binary-filename: godot.linuxbsd.editor.dev.x86_64

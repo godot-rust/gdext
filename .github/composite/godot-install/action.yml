@@ -1,0 +1,51 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: godot
+description: "Run Godot integration tests"
+
+inputs:
+  artifact-name:
+    required: true
+    description: "Name of the compiled Godot artifact to download"
+
+  binary-filename:
+    required: true
+    description: "Filename of the Godot executable"
+
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v3
+
+    # Replaces also backspaces on Windows, since they cause problems in Bash
+    - name: "Store variable to Godot binary"
+      run: |
+        runnerDir=$(echo "${{ runner.temp }}" | sed "s!\\\\!/!")
+        echo "RUNNER_DIR=$runnerDir" >> $GITHUB_ENV
+        echo "GODOT4_BIN=$runnerDir/godot_bin/${{ inputs.binary-filename }}" >> $GITHUB_ENV
+      shell: bash
+
+#    - name: "Check cache for installed Godot version"
+#      id: "cache-godot"
+#      uses: actions/cache@v3
+#      with:
+#        path: ${{ runner.temp }}/godot_bin
+#        key: ${{ inputs.artifact-name }}-v${{ inputs.godot-ver }}
+#      shell: bash
+
+    - name: "Download Godot artifact"
+#      if: steps.cache-godot.outputs.cache-hit != 'true'
+      run: |
+        curl https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot/master/${{ inputs.artifact-name }}.zip \
+          -Lo artifact.zip \
+          --retry 3
+        unzip artifact.zip -d $RUNNER_DIR/godot_bin
+      shell: bash
+
+    - name: "Prepare Godot executable"
+      run: |
+        chmod +x $GODOT4_BIN
+      shell: bash
