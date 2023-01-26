@@ -5,7 +5,7 @@
  */
 
 use crate::api_parser::Enum;
-use crate::{Context, RustTy};
+use crate::{Context, ModName, RustTy, TyName};
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 
@@ -97,14 +97,6 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
     }
 }
 
-pub fn make_module_name(godot_class_name: &str) -> Ident {
-    ident(&to_snake_case(godot_class_name))
-}
-
-pub fn make_class_name(godot_class_name: &str) -> Ident {
-    ident(&to_pascal_case(godot_class_name))
-}
-
 fn make_enum_name(enum_name: &str) -> Ident {
     // TODO clean up enum name
 
@@ -122,6 +114,7 @@ pub fn to_snake_case(class_name: &str) -> String {
     use heck::ToSnakeCase;
 
     // Special cases
+    #[allow(clippy::single_match)]
     match class_name {
         "JSONRPC" => return "json_rpc".to_string(),
         _ => {}
@@ -139,6 +132,7 @@ pub fn to_pascal_case(class_name: &str) -> String {
     use heck::ToPascalCase;
 
     // Special cases
+    #[allow(clippy::single_match)]
     match class_name {
         "JSONRPC" => return "JsonRpc".to_string(),
         _ => {}
@@ -194,6 +188,7 @@ fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
 /// Maps an _input_ type from the Godot JSON to the corresponding Rust type (wrapping some sort of a token stream).
 ///
 /// Uses an internal cache (via `ctx`), as several types are ubiquitous.
+// TODO take TyName as input
 pub(crate) fn to_rust_type(ty: &str, ctx: &mut Context<'_>) -> RustTy {
     // Separate find + insert slightly slower, but much easier with lifetimes
     // The insert path will be hit less often and thus doesn't matter
@@ -218,7 +213,7 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     if let Some(qualified_enum) = qualified_enum {
         return if let Some((class, enum_)) = qualified_enum.split_once('.') {
             // Class-local enum
-            let module = make_module_name(class);
+            let module = ModName::from_godot(class);
             let enum_ty = make_enum_name(enum_);
 
             RustTy::EngineEnum {
@@ -237,11 +232,11 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {
-            return RustTy::BuiltinIdent(make_class_name(&ty));
+            return RustTy::BuiltinIdent(TyName::from_godot(ty).rust_ty);
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
         if let Some(_packed_arr_ty) = elem_ty.strip_prefix("Packed") {
-            return RustTy::BuiltinIdent(make_class_name(&elem_ty));
+            return RustTy::BuiltinIdent(TyName::from_godot(elem_ty).rust_ty);
         }
 
         let rust_elem_ty = to_rust_type(elem_ty, ctx);

@@ -13,11 +13,13 @@
 // * The deleted/private methods and classes deemed "dangerous" may be provided later as unsafe functions -- our safety model
 //   needs to first mature a bit.
 
-// NOTE: the identifiers used here operate on the GODOT types (e.g. AABB, not Aabb)
+// NOTE: the methods are generally implemented on Godot types (e.g. AABB, not Aabb)
+
+use crate::TyName;
 
 #[rustfmt::skip]
-pub fn is_deleted(godot_class_name: &str, godot_method_name: &str) -> bool {
-    match (godot_class_name, godot_method_name) {
+pub(crate) fn is_deleted(class_name: &TyName, godot_method_name: &str) -> bool {
+    match (class_name.godot_ty.as_str(), godot_method_name) {
         // Already covered by manual APIs
         //| ("Object", "to_string")
         | ("Object", "get_instance_id")
@@ -33,8 +35,8 @@ pub fn is_deleted(godot_class_name: &str, godot_method_name: &str) -> bool {
 }
 
 #[rustfmt::skip]
-pub fn is_class_deleted(godot_class_name: &str) -> bool {
-    match godot_class_name {
+pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
+    match class_name.godot_ty.as_str() {
         // Thread APIs
         | "Thread"
         | "Mutex"
@@ -45,8 +47,8 @@ pub fn is_class_deleted(godot_class_name: &str) -> bool {
 }
 
 #[rustfmt::skip]
-pub fn is_private(godot_class_name: &str, godot_method_name: &str) -> bool {
-    match (godot_class_name, godot_method_name) {
+pub(crate) fn is_private(class_name: &TyName, godot_method_name: &str) -> bool {
+    match (class_name.godot_ty.as_str(), godot_method_name) {
         // Already covered by manual APIs
         | ("Object", "to_string")
         | ("RefCounted", "init_ref")
@@ -57,17 +59,13 @@ pub fn is_private(godot_class_name: &str, godot_method_name: &str) -> bool {
     }
 }
 
-pub fn is_builtin_type_deleted(godot_class_name: &str) -> bool {
-    godot_class_name == "Nil"
-        || godot_class_name
-            .chars()
-            .next()
-            .unwrap()
-            .is_ascii_lowercase()
+pub(crate) fn is_builtin_type_deleted(class_name: &TyName) -> bool {
+    let name = class_name.godot_ty.as_str();
+    name == "Nil" || name.chars().next().unwrap().is_ascii_lowercase()
 }
 
-pub fn maybe_renamed<'m>(godot_class_name: &str, godot_method_name: &'m str) -> &'m str {
-    match (godot_class_name, godot_method_name) {
+pub(crate) fn maybe_renamed<'m>(class_name: &TyName, godot_method_name: &'m str) -> &'m str {
+    match (class_name.godot_ty.as_str(), godot_method_name) {
         // GDScript, GDScriptNativeClass, possibly more in the future
         (_, "new") => "instantiate",
         _ => godot_method_name,
