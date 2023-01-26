@@ -152,13 +152,17 @@ enum RustTy {
     },
 
     /// `Gd<Node>`
-    EngineClass(TokenStream),
+    EngineClass {
+        tokens: TokenStream,
+        #[allow(dead_code)] // currently not read
+        class: String,
+    },
 }
 
 impl RustTy {
     pub fn return_decl(&self) -> TokenStream {
         match self {
-            Self::EngineClass(tokens) => quote! { -> Option<#tokens> },
+            Self::EngineClass { tokens, .. } => quote! { -> Option<#tokens> },
             other => quote! { -> #other },
         }
     }
@@ -171,7 +175,7 @@ impl ToTokens for RustTy {
             RustTy::BuiltinArray(path) => path.to_tokens(tokens),
             RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
-            RustTy::EngineClass(path) => path.to_tokens(tokens),
+            RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
             //RustTy::Other(path) => path.to_tokens(tokens),
         }
     }

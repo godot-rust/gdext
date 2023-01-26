@@ -26,14 +26,14 @@ pub mod types {
     pub type OpaqueVector4i = crate::opaque::Opaque<16usize>;
     pub type OpaquePlane = crate::opaque::Opaque<16usize>;
     pub type OpaqueQuaternion = crate::opaque::Opaque<16usize>;
-    pub type OpaqueAABB = crate::opaque::Opaque<24usize>;
+    pub type OpaqueAabb = crate::opaque::Opaque<24usize>;
     pub type OpaqueBasis = crate::opaque::Opaque<36usize>;
     pub type OpaqueTransform3D = crate::opaque::Opaque<48usize>;
     pub type OpaqueProjection = crate::opaque::Opaque<64usize>;
     pub type OpaqueColor = crate::opaque::Opaque<16usize>;
     pub type OpaqueStringName = crate::opaque::Opaque<8usize>;
     pub type OpaqueNodePath = crate::opaque::Opaque<8usize>;
-    pub type OpaqueRID = crate::opaque::Opaque<8usize>;
+    pub type OpaqueRid = crate::opaque::Opaque<8usize>;
     pub type OpaqueObject = crate::opaque::Opaque<8usize>;
     pub type OpaqueCallable = crate::opaque::Opaque<16usize>;
     pub type OpaqueSignal = crate::opaque::Opaque<16usize>;

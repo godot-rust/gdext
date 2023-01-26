@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::util::{to_rust_type, to_snake_case};
+use crate::util::{to_pascal_case, to_rust_type, to_snake_case};
 use crate::{ident, util, Context};
 
 struct CentralItems {
@@ -485,13 +485,13 @@ fn make_enumerator(
 }
 
 fn make_opaque_type(name: &str, size: usize) -> TokenStream {
-    // Capitalize: "int" -> "Int"
+    let name = to_pascal_case(name);
     let (first, rest) = name.split_at(1);
+
+    // Capitalize: "int" -> "Int"
     let ident = format_ident!("Opaque{}{}", first.to_ascii_uppercase(), rest);
-    //let upper = format_ident!("SIZE_{}", name.to_uppercase());
     quote! {
         pub type #ident = crate::opaque::Opaque<#size>;
-        //pub const #upper: usize = #size;
     }
 }
 

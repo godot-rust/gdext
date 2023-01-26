@@ -440,7 +440,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
             None => false,
             Some(class) => is_class_excluded(class.as_str()),
         },
-        RustTy::EngineClass(_) => is_class_excluded(ty),
+        RustTy::EngineClass { .. } => is_class_excluded(ty),
     }
 }
 
@@ -765,7 +765,7 @@ fn make_params(
             arg_exprs.push(quote! {
                 <#param_ty as ToVariant>::to_variant(&#param_name)
             });
-        } else if let RustTy::EngineClass(path) = param_ty {
+        } else if let RustTy::EngineClass { tokens: path, .. } = param_ty {
             arg_exprs.push(quote! {
                 <#path as AsArg>::as_arg_ptr(&#param_name)
             });
@@ -827,7 +827,8 @@ fn make_return(
                 assert_eq!(__err.error, sys::GDEXTENSION_CALL_OK);
             }
         }
-        (None, Some(RustTy::EngineClass(return_ty))) => {
+        (None, Some(RustTy::EngineClass { tokens, .. })) => {
+            let return_ty = tokens;
             quote! {
                 <#return_ty>::from_sys_init_opt(|return_ptr| {
                     #ptrcall_invocation

@@ -59,9 +59,15 @@ pub(crate) fn is_private(class_name: &TyName, godot_method_name: &str) -> bool {
     }
 }
 
+/// True if builtin type is excluded (`NIL` or scalars)
 pub(crate) fn is_builtin_type_deleted(class_name: &TyName) -> bool {
     let name = class_name.godot_ty.as_str();
-    name == "Nil" || name.chars().next().unwrap().is_ascii_lowercase()
+    name == "Nil" || is_builtin_scalar(name)
+}
+
+/// True if `int`, `float`, `bool`, ...
+pub(crate) fn is_builtin_scalar(name: &str) -> bool {
+    name.chars().next().unwrap().is_ascii_lowercase()
 }
 
 pub(crate) fn maybe_renamed<'m>(class_name: &TyName, godot_method_name: &'m str) -> &'m str {

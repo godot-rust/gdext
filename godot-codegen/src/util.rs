@@ -5,9 +5,10 @@
  */
 
 use crate::api_parser::Enum;
+use crate::special_cases::is_builtin_scalar;
 use crate::{Context, ModName, RustTy, TyName};
 use proc_macro2::{Ident, Literal, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote};
 
 pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
     // TODO enums which have unique ords could be represented as Rust enums
@@ -202,6 +203,15 @@ pub(crate) fn to_rust_type(ty: &str, ctx: &mut Context<'_>) -> RustTy {
 }
 
 fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
+    /// Transforms a Godot class/builtin/enum IDENT (without `::` or other syntax) to a Rust one
+    fn rustify_ty(ty: &str) -> Ident {
+        if is_builtin_scalar(ty) {
+            ident(ty)
+        } else {
+            TyName::from_godot(ty).rust_ty
+        }
+    }
+
     if let Some(hardcoded) = to_hardcoded_rust_type(ty) {
         return RustTy::BuiltinIdent(ident(hardcoded));
     }
@@ -232,11 +242,11 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {
-            return RustTy::BuiltinIdent(TyName::from_godot(ty).rust_ty);
+            return RustTy::BuiltinIdent(rustify_ty(ty));
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
         if let Some(_packed_arr_ty) = elem_ty.strip_prefix("Packed") {
-            return RustTy::BuiltinIdent(TyName::from_godot(elem_ty).rust_ty);
+            return RustTy::BuiltinIdent(rustify_ty(elem_ty));
         }
 
         let rust_elem_ty = to_rust_type(elem_ty, ctx);
@@ -253,9 +263,12 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     // Note: do not check if it's a known engine class, because that will not work in minimal mode (since not all classes are stored)
     if ctx.is_builtin(ty) {
         // Unchanged
-        RustTy::BuiltinIdent(ident(ty))
+        RustTy::BuiltinIdent(rustify_ty(ty))
     } else {
-        let ty = ident(ty);
-        RustTy::EngineClass(quote! { Gd<#ty> })
+        let ty = rustify_ty(ty);
+        RustTy::EngineClass {
+            tokens: quote! { Gd<#ty> },
+            class: ty.to_string(),
+        }
     }
 }

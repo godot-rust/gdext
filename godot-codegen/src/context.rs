@@ -18,7 +18,6 @@ pub(crate) struct Context<'a> {
 
 impl<'a> Context<'a> {
     pub fn build_from_api(api: &'a ExtensionApi) -> Self {
-        // TODO possibly add a data structure containing both Godot JSON ident and Rust mapped one
         let mut ctx = Context::default();
 
         for class in api.singletons.iter() {
@@ -55,6 +54,9 @@ impl<'a> Context<'a> {
     //     self.engine_classes.contains(class_name)
     // }
 
+    /// Checks if this is a builtin type (not `Object`).
+    ///
+    /// Note that builtins != variant types.
     pub fn is_builtin(&self, ty_name: &str) -> bool {
         self.builtin_types.contains(ty_name)
     }
