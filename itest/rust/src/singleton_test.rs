@@ -6,7 +6,7 @@
 
 use crate::itest;
 use godot::builtin::GodotString;
-use godot::engine::{Input, OS};
+use godot::engine::{Input, Os};
 use godot::obj::Gd;
 
 pub fn run() -> bool {
@@ -30,17 +30,17 @@ fn singleton_is_unique() {
 
 #[itest]
 fn singleton_from_instance_id() {
-    let a: Gd<OS> = OS::singleton();
+    let a: Gd<Os> = Os::singleton();
     let id = a.instance_id();
 
-    let b: Gd<OS> = Gd::from_instance_id(id);
+    let b: Gd<Os> = Gd::from_instance_id(id);
 
     assert_eq!(a.get_executable_path(), b.get_executable_path());
 }
 
 #[itest]
 fn singleton_is_operational() {
-    let os: Gd<OS> = OS::singleton();
+    let os: Gd<Os> = Os::singleton();
     let key = GodotString::from("MY_TEST_ENV");
     let value = GodotString::from("SOME_VALUE");
 

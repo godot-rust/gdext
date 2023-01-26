@@ -255,15 +255,12 @@ impl ExportedField {
                 Ok(value)
             } else {
                 bail(
-                    format!(
-                        "#[export] attribute {} with a non-literal variant_type",
-                        key
-                    ),
+                    format!("#[export] attribute {key} with a non-literal variant_type",),
                     attr,
                 )?
             }
         } else {
-            bail(format!("#[export] attribute without a {}", key), attr)
+            bail(format!("#[export] attribute without a {key}"), attr)
         }
     }
 }

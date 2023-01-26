@@ -6,16 +6,16 @@
 
 //! Generates a file for each Godot engine + builtin class
 
-use proc_macro2::{Ident, Literal, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
-use crate::util::{ident, safe_ident, strlit, to_module_name, to_rust_type};
+use crate::util::{ident, safe_ident, to_pascal_case, to_rust_type};
 use crate::{
     special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
-    GeneratedClassModule, RustTy,
+    GeneratedClassModule, ModName, RustTy, TyName,
 };
 
 pub(crate) fn generate_class_files(
@@ -30,28 +30,28 @@ pub(crate) fn generate_class_files(
 
     let mut modules = vec![];
     for class in api.classes.iter() {
+        let class_name = TyName::from_godot(&class.name);
+        let module_name = ModName::from_godot(&class.name);
+
         #[cfg(not(feature = "codegen-full"))]
-        if !crate::SELECTED_CLASSES.contains(&class.name.as_str()) {
+        if !crate::SELECTED_CLASSES.contains(&class_name.godot_ty.as_str()) {
             continue;
         }
 
-        if special_cases::is_class_deleted(class.name.as_str()) {
+        if special_cases::is_class_deleted(&class_name) {
             continue;
         }
 
-        let generated_class = make_class(class, ctx);
+        let generated_class = make_class(class, &class_name, ctx);
         let file_contents = generated_class.tokens.to_string();
 
-        let module_name = to_module_name(&class.name);
-        let out_path = gen_path.join(format!("{module_name}.rs"));
+        let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
         std::fs::write(&out_path, file_contents).expect("failed to write class file");
         out_files.push(out_path);
 
-        let class_ident = ident(&class.name);
-        let module_ident = ident(&module_name);
         modules.push(GeneratedClassModule {
-            class_ident,
-            module_ident,
+            class_name,
+            module_name,
             inherits_macro_ident: generated_class.inherits_macro_ident,
             is_pub: generated_class.has_pub_module,
         });
@@ -77,26 +77,29 @@ pub(crate) fn generate_builtin_class_files(
 
     let mut modules = vec![];
     for class in api.builtin_classes.iter() {
-        if special_cases::is_builtin_type_deleted(&class.name) {
+        let module_name = ModName::from_godot(&class.name);
+        let class_name = TyName::from_godot(&class.name);
+        let inner_class_name = TyName::from_godot(&format!("Inner{}", class.name));
+
+        if special_cases::is_builtin_type_deleted(&class_name) {
             continue;
         }
 
         let type_info = builtin_types_map
             .get(&class.name)
             .unwrap_or_else(|| panic!("builtin type not found: {}", class.name));
-        let inner_class = format_ident!("Inner{}", class.name);
-        let generated_class = make_builtin_class(class, &inner_class, type_info, ctx);
+
+        let generated_class =
+            make_builtin_class(class, &class_name, &inner_class_name, type_info, ctx);
         let file_contents = generated_class.tokens.to_string();
 
-        let module_name = to_module_name(&class.name);
-        let out_path = gen_path.join(format!("{module_name}.rs"));
+        let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
         std::fs::write(&out_path, file_contents).expect("failed to write class file");
         out_files.push(out_path);
 
-        let module_ident = ident(&module_name);
         modules.push(GeneratedBuiltinModule {
-            class_ident: inner_class,
-            module_ident,
+            class_name: inner_class_name,
+            module_name,
         });
     }
 
@@ -106,8 +109,9 @@ pub(crate) fn generate_builtin_class_files(
     out_files.push(out_path);
 }
 
-fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> TokenStream {
-    if ctx.is_singleton(&class.name) {
+fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
+    let godot_class_name = &class.name;
+    if ctx.is_singleton(godot_class_name) {
         // Note: we cannot return &'static mut Self, as this would be very easy to mutably alias.
         // &'static Self would be possible, but we would lose the whole mutability information (even if that
         // is best-effort and not strict Rust mutability, it makes the API much more usable).
@@ -116,7 +120,7 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
         quote! {
             pub fn singleton() -> Gd<Self> {
                 unsafe {
-                    let __class_name = StringName::from(#class_name_str);
+                    let __class_name = StringName::from(#godot_class_name);
                     let __object_ptr = sys::interface_fn!(global_get_singleton)(__class_name.string_sys());
                     Gd::from_obj_sys(__object_ptr)
                 }
@@ -130,7 +134,7 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
         quote! {
             pub fn new() -> Gd<Self> {
                 unsafe {
-                    let __class_name = StringName::from(#class_name_str);
+                    let __class_name = StringName::from(#godot_class_name);
                     let __object_ptr = sys::interface_fn!(classdb_construct_object)(__class_name.string_sys());
                     //let instance = Self { object_ptr };
                     Gd::from_obj_sys(__object_ptr)
@@ -143,7 +147,7 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
             #[must_use]
             pub fn new_alloc() -> Gd<Self> {
                 unsafe {
-                    let __class_name = StringName::from(#class_name_str);
+                    let __class_name = StringName::from(#godot_class_name);
                     let __object_ptr = sys::interface_fn!(classdb_construct_object)(__class_name.string_sys());
                     Gd::from_obj_sys(__object_ptr)
                 }
@@ -152,27 +156,26 @@ fn make_constructor(class: &Class, ctx: &Context, class_name_str: &Literal) -> T
     }
 }
 
-fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
-    //let sys = TokenStream::from_str("::godot_ffi");
+fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> GeneratedClass {
+    // Strings
+    let godot_class_str = &class_name.godot_ty;
+
+    // Idents and tokens
     let base = match class.inherits.as_ref() {
         Some(base) => {
-            let base = ident(base);
+            let base = ident(&to_pascal_case(base));
             quote! { crate::engine::#base }
         }
         None => quote! { () },
     };
 
-    let name = ident(&class.name);
-    let name_str = strlit(&class.name);
+    let constructor = make_constructor(class, ctx);
+    let methods = make_methods(&class.methods, class_name, ctx);
+    let enums = make_enums(&class.enums, class_name, ctx);
+    let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
+    let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
 
-    let constructor = make_constructor(class, ctx, &name_str);
-
-    let methods = make_methods(&class.methods, &class.name, ctx);
-    let enums = make_enums(&class.enums, &class.name, ctx);
-    let inherits_macro = format_ident!("inherits_transitive_{}", &class.name);
-    let all_bases = ctx.inheritance_tree().map_all_bases(&class.name, ident);
-
-    let memory = if &class.name == "Object" {
+    let memory = if class_name.rust_ty == "Object" {
         ident("DynamicRefCount")
     } else if class.is_refcounted {
         ident("StaticRefCount")
@@ -193,21 +196,21 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
 
             #[derive(Debug)]
             #[repr(transparent)]
-            pub struct #name {
+            pub struct #class_name {
                 object_ptr: sys::GDExtensionObjectPtr,
             }
-            impl #name {
+            impl #class_name {
                 #constructor
                 #methods
             }
-            impl crate::obj::GodotClass for #name {
+            impl crate::obj::GodotClass for #class_name {
                 type Base = #base;
                 type Declarer = crate::obj::dom::EngineDomain;
                 type Mem = crate::obj::mem::#memory;
 
-                const CLASS_NAME: &'static str = #name_str;
+                const CLASS_NAME: &'static str = #godot_class_str;
             }
-            impl crate::obj::EngineClass for #name {
+            impl crate::obj::EngineClass for #class_name {
                  fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr {
                      self.object_ptr
                  }
@@ -216,9 +219,9 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
                  }
             }
             #(
-                impl crate::obj::Inherits<crate::engine::#all_bases> for #name {}
+                impl crate::obj::Inherits<crate::engine::#all_bases> for #class_name {}
             )*
-            impl std::ops::Deref for #name {
+            impl std::ops::Deref for #class_name {
                 type Target = #base;
 
                 fn deref(&self) -> &Self::Target {
@@ -226,7 +229,7 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
                     unsafe { std::mem::transmute::<&Self, &Self::Target>(self) }
                 }
             }
-            impl std::ops::DerefMut for #name {
+            impl std::ops::DerefMut for #class_name {
                 fn deref_mut(&mut self) -> &mut Self::Target {
                     // SAFETY: see above
                     unsafe { std::mem::transmute::<&mut Self, &mut Self::Target>(self) }
@@ -237,7 +240,7 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
             #[allow(non_snake_case)]
             macro_rules! #inherits_macro {
                 ($Class:ident) => {
-                    impl ::godot::obj::Inherits<::godot::engine::#name> for $Class {}
+                    impl ::godot::obj::Inherits<::godot::engine::#class_name> for $Class {}
                     #(
                         impl ::godot::obj::Inherits<::godot::engine::#all_bases> for $Class {}
                     )*
@@ -258,7 +261,8 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
 
 fn make_builtin_class(
     class: &BuiltinClass,
-    inner_class: &Ident,
+    class_name: &TyName,
+    inner_class_name: &TyName,
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> GeneratedBuiltin {
@@ -267,6 +271,7 @@ fn make_builtin_class(
     } else {
         panic!("Rust type `{}` categorized wrong", class.name)
     };
+    let inner_class = &inner_class_name.rust_ty;
 
     let class_enums = class.enums.as_ref().map(|class_enums| {
         class_enums
@@ -275,8 +280,8 @@ fn make_builtin_class(
             .collect::<Vec<Enum>>()
     });
 
-    let methods = make_builtin_methods(&class.methods, &class.name, type_info, ctx);
-    let enums = make_enums(&class_enums, &class.name, ctx);
+    let methods = make_builtin_methods(&class.methods, class_name, type_info, ctx);
+    let enums = make_enums(&class_enums, class_name, ctx);
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
@@ -312,8 +317,8 @@ fn make_builtin_class(
 fn make_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> TokenStream {
     let decls = classes_and_modules.iter().map(|m| {
         let GeneratedClassModule {
-            module_ident,
-            class_ident,
+            module_name,
+            class_name,
             is_pub,
             ..
         } = m;
@@ -321,8 +326,8 @@ fn make_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> TokenStre
         let vis = is_pub.then_some(quote! { pub });
 
         quote! {
-            #vis mod #module_ident;
-            pub use #module_ident::re_export::#class_ident;
+            #vis mod #module_name;
+            pub use #module_name::re_export::#class_name;
         }
     });
 
@@ -353,14 +358,14 @@ fn make_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> TokenStre
 fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) -> TokenStream {
     let decls = classes_and_modules.iter().map(|m| {
         let GeneratedBuiltinModule {
-            module_ident,
-            class_ident,
+            module_name,
+            class_name,
             ..
         } = m;
 
         quote! {
-            mod #module_ident;
-            pub use #module_ident::#class_ident;
+            mod #module_name;
+            pub use #module_name::#class_name;
         }
     });
 
@@ -371,7 +376,7 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
 
 fn make_methods(
     methods: &Option<Vec<ClassMethod>>,
-    class_name: &str,
+    class_name: &TyName,
     ctx: &mut Context,
 ) -> TokenStream {
     let methods = match methods {
@@ -390,7 +395,7 @@ fn make_methods(
 
 fn make_builtin_methods(
     methods: &Option<Vec<BuiltinClassMethod>>,
-    class_name: &str,
+    class_name: &TyName,
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> TokenStream {
@@ -408,7 +413,7 @@ fn make_builtin_methods(
     }
 }
 
-fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &str, _ctx: &Context) -> TokenStream {
+fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &TyName, _ctx: &Context) -> TokenStream {
     let enums = match enums {
         Some(e) => e,
         None => return TokenStream::new(),
@@ -435,7 +440,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
             None => false,
             Some(class) => is_class_excluded(class.as_str()),
         },
-        RustTy::EngineClass(_) => is_class_excluded(ty),
+        RustTy::EngineClass { .. } => is_class_excluded(ty),
     }
 }
 
@@ -496,7 +501,7 @@ fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
 
 fn make_method_definition(
     method: &ClassMethod,
-    class_name: &str,
+    class_name: &TyName,
     ctx: &mut Context,
 ) -> TokenStream {
     if is_method_excluded(method, ctx) || special_cases::is_deleted(class_name, &method.name) {
@@ -529,8 +534,9 @@ fn make_method_definition(
         ident("object_method_bind_ptrcall")
     };
 
+    let class_name_str = &class_name.godot_ty;
     let init_code = quote! {
-        let __class_name = StringName::from(#class_name);
+        let __class_name = StringName::from(#class_name_str);
         let __method_name = StringName::from(#method_name_str);
         let __method_bind = sys::interface_fn!(classdb_get_method_bind)(
             __class_name.string_sys(),
@@ -562,7 +568,7 @@ fn make_method_definition(
 
 fn make_builtin_method_definition(
     method: &BuiltinClassMethod,
-    class_name_str: &str,
+    class_name: &TyName,
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> TokenStream {
@@ -601,7 +607,7 @@ fn make_builtin_method_definition(
 
     make_function_definition(
         method_name_str,
-        special_cases::is_private(class_name_str, &method.name),
+        special_cases::is_private(class_name, &method.name),
         receiver,
         &method.arguments,
         return_value.as_ref(),
@@ -759,7 +765,7 @@ fn make_params(
             arg_exprs.push(quote! {
                 <#param_ty as ToVariant>::to_variant(&#param_name)
             });
-        } else if let RustTy::EngineClass(path) = param_ty {
+        } else if let RustTy::EngineClass { tokens: path, .. } = param_ty {
             arg_exprs.push(quote! {
                 <#path as AsArg>::as_arg_ptr(&#param_name)
             });
@@ -821,7 +827,8 @@ fn make_return(
                 assert_eq!(__err.error, sys::GDEXTENSION_CALL_OK);
             }
         }
-        (None, Some(RustTy::EngineClass(return_ty))) => {
+        (None, Some(RustTy::EngineClass { tokens, .. })) => {
+            let return_ty = tokens;
             quote! {
                 <#return_ty>::from_sys_init_opt(|return_ptr| {
                     #ptrcall_invocation

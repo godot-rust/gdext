@@ -29,6 +29,7 @@ use util::ident;
 use utilities_generator::generate_utilities_file;
 use watch::StopWatch;
 
+use crate::util::{to_pascal_case, to_snake_case};
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use std::path::{Path, PathBuf};
@@ -151,13 +152,17 @@ enum RustTy {
     },
 
     /// `Gd<Node>`
-    EngineClass(TokenStream),
+    EngineClass {
+        tokens: TokenStream,
+        #[allow(dead_code)] // currently not read
+        class: String,
+    },
 }
 
 impl RustTy {
     pub fn return_decl(&self) -> TokenStream {
         match self {
-            Self::EngineClass(tokens) => quote! { -> Option<#tokens> },
+            Self::EngineClass { tokens, .. } => quote! { -> Option<#tokens> },
             other => quote! { -> #other },
         }
     }
@@ -170,9 +175,64 @@ impl ToTokens for RustTy {
             RustTy::BuiltinArray(path) => path.to_tokens(tokens),
             RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
-            RustTy::EngineClass(path) => path.to_tokens(tokens),
+            RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
             //RustTy::Other(path) => path.to_tokens(tokens),
         }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Contains multiple naming conventions for types (classes, builtin classes, enums).
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub(crate) struct TyName {
+    godot_ty: String,
+    rust_ty: Ident,
+}
+
+impl TyName {
+    fn from_godot(godot_ty: &str) -> Self {
+        Self {
+            godot_ty: godot_ty.to_owned(),
+            rust_ty: ident(&to_pascal_case(godot_ty)),
+        }
+    }
+
+    fn description(&self) -> String {
+        if self.rust_ty == self.godot_ty {
+            self.godot_ty.clone()
+        } else {
+            format!("{}  [renamed {}]", self.godot_ty, self.rust_ty)
+        }
+    }
+}
+
+impl ToTokens for TyName {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.rust_ty.to_tokens(tokens)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Contains naming conventions for modules.
+pub(crate) struct ModName {
+    // godot_mod: String,
+    rust_mod: Ident,
+}
+
+impl ModName {
+    fn from_godot(godot_ty: &str) -> Self {
+        Self {
+            // godot_mod: godot_ty.to_owned(),
+            rust_mod: ident(&to_snake_case(godot_ty)),
+        }
+    }
+}
+
+impl ToTokens for ModName {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.rust_mod.to_tokens(tokens)
     }
 }
 
@@ -187,15 +247,15 @@ struct GeneratedBuiltin {
 }
 
 struct GeneratedClassModule {
-    class_ident: Ident,
-    module_ident: Ident,
+    class_name: TyName,
+    module_name: ModName,
     inherits_macro_ident: Ident,
     is_pub: bool,
 }
 
 struct GeneratedBuiltinModule {
-    class_ident: Ident,
-    module_ident: Ident,
+    class_name: TyName,
+    module_name: ModName,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

@@ -5,7 +5,8 @@
  */
 
 use crate::api_parser::Enum;
-use crate::{Context, RustTy};
+use crate::special_cases::is_builtin_scalar;
+use crate::{Context, ModName, RustTy, TyName};
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
 
@@ -110,85 +111,38 @@ fn make_enumerator_name(enumerator_name: &str, _enum_name: &str) -> Ident {
     ident(enumerator_name)
 }
 
-pub fn to_module_name(class_name: &str) -> String {
-    // Remove underscores and make peekable
-    let mut class_chars = class_name.bytes().filter(|&ch| ch != b'_').peekable();
+pub fn to_snake_case(class_name: &str) -> String {
+    use heck::ToSnakeCase;
 
-    // 2-lookbehind
-    let mut previous: [Option<u8>; 2] = [None, None]; // previous-previous, previous
-
-    // None is not upper or number
-    #[inline(always)]
-    fn is_upper_or_num<T>(ch: T) -> bool
-    where
-        T: Into<Option<u8>>,
-    {
-        let ch = ch.into();
-        match ch {
-            Some(ch) => ch.is_ascii_digit() || ch.is_ascii_uppercase(),
-            None => false,
-        }
+    // Special cases
+    #[allow(clippy::single_match)]
+    match class_name {
+        "JSONRPC" => return "json_rpc".to_string(),
+        _ => {}
     }
 
-    // None is lowercase
-    #[inline(always)]
-    fn is_lower_or<'a, T>(ch: T, default: bool) -> bool
-    where
-        T: Into<Option<&'a u8>>,
-    {
-        let ch = ch.into();
-        match ch {
-            Some(ch) => ch.is_ascii_lowercase(),
-            None => default,
-        }
+    class_name
+        .replace("2D", "_2d")
+        .replace("3D", "_3d")
+        .replace("GDNative", "Gdnative")
+        .replace("GDExtension", "Gdextension")
+        .to_snake_case()
+}
+
+pub fn to_pascal_case(class_name: &str) -> String {
+    use heck::ToPascalCase;
+
+    // Special cases
+    #[allow(clippy::single_match)]
+    match class_name {
+        "JSONRPC" => return "JsonRpc".to_string(),
+        _ => {}
     }
 
-    let mut result = Vec::with_capacity(class_name.len());
-    while let Some(current) = class_chars.next() {
-        let next = class_chars.peek();
-
-        let [two_prev, one_prev] = previous;
-
-        // See tests for cases covered
-        let caps_to_lowercase = is_upper_or_num(one_prev)
-            && is_upper_or_num(current)
-            && is_lower_or(next, false)
-            && !is_lower_or(&two_prev, true);
-
-        // Add an underscore for Lowercase followed by Uppercase|Num
-        // Node2D => node_2d (numbers are considered uppercase)
-        let lower_to_uppercase = is_lower_or(&one_prev, false) && is_upper_or_num(current);
-
-        if caps_to_lowercase || lower_to_uppercase {
-            result.push(b'_');
-        }
-        result.push(current.to_ascii_lowercase());
-
-        // Update the look-behind
-        previous = [previous[1], Some(current)];
-    }
-
-    let mut result = String::from_utf8(result).unwrap();
-
-    // There are a few cases where the conversions do not work:
-    // * VisualShaderNodeVec3Uniform => visual_shader_node_vec_3_uniform
-    // * VisualShaderNodeVec3Constant => visual_shader_node_vec_3_constant
-    if let Some(range) = result.find("_vec_3").map(|i| i..i + 6) {
-        result.replace_range(range, "_vec3_")
-    }
-    if let Some(range) = result.find("gd_extension").map(|i| i..i + 12) {
-        result.replace_range(range, "gdextension")
-    }
-    if let Some(range) = result.find("gd_script").map(|i| i..i + 9) {
-        result.replace_range(range, "gdscript")
-    }
-
-    // Exclude from glob imports "gdextension"
-    if result == "gdextension" {
-        return "gdextension_".to_string();
-    }
-
-    result
+    class_name
+        .to_pascal_case()
+        .replace("GdExtension", "GDExtension")
+        .replace("GdNative", "GDNative")
 }
 
 pub fn ident(s: &str) -> Ident {
@@ -218,10 +172,6 @@ pub fn safe_ident(s: &str) -> Ident {
     }
 }
 
-pub fn strlit(s: &str) -> Literal {
-    Literal::string(s)
-}
-
 fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
     let result = match ty {
         "int" => "i64",
@@ -239,6 +189,7 @@ fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
 /// Maps an _input_ type from the Godot JSON to the corresponding Rust type (wrapping some sort of a token stream).
 ///
 /// Uses an internal cache (via `ctx`), as several types are ubiquitous.
+// TODO take TyName as input
 pub(crate) fn to_rust_type(ty: &str, ctx: &mut Context<'_>) -> RustTy {
     // Separate find + insert slightly slower, but much easier with lifetimes
     // The insert path will be hit less often and thus doesn't matter
@@ -252,6 +203,15 @@ pub(crate) fn to_rust_type(ty: &str, ctx: &mut Context<'_>) -> RustTy {
 }
 
 fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
+    /// Transforms a Godot class/builtin/enum IDENT (without `::` or other syntax) to a Rust one
+    fn rustify_ty(ty: &str) -> Ident {
+        if is_builtin_scalar(ty) {
+            ident(ty)
+        } else {
+            TyName::from_godot(ty).rust_ty
+        }
+    }
+
     if let Some(hardcoded) = to_hardcoded_rust_type(ty) {
         return RustTy::BuiltinIdent(ident(hardcoded));
     }
@@ -263,7 +223,7 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     if let Some(qualified_enum) = qualified_enum {
         return if let Some((class, enum_)) = qualified_enum.split_once('.') {
             // Class-local enum
-            let module = ident(&to_module_name(class));
+            let module = ModName::from_godot(class);
             let enum_ty = make_enum_name(enum_);
 
             RustTy::EngineEnum {
@@ -282,12 +242,11 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {
-            return RustTy::BuiltinIdent(ident(ty));
-            //return RustTy::BuiltinIdent(ident(packed_arr_ty));
+            return RustTy::BuiltinIdent(rustify_ty(ty));
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
         if let Some(_packed_arr_ty) = elem_ty.strip_prefix("Packed") {
-            return RustTy::BuiltinIdent(ident(elem_ty));
+            return RustTy::BuiltinIdent(rustify_ty(elem_ty));
         }
 
         let rust_elem_ty = to_rust_type(elem_ty, ctx);
@@ -304,9 +263,12 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     // Note: do not check if it's a known engine class, because that will not work in minimal mode (since not all classes are stored)
     if ctx.is_builtin(ty) {
         // Unchanged
-        RustTy::BuiltinIdent(ident(ty))
+        RustTy::BuiltinIdent(rustify_ty(ty))
     } else {
-        let ty = ident(ty);
-        RustTy::EngineClass(quote! { Gd<#ty> })
+        let ty = rustify_ty(ty);
+        RustTy::EngineClass {
+            tokens: quote! { Gd<#ty> },
+            class: ty.to_string(),
+        }
     }
 }

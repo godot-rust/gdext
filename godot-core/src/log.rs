@@ -89,4 +89,7 @@ pub fn print(varargs: &[Variant]) {
             call_fn(return_ptr, args_ptr, args.len() as i32);
         });
     }
+
+    // TODO use generated method, but figure out how print() with zero args can be called
+    // crate::engine::utilities::print(head, rest);
 }

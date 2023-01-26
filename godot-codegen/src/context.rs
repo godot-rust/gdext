@@ -4,12 +4,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::{ExtensionApi, RustTy};
+use crate::{ExtensionApi, RustTy, TyName};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
 pub(crate) struct Context<'a> {
-    engine_classes: HashSet<&'a str>,
+    engine_classes: HashSet<TyName>,
     builtin_types: HashSet<&'a str>,
     singletons: HashSet<&'a str>,
     inheritance_tree: InheritanceTree,
@@ -31,20 +31,20 @@ impl<'a> Context<'a> {
         }
 
         for class in api.classes.iter() {
-            let class_name = class.name.as_str();
+            let class_name = TyName::from_godot(&class.name);
 
             #[cfg(not(feature = "codegen-full"))]
-            if !crate::SELECTED_CLASSES.contains(&class_name) {
+            if !crate::SELECTED_CLASSES.contains(&class_name.godot_ty.as_str()) {
                 continue;
             }
 
-            println!("-- add engine class {class_name}");
-            ctx.engine_classes.insert(class_name);
+            println!("-- add engine class {}", class_name.description());
+            ctx.engine_classes.insert(class_name.clone());
 
             if let Some(base) = class.inherits.as_ref() {
-                println!("  -- inherits {base}");
-                ctx.inheritance_tree
-                    .insert(class_name.to_string(), base.clone());
+                let base_name = TyName::from_godot(base);
+                println!("  -- inherits {}", base_name.description());
+                ctx.inheritance_tree.insert(class_name, base_name);
             }
         }
         ctx
@@ -54,6 +54,9 @@ impl<'a> Context<'a> {
     //     self.engine_classes.contains(class_name)
     // }
 
+    /// Checks if this is a builtin type (not `Object`).
+    ///
+    /// Note that builtins != variant types.
     pub fn is_builtin(&self, ty_name: &str) -> bool {
         self.builtin_types.contains(ty_name)
     }
@@ -76,23 +79,24 @@ impl<'a> Context<'a> {
     }
 }
 
+/// Maintains class hierarchy. Uses Rust class names, not Godot ones.
 #[derive(Default)]
 pub(crate) struct InheritanceTree {
-    derived_to_base: HashMap<String, String>,
+    derived_to_base: HashMap<TyName, TyName>,
 }
 
 impl InheritanceTree {
-    pub fn insert(&mut self, derived: String, base: String) {
-        let existing = self.derived_to_base.insert(derived, base);
+    pub fn insert(&mut self, derived_name: TyName, base_name: TyName) {
+        let existing = self.derived_to_base.insert(derived_name, base_name);
         assert!(existing.is_none(), "Duplicate inheritance insert");
     }
 
-    pub fn map_all_bases<T>(&self, derived: &str, apply: impl Fn(&str) -> T) -> Vec<T> {
-        let mut maybe_base = derived;
+    pub fn collect_all_bases(&self, derived_name: &TyName) -> Vec<TyName> {
+        let mut maybe_base = derived_name;
         let mut result = vec![];
 
-        while let Some(base) = self.derived_to_base.get(maybe_base).map(String::as_str) {
-            result.push(apply(base));
+        while let Some(base) = self.derived_to_base.get(maybe_base) {
+            result.push(base.clone());
             maybe_base = base;
         }
         result

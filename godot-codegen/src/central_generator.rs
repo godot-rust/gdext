@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
-use crate::util::to_rust_type;
+use crate::util::{to_pascal_case, to_rust_type, to_snake_case};
 use crate::{ident, util, Context};
 
 struct CentralItems {
@@ -26,8 +26,8 @@ struct CentralItems {
 }
 
 pub(crate) struct TypeNames {
-    /// "int" or "PackedVector2Array"
-    pub pascal_case: String,
+    /// Name in JSON: "int" or "PackedVector2Array"
+    pub json_builtin_name: String,
 
     /// "packed_vector2_array"
     pub snake_case: String,
@@ -379,6 +379,8 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context)
     result
 }
 
+/// Creates a map from "normalized" class names (lowercase without underscore, makes it easy to map from different conventions)
+/// to meta type information, including all the type name variants
 fn collect_builtin_classes(api: &ExtensionApi) -> HashMap<String, &BuiltinClass> {
     let mut class_map = HashMap::new();
     for class in &api.builtin_classes {
@@ -417,26 +419,26 @@ pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, Built
 
         // TODO cut down on the number of cached functions generated
         // e.g. there's no point in providing operator< for int
-        let pascal_case: String;
+        let class_name: String;
         let has_destructor: bool;
         let constructors: Option<&Vec<Constructor>>;
         let operators: Option<&Vec<Operator>>;
         if let Some(class) = class_map.get(&normalized) {
-            pascal_case = class.name.clone();
+            class_name = class.name.clone();
             has_destructor = class.has_destructor;
             constructors = Some(&class.constructors);
             operators = Some(&class.operators);
         } else {
             assert_eq!(normalized, "object");
-            pascal_case = "Object".to_string();
+            class_name = "Object".to_string();
             has_destructor = false;
             constructors = None;
             operators = None;
         }
 
         let type_names = TypeNames {
-            pascal_case,
-            snake_case: shout_case.to_ascii_lowercase(),
+            json_builtin_name: class_name.clone(),
+            snake_case: to_snake_case(&class_name),
             //shout_case: shout_case.to_string(),
             sys_variant_type: format_ident!("GDEXTENSION_VARIANT_TYPE_{}", shout_case),
         };
@@ -444,7 +446,7 @@ pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, Built
         let value = ty.value;
 
         builtin_types_map.insert(
-            type_names.pascal_case.clone(),
+            type_names.json_builtin_name.clone(),
             BuiltinTypeInfo {
                 value,
                 type_names,
@@ -473,23 +475,23 @@ fn make_enumerator(
     ctx: &mut Context,
 ) -> (Ident, TokenStream, Literal) {
     //let shout_name = format_ident!("{}", type_names.shout_case);
-    let (first, rest) = type_names.pascal_case.split_at(1);
+    let (first, rest) = type_names.json_builtin_name.split_at(1);
 
     let pascal_name = format_ident!("{}{}", first.to_ascii_uppercase(), rest);
-    let rust_ty = to_rust_type(&type_names.pascal_case, ctx);
+    let rust_ty = to_rust_type(&type_names.json_builtin_name, ctx);
     let ord = Literal::i32_unsuffixed(value);
 
     (pascal_name, rust_ty.to_token_stream(), ord)
 }
 
 fn make_opaque_type(name: &str, size: usize) -> TokenStream {
-    // Capitalize: "int" -> "Int"
+    let name = to_pascal_case(name);
     let (first, rest) = name.split_at(1);
+
+    // Capitalize: "int" -> "Int"
     let ident = format_ident!("Opaque{}{}", first.to_ascii_uppercase(), rest);
-    //let upper = format_ident!("SIZE_{}", name.to_uppercase());
     quote! {
         pub type #ident = crate::opaque::Opaque<#size>;
-        //pub const #upper: usize = #size;
     }
 }
 
@@ -574,11 +576,11 @@ fn make_construct_fns(
     if let Some(args) = &constructors[1].arguments {
         assert_eq!(args.len(), 1);
         assert_eq!(args[0].name, "from");
-        assert_eq!(args[0].type_, type_names.pascal_case);
+        assert_eq!(args[0].type_, type_names.json_builtin_name);
     } else {
         panic!(
             "type {}: no constructor args found for copy constructor",
-            type_names.pascal_case
+            type_names.json_builtin_name
         );
     }
 
@@ -734,7 +736,7 @@ fn format_load_error(ident: &impl std::fmt::Display) -> String {
 fn is_trivial(type_names: &TypeNames) -> bool {
     let list = ["bool", "int", "float"];
 
-    list.contains(&type_names.pascal_case.as_str())
+    list.contains(&type_names.json_builtin_name.as_str())
 }
 
 fn shout_to_pascal(shout_case: &str) -> String {

@@ -200,7 +200,7 @@ impl PartialEq for Variant {
 impl fmt::Display for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = self.stringify();
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -208,6 +208,6 @@ impl fmt::Debug for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // TODO include variant type name
         let s = self.stringify();
-        write!(f, "Variant({})", s)
+        write!(f, "Variant({s})")
     }
 }

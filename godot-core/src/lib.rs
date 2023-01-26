@@ -78,9 +78,9 @@ pub mod private {
 
     pub fn print_panic(err: Box<dyn std::any::Any + Send>) {
         if let Some(s) = err.downcast_ref::<&'static str>() {
-            log::godot_error!("rust-panic:  {}", s);
+            log::godot_error!("rust-panic:  {s}");
         } else if let Some(s) = err.downcast_ref::<String>() {
-            log::godot_error!("rust-panic:  {}", s);
+            log::godot_error!("rust-panic:  {s}");
         } else {
             log::godot_error!("rust-panic of type ID {:?}", err.type_id());
         }

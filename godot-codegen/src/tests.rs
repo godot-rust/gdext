@@ -4,75 +4,98 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::to_module_name;
+use crate::util::{to_pascal_case, to_snake_case};
 
 #[test]
-fn module_name_generator() {
-    let tests = vec![
-        // A number of test cases to cover some possibilities:
-        // * Underscores are removed
-        // * First character is always lowercased
-        // * lowercase to an uppercase inserts an underscore
-        //   - FooBar => foo_bar
-        // * two capital letter words does not separate the capital letters:
-        //   - FooBBaz => foo_bbaz (lower, cap, cap, lower)
-        // * many-capital letters to lowercase inserts an underscore before the last uppercase letter:
-        //   - FOOBar => boo_bar
-        // underscores
-        ("Ab_Cdefg", "ab_cdefg"),
-        ("_Abcd", "abcd"),
-        ("Abcd_", "abcd"),
-        // first and last
-        ("Abcdefg", "abcdefg"),
-        ("abcdefG", "abcdef_g"),
-        // more than 2 caps
-        ("ABCDefg", "abc_defg"),
-        ("AbcDEFg", "abc_de_fg"),
-        ("AbcdEF10", "abcd_ef10"),
-        ("AbcDEFG", "abc_defg"),
-        ("ABCDEFG", "abcdefg"),
-        ("ABC", "abc"),
-        // Lowercase to an uppercase
-        ("AbcDefg", "abc_defg"),
-        // Only 2 caps
-        ("ABcdefg", "abcdefg"),
-        ("ABcde2G", "abcde_2g"),
-        ("AbcDEfg", "abc_defg"),
-        ("ABcDe2G", "abc_de_2g"),
-        ("abcdeFG", "abcde_fg"),
-        ("AB", "ab"),
-        // Lowercase to an uppercase
-        ("AbcdefG", "abcdef_g"), // PosX => pos_x
-        // text changes
-        ("FooVec3Uni", "foo_vec3_uni"),
-        ("GDExtension", "gdextension_"),
-        ("GDScript", "gdscript"),
+fn test_pascal_conversion() {
+    // More in line with Rust identifiers, and eases recognition of other automation (like enumerator mapping).
+    #[rustfmt::skip]
+    let mappings = [
+                                 ("AABB", "Aabb"),
+                           ("AESContext", "AesContext"),
+                              ("AStar3D", "AStar3D"),
+                      ("AudioEffectEQ21", "AudioEffectEq21"),
+                       ("AudioStreamWAV", "AudioStreamWav"),
+                      ("CharFXTransform", "CharFxTransform"),
+                       ("CPUParticles3D", "CpuParticles3D"),
+              ("EditorSceneImporterGLTF", "EditorSceneImporterGltf"),
+                              ("GIProbe", "GiProbe"),
+                          ("HMACContext", "HmacContext"),
+                           ("HSeparator", "HSeparator"),
+                                   ("IP", "Ip"),
+                         ("JNISingleton", "JniSingleton"),
+                                 ("JSON", "Json"),
+                      ("JSONParseResult", "JsonParseResult"),
+                              ("JSONRPC", "JsonRpc"),
+             ("NetworkedMultiplayerENet", "NetworkedMultiplayerENet"),
+                             ("ObjectID", "ObjectId"),
+                   ("PackedFloat32Array", "PackedFloat32Array"),
+                            ("PCKPacker", "PckPacker"),
+                     ("PHashTranslation", "PHashTranslation"),
+    ("PhysicsServer2DExtensionRayResult", "PhysicsServer2DExtensionRayResult"),
+                                ("Rect2", "Rect2"),
+                               ("Rect2i", "Rect2i"),
+                                  ("RID", "Rid"),
+                        ("StreamPeerSSL", "StreamPeerSsl"),
+                          ("Transform3D", "Transform3D"),
+                ("ViewportScreenSpaceAA", "ViewportScreenSpaceAa"),
+                     ("ViewportSDFScale", "ViewportSdfScale"),
+         ("WebRTCPeerConnectionGDNative", "WebRtcPeerConnectionGDNative"),
+                      ("X509Certificate", "X509Certificate"),
+                             ("XRServer", "XrServer"),
+                                ("YSort", "YSort"),
     ];
-    tests.iter().for_each(|(class_name, expected)| {
-        let actual = to_module_name(class_name);
-        assert_eq!(*expected, actual, "Input: {class_name}");
-    });
+
+    for (class_name, expected) in mappings {
+        let actual = to_pascal_case(class_name);
+        assert_eq!(actual, expected, "PascalCase: ident `{class_name}`");
+    }
 }
 
 #[test]
-fn test_name_smoother() {
+fn test_snake_conversion() {
     // More in line with Rust identifiers, and eases recognition of other automation (like enumerator mapping).
     #[rustfmt::skip]
-    let _mappings = [
-        ("RID",                    "Rid"),
-        ("AESContext",             "AesContext"),
-        ("AudioEffectEQ21",        "AudioEffectEq21"),
-        ("AudioStreamWAV",         "AudioStreamWav"),
-        ("CPUParticles3D",         "CpuParticles3D"),
-        ("ClassDB",                "ClassDb"),               // should multi-uppercase at the end be retained?
-        ("CharFXTransform",        "CharFxTransform"),
-        ("ViewportSDFScale",       "ViewportSdfScale"),
-        ("ViewportMSAA",           "ViewportMsaa"),
-        ("ViewportScreenSpaceAA",  "ViewportScreenSpaceAa"),
-
-        // unchanged
-        ("AStar3D",                "AStar3D"),
+        let mappings = [
+                                 ("AABB", "aabb"),
+                           ("AESContext", "aes_context"),
+                              ("AStar3D", "a_star_3d"),
+                      ("AudioEffectEQ21", "audio_effect_eq21"),
+                       ("AudioStreamWAV", "audio_stream_wav"),
+                      ("CharFXTransform", "char_fx_transform"),
+                       ("CPUParticles3D", "cpu_particles_3d"),
+              ("EditorSceneImporterGLTF", "editor_scene_importer_gltf"),
+                              ("GIProbe", "gi_probe"),
+                          ("HMACContext", "hmac_context"),
+                           ("HSeparator", "h_separator"),
+                                   ("IP", "ip"),
+                         ("JNISingleton", "jni_singleton"),
+                                 ("JSON", "json"),
+                      ("JSONParseResult", "json_parse_result"),
+                              ("JSONRPC", "json_rpc"),
+             ("NetworkedMultiplayerENet", "networked_multiplayer_e_net"),
+                             ("ObjectID", "object_id"),
+                   ("PackedFloat32Array", "packed_float32_array"),
+                            ("PCKPacker", "pck_packer"),
+                     ("PHashTranslation", "p_hash_translation"),
+    ("PhysicsServer2DExtensionRayResult", "physics_server_2d_extension_ray_result"),
+                                ("Rect2", "rect2"),
+                               ("Rect2i", "rect2i"),
+                                  ("RID", "rid"),
+                        ("StreamPeerSSL", "stream_peer_ssl"),
+                          ("Transform3D", "transform_3d"),
+                ("ViewportScreenSpaceAA", "viewport_screen_space_aa"),
+                     ("ViewportSDFScale", "viewport_sdf_scale"),
+         ("WebRTCPeerConnectionGDNative", "web_rtc_peer_connection_gdnative"),
+                      ("X509Certificate", "x509_certificate"),
+                             ("XRServer", "xr_server"),
+                                ("YSort", "y_sort"),
     ];
+
+    for (class_name, expected) in mappings {
+        let actual = to_snake_case(class_name);
+        assert_eq!(actual, expected, "snake_case: ident `{class_name}`");
+    }
 }
 
 #[test]
