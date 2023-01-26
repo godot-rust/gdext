@@ -28,6 +28,7 @@ pub fn run() -> bool {
     ok &= array_find();
     ok &= array_rfind();
     ok &= array_min_max();
+    ok &= array_pick_random();
     ok &= array_set();
     ok &= array_push_pop();
     ok &= array_insert();

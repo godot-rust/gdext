@@ -20,6 +20,7 @@ mod export_test;
 mod gdscript_ffi_test;
 mod node_test;
 mod object_test;
+mod packed_array_test;
 mod singleton_test;
 mod string_test;
 mod utilities_test;
@@ -38,6 +39,7 @@ fn run_tests() -> bool {
     ok &= singleton_test::run();
     ok &= string_test::run();
     ok &= array_test::run();
+    ok &= packed_array_test::run();
     ok &= utilities_test::run();
     ok &= variant_test::run();
     ok &= virtual_methods_test::run();

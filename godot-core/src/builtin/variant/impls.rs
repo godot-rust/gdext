@@ -142,7 +142,15 @@ mod impls {
     impl_variant_traits!(GodotString, string_to_variant, string_from_variant, String);
     impl_variant_traits!(StringName, string_name_to_variant, string_name_from_variant, StringName);
     impl_variant_traits!(Array, array_to_variant, array_from_variant, Array);
-
+    impl_variant_traits!(PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant, PackedByteArray);
+    impl_variant_traits!(PackedInt32Array, packed_int32_array_to_variant, packed_int32_array_from_variant, PackedInt32Array);
+    impl_variant_traits!(PackedInt64Array, packed_int64_array_to_variant, packed_int64_array_from_variant, PackedInt64Array);
+    impl_variant_traits!(PackedFloat32Array, packed_float32_array_to_variant, packed_float32_array_from_variant, PackedFloat32Array);
+    impl_variant_traits!(PackedFloat64Array, packed_float64_array_to_variant, packed_float64_array_from_variant, PackedFloat64Array);
+    impl_variant_traits!(PackedStringArray, packed_string_array_to_variant, packed_string_array_from_variant, PackedStringArray);
+    impl_variant_traits!(PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant, PackedVector2Array);
+    impl_variant_traits!(PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant, PackedVector3Array);
+    impl_variant_traits!(PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant, PackedColorArray);
 
     impl_variant_traits!(i64, int_to_variant, int_from_variant, Int, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
     impl_variant_traits_int!(i8, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8);
