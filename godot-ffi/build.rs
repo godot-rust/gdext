@@ -23,7 +23,7 @@ fn main() {
 
 fn run_bindgen(out_file: &Path) {
     let header_path = "../godot-codegen/input/gdextension_interface.h";
-    println!("cargo:rerun-if-changed={}", header_path);
+    println!("cargo:rerun-if-changed={header_path}");
 
     let builder = bindgen::Builder::default()
         .header(header_path)
@@ -92,7 +92,7 @@ fn apple_include_path() -> Result<String, std::io::Error> {
         .trim_end();
 
     let suffix = "usr/include";
-    let directory = format!("{}/{}", prefix, suffix);
+    let directory = format!("{prefix}/{suffix}");
 
     Ok(directory)
 }

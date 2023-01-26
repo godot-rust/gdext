@@ -30,8 +30,8 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
     }
 
     let test_name = &func.name;
-    let init_msg = format!("   -- {}", test_name);
-    let error_msg = format!("   !! Test {} failed", test_name);
+    let init_msg = format!("   -- {test_name}");
+    let error_msg = format!("   !! Test {test_name} failed");
     let body = &func.body;
 
     Ok(quote! {

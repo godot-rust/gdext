@@ -201,7 +201,7 @@ impl InitLevel {
             sys::GDEXTENSION_INITIALIZATION_SCENE => Self::Scene,
             sys::GDEXTENSION_INITIALIZATION_EDITOR => Self::Editor,
             _ => {
-                eprintln!("WARNING: unknown initialization level {}", level);
+                eprintln!("WARNING: unknown initialization level {level}");
                 Self::Scene
             }
         }

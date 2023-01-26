@@ -270,7 +270,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
             // Unknown methods which are declared inside trait impl are not supported (possibly compiler catches those first anyway)
             other_name => {
                 return bail(
-                    format!("Unsupported GodotExt method: {}", other_name),
+                    format!("Unsupported GodotExt method: {other_name}"),
                     &method.name,
                 )
             }

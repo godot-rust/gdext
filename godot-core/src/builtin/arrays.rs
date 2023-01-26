@@ -288,9 +288,7 @@ impl Array {
         let len = self.len();
         assert!(
             index <= len,
-            "Array insertion index {} is out of bounds: length is {}",
-            index,
-            len
+            "Array insertion index {index} is out of bounds: length is {len}",
         );
         self.as_inner().insert(to_i64(index), value);
     }
@@ -358,9 +356,7 @@ impl Array {
         let len = self.len();
         assert!(
             index < len,
-            "Array index {} is out of bounds: length is {}",
-            index,
-            len
+            "Array index {index} is out of bounds: length is {len}",
         );
     }
 
