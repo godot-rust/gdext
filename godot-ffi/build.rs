@@ -16,9 +16,7 @@ fn main() {
     }
 
     run_bindgen(&gen_path.join("gdextension_interface.rs"));
-
-    let stubs_only = cfg!(gdext_test);
-    godot_codegen::generate_sys_files(gen_path, stubs_only);
+    godot_codegen::generate_sys_files(gen_path);
 }
 
 fn run_bindgen(out_file: &Path) {

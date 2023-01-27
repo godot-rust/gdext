@@ -34,15 +34,11 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use std::path::{Path, PathBuf};
 
-pub fn generate_sys_files(sys_gen_path: &Path, stubs_only: bool) {
+pub fn generate_sys_files(sys_gen_path: &Path) {
     let mut out_files = vec![];
     let mut watch = StopWatch::start();
 
-    generate_sys_mod_file(sys_gen_path, &mut out_files, stubs_only);
-    if stubs_only {
-        rustfmt_if_needed(out_files);
-        return;
-    }
+    generate_sys_mod_file(sys_gen_path, &mut out_files);
 
     let (api, build_config) = load_extension_api(&mut watch);
     let mut ctx = Context::build_from_api(&api);
@@ -56,15 +52,11 @@ pub fn generate_sys_files(sys_gen_path: &Path, stubs_only: bool) {
     watch.write_stats_to(&sys_gen_path.join("codegen-stats.txt"));
 }
 
-pub fn generate_core_files(core_gen_path: &Path, stubs_only: bool) {
+pub fn generate_core_files(core_gen_path: &Path) {
     let mut out_files = vec![];
     let mut watch = StopWatch::start();
 
-    generate_core_mod_file(core_gen_path, &mut out_files, stubs_only);
-    if stubs_only {
-        rustfmt_if_needed(out_files);
-        return;
-    }
+    generate_core_mod_file(core_gen_path, &mut out_files);
 
     let (api, build_config) = load_extension_api(&mut watch);
     let mut ctx = Context::build_from_api(&api);

@@ -33,7 +33,6 @@ struct InnerRect {
     size: Vector2,
 }
 
-#[cfg(not(gdext_test))]
 impl Rect2 {
     pub fn size(self) -> Vector2 {
         self.inner().size
@@ -61,7 +60,6 @@ impl Callable {
         }
     }
 
-    #[cfg(not(any(gdext_test, doctest)))]
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerCallable {
         inner::InnerCallable::from_outer(self)

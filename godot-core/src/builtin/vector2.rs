@@ -85,7 +85,6 @@ impl Vector2 {
         glam::Vec2::new(self.x, self.y)
     }
 
-    #[cfg(not(any(gdext_test, doctest)))]
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerVector2 {
         inner::InnerVector2::from_outer(self)

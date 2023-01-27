@@ -7,16 +7,6 @@
 use godot_ffi as sys;
 use std::collections::btree_map::BTreeMap;
 
-#[cfg(gdext_test)]
-pub fn __gdext_load_library<E: ExtensionLibrary>(
-    interface: *const sys::GDExtensionInterface,
-    library: sys::GDExtensionClassLibraryPtr,
-    init: *mut sys::GDExtensionInitialization,
-) -> sys::GDExtensionBool {
-    sys::panic_no_godot!(__gdext_load_library)
-}
-
-#[cfg(not(gdext_test))]
 #[doc(hidden)]
 // TODO consider body safe despite unsafe function, and explicitly mark unsafe {} locations
 pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
@@ -24,6 +14,10 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     library: sys::GDExtensionClassLibraryPtr,
     init: *mut sys::GDExtensionInitialization,
 ) -> sys::GDExtensionBool {
+    if cfg!(test) {
+        panic!("Attempted to call Godot engine from unit-tests; use integration tests for this.")
+    }
+
     sys::initialize(interface, library);
 
     let mut handle = InitHandle::new();
