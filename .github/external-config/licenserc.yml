@@ -11,6 +11,7 @@ header:
   paths:
     - '**/*.rs'
     - '**/*.gd'
+    - '**/*.sh'
     - '.github/**/*.yml'
 
   paths-ignore:
@@ -20,7 +21,7 @@ header:
 
   language:
     GDScript:
-      extensions: ['.gd']
+      extensions: ['.gd', '.sh']
       comment_style_id: 'Hashtag'
     Rust:
       extensions: ['.rs']

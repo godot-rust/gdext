@@ -95,7 +95,7 @@ impl GodotExt for Player {
                 animated_sprite.set_flip_v(velocity.y > 0.0)
             }
 
-            animated_sprite.play(animation.into(), false);
+            animated_sprite.play(animation.into(), 1.0, false);
         } else {
             animated_sprite.stop();
         }
@@ -103,8 +103,8 @@ impl GodotExt for Player {
         let change = velocity * delta as f32;
         let position = self.base.get_global_position() + change;
         let position = Vector2::new(
-            position.x.max(0.0).min(self.screen_size.x),
-            position.y.max(0.0).min(self.screen_size.y),
+            position.x.clamp(0.0, self.screen_size.x),
+            position.y.clamp(0.0, self.screen_size.y),
         );
         self.base.set_global_position(position);
     }

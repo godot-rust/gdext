@@ -69,7 +69,6 @@ pub use vector4i::*;
 
 #[doc(hidden)]
 pub mod inner {
-    #[cfg(not(gdext_test))]
     pub use crate::gen::builtin_classes::*;
 }
 

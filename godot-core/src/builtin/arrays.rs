@@ -58,7 +58,6 @@ impl Array {
 }
 
 // This impl relies on `InnerArray` which is not (yet) available in unit tests
-#[cfg(not(any(gdext_test, doctest)))]
 impl Array {
     /// Constructs an empty `Array`.
     pub fn new() -> Self {
@@ -460,7 +459,6 @@ impl Array {
 }
 
 /// Creates an `Array` from the given Rust array. Each element is converted to a `Variant`.
-#[cfg(not(any(gdext_test, doctest)))]
 impl<T: ToVariant, const N: usize> From<&[T; N]> for Array {
     fn from(arr: &[T; N]) -> Self {
         Self::from(&arr[..])
@@ -468,7 +466,6 @@ impl<T: ToVariant, const N: usize> From<&[T; N]> for Array {
 }
 
 /// Creates an `Array` from the given slice. Each element is converted to a `Variant`.
-#[cfg(not(any(gdext_test, doctest)))]
 impl<T: ToVariant> From<&[T]> for Array {
     fn from(slice: &[T]) -> Self {
         let mut array = Self::new();
@@ -489,7 +486,6 @@ impl<T: ToVariant> From<&[T]> for Array {
 }
 
 /// Creates an `Array` from an iterator. Each element is converted to a `Variant`.
-#[cfg(not(any(gdext_test, doctest)))]
 impl<T: ToVariant> FromIterator<T> for Array {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut array = Array::new();
@@ -499,7 +495,6 @@ impl<T: ToVariant> FromIterator<T> for Array {
 }
 
 /// Extends an `Array` with the contents of an iterator. Each element is converted to a `Variant`.
-#[cfg(not(any(gdext_test, doctest)))]
 impl<T: ToVariant> Extend<T> for Array {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
@@ -519,7 +514,6 @@ pub struct ArrayIterator<'a> {
     _phantom: PhantomData<&'a Array>,
 }
 
-#[cfg(not(any(gdext_test, doctest)))]
 impl<'a> Iterator for ArrayIterator<'a> {
     type Item = Variant;
 

@@ -15,7 +15,7 @@ on:
 
 env:
   GDEXT_FEATURES: 'godot-core/convenience'
-  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
+#  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
 
 defaults:
   run:
@@ -52,35 +52,18 @@ jobs:
 
       # TODO get rid of Godot binary, once the JSON is either versioned or fetched from somewhere
       # Replaces also backspaces on Windows, since they cause problems in Bash
-      - name: "Store variable to Godot binary"
-        run: |
-          runnerDir=$(echo "${{ runner.temp }}" | sed "s!\\\\!/!")
-          echo "RUNNER_DIR=$runnerDir" >> $GITHUB_ENV
-          echo "GODOT4_BIN=$runnerDir/godot_bin/godot.linuxbsd.editor.dev.x86_64" >> $GITHUB_ENV
-
-      #      - name: "Check cache for installed Godot version"
-      #        id: "cache-godot"
-      #        uses: actions/cache@v3
-      #        with:
-      #          path: ${{ runner.temp }}/godot_bin
-      #          key: ${{ inputs.artifact-name }}-v${{ inputs.godot-ver }}
-
-      - name: "Download Godot artifact"
-        #        if: steps.cache-godot.outputs.cache-hit != 'true'
-        run: |
-          curl https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot/master/godot-linux.zip -Lo artifact.zip
-          unzip artifact.zip -d $RUNNER_DIR/godot_bin
-
-      - name: "Prepare Godot executable"
-        run: |
-          chmod +x $GODOT4_BIN
+      - name: "Install Godot"
+        uses: ./.github/composite/godot-install
+        with:
+          artifact-name: godot-linux
+          binary-filename: godot.linuxbsd.editor.dev.x86_64
 
       - name: "Check clippy"
-        run: cargo clippy --features $GDEXT_FEATURES $GDEXT_CRATE_ARGS -- --cfg gdext_clippy -D clippy::style -D clippy::complexity -D clippy::perf -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented
+        run: cargo clippy -- -D clippy::style -D clippy::complexity -D clippy::perf -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented
 
 
   unit-test:
-    name: unit-test (${{ matrix.name }})
+    name: unit-test (${{ matrix.name }}${{ matrix.rust-special }})
     runs-on: ${{ matrix.os }}
     continue-on-error: false
     strategy:
@@ -93,21 +76,25 @@ jobs:
           - name: macos
             os: macos-11
             rust-toolchain: stable
+            godot-binary: godot.macos.editor.dev.x86_64
 
           - name: windows
             os: windows-latest
             rust-toolchain: stable-x86_64-pc-windows-msvc
+            godot-binary: godot.windows.editor.dev.x86_64.exe
 
           # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
           - name: linux
             os: ubuntu-20.04
             rust-toolchain: stable
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
 
-          - name: linux-minimal-deps
+          - name: linux
             os: ubuntu-20.04
             rust-toolchain: stable
-            rust-special: minimal-deps
+            rust-special: -minimal-deps
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
 
     steps:
       - uses: actions/checkout@v3
@@ -117,35 +104,36 @@ jobs:
         with:
           rust: stable
           cache-key: ${{ matrix.rust-special }} # 'minimal-deps' or empty/not defined
+          with-llvm: ${{ matrix.name == 'macos' }}
 
       - name: "Install Rust nightly (minimal deps)"
         uses: ./.github/composite/rust
         with:
           rust: nightly
           cache-key: minimal-deps-nightly
-        if: ${{ matrix.rust-special == 'minimal-deps' }}
+        if: ${{ matrix.rust-special == '-minimal-deps' }}
 
       - name: "Install minimal dependency versions from Cargo"
         run: cargo +nightly update -Z minimal-versions
-        if: ${{ matrix.rust-special == 'minimal-deps' }}
+        if: ${{ matrix.rust-special == '-minimal-deps' }}
 
-      - name: "Install LLVM"
-        uses: ./.github/composite/llvm
-        if: matrix.name == 'macos'
+      # TODO get rid of Godot binary, once the JSON is either versioned or fetched from somewhere
+      # Replaces also backspaces on Windows, since they cause problems in Bash
+      - name: "Install Godot"
+        uses: ./.github/composite/godot-install
+        with:
+          artifact-name: godot-${{ matrix.name }}
+          binary-filename: ${{ matrix.godot-binary }}
 
       - name: "Compile tests"
-        run: cargo test $GDEXT_CRATE_ARGS --features $GDEXT_FEATURES --no-run
-        env:
-          RUSTFLAGS: --cfg=gdext_test
+        run: cargo test --no-run
 
       - name: "Test"
-        run: cargo test $GDEXT_CRATE_ARGS --features $GDEXT_FEATURES
-        env:
-          RUSTFLAGS: --cfg=gdext_test
+        run: cargo test $GDEXT_FEATURES
 
 
-  itest-godot:
-    name: itest-godot (${{ matrix.name }})
+  godot-itest:
+    name: godot-itest (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     continue-on-error: false
     timeout-minutes: 24
@@ -177,11 +165,11 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: "Run Godot integration test"
-        uses: ./.github/composite/godot
+        uses: ./.github/composite/godot-itest
         with:
           artifact-name: godot-${{ matrix.name }}
           binary-filename: ${{ matrix.godot-binary }}
-          #godot_ver: ${{ matrix.godot }}
+          with-llvm: ${{ matrix.name == 'macos' }}
 
 
   license-guard:
@@ -206,7 +194,7 @@ jobs:
       - rustfmt
       - clippy
       - unit-test
-      - itest-godot
+      - godot-itest
       - license-guard
     runs-on: ubuntu-20.04
     steps:

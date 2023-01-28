@@ -10,11 +10,11 @@ enum MobType {
 }
 
 impl MobType {
-    fn to_str(self) -> String {
+    fn to_str(self) -> GodotString {
         match self {
-            MobType::Walk => "walk".to_string(),
-            MobType::Swim => "swim".to_string(),
-            MobType::Fly => "fly".to_string(),
+            MobType::Walk => "walk".into(),
+            MobType::Swim => "swim".into(),
+            MobType::Fly => "fly".into(),
         }
     }
 }
@@ -63,7 +63,6 @@ impl GodotExt for Mob {
         let mut sprite = self
             .base
             .get_node_as::<AnimatedSprite2D>("AnimatedSprite2D");
-        sprite.set_animation(animation_name.as_str().into());
-        sprite.set_playing(true);
+        sprite.set_animation(StringName::from(&animation_name));
     }
 }

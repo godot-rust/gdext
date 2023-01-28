@@ -28,7 +28,7 @@ fn test_builtins_vector2() {
     assert_eq!(abs, Vector2::new(3.0, 4.0));
 
     let normalized = inner.is_normalized();
-    assert_eq!(normalized, false);
+    assert!(!normalized);
 }
 
 #[itest]
@@ -54,7 +54,7 @@ fn test_builtins_callable() {
     let cb = Callable::from_object_method(obj.share(), "set_position");
     let inner: InnerCallable = cb.as_inner();
 
-    assert_eq!(inner.is_null(), false);
+    assert!(!inner.is_null());
     assert_eq!(inner.get_object_id(), obj.instance_id().to_i64());
     assert_eq!(inner.get_method(), StringName::from("set_position"));
 

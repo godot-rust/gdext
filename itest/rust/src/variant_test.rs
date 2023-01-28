@@ -316,15 +316,13 @@ where
     for rel in true_rels {
         assert!(
             rel,
-            "total_order(rel=true, lhs={:?}, rhs={:?}, exp={:?})",
-            lhs, rhs, expected_order
+            "total_order(rel=true, lhs={lhs:?}, rhs={rhs:?}, exp={expected_order:?})",
         );
     }
     for rel in false_rels {
         assert!(
             !rel,
-            "total_order(rel=false, lhs={:?}, rhs={:?}, exp={:?})",
-            lhs, rhs, expected_order
+            "total_order(rel=false, lhs={lhs:?}, rhs={rhs:?}, exp={expected_order:?})",
         );
     }
 }

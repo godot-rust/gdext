@@ -243,12 +243,12 @@ fn object_engine_up_deref_mut() {
 
     // DerefMut chain: Gd<Node3D> -> &mut Node3D -> &mut Node -> &mut Object
     node3d.set_message_translation(true);
-    assert_eq!(node3d.can_translate_messages(), true);
+    assert!(node3d.can_translate_messages());
 
     // DerefMut chain: &mut Node3D -> ...
     let node3d_ref = &mut *node3d;
     node3d_ref.set_message_translation(false);
-    assert_eq!(node3d_ref.can_translate_messages(), false);
+    assert!(!node3d_ref.can_translate_messages());
 
     node3d.free();
 }

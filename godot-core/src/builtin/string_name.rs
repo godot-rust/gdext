@@ -69,7 +69,7 @@ impl Default for StringName {
             let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
             sys::builtin_call! {
                 string_name_construct_default(self_ptr, std::ptr::null_mut())
-            };
+            }
 
             uninit.assume_init()
         }
@@ -115,9 +115,12 @@ impl From<&GodotString> for StringName {
     }
 }
 
-impl From<&str> for StringName {
-    fn from(s: &str) -> Self {
-        let intermediate = GodotString::from(s);
+impl<S> From<S> for StringName
+where
+    S: AsRef<str>,
+{
+    fn from(s: S) -> Self {
+        let intermediate = GodotString::from(s.as_ref());
         Self::from(&intermediate)
     }
 }
@@ -131,5 +134,12 @@ impl From<&StringName> for GodotString {
                 ctor(self_ptr, args.as_ptr());
             })
         }
+    }
+}
+
+impl From<&StringName> for String {
+    fn from(s: &StringName) -> Self {
+        let intermediate = GodotString::from(s);
+        Self::from(&intermediate)
     }
 }

@@ -6,7 +6,7 @@
 
 use crate::itest;
 use godot::engine::input::CursorShape;
-use godot::engine::{file_access, time};
+use godot::engine::time;
 use std::collections::HashSet;
 
 pub fn run() -> bool {
@@ -43,10 +43,10 @@ fn enum_ords_correct() {
 fn enum_equality() {
     // TODO: find 2 overlapping ords in same enum
 
-    assert_eq!(
-        file_access::CompressionMode::COMPRESSION_DEFLATE,
-        file_access::CompressionMode::COMPRESSION_DEFLATE
-    );
+    // assert_eq!(
+    //     file_access::CompressionMode::COMPRESSION_DEFLATE,
+    //     file_access::CompressionMode::COMPRESSION_DEFLATE
+    // );
 }
 
 #[itest]
