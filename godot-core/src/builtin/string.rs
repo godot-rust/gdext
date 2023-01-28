@@ -79,21 +79,12 @@ impl_builtin_traits! {
     }
 }
 
-impl From<&String> for GodotString {
-    fn from(s: &String) -> GodotString {
-        GodotString::from(s.as_str())
-    }
-}
-
-impl From<String> for GodotString {
-    fn from(s: String) -> GodotString {
-        GodotString::from(s.as_str())
-    }
-}
-
-impl From<&str> for GodotString {
-    fn from(s: &str) -> Self {
-        let bytes = s.as_bytes();
+impl<S> From<S> for GodotString
+where
+    S: AsRef<str>,
+{
+    fn from(s: S) -> Self {
+        let bytes = s.as_ref().as_bytes();
 
         unsafe {
             Self::from_string_sys_init(|string_ptr| {
@@ -124,6 +115,8 @@ impl From<&GodotString> for String {
         }
     }
 }
+
+// TODO From<&NodePath> + test
 
 impl FromStr for GodotString {
     type Err = Infallible;
