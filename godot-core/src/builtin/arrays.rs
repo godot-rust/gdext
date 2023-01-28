@@ -6,7 +6,7 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{inner, FromVariant, ToVariant, Variant, VariantConversionError};
+use crate::builtin::*;
 use crate::obj::Share;
 use std::fmt;
 use std::marker::PhantomData;
@@ -39,16 +39,6 @@ pub struct Array {
     opaque: sys::types::OpaqueArray,
 }
 
-impl_builtin_stub!(PackedByteArray, OpaquePackedByteArray);
-impl_builtin_stub!(PackedColorArray, OpaquePackedColorArray);
-impl_builtin_stub!(PackedFloat32Array, OpaquePackedFloat32Array);
-impl_builtin_stub!(PackedFloat64Array, OpaquePackedFloat64Array);
-impl_builtin_stub!(PackedInt32Array, OpaquePackedInt32Array);
-impl_builtin_stub!(PackedInt64Array, OpaquePackedInt64Array);
-impl_builtin_stub!(PackedStringArray, OpaquePackedStringArray);
-impl_builtin_stub!(PackedVector2Array, OpaquePackedVector2Array);
-impl_builtin_stub!(PackedVector3Array, OpaquePackedVector3Array);
-
 impl_builtin_froms!(Array;
     PackedByteArray => array_from_packed_byte_array,
     PackedColorArray => array_from_packed_color_array,
@@ -60,16 +50,6 @@ impl_builtin_froms!(Array;
     PackedVector2Array => array_from_packed_vector2_array,
     PackedVector3Array => array_from_packed_vector3_array,
 );
-
-impl_builtin_froms!(PackedByteArray; Array => packed_byte_array_from_array);
-impl_builtin_froms!(PackedColorArray; Array => packed_color_array_from_array);
-impl_builtin_froms!(PackedFloat32Array; Array => packed_float32_array_from_array);
-impl_builtin_froms!(PackedFloat64Array; Array => packed_float64_array_from_array);
-impl_builtin_froms!(PackedInt32Array; Array => packed_int32_array_from_array);
-impl_builtin_froms!(PackedInt64Array; Array => packed_int64_array_from_array);
-impl_builtin_froms!(PackedStringArray; Array => packed_string_array_from_array);
-impl_builtin_froms!(PackedVector2Array; Array => packed_vector2_array_from_array);
-impl_builtin_froms!(PackedVector3Array; Array => packed_vector3_array_from_array);
 
 impl Array {
     fn from_opaque(opaque: sys::types::OpaqueArray) -> Self {
@@ -604,18 +584,6 @@ impl GodotFfi for Array {
         init_fn(result.sys_mut());
         result
     }
-}
-
-fn to_i64(i: usize) -> i64 {
-    i.try_into().unwrap()
-}
-
-fn to_usize(i: i64) -> usize {
-    i.try_into().unwrap()
-}
-
-fn to_isize(i: usize) -> isize {
-    i.try_into().unwrap()
 }
 
 #[repr(C)]

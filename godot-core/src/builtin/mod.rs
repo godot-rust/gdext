@@ -39,6 +39,7 @@ mod arrays;
 mod color;
 mod node_path;
 mod others;
+mod packed_array;
 mod string;
 mod string_name;
 mod variant;
@@ -55,6 +56,7 @@ pub use arrays::*;
 pub use color::*;
 pub use node_path::*;
 pub use others::*;
+pub use packed_array::*;
 pub use string::*;
 pub use string_name::*;
 pub use variant::*;
@@ -71,16 +73,14 @@ pub mod inner {
     pub use crate::gen::builtin_classes::*;
 }
 
-// pub struct PackedArray<T> {
-// 	_phantom: std::marker::PhantomData<T>
-// }
-//
-// pub type PackedByteArray = PackedArray<u8>;
-// pub type PackedInt32Array = PackedArray<i32>;
-// pub type PackedInt64Array = PackedArray<i64>;
-// pub type PackedFloat32Array = PackedArray<f32>;
-// pub type PackedFloat64Array = PackedArray<f64>;
-// pub type PackedStringArray = PackedArray<GodotString>;
-// pub type PackedVector2Array = PackedArray<Vector2>;
-// pub type PackedVector3Array = PackedArray<Vector3>;
-// pub type PackedColorArray = PackedArray<Color>;
+pub(crate) fn to_i64(i: usize) -> i64 {
+    i.try_into().unwrap()
+}
+
+pub(crate) fn to_usize(i: i64) -> usize {
+    i.try_into().unwrap()
+}
+
+pub(crate) fn to_isize(i: usize) -> isize {
+    i.try_into().unwrap()
+}
