@@ -66,6 +66,7 @@ fn main() {
         #[class(init)]
         struct GenFfi {}
 
+        #[allow(clippy::bool_comparison)] // i == true
         #[godot::bind::godot_api]
         impl GenFfi {
             #(#methods)*
@@ -111,7 +112,7 @@ fn rustfmt_if_needed(out_files: Vec<std::path::PathBuf>) {
         Ok(_) => println!("Done."),
         Err(err) => {
             println!("Failed.");
-            println!("Error: {}", err);
+            println!("Error: {err}");
         }
     }
 }

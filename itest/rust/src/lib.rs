@@ -72,7 +72,6 @@ pub(crate) fn expect_panic(context: &str, code: impl FnOnce() + UnwindSafe) {
     let panic = std::panic::catch_unwind(code);
     assert!(
         panic.is_err(),
-        "code should have panicked but did not: {}",
-        context
+        "code should have panicked but did not: {context}",
     );
 }
