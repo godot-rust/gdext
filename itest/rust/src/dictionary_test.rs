@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::itest;
 use godot::{
-    builtin::{dict, Dictionary, FromVariant, ToVariant},
+    builtin::{array, dict, Dictionary, FromVariant, ToVariant},
     prelude::{Share, Variant},
 };
 
@@ -360,7 +360,6 @@ fn dictionary_find_key() {
 
 #[itest]
 fn dictionary_contains_keys() {
-    use godot::prelude::Array;
     let dictionary = dict! {
         "foo": 0,
         "bar": true,
@@ -369,12 +368,16 @@ fn dictionary_contains_keys() {
     assert!(dictionary.contains_key("foo"), "key = \"foo\"");
     assert!(dictionary.contains_key("bar"), "key = \"bar\"");
     assert!(
-        dictionary.contains_all_keys(Array::from(&["foo", "bar"])),
+        dictionary.contains_all_keys(array!["foo".to_variant(), "bar".to_variant()]),
         "keys = [\"foo\", \"bar\"]"
     );
     assert!(!dictionary.contains_key("missing"), "key = \"missing\"");
     assert!(
-        !dictionary.contains_all_keys(Array::from(&["foo", "bar", "missing"])),
+        !dictionary.contains_all_keys(array![
+            "foo".to_variant(),
+            "bar".to_variant(),
+            "missing".to_variant()
+        ]),
         "keys = [\"foo\", \"bar\", \"missing\"]"
     );
 }
@@ -387,7 +390,10 @@ fn dictionary_keys_values() {
         "bar": true,
     };
 
-    assert_eq!(dictionary.keys(), Array::from(&["foo", "bar"]));
+    assert_eq!(
+        dictionary.keys(),
+        array!["foo".to_variant(), "bar".to_variant()]
+    );
     assert_eq!(
         dictionary.values(),
         Array::from(&[0.to_variant(), true.to_variant()])

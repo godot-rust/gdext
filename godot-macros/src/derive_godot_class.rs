@@ -325,7 +325,7 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 let class_name = ::godot::builtin::StringName::from(#class_name::CLASS_NAME);
                 let property_info = ::godot::builtin::meta::PropertyInfo::new(
                     #variant_type,
-                    ::godot::builtin::meta::ClassName::new::<#class_name>(),
+                    ::godot::builtin::meta::ClassName::of::<#class_name>(),
                     ::godot::builtin::StringName::from(#name),
                 );
                 let property_info_sys = property_info.property_sys();

@@ -14,6 +14,18 @@ use sys::GodotFfi;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macro definitions
 
+macro_rules! impl_variant_metadata {
+    ($T:ty, $variant_type:ident $( ; $($extra:tt)* )?) => {
+        impl VariantMetadata for $T {
+            fn variant_type() -> VariantType {
+                VariantType::$variant_type
+            }
+
+            $($($extra)*)?
+        }
+    };
+}
+
 macro_rules! impl_variant_traits {
     ($T:ty, $from_fn:ident, $to_fn:ident, $variant_type:ident) => {
         impl_variant_traits!(@@ $T, $from_fn, $to_fn, $variant_type;);
@@ -62,13 +74,7 @@ macro_rules! impl_variant_traits {
             }
         }
 
-        impl VariantMetadata for $T {
-            fn variant_type() -> VariantType {
-                VariantType::$variant_type
-            }
-
-            $($extra)*
-        }
+        impl_variant_metadata!($T, $variant_type; $($extra)*);
     };
 }
 
@@ -144,21 +150,19 @@ mod impls {
     impl_variant_traits!(GodotString, string_to_variant, string_from_variant, String);
     impl_variant_traits!(StringName, string_name_to_variant, string_name_from_variant, StringName);
     impl_variant_traits!(NodePath, node_path_to_variant, node_path_from_variant, NodePath);
-    /* TODO provide those, as soon as `Default` is available. Also consider auto-generating.
-    impl_variant_traits!(Rect2, rect2_to_variant, rect2_from_variant, Rect2);
-    impl_variant_traits!(Rect2i, rect2i_to_variant, rect2i_from_variant, Rect2i);
-    impl_variant_traits!(Plane, plane_to_variant, plane_from_variant, Plane);
-    impl_variant_traits!(Quaternion, quaternion_to_variant, quaternion_from_variant, Quaternion);
-    impl_variant_traits!(Aabb, aabb_to_variant, aabb_from_variant, AABB);
-    impl_variant_traits!(Basis, basis_to_variant, basis_from_variant, Basis);
-    impl_variant_traits!(Transform2D, transform_2d_to_variant, transform_2d_from_variant, Transform2D);
-    impl_variant_traits!(Transform3D, transform_3d_to_variant, transform_3d_from_variant, Transform3D);
-    impl_variant_traits!(Projection, projection_to_variant, projection_from_variant, Projection);
-    impl_variant_traits!(Rid, rid_to_variant, rid_from_variant, RID);
-    impl_variant_traits!(Callable, callable_to_variant, callable_from_variant, Callable);
-    impl_variant_traits!(Signal, signal_to_variant, signal_from_variant, Signal);
-    */
-    impl_variant_traits!(Array, array_to_variant, array_from_variant, Array);
+    // TODO use impl_variant_traits!, as soon as `Default` is available. Also consider auto-generating.
+    impl_variant_metadata!(Rect2, /* rect2_to_variant, rect2_from_variant, */ Rect2);
+    impl_variant_metadata!(Rect2i, /* rect2i_to_variant, rect2i_from_variant, */ Rect2i);
+    impl_variant_metadata!(Plane, /* plane_to_variant, plane_from_variant, */ Plane);
+    impl_variant_metadata!(Quaternion, /* quaternion_to_variant, quaternion_from_variant, */ Quaternion);
+    impl_variant_metadata!(Aabb, /* aabb_to_variant, aabb_from_variant, */ Aabb);
+    impl_variant_metadata!(Basis, /* basis_to_variant, basis_from_variant, */ Basis);
+    impl_variant_metadata!(Transform2D, /* transform_2d_to_variant, transform_2d_from_variant, */ Transform2D);
+    impl_variant_metadata!(Transform3D, /* transform_3d_to_variant, transform_3d_from_variant, */ Transform3D);
+    impl_variant_metadata!(Projection, /* projection_to_variant, projection_from_variant, */ Projection);
+    impl_variant_metadata!(Rid, /* rid_to_variant, rid_from_variant, */ Rid);
+    impl_variant_metadata!(Callable, /* callable_to_variant, callable_from_variant, */ Callable);
+    impl_variant_metadata!(Signal, /* signal_to_variant, signal_from_variant, */ Signal);
     impl_variant_traits!(PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant, PackedByteArray);
     impl_variant_traits!(PackedInt32Array, packed_int32_array_to_variant, packed_int32_array_from_variant, PackedInt32Array);
     impl_variant_traits!(PackedInt64Array, packed_int64_array_to_variant, packed_int64_array_from_variant, PackedInt64Array);
@@ -215,7 +219,8 @@ impl FromVariant for Variant {
 // Variant itself
 impl VariantMetadata for Variant {
     fn variant_type() -> VariantType {
-        VariantType::Nil // FIXME is this correct? what else to use? is this called at all?
+        // Arrays use the `NIL` type to indicate that they are untyped.
+        VariantType::Nil
     }
 }
 
