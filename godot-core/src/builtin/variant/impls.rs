@@ -133,6 +133,7 @@ mod impls {
     use super::*;
 
     impl_variant_traits!(bool, bool_to_variant, bool_from_variant, Bool);
+    impl_variant_traits!(Dictionary, dictionary_to_variant, dictionary_from_variant, Dictionary);
     impl_variant_traits!(Vector2, vector2_to_variant, vector2_from_variant, Vector2);
     impl_variant_traits!(Vector3, vector3_to_variant, vector3_from_variant, Vector3);
     impl_variant_traits!(Vector4, vector4_to_variant, vector4_from_variant, Vector4);

@@ -559,6 +559,7 @@ impl_builtin_traits! {
     for Array {
         Default => array_construct_default;
         Drop => array_destroy;
+        PartialEq => array_operator_equal;
     }
 }
 

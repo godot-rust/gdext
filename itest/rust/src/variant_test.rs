@@ -39,7 +39,6 @@ fn variant_nil() {
 fn variant_conversions() {
     roundtrip(false);
     roundtrip(true);
-    roundtrip(gstr("some string"));
     roundtrip(InstanceId::from_nonzero(-9223372036854775808i64));
     // roundtrip(Some(InstanceId::from_nonzero(9223372036854775807i64)));
     // roundtrip(Option::<InstanceId>::None);
@@ -60,6 +59,13 @@ fn variant_conversions() {
     roundtrip(2147483647i32);
     roundtrip(-2147483648i32);
     roundtrip(9223372036854775807i64);
+
+    // string
+    roundtrip(gstr("some string"));
+    roundtrip(String::from("some other string"));
+    let str_val = "abcdefghijklmnop";
+    let back = String::from_variant(&str_val.to_variant());
+    assert_eq!(str_val, back.as_str());
 }
 
 #[itest]

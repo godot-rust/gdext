@@ -25,7 +25,6 @@ impl_builtin_stub!(Projection, OpaqueProjection);
 impl_builtin_stub!(Rid, OpaqueRid);
 impl_builtin_stub!(Callable, OpaqueCallable);
 impl_builtin_stub!(Signal, OpaqueSignal);
-impl_builtin_stub!(Dictionary, OpaqueDictionary);
 
 #[repr(C)]
 struct InnerRect {
