@@ -8,9 +8,8 @@ use std::collections::{HashMap, HashSet};
 
 use crate::itest;
 use godot::{
-    builtin::{Dictionary, FromVariant, ToVariant},
+    builtin::{dict, Dictionary, FromVariant, ToVariant},
     prelude::{Share, Variant},
-    private::class_macros::dict,
 };
 
 pub fn run() -> bool {

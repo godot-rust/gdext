@@ -64,7 +64,7 @@ fn variant_conversions() {
     roundtrip(gstr("some string"));
     roundtrip(String::from("some other string"));
     let str_val = "abcdefghijklmnop";
-    let back = String::try_from_variant(&str_val.to_variant()).unwrap();
+    let back = String::from_variant(&str_val.to_variant());
     assert_eq!(str_val, back.as_str());
 }
 

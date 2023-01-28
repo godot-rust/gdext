@@ -53,6 +53,8 @@ mod vector4i;
 
 pub mod meta;
 
+pub use crate::dict;
+
 pub use arrays::*;
 pub use color::*;
 pub use dictionary::*;

@@ -1,3 +1,9 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
 use godot_ffi as sys;
 
 use crate::builtin::{inner, FromVariant, ToVariant, Variant, VariantConversionError};
@@ -160,20 +166,6 @@ impl Dictionary {
     }
 
     /// Get the pointer corresponding to the given key in the dictionary,
-    /// this pointer is null if there is no value at the given key.
-    #[allow(dead_code)] // TODO: remove function if it turns out i'll never actually get any use out of it
-    fn get_ptr<K: ToVariant>(&self, key: K) -> *const Variant {
-        let key = key.to_variant();
-        unsafe {
-            let ptr = (interface_fn!(dictionary_operator_index_const))(
-                self.sys_const(),
-                key.var_sys_const(),
-            );
-            ptr as *const Variant
-        }
-    }
-
-    /// Get the pointer corresponding to the given key in the dictionary,
     /// if there exists no value at the given key then a new one is created
     /// and initialized to a nil variant.
     fn get_ptr_mut<K: ToVariant>(&mut self, key: K) -> *mut Variant {
@@ -209,8 +201,8 @@ impl Dictionary {
     }
 }
 
-/// Creates a `Dictionary` from the given `I`. Each key and value are
-/// converted to a `Variant`.
+/// Creates a Dictionary from the given iterator I over a (&K, &V) key-value pair.
+/// Each key and value are converted to a Variant.
 impl<'a, 'b, K, V, I> From<I> for Dictionary
 where
     I: IntoIterator<Item = (&'a K, &'b V)>,
@@ -288,7 +280,21 @@ impl_builtin_traits! {
 }
 
 impl GodotFfi for Dictionary {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+    ffi_methods! {
+        type sys::GDExtensionTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn write_sys;
+    }
+
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+        // Can't use uninitialized pointer -- Dictionary CoW implementation in C++ expects that on
+        // assignment, the target CoW pointer is either initialized or nullptr
+
+        let mut result = Self::default();
+        init_fn(result.sys_mut());
+        result
+    }
 }
 
 impl fmt::Debug for Dictionary {
@@ -322,8 +328,8 @@ impl Share for Dictionary {
 ///
 /// Example
 /// ```no_run
-/// # #[macro_use] extern crate godot_core;
-/// # fn main() {
+/// use godot::builtin::dict;
+///
 /// let key = "my_key";
 /// let d = dict! {
 ///     "key1": 10,
@@ -331,7 +337,6 @@ impl Share for Dictionary {
 ///     key: true,
 ///     (1 + 2): "final",
 /// }
-/// # }
 /// ```
 #[macro_export]
 macro_rules! dict {
