@@ -9,7 +9,7 @@ use std::collections::{HashMap, HashSet};
 use crate::itest;
 use godot::{
     builtin::{Dictionary, FromVariant, ToVariant},
-    prelude::{Variant, Share},
+    prelude::{Share, Variant},
     private::class_macros::dict,
 };
 
@@ -54,30 +54,14 @@ fn dictionary_from_iterator() {
     let dictionary = Dictionary::from_iter([("foo", 1), ("bar", 2)]);
 
     assert_eq!(dictionary.len(), 2);
-    assert_eq!(
-        dictionary.get("foo"),
-        Some(1.to_variant()),
-        "key = \"foo\""
-    );
-    assert_eq!(
-        dictionary.get("bar"),
-        Some(2.to_variant()),
-        "key = \"bar\""
-    );
+    assert_eq!(dictionary.get("foo"), Some(1.to_variant()), "key = \"foo\"");
+    assert_eq!(dictionary.get("bar"), Some(2.to_variant()), "key = \"bar\"");
 
     let dictionary = Dictionary::from_iter([(1, "foo"), (2, "bar")]);
 
     assert_eq!(dictionary.len(), 2);
-    assert_eq!(
-        dictionary.get(1),
-        Some("foo".to_variant()),
-        "key = 1"
-    );
-    assert_eq!(
-        dictionary.get(2),
-        Some("bar".to_variant()),
-        "key = 2"
-    );
+    assert_eq!(dictionary.get(1), Some("foo".to_variant()), "key = 1");
+    assert_eq!(dictionary.get(2), Some("bar".to_variant()), "key = 2");
 }
 
 #[itest]
@@ -85,30 +69,14 @@ fn dictionary_from() {
     let dictionary = Dictionary::from(&HashMap::from([("foo", 1), ("bar", 2)]));
 
     assert_eq!(dictionary.len(), 2);
-    assert_eq!(
-        dictionary.get("foo"),
-        Some(1.to_variant()),
-        "key = \"foo\""
-    );
-    assert_eq!(
-        dictionary.get("bar"),
-        Some(2.to_variant()),
-        "key = \"bar\""
-    );
+    assert_eq!(dictionary.get("foo"), Some(1.to_variant()), "key = \"foo\"");
+    assert_eq!(dictionary.get("bar"), Some(2.to_variant()), "key = \"bar\"");
 
     let dictionary = Dictionary::from(&HashMap::from([(1, "foo"), (2, "bar")]));
 
     assert_eq!(dictionary.len(), 2);
-    assert_eq!(
-        dictionary.get(1),
-        Some("foo".to_variant()),
-        "key = \"foo\""
-    );
-    assert_eq!(
-        dictionary.get(2),
-        Some("bar".to_variant()),
-        "key = \"bar\""
-    );
+    assert_eq!(dictionary.get(1), Some("foo".to_variant()), "key = \"foo\"");
+    assert_eq!(dictionary.get(2), Some("bar".to_variant()), "key = \"bar\"");
 }
 
 #[itest]
@@ -120,11 +88,7 @@ fn dictionary_macro() {
     };
 
     assert_eq!(dictionary.len(), 3);
-    assert_eq!(
-        dictionary.get("foo"),
-        Some(0.to_variant()),
-        "key = \"foo\""
-    );
+    assert_eq!(dictionary.get("foo"), Some(0.to_variant()), "key = \"foo\"");
     assert_eq!(
         dictionary.get("bar"),
         Some(true.to_variant()),
@@ -197,10 +161,7 @@ fn dictionary_clone() {
     Dictionary::try_from_variant(&clone.get("bar").unwrap())
         .unwrap()
         .insert("final", 4);
-    assert_eq!(
-        subdictionary.get("final"),
-        Some(4.to_variant())
-    );
+    assert_eq!(subdictionary.get("final"), Some(4.to_variant()));
 }
 
 #[itest]
@@ -269,30 +230,15 @@ fn dictionary_get() {
 
     dictionary.insert("baz", "foobar");
 
-    assert_eq!(
-        dictionary.get("foo"),
-        Some(0.to_variant()),
-        "key = \"foo\""
-    );
+    assert_eq!(dictionary.get("foo"), Some(0.to_variant()), "key = \"foo\"");
     assert_eq!(
         dictionary.get("bar"),
         Some(true.to_variant()),
         "key = \"bar\""
     );
-    assert_eq!(
-        dictionary.get("baz"),
-        Some("foobar".to_variant())
-    );
-    assert_eq!(
-        dictionary.get("nil"),
-        Some(Variant::nil()),
-        "key = \"nil\""
-    );
-    assert_eq!(
-        dictionary.get("missing"),
-        None,
-        "key = \"missing\""
-    );
+    assert_eq!(dictionary.get("baz"), Some("foobar".to_variant()));
+    assert_eq!(dictionary.get("nil"), Some(Variant::nil()), "key = \"nil\"");
+    assert_eq!(dictionary.get("missing"), None, "key = \"missing\"");
     assert_eq!(
         dictionary.get_or_nil("nil"),
         Variant::nil(),
@@ -303,11 +249,7 @@ fn dictionary_get() {
         Variant::nil(),
         "key = \"missing\""
     );
-    assert_eq!(
-        dictionary.get("foobar"),
-        None,
-        "key = \"foobar\""
-    );
+    assert_eq!(dictionary.get("foobar"), None, "key = \"foobar\"");
 }
 
 #[itest]
@@ -317,10 +259,7 @@ fn dictionary_insert() {
         "bar": 1,
     };
 
-    assert_eq!(
-        dictionary.insert("bar", 2),
-        Some(1.to_variant())
-    );
+    assert_eq!(dictionary.insert("bar", 2), Some(1.to_variant()));
     assert_eq!(
         HashMap::<String, i64>::try_from(&dictionary),
         Ok(HashMap::from([("foo".into(), 0), ("bar".into(), 2)]))
@@ -328,7 +267,11 @@ fn dictionary_insert() {
     assert_eq!(dictionary.insert("baz", 3), None);
     assert_eq!(
         HashMap::<String, i64>::try_from(&dictionary),
-        Ok(HashMap::from([("foo".into(), 0), ("bar".into(), 2), ("baz".into(), 3)]))
+        Ok(HashMap::from([
+            ("foo".into(), 0),
+            ("bar".into(), 2),
+            ("baz".into(), 3)
+        ]))
     );
 }
 
@@ -349,10 +292,7 @@ fn dictionary_insert_multiple() {
 #[itest]
 fn dictionary_insert_long() {
     let mut dictionary = dict! {};
-    let old = dictionary.insert(
-        "abcdefghijklmnopqrstuvwxyz",
-        "zabcdefghijklmnopqrstuvwxy",
-    );
+    let old = dictionary.insert("abcdefghijklmnopqrstuvwxyz", "zabcdefghijklmnopqrstuvwxy");
     assert_eq!(old, None);
     assert_eq!(
         dictionary.get("abcdefghijklmnopqrstuvwxyz"),
@@ -415,14 +355,8 @@ fn dictionary_find_key() {
         "bar": true,
     };
 
-    assert_eq!(
-        dictionary.find_key_by_value(0),
-        Some("foo".to_variant())
-    );
-    assert_eq!(
-        dictionary.find_key_by_value(true),
-        Some("bar".to_variant())
-    );
+    assert_eq!(dictionary.find_key_by_value(0), Some("foo".to_variant()));
+    assert_eq!(dictionary.find_key_by_value(true), Some("bar".to_variant()));
 }
 
 #[itest]

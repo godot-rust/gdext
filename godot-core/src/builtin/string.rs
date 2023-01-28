@@ -10,7 +10,7 @@ use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use super::{Variant, VariantConversionError, ToVariant, FromVariant};
+use super::{FromVariant, ToVariant, Variant, VariantConversionError};
 
 #[repr(C, align(8))]
 pub struct GodotString {
