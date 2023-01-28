@@ -151,19 +151,19 @@ impl fmt::Debug for GodotString {
 
 impl ToVariant for &str {
     fn to_variant(&self) -> Variant {
-        crate::builtin::GodotString::from(*self).to_variant()
+        GodotString::from(*self).to_variant()
     }
 }
 
 impl ToVariant for String {
     fn to_variant(&self) -> Variant {
-        crate::builtin::GodotString::from(self).to_variant()
+        GodotString::from(self).to_variant()
     }
 }
 
 impl FromVariant for String {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-        Ok(crate::builtin::GodotString::try_from_variant(variant)?.to_string())
+        Ok(GodotString::try_from_variant(variant)?.to_string())
     }
 }
 
