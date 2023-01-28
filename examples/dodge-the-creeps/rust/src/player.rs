@@ -95,7 +95,7 @@ impl GodotExt for Player {
                 animated_sprite.set_flip_v(velocity.y > 0.0)
             }
 
-            animated_sprite.play(animation.into(), false);
+            animated_sprite.play(animation.into(), 1.0, false);
         } else {
             animated_sprite.stop();
         }
