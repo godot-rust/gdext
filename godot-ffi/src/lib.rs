@@ -203,3 +203,16 @@ pub fn force_mut_ptr<T>(ptr: *const T) -> *mut T {
 pub fn to_const_ptr<T>(ptr: *mut T) -> *const T {
     ptr as *const T
 }
+
+/// If `ptr` is not null, returns `Some(mapper(ptr))`; otherwise `None`.
+pub fn ptr_then<T, R, F>(ptr: *mut T, mapper: F) -> Option<R>
+where
+    F: FnOnce(*mut T) -> R,
+{
+    // Could also use NonNull in signature, but for this project we always deal with FFI raw pointers
+    if ptr.is_null() {
+        None
+    } else {
+        Some(mapper(ptr))
+    }
+}

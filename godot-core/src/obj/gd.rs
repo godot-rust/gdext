@@ -366,11 +366,7 @@ impl<T: GodotClass> Gd<T> {
         let class_tag = interface_fn!(classdb_get_class_tag)(class_name.string_sys());
         let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
 
-        if cast_object_ptr.is_null() {
-            None
-        } else {
-            Some(Gd::from_obj_sys(cast_object_ptr))
-        }
+        sys::ptr_then(cast_object_ptr, |ptr| Gd::from_obj_sys(ptr))
     }
 
     pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut engine::RefCounted) -> R) -> R {
@@ -500,30 +496,38 @@ impl<T: GodotClass> GodotFfi for Gd<T> {
 
 impl<T: GodotClass> Gd<T> {
     /// Runs `init_fn` on the address of a pointer (initialized to null). If that pointer is still null after the `init_fn` call,
-    /// then `None` will be returned; otherwise `from_obj_sys(ptr)`.
+    /// then `None` will be returned; otherwise `Gd::from_obj_sys(ptr)`.
     ///
     /// # Safety
-    /// `init_fn` must be a function that correctly handles an "type pointer" pointing to an "object pointer"
+    /// `init_fn` must be a function that correctly handles a _type pointer_ pointing to an _object pointer_.
     #[doc(hidden)]
     // TODO unsafe on init_fn instead of this fn?
     pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Option<Self> {
         // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
 
-        // return_ptr has type GDExtensionTypePtr = GDExtensionObjectPtr* = OpaqueObject* = Object**
-        // (in other words, the type-ptr contains the _address_ of an object-ptr).
-        let mut object_ptr: sys::GDExtensionObjectPtr = ptr::null_mut();
-        let return_ptr: *mut sys::GDExtensionObjectPtr = ptr::addr_of_mut!(object_ptr);
-
-        init_fn(return_ptr as sys::GDExtensionTypePtr);
-
-        // We don't need to know if Object** is null, but if Object* is null; return_ptr has the address of a local (never null).
-        if object_ptr.is_null() {
-            None
-        } else {
-            let obj = Gd::from_obj_sys(object_ptr); // equivalent to Gd::from_sys(return_ptr)
-            Some(obj)
-        }
+        // Initialize pointer with given function, return Some(ptr) on success and None otherwise
+        let object_ptr = raw_object_init(init_fn);
+        sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys(ptr))
     }
+}
+
+/// Runs `init_fn` on the address of a pointer (initialized to null), then returns that pointer, possibly still null.
+///
+/// # Safety
+/// `init_fn` must be a function that correctly handles a _type pointer_ pointing to an _object pointer_.
+#[doc(hidden)]
+pub unsafe fn raw_object_init(
+    init_fn: impl FnOnce(sys::GDExtensionTypePtr),
+) -> sys::GDExtensionObjectPtr {
+    // return_ptr has type GDExtensionTypePtr = GDExtensionObjectPtr* = OpaqueObject* = Object**
+    // (in other words, the type-ptr contains the _address_ of an object-ptr).
+    let mut object_ptr: sys::GDExtensionObjectPtr = ptr::null_mut();
+    let return_ptr: *mut sys::GDExtensionObjectPtr = ptr::addr_of_mut!(object_ptr);
+
+    init_fn(return_ptr as sys::GDExtensionTypePtr);
+
+    // We don't need to know if Object** is null, but if Object* is null; return_ptr has the address of a local (never null).
+    object_ptr
 }
 
 /// Destructor with semantics depending on memory strategy.
