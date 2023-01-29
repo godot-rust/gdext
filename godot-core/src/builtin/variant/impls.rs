@@ -133,7 +133,6 @@ mod impls {
     use super::*;
 
     impl_variant_traits!(bool, bool_to_variant, bool_from_variant, Bool);
-    impl_variant_traits!(Dictionary, dictionary_to_variant, dictionary_from_variant, Dictionary);
     impl_variant_traits!(Vector2, vector2_to_variant, vector2_from_variant, Vector2);
     impl_variant_traits!(Vector3, vector3_to_variant, vector3_from_variant, Vector3);
     impl_variant_traits!(Vector4, vector4_to_variant, vector4_from_variant, Vector4);
@@ -142,6 +141,21 @@ mod impls {
     impl_variant_traits!(Color, color_to_variant, color_from_variant, Color);
     impl_variant_traits!(GodotString, string_to_variant, string_from_variant, String);
     impl_variant_traits!(StringName, string_name_to_variant, string_name_from_variant, StringName);
+    impl_variant_traits!(NodePath, node_path_to_variant, node_path_from_variant, NodePath);
+    /* TODO provide those, as soon as `Default` is available. Also consider auto-generating.
+    impl_variant_traits!(Rect2, rect2_to_variant, rect2_from_variant, Rect2);
+    impl_variant_traits!(Rect2i, rect2i_to_variant, rect2i_from_variant, Rect2i);
+    impl_variant_traits!(Plane, plane_to_variant, plane_from_variant, Plane);
+    impl_variant_traits!(Quaternion, quaternion_to_variant, quaternion_from_variant, Quaternion);
+    impl_variant_traits!(Aabb, aabb_to_variant, aabb_from_variant, AABB);
+    impl_variant_traits!(Basis, basis_to_variant, basis_from_variant, Basis);
+    impl_variant_traits!(Transform2D, transform_2d_to_variant, transform_2d_from_variant, Transform2D);
+    impl_variant_traits!(Transform3D, transform_3d_to_variant, transform_3d_from_variant, Transform3D);
+    impl_variant_traits!(Projection, projection_to_variant, projection_from_variant, Projection);
+    impl_variant_traits!(Rid, rid_to_variant, rid_from_variant, RID);
+    impl_variant_traits!(Callable, callable_to_variant, callable_from_variant, Callable);
+    impl_variant_traits!(Signal, signal_to_variant, signal_from_variant, Signal);
+    */
     impl_variant_traits!(Array, array_to_variant, array_from_variant, Array);
     impl_variant_traits!(PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant, PackedByteArray);
     impl_variant_traits!(PackedInt32Array, packed_int32_array_to_variant, packed_int32_array_from_variant, PackedInt32Array);
@@ -152,6 +166,7 @@ mod impls {
     impl_variant_traits!(PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant, PackedVector2Array);
     impl_variant_traits!(PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant, PackedVector3Array);
     impl_variant_traits!(PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant, PackedColorArray);
+    impl_variant_traits!(Dictionary, dictionary_to_variant, dictionary_from_variant, Dictionary);
 
     impl_variant_traits!(i64, int_to_variant, int_from_variant, Int, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
     impl_variant_traits_int!(i8, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8);

@@ -59,14 +59,41 @@ impl Variant {
     }
 
     /// Checks whether the variant is empty (`null` value in GDScript).
+    ///
+    /// See also [`Self::get_type`].
     pub fn is_nil(&self) -> bool {
-        self.sys_type() == sys::GDEXTENSION_VARIANT_TYPE_NIL
+        // Use get_type() rather than sys_type(), to also cover nullptr OBJECT as NIL
+        self.get_type() == VariantType::Nil
     }
 
-    // TODO test
+    /// Returns the type that is currently held by this variant.
+    ///
+    /// If this variant holds a type `Object` but no instance (represented as a null object pointer), then `Nil` will be returned for
+    /// consistency. This may deviate from Godot behavior -- for example, calling `Node::get_node_or_null()` with an invalid
+    /// path returns a variant that has type `Object` but acts like `Nil` for all practical purposes.
     pub fn get_type(&self) -> VariantType {
-        let ty_sys = unsafe { interface_fn!(variant_get_type)(self.var_sys()) };
-        VariantType::from_sys(ty_sys)
+        let sys_type = self.sys_type();
+
+        // There is a special case when the Variant has type OBJECT, but the Object* is null.
+        let is_null_object = if sys_type == sys::GDEXTENSION_VARIANT_TYPE_OBJECT {
+            // SAFETY: we checked that the raw type is OBJECT, so we can interpret the type-ptr as address of an object-ptr.
+            let object_ptr = unsafe {
+                crate::obj::raw_object_init(|type_ptr| {
+                    let converter = sys::builtin_fn!(object_from_variant);
+                    converter(type_ptr, self.var_sys());
+                })
+            };
+
+            object_ptr.is_null()
+        } else {
+            false
+        };
+
+        if is_null_object {
+            VariantType::Nil
+        } else {
+            VariantType::from_sys(sys_type)
+        }
     }
 
     // TODO test

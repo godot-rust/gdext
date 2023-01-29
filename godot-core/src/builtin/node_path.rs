@@ -62,6 +62,7 @@ impl Display for NodePath {
 
 impl_builtin_traits! {
     for NodePath {
+        Default => node_path_construct_default;
         Clone => node_path_construct_copy;
         Drop => node_path_destroy;
     }
