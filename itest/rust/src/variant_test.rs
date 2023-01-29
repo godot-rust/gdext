@@ -5,7 +5,10 @@
  */
 
 use crate::itest;
-use godot::builtin::{FromVariant, GodotString, StringName, ToVariant, Variant, Vector2, Vector3};
+use godot::builtin::{
+    FromVariant, GodotString, NodePath, StringName, ToVariant, Variant, Vector2, Vector3,
+};
+use godot::engine::Node3D;
 use godot::obj::InstanceId;
 use godot::sys::{GodotFfi, VariantOperator, VariantType};
 use std::cmp::Ordering;
@@ -23,7 +26,7 @@ pub fn run() -> bool {
     ok &= variant_evaluate_total_order();
     ok &= variant_sys_conversion();
     ok &= variant_sys_conversion2();
-    ok &= variant_object_nullptr();
+    ok &= variant_null_object_is_nil();
     ok
 }
 
@@ -199,29 +202,23 @@ fn variant_sys_conversion() {
 }
 
 #[itest]
-fn variant_object_nullptr() {
-    // Some Variants that are of type Object actually contain a null pointer.
-    // The should report their type as Nil instead, so that they don't create invalid Gd<T> objects.
-    let variant;
-    unsafe {
-        // Create a variant from a null object pointer.
-        variant = Variant::from_var_sys_init(|self_ptr| {
-            let null_pointer: godot::sys::GDExtensionObjectPtr = std::ptr::null_mut();
-            let converter = godot::sys::builtin_fn!(object_to_variant);
-            converter(
-                self_ptr,
-                std::ptr::addr_of!(null_pointer) as godot::sys::GDExtensionTypePtr,
-            );
-        });
+fn variant_null_object_is_nil() {
+    use godot::sys;
 
-        // Get the variant's internal type and ensure that it is actually still an Object.
-        let sys_type: godot::sys::GDExtensionVariantType =
-            godot::sys::interface_fn!(variant_get_type)(variant.var_sys());
-        assert_eq!(sys_type, godot::sys::GDEXTENSION_VARIANT_TYPE_OBJECT);
-    }
+    let mut node = Node3D::new_alloc();
+    let node_path = NodePath::from("res://NonExisting.tscn");
 
-    // The actual test of the public API, ensure that the variant's type is Nil even though the internal type is Object.
+    // Simulates an object that is returned but null
+    // Use reflection to get a variant as return type
+    let variant = node.call("get_node_or_null".into(), &[node_path.to_variant()]);
+    let raw_type: sys::GDExtensionVariantType =
+        unsafe { sys::interface_fn!(variant_get_type)(variant.var_sys()) };
+
+    // Verify that this appears as NIL to the user, even though it's internally OBJECT with a null object pointer
+    assert_eq!(raw_type, sys::GDEXTENSION_VARIANT_TYPE_OBJECT);
     assert_eq!(variant.get_type(), VariantType::Nil);
+
+    node.free();
 }
 
 #[itest]

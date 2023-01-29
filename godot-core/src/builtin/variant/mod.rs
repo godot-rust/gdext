@@ -59,35 +59,36 @@ impl Variant {
     }
 
     /// Checks whether the variant is empty (`null` value in GDScript).
+    ///
+    /// See also [`Self::get_type`].
     pub fn is_nil(&self) -> bool {
-        // Use get_type rather than sys_type to include checking for the case where the variant is an object but with a null pointer.
+        // Use get_type() rather than sys_type(), to also cover nullptr OBJECT as NIL
         self.get_type() == VariantType::Nil
     }
 
-    // TODO test
-    /// Converts the sys_type to the VariantType.
-    /// Also handles the case where a variant's type is Object but it has a null pointer, instead returning Nil.
+    /// Returns the type that is currently held by this variant.
+    ///
+    /// If this variant holds a type `Object` but no instance (represented as a null object pointer), then `Nil` will be returned for
+    /// consistency. This may deviate from Godot behavior -- for example, calling `Node::get_node_or_null()` with an invalid
+    /// path returns a variant that has type `Object` but acts like `Nil` for all practical purposes.
     pub fn get_type(&self) -> VariantType {
         let sys_type = self.sys_type();
 
         // There is a special case when the Variant is an Object, but the Object* is null.
-        let is_an_object = sys_type == sys::GDEXTENSION_VARIANT_TYPE_OBJECT;
-        let is_a_null_object = if is_an_object {
-            // Only call object_from_variant if the Variant is of type Object.
+        let is_null_object = if sys_type == sys::GDEXTENSION_VARIANT_TYPE_OBJECT {
+            // object_from_variant expects sys::GDExtensionTypePtr, which is essentially an Object**.
+            let mut object_ptr: sys::GDExtensionObjectPtr = ptr::null_mut();
+            let object_ptr_ptr = ptr::addr_of_mut!(object_ptr) as sys::GDExtensionTypePtr;
             unsafe {
-                // object_from_variant expects sys::GDExtensionTypePtr, which is essentially an Object**.
-                // The type that sys::GDExtensionTypePtr isn't the actual rust type it would dereference to, but instead GDExtensionObjectPtr.
-                let mut object_ptr: sys::GDExtensionObjectPtr = std::ptr::null_mut();
-                let object_ptr_ptr = std::ptr::addr_of_mut!(object_ptr) as sys::GDExtensionTypePtr;
                 let converter = sys::builtin_fn!(object_from_variant);
                 converter(object_ptr_ptr, self.var_sys());
-                object_ptr.is_null()
             }
+            object_ptr.is_null()
         } else {
             false
         };
 
-        if is_a_null_object {
+        if is_null_object {
             VariantType::Nil
         } else {
             VariantType::from_sys(sys_type)
