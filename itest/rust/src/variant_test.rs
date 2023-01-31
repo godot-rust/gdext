@@ -10,6 +10,7 @@ use godot::builtin::{
 };
 use godot::engine::Node3D;
 use godot::obj::InstanceId;
+use godot::prelude::{Array, Dictionary, VariantConversionError};
 use godot::sys::{GodotFfi, VariantOperator, VariantType};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
@@ -27,6 +28,8 @@ pub fn run() -> bool {
     ok &= variant_sys_conversion();
     ok &= variant_sys_conversion2();
     ok &= variant_null_object_is_nil();
+    ok &= variant_conversion_fails();
+    ok &= variant_type_correct();
     ok
 }
 
@@ -238,6 +241,52 @@ fn variant_sys_conversion2() {
     */
 }
 
+#[itest]
+fn variant_conversion_fails() {
+    assert_eq!(
+        "hello".to_variant().try_to::<i64>(),
+        Err(VariantConversionError)
+    );
+    assert_eq!(28.to_variant().try_to::<f32>(), Err(VariantConversionError));
+    assert_eq!(
+        10.to_variant().try_to::<bool>(),
+        Err(VariantConversionError)
+    );
+    assert_eq!(
+        false.to_variant().try_to::<String>(),
+        Err(VariantConversionError)
+    );
+    assert_eq!(
+        Array::default().to_variant().try_to::<StringName>(),
+        Err(VariantConversionError)
+    );
+    assert_eq!(
+        Dictionary::default().to_variant().try_to::<Array>(),
+        Err(VariantConversionError)
+    );
+    assert_eq!(
+        Variant::nil().to_variant().try_to::<Dictionary>(),
+        Err(VariantConversionError)
+    );
+}
+
+#[itest]
+fn variant_type_correct() {
+    assert_eq!(Variant::nil().get_type(), VariantType::Nil);
+    assert_eq!(0.to_variant().get_type(), VariantType::Int);
+    assert_eq!(3.8.to_variant().get_type(), VariantType::Float);
+    assert_eq!(false.to_variant().get_type(), VariantType::Bool);
+    assert_eq!("string".to_variant().get_type(), VariantType::String);
+    assert_eq!(
+        StringName::from("string_name").to_variant().get_type(),
+        VariantType::StringName
+    );
+    assert_eq!(Array::default().to_variant().get_type(), VariantType::Array);
+    assert_eq!(
+        Dictionary::default().to_variant().get_type(),
+        VariantType::Dictionary
+    );
+}
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 fn roundtrip<T>(value: T)
