@@ -48,7 +48,9 @@ macro_rules! impl_variant_traits {
                 // void String::operator=(const String &p_str) { _cowdata._ref(p_str._cowdata); }
                 // does a copy-on-write and explodes if this->_cowdata is not initialized.
                 // We can thus NOT use Self::from_sys_init().
-
+                if variant.get_type() != Self::variant_type() {
+                    return Err(VariantConversionError)
+                }
                 let mut value = <$T>::default();
                 let result = unsafe {
                     let converter = sys::builtin_fn!($to_fn);
