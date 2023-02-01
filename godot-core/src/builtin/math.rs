@@ -41,6 +41,16 @@ pub fn snapped(mut value: f32, step: f32) -> f32 {
     value
 }
 
+pub fn sign(value: f32) -> f32 {
+    if value == 0.0 {
+        0.0
+    } else if value < 0.0 {
+        -1.0
+    } else {
+        1.0
+    }
+}
+
 pub fn bezier_derivative(start: f32, control_1: f32, control_2: f32, end: f32, t: f32) -> f32 {
     let omt = 1.0 - t;
     let omt2 = omt * omt;
@@ -66,6 +76,7 @@ pub fn cubic_interpolate(from: f32, to: f32, pre: f32, post: f32, weight: f32) -
         + (-pre + 3.0 * from - 3.0 * to + post) * (weight * weight * weight))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn cubic_interpolate_in_time(
     from: f32,
     to: f32,
