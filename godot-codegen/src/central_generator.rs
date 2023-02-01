@@ -441,14 +441,12 @@ fn make_enumerator(
     value: i32,
     ctx: &mut Context,
 ) -> (Ident, TokenStream, Literal) {
-    //let shout_name = format_ident!("{}", type_names.shout_case);
-    let (first, rest) = type_names.json_builtin_name.split_at(1);
-
-    let pascal_name = format_ident!("{}{}", first.to_ascii_uppercase(), rest);
-    let rust_ty = to_rust_type(&type_names.json_builtin_name, ctx);
+    let enumerator_name = &type_names.json_builtin_name;
+    let pascal_name = to_pascal_case(enumerator_name);
+    let rust_ty = to_rust_type(enumerator_name, ctx);
     let ord = Literal::i32_unsuffixed(value);
 
-    (pascal_name, rust_ty.to_token_stream(), ord)
+    (ident(&pascal_name), rust_ty.to_token_stream(), ord)
 }
 
 fn make_opaque_type(name: &str, size: usize) -> TokenStream {
