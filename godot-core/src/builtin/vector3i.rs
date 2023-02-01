@@ -44,11 +44,11 @@ impl Vector3i {
     /// Unit vector in +X direction.
     pub const RIGHT: Self = Self::new(1, 0, 0);
 
-    /// Unit vector in -Y direction.
-    pub const UP: Self = Self::new(0, -1, 0);
-
     /// Unit vector in +Y direction.
-    pub const DOWN: Self = Self::new(0, 1, 0);
+    pub const UP: Self = Self::new(0, 1, 0);
+
+    /// Unit vector in -Y direction.
+    pub const DOWN: Self = Self::new(0, -1, 0);
 
     /// Unit vector in -Z direction.
     pub const FORWARD: Self = Self::new(0, 0, -1);

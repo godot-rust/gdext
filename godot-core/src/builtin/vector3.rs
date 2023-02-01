@@ -45,11 +45,11 @@ impl Vector3 {
     /// Unit vector in +X direction. Can be interpreted as right in an untransformed 3D world.
     pub const RIGHT: Self = Self::new(1.0, 0.0, 0.0);
 
-    /// Unit vector in -Y direction. Typically interpreted as down in a 3D world.
-    pub const UP: Self = Self::new(0.0, -1.0, 0.0);
-
     /// Unit vector in +Y direction. Typically interpreted as up in a 3D world.
-    pub const DOWN: Self = Self::new(0.0, 1.0, 0.0);
+    pub const UP: Self = Self::new(0.0, 1.0, 0.0);
+
+    /// Unit vector in -Y direction. Typically interpreted as down in a 3D world.
+    pub const DOWN: Self = Self::new(0.0, -1.0, 0.0);
 
     /// Unit vector in -Z direction. Can be interpreted as "into the screen" in an untransformed 3D world.
     pub const FORWARD: Self = Self::new(0.0, 0.0, -1.0);
