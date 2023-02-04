@@ -39,7 +39,8 @@ impl<T: GodotClass> Base<T> {
     pub(crate) unsafe fn from_sys(base_ptr: sys::GDExtensionObjectPtr) -> Self {
         assert!(!base_ptr.is_null(), "instance base is null pointer");
 
-        let obj = Gd::from_obj_sys(base_ptr);
+        // Initialize only as weak pointer (don't increment reference count)
+        let obj = Gd::from_obj_sys_weak(base_ptr);
 
         // This obj does not contribute to the strong count, otherwise we create a reference cycle:
         // 1. RefCounted (dropped in GDScript)

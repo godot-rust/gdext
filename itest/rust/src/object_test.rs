@@ -36,6 +36,8 @@ pub fn run() -> bool {
     ok &= object_from_instance_id_unrelated_type();
     ok &= object_user_convert_variant();
     ok &= object_engine_convert_variant();
+    ok &= object_user_convert_variant_refcount();
+    ok &= object_engine_convert_variant_refcount();
     ok &= object_engine_up_deref();
     ok &= object_engine_up_deref_mut();
     ok &= object_engine_upcast();
@@ -223,6 +225,44 @@ fn object_engine_convert_variant() {
 
     assert_eq!(obj2.get_position(), pos);
     obj.free();
+}
+
+#[itest]
+fn object_user_convert_variant_refcount() {
+    let obj: Gd<ObjPayload> = Gd::new(ObjPayload { value: -22222 });
+    let obj = obj.upcast::<RefCounted>();
+    check_convert_variant_refcount(obj)
+}
+
+#[itest]
+fn object_engine_convert_variant_refcount() {
+    let obj = RefCounted::new();
+    check_convert_variant_refcount(obj);
+}
+
+/// Converts between Object <-> Variant and verifies the reference counter at each stage.
+fn check_convert_variant_refcount(obj: Gd<RefCounted>) {
+    // Freshly created -> refcount 1
+    assert_eq!(obj.get_reference_count(), 1);
+
+    {
+        // Variant created from object -> increment
+        let variant = obj.to_variant();
+        assert_eq!(obj.get_reference_count(), 2);
+
+        {
+            // Yet another object created *from* variant -> increment
+            let another_object = variant.to::<Gd<RefCounted>>();
+            assert_eq!(obj.get_reference_count(), 3);
+            assert_eq!(another_object.get_reference_count(), 3);
+        }
+
+        // `another_object` destroyed -> decrement
+        assert_eq!(obj.get_reference_count(), 2);
+    }
+
+    // `variant` destroyed -> decrement
+    assert_eq!(obj.get_reference_count(), 1);
 }
 
 #[itest]

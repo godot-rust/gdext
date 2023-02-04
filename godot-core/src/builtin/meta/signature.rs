@@ -162,8 +162,8 @@ macro_rules! impl_signature_for_tuple {
 				unsafe { <$R as sys::GodotFuncMarshal>::try_write_sys(&ret_val, ret) }
                     .unwrap_or_else(|e| return_error::<$R>(method_name, &e));
 
-                // FIXME should be inc_ref instead of forget
-				std::mem::forget(ret_val);
+                // FIXME is inc_ref needed here?
+				// std::mem::forget(ret_val);
             }
         }
     };
