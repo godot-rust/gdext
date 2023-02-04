@@ -101,13 +101,10 @@ where
         T::Mem::maybe_init_ref(&result);
         result*/
 
-        let result = unsafe {
+        unsafe {
             let object_ptr = callbacks::create::<T>(ptr::null_mut());
             Gd::from_obj_sys(object_ptr)
-        };
-
-        T::Mem::maybe_init_ref(&result);
-        result
+        }
     }
 
     // FIXME use ```no_run instead of ```ignore, as soon as unit test #[cfg] mess is cleaned up
@@ -138,10 +135,7 @@ where
         F: FnOnce(crate::obj::Base<T::Base>) -> T,
     {
         let object_ptr = callbacks::create_custom(init);
-        let result = unsafe { Gd::from_obj_sys(object_ptr) };
-
-        T::Mem::maybe_init_ref(&result);
-        result
+        unsafe { Gd::from_obj_sys(object_ptr) }
     }
 
     /// Hands out a guard for a shared borrow, through which the user instance can be read.
@@ -210,7 +204,7 @@ impl<T: GodotClass> Gd<T> {
             None
         } else {
             // SAFETY: assumes that the returned GDExtensionObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
-            let untyped = unsafe { Gd::<engine::Object>::from_obj_sys(ptr).ready() };
+            let untyped = unsafe { Gd::<engine::Object>::from_obj_sys(ptr) };
             untyped.owned_cast::<T>().ok()
         }
     }
@@ -275,14 +269,6 @@ impl<T: GodotClass> Gd<T> {
         } else {
             false
         }
-    }
-
-    /// Needed to initialize ref count -- must be explicitly invoked.
-    ///
-    /// Could be made part of FFI methods, but there are some edge cases where this is not intended.
-    pub(crate) fn ready(self) -> Self {
-        T::Mem::maybe_inc_ref(&self);
-        self
     }
 
     /// **Upcast:** convert into a smart pointer to a base class. Always succeeds.
@@ -366,7 +352,8 @@ impl<T: GodotClass> Gd<T> {
         let class_tag = interface_fn!(classdb_get_class_tag)(class_name.string_sys());
         let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
 
-        sys::ptr_then(cast_object_ptr, |ptr| Gd::from_obj_sys(ptr))
+        // Create weak object, as ownership will be moved and reference-counter stays the same
+        sys::ptr_then(cast_object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
     }
 
     pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut engine::RefCounted) -> R) -> R {
@@ -401,10 +388,29 @@ impl<T: GodotClass> Gd<T> {
     ffi_methods! {
         type sys::GDExtensionObjectPtr = Opaque;
 
-        fn from_obj_sys = from_sys;
-        fn from_obj_sys_init = from_sys_init;
+        fn from_obj_sys_weak = from_sys;
         fn obj_sys = sys;
         fn write_obj_sys = write_sys;
+    }
+
+    /// Initializes this `Gd<T>` from the object pointer as a **strong ref**, meaning
+    /// it initializes/increments the reference counter and keeps the object alive.
+    ///
+    /// This is the default for most initializations from FFI. In cases where reference counter
+    /// should explicitly **not** be updated, [`Self::from_obj_sys_weak`] is available.
+    #[doc(hidden)]
+    pub unsafe fn from_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
+        // Initialize reference counter, if needed
+        Self::from_obj_sys_weak(ptr).with_inc_refcount()
+    }
+
+    /// Returns `self` but with initialized ref-count.
+    fn with_inc_refcount(self) -> Self {
+        // Note: use init_ref and not inc_ref, since this might be the first reference increment.
+        // Godot expects RefCounted::init_ref to be called instead of RefCounted::reference in that case.
+        // init_ref also doesn't hurt (except 1 possibly unnecessary check).
+        T::Mem::maybe_init_ref(&self);
+        self
     }
 }
 
@@ -501,7 +507,6 @@ impl<T: GodotClass> Gd<T> {
     /// # Safety
     /// `init_fn` must be a function that correctly handles a _type pointer_ pointing to an _object pointer_.
     #[doc(hidden)]
-    // TODO unsafe on init_fn instead of this fn?
     pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Option<Self> {
         // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
 
@@ -569,7 +574,7 @@ impl<T: GodotClass> Drop for Gd<T> {
 impl<T: GodotClass> Share for Gd<T> {
     fn share(&self) -> Self {
         out!("Gd::share");
-        Self::from_opaque(self.opaque).ready()
+        Self::from_opaque(self.opaque).with_inc_refcount()
     }
 }
 
@@ -579,19 +584,23 @@ impl<T: GodotClass> Share for Gd<T> {
 impl<T: GodotClass> FromVariant for Gd<T> {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
         let result = unsafe {
-            let result = Self::from_sys_init(|self_ptr| {
+            Self::from_sys_init(|self_ptr| {
                 let converter = sys::builtin_fn!(object_from_variant);
                 converter(self_ptr, variant.var_sys());
-            });
-            result.ready()
+            })
         };
 
-        Ok(result)
+        // The conversion method `variant_to_object` does NOT increment the reference-count of the object; we need to do that manually.
+        // (This behaves differently in the opposite direction `object_to_variant`.)
+        Ok(result.with_inc_refcount())
     }
 }
 
 impl<T: GodotClass> ToVariant for Gd<T> {
     fn to_variant(&self) -> Variant {
+        // The conversion method `object_to_variant` DOES increment the reference-count of the object; so nothing to do here.
+        // (This behaves differently in the opposite direction `variant_to_object`.)
+
         unsafe {
             Variant::from_var_sys_init(|variant_ptr| {
                 let converter = sys::builtin_fn!(object_to_variant);
