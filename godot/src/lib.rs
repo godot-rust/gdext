@@ -99,6 +99,7 @@ pub use godot_core::private;
 /// Often-imported symbols.
 pub mod prelude {
     pub use super::bind::{godot_api, GodotClass, GodotExt};
+    pub use super::builtin::dict; // Re-export macros.
     pub use super::builtin::*;
     pub use super::engine::{
         load, try_load, utilities, AudioStreamPlayer, Camera2D, Camera3D, Input, Node, Node2D,
