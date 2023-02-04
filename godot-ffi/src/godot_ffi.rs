@@ -8,12 +8,19 @@ use crate as sys;
 use std::fmt::Debug;
 
 /// Adds methods to convert from and to Godot FFI pointers.
-#[doc(hidden)]
+/// See [crate::ffi_methods] for ergonomic implementation.
 pub trait GodotFfi {
     /// Construct from Godot opaque pointer.
+    ///
+    /// # Safety
+    /// `ptr` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
+    /// which is different depending on the type.
     unsafe fn from_sys(ptr: sys::GDExtensionTypePtr) -> Self;
 
-    /// Construct uninitialized opaque data, then initialize it with `init` function.
+    /// Construct uninitialized opaque data, then initialize it with `init_fn` function.
+    ///
+    /// # Safety
+    /// `init_fn` must be a function that correctly handles a (possibly-uninitialized) _type ptr_.
     unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self;
 
     /// Return Godot opaque pointer, for an immutable operation.
@@ -38,6 +45,11 @@ pub trait GodotFfi {
         self.sys()
     }
 
+    /// Write the contents of `self` into the pointer `dst`.
+    ///
+    /// # Safety
+    /// `dst` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
+    /// which is different depending on the type.
     unsafe fn write_sys(&self, dst: sys::GDExtensionTypePtr);
 }
 
@@ -66,6 +78,7 @@ pub trait GodotFuncMarshal: Sized {
 // See doc comment of `ffi_methods!` for information
 
 #[macro_export]
+#[doc(hidden)]
 macro_rules! ffi_methods_one {
 	// type $Ptr = *mut Opaque
  	(OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys:ident = from_sys) => {
@@ -159,6 +172,7 @@ macro_rules! ffi_methods_one {
 }
 
 #[macro_export]
+#[doc(hidden)]
 macro_rules! ffi_methods_rest {
 	( // impl T: each method has a custom name and is annotated with 'pub'
 		$Impl:ident $Ptr:ty; $( fn $user_fn:ident = $sys_fn:ident; )*

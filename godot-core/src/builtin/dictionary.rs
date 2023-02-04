@@ -328,7 +328,7 @@ impl Share for Dictionary {
 ///
 /// Example
 /// ```no_run
-/// use godot::builtin::dict;
+/// use godot::builtin::{dict, Variant};
 ///
 /// let key = "my_key";
 /// let d = dict! {
@@ -336,7 +336,7 @@ impl Share for Dictionary {
 ///     "another": Variant::nil(),
 ///     key: true,
 ///     (1 + 2): "final",
-/// }
+/// };
 /// ```
 #[macro_export]
 macro_rules! dict {
