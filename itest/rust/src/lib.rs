@@ -61,7 +61,7 @@ struct IntegrationTests {}
 #[godot_api]
 impl IntegrationTests {
     #[func]
-    fn run(&mut self) -> bool {
+    fn test_all(&mut self) -> bool {
         println!("Run Godot integration tests...");
         run_tests()
     }
