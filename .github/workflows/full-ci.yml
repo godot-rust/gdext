@@ -63,6 +63,7 @@ jobs:
           cargo clippy --all-targets $GDEXT_FEATURES -- -D clippy::suspicious -D clippy::style -D clippy::complexity -D clippy::perf \
           -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented -D warnings
 
+
   unit-test:
     name: unit-test (${{ matrix.name }}${{ matrix.rust-special }})
     runs-on: ${{ matrix.os }}
@@ -127,7 +128,7 @@ jobs:
           binary-filename: ${{ matrix.godot-binary }}
 
       - name: "Compile tests"
-        run: cargo test --no-run
+        run: cargo test $GDEXT_FEATURES --no-run
 
       - name: "Test"
         run: cargo test $GDEXT_FEATURES
@@ -136,7 +137,8 @@ jobs:
   godot-itest:
     name: godot-itest (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
-    continue-on-error: false
+    # TODO: continue-on-error: false, as soon as memory errors are fixed
+    continue-on-error: ${{ contains(matrix.name, 'memcheck') }}
     timeout-minutes: 24
     strategy:
       fail-fast: false # cancel all jobs as soon as one fails?
@@ -161,6 +163,16 @@ jobs:
             os: ubuntu-20.04
             rust-toolchain: stable
             godot-binary: godot.linuxbsd.editor.dev.x86_64
+
+          - name: linux-memcheck-gcc
+            os: ubuntu-20.04
+            rust-toolchain: stable
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.san
+
+          - name: linux-memcheck-clang
+            os: ubuntu-20.04
+            rust-toolchain: stable
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
 
     steps:
       - uses: actions/checkout@v3
