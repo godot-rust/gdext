@@ -76,7 +76,7 @@ for arg in "${args[@]}"; do
         cmds+=("cargo fmt --all -- --check")
         ;;
     clippy)
-        cmds+=("cargo clippy $features -- -D clippy::style -D clippy::complexity -D clippy::perf -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented -D warnings")
+        cmds+=("cargo clippy $features -- -D clippy::suspicious -D clippy::style -D clippy::complexity -D clippy::perf -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented -D warnings")
         ;;
     test)
         cmds+=("cargo test $features")
