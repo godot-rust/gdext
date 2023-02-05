@@ -50,29 +50,30 @@ pub mod private {
 
     fn print_panic(err: Box<dyn std::any::Any + Send>) {
         if let Some(s) = err.downcast_ref::<&'static str>() {
-            log::godot_error!("rust-panic:  {s}");
+            log::godot_error!("Panic msg:  {s}");
         } else if let Some(s) = err.downcast_ref::<String>() {
-            log::godot_error!("rust-panic:  {s}");
+            log::godot_error!("Panic msg:  {s}");
         } else {
-            log::godot_error!("rust-panic of type ID {:?}", err.type_id());
+            log::godot_error!("Rust panic of type ID {:?}", err.type_id());
         }
     }
 
     /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
     ///
-    /// Returns `true` if a panic occurred.
-    pub fn handle_panic<E, F, S>(error_context: E, code: F) -> bool
+    /// Returns `None` if a panic occurred, and `Some(result)` with the result of `code` otherwise.
+    pub fn handle_panic<E, F, R, S>(error_context: E, code: F) -> Option<R>
     where
         E: FnOnce() -> S,
-        F: FnOnce() + std::panic::UnwindSafe,
+        F: FnOnce() -> R + std::panic::UnwindSafe,
         S: std::fmt::Display,
     {
-        if let Err(e) = std::panic::catch_unwind(code) {
-            log::godot_error!("Rust function panicked: {}", error_context());
-            print_panic(e);
-            true
-        } else {
-            false
+        match std::panic::catch_unwind(code) {
+            Ok(result) => Some(result),
+            Err(err) => {
+                log::godot_error!("Rust function panicked. Context: {}", error_context());
+                print_panic(err);
+                None
+            }
         }
     }
 }

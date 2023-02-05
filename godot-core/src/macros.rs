@@ -66,7 +66,7 @@ macro_rules! gdext_register_method_inner {
                     ret: sys::GDExtensionVariantPtr,
                     err: *mut sys::GDExtensionCallError,
                 ) {
-                    let has_panicked = $crate::private::handle_panic(
+                    let success = $crate::private::handle_panic(
                         || stringify!($method_name),
                         || {
                             <Sig as SignatureTuple>::varcall::< $Class >(
@@ -83,7 +83,7 @@ macro_rules! gdext_register_method_inner {
                         }
                     );
 
-                    if has_panicked {
+                    if success.is_none() {
                         // Signal error and set return type to Nil
                         (*err).error = sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD; // no better fitting enum?
                         sys::interface_fn!(variant_new_nil)(ret);
@@ -100,7 +100,7 @@ macro_rules! gdext_register_method_inner {
                     args: *const sys::GDExtensionConstTypePtr,
                     ret: sys::GDExtensionTypePtr,
                 ) {
-                    let has_panicked = $crate::private::handle_panic(
+                    let success = $crate::private::handle_panic(
                         || stringify!($method_name),
                         || {
                             <Sig as SignatureTuple>::ptrcall::< $Class >(
@@ -116,7 +116,7 @@ macro_rules! gdext_register_method_inner {
                         }
                     );
 
-                    if has_panicked {
+                    if success.is_none() {
                         // TODO set return value to T::default()?
                     }
                 }

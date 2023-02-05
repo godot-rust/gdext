@@ -40,12 +40,13 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
         pub fn #test_name() -> bool {
             println!(#init_msg);
 
-            let has_panicked = godot::private::handle_panic(
+            // Explicit type to prevent tests from returning a value
+            let success: Option<()> = godot::private::handle_panic(
                 || #error_msg,
                 || #body
             );
 
-            !has_panicked
+            success.is_some()
         }
     })
 }

@@ -18,26 +18,31 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
         panic!("Attempted to call Godot engine from unit-tests; use integration tests for this.")
     }
 
-    sys::initialize(interface, library);
+    let init_code = || {
+        sys::initialize(interface, library);
 
-    let mut handle = InitHandle::new();
+        let mut handle = InitHandle::new();
 
-    let success = E::load_library(&mut handle);
-    // No early exit, unclear if Godot still requires output parameters to be set
+        let success = E::load_library(&mut handle);
+        // No early exit, unclear if Godot still requires output parameters to be set
 
-    let godot_init_params = sys::GDExtensionInitialization {
-        minimum_initialization_level: handle.lowest_init_level().to_sys(),
-        userdata: std::ptr::null_mut(),
-        initialize: Some(ffi_initialize_layer),
-        deinitialize: Some(ffi_deinitialize_layer),
+        let godot_init_params = sys::GDExtensionInitialization {
+            minimum_initialization_level: handle.lowest_init_level().to_sys(),
+            userdata: std::ptr::null_mut(),
+            initialize: Some(ffi_initialize_layer),
+            deinitialize: Some(ffi_deinitialize_layer),
+        };
+
+        *init = godot_init_params;
+        INIT_HANDLE = Some(handle);
+
+        success as u8
     };
 
-    let is_success = /*handle.*/success as u8;
+    let ctx = || "error when loading GDExtension library";
+    let is_success = crate::private::handle_panic(ctx, init_code);
 
-    *init = godot_init_params;
-    INIT_HANDLE = Some(handle);
-
-    is_success
+    is_success.unwrap_or(0)
 }
 
 #[doc(hidden)]
@@ -49,16 +54,34 @@ unsafe extern "C" fn ffi_initialize_layer(
     _userdata: *mut std::ffi::c_void,
     init_level: sys::GDExtensionInitializationLevel,
 ) {
-    let handle = INIT_HANDLE.as_mut().unwrap();
-    handle.run_init_function(InitLevel::from_sys(init_level));
+    let ctx = || {
+        format!(
+            "failed to initialize GDExtension layer `{:?}`",
+            InitLevel::from_sys(init_level)
+        )
+    };
+
+    crate::private::handle_panic(ctx, || {
+        let handle = INIT_HANDLE.as_mut().unwrap();
+        handle.run_init_function(InitLevel::from_sys(init_level));
+    });
 }
 
 unsafe extern "C" fn ffi_deinitialize_layer(
     _userdata: *mut std::ffi::c_void,
     init_level: sys::GDExtensionInitializationLevel,
 ) {
-    let handle = INIT_HANDLE.as_mut().unwrap();
-    handle.run_deinit_function(InitLevel::from_sys(init_level));
+    let ctx = || {
+        format!(
+            "failed to deinitialize GDExtension layer `{:?}`",
+            InitLevel::from_sys(init_level)
+        )
+    };
+
+    crate::private::handle_panic(ctx, || {
+        let handle = INIT_HANDLE.as_mut().unwrap();
+        handle.run_deinit_function(InitLevel::from_sys(init_level));
+    });
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
