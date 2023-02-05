@@ -109,10 +109,21 @@ pub unsafe fn get_registry() -> &'static mut GlobalRegistry {
     &mut unwrap_ref_unchecked_mut(&mut BINDING).registry
 }
 
+/// Makes sure that Godot is running, or panics. Debug mode only!
+macro_rules! debug_assert_godot {
+    ($expr:expr) => {
+        debug_assert!(
+            $expr,
+            "Godot engine not available; make sure you are do not call it from unit/doc tests"
+        ); // previous message: "unchecked access to Option::None"
+    };
+}
+
 /// Combination of `as_ref()` and `unwrap_unchecked()`, but without the case differentiation in
 /// the former (thus raw pointer access in release mode)
 unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
-    debug_assert!(opt.is_some(), "unchecked access to Option::None");
+    debug_assert_godot!(opt.is_some());
+
     match opt {
         Some(ref val) => val,
         None => std::hint::unreachable_unchecked(),
@@ -120,7 +131,8 @@ unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
 }
 
 unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
-    debug_assert!(opt.is_some(), "unchecked access to Option::None");
+    debug_assert_godot!(opt.is_some());
+
     match opt {
         Some(ref mut val) => val,
         None => std::hint::unreachable_unchecked(),
