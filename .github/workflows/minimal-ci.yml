@@ -14,7 +14,8 @@ on:
       - master
 
 env:
-  GDEXT_FEATURES: '--features godot-core/convenience'
+  GDEXT_FEATURES: ''
+#  GDEXT_FEATURES: '--features crate/feature'
 #  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
 
 defaults:

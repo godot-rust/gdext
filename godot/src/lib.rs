@@ -57,6 +57,34 @@
 //!    you must either hand over ownership to Godot (e.g. by adding a node to the scene tree) or
 //!    free them manually using [`Gd::free()`][crate::obj::Gd::free]. <br><br>
 //!
+//! # Ergonomics and panics
+//!
+//! The GDExtension Rust bindings are designed with usage ergonomics in mind, making them viable
+//! for fast prototyping. Part of this design means that users should not constantly be forced
+//! to write code such as `obj.cast::<T>().unwrap()`. Instead, they can just write `obj.cast::<T>()`,
+//! which may panic at runtime.
+//!
+//! This approach has several advantages:
+//! * The code is more concise and less cluttered.
+//! * Methods like `cast()` provide very sophisticated panic messages when they fail (e.g. involved
+//!   classes), immediately giving you the necessary context for debugging. This is certainly
+//!   preferable over a generic `unwrap()`, and in most cases also over a `expect("literal")`.
+//! * Usually, such methods panicking indicate bugs in the application. For example, you have a static
+//!   scene tree, and you _know_ that a node of certain type and name exists. `get_node_as::<T>("name")`
+//!   thus _must_ succeed, or your mental concept is wrong. In other words, there is not much you can
+//!   do at runtime to recover from such errors anyway; the code needs to be fixed.
+//!
+//! Now, there are of course cases where you _do_ want to check certain assumptions dynamically.
+//! Imagine a scene tree that is constructed at runtime, e.g. in a game editor.
+//! This is why the library provides "overloads" for most of these methods that return `Option` or `Result`.
+//! Such methods have more verbose names and highlight the attempt, e.g. `try_cast()`.
+//!
+//! To help you identify panicking methods, we use the symbol "⚠️" at the beginning of the documentation;
+//! this should also appear immediately in the auto-completion of your IDE. Note that this warning sign is
+//! not used as a general panic indicator, but particularly for methods which have a `Option`/`Result`-based
+//! overload. If you want to know whether and how a method can panic, check if its documentation has a
+//! _Panics_ section.
+//!
 //! # Thread safety
 //!
 //! [Godot's own thread safety

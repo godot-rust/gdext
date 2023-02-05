@@ -67,7 +67,8 @@ function findGodot() {
     fi
 }
 
-features="--features godot-core/convenience"
+#features="--features crate/feature"
+features=""
 cmds=()
 
 for arg in "${args[@]}"; do

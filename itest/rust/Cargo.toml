@@ -13,7 +13,7 @@ default = []
 trace = ["godot/trace"]
 
 [dependencies]
-godot = { path = "../../godot", default-features = false, features = ["formatted", "convenience"] }
+godot = { path = "../../godot", default-features = false, features = ["formatted"] }
 
 [build-dependencies]
 quote = "1"

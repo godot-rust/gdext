@@ -40,13 +40,12 @@ impl Variant {
         value.to_variant()
     }
 
-    /// Convert to type `T`, panicking on failure.
+    /// ⚠️ Convert to type `T`, panicking on failure.
     ///
     /// Equivalent to `T::from_variant(&self)`.
     ///
     /// # Panics
     /// When this variant holds a different type.
-    #[cfg(feature = "convenience")]
     pub fn to<T: FromVariant>(&self) -> T {
         T::from_variant(self)
     }
