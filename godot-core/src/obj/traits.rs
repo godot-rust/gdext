@@ -25,6 +25,9 @@ where
     /// Defines the memory strategy.
     type Mem: mem::Memory;
 
+    /// The name of the class, under which it is registered in Godot.
+    ///
+    /// This may deviate from the Rust struct name: `HttpRequest::CLASS_NAME == "HTTPRequest"`.
     const CLASS_NAME: &'static str;
 }
 
