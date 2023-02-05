@@ -7,7 +7,7 @@
 use crate::{expect_panic, itest};
 use godot::bind::{godot_api, GodotClass, GodotExt};
 use godot::builtin::{FromVariant, GodotString, StringName, ToVariant, Variant, Vector3};
-use godot::engine::{Node, Node3D, Object, RefCounted};
+use godot::engine::{file_access, FileAccess, Node, Node3D, Object, RefCounted};
 use godot::obj::Share;
 use godot::obj::{Base, Gd, InstanceId};
 use godot::sys::GodotFfi;
@@ -38,6 +38,7 @@ pub fn run() -> bool {
     ok &= object_engine_convert_variant();
     ok &= object_user_convert_variant_refcount();
     ok &= object_engine_convert_variant_refcount();
+    ok &= object_engine_returned_refcount();
     ok &= object_engine_up_deref();
     ok &= object_engine_up_deref_mut();
     ok &= object_engine_upcast();
@@ -263,6 +264,17 @@ fn check_convert_variant_refcount(obj: Gd<RefCounted>) {
 
     // `variant` destroyed -> decrement
     assert_eq!(obj.get_reference_count(), 1);
+}
+
+#[itest]
+fn object_engine_returned_refcount() {
+    let Some(file) = FileAccess::open("res://itest.gdextension".into(), file_access::ModeFlags::READ) else {
+        panic!("failed to open file used to test FileAccess")
+    };
+    assert!(file.is_open());
+
+    // There was a bug which incremented ref-counts of just-returned objects, keep this as regression test.
+    assert_eq!(file.get_reference_count(), 1);
 }
 
 #[itest]

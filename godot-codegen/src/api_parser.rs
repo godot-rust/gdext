@@ -172,7 +172,7 @@ pub struct ClassMethod {
     pub name: String,
     pub is_const: bool,
     pub is_vararg: bool,
-    //pub is_static: bool,
+    pub is_static: bool,
     pub is_virtual: bool,
     pub hash: Option<i64>,
     pub return_value: Option<MethodReturn>,

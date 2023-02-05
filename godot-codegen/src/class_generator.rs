@@ -510,8 +510,7 @@ fn make_method_definition(
     /*if method.map_args(|args| args.is_empty()) {
         // Getters (i.e. 0 arguments) will be stripped of their `get_` prefix, to conform to Rust convention
         if let Some(remainder) = method_name.strip_prefix("get_") {
-            // Do not apply for get_16 etc
-            // TODO also not for get_u16 etc, in StreamPeer
+            // TODO Do not apply for FileAccess::get_16, StreamPeer::get_u16, etc
             if !remainder.chars().nth(0).unwrap().is_ascii_digit() {
                 method_name = remainder;
             }
@@ -519,11 +518,13 @@ fn make_method_definition(
     }*/
 
     let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
-    let receiver = if method.is_const {
-        quote! { &self, }
-    } else {
-        quote! { &mut self, }
-    };
+
+    let (receiver, receiver_arg) = make_receiver(
+        method.is_static,
+        method.is_const,
+        quote! { self.object_ptr },
+    );
+
     let hash = method.hash;
     let is_varcall = method.is_vararg;
 
@@ -546,10 +547,10 @@ fn make_method_definition(
         let __call_fn = sys::interface_fn!(#function_provider);
     };
     let varcall_invocation = quote! {
-        __call_fn(__method_bind, self.object_ptr, __args_ptr, __args.len() as i64, return_ptr, std::ptr::addr_of_mut!(__err));
+        __call_fn(__method_bind, #receiver_arg, __args_ptr, __args.len() as i64, return_ptr, std::ptr::addr_of_mut!(__err));
     };
     let ptrcall_invocation = quote! {
-        __call_fn(__method_bind, self.object_ptr, __args_ptr, return_ptr);
+        __call_fn(__method_bind, #receiver_arg, __args_ptr, return_ptr);
     };
 
     make_function_definition(
@@ -579,11 +580,8 @@ fn make_builtin_method_definition(
 
     let method_name_str = &method.name;
 
-    let receiver = if method.is_const {
-        quote! { &self, }
-    } else {
-        quote! { &mut self, }
-    };
+    let (receiver, receiver_arg) =
+        make_receiver(method.is_static, method.is_const, quote! { self.sys_ptr });
 
     let return_value = method.return_type.as_deref().map(MethodReturn::from_type);
     let hash = method.hash;
@@ -602,7 +600,7 @@ fn make_builtin_method_definition(
         let __call_fn = __call_fn.unwrap_unchecked();
     };
     let ptrcall_invocation = quote! {
-        __call_fn(self.sys_ptr, __args_ptr, return_ptr, __args.len() as i32);
+        __call_fn(#receiver_arg, __args_ptr, return_ptr, __args.len() as i32);
     };
 
     make_function_definition(
@@ -744,6 +742,28 @@ fn make_function_definition(
             }
         }
     }
+}
+
+fn make_receiver(
+    is_static: bool,
+    is_const: bool,
+    receiver_arg: TokenStream,
+) -> (TokenStream, TokenStream) {
+    let receiver = if is_static {
+        quote! {}
+    } else if is_const {
+        quote! { &self, }
+    } else {
+        quote! { &mut self, }
+    };
+
+    let receiver_arg = if is_static {
+        quote! { std::ptr::null_mut() }
+    } else {
+        receiver_arg
+    };
+
+    (receiver, receiver_arg)
 }
 
 fn make_params(
