@@ -17,7 +17,6 @@ pub struct Color {
 }
 
 impl Color {
-    #[allow(dead_code)]
     pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }

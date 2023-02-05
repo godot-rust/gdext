@@ -4,17 +4,20 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// This file tests the presence and naming of generated symbols, not their functionality.
+// This file tests the presence, naming and accessibility of generated symbols.
+// Functionality is only tested on a superficial level (to make sure general FFI mechanisms work).
 
 use crate::itest;
-
-use godot::engine::HttpRequest;
+use godot::builtin::inner::{InnerColor, InnerString};
+use godot::engine::{FileAccess, HttpRequest};
 use godot::prelude::*;
 
 pub fn run() -> bool {
     let mut ok = true;
     ok &= codegen_class_renamed();
     ok &= codegen_base_renamed();
+    ok &= codegen_static_builtin_method();
+    ok &= codegen_static_class_method();
     ok
 }
 
@@ -35,6 +38,28 @@ fn codegen_base_renamed() {
 
     obj.free();
 }
+
+#[itest]
+fn codegen_static_builtin_method() {
+    let pi = InnerString::num(std::f64::consts::PI, 3);
+    assert_eq!(pi, GodotString::from("3.142"));
+
+    let col = InnerColor::html("#663399cc".into());
+    assert_eq!(col, Color::new(0.4, 0.2, 0.6, 0.8));
+}
+
+#[itest]
+fn codegen_static_class_method() {
+    let exists = FileAccess::file_exists("inexistent".into());
+    assert!(!exists);
+
+    let exists = FileAccess::file_exists("res://itest.gdextension".into());
+    assert!(exists);
+
+    // see also object_test for reference count verification
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass)]
 #[class(base=HttpRequest)]
