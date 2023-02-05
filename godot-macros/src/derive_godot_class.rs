@@ -22,10 +22,9 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
     let fields = parse_fields(class)?;
 
     let base_ty = &struct_cfg.base_ty;
-    let base_ty_str = struct_cfg.base_ty.to_string();
     let class_name = &class.name;
     let class_name_str = class.name.to_string();
-    let inherits_macro = format_ident!("inherits_transitive_{}", &base_ty_str);
+    let inherits_macro = format_ident!("inherits_transitive_{}", base_ty);
 
     let prv = quote! { ::godot::private };
     let deref_impl = make_deref_impl(class_name, &fields);
@@ -57,7 +56,7 @@ pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_str,
             component: #prv::PluginComponent::ClassDef {
-                base_class_name: #base_ty_str,
+                base_class_name: <::godot::engine::#base_ty as ::godot::obj::GodotClass>::CLASS_NAME,
                 generated_create_fn: #create_fn,
                 free_fn: #prv::callbacks::free::<#class_name>,
             },

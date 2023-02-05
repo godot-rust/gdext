@@ -12,6 +12,7 @@ use std::panic::UnwindSafe;
 mod array_test;
 mod base_test;
 mod builtin_test;
+mod codegen_test;
 mod dictionary_test;
 mod enum_test;
 mod export_test;
@@ -29,6 +30,7 @@ fn run_tests() -> bool {
     let mut ok = true;
     ok &= base_test::run();
     ok &= builtin_test::run();
+    ok &= codegen_test::run();
     ok &= enum_test::run();
     ok &= export_test::run();
     ok &= gdscript_ffi_test::run();

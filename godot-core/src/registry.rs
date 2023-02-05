@@ -233,16 +233,23 @@ fn register_class_raw(info: ClassRegistrationInfo) {
         .expect("class defined (parent_class_name)");
 
     unsafe {
-        interface_fn!(classdb_register_extension_class)(
+        // Try to register class...
+        #[allow(clippy::let_unit_value)] // notifies us if Godot API ever adds a return type.
+        let _: () = interface_fn!(classdb_register_extension_class)(
             sys::get_library(),
             class_name.string_sys(),
             parent_class_name.string_sys(),
             ptr::addr_of!(info.godot_params),
         );
-    }
 
-    // std::mem::forget(class_name);
-    // std::mem::forget(parent_class_name);
+        // ...then see if it worked.
+        // This is necessary because the above registration does not report errors (apart from console output).
+        let tag = interface_fn!(classdb_get_class_tag)(class_name.string_sys());
+        assert!(
+            !tag.is_null(),
+            "failed to register class `{class_name}`; check preceding Godot stderr messages",
+        );
+    }
 
     // ...then custom symbols
 
