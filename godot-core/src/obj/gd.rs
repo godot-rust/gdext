@@ -488,6 +488,9 @@ impl<T: GodotClass> Gd<T> {
     /// Runs `init_fn` on the address of a pointer (initialized to null). If that pointer is still null after the `init_fn` call,
     /// then `None` will be returned; otherwise `Gd::from_obj_sys(ptr)`.
     ///
+    /// This method will **NOT** increment the reference-count of the object, as it assumes the input to come from a Godot API
+    /// return value.
+    ///
     /// # Safety
     /// `init_fn` must be a function that correctly handles a _type pointer_ pointing to an _object pointer_.
     #[doc(hidden)]
@@ -496,7 +499,9 @@ impl<T: GodotClass> Gd<T> {
 
         // Initialize pointer with given function, return Some(ptr) on success and None otherwise
         let object_ptr = raw_object_init(init_fn);
-        sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys(ptr))
+
+        // Do not increment ref-count; assumed to be return value from FFI.
+        sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
     }
 }
 
