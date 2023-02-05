@@ -8,8 +8,7 @@ keywords = ["gamedev", "godot", "engine", "2d", "3d"] # possibly: "ffi"
 categories = ["game-engines", "graphics"]
 
 [features]
-default = ["convenience", "codegen-full"]
-convenience = ["godot-core/convenience"]
+default = ["codegen-full"]
 formatted = ["godot-core/codegen-fmt"]
 trace = ["godot-core/trace"]
 

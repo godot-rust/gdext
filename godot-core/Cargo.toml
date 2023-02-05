@@ -12,7 +12,6 @@ default = []
 trace = []
 codegen-fmt = ["godot-ffi/codegen-fmt"]
 codegen-full = ["godot-codegen/codegen-full"]
-convenience = []
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi" }

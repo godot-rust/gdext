@@ -26,17 +26,18 @@ pub struct InstanceId {
 
 impl InstanceId {
     /// Constructs an instance ID from an integer, or `None` if the integer is zero.
+    ///
+    /// This does *not* check if the instance is valid.
     pub fn try_from_i64(id: i64) -> Option<Self> {
         Self::try_from_u64(id as u64)
     }
 
-    /// Constructs an instance ID from a non-zero integer, or panics.
+    /// ⚠️ Constructs an instance ID from a non-zero integer, or panics.
     ///
     /// This does *not* check if the instance is valid.
     ///
     /// # Panics
     /// If `id` is zero.
-    #[cfg(feature = "convenience")]
     pub fn from_nonzero(id: i64) -> Self {
         Self::try_from_i64(id).expect("expected non-zero instance ID")
     }
