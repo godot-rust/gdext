@@ -66,24 +66,24 @@ macro_rules! gdext_register_method_inner {
                     ret: sys::GDExtensionVariantPtr,
                     err: *mut sys::GDExtensionCallError,
                 ) {
-                    let result = ::std::panic::catch_unwind(|| {
-                        <Sig as SignatureTuple>::varcall::< $Class >(
-                            instance_ptr,
-                            args,
-                            ret,
-                            err,
-                            |inst, params| {
-                                let ( $($param,)* ) = params;
-                                inst.$method_name( $( $param, )* )
-                            },
-                            stringify!($method_name),
-                        )
-                    });
+                    let has_panicked = $crate::private::handle_panic(
+                        || stringify!($method_name),
+                        || {
+                            <Sig as SignatureTuple>::varcall::< $Class >(
+                                instance_ptr,
+                                args,
+                                ret,
+                                err,
+                                |inst, params| {
+                                    let ( $($param,)* ) = params;
+                                    inst.$method_name( $( $param, )* )
+                                },
+                                stringify!($method_name),
+                            );
+                        }
+                    );
 
-                    if let Err(e) = result {
-                        $crate::log::godot_error!("Rust function panicked: {}", stringify!($method_name));
-                        $crate::private::print_panic(e);
-
+                    if has_panicked {
                         // Signal error and set return type to Nil
                         (*err).error = sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD; // no better fitting enum?
                         sys::interface_fn!(variant_new_nil)(ret);
@@ -100,23 +100,23 @@ macro_rules! gdext_register_method_inner {
                     args: *const sys::GDExtensionConstTypePtr,
                     ret: sys::GDExtensionTypePtr,
                 ) {
-                    let result = ::std::panic::catch_unwind(|| {
-                        <Sig as SignatureTuple>::ptrcall::< $Class >(
-                            instance_ptr,
-                            args,
-                            ret,
-                            |inst, params| {
-                                let ( $($param,)* ) = params;
-                                inst.$method_name( $( $param, )* )
-                            },
-                            stringify!($method_name),
-                        );
-                    });
+                    let has_panicked = $crate::private::handle_panic(
+                        || stringify!($method_name),
+                        || {
+                            <Sig as SignatureTuple>::ptrcall::< $Class >(
+                                instance_ptr,
+                                args,
+                                ret,
+                                |inst, params| {
+                                    let ( $($param,)* ) = params;
+                                    inst.$method_name( $( $param, )* )
+                                },
+                                stringify!($method_name),
+                            );
+                        }
+                    );
 
-                    if let Err(e) = result {
-                        $crate::log::godot_error!("Rust function panicked: {}", stringify!($method_name));
-                        $crate::private::print_panic(e);
-
+                    if has_panicked {
                         // TODO set return value to T::default()?
                     }
                 }

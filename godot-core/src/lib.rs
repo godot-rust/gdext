@@ -48,13 +48,31 @@ pub mod private {
         sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
     }
 
-    pub fn print_panic(err: Box<dyn std::any::Any + Send>) {
+    fn print_panic(err: Box<dyn std::any::Any + Send>) {
         if let Some(s) = err.downcast_ref::<&'static str>() {
             log::godot_error!("rust-panic:  {s}");
         } else if let Some(s) = err.downcast_ref::<String>() {
             log::godot_error!("rust-panic:  {s}");
         } else {
             log::godot_error!("rust-panic of type ID {:?}", err.type_id());
+        }
+    }
+
+    /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
+    ///
+    /// Returns `true` if a panic occurred.
+    pub fn handle_panic<E, F, S>(error_context: E, code: F) -> bool
+    where
+        E: FnOnce() -> S,
+        F: FnOnce() + std::panic::UnwindSafe,
+        S: std::fmt::Display,
+    {
+        if let Err(e) = std::panic::catch_unwind(code) {
+            log::godot_error!("Rust function panicked: {}", error_context());
+            print_panic(e);
+            true
+        } else {
+            false
         }
     }
 }
