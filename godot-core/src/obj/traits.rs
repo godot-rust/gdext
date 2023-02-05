@@ -48,13 +48,53 @@ pub trait Share {
     fn share(&self) -> Self;
 }
 
-/// A struct `Derived` implementing `Inherits<Base>` expresses that `Derived` _strictly_ inherits `Base` in the Godot hierarchy.
+/// Non-strict inheritance relationship in the Godot class hierarchy.
 ///
-/// This trait is implemented for all Godot engine classes, even for non-direct relations (e.g. `Node3D` implements `Inherits<Object>`). Deriving [`GodotClass`] for custom classes will achieve the same: all direct and indirect base
-/// classes of your extension class will be wired up using the `Inherits` relation.
+/// `Derived: Inherits<Base>` means that either `Derived` is a subclass of `Base`, or the class `Base` itself (hence "non-strict").
 ///
-/// The trait is not reflexive: `T` never implements `Inherits<T>`.
-pub trait Inherits<Base> {}
+/// This trait is automatically implemented for all Godot engine classes and user-defined classes that derive [`GodotClass`].
+/// It has `GodotClass` as a supertrait, allowing your code to have bounds solely on `Derived: Inherits<Base>` rather than
+/// `Derived: Inherits<Base> + GodotClass`.
+///
+/// Inheritance is transitive across indirect base classes: `Node3D` implements `Inherits<Node>` and `Inherits<Object>`.
+///
+/// The trait is also reflexive: `T` always implements `Inherits<T>`.
+///
+/// # Usage
+///
+/// The primary use case for this trait is polymorphism: you write a function that accepts anything that derives from a certain class
+/// (including the class itself):
+/// ```no_run
+/// # use godot::prelude::*;
+/// fn print_node<T>(node: Gd<T>)
+/// where
+///     T: Inherits<Node>,
+/// {
+///     let up = node.upcast(); // type Gd<Node> inferred
+///     println!("Node #{} with name {}", up.instance_id(), up.get_name());
+///     up.free();
+/// }
+///
+/// // Call with different types
+/// print_node(Node::new_alloc());   // works on T=Node as well
+/// print_node(Node2D::new_alloc()); // or derived classes
+/// print_node(Node3D::new_alloc());
+/// ```
+///
+/// A variation of the above pattern works without `Inherits` or generics, if you move the `upcast()` into the call site:
+/// ```no_run
+/// # use godot::prelude::*;
+/// fn print_node(node: Gd<Node>) { /* ... */ }
+///
+/// // Call with different types
+/// print_node(Node::new_alloc());            // no upcast needed
+/// print_node(Node2D::new_alloc().upcast());
+/// print_node(Node3D::new_alloc().upcast());
+/// ```
+///
+pub trait Inherits<Base>: GodotClass {}
+
+impl<T: GodotClass> Inherits<T> for T {}
 
 /// Auto-implemented for all engine-provided classes
 pub trait EngineClass: GodotClass {
