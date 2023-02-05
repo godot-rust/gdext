@@ -52,6 +52,9 @@ pub struct Gd<T: GodotClass> {
     // The former is the standard FFI type, while the latter is used in object-specific GDExtension engines.
     // pub(crate) because accessed in obj::dom
     pub(crate) opaque: OpaqueObject,
+
+    // Last known instance ID -- this may no longer be valid!
+    cached_instance_id: std::cell::Cell<Option<InstanceId>>,
     _marker: PhantomData<*const T>,
 }
 
@@ -206,18 +209,39 @@ impl<T: GodotClass> Gd<T> {
     }
 
     fn from_opaque(opaque: OpaqueObject) -> Self {
-        Self {
+        let obj = Self {
             opaque,
+            cached_instance_id: std::cell::Cell::new(None),
             _marker: PhantomData,
-        }
+        };
+
+        // Initialize instance ID cache
+        let id = unsafe { interface_fn!(object_get_instance_id)(obj.obj_sys()) };
+        let instance_id = InstanceId::try_from_u64(id)
+            .expect("instance ID must be non-zero at time of initialization");
+        obj.cached_instance_id.set(Some(instance_id));
+
+        obj
     }
 
     /// Returns the instance ID of this object, or `None` if the object is dead.
-    ///
     pub fn instance_id_or_none(&self) -> Option<InstanceId> {
-        // Note: bit 'id & (1 << 63)' determines if the instance is ref-counted
-        let id = unsafe { interface_fn!(object_get_instance_id)(self.obj_sys()) };
-        InstanceId::try_from_u64(id)
+        let known_id = match self.cached_instance_id.get() {
+            // Already dead
+            None => return None,
+
+            // Possibly alive
+            Some(id) => id,
+        };
+
+        // Refreshes the internal cached ID on every call, as we cannot be sure that the object has not been
+        // destroyed since last time. The only reliable way to find out is to call is_instance_id_valid().
+        if engine::utilities::is_instance_id_valid(known_id.to_i64()) {
+            Some(known_id)
+        } else {
+            self.cached_instance_id.set(None);
+            None
+        }
     }
 
     /// ⚠️ Returns the instance ID of this object (panics when dead).
@@ -242,12 +266,8 @@ impl<T: GodotClass> Gd<T> {
     /// and will panic in a defined manner. Encountering such panics is almost always a bug you should fix, and not a
     /// runtime condition to check against.
     pub fn is_instance_valid(&self) -> bool {
-        // TODO Is this really necessary, or is Godot's instance_id() guaranteed to return 0 for destroyed objects?
-        if let Some(id) = self.instance_id_or_none() {
-            engine::utilities::is_instance_id_valid(id.to_i64())
-        } else {
-            false
-        }
+        // This call refreshes the instance ID, and recognizes dead objects.
+        self.instance_id_or_none().is_some()
     }
 
     /// **Upcast:** convert into a smart pointer to a base class. Always succeeds.
@@ -256,7 +276,6 @@ impl<T: GodotClass> Gd<T> {
     /// use this idiom:
     /// ```no_run
     /// # use godot::prelude::*;
-    ///
     /// #[derive(GodotClass)]
     /// #[class(init, base=Node2D)]
     /// struct MyClass {}
