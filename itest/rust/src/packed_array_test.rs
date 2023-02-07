@@ -5,7 +5,7 @@
  */
 
 use crate::{expect_panic, itest};
-use godot::builtin::PackedByteArray;
+use godot::builtin::{PackedByteArray, PackedFloat32Array};
 
 pub fn run() -> bool {
     let mut ok = true;
@@ -15,6 +15,7 @@ pub fn run() -> bool {
     ok &= packed_array_from();
     ok &= packed_array_to_vec();
     // ok &= packed_array_into_iterator();
+    ok &= packed_array_eq();
     ok &= packed_array_clone();
     ok &= packed_array_slice();
     ok &= packed_array_get();
@@ -72,6 +73,22 @@ fn packed_array_to_vec() {
 //     assert_eq!(iter.next(), Some(2));
 //     assert_eq!(iter.next(), None);
 // }
+
+#[itest]
+fn packed_array_eq() {
+    assert_eq!(
+        PackedByteArray::from(&[1, 2]),
+        PackedByteArray::from(&[1, 2])
+    );
+    assert_ne!(
+        PackedByteArray::from(&[1, 2]),
+        PackedByteArray::from(&[1, 1])
+    );
+    assert_ne!(
+        PackedFloat32Array::from(&[f32::NAN]),
+        PackedFloat32Array::from(&[f32::NAN])
+    );
+}
 
 #[itest]
 fn packed_array_clone() {

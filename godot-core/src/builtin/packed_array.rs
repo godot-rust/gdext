@@ -16,32 +16,28 @@ use sys::{ffi_methods, interface_fn, GodotFfi, TagString, TagType};
 macro_rules! impl_packed_array {
     (
         // Name of the type to define, e.g. `PackedByteArray`.
-        $PackedArray:ident,
+        type_name: $PackedArray:ident,
         // Type of elements contained in the array, e.g. `u8`.
-        $Element:ty,
+        element_type: $Element:ty,
         // Name of wrapped opaque type, e.g. `OpaquePackedByteArray`.
-        $Opaque:ty,
+        opaque_type: $Opaque:ty,
         // Name of inner type, e.g. `InnerPackedByteArray`.
-        $Inner:ident,
+        inner_type: $Inner:ident,
         // Name of type that represents elements in function call arguments, e.g. `i64`. See
         // `Self::into_arg()`.
-        $Arg:ty,
+        argument_type: $Arg:ty,
         // Type that is returned from `$operator_index` and `$operator_index_const`.
-        $IndexRetType:ty,
-        // Name of default constructor function from FFI, e.g.
-        // `packed_byte_array_construct_default`.
-        $construct_default:ident,
-        // Name of copy constructor function from FFI, e.g.
-        // `packed_byte_array_construct_copy`.
-        $construct_copy:ident,
+        return_type: $IndexRetType:ty,
         // Name of constructor function from `Array` from FFI, e.g. `packed_byte_array_from_array`.
-        $from_array:ident,
-        // Name of destructor function from FFI, e.g. `packed_byte_array_destroy`.
-        $destroy:ident,
+        from_array: $from_array:ident,
         // Name of index operator from FFI, e.g. `packed_byte_array_operator_index`.
-        $operator_index:ident,
+        operator_index: $operator_index:ident,
         // Name of const index operator from FFI, e.g. `packed_byte_array_operator_index_const`.
-        $operator_index_const:ident,
+        operator_index_const: $operator_index_const:ident,
+        // Invocation passed to `impl_builtin_traits!` macro.
+        trait_impls: {
+            $($trait_impls:tt)*
+        },
     ) => {
         // TODO expand type names in doc comments (use e.g. `paste` crate)
         /// Implements Godot's `$PackedArray` type, which is an efficient array of `$Element`s.
@@ -324,9 +320,7 @@ macro_rules! impl_packed_array {
 
         impl_builtin_traits! {
             for $PackedArray {
-                Default => $construct_default;
-                Clone => $construct_copy;
-                Drop => $destroy;
+                $($trait_impls)*
             }
         }
 
@@ -413,136 +407,163 @@ macro_rules! impl_packed_array {
 }
 
 impl_packed_array!(
-    PackedByteArray,
-    u8,
-    OpaquePackedByteArray,
-    InnerPackedByteArray,
-    i64,
-    u8,
-    packed_byte_array_construct_default,
-    packed_byte_array_construct_copy,
-    packed_byte_array_from_array,
-    packed_byte_array_destroy,
-    packed_byte_array_operator_index,
-    packed_byte_array_operator_index_const,
+    type_name: PackedByteArray,
+    element_type: u8,
+    opaque_type: OpaquePackedByteArray,
+    inner_type: InnerPackedByteArray,
+    argument_type: i64,
+    return_type: u8,
+    from_array: packed_byte_array_from_array,
+    operator_index: packed_byte_array_operator_index,
+    operator_index_const: packed_byte_array_operator_index_const,
+    trait_impls: {
+        Default => packed_byte_array_construct_default;
+        Clone => packed_byte_array_construct_copy;
+        Drop => packed_byte_array_destroy;
+        Eq => packed_byte_array_operator_equal;
+    },
 );
 
 impl_packed_array!(
-    PackedInt32Array,
-    i32,
-    OpaquePackedInt32Array,
-    InnerPackedInt32Array,
-    i64,
-    i32,
-    packed_int32_array_construct_default,
-    packed_int32_array_construct_copy,
-    packed_int32_array_from_array,
-    packed_int32_array_destroy,
-    packed_int32_array_operator_index,
-    packed_int32_array_operator_index_const,
+    type_name: PackedInt32Array,
+    element_type: i32,
+    opaque_type: OpaquePackedInt32Array,
+    inner_type: InnerPackedInt32Array,
+    argument_type: i64,
+    return_type: i32,
+    from_array: packed_int32_array_from_array,
+    operator_index: packed_int32_array_operator_index,
+    operator_index_const: packed_int32_array_operator_index_const,
+    trait_impls: {
+        Default => packed_int32_array_construct_default;
+        Clone => packed_int32_array_construct_copy;
+        Drop => packed_int32_array_destroy;
+        Eq => packed_int32_array_operator_equal;
+    },
 );
 
 impl_packed_array!(
-    PackedInt64Array,
-    i64,
-    OpaquePackedInt64Array,
-    InnerPackedInt64Array,
-    i64,
-    i64,
-    packed_int64_array_construct_default,
-    packed_int64_array_construct_copy,
-    packed_int64_array_from_array,
-    packed_int64_array_destroy,
-    packed_int64_array_operator_index,
-    packed_int64_array_operator_index_const,
+    type_name: PackedInt64Array,
+    element_type: i64,
+    opaque_type: OpaquePackedInt64Array,
+    inner_type: InnerPackedInt64Array,
+    argument_type: i64,
+    return_type: i64,
+    from_array: packed_int64_array_from_array,
+    operator_index: packed_int64_array_operator_index,
+    operator_index_const: packed_int64_array_operator_index_const,
+    trait_impls: {
+        Default => packed_int64_array_construct_default;
+        Clone => packed_int64_array_construct_copy;
+        Drop => packed_int64_array_destroy;
+        Eq => packed_int64_array_operator_equal;
+    },
 );
 
 impl_packed_array!(
-    PackedFloat32Array,
-    f32,
-    OpaquePackedFloat32Array,
-    InnerPackedFloat32Array,
-    f64,
-    f32,
-    packed_float32_array_construct_default,
-    packed_float32_array_construct_copy,
-    packed_float32_array_from_array,
-    packed_float32_array_destroy,
-    packed_float32_array_operator_index,
-    packed_float32_array_operator_index_const,
+    type_name: PackedFloat32Array,
+    element_type: f32,
+    opaque_type: OpaquePackedFloat32Array,
+    inner_type: InnerPackedFloat32Array,
+    argument_type: f64,
+    return_type: f32,
+    from_array: packed_float32_array_from_array,
+    operator_index: packed_float32_array_operator_index,
+    operator_index_const: packed_float32_array_operator_index_const,
+    trait_impls: {
+        Default => packed_float32_array_construct_default;
+        Clone => packed_float32_array_construct_copy;
+        Drop => packed_float32_array_destroy;
+        PartialEq => packed_float32_array_operator_equal;
+    },
 );
 
 impl_packed_array!(
-    PackedFloat64Array,
-    f64,
-    OpaquePackedFloat64Array,
-    InnerPackedFloat64Array,
-    f64,
-    f64,
-    packed_float64_array_construct_default,
-    packed_float64_array_construct_copy,
-    packed_float64_array_from_array,
-    packed_float64_array_destroy,
-    packed_float64_array_operator_index,
-    packed_float64_array_operator_index_const,
+    type_name: PackedFloat64Array,
+    element_type: f64,
+    opaque_type: OpaquePackedFloat64Array,
+    inner_type: InnerPackedFloat64Array,
+    argument_type: f64,
+    return_type: f64,
+    from_array: packed_float64_array_from_array,
+    operator_index: packed_float64_array_operator_index,
+    operator_index_const: packed_float64_array_operator_index_const,
+    trait_impls: {
+        Default => packed_float64_array_construct_default;
+        Clone => packed_float64_array_construct_copy;
+        Drop => packed_float64_array_destroy;
+        PartialEq => packed_float64_array_operator_equal;
+    },
 );
 
 impl_packed_array!(
-    PackedStringArray,
-    GodotString,
-    OpaquePackedStringArray,
-    InnerPackedStringArray,
-    GodotString,
-    TagString,
-    packed_string_array_construct_default,
-    packed_string_array_construct_copy,
-    packed_string_array_from_array,
-    packed_string_array_destroy,
-    packed_string_array_operator_index,
-    packed_string_array_operator_index_const,
+    type_name: PackedStringArray,
+    element_type: GodotString,
+    opaque_type: OpaquePackedStringArray,
+    inner_type: InnerPackedStringArray,
+    argument_type: GodotString,
+    return_type: TagString,
+    from_array: packed_string_array_from_array,
+    operator_index: packed_string_array_operator_index,
+    operator_index_const: packed_string_array_operator_index_const,
+    trait_impls: {
+        Default => packed_string_array_construct_default;
+        Clone => packed_string_array_construct_copy;
+        Drop => packed_string_array_destroy;
+        Eq => packed_string_array_operator_equal;
+    },
 );
 
 impl_packed_array!(
-    PackedVector2Array,
-    Vector2,
-    OpaquePackedVector2Array,
-    InnerPackedVector2Array,
-    Vector2,
-    TagType,
-    packed_vector2_array_construct_default,
-    packed_vector2_array_construct_copy,
-    packed_vector2_array_from_array,
-    packed_vector2_array_destroy,
-    packed_vector2_array_operator_index,
-    packed_vector2_array_operator_index_const,
+    type_name: PackedVector2Array,
+    element_type: Vector2,
+    opaque_type: OpaquePackedVector2Array,
+    inner_type: InnerPackedVector2Array,
+    argument_type: Vector2,
+    return_type: TagType,
+    from_array: packed_vector2_array_from_array,
+    operator_index: packed_vector2_array_operator_index,
+    operator_index_const: packed_vector2_array_operator_index_const,
+    trait_impls: {
+        Default => packed_vector2_array_construct_default;
+        Clone => packed_vector2_array_construct_copy;
+        Drop => packed_vector2_array_destroy;
+        PartialEq => packed_vector2_array_operator_equal;
+    },
 );
 
 impl_packed_array!(
-    PackedVector3Array,
-    Vector3,
-    OpaquePackedVector3Array,
-    InnerPackedVector3Array,
-    Vector3,
-    TagType,
-    packed_vector3_array_construct_default,
-    packed_vector3_array_construct_copy,
-    packed_vector3_array_from_array,
-    packed_vector3_array_destroy,
-    packed_vector3_array_operator_index,
-    packed_vector3_array_operator_index_const,
+    type_name: PackedVector3Array,
+    element_type: Vector3,
+    opaque_type: OpaquePackedVector3Array,
+    inner_type: InnerPackedVector3Array,
+    argument_type: Vector3,
+    return_type: TagType,
+    from_array: packed_vector3_array_from_array,
+    operator_index: packed_vector3_array_operator_index,
+    operator_index_const: packed_vector3_array_operator_index_const,
+    trait_impls: {
+        Default => packed_vector3_array_construct_default;
+        Clone => packed_vector3_array_construct_copy;
+        Drop => packed_vector3_array_destroy;
+        PartialEq => packed_vector3_array_operator_equal;
+    },
 );
 
 impl_packed_array!(
-    PackedColorArray,
-    Color,
-    OpaquePackedColorArray,
-    InnerPackedColorArray,
-    Color,
-    TagType,
-    packed_color_array_construct_default,
-    packed_color_array_construct_copy,
-    packed_color_array_from_array,
-    packed_color_array_destroy,
-    packed_color_array_operator_index,
-    packed_color_array_operator_index_const,
+    type_name: PackedColorArray,
+    element_type: Color,
+    opaque_type: OpaquePackedColorArray,
+    inner_type: InnerPackedColorArray,
+    argument_type: Color,
+    return_type: TagType,
+    from_array: packed_color_array_from_array,
+    operator_index: packed_color_array_operator_index,
+    operator_index_const: packed_color_array_operator_index_const,
+    trait_impls: {
+        Default => packed_color_array_construct_default;
+        Clone => packed_color_array_construct_copy;
+        Drop => packed_color_array_destroy;
+        PartialEq => packed_color_array_operator_equal;
+    },
 );
