@@ -63,13 +63,13 @@ class _Test:
 		suite.set("_assertion_failed", false)
 		var result = suite.call(method_name)
 		var ok: bool = (
-			(result == true or result == null)
+			(result == true || result == null)
 			&& !suite.get("_assertion_failed")
 		)
 		return ok
 	
 	static func _suite_name(suite: Object) -> String:
-		var script := suite.get_script()
+		var script: GDScript = suite.get_script()
 		if script:
 			# Test suite written in GDScript.
 			return script.resource_path.get_file().get_basename()
