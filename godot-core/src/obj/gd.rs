@@ -14,8 +14,8 @@ use godot_ffi::VariantType;
 use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi};
 
-use crate::builtin::meta::{ClassName, PropertyInfo, VariantMetadata};
-use crate::builtin::{FromVariant, StringName, ToVariant, Variant, VariantConversionError};
+use crate::builtin::meta::{ClassName, VariantMetadata};
+use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
 use crate::obj::{cap, dom, mem, GodotClass, Inherits, Share};
@@ -332,7 +332,7 @@ impl<T: GodotClass> Gd<T> {
     where
         U: GodotClass,
     {
-        let class_name = ClassName::new::<U>();
+        let class_name = ClassName::of::<U>();
         let class_tag = interface_fn!(classdb_get_class_tag)(class_name.string_sys());
         let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
 
@@ -631,11 +631,7 @@ impl<T: GodotClass> VariantMetadata for Gd<T> {
         VariantType::Object
     }
 
-    fn property_info(property_name: &str) -> PropertyInfo {
-        PropertyInfo::new(
-            Self::variant_type(),
-            ClassName::new::<T>(),
-            StringName::from(property_name),
-        )
+    fn class_name() -> ClassName {
+        ClassName::of::<T>()
     }
 }

@@ -22,10 +22,14 @@ use godot_ffi as sys;
 pub trait VariantMetadata {
     fn variant_type() -> VariantType;
 
+    fn class_name() -> ClassName {
+        ClassName::of::<()>() // FIXME Option or so
+    }
+
     fn property_info(property_name: &str) -> PropertyInfo {
         PropertyInfo::new(
             Self::variant_type(),
-            ClassName::new::<()>(), // FIXME Option or so
+            Self::class_name(),
             StringName::from(property_name),
         )
     }

@@ -117,7 +117,7 @@ pub fn register_class<T: GodotExt + cap::GodotInit + cap::ImplementsGodotExt>() 
     // TODO: provide overloads with only some trait impls
 
     out!("Manually register class {}", std::any::type_name::<T>());
-    let class_name = ClassName::new::<T>();
+    let class_name = ClassName::of::<T>();
 
     let godot_params = sys::GDExtensionClassCreationInfo {
         to_string_func: Some(callbacks::to_string::<T>),
@@ -133,7 +133,7 @@ pub fn register_class<T: GodotExt + cap::GodotInit + cap::ImplementsGodotExt>() 
 
     register_class_raw(ClassRegistrationInfo {
         class_name,
-        parent_class_name: Some(ClassName::new::<T::Base>()),
+        parent_class_name: Some(ClassName::of::<T::Base>()),
         generated_register_fn: None,
         user_register_fn: Some(ErasedRegisterFn {
             raw: callbacks::register_class_by_builder::<T>,
@@ -287,8 +287,8 @@ pub mod callbacks {
         T: GodotClass,
         F: FnOnce(Base<T::Base>) -> T,
     {
-        let class_name = ClassName::new::<T>();
-        let base_class_name = ClassName::new::<T::Base>();
+        let class_name = ClassName::of::<T>();
+        let base_class_name = ClassName::of::<T::Base>();
 
         //out!("create callback: {}", class_name.backing);
 

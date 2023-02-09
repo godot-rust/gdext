@@ -35,7 +35,7 @@
 mod macros;
 mod vector_macros;
 
-mod arrays;
+mod array;
 mod color;
 mod dictionary;
 mod math;
@@ -54,9 +54,10 @@ mod vector4i;
 
 pub mod meta;
 
-pub use crate::dict;
+// Re-export macros.
+pub use crate::{array, dict};
 
-pub use arrays::*;
+pub use array::*;
 pub use color::*;
 pub use dictionary::*;
 pub use math::*;

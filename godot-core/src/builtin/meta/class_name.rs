@@ -19,7 +19,7 @@ pub struct ClassName {
 }
 
 impl ClassName {
-    pub fn new<T: GodotClass>() -> Self {
+    pub fn of<T: GodotClass>() -> Self {
         Self {
             backing: StringName::from(T::CLASS_NAME),
         }
@@ -33,6 +33,12 @@ impl ClassName {
 
     pub fn string_sys(&self) -> sys::GDExtensionStringNamePtr {
         self.backing.string_sys()
+    }
+}
+
+impl From<ClassName> for StringName {
+    fn from(class_name: ClassName) -> Self {
+        class_name.backing
     }
 }
 
