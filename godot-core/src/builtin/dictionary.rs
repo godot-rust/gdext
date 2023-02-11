@@ -6,11 +6,12 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{inner, FromVariant, ToVariant, Variant, VariantConversionError};
+use crate::builtin::{inner, FromVariant, ToVariant, Variant};
 use crate::obj::Share;
-use std::collections::{HashMap, HashSet};
 use std::fmt;
-use sys::types::*;
+use std::marker::PhantomData;
+use std::ptr::addr_of_mut;
+use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
 use super::Array;
@@ -134,12 +135,12 @@ impl Dictionary {
     }
 
     /// Creates a new `Array` containing all the keys currently in the dictionary.
-    pub fn keys(&self) -> Array {
+    pub fn keys_array(&self) -> Array {
         self.as_inner().keys()
     }
 
     /// Creates a new `Array` containing all the values currently in the dictionary.
-    pub fn values(&self) -> Array {
+    pub fn values_array(&self) -> Array {
         self.as_inner().values()
     }
 
@@ -195,6 +196,28 @@ impl Dictionary {
         }
     }
 
+    /// Returns an iterator over the key-value pairs of the `Dictionary`. The pairs are each of type `(Variant, Variant)`.
+    /// Each pair references the original `Dictionary`, but instead of a `&`-reference to key-value pairs as
+    /// you might expect, the iterator returns a (cheap, shallow) copy of each key-value pair.
+    ///
+    /// Note that it's possible to modify the `Dictionary` through another reference while iterating
+    /// over it. This will not result in unsoundness or crashes, but will cause the iterator to
+    /// behave in an unspecified way.
+    pub fn iter_shared(&self) -> Iter<'_> {
+        Iter::new(self)
+    }
+
+    /// Returns an iterator over the keys `Dictionary`. The keys are each of type `Variant`. Each key references
+    /// the original `Dictionary`, but instead of a `&`-reference to keys pairs as you might expect, the
+    /// iterator returns a (cheap, shallow) copy of each key pair.
+    ///
+    /// Note that it's possible to modify the `Dictionary` through another reference while iterating
+    /// over it. This will not result in unsoundness or crashes, but will cause the iterator to
+    /// behave in an unspecified way.
+    pub fn keys_shared(&self) -> Keys<'_> {
+        Keys::new(self)
+    }
+
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerDictionary {
         inner::InnerDictionary::from_outer(self)
@@ -213,41 +236,6 @@ where
         iterable
             .into_iter()
             .map(|(key, value)| (key.to_variant(), value.to_variant()))
-            .collect()
-    }
-}
-
-/// Convert this dictionary to a strongly typed rust `HashMap`. If the conversion
-/// fails for any key or value, an error is returned.
-///
-/// Will be replaced by a proper iteration implementation.
-impl<K: FromVariant + Eq + std::hash::Hash, V: FromVariant> TryFrom<&Dictionary> for HashMap<K, V> {
-    type Error = VariantConversionError;
-
-    fn try_from(dictionary: &Dictionary) -> Result<Self, Self::Error> {
-        // TODO: try to panic or something if modified while iterating
-        // Though probably better to fix when implementing iteration proper
-        dictionary
-            .keys()
-            .iter_shared()
-            .zip(dictionary.values().iter_shared())
-            .map(|(key, value)| Ok((K::try_from_variant(&key)?, V::try_from_variant(&value)?)))
-            .collect()
-    }
-}
-
-/// Convert the keys of this dictionary to a strongly typed rust `HashSet`. If the
-/// conversion fails for any key, an error is returned.
-impl<K: FromVariant + Eq + std::hash::Hash> TryFrom<&Dictionary> for HashSet<K> {
-    type Error = VariantConversionError;
-
-    fn try_from(dictionary: &Dictionary) -> Result<Self, Self::Error> {
-        // TODO: try to panic or something if modified while iterating
-        // Though probably better to fix when implementing iteration proper
-        dictionary
-            .keys()
-            .iter_shared()
-            .map(|key| K::try_from_variant(&key))
             .collect()
     }
 }
@@ -317,6 +305,210 @@ impl Share for Dictionary {
                 ctor(self_ptr, args.as_ptr());
             })
         }
+    }
+}
+
+struct DictionaryIter<'a> {
+    last_key: Option<Variant>,
+    dictionary: &'a Dictionary,
+    is_first: bool,
+}
+
+impl<'a> DictionaryIter<'a> {
+    fn new(dictionary: &'a Dictionary) -> Self {
+        Self {
+            last_key: None,
+            dictionary,
+            is_first: true,
+        }
+    }
+
+    fn call_init(dictionary: &Dictionary) -> Option<Variant> {
+        // SAFETY:
+        // `dictionary` is a valid `Dictionary` since we have a reference to it,
+        //    so this will call the implementation for dictionaries.
+        // `variant` is an initialized and valid `Variant`.
+        let variant: Variant = Variant::nil();
+        unsafe { Self::call_iter_fn(interface_fn!(variant_iter_init), dictionary, variant) }
+    }
+
+    fn call_next(dictionary: &Dictionary, last_key: Variant) -> Option<Variant> {
+        // SAFETY:
+        // `dictionary` is a valid `Dictionary` since we have a reference to it,
+        //    so this will call the implementation for dictionaries.
+        // `last_key` is an initialized and valid `Variant`, since we own a copy of it.
+        unsafe { Self::call_iter_fn(interface_fn!(variant_iter_next), dictionary, last_key) }
+    }
+
+    /// # SAFETY:
+    /// `iter_fn` must point to a valid function that interprets the parameters according to their type specification.
+    unsafe fn call_iter_fn(
+        iter_fn: unsafe extern "C" fn(
+            sys::GDExtensionConstVariantPtr,
+            sys::GDExtensionVariantPtr,
+            *mut sys::GDExtensionBool,
+        ) -> sys::GDExtensionBool,
+        dictionary: &Dictionary,
+        next_var: Variant,
+    ) -> Option<Variant> {
+        let dictionary = dictionary.to_variant();
+        let mut valid: u8 = 0;
+
+        let has_next = iter_fn(
+            dictionary.var_sys(),
+            next_var.var_sys(),
+            addr_of_mut!(valid),
+        );
+        let valid = u8_to_bool(valid);
+        let has_next = u8_to_bool(has_next);
+
+        if has_next {
+            assert!(valid);
+            Some(next_var)
+        } else {
+            None
+        }
+    }
+
+    fn next_key(&mut self) -> Option<Variant> {
+        let new_key = if self.is_first {
+            self.is_first = false;
+            Self::call_init(self.dictionary)
+        } else {
+            Self::call_next(self.dictionary, self.last_key.take()?)
+        };
+        self.last_key = new_key.clone();
+        new_key
+    }
+
+    fn next_key_value(&mut self) -> Option<(Variant, Variant)> {
+        let key = self.next_key()?;
+        if !self.dictionary.contains_key(key.clone()) {
+            return None;
+        }
+
+        let value = self.dictionary.as_inner().get(key.clone(), Variant::nil());
+        Some((key, value))
+    }
+}
+
+/// An iterator over key-value pairs from a `Dictionary`.
+///
+/// See [Dictionary::iter_shared()] for more information about iteration over dictionaries.
+pub struct Iter<'a> {
+    iter: DictionaryIter<'a>,
+}
+
+impl<'a> Iter<'a> {
+    fn new(dictionary: &'a Dictionary) -> Self {
+        Self {
+            iter: DictionaryIter::new(dictionary),
+        }
+    }
+
+    /// Creates an iterator that will convert each `(Variant, Variant)` key-value pair into
+    /// a `(K,V)` key-value pair, panicking upon failure to convert.
+    pub fn typed<K: FromVariant, V: FromVariant>(self) -> TypedIter<'a, K, V> {
+        TypedIter::from_untyped(self)
+    }
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = (Variant, Variant);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next_key_value()
+    }
+}
+
+/// An iterator over keys from a `Dictionary`.
+///
+/// See [Dictionary::keys_shared()] for more information about iteration over dictionaries.
+pub struct Keys<'a> {
+    iter: DictionaryIter<'a>,
+}
+
+impl<'a> Keys<'a> {
+    fn new(dictionary: &'a Dictionary) -> Self {
+        Self {
+            iter: DictionaryIter::new(dictionary),
+        }
+    }
+
+    /// Creates an iterator that will convert each `Variant` key into a key of type `K`,
+    /// panicking upon failure to convert.
+    pub fn typed<K: FromVariant>(self) -> TypedKeys<'a, K> {
+        TypedKeys::from_untyped(self)
+    }
+}
+impl<'a> Iterator for Keys<'a> {
+    type Item = Variant;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next_key()
+    }
+}
+
+/// An iterator over key-value pairs from a `Dictionary` that will attempt to convert each
+/// key-value pair into a `(K,V)`.
+///
+/// See [Dictionary::iter_shared()] for more information about iteration over dictionaries.
+pub struct TypedIter<'a, K, V> {
+    iter: DictionaryIter<'a>,
+    _k: PhantomData<K>,
+    _v: PhantomData<V>,
+}
+
+impl<'a, K, V> TypedIter<'a, K, V> {
+    fn from_untyped(value: Iter<'a>) -> Self {
+        Self {
+            iter: value.iter,
+            _k: PhantomData,
+            _v: PhantomData,
+        }
+    }
+}
+
+impl<'a, K: FromVariant, V: FromVariant> Iterator for TypedIter<'a, K, V> {
+    type Item = (K, V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next_key_value()
+            .map(|(key, value)| (K::from_variant(&key), V::from_variant(&value)))
+    }
+}
+
+/// An iterator over keys from a `Dictionary` that will attempt to convert each key into a `K`.
+///
+/// See [Dictionary::iter_shared()] for more information about iteration over dictionaries.
+pub struct TypedKeys<'a, K> {
+    iter: DictionaryIter<'a>,
+    _k: PhantomData<K>,
+}
+
+impl<'a, K> TypedKeys<'a, K> {
+    fn from_untyped(value: Keys<'a>) -> Self {
+        Self {
+            iter: value.iter,
+            _k: PhantomData,
+        }
+    }
+}
+
+impl<'a, K: FromVariant> Iterator for TypedKeys<'a, K> {
+    type Item = K;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next_key().map(|k| K::from_variant(&k))
+    }
+}
+
+fn u8_to_bool(u: u8) -> bool {
+    match u {
+        0 => false,
+        1 => true,
+        _ => panic!("Invalid boolean value {u}"),
     }
 }
 
