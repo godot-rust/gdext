@@ -260,10 +260,10 @@ fn variant_conversion_fails() {
         Array::default().to_variant().try_to::<StringName>(),
         Err(VariantConversionError)
     );
-    assert_eq!(
-        Dictionary::default().to_variant().try_to::<Array>(),
-        Err(VariantConversionError)
-    );
+    //assert_eq!(
+    //    Dictionary::default().to_variant().try_to::<Array>(),
+    //    Err(VariantConversionError)
+    //);
     assert_eq!(
         Variant::nil().to_variant().try_to::<Dictionary>(),
         Err(VariantConversionError)

@@ -7,9 +7,9 @@
 use crate::{expect_panic, itest};
 use godot::bind::{godot_api, GodotClass, GodotExt};
 use godot::builtin::{FromVariant, GodotString, StringName, ToVariant, Variant, Vector3};
-use godot::engine::{file_access, FileAccess, Node, Node3D, Object, RefCounted};
-use godot::obj::Share;
+use godot::engine::{file_access, Camera3D, FileAccess, Node, Node3D, Object, RefCounted};
 use godot::obj::{Base, Gd, InstanceId};
+use godot::obj::{Inherits, Share};
 use godot::sys::GodotFfi;
 
 use std::cell::RefCell;
@@ -42,11 +42,15 @@ pub fn run() -> bool {
     ok &= object_engine_up_deref();
     ok &= object_engine_up_deref_mut();
     ok &= object_engine_upcast();
+    ok &= object_engine_upcast_reflexive();
     ok &= object_engine_downcast();
+    ok &= object_engine_downcast_reflexive();
     ok &= object_engine_bad_downcast();
+    ok &= object_engine_accept_polymorphic();
     ok &= object_user_upcast();
     ok &= object_user_downcast();
     ok &= object_user_bad_downcast();
+    ok &= object_user_accept_polymorphic();
     ok &= object_engine_manual_free();
     ok &= object_engine_manual_double_free();
     ok &= object_engine_refcounted_free();
@@ -314,7 +318,19 @@ fn object_engine_upcast() {
     assert_eq!(object.instance_id(), id);
     assert_eq!(object.get_class(), GodotString::from("Node3D"));
 
-    // Deliberate free on upcast obj
+    // Deliberate free on upcast object
+    object.free();
+}
+
+#[itest]
+fn object_engine_upcast_reflexive() {
+    let node3d: Gd<Node3D> = Node3D::new_alloc();
+    let id = node3d.instance_id();
+
+    let object = node3d.upcast::<Node3D>();
+    assert_eq!(object.instance_id(), id);
+    assert_eq!(object.get_class(), GodotString::from("Node3D"));
+
     object.free();
 }
 
@@ -336,6 +352,17 @@ fn object_engine_downcast() {
 }
 
 #[itest]
+fn object_engine_downcast_reflexive() {
+    let node3d: Gd<Node3D> = Node3D::new_alloc();
+    let id = node3d.instance_id();
+
+    let node3d: Gd<Node3D> = node3d.cast::<Node3D>();
+    assert_eq!(node3d.instance_id(), id);
+
+    node3d.free();
+}
+
+#[itest]
 fn object_engine_bad_downcast() {
     let object: Gd<Object> = Object::new_alloc();
     let free_ref = object.share();
@@ -343,6 +370,59 @@ fn object_engine_bad_downcast() {
 
     assert!(node3d.is_none());
     free_ref.free();
+}
+
+#[itest]
+fn object_engine_accept_polymorphic() {
+    let mut node = Camera3D::new_alloc();
+    let expected_name = StringName::from("Node name");
+    let expected_class = GodotString::from("Camera3D");
+
+    node.set_name(GodotString::from(&expected_name));
+
+    let actual_name = accept_node(node.share());
+    assert_eq!(actual_name, expected_name);
+
+    let actual_class = accept_object(node.share());
+    assert_eq!(actual_class, expected_class);
+
+    node.free();
+}
+
+#[itest]
+fn object_user_accept_polymorphic() {
+    let obj = Gd::new(ObjPayload { value: 123 });
+    let expected_class = GodotString::from("ObjPayload");
+
+    let actual_class = accept_refcounted(obj.share());
+    assert_eq!(actual_class, expected_class);
+
+    let actual_class = accept_object(obj);
+    assert_eq!(actual_class, expected_class);
+}
+
+fn accept_node<T>(node: Gd<T>) -> StringName
+where
+    T: Inherits<Node>,
+{
+    let up = node.upcast();
+    up.get_name()
+}
+
+fn accept_refcounted<T>(node: Gd<T>) -> GodotString
+where
+    T: Inherits<RefCounted>,
+{
+    let up = node.upcast();
+    up.get_class()
+}
+
+fn accept_object<T>(node: Gd<T>) -> GodotString
+where
+    T: Inherits<Object>,
+{
+    let up = node.upcast();
+    up.get_class()
 }
 
 #[itest]
@@ -402,7 +482,7 @@ fn object_engine_manual_double_free() {
 #[itest]
 fn object_engine_refcounted_free() {
     let node = RefCounted::new();
-    let node2 = node.share().upcast();
+    let node2 = node.share().upcast::<Object>();
 
     expect_panic("calling free() on RefCounted obj", || node2.free())
 }

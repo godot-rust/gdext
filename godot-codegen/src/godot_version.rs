@@ -30,7 +30,7 @@ pub fn parse_godot_version(version_str: &str) -> Result<GodotVersion, Box<dyn Er
     let regex = Regex::new(
         //  major  minor     [patch]                                              official|custom_build|gentoo
         //  v      v         v                                                    v
-        r#"(\d+)\.(\d+)(?:\.(\d+))?\.(alpha|beta|dev|stable)[0-9]*\.(?:mono\.)?(?:[a-z_]+\.([a-f0-9]+)|official)"#,
+        r#"(\d+)\.(\d+)(?:\.(\d+))?\.(alpha|beta|dev|rc|stable)[0-9]*\.(?:mono\.)?(?:[a-z_]+\.([a-f0-9]+)|official)"#,
     )?;
 
     let fail = || format!("Version substring cannot be parsed: `{version_str}`");
@@ -71,6 +71,7 @@ fn test_godot_versions() {
         ("4.0.dev.custom_build.e7e9e663b", 4, 0, 0, "dev", s("e7e9e663b")),
         ("4.0.alpha.custom_build.faddbcfc0", 4, 0, 0, "alpha", s("faddbcfc0")),
         ("4.0.beta8.mono.custom_build.b28ddd918", 4, 0, 0, "beta", s("b28ddd918")),
+        ("4.0.rc1.official.8843d9ad3", 4, 0, 0, "rc", s("8843d9ad3")),
     ];
 
     let bad_versions = [

@@ -15,6 +15,7 @@ macro_rules! godot_warn {
                 "<function unset>\0".as_bytes().as_ptr() as *const _,
                 concat!(file!(), "\0").as_ptr() as *const _,
                 line!() as _,
+                false as $crate::sys::GDExtensionBool, // whether to create a toast notification in editor
             );
         }
     };
@@ -33,6 +34,7 @@ macro_rules! godot_error {
                 "<function unset>\0".as_bytes().as_ptr() as *const _,
                 concat!(file!(), "\0").as_ptr() as *const _,
                 line!() as _,
+                false as $crate::sys::GDExtensionBool, // whether to create a toast notification in editor
             );
         }
     };
@@ -49,6 +51,7 @@ macro_rules! godot_script_error {
                 "<function unset>\0".as_bytes().as_ptr() as *const _,
                 concat!(file!(), "\0").as_ptr() as *const _,
                 line!() as _,
+                false as $crate::sys::GDExtensionBool, // whether to create a toast notification in editor
             );
         }
     };

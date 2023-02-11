@@ -270,6 +270,8 @@ const SELECTED_CLASSES: &[&str] = &[
     "Control",
     "FileAccess",
     "HTTPRequest",
+    "Image",
+    "ImageTextureLayered",
     "Input",
     "Label",
     "MainLoop",
@@ -290,6 +292,9 @@ const SELECTED_CLASSES: &[&str] = &[
     "SceneTree",
     "Sprite2D",
     "SpriteFrames",
+    "Texture",
+    "Texture2DArray",
+    "TextureLayered",
     "Time",
     "Timer",
 ];
