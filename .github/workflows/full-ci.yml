@@ -144,7 +144,7 @@ jobs:
         uses: ./.github/composite/rust
         with:
           rust: stable
-          cache-key: ${{ matrix.rust-special }} # 'minimal-deps' or empty/not defined
+          cache-key: ${{ matrix.rust-special }} # '-minimal-deps' or empty/not defined
           with-llvm: ${{ matrix.with-llvm }}
 
       - name: "Install Rust nightly (minimal deps)"
