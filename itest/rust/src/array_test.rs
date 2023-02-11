@@ -77,7 +77,7 @@ fn typed_array_from_to_variant() {
 
 #[itest]
 fn untyped_array_from_to_variant() {
-    let array = array![1.to_variant(), 2.to_variant()];
+    let array = varray![1, 2];
     let variant = array.to_variant();
     let result = Array::try_from_variant(&variant);
     assert_eq!(result, Ok(array));
@@ -91,7 +91,7 @@ fn array_from_packed_array() {
     // which is not reflected in our static type. It would make sense if it did, but Godot decided
     // otherwise: we get an untyped array.
     array.push(GodotString::from("hi").to_variant());
-    assert_eq!(array, array![42.to_variant(), "hi".to_variant()]);
+    assert_eq!(array, varray![42, "hi"]);
 }
 
 #[itest]
@@ -146,7 +146,7 @@ fn array_share() {
 #[itest]
 fn array_duplicate_shallow() {
     let subarray = array![2, 3];
-    let array = array![1.to_variant(), subarray.to_variant()];
+    let array = varray![1, subarray];
     let duplicate = array.duplicate_shallow();
     TypedArray::<i64>::try_from_variant(&duplicate.get(1))
         .unwrap()
@@ -157,7 +157,7 @@ fn array_duplicate_shallow() {
 #[itest]
 fn array_duplicate_deep() {
     let subarray = array![2, 3];
-    let array = array![1.to_variant(), subarray.to_variant()];
+    let array = varray![1, subarray];
     let duplicate = array.duplicate_deep();
     TypedArray::<i64>::try_from_variant(&duplicate.get(1))
         .unwrap()
@@ -172,7 +172,7 @@ fn array_slice_shallow() {
     assert_eq!(slice, array![5, 3]);
 
     let subarray = array![2, 3];
-    let array = array![1.to_variant(), subarray.to_variant()];
+    let array = varray![1, subarray];
     let slice = array.slice_shallow(1, 2, None);
     TypedArray::<i64>::try_from_variant(&slice.get(0))
         .unwrap()
@@ -187,7 +187,7 @@ fn array_slice_deep() {
     assert_eq!(slice, array![5, 3]);
 
     let subarray = array![2, 3];
-    let array = array![1.to_variant(), subarray.to_variant()];
+    let array = varray![1, subarray];
     let slice = array.slice_deep(1, 2, None);
     TypedArray::<i64>::try_from_variant(&slice.get(0))
         .unwrap()
@@ -255,7 +255,7 @@ fn array_min_max() {
     assert_eq!(int_array.min(), Some(1));
     assert_eq!(int_array.max(), Some(2));
 
-    let uncomparable_array = array![1.to_variant(), GodotString::from("two").to_variant()];
+    let uncomparable_array = varray![1, GodotString::from("two")];
 
     assert_eq!(uncomparable_array.min(), None);
     assert_eq!(uncomparable_array.max(), None);
@@ -351,14 +351,14 @@ fn array_mixed_values() {
     let node = Node::new_alloc();
     let ref_counted = RefCounted::new();
 
-    let array = array![
-        int.to_variant(),
-        string.to_variant(),
-        packed_array.to_variant(),
-        typed_array.to_variant(),
-        object.to_variant(),
-        node.to_variant(),
-        ref_counted.to_variant(),
+    let array = varray![
+        int,
+        string,
+        packed_array,
+        typed_array,
+        object,
+        node,
+        ref_counted,
     ];
 
     assert_eq!(i64::try_from_variant(&array.get(0)).unwrap(), int);
@@ -405,10 +405,7 @@ fn untyped_array_pass_to_godot_func() {
     node.queue_free(); // Do not leak even if the test fails.
 
     assert_eq!(
-        node.callv(
-            StringName::from("has_signal"),
-            array!["tree_entered".to_variant()]
-        ),
+        node.callv(StringName::from("has_signal"), varray!["tree_entered"]),
         true.to_variant()
     );
 }
@@ -426,14 +423,7 @@ fn untyped_array_return_from_godot_func() {
     node.queue_free(); // Do not leak even if the test fails.
     let result = node.get_node_and_resource("child_node".into());
 
-    assert_eq!(
-        result,
-        array![
-            child.to_variant(),
-            Variant::nil(),
-            NodePath::default().to_variant()
-        ]
-    );
+    assert_eq!(result, varray![child, Variant::nil(), NodePath::default()]);
 }
 
 // TODO All API functions that take a `TypedArray` are even more obscure and not included in
@@ -489,7 +479,7 @@ impl ArrayTest {
 
     #[func]
     fn return_untyped_array(&self) -> Array {
-        array![42.to_variant(), "answer".to_variant()]
+        varray![42, "answer"]
     }
 
     #[func]

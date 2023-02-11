@@ -801,22 +801,16 @@ impl<T: VariantMetadata> GodotFfi for TypedArray<T> {
     }
 }
 
-/// Allows for construction of [`TypedArray`] literals, much in the same way as Rust's standard
-/// `vec!` macro. The type of the array is inferred from the arguments.
+/// Allows for construction of [`TypedArray`] literals, similar to Rust's standard `vec!` macro.
+/// The type of the array is inferred from the arguments.
 ///
-/// # Example
-///
+/// Example:
 /// ```no_run
 /// # use godot::prelude::*;
-/// let arr = array![3, 1, 4];
+/// let arr = array![3, 1, 4];  // type Array<i32>
 /// ```
 ///
-/// To create an `Array` of variants, you need to convert each element explicitly:
-///
-/// ```no_run
-/// # use godot::prelude::*;
-/// let arr: Array = array![42_i64.to_variant(), "hello".to_variant()];
-/// ```
+/// To create an `Array` of variants, see the [`varray!`] macro.
 #[macro_export]
 macro_rules! array {
     ($($elements:expr),* $(,)?) => {
@@ -824,6 +818,31 @@ macro_rules! array {
             let mut array = $crate::builtin::TypedArray::default();
             $(
                 array.push($elements);
+            )*
+            array
+        }
+    };
+}
+
+/// Allows for construction of [`VariantArray`] literals, similar to Rust's standard `vec!` macro.
+/// The type of the array is always [`Variant`].
+///
+/// Example:
+/// ```no_run
+/// # use godot::prelude::*;
+/// let arr: Array = varray![42_i64, "hello", true];
+/// ```
+///
+/// To create a typed `Array` with a single element type, see the [`array!`] macro.
+#[macro_export]
+macro_rules! varray {
+    // Note: use to_variant() and not Variant::from(), as that works with both references and values
+    ($($elements:expr),* $(,)?) => {
+        {
+            use $crate::builtin::ToVariant as _;
+            let mut array = $crate::builtin::Array::default();
+            $(
+                array.push($elements.to_variant());
             )*
             array
         }

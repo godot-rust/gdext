@@ -55,7 +55,7 @@ mod vector4i;
 pub mod meta;
 
 // Re-export macros.
-pub use crate::{array, dict};
+pub use crate::{array, dict, varray};
 
 pub use array::*;
 pub use color::*;
