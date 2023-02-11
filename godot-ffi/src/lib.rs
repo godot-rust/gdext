@@ -52,7 +52,7 @@ static mut BINDING: Option<GodotBinding> = None;
 
 /// # Safety
 ///
-/// - The `interface` pointer must be a valid pointer to a [`GDExtensionInterface`] obj.
+/// - The `interface` pointer must be a valid pointer to a [`GDExtensionInterface`] object.
 /// - The `library` pointer must be the pointer given by Godot at initialisation.
 /// - This function must not be called from multiple threads.
 /// - This function must be called before any use of [`get_library`].

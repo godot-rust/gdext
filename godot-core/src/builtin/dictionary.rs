@@ -18,7 +18,7 @@ use super::Array;
 
 /// Godot's `Dictionary` type.
 ///
-/// The keys and values of the array are all `Variant`, so they can all be of different types.
+/// The keys and values of the dictionary are all `Variant`s, so they can be of different types.
 /// Variants are designed to be generally cheap to clone.
 ///
 /// # Thread safety
@@ -39,7 +39,7 @@ impl Dictionary {
         Self::default()
     }
 
-    /// Removes all key-value pairs from the dictionary. Equivalent to `clear` in Godot.
+    /// Removes all key-value pairs from the dictionary.
     pub fn clear(&mut self) {
         self.as_inner().clear()
     }
@@ -48,10 +48,10 @@ impl Dictionary {
     /// will not be shared with the original dictionary. Note that any `Object`-derived elements will
     /// still be shallow copied.
     ///
-    /// To create a shallow copy, use [`duplicate_shallow()`] instead. To create a new reference to
-    /// the same array data, use [`share()`].
+    /// To create a shallow copy, use [`Self::duplicate_shallow`] instead. To create a new reference to
+    /// the same array data, use [`Share::share`].
     ///
-    /// Equivalent to `dictionary.duplicate(true)` in Godot.
+    /// _Godot equivalent: `dict.duplicate(true)`_
     pub fn duplicate_deep(&self) -> Self {
         self.as_inner().duplicate(true)
     }
@@ -60,16 +60,18 @@ impl Dictionary {
     /// any reference types (such as `Array`, `Dictionary` and `Object`) will still refer to the
     /// same value.
     ///
-    /// To create a deep copy, use [`duplicate_deep()`] instead. To create a new reference to the
-    /// same dictionary data, use [`share()`].
+    /// To create a deep copy, use [`Self::duplicate_deep`] instead. To create a new reference to the
+    /// same dictionary data, use [`Share::share`].
     ///
-    /// Equivalent to `dictionary.duplicate(false)` in Godot.
+    /// _Godot equivalent: `dict.duplicate(false)`_
     pub fn duplicate_shallow(&self) -> Self {
         self.as_inner().duplicate(false)
     }
 
     /// Removes a key from the map, and returns the value associated with
     /// the key if the key was in the dictionary.
+    ///
+    /// _Godot equivalent: `erase`_
     pub fn remove<K: ToVariant>(&mut self, key: K) -> Option<Variant> {
         let key = key.to_variant();
         let old_value = self.get(key.clone());
@@ -77,10 +79,14 @@ impl Dictionary {
         old_value
     }
 
-    /// Returns the first key whose associated value is `value`, if one exists.
+    /// Reverse-search a key by its value.
     ///
-    /// Unlike in Godot, this will return `None` if the key does not exist
-    /// and `Some(nil)` the key is `null`.
+    /// Unlike Godot, this will return `None` if the key does not exist and `Some(Variant::nil())` the key is `NIL`.
+    ///
+    /// This operation is rarely needed and very inefficient. If you find yourself needing it a lot, consider
+    /// using a `HashMap` or `Dictionary` with the inverse mapping (`V` -> `K`).
+    ///
+    /// _Godot equivalent: `find_key`_
     pub fn find_key_by_value<V: ToVariant>(&self, value: V) -> Option<Variant> {
         let key = self.as_inner().find_key(value.to_variant());
 
@@ -91,11 +97,10 @@ impl Dictionary {
         }
     }
 
-    /// Returns the value at the key in the dictionary, if there is
-    /// one.
+    /// Returns the value for the given key, or `None`.
     ///
-    /// Unlike `get` in Godot, this will return `None` if there is
-    /// no value with the given key.
+    /// Note that `NIL` values are returned as `Some(Variant::nil())`, while absent values are returned as `None`.
+    /// If you want to treat both as `NIL`, use [`Self::get_or_nil`].
     pub fn get<K: ToVariant>(&self, key: K) -> Option<Variant> {
         let key = key.to_variant();
         if !self.contains_key(key.clone()) {
@@ -105,18 +110,19 @@ impl Dictionary {
         Some(self.get_or_nil(key))
     }
 
-    /// Returns the value at the key in the dictionary, or nil otherwise. This
-    /// method does not let you differentiate `NIL` values stored as values from
-    /// absent keys. If you need that, use `get()`.
+    /// Returns the value at the key in the dictionary, or `NIL` otherwise.
     ///
-    /// This is equivalent to `get` in Godot.
+    /// This method does not let you differentiate `NIL` values stored as values from absent keys.
+    /// If you need that, use [`Self::get`].
+    ///
+    /// _Godot equivalent: `dict.get(key, null)`_
     pub fn get_or_nil<K: ToVariant>(&self, key: K) -> Variant {
         self.as_inner().get(key.to_variant(), Variant::nil())
     }
 
     /// Returns `true` if the dictionary contains the given key.
     ///
-    /// This is equivalent to `has` in Godot.
+    /// _Godot equivalent: `has`_
     pub fn contains_key<K: ToVariant>(&self, key: K) -> bool {
         let key = key.to_variant();
         self.as_inner().has(key)
@@ -124,7 +130,7 @@ impl Dictionary {
 
     /// Returns `true` if the dictionary contains all the given keys.
     ///
-    /// This is equivalent to `has_all` in Godot.
+    /// _Godot equivalent: `has_all`_
     pub fn contains_all_keys(&self, keys: Array) -> bool {
         self.as_inner().has_all(keys)
     }
@@ -135,11 +141,15 @@ impl Dictionary {
     }
 
     /// Creates a new `Array` containing all the keys currently in the dictionary.
+    ///
+    /// _Godot equivalent: `keys`_
     pub fn keys_array(&self) -> Array {
         self.as_inner().keys()
     }
 
     /// Creates a new `Array` containing all the values currently in the dictionary.
+    ///
+    /// _Godot equivalent: `values`_
     pub fn values_array(&self) -> Array {
         self.as_inner().values()
     }
@@ -149,12 +159,11 @@ impl Dictionary {
         self.as_inner().is_empty()
     }
 
-    /// Copies all keys and values from other into self.
+    /// Copies all keys and values from `other` into `self`.
     ///
-    /// If overwrite is true, it will overwrite pre-existing keys. Otherwise
-    /// it will not.
+    /// If `overwrite` is true, it will overwrite pre-existing keys.
     ///
-    /// This is equivalent to `merge` in Godot.
+    /// _Godot equivalent: `merge`_
     pub fn extend_dictionary(&mut self, other: Self, overwrite: bool) {
         self.as_inner().merge(other, overwrite)
     }
@@ -166,21 +175,9 @@ impl Dictionary {
         self.as_inner().size().try_into().unwrap()
     }
 
-    /// Get the pointer corresponding to the given key in the dictionary,
-    /// if there exists no value at the given key then a new one is created
-    /// and initialized to a nil variant.
-    fn get_ptr_mut<K: ToVariant>(&mut self, key: K) -> *mut Variant {
-        let key = key.to_variant();
-        unsafe {
-            let ptr =
-                (interface_fn!(dictionary_operator_index))(self.sys_mut(), key.var_sys_const());
-            assert!(!ptr.is_null());
-            ptr as *mut Variant
-        }
-    }
-
-    /// Insert a value at the given key, returning the value
-    /// that previously was at that key if there was one.
+    /// Insert a value at the given key, returning the previous value for that key (if available).
+    ///
+    /// If you don't need the previous value, use [`Self::set`] instead.
     pub fn insert<K: ToVariant, V: ToVariant>(&mut self, key: K, value: V) -> Option<Variant> {
         let key = key.to_variant();
         let old_value = self.get(key.clone());
@@ -189,6 +186,10 @@ impl Dictionary {
     }
 
     /// Set a key to a given value.
+    ///
+    /// If you are interested in the previous value, use [`Self::insert`] instead.
+    ///
+    /// _Godot equivalent: `dict[key] = value`_
     pub fn set<K: ToVariant, V: ToVariant>(&mut self, key: K, value: V) {
         let key = key.to_variant();
         unsafe {
@@ -222,50 +223,21 @@ impl Dictionary {
     pub fn as_inner(&self) -> inner::InnerDictionary {
         inner::InnerDictionary::from_outer(self)
     }
-}
 
-/// Creates a Dictionary from the given iterator I over a (&K, &V) key-value pair.
-/// Each key and value are converted to a Variant.
-impl<'a, 'b, K, V, I> From<I> for Dictionary
-where
-    I: IntoIterator<Item = (&'a K, &'b V)>,
-    K: ToVariant + 'a,
-    V: ToVariant + 'b,
-{
-    fn from(iterable: I) -> Self {
-        iterable
-            .into_iter()
-            .map(|(key, value)| (key.to_variant(), value.to_variant()))
-            .collect()
+    /// Get the pointer corresponding to the given key in the dictionary.
+    ///
+    /// If there exists no value at the given key, a `NIL` variant will be created.
+    fn get_ptr_mut<K: ToVariant>(&mut self, key: K) -> *mut Variant {
+        let key = key.to_variant();
+        let ptr = unsafe {
+            interface_fn!(dictionary_operator_index)(self.sys_mut(), key.var_sys_const())
+        };
+        Variant::ptr_from_sys_mut(ptr)
     }
 }
 
-/// Inserts all key-values from the iterator into the dictionary,
-/// replacing values with existing keys with new values returned
-/// from the iterator.
-impl<K: ToVariant, V: ToVariant> Extend<(K, V)> for Dictionary {
-    fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, iter: I) {
-        for (k, v) in iter.into_iter() {
-            self.set(k.to_variant(), v.to_variant())
-        }
-    }
-}
-
-impl<K: ToVariant, V: ToVariant> FromIterator<(K, V)> for Dictionary {
-    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
-        let mut dict = Dictionary::new();
-        dict.extend(iter);
-        dict
-    }
-}
-
-impl_builtin_traits! {
-    for Dictionary {
-        Default => dictionary_construct_default;
-        Drop => dictionary_destroy;
-        PartialEq => dictionary_operator_equal;
-    }
-}
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Traits
 
 impl GodotFfi for Dictionary {
     ffi_methods! {
@@ -282,6 +254,14 @@ impl GodotFfi for Dictionary {
         let mut result = Self::default();
         init_fn(result.sys_mut());
         result
+    }
+}
+
+impl_builtin_traits! {
+    for Dictionary {
+        Default => dictionary_construct_default;
+        Drop => dictionary_destroy;
+        PartialEq => dictionary_operator_equal;
     }
 }
 
@@ -308,6 +288,49 @@ impl Share for Dictionary {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Conversion traits
+
+/// Creates a dictionary from the given iterator `I` over a `(&K, &V)` key-value pair.
+///
+/// Each key and value are converted to a `Variant`.
+impl<'a, 'b, K, V, I> From<I> for Dictionary
+where
+    I: IntoIterator<Item = (&'a K, &'b V)>,
+    K: ToVariant + 'a,
+    V: ToVariant + 'b,
+{
+    fn from(iterable: I) -> Self {
+        iterable
+            .into_iter()
+            .map(|(key, value)| (key.to_variant(), value.to_variant()))
+            .collect()
+    }
+}
+
+/// Insert iterator range into dictionary.
+///
+/// Inserts all key-value pairs from the iterator into the dictionary. Previous values for keys appearing
+/// in `iter` will be overwritten.
+impl<K: ToVariant, V: ToVariant> Extend<(K, V)> for Dictionary {
+    fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, iter: I) {
+        for (k, v) in iter.into_iter() {
+            self.set(k.to_variant(), v.to_variant())
+        }
+    }
+}
+
+impl<K: ToVariant, V: ToVariant> FromIterator<(K, V)> for Dictionary {
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
+        let mut dict = Dictionary::new();
+        dict.extend(iter);
+        dict
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Internal helper for different iterator impls -- not an iterator itself
 struct DictionaryIter<'a> {
     last_key: Option<Variant>,
     dictionary: &'a Dictionary,
@@ -323,53 +346,6 @@ impl<'a> DictionaryIter<'a> {
         }
     }
 
-    fn call_init(dictionary: &Dictionary) -> Option<Variant> {
-        // SAFETY:
-        // `dictionary` is a valid `Dictionary` since we have a reference to it,
-        //    so this will call the implementation for dictionaries.
-        // `variant` is an initialized and valid `Variant`.
-        let variant: Variant = Variant::nil();
-        unsafe { Self::call_iter_fn(interface_fn!(variant_iter_init), dictionary, variant) }
-    }
-
-    fn call_next(dictionary: &Dictionary, last_key: Variant) -> Option<Variant> {
-        // SAFETY:
-        // `dictionary` is a valid `Dictionary` since we have a reference to it,
-        //    so this will call the implementation for dictionaries.
-        // `last_key` is an initialized and valid `Variant`, since we own a copy of it.
-        unsafe { Self::call_iter_fn(interface_fn!(variant_iter_next), dictionary, last_key) }
-    }
-
-    /// # SAFETY:
-    /// `iter_fn` must point to a valid function that interprets the parameters according to their type specification.
-    unsafe fn call_iter_fn(
-        iter_fn: unsafe extern "C" fn(
-            sys::GDExtensionConstVariantPtr,
-            sys::GDExtensionVariantPtr,
-            *mut sys::GDExtensionBool,
-        ) -> sys::GDExtensionBool,
-        dictionary: &Dictionary,
-        next_var: Variant,
-    ) -> Option<Variant> {
-        let dictionary = dictionary.to_variant();
-        let mut valid: u8 = 0;
-
-        let has_next = iter_fn(
-            dictionary.var_sys(),
-            next_var.var_sys(),
-            addr_of_mut!(valid),
-        );
-        let valid = u8_to_bool(valid);
-        let has_next = u8_to_bool(has_next);
-
-        if has_next {
-            assert!(valid);
-            Some(next_var)
-        } else {
-            None
-        }
-    }
-
     fn next_key(&mut self) -> Option<Variant> {
         let new_key = if self.is_first {
             self.is_first = false;
@@ -377,6 +353,7 @@ impl<'a> DictionaryIter<'a> {
         } else {
             Self::call_next(self.dictionary, self.last_key.take()?)
         };
+
         self.last_key = new_key.clone();
         new_key
     }
@@ -390,7 +367,58 @@ impl<'a> DictionaryIter<'a> {
         let value = self.dictionary.as_inner().get(key.clone(), Variant::nil());
         Some((key, value))
     }
+
+    fn call_init(dictionary: &Dictionary) -> Option<Variant> {
+        // SAFETY:
+        // `dictionary` is a valid `Dictionary` since we have a reference to it,
+        //    so this will call the implementation for dictionaries.
+        // `variant` is an initialized and valid `Variant`.
+        let variant: Variant = Variant::nil();
+        unsafe { Self::ffi_iterate(interface_fn!(variant_iter_init), dictionary, variant) }
+    }
+
+    fn call_next(dictionary: &Dictionary, last_key: Variant) -> Option<Variant> {
+        // SAFETY:
+        // `dictionary` is a valid `Dictionary` since we have a reference to it,
+        //    so this will call the implementation for dictionaries.
+        // `last_key` is an initialized and valid `Variant`, since we own a copy of it.
+        unsafe { Self::ffi_iterate(interface_fn!(variant_iter_next), dictionary, last_key) }
+    }
+
+    /// Calls the provided Godot FFI function, in order to iterate the current state.
+    ///
+    /// # Safety:
+    /// `iter_fn` must point to a valid function that interprets the parameters according to their type specification.
+    unsafe fn ffi_iterate(
+        iter_fn: unsafe extern "C" fn(
+            sys::GDExtensionConstVariantPtr,
+            sys::GDExtensionVariantPtr,
+            *mut sys::GDExtensionBool,
+        ) -> sys::GDExtensionBool,
+        dictionary: &Dictionary,
+        next_value: Variant,
+    ) -> Option<Variant> {
+        let dictionary = dictionary.to_variant();
+        let mut valid: u8 = 0;
+
+        let has_next = iter_fn(
+            dictionary.var_sys(),
+            next_value.var_sys(),
+            addr_of_mut!(valid),
+        );
+        let valid = super::u8_to_bool(valid);
+        let has_next = super::u8_to_bool(has_next);
+
+        if has_next {
+            assert!(valid);
+            Some(next_value)
+        } else {
+            None
+        }
+    }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// An iterator over key-value pairs from a `Dictionary`.
 ///
@@ -406,8 +434,8 @@ impl<'a> Iter<'a> {
         }
     }
 
-    /// Creates an iterator that will convert each `(Variant, Variant)` key-value pair into
-    /// a `(K,V)` key-value pair, panicking upon failure to convert.
+    /// Creates an iterator that converts each `(Variant, Variant)` key-value pair into a `(K, V)` key-value
+    /// pair, panicking upon conversion failure.
     pub fn typed<K: FromVariant, V: FromVariant>(self) -> TypedIter<'a, K, V> {
         TypedIter::from_untyped(self)
     }
@@ -420,6 +448,8 @@ impl<'a> Iterator for Iter<'a> {
         self.iter.next_key_value()
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// An iterator over keys from a `Dictionary`.
 ///
@@ -440,7 +470,15 @@ impl<'a> Keys<'a> {
     pub fn typed<K: FromVariant>(self) -> TypedKeys<'a, K> {
         TypedKeys::from_untyped(self)
     }
+
+    /// Returns an array of the keys
+    pub fn array(self) -> Array {
+        // Can only be called
+        assert!(self.iter.is_first);
+        self.iter.dictionary.keys_array()
+    }
 }
+
 impl<'a> Iterator for Keys<'a> {
     type Item = Variant;
 
@@ -449,8 +487,10 @@ impl<'a> Iterator for Keys<'a> {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// An iterator over key-value pairs from a `Dictionary` that will attempt to convert each
-/// key-value pair into a `(K,V)`.
+/// key-value pair into a typed `(K, V)`.
 ///
 /// See [Dictionary::iter_shared()] for more information about iteration over dictionaries.
 pub struct TypedIter<'a, K, V> {
@@ -479,6 +519,8 @@ impl<'a, K: FromVariant, V: FromVariant> Iterator for TypedIter<'a, K, V> {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// An iterator over keys from a `Dictionary` that will attempt to convert each key into a `K`.
 ///
 /// See [Dictionary::iter_shared()] for more information about iteration over dictionaries.
@@ -504,21 +546,14 @@ impl<'a, K: FromVariant> Iterator for TypedKeys<'a, K> {
     }
 }
 
-fn u8_to_bool(u: u8) -> bool {
-    match u {
-        0 => false,
-        1 => true,
-        _ => panic!("Invalid boolean value {u}"),
-    }
-}
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Creates a new dictionary with the given keys and values, the syntax mirrors
-/// Godot's dictionary creation syntax.
+/// Constructs [`Dictionary`] literals, close to Godot's own syntax.
 ///
 /// Any value can be used as a key, but to use an expression you need to surround it
 /// in `()` or `{}`.
 ///
-/// Example
+/// Example:
 /// ```no_run
 /// use godot::builtin::{dict, Variant};
 ///

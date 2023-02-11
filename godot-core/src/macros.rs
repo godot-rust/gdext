@@ -184,7 +184,7 @@ macro_rules! gdext_register_method_inner {
     };
 }
 
-/// Convenience macro to wrap an obj's method into a function pointer
+/// Convenience macro to wrap an object's method into a function pointer
 /// that can be passed to the engine when registering a class.
 //
 // Note: code duplicated with gdext_virtual_method_callback

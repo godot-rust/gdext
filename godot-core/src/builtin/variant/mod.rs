@@ -164,6 +164,19 @@ impl Variant {
         init_fn(result.var_sys());
         result
     }*/
+
+    pub(crate) fn ptr_from_sys(variant_ptr: sys::GDExtensionVariantPtr) -> *const Variant {
+        assert!(!variant_ptr.is_null(), "ptr_from_sys: null variant pointer");
+        variant_ptr as *const Variant
+    }
+
+    pub(crate) fn ptr_from_sys_mut(variant_ptr: sys::GDExtensionVariantPtr) -> *mut Variant {
+        assert!(
+            !variant_ptr.is_null(),
+            "ptr_from_sys_mut: null variant pointer"
+        );
+        variant_ptr as *mut Variant
+    }
 }
 
 impl GodotFfi for Variant {

@@ -14,10 +14,6 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     library: sys::GDExtensionClassLibraryPtr,
     init: *mut sys::GDExtensionInitialization,
 ) -> sys::GDExtensionBool {
-    if cfg!(test) {
-        panic!("Attempted to call Godot engine from unit-tests; use integration tests for this.")
-    }
-
     let init_code = || {
         sys::initialize(interface, library);
 

@@ -32,34 +32,12 @@
 //!   explicitly designed to solve this problem. However, it falls short because [operator
 //!   overloading would become impossible](https://github.com/kvark/mint/issues/75).
 
-mod macros;
-mod vector_macros;
-
-mod array;
-mod color;
-mod dictionary;
-mod math;
-mod node_path;
-mod others;
-mod packed_array;
-mod string;
-mod string_name;
-mod variant;
-mod vector2;
-mod vector2i;
-mod vector3;
-mod vector3i;
-mod vector4;
-mod vector4i;
-
-pub mod meta;
-
 // Re-export macros.
-pub use crate::{array, dict};
+pub use crate::{array, dict, varray};
 
-pub use array::*;
+pub use array_inner::{Array, TypedArray};
 pub use color::*;
-pub use dictionary::*;
+pub use dictionary_inner::Dictionary;
 pub use math::*;
 pub use node_path::*;
 pub use others::*;
@@ -73,6 +51,47 @@ pub use vector3::*;
 pub use vector3i::*;
 pub use vector4::*;
 pub use vector4i::*;
+
+/// Meta-information about variant types, properties and class names.
+pub mod meta;
+
+/// Specialized types related to arrays.
+pub mod array {
+    pub use super::array_inner::Iter;
+}
+
+/// Specialized types related to dictionaries.
+pub mod dictionary {
+    pub use super::dictionary_inner::{Iter, Keys, TypedIter, TypedKeys};
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation
+
+// Modules exporting declarative macros must appear first.
+mod macros;
+mod vector_macros;
+
+// Rename imports because we re-export a subset of types under same module names.
+#[path = "array.rs"]
+mod array_inner;
+#[path = "dictionary.rs"]
+mod dictionary_inner;
+
+mod color;
+mod math;
+mod node_path;
+mod others;
+mod packed_array;
+mod string;
+mod string_name;
+mod variant;
+mod vector2;
+mod vector2i;
+mod vector3;
+mod vector3i;
+mod vector4;
+mod vector4i;
 
 #[doc(hidden)]
 pub mod inner {
@@ -89,4 +108,12 @@ pub(crate) fn to_usize(i: i64) -> usize {
 
 pub(crate) fn to_isize(i: usize) -> isize {
     i.try_into().unwrap()
+}
+
+pub(crate) fn u8_to_bool(u: u8) -> bool {
+    match u {
+        0 => false,
+        1 => true,
+        _ => panic!("Invalid boolean value {u}"),
+    }
 }

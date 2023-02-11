@@ -29,7 +29,7 @@ pub struct ClassPlugin {
     pub component: PluginComponent,
 }
 
-/// Type-erased function obj, holding a `register_class` function.
+/// Type-erased function object, holding a `register_class` function.
 #[derive(Copy, Clone)]
 pub struct ErasedRegisterFn {
     // Wrapper needed because Debug can't be derived on function pointers with reference parameters, so this won't work:

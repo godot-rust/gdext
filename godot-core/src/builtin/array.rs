@@ -152,10 +152,9 @@ impl<T: VariantMetadata> TypedArray<T> {
     /// If `index` is out of bounds.
     fn ptr(&self, index: usize) -> *const Variant {
         self.check_bounds(index);
+
         // SAFETY: We just checked that the index is not out of bounds.
-        let ptr = unsafe { self.ptr_unchecked(index) };
-        assert!(!ptr.is_null());
-        ptr
+        unsafe { self.ptr_unchecked(index) }
     }
 
     /// Returns a mutable pointer to the element at the given index.
@@ -165,10 +164,9 @@ impl<T: VariantMetadata> TypedArray<T> {
     /// If `index` is out of bounds.
     fn ptr_mut(&self, index: usize) -> *mut Variant {
         self.check_bounds(index);
+
         // SAFETY: We just checked that the index is not out of bounds.
-        let ptr = unsafe { self.ptr_mut_unchecked(index) };
-        assert!(!ptr.is_null());
-        ptr
+        unsafe { self.ptr_mut_unchecked(index) }
     }
 
     /// Returns a pointer to the element at the given index.
@@ -177,9 +175,8 @@ impl<T: VariantMetadata> TypedArray<T> {
     ///
     /// Calling this with an out-of-bounds index is undefined behavior.
     unsafe fn ptr_unchecked(&self, index: usize) -> *const Variant {
-        let item_ptr: sys::GDExtensionVariantPtr =
-            (interface_fn!(array_operator_index_const))(self.sys(), to_i64(index));
-        item_ptr as *const Variant
+        let variant_ptr = interface_fn!(array_operator_index_const)(self.sys(), to_i64(index));
+        Variant::ptr_from_sys(variant_ptr)
     }
 
     /// Returns a mutable pointer to the element at the given index.
@@ -188,19 +185,14 @@ impl<T: VariantMetadata> TypedArray<T> {
     ///
     /// Calling this with an out-of-bounds index is undefined behavior.
     unsafe fn ptr_mut_unchecked(&self, index: usize) -> *mut Variant {
-        let item_ptr: sys::GDExtensionVariantPtr =
-            (interface_fn!(array_operator_index))(self.sys(), to_i64(index));
-        item_ptr as *mut Variant
+        let variant_ptr = interface_fn!(array_operator_index)(self.sys(), to_i64(index));
+        Variant::ptr_from_sys_mut(variant_ptr)
     }
 
     #[doc(hidden)]
-    pub fn as_inner<'a>(&'a self) -> inner::InnerArray {
-        // `from_outer()` is only implemented on `Array`, not on `TypedArray<T>`, so we need to
-        // convert the reference.
-        // TODO Find a way not to need this ugliness.
+    pub fn as_inner(&self) -> inner::InnerArray {
         // SAFETY: The memory layout of `TypedArray<T>` does not depend on `T`.
-        let self_as_variant_array: &'a Array = unsafe { std::mem::transmute(self) };
-        inner::InnerArray::from_outer(self_as_variant_array)
+        inner::InnerArray::from_outer_typed(self)
     }
 
     /// Changes the generic type on this array, without changing its contents. Needed for API
@@ -267,16 +259,7 @@ impl<T: VariantMetadata> TypedArray<T> {
     /// `Dictionary` and `Object`) will still refer to the same value. To create a deep copy, use
     /// [`slice_deep()`] instead.
     pub fn slice_shallow(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
-        assert_ne!(step, Some(0));
-        let len = self.len();
-        let begin = begin.min(len);
-        let end = end.min(len);
-        let step = step.unwrap_or(1);
-        let slice: Array =
-            self.as_inner()
-                .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), false);
-        // SAFETY: slice() returns a typed array with the same type as Self
-        unsafe { slice.assume_type() }
+        self.slice_impl(begin, end, step, false)
     }
 
     /// Returns a slice of the `TypedArray`, from `begin` (inclusive) to `end` (exclusive), as a
@@ -292,14 +275,21 @@ impl<T: VariantMetadata> TypedArray<T> {
     /// array. Note that any `Object`-derived elements will still be shallow copied. To create a
     /// shallow copy, use [`slice_shallow()`] instead.
     pub fn slice_deep(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
+        self.slice_impl(begin, end, step, true)
+    }
+
+    fn slice_impl(&self, begin: usize, end: usize, step: Option<isize>, deep: bool) -> Self {
+        assert_ne!(step, Some(0), "slice: step cannot be zero");
+
         let len = self.len();
         let begin = begin.min(len);
         let end = end.min(len);
         let step = step.unwrap_or(1);
-        assert!(step != 0);
+
         let slice: Array =
             self.as_inner()
-                .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), true);
+                .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep);
+
         // SAFETY: slice() returns a typed array with the same type as Self
         unsafe { slice.assume_type() }
     }
@@ -318,6 +308,7 @@ impl<T: VariantMetadata> TypedArray<T> {
             self.as_inner().get_typed_builtin() as sys::GDExtensionVariantType
         );
         let class_name = self.as_inner().get_typed_class_name();
+
         TypeInfo {
             variant_type,
             class_name,
@@ -337,6 +328,7 @@ impl<T: VariantMetadata> TypedArray<T> {
     fn init_inner_type(&mut self) {
         debug_assert!(self.is_empty());
         debug_assert!(!self.type_info().is_typed());
+
         let type_info = TypeInfo::new::<T>();
         if type_info.is_typed() {
             let script = Variant::nil();
@@ -360,8 +352,8 @@ impl<T: VariantMetadata + FromVariant> TypedArray<T> {
     /// Notice that it's possible to modify the `TypedArray` through another reference while
     /// iterating over it. This will not result in unsoundness or crashes, but will cause the
     /// iterator to behave in an unspecified way.
-    pub fn iter_shared(&self) -> TypedArrayIterator<'_, T> {
-        TypedArrayIterator {
+    pub fn iter_shared(&self) -> Iter<'_, T> {
+        Iter {
             array: self,
             next_idx: 0,
         }
@@ -374,6 +366,7 @@ impl<T: VariantMetadata + FromVariant> TypedArray<T> {
     /// If `index` is out of bounds.
     pub fn get(&self, index: usize) -> T {
         let ptr = self.ptr(index);
+
         // SAFETY: `ptr()` just verified that the index is not out of bounds.
         let variant = unsafe { &*ptr };
         T::from_variant(variant)
@@ -560,6 +553,125 @@ impl<T: VariantMetadata + ToVariant> TypedArray<T> {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Traits
+
+// Godot has some inconsistent behavior around NaN values. In GDScript, `NAN == NAN` is `false`,
+// but `[NAN] == [NAN]` is `true`. If they decide to make all NaNs equal, we can implement `Eq` and
+// `Ord`; if they decide to make all NaNs unequal, we can remove this comment.
+//
+// impl<T> Eq for TypedArray<T> {}
+//
+// impl<T> Ord for TypedArray<T> {
+//     ...
+// }
+
+impl<T: VariantMetadata> GodotFfi for TypedArray<T> {
+    ffi_methods! {
+        type sys::GDExtensionTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn write_sys;
+    }
+
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+        // Can't use uninitialized pointer -- Array CoW implementation in C++ expects that on
+        // assignment, the target CoW pointer is either initialized or nullptr
+
+        let mut result = Self::default();
+        init_fn(result.sys_mut());
+        result
+    }
+}
+
+impl<T: VariantMetadata> fmt::Debug for TypedArray<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Going through `Variant` because there doesn't seem to be a direct way.
+        write!(f, "{:?}", self.to_variant().stringify())
+    }
+}
+
+/// Creates a new reference to the data in this array. Changes to the original array will be
+/// reflected in the copy and vice versa.
+///
+/// To create a (mostly) independent copy instead, see [`Array::duplicate_shallow()`] and
+/// [`Array::duplicate_deep()`].
+impl<T: VariantMetadata> Share for TypedArray<T> {
+    fn share(&self) -> Self {
+        unsafe {
+            Self::from_sys_init(|self_ptr| {
+                let ctor = ::godot_ffi::builtin_fn!(array_construct_copy);
+                let args = [self.sys_const()];
+                ctor(self_ptr, args.as_ptr());
+            })
+        }
+    }
+}
+
+impl<T: VariantMetadata> Default for TypedArray<T> {
+    #[inline]
+    fn default() -> Self {
+        // Note: can't use from_sys_init(), as that calls the default constructor
+        // (because most assignments expect initialized target type)
+        let mut uninit = std::mem::MaybeUninit::<TypedArray<T>>::uninit();
+        let mut array = unsafe {
+            let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
+            sys::builtin_call! {
+                array_construct_default(self_ptr, std::ptr::null_mut())
+            };
+            uninit.assume_init()
+        };
+        array.init_inner_type();
+        array
+    }
+}
+
+impl<T: VariantMetadata> Drop for TypedArray<T> {
+    #[inline]
+    fn drop(&mut self) {
+        unsafe {
+            let array_destroy = sys::builtin_fn!(array_destroy);
+            array_destroy(self.sys_mut());
+        }
+    }
+}
+
+impl<T: VariantMetadata> VariantMetadata for TypedArray<T> {
+    fn variant_type() -> VariantType {
+        VariantType::Array
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Conversion traits
+
+impl<T: VariantMetadata> ToVariant for TypedArray<T> {
+    fn to_variant(&self) -> Variant {
+        unsafe {
+            Variant::from_var_sys_init(|variant_ptr| {
+                let array_to_variant = sys::builtin_fn!(array_to_variant);
+                array_to_variant(variant_ptr, self.sys());
+            })
+        }
+    }
+}
+
+impl<T: VariantMetadata> FromVariant for TypedArray<T> {
+    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+        if variant.get_type() != Self::variant_type() {
+            return Err(VariantConversionError);
+        }
+        let result = unsafe {
+            Self::from_sys_init(|self_ptr| {
+                let array_from_variant = sys::builtin_fn!(array_from_variant);
+                array_from_variant(self_ptr, variant.var_sys());
+            })
+        };
+
+        Ok(result)
+    }
+}
+
 /// Creates a `TypedArray` from the given Rust array.
 impl<T: VariantMetadata + ToVariant, const N: usize> From<&[T; N]> for TypedArray<T> {
     fn from(arr: &[T; N]) -> Self {
@@ -627,12 +739,14 @@ impl<T: VariantMetadata + FromVariant> From<&TypedArray<T>> for Vec<T> {
     }
 }
 
-pub struct TypedArrayIterator<'a, T: VariantMetadata> {
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+pub struct Iter<'a, T: VariantMetadata> {
     array: &'a TypedArray<T>,
     next_idx: usize,
 }
 
-impl<'a, T: VariantMetadata + FromVariant> Iterator for TypedArrayIterator<'a, T> {
+impl<'a, T: VariantMetadata + FromVariant> Iterator for Iter<'a, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -688,135 +802,19 @@ impl<T: VariantMetadata> PartialOrd for TypedArray<T> {
     }
 }
 
-// Godot has some inconsistent behavior around NaN values. In GDScript, `NAN == NAN` is `false`,
-// but `[NAN] == [NAN]` is `true`. If they decide to make all NaNs equal, we can implement `Eq` and
-// `Ord`; if they decide to make all NaNs unequal, we can remove this comment.
-//
-// impl<T> Eq for TypedArray<T> {}
-//
-// impl<T> Ord for TypedArray<T> {
-//     ...
-// }
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
-impl<T: VariantMetadata> fmt::Debug for TypedArray<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Going through `Variant` because there doesn't seem to be a direct way.
-        write!(f, "{:?}", self.to_variant().stringify())
-    }
-}
-
-/// Creates a new reference to the data in this array. Changes to the original array will be
-/// reflected in the copy and vice versa.
+/// Constructs [`TypedArray`] literals, similar to Rust's standard `vec!` macro.
 ///
-/// To create a (mostly) independent copy instead, see [`Array::duplicate_shallow()`] and
-/// [`Array::duplicate_deep()`].
-impl<T: VariantMetadata> Share for TypedArray<T> {
-    fn share(&self) -> Self {
-        unsafe {
-            Self::from_sys_init(|self_ptr| {
-                let ctor = ::godot_ffi::builtin_fn!(array_construct_copy);
-                let args = [self.sys_const()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
-    }
-}
-
-impl<T: VariantMetadata> Default for TypedArray<T> {
-    #[inline]
-    fn default() -> Self {
-        // Note: can't use from_sys_init(), as that calls the default constructor
-        // (because most assignments expect initialized target type)
-        let mut uninit = std::mem::MaybeUninit::<TypedArray<T>>::uninit();
-        let mut array = unsafe {
-            let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
-            sys::builtin_call! {
-                array_construct_default(self_ptr, std::ptr::null_mut())
-            };
-            uninit.assume_init()
-        };
-        array.init_inner_type();
-        array
-    }
-}
-
-impl<T: VariantMetadata> Drop for TypedArray<T> {
-    #[inline]
-    fn drop(&mut self) {
-        unsafe {
-            let array_destroy = sys::builtin_fn!(array_destroy);
-            array_destroy(self.sys_mut());
-        }
-    }
-}
-
-impl<T: VariantMetadata> ToVariant for TypedArray<T> {
-    fn to_variant(&self) -> Variant {
-        unsafe {
-            Variant::from_var_sys_init(|variant_ptr| {
-                let array_to_variant = sys::builtin_fn!(array_to_variant);
-                array_to_variant(variant_ptr, self.sys());
-            })
-        }
-    }
-}
-
-impl<T: VariantMetadata> FromVariant for TypedArray<T> {
-    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-        if variant.get_type() != Self::variant_type() {
-            return Err(VariantConversionError);
-        }
-        let result = unsafe {
-            Self::from_sys_init(|self_ptr| {
-                let array_from_variant = sys::builtin_fn!(array_from_variant);
-                array_from_variant(self_ptr, variant.var_sys());
-            })
-        };
-
-        Ok(result)
-    }
-}
-
-impl<T: VariantMetadata> VariantMetadata for TypedArray<T> {
-    fn variant_type() -> VariantType {
-        VariantType::Array
-    }
-}
-
-impl<T: VariantMetadata> GodotFfi for TypedArray<T> {
-    ffi_methods! {
-        type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn write_sys;
-    }
-
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        // Can't use uninitialized pointer -- Array CoW implementation in C++ expects that on
-        // assignment, the target CoW pointer is either initialized or nullptr
-
-        let mut result = Self::default();
-        init_fn(result.sys_mut());
-        result
-    }
-}
-
-/// Allows for construction of [`TypedArray`] literals, much in the same way as Rust's standard
-/// `vec!` macro. The type of the array is inferred from the arguments.
+/// The type of the array is inferred from the arguments.
 ///
-/// # Example
-///
+/// Example:
 /// ```no_run
 /// # use godot::prelude::*;
-/// let arr = array![3, 1, 4];
+/// let arr = array![3, 1, 4];  // TypedArray<i32>
 /// ```
 ///
-/// To create an `Array` of variants, you need to convert each element explicitly:
-///
-/// ```no_run
-/// # use godot::prelude::*;
-/// let arr: Array = array![42_i64.to_variant(), "hello".to_variant()];
-/// ```
+/// To create an `Array` of variants, see the [`varray!`] macro.
 #[macro_export]
 macro_rules! array {
     ($($elements:expr),* $(,)?) => {
@@ -830,12 +828,40 @@ macro_rules! array {
     };
 }
 
+/// Constructs [`Array`] literals, similar to Rust's standard `vec!` macro.
+///
+/// The type of the array is always [`Variant`].
+///
+/// Example:
+/// ```no_run
+/// # use godot::prelude::*;
+/// let arr: Array = varray![42_i64, "hello", true];
+/// ```
+///
+/// To create a typed `Array` with a single element type, see the [`array!`] macro.
+#[macro_export]
+macro_rules! varray {
+    // Note: use to_variant() and not Variant::from(), as that works with both references and values
+    ($($elements:expr),* $(,)?) => {
+        {
+            use $crate::builtin::ToVariant as _;
+            let mut array = $crate::builtin::Array::default();
+            $(
+                array.push($elements.to_variant());
+            )*
+            array
+        }
+    };
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Represents the type information of a Godot array. See
 /// [`set_typed`](https://docs.godotengine.org/en/latest/classes/class_array.html#class-array-method-set-typed).
 ///
 /// We ignore the `script` parameter because it has no impact on typing in Godot.
 #[derive(Debug, PartialEq, Eq)]
-pub struct TypeInfo {
+struct TypeInfo {
     variant_type: VariantType,
     class_name: StringName,
 }

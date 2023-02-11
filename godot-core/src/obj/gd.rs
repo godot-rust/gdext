@@ -173,7 +173,7 @@ where
 
 /// _The methods in this impl block are available for any `T`._ <br><br>
 impl<T: GodotClass> Gd<T> {
-    /// Looks up the given instance ID and returns the associated obj, if possible.
+    /// Looks up the given instance ID and returns the associated object, if possible.
     ///
     /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
     /// is not compatible with `T`, then `None` is returned.
@@ -212,7 +212,7 @@ impl<T: GodotClass> Gd<T> {
         }
     }
 
-    /// Returns the instance ID of this obj, or `None` if the object is dead.
+    /// Returns the instance ID of this object, or `None` if the object is dead.
     ///
     pub fn instance_id_or_none(&self) -> Option<InstanceId> {
         // Note: bit 'id & (1 << 63)' determines if the instance is ref-counted
@@ -227,7 +227,7 @@ impl<T: GodotClass> Gd<T> {
     pub fn instance_id(&self) -> InstanceId {
         self.instance_id_or_none().unwrap_or_else(|| {
             panic!(
-                "failed to call instance_id() on destroyed obj; \
+                "failed to call instance_id() on destroyed object; \
                 use instance_id_or_none() or keep your objects alive"
             )
         })
