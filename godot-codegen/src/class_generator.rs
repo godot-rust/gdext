@@ -282,6 +282,7 @@ fn make_builtin_class(
 
     let methods = make_builtin_methods(&class.methods, class_name, type_info, ctx);
     let enums = make_enums(&class_enums, class_name, ctx);
+    let special_constructors = make_special_builtin_methods(class_name, ctx);
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
@@ -303,7 +304,7 @@ fn make_builtin_class(
                     sys_ptr: outer.sys(),
                 }
             }
-
+            #special_constructors
             #methods
         }
 
@@ -423,6 +424,24 @@ fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &TyName, _ctx: &Context) -
 
     quote! {
         #( #definitions )*
+    }
+}
+
+/// Depending on the built-in class, adds custom constructors and methods.
+fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStream {
+    if class_name.godot_ty == "Array" {
+        quote! {
+            pub fn from_outer_typed<T>(outer: &TypedArray<T>) -> Self
+                where T: crate::builtin::meta::VariantMetadata
+            {
+                Self {
+                    _outer_lifetime: std::marker::PhantomData,
+                    sys_ptr: outer.sys(),
+                }
+            }
+        }
+    } else {
+        TokenStream::new()
     }
 }
 

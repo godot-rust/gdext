@@ -69,7 +69,6 @@ macro_rules! impl_packed_array {
         }
 
         // This impl relies on `$Inner` which is not (yet) available in unit tests
-        #[cfg(not(any(gdext_test, doctest)))]
         impl $PackedArray {
             /// Constructs an empty array.
             pub fn new() -> Self {
@@ -332,7 +331,6 @@ macro_rules! impl_packed_array {
         }
 
         /// Creates a `$PackedArray` from the given Rust array.
-        #[cfg(not(any(gdext_test, doctest)))]
         impl<const N: usize> From<&[$Element; N]> for $PackedArray {
             fn from(arr: &[$Element; N]) -> Self {
                 Self::from(&arr[..])
@@ -340,7 +338,6 @@ macro_rules! impl_packed_array {
         }
 
         /// Creates a `$PackedArray` from the given slice.
-        #[cfg(not(any(gdext_test, doctest)))]
         impl From<&[$Element]> for $PackedArray {
             fn from(slice: &[$Element]) -> Self {
                 let mut array = Self::new();
@@ -363,7 +360,6 @@ macro_rules! impl_packed_array {
         }
 
         /// Creates a `$PackedArray` from an iterator.
-        #[cfg(not(any(gdext_test, doctest)))]
         impl FromIterator<$Element> for $PackedArray {
             fn from_iter<I: IntoIterator<Item = $Element>>(iter: I) -> Self {
                 let mut array = $PackedArray::default();
@@ -373,7 +369,6 @@ macro_rules! impl_packed_array {
         }
 
         /// Extends a `$PackedArray` with the contents of an iterator.
-        #[cfg(not(any(gdext_test, doctest)))]
         impl Extend<$Element> for $PackedArray {
             fn extend<I: IntoIterator<Item = $Element>>(&mut self, iter: I) {
                 // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.

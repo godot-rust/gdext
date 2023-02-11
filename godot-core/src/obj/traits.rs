@@ -42,9 +42,9 @@ impl GodotClass for () {
 
 /// Trait to create more references from a smart pointer or collection.
 pub trait Share {
-    /// Creates a new reference that points to the same obj.
+    /// Creates a new reference that points to the same object.
     ///
-    /// If the referred-to obj is reference-counted, this will increment the count.
+    /// If the referred-to object is reference-counted, this will increment the count.
     fn share(&self) -> Self;
 }
 
