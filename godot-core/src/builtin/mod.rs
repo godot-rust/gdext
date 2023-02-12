@@ -80,6 +80,7 @@ mod array_inner;
 mod dictionary_inner;
 
 mod color;
+mod glam_helpers;
 mod math;
 mod node_path;
 mod others;
