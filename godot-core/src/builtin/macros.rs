@@ -49,7 +49,7 @@ macro_rules! impl_builtin_traits_inner {
             fn drop(&mut self) {
                 unsafe {
                     let destructor = ::godot_ffi::builtin_fn!($gd_method @1);
-            	    destructor(self.sys_mut());
+                    destructor(self.sys_mut());
                 }
             }
         }
@@ -71,7 +71,7 @@ macro_rules! impl_builtin_traits_inner {
     };
 
     ( Eq for $Type:ty => $gd_method:ident ) => {
-		impl_builtin_traits_inner!(PartialEq for $Type => $gd_method);
+        impl_builtin_traits_inner!(PartialEq for $Type => $gd_method);
         impl Eq for $Type {}
     };
 

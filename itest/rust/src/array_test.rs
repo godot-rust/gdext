@@ -367,11 +367,9 @@ fn array_mixed_values() {
         string
     );
     assert_eq!(
-        PackedByteArray::try_from_variant(&array.get(2))
-            .unwrap()
-            .len(),
-        packed_array.len()
-    ); // TODO Use PackedByteArray Eq impl once available
+        PackedByteArray::try_from_variant(&array.get(2)).unwrap(),
+        packed_array
+    );
     assert_eq!(
         TypedArray::try_from_variant(&array.get(3)).unwrap(),
         typed_array
