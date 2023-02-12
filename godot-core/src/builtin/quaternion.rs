@@ -1,0 +1,348 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+use std::ops::*;
+
+use godot_ffi as sys;
+use sys::{ffi_methods, GodotFfi};
+
+use crate::builtin::glam_helpers::{GlamConv, GlamType};
+use crate::builtin::{inner, math::*, vector3::*};
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(C)]
+pub struct Quaternion {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+    pub w: f32,
+}
+
+impl Quaternion {
+    pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
+        Self { x, y, z, w }
+    }
+
+    pub fn from_angle_axis(axis: Vector3, angle: f32) -> Self {
+        let d = axis.length();
+        if d == 0.0 {
+            Self::new(0.0, 0.0, 0.0, 0.0)
+        } else {
+            let sin_angle = (angle * 0.5).sin();
+            let cos_angle = (angle * 0.5).cos();
+            let s = sin_angle / d;
+            let x = axis.x * s;
+            let y = axis.y * s;
+            let z = axis.z * s;
+            let w = cos_angle;
+            Self::new(x, y, z, w)
+        }
+    }
+
+    pub fn angle_to(self, to: Self) -> f32 {
+        self.glam2(&to, glam::f32::Quat::angle_between)
+    }
+
+    pub fn dot(self, with: Self) -> f32 {
+        self.glam2(&with, glam::f32::Quat::dot)
+    }
+
+    pub fn to_exp(self) -> Self {
+        let mut v = Vector3::new(self.x, self.y, self.z);
+        let theta = v.length();
+        v = v.normalized();
+
+        if theta < CMP_EPSILON || !v.is_normalized() {
+            Self::default()
+        } else {
+            Self::from_angle_axis(v, theta)
+        }
+    }
+
+    pub fn from_euler(self, euler: Vector3) -> Self {
+        let half_a1 = euler.y * 0.5;
+        let half_a2 = euler.x * 0.5;
+        let half_a3 = euler.z * 0.5;
+        let cos_a1 = half_a1.cos();
+        let sin_a1 = half_a1.sin();
+        let cos_a2 = half_a2.cos();
+        let sin_a2 = half_a2.sin();
+        let cos_a3 = half_a3.cos();
+        let sin_a3 = half_a3.sin();
+
+        Self::new(
+            sin_a1 * cos_a2 * sin_a3 + cos_a1 * sin_a2 * cos_a3,
+            sin_a1 * cos_a2 * cos_a3 - cos_a1 * sin_a2 * sin_a3,
+            -sin_a1 * sin_a2 * cos_a3 + cos_a1 * cos_a2 * sin_a3,
+            sin_a1 * sin_a2 * sin_a3 + cos_a1 * cos_a2 * cos_a3,
+        )
+    }
+
+    pub fn get_angle(self) -> f32 {
+        2.0 * self.w.acos()
+    }
+
+    pub fn get_axis(self) -> Vector3 {
+        let Self { x, y, z, w } = self;
+        let axis = Vector3::new(x, y, z);
+
+        if self.w.abs() > 1.0 - CMP_EPSILON {
+            axis
+        } else {
+            let r = 1.0 / (1.0 - w * w).sqrt();
+            r * axis
+        }
+    }
+
+    // TODO: Figure out how godot actually treats "order", then make a match/if chain
+    pub fn get_euler(self, order: Option<i32>) -> Vector3 {
+        let _o = order.unwrap_or(2);
+        let vt = self.glam(|quat| quat.to_euler(glam::EulerRot::XYZ));
+
+        Vector3::new(vt.0, vt.1, vt.2)
+    }
+
+    pub fn inverse(self) -> Self {
+        Self::new(-self.x, -self.y, -self.z, self.w)
+    }
+
+    pub fn is_equal_approx(self, to: Self) -> bool {
+        is_equal_approx(self.x, to.x)
+            && is_equal_approx(self.y, to.y)
+            && is_equal_approx(self.z, to.z)
+            && is_equal_approx(self.w, to.w)
+    }
+
+    pub fn is_finite(self) -> bool {
+        self.x.is_finite() && self.y.is_finite() && self.z.is_finite() && self.w.is_finite()
+    }
+
+    pub fn is_normalized(self) -> bool {
+        is_equal_approx(self.length_squared(), 1.0)
+    }
+
+    pub fn length(self) -> f32 {
+        self.length_squared().sqrt()
+    }
+
+    pub fn length_squared(self) -> f32 {
+        self.dot(self)
+    }
+
+    pub fn log(self) -> Self {
+        let v = self.get_axis() * self.get_angle();
+        Quaternion::new(v.x, v.y, v.z, 0.0)
+    }
+
+    pub fn normalized(self) -> Self {
+        self / self.length()
+    }
+
+    pub fn slerp(self, to: Self, weight: f32) -> Self {
+        let mut cosom = self.dot(to);
+        let to1: Self;
+        let omega: f32;
+        let sinom: f32;
+        let scale0: f32;
+        let scale1: f32;
+        if cosom < 0.0 {
+            cosom = -cosom;
+            to1 = -to;
+        } else {
+            to1 = to;
+        }
+
+        if 1.0 - cosom > CMP_EPSILON {
+            omega = cosom.acos();
+            sinom = omega.sin();
+            scale0 = ((1.0 - weight) * omega).sin() / sinom;
+            scale1 = (weight * omega).sin() / sinom;
+        } else {
+            scale0 = 1.0 - weight;
+            scale1 = weight;
+        }
+
+        scale0 * self + scale1 * to1
+    }
+
+    pub fn slerpni(self, to: Self, weight: f32) -> Self {
+        let dot = self.dot(to);
+        if dot.abs() > 0.9999 {
+            return self;
+        }
+        let theta = dot.acos();
+        let sin_t = 1.0 / theta.sin();
+        let new_factor = (weight * theta).sin() * sin_t;
+        let inv_factor = ((1.0 - weight) * theta).sin() * sin_t;
+
+        inv_factor * self + new_factor * to
+    }
+
+    // pub fn spherical_cubic_interpolate(self, b: Self, pre_a: Self, post_b: Self, weight: f32) -> Self {}
+    // TODO: Implement godot's function in rust
+    /*
+        pub fn spherical_cubic_interpolate_in_time(
+            self,
+            b: Self,
+            pre_a: Self,
+            post_b: Self,
+            weight: f32,
+            b_t: f32,
+            pre_a_t: f32,
+            post_b_t: f32,
+        ) -> Self {
+        }
+    */
+
+    #[doc(hidden)]
+    pub fn as_inner(&self) -> inner::InnerQuaternion {
+        inner::InnerQuaternion::from_outer(self)
+    }
+}
+
+impl Add for Quaternion {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self::new(
+            self.x + other.x,
+            self.y + other.y,
+            self.z + other.z,
+            self.w + other.w,
+        )
+    }
+}
+
+impl AddAssign for Quaternion {
+    fn add_assign(&mut self, other: Self) {
+        *self = *self + other
+    }
+}
+
+impl Sub for Quaternion {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self::new(
+            self.x - other.x,
+            self.y - other.y,
+            self.z - other.z,
+            self.w - other.w,
+        )
+    }
+}
+
+impl SubAssign for Quaternion {
+    fn sub_assign(&mut self, other: Self) {
+        *self = *self - other
+    }
+}
+
+impl Mul<Quaternion> for Quaternion {
+    type Output = Self;
+
+    fn mul(self, other: Quaternion) -> Self {
+        // TODO use glam?
+
+        let x = self.w * other.x + self.x * other.w + self.y * other.z - self.z * other.y;
+        let y = self.w * other.y + self.y * other.w + self.z * other.x - self.x * other.z;
+        let z = self.w * other.z + self.z * other.w + self.x * other.y - self.y * other.x;
+        let w = self.w * other.w - self.x * other.x - self.y * other.y - self.z * other.z;
+
+        Self::new(x, y, z, w)
+    }
+}
+
+impl GodotFfi for Quaternion {
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl std::fmt::Display for Quaternion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.to_glam().fmt(f)
+    }
+}
+
+impl Default for Quaternion {
+    fn default() -> Self {
+        Self::new(0.0, 0.0, 0.0, 1.0)
+    }
+}
+
+impl GlamConv for Quaternion {
+    type Glam = glam::f32::Quat;
+}
+
+impl GlamType for glam::f32::Quat {
+    type Mapped = Quaternion;
+
+    fn to_front(&self) -> Self::Mapped {
+        Quaternion::new(self.x, self.y, self.z, self.w)
+    }
+
+    fn from_front(mapped: &Self::Mapped) -> Self {
+        glam::f32::Quat::from_xyzw(mapped.x, mapped.y, mapped.z, mapped.w)
+    }
+}
+
+impl MulAssign<Quaternion> for Quaternion {
+    fn mul_assign(&mut self, other: Quaternion) {
+        *self = *self * other
+    }
+}
+
+impl Mul<f32> for Quaternion {
+    type Output = Self;
+
+    fn mul(self, other: f32) -> Self {
+        Quaternion::new(
+            self.x * other,
+            self.y * other,
+            self.z * other,
+            self.w * other,
+        )
+    }
+}
+
+impl Mul<Quaternion> for f32 {
+    type Output = Quaternion;
+
+    fn mul(self, other: Quaternion) -> Quaternion {
+        other * self
+    }
+}
+
+impl MulAssign<f32> for Quaternion {
+    fn mul_assign(&mut self, other: f32) {
+        *self = *self * other
+    }
+}
+
+impl Div<f32> for Quaternion {
+    type Output = Self;
+
+    fn div(self, other: f32) -> Self {
+        Self::new(
+            self.x / other,
+            self.y / other,
+            self.z / other,
+            self.w / other,
+        )
+    }
+}
+
+impl DivAssign<f32> for Quaternion {
+    fn div_assign(&mut self, other: f32) {
+        *self = *self / other
+    }
+}
+
+impl Neg for Quaternion {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Self::new(-self.x, -self.y, -self.z, -self.w)
+    }
+}
