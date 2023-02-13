@@ -39,7 +39,7 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; float, f32, 12.5);
     push!(inputs; float, f64, 127.83156478);
     push!(inputs; bool, bool, true);
-    push!(inputs; Color, Color, Color(0.7, 0.5, 0.3, 0.2), Color::new(0.7, 0.5, 0.3, 0.2));
+    push!(inputs; Color, Color, Color(0.7, 0.5, 0.3, 0.2), Color::from_rgba(0.7, 0.5, 0.3, 0.2));
     push!(inputs; String, GodotString, "hello", "hello".into());
     push!(inputs; Vector2, Vector2, Vector2(12.5, -3.5), Vector2::new(12.5, -3.5));
     push!(inputs; Vector3, Vector3, Vector3(117.5, 100.0, -323.25), Vector3::new(117.5, 100.0, -323.25));

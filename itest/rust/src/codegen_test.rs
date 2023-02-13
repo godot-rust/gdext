@@ -45,7 +45,7 @@ fn codegen_static_builtin_method() {
     assert_eq!(pi, GodotString::from("3.142"));
 
     let col = InnerColor::html("#663399cc".into());
-    assert_eq!(col, Color::new(0.4, 0.2, 0.6, 0.8));
+    assert_eq!(col, Color::from_rgba(0.4, 0.2, 0.6, 0.8));
 }
 
 #[itest]
