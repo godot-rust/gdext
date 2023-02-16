@@ -4,6 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::f32::consts::TAU;
+
 pub const CMP_EPSILON: f32 = 0.00001;
 
 pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
@@ -118,4 +120,100 @@ pub fn cubic_interpolate_in_time(
     );
     let b2 = lerp(a2, a3, if post_t == 0.0 { 1.0 } else { t / post_t });
     lerp(b1, b2, if to_t == 0.0 { 0.5 } else { t / to_t })
+}
+
+/// Linearly interpolates between two angles (in radians) by a `weight` value
+/// between 0.0 and 1.0.
+///
+/// Similar to [`lerp`], but interpolates correctly when the angles wrap around
+/// [`TAU`].
+///
+/// The resulting angle is not normalized.
+///
+/// Note: This function lerps through the shortest path between `from` and
+/// `to`. However, when these two angles are approximately `PI + k * TAU` apart
+/// for any integer `k`, it's not obvious which way they lerp due to
+/// floating-point precision errors. For example, `lerp_angle(0.0, PI, weight)`
+/// lerps clockwise, while `lerp_angle(0.0, PI + 3.0 * TAU, weight)` lerps
+/// counter-clockwise.
+///
+/// _Godot equivalent: @GlobalScope.lerp_angle()_
+pub fn lerp_angle(from: f32, to: f32, weight: f32) -> f32 {
+    let difference = (to - from) % TAU;
+    let distance = (2.0 * difference) % TAU - difference;
+    from + distance * weight
+}
+
+/// Asserts that two values are approximately equal, using the provided `func`
+/// for equality checking.
+#[macro_export]
+macro_rules! assert_eq_approx {
+    ($a:expr, $b:expr, $func:expr $(,)?) => {
+        match ($a, $b) {
+            (a, b) => {
+                assert!(($func)(a,b), "\n  left: {:?},\n right: {:?}", $a, $b);
+            }
+        }
+    };
+    ($a:expr, $b:expr, $func:expr, $($t:tt)+) => {
+        match ($a, $b) {
+            (a, b) => {
+                assert!(($func)(a,b), "\n  left: {:?},\n right: {:?},\n{}", $a, $b, format_args!($($t)+));
+            }
+        }
+    };
+}
+
+/// Asserts that two values are not approximately equal, using the provided
+/// `func` for equality checking.
+#[macro_export]
+macro_rules! assert_ne_approx {
+    ($a:expr, $b:expr, $func:expr $(, $($t:tt)*)?) => {
+        #[allow(clippy::redundant_closure_call)]
+        {
+            assert_eq_approx!($a, $b, |a,b| !($func)(a,b) $(, $($t)*)?)
+        }
+    };
+}
+
+#[cfg(test)]
+mod test {
+    use std::f32::consts::{FRAC_PI_2, PI};
+
+    use super::*;
+
+    #[test]
+    fn equal_approx() {
+        assert_eq_approx!(1.0, 1.000001, is_equal_approx);
+        assert_ne_approx!(1.0, 2.0, is_equal_approx);
+        assert_eq_approx!(1.0, 1.000001, is_equal_approx, "Message {}", "formatted");
+        assert_ne_approx!(1.0, 2.0, is_equal_approx, "Message {}", "formatted");
+    }
+
+    #[test]
+    #[should_panic(expected = "I am inside format")]
+    fn eq_approx_fail_with_message() {
+        assert_eq_approx!(1.0, 2.0, is_equal_approx, "I am inside {}", "format");
+    }
+
+    #[test]
+    fn lerp_angle_test() {
+        assert_eq_approx!(lerp_angle(0.0, PI, 0.5), -FRAC_PI_2, is_equal_approx);
+        assert_eq_approx!(
+            lerp_angle(0.0, PI + 3.0 * TAU, 0.5),
+            FRAC_PI_2,
+            is_equal_approx
+        );
+        let angle = PI * 2.0 / 3.0;
+        assert_eq_approx!(
+            lerp_angle(-5.0 * TAU, angle + 3.0 * TAU, 0.5).sin(),
+            (angle / 2.0).sin(),
+            is_equal_approx
+        );
+        assert_eq_approx!(
+            lerp_angle(-5.0 * TAU, angle + 3.0 * TAU, 0.5).cos(),
+            (angle / 2.0).cos(),
+            is_equal_approx
+        );
+    }
 }

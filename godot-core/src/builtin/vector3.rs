@@ -7,11 +7,16 @@ use std::ops::*;
 
 use std::fmt;
 
+use glam::f32::Vec3;
+use glam::Vec3A;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::*;
 use crate::builtin::Vector3i;
+
+use super::glam_helpers::GlamConv;
+use super::glam_helpers::GlamType;
 
 /// Vector used for 3D math using floating point coordinates.
 ///
@@ -335,4 +340,32 @@ pub enum Vector3Axis {
 
 impl GodotFfi for Vector3Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl GlamType for Vec3 {
+    type Mapped = Vector3;
+
+    fn to_front(&self) -> Self::Mapped {
+        Vector3::new(self.x, self.y, self.z)
+    }
+
+    fn from_front(mapped: &Self::Mapped) -> Self {
+        Vec3::new(mapped.x, mapped.y, mapped.z)
+    }
+}
+
+impl GlamType for Vec3A {
+    type Mapped = Vector3;
+
+    fn to_front(&self) -> Self::Mapped {
+        Vector3::new(self.x, self.y, self.z)
+    }
+
+    fn from_front(mapped: &Self::Mapped) -> Self {
+        Vec3A::new(mapped.x, mapped.y, mapped.z)
+    }
+}
+
+impl GlamConv for Vector3 {
+    type Glam = Vec3;
 }

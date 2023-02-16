@@ -6,10 +6,13 @@
 
 use std::fmt;
 
+use glam::Vec4;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::Vector4i;
+
+use super::glam_helpers::{GlamConv, GlamType};
 
 /// Vector used for 4D math using floating point coordinates.
 ///
@@ -106,4 +109,20 @@ pub enum Vector4Axis {
 
 impl GodotFfi for Vector4Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl GlamType for Vec4 {
+    type Mapped = Vector4;
+
+    fn to_front(&self) -> Self::Mapped {
+        Vector4::new(self.x, self.y, self.z, self.w)
+    }
+
+    fn from_front(mapped: &Self::Mapped) -> Self {
+        Vec4::new(mapped.x, mapped.y, mapped.z, mapped.w)
+    }
+}
+
+impl GlamConv for Vector4 {
+    type Glam = Vec4;
 }
