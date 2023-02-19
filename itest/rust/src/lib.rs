@@ -6,6 +6,7 @@
 
 use godot::bind::{godot_api, GodotClass};
 use godot::init::{gdextension, ExtensionLibrary};
+use godot::sys;
 use godot::test::itest;
 use std::panic::UnwindSafe;
 
@@ -28,34 +29,55 @@ mod utilities_test;
 mod variant_test;
 mod virtual_methods_test;
 
-fn run_tests() -> bool {
-    let mut ok = true;
-    ok &= array_test::run();
-    ok &= base_test::run();
-    ok &= builtin_test::run();
-    ok &= codegen_test::run();
-    ok &= color_test::run();
-    ok &= dictionary_test::run();
-    ok &= enum_test::run();
-    ok &= export_test::run();
-    ok &= gdscript_ffi_test::run();
-    ok &= node_test::run();
-    ok &= object_test::run();
-    ok &= packed_array_test::run();
-    ok &= quaternion_test::run();
-    ok &= singleton_test::run();
-    ok &= string_test::run();
-    ok &= utilities_test::run();
-    ok &= variant_test::run();
-    ok &= virtual_methods_test::run();
-    ok
+
+#[derive(Copy, Clone)]
+pub struct TestCase {
+    name: &'static str,
+    function: fn(),
 }
+
+#[must_use]
+fn run_test(test: &TestCase) -> bool {
+    println!("   -- {}", test.name);
+
+    // Explicit type to prevent tests from returning a value
+    let success: Option<()> =
+        godot::private::handle_panic(|| format!("   !! Test {} failed", test.name), test.function);
+
+    success.is_some()
+}
+
+sys::plugin_registry!(__GODOT_ITEST: TestCase);
 
 // fn register_classes() {
 //     object_test::register();
 //     gdscript_ffi_test::register();
 //     virtual_methods_test::register();
 // }
+
+fn run_tests() -> bool {
+    let mut ok = true;
+
+    let mut tests: Vec<TestCase> = vec![];
+
+    sys::plugin_foreach!(__GODOT_ITEST; |test: &TestCase| {
+        tests.push(*test);
+    });
+
+    println!("Collected {} tests.", tests.len());
+
+
+    let mut stats = TestStats::default();
+
+    for test in tests {
+        stats.tests_run += 1;
+        if run_test(&test) {
+            stats.tests_passed += 1;
+        }
+    }
+
+    stats.tests_run == stats.tests_passed
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation

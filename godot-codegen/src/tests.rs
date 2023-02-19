@@ -56,7 +56,7 @@ fn test_pascal_conversion() {
 fn test_snake_conversion() {
     // More in line with Rust identifiers, and eases recognition of other automation (like enumerator mapping).
     #[rustfmt::skip]
-        let mappings = [
+    let mappings = [
                                  ("AABB", "aabb"),
                            ("AESContext", "aes_context"),
                               ("AStar3D", "a_star_3d"),

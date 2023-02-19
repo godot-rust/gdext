@@ -7,12 +7,12 @@
 use crate::itest;
 use godot::builtin::Quaternion;
 
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= quaternion_default();
-    ok &= quaternion_from_xyzw();
-    ok
-}
+// pub fn run() -> bool {
+//     let mut ok = true;
+//     ok &= quaternion_default();
+//     ok &= quaternion_from_xyzw();
+//     ok
+// }
 
 #[itest]
 fn quaternion_default() {
