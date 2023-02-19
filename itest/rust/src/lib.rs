@@ -13,6 +13,7 @@ mod array_test;
 mod base_test;
 mod builtin_test;
 mod codegen_test;
+mod color_test;
 mod dictionary_test;
 mod enum_test;
 mod export_test;
@@ -33,6 +34,7 @@ fn run_tests() -> bool {
     ok &= base_test::run();
     ok &= builtin_test::run();
     ok &= codegen_test::run();
+    ok &= color_test::run();
     ok &= dictionary_test::run();
     ok &= enum_test::run();
     ok &= export_test::run();
