@@ -6,11 +6,15 @@
 use std::fmt;
 use std::ops::*;
 
+use glam::Vec2;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::*;
 use crate::builtin::{inner, Vector2i};
+
+use super::glam_helpers::GlamConv;
+use super::glam_helpers::GlamType;
 
 /// Vector used for 2D math using floating point coordinates.
 ///
@@ -95,6 +99,10 @@ impl Vector2 {
 
     pub fn aspect(self) -> f32 {
         self.x / self.y
+    }
+
+    pub fn lerp(self, other: Self, weight: f32) -> Self {
+        Self::new(lerp(self.x, other.x, weight), lerp(self.y, other.y, weight))
     }
 
     pub fn bezier_derivative(self, control_1: Self, control_2: Self, end: Self, t: f32) -> Self {
@@ -197,10 +205,6 @@ impl Vector2 {
 
     pub fn length_squared(self) -> f32 {
         self.to_glam().length_squared()
-    }
-
-    pub fn lerp(self, to: Self, weight: f32) -> Self {
-        Self::from_glam(self.to_glam().lerp(to.to_glam(), weight))
     }
 
     pub fn limit_length(self, length: Option<f32>) -> Self {
@@ -322,4 +326,20 @@ pub enum Vector2Axis {
 
 impl GodotFfi for Vector2Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl GlamType for Vec2 {
+    type Mapped = Vector2;
+
+    fn to_front(&self) -> Self::Mapped {
+        Vector2::new(self.x, self.y)
+    }
+
+    fn from_front(mapped: &Self::Mapped) -> Self {
+        Vec2::new(mapped.x, mapped.y)
+    }
+}
+
+impl GlamConv for Vector2 {
+    type Glam = Vec2;
 }

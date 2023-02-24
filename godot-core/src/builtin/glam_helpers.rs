@@ -71,4 +71,5 @@ macro_rules! impl_glam_map_self {
 }
 
 impl_glam_map_self!(f32);
+impl_glam_map_self!(bool);
 impl_glam_map_self!((f32, f32, f32));
