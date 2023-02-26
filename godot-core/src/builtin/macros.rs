@@ -168,7 +168,7 @@ macro_rules! impl_builtin_froms {
         $(impl From<&$From> for $To {
             fn from(other: &$From) -> Self {
                 unsafe {
-                    Self::from_sys_init_default(|ptr| {
+                    Self::from_sys_init(|ptr| {
                         let args = [other.sys_const()];
                         ::godot_ffi::builtin_call! {
                             $from_fn(ptr, args.as_ptr())

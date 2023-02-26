@@ -271,7 +271,7 @@ impl fmt::Debug for Dictionary {
 impl Share for Dictionary {
     fn share(&self) -> Self {
         unsafe {
-            Self::from_sys_init_default(|self_ptr| {
+            Self::from_sys_init(|self_ptr| {
                 let ctor = sys::builtin_fn!(dictionary_construct_copy);
                 let args = [self.sys_const()];
                 ctor(self_ptr, args.as_ptr());

@@ -591,7 +591,7 @@ impl<T: VariantMetadata> fmt::Debug for TypedArray<T> {
 impl<T: VariantMetadata> Share for TypedArray<T> {
     fn share(&self) -> Self {
         let array = unsafe {
-            Self::from_sys_init_default(|self_ptr| {
+            Self::from_sys_init(|self_ptr| {
                 let ctor = ::godot_ffi::builtin_fn!(array_construct_copy);
                 let args = [self.sys_const()];
                 ctor(self_ptr, args.as_ptr());
@@ -606,7 +606,7 @@ impl<T: VariantMetadata> Default for TypedArray<T> {
     fn default() -> Self {
         let mut array = unsafe {
             Self::from_sys_init(|self_ptr| {
-                let ctor = ::godot_ffi::builtin_fn!(array_construct_default);
+                let ctor = sys::builtin_fn!(array_construct_default);
                 ctor(self_ptr, std::ptr::null_mut())
             })
         };
