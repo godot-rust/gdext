@@ -88,7 +88,7 @@ pub fn print(varargs: &[Variant]) {
         args.extend(varargs.iter().map(Variant::sys_const));
 
         let args_ptr = args.as_ptr();
-        let _variant = Variant::from_sys_init(|return_ptr| {
+        let _variant = Variant::from_sys_init_default(|return_ptr| {
             call_fn(return_ptr, args_ptr, args.len() as i32);
         });
     }

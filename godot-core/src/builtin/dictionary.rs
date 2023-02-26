@@ -240,17 +240,9 @@ impl Dictionary {
 // Traits
 
 impl GodotFfi for Dictionary {
-    ffi_methods! {
-        type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn write_sys;
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        // Can't use uninitialized pointer -- Dictionary CoW implementation in C++ expects that on
-        // assignment, the target CoW pointer is either initialized or nullptr
-
+    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();
         init_fn(result.sys_mut());
         result
@@ -279,7 +271,7 @@ impl fmt::Debug for Dictionary {
 impl Share for Dictionary {
     fn share(&self) -> Self {
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            Self::from_sys_init_default(|self_ptr| {
                 let ctor = sys::builtin_fn!(dictionary_construct_copy);
                 let args = [self.sys_const()];
                 ctor(self_ptr, args.as_ptr());

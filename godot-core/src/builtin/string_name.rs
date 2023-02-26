@@ -33,17 +33,9 @@ impl StringName {
 }
 
 impl GodotFfi for StringName {
-    ffi_methods! {
-        type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn write_sys;
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        // Can't use uninitialized pointer -- StringName implementation in C++ expects that on assignment,
-        // the target type is a valid string (possibly empty)
-
+    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();
         init_fn(result.sys_mut());
         result
@@ -106,7 +98,7 @@ impl Hash for StringName {
 impl From<&GodotString> for StringName {
     fn from(s: &GodotString) -> Self {
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            Self::from_sys_init_default(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_name_from_string);
                 let args = [s.sys_const()];
                 ctor(self_ptr, args.as_ptr());
@@ -128,7 +120,7 @@ where
 impl From<&StringName> for GodotString {
     fn from(s: &StringName) -> Self {
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            Self::from_sys_init_default(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_string_name);
                 let args = [s.sys_const()];
                 ctor(self_ptr, args.as_ptr());

@@ -33,7 +33,7 @@ macro_rules! impl_builtin_traits_inner {
             #[inline]
             fn clone(&self) -> Self {
                 unsafe {
-                    Self::from_sys_init(|self_ptr| {
+                    Self::from_sys_init_default(|self_ptr| {
                         let ctor = ::godot_ffi::builtin_fn!($gd_method);
                         let args = [self.sys_const()];
                         ctor(self_ptr, args.as_ptr());
@@ -116,7 +116,7 @@ macro_rules! impl_builtin_traits_inner {
                     return Err($crate::builtin::variant::VariantConversionError)
                 }
                 let result = unsafe {
-                    Self::from_sys_init(|self_ptr| {
+                    Self::from_sys_init_default(|self_ptr| {
                         let converter = sys::builtin_fn!($gd_method);
                         converter(self_ptr, variant.var_sys());
                     })
@@ -168,7 +168,7 @@ macro_rules! impl_builtin_froms {
         $(impl From<&$From> for $To {
             fn from(other: &$From) -> Self {
                 unsafe {
-                    Self::from_sys_init(|ptr| {
+                    Self::from_sys_init_default(|ptr| {
                         let args = [other.sys_const()];
                         ::godot_ffi::builtin_call! {
                             $from_fn(ptr, args.as_ptr())

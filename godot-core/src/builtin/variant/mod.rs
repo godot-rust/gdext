@@ -26,11 +26,7 @@ pub struct Variant {
 impl Variant {
     /// Create an empty variant (`null` value in GDScript).
     pub fn nil() -> Self {
-        unsafe {
-            Self::from_var_sys_init(|variant_ptr| {
-                interface_fn!(variant_new_nil)(variant_ptr);
-            })
-        }
+        Self::default()
     }
 
     /// Create a variant holding a non-nil value.
@@ -154,17 +150,6 @@ impl Variant {
         sys::to_const_ptr(self.var_sys())
     }
 
-    /*#[doc(hidden)]
-    pub unsafe fn from_var_sys_init(init_fn: impl FnOnce(sys::GDExtensionVariantPtr)) -> Self {
-        // Can't use uninitialized pointer -- Variant implementation in C++ expects that on assignment,
-        // the target pointer is an initialized Variant
-
-        #[allow(unused_mut)]
-        let mut result = Self::default();
-        init_fn(result.var_sys());
-        result
-    }*/
-
     pub(crate) fn ptr_from_sys(variant_ptr: sys::GDExtensionVariantPtr) -> *const Variant {
         assert!(!variant_ptr.is_null(), "ptr_from_sys: null variant pointer");
         variant_ptr as *const Variant
@@ -180,17 +165,9 @@ impl Variant {
 }
 
 impl GodotFfi for Variant {
-    ffi_methods! {
-        type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn write_sys;
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        // Can't use uninitialized pointer -- Variant implementation in C++ expects that on assignment,
-        // the target pointer is an initialized Variant
-
+    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();
         init_fn(result.sys_mut());
         result
@@ -217,7 +194,11 @@ impl Drop for Variant {
 
 impl Default for Variant {
     fn default() -> Self {
-        Self::nil()
+        unsafe {
+            Self::from_var_sys_init(|variant_ptr| {
+                interface_fn!(variant_new_nil)(variant_ptr);
+            })
+        }
     }
 }
 

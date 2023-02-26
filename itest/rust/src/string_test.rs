@@ -11,6 +11,7 @@ use godot::builtin::{GodotString, StringName};
 
 pub fn run() -> bool {
     let mut ok = true;
+    ok &= string_default();
     ok &= string_conversion();
     ok &= string_equality();
     ok &= string_ordering();
@@ -21,6 +22,14 @@ pub fn run() -> bool {
     ok &= string_name_ord();
     ok &= string_name_clone();
     ok
+}
+
+#[itest]
+fn string_default() {
+    let string = GodotString::new();
+    let back = String::from(&string);
+
+    assert_eq!(back.as_str(), "");
 }
 
 #[itest]

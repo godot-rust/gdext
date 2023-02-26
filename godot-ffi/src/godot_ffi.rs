@@ -23,6 +23,28 @@ pub trait GodotFfi {
     /// `init_fn` must be a function that correctly handles a (possibly-uninitialized) _type ptr_.
     unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self;
 
+    /// Like [`Self::from_sys_init`], but pre-initializes the sys pointer to a `Default::default()` instance
+    /// before calling `init_fn`.
+    ///
+    /// Some FFI functions in Godot expect a pre-existing instance at the destination pointer, e.g. CoW/ref-counted
+    /// builtin types like `Array`, `Dictionary`, `String`, `StringName`.
+    ///
+    /// If not overridden, this just calls [`Self::from_sys_init`].
+    ///
+    /// # Safety
+    /// `init_fn` must be a function that correctly handles a (possibly-uninitialized) _type ptr_.
+    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self
+    where
+        Self: Sized, // + Default
+    {
+        Self::from_sys_init(init_fn)
+
+        // TODO consider using this, if all the implementors support it
+        // let mut result = Self::default();
+        // init_fn(result.sys_mut());
+        // result
+    }
+
     /// Return Godot opaque pointer, for an immutable operation.
     ///
     /// Note that this is a `*mut` pointer despite taking `&self` by shared-ref.
