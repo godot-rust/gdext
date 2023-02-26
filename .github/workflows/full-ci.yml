@@ -138,8 +138,7 @@ jobs:
   godot-itest:
     name: godot-itest (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
-    # TODO: continue-on-error: false, as soon as memory errors are fixed
-    continue-on-error: ${{ contains(matrix.name, 'memcheck') }}
+    continue-on-error: false
     timeout-minutes: 24
     strategy:
       fail-fast: false # cancel all jobs as soon as one fails?
@@ -165,6 +164,10 @@ jobs:
             rust-toolchain: stable
             godot-binary: godot.linuxbsd.editor.dev.x86_64
 
+          # Special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
+          # Additionally, the Godot source is patched to make dlclose() a no-op, as unloading dynamic libraries loses stacktrace and
+          # cause false positives like println!. See https://github.com/google/sanitizers/issues/89.
+          # The gcc version can possibly be removed later, as it is slower and needs a larger artifact than the clang one.
           - name: linux-memcheck-gcc
             os: ubuntu-20.04
             rust-toolchain: stable
