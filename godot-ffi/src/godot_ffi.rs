@@ -80,120 +80,120 @@ pub trait GodotFuncMarshal: Sized {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! ffi_methods_one {
-	// type $Ptr = *mut Opaque
- 	(OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys:ident = from_sys) => {
-		$( #[$attr] )? $vis
-		unsafe fn $from_sys(ptr: $Ptr) -> Self {
+    // type $Ptr = *mut Opaque
+    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys:ident = from_sys) => {
+        $( #[$attr] )? $vis
+        unsafe fn $from_sys(ptr: $Ptr) -> Self {
             let opaque = std::ptr::read(ptr as *mut _);
             Self::from_opaque(opaque)
         }
-	};
-	(OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
-		$( #[$attr] )? $vis
-		unsafe fn $from_sys_init(init: impl FnOnce($Ptr)) -> Self {
+    };
+    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
+        $( #[$attr] )? $vis
+        unsafe fn $from_sys_init(init: impl FnOnce($Ptr)) -> Self {
             let mut raw = std::mem::MaybeUninit::uninit();
             init(raw.as_mut_ptr() as $Ptr);
 
             Self::from_opaque(raw.assume_init())
         }
-	};
-	(OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys:ident = sys) => {
-		$( #[$attr] )? $vis
-		fn $sys(&self) -> $Ptr {
+    };
+    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys:ident = sys) => {
+        $( #[$attr] )? $vis
+        fn $sys(&self) -> $Ptr {
             &self.opaque as *const _ as $Ptr
         }
-	};
-	(OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $write_sys:ident = write_sys) => {
-		$( #[$attr] )? $vis
-		unsafe fn $write_sys(&self, dst: $Ptr) {
+    };
+    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $write_sys:ident = write_sys) => {
+        $( #[$attr] )? $vis
+        unsafe fn $write_sys(&self, dst: $Ptr) {
             // Note: this is the same impl as for impl_ffi_as_opaque_value, which is... interesting
             std::ptr::write(dst as *mut _, self.opaque)
         }
-	};
+    };
 
-	// type $Ptr = Opaque
- 	(OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys:ident = from_sys) => {
-		$( #[$attr] )? $vis
-		unsafe fn $from_sys(ptr: $Ptr) -> Self {
+    // type $Ptr = Opaque
+    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys:ident = from_sys) => {
+        $( #[$attr] )? $vis
+        unsafe fn $from_sys(ptr: $Ptr) -> Self {
             let opaque = std::mem::transmute(ptr);
             Self::from_opaque(opaque)
         }
-	};
-	(OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
-		$( #[$attr] )? $vis
-		unsafe fn $from_sys_init(init: impl FnOnce($Ptr)) -> Self {
+    };
+    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
+        $( #[$attr] )? $vis
+        unsafe fn $from_sys_init(init: impl FnOnce($Ptr)) -> Self {
             let mut raw = std::mem::MaybeUninit::uninit();
             init(std::mem::transmute(raw.as_mut_ptr()));
             Self::from_opaque(raw.assume_init())
         }
-	};
-	(OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys:ident = sys) => {
-		$( #[$attr] )? $vis
-		fn $sys(&self) -> $Ptr {
+    };
+    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys:ident = sys) => {
+        $( #[$attr] )? $vis
+        fn $sys(&self) -> $Ptr {
             unsafe { std::mem::transmute(self.opaque) }
         }
-	};
-	(OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $write_sys:ident = write_sys) => {
-		$( #[$attr] )? $vis
-		unsafe fn $write_sys(&self, dst: $Ptr) {
+    };
+    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $write_sys:ident = write_sys) => {
+        $( #[$attr] )? $vis
+        unsafe fn $write_sys(&self, dst: $Ptr) {
             // Note: this is the same impl as for impl_ffi_as_opaque_value, which is... interesting
             std::ptr::write(dst as *mut _, self.opaque);
         }
-	};
+    };
 
-	// type $Ptr = *mut Self
- 	(SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys:ident = from_sys) => {
-		$( #[$attr] )? $vis
-		unsafe fn $from_sys(ptr: $Ptr) -> Self {
+    // type $Ptr = *mut Self
+    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys:ident = from_sys) => {
+        $( #[$attr] )? $vis
+        unsafe fn $from_sys(ptr: $Ptr) -> Self {
             *(ptr as *mut Self)
         }
-	};
-	(SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
-		$( #[$attr] )? $vis
-		unsafe fn $from_sys_init(init: impl FnOnce($Ptr)) -> Self {
+    };
+    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
+        $( #[$attr] )? $vis
+        unsafe fn $from_sys_init(init: impl FnOnce($Ptr)) -> Self {
             let mut raw = std::mem::MaybeUninit::<Self>::uninit();
             init(raw.as_mut_ptr() as $Ptr);
 
             raw.assume_init()
         }
-	};
-	(SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys:ident = sys) => {
-		$( #[$attr] )? $vis
-		fn $sys(&self) -> $Ptr {
+    };
+    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys:ident = sys) => {
+        $( #[$attr] )? $vis
+        fn $sys(&self) -> $Ptr {
             self as *const Self as $Ptr
         }
-	};
-	(SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $write_sys:ident = write_sys) => {
-		$( #[$attr] )? $vis
-		unsafe fn $write_sys(&self, dst: $Ptr) {
+    };
+    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $write_sys:ident = write_sys) => {
+        $( #[$attr] )? $vis
+        unsafe fn $write_sys(&self, dst: $Ptr) {
             *(dst as *mut Self) = *self;
         }
-	};
+    };
 }
 
 #[macro_export]
 #[doc(hidden)]
 macro_rules! ffi_methods_rest {
-	( // impl T: each method has a custom name and is annotated with 'pub'
-		$Impl:ident $Ptr:ty; $( fn $user_fn:ident = $sys_fn:ident; )*
-	) => {
-		$( $crate::ffi_methods_one!($Impl $Ptr; #[doc(hidden)] pub $user_fn = $sys_fn); )*
-	};
+    ( // impl T: each method has a custom name and is annotated with 'pub'
+        $Impl:ident $Ptr:ty; $( fn $user_fn:ident = $sys_fn:ident; )*
+    ) => {
+        $( $crate::ffi_methods_one!($Impl $Ptr; #[doc(hidden)] pub $user_fn = $sys_fn); )*
+    };
 
-	( // impl GodotFfi for T: methods have given names, no 'pub' needed
-		$Impl:ident $Ptr:ty; $( fn $sys_fn:ident; )*
-	) => {
-		$( $crate::ffi_methods_one!($Impl $Ptr; $sys_fn = $sys_fn); )*
-	};
+    ( // impl GodotFfi for T: methods have given names, no 'pub' needed
+        $Impl:ident $Ptr:ty; $( fn $sys_fn:ident; )*
+    ) => {
+        $( $crate::ffi_methods_one!($Impl $Ptr; $sys_fn = $sys_fn); )*
+    };
 
-	( // impl GodotFfi for T (default all 4)
-		$Impl:ident $Ptr:ty; ..
-	) => {
-		$crate::ffi_methods_one!($Impl $Ptr; from_sys = from_sys);
-		$crate::ffi_methods_one!($Impl $Ptr; from_sys_init = from_sys_init);
-		$crate::ffi_methods_one!($Impl $Ptr; sys = sys);
-		$crate::ffi_methods_one!($Impl $Ptr; write_sys = write_sys);
-	};
+    ( // impl GodotFfi for T (default all 4)
+        $Impl:ident $Ptr:ty; ..
+    ) => {
+        $crate::ffi_methods_one!($Impl $Ptr; from_sys = from_sys);
+        $crate::ffi_methods_one!($Impl $Ptr; from_sys_init = from_sys_init);
+        $crate::ffi_methods_one!($Impl $Ptr; sys = sys);
+        $crate::ffi_methods_one!($Impl $Ptr; write_sys = write_sys);
+    };
 }
 
 /// Provides "sys" style methods for FFI and ptrcall integration with Godot.
@@ -216,26 +216,26 @@ macro_rules! ffi_methods_rest {
 ///   This cannot be checked easily, because Self cannot be used in size_of(). There would of course be workarounds.
 #[macro_export]
 macro_rules! ffi_methods {
-	( // Sys pointer = address of opaque
-		type $Ptr:ty = *mut Opaque;
-		$( $rest:tt )*
-	) => {
-		$crate::ffi_methods_rest!(OpaquePtr $Ptr; $($rest)*);
-	};
+    ( // Sys pointer = address of opaque
+        type $Ptr:ty = *mut Opaque;
+        $( $rest:tt )*
+    ) => {
+        $crate::ffi_methods_rest!(OpaquePtr $Ptr; $($rest)*);
+    };
 
-	( // Sys pointer = value of opaque
-		type $Ptr:ty = Opaque;
-		$( $rest:tt )*
-	) => {
-		$crate::ffi_methods_rest!(OpaqueValue $Ptr; $($rest)*);
-	};
+    ( // Sys pointer = value of opaque
+        type $Ptr:ty = Opaque;
+        $( $rest:tt )*
+    ) => {
+        $crate::ffi_methods_rest!(OpaqueValue $Ptr; $($rest)*);
+    };
 
-	( // Sys pointer = address of self
-		type $Ptr:ty = *mut Self;
-		$( $rest:tt )*
-	) => {
-		$crate::ffi_methods_rest!(SelfPtr $Ptr; $($rest)*);
-	};
+    ( // Sys pointer = address of self
+        type $Ptr:ty = *mut Self;
+        $( $rest:tt )*
+    ) => {
+        $crate::ffi_methods_rest!(SelfPtr $Ptr; $($rest)*);
+    };
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
