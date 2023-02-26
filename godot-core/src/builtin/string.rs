@@ -37,43 +37,18 @@ impl GodotString {
 }
 
 impl GodotFfi for GodotString {
-    ffi_methods! {
-        type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn write_sys;
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        // Can't use uninitialized pointer -- String CoW implementation in C++ expects that on assignment,
-        // the target CoW pointer is either initialized or nullptr
-
+    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();
         init_fn(result.sys_mut());
         result
     }
 }
 
-impl Default for GodotString {
-    fn default() -> Self {
-        // Note: can't use from_sys_init(), as that calls the default constructor
-        // (because most assignments expect initialized target type)
-
-        let mut uninit = std::mem::MaybeUninit::<GodotString>::uninit();
-
-        unsafe {
-            let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
-            sys::builtin_call! {
-                string_construct_default(self_ptr, std::ptr::null_mut())
-            };
-
-            uninit.assume_init()
-        }
-    }
-}
-
 impl_builtin_traits! {
     for GodotString {
+        Default => string_construct_default;
         Clone => string_construct_copy;
         Drop => string_destroy;
         Eq => string_operator_equal;

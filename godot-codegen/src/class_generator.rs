@@ -686,7 +686,7 @@ impl VariantFfi {
     fn type_ptr() -> Self {
         Self {
             sys_method: ident("sys_const"),
-            from_sys_init_method: ident("from_sys_init"),
+            from_sys_init_method: ident("from_sys_init_default"),
         }
     }
 }
@@ -876,7 +876,7 @@ fn make_return(
         }
         (None, Some(return_ty)) => {
             quote! {
-                <#return_ty as sys::GodotFfi>::from_sys_init(|return_ptr| {
+                <#return_ty as sys::GodotFfi>::from_sys_init_default(|return_ptr| {
                     #ptrcall_invocation
                 })
             }

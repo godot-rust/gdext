@@ -55,19 +55,21 @@ macro_rules! impl_variant_traits {
 
         impl FromVariant for $T {
             fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+                // Type check -- at the moment, a strict match is required.
+                if variant.get_type() != Self::variant_type() {
+                    return Err(VariantConversionError)
+                }
+
                 // In contrast to T -> Variant, the conversion Variant -> T assumes
                 // that the destination is initialized (at least for some T). For example:
                 // void String::operator=(const String &p_str) { _cowdata._ref(p_str._cowdata); }
                 // does a copy-on-write and explodes if this->_cowdata is not initialized.
                 // We can thus NOT use Self::from_sys_init().
-                if variant.get_type() != Self::variant_type() {
-                    return Err(VariantConversionError)
-                }
-                let mut value = <$T>::default();
                 let result = unsafe {
-                    let converter = sys::builtin_fn!($to_fn);
-                    converter(value.sys_mut(), variant.var_sys());
-                    value
+                    Self::from_sys_init_default(|self_ptr| {
+                        let converter = sys::builtin_fn!($to_fn);
+                        converter(self_ptr, variant.var_sys());
+                    })
                 };
 
                 Ok(result)

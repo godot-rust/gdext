@@ -70,12 +70,11 @@ impl_builtin_froms!(Array;
 
 impl<T: VariantMetadata> TypedArray<T> {
     fn from_opaque(opaque: sys::types::OpaqueArray) -> Self {
-        let array = Self {
+        // Note: type is not yet checked at this point, because array has not yet been initialized!
+        Self {
             opaque,
             _phantom: PhantomData,
-        };
-        array.check_type();
-        array
+        }
     }
 
     /// Returns the number of elements in the array. Equivalent of `size()` in Godot.
@@ -320,8 +319,9 @@ impl<T: VariantMetadata> TypedArray<T> {
     /// # Panics
     ///
     /// If the inner type doesn't match `T` or no type is set at all.
-    fn check_type(&self) {
+    fn with_checked_type(self) -> Self {
         assert_eq!(self.type_info(), TypeInfo::new::<T>());
+        self
     }
 
     /// Sets the type of the inner array. Can only be called once, directly after creation.
@@ -567,17 +567,9 @@ impl<T: VariantMetadata + ToVariant> TypedArray<T> {
 // }
 
 impl<T: VariantMetadata> GodotFfi for TypedArray<T> {
-    ffi_methods! {
-        type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn write_sys;
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        // Can't use uninitialized pointer -- Array CoW implementation in C++ expects that on
-        // assignment, the target CoW pointer is either initialized or nullptr
-
+    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();
         init_fn(result.sys_mut());
         result
@@ -598,28 +590,25 @@ impl<T: VariantMetadata> fmt::Debug for TypedArray<T> {
 /// [`Array::duplicate_deep()`].
 impl<T: VariantMetadata> Share for TypedArray<T> {
     fn share(&self) -> Self {
-        unsafe {
+        let array = unsafe {
             Self::from_sys_init(|self_ptr| {
                 let ctor = ::godot_ffi::builtin_fn!(array_construct_copy);
                 let args = [self.sys_const()];
                 ctor(self_ptr, args.as_ptr());
             })
-        }
+        };
+        array.with_checked_type()
     }
 }
 
 impl<T: VariantMetadata> Default for TypedArray<T> {
     #[inline]
     fn default() -> Self {
-        // Note: can't use from_sys_init(), as that calls the default constructor
-        // (because most assignments expect initialized target type)
-        let mut uninit = std::mem::MaybeUninit::<TypedArray<T>>::uninit();
         let mut array = unsafe {
-            let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
-            sys::builtin_call! {
-                array_construct_default(self_ptr, std::ptr::null_mut())
-            };
-            uninit.assume_init()
+            Self::from_sys_init(|self_ptr| {
+                let ctor = sys::builtin_fn!(array_construct_default);
+                ctor(self_ptr, std::ptr::null_mut())
+            })
         };
         array.init_inner_type();
         array
@@ -661,14 +650,14 @@ impl<T: VariantMetadata> FromVariant for TypedArray<T> {
         if variant.get_type() != Self::variant_type() {
             return Err(VariantConversionError);
         }
-        let result = unsafe {
-            Self::from_sys_init(|self_ptr| {
+        let array = unsafe {
+            Self::from_sys_init_default(|self_ptr| {
                 let array_from_variant = sys::builtin_fn!(array_from_variant);
                 array_from_variant(self_ptr, variant.var_sys());
             })
         };
 
-        Ok(result)
+        Ok(array.with_checked_type())
     }
 }
 
@@ -773,7 +762,7 @@ impl<T: VariantMetadata> PartialEq for TypedArray<T> {
             let mut result = false;
             sys::builtin_call! {
                 array_operator_equal(self.sys(), other.sys(), result.sys_mut())
-            };
+            }
             result
         }
     }

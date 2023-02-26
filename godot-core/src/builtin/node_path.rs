@@ -6,7 +6,7 @@
 
 use crate::builtin::GodotString;
 use godot_ffi as sys;
-use godot_ffi::{ffi_methods, GodotFfi};
+use godot_ffi::{ffi_methods, GDExtensionTypePtr, GodotFfi};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 
 pub struct NodePath {
@@ -21,12 +21,18 @@ impl NodePath {
 
 impl GodotFfi for NodePath {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+
+    unsafe fn from_sys_init_default(init_fn: impl FnOnce(GDExtensionTypePtr)) -> Self {
+        let mut result = Self::default();
+        init_fn(result.sys_mut());
+        result
+    }
 }
 
 impl From<&GodotString> for NodePath {
     fn from(path: &GodotString) -> Self {
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            Self::from_sys_init_default(|self_ptr| {
                 let ctor = sys::builtin_fn!(node_path_from_string);
                 let args = [path.sys_const()];
                 ctor(self_ptr, args.as_ptr());
@@ -38,7 +44,7 @@ impl From<&GodotString> for NodePath {
 impl From<&NodePath> for GodotString {
     fn from(path: &NodePath) -> Self {
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            Self::from_sys_init_default(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_node_path);
                 let args = [path.sys_const()];
                 ctor(self_ptr, args.as_ptr());
