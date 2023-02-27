@@ -224,15 +224,17 @@ jobs:
           # --disallow-focus: fail if #[itest(focus)] is encountered, to prevent running only a few tests for full CI
           - name: linux-memcheck-gcc
             os: ubuntu-20.04
-            rust-toolchain: stable
             godot-binary: godot.linuxbsd.editor.dev.x86_64.san
             godot-args: -- --disallow-focus
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout
 
           - name: linux-memcheck-clang
             os: ubuntu-20.04
-            rust-toolchain: stable
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             godot-args: -- --disallow-focus
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout
 
           - name: linux-double
             os: ubuntu-20.04
@@ -249,8 +251,10 @@ jobs:
           artifact-name: godot-${{ matrix.name }}
           godot-binary: ${{ matrix.godot-binary }}
           godot-args: ${{ matrix.godot-args }}
-          with-llvm: ${{ matrix.with-llvm }}
           rust-extra-args: ${{ matrix.rust-extra-args }}
+          rust-toolchain: ${{ matrix.rust-toolchain }}
+          rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
+          with-llvm: ${{ matrix.with-llvm }}
 
 
   license-guard:

@@ -29,6 +29,11 @@ inputs:
     default: ''
     description: "Extra command line arguments for 'cargo build', e.g. features"
 
+  rust-env-rustflags:
+    required: false
+    default: ''
+    description: "Extra values for the RUSTFLAGS env var"
+
   with-llvm:
     required: false
     default: ''
@@ -88,6 +93,8 @@ runs:
       run: |
         cargo build -p itest ${{ inputs.rust-extra-args }}
       shell: bash
+      env:
+        RUSTFLAGS: ${{ inputs.rust-env-rustflags }}
 
     - name: "Run Godot integration tests"
       # Aborts immediately if Godot outputs certain keywords (would otherwise stall until CI runner times out).
