@@ -18,6 +18,12 @@ env:
 #  GDEXT_FEATURES: '--features crate/feature'
 #  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
 
+  # LSan options: https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer
+  # * report_objects: list individual leaked objects when running LeakSanitizer
+  LSAN_OPTIONS: report_objects=1
+
+  # ASan options: https://github.com/google/sanitizers/wiki/AddressSanitizerFlags
+
 defaults:
   run:
     shell: bash
