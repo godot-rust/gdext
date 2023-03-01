@@ -1,18 +1,30 @@
 [gd_scene load_steps=12 format=3 uid="uid://4vwrqjegqwpj"]
 
-[ext_resource type="Texture2D" uid="uid://bei50n77gmlml" path="res://art/playerGrey_walk1.png" id="2"]
-[ext_resource type="Texture2D" uid="uid://bdkoaa5a3c44c" path="res://art/playerGrey_walk2.png" id="3"]
-[ext_resource type="Texture2D" uid="uid://qpg7fsh1wnd6" path="res://art/playerGrey_up1.png" id="4"]
-[ext_resource type="Texture2D" uid="uid://c4vx8t665is8j" path="res://art/playerGrey_up2.png" id="5"]
+[ext_resource type="Texture2D" uid="uid://bj4l4w7uqqvj8" path="res://art/playerGrey_walk1.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://m72luixufvrn" path="res://art/playerGrey_walk2.png" id="3"]
+[ext_resource type="Texture2D" uid="uid://capk1keirob5u" path="res://art/playerGrey_up1.png" id="4"]
+[ext_resource type="Texture2D" uid="uid://l7hs5mf40b2s" path="res://art/playerGrey_up2.png" id="5"]
 
 [sub_resource type="SpriteFrames" id="1"]
 animations = [{
-"frames": [ExtResource("2"), ExtResource("3")],
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3")
+}],
 "loop": true,
 "name": &"right",
 "speed": 5.0
 }, {
-"frames": [ExtResource("4"), ExtResource("5")],
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5")
+}],
 "loop": true,
 "name": &"up",
 "speed": 5.0
@@ -46,7 +58,7 @@ z_index = 10
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 scale = Vector2(0.5, 0.5)
-frames = SubResource("1")
+sprite_frames = SubResource("1")
 animation = &"right"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
@@ -55,8 +67,8 @@ shape = SubResource("2")
 [node name="Trail" type="GPUParticles2D" parent="."]
 z_index = -1
 amount = 10
-speed_scale = 2.0
 process_material = SubResource("7")
 texture = ExtResource("2")
+speed_scale = 2.0
 
 [connection signal="body_entered" from="." to="." method="on_player_body_entered"]

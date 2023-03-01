@@ -1,25 +1,43 @@
 [gd_scene load_steps=9 format=3 uid="uid://rkdnhqgf2hpj"]
 
-[ext_resource type="Texture2D" uid="uid://ch2bfqohapw00" path="res://art/enemyFlyingAlt_1.png" id="2"]
-[ext_resource type="Texture2D" uid="uid://uhy7j2necuj2" path="res://art/enemyFlyingAlt_2.png" id="3"]
-[ext_resource type="Texture2D" uid="uid://dd56ab6ouwms7" path="res://art/enemyWalking_1.png" id="4"]
-[ext_resource type="Texture2D" uid="uid://dulw5juue3ivn" path="res://art/enemyWalking_2.png" id="5"]
-[ext_resource type="Texture2D" uid="uid://cnwoep5enlhrj" path="res://art/enemySwimming_1.png" id="6"]
-[ext_resource type="Texture2D" uid="uid://eqshh2v5g0dn" path="res://art/enemySwimming_2.png" id="7"]
+[ext_resource type="Texture2D" uid="uid://cm5gcq5ye1dfp" path="res://art/enemyFlyingAlt_1.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://bgm216v7s45eh" path="res://art/enemyFlyingAlt_2.png" id="3"]
+[ext_resource type="Texture2D" uid="uid://8mvo2d5mwhbr" path="res://art/enemyWalking_1.png" id="4"]
+[ext_resource type="Texture2D" uid="uid://c8wjbhrgviadh" path="res://art/enemyWalking_2.png" id="5"]
+[ext_resource type="Texture2D" uid="uid://bmw4gn8qp4owc" path="res://art/enemySwimming_1.png" id="6"]
+[ext_resource type="Texture2D" uid="uid://bciy3d2t3uuvf" path="res://art/enemySwimming_2.png" id="7"]
 
 [sub_resource type="SpriteFrames" id="1"]
 animations = [{
-"frames": [ExtResource("2"), ExtResource("3")],
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("2")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3")
+}],
 "loop": true,
 "name": &"fly",
 "speed": 3.0
 }, {
-"frames": [ExtResource("6"), ExtResource("7")],
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("6")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7")
+}],
 "loop": true,
 "name": &"swim",
 "speed": 4.0
 }, {
-"frames": [ExtResource("4"), ExtResource("5")],
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5")
+}],
 "loop": true,
 "name": &"walk",
 "speed": 4.0
@@ -35,9 +53,8 @@ gravity_scale = 0.0
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 scale = Vector2(0.75, 0.75)
-frames = SubResource("1")
-animation = &"walk"
-playing = true
+sprite_frames = SubResource("1")
+animation = &"fly"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 rotation = 1.5708
