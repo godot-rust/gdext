@@ -15,12 +15,12 @@
 #[doc(hidden)]
 #[macro_export]
 macro_rules! plugin_registry {
-    ($registry:ident: $Type:ty) => {
+    ($vis:vis $registry:ident: $Type:ty) => {
         $crate::paste::paste! {
             #[used]
             #[allow(non_upper_case_globals)]
             #[doc(hidden)]
-            pub static [< __godot_rust_plugin_ $registry >]:
+            $vis static [< __godot_rust_plugin_ $registry >]:
                 std::sync::Mutex<Vec<$Type>> = std::sync::Mutex::new(Vec::new());
         }
     };

@@ -42,7 +42,7 @@ pub mod private {
 
     use crate::{log, sys};
 
-    sys::plugin_registry!(__GODOT_PLUGIN_REGISTRY: ClassPlugin);
+    sys::plugin_registry!(pub __GODOT_PLUGIN_REGISTRY: ClassPlugin);
 
     pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
         sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
