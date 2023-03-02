@@ -7,17 +7,6 @@
 use crate::itest;
 use godot::prelude::*;
 
-pub(crate) fn run() -> bool {
-    let mut ok = true;
-    ok &= base_instance_id();
-    ok &= base_deref();
-    ok &= base_display();
-    ok &= base_debug();
-    ok &= base_with_init();
-
-    ok
-}
-
 /*
 #[itest]
 fn base_test_is_weak() {

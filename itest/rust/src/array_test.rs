@@ -7,46 +7,6 @@
 use crate::{expect_panic, itest};
 use godot::prelude::*;
 
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= array_default();
-    ok &= array_new();
-    ok &= array_eq();
-    ok &= typed_array_from_to_variant();
-    ok &= untyped_array_from_to_variant();
-    ok &= array_from_packed_array();
-    ok &= array_from_iterator();
-    ok &= array_from_slice();
-    ok &= array_try_into_vec();
-    ok &= array_iter_shared();
-    ok &= array_hash();
-    ok &= array_share();
-    ok &= array_duplicate_shallow();
-    ok &= array_duplicate_deep();
-    ok &= array_slice_shallow();
-    ok &= array_slice_deep();
-    ok &= array_get();
-    ok &= array_first_last();
-    ok &= array_binary_search();
-    ok &= array_find();
-    ok &= array_rfind();
-    ok &= array_min_max();
-    ok &= array_pick_random();
-    ok &= array_set();
-    ok &= array_push_pop();
-    ok &= array_insert();
-    ok &= array_extend();
-    ok &= array_reverse();
-    ok &= array_sort();
-    ok &= array_shuffle();
-    ok &= array_mixed_values();
-    ok &= untyped_array_pass_to_godot_func();
-    ok &= untyped_array_return_from_godot_func();
-    ok &= typed_array_pass_to_godot_func();
-    ok &= typed_array_return_from_godot_func();
-    ok
-}
-
 #[itest]
 fn array_default() {
     assert_eq!(Array::default().len(), 0);

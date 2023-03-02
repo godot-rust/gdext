@@ -15,24 +15,6 @@ use godot::sys::{GodotFfi, VariantOperator, VariantType};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
 
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= variant_nil();
-    ok &= variant_conversions();
-    ok &= variant_forbidden_conversions();
-    ok &= variant_display();
-    ok &= variant_get_type();
-    ok &= variant_equal();
-    ok &= variant_evaluate();
-    ok &= variant_evaluate_total_order();
-    ok &= variant_sys_conversion();
-    ok &= variant_sys_conversion2();
-    ok &= variant_null_object_is_nil();
-    ok &= variant_conversion_fails();
-    ok &= variant_type_correct();
-    ok
-}
-
 #[itest]
 fn variant_nil() {
     let variant = Variant::nil();

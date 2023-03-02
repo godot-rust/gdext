@@ -12,15 +12,6 @@ use godot::builtin::inner::{InnerColor, InnerString};
 use godot::engine::{FileAccess, HttpRequest};
 use godot::prelude::*;
 
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= codegen_class_renamed();
-    ok &= codegen_base_renamed();
-    ok &= codegen_static_builtin_method();
-    ok &= codegen_static_class_method();
-    ok
-}
-
 #[itest]
 fn codegen_class_renamed() {
     // Known as `HTTPRequest` in Godot

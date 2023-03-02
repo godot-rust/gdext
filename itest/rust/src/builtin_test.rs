@@ -8,14 +8,6 @@ use crate::itest;
 use godot::builtin::inner::*;
 use godot::prelude::*;
 
-pub(crate) fn run() -> bool {
-    let mut ok = true;
-    ok &= test_builtins_vector2();
-    ok &= test_builtins_array();
-    ok &= test_builtins_callable();
-    ok
-}
-
 #[itest]
 fn test_builtins_vector2() {
     let vec = Vector2::new(3.0, -4.0);

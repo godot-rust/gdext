@@ -9,14 +9,6 @@ use godot::builtin::GodotString;
 use godot::engine::{Input, Os};
 use godot::obj::Gd;
 
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= singleton_is_unique();
-    ok &= singleton_from_instance_id();
-    ok &= singleton_is_operational();
-    ok
-}
-
 #[itest]
 fn singleton_is_unique() {
     let a: Gd<Input> = Input::singleton();

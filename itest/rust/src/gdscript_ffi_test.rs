@@ -9,7 +9,3 @@
 #[rustfmt::skip]
 #[path = "gen/gen_ffi.rs"]
 mod gen_ffi;
-
-pub(crate) fn run() -> bool {
-    true
-}

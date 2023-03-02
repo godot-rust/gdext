@@ -9,14 +9,6 @@ use godot::engine::input::CursorShape;
 use godot::engine::time;
 use std::collections::HashSet;
 
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= enum_ords_correct();
-    ok &= enum_equality();
-    ok &= enum_hash();
-    ok
-}
-
 #[itest]
 fn enum_ords_correct() {
     use godot::obj::EngineEnum;

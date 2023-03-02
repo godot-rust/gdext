@@ -56,8 +56,6 @@ sys::plugin_registry!(__GODOT_ITEST: TestCase);
 // }
 
 fn run_tests() -> bool {
-    let mut ok = true;
-
     let mut tests: Vec<TestCase> = vec![];
 
     sys::plugin_foreach!(__GODOT_ITEST; |test: &TestCase| {
@@ -68,7 +66,6 @@ fn run_tests() -> bool {
 
 
     let mut stats = TestStats::default();
-
     for test in tests {
         stats.tests_run += 1;
         if run_test(&test) {
@@ -81,6 +78,9 @@ fn run_tests() -> bool {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
+
+#[gdextension(entry_point=itest_init)]
+unsafe impl ExtensionLibrary for IntegrationTests {}
 
 #[derive(GodotClass, Debug)]
 #[class(base=Node, init)]
@@ -95,13 +95,17 @@ impl IntegrationTests {
     }
 }
 
-#[gdextension(entry_point=itest_init)]
-unsafe impl ExtensionLibrary for IntegrationTests {}
-
 pub(crate) fn expect_panic(context: &str, code: impl FnOnce() + UnwindSafe) {
     let panic = std::panic::catch_unwind(code);
     assert!(
         panic.is_err(),
         "code should have panicked but did not: {context}",
     );
+}
+
+#[derive(Default)]
+struct TestStats {
+    tests_run: usize,
+    tests_passed: usize,
+    tests_skipped: usize,
 }
