@@ -143,6 +143,7 @@ mod impls {
     use super::*;
 
     impl_variant_traits!(bool, bool_to_variant, bool_from_variant, Bool);
+    impl_variant_traits!(Basis, basis_to_variant, basis_from_variant, Basis);
     impl_variant_traits!(Vector2, vector2_to_variant, vector2_from_variant, Vector2);
     impl_variant_traits!(Vector3, vector3_to_variant, vector3_from_variant, Vector3);
     impl_variant_traits!(Vector4, vector4_to_variant, vector4_from_variant, Vector4);
@@ -158,10 +159,6 @@ mod impls {
     impl_variant_metadata!(Plane, /* plane_to_variant, plane_from_variant, */ Plane);
     impl_variant_metadata!(Quaternion, /* quaternion_to_variant, quaternion_from_variant, */ Quaternion);
     impl_variant_metadata!(Aabb, /* aabb_to_variant, aabb_from_variant, */ Aabb);
-    impl_variant_metadata!(Basis, /* basis_to_variant, basis_from_variant, */ Basis);
-    impl_variant_metadata!(Transform2D, /* transform_2d_to_variant, transform_2d_from_variant, */ Transform2D);
-    impl_variant_metadata!(Transform3D, /* transform_3d_to_variant, transform_3d_from_variant, */ Transform3D);
-    impl_variant_metadata!(Projection, /* projection_to_variant, projection_from_variant, */ Projection);
     impl_variant_metadata!(Rid, /* rid_to_variant, rid_from_variant, */ Rid);
     impl_variant_metadata!(Callable, /* callable_to_variant, callable_from_variant, */ Callable);
     impl_variant_metadata!(Signal, /* signal_to_variant, signal_from_variant, */ Signal);
@@ -174,6 +171,9 @@ mod impls {
     impl_variant_traits!(PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant, PackedVector2Array);
     impl_variant_traits!(PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant, PackedVector3Array);
     impl_variant_traits!(PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant, PackedColorArray);
+    impl_variant_traits!(Projection, projection_to_variant, projection_from_variant, Projection);
+    impl_variant_traits!(Transform2D, transform_2d_to_variant, transform_2d_from_variant, Transform2D);
+    impl_variant_traits!(Transform3D, transform_3d_to_variant, transform_3d_from_variant, Transform3D);
     impl_variant_traits!(Dictionary, dictionary_to_variant, dictionary_from_variant, Dictionary);
 
     impl_variant_traits!(i64, int_to_variant, int_from_variant, Int, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);

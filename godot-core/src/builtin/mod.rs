@@ -36,15 +36,19 @@
 pub use crate::{array, dict, varray};
 
 pub use array_inner::{Array, TypedArray};
+pub use basis::*;
 pub use color::*;
 pub use dictionary_inner::Dictionary;
 pub use math::*;
 pub use node_path::*;
 pub use others::*;
 pub use packed_array::*;
+pub use projection::*;
 pub use quaternion::*;
 pub use string::*;
 pub use string_name::*;
+pub use transform2d::*;
+pub use transform3d::*;
 pub use variant::*;
 pub use vector2::*;
 pub use vector2i::*;
@@ -79,15 +83,19 @@ mod array_inner;
 #[path = "dictionary.rs"]
 mod dictionary_inner;
 
+mod basis;
 mod color;
 mod glam_helpers;
 mod math;
 mod node_path;
 mod others;
 mod packed_array;
+mod projection;
 mod quaternion;
 mod string;
 mod string_name;
+mod transform2d;
+mod transform3d;
 mod variant;
 mod vector2;
 mod vector2i;

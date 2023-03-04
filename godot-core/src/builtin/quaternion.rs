@@ -11,7 +11,9 @@ use sys::{ffi_methods, GodotFfi};
 use crate::builtin::glam_helpers::{GlamConv, GlamType};
 use crate::builtin::{inner, math::*, vector3::*};
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+use super::{Basis, EulerOrder};
+
+#[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(C)]
 pub struct Quaternion {
     pub x: f32,
@@ -96,12 +98,8 @@ impl Quaternion {
         }
     }
 
-    // TODO: Figure out how godot actually treats "order", then make a match/if chain
-    pub fn get_euler(self, order: Option<i32>) -> Vector3 {
-        let _o = order.unwrap_or(2);
-        let vt = self.glam(|quat| quat.to_euler(glam::EulerRot::XYZ));
-
-        Vector3::new(vt.0, vt.1, vt.2)
+    pub fn to_euler(self, order: EulerOrder) -> Vector3 {
+        Basis::from_quat(self).to_euler(order)
     }
 
     pub fn inverse(self) -> Self {
