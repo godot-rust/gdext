@@ -159,8 +159,6 @@ mod impls {
     impl_variant_metadata!(Plane, /* plane_to_variant, plane_from_variant, */ Plane);
     impl_variant_metadata!(Quaternion, /* quaternion_to_variant, quaternion_from_variant, */ Quaternion);
     impl_variant_metadata!(Aabb, /* aabb_to_variant, aabb_from_variant, */ Aabb);
-    impl_variant_metadata!(Transform2D, /* transform_2d_to_variant, transform_2d_from_variant, */ Transform2D);
-    impl_variant_metadata!(Transform3D, /* transform_3d_to_variant, transform_3d_from_variant, */ Transform3D);
     impl_variant_metadata!(Projection, /* projection_to_variant, projection_from_variant, */ Projection);
     impl_variant_metadata!(Rid, /* rid_to_variant, rid_from_variant, */ Rid);
     impl_variant_metadata!(Callable, /* callable_to_variant, callable_from_variant, */ Callable);
@@ -174,6 +172,8 @@ mod impls {
     impl_variant_traits!(PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant, PackedVector2Array);
     impl_variant_traits!(PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant, PackedVector3Array);
     impl_variant_traits!(PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant, PackedColorArray);
+    impl_variant_traits!(Transform2D, transform_2d_to_variant, transform_2d_from_variant, Transform2D);
+    impl_variant_traits!(Transform3D, transform_3d_to_variant, transform_3d_from_variant, Transform3D);
     impl_variant_traits!(Dictionary, dictionary_to_variant, dictionary_from_variant, Dictionary);
 
     impl_variant_traits!(i64, int_to_variant, int_from_variant, Int, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
