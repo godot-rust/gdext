@@ -5,8 +5,6 @@
  */
 
 use godot::bind::{godot_api, GodotClass};
-use godot::builtin::ToVariant;
-use godot::engine::utilities::print_rich;
 use godot::init::{gdextension, ExtensionLibrary};
 use godot::sys;
 use godot::test::itest;
@@ -32,40 +30,8 @@ mod utilities_test;
 mod variant_test;
 mod virtual_methods_test;
 
-#[must_use]
-fn run_test(test: &TestCase) -> bool {
-    // Explicit type to prevent tests from returning a value
-    let success: Option<()> =
-        godot::private::handle_panic(|| format!("   !! Test {} failed", test.name), test.function);
-
-    success.is_some()
-}
-
-sys::plugin_registry!(__GODOT_ITEST: TestCase);
-
-fn print_test(test: &TestCase, passed: bool, last_file: &mut Option<&'static str>) {
-    // Check if we need to open a new category for a file
-    let print_file = last_file.map_or(true, |last_file| last_file != test.file);
-    if print_file {
-        let sep_pos = test.file.rfind(&['/', '\\']).unwrap_or(0);
-        println!("\n   {}:", &test.file[sep_pos + 1..]);
-    }
-
-    // Print the test itself
-    let outcome = if passed {
-        "[color=green]ok[/color]"
-    } else {
-        "[color=red]FAILED[/color]"
-    };
-    let output = format!("   -- {} ... {}", test.name, outcome);
-    print_rich(output.to_variant(), &[]);
-
-    // State update for file-category-print
-    *last_file = Some(test.file);
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Implementation
+// Entry point + main runner class
 
 #[gdextension(entry_point=itest_init)]
 unsafe impl ExtensionLibrary for IntegrationTests {}
@@ -119,16 +85,76 @@ impl IntegrationTests {
 
         let mut last_file = None;
         for test in tests {
-            let passed = run_test(&test);
+            let outcome = run_test(&test);
 
             self.tests_run += 1;
-            if passed {
-                self.tests_passed += 1;
+            match outcome {
+                TestOutcome::Passed => self.tests_passed += 1,
+                TestOutcome::Failed => {}
+                TestOutcome::Skipped => self.tests_skipped += 1,
             }
 
-            print_test(&test, passed, &mut last_file);
+            print_test(&test, outcome, &mut last_file);
         }
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation
+
+// Registers all the tests
+sys::plugin_registry!(__GODOT_ITEST: TestCase);
+
+// For more colors, see https://stackoverflow.com/a/54062826
+// To experiment with colors, add `rand` dependency and add following code above.
+//     use rand::seq::SliceRandom;
+//     let outcome = [TestOutcome::Passed, TestOutcome::Failed, TestOutcome::Skipped];
+//     let outcome = outcome.choose(&mut rand::thread_rng()).unwrap();
+const FMT_GREEN: &str = "\x1b[32m";
+const FMT_YELLOW: &str = "\x1b[33m";
+const FMT_RED: &str = "\x1b[31m";
+const FMT_END: &str = "\x1b[0m";
+
+fn run_test(test: &TestCase) -> TestOutcome {
+    if test.skipped {
+        return TestOutcome::Skipped;
+    }
+
+    // Explicit type to prevent tests from returning a value
+    let success: Option<()> =
+        godot::private::handle_panic(|| format!("   !! Test {} failed", test.name), test.function);
+
+    if success.is_some() {
+        TestOutcome::Passed
+    } else {
+        TestOutcome::Failed
+    }
+}
+
+/// Prints a test name and its outcome.
+///
+/// Note that this is run after a test run, so stdout/stderr output during the test will be printed before.
+fn print_test(test: &TestCase, outcome: TestOutcome, last_file: &mut Option<&'static str>) {
+    // Check if we need to open a new category for a file
+    let print_file = last_file.map_or(true, |last_file| last_file != test.file);
+    if print_file {
+        let sep_pos = test.file.rfind(&['/', '\\']).unwrap_or(0);
+        println!("\n   {}:", &test.file[sep_pos + 1..]);
+    }
+
+    // Do not use print_rich() from Godot, because it's very slow and significantly delays test execution.
+    let test_name = test.name;
+    let end = FMT_END;
+    let (col, outcome) = match outcome {
+        TestOutcome::Passed => (FMT_GREEN, "ok"),
+        TestOutcome::Failed => (FMT_RED, "FAILED"),
+        TestOutcome::Skipped => (FMT_YELLOW, "ignored"),
+    };
+
+    println!("   -- {test_name} ... {col}{outcome}{end}");
+
+    // State update for file-category-print
+    *last_file = Some(test.file);
 }
 
 pub(crate) fn expect_panic(context: &str, code: impl FnOnce() + panic::UnwindSafe) {
@@ -150,7 +176,15 @@ pub(crate) fn expect_panic(context: &str, code: impl FnOnce() + panic::UnwindSaf
 struct TestCase {
     name: &'static str,
     file: &'static str,
+    skipped: bool,
     #[allow(dead_code)]
     line: u32,
     function: fn(),
+}
+
+#[must_use]
+enum TestOutcome {
+    Passed,
+    Failed,
+    Skipped,
 }

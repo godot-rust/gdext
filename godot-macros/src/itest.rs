@@ -54,6 +54,7 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
 
         ::godot::sys::plugin_add!(__GODOT_ITEST in crate; crate::TestCase {
             name: #test_name_str,
+            skipped: false,
             file: std::file!(),
             line: std::line!(),
             function: #test_name,
