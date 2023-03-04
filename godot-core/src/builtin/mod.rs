@@ -36,6 +36,7 @@
 pub use crate::{array, dict, varray};
 
 pub use array_inner::{Array, TypedArray};
+pub use basis::*;
 pub use color::*;
 pub use dictionary_inner::Dictionary;
 pub use math::*;
@@ -79,6 +80,7 @@ mod array_inner;
 #[path = "dictionary.rs"]
 mod dictionary_inner;
 
+mod basis;
 mod color;
 mod glam_helpers;
 mod math;

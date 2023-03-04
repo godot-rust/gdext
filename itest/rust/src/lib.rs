@@ -11,6 +11,7 @@ use std::panic::UnwindSafe;
 
 mod array_test;
 mod base_test;
+mod basis_test;
 mod builtin_test;
 mod codegen_test;
 mod color_test;
@@ -32,6 +33,7 @@ fn run_tests() -> bool {
     let mut ok = true;
     ok &= array_test::run();
     ok &= base_test::run();
+    ok &= basis_test::run();
     ok &= builtin_test::run();
     ok &= codegen_test::run();
     ok &= color_test::run();

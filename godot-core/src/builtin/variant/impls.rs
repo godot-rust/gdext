@@ -143,6 +143,7 @@ mod impls {
     use super::*;
 
     impl_variant_traits!(bool, bool_to_variant, bool_from_variant, Bool);
+    impl_variant_traits!(Basis, basis_to_variant, basis_from_variant, Basis);
     impl_variant_traits!(Vector2, vector2_to_variant, vector2_from_variant, Vector2);
     impl_variant_traits!(Vector3, vector3_to_variant, vector3_from_variant, Vector3);
     impl_variant_traits!(Vector4, vector4_to_variant, vector4_from_variant, Vector4);
@@ -158,7 +159,6 @@ mod impls {
     impl_variant_metadata!(Plane, /* plane_to_variant, plane_from_variant, */ Plane);
     impl_variant_metadata!(Quaternion, /* quaternion_to_variant, quaternion_from_variant, */ Quaternion);
     impl_variant_metadata!(Aabb, /* aabb_to_variant, aabb_from_variant, */ Aabb);
-    impl_variant_metadata!(Basis, /* basis_to_variant, basis_from_variant, */ Basis);
     impl_variant_metadata!(Transform2D, /* transform_2d_to_variant, transform_2d_from_variant, */ Transform2D);
     impl_variant_metadata!(Transform3D, /* transform_3d_to_variant, transform_3d_from_variant, */ Transform3D);
     impl_variant_metadata!(Projection, /* projection_to_variant, projection_from_variant, */ Projection);
