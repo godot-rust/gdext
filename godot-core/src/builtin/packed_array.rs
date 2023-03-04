@@ -258,6 +258,34 @@ macro_rules! impl_packed_array {
                 self.as_inner().sort();
             }
 
+            /// Extracts a slice of the entire array.
+            pub fn as_slice<'a>(&'a self) -> &'a [$Element] {
+                let len = self.len();
+
+                if len == 0 {
+                    return &[];
+                }
+
+                let data = self.ptr(0);
+                unsafe {
+                    std::slice::from_raw_parts(data, len)
+                }
+            }
+
+            /// Extracts a mutable slice of the entire array.
+            pub fn as_mut_slice<'a>(&'a mut self) -> &'a mut [$Element] {
+                let len = self.len();
+
+                if len == 0 {
+                    return &mut [];
+                }
+
+                let data = self.ptr_mut(0);
+                unsafe {
+                    std::slice::from_raw_parts_mut(data, len)
+                }
+            }
+
             /// Asserts that the given index refers to an existing element.
             ///
             /// # Panics
