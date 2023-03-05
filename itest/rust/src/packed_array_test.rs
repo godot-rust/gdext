@@ -28,6 +28,8 @@ pub fn run() -> bool {
     ok &= packed_array_extend();
     ok &= packed_array_reverse();
     ok &= packed_array_sort();
+    ok &= packed_array_as_slice();
+    ok &= packed_array_is_mut_unique();
     ok
 }
 
@@ -199,4 +201,42 @@ fn packed_array_reverse() {
     let mut array = PackedByteArray::from(&[1, 2]);
     array.reverse();
     assert_eq!(array.to_vec(), vec![2, 1]);
+}
+
+#[itest]
+fn packed_array_as_slice() {
+    let vec = vec![1, 2];
+    let array = PackedByteArray::from(vec.as_slice());
+    assert_eq!(array.as_slice(), vec.as_slice());
+
+    assert_eq!(
+        PackedByteArray::new().as_slice(),
+        &[],
+        "array is empty, but still a valid slice"
+    );
+}
+
+#[itest]
+fn packed_array_is_mut_unique() {
+    let array1 = PackedByteArray::from(&[1, 2]);
+    let mut array2 = array1.clone();
+
+    assert_eq!(
+        array1.as_slice().as_ptr(),
+        array2.as_slice().as_ptr(),
+        "arrays should share the same buffer"
+    );
+
+    // array2 should become a copy of array1 since rc > 1.
+    array2.as_mut_slice();
+    assert_ne!(
+        array1.as_slice().as_ptr(),
+        array2.as_slice().as_ptr(),
+        "arrays should not share the same buffer after a mutable access"
+    );
+    assert_eq!(
+        array1.as_slice(),
+        array2.as_slice(),
+        "array2 should be a copy of array1"
+    );
 }
