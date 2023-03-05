@@ -59,14 +59,14 @@ func test_typed_array_return_from_user_func():
 	var array: Array[int] = obj.return_typed_array(3)
 	assert_eq(array, [1, 2, 3])
 
-func test_packed_array_aliazing():
+func test_packed_array_aliasing():
 	var obj = PackedArrayTest.new()
 	var array1 = PackedByteArray([1, 2])
 	obj.set_array(array1)
-	# Going through rust make this cow
+	# Going to and from rust make this copy-on-write.
 	var array2 = obj.get_array()
 	
-	# All arrays share the same buffer
+	# All arrays share the same buffer.
 	assert_that(
 		!obj.are_separate_buffer(array1), 
 		"Arrays should share buffer"
@@ -76,7 +76,7 @@ func test_packed_array_aliazing():
 		"Arrays should share buffer"
 	)
 	
-	# Trigger copy-on-write on godot side 
+	# Trigger copy-on-write on godot's side.
 	array1.set(0, 3)
 	assert_that(
 		obj.are_separate_buffer(array1),
@@ -84,10 +84,10 @@ func test_packed_array_aliazing():
 	)
 	assert_that(
 		!obj.are_separate_buffer(array2),
-		"Array2 should still share buffer with obj after a mutable access"
+		"Array2 should share buffer with obj"
 	)
 	
-	# Trigger copy-on-write on rust side 
+	# Trigger copy-on-write on rust's side.
 	obj.do_mutable_access()
 	assert_that(
 		obj.are_separate_buffer(array2),

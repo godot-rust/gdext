@@ -220,8 +220,7 @@ fn packed_array_is_mut_unique() {
         "Arrays should share the same buffer. Even when stored in an Image"
     );
 
-    // array2 should become an unique copy of array1
-    // as mutable access triggers copy-on-write.
+    // array2 should become an unique copy, as mutable access triggers copy-on-write.
     array2.as_mut_slice();
     assert_ne!(
         array2.as_slice().as_ptr(),
@@ -231,17 +230,12 @@ fn packed_array_is_mut_unique() {
     assert_ne!(
         array2.as_slice().as_ptr(),
         array3.to::<PackedByteArray>().as_slice().as_ptr(),
-        "Arrays should not share the same buffer after a mutable access. Event when stored in a variant"
+        "Arrays should not share the same buffer after a mutable access. Even when stored in a Variant"
     );
     assert_ne!(
         array2.as_slice().as_ptr(),
         array4.get_data().as_slice().as_ptr(),
-        "Arrays should not share the same buffer after a mutable access. Event when stored in an Image"
-    );
-    // These were not mutably accessed, so they should still share the same buffer.
-    assert_eq!(
-        array3.to::<PackedByteArray>().as_slice().as_ptr(),
-        array4.get_data().as_slice().as_ptr(),
+        "Arrays should not share the same buffer after a mutable access. Even when stored in an Image"
     );
 
     assert_eq!(
@@ -249,9 +243,19 @@ fn packed_array_is_mut_unique() {
         array2.as_slice(),
         "Array2 should be a copy of array1"
     );
+
+    // These were not mutably accessed, so they should still share the same buffer.
+    assert_eq!(
+        array1.as_slice().as_ptr(),
+        array3.to::<PackedByteArray>().as_slice().as_ptr(),
+    );
+    assert_eq!(
+        array3.to::<PackedByteArray>().as_slice().as_ptr(),
+        array4.get_data().as_slice().as_ptr(),
+    );
 }
 
-#[derive(GodotClass, Debug)]
+#[derive(GodotClass)]
 #[class(base=RefCounted)]
 struct PackedArrayTest {
     array: PackedByteArray,
