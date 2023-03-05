@@ -16,6 +16,7 @@ pub(crate) struct IntegrationTests {
     total: i64,
     passed: i64,
     skipped: i64,
+    focus_run: bool,
 }
 
 #[godot_api]
@@ -28,23 +29,33 @@ impl IntegrationTests {
             FMT_GREEN_BOLD, FMT_END
         );
 
-        let (rust_tests, rust_file_count) = super::collect_rust_tests();
+        let (rust_tests, rust_file_count, focus_run) = super::collect_rust_tests();
+        self.focus_run = focus_run;
+        if focus_run {
+            println!("  Focused run -- execute only selected Rust tests.")
+        }
         println!(
             "  Rust: found {} tests in {} files.",
             rust_tests.len(),
             rust_file_count
         );
-        println!(
-            "  GDScript: found {} tests in {} files.",
-            gdscript_tests.len(),
-            gdscript_file_count
-        );
+        if !focus_run {
+            println!(
+                "  GDScript: found {} tests in {} files.",
+                gdscript_tests.len(),
+                gdscript_file_count
+            );
+        }
 
         let clock = Instant::now();
         self.run_rust_tests(rust_tests);
         let rust_time = clock.elapsed();
-        self.run_gdscript_tests(gdscript_tests);
-        let gdscript_time = clock.elapsed() - rust_time;
+        let gdscript_time = if !focus_run {
+            self.run_gdscript_tests(gdscript_tests);
+            Some(clock.elapsed() - rust_time)
+        } else {
+            None
+        };
 
         self.conclude(rust_time, gdscript_time)
     }
@@ -76,7 +87,7 @@ impl IntegrationTests {
         }
     }
 
-    fn conclude(&self, rust_time: Duration, gdscript_time: Duration) -> bool {
+    fn conclude(&self, rust_time: Duration, gdscript_time: Option<Duration>) -> bool {
         let Self {
             total,
             passed,
@@ -91,17 +102,25 @@ impl IntegrationTests {
         let outcome = TestOutcome::from_bool(all_passed);
 
         let rust_time = rust_time.as_secs_f32();
-        let gdscript_time = gdscript_time.as_secs_f32();
-        let total_time = rust_time + gdscript_time;
+        let gdscript_time = gdscript_time.map(|t| t.as_secs_f32());
 
         let extra = if skipped > 0 {
             format!(", {skipped} skipped")
+        } else if gdscript_time.is_none() {
+            " (focused run)".to_string()
         } else {
             "".to_string()
         };
 
         println!("\nTest result: {outcome}. {passed} passed; {failed} failed{extra}.");
-        println!("  Time: {total_time:.2}s.  (Rust {rust_time:.2}s, GDScript {gdscript_time:.2}s)");
+        if let Some(gdscript_time) = gdscript_time {
+            let total_time = rust_time + gdscript_time;
+            println!(
+                "  Time: {total_time:.2}s.  (Rust {rust_time:.2}s, GDScript {gdscript_time:.2}s)"
+            );
+        } else {
+            println!("  Time: {rust_time:.2}s.");
+        }
         all_passed
     }
 

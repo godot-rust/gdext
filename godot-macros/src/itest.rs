@@ -52,6 +52,7 @@ pub fn transform(input_decl: Declaration) -> ParseResult<TokenStream> {
         ::godot::sys::plugin_add!(__GODOT_ITEST in crate; crate::RustTestCase {
             name: #test_name_str,
             skipped: #skipped,
+            focused: #focused,
             file: std::file!(),
             line: std::line!(),
             function: #test_name,
