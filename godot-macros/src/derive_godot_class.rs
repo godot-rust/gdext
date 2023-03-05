@@ -9,11 +9,9 @@ use crate::{util, ParseResult};
 use proc_macro2::{Ident, Punct, Span, TokenStream};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote};
-use venial::{Attribute, NamedField, Struct, StructFields, TyExpr};
+use venial::{Attribute, Declaration, NamedField, Struct, StructFields, TyExpr};
 
-pub fn transform(input: TokenStream) -> ParseResult<TokenStream> {
-    let decl = venial::parse_declaration(input)?;
-
+pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
     let class = decl
         .as_struct()
         .ok_or_else(|| venial::Error::new("Not a valid struct"))?;

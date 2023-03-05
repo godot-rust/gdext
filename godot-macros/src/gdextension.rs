@@ -9,15 +9,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use venial::Declaration;
 
-pub fn transform(meta: TokenStream, input: TokenStream) -> Result<TokenStream, venial::Error> {
-    // Hack because venial doesn't support direct meta parsing yet
-    let input = quote! {
-        #[gdextension(#meta)]
-        #input
-    };
-
-    let decl = venial::parse_declaration(input)?;
-
+pub fn transform(decl: Declaration) -> Result<TokenStream, venial::Error> {
     let mut impl_decl = match decl {
         Declaration::Impl(item) => item,
         _ => return bail("#[gdextension] can only be applied to trait impls", &decl),

@@ -13,8 +13,7 @@ use venial::{AttributeValue, Declaration, Error, Function, Impl, ImplMember};
 // Note: keep in sync with trait GodotExt
 const VIRTUAL_METHOD_NAMES: [&str; 3] = ["ready", "process", "physics_process"];
 
-pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
-    let input_decl = venial::parse_declaration(input)?;
+pub fn transform(input_decl: Declaration) -> Result<TokenStream, Error> {
     let decl = match input_decl {
         Declaration::Impl(decl) => decl,
         _ => bail(
