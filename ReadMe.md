@@ -76,8 +76,9 @@ This integrates a small game with Godot and has all the necessary steps set up.
 
 API documentation can be generated locally using `cargo doc -p godot --no-deps --open`.
 
-If you need help, join our [Discord] server and ask in the `#help-gdextension` channel!
+### Support
 
+If you need help, join our [Discord] server and ask in the `#help-gdextension` channel!
 
 ## License
 
