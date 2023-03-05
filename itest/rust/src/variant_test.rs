@@ -245,6 +245,28 @@ fn variant_sys_conversion() {
     assert_eq!(v2, v);
 }
 
+#[itest(skip)]
+fn variant_sys_conversion2() {
+    use godot::sys;
+
+    // FIXME alignment, maybe use alloc()
+    let mut buffer = [0u8; 50];
+
+    let v = Variant::from(7);
+    unsafe { v.write_sys(buffer.as_mut_ptr() as sys::GDExtensionTypePtr) };
+
+    let v2 = unsafe {
+        Variant::from_sys_init(|ptr| {
+            std::ptr::copy(
+                buffer.as_ptr(),
+                ptr as *mut u8,
+                std::mem::size_of_val(&*ptr),
+            )
+        })
+    };
+    assert_eq!(v2, v);
+}
+
 #[itest]
 fn variant_null_object_is_nil() {
     use godot::sys;
@@ -263,23 +285,6 @@ fn variant_null_object_is_nil() {
     assert_eq!(variant.get_type(), VariantType::Nil);
 
     node.free();
-}
-
-#[itest]
-fn variant_sys_conversion2() {
-    /*
-    let buffer = [0u8; 50];
-
-    let v = Variant::from(7);
-    unsafe { v.write_sys(buffer.as_mut_ptr()) };
-
-    let v2 = unsafe {
-        Variant::from_sys_init(|ptr| {
-            std::ptr::copy(buffer.as_ptr(), ptr as *mut u8, std::mem::size_of_val(*ptr))
-        })
-    };
-    assert_eq!(v2, v);
-    */
 }
 
 #[itest]

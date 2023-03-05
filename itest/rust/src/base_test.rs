@@ -7,12 +7,11 @@
 use crate::itest;
 use godot::prelude::*;
 
-/*
-#[itest]
+#[itest(skip)]
 fn base_test_is_weak() {
-    let obj = RefCounted::new();
+    // TODO check that Base is a weak pointer (doesn't keep the object alive)
+    // This might not be needed, as we have leak detection, but it could highlight regressions faster
 }
-*/
 
 #[itest]
 fn base_instance_id() {

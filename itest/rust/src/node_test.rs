@@ -6,7 +6,7 @@
 
 use crate::itest;
 use godot::builtin::NodePath;
-use godot::engine::{node, Node, Node3D, NodeExt};
+use godot::engine::{global, node, Node, Node3D, NodeExt, PackedScene, SceneTree};
 use godot::obj::Share;
 
 #[itest]
@@ -54,8 +54,7 @@ fn node_get_node_fail() {
     child.free();
 }
 
-/*
-#[itest]
+#[itest(skip)]
 fn node_scene_tree() {
     let mut child = Node::new_alloc();
     child.set_name("kid".into());
@@ -82,4 +81,3 @@ fn node_scene_tree() {
     parent.free();
     child.free();
 }
-*/

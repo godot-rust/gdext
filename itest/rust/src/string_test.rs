@@ -74,17 +74,17 @@ fn string_name_default_construct() {
     assert_eq!(back, GodotString::new());
 }
 
-#[itest]
+#[itest(skip)]
 fn string_name_eq_hash() {
     // TODO
 }
 
-#[itest]
+#[itest(skip)]
 fn string_name_ord() {
     // TODO
 }
 
-#[itest]
+#[itest(skip)]
 fn string_name_clone() {
     // TODO
 }
