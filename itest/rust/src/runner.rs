@@ -88,7 +88,7 @@ impl IntegrationTests {
         let failed = total - passed - skipped;
         let all_passed = failed == 0 && total != 0;
 
-        let outcome = TestOutcome::Passed; // TODO
+        let outcome = TestOutcome::from_bool(all_passed);
 
         let rust_time = rust_time.as_secs_f32();
         let gdscript_time = gdscript_time.as_secs_f32();

@@ -6,6 +6,8 @@
 
 use std::f32::consts::TAU;
 
+use super::Vector2;
+
 pub const CMP_EPSILON: f32 = 0.00001;
 
 pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
@@ -21,6 +23,18 @@ pub fn is_equal_approx(a: f32, b: f32) -> bool {
         tolerance = CMP_EPSILON;
     }
     (a - b).abs() < tolerance
+}
+
+/// Check if two angles are approximately equal, by comparing the distance
+/// between the points on the unit circle with 0 using [`is_equal_approx`].
+pub fn is_angle_equal_approx(a: f32, b: f32) -> bool {
+    let (x1, y1) = a.sin_cos();
+    let (x2, y2) = b.sin_cos();
+
+    is_equal_approx(
+        Vector2::distance_to(Vector2::new(x1, y1), Vector2::new(x2, y2)),
+        0.0,
+    )
 }
 
 pub fn is_zero_approx(s: f32) -> bool {
@@ -191,6 +205,15 @@ mod test {
     }
 
     #[test]
+    fn angle_equal_approx() {
+        assert_eq_approx!(1.0, 1.000001, is_angle_equal_approx);
+        assert_eq_approx!(0.0, TAU, is_angle_equal_approx);
+        assert_eq_approx!(PI, -PI, is_angle_equal_approx);
+        assert_eq_approx!(4.45783, -(TAU - 4.45783), is_angle_equal_approx);
+        assert_eq_approx!(31.0 * PI, -13.0 * PI, is_angle_equal_approx);
+    }
+
+    #[test]
     #[should_panic(expected = "I am inside format")]
     fn eq_approx_fail_with_message() {
         assert_eq_approx!(1.0, 2.0, is_equal_approx, "I am inside {}", "format");
@@ -198,22 +221,17 @@ mod test {
 
     #[test]
     fn lerp_angle_test() {
-        assert_eq_approx!(lerp_angle(0.0, PI, 0.5), -FRAC_PI_2, is_equal_approx);
+        assert_eq_approx!(lerp_angle(0.0, PI, 0.5), -FRAC_PI_2, is_angle_equal_approx);
         assert_eq_approx!(
             lerp_angle(0.0, PI + 3.0 * TAU, 0.5),
             FRAC_PI_2,
-            is_equal_approx
+            is_angle_equal_approx
         );
         let angle = PI * 2.0 / 3.0;
         assert_eq_approx!(
-            lerp_angle(-5.0 * TAU, angle + 3.0 * TAU, 0.5).sin(),
-            (angle / 2.0).sin(),
-            is_equal_approx
-        );
-        assert_eq_approx!(
-            lerp_angle(-5.0 * TAU, angle + 3.0 * TAU, 0.5).cos(),
-            (angle / 2.0).cos(),
-            is_equal_approx
+            lerp_angle(-5.0 * TAU, angle + 3.0 * TAU, 0.5),
+            (angle / 2.0),
+            is_angle_equal_approx
         );
     }
 }

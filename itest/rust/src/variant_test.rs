@@ -10,10 +10,16 @@ use godot::builtin::{
 };
 use godot::engine::Node2D;
 use godot::obj::InstanceId;
-use godot::prelude::{Array, Dictionary, VariantConversionError};
+use godot::prelude::{Array, Basis, Dictionary, VariantConversionError};
 use godot::sys::{GodotFfi, VariantOperator, VariantType};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
+
+const TEST_BASIS: Basis = Basis::from_rows(
+    Vector3::new(1.0, 2.0, 3.0),
+    Vector3::new(4.0, 5.0, 6.0),
+    Vector3::new(7.0, 8.0, 9.0),
+);
 
 #[itest]
 fn variant_nil() {
@@ -55,6 +61,9 @@ fn variant_conversions() {
     let str_val = "abcdefghijklmnop";
     let back = String::from_variant(&str_val.to_variant());
     assert_eq!(str_val, back.as_str());
+
+    // basis
+    roundtrip(TEST_BASIS);
 }
 
 #[itest]
@@ -75,6 +84,9 @@ fn variant_get_type() {
 
     let variant = gstr("hello").to_variant();
     assert_eq!(variant.get_type(), VariantType::String);
+
+    let variant = TEST_BASIS.to_variant();
+    assert_eq!(variant.get_type(), VariantType::Basis)
 }
 
 #[itest]
