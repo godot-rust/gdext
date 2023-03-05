@@ -11,6 +11,7 @@ categories = ["game-engines", "graphics"]
 default = ["codegen-full"]
 formatted = ["godot-core/codegen-fmt"]
 trace = ["godot-core/trace"]
+double-precision = ["godot-core/double-precision"]
 
 # Private features, they are under no stability guarantee
 codegen-full = ["godot-core/codegen-full"]

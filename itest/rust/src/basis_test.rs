@@ -143,7 +143,7 @@ fn basis_equiv() {
         assert_eq_approx!(
             inner,
             outer,
-            |a, b| is_equal_approx(a as f32, b),
+            |a, b| is_equal_approx(real::from_f64(a), b),
             "function: {name}\n"
         );
     }

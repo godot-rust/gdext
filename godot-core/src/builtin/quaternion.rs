@@ -11,23 +11,24 @@ use sys::{ffi_methods, GodotFfi};
 use crate::builtin::glam_helpers::{GlamConv, GlamType};
 use crate::builtin::{inner, math::*, vector3::*};
 
+use super::{real, RQuat};
 use super::{Basis, EulerOrder};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[repr(C)]
 pub struct Quaternion {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
-    pub w: f32,
+    pub x: real,
+    pub y: real,
+    pub z: real,
+    pub w: real,
 }
 
 impl Quaternion {
-    pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
+    pub fn new(x: real, y: real, z: real, w: real) -> Self {
         Self { x, y, z, w }
     }
 
-    pub fn from_angle_axis(axis: Vector3, angle: f32) -> Self {
+    pub fn from_angle_axis(axis: Vector3, angle: real) -> Self {
         let d = axis.length();
         if d == 0.0 {
             Self::new(0.0, 0.0, 0.0, 0.0)
@@ -43,12 +44,12 @@ impl Quaternion {
         }
     }
 
-    pub fn angle_to(self, to: Self) -> f32 {
-        self.glam2(&to, glam::f32::Quat::angle_between)
+    pub fn angle_to(self, to: Self) -> real {
+        self.glam2(&to, RQuat::angle_between)
     }
 
-    pub fn dot(self, with: Self) -> f32 {
-        self.glam2(&with, glam::f32::Quat::dot)
+    pub fn dot(self, with: Self) -> real {
+        self.glam2(&with, RQuat::dot)
     }
 
     pub fn to_exp(self) -> Self {
@@ -82,7 +83,7 @@ impl Quaternion {
         )
     }
 
-    pub fn get_angle(self) -> f32 {
+    pub fn get_angle(self) -> real {
         2.0 * self.w.acos()
     }
 
@@ -121,11 +122,11 @@ impl Quaternion {
         is_equal_approx(self.length_squared(), 1.0)
     }
 
-    pub fn length(self) -> f32 {
+    pub fn length(self) -> real {
         self.length_squared().sqrt()
     }
 
-    pub fn length_squared(self) -> f32 {
+    pub fn length_squared(self) -> real {
         self.dot(self)
     }
 
@@ -138,13 +139,13 @@ impl Quaternion {
         self / self.length()
     }
 
-    pub fn slerp(self, to: Self, weight: f32) -> Self {
+    pub fn slerp(self, to: Self, weight: real) -> Self {
         let mut cosom = self.dot(to);
         let to1: Self;
-        let omega: f32;
-        let sinom: f32;
-        let scale0: f32;
-        let scale1: f32;
+        let omega: real;
+        let sinom: real;
+        let scale0: real;
+        let scale1: real;
         if cosom < 0.0 {
             cosom = -cosom;
             to1 = -to;
@@ -165,7 +166,7 @@ impl Quaternion {
         scale0 * self + scale1 * to1
     }
 
-    pub fn slerpni(self, to: Self, weight: f32) -> Self {
+    pub fn slerpni(self, to: Self, weight: real) -> Self {
         let dot = self.dot(to);
         if dot.abs() > 0.9999 {
             return self;
@@ -178,7 +179,7 @@ impl Quaternion {
         inv_factor * self + new_factor * to
     }
 
-    // pub fn spherical_cubic_interpolate(self, b: Self, pre_a: Self, post_b: Self, weight: f32) -> Self {}
+    // pub fn spherical_cubic_interpolate(self, b: Self, pre_a: Self, post_b: Self, weight: real) -> Self {}
     // TODO: Implement godot's function in rust
     /*
         pub fn spherical_cubic_interpolate_in_time(
@@ -186,10 +187,10 @@ impl Quaternion {
             b: Self,
             pre_a: Self,
             post_b: Self,
-            weight: f32,
-            b_t: f32,
-            pre_a_t: f32,
-            post_b_t: f32,
+            weight: real,
+            b_t: real,
+            pre_a_t: real,
+            post_b_t: real,
         ) -> Self {
         }
     */
@@ -242,7 +243,7 @@ impl Mul<Quaternion> for Quaternion {
     type Output = Self;
 
     fn mul(self, other: Quaternion) -> Self {
-        // TODO use glam?
+        // TODO use super::glam?
 
         let x = self.w * other.x + self.x * other.w + self.y * other.z - self.z * other.y;
         let y = self.w * other.y + self.y * other.w + self.z * other.x - self.x * other.z;
@@ -270,10 +271,10 @@ impl Default for Quaternion {
 }
 
 impl GlamConv for Quaternion {
-    type Glam = glam::f32::Quat;
+    type Glam = RQuat;
 }
 
-impl GlamType for glam::f32::Quat {
+impl GlamType for RQuat {
     type Mapped = Quaternion;
 
     fn to_front(&self) -> Self::Mapped {
@@ -281,7 +282,7 @@ impl GlamType for glam::f32::Quat {
     }
 
     fn from_front(mapped: &Self::Mapped) -> Self {
-        glam::f32::Quat::from_xyzw(mapped.x, mapped.y, mapped.z, mapped.w)
+        RQuat::from_xyzw(mapped.x, mapped.y, mapped.z, mapped.w)
     }
 }
 
@@ -291,10 +292,10 @@ impl MulAssign<Quaternion> for Quaternion {
     }
 }
 
-impl Mul<f32> for Quaternion {
+impl Mul<real> for Quaternion {
     type Output = Self;
 
-    fn mul(self, other: f32) -> Self {
+    fn mul(self, other: real) -> Self {
         Quaternion::new(
             self.x * other,
             self.y * other,
@@ -304,7 +305,7 @@ impl Mul<f32> for Quaternion {
     }
 }
 
-impl Mul<Quaternion> for f32 {
+impl Mul<Quaternion> for real {
     type Output = Quaternion;
 
     fn mul(self, other: Quaternion) -> Quaternion {
@@ -312,16 +313,16 @@ impl Mul<Quaternion> for f32 {
     }
 }
 
-impl MulAssign<f32> for Quaternion {
-    fn mul_assign(&mut self, other: f32) {
+impl MulAssign<real> for Quaternion {
+    fn mul_assign(&mut self, other: real) {
         *self = *self * other
     }
 }
 
-impl Div<f32> for Quaternion {
+impl Div<real> for Quaternion {
     type Output = Self;
 
-    fn div(self, other: f32) -> Self {
+    fn div(self, other: real) -> Self {
         Self::new(
             self.x / other,
             self.y / other,
@@ -331,8 +332,8 @@ impl Div<f32> for Quaternion {
     }
 }
 
-impl DivAssign<f32> for Quaternion {
-    fn div_assign(&mut self, other: f32) {
+impl DivAssign<real> for Quaternion {
+    fn div_assign(&mut self, other: real) {
         *self = *self / other
     }
 }

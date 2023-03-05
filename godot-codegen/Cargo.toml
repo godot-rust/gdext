@@ -10,6 +10,7 @@ categories = ["game-engines", "graphics"]
 [features]
 codegen-fmt = []
 codegen-full = []
+double-precision = []
 
 [dependencies]
 quote = "1"

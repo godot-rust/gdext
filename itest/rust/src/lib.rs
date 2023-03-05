@@ -23,6 +23,8 @@ mod packed_array_test;
 mod quaternion_test;
 mod singleton_test;
 mod string_test;
+mod transform2d_test;
+mod transform3d_test;
 mod utilities_test;
 mod variant_test;
 mod virtual_methods_test;

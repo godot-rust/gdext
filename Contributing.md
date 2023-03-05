@@ -60,5 +60,16 @@ $ cargo fmt
 $ check.sh clippy
 ```
 
+## Real
+
+Certain types in Godot use either a single or double-precision float internally, such as `Vector2`. When using these types we 
+use the `real` type instead of choosing either `f32` or `f64`. Thus our code is portable between Godot binaries compiled with
+`precision=single` or `precision=double`.
+
+To run the testing suite with `double-precision` enabled you may add `--double` to a `check.sh` invocation:
+```
+$ check.sh --double
+```
+
 [GitHub issue]: https://github.com/godot-rust/gdextension/issues
 [Discord]: https://discord.gg/aKUCJ8rJsc

@@ -104,7 +104,7 @@ impl Main {
             let range = rng.gen_range(mob.min_speed..mob.max_speed);
 
             mob.set_linear_velocity(Vector2::new(range, 0.0));
-            let lin_vel = mob.get_linear_velocity().rotated(direction as f32);
+            let lin_vel = mob.get_linear_velocity().rotated(real::from_f64(direction));
             mob.set_linear_velocity(lin_vel);
         }
 

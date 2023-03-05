@@ -167,7 +167,7 @@ macro_rules! impl_vector_operators {
     (
         // Name of the vector type to be implemented, for example `Vector2`.
         $Vector:ty,
-        // Type of each individual component, for example `f32`.
+        // Type of each individual component, for example `real`.
         $Scalar:ty,
         // Names of the components, with parentheses, for example `(x, y)`.
         ($($components:ident),*)
@@ -194,7 +194,7 @@ macro_rules! impl_vector_index {
     (
         // Name of the vector type to be implemented, for example `Vector2`.
         $Vector:ty,
-        // Type of each individual component, for example `f32`.
+        // Type of each individual component, for example `real`.
         $Scalar:ty,
         // Names of the components, with parentheses, for example `(x, y)`.
         ($($components:ident),*),
@@ -228,7 +228,7 @@ macro_rules! impl_common_vector_fns {
     (
         // Name of the vector type.
         $Vector:ty,
-        // Type of target component, for example `f32`.
+        // Type of target component, for example `real`.
         $Scalar:ty
     ) => {
         impl $Vector {
@@ -248,7 +248,7 @@ macro_rules! impl_float_vector_fns {
     (
         // Name of the vector type.
         $Vector:ty,
-        // Type of target component, for example `f32`.
+        // Type of target component, for example `real`.
         $Scalar:ty
     ) => {
         impl $Vector {

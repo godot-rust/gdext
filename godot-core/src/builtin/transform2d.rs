@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-use std::{f32::consts::PI, fmt::Display, ops::*};
+use std::{fmt::Display, ops::*};
 
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
@@ -11,7 +11,8 @@ use sys::{ffi_methods, GodotFfi};
 use super::glam_helpers::{GlamConv, GlamType};
 use super::{math::*, Vector2};
 
-use glam;
+use super::real_consts::PI;
+use super::{real, RAffine2, RMat2};
 
 /// Affine 2D transform (2x3 matrix).
 ///
@@ -76,7 +77,7 @@ impl Transform2D {
     }
 
     /// Create a new `Transform2D` which will rotate by the given angle.
-    pub fn from_angle(angle: f32) -> Self {
+    pub fn from_angle(angle: real) -> Self {
         Self::from_angle_origin(angle, Vector2::ZERO)
     }
 
@@ -84,7 +85,7 @@ impl Transform2D {
     /// by `origin`.
     ///
     /// _Godot equivalent: `Transform2D(float rotation, Vector2 position)`_
-    pub fn from_angle_origin(angle: f32, origin: Vector2) -> Self {
+    pub fn from_angle_origin(angle: real, origin: Vector2) -> Self {
         Self::from_basis_origin(Basis2D::from_angle(angle), origin)
     }
 
@@ -93,9 +94,9 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D(float rotation, Vector2 scale, float skew, Vector2 position)`_
     pub fn from_angle_scale_skew_origin(
-        angle: f32,
+        angle: real,
         scale: Vector2,
-        skew: f32,
+        skew: real,
         origin: Vector2,
     ) -> Self {
         // Translated from Godot's implementation
@@ -136,7 +137,7 @@ impl Transform2D {
     /// Returns the transform's rotation (in radians).
     ///
     /// _Godot equivalent: `Transform2D.get_rotation()`_
-    pub fn rotation(&self) -> f32 {
+    pub fn rotation(&self) -> real {
         self.basis().rotation()
     }
 
@@ -152,7 +153,7 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.get_skew()`_
     #[must_use]
-    pub fn skew(&self) -> f32 {
+    pub fn skew(&self) -> real {
         self.basis().skew()
     }
 
@@ -161,7 +162,7 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.interpolate_with()`_
     #[must_use]
-    pub fn interpolate_with(self, other: Self, weight: f32) -> Self {
+    pub fn interpolate_with(self, other: Self, weight: real) -> Self {
         Self::from_angle_scale_skew_origin(
             lerp_angle(self.rotation(), other.rotation(), weight),
             self.scale().lerp(other.scale(), weight),
@@ -204,7 +205,7 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.rotated()`_
     #[must_use]
-    pub fn rotated(self, angle: f32) -> Self {
+    pub fn rotated(self, angle: real) -> Self {
         Self::from_angle(angle) * self
     }
 
@@ -215,7 +216,7 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.rotated_local()`_
     #[must_use]
-    pub fn rotated_local(self, angle: f32) -> Self {
+    pub fn rotated_local(self, angle: real) -> Self {
         self * Self::from_angle(angle)
     }
 
@@ -311,15 +312,15 @@ impl Mul<Vector2> for Transform2D {
     }
 }
 
-impl Mul<f32> for Transform2D {
+impl Mul<real> for Transform2D {
     type Output = Self;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: real) -> Self::Output {
         Self::from_cols(self.a * rhs, self.b * rhs, self.origin * rhs)
     }
 }
 
-impl GlamType for glam::Affine2 {
+impl GlamType for RAffine2 {
     type Mapped = Transform2D;
 
     fn to_front(&self) -> Self::Mapped {
@@ -335,7 +336,7 @@ impl GlamType for glam::Affine2 {
 }
 
 impl GlamConv for Transform2D {
-    type Glam = glam::Affine2;
+    type Glam = RAffine2;
 }
 
 impl GodotFfi for Transform2D {
@@ -369,7 +370,7 @@ impl Basis2D {
     pub(crate) const FLIP_Y: Self = Self::from_diagonal(1.0, -1.0);
 
     /// Create a diagonal matrix from the given values.
-    pub(crate) const fn from_diagonal(x: f32, y: f32) -> Self {
+    pub(crate) const fn from_diagonal(x: real, y: real) -> Self {
         Self::from_cols(Vector2::new(x, 0.0), Vector2::new(0.0, y))
     }
 
@@ -379,8 +380,8 @@ impl Basis2D {
     }
 
     /// Create a `Basis2D` from an angle.
-    pub(crate) fn from_angle(angle: f32) -> Self {
-        glam::Mat2::from_angle(angle).to_front()
+    pub(crate) fn from_angle(angle: real) -> Self {
+        RMat2::from_angle(angle).to_front()
     }
 
     /// Returns the scale of the matrix.
@@ -399,7 +400,7 @@ impl Basis2D {
     }
 
     /// Returns the determinant of the matrix.
-    pub(crate) fn determinant(&self) -> f32 {
+    pub(crate) fn determinant(&self) -> real {
         self.glam(|mat| mat.determinant())
     }
 
@@ -429,14 +430,14 @@ impl Basis2D {
     }
 
     /// Returns the rotation of the matrix
-    pub(crate) fn rotation(&self) -> f32 {
+    pub(crate) fn rotation(&self) -> real {
         // Translated from Godot
-        f32::atan2(self.cols[0].y, self.cols[0].x)
+        real::atan2(self.cols[0].y, self.cols[0].x)
     }
 
     /// Returns the skew of the matrix
     #[must_use]
-    pub(crate) fn skew(&self) -> f32 {
+    pub(crate) fn skew(&self) -> real {
         // Translated from Godot
         let det_sign = self.determinant().signum();
         self.cols[0]
@@ -487,16 +488,16 @@ impl Mul for Basis2D {
     }
 }
 
-impl Mul<f32> for Basis2D {
+impl Mul<real> for Basis2D {
     type Output = Self;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: real) -> Self::Output {
         (self.to_glam() * rhs).to_front()
     }
 }
 
-impl MulAssign<f32> for Basis2D {
-    fn mul_assign(&mut self, rhs: f32) {
+impl MulAssign<real> for Basis2D {
+    fn mul_assign(&mut self, rhs: real) {
         self.cols[0] *= rhs;
         self.cols[1] *= rhs;
     }
@@ -510,7 +511,7 @@ impl Mul<Vector2> for Basis2D {
     }
 }
 
-impl GlamType for glam::Mat2 {
+impl GlamType for RMat2 {
     type Mapped = Basis2D;
 
     fn to_front(&self) -> Self::Mapped {
@@ -525,7 +526,7 @@ impl GlamType for glam::Mat2 {
 }
 
 impl GlamConv for Basis2D {
-    type Glam = glam::Mat2;
+    type Glam = RMat2;
 }
 
 #[cfg(test)]
@@ -536,11 +537,12 @@ mod test {
 
     #[test]
     fn transform2d_constructors_correct() {
-        let trans = Transform2D::from_angle(115.0f32.to_radians());
-        assert_eq_approx!(trans.rotation(), 115.0f32.to_radians(), is_equal_approx);
+        let trans = Transform2D::from_angle(real!(115.0).to_radians());
+        assert_eq_approx!(trans.rotation(), real!(115.0).to_radians(), is_equal_approx);
 
-        let trans = Transform2D::from_angle_origin((-80.0f32).to_radians(), Vector2::new(1.4, 9.8));
-        assert_eq_approx!(trans.rotation(), (-80.0f32).to_radians(), is_equal_approx);
+        let trans =
+            Transform2D::from_angle_origin(real!(-80.0).to_radians(), Vector2::new(1.4, 9.8));
+        assert_eq_approx!(trans.rotation(), real!(-80.0).to_radians(), is_equal_approx);
         assert_eq_approx!(
             trans.origin,
             Vector2::new(1.4, 9.8),
@@ -548,18 +550,18 @@ mod test {
         );
 
         let trans = Transform2D::from_angle_scale_skew_origin(
-            170.0f32.to_radians(),
+            real!(170.0).to_radians(),
             Vector2::new(3.6, 8.0),
-            20.0f32.to_radians(),
+            real!(20.0).to_radians(),
             Vector2::new(2.4, 6.8),
         );
-        assert_eq_approx!(trans.rotation(), 170.0f32.to_radians(), is_equal_approx);
+        assert_eq_approx!(trans.rotation(), real!(170.0).to_radians(), is_equal_approx);
         assert_eq_approx!(
             trans.scale(),
             Vector2::new(3.6, 8.0),
             Vector2::is_equal_approx
         );
-        assert_eq_approx!(trans.skew(), 20.0f32.to_radians(), is_equal_approx);
+        assert_eq_approx!(trans.skew(), real!(20.0).to_radians(), is_equal_approx);
         assert_eq_approx!(
             trans.origin,
             Vector2::new(2.4, 6.8),
@@ -628,16 +630,16 @@ mod test {
     #[test]
     fn interpolation() {
         let rotate_scale_skew_pos: Transform2D = Transform2D::from_angle_scale_skew_origin(
-            170.0f32.to_radians(),
+            real!(170.0).to_radians(),
             Vector2::new(3.6, 8.0),
-            20.0f32.to_radians(),
+            real!(20.0).to_radians(),
             Vector2::new(2.4, 6.8),
         );
 
         let rotate_scale_skew_pos_halfway: Transform2D = Transform2D::from_angle_scale_skew_origin(
-            85.0f32.to_radians(),
+            real!(85.0).to_radians(),
             Vector2::new(2.3, 4.5),
-            10.0f32.to_radians(),
+            real!(10.0).to_radians(),
             Vector2::new(1.2, 3.4),
         );
         let interpolated: Transform2D =
@@ -678,7 +680,7 @@ mod test {
     #[test]
     fn finite_number_checks() {
         let x: Vector2 = Vector2::new(0.0, 1.0);
-        let infinite: Vector2 = Vector2::new(f32::NAN, f32::NAN);
+        let infinite: Vector2 = Vector2::new(real::NAN, real::NAN);
 
         assert!(
             Transform2D::from_basis_origin(Basis2D::from_cols(x, x), x).is_finite(),

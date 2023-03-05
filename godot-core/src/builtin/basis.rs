@@ -4,15 +4,15 @@ use std::cmp::Ordering;
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-use std::{f32::consts::FRAC_PI_2, fmt::Display, ops::*};
+use std::{fmt::Display, ops::*};
 
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use super::glam_helpers::{GlamConv, GlamType};
+use super::real_consts::FRAC_PI_2;
 use super::{math::*, Quaternion, Vector3};
-
-use glam;
+use super::{real, RMat3, RQuat, RVec2, RVec3};
 
 /// A 3x3 matrix, typically used as an orthogonal basis for [`Transform3D`](crate::builtin::Transform3D).
 ///
@@ -67,12 +67,12 @@ impl Basis {
     /// Create a `Basis` from an axis and angle.
     ///
     /// _Godot equivalent: `Basis(Vector3 axis, float angle)`_
-    pub fn from_axis_angle(axis: Vector3, angle: f32) -> Self {
-        glam::Mat3::from_axis_angle(axis.to_glam(), angle).to_front()
+    pub fn from_axis_angle(axis: Vector3, angle: real) -> Self {
+        RMat3::from_axis_angle(axis.to_glam(), angle).to_front()
     }
 
     /// Create a diagonal matrix from the given values.
-    pub const fn from_diagonal(x: f32, y: f32, z: f32) -> Self {
+    pub const fn from_diagonal(x: real, y: real, z: real) -> Self {
         Self {
             rows: [
                 Vector3::new(x, 0.0, 0.0),
@@ -89,7 +89,7 @@ impl Basis {
         Self::from_diagonal(scale.x, scale.y, scale.z)
     }
 
-    const fn from_rows_array(rows: &[f32; 9]) -> Self {
+    const fn from_rows_array(rows: &[real; 9]) -> Self {
         let [ax, bx, cx, ay, by, cy, az, bz, cz] = rows;
         Self::from_rows(
             Vector3::new(*ax, *bx, *cx),
@@ -102,7 +102,7 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis(Quaternion from)`_
     pub fn from_quat(quat: Quaternion) -> Self {
-        glam::Mat3::from_quat(quat.to_glam()).to_front()
+        RMat3::from_quat(quat.to_glam()).to_front()
     }
 
     /// Create a `Basis` from three angles `a`, `b`, and `c` interpreted
@@ -156,10 +156,10 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis()`_
     pub fn to_quat(self) -> Quaternion {
-        glam::Quat::from_mat3(&self.orthonormalized().to_glam()).to_front()
+        RQuat::from_mat3(&self.orthonormalized().to_glam()).to_front()
     }
 
-    const fn to_rows_array(self) -> [f32; 9] {
+    const fn to_rows_array(self) -> [real; 9] {
         let [Vector3 {
             x: ax,
             y: bx,
@@ -220,9 +220,9 @@ impl Basis {
         if let Some(pure_rotation) = match order {
             EulerOrder::XYZ => self
                 .to_euler_pure_rotation(major, 1, row_a.zx())
-                .map(glam::Vec3::yxz),
+                .map(RVec3::yxz),
             EulerOrder::YXZ => {
-                self.to_euler_pure_rotation(major, 0, glam::Vec2::new(-major, self.rows[1].y))
+                self.to_euler_pure_rotation(major, 0, RVec2::new(-major, self.rows[1].y))
             }
             _ => None,
         } {
@@ -256,7 +256,7 @@ impl Basis {
         .to_front()
     }
 
-    fn is_between_neg1_1(f: f32) -> Ordering {
+    fn is_between_neg1_1(f: real) -> Ordering {
         if f >= (1.0 - CMP_EPSILON) {
             Ordering::Greater
         } else if f <= -(1.0 - CMP_EPSILON) {
@@ -285,10 +285,10 @@ impl Basis {
     #[allow(clippy::wrong_self_convention)]
     fn to_euler_pure_rotation(
         &self,
-        major: f32,
+        major: real,
         index: usize,
-        rotation_vec: glam::Vec2,
-    ) -> Option<glam::Vec3> {
+        rotation_vec: RVec2,
+    ) -> Option<RVec3> {
         if Self::is_between_neg1_1(major).is_ne() {
             return None;
         }
@@ -297,37 +297,32 @@ impl Basis {
             return None;
         }
 
-        Some(glam::Vec3::new(
-            f32::atan2(rotation_vec.x, rotation_vec.y),
+        Some(RVec3::new(
+            real::atan2(rotation_vec.x, rotation_vec.y),
             0.0,
             0.0,
         ))
     }
 
-    fn to_euler_inner(
-        major: f32,
-        pair0: glam::Vec2,
-        pair1: glam::Vec2,
-        pair2: glam::Vec2,
-    ) -> glam::Vec3 {
+    fn to_euler_inner(major: real, pair0: RVec2, pair1: RVec2, pair2: RVec2) -> RVec3 {
         match Self::is_between_neg1_1(major) {
             // It's -1
-            Ordering::Less => glam::Vec3::new(FRAC_PI_2, -f32::atan2(pair2.x, pair2.y), 0.0),
+            Ordering::Less => RVec3::new(FRAC_PI_2, -real::atan2(pair2.x, pair2.y), 0.0),
             // Is it a pure rotation?
-            Ordering::Equal => glam::Vec3::new(
-                f32::asin(-major),
-                f32::atan2(pair0.x, pair0.y),
-                f32::atan2(pair1.x, pair1.y),
+            Ordering::Equal => RVec3::new(
+                real::asin(-major),
+                real::atan2(pair0.x, pair0.y),
+                real::atan2(pair1.x, pair1.y),
             ),
             // It's 1
-            Ordering::Greater => glam::Vec3::new(-FRAC_PI_2, -f32::atan2(pair2.x, pair2.y), 0.0),
+            Ordering::Greater => RVec3::new(-FRAC_PI_2, -real::atan2(pair2.x, pair2.y), 0.0),
         }
     }
 
     /// Returns the determinant of the matrix.
     ///
     /// _Godot equivalent: `Basis.determinant()`_
-    pub fn determinant(&self) -> f32 {
+    pub fn determinant(&self) -> real {
         self.to_glam().determinant()
     }
 
@@ -386,7 +381,7 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis.rotated()`_
     #[must_use]
-    pub fn rotated(self, axis: Vector3, angle: f32) -> Self {
+    pub fn rotated(self, axis: Vector3, angle: real) -> Self {
         Self::from_axis_angle(axis, angle) * self
     }
 
@@ -395,7 +390,7 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis.slerp()`_
     #[must_use]
-    pub fn slerp(self, other: Self, weight: f32) -> Self {
+    pub fn slerp(self, other: Self, weight: real) -> Self {
         let from = self.to_quat();
         let to = other.to_quat();
 
@@ -412,7 +407,7 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis.tdotx()`_
     #[must_use]
-    pub fn tdotx(&self, with: Vector3) -> f32 {
+    pub fn tdotx(&self, with: Vector3) -> real {
         self.col_a().dot(with)
     }
 
@@ -420,7 +415,7 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis.tdoty()`_
     #[must_use]
-    pub fn tdoty(&self, with: Vector3) -> f32 {
+    pub fn tdoty(&self, with: Vector3) -> real {
         self.col_b().dot(with)
     }
 
@@ -428,7 +423,7 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis.tdotz()`_
     #[must_use]
-    pub fn tdotz(&self, with: Vector3) -> f32 {
+    pub fn tdotz(&self, with: Vector3) -> real {
         self.col_c().dot(with)
     }
 
@@ -508,10 +503,10 @@ impl Display for Basis {
 }
 
 impl GlamConv for Basis {
-    type Glam = glam::Mat3;
+    type Glam = RMat3;
 }
 
-impl GlamType for glam::Mat3 {
+impl GlamType for RMat3 {
     type Mapped = Basis;
 
     fn to_front(&self) -> Self::Mapped {
@@ -523,6 +518,7 @@ impl GlamType for glam::Mat3 {
     }
 }
 
+#[cfg(not(feature = "double-precision"))]
 impl GlamType for glam::Mat3A {
     type Mapped = Basis;
 
@@ -549,17 +545,17 @@ impl Mul for Basis {
     }
 }
 
-impl Mul<f32> for Basis {
+impl Mul<real> for Basis {
     type Output = Self;
 
-    fn mul(mut self, rhs: f32) -> Self::Output {
+    fn mul(mut self, rhs: real) -> Self::Output {
         self *= rhs;
         self
     }
 }
 
-impl MulAssign<f32> for Basis {
-    fn mul_assign(&mut self, rhs: f32) {
+impl MulAssign<real> for Basis {
+    fn mul_assign(&mut self, rhs: real) {
         self.rows[0] *= rhs;
         self.rows[1] *= rhs;
         self.rows[2] *= rhs;
@@ -593,7 +589,7 @@ pub enum EulerOrder {
 
 #[cfg(test)]
 mod test {
-    use std::f32::consts::{FRAC_PI_2, PI};
+    use crate::builtin::real_consts::{FRAC_PI_2, PI};
 
     use crate::assert_eq_approx;
 
@@ -799,7 +795,7 @@ mod test {
     #[test]
     fn basis_finite_number_test() {
         let x: Vector3 = Vector3::new(0.0, 1.0, 2.0);
-        let infinite: Vector3 = Vector3::new(f32::NAN, f32::NAN, f32::NAN);
+        let infinite: Vector3 = Vector3::new(real::NAN, real::NAN, real::NAN);
 
         assert!(
             Basis::from_cols(x, x, x).is_finite(),

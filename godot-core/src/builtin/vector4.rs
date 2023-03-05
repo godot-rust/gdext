@@ -6,13 +6,13 @@
 
 use std::fmt;
 
-use glam::Vec4;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::Vector4i;
 
 use super::glam_helpers::{GlamConv, GlamType};
+use super::{real, RVec4};
 
 /// Vector used for 4D math using floating point coordinates.
 ///
@@ -27,38 +27,38 @@ use super::glam_helpers::{GlamConv, GlamType};
 #[repr(C)]
 pub struct Vector4 {
     /// The vector's X component.
-    pub x: f32,
+    pub x: real,
     /// The vector's Y component.
-    pub y: f32,
+    pub y: real,
     /// The vector's Z component.
-    pub z: f32,
+    pub z: real,
     /// The vector's W component.
-    pub w: f32,
+    pub w: real,
 }
 
-impl_vector_operators!(Vector4, f32, (x, y, z, w));
-impl_vector_index!(Vector4, f32, (x, y, z, w), Vector4Axis, (X, Y, Z, W));
-impl_common_vector_fns!(Vector4, f32);
-impl_float_vector_fns!(Vector4, f32);
+impl_vector_operators!(Vector4, real, (x, y, z, w));
+impl_vector_index!(Vector4, real, (x, y, z, w), Vector4Axis, (X, Y, Z, W));
+impl_common_vector_fns!(Vector4, real);
+impl_float_vector_fns!(Vector4, real);
 
 impl Vector4 {
     /// Returns a `Vector4` with the given components.
-    pub const fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
+    pub const fn new(x: real, y: real, z: real, w: real) -> Self {
         Self { x, y, z, w }
     }
 
     /// Returns a new `Vector4` with all components set to `v`.
-    pub const fn splat(v: f32) -> Self {
+    pub const fn splat(v: real) -> Self {
         Self::new(v, v, v, v)
     }
 
     /// Constructs a new `Vector3` from a [`Vector3i`].
     pub const fn from_vector4i(v: Vector4i) -> Self {
         Self {
-            x: v.x as f32,
-            y: v.y as f32,
-            z: v.z as f32,
-            w: v.w as f32,
+            x: v.x as real,
+            y: v.y as real,
+            z: v.z as real,
+            w: v.w as real,
         }
     }
 
@@ -68,17 +68,17 @@ impl Vector4 {
     /// One vector, a vector with all components set to `1.0`.
     pub const ONE: Self = Self::splat(1.0);
 
-    /// Infinity vector, a vector with all components set to `f32::INFINITY`.
-    pub const INF: Self = Self::splat(f32::INFINITY);
+    /// Infinity vector, a vector with all components set to `real::INFINITY`.
+    pub const INF: Self = Self::splat(real::INFINITY);
 
     /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: glam::Vec4) -> Self {
+    fn from_glam(v: RVec4) -> Self {
         Self::new(v.x, v.y, v.z, v.w)
     }
 
     /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> glam::Vec4 {
-        glam::Vec4::new(self.x, self.y, self.z, self.w)
+    fn to_glam(self) -> RVec4 {
+        RVec4::new(self.x, self.y, self.z, self.w)
     }
 }
 
@@ -111,7 +111,7 @@ impl GodotFfi for Vector4Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl GlamType for Vec4 {
+impl GlamType for RVec4 {
     type Mapped = Vector4;
 
     fn to_front(&self) -> Self::Mapped {
@@ -119,10 +119,10 @@ impl GlamType for Vec4 {
     }
 
     fn from_front(mapped: &Self::Mapped) -> Self {
-        Vec4::new(mapped.x, mapped.y, mapped.z, mapped.w)
+        RVec4::new(mapped.x, mapped.y, mapped.z, mapped.w)
     }
 }
 
 impl GlamConv for Vector4 {
-    type Glam = Vec4;
+    type Glam = RVec4;
 }

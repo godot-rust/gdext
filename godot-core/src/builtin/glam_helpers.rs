@@ -15,6 +15,8 @@
 //   self.glam().dot(b.glam())
 //   GlamType::dot(self.glam(), b.glam())
 
+use super::real;
+
 pub(crate) trait GlamConv {
     type Glam: GlamType<Mapped = Self>;
 
@@ -70,6 +72,6 @@ macro_rules! impl_glam_map_self {
     };
 }
 
-impl_glam_map_self!(f32);
+impl_glam_map_self!(real);
 impl_glam_map_self!(bool);
-impl_glam_map_self!((f32, f32, f32));
+impl_glam_map_self!((real, real, real));

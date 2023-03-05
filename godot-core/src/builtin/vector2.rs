@@ -6,7 +6,6 @@
 use std::fmt;
 use std::ops::*;
 
-use glam::Vec2;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
@@ -15,6 +14,7 @@ use crate::builtin::{inner, Vector2i};
 
 use super::glam_helpers::GlamConv;
 use super::glam_helpers::GlamType;
+use super::{real, RAffine2, RVec2};
 
 /// Vector used for 2D math using floating point coordinates.
 ///
@@ -30,9 +30,9 @@ use super::glam_helpers::GlamType;
 #[repr(C)]
 pub struct Vector2 {
     /// The vector's X component.
-    pub x: f32,
+    pub x: real,
     /// The vector's Y component.
-    pub y: f32,
+    pub y: real,
 }
 
 impl Vector2 {
@@ -42,8 +42,8 @@ impl Vector2 {
     /// Vector with all components set to `1.0`.
     pub const ONE: Self = Self::splat(1.0);
 
-    /// Vector with all components set to `f32::INFINITY`.
-    pub const INF: Self = Self::splat(f32::INFINITY);
+    /// Vector with all components set to `real::INFINITY`.
+    pub const INF: Self = Self::splat(real::INFINITY);
 
     /// Unit vector in -X direction (right in 2D coordinate system).
     pub const LEFT: Self = Self::new(-1.0, 0.0);
@@ -58,61 +58,61 @@ impl Vector2 {
     pub const DOWN: Self = Self::new(0.0, 1.0);
 
     /// Constructs a new `Vector2` from the given `x` and `y`.
-    pub const fn new(x: f32, y: f32) -> Self {
+    pub const fn new(x: real, y: real) -> Self {
         Self { x, y }
     }
 
     /// Constructs a new `Vector2` with both components set to `v`.
-    pub const fn splat(v: f32) -> Self {
+    pub const fn splat(v: real) -> Self {
         Self::new(v, v)
     }
 
     /// Constructs a new `Vector2` from a [`Vector2i`].
     pub const fn from_vector2i(v: Vector2i) -> Self {
         Self {
-            x: v.x as f32,
-            y: v.y as f32,
+            x: v.x as real,
+            y: v.y as real,
         }
     }
 
     /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: glam::Vec2) -> Self {
+    fn from_glam(v: RVec2) -> Self {
         Self::new(v.x, v.y)
     }
 
     /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> glam::Vec2 {
-        glam::Vec2::new(self.x, self.y)
+    fn to_glam(self) -> RVec2 {
+        RVec2::new(self.x, self.y)
     }
 
-    pub fn angle(self) -> f32 {
+    pub fn angle(self) -> real {
         self.y.atan2(self.x)
     }
 
-    pub fn angle_to(self, to: Self) -> f32 {
+    pub fn angle_to(self, to: Self) -> real {
         self.to_glam().angle_between(to.to_glam())
     }
 
-    pub fn angle_to_point(self, to: Self) -> f32 {
+    pub fn angle_to_point(self, to: Self) -> real {
         (to - self).angle()
     }
 
-    pub fn aspect(self) -> f32 {
+    pub fn aspect(self) -> real {
         self.x / self.y
     }
 
-    pub fn lerp(self, other: Self, weight: f32) -> Self {
+    pub fn lerp(self, other: Self, weight: real) -> Self {
         Self::new(lerp(self.x, other.x, weight), lerp(self.y, other.y, weight))
     }
 
-    pub fn bezier_derivative(self, control_1: Self, control_2: Self, end: Self, t: f32) -> Self {
+    pub fn bezier_derivative(self, control_1: Self, control_2: Self, end: Self, t: real) -> Self {
         let x = bezier_derivative(self.x, control_1.x, control_2.x, end.x, t);
         let y = bezier_derivative(self.y, control_1.y, control_2.y, end.y, t);
 
         Self::new(x, y)
     }
 
-    pub fn bezier_interpolate(self, control_1: Self, control_2: Self, end: Self, t: f32) -> Self {
+    pub fn bezier_interpolate(self, control_1: Self, control_2: Self, end: Self, t: real) -> Self {
         let x = bezier_interpolate(self.x, control_1.x, control_2.x, end.x, t);
         let y = bezier_interpolate(self.y, control_1.y, control_2.y, end.y, t);
 
@@ -131,11 +131,11 @@ impl Vector2 {
         Self::from_glam(self.to_glam().clamp(min.to_glam(), max.to_glam()))
     }
 
-    pub fn cross(self, with: Self) -> f32 {
+    pub fn cross(self, with: Self) -> real {
         self.to_glam().perp_dot(with.to_glam())
     }
 
-    pub fn cubic_interpolate(self, b: Self, pre_a: Self, post_b: Self, weight: f32) -> Self {
+    pub fn cubic_interpolate(self, b: Self, pre_a: Self, post_b: Self, weight: real) -> Self {
         let x = cubic_interpolate(self.x, b.x, pre_a.x, post_b.x, weight);
         let y = cubic_interpolate(self.y, b.y, pre_a.y, post_b.y, weight);
 
@@ -148,10 +148,10 @@ impl Vector2 {
         b: Self,
         pre_a: Self,
         post_b: Self,
-        weight: f32,
-        b_t: f32,
-        pre_a_t: f32,
-        post_b_t: f32,
+        weight: real,
+        b_t: real,
+        pre_a_t: real,
+        post_b_t: real,
     ) -> Self {
         let x = cubic_interpolate_in_time(
             self.x, b.x, pre_a.x, post_b.x, weight, b_t, pre_a_t, post_b_t,
@@ -167,15 +167,15 @@ impl Vector2 {
         (to - self).normalized()
     }
 
-    pub fn distance_squared_to(self, to: Self) -> f32 {
+    pub fn distance_squared_to(self, to: Self) -> real {
         (to - self).length_squared()
     }
 
-    pub fn distance_to(self, to: Self) -> f32 {
+    pub fn distance_to(self, to: Self) -> real {
         (to - self).length()
     }
 
-    pub fn dot(self, other: Self) -> f32 {
+    pub fn dot(self, other: Self) -> real {
         self.to_glam().dot(other.to_glam())
     }
 
@@ -183,8 +183,8 @@ impl Vector2 {
         Self::from_glam(self.to_glam().floor())
     }
 
-    pub fn from_angle(angle: f32) -> Self {
-        Self::from_glam(glam::Vec2::from_angle(angle))
+    pub fn from_angle(angle: real) -> Self {
+        Self::from_glam(RVec2::from_angle(angle))
     }
 
     pub fn is_equal_approx(self, to: Self) -> bool {
@@ -203,11 +203,11 @@ impl Vector2 {
         is_zero_approx(self.x) && is_zero_approx(self.y)
     }
 
-    pub fn length_squared(self) -> f32 {
+    pub fn length_squared(self) -> real {
         self.to_glam().length_squared()
     }
 
-    pub fn limit_length(self, length: Option<f32>) -> Self {
+    pub fn limit_length(self, length: Option<real>) -> Self {
         Self::from_glam(self.to_glam().clamp_length_max(length.unwrap_or(1.0)))
     }
 
@@ -227,7 +227,7 @@ impl Vector2 {
         }
     }
 
-    pub fn move_toward(self, to: Self, delta: f32) -> Self {
+    pub fn move_toward(self, to: Self, delta: real) -> Self {
         let vd = to - self;
         let len = vd.length();
         if len <= delta || len < CMP_EPSILON {
@@ -241,7 +241,7 @@ impl Vector2 {
         Self::new(self.y, -self.x)
     }
 
-    pub fn posmod(self, pmod: f32) -> Self {
+    pub fn posmod(self, pmod: real) -> Self {
         Self::new(fposmod(self.x, pmod), fposmod(self.y, pmod))
     }
 
@@ -267,7 +267,7 @@ impl Vector2 {
 
     // TODO compare with gdnative implementation:
     // https://github.com/godot-rust/gdnative/blob/master/gdnative-core/src/core_types/vector3.rs#L335-L343
-    pub fn slerp(self, to: Self, weight: f32) -> Self {
+    pub fn slerp(self, to: Self, weight: real) -> Self {
         let start_length_sq = self.length_squared();
         let end_length_sq = to.length_squared();
         if start_length_sq == 0.0 || end_length_sq == 0.0 {
@@ -288,8 +288,8 @@ impl Vector2 {
     }
 
     /// Returns the result of rotating this vector by `angle` (in radians).
-    pub fn rotated(self, angle: f32) -> Self {
-        Self::from_glam(glam::Affine2::from_angle(angle).transform_vector2(self.to_glam()))
+    pub fn rotated(self, angle: real) -> Self {
+        Self::from_glam(RAffine2::from_angle(angle).transform_vector2(self.to_glam()))
     }
 
     #[doc(hidden)]
@@ -305,10 +305,10 @@ impl fmt::Display for Vector2 {
     }
 }
 
-impl_common_vector_fns!(Vector2, f32);
-impl_float_vector_fns!(Vector2, f32);
-impl_vector_operators!(Vector2, f32, (x, y));
-impl_vector_index!(Vector2, f32, (x, y), Vector2Axis, (X, Y));
+impl_common_vector_fns!(Vector2, real);
+impl_float_vector_fns!(Vector2, real);
+impl_vector_operators!(Vector2, real, (x, y));
+impl_vector_index!(Vector2, real, (x, y), Vector2Axis, (X, Y));
 
 impl GodotFfi for Vector2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
@@ -328,7 +328,7 @@ impl GodotFfi for Vector2Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl GlamType for Vec2 {
+impl GlamType for RVec2 {
     type Mapped = Vector2;
 
     fn to_front(&self) -> Self::Mapped {
@@ -336,10 +336,10 @@ impl GlamType for Vec2 {
     }
 
     fn from_front(mapped: &Self::Mapped) -> Self {
-        Vec2::new(mapped.x, mapped.y)
+        RVec2::new(mapped.x, mapped.y)
     }
 }
 
 impl GlamConv for Vector2 {
-    type Glam = Vec2;
+    type Glam = RVec2;
 }
