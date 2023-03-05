@@ -5,10 +5,7 @@
  */
 
 use crate::{expect_panic, itest};
-use godot::{
-    builtin::{PackedByteArray, PackedFloat32Array},
-    prelude::ToVariant,
-};
+use godot::prelude::*;
 
 pub fn run() -> bool {
     let mut ok = true;
@@ -249,7 +246,7 @@ fn packed_array_is_mut_unique() {
         "arrays should share the same buffer. Even when stored in an Image"
     );
 
-    // array2 should become an unique copy of array1 
+    // array2 should become an unique copy of array1
     // as mutable access triggers copy-on-write.
     array2.as_mut_slice();
     assert_ne!(
@@ -273,4 +270,44 @@ fn packed_array_is_mut_unique() {
         array2.as_slice(),
         "array2 should be a copy of array1"
     );
+}
+
+#[derive(GodotClass, Debug)]
+#[class(base=RefCounted)]
+struct PackedArrayTest {
+    array: PackedByteArray,
+    _base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl PackedArrayTest {
+    #[func]
+    fn set_array(&mut self, array: PackedByteArray) {
+        self.array = array;
+    }
+
+    #[func]
+    fn get_array(&self) -> PackedByteArray {
+        self.array.clone()
+    }
+
+    #[func]
+    fn are_separate_buffer(&self, other: PackedByteArray) -> bool {
+        self.array.as_slice().as_ptr() != other.as_slice().as_ptr()
+    }
+
+    #[func]
+    fn do_mutable_access(&mut self) {
+        self.array.as_mut_slice();
+    }
+}
+
+#[godot_api]
+impl GodotExt for PackedArrayTest {
+    fn init(base: Base<Self::Base>) -> Self {
+        Self {
+            array: PackedByteArray::new(),
+            _base: base,
+        }
+    }
 }
