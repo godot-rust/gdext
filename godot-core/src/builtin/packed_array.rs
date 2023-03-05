@@ -267,6 +267,8 @@ macro_rules! impl_packed_array {
                 }
 
                 let data = self.ptr(0);
+                // SAFETY: Data is valid for len elements as it was allocated by the array.
+                //         Data is not aliased as it is CoW.
                 unsafe {
                     std::slice::from_raw_parts(data, len)
                 }
@@ -281,6 +283,8 @@ macro_rules! impl_packed_array {
                 }
 
                 let data = self.ptr_mut(0);
+                // SAFETY: Data is valid for len elements as it was allocated by the array.
+                //         Data is not aliased as it is CoW.
                 unsafe {
                     std::slice::from_raw_parts_mut(data, len)
                 }
