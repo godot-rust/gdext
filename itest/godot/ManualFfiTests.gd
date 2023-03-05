@@ -77,7 +77,7 @@ func test_packed_array_aliazing():
 	)
 	
 	# Trigger copy-on-write on godot side 
-	array1.push_back(3)
+	array1.set(0, 3)
 	assert_that(
 		obj.are_separate_buffer(array1),
 		"array1 should not share buffer after a mutable access"
