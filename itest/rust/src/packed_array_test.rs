@@ -264,6 +264,11 @@ fn packed_array_is_mut_unique() {
         array4.get_data().as_slice().as_ptr(),
         "Arrays should not share the same buffer after a mutable access. Event when stored in an Image"
     );
+    // These were not mutably accessed, so they should still share the same buffer.
+    assert_eq!(
+        array3.to::<PackedByteArray>().as_slice().as_ptr(),
+        array4.get_data().as_slice().as_ptr(),
+    );
 
     assert_eq!(
         array1.as_slice(),
