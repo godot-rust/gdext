@@ -94,7 +94,13 @@ impl IntegrationTests {
         let gdscript_time = gdscript_time.as_secs_f32();
         let total_time = rust_time + gdscript_time;
 
-        println!("\nTest result: {outcome}. {passed} passed; {failed} failed.");
+        let extra = if skipped > 0 {
+            format!(", {skipped} skipped")
+        } else {
+            "".to_string()
+        };
+
+        println!("\nTest result: {outcome}. {passed} passed; {failed} failed{extra}.");
         println!("  Time: {total_time:.2}s.  (Rust {rust_time:.2}s, GDScript {gdscript_time:.2}s)");
         all_passed
     }
@@ -191,7 +197,7 @@ impl std::fmt::Display for TestOutcome {
         let (col, outcome) = match self {
             TestOutcome::Passed => (FMT_GREEN, "ok"),
             TestOutcome::Failed => (FMT_RED, "FAILED"),
-            TestOutcome::Skipped => (FMT_YELLOW, "ignored"),
+            TestOutcome::Skipped => (FMT_YELLOW, "skipped"),
         };
 
         write!(f, "{col}{outcome}{end}")

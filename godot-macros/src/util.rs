@@ -170,9 +170,10 @@ impl KvParser {
             // Useless allocation, but there seems to be no join() on map iterators. Anyway, this is slow/error path.
             let keys = self.map.keys().cloned().collect::<Vec<_>>().join(", ");
 
+            let s = if self.map.len() > 1 { "s" } else { "" }; // plural
             return bail(
                 format!(
-                    "#[{attr}]: unrecognized keys: {keys}",
+                    "#[{attr}]: unrecognized key{s}: {keys}",
                     attr = self.attr_name
                 ),
                 self.span,
