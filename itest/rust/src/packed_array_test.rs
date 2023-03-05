@@ -212,7 +212,7 @@ fn packed_array_as_slice() {
     assert_eq!(
         PackedByteArray::new().as_slice(),
         &[],
-        "array is empty, but still a valid slice"
+        "Array is empty, but still a valid slice"
     );
 }
 
@@ -233,17 +233,17 @@ fn packed_array_is_mut_unique() {
     assert_eq!(
         array1.as_slice().as_ptr(),
         array2.as_slice().as_ptr(),
-        "arrays should share the same buffer"
+        "Arrays should share the same buffer"
     );
     assert_eq!(
         array1.as_slice().as_ptr(),
         array3.to::<PackedByteArray>().as_slice().as_ptr(),
-        "arrays should share the same buffer. Even when stored in a variant"
+        "Arrays should share the same buffer. Even when stored in a variant"
     );
     assert_eq!(
         array1.as_slice().as_ptr(),
         array4.get_data().as_slice().as_ptr(),
-        "arrays should share the same buffer. Even when stored in an Image"
+        "Arrays should share the same buffer. Even when stored in an Image"
     );
 
     // array2 should become an unique copy of array1
@@ -252,23 +252,23 @@ fn packed_array_is_mut_unique() {
     assert_ne!(
         array2.as_slice().as_ptr(),
         array1.as_slice().as_ptr(),
-        "arrays should not share the same buffer after a mutable access"
+        "Arrays should not share the same buffer after a mutable access"
     );
     assert_ne!(
         array2.as_slice().as_ptr(),
         array3.to::<PackedByteArray>().as_slice().as_ptr(),
-        "arrays should not share the same buffer after a mutable access. Event when stored in a variant"
+        "Arrays should not share the same buffer after a mutable access. Event when stored in a variant"
     );
     assert_ne!(
         array2.as_slice().as_ptr(),
         array4.get_data().as_slice().as_ptr(),
-        "arrays should not share the same buffer after a mutable access. Event when stored in an Image"
+        "Arrays should not share the same buffer after a mutable access. Event when stored in an Image"
     );
 
     assert_eq!(
         array1.as_slice(),
         array2.as_slice(),
-        "array2 should be a copy of array1"
+        "Array2 should be a copy of array1"
     );
 }
 

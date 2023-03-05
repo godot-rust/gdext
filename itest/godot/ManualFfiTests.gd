@@ -69,27 +69,27 @@ func test_packed_array_aliazing():
 	# All arrays share the same buffer
 	assert_that(
 		!obj.are_separate_buffer(array1), 
-		"arrays should share buffer"
+		"Arrays should share buffer"
 	)
 	assert_that(
 		!obj.are_separate_buffer(array2), 
-		"arrays should share buffer"
+		"Arrays should share buffer"
 	)
 	
 	# Trigger copy-on-write on godot side 
 	array1.set(0, 3)
 	assert_that(
 		obj.are_separate_buffer(array1),
-		"array1 should not share buffer after a mutable access"
+		"Array1 should not share buffer after a mutable access"
 	)
 	assert_that(
 		!obj.are_separate_buffer(array2),
-		"array2 should still share buffer with obj after a mutable access"
+		"Array2 should still share buffer with obj after a mutable access"
 	)
 	
 	# Trigger copy-on-write on rust side 
 	obj.do_mutable_access()
 	assert_that(
 		obj.are_separate_buffer(array2),
-		"array2 should not share buffer with obj after a mutable access"
+		"Array2 should not share buffer with obj after a mutable access"
 	)
