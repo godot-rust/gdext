@@ -8,10 +8,10 @@
 
 use crate::ParseResult;
 use proc_macro2::{Ident, Literal, Span, TokenTree};
-use quote::format_ident;
 use quote::spanned::Spanned;
+use quote::{format_ident, ToTokens};
 use std::collections::HashMap;
-use venial::{Error, Function, Impl};
+use venial::{Attribute, Error, Function, Impl};
 
 pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
@@ -45,7 +45,7 @@ pub fn reduce_to_signature(function: &Function) -> Function {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub(crate) enum KvValue {
     /// Key only, no value.
-    None,
+    None, // TODO rename to `Alone`; pending merge conflicts
 
     /// Literal like `"hello"`, `20`, `3.4`.
     /// Unlike the proc macro type, this includes `true` and `false` as well as negative literals `-32`.
@@ -57,6 +57,146 @@ pub(crate) enum KvValue {
 }
 
 pub(crate) type KvMap = HashMap<String, KvValue>;
+
+/// Struct to parse attributes like `#[attr(key, key2="value", key3=123)]` in a very user-friendly way.
+pub(crate) struct KvParser {
+    attr_name: String,
+    map: KvMap,
+    span: Span,
+    #[cfg(debug_assertions)]
+    finished: bool,
+}
+
+impl KvParser {
+    /// Create a new parser which requires a `#[expected]` attribute.
+    ///
+    /// `context` is used for the span in error messages.
+    #[allow(dead_code)] // will be used later
+    pub fn parse_required(
+        attributes: &[Attribute],
+        expected: &str,
+        context: impl ToTokens,
+    ) -> ParseResult<Self> {
+        match Self::parse(attributes, expected) {
+            Ok(Some(result)) => Ok(result),
+            Ok(None) => {
+                return bail(
+                    format!("expected attribute #[{expected}], but not present"),
+                    context,
+                )
+            }
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Create a new parser which checks for presence of an `#[expected]` attribute.
+    pub fn parse(attributes: &[Attribute], expected: &str) -> ParseResult<Option<Self>> {
+        let mut found_attr = None;
+
+        for attr in attributes.iter() {
+            let path = &attr.path;
+            if path_is_single(path, expected) {
+                if found_attr.is_some() {
+                    return bail(
+                        format!("only a single #[{expected}] attribute allowed"),
+                        attr,
+                    );
+                }
+
+                found_attr = Some(Self {
+                    attr_name: expected.to_string(),
+                    span: attr.__span(),
+                    map: parse_kv_group(&attr.value)?,
+                    #[cfg(debug_assertions)]
+                    finished: false,
+                });
+            }
+        }
+
+        Ok(found_attr)
+    }
+
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
+    /// `#[attr(key)]`
+    pub fn handle_alone(&mut self, key: &str) -> ParseResult<bool> {
+        match self.map.remove(key) {
+            None => Ok(false),
+            Some(KvValue::None) => Ok(true),
+            Some(_) => self.bail_key(key, "must not have a value"),
+        }
+    }
+
+    /// `#[attr(key=Ident)]`
+    pub fn handle_ident(&mut self, key: &str) -> ParseResult<Option<Ident>> {
+        match self.map.remove(key) {
+            None => Ok(None),
+            Some(KvValue::Ident(ident)) => Ok(Some(ident)),
+            Some(_) => self.bail_key(key, "must have an identifier value (no quotes)"),
+        }
+    }
+
+    /// `#[attr(key="string", key2=123, key3=true)]`
+    pub fn handle_lit(&mut self, key: &str) -> ParseResult<Option<String>> {
+        match self.map.remove(key) {
+            None => Ok(None),
+            Some(KvValue::Lit(string)) => Ok(Some(string)),
+            Some(_) => self.bail_key(key, "must have a literal value (\"text\", 3.4, true, ...)"),
+        }
+    }
+
+    /// `#[attr(key="string", key2=123, key3=true)]`, with a given key being required
+    pub fn handle_lit_required(&mut self, key: &str) -> ParseResult<String> {
+        match self.handle_lit(key) {
+            Ok(Some(string)) => Ok(string),
+            Ok(None) => self.bail_key(key, "expected to have literal value, but is absent"),
+            Err(err) => Err(err),
+        }
+    }
+
+    /// Explicit "pre-destructor" that must be called, because Drop cannot propagate errors.
+    // Note: this could possibly be modeled using a closure: KvParser::parse(...) .with(|parser| ...)?
+    pub fn finish(mut self) -> ParseResult<()> {
+        #[cfg(debug_assertions)]
+        {
+            self.finished = true; // disarm destructor
+        }
+
+        if self.map.is_empty() {
+            Ok(())
+        } else {
+            // Useless allocation, but there seems to be no join() on map iterators. Anyway, this is slow/error path.
+            let keys = self.map.keys().cloned().collect::<Vec<_>>().join(", ");
+
+            return bail(
+                format!(
+                    "#[{attr}]: unrecognized keys: {keys}",
+                    attr = self.attr_name
+                ),
+                self.span,
+            );
+        }
+    }
+
+    fn bail_key<R>(&self, key: &str, msg: &str) -> ParseResult<R> {
+        return bail(
+            format!("#[{attr}]: key `{key}` {msg}", attr = self.attr_name),
+            self.span,
+        );
+    }
+}
+
+#[cfg(debug_assertions)]
+impl Drop for KvParser {
+    fn drop(&mut self) {
+        assert!(
+            self.finished,
+            "proc-macro did not check for remaining elements; this is a bug in the library"
+        );
+    }
+}
 
 // parses (a="hey", b=342)
 pub(crate) fn parse_kv_group(value: &venial::AttributeValue) -> ParseResult<KvMap> {
@@ -189,16 +329,8 @@ pub(crate) fn parse_kv_group(value: &venial::AttributeValue) -> ParseResult<KvMa
     Ok(map)
 }
 
-/// At the end of processing a KV map, make sure it runs
-/// TODO refactor to a wrapper class and maybe destructor
-pub(crate) fn ensure_kv_empty(map: KvMap, span: Span) -> ParseResult<()> {
-    if map.is_empty() {
-        Ok(())
-    } else {
-        let msg = &format!("Attribute contains unknown keys: {:?}", map.keys());
-        bail(msg, span)
-    }
-}
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Validation for trait/impl
 
 /// Validates either:
 /// a) the declaration is `impl Trait for SomeType`, if `expected_trait` is `Some("Trait")`  
