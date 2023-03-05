@@ -14,12 +14,6 @@ const TEST_TRANSFORM: Transform2D = Transform2D::from_cols(
     Vector2::new(5.0, 6.0),
 );
 
-pub(crate) fn run() -> bool {
-    let mut ok = true;
-    ok &= transform2d_equiv();
-    ok
-}
-
 #[itest]
 fn transform2d_equiv() {
     let inner = InnerTransform2D::from_outer(&TEST_TRANSFORM);

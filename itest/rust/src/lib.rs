@@ -4,10 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::bind::{godot_api, GodotClass};
 use godot::init::{gdextension, ExtensionLibrary};
-use godot::test::itest;
-use std::panic::UnwindSafe;
+use godot::sys;
 
 mod array_test;
 mod base_test;
@@ -29,59 +27,61 @@ mod utilities_test;
 mod variant_test;
 mod virtual_methods_test;
 
-fn run_tests() -> bool {
-    let mut ok = true;
-    ok &= array_test::run();
-    ok &= base_test::run();
-    ok &= basis_test::run();
-    ok &= builtin_test::run();
-    ok &= codegen_test::run();
-    ok &= color_test::run();
-    ok &= dictionary_test::run();
-    ok &= enum_test::run();
-    ok &= export_test::run();
-    ok &= gdscript_ffi_test::run();
-    ok &= node_test::run();
-    ok &= object_test::run();
-    ok &= packed_array_test::run();
-    ok &= quaternion_test::run();
-    ok &= singleton_test::run();
-    ok &= string_test::run();
-    ok &= utilities_test::run();
-    ok &= variant_test::run();
-    ok &= virtual_methods_test::run();
-    ok
-}
-
-// fn register_classes() {
-//     object_test::register();
-//     gdscript_ffi_test::register();
-//     virtual_methods_test::register();
-// }
+mod runner;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Implementation
+// API for test cases
 
-#[derive(GodotClass, Debug)]
-#[class(base=Node, init)]
-struct IntegrationTests {}
+use godot::test::itest;
 
-#[godot_api]
-impl IntegrationTests {
-    #[func]
-    fn test_all(&mut self) -> bool {
-        println!("Run Godot integration tests...");
-        run_tests()
-    }
-}
+pub(crate) fn expect_panic(context: &str, code: impl FnOnce() + std::panic::UnwindSafe) {
+    use std::panic;
 
-#[gdextension(entry_point=itest_init)]
-unsafe impl ExtensionLibrary for IntegrationTests {}
+    // Exchange panic hook, to disable printing during expected panics
+    let prev_hook = panic::take_hook();
+    panic::set_hook(Box::new(|_panic_info| {}));
 
-pub(crate) fn expect_panic(context: &str, code: impl FnOnce() + UnwindSafe) {
-    let panic = std::panic::catch_unwind(code);
+    // Run code that should panic, restore hook
+    let panic = panic::catch_unwind(code);
+    panic::set_hook(prev_hook);
+
     assert!(
         panic.is_err(),
         "code should have panicked but did not: {context}",
     );
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Entry point + #[itest] test registration
+
+#[gdextension(entry_point=itest_init)]
+unsafe impl ExtensionLibrary for runner::IntegrationTests {}
+
+// Registers all the `#[itest]` tests.
+sys::plugin_registry!(__GODOT_ITEST: RustTestCase);
+
+/// Finds all `#[itest]` tests.
+fn collect_rust_tests() -> (Vec<RustTestCase>, usize) {
+    let mut all_files = std::collections::HashSet::new();
+    let mut tests: Vec<RustTestCase> = vec![];
+
+    sys::plugin_foreach!(__GODOT_ITEST; |test: &RustTestCase| {
+        all_files.insert(test.file);
+        tests.push(*test);
+    });
+
+    // Sort alphabetically for deterministic run order
+    tests.sort_by_key(|test| test.file);
+
+    (tests, all_files.len())
+}
+
+#[derive(Copy, Clone)]
+struct RustTestCase {
+    name: &'static str,
+    file: &'static str,
+    skipped: bool,
+    #[allow(dead_code)]
+    line: u32,
+    function: fn(),
 }

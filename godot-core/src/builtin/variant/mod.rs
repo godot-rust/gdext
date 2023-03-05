@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::GodotString;
+use crate::builtin::{GodotString, StringName};
 use godot_ffi as sys;
 use godot_ffi::GodotFfi;
 use std::{fmt, ptr};
@@ -91,12 +91,46 @@ impl Variant {
         }
     }
 
-    // TODO test
-    #[allow(unused_mut)]
+    /// ⚠️ Calls the specified `method` with the given `args`.
+    ///
+    /// Supports `Object` as well as built-ins with methods (e.g. `Array`, `Vector3`, `GodotString`, etc).
+    ///
+    /// # Panics
+    /// * If `self` is not a variant type which supports method calls.
+    /// * If the method does not exist or the signature is not compatible with the passed arguments.
+    /// * If the call causes an error.
+    #[inline]
+    pub fn call(&self, method: impl Into<StringName>, args: &[Variant]) -> Variant {
+        self.call_inner(method.into(), args)
+    }
+
+    fn call_inner(&self, method: StringName, args: &[Variant]) -> Variant {
+        let args_sys: Vec<_> = args.iter().map(|v| v.var_sys_const()).collect();
+        let mut error = sys::default_call_error();
+
+        #[allow(unused_mut)]
+        let mut result = Variant::nil();
+
+        unsafe {
+            interface_fn!(variant_call)(
+                self.var_sys(),
+                method.string_sys(),
+                args_sys.as_ptr(),
+                args_sys.len() as i64,
+                result.var_sys(),
+                ptr::addr_of_mut!(error),
+            )
+        };
+
+        sys::panic_on_call_error(&error);
+        result
+    }
+
     pub fn evaluate(&self, rhs: &Variant, op: VariantOperator) -> Option<Variant> {
         let op_sys = op.sys();
         let mut is_valid = false as u8;
 
+        #[allow(unused_mut)]
         let mut result = Variant::nil();
         unsafe {
             interface_fn!(variant_evaluate)(

@@ -9,15 +9,6 @@ use crate::itest;
 use godot::builtin::Variant;
 use godot::engine::utilities::*;
 
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= utilities_abs();
-    ok &= utilities_sign();
-    ok &= utilities_wrap();
-    ok &= utilities_max();
-    ok
-}
-
 #[itest]
 fn utilities_abs() {
     let input = Variant::from(-7);

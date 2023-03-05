@@ -140,11 +140,38 @@ unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
 }
 
 #[doc(hidden)]
+#[inline]
 pub fn default_call_error() -> GDExtensionCallError {
     GDExtensionCallError {
         error: GDEXTENSION_CALL_OK,
         argument: -1,
         expected: -1,
+    }
+}
+
+#[doc(hidden)]
+#[inline]
+pub fn panic_on_call_error(err: &GDExtensionCallError) {
+    let actual = err.error;
+
+    assert_eq!(
+        actual,
+        GDEXTENSION_CALL_OK,
+        "encountered Godot error code {}",
+        call_error_to_string(actual)
+    );
+}
+
+fn call_error_to_string(err: GDExtensionCallErrorType) -> &'static str {
+    match err {
+        GDEXTENSION_CALL_OK => "OK",
+        GDEXTENSION_CALL_ERROR_INVALID_METHOD => "ERROR_INVALID_METHOD",
+        GDEXTENSION_CALL_ERROR_INVALID_ARGUMENT => "ERROR_INVALID_ARGUMENT",
+        GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS => "ERROR_TOO_MANY_ARGUMENTS",
+        GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS => "ERROR_TOO_FEW_ARGUMENTS",
+        GDEXTENSION_CALL_ERROR_INSTANCE_IS_NULL => "ERROR_INSTANCE_IS_NULL",
+        GDEXTENSION_CALL_ERROR_METHOD_NOT_CONST => "ERROR_METHOD_NOT_CONST",
+        _ => "(unknown)",
     }
 }
 

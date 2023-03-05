@@ -8,8 +8,10 @@ target
 Cargo.lock
 
 # Godot
-**/.import/
+# .godot needs to be a pattern like this and not a directory, otherwise the negative statements below don't apply
 **/.godot/**
+*.import
+
 # Needed to run projects without having to open the editor first.
 !**/.godot/extension_list.cfg
 !**/.godot/global_script_class_cache.cfg

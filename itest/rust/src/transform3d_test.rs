@@ -17,12 +17,6 @@ const TEST_TRANSFORM: Transform3D = Transform3D::new(
     Vector3::new(10.0, 11.0, 12.0),
 );
 
-pub(crate) fn run() -> bool {
-    let mut ok = true;
-    ok &= transform3d_equiv();
-    ok
-}
-
 #[itest]
 fn transform3d_equiv() {
     let inner = InnerTransform3D::from_outer(&TEST_TRANSFORM);

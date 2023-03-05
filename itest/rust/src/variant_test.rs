@@ -4,11 +4,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::itest;
+use crate::{expect_panic, itest};
 use godot::builtin::{
     FromVariant, GodotString, NodePath, StringName, ToVariant, Variant, Vector2, Vector3,
 };
-use godot::engine::Node3D;
+use godot::engine::Node2D;
 use godot::obj::InstanceId;
 use godot::prelude::{Array, Basis, Dictionary, VariantConversionError};
 use godot::sys::{GodotFfi, VariantOperator, VariantType};
@@ -20,24 +20,6 @@ const TEST_BASIS: Basis = Basis::from_rows(
     Vector3::new(4.0, 5.0, 6.0),
     Vector3::new(7.0, 8.0, 9.0),
 );
-
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= variant_nil();
-    ok &= variant_conversions();
-    ok &= variant_forbidden_conversions();
-    ok &= variant_display();
-    ok &= variant_get_type();
-    ok &= variant_equal();
-    ok &= variant_evaluate();
-    ok &= variant_evaluate_total_order();
-    ok &= variant_sys_conversion();
-    ok &= variant_sys_conversion2();
-    ok &= variant_null_object_is_nil();
-    ok &= variant_conversion_fails();
-    ok &= variant_type_correct();
-    ok
-}
 
 #[itest]
 fn variant_nil() {
@@ -124,6 +106,53 @@ fn variant_equal() {
     equal(1, true, false);
     equal(false, 0, false);
     equal(gstr("String"), 33, false);
+}
+
+#[itest]
+fn variant_call() {
+    use godot::obj::Share;
+    let node2d = Node2D::new_alloc();
+    let variant = Variant::from(node2d.share());
+
+    // Object
+    let position = Vector2::new(4.0, 5.0);
+    let result = variant.call("set_position", &[position.to_variant()]);
+    assert!(result.is_nil());
+
+    let result = variant.call("get_position", &[]);
+    assert_eq!(result.try_to::<Vector2>(), Ok(position));
+
+    let result = variant.call("to_string", &[]);
+    assert_eq!(result.get_type(), VariantType::String);
+
+    // Array
+    let array = godot::builtin::varray![1, "hello", false];
+    let result = array.to_variant().call("size", &[]);
+    assert_eq!(result, 3.to_variant());
+
+    // String
+    let string = GodotString::from("move_local_x");
+    let result = string.to_variant().call("capitalize", &[]);
+    assert_eq!(result, "Move Local X".to_variant());
+
+    // Vector2
+    let vector = Vector2::new(5.0, 3.0);
+    let vector_rhs = Vector2::new(1.0, -1.0);
+    let result = vector.to_variant().call("dot", &[vector_rhs.to_variant()]);
+    assert_eq!(result, 2.0.to_variant());
+
+    // Error cases
+    expect_panic("Variant::call on non-existent method", || {
+        variant.call("gut_position", &[]);
+    });
+    expect_panic("Variant::call with bad signature", || {
+        variant.call("set_position", &[]);
+    });
+    expect_panic("Variant::call with non-object variant (int)", || {
+        Variant::from(77).call("to_string", &[]);
+    });
+
+    node2d.free();
 }
 
 #[rustfmt::skip]
@@ -220,7 +249,7 @@ fn variant_sys_conversion() {
 fn variant_null_object_is_nil() {
     use godot::sys;
 
-    let mut node = Node3D::new_alloc();
+    let mut node = Node2D::new_alloc();
     let node_path = NodePath::from("res://NonExisting.tscn");
 
     // Simulates an object that is returned but null

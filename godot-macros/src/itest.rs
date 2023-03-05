@@ -30,12 +30,11 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
     }
 
     let test_name = &func.name;
-    let init_msg = format!("   -- {test_name}");
-    let error_msg = format!("   !! Test {test_name} failed");
+    let test_name_str = func.name.to_string();
     let body = &func.body;
 
     Ok(quote! {
-        #[doc(hidden)]
+       /*#[doc(hidden)]
         #[must_use]
         pub fn #test_name() -> bool {
             println!(#init_msg);
@@ -47,6 +46,18 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
             );
 
             success.is_some()
+        }*/
+
+        pub fn #test_name() {
+            #body
         }
+
+        ::godot::sys::plugin_add!(__GODOT_ITEST in crate; crate::RustTestCase {
+            name: #test_name_str,
+            skipped: false,
+            file: std::file!(),
+            line: std::line!(),
+            function: #test_name,
+        });
     })
 }
