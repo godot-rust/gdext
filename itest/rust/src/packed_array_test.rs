@@ -7,32 +7,6 @@
 use crate::{expect_panic, itest};
 use godot::prelude::*;
 
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= packed_array_default();
-    ok &= packed_array_new();
-    ok &= packed_array_from_iterator();
-    ok &= packed_array_from();
-    ok &= packed_array_to_vec();
-    // ok &= packed_array_into_iterator();
-    ok &= packed_array_eq();
-    ok &= packed_array_clone();
-    ok &= packed_array_slice();
-    ok &= packed_array_get();
-    ok &= packed_array_binary_search();
-    ok &= packed_array_find();
-    ok &= packed_array_rfind();
-    ok &= packed_array_set();
-    ok &= packed_array_push();
-    ok &= packed_array_insert();
-    ok &= packed_array_extend();
-    ok &= packed_array_reverse();
-    ok &= packed_array_sort();
-    ok &= packed_array_as_slice();
-    ok &= packed_array_is_mut_unique();
-    ok
-}
-
 #[itest]
 fn packed_array_default() {
     assert_eq!(PackedByteArray::default().len(), 0);

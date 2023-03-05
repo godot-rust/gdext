@@ -39,16 +39,6 @@ impl GodotExt for VirtualMethodTest {
     }
 }
 
-pub(crate) fn run() -> bool {
-    let mut ok = true;
-    ok &= test_to_string();
-    ok
-}
-
-// pub(crate) fn register() {
-//     godot::register_class::<VirtualMethodTest>();
-// }
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[itest]

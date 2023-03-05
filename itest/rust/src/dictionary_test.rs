@@ -7,43 +7,8 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::{expect_panic, itest};
-use godot::{
-    builtin::{dict, varray, Dictionary, FromVariant, ToVariant},
-    prelude::{Share, Variant},
-};
-
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= dictionary_default();
-    ok &= dictionary_new();
-    ok &= dictionary_from_iterator();
-    ok &= dictionary_from();
-    ok &= dictionary_macro();
-    ok &= dictionary_clone();
-    ok &= dictionary_duplicate_deep();
-    ok &= dictionary_hash();
-    ok &= dictionary_get();
-    ok &= dictionary_insert();
-    ok &= dictionary_insert_multiple();
-    ok &= dictionary_insert_long();
-    ok &= dictionary_extend();
-    ok &= dictionary_remove();
-    ok &= dictionary_clear();
-    ok &= dictionary_find_key();
-    ok &= dictionary_contains_keys();
-    ok &= dictionary_keys_values();
-    ok &= dictionary_equal();
-    ok &= dictionary_iter();
-    ok &= dictionary_iter_equals_big();
-    ok &= dictionary_iter_insert();
-    ok &= dictionary_iter_insert_after_completion();
-    ok &= dictionary_iter_big();
-    ok &= dictionary_iter_simultaneous();
-    ok &= dictionary_iter_panics();
-    ok &= dictionary_iter_clear();
-    ok &= dictionary_iter_erase();
-    ok
-}
+use godot::builtin::{dict, varray, Dictionary, FromVariant, ToVariant, Variant};
+use godot::obj::Share;
 
 #[itest]
 fn dictionary_default() {

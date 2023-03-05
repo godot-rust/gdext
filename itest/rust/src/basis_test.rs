@@ -14,14 +14,6 @@ const TEST_BASIS: Basis = Basis::from_rows(
     Vector3::new(-0.160881, 0.152184, 0.97517),
 );
 
-pub(crate) fn run() -> bool {
-    let mut ok = true;
-    ok &= basis_multiply_same();
-    ok &= basis_euler_angles_same();
-
-    ok
-}
-
 #[itest]
 fn basis_multiply_same() {
     let rust_res = TEST_BASIS * Basis::IDENTITY;

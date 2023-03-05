@@ -7,20 +7,6 @@
 use crate::itest;
 use godot::builtin::{Color, ColorChannelOrder};
 
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= color_from_rgba8();
-    ok &= color_from_u32();
-    ok &= color_from_u64();
-    ok &= color_from_html();
-    ok &= color_from_string();
-    ok &= color_get_set_u8();
-    ok &= color_blend();
-    ok &= color_to_u32();
-    ok &= color_to_u64();
-    ok
-}
-
 #[itest]
 fn color_from_rgba8() {
     assert_eq!(

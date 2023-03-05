@@ -15,51 +15,6 @@ use godot::sys::GodotFfi;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-// pub(crate) fn register() {
-//     godot::register_class::<ObjPayload>();
-//     godot::register_class::<Tracker>();
-// }
-
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= object_construct_default();
-    ok &= object_construct_value();
-    ok &= object_user_roundtrip_return();
-    ok &= object_user_roundtrip_write();
-    ok &= object_engine_roundtrip();
-    ok &= object_display();
-    ok &= object_debug();
-    ok &= object_instance_id();
-    ok &= object_instance_id_when_freed();
-    ok &= object_from_invalid_instance_id();
-    ok &= object_from_instance_id_inherits_type();
-    ok &= object_from_instance_id_unrelated_type();
-    ok &= object_user_convert_variant();
-    ok &= object_engine_convert_variant();
-    ok &= object_user_convert_variant_refcount();
-    ok &= object_engine_convert_variant_refcount();
-    ok &= object_engine_returned_refcount();
-    ok &= object_engine_up_deref();
-    ok &= object_engine_up_deref_mut();
-    ok &= object_engine_upcast();
-    ok &= object_engine_upcast_reflexive();
-    ok &= object_engine_downcast();
-    ok &= object_engine_downcast_reflexive();
-    ok &= object_engine_bad_downcast();
-    ok &= object_engine_accept_polymorphic();
-    ok &= object_user_upcast();
-    ok &= object_user_downcast();
-    ok &= object_user_bad_downcast();
-    ok &= object_user_accept_polymorphic();
-    ok &= object_engine_manual_free();
-    ok &= object_engine_manual_double_free();
-    ok &= object_engine_refcounted_free();
-    ok &= object_user_share_drop();
-    ok &= object_call_no_args();
-    ok &= object_call_with_args();
-    ok
-}
-
 // TODO:
 // * make sure that ptrcalls are used when possible (ie. when type info available; maybe GDScript integration test)
 // * Deref impl for user-defined types

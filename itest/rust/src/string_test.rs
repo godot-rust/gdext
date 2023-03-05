@@ -9,21 +9,6 @@ use godot::builtin::{GodotString, StringName};
 
 // TODO use tests from godot-rust/gdnative
 
-pub fn run() -> bool {
-    let mut ok = true;
-    ok &= string_default();
-    ok &= string_conversion();
-    ok &= string_equality();
-    ok &= string_ordering();
-    ok &= string_clone();
-    ok &= string_name_conversion();
-    ok &= string_name_default_construct();
-    ok &= string_name_eq_hash();
-    ok &= string_name_ord();
-    ok &= string_name_clone();
-    ok
-}
-
 #[itest]
 fn string_default() {
     let string = GodotString::new();
