@@ -5,7 +5,10 @@
  */
 
 use crate::{expect_panic, itest};
-use godot::builtin::{PackedByteArray, PackedFloat32Array};
+use godot::{
+    builtin::{PackedByteArray, PackedFloat32Array},
+    prelude::ToVariant,
+};
 
 pub fn run() -> bool {
     let mut ok = true;
@@ -220,20 +223,51 @@ fn packed_array_as_slice() {
 fn packed_array_is_mut_unique() {
     let array1 = PackedByteArray::from(&[1, 2]);
     let mut array2 = array1.clone();
+    let array3 = array1.to_variant();
+    let array4 = godot::engine::Image::create_from_data(
+        2,
+        1,
+        false,
+        godot::engine::image::Format::FORMAT_R8,
+        array1.clone(),
+    )
+    .unwrap();
 
     assert_eq!(
         array1.as_slice().as_ptr(),
         array2.as_slice().as_ptr(),
         "arrays should share the same buffer"
     );
+    assert_eq!(
+        array1.as_slice().as_ptr(),
+        array3.to::<PackedByteArray>().as_slice().as_ptr(),
+        "arrays should share the same buffer. Even when stored in a variant"
+    );
+    assert_eq!(
+        array1.as_slice().as_ptr(),
+        array4.get_data().as_slice().as_ptr(),
+        "arrays should share the same buffer. Even when stored in an Image"
+    );
 
-    // array2 should become a copy of array1 since rc > 1.
+    // array2 should become an unique copy of array1 
+    // as mutable access triggers copy-on-write.
     array2.as_mut_slice();
     assert_ne!(
-        array1.as_slice().as_ptr(),
         array2.as_slice().as_ptr(),
+        array1.as_slice().as_ptr(),
         "arrays should not share the same buffer after a mutable access"
     );
+    assert_ne!(
+        array2.as_slice().as_ptr(),
+        array3.to::<PackedByteArray>().as_slice().as_ptr(),
+        "arrays should not share the same buffer after a mutable access. Event when stored in a variant"
+    );
+    assert_ne!(
+        array2.as_slice().as_ptr(),
+        array4.get_data().as_slice().as_ptr(),
+        "arrays should not share the same buffer after a mutable access. Event when stored in an Image"
+    );
+
     assert_eq!(
         array1.as_slice(),
         array2.as_slice(),
