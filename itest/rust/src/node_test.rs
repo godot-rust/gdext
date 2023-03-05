@@ -7,14 +7,7 @@
 use crate::itest;
 use godot::builtin::NodePath;
 use godot::engine::{node, Node, Node3D, NodeExt};
-use godot::log::godot_print;
 use godot::obj::Share;
-
-// TODO move to other test
-#[itest]
-fn node_print() {
-    godot_print!("Test print, bool={} and int={}", true, 32);
-}
 
 #[itest]
 fn node_get_node() {

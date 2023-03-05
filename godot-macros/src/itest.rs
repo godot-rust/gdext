@@ -52,7 +52,7 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
             #body
         }
 
-        ::godot::sys::plugin_add!(__GODOT_ITEST in crate; crate::TestCase {
+        ::godot::sys::plugin_add!(__GODOT_ITEST in crate; crate::RustTestCase {
             name: #test_name_str,
             skipped: false,
             file: std::file!(),
