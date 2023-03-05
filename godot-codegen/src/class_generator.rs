@@ -851,7 +851,7 @@ fn make_return(
                 let variant = Variant::#from_sys_init_method(|return_ptr| {
                     let mut __err = sys::default_call_error();
                     #varcall_invocation
-                    assert_eq!(__err.error, sys::GDEXTENSION_CALL_OK);
+                    sys::panic_on_call_error(&__err);
                 });
                 #return_expr
             }
@@ -863,7 +863,7 @@ fn make_return(
                 let mut __err = sys::default_call_error();
                 let return_ptr = std::ptr::null_mut();
                 #varcall_invocation
-                assert_eq!(__err.error, sys::GDEXTENSION_CALL_OK);
+                sys::panic_on_call_error(&__err);
             }
         }
         (None, Some(RustTy::EngineClass { tokens, .. })) => {
