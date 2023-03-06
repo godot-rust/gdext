@@ -23,16 +23,18 @@ pub(crate) struct IntegrationTests {
 impl IntegrationTests {
     #[allow(clippy::uninlined_format_args)]
     #[func]
-    fn run_all_tests(&mut self, gdscript_tests: Array, gdscript_file_count: i64) -> bool {
-        println!(
-            "{}Run{} Godot integration tests...",
-            FMT_GREEN_BOLD, FMT_END
-        );
+    fn run_all_tests(
+        &mut self,
+        gdscript_tests: Array,
+        gdscript_file_count: i64,
+        allow_focus: bool,
+    ) -> bool {
+        println!("{}Run{} Godot integration tests...", FMT_CYAN_BOLD, FMT_END);
 
         let (rust_tests, rust_file_count, focus_run) = super::collect_rust_tests();
         self.focus_run = focus_run;
         if focus_run {
-            println!("  Focused run -- execute only selected Rust tests.")
+            println!("  {FMT_CYAN}Focused run{FMT_END} -- execute only selected Rust tests.")
         }
         println!(
             "  Rust: found {} tests in {} files.",
@@ -57,7 +59,7 @@ impl IntegrationTests {
             None
         };
 
-        self.conclude(rust_time, gdscript_time)
+        self.conclude(rust_time, gdscript_time, allow_focus)
     }
 
     fn run_rust_tests(&mut self, tests: Vec<RustTestCase>) {
@@ -87,7 +89,12 @@ impl IntegrationTests {
         }
     }
 
-    fn conclude(&self, rust_time: Duration, gdscript_time: Option<Duration>) -> bool {
+    fn conclude(
+        &self,
+        rust_time: Duration,
+        gdscript_time: Option<Duration>,
+        allow_focus: bool,
+    ) -> bool {
         let Self {
             total,
             passed,
@@ -103,10 +110,11 @@ impl IntegrationTests {
 
         let rust_time = rust_time.as_secs_f32();
         let gdscript_time = gdscript_time.map(|t| t.as_secs_f32());
+        let focused_run = gdscript_time.is_none();
 
         let extra = if skipped > 0 {
             format!(", {skipped} skipped")
-        } else if gdscript_time.is_none() {
+        } else if focused_run {
             " (focused run)".to_string()
         } else {
             "".to_string()
@@ -121,7 +129,13 @@ impl IntegrationTests {
         } else {
             println!("  Time: {rust_time:.2}s.");
         }
-        all_passed
+
+        if focused_run && !allow_focus {
+            println!("  {FMT_YELLOW}Focus run disallowed; return failure.{FMT_END}");
+            false
+        } else {
+            all_passed
+        }
     }
 
     fn update_stats(&mut self, outcome: &TestOutcome) {
@@ -139,7 +153,8 @@ impl IntegrationTests {
 //     use rand::seq::SliceRandom;
 //     let outcome = [TestOutcome::Passed, TestOutcome::Failed, TestOutcome::Skipped];
 //     let outcome = outcome.choose(&mut rand::thread_rng()).unwrap();
-const FMT_GREEN_BOLD: &str = "\x1b[32;1;1m";
+const FMT_CYAN_BOLD: &str = "\x1b[36;1;1m";
+const FMT_CYAN: &str = "\x1b[36m";
 const FMT_GREEN: &str = "\x1b[32m";
 const FMT_YELLOW: &str = "\x1b[33m";
 const FMT_RED: &str = "\x1b[31m";

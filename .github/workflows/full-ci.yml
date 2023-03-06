@@ -57,7 +57,7 @@ jobs:
         uses: ./.github/composite/godot-install
         with:
           artifact-name: godot-linux
-          binary-filename: godot.linuxbsd.editor.dev.x86_64
+          godot-binary: godot.linuxbsd.editor.dev.x86_64
 
       - name: "Check clippy"
         run: |
@@ -126,7 +126,7 @@ jobs:
         uses: ./.github/composite/godot-install
         with:
           artifact-name: godot-${{ matrix.name }}
-          binary-filename: ${{ matrix.godot-binary }}
+          godot-binary: ${{ matrix.godot-binary }}
 
       - name: "Compile tests"
         run: cargo test $GDEXT_FEATURES --no-run
@@ -168,15 +168,19 @@ jobs:
           # Additionally, the Godot source is patched to make dlclose() a no-op, as unloading dynamic libraries loses stacktrace and
           # cause false positives like println!. See https://github.com/google/sanitizers/issues/89.
           # The gcc version can possibly be removed later, as it is slower and needs a larger artifact than the clang one.
+
+          # --disallow-focus: fail if #[itest(focus)] is encountered, to prevent running only a few tests for full CI
           - name: linux-memcheck-gcc
             os: ubuntu-20.04
             rust-toolchain: stable
             godot-binary: godot.linuxbsd.editor.dev.x86_64.san
+            godot-args: -- --disallow-focus
 
           - name: linux-memcheck-clang
             os: ubuntu-20.04
             rust-toolchain: stable
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            godot-args: -- --disallow-focus
 
     steps:
       - uses: actions/checkout@v3
@@ -185,7 +189,8 @@ jobs:
         uses: ./.github/composite/godot-itest
         with:
           artifact-name: godot-${{ matrix.name }}
-          binary-filename: ${{ matrix.godot-binary }}
+          godot-binary: ${{ matrix.godot-binary }}
+          godot-args: ${{ matrix.godot-args }}
           with-llvm: ${{ matrix.name == 'macos' }}
 
 

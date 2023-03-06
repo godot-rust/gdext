@@ -10,7 +10,7 @@ inputs:
     required: true
     description: "Name of the compiled Godot artifact to download"
 
-  binary-filename:
+  godot-binary:
     required: true
     description: "Filename of the Godot executable"
 
@@ -25,7 +25,7 @@ runs:
       run: |
         runnerDir=$(echo "${{ runner.temp }}" | sed "s!\\\\!/!")
         echo "RUNNER_DIR=$runnerDir" >> $GITHUB_ENV
-        echo "GODOT4_BIN=$runnerDir/godot_bin/${{ inputs.binary-filename }}" >> $GITHUB_ENV
+        echo "GODOT4_BIN=$runnerDir/godot_bin/${{ inputs.godot-binary }}" >> $GITHUB_ENV
       shell: bash
 
 #    - name: "Check cache for installed Godot version"
