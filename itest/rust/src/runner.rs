@@ -16,37 +16,50 @@ pub(crate) struct IntegrationTests {
     total: i64,
     passed: i64,
     skipped: i64,
+    focus_run: bool,
 }
 
 #[godot_api]
 impl IntegrationTests {
     #[allow(clippy::uninlined_format_args)]
     #[func]
-    fn run_all_tests(&mut self, gdscript_tests: Array, gdscript_file_count: i64) -> bool {
-        println!(
-            "{}Run{} Godot integration tests...",
-            FMT_GREEN_BOLD, FMT_END
-        );
+    fn run_all_tests(
+        &mut self,
+        gdscript_tests: Array,
+        gdscript_file_count: i64,
+        allow_focus: bool,
+    ) -> bool {
+        println!("{}Run{} Godot integration tests...", FMT_CYAN_BOLD, FMT_END);
 
-        let (rust_tests, rust_file_count) = super::collect_rust_tests();
+        let (rust_tests, rust_file_count, focus_run) = super::collect_rust_tests();
+        self.focus_run = focus_run;
+        if focus_run {
+            println!("  {FMT_CYAN}Focused run{FMT_END} -- execute only selected Rust tests.")
+        }
         println!(
             "  Rust: found {} tests in {} files.",
             rust_tests.len(),
             rust_file_count
         );
-        println!(
-            "  GDScript: found {} tests in {} files.",
-            gdscript_tests.len(),
-            gdscript_file_count
-        );
+        if !focus_run {
+            println!(
+                "  GDScript: found {} tests in {} files.",
+                gdscript_tests.len(),
+                gdscript_file_count
+            );
+        }
 
         let clock = Instant::now();
         self.run_rust_tests(rust_tests);
         let rust_time = clock.elapsed();
-        self.run_gdscript_tests(gdscript_tests);
-        let gdscript_time = clock.elapsed() - rust_time;
+        let gdscript_time = if !focus_run {
+            self.run_gdscript_tests(gdscript_tests);
+            Some(clock.elapsed() - rust_time)
+        } else {
+            None
+        };
 
-        self.conclude(rust_time, gdscript_time)
+        self.conclude(rust_time, gdscript_time, allow_focus)
     }
 
     fn run_rust_tests(&mut self, tests: Vec<RustTestCase>) {
@@ -76,7 +89,12 @@ impl IntegrationTests {
         }
     }
 
-    fn conclude(&self, rust_time: Duration, gdscript_time: Duration) -> bool {
+    fn conclude(
+        &self,
+        rust_time: Duration,
+        gdscript_time: Option<Duration>,
+        allow_focus: bool,
+    ) -> bool {
         let Self {
             total,
             passed,
@@ -91,12 +109,33 @@ impl IntegrationTests {
         let outcome = TestOutcome::from_bool(all_passed);
 
         let rust_time = rust_time.as_secs_f32();
-        let gdscript_time = gdscript_time.as_secs_f32();
-        let total_time = rust_time + gdscript_time;
+        let gdscript_time = gdscript_time.map(|t| t.as_secs_f32());
+        let focused_run = gdscript_time.is_none();
 
-        println!("\nTest result: {outcome}. {passed} passed; {failed} failed.");
-        println!("  Time: {total_time:.2}s.  (Rust {rust_time:.2}s, GDScript {gdscript_time:.2}s)");
-        all_passed
+        let extra = if skipped > 0 {
+            format!(", {skipped} skipped")
+        } else if focused_run {
+            " (focused run)".to_string()
+        } else {
+            "".to_string()
+        };
+
+        println!("\nTest result: {outcome}. {passed} passed; {failed} failed{extra}.");
+        if let Some(gdscript_time) = gdscript_time {
+            let total_time = rust_time + gdscript_time;
+            println!(
+                "  Time: {total_time:.2}s.  (Rust {rust_time:.2}s, GDScript {gdscript_time:.2}s)"
+            );
+        } else {
+            println!("  Time: {rust_time:.2}s.");
+        }
+
+        if focused_run && !allow_focus {
+            println!("  {FMT_YELLOW}Focus run disallowed; return failure.{FMT_END}");
+            false
+        } else {
+            all_passed
+        }
     }
 
     fn update_stats(&mut self, outcome: &TestOutcome) {
@@ -114,7 +153,8 @@ impl IntegrationTests {
 //     use rand::seq::SliceRandom;
 //     let outcome = [TestOutcome::Passed, TestOutcome::Failed, TestOutcome::Skipped];
 //     let outcome = outcome.choose(&mut rand::thread_rng()).unwrap();
-const FMT_GREEN_BOLD: &str = "\x1b[32;1;1m";
+const FMT_CYAN_BOLD: &str = "\x1b[36;1;1m";
+const FMT_CYAN: &str = "\x1b[36m";
 const FMT_GREEN: &str = "\x1b[32m";
 const FMT_YELLOW: &str = "\x1b[33m";
 const FMT_RED: &str = "\x1b[31m";
@@ -191,7 +231,7 @@ impl std::fmt::Display for TestOutcome {
         let (col, outcome) = match self {
             TestOutcome::Passed => (FMT_GREEN, "ok"),
             TestOutcome::Failed => (FMT_RED, "FAILED"),
-            TestOutcome::Skipped => (FMT_YELLOW, "ignored"),
+            TestOutcome::Skipped => (FMT_YELLOW, "skipped"),
         };
 
         write!(f, "{col}{outcome}{end}")

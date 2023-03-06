@@ -5,6 +5,20 @@
 extends Node
 
 func _ready():
+	var allow_focus := true
+	var unrecognized_args: Array = []
+	for arg in OS.get_cmdline_user_args():
+		match arg:
+			"--disallow-focus":
+				allow_focus = false
+			_:
+				unrecognized_args.push_back(arg)
+
+	if unrecognized_args:
+		push_error("Unrecognized arguments: ", unrecognized_args)
+		get_tree().quit(2)
+		return
+
 	var rust_runner = IntegrationTests.new()
 
 	var gdscript_suites: Array = [
@@ -19,7 +33,7 @@ func _ready():
 			if method_name.begins_with("test_"):
 				gdscript_tests.push_back(GDScriptTestCase.new(suite, method_name))
 
-	var success: bool = rust_runner.run_all_tests(gdscript_tests, gdscript_suites.size())
+	var success: bool = rust_runner.run_all_tests(gdscript_tests, gdscript_suites.size(), allow_focus)
 
 	var exit_code: int = 0 if success else 1
 	get_tree().quit(exit_code)

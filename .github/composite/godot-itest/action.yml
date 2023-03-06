@@ -10,9 +10,14 @@ inputs:
     required: true
     description: "Name of the compiled Godot artifact to download"
 
-  binary-filename:
+  godot-binary:
     required: true
     description: "Filename of the Godot executable"
+
+  godot-args:
+    required: false
+    default: ''
+    description: "Command-line arguments passed to Godot"
 
   rust-toolchain:
     required: false
@@ -26,8 +31,8 @@ inputs:
 
   with-llvm:
     required: false
-    description: "Set to 'true' if LLVM should be installed"
     default: ''
+    description: "Set to 'true' if LLVM should be installed"
 
 
 runs:
@@ -39,7 +44,7 @@ runs:
       uses: ./.github/composite/godot-install
       with:
         artifact-name: ${{ inputs.artifact-name }}
-        binary-filename: ${{ inputs.binary-filename }}
+        godot-binary: ${{ inputs.godot-binary }}
 
     # The chmod seems still necessary, although applied before uploading artifact. Possibly modes are not preserved.
     # The `| xargs` pattern trims the output, since printed version may contain extra newline, which causes problems in env vars.
@@ -94,7 +99,7 @@ runs:
       run: |
         cd itest/godot
         echo "OUTCOME=itest" >> $GITHUB_ENV
-        $GODOT4_BIN --headless 2>&1 | tee "${{ runner.temp }}/log.txt" | tee >(grep "SCRIPT ERROR:" -q && {
+        $GODOT4_BIN --headless ${{ inputs.godot-args }} 2>&1 | tee "${{ runner.temp }}/log.txt" | tee >(grep "SCRIPT ERROR:" -q && {
         	printf "\n -- Godot engine encountered error, abort...\n";
         	pkill godot
             echo "OUTCOME=godot-runtime" >> $GITHUB_ENV

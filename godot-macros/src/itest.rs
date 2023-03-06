@@ -4,14 +4,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::bail;
+use crate::util::{bail, KvParser};
+use crate::ParseResult;
 use proc_macro2::TokenStream;
 use quote::quote;
-use venial::{Declaration, Error};
+use venial::Declaration;
 
-pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
-    let input_decl = venial::parse_declaration(input)?;
-
+pub fn transform(input_decl: Declaration) -> ParseResult<TokenStream> {
     let func = match input_decl {
         Declaration::Function(f) => f,
         _ => return bail("#[itest] can only be applied to functions", &input_decl),
@@ -29,32 +28,31 @@ pub fn transform(input: TokenStream) -> Result<TokenStream, Error> {
         );
     }
 
+    let mut attr = KvParser::parse_required(&func.attributes, "itest", &func.name)?;
+    let skipped = attr.handle_alone("skip")?;
+    let focused = attr.handle_alone("focus")?;
+    attr.finish()?;
+
+    if skipped && focused {
+        return bail(
+            "#[itest]: keys `skip` and `focus` are mutually exclusive",
+            func.name,
+        );
+    }
+
     let test_name = &func.name;
     let test_name_str = func.name.to_string();
     let body = &func.body;
 
     Ok(quote! {
-       /*#[doc(hidden)]
-        #[must_use]
-        pub fn #test_name() -> bool {
-            println!(#init_msg);
-
-            // Explicit type to prevent tests from returning a value
-            let success: Option<()> = godot::private::handle_panic(
-                || #error_msg,
-                || #body
-            );
-
-            success.is_some()
-        }*/
-
         pub fn #test_name() {
             #body
         }
 
         ::godot::sys::plugin_add!(__GODOT_ITEST in crate; crate::RustTestCase {
             name: #test_name_str,
-            skipped: false,
+            skipped: #skipped,
+            focused: #focused,
             file: std::file!(),
             line: std::line!(),
             function: #test_name,

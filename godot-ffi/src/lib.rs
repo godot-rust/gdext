@@ -151,6 +151,7 @@ pub fn default_call_error() -> GDExtensionCallError {
 
 #[doc(hidden)]
 #[inline]
+#[track_caller] // panic message points to call site
 pub fn panic_on_call_error(err: &GDExtensionCallError) {
     let actual = err.error;
 

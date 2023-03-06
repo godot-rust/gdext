@@ -41,14 +41,16 @@ fn packed_array_to_vec() {
     assert_eq!(array.to_vec(), vec![1, 2]);
 }
 
-// #[itest]
-// fn packed_array_into_iterator() {
-//     let array = Array::from(&[1, 2]);
-//     let mut iter = array.into_iter();
-//     assert_eq!(iter.next(), Some(1));
-//     assert_eq!(iter.next(), Some(2));
-//     assert_eq!(iter.next(), None);
-// }
+/*
+#[itest(skip)]
+fn packed_array_into_iterator() {
+    let array = PackedByteArray::from(&[1, 2]);
+    let mut iter = array.into_iter();
+    assert_eq!(iter.next(), Some(1));
+    assert_eq!(iter.next(), Some(2));
+    assert_eq!(iter.next(), None);
+}
+*/
 
 #[itest]
 fn packed_array_eq() {

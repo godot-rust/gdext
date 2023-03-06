@@ -57,7 +57,7 @@ jobs:
         uses: ./.github/composite/godot-install
         with:
           artifact-name: godot-linux
-          binary-filename: godot.linuxbsd.editor.dev.x86_64
+          godot-binary: godot.linuxbsd.editor.dev.x86_64
 
       - name: "Check clippy"
         run: |
@@ -78,7 +78,7 @@ jobs:
         uses: ./.github/composite/godot-install
         with:
           artifact-name: godot-linux
-          binary-filename: godot.linuxbsd.editor.dev.x86_64
+          godot-binary: godot.linuxbsd.editor.dev.x86_64
 
       - name: "Compile tests"
         run: cargo test $GDEXT_FEATURES --no-run
@@ -98,7 +98,7 @@ jobs:
         uses: ./.github/composite/godot-itest
         with:
           artifact-name: godot-linux
-          binary-filename: godot.linuxbsd.editor.dev.x86_64
+          godot-binary: godot.linuxbsd.editor.dev.x86_64
           #godot_ver: ${{ matrix.godot }}
 
 
