@@ -31,6 +31,8 @@ pub trait VariantMetadata {
             Self::variant_type(),
             Self::class_name(),
             StringName::from(property_name),
+            global::PropertyHint::PROPERTY_HINT_NONE,
+            GodotString::new(),
         )
     }
 
@@ -64,13 +66,15 @@ impl PropertyInfo {
         variant_type: VariantType,
         class_name: ClassName,
         property_name: StringName,
+        hint: global::PropertyHint,
+        hint_string: GodotString,
     ) -> Self {
         Self {
             variant_type,
             class_name,
             property_name,
-            hint: global::PropertyHint::PROPERTY_HINT_NONE,
-            hint_string: GodotString::new(),
+            hint,
+            hint_string,
             usage: global::PropertyUsageFlags::PROPERTY_USAGE_DEFAULT,
         }
     }

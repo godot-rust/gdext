@@ -35,7 +35,16 @@ func test_export():
 	var node = Node.new()
 	obj.object_val = node
 	assert_eq(obj.object_val, node)
-
+	
+	var texture_val_meta = obj.get_property_list().filter(
+		func(el)->bool:
+			return el["name"] == "texture_val"
+			).front()
+	
+	assert_that(texture_val_meta != null, "'texture_val' is defined")
+	assert_eq(texture_val_meta["hint"], PropertyHint.PROPERTY_HINT_RESOURCE_TYPE)
+	assert_eq(texture_val_meta["hint_string"], "Texture")
+	
 	obj.free()
 	node.free()
 

@@ -176,6 +176,22 @@ struct ExportedField {
     field: Field,
     getter: String,
     setter: String,
+    hint: Option<ExportHint>,
+}
+
+#[derive(Clone)]
+struct ExportHint {
+    hint_type: Ident,
+    description: String,
+}
+
+impl ExportHint {
+    fn none() -> Self {
+        Self {
+            hint_type: ident("PROPERTY_HINT_NONE"),
+            description: "".to_string(),
+        }
+    }
 }
 
 impl ExportedField {
@@ -183,10 +199,21 @@ impl ExportedField {
         let getter = parser.handle_lit_required("getter")?;
         let setter = parser.handle_lit_required("setter")?;
 
+        let hint = parser
+            .handle_ident("hint")?
+            .map(|hint_type| {
+                Ok(ExportHint {
+                    hint_type,
+                    description: parser.handle_lit_required("hint_desc")?,
+                })
+            })
+            .transpose()?;
+
         Ok(ExportedField {
             field,
             getter,
             setter,
+            hint,
         })
     }
 }
@@ -248,6 +275,14 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             let setter = proc_macro2::Literal::from_str(&exported_field.setter).unwrap();
             let field_type = exported_field.field.ty.clone();
 
+            let ExportHint {
+                hint_type,
+                description,
+            } = exported_field.hint.clone().unwrap_or_else(ExportHint::none);
+
+            // trims '"' and '\' from both ends of the hint description.
+            let description = description.trim_matches(|c| c == '\\' || c == '"');
+
             quote! {
                 use ::godot::builtin::meta::VariantMetadata;
 
@@ -256,6 +291,8 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                     <#field_type>::variant_type(),
                     ::godot::builtin::meta::ClassName::of::<#class_name>(),
                     ::godot::builtin::StringName::from(#name),
+                    ::godot::engine::global::PropertyHint::#hint_type,
+                    GodotString::from(#description),
                 );
                 let property_info_sys = property_info.property_sys();
 
