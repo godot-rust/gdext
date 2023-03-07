@@ -35,7 +35,7 @@
 // Re-export macros.
 pub use crate::{array, dict, varray};
 
-pub use array_inner::{Array, TypedArray};
+pub use array_inner::{Array, VariantArray};
 pub use basis::*;
 pub use color::*;
 pub use dictionary_inner::Dictionary;

@@ -9,12 +9,12 @@ use godot::prelude::*;
 
 #[itest]
 fn array_default() {
-    assert_eq!(Array::default().len(), 0);
+    assert_eq!(VariantArray::default().len(), 0);
 }
 
 #[itest]
 fn array_new() {
-    assert_eq!(Array::new().len(), 0);
+    assert_eq!(VariantArray::new().len(), 0);
 }
 
 #[itest]
@@ -31,7 +31,7 @@ fn array_eq() {
 fn typed_array_from_to_variant() {
     let array = array![1, 2];
     let variant = array.to_variant();
-    let result = TypedArray::try_from_variant(&variant);
+    let result = Array::try_from_variant(&variant);
     assert_eq!(result, Ok(array));
 }
 
@@ -39,14 +39,14 @@ fn typed_array_from_to_variant() {
 fn untyped_array_from_to_variant() {
     let array = varray![1, 2];
     let variant = array.to_variant();
-    let result = Array::try_from_variant(&variant);
+    let result = VariantArray::try_from_variant(&variant);
     assert_eq!(result, Ok(array));
 }
 
 #[itest]
 fn array_from_packed_array() {
     let packed_array = PackedInt32Array::from(&[42]);
-    let mut array = Array::from(&packed_array);
+    let mut array = VariantArray::from(&packed_array);
     // This tests that the resulting array doesn't secretly have a runtime type assigned to it,
     // which is not reflected in our static type. It would make sense if it did, but Godot decided
     // otherwise: we get an untyped array.
@@ -56,7 +56,7 @@ fn array_from_packed_array() {
 
 #[itest]
 fn array_from_iterator() {
-    let array = TypedArray::from_iter([1, 2]);
+    let array = Array::from_iter([1, 2]);
 
     assert_eq!(array.len(), 2);
     assert_eq!(array.get(0), 1);
@@ -65,7 +65,7 @@ fn array_from_iterator() {
 
 #[itest]
 fn array_from_slice() {
-    let array = TypedArray::from(&[1, 2]);
+    let array = Array::from(&[1, 2]);
 
     assert_eq!(array.len(), 2);
     assert_eq!(array.get(0), 1);
@@ -108,7 +108,7 @@ fn array_duplicate_shallow() {
     let subarray = array![2, 3];
     let array = varray![1, subarray];
     let duplicate = array.duplicate_shallow();
-    TypedArray::<i64>::try_from_variant(&duplicate.get(1))
+    Array::<i64>::try_from_variant(&duplicate.get(1))
         .unwrap()
         .set(0, 4);
     assert_eq!(subarray.get(0), 4);
@@ -119,7 +119,7 @@ fn array_duplicate_deep() {
     let subarray = array![2, 3];
     let array = varray![1, subarray];
     let duplicate = array.duplicate_deep();
-    TypedArray::<i64>::try_from_variant(&duplicate.get(1))
+    Array::<i64>::try_from_variant(&duplicate.get(1))
         .unwrap()
         .set(0, 4);
     assert_eq!(subarray.get(0), 2);
@@ -134,7 +134,7 @@ fn array_slice_shallow() {
     let subarray = array![2, 3];
     let array = varray![1, subarray];
     let slice = array.slice_shallow(1, 2, None);
-    TypedArray::<i64>::try_from_variant(&slice.get(0))
+    Array::<i64>::try_from_variant(&slice.get(0))
         .unwrap()
         .set(0, 4);
     assert_eq!(subarray.get(0), 4);
@@ -149,7 +149,7 @@ fn array_slice_deep() {
     let subarray = array![2, 3];
     let array = varray![1, subarray];
     let slice = array.slice_deep(1, 2, None);
-    TypedArray::<i64>::try_from_variant(&slice.get(0))
+    Array::<i64>::try_from_variant(&slice.get(0))
         .unwrap()
         .set(0, 4);
     assert_eq!(subarray.get(0), 2);
@@ -173,7 +173,7 @@ fn array_first_last() {
     assert_eq!(array.first(), Some(1));
     assert_eq!(array.last(), Some(2));
 
-    let empty_array = Array::new();
+    let empty_array = VariantArray::new();
 
     assert_eq!(empty_array.first(), None);
     assert_eq!(empty_array.last(), None);
@@ -220,7 +220,7 @@ fn array_min_max() {
     assert_eq!(uncomparable_array.min(), None);
     assert_eq!(uncomparable_array.max(), None);
 
-    let empty_array = Array::new();
+    let empty_array = VariantArray::new();
 
     assert_eq!(empty_array.min(), None);
     assert_eq!(empty_array.max(), None);
@@ -228,7 +228,7 @@ fn array_min_max() {
 
 #[itest]
 fn array_pick_random() {
-    assert_eq!(Array::new().pick_random(), None);
+    assert_eq!(VariantArray::new().pick_random(), None);
     assert_eq!(array![1].pick_random(), Some(1));
 }
 
@@ -330,10 +330,7 @@ fn array_mixed_values() {
         PackedByteArray::try_from_variant(&array.get(2)).unwrap(),
         packed_array
     );
-    assert_eq!(
-        TypedArray::try_from_variant(&array.get(3)).unwrap(),
-        typed_array
-    );
+    assert_eq!(Array::try_from_variant(&array.get(3)).unwrap(), typed_array);
     assert_eq!(
         Gd::<Object>::try_from_variant(&array.get(4))
             .unwrap()
@@ -384,7 +381,7 @@ fn untyped_array_return_from_godot_func() {
     assert_eq!(result, varray![child, Variant::nil(), NodePath::default()]);
 }
 
-// TODO All API functions that take a `TypedArray` are even more obscure and not included in
+// TODO All API functions that take a `Array` are even more obscure and not included in
 // `SELECTED_CLASSES`. Decide if this test is worth having `Texture2DArray` and `Image` and their
 // ancestors in the list.
 #[itest]
@@ -431,22 +428,22 @@ struct ArrayTest;
 #[godot_api]
 impl ArrayTest {
     #[func]
-    fn pass_untyped_array(&self, array: Array) -> i64 {
+    fn pass_untyped_array(&self, array: VariantArray) -> i64 {
         array.len().try_into().unwrap()
     }
 
     #[func]
-    fn return_untyped_array(&self) -> Array {
+    fn return_untyped_array(&self) -> VariantArray {
         varray![42, "answer"]
     }
 
     #[func]
-    fn pass_typed_array(&self, array: TypedArray<i64>) -> i64 {
+    fn pass_typed_array(&self, array: Array<i64>) -> i64 {
         array.iter_shared().sum()
     }
 
     #[func]
-    fn return_typed_array(&self, n: i64) -> TypedArray<i64> {
+    fn return_typed_array(&self, n: i64) -> Array<i64> {
         (1..(n + 1)).collect()
     }
 }

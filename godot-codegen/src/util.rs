@@ -177,10 +177,11 @@ fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
         "int" => "i64",
         "float" => "f64",
         "String" => "GodotString",
+        "Array" => "VariantArray",
         //"enum::Error" => "GodotError",
         "enum::Variant.Type" => "VariantType",
-        "enum::Variant.Operator" => "VariantOperator", // currently not used, but future-proof
-        "enum::Vector3.Axis" => "Vector3Axis",         // TODO automate this
+        "enum::Variant.Operator" => "VariantOperator",
+        "enum::Vector3.Axis" => "Vector3Axis",
         _ => return None,
     };
     Some(result)
@@ -251,10 +252,10 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
 
         let rust_elem_ty = to_rust_type(elem_ty, ctx);
         return if ctx.is_builtin(elem_ty) {
-            RustTy::BuiltinArray(quote! { TypedArray<#rust_elem_ty> })
+            RustTy::BuiltinArray(quote! { Array<#rust_elem_ty> })
         } else {
             RustTy::EngineArray {
-                tokens: quote! { TypedArray<#rust_elem_ty> },
+                tokens: quote! { Array<#rust_elem_ty> },
                 elem_class: elem_ty.to_string(),
             }
         };
