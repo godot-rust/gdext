@@ -10,7 +10,7 @@ use godot::builtin::{
 };
 use godot::engine::Node2D;
 use godot::obj::InstanceId;
-use godot::prelude::{Array, Basis, Dictionary, VariantConversionError};
+use godot::prelude::{Basis, Dictionary, VariantArray, VariantConversionError};
 use godot::sys::{GodotFfi, VariantOperator, VariantType};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display};
@@ -303,7 +303,7 @@ fn variant_conversion_fails() {
         Err(VariantConversionError)
     );
     assert_eq!(
-        Array::default().to_variant().try_to::<StringName>(),
+        VariantArray::default().to_variant().try_to::<StringName>(),
         Err(VariantConversionError)
     );
     //assert_eq!(
@@ -327,7 +327,10 @@ fn variant_type_correct() {
         StringName::from("string_name").to_variant().get_type(),
         VariantType::StringName
     );
-    assert_eq!(Array::default().to_variant().get_type(), VariantType::Array);
+    assert_eq!(
+        VariantArray::default().to_variant().get_type(),
+        VariantType::Array
+    );
     assert_eq!(
         Dictionary::default().to_variant().get_type(),
         VariantType::Dictionary

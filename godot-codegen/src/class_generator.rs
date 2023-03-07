@@ -431,7 +431,7 @@ fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &TyName, _ctx: &Context) -
 fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStream {
     if class_name.godot_ty == "Array" {
         quote! {
-            pub fn from_outer_typed<T>(outer: &TypedArray<T>) -> Self
+            pub fn from_outer_typed<T>(outer: &Array<T>) -> Self
                 where T: crate::builtin::meta::VariantMetadata
             {
                 Self {

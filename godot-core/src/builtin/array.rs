@@ -30,7 +30,7 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 ///
 /// # Reference semantics
 ///
-/// Like in GDScript, `TypedArray` acts as a reference type: multiple `TypedArray` instances may
+/// Like in GDScript, `Array` acts as a reference type: multiple `Array` instances may
 /// refer to the same underlying array, and changes to one are visible in the other.
 ///
 /// To create a copy that shares data with the original array, use [`Share::share()`]. If you want
@@ -38,7 +38,7 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 ///
 /// # Thread safety
 ///
-/// Usage is safe if the `TypedArray` is used on a single thread only. Concurrent reads on
+/// Usage is safe if the `Array` is used on a single thread only. Concurrent reads on
 /// different threads are also safe, but any writes must be externally synchronized. The Rust
 /// compiler will enforce this as long as you use only Rust threads, but it cannot protect against
 /// concurrent modification on other threads (e.g. created through GDScript).
@@ -47,16 +47,16 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 // trait, whose `from_sys_init()` requires `Default`, which is only implemented for `T:
 // VariantMetadata`. Whew. This could be fixed by splitting up `GodotFfi` if desired.
 #[repr(C)]
-pub struct TypedArray<T: VariantMetadata> {
+pub struct Array<T: VariantMetadata> {
     opaque: sys::types::OpaqueArray,
     _phantom: PhantomData<T>,
 }
 
 /// A Godot `Array` without an assigned type.
-pub type Array = TypedArray<Variant>;
+pub type VariantArray = Array<Variant>;
 
 // TODO check if these return a typed array
-impl_builtin_froms!(Array;
+impl_builtin_froms!(VariantArray;
     PackedByteArray => array_from_packed_byte_array,
     PackedColorArray => array_from_packed_color_array,
     PackedFloat32Array => array_from_packed_float32_array,
@@ -68,7 +68,7 @@ impl_builtin_froms!(Array;
     PackedVector3Array => array_from_packed_vector3_array,
 );
 
-impl<T: VariantMetadata> TypedArray<T> {
+impl<T: VariantMetadata> Array<T> {
     fn from_opaque(opaque: sys::types::OpaqueArray) -> Self {
         // Note: type is not yet checked at this point, because array has not yet been initialized!
         Self {
@@ -210,25 +210,25 @@ impl<T: VariantMetadata> TypedArray<T> {
     ///   from variants may fail.
     /// In the current implementation, both cases will produce a panic rather than undefined
     /// behavior, but this should not be relied upon.
-    unsafe fn assume_type<U: VariantMetadata>(self) -> TypedArray<U> {
+    unsafe fn assume_type<U: VariantMetadata>(self) -> Array<U> {
         // SAFETY: The memory layout of `TypedArray<T>` does not depend on `T`.
         unsafe { std::mem::transmute(self) }
     }
 }
 
-impl<T: VariantMetadata> TypedArray<T> {
-    /// Constructs an empty `TypedArray`.
+impl<T: VariantMetadata> Array<T> {
+    /// Constructs an empty `Array`.
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Returns a shallow copy of the array. All array elements are copied, but any reference types
-    /// (such as `TypedArray`, `Dictionary` and `Object`) will still refer to the same value.
+    /// (such as `Array`, `Dictionary` and `Object`) will still refer to the same value.
     ///
     /// To create a deep copy, use [`duplicate_deep()`] instead. To create a new reference to the
     /// same array data, use [`share()`].
     pub fn duplicate_shallow(&self) -> Self {
-        let duplicate: Array = self.as_inner().duplicate(false);
+        let duplicate: VariantArray = self.as_inner().duplicate(false);
         // SAFETY: duplicate() returns a typed array with the same type as Self
         unsafe { duplicate.assume_type() }
     }
@@ -240,13 +240,13 @@ impl<T: VariantMetadata> TypedArray<T> {
     /// To create a shallow copy, use [`duplicate_shallow()`] instead. To create a new reference to
     /// the same array data, use [`share()`].
     pub fn duplicate_deep(&self) -> Self {
-        let duplicate: Array = self.as_inner().duplicate(true);
+        let duplicate: VariantArray = self.as_inner().duplicate(true);
         // SAFETY: duplicate() returns a typed array with the same type as Self
         unsafe { duplicate.assume_type() }
     }
 
-    /// Returns a slice of the `TypedArray`, from `begin` (inclusive) to `end` (exclusive), as a
-    /// new `TypedArray`.
+    /// Returns a slice of the `Array`, from `begin` (inclusive) to `end` (exclusive), as a
+    /// new `Array`.
     ///
     /// The values of `begin` and `end` will be clamped to the array size.
     ///
@@ -254,15 +254,15 @@ impl<T: VariantMetadata> TypedArray<T> {
     /// in which case `begin` must be higher than `end`. For example,
     /// `TypedArray::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
     ///
-    /// Array elements are copied to the slice, but any reference types (such as `TypedArray`,
+    /// Array elements are copied to the slice, but any reference types (such as `Array`,
     /// `Dictionary` and `Object`) will still refer to the same value. To create a deep copy, use
     /// [`slice_deep()`] instead.
     pub fn slice_shallow(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
         self.slice_impl(begin, end, step, false)
     }
 
-    /// Returns a slice of the `TypedArray`, from `begin` (inclusive) to `end` (exclusive), as a
-    /// new `TypedArray`.
+    /// Returns a slice of the `Array`, from `begin` (inclusive) to `end` (exclusive), as a
+    /// new `Array`.
     ///
     /// The values of `begin` and `end` will be clamped to the array size.
     ///
@@ -285,7 +285,7 @@ impl<T: VariantMetadata> TypedArray<T> {
         let end = end.min(len);
         let step = step.unwrap_or(1);
 
-        let slice: Array =
+        let slice: VariantArray =
             self.as_inner()
                 .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep);
 
@@ -294,10 +294,10 @@ impl<T: VariantMetadata> TypedArray<T> {
     }
 
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
-    pub fn extend_array(&mut self, other: TypedArray<T>) {
+    pub fn extend_array(&mut self, other: Array<T>) {
         // SAFETY: Read-only arrays are covariant: conversion to a variant array is fine as long as
         // we don't insert values into it afterwards, and `append_array()` doesn't do that.
-        let other: Array = unsafe { other.assume_type::<Variant>() };
+        let other: VariantArray = unsafe { other.assume_type::<Variant>() };
         self.as_inner().append_array(other);
     }
 
@@ -344,12 +344,12 @@ impl<T: VariantMetadata> TypedArray<T> {
     }
 }
 
-impl<T: VariantMetadata + FromVariant> TypedArray<T> {
-    /// Returns an iterator over the elements of the `TypedArray`. Note that this takes the array
+impl<T: VariantMetadata + FromVariant> Array<T> {
+    /// Returns an iterator over the elements of the `Array`. Note that this takes the array
     /// by reference but returns its elements by value, since they are internally converted from
     /// `Variant`.
     ///
-    /// Notice that it's possible to modify the `TypedArray` through another reference while
+    /// Notice that it's possible to modify the `Array` through another reference while
     /// iterating over it. This will not result in unsoundness or crashes, but will cause the
     /// iterator to behave in an unspecified way.
     pub fn iter_shared(&self) -> Iter<'_, T> {
@@ -447,7 +447,7 @@ impl<T: VariantMetadata + FromVariant> TypedArray<T> {
     }
 }
 
-impl<T: VariantMetadata + ToVariant> TypedArray<T> {
+impl<T: VariantMetadata + ToVariant> Array<T> {
     /// Finds the index of an existing value in a sorted array using binary search. Equivalent of
     /// `bsearch` in GDScript.
     ///
@@ -566,7 +566,7 @@ impl<T: VariantMetadata + ToVariant> TypedArray<T> {
 //     ...
 // }
 
-impl<T: VariantMetadata> GodotFfi for TypedArray<T> {
+impl<T: VariantMetadata> GodotFfi for Array<T> {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
@@ -576,7 +576,7 @@ impl<T: VariantMetadata> GodotFfi for TypedArray<T> {
     }
 }
 
-impl<T: VariantMetadata> fmt::Debug for TypedArray<T> {
+impl<T: VariantMetadata> fmt::Debug for Array<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Going through `Variant` because there doesn't seem to be a direct way.
         write!(f, "{:?}", self.to_variant().stringify())
@@ -586,9 +586,9 @@ impl<T: VariantMetadata> fmt::Debug for TypedArray<T> {
 /// Creates a new reference to the data in this array. Changes to the original array will be
 /// reflected in the copy and vice versa.
 ///
-/// To create a (mostly) independent copy instead, see [`Array::duplicate_shallow()`] and
-/// [`Array::duplicate_deep()`].
-impl<T: VariantMetadata> Share for TypedArray<T> {
+/// To create a (mostly) independent copy instead, see [`VariantArray::duplicate_shallow()`] and
+/// [`VariantArray::duplicate_deep()`].
+impl<T: VariantMetadata> Share for Array<T> {
     fn share(&self) -> Self {
         let array = unsafe {
             Self::from_sys_init(|self_ptr| {
@@ -601,7 +601,7 @@ impl<T: VariantMetadata> Share for TypedArray<T> {
     }
 }
 
-impl<T: VariantMetadata> Default for TypedArray<T> {
+impl<T: VariantMetadata> Default for Array<T> {
     #[inline]
     fn default() -> Self {
         let mut array = unsafe {
@@ -615,7 +615,7 @@ impl<T: VariantMetadata> Default for TypedArray<T> {
     }
 }
 
-impl<T: VariantMetadata> Drop for TypedArray<T> {
+impl<T: VariantMetadata> Drop for Array<T> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
@@ -625,7 +625,7 @@ impl<T: VariantMetadata> Drop for TypedArray<T> {
     }
 }
 
-impl<T: VariantMetadata> VariantMetadata for TypedArray<T> {
+impl<T: VariantMetadata> VariantMetadata for Array<T> {
     fn variant_type() -> VariantType {
         VariantType::Array
     }
@@ -634,7 +634,7 @@ impl<T: VariantMetadata> VariantMetadata for TypedArray<T> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion traits
 
-impl<T: VariantMetadata> ToVariant for TypedArray<T> {
+impl<T: VariantMetadata> ToVariant for Array<T> {
     fn to_variant(&self) -> Variant {
         unsafe {
             Variant::from_var_sys_init(|variant_ptr| {
@@ -645,7 +645,7 @@ impl<T: VariantMetadata> ToVariant for TypedArray<T> {
     }
 }
 
-impl<T: VariantMetadata> FromVariant for TypedArray<T> {
+impl<T: VariantMetadata> FromVariant for Array<T> {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
         if variant.get_type() != Self::variant_type() {
             return Err(VariantConversionError);
@@ -661,15 +661,15 @@ impl<T: VariantMetadata> FromVariant for TypedArray<T> {
     }
 }
 
-/// Creates a `TypedArray` from the given Rust array.
-impl<T: VariantMetadata + ToVariant, const N: usize> From<&[T; N]> for TypedArray<T> {
+/// Creates a `Array` from the given Rust array.
+impl<T: VariantMetadata + ToVariant, const N: usize> From<&[T; N]> for Array<T> {
     fn from(arr: &[T; N]) -> Self {
         Self::from(&arr[..])
     }
 }
 
-/// Creates a `TypedArray` from the given slice.
-impl<T: VariantMetadata + ToVariant> From<&[T]> for TypedArray<T> {
+/// Creates a `Array` from the given slice.
+impl<T: VariantMetadata + ToVariant> From<&[T]> for Array<T> {
     fn from(slice: &[T]) -> Self {
         let mut array = Self::new();
         let len = slice.len();
@@ -688,8 +688,8 @@ impl<T: VariantMetadata + ToVariant> From<&[T]> for TypedArray<T> {
     }
 }
 
-/// Creates a `TypedArray` from an iterator.
-impl<T: VariantMetadata + ToVariant> FromIterator<T> for TypedArray<T> {
+/// Creates a `Array` from an iterator.
+impl<T: VariantMetadata + ToVariant> FromIterator<T> for Array<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut array = Self::new();
         array.extend(iter);
@@ -697,8 +697,8 @@ impl<T: VariantMetadata + ToVariant> FromIterator<T> for TypedArray<T> {
     }
 }
 
-/// Extends a `TypedArray` with the contents of an iterator.
-impl<T: VariantMetadata + ToVariant> Extend<T> for TypedArray<T> {
+/// Extends a `Array` with the contents of an iterator.
+impl<T: VariantMetadata + ToVariant> Extend<T> for Array<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
         // Otherwise we could use it to pre-allocate based on `iter.size_hint()`.
@@ -712,8 +712,8 @@ impl<T: VariantMetadata + ToVariant> Extend<T> for TypedArray<T> {
 }
 
 /// Converts this array to a strongly typed Rust vector.
-impl<T: VariantMetadata + FromVariant> From<&TypedArray<T>> for Vec<T> {
-    fn from(array: &TypedArray<T>) -> Vec<T> {
+impl<T: VariantMetadata + FromVariant> From<&Array<T>> for Vec<T> {
+    fn from(array: &Array<T>) -> Vec<T> {
         let len = array.len();
         let mut vec = Vec::with_capacity(len);
         let ptr = array.ptr(0);
@@ -731,7 +731,7 @@ impl<T: VariantMetadata + FromVariant> From<&TypedArray<T>> for Vec<T> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub struct Iter<'a, T: VariantMetadata> {
-    array: &'a TypedArray<T>,
+    array: &'a Array<T>,
     next_idx: usize,
 }
 
@@ -755,7 +755,7 @@ impl<'a, T: VariantMetadata + FromVariant> Iterator for Iter<'a, T> {
 }
 
 // TODO There's a macro for this, but it doesn't support generics yet; add support and use it
-impl<T: VariantMetadata> PartialEq for TypedArray<T> {
+impl<T: VariantMetadata> PartialEq for Array<T> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         unsafe {
@@ -768,7 +768,7 @@ impl<T: VariantMetadata> PartialEq for TypedArray<T> {
     }
 }
 
-impl<T: VariantMetadata> PartialOrd for TypedArray<T> {
+impl<T: VariantMetadata> PartialOrd for Array<T> {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         let op_less = |lhs, rhs| unsafe {
@@ -793,14 +793,14 @@ impl<T: VariantMetadata> PartialOrd for TypedArray<T> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Constructs [`TypedArray`] literals, similar to Rust's standard `vec!` macro.
+/// Constructs [`Array`] literals, similar to Rust's standard `vec!` macro.
 ///
 /// The type of the array is inferred from the arguments.
 ///
 /// Example:
 /// ```no_run
 /// # use godot::prelude::*;
-/// let arr = array![3, 1, 4];  // TypedArray<i32>
+/// let arr = array![3, 1, 4];  // Array<i32>
 /// ```
 ///
 /// To create an `Array` of variants, see the [`varray!`] macro.
@@ -808,7 +808,7 @@ impl<T: VariantMetadata> PartialOrd for TypedArray<T> {
 macro_rules! array {
     ($($elements:expr),* $(,)?) => {
         {
-            let mut array = $crate::builtin::TypedArray::default();
+            let mut array = $crate::builtin::Array::default();
             $(
                 array.push($elements);
             )*
@@ -817,14 +817,14 @@ macro_rules! array {
     };
 }
 
-/// Constructs [`Array`] literals, similar to Rust's standard `vec!` macro.
+/// Constructs [`VariantArray`] literals, similar to Rust's standard `vec!` macro.
 ///
 /// The type of the array is always [`Variant`].
 ///
 /// Example:
 /// ```no_run
 /// # use godot::prelude::*;
-/// let arr: Array = varray![42_i64, "hello", true];
+/// let arr: VariantArray = varray![42_i64, "hello", true];
 /// ```
 ///
 /// To create a typed `Array` with a single element type, see the [`array!`] macro.
@@ -834,7 +834,7 @@ macro_rules! varray {
     ($($elements:expr),* $(,)?) => {
         {
             use $crate::builtin::ToVariant as _;
-            let mut array = $crate::builtin::Array::default();
+            let mut array = $crate::builtin::VariantArray::default();
             $(
                 array.push($elements.to_variant());
             )*

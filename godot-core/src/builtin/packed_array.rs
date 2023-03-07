@@ -376,7 +376,7 @@ macro_rules! impl_packed_array {
             }
         }
 
-        impl_builtin_froms!($PackedArray; Array => $from_array);
+        impl_builtin_froms!($PackedArray; VariantArray => $from_array);
 
         impl fmt::Debug for $PackedArray {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -25,7 +25,7 @@ fn test_builtins_vector2() {
 
 #[itest]
 fn test_builtins_array() {
-    let array = Array::default();
+    let array = VariantArray::default();
     let mut inner: InnerArray = array.as_inner();
 
     let a = 7.to_variant();

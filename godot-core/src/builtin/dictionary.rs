@@ -14,7 +14,7 @@ use std::ptr::addr_of_mut;
 use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use super::Array;
+use super::VariantArray;
 
 /// Godot's `Dictionary` type.
 ///
@@ -23,7 +23,7 @@ use super::Array;
 ///
 /// # Thread safety
 ///
-/// The same principles apply as for [`Array`]. Consult its documentation for details.
+/// The same principles apply as for [`VariantArray`]. Consult its documentation for details.
 #[repr(C)]
 pub struct Dictionary {
     opaque: OpaqueDictionary,
@@ -131,7 +131,7 @@ impl Dictionary {
     /// Returns `true` if the dictionary contains all the given keys.
     ///
     /// _Godot equivalent: `has_all`_
-    pub fn contains_all_keys(&self, keys: Array) -> bool {
+    pub fn contains_all_keys(&self, keys: VariantArray) -> bool {
         self.as_inner().has_all(keys)
     }
 
@@ -143,14 +143,14 @@ impl Dictionary {
     /// Creates a new `Array` containing all the keys currently in the dictionary.
     ///
     /// _Godot equivalent: `keys`_
-    pub fn keys_array(&self) -> Array {
+    pub fn keys_array(&self) -> VariantArray {
         self.as_inner().keys()
     }
 
     /// Creates a new `Array` containing all the values currently in the dictionary.
     ///
     /// _Godot equivalent: `values`_
-    pub fn values_array(&self) -> Array {
+    pub fn values_array(&self) -> VariantArray {
         self.as_inner().values()
     }
 
@@ -464,7 +464,7 @@ impl<'a> Keys<'a> {
     }
 
     /// Returns an array of the keys
-    pub fn array(self) -> Array {
+    pub fn array(self) -> VariantArray {
         // Can only be called
         assert!(self.iter.is_first);
         self.iter.dictionary.keys_array()

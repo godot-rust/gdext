@@ -5,7 +5,7 @@
  */
 
 use godot::bind::{godot_api, GodotClass};
-use godot::builtin::{Array, ToVariant, Variant};
+use godot::builtin::{ToVariant, Variant, VariantArray};
 
 use crate::RustTestCase;
 use std::time::{Duration, Instant};
@@ -25,7 +25,7 @@ impl IntegrationTests {
     #[func]
     fn run_all_tests(
         &mut self,
-        gdscript_tests: Array,
+        gdscript_tests: VariantArray,
         gdscript_file_count: i64,
         allow_focus: bool,
     ) -> bool {
@@ -72,7 +72,7 @@ impl IntegrationTests {
         }
     }
 
-    fn run_gdscript_tests(&mut self, tests: Array) {
+    fn run_gdscript_tests(&mut self, tests: VariantArray) {
         let mut last_file = None;
         for test in tests.iter_shared() {
             let result = test.call("run", &[]);
