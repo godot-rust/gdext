@@ -15,6 +15,7 @@ use godot::obj::{Inherits, Share};
 use godot::sys::GodotFfi;
 
 use std::cell::RefCell;
+use std::mem;
 use std::rc::Rc;
 
 // TODO:
@@ -31,6 +32,39 @@ fn object_construct_default() {
 fn object_construct_value() {
     let obj = Gd::new(ObjPayload { value: 222 });
     assert_eq!(obj.bind().value, 222);
+}
+
+// TODO(#23): DerefMut on Gd pointer may be used to break subtyping relations
+#[itest(skip)]
+fn object_subtype_swap() {
+    let mut a: Gd<Node> = Node::new_alloc();
+    let mut b: Gd<Node3D> = Node3D::new_alloc();
+
+    /*
+    let a_id = a.instance_id();
+    let b_id = b.instance_id();
+    let a_class = a.get_class();
+    let b_class = b.get_class();
+
+    dbg!(a_id);
+    dbg!(b_id);
+    dbg!(&a_class);
+    dbg!(&b_class);
+    println!("..swap..");
+    */
+
+    mem::swap(&mut *a, &mut *b);
+
+    /*
+    dbg!(a_id);
+    dbg!(b_id);
+    dbg!(&a_class);
+    dbg!(&b_class);
+    */
+
+    // This should not panic
+    a.free();
+    b.free();
 }
 
 #[itest]
@@ -190,6 +224,31 @@ fn object_engine_eq() {
 
     a1.free();
     b1.free();
+}
+
+#[itest]
+fn object_dead_eq() {
+    let a = Node3D::new_alloc();
+    let b = Node3D::new_alloc();
+    let b2 = b.share();
+
+    // Destroy b1 without consuming it
+    b.share().free();
+
+    {
+        let lhs = a.share();
+        expect_panic("Gd::eq() panics when one operand is dead", move || {
+            let _ = lhs == b;
+        });
+    }
+    {
+        let rhs = a.share();
+        expect_panic("Gd::ne() panics when one operand is dead", move || {
+            let _ = b2 != rhs;
+        });
+    }
+
+    a.free();
 }
 
 #[itest]
@@ -485,7 +544,7 @@ fn object_engine_refcounted_free() {
     let node = RefCounted::new();
     let node2 = node.share().upcast::<Object>();
 
-    expect_panic("calling free() on RefCounted obj", || node2.free())
+    expect_panic("calling free() on RefCounted object", || node2.free())
 }
 
 #[itest]

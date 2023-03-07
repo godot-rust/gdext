@@ -220,7 +220,7 @@ impl<T: GodotClass> Gd<T> {
         // Initialize instance ID cache
         let id = unsafe { interface_fn!(object_get_instance_id)(obj.obj_sys()) };
         let instance_id = InstanceId::try_from_u64(id)
-            .expect("instance ID must be non-zero at time of initialization");
+            .expect("Gd initialization failed; did you call share() on a dead instance?");
         obj.cached_instance_id.set(Some(instance_id));
 
         obj
@@ -452,7 +452,7 @@ where
         // If ref_counted returned None, that means the instance was destroyed
         assert!(
             ref_counted == Some(false) && self.is_instance_valid(),
-            "called free() on already destroyed obj"
+            "called free() on already destroyed object"
         );
 
         // This destroys the Storage instance, no need to run destructor again
