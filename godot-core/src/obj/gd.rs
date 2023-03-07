@@ -626,6 +626,19 @@ impl<T: GodotClass> ToVariant for Gd<T> {
     }
 }
 
+impl<T: GodotClass> PartialEq for Gd<T> {
+    /// ⚠️ Returns whether two `Gd` pointers point to the same object.
+    ///
+    /// # Panics
+    /// When `self` or `other` is dead.
+    fn eq(&self, other: &Self) -> bool {
+        // Panics when one is dead
+        self.instance_id() == other.instance_id()
+    }
+}
+
+impl<T: GodotClass> Eq for Gd<T> {}
+
 impl<T> Display for Gd<T>
 where
     T: GodotClass<Declarer = dom::EngineDomain>,

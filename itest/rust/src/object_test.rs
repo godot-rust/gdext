@@ -162,6 +162,35 @@ fn object_from_instance_id_unrelated_type() {
 }
 
 #[itest]
+fn object_user_eq() {
+    let value: i16 = 17943;
+    let a = ObjPayload { value };
+    let b = ObjPayload { value };
+
+    let a1 = Gd::new(a);
+    let a2 = a1.share();
+    let b1 = Gd::new(b);
+
+    assert_eq!(a1, a2);
+    assert_ne!(a1, b1);
+    assert_ne!(a2, b1);
+}
+
+#[itest]
+fn object_engine_eq() {
+    let a1 = Node3D::new_alloc();
+    let a2 = a1.share();
+    let b1 = Node3D::new_alloc();
+
+    assert_eq!(a1, a2);
+    assert_ne!(a1, b1);
+    assert_ne!(a2, b1);
+
+    a1.free();
+    b1.free();
+}
+
+#[itest]
 fn object_user_convert_variant() {
     let value: i16 = 17943;
     let user = ObjPayload { value };
