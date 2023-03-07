@@ -6,7 +6,8 @@
 
 use crate::{expect_panic, itest};
 use godot::builtin::{
-    FromVariant, GodotString, NodePath, StringName, ToVariant, Variant, Vector2, Vector3,
+    dict, varray, FromVariant, GodotString, NodePath, StringName, ToVariant, Variant, Vector2,
+    Vector3,
 };
 use godot::engine::Node2D;
 use godot::obj::InstanceId;
@@ -332,6 +333,66 @@ fn variant_type_correct() {
         Dictionary::default().to_variant().get_type(),
         VariantType::Dictionary
     );
+}
+
+#[itest]
+fn variant_stringify_correct() {
+    assert_eq!("value".to_variant().stringify(), gstr("value"));
+    assert_eq!(Variant::nil().stringify(), gstr("<null>"));
+    assert_eq!(true.to_variant().stringify(), gstr("true"));
+    assert_eq!(30.to_variant().stringify(), gstr("30"));
+    assert_eq!(
+        godot::builtin::varray![1, "hello", false]
+            .to_variant()
+            .stringify(),
+        gstr("[1, \"hello\", false]")
+    );
+    assert_eq!(
+        dict! { "KEY": 50 }.to_variant().stringify(),
+        gstr("{ \"KEY\": 50 }")
+    );
+}
+
+#[itest]
+fn variant_booleanize_correct() {
+    assert!(gstr("string").to_variant().booleanize());
+    assert!(10.to_variant().booleanize());
+    assert!(varray![""].to_variant().booleanize());
+    assert!(dict! { "Key": 50 }.to_variant().booleanize());
+
+    assert!(!Dictionary::new().to_variant().booleanize());
+    assert!(!varray![].to_variant().booleanize());
+    assert!(!0.to_variant().booleanize());
+    assert!(!Variant::nil().booleanize());
+    assert!(!gstr("").to_variant().booleanize());
+}
+
+#[itest]
+fn variant_hash_correct() {
+    let hash_is_not_0 = [
+        dict! {}.to_variant(),
+        gstr("").to_variant(),
+        varray![].to_variant(),
+    ];
+    let self_equal = [
+        gstr("string").to_variant(),
+        varray![false, true, 4, "7"].to_variant(),
+        0.to_variant(),
+        dict! { 0 : dict!{ 0: 1 }}.to_variant(),
+    ];
+
+    for variant in hash_is_not_0 {
+        assert_ne!(variant.hash(), 0)
+    }
+    for variant in self_equal {
+        assert_eq!(variant.hash(), variant.hash())
+    }
+
+    assert_eq!(Variant::nil().hash(), 0);
+
+    // it's not guaranteed that different object will have different hash but it is
+    // extremely unlikely for a collision to happen.
+    assert_ne!(dict! { 0: dict!{ 0: 0 } }, dict! { 0: dict!{ 0: 1 } });
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
