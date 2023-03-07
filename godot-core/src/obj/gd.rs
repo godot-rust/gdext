@@ -28,6 +28,8 @@ use crate::{callbacks, engine, out};
 /// This smart pointer can only hold _objects_ in the Godot sense: instances of Godot classes (`Node`, `RefCounted`, etc.)
 /// or user-declared structs (`#[derive(GodotClass)]`). It does **not** hold built-in types (`Vector3`, `Color`, `i32`).
 ///
+/// `Gd<T>` never holds null objects. If you need nullability, use `Option<Gd<T>>`.
+///
 /// This smart pointer behaves differently depending on `T`'s associated types, see [`GodotClass`] for their documentation.
 /// In particular, the memory management strategy is fully dependent on `T`:
 ///
@@ -591,8 +593,8 @@ impl<T: GodotClass> Share for Gd<T> {
 
 impl<T: GodotClass> FromVariant for Gd<T> {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-        let result = unsafe {
-            Self::from_sys_init(|self_ptr| {
+        let result_or_none = unsafe {
+            Self::from_sys_init_opt(|self_ptr| {
                 let converter = sys::builtin_fn!(object_from_variant);
                 converter(self_ptr, variant.var_sys());
             })
@@ -600,7 +602,9 @@ impl<T: GodotClass> FromVariant for Gd<T> {
 
         // The conversion method `variant_to_object` does NOT increment the reference-count of the object; we need to do that manually.
         // (This behaves differently in the opposite direction `object_to_variant`.)
-        Ok(result.with_inc_refcount())
+        result_or_none
+            .map(|obj| obj.with_inc_refcount())
+            .ok_or(VariantConversionError)
     }
 }
 

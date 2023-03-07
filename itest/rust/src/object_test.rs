@@ -6,8 +6,10 @@
 
 use crate::{expect_panic, itest};
 use godot::bind::{godot_api, GodotClass, GodotExt};
-use godot::builtin::{FromVariant, GodotString, StringName, ToVariant, Variant, Vector3};
-use godot::engine::{file_access, Camera3D, FileAccess, Node, Node3D, Object, RefCounted};
+use godot::builtin::{
+    FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError, Vector3,
+};
+use godot::engine::{file_access, Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted};
 use godot::obj::{Base, Gd, InstanceId};
 use godot::obj::{Inherits, Share};
 use godot::sys::GodotFfi;
@@ -252,6 +254,21 @@ fn check_convert_variant_refcount(obj: Gd<RefCounted>) {
 
     // `variant` destroyed -> decrement
     assert_eq!(obj.get_reference_count(), 1);
+}
+
+#[itest]
+fn object_engine_convert_variant_nil() {
+    let nil = Variant::nil();
+
+    assert_eq!(
+        Gd::<Area2D>::try_from_variant(&nil),
+        Err(VariantConversionError),
+        "try_from_variant(&nil)"
+    );
+
+    expect_panic("from_variant(&nil)", || {
+        Gd::<Area2D>::from_variant(&nil);
+    });
 }
 
 #[itest]
