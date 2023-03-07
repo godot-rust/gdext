@@ -39,6 +39,12 @@ pub trait VariantMetadata {
     }
 }
 
+impl<T: VariantMetadata> VariantMetadata for Option<T> {
+    fn variant_type() -> VariantType {
+        T::variant_type()
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Rusty abstraction of sys::GDExtensionPropertyInfo

@@ -160,14 +160,14 @@ struct Fields {
 
 struct Field {
     name: Ident,
-    _ty: TyExpr,
+    ty: TyExpr,
 }
 
 impl Field {
     fn new(field: &NamedField) -> Self {
         Self {
             name: field.name.clone(),
-            _ty: field.ty.clone(),
+            ty: field.ty.clone(),
         }
     }
 }
@@ -176,20 +176,17 @@ struct ExportedField {
     field: Field,
     getter: String,
     setter: String,
-    variant_type: String,
 }
 
 impl ExportedField {
     pub fn new_from_kv(field: Field, parser: &mut KvParser) -> ParseResult<ExportedField> {
         let getter = parser.handle_lit_required("getter")?;
         let setter = parser.handle_lit_required("setter")?;
-        let variant_type = parser.handle_lit_required("variant_type")?;
 
         Ok(ExportedField {
             field,
             getter,
             setter,
-            variant_type,
         })
     }
 }
@@ -249,12 +246,14 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             let name = exported_field.field.name.to_string();
             let getter = proc_macro2::Literal::from_str(&exported_field.getter).unwrap();
             let setter = proc_macro2::Literal::from_str(&exported_field.setter).unwrap();
-            let vtype = &exported_field.variant_type;
-            let variant_type: TokenStream = vtype[1..vtype.len() - 1].parse().unwrap();
+            let field_type = exported_field.field.ty.clone();
+
             quote! {
+                use ::godot::builtin::meta::VariantMetadata;
+
                 let class_name = ::godot::builtin::StringName::from(#class_name::CLASS_NAME);
                 let property_info = ::godot::builtin::meta::PropertyInfo::new(
-                    #variant_type,
+                    <#field_type>::variant_type(),
                     ::godot::builtin::meta::ClassName::of::<#class_name>(),
                     ::godot::builtin::StringName::from(#name),
                 );

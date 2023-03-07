@@ -13,23 +13,11 @@ use godot::prelude::*;
 struct HasProperty {
     #[base]
     base: Base<Node>,
-    #[export(
-        getter = "get_int_val",
-        setter = "set_int_val",
-        variant_type = "::godot::sys::VariantType::Int"
-    )]
+    #[export(getter = "get_int_val", setter = "set_int_val")]
     int_val: i32,
-    #[export(
-        getter = "get_string_val",
-        setter = "set_string_val",
-        variant_type = "::godot::sys::VariantType::String"
-    )]
+    #[export(getter = "get_string_val", setter = "set_string_val")]
     string_val: GodotString,
-    #[export(
-        getter = "get_object_val",
-        setter = "set_object_val",
-        variant_type = "::godot::sys::VariantType::Object"
-    )]
+    #[export(getter = "get_object_val", setter = "set_object_val")]
     object_val: Option<Gd<Object>>,
 }
 
