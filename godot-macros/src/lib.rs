@@ -4,6 +4,83 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+/// Extension API for Godot classes, used with `#[godot_api]`.
+///
+/// Helps with adding custom functionality:
+/// * `init` constructors
+/// * `to_string` method
+/// * Custom register methods (builder style)
+/// * All the lifecycle methods like `ready`, `process` etc.
+///
+/// These trait are special in that it needs to be used in combination with the `#[godot_api]`
+/// proc-macro attribute to ensure proper registration of its methods. All methods have
+/// default implementations, so you can select precisely which functionality you want to have.
+/// Those default implementations are never called however, the proc-macro detects what you implement.
+///
+/// Do not call any of these methods directly -- they are an interface to Godot. Functionality
+/// described here is available through other means (e.g. `init` via `Gd::new_default`).
+/// It is not enough to impl `GodotExt` to be registered in Godot, for this you should look at
+/// [ExtensionLibrary](crate::init::ExtensionLibrary).
+///
+/// If you wish to create a struct deriving GodotClass, you should impl the trait <Base>Virtual,
+/// for your desired Base (i.e. `RefCountedVirtual`, `NodeVirtual`).
+///
+/// # Examples
+///
+/// ## Example with `RefCounted` as a base
+///
+/// ```
+///# use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// struct MyRef;
+///
+/// #[godot_api]
+/// impl MyRef {
+///     #[func]
+///     pub fn hello_world(&mut self) {
+///         godot_print!("Hello World!")
+///     }
+/// }
+///
+/// #[godot_api]
+/// impl RefCountedVirtual for MyRef {
+///     fn init(_: Base<RefCounted>) -> Self {
+///         MyRef
+///     }
+/// }
+/// ```
+///
+/// The following example allows to use MyStruct in GDScript for instance by calling
+/// `MyStruct.new().hello_world()`.
+///
+///
+/// Note that you have to implement init otherwise you won't be able to call new or any
+/// other methods from GDScript.
+///
+/// ## Example with `Node` as a Base
+///
+/// ```
+///# use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(base=Node)]
+/// pub struct MyNode {
+///     #[base]
+///     base: Base<Node>,
+/// }
+///
+/// #[godot_api]
+/// impl NodeVirtual for MyNode {
+///     fn init(base: Base<Node>) -> Self {
+///         MyNode { base }
+///     }
+///     fn ready(&mut self) {
+///         godot_print!("Hello World!");
+///     }
+/// }
+/// ```
+///
 use crate::util::ident;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
