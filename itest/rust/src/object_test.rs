@@ -6,8 +6,10 @@
 
 use crate::{expect_panic, itest};
 use godot::bind::{godot_api, GodotClass, GodotExt};
-use godot::builtin::{FromVariant, GodotString, StringName, ToVariant, Variant, Vector3};
-use godot::engine::{file_access, Camera3D, FileAccess, Node, Node3D, Object, RefCounted};
+use godot::builtin::{
+    FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError, Vector3,
+};
+use godot::engine::{file_access, Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted};
 use godot::obj::{Base, Gd, InstanceId};
 use godot::obj::{Inherits, Share};
 use godot::sys::GodotFfi;
@@ -162,6 +164,35 @@ fn object_from_instance_id_unrelated_type() {
 }
 
 #[itest]
+fn object_user_eq() {
+    let value: i16 = 17943;
+    let a = ObjPayload { value };
+    let b = ObjPayload { value };
+
+    let a1 = Gd::new(a);
+    let a2 = a1.share();
+    let b1 = Gd::new(b);
+
+    assert_eq!(a1, a2);
+    assert_ne!(a1, b1);
+    assert_ne!(a2, b1);
+}
+
+#[itest]
+fn object_engine_eq() {
+    let a1 = Node3D::new_alloc();
+    let a2 = a1.share();
+    let b1 = Node3D::new_alloc();
+
+    assert_eq!(a1, a2);
+    assert_ne!(a1, b1);
+    assert_ne!(a2, b1);
+
+    a1.free();
+    b1.free();
+}
+
+#[itest]
 fn object_user_convert_variant() {
     let value: i16 = 17943;
     let user = ObjPayload { value };
@@ -223,6 +254,21 @@ fn check_convert_variant_refcount(obj: Gd<RefCounted>) {
 
     // `variant` destroyed -> decrement
     assert_eq!(obj.get_reference_count(), 1);
+}
+
+#[itest]
+fn object_engine_convert_variant_nil() {
+    let nil = Variant::nil();
+
+    assert_eq!(
+        Gd::<Area2D>::try_from_variant(&nil),
+        Err(VariantConversionError),
+        "try_from_variant(&nil)"
+    );
+
+    expect_panic("from_variant(&nil)", || {
+        Gd::<Area2D>::from_variant(&nil);
+    });
 }
 
 #[itest]
