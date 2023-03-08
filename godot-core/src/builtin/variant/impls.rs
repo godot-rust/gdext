@@ -149,6 +149,7 @@ mod impls {
     impl_variant_traits!(Vector4, vector4_to_variant, vector4_from_variant, Vector4);
     impl_variant_traits!(Vector2i, vector2i_to_variant, vector2i_from_variant, Vector2i);
     impl_variant_traits!(Vector3i, vector3i_to_variant, vector3i_from_variant, Vector3i);
+    impl_variant_traits!(Quaternion, quaternion_to_variant, quaternion_from_variant, Quaternion);
     impl_variant_traits!(Color, color_to_variant, color_from_variant, Color);
     impl_variant_traits!(GodotString, string_to_variant, string_from_variant, String);
     impl_variant_traits!(StringName, string_name_to_variant, string_name_from_variant, StringName);
@@ -157,7 +158,6 @@ mod impls {
     impl_variant_metadata!(Rect2, /* rect2_to_variant, rect2_from_variant, */ Rect2);
     impl_variant_metadata!(Rect2i, /* rect2i_to_variant, rect2i_from_variant, */ Rect2i);
     impl_variant_metadata!(Plane, /* plane_to_variant, plane_from_variant, */ Plane);
-    impl_variant_metadata!(Quaternion, /* quaternion_to_variant, quaternion_from_variant, */ Quaternion);
     impl_variant_metadata!(Aabb, /* aabb_to_variant, aabb_from_variant, */ Aabb);
     impl_variant_metadata!(Rid, /* rid_to_variant, rid_from_variant, */ Rid);
     impl_variant_metadata!(Callable, /* callable_to_variant, callable_from_variant, */ Callable);
