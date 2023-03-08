@@ -93,6 +93,7 @@ mod packed_array;
 mod projection;
 mod quaternion;
 mod string;
+mod string_chars;
 mod string_name;
 mod transform2d;
 mod transform3d;

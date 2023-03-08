@@ -10,7 +10,10 @@ use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use super::{FromVariant, ToVariant, Variant, VariantConversionError};
+use super::{
+    string_chars::validate_unicode_scalar_sequence, FromVariant, ToVariant, Variant,
+    VariantConversionError,
+};
 
 #[repr(C, align(8))]
 pub struct GodotString {
@@ -33,6 +36,35 @@ impl GodotString {
         fn from_string_sys_init = from_sys_init;
         fn string_sys = sys;
         fn write_string_sys = write_sys;
+    }
+
+    /// Gets the internal chars slice from a [`GodotString`].
+    ///
+    /// Note: This operation is *O*(*n*). Consider using [`chars_unchecked`]
+    /// if you can make sure the string is a valid UTF-32.
+    pub fn chars_checked(&self) -> &[char] {
+        unsafe {
+            let s = self.string_sys();
+            let len = interface_fn!(string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
+            let ptr = interface_fn!(string_operator_index_const)(s, 0);
+
+            validate_unicode_scalar_sequence(std::slice::from_raw_parts(ptr, len as usize))
+                .expect("GodotString::chars_checked: string contains invalid unicode scalar values")
+        }
+    }
+
+    /// Gets the internal chars slice from a [`GodotString`].
+    ///
+    /// # Safety
+    ///
+    /// Make sure the string only contains valid unicode scalar values, currently
+    /// Godot allows for unpaired surrogates and out of range code points to be appended
+    /// into the string.
+    pub unsafe fn chars_unchecked(&self) -> &[char] {
+        let s = self.string_sys();
+        let len = interface_fn!(string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
+        let ptr = interface_fn!(string_operator_index_const)(s, 0);
+        std::slice::from_raw_parts(ptr as *const char, len as usize)
     }
 }
 
