@@ -26,8 +26,8 @@ const MOB_TYPES: [MobType; 3] = [MobType::Walk, MobType::Swim, MobType::Fly];
 #[derive(GodotClass)]
 #[class(base=RigidBody2D)]
 pub struct Mob {
-    pub min_speed: f32,
-    pub max_speed: f32,
+    pub min_speed: real,
+    pub max_speed: real,
 
     #[base]
     base: Base<RigidBody2D>,

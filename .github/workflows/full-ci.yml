@@ -44,7 +44,20 @@ jobs:
 
 
   clippy:
+    name: clippy (${{ matrix.name }})
     runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include: 
+          - name: linux
+            rust-toolchain: stable
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+          
+          - name: linux-double
+            rust-toolchain: stable
+            godot-binary: godot.linuxbsd.editor.dev.double.x86_64
+            rust-extra-args: --features double-precision
     steps:
       - uses: actions/checkout@v3
 
@@ -56,13 +69,14 @@ jobs:
       - name: "Install Godot"
         uses: ./.github/composite/godot-install
         with:
-          artifact-name: godot-linux
-          godot-binary: godot.linuxbsd.editor.dev.x86_64
+          artifact-name: godot-${{ matrix.name }}
+          godot-binary: ${{ matrix.godot-binary }}
 
       - name: "Check clippy"
         run: |
-          cargo clippy --all-targets $GDEXT_FEATURES -- -D clippy::suspicious -D clippy::style -D clippy::complexity -D clippy::perf \
-          -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented -D warnings
+          cargo clippy --all-targets $GDEXT_FEATURES ${{ matrix.rust-extra-args }} -- \
+          -D clippy::suspicious -D clippy::style -D clippy::complexity -D clippy::perf \
+          -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented -D warnings 
 
 
   unit-test:
@@ -80,11 +94,23 @@ jobs:
             os: macos-11
             rust-toolchain: stable
             godot-binary: godot.macos.editor.dev.x86_64
+            with-llvm: true
+
+          - name: macos-double
+            os: macos-11
+            rust-toolchain: stable
+            godot-binary: godot.macos.editor.dev.double.x86_64
+            with-llvm: true
 
           - name: windows
             os: windows-latest
             rust-toolchain: stable-x86_64-pc-windows-msvc
             godot-binary: godot.windows.editor.dev.x86_64.exe
+
+          - name: windows-double
+            os: windows-latest
+            rust-toolchain: stable-x86_64-pc-windows-msvc
+            godot-binary: godot.windows.editor.dev.double.x86_64.exe
 
           # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
@@ -98,6 +124,12 @@ jobs:
             rust-toolchain: stable
             rust-special: -minimal-deps
             godot-binary: godot.linuxbsd.editor.dev.x86_64
+          
+          - name: linux-double
+            os: ubuntu-20.04
+            rust-toolchain: stable
+            godot-binary: godot.linuxbsd.editor.dev.double.x86_64
+            rust-extra-args: --features double-precision
 
     steps:
       - uses: actions/checkout@v3
@@ -107,7 +139,7 @@ jobs:
         with:
           rust: stable
           cache-key: ${{ matrix.rust-special }} # 'minimal-deps' or empty/not defined
-          with-llvm: ${{ matrix.name == 'macos' }}
+          with-llvm: ${{ matrix.with-llvm }}
 
       - name: "Install Rust nightly (minimal deps)"
         uses: ./.github/composite/rust
@@ -129,10 +161,10 @@ jobs:
           godot-binary: ${{ matrix.godot-binary }}
 
       - name: "Compile tests"
-        run: cargo test $GDEXT_FEATURES --no-run
+        run: cargo test $GDEXT_FEATURES --no-run ${{ matrix.rust-extra-args }}
 
       - name: "Test"
-        run: cargo test $GDEXT_FEATURES
+        run: cargo test $GDEXT_FEATURES ${{ matrix.rust-extra-args }}
 
 
   godot-itest:
@@ -151,11 +183,25 @@ jobs:
             os: macos-12
             rust-toolchain: stable
             godot-binary: godot.macos.editor.dev.x86_64
+            with-llvm: true
+          
+          - name: macos-double
+            os: macos-12
+            rust-toolchain: stable
+            godot-binary: godot.macos.editor.dev.double.x86_64
+            rust-extra-args: --features double-precision
+            with-llvm: true
 
           - name: windows
             os: windows-latest
             rust-toolchain: stable-x86_64-pc-windows-msvc
             godot-binary: godot.windows.editor.dev.x86_64.exe
+
+          - name: windows-double
+            os: windows-latest
+            rust-toolchain: stable-x86_64-pc-windows-msvc
+            godot-binary: godot.windows.editor.dev.double.x86_64.exe
+            rust-extra-args: --features double-precision
 
           # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
@@ -182,6 +228,12 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             godot-args: -- --disallow-focus
 
+          - name: linux-double
+            os: ubuntu-20.04
+            rust-toolchain: stable
+            godot-binary: godot.linuxbsd.editor.dev.double.x86_64
+            rust-extra-args: --features double-precision
+
     steps:
       - uses: actions/checkout@v3
 
@@ -191,7 +243,8 @@ jobs:
           artifact-name: godot-${{ matrix.name }}
           godot-binary: ${{ matrix.godot-binary }}
           godot-args: ${{ matrix.godot-args }}
-          with-llvm: ${{ matrix.name == 'macos' }}
+          with-llvm: ${{ matrix.with-llvm }}
+          rust-extra-args: ${{ matrix.rust-extra-args }}
 
 
   license-guard:

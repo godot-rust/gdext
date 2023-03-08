@@ -222,6 +222,9 @@ pub fn load_extension_api(watch: &mut StopWatch) -> (ExtensionApi, &'static str)
     // For float/double inference, see:
     // * https://github.com/godotengine/godot-proposals/issues/892
     // * https://github.com/godotengine/godot-cpp/pull/728
+    #[cfg(feature = "double-precision")]
+    let build_config = "double_64"; // TODO infer this
+    #[cfg(not(feature = "double-precision"))]
     let build_config = "float_64"; // TODO infer this
 
     let json: String = godot_exe::load_extension_api_json(watch);

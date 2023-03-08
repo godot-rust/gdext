@@ -10,8 +10,8 @@ use sys::{ffi_methods, GodotFfi};
 
 use super::glam_helpers::{GlamConv, GlamType};
 use super::{inner::InnerProjection, Plane, Transform3D, Vector2, Vector4};
+use super::{real, RMat4, RealConv};
 
-use glam;
 /// A 4x4 matrix used for 3D projective transformations. It can represent
 /// transformations such as translation, rotation, scaling, shearing, and
 /// perspective division. It consists of four Vector4 columns.
@@ -50,7 +50,7 @@ impl Projection {
     }
 
     /// Create a diagonal matrix from the given values.
-    pub const fn from_diagonal(x: f32, y: f32, z: f32, w: f32) -> Self {
+    pub const fn from_diagonal(x: real, y: real, z: real, w: real) -> Self {
         Self::from_cols(
             Vector4::new(x, 0.0, 0.0, 0.0),
             Vector4::new(0.0, y, 0.0, 0.0),
@@ -83,23 +83,23 @@ impl Projection {
     #[allow(clippy::too_many_arguments)]
     pub fn create_for_hmd(
         eye: ProjectionEye,
-        aspect: f64,
-        intraocular_dist: f64,
-        display_width: f64,
-        display_to_lens: f64,
-        oversample: f64,
-        near: f64,
-        far: f64,
+        aspect: real,
+        intraocular_dist: real,
+        display_width: real,
+        display_to_lens: real,
+        oversample: real,
+        near: real,
+        far: real,
     ) -> Self {
         InnerProjection::create_for_hmd(
             eye as i64,
-            aspect,
-            intraocular_dist,
-            display_width,
-            display_to_lens,
-            oversample,
-            near,
-            far,
+            aspect.as_f64(),
+            intraocular_dist.as_f64(),
+            display_width.as_f64(),
+            display_to_lens.as_f64(),
+            oversample.as_f64(),
+            near.as_f64(),
+            far.as_f64(),
         )
     }
 
@@ -108,14 +108,21 @@ impl Projection {
     ///
     /// _Godot equivalent: Projection.create_frustum()_
     pub fn create_frustum(
-        left: f64,
-        right: f64,
-        bottom: f64,
-        top: f64,
-        near: f64,
-        far: f64,
+        left: real,
+        right: real,
+        bottom: real,
+        top: real,
+        near: real,
+        far: real,
     ) -> Self {
-        InnerProjection::create_frustum(left, right, bottom, top, near, far)
+        InnerProjection::create_frustum(
+            left.as_f64(),
+            right.as_f64(),
+            bottom.as_f64(),
+            top.as_f64(),
+            near.as_f64(),
+            far.as_f64(),
+        )
     }
 
     /// Creates a new Projection that projects positions in a frustum with the
@@ -126,14 +133,21 @@ impl Projection {
     ///
     /// _Godot equivalent: Projection.create_frustum_aspect()_
     pub fn create_frustum_aspect(
-        size: f64,
-        aspect: f64,
+        size: real,
+        aspect: real,
         offset: Vector2,
-        near: f64,
-        far: f64,
+        near: real,
+        far: real,
         flip_fov: bool,
     ) -> Self {
-        InnerProjection::create_frustum_aspect(size, aspect, offset, near, far, flip_fov)
+        InnerProjection::create_frustum_aspect(
+            size.as_f64(),
+            aspect.as_f64(),
+            offset,
+            near.as_f64(),
+            far.as_f64(),
+            flip_fov,
+        )
     }
 
     /// Creates a new Projection that projects positions using an orthogonal
@@ -141,14 +155,21 @@ impl Projection {
     ///
     /// _Godot equivalent: Projection.create_orthogonal()_
     pub fn create_orthogonal(
-        left: f64,
-        right: f64,
-        bottom: f64,
-        top: f64,
-        near: f64,
-        far: f64,
+        left: real,
+        right: real,
+        bottom: real,
+        top: real,
+        near: real,
+        far: real,
     ) -> Self {
-        InnerProjection::create_orthogonal(left, right, bottom, top, near, far)
+        InnerProjection::create_orthogonal(
+            left.as_f64(),
+            right.as_f64(),
+            bottom.as_f64(),
+            top.as_f64(),
+            near.as_f64(),
+            far.as_f64(),
+        )
     }
 
     /// Creates a new Projection that projects positions using an orthogonal
@@ -159,13 +180,19 @@ impl Projection {
     ///
     /// _Godot equivalent: Projection.create_orthogonal_aspect()_
     pub fn create_orthogonal_aspect(
-        size: f64,
-        aspect: f64,
-        near: f64,
-        far: f64,
+        size: real,
+        aspect: real,
+        near: real,
+        far: real,
         flip_fov: bool,
     ) -> Self {
-        InnerProjection::create_orthogonal_aspect(size, aspect, near, far, flip_fov)
+        InnerProjection::create_orthogonal_aspect(
+            size.as_f64(),
+            aspect.as_f64(),
+            near.as_f64(),
+            far.as_f64(),
+            flip_fov,
+        )
     }
 
     /// Creates a new Projection that projects positions using a perspective
@@ -177,13 +204,19 @@ impl Projection {
     ///
     /// _Godot equivalent: Projection.create_perspective()_
     pub fn create_perspective(
-        fov_y: f64,
-        aspect: f64,
-        near: f64,
-        far: f64,
+        fov_y: real,
+        aspect: real,
+        near: real,
+        far: real,
         flip_fov: bool,
     ) -> Self {
-        InnerProjection::create_perspective(fov_y, aspect, near, far, flip_fov)
+        InnerProjection::create_perspective(
+            fov_y.as_f64(),
+            aspect.as_f64(),
+            near.as_f64(),
+            far.as_f64(),
+            flip_fov,
+        )
     }
 
     /// Creates a new Projection that projects positions using a perspective
@@ -198,32 +231,32 @@ impl Projection {
     /// _Godot equivalent: Projection.create_perspective_hmd()_
     #[allow(clippy::too_many_arguments)]
     pub fn create_perspective_hmd(
-        fov_y: f64,
-        aspect: f64,
-        near: f64,
-        far: f64,
+        fov_y: real,
+        aspect: real,
+        near: real,
+        far: real,
         flip_fov: bool,
         eye: ProjectionEye,
-        intraocular_dist: f64,
-        convergence_dist: f64,
+        intraocular_dist: real,
+        convergence_dist: real,
     ) -> Self {
         InnerProjection::create_perspective_hmd(
-            fov_y,
-            aspect,
-            near,
-            far,
+            fov_y.as_f64(),
+            aspect.as_f64(),
+            near.as_f64(),
+            far.as_f64(),
             flip_fov,
             eye as i64,
-            intraocular_dist,
-            convergence_dist,
+            intraocular_dist.as_f64(),
+            convergence_dist.as_f64(),
         )
     }
 
     /// Return the determinant of the matrix.
     ///
     /// _Godot equivalent: Projection.determinant()_
-    pub fn determinant(&self) -> f64 {
-        self.glam(|mat| mat.determinant()) as f64
+    pub fn determinant(&self) -> real {
+        self.glam(|mat| mat.determinant())
     }
 
     /// Returns a copy of this Projection with the signs of the values of the Y
@@ -238,8 +271,8 @@ impl Projection {
     /// Returns the X:Y aspect ratio of this Projection's viewport.
     ///
     /// _Godot equivalent: Projection.get_aspect()_
-    pub fn aspect(&self) -> f64 {
-        self.as_inner().get_aspect()
+    pub fn aspect(&self) -> real {
+        real::from_f64(self.as_inner().get_aspect())
     }
 
     /// Returns the dimensions of the far clipping plane of the projection,
@@ -253,24 +286,24 @@ impl Projection {
     /// Returns the horizontal field of view of the projection (in degrees).
     ///
     /// _Godot equivalent: Projection.get_fov()_
-    pub fn fov(&self) -> f64 {
-        self.as_inner().get_fov()
+    pub fn fov(&self) -> real {
+        real::from_f64(self.as_inner().get_fov())
     }
 
     /// Returns the vertical field of view of a projection (in degrees) which
     /// has the given horizontal field of view (in degrees) and aspect ratio.
     ///
     /// _Godot equivalent: Projection.get_fovy()_
-    pub fn fovy_of(fov_x: f64, aspect: f64) -> f64 {
-        InnerProjection::get_fovy(fov_x, aspect)
+    pub fn fovy_of(fov_x: real, aspect: real) -> real {
+        real::from_f64(InnerProjection::get_fovy(fov_x.as_f64(), aspect.as_f64()))
     }
 
     /// Returns the factor by which the visible level of detail is scaled by
     /// this Projection.
     ///
     /// _Godot equivalent: Projection.get_lod_multiplier()_
-    pub fn lod_multiplier(&self) -> f64 {
-        self.as_inner().get_lod_multiplier()
+    pub fn lod_multiplier(&self) -> real {
+        real::from_f64(self.as_inner().get_lod_multiplier())
     }
 
     /// Returns the number of pixels with the given pixel width displayed per
@@ -301,16 +334,16 @@ impl Projection {
     /// clipped.
     ///
     /// _Godot equivalent: Projection.get_z_far()_
-    pub fn z_far(&self) -> f64 {
-        self.as_inner().get_z_far()
+    pub fn z_far(&self) -> real {
+        real::from_f64(self.as_inner().get_z_far())
     }
 
     /// Returns the distance for this Projection before which positions are
     /// clipped.
     ///
     /// _Godot equivalent: Projection.get_z_near()_
-    pub fn z_near(&self) -> f64 {
-        self.as_inner().get_z_near()
+    pub fn z_near(&self) -> real {
+        real::from_f64(self.as_inner().get_z_near())
     }
 
     /// Returns a Projection that performs the inverse of this Projection's
@@ -343,8 +376,9 @@ impl Projection {
     /// Note: The original Projection must be a perspective projection.
     ///
     /// _Godot equivalent: Projection.perspective_znear_adjusted()_
-    pub fn perspective_znear_adjusted(&self, new_znear: f64) -> Self {
-        self.as_inner().perspective_znear_adjusted(new_znear)
+    pub fn perspective_znear_adjusted(&self, new_znear: real) -> Self {
+        self.as_inner()
+            .perspective_znear_adjusted(new_znear.as_f64())
     }
 
     #[doc(hidden)]
@@ -355,7 +389,7 @@ impl Projection {
 
 impl From<Transform3D> for Projection {
     fn from(trans: Transform3D) -> Self {
-        trans.glam(glam::Mat4::from)
+        trans.glam(RMat4::from)
     }
 }
 
@@ -381,7 +415,7 @@ impl Mul<Vector4> for Projection {
     }
 }
 
-impl GlamType for glam::Mat4 {
+impl GlamType for RMat4 {
     type Mapped = Projection;
 
     fn to_front(&self) -> Self::Mapped {
@@ -399,7 +433,7 @@ impl GlamType for glam::Mat4 {
 }
 
 impl GlamConv for Projection {
-    type Glam = glam::Mat4;
+    type Glam = RMat4;
 }
 
 impl GodotFfi for Projection {

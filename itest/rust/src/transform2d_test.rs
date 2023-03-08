@@ -44,19 +44,19 @@ fn transform2d_equiv() {
     assert_eq_approx!(
         inner.get_rotation(),
         outer.rotation(),
-        |a, b| is_equal_approx(a as f32, b),
+        |a, b| is_equal_approx(real::from_f64(a), b),
         "function: get_rotation\n"
     );
     assert_eq_approx!(
         inner.get_rotation(),
         outer.rotation(),
-        |a, b| is_equal_approx(a as f32, b),
+        |a, b| is_equal_approx(real::from_f64(a), b),
         "function: get_rotation\n"
     );
     assert_eq_approx!(
         inner.get_skew(),
         outer.skew(),
-        |a, b| is_equal_approx(a as f32, b),
+        |a, b| is_equal_approx(real::from_f64(a), b),
         "function: get_scale\n"
     );
 }

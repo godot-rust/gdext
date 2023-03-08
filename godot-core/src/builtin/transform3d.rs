@@ -9,9 +9,8 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use super::glam_helpers::{GlamConv, GlamType};
+use super::{real, RAffine3};
 use super::{Basis, Projection, Vector3};
-
-use glam;
 
 /// Affine 3D transform (3x4 matrix).
 ///
@@ -105,7 +104,7 @@ impl Transform3D {
     ///
     /// _Godot equivalent: Transform3D.interpolate_with()_
     #[must_use]
-    pub fn interpolate_with(self, other: Self, weight: f32) -> Self {
+    pub fn interpolate_with(self, other: Self, weight: real) -> Self {
         let src_scale = self.basis.scale();
         let src_rot = self.basis.to_quat().normalized();
         let src_loc = self.origin;
@@ -172,7 +171,7 @@ impl Transform3D {
     ///
     /// _Godot equivalent: `Transform2D.rotated()`_
     #[must_use]
-    pub fn rotated(self, axis: Vector3, angle: f32) -> Self {
+    pub fn rotated(self, axis: Vector3, angle: real) -> Self {
         let rotation = Basis::from_axis_angle(axis, angle);
         Self {
             basis: rotation * self.basis,
@@ -186,7 +185,7 @@ impl Transform3D {
     ///
     /// _Godot equivalent: `Transform2D.rotated_local()`_
     #[must_use]
-    pub fn rotated_local(self, axis: Vector3, angle: f32) -> Self {
+    pub fn rotated_local(self, axis: Vector3, angle: real) -> Self {
         Self {
             basis: self.basis * Basis::from_axis_angle(axis, angle),
             origin: self.origin,
@@ -285,10 +284,10 @@ impl Mul<Vector3> for Transform3D {
     }
 }
 
-impl Mul<f32> for Transform3D {
+impl Mul<real> for Transform3D {
     type Output = Self;
 
-    fn mul(self, rhs: f32) -> Self::Output {
+    fn mul(self, rhs: real) -> Self::Output {
         Self {
             basis: self.basis * rhs,
             origin: self.origin * rhs,
@@ -296,13 +295,16 @@ impl Mul<f32> for Transform3D {
     }
 }
 
-impl GlamType for glam::Affine3A {
+impl GlamType for RAffine3 {
     type Mapped = Transform3D;
 
     fn to_front(&self) -> Self::Mapped {
         Transform3D::new(self.matrix3.to_front(), self.translation.to_front())
     }
 
+    // When `double-precision` is enabled this will complain. But it is
+    // needed for when it is not enabled.
+    #[allow(clippy::useless_conversion)]
     fn from_front(mapped: &Self::Mapped) -> Self {
         Self {
             matrix3: mapped.basis.to_glam().into(),
@@ -312,7 +314,7 @@ impl GlamType for glam::Affine3A {
 }
 
 impl GlamConv for Transform3D {
-    type Glam = glam::Affine3A;
+    type Glam = RAffine3;
 }
 
 impl GodotFfi for Transform3D {
@@ -372,7 +374,7 @@ mod test {
     #[test]
     fn rotation() {
         let axis = Vector3::new(1.0, 2.0, 3.0).normalized();
-        let phi: f32 = 1.0;
+        let phi: real = 1.0;
 
         // Both versions should give the same result applied to identity.
         assert_eq!(
@@ -392,7 +394,7 @@ mod test {
     #[test]
     fn finite_number_checks() {
         let y = Vector3::new(0.0, 1.0, 2.0);
-        let infinite_vec = Vector3::new(f32::NAN, f32::NAN, f32::NAN);
+        let infinite_vec = Vector3::new(real::NAN, real::NAN, real::NAN);
         let x = Basis::from_rows(y, y, y);
         let infinite_basis = Basis::from_rows(infinite_vec, infinite_vec, infinite_vec);
 

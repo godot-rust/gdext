@@ -4,17 +4,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::f32::consts::TAU;
+use super::real_consts::TAU;
 
+use super::real;
 use super::Vector2;
 
-pub const CMP_EPSILON: f32 = 0.00001;
+pub const CMP_EPSILON: real = 0.00001;
 
-pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
+pub fn lerp(a: real, b: real, t: real) -> real {
     a + ((b - a) * t)
 }
 
-pub fn is_equal_approx(a: f32, b: f32) -> bool {
+pub fn is_equal_approx(a: real, b: real) -> bool {
     if a == b {
         return true;
     }
@@ -27,9 +28,11 @@ pub fn is_equal_approx(a: f32, b: f32) -> bool {
 
 /// Check if two angles are approximately equal, by comparing the distance
 /// between the points on the unit circle with 0 using [`is_equal_approx`].
-pub fn is_angle_equal_approx(a: f32, b: f32) -> bool {
+pub fn is_angle_equal_approx(a: real, b: real) -> bool {
     let (x1, y1) = a.sin_cos();
     let (x2, y2) = b.sin_cos();
+
+    println!("({x1}, {y1}) ({x2}, {y2})");
 
     is_equal_approx(
         Vector2::distance_to(Vector2::new(x1, y1), Vector2::new(x2, y2)),
@@ -37,11 +40,11 @@ pub fn is_angle_equal_approx(a: f32, b: f32) -> bool {
     )
 }
 
-pub fn is_zero_approx(s: f32) -> bool {
+pub fn is_zero_approx(s: real) -> bool {
     s.abs() < CMP_EPSILON
 }
 
-pub fn fposmod(x: f32, y: f32) -> f32 {
+pub fn fposmod(x: real, y: real) -> real {
     let mut value = x % y;
     if ((value < 0.0) && (y > 0.0)) || ((value > 0.0) && (y < 0.0)) {
         value += y;
@@ -50,14 +53,14 @@ pub fn fposmod(x: f32, y: f32) -> f32 {
     value
 }
 
-pub fn snapped(mut value: f32, step: f32) -> f32 {
+pub fn snapped(mut value: real, step: real) -> real {
     if step != 0.0 {
         value = ((value / step + 0.5) * step).floor()
     }
     value
 }
 
-pub fn sign(value: f32) -> f32 {
+pub fn sign(value: real) -> real {
     if value == 0.0 {
         0.0
     } else if value < 0.0 {
@@ -67,7 +70,13 @@ pub fn sign(value: f32) -> f32 {
     }
 }
 
-pub fn bezier_derivative(start: f32, control_1: f32, control_2: f32, end: f32, t: f32) -> f32 {
+pub fn bezier_derivative(
+    start: real,
+    control_1: real,
+    control_2: real,
+    end: real,
+    t: real,
+) -> real {
     let omt = 1.0 - t;
     let omt2 = omt * omt;
     let t2 = t * t;
@@ -76,7 +85,13 @@ pub fn bezier_derivative(start: f32, control_1: f32, control_2: f32, end: f32, t
         + (end - control_2) * 3.0 * t2
 }
 
-pub fn bezier_interpolate(start: f32, control_1: f32, control_2: f32, end: f32, t: f32) -> f32 {
+pub fn bezier_interpolate(
+    start: real,
+    control_1: real,
+    control_2: real,
+    end: real,
+    t: real,
+) -> real {
     let omt = 1.0 - t;
     let omt2 = omt * omt;
     let omt3 = omt2 * omt;
@@ -85,7 +100,7 @@ pub fn bezier_interpolate(start: f32, control_1: f32, control_2: f32, end: f32, 
     start * omt3 + control_1 * omt2 * t * 3.0 + control_2 * omt * t2 * 3.0 + end * t3
 }
 
-pub fn cubic_interpolate(from: f32, to: f32, pre: f32, post: f32, weight: f32) -> f32 {
+pub fn cubic_interpolate(from: real, to: real, pre: real, post: real, weight: real) -> real {
     0.5 * ((from * 2.0)
         + (-pre + to) * weight
         + (2.0 * pre - 5.0 * from + 4.0 * to - post) * (weight * weight)
@@ -94,15 +109,15 @@ pub fn cubic_interpolate(from: f32, to: f32, pre: f32, post: f32, weight: f32) -
 
 #[allow(clippy::too_many_arguments)]
 pub fn cubic_interpolate_in_time(
-    from: f32,
-    to: f32,
-    pre: f32,
-    post: f32,
-    weight: f32,
-    to_t: f32,
-    pre_t: f32,
-    post_t: f32,
-) -> f32 {
+    from: real,
+    to: real,
+    pre: real,
+    post: real,
+    weight: real,
+    to_t: real,
+    pre_t: real,
+    post_t: real,
+) -> real {
     let t = lerp(0.0, to_t, weight);
     let a1 = lerp(
         pre,
@@ -147,12 +162,12 @@ pub fn cubic_interpolate_in_time(
 /// Note: This function lerps through the shortest path between `from` and
 /// `to`. However, when these two angles are approximately `PI + k * TAU` apart
 /// for any integer `k`, it's not obvious which way they lerp due to
-/// floating-point precision errors. For example, `lerp_angle(0.0, PI, weight)`
-/// lerps clockwise, while `lerp_angle(0.0, PI + 3.0 * TAU, weight)` lerps
-/// counter-clockwise.
+/// floating-point precision errors. For example, with single-precision floats
+/// `lerp_angle(0.0, PI, weight)` lerps clockwise, while `lerp_angle(0.0, PI + 3.0 * TAU, weight)`
+/// lerps counter-clockwise.
 ///
 /// _Godot equivalent: @GlobalScope.lerp_angle()_
-pub fn lerp_angle(from: f32, to: f32, weight: f32) -> f32 {
+pub fn lerp_angle(from: real, to: real, weight: real) -> real {
     let difference = (to - from) % TAU;
     let distance = (2.0 * difference) % TAU - difference;
     from + distance * weight
@@ -192,7 +207,7 @@ macro_rules! assert_ne_approx {
 
 #[cfg(test)]
 mod test {
-    use std::f32::consts::{FRAC_PI_2, PI};
+    use crate::builtin::real_consts::{FRAC_PI_2, PI};
 
     use super::*;
 
@@ -222,9 +237,21 @@ mod test {
     #[test]
     fn lerp_angle_test() {
         assert_eq_approx!(lerp_angle(0.0, PI, 0.5), -FRAC_PI_2, is_angle_equal_approx);
+        // As mentioned in the docs for `lerp_angle`, direction can be unpredictable
+        // when lerping towards PI radians, this also means it's different for single vs
+        // double precision floats.
+
+        // TODO: look into if it's possible to make a more robust impl.
+        #[cfg(not(feature = "double-precision"))]
         assert_eq_approx!(
             lerp_angle(0.0, PI + 3.0 * TAU, 0.5),
             FRAC_PI_2,
+            is_angle_equal_approx
+        );
+        #[cfg(feature = "double-precision")]
+        assert_eq_approx!(
+            lerp_angle(0.0, PI + 3.0 * TAU, 0.5),
+            -FRAC_PI_2,
             is_angle_equal_approx
         );
         let angle = PI * 2.0 / 3.0;

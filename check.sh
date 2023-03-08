@@ -9,17 +9,10 @@
 # Note: at the moment, there is a lot of useless recompilation.
 # This should be better once unit tests and #[cfg] are sorted out.
 
-# No args specified: do everything
-if [ "$#" -eq 0 ]; then
-    args=("fmt" "clippy" "test" "itest")
-else
-    args=("$@")
-fi
-
 # --help menu
-for arg in "${args[@]}"; do
+for arg in $@; do
     if [ "$arg" == "--help" ]; then
-        echo "Usage: check.sh [<commands>]"
+        echo "Usage: check.sh [--double] [<commands>]"
         echo ""
         echo "Each specified command will be run (until one fails)."
         echo "If no commands are specified, all checks are run (no doc; may take several minutes)."
@@ -32,12 +25,36 @@ for arg in "${args[@]}"; do
         echo "    doc           generate docs for 'godot' crate"
         echo "    dok           generate docs and open in browser"
         echo ""
+        echo "Options:"
+        echo "    --double      run check with double-precision"
+        echo ""
         echo "Examples:"
         echo "    check.sh fmt clippy"
         echo "    check.sh"
+        echo "    check.sh --double clippy"
         exit 0
     fi
 done
+
+firstArg=1
+toolchain=""
+extraArgs=()
+
+if [[ "$1" == "--double" ]]; then
+    firstArg=2
+    extraArgs+=("--features double-precision")
+fi
+
+args=()
+
+for arg in "${@:$firstArg}"; do
+    args+=("$arg")
+done
+
+# No args specified: do everything
+if [ ${#args[@]} -eq 0 ]; then
+    args=("fmt" "clippy" "test" "itest")
+fi
 
 # For integration tests
 function findGodot() {
@@ -67,32 +84,31 @@ function findGodot() {
     fi
 }
 
-#features="--features crate/feature"
-features=""
 cmds=()
+extraArgs="${extraArgs[@]}"
 
 for arg in "${args[@]}"; do
     case "$arg" in
     fmt)
-        cmds+=("cargo fmt --all -- --check")
+        cmds+=("cargo $toolchain fmt --all -- --check")
         ;;
     clippy)
-        cmds+=("cargo clippy $features -- -D clippy::suspicious -D clippy::style -D clippy::complexity -D clippy::perf -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented -D warnings")
+        cmds+=("cargo $toolchain clippy $extraArgs -- -D clippy::suspicious -D clippy::style -D clippy::complexity -D clippy::perf -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented -D warnings")
         ;;
     test)
-        cmds+=("cargo test $features")
+        cmds+=("cargo $toolchain test $extraArgs")
         ;;
     itest)
         findGodot
         
-        cmds+=("cargo build -p itest")
+        cmds+=("cargo $toolchain build -p itest $extraArgs")
         cmds+=("$godotBin --path itest/godot --headless")
         ;;
     doc)
-        cmds+=("cargo doc --lib -p godot --no-deps $features")
+        cmds+=("cargo $toolchain doc --lib -p godot --no-deps $extraArgs")
         ;;
     dok)
-        cmds+=("cargo doc --lib -p godot --no-deps $features --open")
+        cmds+=("cargo $toolchain doc --lib -p godot --no-deps $extraArgs --open")
         ;;
     *)
         echo "Unrecognized command '$arg'"

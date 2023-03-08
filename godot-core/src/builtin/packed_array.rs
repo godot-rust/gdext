@@ -305,8 +305,8 @@ macro_rules! impl_packed_array {
             }
 
             /// Converts an `$Element` into a value that can be passed into API functions. For most
-            /// types, this is a no-op. But `u8` and `i32` are widened to `i64`, and `f32` is
-            /// widened to `f64`.
+            /// types, this is a no-op. But `u8` and `i32` are widened to `i64`, and `real` is
+            /// widened to `f64` if it is an `f32`.
             #[inline]
             fn into_arg(e: $Element) -> $Arg {
                 e.into()

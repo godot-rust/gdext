@@ -4,7 +4,7 @@ use godot::prelude::*;
 #[derive(GodotClass)]
 #[class(base=Area2D)]
 pub struct Player {
-    speed: f32,
+    speed: real,
     screen_size: Vector2,
 
     #[base]
@@ -100,7 +100,7 @@ impl GodotExt for Player {
             animated_sprite.stop();
         }
 
-        let change = velocity * delta as f32;
+        let change = velocity * real::from_f64(delta);
         let position = self.base.get_global_position() + change;
         let position = Vector2::new(
             position.x.clamp(0.0, self.screen_size.x),
