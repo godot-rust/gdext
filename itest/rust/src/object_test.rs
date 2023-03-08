@@ -4,19 +4,21 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::{expect_panic, itest};
+use std::cell::RefCell;
+use std::mem;
+use std::rc::Rc;
+
 use godot::bind::{godot_api, GodotClass, GodotExt};
 use godot::builtin::{
     FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError, Vector3,
 };
+use godot::engine::node::InternalMode;
 use godot::engine::{file_access, Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted};
 use godot::obj::{Base, Gd, InstanceId};
 use godot::obj::{Inherits, Share};
 use godot::sys::GodotFfi;
 
-use std::cell::RefCell;
-use std::mem;
-use std::rc::Rc;
+use crate::{expect_panic, itest, TestContext};
 
 // TODO:
 // * make sure that ptrcalls are used when possible (ie. when type info available; maybe GDScript integration test)
@@ -595,6 +597,17 @@ fn object_call_with_args() {
     assert_eq!(actual_pos, expected_pos.to_variant());
     node.free();
 }
+
+#[itest]
+fn object_get_scene_tree(ctx: &TestContext) {
+    let node = Node3D::new_alloc();
+
+    let mut tree = ctx.scene_tree.share();
+    tree.add_child(node.upcast(), false, InternalMode::INTERNAL_MODE_DISABLED);
+
+    let count = tree.get_child_count(false);
+    assert_eq!(count, 1);
+} // implicitly tested: node does not leak
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

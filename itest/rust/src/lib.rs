@@ -4,7 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot::engine::Node;
 use godot::init::{gdextension, ExtensionLibrary};
+use godot::obj::Gd;
 use godot::sys;
 
 mod array_test;
@@ -89,6 +91,10 @@ fn collect_rust_tests() -> (Vec<RustTestCase>, usize, bool) {
     (tests, all_files.len(), is_focus_run)
 }
 
+pub struct TestContext {
+    scene_tree: Gd<Node>,
+}
+
 #[derive(Copy, Clone)]
 struct RustTestCase {
     name: &'static str,
@@ -98,5 +104,5 @@ struct RustTestCase {
     focused: bool,
     #[allow(dead_code)]
     line: u32,
-    function: fn(),
+    function: fn(&TestContext),
 }

@@ -4,12 +4,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{bail, ident, parse_kv_group, path_is_single, validate_impl, KvValue};
 use proc_macro2::TokenStream;
 use quote::quote;
 use venial::Declaration;
 
-pub fn transform(decl: Declaration) -> Result<TokenStream, venial::Error> {
+use crate::util::{bail, ident, validate_impl, KvParser};
+use crate::ParseResult;
+
+pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
     let mut impl_decl = match decl {
         Declaration::Impl(item) => item,
         _ => return bail("#[gdextension] can only be applied to trait impls", &decl),
@@ -23,18 +25,10 @@ pub fn transform(decl: Declaration) -> Result<TokenStream, venial::Error> {
         );
     }
 
-    let mut entry_point = None;
-    for attr in impl_decl.attributes.drain(..) {
-        if path_is_single(&attr.path, "gdextension") {
-            for (k, v) in parse_kv_group(&attr.value).expect("#[gdextension] has invalid arguments")
-            {
-                match (k.as_str(), v) {
-                    ("entry_point", KvValue::Ident(f)) => entry_point = Some(f),
-                    _ => return bail(format!("#[gdextension]: invalid argument `{k}`"), attr),
-                }
-            }
-        }
-    }
+    let drained_attributes = std::mem::take(&mut impl_decl.attributes);
+    let mut parser = KvParser::parse_required(&drained_attributes, "gdextension", &impl_decl)?;
+    let entry_point = parser.handle_ident("entry_point")?;
+    parser.finish()?;
 
     let entry_point = entry_point.unwrap_or_else(|| ident("gdextension_rust_init"));
     let impl_ty = &impl_decl.self_ty;

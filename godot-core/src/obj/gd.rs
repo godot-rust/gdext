@@ -671,3 +671,8 @@ impl<T: GodotClass> VariantMetadata for Gd<T> {
         ClassName::of::<T>()
     }
 }
+
+// Gd unwinding across panics does not invalidate any invariants;
+// its mutability is anyway present, in the Godot engine.
+impl<T: GodotClass> std::panic::UnwindSafe for Gd<T> {}
+impl<T: GodotClass> std::panic::RefUnwindSafe for Gd<T> {}

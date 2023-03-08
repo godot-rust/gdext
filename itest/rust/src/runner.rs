@@ -4,11 +4,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::time::{Duration, Instant};
+
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{ToVariant, Variant, VariantArray};
+use godot::engine::Node;
+use godot::obj::Gd;
 
-use crate::RustTestCase;
-use std::time::{Duration, Instant};
+use crate::{RustTestCase, TestContext};
 
 #[derive(GodotClass, Debug)]
 #[class(init)]
@@ -28,6 +31,7 @@ impl IntegrationTests {
         gdscript_tests: VariantArray,
         gdscript_file_count: i64,
         allow_focus: bool,
+        scene_tree: Gd<Node>,
     ) -> bool {
         println!("{}Run{} Godot integration tests...", FMT_CYAN_BOLD, FMT_END);
 
@@ -50,7 +54,7 @@ impl IntegrationTests {
         }
 
         let clock = Instant::now();
-        self.run_rust_tests(rust_tests);
+        self.run_rust_tests(rust_tests, scene_tree);
         let rust_time = clock.elapsed();
         let gdscript_time = if !focus_run {
             self.run_gdscript_tests(gdscript_tests);
@@ -62,10 +66,12 @@ impl IntegrationTests {
         self.conclude(rust_time, gdscript_time, allow_focus)
     }
 
-    fn run_rust_tests(&mut self, tests: Vec<RustTestCase>) {
+    fn run_rust_tests(&mut self, tests: Vec<RustTestCase>, scene_tree: Gd<Node>) {
+        let ctx = TestContext { scene_tree };
+
         let mut last_file = None;
         for test in tests {
-            let outcome = run_rust_test(&test);
+            let outcome = run_rust_test(&test, &ctx);
 
             self.update_stats(&outcome);
             print_test(test.file.to_string(), test.name, outcome, &mut last_file);
@@ -160,14 +166,14 @@ const FMT_YELLOW: &str = "\x1b[33m";
 const FMT_RED: &str = "\x1b[31m";
 const FMT_END: &str = "\x1b[0m";
 
-fn run_rust_test(test: &RustTestCase) -> TestOutcome {
+fn run_rust_test(test: &RustTestCase, ctx: &TestContext) -> TestOutcome {
     if test.skipped {
         return TestOutcome::Skipped;
     }
 
     // Explicit type to prevent tests from returning a value
-    let success: Option<()> =
-        godot::private::handle_panic(|| format!("   !! Test {} failed", test.name), test.function);
+    let err_context = || format!("   !! Test {} failed", test.name);
+    let success: Option<()> = godot::private::handle_panic(err_context, || (test.function)(ctx));
 
     TestOutcome::from_bool(success.is_some())
 }

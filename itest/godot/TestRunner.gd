@@ -33,7 +33,12 @@ func _ready():
 			if method_name.begins_with("test_"):
 				gdscript_tests.push_back(GDScriptTestCase.new(suite, method_name))
 
-	var success: bool = rust_runner.run_all_tests(gdscript_tests, gdscript_suites.size(), allow_focus)
+	var success: bool = rust_runner.run_all_tests(
+		gdscript_tests,
+		gdscript_suites.size(),
+		allow_focus,
+		self,
+	)
 
 	var exit_code: int = 0 if success else 1
 	get_tree().quit(exit_code)

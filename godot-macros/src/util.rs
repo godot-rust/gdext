@@ -67,11 +67,11 @@ pub(crate) struct KvParser {
     finished: bool,
 }
 
+#[allow(dead_code)] // some functions will be used later
 impl KvParser {
     /// Create a new parser which requires a `#[expected]` attribute.
     ///
     /// `context` is used for the span in error messages.
-    #[allow(dead_code)] // will be used later
     pub fn parse_required(
         attributes: &[Attribute],
         expected: &str,
@@ -79,12 +79,10 @@ impl KvParser {
     ) -> ParseResult<Self> {
         match Self::parse(attributes, expected) {
             Ok(Some(result)) => Ok(result),
-            Ok(None) => {
-                return bail(
-                    format!("expected attribute #[{expected}], but not present"),
-                    context,
-                )
-            }
+            Ok(None) => bail(
+                format!("expected attribute #[{expected}], but not present"),
+                context,
+            ),
             Err(e) => Err(e),
         }
     }
@@ -148,10 +146,25 @@ impl KvParser {
     }
 
     /// `#[attr(key="string", key2=123, key3=true)]`, with a given key being required
+    pub fn handle_ident_required(&mut self, key: &str) -> ParseResult<Ident> {
+        self.inner_required(key, "ident", Self::handle_ident)
+    }
+
+    /// `#[attr(key="string", key2=123, key3=true)]`, with a given key being required
     pub fn handle_lit_required(&mut self, key: &str) -> ParseResult<String> {
-        match self.handle_lit(key) {
+        self.inner_required(key, "literal", Self::handle_lit)
+    }
+
+    fn inner_required<T, F>(&mut self, key: &str, context: &str, mut f: F) -> ParseResult<T>
+    where
+        F: FnMut(&mut Self, &str) -> ParseResult<Option<T>>,
+    {
+        match f(self, key) {
             Ok(Some(string)) => Ok(string),
-            Ok(None) => self.bail_key(key, "expected to have literal value, but is absent"),
+            Ok(None) => self.bail_key(
+                key,
+                &format!("expected to have {context} value, but is absent"),
+            ),
             Err(err) => Err(err),
         }
     }
@@ -171,21 +184,21 @@ impl KvParser {
             let keys = self.map.keys().cloned().collect::<Vec<_>>().join(", ");
 
             let s = if self.map.len() > 1 { "s" } else { "" }; // plural
-            return bail(
+            bail(
                 format!(
                     "#[{attr}]: unrecognized key{s}: {keys}",
                     attr = self.attr_name
                 ),
                 self.span,
-            );
+            )
         }
     }
 
     fn bail_key<R>(&self, key: &str, msg: &str) -> ParseResult<R> {
-        return bail(
+        bail(
             format!("#[{attr}]: key `{key}` {msg}", attr = self.attr_name),
             self.span,
-        );
+        )
     }
 }
 
@@ -483,6 +496,13 @@ mod tests {
     }
 }
 
-pub(crate) fn path_is_single(path: &Vec<TokenTree>, expected: &str) -> bool {
+pub(crate) fn path_is_single(path: &[TokenTree], expected: &str) -> bool {
     path.len() == 1 && path[0].to_string() == expected
+}
+
+pub(crate) fn path_ends_with(path: &[TokenTree], expected: &str) -> bool {
+    // could also use TyExpr::as_path()
+    path.last()
+        .map(|last| last.to_string() == expected)
+        .unwrap_or(false)
 }
