@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::prelude::*;
+use godot::{engine::Texture, prelude::*};
 
 // No tests currently, tests using HasProperty are in Godot scripts.
 
@@ -19,6 +19,8 @@ struct HasProperty {
     string_val: GodotString,
     #[export(getter = "get_object_val", setter = "set_object_val")]
     object_val: Option<Gd<Object>>,
+    #[export(getter = "get_texture_val", setter = "set_texture_val", hint = PROPERTY_HINT_RESOURCE_TYPE, hint_desc = "Texture")]
+    texture_val: Option<Gd<Texture>>,
 }
 
 #[godot_api]
@@ -56,6 +58,20 @@ impl HasProperty {
     pub fn set_object_val(&mut self, val: Gd<Object>) {
         self.object_val = Some(val);
     }
+
+    #[func]
+    pub fn get_texture_val(&self) -> Variant {
+        if let Some(texture_val) = self.texture_val.as_ref() {
+            texture_val.to_variant()
+        } else {
+            Variant::nil()
+        }
+    }
+
+    #[func]
+    pub fn set_texture_val(&mut self, val: Gd<Texture>) {
+        self.texture_val = Some(val);
+    }
 }
 
 #[godot_api]
@@ -65,6 +81,7 @@ impl GodotExt for HasProperty {
             int_val: 0,
             object_val: None,
             string_val: GodotString::new(),
+            texture_val: None,
             base,
         }
     }
