@@ -6,8 +6,7 @@
 # Small utility to run tests locally
 # Similar to minimal-ci
 
-# Note: at the moment, there is a lot of useless recompilation.
-# This should be better once unit tests and #[cfg] are sorted out.
+# Note: at the moment, there is some useless recompilation, which could be improved.
 
 # --help menu
 for arg in $@; do
@@ -123,13 +122,13 @@ END='\033[0m'
 for cmd in "${cmds[@]}"; do
     echo "> $cmd"
     $cmd || {
-        printf "$RED\n=========================="
-        printf "\ngodot-rust checker FAILED."
-        printf "\n==========================\n$END"
+        printf "$RED\n====================="
+        printf "\ngdext: checks FAILED."
+        printf "\n=====================\n$END"
         exit 1
     }
 done
 
-printf "$GREEN\n=============================="
-printf "\ngodot-rust checker SUCCESSFUL."
-printf "\n==============================\n$END"
+printf "$GREEN\n========================="
+printf "\ngdext: checks SUCCESSFUL."
+printf "\n=========================\n$END"

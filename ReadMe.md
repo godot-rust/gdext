@@ -1,8 +1,10 @@
-![logo.png](assets/gdextension-ferris.png)
+![logo.png](assets/gdext-ferris.png)
 
 # Rust bindings for GDExtension
 
-This is an early-stage library to bind the **Rust** language to **Godot 4**.
+_[Discord] | [Mastodon] | [Twitter]_
+
+**gdext** is an early-stage library to bind the **Rust** language to **Godot 4**.
 
 [Godot] is an open-source game engine, whose upcoming version 4.0 brings several improvements.
 Its _GDExtension_ API allows integrating third-party languages and libraries.
@@ -17,10 +19,10 @@ Its _GDExtension_ API allows integrating third-party languages and libraries.
 > * No stability guarantees. APIs will break frequently (for releases, we try to take SemVer seriously though).
 >   Resolving the above two points has currently more weight than a stable API.
 
-We do not recommend building a larger project in GDExtension-Rust yet.
+We do not recommend building a larger project in gdext yet.
 However, the library can serve as a playground for experimenting.
 
-To get an overview of currently supported features, consult [#24](https://github.com/godot-rust/gdextension/issues/24).  
+To get an overview of currently supported features, consult [#24](https://github.com/godot-rust/gdext/issues/24).  
 At this point, there is **no** support for Android, iOS or WASM. Contributions are very welcome!
 
 
@@ -40,7 +42,7 @@ In your Cargo.toml, add:
 
 ```toml
 [dependencies]
-godot = { git = "https://github.com/godot-rust/gdextension", branch = "master" }
+godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
 
 [lib]
 crate-type = ["cdylib"]
@@ -53,21 +55,25 @@ To register the GDExtension library with Godot, you need to create two files rel
    
    The `[configuration]` section should be copied as-is.  
    The `[libraries]` section should be updated to match the paths of your dynamic Rust libraries.
-    ```ini
-    [configuration]
-    entry_symbol = "gdextension_rust_init"
-    
-    [libraries]
-    linux.64 = "res://../rust/target/debug/lib{my_ext}.so"
-    windows.64 = "res://../rust/target/debug/{my_ext}.dll"
-    macos.64 = "res://../rust/target/debug/{my_ext}.dylib"
-    ```
+   ```ini
+   [configuration]
+   entry_symbol = "gdext_rust_init"
+   
+   [libraries]
+   linux.debug.x86_64 = "res://../rust/target/debug/lib{my_ext}.so"
+   linux.release.x86_64 = "res://../rust/target/release/lib{my_ext}.so"
+   windows.debug.x86_64 = "res://../rust/target/debug/{my_ext}.dll"
+   windows.release.x86_64 = "res://../rust/target/release/{my_ext}.dll"
+   macos.debug = "res://../rust/target/debug/{my_ext}.dylib"
+   macos.release = "res://../rust/target/release/{my_ext}.dylib"
+   ```
+   (Note that for exporting your project, you'll need to use paths inside `res://`).
 
 2. A second file `res://.godot/extension_list.cfg` should be generated once you open the Godot editor for the first time.
    If not, you can also manually create it, simply containing the Godot path to your `.gdextension` file:
-    ```
-    res://MyExt.gdextension
-    ```
+   ```
+   res://MyExt.gdextension
+   ```
 
 ### Examples
 
@@ -76,7 +82,7 @@ This integrates a small game with Godot and has all the necessary steps set up.
 
 API documentation can be generated locally using `cargo doc -p godot --no-deps --open`.
 
-If you need help, join our [Discord] server and ask in the `#help-gdextension` channel!
+If you need help, join our [Discord] server and ask in the `#help-gdext` channel!
 
 
 ## License
@@ -96,3 +102,5 @@ Contributions are very welcome! If you want to help out, see [`Contributing.md`]
 [`gdnative`]: https://github.com/godot-rust/gdnative
 [mpl]: https://www.mozilla.org/en-US/MPL/
 [Discord]: https://discord.gg/aKUCJ8rJsc
+[Mastodon]: https://mastodon.gamedev.place/@GodotRust
+[Twitter]: https://twitter.com/GodotRust

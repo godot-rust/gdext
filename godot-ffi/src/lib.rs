@@ -62,7 +62,7 @@ pub unsafe fn initialize(
 ) {
     let ver = std::ffi::CStr::from_ptr((*interface).version_string);
     println!(
-        "Initialize GDExtension interface: {}",
+        "Initialize GDExtension API for Rust: {}",
         ver.to_str().unwrap()
     );
 

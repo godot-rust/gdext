@@ -1,8 +1,8 @@
-# Contributing to `gdextension`
+# Contributing to `gdext`
 
 At this stage, we appreciate if users experiment with the library, use it in small projects and report issues and bugs they encounter.
 
-If you plan to make bigger contributions, make sure to discuss them in a [GitHub issue] first. Since the library is evolving quickly, this avoids that multiple people work on the same thing or implement features in a way that doesn't work with other parts. Also don't hesitate to talk to the developers in the `#dev-gdextension` channel on [Discord]!
+If you plan to make bigger contributions, make sure to discuss them in a [GitHub issue] first. Since the library is evolving quickly, this avoids that multiple people work on the same thing or implement features in a way that doesn't work with other parts. Also don't hesitate to talk to the developers in the `#contrib-gdext` channel on [Discord]!
 
 ## Check script
 
@@ -22,7 +22,7 @@ $ ln -sf check.sh .git/hooks/pre-commit
 
 ## Unit tests
 
-Because most of `gdextension` interacts with the Godot engine, which is not available from the test executable, unit tests (using `cargo test` and the `#[test]` attribute) are pretty limited in scope.
+Because most of `gdext` interacts with the Godot engine, which is not available from the test executable, unit tests (using `cargo test` and the `#[test]` attribute) are pretty limited in scope.
 
 Because additional flags might be needed, the preferred way to run unit tests is through the `check.sh` script:
 
@@ -32,7 +32,7 @@ $ ./check.sh test
 
 ## Integration tests
 
-The `itest/` directory contains a suite of integration tests that actually exercise `gdextension` from within Godot.
+The `itest/` directory contains a suite of integration tests that actually exercise `gdext` from within Godot.
 
 The `itest/rust` directory is a Rust `cdylib` library project that can be loaded as a GDExtension in Godot, with an entry point for running integration tests. The `itest/godot` directory contains the Godot project that loads this library and invokes the test suite.
 
@@ -71,5 +71,5 @@ To run the testing suite with `double-precision` enabled you may add `--double` 
 $ check.sh --double
 ```
 
-[GitHub issue]: https://github.com/godot-rust/gdextension/issues
+[GitHub issue]: https://github.com/godot-rust/gdext/issues
 [Discord]: https://discord.gg/aKUCJ8rJsc

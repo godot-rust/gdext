@@ -20,7 +20,7 @@ use super::{real, RVec4};
 ///
 /// It uses floating-point coordinates of 32-bit precision, unlike the engine's `float` type which
 /// is always 64-bit. The engine can be compiled with the option `precision=double` to use 64-bit
-/// vectors, but this is not yet supported in the `gdextension` crate.
+/// vectors; use the gdext library with the `double-precision` feature in that case.
 ///
 /// See [`Vector4i`] for its integer counterpart.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
