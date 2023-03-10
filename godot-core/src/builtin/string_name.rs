@@ -8,7 +8,7 @@ use crate::builtin::GodotString;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
+use std::fmt;
 use std::hash::{Hash, Hasher};
 
 #[repr(C)]
@@ -68,21 +68,18 @@ impl Default for StringName {
     }
 }
 
-impl Display for StringName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        // TODO consider using GDScript built-in to_string()
-
+impl fmt::Display for StringName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = GodotString::from(self);
-        <GodotString as Display>::fmt(&s, f)
+        <GodotString as fmt::Display>::fmt(&s, f)
     }
 }
 
-impl Debug for StringName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        // TODO consider using GDScript built-in to_string()
-
-        let s = GodotString::from(self);
-        <GodotString as Debug>::fmt(&s, f)
+/// Uses literal syntax from GDScript: `&"string_name"`
+impl fmt::Debug for StringName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let string = GodotString::from(self);
+        write!(f, "&\"{string}\"")
     }
 }
 

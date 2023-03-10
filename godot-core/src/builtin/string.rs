@@ -110,10 +110,11 @@ impl fmt::Display for GodotString {
     }
 }
 
+/// Uses literal syntax from GDScript: `"string"`
 impl fmt::Debug for GodotString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = String::from(self);
-        write!(f, "GodotString(\"{s}\")")
+        write!(f, "\"{s}\"")
     }
 }
 

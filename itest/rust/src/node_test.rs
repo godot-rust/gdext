@@ -4,8 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::itest;
-use godot::builtin::NodePath;
+use crate::{itest, TestContext};
+use godot::builtin::{NodePath, Variant};
 use godot::engine::{global, node, Node, Node3D, NodeExt, PackedScene, SceneTree};
 use godot::obj::Share;
 
@@ -80,4 +80,14 @@ fn node_scene_tree() {
     tree.free();
     parent.free();
     child.free();
+}
+
+// FIXME: call_group() crashes
+#[itest(skip)]
+fn node_call_group(ctx: &TestContext) {
+    let mut node = ctx.scene_tree.share();
+    let mut tree = node.get_tree().unwrap();
+
+    node.add_to_group("group".into(), true);
+    tree.call_group("group".into(), "set_name".into(), &[Variant::from("name")]);
 }

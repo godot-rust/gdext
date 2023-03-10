@@ -172,7 +172,7 @@ fn run_rust_test(test: &RustTestCase, ctx: &TestContext) -> TestOutcome {
     }
 
     // Explicit type to prevent tests from returning a value
-    let err_context = || format!("   !! Test {} failed", test.name);
+    let err_context = || format!("itest `{}` failed", test.name);
     let success: Option<()> = godot::private::handle_panic(err_context, || (test.function)(ctx));
 
     TestOutcome::from_bool(success.is_some())
