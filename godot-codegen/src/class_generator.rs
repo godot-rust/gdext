@@ -7,7 +7,7 @@
 //! Generates a file for each Godot engine + builtin class
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
@@ -712,12 +712,43 @@ fn make_function_definition(
 
     let is_varcall = variant_ffi.is_some();
     let fn_name = safe_ident(function_name);
-    let (params, arg_exprs) = make_params(method_args, is_varcall, ctx);
+    let [params, variant_types, arg_exprs, arg_names] = make_params(method_args, is_varcall, ctx);
+
+    let (prepare_arg_types, error_fn_context);
+    if variant_ffi.is_some() {
+        // varcall (using varargs)
+        prepare_arg_types = quote! {
+            let mut __arg_types = Vec::with_capacity(__explicit_args.len() + varargs.len());
+            // __arg_types.extend(__explicit_args.iter().map(Variant::get_type));
+            __arg_types.extend(varargs.iter().map(Variant::get_type));
+            let __vararg_str = varargs.iter().map(|v| format!("{v}")).collect::<Vec<_>>().join(", ");
+        };
+
+        let joined = arg_names
+            .iter()
+            .map(|n| format!("{{{n}:?}}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        let fmt = format!("{function_name}({joined}; {{__vararg_str}})");
+        error_fn_context = quote! { &format!(#fmt) };
+    } else {
+        // ptrcall
+        prepare_arg_types = quote! {
+            let __arg_types = [
+                #( #variant_types ),*
+            ];
+        };
+        error_fn_context = function_name.to_token_stream();
+    };
+
     let (return_decl, call_code) = make_return(
         return_value,
         variant_ffi.as_ref(),
         varcall_invocation,
         ptrcall_invocation,
+        prepare_arg_types,
+        error_fn_context,
         ctx,
     );
 
@@ -733,7 +764,7 @@ fn make_function_definition(
                         #( #arg_exprs ),*
                     ];
 
-                    let mut __args = Vec::new();
+                    let mut __args = Vec::with_capacity(__explicit_args.len() + varargs.len());
                     __args.extend(__explicit_args.iter().map(Variant::#sys_method));
                     __args.extend(varargs.iter().map(Variant::#sys_method));
 
@@ -789,32 +820,32 @@ fn make_params(
     method_args: &Option<Vec<MethodArg>>,
     is_varcall: bool,
     ctx: &mut Context,
-) -> (Vec<TokenStream>, Vec<TokenStream>) {
+) -> [Vec<TokenStream>; 4] {
     let empty = vec![];
     let method_args = method_args.as_ref().unwrap_or(&empty);
 
     let mut params = vec![];
+    let mut variant_types = vec![];
     let mut arg_exprs = vec![];
+    let mut arg_names = vec![];
     for arg in method_args.iter() {
         let param_name = safe_ident(&arg.name);
         let param_ty = to_rust_type(&arg.type_, ctx);
 
-        params.push(quote! { #param_name: #param_ty });
-        if is_varcall {
-            arg_exprs.push(quote! {
-                <#param_ty as ToVariant>::to_variant(&#param_name)
-            });
-        } else if let RustTy::EngineClass { tokens: path, .. } = param_ty {
-            arg_exprs.push(quote! {
-                <#path as AsArg>::as_arg_ptr(&#param_name)
-            });
+        let arg_expr = if is_varcall {
+            quote! { <#param_ty as ToVariant>::to_variant(&#param_name) }
+        } else if let RustTy::EngineClass { tokens: path, .. } = &param_ty {
+            quote! { <#path as AsArg>::as_arg_ptr(&#param_name) }
         } else {
-            arg_exprs.push(quote! {
-                <#param_ty as sys::GodotFfi>::sys_const(&#param_name)
-            });
-        }
+            quote! { <#param_ty as sys::GodotFfi>::sys_const(&#param_name) }
+        };
+
+        params.push(quote! { #param_name: #param_ty });
+        variant_types.push(quote! { <#param_ty as VariantMetadata>::variant_type() });
+        arg_exprs.push(arg_expr);
+        arg_names.push(quote! { #param_name });
     }
-    (params, arg_exprs)
+    [params, variant_types, arg_exprs, arg_names]
 }
 
 fn make_return(
@@ -822,6 +853,8 @@ fn make_return(
     variant_ffi: Option<&VariantFfi>,
     varcall_invocation: &TokenStream,
     ptrcall_invocation: &TokenStream,
+    prepare_arg_types: TokenStream,
+    error_fn_context: TokenStream, // only for panic message
     ctx: &mut Context,
 ) -> (TokenStream, TokenStream) {
     let return_decl: TokenStream;
@@ -851,7 +884,10 @@ fn make_return(
                 let variant = Variant::#from_sys_init_method(|return_ptr| {
                     let mut __err = sys::default_call_error();
                     #varcall_invocation
-                    sys::panic_on_call_error(&__err);
+                    if __err.error != sys::GDEXTENSION_CALL_OK {
+                        #prepare_arg_types
+                        sys::panic_call_error(&__err, #error_fn_context, &__arg_types);
+                    }
                 });
                 #return_expr
             }
@@ -863,7 +899,10 @@ fn make_return(
                 let mut __err = sys::default_call_error();
                 let return_ptr = std::ptr::null_mut();
                 #varcall_invocation
-                sys::panic_on_call_error(&__err);
+                if __err.error != sys::GDEXTENSION_CALL_OK {
+                    #prepare_arg_types
+                    sys::panic_call_error(&__err, #error_fn_context, &__arg_types);
+                }
             }
         }
         (None, Some(RustTy::EngineClass { tokens, .. })) => {

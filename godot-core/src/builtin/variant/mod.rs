@@ -122,7 +122,10 @@ impl Variant {
             )
         };
 
-        sys::panic_on_call_error(&error);
+        if error.error != sys::GDEXTENSION_CALL_OK {
+            let arg_types: Vec<_> = args.iter().map(Variant::get_type).collect();
+            sys::panic_call_error(&error, "call", &arg_types);
+        }
         result
     }
 
