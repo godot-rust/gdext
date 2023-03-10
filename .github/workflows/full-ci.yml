@@ -102,21 +102,10 @@ jobs:
             godot-binary: godot.macos.editor.dev.x86_64
             with-llvm: true
 
-          - name: macos-double
-            os: macos-11
-            rust-toolchain: stable
-            godot-binary: godot.macos.editor.dev.double.x86_64
-            with-llvm: true
-
           - name: windows
             os: windows-latest
             rust-toolchain: stable-x86_64-pc-windows-msvc
             godot-binary: godot.windows.editor.dev.x86_64.exe
-
-          - name: windows-double
-            os: windows-latest
-            rust-toolchain: stable-x86_64-pc-windows-msvc
-            godot-binary: godot.windows.editor.dev.double.x86_64.exe
 
           # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
@@ -131,12 +120,6 @@ jobs:
             rust-special: -minimal-deps
             godot-binary: godot.linuxbsd.editor.dev.x86_64
           
-          - name: linux-double
-            os: ubuntu-20.04
-            rust-toolchain: stable
-            godot-binary: godot.linuxbsd.editor.dev.double.x86_64
-            rust-extra-args: --features double-precision
-
     steps:
       - uses: actions/checkout@v3
 
@@ -216,6 +199,12 @@ jobs:
             rust-toolchain: stable
             godot-binary: godot.linuxbsd.editor.dev.x86_64
 
+          - name: linux-double
+            os: ubuntu-20.04
+            rust-toolchain: stable
+            godot-binary: godot.linuxbsd.editor.dev.double.x86_64
+            rust-extra-args: --features double-precision
+
           # Special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
           # Additionally, the Godot source is patched to make dlclose() a no-op, as unloading dynamic libraries loses stacktrace and
           # cause false positives like println!. See https://github.com/google/sanitizers/issues/89.
@@ -235,12 +224,6 @@ jobs:
             godot-args: -- --disallow-focus
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout
-
-          - name: linux-double
-            os: ubuntu-20.04
-            rust-toolchain: stable
-            godot-binary: godot.linuxbsd.editor.dev.double.x86_64
-            rust-extra-args: --features double-precision
 
     steps:
       - uses: actions/checkout@v3
