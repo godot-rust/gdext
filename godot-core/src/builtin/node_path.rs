@@ -4,10 +4,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt;
+
 use crate::builtin::GodotString;
 use godot_ffi as sys;
 use godot_ffi::{ffi_methods, GDExtensionTypePtr, GodotFfi};
-use std::fmt::{Display, Formatter, Result as FmtResult};
 
 pub struct NodePath {
     opaque: sys::types::OpaqueNodePath,
@@ -59,10 +60,18 @@ impl From<&str> for NodePath {
     }
 }
 
-impl Display for NodePath {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+impl fmt::Display for NodePath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let string = GodotString::from(self);
-        <GodotString as Display>::fmt(&string, f)
+        <GodotString as fmt::Display>::fmt(&string, f)
+    }
+}
+
+/// Uses literal syntax from GDScript: `^"node_path"`
+impl fmt::Debug for NodePath {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let string = GodotString::from(self);
+        write!(f, "^\"{string}\"")
     }
 }
 
