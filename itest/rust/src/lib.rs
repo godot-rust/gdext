@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::engine::Node;
+use godot::engine::{Engine, Node};
 use godot::init::{gdextension, ExtensionLibrary};
 use godot::obj::Gd;
 use godot::sys;
@@ -23,6 +23,7 @@ mod node_test;
 mod object_test;
 mod packed_array_test;
 mod quaternion_test;
+mod rid_test;
 mod singleton_test;
 mod string_test;
 mod transform2d_test;
@@ -53,6 +54,15 @@ pub(crate) fn expect_panic(context: &str, code: impl FnOnce() + std::panic::Unwi
         panic.is_err(),
         "code should have panicked but did not: {context}",
     );
+}
+
+/// Disable printing errors from Godot. Ideally we should catch and handle errors, ensuring they happen when
+/// expected. But that isn't possible, so for now we can just disable printing the error to avoid spamming
+/// the terminal when tests should error.
+pub(crate) fn suppress_godot_print(mut f: impl FnMut()) {
+    Engine::singleton().set_print_error_messages(false);
+    f();
+    Engine::singleton().set_print_error_messages(true);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
