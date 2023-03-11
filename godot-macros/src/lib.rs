@@ -16,7 +16,137 @@ mod godot_api;
 mod itest;
 mod util;
 
-#[proc_macro_derive(GodotClass, attributes(class, property, export, base, signal))]
+/// Derive macro for [`GodotClass`](godot_core::obj::GodotClass) on structs. You should normally use
+/// this macro, rather than implement `GodotClass` manually for your type.
+///
+/// # Construction
+///
+/// To generate a constructor that will let you call `MyStruct.new()` from GDScript, annotate your
+/// struct with `#[class(init)]`:
+///
+/// ```
+/// # use godot_macros::GodotClass;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyStruct {
+///     // ...
+/// }
+/// ```
+///
+/// # Inheritance
+///
+/// Unlike C++, Rust doesn't really have inheritance, but the GDExtension API lets us "inherit"
+/// from a built-in engine class.
+///
+/// By default, classes created with this library inherit from `RefCounted`.
+///
+/// To specify a different class to inherit from, add `#[class(base = Base)]` as an annotation on
+/// your `struct`:
+///
+/// ```
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(base = Node2D)]
+/// struct MyStruct {
+///     // ...
+/// }
+/// ```
+///
+/// If you need a reference to the base class, you can add a field of type `Gd<Base>` and annotate
+/// it with `#[base]`:
+///
+/// ```
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(base = Node2D)]
+/// struct MyStruct {
+///     #[base]
+///     base: Gd<Node2D>,
+/// }
+/// ```
+///
+/// # Exported properties
+///
+/// In GDScript, there is a distinction between
+/// [properties](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html#properties-setters-and-getters)
+/// (fields with a `get` or `set` declaration) and
+/// [exports](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_exports.html)
+/// (fields annotated with `@export`). In the GDExtension API, these two concepts are merged into
+/// one.
+///
+/// You can export fields of your struct using the `#[export]` annotation:
+///
+/// ```
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// struct MyStruct {
+///     #[export]
+///     my_field: i64,
+/// }
+/// ```
+///
+/// This makes the field accessible in GDScript using `my_struct.my_field` syntax. Additionally, it
+/// generates a trivial getter and setter named `get_my_field` and `set_my_field`, respectively.
+/// These are `pub` in Rust, since they're exposed from GDScript anyway.
+///
+/// If you want to implement your own getter and/or setter, write those as a function on your Rust
+/// type, expose it using `#[func]`, and annotate the field with
+/// `#[export(get = "...", set = "...")]`:
+///
+/// ```
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// struct MyStruct {
+///     #[export(get = "get_my_field", set = "set_my_field")]
+///     my_field: i64,
+/// }
+///
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func]
+///     pub fn get_my_field(&self) -> i64 {
+///         self.my_field
+///     }
+///
+///     #[func]
+///     pub fn set_my_field(&mut self, value: i64) {
+///         self.my_field = value;
+///     }
+/// }
+/// ```
+///
+/// If you specify only `get`, no setter is generated, making the field read-only. If you specify
+/// only `set`, no getter is generated, making the field write-only (rarely useful). To add a
+/// generated getter or setter in these cases anyway, use `get` or `set` without a value:
+///
+/// ```
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// struct MyStruct {
+///     // Default getter, custom setter.
+///     #[export(get, set = "set_my_field")]
+///     my_field: i64,
+/// }
+///
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func]
+///     pub fn set_my_field(&mut self, value: i64) {
+///         self.my_field = value;
+///     }
+/// }
+/// ```
+///
+/// # Signals
+///
+/// The `#[signal]` attribute is accepted, but not yet implemented. See [issue
+/// #8](https://github.com/godot-rust/gdext/issues/8).
+#[proc_macro_derive(GodotClass, attributes(class, export, base, signal))]
 pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)
 }
