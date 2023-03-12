@@ -19,7 +19,6 @@
 )]
 pub(crate) mod gen;
 
-mod global_registry;
 mod godot_ffi;
 mod opaque;
 mod plugins;
@@ -33,16 +32,12 @@ pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
 pub use gen::central::*;
 pub use gen::gdextension_interface::*;
 
-use crate::global_registry::GlobalRegistry; // needs `crate::`
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Real implementation, when Godot engine is running
 
 struct GodotBinding {
     interface: GDExtensionInterface,
     library: GDExtensionClassLibraryPtr,
     method_table: GlobalMethodTable,
-    registry: GlobalRegistry,
 }
 
 /// Late-init globals
@@ -69,7 +64,6 @@ pub unsafe fn initialize(
     BINDING = Some(GodotBinding {
         interface: *interface,
         method_table: GlobalMethodTable::new(&*interface),
-        registry: GlobalRegistry::default(),
         library,
     });
 }
@@ -98,17 +92,6 @@ pub unsafe fn method_table() -> &'static GlobalMethodTable {
     &unwrap_ref_unchecked(&BINDING).method_table
 }
 
-/// # Safety
-///
-/// The interface must have been initialised with [`initialize`] before calling this function.
-///
-/// Calling this while another place holds a reference (threads, re-entrancy, iteration, etc) is immediate undefined behavior.
-// note: could potentially avoid &mut aliasing, using UnsafeCell/RefCell
-#[inline(always)]
-pub unsafe fn get_registry() -> &'static mut GlobalRegistry {
-    &mut unwrap_ref_unchecked_mut(&mut BINDING).registry
-}
-
 /// Makes sure that Godot is running, or panics. Debug mode only!
 macro_rules! debug_assert_godot {
     ($expr:expr) => {
@@ -126,15 +109,6 @@ unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
 
     match opt {
         Some(ref val) => val,
-        None => std::hint::unreachable_unchecked(),
-    }
-}
-
-unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
-    debug_assert_godot!(opt.is_some());
-
-    match opt {
-        Some(ref mut val) => val,
         None => std::hint::unreachable_unchecked(),
     }
 }

@@ -32,6 +32,7 @@ runs:
     - name: "Configure"
       id: configure
       run: |
+        echo "Rust cache shared-key: '${{ runner.os }}-${{ inputs.rust }}${{ inputs.cache-key }}'"
         echo "components=$( for c in ${cs//,/ }; do echo -n ' --component' $c; done )" >> $GITHUB_OUTPUT
       env:
         cs: ${{ inputs.components }}
@@ -46,7 +47,18 @@ runs:
     - name: "Reuse cached dependencies"
       uses: Swatinem/rust-cache@v2
       with:
-        shared-key: ${{ inputs.cache-key }}
+        # A cache key that is used instead of the automatic `job`-based key, and is stable over multiple jobs.
+        # default: empty
+        shared-key: "${{ runner.os }}-${{ inputs.rust }}${{ inputs.cache-key }}"
+
+        # An additional cache key that is added alongside the automatic `job`-based
+        # cache key and can be used to further differentiate jobs.
+        # default: empty
+        key: ${{ inputs.cache-key }}
+
+        # Determines if the cache should be saved even when the workflow has failed.
+        # default: "false"
+        cache-on-failure: true
 
     - name: "Install LLVM"
       uses: ./.github/composite/llvm
