@@ -72,7 +72,12 @@ impl Projection {
     ///
     /// _Godot equivalent: Projection.create_depth_correction()_
     pub fn create_depth_correction(flip_y: bool) -> Self {
-        InnerProjection::create_depth_correction(flip_y)
+        Self::from_cols(
+            Vector4::new(1.0, 0.0, 0.0, 0.0),
+            Vector4::new(0.0, if flip_y { -1.0 } else { 1.0 }, 0.0, 0.0),
+            Vector4::new(0.0, 0.0, 0.5, 0.0),
+            Vector4::new(0.0, 0.0, 0.5, 1.0),
+        )
     }
 
     /// Creates a new Projection for projecting positions onto a head-mounted
@@ -91,16 +96,18 @@ impl Projection {
         near: real,
         far: real,
     ) -> Self {
-        InnerProjection::create_for_hmd(
-            eye as i64,
-            aspect.as_f64(),
-            intraocular_dist.as_f64(),
-            display_width.as_f64(),
-            display_to_lens.as_f64(),
-            oversample.as_f64(),
-            near.as_f64(),
-            far.as_f64(),
-        )
+        let mut f1 = (intraocular_dist * 0.5) / display_to_lens;
+        let mut f2 = ((display_width - intraocular_dist) * 0.5) / display_to_lens;
+        let f3 = ((display_width * 0.25 * oversample) / (display_to_lens * aspect)) * near;
+
+        let add = (f1 + f2) * (oversample - 1.0) * 0.5;
+        f1 = (f1 + add) * near;
+        f2 = (f2 + add) * near;
+
+        match eye {
+            ProjectionEye::Left => Self::create_frustum(-f2, f1, -f3, f3, near, far),
+            ProjectionEye::Right => Self::create_frustum(-f1, f2, -f3, f3, near, far),
+        }
     }
 
     /// Creates a new Projection that projects positions in a frustum with the
@@ -115,13 +122,22 @@ impl Projection {
         near: real,
         far: real,
     ) -> Self {
-        InnerProjection::create_frustum(
-            left.as_f64(),
-            right.as_f64(),
-            bottom.as_f64(),
-            top.as_f64(),
-            near.as_f64(),
-            far.as_f64(),
+        let dx = right - left;
+        let dy = top - bottom;
+        let dz = near - far;
+
+        let x = 2.0 * near / dx;
+        let y = 2.0 * near / dy;
+        let a = (right + left) / dx;
+        let b = (top + bottom) / dy;
+        let c = (far + near) / dz;
+        let d = 2.0 * near * far / dz;
+
+        Self::from_cols(
+            Vector4::new(x, 0.0, 0.0, 0.0),
+            Vector4::new(0.0, y, 0.0, 0.0),
+            Vector4::new(a, b, c, -1.0),
+            Vector4::new(0.0, 0.0, d, 0.0),
         )
     }
 
@@ -140,13 +156,25 @@ impl Projection {
         far: real,
         flip_fov: bool,
     ) -> Self {
-        InnerProjection::create_frustum_aspect(
-            size.as_f64(),
-            aspect.as_f64(),
-            offset,
-            near.as_f64(),
-            far.as_f64(),
-            flip_fov,
+        let (dx, dy) = if flip_fov {
+            (size, size / aspect)
+        } else {
+            (size * aspect, size)
+        };
+        let dz = near - far;
+
+        let x = 2.0 * near / dx;
+        let y = 2.0 * near / dy;
+        let a = 2.0 * offset.x / dx;
+        let b = 2.0 * offset.y / dy;
+        let c = (far + near) / dz;
+        let d = 2.0 * near * far / dz;
+
+        Self::from_cols(
+            Vector4::new(x, 0.0, 0.0, 0.0),
+            Vector4::new(0.0, y, 0.0, 0.0),
+            Vector4::new(a, b, c, -1.0),
+            Vector4::new(0.0, 0.0, d, 0.0),
         )
     }
 
@@ -162,14 +190,7 @@ impl Projection {
         near: real,
         far: real,
     ) -> Self {
-        InnerProjection::create_orthogonal(
-            left.as_f64(),
-            right.as_f64(),
-            bottom.as_f64(),
-            top.as_f64(),
-            near.as_f64(),
-            far.as_f64(),
-        )
+        RMat4::orthographic_rh_gl(left, right, bottom, top, near, far).to_front()
     }
 
     /// Creates a new Projection that projects positions using an orthogonal
@@ -186,13 +207,15 @@ impl Projection {
         far: real,
         flip_fov: bool,
     ) -> Self {
-        InnerProjection::create_orthogonal_aspect(
-            size.as_f64(),
-            aspect.as_f64(),
-            near.as_f64(),
-            far.as_f64(),
-            flip_fov,
-        )
+        let f = size / 2.0;
+
+        if flip_fov {
+            let fy = f / aspect;
+            Self::create_orthogonal(-f, f, -fy, fy, near, far)
+        } else {
+            let fx = f * aspect;
+            Self::create_orthogonal(-fx, fx, -f, f, near, far)
+        }
     }
 
     /// Creates a new Projection that projects positions using a perspective
@@ -210,13 +233,12 @@ impl Projection {
         far: real,
         flip_fov: bool,
     ) -> Self {
-        InnerProjection::create_perspective(
-            fov_y.as_f64(),
-            aspect.as_f64(),
-            near.as_f64(),
-            far.as_f64(),
-            flip_fov,
-        )
+        let mut fov_y = fov_y.to_radians();
+        if flip_fov {
+            fov_y = ((fov_y * 0.5).tan() / aspect).atan() * 2.0;
+        }
+
+        RMat4::perspective_rh_gl(fov_y, aspect, near, far).to_front()
     }
 
     /// Creates a new Projection that projects positions using a perspective
@@ -240,16 +262,32 @@ impl Projection {
         intraocular_dist: real,
         convergence_dist: real,
     ) -> Self {
-        InnerProjection::create_perspective_hmd(
-            fov_y.as_f64(),
-            aspect.as_f64(),
-            near.as_f64(),
-            far.as_f64(),
-            flip_fov,
-            eye as i64,
-            intraocular_dist.as_f64(),
-            convergence_dist.as_f64(),
-        )
+        let fov_y = fov_y.to_radians();
+
+        let ymax = if flip_fov {
+            (fov_y * 0.5).tan() / aspect
+        } else {
+            fov_y.tan()
+        } * near;
+        let xmax = ymax * aspect;
+        let frustumshift = (intraocular_dist * near * 0.5) / convergence_dist;
+
+        let (left, right, model_translation) = match eye {
+            ProjectionEye::Left => (
+                frustumshift - xmax,
+                xmax + frustumshift,
+                intraocular_dist / 2.0,
+            ),
+            ProjectionEye::Right => (
+                -frustumshift - xmax,
+                xmax - frustumshift,
+                intraocular_dist / -2.0,
+            ),
+        };
+
+        let mut ret = Self::create_frustum(left, right, -ymax, ymax, near, far);
+        ret.cols[0] += ret.cols[3] * model_translation;
+        ret
     }
 
     /// Return the determinant of the matrix.
@@ -358,7 +396,14 @@ impl Projection {
     ///
     /// _Godot equivalent: Projection.is_orthogonal()_
     pub fn is_orthogonal(&self) -> bool {
-        self.as_inner().is_orthogonal()
+        self.cols[3].w == 1.0
+
+        // TODO: Test the entire last row?
+        // The argument is that W should not mixed with any other dimensions.
+        // But if the only operation is projection and affine, it suffice
+        // to check if input W is nullified (v33 is zero).
+        // (Currently leave it as-is, matching Godot's implementation).
+        // (self.cols[0].w == 0.0) && (self.cols[1].w == 0.0) && (self.cols[2] == 0.0) && (self.cols[3].w == 1.0)
     }
 
     /// Returns a Projection with the X and Y values from the given [`Vector2`]
@@ -367,7 +412,12 @@ impl Projection {
     /// _Godot equivalent: Projection.jitter_offseted()_
     #[must_use]
     pub fn jitter_offset(&self, offset: Vector2) -> Self {
-        self.as_inner().jitter_offseted(offset)
+        Self::from_cols(
+            self.cols[0],
+            self.cols[1],
+            self.cols[2],
+            self.cols[3] + Vector4::new(offset.x, offset.y, 0.0, 0.0),
+        )
     }
 
     /// Returns a Projection with the near clipping distance adjusted to be
@@ -459,4 +509,453 @@ pub enum ProjectionPlane {
 pub enum ProjectionEye {
     Left = 1,
     Right = 2,
+}
+
+#[cfg(test)]
+mod test {
+    #![allow(clippy::type_complexity, clippy::excessive_precision)]
+
+    use crate::assert_eq_approx;
+
+    use super::*;
+
+    const EPSILON: real = 1e-6;
+
+    fn real_is_approx(a: real, b: real) -> bool {
+        (a - b).abs() <= EPSILON
+    }
+
+    fn matrix_eq_approx(a: Projection, b: RMat4) -> bool {
+        a.to_glam().abs_diff_eq(b, EPSILON)
+    }
+
+    /// Test that diagonals matrices has certain property.
+    #[test]
+    fn test_diagonals() {
+        const DIAGONALS: [[real; 4]; 10] = [
+            [1.0, 1.0, 1.0, 1.0],
+            [2.0, 1.0, 2.0, 1.0],
+            [3.0, 2.0, 1.0, 1.0],
+            [-1.0, -1.0, 1.0, 1.0],
+            [0.0, 0.0, 0.0, 0.0],
+            [-2.0, -3.0, -4.0, -5.0],
+            [0.0, 5.0, -10.0, 50.0],
+            [-1.0, 0.0, 1.0, 100.0],
+            [-15.0, -22.0, 0.0, 11.0],
+            [-1.0, 3.0, 1.0, 0.0],
+        ];
+
+        for [x, y, z, w] in DIAGONALS {
+            let proj = Projection::from_diagonal(x, y, z, w);
+            assert_eq_approx!(
+                proj,
+                RMat4::from_cols_array(&[
+                    x, 0.0, 0.0, 0.0, 0.0, y, 0.0, 0.0, 0.0, 0.0, z, 0.0, 0.0, 0.0, 0.0, w,
+                ]),
+                matrix_eq_approx,
+            );
+
+            let det = x * y * z * w;
+            assert_eq_approx!(proj.determinant(), det, real_is_approx);
+            if det.abs() > 1e-6 {
+                assert_eq_approx!(
+                    proj.inverse(),
+                    RMat4::from_cols_array_2d(&[
+                        [1.0 / x, 0.0, 0.0, 0.0],
+                        [0.0, 1.0 / y, 0.0, 0.0],
+                        [0.0, 0.0, 1.0 / z, 0.0],
+                        [0.0, 0.0, 0.0, 1.0 / w],
+                    ]),
+                    matrix_eq_approx,
+                );
+            }
+        }
+    }
+
+    /// Test `create_orthogonal` method.
+    /// All inputs and outputs are manually computed.
+    #[test]
+    fn test_orthogonal() {
+        const TEST_DATA: [([real; 6], [[real; 4]; 4]); 6] = [
+            (
+                [-1.0, 1.0, -1.0, 1.0, -1.0, 1.0],
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, -1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ],
+            ),
+            (
+                [0.0, 1.0, 0.0, 1.0, 0.0, 1.0],
+                [
+                    [2.0, 0.0, 0.0, 0.0],
+                    [0.0, 2.0, 0.0, 0.0],
+                    [0.0, 0.0, -2.0, 0.0],
+                    [-1.0, -1.0, -1.0, 1.0],
+                ],
+            ),
+            (
+                [-1.0, 1.0, -1.0, 1.0, 0.0, 1.0],
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, -2.0, 0.0],
+                    [0.0, 0.0, -1.0, 1.0],
+                ],
+            ),
+            (
+                [-10.0, 10.0, -10.0, 10.0, 0.0, 100.0],
+                [
+                    [0.1, 0.0, 0.0, 0.0],
+                    [0.0, 0.1, 0.0, 0.0],
+                    [0.0, 0.0, -0.02, 0.0],
+                    [0.0, 0.0, -1.0, 1.0],
+                ],
+            ),
+            (
+                [-1.0, 1.0, -1.0, 1.0, 1.0, -1.0],
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ],
+            ),
+            (
+                [10.0, -10.0, 10.0, -10.0, -10.0, 10.0],
+                [
+                    [-0.1, 0.0, 0.0, 0.0],
+                    [0.0, -0.1, 0.0, 0.0],
+                    [0.0, 0.0, -0.1, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ],
+            ),
+        ];
+
+        for ([left, right, bottom, top, near, far], mat) in TEST_DATA {
+            assert_eq_approx!(
+                Projection::create_orthogonal(left, right, bottom, top, near, far),
+                RMat4::from_cols_array_2d(&mat),
+                matrix_eq_approx,
+                "left={left} right={right} bottom={bottom} top={top} near={near} far={far}",
+            );
+        }
+    }
+
+    /// Test `create_orthogonal_aspect` method.
+    #[test]
+    fn test_orthogonal_aspect() {
+        const TEST_DATA: [((real, real, real, real, bool), [[real; 4]; 4]); 6] = [
+            (
+                (2.0, 1.0, 0.0, 1.0, false),
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, -2.0, 0.0],
+                    [0.0, 0.0, -1.0, 1.0],
+                ],
+            ),
+            (
+                (2.0, 1.0, 0.0, 1.0, true),
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, -2.0, 0.0],
+                    [0.0, 0.0, -1.0, 1.0],
+                ],
+            ),
+            (
+                (1.0, 2.0, 0.0, 100.0, false),
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 2.0, 0.0, 0.0],
+                    [0.0, 0.0, -0.02, 0.0],
+                    [0.0, 0.0, -1.0, 1.0],
+                ],
+            ),
+            (
+                (1.0, 2.0, 0.0, 100.0, true),
+                [
+                    [2.0, 0.0, 0.0, 0.0],
+                    [0.0, 4.0, 0.0, 0.0],
+                    [0.0, 0.0, -0.02, 0.0],
+                    [0.0, 0.0, -1.0, 1.0],
+                ],
+            ),
+            (
+                (64.0, 9.0 / 16.0, 0.0, 100.0, false),
+                [
+                    [(1.0 / 32.0) * (16.0 / 9.0), 0.0, 0.0, 0.0],
+                    [0.0, 1.0 / 32.0, 0.0, 0.0],
+                    [0.0, 0.0, -0.02, 0.0],
+                    [0.0, 0.0, -1.0, 1.0],
+                ],
+            ),
+            (
+                (64.0, 9.0 / 16.0, 0.0, 100.0, true),
+                [
+                    [1.0 / 32.0, 0.0, 0.0, 0.0],
+                    [0.0, (1.0 / 32.0) * (9.0 / 16.0), 0.0, 0.0],
+                    [0.0, 0.0, -0.02, 0.0],
+                    [0.0, 0.0, -1.0, 1.0],
+                ],
+            ),
+        ];
+
+        for ((size, aspect, near, far, flip_fov), mat) in TEST_DATA {
+            assert_eq_approx!(
+                Projection::create_orthogonal_aspect(size, aspect, near, far, flip_fov),
+                RMat4::from_cols_array_2d(&mat),
+                matrix_eq_approx,
+                "size={size} aspect={aspect} near={near} far={far} flip_fov={flip_fov}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_perspective() {
+        const TEST_DATA: [((real, real, real, real, bool), [[real; 4]; 4]); 5] = [
+            (
+                (90.0, 1.0, 1.0, 2.0, false),
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, -3.0, -1.0],
+                    [0.0, 0.0, -4.0, 0.0],
+                ],
+            ),
+            (
+                (90.0, 1.0, 1.0, 2.0, true),
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, -3.0, -1.0],
+                    [0.0, 0.0, -4.0, 0.0],
+                ],
+            ),
+            (
+                (45.0, 1.0, 0.05, 100.0, false),
+                [
+                    [2.414213562373095, 0.0, 0.0, 0.0],
+                    [0.0, 2.414213562373095, 0.0, 0.0],
+                    [0.0, 0.0, -1.001000500250125, -1.0],
+                    [0.0, 0.0, -0.10005002501250625, 0.0],
+                ],
+            ),
+            (
+                (90.0, 9.0 / 16.0, 1.0, 2.0, false),
+                [
+                    [16.0 / 9.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, -3.0, -1.0],
+                    [0.0, 0.0, -4.0, 0.0],
+                ],
+            ),
+            (
+                (90.0, 9.0 / 16.0, 1.0, 2.0, true),
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 9.0 / 16.0, 0.0, 0.0],
+                    [0.0, 0.0, -3.0, -1.0],
+                    [0.0, 0.0, -4.0, 0.0],
+                ],
+            ),
+        ];
+
+        for ((fov_y, aspect, near, far, flip_fov), mat) in TEST_DATA {
+            assert_eq_approx!(
+                Projection::create_perspective(fov_y, aspect, near, far, flip_fov),
+                RMat4::from_cols_array_2d(&mat),
+                matrix_eq_approx,
+                "fov_y={fov_y} aspect={aspect} near={near} far={far} flip_fov={flip_fov}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_frustum() {
+        const TEST_DATA: [([real; 6], [[real; 4]; 4]); 3] = [
+            (
+                [-1.0, 1.0, -1.0, 1.0, 1.0, 2.0],
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, -3.0, -1.0],
+                    [0.0, 0.0, -4.0, 0.0],
+                ],
+            ),
+            (
+                [0.0, 1.0, 0.0, 1.0, 1.0, 2.0],
+                [
+                    [2.0, 0.0, 0.0, 0.0],
+                    [0.0, 2.0, 0.0, 0.0],
+                    [1.0, 1.0, -3.0, -1.0],
+                    [0.0, 0.0, -4.0, 0.0],
+                ],
+            ),
+            (
+                [-0.1, 0.1, -0.025, 0.025, 0.05, 100.0],
+                [
+                    [0.5, 0.0, 0.0, 0.0],
+                    [0.0, 2.0, 0.0, 0.0],
+                    [0.0, 0.0, -1.001000500250125, -1.0],
+                    [0.0, 0.0, -0.10005002501250625, 0.0],
+                ],
+            ),
+        ];
+
+        for ([left, right, bottom, top, near, far], mat) in TEST_DATA {
+            assert_eq_approx!(
+                Projection::create_frustum(left, right, bottom, top, near, far),
+                RMat4::from_cols_array_2d(&mat),
+                matrix_eq_approx,
+                "left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_frustum_aspect() {
+        const TEST_DATA: [((real, real, Vector2, real, real, bool), [[real; 4]; 4]); 4] = [
+            (
+                (2.0, 1.0, Vector2::ZERO, 1.0, 2.0, false),
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, -3.0, -1.0],
+                    [0.0, 0.0, -4.0, 0.0],
+                ],
+            ),
+            (
+                (2.0, 1.0, Vector2::ZERO, 1.0, 2.0, true),
+                [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, -3.0, -1.0],
+                    [0.0, 0.0, -4.0, 0.0],
+                ],
+            ),
+            (
+                (1.0, 1.0, Vector2::new(0.5, 0.5), 1.0, 2.0, false),
+                [
+                    [2.0, 0.0, 0.0, 0.0],
+                    [0.0, 2.0, 0.0, 0.0],
+                    [1.0, 1.0, -3.0, -1.0],
+                    [0.0, 0.0, -4.0, 0.0],
+                ],
+            ),
+            (
+                (0.05, 4.0, Vector2::ZERO, 0.05, 100.0, false),
+                [
+                    [0.5, 0.0, 0.0, 0.0],
+                    [0.0, 2.0, 0.0, 0.0],
+                    [0.0, 0.0, -1.001000500250125, -1.0],
+                    [0.0, 0.0, -0.10005002501250625, 0.0],
+                ],
+            ),
+        ];
+
+        for ((size, aspect, offset, near, far, flip_fov), mat) in TEST_DATA {
+            assert_eq_approx!(
+                Projection::create_frustum_aspect(size, aspect, offset, near, far, flip_fov),
+                RMat4::from_cols_array_2d(&mat),
+                matrix_eq_approx,
+                "size={size} aspect={aspect} offset=({0} {1}) near={near} far={far} flip_fov={flip_fov}",
+                offset.x,
+                offset.y,
+            );
+        }
+    }
+
+    // TODO: Test create_for_hmd, create_perspective_hmd
+
+    #[test]
+    fn test_is_orthogonal() {
+        fn f(v: isize) -> real {
+            (v as real) * 0.5 - 0.5
+        }
+
+        // Orthogonal
+        for left_i in 0..20 {
+            let left = f(left_i);
+            for right in (left_i + 1..=20).map(f) {
+                for bottom_i in 0..20 {
+                    let bottom = f(bottom_i);
+                    for top in (bottom_i + 1..=20).map(f) {
+                        for near_i in 0..20 {
+                            let near = f(near_i);
+                            for far in (near_i + 1..=20).map(f) {
+                                assert!(
+                                    Projection::create_orthogonal(left, right, bottom, top, near, far).is_orthogonal(),
+                                    "Projection should be orthogonal (left={left} right={right} bottom={bottom} top={top} near={near} far={far})",
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Perspective
+        for fov in (0..18).map(|v| (v as real) * 10.0) {
+            for aspect_x in 1..=10 {
+                for aspect_y in 1..=10 {
+                    let aspect = (aspect_x as real) / (aspect_y as real);
+                    for near_i in 1..10 {
+                        let near = near_i as real;
+                        for far in (near_i + 1..=20).map(|v| v as real) {
+                            assert!(
+                                !Projection::create_perspective(fov, aspect, near, far, false).is_orthogonal(),
+                                "Projection should be perspective (fov={fov} aspect={aspect} near={near} far={far})",
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        // Frustum
+        for left_i in 0..20 {
+            let left = f(left_i);
+            for right in (left_i + 1..=20).map(f) {
+                for bottom_i in 0..20 {
+                    let bottom = f(bottom_i);
+                    for top in (bottom_i + 1..=20).map(f) {
+                        for near_i in 0..20 {
+                            let near = (near_i as real) * 0.5;
+                            for far in (near_i + 1..=20).map(|v| (v as real) * 0.5) {
+                                assert!(
+                                    !Projection::create_frustum(left, right, bottom, top, near, far).is_orthogonal(),
+                                    "Projection should be perspective (left={left} right={right} bottom={bottom} top={top} near={near} far={far})",
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Size, Aspect, Near, Far
+        for size in (1..=10).map(|v| v as real) {
+            for aspect_x in 1..=10 {
+                for aspect_y in 1..=10 {
+                    let aspect = (aspect_x as real) / (aspect_y as real);
+                    for near_i in 1..10 {
+                        let near = near_i as real;
+                        for far in (near_i + 1..=20).map(|v| v as real) {
+                            assert!(
+                                Projection::create_orthogonal_aspect(size, aspect, near, far, false).is_orthogonal(),
+                                "Projection should be orthogonal (size={size} aspect={aspect} near={near} far={far})",
+                            );
+                            assert!(
+                                !Projection::create_frustum_aspect(size, aspect, Vector2::ZERO, near, far, false).is_orthogonal(),
+                                "Projection should be perspective (size={size} aspect={aspect} near={near} far={far})",
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
