@@ -264,21 +264,33 @@ pub mod mem {
     impl Memory for DynamicRefCount {
         fn maybe_init_ref<T: GodotClass>(obj: &Gd<T>) {
             out!("  Dyn::init  <{}>", std::any::type_name::<T>());
-            if obj.instance_id().is_ref_counted() {
-                StaticRefCount::maybe_init_ref(obj);
+            if obj
+                .instance_id_or_none()
+                .map(|id| id.is_ref_counted())
+                .unwrap_or(false)
+            {
+                StaticRefCount::maybe_init_ref(obj)
             }
         }
 
         fn maybe_inc_ref<T: GodotClass>(obj: &Gd<T>) {
             out!("  Dyn::inc   <{}>", std::any::type_name::<T>());
-            if obj.instance_id().is_ref_counted() {
-                StaticRefCount::maybe_inc_ref(obj);
+            if obj
+                .instance_id_or_none()
+                .map(|id| id.is_ref_counted())
+                .unwrap_or(false)
+            {
+                StaticRefCount::maybe_inc_ref(obj)
             }
         }
 
         fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool {
             out!("  Dyn::dec   <{}>", std::any::type_name::<T>());
-            if obj.instance_id().is_ref_counted() {
+            if obj
+                .instance_id_or_none()
+                .map(|id| id.is_ref_counted())
+                .unwrap_or(false)
+            {
                 StaticRefCount::maybe_dec_ref(obj)
             } else {
                 false

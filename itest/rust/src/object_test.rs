@@ -531,6 +531,16 @@ fn object_engine_manual_free() {
     } // drop(node)
 }
 
+/// Tests the [`DynamicRefCount`] destructor when the underlying [`Object`] is already freed.
+#[itest]
+fn object_engine_shared_free() {
+    {
+        let node = Node::new_alloc();
+        let _object = node.share().upcast::<Object>();
+        node.free();
+    } // drop(_object)
+}
+
 #[itest]
 fn object_engine_manual_double_free() {
     expect_panic("double free()", || {
