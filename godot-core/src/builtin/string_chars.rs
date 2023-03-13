@@ -47,7 +47,6 @@ pub fn validate_unicode_scalar_sequence(seq: &[u32]) -> Option<&[char]> {
             ptr = ptr_next;
         }
 
-        // still untested but it should work
         #[cfg(target_arch = "aarch64")]
         loop {
             let ptr_next = ptr.add(4);
@@ -55,20 +54,16 @@ pub fn validate_unicode_scalar_sequence(seq: &[u32]) -> Option<&[char]> {
                 break;
             }
 
-            let block = uint32x4_t::load_unaligned(ptr as *const u32);
+            let block = vld1q_u32(ptr as *const u32);
 
             // check if has any character bigger than `char::MAX`
-            if (vqmovltq_u32(block, vdupq_n_u32(char::MAX as u32))).any() {
+            if vmaxvq_u32(block) >= char::MAX as u32 {
                 return None;
             }
 
             // check if has any high-surrogate and low-surrogate code points
-            if !vandq_u32(
-                vcgtq_u32(block, vdupq_n_u32(0xD7FF)),
-                vcltq_u32(block, vdupq_n_u32(0xE000)),
-            )
-            .is_zero()
-            {
+            // This is in the range `0xD800..0xE000`.
+            if vminvq_u32(vsubq_u32(block, vdupq_n_u32(0xD800))) < (0xE000 - 0xD800) {
                 return None;
             }
 
