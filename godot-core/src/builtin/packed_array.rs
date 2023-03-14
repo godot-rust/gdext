@@ -85,15 +85,17 @@ macro_rules! impl_packed_array {
             pub fn to_vec(&self) -> Vec<$Element> {
                 let len = self.len();
                 let mut vec = Vec::with_capacity(len);
-                let ptr = self.ptr(0);
-                for offset in 0..to_isize(len) {
-                    // SAFETY: Packed arrays are stored contiguously in memory, so we can use
-                    // pointer arithmetic instead of going through `$operator_index_const` for
-                    // every index.
-                    // Note that we do need to use `.clone()` because `GodotString` is refcounted;
-                    // we can't just do a memcpy.
-                    let element = unsafe { (*ptr.offset(offset)).clone() };
-                    vec.push(element);
+                if len > 0 {
+                    let ptr = self.ptr(0);
+                    for offset in 0..to_isize(len) {
+                        // SAFETY: Packed arrays are stored contiguously in memory, so we can use
+                        // pointer arithmetic instead of going through `$operator_index_const` for
+                        // every index.
+                        // Note that we do need to use `.clone()` because `GodotString` is refcounted;
+                        // we can't just do a memcpy.
+                        let element = unsafe { (*ptr.offset(offset)).clone() };
+                        vec.push(element);
+                    }
                 }
                 vec
             }
