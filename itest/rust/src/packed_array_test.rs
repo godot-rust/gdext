@@ -37,6 +37,8 @@ fn packed_array_from() {
 
 #[itest]
 fn packed_array_to_vec() {
+    let array = PackedByteArray::new();
+    assert_eq!(array.to_vec(), vec![]);
     let array = PackedByteArray::from(&[1, 2]);
     assert_eq!(array.to_vec(), vec![1, 2]);
 }
