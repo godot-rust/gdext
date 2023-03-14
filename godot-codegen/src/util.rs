@@ -58,12 +58,20 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
         None
     };
 
+    let mut derives = vec!["Copy", "Clone", "Eq", "PartialEq", "Debug", "Hash"];
+
+    if enum_.is_bitfield {
+        derives.push("Default");
+    }
+
+    let derives = derives.into_iter().map(ident);
+
     // Enumerator ordinal stored as i32, since that's enough to hold all current values and the default repr in C++.
     // Public interface is i64 though, for consistency (and possibly forward compatibility?).
     // TODO maybe generalize GodotFfi over EngineEnum trait
     quote! {
         #[repr(transparent)]
-        #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
+        #[derive(#( #derives ),*)]
         pub struct #enum_name {
             ord: i32
         }
