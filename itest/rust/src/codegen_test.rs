@@ -9,7 +9,7 @@
 
 use crate::itest;
 use godot::builtin::inner::{InnerColor, InnerString};
-use godot::engine::{FileAccess, HttpRequest};
+use godot::engine::{FileAccess, HttpRequest, HttpRequestVirtual};
 use godot::prelude::*;
 
 #[itest]
@@ -60,7 +60,7 @@ pub struct TestBaseRenamed {
 }
 
 #[godot_api]
-impl GodotExt for TestBaseRenamed {
+impl HttpRequestVirtual for TestBaseRenamed {
     fn init(base: Base<HttpRequest>) -> Self {
         TestBaseRenamed { base }
     }

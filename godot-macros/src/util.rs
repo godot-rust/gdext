@@ -346,8 +346,20 @@ pub(crate) fn parse_kv_group(value: &venial::AttributeValue) -> ParseResult<KvMa
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Validation for trait/impl
 
+/// Given an impl block for a trait, returns whether that is an impl
+/// for a trait with the given name.
+///
+/// That is, if `name` is `"MyTrait"`, then this function returns true
+/// if and only if `original_impl` is a declaration of the form `impl
+/// MyTrait for SomeType`. The type `SomeType` is irrelevant in this
+/// example.
+pub(crate) fn is_impl_named(original_impl: &Impl, name: &str) -> bool {
+    let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
+    extract_typename(trait_name).map_or(false, |seg| seg.ident == name)
+}
+
 /// Validates either:
-/// a) the declaration is `impl Trait for SomeType`, if `expected_trait` is `Some("Trait")`  
+/// a) the declaration is `impl Trait for SomeType`, if `expected_trait` is `Some("Trait")`
 /// b) the declaration is `impl SomeType`, if `expected_trait` is `None`
 pub(crate) fn validate_impl(
     original_impl: &Impl,
@@ -356,8 +368,7 @@ pub(crate) fn validate_impl(
 ) -> ParseResult<Ident> {
     if let Some(expected_trait) = expected_trait {
         // impl Trait for Self -- validate Trait
-        let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
-        if !extract_typename(trait_name).map_or(false, |seg| seg.ident == expected_trait) {
+        if !is_impl_named(original_impl, expected_trait) {
             return bail(
                 format!("#[{attr}] for trait impls requires trait to be `{expected_trait}`"),
                 original_impl,
@@ -366,6 +377,37 @@ pub(crate) fn validate_impl(
     }
 
     // impl Trait for Self -- validate Self
+    validate_self(original_impl, attr)
+}
+
+/// Validates that the declaration is the of the form `impl Trait for
+/// SomeType`, where the name of `Trait` ends in `Virtual`.
+pub(crate) fn validate_trait_impl_virtual(
+    original_impl: &Impl,
+    attr: &str,
+) -> ParseResult<(Ident, Ident)> {
+    let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
+    let typename = extract_typename(trait_name);
+
+    // Validate trait
+    if !typename
+        .as_ref()
+        .map_or(false, |seg| seg.ident.to_string().ends_with("Virtual"))
+    {
+        return bail(
+            format!("#[{attr}] for trait impls requires a virtual method trait (trait name should end in 'Virtual')"),
+            original_impl,
+        );
+    }
+
+    // Validate self
+    validate_self(original_impl, attr).map(|class_name| {
+        let trait_name = typename.unwrap(); // unwrap: already checked in 'Validate trait'
+        (class_name, trait_name.ident)
+    })
+}
+
+fn validate_self(original_impl: &Impl, attr: &str) -> ParseResult<Ident> {
     if let Some(segment) = extract_typename(&original_impl.self_ty) {
         if segment.generic_args.is_none() {
             Ok(segment.ident)

@@ -8,12 +8,14 @@ use std::cell::RefCell;
 use std::mem;
 use std::rc::Rc;
 
-use godot::bind::{godot_api, GodotClass, GodotExt};
+use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{
     FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError, Vector3,
 };
 use godot::engine::node::InternalMode;
-use godot::engine::{file_access, Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted};
+use godot::engine::{
+    file_access, Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted, RefCountedVirtual,
+};
 use godot::obj::{Base, Gd, InstanceId};
 use godot::obj::{Inherits, Share};
 use godot::sys::GodotFfi;
@@ -635,7 +637,7 @@ pub struct ObjPayload {
 }
 
 #[godot_api]
-impl GodotExt for ObjPayload {
+impl RefCountedVirtual for ObjPayload {
     fn init(_base: Base<Self::Base>) -> Self {
         Self { value: 111 }
     }

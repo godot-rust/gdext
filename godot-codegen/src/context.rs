@@ -4,12 +4,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::api_parser::Class;
 use crate::{ExtensionApi, RustTy, TyName};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
 pub(crate) struct Context<'a> {
-    engine_classes: HashSet<TyName>,
+    engine_classes: HashMap<TyName, &'a Class>,
     builtin_types: HashSet<&'a str>,
     singletons: HashSet<&'a str>,
     inheritance_tree: InheritanceTree,
@@ -39,7 +40,7 @@ impl<'a> Context<'a> {
             }
 
             println!("-- add engine class {}", class_name.description());
-            ctx.engine_classes.insert(class_name.clone());
+            ctx.engine_classes.insert(class_name.clone(), class);
 
             if let Some(base) = class.inherits.as_ref() {
                 let base_name = TyName::from_godot(base);
@@ -48,6 +49,10 @@ impl<'a> Context<'a> {
             }
         }
         ctx
+    }
+
+    pub fn get_engine_class(&self, class_name: &TyName) -> &Class {
+        self.engine_classes.get(class_name).unwrap()
     }
 
     // pub fn is_engine_class(&self, class_name: &str) -> bool {

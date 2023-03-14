@@ -1,4 +1,4 @@
-use godot::engine::{Button, CanvasLayer, Label, Timer};
+use godot::engine::{Button, CanvasLayer, CanvasLayerVirtual, Label, Timer};
 use godot::prelude::*;
 
 #[derive(GodotClass)]
@@ -61,7 +61,7 @@ impl Hud {
 }
 
 #[godot_api]
-impl GodotExt for Hud {
+impl CanvasLayerVirtual for Hud {
     fn init(base: Base<Self::Base>) -> Self {
         Self { base }
     }

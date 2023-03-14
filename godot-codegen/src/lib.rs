@@ -197,6 +197,10 @@ impl TyName {
             format!("{}  [renamed {}]", self.godot_ty, self.rust_ty)
         }
     }
+
+    fn virtual_trait_name(&self) -> String {
+        format!("{}Virtual", self.rust_ty)
+    }
 }
 
 impl ToTokens for TyName {

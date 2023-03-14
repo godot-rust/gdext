@@ -1,4 +1,4 @@
-use godot::engine::{AnimatedSprite2D, Area2D, CollisionShape2D, PhysicsBody2D};
+use godot::engine::{AnimatedSprite2D, Area2D, Area2DVirtual, CollisionShape2D, PhysicsBody2D};
 use godot::prelude::*;
 
 #[derive(GodotClass)]
@@ -42,7 +42,7 @@ impl Player {
 }
 
 #[godot_api]
-impl GodotExt for Player {
+impl Area2DVirtual for Player {
     fn init(base: Base<Area2D>) -> Self {
         Player {
             speed: 400.0,

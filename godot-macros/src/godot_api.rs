@@ -10,9 +10,6 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use venial::{AttributeValue, Declaration, Error, Function, Impl, ImplMember};
 
-// Note: keep in sync with trait GodotExt
-const VIRTUAL_METHOD_NAMES: [&str; 3] = ["ready", "process", "physics_process"];
-
 pub fn transform(input_decl: Declaration) -> Result<TokenStream, Error> {
     let decl = match input_decl {
         Declaration::Impl(decl) => decl,
@@ -215,13 +212,17 @@ fn extract_attributes(method: &Function) -> Result<Option<BoundAttr>, Error> {
 
 /// Codegen for `#[godot_api] impl GodotExt for MyType`
 fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
-    let class_name = util::validate_impl(&original_impl, Some("GodotExt"), "godot_api")?;
+    let (class_name, trait_name) = util::validate_trait_impl_virtual(&original_impl, "godot_api")?;
     let class_name_str = class_name.to_string();
 
     let mut godot_init_impl = TokenStream::new();
+    let mut to_string_impl = TokenStream::new();
+    let mut register_class_impl = TokenStream::new();
+
     let mut register_fn = quote! { None };
     let mut create_fn = quote! { None };
     let mut to_string_fn = quote! { None };
+
     let mut virtual_methods = vec![];
     let mut virtual_method_names = vec![];
 
@@ -237,6 +238,14 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         let method_name = method.name.to_string();
         match method_name.as_str() {
             "register_class" => {
+                register_class_impl = quote! {
+                    impl ::godot::obj::cap::GodotRegisterClass for #class_name {
+                        fn __godot_register_class(builder: &mut ::godot::builder::GodotBuilder<Self>) {
+                            <Self as #trait_name>::register_class(builder)
+                        }
+                    }
+                };
+
                 register_fn = quote! { Some(#prv::ErasedRegisterFn {
                     raw: #prv::callbacks::register_class_by_builder::<#class_name>
                 }) };
@@ -246,7 +255,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                 godot_init_impl = quote! {
                     impl ::godot::obj::cap::GodotInit for #class_name {
                         fn __godot_init(base: ::godot::obj::Base<Self::Base>) -> Self {
-                            <Self as ::godot::bind::GodotExt>::init(base)
+                            <Self as #trait_name>::init(base)
                         }
                     }
                 };
@@ -254,24 +263,35 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
             }
 
             "to_string" => {
+                to_string_impl = quote! {
+                    impl ::godot::obj::cap::GodotToString for #class_name {
+                        fn __godot_to_string(&self) -> ::godot::builtin::GodotString {
+                            <Self as #trait_name>::to_string(self)
+                        }
+                    }
+                };
+
                 to_string_fn = quote! { Some(#prv::callbacks::to_string::<#class_name>) };
             }
 
             // Other virtual methods, like ready, process etc.
-            known_name if VIRTUAL_METHOD_NAMES.contains(&known_name) => {
+            _ => {
                 let method = util::reduce_to_signature(method);
 
                 // Godot-facing name begins with underscore
-                virtual_method_names.push(format!("_{method_name}"));
+                //
+                // Note: godot-codegen special-cases the virtual
+                // method called _init (which exists on a handful of
+                // classes, distinct from the default constructor) to
+                // init_ext, to avoid Rust-side ambiguity. See
+                // godot_codegen::class_generator::virtual_method_name.
+                let virtual_method_name = if method_name == "init_ext" {
+                    String::from("_init")
+                } else {
+                    format!("_{method_name}")
+                };
+                virtual_method_names.push(virtual_method_name);
                 virtual_methods.push(method);
-            }
-
-            // Unknown methods which are declared inside trait impl are not supported (possibly compiler catches those first anyway)
-            other_name => {
-                return bail(
-                    format!("Unsupported GodotExt method: {other_name}"),
-                    &method.name,
-                )
             }
         }
     }
@@ -279,10 +299,12 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let result = quote! {
         #original_impl
         #godot_init_impl
+        #to_string_impl
+        #register_class_impl
 
         impl ::godot::private::You_forgot_the_attribute__godot_api for #class_name {}
 
-        impl ::godot::obj::cap::ImplementsGodotExt for #class_name {
+        impl ::godot::obj::cap::ImplementsGodotVirtual for #class_name {
             fn __virtual_call(name: &str) -> ::godot::sys::GDExtensionClassCallVirtual {
                 //println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
 

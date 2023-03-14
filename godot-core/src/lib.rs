@@ -7,7 +7,6 @@
 mod registry;
 mod storage;
 
-pub mod bind;
 pub mod builder;
 pub mod builtin;
 pub mod init;
