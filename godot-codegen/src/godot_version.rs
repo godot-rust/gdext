@@ -31,8 +31,11 @@ pub struct GodotVersion {
 pub fn parse_godot_version(version_str: &str) -> Result<GodotVersion, Box<dyn Error>> {
     // Format of the string emitted by `godot --version`:
     // https://github.com/godot-rust/gdext/issues/118#issuecomment-1465748123
+    // We assume that it's on a line of its own, but it may be surrounded by other lines.
     let regex = Regex::new(
-        r#"(?x) # ignore whitespace and allow line comments (starting with `#`)
+        r#"(?xm)
+        # x: ignore whitespace and allow line comments (starting with `#`)
+        # m: multi-line mode, ^ and $ match start and end of line
         ^
         (?P<major>\d+)
         \.(?P<minor>\d+)
@@ -100,6 +103,13 @@ fn test_godot_versions() {
         ("4.0.beta8.mono.custom_build.b28ddd918", 4, 0, 0, "beta8", s("b28ddd918")),
         ("4.0.rc1.official.8843d9ad3", 4, 0, 0, "rc1", s("8843d9ad3")),
         ("4.0.stable.arch_linux", 4, 0, 0, "stable", None),
+        // Output from 4.0.stable on MacOS in debug mode:
+        // https://github.com/godotengine/godot/issues/74906
+        ("arguments
+0: /Users/runner/work/_temp/godot_bin/godot.macos.editor.dev.x86_64
+1: --version
+Current path: /Users/runner/work/gdext/gdext/godot-core
+4.1.dev.custom_build.79454bfd3", 4, 1, 0, "dev", s("79454bfd3")),
     ];
 
     let bad_versions = [
@@ -110,7 +120,8 @@ fn test_godot_versions() {
 
     for (full, major, minor, patch, status, custom_rev) in good_versions {
         let expected = GodotVersion {
-            full_string: full.to_owned(),
+            // Version line is last in every test at the moment.
+            full_string: full.lines().last().unwrap().to_owned(),
             major,
             minor,
             patch,
