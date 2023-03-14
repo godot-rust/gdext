@@ -266,6 +266,18 @@ macro_rules! impl_float_vector_fns {
             pub fn normalized(self) -> Self {
                 Self::from_glam(self.to_glam().normalize_or_zero())
             }
+
+            /// Returns a vector containing the minimum values for each element of `self` and `other`.
+            #[inline]
+            pub fn min(self, other: Self) -> Self {
+                self.glam2(&other, |a, b| a.min(b))
+            }
+
+            /// Returns a vector containing the maximum values for each element of `self` and `other`.
+            #[inline]
+            pub fn max(self, other: Self) -> Self {
+                self.glam2(&other, |a, b| a.max(b))
+            }
         }
     };
 }

@@ -44,3 +44,45 @@ fn transform3d_equiv() {
         );
     }
 }
+
+#[itest]
+fn transform3d_xform_equiv() {
+    let vec = Vector3::new(1.0, 2.0, 3.0);
+
+    assert_eq_approx!(
+        TEST_TRANSFORM * vec,
+        TEST_TRANSFORM
+            .to_variant()
+            .evaluate(&vec.to_variant(), VariantOperator::Multiply)
+            .unwrap()
+            .to::<Vector3>(),
+        Vector3::is_equal_approx,
+        "operator: Transform3D * Vector3"
+    );
+
+    let aabb = Aabb::new(Vector3::new(1.0, 2.0, 3.0), Vector3::new(4.0, 5.0, 6.0));
+
+    assert_eq_approx!(
+        TEST_TRANSFORM * aabb,
+        TEST_TRANSFORM
+            .to_variant()
+            .evaluate(&aabb.to_variant(), VariantOperator::Multiply)
+            .unwrap()
+            .to::<Aabb>(),
+        |a, b| Aabb::is_equal_approx(&a, &b),
+        "operator: Transform3D * Aabb"
+    );
+
+    let plane = Plane::new(Vector3::new(1.0, 2.0, 3.0).normalized(), 5.0);
+
+    assert_eq_approx!(
+        TEST_TRANSFORM * plane,
+        TEST_TRANSFORM
+            .to_variant()
+            .evaluate(&plane.to_variant(), VariantOperator::Multiply)
+            .unwrap()
+            .to::<Plane>(),
+        |a, b| Plane::is_equal_approx(&a, &b),
+        "operator: Transform3D * Plane"
+    );
+}

@@ -50,6 +50,7 @@ fn string_ordering() {
 #[itest]
 fn string_clone() {
     let first = GodotString::from("some string");
+    #[allow(clippy::redundant_clone)]
     let cloned = first.clone();
 
     assert_eq!(first, cloned);
