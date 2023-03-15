@@ -80,7 +80,7 @@ To register the GDExtension library with Godot, you need to create two files rel
 We highly recommend to have a look at a working example in the `examples/dodge-the-creeps` directory.
 This integrates a small game with Godot and has all the necessary steps set up.
 
-API documentation can be generated locally using `cargo doc -p godot --no-deps --open`.
+API documentation can be generated locally using `cargo doc -p godot -p godot-macros --no-deps --open`.
 
 If you need help, join our [Discord] server and ask in the `#help-gdext` channel!
 
