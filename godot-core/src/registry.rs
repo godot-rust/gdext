@@ -13,7 +13,6 @@ use godot_ffi as sys;
 
 use sys::interface_fn;
 
-use crate::bind::GodotExt;
 use crate::builtin::meta::ClassName;
 use crate::builtin::StringName;
 use crate::out;
@@ -113,7 +112,9 @@ struct ClassRegistrationInfo {
 }
 
 /// Registers a class with static type information.
-pub fn register_class<T: GodotExt + cap::GodotInit + cap::ImplementsGodotExt>() {
+pub fn register_class<
+    T: cap::GodotInit + cap::ImplementsGodotVirtual + cap::GodotToString + cap::GodotRegisterClass,
+>() {
     // TODO: provide overloads with only some trait impls
 
     out!("Manually register class {}", std::any::type_name::<T>());
@@ -272,7 +273,6 @@ fn register_class_raw(info: ClassRegistrationInfo) {
 #[allow(clippy::missing_safety_doc)]
 pub mod callbacks {
     use super::*;
-    use crate::bind::GodotExt;
     use crate::builder::ClassBuilder;
     use crate::obj::Base;
 
@@ -326,7 +326,7 @@ pub mod callbacks {
         let _drop = Box::from_raw(storage as *mut InstanceStorage<_>);
     }
 
-    pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotExt>(
+    pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
         _class_user_data: *mut std::ffi::c_void,
         name: sys::GDExtensionConstStringNamePtr,
     ) -> sys::GDExtensionClassCallVirtual {
@@ -338,7 +338,7 @@ pub mod callbacks {
         T::__virtual_call(method_name.as_str())
     }
 
-    pub unsafe extern "C" fn to_string<T: GodotExt>(
+    pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
         instance: sys::GDExtensionClassInstancePtr,
         _is_valid: *mut sys::GDExtensionBool,
         out_string: sys::GDExtensionStringPtr,
@@ -348,7 +348,7 @@ pub mod callbacks {
 
         let storage = as_storage::<T>(instance);
         let instance = storage.get();
-        let string = <T as GodotExt>::to_string(&*instance);
+        let string = <T as cap::GodotToString>::__godot_to_string(&*instance);
 
         // Transfer ownership to Godot, disable destructor
         string.write_string_sys(out_string);
@@ -380,14 +380,14 @@ pub mod callbacks {
         Box::new(instance)
     }
 
-    pub fn register_class_by_builder<T: GodotExt>(_class_builder: &mut dyn Any) {
+    pub fn register_class_by_builder<T: cap::GodotRegisterClass>(_class_builder: &mut dyn Any) {
         // TODO use actual argument, once class builder carries state
         // let class_builder = class_builder
         //     .downcast_mut::<ClassBuilder<T>>()
         //     .expect("bad type erasure");
 
         let mut class_builder = ClassBuilder::new();
-        T::register_class(&mut class_builder);
+        T::__godot_register_class(&mut class_builder);
     }
 
     pub fn register_user_binds<T: cap::ImplementsGodotApi + cap::ImplementsGodotExports>(

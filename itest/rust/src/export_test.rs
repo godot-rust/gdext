@@ -75,7 +75,7 @@ impl HasProperty {
 }
 
 #[godot_api]
-impl GodotExt for HasProperty {
+impl NodeVirtual for HasProperty {
     fn init(base: Base<Node>) -> Self {
         HasProperty {
             int_val: 0,

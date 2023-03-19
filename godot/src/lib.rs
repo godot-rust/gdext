@@ -109,7 +109,6 @@ pub mod init {
 
 /// Export user-defined classes and methods to be called by the engine.
 pub mod bind {
-    pub use godot_core::bind::*;
 
     // Re-exports
     pub use godot_macros::{godot_api, GodotClass};
@@ -126,12 +125,14 @@ pub use godot_core::private;
 
 /// Often-imported symbols.
 pub mod prelude {
-    pub use super::bind::{godot_api, GodotClass, GodotExt};
+    pub use super::bind::{godot_api, GodotClass};
     pub use super::builtin::*;
     pub use super::builtin::{array, dict, varray}; // Re-export macros.
     pub use super::engine::{
-        load, try_load, utilities, AudioStreamPlayer, Camera2D, Camera3D, Input, Node, Node2D,
-        Node3D, Object, PackedScene, RefCounted, Resource, SceneTree,
+        load, try_load, utilities, AudioStreamPlayer, AudioStreamPlayerVirtual, Camera2D,
+        Camera2DVirtual, Camera3D, Camera3DVirtual, Input, Node, Node2D, Node2DVirtual, Node3D,
+        Node3DVirtual, NodeVirtual, Object, ObjectVirtual, PackedScene, PackedSceneVirtual,
+        RefCounted, RefCountedVirtual, Resource, ResourceVirtual, SceneTree, SceneTreeVirtual,
     };
     pub use super::init::{gdextension, ExtensionLayer, ExtensionLibrary, InitHandle, InitLevel};
     pub use super::log::*;

@@ -167,7 +167,7 @@ pub struct BuiltinClassMethod {
     pub arguments: Option<Vec<MethodArg>>,
 }
 
-#[derive(DeJson)]
+#[derive(DeJson, Clone)]
 pub struct ClassMethod {
     pub name: String,
     pub is_const: bool,
@@ -200,7 +200,7 @@ pub struct MethodArg {
 }
 
 // Example: get_available_point_id -> {type: "int", meta: "int64"}
-#[derive(DeJson)]
+#[derive(DeJson, Clone)]
 pub struct MethodReturn {
     #[nserde(rename = "type")]
     pub type_: String,

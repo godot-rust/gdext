@@ -4,6 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::builder::ClassBuilder;
+use crate::builtin::GodotString;
 use crate::obj::Base;
 
 use godot_ffi as sys;
@@ -137,6 +139,20 @@ pub mod cap {
         fn __godot_init(base: Base<Self::Base>) -> Self;
     }
 
+    // TODO Evaluate whether we want this public or not
+    #[doc(hidden)]
+    pub trait GodotToString: GodotClass {
+        #[doc(hidden)]
+        fn __godot_to_string(&self) -> GodotString;
+    }
+
+    // TODO Evaluate whether we want this public or not
+    #[doc(hidden)]
+    pub trait GodotRegisterClass: GodotClass {
+        #[doc(hidden)]
+        fn __godot_register_class(builder: &mut ClassBuilder<Self>);
+    }
+
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks
     pub trait ImplementsGodotApi: GodotClass {
         #[doc(hidden)]
@@ -148,8 +164,8 @@ pub mod cap {
         fn __register_exports();
     }
 
-    /// Auto-implemented for `#[godot_api] impl GodotExt for MyClass` blocks
-    pub trait ImplementsGodotExt: GodotClass {
+    /// Auto-implemented for `#[godot_api] impl ***Virtual for MyClass` blocks
+    pub trait ImplementsGodotVirtual: GodotClass {
         #[doc(hidden)]
         fn __virtual_call(_name: &str) -> sys::GDExtensionClassCallVirtual;
     }
