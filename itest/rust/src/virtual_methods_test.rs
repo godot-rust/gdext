@@ -35,7 +35,7 @@ struct VirtualMethodTest {
 impl VirtualMethodTest {}
 
 #[godot_api]
-impl RefCountedVirtual for VirtualMethodTest {
+impl GodotExt for VirtualMethodTest {
     fn to_string(&self) -> GodotString {
         format!("VirtualMethodTest[integer={}]", self.integer).into()
     }
@@ -50,7 +50,7 @@ struct ReadyVirtualTest {
 }
 
 #[godot_api]
-impl Node2DVirtual for ReadyVirtualTest {
+impl GodotExt for ReadyVirtualTest {
     fn init(base: Base<Node2D>) -> Self {
         ReadyVirtualTest {
             some_base: base,
@@ -73,7 +73,7 @@ struct TreeVirtualTest {
 }
 
 #[godot_api]
-impl Node2DVirtual for TreeVirtualTest {
+impl GodotExt for TreeVirtualTest {
     fn init(base: Base<Node2D>) -> Self {
         TreeVirtualTest {
             some_base: base,

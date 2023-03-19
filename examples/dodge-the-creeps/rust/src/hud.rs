@@ -61,7 +61,7 @@ impl Hud {
 }
 
 #[godot_api]
-impl CanvasLayerVirtual for Hud {
+impl GodotExt for Hud {
     fn init(base: Base<Self::Base>) -> Self {
         Self { base }
     }

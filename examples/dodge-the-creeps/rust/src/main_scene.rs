@@ -126,7 +126,7 @@ impl Main {
 }
 
 #[godot_api]
-impl NodeVirtual for Main {
+impl GodotExt for Main {
     fn init(base: Base<Node>) -> Self {
         Main {
             mob_scene: PackedScene::new(),

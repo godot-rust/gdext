@@ -50,6 +50,9 @@ pub trait Share {
     fn share(&self) -> Self;
 }
 
+// Marker trait that exists only for documentation purposes.
+// pub trait GodotExt : private::Sealed {}
+
 /// Non-strict inheritance relationship in the Godot class hierarchy.
 ///
 /// `Derived: Inherits<Base>` means that either `Derived` is a subclass of `Base`, or the class `Base` itself (hence "non-strict").
@@ -164,7 +167,7 @@ pub mod cap {
         fn __register_exports();
     }
 
-    /// Auto-implemented for `#[godot_api] impl ***Virtual for MyClass` blocks
+    /// Auto-implemented for `#[godot_api] impl GodotExt for MyClass` blocks
     pub trait ImplementsGodotVirtual: GodotClass {
         #[doc(hidden)]
         fn __virtual_call(_name: &str) -> sys::GDExtensionClassCallVirtual;

@@ -42,7 +42,7 @@ impl Player {
 }
 
 #[godot_api]
-impl Area2DVirtual for Player {
+impl GodotExt for Player {
     fn init(base: Base<Area2D>) -> Self {
         Player {
             speed: 400.0,

@@ -21,6 +21,8 @@ pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)
 }
 
+/// Attribute to annotate `impl` blocks.
+#[doc(alias = "GodotExt")]
 #[proc_macro_attribute]
 pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, godot_api::transform)

@@ -637,7 +637,7 @@ pub struct ObjPayload {
 }
 
 #[godot_api]
-impl RefCountedVirtual for ObjPayload {
+impl GodotExt for ObjPayload {
     fn init(_base: Base<Self::Base>) -> Self {
         Self { value: 111 }
     }

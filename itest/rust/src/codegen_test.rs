@@ -60,7 +60,7 @@ pub struct TestBaseRenamed {
 }
 
 #[godot_api]
-impl HttpRequestVirtual for TestBaseRenamed {
+impl GodotExt for TestBaseRenamed {
     fn init(base: Base<HttpRequest>) -> Self {
         TestBaseRenamed { base }
     }

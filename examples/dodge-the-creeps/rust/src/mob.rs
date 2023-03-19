@@ -47,7 +47,7 @@ impl Mob {
 }
 
 #[godot_api]
-impl RigidBody2DVirtual for Mob {
+impl GodotExt for Mob {
     fn init(base: Base<RigidBody2D>) -> Self {
         Mob {
             min_speed: 150.0,
