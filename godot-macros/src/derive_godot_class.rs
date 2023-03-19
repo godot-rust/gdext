@@ -22,6 +22,9 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
     let class_name = &class.name;
     let class_name_str = class.name.to_string();
     let inherits_macro = format_ident!("inherits_transitive_{}", base_ty);
+    let virtual_trait = format_ident!("{}Virtual", base_ty);
+    let virtual_impl_macro = format_ident!("__gdext_virtual_impl_{}", class_name);
+    let virtual_call_macro = format_ident!("__gdext_virtual_call_{}", class_name);
 
     let prv = quote! { ::godot::private };
     let deref_impl = make_deref_impl(class_name, &fields);
@@ -60,6 +63,28 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
         });
 
         #prv::class_macros::#inherits_macro!(#class_name);
+
+        #[allow(non_snake_case)]
+        macro_rules! #virtual_impl_macro {
+            ( impl GodotExt for $Class:ident { $($tt:tt)* } ) => {
+                impl #virtual_trait for $Class { $($tt)* }
+            };
+
+            ( impl $Trait:ident for $Class:ident { $($tt:tt)* } ) => {
+                impl $Trait for $Class { $($tt)* }
+            };
+        }
+
+        #[allow(non_snake_case)]
+        macro_rules! #virtual_call_macro {
+            ( <Self as GodotExt> :: $function:ident( $($args:expr)* ) ) => {
+                <Self as #virtual_trait> :: $function( $($args)* )
+            };
+
+            ( <Self as $Trait:ident> :: $function:ident( $($args:expr)* ) ) => {
+                <Self as $Trait> :: $function( $($args)* )
+            };
+        }
     })
 }
 

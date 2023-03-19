@@ -6,9 +6,9 @@
 
 use crate::util;
 use crate::util::bail;
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
-use venial::{AttributeValue, Declaration, Error, Function, Impl, ImplMember};
+use proc_macro2::{Ident, TokenStream, TokenTree};
+use quote::{format_ident, quote};
+use venial::{AttributeValue, Declaration, Error, Function, Impl, ImplMember, TyExpr};
 
 pub fn transform(input_decl: Declaration) -> Result<TokenStream, Error> {
     let decl = match input_decl {
@@ -211,8 +211,13 @@ fn extract_attributes(method: &Function) -> Result<Option<BoundAttr>, Error> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Codegen for `#[godot_api] impl GodotExt for MyType`
-fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
+fn transform_trait_impl(mut original_impl: Impl) -> Result<TokenStream, Error> {
     let (class_name, trait_name) = util::validate_trait_impl_virtual(&original_impl, "godot_api")?;
+    original_impl.trait_ty = Some(TyExpr {
+        tokens: vec![TokenTree::Ident(trait_name.clone())],
+    });
+    let original_impl = original_impl; // de-mutate
+
     let class_name_str = class_name.to_string();
 
     let mut godot_init_impl = TokenStream::new();
@@ -225,6 +230,8 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
     let mut virtual_methods = vec![];
     let mut virtual_method_names = vec![];
+    let virtual_impl_macro = format_ident!("__gdext_virtual_impl_{}", class_name);
+    let virtual_call_macro = format_ident!("__gdext_virtual_call_{}", class_name);
 
     let prv = quote! { ::godot::private };
 
@@ -241,21 +248,23 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                 register_class_impl = quote! {
                     impl ::godot::obj::cap::GodotRegisterClass for #class_name {
                         fn __godot_register_class(builder: &mut ::godot::builder::GodotBuilder<Self>) {
-                            <Self as #trait_name>::register_class(builder)
+                             #virtual_call_macro! { <Self as #trait_name>::register_class(builder) }
                         }
                     }
                 };
 
-                register_fn = quote! { Some(#prv::ErasedRegisterFn {
-                    raw: #prv::callbacks::register_class_by_builder::<#class_name>
-                }) };
+                register_fn = quote! {
+                    Some(#prv::ErasedRegisterFn {
+                        raw: #prv::callbacks::register_class_by_builder::<#class_name>
+                    })
+                };
             }
 
             "init" => {
                 godot_init_impl = quote! {
                     impl ::godot::obj::cap::GodotInit for #class_name {
                         fn __godot_init(base: ::godot::obj::Base<Self::Base>) -> Self {
-                            <Self as #trait_name>::init(base)
+                            #virtual_call_macro! { <Self as #trait_name>::init(base) }
                         }
                     }
                 };
@@ -266,7 +275,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                 to_string_impl = quote! {
                     impl ::godot::obj::cap::GodotToString for #class_name {
                         fn __godot_to_string(&self) -> ::godot::builtin::GodotString {
-                            <Self as #trait_name>::to_string(self)
+                            #virtual_call_macro! { <Self as #trait_name>::to_string(self) }
                         }
                     }
                 };
@@ -297,7 +306,9 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     }
 
     let result = quote! {
-        #original_impl
+        #[doc(hidden)]
+        #virtual_impl_macro!(#original_impl);
+
         #godot_init_impl
         #to_string_impl
         #register_class_impl

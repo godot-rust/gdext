@@ -380,8 +380,9 @@ pub(crate) fn validate_impl(
     validate_self(original_impl, attr)
 }
 
-/// Validates that the declaration is the of the form `impl Trait for
-/// SomeType`, where the name of `Trait` ends in `Virtual`.
+/// Validates that the declaration is the of the form `impl Trait for SomeType`, where the name of `Trait` ends in `Virtual`.
+///
+/// Returns (class_name, trait_name).
 pub(crate) fn validate_trait_impl_virtual(
     original_impl: &Impl,
     attr: &str,
@@ -390,10 +391,9 @@ pub(crate) fn validate_trait_impl_virtual(
     let typename = extract_typename(trait_name);
 
     // Validate trait
-    if !typename
-        .as_ref()
-        .map_or(false, |seg| seg.ident.to_string().ends_with("Virtual"))
-    {
+    if !typename.as_ref().map_or(false, |seg| {
+        seg.ident == "GodotExt" || seg.ident.to_string().ends_with("Virtual")
+    }) {
         return bail(
             format!("#[{attr}] for trait impls requires a virtual method trait (trait name should end in 'Virtual')"),
             original_impl,
@@ -407,6 +407,9 @@ pub(crate) fn validate_trait_impl_virtual(
     })
 }
 
+/// Check the `MyType` (self) part of `impl Trait for MyType`.
+///
+/// Returns the type name of `Self`, or error.
 fn validate_self(original_impl: &Impl, attr: &str) -> ParseResult<Ident> {
     if let Some(segment) = extract_typename(&original_impl.self_ty) {
         if segment.generic_args.is_none() {
