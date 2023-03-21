@@ -13,6 +13,8 @@ use godot_ffi as sys;
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
 ///
 /// The behavior of types implementing this trait is influenced by the associated types; check their documentation for information.
+///
+/// You wouldn't usually implement this trait yourself; use the [`GodotClass`](godot_macros::GodotClass) derive macro instead.
 pub trait GodotClass: 'static
 where
     Self: Sized,

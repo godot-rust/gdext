@@ -7,7 +7,7 @@
 // Note: some code duplication with codegen crate
 
 use crate::ParseResult;
-use proc_macro2::{Ident, Literal, Span, TokenTree};
+use proc_macro2::{Ident, Span, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, ToTokens};
 use std::collections::HashMap;
@@ -17,9 +17,10 @@ pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
 }
 
-#[allow(dead_code)]
-pub fn strlit(s: &str) -> Literal {
-    Literal::string(s)
+/// Given a string containing a string literal in Rust syntax, i.e. double quotes inside the
+/// string, returns the string represented by that literal.
+pub fn string_lit_contents(string_lit: &str) -> Option<String> {
+    Some(string_lit.strip_prefix('"')?.strip_suffix('"')?.to_owned())
 }
 
 pub fn bail<R, T>(msg: impl AsRef<str>, tokens: T) -> Result<R, Error>
@@ -63,8 +64,6 @@ pub(crate) struct KvParser {
     attr_name: String,
     map: KvMap,
     span: Span,
-    #[cfg(debug_assertions)]
-    finished: bool,
 }
 
 #[allow(dead_code)] // some functions will be used later
@@ -89,7 +88,7 @@ impl KvParser {
 
     /// Create a new parser which checks for presence of an `#[expected]` attribute.
     pub fn parse(attributes: &[Attribute], expected: &str) -> ParseResult<Option<Self>> {
-        let mut found_attr = None;
+        let mut found_attr: Option<Self> = None;
 
         for attr in attributes.iter() {
             let path = &attr.path;
@@ -103,10 +102,8 @@ impl KvParser {
 
                 found_attr = Some(Self {
                     attr_name: expected.to_string(),
-                    span: attr.__span(),
+                    span: attr.tk_brackets.span,
                     map: parse_kv_group(&attr.value)?,
-                    #[cfg(debug_assertions)]
-                    finished: false,
                 });
             }
         }
@@ -116,6 +113,11 @@ impl KvParser {
 
     pub fn span(&self) -> Span {
         self.span
+    }
+
+    /// `#[attr]`, `#[attr(key)]`, `#[attr(key=Ident)]`, `#[attr(key=Lit)]`
+    pub fn handle_any(&mut self, key: &str) -> Option<KvValue> {
+        self.map.remove(key)
     }
 
     /// `#[attr(key)]`
@@ -169,14 +171,12 @@ impl KvParser {
         }
     }
 
-    /// Explicit "pre-destructor" that must be called, because Drop cannot propagate errors.
-    // Note: this could possibly be modeled using a closure: KvParser::parse(...) .with(|parser| ...)?
-    pub fn finish(mut self) -> ParseResult<()> {
-        #[cfg(debug_assertions)]
-        {
-            self.finished = true; // disarm destructor
-        }
-
+    /// Explicit "pre-destructor" that must be called, and checks that all map entries have been
+    /// consumed.
+    // We used to check in a `Drop` impl that `finish` has actually been called, but that turns out
+    // to be overzealous: it panics if the calling function just wants to return an error and drops
+    // a partially-consumed parser.
+    pub fn finish(self) -> ParseResult<()> {
         if self.map.is_empty() {
             Ok(())
         } else {
@@ -199,16 +199,6 @@ impl KvParser {
             format!("#[{attr}]: key `{key}` {msg}", attr = self.attr_name),
             self.span,
         )
-    }
-}
-
-#[cfg(debug_assertions)]
-impl Drop for KvParser {
-    fn drop(&mut self) {
-        assert!(
-            self.finished,
-            "proc-macro did not check for remaining elements; this is a bug in the library"
-        );
     }
 }
 

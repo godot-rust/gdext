@@ -26,8 +26,26 @@ func test_to_string():
 func test_export():
 	var obj = HasProperty.new()
 
-	obj.int_val = 5
-	assert_eq(obj.int_val, 5)
+	assert_eq(obj.int_val, 0)
+	obj.int_val = 1
+	assert_eq(obj.int_val, 1)
+
+	assert_eq(obj.int_val_read, 2)
+
+	obj.int_val_write = 3
+	assert_eq(obj.retrieve_int_val_write(), 3)
+
+	assert_eq(obj.int_val_rw, 0)
+	obj.int_val_rw = 4
+	assert_eq(obj.int_val_rw, 4)
+
+	assert_eq(obj.int_val_getter, 0)
+	obj.int_val_getter = 5
+	assert_eq(obj.int_val_getter, 5)
+
+	assert_eq(obj.int_val_setter, 0)
+	obj.int_val_setter = 5
+	assert_eq(obj.int_val_setter, 5)
 
 	obj.string_val = "test val"
 	assert_eq(obj.string_val, "test val")
