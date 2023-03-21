@@ -127,4 +127,5 @@ fn locate_godot_binary() -> PathBuf {
 
 fn rerun_on_changed(path: &Path) {
     println!("cargo:rerun-if-changed={}", path.display());
+    println!("cargo:rerun-if-env-changed=GODOT4_BIN");
 }
