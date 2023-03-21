@@ -22,6 +22,7 @@ mod gdscript_ffi_test;
 mod node_test;
 mod object_test;
 mod packed_array_test;
+mod projection_test;
 mod quaternion_test;
 mod rid_test;
 mod singleton_test;
