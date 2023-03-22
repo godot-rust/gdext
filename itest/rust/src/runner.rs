@@ -71,27 +71,29 @@ impl IntegrationTests {
 
         let mut last_file = None;
         for test in tests {
+            print_test_pre(test.name, test.file.to_string(), &mut last_file, false);
             let outcome = run_rust_test(&test, &ctx);
 
             self.update_stats(&outcome);
-            print_test(test.file.to_string(), test.name, outcome, &mut last_file);
+            print_test_post(test.name, outcome);
         }
     }
 
     fn run_gdscript_tests(&mut self, tests: VariantArray) {
         let mut last_file = None;
         for test in tests.iter_shared() {
+            let test_file = get_property(&test, "suite_name");
+            let test_case = get_property(&test, "method_name");
+
+            print_test_pre(&test_case, test_file, &mut last_file, true);
             let result = test.call("run", &[]);
             let success = result.try_to::<bool>().unwrap_or_else(|_| {
                 panic!("GDScript test case {test} returned non-bool: {result}")
             });
-
-            let test_file = get_property(&test, "suite_name");
-            let test_case = get_property(&test, "method_name");
             let outcome = TestOutcome::from_bool(success);
 
             self.update_stats(&outcome);
-            print_test(test_file, &test_case, outcome, &mut last_file);
+            print_test_post(&test_case, outcome);
         }
     }
 
@@ -178,16 +180,7 @@ fn run_rust_test(test: &RustTestCase, ctx: &TestContext) -> TestOutcome {
     TestOutcome::from_bool(success.is_some())
 }
 
-/// Prints a test name and its outcome.
-///
-/// Note that this is run after a test run, so stdout/stderr output during the test will be printed before.
-/// It would be possible to print the test name before and the outcome after, but that would split or duplicate the line.
-fn print_test(
-    test_file: String,
-    test_case: &str,
-    outcome: TestOutcome,
-    last_file: &mut Option<String>,
-) {
+fn print_test_pre(test_case: &str, test_file: String, last_file: &mut Option<String>, flush: bool) {
     // Check if we need to open a new category for a file
     let print_file = last_file
         .as_ref()
@@ -203,10 +196,28 @@ fn print_test(
         println!("\n   {file_subtitle}:");
     }
 
-    println!("   -- {test_case} ... {outcome}");
+    print!("   -- {test_case} ... ");
+    if flush {
+        // Flush in GDScript, because its own print may come sooner than Rust prints otherwise
+        // (strictly speaking, this can also happen from Rust, when Godot prints something. So far, it didn't though...
+        godot::private::flush_stdout();
+    }
 
     // State update for file-category-print
     *last_file = Some(test_file);
+}
+
+/// Prints a test name and its outcome.
+///
+/// Note that this is run after a test run, so stdout/stderr output during the test will be printed before.
+/// It would be possible to print the test name before and the outcome after, but that would split or duplicate the line.
+fn print_test_post(test_case: &str, outcome: TestOutcome) {
+    // If test failed, something was printed (e.g. assertion), so we can print the entire line again; otherwise just outcome on same line.
+    if matches!(outcome, TestOutcome::Failed) {
+        println!("   -- {test_case} ... {outcome}");
+    } else {
+        println!("{outcome}");
+    }
 }
 
 fn get_property(test: &Variant, property: &str) -> String {
