@@ -7,7 +7,7 @@
 use godot_ffi as sys;
 
 use crate::builtin::{inner, FromVariant, ToVariant, Variant};
-use crate::obj::Share;
+use crate::obj::{Export, Share};
 use std::fmt;
 use std::marker::PhantomData;
 use std::ptr::addr_of_mut;
@@ -277,6 +277,12 @@ impl Share for Dictionary {
                 ctor(self_ptr, args.as_ptr());
             })
         }
+    }
+}
+
+impl Export for Dictionary {
+    fn export(&self) -> Self {
+        self.share()
     }
 }
 

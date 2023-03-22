@@ -332,7 +332,7 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 };
                 getter_setter_impls.push(quote! {
                     pub #signature {
-                        self.#field_ident
+                        ::godot::obj::Export::export(&self.#field_ident)
                     }
                 });
                 export_tokens.push(quote! {

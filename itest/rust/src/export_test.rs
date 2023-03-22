@@ -31,8 +31,10 @@ struct HasProperty {
     string_val: GodotString,
     #[export(get = "get_object_val", set = "set_object_val")]
     object_val: Option<Gd<Object>>,
+    #[export]
+    texture_val: Gd<Texture>,
     #[export(get = "get_texture_val", set = "set_texture_val", hint = PROPERTY_HINT_RESOURCE_TYPE, hint_desc = "Texture")]
-    texture_val: Option<Gd<Texture>>,
+    texture_val_rw: Option<Gd<Texture>>,
 }
 
 #[godot_api]
@@ -98,8 +100,8 @@ impl HasProperty {
     }
 
     #[func]
-    pub fn get_texture_val(&self) -> Variant {
-        if let Some(texture_val) = self.texture_val.as_ref() {
+    pub fn get_texture_val_rw(&self) -> Variant {
+        if let Some(texture_val) = self.texture_val_rw.as_ref() {
             texture_val.to_variant()
         } else {
             Variant::nil()
@@ -107,8 +109,8 @@ impl HasProperty {
     }
 
     #[func]
-    pub fn set_texture_val(&mut self, val: Gd<Texture>) {
-        self.texture_val = Some(val);
+    pub fn set_texture_val_rw(&mut self, val: Gd<Texture>) {
+        self.texture_val_rw = Some(val);
     }
 }
 
@@ -124,7 +126,8 @@ impl NodeVirtual for HasProperty {
             int_val_setter: 0,
             object_val: None,
             string_val: GodotString::new(),
-            texture_val: None,
+            texture_val: Texture::new(),
+            texture_val_rw: None,
             base,
         }
     }
