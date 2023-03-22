@@ -52,6 +52,14 @@ pub trait Share {
     fn share(&self) -> Self;
 }
 
+/// Trait implemented for types that can be used as `#[export]` fields. This creates a copy of the
+/// value, for some type-specific definition of "copy". For example, `Array` and `Gd` are returned
+/// via `Share::share()` instead of copying the actual data.
+pub trait Export {
+    /// Creates a copy to be returned from a getter.
+    fn export(&self) -> Self;
+}
+
 /// Non-strict inheritance relationship in the Godot class hierarchy.
 ///
 /// `Derived: Inherits<Base>` means that either `Derived` is a subclass of `Base`, or the class `Base` itself (hence "non-strict").

@@ -18,7 +18,7 @@ use crate::builtin::meta::{ClassName, VariantMetadata};
 use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
-use crate::obj::{cap, dom, mem, GodotClass, Inherits, Share};
+use crate::obj::{cap, dom, mem, Export, GodotClass, Inherits, Share};
 use crate::obj::{GdMut, GdRef, InstanceId};
 use crate::storage::InstanceStorage;
 use crate::{callbacks, engine, out};
@@ -585,6 +585,12 @@ impl<T: GodotClass> Share for Gd<T> {
     fn share(&self) -> Self {
         out!("Gd::share");
         Self::from_opaque(self.opaque).with_inc_refcount()
+    }
+}
+
+impl<T: GodotClass> Export for Gd<T> {
+    fn export(&self) -> Self {
+        self.share()
     }
 }
 

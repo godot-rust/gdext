@@ -318,3 +318,70 @@ macro_rules! real {
         f
     }};
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Implementations of the `Export` trait for types where it can be done trivially.
+mod export {
+    use crate::builtin::*;
+    use crate::obj::Export;
+
+    macro_rules! impl_export_by_clone {
+        ($ty:path) => {
+            impl Export for $ty {
+                fn export(&self) -> Self {
+                    // If `Self` does not implement `Clone`, this gives a clearer error message
+                    // than simply `self.clone()`.
+                    Clone::clone(self)
+                }
+            }
+        };
+    }
+
+    impl_export_by_clone!(bool);
+    impl_export_by_clone!(isize);
+    impl_export_by_clone!(usize);
+    impl_export_by_clone!(i8);
+    impl_export_by_clone!(i16);
+    impl_export_by_clone!(i32);
+    impl_export_by_clone!(i64);
+    impl_export_by_clone!(u8);
+    impl_export_by_clone!(u16);
+    impl_export_by_clone!(u32);
+    impl_export_by_clone!(u64);
+    impl_export_by_clone!(f32);
+    impl_export_by_clone!(f64);
+
+    // impl_export_by_clone!(Aabb); // TODO uncomment once Aabb implements Clone
+    impl_export_by_clone!(Basis);
+    impl_export_by_clone!(Color);
+    impl_export_by_clone!(GodotString);
+    impl_export_by_clone!(NodePath);
+    impl_export_by_clone!(PackedByteArray);
+    impl_export_by_clone!(PackedColorArray);
+    impl_export_by_clone!(PackedFloat32Array);
+    impl_export_by_clone!(PackedFloat64Array);
+    impl_export_by_clone!(PackedInt32Array);
+    impl_export_by_clone!(PackedInt64Array);
+    impl_export_by_clone!(PackedStringArray);
+    impl_export_by_clone!(PackedVector2Array);
+    impl_export_by_clone!(PackedVector3Array);
+    // impl_export_by_clone!(Plane); // TODO uncomment once Plane implements Clone
+    impl_export_by_clone!(Projection);
+    impl_export_by_clone!(Quaternion);
+    // impl_export_by_clone!(Rect2); // TODO uncomment once Rect2 implements Clone
+    // impl_export_by_clone!(Rect2i); // TODO uncomment once Rect2i implements Clone
+    impl_export_by_clone!(Rid);
+    impl_export_by_clone!(StringName);
+    impl_export_by_clone!(Transform2D);
+    impl_export_by_clone!(Transform3D);
+    impl_export_by_clone!(Vector2);
+    impl_export_by_clone!(Vector2i);
+    impl_export_by_clone!(Vector3);
+    impl_export_by_clone!(Vector3i);
+    impl_export_by_clone!(Vector4);
+
+    // TODO investigate whether these should impl Export at all, and if so, how
+    // impl_export_by_clone!(Callable);
+    // impl_export_by_clone!(Signal);
+}

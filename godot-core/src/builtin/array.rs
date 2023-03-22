@@ -8,7 +8,7 @@ use godot_ffi as sys;
 
 use crate::builtin::meta::VariantMetadata;
 use crate::builtin::*;
-use crate::obj::Share;
+use crate::obj::{Export, Share};
 use std::fmt;
 use std::marker::PhantomData;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -598,6 +598,12 @@ impl<T: VariantMetadata> Share for Array<T> {
             })
         };
         array.with_checked_type()
+    }
+}
+
+impl<T: VariantMetadata> Export for Array<T> {
+    fn export(&self) -> Self {
+        self.share()
     }
 }
 
