@@ -27,13 +27,14 @@ pub trait VariantMetadata {
     }
 
     fn property_info(property_name: &str) -> PropertyInfo {
-        PropertyInfo::new(
-            Self::variant_type(),
-            Self::class_name(),
-            StringName::from(property_name),
-            global::PropertyHint::PROPERTY_HINT_NONE,
-            GodotString::new(),
-        )
+        PropertyInfo {
+            variant_type: Self::variant_type(),
+            class_name: Self::class_name(),
+            property_name: StringName::from(property_name),
+            hint: global::PropertyHint::PROPERTY_HINT_NONE,
+            hint_string: GodotString::new(),
+            usage: global::PropertyUsageFlags::PROPERTY_USAGE_DEFAULT,
+        }
     }
 
     fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
@@ -52,33 +53,17 @@ impl<T: VariantMetadata> VariantMetadata for Option<T> {
 /// Rusty abstraction of sys::GDExtensionPropertyInfo
 /// Keeps the actual allocated values (the sys equivalent only keeps pointers, which fall out of scope)
 #[derive(Debug)]
+// Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
 pub struct PropertyInfo {
-    variant_type: VariantType,
-    class_name: ClassName,
-    property_name: StringName,
-    hint: global::PropertyHint,
-    hint_string: GodotString,
-    usage: global::PropertyUsageFlags,
+    pub variant_type: VariantType,
+    pub class_name: ClassName,
+    pub property_name: StringName,
+    pub hint: global::PropertyHint,
+    pub hint_string: GodotString,
+    pub usage: global::PropertyUsageFlags,
 }
 
 impl PropertyInfo {
-    pub fn new(
-        variant_type: VariantType,
-        class_name: ClassName,
-        property_name: StringName,
-        hint: global::PropertyHint,
-        hint_string: GodotString,
-    ) -> Self {
-        Self {
-            variant_type,
-            class_name,
-            property_name,
-            hint,
-            hint_string,
-            usage: global::PropertyUsageFlags::PROPERTY_USAGE_DEFAULT,
-        }
-    }
-
     /// Converts to the FFI type. Keep this object allocated while using that!
     pub fn property_sys(&self) -> sys::GDExtensionPropertyInfo {
         use crate::obj::EngineEnum as _;

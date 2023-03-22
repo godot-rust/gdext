@@ -855,7 +855,7 @@ macro_rules! varray {
 /// [`set_typed`](https://docs.godotengine.org/en/latest/classes/class_array.html#class-array-method-set-typed).
 ///
 /// We ignore the `script` parameter because it has no impact on typing in Godot.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 struct TypeInfo {
     variant_type: VariantType,
     class_name: StringName,
@@ -878,5 +878,18 @@ impl TypeInfo {
 
     fn is_typed(&self) -> bool {
         self.variant_type != VariantType::Nil
+    }
+}
+
+impl fmt::Debug for TypeInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let class = self.class_name.to_string();
+        let class_str = if class.is_empty() {
+            String::new()
+        } else {
+            format!(" (class={class})")
+        };
+
+        write!(f, "{:?}{}", self.variant_type, class_str)
     }
 }

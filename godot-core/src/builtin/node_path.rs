@@ -90,5 +90,7 @@ impl_builtin_traits! {
         Default => node_path_construct_default;
         Clone => node_path_construct_copy;
         Drop => node_path_destroy;
+        Eq => node_path_operator_equal;
+        // Ord => node_path_operator_less;
     }
 }

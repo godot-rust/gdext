@@ -377,14 +377,14 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             use ::godot::builtin::meta::VariantMetadata;
 
             let class_name = ::godot::builtin::StringName::from(#class_name::CLASS_NAME);
-
-            let property_info = ::godot::builtin::meta::PropertyInfo::new(
-                <#field_type>::variant_type(),
-                ::godot::builtin::meta::ClassName::of::<#class_name>(),
-                ::godot::builtin::StringName::from(#field_name),
-                ::godot::engine::global::PropertyHint::#hint_type,
-                ::godot::builtin::GodotString::from(#description),
-            );
+            let property_info = ::godot::builtin::meta::PropertyInfo {
+                variant_type:  <#field_type>::variant_type(),
+                class_name:    ::godot::builtin::meta::ClassName::of::<#class_name>(),
+                property_name: ::godot::builtin::StringName::from(#field_name),
+                hint:          ::godot::engine::global::PropertyHint::#hint_type,
+                hint_string:   ::godot::builtin::GodotString::from(#description),
+                usage:         ::godot::engine::global::PropertyUsageFlags::PROPERTY_USAGE_DEFAULT,
+            };
             let property_info_sys = property_info.property_sys();
 
             let getter_name = ::godot::builtin::StringName::from(#getter_name);
