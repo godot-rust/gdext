@@ -11,19 +11,30 @@ use std::path::Path;
 
 type IoResult = std::io::Result<()>;
 
-macro_rules! push {
-    ($inputs:ident; $gdscript_ty:ident, $rust_ty:ty, $val:expr) => {
-        push!($inputs; $gdscript_ty, $rust_ty, $val, $val);
-    };
-
-    ($inputs:ident; $gdscript_ty:ident, $rust_ty:ty, $gdscript_val:expr, $rust_val:expr) => {
+/// Push with GDScript expr in string
+macro_rules! pushs {
+    ($inputs:ident; $GDScriptTy:expr, $RustTy:ty, $gdscript_val:expr, $rust_val:expr) => {
         $inputs.push(Input {
-            ident: stringify!($rust_ty).to_ascii_lowercase(),
-            gdscript_ty: stringify!($gdscript_ty),
-            gdscript_val: stringify!($gdscript_val),
-            rust_ty: quote! { $rust_ty },
+            ident: stringify!($RustTy)
+                .to_ascii_lowercase()
+                .replace("<", "_")
+                .replace(">", ""),
+            gdscript_ty: stringify!($GDScriptTy),
+            gdscript_val: $gdscript_val,
+            rust_ty: quote! { $RustTy },
             rust_val: quote! { $rust_val },
         });
+    };
+}
+
+/// Push simple GDScript expression, outside string
+macro_rules! push {
+    ($inputs:ident; $GDScriptTy:expr, $RustTy:ty, $val:expr) => {
+        push!($inputs; $GDScriptTy, $RustTy, $val, $val);
+    };
+
+    ($inputs:ident; $GDScriptTy:expr, $RustTy:ty, $gdscript_val:expr, $rust_val:expr) => {
+        pushs!($inputs; $GDScriptTy, $RustTy, stringify!($gdscript_val), $rust_val);
     };
 }
 
@@ -41,15 +52,33 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; bool, bool, true);
     push!(inputs; Color, Color, Color(0.7, 0.5, 0.3, 0.2), Color::from_rgba(0.7, 0.5, 0.3, 0.2));
     push!(inputs; String, GodotString, "hello", "hello".into());
+    push!(inputs; StringName, StringName, &"hello", "hello".into());
+    pushs!(inputs; NodePath, NodePath, r#"^"hello""#, "hello".into());
     push!(inputs; Vector2, Vector2, Vector2(12.5, -3.5), Vector2::new(12.5, -3.5));
     push!(inputs; Vector3, Vector3, Vector3(117.5, 100.0, -323.25), Vector3::new(117.5, 100.0, -323.25));
     push!(inputs; Vector4, Vector4, Vector4(-18.5, 24.75, -1.25, 777.875), Vector4::new(-18.5, 24.75, -1.25, 777.875));
     push!(inputs; Vector2i, Vector2i, Vector2i(-2147483648, 2147483647), Vector2i::new(-2147483648, 2147483647));
     push!(inputs; Vector3i, Vector3i, Vector3i(-1, -2147483648, 2147483647), Vector3i::new(-1, -2147483648, 2147483647));
-    //push!(inputs; Variant, Variant, 123, 123i64.to_variant());
+
+    // Data structures
+    // TODO enable below, when GDScript has typed array literals, or find a hack with eval/lambdas
+    /*pushs!(inputs; Array[int], Array<i32>,
+        "(func() -> Array[int]: [-7, 12, 40])()",
+        array![-7, 12, 40]
+    );*/
+
+    push!(inputs; Array, VariantArray,
+        [-7, "godot", false, Vector2i(-77, 88)],
+        varray![-7, "godot", false, Vector2i::new(-77, 88)]);
+
+    pushs!(inputs; Dictionary, Dictionary,
+        r#"{"key": 83, -3: Vector2(1, 2), 0.03: true}"#,
+        dict! { "key": 83, (-3): Vector2::new(1.0, 2.0), 0.03: true }
+    );
 
     // Composite
     push!(inputs; int, InstanceId, -1, InstanceId::from_nonzero(0xFFFFFFFFFFFFFFF));
+    push!(inputs; Variant, Variant, 123, 123i64.to_variant());
 
     inputs
 }
