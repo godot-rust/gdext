@@ -162,8 +162,9 @@ macro_rules! impl_signature_for_tuple {
 				unsafe { <$R as sys::GodotFuncMarshal>::try_write_sys(&ret_val, ret) }
                     .unwrap_or_else(|e| return_error::<$R>(method_name, &e));
 
-                // FIXME is inc_ref needed here?
-				// std::mem::forget(ret_val);
+               //Note: we want to prevent the destructor from being run, since we pass ownership to the caller.
+               //https://github.com/godot-rust/gdext/pull/165
+				std::mem::forget(ret_val);
             }
         }
     };
