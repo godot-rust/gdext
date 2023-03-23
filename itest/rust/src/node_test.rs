@@ -9,6 +9,8 @@ use godot::builtin::{NodePath, Variant};
 use godot::engine::{global, node, Node, Node3D, NodeExt, PackedScene, SceneTree};
 use godot::obj::Share;
 
+use std::str::FromStr;
+
 #[itest]
 fn node_get_node() {
     let mut child = Node3D::new_alloc();
@@ -52,6 +54,15 @@ fn node_get_node_fail() {
     assert!(found.is_none());
 
     child.free();
+}
+
+#[itest]
+fn node_path_from_str(ctx: &TestContext) {
+    let child = ctx.scene_tree.share();
+    assert_eq!(
+        child.get_path().to_string(),
+        NodePath::from_str("/root/TestRunner").unwrap().to_string()
+    );
 }
 
 #[itest(skip)]

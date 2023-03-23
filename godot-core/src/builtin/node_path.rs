@@ -4,7 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::convert::Infallible;
 use std::fmt;
+use std::str::FromStr;
 
 use crate::builtin::GodotString;
 use godot_ffi as sys;
@@ -57,6 +59,14 @@ impl From<&NodePath> for GodotString {
 impl From<&str> for NodePath {
     fn from(path: &str) -> Self {
         Self::from(&GodotString::from(path))
+    }
+}
+
+impl FromStr for NodePath {
+    type Err = Infallible;
+
+    fn from_str(path: &str) -> Result<Self, Self::Err> {
+        Ok(Self::from(path))
     }
 }
 
