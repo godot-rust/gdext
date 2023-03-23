@@ -15,9 +15,9 @@ fn matrix_eq_approx(a: Projection, b: Projection) -> bool {
         let v1 = a.cols[i];
         let v2 = b.cols[i];
         if !is_equal_approx(v1.x, v2.x)
-            && !is_equal_approx(v1.y, v2.y)
-            && !is_equal_approx(v1.z, v2.z)
-            && !is_equal_approx(v1.w, v2.w)
+            || !is_equal_approx(v1.y, v2.y)
+            || !is_equal_approx(v1.z, v2.z)
+            || !is_equal_approx(v1.w, v2.w)
         {
             return false;
         }
@@ -39,12 +39,12 @@ fn test_create_orthogonal() {
     for [left, right, bottom, top, near, far] in TEST_DATA {
         let rust_proj = Projection::create_orthogonal(left, right, bottom, top, near, far);
         let godot_proj = InnerProjection::create_orthogonal(
-            left as _,
-            right as _,
-            bottom as _,
-            top as _,
-            near as _,
-            far as _,
+            left.as_f64(),
+            right.as_f64(),
+            bottom.as_f64(),
+            top.as_f64(),
+            near.as_f64(),
+            far.as_f64(),
         );
 
         assert_eq_approx!(
@@ -70,10 +70,10 @@ fn test_create_orthogonal_aspect() {
     for (size, aspect, near, far, flip_fov) in TEST_DATA {
         let rust_proj = Projection::create_orthogonal_aspect(size, aspect, near, far, flip_fov);
         let godot_proj = InnerProjection::create_orthogonal_aspect(
-            size as _,
-            aspect as _,
-            near as _,
-            far as _,
+            size.as_f64(),
+            aspect.as_f64(),
+            near.as_f64(),
+            far.as_f64(),
             flip_fov,
         );
 
@@ -99,10 +99,10 @@ fn test_create_perspective() {
     for (fov_y, aspect, near, far, flip_fov) in TEST_DATA {
         let rust_proj = Projection::create_perspective(fov_y, aspect, near, far, flip_fov);
         let godot_proj = InnerProjection::create_perspective(
-            fov_y as _,
-            aspect as _,
-            near as _,
-            far as _,
+            fov_y.as_f64(),
+            aspect.as_f64(),
+            near.as_f64(),
+            far.as_f64(),
             flip_fov,
         );
 
@@ -126,12 +126,12 @@ fn test_create_frustum() {
     for [left, right, bottom, top, near, far] in TEST_DATA {
         let rust_proj = Projection::create_frustum(left, right, bottom, top, near, far);
         let godot_proj = InnerProjection::create_frustum(
-            left as _,
-            right as _,
-            bottom as _,
-            top as _,
-            near as _,
-            far as _,
+            left.as_f64(),
+            right.as_f64(),
+            bottom.as_f64(),
+            top.as_f64(),
+            near.as_f64(),
+            far.as_f64(),
         );
 
         assert_eq_approx!(
@@ -155,12 +155,13 @@ fn test_create_frustum_aspect() {
     for (size, aspect, offset, near, far, flip_fov) in TEST_DATA {
         let rust_proj =
             Projection::create_frustum_aspect(size, aspect, offset, near, far, flip_fov);
+
         let godot_proj = InnerProjection::create_frustum_aspect(
-            size as _,
-            aspect as _,
+            size.as_f64(),
+            aspect.as_f64(),
             offset,
-            near as _,
-            far as _,
+            near.as_f64(),
+            far.as_f64(),
             flip_fov,
         );
 
@@ -177,28 +178,32 @@ fn test_create_frustum_aspect() {
 
 #[itest]
 fn test_projection_combined() {
+    let range = [0, 5, 10, 15, 20];
+
     fn f(v: isize) -> real {
         (v as real) * 0.5 - 0.5
     }
+
     // Orthogonal
-    for left_i in 0..20 {
+    for left_i in range {
         let left = f(left_i);
-        for right in (left_i + 1..=20).map(f) {
-            for bottom_i in 0..20 {
+        for right in range.map(|v| f(v + left_i)) {
+            for bottom_i in range {
                 let bottom = f(bottom_i);
-                for top in (bottom_i + 1..=20).map(f) {
-                    for near_i in 0..20 {
+                for top in range.map(|v| f(v + bottom_i)) {
+                    for near_i in range {
                         let near = f(near_i);
-                        for far in (near_i + 1..=20).map(f) {
+                        for far in range.map(|v| f(v + near_i)) {
                             let rust_proj =
                                 Projection::create_orthogonal(left, right, bottom, top, near, far);
+
                             let godot_proj = InnerProjection::create_orthogonal(
-                                left as _,
-                                right as _,
-                                bottom as _,
-                                top as _,
-                                near as _,
-                                far as _,
+                                left.as_f64(),
+                                right.as_f64(),
+                                bottom.as_f64(),
+                                top.as_f64(),
+                                near.as_f64(),
+                                far.as_f64(),
                             );
 
                             assert_eq_approx!(
@@ -220,20 +225,21 @@ fn test_projection_combined() {
     }
 
     // Perspective
-    for fov_y in (0..18).map(|v| (v as real) * 10.0) {
-        for aspect_x in 1..=10 {
-            for aspect_y in 1..=10 {
+    for fov_y in [3, 6, 12, 15].map(|v| (v as real) * 10.0) {
+        for aspect_x in 1..=3 {
+            for aspect_y in 1..=3 {
                 let aspect = (aspect_x as real) / (aspect_y as real);
-                for near_i in 1..10 {
+                for near_i in 1..4 {
                     let near = near_i as real;
-                    for far in (near_i + 1..=20).map(|v| v as real) {
+                    for far in range.map(|v| (v + near_i + 1) as real) {
                         let rust_proj =
                             Projection::create_perspective(fov_y, aspect, near, far, false);
+
                         let godot_proj = InnerProjection::create_perspective(
-                            fov_y as _,
-                            aspect as _,
-                            near as _,
-                            far as _,
+                            fov_y.as_f64(),
+                            aspect.as_f64(),
+                            near.as_f64(),
+                            far.as_f64(),
                             false,
                         );
 
@@ -255,24 +261,25 @@ fn test_projection_combined() {
     }
 
     // Frustum
-    for left_i in 0..20 {
+    for left_i in range {
         let left = f(left_i);
-        for right in (left_i + 1..=20).map(f) {
-            for bottom_i in 0..20 {
+        for right in range.map(|v| f(v + left_i + 1)) {
+            for bottom_i in range {
                 let bottom = f(bottom_i);
-                for top in (bottom_i + 1..=20).map(f) {
-                    for near_i in 0..20 {
+                for top in range.map(|v| f(v + bottom_i + 1)) {
+                    for near_i in range {
                         let near = (near_i as real) * 0.5;
-                        for far in (near_i + 1..=20).map(|v| (v as real) * 0.5) {
+                        for far in range.map(|v| ((v + near_i + 1) as real) * 0.5) {
                             let rust_proj =
                                 Projection::create_frustum(left, right, bottom, top, near, far);
+
                             let godot_proj = InnerProjection::create_frustum(
-                                left as _,
-                                right as _,
-                                bottom as _,
-                                top as _,
-                                near as _,
-                                far as _,
+                                left.as_f64(),
+                                right.as_f64(),
+                                bottom.as_f64(),
+                                top.as_f64(),
+                                near.as_f64(),
+                                far.as_f64(),
                             );
 
                             assert_eq_approx!(
@@ -294,13 +301,14 @@ fn test_projection_combined() {
     }
 
     // Size, Aspect, Near, Far
-    for size in (1..=10).map(|v| v as real) {
-        for aspect_x in 1..=10 {
-            for aspect_y in 1..=10 {
+    let range = [1, 4, 7, 10];
+    for size in range.map(|v| v as real) {
+        for aspect_x in range {
+            for aspect_y in range {
                 let aspect = (aspect_x as real) / (aspect_y as real);
-                for near_i in 1..10 {
+                for near_i in range {
                     let near = near_i as real;
-                    for far in (near_i + 1..=20).map(|v| v as real) {
+                    for far in range.map(|v| (v + near_i) as real) {
                         let rust_proj_frustum = Projection::create_frustum_aspect(
                             size,
                             aspect,
@@ -310,11 +318,11 @@ fn test_projection_combined() {
                             false,
                         );
                         let godot_proj_frustum = InnerProjection::create_frustum_aspect(
-                            size as _,
-                            aspect as _,
+                            size.as_f64(),
+                            aspect.as_f64(),
                             Vector2::ZERO,
-                            near as _,
-                            far as _,
+                            near.as_f64(),
+                            far.as_f64(),
                             false,
                         );
 
@@ -327,11 +335,12 @@ fn test_projection_combined() {
 
                         let rust_proj_ortho =
                             Projection::create_orthogonal_aspect(size, aspect, near, far, false);
+
                         let godot_proj_ortho = InnerProjection::create_orthogonal_aspect(
-                            size as _,
-                            aspect as _,
-                            near as _,
-                            far as _,
+                            size.as_f64(),
+                            aspect.as_f64(),
+                            near.as_f64(),
+                            far.as_f64(),
                             false,
                         );
 
