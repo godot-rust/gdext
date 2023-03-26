@@ -38,7 +38,9 @@ func _ready():
 		gdscript_tests,
 		gdscript_suites.size(),
 		allow_focus,
+		get_tree().root,
 		self,
+		get_tree()
 	)
 
 	var exit_code: int = 0 if success else 1

@@ -245,6 +245,10 @@ pub mod mem {
 
         /// Check if ref-counted, return `None` if information is not available (dynamic and obj dead)
         fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> Option<bool>;
+
+        fn is_static_ref_counted() -> bool {
+            false
+        }
     }
     pub trait PossiblyManual {}
 
@@ -280,6 +284,10 @@ pub mod mem {
 
         fn is_ref_counted<T: GodotClass>(_obj: &Gd<T>) -> Option<bool> {
             Some(true)
+        }
+
+        fn is_static_ref_counted() -> bool {
+            true
         }
     }
 

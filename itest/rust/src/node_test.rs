@@ -58,7 +58,7 @@ fn node_get_node_fail() {
 
 #[itest]
 fn node_path_from_str(ctx: &TestContext) {
-    let child = ctx.scene_tree.share();
+    let child = ctx.test_node.share();
     assert_eq!(
         child.get_path().to_string(),
         NodePath::from_str("/root/TestRunner").unwrap().to_string()
@@ -96,7 +96,7 @@ fn node_scene_tree() {
 // FIXME: call_group() crashes
 #[itest(skip)]
 fn node_call_group(ctx: &TestContext) {
-    let mut node = ctx.scene_tree.share();
+    let mut node = ctx.test_node.share();
     let mut tree = node.get_tree().unwrap();
 
     node.add_to_group("group".into(), true);

@@ -10,7 +10,10 @@ use crate::TestContext;
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::GodotString;
 use godot::engine::node::InternalMode;
-use godot::engine::{Node, Node2D, Node2DVirtual, NodeVirtual, RefCounted, RefCountedVirtual};
+use godot::engine::{
+    InputEvent, InputEventAction, Node, Node2D, Node2DVirtual, NodeVirtual, RefCounted,
+    RefCountedVirtual,
+};
 use godot::obj::{Base, Gd, Share};
 use godot::prelude::PackedStringArray;
 use godot::test::itest;
@@ -112,6 +115,25 @@ impl NodeVirtual for ReturnVirtualTest {
     }
 }
 
+#[class(base=Node2D)]
+struct InputVirtualTest {
+    #[base]
+    base: Base<Node2D>,
+    event: Option<Gd<InputEvent>>,
+}
+
+#[godot_api]
+impl Node2DVirtual for InputVirtualTest {
+    fn init(base: Base<Node2D>) -> Self {
+        InputVirtualTest { base, event: None }
+    }
+
+    fn input(&mut self, event: Gd<InputEvent>) {
+        println!("nya");
+        self.event = Some(event);
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[itest]
@@ -125,7 +147,7 @@ fn test_ready(test_context: &TestContext) {
     assert_eq!(obj.bind().implementation_value, 0);
 
     // Add to scene tree
-    let mut test_node = test_context.scene_tree.share();
+    let mut test_node = test_context.test_node.share();
     test_node.add_child(
         obj.share().upcast(),
         false,
@@ -141,7 +163,7 @@ fn test_ready_multiple_fires(test_context: &TestContext) {
     let obj = Gd::<ReadyVirtualTest>::new_default();
     assert_eq!(obj.bind().implementation_value, 0);
 
-    let mut test_node = test_context.scene_tree.share();
+    let mut test_node = test_context.test_node.share();
 
     // Add to scene tree
     test_node.add_child(
@@ -170,7 +192,7 @@ fn test_ready_request_ready(test_context: &TestContext) {
     let obj = Gd::<ReadyVirtualTest>::new_default();
     assert_eq!(obj.bind().implementation_value, 0);
 
-    let mut test_node = test_context.scene_tree.share();
+    let mut test_node = test_context.test_node.share();
 
     // Add to scene tree
     test_node.add_child(
@@ -213,7 +235,7 @@ fn test_tree_enters_exits(test_context: &TestContext) {
     let obj = Gd::<TreeVirtualTest>::new_default();
     assert_eq!(obj.bind().tree_enters, 0);
     assert_eq!(obj.bind().tree_exits, 0);
-    let mut test_node = test_context.scene_tree.share();
+    let mut test_node = test_context.test_node.share();
 
     // Add to scene tree
     test_node.add_child(
@@ -244,4 +266,27 @@ fn test_virtual_method_with_return(_test_context: &TestContext) {
     assert!(output.contains("Hello".into()));
     assert_eq!(output.len(), 1);
     obj.free();
+}
+
+fn test_input_event(test_context: &TestContext) {
+    let obj = Gd::<InputVirtualTest>::new_default();
+    assert_eq!(obj.bind().event, None);
+
+    test_context.test_node.share().add_child(
+        obj.share().upcast(),
+        false,
+        InternalMode::INTERNAL_MODE_DISABLED,
+    );
+
+    let mut event = InputEventAction::new();
+    event.set_action("debug".into());
+    event.set_pressed(true);
+
+    // We're running in headless mode, so Input.parse_input_event does not work
+    test_context
+        .root_node
+        .share()
+        .push_input(event.share().upcast(), false);
+
+    assert_eq!(obj.bind().event, Some(event.upcast()));
 }

@@ -112,6 +112,7 @@ macro_rules! gdext_register_method_inner {
                                     inst.$method_name( $( $param, )* )
                                 },
                                 stringify!($method_name),
+                                sys::CallType::Standard
                             );
                         }
                     );
@@ -384,37 +385,23 @@ macro_rules! gdext_virtual_method_callback {
     };
 }
 
-#[doc(hidden)]
 #[macro_export]
 macro_rules! gdext_ptrcall {
     (
-        $instance_ptr:ident, $args:ident, $ret:ident;
+        $instance_ptr:ident, $args_ptr:ident, $ret_ptr:ident;
         $Class:ty;
         fn $method_name:ident(
             $( $arg:ident : $ParamTy:ty, )*
         ) -> $( $RetTy:tt )+
     ) => {
-        use $crate::sys;
-
-        $crate::out!("ptrcall: {}", stringify!($method_name));
-        let storage = $crate::private::as_storage::<$Class>($instance_ptr);
-        let mut instance = storage.get_mut();
-
-        let mut idx = 0;
-        $(
-            let $arg = <$ParamTy as sys::GodotFfi>::from_sys(sys::force_mut_ptr(*$args.offset(idx)));
-            // FIXME update refcount, e.g. Gd::ready() or T::Mem::maybe_inc_ref(&result);
-            // possibly in from_sys() directly; what about from_sys_init() and from_{obj|str}_sys()?
-            idx += 1;
-        )*
-
-        let ret_val = instance.$method_name($(
-            $arg,
-        )*);
-
-        <$($RetTy)+ as sys::GodotFfi>::write_sys(&ret_val, $ret);
-        // FIXME is inc_ref needed here?
-        // #[allow(clippy::forget_copy)]
-        // std::mem::forget(ret_val);
+        use $crate::builtin::meta::SignatureTuple;
+        <($($RetTy)+, $($ParamTy,)*) as SignatureTuple>::ptrcall::<$Class>(
+            $instance_ptr,
+            $args_ptr,
+            $ret_ptr,
+            |__instance, ($($arg,)*)| __instance.$method_name($($arg,)*),
+            stringify!($method_name),
+            sys::CallType::Virtual,
+        )
     };
 }

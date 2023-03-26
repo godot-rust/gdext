@@ -566,8 +566,26 @@ impl<T: VariantMetadata + ToVariant> Array<T> {
 //     ...
 // }
 
-impl<T: VariantMetadata> GodotFfi for Array<T> {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+unsafe impl<T: VariantMetadata> GodotFfi for Array<T> {
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn from_sys_init;
+        // SAFETY:
+        // Nothing special needs to be done beyond a `std::mem::swap` when returning an Array.
+        fn move_return_ptr;
+    }
+
+    // SAFETY:
+    // Arrays are properly initialized through a `from_sys` call, but the ref-count should be
+    // incremented as that is the callee's responsibility.
+    //
+    // Using `std::mem::forget(array.share())` increments the ref count.
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::CallType) -> Self {
+        let array = Self::from_sys(ptr);
+        std::mem::forget(array.share());
+        array
+    }
 
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();

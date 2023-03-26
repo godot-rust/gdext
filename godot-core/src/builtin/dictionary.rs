@@ -239,8 +239,26 @@ impl Dictionary {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Traits
 
-impl GodotFfi for Dictionary {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+unsafe impl GodotFfi for Dictionary {
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
+        fn from_sys;
+        fn from_sys_init;
+        fn sys;
+        // SAFETY:
+        // Nothing special needs to be done beyond a `std::mem::swap` when returning a dictionary.
+        fn move_return_ptr;
+    }
+
+    // SAFETY:
+    // Dictionaries are properly initialized through a `from_sys` call, but the ref-count should be 
+    // incremented as that is the callee's responsibility.
+    //
+    // Using `std::mem::forget(dictionary.share())` increments the ref count.
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::CallType) -> Self {
+        let dictionary = Self::from_sys(ptr);
+        std::mem::forget(dictionary.share());
+        dictionary
+    }
 
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();

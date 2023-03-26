@@ -77,7 +77,9 @@ impl Debug for InstanceId {
     }
 }
 
-impl GodotFfi for InstanceId {
+// SAFETY:
+// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for InstanceId {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 

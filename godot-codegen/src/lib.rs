@@ -271,6 +271,8 @@ const SELECTED_CLASSES: &[&str] = &[
     "Image",
     "ImageTextureLayered",
     "Input",
+    "InputEvent",
+    "InputEventAction",
     "Label",
     "MainLoop",
     "Marker2D",
@@ -296,4 +298,6 @@ const SELECTED_CLASSES: &[&str] = &[
     "TextureLayered",
     "Time",
     "Timer",
+    "Window",
+    "Viewport",
 ];

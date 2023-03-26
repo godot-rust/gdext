@@ -82,6 +82,8 @@ impl Aabb {
     */
 }
 
-impl GodotFfi for Aabb {
+// SAFETY:
+// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Aabb {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

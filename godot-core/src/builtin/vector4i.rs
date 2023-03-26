@@ -82,7 +82,9 @@ impl fmt::Display for Vector4i {
     }
 }
 
-impl GodotFfi for Vector4i {
+// SAFETY:
+// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Vector4i {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
@@ -100,6 +102,8 @@ pub enum Vector4iAxis {
     W,
 }
 
-impl GodotFfi for Vector4iAxis {
+// SAFETY:
+// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Vector4iAxis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

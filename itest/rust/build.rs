@@ -45,8 +45,11 @@ fn collect_inputs() -> Vec<Input> {
     // Scalar
     push!(inputs; int, i64, -922337203685477580);
     push!(inputs; int, i32, -2147483648);
+    push!(inputs; int, u32, 4294967295);
     push!(inputs; int, i16, -32767);
+    push!(inputs; int, u16, 65535);
     push!(inputs; int, i8, -128);
+    push!(inputs; int, u8, 255);
     push!(inputs; float, f32, 12.5);
     push!(inputs; float, f64, 127.83156478);
     push!(inputs; bool, bool, true);

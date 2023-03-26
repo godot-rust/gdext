@@ -81,6 +81,8 @@ impl Rid {
     }
 }
 
-impl GodotFfi for Rid {
+// SAFETY:
+// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Rid {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

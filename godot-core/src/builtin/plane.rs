@@ -134,7 +134,9 @@ impl Neg for Plane {
     }
 }
 
-impl GodotFfi for Plane {
+// SAFETY:
+// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Plane {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 

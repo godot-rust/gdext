@@ -28,12 +28,29 @@ impl StringName {
         fn from_string_sys = from_sys;
         fn from_string_sys_init = from_sys_init;
         fn string_sys = sys;
-        fn write_string_sys = write_sys;
     }
 }
 
-impl GodotFfi for StringName {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+unsafe impl GodotFfi for StringName {
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn from_sys_init;
+        // SAFETY:
+        // Nothing special needs to be done beyond a `std::mem::swap` when returning a StringName.
+        fn move_return_ptr;
+    }
+
+    // SAFETY:
+    // StringNames are properly initialized through a `from_sys` call, but the ref-count should be
+    // incremented as that is the callee's responsibility.
+    //
+    // Using `std::mem::forget(string_name.share())` increments the ref count.
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::CallType) -> Self {
+        let string_name = Self::from_sys(ptr);
+        std::mem::forget(string_name.clone());
+        string_name
+    }
 
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();

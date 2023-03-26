@@ -329,7 +329,9 @@ impl_float_vector_fns!(Vector3, real);
 impl_vector_operators!(Vector3, real, (x, y, z));
 impl_vector_index!(Vector3, real, (x, y, z), Vector3Axis, (X, Y, Z));
 
-impl GodotFfi for Vector3 {
+// SAFETY:
+// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Vector3 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
@@ -346,7 +348,9 @@ pub enum Vector3Axis {
     Z,
 }
 
-impl GodotFfi for Vector3Axis {
+// SAFETY:
+// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Vector3Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 

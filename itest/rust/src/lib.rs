@@ -4,9 +4,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::engine::{Engine, Node};
+use godot::engine::{Engine, Node, Window};
 use godot::init::{gdextension, ExtensionLibrary};
 use godot::obj::Gd;
+use godot::prelude::SceneTree;
 use godot::sys;
 
 mod array_test;
@@ -104,7 +105,9 @@ fn collect_rust_tests() -> (Vec<RustTestCase>, usize, bool) {
 }
 
 pub struct TestContext {
-    scene_tree: Gd<Node>,
+    _scene_tree: Gd<SceneTree>,
+    root_node: Gd<Window>,
+    test_node: Gd<Node>,
 }
 
 #[derive(Copy, Clone)]

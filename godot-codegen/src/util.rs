@@ -99,7 +99,7 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
                 self.ord
             }
         }
-        impl sys::GodotFfi for #enum_name {
+        unsafe impl sys::GodotFfi for #enum_name {
             sys::ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
         }
         #bitfield_ops
