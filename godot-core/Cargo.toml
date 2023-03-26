@@ -13,6 +13,7 @@ trace = []
 codegen-fmt = ["godot-ffi/codegen-fmt"]
 codegen-full = ["godot-codegen/codegen-full"]
 double-precision = ["godot-codegen/double-precision"]
+custom-godot = ["godot-ffi/custom-godot", "godot-codegen/custom-godot"]
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi" }

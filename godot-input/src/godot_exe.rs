@@ -5,20 +5,19 @@
  */
 
 use crate::godot_version::parse_godot_version;
-use crate::StopWatch;
+use crate::header_gen::run_bindgen;
+use crate::watch::StopWatch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Commands related to Godot executable
 
-const GODOT_VERSION_PATH: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/input/gen/godot_version.txt");
+const GODOT_VERSION_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/gen/godot_version.txt");
+const JSON_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/gen/extension_api.json");
+const HEADER_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/gen/gdextension_interface.h");
 
-const EXTENSION_API_PATH: &str =
-    concat!(env!("CARGO_MANIFEST_DIR"), "/input/gen/extension_api.json");
-
-pub fn load_extension_api_json(watch: &mut StopWatch) -> String {
-    let json_path = Path::new(EXTENSION_API_PATH);
+pub fn load_gdextension_json(watch: &mut StopWatch) -> String {
+    let json_path = Path::new(JSON_PATH);
     rerun_on_changed(json_path);
 
     let godot_bin = locate_godot_binary();
@@ -31,13 +30,41 @@ pub fn load_extension_api_json(watch: &mut StopWatch) -> String {
         dump_extension_api(&godot_bin, json_path);
         update_version_file(&version);
 
-        watch.record("dump_extension_api");
+        watch.record("dump_gdextension_json");
     }
 
     let result = std::fs::read_to_string(json_path)
         .unwrap_or_else(|_| panic!("failed to open file {}", json_path.display()));
+
     watch.record("read_json_file");
     result
+}
+
+pub fn load_gdextension_rust_header(rust_out_path: &Path, watch: &mut StopWatch) -> String {
+    let c_header_path = Path::new(HEADER_PATH);
+    rerun_on_changed(c_header_path);
+
+    let godot_bin = locate_godot_binary();
+    rerun_on_changed(&godot_bin);
+    watch.record("locate_godot");
+
+    // Regenerate API JSON if first time or Godot version is different
+    let version = read_godot_version(&godot_bin);
+    if !c_header_path.exists() || has_version_changed(&version) {
+        dump_header_file(&godot_bin, c_header_path);
+        update_version_file(&version);
+
+        watch.record("dump_gdextension_header");
+    }
+
+    run_bindgen(c_header_path, rust_out_path);
+    watch.record("read_header_file");
+    std::fs::read_to_string(rust_out_path).unwrap_or_else(|_| {
+        panic!(
+            "failed to read generated Rust file {}",
+            rust_out_path.display()
+        )
+    })
 }
 
 fn has_version_changed(current_version: &str) -> bool {
@@ -92,12 +119,33 @@ fn read_godot_version(godot_bin: &Path) -> String {
 fn dump_extension_api(godot_bin: &Path, out_file: &Path) {
     let cwd = out_file.parent().unwrap();
     std::fs::create_dir_all(cwd).unwrap_or_else(|_| panic!("create directory '{}'", cwd.display()));
-    println!("Dump extension API to dir '{}'...", cwd.display());
+    println!("Dump GDExtension API JSON to dir '{}'...", cwd.display());
 
     Command::new(godot_bin)
         .current_dir(cwd)
         .arg("--headless")
         .arg("--dump-extension-api")
+        .arg(cwd)
+        .output()
+        .unwrap_or_else(|_| {
+            panic!(
+                "failed to invoke Godot executable '{}'",
+                godot_bin.display()
+            )
+        });
+
+    println!("Generated {}/gdextension_interface.h.", cwd.display());
+}
+
+fn dump_header_file(godot_bin: &Path, out_file: &Path) {
+    let cwd = out_file.parent().unwrap();
+    std::fs::create_dir_all(cwd).unwrap_or_else(|_| panic!("create directory '{}'", cwd.display()));
+    println!("Dump GDExtension header file to dir '{}'...", cwd.display());
+
+    Command::new(godot_bin)
+        .current_dir(cwd)
+        .arg("--headless")
+        .arg("--dump-gdextension-interface")
         .arg(cwd)
         .output()
         .unwrap_or_else(|_| {

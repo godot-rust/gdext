@@ -10,11 +10,12 @@ categories = ["game-engines", "graphics"]
 [features]
 default = ["codegen-full"]
 formatted = ["godot-core/codegen-fmt"]
-trace = ["godot-core/trace"]
 double-precision = ["godot-core/double-precision"]
+custom-godot = ["godot-core/custom-godot"]
 
 # Private features, they are under no stability guarantee
 codegen-full = ["godot-core/codegen-full"]
+trace = ["godot-core/trace"]
 
 [dependencies]
 godot-core = { path = "../godot-core" }

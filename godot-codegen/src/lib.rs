@@ -8,12 +8,9 @@ mod api_parser;
 mod central_generator;
 mod class_generator;
 mod context;
-mod godot_exe;
-mod godot_version;
 mod special_cases;
 mod util;
 mod utilities_generator;
-mod watch;
 
 #[cfg(test)]
 mod tests;
@@ -25,22 +22,19 @@ use central_generator::{
 };
 use class_generator::{generate_builtin_class_files, generate_class_files};
 use context::Context;
-use util::ident;
+use util::{ident, to_pascal_case, to_snake_case};
 use utilities_generator::generate_utilities_file;
-use watch::StopWatch;
 
-use crate::util::{to_pascal_case, to_snake_case};
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use std::path::{Path, PathBuf};
 
-pub fn generate_sys_files(sys_gen_path: &Path) {
+pub fn generate_sys_files(sys_gen_path: &Path, watch: &mut godot_input::StopWatch) {
     let mut out_files = vec![];
-    let mut watch = StopWatch::start();
 
     generate_sys_mod_file(sys_gen_path, &mut out_files);
 
-    let (api, build_config) = load_extension_api(&mut watch);
+    let (api, build_config) = load_extension_api(watch);
     let mut ctx = Context::build_from_api(&api);
     watch.record("build_context");
 
@@ -49,12 +43,11 @@ pub fn generate_sys_files(sys_gen_path: &Path) {
 
     rustfmt_if_needed(out_files);
     watch.record("rustfmt");
-    watch.write_stats_to(&sys_gen_path.join("codegen-stats.txt"));
 }
 
 pub fn generate_core_files(core_gen_path: &Path) {
     let mut out_files = vec![];
-    let mut watch = StopWatch::start();
+    let mut watch = godot_input::StopWatch::start();
 
     generate_core_mod_file(core_gen_path, &mut out_files);
 
