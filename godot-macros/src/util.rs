@@ -7,7 +7,7 @@
 // Note: some code duplication with codegen crate
 
 use crate::ParseResult;
-use proc_macro2::{Ident, Span, TokenTree};
+use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, ToTokens};
 use std::collections::HashMap;
@@ -17,17 +17,18 @@ pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
 }
 
-/// Given a string containing a string literal in Rust syntax, i.e. double quotes inside the
-/// string, returns the string represented by that literal.
-pub fn string_lit_contents(string_lit: &str) -> Option<String> {
-    Some(string_lit.strip_prefix('"')?.strip_suffix('"')?.to_owned())
-}
-
-pub fn bail<R, T>(msg: impl AsRef<str>, tokens: T) -> Result<R, Error>
+pub fn bail<R, T>(msg: impl AsRef<str>, tokens: T) -> ParseResult<R>
 where
     T: Spanned,
 {
-    Err(Error::new_at_span(tokens.__span(), msg.as_ref()))
+    Err(error(msg, tokens))
+}
+
+pub fn error<T>(msg: impl AsRef<str>, tokens: T) -> Error
+where
+    T: Spanned,
+{
+    Error::new_at_span(tokens.__span(), msg.as_ref())
 }
 
 pub fn reduce_to_signature(function: &Function) -> Function {
@@ -43,25 +44,43 @@ pub fn reduce_to_signature(function: &Function) -> Function {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Key-value parsing of proc attributes
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub(crate) enum KvValue {
-    /// Key only, no value.
-    None, // TODO rename to `Alone`; pending merge conflicts
-
-    /// Literal like `"hello"`, `20`, `3.4`.
-    /// Unlike the proc macro type, this includes `true` and `false` as well as negative literals `-32`.
-    /// Complex expressions are not supported though.
-    Lit(String),
-
-    /// Identifier like `hello`.
-    Ident(Ident),
+#[derive(Clone, Debug)]
+pub(crate) struct KvValue {
+    /// Tokens comprising this value. Guaranteed to be nonempty.
+    tokens: Vec<TokenTree>,
 }
 
-pub(crate) type KvMap = HashMap<String, KvValue>;
+impl KvValue {
+    fn new(tokens: Vec<TokenTree>) -> Self {
+        assert!(!tokens.is_empty());
+        Self { tokens }
+    }
+
+    pub fn expr(self) -> ParseResult<TokenStream> {
+        Ok(self.tokens.into_iter().collect())
+    }
+
+    pub fn ident(self) -> ParseResult<Ident> {
+        let ident = match &self.tokens[0] {
+            TokenTree::Ident(ident) => ident.clone(),
+            tt => {
+                return bail("expected identifier", tt);
+            }
+        };
+        if self.tokens.len() > 1 {
+            return bail(
+                "expected a single identifier, not an expression",
+                &self.tokens[1],
+            );
+        }
+        Ok(ident)
+    }
+}
+
+pub(crate) type KvMap = HashMap<Ident, Option<KvValue>>;
 
 /// Struct to parse attributes like `#[attr(key, key2="value", key3=123)]` in a very user-friendly way.
 pub(crate) struct KvParser {
-    attr_name: String,
     map: KvMap,
     span: Span,
 }
@@ -100,10 +119,10 @@ impl KvParser {
                     );
                 }
 
+                let attr_name = expected.to_string();
                 found_attr = Some(Self {
-                    attr_name: expected.to_string(),
                     span: attr.tk_brackets.span,
-                    map: parse_kv_group(&attr.value)?,
+                    map: ParserState::parse(attr_name, &attr.value)?,
                 });
             }
         }
@@ -115,60 +134,76 @@ impl KvParser {
         self.span
     }
 
-    /// `#[attr]`, `#[attr(key)]`, `#[attr(key=Ident)]`, `#[attr(key=Lit)]`
-    pub fn handle_any(&mut self, key: &str) -> Option<KvValue> {
-        self.map.remove(key)
+    /// - For missing keys, returns `None`.
+    /// - For a key with no value, returns `Some(None)`.
+    /// - For a key with a value, returns `Some(value)`.
+    pub fn handle_any(&mut self, key: &str) -> Option<Option<KvValue>> {
+        self.map.remove(&ident(key))
     }
 
-    /// `#[attr(key)]`
+    /// Handles a key that can only occur without a value, e.g. `#[attr(toggle)]`. Returns whether
+    /// the key is present.
     pub fn handle_alone(&mut self, key: &str) -> ParseResult<bool> {
-        match self.map.remove(key) {
+        match self.handle_any(key) {
             None => Ok(false),
-            Some(KvValue::None) => Ok(true),
-            Some(_) => self.bail_key(key, "must not have a value"),
+            Some(value) => match value {
+                None => Ok(true),
+                Some(value) => bail(
+                    format!("key `{key}` should not have a value"),
+                    &value.tokens[0],
+                ),
+            },
         }
     }
 
-    /// `#[attr(key=Ident)]`
+    /// Handles an optional key that can only occur with an identifier as the value.
     pub fn handle_ident(&mut self, key: &str) -> ParseResult<Option<Ident>> {
-        match self.map.remove(key) {
+        match self.map.remove_entry(&ident(key)) {
             None => Ok(None),
-            Some(KvValue::Ident(ident)) => Ok(Some(ident)),
-            Some(_) => self.bail_key(key, "must have an identifier value (no quotes)"),
+            // The `key` that was removed from the map has the correct span.
+            Some((key, value)) => match value {
+                None => bail(
+                    format!("expected `{key}` to be followed by `= identifier`"),
+                    key,
+                ),
+                Some(value) => Ok(Some(value.ident()?)),
+            },
         }
     }
 
-    /// `#[attr(key="string", key2=123, key3=true)]`
-    pub fn handle_lit(&mut self, key: &str) -> ParseResult<Option<String>> {
-        match self.map.remove(key) {
+    /// Handles an optional key that can occur with arbitrary tokens as the value.
+    pub fn handle_expr(&mut self, key: &str) -> ParseResult<Option<TokenStream>> {
+        match self.map.remove_entry(&ident(key)) {
             None => Ok(None),
-            Some(KvValue::Lit(string)) => Ok(Some(string)),
-            Some(_) => self.bail_key(key, "must have a literal value (\"text\", 3.4, true, ...)"),
+            // The `key` that was removed from the map has the correct span.
+            Some((key, value)) => match value {
+                None => bail(
+                    format!("expected `{key}` to be followed by `= expression`"),
+                    key,
+                ),
+                Some(value) => Ok(Some(value.expr()?)),
+            },
         }
     }
 
-    /// `#[attr(key="string", key2=123, key3=true)]`, with a given key being required
+    /// Handles a key that must be provided and must have an identifier as the value.
     pub fn handle_ident_required(&mut self, key: &str) -> ParseResult<Ident> {
-        self.inner_required(key, "ident", Self::handle_ident)
+        self.handle_ident(key)?.ok_or_else(|| {
+            error(
+                format!("missing required argument `{key} = identifier`"),
+                self.span,
+            )
+        })
     }
 
-    /// `#[attr(key="string", key2=123, key3=true)]`, with a given key being required
-    pub fn handle_lit_required(&mut self, key: &str) -> ParseResult<String> {
-        self.inner_required(key, "literal", Self::handle_lit)
-    }
-
-    fn inner_required<T, F>(&mut self, key: &str, context: &str, mut f: F) -> ParseResult<T>
-    where
-        F: FnMut(&mut Self, &str) -> ParseResult<Option<T>>,
-    {
-        match f(self, key) {
-            Ok(Some(string)) => Ok(string),
-            Ok(None) => self.bail_key(
-                key,
-                &format!("expected to have {context} value, but is absent"),
-            ),
-            Err(err) => Err(err),
-        }
+    /// Handles a key that must be provided and must have a value.
+    pub fn handle_expr_required(&mut self, key: &str) -> ParseResult<TokenStream> {
+        self.handle_expr(key)?.ok_or_else(|| {
+            error(
+                format!("missing required argument `{key} = expression`"),
+                self.span,
+            )
+        })
     }
 
     /// Explicit "pre-destructor" that must be called, and checks that all map entries have been
@@ -180,157 +215,145 @@ impl KvParser {
         if self.map.is_empty() {
             Ok(())
         } else {
-            // Useless allocation, but there seems to be no join() on map iterators. Anyway, this is slow/error path.
-            let keys = self.map.keys().cloned().collect::<Vec<_>>().join(", ");
-
-            let s = if self.map.len() > 1 { "s" } else { "" }; // plural
-            bail(
-                format!(
-                    "#[{attr}]: unrecognized key{s}: {keys}",
-                    attr = self.attr_name
-                ),
-                self.span,
-            )
+            let errors = self
+                .map
+                .keys()
+                .map(|ident| error(format!("unrecognized key `{ident}`"), ident));
+            Err(errors
+                .reduce(|mut a, b| {
+                    a.combine(b);
+                    a
+                })
+                .unwrap())
         }
-    }
-
-    fn bail_key<R>(&self, key: &str, msg: &str) -> ParseResult<R> {
-        bail(
-            format!("#[{attr}]: key `{key}` {msg}", attr = self.attr_name),
-            self.span,
-        )
     }
 }
 
-// parses (a="hey", b=342)
-pub(crate) fn parse_kv_group(value: &venial::AttributeValue) -> ParseResult<KvMap> {
-    // FSM with possible flows:
-    //
-    //  [start]* ------>  Key*  ----> Equals
-    //                    ^  |          |
-    //                    |  v          v
-    //                   Comma* <----- Value*
-    //  [end] <-- *
-    #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-    enum KvState {
-        Start,
-        Key,
-        Equals,
-        Value,
-        Comma,
-    }
+struct ParserState<'a> {
+    attr_name: String,
+    tokens: std::slice::Iter<'a, TokenTree>,
+    prev: Option<&'a TokenTree>,
+    cur: Option<&'a TokenTree>,
+}
 
-    let mut map: KvMap = HashMap::new();
-    let mut state = KvState::Start;
-    let mut last_key: Option<String> = None;
-    let mut is_negative: bool = false;
-
-    // can't be a closure because closures borrow greedily, and we'd need borrowing only at invocation time (lazy)
-    macro_rules! insert_kv {
-        ($value:expr) => {
-            let key = last_key.take().expect("last_key.take");
-            map.insert(key, $value);
+impl<'a> ParserState<'a> {
+    pub fn parse(attr_name: String, attr_value: &'a venial::AttributeValue) -> ParseResult<KvMap> {
+        let mut tokens = match attr_value {
+            venial::AttributeValue::Equals(punct, _tokens) => {
+                return bail("expected `(` or `]`", punct);
+            }
+            _ => attr_value.get_value_tokens().iter(),
         };
+        let cur = tokens.next();
+
+        let parser = Self {
+            attr_name,
+            tokens,
+            prev: None,
+            cur,
+        };
+
+        parser.parse_map()
     }
 
-    let tokens = value.get_value_tokens();
-    //println!("all tokens: {tokens:?}");
-    for tk in tokens {
-        // Key
-        //println!("-- {state:?} -> {tk:?}");
+    fn parse_map(mut self) -> ParseResult<KvMap> {
+        let mut map: KvMap = HashMap::new();
+        // Whether the previous expression might be missing parentheses. Used only for hints in
+        // error reporting.
+        let mut prev_expr_complex = false;
 
-        match state {
-            KvState::Start => match tk {
-                // key ...
-                TokenTree::Ident(ident) => {
-                    let key = last_key.replace(ident.to_string());
-                    assert!(key.is_none());
-                    state = KvState::Key;
+        while let Some(cur) = self.cur {
+            match cur {
+                TokenTree::Ident(key) => {
+                    self.next();
+                    let value = self.parse_opt_value(key, prev_expr_complex)?;
+                    if map.contains_key(key) {
+                        return bail(format!("duplicate key `{key}`"), key);
+                    }
+                    prev_expr_complex = match &value {
+                        None => false,
+                        Some(value) => value.tokens.len() > 1,
+                    };
+                    map.insert(key.clone(), value);
                 }
-                _ => bail("attribute must start with key", tk)?,
-            },
-            KvState::Key => {
-                match tk {
-                    TokenTree::Punct(punct) => {
-                        if punct.as_char() == '=' {
-                            // key = ...
-                            state = KvState::Equals;
-                        } else if punct.as_char() == ',' {
-                            // key, ...
-                            insert_kv!(KvValue::None);
-                            state = KvState::Comma;
-                        } else {
-                            bail("key must be followed by either '=' or ','", tk)?;
-                        }
-                    }
-                    _ => {
-                        bail("key must be followed by either '=' or ','", tk)?;
-                    }
+                _ => {
+                    let parens_hint = if prev_expr_complex {
+                        let attr = &self.attr_name;
+                        format!("\nnote: the preceding `,` is interpreted as a separator between arguments to `#[{attr}]`; if you meant the `,` as part of an expression, surround the expression with parentheses")
+                    } else {
+                        "".to_owned()
+                    };
+                    return bail(format!("expected identifier{parens_hint}"), cur);
                 }
             }
-            KvState::Equals => match tk {
-                // key = value ...
-                TokenTree::Ident(ident) => {
-                    let ident_str = ident.to_string();
-                    if ident_str == "true" || ident_str == "false" {
-                        insert_kv!(KvValue::Lit(ident_str));
-                    } else {
-                        insert_kv!(KvValue::Ident(ident.clone()));
-                    }
-                    state = KvState::Value;
-                }
-                // key = "value" ...
-                TokenTree::Literal(lit) => {
-                    let prefix = if is_negative { "-" } else { "" };
-                    insert_kv!(KvValue::Lit(format!("{prefix}{lit}")));
-                    state = KvState::Value;
-                }
-                // key = - ...
-                TokenTree::Punct(punct) if punct.as_char() == '-' => {
-                    is_negative = true;
-                    // state remains
-                }
-                _ => bail("'=' sign must be followed by an identifier or literal", tk)?,
-            },
-            KvState::Value => match tk {
-                // key = value, ...
-                TokenTree::Punct(punct) => {
-                    if punct.as_char() == ',' {
-                        state = KvState::Comma;
-                    } else {
-                        bail("value must be followed by a ','", tk)?;
-                    }
-                }
-                _ => bail("value must be followed by a ','", tk)?,
-            },
-            KvState::Comma => match tk {
-                // , key ...
-                TokenTree::Ident(ident) => {
-                    let key = last_key.replace(ident.to_string());
-                    assert!(key.is_none());
-                    is_negative = false;
-                    state = KvState::Key;
-                }
-                _ => bail("',' must be followed by the next key", tk)?,
-            },
         }
 
-        //println!("   {state:?} -> {tk:?}");
+        Ok(map)
     }
 
-    // No more tokens, make sure it ends in a valid state
-    match state {
-        KvState::Key => {
-            // Only stored key, not yet added to map
-            insert_kv!(KvValue::None);
-        }
-        KvState::Start | KvState::Value | KvState::Comma => {}
-        KvState::Equals => {
-            bail("unexpected end of macro attributes", value)?;
-        }
+    fn parse_opt_value(
+        &mut self,
+        key: &Ident,
+        prev_expr_complex: bool,
+    ) -> ParseResult<Option<KvValue>> {
+        let value = match self.cur {
+            // End of input directly after a key
+            None => None,
+            // Comma following key
+            Some(tt) if is_punct(tt, ',') => {
+                self.next();
+                None
+            }
+            // Equals sign following key
+            Some(tt) if is_punct(tt, '=') => {
+                self.next();
+                Some(self.parse_value()?)
+            }
+            Some(tt) => {
+                let parens_hint = if prev_expr_complex {
+                    let attr = &self.attr_name;
+                    format!("\nnote: `{key}` is interpreted as the next argument to `#[{attr}]`; if you meant it as part of an expression, surround the expression with parentheses")
+                } else {
+                    "".to_owned()
+                };
+                return bail(
+                    format!("expected next argument, or `= value` following `{key}`{parens_hint}"),
+                    tt,
+                );
+            }
+        };
+        Ok(value)
     }
 
-    Ok(map)
+    fn parse_value(&mut self) -> ParseResult<KvValue> {
+        let mut tokens = Vec::new();
+        while let Some(cur) = self.cur {
+            if is_punct(cur, ',') {
+                self.next();
+                break;
+            }
+            tokens.push(cur.clone());
+            self.next();
+        }
+        if tokens.is_empty() {
+            // `cur` might be `None` at this point, so we point at the previous token instead.
+            // This could be the `=` sign or a `,` directly after `=`.
+            return bail("expected value after `=`", self.prev.unwrap());
+        }
+        Ok(KvValue::new(tokens))
+    }
+
+    fn next(&mut self) {
+        self.prev = self.cur;
+        self.cur = self.tokens.next();
+    }
+}
+
+fn is_punct(tt: &TokenTree, c: char) -> bool {
+    match tt {
+        TokenTree::Punct(punct) => punct.as_char() == c,
+        _ => false,
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -431,22 +454,42 @@ mod tests {
     use proc_macro2::TokenStream;
     use quote::quote;
 
-    macro_rules! hash_map {
+    /// A quick and dirty way to compare two expressions for equality. Only for unit tests; not
+    /// very suitable for production code.
+    impl PartialEq for KvValue {
+        fn eq(&self, other: &Self) -> bool {
+            let to_strings = |kv: &Self| {
+                kv.tokens
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<String>>()
+            };
+            to_strings(self) == to_strings(other)
+        }
+    }
+
+    macro_rules! kv_map {
         (
-            $($key:expr => $value:expr),*
+            $($key:ident => $value:expr),*
             $(,)?
         ) => {
             {
                 let mut map = std::collections::HashMap::new();
                 $(
-                    map.insert($key, $value);
+                    map.insert(ident(stringify!($key)), $value);
                 )*
                 map
             }
         };
     }
 
-    fn expect_parsed(input_tokens: TokenStream, output_map: KvMap) {
+    macro_rules! kv_value {
+        ($($args:tt)*) => {
+            KvValue::new(quote!($($args)*).into_iter().collect())
+        }
+    }
+
+    fn parse(input_tokens: TokenStream) -> KvMap {
         let input = quote! {
             #input_tokens
             fn func();
@@ -462,10 +505,18 @@ mod tests {
 
         assert_eq!(attrs.len(), 1);
         let attr_value = &attrs[0].value;
-        let mut parsed = parse_kv_group(attr_value).expect("parse");
+        ParserState::parse("attr".to_owned(), attr_value).expect("parse")
+    }
+
+    fn expect_parsed(input_tokens: TokenStream, output_map: KvMap) {
+        let mut parsed = parse(input_tokens);
 
         for (key, value) in output_map {
-            assert_eq!(parsed.remove(&key), Some(value));
+            assert_eq!(
+                parsed.remove(&key),
+                Some(value),
+                "incorrect parsed value for `{key}`"
+            );
         }
 
         assert!(parsed.is_empty(), "Remaining entries in map");
@@ -477,52 +528,88 @@ mod tests {
             quote! {
                 #[attr(just_key)]
             },
-            hash_map!(
-                "just_key".to_string() => KvValue::None,
+            kv_map!(
+                just_key => None,
             ),
         );
     }
 
     #[test]
-    fn test_parse_kv_key_ident() {
+    fn test_parse_kv_ident() {
         expect_parsed(
             quote! {
-                #[attr(key=value)]
+                #[attr(key = value)]
             },
-            hash_map!(
-                "key".to_string() => KvValue::Ident(ident("value")),
+            kv_map!(
+                key => Some(kv_value!(value)),
             ),
         );
     }
 
     #[test]
-    fn test_parse_kv_key_lit() {
+    fn test_parse_kv_trailing_comma() {
         expect_parsed(
             quote! {
-                #[attr(key="string", pos=32, neg=-32, bool=true, float=3.4)]
+                #[attr(key = value,)]
             },
-            hash_map!(
-                "key".to_string() => KvValue::Lit("\"string\"".to_string()),
-                "pos".to_string() => KvValue::Lit("32".to_string()),
-                "neg".to_string() => KvValue::Lit("-32".to_string()),
-                "bool".to_string() => KvValue::Lit("true".to_string()),
-                "float".to_string() => KvValue::Lit("3.4".to_string()),
+            kv_map!(
+                key => Some(kv_value!(value)),
             ),
         );
     }
 
     #[test]
-    fn test_parse_kv_mixed() {
+    fn test_parse_kv_first_last_expr() {
         expect_parsed(
             quote! {
-                #[attr(forever, key="string", default=-820, fn=my_function, alone)]
+                #[attr(first = foo, middle = bar, last = qux)]
             },
-            hash_map!(
-                "forever".to_string() => KvValue::None,
-                "key".to_string() => KvValue::Lit("\"string\"".to_string()),
-                "default".to_string() => KvValue::Lit("-820".to_string()),
-                "fn".to_string() => KvValue::Ident(ident("my_function")),
-                "alone".to_string() => KvValue::None,
+            kv_map!(
+                first => Some(kv_value!(foo)),
+                middle => Some(kv_value!(bar)),
+                last => Some(kv_value!(qux)),
+            ),
+        );
+    }
+
+    #[test]
+    fn test_parse_kv_first_last_alone() {
+        expect_parsed(
+            quote! {
+                #[attr(first, middle = bar, last)]
+            },
+            kv_map!(
+                first => None,
+                middle => Some(kv_value!(bar)),
+                last => None,
+            ),
+        );
+    }
+
+    #[test]
+    fn test_parse_kv_exprs() {
+        expect_parsed(
+            quote! {
+                #[attr(
+                    pos = 42,
+                    neg = -42,
+                    str_lit = "string",
+                    sum = 1 + 1,
+                    vec = Vector2::new(1.0, -1.0e2),
+                    // Currently needs parentheses.
+                    generic = (HashMap::<String, Vec<usize>>::new()),
+                    // Currently needs parentheses.
+                    closure = (|a: &u32, b: &u32| a + b),
+                )]
+            },
+            kv_map!(
+                pos => Some(kv_value!(42)),
+                neg => Some(kv_value!(-42)),
+                str_lit => Some(kv_value!("string")),
+                sum => Some(kv_value!(1 + 1)),
+                vec => Some(kv_value!(Vector2::new(1.0, -1.0e2))),
+                generic => Some(kv_value!((HashMap::<String, Vec<usize>>::new()))),
+                closure => Some(kv_value!((|a: &u32, b: &u32| a + b))),
             ),
         );
     }

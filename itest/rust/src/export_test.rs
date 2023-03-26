@@ -16,24 +16,24 @@ struct HasProperty {
 
     #[export]
     int_val: i32,
-    #[export(get = "get_int_val_read")]
+    #[export(get = get_int_val_read)]
     int_val_read: i32,
-    #[export(set = "set_int_val_write")]
+    #[export(set = set_int_val_write)]
     int_val_write: i32,
-    #[export(get = "get_int_val_rw", set = "set_int_val_rw")]
+    #[export(get = get_int_val_rw, set = set_int_val_rw)]
     int_val_rw: i32,
-    #[export(get = "get_int_val_getter", set)]
+    #[export(get = get_int_val_getter, set)]
     int_val_getter: i32,
-    #[export(get, set = "set_int_val_setter")]
+    #[export(get, set = set_int_val_setter)]
     int_val_setter: i32,
 
-    #[export(get = "get_string_val", set = "set_string_val")]
+    #[export(get = get_string_val, set = set_string_val)]
     string_val: GodotString,
-    #[export(get = "get_object_val", set = "set_object_val")]
+    #[export(get = get_object_val, set = set_object_val)]
     object_val: Option<Gd<Object>>,
     #[export]
     texture_val: Gd<Texture>,
-    #[export(get = "get_texture_val", set = "set_texture_val", hint = PROPERTY_HINT_RESOURCE_TYPE, hint_desc = "Texture")]
+    #[export(get = get_texture_val, set = set_texture_val, hint = PROPERTY_HINT_RESOURCE_TYPE, hint_desc = "Texture")]
     texture_val_rw: Option<Gd<Texture>>,
 }
 
