@@ -18,6 +18,13 @@ func test_missing_init():
 
 	print("[GD] WithoutInit is: ", instance)
 
+func test_init_defaults():
+	var obj = WithInitDefaults.new()
+
+	assert_eq(obj.default_int, 0)
+	assert_eq(obj.literal_int, 42)
+	assert_eq(obj.expr_int, -42)
+
 func test_to_string():
 	var ffi = VirtualMethodTest.new()
 	

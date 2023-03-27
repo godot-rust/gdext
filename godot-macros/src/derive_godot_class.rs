@@ -89,11 +89,10 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
 
 /// Returns field names and 1 base field, if available
 fn parse_fields(class: &Struct) -> ParseResult<Fields> {
-    let mut all_field_names = vec![];
-    let mut exported_fields = vec![];
+    let mut all_fields = vec![];
     let mut base_field = Option::<Field>::None;
 
-    let fields: Vec<(NamedField, Punct)> = match &class.fields {
+    let named_fields: Vec<(NamedField, Punct)> = match &class.fields {
         StructFields::Unit => {
             vec![]
         }
@@ -105,42 +104,50 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
     };
 
     // Attributes on struct fields
-    for (field, _punct) in fields {
+    for (named_field, _punct) in named_fields {
         let mut is_base = false;
+        let mut field = Field::new(&named_field);
 
         // #[base]
-        if let Some(parser) = KvParser::parse(&field.attributes, "base")? {
-            if let Some(prev_base) = base_field {
+        if let Some(parser) = KvParser::parse(&named_field.attributes, "base")? {
+            if let Some(prev_base) = base_field.as_ref() {
                 bail(
                     format!(
-                        "#[base] allowed for at most 1 field, already applied to '{}'",
+                        "#[base] allowed for at most 1 field, already applied to `{}`",
                         prev_base.name
                     ),
                     parser.span(),
                 )?;
             }
             is_base = true;
-            base_field = Some(Field::new(&field));
+            parser.finish()?;
+        }
+
+        // #[init]
+        if let Some(mut parser) = KvParser::parse(&named_field.attributes, "init")? {
+            let default = parser.handle_expr("default")?;
+            field.default = default;
             parser.finish()?;
         }
 
         // #[export]
-        if let Some(mut parser) = KvParser::parse(&field.attributes, "export")? {
-            let exported_field = ExportedField::new_from_kv(Field::new(&field), &mut parser)?;
-            exported_fields.push(exported_field);
+        if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export")? {
+            let export = FieldExport::new_from_kv(&mut parser)?;
+            field.export = Some(export);
             parser.finish()?;
         }
 
         // Exported or Rust-only fields
-        if !is_base {
-            all_field_names.push(field.name.clone())
+        if is_base {
+            base_field = Some(field);
+        } else {
+            all_fields.push(field);
         }
     }
 
     Ok(Fields {
-        all_field_names,
+        all_fields,
         base_field,
-        exported_fields,
     })
 }
 
@@ -153,14 +160,17 @@ struct ClassAttributes {
 }
 
 struct Fields {
-    all_field_names: Vec<Ident>,
+    /// All fields except `base_field`.
+    all_fields: Vec<Field>,
+    /// The field annotated with `#[base]`.
     base_field: Option<Field>,
-    exported_fields: Vec<ExportedField>,
 }
 
 struct Field {
     name: Ident,
     ty: TyExpr,
+    default: Option<TokenStream>,
+    export: Option<FieldExport>,
 }
 
 impl Field {
@@ -168,12 +178,13 @@ impl Field {
         Self {
             name: field.name.clone(),
             ty: field.ty.clone(),
+            default: None,
+            export: None,
         }
     }
 }
 
-struct ExportedField {
-    field: Field,
+struct FieldExport {
     getter: GetterSetter,
     setter: GetterSetter,
     hint: Option<ExportHint>,
@@ -219,8 +230,8 @@ impl ExportHint {
     }
 }
 
-impl ExportedField {
-    pub fn new_from_kv(field: Field, parser: &mut KvParser) -> ParseResult<ExportedField> {
+impl FieldExport {
+    pub fn new_from_kv(parser: &mut KvParser) -> ParseResult<FieldExport> {
         let mut getter = GetterSetter::parse(parser, "get")?;
         let mut setter = GetterSetter::parse(parser, "set")?;
         if getter == GetterSetter::Omitted && setter == GetterSetter::Omitted {
@@ -238,8 +249,7 @@ impl ExportedField {
             })
             .transpose()?;
 
-        Ok(ExportedField {
-            field,
+        Ok(FieldExport {
             getter,
             setter,
             hint,
@@ -254,8 +264,13 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
         TokenStream::new()
     };
 
-    let rest_init = fields.all_field_names.into_iter().map(|field| {
-        quote! { #field: std::default::Default::default(), }
+    let rest_init = fields.all_fields.into_iter().map(|field| {
+        let field_name = field.name;
+        let value_expr = match field.default {
+            None => quote!(::std::default::Default::default()),
+            Some(default) => default,
+        };
+        quote! { #field_name: #value_expr, }
     });
 
     quote! {
@@ -295,20 +310,21 @@ fn make_deref_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
 
 fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     let mut getter_setter_impls = Vec::new();
-    let mut export_tokens = Vec::with_capacity(fields.exported_fields.len());
+    let mut export_tokens = Vec::new();
 
-    for exported_field in &fields.exported_fields {
-        let field_name = exported_field.field.name.to_string();
+    for field in &fields.all_fields {
+        let Some(export) = &field.export else { continue; };
+        let field_name = field.name.to_string();
         let field_ident = ident(&field_name);
-        let field_type = exported_field.field.ty.clone();
+        let field_type = field.ty.clone();
 
         let ExportHint {
             hint_type,
             description,
-        } = exported_field.hint.clone().unwrap_or_else(ExportHint::none);
+        } = export.hint.clone().unwrap_or_else(ExportHint::none);
 
         let getter_name;
-        match &exported_field.getter {
+        match &export.getter {
             GetterSetter::Omitted => {
                 getter_name = "".to_owned();
             }
@@ -334,7 +350,7 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         }
 
         let setter_name;
-        match &exported_field.setter {
+        match &export.setter {
             GetterSetter::Omitted => {
                 setter_name = "".to_owned();
             }
