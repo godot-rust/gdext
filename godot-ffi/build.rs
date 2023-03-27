@@ -17,7 +17,7 @@ fn main() {
     std::fs::create_dir_all(gen_path).unwrap_or_else(|e| panic!("failed to create dir: {e}"));
 
     let rust_header_path = gen_path.join("gdextension_interface.rs");
-    let header = godot_input::load_gdextension_rust_header(&rust_header_path, &mut watch);
+    let header = godot_input::load_gdextension_header_rs(&rust_header_path, &mut watch);
     std::fs::write(rust_header_path, header).expect("failed to write extension header");
 
     godot_codegen::generate_sys_files(gen_path, &mut watch);

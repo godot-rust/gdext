@@ -1,8 +1,8 @@
-diff --git b/godot-codegen/input/gdextension_interface.h a/godot-codegen/input/gdextension_interface.h
+diff --git b/godot-input/gen/gdextension_interface.h a/godot-input/gen/gdextension_interface.h
 index 0b7615f..6db266e 100644
---- b/godot-codegen/input/gdextension_interface.h
-+++ a/godot-codegen/input/gdextension_interface.h
-@@ -140,22 +140,22 @@ typedef enum {
+--- b/godot-input/gen/gdextension_interface.h
++++ a/godot-input/gen/gdextension_interface.h
+@@ -139,22 +139,22 @@ typedef enum {
  
  } GDExtensionVariantOperator;
  
@@ -17,24 +17,24 @@ index 0b7615f..6db266e 100644
 -typedef void *GDExtensionTypePtr;
 -typedef const void *GDExtensionConstTypePtr;
 -typedef const void *GDExtensionMethodBindPtr;
-+typedef struct TagVariant *GDExtensionVariantPtr;
-+typedef const struct TagVariant *GDExtensionConstVariantPtr;
-+typedef struct TagStringName *GDExtensionStringNamePtr;
-+typedef const struct TagStringName *GDExtensionConstStringNamePtr;
-+typedef struct TagString *GDExtensionStringPtr;
-+typedef const struct TagString *GDExtensionConstStringPtr;
-+typedef struct TagObject *GDExtensionObjectPtr;
-+typedef const struct TagObject *GDExtensionConstObjectPtr;
-+typedef struct TagType *GDExtensionTypePtr;
-+typedef const struct TagType *GDExtensionConstTypePtr;
-+typedef struct TagMethodBind *GDExtensionMethodBindPtr;
++typedef struct __GdextVariant *GDExtensionVariantPtr;
++typedef const struct __GdextVariant *GDExtensionConstVariantPtr;
++typedef struct __GdextStringName *GDExtensionStringNamePtr;
++typedef const struct __GdextStringName *GDExtensionConstStringNamePtr;
++typedef struct __GdextString *GDExtensionStringPtr;
++typedef const struct __GdextString *GDExtensionConstStringPtr;
++typedef struct __GdextObject *GDExtensionObjectPtr;
++typedef const struct __GdextObject *GDExtensionConstObjectPtr;
++typedef struct __GdextType *GDExtensionTypePtr;
++typedef const struct __GdextType *GDExtensionConstTypePtr;
++typedef struct __GdextMethodBind *GDExtensionMethodBindPtr;
  typedef int64_t GDExtensionInt;
  typedef uint8_t GDExtensionBool;
  typedef uint64_t GDObjectInstanceID;
 -typedef void *GDExtensionRefPtr;
 -typedef const void *GDExtensionConstRefPtr;
-+typedef struct TagExtensionRef *GDExtensionRefPtr;
-+typedef const struct TagExtensionRef *GDExtensionConstRefPtr;
++typedef struct __GdextExtensionRef *GDExtensionRefPtr;
++typedef const struct __GdextExtensionRef *GDExtensionConstRefPtr;
  
  /* VARIANT DATA I/O */
  

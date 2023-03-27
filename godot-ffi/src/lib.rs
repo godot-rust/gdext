@@ -32,6 +32,12 @@ pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
 pub use gen::central::*;
 pub use gen::gdextension_interface::*;
 
+// The impls only compile if those are different types -- ensures type safety through patch
+trait Distinct {}
+impl Distinct for GDExtensionVariantPtr {}
+impl Distinct for GDExtensionTypePtr {}
+impl Distinct for GDExtensionConstTypePtr {}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 struct GodotBinding {

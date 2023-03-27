@@ -227,9 +227,10 @@ pub fn load_extension_api(watch: &mut godot_input::StopWatch) -> (ExtensionApi, 
 
     // Use type inference, so we can accept both String (dynamically resolved) and &str (prebuilt).
     let json = godot_input::load_gdextension_json(watch);
+    let json_str: &str = json.as_ref();
 
     let model: ExtensionApi =
-        DeJson::deserialize_json(json.as_str()).expect("failed to deserialize JSON");
+        DeJson::deserialize_json(json_str).expect("failed to deserialize JSON");
     watch.record("deserialize_json");
 
     (model, build_config)

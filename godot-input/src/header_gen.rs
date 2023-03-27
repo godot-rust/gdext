@@ -7,7 +7,7 @@
 use std::env;
 use std::path::Path;
 
-pub(crate) fn run_bindgen(c_header_path: &Path, out_rust_path: &Path) {
+pub(crate) fn generate_rust_binding(c_header_path: &Path, out_rust_path: &Path) {
     let c_header_path = c_header_path.display().to_string();
     println!("cargo:rerun-if-changed={}", c_header_path);
 

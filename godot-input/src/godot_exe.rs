@@ -5,7 +5,7 @@
  */
 
 use crate::godot_version::parse_godot_version;
-use crate::header_gen::run_bindgen;
+use crate::header_gen::generate_rust_binding;
 use crate::watch::StopWatch;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -15,6 +15,7 @@ use std::process::Command;
 const GODOT_VERSION_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/gen/godot_version.txt");
 const JSON_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/gen/extension_api.json");
 const HEADER_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/gen/gdextension_interface.h");
+const RES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/res");
 
 pub fn load_gdextension_json(watch: &mut StopWatch) -> String {
     let json_path = Path::new(JSON_PATH);
@@ -26,12 +27,12 @@ pub fn load_gdextension_json(watch: &mut StopWatch) -> String {
 
     // Regenerate API JSON if first time or Godot version is different
     let version = read_godot_version(&godot_bin);
-    if !json_path.exists() || has_version_changed(&version) {
-        dump_extension_api(&godot_bin, json_path);
-        update_version_file(&version);
+    // if !json_path.exists() || has_version_changed(&version) {
+    dump_extension_api(&godot_bin, json_path);
+    update_version_file(&version);
 
-        watch.record("dump_gdextension_json");
-    }
+    watch.record("dump_gdextension_json");
+    // }
 
     let result = std::fs::read_to_string(json_path)
         .unwrap_or_else(|_| panic!("failed to open file {}", json_path.display()));
@@ -40,8 +41,9 @@ pub fn load_gdextension_json(watch: &mut StopWatch) -> String {
     result
 }
 
-pub fn load_gdextension_rust_header(rust_out_path: &Path, watch: &mut StopWatch) -> String {
+pub fn load_gdextension_header_rs(rust_out_path: &Path, watch: &mut StopWatch) -> String {
     let c_header_path = Path::new(HEADER_PATH);
+    let resource_path = Path::new(RES_PATH);
     rerun_on_changed(c_header_path);
 
     let godot_bin = locate_godot_binary();
@@ -50,14 +52,16 @@ pub fn load_gdextension_rust_header(rust_out_path: &Path, watch: &mut StopWatch)
 
     // Regenerate API JSON if first time or Godot version is different
     let version = read_godot_version(&godot_bin);
-    if !c_header_path.exists() || has_version_changed(&version) {
-        dump_header_file(&godot_bin, c_header_path);
-        update_version_file(&version);
+    // if !c_header_path.exists() || has_version_changed(&version) {
+    dump_header_file(&godot_bin, c_header_path);
+    update_version_file(&version);
 
-        watch.record("dump_gdextension_header");
-    }
+    watch.record("dump_gdextension_header");
+    // }
 
-    run_bindgen(c_header_path, rust_out_path);
+    patch_c_header(&resource_path.join("tweak.patch"));
+    generate_rust_binding(c_header_path, rust_out_path);
+
     watch.record("read_header_file");
     std::fs::read_to_string(rust_out_path).unwrap_or_else(|_| {
         panic!(
@@ -67,6 +71,7 @@ pub fn load_gdextension_rust_header(rust_out_path: &Path, watch: &mut StopWatch)
     })
 }
 
+#[allow(dead_code)]
 fn has_version_changed(current_version: &str) -> bool {
     let version_path = Path::new(GODOT_VERSION_PATH);
 
@@ -121,18 +126,12 @@ fn dump_extension_api(godot_bin: &Path, out_file: &Path) {
     std::fs::create_dir_all(cwd).unwrap_or_else(|_| panic!("create directory '{}'", cwd.display()));
     println!("Dump GDExtension API JSON to dir '{}'...", cwd.display());
 
-    Command::new(godot_bin)
-        .current_dir(cwd)
+    let mut cmd = Command::new(godot_bin);
+    cmd.current_dir(cwd)
         .arg("--headless")
-        .arg("--dump-extension-api")
-        .arg(cwd)
-        .output()
-        .unwrap_or_else(|_| {
-            panic!(
-                "failed to invoke Godot executable '{}'",
-                godot_bin.display()
-            )
-        });
+        .arg("--dump-extension-api");
+
+    execute(cmd, "dump Godot header file");
 
     println!("Generated {}/gdextension_interface.h.", cwd.display());
 }
@@ -142,20 +141,26 @@ fn dump_header_file(godot_bin: &Path, out_file: &Path) {
     std::fs::create_dir_all(cwd).unwrap_or_else(|_| panic!("create directory '{}'", cwd.display()));
     println!("Dump GDExtension header file to dir '{}'...", cwd.display());
 
-    Command::new(godot_bin)
-        .current_dir(cwd)
+    let mut cmd = Command::new(godot_bin);
+    cmd.current_dir(cwd)
         .arg("--headless")
-        .arg("--dump-gdextension-interface")
-        .arg(cwd)
-        .output()
-        .unwrap_or_else(|_| {
-            panic!(
-                "failed to invoke Godot executable '{}'",
-                godot_bin.display()
-            )
-        });
+        .arg("--dump-gdextension-interface");
+
+    execute(cmd, "dump Godot JSON file");
 
     println!("Generated {}/extension_api.json.", cwd.display());
+}
+
+fn patch_c_header(tweak_path: &Path) {
+    // Note: patch must have paths relative to Git root (aka top-level dir), so cwd is root
+    let cwd = tweak_path.parent().unwrap().parent().unwrap();
+    rerun_on_changed(tweak_path);
+
+    let git = locate_git_binary();
+    let mut cmd = Command::new(&git);
+    cmd.current_dir(cwd).arg("apply").arg("-v").arg(tweak_path);
+
+    execute(cmd, "apply Git patch");
 }
 
 fn locate_godot_binary() -> PathBuf {
@@ -167,9 +172,37 @@ fn locate_godot_binary() -> PathBuf {
         path
     } else {
         panic!(
-            "Bindings generation requires 'godot4' executable or a GODOT4_BIN \
+            "gdext with `custom-godot` feature requires 'godot4' executable or a GODOT4_BIN \
                  environment variable (with the path to the executable)."
         )
+    }
+}
+
+fn locate_git_binary() -> PathBuf {
+    if let Ok(string) = std::env::var("GIT_BIN") {
+        println!("Found GIT_BIN with path to executable: '{string}'");
+        PathBuf::from(string)
+    } else if let Ok(path) = which::which("git") {
+        println!("Found 'git' executable in PATH: {}", path.display());
+        path
+    } else {
+        panic!(
+            "gdext with `custom-godot` feature requires `git` executable or a GIT_BIN \
+                 environment variable (with the path to the executable)."
+        )
+    }
+}
+
+fn execute(mut cmd: Command, error_message: &str) {
+    let output = cmd
+        .output()
+        .unwrap_or_else(|_| panic!("failed to execute command: {error_message}"));
+
+    if !output.status.success() {
+        println!("[stdout] {}", String::from_utf8(output.stdout).unwrap());
+        println!("[stderr] {}", String::from_utf8(output.stderr).unwrap());
+        println!("[status] {}", output.status);
+        panic!("command returned error: {error_message}");
     }
 }
 
