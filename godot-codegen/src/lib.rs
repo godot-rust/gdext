@@ -29,7 +29,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use std::path::{Path, PathBuf};
 
-pub fn generate_sys_files(sys_gen_path: &Path, watch: &mut godot_input::StopWatch) {
+pub fn generate_sys_files(sys_gen_path: &Path, watch: &mut godot_bindings::StopWatch) {
     let mut out_files = vec![];
 
     generate_sys_mod_file(sys_gen_path, &mut out_files);
@@ -47,7 +47,7 @@ pub fn generate_sys_files(sys_gen_path: &Path, watch: &mut godot_input::StopWatc
 
 pub fn generate_core_files(core_gen_path: &Path) {
     let mut out_files = vec![];
-    let mut watch = godot_input::StopWatch::start();
+    let mut watch = godot_bindings::StopWatch::start();
 
     generate_core_mod_file(core_gen_path, &mut out_files);
 

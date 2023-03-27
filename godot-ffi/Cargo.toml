@@ -8,7 +8,7 @@ keywords = ["gamedev", "godot", "engine", "ffi"]
 categories = ["game-engines", "graphics"]
 
 [features]
-custom-godot = ["godot-input/custom-godot"]
+custom-godot = ["godot-bindings/custom-godot"]
 codegen-fmt = ["godot-codegen/codegen-fmt"]
 #codegen-full = ["godot-codegen/codegen-full"]
 
@@ -16,5 +16,5 @@ codegen-fmt = ["godot-codegen/codegen-fmt"]
 paste = "1"
 
 [build-dependencies]
-godot-input = { path = "../godot-input" }
+godot-bindings = { path = "../godot-bindings" }
 godot-codegen = { path = "../godot-codegen" }

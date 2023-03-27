@@ -216,7 +216,7 @@ impl MethodReturn {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-pub fn load_extension_api(watch: &mut godot_input::StopWatch) -> (ExtensionApi, &'static str) {
+pub fn load_extension_api(watch: &mut godot_bindings::StopWatch) -> (ExtensionApi, &'static str) {
     // For float/double inference, see:
     // * https://github.com/godotengine/godot-proposals/issues/892
     // * https://github.com/godotengine/godot-cpp/pull/728
@@ -226,7 +226,7 @@ pub fn load_extension_api(watch: &mut godot_input::StopWatch) -> (ExtensionApi, 
     let build_config = "float_64"; // TODO infer this
 
     // Use type inference, so we can accept both String (dynamically resolved) and &str (prebuilt).
-    let json = godot_input::load_gdextension_json(watch);
+    let json = godot_bindings::load_gdextension_json(watch);
     let json_str: &str = json.as_ref();
 
     let model: ExtensionApi =
