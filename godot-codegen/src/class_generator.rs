@@ -584,6 +584,7 @@ fn make_method_definition(
         __call_fn(__method_bind, #receiver_arg, __args_ptr, return_ptr);
     };
 
+    let is_virtual = false;
     make_function_definition(
         method_name_str,
         special_cases::is_private(class_name, &method.name),
@@ -594,6 +595,7 @@ fn make_method_definition(
         init_code,
         &varcall_invocation,
         &ptrcall_invocation,
+        is_virtual,
         ctx,
     )
 }
@@ -634,6 +636,7 @@ fn make_builtin_method_definition(
         __call_fn(#receiver_arg, __args_ptr, return_ptr, __args.len() as i32);
     };
 
+    let is_virtual = false;
     make_function_definition(
         method_name_str,
         special_cases::is_private(class_name, &method.name),
@@ -644,6 +647,7 @@ fn make_builtin_method_definition(
         init_code,
         &ptrcall_invocation,
         &ptrcall_invocation,
+        is_virtual,
         ctx,
     )
 }
@@ -669,8 +673,9 @@ pub(crate) fn make_utility_function_definition(
         __call_fn(return_ptr, __args_ptr, __args.len() as i32);
     };
 
+    let is_virtual = false;
     make_function_definition(
-        &function.name,
+        function_name_str,
         false,
         TokenStream::new(),
         &function.arguments,
@@ -679,6 +684,7 @@ pub(crate) fn make_utility_function_definition(
         init_code,
         &invocation,
         &invocation,
+        is_virtual,
         ctx,
     )
 }
@@ -714,6 +720,7 @@ fn make_function_definition(
     init_code: TokenStream,
     varcall_invocation: &TokenStream,
     ptrcall_invocation: &TokenStream,
+    is_virtual: bool,
     ctx: &mut Context,
 ) -> TokenStream {
     let vis = if is_private {
@@ -761,10 +768,17 @@ fn make_function_definition(
         ptrcall_invocation,
         prepare_arg_types,
         error_fn_context,
+        is_virtual,
         ctx,
     );
 
-    if let Some(variant_ffi) = variant_ffi.as_ref() {
+    if is_virtual {
+        quote! {
+            fn #fn_name( #receiver #( #params, )* ) #return_decl {
+                #call_code
+            }
+        }
+    } else if let Some(variant_ffi) = variant_ffi.as_ref() {
         // varcall (using varargs)
         let sys_method = &variant_ffi.sys_method;
         quote! {
@@ -864,6 +878,7 @@ fn make_params(
     [params, variant_types, arg_exprs, arg_names]
 }
 
+#[allow(clippy::too_many_arguments)]
 fn make_return(
     return_value: Option<&MethodReturn>,
     variant_ffi: Option<&VariantFfi>,
@@ -871,6 +886,7 @@ fn make_return(
     ptrcall_invocation: &TokenStream,
     prepare_arg_types: TokenStream,
     error_fn_context: TokenStream, // only for panic message
+    is_virtual: bool,
     ctx: &mut Context,
 ) -> (TokenStream, TokenStream) {
     let return_decl: TokenStream;
@@ -885,8 +901,13 @@ fn make_return(
         return_ty = None;
     }
 
-    let call = match (variant_ffi, return_ty) {
-        (Some(variant_ffi), Some(return_ty)) => {
+    let call = match (is_virtual, variant_ffi, return_ty) {
+        (true, _, _) => {
+            quote! {
+                unimplemented!()
+            }
+        }
+        (false, Some(variant_ffi), Some(return_ty)) => {
             // If the return type is not Variant, then convert to concrete target type
             let return_expr = match return_ty {
                 RustTy::BuiltinIdent(ident) if ident == "Variant" => quote! { variant },
@@ -908,7 +929,7 @@ fn make_return(
                 #return_expr
             }
         }
-        (Some(_), None) => {
+        (false, Some(_), None) => {
             // Note: __err may remain unused if the #call does not handle errors (e.g. utility fn, ptrcall, ...)
             // TODO use Result instead of panic on error
             quote! {
@@ -921,7 +942,7 @@ fn make_return(
                 }
             }
         }
-        (None, Some(RustTy::EngineClass { tokens, .. })) => {
+        (false, None, Some(RustTy::EngineClass { tokens, .. })) => {
             let return_ty = tokens;
             quote! {
                 <#return_ty>::from_sys_init_opt(|return_ptr| {
@@ -929,14 +950,14 @@ fn make_return(
                 })
             }
         }
-        (None, Some(return_ty)) => {
+        (false, None, Some(return_ty)) => {
             quote! {
                 <#return_ty as sys::GodotFfi>::from_sys_init_default(|return_ptr| {
                     #ptrcall_invocation
                 })
             }
         }
-        (None, None) => {
+        (false, None, None) => {
             quote! {
                 let return_ptr = std::ptr::null_mut();
                 #ptrcall_invocation
@@ -983,19 +1004,35 @@ fn special_virtual_methods() -> TokenStream {
 }
 
 fn make_virtual_method(class_method: &ClassMethod, ctx: &mut Context) -> TokenStream {
-    let method_name = ident(virtual_method_name(class_method));
+    let method_name = virtual_method_name(class_method);
 
     // Virtual methods are never static.
     assert!(!class_method.is_static);
 
     let receiver = make_receiver_self_param(false, class_method.is_const);
-    let [params, _, _, _] = make_params(&class_method.arguments, class_method.is_vararg, ctx);
 
-    quote! {
-        fn #method_name ( #receiver #( #params , )* ) {
-          unimplemented!()
-        }
-    }
+    // make_return requests these token streams, but they won't be used for
+    // virtual methods. We can provide empty streams.
+    let varcall_invocation = TokenStream::new();
+    let ptrcall_invocation = TokenStream::new();
+    let init_code = TokenStream::new();
+    let variant_ffi = None;
+
+    let is_virtual = true;
+    let is_private = false;
+    make_function_definition(
+        method_name,
+        is_private,
+        receiver,
+        &class_method.arguments,
+        class_method.return_value.as_ref(),
+        variant_ffi,
+        init_code,
+        &varcall_invocation,
+        &ptrcall_invocation,
+        is_virtual,
+        ctx,
+    )
 }
 
 fn make_all_virtual_methods(
