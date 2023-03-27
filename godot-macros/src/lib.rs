@@ -171,14 +171,14 @@ mod util;
 ///
 /// If you want to implement your own getter and/or setter, write those as a function on your Rust
 /// type, expose it using `#[func]`, and annotate the field with
-/// `#[export(get = "...", set = "...")]`:
+/// `#[export(get = ..., set = ...)]`:
 ///
 /// ```
 /// use godot::prelude::*;
 ///
 /// #[derive(GodotClass)]
 /// struct MyStruct {
-///     #[export(get = "get_my_field", set = "set_my_field")]
+///     #[export(get = get_my_field, set = set_my_field)]
 ///     my_field: i64,
 /// }
 ///
@@ -206,7 +206,7 @@ mod util;
 /// #[derive(GodotClass)]
 /// struct MyStruct {
 ///     // Default getter, custom setter.
-///     #[export(get, set = "set_my_field")]
+///     #[export(get, set = set_my_field)]
 ///     my_field: i64,
 /// }
 ///
