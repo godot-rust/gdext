@@ -110,6 +110,38 @@ mod util;
 /// }
 /// ```
 ///
+/// The generated `init` function will initialize each struct field (except the field annotated
+/// with `#[base]`, if any) using `Default::default()`. To assign some other value, annotate the
+/// field with `#[init(default = ...)]`:
+///
+/// ```
+/// # use godot_macros::GodotClass;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyStruct {
+///     #[init(default = 42)]
+///     my_field: i64
+/// }
+/// ```
+///
+/// The given value can be any Rust expression that can be evaluated in the scope where you write
+/// the attribute. However, due to limitations in the parser, some complex expressions must be
+/// surrounded by parentheses. This is the case if the expression includes a `,` that is _not_
+/// inside any pair of `(...)`, `[...]` or `{...}` (even if it is, for example, inside `<...>` or
+/// `|...|`). A contrived example:
+///
+/// ```
+/// # use godot_macros::GodotClass;
+/// # use std::collections::HashMap;
+/// # #[derive(GodotClass)]
+/// # #[class(init)]
+/// # struct MyStruct {
+///     #[init(default = (HashMap::<i64, i64>::new()))]
+///     //                             ^ parentheses needed due to this comma
+/// #   my_field: HashMap<i64, i64>,
+/// # }
+/// ```
+///
 /// # Inheritance
 ///
 /// Unlike C++, Rust doesn't really have inheritance, but the GDExtension API lets us "inherit"
@@ -223,7 +255,7 @@ mod util;
 ///
 /// The `#[signal]` attribute is accepted, but not yet implemented. See [issue
 /// #8](https://github.com/godot-rust/gdext/issues/8).
-#[proc_macro_derive(GodotClass, attributes(class, export, base, signal))]
+#[proc_macro_derive(GodotClass, attributes(class, base, export, init, signal))]
 pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)
 }
