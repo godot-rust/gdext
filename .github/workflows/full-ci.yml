@@ -205,6 +205,14 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
             rust-extra-args: --features double-precision
 
+          - name: linux-bindgen
+            artifact-name: linux
+            os: ubuntu-20.04
+            rust-toolchain: stable
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            rust-extra-args: --features custom-godot
+
+
           # Special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
           # Additionally, the Godot source is patched to make dlclose() a no-op, as unloading dynamic libraries loses stacktrace and
           # cause false positives like println!. See https://github.com/google/sanitizers/issues/89.
@@ -231,7 +239,7 @@ jobs:
       - name: "Run Godot integration test"
         uses: ./.github/composite/godot-itest
         with:
-          artifact-name: godot-${{ matrix.name }}
+          artifact-name: godot-${{ matrix.artifact-name || matrix.name }}
           godot-binary: ${{ matrix.godot-binary }}
           godot-args: ${{ matrix.godot-args }}
           rust-extra-args: ${{ matrix.rust-extra-args }}

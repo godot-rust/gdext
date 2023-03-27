@@ -4,22 +4,20 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// See also prebuilt's generator/build.rs which is similar in nature.
+
 use std::path::Path;
 
 fn main() {
     let mut watch = godot_bindings::StopWatch::start();
 
     let gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/"));
-    if gen_path.exists() {
-        std::fs::remove_dir_all(gen_path).unwrap_or_else(|e| panic!("failed to delete dir: {e}"));
-        watch.record("delete_gen_dir");
-    }
-    std::fs::create_dir_all(gen_path).unwrap_or_else(|e| panic!("failed to create dir: {e}"));
+    let header_rs_path = gen_path.join("gdextension_interface.rs");
 
-    let rust_header_path = gen_path.join("gdextension_interface.rs");
-    let header = godot_bindings::load_gdextension_header_rs(&rust_header_path, &mut watch);
-    std::fs::write(rust_header_path, header).expect("failed to write extension header");
+    godot_bindings::clear_dir(gen_path, &mut watch);
+    godot_bindings::write_gdextension_header_rs(&header_rs_path, &mut watch);
 
     godot_codegen::generate_sys_files(gen_path, &mut watch);
+
     watch.write_stats_to(&gen_path.join("godot-ffi-stats.txt"));
 }

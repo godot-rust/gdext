@@ -60,41 +60,42 @@ runs:
         echo "GODOT_BUILT_FROM=_Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)._" >> $GITHUB_ENV
       shell: bash
 
-    # Note: if this fails, run `git diff -R > tweaks.patch` after updating the file manually
-    - name: "Copy and compare GDExtension header"
-      if: inputs.artifact-name == 'godot-linux'
-      run: |
-        mkdir -p godot-codegen/input
-        cp $RUNNER_DIR/godot_bin/gdextension_interface.h godot-codegen/input/gdextension_interface.h
-        git apply godot-codegen/input/tweak.patch -v
-        git diff --exit-code --quiet || {
-            echo "OUTCOME=header-diff" >> $GITHUB_ENV
-            echo "gdextension_interface.h is not up-to-date; abort."
-            echo ""
-            
-            echo "### :x: Outdated GDExtension API header" >> $GITHUB_STEP_SUMMARY
-            echo "gdextension_interface.h contains the following differences:" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
-            git diff >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            echo "After manually updating file, run:   \`git diff -R > tweak.patch\`." >> $GITHUB_STEP_SUMMARY
-
-        	exit 1
-        }
-      shell: bash
-
     - name: "Install Rust"
       uses: ./.github/composite/rust
       with:
         rust: ${{ inputs.rust-toolchain }}
         with-llvm: ${{ inputs.with-llvm }}
 
-    - name: "Build godot-rust"
+    - name: "Build gdext (itest)"
       run: |
         cargo build -p itest ${{ inputs.rust-extra-args }}
       shell: bash
       env:
         RUSTFLAGS: ${{ inputs.rust-env-rustflags }}
+
+    # Note: no longer fails, as we expect header to be forward-compatible; instead issues a warning
+    - name: "Copy and compare GDExtension header"
+      if: inputs.artifact-name == 'godot-linux'
+      working-directory: target/godot-gen
+      run: |
+        mv $RUNNER_DIR/godot_bin/gdextension_interface.h gdextension_interface.h.bak
+        git apply ../../godot-bindings/res/tweaks.patch
+        git diff --no-index --exit-code --quiet gdextension_interface.h gdextension_interface.h.bak || {
+            echo "OUTCOME=header-diff" >> $GITHUB_ENV
+            echo "::warning::gdextension_interface.h is not up-to-date."
+            echo ""
+        
+            echo "### :warning: Outdated GDExtension API header" >> $GITHUB_STEP_SUMMARY
+            echo "gdextension_interface.h contains the following differences:" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
+            git diff --no-index gdextension_interface.h gdextension_interface.h.bak >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "After manually updating file, run:   \`git diff -R > tweak.patch\`." >> $GITHUB_STEP_SUMMARY
+
+            mv gdextension_interface.h.bak gdextension_interface.h
+        	#exit 1
+        }
+      shell: bash
 
     - name: "Run Godot integration tests"
       # Aborts immediately if Godot outputs certain keywords (would otherwise stall until CI runner times out).

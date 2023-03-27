@@ -7,8 +7,8 @@
 use std::env;
 use std::path::Path;
 
-pub(crate) fn generate_rust_binding(c_header_path: &Path, out_rust_path: &Path) {
-    let c_header_path = c_header_path.display().to_string();
+pub(crate) fn generate_rust_binding(in_c_path: &Path, out_rust_path: &Path) {
+    let c_header_path = in_c_path.display().to_string();
     println!("cargo:rerun-if-changed={}", c_header_path);
 
     let builder = bindgen::Builder::default()
@@ -27,12 +27,24 @@ pub(crate) fn generate_rust_binding(c_header_path: &Path, out_rust_path: &Path) 
 
     let bindings = configure_platform_specific(builder)
         .generate()
-        .expect("failed generate gdextension_interface.h bindings");
+        .unwrap_or_else(|err| {
+            panic!(
+                "bindgen generate failed\n    c: {}\n   rs: {}\n  err: {}\n",
+                in_c_path.display(),
+                out_rust_path.display(),
+                err
+            )
+        });
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
-    bindings
-        .write_to_file(out_rust_path)
-        .expect("failed write gdextension_interface.h bindings to file");
+    bindings.write_to_file(out_rust_path).unwrap_or_else(|err| {
+        panic!(
+            "bindgen write failed\n    c: {}\n   rs: {}\n  err: {}\n",
+            in_c_path.display(),
+            out_rust_path.display(),
+            err
+        )
+    });
 }
 
 //#[cfg(target_os = "macos")]
