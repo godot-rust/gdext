@@ -142,6 +142,7 @@ macro_rules! impl_variant_traits_float {
 mod impls {
     use super::*;
 
+    impl_variant_traits!(Aabb, aabb_to_variant, aabb_from_variant, Aabb);
     impl_variant_traits!(bool, bool_to_variant, bool_from_variant, Bool);
     impl_variant_traits!(Basis, basis_to_variant, basis_from_variant, Basis);
     impl_variant_traits!(Vector2, vector2_to_variant, vector2_from_variant, Vector2);
@@ -155,10 +156,6 @@ mod impls {
     impl_variant_traits!(StringName, string_name_to_variant, string_name_from_variant, StringName);
     impl_variant_traits!(NodePath, node_path_to_variant, node_path_from_variant, NodePath);
     // TODO use impl_variant_traits!, as soon as `Default` is available. Also consider auto-generating.
-    impl_variant_metadata!(Rect2, /* rect2_to_variant, rect2_from_variant, */ Rect2);
-    impl_variant_metadata!(Rect2i, /* rect2i_to_variant, rect2i_from_variant, */ Rect2i);
-    impl_variant_metadata!(Plane, /* plane_to_variant, plane_from_variant, */ Plane);
-    impl_variant_metadata!(Aabb, /* aabb_to_variant, aabb_from_variant, */ Aabb);
     impl_variant_metadata!(Callable, /* callable_to_variant, callable_from_variant, */ Callable);
     impl_variant_metadata!(Signal, /* signal_to_variant, signal_from_variant, */ Signal);
     impl_variant_traits!(PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant, PackedByteArray);
@@ -170,8 +167,11 @@ mod impls {
     impl_variant_traits!(PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant, PackedVector2Array);
     impl_variant_traits!(PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant, PackedVector3Array);
     impl_variant_traits!(PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant, PackedColorArray);
+    impl_variant_traits!(Plane, plane_to_variant, plane_from_variant, Plane);
     impl_variant_traits!(Projection, projection_to_variant, projection_from_variant, Projection);
     impl_variant_traits!(Rid, rid_to_variant, rid_from_variant, Rid);
+    impl_variant_traits!(Rect2, rect2_to_variant, rect2_from_variant, Rect2);
+    impl_variant_traits!(Rect2i, rect2i_to_variant, rect2i_from_variant, Rect2i);
     impl_variant_traits!(Transform2D, transform_2d_to_variant, transform_2d_from_variant, Transform2D);
     impl_variant_traits!(Transform3D, transform_3d_to_variant, transform_3d_from_variant, Transform3D);
     impl_variant_traits!(Dictionary, dictionary_to_variant, dictionary_from_variant, Dictionary);

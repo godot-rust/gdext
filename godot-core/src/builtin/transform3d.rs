@@ -10,7 +10,7 @@ use sys::{ffi_methods, GodotFfi};
 
 use super::glam_helpers::{GlamConv, GlamType};
 use super::{real, RAffine3};
-use super::{Basis, Projection, Vector3};
+use super::{Aabb, Basis, Plane, Projection, Vector3};
 
 /// Affine 3D transform (3x4 matrix).
 ///
@@ -292,6 +292,41 @@ impl Mul<real> for Transform3D {
             basis: self.basis * rhs,
             origin: self.origin * rhs,
         }
+    }
+}
+
+impl Mul<Aabb> for Transform3D {
+    type Output = Aabb;
+
+    /// Transforms each coordinate in `rhs.position` and `rhs.end()` individually by this transform, then
+    /// creates an `Aabb` containing all of them.
+    fn mul(self, rhs: Aabb) -> Self::Output {
+        // https://web.archive.org/web/20220317024830/https://dev.theomader.com/transform-bounding-boxes/
+        let xa = self.basis.col_a() * rhs.position.x;
+        let xb = self.basis.col_a() * rhs.end().x;
+
+        let ya = self.basis.col_b() * rhs.position.y;
+        let yb = self.basis.col_b() * rhs.end().y;
+
+        let za = self.basis.col_c() * rhs.position.z;
+        let zb = self.basis.col_c() * rhs.end().z;
+
+        let position =
+            Vector3::min(xa, xb) + Vector3::min(ya, yb) + Vector3::min(za, zb) + self.origin;
+        let end = Vector3::max(xa, xb) + Vector3::max(ya, yb) + Vector3::max(za, zb) + self.origin;
+        Aabb::new(position, end - position)
+    }
+}
+
+impl Mul<Plane> for Transform3D {
+    type Output = Plane;
+
+    fn mul(self, rhs: Plane) -> Self::Output {
+        let point = self * (rhs.normal * rhs.d);
+
+        let basis = self.basis.inverse().transposed();
+
+        Plane::from_point_normal(point, (basis * rhs.normal).normalized())
     }
 }
 

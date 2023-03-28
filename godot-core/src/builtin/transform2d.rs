@@ -9,7 +9,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use super::glam_helpers::{GlamConv, GlamType};
-use super::{math::*, Vector2};
+use super::{math::*, Rect2, Vector2};
 
 use super::real_consts::PI;
 use super::{real, RAffine2, RMat2};
@@ -317,6 +317,25 @@ impl Mul<real> for Transform2D {
 
     fn mul(self, rhs: real) -> Self::Output {
         Self::from_cols(self.a * rhs, self.b * rhs, self.origin * rhs)
+    }
+}
+
+impl Mul<Rect2> for Transform2D {
+    type Output = Rect2;
+
+    /// Transforms each coordinate in `rhs.position` and `rhs.end()` individually by this transform, then
+    /// creates a `Rect2` containing all of them.
+    fn mul(self, rhs: Rect2) -> Self::Output {
+        // https://web.archive.org/web/20220317024830/https://dev.theomader.com/transform-bounding-boxes/
+        let xa = self.a * rhs.position.x;
+        let xb = self.a * rhs.end().x;
+
+        let ya = self.b * rhs.position.y;
+        let yb = self.b * rhs.end().y;
+
+        let position = Vector2::min(xa, xb) + Vector2::min(ya, yb) + self.origin;
+        let end = Vector2::max(xa, xb) + Vector2::max(ya, yb) + self.origin;
+        Rect2::new(position, end - position)
     }
 }
 

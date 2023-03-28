@@ -53,7 +53,7 @@ impl Area2DVirtual for Player {
 
     fn ready(&mut self) {
         let viewport = self.base.get_viewport_rect();
-        self.screen_size = viewport.size();
+        self.screen_size = viewport.size;
         self.base.hide();
     }
 
