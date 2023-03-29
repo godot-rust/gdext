@@ -9,6 +9,9 @@
 use crate::godot_version::parse_godot_version;
 use crate::header_gen::generate_rust_binding;
 use crate::watch::StopWatch;
+
+use regex::Regex;
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -26,7 +29,6 @@ const HEADER_PATH: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../target/godot-gen/gdextension_interface.h"
 );
-const RES_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/res");
 
 pub fn load_gdextension_json(watch: &mut StopWatch) -> String {
     let json_path = Path::new(JSON_PATH);
@@ -45,7 +47,7 @@ pub fn load_gdextension_json(watch: &mut StopWatch) -> String {
     watch.record("dump_json");
     // }
 
-    let result = std::fs::read_to_string(json_path)
+    let result = fs::read_to_string(json_path)
         .unwrap_or_else(|_| panic!("failed to open file {}", json_path.display()));
 
     watch.record("read_json_file");
@@ -81,8 +83,7 @@ pub fn load_gdextension_header_rs(
 
     watch.record("dump_header_c");
 
-    let tweak_path = Path::new(RES_PATH).join("tweak.patch");
-    patch_c_header(c_header_path, &tweak_path);
+    patch_c_header(c_header_path);
     generate_rust_binding(c_header_path, rust_out_path);
 
     watch.record("generate_header_rs");
@@ -92,7 +93,7 @@ pub fn load_gdextension_header_rs(
 fn has_version_changed(current_version: &str) -> bool {
     let version_path = Path::new(GODOT_VERSION_PATH);
 
-    match std::fs::read_to_string(version_path) {
+    match fs::read_to_string(version_path) {
         Ok(last_version) => current_version != last_version,
         Err(_) => true,
     }
@@ -168,26 +169,30 @@ fn dump_header_file(godot_bin: &Path, out_file: &Path) {
     println!("Generated {}/extension_api.json.", cwd.display());
 }
 
-fn patch_c_header(c_header_path: &Path, tweak_path: &Path) {
+fn patch_c_header(c_header_path: &Path) {
     // The C header path *must* be passed in by the invoking crate, as the path cannot be relative to this crate.
     // Otherwise, it can be something like `/home/runner/.cargo/git/checkouts/gdext-76630c89719e160c/efd3b94/godot-bindings`.
-    let cwd = c_header_path.parent().unwrap().parent().unwrap();
-    println!("cwd: {}", cwd.display());
 
-    // Note: patch must have paths relative to Git root (aka top-level dir), so cwd is root
-    rerun_on_changed(tweak_path);
+    // Read the contents of the file into a string
+    let c = fs::read_to_string(c_header_path)
+        .unwrap_or_else(|_| panic!("failed to read C header file {}", c_header_path.display()));
 
-    let git = locate_git_binary();
-    let mut cmd = Command::new(&git);
-    cmd.current_dir(cwd).arg("apply").arg("-v").arg(tweak_path);
+    // Use single regex with independent "const"/"Const", as there are definitions like this:
+    // typedef const void *GDExtensionMethodBindPtr;
+    let c = Regex::new(r"typedef (const )?void \*GDExtension(Const)?([a-zA-Z0-9]+?)Ptr;") //
+        .expect("regex for mut typedef")
+        .replace_all(&c, "typedef ${1}struct __Gdext$3 *GDExtension${2}${3}Ptr;");
 
-    let output = execute(cmd, "apply Git patch");
-    let stderr = String::from_utf8(output.stderr).expect("convert Git patch output to UTF-8");
+    println!("Patched contents:\n\n{}\n\n", c.as_ref());
 
-    // `git patch` returns 0 even if it skips a patch because it's not applicable -- treat this as error
-    assert!(!stderr.contains("Skipped"), "Git patch was skipped");
+    // Write the modified contents back to the file
+    fs::write(c_header_path, c.as_ref()).unwrap_or_else(|_| {
+        panic!(
+            "failed to write patched C header file {}",
+            c_header_path.display()
+        )
+    });
 }
-
 fn locate_godot_binary() -> PathBuf {
     if let Ok(string) = std::env::var("GODOT4_BIN") {
         println!("Found GODOT4_BIN with path to executable: '{string}'");
@@ -199,21 +204,6 @@ fn locate_godot_binary() -> PathBuf {
     } else {
         panic!(
             "gdext with `custom-godot` feature requires 'godot4' executable or a GODOT4_BIN \
-                 environment variable (with the path to the executable)."
-        )
-    }
-}
-
-fn locate_git_binary() -> PathBuf {
-    if let Ok(string) = std::env::var("GIT_BIN") {
-        println!("Found GIT_BIN with path to executable: '{string}'");
-        PathBuf::from(string)
-    } else if let Ok(path) = which::which("git") {
-        println!("Found 'git' executable in PATH: {}", path.display());
-        path
-    } else {
-        panic!(
-            "gdext with `custom-godot` feature requires `git` executable or a GIT_BIN \
                  environment variable (with the path to the executable)."
         )
     }

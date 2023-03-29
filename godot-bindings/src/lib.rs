@@ -10,14 +10,18 @@ use std::path::Path;
 
 pub use watch::StopWatch;
 
-// Features `custom-godot` and `godot4-artifacts` are mutually exclusive.
+#[cfg(all(feature = "custom-godot", feature = "prebuilt-godot"))]
+compile_error!("Exactly one of `custom-godot` or `prebuilt-godot` must be specified (both given).");
+
+#[cfg(not(any(feature = "custom-godot", feature = "prebuilt-godot")))]
+compile_error!("Exactly one of `custom-godot` or `prebuilt-godot` must be specified (none given).");
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Regenerate all files
 
 #[cfg(feature = "custom-godot")]
 #[path = ""]
-mod rebuilt {
+mod custom {
     use super::*;
 
     pub(crate) mod godot_exe;
@@ -41,30 +45,30 @@ mod rebuilt {
 }
 
 #[cfg(feature = "custom-godot")]
-pub use rebuilt::*;
+pub use custom::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Reuse existing files
 
-#[cfg(not(feature = "custom-godot"))]
+#[cfg(feature = "prebuilt-godot")]
 #[path = ""]
-mod existing {
+mod prebuilt {
     use super::*;
 
     pub fn load_gdextension_json(_watch: &mut StopWatch) -> &'static str {
-        godot4_artifacts::load_gdextension_json()
+        godot4_prebuilt::load_gdextension_json()
     }
 
     pub fn write_gdextension_header_rs(to: &Path, _watch: &mut StopWatch) {
         // Note: prebuilt artifacts just return a static str.
-        let header_rs = godot4_artifacts::load_gdextension_header_rs();
+        let header_rs = godot4_prebuilt::load_gdextension_header_rs();
         std::fs::write(to, header_rs)
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.rs: {e}"));
     }
 }
 
-#[cfg(not(feature = "custom-godot"))]
-pub use existing::*;
+#[cfg(feature = "prebuilt-godot")]
+pub use prebuilt::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Common

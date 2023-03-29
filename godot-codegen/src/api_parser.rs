@@ -226,7 +226,10 @@ pub fn load_extension_api(watch: &mut godot_bindings::StopWatch) -> (ExtensionAp
     let build_config = "float_64"; // TODO infer this
 
     // Use type inference, so we can accept both String (dynamically resolved) and &str (prebuilt).
+    // #[allow]: as_ref() acts as impl AsRef<str>, but with conditional compilation
+
     let json = godot_bindings::load_gdextension_json(watch);
+    #[allow(clippy::useless_asref)]
     let json_str: &str = json.as_ref();
 
     let model: ExtensionApi =

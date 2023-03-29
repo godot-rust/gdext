@@ -162,7 +162,7 @@ where
         let callbacks = crate::storage::nop_instance_callbacks();
 
         unsafe {
-            let token = sys::get_library();
+            let token = sys::get_library() as *mut std::ffi::c_void;
             let binding =
                 interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
 
@@ -171,7 +171,7 @@ where
                 "Class {} -- null instance; does the class have a Godot creator function?",
                 std::any::type_name::<T>()
             );
-            crate::private::as_storage::<T>(binding)
+            crate::private::as_storage::<T>(binding as sys::GDExtensionClassInstancePtr)
         }
     }
 }
