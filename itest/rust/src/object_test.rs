@@ -826,3 +826,17 @@ fn double_use_reference() {
     double_use.free();
     emitter.free();
 }
+struct StaticMethods {}
+
+#[godot_api]
+impl StaticMethods {
+    #[func]
+    fn return_int() -> i64 {
+        42
+    }
+
+    #[func]
+    fn add(a: i64, b: i64) -> i64 {
+        a + b
+    }
+}
