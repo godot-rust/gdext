@@ -22,7 +22,7 @@ pub trait SignatureTuple {
         args_ptr: *const sys::GDExtensionConstVariantPtr,
         ret: sys::GDExtensionVariantPtr,
         err: *mut sys::GDExtensionCallError,
-        func: fn(&mut C, Self::Params) -> Self::Ret,
+        func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
         method_name: &str,
     );
 
@@ -32,7 +32,7 @@ pub trait SignatureTuple {
         instance_ptr: sys::GDExtensionClassInstancePtr,
         args_ptr: *const sys::GDExtensionConstTypePtr,
         ret: sys::GDExtensionTypePtr,
-        func: fn(&mut C, Self::Params) -> Self::Ret,
+        func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
         method_name: &str,
     );
 }
@@ -106,17 +106,14 @@ macro_rules! impl_signature_for_tuple {
 
             #[inline]
             unsafe fn varcall<C : GodotClass>(
-				instance_ptr: sys::GDExtensionClassInstancePtr,
+                instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
                 ret: sys::GDExtensionVariantPtr,
                 err: *mut sys::GDExtensionCallError,
-                func: fn(&mut C, Self::Params) -> Self::Ret,
+                func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
                 method_name: &str,
             ) {
-    	        $crate::out!("varcall: {}", method_name);
-
-                let storage = unsafe { crate::private::as_storage::<C>(instance_ptr) };
-                let mut instance = storage.get_mut();
+                $crate::out!("varcall: {}", method_name);
 
                 let args = ( $(
                     {
@@ -128,9 +125,9 @@ macro_rules! impl_signature_for_tuple {
                     },
                 )* );
 
-				let ret_val = func(&mut *instance, args);
+                let ret_val = func(instance_ptr, args);
                 let ret_variant = <$R as ToVariant>::to_variant(&ret_val); // TODO write_sys
-				unsafe {
+                unsafe {
                     *(ret as *mut Variant) = ret_variant;
                     (*err).error = sys::GDEXTENSION_CALL_OK;
                 }
@@ -138,18 +135,15 @@ macro_rules! impl_signature_for_tuple {
 
             #[inline]
             unsafe fn ptrcall<C : GodotClass>(
-				instance_ptr: sys::GDExtensionClassInstancePtr,
+                instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
-                func: fn(&mut C, Self::Params) -> Self::Ret,
+                func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
                 method_name: &str,
             ) {
                 $crate::out!("ptrcall: {}", method_name);
 
-                let storage = unsafe { crate::private::as_storage::<C>(instance_ptr) };
-                let mut instance = storage.get_mut();
-
-				let args = ( $(
+                let args = ( $(
                     unsafe {
                         <$Pn as sys::GodotFuncMarshal>::try_from_sys(
                             sys::force_mut_ptr(*args_ptr.offset($n))
@@ -158,12 +152,12 @@ macro_rules! impl_signature_for_tuple {
                         .unwrap_or_else(|e| param_error::<$Pn>(method_name, $n, &e)),
                 )* );
 
-                let ret_val = func(&mut *instance, args);
-				unsafe { <$R as sys::GodotFuncMarshal>::try_write_sys(&ret_val, ret) }
+                let ret_val = func(instance_ptr, args);
+                unsafe { <$R as sys::GodotFuncMarshal>::try_write_sys(&ret_val, ret) }
                     .unwrap_or_else(|e| return_error::<$R>(method_name, &e));
 
                 // FIXME is inc_ref needed here?
-				// std::mem::forget(ret_val);
+                // std::mem::forget(ret_val);
             }
         }
     };

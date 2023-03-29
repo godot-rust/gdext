@@ -39,10 +39,50 @@ macro_rules! gdext_is_not_unit {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! gdext_method_flags {
+    (INSTANCE) => {
+        $crate::sys::GDEXTENSION_METHOD_FLAGS_DEFAULT
+    };
+    (STATIC) => {
+        $crate::sys::GDEXTENSION_METHOD_FLAG_STATIC
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! gdext_wrap_with_unpacked_params {
+    (
+        INSTANCE,
+        $Class:ty,
+        $method_name:ident,
+        $( $param:ident, )*
+    ) => {
+        |instance_ptr, params| {
+            let storage = unsafe { $crate::private::as_storage::<$Class>(instance_ptr) };
+            let mut instance = storage.get_mut();
+            let ( $($param,)* ) = params;
+            instance.$method_name( $( $param, )* )
+        }
+    };
+    (
+        STATIC,
+        $Class:ty,
+        $method_name:ident,
+        $( $param:ident, )*
+    ) => {
+        |instance_ptr, params| {
+            let ( $($param,)* ) = params;
+            <$Class>::$method_name( $( $param, )* )
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! gdext_register_method_inner {
     (
+        $instance_or_static:ident, // "INSTANCE" or "STATIC"
         $Class:ty,
-        $map_method:ident,
         fn $method_name:ident(
             $( $param:ident : $ParamTy:ty, )*
             $( #[opt] $opt_param:ident : $OptParamTy:ty, )*
@@ -74,10 +114,8 @@ macro_rules! gdext_register_method_inner {
                                 args,
                                 ret,
                                 err,
-                                |inst, params| {
-                                    let ( $($param,)* ) = params;
-                                    inst.$method_name( $( $param, )* )
-                                },
+                                $crate::gdext_wrap_with_unpacked_params!(
+                                    $instance_or_static, $Class, $method_name, $($param,)*),
                                 stringify!($method_name),
                             );
                         }
@@ -107,10 +145,8 @@ macro_rules! gdext_register_method_inner {
                                 instance_ptr,
                                 args,
                                 ret,
-                                |inst, params| {
-                                    let ( $($param,)* ) = params;
-                                    inst.$method_name( $( $param, )* )
-                                },
+                                $crate::gdext_wrap_with_unpacked_params!(
+                                    $instance_or_static, $Class, $method_name, $($param,)*),
                                 stringify!($method_name),
                             );
                         }
@@ -160,7 +196,7 @@ macro_rules! gdext_register_method_inner {
                 method_userdata: std::ptr::null_mut(),
                 call_func: Some(varcall_func),
                 ptrcall_func: Some(ptrcall_func),
-                method_flags: sys::GDEXTENSION_METHOD_FLAGS_DEFAULT as u32,
+                method_flags: $crate::gdext_method_flags!($instance_or_static) as u32,
                 has_return_value: has_return_value as u8,
                 return_value_info: std::ptr::addr_of_mut!(return_value_info_sys),
                 return_value_metadata,
@@ -202,8 +238,8 @@ macro_rules! gdext_register_method {
         ) -> $RetTy:ty
     ) => {
         $crate::gdext_register_method_inner!(
+            INSTANCE,
             $Class,
-            map_mut,
             fn $method_name(
                 $( $param : $ParamTy, )*
                 $( #[opt] $opt_param : $OptParamTy, )*
@@ -222,8 +258,27 @@ macro_rules! gdext_register_method {
         ) -> $RetTy:ty
     ) => {
         $crate::gdext_register_method_inner!(
+            INSTANCE,
             $Class,
-            map,
+            fn $method_name(
+                $( $arg : $Param, )*
+                $( #[opt] $opt_arg : $OptParam, )*
+            ) -> $RetTy
+        )
+    };
+
+    // static
+    (
+        $Class:ty,
+        fn $method_name:ident(
+            $( $arg:ident : $Param:ty),*
+            $(, #[opt] $opt_arg:ident : $OptParam:ty)*
+            $(,)?
+        ) -> $RetTy:ty
+    ) => {
+        $crate::gdext_register_method_inner!(
+            STATIC,
+            $Class,
             fn $method_name(
                 $( $arg : $Param, )*
                 $( #[opt] $opt_arg : $OptParam, )*
@@ -267,6 +322,25 @@ macro_rules! gdext_register_method {
             $Class,
             fn $method_name(
                 &self,
+                $( $param : $ParamTy, )*
+                $( #[opt] $opt_param : $OptParamTy, )*
+            ) -> ()
+        )
+    };
+
+    // static without return type
+    (
+        $Class:ty,
+        fn $method_name:ident(
+            $( $param:ident : $ParamTy:ty ),*
+            $(, #[opt] $opt_param:ident : $OptParamTy:ty )*
+            $(,)?
+        )
+    ) => {
+        // recurse this macro
+        $crate::gdext_register_method!(
+            $Class,
+            fn $method_name(
                 $( $param : $ParamTy, )*
                 $( #[opt] $opt_param : $OptParamTy, )*
             ) -> ()

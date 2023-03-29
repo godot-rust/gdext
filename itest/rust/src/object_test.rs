@@ -655,3 +655,22 @@ impl Drop for Tracker {
         *self.drop_count.borrow_mut() += 1;
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(GodotClass)]
+struct StaticMethods {
+}
+
+#[godot_api]
+impl StaticMethods {
+    #[func]
+    fn return_int() -> i64 {
+        42
+    }
+
+    #[func]
+    fn add(a: i64, b: i64) -> i64 {
+        a + b
+    }
+}

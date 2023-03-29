@@ -25,6 +25,10 @@ func test_init_defaults():
 	assert_eq(obj.literal_int, 42)
 	assert_eq(obj.expr_int, -42)
 
+func test_static():
+	assert_eq(StaticMethods.return_int(), 42)
+	assert_eq(StaticMethods.add(2, 2), 4)
+
 func test_to_string():
 	var ffi = VirtualMethodTest.new()
 	
