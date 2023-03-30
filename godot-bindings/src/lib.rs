@@ -10,11 +10,12 @@ use std::path::Path;
 
 pub use watch::StopWatch;
 
-#[cfg(all(feature = "custom-godot", feature = "prebuilt-godot"))]
-compile_error!("Exactly one of `custom-godot` or `prebuilt-godot` must be specified (both given).");
+// Note: we cannot prevent both `custom-godot` and `prebuilt-godot` from being specified; see Cargo.toml for more information.
 
 #[cfg(not(any(feature = "custom-godot", feature = "prebuilt-godot")))]
-compile_error!("Exactly one of `custom-godot` or `prebuilt-godot` must be specified (none given).");
+compile_error!(
+    "At least one of `custom-godot` or `prebuilt-godot` must be specified (none given)."
+);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Regenerate all files
@@ -50,7 +51,7 @@ pub use custom::*;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Reuse existing files
 
-#[cfg(feature = "prebuilt-godot")]
+#[cfg(not(feature = "custom-godot"))]
 #[path = ""]
 mod prebuilt {
     use super::*;
@@ -67,7 +68,7 @@ mod prebuilt {
     }
 }
 
-#[cfg(feature = "prebuilt-godot")]
+#[cfg(not(feature = "custom-godot"))]
 pub use prebuilt::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

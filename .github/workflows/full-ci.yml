@@ -181,6 +181,14 @@ jobs:
             rust-extra-args: --features double-precision
             with-llvm: true
 
+          - name: macos-bindgen
+            artifact-name: macos
+            os: macos-12
+            rust-toolchain: stable
+            godot-binary: godot.macos.editor.dev.x86_64
+            with-llvm: true
+            rust-extra-args: --features godot/custom-godot
+
           - name: windows
             os: windows-latest
             rust-toolchain: stable-x86_64-pc-windows-msvc
@@ -191,6 +199,13 @@ jobs:
             rust-toolchain: stable-x86_64-pc-windows-msvc
             godot-binary: godot.windows.editor.dev.double.x86_64.exe
             rust-extra-args: --features double-precision
+
+          - name: windows-bindgen
+            artifact-name: windows
+            os: windows-latest
+            rust-toolchain: stable-x86_64-pc-windows-msvc
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            rust-extra-args: --features godot/custom-godot
 
           # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
@@ -210,8 +225,7 @@ jobs:
             os: ubuntu-20.04
             rust-toolchain: stable
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features custom-godot
-
+            rust-extra-args: --features godot/custom-godot
 
           # Special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
           # Additionally, the Godot source is patched to make dlclose() a no-op, as unloading dynamic libraries loses stacktrace and

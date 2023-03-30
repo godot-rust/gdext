@@ -11,7 +11,10 @@ use std::path::Path;
 fn main() {
     let mut watch = godot_bindings::StopWatch::start();
 
-    let gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/"));
+    let gen_path = Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../target/godot-gen/ffi"
+    ));
     let header_rs_path = gen_path.join("gdextension_interface.rs");
 
     godot_bindings::clear_dir(gen_path, &mut watch);

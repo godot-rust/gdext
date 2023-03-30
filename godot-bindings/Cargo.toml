@@ -7,6 +7,10 @@ license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "ffi", "sys"]
 categories = ["game-engines", "graphics"]
 
+# Since features are additive and we want the user to user prebuilt by default, we need to have `prebuilt-godot` as the
+# default feature. However, it's not possible to _disable_ the prebuilt dependency when specifying `godot-custom` (without
+# requiring no-default-features), so we unfortunately still need to depend on prebuilt and just ignore it.
+# The artifact generator explicitly excludes that though (to avoid a quasi-circular dependency back to its repo).
 [features]
 default = ["prebuilt-godot"]
 prebuilt-godot = ["dep:godot4-prebuilt"]
@@ -14,7 +18,7 @@ custom-godot = ["dep:bindgen", "dep:regex", "dep:which"]
 custom-godot-extheader = []
 
 [dependencies]
-godot4-prebuilt = { optional = true, git = "https://github.com/godot-rust/godot4-artifacts", branch = "4.0" }
+godot4-prebuilt = { optional = true, git = "https://github.com/godot-rust/godot4-prebuilt", branch = "4.0.1" }
 
 # Version >= 1.5.5 for security: https://blog.rust-lang.org/2022/03/08/cve-2022-24713.html
 # 'unicode-gencat' needed for \d, see: https://docs.rs/regex/1.5.5/regex/#unicode-features

@@ -7,7 +7,10 @@
 use std::path::Path;
 
 fn main() {
-    let gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/"));
+    let gen_path = Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../target/godot-gen/core"
+    ));
 
     if gen_path.exists() {
         std::fs::remove_dir_all(gen_path).unwrap_or_else(|e| panic!("failed to delete dir: {e}"));
