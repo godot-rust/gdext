@@ -11,10 +11,9 @@ use std::path::Path;
 fn main() {
     let mut watch = godot_bindings::StopWatch::start();
 
-    let gen_path = Path::new(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../target/godot-gen/ffi"
-    ));
+    // It would be better to generate this in /.generated or /target/godot-gen, however IDEs currently
+    // struggle with static analysis when symbols are outside the crate directory (April 2023).
+    let gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen"));
     let header_rs_path = gen_path.join("gdextension_interface.rs");
 
     godot_bindings::clear_dir(gen_path, &mut watch);

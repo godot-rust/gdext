@@ -76,7 +76,7 @@ runs:
     # Note: no longer fails, as we expect header to be forward-compatible; instead issues a warning
     - name: "Copy and compare GDExtension header"
       if: inputs.artifact-name == 'godot-linux'
-      working-directory: target/godot-gen
+      working-directory: godot-ffi/src/gen
       run: |
         mv $RUNNER_DIR/godot_bin/gdextension_interface.h gdextension_interface.h.bak
         git apply ../../godot-bindings/res/tweaks.patch

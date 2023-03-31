@@ -1,7 +1,7 @@
-diff --git b/target/godot-gen/gdextension_interface.h a/target/godot-gen/gdextension_interface.h
+diff --git b/godot-ffi/src/gen/gdextension_interface.h a/godot-ffi/src/gen/gdextension_interface.h
 index 0b7615f..6db266e 100644
---- b/target/godot-gen/gdextension_interface.h
-+++ a/target/godot-gen/gdextension_interface.h
+--- b/godot-ffi/src/gen/gdextension_interface.h
++++ a/godot-ffi/src/gen/gdextension_interface.h
 @@ -139,22 +139,22 @@ typedef enum {
  
  } GDExtensionVariantOperator;

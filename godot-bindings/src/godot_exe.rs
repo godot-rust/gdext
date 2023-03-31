@@ -17,17 +17,11 @@ use std::process::{Command, Output};
 
 // Note: CARGO_BUILD_TARGET_DIR and CARGO_TARGET_DIR are not set.
 // OUT_DIR would be standing to reason, but it's an unspecified path that cannot be referenced by CI.
-const GODOT_VERSION_PATH: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../target/godot-gen/godot_version.txt"
-);
-const JSON_PATH: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../target/godot-gen/extension_api.json"
-);
+const GODOT_VERSION_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/godot_version.txt");
+const JSON_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/extension_api.json");
 const HEADER_PATH: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../target/godot-gen/gdextension_interface.h"
+    "/src/gen/gdextension_interface.h"
 );
 
 pub fn load_gdextension_json(watch: &mut StopWatch) -> String {

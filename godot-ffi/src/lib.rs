@@ -17,7 +17,6 @@
     deref_nullptr,
     clippy::redundant_static_lifetimes
 )]
-#[path = "../../target/godot-gen/ffi/mod.rs"]
 pub(crate) mod gen;
 
 mod godot_ffi;
