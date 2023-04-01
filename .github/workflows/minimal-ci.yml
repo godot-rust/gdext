@@ -44,40 +44,21 @@ jobs:
 
 
   clippy:
-    name: clippy (${{ matrix.name }})
     runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include: 
-          - name: linux
-            rust-toolchain: stable
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-          
-          - name: linux-double
-            rust-toolchain: stable
-            godot-binary: godot.linuxbsd.editor.dev.double.x86_64
-            rust-extra-args: --features double-precision
     steps:
       - uses: actions/checkout@v3
 
       - name: "Install Rust"
         uses: ./.github/composite/rust
-
-      # TODO get rid of Godot binary, once the JSON is either versioned or fetched from somewhere
-      # Replaces also backspaces on Windows, since they cause problems in Bash
-      - name: "Install Godot"
-        uses: ./.github/composite/godot-install
         with:
-          artifact-name: godot-${{ matrix.name }}
-          godot-binary: ${{ matrix.godot-binary }}
+          components: clippy
 
       - name: "Check clippy"
         run: |
           cargo clippy --all-targets $GDEXT_FEATURES ${{ matrix.rust-extra-args }} -- \
           -D clippy::suspicious -D clippy::style -D clippy::complexity -D clippy::perf \
           -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented -D warnings
-
+          
 
   unit-test:
     name: unit-test
@@ -87,12 +68,6 @@ jobs:
 
       - name: "Install Rust"
         uses: ./.github/composite/rust
-
-      - name: "Install Godot"
-        uses: ./.github/composite/godot-install
-        with:
-          artifact-name: godot-linux
-          godot-binary: godot.linuxbsd.editor.dev.x86_64
 
       - name: "Compile tests"
         run: cargo test $GDEXT_FEATURES --no-run
@@ -113,7 +88,6 @@ jobs:
         with:
           artifact-name: godot-linux
           godot-binary: godot.linuxbsd.editor.dev.x86_64
-          #godot_ver: ${{ matrix.godot }}
 
 
   license-guard:
