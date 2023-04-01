@@ -9,16 +9,6 @@ use crate::out;
 use godot_ffi as sys;
 
 use std::any::type_name;
-use std::cell;
-
-/// Manages storage and lifecycle of user's extension class instances.
-pub struct InstanceStorage<T: GodotClass> {
-    user_instance: cell::RefCell<T>,
-
-    // Declared after `user_instance`, is dropped last
-    pub lifecycle: Lifecycle,
-    godot_ref_count: i32,
-}
 
 #[derive(Copy, Clone, Debug)]
 pub enum Lifecycle {
@@ -27,76 +17,201 @@ pub enum Lifecycle {
     Dead, // reading this would typically already be too late, only best-effort in case of UB
 }
 
-/// For all Godot extension classes
-impl<T: GodotClass> InstanceStorage<T> {
-    pub fn construct(user_instance: T) -> Self {
-        out!("    Storage::construct             <{}>", type_name::<T>());
+#[cfg(not(feature = "threads"))]
+pub use single_thread::*;
 
-        Self {
-            user_instance: cell::RefCell::new(user_instance),
-            lifecycle: Lifecycle::Alive,
-            godot_ref_count: 1,
+#[cfg(feature = "threads")]
+pub use multi_thread::*;
+
+#[cfg(not(feature = "threads"))]
+mod single_thread {
+    use std::any::type_name;
+    use std::cell;
+
+    use crate::obj::GodotClass;
+    use crate::out;
+
+    use super::Lifecycle;
+
+    /// Manages storage and lifecycle of user's extension class instances.
+    pub struct InstanceStorage<T: GodotClass> {
+        user_instance: cell::RefCell<T>,
+
+        // Declared after `user_instance`, is dropped last
+        pub lifecycle: Lifecycle,
+        godot_ref_count: u32,
+    }
+
+    /// For all Godot extension classes
+    impl<T: GodotClass> InstanceStorage<T> {
+        pub fn construct(user_instance: T) -> Self {
+            out!("    Storage::construct             <{}>", type_name::<T>());
+
+            Self {
+                user_instance: cell::RefCell::new(user_instance),
+                lifecycle: Lifecycle::Alive,
+                godot_ref_count: 1,
+            }
+        }
+
+        pub(crate) fn on_inc_ref(&mut self) {
+            self.godot_ref_count += 1;
+            out!(
+                "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
+                self.godot_ref_count(),
+                type_name::<T>(),
+                //self.user_instance
+            );
+        }
+
+        pub(crate) fn on_dec_ref(&mut self) {
+            self.godot_ref_count -= 1;
+            out!(
+                "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
+                self.godot_ref_count(),
+                type_name::<T>(),
+                //self.user_instance
+            );
+        }
+
+        /* pub fn destroy(&mut self) {
+            assert!(
+                self.user_instance.is_some(),
+                "Cannot destroy user instance which is not yet initialized"
+            );
+            assert!(
+                !self.destroyed,
+                "Cannot destroy user instance multiple times"
+            );
+            self.user_instance = None; // drops T
+                                       // TODO drop entire Storage
+        }*/
+
+        pub fn get(&self) -> cell::Ref<T> {
+            self.user_instance.try_borrow().unwrap_or_else(|_e| {
+                panic!(
+                    "Gd<T>::bind() failed, already bound; T = {}.\n  \
+                     Make sure there is no &mut T live at the time.\n  \
+                     This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
+                    type_name::<T>()
+                )
+            })
+        }
+
+        pub fn get_mut(&mut self) -> cell::RefMut<T> {
+            self.user_instance.try_borrow_mut().unwrap_or_else(|_e| {
+                panic!(
+                    "Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
+                     Make sure there is no &T or &mut T live at the time.\n  \
+                     This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
+                    type_name::<T>()
+                )
+            })
+        }
+
+        pub(super) fn godot_ref_count(&self) -> u32 {
+            self.godot_ref_count
         }
     }
+}
 
-    pub(crate) fn on_inc_ref(&mut self) {
-        self.godot_ref_count += 1;
-        out!(
-            "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
-            self.godot_ref_count,
-            type_name::<T>(),
-            //self.user_instance
-        );
+#[cfg(feature = "threads")]
+mod multi_thread {
+    use std::any::type_name;
+    use std::sync;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    use crate::obj::GodotClass;
+    use crate::out;
+
+    use super::Lifecycle;
+
+    /// Manages storage and lifecycle of user's extension class instances.
+    pub struct InstanceStorage<T: GodotClass> {
+        user_instance: sync::RwLock<T>,
+
+        // Declared after `user_instance`, is dropped last
+        pub lifecycle: Lifecycle,
+        godot_ref_count: AtomicU32,
     }
 
-    pub(crate) fn on_dec_ref(&mut self) {
-        self.godot_ref_count -= 1;
-        out!(
-            "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
-            self.godot_ref_count,
-            type_name::<T>(),
-            //self.user_instance
-        );
+    /// For all Godot extension classes
+    impl<T: GodotClass> InstanceStorage<T> {
+        pub fn construct(user_instance: T) -> Self {
+            out!("    Storage::construct             <{}>", type_name::<T>());
+
+            Self {
+                user_instance: sync::RwLock::new(user_instance),
+                lifecycle: Lifecycle::Alive,
+                godot_ref_count: AtomicU32::new(1),
+            }
+        }
+
+        pub(crate) fn on_inc_ref(&mut self) {
+            self.godot_ref_count.fetch_add(1, Ordering::Relaxed);
+            out!(
+                "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
+                self.godot_ref_count(),
+                type_name::<T>(),
+                //self.user_instance
+            );
+        }
+
+        pub(crate) fn on_dec_ref(&mut self) {
+            self.godot_ref_count.fetch_sub(1, Ordering::Relaxed);
+            out!(
+                "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
+                self.godot_ref_count(),
+                type_name::<T>(),
+                //self.user_instance
+            );
+        }
+
+        /* pub fn destroy(&mut self) {
+            assert!(
+                self.user_instance.is_some(),
+                "Cannot destroy user instance which is not yet initialized"
+            );
+            assert!(
+                !self.destroyed,
+                "Cannot destroy user instance multiple times"
+            );
+            self.user_instance = None; // drops T
+                                       // TODO drop entire Storage
+        }*/
+
+        pub fn get(&self) -> sync::RwLockReadGuard<T> {
+            self.user_instance.read().unwrap_or_else(|_e| {
+                panic!(
+                    "Gd<T>::bind() failed, already bound; T = {}.\n  \
+                     Make sure there is no &mut T live at the time.\n  \
+                     This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
+                    type_name::<T>()
+                )
+            })
+        }
+
+        pub fn get_mut(&mut self) -> sync::RwLockWriteGuard<T> {
+            self.user_instance.write().unwrap_or_else(|_e| {
+                panic!(
+                    "Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
+                     Make sure there is no &T or &mut T live at the time.\n  \
+                     This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
+                    type_name::<T>()
+                )
+            })
+        }
+
+        pub(super) fn godot_ref_count(&self) -> u32 {
+            self.godot_ref_count.load(Ordering::Relaxed)
+        }
     }
+}
 
-    /* pub fn destroy(&mut self) {
-        assert!(
-            self.user_instance.is_some(),
-            "Cannot destroy user instance which is not yet initialized"
-        );
-        assert!(
-            !self.destroyed,
-            "Cannot destroy user instance multiple times"
-        );
-        self.user_instance = None; // drops T
-                                   // TODO drop entire Storage
-    }*/
-
+impl<T: GodotClass> InstanceStorage<T> {
     #[must_use]
     pub fn into_raw(self) -> *mut Self {
         Box::into_raw(Box::new(self))
-    }
-
-    pub fn get(&self) -> cell::Ref<T> {
-        self.user_instance.try_borrow().unwrap_or_else(|_e| {
-            panic!(
-                "Gd<T>::bind() failed, already bound; T = {}.\n  \
-                 Make sure there is no &mut T live at the time.\n  \
-                 This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
-                type_name::<T>()
-            )
-        })
-    }
-
-    pub fn get_mut(&mut self) -> cell::RefMut<T> {
-        self.user_instance.try_borrow_mut().unwrap_or_else(|_e| {
-            panic!(
-                "Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
-                 Make sure there is no &T or &mut T live at the time.\n  \
-                 This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
-                type_name::<T>()
-            )
-        })
     }
 
     pub fn mark_destroyed_by_godot(&mut self) {
@@ -127,7 +242,7 @@ impl<T: GodotClass> Drop for InstanceStorage<T> {
     fn drop(&mut self) {
         out!(
             "    Storage::drop (rc={})           <{}>", // -- {:?}",
-            self.godot_ref_count,
+            self.godot_ref_count(),
             type_name::<T>(),
             //self.user_instance
         );

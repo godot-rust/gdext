@@ -12,6 +12,7 @@ default = ["codegen-full"]
 formatted = ["godot-core/codegen-fmt"]
 double-precision = ["godot-core/double-precision"]
 custom-godot = ["godot-core/custom-godot"]
+threads = ["godot-core/threads"]
 
 # Private features, they are under no stability guarantee
 codegen-full = ["godot-core/codegen-full"]

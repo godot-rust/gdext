@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 default = []
 trace = ["godot/trace"]
 double-precision = ["godot/double-precision"]
+threads = ["godot/threads"]
 
 [dependencies]
 godot = { path = "../../godot", default-features = false, features = ["formatted"] }

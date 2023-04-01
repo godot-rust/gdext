@@ -169,6 +169,11 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
             rust-extra-args: --features double-precision
 
+          - name: linux-threads
+            os: ubuntu-20.04
+            godot-binary: godot.linuxbsd.editor.dev.double.x86_64
+            rust-extra-args: --features threads
+
           - name: linux-nightly
             os: ubuntu-20.04
             artifact-name: linux
