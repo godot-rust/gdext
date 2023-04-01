@@ -1,41 +1,13 @@
 [workspace]
 members = [
+    "godot-bindings",
     "godot-codegen",
     "godot-ffi",
-    "godot-macros",
     "godot-core",
+    "godot-macros",
     "godot",
 
     # Godot integration
     "itest/rust",
     "examples/dodge-the-creeps/rust"
 ]
-
-# These dependencies don't need to be debugged, make build scripts run faster
-[profile.dev.package.bindgen]
-debug = 0
-opt-level = 3
-
-[profile.dev.package.nanoserde]
-debug = 0
-opt-level = 3
-
-[profile.dev.package.quote]
-debug = 0
-opt-level = 3
-
-[profile.dev.package.proc-macro2]
-debug = 0
-opt-level = 3
-
-[profile.dev.package.venial]
-debug = 0
-opt-level = 3
-
-[profile.dev.package.godot-codegen]
-debug = 0
-opt-level = 3
-
-#[profile.dev.package.regex]
-#debug = 0
-#opt-level = 3
