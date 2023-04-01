@@ -17,12 +17,8 @@ use std::process::{Command, Output};
 
 // Note: CARGO_BUILD_TARGET_DIR and CARGO_TARGET_DIR are not set.
 // OUT_DIR would be standing to reason, but it's an unspecified path that cannot be referenced by CI.
-const GODOT_VERSION_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/godot_version.txt");
+// const GODOT_VERSION_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/godot_version.txt");
 const JSON_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen/extension_api.json");
-const HEADER_PATH: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/src/gen/gdextension_interface.h"
-);
 
 pub fn load_gdextension_json(watch: &mut StopWatch) -> String {
     let json_path = Path::new(JSON_PATH);
@@ -33,57 +29,52 @@ pub fn load_gdextension_json(watch: &mut StopWatch) -> String {
     watch.record("locate_godot");
 
     // Regenerate API JSON if first time or Godot version is different
-    let version = read_godot_version(&godot_bin);
+    let _version = read_godot_version(&godot_bin);
     // if !json_path.exists() || has_version_changed(&version) {
     dump_extension_api(&godot_bin, json_path);
-    update_version_file(&version);
+    // update_version_file(&version);
 
-    watch.record("dump_json");
+    watch.record("dump_api_json");
     // }
 
     let result = fs::read_to_string(json_path)
         .unwrap_or_else(|_| panic!("failed to open file {}", json_path.display()));
 
-    watch.record("read_json_file");
+    watch.record("read_api_json");
     result
 }
 
-pub fn load_gdextension_header_rs(
-    c_in_path: Option<&Path>,
-    rust_out_path: &Path,
+pub fn write_gdextension_headers(
+    inout_h_path: &Path,
+    out_rs_path: &Path,
+    is_h_provided: bool,
     watch: &mut StopWatch,
 ) {
-    let c_header_path;
-
-    if let Some(c_in_path) = c_in_path {
-        // External C header file provided; we don't invoke Godot
-        c_header_path = c_in_path;
-    } else {
+    if !is_h_provided {
         // No external C header file: Godot binary is present, we use it to dump C header
         let godot_bin = locate_godot_binary();
         rerun_on_changed(&godot_bin);
         watch.record("locate_godot");
 
         // Regenerate API JSON if first time or Godot version is different
-        let version = read_godot_version(&godot_bin);
-        c_header_path = Path::new(HEADER_PATH);
+        let _version = read_godot_version(&godot_bin);
 
         // if !c_header_path.exists() || has_version_changed(&version) {
-        dump_header_file(&godot_bin, c_header_path);
-        update_version_file(&version);
+        dump_header_file(&godot_bin, inout_h_path);
+        // update_version_file(&version);
+        watch.record("dump_header_h");
         // }
     };
-    rerun_on_changed(c_header_path);
 
-    watch.record("dump_header_c");
+    rerun_on_changed(inout_h_path);
+    patch_c_header(inout_h_path);
+    watch.record("patch_header_h");
 
-    patch_c_header(c_header_path);
-    generate_rust_binding(c_header_path, rust_out_path);
-
+    generate_rust_binding(inout_h_path, out_rs_path);
     watch.record("generate_header_rs");
 }
 
-#[allow(dead_code)]
+/*
 fn has_version_changed(current_version: &str) -> bool {
     let version_path = Path::new(GODOT_VERSION_PATH);
 
@@ -97,9 +88,10 @@ fn update_version_file(version: &str) {
     let version_path = Path::new(GODOT_VERSION_PATH);
     rerun_on_changed(version_path);
 
-    std::fs::write(version_path, version)
+    fs::write(version_path, version)
         .unwrap_or_else(|_| panic!("write Godot version to file {}", version_path.display()));
 }
+*/
 
 fn read_godot_version(godot_bin: &Path) -> String {
     let output = Command::new(godot_bin)
@@ -135,7 +127,7 @@ fn read_godot_version(godot_bin: &Path) -> String {
 
 fn dump_extension_api(godot_bin: &Path, out_file: &Path) {
     let cwd = out_file.parent().unwrap();
-    std::fs::create_dir_all(cwd).unwrap_or_else(|_| panic!("create directory '{}'", cwd.display()));
+    fs::create_dir_all(cwd).unwrap_or_else(|_| panic!("create directory '{}'", cwd.display()));
     println!("Dump GDExtension API JSON to dir '{}'...", cwd.display());
 
     let mut cmd = Command::new(godot_bin);
@@ -143,14 +135,13 @@ fn dump_extension_api(godot_bin: &Path, out_file: &Path) {
         .arg("--headless")
         .arg("--dump-extension-api");
 
-    execute(cmd, "dump Godot header file");
-
-    println!("Generated {}/gdextension_interface.h.", cwd.display());
+    execute(cmd, "dump Godot JSON file");
+    println!("Generated {}/extension_api.json.", cwd.display());
 }
 
 fn dump_header_file(godot_bin: &Path, out_file: &Path) {
     let cwd = out_file.parent().unwrap();
-    std::fs::create_dir_all(cwd).unwrap_or_else(|_| panic!("create directory '{}'", cwd.display()));
+    fs::create_dir_all(cwd).unwrap_or_else(|_| panic!("create directory '{}'", cwd.display()));
     println!("Dump GDExtension header file to dir '{}'...", cwd.display());
 
     let mut cmd = Command::new(godot_bin);
@@ -158,18 +149,17 @@ fn dump_header_file(godot_bin: &Path, out_file: &Path) {
         .arg("--headless")
         .arg("--dump-gdextension-interface");
 
-    execute(cmd, "dump Godot JSON file");
-
-    println!("Generated {}/extension_api.json.", cwd.display());
+    execute(cmd, "dump Godot header file");
+    println!("Generated {}/gdextension_interface.h.", cwd.display());
 }
 
-fn patch_c_header(c_header_path: &Path) {
+fn patch_c_header(inout_h_path: &Path) {
     // The C header path *must* be passed in by the invoking crate, as the path cannot be relative to this crate.
     // Otherwise, it can be something like `/home/runner/.cargo/git/checkouts/gdext-76630c89719e160c/efd3b94/godot-bindings`.
 
     // Read the contents of the file into a string
-    let c = fs::read_to_string(c_header_path)
-        .unwrap_or_else(|_| panic!("failed to read C header file {}", c_header_path.display()));
+    let c = fs::read_to_string(inout_h_path)
+        .unwrap_or_else(|_| panic!("failed to read C header file {}", inout_h_path.display()));
 
     // Use single regex with independent "const"/"Const", as there are definitions like this:
     // typedef const void *GDExtensionMethodBindPtr;
@@ -180,10 +170,10 @@ fn patch_c_header(c_header_path: &Path) {
     println!("Patched contents:\n\n{}\n\n", c.as_ref());
 
     // Write the modified contents back to the file
-    fs::write(c_header_path, c.as_ref()).unwrap_or_else(|_| {
+    fs::write(inout_h_path, c.as_ref()).unwrap_or_else(|_| {
         panic!(
             "failed to write patched C header file {}",
-            c_header_path.display()
+            inout_h_path.display()
         )
     });
 }

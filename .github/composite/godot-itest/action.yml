@@ -19,6 +19,11 @@ inputs:
     default: ''
     description: "Command-line arguments passed to Godot"
 
+  godot-check-header:
+    required: false
+    default: 'false'
+    description: "Should the job check against latest gdextension_interface.h, and warn on difference"
+
   rust-toolchain:
     required: false
     default: 'stable'
@@ -75,12 +80,13 @@ runs:
 
     # Note: no longer fails, as we expect header to be forward-compatible; instead issues a warning
     - name: "Copy and compare GDExtension header"
-      if: inputs.artifact-name == 'godot-linux'
-      working-directory: godot-ffi/src/gen
+      if: inputs.godot-check-header == 'true'
       run: |
-        mv $RUNNER_DIR/godot_bin/gdextension_interface.h gdextension_interface.h.bak
-        git apply ../../godot-bindings/res/tweaks.patch
-        git diff --no-index --exit-code --quiet gdextension_interface.h gdextension_interface.h.bak || {
+        mv godot-ffi/src/gen/gdextension_interface.h godot-ffi/src/gen/gdextension_interface_prebuilt.h
+        mv $RUNNER_DIR/godot_bin/gdextension_interface.h godot-ffi/src/gen/gdextension_interface.h
+        git apply godot-bindings/res/tweak.patch
+        cd godot-ffi/src/gen
+        git diff --no-index --exit-code --quiet gdextension_interface_prebuilt.h gdextension_interface.h || {
             echo "OUTCOME=header-diff" >> $GITHUB_ENV
             echo "::warning::gdextension_interface.h is not up-to-date."
             echo ""
@@ -88,11 +94,12 @@ runs:
             echo "### :warning: Outdated GDExtension API header" >> $GITHUB_STEP_SUMMARY
             echo "gdextension_interface.h contains the following differences:" >> $GITHUB_STEP_SUMMARY
             echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
-            git diff --no-index gdextension_interface.h gdextension_interface.h.bak >> $GITHUB_STEP_SUMMARY
+            git diff --no-index gdextension_interface_prebuilt.h gdextension_interface.h >> $GITHUB_STEP_SUMMARY || true
             echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
             echo "After manually updating file, run:   \`git diff -R > tweak.patch\`." >> $GITHUB_STEP_SUMMARY
 
-            mv gdextension_interface.h.bak gdextension_interface.h
+            # Undo modifications
+            mv gdextension_interface_prebuilt.h gdextension_interface.h
         	#exit 1
         }
       shell: bash
@@ -121,19 +128,20 @@ runs:
       run: |
         if grep -q "ObjectDB instances leaked at exit" "${{ runner.temp }}/log.txt"; then
           echo "OUTCOME=godot-leak" >> $GITHUB_ENV
-          exit 2
+          exit 3
         fi
       shell: bash
 
     - name: "Conclusion"
       if: always()
       run: |
-        echo "Evaluate conclusion ($OUTCOME)"
+        echo "Evaluate conclusion: $OUTCOME"
         
         case $OUTCOME in
           "success")
-            echo "### :heavy_check_mark: Godot integration tests passed" > $GITHUB_STEP_SUMMARY
-            echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
+             # Do not output success for now, to keep summary focused on warnings/errors
+             #echo "### :heavy_check_mark: Godot integration tests passed" > $GITHUB_STEP_SUMMARY
+             #echo "$GODOT_BUILT_FROM" >> $GITHUB_STEP_SUMMARY
             ;;
         
           "godot-runtime")

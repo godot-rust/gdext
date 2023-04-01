@@ -260,6 +260,7 @@ jobs:
           rust-toolchain: ${{ matrix.rust-toolchain }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
           with-llvm: ${{ matrix.with-llvm }}
+          godot-check-header: ${{ matrix.name == 'linux' }}
 
 
   license-guard:

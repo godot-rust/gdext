@@ -29,19 +29,17 @@ mod custom {
     pub(crate) mod godot_version;
     pub(crate) mod header_gen;
 
-    // #[cfg(not(feature = "custom-godot-extheader"))]
     pub fn load_gdextension_json(watch: &mut StopWatch) -> String {
         godot_exe::load_gdextension_json(watch)
     }
 
-    // #[cfg(not(feature = "custom-godot-extheader"))]
-    pub fn write_gdextension_header_rs(to: &Path, watch: &mut StopWatch) {
-        godot_exe::load_gdextension_header_rs(None, to, watch);
+    pub fn write_gdextension_headers(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
+        godot_exe::write_gdextension_headers(h_path, rs_path, false, watch);
     }
 
     #[cfg(feature = "custom-godot-extheader")]
-    pub fn write_gdextension_header_rs_from_c(from: &Path, to: &Path, watch: &mut StopWatch) {
-        godot_exe::load_gdextension_header_rs(Some(from), to, watch);
+    pub fn write_gdextension_headers_from_c(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
+        godot_exe::write_gdextension_headers(h_path, rs_path, true, watch);
     }
 }
 
@@ -60,11 +58,17 @@ mod prebuilt {
         godot4_prebuilt::load_gdextension_json()
     }
 
-    pub fn write_gdextension_header_rs(to: &Path, _watch: &mut StopWatch) {
+    pub fn write_gdextension_headers(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
         // Note: prebuilt artifacts just return a static str.
-        let header_rs = godot4_prebuilt::load_gdextension_header_rs();
-        std::fs::write(to, header_rs)
+        let h_contents = godot4_prebuilt::load_gdextension_header_h();
+        std::fs::write(h_path, h_contents)
+            .unwrap_or_else(|e| panic!("failed to write gdextension_interface.h: {e}"));
+        watch.record("write_header_h");
+
+        let rs_contents = godot4_prebuilt::load_gdextension_header_rs();
+        std::fs::write(rs_path, rs_contents)
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.rs: {e}"));
+        watch.record("write_header_rs");
     }
 }
 

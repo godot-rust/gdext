@@ -7,8 +7,8 @@
 use std::env;
 use std::path::Path;
 
-pub(crate) fn generate_rust_binding(in_c_path: &Path, out_rust_path: &Path) {
-    let c_header_path = in_c_path.display().to_string();
+pub(crate) fn generate_rust_binding(in_h_path: &Path, out_rs_path: &Path) {
+    let c_header_path = in_h_path.display().to_string();
     println!("cargo:rerun-if-changed={}", c_header_path);
 
     let builder = bindgen::Builder::default()
@@ -19,7 +19,7 @@ pub(crate) fn generate_rust_binding(in_c_path: &Path, out_rust_path: &Path) {
         .prepend_enum_name(false);
 
     std::fs::create_dir_all(
-        out_rust_path
+        out_rs_path
             .parent()
             .expect("bindgen output file has parent dir"),
     )
@@ -30,18 +30,18 @@ pub(crate) fn generate_rust_binding(in_c_path: &Path, out_rust_path: &Path) {
         .unwrap_or_else(|err| {
             panic!(
                 "bindgen generate failed\n    c: {}\n   rs: {}\n  err: {}\n",
-                in_c_path.display(),
-                out_rust_path.display(),
+                in_h_path.display(),
+                out_rs_path.display(),
                 err
             )
         });
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
-    bindings.write_to_file(out_rust_path).unwrap_or_else(|err| {
+    bindings.write_to_file(out_rs_path).unwrap_or_else(|err| {
         panic!(
             "bindgen write failed\n    c: {}\n   rs: {}\n  err: {}\n",
-            in_c_path.display(),
-            out_rust_path.display(),
+            in_h_path.display(),
+            out_rs_path.display(),
             err
         )
     });
