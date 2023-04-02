@@ -9,7 +9,10 @@ use godot_ffi as sys;
 use crate::builtin::*;
 use std::fmt;
 use sys::types::*;
-use sys::{ffi_methods, interface_fn, GodotFfi, TagString, TagType};
+use sys::{ffi_methods, interface_fn, GodotFfi};
+
+// FIXME remove dependency on these types
+use sys::{__GdextString, __GdextType};
 
 /// Defines and implements a single packed array type. This macro is not hygienic and is meant to
 /// be used only in the current module.
@@ -496,7 +499,7 @@ impl_packed_array!(
     opaque_type: OpaquePackedStringArray,
     inner_type: InnerPackedStringArray,
     argument_type: GodotString,
-    return_type: TagString,
+    return_type: __GdextString,
     from_array: packed_string_array_from_array,
     operator_index: packed_string_array_operator_index,
     operator_index_const: packed_string_array_operator_index_const,
@@ -514,7 +517,7 @@ impl_packed_array!(
     opaque_type: OpaquePackedVector2Array,
     inner_type: InnerPackedVector2Array,
     argument_type: Vector2,
-    return_type: TagType,
+    return_type: __GdextType,
     from_array: packed_vector2_array_from_array,
     operator_index: packed_vector2_array_operator_index,
     operator_index_const: packed_vector2_array_operator_index_const,
@@ -532,7 +535,7 @@ impl_packed_array!(
     opaque_type: OpaquePackedVector3Array,
     inner_type: InnerPackedVector3Array,
     argument_type: Vector3,
-    return_type: TagType,
+    return_type: __GdextType,
     from_array: packed_vector3_array_from_array,
     operator_index: packed_vector3_array_operator_index,
     operator_index_const: packed_vector3_array_operator_index_const,
@@ -550,7 +553,7 @@ impl_packed_array!(
     opaque_type: OpaquePackedColorArray,
     inner_type: InnerPackedColorArray,
     argument_type: Color,
-    return_type: TagType,
+    return_type: __GdextType,
     from_array: packed_color_array_from_array,
     operator_index: packed_color_array_operator_index,
     operator_index_const: packed_color_array_operator_index_const,

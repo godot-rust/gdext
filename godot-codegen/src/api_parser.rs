@@ -8,8 +8,6 @@
 #![allow(dead_code)]
 #![allow(clippy::question_mark)] // in #[derive(DeJson)]
 
-use crate::{godot_exe, StopWatch};
-
 use nanoserde::DeJson;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -218,7 +216,7 @@ impl MethodReturn {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-pub fn load_extension_api(watch: &mut StopWatch) -> (ExtensionApi, &'static str) {
+pub fn load_extension_api(watch: &mut godot_bindings::StopWatch) -> (ExtensionApi, &'static str) {
     // For float/double inference, see:
     // * https://github.com/godotengine/godot-proposals/issues/892
     // * https://github.com/godotengine/godot-cpp/pull/728
@@ -227,9 +225,15 @@ pub fn load_extension_api(watch: &mut StopWatch) -> (ExtensionApi, &'static str)
     #[cfg(not(feature = "double-precision"))]
     let build_config = "float_64"; // TODO infer this
 
-    let json: String = godot_exe::load_extension_api_json(watch);
+    // Use type inference, so we can accept both String (dynamically resolved) and &str (prebuilt).
+    // #[allow]: as_ref() acts as impl AsRef<str>, but with conditional compilation
 
-    let model: ExtensionApi = DeJson::deserialize_json(&json).expect("failed to deserialize JSON");
+    let json = godot_bindings::load_gdextension_json(watch);
+    #[allow(clippy::useless_asref)]
+    let json_str: &str = json.as_ref();
+
+    let model: ExtensionApi =
+        DeJson::deserialize_json(json_str).expect("failed to deserialize JSON");
     watch.record("deserialize_json");
 
     (model, build_config)

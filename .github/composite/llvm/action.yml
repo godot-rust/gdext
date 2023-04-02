@@ -24,7 +24,7 @@ runs:
     - name: "Cache LLVM and clang"
       id: cache-llvm
       # Note: conditionals not yet supported; see https://github.com/actions/runner/issues/834
-      # if: ${{ inputs.llvm == 'true' }}
+      # if: inputs.llvm == 'true'
       uses: actions/cache@v3
       with:
 #        path: |
@@ -34,7 +34,7 @@ runs:
         key: llvm-10.0
 
     - uses: KyleMayes/install-llvm-action@v1
-      # if: ${{ inputs.llvm == 'true' }}
+      # if: inputs.llvm == 'true'
       with:
         version: "10.0"
         directory: ${{ env.LLVM_INSTALL_DIR }}

@@ -13,10 +13,10 @@ trace = []
 codegen-fmt = ["godot-ffi/codegen-fmt"]
 codegen-full = ["godot-codegen/codegen-full"]
 double-precision = ["godot-codegen/double-precision"]
+custom-godot = ["godot-ffi/custom-godot", "godot-codegen/custom-godot"]
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi" }
-once_cell = "1.8"
 
 # See https://docs.rs/glam/latest/glam/index.html#feature-gates
 glam = { version = "0.22", features = ["debug-glam-assert"] }

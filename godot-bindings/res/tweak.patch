@@ -1,0 +1,83 @@
+diff --git b/godot-ffi/src/gen/gdextension_interface.h a/godot-ffi/src/gen/gdextension_interface.h
+index 0b7615f..6db266e 100644
+--- b/godot-ffi/src/gen/gdextension_interface.h
++++ a/godot-ffi/src/gen/gdextension_interface.h
+@@ -139,22 +139,22 @@ typedef enum {
+ 
+ } GDExtensionVariantOperator;
+ 
+-typedef void *GDExtensionVariantPtr;
+-typedef const void *GDExtensionConstVariantPtr;
+-typedef void *GDExtensionStringNamePtr;
+-typedef const void *GDExtensionConstStringNamePtr;
+-typedef void *GDExtensionStringPtr;
+-typedef const void *GDExtensionConstStringPtr;
+-typedef void *GDExtensionObjectPtr;
+-typedef const void *GDExtensionConstObjectPtr;
+-typedef void *GDExtensionTypePtr;
+-typedef const void *GDExtensionConstTypePtr;
+-typedef const void *GDExtensionMethodBindPtr;
++typedef struct __GdextVariant *GDExtensionVariantPtr;
++typedef const struct __GdextVariant *GDExtensionConstVariantPtr;
++typedef struct __GdextStringName *GDExtensionStringNamePtr;
++typedef const struct __GdextStringName *GDExtensionConstStringNamePtr;
++typedef struct __GdextString *GDExtensionStringPtr;
++typedef const struct __GdextString *GDExtensionConstStringPtr;
++typedef struct __GdextObject *GDExtensionObjectPtr;
++typedef const struct __GdextObject *GDExtensionConstObjectPtr;
++typedef struct __GdextType *GDExtensionTypePtr;
++typedef const struct __GdextType *GDExtensionConstTypePtr;
++typedef const struct __GdextMethodBind *GDExtensionMethodBindPtr;
+ typedef int64_t GDExtensionInt;
+ typedef uint8_t GDExtensionBool;
+ typedef uint64_t GDObjectInstanceID;
+-typedef void *GDExtensionRefPtr;
+-typedef const void *GDExtensionConstRefPtr;
++typedef struct __GdextRef *GDExtensionRefPtr;
++typedef const struct __GdextRef *GDExtensionConstRefPtr;
+ 
+ /* VARIANT DATA I/O */
+ 
+@@ -203,7 +203,7 @@ typedef struct {
+ 
+ /* EXTENSION CLASSES */
+ 
+-typedef void *GDExtensionClassInstancePtr;
++typedef struct __GdextClassInstance *GDExtensionClassInstancePtr;
+ 
+ typedef GDExtensionBool (*GDExtensionClassSet)(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, GDExtensionConstVariantPtr p_value);
+ typedef GDExtensionBool (*GDExtensionClassGet)(GDExtensionClassInstancePtr p_instance, GDExtensionConstStringNamePtr p_name, GDExtensionVariantPtr r_ret);
+@@ -266,7 +266,7 @@ typedef struct {
+ 	void *class_userdata; // Per-class user data, later accessible in instance bindings.
+ } GDExtensionClassCreationInfo;
+ 
+-typedef void *GDExtensionClassLibraryPtr;
++typedef struct __GdextClassLibrary *GDExtensionClassLibraryPtr;
+ 
+ /* Method */
+ 
+@@ -323,7 +323,7 @@ typedef struct {
+ 
+ /* SCRIPT INSTANCE EXTENSION */
+ 
+-typedef void *GDExtensionScriptInstanceDataPtr; // Pointer to custom ScriptInstance native implementation.
++typedef struct __GdextScriptInstanceData *GDExtensionScriptInstanceDataPtr; // Pointer to custom ScriptInstance native implementation.
+ 
+ typedef GDExtensionBool (*GDExtensionScriptInstanceSet)(GDExtensionScriptInstanceDataPtr p_instance, GDExtensionConstStringNamePtr p_name, GDExtensionConstVariantPtr p_value);
+ typedef GDExtensionBool (*GDExtensionScriptInstanceGet)(GDExtensionScriptInstanceDataPtr p_instance, GDExtensionConstStringNamePtr p_name, GDExtensionVariantPtr r_ret);
+@@ -353,13 +353,13 @@ typedef GDExtensionBool (*GDExtensionScriptInstanceRefCountDecremented)(GDExtens
+ typedef GDExtensionObjectPtr (*GDExtensionScriptInstanceGetScript)(GDExtensionScriptInstanceDataPtr p_instance);
+ typedef GDExtensionBool (*GDExtensionScriptInstanceIsPlaceholder)(GDExtensionScriptInstanceDataPtr p_instance);
+ 
+-typedef void *GDExtensionScriptLanguagePtr;
++typedef struct __GdextScriptLanguage *GDExtensionScriptLanguagePtr;
+ 
+ typedef GDExtensionScriptLanguagePtr (*GDExtensionScriptInstanceGetLanguage)(GDExtensionScriptInstanceDataPtr p_instance);
+ 
+ typedef void (*GDExtensionScriptInstanceFree)(GDExtensionScriptInstanceDataPtr p_instance);
+ 
+-typedef void *GDExtensionScriptInstancePtr; // Pointer to ScriptInstance.
++typedef struct __GdextScriptInstance *GDExtensionScriptInstancePtr; // Pointer to ScriptInstance.
+ 
+ typedef struct {
+ 	GDExtensionScriptInstanceSet set_func;

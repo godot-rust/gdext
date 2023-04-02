@@ -61,8 +61,8 @@ runs:
         cache-on-failure: true
 
     - name: "Install LLVM"
+      if: inputs.with-llvm == 'true'
       uses: ./.github/composite/llvm
-      if: ${{ inputs.with-llvm == 'true' }}
 
     - name: "Set environment variables used by toolchain"
       run: |

@@ -8,17 +8,15 @@ keywords = ["gamedev", "godot", "engine", "codegen"]
 categories = ["game-engines", "graphics"]
 
 [features]
+default = []
 codegen-fmt = []
 codegen-full = []
 double-precision = []
+custom-godot = ["godot-bindings/custom-godot"]
 
 [dependencies]
-quote = "1"
-proc-macro2 = "1"
-which = "4"
+godot-bindings = { path = "../godot-bindings" }
 heck = "0.4"
-
-# Version >= 1.5.5 for security: https://blog.rust-lang.org/2022/03/08/cve-2022-24713.html
-# 'unicode-gencat' needed for \d, see: https://docs.rs/regex/1.5.5/regex/#unicode-features
-regex = { version = "1.5.5", default-features = false, features = ["std", "unicode-gencat"] }
 nanoserde = "0.1.29"
+proc-macro2 = "1"
+quote = "1"
