@@ -10,8 +10,9 @@ use crate::TestContext;
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::GodotString;
 use godot::engine::node::InternalMode;
-use godot::engine::{Node, Node2D, Node2DVirtual, RefCounted, RefCountedVirtual};
+use godot::engine::{Node, Node2D, Node2DVirtual, NodeVirtual, RefCounted, RefCountedVirtual};
 use godot::obj::{Base, Gd, Share};
+use godot::prelude::PackedStringArray;
 use godot::test::itest;
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
@@ -88,6 +89,26 @@ impl Node2DVirtual for TreeVirtualTest {
 
     fn exit_tree(&mut self) {
         self.tree_exits += 1;
+    }
+}
+
+#[derive(GodotClass, Debug)]
+#[class(base=Node)]
+struct ReturnVirtualTest {
+    #[base]
+    base: Base<Node>,
+}
+
+#[godot_api]
+impl NodeVirtual for ReturnVirtualTest {
+    fn init(base: Base<Node>) -> Self {
+        ReturnVirtualTest { base }
+    }
+
+    fn get_configuration_warnings(&self) -> PackedStringArray {
+        let mut output = PackedStringArray::new();
+        output.push("Hello".into());
+        output
     }
 }
 
@@ -214,4 +235,13 @@ fn test_tree_enters_exits(test_context: &TestContext) {
     );
     assert_eq!(obj.bind().tree_enters, 2);
     assert_eq!(obj.bind().tree_exits, 1);
+}
+
+#[itest]
+fn test_virtual_method_with_return(_test_context: &TestContext) {
+    let obj = Gd::<ReturnVirtualTest>::new_default();
+    let output = obj.bind().get_configuration_warnings();
+    assert!(output.contains("Hello".into()));
+    assert_eq!(output.len(), 1);
+    obj.free();
 }
