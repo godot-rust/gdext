@@ -575,6 +575,12 @@ fn make_method_definition(
             __method_name.string_sys(),
             #hash
         );
+        assert!(
+            !__method_bind.is_null(),
+            "failed to load method {}::{} -- possible Godot and gdext version mismatch",
+            #class_name_str,
+            #method_name_str
+        );
         let __call_fn = sys::interface_fn!(#function_provider);
     };
     let varcall_invocation = quote! {
