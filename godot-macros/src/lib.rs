@@ -255,7 +255,10 @@ mod util;
 ///
 /// The `#[signal]` attribute is accepted, but not yet implemented. See [issue
 /// #8](https://github.com/godot-rust/gdext/issues/8).
-#[proc_macro_derive(GodotClass, attributes(class, base, export, init, signal))]
+#[proc_macro_derive(
+    GodotClass,
+    attributes(class, base, export, export_group, init, signal)
+)]
 pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)
 }

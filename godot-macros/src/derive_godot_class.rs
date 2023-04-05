@@ -137,6 +137,13 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
             parser.finish()?;
         }
 
+        // #[export_group]
+        if let Some(mut parser) = KvParser::parse(&named_field.attributes, "export_group")? {
+            let export_group = FieldExportGroup::new_from_kv(&mut parser)?;
+            field.export_group = Some(export_group);
+            parser.finish()?;
+        }
+
         // Exported or Rust-only fields
         if is_base {
             base_field = Some(field);
@@ -171,6 +178,7 @@ struct Field {
     ty: TyExpr,
     default: Option<TokenStream>,
     export: Option<FieldExport>,
+    export_group: Option<FieldExportGroup>,
 }
 
 impl Field {
@@ -180,6 +188,7 @@ impl Field {
             ty: field.ty.clone(),
             default: None,
             export: None,
+            export_group: None,
         }
     }
 }
@@ -257,6 +266,19 @@ impl FieldExport {
     }
 }
 
+struct FieldExportGroup {
+    name: TokenStream,
+    prefix: TokenStream,
+}
+
+impl FieldExportGroup {
+    pub fn new_from_kv(parser: &mut KvParser) -> ParseResult<FieldExportGroup> {
+        let name = parser.handle_expr_required("name")?;
+        let prefix = parser.handle_expr_required("prefix")?;
+        Ok(FieldExportGroup { name, prefix })
+    }
+}
+
 fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
     let base_init = if let Some(Field { name, .. }) = fields.base_field {
         quote! { #name: base, }
@@ -313,94 +335,18 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     let mut export_tokens = Vec::new();
 
     for field in &fields.all_fields {
-        let Some(export) = &field.export else { continue; };
-        let field_name = field.name.to_string();
-        let field_ident = ident(&field_name);
-        let field_type = field.ty.clone();
-
-        let ExportHint {
-            hint_type,
-            description,
-        } = export.hint.clone().unwrap_or_else(ExportHint::none);
-
-        let getter_name;
-        match &export.getter {
-            GetterSetter::Omitted => {
-                getter_name = "".to_owned();
-            }
-            GetterSetter::Generated => {
-                getter_name = format!("get_{field_name}");
-                let getter_ident = ident(&getter_name);
-                let signature = quote! {
-                    fn #getter_ident(&self) -> #field_type
-                };
-                getter_setter_impls.push(quote! {
-                    pub #signature {
-                        ::godot::obj::Export::export(&self.#field_ident)
-                    }
-                });
-                export_tokens.push(quote! {
-                    ::godot::private::gdext_register_method!(#class_name, #signature);
-                });
-            }
-            GetterSetter::Custom(getter_ident) => {
-                getter_name = getter_ident.to_string();
-                export_tokens.push(make_existence_check(getter_ident));
-            }
+        if field.export_group.is_some() {
+            make_group_export_impl(class_name, field, &mut export_tokens);
         }
 
-        let setter_name;
-        match &export.setter {
-            GetterSetter::Omitted => {
-                setter_name = "".to_owned();
-            }
-            GetterSetter::Generated => {
-                setter_name = format!("set_{field_name}");
-                let setter_ident = ident(&setter_name);
-                let signature = quote! {
-                    fn #setter_ident(&mut self, #field_ident: #field_type)
-                };
-                getter_setter_impls.push(quote! {
-                    pub #signature {
-                        self.#field_ident = #field_ident;
-                    }
-                });
-                export_tokens.push(quote! {
-                    ::godot::private::gdext_register_method!(#class_name, #signature);
-                });
-            }
-            GetterSetter::Custom(setter_ident) => {
-                setter_name = setter_ident.to_string();
-                export_tokens.push(make_existence_check(setter_ident));
-            }
-        };
-
-        export_tokens.push(quote! {
-            use ::godot::builtin::meta::VariantMetadata;
-
-            let class_name = ::godot::builtin::StringName::from(#class_name::CLASS_NAME);
-
-            let property_info = ::godot::builtin::meta::PropertyInfo::new(
-                <#field_type>::variant_type(),
-                ::godot::builtin::meta::ClassName::of::<#class_name>(),
-                ::godot::builtin::StringName::from(#field_name),
-                ::godot::engine::global::PropertyHint::#hint_type,
-                ::godot::builtin::GodotString::from(#description),
+        if field.export.is_some() {
+            make_regular_export_impl(
+                class_name,
+                field,
+                &mut export_tokens,
+                &mut getter_setter_impls,
             );
-            let property_info_sys = property_info.property_sys();
-
-            let getter_name = ::godot::builtin::StringName::from(#getter_name);
-            let setter_name = ::godot::builtin::StringName::from(#setter_name);
-            unsafe {
-                ::godot::sys::interface_fn!(classdb_register_extension_class_property)(
-                    ::godot::sys::get_library(),
-                    class_name.string_sys(),
-                    std::ptr::addr_of!(property_info_sys),
-                    setter_name.string_sys(),
-                    getter_name.string_sys(),
-                );
-            }
-        });
+        }
     }
 
     quote! {
@@ -418,6 +364,122 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             }
         }
     }
+}
+
+fn make_regular_export_impl(
+    class_name: &Ident,
+    field: &Field,
+    tokens: &mut Vec<TokenStream>,
+    getsets: &mut Vec<TokenStream>,
+) {
+    let export = field.export.as_ref().expect("field.export");
+    let field_name = field.name.to_string();
+    let field_ident = ident(&field_name);
+    let field_type = field.ty.clone();
+
+    let ExportHint {
+        hint_type,
+        description,
+    } = export.hint.clone().unwrap_or_else(ExportHint::none);
+
+    let getter_name;
+    match &export.getter {
+        GetterSetter::Omitted => {
+            getter_name = "".to_owned();
+        }
+        GetterSetter::Generated => {
+            getter_name = format!("get_{field_name}");
+            let getter_ident = ident(&getter_name);
+            let signature = quote! {
+                fn #getter_ident(&self) -> #field_type
+            };
+            getsets.push(quote! {
+                pub #signature {
+                    ::godot::obj::Export::export(&self.#field_ident)
+                }
+            });
+            tokens.push(quote! {
+                ::godot::private::gdext_register_method!(#class_name, #signature);
+            });
+        }
+        GetterSetter::Custom(getter_ident) => {
+            getter_name = getter_ident.to_string();
+            tokens.push(make_existence_check(getter_ident));
+        }
+    }
+
+    let setter_name;
+    match &export.setter {
+        GetterSetter::Omitted => {
+            setter_name = "".to_owned();
+        }
+        GetterSetter::Generated => {
+            setter_name = format!("set_{field_name}");
+            let setter_ident = ident(&setter_name);
+            let signature = quote! {
+                fn #setter_ident(&mut self, #field_ident: #field_type)
+            };
+            getsets.push(quote! {
+                pub #signature {
+                    self.#field_ident = #field_ident;
+                }
+            });
+            tokens.push(quote! {
+                ::godot::private::gdext_register_method!(#class_name, #signature);
+            });
+        }
+        GetterSetter::Custom(setter_ident) => {
+            setter_name = setter_ident.to_string();
+            tokens.push(make_existence_check(setter_ident));
+        }
+    };
+
+    tokens.push(quote! {
+        use ::godot::builtin::meta::VariantMetadata;
+
+        let class_name = ::godot::builtin::StringName::from(#class_name::CLASS_NAME);
+
+        let property_info = ::godot::builtin::meta::PropertyInfo::new(
+            <#field_type>::variant_type(),
+            ::godot::builtin::meta::ClassName::of::<#class_name>(),
+            ::godot::builtin::StringName::from(#field_name),
+            ::godot::engine::global::PropertyHint::#hint_type,
+            ::godot::builtin::GodotString::from(#description),
+        );
+        let property_info_sys = property_info.property_sys();
+
+        let getter_name = ::godot::builtin::StringName::from(#getter_name);
+        let setter_name = ::godot::builtin::StringName::from(#setter_name);
+        unsafe {
+            ::godot::sys::interface_fn!(classdb_register_extension_class_property)(
+                ::godot::sys::get_library(),
+                class_name.string_sys(),
+                std::ptr::addr_of!(property_info_sys),
+                setter_name.string_sys(),
+                getter_name.string_sys(),
+            );
+        }
+    });
+}
+
+fn make_group_export_impl(class_name: &Ident, field: &Field, tokens: &mut Vec<TokenStream>) {
+    let group = field.export_group.as_ref().expect("field.export_group");
+    let FieldExportGroup { name, prefix } = group;
+
+    tokens.push(quote! {
+        let class_name = ::godot::builtin::StringName::from(#class_name::CLASS_NAME);
+        let group_name = ::godot::builtin::GodotString::from(#name);
+        let prefix = ::godot::builtin::GodotString::from(#prefix);
+
+        unsafe {
+            ::godot::sys::interface_fn!(classdb_register_extension_class_property_group)(
+                ::godot::sys::get_library(),
+                class_name.string_sys(),
+                group_name.string_sys(),
+                prefix.string_sys(),
+            );
+        }
+    });
 }
 
 /// Checks at compile time that a function with the given name exists on `Self`.

@@ -35,6 +35,12 @@ struct HasProperty {
     texture_val: Gd<Texture>,
     #[export(get = get_texture_val, set = set_texture_val, hint = PROPERTY_HINT_RESOURCE_TYPE, hint_desc = "Texture")]
     texture_val_rw: Option<Gd<Texture>>,
+
+    #[export_group(name = "foo group", prefix = "grouped_")]
+    #[export]
+    grouped_foo: i32,
+    #[export]
+    grouped_bar: i32,
 }
 
 #[godot_api]
@@ -128,6 +134,8 @@ impl NodeVirtual for HasProperty {
             string_val: GodotString::new(),
             texture_val: Texture::new(),
             texture_val_rw: None,
+            grouped_foo: 0,
+            grouped_bar: 0,
             base,
         }
     }
