@@ -2,6 +2,11 @@
 entry_symbol = "itest_init"
 
 [libraries]
-linux.x86_64 = "res://../../target/debug/libitest.so"
-windows.x86_64 = "res://../../target/debug/itest.dll"
-macos = "res://../../target/debug/libitest.dylib"
+linux.debug.x86_64 = "res://../../target/debug/libitest.so"
+linux.release.x86_64 = "res://../../target/release/libitest.so"
+windows.debug.x86_64 = "res://../../target/debug/itest.dll"
+windows.release.x86_64 = "res://../../target/release/itest.dll"
+macos.debug = "res://../../target/debug/libitest.dylib"
+macos.release = "res://../../target/release/libitest.dylib"
+macos.debug.arm64 = "res://../../target/aarch64-apple-darwin/debug/libitest.dylib"
+macos.release.arm64 = "res://../../target/aarch64-apple-darwin/release/libitest.dylib"

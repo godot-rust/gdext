@@ -66,6 +66,8 @@ To register the GDExtension library with Godot, you need to create two files rel
    windows.release.x86_64 = "res://../rust/target/release/{my_ext}.dll"
    macos.debug = "res://../rust/target/debug/{my_ext}.dylib"
    macos.release = "res://../rust/target/release/{my_ext}.dylib"
+   macos.debug.arm64 = "res://../rust/target/aarch64-apple-darwin/debug/{my_ext}.dylib"
+   macos.release.arm64 = "res://../rust/target/aarch64-apple-darwin/release/{my_ext}.dylib"
    ```
    (Note that for exporting your project, you'll need to use paths inside `res://`).
 
