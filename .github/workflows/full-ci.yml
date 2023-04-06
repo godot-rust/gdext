@@ -3,7 +3,7 @@
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 # Full CI workflow
-# Run before merging. Rebases on master to make sure CI passes for latest integration, not only for the PR at the time of creation.
+# Runs before merging. Rebases on master to make sure CI passes for latest integration, not only for the PR at the time of creation.
 
 name: Full CI
 
