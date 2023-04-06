@@ -76,6 +76,18 @@ function findGodot() {
         echo "Found 'godot4.bat' script"
         godotBin="godot4.bat"
 
+    # This should come last: only use this as a last resort as usually `godot`
+    # refers to a Godot 3.x installation.
+    elif command -v godot &>/dev/null; then
+        # Check if `godot` actually is Godot 4.x
+        if godot --version | grep -qE "^4\\."; then
+            echo "Found 'godot' executable with version $(godot --version)"
+            godotBin="godot"
+        else
+            echo "Found 'godot' executable, but it has the incompatible version $(godot --version)"
+            exit 2
+        fi
+
     # Error case
     else
         echo "Godot executable not found"
@@ -99,7 +111,7 @@ for arg in "${args[@]}"; do
         ;;
     itest)
         findGodot
-        
+
         cmds+=("cargo $toolchain build -p itest $extraArgs")
         cmds+=("$godotBin --path itest/godot --headless")
         ;;
