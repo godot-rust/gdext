@@ -9,7 +9,7 @@
 
 use crate::itest;
 use godot::builtin::inner::{InnerColor, InnerString};
-use godot::engine::{FileAccess, HttpRequest, HttpRequestVirtual};
+use godot::engine::{FileAccess, HttpRequest, HttpRequestVirtual, Image};
 use godot::prelude::*;
 
 #[itest]
@@ -48,6 +48,12 @@ fn codegen_static_class_method() {
     assert!(exists);
 
     // see also object_test for reference count verification
+}
+
+#[itest]
+fn codegen_constants() {
+    assert_eq!(Image::MAX_WIDTH, 16777216);
+    // assert_eq!(Material::RENDER_PRIORITY_MIN, -128);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

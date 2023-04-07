@@ -173,6 +173,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     let constructor = make_constructor(class, ctx);
     let methods = make_methods(&class.methods, class_name, ctx);
     let enums = make_enums(&class.enums, class_name, ctx);
+    let constants = make_constants(&class.constants, class_name, ctx);
     let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
     let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
     let virtual_trait = make_virtual_methods_trait(class, &all_bases, &virtual_trait_str, ctx);
@@ -205,6 +206,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
             impl #class_name {
                 #constructor
                 #methods
+                #constants
             }
             impl crate::obj::GodotClass for #class_name {
                 type Base = #base;
@@ -420,12 +422,27 @@ fn make_builtin_methods(
 }
 
 fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &TyName, _ctx: &Context) -> TokenStream {
-    let enums = match enums {
-        Some(e) => e,
-        None => return TokenStream::new(),
+    let Some(enums) = enums else {
+        return TokenStream::new();
     };
 
     let definitions = enums.iter().map(util::make_enum_definition);
+
+    quote! {
+        #( #definitions )*
+    }
+}
+
+fn make_constants(
+    constants: &Option<Vec<ClassConstant>>,
+    _class_name: &TyName,
+    _ctx: &Context,
+) -> TokenStream {
+    let Some(constants) = constants else {
+        return TokenStream::new();
+    };
+
+    let definitions = constants.iter().map(util::make_constant_definition);
 
     quote! {
         #( #definitions )*
