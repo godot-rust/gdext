@@ -218,10 +218,12 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let mut godot_init_impl = TokenStream::new();
     let mut to_string_impl = TokenStream::new();
     let mut register_class_impl = TokenStream::new();
+    let mut on_notification_impl = TokenStream::new();
 
     let mut register_fn = quote! { None };
     let mut create_fn = quote! { None };
     let mut to_string_fn = quote! { None };
+    let mut on_notification_fn = quote! { None };
 
     let mut virtual_methods = vec![];
     let mut virtual_method_names = vec![];
@@ -274,6 +276,20 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                 to_string_fn = quote! { Some(#prv::callbacks::to_string::<#class_name>) };
             }
 
+            "on_notification" => {
+                on_notification_impl = quote! {
+                    impl ::godot::obj::cap::GodotNotification for #class_name {
+                        fn __godot_notification(&mut self, what: i32) {
+                            <Self as #trait_name>::on_notification(self, what)
+                        }
+                    }
+                };
+
+                on_notification_fn = quote! {
+                    Some(#prv::callbacks::on_notification::<#class_name>)
+                };
+            }
+
             // Other virtual methods, like ready, process etc.
             _ => {
                 let method = util::reduce_to_signature(method);
@@ -300,6 +316,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         #original_impl
         #godot_init_impl
         #to_string_impl
+        #on_notification_impl
         #register_class_impl
 
         impl ::godot::private::You_forgot_the_attribute__godot_api for #class_name {}
@@ -323,6 +340,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                 user_register_fn: #register_fn,
                 user_create_fn: #create_fn,
                 user_to_string_fn: #to_string_fn,
+                user_on_notification_fn: #on_notification_fn,
                 get_virtual_fn: #prv::callbacks::get_virtual::<#class_name>,
             },
         });

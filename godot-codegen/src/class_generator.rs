@@ -1011,10 +1011,35 @@ fn special_virtual_methods() -> TokenStream {
         fn register_class(builder: &mut crate::builder::ClassBuilder<Self>) {
             unimplemented!()
         }
+
+        /// Godot constructor, accepting an injected `base` object.
+        ///
+        /// `base` refers to the base instance of the class, which can either be stored in a `#[base]` field or discarded.
+        /// This method returns a fully-constructed instance, which will then be moved into a `Gd<T>` pointer.
         fn init(base: crate::obj::Base<Self::Base>) -> Self {
             unimplemented!()
         }
+
+        /// String representation of the Godot instance.
+        ///
+        /// Override this method to define how the instance is represented as a string.
+        /// Used by `str()` and `print()` in GDScript, among others.
         fn to_string(&self) -> crate::builtin::GodotString {
+            unimplemented!()
+        }
+
+        /// Called when the object receives a Godot notification.
+        ///
+        /// The type of notification can be identified through `what`, by comparing it with a `NOTIFICATION_*` constant. These constants are
+        /// defined across multiple classes, most notably in [`Node`](https://docs.godotengine.org/en/stable/classes/class_node.html#constants).
+        ///
+        /// This method is named `_notification` in Godot, but `on_notification` in Rust, to avoid conflicts with the
+        /// [`Object::notification`][crate::engine::Object::notification] method that _issues_ notifications.
+        ///
+        /// See also in Godot docs:
+        /// * [`Object::_notification`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-notification).
+        /// * [Godot notifications](https://docs.godotengine.org/en/stable/tutorials/best_practices/godot_notifications.html).
+        fn on_notification(&mut self, what: i32) {
             unimplemented!()
         }
     }

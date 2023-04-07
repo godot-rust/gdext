@@ -23,6 +23,8 @@ struct WithoutInit {
     some_base: Base<RefCounted>,
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[derive(GodotClass, Debug)]
 #[class(init, base=RefCounted)]
 struct VirtualMethodTest {
@@ -41,6 +43,8 @@ impl RefCountedVirtual for VirtualMethodTest {
         format!("VirtualMethodTest[integer={}]", self.integer).into()
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
@@ -63,6 +67,8 @@ impl Node2DVirtual for ReadyVirtualTest {
         self.implementation_value += 1;
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
@@ -92,6 +98,8 @@ impl Node2DVirtual for TreeVirtualTest {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[derive(GodotClass, Debug)]
 #[class(base=Node)]
 struct ReturnVirtualTest {
@@ -110,6 +118,26 @@ impl NodeVirtual for ReturnVirtualTest {
         output.push("Hello".into());
         output
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(GodotClass, Debug)]
+#[class(base=Node, init)]
+struct NotificationTest {
+    #[base]
+    base: Base<Node>,
+
+    sequence: Vec<i32>,
+}
+
+#[godot_api]
+impl NodeVirtual for NotificationTest {
+    fn on_notification(&mut self, what: i32) {
+        self.sequence.push(what);
+    }
+
+    fn ready(&mut self) {}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -238,10 +266,33 @@ fn test_tree_enters_exits(test_context: &TestContext) {
 }
 
 #[itest]
-fn test_virtual_method_with_return(_test_context: &TestContext) {
+fn test_virtual_method_with_return() {
     let obj = Gd::<ReturnVirtualTest>::new_default();
     let output = obj.bind().get_configuration_warnings();
+
     assert!(output.contains("Hello".into()));
     assert_eq!(output.len(), 1);
+
+    obj.free();
+}
+
+#[itest]
+fn test_notifications() {
+    let obj = Gd::<NotificationTest>::new_default();
+
+    let mut node = obj.share().upcast::<Node>();
+    node.notification(Node::NOTIFICATION_UNPAUSED as i64, false);
+    node.notification(Node::NOTIFICATION_EDITOR_POST_SAVE as i64, false);
+    node.notification(Node::NOTIFICATION_WM_SIZE_CHANGED as i64, true);
+
+    assert_eq!(
+        obj.bind().sequence,
+        vec![
+            Node::NOTIFICATION_UNPAUSED,
+            Node::NOTIFICATION_EDITOR_POST_SAVE,
+            Node::NOTIFICATION_WM_SIZE_CHANGED,
+        ]
+    );
+
     obj.free();
 }
