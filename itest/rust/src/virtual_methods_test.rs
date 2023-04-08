@@ -10,6 +10,7 @@ use crate::TestContext;
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::GodotString;
 use godot::engine::node::InternalMode;
+use godot::engine::notify::NodeNotification;
 use godot::engine::{Node, Node2D, Node2DVirtual, NodeVirtual, RefCounted, RefCountedVirtual};
 use godot::obj::{Base, Gd, Share};
 use godot::prelude::PackedStringArray;
@@ -128,12 +129,12 @@ struct NotificationTest {
     #[base]
     base: Base<Node>,
 
-    sequence: Vec<i32>,
+    sequence: Vec<NodeNotification>,
 }
 
 #[godot_api]
 impl NodeVirtual for NotificationTest {
-    fn on_notification(&mut self, what: i32) {
+    fn on_notification(&mut self, what: NodeNotification) {
         self.sequence.push(what);
     }
 
@@ -281,16 +282,16 @@ fn test_notifications() {
     let obj = Gd::<NotificationTest>::new_default();
 
     let mut node = obj.share().upcast::<Node>();
-    node.notification(Node::NOTIFICATION_UNPAUSED as i64, false);
-    node.notification(Node::NOTIFICATION_EDITOR_POST_SAVE as i64, false);
-    node.notification(Node::NOTIFICATION_WM_SIZE_CHANGED as i64, true);
+    node.issue_notification(NodeNotification::Unpaused);
+    node.issue_notification(NodeNotification::EditorPostSave);
+    node.issue_notification(NodeNotification::WmSizeChanged);
 
     assert_eq!(
         obj.bind().sequence,
         vec![
-            Node::NOTIFICATION_UNPAUSED,
-            Node::NOTIFICATION_EDITOR_POST_SAVE,
-            Node::NOTIFICATION_WM_SIZE_CHANGED,
+            Node::NOTIFICATION_UNPAUSED.into(),
+            Node::NOTIFICATION_EDITOR_POST_SAVE.into(),
+            Node::NOTIFICATION_WM_SIZE_CHANGED.into(),
         ]
     );
 

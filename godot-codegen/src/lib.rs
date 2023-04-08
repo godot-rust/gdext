@@ -227,6 +227,8 @@ impl ToTokens for ModName {
 
 struct GeneratedClass {
     tokens: TokenStream,
+    notification_enum_name: Ident,
+    has_own_notification_enum: bool,
     inherits_macro_ident: Ident,
     has_pub_module: bool,
 }
@@ -238,6 +240,7 @@ struct GeneratedBuiltin {
 struct GeneratedClassModule {
     class_name: TyName,
     module_name: ModName,
+    own_notification_enum_name: Option<Ident>,
     inherits_macro_ident: Ident,
     is_pub: bool,
 }

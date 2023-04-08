@@ -52,6 +52,9 @@ pub(crate) fn generate_class_files(
         modules.push(GeneratedClassModule {
             class_name,
             module_name,
+            own_notification_enum_name: generated_class
+                .has_own_notification_enum
+                .then_some(generated_class.notification_enum_name),
             inherits_macro_ident: generated_class.inherits_macro_ident,
             is_pub: generated_class.has_pub_module,
         });
@@ -176,8 +179,16 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     let constants = make_constants(&class.constants, class_name, ctx);
     let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
     let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
-    let virtual_trait = make_virtual_methods_trait(class, &all_bases, &virtual_trait_str, ctx);
-    let notification_enum = make_notification_enum(class_name, &all_bases, ctx);
+    let (notification_enum, notification_enum_name) =
+        make_notification_enum(class_name, &all_bases, ctx);
+    let virtual_trait = make_virtual_methods_trait(
+        class,
+        &all_bases,
+        &virtual_trait_str,
+        &notification_enum_name,
+        ctx,
+    );
+    let notify_method = make_notify_method(class_name, ctx);
 
     let memory = if class_name.rust_ty == "Object" {
         ident("DynamicRefCount")
@@ -191,6 +202,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     let tokens = quote! {
         use godot_ffi as sys;
         use crate::engine::*;
+        use crate::engine::notify::*;
         use crate::builtin::*;
         use crate::obj::{AsArg, Gd};
         use sys::GodotFfi as _;
@@ -207,6 +219,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
             #notification_enum
             impl #class_name {
                 #constructor
+                #notify_method
                 #methods
                 #constants
             }
@@ -261,8 +274,32 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
 
     GeneratedClass {
         tokens,
+        notification_enum_name,
+        has_own_notification_enum: notification_enum.is_some(),
         inherits_macro_ident: inherits_macro,
         has_pub_module: !enums.is_empty(),
+    }
+}
+
+fn make_notify_method(class_name: &TyName, ctx: &mut Context) -> TokenStream {
+    let enum_name = ctx.notification_enum_name(class_name);
+
+    quote! {
+        /// Sends the `notification` to all classes inherited by the object, triggering calls to `on_notification()`.
+        ///
+        /// Starts from the highest ancestor (the `Object` class) and goes down the hierarchy.
+        ///
+        /// See [docs for `Object::notification()`](https://docs.godotengine.org/en/latest/classes/class_object.html#id3) in Godot.
+        pub fn issue_notification(&mut self, what: #enum_name) {
+            self.notification(i32::from(what) as i64, false);
+        }
+
+        /// Like [`Self::issue_notification()`], but starts at the most-derived class and goes up the hierarchy.
+        ///
+        /// See [docs for `Object::notification()`](https://docs.godotengine.org/en/latest/classes/class_object.html#id3) in Godot.
+        pub fn issue_notification_reversed(&mut self, what: #enum_name) {
+            self.notification(i32::from(what) as i64, true);
+        }
     }
 }
 
@@ -270,10 +307,10 @@ fn make_notification_enum(
     class_name: &TyName,
     all_bases: &Vec<TyName>,
     ctx: &mut Context,
-) -> TokenStream {
+) -> (Option<TokenStream>, Ident) {
     let Some(all_constants) = ctx.notification_constants(class_name) else  {
         // Class has no notification constants: reuse (direct/indirect) base enum
-        return TokenStream::new();
+        return (None, ctx.notification_enum_name(class_name));
     };
 
     // Collect all notification constants from current and base classes
@@ -287,6 +324,10 @@ fn make_notification_enum(
     workaround_constant_collision(&mut all_constants);
 
     let enum_name = ctx.notification_enum_name(class_name);
+    let doc_str = format!(
+        "Notification type for class [`{c}`][crate::engine::{c}].",
+        c = class_name.rust_ty
+    );
 
     let mut notification_enumerators_pascal = Vec::new();
     let mut notification_enumerators_ord = Vec::new();
@@ -295,8 +336,8 @@ fn make_notification_enum(
         notification_enumerators_ord.push(constant_value);
     }
 
-    quote! {
-        /// Notification type for class `#class_name`.
+    let code = quote! {
+        #[doc = #doc_str]
         ///
         /// Makes it easier to keep an overview all possible notification variants for a given class, including
         /// notifications defined in base classes.
@@ -312,9 +353,9 @@ fn make_notification_enum(
             Unknown(i32),
         }
 
-        impl #enum_name {
+        impl From<i32> for #enum_name {
             /// Always succeeds, mapping unknown integers to the `Unknown` variant.
-            pub fn from_i32(enumerator: i32) -> Self {
+            fn from(enumerator: i32) -> Self {
                 match enumerator {
                     #(
                         #notification_enumerators_ord => Self::#notification_enumerators_pascal,
@@ -322,17 +363,21 @@ fn make_notification_enum(
                     other_int => Self::Unknown(other_int),
                 }
             }
+        }
 
-            pub fn to_i32(self) -> i32 {
-                match self {
+        impl From<#enum_name> for i32 {
+            fn from(notification: #enum_name) -> i32 {
+                match notification {
                     #(
-                        Self::#notification_enumerators_pascal => #notification_enumerators_ord,
+                        #enum_name::#notification_enumerators_pascal => #notification_enumerators_ord,
                     )*
-                    Self::Unknown(int) => int,
+                    #enum_name::Unknown(int) => int,
                 }
             }
         }
-    }
+    };
+
+    (Some(code), enum_name)
 }
 
 /// Workaround for Godot bug https://github.com/godotengine/godot/issues/75839
@@ -408,10 +453,14 @@ fn make_builtin_class(
 }
 
 fn make_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> TokenStream {
-    let decls = classes_and_modules.iter().map(|m| {
+    let mut class_decls = Vec::new();
+    let mut notify_decls = Vec::new();
+
+    for m in classes_and_modules.iter() {
         let GeneratedClassModule {
             module_name,
             class_name,
+            own_notification_enum_name,
             is_pub,
             ..
         } = m;
@@ -419,12 +468,21 @@ fn make_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> TokenStre
 
         let vis = is_pub.then_some(quote! { pub });
 
-        quote! {
+        let class_decl = quote! {
             #vis mod #module_name;
             pub use #module_name::re_export::#class_name;
             pub use #module_name::re_export::#virtual_trait_name;
+        };
+        class_decls.push(class_decl);
+
+        if let Some(enum_name) = own_notification_enum_name {
+            let notify_decl = quote! {
+                pub use super::#module_name::re_export::#enum_name;
+            };
+
+            notify_decls.push(notify_decl);
         }
-    });
+    }
 
     let macros = classes_and_modules.iter().map(|m| {
         let GeneratedClassModule {
@@ -440,7 +498,11 @@ fn make_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> TokenStre
     });
 
     quote! {
-        #( #decls )*
+        #( #class_decls )*
+
+        pub mod notify {
+            #( #notify_decls )*
+        }
 
         #[doc(hidden)]
         pub mod class_macros {
@@ -1076,12 +1138,13 @@ fn make_virtual_methods_trait(
     class: &Class,
     all_bases: &[TyName],
     trait_name: &str,
+    notification_enum_name: &Ident,
     ctx: &mut Context,
 ) -> TokenStream {
     let trait_name = ident(trait_name);
 
     let virtual_method_fns = make_all_virtual_methods(class, all_bases, ctx);
-    let special_virtual_methods = special_virtual_methods();
+    let special_virtual_methods = special_virtual_methods(notification_enum_name);
 
     quote! {
         #[allow(unused_variables)]
@@ -1093,7 +1156,7 @@ fn make_virtual_methods_trait(
     }
 }
 
-fn special_virtual_methods() -> TokenStream {
+fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
     quote! {
         fn register_class(builder: &mut crate::builder::ClassBuilder<Self>) {
             unimplemented!()
@@ -1126,7 +1189,7 @@ fn special_virtual_methods() -> TokenStream {
         /// See also in Godot docs:
         /// * [`Object::_notification`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-notification).
         /// * [Godot notifications](https://docs.godotengine.org/en/stable/tutorials/best_practices/godot_notifications.html).
-        fn on_notification(&mut self, what: i32) {
+        fn on_notification(&mut self, what: #notification_enum_name) {
             unimplemented!()
         }
     }

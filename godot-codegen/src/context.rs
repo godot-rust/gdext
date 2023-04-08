@@ -59,7 +59,7 @@ impl<'a> Context<'a> {
                 let mut has_notifications = false;
 
                 for constant in constants.iter() {
-                    if let Some(rust_constant) = util::try_to_notification(&constant) {
+                    if let Some(rust_constant) = util::try_to_notification(constant) {
                         // First time
                         if !has_notifications {
                             ctx.notifications_by_class
@@ -94,10 +94,8 @@ impl<'a> Context<'a> {
             let all_bases = ctx.inheritance_tree.collect_all_bases(class_name);
 
             let mut nearest = None;
-            for i in 0..all_bases.len() {
-                if let Some(nearest_enum_name) =
-                    ctx.notification_enum_names_by_class.get(&all_bases[i])
-                {
+            for (i, elem) in all_bases.iter().enumerate() {
+                if let Some(nearest_enum_name) = ctx.notification_enum_names_by_class.get(elem) {
                     nearest = Some((i, nearest_enum_name.clone()));
                     break;
                 }
@@ -111,6 +109,10 @@ impl<'a> Context<'a> {
                 ctx.notification_enum_names_by_class
                     .insert(base_name.clone(), nearest_enum_name.clone());
             }
+
+            // Also for this class, reuse the type name.
+            ctx.notification_enum_names_by_class
+                .insert(class_name.clone(), nearest_enum_name.clone());
         }
 
         ctx
@@ -150,7 +152,7 @@ impl<'a> Context<'a> {
     pub fn notification_enum_name(&self, class_name: &TyName) -> Ident {
         self.notification_enum_names_by_class
             .get(class_name)
-            .expect("every class must have a notification enum name")
+            .unwrap_or_else(|| panic!("class {} has no notification enum name", class_name.rust_ty))
             .clone()
     }
 
