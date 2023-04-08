@@ -177,6 +177,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
     let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
     let virtual_trait = make_virtual_methods_trait(class, &all_bases, &virtual_trait_str, ctx);
+    let notification_enum = make_notification_enum(class_name, &all_bases, ctx);
 
     let memory = if class_name.rust_ty == "Object" {
         ident("DynamicRefCount")
@@ -203,6 +204,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
                 object_ptr: sys::GDExtensionObjectPtr,
             }
             #virtual_trait
+            #notification_enum
             impl #class_name {
                 #constructor
                 #methods
@@ -261,6 +263,91 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         tokens,
         inherits_macro_ident: inherits_macro,
         has_pub_module: !enums.is_empty(),
+    }
+}
+
+fn make_notification_enum(
+    class_name: &TyName,
+    all_bases: &Vec<TyName>,
+    ctx: &mut Context,
+) -> TokenStream {
+    let Some(all_constants) = ctx.notification_constants(class_name) else  {
+        // Class has no notification constants: reuse (direct/indirect) base enum
+        return TokenStream::new();
+    };
+
+    // Collect all notification constants from current and base classes
+    let mut all_constants = all_constants.clone();
+    for base_name in all_bases {
+        if let Some(constants) = ctx.notification_constants(base_name) {
+            all_constants.extend(constants.iter().cloned());
+        }
+    }
+
+    workaround_constant_collision(&mut all_constants);
+
+    let enum_name = ctx.notification_enum_name(class_name);
+
+    let mut notification_enumerators_pascal = Vec::new();
+    let mut notification_enumerators_ord = Vec::new();
+    for (constant_ident, constant_value) in all_constants {
+        notification_enumerators_pascal.push(constant_ident);
+        notification_enumerators_ord.push(constant_value);
+    }
+
+    quote! {
+        /// Notification type for class `#class_name`.
+        ///
+        /// Makes it easier to keep an overview all possible notification variants for a given class, including
+        /// notifications defined in base classes.
+        #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+        #[repr(i32)]
+        pub enum #enum_name {
+            #(
+                #notification_enumerators_pascal = #notification_enumerators_ord,
+            )*
+
+            /// Since Godot represents notifications as integers, it's always possible that a notification outside the known types
+            /// is received. For example, the user can manually issue notifications through `Object.notification()`.
+            Unknown(i32),
+        }
+
+        impl #enum_name {
+            /// Always succeeds, mapping unknown integers to the `Unknown` variant.
+            pub fn from_i32(enumerator: i32) -> Self {
+                match enumerator {
+                    #(
+                        #notification_enumerators_ord => Self::#notification_enumerators_pascal,
+                    )*
+                    other_int => Self::Unknown(other_int),
+                }
+            }
+
+            pub fn to_i32(self) -> i32 {
+                match self {
+                    #(
+                        Self::#notification_enumerators_pascal => #notification_enumerators_ord,
+                    )*
+                    Self::Unknown(int) => int,
+                }
+            }
+        }
+    }
+}
+
+/// Workaround for Godot bug https://github.com/godotengine/godot/issues/75839
+///
+/// Godot has a collision for two notification constants (DRAW, NODE_CACHE_REQUESTED) in the same inheritance branch (as of 4.0.2).
+/// This cannot be represented in a Rust enum, so we merge the two constants into a single enumerator.
+fn workaround_constant_collision(all_constants: &mut Vec<(Ident, i32)>) {
+    for first in ["Draw", "VisibilityChanged"] {
+        if let Some(index_of_draw) = all_constants
+            .iter()
+            .position(|(constant_name, _)| constant_name == first)
+        {
+            all_constants[index_of_draw].0 = format_ident!("{first}OrNodeRecacheRequested");
+            all_constants.retain(|(constant_name, _)| constant_name != "NodeRecacheRequested");
+        }
     }
 }
 

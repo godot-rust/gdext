@@ -115,6 +115,14 @@ pub fn make_constant_definition(constant: &ClassConstant) -> TokenStream {
     }
 }
 
+/// Tries to interpret the constant as a notification one, and transforms it to a Rust identifier on success.
+pub fn try_to_notification(constant: &ClassConstant) -> Option<Ident> {
+    constant
+        .name
+        .strip_prefix("NOTIFICATION_")
+        .map(|s| ident(&shout_to_pascal(s)))
+}
+
 fn make_enum_name(enum_name: &str) -> Ident {
     // TODO clean up enum name
 
@@ -160,6 +168,27 @@ pub fn to_pascal_case(class_name: &str) -> String {
         .to_pascal_case()
         .replace("GdExtension", "GDExtension")
         .replace("GdNative", "GDNative")
+}
+
+pub fn shout_to_pascal(shout_case: &str) -> String {
+    // TODO use heck?
+
+    let mut result = String::with_capacity(shout_case.len());
+    let mut next_upper = true;
+
+    for ch in shout_case.chars() {
+        if next_upper {
+            assert_ne!(ch, '_'); // no double underscore
+            result.push(ch); // unchanged
+            next_upper = false;
+        } else if ch == '_' {
+            next_upper = true;
+        } else {
+            result.push(ch.to_ascii_lowercase());
+        }
+    }
+
+    result
 }
 
 pub fn ident(s: &str) -> Ident {
