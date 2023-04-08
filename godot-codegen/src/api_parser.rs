@@ -41,7 +41,7 @@ pub struct BuiltinClass {
     pub indexing_return_type: Option<String>,
     pub is_keyed: bool,
     pub members: Option<Vec<Member>>,
-    pub constants: Option<Vec<Constant>>,
+    // pub constants: Option<Vec<BuiltinConstant>>,
     pub enums: Option<Vec<BuiltinClassEnum>>, // no bitfield
     pub operators: Vec<Operator>,
     pub methods: Option<Vec<BuiltinClassMethod>>,
@@ -56,7 +56,7 @@ pub struct Class {
     pub is_instantiable: bool,
     pub inherits: Option<String>,
     // pub api_type: String,
-    // pub constants: Option<Vec<Constant>>,
+    pub constants: Option<Vec<ClassConstant>>,
     pub enums: Option<Vec<Enum>>,
     pub methods: Option<Vec<ClassMethod>>,
     // pub properties: Option<Vec<Property>>,
@@ -100,13 +100,18 @@ pub struct EnumConstant {
     pub value: i32,
 }
 
+pub type ClassConstant = EnumConstant;
+
+/*
+// Constants of builtin types have a string value like "Vector2(1, 1)", hence also a type field
 #[derive(DeJson)]
-pub struct Constant {
+pub struct BuiltinConstant {
     pub name: String,
     #[nserde(rename = "type")]
     pub type_: String,
     pub value: String,
 }
+*/
 
 #[derive(DeJson)]
 pub struct Operator {

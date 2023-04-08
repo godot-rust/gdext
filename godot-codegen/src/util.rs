@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::api_parser::Enum;
+use crate::api_parser::{ClassConstant, Enum};
 use crate::special_cases::is_builtin_scalar;
 use crate::{Context, ModName, RustTy, TyName};
 use proc_macro2::{Ident, Literal, TokenStream};
@@ -103,6 +103,15 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
             sys::ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
         }
         #bitfield_ops
+    }
+}
+
+pub fn make_constant_definition(constant: &ClassConstant) -> TokenStream {
+    let ClassConstant { name, value } = constant;
+    let name = ident(name);
+
+    quote! {
+        pub const #name: i32 = #value;
     }
 }
 
