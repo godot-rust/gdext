@@ -110,8 +110,15 @@ pub fn make_constant_definition(constant: &ClassConstant) -> TokenStream {
     let ClassConstant { name, value } = constant;
     let name = ident(name);
 
-    quote! {
-        pub const #name: i32 = #value;
+    if constant.name.starts_with("NOTIFICATION_") {
+        // Already exposed through enums
+        quote! {
+            pub(crate) const #name: i32 = #value;
+        }
+    } else {
+        quote! {
+            pub const #name: i32 = #value;
+        }
     }
 }
 

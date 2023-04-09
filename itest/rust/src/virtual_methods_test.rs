@@ -123,22 +123,30 @@ impl NodeVirtual for ReturnVirtualTest {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[derive(Eq, PartialEq, Debug)]
+enum ReceivedEvent {
+    Notification(NodeNotification),
+    Ready,
+}
+
 #[derive(GodotClass, Debug)]
 #[class(base=Node, init)]
 struct NotificationTest {
     #[base]
     base: Base<Node>,
 
-    sequence: Vec<NodeNotification>,
+    sequence: Vec<ReceivedEvent>,
 }
 
 #[godot_api]
 impl NodeVirtual for NotificationTest {
     fn on_notification(&mut self, what: NodeNotification) {
-        self.sequence.push(what);
+        self.sequence.push(ReceivedEvent::Notification(what));
     }
 
-    fn ready(&mut self) {}
+    fn ready(&mut self) {
+        self.sequence.push(ReceivedEvent::Ready);
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -277,23 +285,24 @@ fn test_virtual_method_with_return() {
     obj.free();
 }
 
-#[itest]
+#[itest(focus)]
 fn test_notifications() {
     let obj = Gd::<NotificationTest>::new_default();
-
     let mut node = obj.share().upcast::<Node>();
     node.issue_notification(NodeNotification::Unpaused);
     node.issue_notification(NodeNotification::EditorPostSave);
-    node.issue_notification(NodeNotification::WmSizeChanged);
+    node.issue_notification(NodeNotification::Ready);
+    node.issue_notification_reversed(NodeNotification::WmSizeChanged);
 
     assert_eq!(
         obj.bind().sequence,
         vec![
-            Node::NOTIFICATION_UNPAUSED.into(),
-            Node::NOTIFICATION_EDITOR_POST_SAVE.into(),
-            Node::NOTIFICATION_WM_SIZE_CHANGED.into(),
+            ReceivedEvent::Notification(NodeNotification::Unpaused),
+            ReceivedEvent::Notification(NodeNotification::EditorPostSave),
+            ReceivedEvent::Ready,
+            ReceivedEvent::Notification(NodeNotification::Ready),
+            ReceivedEvent::Notification(NodeNotification::WmSizeChanged),
         ]
     );
-
     obj.free();
 }
