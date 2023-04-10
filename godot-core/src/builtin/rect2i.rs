@@ -58,7 +58,7 @@ impl Rect2i {
     pub fn from_corners(position: Vector2i, end: Vector2i) -> Self {
         Self {
             position,
-            size: position + end,
+            size: end - position,
         }
     }
 
