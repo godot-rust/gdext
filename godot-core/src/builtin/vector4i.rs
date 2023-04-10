@@ -11,6 +11,9 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::Vector4;
 
+use super::glam_helpers::{GlamConv, GlamType};
+use super::IVec4;
+
 /// Vector used for 4D math using integer coordinates.
 ///
 /// 4-element structure that can be used to represent 4D grid coordinates or sets of integers.
@@ -65,13 +68,13 @@ impl Vector4i {
     pub const ONE: Self = Self::splat(1);
 
     /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: glam::IVec4) -> Self {
+    fn from_glam(v: IVec4) -> Self {
         Self::new(v.x, v.y, v.z, v.w)
     }
 
     /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> glam::IVec4 {
-        glam::IVec4::new(self.x, self.y, self.z, self.w)
+    fn to_glam(self) -> IVec4 {
+        IVec4::new(self.x, self.y, self.z, self.w)
     }
 }
 
@@ -102,4 +105,33 @@ pub enum Vector4iAxis {
 
 impl GodotFfi for Vector4iAxis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl GlamType for IVec4 {
+    type Mapped = Vector4i;
+
+    fn to_front(&self) -> Self::Mapped {
+        Vector4i::new(self.x, self.y, self.z, self.w)
+    }
+
+    fn from_front(mapped: &Self::Mapped) -> Self {
+        IVec4::new(mapped.x, mapped.y, mapped.z, mapped.w)
+    }
+}
+
+impl GlamConv for Vector4i {
+    type Glam = IVec4;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn coord_min_max() {
+        let a = Vector4i::new(1, 3, 5, 0);
+        let b = Vector4i::new(0, 5, 2, 1);
+        assert_eq!(a.coord_min(b), Vector4i::new(0, 3, 2, 0),);
+        assert_eq!(a.coord_max(b), Vector4i::new(1, 5, 5, 1));
+    }
 }

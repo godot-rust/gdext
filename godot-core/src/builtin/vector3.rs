@@ -381,13 +381,10 @@ impl GlamConv for Vector3 {
 
 #[cfg(test)]
 mod test {
+    use crate::assert_eq_approx;
+
     use super::*;
     use godot::builtin::real_consts::TAU;
-    use godot::private::class_macros::assert_eq_approx;
-
-    fn vec3_equal_approx(a: Vector3, b: Vector3) -> bool {
-        a.is_equal_approx(b)
-    }
 
     // Translated from Godot
     #[test]
@@ -397,22 +394,38 @@ mod test {
         assert_eq_approx!(
             vector.rotated(Vector3::new(0.0, 1.0, 0.0), TAU),
             vector,
-            vec3_equal_approx
+            Vector3::is_equal_approx
         );
         assert_eq_approx!(
             vector.rotated(Vector3::new(0.0, 1.0, 0.0), TAU / 4.0),
             Vector3::new(5.6, 3.4, -1.2),
-            vec3_equal_approx
+            Vector3::is_equal_approx
         );
         assert_eq_approx!(
             vector.rotated(Vector3::new(1.0, 0.0, 0.0), TAU / 3.0),
             Vector3::new(1.2, -6.54974226119285642, 0.1444863728670914),
-            vec3_equal_approx
+            Vector3::is_equal_approx
         );
         assert_eq_approx!(
             vector.rotated(Vector3::new(0.0, 0.0, 1.0), TAU / 2.0),
             vector.rotated(Vector3::new(0.0, 0.0, 1.0), TAU / -2.0),
-            vec3_equal_approx
+            Vector3::is_equal_approx
+        );
+    }
+
+    #[test]
+    fn coord_min_max() {
+        let a = Vector3::new(1.2, 3.4, 5.6);
+        let b = Vector3::new(0.1, 5.6, 2.3);
+        assert_eq_approx!(
+            a.coord_min(b),
+            Vector3::new(0.1, 3.4, 2.3),
+            Vector3::is_equal_approx
+        );
+        assert_eq_approx!(
+            a.coord_max(b),
+            Vector3::new(1.2, 5.6, 5.6),
+            Vector3::is_equal_approx
         );
     }
 }

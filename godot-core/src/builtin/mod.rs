@@ -212,7 +212,7 @@ mod real_mod {
     /// A 4-dimensional vector from [`glam`]. Using a floating-point format compatible with [`real`].
     pub type RVec4 = glam::Vec4;
 
-    /// A 2x2 column-major matrix from [`glam`]. Using a floating-point format compatible with [`real`].  
+    /// A 2x2 column-major matrix from [`glam`]. Using a floating-point format compatible with [`real`].
     pub type RMat2 = glam::Mat2;
     /// A 3x3 column-major matrix from [`glam`]. Using a floating-point format compatible with [`real`].
     pub type RMat3 = glam::Mat3;
@@ -279,7 +279,7 @@ mod real_mod {
     /// A 4-dimensional vector from [`glam`]. Using a floating-point format compatible with [`real`].
     pub type RVec4 = glam::DVec4;
 
-    /// A 2x2 column-major matrix from [`glam`]. Using a floating-point format compatible with [`real`].  
+    /// A 2x2 column-major matrix from [`glam`]. Using a floating-point format compatible with [`real`].
     pub type RMat2 = glam::DMat2;
     /// A 3x3 column-major matrix from [`glam`]. Using a floating-point format compatible with [`real`].
     pub type RMat3 = glam::DMat3;
@@ -301,6 +301,8 @@ mod real_mod {
 pub use crate::real;
 pub(crate) use real_mod::*;
 pub use real_mod::{consts as real_consts, real};
+
+pub(crate) use glam::{IVec2, IVec3, IVec4};
 
 /// A macro to coerce float-literals into the real type. Mainly used where
 /// you'd normally use a suffix to specity the type, such as `115.0f32`.

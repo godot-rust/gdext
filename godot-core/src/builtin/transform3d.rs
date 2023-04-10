@@ -311,9 +311,14 @@ impl Mul<Aabb> for Transform3D {
         let za = self.basis.col_c() * rhs.position.z;
         let zb = self.basis.col_c() * rhs.end().z;
 
-        let position =
-            Vector3::min(xa, xb) + Vector3::min(ya, yb) + Vector3::min(za, zb) + self.origin;
-        let end = Vector3::max(xa, xb) + Vector3::max(ya, yb) + Vector3::max(za, zb) + self.origin;
+        let position = Vector3::coord_min(xa, xb)
+            + Vector3::coord_min(ya, yb)
+            + Vector3::coord_min(za, zb)
+            + self.origin;
+        let end = Vector3::coord_max(xa, xb)
+            + Vector3::coord_max(ya, yb)
+            + Vector3::coord_max(za, zb)
+            + self.origin;
         Aabb::new(position, end - position)
     }
 }

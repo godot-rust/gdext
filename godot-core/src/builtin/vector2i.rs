@@ -11,6 +11,9 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::Vector2;
 
+use super::glam_helpers::{GlamConv, GlamType};
+use super::IVec2;
+
 /// Vector used for 2D math using integer coordinates.
 ///
 /// 2-element structure that can be used to represent positions in 2D space or any other pair of
@@ -67,13 +70,13 @@ impl Vector2i {
     }
 
     /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: glam::IVec2) -> Self {
+    fn from_glam(v: IVec2) -> Self {
         Self::new(v.x, v.y)
     }
 
     /// Converts `self` to the corresponding `glam` type.
     fn to_glam(self) -> glam::IVec2 {
-        glam::IVec2::new(self.x, self.y)
+        IVec2::new(self.x, self.y)
     }
 }
 
@@ -104,4 +107,33 @@ pub enum Vector2iAxis {
 
 impl GodotFfi for Vector2iAxis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl GlamType for IVec2 {
+    type Mapped = Vector2i;
+
+    fn to_front(&self) -> Self::Mapped {
+        Vector2i::new(self.x, self.y)
+    }
+
+    fn from_front(mapped: &Self::Mapped) -> Self {
+        IVec2::new(mapped.x, mapped.y)
+    }
+}
+
+impl GlamConv for Vector2i {
+    type Glam = IVec2;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn coord_min_max() {
+        let a = Vector2i::new(1, 3);
+        let b = Vector2i::new(0, 5);
+        assert_eq!(a.coord_min(b), Vector2i::new(0, 3));
+        assert_eq!(a.coord_max(b), Vector2i::new(1, 5));
+    }
 }
