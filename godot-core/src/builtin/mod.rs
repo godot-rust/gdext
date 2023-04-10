@@ -332,6 +332,7 @@ macro_rules! real {
 /// The side of a [`Rect2`] or [`Rect2i`].
 ///
 /// _Godot equivalent: `@GlobalScope.Side`_
+#[derive(Copy, Clone)]
 #[repr(C)]
 pub enum RectSide {
     Left = 0,

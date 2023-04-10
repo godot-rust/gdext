@@ -25,6 +25,7 @@ mod object_test;
 mod packed_array_test;
 mod projection_test;
 mod quaternion_test;
+mod rect2i_test;
 mod rid_test;
 mod singleton_test;
 mod string_test;
