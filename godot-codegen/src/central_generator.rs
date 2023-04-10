@@ -258,6 +258,12 @@ fn make_core_code(central_items: &CentralItems) -> String {
             }
         }
 
+        /// Global enums and constants.
+        ///
+        /// A list of global-scope enumerated constants.
+        /// For global built-in functions, check out the [`utilities` module][crate::engine::utilities].
+        ///
+        /// See also [Godot docs for `@GlobalScope`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#enumerations).
         pub mod global {
             use crate::sys;
             #( #global_enum_defs )*
