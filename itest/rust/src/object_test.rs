@@ -115,7 +115,17 @@ fn object_engine_roundtrip() {
 }
 
 #[itest]
-fn object_display() {
+fn object_user_display() {
+    let obj = Gd::new(ObjPayload { value: 774 });
+
+    let actual = format!(".:{obj}:.");
+    let expected = ".:value=774:.".to_string();
+
+    assert_eq!(actual, expected);
+}
+
+#[itest]
+fn object_engine_display() {
     let obj = Node3D::new_alloc();
     let id = obj.instance_id();
 
@@ -631,7 +641,6 @@ fn user_object() -> Gd<ObjPayload> {
 }
 
 #[derive(GodotClass, Debug, Eq, PartialEq)]
-//#[class(init)]
 pub struct ObjPayload {
     value: i16,
 }
@@ -640,6 +649,10 @@ pub struct ObjPayload {
 impl RefCountedVirtual for ObjPayload {
     fn init(_base: Base<Self::Base>) -> Self {
         Self { value: 111 }
+    }
+
+    fn to_string(&self) -> GodotString {
+        format!("value={}", self.value).into()
     }
 }
 

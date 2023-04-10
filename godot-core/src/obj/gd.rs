@@ -649,14 +649,7 @@ impl<T: GodotClass> PartialEq for Gd<T> {
 
 impl<T: GodotClass> Eq for Gd<T> {}
 
-impl<T> Display for Gd<T>
-where
-    T: GodotClass<Declarer = dom::EngineDomain>,
-{
-    // TODO support for user objects? should it return the engine repr, or a custom <T as Display>::fmt()?
-    // If the latter, we would need to do something like impl<T> Display for Gd<T> where T: Display,
-    // and thus implement it for each class separately (or blanket GodotClass/EngineClass/...).
-
+impl<T: GodotClass> Display for Gd<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         engine::display_string(self, f)
     }
