@@ -95,7 +95,7 @@ fn object_user_roundtrip_write() {
     assert_eq!(obj.bind().value, value);
 
     let obj2 = unsafe {
-        Gd::<ObjPayload>::from_sys_init(|ptr| obj.move_return_ptr(ptr, sys::CallType::Standard))
+        Gd::<ObjPayload>::from_sys_init(|ptr| obj.move_return_ptr(ptr, sys::PtrcallType::Standard))
     };
     assert_eq!(obj2.bind().value, value);
 } // drop
@@ -615,7 +615,7 @@ fn object_call_with_args() {
 fn object_get_scene_tree(ctx: &TestContext) {
     let node = Node3D::new_alloc();
 
-    let mut tree = ctx.test_node.share();
+    let mut tree = ctx.scene_tree.share();
     tree.add_child(node.upcast(), false, InternalMode::INTERNAL_MODE_DISABLED);
 
     let count = tree.get_child_count(false);

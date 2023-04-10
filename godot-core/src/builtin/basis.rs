@@ -571,7 +571,7 @@ impl Mul<Vector3> for Basis {
 }
 
 // SAFETY:
-// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+// This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Basis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

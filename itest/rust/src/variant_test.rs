@@ -257,7 +257,7 @@ fn variant_sys_conversion2() {
     unsafe {
         v.clone().move_return_ptr(
             buffer.as_mut_ptr() as sys::GDExtensionTypePtr,
-            sys::CallType::Standard,
+            sys::PtrcallType::Standard,
         )
     };
 

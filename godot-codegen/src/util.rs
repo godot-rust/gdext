@@ -99,6 +99,8 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
                 self.ord
             }
         }
+        // SAFETY:
+        // The enums are transparently represented as an `i32`, so `*mut Self` is sound.
         unsafe impl sys::GodotFfi for #enum_name {
             sys::ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
         }

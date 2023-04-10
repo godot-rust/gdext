@@ -8,14 +8,20 @@
 
 use crate::TestContext;
 use godot::bind::{godot_api, GodotClass};
-use godot::builtin::GodotString;
+use godot::builtin::{
+    is_equal_approx, real, varray, Color, GodotString, PackedByteArray, PackedColorArray,
+    PackedFloat32Array, PackedInt32Array, PackedStringArray, PackedVector2Array,
+    PackedVector3Array, RealConv, StringName, ToVariant, Variant, VariantArray, Vector2, Vector3,
+};
 use godot::engine::node::InternalMode;
+use godot::engine::resource_loader::CacheMode;
 use godot::engine::{
-    InputEvent, InputEventAction, Node, Node2D, Node2DVirtual, NodeVirtual, RefCounted,
-    RefCountedVirtual,
+    BoxMesh, InputEvent, InputEventAction, Node, Node2D, Node2DVirtual, PrimitiveMesh,
+    PrimitiveMeshVirtual, RefCounted, RefCountedVirtual, ResourceFormatLoader,
+    ResourceFormatLoaderVirtual, ResourceLoader, Window,
 };
 use godot::obj::{Base, Gd, Share};
-use godot::prelude::PackedStringArray;
+use godot::private::class_macros::assert_eq_approx;
 use godot::test::itest;
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
@@ -96,25 +102,34 @@ impl Node2DVirtual for TreeVirtualTest {
 }
 
 #[derive(GodotClass, Debug)]
-#[class(base=Node)]
+#[class(init, base=PrimitiveMesh)]
 struct ReturnVirtualTest {
     #[base]
-    base: Base<Node>,
+    base: Base<PrimitiveMesh>,
 }
 
 #[godot_api]
-impl NodeVirtual for ReturnVirtualTest {
-    fn init(base: Base<Node>) -> Self {
-        ReturnVirtualTest { base }
-    }
-
-    fn get_configuration_warnings(&self) -> PackedStringArray {
-        let mut output = PackedStringArray::new();
-        output.push("Hello".into());
-        output
+impl PrimitiveMeshVirtual for ReturnVirtualTest {
+    fn create_mesh_array(&self) -> VariantArray {
+        varray![
+            PackedVector3Array::from_iter([Vector3::LEFT].into_iter()),
+            PackedVector3Array::from_iter([Vector3::LEFT].into_iter()),
+            PackedFloat32Array::from_iter([0.0, 0.0, 0.0, 1.0].into_iter()),
+            PackedColorArray::from_iter([Color::from_rgb(1.0, 1.0, 1.0)]),
+            PackedVector2Array::from_iter([Vector2::LEFT]),
+            PackedVector2Array::from_iter([Vector2::LEFT]),
+            PackedByteArray::from_iter([0, 1, 2, 3].into_iter()),
+            PackedByteArray::from_iter([0, 1, 2, 3].into_iter()),
+            PackedByteArray::from_iter([0, 1, 2, 3].into_iter()),
+            PackedByteArray::from_iter([0, 1, 2, 3].into_iter()),
+            PackedInt32Array::from_iter([0, 1, 2, 3].into_iter()),
+            PackedFloat32Array::from_iter([0.0, 1.0, 2.0, 3.0].into_iter()),
+            PackedInt32Array::from_iter([0].into_iter()),
+        ]
     }
 }
 
+#[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
 struct InputVirtualTest {
     #[base]
@@ -129,8 +144,49 @@ impl Node2DVirtual for InputVirtualTest {
     }
 
     fn input(&mut self, event: Gd<InputEvent>) {
-        println!("nya");
         self.event = Some(event);
+    }
+}
+
+#[derive(GodotClass, Debug)]
+#[class(init, base=ResourceFormatLoader)]
+struct FormatLoaderTest {
+    #[base]
+    base: Base<ResourceFormatLoader>,
+}
+
+impl FormatLoaderTest {
+    fn resource_type() -> GodotString {
+        GodotString::from("foo")
+    }
+}
+
+#[godot_api]
+impl ResourceFormatLoaderVirtual for FormatLoaderTest {
+    fn get_recognized_extensions(&self) -> PackedStringArray {
+        [GodotString::from("extension")].into_iter().collect()
+    }
+
+    fn handles_type(&self, type_: StringName) -> bool {
+        type_.to_string() == Self::resource_type().to_string()
+    }
+
+    fn get_resource_type(&self, _path: GodotString) -> GodotString {
+        Self::resource_type()
+    }
+
+    fn exists(&self, _path: GodotString) -> bool {
+        true
+    }
+
+    fn load(
+        &self,
+        _path: GodotString,
+        _original_path: GodotString,
+        _use_sub_threads: bool,
+        _cache_mode: i64,
+    ) -> Variant {
+        BoxMesh::new().to_variant()
     }
 }
 
@@ -147,7 +203,7 @@ fn test_ready(test_context: &TestContext) {
     assert_eq!(obj.bind().implementation_value, 0);
 
     // Add to scene tree
-    let mut test_node = test_context.test_node.share();
+    let mut test_node = test_context.scene_tree.share();
     test_node.add_child(
         obj.share().upcast(),
         false,
@@ -163,7 +219,7 @@ fn test_ready_multiple_fires(test_context: &TestContext) {
     let obj = Gd::<ReadyVirtualTest>::new_default();
     assert_eq!(obj.bind().implementation_value, 0);
 
-    let mut test_node = test_context.test_node.share();
+    let mut test_node = test_context.scene_tree.share();
 
     // Add to scene tree
     test_node.add_child(
@@ -192,7 +248,7 @@ fn test_ready_request_ready(test_context: &TestContext) {
     let obj = Gd::<ReadyVirtualTest>::new_default();
     assert_eq!(obj.bind().implementation_value, 0);
 
-    let mut test_node = test_context.test_node.share();
+    let mut test_node = test_context.scene_tree.share();
 
     // Add to scene tree
     test_node.add_child(
@@ -235,7 +291,7 @@ fn test_tree_enters_exits(test_context: &TestContext) {
     let obj = Gd::<TreeVirtualTest>::new_default();
     assert_eq!(obj.bind().tree_enters, 0);
     assert_eq!(obj.bind().tree_exits, 0);
-    let mut test_node = test_context.test_node.share();
+    let mut test_node = test_context.scene_tree.share();
 
     // Add to scene tree
     test_node.add_child(
@@ -262,17 +318,76 @@ fn test_tree_enters_exits(test_context: &TestContext) {
 #[itest]
 fn test_virtual_method_with_return(_test_context: &TestContext) {
     let obj = Gd::<ReturnVirtualTest>::new_default();
-    let output = obj.bind().get_configuration_warnings();
-    assert!(output.contains("Hello".into()));
-    assert_eq!(output.len(), 1);
-    obj.free();
+    let arr = obj.share().upcast::<PrimitiveMesh>().get_mesh_arrays();
+    let arr_rust = obj.bind().create_mesh_array();
+    assert_eq!(arr.len(), arr_rust.len());
+    // can't just assert_eq because the values of some floats change slightly
+    assert_eq_approx!(
+        arr.get(0).to::<PackedVector3Array>().get(0),
+        arr_rust.get(0).to::<PackedVector3Array>().get(0),
+        Vector3::is_equal_approx
+    );
+    assert_eq_approx!(
+        arr.get(2).to::<PackedFloat32Array>().get(3),
+        arr_rust.get(2).to::<PackedFloat32Array>().get(3),
+        |a, b| is_equal_approx(real::from_f32(a), real::from_f32(b))
+    );
+    assert_eq_approx!(
+        arr.get(3).to::<PackedColorArray>().get(0),
+        arr_rust.get(3).to::<PackedColorArray>().get(0),
+        Color::is_equal_approx
+    );
+    assert_eq_approx!(
+        arr.get(4).to::<PackedVector2Array>().get(0),
+        arr_rust.get(4).to::<PackedVector2Array>().get(0),
+        Vector2::is_equal_approx
+    );
+    assert_eq!(
+        arr.get(6).to::<PackedByteArray>(),
+        arr_rust.get(6).to::<PackedByteArray>(),
+    );
+    assert_eq!(
+        arr.get(10).to::<PackedInt32Array>(),
+        arr_rust.get(10).to::<PackedInt32Array>()
+    );
 }
 
+// TODO: Fix memory leak in this test.
+#[itest(skip)]
+fn test_format_loader(_test_context: &TestContext) {
+    let format_loader = Gd::<FormatLoaderTest>::new_default();
+    let mut loader = ResourceLoader::singleton();
+    loader.add_resource_format_loader(format_loader.share().upcast(), true);
+
+    let extensions = loader.get_recognized_extensions_for_type(FormatLoaderTest::resource_type());
+    let mut extensions_rust = format_loader.bind().get_recognized_extensions();
+    extensions_rust.push("tres".into());
+    assert_eq!(extensions, extensions_rust);
+    let resource = loader
+        .load(
+            "path.extension".into(),
+            "".into(),
+            CacheMode::CACHE_MODE_IGNORE,
+        )
+        .unwrap();
+    assert!(resource.try_cast::<BoxMesh>().is_some());
+
+    loader.remove_resource_format_loader(format_loader.upcast());
+}
+
+#[itest]
 fn test_input_event(test_context: &TestContext) {
     let obj = Gd::<InputVirtualTest>::new_default();
     assert_eq!(obj.bind().event, None);
+    let test_viewport = Window::new_alloc();
 
-    test_context.test_node.share().add_child(
+    test_context.scene_tree.share().add_child(
+        test_viewport.share().upcast(),
+        false,
+        InternalMode::INTERNAL_MODE_DISABLED,
+    );
+
+    test_viewport.share().add_child(
         obj.share().upcast(),
         false,
         InternalMode::INTERNAL_MODE_DISABLED,
@@ -283,8 +398,7 @@ fn test_input_event(test_context: &TestContext) {
     event.set_pressed(true);
 
     // We're running in headless mode, so Input.parse_input_event does not work
-    test_context
-        .root_node
+    test_viewport
         .share()
         .push_input(event.share().upcast(), false);
 

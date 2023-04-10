@@ -12,7 +12,7 @@ use std::ptr;
 use godot_ffi as sys;
 use godot_ffi::VariantType;
 use sys::types::OpaqueObject;
-use sys::{ffi_methods, interface_fn, static_assert_eq_size, CallType, GodotFfi};
+use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi, PtrcallType};
 
 use crate::builtin::meta::{ClassName, VariantMetadata};
 use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
@@ -499,7 +499,14 @@ where
         unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut self.opaque) }
     }
 }
-
+// SAFETY:
+// - `move_return_ptr`
+//   When the `call_type` is `PtrcallType::Virtual`, and the current type is known to inherit from `RefCounted`
+//   then we use `ref_get_object`. Otherwise we use `Gd::from_obj_sys`.
+// - `from_arg_ptr`
+//   When the `call_type` is `PtrcallType::Virtual`, and the current type is known to inherit from `RefCounted`
+//   then we use `ref_set_object`. Otherwise we use `std::ptr::write`. Finally we forget `self` as we pass
+//   ownership to the caller.
 unsafe impl<T> GodotFfi for Gd<T>
 where
     T: GodotClass,
@@ -513,31 +520,21 @@ where
     // For more context around `ref_get_object` and `ref_set_object`, see:
     // https://github.com/godotengine/godot-cpp/issues/954
 
-    // SAFETY:
-    // When the `call_type` is `CallType::Virtual`, and the current type is known to inherit from `RefCounted`
-    // then we use `ref_get_object`. Otherwise we use `Gd::from_obj_sys`.
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: CallType) -> Self {
-        match (T::Mem::is_static_ref_counted(), call_type) {
-            (true, CallType::Virtual) => {
-                let obj_ptr = interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr);
-                // ref_get_object increments the ref_count for us
-                Self::from_obj_sys_weak(obj_ptr)
-            }
-            _ => Self::from_obj_sys(ptr as sys::GDExtensionObjectPtr),
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
+        if T::Mem::pass_as_ref(call_type) {
+            let obj_ptr = interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr);
+            // ref_get_object increments the ref_count for us
+            Self::from_obj_sys_weak(obj_ptr)
+        } else {
+            Self::from_obj_sys(ptr as sys::GDExtensionObjectPtr)
         }
     }
 
-    // SAFETY:
-    // When the `call_type` is `CallType::Virtual`, and the current type is known to inherit from `RefCounted`
-    // then we use `ref_set_object`. Otherwise we use `std::ptr::write`. Finally we forget `self` as we pass
-    // ownership to the caller.
-    unsafe fn move_return_ptr(self, ptr: sys::GDExtensionTypePtr, call_type: CallType) {
-        match (T::Mem::is_static_ref_counted(), call_type) {
-            (true, CallType::Virtual) => {
-                interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys())
-            }
-
-            _ => std::ptr::write(ptr as *mut _, self.opaque),
+    unsafe fn move_return_ptr(self, ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) {
+        if T::Mem::pass_as_ref(call_type) {
+            interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys())
+        } else {
+            std::ptr::write(ptr as *mut _, self.opaque)
         }
         // We've passed ownership to caller.
         std::mem::forget(self);

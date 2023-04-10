@@ -72,46 +72,6 @@ func test_export():
 	obj.free()
 	node.free()
 
-func test_untyped_array_pass_to_user_func_varcall():
-	var obj = ArrayTest.new()
-	var array: Array = [42, "answer"]
-	assert_eq(obj.pass_untyped_array(array), 2)
-
-func test_untyped_array_pass_to_user_func_ptrcall():
-	var obj: ArrayTest = ArrayTest.new()
-	var array: Array = [42, "answer"]
-	assert_eq(obj.pass_untyped_array(array), 2)
-
-func test_untyped_array_return_from_user_func_varcall():
-	var obj = ArrayTest.new()
-	var array: Array = obj.return_untyped_array()
-	assert_eq(array, [42, "answer"])
-
-func test_untyped_array_return_from_user_func_ptrcall():
-	var obj: ArrayTest = ArrayTest.new()
-	var array: Array = obj.return_untyped_array()
-	assert_eq(array, [42, "answer"])
-
-func test_typed_array_pass_to_user_func_varcall():
-	var obj = ArrayTest.new()
-	var array: Array[int] = [1, 2, 3]
-	assert_eq(obj.pass_typed_array(array), 6)
-
-func test_typed_array_pass_to_user_func_ptrcall():
-	var obj: ArrayTest = ArrayTest.new()
-	var array: Array[int] = [1, 2, 3]
-	assert_eq(obj.pass_typed_array(array), 6)
-
-func test_typed_array_return_from_user_func_varcall():
-	var obj = ArrayTest.new()
-	var array: Array[int] = obj.return_typed_array(3)
-	assert_eq(array, [1, 2, 3])
-
-func test_typed_array_return_from_user_func_ptrcall():
-	var obj: ArrayTest = ArrayTest.new()
-	var array: Array[int] = obj.return_typed_array(3)
-	assert_eq(array, [1, 2, 3])
-
 class MockObjGd extends Object:
 	var i: int = 0
 

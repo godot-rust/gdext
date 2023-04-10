@@ -34,7 +34,7 @@ pub trait SignatureTuple {
         ret: sys::GDExtensionTypePtr,
         func: fn(&mut C, Self::Params) -> Self::Ret,
         method_name: &str,
-        call_type: sys::CallType,
+        call_type: sys::PtrcallType,
     );
 }
 
@@ -144,7 +144,7 @@ macro_rules! impl_signature_for_tuple {
                 ret: sys::GDExtensionTypePtr,
                 func: fn(&mut C, Self::Params) -> Self::Ret,
                 method_name: &str,
-                call_type: sys::CallType,
+                call_type: sys::PtrcallType,
             ) {
                 $crate::out!("ptrcall: {}", method_name);
 

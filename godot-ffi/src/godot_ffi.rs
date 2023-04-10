@@ -13,7 +13,7 @@ use std::fmt::Debug;
 /// # Safety
 ///
 /// [`from_arg_ptr`](GodotFfi::from_arg_ptr) and [`move_return_ptr`](GodotFfi::move_return_ptr)
-/// must properly initialize and clean up values given the [`CallType`] provided by the caller.
+/// must properly initialize and clean up values given the [`PtrcallType`] provided by the caller.
 pub unsafe trait GodotFfi {
     /// Construct from Godot opaque pointer.
     ///
@@ -77,24 +77,26 @@ pub unsafe trait GodotFfi {
     /// Construct from a pointer to an argument in a call.
     ///
     /// # Safety
-    /// `ptr` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
-    /// which is different depending on the type.
-    /// `ptr` must encode `Self` according to the given `call_type`'s encoding of argument values.
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: CallType) -> Self;
+    /// * `ptr` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
+    ///   which is different depending on the type.
+    ///
+    /// * `ptr` must encode `Self` according to the given `call_type`'s encoding of argument values.
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self;
 
     /// Move self into the pointer in pointer `dst`, dropping what is already in `dst.
     ///
     /// # Safety
-    /// `dst` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
-    /// hich is different depending on the type.
-    /// `dst` must be able to accept a value of type `Self` encoded according to the given
-    /// `call_type`'s encoding of return values.
-    unsafe fn move_return_ptr(self, dst: sys::GDExtensionTypePtr, call_type: CallType);
+    /// * `dst` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
+    ///    which is different depending on the type.
+    ///
+    /// * `dst` must be able to accept a value of type `Self` encoded according to the given
+    ///   `call_type`'s encoding of return values.
+    unsafe fn move_return_ptr(self, dst: sys::GDExtensionTypePtr, call_type: PtrcallType);
 }
 
 /// An indication of what type of pointer call is being made.
 #[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
-pub enum CallType {
+pub enum PtrcallType {
     /// Standard pointer call.
     ///
     /// In a standard ptrcall, every argument is passed in as a pointer to a value of that type, and the
@@ -103,8 +105,8 @@ pub enum CallType {
     Standard,
     /// Virtual pointer call.
     ///
-    /// A virtual call behaves like [`CallType::Standard`], except for `RefCounted` objects.
-    /// `RefCounted` objects are instead passed in and returned as `Ref` objects.
+    /// A virtual call behaves like [`PtrcallType::Standard`], except for `RefCounted` objects.
+    /// `RefCounted` objects are instead passed in and returned as `Ref<T>` objects in Godot.
     ///
     /// To properly get a value from an argument in a pointer call, you must use `ref_get_object`. And to
     /// return a value you must use `ref_set_object`.
@@ -126,7 +128,7 @@ pub trait GodotFuncMarshal: Sized {
     /// See also [`GodotFfi::from_arg_ptr`].
     unsafe fn try_from_arg(
         ptr: sys::GDExtensionTypePtr,
-        call_type: CallType,
+        call_type: PtrcallType,
     ) -> Result<Self, Self::Via>;
 
     /// Used for function return values. On failure, `self` which can't be converted to Via is returned.
@@ -138,7 +140,7 @@ pub trait GodotFuncMarshal: Sized {
     unsafe fn try_return(
         self,
         dst: sys::GDExtensionTypePtr,
-        call_type: CallType,
+        call_type: PtrcallType,
     ) -> Result<(), Self>;
 }
 
@@ -175,13 +177,13 @@ macro_rules! ffi_methods_one {
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::CallType) -> Self {
+        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
             Self::from_sys(ptr as *mut _)
         }
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $move_return_ptr(mut self, dst: $Ptr, _call_type: $crate::CallType) {
+        unsafe fn $move_return_ptr(mut self, dst: $Ptr, _call_type: $crate::PtrcallType) {
             std::ptr::swap(dst as *mut _, std::ptr::addr_of_mut!(self.opaque))
         }
     };
@@ -210,13 +212,13 @@ macro_rules! ffi_methods_one {
     };
     (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::CallType) -> Self {
+        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
             Self::from_sys(ptr as *mut _)
         }
     };
     (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $move_return_ptr(mut self, dst: $Ptr, _call_type: $crate::CallType) {
+        unsafe fn $move_return_ptr(mut self, dst: $Ptr, _call_type: $crate::PtrcallType) {
             std::ptr::swap(dst, std::mem::transmute::<_, $Ptr>(self.opaque))
         }
     };
@@ -245,13 +247,13 @@ macro_rules! ffi_methods_one {
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::CallType) -> Self {
+        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
             *(ptr as *mut Self)
         }
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $move_return_ptr(self, dst: $Ptr, _call_type: $crate::CallType) {
+        unsafe fn $move_return_ptr(self, dst: $Ptr, _call_type: $crate::PtrcallType) {
             *(dst as *mut Self) = self
         }
     };
@@ -313,7 +315,7 @@ macro_rules! ffi_methods_rest {
 ///
 /// ## Using `Opaque`
 ///
-/// Turning pointer call arguments into a value is simply calling `from_opaue` on the argument pointer.
+/// Turning pointer call arguments into a value is simply calling `from_opaque` on the argument pointer.
 /// Returning a value from a pointer call is simply calling [`std::ptr::swap`] on the return pointer
 /// and the `opaque` field transmuted into a pointer.
 ///  
@@ -348,14 +350,14 @@ macro_rules! ffi_methods {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation for common types (needs to be this crate due to orphan rule)
 mod scalars {
-    use super::{CallType, GodotFfi, GodotFuncMarshal};
+    use super::{GodotFfi, GodotFuncMarshal, PtrcallType};
     use crate as sys;
     use std::convert::Infallible;
 
     macro_rules! impl_godot_marshalling {
         ($T:ty) => {
             // SAFETY:
-            // This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+            // This type is represented as `Self` in Godot, so `*mut Self` is sound.
             unsafe impl GodotFfi for $T {
                 ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
             }
@@ -370,21 +372,44 @@ mod scalars {
 
                 unsafe fn try_from_arg(
                     ptr: sys::GDExtensionTypePtr,
-                    call_type: CallType,
+                    call_type: PtrcallType,
                 ) -> Result<Self, $Via> {
-                    let via = <$Via as GodotFfi>::from_arg_ptr(ptr, call_type);
-                    // Godot does not always give us a valid `i64`/`f64`, nor `Self` when it does a pointer
-                    // call, so we cannot use `try_from` here.
+                    let via = <$Via>::from_arg_ptr(ptr, call_type);
+                    Self::try_from(via).map_err(|_| via)
+                }
+
+                unsafe fn try_return(
+                    self,
+                    dst: sys::GDExtensionTypePtr,
+                    call_type: PtrcallType,
+                ) -> Result<(), Self> {
+                    <$Via>::from(self).move_return_ptr(dst, call_type);
+                    Ok(())
+                }
+            }
+        };
+
+        ($T:ty as $Via:ty; lossy) => {
+            // implicit bounds:
+            //    T: TryFrom<Via>, Copy
+            //    Via: TryFrom<T>, GodotFfi
+            impl GodotFuncMarshal for $T {
+                type Via = $Via;
+
+                unsafe fn try_from_arg(
+                    ptr: sys::GDExtensionTypePtr,
+                    call_type: PtrcallType,
+                ) -> Result<Self, $Via> {
+                    let via = <$Via>::from_arg_ptr(ptr, call_type);
                     Ok(via as Self)
                 }
 
                 unsafe fn try_return(
                     self,
                     dst: sys::GDExtensionTypePtr,
-                    call_type: CallType,
+                    call_type: PtrcallType,
                 ) -> Result<(), Self> {
-                    let via = <$Via>::try_from(self).map_err(|_| self)?;
-                    via.move_return_ptr(dst, call_type);
+                    (self as $Via).move_return_ptr(dst, call_type);
                     Ok(())
                 }
             }
@@ -398,12 +423,13 @@ mod scalars {
 
     // Only implements GodotFuncMarshal
     impl_godot_marshalling!(i32 as i64);
-    impl_godot_marshalling!(i16 as i64);
-    impl_godot_marshalling!(i8 as i64);
     impl_godot_marshalling!(u32 as i64);
+    impl_godot_marshalling!(i16 as i64);
     impl_godot_marshalling!(u16 as i64);
+    impl_godot_marshalling!(i8 as i64);
     impl_godot_marshalling!(u8 as i64);
-    impl_godot_marshalling!(f32 as f64);
+
+    impl_godot_marshalling!(f32 as f64; lossy);
 
     unsafe impl GodotFfi for () {
         unsafe fn from_sys(_ptr: sys::GDExtensionTypePtr) -> Self {
@@ -421,7 +447,10 @@ mod scalars {
 
         // SAFETY:
         // We're not accessing the value in `_ptr`.
-        unsafe fn from_arg_ptr(_ptr: sys::GDExtensionTypePtr, _call_type: super::CallType) -> Self {
+        unsafe fn from_arg_ptr(
+            _ptr: sys::GDExtensionTypePtr,
+            _call_type: super::PtrcallType,
+        ) -> Self {
         }
 
         // SAFETY:
@@ -429,7 +458,7 @@ mod scalars {
         unsafe fn move_return_ptr(
             self,
             _dst: sys::GDExtensionTypePtr,
-            _call_type: super::CallType,
+            _call_type: super::PtrcallType,
         ) {
             // Do nothing
         }
@@ -443,7 +472,7 @@ mod scalars {
 
         unsafe fn try_from_arg(
             ptr: sys::GDExtensionTypePtr,
-            call_type: CallType,
+            call_type: PtrcallType,
         ) -> Result<Self, Infallible> {
             Ok(Self::from_arg_ptr(ptr, call_type))
         }
@@ -451,7 +480,7 @@ mod scalars {
         unsafe fn try_return(
             self,
             dst: sys::GDExtensionTypePtr,
-            call_type: CallType,
+            call_type: PtrcallType,
         ) -> Result<(), Self> {
             self.move_return_ptr(dst, call_type);
             Ok(())

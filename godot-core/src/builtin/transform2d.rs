@@ -359,7 +359,7 @@ impl GlamConv for Transform2D {
 }
 
 // SAFETY:
-// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+// This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Transform2D {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

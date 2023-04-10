@@ -112,7 +112,7 @@ macro_rules! gdext_register_method_inner {
                                     inst.$method_name( $( $param, )* )
                                 },
                                 stringify!($method_name),
-                                sys::CallType::Standard
+                                sys::PtrcallType::Standard
                             );
                         }
                     );
@@ -401,7 +401,7 @@ macro_rules! gdext_ptrcall {
             $ret_ptr,
             |__instance, ($($arg,)*)| __instance.$method_name($($arg,)*),
             stringify!($method_name),
-            sys::CallType::Virtual,
+            sys::PtrcallType::Virtual,
         )
     };
 }

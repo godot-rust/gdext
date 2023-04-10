@@ -89,7 +89,7 @@ impl_vector_operators!(Vector2i, i32, (x, y));
 impl_vector_index!(Vector2i, i32, (x, y), Vector2iAxis, (X, Y));
 
 // SAFETY:
-// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+// This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector2i {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
@@ -105,7 +105,7 @@ pub enum Vector2iAxis {
 }
 
 // SAFETY:
-// This type is transparently represented as `Self` in Godot, so `*mut Self` is sound.
+// This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector2iAxis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

@@ -405,7 +405,7 @@ macro_rules! impl_packed_array {
             // incremented as that is the callee's responsibility.
             //
             // Using `std::mem::forget(array.clone())` increments the ref count.
-            unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::CallType) -> Self {
+            unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
                 let array = Self::from_sys(ptr);
                 std::mem::forget(array.clone());
                 array

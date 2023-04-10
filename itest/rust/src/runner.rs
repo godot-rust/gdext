@@ -8,9 +8,8 @@ use std::time::{Duration, Instant};
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{ToVariant, Variant, VariantArray};
-use godot::engine::{Node, Window};
+use godot::engine::Node;
 use godot::obj::Gd;
-use godot::prelude::SceneTree;
 
 use crate::{RustTestCase, TestContext};
 
@@ -32,9 +31,7 @@ impl IntegrationTests {
         gdscript_tests: VariantArray,
         gdscript_file_count: i64,
         allow_focus: bool,
-        root_node: Gd<Window>,
-        test_node: Gd<Node>,
-        scene_tree: Gd<SceneTree>,
+        scene_tree: Gd<Node>,
     ) -> bool {
         println!("{}Run{} Godot integration tests...", FMT_CYAN_BOLD, FMT_END);
 
@@ -57,7 +54,7 @@ impl IntegrationTests {
         }
 
         let clock = Instant::now();
-        self.run_rust_tests(rust_tests, root_node, test_node, scene_tree);
+        self.run_rust_tests(rust_tests, scene_tree);
         let rust_time = clock.elapsed();
         let gdscript_time = if !focus_run {
             self.run_gdscript_tests(gdscript_tests);
@@ -69,18 +66,8 @@ impl IntegrationTests {
         self.conclude(rust_time, gdscript_time, allow_focus)
     }
 
-    fn run_rust_tests(
-        &mut self,
-        tests: Vec<RustTestCase>,
-        root_node: Gd<Window>,
-        test_node: Gd<Node>,
-        scene_tree: Gd<SceneTree>,
-    ) {
-        let ctx = TestContext {
-            _scene_tree: scene_tree,
-            root_node,
-            test_node,
-        };
+    fn run_rust_tests(&mut self, tests: Vec<RustTestCase>, scene_tree: Gd<Node>) {
+        let ctx = TestContext { scene_tree };
 
         let mut last_file = None;
         for test in tests {
