@@ -193,7 +193,6 @@ impl Variant {
         fn from_var_sys = from_sys;
         fn from_var_sys_init = from_sys_init;
         fn var_sys = sys;
-        fn write_var_sys = write_sys;
     }
 
     #[doc(hidden)]
@@ -215,7 +214,10 @@ impl Variant {
     }
 }
 
-impl GodotFfi for Variant {
+// SAFETY:
+// `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.
+// `std::mem::swap` is sufficient for returning a value.
+unsafe impl GodotFfi for Variant {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {

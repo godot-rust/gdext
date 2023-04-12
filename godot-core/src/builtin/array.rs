@@ -566,8 +566,27 @@ impl<T: VariantMetadata + ToVariant> Array<T> {
 //     ...
 // }
 
-impl<T: VariantMetadata> GodotFfi for Array<T> {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+// SAFETY:
+// - `move_return_ptr`
+//   Nothing special needs to be done beyond a `std::mem::swap` when returning an Array.
+//   So we can just use `ffi_methods`.
+//
+// - `from_arg_ptr`
+//   Arrays are properly initialized through a `from_sys` call, but the ref-count should be incremented
+//   as that is the callee's responsibility. Which we do by calling `std::mem::forget(array.share())`.
+unsafe impl<T: VariantMetadata> GodotFfi for Array<T> {
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn from_sys_init;
+        fn move_return_ptr;
+    }
+
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
+        let array = Self::from_sys(ptr);
+        std::mem::forget(array.share());
+        array
+    }
 
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();
@@ -855,7 +874,7 @@ macro_rules! varray {
 /// [`set_typed`](https://docs.godotengine.org/en/latest/classes/class_array.html#class-array-method-set-typed).
 ///
 /// We ignore the `script` parameter because it has no impact on typing in Godot.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 struct TypeInfo {
     variant_type: VariantType,
     class_name: StringName,
@@ -878,5 +897,18 @@ impl TypeInfo {
 
     fn is_typed(&self) -> bool {
         self.variant_type != VariantType::Nil
+    }
+}
+
+impl fmt::Debug for TypeInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let class = self.class_name.to_string();
+        let class_str = if class.is_empty() {
+            String::new()
+        } else {
+            format!(" (class={class})")
+        };
+
+        write!(f, "{:?}{}", self.variant_type, class_str)
     }
 }

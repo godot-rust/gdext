@@ -157,7 +157,10 @@ macro_rules! impl_builtin_stub {
             }
         }
 
-        impl GodotFfi for $Class {
+        // SAFETY:
+        // This is simply a wrapper around an `Opaque` value representing a value of the type.
+        // So this is safe.
+        unsafe impl GodotFfi for $Class {
             ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
         }
     };

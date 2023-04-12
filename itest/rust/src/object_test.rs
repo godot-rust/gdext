@@ -18,7 +18,7 @@ use godot::engine::{
 };
 use godot::obj::{Base, Gd, InstanceId};
 use godot::obj::{Inherits, Share};
-use godot::sys::GodotFfi;
+use godot::sys::{self, GodotFfi};
 
 use crate::{expect_panic, itest, TestContext};
 
@@ -94,8 +94,9 @@ fn object_user_roundtrip_write() {
     let obj: Gd<ObjPayload> = Gd::new(user);
     assert_eq!(obj.bind().value, value);
 
-    let obj2 = unsafe { Gd::<ObjPayload>::from_sys_init(|ptr| obj.write_sys(ptr)) };
-    std::mem::forget(obj);
+    let obj2 = unsafe {
+        Gd::<ObjPayload>::from_sys_init(|ptr| obj.move_return_ptr(ptr, sys::PtrcallType::Standard))
+    };
     assert_eq!(obj2.bind().value, value);
 } // drop
 
@@ -653,5 +654,68 @@ impl Drop for Tracker {
     fn drop(&mut self) {
         //println!("      Tracker::drop");
         *self.drop_count.borrow_mut() += 1;
+    }
+}
+
+pub mod object_test_gd {
+    use godot::prelude::*;
+
+    #[derive(GodotClass)]
+    #[class(init, base=Object)]
+    struct MockObjRust {
+        #[export]
+        i: i64,
+    }
+
+    #[godot_api]
+    impl MockObjRust {}
+
+    #[derive(GodotClass)]
+    #[class(init, base=RefCounted)]
+    struct MockRefCountedRust {
+        #[export]
+        i: i64,
+    }
+
+    #[godot_api]
+    impl MockRefCountedRust {}
+
+    #[derive(GodotClass, Debug)]
+    #[class(init, base=RefCounted)]
+    struct ObjectTest;
+
+    #[godot_api]
+    impl ObjectTest {
+        #[func]
+        fn pass_object(&self, object: Gd<Object>) -> i64 {
+            let i = object.get("i".into()).to();
+            object.free();
+            i
+        }
+
+        #[func]
+        fn return_object(&self) -> Gd<Object> {
+            Gd::new(MockObjRust { i: 42 }).upcast()
+        }
+
+        #[func]
+        fn pass_refcounted(&self, object: Gd<RefCounted>) -> i64 {
+            object.get("i".into()).to()
+        }
+
+        #[func]
+        fn pass_refcounted_as_object(&self, object: Gd<Object>) -> i64 {
+            object.get("i".into()).to()
+        }
+
+        #[func]
+        fn return_refcounted(&self) -> Gd<RefCounted> {
+            Gd::new(MockRefCountedRust { i: 42 }).upcast()
+        }
+
+        #[func]
+        fn return_refcounted_as_object(&self) -> Gd<Object> {
+            Gd::new(MockRefCountedRust { i: 42 }).upcast()
+        }
     }
 }

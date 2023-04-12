@@ -428,21 +428,6 @@ struct ArrayTest;
 #[godot_api]
 impl ArrayTest {
     #[func]
-    fn pass_untyped_array(&self, array: VariantArray) -> i64 {
-        array.len().try_into().unwrap()
-    }
-
-    #[func]
-    fn return_untyped_array(&self) -> VariantArray {
-        varray![42, "answer"]
-    }
-
-    #[func]
-    fn pass_typed_array(&self, array: Array<i64>) -> i64 {
-        array.iter_shared().sum()
-    }
-
-    #[func]
     fn return_typed_array(&self, n: i64) -> Array<i64> {
         (1..(n + 1)).collect()
     }

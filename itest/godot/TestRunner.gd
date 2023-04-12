@@ -24,6 +24,7 @@ func _ready():
 	var gdscript_suites: Array = [
 		preload("res://ManualFfiTests.gd").new(),
 		preload("res://gen/GenFfiTests.gd").new(),
+		preload("res://InheritTests.gd").new()
 	]
 	
 	var gdscript_tests: Array = []

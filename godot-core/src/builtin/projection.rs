@@ -486,7 +486,9 @@ impl GlamConv for Projection {
     type Glam = RMat4;
 }
 
-impl GodotFfi for Projection {
+// SAFETY:
+// This type is represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Projection {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 

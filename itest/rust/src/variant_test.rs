@@ -254,7 +254,12 @@ fn variant_sys_conversion2() {
     let mut buffer = [0u8; 50];
 
     let v = Variant::from(7);
-    unsafe { v.write_sys(buffer.as_mut_ptr() as sys::GDExtensionTypePtr) };
+    unsafe {
+        v.clone().move_return_ptr(
+            buffer.as_mut_ptr() as sys::GDExtensionTypePtr,
+            sys::PtrcallType::Standard,
+        )
+    };
 
     let v2 = unsafe {
         Variant::from_sys_init(|ptr| {

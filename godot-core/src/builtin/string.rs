@@ -35,7 +35,14 @@ impl GodotString {
         fn from_string_sys = from_sys;
         fn from_string_sys_init = from_sys_init;
         fn string_sys = sys;
-        fn write_string_sys = write_sys;
+    }
+
+    /// Move `self` into a system pointer. This transfers ownership and thus does not call the destructor.
+    ///
+    /// # Safety
+    /// `dst` must be a pointer to a `GodotString` which is suitable for ffi with Godot.
+    pub unsafe fn move_string_ptr(self, dst: sys::GDExtensionStringPtr) {
+        self.move_return_ptr(dst as *mut _, sys::PtrcallType::Standard);
     }
 
     /// Gets the internal chars slice from a [`GodotString`].
@@ -68,8 +75,28 @@ impl GodotString {
     }
 }
 
-impl GodotFfi for GodotString {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+// SAFETY:
+// - `move_return_ptr`
+//   Nothing special needs to be done beyond a `std::mem::swap` when returning a String.
+//   So we can just use `ffi_methods`.
+//
+// - `from_arg_ptr`
+//   Strings are properly initialized through a `from_sys` call, but the ref-count should be
+//   incremented as that is the callee's responsibility. Which we do by calling
+//   `std::mem::forget(string.share())`.
+unsafe impl GodotFfi for GodotString {
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn from_sys_init;
+        fn move_return_ptr;
+    }
+
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
+        let string = Self::from_sys(ptr);
+        std::mem::forget(string.clone());
+        string
+    }
 
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();
