@@ -347,3 +347,26 @@ impl GlamType for RVec2 {
 impl GlamConv for Vector2 {
     type Glam = RVec2;
 }
+
+#[cfg(test)]
+mod test {
+    use crate::assert_eq_approx;
+
+    use super::*;
+
+    #[test]
+    fn coord_min_max() {
+        let a = Vector2::new(1.2, 3.4);
+        let b = Vector2::new(0.1, 5.6);
+        assert_eq_approx!(
+            a.coord_min(b),
+            Vector2::new(0.1, 3.4),
+            Vector2::is_equal_approx
+        );
+        assert_eq_approx!(
+            a.coord_max(b),
+            Vector2::new(1.2, 5.6),
+            Vector2::is_equal_approx
+        );
+    }
+}

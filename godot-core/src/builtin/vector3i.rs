@@ -11,6 +11,9 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::Vector3;
 
+use super::glam_helpers::{GlamConv, GlamType};
+use super::IVec3;
+
 /// Vector used for 3D math using integer coordinates.
 ///
 /// 3-element structure that can be used to represent positions in 3D space or any other triple of
@@ -76,13 +79,13 @@ impl Vector3i {
     }
 
     /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: glam::IVec3) -> Self {
+    fn from_glam(v: IVec3) -> Self {
         Self::new(v.x, v.y, v.z)
     }
 
     /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> glam::IVec3 {
-        glam::IVec3::new(self.x, self.y, self.z)
+    fn to_glam(self) -> IVec3 {
+        IVec3::new(self.x, self.y, self.z)
     }
 }
 
@@ -119,4 +122,33 @@ pub enum Vector3iAxis {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector3iAxis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl GlamType for IVec3 {
+    type Mapped = Vector3i;
+
+    fn to_front(&self) -> Self::Mapped {
+        Vector3i::new(self.x, self.y, self.z)
+    }
+
+    fn from_front(mapped: &Self::Mapped) -> Self {
+        IVec3::new(mapped.x, mapped.y, mapped.z)
+    }
+}
+
+impl GlamConv for Vector3i {
+    type Glam = IVec3;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn coord_min_max() {
+        let a = Vector3i::new(1, 3, 5);
+        let b = Vector3i::new(0, 5, 2);
+        assert_eq!(a.coord_min(b), Vector3i::new(0, 3, 2));
+        assert_eq!(a.coord_max(b), Vector3i::new(1, 5, 5));
+    }
 }

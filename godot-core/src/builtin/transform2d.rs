@@ -333,8 +333,8 @@ impl Mul<Rect2> for Transform2D {
         let ya = self.b * rhs.position.y;
         let yb = self.b * rhs.end().y;
 
-        let position = Vector2::min(xa, xb) + Vector2::min(ya, yb) + self.origin;
-        let end = Vector2::max(xa, xb) + Vector2::max(ya, yb) + self.origin;
+        let position = Vector2::coord_min(xa, xb) + Vector2::coord_min(ya, yb) + self.origin;
+        let end = Vector2::coord_max(xa, xb) + Vector2::coord_max(ya, yb) + self.origin;
         Rect2::new(position, end - position)
     }
 }
