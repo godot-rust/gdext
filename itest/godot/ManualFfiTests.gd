@@ -72,22 +72,76 @@ func test_export():
 	obj.free()
 	node.free()
 
-func test_untyped_array_pass_to_user_func():
-	var obj = ArrayTest.new()
-	var array: Array = [42, "answer"]
-	assert_eq(obj.pass_untyped_array(array), 2)
+class MockObjGd extends Object:
+	var i: int = 0
 
-func test_untyped_array_return_from_user_func():
-	var obj = ArrayTest.new()
-	var array: Array = obj.return_untyped_array()
-	assert_eq(array, [42, "answer"])
+	func _init(i: int):
+		self.i = i
 
-func test_typed_array_pass_to_user_func():
-	var obj = ArrayTest.new()
-	var array: Array[int] = [1, 2, 3]
-	assert_eq(obj.pass_typed_array(array), 6)
+func test_object_pass_to_user_func_varcall():
+	var obj_test = ObjectTest.new()
+	var obj: MockObjGd = MockObjGd.new(10)
+	assert_eq(obj_test.pass_object(obj), 10)
 
-func test_typed_array_return_from_user_func():
-	var obj = ArrayTest.new()
-	var array: Array[int] = obj.return_typed_array(3)
-	assert_eq(array, [1, 2, 3])
+func test_object_pass_to_user_func_ptrcall():
+	var obj_test: ObjectTest = ObjectTest.new()
+	var obj: MockObjGd = MockObjGd.new(10)
+	assert_eq(obj_test.pass_object(obj), 10)
+
+func test_object_return_from_user_func_varcall():
+	var obj_test = ObjectTest.new()
+	var obj: MockObjRust = obj_test.return_object() 
+	assert_eq(obj.i, 42)
+	obj.free()
+
+func test_object_return_from_user_func_ptrcall():
+	var obj_test: ObjectTest = ObjectTest.new()
+	var obj: MockObjRust = obj_test.return_object() 
+	assert_eq(obj.i, 42)
+	obj.free()
+
+class MockRefCountedGd extends RefCounted:
+	var i: int = 0
+
+	func _init(i: int):
+		self.i = i
+
+func test_refcounted_pass_to_user_func_varcall():
+	var obj_test = ObjectTest.new()
+	var obj: MockRefCountedGd = MockRefCountedGd.new(10)
+	assert_eq(obj_test.pass_refcounted(obj), 10)
+
+func test_refcounted_pass_to_user_func_ptrcall():
+	var obj_test: ObjectTest = ObjectTest.new()
+	var obj: MockRefCountedGd = MockRefCountedGd.new(10)
+	assert_eq(obj_test.pass_refcounted(obj), 10)
+
+func test_refcounted_as_object_pass_to_user_func_varcall():
+	var obj_test = ObjectTest.new()
+	var obj: MockRefCountedGd = MockRefCountedGd.new(10)
+	assert_eq(obj_test.pass_refcounted_as_object(obj), 10)
+
+func test_refcounted_as_object_pass_to_user_func_ptrcall():
+	var obj_test: ObjectTest = ObjectTest.new()
+	var obj: MockRefCountedGd = MockRefCountedGd.new(10)
+	assert_eq(obj_test.pass_refcounted_as_object(obj), 10)
+
+func test_refcounted_return_from_user_func_varcall():
+	var obj_test = ObjectTest.new()
+	var obj: MockRefCountedRust = obj_test.return_refcounted() 
+	assert_eq(obj.i, 42)
+
+func test_refcounted_return_from_user_func_ptrcall():
+	var obj_test: ObjectTest = ObjectTest.new()
+	var obj: MockRefCountedRust = obj_test.return_refcounted() 
+	assert_eq(obj.i, 42)
+
+func test_refcounted_as_object_return_from_user_func_varcall():
+	var obj_test = ObjectTest.new()
+	var obj: MockRefCountedRust = obj_test.return_refcounted_as_object() 
+	assert_eq(obj.i, 42)
+
+func test_refcounted_as_object_return_from_user_func_ptrcall():
+	var obj_test: ObjectTest = ObjectTest.new()
+	var obj: MockRefCountedRust = obj_test.return_refcounted_as_object() 
+	assert_eq(obj.i, 42)

@@ -180,7 +180,9 @@ fn make_sys_code(central_items: &CentralItems) -> String {
             }
         }
 
-        impl GodotFfi for VariantType {
+        // SAFETY:
+        // This type is represented as `Self` in Godot, so `*mut Self` is sound.
+        unsafe impl GodotFfi for VariantType {
             ffi_methods! { type GDExtensionTypePtr = *mut Self; .. }
         }
 
@@ -211,7 +213,9 @@ fn make_sys_code(central_items: &CentralItems) -> String {
             }
         }
 
-        impl GodotFfi for VariantOperator {
+        // SAFETY:
+        // This type is represented as `Self` in Godot, so `*mut Self` is sound.
+        unsafe impl GodotFfi for VariantOperator {
             ffi_methods! { type GDExtensionTypePtr = *mut Self; .. }
         }
     };

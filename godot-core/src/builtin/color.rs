@@ -311,7 +311,9 @@ impl Color {
     }
 }
 
-impl GodotFfi for Color {
+// SAFETY:
+// This type is represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Color {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 

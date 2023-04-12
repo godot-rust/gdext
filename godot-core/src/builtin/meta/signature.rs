@@ -34,6 +34,7 @@ pub trait SignatureTuple {
         ret: sys::GDExtensionTypePtr,
         func: fn(&mut C, Self::Params) -> Self::Ret,
         method_name: &str,
+        call_type: sys::PtrcallType,
     );
 }
 
@@ -143,6 +144,7 @@ macro_rules! impl_signature_for_tuple {
                 ret: sys::GDExtensionTypePtr,
                 func: fn(&mut C, Self::Params) -> Self::Ret,
                 method_name: &str,
+                call_type: sys::PtrcallType,
             ) {
                 $crate::out!("ptrcall: {}", method_name);
 
@@ -151,19 +153,20 @@ macro_rules! impl_signature_for_tuple {
 
 				let args = ( $(
                     unsafe {
-                        <$Pn as sys::GodotFuncMarshal>::try_from_sys(
-                            sys::force_mut_ptr(*args_ptr.offset($n))
+                        <$Pn as sys::GodotFuncMarshal>::try_from_arg(
+                            sys::force_mut_ptr(*args_ptr.offset($n)),
+                            call_type
                         )
                     }
                         .unwrap_or_else(|e| param_error::<$Pn>(method_name, $n, &e)),
                 )* );
 
                 let ret_val = func(&mut *instance, args);
-				unsafe { <$R as sys::GodotFuncMarshal>::try_write_sys(&ret_val, ret) }
-                    .unwrap_or_else(|e| return_error::<$R>(method_name, &e));
-
-                // FIXME is inc_ref needed here?
-				// std::mem::forget(ret_val);
+                // SAFETY:
+                // `ret` is always a pointer to an initialized value of type $R
+                // TODO: double-check the above
+				<$R as sys::GodotFuncMarshal>::try_return(ret_val, ret, call_type)
+                    .unwrap_or_else(|ret_val| return_error::<$R>(method_name, &ret_val));
             }
         }
     };

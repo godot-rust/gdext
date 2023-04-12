@@ -236,6 +236,8 @@ pub mod dom {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub mod mem {
+    use godot_ffi::PtrcallType;
+
     use super::private::Sealed;
     use crate::obj::{Gd, GodotClass};
     use crate::out;
@@ -252,6 +254,14 @@ pub mod mem {
 
         /// Check if ref-counted, return `None` if information is not available (dynamic and obj dead)
         fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> Option<bool>;
+
+        /// Returns `true` if argument and return pointers are passed as `Ref<T>` pointers given this
+        /// [`PtrcallType`].
+        ///
+        /// See [`PtrcallType::Virtual`] for information about `Ref<T>` objects.
+        fn pass_as_ref(_call_type: PtrcallType) -> bool {
+            false
+        }
     }
     pub trait PossiblyManual {}
 
@@ -287,6 +297,10 @@ pub mod mem {
 
         fn is_ref_counted<T: GodotClass>(_obj: &Gd<T>) -> Option<bool> {
             Some(true)
+        }
+
+        fn pass_as_ref(call_type: PtrcallType) -> bool {
+            matches!(call_type, PtrcallType::Virtual)
         }
     }
 

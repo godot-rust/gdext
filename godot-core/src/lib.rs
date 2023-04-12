@@ -80,11 +80,20 @@ pub mod private {
         match std::panic::catch_unwind(code) {
             Ok(result) => Some(result),
             Err(err) => {
+                // Flush, to make sure previous Rust output (e.g. test announcement, or debug prints during app) have been printed
+                // TODO write custom panic handler and move this there, before panic backtrace printing
+                flush_stdout();
+
                 log::godot_error!("Rust function panicked. Context: {}", error_context());
                 print_panic(err);
                 None
             }
         }
+    }
+
+    pub fn flush_stdout() {
+        use std::io::Write;
+        std::io::stdout().flush().expect("flush stdout");
     }
 }
 

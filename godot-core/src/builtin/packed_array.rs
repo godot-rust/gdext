@@ -390,8 +390,26 @@ macro_rules! impl_packed_array {
             }
         }
 
-        impl GodotFfi for $PackedArray {
-            ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+        unsafe impl GodotFfi for $PackedArray {
+            ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
+                fn from_sys;
+                fn sys;
+                fn from_sys_init;
+                // SAFETY:
+                // Nothing special needs to be done beyond a `std::mem::swap` when returning a packed array.
+                fn move_return_ptr;
+            }
+
+            // SAFETY:
+            // Packed arrays are properly initialized through a `from_sys` call, but the ref-count should be
+            // incremented as that is the callee's responsibility.
+            //
+            // Using `std::mem::forget(array.clone())` increments the ref count.
+            unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
+                let array = Self::from_sys(ptr);
+                std::mem::forget(array.clone());
+                array
+            }
 
             unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
                 let mut result = Self::default();

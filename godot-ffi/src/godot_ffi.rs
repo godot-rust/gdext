@@ -9,12 +9,19 @@ use std::fmt::Debug;
 
 /// Adds methods to convert from and to Godot FFI pointers.
 /// See [crate::ffi_methods] for ergonomic implementation.
-pub trait GodotFfi {
+///
+/// # Safety
+///
+/// [`from_arg_ptr`](GodotFfi::from_arg_ptr) and [`move_return_ptr`](GodotFfi::move_return_ptr)
+/// must properly initialize and clean up values given the [`PtrcallType`] provided by the caller.
+pub unsafe trait GodotFfi {
     /// Construct from Godot opaque pointer.
     ///
     /// # Safety
     /// `ptr` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
     /// which is different depending on the type.
+    /// The type in `ptr` must not require any special consideration upon referencing. Such as
+    /// incrementing a refcount.
     unsafe fn from_sys(ptr: sys::GDExtensionTypePtr) -> Self;
 
     /// Construct uninitialized opaque data, then initialize it with `init_fn` function.
@@ -67,12 +74,45 @@ pub trait GodotFfi {
         self.sys()
     }
 
-    /// Write the contents of `self` into the pointer `dst`.
+    /// Construct from a pointer to an argument in a call.
     ///
     /// # Safety
-    /// `dst` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
-    /// which is different depending on the type.
-    unsafe fn write_sys(&self, dst: sys::GDExtensionTypePtr);
+    /// * `ptr` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
+    ///   which is different depending on the type.
+    ///
+    /// * `ptr` must encode `Self` according to the given `call_type`'s encoding of argument values.
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self;
+
+    /// Move self into the pointer in pointer `dst`, dropping what is already in `dst.
+    ///
+    /// # Safety
+    /// * `dst` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
+    ///    which is different depending on the type.
+    ///
+    /// * `dst` must be able to accept a value of type `Self` encoded according to the given
+    ///   `call_type`'s encoding of return values.
+    unsafe fn move_return_ptr(self, dst: sys::GDExtensionTypePtr, call_type: PtrcallType);
+}
+
+/// An indication of what type of pointer call is being made.
+#[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
+pub enum PtrcallType {
+    /// Standard pointer call.
+    ///
+    /// In a standard ptrcall, every argument is passed in as a pointer to a value of that type, and the
+    /// return value must be moved into the return pointer.
+    #[default]
+    Standard,
+    /// Virtual pointer call.
+    ///
+    /// A virtual call behaves like [`PtrcallType::Standard`], except for `RefCounted` objects.
+    /// `RefCounted` objects are instead passed in and returned as `Ref<T>` objects in Godot.
+    ///
+    /// To properly get a value from an argument in a pointer call, you must use `ref_get_object`. And to
+    /// return a value you must use `ref_set_object`.
+    ///
+    /// See also https://github.com/godotengine/godot-cpp/issues/954.
+    Virtual,
 }
 
 /// Trait implemented for all types that can be passed to and from user-defined `#[func]` methods
@@ -85,13 +125,23 @@ pub trait GodotFuncMarshal: Sized {
     ///
     /// # Safety
     /// The value behind `ptr` must be the C FFI type that corresponds to `Self`.
-    unsafe fn try_from_sys(ptr: sys::GDExtensionTypePtr) -> Result<Self, Self::Via>;
+    /// See also [`GodotFfi::from_arg_ptr`].
+    unsafe fn try_from_arg(
+        ptr: sys::GDExtensionTypePtr,
+        call_type: PtrcallType,
+    ) -> Result<Self, Self::Via>;
 
     /// Used for function return values. On failure, `self` which can't be converted to Via is returned.
     ///
     /// # Safety
     /// The value behind `ptr` must be the C FFI type that corresponds to `Self`.
-    unsafe fn try_write_sys(&self, dst: sys::GDExtensionTypePtr) -> Result<(), Self>;
+    /// `dst` must point to an initialized value of type `Via`.
+    /// See also [`GodotFfi::move_return_ptr`].
+    unsafe fn try_return(
+        self,
+        dst: sys::GDExtensionTypePtr,
+        call_type: PtrcallType,
+    ) -> Result<(), Self>;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -125,11 +175,16 @@ macro_rules! ffi_methods_one {
             &self.opaque as *const _ as $Ptr
         }
     };
-    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $write_sys:ident = write_sys) => {
+    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $write_sys(&self, dst: $Ptr) {
-            // Note: this is the same impl as for impl_ffi_as_opaque_value, which is... interesting
-            std::ptr::write(dst as *mut _, self.opaque)
+        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
+            Self::from_sys(ptr as *mut _)
+        }
+    };
+    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
+        $( #[$attr] )? $vis
+        unsafe fn $move_return_ptr(mut self, dst: $Ptr, _call_type: $crate::PtrcallType) {
+            std::ptr::swap(dst as *mut _, std::ptr::addr_of_mut!(self.opaque))
         }
     };
 
@@ -155,11 +210,16 @@ macro_rules! ffi_methods_one {
             unsafe { std::mem::transmute(self.opaque) }
         }
     };
-    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $write_sys:ident = write_sys) => {
+    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $write_sys(&self, dst: $Ptr) {
-            // Note: this is the same impl as for impl_ffi_as_opaque_value, which is... interesting
-            std::ptr::write(dst as *mut _, self.opaque);
+        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
+            Self::from_sys(ptr as *mut _)
+        }
+    };
+    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
+        $( #[$attr] )? $vis
+        unsafe fn $move_return_ptr(mut self, dst: $Ptr, _call_type: $crate::PtrcallType) {
+            std::ptr::swap(dst, std::mem::transmute::<_, $Ptr>(self.opaque))
         }
     };
 
@@ -185,10 +245,16 @@ macro_rules! ffi_methods_one {
             self as *const Self as $Ptr
         }
     };
-    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $write_sys:ident = write_sys) => {
+    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
-        unsafe fn $write_sys(&self, dst: $Ptr) {
-            *(dst as *mut Self) = *self;
+        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
+            *(ptr as *mut Self)
+        }
+    };
+    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
+        $( #[$attr] )? $vis
+        unsafe fn $move_return_ptr(self, dst: $Ptr, _call_type: $crate::PtrcallType) {
+            *(dst as *mut Self) = self
         }
     };
 }
@@ -208,13 +274,14 @@ macro_rules! ffi_methods_rest {
         $( $crate::ffi_methods_one!($Impl $Ptr; $sys_fn = $sys_fn); )*
     };
 
-    ( // impl GodotFfi for T (default all 4)
+    ( // impl GodotFfi for T (default all 5)
         $Impl:ident $Ptr:ty; ..
     ) => {
         $crate::ffi_methods_one!($Impl $Ptr; from_sys = from_sys);
         $crate::ffi_methods_one!($Impl $Ptr; from_sys_init = from_sys_init);
         $crate::ffi_methods_one!($Impl $Ptr; sys = sys);
-        $crate::ffi_methods_one!($Impl $Ptr; write_sys = write_sys);
+        $crate::ffi_methods_one!($Impl $Ptr; from_arg_ptr = from_arg_ptr);
+        $crate::ffi_methods_one!($Impl $Ptr; move_return_ptr = move_return_ptr);
     };
 }
 
@@ -236,6 +303,26 @@ macro_rules! ffi_methods_rest {
 ///   The address of `Self` is directly reinterpreted as the sys pointer.
 ///   The size of the corresponding sys type (the `N` in `Opaque*<N>`) must not be bigger than `size_of::<Self>()`.
 ///   This cannot be checked easily, because Self cannot be used in size_of(). There would of course be workarounds.
+///
+/// Using this macro as a complete implementation for [`GodotFfi`] is sound only when:
+///
+/// ## Using `*mut Opaque`
+///
+/// Turning pointer call arguments into a value is simply calling `from_opaque` on the
+/// dereferenced argument pointer.
+/// Returning a value from a pointer call is simply calling [`std::ptr::swap`] on the return pointer
+/// and the address to the `opaque` field.
+///
+/// ## Using `Opaque`
+///
+/// Turning pointer call arguments into a value is simply calling `from_opaque` on the argument pointer.
+/// Returning a value from a pointer call is simply calling [`std::ptr::swap`] on the return pointer
+/// and the `opaque` field transmuted into a pointer.
+///  
+/// ## Using `*mut Self`
+///
+/// Turning pointer call arguments into a value is a dereference.
+/// Returning a value from a pointer call is `*ret_ptr = value`.
 #[macro_export]
 macro_rules! ffi_methods {
     ( // Sys pointer = address of opaque
@@ -263,13 +350,15 @@ macro_rules! ffi_methods {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation for common types (needs to be this crate due to orphan rule)
 mod scalars {
-    use super::{GodotFfi, GodotFuncMarshal};
+    use super::{GodotFfi, GodotFuncMarshal, PtrcallType};
     use crate as sys;
     use std::convert::Infallible;
 
     macro_rules! impl_godot_marshalling {
         ($T:ty) => {
-            impl GodotFfi for $T {
+            // SAFETY:
+            // This type is represented as `Self` in Godot, so `*mut Self` is sound.
+            unsafe impl GodotFfi for $T {
                 ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
             }
         };
@@ -281,18 +370,21 @@ mod scalars {
             impl GodotFuncMarshal for $T {
                 type Via = $Via;
 
-                unsafe fn try_from_sys(ptr: sys::GDExtensionTypePtr) -> Result<Self, $Via> {
-                    let via = <$Via as GodotFfi>::from_sys(ptr);
+                unsafe fn try_from_arg(
+                    ptr: sys::GDExtensionTypePtr,
+                    call_type: PtrcallType,
+                ) -> Result<Self, $Via> {
+                    let via = <$Via>::from_arg_ptr(ptr, call_type);
                     Self::try_from(via).map_err(|_| via)
                 }
 
-                unsafe fn try_write_sys(&self, dst: sys::GDExtensionTypePtr) -> Result<(), Self> {
-                    <$Via>::try_from(*self)
-                        .and_then(|via| {
-                            <$Via as GodotFfi>::write_sys(&via, dst);
-                            Ok(())
-                        })
-                        .map_err(|_| *self)
+                unsafe fn try_return(
+                    self,
+                    dst: sys::GDExtensionTypePtr,
+                    call_type: PtrcallType,
+                ) -> Result<(), Self> {
+                    <$Via>::from(self).move_return_ptr(dst, call_type);
+                    Ok(())
                 }
             }
         };
@@ -304,14 +396,20 @@ mod scalars {
             impl GodotFuncMarshal for $T {
                 type Via = $Via;
 
-                unsafe fn try_from_sys(ptr: sys::GDExtensionTypePtr) -> Result<Self, $Via> {
-                    let via = <$Via as GodotFfi>::from_sys(ptr);
+                unsafe fn try_from_arg(
+                    ptr: sys::GDExtensionTypePtr,
+                    call_type: PtrcallType,
+                ) -> Result<Self, $Via> {
+                    let via = <$Via>::from_arg_ptr(ptr, call_type);
                     Ok(via as Self)
                 }
 
-                unsafe fn try_write_sys(&self, dst: sys::GDExtensionTypePtr) -> Result<(), Self> {
-                    let via = *self as $Via;
-                    <$Via as GodotFfi>::write_sys(&via, dst);
+                unsafe fn try_return(
+                    self,
+                    dst: sys::GDExtensionTypePtr,
+                    call_type: PtrcallType,
+                ) -> Result<(), Self> {
+                    (self as $Via).move_return_ptr(dst, call_type);
                     Ok(())
                 }
             }
@@ -333,7 +431,7 @@ mod scalars {
 
     impl_godot_marshalling!(f32 as f64; lossy);
 
-    impl GodotFfi for () {
+    unsafe impl GodotFfi for () {
         unsafe fn from_sys(_ptr: sys::GDExtensionTypePtr) -> Self {
             // Do nothing
         }
@@ -347,7 +445,21 @@ mod scalars {
             self as *const _ as sys::GDExtensionTypePtr
         }
 
-        unsafe fn write_sys(&self, _dst: sys::GDExtensionTypePtr) {
+        // SAFETY:
+        // We're not accessing the value in `_ptr`.
+        unsafe fn from_arg_ptr(
+            _ptr: sys::GDExtensionTypePtr,
+            _call_type: super::PtrcallType,
+        ) -> Self {
+        }
+
+        // SAFETY:
+        // We're not doing anything with `_dst`.
+        unsafe fn move_return_ptr(
+            self,
+            _dst: sys::GDExtensionTypePtr,
+            _call_type: super::PtrcallType,
+        ) {
             // Do nothing
         }
     }
@@ -358,12 +470,19 @@ mod scalars {
     {
         type Via = Infallible;
 
-        unsafe fn try_from_sys(ptr: sys::GDExtensionTypePtr) -> Result<Self, Infallible> {
-            Ok(Self::from_sys(ptr))
+        unsafe fn try_from_arg(
+            ptr: sys::GDExtensionTypePtr,
+            call_type: PtrcallType,
+        ) -> Result<Self, Infallible> {
+            Ok(Self::from_arg_ptr(ptr, call_type))
         }
 
-        unsafe fn try_write_sys(&self, dst: sys::GDExtensionTypePtr) -> Result<(), Self> {
-            self.write_sys(dst);
+        unsafe fn try_return(
+            self,
+            dst: sys::GDExtensionTypePtr,
+            call_type: PtrcallType,
+        ) -> Result<(), Self> {
+            self.move_return_ptr(dst, call_type);
             Ok(())
         }
     }

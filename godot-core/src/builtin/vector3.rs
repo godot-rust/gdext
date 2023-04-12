@@ -15,7 +15,7 @@ use crate::builtin::Vector3i;
 
 use super::glam_helpers::GlamConv;
 use super::glam_helpers::GlamType;
-use super::{real, RVec3};
+use super::{real, Basis, RVec3};
 
 /// Vector used for 3D math using floating point coordinates.
 ///
@@ -306,6 +306,15 @@ impl Vector3 {
             snapped(self.z, step.z),
         )
     }
+
+    /// Returns this vector rotated around `axis` by `angle` radians. `axis` must be normalized.
+    ///
+    /// # Panics
+    /// If `axis` is not normalized.
+    pub fn rotated(self, axis: Self, angle: real) -> Self {
+        assert!(axis.is_normalized());
+        Basis::from_axis_angle(axis, angle) * self
+    }
 }
 
 /// Formats the vector like Godot: `(x, y, z)`.
@@ -320,7 +329,9 @@ impl_float_vector_fns!(Vector3, real);
 impl_vector_operators!(Vector3, real, (x, y, z));
 impl_vector_index!(Vector3, real, (x, y, z), Vector3Axis, (X, Y, Z));
 
-impl GodotFfi for Vector3 {
+// SAFETY:
+// This type is represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Vector3 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
@@ -337,7 +348,9 @@ pub enum Vector3Axis {
     Z,
 }
 
-impl GodotFfi for Vector3Axis {
+// SAFETY:
+// This type is represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Vector3Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
@@ -368,4 +381,42 @@ impl GlamType for glam::Vec3A {
 
 impl GlamConv for Vector3 {
     type Glam = RVec3;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use godot::builtin::real_consts::TAU;
+    use godot::private::class_macros::assert_eq_approx;
+
+    fn vec3_equal_approx(a: Vector3, b: Vector3) -> bool {
+        a.is_equal_approx(b)
+    }
+
+    // Translated from Godot
+    #[test]
+    #[allow(clippy::excessive_precision)]
+    fn rotation() {
+        let vector = Vector3::new(1.2, 3.4, 5.6);
+        assert_eq_approx!(
+            vector.rotated(Vector3::new(0.0, 1.0, 0.0), TAU),
+            vector,
+            vec3_equal_approx
+        );
+        assert_eq_approx!(
+            vector.rotated(Vector3::new(0.0, 1.0, 0.0), TAU / 4.0),
+            Vector3::new(5.6, 3.4, -1.2),
+            vec3_equal_approx
+        );
+        assert_eq_approx!(
+            vector.rotated(Vector3::new(1.0, 0.0, 0.0), TAU / 3.0),
+            Vector3::new(1.2, -6.54974226119285642, 0.1444863728670914),
+            vec3_equal_approx
+        );
+        assert_eq_approx!(
+            vector.rotated(Vector3::new(0.0, 0.0, 1.0), TAU / 2.0),
+            vector.rotated(Vector3::new(0.0, 0.0, 1.0), TAU / -2.0),
+            vec3_equal_approx
+        );
+    }
 }

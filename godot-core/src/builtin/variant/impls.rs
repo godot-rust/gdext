@@ -5,8 +5,9 @@
  */
 
 use super::*;
-use crate::builtin::meta::VariantMetadata;
+use crate::builtin::meta::{PropertyInfo, VariantMetadata};
 use crate::builtin::*;
+use crate::engine::global;
 use crate::obj::EngineEnum;
 use godot_ffi as sys;
 use sys::GodotFfi;
@@ -223,6 +224,21 @@ impl VariantMetadata for Variant {
     fn variant_type() -> VariantType {
         // Arrays use the `NIL` type to indicate that they are untyped.
         VariantType::Nil
+    }
+
+    fn property_info(property_name: &str) -> PropertyInfo {
+        PropertyInfo {
+            variant_type: Self::variant_type(),
+            class_name: Self::class_name(),
+            property_name: StringName::from(property_name),
+            hint: global::PropertyHint::PROPERTY_HINT_NONE,
+            hint_string: GodotString::new(),
+            usage: global::PropertyUsageFlags::PROPERTY_USAGE_NIL_IS_VARIANT,
+        }
+    }
+
+    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8
     }
 }
 

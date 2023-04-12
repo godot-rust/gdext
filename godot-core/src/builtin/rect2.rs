@@ -104,6 +104,8 @@ impl Rect2 {
     */
 }
 
-impl GodotFfi for Rect2 {
+// SAFETY:
+// This type is represented as `Self` in Godot, so `*mut Self` is sound.
+unsafe impl GodotFfi for Rect2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }

@@ -28,7 +28,7 @@ mod plugins;
 #[doc(hidden)]
 pub use paste;
 
-pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal};
+pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal, PtrcallType};
 pub use gen::central::*;
 pub use gen::gdextension_interface::*;
 

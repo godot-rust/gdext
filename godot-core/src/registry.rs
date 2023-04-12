@@ -365,9 +365,8 @@ pub mod callbacks {
         let instance = storage.get();
         let string = T::__godot_to_string(&*instance);
 
-        // Transfer ownership to Godot, disable destructor
-        string.write_string_sys(out_string);
-        std::mem::forget(string);
+        // Transfer ownership to Godot
+        string.move_string_ptr(out_string);
     }
 
     pub unsafe extern "C" fn on_notification<T: cap::GodotNotification>(
