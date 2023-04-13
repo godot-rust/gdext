@@ -82,6 +82,20 @@ impl Aabb {
     */
 }
 
+impl std::fmt::Display for Aabb {
+    /// Formats `Aabb` to match godot's display style.
+    ///
+    /// Example:
+    /// ```
+    /// use godot::prelude::*;
+    /// let aabb = Aabb::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+    /// assert_eq!(format!("{}", aabb), "[P: (0, 0, 0), S: (1, 1, 1)]");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[P: {}, S: {}]", self.position, self.size)
+    }
+}
+
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Aabb {

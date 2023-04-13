@@ -109,3 +109,19 @@ impl Rect2 {
 unsafe impl GodotFfi for Rect2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+impl std::fmt::Display for Rect2 {
+    /// Formats `Rect2` to match Godot's string representation.
+    ///
+    /// Example:
+    /// ```
+    /// use godot::prelude::*;
+    /// let rect = Rect2::new(Vector2::new(0.0, 0.0), Vector2::new(1.0, 1.0));
+    /// assert_eq!(format!("{}", rect), "[P: (0, 0), S: (1, 1)]");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // godot output be like:
+        // [P: (0, 0), S: (0, 0)]
+        write!(f, "[P: {}, S: {}]", self.position, self.size)
+    }
+}
