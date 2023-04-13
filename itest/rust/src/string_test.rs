@@ -56,6 +56,14 @@ fn string_clone() {
     assert_eq!(first, cloned);
 }
 
+#[itest]
+fn empty_string_chars() {
+    // Tests regression from #228: Null pointer passed to slice::from_raw_parts
+    let s = GodotString::new();
+    assert_eq!(s.chars_checked(), &[]);
+    assert_eq!(unsafe { s.chars_unchecked() }, &[]);
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[itest]
