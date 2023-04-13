@@ -496,7 +496,6 @@ impl Default for Basis2D {
 impl Display for Basis2D {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let [a, b] = self.cols;
-
         write!(f, "[a: {a}, b: {b})]")
     }
 }

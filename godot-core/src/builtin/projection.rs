@@ -9,7 +9,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use super::glam_helpers::{GlamConv, GlamType};
-use super::{inner::InnerProjection, Plane, Transform3D, Vector2, Vector4};
+use super::{inner::InnerProjection, Plane, Transform3D, Vector2, Vector4, Vector4Axis};
 use super::{real, RMat4, RealConv};
 
 /// A 4x4 matrix used for 3D projective transformations. It can represent
@@ -959,5 +959,53 @@ mod test {
                 }
             }
         }
+    }
+}
+
+impl std::fmt::Display for Projection {
+    /// Formats `Projection` to match Godot's string representation.
+    ///
+    /// Example:
+    /// ```
+    /// use godot::prelude::*;
+    /// let proj = Projection::new([
+    ///     Vector4::new(1.0, 2.5, 1.0, 0.5),
+    ///     Vector4::new(0.0, 1.5, 2.0, 0.5),
+    ///     Vector4::new(0.0, 0.0, 3.0, 2.5),
+    ///     Vector4::new(3.0, 1.0, 4.0, 1.5),
+    /// ]);
+    /// const FMT_RESULT: &str = r"
+    /// 1, 0, 0, 3
+    /// 2.5, 1.5, 0, 1
+    /// 1, 2, 3, 4
+    /// 0.5, 0.5, 2.5, 1.5
+    /// ";
+    /// assert_eq!(format!("{}", proj), FMT_RESULT);
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "\n{}, {}, {}, {}\n{}, {}, {}, {}\n{}, {}, {}, {}\n{}, {}, {}, {}\n",
+            // first row
+            self.cols[0][Vector4Axis::X],
+            self.cols[1][Vector4Axis::X],
+            self.cols[2][Vector4Axis::X],
+            self.cols[3][Vector4Axis::X],
+            // second row
+            self.cols[0][Vector4Axis::Y],
+            self.cols[1][Vector4Axis::Y],
+            self.cols[2][Vector4Axis::Y],
+            self.cols[3][Vector4Axis::Y],
+            // third row
+            self.cols[0][Vector4Axis::Z],
+            self.cols[1][Vector4Axis::Z],
+            self.cols[2][Vector4Axis::Z],
+            self.cols[3][Vector4Axis::Z],
+            // forth row
+            self.cols[0][Vector4Axis::W],
+            self.cols[1][Vector4Axis::W],
+            self.cols[2][Vector4Axis::W],
+            self.cols[3][Vector4Axis::W],
+        )
     }
 }

@@ -81,6 +81,24 @@ impl Rid {
     }
 }
 
+impl std::fmt::Display for Rid {
+    /// Formats `Rid` to match Godot's string representation.
+    ///
+    /// Example:
+    /// ```
+    /// use godot::prelude::*;
+    /// let id = Rid::new(1);
+    /// assert_eq!(format!("{}", id), "RID(1)");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // godot output: `RID(0)`
+        match self {
+            Rid::Valid(x) => write!(f, "RID({})", x),
+            Rid::Invalid => write!(f, "RID(0)"),
+        }
+    }
+}
+
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Rid {

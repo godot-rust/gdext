@@ -140,6 +140,20 @@ unsafe impl GodotFfi for Plane {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
+impl std::fmt::Display for Plane {
+    /// Formats `Plane` to match Godot's string representation.
+    ///
+    /// Example:
+    /// ```
+    /// use godot::prelude::*;
+    /// let plane = Plane::new(Vector3::new(1.0, 0.0, 0.0), 1.0);
+    /// assert_eq!(format!("{}", plane), "[N: (1, 0, 0), D: 1]");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[N: {}, D: {}]", self.normal, self.d)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

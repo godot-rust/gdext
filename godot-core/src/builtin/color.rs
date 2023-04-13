@@ -497,3 +497,17 @@ fn to_be_words(mut u: u64) -> [u16; 4] {
     let x = (u & 0xffff) as u16;
     [x, y, z, w]
 }
+
+impl std::fmt::Display for Color {
+    /// Formats `Color` to match Godot's string representation.
+    ///
+    /// Example:
+    /// ```
+    /// use godot::prelude::*;
+    /// let color = Color::from_rgba(1.0,1.0,1.0,1.0);
+    /// assert_eq!(format!("{}", color), "(1, 1, 1, 1)");
+    /// ```
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {}, {}, {})", self.r, self.g, self.b, self.a)
+    }
+}
