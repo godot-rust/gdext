@@ -23,7 +23,8 @@ pub trait VariantMetadata {
     fn variant_type() -> VariantType;
 
     fn class_name() -> ClassName {
-        ClassName::of::<()>() // FIXME Option or so
+        // If we use `ClassName::of::<()>()` then this type shows up as `(no base)` in documentation.
+        ClassName::none()
     }
 
     fn property_info(property_name: &str) -> PropertyInfo {
