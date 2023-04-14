@@ -883,12 +883,7 @@ struct TypeInfo {
 impl TypeInfo {
     fn new<T: VariantMetadata>() -> Self {
         let variant_type = T::variant_type();
-        let class_name = match variant_type {
-            VariantType::Object => StringName::from(T::class_name()),
-            // TODO for variant types other than Object, class_name() returns "(no base)"; just
-            // make it return "" instead?
-            _ => StringName::default(),
-        };
+        let class_name: StringName = T::class_name().into();
         Self {
             variant_type,
             class_name,

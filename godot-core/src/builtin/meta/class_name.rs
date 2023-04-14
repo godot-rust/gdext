@@ -19,6 +19,13 @@ pub struct ClassName {
 }
 
 impl ClassName {
+    /// In Godot, an empty `StringName` in a place that expects a class name, means that there is no class.
+    pub fn none() -> Self {
+        Self {
+            backing: StringName::default(),
+        }
+    }
+
     pub fn of<T: GodotClass>() -> Self {
         Self {
             backing: StringName::from(T::CLASS_NAME),
