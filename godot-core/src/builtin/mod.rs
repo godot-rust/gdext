@@ -38,6 +38,7 @@ pub use crate::{array, dict, varray};
 pub use aabb::*;
 pub use array_inner::{Array, VariantArray};
 pub use basis::*;
+pub use callable::*;
 pub use color::*;
 pub use dictionary_inner::Dictionary;
 pub use math::*;
@@ -90,6 +91,7 @@ mod dictionary_inner;
 
 mod aabb;
 mod basis;
+mod callable;
 mod color;
 mod glam_helpers;
 mod math;
@@ -403,7 +405,10 @@ mod export {
     impl_export_by_clone!(Vector3i);
     impl_export_by_clone!(Vector4);
 
-    // TODO investigate whether these should impl Export at all, and if so, how
-    // impl_export_by_clone!(Callable);
+    // Callables can be exported, however you can't do anything with them in the editor.
+    // But we do need to be able to export them since we can't make something a property without exporting.
+    // And it should be possible to access Callables by property from for instance GDScript.
+    impl_export_by_clone!(Callable);
+    // TODO investigate whether Signal should impl Export at all, and if so, how
     // impl_export_by_clone!(Signal);
 }

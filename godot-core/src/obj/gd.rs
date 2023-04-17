@@ -15,7 +15,9 @@ use sys::types::OpaqueObject;
 use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi, PtrcallType};
 
 use crate::builtin::meta::{ClassName, VariantMetadata};
-use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
+use crate::builtin::{
+    Callable, FromVariant, StringName, ToVariant, Variant, VariantConversionError,
+};
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
 use crate::obj::{cap, dom, mem, Export, GodotClass, Inherits, Share};
@@ -415,6 +417,11 @@ impl<T: GodotClass> Gd<T> {
         // init_ref also doesn't hurt (except 1 possibly unnecessary check).
         T::Mem::maybe_init_ref(&self);
         self
+    }
+
+    /// Returns a callable referencing a method from this object named `method_name`.
+    pub fn callable<S: Into<StringName>>(&self, method_name: S) -> Callable {
+        Callable::from_object_method(self.share(), method_name)
     }
 }
 

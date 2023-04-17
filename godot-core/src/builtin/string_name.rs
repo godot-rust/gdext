@@ -11,6 +11,8 @@ use sys::{ffi_methods, GodotFfi};
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
+use super::inner;
+
 #[repr(C)]
 pub struct StringName {
     opaque: sys::types::OpaqueStringName,
@@ -19,6 +21,25 @@ pub struct StringName {
 impl StringName {
     fn from_opaque(opaque: sys::types::OpaqueStringName) -> Self {
         Self { opaque }
+    }
+
+    /// Returns the number of characters in the string.
+    ///
+    /// _Godot equivalent: `length`_
+    pub fn len(&self) -> usize {
+        self.as_inner().length() as usize
+    }
+
+    /// Returns `true` if this is the empty string.
+    ///
+    /// _Godot equivalent: `is_empty`_
+    pub fn is_empty(&self) -> bool {
+        self.as_inner().is_empty()
+    }
+
+    #[doc(hidden)]
+    pub fn as_inner(&self) -> inner::InnerStringName {
+        inner::InnerStringName::from_outer(self)
     }
 
     ffi_methods! {

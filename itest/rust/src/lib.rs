@@ -13,6 +13,7 @@ mod array_test;
 mod base_test;
 mod basis_test;
 mod builtin_test;
+mod callable_test;
 mod codegen_test;
 mod color_test;
 mod dictionary_test;
