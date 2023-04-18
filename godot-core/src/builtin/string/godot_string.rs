@@ -10,17 +10,19 @@ use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use super::{
-    string_chars::validate_unicode_scalar_sequence, FromVariant, ToVariant, Variant,
-    VariantConversionError,
-};
+use crate::builtin::inner;
 
+use super::string_chars::validate_unicode_scalar_sequence;
+use super::{NodePath, StringName};
+
+/// Godot's reference counted string type.
 #[repr(C, align(8))]
 pub struct GodotString {
     opaque: OpaqueString,
 }
 
 impl GodotString {
+    /// Construct a new empty GodotString.
     pub fn new() -> Self {
         Self::default()
     }
@@ -29,12 +31,12 @@ impl GodotString {
         Self { opaque }
     }
 
-    ffi_methods! {
-        type sys::GDExtensionStringPtr = *mut Opaque;
-
-        fn from_string_sys = from_sys;
-        fn from_string_sys_init = from_sys_init;
-        fn string_sys = sys;
+    /// Returns a 32-bit integer hash value representing the string.
+    pub fn hash(&self) -> u32 {
+        self.as_inner()
+            .hash()
+            .try_into()
+            .expect("Godot hashes are uint32_t")
     }
 
     /// Move `self` into a system pointer. This transfers ownership and thus does not call the destructor.
@@ -83,6 +85,19 @@ impl GodotString {
         }
         std::slice::from_raw_parts(ptr as *const char, len as usize)
     }
+
+    ffi_methods! {
+        type sys::GDExtensionStringPtr = *mut Opaque;
+
+        fn from_string_sys = from_sys;
+        fn from_string_sys_init = from_sys_init;
+        fn string_sys = sys;
+    }
+
+    #[doc(hidden)]
+    pub fn as_inner(&self) -> inner::InnerString {
+        inner::InnerString::from_outer(self)
+    }
 }
 
 // SAFETY:
@@ -122,8 +137,27 @@ impl_builtin_traits! {
         Drop => string_destroy;
         Eq => string_operator_equal;
         Ord => string_operator_less;
+        Hash;
     }
 }
+
+impl fmt::Display for GodotString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s: String = self.chars_checked().iter().collect();
+        f.write_str(s.as_str())
+    }
+}
+
+/// Uses literal syntax from GDScript: `"string"`
+impl fmt::Debug for GodotString {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = String::from(self);
+        write!(f, "\"{s}\"")
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Conversion from/into rust string-types
 
 impl<S> From<S> for GodotString
 where
@@ -162,7 +196,14 @@ impl From<&GodotString> for String {
     }
 }
 
-// TODO From<&NodePath> + test
+impl From<GodotString> for String {
+    /// Converts this `GodotString` to a `String`.
+    ///
+    /// This is identical to `String::from(&string)`, and as such there is no performance benefit.
+    fn from(string: GodotString) -> Self {
+        Self::from(&string)
+    }
+}
 
 impl FromStr for GodotString {
     type Err = Infallible;
@@ -172,49 +213,47 @@ impl FromStr for GodotString {
     }
 }
 
-impl fmt::Display for GodotString {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = String::from(self);
-        f.write_str(s.as_str())
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Conversion from other Godot string-types
+
+impl From<&StringName> for GodotString {
+    fn from(string: &StringName) -> Self {
+        unsafe {
+            Self::from_sys_init_default(|self_ptr| {
+                let ctor = sys::builtin_fn!(string_from_string_name);
+                let args = [string.sys_const()];
+                ctor(self_ptr, args.as_ptr());
+            })
+        }
     }
 }
 
-/// Uses literal syntax from GDScript: `"string"`
-impl fmt::Debug for GodotString {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = String::from(self);
-        write!(f, "\"{s}\"")
+impl From<StringName> for GodotString {
+    /// Converts this `StringName` to a `GodotString`.
+    ///
+    /// This is identical to `GodotString::from(&string_name)`, and as such there is no performance benefit.
+    fn from(string_name: StringName) -> Self {
+        Self::from(&string_name)
     }
 }
 
-impl ToVariant for &str {
-    fn to_variant(&self) -> Variant {
-        GodotString::from(*self).to_variant()
+impl From<&NodePath> for GodotString {
+    fn from(path: &NodePath) -> Self {
+        unsafe {
+            Self::from_sys_init_default(|self_ptr| {
+                let ctor = sys::builtin_fn!(string_from_node_path);
+                let args = [path.sys_const()];
+                ctor(self_ptr, args.as_ptr());
+            })
+        }
     }
 }
 
-impl ToVariant for String {
-    fn to_variant(&self) -> Variant {
-        GodotString::from(self).to_variant()
+impl From<NodePath> for GodotString {
+    /// Converts this `NodePath` to a `GodotString`.
+    ///
+    /// This is identical to `GodotString::from(&path)`, and as such there is no performance benefit.
+    fn from(path: NodePath) -> Self {
+        Self::from(&path)
     }
 }
-
-impl FromVariant for String {
-    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-        Ok(GodotString::try_from_variant(variant)?.to_string())
-    }
-}
-
-// While this is a nice optimisation for ptrcalls, it's not easily possible
-// to pass in &GodotString when doing varcalls.
-/*
-impl PtrCall for &GodotString {
-    unsafe fn from_ptr_call_arg(arg: *const godot_ffi::GDExtensionTypePtr) -> Self {
-        &*(*arg as *const GodotString)
-    }
-
-    unsafe fn to_ptr_call_arg(self, arg: godot_ffi::GDExtensionTypePtr) {
-        std::ptr::write(arg as *mut GodotString, self.clone());
-    }
-}
-*/
