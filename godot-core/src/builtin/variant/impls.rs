@@ -146,6 +146,7 @@ mod impls {
     impl_variant_traits!(Aabb, aabb_to_variant, aabb_from_variant, Aabb);
     impl_variant_traits!(bool, bool_to_variant, bool_from_variant, Bool);
     impl_variant_traits!(Basis, basis_to_variant, basis_from_variant, Basis);
+    impl_variant_traits!(Callable, callable_to_variant, callable_from_variant, Callable);
     impl_variant_traits!(Vector2, vector2_to_variant, vector2_from_variant, Vector2);
     impl_variant_traits!(Vector3, vector3_to_variant, vector3_from_variant, Vector3);
     impl_variant_traits!(Vector4, vector4_to_variant, vector4_from_variant, Vector4);
@@ -157,7 +158,6 @@ mod impls {
     impl_variant_traits!(StringName, string_name_to_variant, string_name_from_variant, StringName);
     impl_variant_traits!(NodePath, node_path_to_variant, node_path_from_variant, NodePath);
     // TODO use impl_variant_traits!, as soon as `Default` is available. Also consider auto-generating.
-    impl_variant_metadata!(Callable, /* callable_to_variant, callable_from_variant, */ Callable);
     impl_variant_metadata!(Signal, /* signal_to_variant, signal_from_variant, */ Signal);
     impl_variant_traits!(PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant, PackedByteArray);
     impl_variant_traits!(PackedInt32Array, packed_int32_array_to_variant, packed_int32_array_from_variant, PackedInt32Array);

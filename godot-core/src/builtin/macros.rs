@@ -107,25 +107,6 @@ macro_rules! impl_builtin_traits_inner {
             }
         }
     };
-
-    // TODO remove; use godot-core/src/builtin/variant/impls.rs instead (this one is only used for Callable)
-    ( FromVariant for $Type:ty => $gd_method:ident ) => {
-        impl $crate::builtin::variant::FromVariant for $Type {
-            fn try_from_variant(variant: &$crate::builtin::Variant) -> Result<Self, $crate::builtin::variant::VariantConversionError> {
-                if variant.get_type() != <Self as $crate::builtin::meta::VariantMetadata>::variant_type() {
-                    return Err($crate::builtin::variant::VariantConversionError)
-                }
-                let result = unsafe {
-                    Self::from_sys_init_default(|self_ptr| {
-                        let converter = sys::builtin_fn!($gd_method);
-                        converter(self_ptr, variant.var_sys());
-                    })
-                };
-
-                Ok(result)
-            }
-        }
-    };
 }
 
 macro_rules! impl_builtin_traits {

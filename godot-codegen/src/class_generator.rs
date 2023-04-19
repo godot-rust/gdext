@@ -879,11 +879,6 @@ fn make_builtin_method_definition(
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> TokenStream {
-    // TODO implement varcalls
-    if method.is_vararg {
-        return TokenStream::new();
-    }
-
     let method_name_str = &method.name;
 
     let (receiver, receiver_arg) =
