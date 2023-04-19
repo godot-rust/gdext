@@ -88,7 +88,15 @@ pub enum PluginComponent {
             unsafe extern "C" fn(
                 p_instance: sys::GDExtensionClassInstancePtr,
                 r_is_valid: *mut sys::GDExtensionBool,
-                p_out: sys::GDExtensionStringPtr,
+                r_out: sys::GDExtensionStringPtr,
+            ),
+        >,
+
+        /// User-defined `on_notification` function
+        user_on_notification_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr, //
+                p_what: i32,
             ),
         >,
 
@@ -113,7 +121,11 @@ struct ClassRegistrationInfo {
 
 /// Registers a class with static type information.
 pub fn register_class<
-    T: cap::GodotInit + cap::ImplementsGodotVirtual + cap::GodotToString + cap::GodotRegisterClass,
+    T: cap::GodotInit
+        + cap::ImplementsGodotVirtual
+        + cap::GodotToString
+        + cap::GodotNotification
+        + cap::GodotRegisterClass,
 >() {
     // TODO: provide overloads with only some trait impls
 
@@ -122,6 +134,7 @@ pub fn register_class<
 
     let godot_params = sys::GDExtensionClassCreationInfo {
         to_string_func: Some(callbacks::to_string::<T>),
+        notification_func: Some(callbacks::on_notification::<T>),
         reference_func: Some(callbacks::reference::<T>),
         unreference_func: Some(callbacks::unreference::<T>),
         create_instance_func: Some(callbacks::create::<T>),
@@ -203,11 +216,13 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             user_register_fn,
             user_create_fn,
             user_to_string_fn,
+            user_on_notification_fn,
             get_virtual_fn,
         } => {
             c.user_register_fn = user_register_fn;
             fill_into(&mut c.godot_params.create_instance_func, user_create_fn);
             c.godot_params.to_string_func = user_to_string_fn;
+            c.godot_params.notification_func = user_on_notification_fn;
             c.godot_params.get_virtual_func = Some(get_virtual_fn);
         }
     }
@@ -348,10 +363,20 @@ pub mod callbacks {
 
         let storage = as_storage::<T>(instance);
         let instance = storage.get();
-        let string = <T as cap::GodotToString>::__godot_to_string(&*instance);
+        let string = T::__godot_to_string(&*instance);
 
         // Transfer ownership to Godot
         string.move_string_ptr(out_string);
+    }
+
+    pub unsafe extern "C" fn on_notification<T: cap::GodotNotification>(
+        instance: sys::GDExtensionClassInstancePtr,
+        what: i32,
+    ) {
+        let storage = as_storage::<T>(instance);
+        let mut instance = storage.get_mut();
+
+        T::__godot_notification(&mut *instance, what);
     }
 
     pub unsafe extern "C" fn reference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {

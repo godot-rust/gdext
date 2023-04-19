@@ -17,6 +17,17 @@ pub mod obj;
 pub use godot_ffi as sys;
 pub use registry::*;
 
+/// Maps the Godot class API to Rust.
+///
+/// This module contains the following symbols:
+/// * Classes: `CanvasItem`, etc.
+/// * Virtual traits: `CanvasItemVirtual`, etc.
+/// * Enum/flag modules: `canvas_item`, etc.
+///
+/// Noteworthy sub-modules are:
+/// * [`notify`][crate::engine::notify]: all notification types, used when working with the virtual callback to handle lifecycle notifications.
+/// * [`global`][crate::engine::global]: global enums not belonging to a specific class.
+/// * [`utilities`][crate::engine::utilities]: utility methods that are global in Godot.
 pub mod engine;
 
 // Output of generated code. Mimics the file structure, symbols are re-exported.

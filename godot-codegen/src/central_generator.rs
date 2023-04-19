@@ -136,6 +136,8 @@ fn make_sys_code(central_items: &CentralItems) -> String {
             #(#opaque_types)*
         }
 
+        // ----------------------------------------------------------------------------------------------------------------------------------------------
+
         pub struct GlobalMethodTable {
             #(#variant_fn_decls)*
         }
@@ -147,6 +149,8 @@ fn make_sys_code(central_items: &CentralItems) -> String {
                 }
             }
         }
+
+        // ----------------------------------------------------------------------------------------------------------------------------------------------
 
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
         #[repr(i32)]
@@ -181,6 +185,8 @@ fn make_sys_code(central_items: &CentralItems) -> String {
         unsafe impl GodotFfi for VariantType {
             ffi_methods! { type GDExtensionTypePtr = *mut Self; .. }
         }
+
+        // ----------------------------------------------------------------------------------------------------------------------------------------------
 
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
         #[repr(i32)]
@@ -256,6 +262,12 @@ fn make_core_code(central_items: &CentralItems) -> String {
             }
         }
 
+        /// Global enums and constants.
+        ///
+        /// A list of global-scope enumerated constants.
+        /// For global built-in functions, check out the [`utilities` module][crate::engine::utilities].
+        ///
+        /// See also [Godot docs for `@GlobalScope`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#enumerations).
         pub mod global {
             use crate::sys;
             #( #global_enum_defs )*
@@ -266,7 +278,7 @@ fn make_core_code(central_items: &CentralItems) -> String {
 }
 
 fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context) -> CentralItems {
-    let mut opaque_types = vec![];
+    let mut opaque_types = Vec::new();
     for class in &api.builtin_class_sizes {
         if class.build_configuration == build_config {
             for ClassSize { name, size } in &class.sizes {
@@ -331,7 +343,7 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context)
 
         result
             .variant_op_enumerators_pascal
-            .push(ident(&shout_to_pascal(name)));
+            .push(ident(&util::shout_to_pascal(name)));
         result
             .variant_op_enumerators_ord
             .push(Literal::i32_unsuffixed(op.value));
@@ -706,23 +718,4 @@ fn is_trivial(type_names: &TypeNames) -> bool {
     let list = ["bool", "int", "float"];
 
     list.contains(&type_names.json_builtin_name.as_str())
-}
-
-fn shout_to_pascal(shout_case: &str) -> String {
-    let mut result = String::with_capacity(shout_case.len());
-    let mut next_upper = true;
-
-    for ch in shout_case.chars() {
-        if next_upper {
-            assert_ne!(ch, '_'); // no double underscore
-            result.push(ch); // unchanged
-            next_upper = false;
-        } else if ch == '_' {
-            next_upper = true;
-        } else {
-            result.push(ch.to_ascii_lowercase());
-        }
-    }
-
-    result
 }

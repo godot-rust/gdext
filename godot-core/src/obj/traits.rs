@@ -158,6 +158,13 @@ pub mod cap {
 
     // TODO Evaluate whether we want this public or not
     #[doc(hidden)]
+    pub trait GodotNotification: GodotClass {
+        #[doc(hidden)]
+        fn __godot_notification(&mut self, what: i32);
+    }
+
+    // TODO Evaluate whether we want this public or not
+    #[doc(hidden)]
     pub trait GodotRegisterClass: GodotClass {
         #[doc(hidden)]
         fn __godot_register_class(builder: &mut ClassBuilder<Self>);
@@ -174,7 +181,7 @@ pub mod cap {
         fn __register_exports();
     }
 
-    /// Auto-implemented for `#[godot_api] impl ***Virtual for MyClass` blocks
+    /// Auto-implemented for `#[godot_api] impl XyVirtual for MyClass` blocks
     pub trait ImplementsGodotVirtual: GodotClass {
         #[doc(hidden)]
         fn __virtual_call(_name: &str) -> sys::GDExtensionClassCallVirtual;

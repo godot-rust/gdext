@@ -226,20 +226,24 @@ impl ToTokens for ModName {
 }
 
 struct GeneratedClass {
-    tokens: TokenStream,
+    code: TokenStream,
+    notification_enum_name: Ident,
+    has_own_notification_enum: bool,
     inherits_macro_ident: Ident,
-    has_pub_module: bool,
+    /// Sidecars are the associated modules with related enum/flag types, such as `node_3d` for `Node3D` class.
+    has_sidecar_module: bool,
 }
 
 struct GeneratedBuiltin {
-    tokens: TokenStream,
+    code: TokenStream,
 }
 
 struct GeneratedClassModule {
     class_name: TyName,
     module_name: ModName,
+    own_notification_enum_name: Option<Ident>,
     inherits_macro_ident: Ident,
-    is_pub: bool,
+    is_pub_sidecar: bool,
 }
 
 struct GeneratedBuiltinModule {

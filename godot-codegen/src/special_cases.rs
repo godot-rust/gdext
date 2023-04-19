@@ -54,6 +54,7 @@ pub(crate) fn is_private(class_name: &TyName, godot_method_name: &str) -> bool {
         | ("RefCounted", "init_ref")
         | ("RefCounted", "reference")
         | ("RefCounted", "unreference")
+        | ("Object", "notification")
 
         => true, _ => false
     }

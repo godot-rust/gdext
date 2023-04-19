@@ -14,9 +14,10 @@ use godot::builtin::{
     PackedVector3Array, RealConv, StringName, ToVariant, Variant, VariantArray, Vector2, Vector3,
 };
 use godot::engine::node::InternalMode;
+use godot::engine::notify::NodeNotification;
 use godot::engine::resource_loader::CacheMode;
 use godot::engine::{
-    BoxMesh, InputEvent, InputEventAction, Node, Node2D, Node2DVirtual, PrimitiveMesh,
+    BoxMesh, InputEvent, InputEventAction, Node, Node2D, Node2DVirtual, NodeVirtual, PrimitiveMesh,
     PrimitiveMeshVirtual, RefCounted, RefCountedVirtual, ResourceFormatLoader,
     ResourceFormatLoaderVirtual, ResourceLoader, Window,
 };
@@ -31,6 +32,8 @@ struct WithoutInit {
     #[base]
     some_base: Base<RefCounted>,
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass, Debug)]
 #[class(init, base=RefCounted)]
@@ -50,6 +53,8 @@ impl RefCountedVirtual for VirtualMethodTest {
         format!("VirtualMethodTest[integer={}]", self.integer).into()
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
@@ -72,6 +77,8 @@ impl Node2DVirtual for ReadyVirtualTest {
         self.implementation_value += 1;
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
@@ -100,6 +107,8 @@ impl Node2DVirtual for TreeVirtualTest {
         self.tree_exits += 1;
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass, Debug)]
 #[class(init, base=PrimitiveMesh)]
@@ -187,6 +196,34 @@ impl ResourceFormatLoaderVirtual for FormatLoaderTest {
         _cache_mode: i64,
     ) -> Variant {
         BoxMesh::new().to_variant()
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(Eq, PartialEq, Debug)]
+enum ReceivedEvent {
+    Notification(NodeNotification),
+    Ready,
+}
+
+#[derive(GodotClass, Debug)]
+#[class(base=Node, init)]
+struct NotificationTest {
+    #[base]
+    base: Base<Node>,
+
+    sequence: Vec<ReceivedEvent>,
+}
+
+#[godot_api]
+impl NodeVirtual for NotificationTest {
+    fn on_notification(&mut self, what: NodeNotification) {
+        self.sequence.push(ReceivedEvent::Notification(what));
+    }
+
+    fn ready(&mut self) {
+        self.sequence.push(ReceivedEvent::Ready);
     }
 }
 
@@ -316,7 +353,7 @@ fn test_tree_enters_exits(test_context: &TestContext) {
 }
 
 #[itest]
-fn test_virtual_method_with_return(_test_context: &TestContext) {
+fn test_virtual_method_with_return() {
     let obj = Gd::<ReturnVirtualTest>::new_default();
     let arr = obj.share().upcast::<PrimitiveMesh>().get_mesh_arrays();
     let arr_rust = obj.bind().create_mesh_array();
@@ -403,4 +440,26 @@ fn test_input_event(test_context: &TestContext) {
         .push_input(event.share().upcast(), false);
 
     assert_eq!(obj.bind().event, Some(event.upcast()));
+}
+
+#[itest]
+fn test_notifications() {
+    let obj = Gd::<NotificationTest>::new_default();
+    let mut node = obj.share().upcast::<Node>();
+    node.notify(NodeNotification::Unpaused);
+    node.notify(NodeNotification::EditorPostSave);
+    node.notify(NodeNotification::Ready);
+    node.notify_reversed(NodeNotification::WmSizeChanged);
+
+    assert_eq!(
+        obj.bind().sequence,
+        vec![
+            ReceivedEvent::Notification(NodeNotification::Unpaused),
+            ReceivedEvent::Notification(NodeNotification::EditorPostSave),
+            ReceivedEvent::Ready,
+            ReceivedEvent::Notification(NodeNotification::Ready),
+            ReceivedEvent::Notification(NodeNotification::WmSizeChanged),
+        ]
+    );
+    obj.free();
 }
