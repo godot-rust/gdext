@@ -391,14 +391,14 @@ fn make_notify_method(class_name: &TyName, ctx: &mut Context) -> TokenStream {
         /// If you call this method on a user-defined object while holding a `GdRef` or `GdMut` guard on the instance, you will encounter
         /// a panic. The reason is that the receiving virtual method `on_notification()` acquires a `GdMut` lock dynamically, which must
         /// be exclusive.
-        pub fn issue_notification(&mut self, what: #enum_name) {
+        pub fn notify(&mut self, what: #enum_name) {
             self.notification(i32::from(what) as i64, false);
         }
 
-        /// ⚠️ Like [`Self::issue_notification()`], but starts at the most-derived class and goes up the hierarchy.
+        /// ⚠️ Like [`Self::notify()`], but starts at the most-derived class and goes up the hierarchy.
         ///
         /// See docs of that method, including the panics.
-        pub fn issue_notification_reversed(&mut self, what: #enum_name) {
+        pub fn notify_reversed(&mut self, what: #enum_name) {
             self.notification(i32::from(what) as i64, true);
         }
     }
@@ -1299,7 +1299,7 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         /// to represent integers out of known constants (mistakes or future additions).
         ///
         /// This method is named `_notification` in Godot, but `on_notification` in Rust. To _send_ notifications, use the
-        /// [`Object::issue_notification`][crate::engine::Object::issue_notification] method.
+        /// [`Object::notify`][crate::engine::Object::notify] method.
         ///
         /// See also in Godot docs:
         /// * [`Object::_notification`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-notification).

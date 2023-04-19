@@ -446,10 +446,10 @@ fn test_input_event(test_context: &TestContext) {
 fn test_notifications() {
     let obj = Gd::<NotificationTest>::new_default();
     let mut node = obj.share().upcast::<Node>();
-    node.issue_notification(NodeNotification::Unpaused);
-    node.issue_notification(NodeNotification::EditorPostSave);
-    node.issue_notification(NodeNotification::Ready);
-    node.issue_notification_reversed(NodeNotification::WmSizeChanged);
+    node.notify(NodeNotification::Unpaused);
+    node.notify(NodeNotification::EditorPostSave);
+    node.notify(NodeNotification::Ready);
+    node.notify_reversed(NodeNotification::WmSizeChanged);
 
     assert_eq!(
         obj.bind().sequence,
