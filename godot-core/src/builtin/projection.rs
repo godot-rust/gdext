@@ -25,6 +25,7 @@ use super::{real, RMat4, RealConv};
 /// Note: The current implementation largely makes calls to godot for its
 /// methods and as such are not as performant as other types.
 #[derive(Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Projection {
     /// The columns of the projection matrix.
@@ -959,6 +960,15 @@ mod test {
                 }
             }
         }
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip() {
+        let projection = Projection::IDENTITY;
+        let expected_json = "{\"cols\":[{\"x\":1.0,\"y\":0.0,\"z\":0.0,\"w\":0.0},{\"x\":0.0,\"y\":1.0,\"z\":0.0,\"w\":0.0},{\"x\":0.0,\"y\":0.0,\"z\":1.0,\"w\":0.0},{\"x\":0.0,\"y\":0.0,\"z\":0.0,\"w\":1.0}]}";
+
+        crate::builtin::test_utils::roundtrip(&projection, expected_json);
     }
 }
 

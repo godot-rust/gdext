@@ -28,6 +28,7 @@ use super::{real, Basis, RVec3};
 ///
 /// See [`Vector3i`] for its integer counterpart.
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Vector3 {
     /// The vector's X component.
@@ -431,5 +432,14 @@ mod test {
             Vector3::new(1.2, 5.6, 5.6),
             Vector3::is_equal_approx
         );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip() {
+        let vector = Vector3::default();
+        let expected_json = "{\"x\":0.0,\"y\":0.0,\"z\":0.0}";
+
+        crate::builtin::test_utils::roundtrip(&vector, expected_json);
     }
 }

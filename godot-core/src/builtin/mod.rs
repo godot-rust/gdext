@@ -407,3 +407,22 @@ mod export {
     // TODO investigate whether Signal should impl Export at all, and if so, how
     // impl_export_by_clone!(Signal);
 }
+
+#[cfg(all(test, feature = "serde"))]
+pub(crate) mod test_utils {
+    use serde::{Deserialize, Serialize};
+
+    pub(crate) fn roundtrip<T>(value: &T, expected_json: &str)
+    where
+        T: for<'a> Deserialize<'a> + Serialize + PartialEq + std::fmt::Debug,
+    {
+        let json: String = serde_json::to_string(value).unwrap();
+        let back: T = serde_json::from_str(json.as_str()).unwrap();
+
+        assert_eq!(back, *value, "serde round-trip changes value");
+        assert_eq!(
+            json, expected_json,
+            "value does not conform to expected JSON"
+        );
+    }
+}

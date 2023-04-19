@@ -18,6 +18,7 @@ use super::Vector3;
 ///
 /// The 2D counterpart to `Aabb` is [`Rect2`](super::Rect2).
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Aabb {
     pub position: Vector3,
@@ -100,4 +101,16 @@ impl std::fmt::Display for Aabb {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Aabb {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+#[cfg(test)]
+mod test {
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip() {
+        let aabb = super::Aabb::default();
+        let expected_json = "{\"position\":{\"x\":0.0,\"y\":0.0,\"z\":0.0},\"size\":{\"x\":0.0,\"y\":0.0,\"z\":0.0}}";
+
+        crate::builtin::test_utils::roundtrip(&aabb, expected_json);
+    }
 }

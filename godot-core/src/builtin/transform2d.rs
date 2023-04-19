@@ -27,6 +27,7 @@ use super::{real, RAffine2, RMat2};
 ///
 /// For methods that don't take translation into account, see [`Basis2D`].
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Transform2D {
     /// The first basis vector.
@@ -738,5 +739,14 @@ mod test {
                 .is_finite(),
             "let with: Transform2D three components infinite should not be finite.",
         );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip() {
+        let transform = Transform2D::default();
+        let expected_json = "{\"a\":{\"x\":0.0,\"y\":0.0},\"b\":{\"x\":0.0,\"y\":0.0},\"origin\":{\"x\":0.0,\"y\":0.0}}";
+
+        crate::builtin::test_utils::roundtrip(&transform, expected_json);
     }
 }

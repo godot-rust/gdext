@@ -18,6 +18,7 @@ use super::{real, Rect2i, Vector2};
 ///
 /// The 3D counterpart to `Rect2` is [`Aabb`](super::Aabb).
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Rect2 {
     pub position: Vector2,
@@ -123,5 +124,17 @@ impl std::fmt::Display for Rect2 {
         // godot output be like:
         // [P: (0, 0), S: (0, 0)]
         write!(f, "[P: {}, S: {}]", self.position, self.size)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip() {
+        let rect = super::Rect2::default();
+        let expected_json = "{\"position\":{\"x\":0.0,\"y\":0.0},\"size\":{\"x\":0.0,\"y\":0.0}}";
+
+        crate::builtin::test_utils::roundtrip(&rect, expected_json);
     }
 }

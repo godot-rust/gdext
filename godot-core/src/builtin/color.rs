@@ -16,6 +16,7 @@ use sys::{ffi_methods, GodotFfi};
 /// values outside this range are explicitly allowed for e.g. High Dynamic Range (HDR).
 #[repr(C)]
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Color {
     /// The color's red component.
     pub r: f32,
@@ -509,5 +510,17 @@ impl std::fmt::Display for Color {
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {}, {}, {})", self.r, self.g, self.b, self.a)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip() {
+        let color = super::Color::WHITE;
+        let expected_json = "{\"r\":1.0,\"g\":1.0,\"b\":1.0,\"a\":1.0}";
+
+        crate::builtin::test_utils::roundtrip(&color, expected_json);
     }
 }

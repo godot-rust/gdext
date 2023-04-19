@@ -23,6 +23,7 @@ use super::{real, RMat3, RQuat, RVec2, RVec3};
 /// The basis vectors are the columns of the matrix, whereas the [`rows`](Self::rows) field represents
 /// the row vectors.
 #[derive(Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Basis {
     /// The rows of the matrix. These are *not* the basis vectors.  
@@ -834,5 +835,14 @@ mod test {
             !Basis::from_cols(infinite, infinite, infinite).is_finite(),
             "Basis with three components infinite should not be finite."
         );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip() {
+        let basis = Basis::IDENTITY;
+        let expected_json = "{\"rows\":[{\"x\":1.0,\"y\":0.0,\"z\":0.0},{\"x\":0.0,\"y\":1.0,\"z\":0.0},{\"x\":0.0,\"y\":0.0,\"z\":1.0}]}";
+
+        crate::builtin::test_utils::roundtrip(&basis, expected_json);
     }
 }
