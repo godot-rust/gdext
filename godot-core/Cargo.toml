@@ -19,7 +19,7 @@ custom-godot = ["godot-ffi/custom-godot", "godot-codegen/custom-godot"]
 godot-ffi = { path = "../godot-ffi" }
 
 # See https://docs.rs/glam/latest/glam/index.html#feature-gates
-glam = { version = "0.22", features = ["debug-glam-assert"] }
+glam = { version = "0.23", features = ["debug-glam-assert"] }
 
 # Reverse dev dependencies so doctests can use `godot::` prefix
 [dev-dependencies]

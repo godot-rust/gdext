@@ -18,5 +18,3 @@ godot = { path = "../godot" }
 quote = "1"
 proc-macro2 = "1"
 venial = "0.5"
-#venial = { git = "https://github.com/Bromeon/venial.git", branch = "..." }
-#venial = { git = "https://github.com/PoignardAzur/venial.git", branch = "main" }
