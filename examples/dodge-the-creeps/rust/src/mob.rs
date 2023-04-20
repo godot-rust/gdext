@@ -2,27 +2,6 @@ use godot::engine::{AnimatedSprite2D, RigidBody2D, RigidBody2DVirtual};
 use godot::prelude::*;
 use rand::seq::SliceRandom;
 
-#[derive(Copy, Clone)]
-enum MobType {
-    Walk,
-    Swim,
-    Fly,
-}
-
-impl MobType {
-    fn to_str(self) -> GodotString {
-        match self {
-            MobType::Walk => "walk".into(),
-            MobType::Swim => "swim".into(),
-            MobType::Fly => "fly".into(),
-        }
-    }
-}
-
-const MOB_TYPES: [MobType; 3] = [MobType::Walk, MobType::Swim, MobType::Fly];
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
 #[derive(GodotClass)]
 #[class(base=RigidBody2D)]
 pub struct Mob {
@@ -57,12 +36,18 @@ impl RigidBody2DVirtual for Mob {
     }
 
     fn ready(&mut self) {
-        let mut rng = rand::thread_rng();
-        let animation_name = MOB_TYPES.choose(&mut rng).unwrap().to_str();
-
         let mut sprite = self
             .base
             .get_node_as::<AnimatedSprite2D>("AnimatedSprite2D");
-        sprite.set_animation(StringName::from(&animation_name));
+
+        sprite.play("".into(), 1.0, false);
+        let anim_names = sprite.get_sprite_frames().unwrap().get_animation_names();
+
+        // TODO use pick_random() once implemented
+        let anim_names = anim_names.to_vec();
+        let mut rng = rand::thread_rng();
+        let animation_name = anim_names.choose(&mut rng).unwrap();
+
+        sprite.set_animation(animation_name.into());
     }
 }
