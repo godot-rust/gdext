@@ -13,9 +13,10 @@ use sys::{ffi_methods, GodotFfi};
 use crate::builtin::math::*;
 use crate::builtin::Vector3i;
 
-use super::glam_helpers::GlamConv;
-use super::glam_helpers::GlamType;
-use super::{real, Basis, RVec3};
+use super::super::glam_helpers::GlamConv;
+use super::super::glam_helpers::GlamType;
+use super::super::{real, Basis, RVec3};
+use super::vector_utils::*;
 
 /// Vector used for 3D math using floating point coordinates.
 ///
@@ -318,6 +319,10 @@ impl Vector3 {
         assert!(axis.is_normalized());
         Basis::from_axis_angle(axis, angle) * self
     }
+
+    pub fn coords(&self) -> (real, real, real) {
+        (self.x, self.y, self.z)
+    }
 }
 
 /// Formats the vector like Godot: `(x, y, z)`.
@@ -330,32 +335,11 @@ impl fmt::Display for Vector3 {
 impl_common_vector_fns!(Vector3, real);
 impl_float_vector_fns!(Vector3, real);
 impl_vector_operators!(Vector3, real, (x, y, z));
-impl_vector_index!(Vector3, real, (x, y, z), Vector3Axis, (X, Y, Z));
+impl_from_tuple_for_vector3x!(Vector3, real);
 
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector3 {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
-}
-
-/// Enumerates the axes in a [`Vector3`].
-// TODO auto-generate this, alongside all the other builtin type's enums
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
-#[repr(i32)]
-pub enum Vector3Axis {
-    /// The X axis.
-    X,
-
-    /// The Y axis.
-    Y,
-
-    /// The Z axis.
-    Z,
-}
-
-// SAFETY:
-// This type is represented as `Self` in Godot, so `*mut Self` is sound.
-unsafe impl GodotFfi for Vector3Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 

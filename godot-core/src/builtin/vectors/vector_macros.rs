@@ -281,3 +281,42 @@ macro_rules! impl_float_vector_fns {
         }
     };
 }
+
+macro_rules! impl_from_tuple_for_vector2x {
+    (
+        $Vector:ty,
+        $Scalar:ty
+    ) => {
+        impl From<($Scalar, $Scalar)> for $Vector {
+            fn from(value: ($Scalar, $Scalar)) -> $Vector {
+                Self::new(value.0, value.1)
+            }
+        }
+    };
+}
+
+macro_rules! impl_from_tuple_for_vector3x {
+    (
+        $Vector:ty,
+        $Scalar:ty
+    ) => {
+        impl From<($Scalar, $Scalar, $Scalar)> for $Vector {
+            fn from(value: ($Scalar, $Scalar, $Scalar)) -> $Vector {
+                Self::new(value.0, value.1, value.2)
+            }
+        }
+    };
+}
+
+macro_rules! impl_from_tuple_for_vector4x {
+    (
+        $Vector:ty,
+        $Scalar:ty
+    ) => {
+        impl From<($Scalar, $Scalar, $Scalar, $Scalar)> for $Vector {
+            fn from(value: ($Scalar, $Scalar, $Scalar, $Scalar)) -> $Vector {
+                Self::new(value.0, value.1, value.2, value.3)
+            }
+        }
+    };
+}

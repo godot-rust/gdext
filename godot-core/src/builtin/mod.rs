@@ -54,12 +54,13 @@ pub use string::*;
 pub use transform2d::*;
 pub use transform3d::*;
 pub use variant::*;
-pub use vector2::*;
-pub use vector2i::*;
-pub use vector3::*;
-pub use vector3i::*;
-pub use vector4::*;
-pub use vector4i::*;
+pub use vectors::vector2::*;
+pub use vectors::vector2i::*;
+pub use vectors::vector3::*;
+pub use vectors::vector3i::*;
+pub use vectors::vector4::*;
+pub use vectors::vector4i::*;
+pub use vectors::vector_utils::*;
 
 /// Meta-information about variant types, properties and class names.
 pub mod meta;
@@ -79,7 +80,6 @@ pub mod dictionary {
 
 // Modules exporting declarative macros must appear first.
 mod macros;
-mod vector_macros;
 
 // Rename imports because we re-export a subset of types under same module names.
 #[path = "array.rs"]
@@ -105,12 +105,7 @@ mod string;
 mod transform2d;
 mod transform3d;
 mod variant;
-mod vector2;
-mod vector2i;
-mod vector3;
-mod vector3i;
-mod vector4;
-mod vector4i;
+mod vectors;
 
 #[doc(hidden)]
 pub mod inner {

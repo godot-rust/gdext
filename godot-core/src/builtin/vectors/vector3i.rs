@@ -11,8 +11,8 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::Vector3;
 
-use super::glam_helpers::{GlamConv, GlamType};
-use super::IVec3;
+use super::super::glam_helpers::{GlamConv, GlamType};
+use super::super::IVec3;
 
 /// Vector used for 3D math using integer coordinates.
 ///
@@ -90,6 +90,10 @@ impl Vector3i {
     fn to_glam(self) -> IVec3 {
         IVec3::new(self.x, self.y, self.z)
     }
+
+    pub fn coords(&self) -> (i32, i32, i32) {
+        (self.x, self.y, self.z)
+    }
 }
 
 /// Formats the vector like Godot: `(x, y, z)`.
@@ -101,31 +105,11 @@ impl fmt::Display for Vector3i {
 
 impl_common_vector_fns!(Vector3i, i32);
 impl_vector_operators!(Vector3i, i32, (x, y, z));
-impl_vector_index!(Vector3i, i32, (x, y, z), Vector3iAxis, (X, Y, Z));
+impl_from_tuple_for_vector3x!(Vector3i, i32);
 
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector3i {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
-}
-
-/// Enumerates the axes in a [`Vector3i`].
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-#[repr(i32)]
-pub enum Vector3iAxis {
-    /// The X axis.
-    X,
-
-    /// The Y axis.
-    Y,
-
-    /// The Z axis.
-    Z,
-}
-
-// SAFETY:
-// This type is represented as `Self` in Godot, so `*mut Self` is sound.
-unsafe impl GodotFfi for Vector3iAxis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 

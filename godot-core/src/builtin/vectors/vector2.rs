@@ -12,9 +12,10 @@ use sys::{ffi_methods, GodotFfi};
 use crate::builtin::math::*;
 use crate::builtin::{inner, Vector2i};
 
-use super::glam_helpers::GlamConv;
-use super::glam_helpers::GlamType;
-use super::{real, RAffine2, RVec2};
+use super::super::glam_helpers::GlamConv;
+use super::super::glam_helpers::GlamType;
+use super::super::{real, RAffine2, RVec2};
+use super::vector_utils::*;
 
 /// Vector used for 2D math using floating point coordinates.
 ///
@@ -298,6 +299,10 @@ impl Vector2 {
     pub fn as_inner(&self) -> inner::InnerVector2 {
         inner::InnerVector2::from_outer(self)
     }
+
+    pub fn coords(&self) -> (real, real) {
+        (self.x, self.y)
+    }
 }
 
 /// Formats the vector like Godot: `(x, y)`.
@@ -310,7 +315,7 @@ impl fmt::Display for Vector2 {
 impl_common_vector_fns!(Vector2, real);
 impl_float_vector_fns!(Vector2, real);
 impl_vector_operators!(Vector2, real, (x, y));
-impl_vector_index!(Vector2, real, (x, y), Vector2Axis, (X, Y));
+impl_from_tuple_for_vector2x!(Vector2, real);
 
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
@@ -318,21 +323,8 @@ unsafe impl GodotFfi for Vector2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-/// Enumerates the axes in a [`Vector2`].
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
-#[repr(i32)]
-pub enum Vector2Axis {
-    /// The X axis.
-    X,
-
-    /// The Y axis.
-    Y,
-}
-
-// SAFETY:
-// This type is represented as `Self` in Godot, so `*mut Self` is sound.
-unsafe impl GodotFfi for Vector2Axis {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+impl GlamConv for Vector2 {
+    type Glam = RVec2;
 }
 
 impl GlamType for RVec2 {
@@ -345,10 +337,6 @@ impl GlamType for RVec2 {
     fn from_front(mapped: &Self::Mapped) -> Self {
         RVec2::new(mapped.x, mapped.y)
     }
-}
-
-impl GlamConv for Vector2 {
-    type Glam = RVec2;
 }
 
 #[cfg(test)]
