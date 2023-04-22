@@ -6,8 +6,10 @@
 
 use godot_ffi as sys;
 
+use crate::builtin::meta::VariantMetadata;
 use crate::builtin::{inner, FromVariant, ToVariant, Variant};
-use crate::obj::{Export, Share};
+use crate::export::{Export, ExportInfo};
+use crate::obj::Share;
 use std::fmt;
 use std::marker::PhantomData;
 use std::ptr::addr_of_mut;
@@ -309,6 +311,10 @@ impl Share for Dictionary {
 impl Export for Dictionary {
     fn export(&self) -> Self {
         self.share()
+    }
+
+    fn default_export_info() -> ExportInfo {
+        ExportInfo::with_hint_none(Self::variant_type())
     }
 }
 

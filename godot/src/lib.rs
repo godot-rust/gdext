@@ -138,7 +138,7 @@
 //!   at any time.
 
 #[doc(inline)]
-pub use godot_core::{builtin, engine, log, obj, sys};
+pub use godot_core::{builtin, engine, export, log, obj, sys};
 
 /// Facilities for initializing and terminating the GDExtension library.
 pub mod init {
@@ -150,6 +150,7 @@ pub mod init {
 
 /// Export user-defined classes and methods to be called by the engine.
 pub mod bind {
+    pub use super::export::{Export, TypeStringHint};
     pub use godot_macros::{godot_api, GodotClass};
 }
 
@@ -164,7 +165,7 @@ pub use godot_core::private;
 
 /// Often-imported symbols.
 pub mod prelude {
-    pub use super::bind::{godot_api, GodotClass};
+    pub use super::bind::{godot_api, Export, GodotClass, TypeStringHint};
     pub use super::builtin::*;
     pub use super::builtin::{array, dict, varray}; // Re-export macros.
     pub use super::engine::{
@@ -175,7 +176,7 @@ pub mod prelude {
     };
     pub use super::init::{gdextension, ExtensionLayer, ExtensionLibrary, InitHandle, InitLevel};
     pub use super::log::*;
-    pub use super::obj::{Base, Export, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, Share};
+    pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, Share};
 
     // Make trait methods available
     pub use super::engine::NodeExt as _;
