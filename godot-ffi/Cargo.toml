@@ -10,7 +10,6 @@ categories = ["game-engines", "graphics"]
 [features]
 custom-godot = ["godot-bindings/custom-godot"]
 codegen-fmt = ["godot-codegen/codegen-fmt"]
-#codegen-full = ["godot-codegen/codegen-full"]
 
 [dependencies]
 paste = "1"
