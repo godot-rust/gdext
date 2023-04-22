@@ -107,17 +107,27 @@ macro_rules! impl_builtin_traits_inner {
             }
         }
     };
+
+
+    // Requires a `hash` function.
+    ( Hash for $Type:ty ) => {
+        impl std::hash::Hash for $Type {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                self.hash().hash(state)
+            }
+        }
+    };
 }
 
 macro_rules! impl_builtin_traits {
     (
         for $Type:ty {
-            $( $Trait:ident => $gd_method:ident; )*
+            $( $Trait:ident $(=> $gd_method:ident)?; )*
         }
     ) => (
         $(
             impl_builtin_traits_inner! {
-                $Trait for $Type => $gd_method
+                $Trait for $Type $(=> $gd_method)?
             }
         )*
     )

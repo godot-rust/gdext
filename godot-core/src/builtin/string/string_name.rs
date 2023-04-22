@@ -4,15 +4,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::GodotString;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use std::fmt;
-use std::hash::{Hash, Hasher};
 
-use super::inner;
+use crate::builtin::inner;
 
+use super::{GodotString, NodePath};
+
+/// A string optimized for unique names.
+///
+/// StringNames are immutable strings designed for representing unique names. StringName ensures that only
+/// one instance of a given name exists.
 #[repr(C)]
 pub struct StringName {
     opaque: sys::types::OpaqueStringName,
@@ -26,6 +30,7 @@ impl StringName {
     /// Returns the number of characters in the string.
     ///
     /// _Godot equivalent: `length`_
+    #[doc(alias = "length")]
     pub fn len(&self) -> usize {
         self.as_inner().length() as usize
     }
@@ -37,9 +42,12 @@ impl StringName {
         self.as_inner().is_empty()
     }
 
-    #[doc(hidden)]
-    pub fn as_inner(&self) -> inner::InnerStringName {
-        inner::InnerStringName::from_outer(self)
+    /// Returns a 32-bit integer hash value representing the string.
+    pub fn hash(&self) -> u32 {
+        self.as_inner()
+            .hash()
+            .try_into()
+            .expect("Godot hashes are uint32_t")
     }
 
     ffi_methods! {
@@ -49,6 +57,11 @@ impl StringName {
         fn from_string_sys = from_sys;
         fn from_string_sys_init = from_sys_init;
         fn string_sys = sys;
+    }
+
+    #[doc(hidden)]
+    pub fn as_inner(&self) -> inner::InnerStringName {
+        inner::InnerStringName::from_outer(self)
     }
 }
 
@@ -84,27 +97,13 @@ unsafe impl GodotFfi for StringName {
 
 impl_builtin_traits! {
     for StringName {
+        Default => string_name_construct_default;
         Clone => string_name_construct_copy;
         Drop => string_name_destroy;
         Eq => string_name_operator_equal;
-        Ord => string_name_operator_less;
-    }
-}
-
-impl Default for StringName {
-    fn default() -> Self {
-        // Note: can't use from_sys_init(), as that calls the default constructor
-
-        let mut uninit = std::mem::MaybeUninit::<StringName>::uninit();
-
-        unsafe {
-            let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
-            sys::builtin_call! {
-                string_name_construct_default(self_ptr, std::ptr::null_mut())
-            }
-
-            uninit.assume_init()
-        }
+        // currently broken: https://github.com/godotengine/godot/issues/76218
+        // Ord => string_name_operator_less;
+        Hash;
     }
 }
 
@@ -123,52 +122,43 @@ impl fmt::Debug for StringName {
     }
 }
 
-impl Hash for StringName {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // TODO use Godot hash via codegen
-        // C++: internal::gdn_interface->variant_get_ptr_builtin_method(GDEXTENSION_VARIANT_TYPE_STRING_NAME, "hash", 171192809);
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Conversion from/into other string-types
 
-        self.to_string().hash(state)
-    }
-}
+impl_rust_string_conv!(StringName);
 
 impl From<&GodotString> for StringName {
-    fn from(s: &GodotString) -> Self {
+    fn from(string: &GodotString) -> Self {
         unsafe {
             Self::from_sys_init_default(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_name_from_string);
-                let args = [s.sys_const()];
+                let args = [string.sys_const()];
                 ctor(self_ptr, args.as_ptr());
             })
         }
     }
 }
 
-impl<S> From<S> for StringName
-where
-    S: AsRef<str>,
-{
-    fn from(s: S) -> Self {
-        let intermediate = GodotString::from(s.as_ref());
-        Self::from(&intermediate)
+impl From<GodotString> for StringName {
+    /// Converts this `GodotString` to a `StringName`.
+    ///
+    /// This is identical to `StringName::from(&string)`, and as such there is no performance benefit.
+    fn from(string: GodotString) -> Self {
+        Self::from(&string)
     }
 }
 
-impl From<&StringName> for GodotString {
-    fn from(s: &StringName) -> Self {
-        unsafe {
-            Self::from_sys_init_default(|self_ptr| {
-                let ctor = sys::builtin_fn!(string_from_string_name);
-                let args = [s.sys_const()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        }
+impl From<&NodePath> for StringName {
+    fn from(path: &NodePath) -> Self {
+        Self::from(GodotString::from(path))
     }
 }
 
-impl From<&StringName> for String {
-    fn from(s: &StringName) -> Self {
-        let intermediate = GodotString::from(s);
-        Self::from(&intermediate)
+impl From<NodePath> for StringName {
+    /// Converts this `NodePath` to a `StringName`.
+    ///
+    /// This is identical to `StringName::from(&path)`, and as such there is no performance benefit.
+    fn from(path: NodePath) -> Self {
+        Self::from(GodotString::from(path))
     }
 }

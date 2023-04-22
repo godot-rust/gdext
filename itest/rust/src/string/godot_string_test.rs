@@ -4,8 +4,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::collections::HashSet;
+
 use crate::itest;
-use godot::builtin::{GodotString, StringName};
+use godot::builtin::GodotString;
 
 // TODO use tests from godot-rust/gdnative
 
@@ -22,6 +24,11 @@ fn string_conversion() {
     let string = String::from("some string");
     let second = GodotString::from(&string);
     let back = String::from(&second);
+
+    assert_eq!(string, back);
+
+    let second = GodotString::from(string.clone());
+    let back = String::from(second);
 
     assert_eq!(string, back);
 }
@@ -64,36 +71,27 @@ fn empty_string_chars() {
     assert_eq!(unsafe { s.chars_unchecked() }, &[]);
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
+#[itest]
+fn string_chars() {
+    let string = String::from("some_string");
+    let string_chars: Vec<char> = string.chars().collect();
+    let godot_string = GodotString::from(string);
+    let godot_string_chars: Vec<char> = godot_string.chars_checked().to_vec();
+
+    assert_eq!(godot_string_chars, string_chars);
+}
 
 #[itest]
-fn string_name_conversion() {
-    let string = GodotString::from("some string");
-    let name = StringName::from(&string);
-    let back = GodotString::from(&name);
-
-    assert_eq!(string, back);
-}
-
-#[itest]
-fn string_name_default_construct() {
-    let name = StringName::default();
-    let back = GodotString::from(&name);
-
-    assert_eq!(back, GodotString::new());
-}
-
-#[itest(skip)]
-fn string_name_eq_hash() {
-    // TODO
-}
-
-#[itest(skip)]
-fn string_name_ord() {
-    // TODO
-}
-
-#[itest(skip)]
-fn string_name_clone() {
-    // TODO
+fn string_hash() {
+    let set: HashSet<GodotString> = [
+        "string_1",
+        "SECOND string! :D",
+        "emoji time: 😎",
+        r#"got/!()%)=!"/]}¡[$½{¥¡}@£symbol characters"#,
+        "some garbageTƉ馧쟻�韂󥢛ꮛ૎ཾ̶D@/8ݚ򹾴-䌗򤷨񄣷8",
+    ]
+    .into_iter()
+    .map(GodotString::from)
+    .collect();
+    assert_eq!(set.len(), 5);
 }
