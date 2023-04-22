@@ -18,10 +18,11 @@ use crate::builtin::meta::{ClassName, VariantMetadata};
 use crate::builtin::{
     Callable, FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError,
 };
-use crate::engine::Object;
+use crate::engine::{Node, Object, Resource};
+use crate::export::{Export, ExportInfo, TypeStringHint};
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
-use crate::obj::{cap, dom, mem, Export, GodotClass, Inherits, Share};
+use crate::obj::{cap, dom, mem, EngineEnum, GodotClass, Inherits, Share};
 use crate::obj::{GdMut, GdRef, InstanceId};
 use crate::storage::InstanceStorage;
 use crate::{callbacks, engine, out};
@@ -652,9 +653,48 @@ impl<T: GodotClass> Share for Gd<T> {
     }
 }
 
+impl<T: GodotClass> TypeStringHint for Gd<T> {
+    fn type_string() -> String {
+        use engine::global::PropertyHint;
+
+        match Self::default_export_info().hint {
+            hint @ (PropertyHint::PROPERTY_HINT_RESOURCE_TYPE
+            | PropertyHint::PROPERTY_HINT_NODE_TYPE) => {
+                format!(
+                    "{}/{}:{}",
+                    VariantType::Object as i32,
+                    hint.ord(),
+                    T::CLASS_NAME
+                )
+            }
+            _ => format!("{}:", VariantType::Object as i32),
+        }
+    }
+}
+
 impl<T: GodotClass> Export for Gd<T> {
     fn export(&self) -> Self {
         self.share()
+    }
+
+    fn default_export_info() -> ExportInfo {
+        let hint = if T::inherits::<Resource>() {
+            engine::global::PropertyHint::PROPERTY_HINT_RESOURCE_TYPE
+        } else if T::inherits::<Node>() {
+            engine::global::PropertyHint::PROPERTY_HINT_NODE_TYPE
+        } else {
+            engine::global::PropertyHint::PROPERTY_HINT_NONE
+        };
+
+        // Godot does this by default too, it doesn't seem to make a difference when not a resource/node
+        // but is needed when it is a resource/node.
+        let hint_string = T::CLASS_NAME.into();
+
+        ExportInfo {
+            variant_type: Self::variant_type(),
+            hint,
+            hint_string,
+        }
     }
 }
 
