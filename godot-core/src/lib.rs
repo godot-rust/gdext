@@ -43,6 +43,8 @@ pub mod private {
     #[allow(non_camel_case_types)]
     pub trait You_forgot_the_attribute__godot_api {}
 
+    use std::sync::{Arc, Mutex};
+
     pub use crate::gen::classes::class_macros;
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
     pub use crate::storage::as_storage;
@@ -68,6 +70,11 @@ pub mod private {
         }
     }
 
+    struct GodotPanicInfo {
+        line: u32,
+        file: String,
+    }
+
     /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
     ///
     /// Returns `None` if a panic occurred, and `Some(result)` with the result of `code` otherwise.
@@ -77,14 +84,43 @@ pub mod private {
         F: FnOnce() -> R + std::panic::UnwindSafe,
         S: std::fmt::Display,
     {
-        match std::panic::catch_unwind(code) {
+        let info: Arc<Mutex<Option<GodotPanicInfo>>> = Arc::new(Mutex::new(None));
+
+        // Back up previous hook, set new one
+        let prev_hook = std::panic::take_hook();
+        {
+            let info = info.clone();
+            std::panic::set_hook(Box::new(move |panic_info| {
+                if let Some(location) = panic_info.location() {
+                    *info.lock().unwrap() = Some(GodotPanicInfo {
+                        file: location.file().to_string(),
+                        line: location.line(),
+                    });
+                } else {
+                    println!("panic occurred but can't get location information...");
+                }
+            }));
+        }
+
+        // Run code that should panic, restore hook
+        let panic = std::panic::catch_unwind(code);
+        std::panic::set_hook(prev_hook);
+
+        match panic {
             Ok(result) => Some(result),
             Err(err) => {
                 // Flush, to make sure previous Rust output (e.g. test announcement, or debug prints during app) have been printed
                 // TODO write custom panic handler and move this there, before panic backtrace printing
                 flush_stdout();
 
-                log::godot_error!("Rust function panicked. Context: {}", error_context());
+                let guard = info.lock().unwrap();
+                let info = guard.as_ref().expect("no panic info available");
+                log::godot_error!(
+                    "Rust function panicked in file {} at line {}. Context: {}",
+                    info.file,
+                    info.line,
+                    error_context()
+                );
                 print_panic(err);
                 None
             }
