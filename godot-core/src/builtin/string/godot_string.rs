@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::{convert::Infallible, fmt, str::FromStr};
+use std::{convert::Infallible, ffi::c_char, fmt, str::FromStr};
 
 use godot_ffi as sys;
 use sys::types::OpaqueString;
@@ -169,7 +169,11 @@ where
         unsafe {
             Self::from_string_sys_init(|string_ptr| {
                 let ctor = interface_fn!(string_new_with_utf8_chars_and_len);
-                ctor(string_ptr, bytes.as_ptr() as *const i8, bytes.len() as i64);
+                ctor(
+                    string_ptr,
+                    bytes.as_ptr() as *const c_char,
+                    bytes.len() as i64,
+                );
             })
         }
     }
@@ -186,7 +190,7 @@ impl From<&GodotString> for String {
 
             interface_fn!(string_to_utf8_chars)(
                 string.string_sys(),
-                buf.as_mut_ptr() as *mut i8,
+                buf.as_mut_ptr() as *mut c_char,
                 len,
             );
 
