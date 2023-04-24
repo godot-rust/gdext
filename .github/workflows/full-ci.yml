@@ -86,8 +86,14 @@ jobs:
 
           - name: linux
             os: ubuntu-20.04
-            rust-toolchain: '1.63.0'
+            rust-toolchain: nightly
             rust-special: -minimal-deps
+            rust-cache-key: minimal-deps
+
+          - name: linux
+            os: ubuntu-20.04
+            rust-toolchain: '1.66.0'
+            rust-special: -msrv
 
     steps:
       - uses: actions/checkout@v3
@@ -96,14 +102,7 @@ jobs:
         uses: ./.github/composite/rust
         with:
           rust: ${{ matrix.rust-toolchain || 'stable' }}
-          cache-key: ${{ matrix.rust-special }} # '-minimal-deps' or empty/not defined
-
-      - name: "Install Rust nightly (minimal deps)"
-        if: matrix.rust-special == '-minimal-deps'
-        uses: ./.github/composite/rust
-        with:
-          rust: nightly
-          cache-key: minimal-deps-nightly
+          cache-key: ${{ matrix.rust-cache-key }} # only needed when rustc version is possibly the same
 
       - name: "Install minimal dependency versions from Cargo"
         if: matrix.rust-special == '-minimal-deps'
@@ -195,6 +194,7 @@ jobs:
             godot-args: -- --disallow-focus
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout
+
 
     steps:
       - uses: actions/checkout@v3
