@@ -8,7 +8,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::ApproxEq;
-use crate::builtin::{real, Rect2i, Vector2};
+use crate::builtin::{real, Rect2i, RectSide, Vector2};
 
 /// 2D axis-aligned bounding box.
 ///
@@ -46,6 +46,184 @@ impl Rect2 {
         }
     }
 
+    /// Returns a rectangle with the same geometry, with top-left corner as `position` and non-negative size.
+    ///
+    /// _Godot equivalent: `Rect2.abs()`_
+    #[inline]
+    pub fn abs(&self) -> Self {
+        Self {
+            position: self.position + self.size.coord_min(Vector2::ZERO),
+            size: self.size.abs(),
+        }
+    }
+
+    /// Whether `self` covers at least the entire area of `b` (and possibly more).
+    ///
+    /// _Godot equivalent: `Rect2.encloses(Rect2 b)`_
+    #[inline]
+    pub fn encloses(&self, b: Rect2) -> bool {
+        let end = self.end();
+        let b_end = b.end();
+
+        b.position.x >= self.position.x
+            && b.position.y >= self.position.y
+            && b_end.x <= end.x
+            && b_end.y <= end.y
+    }
+
+    /// Returns a copy of this rectangle expanded to include a given point.
+    ///
+    /// Note: This method is not reliable for `Rect2` with a negative size. Use [`abs`][Self::abs]
+    /// to get a positive sized equivalent rectangle for expanding.
+    ///
+    /// _Godot equivalent: `Rect2.expand(Vector2 to)`_
+    #[inline]
+    pub fn expand(&self, to: Vector2) -> Self {
+        self.merge(Rect2::new(to, Vector2::ZERO))
+    }
+
+    /// Returns a larger rectangle that contains this `Rect2` and `b`.
+    ///
+    /// Note: This method is not reliable for `Rect2` with a negative size. Use [`abs`][Self::abs]
+    /// to get a positive sized equivalent rectangle for merging.
+    ///
+    /// _Godot equivalent: `Rect2.merge(Rect2 b)`_
+    #[inline]
+    pub fn merge(&self, b: Self) -> Self {
+        let position = self.position.coord_min(b.position);
+        let end = self.end().coord_max(b.end());
+
+        Self::from_corners(position, end)
+    }
+
+    /// Returns the area of the rectangle.
+    ///
+    /// _Godot equivalent: `Rect2.get_area()`_
+    #[doc(alias = "get_area")]
+    #[inline]
+    pub fn area(&self) -> real {
+        self.size.x * self.size.y
+    }
+
+    /// Returns the center of the Rect2, which is equal to `position + (size / 2)`.
+    ///
+    /// _Godot equivalent: `Rect2.get_center()`_
+    #[doc(alias = "get_center")]
+    #[inline]
+    pub fn center(&self) -> Vector2 {
+        self.position + (self.size / 2.0)
+    }
+
+    /// Returns a copy of the Rect2 grown by the specified `amount` on all sides.
+    ///
+    /// _Godot equivalent: `Rect2.grow(float amount)`_
+    #[inline]
+    #[must_use]
+    pub fn grow(&self, amount: real) -> Self {
+        let position = self.position - Vector2::new(amount, amount);
+        let size = self.size + Vector2::new(amount, amount) * 2.0;
+
+        Self { position, size }
+    }
+
+    /// Returns a copy of the Rect2 grown by the specified amount on each side individually.
+    ///
+    /// _Godot equivalent: `Rect2.grow_individual(float left, float top, float right, float bottom)`_
+    #[inline]
+    pub fn grow_individual(&self, left: real, top: real, right: real, bottom: real) -> Self {
+        Self::from_components(
+            self.position.x - left,
+            self.position.y - top,
+            self.size.x + left + right,
+            self.size.y + top + bottom,
+        )
+    }
+
+    /// Returns a copy of the `Rect2` grown by the specified `amount` on the specified `RectSide`.
+    ///
+    /// `amount` may be negative, but care must be taken: If the resulting `size` has
+    /// negative components the computation may be incorrect.
+    ///
+    /// _Godot equivalent: `Rect2.grow_side(int side, float amount)`_
+    #[inline]
+    pub fn grow_side(&self, side: RectSide, amount: real) -> Self {
+        match side {
+            RectSide::Left => self.grow_individual(amount, 0.0, 0.0, 0.0),
+            RectSide::Top => self.grow_individual(0.0, amount, 0.0, 0.0),
+            RectSide::Right => self.grow_individual(0.0, 0.0, amount, 0.0),
+            RectSide::Bottom => self.grow_individual(0.0, 0.0, 0.0, amount),
+        }
+    }
+
+    /// Returns `true` if the Rect2 has area, and `false` if the Rect2 is linear, empty, or has a negative size. See also `get_area`.
+    ///
+    /// _Godot equivalent: `Rect2.has_area()`_
+    #[inline]
+    pub fn has_area(&self) -> bool {
+        self.size.x > 0.0 && self.size.y > 0.0
+    }
+
+    /// Returns `true` if the Rect2 contains a point. By convention, the right and bottom edges of the Rect2 are considered exclusive, so points on these edges are not included.
+    ///
+    /// Note: This method is not reliable for Rect2 with a negative size. Use `abs` to get a positive sized equivalent rectangle to check for contained points.
+    ///
+    /// _Godot equivalent: `Rect2.has_area()`_
+    #[inline]
+    pub fn has_point(&self, point: Vector2) -> bool {
+        let point = point - self.position;
+
+        point.abs() == point && point.x < self.size.x && point.y < self.size.y
+    }
+
+    /// Returns the intersection of this Rect2 and `b`. If the rectangles do not intersect, an empty Rect2 is returned.
+    ///
+    /// _Godot equivalent: `Rect2.intersection(Rect2 b)`_
+    #[inline]
+    pub fn intersection(&self, b: Self) -> Option<Self> {
+        if !self.intersects(b, true) {
+            return None;
+        }
+
+        let mut rect = b;
+        rect.position = rect.position.coord_max(self.position);
+
+        let end = self.end();
+        let end_b = b.end();
+        rect.size = end.coord_min(end_b) - rect.position;
+
+        Some(rect)
+    }
+
+    /// Returns `true` if the Rect2 overlaps with `b` (i.e. they have at least one point in common).
+    ///
+    /// If `include_borders` is `true`, they will also be considered overlapping if their borders touch, even without intersection.
+    ///
+    /// _Godot equivalent: `Rect2.intersects(Rect2 b, bool include_borders)`_
+    #[inline]
+    pub fn intersects(&self, b: Self, include_borders: bool) -> bool {
+        let end = self.end();
+        let end_b = b.end();
+
+        if include_borders {
+            self.position.x <= end_b.x
+                && end.x >= b.position.x
+                && self.position.y <= end_b.y
+                && end.y >= b.position.y
+        } else {
+            self.position.x < end_b.x
+                && end.x > b.position.x
+                && self.position.y < end_b.y
+                && end.y > b.position.y
+        }
+    }
+
+    /// Returns `true` if this Rect2 is finite, by calling `@GlobalScope.is_finite` on each component.
+    ///
+    /// _Godot equivalent: `Rect2.is_finite()`_
+    pub fn is_finite(&self) -> bool {
+        self.position.is_finite() && self.size.is_finite()
+    }
+
     /// Create a new `Rect2` from a `Rect2i`, using `as` for `i32` to `real` conversions.
     ///
     /// _Godot equivalent: `Rect2(Rect2i from)`_
@@ -62,7 +240,7 @@ impl Rect2 {
     pub fn from_corners(position: Vector2, end: Vector2) -> Self {
         Self {
             position,
-            size: position + end,
+            size: end - position,
         }
     }
 
@@ -83,7 +261,6 @@ impl Rect2 {
         self.size = end - self.position
     }
 
-    /* Add in when `Rect2::abs()` is implemented.
     /// Assert that the size of the `Rect2` is not negative.
     ///
     /// Certain functions will fail to give a correct result if the size is negative.
@@ -95,7 +272,6 @@ impl Rect2 {
             self.size
         );
     }
-    */
 }
 
 // SAFETY:
