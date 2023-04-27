@@ -150,3 +150,87 @@ func test_custom_constructor():
 	var obj = CustomConstructor.construct_object(42)
 	assert_eq(obj.val, 42)
 	obj.free()
+
+func test_option_refcounted_none_varcall():
+	var ffi := OptionFfiTest.new()
+
+	var from_rust: Variant = ffi.return_option_refcounted_none()
+	assert_that(ffi.accept_option_refcounted_none(from_rust), "ffi.accept_option_refcounted_none(from_rust)")
+
+	var from_gdscript: Variant = null
+	var mirrored: Variant = ffi.mirror_option_refcounted(from_gdscript)
+	assert_eq(mirrored, from_gdscript, "mirrored == from_gdscript")
+
+func test_option_refcounted_none_ptrcall():
+	var ffi := OptionFfiTest.new()
+
+	var from_rust: Object = ffi.return_option_refcounted_none()
+	assert_that(ffi.accept_option_refcounted_none(from_rust), "ffi.accept_option_refcounted_none(from_rust)")
+
+	var from_gdscript: Object = null
+	var mirrored: Object = ffi.mirror_option_refcounted(from_gdscript)
+	assert_eq(mirrored, from_gdscript, "mirrored == from_gdscript")
+
+func test_option_refcounted_some_varcall():
+	var ffi := OptionFfiTest.new()
+
+	var from_rust: Variant = ffi.return_option_refcounted_some()
+	assert_that(ffi.accept_option_refcounted_some(from_rust), "ffi.accept_option_refcounted_some(from_rust)")
+
+	var from_gdscript: Variant = RefCounted.new()
+	var mirrored: Variant = ffi.mirror_option_refcounted(from_gdscript)
+	assert_eq(mirrored, from_gdscript, "mirrored == from_gdscript")
+
+func test_option_refcounted_some_ptrcall():
+	var ffi := OptionFfiTest.new()
+
+	var from_rust: Object = ffi.return_option_refcounted_some()
+	assert_that(ffi.accept_option_refcounted_some(from_rust), "ffi.accept_option_refcounted_some(from_rust)")
+
+	var from_gdscript: Object = RefCounted.new()
+	var mirrored: Object = ffi.mirror_option_refcounted(from_gdscript)
+	assert_eq(mirrored, from_gdscript, "mirrored == from_gdscript")
+
+func test_option_node_none_varcall():
+	var ffi := OptionFfiTest.new()
+
+	var from_rust: Variant = ffi.return_option_node_none()
+	assert_that(ffi.accept_option_node_none(from_rust), "ffi.accept_option_node_none(from_rust)")
+
+	var from_gdscript: Variant = null
+	var mirrored: Variant = ffi.mirror_option_node(from_gdscript)
+	assert_eq(mirrored, from_gdscript, "mirrored == from_gdscript")
+
+func test_option_node_none_ptrcall():
+	var ffi := OptionFfiTest.new()
+
+	var from_rust: Node = ffi.return_option_node_none()
+	assert_that(ffi.accept_option_node_none(from_rust), "ffi.accept_option_node_none(from_rust)")
+
+	var from_gdscript: Node = null
+	var mirrored: Node = ffi.mirror_option_node(from_gdscript)
+	assert_eq(mirrored, from_gdscript, "mirrored == from_gdscript")
+
+func test_option_node_some_varcall():
+	var ffi := OptionFfiTest.new()
+
+	var from_rust: Variant = ffi.return_option_node_some()
+	assert_that(ffi.accept_option_node_some(from_rust), "ffi.accept_option_node_some(from_rust)")
+
+	var from_gdscript: Variant = Node.new()
+	var mirrored: Variant = ffi.mirror_option_node(from_gdscript)
+	assert_eq(mirrored, from_gdscript, "mirrored == from_gdscript")
+	from_gdscript.free()
+	from_rust.free()
+
+func test_option_node_some_ptrcall():
+	var ffi := OptionFfiTest.new()
+
+	var from_rust: Node = ffi.return_option_node_some()
+	assert_that(ffi.accept_option_node_some(from_rust), "ffi.accept_option_node_some(from_rust)")
+
+	var from_gdscript: Node = Node.new()
+	var mirrored: Node = ffi.mirror_option_node(from_gdscript)
+	assert_eq(mirrored, from_gdscript, "mirrored == from_gdscript")
+	from_gdscript.free()
+	from_rust.free()
