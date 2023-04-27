@@ -151,7 +151,7 @@ pub mod init {
 /// Export user-defined classes and methods to be called by the engine.
 pub mod bind {
     pub use super::export::{Export, TypeStringHint};
-    pub use godot_macros::{godot_api, GodotClass};
+    pub use godot_macros::{godot_api, FromVariant, GodotClass, ToVariant};
 }
 
 /// Testing facilities (unstable).
@@ -165,7 +165,7 @@ pub use godot_core::private;
 
 /// Often-imported symbols.
 pub mod prelude {
-    pub use super::bind::{godot_api, Export, GodotClass, TypeStringHint};
+    pub use super::bind::{godot_api, Export, FromVariant, GodotClass, ToVariant, TypeStringHint};
     pub use super::builtin::*;
     pub use super::builtin::{array, dict, varray}; // Re-export macros.
     pub use super::engine::{

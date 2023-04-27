@@ -16,6 +16,7 @@ mod builtin_test;
 mod callable_test;
 mod codegen_test;
 mod color_test;
+mod derive_variant;
 mod dictionary_test;
 mod enum_test;
 mod export_test;

@@ -87,7 +87,9 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use venial::Declaration;
 
+mod derive_from_variant;
 mod derive_godot_class;
+mod derive_to_variant;
 mod gdextension;
 mod godot_api;
 mod itest;
@@ -258,6 +260,16 @@ mod util;
 #[proc_macro_derive(GodotClass, attributes(class, base, export, init, signal))]
 pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)
+}
+
+#[proc_macro_derive(ToVariant, attributes(variant))]
+pub fn derive_to_variant(input: TokenStream) -> TokenStream {
+    translate(input, derive_to_variant::transform)
+}
+
+#[proc_macro_derive(FromVariant, attributes(variant))]
+pub fn derive_from_variant(input: TokenStream) -> TokenStream {
+    translate(input, derive_from_variant::transform)
 }
 
 #[proc_macro_attribute]

@@ -720,7 +720,7 @@ impl<T: GodotClass> FromVariant for Gd<T> {
             // TODO(#234) remove this cast when Godot stops allowing illegal conversions
             // (See https://github.com/godot-rust/gdext/issues/158)
             .and_then(|obj| obj.owned_cast().ok())
-            .ok_or(VariantConversionError)
+            .ok_or(VariantConversionError::BadType)
     }
 }
 

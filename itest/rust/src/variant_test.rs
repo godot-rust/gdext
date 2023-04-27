@@ -297,20 +297,23 @@ fn variant_null_object_is_nil() {
 fn variant_conversion_fails() {
     assert_eq!(
         "hello".to_variant().try_to::<i64>(),
-        Err(VariantConversionError)
+        Err(VariantConversionError::BadType)
     );
-    assert_eq!(28.to_variant().try_to::<f32>(), Err(VariantConversionError));
+    assert_eq!(
+        28.to_variant().try_to::<f32>(),
+        Err(VariantConversionError::BadType)
+    );
     assert_eq!(
         10.to_variant().try_to::<bool>(),
-        Err(VariantConversionError)
+        Err(VariantConversionError::BadType)
     );
     assert_eq!(
         false.to_variant().try_to::<String>(),
-        Err(VariantConversionError)
+        Err(VariantConversionError::BadType)
     );
     assert_eq!(
         VariantArray::default().to_variant().try_to::<StringName>(),
-        Err(VariantConversionError)
+        Err(VariantConversionError::BadType)
     );
     //assert_eq!(
     //    Dictionary::default().to_variant().try_to::<Array>(),
@@ -318,7 +321,7 @@ fn variant_conversion_fails() {
     //);
     assert_eq!(
         Variant::nil().to_variant().try_to::<Dictionary>(),
-        Err(VariantConversionError)
+        Err(VariantConversionError::BadType)
     );
 }
 

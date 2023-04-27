@@ -50,11 +50,14 @@ pub trait ToVariant {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(Eq, PartialEq, Debug)]
-pub struct VariantConversionError;
-/*pub enum VariantConversionError {
+//pub struct VariantConversionError;
+pub enum VariantConversionError {
     /// Variant type does not match expected type
     BadType,
 
     /// Variant value cannot be represented in target type
     BadValue,
-}*/
+
+    /// Variant value is missing a value for the target type
+    MissingValue,
+}
