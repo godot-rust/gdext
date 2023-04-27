@@ -12,7 +12,9 @@ use std::ptr;
 use godot_ffi as sys;
 use godot_ffi::VariantType;
 use sys::types::OpaqueObject;
-use sys::{ffi_methods, interface_fn, static_assert_eq_size, GodotFfi, PtrcallType};
+use sys::{
+    ffi_methods, interface_fn, static_assert_eq_size, GodotFfi, GodotNullablePtr, PtrcallType,
+};
 
 use crate::builtin::meta::{ClassName, VariantMetadata};
 use crate::builtin::{
@@ -570,6 +572,11 @@ where
     }
 }
 
+// SAFETY:
+// `Gd<T: GodotClass>` will only contain types that inherit from `crate::engine::Object`.
+// Godots `Object` in turn is known to be nullable and always a pointer.
+unsafe impl<T: GodotClass> GodotNullablePtr for Gd<T> {}
+
 impl<T: GodotClass> Gd<T> {
     /// Runs `init_fn` on the address of a pointer (initialized to null). If that pointer is still null after the `init_fn` call,
     /// then `None` will be returned; otherwise `Gd::from_obj_sys(ptr)`.
@@ -750,6 +757,25 @@ impl<T: GodotClass> ToVariant for Gd<T> {
                     ptr::addr_of!(type_ptr) as sys::GDExtensionTypePtr,
                 );
             })
+        }
+    }
+}
+
+impl<T: GodotClass> ToVariant for Option<Gd<T>> {
+    fn to_variant(&self) -> Variant {
+        match self {
+            Some(gd) => gd.to_variant(),
+            None => Variant::nil(),
+        }
+    }
+}
+
+impl<T: GodotClass> FromVariant for Option<Gd<T>> {
+    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+        if variant.is_nil() {
+            Ok(None)
+        } else {
+            Gd::try_from_variant(variant).map(Some)
         }
     }
 }

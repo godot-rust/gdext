@@ -4,8 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate as sys;
-use std::fmt::Debug;
+use crate::{self as sys, ptr_then};
+use std::{fmt::Debug, ptr};
 
 /// Adds methods to convert from and to Godot FFI pointers.
 /// See [crate::ffi_methods] for ergonomic implementation.
@@ -94,6 +94,53 @@ pub unsafe trait GodotFfi {
     /// * `dst` must be able to accept a value of type `Self` encoded according to the given
     ///   `call_type`'s encoding of return values.
     unsafe fn move_return_ptr(self, dst: sys::GDExtensionTypePtr, call_type: PtrcallType);
+}
+
+/// Marks a type as having a nullable counterpart in Godot.
+///
+/// This trait primarily exists to implement GodotFfi for `Option<Gd<T>>`, which is not possible
+/// due to Rusts orphan rule. The rule also enforces better API design, though. `godot_ffi` should
+/// not concern itself with the details of how Godot types work and merely defines the FFI abstraction.
+/// By having a marker trait for nullable types, we can provide a generic implementation for
+/// compatible types, without knowing their definition.
+///
+/// # Safety
+///
+/// The type has to have a pointer-sized counterpart in Godot, which needs to be nullable.
+/// So far, this only applies to class types (Object hierarchy).
+pub unsafe trait GodotNullablePtr: GodotFfi {}
+
+unsafe impl<T> GodotFfi for Option<T>
+where
+    T: GodotNullablePtr,
+{
+    fn sys(&self) -> sys::GDExtensionTypePtr {
+        match self {
+            Some(value) => value.sys(),
+            None => ptr::null_mut() as sys::GDExtensionTypePtr,
+        }
+    }
+
+    unsafe fn from_sys(ptr: sys::GDExtensionTypePtr) -> Self {
+        ptr_then(ptr, |ptr| T::from_sys(ptr))
+    }
+
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
+        let mut raw = std::mem::MaybeUninit::uninit();
+        init_fn(raw.as_mut_ptr() as sys::GDExtensionUninitializedTypePtr);
+
+        Self::from_sys(raw.assume_init())
+    }
+
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
+        ptr_then(ptr, |ptr| T::from_arg_ptr(ptr, call_type))
+    }
+
+    unsafe fn move_return_ptr(self, ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) {
+        if let Some(value) = self {
+            value.move_return_ptr(ptr, call_type)
+        }
+    }
 }
 
 /// An indication of what type of pointer call is being made.
