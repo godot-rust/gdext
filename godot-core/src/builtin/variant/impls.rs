@@ -58,7 +58,7 @@ macro_rules! impl_variant_traits {
             fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
                 // Type check -- at the moment, a strict match is required.
                 if variant.get_type() != Self::variant_type() {
-                    return Err(VariantConversionError)
+                    return Err(VariantConversionError::BadType)
                 }
 
                 // In contrast to T -> Variant, the conversion Variant -> T assumes
@@ -92,7 +92,7 @@ macro_rules! impl_variant_traits_int {
         impl FromVariant for $T {
             fn try_from_variant(v: &Variant) -> Result<Self, VariantConversionError> {
                 i64::try_from_variant(v)
-                    .and_then(|i| <$T>::try_from(i).map_err(|_e| VariantConversionError))
+                    .and_then(|i| <$T>::try_from(i).map_err(|_e| VariantConversionError::BadType))
             }
         }
 
@@ -251,7 +251,7 @@ impl<T: EngineEnum> ToVariant for T {
 impl<T: EngineEnum> FromVariant for T {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
         <i32 as FromVariant>::try_from_variant(variant)
-            .and_then(|int| Self::try_from_ord(int).ok_or(VariantConversionError))
+            .and_then(|int| Self::try_from_ord(int).ok_or(VariantConversionError::BadType))
     }
 }
 

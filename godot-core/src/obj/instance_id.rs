@@ -86,7 +86,7 @@ unsafe impl GodotFfi for InstanceId {
 impl FromVariant for InstanceId {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
         i64::try_from_variant(variant)
-            .and_then(|i| InstanceId::try_from_i64(i).ok_or(VariantConversionError))
+            .and_then(|i| InstanceId::try_from_i64(i).ok_or(VariantConversionError::BadValue))
     }
 }
 

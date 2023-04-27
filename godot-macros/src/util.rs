@@ -11,7 +11,7 @@ use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, ToTokens};
 use std::collections::HashMap;
-use venial::{Attribute, Error, Function, Impl};
+use venial::{Attribute, Error, Function, GenericParamList, Impl, WhereClause};
 
 pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
@@ -624,4 +624,38 @@ pub(crate) fn path_ends_with(path: &[TokenTree], expected: &str) -> bool {
     path.last()
         .map(|last| last.to_string() == expected)
         .unwrap_or(false)
+}
+
+pub(crate) struct DeclInfo {
+    pub where_: Option<WhereClause>,
+    pub generic_params: Option<GenericParamList>,
+    pub name: proc_macro2::Ident,
+    pub name_string: String,
+}
+
+pub(crate) fn decl_get_info(decl: &venial::Declaration) -> DeclInfo {
+    let (where_, generic_params, name, name_string) =
+        if let venial::Declaration::Struct(struct_) = decl {
+            (
+                struct_.where_clause.clone(),
+                struct_.generic_params.clone(),
+                struct_.name.clone(),
+                struct_.name.to_string(),
+            )
+        } else if let venial::Declaration::Enum(enum_) = decl {
+            (
+                enum_.where_clause.clone(),
+                enum_.generic_params.clone(),
+                enum_.name.clone(),
+                enum_.name.to_string(),
+            )
+        } else {
+            panic!("only enums and structs are supported at the moment.")
+        };
+    DeclInfo {
+        where_,
+        generic_params,
+        name,
+        name_string,
+    }
 }
