@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::mem;
 use std::rc::Rc;
 
@@ -761,4 +761,68 @@ pub mod object_test_gd {
             Gd::new(MockRefCountedRust { i: 42 }).upcast()
         }
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+struct DoubleUse {
+    #[base]
+    base: Base<Object>,
+
+    used: Cell<bool>,
+}
+
+#[godot_api]
+impl DoubleUse {
+    #[func]
+    fn use_1(&self) {
+        self.used.set(true);
+    }
+}
+
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+struct SignalEmitter {
+    #[base]
+    base: Base<Object>,
+}
+
+#[godot_api]
+impl SignalEmitter {
+    #[signal]
+    fn do_use();
+}
+
+#[itest]
+/// Test that godot can call a method that takes `&self`, while there already exists an immutable reference
+/// to that type acquired through `bind`.
+///
+/// This test is not signal-specific, the original bug would happen whenever godot would call a method that
+/// takes `&self`. However this was the easiest way to test the bug i could find.
+fn double_use_reference() {
+    let double_use: Gd<DoubleUse> = Gd::new_default();
+    let emitter: Gd<SignalEmitter> = Gd::new_default();
+
+    emitter
+        .share()
+        .upcast::<Object>()
+        .connect("do_use".into(), double_use.callable("use_1"), 0);
+
+    let guard = double_use.bind();
+
+    assert!(!guard.used.get());
+
+    emitter
+        .share()
+        .upcast::<Object>()
+        .emit_signal("do_use".into(), &[]);
+
+    assert!(guard.used.get(), "use_1 was not called");
+
+    std::mem::drop(guard);
+
+    double_use.free();
+    emitter.free();
 }
