@@ -62,6 +62,7 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; Vector4, Vector4, Vector4(-18.5, 24.75, -1.25, 777.875), Vector4::new(-18.5, 24.75, -1.25, 777.875));
     push!(inputs; Vector2i, Vector2i, Vector2i(-2147483648, 2147483647), Vector2i::new(-2147483648, 2147483647));
     push!(inputs; Vector3i, Vector3i, Vector3i(-1, -2147483648, 2147483647), Vector3i::new(-1, -2147483648, 2147483647));
+    push!(inputs; Callable, Callable, Callable(), Callable::default());
 
     // Data structures
     // TODO enable below, when GDScript has typed array literals, or find a hack with eval/lambdas
