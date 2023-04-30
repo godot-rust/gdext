@@ -180,6 +180,12 @@ impl_builtin_traits! {
 // beyond what is done in `from_opaque` and `drop`. So using `*mut Opaque` is safe.
 unsafe impl GodotFfi for Callable {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+
+    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+        let mut result = Self::default();
+        init_fn(result.sys_mut());
+        result
+    }
 }
 
 impl std::fmt::Debug for Callable {
