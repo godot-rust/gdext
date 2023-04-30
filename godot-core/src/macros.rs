@@ -41,6 +41,8 @@ macro_rules! gdext_is_not_unit {
 #[macro_export]
 macro_rules! gdext_register_method_inner {
     (
+        $ptrcall:ident,
+        $varcall:ident,
         $Class:ty,
         $map_method:ident,
         fn $method_name:ident(
@@ -69,7 +71,7 @@ macro_rules! gdext_register_method_inner {
                     let success = $crate::private::handle_panic(
                         || stringify!($method_name),
                         || {
-                            <Sig as SignatureTuple>::varcall::< $Class >(
+                            <Sig as SignatureTuple>::$varcall::< $Class >(
                                 instance_ptr,
                                 args,
                                 ret,
@@ -103,7 +105,7 @@ macro_rules! gdext_register_method_inner {
                     let success = $crate::private::handle_panic(
                         || stringify!($method_name),
                         || {
-                            <Sig as SignatureTuple>::ptrcall::< $Class >(
+                            <Sig as SignatureTuple>::$ptrcall::< $Class >(
                                 instance_ptr,
                                 args,
                                 ret,
@@ -203,6 +205,8 @@ macro_rules! gdext_register_method {
         ) -> $RetTy:ty
     ) => {
         $crate::gdext_register_method_inner!(
+            ptrcall_mut,
+            varcall_mut,
             $Class,
             map_mut,
             fn $method_name(
@@ -223,6 +227,8 @@ macro_rules! gdext_register_method {
         ) -> $RetTy:ty
     ) => {
         $crate::gdext_register_method_inner!(
+            ptrcall,
+            varcall,
             $Class,
             map,
             fn $method_name(
@@ -279,6 +285,7 @@ macro_rules! gdext_register_method {
 #[macro_export]
 macro_rules! gdext_virtual_method_callback_inner {
     (
+        $ptrcall:ident,
         $Class:ty,
         $map_method:ident,
         fn $method_name:ident(
@@ -294,6 +301,7 @@ macro_rules! gdext_virtual_method_callback_inner {
                 ret: sys::GDExtensionTypePtr,
             ) {
                 $crate::gdext_ptrcall!(
+                    $ptrcall;
                     instance_ptr, args, ret;
                     $Class;
                     fn $method_name( $( $arg : $Param, )* ) -> $Ret
@@ -320,6 +328,7 @@ macro_rules! gdext_virtual_method_callback {
         ) -> $RetTy:ty
     ) => {
         $crate::gdext_virtual_method_callback_inner!(
+            ptrcall_mut,
             $Class,
             map_mut,
             fn $method_name(
@@ -338,6 +347,7 @@ macro_rules! gdext_virtual_method_callback {
         ) -> $RetTy:ty
     ) => {
         $crate::gdext_virtual_method_callback_inner!(
+            ptrcall,
             $Class,
             map,
             fn $method_name(
@@ -388,6 +398,7 @@ macro_rules! gdext_virtual_method_callback {
 #[macro_export]
 macro_rules! gdext_ptrcall {
     (
+        $ptrcall:ident;
         $instance_ptr:ident, $args_ptr:ident, $ret_ptr:ident;
         $Class:ty;
         fn $method_name:ident(
@@ -395,7 +406,7 @@ macro_rules! gdext_ptrcall {
         ) -> $( $RetTy:tt )+
     ) => {
         use $crate::builtin::meta::SignatureTuple;
-        <($($RetTy)+, $($ParamTy,)*) as SignatureTuple>::ptrcall::<$Class>(
+        <($($RetTy)+, $($ParamTy,)*) as SignatureTuple>::$ptrcall::<$Class>(
             $instance_ptr,
             $args_ptr,
             $ret_ptr,
