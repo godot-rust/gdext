@@ -171,7 +171,8 @@ jobs:
 
           - name: linux-threads
             os: ubuntu-20.04
-            godot-binary: godot.linuxbsd.editor.dev.double.x86_64
+            artifact-name: linux
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features threads
 
           - name: linux-nightly
