@@ -16,4 +16,5 @@ fn main() {
     }
 
     godot_codegen::generate_core_files(gen_path);
+    println!("cargo:rerun-if-changed=build.rs");
 }
