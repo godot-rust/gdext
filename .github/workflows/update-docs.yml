@@ -1,0 +1,105 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: Compile + Sync Docs
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - closed
+      - synchronize
+
+  push:
+    branches:
+      - master
+
+
+jobs:
+  notify-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout"
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        uses: actions/checkout@v3
+
+      # This is just a sanity check to make sure that the follow-up docs generation doesn't break.
+      # So we use the Rust version provided by the GitHub runners, which hopefully is >= MSRV.
+      - name: "Compile"
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        run: cargo check -p godot $GDEXT_FEATURES
+
+      # Pushed to master: no PR-related information
+      - name: "Construct JSON (for master)"
+        if: github.ref == 'refs/heads/master'
+        run: |
+          payload=$(cat <<'HEREDOC'
+          {
+            "op": "put",
+            "repo": "gdext",
+            "num": "master",
+            "commit-sha": "${{ github.sha }}",
+            "date": "${{ github.event.head_commit.timestamp }}"
+          }
+          HEREDOC)
+          echo "VAR=$payload"
+          echo "GDEXT_JSON<<HEREDOC" >> $GITHUB_ENV
+          echo "${payload}" >> $GITHUB_ENV
+          echo "HEREDOC" >> $GITHUB_ENV
+
+      # Opened/reopened/updated PR: include PR author + title
+      - name: "Construct JSON (for PR sync)"
+        if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        run: |
+          payload=$(cat <<'HEREDOC'
+          {
+            "op": "put",
+            "repo": "gdext",
+            "num": "${{ github.event.number }}",
+            "commit-sha": "${{ github.event.pull_request.head.sha }}",
+            "date": "${{ github.event.pull_request.updated_at }}",
+            "pr-author": "${{ github.event.pull_request.user.login }}",
+            "pr-title": "${{ github.event.pull_request.title }}"
+          }
+          HEREDOC)
+          echo "VAR=$payload"
+          echo "GDEXT_JSON<<HEREDOC" >> $GITHUB_ENV
+          echo "${payload}" >> $GITHUB_ENV
+          echo "HEREDOC" >> $GITHUB_ENV
+
+      # Closed/merged PR: no more PR-related information necessary, as it will be removed
+      - name: "Construct JSON (for closed PR)"
+        if: github.event_name == 'pull_request' && github.event.action == 'closed'
+        run: |
+          payload=$(cat <<'HEREDOC'
+          {
+              "op": "delete",
+              "repo": "gdext",
+              "num": "${{ github.event.number }}",
+              "date": "${{ github.event.pull_request.updated_at }}"
+          }
+          HEREDOC)
+          echo "VAR=$payload"
+          echo "GDEXT_JSON<<HEREDOC" >> $GITHUB_ENV
+          echo "${payload}" >> $GITHUB_ENV
+          echo "HEREDOC" >> $GITHUB_ENV
+
+      - name: "Print payload"
+        run: |
+          echo "$GDEXT_JSON"
+
+      - name: "Prepare request"
+        run: |
+          token=$(cat .github/external-config/public-docs-token.txt | base64 -w0 -d)
+          echo "DOCS_GENERATOR_TOKEN=github_pat_$token" >> $GITHUB_ENV
+
+      - name: "Notify doc workflow"
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ env.DOCS_GENERATOR_TOKEN }}
+          repository: godot-rust/dispatch-forwarder
+          event-type: 'Generate docs'
+          client-payload: ${{ env.GDEXT_JSON }}
+
