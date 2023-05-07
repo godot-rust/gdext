@@ -21,8 +21,8 @@ jobs:
   notify-docs:
     runs-on: ubuntu-latest
     steps:
+      # Checkout is always needed, for the notify step
       - name: "Checkout"
-        if: github.event_name == 'pull_request' && github.event.action != 'closed'
         uses: actions/checkout@v3
 
       # This is just a sanity check to make sure that the follow-up docs generation doesn't break.

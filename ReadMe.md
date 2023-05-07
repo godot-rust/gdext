@@ -2,7 +2,7 @@
 
 # Rust bindings for GDExtension
 
-_[Discord] | [Mastodon] | [Twitter]_
+_**[Website]** | **[API Docs]** | [Discord] | [Mastodon] | [Twitter]_
 
 **gdext** is an early-stage library to bind the **Rust** language to **Godot 4**.
 
@@ -99,7 +99,9 @@ Contributions are very welcome! If you want to help out, see [`Contributing.md`]
 
 [Godot]: https://godotengine.org
 [`gdnative`]: https://github.com/godot-rust/gdnative
-[mpl]: https://www.mozilla.org/en-US/MPL/
+[mpl]: https://www.mozilla.org/en-US/MPL
+[Website]: https://godot-rust.github.io
+[API Docs]: https://godot-rust.github.io/docs/gdext
 [Discord]: https://discord.gg/aKUCJ8rJsc
 [Mastodon]: https://mastodon.gamedev.place/@GodotRust
 [Twitter]: https://twitter.com/GodotRust
