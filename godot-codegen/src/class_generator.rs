@@ -294,7 +294,6 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         #![doc = #module_doc]
 
         use godot_ffi as sys;
-        use crate::engine::*;
         use crate::engine::notify::*;
         use crate::builtin::*;
         use crate::obj::{AsArg, Gd};
