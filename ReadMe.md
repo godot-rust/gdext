@@ -63,10 +63,12 @@ To register the GDExtension library with Godot, you need to create two files rel
    windows.release.x86_64 = "res://../rust/target/release/{my-ext}.dll"
    macos.debug = "res://../rust/target/debug/{my-ext}.dylib"
    macos.release = "res://../rust/target/release/{my-ext}.dylib"
-   macos.debug.arm64 = "res://../rust/target/aarch64-apple-darwin/debug/{my-ext}.dylib"
-   macos.release.arm64 = "res://../rust/target/aarch64-apple-darwin/release/{my-ext}.dylib"
+   macos.debug.arm64 = "res://../rust/target/debug/{my-ext}.dylib"
+   macos.release.arm64 = "res://../rust/target/release/{my-ext}.dylib"
    ```
-   (Note that for exporting your project, you'll need to use paths inside `res://`).
+   > **Note**: for exporting your project, you'll need to use paths inside `res://`
+
+   > **Note**: If you specify your cargo compilation target via the `--target` flag or a `.cargo/config.toml` file, the rust library will be placed in a path name that includes target architecture, and the `.gdextension` library paths will need to match. E.g. for M1 Macs (`macos.debug.arm64` and `macos.release.arm64`) the path would be `"res://../rust/target/aarch64-apple-darwin/debug/{my-ext}.dylib"`
 
 2. A second file `res://.godot/extension_list.cfg` should be generated once you open the Godot editor for the first time.
    If not, you can also manually create it, simply containing the Godot path to your `.gdextension` file:
