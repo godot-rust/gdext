@@ -84,6 +84,9 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; int, InstanceId, -1, InstanceId::from_nonzero(0xFFFFFFFFFFFFFFF));
     push!(inputs; Variant, Variant, 123, 123i64.to_variant());
 
+    // EngineEnum
+    push!(inputs; int, Error, 0, Error::OK);
+
     inputs
 }
 
@@ -94,6 +97,7 @@ fn main() {
     let rust_tokens = quote::quote! {
         use godot::builtin::*;
         use godot::obj::InstanceId;
+        use godot::engine::global::Error;
 
         #[derive(godot::bind::GodotClass)]
         #[class(init)]

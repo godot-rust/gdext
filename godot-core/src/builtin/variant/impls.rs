@@ -254,3 +254,12 @@ impl<T: EngineEnum> FromVariant for T {
             .and_then(|int| Self::try_from_ord(int).ok_or(VariantConversionError))
     }
 }
+
+impl<T: EngineEnum> VariantMetadata for T {
+    fn variant_type() -> VariantType {
+        VariantType::Int
+    }
+    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32
+    }
+}
