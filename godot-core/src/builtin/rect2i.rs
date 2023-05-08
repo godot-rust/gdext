@@ -15,6 +15,7 @@ use super::{Rect2, RectSide, Vector2i};
 /// `Rect2i` consists of a position, a size, and several utility functions. It is typically used for
 /// fast overlap tests.
 #[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Rect2i {
     /// The position of the rectangle.
@@ -582,5 +583,14 @@ mod test {
     fn merge_other_negative_panics() {
         let rect = Rect2i::from_components(0, 0, -5, -5);
         Rect2i::default().merge(rect);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip() {
+        let rect = Rect2i::default();
+        let expected_json = "{\"position\":{\"x\":0,\"y\":0},\"size\":{\"x\":0,\"y\":0}}";
+
+        crate::builtin::test_utils::roundtrip(&rect, expected_json);
     }
 }

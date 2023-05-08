@@ -13,6 +13,7 @@ default = []
 trace = ["godot/trace"]
 double-precision = ["godot/double-precision"]
 threads = ["godot/threads"]
+serde = ["godot/serde"]
 
 [dependencies]
 godot = { path = "../../godot", default-features = false, features = ["formatted"] }

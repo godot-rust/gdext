@@ -23,6 +23,7 @@ use super::{is_equal_approx, real, Vector3};
 /// unit length and will panic if this invariant is violated. This is not separately
 /// annotated for each method.
 #[derive(Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Plane {
     pub normal: Vector3,
@@ -188,5 +189,17 @@ mod test {
             Vector3::new(0.0, 0.0, 1.0),
             Vector3::new(0.0, 0.0, 2.0),
         );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip() {
+        let plane = Plane {
+            normal: Vector3::ONE,
+            d: 0.0,
+        };
+        let expected_json = "{\"normal\":{\"x\":1.0,\"y\":1.0,\"z\":1.0},\"d\":0.0}";
+
+        crate::builtin::test_utils::roundtrip(&plane, expected_json);
     }
 }

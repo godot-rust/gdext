@@ -24,6 +24,7 @@ use super::IVec3;
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`] if 64-bit values are
 /// needed.
 #[derive(Debug, Default, Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Vector3i {
     /// The vector's X component.
@@ -150,5 +151,14 @@ mod test {
         let b = Vector3i::new(0, 5, 2);
         assert_eq!(a.coord_min(b), Vector3i::new(0, 3, 2));
         assert_eq!(a.coord_max(b), Vector3i::new(1, 5, 5));
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip() {
+        let vector = Vector3i::default();
+        let expected_json = "{\"x\":0,\"y\":0,\"z\":0}";
+
+        crate::builtin::test_utils::roundtrip(&vector, expected_json);
     }
 }

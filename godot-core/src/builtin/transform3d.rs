@@ -24,6 +24,7 @@ use super::{Aabb, Basis, Plane, Projection, Vector3};
 /// [ a.z  b.z  c.z  o.z ]
 /// ```
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Transform3D {
     /// The basis is a matrix containing 3 vectors as its columns. They can be
@@ -458,5 +459,14 @@ mod test {
             !Transform3D::new(infinite_basis, infinite_vec).is_finite(),
             "Transform3D with two components infinite should not be finite.",
         );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_roundtrip() {
+        let transform = Transform3D::default();
+        let expected_json = "{\"basis\":{\"rows\":[{\"x\":1.0,\"y\":0.0,\"z\":0.0},{\"x\":0.0,\"y\":1.0,\"z\":0.0},{\"x\":0.0,\"y\":0.0,\"z\":1.0}]},\"origin\":{\"x\":0.0,\"y\":0.0,\"z\":0.0}}";
+
+        crate::builtin::test_utils::roundtrip(&transform, expected_json);
     }
 }
