@@ -761,6 +761,33 @@ pub mod object_test_gd {
             Gd::new(MockRefCountedRust { i: 42 }).upcast()
         }
     }
+
+    // ----------------------------------------------------------------------------------------------------------------------------------------------
+
+    #[derive(GodotClass)]
+    #[class(base=Object)]
+    pub struct CustomConstructor {
+        #[base]
+        base: Base<Object>,
+
+        #[export]
+        pub val: i64,
+    }
+
+    #[godot_api]
+    impl CustomConstructor {
+        #[func]
+        pub fn construct_object(val: i64) -> Gd<CustomConstructor> {
+            Gd::with_base(|base| Self { base, val })
+        }
+    }
+}
+
+#[itest]
+fn custom_constructor_works() {
+    let obj = object_test_gd::CustomConstructor::construct_object(42);
+    assert_eq!(obj.bind().val, 42);
+    obj.free();
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

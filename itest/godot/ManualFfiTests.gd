@@ -145,3 +145,8 @@ func test_refcounted_as_object_return_from_user_func_ptrcall():
 	var obj_test: ObjectTest = ObjectTest.new()
 	var obj: MockRefCountedRust = obj_test.return_refcounted_as_object() 
 	assert_eq(obj.i, 42)
+
+func test_custom_constructor():
+	var obj = CustomConstructor.construct_object(42)
+	assert_eq(obj.val, 42)
+	obj.free()

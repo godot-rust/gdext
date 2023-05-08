@@ -22,16 +22,7 @@ pub trait SignatureTuple {
         args_ptr: *const sys::GDExtensionConstVariantPtr,
         ret: sys::GDExtensionVariantPtr,
         err: *mut sys::GDExtensionCallError,
-        func: fn(&C, Self::Params) -> Self::Ret,
-        method_name: &str,
-    );
-
-    unsafe fn varcall_mut<C: GodotClass>(
-        instance_ptr: sys::GDExtensionClassInstancePtr,
-        args_ptr: *const sys::GDExtensionConstVariantPtr,
-        ret: sys::GDExtensionVariantPtr,
-        err: *mut sys::GDExtensionCallError,
-        func: fn(&mut C, Self::Params) -> Self::Ret,
+        func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
         method_name: &str,
     );
 
@@ -41,18 +32,7 @@ pub trait SignatureTuple {
         instance_ptr: sys::GDExtensionClassInstancePtr,
         args_ptr: *const sys::GDExtensionConstTypePtr,
         ret: sys::GDExtensionTypePtr,
-        func: fn(&C, Self::Params) -> Self::Ret,
-        method_name: &str,
-        call_type: sys::PtrcallType,
-    );
-
-    // Note: this method imposes extra bounds on GodotFfi, which may not be implemented for user types.
-    // We could fall back to varcalls in such cases, and not require GodotFfi categorically.
-    unsafe fn ptrcall_mut<C: GodotClass>(
-        instance_ptr: sys::GDExtensionClassInstancePtr,
-        args_ptr: *const sys::GDExtensionConstTypePtr,
-        ret: sys::GDExtensionTypePtr,
-        func: fn(&mut C, Self::Params) -> Self::Ret,
+        func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
         method_name: &str,
         call_type: sys::PtrcallType,
     );
@@ -127,133 +107,104 @@ macro_rules! impl_signature_for_tuple {
 
             #[inline]
             unsafe fn varcall<C : GodotClass>(
-				instance_ptr: sys::GDExtensionClassInstancePtr,
+                instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
                 ret: sys::GDExtensionVariantPtr,
                 err: *mut sys::GDExtensionCallError,
-                func: fn(&C, Self::Params) -> Self::Ret,
+                func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
                 method_name: &str,
             ) {
-    	        $crate::out!("varcall: {}", method_name);
+                $crate::out!("varcall: {}", method_name);
 
-                let storage = unsafe { crate::private::as_storage::<C>(instance_ptr) };
-                let instance = storage.get();
+                let args = ($(
+                    unsafe { varcall_arg::<$Pn, $n>(args_ptr, method_name) },
+                )*) ;
 
-                let args = ( $(
-                    {
-                        let variant = unsafe { &*(*args_ptr.offset($n) as *mut Variant) }; // TODO from_var_sys
-                        let arg = <$Pn as FromVariant>::try_from_variant(variant)
-                            .unwrap_or_else(|e| param_error::<$Pn>(method_name, $n, variant));
-
-                        arg
-                    },
-                )* );
-
-				let ret_val = func(&*instance, args);
-                let ret_variant = <$R as ToVariant>::to_variant(&ret_val); // TODO write_sys
-				unsafe {
-                    *(ret as *mut Variant) = ret_variant;
-                    (*err).error = sys::GDEXTENSION_CALL_OK;
-                }
-            }
-
-            #[inline]
-            unsafe fn varcall_mut<C : GodotClass>(
-				instance_ptr: sys::GDExtensionClassInstancePtr,
-                args_ptr: *const sys::GDExtensionConstVariantPtr,
-                ret: sys::GDExtensionVariantPtr,
-                err: *mut sys::GDExtensionCallError,
-                func: fn(&mut C, Self::Params) -> Self::Ret,
-                method_name: &str,
-            ) {
-    	        $crate::out!("varcall: {}", method_name);
-
-                let storage = unsafe { crate::private::as_storage::<C>(instance_ptr) };
-                let mut instance = storage.get_mut();
-
-                let args = ( $(
-                    {
-                        let variant = unsafe { &*(*args_ptr.offset($n) as *mut Variant) }; // TODO from_var_sys
-                        let arg = <$Pn as FromVariant>::try_from_variant(variant)
-                            .unwrap_or_else(|e| param_error::<$Pn>(method_name, $n, variant));
-
-                        arg
-                    },
-                )* );
-
-				let ret_val = func(&mut *instance, args);
-                let ret_variant = <$R as ToVariant>::to_variant(&ret_val); // TODO write_sys
-				unsafe {
-                    *(ret as *mut Variant) = ret_variant;
-                    (*err).error = sys::GDEXTENSION_CALL_OK;
-                }
+                varcall_return::<$R>(func(instance_ptr, args), ret, err)
             }
 
             #[inline]
             unsafe fn ptrcall<C : GodotClass>(
-				instance_ptr: sys::GDExtensionClassInstancePtr,
+                instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
-                func: fn(&C, Self::Params) -> Self::Ret,
+                func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
                 method_name: &str,
                 call_type: sys::PtrcallType,
             ) {
                 $crate::out!("ptrcall: {}", method_name);
 
-                let storage = unsafe { crate::private::as_storage::<C>(instance_ptr) };
-                let instance = storage.get();
+                let args = ($(
+                    unsafe { ptrcall_arg::<$Pn, $n>(args_ptr, method_name, call_type) },
+                )*) ;
 
-				let args = ( $(
-                    unsafe {
-                        <$Pn as sys::GodotFuncMarshal>::try_from_arg(
-                            sys::force_mut_ptr(*args_ptr.offset($n)),
-                            call_type
-                        )
-                    }
-                        .unwrap_or_else(|e| param_error::<$Pn>(method_name, $n, &e)),
-                )* );
-
-                let ret_val = func(&*instance, args);
                 // SAFETY:
                 // `ret` is always a pointer to an initialized value of type $R
                 // TODO: double-check the above
-				<$R as sys::GodotFuncMarshal>::try_return(ret_val, ret, call_type)
-                    .unwrap_or_else(|ret_val| return_error::<$R>(method_name, &ret_val));
-            }
-
-            #[inline]
-            unsafe fn ptrcall_mut<C : GodotClass>(
-				instance_ptr: sys::GDExtensionClassInstancePtr,
-                args_ptr: *const sys::GDExtensionConstTypePtr,
-                ret: sys::GDExtensionTypePtr,
-                func: fn(&mut C, Self::Params) -> Self::Ret,
-                method_name: &str,
-                call_type: sys::PtrcallType,
-            ) {
-                $crate::out!("ptrcall: {}", method_name);
-
-                let storage = unsafe { crate::private::as_storage::<C>(instance_ptr) };
-                let mut instance = storage.get_mut();
-
-				let args = ( $(
-                    unsafe {
-                        <$Pn as sys::GodotFuncMarshal>::try_from_arg(
-                            sys::force_mut_ptr(*args_ptr.offset($n)),
-                            call_type
-                        )
-                    }
-                        .unwrap_or_else(|e| param_error::<$Pn>(method_name, $n, &e)),
-                )* );
-
-                let ret_val = func(&mut *instance, args);
-                // SAFETY:
-                // `ret` is always a pointer to an initialized value of type $R
-                // TODO: double-check the above
-				<$R as sys::GodotFuncMarshal>::try_return(ret_val, ret, call_type)
-                    .unwrap_or_else(|ret_val| return_error::<$R>(method_name, &ret_val));
+                ptrcall_return::<$R>(func(instance_ptr, args), ret, method_name, call_type)
             }
         }
     };
+}
+
+/// Convert the `N`th argument of `args_ptr` into a value of type `P`.
+///
+/// # Safety
+/// - It must be safe to dereference the pointer at `args_ptr.offset(N)` .
+unsafe fn varcall_arg<P: FromVariant, const N: isize>(
+    args_ptr: *const sys::GDExtensionConstVariantPtr,
+    method_name: &str,
+) -> P {
+    let variant = &*(*args_ptr.offset(N) as *mut Variant); // TODO from_var_sys
+    P::try_from_variant(variant)
+        .unwrap_or_else(|_| param_error::<P>(method_name, N as i32, variant))
+}
+
+/// Moves `ret_val` into `ret`.
+///
+/// # Safety
+/// - `ret` must be a pointer to an initialized `Variant`.
+/// - It must be safe to write a `Variant` once to `ret`.
+/// - It must be safe to write a `sys::GDExtensionCallError` once to `err`.
+unsafe fn varcall_return<R: ToVariant>(
+    ret_val: R,
+    ret: sys::GDExtensionConstVariantPtr,
+    err: *mut sys::GDExtensionCallError,
+) {
+    let ret_variant = ret_val.to_variant(); // TODO write_sys
+    *(ret as *mut Variant) = ret_variant;
+    (*err).error = sys::GDEXTENSION_CALL_OK;
+}
+
+/// Convert the `N`th argument of `args_ptr` into a value of type `P`.
+///
+/// # Safety
+/// - It must be safe to dereference the address at `args_ptr.offset(N)` .
+/// - The pointer at `args_ptr.offset(N)` must follow the safety requirements as laid out in
+///   [`GodotFuncMarshal::try_from_arg`][sys::GodotFuncMarshal::try_from_arg].
+unsafe fn ptrcall_arg<P: sys::GodotFuncMarshal, const N: isize>(
+    args_ptr: *const sys::GDExtensionConstTypePtr,
+    method_name: &str,
+    call_type: sys::PtrcallType,
+) -> P {
+    P::try_from_arg(sys::force_mut_ptr(*args_ptr.offset(N)), call_type)
+        .unwrap_or_else(|e| param_error::<P>(method_name, N as i32, &e))
+}
+
+/// Moves `ret_val` into `ret`.
+///
+/// # Safety
+/// `ret_val`, `ret`, and `call_type` must follow the safety requirements as laid out in
+/// [`GodotFuncMarshal::try_return`](sys::GodotFuncMarshal::try_return).
+unsafe fn ptrcall_return<R: sys::GodotFuncMarshal + std::fmt::Debug>(
+    ret_val: R,
+    ret: sys::GDExtensionTypePtr,
+    method_name: &str,
+    call_type: sys::PtrcallType,
+) {
+    ret_val
+        .try_return(ret, call_type)
+        .unwrap_or_else(|ret_val| return_error::<R>(method_name, &ret_val))
 }
 
 fn param_error<P>(method_name: &str, index: i32, arg: &impl Debug) -> ! {

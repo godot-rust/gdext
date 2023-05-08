@@ -283,7 +283,7 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
             let enum_ty = make_enum_name(enum_);
 
             RustTy::EngineEnum {
-                tokens: quote! { #module::#enum_ty },
+                tokens: quote! { crate::engine::#module::#enum_ty },
                 surrounding_class: Some(class.to_string()),
             }
         } else {
@@ -291,7 +291,7 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
             let enum_ty = make_enum_name(qualified_enum);
 
             RustTy::EngineEnum {
-                tokens: quote! { global::#enum_ty },
+                tokens: quote! { crate::engine::global::#enum_ty },
                 surrounding_class: None,
             }
         };
@@ -323,7 +323,7 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     } else {
         let ty = rustify_ty(ty);
         RustTy::EngineClass {
-            tokens: quote! { Gd<#ty> },
+            tokens: quote! { Gd<crate::engine::#ty> },
             class: ty.to_string(),
         }
     }

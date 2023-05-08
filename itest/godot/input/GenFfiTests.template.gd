@@ -22,6 +22,16 @@ func test_varcall_IDENT():
 #)
 
 #(
+func test_varcall_static_IDENT():
+	var from_rust: Variant = GenFfi.return_static_IDENT()
+	assert_that(GenFfi.accept_static_IDENT(from_rust), "ffi.accept_static_IDENT(from_rust)")
+
+	var from_gdscript: Variant = VAL
+	var mirrored: Variant = GenFfi.mirror_static_IDENT(from_gdscript)
+	assert_eq(mirrored, from_gdscript, "mirrored_static == from_gdscript")
+#)
+
+#(
 func test_ptrcall_IDENT():
 	var ffi := GenFfi.new()
 
@@ -32,3 +42,14 @@ func test_ptrcall_IDENT():
 	var mirrored: TYPE = ffi.mirror_IDENT(from_gdscript)
 	assert_eq(mirrored, from_gdscript, "mirrored == from_gdscript")
 #)
+
+#(
+func test_ptrcall_static_IDENT():
+	var from_rust: TYPE = GenFfi.return_static_IDENT()
+	assert_that(GenFfi.accept_static_IDENT(from_rust), "ffi.accept_static_IDENT(from_rust)")
+
+	var from_gdscript: TYPE = VAL
+	var mirrored: TYPE = GenFfi.mirror_static_IDENT(from_gdscript)
+	assert_eq(mirrored, from_gdscript, "mirrored_static == from_gdscript")
+#)
+	

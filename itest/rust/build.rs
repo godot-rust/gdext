@@ -172,6 +172,9 @@ fn generate_rust_methods(inputs: &[Input]) -> Vec<TokenStream> {
             let return_method = format_ident!("return_{}", ident);
             let accept_method = format_ident!("accept_{}", ident);
             let mirror_method = format_ident!("mirror_{}", ident);
+            let return_static_method = format_ident!("return_static_{}", ident);
+            let accept_static_method = format_ident!("accept_static_{}", ident);
+            let mirror_static_method = format_ident!("mirror_static_{}", ident);
 
             quote! {
                 #[func]
@@ -186,6 +189,21 @@ fn generate_rust_methods(inputs: &[Input]) -> Vec<TokenStream> {
 
                 #[func]
                 fn #mirror_method(&self, i: #rust_ty) -> #rust_ty {
+                    i
+                }
+
+                #[func]
+                fn #return_static_method() -> #rust_ty {
+                    #rust_val
+                }
+
+                #[func]
+                fn #accept_static_method(i: #rust_ty) -> bool {
+                    i == #rust_val
+                }
+
+                #[func]
+                fn #mirror_static_method(i: #rust_ty) -> #rust_ty {
                     i
                 }
             }

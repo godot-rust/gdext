@@ -22,11 +22,11 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 /// Godot's `Array` can be either typed or untyped.
 ///
 /// An untyped array can contain any kind of [`Variant`], even different types in the same array.
-/// We represent this in Rust as `Array`, which is just a type alias for `TypedArray<Variant>`.
+/// We represent this in Rust as `VariantArray`, which is just a type alias for `Array<Variant>`.
 ///
 /// Godot also supports typed arrays, which are also just `Variant` arrays under the hood, but with
 /// runtime checks that no values of the wrong type are put into the array. We represent this as
-/// `TypedArray<T>`, where the type `T` implements `VariantMetadata`, `FromVariant` and `ToVariant`.
+/// `Array<T>`, where the type `T` implements `VariantMetadata`, `FromVariant` and `ToVariant`.
 ///
 /// # Reference semantics
 ///

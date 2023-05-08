@@ -39,12 +39,111 @@ macro_rules! gdext_is_not_unit {
 
 #[doc(hidden)]
 #[macro_export]
+macro_rules! gdext_method_flags {
+    (ref) => {
+        $crate::sys::GDEXTENSION_METHOD_FLAGS_DEFAULT
+    };
+    (mut) => {
+        $crate::sys::GDEXTENSION_METHOD_FLAGS_DEFAULT
+    };
+    (static) => {
+        $crate::sys::GDEXTENSION_METHOD_FLAG_STATIC
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! gdext_call_signature_method {
+    (
+        ptrcall,
+        $Class:ty,
+        $instance_ptr:ident, $args:ident, $ret:ident,
+        $func:expr,
+        $method_name:ident,
+        $ptrcall_type:path
+    ) => {
+        <Sig as $crate::builtin::meta::SignatureTuple>::ptrcall::<$Class>(
+            $instance_ptr,
+            $args,
+            $ret,
+            $func,
+            stringify!($method_name),
+            $ptrcall_type,
+        );
+    };
+
+    (
+        varcall,
+        $Class:ty,
+        $instance_ptr:ident, $args:ident, $ret:ident, $err:ident,
+        $func:expr,
+        $method_name:ident
+    ) => {
+        <Sig as $crate::builtin::meta::SignatureTuple>::varcall::<$Class>(
+            $instance_ptr,
+            $args,
+            $ret,
+            $err,
+            $func,
+            stringify!($method_name),
+        );
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+macro_rules! gdext_wrap_with_unpacked_params {
+    (
+        ref,
+        $Class:ty,
+        $method_name:ident,
+        $( $param:ident, )*
+    ) => {
+        |instance_ptr, params| {
+            let ( $($param,)* ) = params;
+
+            let storage = unsafe { $crate::private::as_storage::<$Class>(instance_ptr) };
+            let instance = storage.get();
+
+            instance.$method_name( $( $param, )* )
+        }
+    };
+
+    (
+        mut,
+        $Class:ty,
+        $method_name:ident,
+        $( $param:ident, )*
+    ) => {
+        |instance_ptr, params| {
+            let ( $($param,)* ) = params;
+
+            let storage = unsafe { $crate::private::as_storage::<$Class>(instance_ptr) };
+            let mut instance = storage.get_mut();
+
+            instance.$method_name( $( $param, )* )
+        }
+    };
+
+    (
+        static,
+        $Class:ty,
+        $method_name:ident,
+        $( $param:ident, )*
+    ) => {
+        |_, params| {
+            let ( $($param,)* ) = params;
+            <$Class>::$method_name( $( $param, )* )
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
 macro_rules! gdext_register_method_inner {
     (
-        $ptrcall:ident,
-        $varcall:ident,
+        $receiver_type:ident,
         $Class:ty,
-        $map_method:ident,
         fn $method_name:ident(
             $( $param:ident : $ParamTy:ty, )*
             $( #[opt] $opt_param:ident : $OptParamTy:ty, )*
@@ -71,16 +170,12 @@ macro_rules! gdext_register_method_inner {
                     let success = $crate::private::handle_panic(
                         || stringify!($method_name),
                         || {
-                            <Sig as SignatureTuple>::$varcall::< $Class >(
-                                instance_ptr,
-                                args,
-                                ret,
-                                err,
-                                |inst, params| {
-                                    let ( $($param,)* ) = params;
-                                    inst.$method_name( $( $param, )* )
-                                },
-                                stringify!($method_name),
+                            $crate::gdext_call_signature_method!(
+                                varcall,
+                                $Class,
+                                instance_ptr, args, ret, err,
+                                $crate::gdext_wrap_with_unpacked_params!($receiver_type, $Class, $method_name, $($param,)*),
+                                $method_name
                             );
                         }
                     );
@@ -105,15 +200,12 @@ macro_rules! gdext_register_method_inner {
                     let success = $crate::private::handle_panic(
                         || stringify!($method_name),
                         || {
-                            <Sig as SignatureTuple>::$ptrcall::< $Class >(
-                                instance_ptr,
-                                args,
-                                ret,
-                                |inst, params| {
-                                    let ( $($param,)* ) = params;
-                                    inst.$method_name( $( $param, )* )
-                                },
-                                stringify!($method_name),
+                            $crate::gdext_call_signature_method!(
+                                ptrcall,
+                                $Class,
+                                instance_ptr, args, ret,
+                                $crate::gdext_wrap_with_unpacked_params!($receiver_type, $Class, $method_name, $($param,)*),
+                                $method_name,
                                 sys::PtrcallType::Standard
                             );
                         }
@@ -163,7 +255,7 @@ macro_rules! gdext_register_method_inner {
                 method_userdata: std::ptr::null_mut(),
                 call_func: Some(varcall_func),
                 ptrcall_func: Some(ptrcall_func),
-                method_flags: sys::GDEXTENSION_METHOD_FLAGS_DEFAULT as u32,
+                method_flags: $crate::gdext_method_flags!($receiver_type) as u32,
                 has_return_value: has_return_value as u8,
                 return_value_info: std::ptr::addr_of_mut!(return_value_info_sys),
                 return_value_metadata,
@@ -194,28 +286,6 @@ macro_rules! gdext_register_method_inner {
 #[doc(hidden)]
 #[macro_export]
 macro_rules! gdext_register_method {
-    // mutable
-    (
-        $Class:ty,
-        fn $method_name:ident(
-            &mut self
-            $(, $param:ident : $ParamTy:ty)*
-            $(, #[opt] $opt_param:ident : $OptParamTy:ty)*
-            $(,)?
-        ) -> $RetTy:ty
-    ) => {
-        $crate::gdext_register_method_inner!(
-            ptrcall_mut,
-            varcall_mut,
-            $Class,
-            map_mut,
-            fn $method_name(
-                $( $param : $ParamTy, )*
-                $( #[opt] $opt_param : $OptParamTy, )*
-            ) -> $RetTy
-        )
-    };
-
     // immutable
     (
         $Class:ty,
@@ -227,14 +297,72 @@ macro_rules! gdext_register_method {
         ) -> $RetTy:ty
     ) => {
         $crate::gdext_register_method_inner!(
-            ptrcall,
-            varcall,
+            ref,
             $Class,
-            map,
             fn $method_name(
                 $( $arg : $Param, )*
                 $( #[opt] $opt_arg : $OptParam, )*
             ) -> $RetTy
+        )
+    };
+
+    // mutable
+    (
+        $Class:ty,
+        fn $method_name:ident(
+            &mut self
+            $(, $param:ident : $ParamTy:ty)*
+            $(, #[opt] $opt_param:ident : $OptParamTy:ty)*
+            $(,)?
+        ) -> $RetTy:ty
+    ) => {
+        $crate::gdext_register_method_inner!(
+            mut,
+            $Class,
+            fn $method_name(
+                $( $param : $ParamTy, )*
+                $( #[opt] $opt_param : $OptParamTy, )*
+            ) -> $RetTy
+        )
+    };
+
+    // static
+    (
+        $Class:ty,
+        fn $method_name:ident(
+            $( $arg:ident : $Param:ty),*
+            $(, #[opt] $opt_arg:ident : $OptParam:ty)*
+            $(,)?
+        ) -> $RetTy:ty
+    ) => {
+        $crate::gdext_register_method_inner!(
+            static,
+            $Class,
+            fn $method_name(
+                $( $arg : $Param, )*
+                $( #[opt] $opt_arg : $OptParam, )*
+            ) -> $RetTy
+        )
+    };
+
+    // immutable without return type
+    (
+        $Class:ty,
+        fn $method_name:ident(
+            &self
+            $(, $param:ident : $ParamTy:ty )*
+            $(, #[opt] $opt_param:ident : $OptParamTy:ty )*
+            $(,)?
+        )
+    ) => {
+        // recurse this macro
+        $crate::gdext_register_method!(
+            $Class,
+            fn $method_name(
+                &self,
+                $( $param : $ParamTy, )*
+                $( #[opt] $opt_param : $OptParamTy, )*
+            ) -> ()
         )
     };
 
@@ -259,12 +387,11 @@ macro_rules! gdext_register_method {
         )
     };
 
-    // immutable without return type
+    // static without return type
     (
         $Class:ty,
         fn $method_name:ident(
-            &self
-            $(, $param:ident : $ParamTy:ty )*
+            $( $param:ident : $ParamTy:ty ),*
             $(, #[opt] $opt_param:ident : $OptParamTy:ty )*
             $(,)?
         )
@@ -273,7 +400,6 @@ macro_rules! gdext_register_method {
         $crate::gdext_register_method!(
             $Class,
             fn $method_name(
-                &self,
                 $( $param : $ParamTy, )*
                 $( #[opt] $opt_param : $OptParamTy, )*
             ) -> ()
@@ -315,28 +441,11 @@ macro_rules! gdext_virtual_method_callback_inner {
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
 //
 // Note: code duplicated with gdext_virtual_method_callback
+// There are currently no virtual static methods. Additionally, virtual static methods dont really make a lot
+// of sense. Therefore there is no need to support them.
 #[doc(hidden)]
 #[macro_export]
 macro_rules! gdext_virtual_method_callback {
-    // mutable
-    (
-        $Class:ty,
-        fn $method_name:ident(
-            &mut self
-            $(, $param:ident : $ParamTy:ty)*
-            $(,)?
-        ) -> $RetTy:ty
-    ) => {
-        $crate::gdext_virtual_method_callback_inner!(
-            ptrcall_mut,
-            $Class,
-            map_mut,
-            fn $method_name(
-                $( $param : $ParamTy, )*
-            ) -> $RetTy
-        )
-    };
-
     // immutable
     (
         $Class:ty,
@@ -347,7 +456,7 @@ macro_rules! gdext_virtual_method_callback {
         ) -> $RetTy:ty
     ) => {
         $crate::gdext_virtual_method_callback_inner!(
-            ptrcall,
+            ref,
             $Class,
             map,
             fn $method_name(
@@ -356,22 +465,22 @@ macro_rules! gdext_virtual_method_callback {
         )
     };
 
-    // mutable without return type
+    // mutable
     (
         $Class:ty,
         fn $method_name:ident(
             &mut self
             $(, $param:ident : $ParamTy:ty)*
             $(,)?
-        )
+        ) -> $RetTy:ty
     ) => {
-        // recurse this macro
-        $crate::gdext_virtual_method_callback!(
+        $crate::gdext_virtual_method_callback_inner!(
+            mut,
             $Class,
+            map_mut,
             fn $method_name(
-                &mut self
-                $(, $param : $ParamTy )*
-            ) -> ()
+                $( $param : $ParamTy, )*
+            ) -> $RetTy
         )
     };
 
@@ -393,26 +502,45 @@ macro_rules! gdext_virtual_method_callback {
             ) -> ()
         )
     };
+
+    // mutable without return type
+    (
+        $Class:ty,
+        fn $method_name:ident(
+            &mut self
+            $(, $param:ident : $ParamTy:ty)*
+            $(,)?
+        )
+    ) => {
+        // recurse this macro
+        $crate::gdext_virtual_method_callback!(
+            $Class,
+            fn $method_name(
+                &mut self
+                $(, $param : $ParamTy )*
+            ) -> ()
+        )
+    };
 }
 
 #[macro_export]
 macro_rules! gdext_ptrcall {
     (
-        $ptrcall:ident;
+        $receiver_type:ident;
         $instance_ptr:ident, $args_ptr:ident, $ret_ptr:ident;
         $Class:ty;
         fn $method_name:ident(
             $( $arg:ident : $ParamTy:ty, )*
         ) -> $( $RetTy:tt )+
     ) => {
-        use $crate::builtin::meta::SignatureTuple;
-        <($($RetTy)+, $($ParamTy,)*) as SignatureTuple>::$ptrcall::<$Class>(
-            $instance_ptr,
-            $args_ptr,
-            $ret_ptr,
-            |__instance, ($($arg,)*)| __instance.$method_name($($arg,)*),
-            stringify!($method_name),
-            sys::PtrcallType::Virtual,
-        )
+        type Sig = ($($RetTy)+, $($ParamTy,)*);
+        $crate::gdext_call_signature_method!(
+            ptrcall,
+            $Class,
+            $instance_ptr, $args_ptr, $ret_ptr,
+            $crate::gdext_wrap_with_unpacked_params!($receiver_type, $Class, $method_name, $($arg,)*),
+            $method_name,
+            $crate::sys::PtrcallType::Virtual
+        );
     };
 }
