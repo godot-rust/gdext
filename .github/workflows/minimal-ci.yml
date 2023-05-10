@@ -103,14 +103,14 @@ jobs:
           # token: # optional: the token that license eye uses when it needs to comment on the pull request.
           # Set to empty ("") to disable commenting on pull request. The default value is ${{ github.token }}
           # mode: # optional: Which mode License-Eye should be run in. Choices are `check` or `fix`. The default value is `check`.
-          mode: fix
+          mode: check
 
-      - name: "Commit changes"
-        uses: EndBug/add-and-commit@v9
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          author_name: 'Godot-Rust Automation'
-          author_email: 'actions@github.com'
-          message: 'Auto-apply license headers'
+#      - name: "Commit changes"
+#        uses: EndBug/add-and-commit@v9
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          author_name: 'Godot-Rust Automation'
+#          author_email: 'actions@github.com'
+#          message: 'Auto-apply license headers'
 
