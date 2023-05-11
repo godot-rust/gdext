@@ -134,7 +134,7 @@ jobs:
           - name: macos-double
             os: macos-12
             godot-binary: godot.macos.editor.dev.double.x86_64
-            rust-extra-args: --features double-precision
+            rust-extra-args: --features godot/double-precision
 
           - name: macos-nightly
             os: macos-12
@@ -150,7 +150,7 @@ jobs:
           - name: windows-double
             os: windows-latest
             godot-binary: godot.windows.editor.dev.double.x86_64.exe
-            rust-extra-args: --features double-precision
+            rust-extra-args: --features godot/double-precision
 
           - name: windows-nightly
             os: windows-latest
@@ -167,13 +167,13 @@ jobs:
           - name: linux-double
             os: ubuntu-20.04
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
-            rust-extra-args: --features double-precision
+            rust-extra-args: --features godot/double-precision
 
           - name: linux-features
             os: ubuntu-20.04
             artifact-name: linux
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features threads,serde
+            rust-extra-args: --features godot/threads,godot/serde
 
           - name: linux-nightly
             os: ubuntu-20.04

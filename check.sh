@@ -165,7 +165,7 @@ for arg in "$@"; do
             exit 0
             ;;
         --double)
-            extraCargoArgs+=("--features" "double-precision")
+            extraCargoArgs+=("--features" "godot/double-precision")
             ;;
         fmt | clippy | test | itest | doc | dok)
             cmds+=("$arg")

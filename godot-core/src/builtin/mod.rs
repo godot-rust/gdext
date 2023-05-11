@@ -140,36 +140,36 @@ pub(crate) fn u8_to_bool(u: u8) -> bool {
 /// Clippy often complains if you do `f as f64` when `f` is already an `f64`. This trait exists to make it easy to
 /// convert between the different reals and floats without a lot of allowing clippy lints for your code.
 pub trait RealConv {
-    /// Cast this [`real`] to an [`f32`] using `as`.
+    /// Cast this [`real`][type@real] to an [`f32`] using `as`.
     // Clippy complains that this is an `as_*` function but it takes a `self`
     // however, since this uses `as` internally it makes much more sense for
     // it to be named `as_f32` rather than `to_f32`.
     #[allow(clippy::wrong_self_convention)]
     fn as_f32(self) -> f32;
 
-    /// Cast this [`real`] to an [`f64`] using `as`.
+    /// Cast this [`real`][type@real] to an [`f64`] using `as`.
     // Clippy complains that this is an `as_*` function but it takes a `self`
     // however, since this uses `as` internally it makes much more sense for
     // it to be named `as_f64` rather than `to_f64`.
     #[allow(clippy::wrong_self_convention)]
     fn as_f64(self) -> f64;
 
-    /// Cast an [`f32`] to a [`real`] using `as`.
+    /// Cast an [`f32`] to a [`real`][type@real] using `as`.
     fn from_f32(f: f32) -> Self;
 
-    /// Cast an [`f64`] to a [`real`] using `as`.
+    /// Cast an [`f64`] to a [`real`][type@real] using `as`.
     fn from_f64(f: f64) -> Self;
 }
 
 #[cfg(not(feature = "double-precision"))]
 mod real_mod {
-    //! Definitions for single-precision `real`.
-
     /// Floating point type used for many structs and functions in Godot.
     ///
+    /// This type is `f32` by default, and `f64` when the Cargo feature `double-precision` is enabled.
+    ///
     /// This is not the `float` type in GDScript; that type is always 64-bits. Rather, many structs in Godot may use
-    /// either 32-bit or 64-bit floats such as [`Vector2`](super::Vector2). To convert between [`real`] and [`f32`] or
-    /// [`f64`] see [`RealConv`](super::RealConv).
+    /// either 32-bit or 64-bit floats, for example [`Vector2`](super::Vector2). To convert between [`real`] and [`f32`] or
+    /// [`f64`], see [`RealConv`](super::RealConv).
     ///
     /// See also the [Godot docs on float](https://docs.godotengine.org/en/stable/classes/class_float.html).
     ///
@@ -230,13 +230,13 @@ mod real_mod {
 
 #[cfg(feature = "double-precision")]
 mod real_mod {
-    //! Definitions for double-precision `real`.
-
     /// Floating point type used for many structs and functions in Godot.
     ///
+    /// This type is `f32` by default, and `f64` when the Cargo feature `double-precision` is enabled.
+    ///
     /// This is not the `float` type in GDScript; that type is always 64-bits. Rather, many structs in Godot may use
-    /// either 32-bit or 64-bit floats such as [`Vector2`](super::Vector2). To convert between [`real`] and [`f32`] or
-    /// [`f64`] see [`RealConv`](super::RealConv).
+    /// either 32-bit or 64-bit floats, for example [`Vector2`](super::Vector2). To convert between [`real`] and [`f32`] or
+    /// [`f64`], see [`RealConv`](super::RealConv).
     ///
     /// See also the [Godot docs on float](https://docs.godotengine.org/en/stable/classes/class_float.html).
     ///
