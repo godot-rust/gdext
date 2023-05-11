@@ -86,7 +86,7 @@ pub fn generate_core_files(core_gen_path: &Path) {
     watch.write_stats_to(&core_gen_path.join("codegen-stats.txt"));
 }
 
-// #[cfg(feature = "codegen-fmt")]
+#[cfg(feature = "codegen-fmt")]
 fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
     println!("Format {} generated files...", out_files.len());
 
@@ -106,9 +106,9 @@ fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
 
     println!("Rustfmt completed.");
 }
-//
-// #[cfg(not(feature = "codegen-fmt"))]
-// fn rustfmt_if_needed(_out_files: Vec<PathBuf>) {}
+
+#[cfg(not(feature = "codegen-fmt"))]
+fn rustfmt_if_needed(_out_files: Vec<PathBuf>) {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared utility types

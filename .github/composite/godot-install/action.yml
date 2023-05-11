@@ -18,7 +18,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v3
+    # Do not check out here, as this would overwrite (clean) the current directory and is already done by the parent workflow.
 
     # Replaces also backspaces on Windows, since they cause problems in Bash
     - name: "Store variable to Godot binary"
@@ -38,8 +38,10 @@ runs:
 
     - name: "Download Godot artifact"
 #      if: steps.cache-godot.outputs.cache-hit != 'true'
+      # FIXME(#270): Use again latest workflow, instead of last-known good one 4921814392
       run: |
-        curl https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot/master/${{ inputs.artifact-name }}.zip \
+        #curl https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot/master/${{ inputs.artifact-name }}.zip \
+        curl https://nightly.link/Bromeon/godot4-nightly/actions/runs/4910907653/${{ inputs.artifact-name }}.zip \
           -Lo artifact.zip \
           --retry 3
         unzip artifact.zip -d $RUNNER_DIR/godot_bin

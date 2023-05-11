@@ -155,8 +155,10 @@ function cmd_dok() {
 # Argument parsing
 ################################################################################
 
+# By default, disable `codegen-full` to reduce compile times and prevent flip-flopping
+# between `itest` compilations and `check.sh` runs.
+extraCargoArgs=("--no-default-features")
 cmds=()
-extraCargoArgs=()
 
 for arg in "$@"; do
     case "$arg" in
@@ -165,7 +167,7 @@ for arg in "$@"; do
             exit 0
             ;;
         --double)
-            extraCargoArgs+=("--features" "double-precision")
+            extraCargoArgs+=("--features" "godot/double-precision")
             ;;
         fmt | clippy | test | itest | doc | dok)
             cmds+=("$arg")
@@ -183,18 +185,39 @@ if [[ ${#cmds[@]} -eq 0 ]]; then
 fi
 
 ################################################################################
-# Execution
+# Execution and summary
 ################################################################################
+
+function compute_elapsed() {
+    local total=$SECONDS
+    local min=$(("$total" / 60))
+    if [[ "$min" -gt 0 ]]; then
+        min="${min}min "
+    else
+        min=""
+    fi
+    local sec=$(("$total" % 60))
+
+    # Don't use echo and call it with $(compute_elapsed), it messes with stdout
+    elapsed="${min}${sec}s"
+}
 
 for cmd in "${cmds[@]}"; do
     "cmd_${cmd}" || {
+        compute_elapsed
         log -ne "$RED\n====================="
         log -ne "\ngdext: checks FAILED."
         log -ne "\n=====================\n$END"
+        log -ne "\nTotal duration: $elapsed.\n"
         exit 1
     }
 done
 
+compute_elapsed
 log -ne "$CYAN\n========================="
 log -ne "\ngdext: checks SUCCESSFUL."
 log -ne "\n=========================\n$END"
+log -ne "\nTotal duration: $elapsed.\n"
+
+# If invoked with sh instead of bash, pressing Up arrow after executing `sh check.sh` may cause a `[A` to appear.
+# See https://unix.stackexchange.com/q/103608.
