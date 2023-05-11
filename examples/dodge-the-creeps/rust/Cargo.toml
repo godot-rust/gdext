@@ -2,11 +2,12 @@
 name = "dodge-the-creeps"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.66"
 publish = false
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-godot = { path = "../../../godot", default-features = false, features = ["formatted"] }
+godot = { path = "../../../godot", default-features = false }
 rand = "0.8"

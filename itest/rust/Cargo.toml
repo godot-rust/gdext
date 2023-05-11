@@ -14,7 +14,7 @@ default = []
 # Instead, compile itest with `--features godot/my-feature`.
 
 [dependencies]
-godot = { path = "../../godot", default-features = false, features = ["formatted"] }
+godot = { path = "../../godot", default-features = false }
 
 [build-dependencies]
 quote = "1"
