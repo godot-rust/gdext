@@ -181,7 +181,7 @@ impl Quaternion {
     }
 
     // pub fn spherical_cubic_interpolate(self, b: Self, pre_a: Self, post_b: Self, weight: real) -> Self {}
-    // TODO: Implement godot's function in rust
+    // TODO: Implement godot's function in Rust
     /*
         pub fn spherical_cubic_interpolate_in_time(
             self,

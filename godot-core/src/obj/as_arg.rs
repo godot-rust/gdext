@@ -22,8 +22,11 @@ pub trait AsArg: Sealed {
 impl<T: GodotClass> Sealed for Gd<T> {}
 impl<T: GodotClass> AsArg for Gd<T> {
     fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
-        // Pass argument to engine: increment refcount
-        <T::Mem as crate::obj::mem::Memory>::maybe_inc_ref(self);
+        // We're passing a reference to the object to the callee. If the reference count needs to be
+        // incremented then the callee will do so. We do not need to prematurely do so.
+        //
+        // In Rust terms, if `T` is refcounted then we are effectively passing a `&Arc<T>`, and the callee
+        // would need to call `.clone()` if desired.
         self.sys_const()
     }
 }
