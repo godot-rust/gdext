@@ -24,16 +24,19 @@ use super::{real, RVec4};
 /// vectors; use the gdext library with the `double-precision` feature in that case.
 ///
 /// See [`Vector4i`] for its integer counterpart.
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Vector4 {
     /// The vector's X component.
     pub x: real,
+
     /// The vector's Y component.
     pub y: real,
+
     /// The vector's Z component.
     pub z: real,
+
     /// The vector's W component.
     pub w: real,
 }
@@ -105,15 +108,18 @@ unsafe impl GodotFfi for Vector4 {
 }
 
 /// Enumerates the axes in a [`Vector4`].
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 #[repr(i32)]
 pub enum Vector4Axis {
     /// The X axis.
     X,
+
     /// The Y axis.
     Y,
+
     /// The Z axis.
     Z,
+
     /// The W axis.
     W,
 }

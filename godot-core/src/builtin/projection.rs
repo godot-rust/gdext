@@ -494,7 +494,7 @@ unsafe impl GodotFfi for Projection {
 }
 
 /// A projections clipping plane.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[repr(C)]
 pub enum ProjectionPlane {
     Near = 0,
@@ -507,7 +507,7 @@ pub enum ProjectionPlane {
 
 /// The eye to create a projection for, when creating a projection adjusted
 /// for head-mounted displays.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[repr(C)]
 pub enum ProjectionEye {
     Left = 1,

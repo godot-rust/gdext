@@ -44,7 +44,7 @@ impl Debug for ErasedRegisterFn {
 }
 
 /// Represents the data part of a [`ClassPlugin`] instance.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub enum PluginComponent {
     /// Class definition itself, must always be available
     ClassDef {

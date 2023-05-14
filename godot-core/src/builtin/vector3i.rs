@@ -23,14 +23,16 @@ use super::IVec3;
 /// required. Note that the values are limited to 32 bits, and unlike [`Vector3`] this cannot be
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`] if 64-bit values are
 /// needed.
-#[derive(Debug, Default, Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Vector3i {
     /// The vector's X component.
     pub x: i32,
+
     /// The vector's Y component.
     pub y: i32,
+
     /// The vector's Z component.
     pub z: i32,
 }
@@ -113,8 +115,10 @@ unsafe impl GodotFfi for Vector3i {
 pub enum Vector3iAxis {
     /// The X axis.
     X,
+
     /// The Y axis.
     Y,
+
     /// The Z axis.
     Z,
 }

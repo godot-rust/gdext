@@ -671,7 +671,7 @@ fn user_object() -> Gd<ObjPayload> {
     Gd::new(user)
 }
 
-#[derive(GodotClass, Debug, Eq, PartialEq)]
+#[derive(GodotClass, Eq, PartialEq, Debug)]
 pub struct ObjPayload {
     value: i16,
 }
@@ -689,10 +689,11 @@ impl RefCountedVirtual for ObjPayload {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-#[derive(GodotClass, Debug, Eq, PartialEq)]
+#[derive(GodotClass, Eq, PartialEq, Debug)]
 pub struct Tracker {
     drop_count: Rc<RefCell<i32>>,
 }
+
 impl Drop for Tracker {
     fn drop(&mut self) {
         //println!("      Tracker::drop");

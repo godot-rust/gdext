@@ -26,12 +26,13 @@ use super::{real, RAffine2, RVec2};
 /// vectors; use the gdext library with the `double-precision` feature in that case.
 ///
 /// See [`Vector2i`] for its integer counterpart.
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Vector2 {
     /// The vector's X component.
     pub x: real,
+
     /// The vector's Y component.
     pub y: real,
 }
@@ -318,11 +319,12 @@ unsafe impl GodotFfi for Vector2 {
 }
 
 /// Enumerates the axes in a [`Vector2`].
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 #[repr(i32)]
 pub enum Vector2Axis {
     /// The X axis.
     X,
+
     /// The Y axis.
     Y,
 }

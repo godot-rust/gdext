@@ -597,16 +597,16 @@ unsafe impl<T: VariantMetadata> GodotFfi for Array<T> {
         fn move_return_ptr;
     }
 
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let array = Self::from_sys(ptr);
-        std::mem::forget(array.share());
-        array
-    }
-
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();
         init_fn(result.sys_mut());
         result
+    }
+
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
+        let array = Self::from_sys(ptr);
+        std::mem::forget(array.share());
+        array
     }
 }
 
