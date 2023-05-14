@@ -8,7 +8,8 @@ use godot_ffi as sys;
 
 use crate::builtin::meta::VariantMetadata;
 use crate::builtin::*;
-use crate::obj::{Export, Share};
+use crate::export::{Export, ExportInfo, TypeStringHint};
+use crate::obj::Share;
 use std::fmt;
 use std::marker::PhantomData;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -635,9 +636,33 @@ impl<T: VariantMetadata> Share for Array<T> {
     }
 }
 
-impl<T: VariantMetadata> Export for Array<T> {
+impl<T: VariantMetadata + TypeStringHint> TypeStringHint for Array<T> {
+    fn type_string() -> String {
+        format!("{}:{}", sys::VariantType::Array as i32, T::type_string())
+    }
+}
+
+impl<T: VariantMetadata + TypeStringHint> Export for Array<T> {
     fn export(&self) -> Self {
         self.share()
+    }
+
+    fn default_export_info() -> ExportInfo {
+        ExportInfo {
+            variant_type: Self::variant_type(),
+            hint: crate::engine::global::PropertyHint::PROPERTY_HINT_TYPE_STRING,
+            hint_string: T::type_string().into(),
+        }
+    }
+}
+
+impl Export for Array<Variant> {
+    fn export(&self) -> Self {
+        self.share()
+    }
+
+    fn default_export_info() -> ExportInfo {
+        ExportInfo::with_hint_none(Self::variant_type())
     }
 }
 

@@ -223,15 +223,6 @@ struct ExportHint {
     description: TokenStream,
 }
 
-impl ExportHint {
-    fn none() -> Self {
-        Self {
-            hint_type: ident("PROPERTY_HINT_NONE"),
-            description: quote!(""),
-        }
-    }
-}
-
 impl FieldExport {
     pub fn new_from_kv(parser: &mut KvParser) -> ParseResult<FieldExport> {
         let mut getter = GetterSetter::parse(parser, "get")?;
@@ -320,10 +311,22 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         let field_ident = ident(&field_name);
         let field_type = field.ty.clone();
 
-        let ExportHint {
+        let export_info = quote! {
+            let mut export_info = <#field_type as ::godot::export::Export>::default_export_info();
+        };
+
+        let custom_hint = if let Some(ExportHint {
             hint_type,
             description,
-        } = export.hint.clone().unwrap_or_else(ExportHint::none);
+        }) = export.hint.clone()
+        {
+            quote! {
+                export_info.hint = ::godot::engine::global::PropertyHint::#hint_type;
+                export_info.hint_string = ::godot::builtin::GodotString::from(#description);
+            }
+        } else {
+            quote! {}
+        };
 
         let getter_name;
         match &export.getter {
@@ -338,7 +341,7 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 };
                 getter_setter_impls.push(quote! {
                     pub #signature {
-                        ::godot::obj::Export::export(&self.#field_ident)
+                        ::godot::export::Export::export(&self.#field_ident)
                     }
                 });
                 export_tokens.push(quote! {
@@ -381,14 +384,15 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             use ::godot::builtin::meta::VariantMetadata;
 
             let class_name = ::godot::builtin::StringName::from(#class_name::CLASS_NAME);
-            let property_info = ::godot::builtin::meta::PropertyInfo {
-                variant_type:  <#field_type>::variant_type(),
-                class_name:    ::godot::builtin::meta::ClassName::of::<#class_name>(),
-                property_name: ::godot::builtin::StringName::from(#field_name),
-                hint:          ::godot::engine::global::PropertyHint::#hint_type,
-                hint_string:   ::godot::builtin::GodotString::from(#description),
-                usage:         ::godot::engine::global::PropertyUsageFlags::PROPERTY_USAGE_DEFAULT,
-            };
+
+            #export_info
+
+            #custom_hint
+
+            let property_info = export_info.to_property_info::<#class_name>(
+                #field_name.into(),
+                ::godot::engine::global::PropertyUsageFlags::PROPERTY_USAGE_DEFAULT
+            );
             let property_info_sys = property_info.property_sys();
 
             let getter_name = ::godot::builtin::StringName::from(#getter_name);

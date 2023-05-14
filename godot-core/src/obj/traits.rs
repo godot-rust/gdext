@@ -33,6 +33,21 @@ where
     ///
     /// This may deviate from the Rust struct name: `HttpRequest::CLASS_NAME == "HTTPRequest"`.
     const CLASS_NAME: &'static str;
+
+    /// Returns whether `Self` inherits from `U`.
+    ///
+    /// This is reflexive, i.e `Self` inherits from itself.
+    ///
+    /// See also [`Inherits`] for a trait bound.
+    fn inherits<U: GodotClass>() -> bool {
+        if Self::CLASS_NAME == U::CLASS_NAME {
+            true
+        } else if Self::Base::CLASS_NAME == <()>::CLASS_NAME {
+            false
+        } else {
+            Self::Base::inherits::<U>()
+        }
+    }
 }
 
 /// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
@@ -50,14 +65,6 @@ pub trait Share {
     ///
     /// If the referred-to object is reference-counted, this will increment the count.
     fn share(&self) -> Self;
-}
-
-/// Trait implemented for types that can be used as `#[export]` fields. This creates a copy of the
-/// value, for some type-specific definition of "copy". For example, `Array` and `Gd` are returned
-/// via `Share::share()` instead of copying the actual data.
-pub trait Export {
-    /// Creates a copy to be returned from a getter.
-    fn export(&self) -> Self;
 }
 
 /// Non-strict inheritance relationship in the Godot class hierarchy.

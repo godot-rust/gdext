@@ -47,6 +47,10 @@ impl<T: VariantMetadata> VariantMetadata for Option<T> {
     fn variant_type() -> VariantType {
         T::variant_type()
     }
+
+    fn class_name() -> ClassName {
+        T::class_name()
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
