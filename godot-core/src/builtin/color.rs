@@ -15,15 +15,18 @@ use sys::{ffi_methods, GodotFfi};
 /// Channel values are _typically_ in the range of 0 to 1, but this is not a requirement, and
 /// values outside this range are explicitly allowed for e.g. High Dynamic Range (HDR).
 #[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Color {
     /// The color's red component.
     pub r: f32,
+
     /// The color's green component.
     pub g: f32,
+
     /// The color's blue component.
     pub b: f32,
+
     /// The color's alpha component. A value of 0 means that the color is fully transparent. A
     /// value of 1 means that the color is fully opaque.
     pub a: f32,
@@ -318,12 +321,14 @@ unsafe impl GodotFfi for Color {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ColorChannelOrder {
     /// RGBA channel order. Godot's default.
     Rgba,
+
     /// ABGR channel order. Reverse of the default RGBA order.
     Abgr,
+
     /// ARGB channel order. More compatible with DirectX.
     Argb,
 }

@@ -27,14 +27,16 @@ use super::{real, Basis, RVec3};
 /// vectors; use the gdext library with the `double-precision` feature in that case.
 ///
 /// See [`Vector3i`] for its integer counterpart.
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
+#[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Vector3 {
     /// The vector's X component.
     pub x: real,
+
     /// The vector's Y component.
     pub y: real,
+
     /// The vector's Z component.
     pub z: real,
 }
@@ -338,13 +340,15 @@ unsafe impl GodotFfi for Vector3 {
 
 /// Enumerates the axes in a [`Vector3`].
 // TODO auto-generate this, alongside all the other builtin type's enums
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 #[repr(i32)]
 pub enum Vector3Axis {
     /// The X axis.
     X,
+
     /// The Y axis.
     Y,
+
     /// The Z axis.
     Z,
 }

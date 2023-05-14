@@ -192,6 +192,8 @@ impl Dictionary {
     /// _Godot equivalent: `dict[key] = value`_
     pub fn set<K: ToVariant, V: ToVariant>(&mut self, key: K, value: V) {
         let key = key.to_variant();
+
+        // SAFETY: always returns a valid pointer to a value in the dictionary; either pre-existing or newly inserted.
         unsafe {
             *self.get_ptr_mut(key) = value.to_variant();
         }
@@ -226,12 +228,16 @@ impl Dictionary {
 
     /// Get the pointer corresponding to the given key in the dictionary.
     ///
-    /// If there exists no value at the given key, a `NIL` variant will be created.
+    /// If there exists no value at the given key, a `NIL` variant will be inserted for that key.
     fn get_ptr_mut<K: ToVariant>(&mut self, key: K) -> *mut Variant {
         let key = key.to_variant();
+
+        // SAFETY: accessing an unknown key _mutably_ creates that entry in the dictionary, with value `NIL`.
         let ptr = unsafe {
             interface_fn!(dictionary_operator_index)(self.sys_mut(), key.var_sys_const())
         };
+
+        // Never a null pointer, since entry either existed already or was inserted above.
         Variant::ptr_from_sys_mut(ptr)
     }
 }
@@ -256,16 +262,16 @@ unsafe impl GodotFfi for Dictionary {
         fn move_return_ptr;
     }
 
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let dictionary = Self::from_sys(ptr);
-        std::mem::forget(dictionary.share());
-        dictionary
-    }
-
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();
         init_fn(result.sys_mut());
         result
+    }
+
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
+        let dictionary = Self::from_sys(ptr);
+        std::mem::forget(dictionary.share());
+        dictionary
     }
 }
 

@@ -579,7 +579,7 @@ unsafe impl GodotFfi for Basis {
 
 /// The ordering used to interpret a set of euler angles as extrinsic
 /// rotations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[repr(C)]
 pub enum EulerOrder {
     XYZ = 0,

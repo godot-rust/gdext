@@ -23,12 +23,13 @@ use super::IVec2;
 /// required. Note that the values are limited to 32 bits, and unlike [`Vector2`] this cannot be
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`] if 64-bit values are
 /// needed.
-#[derive(Debug, Default, Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
 pub struct Vector2i {
     /// The vector's X component.
     pub x: i32,
+
     /// The vector's Y component.
     pub y: i32,
 }
@@ -99,11 +100,12 @@ unsafe impl GodotFfi for Vector2i {
 }
 
 /// Enumerates the axes in a [`Vector2i`].
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[repr(i32)]
 pub enum Vector2iAxis {
     /// The X axis.
     X,
+
     /// The Y axis.
     Y,
 }

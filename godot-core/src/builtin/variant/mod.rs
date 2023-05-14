@@ -200,16 +200,13 @@ impl Variant {
         sys::to_const_ptr(self.var_sys())
     }
 
+    /// Converts to variant pointer; can be a null pointer.
     pub(crate) fn ptr_from_sys(variant_ptr: sys::GDExtensionVariantPtr) -> *const Variant {
-        assert!(!variant_ptr.is_null(), "ptr_from_sys: null variant pointer");
         variant_ptr as *const Variant
     }
 
+    /// Converts to variant mut pointer; can be a null pointer.
     pub(crate) fn ptr_from_sys_mut(variant_ptr: sys::GDExtensionVariantPtr) -> *mut Variant {
-        assert!(
-            !variant_ptr.is_null(),
-            "ptr_from_sys_mut: null variant pointer"
-        );
         variant_ptr as *mut Variant
     }
 }

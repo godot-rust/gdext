@@ -103,6 +103,7 @@ pub enum PtrcallType {
     /// return value must be moved into the return pointer.
     #[default]
     Standard,
+
     /// Virtual pointer call.
     ///
     /// A virtual call behaves like [`PtrcallType::Standard`], except for `RefCounted` objects.

@@ -20,6 +20,7 @@ use super::{Rect2, RectSide, Vector2i};
 pub struct Rect2i {
     /// The position of the rectangle.
     pub position: Vector2i,
+
     /// The size of the rectangle.
     pub size: Vector2i,
 }

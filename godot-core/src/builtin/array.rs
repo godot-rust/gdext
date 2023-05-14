@@ -78,11 +78,17 @@ impl<T: VariantMetadata> Array<T> {
     }
 
     /// Returns the number of elements in the array. Equivalent of `size()` in Godot.
+    ///
+    /// Retrieving the size incurs an FFI call. If you know the size hasn't changed, you may consider storing
+    /// it in a variable. For loops, prefer iterators.
     pub fn len(&self) -> usize {
         to_usize(self.as_inner().size())
     }
 
     /// Returns `true` if the array is empty.
+    ///
+    /// Checking for emptiness incurs an FFI call. If you know the size hasn't changed, you may consider storing
+    /// it in a variable. For loops, prefer iterators.
     pub fn is_empty(&self) -> bool {
         self.as_inner().is_empty()
     }
@@ -150,10 +156,24 @@ impl<T: VariantMetadata> Array<T> {
     ///
     /// If `index` is out of bounds.
     fn ptr(&self, index: usize) -> *const Variant {
-        self.check_bounds(index);
+        let ptr = self.ptr_or_null(index);
+        assert!(
+            !ptr.is_null(),
+            "Array index {index} out of bounds (len {len})",
+            len = self.len(),
+        );
+        ptr
+    }
 
-        // SAFETY: We just checked that the index is not out of bounds.
-        unsafe { self.ptr_unchecked(index) }
+    /// Returns a pointer to the element at the given index, or null if out of bounds.
+    fn ptr_or_null(&self, index: usize) -> *const Variant {
+        // SAFETY: array_operator_index_const returns null for invalid indexes.
+        let variant_ptr = unsafe {
+            let index = to_i64(index);
+            interface_fn!(array_operator_index_const)(self.sys(), index)
+        };
+
+        Variant::ptr_from_sys(variant_ptr)
     }
 
     /// Returns a mutable pointer to the element at the given index.
@@ -162,29 +182,23 @@ impl<T: VariantMetadata> Array<T> {
     ///
     /// If `index` is out of bounds.
     fn ptr_mut(&self, index: usize) -> *mut Variant {
-        self.check_bounds(index);
-
-        // SAFETY: We just checked that the index is not out of bounds.
-        unsafe { self.ptr_mut_unchecked(index) }
+        let ptr = self.ptr_mut_or_null(index);
+        assert!(
+            !ptr.is_null(),
+            "Array index {index} out of bounds (len {len})",
+            len = self.len(),
+        );
+        ptr
     }
 
-    /// Returns a pointer to the element at the given index.
-    ///
-    /// # Safety
-    ///
-    /// Calling this with an out-of-bounds index is undefined behavior.
-    unsafe fn ptr_unchecked(&self, index: usize) -> *const Variant {
-        let variant_ptr = interface_fn!(array_operator_index_const)(self.sys(), to_i64(index));
-        Variant::ptr_from_sys(variant_ptr)
-    }
+    /// Returns a pointer to the element at the given index, or null if out of bounds.
+    fn ptr_mut_or_null(&self, index: usize) -> *mut Variant {
+        // SAFETY: array_operator_index returns null for invalid indexes.
+        let variant_ptr = unsafe {
+            let index = to_i64(index);
+            interface_fn!(array_operator_index)(self.sys(), index)
+        };
 
-    /// Returns a mutable pointer to the element at the given index.
-    ///
-    /// # Safety
-    ///
-    /// Calling this with an out-of-bounds index is undefined behavior.
-    unsafe fn ptr_mut_unchecked(&self, index: usize) -> *mut Variant {
-        let variant_ptr = interface_fn!(array_operator_index)(self.sys(), to_i64(index));
         Variant::ptr_from_sys_mut(variant_ptr)
     }
 
@@ -365,6 +379,7 @@ impl<T: VariantMetadata + FromVariant> Array<T> {
     ///
     /// If `index` is out of bounds.
     pub fn get(&self, index: usize) -> T {
+        // Panics on out-of-bounds
         let ptr = self.ptr(index);
 
         // SAFETY: `ptr()` just verified that the index is not out of bounds.
@@ -582,16 +597,16 @@ unsafe impl<T: VariantMetadata> GodotFfi for Array<T> {
         fn move_return_ptr;
     }
 
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let array = Self::from_sys(ptr);
-        std::mem::forget(array.share());
-        array
-    }
-
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::default();
         init_fn(result.sys_mut());
         result
+    }
+
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
+        let array = Self::from_sys(ptr);
+        std::mem::forget(array.share());
+        array
     }
 }
 
@@ -702,9 +717,11 @@ impl<T: VariantMetadata + ToVariant> From<&[T]> for Array<T> {
             return array;
         }
         array.resize(len);
-        let ptr = array.ptr_mut(0);
+
+        let ptr = array.ptr_mut_or_null(0);
         for (i, element) in slice.iter().enumerate() {
             // SAFETY: The array contains exactly `len` elements, stored contiguously in memory.
+            // Also, the pointer is non-null, as we checked for emptiness above.
             unsafe {
                 *ptr.offset(to_isize(i)) = element.to_variant();
             }
@@ -767,10 +784,11 @@ impl<'a, T: VariantMetadata + FromVariant> Iterator for Iter<'a, T> {
         if self.next_idx < self.array.len() {
             let idx = self.next_idx;
             self.next_idx += 1;
-            // Using `ptr_unchecked` rather than going through `get()` so we can avoid a second
-            // bounds check.
-            // SAFETY: We just checked that the index is not out of bounds.
-            let variant = unsafe { &*self.array.ptr_unchecked(idx) };
+
+            let element_ptr = self.array.ptr_or_null(idx);
+
+            // SAFETY: We just checked that the index is not out of bounds, so the pointer won't be null.
+            let variant = unsafe { &*element_ptr };
             let element = T::from_variant(variant);
             Some(element)
         } else {
