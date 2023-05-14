@@ -432,6 +432,14 @@ mod scalars {
 
     impl_godot_marshalling!(f32 as f64; lossy);
 
+    unsafe impl<T> GodotFfi for *const T {
+        ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+    }
+
+    unsafe impl<T> GodotFfi for *mut T {
+        ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+    }
+
     unsafe impl GodotFfi for () {
         unsafe fn from_sys(_ptr: sys::GDExtensionTypePtr) -> Self {
             // Do nothing

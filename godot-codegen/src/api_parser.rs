@@ -20,6 +20,7 @@ pub struct ExtensionApi {
     pub classes: Vec<Class>,
     pub global_enums: Vec<Enum>,
     pub utility_functions: Vec<UtilityFunction>,
+    pub native_structures: Vec<NativeStructure>,
     pub singletons: Vec<Singleton>,
 }
 
@@ -61,6 +62,12 @@ pub struct Class {
     pub methods: Option<Vec<ClassMethod>>,
     // pub properties: Option<Vec<Property>>,
     // pub signals: Option<Vec<Signal>>,
+}
+
+#[derive(DeJson)]
+pub struct NativeStructure {
+    pub name: String,
+    pub format: String,
 }
 
 #[derive(DeJson)]

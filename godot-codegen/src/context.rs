@@ -14,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 pub(crate) struct Context<'a> {
     engine_classes: HashMap<TyName, &'a Class>,
     builtin_types: HashSet<&'a str>,
+    native_structures_types: HashSet<&'a str>,
     singletons: HashSet<&'a str>,
     inheritance_tree: InheritanceTree,
     cached_rust_types: HashMap<String, RustTy>,
@@ -33,6 +34,11 @@ impl<'a> Context<'a> {
         for builtin in api.builtin_classes.iter() {
             let ty_name = builtin.name.as_str();
             ctx.builtin_types.insert(ty_name);
+        }
+
+        for structure in api.native_structures.iter() {
+            let ty_name = structure.name.as_str();
+            ctx.native_structures_types.insert(ty_name);
         }
 
         for class in api.classes.iter() {
@@ -131,6 +137,10 @@ impl<'a> Context<'a> {
     /// Note that builtins != variant types.
     pub fn is_builtin(&self, ty_name: &str) -> bool {
         self.builtin_types.contains(ty_name)
+    }
+
+    pub fn is_native_structure(&self, ty_name: &str) -> bool {
+        self.native_structures_types.contains(ty_name)
     }
 
     pub fn is_singleton(&self, class_name: &str) -> bool {

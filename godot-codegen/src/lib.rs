@@ -20,7 +20,9 @@ use central_generator::{
     generate_core_central_file, generate_core_mod_file, generate_sys_central_file,
     generate_sys_mod_file,
 };
-use class_generator::{generate_builtin_class_files, generate_class_files};
+use class_generator::{
+    generate_builtin_class_files, generate_class_files, generate_native_structures_files,
+};
 use context::Context;
 use util::{ident, to_pascal_case, to_snake_case};
 use utilities_generator::generate_utilities_file;
@@ -81,6 +83,15 @@ pub fn generate_core_files(core_gen_path: &Path) {
     );
     watch.record("generate_builtin_class_files");
 
+    generate_native_structures_files(
+        &api,
+        &mut ctx,
+        build_config,
+        &core_gen_path.join("native"),
+        &mut out_files,
+    );
+    watch.record("generate_native_structures_files");
+
     rustfmt_if_needed(out_files);
     watch.record("rustfmt");
     watch.write_stats_to(&core_gen_path.join("codegen-stats.txt"));
@@ -121,6 +132,9 @@ enum RustTy {
     /// `TypedArray<i32>`
     BuiltinArray(TokenStream),
 
+    /// C-style raw pointer to a `RustTy`.
+    RawPointer { inner: Box<RustTy>, is_const: bool },
+
     /// `TypedArray<Gd<PhysicsBody3D>>`
     EngineArray {
         tokens: TokenStream,
@@ -158,6 +172,14 @@ impl ToTokens for RustTy {
         match self {
             RustTy::BuiltinIdent(ident) => ident.to_tokens(tokens),
             RustTy::BuiltinArray(path) => path.to_tokens(tokens),
+            RustTy::RawPointer {
+                inner,
+                is_const: true,
+            } => quote! { *const #inner }.to_tokens(tokens),
+            RustTy::RawPointer {
+                inner,
+                is_const: false,
+            } => quote! { *mut #inner }.to_tokens(tokens),
             RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
@@ -301,6 +323,8 @@ const SELECTED_CLASSES: &[&str] = &[
     "SceneTree",
     "Sprite2D",
     "SpriteFrames",
+    "TextServer",
+    "TextServerExtension",
     "Texture",
     "Texture2DArray",
     "TextureLayered",
