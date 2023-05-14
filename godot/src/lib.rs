@@ -138,7 +138,7 @@
 //!   at any time.
 
 #[doc(inline)]
-pub use godot_core::{builtin, engine, export, log, obj, sys};
+pub use godot_core::{builtin, engine, export, log, native_structure, obj, sys};
 
 /// Facilities for initializing and terminating the GDExtension library.
 pub mod init {

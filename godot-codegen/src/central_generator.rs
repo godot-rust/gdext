@@ -82,6 +82,7 @@ pub(crate) fn generate_core_mod_file(core_gen_path: &Path, out_files: &mut Vec<P
         pub mod classes;
         pub mod builtin_classes;
         pub mod utilities;
+        pub mod native;
     };
 
     write_file(core_gen_path, "mod.rs", code.to_string(), out_files);

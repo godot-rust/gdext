@@ -416,7 +416,7 @@ macro_rules! gdext_virtual_method_callback_inner {
         $ptrcall:ident,
         $Class:ty,
         $map_method:ident,
-        fn $method_name:ident(
+        $( unsafe )? fn $method_name:ident(
             $( $arg:ident : $Param:ty, )*
         ) -> $Ret:ty
     ) => {
@@ -486,6 +486,44 @@ macro_rules! gdext_virtual_method_callback {
         )
     };
 
+    // immutable
+    (
+        $Class:ty,
+        unsafe fn $method_name:ident(
+            &self
+            $(, $param:ident : $ParamTy:ty)*
+            $(,)?
+        ) -> $RetTy:ty
+    ) => {
+        $crate::gdext_virtual_method_callback_inner!(
+            ref,
+            $Class,
+            map,
+            unsafe fn $method_name(
+                $( $param : $ParamTy, )*
+            ) -> $RetTy
+        )
+    };
+
+    // mutable
+    (
+        $Class:ty,
+        unsafe fn $method_name:ident(
+            &mut self
+            $(, $param:ident : $ParamTy:ty)*
+            $(,)?
+        ) -> $RetTy:ty
+    ) => {
+        $crate::gdext_virtual_method_callback_inner!(
+            mut,
+            $Class,
+            map_mut,
+            unsafe fn $method_name(
+                $( $param : $ParamTy, )*
+            ) -> $RetTy
+        )
+    };
+
     // immutable without return type
     (
         $Class:ty,
@@ -518,6 +556,43 @@ macro_rules! gdext_virtual_method_callback {
         $crate::gdext_virtual_method_callback!(
             $Class,
             fn $method_name(
+                &mut self
+                $(, $param : $ParamTy )*
+            ) -> ()
+        )
+    };
+    // immutable without return type (UNSAFE)
+    (
+        $Class:ty,
+        unsafe fn $method_name:ident(
+            &self
+            $(, $param:ident : $ParamTy:ty)*
+            $(,)?
+        )
+    ) => {
+        // recurse this macro
+        $crate::gdext_virtual_method_callback!(
+            $Class,
+            unsafe fn $method_name(
+                &self
+                $(, $param : $ParamTy )*
+            ) -> ()
+        )
+    };
+
+    // mutable without return type (UNSAFE)
+    (
+        $Class:ty,
+        unsafe fn $method_name:ident(
+            &mut self
+            $(, $param:ident : $ParamTy:ty)*
+            $(,)?
+        )
+    ) => {
+        // recurse this macro
+        $crate::gdext_virtual_method_callback!(
+            $Class,
+            unsafe fn $method_name(
                 &mut self
                 $(, $param : $ParamTy )*
             ) -> ()
