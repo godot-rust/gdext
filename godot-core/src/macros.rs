@@ -62,7 +62,7 @@ macro_rules! gdext_call_signature_method {
         $method_name:ident,
         $ptrcall_type:path
     ) => {
-        <Sig as $crate::builtin::meta::SignatureTuple>::ptrcall::<$Class>(
+        <Sig as $crate::builtin::meta::PtrcallSignatureTuple>::ptrcall::<$Class>(
             $instance_ptr,
             $args,
             $ret,
@@ -79,7 +79,7 @@ macro_rules! gdext_call_signature_method {
         $func:expr,
         $method_name:ident
     ) => {
-        <Sig as $crate::builtin::meta::SignatureTuple>::varcall::<$Class>(
+        <Sig as $crate::builtin::meta::VarcallSignatureTuple>::varcall::<$Class>(
             $instance_ptr,
             $args,
             $ret,

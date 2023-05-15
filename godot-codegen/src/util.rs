@@ -306,6 +306,11 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
         if is_const {
             ty = ty.replace("const ", "");
         }
+        // .trim() is necessary here, as the Godot extension API
+        // places a space between a type and its stars if it's a
+        // double pointer. That is, Godot writes "int*" but, if it's a
+        // double pointer, then it writes "int **" instead (with a
+        // space in the middle).
         let inner_type = to_rust_type(ty.trim(), ctx);
         return RustTy::RawPointer {
             inner: Box::new(inner_type),
