@@ -144,6 +144,7 @@ impl Basis {
     /// cannot be parallel to each other.
     ///
     /// _Godot equivalent: `Basis.looking_at()`_
+    #[doc(alias = "looking_at")]
     pub fn new_looking_at(target: Vector3, up: Vector3) -> Self {
         super::inner::InnerBasis::looking_at(target, up)
     }
@@ -155,7 +156,8 @@ impl Basis {
 
     /// Creates a [`Quaternion`] representing the same rotation as this basis.
     ///
-    /// _Godot equivalent: `Basis()`_
+    /// _Godot equivalent: `Basis.get_rotation_quaternion()`_
+    #[doc(alias = "get_rotation_quaternion")]
     pub fn to_quat(self) -> Quaternion {
         RQuat::from_mat3(&self.orthonormalized().to_glam()).to_front()
     }
@@ -449,6 +451,7 @@ impl Basis {
     /// Returns the first column of the matrix,
     ///
     /// _Godot equivalent: `Basis.x`_
+    #[doc(alias = "x")]
     #[must_use]
     pub fn col_a(&self) -> Vector3 {
         Vector3::new(self.rows[0].x, self.rows[1].x, self.rows[2].x)
@@ -464,6 +467,7 @@ impl Basis {
     /// Returns the second column of the matrix,
     ///
     /// _Godot equivalent: `Basis.y`_
+    #[doc(alias = "y")]
     #[must_use]
     pub fn col_b(&self) -> Vector3 {
         Vector3::new(self.rows[0].y, self.rows[1].y, self.rows[2].y)
@@ -479,6 +483,7 @@ impl Basis {
     /// Returns the third column of the matrix,
     ///
     /// _Godot equivalent: `Basis.z`_
+    #[doc(alias = "z")]
     #[must_use]
     pub fn col_c(&self) -> Vector3 {
         Vector3::new(self.rows[0].z, self.rows[1].z, self.rows[2].z)
