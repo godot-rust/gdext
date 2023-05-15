@@ -70,7 +70,7 @@ impl TextServerExtensionVirtual for TestTextServer {
 }
 
 #[itest]
-fn test_native_structures() {
+fn test_native_structures_codegen() {
     // Test construction of a few simple types.
     let _ = AudioFrame {
         left: 0.0,
