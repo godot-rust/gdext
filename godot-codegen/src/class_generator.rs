@@ -256,7 +256,8 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         .unwrap_or(quote! { () });
 
     let constructor = make_constructor(class, ctx);
-    let methods = make_methods_trait(&class.methods, class_name, ctx);
+    let methods = make_methods(&class.methods, false, class_name, ctx);
+    let methods_trait = make_methods_trait(&class.methods, class_name, ctx);
     let (methods_impls, impl_as_class_macro, impl_as_class_macro_ident) =
         make_methods_impls(class_name, ctx);
     let enums = make_enums(&class.enums, class_name, ctx);
@@ -281,7 +282,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         &notification_enum_name,
         ctx,
     );
-    let _notify_method = make_notify_method(class_name, ctx);
+    let notify_method = make_notify_method(class_name, ctx);
 
     let memory = if class_name.rust_ty == "Object" {
         ident("DynamicRefCount")
@@ -297,6 +298,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
 
         use godot_ffi as sys;
         use crate::engine::notify::*;
+        use crate::engine::class_methods::AsObject;
         use crate::builtin::*;
         use crate::obj::{AsArg, Gd};
         use sys::GodotFfi as _;
@@ -314,12 +316,12 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
             #notification_enum
             impl #class_name {
                 #constructor
-                // TODO: make notify work again
-                // #notify_method
+                #methods
+                #notify_method
                 #constants
             }
 
-            #methods
+            #methods_trait
             #methods_impls
 
             impl crate::obj::GodotClass for #class_name {
@@ -386,14 +388,18 @@ fn make_notify_method(class_name: &TyName, ctx: &mut Context) -> TokenStream {
         /// a panic. The reason is that the receiving virtual method `on_notification()` acquires a `GdMut` lock dynamically, which must
         /// be exclusive.
         pub fn notify(&mut self, what: #enum_name) {
-            self.notification(i32::from(what) as i64, false);
+            // TODO: check safety, this may break subtyping relationship but is otherwise safe.
+            let self_object = unsafe { std::mem::transmute::<&mut Self, &mut crate::engine::classes::Object>(self) };
+            self_object.notification(i32::from(what) as i64, false);
         }
 
         /// ⚠️ Like [`Self::notify()`], but starts at the most-derived class and goes up the hierarchy.
         ///
         /// See docs of that method, including the panics.
         pub fn notify_reversed(&mut self, what: #enum_name) {
-            self.notification(i32::from(what) as i64, true);
+            // TODO: check safety, this may break subtyping relationship but is otherwise safe.
+            let self_object = unsafe { std::mem::transmute::<&mut Self, &mut crate::engine::classes::Object>(self) };
+            self_object.notification(i32::from(what) as i64, true);
         }
     }
 }
@@ -667,7 +673,7 @@ fn make_methods_trait(
     class_name: &TyName,
     ctx: &mut Context,
 ) -> TokenStream {
-    let methods = make_methods(methods, class_name, ctx);
+    let methods = make_methods(methods, true, class_name, ctx);
 
     let method_trait = class_name.method_trait();
 
@@ -757,6 +763,7 @@ fn make_methods_impls(class_name: &TyName, ctx: &mut Context) -> (TokenStream, T
 
 fn make_methods(
     methods: &Option<Vec<ClassMethod>>,
+    trait_methods: bool,
     class_name: &TyName,
     ctx: &mut Context,
 ) -> TokenStream {
@@ -767,7 +774,7 @@ fn make_methods(
 
     let definitions = methods
         .iter()
-        .map(|method| make_method_definition(method, class_name, ctx));
+        .map(|method| make_method_definition(method, trait_methods, class_name, ctx));
 
     quote! {
         #( #definitions )*
@@ -921,6 +928,7 @@ fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
 
 fn make_method_definition(
     method: &ClassMethod,
+    trait_methods: bool,
     class_name: &TyName,
     ctx: &mut Context,
 ) -> TokenStream {
@@ -928,6 +936,11 @@ fn make_method_definition(
     {
         return TokenStream::new();
     }
+    // only run if different
+    if trait_methods == special_cases::is_private(class_name, &method.name) {
+        return TokenStream::new();
+    }
+
     /*if method.map_args(|args| args.is_empty()) {
         // Getters (i.e. 0 arguments) will be stripped of their `get_` prefix, to conform to Rust convention
         if let Some(remainder) = method_name.strip_prefix("get_") {
@@ -942,11 +955,13 @@ fn make_method_definition(
 
     let object_method = TyName::object_method_trait();
 
-    let (receiver, receiver_arg) = make_receiver(
-        method.is_static,
-        method.is_const,
-        quote! { <Self as crate::engine::class_methods::#object_method>::as_object_ptr(self) },
-    );
+    let receiver_arg = if trait_methods {
+        quote! { <Self as crate::engine::class_methods::#object_method>::as_object_ptr(self) }
+    } else {
+        quote! { self.object_ptr }
+    };
+
+    let (receiver, receiver_arg) = make_receiver(method.is_static, method.is_const, receiver_arg);
 
     let hash = method.hash;
     let is_varcall = method.is_vararg;
@@ -984,11 +999,14 @@ fn make_method_definition(
     };
 
     let is_virtual = false;
+    let visibility = if trait_methods {
+        Visibility::None
+    } else {
+        Visibility::PubCrate
+    };
     make_function_definition(
         method_name_str,
-        Visibility::None,
-        // TODO: get this working again
-        // special_cases::is_private(class_name, &method.name),
+        visibility,
         receiver,
         &method.arguments,
         method.return_value.as_ref(),

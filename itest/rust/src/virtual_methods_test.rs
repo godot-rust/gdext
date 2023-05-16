@@ -446,7 +446,6 @@ fn test_input_event(test_context: &TestContext) {
     assert_eq!(obj.bind().event, Some(event.upcast()));
 }
 
-/*
 #[itest]
 fn test_notifications() {
     let obj = Gd::<NotificationTest>::new_default();
@@ -468,4 +467,3 @@ fn test_notifications() {
     );
     obj.free();
 }
-*/
