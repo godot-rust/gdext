@@ -5,8 +5,10 @@
  */
 
 use crate::itest;
-use godot::prelude::{inner::InnerBasis, *};
-use godot::private::class_macros::assert_eq_approx;
+use godot::{
+    prelude::{inner::InnerBasis, *},
+    private::inherits_class_macros::assert_eq_approx,
+};
 
 const TEST_BASIS: Basis = Basis::from_rows(
     Vector3::new(0.942155, -0.270682, 0.197677),

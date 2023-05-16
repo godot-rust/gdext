@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{ToVariant, Variant, VariantArray};
-use godot::engine::Node;
+use godot::engine::classes::Node;
 use godot::obj::Gd;
 
 use crate::{RustTestCase, TestContext};

@@ -246,6 +246,7 @@ pub mod mem {
     use godot_ffi::PtrcallType;
 
     use super::private::Sealed;
+    use crate::engine::class_methods::AsRefCounted;
     use crate::obj::{Gd, GodotClass};
     use crate::out;
 

@@ -6,7 +6,7 @@
 use crate::itest;
 
 use godot::prelude::{inner::InnerTransform2D, *};
-use godot::private::class_macros::assert_eq_approx;
+use godot::private::inherits_class_macros::assert_eq_approx;
 
 const TEST_TRANSFORM: Transform2D = Transform2D::from_cols(
     Vector2::new(1.0, 2.0),

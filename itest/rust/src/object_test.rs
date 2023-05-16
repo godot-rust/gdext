@@ -5,17 +5,17 @@
  */
 
 use std::cell::{Cell, RefCell};
-use std::mem;
 use std::rc::Rc;
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{
     FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError, Vector3,
 };
+use godot::engine::class_methods::*;
+use godot::engine::class_virtuals::RefCountedVirtual;
+use godot::engine::classes::{Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted};
+use godot::engine::file_access;
 use godot::engine::node::InternalMode;
-use godot::engine::{
-    file_access, Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted, RefCountedVirtual,
-};
 use godot::obj::{Base, Gd, InstanceId};
 use godot::obj::{Inherits, Share};
 use godot::sys::{self, GodotFfi};
@@ -41,8 +41,8 @@ fn object_construct_value() {
 // TODO(#23): DerefMut on Gd pointer may be used to break subtyping relations
 #[itest(skip)]
 fn object_subtype_swap() {
-    let mut a: Gd<Node> = Node::new_alloc();
-    let mut b: Gd<Node3D> = Node3D::new_alloc();
+    let a: Gd<Node> = Node::new_alloc();
+    let b: Gd<Node3D> = Node3D::new_alloc();
 
     /*
     let a_id = a.instance_id();
@@ -57,7 +57,7 @@ fn object_subtype_swap() {
     println!("..swap..");
     */
 
-    mem::swap(&mut *a, &mut *b);
+    // mem::swap(&mut *a, &mut *b);
 
     /*
     dbg!(a_id);

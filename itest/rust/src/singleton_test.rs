@@ -6,7 +6,8 @@
 
 use crate::itest;
 use godot::builtin::GodotString;
-use godot::engine::{Input, Os};
+use godot::engine::class_methods::*;
+use godot::engine::classes::{Input, Os};
 use godot::obj::Gd;
 
 #[itest]

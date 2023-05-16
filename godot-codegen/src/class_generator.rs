@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
-use crate::util::{ident, safe_ident, to_pascal_case, to_rust_type};
+use crate::util::{ident, safe_ident, to_rust_type};
 use crate::{
     special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
     GeneratedClassModule, ModName, RustTy, TyName,
@@ -56,6 +56,7 @@ pub(crate) fn generate_class_files(
                 .has_own_notification_enum
                 .then_some(generated_class.notification_enum_name),
             inherits_macro_ident: generated_class.inherits_macro_ident,
+            impl_as_class_macro_ident: generated_class.impl_as_class_macro_ident,
             is_pub_sidecar: generated_class.has_sidecar_module,
         });
     }
@@ -114,14 +115,15 @@ pub(crate) fn generate_builtin_class_files(
 
 fn make_class_doc(
     class_name: &TyName,
-    base_ident_opt: Option<Ident>,
+    base_ty: &Option<TyName>,
     has_notification_enum: bool,
     has_sidecar_module: bool,
 ) -> String {
     let TyName { rust_ty, godot_ty } = class_name;
 
-    let inherits_line = if let Some(base) = base_ident_opt {
-        format!("Inherits [`{base}`][crate::engine::{base}].")
+    let inherits_line = if let Some(base) = base_ty {
+        let base = &base.rust_ty;
+        format!("Inherits [`{base}`][crate::engine::classes::{base}].")
     } else {
         "This is the base class for all other classes at the root of the hierarchy. \
         Every instance of `Object` can be stored in a [`Gd`][crate::obj::Gd] smart pointer."
@@ -153,7 +155,7 @@ fn make_class_doc(
         \
         Related symbols:\n\n\
         {sidecar_line}\
-        * [`{rust_ty}Virtual`][crate::engine::{rust_ty}Virtual]: virtual methods\n\
+        * [`{rust_ty}Virtual`][crate::engine::class_virtuals::{rust_ty}Virtual]: virtual methods\n\
         {notify_line}\
         \n\n\
         See also [Godot docs for `{godot_ty}`]({online_link}).\n\n",
@@ -169,7 +171,7 @@ fn make_virtual_trait_doc(class_name: &TyName) -> String {
     );
 
     format!(
-        "Virtual methods for class [`{rust_ty}`][crate::engine::{rust_ty}].\
+        "Virtual methods for class [`{rust_ty}`][crate::engine::classes::{rust_ty}].\
         \n\n\
         These methods represent constructors (`init`) or callbacks invoked by the engine.\
         \n\n\
@@ -186,7 +188,7 @@ fn make_module_doc(class_name: &TyName) -> String {
     );
 
     format!(
-        "Sidecar module for class [`{rust_ty}`][crate::engine::{rust_ty}].\
+        "Sidecar module for class [`{rust_ty}`][crate::engine::classes::{rust_ty}].\
         \n\n\
         Defines related flag and enum types. In GDScript, those are nested under the class scope.\
         \n\n\
@@ -247,16 +249,16 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     let virtual_trait_str = class_name.virtual_trait_name();
 
     // Idents and tokens
-    let (base_ty, base_ident_opt) = match class.inherits.as_ref() {
-        Some(base) => {
-            let base = ident(&to_pascal_case(base));
-            (quote! { crate::engine::#base }, Some(base))
-        }
-        None => (quote! { () }, None),
-    };
+    let base_ty = class.inherits.as_ref().map(|base| TyName::from_godot(base));
+    let base_ty_target = base_ty
+        .as_ref()
+        .map(|base_ty| quote! { crate::engine::classes::#base_ty })
+        .unwrap_or(quote! { () });
 
     let constructor = make_constructor(class, ctx);
-    let methods = make_methods(&class.methods, class_name, ctx);
+    let methods = make_methods_trait(&class.methods, class_name, ctx);
+    let (methods_impls, impl_as_class_macro, impl_as_class_macro_ident) =
+        make_methods_impls(class_name, ctx);
     let enums = make_enums(&class.enums, class_name, ctx);
     let constants = make_constants(&class.constants, class_name, ctx);
     let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
@@ -266,7 +268,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     let has_sidecar_module = !enums.is_empty();
     let class_doc = make_class_doc(
         class_name,
-        base_ident_opt,
+        &base_ty,
         notification_enum.is_some(),
         has_sidecar_module,
     );
@@ -279,7 +281,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         &notification_enum_name,
         ctx,
     );
-    let notify_method = make_notify_method(class_name, ctx);
+    let _notify_method = make_notify_method(class_name, ctx);
 
     let memory = if class_name.rust_ty == "Object" {
         ident("DynamicRefCount")
@@ -312,12 +314,16 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
             #notification_enum
             impl #class_name {
                 #constructor
-                #notify_method
-                #methods
+                // TODO: make notify work again
+                // #notify_method
                 #constants
             }
+
+            #methods
+            #methods_impls
+
             impl crate::obj::GodotClass for #class_name {
-                type Base = #base_ty;
+                type Base = #base_ty_target;
                 type Declarer = crate::obj::dom::EngineDomain;
                 type Mem = crate::obj::mem::#memory;
 
@@ -332,33 +338,21 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
                  }
             }
             #(
-                impl crate::obj::Inherits<crate::engine::#all_bases> for #class_name {}
+                impl crate::obj::Inherits<crate::engine::classes::#all_bases> for #class_name {}
             )*
-            impl std::ops::Deref for #class_name {
-                type Target = #base_ty;
-
-                fn deref(&self) -> &Self::Target {
-                    // SAFETY: same assumptions as `impl Deref for Gd<T>`, see there for comments
-                    unsafe { std::mem::transmute::<&Self, &Self::Target>(self) }
-                }
-            }
-            impl std::ops::DerefMut for #class_name {
-                fn deref_mut(&mut self) -> &mut Self::Target {
-                    // SAFETY: see above
-                    unsafe { std::mem::transmute::<&mut Self, &mut Self::Target>(self) }
-                }
-            }
 
             #[macro_export]
             #[allow(non_snake_case)]
             macro_rules! #inherits_macro {
                 ($Class:ident) => {
-                    impl ::godot::obj::Inherits<::godot::engine::#class_name> for $Class {}
+                    impl ::godot::obj::Inherits<::godot::engine::classes::#class_name> for $Class {}
                     #(
-                        impl ::godot::obj::Inherits<::godot::engine::#all_bases> for $Class {}
+                        impl ::godot::obj::Inherits<::godot::engine::classes::#all_bases> for $Class {}
                     )*
                 }
             }
+
+            #impl_as_class_macro
         }
 
         #enums
@@ -370,6 +364,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         notification_enum_name,
         has_own_notification_enum: notification_enum.is_some(),
         inherits_macro_ident: inherits_macro,
+        impl_as_class_macro_ident,
         has_sidecar_module,
     }
 }
@@ -425,7 +420,7 @@ fn make_notification_enum(
 
     let enum_name = ctx.notification_enum_name(class_name);
     let doc_str = format!(
-        "Notification type for class [`{c}`][crate::engine::{c}].",
+        "Notification type for class [`{c}`][crate::engine::classes::{c}].",
         c = class_name.rust_ty
     );
 
@@ -527,7 +522,7 @@ fn make_builtin_class(
         use crate::builtin::*;
         use crate::obj::{AsArg, Gd};
         use crate::sys::GodotFfi as _;
-        use crate::engine::Object;
+        use crate::engine::classes::Object;
 
         #[repr(transparent)]
         pub struct #inner_class<'a> {
@@ -553,8 +548,15 @@ fn make_builtin_class(
 }
 
 fn make_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> TokenStream {
-    let mut class_decls = Vec::new();
+    let mut modules_vis = Vec::new();
+    let mut modules = Vec::new();
+
+    let mut classes = Vec::new();
+    let mut method_traits = Vec::new();
+    let mut virtual_traits = Vec::new();
     let mut notify_decls = Vec::new();
+    let mut inherit_macros = Vec::new();
+    let mut as_class_macros = Vec::new();
 
     for m in classes_and_modules.iter() {
         let GeneratedClassModule {
@@ -562,18 +564,33 @@ fn make_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> TokenStre
             class_name,
             own_notification_enum_name,
             is_pub_sidecar: is_pub,
-            ..
+            inherits_macro_ident,
+            impl_as_class_macro_ident,
         } = m;
         let virtual_trait_name = ident(&class_name.virtual_trait_name());
+        let method_trait = class_name.method_trait();
 
         let vis = is_pub.then_some(quote! { pub });
 
-        let class_decl = quote! {
-            #vis mod #module_name;
-            pub use #module_name::re_export::#class_name;
-            pub use #module_name::re_export::#virtual_trait_name;
-        };
-        class_decls.push(class_decl);
+        modules_vis.push(quote! {
+            #vis
+        });
+
+        modules.push(quote! {
+            #module_name
+        });
+
+        classes.push(quote! {
+            re_export::#class_name
+        });
+
+        method_traits.push(quote! {
+            re_export::#method_trait
+        });
+
+        virtual_traits.push(quote! {
+            re_export::#virtual_trait_name
+        });
 
         if let Some(enum_name) = own_notification_enum_name {
             let notify_decl = quote! {
@@ -582,32 +599,46 @@ fn make_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> TokenStre
 
             notify_decls.push(notify_decl);
         }
+
+        inherit_macros.push(quote! {
+            #inherits_macro_ident
+        });
+
+        as_class_macros.push(quote! {
+            #impl_as_class_macro_ident
+        });
     }
 
-    let macros = classes_and_modules.iter().map(|m| {
-        let GeneratedClassModule {
-            inherits_macro_ident,
-            ..
-        } = m;
-
-        // We cannot re-export the following, because macro is in the crate root
-        // pub use #module_ident::re_export::#inherits_macro_ident;
-        quote! {
-            pub use #inherits_macro_ident;
-        }
-    });
-
     quote! {
-        #( #class_decls )*
+        #( #modules_vis mod #modules; )*
+
+        #[allow(clippy::module_inception)]
+        pub mod classes {
+            #( pub use super::#modules::#classes; )*
+        }
+
+        pub mod class_methods {
+            #( pub use super::#modules::#method_traits; )*
+        }
+
+        pub mod class_virtuals {
+            #( pub use super::#modules::#virtual_traits; )*
+        }
 
         pub mod notify {
             #( #notify_decls )*
         }
 
         #[doc(hidden)]
-        pub mod class_macros {
+        pub mod inherits_class_macros {
             pub use crate::*;
-            #( #macros )*
+            #( pub use #inherit_macros; )*
+        }
+
+        #[doc(hidden)]
+        pub mod as_class_macros {
+            pub use crate::*;
+            #( pub use #as_class_macros; )*
         }
     }
 }
@@ -629,6 +660,99 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
     quote! {
         #( #decls )*
     }
+}
+
+fn make_methods_trait(
+    methods: &Option<Vec<ClassMethod>>,
+    class_name: &TyName,
+    ctx: &mut Context,
+) -> TokenStream {
+    let methods = make_methods(methods, class_name, ctx);
+
+    let method_trait = class_name.method_trait();
+
+    match ctx.base_ty_of(class_name) {
+        Some(base_ty) => {
+            let super_trait = base_ty.method_trait();
+            let doc_string = format!(
+                "must be a valid pointer to an object of type [`{}`].",
+                class_name.rust_ty
+            );
+            quote! {
+                /// # Safety
+                /// The pointer returned by [`as_object_ptr()`](crate::engine::class_methods::AsObject::as_object_ptr)
+                #[doc = #doc_string]
+                pub unsafe trait #method_trait: crate::engine::class_methods::#super_trait {
+                    #methods
+                }
+            }
+        }
+        None => {
+            // is Object.
+            quote! {
+                /// # Safety
+                /// The pointer returned by `as_object_ptr` must be a valid pointer to an [`Object`].
+                pub unsafe trait #method_trait {
+                    fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr;
+                    #methods
+                }
+            }
+        }
+    }
+}
+
+fn make_methods_impls(class_name: &TyName, ctx: &mut Context) -> (TokenStream, TokenStream, Ident) {
+    let object_method = TyName::object_method_trait();
+    let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
+    let mut all_method_traits_except_object = all_bases
+        .into_iter()
+        .filter_map(|base| {
+            if base.is_object() {
+                None
+            } else {
+                Some(base.method_trait())
+            }
+        })
+        .collect::<Vec<_>>();
+
+    if !class_name.is_object() {
+        all_method_traits_except_object.push(class_name.method_trait());
+    }
+
+    let object_impl = quote! {
+        unsafe impl crate::engine::class_methods::#object_method for #class_name {
+            fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr {
+                self.object_ptr
+            }
+        }
+    };
+
+    let class_impls = quote! {
+        #object_impl
+        #(
+            unsafe impl crate::engine::class_methods::#all_method_traits_except_object for #class_name {}
+        )*
+    };
+
+    let impl_as_class_macro_name = format_ident!("impl_as_{}", class_name.rust_ty);
+
+    let impl_as_class_macro = quote! {
+        #[macro_export]
+        #[allow(non_snake_case)]
+        macro_rules! #impl_as_class_macro_name {
+            ($Class:ident, $Base:ty, $base_field:ident) => {
+                unsafe impl $crate::engine::class_methods::#object_method for $Class {
+                    fn as_object_ptr(&self) -> ::godot::sys::GDExtensionObjectPtr {
+                        <$Base as $crate::engine::class_methods::#object_method>::as_object_ptr(&self.$base_field)
+                    }
+                }
+
+                #( unsafe impl $crate::engine::class_methods::#all_method_traits_except_object for $Class {} )*
+            }
+        }
+    };
+
+    (class_impls, impl_as_class_macro, impl_as_class_macro_name)
 }
 
 fn make_methods(
@@ -816,10 +940,12 @@ fn make_method_definition(
 
     let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
 
+    let object_method = TyName::object_method_trait();
+
     let (receiver, receiver_arg) = make_receiver(
         method.is_static,
         method.is_const,
-        quote! { self.object_ptr },
+        quote! { <Self as crate::engine::class_methods::#object_method>::as_object_ptr(self) },
     );
 
     let hash = method.hash;
@@ -860,7 +986,9 @@ fn make_method_definition(
     let is_virtual = false;
     make_function_definition(
         method_name_str,
-        special_cases::is_private(class_name, &method.name),
+        Visibility::None,
+        // TODO: get this working again
+        // special_cases::is_private(class_name, &method.name),
         receiver,
         &method.arguments,
         method.return_value.as_ref(),
@@ -907,7 +1035,11 @@ fn make_builtin_method_definition(
     let is_virtual = false;
     make_function_definition(
         method_name_str,
-        special_cases::is_private(class_name, &method.name),
+        if special_cases::is_private(class_name, &method.name) {
+            Visibility::PubCrate
+        } else {
+            Visibility::Pub
+        },
         receiver,
         &method.arguments,
         return_value.as_ref(),
@@ -944,7 +1076,7 @@ pub(crate) fn make_utility_function_definition(
     let is_virtual = false;
     make_function_definition(
         function_name_str,
-        false,
+        Visibility::Pub,
         TokenStream::new(),
         &function.arguments,
         return_value.as_ref(),
@@ -976,11 +1108,17 @@ impl VariantFfi {
         }
     }
 }
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum Visibility {
+    None,
+    PubCrate,
+    Pub,
+}
 
 #[allow(clippy::too_many_arguments)] // adding a struct/trait that's used only here, one time, reduces complexity by precisely 0%
 fn make_function_definition(
     function_name: &str,
-    is_private: bool,
+    visibility: Visibility,
     receiver: TokenStream,
     method_args: &Option<Vec<MethodArg>>,
     return_value: Option<&MethodReturn>,
@@ -991,10 +1129,10 @@ fn make_function_definition(
     is_virtual: bool,
     ctx: &mut Context,
 ) -> TokenStream {
-    let vis = if is_private {
-        quote! { pub(crate) }
-    } else {
-        quote! { pub }
+    let vis = match visibility {
+        Visibility::None => quote! {},
+        Visibility::PubCrate => quote! { pub(crate) },
+        Visibility::Pub => quote! { pub },
     };
 
     let is_varcall = variant_ffi.is_some();
@@ -1294,7 +1432,7 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         /// to represent integers out of known constants (mistakes or future additions).
         ///
         /// This method is named `_notification` in Godot, but `on_notification` in Rust. To _send_ notifications, use the
-        /// [`Object::notify`][crate::engine::Object::notify] method.
+        /// [`Object::notify`][crate::engine::classes::Object::notify] method.
         ///
         /// See also in Godot docs:
         /// * [`Object::_notification`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-notification).
@@ -1321,10 +1459,9 @@ fn make_virtual_method(class_method: &ClassMethod, ctx: &mut Context) -> TokenSt
     let variant_ffi = None;
 
     let is_virtual = true;
-    let is_private = false;
     make_function_definition(
         method_name,
-        is_private,
+        Visibility::None,
         receiver,
         &class_method.arguments,
         class_method.return_value.as_ref(),

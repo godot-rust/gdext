@@ -9,7 +9,8 @@ use godot::builtin::{
     dict, varray, FromVariant, GodotString, NodePath, StringName, ToVariant, Variant, Vector2,
     Vector3,
 };
-use godot::engine::Node2D;
+use godot::engine::class_methods::*;
+use godot::engine::classes::Node2D;
 use godot::obj::InstanceId;
 use godot::prelude::{Basis, Dictionary, VariantArray, VariantConversionError};
 use godot::sys::{GodotFfi, VariantOperator, VariantType};

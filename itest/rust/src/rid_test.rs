@@ -6,8 +6,9 @@
 
 use std::{collections::HashSet, thread};
 
+use godot::engine::class_methods::*;
 use godot::{
-    engine::RenderingServer,
+    engine::classes::RenderingServer,
     prelude::{inner::InnerRid, Color, Rid, Vector2},
 };
 

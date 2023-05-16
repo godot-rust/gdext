@@ -36,7 +36,7 @@ pub(crate) fn generate_utilities_file(
         use godot_ffi as sys;
         use crate::builtin::*;
         use crate::obj::Gd;
-        use crate::engine::Object;
+        use crate::engine::classes::Object;
         use sys::GodotFfi as _;
 
         #(#utility_fn_defs)*

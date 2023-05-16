@@ -6,7 +6,7 @@
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{varray, Callable, ToVariant, Variant};
-use godot::engine::{Object, RefCounted};
+use godot::engine::classes::{Object, RefCounted};
 use godot::obj::{Base, Gd, Share};
 use godot::prelude::GodotString;
 use godot::test::itest;

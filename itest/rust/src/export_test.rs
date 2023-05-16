@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::{engine::Texture, prelude::*};
+use godot::{engine::classes::Texture, prelude::*};
 
 // No tests currently, tests using HasProperty are in Godot scripts.
 

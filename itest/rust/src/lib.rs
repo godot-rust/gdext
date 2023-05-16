@@ -4,7 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::engine::{Engine, Node};
+use godot::engine::class_methods::*;
+use godot::engine::classes::{Engine, Node};
 use godot::init::{gdextension, ExtensionLibrary};
 use godot::obj::Gd;
 use godot::sys;

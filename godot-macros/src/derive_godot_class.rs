@@ -24,7 +24,7 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
     let inherits_macro = format_ident!("inherits_transitive_{}", base_ty);
 
     let prv = quote! { ::godot::private };
-    let deref_impl = make_deref_impl(class_name, &fields);
+    let as_class_impl = make_as_class_impl(class_name, &prv, base_ty, &fields);
 
     let godot_exports_impl = make_exports_impl(class_name, &fields);
 
@@ -39,7 +39,7 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
 
     Ok(quote! {
         impl ::godot::obj::GodotClass for #class_name {
-            type Base = ::godot::engine::#base_ty;
+            type Base = ::godot::engine::classes::#base_ty;
             type Declarer = ::godot::obj::dom::UserDomain;
             type Mem = <Self::Base as ::godot::obj::GodotClass>::Mem;
 
@@ -48,18 +48,18 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
 
         #godot_init_impl
         #godot_exports_impl
-        #deref_impl
+        #as_class_impl
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_str,
             component: #prv::PluginComponent::ClassDef {
-                base_class_name: <::godot::engine::#base_ty as ::godot::obj::GodotClass>::CLASS_NAME,
+                base_class_name: <::godot::engine::classes::#base_ty as ::godot::obj::GodotClass>::CLASS_NAME,
                 generated_create_fn: #create_fn,
                 free_fn: #prv::callbacks::free::<#class_name>,
             },
         });
 
-        #prv::class_macros::#inherits_macro!(#class_name);
+        #prv::inherits_class_macros::#inherits_macro!(#class_name);
     })
 }
 
@@ -278,26 +278,22 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
     }
 }
 
-fn make_deref_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
+fn make_as_class_impl(
+    class_name: &Ident,
+    prv: &TokenStream,
+    base_ty: &Ident,
+    fields: &Fields,
+) -> TokenStream {
     let base_field = if let Some(Field { name, .. }) = &fields.base_field {
         name
     } else {
         return TokenStream::new();
     };
 
-    quote! {
-        impl std::ops::Deref for #class_name {
-            type Target = <Self as ::godot::obj::GodotClass>::Base;
+    let impl_as_class_macro = format_ident!("impl_as_{}", base_ty);
 
-            fn deref(&self) -> &Self::Target {
-                &*self.#base_field
-            }
-        }
-        impl std::ops::DerefMut for #class_name {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut *self.#base_field
-            }
-        }
+    quote! {
+        #prv::as_class_macros::#impl_as_class_macro!(#class_name, #base_ty, #base_field);
     }
 }
 

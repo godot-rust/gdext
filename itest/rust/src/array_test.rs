@@ -367,8 +367,8 @@ fn untyped_array_pass_to_godot_func() {
 
 #[itest]
 fn untyped_array_return_from_godot_func() {
+    use godot::engine::classes::Node;
     use godot::engine::node::InternalMode;
-    use godot::engine::Node;
 
     // There aren't many API functions that return an untyped array.
     let mut node = Node::new_alloc();
@@ -386,9 +386,9 @@ fn untyped_array_return_from_godot_func() {
 // ancestors in the list.
 #[itest]
 fn typed_array_pass_to_godot_func() {
+    use godot::engine::classes::{Image, Texture2DArray};
     use godot::engine::global::Error;
     use godot::engine::image::Format;
-    use godot::engine::{Image, Texture2DArray};
 
     let mut image = Image::new();
     image.set_data(
@@ -408,8 +408,8 @@ fn typed_array_pass_to_godot_func() {
 
 #[itest]
 fn typed_array_return_from_godot_func() {
+    use godot::engine::classes::Node;
     use godot::engine::node::InternalMode;
-    use godot::engine::Node;
 
     let mut node = Node::new_alloc();
     let mut child = Node::new_alloc();

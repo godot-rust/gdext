@@ -1,4 +1,5 @@
-use godot::engine::{Button, CanvasLayer, CanvasLayerVirtual, Label, Timer};
+use godot::engine::class_virtuals::CanvasLayerVirtual;
+use godot::engine::classes::{Button, CanvasLayer, Label, Timer};
 use godot::prelude::*;
 
 #[derive(GodotClass)]

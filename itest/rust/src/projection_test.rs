@@ -7,8 +7,10 @@
 #![allow(clippy::type_complexity, clippy::excessive_precision)]
 
 use crate::itest;
-use godot::prelude::{inner::InnerProjection, *};
-use godot::private::class_macros::assert_eq_approx;
+use godot::{
+    prelude::{inner::InnerProjection, *},
+    private::inherits_class_macros::assert_eq_approx,
+};
 
 fn matrix_eq_approx(a: Projection, b: Projection) -> bool {
     for i in 0..4 {

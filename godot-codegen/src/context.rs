@@ -122,6 +122,11 @@ impl<'a> Context<'a> {
         self.engine_classes.get(class_name).unwrap()
     }
 
+    pub fn base_ty_of(&self, class_name: &TyName) -> Option<TyName> {
+        let inherits = &self.get_engine_class(class_name).inherits;
+        inherits.as_ref().map(|base| TyName::from_godot(base))
+    }
+
     // pub fn is_engine_class(&self, class_name: &str) -> bool {
     //     self.engine_classes.contains(class_name)
     // }

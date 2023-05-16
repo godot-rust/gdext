@@ -1,4 +1,5 @@
-use godot::engine::{AnimatedSprite2D, RigidBody2D, RigidBody2DVirtual};
+use godot::engine::class_virtuals::RigidBody2DVirtual;
+use godot::engine::classes::{AnimatedSprite2D, RigidBody2D};
 use godot::prelude::*;
 use rand::seq::SliceRandom;
 

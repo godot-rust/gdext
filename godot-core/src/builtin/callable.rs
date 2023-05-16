@@ -7,7 +7,7 @@
 use godot_ffi as sys;
 
 use crate::builtin::{inner, ToVariant, Variant};
-use crate::engine::Object;
+use crate::engine::classes::Object;
 use crate::obj::mem::Memory;
 use crate::obj::{Gd, GodotClass, InstanceId};
 use std::fmt;

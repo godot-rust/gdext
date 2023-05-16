@@ -18,7 +18,8 @@ use crate::builtin::meta::{ClassName, VariantMetadata};
 use crate::builtin::{
     Callable, FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError,
 };
-use crate::engine::{Node, Object, Resource};
+use crate::engine::class_methods::AsObject;
+use crate::engine::classes::{Node, Object, RefCounted, Resource};
 use crate::export::{Export, ExportInfo, TypeStringHint};
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
@@ -194,7 +195,7 @@ impl<T: GodotClass> Gd<T> {
             None
         } else {
             // SAFETY: assumes that the returned GDExtensionObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
-            let untyped = unsafe { Gd::<engine::Object>::from_obj_sys(ptr) };
+            let untyped = unsafe { Gd::<Object>::from_obj_sys(ptr) };
             untyped.owned_cast::<T>().ok()
         }
     }
@@ -385,29 +386,28 @@ impl<T: GodotClass> Gd<T> {
         sys::ptr_then(cast_object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
     }
 
-    pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut engine::RefCounted) -> R) -> R {
+    pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut RefCounted) -> R) -> R {
         debug_assert!(
             self.is_instance_valid(),
             "as_ref_counted() on freed instance; maybe forgot to increment reference count?"
         );
 
-        let tmp = unsafe { self.ffi_cast::<engine::RefCounted>() };
+        let tmp = unsafe { self.ffi_cast::<RefCounted>() };
         let mut tmp = tmp.expect("object expected to inherit RefCounted");
         let return_val =
-            <engine::RefCounted as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
+            <RefCounted as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
 
         std::mem::forget(tmp); // no ownership transfer
         return_val
     }
 
-    pub(crate) fn as_object<R>(&self, apply: impl Fn(&mut engine::Object) -> R) -> R {
+    pub(crate) fn as_object<R>(&self, apply: impl Fn(&mut Object) -> R) -> R {
         // Note: no validity check; this could be called by to_string(), which can be called on dead instances
 
-        let tmp = unsafe { self.ffi_cast::<engine::Object>() };
+        let tmp = unsafe { self.ffi_cast::<Object>() };
         let mut tmp = tmp.expect("object expected to inherit Object; should never fail");
         // let return_val = apply(tmp.inner_mut());
-        let return_val =
-            <engine::Object as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
+        let return_val = <Object as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
 
         std::mem::forget(tmp); // no ownership transfer
         return_val

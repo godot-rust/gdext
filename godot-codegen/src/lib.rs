@@ -26,7 +26,7 @@ use util::{ident, to_pascal_case, to_snake_case};
 use utilities_generator::generate_utilities_file;
 
 use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{format_ident, quote, ToTokens};
 use std::path::{Path, PathBuf};
 
 pub fn generate_sys_files(sys_gen_path: &Path, watch: &mut godot_bindings::StopWatch) {
@@ -194,6 +194,18 @@ impl TyName {
     fn virtual_trait_name(&self) -> String {
         format!("{}Virtual", self.rust_ty)
     }
+
+    fn method_trait(&self) -> Ident {
+        format_ident!("As{}", self.rust_ty)
+    }
+
+    fn object_method_trait() -> Ident {
+        ident("AsObject")
+    }
+
+    fn is_object(&self) -> bool {
+        &self.godot_ty == "Object"
+    }
 }
 
 impl ToTokens for TyName {
@@ -230,6 +242,7 @@ struct GeneratedClass {
     notification_enum_name: Ident,
     has_own_notification_enum: bool,
     inherits_macro_ident: Ident,
+    impl_as_class_macro_ident: Ident,
     /// Sidecars are the associated modules with related enum/flag types, such as `node_3d` for `Node3D` class.
     has_sidecar_module: bool,
 }
@@ -243,6 +256,7 @@ struct GeneratedClassModule {
     module_name: ModName,
     own_notification_enum_name: Option<Ident>,
     inherits_macro_ident: Ident,
+    impl_as_class_macro_ident: Ident,
     is_pub_sidecar: bool,
 }
 
