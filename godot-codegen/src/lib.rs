@@ -8,6 +8,7 @@ mod api_parser;
 mod central_generator;
 mod class_generator;
 mod context;
+mod interface_generator;
 mod special_cases;
 mod util;
 mod utilities_generator;
@@ -22,6 +23,7 @@ use central_generator::{
 };
 use class_generator::{generate_builtin_class_files, generate_class_files};
 use context::Context;
+use interface_generator::generate_sys_interface_file;
 use util::{ident, to_pascal_case, to_snake_case};
 use utilities_generator::generate_utilities_file;
 
@@ -29,7 +31,11 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use std::path::{Path, PathBuf};
 
-pub fn generate_sys_files(sys_gen_path: &Path, watch: &mut godot_bindings::StopWatch) {
+pub fn generate_sys_files(
+    sys_gen_path: &Path,
+    h_path: &Path,
+    watch: &mut godot_bindings::StopWatch,
+) {
     let mut out_files = vec![];
 
     generate_sys_mod_file(sys_gen_path, &mut out_files);
@@ -40,6 +46,9 @@ pub fn generate_sys_files(sys_gen_path: &Path, watch: &mut godot_bindings::StopW
 
     generate_sys_central_file(&api, &mut ctx, build_config, sys_gen_path, &mut out_files);
     watch.record("generate_central_file");
+
+    generate_sys_interface_file(h_path, sys_gen_path, &mut out_files);
+    watch.record("generate_interface_file");
 
     rustfmt_if_needed(out_files);
     watch.record("rustfmt");

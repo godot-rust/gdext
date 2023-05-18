@@ -67,6 +67,7 @@ pub(crate) fn generate_sys_central_file(
 pub(crate) fn generate_sys_mod_file(core_gen_path: &Path, out_files: &mut Vec<PathBuf>) {
     let code = quote! {
         pub mod central;
+        pub mod interface;
         pub mod gdextension_interface;
     };
 
@@ -98,6 +99,7 @@ pub(crate) fn generate_core_central_file(
     write_file(core_gen_path, "central.rs", core_code, out_files);
 }
 
+// TODO(bromeon): move to util (postponed due to merge conflicts)
 pub(crate) fn write_file(
     gen_path: &Path,
     filename: &str,
