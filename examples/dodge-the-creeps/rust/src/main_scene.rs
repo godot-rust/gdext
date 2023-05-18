@@ -1,9 +1,9 @@
 use crate::hud::Hud;
 use crate::mob;
 use crate::player;
-use godot::engine::classes::{Marker2D, PathFollow2D, RigidBody2D, Timer};
 use godot::engine::node::InternalMode;
 use godot::engine::packed_scene::GenEditState;
+use godot::engine::{Marker2D, PathFollow2D, RigidBody2D, Timer};
 use godot::prelude::*;
 use rand::Rng as _;
 use std::f64::consts::PI;

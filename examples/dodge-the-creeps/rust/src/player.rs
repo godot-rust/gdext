@@ -1,5 +1,5 @@
-use godot::engine::class_virtuals::Area2DVirtual;
-use godot::engine::classes::{AnimatedSprite2D, Area2D, CollisionShape2D, Engine, PhysicsBody2D};
+use godot::engine::Area2DVirtual;
+use godot::engine::{AnimatedSprite2D, Area2D, CollisionShape2D, Engine, PhysicsBody2D};
 use godot::prelude::*;
 
 #[derive(GodotClass)]

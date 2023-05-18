@@ -14,19 +14,16 @@ use godot::builtin::{
     PackedVector3Array, RealConv, StringName, ToVariant, Variant, VariantArray, Vector2, Vector3,
 };
 use godot::engine::class_methods::*;
-use godot::engine::class_virtuals::{
-    Node2DVirtual, NodeVirtual, PrimitiveMeshVirtual, RefCountedVirtual,
-    ResourceFormatLoaderVirtual,
-};
-use godot::engine::classes::{
-    BoxMesh, InputEvent, InputEventAction, Node, Node2D, PrimitiveMesh, RefCounted,
-    ResourceFormatLoader, ResourceLoader, Window,
-};
 use godot::engine::node::InternalMode;
 use godot::engine::notify::NodeNotification;
 use godot::engine::resource_loader::CacheMode;
+use godot::engine::{
+    BoxMesh, InputEvent, InputEventAction, Node, Node2D, Node2DVirtual, NodeVirtual, PrimitiveMesh,
+    PrimitiveMeshVirtual, RefCounted, RefCountedVirtual, ResourceFormatLoader,
+    ResourceFormatLoaderVirtual, ResourceLoader, Window,
+};
 use godot::obj::{Base, Gd, Share};
-use godot::private::inherits_class_macros::assert_eq_approx;
+use godot::private::utility_macros::assert_eq_approx;
 use godot::test::itest;
 
 /// Simple class, that deliberately has no constructor accessible from GDScript

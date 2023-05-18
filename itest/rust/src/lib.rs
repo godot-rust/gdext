@@ -5,7 +5,7 @@
  */
 
 use godot::engine::class_methods::*;
-use godot::engine::classes::{Engine, Node};
+use godot::engine::{Engine, Node};
 use godot::init::{gdextension, ExtensionLibrary};
 use godot::obj::Gd;
 use godot::sys;

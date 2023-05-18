@@ -19,7 +19,7 @@ use crate::builtin::{
     Callable, FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError,
 };
 use crate::engine::class_methods::AsObject;
-use crate::engine::classes::{Node, Object, RefCounted, Resource};
+use crate::engine::{Node, Object, RefCounted, Resource};
 use crate::export::{Export, ExportInfo, TypeStringHint};
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;

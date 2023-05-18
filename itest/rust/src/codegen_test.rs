@@ -9,8 +9,7 @@
 
 use crate::itest;
 use godot::builtin::inner::{InnerColor, InnerString};
-use godot::engine::class_virtuals::HttpRequestVirtual;
-use godot::engine::classes::{FileAccess, HttpRequest, Image};
+use godot::engine::{FileAccess, HttpRequest, HttpRequestVirtual, Image};
 use godot::prelude::*;
 
 #[itest]

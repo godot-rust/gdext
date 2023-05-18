@@ -17,7 +17,6 @@ pub use crate::gen::classes::*;
 pub use crate::gen::utilities;
 
 use class_methods::{AsNode, AsObject, AsResourceLoader};
-use classes::{Node, Object, Resource, ResourceLoader};
 
 /// Extension trait with convenience functions for the node tree.
 pub trait NodeExt {

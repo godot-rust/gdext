@@ -7,8 +7,7 @@
 use crate::{itest, TestContext};
 use godot::builtin::{NodePath, Variant};
 use godot::engine::class_methods::*;
-use godot::engine::classes::{Node, Node3D, PackedScene, SceneTree};
-use godot::engine::{global, node, NodeExt};
+use godot::engine::{global, node, Node, Node3D, NodeExt, PackedScene, SceneTree};
 use godot::obj::Share;
 
 use std::str::FromStr;

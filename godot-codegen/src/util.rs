@@ -323,7 +323,7 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     } else {
         let ty = rustify_ty(ty);
         RustTy::EngineClass {
-            tokens: quote! { Gd<crate::engine::classes::#ty> },
+            tokens: quote! { Gd<crate::engine::#ty> },
             class: ty.to_string(),
         }
     }

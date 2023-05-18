@@ -12,10 +12,11 @@ use godot::builtin::{
     FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError, Vector3,
 };
 use godot::engine::class_methods::*;
-use godot::engine::class_virtuals::RefCountedVirtual;
-use godot::engine::classes::{Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted};
 use godot::engine::file_access;
 use godot::engine::node::InternalMode;
+use godot::engine::{
+    Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted, RefCountedVirtual,
+};
 use godot::obj::{Base, Gd, InstanceId};
 use godot::obj::{Inherits, Share};
 use godot::sys::{self, GodotFfi};

@@ -6,7 +6,7 @@
 use crate::itest;
 
 use godot::prelude::{inner::InnerTransform3D, *};
-use godot::private::inherits_class_macros::assert_eq_approx;
+use godot::private::utility_macros::assert_eq_approx;
 
 const TEST_TRANSFORM: Transform3D = Transform3D::new(
     Basis::from_cols(

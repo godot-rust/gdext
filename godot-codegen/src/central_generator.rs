@@ -236,7 +236,7 @@ fn make_core_code(central_items: &CentralItems) -> String {
     // But this requires that all the variant types support this
     let core_tokens = quote! {
         use crate::builtin::*;
-        use crate::engine::classes::Object;
+        use crate::engine::Object;
         use crate::obj::Gd;
 
         #[allow(dead_code)]

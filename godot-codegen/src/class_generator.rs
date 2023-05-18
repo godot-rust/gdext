@@ -123,7 +123,7 @@ fn make_class_doc(
 
     let inherits_line = if let Some(base) = base_ty {
         let base = &base.rust_ty;
-        format!("Inherits [`{base}`][crate::engine::classes::{base}].")
+        format!("Inherits [`{base}`][crate::engine::{base}].")
     } else {
         "This is the base class for all other classes at the root of the hierarchy. \
         Every instance of `Object` can be stored in a [`Gd`][crate::obj::Gd] smart pointer."
@@ -155,7 +155,7 @@ fn make_class_doc(
         \
         Related symbols:\n\n\
         {sidecar_line}\
-        * [`{rust_ty}Virtual`][crate::engine::class_virtuals::{rust_ty}Virtual]: virtual methods\n\
+        * [`{rust_ty}Virtual`][crate::engine::{rust_ty}Virtual]: virtual methods\n\
         {notify_line}\
         \n\n\
         See also [Godot docs for `{godot_ty}`]({online_link}).\n\n",
@@ -171,7 +171,7 @@ fn make_virtual_trait_doc(class_name: &TyName) -> String {
     );
 
     format!(
-        "Virtual methods for class [`{rust_ty}`][crate::engine::classes::{rust_ty}].\
+        "Virtual methods for class [`{rust_ty}`][crate::engine::{rust_ty}].\
         \n\n\
         These methods represent constructors (`init`) or callbacks invoked by the engine.\
         \n\n\
@@ -188,7 +188,7 @@ fn make_module_doc(class_name: &TyName) -> String {
     );
 
     format!(
-        "Sidecar module for class [`{rust_ty}`][crate::engine::classes::{rust_ty}].\
+        "Sidecar module for class [`{rust_ty}`][crate::engine::{rust_ty}].\
         \n\n\
         Defines related flag and enum types. In GDScript, those are nested under the class scope.\
         \n\n\
@@ -252,7 +252,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     let base_ty = class.inherits.as_ref().map(|base| TyName::from_godot(base));
     let base_ty_target = base_ty
         .as_ref()
-        .map(|base_ty| quote! { crate::engine::classes::#base_ty })
+        .map(|base_ty| quote! { crate::engine::#base_ty })
         .unwrap_or(quote! { () });
 
     let constructor = make_constructor(class, ctx);
@@ -340,16 +340,16 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
                  }
             }
             #(
-                impl crate::obj::Inherits<crate::engine::classes::#all_bases> for #class_name {}
+                impl crate::obj::Inherits<crate::engine::#all_bases> for #class_name {}
             )*
 
             #[macro_export]
             #[allow(non_snake_case)]
             macro_rules! #inherits_macro {
                 ($Class:ident) => {
-                    impl ::godot::obj::Inherits<::godot::engine::classes::#class_name> for $Class {}
+                    impl ::godot::obj::Inherits<::godot::engine::#class_name> for $Class {}
                     #(
-                        impl ::godot::obj::Inherits<::godot::engine::classes::#all_bases> for $Class {}
+                        impl ::godot::obj::Inherits<::godot::engine::#all_bases> for $Class {}
                     )*
                 }
             }
@@ -389,7 +389,7 @@ fn make_notify_method(class_name: &TyName, ctx: &mut Context) -> TokenStream {
         /// be exclusive.
         pub fn notify(&mut self, what: #enum_name) {
             // TODO: check safety, this may break subtyping relationship but is otherwise safe.
-            let self_object = unsafe { std::mem::transmute::<&mut Self, &mut crate::engine::classes::Object>(self) };
+            let self_object = unsafe { std::mem::transmute::<&mut Self, &mut crate::engine::Object>(self) };
             self_object.notification(i32::from(what) as i64, false);
         }
 
@@ -398,7 +398,7 @@ fn make_notify_method(class_name: &TyName, ctx: &mut Context) -> TokenStream {
         /// See docs of that method, including the panics.
         pub fn notify_reversed(&mut self, what: #enum_name) {
             // TODO: check safety, this may break subtyping relationship but is otherwise safe.
-            let self_object = unsafe { std::mem::transmute::<&mut Self, &mut crate::engine::classes::Object>(self) };
+            let self_object = unsafe { std::mem::transmute::<&mut Self, &mut crate::engine::Object>(self) };
             self_object.notification(i32::from(what) as i64, true);
         }
     }
@@ -426,7 +426,7 @@ fn make_notification_enum(
 
     let enum_name = ctx.notification_enum_name(class_name);
     let doc_str = format!(
-        "Notification type for class [`{c}`][crate::engine::classes::{c}].",
+        "Notification type for class [`{c}`][crate::engine::{c}].",
         c = class_name.rust_ty
     );
 
@@ -528,7 +528,7 @@ fn make_builtin_class(
         use crate::builtin::*;
         use crate::obj::{AsArg, Gd};
         use crate::sys::GodotFfi as _;
-        use crate::engine::classes::Object;
+        use crate::engine::Object;
 
         #[repr(transparent)]
         pub struct #inner_class<'a> {
@@ -617,34 +617,24 @@ fn make_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> TokenStre
 
     quote! {
         #( #modules_vis mod #modules; )*
+        #( pub use #modules::#classes; )*
+        #( pub use #modules::#virtual_traits; )*
 
-        #[allow(clippy::module_inception)]
-        pub mod classes {
-            #( pub use super::#modules::#classes; )*
+        pub mod notify {
+            #( #notify_decls )*
         }
 
         pub mod class_methods {
             #( pub use super::#modules::#method_traits; )*
         }
 
-        pub mod class_virtuals {
-            #( pub use super::#modules::#virtual_traits; )*
-        }
-
-        pub mod notify {
-            #( #notify_decls )*
-        }
-
         #[doc(hidden)]
-        pub mod inherits_class_macros {
-            pub use crate::*;
-            #( pub use #inherit_macros; )*
-        }
-
-        #[doc(hidden)]
-        pub mod as_class_macros {
-            pub use crate::*;
-            #( pub use #as_class_macros; )*
+        pub mod class_macros {
+            mod re_export {
+                pub use crate::*;
+            }
+            #( pub use re_export::#inherit_macros; )*
+            #( pub use re_export::#as_class_macros; )*
         }
     }
 }
@@ -1450,7 +1440,7 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         /// to represent integers out of known constants (mistakes or future additions).
         ///
         /// This method is named `_notification` in Godot, but `on_notification` in Rust. To _send_ notifications, use the
-        /// [`Object::notify`][crate::engine::classes::Object::notify] method.
+        /// [`Object::notify`][crate::engine::Object::notify] method.
         ///
         /// See also in Godot docs:
         /// * [`Object::_notification`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-notification).

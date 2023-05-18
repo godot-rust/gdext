@@ -7,7 +7,7 @@
 use crate::itest;
 use godot::{
     prelude::{inner::InnerBasis, *},
-    private::inherits_class_macros::assert_eq_approx,
+    private::utility_macros::assert_eq_approx,
 };
 
 const TEST_BASIS: Basis = Basis::from_rows(

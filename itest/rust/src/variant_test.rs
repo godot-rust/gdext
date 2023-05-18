@@ -10,7 +10,7 @@ use godot::builtin::{
     Vector3,
 };
 use godot::engine::class_methods::*;
-use godot::engine::classes::Node2D;
+use godot::engine::Node2D;
 use godot::obj::InstanceId;
 use godot::prelude::{Basis, Dictionary, VariantArray, VariantConversionError};
 use godot::sys::{GodotFfi, VariantOperator, VariantType};
