@@ -23,7 +23,7 @@ fn main() {
     godot_bindings::clear_dir(gen_path, &mut watch);
     godot_bindings::write_gdextension_headers(&h_path, &rs_path, &mut watch);
 
-    godot_codegen::generate_sys_files(gen_path, &mut watch);
+    godot_codegen::generate_sys_files(gen_path, &h_path, &mut watch);
 
     watch.write_stats_to(&gen_path.join("ffi-stats.txt"));
     println!("cargo:rerun-if-changed=build.rs");

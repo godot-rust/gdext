@@ -23,6 +23,8 @@ mod godot_ffi;
 mod opaque;
 mod plugins;
 
+use std::ffi::CStr;
+use std::ptr;
 // See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
 // and https://users.rust-lang.org/t/proc-macros-using-third-party-crate/42465/4
 #[doc(hidden)]
@@ -31,6 +33,7 @@ pub use paste;
 pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal, PtrcallType};
 pub use gen::central::*;
 pub use gen::gdextension_interface::*;
+pub use gen::interface::GDExtensionInterface;
 
 // The impls only compile if those are different types -- ensures type safety through patch
 trait Distinct {}
@@ -61,14 +64,23 @@ pub unsafe fn initialize(
     interface: *const GDExtensionInterface,
     library: GDExtensionClassLibraryPtr,
 ) {
-    let ver = std::ffi::CStr::from_ptr((*interface).version_string);
+    let mut version = GDExtensionGodotVersion {
+        major: 0,
+        minor: 0,
+        patch: 0,
+        string: std::ptr::null(),
+    };
+    interface_fn!(get_godot_version)(ptr::addr_of_mut!(version));
+
     println!(
         "Initialize GDExtension API for Rust: {}",
-        ver.to_str().unwrap()
+        CStr::from_ptr(version.string)
+            .to_str()
+            .expect("unknown Godot version")
     );
 
     BINDING = Some(GodotBinding {
-        interface: *interface,
+        interface: (*interface).clone(),
         method_table: GlobalMethodTable::new(&*interface),
         library,
     });
