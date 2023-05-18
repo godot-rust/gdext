@@ -53,7 +53,8 @@ pub mod private {
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
     pub use crate::storage::as_storage;
     pub use crate::{
-        gdext_register_method, gdext_register_method_inner, gdext_virtual_method_callback,
+        gdext_get_arguments_info, gdext_register_method, gdext_register_method_inner,
+        gdext_virtual_method_callback,
     };
 
     use crate::{log, sys};
