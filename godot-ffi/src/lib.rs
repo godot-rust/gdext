@@ -199,6 +199,33 @@ pub fn to_const_ptr<T>(ptr: *mut T) -> *const T {
     ptr as *const T
 }
 
+/// Convert a GDExtension pointer type to its uninitialized version.
+pub trait AsUninit {
+    type Output;
+
+    #[allow(clippy::wrong_self_convention)]
+    fn as_uninit(self) -> Self::Output;
+}
+
+macro_rules! impl_as_uninit {
+    ($Ptr:ty, $Uninit:ty) => {
+        impl AsUninit for $Ptr {
+            type Output = $Uninit;
+
+            fn as_uninit(self) -> Self::Output {
+                self as $Uninit
+            }
+        }
+    };
+}
+
+#[rustfmt::skip]
+impl_as_uninit!(GDExtensionStringNamePtr, GDExtensionUninitializedStringNamePtr);
+impl_as_uninit!(GDExtensionVariantPtr, GDExtensionUninitializedVariantPtr);
+impl_as_uninit!(GDExtensionStringPtr, GDExtensionUninitializedStringPtr);
+impl_as_uninit!(GDExtensionObjectPtr, GDExtensionUninitializedObjectPtr);
+impl_as_uninit!(GDExtensionTypePtr, GDExtensionUninitializedTypePtr);
+
 /// If `ptr` is not null, returns `Some(mapper(ptr))`; otherwise `None`.
 pub fn ptr_then<T, R, F>(ptr: *mut T, mapper: F) -> Option<R>
 where

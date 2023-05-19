@@ -14,7 +14,7 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::ptr::addr_of_mut;
 use sys::types::OpaqueDictionary;
-use sys::{ffi_methods, interface_fn, GodotFfi};
+use sys::{ffi_methods, interface_fn, AsUninit, GodotFfi};
 
 use super::VariantArray;
 
@@ -399,28 +399,28 @@ impl<'a> DictionaryIter<'a> {
     }
 
     fn call_init(dictionary: &Dictionary) -> Option<Variant> {
-        // SAFETY:
-        // `dictionary` is a valid `Dictionary` since we have a reference to it,
-        //    so this will call the implementation for dictionaries.
-        // `variant` is an initialized and valid `Variant`.
         let variant: Variant = Variant::nil();
-        unsafe { Self::ffi_iterate(interface_fn!(variant_iter_init), dictionary, variant) }
+        let iter_fn = |dictionary, next_value: sys::GDExtensionVariantPtr, valid| {
+            interface_fn!(variant_iter_init)(dictionary, next_value.as_uninit(), valid)
+        };
+
+        Self::ffi_iterate(iter_fn, dictionary, variant)
     }
 
     fn call_next(dictionary: &Dictionary, last_key: Variant) -> Option<Variant> {
-        // SAFETY:
-        // `dictionary` is a valid `Dictionary` since we have a reference to it,
-        //    so this will call the implementation for dictionaries.
-        // `last_key` is an initialized and valid `Variant`, since we own a copy of it.
-        unsafe { Self::ffi_iterate(interface_fn!(variant_iter_next), dictionary, last_key) }
+        let iter_fn = |dictionary, next_value, valid| {
+            interface_fn!(variant_iter_next)(dictionary, next_value, valid)
+        };
+
+        Self::ffi_iterate(iter_fn, dictionary, last_key)
     }
 
     /// Calls the provided Godot FFI function, in order to iterate the current state.
     ///
     /// # Safety:
     /// `iter_fn` must point to a valid function that interprets the parameters according to their type specification.
-    unsafe fn ffi_iterate(
-        iter_fn: unsafe extern "C" fn(
+    fn ffi_iterate(
+        iter_fn: unsafe fn(
             sys::GDExtensionConstVariantPtr,
             sys::GDExtensionVariantPtr,
             *mut sys::GDExtensionBool,
@@ -429,14 +429,20 @@ impl<'a> DictionaryIter<'a> {
         next_value: Variant,
     ) -> Option<Variant> {
         let dictionary = dictionary.to_variant();
-        let mut valid: u8 = 0;
+        let mut valid_u8: u8 = 0;
 
-        let has_next = iter_fn(
-            dictionary.var_sys(),
-            next_value.var_sys(),
-            addr_of_mut!(valid),
-        );
-        let valid = super::u8_to_bool(valid);
+        // SAFETY:
+        // `dictionary` is a valid `Dictionary` since we have a reference to it,
+        //    so this will call the implementation for dictionaries.
+        // `last_key` is an initialized and valid `Variant`, since we own a copy of it.
+        let has_next = unsafe {
+            iter_fn(
+                dictionary.var_sys(),
+                next_value.var_sys(),
+                addr_of_mut!(valid_u8),
+            )
+        };
+        let valid = super::u8_to_bool(valid_u8);
         let has_next = super::u8_to_bool(has_next);
 
         if has_next {
