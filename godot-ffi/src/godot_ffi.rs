@@ -28,7 +28,7 @@ pub unsafe trait GodotFfi {
     ///
     /// # Safety
     /// `init_fn` must be a function that correctly handles a (possibly-uninitialized) _type ptr_.
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self;
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self;
 
     /// Like [`Self::from_sys_init`], but pre-initializes the sys pointer to a `Default::default()` instance
     /// before calling `init_fn`.
@@ -437,7 +437,7 @@ mod scalars {
             // Do nothing
         }
 
-        unsafe fn from_sys_init(_init: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+        unsafe fn from_sys_init(_init: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
             // Do nothing
         }
 
