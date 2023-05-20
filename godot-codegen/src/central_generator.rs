@@ -148,7 +148,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
         }
 
         impl GlobalMethodTable {
-            pub(crate) unsafe fn new(interface: &crate::GDExtensionInterface) -> Self {
+            pub(crate) unsafe fn load(interface: &crate::GDExtensionInterface) -> Self {
                 Self {
                     #(#variant_fn_inits)*
                 }

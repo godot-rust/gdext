@@ -9,7 +9,7 @@ categories = ["game-engines", "graphics"]
 
 [features]
 default = []
-trace = []
+trace = ["godot-ffi/trace"]
 codegen-fmt = ["godot-ffi/codegen-fmt", "godot-codegen/codegen-fmt"]
 codegen-full = ["godot-codegen/codegen-full"]
 double-precision = ["godot-codegen/double-precision"]
