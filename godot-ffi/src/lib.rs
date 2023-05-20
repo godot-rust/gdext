@@ -201,19 +201,25 @@ pub fn to_const_ptr<T>(ptr: *mut T) -> *const T {
 
 /// Convert a GDExtension pointer type to its uninitialized version.
 pub trait AsUninit {
-    type Output;
+    type Ptr;
 
     #[allow(clippy::wrong_self_convention)]
-    fn as_uninit(self) -> Self::Output;
+    fn as_uninit(self) -> Self::Ptr;
+
+    fn force_init(uninit: Self::Ptr) -> Self;
 }
 
 macro_rules! impl_as_uninit {
     ($Ptr:ty, $Uninit:ty) => {
         impl AsUninit for $Ptr {
-            type Output = $Uninit;
+            type Ptr = $Uninit;
 
-            fn as_uninit(self) -> Self::Output {
+            fn as_uninit(self) -> $Uninit {
                 self as $Uninit
+            }
+
+            fn force_init(uninit: Self::Ptr) -> Self {
+                uninit as Self
             }
         }
     };

@@ -132,7 +132,10 @@ fn make_sys_code(central_items: &CentralItems) -> String {
     } = central_items;
 
     let sys_tokens = quote! {
-        use crate::{GDExtensionVariantPtr, GDExtensionTypePtr, GDExtensionConstTypePtr, GodotFfi, ffi_methods};
+        use crate::{
+            ffi_methods, GDExtensionConstTypePtr, GDExtensionTypePtr, GDExtensionUninitializedTypePtr,
+            GDExtensionUninitializedVariantPtr, GDExtensionVariantPtr, GodotFfi,
+        };
 
         pub mod types {
             #(#opaque_types)*
@@ -501,9 +504,12 @@ fn make_variant_fns(
     let variant_type = quote! { crate:: #variant_type };
 
     // Field declaration
+    // The target types are uninitialized-ptrs, because Godot performs placement new on those:
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/variant/variant_internal.h#L1535-L1535
+
     let decl = quote! {
-        pub #to_variant: unsafe extern "C" fn(GDExtensionVariantPtr, GDExtensionTypePtr),
-        pub #from_variant: unsafe extern "C" fn(GDExtensionTypePtr, GDExtensionVariantPtr),
+        pub #to_variant: unsafe extern "C" fn(GDExtensionUninitializedVariantPtr, GDExtensionTypePtr),
+        pub #from_variant: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, GDExtensionVariantPtr),
         #op_eq_decls
         #op_lt_decls
         #construct_decls
@@ -576,10 +582,15 @@ fn make_construct_fns(
     let (construct_extra_decls, construct_extra_inits) =
         make_extra_constructors(type_names, constructors, builtin_types);
 
-    // Generic signature:  fn(base: GDExtensionTypePtr, args: *const GDExtensionTypePtr)
+    // Target types are uninitialized pointers, because Godot uses placement-new for raw pointer constructions. Callstack:
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/extension/gdextension_interface.cpp#L511
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/variant/variant_construct.cpp#L299
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/variant/variant_construct.cpp#L36
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/variant/variant_construct.h#L267
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/variant/variant_construct.h#L50
     let decls = quote! {
-        pub #construct_default: unsafe extern "C" fn(GDExtensionTypePtr, *const GDExtensionConstTypePtr),
-        pub #construct_copy: unsafe extern "C" fn(GDExtensionTypePtr, *const GDExtensionConstTypePtr),
+        pub #construct_default: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
+        pub #construct_copy: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
         #(#construct_extra_decls)*
     };
 
@@ -628,7 +639,7 @@ fn make_extra_constructors(
 
             let err = format_load_error(&ident);
             extra_decls.push(quote! {
-                pub #ident: unsafe extern "C" fn(GDExtensionTypePtr, *const GDExtensionConstTypePtr),
+                pub #ident: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
             });
 
             let i = i as i32;

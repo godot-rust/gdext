@@ -183,7 +183,9 @@ macro_rules! gdext_register_method_inner {
                     if success.is_none() {
                         // Signal error and set return type to Nil
                         (*err).error = sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD; // no better fitting enum?
-                        sys::interface_fn!(variant_new_nil)(ret);
+
+                        // TODO(uninit)
+                        sys::interface_fn!(variant_new_nil)(sys::AsUninit::as_uninit(ret));
                     }
                 }
 

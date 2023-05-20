@@ -100,11 +100,13 @@ impl_rust_string_conv!(NodePath);
 
 impl From<&GodotString> for NodePath {
     fn from(string: &GodotString) -> Self {
+        // TODO(uninit) - see if we can use from_sys_init()
+        use godot_ffi::AsUninit;
         unsafe {
             Self::from_sys_init_default(|self_ptr| {
                 let ctor = sys::builtin_fn!(node_path_from_string);
                 let args = [string.sys_const()];
-                ctor(self_ptr, args.as_ptr());
+                ctor(self_ptr.as_uninit(), args.as_ptr());
             })
         }
     }
