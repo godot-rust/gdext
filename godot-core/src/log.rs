@@ -12,12 +12,13 @@ macro_rules! godot_warn {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
         unsafe {
             let msg = format!("{}\0", format_args!($fmt $(, $args)*));
+            assert!(msg.is_ascii(), "godot_warn: message must be ASCII");
 
             $crate::sys::interface_fn!(print_warning)(
-                msg.as_bytes().as_ptr() as *const _,
-                "<function unset>\0".as_bytes().as_ptr() as *const _,
-                concat!(file!(), "\0").as_ptr() as *const _,
-                line!() as _,
+                $crate::sys::c_str_from_str(&msg),
+                $crate::sys::c_str(b"<function unset>\0"),
+                $crate::sys::c_str_from_str(concat!(file!(), "\0")),
+                line!() as i32,
                 false as $crate::sys::GDExtensionBool, // whether to create a toast notification in editor
             );
         }
@@ -34,12 +35,13 @@ macro_rules! godot_error {
     //($($args:tt),* $(,)?) => {
         unsafe {
             let msg = format!("{}\0", format_args!($fmt $(, $args)*));
+            assert!(msg.is_ascii(), "godot_error: message must be ASCII");
 
             $crate::sys::interface_fn!(print_error)(
-                msg.as_bytes().as_ptr() as *const _,
-                "<function unset>\0".as_bytes().as_ptr() as *const _,
-                concat!(file!(), "\0").as_ptr() as *const _,
-                line!() as _,
+                $crate::sys::c_str_from_str(&msg),
+                $crate::sys::c_str(b"<function unset>\0"),
+                $crate::sys::c_str_from_str(concat!(file!(), "\0")),
+                line!() as i32,
                 false as $crate::sys::GDExtensionBool, // whether to create a toast notification in editor
             );
         }
@@ -51,12 +53,13 @@ macro_rules! godot_script_error {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
         unsafe {
             let msg = format!("{}\0", format_args!($fmt $(, $args)*));
+            assert!(msg.is_ascii(), "godot_script_error: message must be ASCII");
 
             $crate::sys::interface_fn!(print_script_error)(
-                msg.as_bytes().as_ptr() as *const _,
-                "<function unset>\0".as_bytes().as_ptr() as *const _,
-                concat!(file!(), "\0").as_ptr() as *const _,
-                line!() as _,
+                $crate::sys::c_str_from_str(&msg),
+                $crate::sys::c_str(b"<function unset>\0"),
+                $crate::sys::c_str_from_str(concat!(file!(), "\0")),
+                line!() as i32,
                 false as $crate::sys::GDExtensionBool, // whether to create a toast notification in editor
             );
         }
