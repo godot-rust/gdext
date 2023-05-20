@@ -11,13 +11,12 @@ macro_rules! impl_builtin_traits_inner {
         impl Default for $Type {
             #[inline]
             fn default() -> Self {
-                // Note: can't use from_sys_init(), as that calls the default constructor
-                // (because most assignments expect initialized target type)
-
+                // TODO(uninit): use from_sys_init()
                 let mut uninit = std::mem::MaybeUninit::<$Type>::uninit();
 
+                use godot_ffi::AsUninit;
                 unsafe {
-                    let self_ptr = (*uninit.as_mut_ptr()).sys_mut();
+                    let self_ptr = (*uninit.as_mut_ptr()).sys_mut().as_uninit();
                     sys::builtin_call! {
                         $gd_method(self_ptr, std::ptr::null_mut())
                     };
@@ -32,11 +31,13 @@ macro_rules! impl_builtin_traits_inner {
         impl Clone for $Type {
             #[inline]
             fn clone(&self) -> Self {
+                // TODO(uninit) - check if we can use from_sys_init()
+                use godot_ffi::AsUninit;
                 unsafe {
                     Self::from_sys_init_default(|self_ptr| {
                         let ctor = ::godot_ffi::builtin_fn!($gd_method);
                         let args = [self.sys_const()];
-                        ctor(self_ptr, args.as_ptr());
+                        ctor(self_ptr.as_uninit(), args.as_ptr());
                     })
                 }
             }
@@ -162,6 +163,7 @@ macro_rules! impl_builtin_froms {
         $(impl From<&$From> for $To {
             fn from(other: &$From) -> Self {
                 unsafe {
+                    // TODO should this be from_sys_init_default()?
                     Self::from_sys_init(|ptr| {
                         let args = [other.sys_const()];
                         ::godot_ffi::builtin_call! {

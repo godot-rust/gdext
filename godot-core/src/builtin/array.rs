@@ -715,10 +715,14 @@ impl<T: VariantMetadata> FromVariant for Array<T> {
         if variant.get_type() != Self::variant_type() {
             return Err(VariantConversionError);
         }
+
+        // TODO(uninit): can we use from_sys_init()? Godot uses placement-new for variant_to_type initialization.
+        use sys::AsUninit;
+
         let array = unsafe {
             Self::from_sys_init_default(|self_ptr| {
                 let array_from_variant = sys::builtin_fn!(array_from_variant);
-                array_from_variant(self_ptr, variant.var_sys());
+                array_from_variant(self_ptr.as_uninit(), variant.var_sys());
             })
         };
 

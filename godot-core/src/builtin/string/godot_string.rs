@@ -222,11 +222,13 @@ impl FromStr for GodotString {
 
 impl From<&StringName> for GodotString {
     fn from(string: &StringName) -> Self {
+        // TODO(uninit) - see if we can use from_sys_init()
+        use godot_ffi::AsUninit;
         unsafe {
             Self::from_sys_init_default(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_string_name);
                 let args = [string.sys_const()];
-                ctor(self_ptr, args.as_ptr());
+                ctor(self_ptr.as_uninit(), args.as_ptr());
             })
         }
     }
@@ -243,11 +245,13 @@ impl From<StringName> for GodotString {
 
 impl From<&NodePath> for GodotString {
     fn from(path: &NodePath) -> Self {
+        // TODO(uninit) - see if we can use from_sys_init()
+        use godot_ffi::AsUninit;
         unsafe {
             Self::from_sys_init_default(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_node_path);
                 let args = [path.sys_const()];
-                ctor(self_ptr, args.as_ptr());
+                ctor(self_ptr.as_uninit(), args.as_ptr());
             })
         }
     }

@@ -95,7 +95,9 @@ fn object_user_roundtrip_write() {
     assert_eq!(obj.bind().value, value);
 
     let obj2 = unsafe {
-        Gd::<ObjPayload>::from_sys_init(|ptr| obj.move_return_ptr(ptr, sys::PtrcallType::Standard))
+        Gd::<ObjPayload>::from_sys_init(|ptr| {
+            obj.move_return_ptr(sys::AsUninit::force_init(ptr), sys::PtrcallType::Standard)
+        })
     };
     assert_eq!(obj2.bind().value, value);
 } // drop

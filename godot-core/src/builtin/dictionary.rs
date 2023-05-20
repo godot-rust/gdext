@@ -400,7 +400,7 @@ impl<'a> DictionaryIter<'a> {
 
     fn call_init(dictionary: &Dictionary) -> Option<Variant> {
         let variant: Variant = Variant::nil();
-        let iter_fn = |dictionary, next_value: sys::GDExtensionVariantPtr, valid| {
+        let iter_fn = |dictionary, next_value: sys::GDExtensionVariantPtr, valid| unsafe {
             interface_fn!(variant_iter_init)(dictionary, next_value.as_uninit(), valid)
         };
 
@@ -408,7 +408,7 @@ impl<'a> DictionaryIter<'a> {
     }
 
     fn call_next(dictionary: &Dictionary, last_key: Variant) -> Option<Variant> {
-        let iter_fn = |dictionary, next_value, valid| {
+        let iter_fn = |dictionary, next_value, valid| unsafe {
             interface_fn!(variant_iter_next)(dictionary, next_value, valid)
         };
 

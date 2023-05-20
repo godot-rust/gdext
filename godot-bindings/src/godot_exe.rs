@@ -161,6 +161,21 @@ fn patch_c_header(inout_h_path: &Path) {
     let c = fs::read_to_string(inout_h_path)
         .unwrap_or_else(|_| panic!("failed to read C header file {}", inout_h_path.display()));
 
+    // Hardcoded fixes until upstream adopts them
+    let c = c
+        .replace(
+            "typedef void (*GDExtensionVariantFromTypeConstructorFunc)(GDExtensionVariantPtr, GDExtensionTypePtr);",
+            "typedef void (*GDExtensionVariantFromTypeConstructorFunc)(GDExtensionUninitializedVariantPtr, GDExtensionTypePtr);"
+        )
+        .replace(
+            "typedef void (*GDExtensionTypeFromVariantConstructorFunc)(GDExtensionTypePtr, GDExtensionVariantPtr);",
+            "typedef void (*GDExtensionTypeFromVariantConstructorFunc)(GDExtensionUninitializedTypePtr, GDExtensionVariantPtr);"
+        )
+        .replace(
+            "typedef void (*GDExtensionPtrConstructor)(GDExtensionTypePtr p_base, const GDExtensionConstTypePtr *p_args);",
+            "typedef void (*GDExtensionPtrConstructor)(GDExtensionUninitializedTypePtr p_base, const GDExtensionConstTypePtr *p_args);"
+        );
+
     // Use single regex with independent "const"/"Const", as there are definitions like this:
     // typedef const void *GDExtensionMethodBindPtr;
     let c = Regex::new(r"typedef (const )?void \*GDExtension(Const)?([a-zA-Z0-9]+?)Ptr;") //

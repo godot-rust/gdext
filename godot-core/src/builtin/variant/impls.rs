@@ -61,6 +61,9 @@ macro_rules! impl_variant_traits {
                     return Err(VariantConversionError)
                 }
 
+            	// TODO(uninit) - see if we can use from_sys_init()
+                use ::godot_ffi::AsUninit;
+
                 // In contrast to T -> Variant, the conversion Variant -> T assumes
                 // that the destination is initialized (at least for some T). For example:
                 // void String::operator=(const String &p_str) { _cowdata._ref(p_str._cowdata); }
@@ -69,7 +72,7 @@ macro_rules! impl_variant_traits {
                 let result = unsafe {
                     Self::from_sys_init_default(|self_ptr| {
                         let converter = sys::builtin_fn!($to_fn);
-                        converter(self_ptr, variant.var_sys());
+                        converter(self_ptr.as_uninit(), variant.var_sys());
                     })
                 };
 
