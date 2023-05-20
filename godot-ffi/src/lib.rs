@@ -43,6 +43,25 @@ impl Distinct for GDExtensionConstTypePtr {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[cfg(feature = "trace")]
+#[macro_export]
+macro_rules! out {
+    ()                          => (eprintln!());
+    ($fmt:literal)              => (eprintln!($fmt));
+    ($fmt:literal, $($arg:tt)*) => (eprintln!($fmt, $($arg)*));
+}
+
+#[cfg(not(feature = "trace"))]
+// TODO find a better way than sink-writing to avoid warnings, #[allow(unused_variables)] doesn't work
+#[macro_export]
+macro_rules! out {
+    ()                          => ({});
+    ($fmt:literal)              => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt); });
+    ($fmt:literal, $($arg:tt)*) => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt, $($arg)*); };)
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 struct GodotBinding {
     interface: GDExtensionInterface,
     library: GDExtensionClassLibraryPtr,
@@ -64,6 +83,17 @@ pub unsafe fn initialize(
     get_proc_address: GDExtensionInterfaceGetProcAddress,
     library: GDExtensionClassLibraryPtr,
 ) {
+    out!("Initialize...");
+
+    let interface = GDExtensionInterface::load(get_proc_address);
+    let method_table = GlobalMethodTable::load(&interface);
+
+    BINDING = Some(GodotBinding {
+        interface,
+        method_table,
+        library,
+    });
+
     let mut version = GDExtensionGodotVersion {
         major: 0,
         minor: 0,
@@ -71,6 +101,7 @@ pub unsafe fn initialize(
         string: std::ptr::null(),
     };
     interface_fn!(get_godot_version)(ptr::addr_of_mut!(version));
+    out!("Detected {version:?}");
 
     println!(
         "Initialize GDExtension API for Rust: {}",
@@ -78,15 +109,6 @@ pub unsafe fn initialize(
             .to_str()
             .expect("unknown Godot version")
     );
-
-    let interface = GDExtensionInterface::load(get_proc_address);
-    let method_table = GlobalMethodTable::new(&interface);
-
-    BINDING = Some(GodotBinding {
-        interface,
-        method_table,
-        library,
-    });
 }
 
 /// # Safety
