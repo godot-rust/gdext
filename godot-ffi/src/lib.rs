@@ -61,7 +61,7 @@ static mut BINDING: Option<GodotBinding> = None;
 /// - This function must not be called from multiple threads.
 /// - This function must be called before any use of [`get_library`].
 pub unsafe fn initialize(
-    interface: *const GDExtensionInterface,
+    get_proc_address: GDExtensionInterfaceGetProcAddress,
     library: GDExtensionClassLibraryPtr,
 ) {
     let mut version = GDExtensionGodotVersion {
@@ -79,9 +79,12 @@ pub unsafe fn initialize(
             .expect("unknown Godot version")
     );
 
+    let interface = GDExtensionInterface::load(get_proc_address);
+    let method_table = GlobalMethodTable::new(&interface);
+
     BINDING = Some(GodotBinding {
-        interface: (*interface).clone(),
-        method_table: GlobalMethodTable::new(&*interface),
+        interface,
+        method_table,
         library,
     });
 }
@@ -233,6 +236,7 @@ impl_as_uninit!(GDExtensionObjectPtr, GDExtensionUninitializedObjectPtr);
 impl_as_uninit!(GDExtensionTypePtr, GDExtensionUninitializedTypePtr);
 
 /// If `ptr` is not null, returns `Some(mapper(ptr))`; otherwise `None`.
+#[inline]
 pub fn ptr_then<T, R, F>(ptr: *mut T, mapper: F) -> Option<R>
 where
     F: FnOnce(*mut T) -> R,
@@ -243,6 +247,22 @@ where
     } else {
         Some(mapper(ptr))
     }
+}
+
+/// Returns a C `const char*` for a null-terminated byte string.
+#[inline]
+pub fn c_str(s: &[u8]) -> *const std::ffi::c_char {
+    // Ensure null-terminated
+    debug_assert!(!s.is_empty() && s[s.len() - 1] == 0);
+
+    s.as_ptr() as *const std::ffi::c_char
+}
+
+#[inline]
+pub fn c_str_from_str(s: &str) -> *const std::ffi::c_char {
+    debug_assert!(s.is_ascii());
+
+    c_str(s.as_bytes())
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

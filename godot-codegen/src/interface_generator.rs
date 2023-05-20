@@ -6,7 +6,7 @@
 
 use crate::central_generator::write_file;
 use crate::util::ident;
-use proc_macro2::Ident;
+use proc_macro2::{Ident, Literal};
 use quote::quote;
 use regex::Regex;
 use std::fs;
@@ -28,6 +28,7 @@ pub(crate) fn generate_sys_interface_file(
     let func_ptrs = parse_function_pointers(&header_code);
 
     let mut fptr_decls = vec![];
+    let mut fptr_inits = vec![];
     for fptr in func_ptrs {
         let GodotFuncPtr {
             name,
@@ -35,19 +36,40 @@ pub(crate) fn generate_sys_interface_file(
             doc,
         } = fptr;
 
+        let name_str = Literal::byte_string(format!("{}\0", name).as_bytes());
+
         let decl = quote! {
             #[doc = #doc]
             pub #name: crate::#func_ptr_ty,
         };
 
+        // SAFETY: transmute relies on Option<F1> and Option<F2> having the same layout.
+        // It might be better to transmute the raw function pointers, but then we have no type names.
+        let init = quote! {
+            #name: std::mem::transmute::<
+                crate::GDExtensionInterfaceFunctionPtr,
+                crate::#func_ptr_ty
+            >(get_proc_address(crate::c_str(#name_str))),
+        };
+
         fptr_decls.push(decl);
+        fptr_inits.push(init);
     }
 
     // Do not derive Copy -- even though the struct is bitwise-copyable, this is rarely needed and may point to an error.
     let code = quote! {
-        #[derive(Clone)]
         pub struct GDExtensionInterface {
             #( #fptr_decls )*
+        }
+
+        impl GDExtensionInterface {
+            pub unsafe fn load(get_proc_address: crate::GDExtensionInterfaceGetProcAddress) -> Self {
+                let get_proc_address = get_proc_address.expect("get_proc_address null; failed to initialize gdext library");
+
+                Self {
+                    #( #fptr_inits )*
+                }
+            }
         }
     };
 
