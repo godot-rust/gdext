@@ -15,12 +15,23 @@ use nanoserde::DeJson;
 
 #[derive(DeJson)]
 pub struct ExtensionApi {
+    pub header: Header,
     pub builtin_class_sizes: Vec<ClassSizes>,
     pub builtin_classes: Vec<BuiltinClass>,
     pub classes: Vec<Class>,
     pub global_enums: Vec<Enum>,
     pub utility_functions: Vec<UtilityFunction>,
     pub singletons: Vec<Singleton>,
+}
+
+#[derive(DeJson, Debug)]
+pub struct Header {
+    pub version_major: u8,
+    pub version_minor: u8,
+    pub version_patch: u8,
+    pub version_status: String,
+    pub version_build: String,
+    pub version_full_name: String,
 }
 
 #[derive(DeJson)]
@@ -240,6 +251,8 @@ pub fn load_extension_api(watch: &mut godot_bindings::StopWatch) -> (ExtensionAp
     let model: ExtensionApi =
         DeJson::deserialize_json(json_str).expect("failed to deserialize JSON");
     watch.record("deserialize_json");
+
+    println!("Parsed extension_api.json for version {:?}", model.header);
 
     (model, build_config)
 }

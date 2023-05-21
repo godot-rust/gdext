@@ -47,7 +47,8 @@ pub fn generate_sys_files(
     generate_sys_central_file(&api, &mut ctx, build_config, sys_gen_path, &mut out_files);
     watch.record("generate_central_file");
 
-    generate_sys_interface_file(h_path, sys_gen_path, &mut out_files);
+    let is_godot_4_0 = api.header.version_major == 4 && api.header.version_minor == 0;
+    generate_sys_interface_file(h_path, sys_gen_path, is_godot_4_0, &mut out_files);
     watch.record("generate_interface_file");
 
     rustfmt_if_needed(out_files);

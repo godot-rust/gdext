@@ -6,7 +6,7 @@
 
 use crate::central_generator::write_file;
 use crate::util::ident;
-use proc_macro2::{Ident, Literal};
+use proc_macro2::{Ident, Literal, TokenStream};
 use quote::quote;
 use regex::Regex;
 use std::fs;
@@ -21,8 +21,26 @@ struct GodotFuncPtr {
 pub(crate) fn generate_sys_interface_file(
     h_path: &Path,
     sys_gen_path: &Path,
+    is_godot_4_0: bool,
     out_files: &mut Vec<PathBuf>,
 ) {
+    let code = if is_godot_4_0 {
+        // Compat for 4.0.x
+        // Most polyfills are in godot_exe.rs, fn polyfill_legacy_header()
+        quote! {
+            #[path = "../compat/compat_4_0.rs"]
+            mod compat_4_0;
+
+            pub use compat_4_0::*;
+        }
+    } else {
+        generate_proc_address_funcs(h_path)
+    };
+
+    write_file(sys_gen_path, "interface.rs", code.to_string(), out_files);
+}
+
+fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
     let header_code = fs::read_to_string(h_path)
         .expect("failed to read gdextension_interface.h for header parsing");
     let func_ptrs = parse_function_pointers(&header_code);
@@ -58,22 +76,35 @@ pub(crate) fn generate_sys_interface_file(
 
     // Do not derive Copy -- even though the struct is bitwise-copyable, this is rarely needed and may point to an error.
     let code = quote! {
+        #[path = "../compat/compat_4_1.rs"]
+        mod compat_4_1;
+
+        pub use compat_4_1::*;
+
         pub struct GDExtensionInterface {
             #( #fptr_decls )*
         }
 
         impl GDExtensionInterface {
-            pub unsafe fn load(get_proc_address: crate::GDExtensionInterfaceGetProcAddress) -> Self {
-                let get_proc_address = get_proc_address.expect("get_proc_address null; failed to initialize gdext library");
+            pub(crate) unsafe fn load(
+                get_proc_address: crate::GDExtensionInterfaceGetProcAddress,
+            ) -> Self {
+                let get_proc_address = get_proc_address.expect("invalid get_proc_address function pointer");
 
                 Self {
                     #( #fptr_inits )*
                 }
             }
         }
-    };
 
-    write_file(sys_gen_path, "interface.rs", code.to_string(), out_files);
+        // Exists because constructor cannot be called in legacy mode (as the struct is readily-provided by bindgen)
+        pub(crate) unsafe fn load_interface(
+            get_proc_address: crate::GDExtensionInterfaceGetProcAddress,
+        ) -> GDExtensionInterface {
+            GDExtensionInterface::load(get_proc_address)
+        }
+    };
+    code
 }
 
 fn parse_function_pointers(header_code: &str) -> Vec<GodotFuncPtr> {
