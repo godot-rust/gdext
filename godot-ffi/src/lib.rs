@@ -19,12 +19,14 @@
 )]
 pub(crate) mod gen;
 
+mod compat;
 mod godot_ffi;
 mod opaque;
 mod plugins;
 
+use compat::CompatVersion;
 use std::ffi::CStr;
-use std::ptr;
+
 // See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
 // and https://users.rust-lang.org/t/proc-macros-using-third-party-crate/42465/4
 #[doc(hidden)]
@@ -33,7 +35,7 @@ pub use paste;
 pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal, PtrcallType};
 pub use gen::central::*;
 pub use gen::gdextension_interface::*;
-pub use gen::interface::GDExtensionInterface;
+pub use gen::interface::*;
 
 // The impls only compile if those are different types -- ensures type safety through patch
 trait Distinct {}
@@ -75,33 +77,38 @@ static mut BINDING: Option<GodotBinding> = None;
 
 /// # Safety
 ///
-/// - The `interface` pointer must be a valid pointer to a [`GDExtensionInterface`] object.
+/// - The `interface` pointer must be either:
+///   - a data pointer to a [`GDExtensionInterface`] object (for Godot 4.0.x)
+///   - a function pointer of type [`GDExtensionInterfaceGetProcAddress`] (for Godot 4.1+)
 /// - The `library` pointer must be the pointer given by Godot at initialisation.
 /// - This function must not be called from multiple threads.
 /// - This function must be called before any use of [`get_library`].
-pub unsafe fn initialize(
-    get_proc_address: GDExtensionInterfaceGetProcAddress,
-    library: GDExtensionClassLibraryPtr,
-) {
-    out!("Initialize...");
+pub unsafe fn initialize(compat: InitCompat, library: GDExtensionClassLibraryPtr) {
+    out!("Initialize gdext...");
 
-    let interface = GDExtensionInterface::load(get_proc_address);
+    // Before anything else: if we run into a Godot binary that's compiled differently from gdext, proceeding would be UB -> panic.
+    if compat.is_legacy_used_in_modern() {
+        panic!(
+            "gdext was compiled against a newer Godot version (4.1+), but initialized with a legacy (4.0.x) setup.\
+            \nIn your .gdextension file, make sure to use `compatibility_minimum = 4.1` under the [configuration] section."
+        );
+    }
+
+    let version = compat.runtime_version();
+    out!("GDExtension API version: {version:?}");
+
+    let interface = compat.load_interface();
+    out!("Loaded interface.");
+
     let method_table = GlobalMethodTable::load(&interface);
+    out!("Loaded builtin table.");
 
     BINDING = Some(GodotBinding {
         interface,
         method_table,
         library,
     });
-
-    let mut version = GDExtensionGodotVersion {
-        major: 0,
-        minor: 0,
-        patch: 0,
-        string: std::ptr::null(),
-    };
-    interface_fn!(get_godot_version)(ptr::addr_of_mut!(version));
-    out!("Detected {version:?}");
+    out!("Assigned binding.");
 
     println!(
         "Initialize GDExtension API for Rust: {}",
@@ -109,6 +116,13 @@ pub unsafe fn initialize(
             .to_str()
             .expect("unknown Godot version")
     );
+}
+
+/// # Safety
+///
+/// Must be called from the same thread as `initialize()` previously.
+pub unsafe fn is_initialized() -> bool {
+    BINDING.is_some()
 }
 
 /// # Safety
@@ -224,6 +238,8 @@ pub fn to_const_ptr<T>(ptr: *mut T) -> *const T {
     ptr as *const T
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Convert a GDExtension pointer type to its uninitialized version.
 pub trait AsUninit {
     type Ptr;
@@ -256,6 +272,39 @@ impl_as_uninit!(GDExtensionVariantPtr, GDExtensionUninitializedVariantPtr);
 impl_as_uninit!(GDExtensionStringPtr, GDExtensionUninitializedStringPtr);
 impl_as_uninit!(GDExtensionObjectPtr, GDExtensionUninitializedObjectPtr);
 impl_as_uninit!(GDExtensionTypePtr, GDExtensionUninitializedTypePtr);
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Metafunction to extract inner function pointer types from all the bindgen Option<F> type names.
+pub(crate) trait Inner: Sized {
+    type FnPtr: Sized;
+
+    fn extract(self, error_msg: &str) -> Self::FnPtr;
+}
+
+impl<T> Inner for Option<T> {
+    type FnPtr = T;
+
+    fn extract(self, error_msg: &str) -> Self::FnPtr {
+        self.expect(error_msg)
+    }
+}
+
+/// Extract a function pointer from its `Option` and convert it to the (dereferenced) target type.
+///
+/// ```ignore
+///  let get_godot_version = get_proc_address(sys::c_str(b"get_godot_version\0"));
+///  let get_godot_version = sys::cast_fn_ptr!(get_godot_version as sys::GDExtensionInterfaceGetGodotVersion);
+/// ```
+#[allow(unused)]
+macro_rules! cast_fn_ptr {
+    ($option:ident as $ToType:ty) => {{
+        let ptr = $option.expect("null function pointer");
+        std::mem::transmute::<unsafe extern "C" fn(), <$ToType as crate::Inner>::FnPtr>(ptr)
+    }};
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// If `ptr` is not null, returns `Some(mapper(ptr))`; otherwise `None`.
 #[inline]
