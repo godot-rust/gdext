@@ -51,10 +51,11 @@ pub fn write_gdextension_headers(
     is_h_provided: bool,
     watch: &mut StopWatch,
 ) {
-    // TODO recognize 4.0 also when not using `custom-godot`
-    let mut is_godot_4_0 = false;
-
-    if !is_h_provided {
+    // None=(unknown, no engine), Some=(version of Godot). Later verified by header itself.
+    let is_engine_4_0;
+    if is_h_provided {
+        is_engine_4_0 = None;
+    } else {
         // No external C header file: Godot binary is present, we use it to dump C header
         let godot_bin = locate_godot_binary();
         rerun_on_changed(&godot_bin);
@@ -62,9 +63,7 @@ pub fn write_gdextension_headers(
 
         // Regenerate API JSON if first time or Godot version is different
         let version = read_godot_version(&godot_bin);
-        if version.major == 4 && version.minor == 0 {
-            is_godot_4_0 = true;
-        }
+        is_engine_4_0 = Some(version.major == 4 && version.minor == 0);
 
         // if !c_header_path.exists() || has_version_changed(&version) {
         dump_header_file(&godot_bin, inout_h_path);
@@ -74,7 +73,7 @@ pub fn write_gdextension_headers(
     };
 
     rerun_on_changed(inout_h_path);
-    patch_c_header(inout_h_path, is_godot_4_0);
+    patch_c_header(inout_h_path, is_engine_4_0);
     watch.record("patch_header_h");
 
     generate_rust_binding(inout_h_path, out_rs_path);
@@ -160,23 +159,35 @@ fn dump_header_file(godot_bin: &Path, out_file: &Path) {
     println!("Generated {}/gdextension_interface.h.", cwd.display());
 }
 
-fn patch_c_header(inout_h_path: &Path, is_godot_4_0: bool) {
-    println!(
-        "Patch C header '{}' (is_godot_4_0={is_godot_4_0})...",
-        inout_h_path.display()
-    );
-
+fn patch_c_header(inout_h_path: &Path, is_engine_4_0: Option<bool>) {
     // The C header path *must* be passed in by the invoking crate, as the path cannot be relative to this crate.
     // Otherwise, it can be something like `/home/runner/.cargo/git/checkouts/gdext-76630c89719e160c/efd3b94/godot-bindings`.
 
-    // Read the contents of the file into a string
+    println!(
+        "Patch C header '{}' (is_engine_4_0={is_engine_4_0:?})...",
+        inout_h_path.display()
+    );
+
     let mut c = fs::read_to_string(inout_h_path)
         .unwrap_or_else(|_| panic!("failed to read C header file {}", inout_h_path.display()));
 
-    if is_godot_4_0 {
+    // Detect whether header is legacy (4.0) or modern (4.1+) format.
+    let is_header_4_0 = !c.contains("GDExtensionInterfaceGetProcAddress");
+    println!("is_header_4_0={is_header_4_0}");
+
+    // Sanity check
+    if let Some(is_engine_4_0) = is_engine_4_0 {
+        assert_eq!(
+            is_header_4_0, is_engine_4_0,
+            "Mismatch between engine/header versions"
+        );
+    }
+
+    if is_header_4_0 {
         polyfill_legacy_header(&mut c);
     }
 
+    // Patch for variant converters and type constructors
     c = c.replace(
         "typedef void (*GDExtensionVariantFromTypeConstructorFunc)(GDExtensionVariantPtr, GDExtensionTypePtr);",
         "typedef void (*GDExtensionVariantFromTypeConstructorFunc)(GDExtensionUninitializedVariantPtr, GDExtensionTypePtr);"
