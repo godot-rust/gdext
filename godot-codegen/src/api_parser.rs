@@ -24,7 +24,7 @@ pub struct ExtensionApi {
     pub singletons: Vec<Singleton>,
 }
 
-#[derive(DeJson, Debug)]
+#[derive(DeJson, Clone, Debug)]
 pub struct Header {
     pub version_major: u8,
     pub version_minor: u8,

@@ -68,6 +68,11 @@ struct GodotBinding {
     interface: GDExtensionInterface,
     library: GDExtensionClassLibraryPtr,
     method_table: GlobalMethodTable,
+    runtime_metadata: GdextRuntimeMetadata,
+}
+
+struct GdextRuntimeMetadata {
+    godot_version: GDExtensionGodotVersion,
 }
 
 /// Late-init globals
@@ -86,6 +91,11 @@ static mut BINDING: Option<GodotBinding> = None;
 pub unsafe fn initialize(compat: InitCompat, library: GDExtensionClassLibraryPtr) {
     out!("Initialize gdext...");
 
+    out!(
+        "Godot version against which gdext was compiled: {}",
+        GdextBuild::godot_static_version_string()
+    );
+
     // Before anything else: if we run into a Godot binary that's compiled differently from gdext, proceeding would be UB -> panic.
     if compat.is_legacy_used_in_modern() {
         panic!(
@@ -95,7 +105,7 @@ pub unsafe fn initialize(compat: InitCompat, library: GDExtensionClassLibraryPtr
     }
 
     let version = compat.runtime_version();
-    out!("GDExtension API version: {version:?}");
+    out!("Godot version of GDExtension API at runtime: {version:?}");
 
     let interface = compat.load_interface();
     out!("Loaded interface.");
@@ -103,10 +113,15 @@ pub unsafe fn initialize(compat: InitCompat, library: GDExtensionClassLibraryPtr
     let method_table = GlobalMethodTable::load(&interface);
     out!("Loaded builtin table.");
 
+    let runtime_metadata = GdextRuntimeMetadata {
+        godot_version: version,
+    };
+
     BINDING = Some(GodotBinding {
         interface,
         method_table,
         library,
+        runtime_metadata,
     });
     out!("Assigned binding.");
 
@@ -147,6 +162,14 @@ pub unsafe fn get_library() -> GDExtensionClassLibraryPtr {
 #[inline(always)]
 pub unsafe fn method_table() -> &'static GlobalMethodTable {
     &unwrap_ref_unchecked(&BINDING).method_table
+}
+
+/// # Safety
+///
+/// Must be accessed from the main thread.
+#[inline(always)]
+pub(crate) unsafe fn runtime_metadata() -> &'static GdextRuntimeMetadata {
+    &BINDING.as_ref().unwrap().runtime_metadata
 }
 
 /// Makes sure that Godot is running, or panics. Debug mode only!

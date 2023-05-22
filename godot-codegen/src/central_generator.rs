@@ -23,6 +23,7 @@ struct CentralItems {
     variant_fn_decls: Vec<TokenStream>,
     variant_fn_inits: Vec<TokenStream>,
     global_enum_defs: Vec<TokenStream>,
+    godot_version: Header,
 }
 
 pub(crate) struct TypeNames {
@@ -128,8 +129,11 @@ fn make_sys_code(central_items: &CentralItems) -> String {
         variant_op_enumerators_ord,
         variant_fn_decls,
         variant_fn_inits,
+        godot_version,
         ..
     } = central_items;
+
+    let build_config_struct = make_build_config(godot_version);
 
     let sys_tokens = quote! {
         use crate::{
@@ -140,6 +144,10 @@ fn make_sys_code(central_items: &CentralItems) -> String {
         pub mod types {
             #(#opaque_types)*
         }
+
+        // ----------------------------------------------------------------------------------------------------------------------------------------------
+
+        #build_config_struct
 
         // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -228,6 +236,45 @@ fn make_sys_code(central_items: &CentralItems) -> String {
     sys_tokens.to_string()
 }
 
+fn make_build_config(header: &Header) -> TokenStream {
+    let version_string = header
+        .version_full_name
+        .strip_prefix("Godot Engine ")
+        .unwrap_or(&header.version_full_name);
+    let major = header.version_major;
+    let minor = header.version_minor;
+    let patch = header.version_patch;
+
+    // Should this be mod?
+    quote! {
+        /// Provides meta-information about the library and the Godot version in use.
+        pub struct GdextBuild;
+
+        impl GdextBuild {
+            /// Godot version against which gdext was compiled.
+            ///
+            /// Example format: `v4.0.stable.official`
+            pub const fn godot_static_version_string() -> &'static str {
+                #version_string
+            }
+
+            /// Godot version against which gdext was compiled, as `(major, minor, patch)` triple.
+            pub const fn godot_static_version_triple() -> (u8, u8, u8) {
+                (#major, #minor, #patch)
+            }
+
+            /// Version of the Godot engine which loaded gdext via GDExtension binding.
+            pub fn godot_runtime_version_string() -> String {
+                unsafe {
+                    let char_ptr = crate::runtime_metadata().godot_version.string;
+                    let c_str = std::ffi::CStr::from_ptr(char_ptr);
+                    String::from_utf8_lossy(c_str.to_bytes()).to_string()
+                }
+            }
+        }
+    }
+}
+
 fn make_core_code(central_items: &CentralItems) -> String {
     let CentralItems {
         variant_ty_enumerators_pascal,
@@ -311,6 +358,7 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context)
         variant_fn_decls: Vec::with_capacity(len),
         variant_fn_inits: Vec::with_capacity(len),
         global_enum_defs: Vec::new(),
+        godot_version: api.header.clone(),
     };
 
     let mut builtin_types: Vec<_> = builtin_types_map.values().collect();
