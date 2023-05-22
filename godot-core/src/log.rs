@@ -24,7 +24,7 @@ macro_rules! inner_godot_msg {
                     false as $crate::sys::GDExtensionBool, // whether to create a toast notification in editor
                 );
             } else {
-                eprintln!("[godot_error unavailable] {}", &msg[..msg.len() - 1]);
+                eprintln!("[{}] {}", stringify!($godot_fn), &msg[..msg.len() - 1]);
             }
         }
     };

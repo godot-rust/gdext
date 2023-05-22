@@ -31,7 +31,7 @@ pub(crate) fn generate_sys_interface_file(
             #[path = "../compat/compat_4_0.rs"]
             mod compat_4_0;
 
-            pub use compat_4_0::*;
+            pub use compat_4_0::InitCompat;
         }
     } else {
         generate_proc_address_funcs(h_path)
@@ -79,7 +79,7 @@ fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
         #[path = "../compat/compat_4_1.rs"]
         mod compat_4_1;
 
-        pub use compat_4_1::*;
+        pub use compat_4_1::InitCompat;
 
         pub struct GDExtensionInterface {
             #( #fptr_decls )*
@@ -95,13 +95,6 @@ fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
                     #( #fptr_inits )*
                 }
             }
-        }
-
-        // Exists because constructor cannot be called in legacy mode (as the struct is readily-provided by bindgen)
-        pub(crate) unsafe fn load_interface(
-            get_proc_address: crate::GDExtensionInterfaceGetProcAddress,
-        ) -> GDExtensionInterface {
-            GDExtensionInterface::load(get_proc_address)
         }
     };
     code
@@ -143,12 +136,10 @@ fn parse_function_pointers(header_code: &str) -> Vec<GodotFuncPtr> {
     .unwrap();
 
     let mut func_ptrs = vec![];
-    for cap in regex.captures_iter(&header_code) {
+    for cap in regex.captures_iter(header_code) {
         let name = cap.name("name");
         let funcptr_ty = cap.name("type");
         let doc = cap.name("doc");
-
-        dbg!(&cap);
 
         let (Some(name), Some(funcptr_ty), Some(doc)) = (name, funcptr_ty, doc) else {
 			// Skip unparseable ones, instead of breaking build (could just be a /** */ comment around something else)
@@ -193,7 +184,7 @@ fn test_parse_function_pointers() {
 typedef void (*GDExtensionInterfaceClassdbRegisterExtensionClass)(GDExtensionClassLibraryPtr p_library, GDExtensionConstStringNamePtr p_class_name, GDExtensionConstStringNamePtr p_parent_class_name, const GDExtensionClassCreationInfo *p_extension_funcs);
 		"#;
 
-    let func_ptrs = super::parse_function_pointers(header_code);
+    let func_ptrs = parse_function_pointers(header_code);
     assert_eq!(func_ptrs.len(), 1);
 
     let func_ptr = &func_ptrs[0];
