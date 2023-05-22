@@ -24,7 +24,7 @@ mod godot_ffi;
 mod opaque;
 mod plugins;
 
-use compat::CompatVersion;
+use compat::BindingCompat;
 use std::ffi::CStr;
 
 // See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
@@ -97,12 +97,7 @@ pub unsafe fn initialize(compat: InitCompat, library: GDExtensionClassLibraryPtr
     );
 
     // Before anything else: if we run into a Godot binary that's compiled differently from gdext, proceeding would be UB -> panic.
-    if compat.is_legacy_used_in_modern() {
-        panic!(
-            "gdext was compiled against a newer Godot version (4.1+), but initialized with a legacy (4.0.x) setup.\
-            \nIn your .gdextension file, make sure to use `compatibility_minimum = 4.1` under the [configuration] section."
-        );
-    }
+    compat.ensure_static_runtime_compatibility();
 
     let version = compat.runtime_version();
     out!("Godot version of GDExtension API at runtime: {version:?}");
@@ -320,10 +315,11 @@ impl<T> Inner for Option<T> {
 ///  let get_godot_version = sys::cast_fn_ptr!(get_godot_version as sys::GDExtensionInterfaceGetGodotVersion);
 /// ```
 #[allow(unused)]
+#[macro_export]
 macro_rules! cast_fn_ptr {
     ($option:ident as $ToType:ty) => {{
         let ptr = $option.expect("null function pointer");
-        std::mem::transmute::<unsafe extern "C" fn(), <$ToType as crate::Inner>::FnPtr>(ptr)
+        std::mem::transmute::<unsafe extern "C" fn(), <$ToType as $crate::Inner>::FnPtr>(ptr)
     }};
 }
 
