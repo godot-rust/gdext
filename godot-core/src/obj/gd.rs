@@ -691,6 +691,12 @@ impl<T: GodotClass> TypeStringHint for Gd<T> {
     }
 }
 
+impl<T: TypeStringHint> TypeStringHint for Option<T> {
+    fn type_string() -> String {
+        <T>::type_string()
+    }
+}
+
 impl<T: GodotClass> Export for Gd<T> {
     fn export(&self) -> Self {
         self.share()
