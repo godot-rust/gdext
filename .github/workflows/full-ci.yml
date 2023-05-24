@@ -220,22 +220,41 @@ jobs:
           # The gcc version can possibly be removed later, as it is slower and needs a larger artifact than the clang one.
 
           # --disallow-focus: fail if #[itest(focus)] is encountered, to prevent running only a few tests for full CI
-          - name: linux-memcheck-gcc
+          - name: linux-memcheck-gcc-4.0.3
             os: ubuntu-20.04
+            artifact-name: linux-memcheck-gcc
             godot-binary: godot.linuxbsd.editor.dev.x86_64.san
             godot-args: -- --disallow-focus
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout
 
-          - name: linux-memcheck-clang
+          - name: linux-memcheck-clang-4.0.3
             os: ubuntu-20.04
+            artifact-name: linux-memcheck-clang
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             godot-args: -- --disallow-focus
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout
 
+          - name: linux-memcheck-gcc-nightly
+            os: ubuntu-20.04
+            artifact-name: linux-memcheck-gcc
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.san
+            godot-args: -- --disallow-focus
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout
+            rust-extra-args: --features godot/custom-godot
+            godot-prebuilt-patch: '4.1'
 
-            # TODO use godot: custom, or godot: 4.0.3, etc
+          - name: linux-memcheck-clang-nightly
+            os: ubuntu-20.04
+            artifact-name: linux-memcheck-clang
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            godot-args: -- --disallow-focus
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout
+            rust-extra-args: --features godot/custom-godot
+            godot-prebuilt-patch: '4.1'
 
 
     steps:
