@@ -713,7 +713,7 @@ impl<T: VariantMetadata> ToVariant for Array<T> {
 impl<T: VariantMetadata> FromVariant for Array<T> {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
         if variant.get_type() != Self::variant_type() {
-            return Err(VariantConversionError);
+            return Err(VariantConversionError::BadType);
         }
 
         let array = unsafe {
