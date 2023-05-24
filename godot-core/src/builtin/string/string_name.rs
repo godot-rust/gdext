@@ -121,7 +121,6 @@ impl fmt::Debug for StringName {
         write!(f, "&\"{string}\"")
     }
 }
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion from/into other string-types
 
@@ -130,7 +129,7 @@ impl_rust_string_conv!(StringName);
 impl From<&GodotString> for StringName {
     fn from(string: &GodotString) -> Self {
         unsafe {
-            Self::from_sys_init_default(|self_ptr| {
+            Self::from_sys_init(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_name_from_string);
                 let args = [string.sys_const()];
                 ctor(self_ptr, args.as_ptr());

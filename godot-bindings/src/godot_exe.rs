@@ -6,6 +6,7 @@
 
 //! Commands related to Godot executable
 
+use crate::custom::godot_version::GodotVersion;
 use crate::godot_version::parse_godot_version;
 use crate::header_gen::generate_rust_binding;
 use crate::watch::StopWatch;
@@ -50,14 +51,19 @@ pub fn write_gdextension_headers(
     is_h_provided: bool,
     watch: &mut StopWatch,
 ) {
-    if !is_h_provided {
+    // None=(unknown, no engine), Some=(version of Godot). Later verified by header itself.
+    let is_engine_4_0;
+    if is_h_provided {
+        is_engine_4_0 = None;
+    } else {
         // No external C header file: Godot binary is present, we use it to dump C header
         let godot_bin = locate_godot_binary();
         rerun_on_changed(&godot_bin);
         watch.record("locate_godot");
 
         // Regenerate API JSON if first time or Godot version is different
-        let _version = read_godot_version(&godot_bin);
+        let version = read_godot_version(&godot_bin);
+        is_engine_4_0 = Some(version.major == 4 && version.minor == 0);
 
         // if !c_header_path.exists() || has_version_changed(&version) {
         dump_header_file(&godot_bin, inout_h_path);
@@ -67,7 +73,7 @@ pub fn write_gdextension_headers(
     };
 
     rerun_on_changed(inout_h_path);
-    patch_c_header(inout_h_path);
+    patch_c_header(inout_h_path, is_engine_4_0);
     watch.record("patch_header_h");
 
     generate_rust_binding(inout_h_path, out_rs_path);
@@ -93,7 +99,7 @@ fn update_version_file(version: &str) {
 }
 */
 
-fn read_godot_version(godot_bin: &Path) -> String {
+fn read_godot_version(godot_bin: &Path) -> GodotVersion {
     let output = Command::new(godot_bin)
         .arg("--version")
         .output()
@@ -116,7 +122,7 @@ fn read_godot_version(godot_bin: &Path) -> String {
                 output.trim()
             );
 
-            parsed.full_string
+            parsed
         }
         Err(e) => {
             // Don't treat this as fatal error
@@ -153,13 +159,47 @@ fn dump_header_file(godot_bin: &Path, out_file: &Path) {
     println!("Generated {}/gdextension_interface.h.", cwd.display());
 }
 
-fn patch_c_header(inout_h_path: &Path) {
+fn patch_c_header(inout_h_path: &Path, is_engine_4_0: Option<bool>) {
     // The C header path *must* be passed in by the invoking crate, as the path cannot be relative to this crate.
     // Otherwise, it can be something like `/home/runner/.cargo/git/checkouts/gdext-76630c89719e160c/efd3b94/godot-bindings`.
 
-    // Read the contents of the file into a string
-    let c = fs::read_to_string(inout_h_path)
+    println!(
+        "Patch C header '{}' (is_engine_4_0={is_engine_4_0:?})...",
+        inout_h_path.display()
+    );
+
+    let mut c = fs::read_to_string(inout_h_path)
         .unwrap_or_else(|_| panic!("failed to read C header file {}", inout_h_path.display()));
+
+    // Detect whether header is legacy (4.0) or modern (4.1+) format.
+    let is_header_4_0 = !c.contains("GDExtensionInterfaceGetProcAddress");
+    println!("is_header_4_0={is_header_4_0}");
+
+    // Sanity check
+    if let Some(is_engine_4_0) = is_engine_4_0 {
+        assert_eq!(
+            is_header_4_0, is_engine_4_0,
+            "Mismatch between engine/header versions"
+        );
+    }
+
+    if is_header_4_0 {
+        polyfill_legacy_header(&mut c);
+    }
+
+    // Patch for variant converters and type constructors
+    c = c.replace(
+        "typedef void (*GDExtensionVariantFromTypeConstructorFunc)(GDExtensionVariantPtr, GDExtensionTypePtr);",
+        "typedef void (*GDExtensionVariantFromTypeConstructorFunc)(GDExtensionUninitializedVariantPtr, GDExtensionTypePtr);"
+    )
+    .replace(
+        "typedef void (*GDExtensionTypeFromVariantConstructorFunc)(GDExtensionTypePtr, GDExtensionVariantPtr);",
+        "typedef void (*GDExtensionTypeFromVariantConstructorFunc)(GDExtensionUninitializedTypePtr, GDExtensionVariantPtr);"
+    )
+    .replace(
+        "typedef void (*GDExtensionPtrConstructor)(GDExtensionTypePtr p_base, const GDExtensionConstTypePtr *p_args);",
+        "typedef void (*GDExtensionPtrConstructor)(GDExtensionUninitializedTypePtr p_base, const GDExtensionConstTypePtr *p_args);"
+    );
 
     // Use single regex with independent "const"/"Const", as there are definitions like this:
     // typedef const void *GDExtensionMethodBindPtr;
@@ -167,7 +207,7 @@ fn patch_c_header(inout_h_path: &Path) {
         .expect("regex for mut typedef")
         .replace_all(&c, "typedef ${1}struct __Gdext$3 *GDExtension${2}${3}Ptr;");
 
-    println!("Patched contents:\n\n{}\n\n", c.as_ref());
+    // println!("Patched contents:\n\n{}\n\n", c.as_ref());
 
     // Write the modified contents back to the file
     fs::write(inout_h_path, c.as_ref()).unwrap_or_else(|_| {
@@ -177,6 +217,48 @@ fn patch_c_header(inout_h_path: &Path) {
         )
     });
 }
+
+/// Backport Godot 4.1+ changes to the old GDExtension API, so gdext can use both uniformly.
+fn polyfill_legacy_header(c: &mut String) {
+    // Newer Uninitialized* types -- use same types as initialized ones, because old functions are not written with Uninitialized* in mind
+    let pos = c
+        .find("typedef int64_t GDExtensionInt;")
+        .expect("Unexpected gdextension_interface.h format (int)");
+
+    c.insert_str(
+        pos,
+        "\
+            // gdext polyfill\n\
+            typedef struct __GdextVariant *GDExtensionUninitializedVariantPtr;\n\
+            typedef struct __GdextStringName *GDExtensionUninitializedStringNamePtr;\n\
+            typedef struct __GdextString *GDExtensionUninitializedStringPtr;\n\
+            typedef struct __GdextObject *GDExtensionUninitializedObjectPtr;\n\
+            typedef struct __GdextType *GDExtensionUninitializedTypePtr;\n\
+            \n",
+    );
+
+    // Typedef GDExtensionInterfaceGetProcAddress (simply resolving to GDExtensionInterface, as it's the same parameter)
+    let pos = c
+        .find("/* INITIALIZATION */")
+        .expect("Unexpected gdextension_interface.h format (struct)");
+
+    c.insert_str(
+        pos,
+        "\
+            // gdext polyfill\n\
+            typedef struct {\n\
+                uint32_t major;\n\
+                uint32_t minor;\n\
+                uint32_t patch;\n\
+                const char *string;\n\
+            } GDExtensionGodotVersion;\n\
+            typedef void (*GDExtensionInterfaceFunctionPtr)();\n\
+            typedef void (*GDExtensionInterfaceGetGodotVersion)(GDExtensionGodotVersion *r_godot_version);\n\
+            typedef GDExtensionInterfaceFunctionPtr (*GDExtensionInterfaceGetProcAddress)(const char *p_function_name);\n\
+            \n",
+    );
+}
+
 fn locate_godot_binary() -> PathBuf {
     if let Ok(string) = std::env::var("GODOT4_BIN") {
         println!("Found GODOT4_BIN with path to executable: '{string}'");

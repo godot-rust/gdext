@@ -581,6 +581,11 @@ impl<T: GodotClass> Gd<T> {
     /// `init_fn` must be a function that correctly handles a _type pointer_ pointing to an _object pointer_.
     #[doc(hidden)]
     pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Option<Self> {
+        // TODO(uninit) - should we use GDExtensionUninitializedTypePtr instead? Then update all the builtin codegen...
+        let init_fn = |ptr| {
+            init_fn(sys::AsUninit::force_init(ptr));
+        };
+
         // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
 
         // Initialize pointer with given function, return Some(ptr) on success and None otherwise
@@ -597,14 +602,14 @@ impl<T: GodotClass> Gd<T> {
 /// `init_fn` must be a function that correctly handles a _type pointer_ pointing to an _object pointer_.
 #[doc(hidden)]
 pub unsafe fn raw_object_init(
-    init_fn: impl FnOnce(sys::GDExtensionTypePtr),
+    init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
 ) -> sys::GDExtensionObjectPtr {
     // return_ptr has type GDExtensionTypePtr = GDExtensionObjectPtr* = OpaqueObject* = Object**
     // (in other words, the type-ptr contains the _address_ of an object-ptr).
     let mut object_ptr: sys::GDExtensionObjectPtr = ptr::null_mut();
     let return_ptr: *mut sys::GDExtensionObjectPtr = ptr::addr_of_mut!(object_ptr);
 
-    init_fn(return_ptr as sys::GDExtensionTypePtr);
+    init_fn(return_ptr as sys::GDExtensionUninitializedTypePtr);
 
     // We don't need to know if Object** is null, but if Object* is null; return_ptr has the address of a local (never null).
     object_ptr
@@ -704,12 +709,15 @@ impl<T: GodotClass> Export for Gd<T> {
 impl<T: GodotClass> FromVariant for Gd<T> {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
         let result_or_none = unsafe {
-            // TODO(#234) replace Gd::<Object> with Self when Godot stops allowing
-            // illegal conversions (See
-            // https://github.com/godot-rust/gdext/issues/158)
+            // TODO(#234) replace Gd::<Object> with Self when Godot stops allowing illegal conversions
+            // See https://github.com/godot-rust/gdext/issues/158
+
+            // TODO(uninit) - see if we can use from_sys_init()
+            use ::godot_ffi::AsUninit;
+
             Gd::<Object>::from_sys_init_opt(|self_ptr| {
                 let converter = sys::builtin_fn!(object_from_variant);
-                converter(self_ptr, variant.var_sys());
+                converter(self_ptr.as_uninit(), variant.var_sys());
             })
         };
 

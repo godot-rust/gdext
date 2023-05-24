@@ -28,7 +28,7 @@ pub unsafe trait GodotFfi {
     ///
     /// # Safety
     /// `init_fn` must be a function that correctly handles a (possibly-uninitialized) _type ptr_.
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self;
+    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self;
 
     /// Like [`Self::from_sys_init`], but pre-initializes the sys pointer to a `Default::default()` instance
     /// before calling `init_fn`.
@@ -44,11 +44,13 @@ pub unsafe trait GodotFfi {
     where
         Self: Sized, // + Default
     {
-        Self::from_sys_init(init_fn)
+        // SAFETY: this default implementation is potentially incorrect.
+        // By implementing the GodotFfi trait, you acknowledge that these may need to be overridden.
+        Self::from_sys_init(|ptr| init_fn(sys::AsUninit::force_init(ptr)))
 
         // TODO consider using this, if all the implementors support it
         // let mut result = Self::default();
-        // init_fn(result.sys_mut());
+        // init_fn(result.sys_mut().as_uninit());
         // result
     }
 
@@ -163,9 +165,9 @@ macro_rules! ffi_methods_one {
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_sys_init(init: impl FnOnce($Ptr)) -> Self {
+        unsafe fn $from_sys_init(init: impl FnOnce(<$Ptr as $crate::AsUninit>::Ptr)) -> Self {
             let mut raw = std::mem::MaybeUninit::uninit();
-            init(raw.as_mut_ptr() as $Ptr);
+            init(raw.as_mut_ptr() as <$Ptr as $crate::AsUninit>::Ptr);
 
             Self::from_opaque(raw.assume_init())
         }
@@ -199,7 +201,7 @@ macro_rules! ffi_methods_one {
     };
     (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_sys_init(init: impl FnOnce($Ptr)) -> Self {
+        unsafe fn $from_sys_init(init: impl FnOnce(<$Ptr as $crate::AsUninit>::Ptr)) -> Self {
             let mut raw = std::mem::MaybeUninit::uninit();
             init(std::mem::transmute(raw.as_mut_ptr()));
             Self::from_opaque(raw.assume_init())
@@ -233,9 +235,9 @@ macro_rules! ffi_methods_one {
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_sys_init(init: impl FnOnce($Ptr)) -> Self {
+        unsafe fn $from_sys_init(init: impl FnOnce(<$Ptr as $crate::AsUninit>::Ptr)) -> Self {
             let mut raw = std::mem::MaybeUninit::<Self>::uninit();
-            init(raw.as_mut_ptr() as $Ptr);
+            init(raw.as_mut_ptr() as <$Ptr as $crate::AsUninit>::Ptr);
 
             raw.assume_init()
         }
@@ -437,7 +439,7 @@ mod scalars {
             // Do nothing
         }
 
-        unsafe fn from_sys_init(_init: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+        unsafe fn from_sys_init(_init: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
             // Do nothing
         }
 

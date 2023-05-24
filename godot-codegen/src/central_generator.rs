@@ -23,6 +23,7 @@ struct CentralItems {
     variant_fn_decls: Vec<TokenStream>,
     variant_fn_inits: Vec<TokenStream>,
     global_enum_defs: Vec<TokenStream>,
+    godot_version: Header,
 }
 
 pub(crate) struct TypeNames {
@@ -67,6 +68,7 @@ pub(crate) fn generate_sys_central_file(
 pub(crate) fn generate_sys_mod_file(core_gen_path: &Path, out_files: &mut Vec<PathBuf>) {
     let code = quote! {
         pub mod central;
+        pub mod interface;
         pub mod gdextension_interface;
     };
 
@@ -98,6 +100,7 @@ pub(crate) fn generate_core_central_file(
     write_file(core_gen_path, "central.rs", core_code, out_files);
 }
 
+// TODO(bromeon): move to util (postponed due to merge conflicts)
 pub(crate) fn write_file(
     gen_path: &Path,
     filename: &str,
@@ -126,15 +129,25 @@ fn make_sys_code(central_items: &CentralItems) -> String {
         variant_op_enumerators_ord,
         variant_fn_decls,
         variant_fn_inits,
+        godot_version,
         ..
     } = central_items;
 
+    let build_config_struct = make_build_config(godot_version);
+
     let sys_tokens = quote! {
-        use crate::{GDExtensionVariantPtr, GDExtensionTypePtr, GDExtensionConstTypePtr, GodotFfi, ffi_methods};
+        use crate::{
+            ffi_methods, GDExtensionConstTypePtr, GDExtensionTypePtr, GDExtensionUninitializedTypePtr,
+            GDExtensionUninitializedVariantPtr, GDExtensionVariantPtr, GodotFfi,
+        };
 
         pub mod types {
             #(#opaque_types)*
         }
+
+        // ----------------------------------------------------------------------------------------------------------------------------------------------
+
+        #build_config_struct
 
         // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -143,7 +156,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
         }
 
         impl GlobalMethodTable {
-            pub(crate) unsafe fn new(interface: &crate::GDExtensionInterface) -> Self {
+            pub(crate) unsafe fn load(interface: &crate::GDExtensionInterface) -> Self {
                 Self {
                     #(#variant_fn_inits)*
                 }
@@ -221,6 +234,45 @@ fn make_sys_code(central_items: &CentralItems) -> String {
     };
 
     sys_tokens.to_string()
+}
+
+fn make_build_config(header: &Header) -> TokenStream {
+    let version_string = header
+        .version_full_name
+        .strip_prefix("Godot Engine ")
+        .unwrap_or(&header.version_full_name);
+    let major = header.version_major;
+    let minor = header.version_minor;
+    let patch = header.version_patch;
+
+    // Should this be mod?
+    quote! {
+        /// Provides meta-information about the library and the Godot version in use.
+        pub struct GdextBuild;
+
+        impl GdextBuild {
+            /// Godot version against which gdext was compiled.
+            ///
+            /// Example format: `v4.0.stable.official`
+            pub const fn godot_static_version_string() -> &'static str {
+                #version_string
+            }
+
+            /// Godot version against which gdext was compiled, as `(major, minor, patch)` triple.
+            pub const fn godot_static_version_triple() -> (u8, u8, u8) {
+                (#major, #minor, #patch)
+            }
+
+            /// Version of the Godot engine which loaded gdext via GDExtension binding.
+            pub fn godot_runtime_version_string() -> String {
+                unsafe {
+                    let char_ptr = crate::runtime_metadata().godot_version.string;
+                    let c_str = std::ffi::CStr::from_ptr(char_ptr);
+                    String::from_utf8_lossy(c_str.to_bytes()).to_string()
+                }
+            }
+        }
+    }
 }
 
 fn make_core_code(central_items: &CentralItems) -> String {
@@ -306,6 +358,7 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context)
         variant_fn_decls: Vec::with_capacity(len),
         variant_fn_inits: Vec::with_capacity(len),
         global_enum_defs: Vec::new(),
+        godot_version: api.header.clone(),
     };
 
     let mut builtin_types: Vec<_> = builtin_types_map.values().collect();
@@ -499,9 +552,12 @@ fn make_variant_fns(
     let variant_type = quote! { crate:: #variant_type };
 
     // Field declaration
+    // The target types are uninitialized-ptrs, because Godot performs placement new on those:
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/variant/variant_internal.h#L1535-L1535
+
     let decl = quote! {
-        pub #to_variant: unsafe extern "C" fn(GDExtensionVariantPtr, GDExtensionTypePtr),
-        pub #from_variant: unsafe extern "C" fn(GDExtensionTypePtr, GDExtensionVariantPtr),
+        pub #to_variant: unsafe extern "C" fn(GDExtensionUninitializedVariantPtr, GDExtensionTypePtr),
+        pub #from_variant: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, GDExtensionVariantPtr),
         #op_eq_decls
         #op_lt_decls
         #construct_decls
@@ -574,10 +630,15 @@ fn make_construct_fns(
     let (construct_extra_decls, construct_extra_inits) =
         make_extra_constructors(type_names, constructors, builtin_types);
 
-    // Generic signature:  fn(base: GDExtensionTypePtr, args: *const GDExtensionTypePtr)
+    // Target types are uninitialized pointers, because Godot uses placement-new for raw pointer constructions. Callstack:
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/extension/gdextension_interface.cpp#L511
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/variant/variant_construct.cpp#L299
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/variant/variant_construct.cpp#L36
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/variant/variant_construct.h#L267
+    // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/variant/variant_construct.h#L50
     let decls = quote! {
-        pub #construct_default: unsafe extern "C" fn(GDExtensionTypePtr, *const GDExtensionConstTypePtr),
-        pub #construct_copy: unsafe extern "C" fn(GDExtensionTypePtr, *const GDExtensionConstTypePtr),
+        pub #construct_default: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
+        pub #construct_copy: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
         #(#construct_extra_decls)*
     };
 
@@ -626,7 +687,7 @@ fn make_extra_constructors(
 
             let err = format_load_error(&ident);
             extra_decls.push(quote! {
-                pub #ident: unsafe extern "C" fn(GDExtensionTypePtr, *const GDExtensionConstTypePtr),
+                pub #ident: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
             });
 
             let i = i as i32;

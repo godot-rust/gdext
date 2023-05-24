@@ -16,6 +16,8 @@ pub mod macros;
 pub mod obj;
 
 pub use godot_ffi as sys;
+#[doc(hidden)]
+pub use godot_ffi::out;
 pub use registry::*;
 
 /// Maps the Godot class API to Rust.
@@ -63,11 +65,23 @@ pub mod private {
 
     fn print_panic(err: Box<dyn std::any::Any + Send>) {
         if let Some(s) = err.downcast_ref::<&'static str>() {
-            log::godot_error!("Panic msg:  {s}");
+            print_panic_message(s);
         } else if let Some(s) = err.downcast_ref::<String>() {
-            log::godot_error!("Panic msg:  {s}");
+            print_panic_message(s.as_str());
         } else {
             log::godot_error!("Rust panic of type ID {:?}", err.type_id());
+        }
+    }
+
+    fn print_panic_message(msg: &str) {
+        // If the message contains newlines, print all of the lines after a line break, and indent them.
+        let lbegin = "\n  ";
+        let indented = msg.replace('\n', lbegin);
+
+        if indented.len() != msg.len() {
+            log::godot_error!("Panic msg:{lbegin}{indented}");
+        } else {
+            log::godot_error!("Panic msg:  {msg}");
         }
     }
 
@@ -132,21 +146,4 @@ pub mod private {
         use std::io::Write;
         std::io::stdout().flush().expect("flush stdout");
     }
-}
-
-#[cfg(feature = "trace")]
-#[macro_export]
-macro_rules! out {
-    ()                          => (eprintln!());
-    ($fmt:literal)              => (eprintln!($fmt));
-    ($fmt:literal, $($arg:tt)*) => (eprintln!($fmt, $($arg)*));
-}
-
-#[cfg(not(feature = "trace"))]
-// TODO find a better way than sink-writing to avoid warnings, #[allow(unused_variables)] doesn't work
-#[macro_export]
-macro_rules! out {
-    ()                          => ({});
-    ($fmt:literal)              => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt); });
-    ($fmt:literal, $($arg:tt)*) => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt, $($arg)*); };)
 }

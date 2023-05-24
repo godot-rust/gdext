@@ -715,8 +715,9 @@ impl<T: VariantMetadata> FromVariant for Array<T> {
         if variant.get_type() != Self::variant_type() {
             return Err(VariantConversionError);
         }
+
         let array = unsafe {
-            Self::from_sys_init_default(|self_ptr| {
+            Self::from_sys_init(|self_ptr| {
                 let array_from_variant = sys::builtin_fn!(array_from_variant);
                 array_from_variant(self_ptr, variant.var_sys());
             })

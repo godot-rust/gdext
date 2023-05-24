@@ -45,7 +45,7 @@ impl Callable {
         // upcast not needed
         let method = method_name.into();
         unsafe {
-            Self::from_sys_init_default(|self_ptr| {
+            Self::from_sys_init(|self_ptr| {
                 let ctor = sys::builtin_fn!(callable_from_object_method);
                 let args = [object.sys_const(), method.sys_const()];
                 ctor(self_ptr, args.as_ptr());

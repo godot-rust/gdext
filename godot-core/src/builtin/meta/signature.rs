@@ -17,6 +17,9 @@ pub trait SignatureTuple {
     fn property_info(index: i32, param_name: &str) -> PropertyInfo;
     fn param_metadata(index: i32) -> sys::GDExtensionClassMethodArgumentMetadata;
 
+    // TODO(uninit) - can we use this for varcall/ptrcall?
+    // ret: sys::GDExtensionUninitializedVariantPtr
+    // ret: sys::GDExtensionUninitializedTypePtr
     unsafe fn varcall<C: GodotClass>(
         instance_ptr: sys::GDExtensionClassInstancePtr,
         args_ptr: *const sys::GDExtensionConstVariantPtr,
@@ -168,7 +171,7 @@ unsafe fn varcall_arg<P: FromVariant, const N: isize>(
 /// - It must be safe to write a `sys::GDExtensionCallError` once to `err`.
 unsafe fn varcall_return<R: ToVariant>(
     ret_val: R,
-    ret: sys::GDExtensionConstVariantPtr,
+    ret: sys::GDExtensionVariantPtr,
     err: *mut sys::GDExtensionCallError,
 ) {
     let ret_variant = ret_val.to_variant(); // TODO write_sys

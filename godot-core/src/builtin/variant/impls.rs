@@ -67,7 +67,7 @@ macro_rules! impl_variant_traits {
                 // does a copy-on-write and explodes if this->_cowdata is not initialized.
                 // We can thus NOT use Self::from_sys_init().
                 let result = unsafe {
-                    Self::from_sys_init_default(|self_ptr| {
+                    Self::from_sys_init(|self_ptr| {
                         let converter = sys::builtin_fn!($to_fn);
                         converter(self_ptr, variant.var_sys());
                     })

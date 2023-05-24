@@ -19,9 +19,13 @@
 )]
 pub(crate) mod gen;
 
+mod compat;
 mod godot_ffi;
 mod opaque;
 mod plugins;
+
+use compat::BindingCompat;
+use std::ffi::CStr;
 
 // See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
 // and https://users.rust-lang.org/t/proc-macros-using-third-party-crate/42465/4
@@ -31,6 +35,7 @@ pub use paste;
 pub use crate::godot_ffi::{GodotFfi, GodotFuncMarshal, PtrcallType};
 pub use gen::central::*;
 pub use gen::gdextension_interface::*;
+pub use gen::interface::*;
 
 // The impls only compile if those are different types -- ensures type safety through patch
 trait Distinct {}
@@ -40,10 +45,34 @@ impl Distinct for GDExtensionConstTypePtr {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[cfg(feature = "trace")]
+#[macro_export]
+macro_rules! out {
+    ()                          => (eprintln!());
+    ($fmt:literal)              => (eprintln!($fmt));
+    ($fmt:literal, $($arg:tt)*) => (eprintln!($fmt, $($arg)*));
+}
+
+#[cfg(not(feature = "trace"))]
+// TODO find a better way than sink-writing to avoid warnings, #[allow(unused_variables)] doesn't work
+#[macro_export]
+macro_rules! out {
+    ()                          => ({});
+    ($fmt:literal)              => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt); });
+    ($fmt:literal, $($arg:tt)*) => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt, $($arg)*); };)
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 struct GodotBinding {
     interface: GDExtensionInterface,
     library: GDExtensionClassLibraryPtr,
     method_table: GlobalMethodTable,
+    runtime_metadata: GdextRuntimeMetadata,
+}
+
+struct GdextRuntimeMetadata {
+    godot_version: GDExtensionGodotVersion,
 }
 
 /// Late-init globals
@@ -53,25 +82,57 @@ static mut BINDING: Option<GodotBinding> = None;
 
 /// # Safety
 ///
-/// - The `interface` pointer must be a valid pointer to a [`GDExtensionInterface`] object.
+/// - The `interface` pointer must be either:
+///   - a data pointer to a [`GDExtensionInterface`] object (for Godot 4.0.x)
+///   - a function pointer of type [`GDExtensionInterfaceGetProcAddress`] (for Godot 4.1+)
 /// - The `library` pointer must be the pointer given by Godot at initialisation.
 /// - This function must not be called from multiple threads.
 /// - This function must be called before any use of [`get_library`].
-pub unsafe fn initialize(
-    interface: *const GDExtensionInterface,
-    library: GDExtensionClassLibraryPtr,
-) {
-    let ver = std::ffi::CStr::from_ptr((*interface).version_string);
-    println!(
-        "Initialize GDExtension API for Rust: {}",
-        ver.to_str().unwrap()
+pub unsafe fn initialize(compat: InitCompat, library: GDExtensionClassLibraryPtr) {
+    out!("Initialize gdext...");
+
+    out!(
+        "Godot version against which gdext was compiled: {}",
+        GdextBuild::godot_static_version_string()
     );
 
+    // Before anything else: if we run into a Godot binary that's compiled differently from gdext, proceeding would be UB -> panic.
+    compat.ensure_static_runtime_compatibility();
+
+    let version = compat.runtime_version();
+    out!("Godot version of GDExtension API at runtime: {version:?}");
+
+    let interface = compat.load_interface();
+    out!("Loaded interface.");
+
+    let method_table = GlobalMethodTable::load(&interface);
+    out!("Loaded builtin table.");
+
+    let runtime_metadata = GdextRuntimeMetadata {
+        godot_version: version,
+    };
+
     BINDING = Some(GodotBinding {
-        interface: *interface,
-        method_table: GlobalMethodTable::new(&*interface),
+        interface,
+        method_table,
         library,
+        runtime_metadata,
     });
+    out!("Assigned binding.");
+
+    println!(
+        "Initialize GDExtension API for Rust: {}",
+        CStr::from_ptr(version.string)
+            .to_str()
+            .expect("unknown Godot version")
+    );
+}
+
+/// # Safety
+///
+/// Must be called from the same thread as `initialize()` previously.
+pub unsafe fn is_initialized() -> bool {
+    BINDING.is_some()
 }
 
 /// # Safety
@@ -96,6 +157,14 @@ pub unsafe fn get_library() -> GDExtensionClassLibraryPtr {
 #[inline(always)]
 pub unsafe fn method_table() -> &'static GlobalMethodTable {
     &unwrap_ref_unchecked(&BINDING).method_table
+}
+
+/// # Safety
+///
+/// Must be accessed from the main thread.
+#[inline(always)]
+pub(crate) unsafe fn runtime_metadata() -> &'static GdextRuntimeMetadata {
+    &BINDING.as_ref().unwrap().runtime_metadata
 }
 
 /// Makes sure that Godot is running, or panics. Debug mode only!
@@ -187,7 +256,77 @@ pub fn to_const_ptr<T>(ptr: *mut T) -> *const T {
     ptr as *const T
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Convert a GDExtension pointer type to its uninitialized version.
+pub trait AsUninit {
+    type Ptr;
+
+    #[allow(clippy::wrong_self_convention)]
+    fn as_uninit(self) -> Self::Ptr;
+
+    fn force_init(uninit: Self::Ptr) -> Self;
+}
+
+macro_rules! impl_as_uninit {
+    ($Ptr:ty, $Uninit:ty) => {
+        impl AsUninit for $Ptr {
+            type Ptr = $Uninit;
+
+            fn as_uninit(self) -> $Uninit {
+                self as $Uninit
+            }
+
+            fn force_init(uninit: Self::Ptr) -> Self {
+                uninit as Self
+            }
+        }
+    };
+}
+
+#[rustfmt::skip]
+impl_as_uninit!(GDExtensionStringNamePtr, GDExtensionUninitializedStringNamePtr);
+impl_as_uninit!(GDExtensionVariantPtr, GDExtensionUninitializedVariantPtr);
+impl_as_uninit!(GDExtensionStringPtr, GDExtensionUninitializedStringPtr);
+impl_as_uninit!(GDExtensionObjectPtr, GDExtensionUninitializedObjectPtr);
+impl_as_uninit!(GDExtensionTypePtr, GDExtensionUninitializedTypePtr);
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Metafunction to extract inner function pointer types from all the bindgen Option<F> type names.
+pub(crate) trait Inner: Sized {
+    type FnPtr: Sized;
+
+    fn extract(self, error_msg: &str) -> Self::FnPtr;
+}
+
+impl<T> Inner for Option<T> {
+    type FnPtr = T;
+
+    fn extract(self, error_msg: &str) -> Self::FnPtr {
+        self.expect(error_msg)
+    }
+}
+
+/// Extract a function pointer from its `Option` and convert it to the (dereferenced) target type.
+///
+/// ```ignore
+///  let get_godot_version = get_proc_address(sys::c_str(b"get_godot_version\0"));
+///  let get_godot_version = sys::cast_fn_ptr!(get_godot_version as sys::GDExtensionInterfaceGetGodotVersion);
+/// ```
+#[allow(unused)]
+#[macro_export]
+macro_rules! cast_fn_ptr {
+    ($option:ident as $ToType:ty) => {{
+        let ptr = $option.expect("null function pointer");
+        std::mem::transmute::<unsafe extern "C" fn(), <$ToType as $crate::Inner>::FnPtr>(ptr)
+    }};
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// If `ptr` is not null, returns `Some(mapper(ptr))`; otherwise `None`.
+#[inline]
 pub fn ptr_then<T, R, F>(ptr: *mut T, mapper: F) -> Option<R>
 where
     F: FnOnce(*mut T) -> R,
@@ -198,6 +337,22 @@ where
     } else {
         Some(mapper(ptr))
     }
+}
+
+/// Returns a C `const char*` for a null-terminated byte string.
+#[inline]
+pub fn c_str(s: &[u8]) -> *const std::ffi::c_char {
+    // Ensure null-terminated
+    debug_assert!(!s.is_empty() && s[s.len() - 1] == 0);
+
+    s.as_ptr() as *const std::ffi::c_char
+}
+
+#[inline]
+pub fn c_str_from_str(s: &str) -> *const std::ffi::c_char {
+    debug_assert!(s.is_ascii());
+
+    c_str(s.as_bytes())
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

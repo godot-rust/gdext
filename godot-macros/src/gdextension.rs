@@ -38,12 +38,12 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
 
         #[no_mangle]
         unsafe extern "C" fn #entry_point(
-            interface: *const ::godot::sys::GDExtensionInterface,
+            interface_or_get_proc_address: ::godot::sys::InitCompat,
             library: ::godot::sys::GDExtensionClassLibraryPtr,
             init: *mut ::godot::sys::GDExtensionInitialization,
         ) -> ::godot::sys::GDExtensionBool {
             ::godot::init::__gdext_load_library::<#impl_ty>(
-                interface,
+                interface_or_get_proc_address,
                 library,
                 init
             )
