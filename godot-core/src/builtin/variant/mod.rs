@@ -108,23 +108,7 @@ impl Variant {
         let args_sys: Vec<_> = args.iter().map(|v| v.var_sys_const()).collect();
         let mut error = sys::default_call_error();
 
-        #[allow(unused_mut)]
-        let mut result = Variant::nil();
-
-        use sys::AsUninit;
-        unsafe {
-            interface_fn!(variant_call)(
-                self.var_sys(),
-                method.string_sys(),
-                args_sys.as_ptr(),
-                args_sys.len() as i64,
-                result.var_sys().as_uninit(),
-                ptr::addr_of_mut!(error),
-            )
-        };
-
-        // TODO(uninit)
-        /*let result = unsafe {
+        let result = unsafe {
             Variant::from_var_sys_init(|variant_ptr| {
                 interface_fn!(variant_call)(
                     self.var_sys(),
@@ -135,7 +119,7 @@ impl Variant {
                     ptr::addr_of_mut!(error),
                 )
             })
-        };*/
+        };
 
         if error.error != sys::GDEXTENSION_CALL_OK {
             let arg_types: Vec<_> = args.iter().map(Variant::get_type).collect();
@@ -148,21 +132,7 @@ impl Variant {
         let op_sys = op.sys();
         let mut is_valid = false as u8;
 
-        use sys::AsUninit;
-        #[allow(unused_mut)]
-        let mut result = Variant::nil();
-        unsafe {
-            interface_fn!(variant_evaluate)(
-                op_sys,
-                self.var_sys(),
-                rhs.var_sys(),
-                result.var_sys().as_uninit(),
-                ptr::addr_of_mut!(is_valid),
-            )
-        };
-
-        // TODO(uninit)
-        /*let mut result = unsafe {
+        let result = unsafe {
             Variant::from_var_sys_init(|variant_ptr| {
                 interface_fn!(variant_evaluate)(
                     op_sys,
@@ -172,7 +142,7 @@ impl Variant {
                     ptr::addr_of_mut!(is_valid),
                 )
             })
-        };*/
+        };
 
         if is_valid == 1 {
             Some(result)

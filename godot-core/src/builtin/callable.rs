@@ -10,7 +10,6 @@ use crate::builtin::{inner, ToVariant, Variant};
 use crate::engine::Object;
 use crate::obj::mem::Memory;
 use crate::obj::{Gd, GodotClass, InstanceId};
-use godot_ffi::AsUninit;
 use std::fmt;
 use sys::{ffi_methods, GodotFfi};
 
@@ -46,11 +45,10 @@ impl Callable {
         // upcast not needed
         let method = method_name.into();
         unsafe {
-            // TODO(uninit): can we use from_sys_init()? Godot uses placement-new for variant_to_type initialization.
-            Self::from_sys_init_default(|self_ptr| {
+            Self::from_sys_init(|self_ptr| {
                 let ctor = sys::builtin_fn!(callable_from_object_method);
                 let args = [object.sys_const(), method.sys_const()];
-                ctor(self_ptr.as_uninit(), args.as_ptr());
+                ctor(self_ptr, args.as_ptr());
             })
         }
     }
