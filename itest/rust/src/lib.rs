@@ -21,6 +21,7 @@ mod enum_test;
 mod export_test;
 mod gdscript_ffi_test;
 mod init_test;
+mod native_structures_test;
 mod node_test;
 mod object_test;
 mod packed_array_test;

@@ -4,11 +4,17 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::api_parser::{ClassConstant, Enum};
+use crate::api_parser::{ClassConstant, Enum, MethodArg, MethodReturn};
 use crate::special_cases::is_builtin_scalar;
 use crate::{Context, ModName, RustTy, TyName};
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeStructuresField {
+    pub field_type: String,
+    pub field_name: String,
+}
 
 pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
     // TODO enums which have unique ords could be represented as Rust enums
@@ -237,9 +243,32 @@ fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
         "enum::Variant.Type" => "VariantType",
         "enum::Variant.Operator" => "VariantOperator",
         "enum::Vector3.Axis" => "Vector3Axis",
+        // Types needed for native structures mapping
+        "uint8_t" => "u8",
+        "uint16_t" => "u16",
+        "uint32_t" => "u32",
+        "uint64_t" => "u64",
+        "int8_t" => "i8",
+        "int16_t" => "i16",
+        "int32_t" => "i32",
+        "int64_t" => "i64",
+        "real_t" => "real",
+        "void" => "c_void",
         _ => return None,
     };
     Some(result)
+}
+
+/// Maps an input type to a Godot type with the same C representation. This is subtly different than [`to_rust_type`],
+/// which maps to an appropriate corresponding Rust type. This function should be used in situations where the C ABI for
+/// a type must match the Godot equivalent exactly, such as when dealing with pointers.
+pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context<'_>) -> RustTy {
+    match ty {
+        "int" => RustTy::BuiltinIdent(ident("i32")),
+        "float" => RustTy::BuiltinIdent(ident("f32")),
+        "double" => RustTy::BuiltinIdent(ident("f64")),
+        _ => to_rust_type(ty, ctx),
+    }
 }
 
 /// Maps an _input_ type from the Godot JSON to the corresponding Rust type (wrapping some sort of a token stream).
@@ -266,6 +295,27 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
         } else {
             TyName::from_godot(ty).rust_ty
         }
+    }
+
+    if ty.ends_with('*') {
+        // Pointer type; strip '*', see if const, and then resolve the
+        // inner type.
+        let mut ty = ty[0..ty.len() - 1].to_string();
+        // 'const' should apply to the innermost pointer, if present.
+        let is_const = ty.starts_with("const ") && !ty.ends_with('*');
+        if is_const {
+            ty = ty.replace("const ", "");
+        }
+        // .trim() is necessary here, as the Godot extension API
+        // places a space between a type and its stars if it's a
+        // double pointer. That is, Godot writes "int*" but, if it's a
+        // double pointer, then it writes "int **" instead (with a
+        // space in the middle).
+        let inner_type = to_rust_type(ty.trim(), ctx);
+        return RustTy::RawPointer {
+            inner: Box::new(inner_type),
+            is_const,
+        };
     }
 
     if let Some(hardcoded) = to_hardcoded_rust_type(ty) {
@@ -317,7 +367,7 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     }
 
     // Note: do not check if it's a known engine class, because that will not work in minimal mode (since not all classes are stored)
-    if ctx.is_builtin(ty) {
+    if ctx.is_builtin(ty) || ctx.is_native_structure(ty) {
         // Unchanged
         RustTy::BuiltinIdent(rustify_ty(ty))
     } else {
@@ -327,4 +377,53 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
             class: ty.to_string(),
         }
     }
+}
+
+/// Parse a string of semicolon-separated C-style type declarations. Fail with `None` if any errors occur.
+pub fn parse_native_structures_format(input: &str) -> Option<Vec<NativeStructuresField>> {
+    input
+        .split(';')
+        .filter(|var| !var.trim().is_empty())
+        .map(|var| {
+            let mut parts = var.trim().splitn(2, ' ');
+            let mut field_type = parts.next()?.to_owned();
+            let mut field_name = parts.next()?.to_owned();
+
+            // If the field is a pointer, put the star on the type, not
+            // the name.
+            if field_name.starts_with('*') {
+                field_name.remove(0);
+                field_type.push('*');
+            }
+
+            // If Godot provided a default value, ignore it. (TODO We
+            // might use these if we synthetically generate constructors
+            // in the future)
+            if let Some(index) = field_name.find(" = ") {
+                field_name.truncate(index);
+            }
+
+            Some(NativeStructuresField {
+                field_type,
+                field_name,
+            })
+        })
+        .collect()
+}
+
+pub fn function_uses_pointers(
+    method_args: &Option<Vec<MethodArg>>,
+    return_value: &Option<&MethodReturn>,
+) -> bool {
+    if let Some(method_args) = method_args {
+        if method_args.iter().any(|x| x.type_.contains('*')) {
+            return true;
+        }
+    }
+    if let Some(return_value) = return_value {
+        if return_value.type_.contains('*') {
+            return true;
+        }
+    }
+    false
 }

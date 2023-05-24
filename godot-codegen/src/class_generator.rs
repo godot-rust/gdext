@@ -12,7 +12,10 @@ use std::path::{Path, PathBuf};
 
 use crate::api_parser::*;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
-use crate::util::{ident, safe_ident, to_pascal_case, to_rust_type};
+use crate::util::{
+    function_uses_pointers, ident, parse_native_structures_format, safe_ident, to_pascal_case,
+    to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
+};
 use crate::{
     special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
     GeneratedClassModule, ModName, RustTy, TyName,
@@ -102,6 +105,40 @@ pub(crate) fn generate_builtin_class_files(
 
         modules.push(GeneratedBuiltinModule {
             class_name: inner_class_name,
+            module_name,
+        });
+    }
+
+    let out_path = gen_path.join("mod.rs");
+    let mod_contents = make_builtin_module_file(modules).to_string();
+    std::fs::write(&out_path, mod_contents).expect("failed to write mod.rs file");
+    out_files.push(out_path);
+}
+
+pub(crate) fn generate_native_structures_files(
+    api: &ExtensionApi,
+    ctx: &mut Context,
+    _build_config: &str,
+    gen_path: &Path,
+    out_files: &mut Vec<PathBuf>,
+) {
+    let _ = std::fs::remove_dir_all(gen_path);
+    std::fs::create_dir_all(gen_path).expect("create native directory");
+
+    let mut modules = vec![];
+    for native_structure in api.native_structures.iter() {
+        let module_name = ModName::from_godot(&native_structure.name);
+        let class_name = TyName::from_godot(&native_structure.name);
+
+        let generated_class = make_native_structure(native_structure, &class_name, ctx);
+        let file_contents = generated_class.code.to_string();
+
+        let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
+        std::fs::write(&out_path, file_contents).expect("failed to write native structures file");
+        out_files.push(out_path);
+
+        modules.push(GeneratedBuiltinModule {
+            class_name,
             module_name,
         });
     }
@@ -296,8 +333,10 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         use godot_ffi as sys;
         use crate::engine::notify::*;
         use crate::builtin::*;
+        use crate::native_structure::*;
         use crate::obj::{AsArg, Gd};
         use sys::GodotFfi as _;
+        use std::ffi::c_void;
 
         pub(super) mod re_export {
             use super::*;
@@ -525,6 +564,7 @@ fn make_builtin_class(
     let tokens = quote! {
         use godot_ffi as sys;
         use crate::builtin::*;
+        use crate::native_structure::*;
         use crate::obj::{AsArg, Gd};
         use crate::sys::GodotFfi as _;
         use crate::engine::Object;
@@ -550,6 +590,69 @@ fn make_builtin_class(
     // note: TypePtr -> ObjectPtr conversion OK?
 
     GeneratedBuiltin { code: tokens }
+}
+
+fn make_native_structure(
+    structure: &NativeStructure,
+    class_name: &TyName,
+    ctx: &mut Context,
+) -> GeneratedBuiltin {
+    let class_name = &class_name.rust_ty;
+
+    let fields = make_native_structure_fields(&structure.format, ctx);
+
+    // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
+    let tokens = quote! {
+        use godot_ffi as sys;
+        use crate::builtin::*;
+        use crate::native_structure::*;
+        use crate::obj::{AsArg, Gd};
+        use crate::sys::GodotFfi as _;
+        use crate::engine::Object;
+
+        #[repr(C)]
+        pub struct #class_name {
+            #fields
+        }
+    };
+    // note: TypePtr -> ObjectPtr conversion OK?
+
+    GeneratedBuiltin { code: tokens }
+}
+
+fn make_native_structure_fields(format_str: &str, ctx: &mut Context) -> TokenStream {
+    let fields = parse_native_structures_format(format_str)
+        .expect("Could not parse native_structures format field");
+    let field_definitions = fields
+        .into_iter()
+        .map(|field| make_native_structure_field_definition(field, ctx));
+    quote! {
+        #( #field_definitions )*
+    }
+}
+
+fn make_native_structure_field_definition(
+    field: NativeStructuresField,
+    ctx: &mut Context,
+) -> TokenStream {
+    let field_type = normalize_native_structure_field_type(&field.field_type);
+    let field_type = to_rust_type_abi(&field_type, ctx);
+    let field_name = ident(&to_snake_case(&field.field_name));
+    quote! {
+        pub #field_name: #field_type,
+    }
+}
+
+fn normalize_native_structure_field_type(field_type: &str) -> String {
+    // native_structures uses a different format for enums than the
+    // rest of the JSON file. If we detect a scoped field, convert it
+    // to the enum format expected by to_rust_type.
+    if field_type.contains("::") {
+        let with_dot = field_type.replace("::", ".");
+        format!("enum::{}", with_dot)
+    } else {
+        field_type.to_string()
+    }
 }
 
 fn make_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> TokenStream {
@@ -718,20 +821,26 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
 
 #[cfg(not(feature = "codegen-full"))]
 fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
-    let is_class_excluded = |class: &str| !crate::SELECTED_CLASSES.contains(&class);
-
-    match to_rust_type(ty, ctx) {
-        RustTy::BuiltinIdent(_) => false,
-        RustTy::BuiltinArray(_) => false,
-        RustTy::EngineArray { elem_class, .. } => is_class_excluded(elem_class.as_str()),
-        RustTy::EngineEnum {
-            surrounding_class, ..
-        } => match surrounding_class.as_ref() {
-            None => false,
-            Some(class) => is_class_excluded(class.as_str()),
-        },
-        RustTy::EngineClass { .. } => is_class_excluded(ty),
+    fn is_class_excluded(class: &str) -> bool {
+        !crate::SELECTED_CLASSES.contains(&class)
     }
+
+    fn is_rust_type_excluded(ty: &RustTy) -> bool {
+        match ty {
+            RustTy::BuiltinIdent(_) => false,
+            RustTy::BuiltinArray(_) => false,
+            RustTy::RawPointer { inner, .. } => is_rust_type_excluded(&inner),
+            RustTy::EngineArray { elem_class, .. } => is_class_excluded(elem_class.as_str()),
+            RustTy::EngineEnum {
+                surrounding_class, ..
+            } => match surrounding_class.as_ref() {
+                None => false,
+                Some(class) => is_class_excluded(class.as_str()),
+            },
+            RustTy::EngineClass { class, .. } => is_class_excluded(&class),
+        }
+    }
+    is_rust_type_excluded(&to_rust_type(ty, ctx))
 }
 
 fn is_method_excluded(
@@ -743,11 +852,6 @@ fn is_method_excluded(
     //
     // * Private virtual methods are only included in a virtual
     //   implementation.
-    //
-    // * Methods accepting pointers are often supplementary
-    //   E.g.: TextServer::font_set_data_ptr() -- in addition to TextServer::font_set_data().
-    //   These are anyway not accessible in GDScript since that language has no pointers.
-    //   As such support could be added later (if at all), with possibly safe interfaces (e.g. Vec for void*+size pairs)
 
     // -- FIXME remove when impl complete
     #[cfg(not(feature = "codegen-full"))]
@@ -768,14 +872,7 @@ fn is_method_excluded(
         return true;
     }
 
-    method
-        .return_value
-        .as_ref()
-        .map_or(false, |ret| ret.type_.contains('*'))
-        || method
-            .arguments
-            .as_ref()
-            .map_or(false, |args| args.iter().any(|arg| arg.type_.contains('*')))
+    false
 }
 
 #[cfg(feature = "codegen-full")]
@@ -996,6 +1093,18 @@ fn make_function_definition(
     } else {
         quote! { pub }
     };
+    let (safety, doc) = if function_uses_pointers(method_args, &return_value) {
+        (
+            quote! { unsafe },
+            quote! {
+                #[doc = "# Safety"]
+                #[doc = ""]
+                #[doc = "Godot currently does not document safety requirements on this method. Make sure you understand the underlying semantics."]
+            },
+        )
+    } else {
+        (quote! {}, quote! {})
+    };
 
     let is_varcall = variant_ffi.is_some();
     let fn_name = safe_ident(function_name);
@@ -1042,7 +1151,8 @@ fn make_function_definition(
 
     if is_virtual {
         quote! {
-            fn #fn_name( #receiver #( #params, )* ) #return_decl {
+            #doc
+            #safety fn #fn_name( #receiver #( #params, )* ) #return_decl {
                 #call_code
             }
         }
@@ -1050,7 +1160,8 @@ fn make_function_definition(
         // varcall (using varargs)
         let sys_method = &variant_ffi.sys_method;
         quote! {
-            #vis fn #fn_name( #receiver #( #params, )* varargs: &[Variant]) #return_decl {
+            #doc
+            #vis #safety fn #fn_name( #receiver #( #params, )* varargs: &[Variant]) #return_decl {
                 unsafe {
                     #init_code
 
@@ -1071,7 +1182,8 @@ fn make_function_definition(
     } else {
         // ptrcall
         quote! {
-            #vis fn #fn_name( #receiver #( #params, )* ) #return_decl {
+            #doc
+            #vis #safety fn #fn_name( #receiver #( #params, )* ) #return_decl {
                 unsafe {
                     #init_code
 
