@@ -57,7 +57,7 @@ pub unsafe trait GodotFfi {
     /// Return Godot opaque pointer, for an immutable operation.
     ///
     /// Note that this is a `*mut` pointer despite taking `&self` by shared-ref.
-    /// This is because most of Godot's rust API is not const-correct. This can still
+    /// This is because most of Godot's Rust API is not const-correct. This can still
     /// enhance user code (calling `sys_mut` ensures no aliasing at the time of the call).
     fn sys(&self) -> sys::GDExtensionTypePtr;
 
@@ -155,11 +155,15 @@ pub enum PtrcallType {
 
     /// Virtual pointer call.
     ///
-    /// A virtual call behaves like [`PtrcallType::Standard`], except for `RefCounted` objects.
-    /// `RefCounted` objects are instead passed in and returned as `Ref<T>` objects in Godot.
+    /// A virtual call behaves like [`PtrcallType::Standard`], except for Objects.
     ///
-    /// To properly get a value from an argument in a pointer call, you must use `ref_get_object`. And to
-    /// return a value you must use `ref_set_object`.
+    /// Objects that do not inherit from `RefCounted` are passed in as `Object**`
+    /// (`*mut GDExtensionObjectPtr` in GDExtension terms), and objects that inherit from
+    /// `RefCounted` are passed in as `Ref<T>*` (`GDExtensionRefPtr` in GDExtension
+    /// terms) and returned as `Ref<T>` objects in Godot.
+    ///
+    /// To get a `GDExtensionObjectPtr` from a `GDExtensionRefPtr`, you must use `ref_get_object`, and to
+    /// set a `GDExtensionRefPtr` to some object, you must use `ref_set_object`.
     ///
     /// See also https://github.com/godotengine/godot-cpp/issues/954.
     Virtual,

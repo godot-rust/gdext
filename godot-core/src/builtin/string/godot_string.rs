@@ -157,7 +157,7 @@ impl fmt::Debug for GodotString {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Conversion from/into rust string-types
+// Conversion from/into Rust string-types
 
 impl<S> From<S> for GodotString
 where

@@ -7,8 +7,9 @@
 use std::time::{Duration, Instant};
 
 use godot::bind::{godot_api, GodotClass};
-use godot::builtin::{ToVariant, Variant, VariantArray};
+use godot::builtin::{Array, GodotString, ToVariant, Variant, VariantArray};
 use godot::engine::Node;
+use godot::log::godot_error;
 use godot::obj::Gd;
 
 use crate::{RustTestCase, TestContext};
@@ -57,8 +58,8 @@ impl IntegrationTests {
         self.run_rust_tests(rust_tests, scene_tree);
         let rust_time = clock.elapsed();
         let gdscript_time = if !focus_run {
-            self.run_gdscript_tests(gdscript_tests);
-            Some(clock.elapsed() - rust_time)
+            let extra_duration = self.run_gdscript_tests(gdscript_tests);
+            Some((clock.elapsed() - rust_time) + extra_duration)
         } else {
             None
         };
@@ -79,22 +80,31 @@ impl IntegrationTests {
         }
     }
 
-    fn run_gdscript_tests(&mut self, tests: VariantArray) {
+    fn run_gdscript_tests(&mut self, tests: VariantArray) -> Duration {
         let mut last_file = None;
+        let mut extra_duration = Duration::new(0, 0);
+
         for test in tests.iter_shared() {
             let test_file = get_property(&test, "suite_name");
             let test_case = get_property(&test, "method_name");
 
             print_test_pre(&test_case, test_file, &mut last_file, true);
             let result = test.call("run", &[]);
+            if let Some(duration) = get_execution_time(&test) {
+                extra_duration += duration;
+            }
             let success = result.try_to::<bool>().unwrap_or_else(|_| {
                 panic!("GDScript test case {test} returned non-bool: {result}")
             });
+            for error in get_errors(&test).iter_shared() {
+                godot_error!("{error}");
+            }
             let outcome = TestOutcome::from_bool(success);
 
             self.update_stats(&outcome);
             print_test_post(&test_case, outcome);
         }
+        extra_duration
     }
 
     fn conclude(
@@ -222,6 +232,20 @@ fn print_test_post(test_case: &str, outcome: TestOutcome) {
 
 fn get_property(test: &Variant, property: &str) -> String {
     test.call("get", &[property.to_variant()]).to::<String>()
+}
+
+fn get_execution_time(test: &Variant) -> Option<Duration> {
+    let seconds = test
+        .call("get", &["execution_time_seconds".to_variant()])
+        .try_to::<f64>()
+        .ok()?;
+    Some(Duration::from_secs_f64(seconds))
+}
+
+fn get_errors(test: &Variant) -> Array<GodotString> {
+    test.call("get", &["errors".to_variant()])
+        .try_to::<Array<GodotString>>()
+        .unwrap_or(Array::new())
 }
 
 #[must_use]

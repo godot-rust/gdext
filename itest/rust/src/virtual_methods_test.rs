@@ -19,7 +19,7 @@ use godot::engine::resource_loader::CacheMode;
 use godot::engine::{
     BoxMesh, InputEvent, InputEventAction, Node, Node2D, Node2DVirtual, NodeVirtual, PrimitiveMesh,
     PrimitiveMeshVirtual, RefCounted, RefCountedVirtual, ResourceFormatLoader,
-    ResourceFormatLoaderVirtual, ResourceLoader, Window,
+    ResourceFormatLoaderVirtual, ResourceLoader, RigidBody2DVirtual, Viewport, Window,
 };
 use godot::obj::{Base, Gd, Share};
 use godot::private::class_macros::assert_eq_approx;
@@ -389,8 +389,7 @@ fn test_virtual_method_with_return() {
     );
 }
 
-// TODO: Fix memory leak in this test.
-#[itest(skip)]
+#[itest]
 fn test_format_loader(_test_context: &TestContext) {
     let format_loader = Gd::<FormatLoaderTest>::new_default();
     let mut loader = ResourceLoader::singleton();
@@ -416,7 +415,7 @@ fn test_format_loader(_test_context: &TestContext) {
 fn test_input_event(test_context: &TestContext) {
     let obj = Gd::<InputVirtualTest>::new_default();
     assert_eq!(obj.bind().event, None);
-    let test_viewport = Window::new_alloc();
+    let mut test_viewport = Window::new_alloc();
 
     test_context.scene_tree.share().add_child(
         test_viewport.share().upcast(),
@@ -439,7 +438,51 @@ fn test_input_event(test_context: &TestContext) {
         .share()
         .push_input(event.share().upcast(), false);
 
-    assert_eq!(obj.bind().event, Some(event.upcast()));
+    assert_eq!(obj.bind().event, Some(event.upcast::<InputEvent>()));
+
+    test_viewport.queue_free();
+}
+
+// We were incrementing/decrementing the refcount wrong. Which only showed up if you had multiple virtual
+// methods handle the same refcounted object. Related to https://github.com/godot-rust/gdext/issues/257.
+#[itest]
+fn test_input_event_multiple(test_context: &TestContext) {
+    let mut objs = Vec::new();
+    for _ in 0..5 {
+        let obj = Gd::<InputVirtualTest>::new_default();
+        assert_eq!(obj.bind().event, None);
+        objs.push(obj);
+    }
+    let mut test_viewport = Window::new_alloc();
+
+    test_context.scene_tree.share().add_child(
+        test_viewport.share().upcast(),
+        false,
+        InternalMode::INTERNAL_MODE_DISABLED,
+    );
+
+    for obj in objs.iter() {
+        test_viewport.share().add_child(
+            obj.share().upcast(),
+            false,
+            InternalMode::INTERNAL_MODE_DISABLED,
+        )
+    }
+
+    let mut event = InputEventAction::new();
+    event.set_action("debug".into());
+    event.set_pressed(true);
+
+    // We're running in headless mode, so Input.parse_input_event does not work
+    test_viewport
+        .share()
+        .push_input(event.share().upcast(), false);
+
+    for obj in objs.iter() {
+        assert_eq!(obj.bind().event, Some(event.share().upcast::<InputEvent>()));
+    }
+
+    test_viewport.queue_free();
 }
 
 #[itest]
@@ -462,4 +505,36 @@ fn test_notifications() {
         ]
     );
     obj.free();
+}
+
+// Used in `test_collision_object_2d_input_event` in `SpecialTests.gd`.
+#[derive(GodotClass)]
+#[class(init, base = RigidBody2D)]
+pub struct CollisionObject2DTest {
+    input_event_called: bool,
+    viewport: Option<Gd<Viewport>>,
+}
+
+#[godot_api]
+impl RigidBody2DVirtual for CollisionObject2DTest {
+    fn input_event(&mut self, viewport: Gd<Viewport>, _event: Gd<InputEvent>, _shape_idx: i64) {
+        self.input_event_called = true;
+        self.viewport = Some(viewport);
+    }
+}
+
+#[godot_api]
+impl CollisionObject2DTest {
+    #[func]
+    fn input_event_called(&self) -> bool {
+        self.input_event_called
+    }
+
+    #[func]
+    fn get_viewport(&self) -> Variant {
+        self.viewport
+            .as_ref()
+            .map(ToVariant::to_variant)
+            .unwrap_or(Variant::nil())
+    }
 }

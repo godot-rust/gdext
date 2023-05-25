@@ -552,13 +552,20 @@ where
     // https://github.com/godotengine/godot-cpp/issues/954
 
     unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
-        if T::Mem::pass_as_ref(call_type) {
-            let obj_ptr = interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr);
-            // ref_get_object increments the ref_count for us
-            Self::from_obj_sys_weak(obj_ptr)
+        let obj_ptr = if T::Mem::pass_as_ref(call_type) {
+            // ptr is `Ref<T>*`
+            // See the docs for `PtrcallType::Virtual` for more info on `Ref<T>`.
+            interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr)
+        } else if matches!(call_type, PtrcallType::Virtual) {
+            // ptr is `T**`
+            *(ptr as *mut sys::GDExtensionObjectPtr)
         } else {
-            Self::from_obj_sys(ptr as sys::GDExtensionObjectPtr)
-        }
+            // ptr is `T*`
+            ptr as sys::GDExtensionObjectPtr
+        };
+
+        // obj_ptr is `T*`
+        Self::from_obj_sys(obj_ptr)
     }
 
     unsafe fn move_return_ptr(self, ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) {
