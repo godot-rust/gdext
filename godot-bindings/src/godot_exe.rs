@@ -6,10 +6,10 @@
 
 //! Commands related to Godot executable
 
-use crate::custom::godot_version::GodotVersion;
 use crate::godot_version::parse_godot_version;
 use crate::header_gen::generate_rust_binding;
 use crate::watch::StopWatch;
+use crate::GodotVersion;
 
 use regex::Regex;
 use std::fs;
@@ -99,7 +99,7 @@ fn update_version_file(version: &str) {
 }
 */
 
-fn read_godot_version(godot_bin: &Path) -> GodotVersion {
+pub(crate) fn read_godot_version(godot_bin: &Path) -> GodotVersion {
     let output = Command::new(godot_bin)
         .arg("--version")
         .output()
@@ -259,7 +259,7 @@ fn polyfill_legacy_header(c: &mut String) {
     );
 }
 
-fn locate_godot_binary() -> PathBuf {
+pub(crate) fn locate_godot_binary() -> PathBuf {
     if let Ok(string) = std::env::var("GODOT4_BIN") {
         println!("Found GODOT4_BIN with path to executable: '{string}'");
         println!("cargo:rerun-if-env-changed=GODOT4_BIN");

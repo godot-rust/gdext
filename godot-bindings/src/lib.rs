@@ -17,6 +17,26 @@ compile_error!(
     "At least one of `custom-godot` or `prebuilt-godot` must be specified (none given)."
 );
 
+// This is outside of `godot_version` to allow us to use it even when we don't have the `custom-godot`
+// feature enabled.
+#[derive(Debug, Eq, PartialEq)]
+pub struct GodotVersion {
+    /// the original string (trimmed, stripped of text around)
+    pub full_string: String,
+
+    pub major: u8,
+    pub minor: u8,
+
+    /// 0 if none
+    pub patch: u8,
+
+    /// alpha|beta|dev|stable
+    pub status: String,
+
+    /// Git revision 'custom_build.{rev}' or '{official}.rev', if available
+    pub custom_rev: Option<String>,
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Regenerate all files
 
@@ -40,6 +60,10 @@ mod custom {
     #[cfg(feature = "custom-godot-extheader")]
     pub fn write_gdextension_headers_from_c(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
         godot_exe::write_gdextension_headers(h_path, rs_path, true, watch);
+    }
+
+    pub(crate) fn get_godot_version() -> GodotVersion {
+        godot_exe::read_godot_version(&godot_exe::locate_godot_binary())
     }
 }
 
@@ -70,6 +94,20 @@ mod prebuilt {
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.rs: {e}"));
         watch.record("write_header_rs");
     }
+
+    pub(crate) fn get_godot_version() -> GodotVersion {
+        let version: Vec<&str> = godot4_prebuilt::GODOT_VERSION
+            .split('.')
+            .collect::<Vec<_>>();
+        GodotVersion {
+            full_string: godot4_prebuilt::GODOT_VERSION.into(),
+            major: version[0].parse().unwrap(),
+            minor: version[1].parse().unwrap(),
+            patch: version[2].parse().unwrap(),
+            status: "stable".into(),
+            custom_rev: None,
+        }
+    }
 }
 
 #[cfg(not(feature = "custom-godot"))]
@@ -84,4 +122,22 @@ pub fn clear_dir(dir: &Path, watch: &mut StopWatch) {
         watch.record("delete_gen_dir");
     }
     std::fs::create_dir_all(dir).unwrap_or_else(|e| panic!("failed to create dir: {e}"));
+}
+
+pub fn emit_godot_version_cfg() {
+    let GodotVersion {
+        major,
+        minor,
+        patch,
+        ..
+    } = get_godot_version();
+
+    println!(r#"cargo:rustc-cfg=gdextension_api_version="{major}.{minor}""#);
+
+    // Godot drops the patch version if it is 0.
+    if patch != 0 {
+        println!(r#"cargo:rustc-cfg=gdextension_api_version_full="{major}.{minor}.{patch}""#);
+    } else {
+        println!(r#"cargo:rustc-cfg=gdextension_api_version_full="{major}.{minor}""#);
+    }
 }

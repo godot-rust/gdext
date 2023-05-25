@@ -6,27 +6,10 @@
 
 //#![allow(unused_variables, dead_code)]
 
+use crate::GodotVersion;
 use regex::{Captures, Regex};
 use std::error::Error;
 use std::str::FromStr;
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct GodotVersion {
-    /// the original string (trimmed, stripped of text around)
-    pub full_string: String,
-
-    pub major: u8,
-    pub minor: u8,
-
-    /// 0 if none
-    pub patch: u8,
-
-    /// alpha|beta|dev|stable
-    pub status: String,
-
-    /// Git revision 'custom_build.{rev}' or '{official}.rev', if available
-    pub custom_rev: Option<String>,
-}
 
 pub fn parse_godot_version(version_str: &str) -> Result<GodotVersion, Box<dyn Error>> {
     // Format of the string emitted by `godot --version`:
