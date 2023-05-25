@@ -26,9 +26,9 @@ func _ready():
 	var rust_runner = IntegrationTests.new()
 
 	var gdscript_suites: Array = [
-		preload("res://ManualFfiTests.gd").new(),
-		preload("res://gen/GenFfiTests.gd").new(),
-		preload("res://InheritTests.gd").new()
+		load("res://ManualFfiTests.gd").new(),
+		load("res://gen/GenFfiTests.gd").new(),
+		load("res://InheritTests.gd").new()
 	]
 	
 	var gdscript_tests: Array = []
@@ -39,7 +39,7 @@ func _ready():
 				gdscript_tests.push_back(GDScriptExecutableTestCase.new(suite, method_name))
 
 	var special_case_test_suites: Array = [
-		preload("res://SpecialTests.gd").new(),
+		load("res://SpecialTests.gd").new(),
 	]
 
 	for suite in special_case_test_suites:
