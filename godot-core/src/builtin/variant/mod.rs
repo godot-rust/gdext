@@ -132,6 +132,22 @@ impl Variant {
         let op_sys = op.sys();
         let mut is_valid = false as u8;
 
+        #[cfg(gdextension_api = "4.0")]
+        let result = {
+            #[allow(unused_mut)]
+            let mut result = Variant::nil();
+            unsafe {
+                interface_fn!(variant_evaluate)(
+                    op_sys,
+                    self.var_sys(),
+                    rhs.var_sys(),
+                    result.var_sys(),
+                    ptr::addr_of_mut!(is_valid),
+                )
+            };
+            result
+        };
+        #[cfg(not(gdextension_api = "4.0"))]
         let result = unsafe {
             Variant::from_var_sys_init(|variant_ptr| {
                 interface_fn!(variant_evaluate)(

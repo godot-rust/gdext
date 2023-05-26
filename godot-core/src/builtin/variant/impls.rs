@@ -61,13 +61,21 @@ macro_rules! impl_variant_traits {
                     return Err(VariantConversionError::BadType)
                 }
 
+                // For 4.0:
                 // In contrast to T -> Variant, the conversion Variant -> T assumes
                 // that the destination is initialized (at least for some T). For example:
                 // void String::operator=(const String &p_str) { _cowdata._ref(p_str._cowdata); }
                 // does a copy-on-write and explodes if this->_cowdata is not initialized.
                 // We can thus NOT use Self::from_sys_init().
+                //
+                // This was changed in 4.1.
                 let result = unsafe {
-                    Self::from_sys_init(|self_ptr| {
+                    #[cfg(gdextension_api = "4.0")]
+                    let from_sys_init = Self::from_sys_init_default;
+                    #[cfg(not(gdextension_api = "4.0"))]
+                    let from_sys_init = Self::from_sys_init;
+
+                    from_sys_init(|self_ptr| {
                         let converter = sys::builtin_fn!($to_fn);
                         converter(self_ptr, variant.var_sys());
                     })

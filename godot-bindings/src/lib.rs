@@ -103,7 +103,10 @@ mod prebuilt {
             full_string: godot4_prebuilt::GODOT_VERSION.into(),
             major: version[0].parse().unwrap(),
             minor: version[1].parse().unwrap(),
-            patch: version[2].parse().unwrap(),
+            patch: version
+                .get(2)
+                .and_then(|patch| patch.parse().ok())
+                .unwrap_or(0),
             status: "stable".into(),
             custom_rev: None,
         }
@@ -132,12 +135,12 @@ pub fn emit_godot_version_cfg() {
         ..
     } = get_godot_version();
 
-    println!(r#"cargo:rustc-cfg=gdextension_api_version="{major}.{minor}""#);
+    println!(r#"cargo:rustc-cfg=gdextension_api="{major}.{minor}""#);
 
     // Godot drops the patch version if it is 0.
     if patch != 0 {
-        println!(r#"cargo:rustc-cfg=gdextension_api_version_full="{major}.{minor}.{patch}""#);
+        println!(r#"cargo:rustc-cfg=gdextension_exact_api="{major}.{minor}.{patch}""#);
     } else {
-        println!(r#"cargo:rustc-cfg=gdextension_api_version_full="{major}.{minor}""#);
+        println!(r#"cargo:rustc-cfg=gdextension_exact_api="{major}.{minor}""#);
     }
 }

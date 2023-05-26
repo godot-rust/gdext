@@ -143,12 +143,12 @@ impl Basis {
     /// orthonormalized. The `target` and `up` vectors cannot be zero, and
     /// cannot be parallel to each other.
     ///
-    #[cfg(gdextension_api_version = "4.0")]
+    #[cfg(gdextension_api = "4.0")]
     /// _Godot equivalent: `Basis.looking_at()`_
     pub fn new_looking_at(target: Vector3, up: Vector3) -> Self {
         super::inner::InnerBasis::looking_at(target, up)
     }
-    #[cfg(not(gdextension_api_version = "4.0"))]
+    #[cfg(not(gdextension_api = "4.0"))]
     /// If `use_model_front` is true, the +Z axis (asset front) is treated as forward (implies +X is left)
     /// and points toward the target position. By default, the -Z axis (camera forward) is treated as forward
     /// (implies +X is right).
