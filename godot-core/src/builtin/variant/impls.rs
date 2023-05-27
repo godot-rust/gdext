@@ -26,13 +26,22 @@ macro_rules! impl_variant_metadata {
         }
     };
 }
-
+// Certain types need to be passed as initialized pointers in their from_variant implementations in 4.0. Because
+// 4.0 uses `*ptr = value` to return the type, and some types in c++ override `operator=` in c++ in a way
+// that requires the pointer the be initialized. But some other types will cause a memory leak in 4.1 if
+// initialized.
+//
+// Thus we can use `init` to indicate when it must be initialized in 4.0.
 macro_rules! impl_variant_traits {
     ($T:ty, $from_fn:ident, $to_fn:ident, $variant_type:ident) => {
         impl_variant_traits!(@@ $T, $from_fn, $to_fn, $variant_type;);
     };
 
-    ($T:ty, $from_fn:ident, $to_fn:ident, $variant_type:ident, $param_metadata:ident) => {
+    ($T:ty, $from_fn:ident, $to_fn:ident, $variant_type:ident, init) => {
+        impl_variant_traits!(@@ $T, $from_fn, $to_fn, $variant_type, init;);
+    };
+
+    ($T:ty, $from_fn:ident, $to_fn:ident, $variant_type:ident, metadata = $param_metadata:ident) => {
         impl_variant_traits!(@@ $T, $from_fn, $to_fn, $variant_type;
             fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
                 sys::$param_metadata
@@ -40,7 +49,15 @@ macro_rules! impl_variant_traits {
         );
     };
 
-    (@@ $T:ty, $from_fn:ident, $to_fn:ident, $variant_type:ident; $($extra:tt)*) => {
+    ($T:ty, $from_fn:ident, $to_fn:ident, $variant_type:ident, init, metadata = $param_metadata:ident) => {
+        impl_variant_traits!(@@ $T, $from_fn, $to_fn, $variant_type, init;
+            fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+                sys::$param_metadata
+            }
+        );
+    };
+
+    (@@ $T:ty, $from_fn:ident, $to_fn:ident, $variant_type:ident $(, $init:ident)?; $($extra:tt)*) => {
         impl ToVariant for $T {
             fn to_variant(&self) -> Variant {
                 let variant = unsafe {
@@ -70,10 +87,7 @@ macro_rules! impl_variant_traits {
                 //
                 // This was changed in 4.1.
                 let result = unsafe {
-                    #[cfg(gdextension_api = "4.0")]
-                    let from_sys_init = Self::from_sys_init_default;
-                    #[cfg(not(gdextension_api = "4.0"))]
-                    let from_sys_init = Self::from_sys_init;
+                    impl_variant_traits!(@@from_sys_init, from_sys_init $(, $init)?);
 
                     from_sys_init(|self_ptr| {
                         let converter = sys::builtin_fn!($to_fn);
@@ -86,6 +100,17 @@ macro_rules! impl_variant_traits {
         }
 
         impl_variant_metadata!($T, $variant_type; $($extra)*);
+    };
+
+    (@@from_sys_init, $from_sys_init:ident, init) => {
+        #[cfg(gdextension_api = "4.0")]
+        let $from_sys_init = Self::from_sys_init_default;
+        #[cfg(not(gdextension_api = "4.0"))]
+        let $from_sys_init = Self::from_sys_init;
+    };
+
+    (@@from_sys_init, $from_sys_init:ident) => {
+        let $from_sys_init = Self::from_sys_init;
     };
 }
 
@@ -154,7 +179,7 @@ mod impls {
     impl_variant_traits!(Aabb, aabb_to_variant, aabb_from_variant, Aabb);
     impl_variant_traits!(bool, bool_to_variant, bool_from_variant, Bool);
     impl_variant_traits!(Basis, basis_to_variant, basis_from_variant, Basis);
-    impl_variant_traits!(Callable, callable_to_variant, callable_from_variant, Callable);
+    impl_variant_traits!(Callable, callable_to_variant, callable_from_variant, Callable, init);
     impl_variant_traits!(Vector2, vector2_to_variant, vector2_from_variant, Vector2);
     impl_variant_traits!(Vector3, vector3_to_variant, vector3_from_variant, Vector3);
     impl_variant_traits!(Vector4, vector4_to_variant, vector4_from_variant, Vector4);
@@ -162,20 +187,20 @@ mod impls {
     impl_variant_traits!(Vector3i, vector3i_to_variant, vector3i_from_variant, Vector3i);
     impl_variant_traits!(Quaternion, quaternion_to_variant, quaternion_from_variant, Quaternion);
     impl_variant_traits!(Color, color_to_variant, color_from_variant, Color);
-    impl_variant_traits!(GodotString, string_to_variant, string_from_variant, String);
+    impl_variant_traits!(GodotString, string_to_variant, string_from_variant, String, init);
     impl_variant_traits!(StringName, string_name_to_variant, string_name_from_variant, StringName);
     impl_variant_traits!(NodePath, node_path_to_variant, node_path_from_variant, NodePath);
     // TODO use impl_variant_traits!, as soon as `Default` is available. Also consider auto-generating.
     impl_variant_metadata!(Signal, /* signal_to_variant, signal_from_variant, */ Signal);
-    impl_variant_traits!(PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant, PackedByteArray);
-    impl_variant_traits!(PackedInt32Array, packed_int32_array_to_variant, packed_int32_array_from_variant, PackedInt32Array);
-    impl_variant_traits!(PackedInt64Array, packed_int64_array_to_variant, packed_int64_array_from_variant, PackedInt64Array);
-    impl_variant_traits!(PackedFloat32Array, packed_float32_array_to_variant, packed_float32_array_from_variant, PackedFloat32Array);
-    impl_variant_traits!(PackedFloat64Array, packed_float64_array_to_variant, packed_float64_array_from_variant, PackedFloat64Array);
-    impl_variant_traits!(PackedStringArray, packed_string_array_to_variant, packed_string_array_from_variant, PackedStringArray);
-    impl_variant_traits!(PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant, PackedVector2Array);
-    impl_variant_traits!(PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant, PackedVector3Array);
-    impl_variant_traits!(PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant, PackedColorArray);
+    impl_variant_traits!(PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant, PackedByteArray, init);
+    impl_variant_traits!(PackedInt32Array, packed_int32_array_to_variant, packed_int32_array_from_variant, PackedInt32Array, init);
+    impl_variant_traits!(PackedInt64Array, packed_int64_array_to_variant, packed_int64_array_from_variant, PackedInt64Array, init);
+    impl_variant_traits!(PackedFloat32Array, packed_float32_array_to_variant, packed_float32_array_from_variant, PackedFloat32Array, init);
+    impl_variant_traits!(PackedFloat64Array, packed_float64_array_to_variant, packed_float64_array_from_variant, PackedFloat64Array, init);
+    impl_variant_traits!(PackedStringArray, packed_string_array_to_variant, packed_string_array_from_variant, PackedStringArray, init);
+    impl_variant_traits!(PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant, PackedVector2Array, init);
+    impl_variant_traits!(PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant, PackedVector3Array, init);
+    impl_variant_traits!(PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant, PackedColorArray, init);
     impl_variant_traits!(Plane, plane_to_variant, plane_from_variant, Plane);
     impl_variant_traits!(Projection, projection_to_variant, projection_from_variant, Projection);
     impl_variant_traits!(Rid, rid_to_variant, rid_from_variant, Rid);
@@ -185,7 +210,7 @@ mod impls {
     impl_variant_traits!(Transform3D, transform_3d_to_variant, transform_3d_from_variant, Transform3D);
     impl_variant_traits!(Dictionary, dictionary_to_variant, dictionary_from_variant, Dictionary);
 
-    impl_variant_traits!(i64, int_to_variant, int_from_variant, Int, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
+    impl_variant_traits!(i64, int_to_variant, int_from_variant, Int, metadata = GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64);
     impl_variant_traits_int!(i8, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8);
     impl_variant_traits_int!(i16, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16);
     impl_variant_traits_int!(i32, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32);
@@ -195,7 +220,7 @@ mod impls {
     impl_variant_traits_int!(u32, GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT32);
     // u64 is not supported, because it cannot be represented on GDScript side, and implicitly converting to i64 is error-prone.
 
-    impl_variant_traits!(f64, float_to_variant, float_from_variant, Float, GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE);
+    impl_variant_traits!(f64, float_to_variant, float_from_variant, Float, metadata = GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE);
     impl_variant_traits_float!(f32, GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_FLOAT);
 }
 

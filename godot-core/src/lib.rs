@@ -172,14 +172,14 @@ macro_rules! generate_gdextension_api_version {
 //
 // This includes all versions we're developing for, including unreleased future versions.
 generate_gdextension_api_version!(
-    (GDEXTENSION_API_VERSION_FULL, gdextension_exact_api) => {
+    (GDEXTENSION_EXACT_API, gdextension_exact_api) => {
         "4.0",
         "4.0.1",
         "4.0.2",
         "4.0.3",
         "4.1",
     },
-    (GDEXTENSION_API_VERSION, gdextension_api) => {
+    (GDEXTENSION_API, gdextension_api) => {
         "4.0",
         "4.1",
     },

@@ -272,6 +272,15 @@ fn make_build_config(header: &Header) -> TokenStream {
                     String::from_utf8_lossy(c_str.to_bytes()).to_string()
                 }
             }
+
+            /// Version of the Godot engine which loaded gdext via GDExtension binding, as
+            /// `(major, minor, patch)` triple.
+            pub fn godot_runtime_version_triple() -> (u8, u8, u8) {
+                let version = unsafe {
+                    crate::runtime_metadata().godot_version
+                };
+                (version.major as u8, version.minor as u8, version.patch as u8)
+            }
         }
     }
 }
