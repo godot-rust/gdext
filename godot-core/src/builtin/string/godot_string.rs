@@ -223,7 +223,7 @@ impl FromStr for GodotString {
 impl From<&StringName> for GodotString {
     fn from(string: &StringName) -> Self {
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_string_name);
                 let args = [string.sys_const()];
                 ctor(self_ptr, args.as_ptr());
@@ -244,7 +244,7 @@ impl From<StringName> for GodotString {
 impl From<&NodePath> for GodotString {
     fn from(path: &NodePath) -> Self {
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_node_path);
                 let args = [path.sys_const()];
                 ctor(self_ptr, args.as_ptr());

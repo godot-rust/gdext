@@ -110,6 +110,11 @@ macro_rules! impl_variant_traits {
     };
 
     (@@from_sys_init, $from_sys_init:ident) => {
+        // let $from_sys_init = Self::from_sys_init;
+
+        #[cfg(gdextension_api = "4.0")]
+        let $from_sys_init = Self::from_sys_init_default;
+        #[cfg(not(gdextension_api = "4.0"))]
         let $from_sys_init = Self::from_sys_init;
     };
 }

@@ -108,6 +108,26 @@ impl Variant {
         let args_sys: Vec<_> = args.iter().map(|v| v.var_sys_const()).collect();
         let mut error = sys::default_call_error();
 
+        // #[cfg(gdextension_api = "4.0")]
+        // let result = {
+        //     #[allow(unused_mut)]
+        //     let mut result = Variant::nil();
+        //
+        //     use sys::AsUninit;
+        //     unsafe {
+        //         interface_fn!(variant_call)(
+        //             self.var_sys(),
+        //             method.string_sys(),
+        //             args_sys.as_ptr(),
+        //             args_sys.len() as i64,
+        //             result.var_sys().as_uninit(),
+        //             ptr::addr_of_mut!(error),
+        //         )
+        //     };
+        //     result
+        // };
+        //
+        // #[cfg(not(gdextension_api = "4.0"))]
         let result = unsafe {
             Variant::from_var_sys_init(|variant_ptr| {
                 interface_fn!(variant_call)(
@@ -209,6 +229,16 @@ impl Variant {
         fn from_var_sys_init = from_sys_init;
         fn var_sys = sys;
     }
+
+    // #[doc(hidden)]
+    // pub unsafe fn from_var_sys_init_default(
+    //     init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
+    // ) -> Self {
+    //     #[allow(unused_mut)]
+    //     let mut variant = Variant::nil();
+    //     init_fn(variant.var_sys());
+    //     variant
+    // }
 
     #[doc(hidden)]
     pub fn var_sys_const(&self) -> sys::GDExtensionConstVariantPtr {
