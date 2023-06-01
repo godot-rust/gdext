@@ -1,0 +1,131 @@
+/*
+* This Source Code Form is subject to the terms of the Mozilla Public
+* License, v. 2.0. If a copy of the MPL was not distributed with this
+* file, You can obtain one at https://mozilla.org/MPL/2.0/.
+*/
+mod register_method;
+mod virtual_method_callback;
+
+use proc_macro2::{Ident, TokenStream};
+use quote::quote;
+use venial::{Function, TyExpr};
+
+pub use register_method::gdext_register_method;
+pub use virtual_method_callback::gdext_virtual_method_callback;
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+enum ReceiverType {
+    Ref,
+    Mut,
+    Static,
+}
+
+struct SignatureInfo {
+    pub method_name: Ident,
+    pub receiver_type: ReceiverType,
+    pub param_idents: Vec<Ident>,
+    pub param_types: Vec<TyExpr>,
+    pub num_args: usize,
+    pub ret_type: TokenStream,
+    pub has_return_value: bool,
+}
+
+fn wrap_with_unpacked_params(class_name: &Ident, signature_info: &SignatureInfo) -> TokenStream {
+    let method_name = &signature_info.method_name;
+    let params = &signature_info.param_idents;
+
+    let instance_decl = match &signature_info.receiver_type {
+        ReceiverType::Ref => quote! {
+            let instance = storage.get();
+        },
+        ReceiverType::Mut => quote! {
+            let mut instance = storage.get_mut();
+        },
+        _ => quote! {},
+    };
+
+    match signature_info.receiver_type {
+        ReceiverType::Ref | ReceiverType::Mut => {
+            quote! {
+                |instance_ptr, params| {
+                    let ( #(#params,)* ) = params;
+
+                    let storage =
+                        unsafe { godot::private::as_storage::<#class_name>(instance_ptr) };
+                    #instance_decl
+
+                    instance.#method_name(#(#params),*)
+                }
+            }
+        }
+        ReceiverType::Static => {
+            quote! {
+                |_, params| {
+                    let ( #(#params,)* ) = params;
+                    <#class_name>::#method_name(#(#params),*)
+                }
+            }
+        }
+    }
+}
+
+fn get_signature_info(signature: &Function) -> SignatureInfo {
+    let method_name = signature.name.clone();
+    let mut receiver_type = ReceiverType::Static;
+    let mut param_idents: Vec<Ident> = Vec::new();
+    let mut param_types = Vec::new();
+    let (ret_type, has_return_value) = match &signature.return_ty {
+        None => (quote! { () }, false),
+        Some(ty) => (quote! { #ty }, true),
+    };
+
+    for (arg, _) in &signature.params.inner {
+        match arg {
+            venial::FnParam::Receiver(recv) => {
+                receiver_type = if recv.tk_mut.is_some() {
+                    ReceiverType::Mut
+                } else if recv.tk_ref.is_some() {
+                    ReceiverType::Ref
+                } else {
+                    panic!("Receiver not supported");
+                };
+            }
+            venial::FnParam::Typed(arg) => {
+                let ident = arg.name.clone();
+                let ty = arg.ty.clone();
+                param_types.push(ty);
+                param_idents.push(ident);
+            }
+        }
+    }
+
+    let num_args = match receiver_type {
+        ReceiverType::Static => signature.params.len(),
+        ReceiverType::Mut | ReceiverType::Ref => signature.params.len() - 1,
+    };
+
+    SignatureInfo {
+        method_name,
+        receiver_type,
+        param_idents,
+        param_types,
+        num_args,
+        ret_type,
+        has_return_value,
+    }
+}
+
+fn method_flags(method_type: ReceiverType) -> TokenStream {
+    match method_type {
+        ReceiverType::Ref | ReceiverType::Mut => {
+            quote! { godot::sys::GDEXTENSION_METHOD_FLAGS_DEFAULT }
+        }
+        ReceiverType::Static => quote! { godot::sys::GDEXTENSION_METHOD_FLAG_STATIC },
+    }
+}
+
+fn get_sig(ret_type: &TokenStream, param_types: &Vec<TyExpr>) -> TokenStream {
+    quote! {
+        (#ret_type, #(#param_types),*)
+    }
+}

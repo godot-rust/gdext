@@ -5,6 +5,7 @@
  */
 
 use crate::derive_godot_class::make_existence_check;
+use crate::method_registration::gdext_register_method;
 use crate::util::{ident, KvParser};
 use crate::ParseResult;
 use proc_macro2::{Ident, TokenStream};
@@ -121,9 +122,7 @@ pub(super) fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStr
                         ::godot::bind::property::Export::export(&self.#field_ident)
                     }
                 });
-                export_tokens.push(quote! {
-                    ::godot::private::gdext_register_method!(#class_name, #signature);
-                });
+                export_tokens.push(gdext_register_method(class_name, &signature));
             }
             GetterSetter::Custom(getter_ident) => {
                 getter_name = getter_ident.to_string();
@@ -142,14 +141,13 @@ pub(super) fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStr
                 let signature = quote! {
                     fn #setter_ident(&mut self, #field_ident: #field_type)
                 };
+
                 getter_setter_impls.push(quote! {
                     pub #signature {
                         self.#field_ident = #field_ident;
                     }
                 });
-                export_tokens.push(quote! {
-                    ::godot::private::gdext_register_method!(#class_name, #signature);
-                });
+                export_tokens.push(gdext_register_method(class_name, &signature));
             }
             GetterSetter::Custom(setter_ident) => {
                 setter_name = setter_ident.to_string();

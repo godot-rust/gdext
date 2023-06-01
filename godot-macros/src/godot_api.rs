@@ -4,6 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::method_registration::gdext_register_method;
+use crate::method_registration::gdext_virtual_method_callback;
 use crate::util;
 use crate::util::bail;
 use proc_macro2::{Ident, TokenStream};
@@ -93,13 +95,17 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
     let prv = quote! { ::godot::private };
 
+    let methods_registration = funcs
+        .iter()
+        .map(|func| gdext_register_method(&class_name, &quote! { #func }));
+
     let result = quote! {
         #decl
 
         impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
             fn __register_methods() {
                 #(
-                    ::godot::private::gdext_register_method!(#class_name, #funcs);
+                    #methods_registration
                 )*
 
                 unsafe {
@@ -344,6 +350,11 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         }
     }
 
+    let virtual_method_callbacks: Vec<TokenStream> = virtual_methods
+        .iter()
+        .map(|method| gdext_virtual_method_callback(&class_name, method))
+        .collect();
+
     let result = quote! {
         #original_impl
         #godot_init_impl
@@ -359,7 +370,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
                 match name {
                     #(
-                       #virtual_method_names => #prv::gdext_virtual_method_callback!(#class_name, #virtual_methods),
+                       #virtual_method_names => #virtual_method_callbacks,
                     )*
                     _ => None,
                 }
