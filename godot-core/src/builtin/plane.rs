@@ -217,7 +217,14 @@ impl Plane {
     /// Returns a normalized copy of the plane.
     #[inline]
     pub fn normalized(self) -> Self {
-        Plane::new(self.normal.normalized(), self.d)
+        let length: real = self.normal.length();
+        if length == 0.0 {
+            return Plane {
+                normal: Vector3::ZERO,
+                d: 0.0,
+            };
+        }
+        Plane::new(self.normal.normalized(), self.d / length)
     }
 
     /// Returns the orthogonal projection of `point` to the plane.
