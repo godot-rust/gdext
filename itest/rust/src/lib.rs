@@ -31,6 +31,7 @@ mod projection_test;
 mod quaternion_test;
 mod rect2i_test;
 mod rid_test;
+mod signal_test;
 mod singleton_test;
 mod string;
 mod transform2d_test;
