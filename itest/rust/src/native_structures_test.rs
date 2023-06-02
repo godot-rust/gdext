@@ -15,8 +15,6 @@ use std::cell::Cell;
 #[derive(GodotClass)]
 #[class(base=TextServerExtension)]
 pub struct TestTextServer {
-    #[base]
-    base: Base<TextServerExtension>,
     glyphs: [Glyph; 2],
     cell: Cell<Option<(Rid, i64)>>,
 }
@@ -40,9 +38,8 @@ fn sample_glyph(start: i32) -> Glyph {
 
 #[godot_api]
 impl TextServerExtensionVirtual for TestTextServer {
-    fn init(base: Base<TextServerExtension>) -> Self {
+    fn init(_base: Base<TextServerExtension>) -> Self {
         TestTextServer {
-            base,
             glyphs: [sample_glyph(99), sample_glyph(700)],
             cell: Cell::new(None),
         }

@@ -160,24 +160,67 @@ where
         GdMut::from_cell(self.storage().get_mut())
     }
 
-    /// Storage object associated with the extension instance
-    // FIXME proper + safe interior mutability, also that Clippy is happy
-    #[allow(clippy::mut_from_ref)]
-    pub(crate) fn storage(&self) -> &mut InstanceStorage<T> {
-        let callbacks = crate::storage::nop_instance_callbacks();
+    /// Access base without locking the user object.
+    ///
+    /// If you need mutations, use [`base_mut()`][Self::base_mut]. If you need a value copy, use [`base().share()`][Share::share].
+    pub fn base(&self) -> &Gd<T::Base> {
+        self.storage().base().deref()
+    }
 
+    /// Access base mutably without locking the user object.
+    ///
+    /// The idea is to support the `gd.base_mut().mutating_method()` pattern, which is not allowed with `gd.base()`.
+    /// If you need a copy of a `Gd` object, use `base().share()`.
+    ///
+    /// The return type is currently `Gd` and not `&mut Gd` because of `&mut` aliasing restrictions. This may change in the future.
+    pub fn base_mut(&mut self) -> Gd<T::Base> {
+        // Note: we cannot give safe mutable access to a base without RefCell, because multiple Gd pointers could call base_mut(),
+        // leading to aliased &mut. And we don't want RefCell, as C++ objects (nodes etc.) don't underly Rust's exclusive-ref limitations.
+        // The whole point of the Gd::base*() methods are to not require runtime-exclusive access to the Rust object.
+        //
+        // This is not a problem when accessing the `#[base]` field of a user struct directly, because `self` is guarded by the
+        // RefCell/RwLock in the InstanceStorage.
+        //
+        // Here, we instead return a copy (for now), which for the user looks mostly the same. The idea is that:
+        // - gd.base().mutating_method() fails
+        // - gd.base_mut().mutating_method() works.
+        //
+        // Downside: small ref-counting overhead for `RefCounted` types. If this is an issue in a real game (highly unlikely),
+        // the user could always cache Gd base pointers.
+        self.storage().base().share()
+    }
+
+    /// Storage object associated with the extension instance.
+    pub(crate) fn storage(&self) -> &InstanceStorage<T> {
+        // SAFETY: instance pointer belongs to this instance. We only get a shared reference, no exclusive access, so even
+        // calling this from multiple Gd pointers is safe.
+        // Potential issue is a concurrent free() in multi-threaded access; but that would need to be guarded against inside free().
         unsafe {
-            let token = sys::get_library() as *mut std::ffi::c_void;
-            let binding =
-                interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
-
-            debug_assert!(
-                !binding.is_null(),
-                "Class {} -- null instance; does the class have a Godot creator function?",
-                std::any::type_name::<T>()
-            );
-            crate::private::as_storage::<T>(binding as sys::GDExtensionClassInstancePtr)
+            let binding = self.resolve_instance_ptr();
+            crate::private::as_storage::<T>(binding)
         }
+    }
+
+    /// Storage object associated with the extension instance.
+    // pub(crate) fn storage_mut(&mut self) -> &mut InstanceStorage<T> {
+    //     // SAFETY:
+    //     unsafe {
+    //         let binding = self.resolve_instance_ptr();
+    //         crate::private::as_storage_mut::<T>(binding)
+    //     }
+    // }
+
+    unsafe fn resolve_instance_ptr(&self) -> sys::GDExtensionClassInstancePtr {
+        let callbacks = crate::storage::nop_instance_callbacks();
+        let token = sys::get_library() as *mut std::ffi::c_void;
+        let binding = interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
+
+        debug_assert!(
+            !binding.is_null(),
+            "Class {} -- null instance; does the class have a Godot creator function?",
+            std::any::type_name::<T>()
+        );
+        binding as sys::GDExtensionClassInstancePtr
     }
 }
 
@@ -506,12 +549,13 @@ where
 
     fn deref(&self) -> &Self::Target {
         // SAFETY:
-        // This relies on Gd<Node3D> having the layout as Node3D (as an example),
+        //
+        // This relies on `Gd<Node3D>` having the layout as `Node3D` (as an example),
         // which also needs #[repr(transparent)]:
         //
         // struct Gd<T: GodotClass> {
-        //     opaque: OpaqueObject,         <- size of GDExtensionObjectPtr
-        //     _marker: PhantomData,         <- ZST
+        //     opaque: OpaqueObject,        // <- size of GDExtensionObjectPtr
+        //     _marker: PhantomData,        // <- ZST
         // }
         // struct Node3D {
         //     object_ptr: sys::GDExtensionObjectPtr,
@@ -527,13 +571,14 @@ where
     fn deref_mut(&mut self) -> &mut T {
         // SAFETY: see also Deref
         //
-        // The resulting &mut T is transmuted from &mut OpaqueObject, i.e. a *pointer* to the `opaque` field.
+        // The resulting `&mut T` is transmuted from `&mut OpaqueObject`, i.e. a *pointer* to the `opaque` field.
         // `opaque` itself has a different *address* for each Gd instance, meaning that two simultaneous
         // DerefMut borrows on two Gd instances will not alias, *even if* the underlying Godot object is the
         // same (i.e. `opaque` has the same value, but not address).
         unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut self.opaque) }
     }
 }
+
 // SAFETY:
 // - `move_return_ptr`
 //   When the `call_type` is `PtrcallType::Virtual`, and the current type is known to inherit from `RefCounted`

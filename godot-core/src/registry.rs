@@ -307,10 +307,14 @@ pub mod callbacks {
 
         let base_ptr =
             unsafe { interface_fn!(classdb_construct_object)(base_class_name.string_sys()) };
-        let base = unsafe { Base::from_sys(base_ptr) };
 
+        let base = unsafe { Base::from_sys(base_ptr) };
         let user_instance = make_user_instance(base);
-        let instance = InstanceStorage::<T>::construct(user_instance);
+
+        // Create 2nd base to cache inside storage. This one will remain weak forever (no action on destruction).
+        let cached_base = unsafe { Base::from_sys(base_ptr) };
+
+        let instance = InstanceStorage::<T>::construct(user_instance, cached_base);
         let instance_ptr = instance.into_raw();
         let instance_ptr = instance_ptr as sys::GDExtensionClassInstancePtr;
 
@@ -334,9 +338,12 @@ pub mod callbacks {
         _class_user_data: *mut std::ffi::c_void,
         instance: sys::GDExtensionClassInstancePtr,
     ) {
-        let storage = as_storage::<T>(instance);
-        storage.mark_destroyed_by_godot();
-        let _drop = Box::from_raw(storage as *mut InstanceStorage<_>);
+        {
+            let storage = as_storage::<T>(instance);
+            storage.mark_destroyed_by_godot();
+        } // Ref no longer valid once next statement is executed.
+
+        crate::storage::destroy_storage::<T>(instance);
     }
 
     pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(

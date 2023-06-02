@@ -94,18 +94,19 @@ impl Main {
         self.base.add_child(mob_scene.share().upcast());
 
         let mut mob = mob_scene.cast::<mob::Mob>();
-        {
-            // Local scope to bind `mob`
-            let mut mob = mob.bind_mut();
-            let range = rng.gen_range(mob.min_speed..mob.max_speed);
+        let range = {
+            // Local scope to bind `mob` user object
+            let mob = mob.bind();
+            rng.gen_range(mob.min_speed..mob.max_speed)
+        };
 
-            mob.set_linear_velocity(Vector2::new(range, 0.0));
-            let lin_vel = mob.get_linear_velocity().rotated(real::from_f32(direction));
-            mob.set_linear_velocity(lin_vel);
-        }
+        let mut mob = mob.base_mut();
+        mob.set_linear_velocity(Vector2::new(range, 0.0));
+        let lin_vel = mob.get_linear_velocity().rotated(real::from_f32(direction));
+        mob.set_linear_velocity(lin_vel);
 
         let mut hud = self.base.get_node_as::<Hud>("Hud");
-        hud.bind_mut().connect(
+        hud.base_mut().connect(
             "start_game".into(),
             Callable::from_object_method(mob, "on_start_game"),
         );

@@ -82,10 +82,10 @@ fn signals() {
         let receiver_name = format!("receive_{i}_arg");
 
         emitter
-            .bind_mut()
+            .base_mut()
             .connect(signal_name.clone().into(), receiver.callable(receiver_name));
 
-        emitter.bind_mut().emit_signal(signal_name.into(), arg);
+        emitter.base_mut().emit_signal(signal_name.into(), arg);
 
         assert!(receiver.bind().used[i].get());
     }
