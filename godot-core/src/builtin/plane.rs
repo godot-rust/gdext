@@ -214,10 +214,20 @@ impl Plane {
         self.normal.dot(point) > self.d
     }
 
-    /// Returns a normalized copy of the plane.
+    /// Returns a copy of the plane with its `normal` and `d` scaled to the unit length.
+    ///
+    /// A `normal` length of `0.0` would return a plane with its `normal` and `d` being `Vector3::ZERO`
+    /// and `0.0` respectively.
     #[inline]
     pub fn normalized(self) -> Self {
-        Plane::new(self.normal.normalized(), self.d)
+        let length: real = self.normal.length();
+        if length == 0.0 {
+            return Plane {
+                normal: Vector3::ZERO,
+                d: 0.0,
+            };
+        }
+        Plane::new(self.normal.normalized(), self.d / length)
     }
 
     /// Returns the orthogonal projection of `point` to the plane.
