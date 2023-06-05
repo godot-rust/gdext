@@ -26,7 +26,12 @@ macro_rules! impl_variant_metadata {
         }
     };
 }
-
+// Certain types need to be passed as initialized pointers in their from_variant implementations in 4.0. Because
+// 4.0 uses `*ptr = value` to return the type, and some types in c++ override `operator=` in c++ in a way
+// that requires the pointer the be initialized. But some other types will cause a memory leak in 4.1 if
+// initialized.
+//
+// Thus we can use `init` to indicate when it must be initialized in 4.0.
 macro_rules! impl_variant_traits {
     ($T:ty, $from_fn:ident, $to_fn:ident, $variant_type:ident) => {
         impl_variant_traits!(@@ $T, $from_fn, $to_fn, $variant_type;);
@@ -61,13 +66,16 @@ macro_rules! impl_variant_traits {
                     return Err(VariantConversionError::BadType)
                 }
 
+                // For 4.0:
                 // In contrast to T -> Variant, the conversion Variant -> T assumes
                 // that the destination is initialized (at least for some T). For example:
                 // void String::operator=(const String &p_str) { _cowdata._ref(p_str._cowdata); }
                 // does a copy-on-write and explodes if this->_cowdata is not initialized.
                 // We can thus NOT use Self::from_sys_init().
+                //
+                // This was changed in 4.1.
                 let result = unsafe {
-                    Self::from_sys_init(|self_ptr| {
+                    sys::from_sys_init_or_init_default(|self_ptr| {
                         let converter = sys::builtin_fn!($to_fn);
                         converter(self_ptr, variant.var_sys());
                     })

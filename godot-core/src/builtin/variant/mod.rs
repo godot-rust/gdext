@@ -109,7 +109,7 @@ impl Variant {
         let mut error = sys::default_call_error();
 
         let result = unsafe {
-            Variant::from_var_sys_init(|variant_ptr| {
+            Variant::from_var_sys_init_or_init_default(|variant_ptr| {
                 interface_fn!(variant_call)(
                     self.var_sys(),
                     method.string_sys(),
@@ -133,7 +133,7 @@ impl Variant {
         let mut is_valid = false as u8;
 
         let result = unsafe {
-            Variant::from_var_sys_init(|variant_ptr| {
+            Self::from_var_sys_init_or_init_default(|variant_ptr| {
                 interface_fn!(variant_evaluate)(
                     op_sys,
                     self.var_sys(),
@@ -192,6 +192,36 @@ impl Variant {
         fn from_var_sys = from_sys;
         fn from_var_sys_init = from_sys_init;
         fn var_sys = sys;
+    }
+
+    #[doc(hidden)]
+    pub unsafe fn from_var_sys_init_default(
+        init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
+    ) -> Self {
+        #[allow(unused_mut)]
+        let mut variant = Variant::nil();
+        init_fn(variant.var_sys());
+        variant
+    }
+
+    /// # Safety
+    ///
+    /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
+    #[cfg(gdextension_api = "4.0")]
+    pub unsafe fn from_var_sys_init_or_init_default(
+        init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
+    ) -> Self {
+        Self::from_var_sys_init_default(init_fn)
+    }
+
+    /// # Safety
+    ///
+    /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
+    #[cfg(not(gdextension_api = "4.0"))]
+    pub unsafe fn from_var_sys_init_or_init_default(
+        init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr),
+    ) -> Self {
+        Self::from_var_sys_init(init_fn)
     }
 
     #[doc(hidden)]

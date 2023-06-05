@@ -86,7 +86,7 @@ jobs:
       - name: "Run Godot integration test"
         uses: ./.github/composite/godot-itest
         with:
-          artifact-name: godot-linux
+          artifact-name: godot-linux-nightly
           godot-binary: godot.linuxbsd.editor.dev.x86_64
 
 

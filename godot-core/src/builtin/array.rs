@@ -717,7 +717,7 @@ impl<T: VariantMetadata> FromVariant for Array<T> {
         }
 
         let array = unsafe {
-            Self::from_sys_init(|self_ptr| {
+            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let array_from_variant = sys::builtin_fn!(array_from_variant);
                 array_from_variant(self_ptr, variant.var_sys());
             })

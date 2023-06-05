@@ -148,3 +148,39 @@ pub mod private {
         std::io::stdout().flush().expect("flush stdout");
     }
 }
+
+macro_rules! generate_gdextension_api_version {
+    (
+        $(
+            ($name:ident, $gdextension_api:ident) => {
+                $($version:literal, )*
+            }
+        ),* $(,)?
+    ) => {
+        $(
+            $(
+                #[cfg($gdextension_api = $version)]
+                #[allow(dead_code)]
+                const $name: &str = $version;
+            )*
+        )*
+    };
+}
+
+// If multiple gdextension_api_version's are found then this will generate several structs with the same
+// name, causing a compile error.
+//
+// This includes all versions we're developing for, including unreleased future versions.
+generate_gdextension_api_version!(
+    (GDEXTENSION_EXACT_API, gdextension_exact_api) => {
+        "4.0",
+        "4.0.1",
+        "4.0.2",
+        "4.0.3",
+        "4.1",
+    },
+    (GDEXTENSION_API, gdextension_api) => {
+        "4.0",
+        "4.1",
+    },
+);

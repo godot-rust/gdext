@@ -96,6 +96,32 @@ pub unsafe trait GodotFfi {
     unsafe fn move_return_ptr(self, dst: sys::GDExtensionTypePtr, call_type: PtrcallType);
 }
 
+// In Godot 4.0.x, a lot of that are "constructed into" require a default-initialized value.
+// In Godot 4.1+, placement new is used, requiring no prior value.
+// This method abstracts over that. Outside of GodotFfi because it should not be overridden.
+
+/// # Safety
+///
+/// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
+#[cfg(gdextension_api = "4.0")]
+pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
+    init_fn: impl FnOnce(sys::GDExtensionTypePtr),
+) -> T {
+    T::from_sys_init_default(init_fn)
+}
+
+/// # Safety
+///
+/// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
+#[cfg(not(gdextension_api = "4.0"))]
+pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
+    init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
+) -> T {
+    T::from_sys_init(init_fn)
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Marks a type as having a nullable counterpart in Godot.
 ///
 /// This trait primarily exists to implement GodotFfi for `Option<Gd<T>>`, which is not possible
@@ -114,13 +140,6 @@ unsafe impl<T> GodotFfi for Option<T>
 where
     T: GodotNullablePtr,
 {
-    fn sys(&self) -> sys::GDExtensionTypePtr {
-        match self {
-            Some(value) => value.sys(),
-            None => ptr::null_mut() as sys::GDExtensionTypePtr,
-        }
-    }
-
     unsafe fn from_sys(ptr: sys::GDExtensionTypePtr) -> Self {
         ptr_then(ptr, |ptr| T::from_sys(ptr))
     }
@@ -130,6 +149,13 @@ where
         init_fn(raw.as_mut_ptr() as sys::GDExtensionUninitializedTypePtr);
 
         Self::from_sys(raw.assume_init())
+    }
+
+    fn sys(&self) -> sys::GDExtensionTypePtr {
+        match self {
+            Some(value) => value.sys(),
+            None => ptr::null_mut() as sys::GDExtensionTypePtr,
+        }
     }
 
     unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
@@ -142,6 +168,8 @@ where
         }
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// An indication of what type of pointer call is being made.
 #[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
