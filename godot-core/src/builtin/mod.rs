@@ -54,13 +54,7 @@ pub use string::*;
 pub use transform2d::*;
 pub use transform3d::*;
 pub use variant::*;
-pub use vectors::vector2::*;
-pub use vectors::vector2i::*;
-pub use vectors::vector3::*;
-pub use vectors::vector3i::*;
-pub use vectors::vector4::*;
-pub use vectors::vector4i::*;
-pub use vectors::vector_utils::*;
+pub use vectors::*;
 
 /// Meta-information about variant types, properties and class names.
 pub mod meta;
@@ -195,7 +189,10 @@ mod real_mod {
         }
     }
 
-    pub use std::f32::consts;
+    /// Re-export of [`std::f32::consts`] or [`std::f64::consts`], depending on precision config.
+    pub mod real_consts {
+        pub use std::f32::consts::*;
+    }
 
     /// A 2-dimensional vector from [`glam`]. Using a floating-point format compatible with [`real`].
     pub type RVec2 = glam::Vec2;
@@ -262,7 +259,10 @@ mod real_mod {
         }
     }
 
-    pub use std::f64::consts;
+    /// Re-export of [`std::f32::consts`] or [`std::f64::consts`], depending on precision config.
+    pub mod real_consts {
+        pub use std::f64::consts::*;
+    }
 
     /// A 2-dimensional vector from [`glam`]. Using a floating-point format compatible with [`real`].
     pub type RVec2 = glam::DVec2;
@@ -292,26 +292,29 @@ mod real_mod {
 
 pub use crate::real;
 pub(crate) use real_mod::*;
-pub use real_mod::{consts as real_consts, real};
+
+pub use real_mod::{real, real_consts};
 
 pub(crate) use glam::{IVec2, IVec3, IVec4};
 
-/// A macro to coerce float-literals into the real type. Mainly used where
-/// you'd normally use a suffix to specity the type, such as `115.0f32`.
+/// A macro to coerce float-literals into the [`real`] type.
 ///
-/// ### Examples
-/// Rust will not know how to infer the type of this call to `to_radians`:
+/// Mainly used where you'd normally use a suffix to specify the type, such as `115.0f32`.
+///
+/// # Examples
+///
+/// Rust is not able to infer the `self` type of this call to `to_radians`:
 /// ```compile_fail
-/// use godot_core::builtin::real;
+/// use godot::builtin::real;
 ///
 /// let radians: real = 115.0.to_radians();
 /// ```
-/// But we can't add a suffix to the literal, since it may be either `f32` or
+/// But we cannot add a suffix to the literal, since it may be either `f32` or
 /// `f64` depending on the context. So instead we use our macro:
 /// ```
-/// use godot_core::builtin::real;
+/// use godot::builtin::real;
 ///
-/// let radians: real = godot_core::real!(115.0).to_radians();
+/// let radians: real = real!(115.0).to_radians();
 /// ```
 #[macro_export]
 macro_rules! real {

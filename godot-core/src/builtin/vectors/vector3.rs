@@ -16,7 +16,7 @@ use crate::builtin::Vector3i;
 use super::super::glam_helpers::GlamConv;
 use super::super::glam_helpers::GlamType;
 use super::super::{real, Basis, RVec3};
-use super::vector_utils::*;
+use super::vector_axis::*;
 
 /// Vector used for 3D math using floating point coordinates.
 ///

@@ -197,17 +197,17 @@ macro_rules! impl_vector_index {
         // Type of each individual component, for example `real`.
         $Scalar:ty,
         // Names of the components, with parentheses, for example `(x, y)`.
-        ($($components:ident),*),
+        ($( $components:ident ),*),
         // Name of the enum type for the axes, for example `Vector2Axis`.
         $AxisEnum:ty,
         // Names of the enum variants, with parenthes, for example `(X, Y)`.
-        ($($AxisVariants:ident),*)
+        ($( $axis_variants:ident ),*)
     ) => {
         impl std::ops::Index<$AxisEnum> for $Vector {
             type Output = $Scalar;
             fn index(&self, axis: $AxisEnum) -> &$Scalar {
                 match axis {
-                    $(<$AxisEnum>::$AxisVariants => &self.$components),*
+                    $(<$AxisEnum>::$axis_variants => &self.$components),*
                 }
             }
         }
@@ -215,7 +215,7 @@ macro_rules! impl_vector_index {
         impl std::ops::IndexMut<$AxisEnum> for $Vector {
             fn index_mut(&mut self, axis: $AxisEnum) -> &mut $Scalar {
                 match axis {
-                    $(<$AxisEnum>::$AxisVariants => &mut self.$components),*
+                    $(<$AxisEnum>::$axis_variants => &mut self.$components),*
                 }
             }
         }
@@ -287,9 +287,10 @@ macro_rules! impl_from_tuple_for_vector2x {
         $Vector:ty,
         $Scalar:ty
     ) => {
-        impl From<($Scalar, $Scalar)> for $Vector {
-            fn from(value: ($Scalar, $Scalar)) -> $Vector {
-                Self::new(value.0, value.1)
+        impl $crate::builtin::ToVector for ($Scalar, $Scalar) {
+            type Output = $Vector;
+            fn to_vector(self) -> $Vector {
+                <$Vector>::new(self.0, self.1)
             }
         }
     };
@@ -300,9 +301,10 @@ macro_rules! impl_from_tuple_for_vector3x {
         $Vector:ty,
         $Scalar:ty
     ) => {
-        impl From<($Scalar, $Scalar, $Scalar)> for $Vector {
-            fn from(value: ($Scalar, $Scalar, $Scalar)) -> $Vector {
-                Self::new(value.0, value.1, value.2)
+        impl $crate::builtin::ToVector for ($Scalar, $Scalar, $Scalar) {
+            type Output = $Vector;
+            fn to_vector(self) -> $Vector {
+                <$Vector>::new(self.0, self.1, self.2)
             }
         }
     };
@@ -313,9 +315,10 @@ macro_rules! impl_from_tuple_for_vector4x {
         $Vector:ty,
         $Scalar:ty
     ) => {
-        impl From<($Scalar, $Scalar, $Scalar, $Scalar)> for $Vector {
-            fn from(value: ($Scalar, $Scalar, $Scalar, $Scalar)) -> $Vector {
-                Self::new(value.0, value.1, value.2, value.3)
+        impl $crate::builtin::ToVector for ($Scalar, $Scalar, $Scalar, $Scalar) {
+            type Output = $Vector;
+            fn to_vector(self) -> $Vector {
+                <$Vector>::new(self.0, self.1, self.2, self.3)
             }
         }
     };

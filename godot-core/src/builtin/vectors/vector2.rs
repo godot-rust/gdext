@@ -15,7 +15,7 @@ use crate::builtin::{inner, Vector2i};
 use super::super::glam_helpers::GlamConv;
 use super::super::glam_helpers::GlamType;
 use super::super::{real, RAffine2, RVec2};
-use super::vector_utils::*;
+use super::vector_axis::*;
 
 /// Vector used for 2D math using floating point coordinates.
 ///
