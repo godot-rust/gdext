@@ -2,7 +2,6 @@ use crate::hud::Hud;
 use crate::mob;
 use crate::player;
 use godot::engine::node::InternalMode;
-use godot::engine::packed_scene::GenEditState;
 use godot::engine::{Marker2D, PathFollow2D, RigidBody2D, Timer};
 use godot::prelude::*;
 use rand::Rng as _;
@@ -78,7 +77,7 @@ impl Main {
             .base
             .get_node_as::<PathFollow2D>("MobPath/MobSpawnLocation");
 
-        let mut mob_scene: Gd<RigidBody2D> = instantiate_scene(&self.mob_scene);
+        let mut mob_scene = self.mob_scene.instantiate_as::<RigidBody2D>();
 
         let mut rng = rand::thread_rng();
         let progress = rng.gen_range(u32::MIN..u32::MAX);
@@ -145,17 +144,4 @@ impl NodeVirtual for Main {
         self.music = Some(self.base.get_node_as("Music"));
         self.death_sound = Some(self.base.get_node_as("DeathSound"));
     }
-}
-
-/// Root here is needs to be the same type (or a parent type) of the node that you put in the child
-///   scene as the root. For instance Spatial is used for this example.
-fn instantiate_scene<Root>(scene: &PackedScene) -> Gd<Root>
-where
-    Root: GodotClass + Inherits<Node>,
-{
-    let s = scene
-        .instantiate(GenEditState::GEN_EDIT_STATE_DISABLED)
-        .expect("scene instantiated");
-
-    s.cast::<Root>()
 }

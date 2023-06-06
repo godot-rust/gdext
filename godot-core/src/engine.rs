@@ -16,6 +16,40 @@ pub use crate::gen::central::global;
 pub use crate::gen::classes::*;
 pub use crate::gen::utilities;
 
+use self::packed_scene::GenEditState;
+
+/// Extension trait for convenience functions on `PackedScene`
+pub trait PackedSceneExt {
+    /// ⚠️ Instantiates the scene as type `T`, panicking if not found or bad type.
+    ///
+    /// # Panics
+    /// If the scene is not type `T` or inherited.
+    fn instantiate_as<T>(&self) -> Gd<T>
+    where
+        T: Inherits<Node>,
+    {
+        self.try_instantiate_as::<T>()
+            .unwrap_or_else(|| panic!("Failed to instantiate {to}", to = T::CLASS_NAME))
+    }
+
+    /// Instantiates the scene as type `T` (fallible).
+    ///
+    /// If the scene is not type `T` or inherited.
+    fn try_instantiate_as<T>(&self) -> Option<Gd<T>>
+    where
+        T: Inherits<Node>;
+}
+
+impl PackedSceneExt for PackedScene {
+    fn try_instantiate_as<T>(&self) -> Option<Gd<T>>
+    where
+        T: Inherits<Node>,
+    {
+        self.instantiate(GenEditState::GEN_EDIT_STATE_DISABLED)
+            .and_then(|gd| gd.try_cast::<T>())
+    }
+}
+
 /// Extension trait with convenience functions for the node tree.
 pub trait NodeExt {
     /// Retrieves the node at path `path`, panicking if not found or bad type.
