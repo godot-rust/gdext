@@ -9,7 +9,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::glam_helpers::{GlamConv, GlamType};
-use crate::builtin::{inner, math::*, vector3::*};
+use crate::builtin::{inner, math::*, Vector3};
 
 use super::{real, RQuat};
 use super::{Basis, EulerOrder};

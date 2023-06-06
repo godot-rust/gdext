@@ -9,11 +9,10 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
+use super::super::glam_helpers::{GlamConv, GlamType};
+use super::super::{real, RVec4};
 use crate::builtin::math::*;
 use crate::builtin::Vector4i;
-
-use super::glam_helpers::{GlamConv, GlamType};
-use super::{real, RVec4};
 
 /// Vector used for 4D math using floating point coordinates.
 ///
@@ -42,9 +41,9 @@ pub struct Vector4 {
 }
 
 impl_vector_operators!(Vector4, real, (x, y, z, w));
-impl_vector_index!(Vector4, real, (x, y, z, w), Vector4Axis, (X, Y, Z, W));
 impl_common_vector_fns!(Vector4, real);
 impl_float_vector_fns!(Vector4, real);
+impl_from_tuple_for_vector4x!(Vector4, real);
 
 impl Vector4 {
     /// Returns a `Vector4` with the given components.
@@ -92,6 +91,10 @@ impl Vector4 {
             && is_equal_approx(self.z, to.z)
             && is_equal_approx(self.w, to.w)
     }
+
+    pub fn coords(&self) -> (real, real, real, real) {
+        (self.x, self.y, self.z, self.w)
+    }
 }
 
 /// Formats the vector like Godot: `(x, y, z, w)`.
@@ -104,29 +107,6 @@ impl fmt::Display for Vector4 {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector4 {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
-}
-
-/// Enumerates the axes in a [`Vector4`].
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
-#[repr(i32)]
-pub enum Vector4Axis {
-    /// The X axis.
-    X,
-
-    /// The Y axis.
-    Y,
-
-    /// The Z axis.
-    Z,
-
-    /// The W axis.
-    W,
-}
-
-// SAFETY:
-// This type is represented as `Self` in Godot, so `*mut Self` is sound.
-unsafe impl GodotFfi for Vector4Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 

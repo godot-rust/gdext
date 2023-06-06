@@ -9,10 +9,9 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
+use crate::builtin::glam_helpers::{GlamConv, GlamType};
+use crate::builtin::IVec2;
 use crate::builtin::Vector2;
-
-use super::glam_helpers::{GlamConv, GlamType};
-use super::IVec2;
 
 /// Vector used for 2D math using integer coordinates.
 ///
@@ -80,6 +79,10 @@ impl Vector2i {
     fn to_glam(self) -> glam::IVec2 {
         IVec2::new(self.x, self.y)
     }
+
+    pub fn coords(&self) -> (i32, i32) {
+        (self.x, self.y)
+    }
 }
 
 /// Formats the vector like Godot: `(x, y)`.
@@ -91,28 +94,11 @@ impl fmt::Display for Vector2i {
 
 impl_common_vector_fns!(Vector2i, i32);
 impl_vector_operators!(Vector2i, i32, (x, y));
-impl_vector_index!(Vector2i, i32, (x, y), Vector2iAxis, (X, Y));
+impl_from_tuple_for_vector2x!(Vector2i, i32);
 
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector2i {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
-}
-
-/// Enumerates the axes in a [`Vector2i`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-#[repr(i32)]
-pub enum Vector2iAxis {
-    /// The X axis.
-    X,
-
-    /// The Y axis.
-    Y,
-}
-
-// SAFETY:
-// This type is represented as `Self` in Godot, so `*mut Self` is sound.
-unsafe impl GodotFfi for Vector2iAxis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
