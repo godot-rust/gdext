@@ -8,7 +8,7 @@ use crate::util;
 use crate::util::bail;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use venial::{AttributeValue, Declaration, Error, Function, Impl, ImplMember};
+use venial::{AttributeValue, Declaration, Error, FnParam, Function, Impl, ImplMember, TyExpr};
 
 pub fn transform(input_decl: Declaration) -> Result<TokenStream, Error> {
     let decl = match input_decl {
@@ -62,11 +62,34 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let class_name = util::validate_impl(&decl, None, "godot_api")?;
     let class_name_str = class_name.to_string();
 
-    //let register_fn = format_ident!("__godot_rust_register_{}", class_name_str);
-    //#[allow(non_snake_case)]
-
     let (funcs, signals) = process_godot_fns(&mut decl)?;
-    let signal_name_strs = signals.into_iter().map(|ident| ident.to_string());
+
+    let mut signal_name_strs: Vec<String> = Vec::new();
+    let mut signal_parameters_count: Vec<i64> = Vec::new();
+    let mut signal_parameters: Vec<TokenStream> = Vec::new();
+
+    for signature in signals {
+        let mut param_types: Vec<TyExpr> = Vec::new();
+        let mut param_names: Vec<Ident> = Vec::new();
+
+        for param in signature.params.inner {
+            match &param.0 {
+                FnParam::Typed(param) => {
+                    param_types.push(param.ty.clone());
+                    param_names.push(param.name.clone());
+                }
+                FnParam::Receiver(_) => {}
+            };
+        }
+
+        signal_name_strs.push(signature.name.to_string());
+        signal_parameters_count.push(param_names.len() as i64);
+        signal_parameters.push(
+            quote! {
+                ::godot::private::gdext_get_arguments_info!(((), #(#param_types ),*), #(#param_names, )*).as_ptr()
+            },
+        );
+    }
 
     let prv = quote! { ::godot::private };
 
@@ -74,7 +97,6 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
         #decl
 
         impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
-            //fn __register_methods(_builder: &mut ::godot::builder::ClassBuilder<Self>) {
             fn __register_methods() {
                 #(
                     ::godot::private::gdext_register_method!(#class_name, #funcs);
@@ -83,14 +105,17 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
                 unsafe {
                     let class_name = ::godot::builtin::StringName::from(#class_name_str);
                     use ::godot::sys;
+
                     #(
+                        let parameters = #signal_parameters;
                         let signal_name = ::godot::builtin::StringName::from(#signal_name_strs);
+
                         sys::interface_fn!(classdb_register_extension_class_signal)(
                             sys::get_library(),
                             class_name.string_sys(),
                             signal_name.string_sys(),
-                            std::ptr::null(), // NULL only valid for zero parameters, in current impl; maybe better empty slice
-                            0,
+                            parameters,
+                            sys::GDExtensionInt::from(#signal_parameters_count),
                         );
                     )*
                 }
@@ -110,9 +135,9 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     Ok(result)
 }
 
-fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Ident>), Error> {
+fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Function>), Error> {
     let mut func_signatures = vec![];
-    let mut signal_idents = vec![]; // TODO consider signature
+    let mut signal_signatures = vec![];
 
     let mut removed_indexes = vec![];
     for (index, item) in decl.body_items.iter_mut().enumerate() {
@@ -147,11 +172,12 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Ident>), Err
                     func_signatures.push(sig);
                 }
                 BoundAttrType::Signal(ref _attr_val) => {
-                    if !method.params.is_empty() || method.return_ty.is_some() {
-                        return attr.bail("parameters and return types not yet supported", method);
+                    if method.return_ty.is_some() {
+                        return attr.bail("return types are not supported", method);
                     }
+                    let sig = util::reduce_to_signature(method);
 
-                    signal_idents.push(method.name.clone());
+                    signal_signatures.push(sig.clone());
                     removed_indexes.push(index);
                 }
             }
@@ -164,7 +190,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Ident>), Err
         decl.body_items.remove(index);
     }
 
-    Ok((func_signatures, signal_idents))
+    Ok((func_signatures, signal_signatures))
 }
 
 fn extract_attributes(method: &Function) -> Result<Option<BoundAttr>, Error> {
