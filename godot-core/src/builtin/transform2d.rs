@@ -112,6 +112,21 @@ impl Transform2D {
         )
     }
 
+    /// Unstable, used to simplify codegen. Too many parameters for public API and easy to have off-by-one, `from_cols()` is preferred.
+    #[doc(hidden)]
+    #[rustfmt::skip]
+    #[allow(clippy::too_many_arguments)]
+    pub const fn __internal_codegen(
+       ax: real, ay: real,
+       bx: real, by: real,
+       ox: real, oy: real,
+    ) -> Self {
+        Self::from_cols(
+            Vector2::new(ax, ay),
+            Vector2::new(bx, by),
+            Vector2::new(ox, oy),
+        )
+    }
     /// Create a reference to the first two columns of the transform
     /// interpreted as a [`Basis2D`].
     fn basis<'a>(&'a self) -> &'a Basis2D {
