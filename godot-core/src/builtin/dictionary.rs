@@ -74,6 +74,7 @@ impl Dictionary {
     /// the key if the key was in the dictionary.
     ///
     /// _Godot equivalent: `erase`_
+    #[doc(alias = "erase")]
     pub fn remove<K: ToVariant>(&mut self, key: K) -> Option<Variant> {
         let key = key.to_variant();
         let old_value = self.get(key.clone());
@@ -89,6 +90,7 @@ impl Dictionary {
     /// using a `HashMap` or `Dictionary` with the inverse mapping (`V` -> `K`).
     ///
     /// _Godot equivalent: `find_key`_
+    #[doc(alias = "find_key")]
     pub fn find_key_by_value<V: ToVariant>(&self, value: V) -> Option<Variant> {
         let key = self.as_inner().find_key(value.to_variant());
 
@@ -118,6 +120,7 @@ impl Dictionary {
     /// If you need that, use [`Self::get`].
     ///
     /// _Godot equivalent: `dict.get(key, null)`_
+    #[doc(alias = "get")]
     pub fn get_or_nil<K: ToVariant>(&self, key: K) -> Variant {
         self.as_inner().get(key.to_variant(), Variant::nil())
     }
@@ -125,6 +128,7 @@ impl Dictionary {
     /// Returns `true` if the dictionary contains the given key.
     ///
     /// _Godot equivalent: `has`_
+    #[doc(alias = "has")]
     pub fn contains_key<K: ToVariant>(&self, key: K) -> bool {
         let key = key.to_variant();
         self.as_inner().has(key)
@@ -133,6 +137,7 @@ impl Dictionary {
     /// Returns `true` if the dictionary contains all the given keys.
     ///
     /// _Godot equivalent: `has_all`_
+    #[doc(alias = "has_all")]
     pub fn contains_all_keys(&self, keys: VariantArray) -> bool {
         self.as_inner().has_all(keys)
     }
@@ -145,6 +150,7 @@ impl Dictionary {
     /// Creates a new `Array` containing all the keys currently in the dictionary.
     ///
     /// _Godot equivalent: `keys`_
+    #[doc(alias = "keys")]
     pub fn keys_array(&self) -> VariantArray {
         self.as_inner().keys()
     }
@@ -152,6 +158,7 @@ impl Dictionary {
     /// Creates a new `Array` containing all the values currently in the dictionary.
     ///
     /// _Godot equivalent: `values`_
+    #[doc(alias = "values")]
     pub fn values_array(&self) -> VariantArray {
         self.as_inner().values()
     }
@@ -166,6 +173,7 @@ impl Dictionary {
     /// If `overwrite` is true, it will overwrite pre-existing keys.
     ///
     /// _Godot equivalent: `merge`_
+    #[doc(alias = "merge")]
     pub fn extend_dictionary(&mut self, other: Self, overwrite: bool) {
         self.as_inner().merge(other, overwrite)
     }
@@ -173,6 +181,7 @@ impl Dictionary {
     /// Returns the number of entries in the dictionary.
     ///
     /// This is equivalent to `size` in Godot.
+    #[doc(alias = "size")]
     pub fn len(&self) -> usize {
         self.as_inner().size().try_into().unwrap()
     }

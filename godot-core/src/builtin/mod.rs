@@ -161,8 +161,6 @@ mod real_mod {
     /// [`f64`], see [`RealConv`](super::RealConv).
     ///
     /// See also the [Godot docs on float](https://docs.godotengine.org/en/stable/classes/class_float.html).
-    ///
-    /// _Godot equivalent: `real_t`_
     // As this is a scalar value, we will use a non-standard type name.
     #[allow(non_camel_case_types)]
     pub type real = f32;
@@ -327,6 +325,7 @@ macro_rules! real {
 /// The side of a [`Rect2`] or [`Rect2i`].
 ///
 /// _Godot equivalent: `@GlobalScope.Side`_
+#[doc(alias = "Side")]
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub enum RectSide {

@@ -68,6 +68,7 @@ impl Rect2i {
     /// The end of the `Rect2i` calculated as `position + size`.
     ///
     /// _Godot equivalent: `Rect2i.size` property_
+    #[doc(alias = "size")]
     #[inline]
     pub const fn end(&self) -> Vector2i {
         Vector2i::new(self.position.x + self.size.x, self.position.y + self.size.y)
@@ -120,7 +121,6 @@ impl Rect2i {
     /// Returns the area of the `Rect2i`.
     ///
     /// _Godot equivalent: `Rect2i.get_area` function_
-    #[doc(alias = "get_area")]
     #[inline]
     pub const fn area(&self) -> i32 {
         self.size.x * self.size.y
@@ -131,7 +131,6 @@ impl Rect2i {
     /// If `size` is an odd number, the returned center value will be rounded towards `position`.
     ///
     /// _Godot equivalent: `Rect2i.get_center` function_
-    #[doc(alias = "get_center")]
     #[inline]
     pub fn center(&self) -> Vector2i {
         self.position + (self.size / 2)

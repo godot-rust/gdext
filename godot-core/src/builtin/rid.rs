@@ -52,6 +52,7 @@ impl Rid {
     /// Convert this RID into a [`u64`]. Returns 0 if it is invalid.
     ///
     /// _Godot equivalent: `Rid.get_id()`_
+    #[doc(alias = "get_id")]
     #[inline]
     pub const fn to_u64(self) -> u64 {
         match self {

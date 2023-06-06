@@ -52,8 +52,6 @@ impl Aabb {
     }
 
     /// Set size based on desired end-point.
-    ///
-    /// _Godot equivalent: `Aabb.size` property_
     #[inline]
     pub fn set_end(&mut self, end: Vector3) {
         self.size = end - self.position
@@ -61,8 +59,6 @@ impl Aabb {
 
     /// Returns `true` if the two `Aabb`s are approximately equal, by calling `is_equal_approx` on
     /// `position` and `size`.
-    ///
-    /// _Godot equivalent: `Aabb.is_equal_approx()`_
     #[inline]
     pub fn is_equal_approx(&self, other: &Self) -> bool {
         self.position.is_equal_approx(other.position) && self.size.is_equal_approx(other.size)

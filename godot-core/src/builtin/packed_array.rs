@@ -201,6 +201,8 @@ macro_rules! impl_packed_array {
 
             /// Appends an element to the end of the array. Equivalent of `append` and `push_back`
             /// in GDScript.
+            #[doc(alias = "append")]
+            #[doc(alias = "push_back")]
             pub fn push(&mut self, value: $Element) {
                 self.as_inner().push_back(Self::into_arg(value));
             }
@@ -231,6 +233,7 @@ macro_rules! impl_packed_array {
             // Design note: This returns the removed value instead of `()` for consistency with
             // `Array` and with `Vec::remove`. Compared to shifting all the subsequent array
             // elements to their new position, the overhead of retrieving this element is trivial.
+            #[doc(alias = "remove_at")]
             pub fn remove(&mut self, index: usize) -> $Element {
                 self.check_bounds(index);
                 let element = self.get(index);

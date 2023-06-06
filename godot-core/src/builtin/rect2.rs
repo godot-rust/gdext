@@ -68,6 +68,7 @@ impl Rect2 {
     /// The end of the `Rect2` calculated as `position + size`.
     ///
     /// _Godot equivalent: `Rect2.size` property_
+    #[doc(alias = "size")]
     #[inline]
     pub fn end(&self) -> Vector2 {
         self.position + self.size

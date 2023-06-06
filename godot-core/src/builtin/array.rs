@@ -42,7 +42,9 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 /// Usage is safe if the `Array` is used on a single thread only. Concurrent reads on
 /// different threads are also safe, but any writes must be externally synchronized. The Rust
 /// compiler will enforce this as long as you use only Rust threads, but it cannot protect against
+
 /// concurrent modification on other threads (e.g. created through GDScript).
+
 // `T` must be restricted to `VariantMetadata` in the type, because `Drop` can only be implemented
 // for `T: VariantMetadata` because `drop()` requires `sys_mut()`, which is on the `GodotFfi`
 // trait, whose `from_sys_init()` requires `Default`, which is only implemented for `T:
@@ -82,6 +84,7 @@ impl<T: VariantMetadata> Array<T> {
     ///
     /// Retrieving the size incurs an FFI call. If you know the size hasn't changed, you may consider storing
     /// it in a variable. For loops, prefer iterators.
+    #[doc(alias = "size")]
     pub fn len(&self) -> usize {
         to_usize(self.as_inner().size())
     }
