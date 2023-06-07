@@ -218,6 +218,7 @@ pub struct MethodArg {
     #[nserde(rename = "type")]
     pub type_: String,
     // pub meta: Option<String>,
+    pub default_value: Option<String>,
 }
 
 // Example: get_available_point_id -> {type: "int", meta: "int64"}

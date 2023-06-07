@@ -267,7 +267,7 @@ fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
 /// Maps an input type to a Godot type with the same C representation. This is subtly different than [`to_rust_type`],
 /// which maps to an appropriate corresponding Rust type. This function should be used in situations where the C ABI for
 /// a type must match the Godot equivalent exactly, such as when dealing with pointers.
-pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context<'_>) -> RustTy {
+pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context) -> RustTy {
     match ty {
         "int" => RustTy::BuiltinIdent(ident("i32")),
         "float" => RustTy::BuiltinIdent(ident("f32")),
@@ -280,7 +280,7 @@ pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context<'_>) -> RustTy {
 ///
 /// Uses an internal cache (via `ctx`), as several types are ubiquitous.
 // TODO take TyName as input
-pub(crate) fn to_rust_type(ty: &str, ctx: &mut Context<'_>) -> RustTy {
+pub(crate) fn to_rust_type(ty: &str, ctx: &mut Context) -> RustTy {
     // Separate find + insert slightly slower, but much easier with lifetimes
     // The insert path will be hit less often and thus doesn't matter
     if let Some(rust_ty) = ctx.find_rust_type(ty) {
@@ -414,4 +414,192 @@ pub fn parse_native_structures_format(input: &str) -> Option<Vec<NativeStructure
             })
         })
         .collect()
+}
+
+pub(crate) fn to_rust_expr(expr: &str, ty: &RustTy) -> TokenStream {
+    to_rust_expr_inner(expr, ty, false)
+}
+
+fn to_rust_expr_inner(expr: &str, is_inner: bool) -> TokenStream {
+    println!("\n> to_rust_expr_inner({expr}, {is_inner})");
+
+    // Simple literals
+    match expr {
+        "true" => return quote! { true },
+        "false" => return quote! { false },
+        "null" => return quote! { Variant::nil() },
+        "[]" | "{}" if is_inner => return quote! {},
+        "[]" => return quote! { VariantArray::new() },
+        "{}" => return quote! { Dictionary::new() },
+        // empty string appears only for Callable/Rid
+        "" if !is_inner => return quote! { Default::default() },
+        _ => {}
+    }
+
+    // Integers
+    if let Ok(num) = expr.parse::<i64>() {
+        let lit = Literal::i64_unsuffixed(num);
+        return if is_inner {
+            quote! { #lit.into() }
+        } else {
+            quote! { #lit }
+        };
+    }
+
+    // Floats
+    if let Ok(num) = expr.parse::<f64>() {
+        let lit = Literal::f64_unsuffixed(num);
+        return if is_inner {
+            quote! { #lit.into() }
+        } else {
+            quote! { #lit }
+        };
+    }
+
+    // String
+    if let Some(expr) = expr.strip_prefix('"') {
+        let expr = expr.strip_suffix('"').expect("unmatched opening '\"'");
+        return if is_inner {
+            quote! { #expr }
+        } else {
+            quote! { GodotString::from(#expr) }
+            };
+    }
+
+    // StringName
+    if let Some(expr) = expr.strip_prefix("&\"") {
+        let expr = expr.strip_suffix('"').expect("unmatched opening '&\"'");
+        return quote! { StringName::from(#expr) };
+    }
+
+    // NodePath
+    if let Some(expr) = expr.strip_prefix("^\"") {
+        let expr = expr.strip_suffix('"').expect("unmatched opening '^\"'");
+        return quote! { NodePath::from(#expr) };
+    }
+
+    // Constructor calls
+    if let Some(pos) = expr.find('(') {
+        let godot_ty = &expr[..pos];
+        dbg!(godot_ty);
+        dbg!(expr);
+        let wrapped = expr[pos + 1..].strip_suffix(')').expect("unmatched '('");
+
+        let (rust_ty, ctor) = match godot_ty {
+            "NodePath" => ("NodePath", "from"),
+            "String" => ("GodotString", "from"),
+            "StringName" => ("StringName", "from"),
+            "RID" => ("Rid", "new"),
+            "Rect2" => ("Rect2", "from_components"),
+            "Rect2i" => ("Rect2i", "from_components"),
+            "Vector2" | "Vector2i" | "Vector3" | "Vector3i" => (godot_ty, "new"),
+            "Transform2D" => ("Transform2D", "__internal_codegen"),
+            "Transform3D" => ("Transform3D", "__internal_codegen"),
+            "Color" => {
+                if wrapped.chars().filter(|&c| c == ',').count() == 2 {
+                    ("Color", "from_rgb")
+                } else {
+                    ("Color", "from_rgba")
+                }
+            }
+            array if array.starts_with("Packed") && array.ends_with("Array") => {
+                assert_eq!(wrapped, "", "only empty packed arrays supported for now");
+                (array, "new")
+            }
+            array if array.starts_with("Array[") => {
+                assert_eq!(wrapped, "[]", "only empty typed arrays supported for now");
+                ("Array", "new")
+            }
+            _ => panic!("unsupported type: {godot_ty}"),
+        };
+
+        // Split wrapped parts by comma
+        let subtokens = wrapped.split(',').map(|part| {
+            let part = part.trim(); // ignore whitespace around commas
+
+            // If there is no comma, there will still be one part (the empty string) -- do not substitute
+            if part.is_empty() {
+                quote! {}
+            } else {
+                to_rust_expr_inner(part, true)
+            }
+        });
+
+        let rust_ty = ident(rust_ty);
+        let ctor = ident(ctor);
+        return quote! {
+            #rust_ty::#ctor(#(#subtokens),*)
+        };
+    }
+
+    panic!(
+        "Not yet supported GDScript expression: '{expr}'\n\
+        Please report this at https://github.com/godot-rust/gdext/issues/new."
+    );
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[test]
+fn gdscript_to_rust_expr() {
+    #[rustfmt::skip]
+    let table = [
+        // Numbers
+        ("0",                                                           quote! { 0 }),
+        ("-1",                                                          quote! { -1 }),
+        ("2147483647",                                                  quote! { 2147483647 }),
+        ("1.0",                                                         quote! { 1.0 }),
+        ("1e-05",                                                       quote! { 0.00001 }),
+
+        // Special literals
+        ("true",                                                        quote! { true }),
+        ("false",                                                       quote! { false }),
+        ("null",                                                        quote! { Variant::nil() }),
+        ("{}",                                                          quote! { Dictionary::new() }),
+        ("[]",                                                          quote! { VariantArray::new() }),
+
+        // String-likes
+        ("\" \"",                                                       quote! { GodotString::from(" ") }),
+        ("\"{_}\"",                                                     quote! { GodotString::from("{_}") }),
+        ("&\"text\"",                                                   quote! { StringName::from("text") }),
+        ("^\"text\"",                                                   quote! { NodePath::from("text") }),
+
+        // Composites
+        ("NodePath(\"\")",                                              quote! { NodePath::from("") }),
+        ("Color(1, 0, 0.5, 1)",                                         quote! { Color::from_rgba(1.into(), 0.into(), 0.5.into(), 1.into()) }),
+        ("Vector3(0, 1, 2.5)",                                          quote! { Vector3::new(0.into(), 1.into(), 2.5.into()) }),
+        ("Rect2(1, 2.2, -3.3, 0)",                                      quote! { Rect2::from_components(1.into(), 2.2.into(), -3.3.into(), 0.into()) }),
+        ("Rect2i(1, 2.2, -3.3, 0)",                                     quote! { Rect2i::from_components(1.into(), 2.2.into(), -3.3.into(), 0.into()) }),
+        ("PackedFloat32Array()",                                        quote! { PackedFloat32Array::new() }),
+        // Due to type inference, it should be enough to just write `Array::new()`
+        ("Array[Plane]([])",                                            quote! { Array::new() }),
+        ("Array[RDPipelineSpecializationConstant]([])",                 quote! { Array::new() }),
+        ("Array[RID]([])",                                              quote! { Array::new() }),
+
+        // Composites with destructuring
+        ("Transform3D(1, 2, 3, 4, -1.1, -1.2, -1.3, -1.4, 0, 0, 0, 0)", quote! {
+            Transform3D::__internal_codegen(
+                   1.into(),    2.into(),    3.into(),
+                   4.into(), -1.1.into(), -1.2.into(),
+                -1.3.into(), -1.4.into(),    0.into(),
+                   0.into(),    0.into(),    0.into()
+            )
+        }),
+
+        ("Transform2D(1, 2, -1.1,1.2, 0, 0)", quote! {
+            Transform2D::__internal_codegen(
+                   1.into(),   2.into(),
+                -1.1.into(), 1.2.into(),
+                   0.into(),   0.into()
+            )
+        }),
+    ];
+
+    for (gdscript, rust) in table {
+        let actual = to_rust_expr(gdscript).to_string();
+        let expected = rust.to_string();
+
+        println!("{actual} -> {expected}");
+        assert_eq!(actual, expected);
+    }
 }
