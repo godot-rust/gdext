@@ -171,8 +171,9 @@ pub mod prelude {
     pub use super::engine::{
         load, try_load, utilities, AudioStreamPlayer, AudioStreamPlayerVirtual, Camera2D,
         Camera2DVirtual, Camera3D, Camera3DVirtual, Input, Node, Node2D, Node2DVirtual, Node3D,
-        Node3DVirtual, NodeVirtual, Object, ObjectVirtual, PackedScene, PackedSceneVirtual,
-        RefCounted, RefCountedVirtual, Resource, ResourceVirtual, SceneTree, SceneTreeVirtual,
+        Node3DVirtual, NodeVirtual, Object, ObjectVirtual, PackedScene, PackedSceneExt,
+        PackedSceneVirtual, RefCounted, RefCountedVirtual, Resource, ResourceVirtual, SceneTree,
+        SceneTreeVirtual,
     };
     pub use super::init::{gdextension, ExtensionLayer, ExtensionLibrary, InitHandle, InitLevel};
     pub use super::log::*;
