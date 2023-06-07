@@ -8,14 +8,14 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote, ToTokens};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use crate::api_parser::*;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
 use crate::util::{
     function_uses_pointers, ident, parse_native_structures_format, safe_ident, to_pascal_case,
     to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
 };
+use crate::{api_parser::*, SubmitFn};
 use crate::{
     special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
     GeneratedClassModule, ModName, RustTy, TyName,
@@ -26,7 +26,7 @@ pub(crate) fn generate_class_files(
     ctx: &mut Context,
     _build_config: &str,
     gen_path: &Path,
-    out_files: &mut Vec<PathBuf>,
+    submit_fn: &mut SubmitFn,
 ) {
     let _ = std::fs::remove_dir_all(gen_path);
     std::fs::create_dir_all(gen_path).expect("create classes directory");
@@ -46,11 +46,11 @@ pub(crate) fn generate_class_files(
         }
 
         let generated_class = make_class(class, &class_name, ctx);
-        let file_contents = generated_class.code.to_string();
+        let file_contents = generated_class.code;
 
         let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
-        std::fs::write(&out_path, file_contents).expect("failed to write class file");
-        out_files.push(out_path);
+
+        submit_fn(out_path, file_contents);
 
         modules.push(GeneratedClassModule {
             class_name,
@@ -64,9 +64,9 @@ pub(crate) fn generate_class_files(
     }
 
     let out_path = gen_path.join("mod.rs");
-    let mod_contents = make_module_file(modules).to_string();
-    std::fs::write(&out_path, mod_contents).expect("failed to write mod.rs file");
-    out_files.push(out_path);
+    let mod_contents = make_module_file(modules);
+
+    submit_fn(out_path, mod_contents);
 }
 
 pub(crate) fn generate_builtin_class_files(
@@ -74,7 +74,7 @@ pub(crate) fn generate_builtin_class_files(
     ctx: &mut Context,
     _build_config: &str,
     gen_path: &Path,
-    out_files: &mut Vec<PathBuf>,
+    submit_fn: &mut SubmitFn,
 ) {
     let _ = std::fs::remove_dir_all(gen_path);
     std::fs::create_dir_all(gen_path).expect("create classes directory");
@@ -97,11 +97,11 @@ pub(crate) fn generate_builtin_class_files(
 
         let generated_class =
             make_builtin_class(class, &class_name, &inner_class_name, type_info, ctx);
-        let file_contents = generated_class.code.to_string();
+        let file_contents = generated_class.code;
 
         let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
-        std::fs::write(&out_path, file_contents).expect("failed to write class file");
-        out_files.push(out_path);
+
+        submit_fn(out_path, file_contents);
 
         modules.push(GeneratedBuiltinModule {
             class_name: inner_class_name,
@@ -110,9 +110,9 @@ pub(crate) fn generate_builtin_class_files(
     }
 
     let out_path = gen_path.join("mod.rs");
-    let mod_contents = make_builtin_module_file(modules).to_string();
-    std::fs::write(&out_path, mod_contents).expect("failed to write mod.rs file");
-    out_files.push(out_path);
+    let mod_contents = make_builtin_module_file(modules);
+
+    submit_fn(out_path, mod_contents);
 }
 
 pub(crate) fn generate_native_structures_files(
@@ -120,7 +120,7 @@ pub(crate) fn generate_native_structures_files(
     ctx: &mut Context,
     _build_config: &str,
     gen_path: &Path,
-    out_files: &mut Vec<PathBuf>,
+    submit_fn: &mut SubmitFn,
 ) {
     let _ = std::fs::remove_dir_all(gen_path);
     std::fs::create_dir_all(gen_path).expect("create native directory");
@@ -131,11 +131,11 @@ pub(crate) fn generate_native_structures_files(
         let class_name = TyName::from_godot(&native_structure.name);
 
         let generated_class = make_native_structure(native_structure, &class_name, ctx);
-        let file_contents = generated_class.code.to_string();
+        let file_contents = generated_class.code;
 
         let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
-        std::fs::write(&out_path, file_contents).expect("failed to write native structures file");
-        out_files.push(out_path);
+
+        submit_fn(out_path, file_contents);
 
         modules.push(GeneratedBuiltinModule {
             class_name,
@@ -144,9 +144,9 @@ pub(crate) fn generate_native_structures_files(
     }
 
     let out_path = gen_path.join("mod.rs");
-    let mod_contents = make_builtin_module_file(modules).to_string();
-    std::fs::write(&out_path, mod_contents).expect("failed to write mod.rs file");
-    out_files.push(out_path);
+    let mod_contents = make_builtin_module_file(modules);
+
+    submit_fn(out_path, mod_contents);
 }
 
 fn make_class_doc(

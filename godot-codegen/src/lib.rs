@@ -33,44 +33,68 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use std::path::{Path, PathBuf};
 
+pub type SubmitFn = dyn FnMut(PathBuf, TokenStream);
+
+fn write_file(path: &Path, contents: String) {
+    let dir = path.parent().unwrap();
+    let _ = std::fs::create_dir_all(dir);
+
+    std::fs::write(path, contents)
+        .unwrap_or_else(|e| panic!("failed to write code file to {};\n\t{}", path.display(), e));
+}
+
 pub fn generate_sys_files(
     sys_gen_path: &Path,
     h_path: &Path,
     watch: &mut godot_bindings::StopWatch,
 ) {
-    let mut out_files = vec![];
+    #[cfg(not(feature = "codegen-fmt"))]
+    let mut submit_fn = |path: PathBuf, tokens: TokenStream| {
+        write_file(&path, tokens.to_string());
+    };
 
-    generate_sys_mod_file(sys_gen_path, &mut out_files);
+    #[cfg(feature = "codegen-fmt")]
+    let mut submit_fn = |path, tokens| {
+        write_file(&path, tokens.to_string());
+    };
+
+    generate_sys_mod_file(sys_gen_path, &mut submit_fn);
 
     let (api, build_config) = load_extension_api(watch);
     let mut ctx = Context::build_from_api(&api);
     watch.record("build_context");
 
-    generate_sys_central_file(&api, &mut ctx, build_config, sys_gen_path, &mut out_files);
+    generate_sys_central_file(&api, &mut ctx, build_config, sys_gen_path, &mut submit_fn);
     watch.record("generate_central_file");
 
     let is_godot_4_0 = api.header.version_major == 4 && api.header.version_minor == 0;
-    generate_sys_interface_file(h_path, sys_gen_path, is_godot_4_0, &mut out_files);
+    generate_sys_interface_file(h_path, sys_gen_path, is_godot_4_0, &mut submit_fn);
     watch.record("generate_interface_file");
-
-    rustfmt_if_needed(out_files);
-    watch.record("rustfmt");
 }
 
 pub fn generate_core_files(core_gen_path: &Path) {
-    let mut out_files = vec![];
     let mut watch = godot_bindings::StopWatch::start();
 
-    generate_core_mod_file(core_gen_path, &mut out_files);
+    #[cfg(not(feature = "codegen-fmt"))]
+    let mut submit_fn = |path: PathBuf, tokens: TokenStream| {
+        write_file(&path, tokens.to_string());
+    };
+
+    #[cfg(feature = "codegen-fmt")]
+    let mut submit_fn = |path, tokens| {
+        write_file(&path, tokens.to_string());
+    };
+
+    generate_core_mod_file(core_gen_path, &mut submit_fn);
 
     let (api, build_config) = load_extension_api(&mut watch);
     let mut ctx = Context::build_from_api(&api);
     watch.record("build_context");
 
-    generate_core_central_file(&api, &mut ctx, build_config, core_gen_path, &mut out_files);
+    generate_core_central_file(&api, &mut ctx, build_config, core_gen_path, &mut submit_fn);
     watch.record("generate_central_file");
 
-    generate_utilities_file(&api, &mut ctx, core_gen_path, &mut out_files);
+    generate_utilities_file(&api, &mut ctx, core_gen_path, &mut submit_fn);
     watch.record("generate_utilities_file");
 
     // Class files -- currently output in godot-core; could maybe be separated cleaner
@@ -80,7 +104,7 @@ pub fn generate_core_files(core_gen_path: &Path) {
         &mut ctx,
         build_config,
         &core_gen_path.join("classes"),
-        &mut out_files,
+        &mut submit_fn,
     );
     watch.record("generate_class_files");
 
@@ -89,7 +113,7 @@ pub fn generate_core_files(core_gen_path: &Path) {
         &mut ctx,
         build_config,
         &core_gen_path.join("builtin_classes"),
-        &mut out_files,
+        &mut submit_fn,
     );
     watch.record("generate_builtin_class_files");
 
@@ -98,38 +122,12 @@ pub fn generate_core_files(core_gen_path: &Path) {
         &mut ctx,
         build_config,
         &core_gen_path.join("native"),
-        &mut out_files,
+        &mut submit_fn,
     );
     watch.record("generate_native_structures_files");
 
-    rustfmt_if_needed(out_files);
-    watch.record("rustfmt");
     watch.write_stats_to(&core_gen_path.join("codegen-stats.txt"));
 }
-
-#[cfg(feature = "codegen-fmt")]
-fn rustfmt_if_needed(out_files: Vec<PathBuf>) {
-    println!("Format {} generated files...", out_files.len());
-
-    for files in out_files.chunks(20) {
-        let mut process = std::process::Command::new("rustfmt");
-        process.arg("--edition=2021");
-
-        println!("  Format {} files...", files.len());
-        for file in files {
-            process.arg(file);
-        }
-
-        process
-            .output()
-            .unwrap_or_else(|err| panic!("during godot-rust codegen, rustfmt failed:\n   {err}"));
-    }
-
-    println!("Rustfmt completed.");
-}
-
-#[cfg(not(feature = "codegen-fmt"))]
-fn rustfmt_if_needed(_out_files: Vec<PathBuf>) {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared utility types

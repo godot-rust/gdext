@@ -4,18 +4,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use quote::quote;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use crate::api_parser::*;
+use quote::quote;
+
 use crate::class_generator::make_utility_function_definition;
 use crate::Context;
+use crate::{api_parser::*, SubmitFn};
 
 pub(crate) fn generate_utilities_file(
     api: &ExtensionApi,
     ctx: &mut Context,
     gen_path: &Path,
-    out_files: &mut Vec<PathBuf>,
+    submit_fn: &mut SubmitFn,
 ) {
     let mut utility_fn_defs = vec![];
     for utility_fn in &api.utility_functions {
@@ -42,11 +43,5 @@ pub(crate) fn generate_utilities_file(
         #(#utility_fn_defs)*
     };
 
-    let string = tokens.to_string();
-
-    let _ = std::fs::create_dir(gen_path);
-    let out_path = gen_path.join("utilities.rs");
-    std::fs::write(&out_path, string).expect("failed to write central extension file");
-
-    out_files.push(out_path);
+    submit_fn(gen_path.join("utilities.rs"), tokens);
 }
