@@ -46,6 +46,7 @@ pub mod private {
     // If someone forgets #[godot_api], this causes a compile error, rather than virtual functions not being called at runtime.
     #[allow(non_camel_case_types)]
     pub trait You_forgot_the_attribute__godot_api {}
+    pub use crate::export::Cannot_export_without_godot_api_impl;
 
     use std::sync::{Arc, Mutex};
 

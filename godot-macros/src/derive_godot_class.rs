@@ -409,8 +409,18 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         });
     }
 
+    let enforce_godot_api_impl = if !export_tokens.is_empty() {
+        quote! {
+            const MUST_HAVE_GODOT_API_IMPL: () = <#class_name as ::godot::private::Cannot_export_without_godot_api_impl>::EXISTS;
+        }
+    } else {
+        TokenStream::new()
+    };
+
     quote! {
         impl #class_name {
+            #enforce_godot_api_impl
+
             #(#getter_setter_impls)*
         }
 

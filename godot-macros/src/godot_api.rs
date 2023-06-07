@@ -122,6 +122,8 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
             }
         }
 
+        impl ::godot::private::Cannot_export_without_godot_api_impl for #class_name {}
+
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_str,
             component: #prv::PluginComponent::UserMethodBinds {
