@@ -44,9 +44,9 @@ runs:
       # curl https://nightly.link/Bromeon/godot4-nightly/actions/runs/4910907653/${{ inputs.artifact-name }}.zip \
       run: |
         if [[ $ARTIFACT_NAME == *"stable"* ]]; then
-          url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-stable/master/$ARTIFACT_NAME.zip"
+          url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-stable/godot-object-ptr/$ARTIFACT_NAME.zip"
         else
-          url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-nightly/master/$ARTIFACT_NAME.zip"
+          url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-nightly/godot-object-ptr/$ARTIFACT_NAME.zip"
         fi
         
         curl "$url" -Lo artifact.zip --retry 3

@@ -12,7 +12,6 @@ on:
     branches:
       - staging
       - trying
-
 env:
   GDEXT_FEATURES: ''
 

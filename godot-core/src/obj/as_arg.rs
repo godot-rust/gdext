@@ -27,7 +27,16 @@ impl<T: GodotClass> AsArg for Gd<T> {
         //
         // In Rust terms, if `T` is refcounted then we are effectively passing a `&Arc<T>`, and the callee
         // would need to call `.clone()` if desired.
-        self.sys_const()
+
+        // In 4.0, argument pointers are passed to godot as `T*`, except for in virtual method calls. We
+        // can't perform virtual method calls currently, so they are always `T*`.
+        //
+        // In 4.1 argument pointers were standardized to always be `T**`.
+        if cfg!(gdextension_api = "4.0") {
+            self.sys_const()
+        } else {
+            std::ptr::addr_of!(self.opaque) as sys::GDExtensionConstTypePtr
+        }
     }
 }
 
