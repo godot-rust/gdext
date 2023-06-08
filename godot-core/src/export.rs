@@ -86,6 +86,23 @@ pub trait TypeStringHint {
     fn type_string() -> String;
 }
 
+/// To export properties to godot, you must have an impl-block with the `#[godot_api]` attribute, even if
+/// it is empty.
+///
+/// This trait is automatically implemented when such an impl-block is present. If rust complains that it is
+/// not implemented, then you can usually fix this by adding:
+///
+/// ```ignore
+/// #[godot_api]
+/// impl MyClass {}
+/// ```
+///
+/// Where you replace `MyClass` with the name of your class.
+#[allow(non_camel_case_types)]
+pub trait Cannot_export_without_godot_api_impl {
+    const EXISTS: () = ();
+}
+
 mod export_impls {
     use super::*;
     use crate::builtin::meta::VariantMetadata;

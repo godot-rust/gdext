@@ -197,11 +197,17 @@ mod util;
 ///     #[export]
 ///     my_field: i64,
 /// }
+///
+/// #[godot_api]
+/// impl MyStruct {}
 /// ```
 ///
 /// This makes the field accessible in GDScript using `my_struct.my_field` syntax. Additionally, it
 /// generates a trivial getter and setter named `get_my_field` and `set_my_field`, respectively.
 /// These are `pub` in Rust, since they're exposed from GDScript anyway.
+///
+/// For technical reasons, an impl-block with the `#[godot_api]` attribute is required for exports to work.
+/// Failing to include one will cause a compile error if you try to export any properties.
 ///
 /// If you want to implement your own getter and/or setter, write those as a function on your Rust
 /// type, expose it using `#[func]`, and annotate the field with
