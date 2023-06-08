@@ -43,21 +43,21 @@ fn write_file(path: &Path, contents: String) {
         .unwrap_or_else(|e| panic!("failed to write code file to {};\n\t{}", path.display(), e));
 }
 
+#[cfg(feature = "codegen-fmt")]
+fn submit_fn(path: PathBuf, tokens: TokenStream) {
+    write_file(&path, godot_fmt::format_tokens(tokens));
+}
+
+#[cfg(not(feature = "codegen-fmt"))]
+fn submit_fn(path: PathBuf, tokens: TokenStream) {
+    write_file(&path, tokens.to_string());
+}
+
 pub fn generate_sys_files(
     sys_gen_path: &Path,
     h_path: &Path,
     watch: &mut godot_bindings::StopWatch,
 ) {
-    #[cfg(not(feature = "codegen-fmt"))]
-    let mut submit_fn = |path: PathBuf, tokens: TokenStream| {
-        write_file(&path, tokens.to_string());
-    };
-
-    #[cfg(feature = "codegen-fmt")]
-    let mut submit_fn = |path, tokens| {
-        write_file(&path, tokens.to_string());
-    };
-
     generate_sys_mod_file(sys_gen_path, &mut submit_fn);
 
     let (api, build_config) = load_extension_api(watch);
@@ -74,16 +74,6 @@ pub fn generate_sys_files(
 
 pub fn generate_core_files(core_gen_path: &Path) {
     let mut watch = godot_bindings::StopWatch::start();
-
-    #[cfg(not(feature = "codegen-fmt"))]
-    let mut submit_fn = |path: PathBuf, tokens: TokenStream| {
-        write_file(&path, tokens.to_string());
-    };
-
-    #[cfg(feature = "codegen-fmt")]
-    let mut submit_fn = |path, tokens| {
-        write_file(&path, tokens.to_string());
-    };
 
     generate_core_mod_file(core_gen_path, &mut submit_fn);
 
