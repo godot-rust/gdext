@@ -18,27 +18,30 @@ impl BindingCompat for *const sys::GDExtensionInterface {
     fn ensure_static_runtime_compatibility(&self) {
         // We try to read the first fields of the GDExtensionInterface struct, which are version numbers.
         // If those are unrealistic numbers, chances are high that `self` is in fact a function pointer (used for Godot 4.1.x).
+        let data_ptr = *self;
 
-        let interface = unsafe { &**self };
-        let major = interface.version_major;
-        let minor = interface.version_minor;
-
-        // We cannot print version (major/minor are parts of the function pointer). We _could_ theoretically interpret it as
-        // GetProcAddr function pointer and call get_godot_version, but that's not adding that much useful information and may
-        // also fail.
+        // We cannot print runtime version. We _could_ theoretically fetch the `get_godot_version` function pointer through `get_proc_address`,
+        // but that's not adding that much information. The Godot engine already prints its version on startup.
         let static_version = crate::GdextBuild::godot_static_version_string();
-        assert!(major == 4 && minor == 0,
+        assert!(
+            // SAFETY: None. Reading a function pointer as data is UB.
+            // However, the alternative is to run into even harder UB because we happily interpret the pointer as *const GDExtensionInterface.
+            // So, this is a best-effort and "works in practice" heuristic to warn the user when running a 4.0.x extension under 4.1+.
+            // If comparing the first field already fails, we don't even need to read the 2nd field.
+            unsafe { data_ptr.read().version_major } == 4
+            && unsafe { data_ptr.read().version_minor } == 0,
+
             "gdext was compiled against a legacy Godot version ({static_version}),\n\
             but initialized by a newer Godot binary (4.1+).\n\
             \n\
-            You have multiple options:\n\
-            1) Recompile gdext against the newer Godot version.\n\
-            2) If you want to use a legacy extension under newer Godot, open the .gdextension file\n   \
-               and add `compatibility_minimum = 4.0` under the [configuration] section.\n"
+            This setup is not supported. Please recompile the Rust extension with a newer Godot version\n\
+            (or run it with an older Godot version).\n"
         );
     }
 
     fn runtime_version(&self) -> sys::GDExtensionGodotVersion {
+        // SAFETY: this method is only invoked after the static compatibility check has passed.
+        // We thus know that Godot 4.0.x runs, and *self is a GDExtensionInterface pointer.
         let interface = unsafe { &**self };
         sys::GDExtensionGodotVersion {
             major: interface.version_major,

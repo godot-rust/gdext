@@ -88,7 +88,8 @@ jobs:
         with:
           artifact-name: godot-linux-nightly
           godot-binary: godot.linuxbsd.editor.dev.x86_64
-
+          rust-extra-args: --features godot/custom-godot,godot/custom-godot
+          godot-prebuilt-patch: '4.1'
 
   license-guard:
     runs-on: ubuntu-20.04
