@@ -12,7 +12,6 @@ on:
     branches:
       - staging
       - trying
-
 env:
   GDEXT_FEATURES: ''
 
@@ -126,141 +125,85 @@ jobs:
         # Naming: {os}[-{runtimeVersion}]-{apiVersion}
         # runtimeVersion = version of Godot binary; apiVersion = version of GDExtension API against which gdext is compiled.
 
+        # --disallow-focus: fail if #[itest(focus)] is encountered, to prevent running only a few tests for full CI
+
         # Order this way because macOS typically has the longest duration, followed by Windows, so it benefits total workflow execution time.
         # Additionally, the 'linux (msrv *)' special case will then be listed next to the other 'linux' jobs.
         # Note: Windows uses '--target x86_64-pc-windows-msvc' by default as Cargo argument.
         include:
           # macOS
 
-          - name: macos-stableRt-4.0.3
-            os: macos-12
-            artifact-name: macos-stable
-            godot-binary: godot.macos.editor.dev.x86_64
-            godot-prebuilt-patch: '4.0.3'
-
-          - name: macos-4.0.3
+          - name: macos
             os: macos-12
             artifact-name: macos-nightly
             godot-binary: godot.macos.editor.dev.x86_64
-            godot-prebuilt-patch: '4.0.3'
+            rust-extra-args: --features godot/custom-godot
+            godot-prebuilt-patch: '4.1'
 
           - name: macos-double
             os: macos-12
             artifact-name: macos-double-nightly
             godot-binary: godot.macos.editor.dev.double.x86_64
-            rust-extra-args: --features godot/double-precision
-
-          - name: macos-nightly
-            os: macos-12
-            artifact-name: macos-nightly
-            godot-binary: godot.macos.editor.dev.x86_64
-            rust-extra-args: --features godot/custom-godot
-            with-llvm: true
+            rust-extra-args: --features godot/custom-godot,godot/double-precision
             godot-prebuilt-patch: '4.1'
+
+          - name: macos-4.0.3
+            os: macos-12
+            artifact-name: macos-stable
+            godot-binary: godot.macos.editor.dev.x86_64
+            godot-prebuilt-patch: '4.0.3'
 
           # Windows
 
-          - name: windows-stableRt-4.0.3
-            os: windows-latest
-            artifact-name: windows-stable
-            godot-binary: godot.windows.editor.dev.x86_64.exe
-            godot-prebuilt-patch: '4.0.3'
-
-          - name: windows-4.0.3
+          - name: windows
             os: windows-latest
             artifact-name: windows-nightly
             godot-binary: godot.windows.editor.dev.x86_64.exe
-            godot-prebuilt-patch: '4.0.3'
+            rust-extra-args: --features godot/custom-godot
+            godot-prebuilt-patch: '4.1'
 
           - name: windows-double
             os: windows-latest
             artifact-name: windows-double-nightly
             godot-binary: godot.windows.editor.dev.double.x86_64.exe
-            rust-extra-args: --features godot/double-precision
-
-          - name: windows-nightly
-            os: windows-latest
-            artifact-name: windows-nightly
-            godot-binary: godot.windows.editor.dev.x86_64.exe
-            rust-extra-args: --features godot/custom-godot
+            rust-extra-args: --features godot/custom-godot,godot/double-precision
             godot-prebuilt-patch: '4.1'
+
+          - name: windows-4.0.3
+            os: windows-latest
+            artifact-name: windows-stable
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            godot-prebuilt-patch: '4.0.3'
 
           # Linux
 
           # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
-          - name: linux-stableRt-4.0.3
-            os: ubuntu-20.04
-            artifact-name: linux-stable
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-
-          - name: linux-4.0.3
+          - name: linux
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-check-header: false # disabled for now
-
-          - name: linux-4.0.2
-            os: ubuntu-20.04
-            artifact-name: linux-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.0.2'
-
-          - name: linux-4.0.1
-            os: ubuntu-20.04
-            artifact-name: linux-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.0.1'
-
-          - name: linux-4.0
-            os: ubuntu-20.04
-            artifact-name: linux-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.0'
+            rust-extra-args: --features godot/custom-godot,godot/custom-godot
+            godot-prebuilt-patch: '4.1'
 
           - name: linux-double
             os: ubuntu-20.04
             artifact-name: linux-double-nightly
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
-            rust-extra-args: --features godot/double-precision
+            rust-extra-args: --features godot/custom-godot,godot/double-precision
+            godot-prebuilt-patch: '4.1'
 
           - name: linux-features
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/threads,godot/serde
-
-          - name: linux-nightly
-            os: ubuntu-20.04
-            artifact-name: linux-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/custom-godot
+            rust-extra-args: --features godot/custom-godot,godot/threads,godot/serde
             godot-prebuilt-patch: '4.1'
 
           # Special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
           # Additionally, the Godot source is patched to make dlclose() a no-op, as unloading dynamic libraries loses stacktrace and
           # cause false positives like println!. See https://github.com/google/sanitizers/issues/89.
           # The gcc version can possibly be removed later, as it is slower and needs a larger artifact than the clang one.
-
-          # --disallow-focus: fail if #[itest(focus)] is encountered, to prevent running only a few tests for full CI
-
-          - name: linux-memcheck-stableRt-4.0.3
-            os: ubuntu-20.04
-            artifact-name: linux-memcheck-clang-stable
-            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            godot-args: -- --disallow-focus
-            rust-toolchain: nightly
-            rust-env-rustflags: -Zrandomize-layout
-
-          # FIXME(#298): memory leaks detected when running 4.0.3 API with 4.1+ binary
-#          - name: linux-memcheck-4.0.3
-#            os: ubuntu-20.04
-#            artifact-name: linux-memcheck-clang-nightly
-#            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-#            godot-args: -- --disallow-focus
-#            rust-toolchain: nightly
-#            rust-env-rustflags: -Zrandomize-layout
-
           - name: linux-memcheck-nightly
             os: ubuntu-20.04
             artifact-name: linux-memcheck-clang-nightly
@@ -270,6 +213,39 @@ jobs:
             rust-env-rustflags: -Zrandomize-layout
             rust-extra-args: --features godot/custom-godot
             godot-prebuilt-patch: '4.1'
+
+          # Linux under Godot 4.0.x
+
+          - name: linux-4.0.3
+            os: ubuntu-20.04
+            artifact-name: linux-stable
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+
+          - name: linux-4.0.2
+            os: ubuntu-20.04
+            artifact-name: linux-stable
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            godot-prebuilt-patch: '4.0.2'
+
+          - name: linux-4.0.1
+            os: ubuntu-20.04
+            artifact-name: linux-stable
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            godot-prebuilt-patch: '4.0.1'
+
+          - name: linux-4.0
+            os: ubuntu-20.04
+            artifact-name: linux-stable
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            godot-prebuilt-patch: '4.0'
+
+          - name: linux-memcheck-4.0.3
+            os: ubuntu-20.04
+            artifact-name: linux-memcheck-clang-stable
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            godot-args: -- --disallow-focus
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout
 
 
     steps:
@@ -285,7 +261,7 @@ jobs:
           rust-extra-args: ${{ matrix.rust-extra-args }}
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
-          with-llvm: ${{ matrix.with-llvm }}
+          with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'custom-godot') }}
           godot-check-header: ${{ matrix.godot-check-header }}
 
 

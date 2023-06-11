@@ -556,7 +556,7 @@ where
             // ptr is `Ref<T>*`
             // See the docs for `PtrcallType::Virtual` for more info on `Ref<T>`.
             interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr)
-        } else if matches!(call_type, PtrcallType::Virtual) {
+        } else if !cfg!(gdextension_api = "4.0") || matches!(call_type, PtrcallType::Virtual) {
             // ptr is `T**`
             *(ptr as *mut sys::GDExtensionObjectPtr)
         } else {

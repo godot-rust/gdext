@@ -9,7 +9,7 @@ use godot_ffi as sys;
 use crate::builtin::{inner, ToVariant, Variant};
 use crate::engine::Object;
 use crate::obj::mem::Memory;
-use crate::obj::{Gd, GodotClass, InstanceId};
+use crate::obj::{AsArg, Gd, GodotClass, InstanceId};
 use std::fmt;
 use sys::{ffi_methods, GodotFfi};
 
@@ -47,7 +47,7 @@ impl Callable {
         unsafe {
             sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(callable_from_object_method);
-                let args = [object.sys_const(), method.sys_const()];
+                let args = [object.as_arg_ptr(), method.sys_const()];
                 ctor(self_ptr, args.as_ptr());
             })
         }

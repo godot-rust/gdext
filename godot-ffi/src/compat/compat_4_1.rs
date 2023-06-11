@@ -77,6 +77,8 @@ impl BindingCompat for sys::GDExtensionInterfaceGetProcAddress {
         // Version 4.0.999 is used to signal that we're running Godot 4.1+ but loading extensions in legacy mode.
         if patch == 999 {
             // Godot 4.1+ loading the extension in legacy mode.
+            // Note: this can not happen as of June 2023 anymore, because Godot disallows loading 4.0 extensions now.
+            // TODO(bromeon): a while after 4.1 release, remove this branch.
             //
             // Instead of panicking, we could *theoretically* fall back to the legacy API at runtime, but then gdext would need to
             // always ship two versions of gdextension_interface.h (+ generated code) and would encourage use of the legacy API.
@@ -90,9 +92,10 @@ impl BindingCompat for sys::GDExtensionInterfaceGetProcAddress {
                 "gdext was compiled against a newer Godot version ({static_version}),\n\
                 but loaded by a legacy Godot binary ({runtime_version}).\n\
                 \n\
-                You have multiple options:\n\
-                1) Run the newer Godot version.\n\
-                2) Compile gdext against the older Godot binary (see `custom-godot` feature).\n\
+                Update your Godot engine version.\n\
+                \n\
+                (If you _really_ need an older Godot version, recompile your Rust extension against that one\
+                (see `custom-godot` feature). However, that setup will not be supported for a long time.\n\
                 \n"
             );
         }

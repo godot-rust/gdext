@@ -19,6 +19,7 @@ inputs:
     default: ''
     description: "Command-line arguments passed to Godot"
 
+  # Currently unused; could be removed entirely.
   godot-check-header:
     required: false
     default: 'false'
