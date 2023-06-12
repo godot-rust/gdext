@@ -81,11 +81,11 @@ fn packed_array_clone() {
 }
 
 #[itest]
-fn packed_array_slice() {
+fn packed_array_subarray() {
     let array = PackedByteArray::from(&[1, 2, 3]);
-    let slice = array.slice(1, 2);
+    let subarray = array.subarray(1, 2);
 
-    assert_eq!(slice.to_vec(), vec![2]);
+    assert_eq!(subarray.to_vec(), vec![2]);
 }
 
 #[itest]

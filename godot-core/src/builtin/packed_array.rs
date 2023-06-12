@@ -115,13 +115,13 @@ macro_rules! impl_packed_array {
                 self.as_inner().resize(to_i64(size));
             }
 
-            /// Returns a slice of the array, from `begin` (inclusive) to `end` (exclusive), as a
-            /// new array.
+            /// Returns a sub-range `begin..end`, as a new packed array.
             ///
-            /// The values of `begin` and `end` will be clamped to the array size.
+            /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
             ///
             /// To obtain Rust slices, see [`as_slice`][Self::as_slice] and [`as_mut_slice`][Self::as_mut_slice].
-            pub fn slice(&self, begin: usize, end: usize) -> Self {
+            #[doc(alias = "slice")]
+            pub fn subarray(&self, begin: usize, end: usize) -> Self {
                 let len = self.len();
                 let begin = begin.min(len);
                 let end = end.min(len);
@@ -133,7 +133,7 @@ macro_rules! impl_packed_array {
             /// The resulting slice can be further subdivided or converted into raw pointers.
             ///
             /// See also [`as_mut_slice`][Self::as_mut_slice] to get exclusive slices, and
-            /// [`slice`][Self::slice] to get a sub-array as a copy.
+            /// [`subarray`][Self::subarray] to get a sub-array as a copy.
             pub fn as_slice(&self) -> &[$Element] {
                 if self.is_empty() {
                     &[]
@@ -153,7 +153,7 @@ macro_rules! impl_packed_array {
             /// The resulting slice can be further subdivided or converted into raw pointers.
             ///
             /// See also [`as_slice`][Self::as_slice] to get shared slices, and
-            /// [`slice`][Self::slice] to get a sub-array as a copy.
+            /// [`subarray`][Self::subarray] to get a sub-array as a copy.
             pub fn as_mut_slice(&mut self) -> &mut [$Element] {
                 if self.is_empty() {
                     &mut []
