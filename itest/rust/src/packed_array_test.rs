@@ -5,7 +5,7 @@
  */
 
 use crate::{expect_panic, itest};
-use godot::builtin::{PackedByteArray, PackedFloat32Array};
+use godot::builtin::{PackedByteArray, PackedFloat32Array, PackedStringArray};
 
 #[itest]
 fn packed_array_default() {
@@ -76,6 +76,7 @@ fn packed_array_clone() {
     #[allow(clippy::redundant_clone)]
     let clone = array.clone();
     array.set(0, 3);
+
     assert_eq!(clone.get(0), 1);
 }
 
@@ -83,7 +84,49 @@ fn packed_array_clone() {
 fn packed_array_slice() {
     let array = PackedByteArray::from(&[1, 2, 3]);
     let slice = array.slice(1, 2);
+
     assert_eq!(slice.to_vec(), vec![2]);
+}
+
+#[itest]
+fn packed_array_as_slice() {
+    let a = PackedByteArray::from(&[1, 2, 3]);
+    #[allow(clippy::redundant_clone)]
+    let b = a.clone();
+
+    let slice_a = a.as_slice();
+    let slice_b = b.as_slice();
+
+    assert_eq!(slice_a, &[1, 2, 3]);
+    assert_eq!(slice_a, slice_b);
+    assert_eq!(
+        slice_a.as_ptr(),
+        slice_b.as_ptr(),
+        "copy-on-write without modification returns aliased slice"
+    );
+
+    let empty = PackedStringArray::new();
+    assert_eq!(empty.as_slice(), &[]);
+}
+
+#[itest]
+fn packed_array_as_mut_slice() {
+    let a = PackedByteArray::from(&[1, 2, 3]);
+    let mut b = a.clone();
+
+    let slice_a = a.as_slice();
+    let slice_b = b.as_mut_slice(); // triggers CoW
+
+    assert_eq!(slice_a, &mut [1, 2, 3]);
+    assert_eq!(slice_a, slice_b);
+    assert_ne!(
+        slice_a.as_ptr(),
+        slice_b.as_ptr(),
+        "copy-on-write with modification must return independent slice"
+    );
+
+    let mut empty = PackedStringArray::new();
+    assert_eq!(empty.as_mut_slice(), &mut []);
 }
 
 #[itest]
