@@ -263,10 +263,9 @@ impl<T: VariantMetadata> Array<T> {
         unsafe { duplicate.assume_type() }
     }
 
-    /// Returns a slice of the `Array`, from `begin` (inclusive) to `end` (exclusive), as a
-    /// new `Array`.
+    /// Returns a sub-range `begin..end`, as a new array.
     ///
-    /// The values of `begin` and `end` will be clamped to the array size.
+    /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
     ///
     /// If specified, `step` is the relative index between source elements. It can be negative,
     /// in which case `begin` must be higher than `end`. For example,
@@ -274,15 +273,15 @@ impl<T: VariantMetadata> Array<T> {
     ///
     /// Array elements are copied to the slice, but any reference types (such as `Array`,
     /// `Dictionary` and `Object`) will still refer to the same value. To create a deep copy, use
-    /// [`slice_deep()`] instead.
-    pub fn slice_shallow(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
-        self.slice_impl(begin, end, step, false)
+    /// [`subarray_deep()`] instead.
+    #[doc(alias = "slice")]
+    pub fn subarray_shallow(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
+        self.subarray_impl(begin, end, step, false)
     }
 
-    /// Returns a slice of the `Array`, from `begin` (inclusive) to `end` (exclusive), as a
-    /// new `Array`.
+    /// Returns a sub-range `begin..end`, as a new `Array`.
     ///
-    /// The values of `begin` and `end` will be clamped to the array size.
+    /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
     ///
     /// If specified, `step` is the relative index between source elements. It can be negative,
     /// in which case `begin` must be higher than `end`. For example,
@@ -290,25 +289,26 @@ impl<T: VariantMetadata> Array<T> {
     ///
     /// All nested arrays and dictionaries are duplicated and will not be shared with the original
     /// array. Note that any `Object`-derived elements will still be shallow copied. To create a
-    /// shallow copy, use [`slice_shallow()`] instead.
-    pub fn slice_deep(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
-        self.slice_impl(begin, end, step, true)
+    /// shallow copy, use [`subarray_shallow()`] instead.
+    #[doc(alias = "slice")]
+    pub fn subarray_deep(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
+        self.subarray_impl(begin, end, step, true)
     }
 
-    fn slice_impl(&self, begin: usize, end: usize, step: Option<isize>, deep: bool) -> Self {
-        assert_ne!(step, Some(0), "slice: step cannot be zero");
+    fn subarray_impl(&self, begin: usize, end: usize, step: Option<isize>, deep: bool) -> Self {
+        assert_ne!(step, Some(0), "subarray: step cannot be zero");
 
         let len = self.len();
         let begin = begin.min(len);
         let end = end.min(len);
         let step = step.unwrap_or(1);
 
-        let slice: VariantArray =
+        let subarray: VariantArray =
             self.as_inner()
                 .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep);
 
         // SAFETY: slice() returns a typed array with the same type as Self
-        unsafe { slice.assume_type() }
+        unsafe { subarray.assume_type() }
     }
 
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.

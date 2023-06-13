@@ -126,14 +126,14 @@ fn array_duplicate_deep() {
 }
 
 #[itest]
-fn array_slice_shallow() {
+fn array_subarray_shallow() {
     let array = array![0, 1, 2, 3, 4, 5];
-    let slice = array.slice_shallow(5, 1, Some(-2));
+    let slice = array.subarray_shallow(5, 1, Some(-2));
     assert_eq!(slice, array![5, 3]);
 
     let subarray = array![2, 3];
     let array = varray![1, subarray];
-    let slice = array.slice_shallow(1, 2, None);
+    let slice = array.subarray_shallow(1, 2, None);
     Array::<i64>::try_from_variant(&slice.get(0))
         .unwrap()
         .set(0, 4);
@@ -141,14 +141,14 @@ fn array_slice_shallow() {
 }
 
 #[itest]
-fn array_slice_deep() {
+fn array_subarray_deep() {
     let array = array![0, 1, 2, 3, 4, 5];
-    let slice = array.slice_deep(5, 1, Some(-2));
+    let slice = array.subarray_deep(5, 1, Some(-2));
     assert_eq!(slice, array![5, 3]);
 
     let subarray = array![2, 3];
     let array = varray![1, subarray];
-    let slice = array.slice_deep(1, 2, None);
+    let slice = array.subarray_deep(1, 2, None);
     Array::<i64>::try_from_variant(&slice.get(0))
         .unwrap()
         .set(0, 4);

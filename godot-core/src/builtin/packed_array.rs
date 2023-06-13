@@ -115,15 +115,57 @@ macro_rules! impl_packed_array {
                 self.as_inner().resize(to_i64(size));
             }
 
-            /// Returns a slice of the array, from `begin` (inclusive) to `end` (exclusive), as a
-            /// new array.
+            /// Returns a sub-range `begin..end`, as a new packed array.
             ///
-            /// The values of `begin` and `end` will be clamped to the array size.
-            pub fn slice(&self, begin: usize, end: usize) -> Self {
+            /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
+            ///
+            /// To obtain Rust slices, see [`as_slice`][Self::as_slice] and [`as_mut_slice`][Self::as_mut_slice].
+            #[doc(alias = "slice")]
+            pub fn subarray(&self, begin: usize, end: usize) -> Self {
                 let len = self.len();
                 let begin = begin.min(len);
                 let end = end.min(len);
                 self.as_inner().slice(to_i64(begin), to_i64(end))
+            }
+
+            /// Returns a shared Rust slice of the array.
+            ///
+            /// The resulting slice can be further subdivided or converted into raw pointers.
+            ///
+            /// See also [`as_mut_slice`][Self::as_mut_slice] to get exclusive slices, and
+            /// [`subarray`][Self::subarray] to get a sub-array as a copy.
+            pub fn as_slice(&self) -> &[$Element] {
+                if self.is_empty() {
+                    &[]
+                } else {
+                    let data = self.ptr(0);
+
+                    // SAFETY: PackedArray holds `len` elements in contiguous storage, all of which are initialized.
+                    // The array uses copy-on-write semantics, so the slice may be aliased, but copies will use a new allocation.
+                    unsafe {
+                        std::slice::from_raw_parts(data, self.len())
+                    }
+                }
+            }
+
+            /// Returns an exclusive Rust slice of the array.
+            ///
+            /// The resulting slice can be further subdivided or converted into raw pointers.
+            ///
+            /// See also [`as_slice`][Self::as_slice] to get shared slices, and
+            /// [`subarray`][Self::subarray] to get a sub-array as a copy.
+            pub fn as_mut_slice(&mut self) -> &mut [$Element] {
+                if self.is_empty() {
+                    &mut []
+                } else {
+                    let data = self.ptr_mut(0);
+
+                    // SAFETY: PackedArray holds `len` elements in contiguous storage, all of which are initialized.
+                    // The array uses copy-on-write semantics. ptr_mut() triggers a copy if non-unique, after which the slice is never aliased.
+                    unsafe {
+                        std::slice::from_raw_parts_mut(data, self.len())
+                    }
+                }
             }
 
             /// Returns a copy of the value at the specified index.
@@ -193,6 +235,7 @@ macro_rules! impl_packed_array {
             /// If `index` is out of bounds.
             pub fn set(&mut self, index: usize, value: $Element) {
                 let ptr_mut = self.ptr_mut(index);
+
                 // SAFETY: `ptr_mut` just checked that the index is not out of bounds.
                 unsafe {
                     *ptr_mut = value;
@@ -302,6 +345,7 @@ macro_rules! impl_packed_array {
             /// If `index` is out of bounds.
             fn ptr_mut(&self, index: usize) -> *mut $Element {
                 self.check_bounds(index);
+
                 // SAFETY: We just checked that the index is not out of bounds.
                 let ptr = unsafe {
                     let item_ptr: *mut $IndexRetType =
