@@ -158,8 +158,17 @@ where
         }
     }
 
+    #[cfg(gdextension_api = "4.0")]
     unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
-        ptr_then(ptr, |ptr| T::from_arg_ptr(ptr, call_type))
+        match call_type {
+            PtrcallType::Standard => option_from_arg_single_ptr(ptr, call_type),
+            PtrcallType::Virtual => option_from_arg_double_ptr(ptr, call_type),
+        }
+    }
+
+    #[cfg(not(gdextension_api = "4.0"))]
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
+        option_from_arg_double_ptr(ptr, call_type)
     }
 
     unsafe fn move_return_ptr(self, ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) {
@@ -167,6 +176,40 @@ where
             value.move_return_ptr(ptr, call_type)
         }
     }
+}
+
+/// Return an `Option<T>` when `T` is a nullable pointer type and `ptr` is represented as `T**`.
+///
+/// # Safety
+/// `ptr` must either be null, a pointer to null, or a pointer to a pointer to a `T`.
+unsafe fn option_from_arg_double_ptr<T>(
+    ptr: sys::GDExtensionTypePtr,
+    call_type: PtrcallType,
+) -> Option<T>
+where
+    T: GodotNullablePtr,
+{
+    if ptr.is_null() || (*(ptr as *mut sys::GDExtensionTypePtr)).is_null() {
+        None
+    } else {
+        Some(T::from_arg_ptr(ptr, call_type))
+    }
+}
+
+// 4.1 represents every object as `T**`.
+#[cfg(gdextension_api = "4.0")]
+/// Return an `Option<T>` when `T` is a nullable pointer type and `ptr` is represented as `T*`.
+///
+/// # Safety
+/// `ptr` must either be null, or a pointer to a `T`.
+unsafe fn option_from_arg_single_ptr<T>(
+    ptr: sys::GDExtensionTypePtr,
+    call_type: PtrcallType,
+) -> Option<T>
+where
+    T: GodotNullablePtr,
+{
+    ptr_then(ptr, |ptr| T::from_arg_ptr(ptr, call_type))
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
