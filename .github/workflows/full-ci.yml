@@ -202,17 +202,22 @@ jobs:
             godot-prebuilt-patch: '4.1'
 
           # Special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
+          # See also https://rustc-dev-guide.rust-lang.org/sanitizers.html.
+          #
           # Additionally, the Godot source is patched to make dlclose() a no-op, as unloading dynamic libraries loses stacktrace and
           # cause false positives like println!. See https://github.com/google/sanitizers/issues/89.
-          # The gcc version can possibly be removed later, as it is slower and needs a larger artifact than the clang one.
+          #
+          # There is also a gcc variant besides clang, which is currently not used.
           - name: linux-memcheck-nightly
             os: ubuntu-20.04
             artifact-name: linux-memcheck-clang-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             godot-args: -- --disallow-focus
             rust-toolchain: nightly
-            rust-env-rustflags: -Zrandomize-layout
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
             rust-extra-args: --features godot/custom-godot
+            # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
+            rust-target: x86_64-unknown-linux-gnu
             godot-prebuilt-patch: '4.1'
 
           # Linux under Godot 4.0.x
@@ -246,8 +251,9 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             godot-args: -- --disallow-focus
             rust-toolchain: nightly
-            rust-env-rustflags: -Zrandomize-layout
-
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
+            # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
+            rust-target: x86_64-unknown-linux-gnu
 
     steps:
       - uses: actions/checkout@v3
@@ -262,6 +268,7 @@ jobs:
           rust-extra-args: ${{ matrix.rust-extra-args }}
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
+          rust-target: ${{ matrix.rust-target }}
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'custom-godot') }}
           godot-check-header: ${{ matrix.godot-check-header }}
 
