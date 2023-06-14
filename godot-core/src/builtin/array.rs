@@ -9,7 +9,7 @@ use godot_ffi as sys;
 use crate::builtin::meta::VariantMetadata;
 use crate::builtin::*;
 use crate::obj::Share;
-use crate::property::{Export, ExportInfo, TypeStringHint};
+use crate::property::{Export, ExportInfo, Property, TypeStringHint};
 use std::fmt;
 use std::marker::PhantomData;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -645,14 +645,21 @@ impl<T: VariantMetadata + TypeStringHint> TypeStringHint for Array<T> {
     }
 }
 
-impl<T: VariantMetadata + TypeStringHint> Export for Array<T> {
-    fn export(&self) -> Self {
+impl<T: VariantMetadata> Property for Array<T> {
+    type Intermediate = Self;
+
+    fn get_property(&self) -> Self::Intermediate {
         self.share()
     }
 
+    fn set_property(&mut self, value: Self::Intermediate) {
+        *self = value;
+    }
+}
+
+impl<T: VariantMetadata + TypeStringHint> Export for Array<T> {
     fn default_export_info() -> ExportInfo {
         ExportInfo {
-            variant_type: Self::variant_type(),
             hint: crate::engine::global::PropertyHint::PROPERTY_HINT_TYPE_STRING,
             hint_string: T::type_string().into(),
         }
@@ -660,12 +667,8 @@ impl<T: VariantMetadata + TypeStringHint> Export for Array<T> {
 }
 
 impl Export for Array<Variant> {
-    fn export(&self) -> Self {
-        self.share()
-    }
-
     fn default_export_info() -> ExportInfo {
-        ExportInfo::with_hint_none(Self::variant_type())
+        ExportInfo::with_hint_none()
     }
 }
 

@@ -19,7 +19,6 @@ mod color_test;
 mod derive_variant;
 mod dictionary_test;
 mod enum_test;
-mod export_test;
 mod gdscript_ffi_test;
 mod init_test;
 mod native_structures_test;
@@ -39,6 +38,7 @@ mod string;
 mod transform2d_test;
 mod transform3d_test;
 mod utilities_test;
+mod var_test;
 mod variant_test;
 mod virtual_methods_test;
 

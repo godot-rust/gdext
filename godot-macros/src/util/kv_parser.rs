@@ -5,12 +5,12 @@
  */
 
 use crate::ParseResult;
-use proc_macro2::{Ident, Span, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Ident, Spacing, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use std::collections::HashMap;
 use venial::Attribute;
 
-use super::{bail, error, ident, is_punct, path_is_single};
+use super::{bail, error, ident, is_punct, path_is_single, ListParser};
 
 pub(crate) type KvMap = HashMap<Ident, Option<KvValue>>;
 
@@ -103,6 +103,16 @@ impl KvParser {
         }
     }
 
+    /// Handles an array of the form `[elem1, elem2, ...]`.
+    pub fn handle_array(&mut self, key: &str) -> ParseResult<Option<ListParser>> {
+        ListParser::new_from_kv(self, key, Delimiter::Bracket)
+    }
+
+    /// Handles an list of the form `(elem1, elem2, ...)`.
+    pub fn handle_list(&mut self, key: &str) -> ParseResult<Option<ListParser>> {
+        ListParser::new_from_kv(self, key, Delimiter::Parenthesis)
+    }
+
     /// Handles an optional key that can occur with arbitrary tokens as the value.
     pub fn handle_expr(&mut self, key: &str) -> ParseResult<Option<TokenStream>> {
         match self.map.remove_entry(&ident(key)) {
@@ -162,6 +172,10 @@ impl KvValue {
         Self { tokens }
     }
 
+    pub fn into_tokens(self) -> Vec<TokenTree> {
+        self.tokens
+    }
+
     pub fn expr(self) -> ParseResult<TokenStream> {
         Ok(self.tokens.into_iter().collect())
     }
@@ -180,6 +194,39 @@ impl KvValue {
             tt => {
                 bail!(tt, "expected identifier")
             }
+        }
+    }
+
+    pub fn as_key_value(&self) -> ParseResult<(Ident, Self)> {
+        if self.tokens.len() < 3 {
+            return bail!(&self.tokens[0], "expected `key = expression`");
+        }
+
+        let key = match &self.tokens[0] {
+            TokenTree::Ident(id) => id.clone(),
+            other => return bail!(other, "expected identifier"),
+        };
+
+        let has_equals = match &self.tokens[1] {
+            TokenTree::Punct(punct) => punct.as_char() == '=' && punct.spacing() == Spacing::Alone,
+            _ => false,
+        };
+
+        if !has_equals {
+            return bail!(&self.tokens[1], "expected `=`");
+        }
+
+        Ok((key, Self::new(self.tokens[2..].into())))
+    }
+
+    pub fn as_ident(&self) -> ParseResult<Ident> {
+        if self.tokens.len() > 1 {
+            return bail!(&self.tokens[1], "expected a single identifier");
+        }
+
+        match &self.tokens[0] {
+            TokenTree::Ident(id) => Ok(id.clone()),
+            other => bail!(other, "expected identifier"),
         }
     }
 }

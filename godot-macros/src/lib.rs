@@ -185,17 +185,17 @@ mod util;
 /// [properties](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html#properties-setters-and-getters)
 /// (fields with a `get` or `set` declaration) and
 /// [exports](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_exports.html)
-/// (fields annotated with `@export`). In the GDExtension API, these two concepts are merged into
-/// one.
+/// (fields annotated with `@export`). In the GDExtension API, these two concepts are represented with
+/// `#[var]` and `#[export]` attributes respectively.
 ///
-/// You can export fields of your struct using the `#[export]` annotation:
+/// To create a property, you can use the `#[var]` annotation:
 ///
 /// ```
 /// use godot::prelude::*;
 ///
 /// #[derive(GodotClass)]
 /// struct MyStruct {
-///     #[export]
+///     #[var]
 ///     my_field: i64,
 /// }
 ///
@@ -207,8 +207,8 @@ mod util;
 /// generates a trivial getter and setter named `get_my_field` and `set_my_field`, respectively.
 /// These are `pub` in Rust, since they're exposed from GDScript anyway.
 ///
-/// For technical reasons, an impl-block with the `#[godot_api]` attribute is required for exports to work.
-/// Failing to include one will cause a compile error if you try to export any properties.
+/// For technical reasons, an impl-block with the `#[godot_api]` attribute is required for properties to
+/// work. Failing to include one will cause a compile error if you try to create any properties.
 ///
 /// If you want to implement your own getter and/or setter, write those as a function on your Rust
 /// type, expose it using `#[func]`, and annotate the field with
@@ -219,7 +219,7 @@ mod util;
 ///
 /// #[derive(GodotClass)]
 /// struct MyStruct {
-///     #[export(get = get_my_field, set = set_my_field)]
+///     #[var(get = get_my_field, set = set_my_field)]
 ///     my_field: i64,
 /// }
 ///
@@ -247,7 +247,7 @@ mod util;
 /// #[derive(GodotClass)]
 /// struct MyStruct {
 ///     // Default getter, custom setter.
-///     #[export(get, set = set_my_field)]
+///     #[var(get, set = set_my_field)]
 ///     my_field: i64,
 /// }
 ///
@@ -260,11 +260,128 @@ mod util;
 /// }
 /// ```
 ///
+/// For exporting properties to the editor, you can use the `#[export]` attribute:
+///
+/// ```
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// struct MyStruct {
+///     #[export]
+///     my_field: i64,
+/// }
+///
+/// #[godot_api]
+/// impl MyStruct {}
+/// ```
+///
+/// If you dont also include a `#[var]` attribute, then a default one will be generated.
+/// `#[export]` also supports all of GDScript's annotations, in a slightly different format. The format is
+/// translated from an annotation by following these four rules:
+///
+/// - `@export` becomes `#[export]`
+/// - `@export_{name}` becomes `#[export(name)]`
+/// - `@export_{name}(elem1, ...)` becomes `#[export(name = (elem1, ...))]`
+/// - `@export_{flags/enum}("elem1", "elem2:key2", ...)`
+///   becomes
+///   `#[export(flags/enum = (elem1, elem2 = key2, ...))]`
+///
+///
+/// As an example of some different export attributes:
+///
+/// ```
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// struct MyStruct {
+///     // @export
+///     #[export]
+///     float: f64,
+///     
+///     // @export_range(0.0, 10.0, or_greater)
+///     #[export(range = (0.0, 10.0, or_greater))]
+///     range_f64: f64,
+///
+///     // @export_file
+///     #[export(file)]
+///     file: GodotString,
+///
+///     // @export_file("*.gd")
+///     #[export(file = "*.gd")]
+///     gdscript_file: GodotString,
+///
+///     // @export_flags_3d_physics
+///     #[export(flags_3d_physics)]
+///     physics: u32,
+///
+///     // @export_exp_easing
+///     #[export(exp_easing)]
+///     ease: f64,
+///
+///     // @export_enum("One", "Two", "Ten:10", "Twelve:12", "Thirteen")
+///     #[export(enum = (One, Two, Ten = 10, Twelve = 12, Thirteen))]
+///     exported_enum: i64,
+///
+///     // @export_flags("A:1", "B:2", "AB":3)
+///     #[export(flags = (A = 1, B = 2, AB = 3))]
+///     flags: u32,
+/// }
+///
+/// #[godot_api]
+/// impl MyStruct {}
+/// ```
+///
+/// Most values in expressions like `key = value`, can be an arbitrary expression that evaluates to the
+/// right value. Meaning you can use constants or variables, as well as any other rust syntax you'd like in
+/// the export attributes.
+///
+/// ```
+/// use godot::prelude::*;
+///
+/// const MAX_HEALTH: f64 = 100.0;
+///
+/// #[derive(GodotClass)]
+/// struct MyStruct {
+///     #[export(range = (0.0, MAX_HEALTH))]
+///     health: f64,
+///
+///     #[export(flags = (A = 0b0001, B = 0b0010, C = 0b0100, D = 0b1000))]
+///     flags: u32,
+/// }
+///
+/// #[godot_api]
+/// impl MyStruct {}
+/// ```
+///
+/// You can specify custom property hints, hint strings, and usage flags in a `#[var]` attribute using the
+/// `hint`, `hint_string`, and `usage_flags` keys in the attribute:
+///
+/// ```
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// struct MyStruct {
+///     // Treated as an enum with two values: "One" and "Two"
+///     // Displayed in the editor
+///     // Treated as read-only by the editor
+///     #[var(
+///         hint = PROPERTY_HINT_ENUM,
+///         hint_string = "One,Two",
+///         usage_flags = [PROPERTY_USAGE_EDITOR, PROPERTY_USAGE_READ_ONLY]
+///     )]
+///     my_field: i64,
+/// }
+///
+/// #[godot_api]
+/// impl MyStruct {}
+/// ```
+///
+///
 /// # Signals
 ///
 /// The `#[signal]` attribute is accepted, but not yet implemented. See [issue
 /// #8](https://github.com/godot-rust/gdext/issues/8).
-#[proc_macro_derive(GodotClass, attributes(class, base, export, init, signal))]
+#[proc_macro_derive(GodotClass, attributes(class, base, var, export, init, signal))]
 pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)
 }

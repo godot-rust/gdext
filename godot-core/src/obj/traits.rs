@@ -115,6 +115,10 @@ pub trait Inherits<Base>: GodotClass {}
 
 impl<T: GodotClass> Inherits<T> for T {}
 
+/// Trait implemented for all objects that inherit from `Resource` or `Node`. As those are the only objects
+/// you can export to the editor.
+pub trait ExportableObject: GodotClass {}
+
 /// Auto-implemented for all engine-provided classes
 pub trait EngineClass: GodotClass {
     fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr;

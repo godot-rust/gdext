@@ -10,7 +10,9 @@ use proc_macro2::{Ident, Punct, TokenStream};
 use quote::{format_ident, quote};
 use venial::{Declaration, NamedField, Struct, StructFields, TyExpr};
 
-use self::property::{make_exports_impl, FieldExport};
+use self::property::field_export::FieldExport;
+use self::property::field_var::FieldVar;
+use self::property::make_property_impl;
 
 mod property;
 
@@ -30,7 +32,7 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
     let prv = quote! { ::godot::private };
     let deref_impl = make_deref_impl(class_name, &fields);
 
-    let godot_exports_impl = make_exports_impl(class_name, &fields);
+    let godot_exports_impl = make_property_impl(class_name, &fields);
 
     let (godot_init_impl, create_fn);
     if struct_cfg.has_generated_init {
@@ -138,6 +140,12 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
             field.export = Some(export);
             parser.finish()?;
         }
+        // #[var]
+        if let Some(mut parser) = KvParser::parse(&named_field.attributes, "var")? {
+            let var = FieldVar::new_from_kv(&mut parser)?;
+            field.var = Some(var);
+            parser.finish()?;
+        }
 
         // Exported or Rust-only fields
         if is_base {
@@ -172,6 +180,7 @@ struct Field {
     name: Ident,
     ty: TyExpr,
     default: Option<TokenStream>,
+    var: Option<FieldVar>,
     export: Option<FieldExport>,
 }
 
@@ -181,6 +190,7 @@ impl Field {
             name: field.name.clone(),
             ty: field.ty.clone(),
             default: None,
+            var: None,
             export: None,
         }
     }
