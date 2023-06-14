@@ -14,14 +14,14 @@ use crate::ParseResult;
 pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
     let mut impl_decl = match decl {
         Declaration::Impl(item) => item,
-        _ => return bail("#[gdextension] can only be applied to trait impls", &decl),
+        _ => return bail!(&decl, "#[gdextension] can only be applied to trait impls"),
     };
 
     validate_impl(&impl_decl, Some("ExtensionLibrary"), "gdextension")?;
     if impl_decl.tk_unsafe.is_none() {
-        return bail(
-            "`impl ExtensionLibrary` must be marked unsafe, to confirm your opt-in to godot-rust's safety model", 
-            impl_decl.tk_impl
+        return bail!(
+            impl_decl.tk_impl,
+            "`impl ExtensionLibrary` must be marked unsafe, to confirm your opt-in to godot-rust's safety model",
         );
     }
 

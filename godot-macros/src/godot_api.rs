@@ -13,21 +13,21 @@ use venial::{AttributeValue, Declaration, Error, FnParam, Function, Impl, ImplMe
 pub fn transform(input_decl: Declaration) -> Result<TokenStream, Error> {
     let decl = match input_decl {
         Declaration::Impl(decl) => decl,
-        _ => bail(
-            "#[godot_api] can only be applied on impl blocks",
+        _ => bail!(
             input_decl,
+            "#[godot_api] can only be applied on impl blocks",
         )?,
     };
 
     if decl.impl_generic_params.is_some() {
-        bail(
-            "#[godot_api] currently does not support generic parameters",
+        bail!(
             &decl,
+            "#[godot_api] currently does not support generic parameters",
         )?;
     }
 
     if decl.self_ty.as_path().is_none() {
-        return bail("invalid Self type for #[godot_api] impl", decl);
+        return bail!(decl, "invalid Self type for #[godot_api] impl");
     };
 
     if decl.trait_ty.is_some() {
@@ -53,7 +53,7 @@ struct BoundAttr {
 
 impl BoundAttr {
     fn bail<R>(self, msg: &str, method: &Function) -> Result<R, Error> {
-        bail(format!("#[{}]: {}", self.attr_name, msg), &method.name)
+        bail!(&method.name, "#[{}]: {}", self.attr_name, msg)
     }
 }
 
@@ -224,9 +224,9 @@ fn extract_attributes(method: &Function) -> Result<Option<BoundAttr>, Error> {
 
         // Validate at most 1 attribute
         if found.is_some() && new_found.is_some() {
-            bail(
-                "at most one #[func] or #[signal] attribute per method allowed",
+            bail!(
                 &method.name,
+                "at most one #[func] or #[signal] attribute per method allowed",
             )?;
         }
 

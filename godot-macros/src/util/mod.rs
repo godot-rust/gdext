@@ -17,19 +17,35 @@ pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
 }
 
-pub fn bail<R, T>(msg: impl AsRef<str>, tokens: T) -> ParseResult<R>
+pub fn bail_fn<R, T>(msg: impl AsRef<str>, tokens: T) -> ParseResult<R>
 where
     T: Spanned,
 {
-    Err(error(msg, tokens))
+    Err(error_fn(msg, tokens))
 }
 
-pub fn error<T>(msg: impl AsRef<str>, tokens: T) -> Error
+macro_rules! bail {
+    ($tokens:expr, $format_string:literal $($rest:tt)*) => {
+        $crate::util::bail_fn(format!($format_string $($rest)*), $tokens)
+    }
+}
+
+pub(crate) use bail;
+
+pub fn error_fn<T>(msg: impl AsRef<str>, tokens: T) -> Error
 where
     T: Spanned,
 {
     Error::new_at_span(tokens.__span(), msg.as_ref())
 }
+
+macro_rules! error {
+    ($tokens:expr, $format_string:literal $($rest:tt)*) => {
+        $crate::util::error_fn(format!($format_string $($rest)*), $tokens)
+    }
+}
+
+pub(crate) use error;
 
 pub fn reduce_to_signature(function: &Function) -> Function {
     let mut reduced = function.clone();
@@ -64,13 +80,13 @@ impl KvValue {
         let ident = match &self.tokens[0] {
             TokenTree::Ident(ident) => ident.clone(),
             tt => {
-                return bail("expected identifier", tt);
+                return bail!(tt, "expected identifier");
             }
         };
         if self.tokens.len() > 1 {
-            return bail(
-                "expected a single identifier, not an expression",
+            return bail!(
                 &self.tokens[1],
+                "expected a single identifier, not an expression",
             );
         }
         Ok(ident)
@@ -97,10 +113,7 @@ impl KvParser {
     ) -> ParseResult<Self> {
         match Self::parse(attributes, expected) {
             Ok(Some(result)) => Ok(result),
-            Ok(None) => bail(
-                format!("expected attribute #[{expected}], but not present"),
-                context,
-            ),
+            Ok(None) => bail!(context, "expected attribute #[{expected}], but not present",),
             Err(e) => Err(e),
         }
     }
@@ -113,10 +126,7 @@ impl KvParser {
             let path = &attr.path;
             if path_is_single(path, expected) {
                 if found_attr.is_some() {
-                    return bail(
-                        format!("only a single #[{expected}] attribute allowed"),
-                        attr,
-                    );
+                    return bail!(attr, "only a single #[{expected}] attribute allowed",);
                 }
 
                 let attr_name = expected.to_string();
@@ -148,10 +158,7 @@ impl KvParser {
             None => Ok(false),
             Some(value) => match value {
                 None => Ok(true),
-                Some(value) => bail(
-                    format!("key `{key}` should not have a value"),
-                    &value.tokens[0],
-                ),
+                Some(value) => bail!(&value.tokens[0], "key `{key}` should not have a value",),
             },
         }
     }
@@ -162,10 +169,7 @@ impl KvParser {
             None => Ok(None),
             // The `key` that was removed from the map has the correct span.
             Some((key, value)) => match value {
-                None => bail(
-                    format!("expected `{key}` to be followed by `= identifier`"),
-                    key,
-                ),
+                None => bail!(key, "expected `{key}` to be followed by `= identifier`",),
                 Some(value) => Ok(Some(value.ident()?)),
             },
         }
@@ -177,10 +181,7 @@ impl KvParser {
             None => Ok(None),
             // The `key` that was removed from the map has the correct span.
             Some((key, value)) => match value {
-                None => bail(
-                    format!("expected `{key}` to be followed by `= expression`"),
-                    key,
-                ),
+                None => bail!(key, "expected `{key}` to be followed by `= expression`",),
                 Some(value) => Ok(Some(value.expr()?)),
             },
         }
@@ -188,22 +189,14 @@ impl KvParser {
 
     /// Handles a key that must be provided and must have an identifier as the value.
     pub fn handle_ident_required(&mut self, key: &str) -> ParseResult<Ident> {
-        self.handle_ident(key)?.ok_or_else(|| {
-            error(
-                format!("missing required argument `{key} = identifier`"),
-                self.span,
-            )
-        })
+        self.handle_ident(key)?
+            .ok_or_else(|| error!(self.span, "missing required argument `{key} = identifier`",))
     }
 
     /// Handles a key that must be provided and must have a value.
     pub fn handle_expr_required(&mut self, key: &str) -> ParseResult<TokenStream> {
-        self.handle_expr(key)?.ok_or_else(|| {
-            error(
-                format!("missing required argument `{key} = expression`"),
-                self.span,
-            )
-        })
+        self.handle_expr(key)?
+            .ok_or_else(|| error!(self.span, "missing required argument `{key} = expression`",))
     }
 
     /// Explicit "pre-destructor" that must be called, and checks that all map entries have been
@@ -218,7 +211,7 @@ impl KvParser {
             let errors = self
                 .map
                 .keys()
-                .map(|ident| error(format!("unrecognized key `{ident}`"), ident));
+                .map(|ident| error!(ident, "unrecognized key `{ident}`"));
             Err(errors
                 .reduce(|mut a, b| {
                     a.combine(b);
@@ -240,7 +233,7 @@ impl<'a> ParserState<'a> {
     pub fn parse(attr_name: String, attr_value: &'a venial::AttributeValue) -> ParseResult<KvMap> {
         let mut tokens = match attr_value {
             venial::AttributeValue::Equals(punct, _tokens) => {
-                return bail("expected `(` or `]`", punct);
+                return bail!(punct, "expected `(` or `]`");
             }
             _ => attr_value.get_value_tokens().iter(),
         };
@@ -268,7 +261,7 @@ impl<'a> ParserState<'a> {
                     self.next();
                     let value = self.parse_opt_value(key, prev_expr_complex)?;
                     if map.contains_key(key) {
-                        return bail(format!("duplicate key `{key}`"), key);
+                        return bail!(key, "duplicate key `{key}`");
                     }
                     prev_expr_complex = match &value {
                         None => false,
@@ -283,7 +276,7 @@ impl<'a> ParserState<'a> {
                     } else {
                         "".to_owned()
                     };
-                    return bail(format!("expected identifier{parens_hint}"), cur);
+                    return bail!(cur, "expected identifier{parens_hint}");
                 }
             }
         }
@@ -316,9 +309,9 @@ impl<'a> ParserState<'a> {
                 } else {
                     "".to_owned()
                 };
-                return bail(
-                    format!("expected next argument, or `= value` following `{key}`{parens_hint}"),
+                return bail!(
                     tt,
+                    "expected next argument, or `= value` following `{key}`{parens_hint}",
                 );
             }
         };
@@ -338,7 +331,7 @@ impl<'a> ParserState<'a> {
         if tokens.is_empty() {
             // `cur` might be `None` at this point, so we point at the previous token instead.
             // This could be the `=` sign or a `,` directly after `=`.
-            return bail("expected value after `=`", self.prev.unwrap());
+            return bail!(self.prev.unwrap(), "expected value after `=`");
         }
         Ok(KvValue::new(tokens))
     }
@@ -382,9 +375,9 @@ pub(crate) fn validate_impl(
     if let Some(expected_trait) = expected_trait {
         // impl Trait for Self -- validate Trait
         if !is_impl_named(original_impl, expected_trait) {
-            return bail(
-                format!("#[{attr}] for trait impls requires trait to be `{expected_trait}`"),
+            return bail!(
                 original_impl,
+                "#[{attr}] for trait impls requires trait to be `{expected_trait}`",
             );
         }
     }
@@ -407,9 +400,9 @@ pub(crate) fn validate_trait_impl_virtual(
         .as_ref()
         .map_or(false, |seg| seg.ident.to_string().ends_with("Virtual"))
     {
-        return bail(
-            format!("#[{attr}] for trait impls requires a virtual method trait (trait name should end in 'Virtual')"),
+        return bail!(
             original_impl,
+            "#[{attr}] for trait impls requires a virtual method trait (trait name should end in 'Virtual')",
         );
     }
 
@@ -425,15 +418,15 @@ fn validate_self(original_impl: &Impl, attr: &str) -> ParseResult<Ident> {
         if segment.generic_args.is_none() {
             Ok(segment.ident)
         } else {
-            bail(
-                format!("#[{attr}] for does currently not support generic arguments"),
+            bail!(
                 original_impl,
+                "#[{attr}] for does currently not support generic arguments",
             )
         }
     } else {
-        bail(
-            format!("#[{attr}] requires Self type to be a simple path"),
+        bail!(
             original_impl,
+            "#[{attr}] requires Self type to be a simple path",
         )
     }
 }

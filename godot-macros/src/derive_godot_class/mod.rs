@@ -96,9 +96,9 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
         StructFields::Unit => {
             vec![]
         }
-        StructFields::Tuple(_) => bail(
-            "#[derive(GodotClass)] not supported for tuple structs",
+        StructFields::Tuple(_) => bail!(
             &class.fields,
+            "#[derive(GodotClass)] not supported for tuple structs",
         )?,
         StructFields::Named(fields) => fields.fields.inner.clone(),
     };
@@ -111,12 +111,10 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
         // #[base]
         if let Some(parser) = KvParser::parse(&named_field.attributes, "base")? {
             if let Some(prev_base) = base_field.as_ref() {
-                bail(
-                    format!(
-                        "#[base] allowed for at most 1 field, already applied to `{}`",
-                        prev_base.name
-                    ),
+                bail!(
                     parser.span(),
+                    "#[base] allowed for at most 1 field, already applied to `{}`",
+                    prev_base.name
                 )?;
             }
             is_base = true;
