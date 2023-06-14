@@ -138,7 +138,7 @@
 //!   at any time.
 
 #[doc(inline)]
-pub use godot_core::{builtin, engine, export, log, obj, sys};
+pub use godot_core::{builtin, engine, log, obj, property, sys};
 
 /// Facilities for initializing and terminating the GDExtension library.
 pub mod init {
@@ -150,7 +150,7 @@ pub mod init {
 
 /// Export user-defined classes and methods to be called by the engine.
 pub mod bind {
-    pub use super::export::{Export, TypeStringHint};
+    pub use super::property::{Export, ExportInfo, TypeStringHint};
     pub use godot_macros::{godot_api, FromVariant, GodotClass, ToVariant};
 }
 

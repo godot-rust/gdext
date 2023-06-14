@@ -312,7 +312,7 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         let field_type = field.ty.clone();
 
         let export_info = quote! {
-            let mut export_info = <#field_type as ::godot::export::Export>::default_export_info();
+            let mut export_info = <#field_type as ::godot::property::Export>::default_export_info();
         };
 
         let custom_hint = if let Some(ExportHint {
@@ -341,7 +341,7 @@ fn make_exports_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 };
                 getter_setter_impls.push(quote! {
                     pub #signature {
-                        ::godot::export::Export::export(&self.#field_ident)
+                        ::godot::property::Export::export(&self.#field_ident)
                     }
                 });
                 export_tokens.push(quote! {
