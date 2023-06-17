@@ -36,12 +36,7 @@ fn transform3d_equiv() {
         ("interpolate_with", inner.interpolate_with(Transform3D::IDENTITY, 0.5), outer.interpolate_with(Transform3D::IDENTITY, 0.5))
     ];
     for (name, inner, outer) in mappings_transform {
-        assert_eq_approx!(
-            &inner,
-            &outer,
-            Transform3D::is_equal_approx,
-            "function: {name}\n"
-        );
+        assert_eq_approx!(inner, outer, "function: {name}\n");
     }
 }
 
@@ -56,7 +51,6 @@ fn transform3d_xform_equiv() {
             .evaluate(&vec.to_variant(), VariantOperator::Multiply)
             .unwrap()
             .to::<Vector3>(),
-        Vector3::is_equal_approx,
         "operator: Transform3D * Vector3"
     );
 
@@ -69,7 +63,6 @@ fn transform3d_xform_equiv() {
             .evaluate(&aabb.to_variant(), VariantOperator::Multiply)
             .unwrap()
             .to::<Aabb>(),
-        |a, b| Aabb::is_equal_approx(&a, &b),
         "operator: Transform3D * Aabb"
     );
 
@@ -82,7 +75,6 @@ fn transform3d_xform_equiv() {
             .evaluate(&plane.to_variant(), VariantOperator::Multiply)
             .unwrap()
             .to::<Plane>(),
-        |a, b| Plane::is_equal_approx(&a, &b),
         "operator: Transform3D * Plane"
     );
 }

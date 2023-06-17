@@ -6,12 +6,13 @@
 
 #![allow(dead_code)]
 
-use crate::TestContext;
+use crate::{itest, TestContext};
+
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{
-    is_equal_approx, real, varray, Color, GodotString, PackedByteArray, PackedColorArray,
-    PackedFloat32Array, PackedInt32Array, PackedStringArray, PackedVector2Array,
-    PackedVector3Array, RealConv, StringName, ToVariant, Variant, VariantArray, Vector2, Vector3,
+    real, varray, Color, GodotString, PackedByteArray, PackedColorArray, PackedFloat32Array,
+    PackedInt32Array, PackedStringArray, PackedVector2Array, PackedVector3Array, RealConv,
+    StringName, ToVariant, Variant, VariantArray, Vector2, Vector3,
 };
 use godot::engine::node::InternalMode;
 use godot::engine::notify::NodeNotification;
@@ -23,7 +24,6 @@ use godot::engine::{
 };
 use godot::obj::{Base, Gd, Share};
 use godot::private::class_macros::assert_eq_approx;
-use godot::test::itest;
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
 #[derive(GodotClass, Debug)]
@@ -362,22 +362,18 @@ fn test_virtual_method_with_return() {
     assert_eq_approx!(
         arr.get(0).to::<PackedVector3Array>().get(0),
         arr_rust.get(0).to::<PackedVector3Array>().get(0),
-        Vector3::is_equal_approx
     );
     assert_eq_approx!(
-        arr.get(2).to::<PackedFloat32Array>().get(3),
-        arr_rust.get(2).to::<PackedFloat32Array>().get(3),
-        |a, b| is_equal_approx(real::from_f32(a), real::from_f32(b))
+        real::from_f32(arr.get(2).to::<PackedFloat32Array>().get(3)),
+        real::from_f32(arr_rust.get(2).to::<PackedFloat32Array>().get(3)),
     );
     assert_eq_approx!(
         arr.get(3).to::<PackedColorArray>().get(0),
         arr_rust.get(3).to::<PackedColorArray>().get(0),
-        Color::is_equal_approx
     );
     assert_eq_approx!(
         arr.get(4).to::<PackedVector2Array>().get(0),
         arr_rust.get(4).to::<PackedVector2Array>().get(0),
-        Vector2::is_equal_approx
     );
     assert_eq!(
         arr.get(6).to::<PackedByteArray>(),

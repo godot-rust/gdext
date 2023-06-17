@@ -7,7 +7,8 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use super::{real, Plane, Vector3, Vector3Axis};
+use crate::builtin::math::ApproxEq;
+use crate::builtin::{real, Plane, Vector3, Vector3Axis};
 
 /// Axis-aligned bounding box in 3D space.
 ///
@@ -183,13 +184,6 @@ impl Aabb {
     #[inline]
     pub fn set_end(&mut self, end: Vector3) {
         self.size = end - self.position
-    }
-
-    /// Returns `true` if the two `Aabb`s are approximately equal, by calling `is_equal_approx` on
-    /// `position` and `size`.
-    #[inline]
-    pub fn is_equal_approx(&self, other: &Self) -> bool {
-        self.position.is_equal_approx(other.position) && self.size.is_equal_approx(other.size)
     }
 
     /// Returns the normalized longest axis of the AABB.
@@ -386,6 +380,16 @@ impl std::fmt::Display for Aabb {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Aabb {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl ApproxEq for Aabb {
+    /// Returns `true` if the two `Aabb`s are approximately equal, by calling `is_equal_approx` on
+    /// `position` and `size`.
+    #[inline]
+    fn approx_eq(&self, other: &Self) -> bool {
+        Vector3::approx_eq(&self.position, &other.position)
+            && Vector3::approx_eq(&self.size, &other.size)
+    }
 }
 
 #[cfg(test)]

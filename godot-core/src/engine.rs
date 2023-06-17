@@ -16,6 +16,17 @@ pub use crate::gen::central::global;
 pub use crate::gen::classes::*;
 pub use crate::gen::utilities;
 
+/// Support for Godot _native structures_.
+///
+/// Native structures are a niche API in Godot. These are low-level data types that are passed as pointers to/from the engine.
+/// In Rust, they are represented as `#[repr(C)]` structs.
+///
+/// There is unfortunately not much official documentation available; you may need to look at Godot source code.
+/// Most users will not need native structures, as they are very specialized.
+pub mod native {
+    pub use crate::gen::native::*;
+}
+
 use self::packed_scene::GenEditState;
 
 /// Extension trait for convenience functions on `PackedScene`

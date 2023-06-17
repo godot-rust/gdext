@@ -3,16 +3,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-use std::{fmt::Display, ops::*};
 
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use super::glam_helpers::{GlamConv, GlamType};
-use super::{math::*, Rect2, Vector2};
+use crate::builtin::math::{assert_ne_approx, lerp_angle, ApproxEq, GlamConv, GlamType};
+use crate::builtin::real_consts::PI;
+use crate::builtin::{real, RAffine2, RMat2, Rect2, Vector2};
 
-use super::real_consts::PI;
-use super::{real, RAffine2, RMat2};
+use std::fmt::Display;
+use std::ops::{Mul, MulAssign};
 
 /// Affine 2D transform (2x3 matrix).
 ///
@@ -170,16 +170,6 @@ impl Transform2D {
             lerp_angle(self.skew(), other.skew(), weight),
             self.origin.lerp(other.origin, weight),
         )
-    }
-
-    /// Returns `true` if this transform and transform are approximately equal,
-    /// by calling `is_equal_approx` on each component.
-    ///
-    /// _Godot equivalent: `Transform2D.is_equal_approx()`_
-    pub fn is_equal_approx(&self, other: &Self) -> bool {
-        self.a.is_equal_approx(other.a)
-            && self.b.is_equal_approx(other.b)
-            && self.origin.is_equal_approx(other.origin)
     }
 
     /// Returns `true` if this transform is finite, by calling
@@ -340,6 +330,16 @@ impl Mul<Rect2> for Transform2D {
     }
 }
 
+impl ApproxEq for Transform2D {
+    /// Returns if the two transforms are approximately equal, by comparing each component separately.
+    #[inline]
+    fn approx_eq(&self, other: &Self) -> bool {
+        Vector2::approx_eq(&self.a, &other.a)
+            && Vector2::approx_eq(&self.b, &other.b)
+            && Vector2::approx_eq(&self.origin, &other.origin)
+    }
+}
+
 impl GlamType for RAffine2 {
     type Mapped = Transform2D;
 
@@ -435,10 +435,7 @@ impl Basis2D {
     /// Returns the orthonormalized version of the basis.
     #[must_use]
     pub(crate) fn orthonormalized(self) -> Self {
-        assert!(
-            !is_equal_approx(self.determinant(), 0.0),
-            "Determinant should not be zero."
-        );
+        assert_ne_approx!(self.determinant(), 0.0, "Determinant should not be zero.");
 
         // Gram-Schmidt Process
         let mut x = self.cols[0];
@@ -559,16 +556,12 @@ mod test {
     #[test]
     fn transform2d_constructors_correct() {
         let trans = Transform2D::from_angle(real!(115.0).to_radians());
-        assert_eq_approx!(trans.rotation(), real!(115.0).to_radians(), is_equal_approx);
+        assert_eq_approx!(trans.rotation(), real!(115.0).to_radians());
 
         let trans =
             Transform2D::from_angle_origin(real!(-80.0).to_radians(), Vector2::new(1.4, 9.8));
-        assert_eq_approx!(trans.rotation(), real!(-80.0).to_radians(), is_equal_approx);
-        assert_eq_approx!(
-            trans.origin,
-            Vector2::new(1.4, 9.8),
-            Vector2::is_equal_approx
-        );
+        assert_eq_approx!(trans.rotation(), real!(-80.0).to_radians());
+        assert_eq_approx!(trans.origin, Vector2::new(1.4, 9.8));
 
         let trans = Transform2D::from_angle_scale_skew_origin(
             real!(170.0).to_radians(),
@@ -576,18 +569,10 @@ mod test {
             real!(20.0).to_radians(),
             Vector2::new(2.4, 6.8),
         );
-        assert_eq_approx!(trans.rotation(), real!(170.0).to_radians(), is_equal_approx);
-        assert_eq_approx!(
-            trans.scale(),
-            Vector2::new(3.6, 8.0),
-            Vector2::is_equal_approx
-        );
-        assert_eq_approx!(trans.skew(), real!(20.0).to_radians(), is_equal_approx);
-        assert_eq_approx!(
-            trans.origin,
-            Vector2::new(2.4, 6.8),
-            Vector2::is_equal_approx
-        );
+        assert_eq_approx!(trans.rotation(), real!(170.0).to_radians());
+        assert_eq_approx!(trans.scale(), Vector2::new(3.6, 8.0));
+        assert_eq_approx!(trans.skew(), real!(20.0).to_radians());
+        assert_eq_approx!(trans.origin, Vector2::new(2.4, 6.8));
     }
 
     // Tests translated from Godot.
@@ -663,39 +648,20 @@ mod test {
             real!(10.0).to_radians(),
             Vector2::new(1.2, 3.4),
         );
+
         let interpolated: Transform2D =
             Transform2D::IDENTITY.interpolate_with(rotate_scale_skew_pos, 0.5);
-        assert_eq_approx!(
-            interpolated.origin,
-            rotate_scale_skew_pos_halfway.origin,
-            Vector2::is_equal_approx
-        );
+        assert_eq_approx!(interpolated.origin, rotate_scale_skew_pos_halfway.origin);
         assert_eq_approx!(
             interpolated.rotation(),
             rotate_scale_skew_pos_halfway.rotation(),
-            is_equal_approx
         );
-        assert_eq_approx!(
-            interpolated.scale(),
-            rotate_scale_skew_pos_halfway.scale(),
-            Vector2::is_equal_approx
-        );
-        assert_eq_approx!(
-            interpolated.skew(),
-            rotate_scale_skew_pos_halfway.skew(),
-            is_equal_approx
-        );
-        assert_eq_approx!(
-            &interpolated,
-            &rotate_scale_skew_pos_halfway,
-            Transform2D::is_equal_approx
-        );
+        assert_eq_approx!(interpolated.scale(), rotate_scale_skew_pos_halfway.scale());
+        assert_eq_approx!(interpolated.skew(), rotate_scale_skew_pos_halfway.skew());
+        assert_eq_approx!(interpolated, rotate_scale_skew_pos_halfway);
+
         let interpolated = rotate_scale_skew_pos.interpolate_with(Transform2D::IDENTITY, 0.5);
-        assert_eq_approx!(
-            &interpolated,
-            &rotate_scale_skew_pos_halfway,
-            Transform2D::is_equal_approx
-        );
+        assert_eq_approx!(interpolated, rotate_scale_skew_pos_halfway);
     }
 
     #[test]

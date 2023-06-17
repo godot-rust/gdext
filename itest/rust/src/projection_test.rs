@@ -7,23 +7,10 @@
 #![allow(clippy::type_complexity, clippy::excessive_precision)]
 
 use crate::itest;
-use godot::prelude::{inner::InnerProjection, *};
-use godot::private::class_macros::assert_eq_approx;
 
-fn matrix_eq_approx(a: Projection, b: Projection) -> bool {
-    for i in 0..4 {
-        let v1 = a.cols[i];
-        let v2 = b.cols[i];
-        if !is_equal_approx(v1.x, v2.x)
-            || !is_equal_approx(v1.y, v2.y)
-            || !is_equal_approx(v1.z, v2.z)
-            || !is_equal_approx(v1.w, v2.w)
-        {
-            return false;
-        }
-    }
-    true
-}
+use godot::builtin::inner::InnerProjection;
+use godot::builtin::math::assert_eq_approx;
+use godot::builtin::{real, Projection, RealConv, Vector2};
 
 #[itest]
 fn test_create_orthogonal() {
@@ -50,8 +37,7 @@ fn test_create_orthogonal() {
         assert_eq_approx!(
             rust_proj,
             godot_proj,
-            matrix_eq_approx,
-            "left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
+            "orthogonal: left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
         );
     }
 }
@@ -80,8 +66,7 @@ fn test_create_orthogonal_aspect() {
         assert_eq_approx!(
             rust_proj,
             godot_proj,
-            matrix_eq_approx,
-            "size={size} aspect={aspect} near={near} far={far} flip_fov={flip_fov}"
+            "orthogonal aspect: size={size} aspect={aspect} near={near} far={far} flip_fov={flip_fov}"
         );
     }
 }
@@ -109,8 +94,7 @@ fn test_create_perspective() {
         assert_eq_approx!(
             rust_proj,
             godot_proj,
-            matrix_eq_approx,
-            "fov_y={fov_y} aspect={aspect} near={near} far={far} flip_fov={flip_fov}"
+            "perspective: fov_y={fov_y} aspect={aspect} near={near} far={far} flip_fov={flip_fov}"
         );
     }
 }
@@ -137,8 +121,7 @@ fn test_create_frustum() {
         assert_eq_approx!(
             rust_proj,
             godot_proj,
-            matrix_eq_approx,
-            "left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
+            "frustum: left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
         );
     }
 }
@@ -168,8 +151,7 @@ fn test_create_frustum_aspect() {
         assert_eq_approx!(
             rust_proj,
             godot_proj,
-            matrix_eq_approx,
-            "size={size} aspect={aspect} offset=({0} {1}) near={near} far={far} flip_fov={flip_fov}",
+            "frustum_aspect: size={size} aspect={aspect} offset=({0} {1}) near={near} far={far} flip_fov={flip_fov}",
             offset.x,
             offset.y,
         );
@@ -178,6 +160,8 @@ fn test_create_frustum_aspect() {
 
 #[itest]
 fn test_projection_combined() {
+    // TODO(bromeon): reduce code duplication
+
     let range = [0, 5, 10, 15, 20];
 
     fn f(v: isize) -> real {
@@ -209,13 +193,12 @@ fn test_projection_combined() {
                             assert_eq_approx!(
                                 rust_proj,
                                 godot_proj,
-                                matrix_eq_approx,
-                                "left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
+                                "combined orthogonal: left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
                             );
 
                             assert!(
                                 InnerProjection::from_outer(&rust_proj).is_orthogonal(),
-                                "Projection should be orthogonal (left={left} right={right} bottom={bottom} top={top} near={near} far={far})",
+                                "projection should be orthogonal: left={left} right={right} bottom={bottom} top={top} near={near} far={far}",
                             );
                         }
                     }
@@ -246,13 +229,12 @@ fn test_projection_combined() {
                         assert_eq_approx!(
                             rust_proj,
                             godot_proj,
-                            matrix_eq_approx,
-                            "fov_y={fov_y} aspect={aspect} near={near} far={far}"
+                            "combined perspective: fov_y={fov_y} aspect={aspect} near={near} far={far}"
                         );
 
                         assert!(
                             !InnerProjection::from_outer(&rust_proj).is_orthogonal(),
-                            "Projection should be perspective (fov_y={fov_y} aspect={aspect} near={near} far={far})",
+                            "projection should be perspective: fov_y={fov_y} aspect={aspect} near={near} far={far}",
                         );
                     }
                 }
@@ -285,13 +267,12 @@ fn test_projection_combined() {
                             assert_eq_approx!(
                                 rust_proj,
                                 godot_proj,
-                                matrix_eq_approx,
-                                "left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
+                                "combined frustum: left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
                             );
 
                             assert!(
                                 !InnerProjection::from_outer(&rust_proj).is_orthogonal(),
-                                "Projection should be perspective (left={left} right={right} bottom={bottom} top={top} near={near} far={far})",
+                                "projection should be perspective: left={left} right={right} bottom={bottom} top={top} near={near} far={far}",
                             );
                         }
                     }
@@ -300,7 +281,7 @@ fn test_projection_combined() {
         }
     }
 
-    // Size, Aspect, Near, Far
+    // Frustum + Orthogonal Aspect
     let range = [1, 4, 7, 10];
     for size in range.map(|v| v as real) {
         for aspect_x in range {
@@ -329,8 +310,7 @@ fn test_projection_combined() {
                         assert_eq_approx!(
                             rust_proj_frustum,
                             godot_proj_frustum,
-                            matrix_eq_approx,
-                            "size={size} aspect={aspect} near={near} far={far}"
+                            "combined frustum aspect: size={size} aspect={aspect} near={near} far={far}"
                         );
 
                         let rust_proj_ortho =
@@ -347,17 +327,16 @@ fn test_projection_combined() {
                         assert_eq_approx!(
                             rust_proj_ortho,
                             godot_proj_ortho,
-                            matrix_eq_approx,
-                            "size={size} aspect={aspect} near={near} far={far}"
+                            "combined orthogonal aspect: size={size} aspect={aspect} near={near} far={far}"
                         );
 
                         assert!(
                             InnerProjection::from_outer(&rust_proj_ortho).is_orthogonal(),
-                            "Projection should be orthogonal (size={size} aspect={aspect} near={near} far={far})",
+                            "projection should be orthogonal: size={size} aspect={aspect} near={near} far={far}",
                         );
                         assert!(
                             !InnerProjection::from_outer(&rust_proj_frustum).is_orthogonal(),
-                            "Projection should be perspective (size={size} aspect={aspect} near={near} far={far})",
+                            "projection should be perspective: size={size} aspect={aspect} near={near} far={far}",
                         );
                     }
                 }

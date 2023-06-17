@@ -5,9 +5,9 @@
  */
 
 use crate::itest;
+use godot::engine::native::{AudioFrame, CaretInfo, Glyph};
 use godot::engine::text_server::Direction;
 use godot::engine::{TextServer, TextServerExtension, TextServerExtensionVirtual};
-use godot::native_structure::{AudioFrame, CaretInfo, Glyph};
 use godot::prelude::{godot_api, Base, Gd, GodotClass, Rect2, Rid, Share, Variant};
 
 use std::cell::Cell;

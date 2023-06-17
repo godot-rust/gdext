@@ -3,16 +3,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-use std::ops::*;
-
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::glam_helpers::{GlamConv, GlamType};
-use crate::builtin::{inner, math::*, Vector3};
+use crate::builtin::math::{is_equal_approx, ApproxEq, GlamConv, GlamType, CMP_EPSILON};
+use crate::builtin::{inner, real, Basis, EulerOrder, RQuat, Vector3};
 
-use super::{real, RQuat};
-use super::{Basis, EulerOrder};
+use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -106,13 +103,6 @@ impl Quaternion {
 
     pub fn inverse(self) -> Self {
         Self::new(-self.x, -self.y, -self.z, self.w)
-    }
-
-    pub fn is_equal_approx(self, to: Self) -> bool {
-        is_equal_approx(self.x, to.x)
-            && is_equal_approx(self.y, to.y)
-            && is_equal_approx(self.z, to.z)
-            && is_equal_approx(self.w, to.w)
     }
 
     pub fn is_finite(self) -> bool {
@@ -270,6 +260,15 @@ impl std::fmt::Display for Quaternion {
 impl Default for Quaternion {
     fn default() -> Self {
         Self::new(0.0, 0.0, 0.0, 1.0)
+    }
+}
+
+impl ApproxEq for Quaternion {
+    fn approx_eq(&self, other: &Self) -> bool {
+        is_equal_approx(self.x, other.x)
+            && is_equal_approx(self.y, other.y)
+            && is_equal_approx(self.z, other.z)
+            && is_equal_approx(self.w, other.w)
     }
 }
 

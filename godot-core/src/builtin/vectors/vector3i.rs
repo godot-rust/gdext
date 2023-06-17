@@ -9,10 +9,8 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
+use crate::builtin::math::{GlamConv, GlamType, IVec3};
 use crate::builtin::Vector3;
-
-use super::super::glam_helpers::{GlamConv, GlamType};
-use super::super::IVec3;
 
 /// Vector used for 3D math using integer coordinates.
 ///

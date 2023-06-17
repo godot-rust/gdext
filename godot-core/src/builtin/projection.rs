@@ -3,14 +3,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-use std::ops::*;
 
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use super::glam_helpers::{GlamConv, GlamType};
-use super::{inner::InnerProjection, Plane, Transform3D, Vector2, Vector4, Vector4Axis};
-use super::{real, RMat4, RealConv};
+use crate::builtin::inner::InnerProjection;
+use crate::builtin::math::{is_equal_approx, ApproxEq, GlamConv, GlamType};
+use crate::builtin::{real, Plane, RMat4, RealConv, Transform3D, Vector2, Vector4, Vector4Axis};
+
+use std::ops::Mul;
 
 /// A 4x4 matrix used for 3D projective transformations. It can represent
 /// transformations such as translation, rotation, scaling, shearing, and
@@ -466,6 +467,24 @@ impl Mul<Vector4> for Projection {
     }
 }
 
+impl ApproxEq for Projection {
+    fn approx_eq(&self, other: &Self) -> bool {
+        for i in 0..4 {
+            let v = self.cols[i];
+            let w = other.cols[i];
+
+            if !is_equal_approx(v.x, w.x)
+                || !is_equal_approx(v.y, w.y)
+                || !is_equal_approx(v.z, w.z)
+                || !is_equal_approx(v.w, w.w)
+            {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 impl GlamType for RMat4 {
     type Mapped = Projection;
 
@@ -516,6 +535,8 @@ pub enum ProjectionEye {
 
 #[cfg(test)]
 mod test {
+    // TODO(bromeon): reduce code duplication
+
     #![allow(clippy::type_complexity, clippy::excessive_precision)]
 
     use crate::assert_eq_approx;
@@ -524,12 +545,8 @@ mod test {
 
     const EPSILON: real = 1e-6;
 
-    fn real_is_approx(a: real, b: real) -> bool {
-        (a - b).abs() <= EPSILON
-    }
-
-    fn matrix_eq_approx(a: Projection, b: RMat4) -> bool {
-        a.to_glam().abs_diff_eq(b, EPSILON)
+    fn is_matrix_equal_approx(a: &Projection, b: &RMat4) -> bool {
+        a.to_glam().abs_diff_eq(*b, EPSILON)
     }
 
     /// Test that diagonals matrices has certain property.
@@ -555,11 +572,11 @@ mod test {
                 RMat4::from_cols_array(&[
                     x, 0.0, 0.0, 0.0, 0.0, y, 0.0, 0.0, 0.0, 0.0, z, 0.0, 0.0, 0.0, 0.0, w,
                 ]),
-                matrix_eq_approx,
+                fn = is_matrix_equal_approx,
             );
 
             let det = x * y * z * w;
-            assert_eq_approx!(proj.determinant(), det, real_is_approx);
+            assert_eq_approx!(proj.determinant(), det);
             if det.abs() > 1e-6 {
                 assert_eq_approx!(
                     proj.inverse(),
@@ -569,7 +586,7 @@ mod test {
                         [0.0, 0.0, 1.0 / z, 0.0],
                         [0.0, 0.0, 0.0, 1.0 / w],
                     ]),
-                    matrix_eq_approx,
+                    fn = is_matrix_equal_approx,
                 );
             }
         }
@@ -640,8 +657,8 @@ mod test {
             assert_eq_approx!(
                 Projection::create_orthogonal(left, right, bottom, top, near, far),
                 RMat4::from_cols_array_2d(&mat),
-                matrix_eq_approx,
-                "left={left} right={right} bottom={bottom} top={top} near={near} far={far}",
+                fn = is_matrix_equal_approx,
+                "orthogonal: left={left} right={right} bottom={bottom} top={top} near={near} far={far}",
             );
         }
     }
@@ -710,8 +727,8 @@ mod test {
             assert_eq_approx!(
                 Projection::create_orthogonal_aspect(size, aspect, near, far, flip_fov),
                 RMat4::from_cols_array_2d(&mat),
-                matrix_eq_approx,
-                "size={size} aspect={aspect} near={near} far={far} flip_fov={flip_fov}"
+                fn = is_matrix_equal_approx,
+                "orthogonal aspect: size={size} aspect={aspect} near={near} far={far} flip_fov={flip_fov}"
             );
         }
     }
@@ -770,8 +787,8 @@ mod test {
             assert_eq_approx!(
                 Projection::create_perspective(fov_y, aspect, near, far, flip_fov),
                 RMat4::from_cols_array_2d(&mat),
-                matrix_eq_approx,
-                "fov_y={fov_y} aspect={aspect} near={near} far={far} flip_fov={flip_fov}"
+                fn = is_matrix_equal_approx,
+                "perspective: fov_y={fov_y} aspect={aspect} near={near} far={far} flip_fov={flip_fov}"
             );
         }
     }
@@ -812,8 +829,8 @@ mod test {
             assert_eq_approx!(
                 Projection::create_frustum(left, right, bottom, top, near, far),
                 RMat4::from_cols_array_2d(&mat),
-                matrix_eq_approx,
-                "left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
+                fn = is_matrix_equal_approx,
+                "frustum: left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
             );
         }
     }
@@ -863,8 +880,8 @@ mod test {
             assert_eq_approx!(
                 Projection::create_frustum_aspect(size, aspect, offset, near, far, flip_fov),
                 RMat4::from_cols_array_2d(&mat),
-                matrix_eq_approx,
-                "size={size} aspect={aspect} offset=({0} {1}) near={near} far={far} flip_fov={flip_fov}",
+                fn = is_matrix_equal_approx,
+                "frustum aspect: size={size} aspect={aspect} offset=({0} {1}) near={near} far={far} flip_fov={flip_fov}",
                 offset.x,
                 offset.y,
             );
@@ -891,7 +908,7 @@ mod test {
                             for far in (near_i + 1..=20).map(f) {
                                 assert!(
                                     Projection::create_orthogonal(left, right, bottom, top, near, far).is_orthogonal(),
-                                    "Projection should be orthogonal (left={left} right={right} bottom={bottom} top={top} near={near} far={far})",
+                                    "projection should be orthogonal: left={left} right={right} bottom={bottom} top={top} near={near} far={far}",
                                 );
                             }
                         }
@@ -910,7 +927,7 @@ mod test {
                         for far in (near_i + 1..=20).map(|v| v as real) {
                             assert!(
                                 !Projection::create_perspective(fov, aspect, near, far, false).is_orthogonal(),
-                                "Projection should be perspective (fov={fov} aspect={aspect} near={near} far={far})",
+                                "projection should be perspective: fov={fov} aspect={aspect} near={near} far={far}",
                             );
                         }
                     }
@@ -930,7 +947,7 @@ mod test {
                             for far in (near_i + 1..=20).map(|v| (v as real) * 0.5) {
                                 assert!(
                                     !Projection::create_frustum(left, right, bottom, top, near, far).is_orthogonal(),
-                                    "Projection should be perspective (left={left} right={right} bottom={bottom} top={top} near={near} far={far})",
+                                    "projection should be perspective: left={left} right={right} bottom={bottom} top={top} near={near} far={far}",
                                 );
                             }
                         }
@@ -949,11 +966,11 @@ mod test {
                         for far in (near_i + 1..=20).map(|v| v as real) {
                             assert!(
                                 Projection::create_orthogonal_aspect(size, aspect, near, far, false).is_orthogonal(),
-                                "Projection should be orthogonal (size={size} aspect={aspect} near={near} far={far})",
+                                "projection should be orthogonal: (size={size} aspect={aspect} near={near} far={far}",
                             );
                             assert!(
                                 !Projection::create_frustum_aspect(size, aspect, Vector2::ZERO, near, far, false).is_orthogonal(),
-                                "Projection should be perspective (size={size} aspect={aspect} near={near} far={far})",
+                                "projection should be perspective: (size={size} aspect={aspect} near={near} far={far}",
                             );
                         }
                     }

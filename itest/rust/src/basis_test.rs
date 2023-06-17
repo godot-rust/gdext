@@ -4,9 +4,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot::builtin::inner::InnerBasis;
+use godot::builtin::math::assert_eq_approx;
+use godot::builtin::{real, Basis, EulerOrder, RealConv, ToVariant, VariantOperator, Vector3};
+
 use crate::itest;
-use godot::prelude::{inner::InnerBasis, *};
-use godot::private::class_macros::assert_eq_approx;
 
 const TEST_BASIS: Basis = Basis::from_rows(
     Vector3::new(0.942155, -0.270682, 0.197677),
@@ -22,7 +24,7 @@ fn basis_multiply_same() {
         .evaluate(&Basis::IDENTITY.to_variant(), VariantOperator::Multiply)
         .unwrap()
         .to::<Basis>();
-    assert_eq_approx!(rust_res, godot_res, |a, b| Basis::is_equal_approx(&a, &b));
+    assert_eq_approx!(rust_res, godot_res);
 
     let rhs = Basis::from_axis_angle(Vector3::new(1.0, 2.0, 3.0).normalized(), 0.5);
     let rust_res = TEST_BASIS * rhs;
@@ -31,7 +33,7 @@ fn basis_multiply_same() {
         .evaluate(&rhs.to_variant(), VariantOperator::Multiply)
         .unwrap()
         .to::<Basis>();
-    assert_eq_approx!(rust_res, godot_res, |a, b| Basis::is_equal_approx(&a, &b));
+    assert_eq_approx!(rust_res, godot_res);
 }
 
 #[itest]
@@ -105,10 +107,7 @@ fn basis_euler_angles_same() {
             let vector = deg_to_rad(*vector);
             let rust_basis = Basis::from_euler(order, vector);
             let godot_basis = InnerBasis::from_euler(vector, order as i64);
-            assert!(
-                (rust_basis).is_equal_approx(&godot_basis),
-                "got = {rust_basis}, expected = {godot_basis}"
-            );
+            assert_eq_approx!(rust_basis, godot_basis);
         }
     }
 }
@@ -129,7 +128,7 @@ fn basis_equiv() {
         ("slerp",           inner.slerp(Basis::IDENTITY, 0.5),    outer.slerp(Basis::IDENTITY, 0.5)   ),
     ];
     for (name, inner, outer) in mappings_basis {
-        assert_eq_approx!(&inner, &outer, Basis::is_equal_approx, "function: {name}\n");
+        assert_eq_approx!(inner, outer, "function: {name}\n");
     }
 
     #[rustfmt::skip]
@@ -140,30 +139,18 @@ fn basis_equiv() {
         ("tdotz",       inner.tdotz(vec),    outer.tdotz(vec)   ),
     ];
     for (name, inner, outer) in mappings_float {
-        assert_eq_approx!(
-            inner,
-            outer,
-            |a, b| is_equal_approx(real::from_f64(a), b),
-            "function: {name}\n"
-        );
+        assert_eq_approx!(real::from_f64(inner), outer, "function: {name}\n");
     }
 
-    assert_eq_approx!(
-        inner.get_scale(),
-        outer.scale(),
-        Vector3::is_equal_approx,
-        "function: get_scale\n"
-    );
+    assert_eq_approx!(inner.get_scale(), outer.scale(), "function: get_scale\n");
     assert_eq_approx!(
         inner.get_euler(EulerOrder::XYZ as i64),
         outer.to_euler(EulerOrder::XYZ),
-        Vector3::is_equal_approx,
         "function: get_euler\n"
     );
     assert_eq_approx!(
         inner.get_rotation_quaternion(),
         outer.to_quat(),
-        Quaternion::is_equal_approx,
         "function: get_rotation_quaternion\n"
     )
 }
