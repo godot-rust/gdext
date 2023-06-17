@@ -30,6 +30,7 @@ mod packed_array_test;
 mod plane_test;
 mod projection_test;
 mod quaternion_test;
+mod rect2_test;
 mod rect2i_test;
 mod rid_test;
 mod signal_test;
