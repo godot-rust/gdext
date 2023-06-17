@@ -38,14 +38,12 @@ impl Aabb {
     /// Create a new `Aabb` with the first corner at `position` and opposite corner at `end`.
     #[inline]
     pub fn from_corners(position: Vector3, end: Vector3) -> Self {
-        Self {
-            position,
-            size: position + end,
-        }
+        // Cannot use floating point arithmetic in const functions.
+        Self::new(position, end - position)
     }
 
-    /// Returns an AABB with equivalent position and size,
-    /// modified so that the most-negative corner is the origin and the size is positive.
+    /// Returns an AABB with the same geometry, with most-negative corner as `position` and non-negative `size`.
+    #[inline]
     pub fn abs(&self) -> Self {
         Aabb {
             position: self.position + self.size.coord_min(Vector3::ZERO),
@@ -141,6 +139,7 @@ impl Aabb {
     }
 
     /// Returns true if the AABB has a volume, and false if the AABB is flat, linear, empty, or has a negative size.
+    #[inline]
     pub fn has_volume(&self) -> bool {
         self.size.x > 0.0 && self.size.y > 0.0 && self.size.z > 0.0
     }
@@ -168,6 +167,7 @@ impl Aabb {
     }
 
     /// Returns `true` if this AABB is finite, by calling `@GlobalScope.is_finite` on each component.
+    #[inline]
     pub fn is_finite(&self) -> bool {
         self.position.is_finite() && self.size.is_finite()
     }
@@ -187,6 +187,7 @@ impl Aabb {
     }
 
     /// Returns the normalized longest axis of the AABB.
+    #[inline]
     pub fn longest_axis(&self) -> Vector3 {
         match self.longest_axis_index() {
             Vector3Axis::X => Vector3::RIGHT,
@@ -196,16 +197,19 @@ impl Aabb {
     }
 
     /// Returns the index of the longest axis of the AABB (according to Vector3's AXIS_* constants).
+    #[inline]
     pub fn longest_axis_index(&self) -> Vector3Axis {
         self.size.max_axis_index()
     }
 
     /// Returns the scalar length of the longest axis of the AABB.
+    #[inline]
     pub fn longest_axis_size(&self) -> real {
         self.size.x.max(self.size.y.max(self.size.z))
     }
 
     /// Returns the normalized shortest axis of the AABB.
+    #[inline]
     pub fn shortest_axis(&self) -> Vector3 {
         match self.shortest_axis_index() {
             Vector3Axis::X => Vector3::RIGHT,
@@ -215,16 +219,19 @@ impl Aabb {
     }
 
     /// Returns the index of the shortest axis of the AABB (according to Vector3::AXIS* enum).
+    #[inline]
     pub fn shortest_axis_index(&self) -> Vector3Axis {
         self.size.min_axis_index()
     }
 
     /// Returns the scalar length of the shortest axis of the AABB.
+    #[inline]
     pub fn shortest_axis_size(&self) -> real {
         self.size.x.min(self.size.y.min(self.size.z))
     }
 
     /// Returns the support point in a given direction. This is useful for collision detection algorithms.
+    #[inline]
     pub fn support(&self, dir: Vector3) -> Vector3 {
         let half_extents = self.size * 0.5;
         let relative_center_point = self.position + half_extents;
@@ -238,9 +245,12 @@ impl Aabb {
         half_extents * signs + relative_center_point
     }
 
-    /// Returns `true` if the AABB overlaps with `b` (i.e. they have at least one point in common).
+    /// Checks whether two AABBs have at least one point in common.
     ///
-    /// _Godot equivalent: `AABB.intersects(AABB b, bool include_borders = false)`_
+    /// Also returns `true` if the AABBs only touch each other (share a point/edge/face).
+    /// See [`intersects_exclude_borders`][Self::intersects_exclude_borders] if you want to return `false` in that case.
+    ///
+    /// _Godot equivalent: `AABB.intersects(AABB b, bool include_borders = true)`_
     #[inline]
     pub fn intersects(&self, b: &Aabb) -> bool {
         let end = self.end();
@@ -253,9 +263,13 @@ impl Aabb {
             && self.position.z <= end_b.z
     }
 
-    /// Returns `true` if the AABB overlaps with `b` (i.e. they have at least one inner point in common).
+    /// Checks whether two AABBs have at least one _inner_ point in common (not on the borders).
     ///
-    /// _Godot equivalent: `AABB.intersects(AABB b, bool include_borders = true)`_
+    /// Returns `false` if the AABBs only touch each other (share a point/edge/face).
+    /// See [`intersects`][Self::intersects] if you want to return `true` in that case.
+    ///
+    /// _Godot equivalent: `AABB.intersects(AABB b, bool include_borders = false)`_
+    #[inline]
     pub fn intersects_exclude_borders(&self, &b: &Aabb) -> bool {
         let end = self.end();
         let end_b = b.end();
@@ -269,6 +283,7 @@ impl Aabb {
     }
 
     /// Returns `true` if the AABB is on both sides of a plane.
+    #[inline]
     pub fn intersects_plane(&self, plane: &Plane) -> bool {
         // The set of the edges of the AABB.
         let points = [
@@ -301,6 +316,7 @@ impl Aabb {
     ///
     /// # Panics
     /// If `self.size` is negative.
+    #[inline]
     pub fn intersects_ray(&self, from: Vector3, dir: Vector3) -> bool {
         self.assert_nonnegative();
 
@@ -320,6 +336,7 @@ impl Aabb {
     ///
     /// # Panics
     /// If `self.size` is negative.
+    #[inline]
     pub fn intersects_segment(&self, from: Vector3, to: Vector3) -> bool {
         self.assert_nonnegative();
 
