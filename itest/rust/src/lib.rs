@@ -27,6 +27,7 @@ mod node_test;
 mod object_test;
 mod option_ffi_test;
 mod packed_array_test;
+mod plane_test;
 mod projection_test;
 mod quaternion_test;
 mod rect2i_test;
