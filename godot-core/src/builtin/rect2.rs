@@ -7,7 +7,8 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use super::{real, Rect2i, Vector2};
+use crate::builtin::math::ApproxEq;
+use crate::builtin::{real, Rect2i, Vector2};
 
 /// 2D axis-aligned bounding box.
 ///
@@ -82,15 +83,6 @@ impl Rect2 {
         self.size = end - self.position
     }
 
-    /// Returns `true` if the two `Rect2`s are approximately equal, by calling `is_equal_approx` on
-    /// `position` and `size`.
-    ///
-    /// _Godot equivalent: `Rect2.is_equal_approx()`_
-    #[inline]
-    pub fn is_equal_approx(&self, other: &Self) -> bool {
-        self.position.is_equal_approx(other.position) && self.size.is_equal_approx(other.size)
-    }
-
     /* Add in when `Rect2::abs()` is implemented.
     /// Assert that the size of the `Rect2` is not negative.
     ///
@@ -110,6 +102,15 @@ impl Rect2 {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Rect2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl ApproxEq for Rect2 {
+    /// Returns if the two `Rect2`s are approximately equal, by comparing `position` and `size` separately.
+    #[inline]
+    fn approx_eq(&self, other: &Self) -> bool {
+        Vector2::approx_eq(&self.position, &other.position)
+            && Vector2::approx_eq(&self.size, &other.size)
+    }
 }
 
 impl std::fmt::Display for Rect2 {

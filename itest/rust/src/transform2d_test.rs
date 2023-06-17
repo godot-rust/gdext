@@ -33,30 +33,22 @@ fn transform2d_equiv() {
         ("interpolate_with", inner.interpolate_with(Transform2D::IDENTITY, 0.5), outer.interpolate_with(Transform2D::IDENTITY, 0.5))
     ];
     for (name, inner, outer) in mappings_transform {
-        assert_eq_approx!(
-            &inner,
-            &outer,
-            Transform2D::is_equal_approx,
-            "function: {name}\n"
-        );
+        assert_eq_approx!(inner, outer, "function: {name}\n");
     }
 
     assert_eq_approx!(
-        inner.get_rotation(),
+        real::from_f64(inner.get_rotation()),
         outer.rotation(),
-        |a, b| is_equal_approx(real::from_f64(a), b),
         "function: get_rotation\n"
     );
     assert_eq_approx!(
-        inner.get_rotation(),
+        real::from_f64(inner.get_rotation()),
         outer.rotation(),
-        |a, b| is_equal_approx(real::from_f64(a), b),
         "function: get_rotation\n"
     );
     assert_eq_approx!(
-        inner.get_skew(),
+        real::from_f64(inner.get_skew()),
         outer.skew(),
-        |a, b| is_equal_approx(real::from_f64(a), b),
         "function: get_scale\n"
     );
 }
@@ -72,7 +64,6 @@ fn transform2d_xform_equiv() {
             .evaluate(&vec.to_variant(), VariantOperator::Multiply)
             .unwrap()
             .to::<Vector2>(),
-        Vector2::is_equal_approx,
         "operator: Transform2D * Vector2"
     );
 
@@ -85,7 +76,6 @@ fn transform2d_xform_equiv() {
             .evaluate(&rect_2.to_variant(), VariantOperator::Multiply)
             .unwrap()
             .to::<Rect2>(),
-        |a, b| Rect2::is_equal_approx(&a, &b),
         "operator: Transform2D * Rect2 (1)"
     );
 
@@ -97,7 +87,6 @@ fn transform2d_xform_equiv() {
             .evaluate(&rect_2.to_variant(), VariantOperator::Multiply)
             .unwrap()
             .to::<Rect2>(),
-        |a, b| Rect2::is_equal_approx(&a, &b),
         "operator: Transform2D * Rect2 (2)"
     );
 }

@@ -4,14 +4,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::fmt;
-
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::glam_helpers::{GlamConv, GlamType};
-use crate::builtin::IVec2;
+use crate::builtin::math::{GlamConv, GlamType, IVec2};
 use crate::builtin::Vector2;
+
+use std::fmt;
 
 /// Vector used for 2D math using integer coordinates.
 ///

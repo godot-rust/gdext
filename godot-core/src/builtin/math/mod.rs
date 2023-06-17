@@ -4,10 +4,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use super::real_consts::TAU;
+use crate::builtin::real_consts::TAU;
+use crate::builtin::{real, Vector2};
 
-use super::real;
-use super::Vector2;
+mod approx_eq;
+mod glam_helpers;
+
+pub use crate::{assert_eq_approx, assert_ne_approx};
+pub use approx_eq::ApproxEq;
+
+// Internal glam re-exports
+pub(crate) use glam::{IVec2, IVec3, IVec4};
+pub(crate) use glam_helpers::*;
 
 pub const CMP_EPSILON: real = 0.00001;
 
@@ -15,6 +23,9 @@ pub fn lerp(a: real, b: real, t: real) -> real {
     a + ((b - a) * t)
 }
 
+/// Approximate equality of floating-point types.
+///
+/// For a generalization of this, see [`ApproxEq`][crate::builtin::ApproxEq] trait.
 pub fn is_equal_approx(a: real, b: real) -> bool {
     if a == b {
         return true;
@@ -28,7 +39,7 @@ pub fn is_equal_approx(a: real, b: real) -> bool {
 
 /// Check if two angles are approximately equal, by comparing the distance
 /// between the points on the unit circle with 0 using [`is_equal_approx`].
-pub fn is_angle_equal_approx(a: real, b: real) -> bool {
+pub fn is_angle_equal_approx(a: &real, b: &real) -> bool {
     let (x1, y1) = a.sin_cos();
     let (x2, y2) = b.sin_cos();
 
@@ -173,38 +184,6 @@ pub fn lerp_angle(from: real, to: real, weight: real) -> real {
     from + distance * weight
 }
 
-/// Asserts that two values are approximately equal, using the provided `func`
-/// for equality checking.
-#[macro_export]
-macro_rules! assert_eq_approx {
-    ($a:expr, $b:expr, $func:expr $(,)?) => {
-        match ($a, $b) {
-            (a, b) => {
-                assert!(($func)(a,b), "\n  left: {:?},\n right: {:?}", $a, $b);
-            }
-        }
-    };
-    ($a:expr, $b:expr, $func:expr, $($t:tt)+) => {
-        match ($a, $b) {
-            (a, b) => {
-                assert!(($func)(a,b), "\n  left: {:?},\n right: {:?},\n{}", $a, $b, format_args!($($t)+));
-            }
-        }
-    };
-}
-
-/// Asserts that two values are not approximately equal, using the provided
-/// `func` for equality checking.
-#[macro_export]
-macro_rules! assert_ne_approx {
-    ($a:expr, $b:expr, $func:expr $(, $($t:tt)*)?) => {
-        #[allow(clippy::redundant_closure_call)]
-        {
-            assert_eq_approx!($a, $b, |a,b| !($func)(a,b) $(, $($t)*)?)
-        }
-    };
-}
-
 #[cfg(test)]
 mod test {
     use crate::builtin::real_consts::{FRAC_PI_2, PI};
@@ -213,30 +192,30 @@ mod test {
 
     #[test]
     fn equal_approx() {
-        assert_eq_approx!(1.0, 1.000001, is_equal_approx);
-        assert_ne_approx!(1.0, 2.0, is_equal_approx);
-        assert_eq_approx!(1.0, 1.000001, is_equal_approx, "Message {}", "formatted");
-        assert_ne_approx!(1.0, 2.0, is_equal_approx, "Message {}", "formatted");
+        assert_eq_approx!(1.0, 1.000001);
+        assert_ne_approx!(1.0, 2.0);
+        assert_eq_approx!(1.0, 1.000001, "Message {}", "formatted");
+        assert_ne_approx!(1.0, 2.0, "Message {}", "formatted");
     }
 
     #[test]
     fn angle_equal_approx() {
-        assert_eq_approx!(1.0, 1.000001, is_angle_equal_approx);
-        assert_eq_approx!(0.0, TAU, is_angle_equal_approx);
-        assert_eq_approx!(PI, -PI, is_angle_equal_approx);
-        assert_eq_approx!(4.45783, -(TAU - 4.45783), is_angle_equal_approx);
-        assert_eq_approx!(31.0 * PI, -13.0 * PI, is_angle_equal_approx);
+        assert_eq_approx!(1.0, 1.000001, fn = is_angle_equal_approx);
+        assert_eq_approx!(0.0, TAU, fn = is_angle_equal_approx);
+        assert_eq_approx!(PI, -PI, fn = is_angle_equal_approx);
+        assert_eq_approx!(4.45783, -(TAU - 4.45783), fn = is_angle_equal_approx);
+        assert_eq_approx!(31.0 * PI, -13.0 * PI, fn = is_angle_equal_approx);
     }
 
     #[test]
     #[should_panic(expected = "I am inside format")]
     fn eq_approx_fail_with_message() {
-        assert_eq_approx!(1.0, 2.0, is_equal_approx, "I am inside {}", "format");
+        assert_eq_approx!(1.0, 2.0, "I am inside {}", "format");
     }
 
     #[test]
     fn lerp_angle_test() {
-        assert_eq_approx!(lerp_angle(0.0, PI, 0.5), -FRAC_PI_2, is_angle_equal_approx);
+        assert_eq_approx!(lerp_angle(0.0, PI, 0.5), -FRAC_PI_2, fn = is_angle_equal_approx);
         // As mentioned in the docs for `lerp_angle`, direction can be unpredictable
         // when lerping towards PI radians, this also means it's different for single vs
         // double precision floats.
@@ -246,19 +225,20 @@ mod test {
         assert_eq_approx!(
             lerp_angle(0.0, PI + 3.0 * TAU, 0.5),
             FRAC_PI_2,
-            is_angle_equal_approx
+            fn = is_angle_equal_approx
         );
         #[cfg(feature = "double-precision")]
         assert_eq_approx!(
             lerp_angle(0.0, PI + 3.0 * TAU, 0.5),
             -FRAC_PI_2,
-            is_angle_equal_approx
+            fn = is_angle_equal_approx
         );
+
         let angle = PI * 2.0 / 3.0;
         assert_eq_approx!(
             lerp_angle(-5.0 * TAU, angle + 3.0 * TAU, 0.5),
             (angle / 2.0),
-            is_angle_equal_approx
+            fn = is_angle_equal_approx
         );
     }
 }

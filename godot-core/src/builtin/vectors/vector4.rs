@@ -4,15 +4,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::fmt;
-
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use super::super::glam_helpers::{GlamConv, GlamType};
-use super::super::{real, RVec4};
-use crate::builtin::math::*;
-use crate::builtin::Vector4i;
+use crate::builtin::math::{is_equal_approx, ApproxEq, GlamConv, GlamType};
+use crate::builtin::{real, RVec4, Vector4i};
+
+use std::fmt;
 
 /// Vector used for 4D math using floating point coordinates.
 ///
@@ -85,13 +83,6 @@ impl Vector4 {
         RVec4::new(self.x, self.y, self.z, self.w)
     }
 
-    pub fn is_equal_approx(self, to: Self) -> bool {
-        is_equal_approx(self.x, to.x)
-            && is_equal_approx(self.y, to.y)
-            && is_equal_approx(self.z, to.z)
-            && is_equal_approx(self.w, to.w)
-    }
-
     pub fn coords(&self) -> (real, real, real, real) {
         (self.x, self.y, self.z, self.w)
     }
@@ -108,6 +99,16 @@ impl fmt::Display for Vector4 {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector4 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl ApproxEq for Vector4 {
+    #[inline]
+    fn approx_eq(&self, other: &Self) -> bool {
+        is_equal_approx(self.x, other.x)
+            && is_equal_approx(self.y, other.y)
+            && is_equal_approx(self.z, other.z)
+            && is_equal_approx(self.w, other.w)
+    }
 }
 
 impl GlamType for RVec4 {
@@ -136,16 +137,8 @@ mod test {
     fn coord_min_max() {
         let a = Vector4::new(1.2, 3.4, 5.6, 0.1);
         let b = Vector4::new(0.1, 5.6, 2.3, 1.2);
-        assert_eq_approx!(
-            a.coord_min(b),
-            Vector4::new(0.1, 3.4, 2.3, 0.1),
-            Vector4::is_equal_approx
-        );
-        assert_eq_approx!(
-            a.coord_max(b),
-            Vector4::new(1.2, 5.6, 5.6, 1.2),
-            Vector4::is_equal_approx
-        );
+        assert_eq_approx!(a.coord_min(b), Vector4::new(0.1, 3.4, 2.3, 0.1),);
+        assert_eq_approx!(a.coord_max(b), Vector4::new(1.2, 5.6, 5.6, 1.2),);
     }
 
     #[cfg(feature = "serde")]

@@ -4,14 +4,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::fmt;
-
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use super::super::glam_helpers::{GlamConv, GlamType};
-use super::super::IVec4;
+use crate::builtin::math::{GlamConv, GlamType, IVec4};
 use crate::builtin::Vector4;
+
+use std::fmt;
+
 /// Vector used for 4D math using integer coordinates.
 ///
 /// 4-element structure that can be used to represent 4D grid coordinates or sets of integers.

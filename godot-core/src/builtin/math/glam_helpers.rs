@@ -15,7 +15,7 @@
 //   self.glam().dot(b.glam())
 //   GlamType::dot(self.glam(), b.glam())
 
-use super::real;
+use crate::builtin::real;
 
 pub(crate) trait GlamConv {
     type Glam: GlamType<Mapped = Self>;

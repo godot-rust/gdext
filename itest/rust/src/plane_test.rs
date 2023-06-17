@@ -4,12 +4,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::fmt::Debug;
-
 use crate::itest;
+
 use godot::builtin::inner::InnerPlane;
+use godot::builtin::math::{assert_eq_approx, ApproxEq};
 use godot::builtin::{real, Plane, RealConv, ToVariant, Vector3};
-use godot::private::class_macros::assert_eq_approx;
+
+use std::fmt::Debug;
 
 fn check_mapping_eq<T>(context: &str, outer: T, inner: T)
 where
@@ -22,12 +23,7 @@ where
 }
 
 fn check_mapping_eq_approx_plane(context: &str, outer: Plane, inner: Plane) {
-    assert_eq_approx!(
-        outer,
-        inner,
-        |a: Plane, b: Plane| a.is_equal_approx(&b),
-        "{context}: outer != inner ({outer:?} != {inner:?})"
-    );
+    assert_eq_approx!(outer, inner, "{context}");
 }
 
 #[itest]
@@ -195,7 +191,7 @@ fn plane_is_equal_approx() {
     let b = Plane::new(Vector3::new(1.5, 6.3, 2.2).normalized(), 5.2000001);
     check_mapping_eq(
         "is_equal_approx",
-        a.is_equal_approx(&b),
+        a.approx_eq(&b),
         inner_a.is_equal_approx(b),
     );
 
@@ -204,7 +200,7 @@ fn plane_is_equal_approx() {
     let b = Plane::new(Vector3::new(0.0, 6.2, 2.5).normalized(), 0.4);
     check_mapping_eq(
         "is_equal_approx",
-        a.is_equal_approx(&b),
+        a.approx_eq(&b),
         inner_a.is_equal_approx(b),
     );
 }

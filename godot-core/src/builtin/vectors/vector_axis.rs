@@ -158,49 +158,25 @@ mod test {
         let vec2swiz2: Vector2 = swizzle!(vector2 => y, x);
         let vec3swiz2: Vector2 = swizzle!(vector3 => y, x);
         let vec4swiz2: Vector2 = swizzle!(vector4 => y, x);
-        assert_eq_approx!(vec2swiz2, Vector2::new(2.0, 1.0), Vector2::is_equal_approx);
-        assert_eq_approx!(vec3swiz2, Vector2::new(2.0, 1.0), Vector2::is_equal_approx);
-        assert_eq_approx!(vec4swiz2, Vector2::new(2.0, 1.0), Vector2::is_equal_approx);
+        assert_eq_approx!(vec2swiz2, Vector2::new(2.0, 1.0));
+        assert_eq_approx!(vec3swiz2, Vector2::new(2.0, 1.0));
+        assert_eq_approx!(vec4swiz2, Vector2::new(2.0, 1.0));
 
         // VectorN to Vector3
         let vec2swiz3: Vector3 = swizzle!(vector2 => y, x, x);
         let vec3swiz3: Vector3 = swizzle!(vector3 => y, x, z);
         let vec4swiz3: Vector3 = swizzle!(vector4 => y, x, z);
-        assert_eq_approx!(
-            vec2swiz3,
-            Vector3::new(2.0, 1.0, 1.0),
-            Vector3::is_equal_approx
-        );
-        assert_eq_approx!(
-            vec3swiz3,
-            Vector3::new(2.0, 1.0, 3.0),
-            Vector3::is_equal_approx
-        );
-        assert_eq_approx!(
-            vec4swiz3,
-            Vector3::new(2.0, 1.0, 3.0),
-            Vector3::is_equal_approx
-        );
+        assert_eq_approx!(vec2swiz3, Vector3::new(2.0, 1.0, 1.0),);
+        assert_eq_approx!(vec3swiz3, Vector3::new(2.0, 1.0, 3.0),);
+        assert_eq_approx!(vec4swiz3, Vector3::new(2.0, 1.0, 3.0),);
 
         // VectorN to Vector4
         let vec2swiz4: Vector4 = swizzle!(vector2 => y, x, x, y);
         let vec3swiz4: Vector4 = swizzle!(vector3 => y, x, z, y);
         let vec4swiz4: Vector4 = swizzle!(vector4 => y, x, z, w);
-        assert_eq_approx!(
-            vec2swiz4,
-            Vector4::new(2.0, 1.0, 1.0, 2.0),
-            Vector4::is_equal_approx
-        );
-        assert_eq_approx!(
-            vec3swiz4,
-            Vector4::new(2.0, 1.0, 3.0, 2.0),
-            Vector4::is_equal_approx
-        );
-        assert_eq_approx!(
-            vec4swiz4,
-            Vector4::new(2.0, 1.0, 3.0, 4.0),
-            Vector4::is_equal_approx
-        );
+        assert_eq_approx!(vec2swiz4, Vector4::new(2.0, 1.0, 1.0, 2.0),);
+        assert_eq_approx!(vec3swiz4, Vector4::new(2.0, 1.0, 3.0, 2.0),);
+        assert_eq_approx!(vec4swiz4, Vector4::new(2.0, 1.0, 3.0, 4.0),);
 
         // * VectorNi swizzle
         let vector2i = Vector2i::new(1, 2);

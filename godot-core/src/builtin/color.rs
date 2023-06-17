@@ -5,10 +5,13 @@
  */
 
 use crate::builtin::inner::InnerColor;
+use crate::builtin::math::ApproxEq;
 use crate::builtin::GodotString;
+
 use godot_ffi as sys;
-use std::ops;
 use sys::{ffi_methods, GodotFfi};
+
+use std::ops;
 
 /// Color built-in type, in floating-point RGBA format.
 ///
@@ -287,12 +290,6 @@ impl Color {
         self.as_inner().to_html(false)
     }
 
-    /// Returns true if `self` and `to` are approximately equal, within the tolerance used by
-    /// the global `is_equal_approx` function in GDScript.
-    pub fn is_equal_approx(self, to: Color) -> bool {
-        self.as_inner().is_equal_approx(to)
-    }
-
     /// Returns the color converted to a 32-bit integer (each component is 8 bits) with the given
     /// `order` of channels (from most to least significant byte).
     pub fn to_u32(self, order: ColorChannelOrder) -> u32 {
@@ -319,6 +316,13 @@ impl Color {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Color {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl ApproxEq for Color {
+    fn approx_eq(&self, other: &Self) -> bool {
+        // TODO(bromeon): re-implement in Rust
+        self.as_inner().is_equal_approx(*other)
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]

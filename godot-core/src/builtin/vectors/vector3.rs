@@ -3,20 +3,18 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-use std::ops::*;
-
-use std::fmt;
 
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::*;
-use crate::builtin::Vector3i;
+use crate::builtin::math::{
+    bezier_derivative, bezier_interpolate, cubic_interpolate, cubic_interpolate_in_time, fposmod,
+    is_equal_approx, is_zero_approx, sign, snapped, ApproxEq, GlamConv, GlamType, CMP_EPSILON,
+};
+use crate::builtin::vectors::Vector3Axis;
+use crate::builtin::{real, Basis, RVec3, Vector3i};
 
-use super::super::glam_helpers::GlamConv;
-use super::super::glam_helpers::GlamType;
-use super::super::{real, Basis, RVec3};
-use super::vector_axis::*;
+use std::fmt;
 
 /// Vector used for 3D math using floating point coordinates.
 ///
@@ -188,12 +186,6 @@ impl Vector3 {
         Self::new(1.0 / self.x, 1.0 / self.y, 1.0 / self.z)
     }
 
-    pub fn is_equal_approx(self, to: Self) -> bool {
-        is_equal_approx(self.x, to.x)
-            && is_equal_approx(self.y, to.y)
-            && is_equal_approx(self.z, to.z)
-    }
-
     pub fn is_finite(self) -> bool {
         self.to_glam().is_finite()
     }
@@ -343,6 +335,15 @@ unsafe impl GodotFfi for Vector3 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
+impl ApproxEq for Vector3 {
+    #[inline]
+    fn approx_eq(&self, other: &Self) -> bool {
+        is_equal_approx(self.x, other.x)
+            && is_equal_approx(self.y, other.y)
+            && is_equal_approx(self.z, other.z)
+    }
+}
+
 impl GlamType for RVec3 {
     type Mapped = Vector3;
 
@@ -374,10 +375,9 @@ impl GlamConv for Vector3 {
 
 #[cfg(test)]
 mod test {
-    use crate::assert_eq_approx;
-
     use super::*;
-    use godot::builtin::real_consts::TAU;
+    use crate::builtin::math::assert_eq_approx;
+    use crate::builtin::real_consts::TAU;
 
     // Translated from Godot
     #[test]
@@ -385,24 +385,20 @@ mod test {
     fn rotation() {
         let vector = Vector3::new(1.2, 3.4, 5.6);
         assert_eq_approx!(
-            vector.rotated(Vector3::new(0.0, 1.0, 0.0), TAU),
-            vector,
-            Vector3::is_equal_approx
+            vector.rotated(Vector3::new(0.0, 1.0, 0.0), TAU), //.
+            vector
         );
         assert_eq_approx!(
             vector.rotated(Vector3::new(0.0, 1.0, 0.0), TAU / 4.0),
             Vector3::new(5.6, 3.4, -1.2),
-            Vector3::is_equal_approx
         );
         assert_eq_approx!(
             vector.rotated(Vector3::new(1.0, 0.0, 0.0), TAU / 3.0),
             Vector3::new(1.2, -6.54974226119285642, 0.1444863728670914),
-            Vector3::is_equal_approx
         );
         assert_eq_approx!(
             vector.rotated(Vector3::new(0.0, 0.0, 1.0), TAU / 2.0),
             vector.rotated(Vector3::new(0.0, 0.0, 1.0), TAU / -2.0),
-            Vector3::is_equal_approx
         );
     }
 
@@ -410,16 +406,9 @@ mod test {
     fn coord_min_max() {
         let a = Vector3::new(1.2, 3.4, 5.6);
         let b = Vector3::new(0.1, 5.6, 2.3);
-        assert_eq_approx!(
-            a.coord_min(b),
-            Vector3::new(0.1, 3.4, 2.3),
-            Vector3::is_equal_approx
-        );
-        assert_eq_approx!(
-            a.coord_max(b),
-            Vector3::new(1.2, 5.6, 5.6),
-            Vector3::is_equal_approx
-        );
+
+        assert_eq_approx!(a.coord_min(b), Vector3::new(0.1, 3.4, 2.3));
+        assert_eq_approx!(a.coord_max(b), Vector3::new(1.2, 5.6, 5.6));
     }
 
     #[cfg(feature = "serde")]

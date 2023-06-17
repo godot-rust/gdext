@@ -3,14 +3,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-use std::{fmt::Display, ops::*};
 
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use super::glam_helpers::{GlamConv, GlamType};
-use super::{real, RAffine3};
-use super::{Aabb, Basis, Plane, Projection, Vector3};
+use crate::builtin::math::{ApproxEq, GlamConv, GlamType};
+use crate::builtin::{real, Aabb, Basis, Plane, Projection, RAffine3, Vector3};
+
+use std::fmt::Display;
+use std::ops::Mul;
 
 /// Affine 3D transform (3x4 matrix).
 ///
@@ -123,14 +124,6 @@ impl Transform3D {
         }
     }
 
-    /// Returns `true if this transform and transform are approximately equal, by
-    /// calling is_equal_approx each basis and origin.
-    ///
-    /// _Godot equivalent: Transform3D.is_equal_approx()_
-    pub fn is_equal_approx(&self, other: &Self) -> bool {
-        self.basis.is_equal_approx(&other.basis) && self.origin.is_equal_approx(other.origin)
-    }
-
     /// Returns `true if this transform is finite by calling `is_finite` on the
     /// basis and origin.
     ///
@@ -153,6 +146,7 @@ impl Transform3D {
             origin: self.origin,
         }
     }
+
     #[cfg(not(gdextension_api = "4.0"))]
     #[must_use]
     pub fn looking_at(self, target: Vector3, up: Vector3, use_model_front: bool) -> Self {
@@ -342,6 +336,14 @@ impl Mul<Plane> for Transform3D {
         let basis = self.basis.inverse().transposed();
 
         Plane::from_point_normal(point, (basis * rhs.normal).normalized())
+    }
+}
+
+impl ApproxEq for Transform3D {
+    /// Returns if the two transforms are approximately equal, by comparing `basis` and `origin` separately.
+    fn approx_eq(&self, other: &Self) -> bool {
+        Basis::approx_eq(&self.basis, &other.basis)
+            && Vector3::approx_eq(&self.origin, &other.origin)
     }
 }
 

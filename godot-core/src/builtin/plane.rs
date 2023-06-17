@@ -4,14 +4,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::ops::Neg;
-
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{is_equal_approx, is_zero_approx, CMP_EPSILON};
+use crate::builtin::math::{is_equal_approx, is_zero_approx, ApproxEq, CMP_EPSILON};
+use crate::builtin::{real, Vector3};
 
-use super::{real, Vector3};
+use std::ops::Neg;
 
 /// 3D plane in [Hessian normal form](https://mathworld.wolfram.com/HessianNormalForm.html).
 ///
@@ -28,6 +27,7 @@ use super::{real, Vector3};
 pub struct Plane {
     /// Normal vector pointing away from the plane.
     pub normal: Vector3,
+
     /// Distance between the plane and the origin point.
     pub d: real,
 }
@@ -192,16 +192,6 @@ impl Plane {
         Some(from - segment * dist)
     }
 
-    /// Finds whether the two planes are approximately equal.
-    ///
-    /// Returns `true` if the two `Plane`s are approximately equal, by calling `is_equal_approx` on
-    /// `normal` and `d` or on `-normal` and `-d`.
-    #[inline]
-    pub fn is_equal_approx(&self, other: &Self) -> bool {
-        (self.normal.is_equal_approx(other.normal) && is_equal_approx(self.d, other.d))
-            || (self.normal.is_equal_approx(-other.normal) && is_equal_approx(self.d, -other.d))
-    }
-
     /// Returns `true` if the plane is finite by calling `is_finite` on `normal` and `d`.
     #[inline]
     pub fn is_finite(&self) -> bool {
@@ -260,6 +250,20 @@ impl Neg for Plane {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Plane {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+}
+
+impl ApproxEq for Plane {
+    /// Finds whether the two planes are approximately equal.
+    ///
+    /// Returns if the two `Plane`s are approximately equal, by comparing `normal` and `d` separately.
+    /// If one plane is a negation of the other (both `normal` and `d` have opposite signs), they are considered approximately equal.
+    #[inline]
+    fn approx_eq(&self, other: &Self) -> bool {
+        (Vector3::approx_eq(&self.normal, &other.normal) //.
+            && is_equal_approx(self.d, other.d))
+            || (Vector3::approx_eq(&self.normal, &(-other.normal))
+                && is_equal_approx(self.d, -other.d))
+    }
 }
 
 impl std::fmt::Display for Plane {
@@ -357,13 +361,11 @@ mod test {
         assert_eq_approx!(
             origin_plane.distance_to(center_origin_high).abs(),
             (origin_plane.d - parallel_origin_high.d).abs(),
-            is_equal_approx
         );
         assert!(parallel_origin_low.contains_point(center_origin_low, None));
         assert_eq_approx!(
             origin_plane.distance_to(center_origin_low).abs(),
             (origin_plane.d - parallel_origin_low.d).abs(),
-            is_equal_approx
         );
 
         // As `parallel_origin_high` is higher than `origin_plane` by having larger `d` value, then its center should be
@@ -557,34 +559,26 @@ mod test {
         let approx_xy_plane_b = Plane::new(Vector3::new(0.000001, 0.0, 1.0).normalized(), 0.000001);
 
         // Same planes should be equals.
-        assert_eq_approx!(&xy_plane, &xy_plane, Plane::is_equal_approx);
-        assert_eq_approx!(
-            &almost_xy_plane_a,
-            &almost_xy_plane_a,
-            Plane::is_equal_approx
-        );
+        assert_eq_approx!(xy_plane, xy_plane);
+        assert_eq_approx!(almost_xy_plane_a, almost_xy_plane_a);
 
         // Planes below should be approximately equal because it's lower than the set tolerance constant.
-        assert_eq_approx!(&xy_plane, &almost_xy_plane_c, Plane::is_equal_approx);
+        assert_eq_approx!(xy_plane, almost_xy_plane_c);
 
         // Both attributes are approximately equal.
-        assert_eq_approx!(&xy_plane, &approx_xy_plane_b, Plane::is_equal_approx);
+        assert_eq_approx!(xy_plane, approx_xy_plane_b);
 
         // Although similar, planes below are not approximately equals.
-        assert_ne_approx!(&xy_plane, &almost_xy_plane_a, Plane::is_equal_approx);
-        assert_ne_approx!(&xy_plane, &almost_xy_plane_b, Plane::is_equal_approx);
+        assert_ne_approx!(xy_plane, almost_xy_plane_a);
+        assert_ne_approx!(xy_plane, almost_xy_plane_b);
 
         // Although approximately equal in the `normal` part, it is not approximately equal in the `d`
         // part.
-        assert_ne_approx!(&xy_plane, &approx_xy_plane_a, Plane::is_equal_approx);
+        assert_ne_approx!(xy_plane, approx_xy_plane_a);
 
         // Although considered approximately equal with `xy_plane`, `almost_xy_plane_a` is not considered approximately
         // equal with `almost_xy_plane_d` because the baseline comparison is tighter.
-        assert_ne_approx!(
-            &almost_xy_plane_a,
-            &approx_xy_plane_a,
-            Plane::is_equal_approx
-        );
+        assert_ne_approx!(almost_xy_plane_a, approx_xy_plane_a);
     }
 
     /// Tests `normalize()`.

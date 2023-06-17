@@ -1,18 +1,19 @@
-use std::cmp::Ordering;
 /*
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-use std::{fmt::Display, ops::*};
 
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use super::glam_helpers::{GlamConv, GlamType};
-use super::real_consts::FRAC_PI_2;
-use super::{math::*, Quaternion, Vector3};
-use super::{real, RMat3, RQuat, RVec2, RVec3};
+use crate::builtin::math::{is_equal_approx, lerp, ApproxEq, GlamConv, GlamType, CMP_EPSILON};
+use crate::builtin::real_consts::FRAC_PI_2;
+use crate::builtin::{real, Quaternion, RMat3, RQuat, RVec2, RVec3, Vector3};
+
+use std::cmp::Ordering;
+use std::fmt::Display;
+use std::ops::{Mul, MulAssign};
 
 /// A 3x3 matrix, typically used as an orthogonal basis for [`Transform3D`](crate::builtin::Transform3D).
 ///
@@ -448,16 +449,6 @@ impl Basis {
         self.rows[0].is_finite() && self.rows[1].is_finite() && self.rows[2].is_finite()
     }
 
-    /// Returns `true` if this basis and `other` are approximately equal,
-    /// by calling `is_equal_approx` on each row.
-    ///
-    /// _Godot equivalent: `Basis.is_equal_approx(Basis b)`_
-    pub fn is_equal_approx(&self, other: &Self) -> bool {
-        self.rows[0].is_equal_approx(other.rows[0])
-            && self.rows[1].is_equal_approx(other.rows[1])
-            && self.rows[2].is_equal_approx(other.rows[2])
-    }
-
     /// Returns the first column of the matrix,
     ///
     /// _Godot equivalent: `Basis.x`_
@@ -515,6 +506,15 @@ impl Display for Basis {
         let [a, b, c] = self.to_cols();
 
         write!(f, "[a: {a}, b: {b}, c: {c}]")
+    }
+}
+
+impl ApproxEq for Basis {
+    /// Returns if this basis and `other` are approximately equal, by calling `is_equal_approx` on each row.
+    fn approx_eq(&self, other: &Self) -> bool {
+        Vector3::approx_eq(&self.rows[0], &other.rows[0])
+            && Vector3::approx_eq(&self.rows[1], &other.rows[1])
+            && Vector3::approx_eq(&self.rows[2], &other.rows[2])
     }
 }
 
@@ -693,22 +693,10 @@ mod test {
     fn consts_behavior_correct() {
         let v = Vector3::new(1.0, 2.0, 3.0);
 
-        assert_eq_approx!(Basis::IDENTITY * v, v, Vector3::is_equal_approx);
-        assert_eq_approx!(
-            Basis::FLIP_X * v,
-            Vector3::new(-v.x, v.y, v.z),
-            Vector3::is_equal_approx
-        );
-        assert_eq_approx!(
-            Basis::FLIP_Y * v,
-            Vector3::new(v.x, -v.y, v.z),
-            Vector3::is_equal_approx
-        );
-        assert_eq_approx!(
-            Basis::FLIP_Z * v,
-            Vector3::new(v.x, v.y, -v.z),
-            Vector3::is_equal_approx
-        );
+        assert_eq_approx!(Basis::IDENTITY * v, v);
+        assert_eq_approx!(Basis::FLIP_X * v, Vector3::new(-v.x, v.y, v.z),);
+        assert_eq_approx!(Basis::FLIP_Y * v, Vector3::new(v.x, -v.y, v.z),);
+        assert_eq_approx!(Basis::FLIP_Z * v, Vector3::new(v.x, v.y, -v.z),);
     }
 
     #[test]
@@ -716,22 +704,18 @@ mod test {
         assert_eq_approx!(
             Basis::from_axis_angle(Vector3::FORWARD, 0.0) * Vector3::RIGHT,
             Vector3::RIGHT,
-            Vector3::is_equal_approx,
         );
         assert_eq_approx!(
             Basis::from_axis_angle(Vector3::FORWARD, FRAC_PI_2) * Vector3::RIGHT,
             Vector3::DOWN,
-            Vector3::is_equal_approx,
         );
         assert_eq_approx!(
             Basis::from_axis_angle(Vector3::FORWARD, PI) * Vector3::RIGHT,
             Vector3::LEFT,
-            Vector3::is_equal_approx,
         );
         assert_eq_approx!(
             Basis::from_axis_angle(Vector3::FORWARD, PI + FRAC_PI_2) * Vector3::RIGHT,
             Vector3::UP,
-            Vector3::is_equal_approx,
         );
     }
 

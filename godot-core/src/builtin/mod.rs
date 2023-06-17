@@ -41,7 +41,6 @@ pub use basis::*;
 pub use callable::*;
 pub use color::*;
 pub use dictionary_inner::Dictionary;
-pub use math::*;
 pub use others::*;
 pub use packed_array::*;
 pub use plane::*;
@@ -59,6 +58,9 @@ pub use vectors::*;
 
 /// Meta-information about variant types, properties and class names.
 pub mod meta;
+
+/// Math-related functions and traits like [`ApproxEq`][math::ApproxEq].
+pub mod math;
 
 /// Specialized types related to arrays.
 pub mod array {
@@ -81,8 +83,6 @@ mod aabb;
 mod basis;
 mod callable;
 mod color;
-mod glam_helpers;
-mod math;
 mod others;
 mod packed_array;
 mod plane;
@@ -104,9 +104,6 @@ mod array_inner;
 mod dictionary_inner;
 #[path = "real.rs"]
 mod real_inner;
-
-// Glam re-exports
-pub(crate) use glam::{IVec2, IVec3, IVec4};
 
 #[doc(hidden)]
 pub mod inner {

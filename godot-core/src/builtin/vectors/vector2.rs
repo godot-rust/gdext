@@ -3,19 +3,20 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-use std::fmt;
-use std::ops::*;
 
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::*;
-use crate::builtin::{inner, Vector2i};
+use crate::builtin::inner;
+use crate::builtin::math::{
+    bezier_derivative, bezier_interpolate, cubic_interpolate, cubic_interpolate_in_time, fposmod,
+    is_equal_approx, is_zero_approx, lerp, sign, snapped, ApproxEq, GlamConv, GlamType,
+    CMP_EPSILON,
+};
+use crate::builtin::vectors::Vector2Axis;
+use crate::builtin::{real, RAffine2, RVec2, Vector2i};
 
-use super::super::glam_helpers::GlamConv;
-use super::super::glam_helpers::GlamType;
-use super::super::{real, RAffine2, RVec2};
-use super::vector_axis::*;
+use std::fmt;
 
 /// Vector used for 2D math using floating point coordinates.
 ///
@@ -190,10 +191,6 @@ impl Vector2 {
         Self::from_glam(RVec2::from_angle(angle))
     }
 
-    pub fn is_equal_approx(self, to: Self) -> bool {
-        is_equal_approx(self.x, to.x) && is_equal_approx(self.y, to.y)
-    }
-
     pub fn is_finite(self) -> bool {
         self.to_glam().is_finite()
     }
@@ -323,6 +320,13 @@ unsafe impl GodotFfi for Vector2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
+impl ApproxEq for Vector2 {
+    #[inline]
+    fn approx_eq(&self, other: &Self) -> bool {
+        is_equal_approx(self.x, other.x) && is_equal_approx(self.y, other.y)
+    }
+}
+
 impl GlamConv for Vector2 {
     type Glam = RVec2;
 }
@@ -349,16 +353,9 @@ mod test {
     fn coord_min_max() {
         let a = Vector2::new(1.2, 3.4);
         let b = Vector2::new(0.1, 5.6);
-        assert_eq_approx!(
-            a.coord_min(b),
-            Vector2::new(0.1, 3.4),
-            Vector2::is_equal_approx
-        );
-        assert_eq_approx!(
-            a.coord_max(b),
-            Vector2::new(1.2, 5.6),
-            Vector2::is_equal_approx
-        );
+
+        assert_eq_approx!(a.coord_min(b), Vector2::new(0.1, 3.4));
+        assert_eq_approx!(a.coord_max(b), Vector2::new(1.2, 5.6));
     }
 
     #[cfg(feature = "serde")]
