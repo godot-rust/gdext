@@ -13,7 +13,6 @@ pub mod export;
 pub mod init;
 pub mod log;
 pub mod macros;
-pub mod native_structure;
 pub mod obj;
 
 pub use godot_ffi as sys;

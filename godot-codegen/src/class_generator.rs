@@ -333,7 +333,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         use godot_ffi as sys;
         use crate::engine::notify::*;
         use crate::builtin::*;
-        use crate::native_structure::*;
+        use crate::engine::native::*;
         use crate::obj::{AsArg, Gd};
         use sys::GodotFfi as _;
         use std::ffi::c_void;
@@ -564,7 +564,7 @@ fn make_builtin_class(
     let tokens = quote! {
         use godot_ffi as sys;
         use crate::builtin::*;
-        use crate::native_structure::*;
+        use crate::engine::native::*;
         use crate::obj::{AsArg, Gd};
         use crate::sys::GodotFfi as _;
         use crate::engine::Object;
@@ -605,7 +605,7 @@ fn make_native_structure(
     let tokens = quote! {
         use godot_ffi as sys;
         use crate::builtin::*;
-        use crate::native_structure::*;
+        use crate::engine::native::*;
         use crate::obj::{AsArg, Gd};
         use crate::sys::GodotFfi as _;
         use crate::engine::Object;
