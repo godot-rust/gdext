@@ -229,7 +229,14 @@ macro_rules! gdext_register_method_inner {
 
             // Arguments meta-information
             let argument_count = NUM_ARGS as u32;
-            let mut arguments_info: [sys::GDExtensionPropertyInfo; NUM_ARGS] = $crate::gdext_get_arguments_info!(($($RetTy)+, $($ParamTy),*), $( $param, )*);
+
+            // We dont want to drop `arguments_info` before we're done with using `arguments_info_sys`.
+            let arguments_info: [PropertyInfo; NUM_ARGS] =
+                $crate::gdext_get_arguments_info!(($($RetTy)+, $($ParamTy),*), $( $param, )*);
+
+            let mut arguments_info_sys: [$crate::sys::GDExtensionPropertyInfo; NUM_ARGS] =
+                std::array::from_fn(|i| arguments_info[i].property_sys());
+
             let mut arguments_metadata: [sys::GDExtensionClassMethodArgumentMetadata; NUM_ARGS]
                 = std::array::from_fn(|i| Sig::param_metadata(i as i32));
 
@@ -249,7 +256,7 @@ macro_rules! gdext_register_method_inner {
                 return_value_info: std::ptr::addr_of_mut!(return_value_info_sys),
                 return_value_metadata,
                 argument_count,
-                arguments_info: arguments_info.as_mut_ptr(),
+                arguments_info: arguments_info_sys.as_mut_ptr(),
                 arguments_metadata: arguments_metadata.as_mut_ptr(),
                 default_argument_count: 0,
                 default_arguments: std::ptr::null_mut(),
@@ -616,6 +623,7 @@ macro_rules! gdext_get_arguments_info {
         $Signature:ty,
         $($param:ident,)*
     ) => {
+        // We need to make sure `this array` sticks around for the lifetime of `$arguments_info`.
         {
             use $crate::builtin::meta::*;
 
@@ -623,7 +631,7 @@ macro_rules! gdext_get_arguments_info {
             [$(
                 {
                     i += 1;
-                    let prop = <$Signature as VarcallSignatureTuple>::property_info(i, stringify!($param)).property_sys();
+                    let prop = <$Signature as VarcallSignatureTuple>::property_info(i, stringify!($param));
                     prop
                 },
             )*]

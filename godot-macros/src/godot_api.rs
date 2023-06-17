@@ -65,7 +65,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let (funcs, signals) = process_godot_fns(&mut decl)?;
 
     let mut signal_name_strs: Vec<String> = Vec::new();
-    let mut signal_parameters_count: Vec<i64> = Vec::new();
+    let mut signal_parameters_count: Vec<usize> = Vec::new();
     let mut signal_parameters: Vec<TokenStream> = Vec::new();
 
     for signature in signals {
@@ -83,10 +83,10 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
         }
 
         signal_name_strs.push(signature.name.to_string());
-        signal_parameters_count.push(param_names.len() as i64);
+        signal_parameters_count.push(param_names.len());
         signal_parameters.push(
             quote! {
-                ::godot::private::gdext_get_arguments_info!(((), #(#param_types ),*), #(#param_names, )*).as_ptr()
+                ::godot::private::gdext_get_arguments_info!(((), #(#param_types ),*), #(#param_names, )*)
             },
         );
     }
@@ -107,15 +107,19 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
                     use ::godot::sys;
 
                     #(
-                        let parameters = #signal_parameters;
+                        let parameters_info: [::godot::builtin::meta::PropertyInfo; #signal_parameters_count] = #signal_parameters;
+
+                        let mut parameters_info_sys: [::godot::sys::GDExtensionPropertyInfo; #signal_parameters_count] =
+                            std::array::from_fn(|i| parameters_info[i].property_sys());
+
                         let signal_name = ::godot::builtin::StringName::from(#signal_name_strs);
 
                         sys::interface_fn!(classdb_register_extension_class_signal)(
                             sys::get_library(),
                             class_name.string_sys(),
                             signal_name.string_sys(),
-                            parameters,
-                            sys::GDExtensionInt::from(#signal_parameters_count),
+                            parameters_info_sys.as_ptr(),
+                            sys::GDExtensionInt::from(#signal_parameters_count as i64),
                         );
                     )*
                 }
