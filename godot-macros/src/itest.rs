@@ -14,7 +14,7 @@ use crate::ParseResult;
 pub fn transform(input_decl: Declaration) -> ParseResult<TokenStream> {
     let func = match input_decl {
         Declaration::Function(f) => f,
-        _ => return bail("#[itest] can only be applied to functions", &input_decl),
+        _ => return bail!(&input_decl, "#[itest] can only be applied to functions"),
     };
 
     // Note: allow attributes for things like #[rustfmt] or #[clippy]
@@ -32,9 +32,9 @@ pub fn transform(input_decl: Declaration) -> ParseResult<TokenStream> {
     attr.finish()?;
 
     if skipped && focused {
-        return bail(
-            "#[itest]: keys `skip` and `focus` are mutually exclusive",
+        return bail!(
             func.name,
+            "#[itest]: keys `skip` and `focus` are mutually exclusive",
         );
     }
 
@@ -76,13 +76,11 @@ pub fn transform(input_decl: Declaration) -> ParseResult<TokenStream> {
 }
 
 fn bad_signature(func: &Function) -> Result<TokenStream, Error> {
-    bail(
-        format!(
-            "#[itest] function must have one of these signatures:\
-                \n  fn {f}() {{ ... }}\
-                \n  fn {f}(ctx: &TestContext) {{ ... }}",
-            f = func.name
-        ),
+    bail!(
         func,
+        "#[itest] function must have one of these signatures:\
+        \n  fn {f}() {{ ... }}\
+        \n  fn {f}(ctx: &TestContext) {{ ... }}",
+        f = func.name,
     )
 }

@@ -8,8 +8,8 @@ use godot_ffi as sys;
 
 use crate::builtin::meta::VariantMetadata;
 use crate::builtin::*;
-use crate::export::{Export, ExportInfo, TypeStringHint};
 use crate::obj::Share;
+use crate::property::{Export, ExportInfo, TypeStringHint};
 use std::fmt;
 use std::marker::PhantomData;
 use sys::{ffi_methods, interface_fn, GodotFfi};

@@ -21,11 +21,11 @@ use crate::builtin::{
     Callable, FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError,
 };
 use crate::engine::{Node, Object, Resource};
-use crate::export::{Export, ExportInfo, TypeStringHint};
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
 use crate::obj::{cap, dom, mem, EngineEnum, GodotClass, Inherits, Share};
 use crate::obj::{GdMut, GdRef, InstanceId};
+use crate::property::{Export, ExportInfo, TypeStringHint};
 use crate::storage::InstanceStorage;
 use crate::{callbacks, engine, out};
 

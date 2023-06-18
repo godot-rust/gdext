@@ -9,11 +9,11 @@ mod storage;
 
 pub mod builder;
 pub mod builtin;
-pub mod export;
 pub mod init;
 pub mod log;
 pub mod macros;
 pub mod obj;
+pub mod property;
 
 pub use godot_ffi as sys;
 #[doc(hidden)]
@@ -45,7 +45,7 @@ pub mod private {
     // If someone forgets #[godot_api], this causes a compile error, rather than virtual functions not being called at runtime.
     #[allow(non_camel_case_types)]
     pub trait You_forgot_the_attribute__godot_api {}
-    pub use crate::export::Cannot_export_without_godot_api_impl;
+    pub use crate::property::Cannot_export_without_godot_api_impl;
 
     use std::sync::{Arc, Mutex};
 
