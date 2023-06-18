@@ -13,8 +13,8 @@ use std::path::{Path, PathBuf};
 use crate::api_parser::*;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
 use crate::util::{
-    function_uses_pointers, ident, parse_native_structures_format, safe_ident, to_pascal_case,
-    to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
+    function_uses_pointers, ident, option_as_slice, parse_native_structures_format, safe_ident,
+    to_pascal_case, to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
 };
 use crate::{
     special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
@@ -293,9 +293,9 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     };
 
     let constructor = make_constructor(class, ctx);
-    let methods = make_methods(&class.methods, class_name, ctx);
-    let enums = make_enums(&class.enums, class_name, ctx);
-    let constants = make_constants(&class.constants, class_name, ctx);
+    let methods = make_methods(option_as_slice(&class.methods), class_name, ctx);
+    let enums = make_enums(option_as_slice(&class.enums), class_name, ctx);
+    let constants = make_constants(option_as_slice(&class.constants), class_name, ctx);
     let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
     let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
     let (notification_enum, notification_enum_name) =
@@ -549,14 +549,14 @@ fn make_builtin_class(
     };
     let inner_class = &inner_class_name.rust_ty;
 
-    let class_enums = class.enums.as_ref().map(|class_enums| {
+    let class_enums = class.enums.as_ref().map_or(Vec::new(), |class_enums| {
         class_enums
             .iter()
             .map(BuiltinClassEnum::to_enum)
             .collect::<Vec<Enum>>()
     });
 
-    let methods = make_builtin_methods(&class.methods, class_name, type_info, ctx);
+    let methods = make_builtin_methods(option_as_slice(&class.methods), class_name, type_info, ctx);
     let enums = make_enums(&class_enums, class_name, ctx);
     let special_constructors = make_special_builtin_methods(class_name, ctx);
 
@@ -734,16 +734,7 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
     }
 }
 
-fn make_methods(
-    methods: &Option<Vec<ClassMethod>>,
-    class_name: &TyName,
-    ctx: &mut Context,
-) -> TokenStream {
-    let methods = match methods {
-        Some(m) => m,
-        None => return TokenStream::new(),
-    };
-
+fn make_methods(methods: &[ClassMethod], class_name: &TyName, ctx: &mut Context) -> TokenStream {
     let definitions = methods
         .iter()
         .map(|method| make_method_definition(method, class_name, ctx));
@@ -754,16 +745,11 @@ fn make_methods(
 }
 
 fn make_builtin_methods(
-    methods: &Option<Vec<BuiltinClassMethod>>,
+    methods: &[BuiltinClassMethod],
     class_name: &TyName,
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> TokenStream {
-    let methods = match methods {
-        Some(m) => m,
-        None => return TokenStream::new(),
-    };
-
     let definitions = methods
         .iter()
         .map(|method| make_builtin_method_definition(method, class_name, type_info, ctx));
@@ -773,11 +759,7 @@ fn make_builtin_methods(
     }
 }
 
-fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &TyName, _ctx: &Context) -> TokenStream {
-    let Some(enums) = enums else {
-        return TokenStream::new();
-    };
-
+fn make_enums(enums: &[Enum], _class_name: &TyName, _ctx: &Context) -> TokenStream {
     let definitions = enums.iter().map(util::make_enum_definition);
 
     quote! {
@@ -786,14 +768,10 @@ fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &TyName, _ctx: &Context) -
 }
 
 fn make_constants(
-    constants: &Option<Vec<ClassConstant>>,
+    constants: &[ClassConstant],
     _class_name: &TyName,
     _ctx: &Context,
 ) -> TokenStream {
-    let Some(constants) = constants else {
-        return TokenStream::new();
-    };
-
     let definitions = constants.iter().map(util::make_constant_definition);
 
     quote! {
@@ -959,7 +937,7 @@ fn make_method_definition(
         method_name_str,
         special_cases::is_private(class_name, &method.name),
         receiver,
-        &method.arguments,
+        option_as_slice(&method.arguments),
         method.return_value.as_ref(),
         variant_ffi,
         init_code,
@@ -1006,7 +984,7 @@ fn make_builtin_method_definition(
         method_name_str,
         special_cases::is_private(class_name, &method.name),
         receiver,
-        &method.arguments,
+        option_as_slice(&method.arguments),
         return_value.as_ref(),
         variant_ffi,
         init_code,
@@ -1043,7 +1021,7 @@ pub(crate) fn make_utility_function_definition(
         function_name_str,
         false,
         TokenStream::new(),
-        &function.arguments,
+        option_as_slice(&function.arguments),
         return_value.as_ref(),
         variant_ffi,
         init_code,
@@ -1079,7 +1057,7 @@ fn make_function_definition(
     function_name: &str,
     is_private: bool,
     receiver: TokenStream,
-    method_args: &Option<Vec<MethodArg>>,
+    method_args: &[MethodArg],
     return_value: Option<&MethodReturn>,
     variant_ffi: Option<VariantFfi>,
     init_code: TokenStream,
@@ -1093,7 +1071,7 @@ fn make_function_definition(
     } else {
         quote! { pub }
     };
-    let (safety, doc) = if function_uses_pointers(method_args, &return_value) {
+    let (maybe_unsafe, safety_doc) = if function_uses_pointers(method_args, return_value.clone()) {
         (
             quote! { unsafe },
             quote! {
@@ -1103,7 +1081,7 @@ fn make_function_definition(
             },
         )
     } else {
-        (quote! {}, quote! {})
+        (TokenStream::new(), TokenStream::new())
     };
 
     let is_varcall = variant_ffi.is_some();
@@ -1151,8 +1129,8 @@ fn make_function_definition(
 
     if is_virtual {
         quote! {
-            #doc
-            #safety fn #fn_name( #receiver #( #params, )* ) #return_decl {
+            #safety_doc
+            #maybe_unsafe fn #fn_name( #receiver #( #params, )* ) #return_decl {
                 #call_code
             }
         }
@@ -1160,8 +1138,8 @@ fn make_function_definition(
         // varcall (using varargs)
         let sys_method = &variant_ffi.sys_method;
         quote! {
-            #doc
-            #vis #safety fn #fn_name( #receiver #( #params, )* varargs: &[Variant]) #return_decl {
+            #safety_doc
+            #vis #maybe_unsafe fn #fn_name( #receiver #( #params, )* varargs: &[Variant]) #return_decl {
                 unsafe {
                     #init_code
 
@@ -1182,8 +1160,8 @@ fn make_function_definition(
     } else {
         // ptrcall
         quote! {
-            #doc
-            #vis #safety fn #fn_name( #receiver #( #params, )* ) #return_decl {
+            #safety_doc
+            #vis #maybe_unsafe fn #fn_name( #receiver #( #params, )* ) #return_decl {
                 unsafe {
                     #init_code
 
@@ -1227,13 +1205,10 @@ fn make_receiver_self_param(is_static: bool, is_const: bool) -> TokenStream {
 }
 
 fn make_params(
-    method_args: &Option<Vec<MethodArg>>,
+    method_args: &[MethodArg],
     is_varcall: bool,
     ctx: &mut Context,
 ) -> [Vec<TokenStream>; 4] {
-    let empty = vec![];
-    let method_args = method_args.as_ref().unwrap_or(&empty);
-
     let mut params = vec![];
     let mut variant_types = vec![];
     let mut arg_exprs = vec![];
@@ -1438,7 +1413,7 @@ fn make_virtual_method(class_method: &ClassMethod, ctx: &mut Context) -> TokenSt
         method_name,
         is_private,
         receiver,
-        &class_method.arguments,
+        option_as_slice(&class_method.arguments),
         class_method.return_value.as_ref(),
         variant_ffi,
         init_code,

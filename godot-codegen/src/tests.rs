@@ -188,18 +188,19 @@ fn test_parse_native_structures_format() {
         vec![native("int", "x"),],
     );
 
-    assert_eq!(
-    parse_native_structures_format("Vector3 position;Vector3 normal;Vector3 collider_velocity;Vector3 collider_angular_velocity;real_t depth;int local_shape;ObjectID collider_id;RID collider;int collider_shape").unwrap(),
-    vec![
-      native("Vector3", "position"),
-      native("Vector3", "normal"),
-      native("Vector3", "collider_velocity"),
-      native("Vector3", "collider_angular_velocity"),
-      native("real_t", "depth"),
-      native("int", "local_shape"),
-      native("ObjectID", "collider_id"),
-      native("RID", "collider"),
-      native("int", "collider_shape"),
-    ],
-  );
+    let actual = parse_native_structures_format(
+        "Vector3 position;Vector3 normal;Vector3 collider_velocity;Vector3 collider_angular_velocity;real_t depth;int local_shape;ObjectID collider_id;RID collider;int collider_shape"
+    );
+    let expected = vec![
+        native("Vector3", "position"),
+        native("Vector3", "normal"),
+        native("Vector3", "collider_velocity"),
+        native("Vector3", "collider_angular_velocity"),
+        native("real_t", "depth"),
+        native("int", "local_shape"),
+        native("ObjectID", "collider_id"),
+        native("RID", "collider"),
+        native("int", "collider_shape"),
+    ];
+    assert_eq!(actual.unwrap(), expected);
 }
