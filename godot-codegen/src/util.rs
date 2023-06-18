@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::api_parser::{ClassConstant, Enum, MethodArg, MethodReturn};
+use crate::api_parser::{ClassConstant, Enum};
 use crate::special_cases::is_builtin_scalar;
 use crate::{Context, ModName, RustTy, TyName};
 use proc_macro2::{Ident, Literal, TokenStream};
@@ -14,6 +14,11 @@ use quote::{format_ident, quote};
 pub struct NativeStructuresField {
     pub field_type: String,
     pub field_name: String,
+}
+
+/// Small utility that turns an optional vector (often encountered as JSON deserialization type) into a slice.
+pub fn option_as_slice<T>(option: &Option<Vec<T>>) -> &[T] {
+    option.as_ref().map_or(&[], Vec::as_slice)
 }
 
 pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
@@ -409,21 +414,4 @@ pub fn parse_native_structures_format(input: &str) -> Option<Vec<NativeStructure
             })
         })
         .collect()
-}
-
-pub fn function_uses_pointers(
-    method_args: &Option<Vec<MethodArg>>,
-    return_value: &Option<&MethodReturn>,
-) -> bool {
-    if let Some(method_args) = method_args {
-        if method_args.iter().any(|x| x.type_.contains('*')) {
-            return true;
-        }
-    }
-    if let Some(return_value) = return_value {
-        if return_value.type_.contains('*') {
-            return true;
-        }
-    }
-    false
 }

@@ -13,13 +13,54 @@ use std::path::{Path, PathBuf};
 use crate::api_parser::*;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
 use crate::util::{
-    function_uses_pointers, ident, parse_native_structures_format, safe_ident, to_pascal_case,
+    ident, option_as_slice, parse_native_structures_format, safe_ident, to_pascal_case,
     to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
 };
 use crate::{
     special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
     GeneratedClassModule, ModName, RustTy, TyName,
 };
+
+struct FnReceiver {
+    /// `&self`, `&mut self`, (none)
+    param: TokenStream,
+
+    /// `ptr::null_mut()`, `self.object_ptr`, `self.sys_ptr`, (none)
+    ffi_arg: TokenStream,
+
+    /// `Self::`, `self.`
+    #[allow(dead_code)] // TODO remove as soon as used
+    self_prefix: TokenStream,
+}
+
+impl FnReceiver {
+    /// No receiver, not even static `Self`
+    fn global_function() -> FnReceiver {
+        FnReceiver {
+            param: TokenStream::new(),
+            ffi_arg: TokenStream::new(),
+            self_prefix: TokenStream::new(),
+        }
+    }
+}
+
+struct FnSignature<'a> {
+    function_name: &'a str,
+    is_private: bool,
+    is_virtual: bool,
+    method_args: &'a [MethodArg],
+    return_value: Option<&'a MethodReturn>,
+}
+
+struct FnCode {
+    receiver: FnReceiver,
+    variant_ffi: Option<VariantFfi>,
+    init_code: TokenStream,
+    varcall_invocation: TokenStream,
+    ptrcall_invocation: TokenStream,
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub(crate) fn generate_class_files(
     api: &ExtensionApi,
@@ -293,9 +334,9 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     };
 
     let constructor = make_constructor(class, ctx);
-    let methods = make_methods(&class.methods, class_name, ctx);
-    let enums = make_enums(&class.enums, class_name, ctx);
-    let constants = make_constants(&class.constants, class_name, ctx);
+    let methods = make_methods(option_as_slice(&class.methods), class_name, ctx);
+    let enums = make_enums(option_as_slice(&class.enums), class_name, ctx);
+    let constants = make_constants(option_as_slice(&class.constants), class_name, ctx);
     let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
     let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
     let (notification_enum, notification_enum_name) =
@@ -549,14 +590,14 @@ fn make_builtin_class(
     };
     let inner_class = &inner_class_name.rust_ty;
 
-    let class_enums = class.enums.as_ref().map(|class_enums| {
+    let class_enums = class.enums.as_ref().map_or(Vec::new(), |class_enums| {
         class_enums
             .iter()
             .map(BuiltinClassEnum::to_enum)
             .collect::<Vec<Enum>>()
     });
 
-    let methods = make_builtin_methods(&class.methods, class_name, type_info, ctx);
+    let methods = make_builtin_methods(option_as_slice(&class.methods), class_name, type_info, ctx);
     let enums = make_enums(&class_enums, class_name, ctx);
     let special_constructors = make_special_builtin_methods(class_name, ctx);
 
@@ -734,16 +775,7 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
     }
 }
 
-fn make_methods(
-    methods: &Option<Vec<ClassMethod>>,
-    class_name: &TyName,
-    ctx: &mut Context,
-) -> TokenStream {
-    let methods = match methods {
-        Some(m) => m,
-        None => return TokenStream::new(),
-    };
-
+fn make_methods(methods: &[ClassMethod], class_name: &TyName, ctx: &mut Context) -> TokenStream {
     let definitions = methods
         .iter()
         .map(|method| make_method_definition(method, class_name, ctx));
@@ -754,16 +786,11 @@ fn make_methods(
 }
 
 fn make_builtin_methods(
-    methods: &Option<Vec<BuiltinClassMethod>>,
+    methods: &[BuiltinClassMethod],
     class_name: &TyName,
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> TokenStream {
-    let methods = match methods {
-        Some(m) => m,
-        None => return TokenStream::new(),
-    };
-
     let definitions = methods
         .iter()
         .map(|method| make_builtin_method_definition(method, class_name, type_info, ctx));
@@ -773,11 +800,7 @@ fn make_builtin_methods(
     }
 }
 
-fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &TyName, _ctx: &Context) -> TokenStream {
-    let Some(enums) = enums else {
-        return TokenStream::new();
-    };
-
+fn make_enums(enums: &[Enum], _class_name: &TyName, _ctx: &Context) -> TokenStream {
     let definitions = enums.iter().map(util::make_enum_definition);
 
     quote! {
@@ -786,14 +809,10 @@ fn make_enums(enums: &Option<Vec<Enum>>, _class_name: &TyName, _ctx: &Context) -
 }
 
 fn make_constants(
-    constants: &Option<Vec<ClassConstant>>,
+    constants: &[ClassConstant],
     _class_name: &TyName,
     _ctx: &Context,
 ) -> TokenStream {
-    let Some(constants) = constants else {
-        return TokenStream::new();
-    };
-
     let definitions = constants.iter().map(util::make_constant_definition);
 
     quote! {
@@ -913,7 +932,7 @@ fn make_method_definition(
 
     let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
 
-    let (receiver, receiver_arg) = make_receiver(
+    let receiver = make_receiver(
         method.is_static,
         method.is_const,
         quote! { self.object_ptr },
@@ -947,25 +966,30 @@ fn make_method_definition(
         );
         let __call_fn = sys::interface_fn!(#function_provider);
     };
+
+    let receiver_ffi_arg = &receiver.ffi_arg;
     let varcall_invocation = quote! {
-        __call_fn(__method_bind, #receiver_arg, __args_ptr, __args.len() as i64, return_ptr, std::ptr::addr_of_mut!(__err));
+        __call_fn(__method_bind, #receiver_ffi_arg, __args_ptr, __args.len() as i64, return_ptr, std::ptr::addr_of_mut!(__err));
     };
     let ptrcall_invocation = quote! {
-        __call_fn(__method_bind, #receiver_arg, __args_ptr, return_ptr);
+        __call_fn(__method_bind, #receiver_ffi_arg, __args_ptr, return_ptr);
     };
 
-    let is_virtual = false;
     make_function_definition(
-        method_name_str,
-        special_cases::is_private(class_name, &method.name),
-        receiver,
-        &method.arguments,
-        method.return_value.as_ref(),
-        variant_ffi,
-        init_code,
-        &varcall_invocation,
-        &ptrcall_invocation,
-        is_virtual,
+        &FnSignature {
+            function_name: method_name_str,
+            is_private: special_cases::is_private(class_name, &method.name),
+            is_virtual: false,
+            method_args: option_as_slice(&method.arguments),
+            return_value: method.return_value.as_ref(),
+        },
+        &FnCode {
+            receiver,
+            variant_ffi,
+            init_code,
+            varcall_invocation,
+            ptrcall_invocation,
+        },
         ctx,
     )
 }
@@ -978,11 +1002,8 @@ fn make_builtin_method_definition(
 ) -> TokenStream {
     let method_name_str = &method.name;
 
-    let (receiver, receiver_arg) =
-        make_receiver(method.is_static, method.is_const, quote! { self.sys_ptr });
-
     let return_value = method.return_type.as_deref().map(MethodReturn::from_type);
-    let hash = method.hash;
+    let hash = method.hash.expect("missing hash for builtin method");
     let is_varcall = method.is_vararg;
     let variant_ffi = is_varcall.then(VariantFfi::type_ptr);
 
@@ -997,22 +1018,28 @@ fn make_builtin_method_definition(
         );
         let __call_fn = __call_fn.unwrap_unchecked();
     };
+
+    let receiver = make_receiver(method.is_static, method.is_const, quote! { self.sys_ptr });
+    let receiver_ffi_arg = &receiver.ffi_arg;
     let ptrcall_invocation = quote! {
-        __call_fn(#receiver_arg, __args_ptr, return_ptr, __args.len() as i32);
+        __call_fn(#receiver_ffi_arg, __args_ptr, return_ptr, __args.len() as i32);
     };
 
-    let is_virtual = false;
     make_function_definition(
-        method_name_str,
-        special_cases::is_private(class_name, &method.name),
-        receiver,
-        &method.arguments,
-        return_value.as_ref(),
-        variant_ffi,
-        init_code,
-        &ptrcall_invocation,
-        &ptrcall_invocation,
-        is_virtual,
+        &FnSignature {
+            function_name: method_name_str,
+            is_private: special_cases::is_private(class_name, &method.name),
+            is_virtual: false,
+            method_args: option_as_slice(&method.arguments),
+            return_value: return_value.as_ref(),
+        },
+        &FnCode {
+            receiver,
+            variant_ffi,
+            init_code,
+            varcall_invocation: ptrcall_invocation.clone(),
+            ptrcall_invocation,
+        },
         ctx,
     )
 }
@@ -1038,18 +1065,21 @@ pub(crate) fn make_utility_function_definition(
         __call_fn(return_ptr, __args_ptr, __args.len() as i32);
     };
 
-    let is_virtual = false;
     make_function_definition(
-        function_name_str,
-        false,
-        TokenStream::new(),
-        &function.arguments,
-        return_value.as_ref(),
-        variant_ffi,
-        init_code,
-        &invocation,
-        &invocation,
-        is_virtual,
+        &FnSignature {
+            function_name: function_name_str,
+            is_private: false,
+            is_virtual: false,
+            method_args: option_as_slice(&function.arguments),
+            return_value: return_value.as_ref(),
+        },
+        &FnCode {
+            receiver: FnReceiver::global_function(),
+            variant_ffi,
+            init_code,
+            varcall_invocation: invocation.clone(),
+            ptrcall_invocation: invocation,
+        },
         ctx,
     )
 }
@@ -1074,26 +1104,13 @@ impl VariantFfi {
     }
 }
 
-#[allow(clippy::too_many_arguments)] // adding a struct/trait that's used only here, one time, reduces complexity by precisely 0%
-fn make_function_definition(
-    function_name: &str,
-    is_private: bool,
-    receiver: TokenStream,
-    method_args: &Option<Vec<MethodArg>>,
-    return_value: Option<&MethodReturn>,
-    variant_ffi: Option<VariantFfi>,
-    init_code: TokenStream,
-    varcall_invocation: &TokenStream,
-    ptrcall_invocation: &TokenStream,
-    is_virtual: bool,
-    ctx: &mut Context,
-) -> TokenStream {
-    let vis = if is_private {
+fn make_function_definition(sig: &FnSignature, code: &FnCode, ctx: &mut Context) -> TokenStream {
+    let vis = if sig.is_private {
         quote! { pub(crate) }
     } else {
         quote! { pub }
     };
-    let (safety, doc) = if function_uses_pointers(method_args, &return_value) {
+    let (maybe_unsafe, safety_doc) = if function_uses_pointers(sig) {
         (
             quote! { unsafe },
             quote! {
@@ -1103,15 +1120,16 @@ fn make_function_definition(
             },
         )
     } else {
-        (quote! {}, quote! {})
+        (TokenStream::new(), TokenStream::new())
     };
 
-    let is_varcall = variant_ffi.is_some();
-    let fn_name = safe_ident(function_name);
-    let [params, variant_types, arg_exprs, arg_names] = make_params(method_args, is_varcall, ctx);
+    let is_varcall = code.variant_ffi.is_some();
+    let [params, variant_types, arg_exprs, arg_names] =
+        make_params(sig.method_args, is_varcall, ctx);
 
+    let fn_name = safe_ident(sig.function_name);
     let (prepare_arg_types, error_fn_context);
-    if variant_ffi.is_some() {
+    if code.variant_ffi.is_some() {
         // varcall (using varargs)
         prepare_arg_types = quote! {
             let mut __arg_types = Vec::with_capacity(__explicit_args.len() + varargs.len());
@@ -1126,7 +1144,7 @@ fn make_function_definition(
             .collect::<Vec<_>>()
             .join(", ");
 
-        let fmt = format!("{function_name}({joined}; {{__vararg_str}})");
+        let fmt = format!("{f}({joined}; {{__vararg_str}})", f = sig.function_name);
         error_fn_context = quote! { &format!(#fmt) };
     } else {
         // ptrcall
@@ -1135,33 +1153,40 @@ fn make_function_definition(
                 #( #variant_types ),*
             ];
         };
-        error_fn_context = function_name.to_token_stream();
+        error_fn_context = sig.function_name.to_token_stream();
     };
 
     let (return_decl, call_code) = make_return(
-        return_value,
-        variant_ffi.as_ref(),
-        varcall_invocation,
-        ptrcall_invocation,
+        sig.return_value,
+        code,
         prepare_arg_types,
         error_fn_context,
-        is_virtual,
+        sig.is_virtual,
         ctx,
     );
 
-    if is_virtual {
+    let receiver_param = &code.receiver.param;
+    if sig.is_virtual {
         quote! {
-            #doc
-            #safety fn #fn_name( #receiver #( #params, )* ) #return_decl {
+            #safety_doc
+            #maybe_unsafe fn #fn_name(
+                #receiver_param
+                #( #params, )*
+            ) #return_decl {
                 #call_code
             }
         }
-    } else if let Some(variant_ffi) = variant_ffi.as_ref() {
+    } else if let Some(variant_ffi) = code.variant_ffi.as_ref() {
         // varcall (using varargs)
         let sys_method = &variant_ffi.sys_method;
+        let init_code = &code.init_code;
         quote! {
-            #doc
-            #vis #safety fn #fn_name( #receiver #( #params, )* varargs: &[Variant]) #return_decl {
+            #safety_doc
+            #vis #maybe_unsafe fn #fn_name(
+                #receiver_param
+                #( #params, )*
+                varargs: &[Variant]
+            ) #return_decl {
                 unsafe {
                     #init_code
 
@@ -1181,9 +1206,13 @@ fn make_function_definition(
         }
     } else {
         // ptrcall
+        let init_code = &code.init_code;
         quote! {
-            #doc
-            #vis #safety fn #fn_name( #receiver #( #params, )* ) #return_decl {
+            #safety_doc
+            #vis #maybe_unsafe fn #fn_name(
+                #receiver_param
+                #( #params, )*
+            ) #return_decl {
                 unsafe {
                     #init_code
 
@@ -1200,40 +1229,39 @@ fn make_function_definition(
     }
 }
 
-fn make_receiver(
-    is_static: bool,
-    is_const: bool,
-    receiver_arg: TokenStream,
-) -> (TokenStream, TokenStream) {
-    let receiver = make_receiver_self_param(is_static, is_const);
-
-    let receiver_arg = if is_static {
-        quote! { std::ptr::null_mut() }
-    } else {
-        receiver_arg
-    };
-
-    (receiver, receiver_arg)
-}
-
-fn make_receiver_self_param(is_static: bool, is_const: bool) -> TokenStream {
-    if is_static {
+fn make_receiver(is_static: bool, is_const: bool, ffi_arg: TokenStream) -> FnReceiver {
+    let param = if is_static {
         quote! {}
     } else if is_const {
         quote! { &self, }
     } else {
         quote! { &mut self, }
+    };
+
+    let ffi_arg = if is_static {
+        quote! { std::ptr::null_mut() }
+    } else {
+        ffi_arg
+    };
+
+    let self_prefix = if is_static {
+        quote! { Self:: }
+    } else {
+        quote! { self. }
+    };
+
+    FnReceiver {
+        param,
+        ffi_arg,
+        self_prefix,
     }
 }
 
 fn make_params(
-    method_args: &Option<Vec<MethodArg>>,
+    method_args: &[MethodArg],
     is_varcall: bool,
     ctx: &mut Context,
 ) -> [Vec<TokenStream>; 4] {
-    let empty = vec![];
-    let method_args = method_args.as_ref().unwrap_or(&empty);
-
     let mut params = vec![];
     let mut variant_types = vec![];
     let mut arg_exprs = vec![];
@@ -1261,9 +1289,7 @@ fn make_params(
 #[allow(clippy::too_many_arguments)]
 fn make_return(
     return_value: Option<&MethodReturn>,
-    variant_ffi: Option<&VariantFfi>,
-    varcall_invocation: &TokenStream,
-    ptrcall_invocation: &TokenStream,
+    code: &FnCode,
     prepare_arg_types: TokenStream,
     error_fn_context: TokenStream, // only for panic message
     is_virtual: bool,
@@ -1280,6 +1306,13 @@ fn make_return(
         return_decl = TokenStream::new();
         return_ty = None;
     }
+
+    let FnCode {
+        varcall_invocation,
+        ptrcall_invocation,
+        variant_ffi,
+        ..
+    } = code;
 
     let call = match (is_virtual, variant_ffi, return_ty) {
         (true, _, _) => {
@@ -1423,28 +1456,22 @@ fn make_virtual_method(class_method: &ClassMethod, ctx: &mut Context) -> TokenSt
     // Virtual methods are never static.
     assert!(!class_method.is_static);
 
-    let receiver = make_receiver_self_param(false, class_method.is_const);
-
-    // make_return requests these token streams, but they won't be used for
-    // virtual methods. We can provide empty streams.
-    let varcall_invocation = TokenStream::new();
-    let ptrcall_invocation = TokenStream::new();
-    let init_code = TokenStream::new();
-    let variant_ffi = None;
-
-    let is_virtual = true;
-    let is_private = false;
     make_function_definition(
-        method_name,
-        is_private,
-        receiver,
-        &class_method.arguments,
-        class_method.return_value.as_ref(),
-        variant_ffi,
-        init_code,
-        &varcall_invocation,
-        &ptrcall_invocation,
-        is_virtual,
+        &FnSignature {
+            function_name: method_name,
+            is_private: false,
+            is_virtual: true,
+            method_args: option_as_slice(&class_method.arguments),
+            return_value: class_method.return_value.as_ref(),
+        },
+        &FnCode {
+            receiver: make_receiver(false, class_method.is_const, TokenStream::new()),
+            // make_return() requests following args, but they are not used for virtual methods. We can provide empty streams.
+            variant_ffi: None,
+            init_code: TokenStream::new(),
+            varcall_invocation: TokenStream::new(),
+            ptrcall_invocation: TokenStream::new(),
+        },
         ctx,
     )
 }
@@ -1506,4 +1533,18 @@ fn virtual_method_name(class_method: &ClassMethod) -> &str {
     } else {
         method_name
     }
+}
+
+fn function_uses_pointers(sig: &FnSignature) -> bool {
+    if sig.method_args.iter().any(|x| x.type_.contains('*')) {
+        return true;
+    }
+
+    if let Some(return_value) = sig.return_value {
+        if return_value.type_.contains('*') {
+            return true;
+        }
+    }
+
+    false
 }
