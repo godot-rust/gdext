@@ -144,7 +144,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 method_name: &str,
                 call_type: sys::PtrcallType,
             ) {
-                $crate::out!("ptrcall: {}", method_name);
+                // $crate::out!("ptrcall: {}", method_name);
 
                 let args = ($(
                     unsafe { ptrcall_arg::<$Pn, $n>(args_ptr, method_name, call_type) },

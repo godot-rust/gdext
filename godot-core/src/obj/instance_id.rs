@@ -38,8 +38,8 @@ impl InstanceId {
     /// This does *not* check if the instance is valid.
     ///
     /// # Panics
-    /// If `id` is zero.
-    pub fn from_nonzero(id: i64) -> Self {
+    /// If `id` is zero. Use [`try_from_i64`][Self::try_from_i64] if you are unsure.
+    pub fn from_i64(id: i64) -> Self {
         Self::try_from_i64(id).expect("expected non-zero instance ID")
     }
 
