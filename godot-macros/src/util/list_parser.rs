@@ -6,7 +6,7 @@
 
 // Note: some code duplication with codegen crate
 
-use crate::{util::ident, ParseResult};
+use crate::ParseResult;
 use proc_macro2::{Delimiter, Ident, TokenTree};
 
 use super::{bail, delimiter_opening_char, is_punct, kv_parser::KvValue, KvParser};
@@ -150,12 +150,10 @@ impl ListParser {
     ///
     /// Returns `Ok(None)` if there are no more elements left.
     pub fn next_any_ident(&mut self, ids: &[&str]) -> ParseResult<Option<Ident>> {
-        let Some(next_id) = self.try_next_ident()? else {
-            return Ok(None)
-        };
+        let Some(next_id) = self.try_next_ident()? else { return Ok(None) };
 
         for id in ids {
-            if ident(id) == next_id {
+            if next_id == id {
                 return Ok(Some(next_id));
             }
         }

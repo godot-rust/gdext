@@ -28,6 +28,7 @@ mod option_ffi_test;
 mod packed_array_test;
 mod plane_test;
 mod projection_test;
+mod property_test;
 mod quaternion_test;
 mod rect2_test;
 mod rect2i_test;
@@ -38,7 +39,6 @@ mod string;
 mod transform2d_test;
 mod transform3d_test;
 mod utilities_test;
-mod var_test;
 mod variant_test;
 mod virtual_methods_test;
 

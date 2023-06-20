@@ -92,15 +92,15 @@ pub(super) fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenSt
 
         let usage_flags = match usage_flags {
             UsageFlags::Inferred => {
-                quote! { let usage = ::godot::engine::global::PropertyUsageFlags::PROPERTY_USAGE_NO_EDITOR; }
+                quote! { ::godot::engine::global::PropertyUsageFlags::PROPERTY_USAGE_NO_EDITOR }
             }
             UsageFlags::InferredExport => {
-                quote! { let usage = ::godot::engine::global::PropertyUsageFlags::PROPERTY_USAGE_DEFAULT; }
+                quote! { ::godot::engine::global::PropertyUsageFlags::PROPERTY_USAGE_DEFAULT }
             }
             UsageFlags::Custom(flags) => quote! {
-                let usage = #(
+                #(
                     ::godot::engine::global::PropertyUsageFlags::#flags
-                )|*;
+                )|*
             },
         };
 
@@ -108,39 +108,40 @@ pub(super) fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenSt
             FieldHint::Inferred => {
                 if export.is_some() {
                     quote! {
-                        let default_export_info = <#field_type as ::godot::bind::property::Export>::default_export_info();
-                        let hint = default_export_info.hint;
-                        let hint_string = default_export_info.hint_string;
+                        {
+                            let default_export_info = <#field_type as ::godot::bind::property::Export>::default_export_info();
+                            (default_export_info.hint, default_export_info.hint_string)
+                        }
                     }
                 } else {
                     quote! {
-                        let hint = ::godot::engine::global::PropertyHint::PROPERTY_HINT_NONE;
-                        let hint_string = ::godot::builtin::GodotString::new();
+                        {
+                            (
+                                ::godot::engine::global::PropertyHint::PROPERTY_HINT_NONE,
+                                ::godot::builtin::GodotString::new()
+                            )
+                        }
                     }
                 }
             }
             FieldHint::Hint(hint) => quote! {
-                let hint = ::godot::engine::global::PropertyHint::#hint;
-                let hint_string = ::godot::builtin::GodotString::new();
+                (
+                    ::godot::engine::global::PropertyHint::#hint,
+                    ::godot::builtin::GodotString::new()
+                )
             },
             FieldHint::HintWithString { hint, hint_string } => quote! {
-                let hint = ::godot::engine::global::PropertyHint::#hint;
-                let hint_string = ::godot::builtin::GodotString::from(#hint_string);
+                (
+                    ::godot::engine::global::PropertyHint::#hint,
+                    ::godot::builtin::GodotString::from(#hint_string)
+                )
             },
             FieldHint::HintFromExportFunction(expression) => quote! {
-                let ::godot::bind::property::ExportInfo { hint, hint_string } = #expression;
+                {
+                    let ::godot::bind::property::ExportInfo { hint, hint_string } = #expression;
+                    (hint, hint_string)
+                }
             },
-        };
-
-        let property_info = quote! {
-            let property_info = ::godot::builtin::meta::PropertyInfo {
-                variant_type: <<#field_type as ::godot::bind::property::Property>::Intermediate as ::godot::builtin::meta::VariantMetadata>::variant_type(),
-                class_name: ::godot::builtin::meta::ClassName::of::<#class_name>(),
-                property_name: #field_name.into(),
-                hint,
-                hint_string,
-                usage,
-            };
         };
 
         let getter_name = if let Some(getter_impl) = getter.to_impl(class_name, GetSet::Get, field)
@@ -178,12 +179,19 @@ pub(super) fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenSt
         export_tokens.push(quote! {
             use ::godot::builtin::meta::VariantMetadata;
 
+            let (hint, hint_string) = #hint;
+            let usage = #usage_flags;
+
+            let property_info = ::godot::builtin::meta::PropertyInfo {
+                variant_type: <<#field_type as ::godot::bind::property::Property>::Intermediate as ::godot::builtin::meta::VariantMetadata>::variant_type(),
+                class_name: ::godot::builtin::meta::ClassName::of::<#class_name>(),
+                property_name: #field_name.into(),
+                hint,
+                hint_string,
+                usage,
+            };
+
             let class_name = ::godot::builtin::StringName::from(#class_name::CLASS_NAME);
-
-            #usage_flags
-            #hint
-            #property_info
-
             let getter_name = ::godot::builtin::StringName::from(#getter_name);
             let setter_name = ::godot::builtin::StringName::from(#setter_name);
 

@@ -40,3 +40,28 @@ func assert_eq(left, right, message: String = "") -> bool:
 	else:
 		print_error("GDScript assertion failed:  `(left == right)`\n  left: %s\n right: %s" % [left, right])
 	return false
+
+# Disable error message printing from godot. 
+#
+# Error messages are always re-enabled by the rust test runner after a test has been run.
+func disable_error_messages():
+	Engine.print_error_messages = false
+
+# Enable error message printing from godot. 
+# 
+# Error messages are always re-enabled by the rust test runner after a test has been run.
+func enable_error_messages():
+	Engine.print_error_messages = true
+
+# Asserts that the test failed to reach this point. You should disable error messages before running code 
+# that is expected to print an error message that would otherwise cause the CI to report failure.
+func assert_fail(message: String = "") -> bool:
+	_assertion_failed = true
+
+	print_newline()
+	if message:
+		print_error("Test execution should have failed: %s" % [message])
+	else:
+		print_error("Test execution should have failed")
+
+	return false

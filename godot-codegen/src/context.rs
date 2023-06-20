@@ -155,7 +155,7 @@ impl<'a> Context<'a> {
         self.inheritance_tree
             .collect_all_bases(class_name)
             .iter()
-            .any(|ty| &ty.godot_ty == "Resource" || &ty.godot_ty == "Node")
+            .any(|ty| ty.godot_ty == "Resource" || ty.godot_ty == "Node")
     }
 
     pub fn inheritance_tree(&self) -> &InheritanceTree {

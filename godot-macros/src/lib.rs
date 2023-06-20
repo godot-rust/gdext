@@ -322,7 +322,7 @@ mod util;
 ///     #[export(enum = (One, Two, Ten = 10, Twelve = 12, Thirteen))]
 ///     exported_enum: i64,
 ///
-///     // @export_flags("A:1", "B:2", "AB":3)
+///     // @export_flags("A:1", "B:2", "AB:3")
 ///     #[export(flags = (A = 1, B = 2, AB = 3))]
 ///     flags: u32,
 /// }
