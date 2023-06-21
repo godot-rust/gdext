@@ -420,7 +420,7 @@ pub(crate) fn to_rust_expr(expr: &str, ty: &RustTy) -> TokenStream {
     to_rust_expr_inner(expr, ty, false)
 }
 
-fn to_rust_expr_inner(expr: &str, is_inner: bool) -> TokenStream {
+fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
     println!("\n> to_rust_expr_inner({expr}, {is_inner})");
 
     // Simple literals
@@ -429,50 +429,58 @@ fn to_rust_expr_inner(expr: &str, is_inner: bool) -> TokenStream {
         "false" => return quote! { false },
         "null" => return quote! { Variant::nil() },
         "[]" | "{}" if is_inner => return quote! {},
-        "[]" => return quote! { VariantArray::new() },
+        "[]" => return quote! { Array::new() }, // VariantArray or Array<T>
         "{}" => return quote! { Dictionary::new() },
         // empty string appears only for Callable/Rid
-        "" if !is_inner => return quote! { Default::default() },
+        "" if !is_inner => {
+            match ty {
+                RustTy::BuiltinIdent(ident) if ident == "Rid" => return quote! { Rid::Invalid },
+                RustTy::BuiltinIdent(ident) if ident == "Callable" => { return quote! { Callable::invalid() } }
+                _ => panic!("empty string not representable in target type {ty:?}"),
+            }
+        }
         _ => {}
     }
 
     // Integers
     if let Ok(num) = expr.parse::<i64>() {
         let lit = Literal::i64_unsuffixed(num);
-        return if is_inner {
-            quote! { #lit.into() }
-        } else {
-            quote! { #lit }
+        return match ty {
+            RustTy::EngineEnum { .. } => quote! { crate::obj::EngineEnum::from_ord(#lit) },
+            // RustTy::BuiltinIdent(ident) if ident == "f64" || ident == "i64" => quote! { #lit },
+            // _ => panic!("cannot map int literal {expr} to type {ty:?}")
+            // _ => quote! { #lit.try_into().expect("default arg not representable in target type") },
+            _ => quote! { #lit as _ },
         };
     }
 
     // Floats
     if let Ok(num) = expr.parse::<f64>() {
         let lit = Literal::f64_unsuffixed(num);
-        return if is_inner {
-            quote! { #lit.into() }
-        } else {
-            quote! { #lit }
-        };
+        // Assume that literals of type `2.4` are never used for integers, so we don't need conversion
+        return quote! { #lit };
     }
 
-    // String
+    // "..." -> String|StringName|NodePath
     if let Some(expr) = expr.strip_prefix('"') {
         let expr = expr.strip_suffix('"').expect("unmatched opening '\"'");
         return if is_inner {
             quote! { #expr }
         } else {
-            quote! { GodotString::from(#expr) }
+            let RustTy::BuiltinIdent(string_ty) = ty else {
+                panic!("cannot map string literal {expr} to type {ty:?}")
             };
+            quote! { #string_ty::from(#expr) }
+        };
     }
 
-    // StringName
+    // "&..." -> StringName
     if let Some(expr) = expr.strip_prefix("&\"") {
         let expr = expr.strip_suffix('"').expect("unmatched opening '&\"'");
         return quote! { StringName::from(#expr) };
     }
 
-    // NodePath
+    // "^..." -> NodePath
     if let Some(expr) = expr.strip_prefix("^\"") {
         let expr = expr.strip_suffix('"').expect("unmatched opening '^\"'");
         return quote! { NodePath::from(#expr) };
@@ -521,7 +529,7 @@ fn to_rust_expr_inner(expr: &str, is_inner: bool) -> TokenStream {
             if part.is_empty() {
                 quote! {}
             } else {
-                to_rust_expr_inner(part, true)
+                to_rust_expr_inner(part, ty, true)
             }
         });
 
@@ -542,42 +550,65 @@ fn to_rust_expr_inner(expr: &str, is_inner: bool) -> TokenStream {
 
 #[test]
 fn gdscript_to_rust_expr() {
+    // Do not provide types unless absolutely needed (write None) -- even though at the moment, codegen always has them.
+    // This potentially allows us to reuse to_rust_expr() in the future in other contexts.
+
+    let ty_int = RustTy::BuiltinIdent(ident("i64"));
+    let ty_int = Some(&ty_int);
+
+    let ty_float = RustTy::BuiltinIdent(ident("f64"));
+    let ty_float = Some(&ty_float);
+
+    let ty_enum = RustTy::EngineEnum {
+        tokens: quote! { SomeEnum },
+        surrounding_class: None,
+    };
+    let ty_enum = Some(&ty_enum);
+
     #[rustfmt::skip]
     let table = [
-        // Numbers
-        ("0",                                                           quote! { 0 }),
-        ("-1",                                                          quote! { -1 }),
-        ("2147483647",                                                  quote! { 2147483647 }),
-        ("1.0",                                                         quote! { 1.0 }),
-        ("1e-05",                                                       quote! { 0.00001 }),
+        // int
+        ("0",                                              ty_int,             quote! { 0 }),
+        ("-1",                                             ty_int,             quote! { -1 }),
+        ("2147483647",                                     ty_int,             quote! { 2147483647 }),
+
+        // float (from int/float)
+        ("0",                                              ty_float,           quote! { 0 }),
+        ("-1",                                             ty_float,           quote! { -1 }),
+        ("2147483647",                                     ty_float,           quote! { 2147483647 }),
+        ("1.0",                                            None,               quote! { 1.0 }),
+        ("1e-05",                                          None,               quote! { 0.00001 }),
+
+        // enum (from int)
+        ("7",                                              ty_enum,            quote! { godot::obj::EngineEnum::from_ord(7) }),
 
         // Special literals
-        ("true",                                                        quote! { true }),
-        ("false",                                                       quote! { false }),
-        ("null",                                                        quote! { Variant::nil() }),
-        ("{}",                                                          quote! { Dictionary::new() }),
-        ("[]",                                                          quote! { VariantArray::new() }),
+        ("true",                                           None,               quote! { true }),
+        ("false",                                          None,               quote! { false }),
+        ("null",                                           None,               quote! { Variant::nil() }),
+        ("{}",                                             None,               quote! { Dictionary::new() }),
+        ("[]",                                             None,               quote! { VariantArray::new() }),
 
         // String-likes
-        ("\" \"",                                                       quote! { GodotString::from(" ") }),
-        ("\"{_}\"",                                                     quote! { GodotString::from("{_}") }),
-        ("&\"text\"",                                                   quote! { StringName::from("text") }),
-        ("^\"text\"",                                                   quote! { NodePath::from("text") }),
+        ("\" \"",                                          None,               quote! { GodotString::from(" ") }),
+        ("\"{_}\"",                                        None,               quote! { GodotString::from("{_}") }),
+        ("&\"text\"",                                      None,               quote! { StringName::from("text") }),
+        ("^\"text\"",                                      None,               quote! { NodePath::from("text") }),
 
         // Composites
-        ("NodePath(\"\")",                                              quote! { NodePath::from("") }),
-        ("Color(1, 0, 0.5, 1)",                                         quote! { Color::from_rgba(1.into(), 0.into(), 0.5.into(), 1.into()) }),
-        ("Vector3(0, 1, 2.5)",                                          quote! { Vector3::new(0.into(), 1.into(), 2.5.into()) }),
-        ("Rect2(1, 2.2, -3.3, 0)",                                      quote! { Rect2::from_components(1.into(), 2.2.into(), -3.3.into(), 0.into()) }),
-        ("Rect2i(1, 2.2, -3.3, 0)",                                     quote! { Rect2i::from_components(1.into(), 2.2.into(), -3.3.into(), 0.into()) }),
-        ("PackedFloat32Array()",                                        quote! { PackedFloat32Array::new() }),
+        ("NodePath(\"\")",                                 None,               quote! { NodePath::from("") }),
+        ("Color(1, 0, 0.5, 1)",                            None,               quote! { Color::from_rgba(1.into(), 0.into(), 0.5.into(), 1.into()) }),
+        ("Vector3(0, 1, 2.5)",                             None,               quote! { Vector3::new(0.into(), 1.into(), 2.5.into()) }),
+        ("Rect2(1, 2.2, -3.3, 0)",                         None,               quote! { Rect2::from_components(1.into(), 2.2.into(), -3.3.into(), 0.into()) }),
+        ("Rect2i(1, 2.2, -3.3, 0)",                        None,               quote! { Rect2i::from_components(1.into(), 2.2.into(), -3.3.into(), 0.into()) }),
+        ("PackedFloat32Array()",                           None,               quote! { PackedFloat32Array::new() }),
         // Due to type inference, it should be enough to just write `Array::new()`
-        ("Array[Plane]([])",                                            quote! { Array::new() }),
-        ("Array[RDPipelineSpecializationConstant]([])",                 quote! { Array::new() }),
-        ("Array[RID]([])",                                              quote! { Array::new() }),
+        ("Array[Plane]([])",                               None,               quote! { Array::new() }),
+        ("Array[RDPipelineSpecializationConstant]([])",    None,               quote! { Array::new() }),
+        ("Array[RID]([])",                                 None,               quote! { Array::new() }),
 
         // Composites with destructuring
-        ("Transform3D(1, 2, 3, 4, -1.1, -1.2, -1.3, -1.4, 0, 0, 0, 0)", quote! {
+        ("Transform3D(1, 2, 3, 4, -1.1, -1.2, -1.3, -1.4, 0, 0, 0, 0)", None,  quote! {
             Transform3D::__internal_codegen(
                    1.into(),    2.into(),    3.into(),
                    4.into(), -1.1.into(), -1.2.into(),
@@ -586,7 +617,7 @@ fn gdscript_to_rust_expr() {
             )
         }),
 
-        ("Transform2D(1, 2, -1.1,1.2, 0, 0)", quote! {
+        ("Transform2D(1, 2, -1.1,1.2, 0, 0)",              None,               quote! {
             Transform2D::__internal_codegen(
                    1.into(),   2.into(),
                 -1.1.into(), 1.2.into(),
@@ -595,8 +626,15 @@ fn gdscript_to_rust_expr() {
         }),
     ];
 
-    for (gdscript, rust) in table {
-        let actual = to_rust_expr(gdscript).to_string();
+    for (gdscript, ty, rust) in table {
+        // Use arbitrary type if not specified -> should not be read
+        let ty_dontcare = RustTy::EngineArray {
+            tokens: TokenStream::new(),
+            elem_class: String::new(),
+        };
+        let ty = ty.unwrap_or(&ty_dontcare);
+
+        let actual = to_rust_expr(gdscript, &ty).to_string();
         let expected = rust.to_string();
 
         println!("{actual} -> {expected}");

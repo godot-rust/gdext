@@ -134,7 +134,7 @@ fn rustfmt_if_needed(_out_files: Vec<PathBuf>) {}
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared utility types
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum RustTy {
     /// `bool`, `Vector3i`
     BuiltinIdent(Ident),
