@@ -14,12 +14,14 @@ use crate::api_parser::*;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
 use crate::util::{
     ident, option_as_slice, parse_native_structures_format, safe_ident, to_pascal_case,
-    to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
+    to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
 };
 use crate::{
     special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
     GeneratedClassModule, ModName, RustTy, TyName,
 };
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 struct FnReceiver {
     /// `&self`, `&mut self`, (none)
@@ -44,13 +46,121 @@ impl FnReceiver {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+struct FnParam {
+    name: Ident,
+    type_: RustTy,
+    default_value: Option<TokenStream>,
+}
+
+impl FnParam {
+    fn new_range(method_args: &Option<Vec<MethodArg>>, ctx: &mut Context) -> Vec<FnParam> {
+        option_as_slice(method_args)
+            .iter()
+            .map(|arg| Self::new(arg, ctx))
+            .collect()
+    }
+
+    fn new_range_no_defaults(
+        method_args: &Option<Vec<MethodArg>>,
+        ctx: &mut Context,
+    ) -> Vec<FnParam> {
+        option_as_slice(method_args)
+            .iter()
+            .map(|arg| Self::new_no_defaults(arg, ctx))
+            .collect()
+    }
+
+    fn new(method_arg: &MethodArg, ctx: &mut Context) -> FnParam {
+        let name = safe_ident(&method_arg.name);
+        let type_ = to_rust_type(&method_arg.type_, ctx);
+        let default_value = method_arg
+            .default_value
+            .as_ref()
+            .map(|v| to_rust_expr(v, &type_));
+
+        FnParam {
+            name,
+            type_,
+            default_value,
+        }
+    }
+
+    fn new_no_defaults(method_arg: &MethodArg, ctx: &mut Context) -> FnParam {
+        FnParam {
+            name: safe_ident(&method_arg.name),
+            type_: to_rust_type(&method_arg.type_, ctx),
+            default_value: None,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+struct FnReturn {
+    decl: TokenStream,
+    type_: Option<RustTy>,
+}
+
+impl FnReturn {
+    fn new(return_value: &Option<MethodReturn>, ctx: &mut Context) -> Self {
+        if let Some(ret) = return_value {
+            let ty = to_rust_type(&ret.type_, ctx);
+
+            Self {
+                decl: ty.return_decl(),
+                type_: Some(ty),
+            }
+        } else {
+            Self {
+                decl: TokenStream::new(),
+                type_: None,
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+enum FnQualifier {
+    Mut,    // &mut self
+    Const,  // &self
+    Static, // Self
+    Global, // (nothing)
+}
+
+impl FnQualifier {
+    fn is_static_or_global(&self) -> bool {
+        matches!(self, Self::Static | Self::Global)
+    }
+}
+
+impl FnQualifier {
+    fn for_method(is_const: bool, is_static: bool) -> FnQualifier {
+        if is_static {
+            FnQualifier::Static
+        } else if is_const {
+            FnQualifier::Const
+        } else {
+            FnQualifier::Mut
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 struct FnSignature<'a> {
     function_name: &'a str,
+    surrounding_class: Option<&'a TyName>, // None if global function
     is_private: bool,
     is_virtual: bool,
-    method_args: &'a [MethodArg],
-    return_value: Option<&'a MethodReturn>,
+    qualifier: FnQualifier,
+    params: Vec<FnParam>,
+    return_value: FnReturn,
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 struct FnCode {
     receiver: FnReceiver,
@@ -58,6 +168,43 @@ struct FnCode {
     init_code: TokenStream,
     varcall_invocation: TokenStream,
     ptrcall_invocation: TokenStream,
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+struct FnDefinition {
+    functions: TokenStream,
+    builders: TokenStream,
+}
+
+impl FnDefinition {
+    fn none() -> FnDefinition {
+        FnDefinition {
+            functions: TokenStream::new(),
+            builders: TokenStream::new(),
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+struct FnDefinitions {
+    functions: TokenStream,
+    builders: TokenStream,
+}
+
+impl FnDefinitions {
+    fn expand(definitions: impl Iterator<Item = FnDefinition>) -> FnDefinitions {
+        // Collect needed because borrowed by 2 closures
+        let definitions: Vec<_> = definitions.collect();
+        let functions = definitions.iter().map(|def| &def.functions);
+        let structs = definitions.iter().map(|def| &def.builders);
+
+        FnDefinitions {
+            functions: quote! { #( #functions )* },
+            builders: quote! { #( #structs )* },
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -334,7 +481,11 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     };
 
     let constructor = make_constructor(class, ctx);
-    let methods = make_methods(option_as_slice(&class.methods), class_name, ctx);
+    let FnDefinitions {
+        functions: methods,
+        builders,
+    } = make_methods(option_as_slice(&class.methods), class_name, ctx);
+
     let enums = make_enums(option_as_slice(&class.enums), class_name, ctx);
     let constants = make_constants(option_as_slice(&class.constants), class_name, ctx);
     let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
@@ -441,6 +592,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
             }
         }
 
+        #builders
         #enums
     };
     // note: TypePtr -> ObjectPtr conversion OK?
@@ -471,14 +623,14 @@ fn make_notify_method(class_name: &TyName, ctx: &mut Context) -> TokenStream {
         /// a panic. The reason is that the receiving virtual method `on_notification()` acquires a `GdMut` lock dynamically, which must
         /// be exclusive.
         pub fn notify(&mut self, what: #enum_name) {
-            self.notification(i32::from(what) as i64, false);
+            self.notification(i32::from(what) as i64);
         }
 
         /// ⚠️ Like [`Self::notify()`], but starts at the most-derived class and goes up the hierarchy.
         ///
         /// See docs of that method, including the panics.
         pub fn notify_reversed(&mut self, what: #enum_name) {
-            self.notification(i32::from(what) as i64, true);
+            self.notification_ex(i32::from(what) as i64).reversed(true).done();
         }
     }
 }
@@ -597,12 +749,22 @@ fn make_builtin_class(
             .collect::<Vec<Enum>>()
     });
 
-    let methods = make_builtin_methods(option_as_slice(&class.methods), class_name, type_info, ctx);
+    let FnDefinitions {
+        functions: methods,
+        builders,
+    } = make_builtin_methods(
+        option_as_slice(&class.methods),
+        class_name,
+        inner_class_name,
+        type_info,
+        ctx,
+    );
+
     let enums = make_enums(&class_enums, class_name, ctx);
     let special_constructors = make_special_builtin_methods(class_name, ctx);
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
-    let tokens = quote! {
+    let code = quote! {
         use godot_ffi as sys;
         use crate::builtin::*;
         use crate::engine::native::*;
@@ -626,11 +788,12 @@ fn make_builtin_class(
             #methods
         }
 
+        #builders
         #enums
     };
     // note: TypePtr -> ObjectPtr conversion OK?
 
-    GeneratedBuiltin { code: tokens }
+    GeneratedBuiltin { code }
 }
 
 fn make_native_structure(
@@ -775,29 +938,26 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
     }
 }
 
-fn make_methods(methods: &[ClassMethod], class_name: &TyName, ctx: &mut Context) -> TokenStream {
+fn make_methods(methods: &[ClassMethod], class_name: &TyName, ctx: &mut Context) -> FnDefinitions {
     let definitions = methods
         .iter()
         .map(|method| make_method_definition(method, class_name, ctx));
 
-    quote! {
-        #( #definitions )*
-    }
+    FnDefinitions::expand(definitions)
 }
 
 fn make_builtin_methods(
     methods: &[BuiltinClassMethod],
     class_name: &TyName,
+    inner_class_name: &TyName,
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
-) -> TokenStream {
-    let definitions = methods
-        .iter()
-        .map(|method| make_builtin_method_definition(method, class_name, type_info, ctx));
+) -> FnDefinitions {
+    let definitions = methods.iter().map(|method| {
+        make_builtin_method_definition(method, class_name, inner_class_name, type_info, ctx)
+    });
 
-    quote! {
-        #( #definitions )*
-    }
+    FnDefinitions::expand(definitions)
 }
 
 fn make_enums(enums: &[Enum], _class_name: &TyName, _ctx: &Context) -> TokenStream {
@@ -915,10 +1075,10 @@ fn make_method_definition(
     method: &ClassMethod,
     class_name: &TyName,
     ctx: &mut Context,
-) -> TokenStream {
+) -> FnDefinition {
     if is_method_excluded(method, false, ctx) || special_cases::is_deleted(class_name, &method.name)
     {
-        return TokenStream::new();
+        return FnDefinition::none();
     }
     /*if method.map_args(|args| args.is_empty()) {
         // Getters (i.e. 0 arguments) will be stripped of their `get_` prefix, to conform to Rust convention
@@ -978,10 +1138,12 @@ fn make_method_definition(
     make_function_definition(
         &FnSignature {
             function_name: method_name_str,
+            surrounding_class: Some(class_name),
             is_private: special_cases::is_private(class_name, &method.name),
             is_virtual: false,
-            method_args: option_as_slice(&method.arguments),
-            return_value: method.return_value.as_ref(),
+            qualifier: FnQualifier::for_method(method.is_const, method.is_static),
+            params: FnParam::new_range(&method.arguments, ctx),
+            return_value: FnReturn::new(&method.return_value, ctx),
         },
         &FnCode {
             receiver,
@@ -990,16 +1152,16 @@ fn make_method_definition(
             varcall_invocation,
             ptrcall_invocation,
         },
-        ctx,
     )
 }
 
 fn make_builtin_method_definition(
     method: &BuiltinClassMethod,
     class_name: &TyName,
+    inner_class_name: &TyName,
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
-) -> TokenStream {
+) -> FnDefinition {
     let method_name_str = &method.name;
 
     let return_value = method.return_type.as_deref().map(MethodReturn::from_type);
@@ -1028,10 +1190,15 @@ fn make_builtin_method_definition(
     make_function_definition(
         &FnSignature {
             function_name: method_name_str,
+            surrounding_class: Some(inner_class_name),
             is_private: special_cases::is_private(class_name, &method.name),
             is_virtual: false,
-            method_args: option_as_slice(&method.arguments),
-            return_value: return_value.as_ref(),
+            qualifier: FnQualifier::for_method(method.is_const, method.is_static),
+
+            // Disable default parameters for builtin classes.
+            // They are not public-facing and need more involved implementation (lifetimes etc). Also reduces number of symbols in API.
+            params: FnParam::new_range_no_defaults(&method.arguments, ctx),
+            return_value: FnReturn::new(&return_value, ctx),
         },
         &FnCode {
             receiver,
@@ -1040,7 +1207,6 @@ fn make_builtin_method_definition(
             varcall_invocation: ptrcall_invocation.clone(),
             ptrcall_invocation,
         },
-        ctx,
     )
 }
 
@@ -1065,13 +1231,15 @@ pub(crate) fn make_utility_function_definition(
         __call_fn(return_ptr, __args_ptr, __args.len() as i32);
     };
 
-    make_function_definition(
+    let definition = make_function_definition(
         &FnSignature {
             function_name: function_name_str,
+            surrounding_class: None,
             is_private: false,
             is_virtual: false,
-            method_args: option_as_slice(&function.arguments),
-            return_value: return_value.as_ref(),
+            qualifier: FnQualifier::Global,
+            params: FnParam::new_range(&function.arguments, ctx),
+            return_value: FnReturn::new(&return_value, ctx),
         },
         &FnCode {
             receiver: FnReceiver::global_function(),
@@ -1080,8 +1248,13 @@ pub(crate) fn make_utility_function_definition(
             varcall_invocation: invocation.clone(),
             ptrcall_invocation: invocation,
         },
-        ctx,
-    )
+    );
+
+    assert!(
+        definition.builders.is_empty(),
+        "utility functions should not have builders"
+    );
+    definition.functions
 }
 
 /// Defines which methods to use to convert between `Variant` and FFI (either variant ptr or type ptr)
@@ -1104,12 +1277,24 @@ impl VariantFfi {
     }
 }
 
-fn make_function_definition(sig: &FnSignature, code: &FnCode, ctx: &mut Context) -> TokenStream {
-    let vis = if sig.is_private {
+fn make_vis(is_private: bool) -> TokenStream {
+    if is_private {
         quote! { pub(crate) }
     } else {
         quote! { pub }
+    }
+}
+
+fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
+    let has_default_params = function_uses_default_params(&sig.params);
+    let vis = if has_default_params {
+        // Public API mapped by separate function.
+        // Needs to be crate-public because default-arg builder lives outside of the module.
+        quote! { pub(crate) }
+    } else {
+        make_vis(sig.is_private)
     };
+
     let (maybe_unsafe, safety_doc) = if function_uses_pointers(sig) {
         (
             quote! { unsafe },
@@ -1125,9 +1310,20 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode, ctx: &mut Context)
 
     let is_varcall = code.variant_ffi.is_some();
     let [params, variant_types, arg_exprs, arg_names] =
-        make_params(sig.method_args, is_varcall, ctx);
+        make_params_and_impl(&sig.params, is_varcall, false);
 
-    let fn_name = safe_ident(sig.function_name);
+    let primary_fn_name = if has_default_params {
+        format_ident!("{}_full", safe_ident(sig.function_name))
+    } else {
+        safe_ident(sig.function_name)
+    };
+
+    let (default_fn_code, default_structs_code) = if has_default_params {
+        make_function_definition_with_defaults(sig, code, &primary_fn_name)
+    } else {
+        (TokenStream::new(), TokenStream::new())
+    };
+
     let (prepare_arg_types, error_fn_context);
     if code.variant_ffi.is_some() {
         // varcall (using varargs)
@@ -1156,20 +1352,20 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode, ctx: &mut Context)
         error_fn_context = sig.function_name.to_token_stream();
     };
 
-    let (return_decl, call_code) = make_return(
-        sig.return_value,
+    let return_decl = &sig.return_value.decl;
+    let call_code = make_return_and_impl(
+        &sig.return_value,
         code,
         prepare_arg_types,
         error_fn_context,
         sig.is_virtual,
-        ctx,
     );
 
     let receiver_param = &code.receiver.param;
-    if sig.is_virtual {
+    let primary_function = if sig.is_virtual {
         quote! {
             #safety_doc
-            #maybe_unsafe fn #fn_name(
+            #maybe_unsafe fn #primary_fn_name(
                 #receiver_param
                 #( #params, )*
             ) #return_decl {
@@ -1182,7 +1378,7 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode, ctx: &mut Context)
         let init_code = &code.init_code;
         quote! {
             #safety_doc
-            #vis #maybe_unsafe fn #fn_name(
+            #vis #maybe_unsafe fn #primary_fn_name(
                 #receiver_param
                 #( #params, )*
                 varargs: &[Variant]
@@ -1209,7 +1405,7 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode, ctx: &mut Context)
         let init_code = &code.init_code;
         quote! {
             #safety_doc
-            #vis #maybe_unsafe fn #fn_name(
+            #vis #maybe_unsafe fn #primary_fn_name(
                 #receiver_param
                 #( #params, )*
             ) #return_decl {
@@ -1226,10 +1422,196 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode, ctx: &mut Context)
                 }
             }
         }
+    };
+
+    FnDefinition {
+        functions: quote! {
+            #primary_function
+            #default_fn_code
+        },
+        builders: default_structs_code,
     }
 }
 
+fn make_function_definition_with_defaults(
+    sig: &FnSignature,
+    code: &FnCode,
+    full_fn_name: &Ident,
+) -> (TokenStream, TokenStream) {
+    let (default_fn_params, required_fn_params): (Vec<_>, Vec<_>) = sig
+        .params
+        .iter()
+        .partition(|arg| arg.default_value.is_some());
+
+    let builder_mut = if matches!(sig.qualifier, FnQualifier::Const) {
+        quote! {}
+    } else {
+        quote! { mut }
+    };
+
+    // Treat the object parameter like other parameters, as first in list
+    // Only add it if the method is not global or static
+    let (object_fn_param, object_param, object_arg);
+    match &sig.surrounding_class {
+        Some(surrounding_class) if !sig.qualifier.is_static_or_global() => {
+            let class = &surrounding_class.rust_ty;
+
+            object_fn_param = Some(FnParam {
+                name: ident("surround_object"),
+                // Not exactly EngineClass, but close enough
+                type_: RustTy::EngineClass {
+                    tokens: quote! { &'a #builder_mut re_export::#class },
+                    class: String::new(),
+                },
+                default_value: None,
+            });
+            object_param = quote! { surround_object: &'a #builder_mut re_export::#class, };
+            object_arg = quote! { self, };
+        }
+        _ => {
+            object_fn_param = None;
+            object_param = TokenStream::new();
+            object_arg = TokenStream::new();
+        }
+    };
+
+    // Not in the above match, because this is true for both static/instance methods.
+    // Static/instance is determined by first argument (always use fully qualified function call syntax).
+    let surround_class_prefix = sig.surrounding_class.map(|class| {
+        let class = &class.rust_ty;
+        quote! { re_export::#class:: }
+    });
+
+    //
+    // let object_arg_inside = if let Some(surrounding_class) = &sig.surrounding_class {
+    //     if sig.is_static_or_global {
+    //         quote! { self.surround_object }
+    //     } else {
+    //         quote! { self.surround_object }
+    //     }
+    // } else {
+    //     quote! { }
+    // };
+
+    let all_fn_params = object_fn_param.iter().chain(&sig.params);
+
+    let builder_name = format_ident!("{}Builder", to_pascal_case(sig.function_name));
+    let (lifetime, anon_lifetime) = if sig.qualifier.is_static_or_global() {
+        (TokenStream::new(), TokenStream::new())
+    } else {
+        (quote! { <'a> }, quote! { <'_> })
+    };
+
+    let builder_fields = all_fn_params.clone().map(|param| {
+        let FnParam { name, type_, .. } = param;
+        quote! { #name: #type_ }
+    });
+
+    let builder_args = all_fn_params.clone().map(|param| {
+        let FnParam { name, .. } = param;
+        quote! { self.#name }
+    });
+
+    let builder_inits = all_fn_params.map(|param| {
+        let FnParam {
+            name,
+            default_value,
+            ..
+        } = param;
+
+        // Initialize with default parameters where available, forward constructor args otherwise
+        if let Some(value) = default_value {
+            quote! { #name: #value }
+        } else {
+            quote! { #name }
+        }
+    });
+
+    let builder_methods = default_fn_params.iter().map(|param| {
+        let FnParam { name, type_, .. } = param;
+
+        quote! {
+            #[inline]
+            pub fn #name(self, value: #type_) -> Self {
+                // Currently not testing whether the parameter was already set
+                Self {
+                    #name: value,
+                    ..self
+                }
+            }
+        }
+    });
+
+    let nodefaults_fn_name = safe_ident(sig.function_name);
+    let defaults_fn_name = format_ident!("{}_ex", nodefaults_fn_name);
+    let vis = make_vis(sig.is_private);
+
+    let receiver_param = &code.receiver.param;
+    let receiver_self = &code.receiver.self_prefix;
+    let (required_params, required_args) = make_params_and_args(&required_fn_params);
+    let return_decl = &sig.return_value.decl;
+
+    // Technically, the builder would not need a lifetime -- it could just maintain an `object_ptr` copy.
+    // However, this increases the risk that it is used out of place (not immediately for a default-param call).
+    // Ideally we would require &mut, but then we would need `mut Gd<T>` objects everywhere.
+    let builders = quote! {
+        #[derive(Debug)]
+        #[must_use]
+        pub struct #builder_name #lifetime {
+            // #builder_surround_ref
+            #( #builder_fields, )*
+        }
+
+        impl #lifetime #builder_name #lifetime {
+            fn new(
+                #object_param
+                #( #required_params, )*
+            ) -> Self {
+                Self {
+                    #( #builder_inits, )*
+                }
+            }
+
+            #( #builder_methods )*
+
+            #[inline]
+            pub fn done(self) #return_decl {
+                #surround_class_prefix #full_fn_name(
+                    #( #builder_args, )*
+                )
+            }
+        }
+    };
+
+    let functions = quote! {
+        #[inline]
+        #vis fn #nodefaults_fn_name(
+            #receiver_param
+            #( #required_params, )*
+        ) #return_decl {
+            #receiver_self #defaults_fn_name(
+                #( #required_args, )*
+            ).done()
+        }
+
+        #[inline]
+        #vis fn #defaults_fn_name(
+            #receiver_param
+            #( #required_params, )*
+        ) -> #builder_name #anon_lifetime {
+            #builder_name::new(
+                #object_arg
+                #( #required_args, )*
+            )
+        }
+    };
+
+    (functions, builders)
+}
+
 fn make_receiver(is_static: bool, is_const: bool, ffi_arg: TokenStream) -> FnReceiver {
+    // could reuse FnQualifier as parameter
+
     let param = if is_static {
         quote! {}
     } else if is_const {
@@ -1257,18 +1639,23 @@ fn make_receiver(is_static: bool, is_const: bool, ffi_arg: TokenStream) -> FnRec
     }
 }
 
-fn make_params(
-    method_args: &[MethodArg],
+fn make_params_and_impl(
+    method_args: &[FnParam],
     is_varcall: bool,
-    ctx: &mut Context,
+    skip_defaults: bool,
 ) -> [Vec<TokenStream>; 4] {
     let mut params = vec![];
     let mut variant_types = vec![];
     let mut arg_exprs = vec![];
     let mut arg_names = vec![];
-    for arg in method_args.iter() {
-        let param_name = safe_ident(&arg.name);
-        let param_ty = to_rust_type(&arg.type_, ctx);
+
+    for param in method_args.iter() {
+        if skip_defaults && param.default_value.is_some() {
+            continue;
+        }
+
+        let param_name = &param.name;
+        let param_ty = &param.type_;
 
         let arg_expr = if is_varcall {
             quote! { <#param_ty as ToVariant>::to_variant(&#param_name) }
@@ -1283,29 +1670,33 @@ fn make_params(
         arg_exprs.push(arg_expr);
         arg_names.push(quote! { #param_name });
     }
+
     [params, variant_types, arg_exprs, arg_names]
 }
 
-#[allow(clippy::too_many_arguments)]
-fn make_return(
-    return_value: Option<&MethodReturn>,
+fn make_params_and_args(method_args: &[&FnParam]) -> (Vec<TokenStream>, Vec<TokenStream>) {
+    method_args
+        .iter()
+        .map(|param| {
+            let param_name = &param.name;
+            let param_ty = &param.type_;
+
+            (quote! { #param_name: #param_ty }, quote! { #param_name })
+        })
+        .unzip()
+    // .unzip::<(Vec<_>, Vec<_>)>()
+}
+
+fn make_return_and_impl(
+    return_value: &FnReturn,
     code: &FnCode,
     prepare_arg_types: TokenStream,
     error_fn_context: TokenStream, // only for panic message
     is_virtual: bool,
-    ctx: &mut Context,
-) -> (TokenStream, TokenStream) {
-    let return_decl: TokenStream;
-    let return_ty: Option<RustTy>;
-
-    if let Some(ret) = return_value {
-        let ty = to_rust_type(&ret.type_, ctx);
-        return_decl = ty.return_decl();
-        return_ty = Some(ty);
-    } else {
-        return_decl = TokenStream::new();
-        return_ty = None;
-    }
+) -> TokenStream {
+    let FnReturn {
+        type_: return_ty, ..
+    } = return_value;
 
     let FnCode {
         varcall_invocation,
@@ -1378,7 +1769,7 @@ fn make_return(
         }
     };
 
-    (return_decl, call)
+    call
 }
 
 fn make_virtual_methods_trait(
@@ -1450,30 +1841,34 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
     }
 }
 
-fn make_virtual_method(class_method: &ClassMethod, ctx: &mut Context) -> TokenStream {
-    let method_name = virtual_method_name(class_method);
+fn make_virtual_method(method: &ClassMethod, ctx: &mut Context) -> TokenStream {
+    let method_name = virtual_method_name(method);
 
     // Virtual methods are never static.
-    assert!(!class_method.is_static);
+    assert!(!method.is_static);
 
-    make_function_definition(
+    let definition = make_function_definition(
         &FnSignature {
             function_name: method_name,
+            surrounding_class: None, // no default parameters needed for virtual methods
             is_private: false,
             is_virtual: true,
-            method_args: option_as_slice(&class_method.arguments),
-            return_value: class_method.return_value.as_ref(),
+            qualifier: FnQualifier::for_method(method.is_const, method.is_static),
+            params: FnParam::new_range(&method.arguments, ctx),
+            return_value: FnReturn::new(&method.return_value, ctx),
         },
         &FnCode {
-            receiver: make_receiver(false, class_method.is_const, TokenStream::new()),
+            receiver: make_receiver(false, method.is_const, TokenStream::new()),
             // make_return() requests following args, but they are not used for virtual methods. We can provide empty streams.
             variant_ffi: None,
             init_code: TokenStream::new(),
             varcall_invocation: TokenStream::new(),
             ptrcall_invocation: TokenStream::new(),
         },
-        ctx,
-    )
+    );
+
+    // Virtual methods have no builders.
+    definition.functions
 }
 
 fn make_all_virtual_methods(
@@ -1493,11 +1888,13 @@ fn make_all_virtual_methods(
 
     // Get virtuals defined on the current class.
     extend_virtuals(class);
+
     // Add virtuals from superclasses.
     for base in all_base_names {
         let superclass = ctx.get_engine_class(base);
         extend_virtuals(superclass);
     }
+
     all_virtuals
         .into_iter()
         .filter_map(|method| {
@@ -1536,15 +1933,17 @@ fn virtual_method_name(class_method: &ClassMethod) -> &str {
 }
 
 fn function_uses_pointers(sig: &FnSignature) -> bool {
-    if sig.method_args.iter().any(|x| x.type_.contains('*')) {
-        return true;
-    }
+    let has_pointer_params = sig
+        .params
+        .iter()
+        .any(|param| matches!(param.type_, RustTy::RawPointer { .. }));
 
-    if let Some(return_value) = sig.return_value {
-        if return_value.type_.contains('*') {
-            return true;
-        }
-    }
+    let has_pointer_return = matches!(sig.return_value.type_, Some(RustTy::RawPointer { .. }));
 
-    false
+    // No short-circuiting due to variable decls, but that's fine.
+    has_pointer_params || has_pointer_return
+}
+
+fn function_uses_default_params(method_args: &[FnParam]) -> bool {
+    method_args.iter().any(|arg| arg.default_value.is_some())
 }
