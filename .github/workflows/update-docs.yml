@@ -100,7 +100,7 @@ jobs:
 
       - name: "Prepare request"
         run: |
-          token=$(cat .github/external-config/public-docs-token.txt | base64 -w0 -d)
+          token=$(cat .github/other/public-docs-token.txt | base64 -w0 -d)
           echo "DOCS_GENERATOR_TOKEN=github_pat_$token" >> $GITHUB_ENV
 
       - name: "Notify doc workflow"
