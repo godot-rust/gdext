@@ -123,10 +123,9 @@ pub fn c_str(s: &[u8]) -> *const std::ffi::c_char {
     s.as_ptr() as *const std::ffi::c_char
 }
 
+/// Returns a C `const char*` for a null-terminated string slice. UTF-8 encoded.
 #[inline]
 pub fn c_str_from_str(s: &str) -> *const std::ffi::c_char {
-    debug_assert!(s.is_ascii());
-
     c_str(s.as_bytes())
 }
 

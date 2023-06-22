@@ -7,11 +7,10 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use std::fmt;
-
 use crate::builtin::inner;
+use crate::builtin::{GodotString, NodePath};
 
-use super::{GodotString, NodePath};
+use std::fmt;
 
 /// A string optimized for unique names.
 ///
@@ -25,6 +24,43 @@ pub struct StringName {
 impl StringName {
     fn from_opaque(opaque: sys::types::OpaqueStringName) -> Self {
         Self { opaque }
+    }
+
+    /// Creates a `StringName` from a static, nul-terminated ASCII/Latin-1 `b"string"` literal.
+    ///
+    /// Avoids unnecessary copies and allocations and directly uses the backing buffer. Useful for literals.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use godot::builtin::StringName;
+    ///
+    /// let sname = StringName::from_latin1_with_nul(b"± Latin-1 string\0");
+    /// ```
+    ///
+    /// # Panics
+    /// When the string is not nul-terminated or contains interior nul bytes.
+    ///
+    /// Note that every byte is valid in Latin-1, so there is no encoding validation being performed.
+    #[cfg(since_api = "4.2")]
+    pub fn from_latin1_with_nul(latin1_c_str: &'static [u8]) -> Self {
+        let c_str = std::ffi::CStr::from_bytes_with_nul(latin1_c_str)
+            .unwrap_or_else(|_| panic!("invalid or not nul-terminated CStr: '{latin1_c_str:?}'"));
+
+        let result = unsafe {
+            Self::from_string_sys_init(|ptr| {
+                sys::interface_fn!(string_name_new_with_latin1_chars)(
+                    ptr,
+                    c_str.as_ptr(),
+                    true as sys::GDExtensionBool, // p_is_static
+                )
+            })
+        };
+
+        // StringName expects that the destructor is not invoked on static instances (or only at global exit; see SNAME(..) macro in Godot).
+        // According to testing with godot4 --verbose, there is no mention of "Orphan StringName" at shutdown when incrementing the ref-count,
+        // so this should not leak memory.
+        result.inc_ref();
+        result
     }
 
     /// Returns the number of characters in the string.
@@ -63,6 +99,11 @@ impl StringName {
     pub fn as_inner(&self) -> inner::InnerStringName {
         inner::InnerStringName::from_outer(self)
     }
+
+    /// Increment ref-count. This may leak memory if used wrongly.
+    fn inc_ref(&self) {
+        std::mem::forget(self.clone());
+    }
 }
 
 // SAFETY:
@@ -84,7 +125,7 @@ unsafe impl GodotFfi for StringName {
 
     unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
         let string_name = Self::from_sys(ptr);
-        std::mem::forget(string_name.clone());
+        string_name.inc_ref();
         string_name
     }
 
@@ -133,6 +174,33 @@ unsafe impl Send for StringName {}
 // Conversion from/into other string-types
 
 impl_rust_string_conv!(StringName);
+
+impl<S> From<S> for StringName
+where
+    S: AsRef<str>,
+{
+    #[cfg(before_api = "4.2")]
+    fn from(string: S) -> Self {
+        let intermediate = GodotString::from(string.as_ref());
+        Self::from(&intermediate)
+    }
+
+    #[cfg(since_api = "4.2")]
+    fn from(string: S) -> Self {
+        let utf8 = string.as_ref().as_bytes();
+
+        // SAFETY: Rust guarantees validity and range of string.
+        unsafe {
+            Self::from_string_sys_init(|ptr| {
+                sys::interface_fn!(string_name_new_with_utf8_chars_and_len)(
+                    ptr,
+                    utf8.as_ptr() as *const std::ffi::c_char,
+                    utf8.len() as i64,
+                );
+            })
+        }
+    }
+}
 
 impl From<&GodotString> for StringName {
     fn from(string: &GodotString) -> Self {

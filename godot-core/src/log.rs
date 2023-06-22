@@ -12,7 +12,7 @@ macro_rules! inner_godot_msg {
     //($($args:tt),* $(,)?) => {
         unsafe {
             let msg = format!("{}\0", format_args!($fmt $(, $args)*));
-            assert!(msg.is_ascii(), "godot_error: message must be ASCII");
+            // assert!(msg.is_ascii(), "godot_error: message must be ASCII");
 
             // Check whether engine is loaded, otherwise fall back to stderr.
             if $crate::sys::is_initialized() {
