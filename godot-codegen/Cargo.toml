@@ -21,6 +21,8 @@ nanoserde = "0.1.29"
 proc-macro2 = "1"
 quote = "1"
 
+godot-fmt = { path = "../godot-fmt" }
+
 # Since we don't use Regex for unicode parsing, the features unicode-bool/unicode-gencat are used instead of unicode-perl.
 # See also https://docs.rs/regex/latest/regex/#unicode-features.
 regex = { version = "1.5.5", default-features = false, features = ["std", "unicode-bool", "unicode-gencat"] }

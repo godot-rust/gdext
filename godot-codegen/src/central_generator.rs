@@ -7,10 +7,10 @@
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-use crate::api_parser::*;
 use crate::util::{to_pascal_case, to_rust_type, to_snake_case};
+use crate::{api_parser::*, SubmitFn};
 use crate::{ident, util, Context};
 
 struct CentralItems {
@@ -57,25 +57,25 @@ pub(crate) fn generate_sys_central_file(
     ctx: &mut Context,
     build_config: &str,
     sys_gen_path: &Path,
-    out_files: &mut Vec<PathBuf>,
+    submit_fn: &mut SubmitFn,
 ) {
     let central_items = make_central_items(api, build_config, ctx);
     let sys_code = make_sys_code(&central_items);
 
-    write_file(sys_gen_path, "central.rs", sys_code, out_files);
+    submit_fn(sys_gen_path.join("central.rs"), sys_code);
 }
 
-pub(crate) fn generate_sys_mod_file(core_gen_path: &Path, out_files: &mut Vec<PathBuf>) {
+pub(crate) fn generate_sys_mod_file(core_gen_path: &Path, submit_fn: &mut SubmitFn) {
     let code = quote! {
         pub mod central;
         pub mod interface;
         pub mod gdextension_interface;
     };
 
-    write_file(core_gen_path, "mod.rs", code.to_string(), out_files);
+    submit_fn(core_gen_path.join("mod.rs"), code);
 }
 
-pub(crate) fn generate_core_mod_file(core_gen_path: &Path, out_files: &mut Vec<PathBuf>) {
+pub(crate) fn generate_core_mod_file(gen_path: &Path, submit_fn: &mut SubmitFn) {
     // When invoked by another crate during unit-test (not integration test), don't run generator
     let code = quote! {
         pub mod central;
@@ -85,43 +85,23 @@ pub(crate) fn generate_core_mod_file(core_gen_path: &Path, out_files: &mut Vec<P
         pub mod native;
     };
 
-    write_file(core_gen_path, "mod.rs", code.to_string(), out_files);
+    submit_fn(gen_path.join("mod.rs"), code);
 }
 
 pub(crate) fn generate_core_central_file(
     api: &ExtensionApi,
     ctx: &mut Context,
     build_config: &str,
-    core_gen_path: &Path,
-    out_files: &mut Vec<PathBuf>,
+    gen_path: &Path,
+    submit_fn: &mut SubmitFn,
 ) {
     let central_items = make_central_items(api, build_config, ctx);
     let core_code = make_core_code(&central_items);
 
-    write_file(core_gen_path, "central.rs", core_code, out_files);
+    submit_fn(gen_path.join("central.rs"), core_code);
 }
 
-// TODO(bromeon): move to util (postponed due to merge conflicts)
-pub(crate) fn write_file(
-    gen_path: &Path,
-    filename: &str,
-    code: String,
-    out_files: &mut Vec<PathBuf>,
-) {
-    let _ = std::fs::create_dir_all(gen_path);
-    let out_path = gen_path.join(filename);
-
-    std::fs::write(&out_path, code).unwrap_or_else(|e| {
-        panic!(
-            "failed to write code file to {};\n\t{}",
-            out_path.display(),
-            e
-        )
-    });
-    out_files.push(out_path);
-}
-
-fn make_sys_code(central_items: &CentralItems) -> String {
+fn make_sys_code(central_items: &CentralItems) -> TokenStream {
     let CentralItems {
         opaque_types,
         variant_ty_enumerators_pascal,
@@ -136,7 +116,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
 
     let build_config_struct = make_build_config(godot_version);
 
-    let sys_tokens = quote! {
+    quote! {
         use crate::{
             ffi_methods, GDExtensionConstTypePtr, GDExtensionTypePtr, GDExtensionUninitializedTypePtr,
             GDExtensionUninitializedVariantPtr, GDExtensionVariantPtr, GodotFfi,
@@ -232,9 +212,7 @@ fn make_sys_code(central_items: &CentralItems) -> String {
         unsafe impl GodotFfi for VariantOperator {
             ffi_methods! { type GDExtensionTypePtr = *mut Self; .. }
         }
-    };
-
-    sys_tokens.to_string()
+    }
 }
 
 fn make_build_config(header: &Header) -> TokenStream {
@@ -285,7 +263,7 @@ fn make_build_config(header: &Header) -> TokenStream {
     }
 }
 
-fn make_core_code(central_items: &CentralItems) -> String {
+fn make_core_code(central_items: &CentralItems) -> TokenStream {
     let CentralItems {
         variant_ty_enumerators_pascal,
         variant_ty_enumerators_rust,
@@ -296,7 +274,7 @@ fn make_core_code(central_items: &CentralItems) -> String {
     // TODO impl Clone, Debug, PartialEq, PartialOrd, Hash for VariantDispatch
     // TODO could use try_to().unwrap_unchecked(), since type is already verified. Also directly overload from_variant().
     // But this requires that all the variant types support this
-    let core_tokens = quote! {
+    quote! {
         use crate::builtin::*;
         use crate::engine::Object;
         use crate::obj::Gd;
@@ -334,9 +312,7 @@ fn make_core_code(central_items: &CentralItems) -> String {
             use crate::sys;
             #( #global_enum_defs )*
         }
-    };
-
-    core_tokens.to_string()
+    }
 }
 
 fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context) -> CentralItems {

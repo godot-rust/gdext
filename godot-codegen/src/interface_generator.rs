@@ -4,13 +4,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::central_generator::write_file;
 use crate::util::ident;
+use crate::SubmitFn;
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::quote;
 use regex::Regex;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 struct GodotFuncPtr {
     name: Ident,
@@ -22,7 +22,7 @@ pub(crate) fn generate_sys_interface_file(
     h_path: &Path,
     sys_gen_path: &Path,
     is_godot_4_0: bool,
-    out_files: &mut Vec<PathBuf>,
+    submit_fn: &mut SubmitFn,
 ) {
     let code = if is_godot_4_0 {
         // Compat for 4.0.x
@@ -37,7 +37,7 @@ pub(crate) fn generate_sys_interface_file(
         generate_proc_address_funcs(h_path)
     };
 
-    write_file(sys_gen_path, "interface.rs", code.to_string(), out_files);
+    submit_fn(sys_gen_path.join("interface.rs"), code);
 }
 
 fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
