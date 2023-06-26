@@ -6,9 +6,9 @@
 
 use crate::api_parser::{ClassConstant, Enum};
 use crate::special_cases::is_builtin_scalar;
-use crate::{Context, ModName, RustTy, TyName};
+use crate::{Context, GodotTy, ModName, RustTy, TyName};
 use proc_macro2::{Ident, Literal, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeStructuresField {
@@ -238,27 +238,53 @@ pub fn safe_ident(s: &str) -> Ident {
     }
 }
 
-fn to_hardcoded_rust_type(ty: &str) -> Option<&str> {
+fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
+    let ty = full_ty.ty.as_str();
+    let meta = full_ty.meta.as_ref().map(String::as_str);
+
+    let result = match (ty, meta) {
+        // Integers
+        ("int", Some("int64") | None) => "i64",
+        ("int", Some("int32")) => "i32",
+        ("int", Some("int16")) => "i16",
+        ("int", Some("int8")) => "i8",
+        ("int", Some("uint64")) => "u64",
+        ("int", Some("uint32")) => "u32",
+        ("int", Some("uint16")) => "u16",
+        ("int", Some("uint8")) => "u8",
+
+        // Floats
+        ("float", Some("double") | None) => "f64",
+        ("float", Some("float")) => "f32",
+
+        // Others
+        ("bool", None) => "bool",
+        ("String", None) => "GodotString",
+        ("Array", None) => "VariantArray",
+
+        // Types needed for native structures mapping
+        ("uint8_t", None) => "u8",
+        ("uint16_t", None) => "u16",
+        ("uint32_t", None) => "u32",
+        ("uint64_t", None) => "u64",
+        ("int8_t", None) => "i8",
+        ("int16_t", None) => "i16",
+        ("int32_t", None) => "i32",
+        ("int64_t", None) => "i64",
+        ("real_t", None) => "real",
+        ("void", None) => "c_void",
+        _ => return None,
+    };
+
+    Some(result)
+}
+
+fn to_hardcoded_rust_enum(ty: &str) -> Option<&str> {
     let result = match ty {
-        "int" => "i64",
-        "float" => "f64",
-        "String" => "GodotString",
-        "Array" => "VariantArray",
         //"enum::Error" => "GodotError",
         "enum::Variant.Type" => "VariantType",
         "enum::Variant.Operator" => "VariantOperator",
         "enum::Vector3.Axis" => "Vector3Axis",
-        // Types needed for native structures mapping
-        "uint8_t" => "u8",
-        "uint16_t" => "u16",
-        "uint32_t" => "u32",
-        "uint64_t" => "u64",
-        "int8_t" => "i8",
-        "int16_t" => "i16",
-        "int32_t" => "i32",
-        "int64_t" => "i64",
-        "real_t" => "real",
-        "void" => "c_void",
         _ => return None,
     };
     Some(result)
@@ -272,7 +298,7 @@ pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context) -> RustTy {
         "int" => RustTy::BuiltinIdent(ident("i32")),
         "float" => RustTy::BuiltinIdent(ident("f32")),
         "double" => RustTy::BuiltinIdent(ident("f64")),
-        _ => to_rust_type(ty, ctx),
+        _ => to_rust_type(ty, None, ctx),
     }
 }
 
@@ -280,19 +306,26 @@ pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context) -> RustTy {
 ///
 /// Uses an internal cache (via `ctx`), as several types are ubiquitous.
 // TODO take TyName as input
-pub(crate) fn to_rust_type(ty: &str, ctx: &mut Context) -> RustTy {
+pub(crate) fn to_rust_type<'a>(ty: &'a str, meta: Option<&String>, ctx: &mut Context) -> RustTy {
+    let full_ty = GodotTy {
+        ty: ty.to_string(),
+        meta: meta.cloned(),
+    };
+
     // Separate find + insert slightly slower, but much easier with lifetimes
     // The insert path will be hit less often and thus doesn't matter
-    if let Some(rust_ty) = ctx.find_rust_type(ty) {
+    if let Some(rust_ty) = ctx.find_rust_type(&full_ty) {
         rust_ty.clone()
     } else {
-        let rust_ty = to_rust_type_uncached(ty, ctx);
-        ctx.insert_rust_type(ty, rust_ty.clone());
+        let rust_ty = to_rust_type_uncached(&full_ty, ctx);
+        ctx.insert_rust_type(full_ty, rust_ty.clone());
         rust_ty
     }
 }
 
-fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
+fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
+    let ty = full_ty.ty.as_str();
+
     /// Transforms a Godot class/builtin/enum IDENT (without `::` or other syntax) to a Rust one
     fn rustify_ty(ty: &str) -> Ident {
         if is_builtin_scalar(ty) {
@@ -303,28 +336,34 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
     }
 
     if ty.ends_with('*') {
-        // Pointer type; strip '*', see if const, and then resolve the
-        // inner type.
+        // Pointer type; strip '*', see if const, and then resolve the inner type.
         let mut ty = ty[0..ty.len() - 1].to_string();
+
         // 'const' should apply to the innermost pointer, if present.
         let is_const = ty.starts_with("const ") && !ty.ends_with('*');
         if is_const {
             ty = ty.replace("const ", "");
         }
-        // .trim() is necessary here, as the Godot extension API
-        // places a space between a type and its stars if it's a
-        // double pointer. That is, Godot writes "int*" but, if it's a
-        // double pointer, then it writes "int **" instead (with a
-        // space in the middle).
-        let inner_type = to_rust_type(ty.trim(), ctx);
+
+        // .trim() is necessary here, as Godot places a space between a type and the stars when representing a double pointer.
+        // Example: "int*" but "int **".
+        let inner_type = to_rust_type(ty.trim(), None, ctx);
         return RustTy::RawPointer {
             inner: Box::new(inner_type),
             is_const,
         };
     }
 
-    if let Some(hardcoded) = to_hardcoded_rust_type(ty) {
+    // Only place where meta is relevant is here.
+    if let Some(hardcoded) = to_hardcoded_rust_ident(full_ty) {
         return RustTy::BuiltinIdent(ident(hardcoded));
+    }
+
+    if let Some(hardcoded) = to_hardcoded_rust_enum(ty) {
+        return RustTy::EngineEnum {
+            tokens: ident(hardcoded).to_token_stream(),
+            surrounding_class: None, // would need class passed in
+        };
     }
 
     let qualified_enum = ty
@@ -356,11 +395,7 @@ fn to_rust_type_uncached(ty: &str, ctx: &mut Context) -> RustTy {
             return RustTy::BuiltinIdent(rustify_ty(ty));
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
-        if let Some(_packed_arr_ty) = elem_ty.strip_prefix("Packed") {
-            return RustTy::BuiltinIdent(rustify_ty(elem_ty));
-        }
-
-        let rust_elem_ty = to_rust_type(elem_ty, ctx);
+        let rust_elem_ty = to_rust_type(elem_ty, None, ctx);
         return if ctx.is_builtin(elem_ty) {
             RustTy::BuiltinArray(quote! { Array<#rust_elem_ty> })
         } else {
@@ -427,18 +462,22 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
     match expr {
         "true" => return quote! { true },
         "false" => return quote! { false },
-        "null" => return quote! { Variant::nil() },
         "[]" | "{}" if is_inner => return quote! {},
         "[]" => return quote! { Array::new() }, // VariantArray or Array<T>
         "{}" => return quote! { Dictionary::new() },
+        "null" => match ty {
+            RustTy::BuiltinIdent(ident) if ident == "Variant" => return quote! { Variant::nil() },
+            RustTy::EngineClass { .. } => return quote! { unimplemented!("see #156") },
+            _ => panic!("null not representable in target type {ty:?}"),
+        },
         // empty string appears only for Callable/Rid
-        "" if !is_inner => {
-            match ty {
-                RustTy::BuiltinIdent(ident) if ident == "Rid" => return quote! { Rid::Invalid },
-                RustTy::BuiltinIdent(ident) if ident == "Callable" => { return quote! { Callable::invalid() } }
-                _ => panic!("empty string not representable in target type {ty:?}"),
+        "" if !is_inner => match ty {
+            RustTy::BuiltinIdent(ident) if ident == "Rid" => return quote! { Rid::Invalid },
+            RustTy::BuiltinIdent(ident) if ident == "Callable" => {
+                return quote! { Callable::invalid() }
             }
-        }
+            _ => panic!("empty string not representable in target type {ty:?}"),
+        },
         _ => {}
     }
 
@@ -446,6 +485,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
     if let Ok(num) = expr.parse::<i64>() {
         let lit = Literal::i64_unsuffixed(num);
         return match ty {
+            RustTy::BuiltinIdent(ident) if ident == "Variant" => quote! { Variant::from(#lit) },
             RustTy::EngineEnum { .. } => quote! { crate::obj::EngineEnum::from_ord(#lit) },
             // RustTy::BuiltinIdent(ident) if ident == "f64" || ident == "i64" => quote! { #lit },
             // _ => panic!("cannot map int literal {expr} to type {ty:?}")
@@ -565,6 +605,15 @@ fn gdscript_to_rust_expr() {
     };
     let ty_enum = Some(&ty_enum);
 
+    let ty_variant = RustTy::BuiltinIdent(ident("Variant"));
+    let ty_variant = Some(&ty_variant);
+
+    let ty_object = RustTy::EngineClass {
+        tokens: quote! { Gd<MyClass> },
+        class: "MyClass".to_string(),
+    };
+    let ty_object = Some(&ty_object);
+
     #[rustfmt::skip]
     let table = [
         // int
@@ -582,12 +631,17 @@ fn gdscript_to_rust_expr() {
         // enum (from int)
         ("7",                                              ty_enum,            quote! { godot::obj::EngineEnum::from_ord(7) }),
 
+        // Variant (from int)
+        ("7",                                              ty_variant,         quote! { Variant::from(7) }),
+
         // Special literals
         ("true",                                           None,               quote! { true }),
         ("false",                                          None,               quote! { false }),
-        ("null",                                           None,               quote! { Variant::nil() }),
         ("{}",                                             None,               quote! { Dictionary::new() }),
         ("[]",                                             None,               quote! { VariantArray::new() }),
+
+        ("null",                                           ty_variant,         quote! { Variant::nil() }),
+        ("null",                                           ty_object,          quote! { None }), // TODO implement #156
 
         // String-likes
         ("\" \"",                                          None,               quote! { GodotString::from(" ") }),

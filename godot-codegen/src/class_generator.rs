@@ -74,7 +74,7 @@ impl FnParam {
 
     fn new(method_arg: &MethodArg, ctx: &mut Context) -> FnParam {
         let name = safe_ident(&method_arg.name);
-        let type_ = to_rust_type(&method_arg.type_, ctx);
+        let type_ = to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx);
         let default_value = method_arg
             .default_value
             .as_ref()
@@ -90,7 +90,8 @@ impl FnParam {
     fn new_no_defaults(method_arg: &MethodArg, ctx: &mut Context) -> FnParam {
         FnParam {
             name: safe_ident(&method_arg.name),
-            type_: to_rust_type(&method_arg.type_, ctx),
+            type_: to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx),
+            //type_: to_rust_type(&method_arg.type_, &method_arg.meta, ctx),
             default_value: None,
         }
     }
@@ -106,7 +107,7 @@ struct FnReturn {
 impl FnReturn {
     fn new(return_value: &Option<MethodReturn>, ctx: &mut Context) -> Self {
         if let Some(ret) = return_value {
-            let ty = to_rust_type(&ret.type_, ctx);
+            let ty = to_rust_type(&ret.type_, ret.meta.as_ref(), ctx);
 
             Self {
                 decl: ty.return_decl(),
@@ -623,14 +624,14 @@ fn make_notify_method(class_name: &TyName, ctx: &mut Context) -> TokenStream {
         /// a panic. The reason is that the receiving virtual method `on_notification()` acquires a `GdMut` lock dynamically, which must
         /// be exclusive.
         pub fn notify(&mut self, what: #enum_name) {
-            self.notification(i32::from(what) as i64);
+            self.notification(i32::from(what));
         }
 
         /// ⚠️ Like [`Self::notify()`], but starts at the most-derived class and goes up the hierarchy.
         ///
         /// See docs of that method, including the panics.
         pub fn notify_reversed(&mut self, what: #enum_name) {
-            self.notification_ex(i32::from(what) as i64).reversed(true).done();
+            self.notification_ex(i32::from(what)).reversed(true).done();
         }
     }
 }
@@ -735,7 +736,7 @@ fn make_builtin_class(
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> GeneratedBuiltin {
-    let outer_class = if let RustTy::BuiltinIdent(ident) = to_rust_type(&class.name, ctx) {
+    let outer_class = if let RustTy::BuiltinIdent(ident) = to_rust_type(&class.name, None, ctx) {
         ident
     } else {
         panic!("Rust type `{}` categorized wrong", class.name)
@@ -1164,7 +1165,10 @@ fn make_builtin_method_definition(
 ) -> FnDefinition {
     let method_name_str = &method.name;
 
-    let return_value = method.return_type.as_deref().map(MethodReturn::from_type);
+    let return_value = method
+        .return_type
+        .as_deref()
+        .map(MethodReturn::from_type_no_meta);
     let hash = method.hash.expect("missing hash for builtin method");
     let is_varcall = method.is_vararg;
     let variant_ffi = is_varcall.then(VariantFfi::type_ptr);
@@ -1219,7 +1223,10 @@ pub(crate) fn make_utility_function_definition(
     }
 
     let function_name_str = &function.name;
-    let return_value = function.return_type.as_deref().map(MethodReturn::from_type);
+    let return_value = function
+        .return_type
+        .as_deref()
+        .map(MethodReturn::from_type_no_meta);
     let hash = function.hash;
     let variant_ffi = function.is_vararg.then_some(VariantFfi::type_ptr());
     let init_code = quote! {
@@ -1475,12 +1482,31 @@ fn make_function_definition_with_defaults(
         }
     };
 
+    let nodefaults_fn_name = safe_ident(sig.function_name);
+    let defaults_fn_name = format_ident!("{}_ex", nodefaults_fn_name);
+    let vis = make_vis(sig.is_private);
+
     // Not in the above match, because this is true for both static/instance methods.
     // Static/instance is determined by first argument (always use fully qualified function call syntax).
-    let surround_class_prefix = sig.surrounding_class.map(|class| {
-        let class = &class.rust_ty;
-        quote! { re_export::#class:: }
-    });
+    let surround_class_prefix;
+    let builder_doc;
+    match sig.surrounding_class {
+        Some(TyName { rust_ty, .. }) => {
+            surround_class_prefix = quote! { re_export::#rust_ty:: };
+            builder_doc = format!(
+                "Default-parameter builder for method [`{class}::{method}`][super::{class}::{method}.",
+                class = rust_ty,
+                method = defaults_fn_name,
+            );
+        }
+        None => {
+            surround_class_prefix = TokenStream::new();
+            builder_doc = format!(
+                "Default-parameter builder for function [`{function}`][super::{function}].",
+                function = defaults_fn_name
+            );
+        }
+    };
 
     //
     // let object_arg_inside = if let Some(surrounding_class) = &sig.surrounding_class {
@@ -1542,10 +1568,6 @@ fn make_function_definition_with_defaults(
         }
     });
 
-    let nodefaults_fn_name = safe_ident(sig.function_name);
-    let defaults_fn_name = format_ident!("{}_ex", nodefaults_fn_name);
-    let vis = make_vis(sig.is_private);
-
     let receiver_param = &code.receiver.param;
     let receiver_self = &code.receiver.self_prefix;
     let (required_params, required_args) = make_params_and_args(&required_fn_params);
@@ -1555,6 +1577,7 @@ fn make_function_definition_with_defaults(
     // However, this increases the risk that it is used out of place (not immediately for a default-param call).
     // Ideally we would require &mut, but then we would need `mut Gd<T>` objects everywhere.
     let builders = quote! {
+        #[doc = #builder_doc]
         #[derive(Debug)]
         #[must_use]
         pub struct #builder_name #lifetime {

@@ -217,7 +217,7 @@ pub struct MethodArg {
     pub name: String,
     #[nserde(rename = "type")]
     pub type_: String,
-    // pub meta: Option<String>,
+    pub meta: Option<String>,
     pub default_value: Option<String>,
 }
 
@@ -226,13 +226,14 @@ pub struct MethodArg {
 pub struct MethodReturn {
     #[nserde(rename = "type")]
     pub type_: String,
-    // pub meta: Option<String>,
+    pub meta: Option<String>,
 }
 
 impl MethodReturn {
-    pub fn from_type(type_: &str) -> Self {
+    pub fn from_type_no_meta(type_: &str) -> Self {
         Self {
             type_: type_.to_owned(),
+            meta: None,
         }
     }
 }

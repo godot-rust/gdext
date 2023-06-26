@@ -134,6 +134,25 @@ fn rustfmt_if_needed(_out_files: Vec<PathBuf>) {}
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared utility types
 
+// Same as above, without lifetimes
+
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+struct GodotTy {
+    ty: String,
+    meta: Option<String>,
+}
+
+// impl GodotTy {
+//     fn new<'a>(ty: &'a String, meta: &'a Option<String>) -> Self {
+//         Self {
+//             ty: ty.clone(),
+//             meta: meta.clone(),
+//         }
+//     }
+// }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[derive(Clone, Debug)]
 enum RustTy {
     /// `bool`, `Vector3i`
