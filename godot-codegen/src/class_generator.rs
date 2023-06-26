@@ -14,7 +14,7 @@ use crate::api_parser::*;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
 use crate::util::{
     ident, option_as_slice, parse_native_structures_format, safe_ident, to_pascal_case,
-    to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
+    to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case, unmap_meta, NativeStructuresField,
 };
 use crate::{
     special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
@@ -1316,7 +1316,7 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
     };
 
     let is_varcall = code.variant_ffi.is_some();
-    let [params, variant_types, arg_exprs, arg_names] =
+    let [params, variant_types, arg_exprs, arg_names, meta_arg_decls] =
         make_params_and_impl(&sig.params, is_varcall, false);
 
     let primary_fn_name = if has_default_params {
@@ -1419,6 +1419,7 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
                 unsafe {
                     #init_code
 
+                    #( #meta_arg_decls )*
                     let __args = [
                         #( #arg_exprs ),*
                     ];
@@ -1578,7 +1579,6 @@ fn make_function_definition_with_defaults(
     // Ideally we would require &mut, but then we would need `mut Gd<T>` objects everywhere.
     let builders = quote! {
         #[doc = #builder_doc]
-        #[derive(Debug)]
         #[must_use]
         pub struct #builder_name #lifetime {
             // #builder_surround_ref
@@ -1666,11 +1666,12 @@ fn make_params_and_impl(
     method_args: &[FnParam],
     is_varcall: bool,
     skip_defaults: bool,
-) -> [Vec<TokenStream>; 4] {
+) -> [Vec<TokenStream>; 5] {
     let mut params = vec![];
     let mut variant_types = vec![];
     let mut arg_exprs = vec![];
     let mut arg_names = vec![];
+    let mut meta_arg_decls = vec![];
 
     for param in method_args.iter() {
         if skip_defaults && param.default_value.is_some() {
@@ -1679,22 +1680,36 @@ fn make_params_and_impl(
 
         let param_name = &param.name;
         let param_ty = &param.type_;
+        let canonical_ty = unmap_meta(&param_ty);
 
         let arg_expr = if is_varcall {
             quote! { <#param_ty as ToVariant>::to_variant(&#param_name) }
         } else if let RustTy::EngineClass { tokens: path, .. } = &param_ty {
             quote! { <#path as AsArg>::as_arg_ptr(&#param_name) }
         } else {
+            let param_ty = if let Some(canonical_ty) = canonical_ty.as_ref() {
+                canonical_ty.to_token_stream()
+            } else {
+                param_ty.to_token_stream()
+            };
             quote! { <#param_ty as sys::GodotFfi>::sys_const(&#param_name) }
+        };
+
+        // Note: could maybe reuse GodotFuncMarshal in the future
+        let meta_arg_decl = if let Some(canonical) = canonical_ty {
+            quote! { let #param_name = #param_name as #canonical; }
+        } else {
+            quote! {}
         };
 
         params.push(quote! { #param_name: #param_ty });
         variant_types.push(quote! { <#param_ty as VariantMetadata>::variant_type() });
         arg_exprs.push(arg_expr);
         arg_names.push(quote! { #param_name });
+        meta_arg_decls.push(meta_arg_decl);
     }
 
-    [params, variant_types, arg_exprs, arg_names]
+    [params, variant_types, arg_exprs, arg_names, meta_arg_decls]
 }
 
 fn make_params_and_args(method_args: &[&FnParam]) -> (Vec<TokenStream>, Vec<TokenStream>) {
@@ -1778,10 +1793,19 @@ fn make_return_and_impl(
             }
         }
         (false, None, Some(return_ty)) => {
+            let (ffi_ty, conversion);
+            if let Some(canonical_ty) = unmap_meta(&return_ty) {
+                ffi_ty = canonical_ty.to_token_stream();
+                conversion = quote! { as #return_ty };
+            } else {
+                ffi_ty = return_ty.to_token_stream();
+                conversion = quote! {};
+            };
+
             quote! {
-                <#return_ty as sys::GodotFfi>::from_sys_init_default(|return_ptr| {
+                <#ffi_ty as sys::GodotFfi>::from_sys_init_default(|return_ptr| {
                     #ptrcall_invocation
-                })
+                }) #conversion
             }
         }
         (false, None, None) => {

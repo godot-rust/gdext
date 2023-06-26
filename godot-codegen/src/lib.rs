@@ -212,7 +212,6 @@ impl ToTokens for RustTy {
             RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
-            //RustTy::Other(path) => path.to_tokens(tokens),
         }
     }
 }
