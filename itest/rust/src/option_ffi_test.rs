@@ -85,3 +85,16 @@ impl OptionFfiTest {
         value
     }
 }
+
+#[derive(GodotClass)]
+#[class(init)]
+struct OptionExportFfiTest {
+    #[var]
+    optional: Option<Gd<Node>>,
+
+    #[export]
+    optional_export: Option<Gd<Node>>,
+}
+
+#[godot_api]
+impl OptionExportFfiTest {}

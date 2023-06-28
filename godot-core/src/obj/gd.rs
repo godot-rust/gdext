@@ -25,7 +25,7 @@ use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
 use crate::obj::{cap, dom, mem, EngineEnum, GodotClass, Inherits, Share};
 use crate::obj::{GdMut, GdRef, InstanceId};
-use crate::property::{Export, ExportInfo, TypeStringHint};
+use crate::property::{Export, ExportInfo, Property, TypeStringHint};
 use crate::storage::InstanceStorage;
 use crate::{callbacks, engine, out};
 
@@ -691,17 +691,19 @@ impl<T: GodotClass> TypeStringHint for Gd<T> {
     }
 }
 
-impl<T: TypeStringHint> TypeStringHint for Option<T> {
-    fn type_string() -> String {
-        <T>::type_string()
+impl<T: GodotClass> Property for Gd<T> {
+    type Intermediate = Self;
+
+    fn get_property(&self) -> Self {
+        self.share()
+    }
+
+    fn set_property(&mut self, value: Self) {
+        *self = value;
     }
 }
 
 impl<T: GodotClass> Export for Gd<T> {
-    fn export(&self) -> Self {
-        self.share()
-    }
-
     fn default_export_info() -> ExportInfo {
         let hint = if T::inherits::<Resource>() {
             engine::global::PropertyHint::PROPERTY_HINT_RESOURCE_TYPE
@@ -715,11 +717,7 @@ impl<T: GodotClass> Export for Gd<T> {
         // but is needed when it is a resource/node.
         let hint_string = T::CLASS_NAME.into();
 
-        ExportInfo {
-            variant_type: Self::variant_type(),
-            hint,
-            hint_string,
-        }
+        ExportInfo { hint, hint_string }
     }
 }
 

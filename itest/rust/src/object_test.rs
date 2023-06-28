@@ -709,7 +709,7 @@ pub mod object_test_gd {
     #[derive(GodotClass)]
     #[class(init, base=Object)]
     struct MockObjRust {
-        #[export]
+        #[var]
         i: i64,
     }
 
@@ -719,7 +719,7 @@ pub mod object_test_gd {
     #[derive(GodotClass)]
     #[class(init, base=RefCounted)]
     struct MockRefCountedRust {
-        #[export]
+        #[var]
         i: i64,
     }
 
@@ -773,7 +773,7 @@ pub mod object_test_gd {
         #[base]
         base: Base<Object>,
 
-        #[export]
+        #[var]
         pub val: i64,
     }
 

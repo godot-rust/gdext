@@ -9,14 +9,14 @@ use godot::prelude::*;
 #[derive(GodotClass)]
 #[class(init)]
 struct WithInitDefaults {
-    #[export(get)]
+    #[var(get)]
     default_int: i64,
 
-    #[export(get)]
+    #[var(get)]
     #[init(default = 42)]
     literal_int: i64,
 
-    #[export(get)]
+    #[var(get)]
     #[init(default = -42)]
     expr_int: i64,
 }

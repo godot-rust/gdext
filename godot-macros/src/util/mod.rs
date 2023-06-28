@@ -7,14 +7,16 @@
 // Note: some code duplication with codegen crate
 
 use crate::ParseResult;
-use proc_macro2::{Ident, TokenTree};
+use proc_macro2::{Delimiter, Ident, TokenTree};
 use quote::format_ident;
 use quote::spanned::Spanned;
 use venial::{Error, Function, GenericParamList, Impl, WhereClause};
 
 mod kv_parser;
+mod list_parser;
 
 pub(crate) use kv_parser::KvParser;
+pub(crate) use list_parser::ListParser;
 
 pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
@@ -64,6 +66,15 @@ fn is_punct(tt: &TokenTree, c: char) -> bool {
     match tt {
         TokenTree::Punct(punct) => punct.as_char() == c,
         _ => false,
+    }
+}
+
+fn delimiter_opening_char(delimiter: Delimiter) -> char {
+    match delimiter {
+        Delimiter::Parenthesis => '(',
+        Delimiter::Brace => '{',
+        Delimiter::Bracket => '[',
+        Delimiter::None => 'Ø',
     }
 }
 

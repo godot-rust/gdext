@@ -338,6 +338,20 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     let enums = make_enums(option_as_slice(&class.enums), class_name, ctx);
     let constants = make_constants(option_as_slice(&class.constants), class_name, ctx);
     let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
+
+    let (exportable_impl, exportable_macro_impl) = if ctx.is_exportable(class_name) {
+        (
+            quote! {
+                impl crate::obj::ExportableObject for #class_name {}
+            },
+            quote! {
+                impl ::godot::obj::ExportableObject for $Class {}
+            },
+        )
+    } else {
+        (TokenStream::new(), TokenStream::new())
+    };
+
     let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
     let (notification_enum, notification_enum_name) =
         make_notification_enum(class_name, &all_bases, ctx);
@@ -414,6 +428,9 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
             #(
                 impl crate::obj::Inherits<crate::engine::#all_bases> for #class_name {}
             )*
+
+            #exportable_impl
+
             impl std::ops::Deref for #class_name {
                 type Target = #base_ty;
 
@@ -437,6 +454,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
                     #(
                         impl ::godot::obj::Inherits<::godot::engine::#all_bases> for $Class {}
                     )*
+                    #exportable_macro_impl
                 }
             }
         }

@@ -147,6 +147,17 @@ impl<'a> Context<'a> {
         self.singletons.contains(class_name)
     }
 
+    pub fn is_exportable(&self, class_name: &TyName) -> bool {
+        if class_name.godot_ty == "Resource" || class_name.godot_ty == "Node" {
+            return true;
+        }
+
+        self.inheritance_tree
+            .collect_all_bases(class_name)
+            .iter()
+            .any(|ty| ty.godot_ty == "Resource" || ty.godot_ty == "Node")
+    }
+
     pub fn inheritance_tree(&self) -> &InheritanceTree {
         &self.inheritance_tree
     }

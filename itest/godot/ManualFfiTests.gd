@@ -234,3 +234,58 @@ func test_option_node_some_ptrcall():
 	assert_eq(mirrored, from_gdscript, "mirrored == from_gdscript")
 	from_gdscript.free()
 	from_rust.free()
+
+func test_custom_property():
+	var has_property: HasCustomProperty = HasCustomProperty.new()
+	assert_eq(has_property.some_c_style_enum, 0)
+	assert_eq(has_property.enum_as_string(), "A")
+	has_property.some_c_style_enum = 1
+	assert_eq(has_property.enum_as_string(), "B")
+	assert_eq(has_property.some_c_style_enum, 1)
+
+	var d: Dictionary = has_property.not_exportable
+	assert_eq(d.a, 0)
+	assert_eq(d.b, 0)
+	has_property.not_exportable = {"a": 28, "b": 33}
+	d = has_property.not_exportable
+	assert_eq(d.a, 28)
+	assert_eq(d.b, 33)
+
+func test_custom_property_wrong_values_1():
+	var has_property: HasCustomProperty = HasCustomProperty.new()
+	disable_error_messages()
+	has_property.some_c_style_enum = 10
+	enable_error_messages()
+	assert_fail("HasCustomProperty.some_c_style_enum should only accept integers in the range `(0 ..= 2)`")
+
+func test_custom_property_wrong_values_2():
+	var has_property: HasCustomProperty = HasCustomProperty.new()
+	disable_error_messages()
+	has_property.not_exportable = {"a": "hello", "b": Callable()}
+	enable_error_messages()
+	assert_fail("HasCustomProperty.not_exportable should only accept dictionaries with float values")
+
+func test_option_export():
+	var obj := OptionExportFfiTest.new()
+
+	assert_eq(obj.optional, null)
+	assert_eq(obj.optional_export, null)
+
+	obj.optional = null
+	obj.optional_export = null
+	assert_eq(obj.optional, null)
+	assert_eq(obj.optional_export, null)
+
+	var test_node := Node.new()
+
+	obj.optional = test_node
+	obj.optional_export = test_node
+	assert_eq(obj.optional, test_node)
+	assert_eq(obj.optional_export, test_node)
+
+	obj.optional = null
+	obj.optional_export = null
+	assert_eq(obj.optional, null)
+	assert_eq(obj.optional_export, null)
+
+	test_node.free()
