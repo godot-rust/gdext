@@ -624,14 +624,14 @@ fn make_notify_method(class_name: &TyName, ctx: &mut Context) -> TokenStream {
         /// a panic. The reason is that the receiving virtual method `on_notification()` acquires a `GdMut` lock dynamically, which must
         /// be exclusive.
         pub fn notify(&mut self, what: #enum_name) {
-            self.notification(i32::from(what));
+            self.notification(i32::from(what), false);
         }
 
         /// ⚠️ Like [`Self::notify()`], but starts at the most-derived class and goes up the hierarchy.
         ///
         /// See docs of that method, including the panics.
         pub fn notify_reversed(&mut self, what: #enum_name) {
-            self.notification_ex(i32::from(what)).reversed(true).done();
+            self.notification(i32::from(what), true);
         }
     }
 }
@@ -1020,7 +1020,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
             RustTy::EngineClass { class, .. } => is_class_excluded(&class),
         }
     }
-    is_rust_type_excluded(&to_rust_type(ty, ctx))
+    is_rust_type_excluded(&to_rust_type(ty, None, ctx))
 }
 
 fn is_method_excluded(
@@ -1293,7 +1293,7 @@ fn make_vis(is_private: bool) -> TokenStream {
 }
 
 fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
-    let has_default_params = function_uses_default_params(&sig.params);
+    let has_default_params = function_uses_default_params(sig);
     let vis = if has_default_params {
         // Public API mapped by separate function.
         // Needs to be crate-public because default-arg builder lives outside of the module.
@@ -1509,17 +1509,6 @@ fn make_function_definition_with_defaults(
         }
     };
 
-    //
-    // let object_arg_inside = if let Some(surrounding_class) = &sig.surrounding_class {
-    //     if sig.is_static_or_global {
-    //         quote! { self.surround_object }
-    //     } else {
-    //         quote! { self.surround_object }
-    //     }
-    // } else {
-    //     quote! { }
-    // };
-
     let all_fn_params = object_fn_param.iter().chain(&sig.params);
 
     let builder_name = format_ident!("{}Builder", to_pascal_case(sig.function_name));
@@ -1577,6 +1566,11 @@ fn make_function_definition_with_defaults(
     // Technically, the builder would not need a lifetime -- it could just maintain an `object_ptr` copy.
     // However, this increases the risk that it is used out of place (not immediately for a default-param call).
     // Ideally we would require &mut, but then we would need `mut Gd<T>` objects everywhere.
+
+    // #[allow] exceptions:
+    // - wrong_self_convention:     to_*() and from_*() are taken from Godot
+    // - redundant_field_names:     'value: value' is a possible initialization pattern
+    // - needless-update:           '..self' has nothing left to change
     let builders = quote! {
         #[doc = #builder_doc]
         #[must_use]
@@ -1585,6 +1579,7 @@ fn make_function_definition_with_defaults(
             #( #builder_fields, )*
         }
 
+        #[allow(clippy::wrong_self_convention, clippy::redundant_field_names, clippy::needless_update)]
         impl #lifetime #builder_name #lifetime {
             fn new(
                 #object_param
@@ -1680,7 +1675,7 @@ fn make_params_and_impl(
 
         let param_name = &param.name;
         let param_ty = &param.type_;
-        let canonical_ty = unmap_meta(&param_ty);
+        let canonical_ty = unmap_meta(param_ty);
 
         let arg_expr = if is_varcall {
             quote! { <#param_ty as ToVariant>::to_variant(&#param_name) }
@@ -1743,7 +1738,7 @@ fn make_return_and_impl(
         ..
     } = code;
 
-    let call = match (is_virtual, variant_ffi, return_ty) {
+    match (is_virtual, variant_ffi, return_ty) {
         (true, _, _) => {
             quote! {
                 unimplemented!()
@@ -1794,7 +1789,7 @@ fn make_return_and_impl(
         }
         (false, None, Some(return_ty)) => {
             let (ffi_ty, conversion);
-            if let Some(canonical_ty) = unmap_meta(&return_ty) {
+            if let Some(canonical_ty) = unmap_meta(return_ty) {
                 ffi_ty = canonical_ty.to_token_stream();
                 conversion = quote! { as #return_ty };
             } else {
@@ -1814,9 +1809,7 @@ fn make_return_and_impl(
                 #ptrcall_invocation
             }
         }
-    };
-
-    call
+    }
 }
 
 fn make_virtual_methods_trait(
@@ -1991,6 +1984,7 @@ fn function_uses_pointers(sig: &FnSignature) -> bool {
     has_pointer_params || has_pointer_return
 }
 
-fn function_uses_default_params(method_args: &[FnParam]) -> bool {
-    method_args.iter().any(|arg| arg.default_value.is_some())
+fn function_uses_default_params(sig: &FnSignature) -> bool {
+    sig.params.iter().any(|arg| arg.default_value.is_some())
+        && !special_cases::is_excluded_from_default_params(sig.surrounding_class, sig.function_name)
 }
