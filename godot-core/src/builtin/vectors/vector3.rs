@@ -9,7 +9,8 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{
     bezier_derivative, bezier_interpolate, cubic_interpolate, cubic_interpolate_in_time, fposmod,
-    is_equal_approx, is_zero_approx, sign, snapped, ApproxEq, GlamConv, GlamType, CMP_EPSILON,
+    is_equal_approx, is_zero_approx, lerp, sign, snapped, ApproxEq, GlamConv, GlamType,
+    CMP_EPSILON,
 };
 use crate::builtin::vectors::Vector3Axis;
 use crate::builtin::{real, Basis, RVec3, Vector3i};
@@ -291,6 +292,39 @@ impl Vector3 {
         }
     }
 
+    /// Returns the spherical linear interpolation between the vector and `to` by the `weight` amount.
+    ///
+    /// The variable `weight` is representing the amount of interpolation, which is on the range of
+    /// 0.0 to 1.0.
+    ///
+    /// Length is also interpolated in the case that the input vectors have different lengths. If both
+    /// input vectors have zero length or are collinear to each other, the method instead behaves like
+    /// [`Vector3::lerp`].
+    pub fn slerp(self, to: Self, weight: real) -> Self {
+        let start_length_sq: real = self.length_squared();
+        let end_length_sq = to.length_squared();
+        if start_length_sq == 0.0 || end_length_sq == 0.0 {
+            // Vectors with zero length do not have an angle relative to the origin point, so it cannot
+            // produce a cross product for determining the angle to slerp into. Because of this, lerp
+            // is used to interpolate between the two vectors.
+            return self.lerp(to, weight);
+        }
+
+        let axis = self.cross(to);
+        if axis == Vector3::ZERO {
+            // Two collinear vectors do not have a unique perpendicular axis to both of them, so it
+            // cannot produce a cross product for determining the angle to slerp into. Because of this,
+            // lerp is used to interpolate between the two vectors.
+            return self.lerp(to, weight);
+        }
+
+        let unit_axis = axis.normalized();
+        let start_length = start_length_sq.sqrt();
+        let result_length = lerp(start_length, end_length_sq.sqrt(), weight);
+        let angle = self.angle_to(to);
+        self.rotated(unit_axis, angle * weight) * (result_length / start_length)
+    }
+
     pub fn slide(self, normal: Self) -> Self {
         self - normal * self.dot(normal)
     }
@@ -377,7 +411,7 @@ impl GlamConv for Vector3 {
 mod test {
     use super::*;
     use crate::builtin::math::assert_eq_approx;
-    use crate::builtin::real_consts::TAU;
+    use crate::builtin::real_consts::{SQRT_2, TAU};
 
     // Translated from Godot
     #[test]
@@ -409,6 +443,63 @@ mod test {
 
         assert_eq_approx!(a.coord_min(b), Vector3::new(0.1, 3.4, 2.3));
         assert_eq_approx!(a.coord_max(b), Vector3::new(1.2, 5.6, 5.6));
+    }
+
+    #[test]
+    fn test_slerp() {
+        // The halfway point of a slerp operation on two vectors on a circle is the halfway point of
+        // the arc length between the two vectors.
+        let vector_from = Vector3::new(0.0, 2.0, 0.0);
+        let vector_to = Vector3::new(2.0, 0.0, 0.0);
+        let vector_in_between = Vector3::new(SQRT_2, SQRT_2, 0.0);
+        assert_eq_approx!(vector_from.slerp(vector_to, 0.5), vector_in_between);
+
+        // Collinear vectors cannot be slerped so the halfway point of the slerp operation on them is
+        // just the halfway point between them.
+        let vector_from = Vector3::new(0.0, 2.0, 0.0);
+        let vector_to = Vector3::new(0.0, -2.0, 0.0);
+        assert_eq_approx!(vector_from.slerp(vector_to, 0.5), Vector3::ZERO);
+
+        let vector_from = Vector3::new(0.0, 3.0, 0.0);
+        let vector_to = Vector3::new(0.0, 2.0, 0.0);
+        assert_eq_approx!(
+            vector_from.slerp(vector_to, 0.5),
+            Vector3::new(0.0, 2.5, 0.0)
+        );
+
+        // Ported Godot slerp tests.
+        let vector1 = Vector3::new(1.0, 2.0, 3.0);
+        let vector2 = Vector3::new(4.0, 5.0, 6.0);
+        assert_eq_approx!(
+            vector1.normalized().slerp(vector2.normalized(), 0.5),
+            Vector3::new(0.363_866_8, 0.555_698_2, 0.747_529_57)
+        );
+        assert_eq_approx!(
+            vector1.normalized().slerp(vector2.normalized(), 1.0 / 3.0),
+            Vector3::new(0.332_119_76, 0.549_413_74, 0.766_707_84)
+        );
+        assert_eq_approx!(
+            Vector3::new(5.0, 0.0, 0.0).slerp(Vector3::new(0.0, 3.0, 4.0), 0.5),
+            Vector3::new(3.535_534, 2.121_320_5, 2.828_427_3)
+        );
+        assert_eq_approx!(
+            Vector3::new(1.0, 1.0, 1.0).slerp(Vector3::new(2.0, 2.0, 2.0), 0.5),
+            Vector3::new(1.5, 1.5, 1.5)
+        );
+        assert_eq!(Vector3::ZERO.slerp(Vector3::ZERO, 0.5), Vector3::ZERO);
+        assert_eq!(
+            Vector3::ZERO.slerp(Vector3::new(1.0, 1.0, 1.0), 0.5),
+            Vector3::new(0.5, 0.5, 0.5)
+        );
+        assert_eq!(
+            Vector3::new(1.0, 1.0, 1.0).slerp(Vector3::ZERO, 0.5),
+            Vector3::new(0.5, 0.5, 0.5)
+        );
+        assert_eq_approx!(
+            Vector3::new(4.0, 6.0, 2.0).slerp(Vector3::new(8.0, 10.0, 3.0), 0.5),
+            Vector3::new(5.901_942_3, 8.067_587, 2.558_308)
+        );
+        assert_eq_approx!(vector1.slerp(vector2, 0.5).length(), real!(6.258_311));
     }
 
     #[cfg(feature = "serde")]
