@@ -93,6 +93,7 @@ mod derive_to_variant;
 mod gdextension;
 mod godot_api;
 mod itest;
+mod method_registration;
 mod util;
 
 /// Derive macro for [`GodotClass`](godot_core::obj::GodotClass) on structs. You should normally use
