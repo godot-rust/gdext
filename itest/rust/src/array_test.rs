@@ -367,14 +367,11 @@ fn untyped_array_pass_to_godot_func() {
 
 #[itest]
 fn untyped_array_return_from_godot_func() {
-    use godot::engine::node::InternalMode;
-    use godot::engine::Node;
-
     // There aren't many API functions that return an untyped array.
     let mut node = Node::new_alloc();
     let mut child = Node::new_alloc();
     child.set_name("child_node".into());
-    node.add_child(child.share(), false, InternalMode::INTERNAL_MODE_DISABLED);
+    node.add_child(child.share());
     node.queue_free(); // Do not leak even if the test fails.
     let result = node.get_node_and_resource("child_node".into());
 
@@ -408,15 +405,12 @@ fn typed_array_pass_to_godot_func() {
 
 #[itest]
 fn typed_array_return_from_godot_func() {
-    use godot::engine::node::InternalMode;
-    use godot::engine::Node;
-
     let mut node = Node::new_alloc();
     let mut child = Node::new_alloc();
     child.set_name("child_node".into());
-    node.add_child(child.share(), false, InternalMode::INTERNAL_MODE_DISABLED);
+    node.add_child(child.share());
     node.queue_free(); // Do not leak even if the test fails.
-    let children = node.get_children(false);
+    let children = node.get_children();
 
     assert_eq!(children, array![child]);
 }

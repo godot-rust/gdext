@@ -10,7 +10,6 @@
 use crate::builtin::{GodotString, NodePath};
 use crate::obj::dom::EngineDomain;
 use crate::obj::{Gd, GodotClass, Inherits};
-use resource_loader::CacheMode;
 
 pub use crate::gen::central::global;
 pub use crate::gen::classes::*;
@@ -26,8 +25,6 @@ pub use crate::gen::utilities;
 pub mod native {
     pub use crate::gen::native::*;
 }
-
-use self::packed_scene::GenEditState;
 
 /// Extension trait for convenience functions on `PackedScene`
 pub trait PackedSceneExt {
@@ -56,8 +53,7 @@ impl PackedSceneExt for PackedScene {
     where
         T: Inherits<Node>,
     {
-        self.instantiate(GenEditState::GEN_EDIT_STATE_DISABLED)
-            .and_then(|gd| gd.try_cast::<T>())
+        self.instantiate().and_then(|gd| gd.try_cast::<T>())
     }
 }
 
@@ -224,10 +220,8 @@ where
     let type_hint = T::CLASS_NAME;
 
     ResourceLoader::singleton()
-        .load(
-            path.clone(), /* TODO unclone */
-            type_hint.into(),
-            CacheMode::CACHE_MODE_REUSE,
-        )
+        .load_ex(path.clone())
+        .type_hint(type_hint.into())
+        .done() // TODO unclone
         .and_then(|res| res.try_cast::<T>())
 }

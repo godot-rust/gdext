@@ -1,11 +1,12 @@
 use crate::hud::Hud;
 use crate::mob;
 use crate::player;
-use godot::engine::node::InternalMode;
+
 use godot::engine::{Marker2D, PathFollow2D, RigidBody2D, Timer};
 use godot::prelude::*;
+
 use rand::Rng as _;
-use std::f64::consts::PI;
+use std::f32::consts::PI;
 
 // Deriving GodotClass makes the class available to Godot
 #[derive(GodotClass)]
@@ -33,7 +34,7 @@ impl Main {
         hud.bind_mut().show_game_over();
 
         self.music().stop();
-        self.death_sound().play(0.0);
+        self.death_sound().play();
     }
 
     #[func]
@@ -45,22 +46,22 @@ impl Main {
         self.score = 0;
 
         player.bind_mut().start(start_position.get_position());
-        start_timer.start(0.0);
+        start_timer.start();
 
         let mut hud = self.base.get_node_as::<Hud>("Hud");
         let hud = hud.bind_mut();
         hud.update_score(self.score);
         hud.show_message("Get Ready".into());
 
-        self.music().play(0.0);
+        self.music().play();
     }
 
     #[func]
     fn on_start_timer_timeout(&self) {
         let mut mob_timer = self.base.get_node_as::<Timer>("MobTimer");
         let mut score_timer = self.base.get_node_as::<Timer>("ScoreTimer");
-        mob_timer.start(0.0);
-        score_timer.start(0.0);
+        mob_timer.start();
+        score_timer.start();
     }
 
     #[func]
@@ -82,7 +83,7 @@ impl Main {
         let mut rng = rand::thread_rng();
         let progress = rng.gen_range(u32::MIN..u32::MAX);
 
-        mob_spawn_location.set_progress(progress.into());
+        mob_spawn_location.set_progress(progress as f32);
         mob_scene.set_position(mob_spawn_location.get_position());
 
         let mut direction = mob_spawn_location.get_rotation() + PI / 2.0;
@@ -90,11 +91,7 @@ impl Main {
 
         mob_scene.set_rotation(direction);
 
-        self.base.add_child(
-            mob_scene.share().upcast(),
-            false,
-            InternalMode::INTERNAL_MODE_DISABLED,
-        );
+        self.base.add_child(mob_scene.share().upcast());
 
         let mut mob = mob_scene.cast::<mob::Mob>();
         {
@@ -103,7 +100,7 @@ impl Main {
             let range = rng.gen_range(mob.min_speed..mob.max_speed);
 
             mob.set_linear_velocity(Vector2::new(range, 0.0));
-            let lin_vel = mob.get_linear_velocity().rotated(real::from_f64(direction));
+            let lin_vel = mob.get_linear_velocity().rotated(real::from_f32(direction));
             mob.set_linear_velocity(lin_vel);
         }
 
@@ -111,7 +108,6 @@ impl Main {
         hud.bind_mut().connect(
             "start_game".into(),
             Callable::from_object_method(mob, "on_start_game"),
-            0,
         );
     }
 

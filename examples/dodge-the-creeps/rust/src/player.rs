@@ -74,16 +74,16 @@ impl Area2DVirtual for Player {
 
         // Note: exact=false by default, in Rust we have to provide it explicitly
         let input = Input::singleton();
-        if input.is_action_pressed("move_right".into(), false) {
+        if input.is_action_pressed("move_right".into()) {
             velocity += Vector2::RIGHT;
         }
-        if input.is_action_pressed("move_left".into(), false) {
+        if input.is_action_pressed("move_left".into()) {
             velocity += Vector2::LEFT;
         }
-        if input.is_action_pressed("move_down".into(), false) {
+        if input.is_action_pressed("move_down".into()) {
             velocity += Vector2::DOWN;
         }
-        if input.is_action_pressed("move_up".into(), false) {
+        if input.is_action_pressed("move_up".into()) {
             velocity += Vector2::UP;
         }
 
@@ -103,7 +103,7 @@ impl Area2DVirtual for Player {
                 animated_sprite.set_flip_v(velocity.y > 0.0)
             }
 
-            animated_sprite.play(animation.into(), 1.0, false);
+            animated_sprite.play_ex().name(animation.into()).done();
         } else {
             animated_sprite.stop();
         }

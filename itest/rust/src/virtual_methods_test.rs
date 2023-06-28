@@ -14,7 +14,6 @@ use godot::builtin::{
     PackedInt32Array, PackedStringArray, PackedVector2Array, PackedVector3Array, RealConv,
     StringName, ToVariant, Variant, VariantArray, Vector2, Vector3,
 };
-use godot::engine::node::InternalMode;
 use godot::engine::notify::NodeNotification;
 use godot::engine::resource_loader::CacheMode;
 use godot::engine::{
@@ -193,7 +192,7 @@ impl ResourceFormatLoaderVirtual for FormatLoaderTest {
         _path: GodotString,
         _original_path: GodotString,
         _use_sub_threads: bool,
-        _cache_mode: i64,
+        _cache_mode: i32,
     ) -> Variant {
         BoxMesh::new().to_variant()
     }
@@ -241,11 +240,7 @@ fn test_ready(test_context: &TestContext) {
 
     // Add to scene tree
     let mut test_node = test_context.scene_tree.share();
-    test_node.add_child(
-        obj.share().upcast(),
-        false,
-        InternalMode::INTERNAL_MODE_DISABLED,
-    );
+    test_node.add_child(obj.share().upcast());
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
@@ -259,22 +254,14 @@ fn test_ready_multiple_fires(test_context: &TestContext) {
     let mut test_node = test_context.scene_tree.share();
 
     // Add to scene tree
-    test_node.add_child(
-        obj.share().upcast(),
-        false,
-        InternalMode::INTERNAL_MODE_DISABLED,
-    );
+    test_node.add_child(obj.share().upcast());
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
 
     // Remove and re-add to scene tree
     test_node.remove_child(obj.share().upcast());
-    test_node.add_child(
-        obj.share().upcast(),
-        false,
-        InternalMode::INTERNAL_MODE_DISABLED,
-    );
+    test_node.add_child(obj.share().upcast());
 
     // _ready does NOT run again, implementation_value should still be 1.
     assert_eq!(obj.bind().implementation_value, 1);
@@ -288,22 +275,14 @@ fn test_ready_request_ready(test_context: &TestContext) {
     let mut test_node = test_context.scene_tree.share();
 
     // Add to scene tree
-    test_node.add_child(
-        obj.share().upcast(),
-        false,
-        InternalMode::INTERNAL_MODE_DISABLED,
-    );
+    test_node.add_child(obj.share().upcast());
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
 
     // Remove and re-add to scene tree
     test_node.remove_child(obj.share().upcast());
-    test_node.add_child(
-        obj.share().upcast(),
-        false,
-        InternalMode::INTERNAL_MODE_DISABLED,
-    );
+    test_node.add_child(obj.share().upcast());
 
     // _ready does NOT run again, implementation_value should still be 1.
     assert_eq!(obj.bind().implementation_value, 1);
@@ -313,11 +292,7 @@ fn test_ready_request_ready(test_context: &TestContext) {
 
     // Remove and re-add to scene tree
     test_node.remove_child(obj.share().upcast());
-    test_node.add_child(
-        obj.share().upcast(),
-        false,
-        InternalMode::INTERNAL_MODE_DISABLED,
-    );
+    test_node.add_child(obj.share().upcast());
 
     // _ready runs again since we asked it to; implementation_value should be 2.
     assert_eq!(obj.bind().implementation_value, 2);
@@ -331,11 +306,7 @@ fn test_tree_enters_exits(test_context: &TestContext) {
     let mut test_node = test_context.scene_tree.share();
 
     // Add to scene tree
-    test_node.add_child(
-        obj.share().upcast(),
-        false,
-        InternalMode::INTERNAL_MODE_DISABLED,
-    );
+    test_node.add_child(obj.share().upcast());
     assert_eq!(obj.bind().tree_enters, 1);
     assert_eq!(obj.bind().tree_exits, 0);
 
@@ -343,11 +314,7 @@ fn test_tree_enters_exits(test_context: &TestContext) {
     test_node.remove_child(obj.share().upcast());
     assert_eq!(obj.bind().tree_enters, 1);
     assert_eq!(obj.bind().tree_exits, 1);
-    test_node.add_child(
-        obj.share().upcast(),
-        false,
-        InternalMode::INTERNAL_MODE_DISABLED,
-    );
+    test_node.add_child(obj.share().upcast());
     assert_eq!(obj.bind().tree_enters, 2);
     assert_eq!(obj.bind().tree_exits, 1);
 }
@@ -389,18 +356,19 @@ fn test_virtual_method_with_return() {
 fn test_format_loader(_test_context: &TestContext) {
     let format_loader = Gd::<FormatLoaderTest>::new_default();
     let mut loader = ResourceLoader::singleton();
-    loader.add_resource_format_loader(format_loader.share().upcast(), true);
+    loader
+        .add_resource_format_loader_ex(format_loader.share().upcast())
+        .at_front(true)
+        .done();
 
     let extensions = loader.get_recognized_extensions_for_type(FormatLoaderTest::resource_type());
     let mut extensions_rust = format_loader.bind().get_recognized_extensions();
     extensions_rust.push("tres".into());
     assert_eq!(extensions, extensions_rust);
     let resource = loader
-        .load(
-            "path.extension".into(),
-            "".into(),
-            CacheMode::CACHE_MODE_IGNORE,
-        )
+        .load_ex("path.extension".into())
+        .cache_mode(CacheMode::CACHE_MODE_IGNORE)
+        .done()
         .unwrap();
     assert!(resource.try_cast::<BoxMesh>().is_some());
 
@@ -413,26 +381,19 @@ fn test_input_event(test_context: &TestContext) {
     assert_eq!(obj.bind().event, None);
     let mut test_viewport = Window::new_alloc();
 
-    test_context.scene_tree.share().add_child(
-        test_viewport.share().upcast(),
-        false,
-        InternalMode::INTERNAL_MODE_DISABLED,
-    );
+    test_context
+        .scene_tree
+        .share()
+        .add_child(test_viewport.share().upcast());
 
-    test_viewport.share().add_child(
-        obj.share().upcast(),
-        false,
-        InternalMode::INTERNAL_MODE_DISABLED,
-    );
+    test_viewport.share().add_child(obj.share().upcast());
 
     let mut event = InputEventAction::new();
     event.set_action("debug".into());
     event.set_pressed(true);
 
     // We're running in headless mode, so Input.parse_input_event does not work
-    test_viewport
-        .share()
-        .push_input(event.share().upcast(), false);
+    test_viewport.share().push_input(event.share().upcast());
 
     assert_eq!(obj.bind().event, Some(event.upcast::<InputEvent>()));
 
@@ -451,18 +412,13 @@ fn test_input_event_multiple(test_context: &TestContext) {
     }
     let mut test_viewport = Window::new_alloc();
 
-    test_context.scene_tree.share().add_child(
-        test_viewport.share().upcast(),
-        false,
-        InternalMode::INTERNAL_MODE_DISABLED,
-    );
+    test_context
+        .scene_tree
+        .share()
+        .add_child(test_viewport.share().upcast());
 
     for obj in objs.iter() {
-        test_viewport.share().add_child(
-            obj.share().upcast(),
-            false,
-            InternalMode::INTERNAL_MODE_DISABLED,
-        )
+        test_viewport.share().add_child(obj.share().upcast())
     }
 
     let mut event = InputEventAction::new();
@@ -470,9 +426,7 @@ fn test_input_event_multiple(test_context: &TestContext) {
     event.set_pressed(true);
 
     // We're running in headless mode, so Input.parse_input_event does not work
-    test_viewport
-        .share()
-        .push_input(event.share().upcast(), false);
+    test_viewport.share().push_input(event.share().upcast());
 
     for obj in objs.iter() {
         assert_eq!(obj.bind().event, Some(event.share().upcast::<InputEvent>()));
@@ -513,7 +467,7 @@ pub struct CollisionObject2DTest {
 
 #[godot_api]
 impl RigidBody2DVirtual for CollisionObject2DTest {
-    fn input_event(&mut self, viewport: Gd<Viewport>, _event: Gd<InputEvent>, _shape_idx: i64) {
+    fn input_event(&mut self, viewport: Gd<Viewport>, _event: Gd<InputEvent>, _shape_idx: i32) {
         self.input_event_called = true;
         self.viewport = Some(viewport);
     }
