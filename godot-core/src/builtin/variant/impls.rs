@@ -213,6 +213,10 @@ impl VariantMetadata for () {
     fn variant_type() -> VariantType {
         VariantType::Nil
     }
+
+    fn return_info() -> Option<meta::MethodParamOrReturnInfo> {
+        None
+    }
 }
 
 impl ToVariant for Variant {

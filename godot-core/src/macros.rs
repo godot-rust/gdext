@@ -58,11 +58,11 @@ macro_rules! gdext_get_arguments_info {
         {
             use $crate::builtin::meta::*;
 
-            let mut i = -1i32;
+            let mut i: usize = 0;
             [$(
                 {
+                    let prop = <$Signature as VarcallSignatureTuple>::param_property_info(i, stringify!($param));
                     i += 1;
-                    let prop = <$Signature as VarcallSignatureTuple>::property_info(i, stringify!($param));
                     prop
                 },
             )*]
