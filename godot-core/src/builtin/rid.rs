@@ -7,7 +7,7 @@
 use std::num::NonZeroU64;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, GodotFfi};
+use sys::{ffi_methods, static_assert, static_assert_eq_size, GodotFfi};
 
 /// A RID ("resource ID") is an opaque handle that refers to a Godot `Resource`.
 ///
@@ -38,6 +38,18 @@ pub enum Rid {
     /// An invalid RID will never refer to a resource. Internally it is represented as a 0.
     Invalid,
 }
+
+// Ensure that `Rid`s actually have the layout we expect. Since `Rid` has the same size as `u64`, it cannot
+// have any padding. As the `Valid` variant must take up all but one of the niches (since it contains a
+// `NonZerou64`), and the `Invalid` variant must take up the final niche.
+static_assert_eq_size!(Rid, u64);
+
+// SAFETY:
+// As Rid and u64 have the same size, and `Rid::Invalid` is initialized, it must be represented by some `u64`
+// Therefore we can safely transmute it to a u64.
+//
+// Ensure that `Rid::Invalid` actually is represented by 0, as it should be.
+static_assert!(unsafe { std::mem::transmute::<Rid, u64>(Rid::Invalid) } == 0u64);
 
 impl Rid {
     /// Create a new RID.
