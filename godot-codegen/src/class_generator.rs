@@ -1451,112 +1451,27 @@ fn make_function_definition_with_defaults(
         .iter()
         .partition(|arg| arg.default_value.is_some());
 
-    let builder_mut = if matches!(sig.qualifier, FnQualifier::Const) {
-        quote! {}
-    } else {
-        quote! { mut }
-    };
-
-    // Treat the object parameter like other parameters, as first in list
-    // Only add it if the method is not global or static
-    let (object_fn_param, object_param, object_arg);
-    match &sig.surrounding_class {
-        Some(surrounding_class) if !sig.qualifier.is_static_or_global() => {
-            let class = &surrounding_class.rust_ty;
-
-            object_fn_param = Some(FnParam {
-                name: ident("surround_object"),
-                // Not exactly EngineClass, but close enough
-                type_: RustTy::EngineClass {
-                    tokens: quote! { &'a #builder_mut re_export::#class },
-                    class: String::new(),
-                },
-                default_value: None,
-            });
-            object_param = quote! { surround_object: &'a #builder_mut re_export::#class, };
-            object_arg = quote! { self, };
-        }
-        _ => {
-            object_fn_param = None;
-            object_param = TokenStream::new();
-            object_arg = TokenStream::new();
-        }
-    };
-
-    let nodefaults_fn_name = safe_ident(sig.function_name);
-    let defaults_fn_name = format_ident!("{}_ex", nodefaults_fn_name);
+    let simple_fn_name = safe_ident(sig.function_name);
+    let extended_fn_name = format_ident!("{}_ex", simple_fn_name);
     let vis = make_vis(sig.is_private);
 
-    // Not in the above match, because this is true for both static/instance methods.
-    // Static/instance is determined by first argument (always use fully qualified function call syntax).
-    let surround_class_prefix;
-    let builder_doc;
-    match sig.surrounding_class {
-        Some(TyName { rust_ty, .. }) => {
-            surround_class_prefix = quote! { re_export::#rust_ty:: };
-            builder_doc = format!(
-                "Default-parameter builder for method [`{class}::{method}`][super::{class}::{method}.",
-                class = rust_ty,
-                method = defaults_fn_name,
-            );
-        }
-        None => {
-            surround_class_prefix = TokenStream::new();
-            builder_doc = format!(
-                "Default-parameter builder for function [`{function}`][super::{function}].",
-                function = defaults_fn_name
-            );
-        }
-    };
+    let (builder_doc, surround_class_prefix) = make_extender_doc(sig, &extended_fn_name);
 
-    let all_fn_params = object_fn_param.iter().chain(&sig.params);
+    let ExtenderReceiver {
+        object_fn_param,
+        object_param,
+        object_arg,
+    } = make_extender_receiver(sig);
 
-    let builder_name = format_ident!("{}Builder", to_pascal_case(sig.function_name));
-    let (lifetime, anon_lifetime) = if sig.qualifier.is_static_or_global() {
-        (TokenStream::new(), TokenStream::new())
-    } else {
-        (quote! { <'a> }, quote! { <'_> })
-    };
-
-    let builder_fields = all_fn_params.clone().map(|param| {
-        let FnParam { name, type_, .. } = param;
-        quote! { #name: #type_ }
-    });
-
-    let builder_args = all_fn_params.clone().map(|param| {
-        let FnParam { name, .. } = param;
-        quote! { self.#name }
-    });
-
-    let builder_inits = all_fn_params.map(|param| {
-        let FnParam {
-            name,
-            default_value,
-            ..
-        } = param;
-
-        // Initialize with default parameters where available, forward constructor args otherwise
-        if let Some(value) = default_value {
-            quote! { #name: #value }
-        } else {
-            quote! { #name }
-        }
-    });
-
-    let builder_methods = default_fn_params.iter().map(|param| {
-        let FnParam { name, type_, .. } = param;
-
-        quote! {
-            #[inline]
-            pub fn #name(self, value: #type_) -> Self {
-                // Currently not testing whether the parameter was already set
-                Self {
-                    #name: value,
-                    ..self
-                }
-            }
-        }
-    });
+    let Extender {
+        builder_ty,
+        builder_lifetime,
+        builder_anon_lifetime,
+        builder_methods,
+        builder_fields,
+        builder_args,
+        builder_inits,
+    } = make_extender(sig, object_fn_param, default_fn_params);
 
     let receiver_param = &code.receiver.param;
     let receiver_self = &code.receiver.self_prefix;
@@ -1574,13 +1489,13 @@ fn make_function_definition_with_defaults(
     let builders = quote! {
         #[doc = #builder_doc]
         #[must_use]
-        pub struct #builder_name #lifetime {
+        pub struct #builder_ty #builder_lifetime {
             // #builder_surround_ref
             #( #builder_fields, )*
         }
 
         #[allow(clippy::wrong_self_convention, clippy::redundant_field_names, clippy::needless_update)]
-        impl #lifetime #builder_name #lifetime {
+        impl #builder_lifetime #builder_ty #builder_lifetime {
             fn new(
                 #object_param
                 #( #required_params, )*
@@ -1603,21 +1518,21 @@ fn make_function_definition_with_defaults(
 
     let functions = quote! {
         #[inline]
-        #vis fn #nodefaults_fn_name(
+        #vis fn #simple_fn_name(
             #receiver_param
             #( #required_params, )*
         ) #return_decl {
-            #receiver_self #defaults_fn_name(
+            #receiver_self #extended_fn_name(
                 #( #required_args, )*
             ).done()
         }
 
         #[inline]
-        #vis fn #defaults_fn_name(
+        #vis fn #extended_fn_name(
             #receiver_param
             #( #required_params, )*
-        ) -> #builder_name #anon_lifetime {
-            #builder_name::new(
+        ) -> #builder_ty #builder_anon_lifetime {
+            #builder_ty::new(
                 #object_arg
                 #( #required_args, )*
             )
@@ -1625,6 +1540,152 @@ fn make_function_definition_with_defaults(
     };
 
     (functions, builders)
+}
+
+fn make_extender_doc(sig: &FnSignature, extended_fn_name: &Ident) -> (String, TokenStream) {
+    // Not in the above match, because this is true for both static/instance methods.
+    // Static/instance is determined by first argument (always use fully qualified function call syntax).
+    let surround_class_prefix;
+    let builder_doc;
+
+    match sig.surrounding_class {
+        Some(TyName { rust_ty, .. }) => {
+            surround_class_prefix = quote! { re_export::#rust_ty:: };
+            builder_doc = format!(
+                "Default-param extender for [`{class}::{method}`][super::{class}::{method}].",
+                class = rust_ty,
+                method = extended_fn_name,
+            );
+        }
+        None => {
+            // There are currently no default parameters for utility functions
+            // -> this is currently dead code, but _should_ work if Godot ever adds them.
+            surround_class_prefix = TokenStream::new();
+            builder_doc = format!(
+                "Default-param extender for [`{function}`][super::{function}].",
+                function = extended_fn_name
+            );
+        }
+    };
+
+    (builder_doc, surround_class_prefix)
+}
+
+fn make_extender_receiver(sig: &FnSignature) -> ExtenderReceiver {
+    let builder_mut = if matches!(sig.qualifier, FnQualifier::Const) {
+        quote! {}
+    } else {
+        quote! { mut }
+    };
+
+    // Treat the object parameter like other parameters, as first in list.
+    // Only add it if the method is not global or static.
+    match &sig.surrounding_class {
+        Some(surrounding_class) if !sig.qualifier.is_static_or_global() => {
+            let class = &surrounding_class.rust_ty;
+
+            ExtenderReceiver {
+                object_fn_param: Some(FnParam {
+                    name: ident("surround_object"),
+                    // Not exactly EngineClass, but close enough
+                    type_: RustTy::EngineClass {
+                        tokens: quote! { &'a #builder_mut re_export::#class },
+                        class: String::new(),
+                    },
+                    default_value: None,
+                }),
+                object_param: quote! { surround_object: &'a #builder_mut re_export::#class, },
+                object_arg: quote! { self, },
+            }
+        }
+        _ => ExtenderReceiver {
+            object_fn_param: None,
+            object_param: TokenStream::new(),
+            object_arg: TokenStream::new(),
+        },
+    }
+}
+
+struct ExtenderReceiver {
+    object_fn_param: Option<FnParam>,
+    object_param: TokenStream,
+    object_arg: TokenStream,
+}
+
+struct Extender {
+    builder_ty: Ident,
+    builder_lifetime: TokenStream,
+    builder_anon_lifetime: TokenStream,
+    builder_methods: Vec<TokenStream>,
+    builder_fields: Vec<TokenStream>,
+    builder_args: Vec<TokenStream>,
+    builder_inits: Vec<TokenStream>,
+}
+
+fn make_extender(
+    sig: &FnSignature,
+    object_fn_param: Option<FnParam>,
+    default_fn_params: Vec<&FnParam>,
+) -> Extender {
+    // Note: could build a documentation string with default values here, but the Rust tokens are not very readable,
+    // and often not helpful, such as Enum::from_ord(13). Maybe one day those could be resolved and curated.
+
+    let (lifetime, anon_lifetime) = if sig.qualifier.is_static_or_global() {
+        (TokenStream::new(), TokenStream::new())
+    } else {
+        (quote! { <'a> }, quote! { <'_> })
+    };
+
+    let all_fn_params = object_fn_param.iter().chain(&sig.params);
+    let len = all_fn_params.size_hint().0;
+
+    let mut result = Extender {
+        builder_ty: format_ident!("Ex{}", to_pascal_case(sig.function_name)),
+        builder_lifetime: lifetime,
+        builder_anon_lifetime: anon_lifetime,
+        builder_methods: Vec::with_capacity(default_fn_params.len()),
+        builder_fields: Vec::with_capacity(len),
+        builder_args: Vec::with_capacity(len),
+        builder_inits: Vec::with_capacity(len),
+    };
+
+    for param in all_fn_params {
+        let FnParam {
+            name,
+            type_,
+            default_value,
+        } = param;
+
+        // Initialize with default parameters where available, forward constructor args otherwise
+        let init = if let Some(value) = default_value {
+            quote! { #name: #value }
+        } else {
+            quote! { #name }
+        };
+
+        result.builder_fields.push(quote! { #name: #type_ });
+        result.builder_args.push(quote! { self.#name });
+        result.builder_inits.push(init);
+    }
+
+    for param in default_fn_params {
+        let FnParam { name, type_, .. } = param;
+
+        let method = quote! {
+            #[inline]
+            pub fn #name(self, value: #type_) -> Self {
+                // Currently not testing whether the parameter was already set
+                Self {
+                    #name: value,
+                    ..self
+                }
+            }
+        };
+
+        result.builder_methods.push(method);
+    }
+
+    result
 }
 
 fn make_receiver(is_static: bool, is_const: bool, ffi_arg: TokenStream) -> FnReceiver {
