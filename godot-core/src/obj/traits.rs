@@ -185,6 +185,8 @@ pub mod cap {
     pub trait ImplementsGodotApi: GodotClass {
         #[doc(hidden)]
         fn __register_methods();
+        #[doc(hidden)]
+        fn __register_constants();
     }
 
     pub trait ImplementsGodotExports: GodotClass {

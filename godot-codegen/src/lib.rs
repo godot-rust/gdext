@@ -305,6 +305,7 @@ const SELECTED_CLASSES: &[&str] = &[
     "Camera3D",
     "CanvasItem",
     "CanvasLayer",
+    "ClassDB",
     "CollisionObject2D",
     "CollisionShape2D",
     "Control",

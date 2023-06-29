@@ -32,6 +32,7 @@ mod property_test;
 mod quaternion_test;
 mod rect2_test;
 mod rect2i_test;
+mod registration;
 mod rid_test;
 mod signal_test;
 mod singleton_test;
