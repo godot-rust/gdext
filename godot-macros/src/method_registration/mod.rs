@@ -25,9 +25,7 @@ struct SignatureInfo {
     pub receiver_type: ReceiverType,
     pub param_idents: Vec<Ident>,
     pub param_types: Vec<TyExpr>,
-    pub num_args: usize,
     pub ret_type: TokenStream,
-    pub has_return_value: bool,
 }
 
 fn wrap_with_unpacked_params(class_name: &Ident, signature_info: &SignatureInfo) -> TokenStream {
@@ -74,9 +72,9 @@ fn get_signature_info(signature: &Function) -> SignatureInfo {
     let mut receiver_type = ReceiverType::Static;
     let mut param_idents: Vec<Ident> = Vec::new();
     let mut param_types = Vec::new();
-    let (ret_type, has_return_value) = match &signature.return_ty {
-        None => (quote! { () }, false),
-        Some(ty) => (quote! { #ty }, true),
+    let ret_type = match &signature.return_ty {
+        None => quote! { () },
+        Some(ty) => quote! { #ty },
     };
 
     for (arg, _) in &signature.params.inner {
@@ -99,28 +97,23 @@ fn get_signature_info(signature: &Function) -> SignatureInfo {
         }
     }
 
-    let num_args = match receiver_type {
-        ReceiverType::Static => signature.params.len(),
-        ReceiverType::Mut | ReceiverType::Ref => signature.params.len() - 1,
-    };
-
     SignatureInfo {
         method_name,
         receiver_type,
         param_idents,
         param_types,
-        num_args,
         ret_type,
-        has_return_value,
     }
 }
 
 fn method_flags(method_type: ReceiverType) -> TokenStream {
     match method_type {
         ReceiverType::Ref | ReceiverType::Mut => {
-            quote! { godot::sys::GDEXTENSION_METHOD_FLAGS_DEFAULT }
+            quote! { ::godot::engine::global::MethodFlags::METHOD_FLAGS_DEFAULT }
         }
-        ReceiverType::Static => quote! { godot::sys::GDEXTENSION_METHOD_FLAG_STATIC },
+        ReceiverType::Static => {
+            quote! { ::godot::engine::global::MethodFlags::METHOD_FLAG_STATIC }
+        }
     }
 }
 

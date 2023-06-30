@@ -5,14 +5,15 @@
  */
 
 use godot_ffi as sys;
-use godot_ffi::VariantType;
 use std::fmt::Debug;
 
 #[doc(hidden)]
 pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
-    fn variant_type(index: i32) -> VariantType;
-    fn property_info(index: i32, param_name: &str) -> PropertyInfo;
-    fn param_metadata(index: i32) -> sys::GDExtensionClassMethodArgumentMetadata;
+    const PARAM_COUNT: usize;
+
+    fn param_property_info(index: usize, param_name: &str) -> PropertyInfo;
+    fn param_info(index: usize, param_name: &str) -> Option<MethodParamOrReturnInfo>;
+    fn return_info() -> Option<MethodParamOrReturnInfo>;
 
     // TODO(uninit) - can we use this for varcall/ptrcall?
     // ret: sys::GDExtensionUninitializedVariantPtr
@@ -66,6 +67,7 @@ use crate::obj::GodotClass;
 
 macro_rules! impl_varcall_signature_for_tuple {
     (
+        $PARAM_COUNT:literal,
         $R:ident
         $(, $Pn:ident : $n:literal)*
     ) => {
@@ -74,39 +76,30 @@ macro_rules! impl_varcall_signature_for_tuple {
             where $R: VariantMetadata + ToVariant + sys::GodotFuncMarshal + Debug,
                $( $Pn: VariantMetadata + FromVariant + sys::GodotFuncMarshal + Debug, )*
         {
-            #[inline]
-            fn variant_type(index: i32) -> sys::VariantType {
+            const PARAM_COUNT: usize = $PARAM_COUNT;
+
+            fn param_info(index: usize, param_name: &str) -> Option<MethodParamOrReturnInfo> {
                 match index {
-                    -1 => $R::variant_type(),
                     $(
-                        $n => $Pn::variant_type(),
+                        $n => Some($Pn::argument_info(param_name)),
                     )*
-                    _ => unreachable!("variant_type: unavailable for index {}", index),
-                    //_ => sys::GDEXTENSION_VARIANT_TYPE_NIL
+                    _ => None,
                 }
             }
 
-            #[inline]
-            fn param_metadata(index: i32) -> sys::GDExtensionClassMethodArgumentMetadata {
-                match index {
-                    -1 => $R::param_metadata(),
-                    $(
-                        $n => $Pn::param_metadata(),
-                    )*
-                    _ => unreachable!("param_metadata: unavailable for index {}", index),
-                }
+            fn return_info() -> Option<MethodParamOrReturnInfo> {
+                $R::return_info()
             }
 
-            #[inline]
-            fn property_info(index: i32, param_name: &str) -> PropertyInfo {
+            fn param_property_info(index: usize, param_name: &str) -> PropertyInfo {
                 match index {
-                    -1 => $R::property_info(param_name),
                     $(
                         $n => $Pn::property_info(param_name),
                     )*
                     _ => unreachable!("property_info: unavailable for index {}", index),
                 }
             }
+
 
             #[inline]
             unsafe fn varcall<C : GodotClass>(
@@ -237,25 +230,25 @@ fn return_error<R>(method_name: &str, arg: &impl Debug) -> ! {
     panic!("{method_name}: return type {return_ty} is unable to store value {arg:?}",);
 }
 
-impl_varcall_signature_for_tuple!(R);
+impl_varcall_signature_for_tuple!(0, R);
 impl_ptrcall_signature_for_tuple!(R);
-impl_varcall_signature_for_tuple!(R, P0: 0);
+impl_varcall_signature_for_tuple!(1, R, P0: 0);
 impl_ptrcall_signature_for_tuple!(R, P0: 0);
-impl_varcall_signature_for_tuple!(R, P0: 0, P1: 1);
+impl_varcall_signature_for_tuple!(2, R, P0: 0, P1: 1);
 impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1);
-impl_varcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2);
+impl_varcall_signature_for_tuple!(3, R, P0: 0, P1: 1, P2: 2);
 impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2);
-impl_varcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3);
+impl_varcall_signature_for_tuple!(4, R, P0: 0, P1: 1, P2: 2, P3: 3);
 impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3);
-impl_varcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4);
+impl_varcall_signature_for_tuple!(5, R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4);
 impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4);
-impl_varcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5);
+impl_varcall_signature_for_tuple!(6, R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5);
 impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5);
-impl_varcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6);
+impl_varcall_signature_for_tuple!(7, R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6);
 impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6);
-impl_varcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7);
+impl_varcall_signature_for_tuple!(8, R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7);
 impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7);
-impl_varcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8);
+impl_varcall_signature_for_tuple!(9, R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8);
 impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8);
-impl_varcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9);
+impl_varcall_signature_for_tuple!(10, R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9);
 impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9);
