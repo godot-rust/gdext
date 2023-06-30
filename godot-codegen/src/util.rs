@@ -110,10 +110,21 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
                 self.ord
             }
         }
-        // SAFETY:
-        // The enums are transparently represented as an `i32`, so `*mut Self` is sound.
-        unsafe impl sys::GodotFfi for #enum_name {
-            sys::ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+
+        impl sys::GodotFuncMarshal for #enum_name {
+            type Via = i64;
+            type FromViaError = sys::PrimitiveConversionError<i64, i32>;
+            type IntoViaError = std::convert::Infallible;
+
+            fn try_from_via(via: Self::Via) -> std::result::Result<Self, Self::FromViaError> {
+                let err = sys::PrimitiveConversionError::new(via);
+                let ord = i32::try_from(via).map_err(|_| err)?;
+                <Self as crate::obj::EngineEnum>::try_from_ord(ord).ok_or(err)
+            }
+
+            fn try_into_via(self) -> std::result::Result<Self::Via, Self::IntoViaError> {
+                Ok(<Self as crate::obj::EngineEnum>::ord(self).into())
+            }
         }
         #bitfield_ops
     }

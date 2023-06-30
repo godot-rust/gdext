@@ -577,6 +577,24 @@ where
         // We've passed ownership to caller.
         std::mem::forget(self);
     }
+
+    fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
+        // We're passing a reference to the object to the callee. If the reference count needs to be
+        // incremented then the callee will do so. We do not need to prematurely do so.
+        //
+        // In Rust terms, if `T` is refcounted then we are effectively passing a `&Arc<T>`, and the callee
+        // would need to call `.clone()` if desired.
+
+        // In 4.0, argument pointers are passed to godot as `T*`, except for in virtual method calls. We
+        // can't perform virtual method calls currently, so they are always `T*`.
+        //
+        // In 4.1 argument pointers were standardized to always be `T**`.
+        if cfg!(gdextension_api = "4.0") {
+            self.sys_const()
+        } else {
+            std::ptr::addr_of!(self.opaque) as sys::GDExtensionConstTypePtr
+        }
+    }
 }
 
 // SAFETY:
