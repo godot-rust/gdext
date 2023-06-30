@@ -684,7 +684,7 @@ fn make_notification_enum(
     let mut notification_enumerators_ord = Vec::new();
     for (constant_ident, constant_value) in all_constants {
         notification_enumerators_pascal.push(constant_ident);
-        notification_enumerators_ord.push(constant_value);
+        notification_enumerators_ord.push(util::make_enumerator_ord(constant_value));
     }
 
     let code = quote! {
