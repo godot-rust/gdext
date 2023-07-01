@@ -5,6 +5,7 @@
  */
 
 use crate::builtin::{real, Vector2, Vector2i, Vector3, Vector3i, Vector4, Vector4i};
+use crate::obj::EngineEnum;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
@@ -62,6 +63,8 @@ macro_rules! swizzle {
     }};
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Trait that allows conversion from tuples to vectors.
 ///
 /// Is implemented instead of `From`/`Into` because it provides type inference.
@@ -81,11 +84,27 @@ pub enum Vector2Axis {
     Y,
 }
 
+impl EngineEnum for Vector2Axis {
+    fn try_from_ord(ord: i32) -> Option<Self> {
+        match ord {
+            0 => Some(Self::X),
+            1 => Some(Self::Y),
+            _ => None,
+        }
+    }
+
+    fn ord(self) -> i32 {
+        self as i32
+    }
+}
+
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector2Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Enumerates the axes in a [`Vector3`].
 // TODO auto-generate this, alongside all the other builtin type's enums
@@ -102,11 +121,28 @@ pub enum Vector3Axis {
     Z,
 }
 
+impl EngineEnum for Vector3Axis {
+    fn try_from_ord(ord: i32) -> Option<Self> {
+        match ord {
+            0 => Some(Self::X),
+            1 => Some(Self::Y),
+            2 => Some(Self::Z),
+            _ => None,
+        }
+    }
+
+    fn ord(self) -> i32 {
+        self as i32
+    }
+}
+
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector3Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Enumerates the axes in a [`Vector4`].
 #[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -125,11 +161,29 @@ pub enum Vector4Axis {
     W,
 }
 
+impl EngineEnum for Vector4Axis {
+    fn try_from_ord(ord: i32) -> Option<Self> {
+        match ord {
+            0 => Some(Self::X),
+            1 => Some(Self::Y),
+            2 => Some(Self::Z),
+            3 => Some(Self::W),
+            _ => None,
+        }
+    }
+
+    fn ord(self) -> i32 {
+        self as i32
+    }
+}
+
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector4Axis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 impl_vector_index!(Vector2, real, (x, y), Vector2Axis, (X, Y));
 impl_vector_index!(Vector2i, i32, (x, y), Vector2Axis, (X, Y));

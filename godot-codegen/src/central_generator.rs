@@ -498,7 +498,7 @@ fn make_enumerator(
 ) -> (Ident, TokenStream, Literal) {
     let enumerator_name = &type_names.json_builtin_name;
     let pascal_name = to_pascal_case(enumerator_name);
-    let rust_ty = to_rust_type(enumerator_name, ctx);
+    let rust_ty = to_rust_type(enumerator_name, None, ctx);
     let ord = Literal::i32_unsuffixed(value);
 
     (ident(&pascal_name), rust_ty.to_token_stream(), ord)

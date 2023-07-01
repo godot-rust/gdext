@@ -122,7 +122,26 @@ pub fn generate_core_files(core_gen_path: &Path) {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared utility types
 
-#[derive(Clone)]
+// Same as above, without lifetimes
+
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+struct GodotTy {
+    ty: String,
+    meta: Option<String>,
+}
+
+// impl GodotTy {
+//     fn new<'a>(ty: &'a String, meta: &'a Option<String>) -> Self {
+//         Self {
+//             ty: ty.clone(),
+//             meta: meta.clone(),
+//         }
+//     }
+// }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(Clone, Debug)]
 enum RustTy {
     /// `bool`, `Vector3i`
     BuiltinIdent(Ident),
@@ -181,7 +200,6 @@ impl ToTokens for RustTy {
             RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
-            //RustTy::Other(path) => path.to_tokens(tokens),
         }
     }
 }

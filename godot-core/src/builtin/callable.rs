@@ -53,6 +53,18 @@ impl Callable {
         }
     }
 
+    /// Creates an invalid/empty object that is not able to be called.
+    ///
+    /// _Godot equivalent: `Callable()`_
+    pub fn invalid() -> Self {
+        unsafe {
+            Self::from_sys_init(|self_ptr| {
+                let ctor = ::godot_ffi::builtin_fn!(callable_construct_default);
+                ctor(self_ptr, std::ptr::null_mut())
+            })
+        }
+    }
+
     /// Calls the method represented by this callable.
     ///
     /// Arguments passed should match the method's signature.
@@ -162,7 +174,9 @@ impl Callable {
 
 impl_builtin_traits! {
     for Callable {
-        Default => callable_construct_default;
+        // Currently no Default::default() to encourage explicit valid initialization.
+        //Default => callable_construct_default;
+
         // Equality for custom callables depend on the equality implementation of that custom callable. This
         // is from what i can tell currently implemented as total equality in all cases, but i dont believe
         // there are any guarantees that all implementations of equality for custom callables will be.
@@ -182,7 +196,7 @@ unsafe impl GodotFfi for Callable {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self::default();
+        let mut result = Self::invalid();
         init_fn(result.sys_mut());
         result
     }

@@ -12,7 +12,6 @@ use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{
     FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError, Vector3,
 };
-use godot::engine::node::InternalMode;
 use godot::engine::{
     file_access, Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted, RefCountedVirtual,
 };
@@ -658,9 +657,9 @@ fn object_get_scene_tree(ctx: &TestContext) {
     let node = Node3D::new_alloc();
 
     let mut tree = ctx.scene_tree.share();
-    tree.add_child(node.upcast(), false, InternalMode::INTERNAL_MODE_DISABLED);
+    tree.add_child(node.upcast());
 
-    let count = tree.get_child_count(false);
+    let count = tree.get_child_count();
     assert_eq!(count, 1);
 } // implicitly tested: node does not leak
 
@@ -838,7 +837,7 @@ fn double_use_reference() {
     emitter
         .share()
         .upcast::<Object>()
-        .connect("do_use".into(), double_use.callable("use_1"), 0);
+        .connect("do_use".into(), double_use.callable("use_1"));
 
     let guard = double_use.bind();
 

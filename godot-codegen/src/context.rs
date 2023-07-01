@@ -5,7 +5,7 @@
  */
 
 use crate::api_parser::Class;
-use crate::{util, ExtensionApi, RustTy, TyName};
+use crate::{util, ExtensionApi, GodotTy, RustTy, TyName};
 use proc_macro2::Ident;
 use quote::format_ident;
 use std::collections::{HashMap, HashSet};
@@ -17,7 +17,7 @@ pub(crate) struct Context<'a> {
     native_structures_types: HashSet<&'a str>,
     singletons: HashSet<&'a str>,
     inheritance_tree: InheritanceTree,
-    cached_rust_types: HashMap<String, RustTy>,
+    cached_rust_types: HashMap<GodotTy, RustTy>,
     notifications_by_class: HashMap<TyName, Vec<(Ident, i32)>>,
     notification_enum_names_by_class: HashMap<TyName, Ident>,
 }
@@ -162,7 +162,7 @@ impl<'a> Context<'a> {
         &self.inheritance_tree
     }
 
-    pub fn find_rust_type(&'a self, ty: &str) -> Option<&'a RustTy> {
+    pub fn find_rust_type(&'a self, ty: &GodotTy) -> Option<&'a RustTy> {
         self.cached_rust_types.get(ty)
     }
 
@@ -177,8 +177,8 @@ impl<'a> Context<'a> {
             .clone()
     }
 
-    pub fn insert_rust_type(&mut self, ty: &str, resolved: RustTy) {
-        let prev = self.cached_rust_types.insert(ty.to_string(), resolved);
+    pub fn insert_rust_type(&mut self, godot_ty: GodotTy, resolved: RustTy) {
+        let prev = self.cached_rust_types.insert(godot_ty, resolved);
         assert!(prev.is_none(), "no overwrites of RustTy");
     }
 }

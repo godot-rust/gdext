@@ -50,10 +50,10 @@ fn callable_validity() {
     assert!(obj.callable("doesn't_exist").object().is_some());
 
     // null object
-    assert!(!Callable::default().is_valid());
-    assert!(Callable::default().is_null());
-    assert!(!Callable::default().is_custom());
-    assert!(Callable::default().object().is_none());
+    assert!(!Callable::invalid().is_valid());
+    assert!(Callable::invalid().is_null());
+    assert!(!Callable::invalid().is_custom());
+    assert!(Callable::invalid().object().is_none());
 }
 
 #[itest]
@@ -72,9 +72,9 @@ fn callable_object_method() {
     assert_eq!(callable.object_id(), Some(obj.instance_id()));
     assert_eq!(callable.method_name(), Some("foo".into()));
 
-    assert_eq!(Callable::default().object(), None);
-    assert_eq!(Callable::default().object_id(), None);
-    assert_eq!(Callable::default().method_name(), None);
+    assert_eq!(Callable::invalid().object(), None);
+    assert_eq!(Callable::invalid().object_id(), None);
+    assert_eq!(Callable::invalid().method_name(), None);
 }
 
 #[itest]
@@ -91,7 +91,7 @@ fn callable_call() {
     // errors in godot but does not crash
     assert_eq!(callable.callv(varray!["string"]), Variant::nil());
 
-    assert_eq!(Callable::default().callv(varray![1, 2, 3]), Variant::nil());
+    assert_eq!(Callable::invalid().callv(varray![1, 2, 3]), Variant::nil());
 }
 
 #[itest]

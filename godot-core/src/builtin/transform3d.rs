@@ -92,6 +92,24 @@ impl Transform3D {
         }
     }
 
+    /// Unstable, used to simplify codegen. Too many parameters for public API and easy to have off-by-one, `from_cols()` is preferred.
+    #[doc(hidden)]
+    #[rustfmt::skip]
+    #[allow(clippy::too_many_arguments)]
+    pub const fn __internal_codegen(
+        ax: real, ay: real, az: real,
+        bx: real, by: real, bz: real,
+        cx: real, cy: real, cz: real,
+        ox: real, oy: real, oz: real
+    ) -> Self {
+        Self::from_cols(
+            Vector3::new(ax, ay, az),
+            Vector3::new(bx, by, bz),
+            Vector3::new(cx, cy, cz),
+            Vector3::new(ox, oy, oz),
+        )
+    }
+
     /// Returns the inverse of the transform, under the assumption that the
     /// transformation is composed of rotation, scaling and translation.
     ///

@@ -20,7 +20,7 @@ impl Hud {
         message_label.show();
 
         let mut timer = self.base.get_node_as::<Timer>("MessageTimer");
-        timer.start(0.0);
+        timer.start();
     }
 
     pub fn show_game_over(&self) {

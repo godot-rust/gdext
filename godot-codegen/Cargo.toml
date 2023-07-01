@@ -8,7 +8,7 @@ keywords = ["gamedev", "godot", "engine", "codegen"]
 categories = ["game-engines", "graphics"]
 
 [features]
-default = []
+default = ["codegen-fmt"]
 codegen-fmt = []
 codegen-full = []
 double-precision = []

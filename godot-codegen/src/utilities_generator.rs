@@ -18,13 +18,11 @@ pub(crate) fn generate_utilities_file(
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
-    let mut utility_fn_defs = vec![];
-    for utility_fn in &api.utility_functions {
-        // note: category unused -> could be their own mod
-
-        let def = make_utility_function_definition(utility_fn, ctx);
-        utility_fn_defs.push(def);
-    }
+    // note: category unused -> could be their own mod
+    let utility_fn_defs = api
+        .utility_functions
+        .iter()
+        .map(|utility_fn| make_utility_function_definition(utility_fn, ctx));
 
     let tokens = quote! {
         //! Global utility functions.

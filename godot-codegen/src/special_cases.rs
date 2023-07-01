@@ -15,6 +15,8 @@
 
 // NOTE: the methods are generally implemented on Godot types (e.g. AABB, not Aabb)
 
+#![allow(clippy::match_like_matches_macro)] // if there is only one rule
+
 use crate::TyName;
 
 #[rustfmt::skip]
@@ -54,6 +56,18 @@ pub(crate) fn is_private(class_name: &TyName, godot_method_name: &str) -> bool {
         | ("RefCounted", "init_ref")
         | ("RefCounted", "reference")
         | ("RefCounted", "unreference")
+        | ("Object", "notification")
+
+        => true, _ => false
+    }
+}
+
+#[rustfmt::skip]
+pub(crate) fn is_excluded_from_default_params(class_name: Option<&TyName>, godot_method_name: &str) -> bool {
+    // None if global/utilities function
+    let class_name = class_name.map_or("", |ty| ty.godot_ty.as_str());
+
+    match (class_name, godot_method_name) {
         | ("Object", "notification")
 
         => true, _ => false
