@@ -6,14 +6,14 @@
 
 //! Generates a file for each Godot engine + builtin class
 
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::path::Path;
 
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
 use crate::util::{
     ident, option_as_slice, parse_native_structures_format, safe_ident, to_pascal_case,
-    to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case, unmap_meta, NativeStructuresField,
+    to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
 };
 use crate::{api_parser::*, SubmitFn};
 use crate::{
@@ -541,7 +541,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         use crate::engine::notify::*;
         use crate::builtin::*;
         use crate::engine::native::*;
-        use crate::obj::{AsArg, Gd};
+        use crate::obj::Gd;
         use sys::GodotFfi as _;
         use std::ffi::c_void;
 
@@ -787,7 +787,7 @@ fn make_builtin_class(
         use godot_ffi as sys;
         use crate::builtin::*;
         use crate::engine::native::*;
-        use crate::obj::{AsArg, Gd};
+        use crate::obj::Gd;
         use crate::sys::GodotFfi as _;
         use crate::engine::Object;
 
@@ -829,7 +829,7 @@ fn make_native_structure(
         use godot_ffi as sys;
         use crate::builtin::*;
         use crate::engine::native::*;
-        use crate::obj::{AsArg, Gd};
+        use crate::obj::Gd;
         use crate::sys::GodotFfi as _;
         use crate::engine::Object;
 
@@ -1334,7 +1334,7 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
     };
 
     let is_varcall = code.variant_ffi.is_some();
-    let [params, variant_types, arg_exprs, arg_names, meta_arg_decls] =
+    let [params, variant_types, arg_exprs, arg_names] =
         make_params_and_impl(&sig.params, is_varcall, false);
 
     let primary_fn_name = if has_default_params {
@@ -1348,6 +1348,8 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
     } else {
         (TokenStream::new(), TokenStream::new())
     };
+
+    let args_indices = (0..arg_exprs.len()).map(Literal::usize_unsuffixed);
 
     let (prepare_arg_types, error_fn_context);
     if code.variant_ffi.is_some() {
@@ -1437,9 +1439,13 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
                 unsafe {
                     #init_code
 
-                    #( #meta_arg_decls )*
+                    #[allow(clippy::let_unit_value)]
+                    let __args = (
+                        #( #arg_exprs, )*
+                    );
+
                     let __args = [
-                        #( #arg_exprs ),*
+                        #( sys::GodotFfi::as_arg_ptr(&__args.#args_indices) ),*
                     ];
 
                     let __args_ptr = __args.as_ptr();
@@ -1740,12 +1746,11 @@ fn make_params_and_impl(
     method_args: &[FnParam],
     is_varcall: bool,
     skip_defaults: bool,
-) -> [Vec<TokenStream>; 5] {
+) -> [Vec<TokenStream>; 4] {
     let mut params = vec![];
     let mut variant_types = vec![];
     let mut arg_exprs = vec![];
     let mut arg_names = vec![];
-    let mut meta_arg_decls = vec![];
 
     for param in method_args.iter() {
         if skip_defaults && param.default_value.is_some() {
@@ -1754,36 +1759,22 @@ fn make_params_and_impl(
 
         let param_name = &param.name;
         let param_ty = &param.type_;
-        let canonical_ty = unmap_meta(param_ty);
 
         let arg_expr = if is_varcall {
             quote! { <#param_ty as ToVariant>::to_variant(&#param_name) }
         } else if let RustTy::EngineClass { tokens: path, .. } = &param_ty {
-            quote! { <#path as AsArg>::as_arg_ptr(&#param_name) }
+            quote! { <#path as sys::GodotFuncMarshal>::try_into_via(#param_name).unwrap() }
         } else {
-            let param_ty = if let Some(canonical_ty) = canonical_ty.as_ref() {
-                canonical_ty.to_token_stream()
-            } else {
-                param_ty.to_token_stream()
-            };
-            quote! { <#param_ty as sys::GodotFfi>::sys_const(&#param_name) }
-        };
-
-        // Note: could maybe reuse GodotFuncMarshal in the future
-        let meta_arg_decl = if let Some(canonical) = canonical_ty {
-            quote! { let #param_name = #param_name as #canonical; }
-        } else {
-            quote! {}
+            quote! { <#param_ty as sys::GodotFuncMarshal>::try_into_via(#param_name).unwrap() }
         };
 
         params.push(quote! { #param_name: #param_ty });
         variant_types.push(quote! { <#param_ty as VariantMetadata>::variant_type() });
         arg_exprs.push(arg_expr);
         arg_names.push(quote! { #param_name });
-        meta_arg_decls.push(meta_arg_decl);
     }
 
-    [params, variant_types, arg_exprs, arg_names, meta_arg_decls]
+    [params, variant_types, arg_exprs, arg_names]
 }
 
 fn make_params_and_args(method_args: &[&FnParam]) -> (Vec<TokenStream>, Vec<TokenStream>) {
@@ -1867,19 +1858,11 @@ fn make_return_and_impl(
             }
         }
         (false, None, Some(return_ty)) => {
-            let (ffi_ty, conversion);
-            if let Some(canonical_ty) = unmap_meta(return_ty) {
-                ffi_ty = canonical_ty.to_token_stream();
-                conversion = quote! { as #return_ty };
-            } else {
-                ffi_ty = return_ty.to_token_stream();
-                conversion = quote! {};
-            };
-
             quote! {
-                <#ffi_ty as sys::GodotFfi>::from_sys_init_default(|return_ptr| {
+                let via = <<#return_ty as sys::GodotFuncMarshal>::Via as sys::GodotFfi>::from_sys_init_default(|return_ptr| {
                     #ptrcall_invocation
-                }) #conversion
+                });
+                <#return_ty as sys::GodotFuncMarshal>::try_from_via(via).unwrap()
             }
         }
         (false, None, None) => {

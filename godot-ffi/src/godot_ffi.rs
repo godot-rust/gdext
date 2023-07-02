@@ -5,7 +5,7 @@
  */
 
 use crate::{self as sys, ptr_then};
-use std::{fmt::Debug, ptr};
+use std::{error::Error, fmt::Debug, marker::PhantomData, ptr};
 
 /// Adds methods to convert from and to Godot FFI pointers.
 /// See [crate::ffi_methods] for ergonomic implementation.
@@ -74,6 +74,10 @@ pub unsafe trait GodotFfi {
     // possibly separate 2 pointer types
     fn sys_const(&self) -> sys::GDExtensionConstTypePtr {
         self.sys()
+    }
+
+    fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
+        self.sys_const()
     }
 
     /// Construct from a pointer to an argument in a call.
@@ -240,33 +244,51 @@ pub enum PtrcallType {
     Virtual,
 }
 
-/// Trait implemented for all types that can be passed to and from user-defined `#[func]` methods
-/// through Godot's _ptrcall_ calling convention.
+/// Trait implemented for all types that can be passed to and from Godot via function calls.
 pub trait GodotFuncMarshal: Sized {
-    /// Intermediate type through which Self is converted, and which can cause failure.
-    type Via: Debug;
+    /// The type used when passing a value to/from Godot.
+    type Via: GodotFfi;
+    /// Error type returned when a value of type `Via` fails to be converted into `Self`.
+    type FromViaError: Error;
+    /// Error type returned when a value of type `Self` fails to be converted into `Via`.
+    type IntoViaError: Error;
+
+    /// Try to convert the value from [`Self::Via`] to [`Self`].
+    fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError>;
+
+    /// Try to convert the value from [`Self`] to [`Self::Via`].
+    fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError>;
 
     /// Used for function arguments. On failure, the argument which can't be converted to Self is returned.
     ///
     /// # Safety
-    /// The value behind `ptr` must be the C FFI type that corresponds to `Self`.
+    /// The value behind `ptr` must be the C FFI type that corresponds to [`Self::Via`].
     /// See also [`GodotFfi::from_arg_ptr`].
     unsafe fn try_from_arg(
         ptr: sys::GDExtensionTypePtr,
         call_type: PtrcallType,
-    ) -> Result<Self, Self::Via>;
+    ) -> Result<Self, Self::FromViaError> {
+        let via = Self::Via::from_arg_ptr(ptr, call_type);
+
+        Self::try_from_via(via)
+    }
 
     /// Used for function return values. On failure, `self` which can't be converted to Via is returned.
     ///
     /// # Safety
-    /// The value behind `ptr` must be the C FFI type that corresponds to `Self`.
-    /// `dst` must point to an initialized value of type `Via`.
+    /// `dst` must point to an initialized value of type [`Self::Via`].
     /// See also [`GodotFfi::move_return_ptr`].
     unsafe fn try_return(
         self,
         dst: sys::GDExtensionTypePtr,
         call_type: PtrcallType,
-    ) -> Result<(), Self>;
+    ) -> Result<(), Self::IntoViaError> {
+        let via = self.try_into_via()?;
+
+        via.move_return_ptr(dst, call_type);
+
+        Ok(())
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -472,10 +494,48 @@ macro_rules! ffi_methods {
     };
 }
 
+/// An error representing a failure to convert some value of type `From` into the type `Into`.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct PrimitiveConversionError<From, Into> {
+    from: From,
+    into_ty: PhantomData<Into>,
+}
+
+impl<From, Into> PrimitiveConversionError<From, Into> {
+    pub fn new(from: From) -> Self {
+        Self {
+            from,
+            into_ty: PhantomData,
+        }
+    }
+}
+
+impl<From, Into> std::fmt::Display for PrimitiveConversionError<From, Into>
+where
+    From: std::fmt::Display,
+    Into: std::fmt::Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "could not convert {} to type {}",
+            self.from,
+            std::any::type_name::<Into>()
+        )
+    }
+}
+
+impl<From, Into> std::error::Error for PrimitiveConversionError<From, Into>
+where
+    From: std::fmt::Display + std::fmt::Debug,
+    Into: std::fmt::Display + std::fmt::Debug,
+{
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation for common types (needs to be this crate due to orphan rule)
 mod scalars {
-    use super::{GodotFfi, GodotFuncMarshal, PtrcallType};
+    use super::{GodotFfi, GodotFuncMarshal, PrimitiveConversionError};
     use crate as sys;
     use std::convert::Infallible;
 
@@ -494,22 +554,15 @@ mod scalars {
             //    Via: TryFrom<T>, GodotFfi
             impl GodotFuncMarshal for $T {
                 type Via = $Via;
+                type FromViaError = PrimitiveConversionError<$Via, Self>;
+                type IntoViaError = PrimitiveConversionError<Self, $Via>;
 
-                unsafe fn try_from_arg(
-                    ptr: sys::GDExtensionTypePtr,
-                    call_type: PtrcallType,
-                ) -> Result<Self, $Via> {
-                    let via = <$Via>::from_arg_ptr(ptr, call_type);
-                    Self::try_from(via).map_err(|_| via)
+                fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError> {
+                    Self::try_from(via).map_err(|_| PrimitiveConversionError::new(via))
                 }
 
-                unsafe fn try_return(
-                    self,
-                    dst: sys::GDExtensionTypePtr,
-                    call_type: PtrcallType,
-                ) -> Result<(), Self> {
-                    <$Via>::from(self).move_return_ptr(dst, call_type);
-                    Ok(())
+                fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError> {
+                    <$Via>::try_from(self).map_err(|_| PrimitiveConversionError::new(self))
                 }
             }
         };
@@ -520,22 +573,17 @@ mod scalars {
             //    Via: TryFrom<T>, GodotFfi
             impl GodotFuncMarshal for $T {
                 type Via = $Via;
+                type FromViaError = Infallible;
+                type IntoViaError = Infallible;
 
-                unsafe fn try_from_arg(
-                    ptr: sys::GDExtensionTypePtr,
-                    call_type: PtrcallType,
-                ) -> Result<Self, $Via> {
-                    let via = <$Via>::from_arg_ptr(ptr, call_type);
+                #[inline]
+                fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError> {
                     Ok(via as Self)
                 }
 
-                unsafe fn try_return(
-                    self,
-                    dst: sys::GDExtensionTypePtr,
-                    call_type: PtrcallType,
-                ) -> Result<(), Self> {
-                    (self as $Via).move_return_ptr(dst, call_type);
-                    Ok(())
+                #[inline]
+                fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError> {
+                    Ok(self as $Via)
                 }
             }
         };
@@ -554,6 +602,9 @@ mod scalars {
     impl_godot_marshalling!(i8 as i64);
     impl_godot_marshalling!(u8 as i64);
 
+    // Some places Godot will pass along 64-bit numbers that are intended to be interpreted as unsigned
+    // integers despite Godot integers being signed by default.
+    impl_godot_marshalling!(u64 as i64; lossy);
     impl_godot_marshalling!(f32 as f64; lossy);
 
     unsafe impl<T> GodotFfi for *const T {
@@ -601,22 +652,18 @@ mod scalars {
     where
         T: GodotFfi,
     {
-        type Via = Infallible;
+        type Via = Self;
+        type FromViaError = Infallible;
+        type IntoViaError = Infallible;
 
-        unsafe fn try_from_arg(
-            ptr: sys::GDExtensionTypePtr,
-            call_type: PtrcallType,
-        ) -> Result<Self, Infallible> {
-            Ok(Self::from_arg_ptr(ptr, call_type))
+        #[inline]
+        fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError> {
+            Ok(via)
         }
 
-        unsafe fn try_return(
-            self,
-            dst: sys::GDExtensionTypePtr,
-            call_type: PtrcallType,
-        ) -> Result<(), Self> {
-            self.move_return_ptr(dst, call_type);
-            Ok(())
+        #[inline]
+        fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError> {
+            Ok(self)
         }
     }
 }
