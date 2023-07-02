@@ -12,13 +12,12 @@ macro_rules! gdext_call_signature_method {
     (
         ptrcall,
         $Signature:ty,
-        $Class:ty,
         $instance_ptr:ident, $args:ident, $ret:ident,
         $func:expr,
         $method_name:ident,
         $ptrcall_type:path
     ) => {
-        <$Signature as $crate::builtin::meta::PtrcallSignatureTuple>::ptrcall::<$Class>(
+        <$Signature as $crate::builtin::meta::PtrcallSignatureTuple>::ptrcall(
             $instance_ptr,
             $args,
             $ret,
@@ -31,12 +30,11 @@ macro_rules! gdext_call_signature_method {
     (
         varcall,
         $Signature:ty,
-        $Class:ty,
         $instance_ptr:ident, $args:ident, $ret:ident, $err:ident,
         $func:expr,
         $method_name:ident
     ) => {
-        <$Signature as $crate::builtin::meta::VarcallSignatureTuple>::varcall::<$Class>(
+        <$Signature as $crate::builtin::meta::VarcallSignatureTuple>::varcall(
             $instance_ptr,
             $args,
             $ret,
