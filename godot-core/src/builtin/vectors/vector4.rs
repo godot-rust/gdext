@@ -7,7 +7,7 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{is_equal_approx, ApproxEq, GlamConv, GlamType};
+use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::{real, RVec4, Vector4i};
 
 use std::fmt;
@@ -40,7 +40,8 @@ pub struct Vector4 {
 
 impl_vector_operators!(Vector4, real, (x, y, z, w));
 impl_common_vector_fns!(Vector4, real);
-impl_float_vector_fns!(Vector4, real);
+impl_float_vector_glam_fns!(Vector4, real);
+impl_float_vector_component_fns!(Vector4, real, (x, y, z, w));
 impl_from_tuple_for_vector4x!(Vector4, real);
 
 impl Vector4 {
@@ -99,16 +100,6 @@ impl fmt::Display for Vector4 {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector4 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
-}
-
-impl ApproxEq for Vector4 {
-    #[inline]
-    fn approx_eq(&self, other: &Self) -> bool {
-        is_equal_approx(self.x, other.x)
-            && is_equal_approx(self.y, other.y)
-            && is_equal_approx(self.z, other.z)
-            && is_equal_approx(self.w, other.w)
-    }
 }
 
 impl GlamType for RVec4 {

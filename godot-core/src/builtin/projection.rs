@@ -8,7 +8,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::inner::InnerProjection;
-use crate::builtin::math::{is_equal_approx, ApproxEq, GlamConv, GlamType};
+use crate::builtin::math::{ApproxEq, GlamConv, GlamType};
 use crate::builtin::{real, Plane, RMat4, RealConv, Transform3D, Vector2, Vector4, Vector4Axis};
 
 use std::ops::Mul;
@@ -473,10 +473,10 @@ impl ApproxEq for Projection {
             let v = self.cols[i];
             let w = other.cols[i];
 
-            if !is_equal_approx(v.x, w.x)
-                || !is_equal_approx(v.y, w.y)
-                || !is_equal_approx(v.z, w.z)
-                || !is_equal_approx(v.w, w.w)
+            if !v.x.approx_eq(&w.x)
+                || !v.y.approx_eq(&w.y)
+                || !v.z.approx_eq(&w.z)
+                || !v.w.approx_eq(&w.w)
             {
                 return false;
             }

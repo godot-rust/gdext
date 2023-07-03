@@ -4,8 +4,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::real;
-
 // TODO(bromeon): test this against Godot's own is_equal_approx() implementation for equality-comparable built-in types (excl Callable/Rid/...)
 
 /// Approximate equality-comparison of geometric types.
@@ -17,12 +15,6 @@ use crate::builtin::real;
 /// be the goal in the future.
 pub trait ApproxEq: PartialEq {
     fn approx_eq(&self, other: &Self) -> bool;
-}
-
-impl ApproxEq for real {
-    fn approx_eq(&self, other: &Self) -> bool {
-        crate::builtin::math::is_equal_approx(*self, *other)
-    }
 }
 
 /// Asserts that two values are approximately equal

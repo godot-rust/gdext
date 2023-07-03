@@ -7,7 +7,7 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{is_equal_approx, is_zero_approx, ApproxEq, CMP_EPSILON};
+use crate::builtin::math::{ApproxEq, FloatExt};
 use crate::builtin::{real, Vector3};
 
 use std::ops::Neg;
@@ -134,7 +134,7 @@ impl Plane {
     #[doc(alias = "has_point")]
     pub fn contains_point(&self, point: Vector3, tolerance: Option<real>) -> bool {
         let dist: real = (self.normal.dot(point) - self.d).abs();
-        dist <= tolerance.unwrap_or(CMP_EPSILON)
+        dist <= tolerance.unwrap_or(real::CMP_EPSILON)
     }
 
     /// Finds the intersection point of three planes.
@@ -146,7 +146,7 @@ impl Plane {
         let normal1 = b.normal;
         let normal2 = c.normal;
         let denom: real = normal0.cross(normal1).dot(normal2);
-        if is_zero_approx(denom) {
+        if denom.is_zero_approx() {
             return None;
         }
         let result = normal1.cross(normal2) * self.d
@@ -163,11 +163,11 @@ impl Plane {
     #[inline]
     pub fn intersect_ray(&self, from: Vector3, dir: Vector3) -> Option<Vector3> {
         let denom: real = self.normal.dot(dir);
-        if is_zero_approx(denom) {
+        if denom.is_zero_approx() {
             return None;
         }
         let dist: real = (self.normal.dot(from) - self.d) / denom;
-        if dist > CMP_EPSILON {
+        if dist > real::CMP_EPSILON {
             return None;
         }
         Some(from - dir * dist)
@@ -182,11 +182,11 @@ impl Plane {
     pub fn intersect_segment(&self, from: Vector3, to: Vector3) -> Option<Vector3> {
         let segment = from - to;
         let denom: real = self.normal.dot(segment);
-        if is_zero_approx(denom) {
+        if denom.is_zero_approx() {
             return None;
         }
         let dist: real = (self.normal.dot(from) - self.d) / denom;
-        if !(-CMP_EPSILON..=(1.0 + CMP_EPSILON)).contains(&dist) {
+        if !(-real::CMP_EPSILON..=(1.0 + real::CMP_EPSILON)).contains(&dist) {
             return None;
         }
         Some(from - segment * dist)
@@ -260,9 +260,8 @@ impl ApproxEq for Plane {
     #[inline]
     fn approx_eq(&self, other: &Self) -> bool {
         (Vector3::approx_eq(&self.normal, &other.normal) //.
-            && is_equal_approx(self.d, other.d))
-            || (Vector3::approx_eq(&self.normal, &(-other.normal))
-                && is_equal_approx(self.d, -other.d))
+            && self.d.approx_eq(&other.d))
+            || (Vector3::approx_eq(&self.normal, &(-other.normal)) && self.d.approx_eq(&-other.d))
     }
 }
 

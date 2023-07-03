@@ -8,11 +8,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::inner;
-use crate::builtin::math::{
-    bezier_derivative, bezier_interpolate, cubic_interpolate, cubic_interpolate_in_time, fposmod,
-    is_equal_approx, is_zero_approx, lerp, sign, snapped, ApproxEq, GlamConv, GlamType,
-    CMP_EPSILON,
-};
+use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector2Axis;
 use crate::builtin::{real, RAffine2, RVec2, Vector2i};
 
@@ -105,24 +101,6 @@ impl Vector2 {
         self.x / self.y
     }
 
-    pub fn lerp(self, other: Self, weight: real) -> Self {
-        Self::new(lerp(self.x, other.x, weight), lerp(self.y, other.y, weight))
-    }
-
-    pub fn bezier_derivative(self, control_1: Self, control_2: Self, end: Self, t: real) -> Self {
-        let x = bezier_derivative(self.x, control_1.x, control_2.x, end.x, t);
-        let y = bezier_derivative(self.y, control_1.y, control_2.y, end.y, t);
-
-        Self::new(x, y)
-    }
-
-    pub fn bezier_interpolate(self, control_1: Self, control_2: Self, end: Self, t: real) -> Self {
-        let x = bezier_interpolate(self.x, control_1.x, control_2.x, end.x, t);
-        let y = bezier_interpolate(self.y, control_1.y, control_2.y, end.y, t);
-
-        Self::new(x, y)
-    }
-
     pub fn bounce(self, normal: Self) -> Self {
         -self.reflect(normal)
     }
@@ -137,34 +115,6 @@ impl Vector2 {
 
     pub fn cross(self, with: Self) -> real {
         self.to_glam().perp_dot(with.to_glam())
-    }
-
-    pub fn cubic_interpolate(self, b: Self, pre_a: Self, post_b: Self, weight: real) -> Self {
-        let x = cubic_interpolate(self.x, b.x, pre_a.x, post_b.x, weight);
-        let y = cubic_interpolate(self.y, b.y, pre_a.y, post_b.y, weight);
-
-        Self::new(x, y)
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn cubic_interpolate_in_time(
-        self,
-        b: Self,
-        pre_a: Self,
-        post_b: Self,
-        weight: real,
-        b_t: real,
-        pre_a_t: real,
-        post_b_t: real,
-    ) -> Self {
-        let x = cubic_interpolate_in_time(
-            self.x, b.x, pre_a.x, post_b.x, weight, b_t, pre_a_t, post_b_t,
-        );
-        let y = cubic_interpolate_in_time(
-            self.y, b.y, pre_a.y, post_b.y, weight, b_t, pre_a_t, post_b_t,
-        );
-
-        Self::new(x, y)
     }
 
     pub fn direction_to(self, to: Self) -> Self {
@@ -199,10 +149,6 @@ impl Vector2 {
         self.to_glam().is_normalized()
     }
 
-    pub fn is_zero_approx(self) -> bool {
-        is_zero_approx(self.x) && is_zero_approx(self.y)
-    }
-
     pub fn length_squared(self) -> real {
         self.to_glam().length_squared()
     }
@@ -230,7 +176,7 @@ impl Vector2 {
     pub fn move_toward(self, to: Self, delta: real) -> Self {
         let vd = to - self;
         let len = vd.length();
-        if len <= delta || len < CMP_EPSILON {
+        if len <= delta || len < real::CMP_EPSILON {
             to
         } else {
             self + vd / len * delta
@@ -239,14 +185,6 @@ impl Vector2 {
 
     pub fn orthogonal(self) -> Self {
         Self::new(self.y, -self.x)
-    }
-
-    pub fn posmod(self, pmod: real) -> Self {
-        Self::new(fposmod(self.x, pmod), fposmod(self.y, pmod))
-    }
-
-    pub fn posmodv(self, modv: Self) -> Self {
-        Self::new(fposmod(self.x, modv.x), fposmod(self.y, modv.y))
     }
 
     pub fn project(self, b: Self) -> Self {
@@ -261,10 +199,6 @@ impl Vector2 {
         Self::from_glam(self.to_glam().round())
     }
 
-    pub fn sign(self) -> Self {
-        Self::new(sign(self.x), sign(self.y))
-    }
-
     // TODO compare with gdnative implementation:
     // https://github.com/godot-rust/gdnative/blob/master/gdnative-core/src/core_types/vector3.rs#L335-L343
     pub fn slerp(self, to: Self, weight: real) -> Self {
@@ -274,17 +208,13 @@ impl Vector2 {
             return self.lerp(to, weight);
         }
         let start_length = start_length_sq.sqrt();
-        let result_length = lerp(start_length, end_length_sq.sqrt(), weight);
+        let result_length = real::lerp(start_length, end_length_sq.sqrt(), weight);
         let angle = self.angle_to(to);
         self.rotated(angle * weight) * (result_length / start_length)
     }
 
     pub fn slide(self, normal: Self) -> Self {
         self - normal * self.dot(normal)
-    }
-
-    pub fn snapped(self, step: Self) -> Self {
-        Self::new(snapped(self.x, step.x), snapped(self.y, step.y))
     }
 
     /// Returns the result of rotating this vector by `angle` (in radians).
@@ -310,7 +240,8 @@ impl fmt::Display for Vector2 {
 }
 
 impl_common_vector_fns!(Vector2, real);
-impl_float_vector_fns!(Vector2, real);
+impl_float_vector_glam_fns!(Vector2, real);
+impl_float_vector_component_fns!(Vector2, real, (x, y));
 impl_vector_operators!(Vector2, real, (x, y));
 impl_from_tuple_for_vector2x!(Vector2, real);
 
@@ -318,13 +249,6 @@ impl_from_tuple_for_vector2x!(Vector2, real);
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
-}
-
-impl ApproxEq for Vector2 {
-    #[inline]
-    fn approx_eq(&self, other: &Self) -> bool {
-        is_equal_approx(self.x, other.x) && is_equal_approx(self.y, other.y)
-    }
 }
 
 impl GlamConv for Vector2 {

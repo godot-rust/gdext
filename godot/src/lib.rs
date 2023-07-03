@@ -167,6 +167,7 @@ pub mod prelude {
     pub use super::bind::property::{Export, Property, TypeStringHint};
     pub use super::bind::{godot_api, FromVariant, GodotClass, ToVariant};
 
+    pub use super::builtin::math::FloatExt as _;
     pub use super::builtin::*;
     pub use super::builtin::{array, dict, varray}; // Re-export macros.
     pub use super::engine::{

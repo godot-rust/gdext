@@ -7,7 +7,7 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{is_equal_approx, lerp, ApproxEq, GlamConv, GlamType, CMP_EPSILON};
+use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType};
 use crate::builtin::real_consts::FRAC_PI_2;
 use crate::builtin::{real, Quaternion, RMat3, RQuat, RVec2, RVec3, Vector3};
 
@@ -271,9 +271,9 @@ impl Basis {
     }
 
     fn is_between_neg1_1(f: real) -> Ordering {
-        if f >= (1.0 - CMP_EPSILON) {
+        if f >= (1.0 - real::CMP_EPSILON) {
             Ordering::Greater
-        } else if f <= -(1.0 - CMP_EPSILON) {
+        } else if f <= -(1.0 - real::CMP_EPSILON) {
             Ordering::Less
         } else {
             Ordering::Equal
@@ -364,15 +364,19 @@ impl Basis {
         Self::from_cols(self.rows[0], self.rows[1], self.rows[2])
     }
 
-    /// Returns the orthonormalized version of the matrix (useful to call from
+    /// ⚠️ Returns the orthonormalized version of the matrix (useful to call from
     /// time to time to avoid rounding error for orthogonal matrices). This
     /// performs a Gram-Schmidt orthonormalization on the basis of the matrix.
+    ///
+    /// # Panics
+    ///
+    /// If the determinant of the matrix is 0.
     ///
     /// _Godot equivalent: `Basis.orthonormalized()`_
     #[must_use]
     pub fn orthonormalized(self) -> Self {
         assert!(
-            !is_equal_approx(self.determinant(), 0.0),
+            !self.determinant().is_zero_approx(),
             "Determinant should not be zero."
         );
 
@@ -411,7 +415,7 @@ impl Basis {
         let mut result = Self::from_quat(from.slerp(to, weight));
 
         for i in 0..3 {
-            result.rows[i] *= lerp(self.rows[i].length(), other.rows[i].length(), weight);
+            result.rows[i] *= self.rows[i].length().lerp(other.rows[i].length(), weight);
         }
 
         result
