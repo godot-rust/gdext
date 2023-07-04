@@ -114,7 +114,7 @@ impl MethodInfo {
             .map(|argument| argument.info.property_sys())
             .collect();
 
-        let mut arguments_metadata: Vec<u32> =
+        let mut arguments_metadata: Vec<sys::GDExtensionClassMethodArgumentMetadata> =
             self.arguments.iter().map(|info| info.metadata).collect();
 
         let mut default_arguments_sys: Vec<sys::GDExtensionVariantPtr> =

@@ -128,7 +128,9 @@ impl ListParser {
     ///
     /// Returns `Ok(None)` if there are no more elements left.
     pub fn next_ident(&mut self) -> ParseResult<Option<Ident>> {
-        let Some(kv) = self.pop_next() else { return Ok(None) };
+        let Some(kv) = self.pop_next() else {
+            return Ok(None);
+        };
 
         Ok(Some(kv.ident()?))
     }
@@ -137,7 +139,9 @@ impl ListParser {
     ///
     /// Returns `Ok(None)` if there are no more elements left or the next element isn't an identifier.
     pub fn try_next_ident(&mut self) -> ParseResult<Option<Ident>> {
-        let Some(kv) = self.peek() else { return Ok(None) };
+        let Some(kv) = self.peek() else {
+            return Ok(None);
+        };
 
         let id = kv.as_ident()?;
 
@@ -150,7 +154,9 @@ impl ListParser {
     ///
     /// Returns `Ok(None)` if there are no more elements left.
     pub fn next_any_ident(&mut self, ids: &[&str]) -> ParseResult<Option<Ident>> {
-        let Some(next_id) = self.try_next_ident()? else { return Ok(None) };
+        let Some(next_id) = self.try_next_ident()? else {
+            return Ok(None);
+        };
 
         for id in ids {
             if next_id == id {

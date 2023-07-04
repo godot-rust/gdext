@@ -659,7 +659,7 @@ fn make_notification_enum(
     all_bases: &Vec<TyName>,
     ctx: &mut Context,
 ) -> (Option<TokenStream>, Ident) {
-    let Some(all_constants) = ctx.notification_constants(class_name) else  {
+    let Some(all_constants) = ctx.notification_constants(class_name) else {
         // Class has no notification constants: reuse (direct/indirect) base enum
         return (None, ctx.notification_enum_name(class_name));
     };
