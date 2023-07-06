@@ -90,16 +90,19 @@ runs:
       run: |
         echo "Patch prebuilt version to $VERSION..."
         
-        # For newer versions, update the compatibility_minimum in .gdextension files to 4.1
-        # Once a 4.1.0 is released, we can invert this and set compatibility_minimum to 4.0 for older versions.
-        if [[ "$VERSION" == "4.1" ]]; then
-          echo "Update compatibility_minimum in .gdextension files..."
+        # Reduce version to "major.minor" format
+        apiVersion=$(echo $VERSION | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
+        
+        # For newer versions, update the compatibility_minimum in .gdextension files to the respective version.
+        # Nothing needs to be done for 4.0.x, as compatibility_minimum didn't exist back then.
+        if [[ "$apiVersion" == "4.2" ]]; then
+          echo "Update compatibility_minimum in .gdextension files to '$apiVersion'..."
           dirs=("itest" "examples")
           for dir in "${dirs[@]}"; do
-              find "$dir" -type f -name "*.gdextension" -exec sed -i'.bak' 's/compatibility_minimum = 4\.0/compatibility_minimum = 4.1/' {} +
+              find "$dir" -type f -name "*.gdextension" -exec sed -i'.bak' 's/compatibility_minimum = 4\.1/compatibility_minimum = $apiVersion/' {} +
           done
         
-        # Versions 4.0.x
+        # Apply Cargo.toml patch for godot4-prebuilt crate
         else
           # Patch only needed if version is not already set
           if grep -E 'godot4-prebuilt = { .+ branch = "$VERSION" }' godot-bindings/Cargo.toml; then
