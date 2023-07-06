@@ -45,6 +45,11 @@ inputs:
     default: ''
     description: "Extra values for the RUSTFLAGS env var"
 
+  rust-target:
+    required: false
+    default: ''
+    description: "If provided, acts as an argument for '--target', and results in output files written to ./target/{target}"
+
   with-llvm:
     required: false
     default: ''
@@ -118,11 +123,23 @@ runs:
       shell: bash
 
     - name: "Build gdext (itest)"
-      run: |
-        cargo build -p itest ${{ inputs.rust-extra-args }}
-      shell: bash
       env:
         RUSTFLAGS: ${{ inputs.rust-env-rustflags }}
+        TARGET: ${{ inputs.rust-target }}
+      run: |
+        targetArgs=""
+        if [[ -n "$TARGET" ]]; then
+          targetArgs="--target $TARGET"
+        fi
+        
+        cargo build -p itest ${{ inputs.rust-extra-args }} $targetArgs
+        
+        # Instead of modifying .gdextension, rename the output directory
+        if [[ -n "$TARGET" ]]; then
+          rm -rf target/debug
+          mv target/$TARGET/debug target
+        fi
+      shell: bash
 
     # This step no longer fails if there's a diff, as we expect header to be forward-compatible; instead issues a warning
     # However, still fails if patch cannot be applied (conflict).
@@ -162,8 +179,10 @@ runs:
       run: |
         cd itest/godot
         echo "OUTCOME=itest" >> $GITHUB_ENV
-        $GODOT4_BIN --headless ${{ inputs.godot-args }} 2>&1 | tee "${{ runner.temp }}/log.txt" | tee >(grep "SCRIPT ERROR:" -q && {
-        	printf "\n -- Godot engine encountered error, abort...\n";
+        $GODOT4_BIN --headless ${{ inputs.godot-args }} 2>&1 \
+        | tee "${{ runner.temp }}/log.txt" \
+        | tee >(grep -E "SCRIPT ERROR:|Can't open dynamic library" -q && {
+        	printf "\n::error::godot-itest: unrecoverable Godot error, abort...\n";
         	pkill godot
             echo "OUTCOME=godot-runtime" >> $GITHUB_ENV
         	exit 2

@@ -385,7 +385,7 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context)
             .push(ident(&util::shout_to_pascal(name)));
         result
             .variant_op_enumerators_ord
-            .push(Literal::i32_unsuffixed(op.value));
+            .push(util::make_enumerator_ord(op.value));
     }
 
     for enum_ in api.global_enums.iter() {
@@ -499,7 +499,7 @@ fn make_enumerator(
     let enumerator_name = &type_names.json_builtin_name;
     let pascal_name = to_pascal_case(enumerator_name);
     let rust_ty = to_rust_type(enumerator_name, None, ctx);
-    let ord = Literal::i32_unsuffixed(value);
+    let ord = util::make_enumerator_ord(value);
 
     (ident(&pascal_name), rust_ty.to_token_stream(), ord)
 }

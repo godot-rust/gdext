@@ -31,8 +31,8 @@ pub fn gdext_register_method(class_name: &Ident, method_signature: &TokenStream)
 
     let wrapped_method = wrap_with_unpacked_params(class_name, &signature_info);
 
-    let varcall_func = get_varcall_func(class_name, method_name, &sig, &wrapped_method);
-    let ptrcall_func = get_ptrcall_func(class_name, method_name, &sig, &wrapped_method);
+    let varcall_func = get_varcall_func(method_name, &sig, &wrapped_method);
+    let ptrcall_func = get_ptrcall_func(method_name, &sig, &wrapped_method);
 
     quote! {
         {
@@ -72,7 +72,6 @@ pub fn gdext_register_method(class_name: &Ident, method_signature: &TokenStream)
 }
 
 fn get_varcall_func(
-    class_name: &Ident,
     method_name: &Ident,
     sig: &TokenStream,
     wrapped_method: &TokenStream,
@@ -93,7 +92,6 @@ fn get_varcall_func(
                         godot::private::gdext_call_signature_method!(
                             varcall,
                             #sig,
-                            #class_name,
                             instance_ptr,
                             args,
                             ret,
@@ -119,7 +117,6 @@ fn get_varcall_func(
 }
 
 fn get_ptrcall_func(
-    class_name: &Ident,
     method_name: &Ident,
     sig: &TokenStream,
     wrapped_method: &TokenStream,
@@ -138,7 +135,6 @@ fn get_ptrcall_func(
                         godot::private::gdext_call_signature_method!(
                             ptrcall,
                             #sig,
-                            #class_name,
                             instance_ptr,
                             args,
                             ret,

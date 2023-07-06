@@ -35,7 +35,7 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
 
     for enumerator in values {
         let name = make_enumerator_name(&enumerator.name, &enum_.name);
-        let ordinal = Literal::i32_unsuffixed(enumerator.value);
+        let ordinal = make_enumerator_ord(enumerator.value);
 
         enumerators.push(quote! {
             pub const #name: Self = Self { ord: #ordinal };
@@ -120,7 +120,7 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
                 let err = sys::PrimitiveConversionError::new(via);
                 let ord = i32::try_from(via).map_err(|_| err)?;
                 <Self as crate::obj::EngineEnum>::try_from_ord(ord).ok_or(err)
-            }
+        }
 
             fn try_into_via(self) -> std::result::Result<Self::Via, Self::IntoViaError> {
                 Ok(<Self as crate::obj::EngineEnum>::ord(self).into())
@@ -484,6 +484,10 @@ pub fn parse_native_structures_format(input: &str) -> Option<Vec<NativeStructure
             })
         })
         .collect()
+}
+
+pub(crate) fn make_enumerator_ord(ord: i32) -> Literal {
+    Literal::i32_unsuffixed(ord)
 }
 
 pub(crate) fn to_rust_expr(expr: &str, ty: &RustTy) -> TokenStream {

@@ -31,11 +31,11 @@ runs:
   steps:
     - name: "Configure"
       id: configure
+      env:
+        CS: ${{ inputs.components }}
       run: |
         echo "Rust cache shared-key: '${{ runner.os }}-${{ inputs.rust }}${{ inputs.cache-key }}'"
-        echo "components=$( for c in ${cs//,/ }; do echo -n ' --component' $c; done )" >> $GITHUB_OUTPUT
-      env:
-        cs: ${{ inputs.components }}
+        echo "components=$( for c in ${CS//,/ }; do echo -n ' --component' $c; done )" >> $GITHUB_OUTPUT
       shell: bash
 
     - name: "Rustup"
