@@ -41,6 +41,12 @@ impl ExportInfo {
     }
 }
 
+impl<T: TypeStringHint> TypeStringHint for Option<T> {
+    fn type_string() -> String {
+        T::type_string()
+    }
+}
+
 impl<T> Property for Option<T>
 where
     T: Property + From<<T as Property>::Intermediate>,
