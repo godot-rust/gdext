@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{decl_get_info, DeclInfo};
+use crate::util::{decl_get_info, has_attr, DeclInfo};
 use crate::ParseResult;
 use proc_macro2::TokenStream;
 #[allow(unused_imports)]
@@ -42,9 +42,12 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
                     StructFields::Named(named) => make_named_enum_field(named),
                 };
                 let arm_content = match &enum_v.contents {
-                    StructFields::Unit => quote! {
-                        #variant_name_string.to_variant()
+                    _ if has_attr(&enum_v.attributes, "variant", "skip") => quote! {
+                        return godot::builtin::dict!{
+                            #name_string : godot::builtin::Variant::nil()
+                        }.to_variant();
                     },
+                    StructFields::Unit => quote! { #variant_name_string.to_variant() },
 
                     StructFields::Tuple(fields) => make_enum_tuple_arm(fields, variant_name_string),
                     StructFields::Named(fields) => make_enum_named_arm(fields, variant_name_string),
@@ -98,18 +101,26 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
 }
 
 fn make_named_enum_field(named: &venial::NamedStructFields) -> TokenStream {
-    let fields = named.fields.iter().map(|(field, _)| &field.name);
-    quote!(
-        {#(#fields ,)*}
-    )
+    let fields = named.fields.iter().map(|(field, _)| {
+        let field_name = field.name.to_token_stream();
+        if has_attr(&field.attributes, "variant", "skip") {
+            quote! { #field_name : _ }
+        } else {
+            field_name
+        }
+    });
+    quote! { { #(#fields ,)* } }
 }
 
 fn make_tuple_enum_field(s: &venial::TupleStructFields) -> TokenStream {
-    let fields = s
-        .fields
-        .iter()
-        .enumerate()
-        .map(|(k, _)| format_ident!("__{}", k));
+    let fields = s.fields.iter().enumerate().map(|(k, (f, _))| {
+        if has_attr(&f.attributes, "variant", "skip") {
+            quote! { _ }
+        } else {
+            format_ident!("__{}", k).to_token_stream()
+        }
+    });
+
     quote! {
         (#(#fields ,)*)
     }
@@ -122,18 +133,19 @@ fn make_enum_named_arm(
     let fields = fields
         .fields
         .iter()
+        .filter(|(f, _)| !has_attr(&f.attributes, "variant", "skip"))
         .map(|(field, _)| (field.name.clone(), field.name.to_string()))
         .map(|(ident, ident_string)| {
-            quote!(
+            quote! {
                 root.insert(#ident_string,#ident.to_variant());
-            )
+            }
         });
     quote! {
         let mut root = godot::builtin::Dictionary::new();
         #(
             #fields
         )*
-        godot::builtin::dict!{ #variant_name_string : root}.to_variant()
+        godot::builtin::dict!{ #variant_name_string : root }.to_variant()
     }
 }
 
@@ -142,20 +154,30 @@ fn make_enum_tuple_arm(
     variant_name_string: String,
 ) -> TokenStream {
     if fields.fields.len() == 1 {
-        return quote! {godot::builtin::dict! { #variant_name_string : __0}.to_variant()};
+        let res = if has_attr(
+            &fields.fields.first().unwrap().0.attributes,
+            "variant",
+            "skip",
+        ) {
+            quote! { godot::builtin::Variant::nil() }
+        } else {
+            quote! { __0 }
+        };
+        return quote! { godot::builtin::dict! { #variant_name_string : #res }.to_variant() };
     }
     let fields = fields
         .fields
         .iter()
         .enumerate()
+        .filter(|(_, (f, _))| !has_attr(&f.attributes, "variant", "skip"))
         .map(|(k, _)| format_ident!("__{}", k))
         .map(|ident| {
-            quote!(
+            quote! {
                 root.push(#ident.to_variant());
-            )
+            }
         });
     quote! {
-        let mut root = godot::builtin::Array::new();
+        let mut root = godot::builtin::VariantArray::new();
         #(
             #fields
 
@@ -169,14 +191,18 @@ fn make_struct_named(
     fields: &venial::NamedStructFields,
     string_ident: String,
 ) {
-    let fields = fields.fields.items().map(|nf| {
-        let field_name = nf.name.clone();
-        let field_name_string = nf.name.to_string();
+    let fields = fields
+        .fields
+        .items()
+        .filter(|f| !has_attr(&f.attributes, "variant", "skip"))
+        .map(|nf| {
+            let field_name = nf.name.clone();
+            let field_name_string = nf.name.to_string();
 
-        quote!(
-            fields.insert(#field_name_string, self.#field_name.to_variant());
-        )
-    });
+            quote! {
+                fields.insert(#field_name_string, self.#field_name.to_variant());
+            }
+        });
 
     *body = quote! {
         #body
@@ -193,7 +219,13 @@ fn make_struct_tuple(
     fields: &venial::TupleStructFields,
     string_ident: String,
 ) {
-    if fields.fields.len() == 1 {
+    if fields.fields.len() == 1
+        && !has_attr(
+            &fields.fields.first().unwrap().0.attributes,
+            "variant",
+            "skip",
+        )
+    {
         *body = quote! {
             #body
             root.insert(#string_ident, self.0.to_variant());
@@ -204,17 +236,18 @@ fn make_struct_tuple(
     let fields = fields
         .fields
         .iter()
+        .filter(|(f, _)| !has_attr(&f.attributes, "variant", "skip"))
         .enumerate()
         .map(|(k, _)| proc_macro2::Literal::usize_unsuffixed(k))
         .map(|ident| {
-            quote!(
+            quote! {
                 fields.push(self.#ident.to_variant());
-            )
+            }
         });
 
     *body = quote! {
         #body
-        let mut fields = godot::builtin::Array::new();
+        let mut fields = godot::builtin::VariantArray::new();
         #(
             #fields
         )*
