@@ -10,13 +10,18 @@ func _ready():
 	await get_tree().physics_frame
 
 	var allow_focus := true
+	var filters: Array = []
 	var unrecognized_args: Array = []
 	for arg in OS.get_cmdline_user_args():
 		match arg:
 			"--disallow-focus":
 				allow_focus = false
 			_:
-				unrecognized_args.push_back(arg)
+				if not arg.begins_with("[") or not arg.ends_with("]"):
+					unrecognized_args.push_back(arg)
+
+				var args = arg.lstrip("[").rstrip("]").split(",")
+				filters.append_array(args)
 
 	if unrecognized_args:
 		push_error("Unrecognized arguments: ", unrecognized_args)
@@ -53,6 +58,7 @@ func _ready():
 		gdscript_suites.size(),
 		allow_focus,
 		self,
+		filters
 	)
 
 	var exit_code: int = 0 if success else 1

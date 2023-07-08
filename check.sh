@@ -34,11 +34,14 @@ Commands:
 Options:
     -h, --help    print this help text
     --double      run check with double-precision
+    -f, --filter <arg>  only run integration tests which contain any of the
+                        args (comma-separated). requires itest.
 
 Examples:
     check.sh fmt clippy
     check.sh
     check.sh --double clippy
+    check.sh test itest -f variant,static
     RUSTUP_TOOLCHAIN=nightly check.sh
 EOF
 
@@ -140,7 +143,7 @@ function cmd_test() {
 function cmd_itest() {
     findGodot && \
         run cargo build -p itest "${extraCargoArgs[@]}" && \
-        run "$godotBin" --path itest/godot --headless
+        run "$godotBin" --path itest/godot --headless -- "[${extraArgs[@]}]"
 }
 
 function cmd_doc() {
@@ -159,6 +162,8 @@ function cmd_dok() {
 # between `itest` compilations and `check.sh` runs.
 extraCargoArgs=("--no-default-features")
 cmds=()
+nextArgIsFilter=false
+extraArgs=()
 
 for arg in "$@"; do
     case "$arg" in
@@ -172,9 +177,17 @@ for arg in "$@"; do
         fmt | clippy | test | itest | doc | dok)
             cmds+=("$arg")
             ;;
+        -f | --filtering)
+            nextArgIsFilter=true
+            ;;
         *)
-            log "Unrecognized argument '$arg'. Use '$0 --help' to see what's available."
-            exit 2
+            if $nextArgIsFilter; then
+                extraArgs+=("$arg")
+                nextArgIsFilter=false
+            else
+                log "Unrecognized argument '$arg'. Use '$0 --help' to see what's available."
+                exit 2
+            fi
             ;;
     esac
 done
