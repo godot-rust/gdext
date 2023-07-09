@@ -85,7 +85,7 @@ unsafe impl ExtensionLibrary for runner::IntegrationTests {}
 sys::plugin_registry!(__GODOT_ITEST: RustTestCase);
 
 /// Finds all `#[itest]` tests.
-fn collect_rust_tests() -> (Vec<RustTestCase>, usize, bool) {
+fn collect_rust_tests(filters: &[String]) -> (Vec<RustTestCase>, usize, bool) {
     let mut all_files = std::collections::HashSet::new();
     let mut tests: Vec<RustTestCase> = vec![];
     let mut is_focus_run = false;
@@ -99,7 +99,7 @@ fn collect_rust_tests() -> (Vec<RustTestCase>, usize, bool) {
         }
 
         // Only collect tests if normal mode, or focus mode and test is focused.
-        if !is_focus_run || test.focused {
+        if (!is_focus_run || test.focused) && passes_filter(filters, test.name) {
             all_files.insert(test.file);
             tests.push(*test);
         }
@@ -125,4 +125,8 @@ struct RustTestCase {
     #[allow(dead_code)]
     line: u32,
     function: fn(&TestContext),
+}
+
+pub(crate) fn passes_filter(filters: &[String], test_name: &str) -> bool {
+    filters.is_empty() || filters.iter().any(|x| test_name.contains(x))
 }

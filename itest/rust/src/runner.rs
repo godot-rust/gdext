@@ -12,7 +12,7 @@ use godot::engine::{Engine, Node};
 use godot::log::godot_error;
 use godot::obj::Gd;
 
-use crate::{RustTestCase, TestContext};
+use crate::{passes_filter, RustTestCase, TestContext};
 
 #[derive(GodotClass, Debug)]
 #[class(init)]
@@ -33,10 +33,19 @@ impl IntegrationTests {
         gdscript_file_count: i64,
         allow_focus: bool,
         scene_tree: Gd<Node>,
+        filters: VariantArray,
     ) -> bool {
         println!("{}Run{} Godot integration tests...", FMT_CYAN_BOLD, FMT_END);
-
-        let (rust_tests, rust_file_count, focus_run) = super::collect_rust_tests();
+        let filters: Vec<String> = filters.iter_shared().map(|v| v.to::<String>()).collect();
+        let gdscript_tests = gdscript_tests
+            .iter_shared()
+            .filter(|test| {
+                let test_name = get_property(test, "method_name");
+                passes_filter(filters.as_slice(), &test_name)
+            })
+            .collect::<Array<_>>();
+        let (rust_tests, rust_file_count, focus_run) =
+            super::collect_rust_tests(filters.as_slice());
         self.focus_run = focus_run;
         if focus_run {
             println!("  {FMT_CYAN}Focused run{FMT_END} -- execute only selected Rust tests.")
