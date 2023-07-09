@@ -7,6 +7,9 @@
 use crate::builtin::GodotString;
 use crate::engine::global::PropertyHint;
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Trait definitions
+
 /// Trait implemented for types that can be used as `#[var]` fields. This creates a copy of the
 /// value, for some type-specific definition of "copy". For example, `Array`, `Dictionary` and `Gd` are
 /// returned via `Share::share()` instead of copying the actual data.
@@ -23,23 +26,19 @@ pub trait Export: Property {
     fn default_export_info() -> ExportInfo;
 }
 
-/// Info needed for godot to understand how to export a type to the editor.
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct ExportInfo {
-    pub hint: PropertyHint,
-    pub hint_string: GodotString,
+/// Trait for types that can be represented as a type string for use with
+/// [`PropertyHint::PROPERTY_HINT_TYPE_STRING`].
+pub trait TypeStringHint {
+    /// Returns the representation of this type as a type string.
+    ///
+    /// See [`PropertyHint.PROPERTY_HINT_TYPE_STRING`](
+    ///     https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint
+    /// ).
+    fn type_string() -> String;
 }
 
-impl ExportInfo {
-    /// Create a new `ExportInfo` with a property hint of
-    /// [`PROPERTY_HINT_NONE`](PropertyHint::PROPERTY_HINT_NONE).
-    pub fn with_hint_none() -> Self {
-        Self {
-            hint: PropertyHint::PROPERTY_HINT_NONE,
-            hint_string: GodotString::new(),
-        }
-    }
-}
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Blanket impls for Option<T>
 
 impl<T: TypeStringHint> TypeStringHint for Option<T> {
     fn type_string() -> String {
@@ -80,15 +79,25 @@ where
     }
 }
 
-/// Trait for types that can be represented as a type string for use with
-/// [`PropertyHint::PROPERTY_HINT_TYPE_STRING`].
-pub trait TypeStringHint {
-    /// Returns the representation of this type as a type string.
-    ///
-    /// See [`PropertyHint.PROPERTY_HINT_TYPE_STRING`](
-    ///     https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint
-    /// ).
-    fn type_string() -> String;
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Export machinery
+
+/// Info needed for godot to understand how to export a type to the editor.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct ExportInfo {
+    pub hint: PropertyHint,
+    pub hint_string: GodotString,
+}
+
+impl ExportInfo {
+    /// Create a new `ExportInfo` with a property hint of
+    /// [`PROPERTY_HINT_NONE`](PropertyHint::PROPERTY_HINT_NONE).
+    pub fn with_hint_none() -> Self {
+        Self {
+            hint: PropertyHint::PROPERTY_HINT_NONE,
+            hint_string: GodotString::new(),
+        }
+    }
 }
 
 /// To export properties to Godot, you must have an impl-block with the `#[godot_api]` attribute, even if
