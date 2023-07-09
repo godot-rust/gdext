@@ -386,11 +386,68 @@ pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)
 }
 
+/// Derive macro for [ToVariant](godot::builtin::ToVariant) on structs or enums.
+///
+/// Example :
+///
+/// ```ignore
+/// #[derive(FromVariant, ToVariant, PartialEq, Debug)]
+/// struct StructNamed {
+///     field1: String,
+///     field2: i32,
+/// }
+///
+/// // This would not panic.
+/// assert!(
+///     StructNamed {
+///         field1: "1".to_string(),
+///         field2: 2,
+///     }
+///     .to_variant()
+///         == dict! {
+///           "StructNamed":dict!{
+///             "field1":"four","field2":5
+///           }
+///         }
+///         .to_variant()
+/// );
+/// ```
+///
+/// You can use the skip attribute to ignore a field from being converted to ToVariant.
 #[proc_macro_derive(ToVariant, attributes(variant))]
 pub fn derive_to_variant(input: TokenStream) -> TokenStream {
     translate(input, derive_to_variant::transform)
 }
 
+/// Derive macro for [FromVariant](godot::builtin::FromVariant) on structs or enums.
+///
+/// Example :
+///
+/// ```ignore
+/// #[derive(FromVariant, ToVariant, PartialEq, Debug)]
+/// struct StructNamed {
+///     field1: String,
+///     field2: i32,
+/// }
+///
+/// // This would not panic.
+/// assert!(
+///     StructNamed::from_variant(
+///         &dict! {
+///           "StructNamed":dict!{
+///             "field1":"four","field2":5
+///           }
+///         }
+///         .to_variant()
+///     ) == StructNamed {
+///         field1: "1".to_string(),
+///         field2: 2,
+///     }
+/// );
+/// ```
+///
+/// You can use the skip attribute to ignore a field from the provided variant and use `Default::default()`
+/// to get it instead.
 #[proc_macro_derive(FromVariant, attributes(variant))]
 pub fn derive_from_variant(input: TokenStream) -> TokenStream {
     translate(input, derive_from_variant::transform)
