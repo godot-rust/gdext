@@ -32,8 +32,8 @@ Commands:
     dok           generate docs and open in browser
 
 Options:
-    -h, --help    print this help text
-    --double      run check with double-precision
+    -h, --help          print this help text
+    --double            run check with double-precision
     -f, --filter <arg>  only run integration tests which contain any of the
                         args (comma-separated). requires itest.
 
@@ -177,8 +177,13 @@ for arg in "$@"; do
         fmt | clippy | test | itest | doc | dok)
             cmds+=("$arg")
             ;;
-        -f | --filtering)
-            nextArgIsFilter=true
+        -f | --filter)
+            if [[ "${cmds[*]}" =~ itest ]]; then
+                nextArgIsFilter=true
+            else
+                log "-f/--filter requires 'itest' to be specified as a command."
+                exit 2
+            fi
             ;;
         *)
             if $nextArgIsFilter; then
