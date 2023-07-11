@@ -415,6 +415,28 @@ fn typed_array_return_from_godot_func() {
     assert_eq!(children, array![child]);
 }
 
+#[itest]
+fn typed_array_try_from_untyped() {
+    let node = Node::new_alloc();
+    let array = VariantArray::from(&[node.share().to_variant()]);
+    assert_eq!(
+        array.to_variant().try_to::<Array<Option<Gd<Node>>>>(),
+        Err(VariantConversionError::BadType)
+    );
+    node.free();
+}
+
+#[itest]
+fn untyped_array_try_from_typed() {
+    let node = Node::new_alloc();
+    let array = Array::<Option<Gd<Node>>>::from(&[Some(node.share())]);
+    assert_eq!(
+        array.to_variant().try_to::<VariantArray>(),
+        Err(VariantConversionError::BadType)
+    );
+    node.free();
+}
+
 #[derive(GodotClass, Debug)]
 #[class(init, base=RefCounted)]
 struct ArrayTest;

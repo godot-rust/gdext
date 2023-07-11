@@ -333,13 +333,12 @@ impl<T: VariantMetadata> Array<T> {
     }
 
     /// Checks that the inner array has the correct type set on it for storing elements of type `T`.
-    ///
-    /// # Panics
-    ///
-    /// If the inner type doesn't match `T` or no type is set at all.
-    fn with_checked_type(self) -> Self {
-        assert_eq!(self.type_info(), TypeInfo::new::<T>());
-        self
+    fn with_checked_type(self) -> Result<Self, VariantConversionError> {
+        if self.type_info() == TypeInfo::new::<T>() {
+            Ok(self)
+        } else {
+            Err(VariantConversionError::BadType)
+        }
     }
 
     /// Sets the type of the inner array. Can only be called once, directly after creation.
@@ -635,7 +634,9 @@ impl<T: VariantMetadata> Share for Array<T> {
                 ctor(self_ptr, args.as_ptr());
             })
         };
-        array.with_checked_type()
+        array
+            .with_checked_type()
+            .expect("copied array should have same type as original array")
     }
 }
 
@@ -729,7 +730,7 @@ impl<T: VariantMetadata> FromVariant for Array<T> {
             })
         };
 
-        Ok(array.with_checked_type())
+        array.with_checked_type()
     }
 }
 
