@@ -6,7 +6,7 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{is_equal_approx, ApproxEq, GlamConv, GlamType, CMP_EPSILON};
+use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType};
 use crate::builtin::{inner, real, Basis, EulerOrder, RQuat, Vector3};
 
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
@@ -55,7 +55,7 @@ impl Quaternion {
         let theta = v.length();
         v = v.normalized();
 
-        if theta < CMP_EPSILON || !v.is_normalized() {
+        if theta < real::CMP_EPSILON || !v.is_normalized() {
             Self::default()
         } else {
             Self::from_angle_axis(v, theta)
@@ -89,7 +89,7 @@ impl Quaternion {
         let Self { x, y, z, w } = self;
         let axis = Vector3::new(x, y, z);
 
-        if self.w.abs() > 1.0 - CMP_EPSILON {
+        if self.w.abs() > 1.0 - real::CMP_EPSILON {
             axis
         } else {
             let r = 1.0 / (1.0 - w * w).sqrt();
@@ -110,7 +110,7 @@ impl Quaternion {
     }
 
     pub fn is_normalized(self) -> bool {
-        is_equal_approx(self.length_squared(), 1.0)
+        self.length_squared().approx_eq(&1.0)
     }
 
     pub fn length(self) -> real {
@@ -144,7 +144,7 @@ impl Quaternion {
             to1 = to;
         }
 
-        if 1.0 - cosom > CMP_EPSILON {
+        if 1.0 - cosom > real::CMP_EPSILON {
             omega = cosom.acos();
             sinom = omega.sin();
             scale0 = ((1.0 - weight) * omega).sin() / sinom;
@@ -265,10 +265,10 @@ impl Default for Quaternion {
 
 impl ApproxEq for Quaternion {
     fn approx_eq(&self, other: &Self) -> bool {
-        is_equal_approx(self.x, other.x)
-            && is_equal_approx(self.y, other.y)
-            && is_equal_approx(self.z, other.z)
-            && is_equal_approx(self.w, other.w)
+        self.x.approx_eq(&other.x)
+            && self.y.approx_eq(&other.y)
+            && self.z.approx_eq(&other.z)
+            && self.w.approx_eq(&other.w)
     }
 }
 

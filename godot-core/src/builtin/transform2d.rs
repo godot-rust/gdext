@@ -7,7 +7,7 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{assert_ne_approx, lerp_angle, ApproxEq, GlamConv, GlamType};
+use crate::builtin::math::{assert_ne_approx, ApproxEq, FloatExt, GlamConv, GlamType};
 use crate::builtin::real_consts::PI;
 use crate::builtin::{real, RAffine2, RMat2, Rect2, Vector2};
 
@@ -180,9 +180,9 @@ impl Transform2D {
     #[must_use]
     pub fn interpolate_with(self, other: Self, weight: real) -> Self {
         Self::from_angle_scale_skew_origin(
-            lerp_angle(self.rotation(), other.rotation(), weight),
+            self.rotation().lerp_angle(other.rotation(), weight),
             self.scale().lerp(other.scale(), weight),
-            lerp_angle(self.skew(), other.skew(), weight),
+            self.skew().lerp_angle(other.skew(), weight),
             self.origin.lerp(other.origin, weight),
         )
     }

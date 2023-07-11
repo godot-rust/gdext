@@ -256,7 +256,7 @@ macro_rules! impl_common_vector_fns {
 
 /// Implements common constants and methods for floating-point type vectors. Works for any vector
 /// type that has `to_glam` and `from_glam` functions.
-macro_rules! impl_float_vector_fns {
+macro_rules! impl_float_vector_glam_fns {
     (
         // Name of the vector type.
         $Vector:ty,
@@ -277,6 +277,107 @@ macro_rules! impl_float_vector_fns {
             #[inline]
             pub fn normalized(self) -> Self {
                 Self::from_glam(self.to_glam().normalize_or_zero())
+            }
+        }
+    };
+}
+
+/// Implements common constants and methods for floating-point type vectors based on their components.
+macro_rules! impl_float_vector_component_fns {
+    (
+        // Name of the vector type.
+        $Vector:ty,
+        // Type of target component, for example `real`.
+        $Scalar:ty,
+        // Names of the components, with parentheses, for example `(x, y)`.
+        ($($comp:ident),*)
+    ) => {
+        impl $Vector {
+            pub fn lerp(self, other: Self, weight: $Scalar) -> Self {
+                Self::new(
+                    $(
+                        self.$comp.lerp(other.$comp, weight)
+                    ),*
+                )
+            }
+
+            pub fn bezier_derivative(self, control_1: Self, control_2: Self, end: Self, t: $Scalar) -> Self {
+                $(
+                    let $comp = self.$comp.bezier_derivative(control_1.$comp, control_2.$comp, end.$comp, t);
+                )*
+
+                Self::new($($comp),*)
+            }
+
+            pub fn bezier_interpolate(self, control_1: Self, control_2: Self, end: Self, t: $Scalar) -> Self {
+                $(
+                    let $comp = self.$comp.bezier_interpolate(control_1.$comp, control_2.$comp, end.$comp, t);
+                )*
+
+                Self::new($($comp),*)
+            }
+
+            pub fn cubic_interpolate(self, b: Self, pre_a: Self, post_b: Self, weight: $Scalar) -> Self {
+                $(
+                    let $comp = self.$comp.cubic_interpolate(b.$comp, pre_a.$comp, post_b.$comp, weight);
+                )*
+
+                Self::new($($comp),*)
+            }
+
+            #[allow(clippy::too_many_arguments)]
+            pub fn cubic_interpolate_in_time(
+                self,
+                b: Self,
+                pre_a: Self,
+                post_b: Self,
+                weight: $Scalar,
+                b_t: $Scalar,
+                pre_a_t: $Scalar,
+                post_b_t: $Scalar,
+            ) -> Self {
+                $(
+                    let $comp = self.$comp.cubic_interpolate_in_time(
+                        b.$comp, pre_a.$comp, post_b.$comp, weight, b_t, pre_a_t, post_b_t,
+                    );
+                )*
+
+                Self::new($($comp),*)
+            }
+
+            pub fn is_zero_approx(self) -> bool {
+                $(self.$comp.is_zero_approx())&&*
+            }
+
+            pub fn posmod(self, pmod: $Scalar) -> Self {
+                Self::new(
+                    $( self.$comp.fposmod(pmod) ),*
+                )
+            }
+
+            pub fn posmodv(self, modv: Self) -> Self {
+                Self::new(
+                    $( self.$comp.fposmod(modv.$comp) ),*
+                )
+            }
+
+            pub fn sign(self) -> Self {
+                Self::new(
+                    $( self.$comp.sign() ),*
+                )
+            }
+
+            pub fn snapped(self, step: Self) -> Self {
+                Self::new(
+                    $( self.$comp.snapped(step.$comp) ),*
+                )
+            }
+        }
+
+        impl $crate::builtin::math::ApproxEq for $Vector {
+            #[inline]
+            fn approx_eq(&self, other: &Self) -> bool {
+                $( self.$comp.approx_eq(&other.$comp) )&&*
             }
         }
     };
