@@ -103,7 +103,7 @@ fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
 fn parse_function_pointers(header_code: &str) -> Vec<GodotFuncPtr> {
     // See https://docs.rs/regex/latest/regex for docs.
     let regex = Regex::new(
-        r#"(?xms)
+        r"(?xms)
         # x: ignore whitespace and allow line comments (starting with `#`)
         # m: multi-line mode, ^ and $ match start and end of line
         # s: . matches newlines; would otherwise require (:?\n|\r\n|\r)
@@ -131,7 +131,7 @@ fn parse_function_pointers(header_code: &str) -> Vec<GodotFuncPtr> {
         # Parameters:                (GDExtensionVariantType p_from, GDExtensionVariantType p_to);
         .+?;
         # $ omitted, because there can be comments after `;`
-    "#,
+    ",
     )
     .unwrap();
 
@@ -142,9 +142,9 @@ fn parse_function_pointers(header_code: &str) -> Vec<GodotFuncPtr> {
         let doc = cap.name("doc");
 
         let (Some(name), Some(funcptr_ty), Some(doc)) = (name, funcptr_ty, doc) else {
-			// Skip unparseable ones, instead of breaking build (could just be a /** */ comment around something else)
-			continue;
-		};
+            // Skip unparseable ones, instead of breaking build (could just be a /** */ comment around something else)
+            continue;
+        };
 
         func_ptrs.push(GodotFuncPtr {
             name: ident(name.as_str()),

@@ -348,7 +348,10 @@ fn object_engine_convert_variant_nil() {
 
 #[itest]
 fn object_engine_returned_refcount() {
-    let Some(file) = FileAccess::open("res://itest.gdextension".into(), file_access::ModeFlags::READ) else {
+    let Some(file) = FileAccess::open(
+        "res://itest.gdextension".into(),
+        file_access::ModeFlags::READ,
+    ) else {
         panic!("failed to open file used to test FileAccess")
     };
     assert!(file.is_open());

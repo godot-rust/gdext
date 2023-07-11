@@ -64,6 +64,8 @@ pub trait PtrcallSignatureTuple {
 use crate::builtin::meta::*;
 use crate::builtin::{FromVariant, ToVariant, Variant};
 
+use super::registration::method::MethodParamOrReturnInfo;
+
 macro_rules! impl_varcall_signature_for_tuple {
     (
         $PARAM_COUNT:literal,

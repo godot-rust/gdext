@@ -423,6 +423,7 @@ pub mod callbacks {
 
         //T::register_methods(class_builder);
         T::__register_methods();
+        T::__register_constants();
         T::__register_exports();
     }
 }

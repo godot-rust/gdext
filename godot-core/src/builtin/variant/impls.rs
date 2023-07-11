@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use crate::builtin::meta::registration::method::MethodParamOrReturnInfo;
 use crate::builtin::meta::{PropertyInfo, VariantMetadata};
 use crate::builtin::*;
 use crate::engine::global;
@@ -214,7 +215,7 @@ impl VariantMetadata for () {
         VariantType::Nil
     }
 
-    fn return_info() -> Option<meta::MethodParamOrReturnInfo> {
+    fn return_info() -> Option<MethodParamOrReturnInfo> {
         None
     }
 }

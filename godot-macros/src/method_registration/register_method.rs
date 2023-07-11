@@ -37,6 +37,7 @@ pub fn gdext_register_method(class_name: &Ident, method_signature: &TokenStream)
     quote! {
         {
             use godot::builtin::meta::*;
+            use godot::builtin::meta::registration::method::MethodInfo;
             use godot::builtin::{StringName, Variant};
             use godot::sys;
 
@@ -48,23 +49,29 @@ pub fn gdext_register_method(class_name: &Ident, method_signature: &TokenStream)
             let varcall_func = #varcall_func;
             let ptrcall_func = #ptrcall_func;
 
-            let method_info = MethodInfo::from_signature::<Sig>(
-                class_name,
-                method_name,
-                Some(varcall_func),
-                Some(ptrcall_func),
-                #method_flags,
-                &[
-                    #( stringify!(#param_idents) ),*
-                ],
-                Vec::new()
-            );
+            // SAFETY:
+            // `get_varcall_func` upholds all the requirements for `call_func`.
+            // `get_ptrcall_func` upholds all the requirements for `ptrcall_func`
+            let method_info = unsafe {
+                MethodInfo::from_signature::<Sig>(
+                    class_name,
+                    method_name,
+                    Some(varcall_func),
+                    Some(ptrcall_func),
+                    #method_flags,
+                    &[
+                        #( stringify!(#param_idents) ),*
+                    ],
+                    Vec::new()
+                )
+            };
 
             godot::private::out!(
                 "   Register fn:   {}::{}",
                 stringify!(#class_name),
                 stringify!(#method_name)
             );
+
 
             method_info.register_extension_class_method();
         };

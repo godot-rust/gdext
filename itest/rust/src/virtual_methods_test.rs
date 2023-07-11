@@ -120,19 +120,19 @@ struct ReturnVirtualTest {
 impl PrimitiveMeshVirtual for ReturnVirtualTest {
     fn create_mesh_array(&self) -> VariantArray {
         varray![
-            PackedVector3Array::from_iter([Vector3::LEFT].into_iter()),
-            PackedVector3Array::from_iter([Vector3::LEFT].into_iter()),
-            PackedFloat32Array::from_iter([0.0, 0.0, 0.0, 1.0].into_iter()),
+            PackedVector3Array::from_iter([Vector3::LEFT]),
+            PackedVector3Array::from_iter([Vector3::LEFT]),
+            PackedFloat32Array::from_iter([0.0, 0.0, 0.0, 1.0]),
             PackedColorArray::from_iter([Color::from_rgb(1.0, 1.0, 1.0)]),
             PackedVector2Array::from_iter([Vector2::LEFT]),
             PackedVector2Array::from_iter([Vector2::LEFT]),
-            PackedByteArray::from_iter([0, 1, 2, 3].into_iter()),
-            PackedByteArray::from_iter([0, 1, 2, 3].into_iter()),
-            PackedByteArray::from_iter([0, 1, 2, 3].into_iter()),
-            PackedByteArray::from_iter([0, 1, 2, 3].into_iter()),
-            PackedInt32Array::from_iter([0, 1, 2, 3].into_iter()),
-            PackedFloat32Array::from_iter([0.0, 1.0, 2.0, 3.0].into_iter()),
-            PackedInt32Array::from_iter([0].into_iter()),
+            PackedByteArray::from_iter([0, 1, 2, 3]),
+            PackedByteArray::from_iter([0, 1, 2, 3]),
+            PackedByteArray::from_iter([0, 1, 2, 3]),
+            PackedByteArray::from_iter([0, 1, 2, 3]),
+            PackedInt32Array::from_iter([0, 1, 2, 3]),
+            PackedFloat32Array::from_iter([0.0, 1.0, 2.0, 3.0]),
+            PackedInt32Array::from_iter([0]),
         ]
     }
 }
