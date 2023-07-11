@@ -389,7 +389,7 @@ fn variant_hash_correct() {
         gstr("string").to_variant(),
         varray![false, true, 4, "7"].to_variant(),
         0.to_variant(),
-        dict! { 0 : dict!{ 0: 1 }}.to_variant(),
+        dict! { 0 : dict!{ 0: 1 } }.to_variant(),
     ];
 
     for variant in hash_is_not_0 {
@@ -408,7 +408,7 @@ fn variant_hash_correct() {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-fn roundtrip<T>(value: T)
+pub(crate) fn roundtrip<T>(value: T)
 where
     T: FromVariant + ToVariant + PartialEq + Debug,
 {

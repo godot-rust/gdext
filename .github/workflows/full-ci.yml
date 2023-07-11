@@ -2,12 +2,12 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# Full CI workflow
+name: Full CI
+#
 # Runs before merging. Rebases on master to make sure CI passes for latest integration, not only for the PR at the time of creation.
 
-name: Full CI
-
 on:
+  merge_group:
   push:
     branches:
       - staging
@@ -114,7 +114,7 @@ jobs:
       - name: "Test"
         run: cargo test $GDEXT_FEATURES ${{ matrix.rust-extra-args }}
 
-
+  # For complex matrix workflow, see https://stackoverflow.com/a/65434401
   godot-itest:
     name: godot-itest (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
@@ -139,20 +139,18 @@ jobs:
             artifact-name: macos-nightly
             godot-binary: godot.macos.editor.dev.x86_64
             rust-extra-args: --features godot/custom-godot
-            godot-prebuilt-patch: '4.1'
 
           - name: macos-double
             os: macos-12
             artifact-name: macos-double-nightly
             godot-binary: godot.macos.editor.dev.double.x86_64
             rust-extra-args: --features godot/custom-godot,godot/double-precision
-            godot-prebuilt-patch: '4.1'
 
-          - name: macos-4.0.3
+          - name: macos-4.1
             os: macos-12
             artifact-name: macos-stable
             godot-binary: godot.macos.editor.dev.x86_64
-            godot-prebuilt-patch: '4.0.3'
+            #godot-prebuilt-patch: '4.1'
 
           # Windows
 
@@ -161,20 +159,18 @@ jobs:
             artifact-name: windows-nightly
             godot-binary: godot.windows.editor.dev.x86_64.exe
             rust-extra-args: --features godot/custom-godot
-            godot-prebuilt-patch: '4.1'
 
           - name: windows-double
             os: windows-latest
             artifact-name: windows-double-nightly
             godot-binary: godot.windows.editor.dev.double.x86_64.exe
             rust-extra-args: --features godot/custom-godot,godot/double-precision
-            godot-prebuilt-patch: '4.1'
 
-          - name: windows-4.0.3
+          - name: windows-4.1
             os: windows-latest
             artifact-name: windows-stable
             godot-binary: godot.windows.editor.dev.x86_64.exe
-            godot-prebuilt-patch: '4.0.3'
+            #godot-prebuilt-patch: '4.1'
 
           # Linux
 
@@ -184,70 +180,80 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/custom-godot,godot/custom-godot
-            godot-prebuilt-patch: '4.1'
+            rust-extra-args: --features godot/custom-godot
 
           - name: linux-double
             os: ubuntu-20.04
             artifact-name: linux-double-nightly
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
             rust-extra-args: --features godot/custom-godot,godot/double-precision
-            godot-prebuilt-patch: '4.1'
 
           - name: linux-features
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features godot/custom-godot,godot/threads,godot/serde
-            godot-prebuilt-patch: '4.1'
 
-          # Special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
-          # Additionally, the Godot source is patched to make dlclose() a no-op, as unloading dynamic libraries loses stacktrace and
-          # cause false positives like println!. See https://github.com/google/sanitizers/issues/89.
-          # The gcc version can possibly be removed later, as it is slower and needs a larger artifact than the clang one.
-          - name: linux-memcheck-nightly
-            os: ubuntu-20.04
-            artifact-name: linux-memcheck-clang-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            godot-args: -- --disallow-focus
-            rust-toolchain: nightly
-            rust-env-rustflags: -Zrandomize-layout
-            rust-extra-args: --features godot/custom-godot
-            godot-prebuilt-patch: '4.1'
+          # Linux compat
 
-          # Linux under Godot 4.0.x
-
-          - name: linux-4.0.3
+          - name: linux-4.1
             os: ubuntu-20.04
             artifact-name: linux-stable
             godot-binary: godot.linuxbsd.editor.dev.x86_64
+            #godot-prebuilt-patch: '4.1'
+
+          - name: linux-4.0.3
+            os: ubuntu-20.04
+            artifact-name: linux-4.0.3
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            godot-prebuilt-patch: '4.0.3'
 
           - name: linux-4.0.2
             os: ubuntu-20.04
-            artifact-name: linux-stable
+            artifact-name: linux-4.0.3
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.0.2'
 
           - name: linux-4.0.1
             os: ubuntu-20.04
-            artifact-name: linux-stable
+            artifact-name: linux-4.0.3
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.0.1'
 
           - name: linux-4.0
             os: ubuntu-20.04
-            artifact-name: linux-stable
+            artifact-name: linux-4.0.3
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             godot-prebuilt-patch: '4.0'
 
-          - name: linux-memcheck-4.0.3
+          # Memory checks: special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
+          # See also https://rustc-dev-guide.rust-lang.org/sanitizers.html.
+          #
+          # Additionally, the Godot source is patched to make dlclose() a no-op, as unloading dynamic libraries loses stacktrace and
+          # cause false positives like println!. See https://github.com/google/sanitizers/issues/89.
+          #
+          # There is also a gcc variant besides clang, which is currently not used.
+          - name: linux-memcheck
             os: ubuntu-20.04
-            artifact-name: linux-memcheck-clang-stable
+            artifact-name: linux-memcheck-clang-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             godot-args: -- --disallow-focus
             rust-toolchain: nightly
-            rust-env-rustflags: -Zrandomize-layout
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
+            rust-extra-args: --features godot/custom-godot
+            # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
+            rust-target: x86_64-unknown-linux-gnu
 
+          - name: linux-memcheck-4.0.3
+            os: ubuntu-20.04
+            artifact-name: linux-memcheck-clang-4.0.3
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            godot-args: -- --disallow-focus
+            godot-prebuilt-patch: '4.0.3'
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
+            # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
+            rust-target: x86_64-unknown-linux-gnu
 
     steps:
       - uses: actions/checkout@v3
@@ -262,6 +268,7 @@ jobs:
           rust-extra-args: ${{ matrix.rust-extra-args }}
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
+          rust-target: ${{ matrix.rust-target }}
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'custom-godot') }}
           godot-check-header: ${{ matrix.godot-check-header }}
 
@@ -282,15 +289,26 @@ jobs:
           mode: check
 
 
-  full-ci:
-    if: github.event_name == 'push' && success()
+  # ---------------------------------------------------------------------------------------------------------------------------------------------
+  # CI status report
+
+  # Job to notify merge queue about success/failure
+  # 'push' is for workflows still triggered by bors
+  ci-status:
+    if: always() && (github.event_name == 'merge_group' || github.event_name == 'push')
     needs:
       - rustfmt
       - clippy
       - unit-test
       - godot-itest
       - license-guard
+
     runs-on: ubuntu-20.04
     steps:
-      - name: "Mark the job as a success"
+      - name: "Success"
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
         run: exit 0
+
+      - name: "Failure"
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1

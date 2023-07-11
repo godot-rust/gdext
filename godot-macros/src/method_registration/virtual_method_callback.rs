@@ -36,7 +36,6 @@ pub fn gdext_virtual_method_callback(
                 godot::private::gdext_call_signature_method!(
                     ptrcall,
                     #sig,
-                    #class_name,
                     instance_ptr,
                     args,
                     ret,

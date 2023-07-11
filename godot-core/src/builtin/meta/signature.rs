@@ -18,7 +18,7 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
     // TODO(uninit) - can we use this for varcall/ptrcall?
     // ret: sys::GDExtensionUninitializedVariantPtr
     // ret: sys::GDExtensionUninitializedTypePtr
-    unsafe fn varcall<C: GodotClass>(
+    unsafe fn varcall(
         instance_ptr: sys::GDExtensionClassInstancePtr,
         args_ptr: *const sys::GDExtensionConstVariantPtr,
         ret: sys::GDExtensionVariantPtr,
@@ -35,7 +35,7 @@ pub trait PtrcallSignatureTuple {
 
     // Note: this method imposes extra bounds on GodotFfi, which may not be implemented for user types.
     // We could fall back to varcalls in such cases, and not require GodotFfi categorically.
-    unsafe fn ptrcall<C: GodotClass>(
+    unsafe fn ptrcall(
         instance_ptr: sys::GDExtensionClassInstancePtr,
         args_ptr: *const sys::GDExtensionConstTypePtr,
         ret: sys::GDExtensionTypePtr,
@@ -63,7 +63,6 @@ pub trait PtrcallSignatureTuple {
 //
 use crate::builtin::meta::*;
 use crate::builtin::{FromVariant, ToVariant, Variant};
-use crate::obj::GodotClass;
 
 macro_rules! impl_varcall_signature_for_tuple {
     (
@@ -102,7 +101,7 @@ macro_rules! impl_varcall_signature_for_tuple {
 
 
             #[inline]
-            unsafe fn varcall<C : GodotClass>(
+            unsafe fn varcall(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
                 ret: sys::GDExtensionVariantPtr,
@@ -135,7 +134,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
             type Params = ($($Pn,)*);
             type Ret = $R;
 
-            unsafe fn ptrcall<C : GodotClass>(
+            unsafe fn ptrcall(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,

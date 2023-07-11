@@ -31,6 +31,11 @@ jobs:
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
         run: cargo check -p godot $GDEXT_FEATURES
 
+#      - name: "Dump GitHub context"
+#        env:
+#          GITHUB_CONTEXT: ${{ toJson(github) }}
+#        run: echo "$GITHUB_CONTEXT"
+
       # Pushed to master: no PR-related information
       - name: "Construct JSON (for master)"
         if: github.ref == 'refs/heads/master'
@@ -39,6 +44,7 @@ jobs:
           {
             "op": "put",
             "repo": "gdext",
+            "repo-owner": "${{ github.repository_owner }}",
             "num": "master",
             "commit-sha": "${{ github.sha }}",
             "date": "${{ github.event.head_commit.timestamp }}"
@@ -57,6 +63,7 @@ jobs:
           {
             "op": "put",
             "repo": "gdext",
+            "repo-owner": "${{ github.repository_owner }}",
             "num": "${{ github.event.number }}",
             "commit-sha": "${{ github.event.pull_request.head.sha }}",
             "date": "${{ github.event.pull_request.updated_at }}",
@@ -77,6 +84,7 @@ jobs:
           {
               "op": "delete",
               "repo": "gdext",
+              "repo-owner": "${{ github.repository_owner }}",
               "num": "${{ github.event.number }}",
               "date": "${{ github.event.pull_request.updated_at }}"
           }

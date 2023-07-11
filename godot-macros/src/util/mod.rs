@@ -15,6 +15,7 @@ use venial::{Error, Function, GenericParamList, Impl, WhereClause};
 mod kv_parser;
 mod list_parser;
 
+pub(crate) use kv_parser::has_attr;
 pub(crate) use kv_parser::KvParser;
 pub(crate) use list_parser::ListParser;
 
