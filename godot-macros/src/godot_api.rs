@@ -77,25 +77,33 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
     for signature in signals {
         let mut param_types: Vec<TyExpr> = Vec::new();
-        let mut param_names: Vec<Ident> = Vec::new();
+        let mut param_names: Vec<String> = Vec::new();
 
         for param in signature.params.inner {
             match &param.0 {
                 FnParam::Typed(param) => {
                     param_types.push(param.ty.clone());
-                    param_names.push(param.name.clone());
+                    param_names.push(param.name.to_string());
                 }
                 FnParam::Receiver(_) => {}
             };
         }
 
+        let signature_tuple = util::make_signature_tuple_type(&quote! { () }, &param_types);
+        let indexes = 0..param_types.len();
+        let param_array_decl = quote! {
+            [
+                // Don't use raw sys pointers directly, very easy to have objects going out of scope.
+                #(
+                    <#signature_tuple as godot::builtin::meta::VarcallSignatureTuple>
+                        ::param_property_info(#indexes, #param_names),
+                )*
+            ]
+        };
+
         signal_name_strs.push(signature.name.to_string());
         signal_parameters_count.push(param_names.len());
-        signal_parameters.push(
-            quote! {
-                ::godot::private::gdext_get_arguments_info!(((), #(#param_types ),*), #(#param_names, )*)
-            },
-        );
+        signal_parameters.push(param_array_decl);
     }
 
     let prv = quote! { ::godot::private };

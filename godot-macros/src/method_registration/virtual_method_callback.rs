@@ -9,8 +9,9 @@ use quote::quote;
 use venial::Function;
 
 use crate::method_registration::{
-    get_signature_info, make_forwarding_closure, make_signature_tuple_type,
+    get_signature_info, make_forwarding_closure, make_ptrcall_invocation,
 };
+use crate::util;
 
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
 //
@@ -23,9 +24,11 @@ pub fn gdext_virtual_method_callback(
     let signature_info = get_signature_info(method_signature);
     let method_name = &method_signature.name;
 
-    let forwarding_closure = make_forwarding_closure(class_name, &signature_info);
-    let signature_tuple_type =
-        make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
+    let wrapped_method = make_forwarding_closure(class_name, &signature_info);
+    let sig_tuple =
+        util::make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
+
+    let invocation = make_ptrcall_invocation(method_name, &sig_tuple, &wrapped_method, true);
 
     quote! {
         {
@@ -36,16 +39,7 @@ pub fn gdext_virtual_method_callback(
                 args: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
             ) {
-                godot::private::gdext_call_signature_method!(
-                    ptrcall,
-                    #signature_tuple_type,
-                    instance_ptr,
-                    args,
-                    ret,
-                    #forwarding_closure,
-                    #method_name,
-                    godot::sys::PtrcallType::Virtual
-                );
+                #invocation;
             }
             Some(function)
         }

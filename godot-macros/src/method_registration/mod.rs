@@ -126,9 +126,49 @@ fn make_method_flags(method_type: ReceiverType) -> TokenStream {
     }
 }
 
-/// Returns a type expression that can be used as a `VarcallSignatureTuple`.
-fn make_signature_tuple_type(ret_type: &TokenStream, param_types: &Vec<venial::TyExpr>) -> TokenStream {
+/// Generate code for a `ptrcall` call expression.
+fn make_ptrcall_invocation(
+    method_name: &Ident,
+    sig_tuple: &TokenStream,
+    wrapped_method: &TokenStream,
+    is_virtual: bool,
+) -> TokenStream {
+    let method_name_str = method_name.to_string();
+
+    let ptrcall_type = if is_virtual {
+        quote! { sys::PtrcallType::Virtual }
+    } else {
+        quote! { sys::PtrcallType::Standard }
+    };
+
     quote! {
-        (#ret_type, #(#param_types),*)
+         <#sig_tuple as godot::builtin::meta::PtrcallSignatureTuple>::ptrcall(
+            instance_ptr,
+            args,
+            ret,
+            #wrapped_method,
+            #method_name_str,
+            #ptrcall_type,
+        )
+    }
+}
+
+/// Generate code for a `varcall()` call expression.
+fn make_varcall_invocation(
+    method_name: &Ident,
+    sig_tuple: &TokenStream,
+    wrapped_method: &TokenStream,
+) -> TokenStream {
+    let method_name_str = method_name.to_string();
+
+    quote! {
+        <#sig_tuple as godot::builtin::meta::VarcallSignatureTuple>::varcall(
+            instance_ptr,
+            args,
+            ret,
+            err,
+            #wrapped_method,
+            #method_name_str,
+        )
     }
 }
