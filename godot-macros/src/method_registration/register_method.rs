@@ -4,7 +4,10 @@
 * file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-use crate::method_registration::{get_signature_info, make_forwarding_closure, make_method_flags};
+use crate::method_registration::{
+    get_signature_info, make_forwarding_closure, make_method_flags, make_ptrcall_invocation,
+    make_varcall_invocation,
+};
 use crate::util;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
@@ -25,8 +28,13 @@ pub fn make_method_registration(
 
     let forwarding_closure = make_forwarding_closure(class_name, &signature_info);
 
-    let varcall_func = get_varcall_func(method_name, &sig_tuple, &forwarding_closure);
-    let ptrcall_func = get_ptrcall_func(method_name, &sig_tuple, &forwarding_closure);
+    let varcall_func = make_varcall_func(method_name, &sig_tuple, &forwarding_closure);
+    let ptrcall_func = make_ptrcall_func(method_name, &sig_tuple, &forwarding_closure);
+
+    // String literals
+    let class_name_str = class_name.to_string();
+    let method_name_str = method_name.to_string();
+    let param_ident_strs = param_idents.iter().map(|ident| ident.to_string());
 
     quote! {
         {
@@ -34,10 +42,10 @@ pub fn make_method_registration(
             use godot::builtin::{StringName, Variant};
             use godot::sys;
 
-            let class_name = ClassName::from_static(stringify!(#class_name));
-            let method_name = StringName::from(stringify!(#method_name));
-
             type Sig = #sig_tuple;
+
+            let class_name = ClassName::from_static(#class_name_str);
+            let method_name = StringName::from(#method_name_str);
 
             let varcall_func = #varcall_func;
             let ptrcall_func = #ptrcall_func;
@@ -49,15 +57,15 @@ pub fn make_method_registration(
                 Some(ptrcall_func),
                 #method_flags,
                 &[
-                    #( stringify!(#param_idents) ),*
+                    #( #param_ident_strs ),*
                 ],
                 Vec::new()
             );
 
             godot::private::out!(
                 "   Register fn:   {}::{}",
-                stringify!(#class_name),
-                stringify!(#method_name)
+                #class_name_str,
+                #method_name_str
             );
 
             method_info.register_extension_class_method();
@@ -65,11 +73,14 @@ pub fn make_method_registration(
     }
 }
 
-fn get_varcall_func(
+/// Generate code for a C FFI function that performs a varcall.
+fn make_varcall_func(
     method_name: &Ident,
-    sig: &TokenStream,
+    sig_tuple: &TokenStream,
     wrapped_method: &TokenStream,
 ) -> TokenStream {
+    let invocation = make_varcall_invocation(method_name, sig_tuple, wrapped_method);
+
     quote! {
         {
             unsafe extern "C" fn function(
@@ -82,18 +93,7 @@ fn get_varcall_func(
             ) {
                 let success = godot::private::handle_panic(
                     || stringify!(#method_name),
-                    || {
-                        godot::private::gdext_call_signature_method!(
-                            varcall,
-                            #sig,
-                            instance_ptr,
-                            args,
-                            ret,
-                            err,
-                            #wrapped_method,
-                            #method_name
-                        );
-                    },
+                    || #invocation
                 );
 
                 if success.is_none() {
@@ -110,11 +110,14 @@ fn get_varcall_func(
     }
 }
 
-fn get_ptrcall_func(
+/// Generate code for a C FFI function that performs a ptrcall.
+fn make_ptrcall_func(
     method_name: &Ident,
-    sig: &TokenStream,
+    sig_tuple: &TokenStream,
     wrapped_method: &TokenStream,
 ) -> TokenStream {
+    let invocation = make_ptrcall_invocation(method_name, sig_tuple, wrapped_method, false);
+
     quote! {
         {
             unsafe extern "C" fn function(
@@ -125,18 +128,7 @@ fn get_ptrcall_func(
             ) {
                 let success = godot::private::handle_panic(
                     || stringify!(#method_name),
-                    || {
-                        godot::private::gdext_call_signature_method!(
-                            ptrcall,
-                            #sig,
-                            instance_ptr,
-                            args,
-                            ret,
-                            #wrapped_method,
-                            #method_name,
-                            sys::PtrcallType::Standard
-                        );
-                    },
+                    || #invocation
                 );
 
                 if success.is_none() {

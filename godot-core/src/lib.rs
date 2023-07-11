@@ -11,7 +11,6 @@ pub mod builder;
 pub mod builtin;
 pub mod init;
 pub mod log;
-pub mod macros;
 pub mod obj;
 pub mod property;
 
@@ -51,7 +50,6 @@ pub mod private {
 
     use std::sync::{Arc, Mutex};
 
-    pub use crate::gdext_call_signature_method;
     pub use crate::gen::classes::class_macros;
     pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
     pub use crate::storage::as_storage;
