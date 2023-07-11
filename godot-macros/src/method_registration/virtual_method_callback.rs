@@ -8,9 +8,8 @@ use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::quote;
 use venial::Function;
 
-use crate::method_registration::{
-    get_signature_info, make_forwarding_closure, make_signature_tuple_type,
-};
+use crate::method_registration::{get_signature_info, make_forwarding_closure};
+use crate::util;
 
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
 //
@@ -24,8 +23,8 @@ pub fn gdext_virtual_method_callback(
     let method_name = &method_signature.name;
 
     let forwarding_closure = make_forwarding_closure(class_name, &signature_info);
-    let signature_tuple_type =
-        make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
+    let sig_tuple =
+        util::make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
 
     quote! {
         {
@@ -38,7 +37,7 @@ pub fn gdext_virtual_method_callback(
             ) {
                 godot::private::gdext_call_signature_method!(
                     ptrcall,
-                    #signature_tuple_type,
+                    #sig_tuple,
                     instance_ptr,
                     args,
                     ret,

@@ -4,9 +4,8 @@
 * file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-use crate::method_registration::{
-    get_signature_info, make_forwarding_closure, make_method_flags, make_signature_tuple_type,
-};
+use crate::method_registration::{get_signature_info, make_forwarding_closure, make_method_flags};
+use crate::util;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
@@ -16,7 +15,8 @@ pub fn make_method_registration(
     method_signature: venial::Function,
 ) -> TokenStream {
     let signature_info = get_signature_info(&method_signature);
-    let sig = make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
+    let sig_tuple =
+        util::make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
 
     let method_name = &signature_info.method_name;
     let param_idents = &signature_info.param_idents;
@@ -25,8 +25,8 @@ pub fn make_method_registration(
 
     let forwarding_closure = make_forwarding_closure(class_name, &signature_info);
 
-    let varcall_func = get_varcall_func(method_name, &sig, &forwarding_closure);
-    let ptrcall_func = get_ptrcall_func(method_name, &sig, &forwarding_closure);
+    let varcall_func = get_varcall_func(method_name, &sig_tuple, &forwarding_closure);
+    let ptrcall_func = get_ptrcall_func(method_name, &sig_tuple, &forwarding_closure);
 
     quote! {
         {
@@ -37,7 +37,7 @@ pub fn make_method_registration(
             let class_name = ClassName::from_static(stringify!(#class_name));
             let method_name = StringName::from(stringify!(#method_name));
 
-            type Sig = #sig;
+            type Sig = #sig_tuple;
 
             let varcall_func = #varcall_func;
             let ptrcall_func = #ptrcall_func;

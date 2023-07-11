@@ -44,26 +44,3 @@ macro_rules! gdext_call_signature_method {
         );
     };
 }
-
-#[doc(hidden)]
-#[macro_export]
-macro_rules! gdext_get_arguments_info {
-    (
-        $Signature:ty,
-        $($param:ident,)*
-    ) => {
-        // We need to make sure `this array` sticks around for the lifetime of `$arguments_info`.
-        {
-            use $crate::builtin::meta::*;
-
-            let mut i: usize = 0;
-            [$(
-                {
-                    let prop = <$Signature as VarcallSignatureTuple>::param_property_info(i, stringify!($param));
-                    i += 1;
-                    prop
-                },
-            )*]
-        }
-    };
-}

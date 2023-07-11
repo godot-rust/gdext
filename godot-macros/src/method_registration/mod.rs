@@ -125,10 +125,3 @@ fn make_method_flags(method_type: ReceiverType) -> TokenStream {
         }
     }
 }
-
-/// Returns a type expression that can be used as a `VarcallSignatureTuple`.
-fn make_signature_tuple_type(ret_type: &TokenStream, param_types: &Vec<venial::TyExpr>) -> TokenStream {
-    quote! {
-        (#ret_type, #(#param_types),*)
-    }
-}
