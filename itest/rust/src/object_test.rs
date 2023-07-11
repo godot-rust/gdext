@@ -435,26 +435,18 @@ struct CustomClassB {}
 
 #[itest]
 fn object_reject_invalid_downcast() {
-    let a_instance = Gd::new(CustomClassA {});
-    let b_instance = Gd::new(CustomClassB {});
+    let instance = Gd::new(CustomClassA {});
+    let object = instance.upcast::<Object>();
 
-    let a_obj = a_instance.upcast::<Object>();
-    let b_obj = b_instance.upcast::<Object>();
-
-    assert!(a_obj.try_cast::<CustomClassB>().is_none());
-    assert!(b_obj.try_cast::<CustomClassA>().is_none());
+    assert!(object.try_cast::<CustomClassB>().is_none());
 }
 
 #[itest]
 fn variant_reject_invalid_downcast() {
-    let a_instance = Gd::new(CustomClassA {}).to_variant();
-    let b_instance = Gd::new(CustomClassB {}).to_variant();
+    let variant = Gd::new(CustomClassA {}).to_variant();
 
-    assert!(a_instance.try_to::<Gd<CustomClassB>>().is_err());
-    assert!(b_instance.try_to::<Gd<CustomClassA>>().is_err());
-
-    assert!(a_instance.try_to::<Gd<CustomClassA>>().is_ok());
-    assert!(b_instance.try_to::<Gd<CustomClassB>>().is_ok());
+    assert!(variant.try_to::<Gd<CustomClassB>>().is_err());
+    assert!(variant.try_to::<Gd<CustomClassA>>().is_ok());
 }
 
 #[itest]

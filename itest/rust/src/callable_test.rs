@@ -88,7 +88,8 @@ fn callable_call() {
     callable.callv(varray![20, 30]);
     assert_eq!(obj.bind().value, 20);
 
-    // errors in godot but does not crash
+    // TODO(bromeon): this causes a Rust panic, but since call() is routed to Godot, the panic is handled at the FFI boundary.
+    // Can there be a way to notify the caller about failed calls like that?
     assert_eq!(callable.callv(varray!["string"]), Variant::nil());
 
     assert_eq!(Callable::invalid().callv(varray![1, 2, 3]), Variant::nil());

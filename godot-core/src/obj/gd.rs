@@ -18,9 +18,8 @@ use sys::{
 
 use crate::builtin::meta::{ClassName, VariantMetadata};
 use crate::builtin::{
-    Callable, FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError,
+    Callable, FromVariant, StringName, ToVariant, Variant, VariantConversionError,
 };
-use crate::engine::{Node, Object, Resource};
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
 use crate::obj::{cap, dom, mem, EngineEnum, GodotClass, Inherits, Share};
@@ -731,9 +730,9 @@ impl<T: GodotClass> Property for Gd<T> {
 
 impl<T: GodotClass> Export for Gd<T> {
     fn default_export_info() -> ExportInfo {
-        let hint = if T::inherits::<Resource>() {
+        let hint = if T::inherits::<engine::Resource>() {
             engine::global::PropertyHint::PROPERTY_HINT_RESOURCE_TYPE
-        } else if T::inherits::<Node>() {
+        } else if T::inherits::<engine::Node>() {
             engine::global::PropertyHint::PROPERTY_HINT_NODE_TYPE
         } else {
             engine::global::PropertyHint::PROPERTY_HINT_NONE
@@ -759,7 +758,7 @@ impl<T: GodotClass> FromVariant for Gd<T> {
             // TODO(uninit) - see if we can use from_sys_init()
             use ::godot_ffi::AsUninit;
 
-            Gd::<Object>::from_sys_init_opt(|self_ptr| {
+            Gd::<engine::Object>::from_sys_init_opt(|self_ptr| {
                 let converter = sys::builtin_fn!(object_from_variant);
                 converter(self_ptr.as_uninit(), variant.var_sys());
             })
