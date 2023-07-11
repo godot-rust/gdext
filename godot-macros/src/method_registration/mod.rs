@@ -77,6 +77,7 @@ fn get_signature_info(signature: &Function) -> SignatureInfo {
         Some(ty) => quote! { #ty },
     };
 
+    let mut next_unnamed_index = 0;
     for (arg, _) in &signature.params.inner {
         match arg {
             venial::FnParam::Receiver(recv) => {
@@ -89,8 +90,16 @@ fn get_signature_info(signature: &Function) -> SignatureInfo {
                 };
             }
             venial::FnParam::Typed(arg) => {
-                let ident = arg.name.clone();
+                // Parameter will be forwarded as an argument to the instance, so we need to give `_` a name.
+                let ident = if arg.name == "_" {
+                    let ident = format_ident!("__unnamed_{next_unnamed_index}");
+                    next_unnamed_index += 1;
+                    ident
+                } else {
+                    arg.name.clone()
+                };
                 let ty = arg.ty.clone();
+
                 param_types.push(ty);
                 param_idents.push(ident);
             }

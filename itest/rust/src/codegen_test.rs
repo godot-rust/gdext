@@ -66,8 +66,21 @@ pub struct TestBaseRenamed {
 }
 
 #[godot_api]
+impl TestBaseRenamed {
+    // Test unnamed parameter in user function
+    #[func]
+    fn with_unnamed(&self, _: i32) {}
+
+    #[func]
+    fn with_many_unnamed(&self, _: i32, _: GodotString) {}
+}
+
+#[godot_api]
 impl HttpRequestVirtual for TestBaseRenamed {
     fn init(base: Base<HttpRequest>) -> Self {
         TestBaseRenamed { base }
     }
+
+    // Test unnamed parameter in virtual function
+    fn process(&mut self, _: f64) {}
 }
