@@ -2,16 +2,22 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-# Minimal CI workflow
-# Run when someone opens a PR and adds commits to the PR (this is recognized as a push to master)
-# Includes basic checks and unit/integration checks on Linux only
 
 name: Minimal CI
+#
+# Runs when someone opens a PR and pushes commits to the PR.
+# Includes basic checks to catch most common errors, but is followed by merge queue (full-ci).
 
 on:
   pull_request:
     branches:
       - master
+    types:
+      - opened
+      - synchronize
+      - reopened
+      #- ready_for_review # could be enabled if we don't run certain checks in draft mode
+
 
 env:
   GDEXT_FEATURES: ''
@@ -28,6 +34,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+
   rustfmt:
     runs-on: ubuntu-20.04
     steps:
@@ -76,19 +83,96 @@ jobs:
         run: cargo test $GDEXT_FEATURES
 
 
+
+  # For complex matrix workflow, see https://stackoverflow.com/a/65434401
   godot-itest:
-    name: godot-itest
-    runs-on: ubuntu-20.04
-    timeout-minutes: 24
+    name: godot-itest (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    if: github.event.pull_request.draft != true
+    continue-on-error: false
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false # cancel all jobs as soon as one fails?
+      matrix:
+        include:
+          # macOS
+
+          - name: macos
+            os: macos-12
+            artifact-name: macos-nightly
+            godot-binary: godot.macos.editor.dev.x86_64
+            rust-extra-args: --features godot/custom-godot
+
+          # Windows
+
+          - name: windows
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            rust-extra-args: --features godot/custom-godot
+
+          # Linux
+
+          - name: linux
+            os: ubuntu-20.04
+            artifact-name: linux-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            rust-extra-args: --features godot/custom-godot
+
+          - name: linux-features
+            os: ubuntu-20.04
+            artifact-name: linux-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            rust-extra-args: --features godot/custom-godot,godot/threads,godot/serde
+
+          # Linux compat
+
+          - name: linux-4.0.3
+            os: ubuntu-20.04
+            artifact-name: linux-4.0.3
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            godot-prebuilt-patch: '4.0.3'
+
+          # Memory checkers
+
+          - name: linux-memcheck
+            os: ubuntu-20.04
+            artifact-name: linux-memcheck-clang-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            godot-args: -- --disallow-focus
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
+            rust-extra-args: --features godot/custom-godot
+            # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
+            rust-target: x86_64-unknown-linux-gnu
+
+          - name: linux-memcheck-4.0.3
+            os: ubuntu-20.04
+            artifact-name: linux-memcheck-clang-4.0.3
+            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
+            godot-args: -- --disallow-focus
+            godot-prebuilt-patch: '4.0.3'
+            rust-toolchain: nightly
+            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
+            # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
+            rust-target: x86_64-unknown-linux-gnu
+
     steps:
       - uses: actions/checkout@v3
 
       - name: "Run Godot integration test"
         uses: ./.github/composite/godot-itest
         with:
-          artifact-name: godot-linux-nightly
-          godot-binary: godot.linuxbsd.editor.dev.x86_64
-          rust-extra-args: --features godot/custom-godot,godot/custom-godot
+          artifact-name: godot-${{ matrix.artifact-name }}
+          godot-binary: ${{ matrix.godot-binary }}
+          godot-args: ${{ matrix.godot-args }}
+          godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
+          rust-extra-args: ${{ matrix.rust-extra-args }}
+          rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
+          rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
+          rust-target: ${{ matrix.rust-target }}
+          with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'custom-godot') }}
+          godot-check-header: ${{ matrix.godot-check-header }}
 
 
   license-guard:
@@ -106,12 +190,27 @@ jobs:
           # mode: # optional: Which mode License-Eye should be run in. Choices are `check` or `fix`. The default value is `check`.
           mode: check
 
-#      - name: "Commit changes"
-#        uses: EndBug/add-and-commit@v9
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          author_name: 'Godot-Rust Automation'
-#          author_email: 'actions@github.com'
-#          message: 'Auto-apply license headers'
 
+
+  # ---------------------------------------------------------------------------------------------------------------------------------------------
+  # CI status report
+
+  # Job to notify merge queue about success/failure
+  ci-status:
+    if: always()
+    needs:
+      - rustfmt
+      - clippy
+      - unit-test
+      - godot-itest
+      - license-guard
+
+    runs-on: ubuntu-20.04
+    steps:
+      - name: "Success"
+        if: ${{ !(contains(needs.*.result, 'failure')) }}
+        run: exit 0
+
+      - name: "Failure"
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1

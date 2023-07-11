@@ -54,11 +54,21 @@ runs:
         # An additional cache key that is added alongside the automatic `job`-based
         # cache key and can be used to further differentiate jobs.
         # default: empty
-        key: ${{ inputs.cache-key }}
+        #key: ${{ inputs.cache-key }}
 
         # Determines if the cache should be saved even when the workflow has failed.
         # default: "false"
         cache-on-failure: true
+
+        # The prefix cache key, this can be changed to start a new cache manually.
+        # default: "v0-rust"
+        #prefix-key: "v1-rust"
+
+        # Determines which crates are cached.
+        # If `true` all crates will be cached, otherwise only dependent crates will be cached.
+        # Useful if additional crates are used for CI tooling.
+        # default: "false"
+        #cache-all-crates: true
 
     - name: "Install LLVM"
       if: inputs.with-llvm == 'true'
