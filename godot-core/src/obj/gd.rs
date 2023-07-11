@@ -337,15 +337,15 @@ impl<T: GodotClass> Gd<T> {
         })
     }
 
-    // Temporary workaround for bug in Godot that makes casts always succeed.
-    // (See https://github.com/godot-rust/gdext/issues/158)
-    // TODO(#234) remove this code once the bug is fixed upstream.
+    // See use-site for explanation.
+    // #[cfg(gdextension_api = "4.0")]
     fn is_cast_valid<U>(&self) -> bool
     where
         U: GodotClass,
     {
-        let as_obj = unsafe { self.ffi_cast::<Object>() }.expect("Everything inherits object");
-        let cast_is_valid = as_obj.is_class(GodotString::from(U::CLASS_NAME));
+        let as_obj =
+            unsafe { self.ffi_cast::<engine::Object>() }.expect("Everything inherits object");
+        let cast_is_valid = as_obj.is_class(crate::builtin::GodotString::from(U::CLASS_NAME));
         std::mem::forget(as_obj);
         cast_is_valid
     }
@@ -355,11 +355,21 @@ impl<T: GodotClass> Gd<T> {
     where
         U: GodotClass,
     {
-        // Temporary workaround for bug in Godot that makes casts always
-        // succeed. (See https://github.com/godot-rust/gdext/issues/158)
-        // TODO(#234) remove this check once the bug is fixed upstream.
+        // Workaround for bug in Godot 4.0 that makes casts always succeed (https://github.com/godot-rust/gdext/issues/158).
+        // #[cfg(gdextension_api = "4.0")]
         if !self.is_cast_valid::<U>() {
-            return Err(self);
+            println!(
+                "is_cast_valid=false, T={}, U={}",
+                T::CLASS_NAME,
+                U::CLASS_NAME
+            );
+            // return Err(self);
+        } else {
+            println!(
+                "is_cast_valid=true, T={}, U={}",
+                T::CLASS_NAME,
+                U::CLASS_NAME
+            );
         }
 
         // The unsafe { std::mem::transmute<&T, &Base>(self.inner()) } relies on the C++ static_cast class casts
@@ -482,9 +492,9 @@ where
         // Runtime check in case of T=Object, no-op otherwise
         let ref_counted = T::Mem::is_ref_counted(&self);
         assert_ne!(
-			ref_counted, Some(true),
-			"called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types."
-		);
+            ref_counted, Some(true),
+            "called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types."
+        );
 
         // If ref_counted returned None, that means the instance was destroyed
         assert!(
@@ -762,6 +772,11 @@ impl<T: GodotClass> FromVariant for Gd<T> {
                 let converter = sys::builtin_fn!(object_from_variant);
                 converter(self_ptr.as_uninit(), variant.var_sys());
             })
+
+            // Self::from_sys_init_opt(|self_ptr| {
+            //     let converter = sys::builtin_fn!(object_from_variant);
+            //     converter(self_ptr.as_uninit(), variant.var_sys());
+            // })
         };
 
         // The conversion method `variant_to_object` does NOT increment the reference-count of the object; we need to do that manually.
