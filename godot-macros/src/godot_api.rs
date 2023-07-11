@@ -4,8 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::method_registration::gdext_register_method;
 use crate::method_registration::gdext_virtual_method_callback;
+use crate::method_registration::make_method_registration;
 use crate::util;
 use crate::util::bail;
 use proc_macro2::{Ident, TokenStream};
@@ -96,8 +96,8 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let prv = quote! { ::godot::private };
 
     let methods_registration = funcs
-        .iter()
-        .map(|func| gdext_register_method(&class_name, &quote! { #func }));
+        .into_iter()
+        .map(|func| make_method_registration(&class_name, func));
 
     let result = quote! {
         #decl
