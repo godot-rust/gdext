@@ -12,7 +12,7 @@ use venial::{Declaration, NamedField, Struct, StructFields, TyExpr};
 
 use self::property::field_export::FieldExport;
 use self::property::field_var::FieldVar;
-use self::property::make_property_impl;
+use self::property::{make_property_impl, FieldHint};
 
 mod property;
 

@@ -5,34 +5,28 @@
 */
 
 use crate::method_registration::{
-    get_sig, get_signature_info, method_flags, wrap_with_unpacked_params,
+    get_signature_info, make_forwarding_closure, make_method_flags, make_signature_tuple_type,
 };
-use crate::util::reduce_to_signature;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use venial::parse_declaration;
 
-// Convenience function to wrap an object's method into a function pointer
-// that can be passed to the engine when registering a class.
-pub fn gdext_register_method(class_name: &Ident, method_signature: &TokenStream) -> TokenStream {
-    let method_declaration = parse_declaration(quote! { #method_signature {}})
-        .unwrap()
-        .as_function()
-        .unwrap()
-        .clone();
-    let method_signature = reduce_to_signature(&method_declaration);
+/// Generates code that registers the specified method for the given class.
+pub fn make_method_registration(
+    class_name: &Ident,
+    method_signature: venial::Function,
+) -> TokenStream {
     let signature_info = get_signature_info(&method_signature);
-    let sig = get_sig(&signature_info.ret_type, &signature_info.param_types);
+    let sig = make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
 
     let method_name = &signature_info.method_name;
     let param_idents = &signature_info.param_idents;
 
-    let method_flags = method_flags(signature_info.receiver_type);
+    let method_flags = make_method_flags(signature_info.receiver_type);
 
-    let wrapped_method = wrap_with_unpacked_params(class_name, &signature_info);
+    let forwarding_closure = make_forwarding_closure(class_name, &signature_info);
 
-    let varcall_func = get_varcall_func(method_name, &sig, &wrapped_method);
-    let ptrcall_func = get_ptrcall_func(method_name, &sig, &wrapped_method);
+    let varcall_func = get_varcall_func(method_name, &sig, &forwarding_closure);
+    let ptrcall_func = get_ptrcall_func(method_name, &sig, &forwarding_closure);
 
     quote! {
         {
