@@ -5,8 +5,10 @@
  */
 
 use crate::itest;
+use godot::builtin::varray;
 use godot::engine::input::CursorShape;
-use godot::engine::time;
+use godot::engine::mesh::PrimitiveType;
+use godot::engine::{time, ArrayMesh};
 use std::collections::HashSet;
 
 #[itest]
@@ -58,4 +60,12 @@ fn enum_hash() {
     months.insert(time::Month::MONTH_DECEMBER);
 
     assert_eq!(months.len(), 12);
+}
+
+// Testing https://github.com/godot-rust/gdext/issues/335
+// This fails upon calling the function, we dont actually need to make a good call.
+#[itest]
+fn add_surface_from_arrays() {
+    let mut mesh = ArrayMesh::new();
+    mesh.add_surface_from_arrays(PrimitiveType::PRIMITIVE_TRIANGLES, varray![]);
 }
