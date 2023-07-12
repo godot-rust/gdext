@@ -69,6 +69,23 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
         None
     };
 
+    let try_from_ord = if enum_.is_bitfield {
+        quote! {
+            fn try_from_ord(ord: i32) -> Option<Self> {
+                Some(Self { ord })
+            }
+        }
+    } else {
+        quote! {
+            fn try_from_ord(ord: i32) -> Option<Self> {
+                match ord {
+                    #( ord @ #unique_ords )|* => Some(Self { ord }),
+                    _ => None,
+                }
+            }
+        }
+    };
+
     let mut derives = vec!["Copy", "Clone", "Eq", "PartialEq", "Debug", "Hash"];
 
     if enum_.is_bitfield {
@@ -100,12 +117,9 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
             //         _ => None,
             //     }
             // }
-            fn try_from_ord(ord: i32) -> Option<Self> {
-                match ord {
-                    #( ord @ #unique_ords )|* => Some(Self { ord }),
-                    _ => None,
-                }
-            }
+
+            #try_from_ord
+
             fn ord(self) -> i32 {
                 self.ord
             }
