@@ -81,8 +81,7 @@ fn node_scene_tree() {
     child.free();
 }
 
-// FIXME: call_group() crashes
-#[itest(skip)]
+#[itest]
 fn node_call_group(ctx: &TestContext) {
     let mut node = ctx.scene_tree.share();
     let mut tree = node.get_tree().unwrap();

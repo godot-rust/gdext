@@ -1836,13 +1836,17 @@ fn make_return_and_impl(
                 #return_expr
             }
         }
-        (false, Some(_), None) => {
+        (false, Some(variant_ffi), None) => {
+            let from_sys_init_method = &variant_ffi.from_sys_init_method;
+
             // Note: __err may remain unused if the #call does not handle errors (e.g. utility fn, ptrcall, ...)
             // TODO use Result instead of panic on error
             quote! {
                 let mut __err = sys::default_call_error();
-                let return_ptr = std::ptr::null_mut();
-                #varcall_invocation
+                let _variant = Variant::#from_sys_init_method(|return_ptr| {
+                    #varcall_invocation
+                });
+
                 if __err.error != sys::GDEXTENSION_CALL_OK {
                     #prepare_arg_types
                     sys::panic_call_error(&__err, #error_fn_context, &__arg_types);
