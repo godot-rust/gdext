@@ -4,7 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::method_registration::{gdext_register_method, gdext_virtual_method_callback};
+use crate::method_registration::gdext_virtual_method_callback;
+use crate::method_registration::make_method_registration;
 use crate::util;
 use crate::util::bail;
 use proc_macro2::{Ident, TokenStream};
@@ -76,32 +77,40 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
     for signature in signals {
         let mut param_types: Vec<TyExpr> = Vec::new();
-        let mut param_names: Vec<Ident> = Vec::new();
+        let mut param_names: Vec<String> = Vec::new();
 
         for param in signature.params.inner {
             match &param.0 {
                 FnParam::Typed(param) => {
                     param_types.push(param.ty.clone());
-                    param_names.push(param.name.clone());
+                    param_names.push(param.name.to_string());
                 }
                 FnParam::Receiver(_) => {}
             };
         }
 
+        let signature_tuple = util::make_signature_tuple_type(&quote! { () }, &param_types);
+        let indexes = 0..param_types.len();
+        let param_array_decl = quote! {
+            [
+                // Don't use raw sys pointers directly, very easy to have objects going out of scope.
+                #(
+                    <#signature_tuple as godot::builtin::meta::VarcallSignatureTuple>
+                        ::param_property_info(#indexes, #param_names),
+                )*
+            ]
+        };
+
         signal_name_strs.push(signature.name.to_string());
         signal_parameters_count.push(param_names.len());
-        signal_parameters.push(
-            quote! {
-                ::godot::private::gdext_get_arguments_info!(((), #(#param_types ),*), #(#param_names, )*)
-            },
-        );
+        signal_parameters.push(param_array_decl);
     }
 
     let prv = quote! { ::godot::private };
 
     let methods_registration = funcs
-        .iter()
-        .map(|func| gdext_register_method(&class_name, &quote! { #func }));
+        .into_iter()
+        .map(|func| make_method_registration(&class_name, func));
 
     let consts = process_godot_constants(&mut decl)?;
     let mut integer_constant_names = Vec::new();
@@ -174,7 +183,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
             fn __register_constants() {
                 #register_constants
-            }
+        }
         }
 
         impl ::godot::private::Cannot_export_without_godot_api_impl for #class_name {}

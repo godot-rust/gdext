@@ -7,9 +7,9 @@
 // Note: some code duplication with codegen crate
 
 use crate::ParseResult;
-use proc_macro2::{Delimiter, Ident, TokenTree};
-use quote::format_ident;
+use proc_macro2::{Delimiter, Group, Ident, TokenStream, TokenTree};
 use quote::spanned::Spanned;
+use quote::{format_ident, TokenStreamExt};
 use venial::{Error, Function, GenericParamList, Impl, WhereClause};
 
 mod kv_parser;
@@ -61,6 +61,32 @@ pub fn reduce_to_signature(function: &Function) -> Function {
     reduced.body = None;
 
     reduced
+}
+
+pub fn parse_signature(mut signature: TokenStream) -> Function {
+    // Signature needs {} body to be parseable by venial
+    signature.append(TokenTree::Group(Group::new(
+        Delimiter::Brace,
+        TokenStream::new(),
+    )));
+
+    let method_declaration = venial::parse_declaration(signature)
+        .unwrap()
+        .as_function()
+        .unwrap()
+        .clone();
+
+    reduce_to_signature(&method_declaration)
+}
+
+/// Returns a type expression that can be used as a `VarcallSignatureTuple`.
+pub fn make_signature_tuple_type(
+    ret_type: &TokenStream,
+    param_types: &Vec<venial::TyExpr>,
+) -> TokenStream {
+    quote::quote! {
+        (#ret_type, #(#param_types),*)
+    }
 }
 
 fn is_punct(tt: &TokenTree, c: char) -> bool {

@@ -4,14 +4,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::derive_godot_class::{make_existence_check, Field};
-use crate::method_registration::gdext_register_method;
+use crate::derive_godot_class::{make_existence_check, Field, FieldHint};
+use crate::method_registration::make_method_registration;
 use crate::util::KvParser;
-use crate::ParseResult;
+use crate::{util, ParseResult};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
-
-use super::FieldHint;
 
 /// Store info from `#[var]` attribute.
 #[derive(Default, Clone, Debug)]
@@ -189,7 +187,8 @@ impl GetterSetterImpl {
             }
         };
 
-        let export_token = gdext_register_method(class_name, &signature);
+        let signature = util::parse_signature(signature);
+        let export_token = make_method_registration(class_name, signature);
 
         Self {
             function_name,
