@@ -135,7 +135,17 @@ pub fn emit_godot_version_cfg() {
         ..
     } = get_godot_version();
 
-    println!(r#"cargo:rustc-cfg=gdextension_api="{major}.{minor}""#);
+    // Start at 1; checking for "since/before 4.0" makes no sense
+    let max = 2;
+    for m in 1..=minor {
+        println!(r#"cargo:rustc-cfg=since_api="{major}.{m}""#);
+    }
+    for m in minor + 1..=max {
+        println!(r#"cargo:rustc-cfg=before_api="{major}.{m}""#);
+    }
+
+    // The below configuration keys are very rarely needed and should generally not be used.
+    println!(r#"cargo:rustc-cfg=gdextension_minor_api="{major}.{minor}""#);
 
     // Godot drops the patch version if it is 0.
     if patch != 0 {

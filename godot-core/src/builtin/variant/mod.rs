@@ -207,7 +207,7 @@ impl Variant {
     /// # Safety
     ///
     /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
-    #[cfg(gdextension_api = "4.0")]
+    #[cfg(before_api = "4.1")]
     pub unsafe fn from_var_sys_init_or_init_default(
         init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
     ) -> Self {
@@ -217,7 +217,7 @@ impl Variant {
     /// # Safety
     ///
     /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
-    #[cfg(not(gdextension_api = "4.0"))]
+    #[cfg(since_api = "4.1")]
     pub unsafe fn from_var_sys_init_or_init_default(
         init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr),
     ) -> Self {

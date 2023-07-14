@@ -107,7 +107,7 @@ pub unsafe trait GodotFfi {
 /// # Safety
 ///
 /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
-#[cfg(gdextension_api = "4.0")]
+#[cfg(before_api = "4.1")]
 pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionTypePtr),
 ) -> T {
@@ -117,7 +117,7 @@ pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
 /// # Safety
 ///
 /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
-#[cfg(not(gdextension_api = "4.0"))]
+#[cfg(since_api = "4.1")]
 pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
 ) -> T {
@@ -162,7 +162,7 @@ where
         }
     }
 
-    #[cfg(gdextension_api = "4.0")]
+    #[cfg(before_api = "4.1")]
     unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
         match call_type {
             PtrcallType::Standard => option_from_arg_single_ptr(ptr, call_type),
@@ -170,7 +170,7 @@ where
         }
     }
 
-    #[cfg(not(gdextension_api = "4.0"))]
+    #[cfg(since_api = "4.1")]
     unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
         option_from_arg_double_ptr(ptr, call_type)
     }
@@ -201,7 +201,7 @@ where
 }
 
 // 4.1 represents every object as `T**`.
-#[cfg(gdextension_api = "4.0")]
+#[cfg(before_api = "4.1")]
 /// Return an `Option<T>` when `T` is a nullable pointer type and `ptr` is represented as `T*`.
 ///
 /// # Safety

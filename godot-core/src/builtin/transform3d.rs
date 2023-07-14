@@ -156,7 +156,7 @@ impl Transform3D {
     /// See [`Basis::new_looking_at()`] for more information.
     ///
     /// _Godot equivalent: Transform3D.looking_at()_
-    #[cfg(gdextension_api = "4.0")]
+    #[cfg(before_api = "4.1")]
     #[must_use]
     pub fn looking_at(self, target: Vector3, up: Vector3) -> Self {
         Self {
@@ -165,7 +165,7 @@ impl Transform3D {
         }
     }
 
-    #[cfg(not(gdextension_api = "4.0"))]
+    #[cfg(since_api = "4.1")]
     #[must_use]
     pub fn looking_at(self, target: Vector3, up: Vector3, use_model_front: bool) -> Self {
         Self {
