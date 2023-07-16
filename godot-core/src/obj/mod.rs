@@ -10,7 +10,6 @@
 //! * [`GodotClass`], which is implemented for every class that Godot can work with (either engine- or user-provided).
 //! * [`Gd`], a smart pointer that manages instances of Godot classes.
 
-mod base;
 mod gd;
 mod guards;
 mod instance_id;
