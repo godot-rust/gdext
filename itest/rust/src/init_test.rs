@@ -4,6 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::itest;
 use godot::prelude::*;
 
 #[derive(GodotClass)]
@@ -24,3 +25,10 @@ struct WithInitDefaults {
 // TODO Remove once https://github.com/godot-rust/gdext/issues/187 is fixed
 #[godot_api]
 impl WithInitDefaults {}
+
+#[itest]
+fn cfg_test() {
+    // Makes sure that since_api and before_api are mutually exclusive
+    assert_ne!(cfg!(since_api = "4.1"), cfg!(before_api = "4.1"));
+    assert_ne!(cfg!(since_api = "4.2"), cfg!(before_api = "4.2"));
+}
