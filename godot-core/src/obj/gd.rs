@@ -355,7 +355,7 @@ impl<T: GodotClass> Gd<T> {
         U: GodotClass,
     {
         // Workaround for bug in Godot 4.0 that makes casts always succeed (https://github.com/godot-rust/gdext/issues/158).
-        // TODO once fixed in Godot, use #[cfg(gdextension_api = "4.0")]
+        // TODO once fixed in Godot, use #[cfg(before_api = "4.1")]
         if !self.is_cast_valid::<U>() {
             return Err(self);
         }
@@ -561,7 +561,7 @@ where
             // ptr is `Ref<T>*`
             // See the docs for `PtrcallType::Virtual` for more info on `Ref<T>`.
             interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr)
-        } else if !cfg!(gdextension_api = "4.0") || matches!(call_type, PtrcallType::Virtual) {
+        } else if cfg!(since_api = "4.1") || matches!(call_type, PtrcallType::Virtual) {
             // ptr is `T**`
             *(ptr as *mut sys::GDExtensionObjectPtr)
         } else {
@@ -594,9 +594,13 @@ where
         // can't perform virtual method calls currently, so they are always `T*`.
         //
         // In 4.1 argument pointers were standardized to always be `T**`.
-        if cfg!(gdextension_api = "4.0") {
+        #[cfg(before_api = "4.1")]
+        {
             self.sys_const()
-        } else {
+        }
+
+        #[cfg(since_api = "4.1")]
+        {
             std::ptr::addr_of!(self.opaque) as sys::GDExtensionConstTypePtr
         }
     }

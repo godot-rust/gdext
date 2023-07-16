@@ -127,6 +127,8 @@ fn main() {
     println!("cargo:rerun-if-changed={}", gdscript_template.display());
 
     rustfmt_if_needed(vec![rust_file]);
+
+    godot_bindings::emit_godot_version_cfg();
 }
 
 // TODO remove, or remove code duplication with codegen

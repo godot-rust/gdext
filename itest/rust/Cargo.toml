@@ -17,6 +17,8 @@ default = []
 godot = { path = "../../godot", default-features = false }
 
 [build-dependencies]
+godot-bindings = { path = "../../godot-bindings" }
 # Minimum versions compatible with -Zminimal-versions
 proc-macro2 = "1.0.63"
 quote = "1.0.29"
+
