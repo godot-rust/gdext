@@ -213,13 +213,16 @@ pub mod dom {
     use crate::obj::{Gd, GodotClass};
     use std::ops::DerefMut;
 
+    /// Trait that specifies who declares a given `GodotClass`.
     pub trait Domain: Sealed {
+        #[doc(hidden)]
         fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = Self>,
             F: FnOnce(&mut T) -> R;
     }
 
+    /// Expresses that a class is declared by the Godot engine.
     pub enum EngineDomain {}
     impl Sealed for EngineDomain {}
     impl Domain for EngineDomain {
@@ -232,6 +235,7 @@ pub mod dom {
         }
     }
 
+    /// Expresses that a class is declared by the user.
     pub enum UserDomain {}
     impl Sealed for UserDomain {}
     impl Domain for UserDomain {
@@ -255,23 +259,29 @@ pub mod mem {
     use crate::obj::{Gd, GodotClass};
     use crate::out;
 
+    /// Specifies the memory
     pub trait Memory: Sealed {
         /// Initialize reference counter
+        #[doc(hidden)]
         fn maybe_init_ref<T: GodotClass>(obj: &Gd<T>);
 
         /// If ref-counted, then increment count
+        #[doc(hidden)]
         fn maybe_inc_ref<T: GodotClass>(obj: &Gd<T>);
 
         /// If ref-counted, then decrement count
+        #[doc(hidden)]
         fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool;
 
         /// Check if ref-counted, return `None` if information is not available (dynamic and obj dead)
+        #[doc(hidden)]
         fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> Option<bool>;
 
         /// Returns `true` if argument and return pointers are passed as `Ref<T>` pointers given this
         /// [`PtrcallType`].
         ///
         /// See [`PtrcallType::Virtual`] for information about `Ref<T>` objects.
+        #[doc(hidden)]
         fn pass_as_ref(_call_type: PtrcallType) -> bool {
             false
         }
