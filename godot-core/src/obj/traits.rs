@@ -14,8 +14,12 @@ use godot_ffi as sys;
 ///
 /// The behavior of types implementing this trait is influenced by the associated types; check their documentation for information.
 ///
-/// You wouldn't usually implement this trait yourself; use the [`GodotClass`](godot_macros::GodotClass) derive macro instead.
-pub trait GodotClass: 'static
+/// # Safety
+///
+/// Internal.
+/// You **must not** implement this trait yourself; use [`#[derive(GodotClass)`](../bind/derive.GodotClass.html) instead.
+// Above intra-doc link to the derive-macro only works as HTML, not as symbol link.
+pub unsafe trait GodotClass: 'static
 where
     Self: Sized,
 {
@@ -51,7 +55,7 @@ where
 }
 
 /// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
-impl GodotClass for () {
+unsafe impl GodotClass for () {
     type Base = ();
     type Declarer = dom::EngineDomain;
     type Mem = mem::ManualMemory;
@@ -286,6 +290,8 @@ pub mod mem {
             false
         }
     }
+
+    #[doc(hidden)]
     pub trait PossiblyManual {}
 
     /// Memory managed through Godot reference counter (always present).
