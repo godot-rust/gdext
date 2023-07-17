@@ -33,6 +33,17 @@ impl InstanceId {
         Self::try_from_u64(id as u64)
     }
 
+    pub fn option_to_i64(id: Option<InstanceId>) -> i64 {
+        Self::option_to_u64(id) as i64
+    }
+
+    pub(crate) fn option_to_u64(id: Option<InstanceId>) -> u64 {
+        match id {
+            Some(id) => id.to_u64(),
+            None => 0,
+        }
+    }
+
     /// ⚠️ Constructs an instance ID from a non-zero integer, or panics.
     ///
     /// This does *not* check if the instance is valid.

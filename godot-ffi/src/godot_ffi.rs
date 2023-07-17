@@ -4,8 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::{self as sys, ptr_then};
-use std::{error::Error, fmt::Debug, marker::PhantomData, ptr};
+use crate::{self as sys};
+use std::{error::Error, fmt::Debug, marker::PhantomData};
 
 /// Adds methods to convert from and to Godot FFI pointers.
 /// See [crate::ffi_methods] for ergonomic implementation.
@@ -125,7 +125,7 @@ pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-
+/*
 /// Marks a type as having a nullable counterpart in Godot.
 ///
 /// This trait primarily exists to implement GodotFfi for `Option<Gd<T>>`, which is not possible
@@ -199,7 +199,6 @@ where
         Some(T::from_arg_ptr(ptr, call_type))
     }
 }
-
 // 4.1 represents every object as `T**`.
 #[cfg(before_api = "4.1")]
 /// Return an `Option<T>` when `T` is a nullable pointer type and `ptr` is represented as `T*`.
@@ -215,6 +214,7 @@ where
 {
     ptr_then(ptr, |ptr| T::from_arg_ptr(ptr, call_type))
 }
+*/
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -244,6 +244,35 @@ pub enum PtrcallType {
     Virtual,
 }
 
+pub struct ViaGuard<From, Via>
+where
+    From: GodotFuncMarshal<Via = Via>,
+    Via: GodotFfi,
+{
+    via: Via,
+    _p: PhantomData<From>,
+}
+
+impl<From, Via> ViaGuard<From, Via>
+where
+    From: GodotFuncMarshal<Via = Via>,
+    Via: GodotFfi,
+{
+    pub fn via(&self) -> &Via {
+        &self.via
+    }
+}
+
+impl<From, Via> Drop for ViaGuard<From, Via>
+where
+    From: GodotFuncMarshal<Via = Via>,
+    Via: GodotFfi,
+{
+    fn drop(&mut self) {
+        unsafe { From::drop_via(&mut self.via) }
+    }
+}
+
 /// Trait implemented for all types that can be passed to and from Godot via function calls.
 pub trait GodotFuncMarshal: Sized {
     /// The type used when passing a value to/from Godot.
@@ -258,6 +287,22 @@ pub trait GodotFuncMarshal: Sized {
 
     /// Try to convert the value from [`Self`] to [`Self::Via`].
     fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError>;
+
+    fn try_into_via_guard(self) -> Result<ViaGuard<Self, Self::Via>, Self::IntoViaError> {
+        let via = self.try_into_via()?;
+
+        Ok(ViaGuard {
+            via,
+            _p: PhantomData,
+        })
+    }
+
+    /// Cleanup that should be done for [`Self::Via`] values after a call to
+    /// [`try_into_via`](GodotFuncMarshal::try_into_via).
+    ///
+    /// # Safety
+    /// Must only be called on a via returned from a call to `try_into_via`.
+    unsafe fn drop_via(_: &mut Self::Via) {}
 
     /// Used for function arguments. On failure, the argument which can't be converted to Self is returned.
     ///
@@ -288,6 +333,34 @@ pub trait GodotFuncMarshal: Sized {
         via.move_return_ptr(dst, call_type);
 
         Ok(())
+    }
+}
+
+pub trait GodotNullableFuncMarshal: GodotFuncMarshal {
+    /// Try to convert the value from [`Self::Via`] to [`Self`].
+    fn try_from_via_opt(via: Self::Via) -> Result<Option<Self>, Self::FromViaError>;
+
+    /// Try to convert the value from [`Self`] to [`Self::Via`].
+    fn try_into_via_opt(opt: Option<Self>) -> Result<Self::Via, Self::IntoViaError>;
+}
+
+impl<T: GodotNullableFuncMarshal> GodotFuncMarshal for Option<T> {
+    type Via = T::Via;
+
+    type FromViaError = T::FromViaError;
+
+    type IntoViaError = T::IntoViaError;
+
+    fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError> {
+        T::try_from_via_opt(via)
+    }
+
+    fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError> {
+        T::try_into_via_opt(self)
+    }
+
+    unsafe fn drop_via(via: &mut Self::Via) {
+        T::drop_via(via)
     }
 }
 

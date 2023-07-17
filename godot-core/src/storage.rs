@@ -38,8 +38,8 @@ mod single_thread {
         user_instance: cell::RefCell<T>,
 
         // Declared after `user_instance`, is dropped last
-        pub lifecycle: Lifecycle,
-        godot_ref_count: u32,
+        pub lifecycle: cell::Cell<Lifecycle>,
+        godot_ref_count: cell::Cell<u32>,
     }
 
     /// For all Godot extension classes
@@ -49,13 +49,13 @@ mod single_thread {
 
             Self {
                 user_instance: cell::RefCell::new(user_instance),
-                lifecycle: Lifecycle::Alive,
-                godot_ref_count: 1,
+                lifecycle: cell::Cell::new(Lifecycle::Alive),
+                godot_ref_count: cell::Cell::new(1),
             }
         }
 
-        pub(crate) fn on_inc_ref(&mut self) {
-            self.godot_ref_count += 1;
+        pub(crate) fn on_inc_ref(&self) {
+            self.godot_ref_count.set(self.godot_ref_count() + 1);
             out!(
                 "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
                 self.godot_ref_count(),
@@ -64,8 +64,8 @@ mod single_thread {
             );
         }
 
-        pub(crate) fn on_dec_ref(&mut self) {
-            self.godot_ref_count -= 1;
+        pub(crate) fn on_dec_ref(&self) {
+            self.godot_ref_count.set(self.godot_ref_count() - 1);
             out!(
                 "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
                 self.godot_ref_count(),
@@ -87,6 +87,14 @@ mod single_thread {
                                        // TODO drop entire Storage
         }*/
 
+        pub fn set_lifecycle(&self, lifecycle: Lifecycle) {
+            self.lifecycle.set(lifecycle)
+        }
+
+        pub fn lifecycle(&self) -> Lifecycle {
+            self.lifecycle.get()
+        }
+
         pub fn get(&self) -> cell::Ref<T> {
             self.user_instance.try_borrow().unwrap_or_else(|_e| {
                 panic!(
@@ -98,7 +106,7 @@ mod single_thread {
             })
         }
 
-        pub fn get_mut(&mut self) -> cell::RefMut<T> {
+        pub fn get_mut(&self) -> cell::RefMut<T> {
             self.user_instance.try_borrow_mut().unwrap_or_else(|_e| {
                 panic!(
                     "Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
@@ -110,7 +118,7 @@ mod single_thread {
         }
 
         pub(super) fn godot_ref_count(&self) -> u32 {
-            self.godot_ref_count
+            self.godot_ref_count.get()
         }
     }
 }
@@ -214,16 +222,16 @@ impl<T: GodotClass> InstanceStorage<T> {
         Box::into_raw(Box::new(self))
     }
 
-    pub fn mark_destroyed_by_godot(&mut self) {
+    pub fn mark_destroyed_by_godot(&self) {
         out!(
             "    Storage::mark_destroyed_by_godot", // -- {:?}",
                                                     //self.user_instance
         );
-        self.lifecycle = Lifecycle::Destroying;
+        self.set_lifecycle(Lifecycle::Destroying);
         out!(
             "    mark;  self={:?}, val={:?}",
-            self as *mut _,
-            self.lifecycle
+            self as *const _,
+            self.lifecycle()
         );
     }
 
@@ -232,9 +240,9 @@ impl<T: GodotClass> InstanceStorage<T> {
         out!(
             "    is_d;  self={:?}, val={:?}",
             self as *const _,
-            self.lifecycle
+            self.lifecycle()
         );
-        matches!(self.lifecycle, Lifecycle::Destroying | Lifecycle::Dead)
+        matches!(self.lifecycle(), Lifecycle::Destroying | Lifecycle::Dead)
     }
 }
 
@@ -264,8 +272,8 @@ impl<T: GodotClass> Drop for InstanceStorage<T> {
 // FIXME unbounded ref AND &mut out of thin air is a huge hazard -- consider using with_storage(ptr, closure) and drop_storage(ptr)
 pub unsafe fn as_storage<'u, T: GodotClass>(
     instance_ptr: sys::GDExtensionClassInstancePtr,
-) -> &'u mut InstanceStorage<T> {
-    &mut *(instance_ptr as *mut InstanceStorage<T>)
+) -> &'u InstanceStorage<T> {
+    &*(instance_ptr as *const InstanceStorage<T>)
 }
 
 pub fn nop_instance_callbacks() -> sys::GDExtensionInstanceBindingCallbacks {

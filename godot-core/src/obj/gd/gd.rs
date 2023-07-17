@@ -4,29 +4,23 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::convert::Infallible;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
-use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::ptr;
 
 use godot_ffi as sys;
 use godot_ffi::VariantType;
-use sys::types::OpaqueObject;
-use sys::{
-    ffi_methods, interface_fn, static_assert_eq_size, GodotFfi, GodotNullablePtr, PtrcallType,
-};
 
 use crate::builtin::meta::{ClassName, VariantMetadata};
 use crate::builtin::{
     Callable, FromVariant, StringName, ToVariant, Variant, VariantConversionError,
 };
-use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
-use crate::obj::{cap, dom, mem, EngineEnum, GodotClass, Inherits, Share};
-use crate::obj::{GdMut, GdRef, InstanceId};
+use crate::obj::{cap, dom, mem, GdMut, GdRef, GodotClass, Inherits, InstanceId, Share};
+use crate::out;
 use crate::property::{Export, ExportInfo, Property, TypeStringHint};
-use crate::storage::InstanceStorage;
-use crate::{callbacks, engine, out};
+
+use super::RawGd;
 
 /// Smart pointer to objects owned by the Godot engine.
 ///
@@ -52,25 +46,10 @@ use crate::{callbacks, engine, out};
 ///
 /// [`Object`]: crate::engine::Object
 /// [`RefCounted`]: crate::engine::RefCounted
+#[repr(transparent)]
 pub struct Gd<T: GodotClass> {
-    // Note: `opaque` has the same layout as GDExtensionObjectPtr == Object* in C++, i.e. the bytes represent a pointer
-    // To receive a GDExtensionTypePtr == GDExtensionObjectPtr* == Object**, we need to get the address of this
-    // Hence separate sys() for GDExtensionTypePtr, and obj_sys() for GDExtensionObjectPtr.
-    // The former is the standard FFI type, while the latter is used in object-specific GDExtension engines.
-    // pub(crate) because accessed in obj::dom
-    pub(crate) opaque: OpaqueObject,
-
-    // Last known instance ID -- this may no longer be valid!
-    cached_instance_id: std::cell::Cell<Option<InstanceId>>,
-    _marker: PhantomData<*const T>,
+    raw: RawGd<T>,
 }
-
-// Size equality check (should additionally be covered by mem::transmute())
-static_assert_eq_size!(
-    sys::GDExtensionObjectPtr,
-    sys::types::OpaqueObject,
-    "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
-);
 
 /// _The methods in this impl block are only available for user-declared `T`, that is,
 /// structs with `#[derive(GodotClass)]` but not Godot classes like `Node` or `RefCounted`._ <br><br>
@@ -83,7 +62,7 @@ where
     /// This is only useful for types `T` which do not store their base objects (if they have a base,
     /// you cannot construct them standalone).
     pub fn new(user_object: T) -> Self {
-        Self::with_base(move |_base| user_object)
+        Self::from_raw(RawGd::new(user_object)).expect("new object should not be null")
     }
 
     /// Creates a default-constructed instance of `T` inside a smart pointer.
@@ -93,10 +72,7 @@ where
     where
         T: cap::GodotInit,
     {
-        unsafe {
-            let object_ptr = callbacks::create::<T>(ptr::null_mut());
-            Gd::from_obj_sys(object_ptr)
-        }
+        Self::from_raw(RawGd::new_default()).expect("new object should not be null")
     }
 
     /// Creates a `Gd<T>` using a function that constructs a `T` from a provided base.
@@ -125,8 +101,7 @@ where
     where
         F: FnOnce(crate::obj::Base<T::Base>) -> T,
     {
-        let object_ptr = callbacks::create_custom(init);
-        unsafe { Gd::from_obj_sys(object_ptr) }
+        Self::from_raw(RawGd::with_base(init)).expect("new object should not be null")
     }
 
     /// Hands out a guard for a shared borrow, through which the user instance can be read.
@@ -142,7 +117,7 @@ where
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
     // Note: possible names: write/read, hold/hold_mut, r/w, r/rw, ...
     pub fn bind(&self) -> GdRef<T> {
-        GdRef::from_cell(self.storage().get())
+        self.raw.bind()
     }
 
     /// Hands out a guard for an exclusive borrow, through which the user instance can be read and written.
@@ -157,47 +132,66 @@ where
     /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&T` or `&mut T`
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
     pub fn bind_mut(&mut self) -> GdMut<T> {
-        GdMut::from_cell(self.storage().get_mut())
-    }
-
-    /// Storage object associated with the extension instance
-    // FIXME proper + safe interior mutability, also that Clippy is happy
-    #[allow(clippy::mut_from_ref)]
-    pub(crate) fn storage(&self) -> &mut InstanceStorage<T> {
-        let callbacks = crate::storage::nop_instance_callbacks();
-
-        unsafe {
-            let token = sys::get_library() as *mut std::ffi::c_void;
-            let binding =
-                interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
-
-            debug_assert!(
-                !binding.is_null(),
-                "Class {} -- null instance; does the class have a Godot creator function?",
-                std::any::type_name::<T>()
-            );
-            crate::private::as_storage::<T>(binding as sys::GDExtensionClassInstancePtr)
-        }
+        self.raw.bind_mut()
     }
 }
 
 /// _The methods in this impl block are available for any `T`._ <br><br>
 impl<T: GodotClass> Gd<T> {
+    pub(super) fn raw_as_ref(raw: &RawGd<T>) -> Option<&Self> {
+        if !raw.is_null() {
+            // SAFETY: `Gd` is `repr(transparent)` over `RawGd<T>`.
+            Some(unsafe { std::mem::transmute::<&RawGd<T>, &Gd<T>>(raw) })
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn raw_as_mut(raw: &mut RawGd<T>) -> Option<&mut Self> {
+        if !raw.is_null() {
+            // SAFETY: `Gd` is `repr(transparent)` over `RawGd<T>`.
+            Some(unsafe { std::mem::transmute::<&mut RawGd<T>, &mut Gd<T>>(raw) })
+        } else {
+            None
+        }
+    }
+
+    pub fn from_raw(raw: RawGd<T>) -> Option<Self> {
+        // SAFETY: We increment the refcount before calling `from_raw_no_inc`.
+        unsafe { Self::from_raw_no_inc(raw.with_inc_refcount()) }
+    }
+
+    pub fn raw(&self) -> &RawGd<T> {
+        &self.raw
+    }
+
+    /// # Safety
+    /// the refcount of `raw` must already be incremented.
+    pub unsafe fn from_raw_no_inc(raw: RawGd<T>) -> Option<Self> {
+        // `Gd` cannot be null, however it can be a free object.
+        if !raw.is_null() {
+            Some(Self { raw })
+        } else {
+            None
+        }
+    }
+
     /// Looks up the given instance ID and returns the associated object, if possible.
     ///
     /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
     /// is not compatible with `T`, then `None` is returned.
     pub fn try_from_instance_id(instance_id: InstanceId) -> Option<Self> {
-        // SAFETY: Godot looks up ID in ObjectDB and returns null if not found
-        let ptr = unsafe { interface_fn!(object_get_instance_from_id)(instance_id.to_u64()) };
+        Self::from_raw(RawGd::try_from_instance_id(instance_id)?)
+    }
 
-        if ptr.is_null() {
-            None
-        } else {
-            // SAFETY: assumes that the returned GDExtensionObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
-            let untyped = unsafe { Gd::<engine::Object>::from_obj_sys(ptr) };
-            untyped.owned_cast::<T>().ok()
-        }
+    /// Remove the `raw` from self and return it.
+    ///
+    /// This does not decrement the refcount.
+    fn take_raw(mut self) -> RawGd<T> {
+        let raw = std::mem::take(&mut self.raw);
+        // `self` is now null, this is an invalid state to drop a `Gd` in, so we must forget it.
+        std::mem::forget(self);
+        raw
     }
 
     /// ⚠️ Looks up the given instance ID and returns the associated object.
@@ -206,49 +200,25 @@ impl<T: GodotClass> Gd<T> {
     /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
     /// is not compatible with `T`.
     pub fn from_instance_id(instance_id: InstanceId) -> Self {
-        Self::try_from_instance_id(instance_id).unwrap_or_else(|| {
+        let raw = RawGd::try_from_instance_id(instance_id).unwrap_or_else(|| {
             panic!(
-                "Instance ID {} does not belong to a valid object of class '{}'",
+                "Instance ID {} does not belong to an object of class '{}'",
                 instance_id,
                 T::CLASS_NAME
+            )
+        });
+
+        Self::from_raw(raw).unwrap_or_else(|| {
+            panic!(
+                "Instance ID {} is either a freed or null object",
+                instance_id,
             )
         })
     }
 
-    fn from_opaque(opaque: OpaqueObject) -> Self {
-        let obj = Self {
-            opaque,
-            cached_instance_id: std::cell::Cell::new(None),
-            _marker: PhantomData,
-        };
-
-        // Initialize instance ID cache
-        let id = unsafe { interface_fn!(object_get_instance_id)(obj.obj_sys()) };
-        let instance_id = InstanceId::try_from_u64(id)
-            .expect("Gd initialization failed; did you call share() on a dead instance?");
-        obj.cached_instance_id.set(Some(instance_id));
-
-        obj
-    }
-
     /// Returns the instance ID of this object, or `None` if the object is dead.
     pub fn instance_id_or_none(&self) -> Option<InstanceId> {
-        let known_id = match self.cached_instance_id.get() {
-            // Already dead
-            None => return None,
-
-            // Possibly alive
-            Some(id) => id,
-        };
-
-        // Refreshes the internal cached ID on every call, as we cannot be sure that the object has not been
-        // destroyed since last time. The only reliable way to find out is to call is_instance_id_valid().
-        if engine::utilities::is_instance_id_valid(known_id.to_i64()) {
-            Some(known_id)
-        } else {
-            self.cached_instance_id.set(None);
-            None
-        }
+        self.raw.instance_id_or_none()
     }
 
     /// ⚠️ Returns the instance ID of this object, or `None` if no instance ID is cached.
@@ -256,7 +226,7 @@ impl<T: GodotClass> Gd<T> {
     /// This function does not check that the returned instance ID points to a valid instance!
     /// Unless performance is a problem, use [`instance_id_or_none`].
     pub fn instance_id_or_none_unchecked(&self) -> Option<InstanceId> {
-        self.cached_instance_id.get()
+        self.raw.instance_id_or_none_unchecked()
     }
 
     /// ⚠️ Returns the instance ID of this object (panics when dead).
@@ -282,7 +252,7 @@ impl<T: GodotClass> Gd<T> {
     /// runtime condition to check against.
     pub fn is_instance_valid(&self) -> bool {
         // This call refreshes the instance ID, and recognizes dead objects.
-        self.instance_id_or_none().is_some()
+        self.raw.is_instance_valid()
     }
 
     /// **Upcast:** convert into a smart pointer to a base class. Always succeeds.
@@ -303,7 +273,7 @@ impl<T: GodotClass> Gd<T> {
         Base: GodotClass,
         T: Inherits<Base>,
     {
-        self.owned_cast()
+        self.owned_cast::<Base>()
             .expect("Upcast failed. This is a bug; please report it.")
     }
 
@@ -337,120 +307,26 @@ impl<T: GodotClass> Gd<T> {
         })
     }
 
-    // See use-site for explanation.
-    fn is_cast_valid<U>(&self) -> bool
-    where
-        U: GodotClass,
-    {
-        let as_obj =
-            unsafe { self.ffi_cast::<engine::Object>() }.expect("Everything inherits object");
-        let cast_is_valid = as_obj.is_class(crate::builtin::GodotString::from(U::CLASS_NAME));
-        std::mem::forget(as_obj);
-        cast_is_valid
-    }
-
     /// Returns `Ok(cast_obj)` on success, `Err(self)` on error
     fn owned_cast<U>(self) -> Result<Gd<U>, Self>
     where
         U: GodotClass,
     {
-        // Workaround for bug in Godot 4.0 that makes casts always succeed (https://github.com/godot-rust/gdext/issues/158).
-        // TODO once fixed in Godot, use #[cfg(before_api = "4.1")]
-        if !self.is_cast_valid::<U>() {
-            return Err(self);
-        }
-
-        // The unsafe { std::mem::transmute<&T, &Base>(self.inner()) } relies on the C++ static_cast class casts
-        // to return the same pointer, however in theory those may yield a different pointer (VTable offset,
-        // virtual inheritance etc.). It *seems* to work so far, but this is no indication it's not UB.
-        //
-        // The Deref/DerefMut impls for T implement an "implicit upcast" on the object (not Gd) level and
-        // rely on this (e.g. &Node3D -> &Node).
-
-        let result = unsafe { self.ffi_cast::<U>() };
-        match result {
-            Some(cast_obj) => {
-                // duplicated ref, one must be wiped
-                std::mem::forget(self);
-                Ok(cast_obj)
-            }
-            None => Err(self),
-        }
-    }
-
-    // Note: does not transfer ownership and is thus unsafe. Also operates on shared ref.
-    // Either the parameter or the return value *must* be forgotten (since reference counts are not updated).
-    unsafe fn ffi_cast<U>(&self) -> Option<Gd<U>>
-    where
-        U: GodotClass,
-    {
-        let class_name = ClassName::of::<U>();
-        let class_tag = interface_fn!(classdb_get_class_tag)(class_name.string_sys());
-        let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
-
-        // Create weak object, as ownership will be moved and reference-counter stays the same
-        sys::ptr_then(cast_object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
-    }
-
-    pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut engine::RefCounted) -> R) -> R {
-        debug_assert!(
-            self.is_instance_valid(),
-            "as_ref_counted() on freed instance; maybe forgot to increment reference count?"
-        );
-
-        let tmp = unsafe { self.ffi_cast::<engine::RefCounted>() };
-        let mut tmp = tmp.expect("object expected to inherit RefCounted");
-        let return_val =
-            <engine::RefCounted as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
-
-        std::mem::forget(tmp); // no ownership transfer
-        return_val
-    }
-
-    pub(crate) fn as_object<R>(&self, apply: impl Fn(&mut engine::Object) -> R) -> R {
-        // Note: no validity check; this could be called by to_string(), which can be called on dead instances
-
-        let tmp = unsafe { self.ffi_cast::<engine::Object>() };
-        let mut tmp = tmp.expect("object expected to inherit Object; should never fail");
-        // let return_val = apply(tmp.inner_mut());
-        let return_val =
-            <engine::Object as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
-
-        std::mem::forget(tmp); // no ownership transfer
-        return_val
-    }
-
-    // Conversions from/to Godot C++ `Object*` pointers
-    ffi_methods! {
-        type sys::GDExtensionObjectPtr = Opaque;
-
-        fn from_obj_sys_weak = from_sys;
-        fn obj_sys = sys;
-    }
-
-    /// Initializes this `Gd<T>` from the object pointer as a **strong ref**, meaning
-    /// it initializes/increments the reference counter and keeps the object alive.
-    ///
-    /// This is the default for most initializations from FFI. In cases where reference counter
-    /// should explicitly **not** be updated, [`Self::from_obj_sys_weak`] is available.
-    #[doc(hidden)]
-    pub unsafe fn from_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
-        // Initialize reference counter, if needed
-        Self::from_obj_sys_weak(ptr).with_inc_refcount()
-    }
-
-    /// Returns `self` but with initialized ref-count.
-    fn with_inc_refcount(self) -> Self {
-        // Note: use init_ref and not inc_ref, since this might be the first reference increment.
-        // Godot expects RefCounted::init_ref to be called instead of RefCounted::reference in that case.
-        // init_ref also doesn't hurt (except 1 possibly unnecessary check).
-        T::Mem::maybe_init_ref(&self);
-        self
+        let raw = self
+            .take_raw()
+            .owned_cast::<U>()
+            .map_err(|raw| unsafe { Self::from_raw_no_inc(raw).unwrap() })?;
+        Ok(unsafe { Gd::from_raw_no_inc(raw).expect("`Gd` should never be null") })
     }
 
     /// Returns a callable referencing a method from this object named `method_name`.
     pub fn callable<S: Into<StringName>>(&self, method_name: S) -> Callable {
         Callable::from_object_method(self.share(), method_name)
+    }
+
+    #[doc(hidden)]
+    pub(crate) unsafe fn from_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
+        Self::from_raw(RawGd::from_obj_sys(ptr)).unwrap()
     }
 }
 
@@ -474,11 +350,11 @@ where
     /// # Panics
     /// * When the referred-to object has already been destroyed.
     /// * When this is invoked on an upcast `Gd<Object>` that dynamically points to a reference-counted type (i.e. operation not supported).
-    pub fn free(self) {
+    pub fn free(mut self) {
         // TODO disallow for singletons, either only at runtime or both at compile time (new memory policy) and runtime
 
         // Runtime check in case of T=Object, no-op otherwise
-        let ref_counted = T::Mem::is_ref_counted(&self);
+        let ref_counted = T::Mem::is_ref_counted(&self.raw);
         assert_ne!(
             ref_counted, Some(true),
             "called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types."
@@ -490,11 +366,13 @@ where
             "called free() on already destroyed object"
         );
 
-        // This destroys the Storage instance, no need to run destructor again
-        unsafe {
-            interface_fn!(object_destroy)(self.obj_sys());
-        }
+        let raw = std::mem::take(&mut self.raw);
+        // SAFETY:
+        // We've checked that `raw` isn't reference counted, and that it is a valid instance, so we know that
+        // We arent calling `free` on an already freed object, and that it wont be used again.
+        unsafe { raw.free() };
 
+        // `Gd` is now null, this is not a valid state for the `Gd` to be dropped in, so we must forget it.
         std::mem::forget(self);
     }
 }
@@ -506,18 +384,7 @@ where
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        // SAFETY:
-        // This relies on Gd<Node3D> having the layout as Node3D (as an example),
-        // which also needs #[repr(transparent)]:
-        //
-        // struct Gd<T: GodotClass> {
-        //     opaque: OpaqueObject,         <- size of GDExtensionObjectPtr
-        //     _marker: PhantomData,         <- ZST
-        // }
-        // struct Node3D {
-        //     object_ptr: sys::GDExtensionObjectPtr,
-        // }
-        unsafe { std::mem::transmute::<&OpaqueObject, &T>(&self.opaque) }
+        self.raw.as_inner()
     }
 }
 
@@ -526,90 +393,54 @@ where
     T: GodotClass<Declarer = dom::EngineDomain>,
 {
     fn deref_mut(&mut self) -> &mut T {
-        // SAFETY: see also Deref
-        //
-        // The resulting &mut T is transmuted from &mut OpaqueObject, i.e. a *pointer* to the `opaque` field.
-        // `opaque` itself has a different *address* for each Gd instance, meaning that two simultaneous
-        // DerefMut borrows on two Gd instances will not alias, *even if* the underlying Godot object is the
-        // same (i.e. `opaque` has the same value, but not address).
-        unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut self.opaque) }
-    }
-}
-// SAFETY:
-// - `move_return_ptr`
-//   When the `call_type` is `PtrcallType::Virtual`, and the current type is known to inherit from `RefCounted`
-//   then we use `ref_get_object`. Otherwise we use `Gd::from_obj_sys`.
-// - `from_arg_ptr`
-//   When the `call_type` is `PtrcallType::Virtual`, and the current type is known to inherit from `RefCounted`
-//   then we use `ref_set_object`. Otherwise we use `std::ptr::write`. Finally we forget `self` as we pass
-//   ownership to the caller.
-unsafe impl<T> GodotFfi for Gd<T>
-where
-    T: GodotClass,
-{
-    ffi_methods! { type sys::GDExtensionTypePtr = Opaque;
-        fn from_sys;
-        fn from_sys_init;
-        fn sys;
-    }
-
-    // For more context around `ref_get_object` and `ref_set_object`, see:
-    // https://github.com/godotengine/godot-cpp/issues/954
-
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
-        let obj_ptr = if T::Mem::pass_as_ref(call_type) {
-            // ptr is `Ref<T>*`
-            // See the docs for `PtrcallType::Virtual` for more info on `Ref<T>`.
-            interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr)
-        } else if cfg!(since_api = "4.1") || matches!(call_type, PtrcallType::Virtual) {
-            // ptr is `T**`
-            *(ptr as *mut sys::GDExtensionObjectPtr)
-        } else {
-            // ptr is `T*`
-            ptr as sys::GDExtensionObjectPtr
-        };
-
-        // obj_ptr is `T*`
-        Self::from_obj_sys(obj_ptr)
-    }
-
-    unsafe fn move_return_ptr(self, ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) {
-        if T::Mem::pass_as_ref(call_type) {
-            interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys())
-        } else {
-            std::ptr::write(ptr as *mut _, self.opaque)
-        }
-        // We've passed ownership to caller.
-        std::mem::forget(self);
-    }
-
-    fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
-        // We're passing a reference to the object to the callee. If the reference count needs to be
-        // incremented then the callee will do so. We do not need to prematurely do so.
-        //
-        // In Rust terms, if `T` is refcounted then we are effectively passing a `&Arc<T>`, and the callee
-        // would need to call `.clone()` if desired.
-
-        // In 4.0, argument pointers are passed to godot as `T*`, except for in virtual method calls. We
-        // can't perform virtual method calls currently, so they are always `T*`.
-        //
-        // In 4.1 argument pointers were standardized to always be `T**`.
-        #[cfg(before_api = "4.1")]
-        {
-            self.sys_const()
-        }
-
-        #[cfg(since_api = "4.1")]
-        {
-            std::ptr::addr_of!(self.opaque) as sys::GDExtensionConstTypePtr
-        }
+        self.raw.as_inner_mut()
     }
 }
 
-// SAFETY:
-// `Gd<T: GodotClass>` will only contain types that inherit from `crate::engine::Object`.
-// Godots `Object` in turn is known to be nullable and always a pointer.
-unsafe impl<T: GodotClass> GodotNullablePtr for Gd<T> {}
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct ObjectIsNullError;
+
+impl std::fmt::Display for ObjectIsNullError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        f.write_str("object is null")
+    }
+}
+
+impl std::error::Error for ObjectIsNullError {}
+
+impl<T: GodotClass> sys::GodotFuncMarshal for Gd<T> {
+    type Via = RawGd<T>;
+
+    type FromViaError = ObjectIsNullError;
+
+    type IntoViaError = Infallible;
+
+    fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError> {
+        Self::from_raw(via).ok_or(ObjectIsNullError)
+    }
+
+    fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError> {
+        Ok(self.take_raw())
+    }
+
+    unsafe fn drop_via(via: &mut Self::Via) {
+        // SAFETY:
+        // `drop_via` can only be called on a `via` that was returned from `try_into_via`. We don't decrement
+        // the refcount in `try_into_via` so the refcount is already incremented as it should be.
+        Self::from_raw_no_inc(via.clone());
+    }
+}
+
+impl<T: GodotClass> sys::GodotNullableFuncMarshal for Gd<T> {
+    fn try_from_via_opt(via: Self::Via) -> Result<Option<Self>, Self::FromViaError> {
+        Ok(Self::from_raw(via))
+    }
+
+    fn try_into_via_opt(opt: Option<Self>) -> Result<Self::Via, Self::IntoViaError> {
+        let raw = opt.map(Self::take_raw).unwrap_or_default();
+        Ok(raw)
+    }
+}
 
 impl<T: GodotClass> Gd<T> {
     /// Runs `init_fn` on the address of a pointer (initialized to null). If that pointer is still null after the `init_fn` call,
@@ -630,30 +461,11 @@ impl<T: GodotClass> Gd<T> {
         // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).
 
         // Initialize pointer with given function, return Some(ptr) on success and None otherwise
-        let object_ptr = raw_object_init(init_fn);
+        let object_ptr = super::raw_object_init(init_fn);
 
         // Do not increment ref-count; assumed to be return value from FFI.
-        sys::ptr_then(object_ptr, |ptr| Gd::from_obj_sys_weak(ptr))
+        Gd::from_raw_no_inc(RawGd::from_obj_sys(object_ptr))
     }
-}
-
-/// Runs `init_fn` on the address of a pointer (initialized to null), then returns that pointer, possibly still null.
-///
-/// # Safety
-/// `init_fn` must be a function that correctly handles a _type pointer_ pointing to an _object pointer_.
-#[doc(hidden)]
-pub unsafe fn raw_object_init(
-    init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
-) -> sys::GDExtensionObjectPtr {
-    // return_ptr has type GDExtensionTypePtr = GDExtensionObjectPtr* = OpaqueObject* = Object**
-    // (in other words, the type-ptr contains the _address_ of an object-ptr).
-    let mut object_ptr: sys::GDExtensionObjectPtr = ptr::null_mut();
-    let return_ptr: *mut sys::GDExtensionObjectPtr = ptr::addr_of_mut!(object_ptr);
-
-    init_fn(return_ptr as sys::GDExtensionUninitializedTypePtr);
-
-    // We don't need to know if Object** is null, but if Object* is null; return_ptr has the address of a local (never null).
-    object_ptr
 }
 
 /// Destructor with semantics depending on memory strategy.
@@ -668,11 +480,10 @@ impl<T: GodotClass> Drop for Gd<T> {
         // No-op for manually managed objects
 
         out!("Gd::drop   <{}>", std::any::type_name::<T>());
-        let is_last = T::Mem::maybe_dec_ref(self); // may drop
+        let raw = std::mem::take(&mut self.raw);
+        let is_last = T::Mem::maybe_dec_ref(&raw); // may drop
         if is_last {
-            unsafe {
-                interface_fn!(object_destroy)(self.obj_sys());
-            }
+            unsafe { raw.free() }
         }
 
         /*let st = self.storage();
@@ -695,26 +506,13 @@ impl<T: GodotClass> Drop for Gd<T> {
 impl<T: GodotClass> Share for Gd<T> {
     fn share(&self) -> Self {
         out!("Gd::share");
-        Self::from_opaque(self.opaque).with_inc_refcount()
+        Self::from_raw(self.raw.clone()).expect("`Gd` should never be null")
     }
 }
 
 impl<T: GodotClass> TypeStringHint for Gd<T> {
     fn type_string() -> String {
-        use engine::global::PropertyHint;
-
-        match Self::default_export_info().hint {
-            hint @ (PropertyHint::PROPERTY_HINT_RESOURCE_TYPE
-            | PropertyHint::PROPERTY_HINT_NODE_TYPE) => {
-                format!(
-                    "{}/{}:{}",
-                    VariantType::Object as i32,
-                    hint.ord(),
-                    T::CLASS_NAME
-                )
-            }
-            _ => format!("{}:", VariantType::Object as i32),
-        }
+        RawGd::<T>::type_string()
     }
 }
 
@@ -732,19 +530,7 @@ impl<T: GodotClass> Property for Gd<T> {
 
 impl<T: GodotClass> Export for Gd<T> {
     fn default_export_info() -> ExportInfo {
-        let hint = if T::inherits::<engine::Resource>() {
-            engine::global::PropertyHint::PROPERTY_HINT_RESOURCE_TYPE
-        } else if T::inherits::<engine::Node>() {
-            engine::global::PropertyHint::PROPERTY_HINT_NODE_TYPE
-        } else {
-            engine::global::PropertyHint::PROPERTY_HINT_NONE
-        };
-
-        // Godot does this by default too, it doesn't seem to make a difference when not a resource/node
-        // but is needed when it is a resource/node.
-        let hint_string = T::CLASS_NAME.into();
-
-        ExportInfo { hint, hint_string }
+        RawGd::<T>::default_export_info()
     }
 }
 
@@ -753,49 +539,15 @@ impl<T: GodotClass> Export for Gd<T> {
 
 impl<T: GodotClass> FromVariant for Gd<T> {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-        let result_or_none = unsafe {
-            // TODO(#234) replace Gd::<Object> with Self when Godot stops allowing illegal conversions
-            // See https://github.com/godot-rust/gdext/issues/158
-
-            // TODO(uninit) - see if we can use from_sys_init()
-            use ::godot_ffi::AsUninit;
-
-            Gd::<engine::Object>::from_sys_init_opt(|self_ptr| {
-                let converter = sys::builtin_fn!(object_from_variant);
-                converter(self_ptr.as_uninit(), variant.var_sys());
-            })
-        };
-
-        // The conversion method `variant_to_object` does NOT increment the reference-count of the object; we need to do that manually.
-        // (This behaves differently in the opposite direction `object_to_variant`.)
-        result_or_none
-            .map(|obj| obj.with_inc_refcount())
-            // TODO(#234) remove this cast when Godot stops allowing illegal conversions
-            // (See https://github.com/godot-rust/gdext/issues/158)
-            .and_then(|obj| obj.owned_cast().ok())
-            .ok_or(VariantConversionError::BadType)
+        Self::from_raw(RawGd::try_from_variant(variant)?)
+            .ok_or(VariantConversionError::VariantIsNull)
     }
 }
 
 impl<T: GodotClass> ToVariant for Gd<T> {
     fn to_variant(&self) -> Variant {
-        // The conversion method `object_to_variant` DOES increment the reference-count of the object; so nothing to do here.
-        // (This behaves differently in the opposite direction `variant_to_object`.)
-
-        unsafe {
-            Variant::from_var_sys_init(|variant_ptr| {
-                let converter = sys::builtin_fn!(object_to_variant);
-
-                // Note: this is a special case because of an inconsistency in Godot, where sometimes the equivalency is
-                // GDExtensionTypePtr == Object** and sometimes GDExtensionTypePtr == Object*. Here, it is the former, thus extra pointer.
-                // Reported at https://github.com/godotengine/godot/issues/61967
-                let type_ptr = self.sys();
-                converter(
-                    variant_ptr,
-                    ptr::addr_of!(type_ptr) as sys::GDExtensionTypePtr,
-                );
-            })
-        }
+        // This already increments the refcount.
+        self.raw.to_variant()
     }
 }
 
@@ -833,23 +585,23 @@ impl<T: GodotClass> Eq for Gd<T> {}
 
 impl<T: GodotClass> Display for Gd<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        engine::display_string(self, f)
+        self.raw.display_string(f)
     }
 }
 
 impl<T: GodotClass> Debug for Gd<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        engine::debug_string(self, f, "Gd")
+        self.raw.debug_string(f, "Gd")
     }
 }
 
 impl<T: GodotClass> VariantMetadata for Gd<T> {
     fn variant_type() -> VariantType {
-        VariantType::Object
+        RawGd::<T>::variant_type()
     }
 
     fn class_name() -> ClassName {
-        ClassName::of::<T>()
+        RawGd::<T>::class_name()
     }
 }
 

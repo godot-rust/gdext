@@ -185,29 +185,6 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utilities for crate
 
-pub(crate) fn debug_string<T: GodotClass>(
-    ptr: &Gd<T>,
-    f: &mut std::fmt::Formatter<'_>,
-    ty: &str,
-) -> std::fmt::Result {
-    if let Some(id) = ptr.instance_id_or_none() {
-        let class: GodotString = ptr.as_object(|obj| Object::get_class(obj));
-
-        write!(f, "{ty} {{ id: {id}, class: {class} }}")
-    } else {
-        write!(f, "{ty} {{ freed obj }}")
-    }
-}
-
-pub(crate) fn display_string<T: GodotClass>(
-    ptr: &Gd<T>,
-    f: &mut std::fmt::Formatter<'_>,
-) -> std::fmt::Result {
-    let string: GodotString = ptr.as_object(Object::to_string);
-
-    <GodotString as std::fmt::Display>::fmt(&string, f)
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation of this file
 

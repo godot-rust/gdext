@@ -533,6 +533,27 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         ident("ManualMemory")
     };
 
+    let deref_impl = if class_name.rust_ty != "Object" {
+        quote! {
+            impl std::ops::Deref for #class_name {
+                type Target = #base_ty;
+
+                fn deref(&self) -> &Self::Target {
+                    // SAFETY: same assumptions as `impl Deref for Gd<T>`, see there for comments
+                    unsafe { std::mem::transmute::<&Self, &Self::Target>(self) }
+                }
+            }
+            impl std::ops::DerefMut for #class_name {
+                fn deref_mut(&mut self) -> &mut Self::Target {
+                    // SAFETY: see above
+                    unsafe { std::mem::transmute::<&mut Self, &mut Self::Target>(self) }
+                }
+            }
+        }
+    } else {
+        TokenStream::new()
+    };
+
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
         #![doc = #module_doc]
@@ -583,20 +604,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
 
             #exportable_impl
 
-            impl std::ops::Deref for #class_name {
-                type Target = #base_ty;
-
-                fn deref(&self) -> &Self::Target {
-                    // SAFETY: same assumptions as `impl Deref for Gd<T>`, see there for comments
-                    unsafe { std::mem::transmute::<&Self, &Self::Target>(self) }
-                }
-            }
-            impl std::ops::DerefMut for #class_name {
-                fn deref_mut(&mut self) -> &mut Self::Target {
-                    // SAFETY: see above
-                    unsafe { std::mem::transmute::<&mut Self, &mut Self::Target>(self) }
-                }
-            }
+            #deref_impl
 
             #[macro_export]
             #[allow(non_snake_case)]
@@ -1445,7 +1453,7 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
                     );
 
                     let __args = [
-                        #( sys::GodotFfi::as_arg_ptr(&__args.#args_indices) ),*
+                        #( sys::GodotFfi::as_arg_ptr(__args.#args_indices.via()) ),*
                     ];
 
                     let __args_ptr = __args.as_ptr();
@@ -1763,9 +1771,9 @@ fn make_params_and_impl(
         let arg_expr = if is_varcall {
             quote! { <#param_ty as ToVariant>::to_variant(&#param_name) }
         } else if let RustTy::EngineClass { tokens: path, .. } = &param_ty {
-            quote! { <#path as sys::GodotFuncMarshal>::try_into_via(#param_name).unwrap() }
+            quote! { <#path as sys::GodotFuncMarshal>::try_into_via_guard(#param_name).unwrap() }
         } else {
-            quote! { <#param_ty as sys::GodotFuncMarshal>::try_into_via(#param_name).unwrap() }
+            quote! { <#param_ty as sys::GodotFuncMarshal>::try_into_via_guard(#param_name).unwrap() }
         };
 
         params.push(quote! { #param_name: #param_ty });

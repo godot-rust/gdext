@@ -15,7 +15,7 @@ use godot::builtin::{
 use godot::engine::{
     file_access, Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted, RefCountedVirtual,
 };
-use godot::obj::{Base, Gd, InstanceId};
+use godot::obj::{Base, Gd, InstanceId, RawGd};
 use godot::obj::{Inherits, Share};
 use godot::sys::{self, GodotFfi};
 
@@ -75,13 +75,16 @@ fn object_user_roundtrip_return() {
     let value: i16 = 17943;
     let user = ObjPayload { value };
 
-    let obj: Gd<ObjPayload> = Gd::new(user);
+    let raw: RawGd<ObjPayload> = RawGd::new(user);
+    assert_eq!(raw.bind().value, value);
+    let obj = Gd::from_raw(raw.clone()).unwrap();
     assert_eq!(obj.bind().value, value);
 
-    let ptr = obj.sys();
-    std::mem::forget(obj);
+    let ptr = raw.sys();
 
-    let obj2 = unsafe { Gd::<ObjPayload>::from_sys(ptr) };
+    let raw2 = unsafe { RawGd::<ObjPayload>::from_sys(ptr) };
+    assert_eq!(raw2.bind().value, value);
+    let obj2 = Gd::from_raw(raw2).unwrap();
     assert_eq!(obj2.bind().value, value);
 } // drop
 
@@ -90,16 +93,20 @@ fn object_user_roundtrip_write() {
     let value: i16 = 17943;
     let user = ObjPayload { value };
 
-    let obj: Gd<ObjPayload> = Gd::new(user);
-    assert_eq!(obj.bind().value, value);
+    let raw: RawGd<ObjPayload> = RawGd::new(user);
+    assert_eq!(raw.bind().value, value);
 
-    let obj2 = unsafe {
-        Gd::<ObjPayload>::from_sys_init(|ptr| {
-            obj.move_return_ptr(sys::AsUninit::force_init(ptr), sys::PtrcallType::Standard)
+    let raw2 = unsafe {
+        RawGd::<ObjPayload>::from_sys_init(|ptr| {
+            raw.move_return_ptr(sys::AsUninit::force_init(ptr), sys::PtrcallType::Standard)
         })
     };
-    assert_eq!(obj2.bind().value, value);
-} // drop
+
+    assert_eq!(raw2.bind().value, value);
+
+    // Raw Gd does not maintain a refcount so will not drop at the end of the function.
+    unsafe { raw2.free() };
+}
 
 #[itest]
 fn object_engine_roundtrip() {
@@ -109,9 +116,10 @@ fn object_engine_roundtrip() {
     obj.set_position(pos);
     assert_eq!(obj.get_position(), pos);
 
-    let ptr = obj.sys();
+    let ptr = obj.raw().sys();
 
-    let obj2 = unsafe { Gd::<Node3D>::from_sys(ptr) };
+    let raw2 = unsafe { RawGd::<Node3D>::from_sys(ptr) };
+    let obj2 = Gd::from_raw(raw2).unwrap();
     assert_eq!(obj2.get_position(), pos);
     obj.free();
 }
@@ -337,7 +345,7 @@ fn object_engine_convert_variant_nil() {
 
     assert_eq!(
         Gd::<Area2D>::try_from_variant(&nil),
-        Err(VariantConversionError::BadType),
+        Err(VariantConversionError::VariantIsNull),
         "try_from_variant(&nil)"
     );
 

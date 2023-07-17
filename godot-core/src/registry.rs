@@ -336,9 +336,9 @@ pub mod callbacks {
         _class_user_data: *mut std::ffi::c_void,
         instance: sys::GDExtensionClassInstancePtr,
     ) {
-        let storage = as_storage::<T>(instance);
+        let storage = instance as *mut InstanceStorage<T>;
+        let storage = Box::from_raw(storage);
         storage.mark_destroyed_by_godot();
-        let _drop = Box::from_raw(storage as *mut InstanceStorage<_>);
     }
 
     pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(

@@ -60,4 +60,7 @@ pub enum VariantConversionError {
 
     /// Variant value is missing a value for the target type
     MissingValue,
+
+    /// Attempted to convert a null variant to a non-null type.
+    VariantIsNull,
 }

@@ -4,17 +4,38 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::prelude::{godot_api, Gd, GodotClass, Node, Object, RefCounted};
-use godot::sys::GodotFfi;
+use std::mem::MaybeUninit;
+
+use godot::prelude::{godot_api, Gd, GodotClass, Node, Object, RefCounted, Share};
+use godot::sys;
+use godot::sys::{GodotFuncMarshal, PtrcallType};
 
 use crate::itest;
 
 #[itest]
 fn option_some_sys_conversion() {
-    let v = Some(Object::new_alloc());
-    let ptr = v.sys();
+    let v: Option<Gd<Object>> = Some(Object::new_alloc());
 
-    let v2 = unsafe { Option::<Gd<Object>>::from_sys(ptr) };
+    let mut obj: MaybeUninit<Object> = MaybeUninit::uninit();
+
+    // Use `Virtual` ptrcall type since the pointer representation is consistent between godot 4.0 and 4.1.
+    unsafe {
+        v.share()
+            .try_return(
+                std::ptr::addr_of_mut!(obj) as sys::GDExtensionTypePtr,
+                PtrcallType::Virtual,
+            )
+            .unwrap()
+    };
+
+    let v2 = unsafe {
+        Option::<Gd<Object>>::try_from_arg(
+            std::ptr::addr_of_mut!(obj) as sys::GDExtensionTypePtr,
+            PtrcallType::Virtual,
+        )
+        .unwrap()
+    };
+
     assert_eq!(v2, v);
 
     v.unwrap().free();
@@ -22,10 +43,28 @@ fn option_some_sys_conversion() {
 
 #[itest]
 fn option_none_sys_conversion() {
-    let v = None;
-    let ptr = v.sys();
+    let v: Option<Gd<Object>> = None;
 
-    let v2 = unsafe { Option::<Gd<Object>>::from_sys(ptr) };
+    let mut obj: MaybeUninit<Object> = MaybeUninit::uninit();
+
+    // Use `Virtual` ptrcall type since the pointer representation is consistent between godot 4.0 and 4.1.
+    unsafe {
+        v.share()
+            .try_return(
+                std::ptr::addr_of_mut!(obj) as sys::GDExtensionTypePtr,
+                PtrcallType::Virtual,
+            )
+            .unwrap()
+    };
+
+    let v2 = unsafe {
+        Option::<Gd<Object>>::try_from_arg(
+            std::ptr::addr_of_mut!(obj) as sys::GDExtensionTypePtr,
+            PtrcallType::Virtual,
+        )
+        .unwrap()
+    };
+
     assert_eq!(v2, v);
 }
 

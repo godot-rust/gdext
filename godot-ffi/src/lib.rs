@@ -33,7 +33,7 @@ use std::ffi::CStr;
 pub use paste;
 
 pub use crate::godot_ffi::{
-    from_sys_init_or_init_default, GodotFfi, GodotFuncMarshal, GodotNullablePtr,
+    from_sys_init_or_init_default, GodotFfi, GodotFuncMarshal, GodotNullableFuncMarshal,
     PrimitiveConversionError, PtrcallType,
 };
 pub use gen::central::*;

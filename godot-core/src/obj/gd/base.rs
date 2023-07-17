@@ -4,11 +4,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::obj::Gd;
+use super::{Gd, RawGd};
 use crate::obj::GodotClass;
-use crate::{engine, sys};
+use crate::sys;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
-use std::mem::ManuallyDrop;
 use std::ops::{Deref, DerefMut};
 
 /// Restricted version of `Gd`, to hold the base instance inside a user's `GodotClass`.
@@ -31,41 +30,35 @@ pub struct Base<T: GodotClass> {
     // When triggered by Rust (Gd::drop on last strong ref), it's as follows:
     // 1.   Gd<T>  -- triggers InstanceStorage destruction
     // 2.
-    obj: ManuallyDrop<Gd<T>>,
+    raw: RawGd<T>,
 }
 
 impl<T: GodotClass> Base<T> {
     // Note: not &mut self, to only borrow one field and not the entire struct
     pub(crate) unsafe fn from_sys(base_ptr: sys::GDExtensionObjectPtr) -> Self {
-        assert!(!base_ptr.is_null(), "instance base is null pointer");
-
         // Initialize only as weak pointer (don't increment reference count)
-        let obj = Gd::from_obj_sys_weak(base_ptr);
+        let raw = RawGd::from_obj_sys(base_ptr);
+
+        assert!(!raw.is_null(), "instance base is null pointer");
 
         // This obj does not contribute to the strong count, otherwise we create a reference cycle:
         // 1. RefCounted (dropped in GDScript)
         // 2. holds user T (via extension instance and storage)
         // 3. holds #[base] RefCounted (last ref, dropped in T destructor, but T is never destroyed because this ref keeps storage alive)
         // Note that if late-init never happened on self, we have the same behavior (still a raw pointer instead of weak Gd)
-        Base::from_obj(obj)
-    }
-
-    fn from_obj(obj: Gd<T>) -> Self {
-        Self {
-            obj: ManuallyDrop::new(obj),
-        }
+        Base { raw }
     }
 }
 
 impl<T: GodotClass> Debug for Base<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        engine::debug_string(&self.obj, f, "Base")
+        self.raw.debug_string(f, "Base")
     }
 }
 
 impl<T: GodotClass> Display for Base<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        engine::display_string(&self.obj, f)
+        self.raw.display_string(f)
     }
 }
 
@@ -73,7 +66,7 @@ impl<T: GodotClass> Deref for Base<T> {
     type Target = Gd<T>;
 
     fn deref(&self) -> &Self::Target {
-        &self.obj
+        Gd::raw_as_ref(&self.raw).expect("Base should never be null")
     }
 }
 
@@ -81,6 +74,6 @@ impl<T: GodotClass> Deref for Base<T> {
 // Main difference is that an existing Gd<T> cannot be used as the base, and mem::take/replace() don't work as easily
 impl<T: GodotClass> DerefMut for Base<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.obj
+        Gd::raw_as_mut(&mut self.raw).expect("Base should never be null")
     }
 }
