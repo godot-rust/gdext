@@ -429,12 +429,14 @@ fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
         // As long as the user has multiple Gd smart pointers to the same singletons, only the internal raw pointers are aliased.
         // See also Deref/DerefMut impl for Gd.
         quote! {
-            pub fn singleton() -> Gd<Self> {
-                unsafe {
-                    let __class_name = StringName::from(#godot_class_name);
-                    let __object_ptr = sys::interface_fn!(global_get_singleton)(__class_name.string_sys());
-                    Gd::from_obj_sys(__object_ptr)
-                }
+            pub fn singleton() -> Singleton<Self> {
+                SINGLETON.get_or_init(|| {
+                    unsafe {
+                        let __class_name = StringName::from(#godot_class_name);
+                        let __object_ptr = sys::interface_fn!(global_get_singleton)(__class_name.string_sys());
+                        Singleton::from_obj_sys(__object_ptr)
+                    }
+                }).clone()
             }
         }
     } else if !class.is_instantiable {
@@ -479,6 +481,20 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
             (quote! { crate::engine::#base }, Some(base))
         }
         None => (quote! { () }, None),
+    };
+
+    let (singleton, import_singleton, singleton_impl) = if ctx.is_singleton(&class.name) {
+        (
+            quote! {
+                static SINGLETON: std::sync::OnceLock<Singleton<#class_name>> = std::sync::OnceLock::new();
+            },
+            quote! { use crate::obj::Singleton; },
+            quote! {
+                unsafe impl crate::obj::GodotSingleton for #class_name {}
+            },
+        )
+    } else {
+        (TokenStream::new(), TokenStream::new(), TokenStream::new())
     };
 
     let constructor = make_constructor(class, ctx);
@@ -563,11 +579,14 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         use crate::builtin::*;
         use crate::engine::native::*;
         use crate::obj::Gd;
+        #import_singleton
         use sys::GodotFfi as _;
         use std::ffi::c_void;
 
         pub(super) mod re_export {
             use super::*;
+
+            #singleton
 
             #[doc = #class_doc]
             #[derive(Debug)]
@@ -590,6 +609,9 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
 
                 const CLASS_NAME: &'static str = #godot_class_str;
             }
+
+            #singleton_impl
+
             impl crate::obj::EngineClass for #class_name {
                  fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr {
                      self.object_ptr

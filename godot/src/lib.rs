@@ -179,7 +179,9 @@ pub mod prelude {
     };
     pub use super::init::{gdextension, ExtensionLayer, ExtensionLibrary, InitHandle, InitLevel};
     pub use super::log::*;
-    pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, Share};
+    pub use super::obj::{
+        Base, Gd, GdMut, GdRef, GodotClass, GodotObjectPtr as _, Inherits, InstanceId, Share,
+    };
 
     // Make trait methods available
     pub use super::engine::NodeExt as _;

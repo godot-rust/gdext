@@ -7,14 +7,14 @@
 use crate::itest;
 use godot::builtin::GodotString;
 use godot::engine::{Input, Os};
-use godot::obj::Gd;
+use godot::obj::{GodotObjectPtr, RawGd, Singleton};
 
 #[itest]
 fn singleton_is_unique() {
-    let a: Gd<Input> = Input::singleton();
+    let a: Singleton<Input> = Input::singleton();
     let id_a = a.instance_id();
 
-    let b: Gd<Input> = Input::singleton();
+    let b: Singleton<Input> = Input::singleton();
     let id_b = b.instance_id();
 
     assert_eq!(id_a, id_b, "Singletons have same instance ID");
@@ -22,17 +22,18 @@ fn singleton_is_unique() {
 
 #[itest]
 fn singleton_from_instance_id() {
-    let a: Gd<Os> = Os::singleton();
+    let a: Singleton<Os> = Os::singleton();
     let id = a.instance_id();
 
-    let b: Gd<Os> = Gd::from_instance_id(id);
+    let raw: RawGd<Os> = RawGd::try_from_instance_id(id).unwrap();
+    let b = Singleton::from_raw(raw);
 
     assert_eq!(a.get_executable_path(), b.get_executable_path());
 }
 
 #[itest]
 fn singleton_is_operational() {
-    let os: Gd<Os> = Os::singleton();
+    let os: Singleton<Os> = Os::singleton();
     let key = GodotString::from("MY_TEST_ENV");
     let value = GodotString::from("SOME_VALUE");
 

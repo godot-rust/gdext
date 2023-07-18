@@ -96,7 +96,7 @@ mod itest;
 mod method_registration;
 mod util;
 
-/// Derive macro for [`GodotClass`](godot_core::obj::GodotClass) on structs. You should normally use
+/// Derive macro for [`GodotClass`](godot::obj::GodotClass) on structs. You should normally use
 /// this macro, rather than implement `GodotClass` manually for your type.
 ///
 /// # Construction

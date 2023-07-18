@@ -15,7 +15,7 @@ use godot::builtin::{
 use godot::engine::{
     file_access, Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted, RefCountedVirtual,
 };
-use godot::obj::{Base, Gd, InstanceId, RawGd};
+use godot::obj::{Base, Gd, GodotObjectPtr, InstanceId, RawGd};
 use godot::obj::{Inherits, Share};
 use godot::sys::{self, GodotFfi};
 

@@ -6,13 +6,13 @@
 
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::marker::PhantomData;
+use std::mem::MaybeUninit;
 use std::ptr;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use godot_ffi as sys;
 use godot_ffi::VariantType;
-use sys::types::OpaqueObject;
-use sys::{ffi_methods, interface_fn, GodotFfi, PtrcallType};
+use sys::{interface_fn, GodotFfi, PtrcallType};
 
 use crate::builtin::meta::{ClassName, VariantMetadata};
 use crate::builtin::{FromVariant, GodotString, ToVariant, Variant, VariantConversionError};
@@ -25,8 +25,17 @@ use crate::property::{Export, ExportInfo, Property, TypeStringHint};
 use crate::storage::InstanceStorage;
 use crate::{callbacks, engine};
 
+/// A raw pointer to an instance of a class.
+///
+/// This is not intended for general use, you usually want to use [`Gd`](super::Gd) instead of using this
+/// directly.
+///
+/// `RawGd` is not guaranteed to be live, nor non-null. But many of the methods are only safe to call on null
+/// or live instances.
 pub struct RawGd<T: GodotClass> {
-    opaque: OpaqueObject,
+    // Store a pointer, as transmuting between pointers and integers can be problematic:
+    // https://github.com/rust-lang/unsafe-code-guidelines/issues/286
+    ptr: sys::GDExtensionObjectPtr,
     // `RawGd` should be usable in all contexts, `Cell` would make it very difficult to use it in
     // multithreaded contexts.
     cached_instance_id: AtomicU64,
@@ -35,10 +44,11 @@ pub struct RawGd<T: GodotClass> {
 
 impl<T: GodotClass> RawGd<T> {
     /// # Safety
-    /// `opaque` must not be a pointer to a freed non-null object.
-    unsafe fn from_opaque(opaque: OpaqueObject) -> Self {
+    /// `ptr` must not be a pointer to a freed non-null object.
+    #[doc(hidden)]
+    pub(crate) unsafe fn from_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
         let mut obj = Self {
-            opaque,
+            ptr,
             cached_instance_id: AtomicU64::new(0),
             _marker: PhantomData,
         };
@@ -54,14 +64,10 @@ impl<T: GodotClass> RawGd<T> {
         obj
     }
 
+    /// Construct a new null object. This does not require any ffi.
     pub fn new_null() -> Self {
-        // SAFETY: `OpaqueObject` represents a pointer, and it may be null.
-        let opaque = unsafe {
-            std::mem::transmute::<*mut std::ffi::c_void, OpaqueObject>(std::ptr::null_mut())
-        };
-
         Self {
-            opaque,
+            ptr: std::ptr::null_mut(),
             cached_instance_id: AtomicU64::new(0),
             _marker: PhantomData,
         }
@@ -89,11 +95,13 @@ impl<T: GodotClass> RawGd<T> {
         self.cached_instance_id.store(id, Ordering::Release);
     }
 
+    /// Return the cached instance id without checking if the object is still live or not.
     pub fn instance_id_or_none_unchecked(&self) -> Option<InstanceId> {
         let id = self.cached_instance_id.load(Ordering::Acquire);
         InstanceId::try_from_u64(id)
     }
 
+    /// Return the instance id of this instance, or `None` if the object is null or has been freed.
     pub fn instance_id_or_none(&self) -> Option<InstanceId> {
         let id = self.instance_id_or_none_unchecked()?;
 
@@ -107,22 +115,29 @@ impl<T: GodotClass> RawGd<T> {
         }
     }
 
+    /// Checks if this pointer points to a live object.
+    ///
+    /// Many `unsafe` methods of `RawGd` require the object to be live before they can be safely called, this
+    /// is the main way to check that.
     pub fn is_instance_valid(&self) -> bool {
         self.instance_id_or_none().is_some()
     }
 
+    /// Checks if this is a null-pointer, this does not check if the pointer points to a live object, for
+    /// that you should use [`is_instance_valid()`].
     pub fn is_null(&self) -> bool {
-        unsafe {
-            let ptr =
-                std::mem::transmute::<OpaqueObject, *mut *const std::ffi::c_void>(self.opaque);
-            ptr.is_null() || (*ptr).is_null()
-        }
+        self.ptr.is_null()
     }
 
+    /// Cast an object directly using `object_cast_to`.
     pub(super) fn ffi_cast<U>(&self) -> Option<RawGd<U>>
     where
         U: GodotClass,
     {
+        if !self.is_instance_valid() {
+            return None;
+        }
+
         unsafe {
             let class_name = ClassName::of::<U>();
             let class_tag = interface_fn!(classdb_get_class_tag)(class_name.string_sys());
@@ -142,10 +157,12 @@ impl<T: GodotClass> RawGd<T> {
         let as_obj = self
             .ffi_cast::<Object>()
             .expect("Everything inherits object");
-        let cast_is_valid = as_obj.as_inner().is_class(GodotString::from(U::CLASS_NAME));
+        let cast_is_valid = unsafe { as_obj.as_inner() }.is_class(GodotString::from(U::CLASS_NAME));
         cast_is_valid
     }
 
+    /// Take ownership of `self` and try to cast it to another type.
+    ///
     /// Returns `Ok(cast_obj)` on success, `Err(self)` on error
     pub(super) fn owned_cast<U>(self) -> Result<RawGd<U>, Self>
     where
@@ -172,6 +189,7 @@ impl<T: GodotClass> RawGd<T> {
         }
     }
 
+    /// Call the function `apply` on `self`, assuming that `self` is a [`RefCounted`](crate::engine::RefCounted) object.
     pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut engine::RefCounted) -> R) -> R {
         debug_assert!(
             self.is_instance_valid(),
@@ -180,10 +198,19 @@ impl<T: GodotClass> RawGd<T> {
 
         let tmp = self.ffi_cast::<engine::RefCounted>();
         let mut tmp = tmp.expect("object expected to inherit RefCounted");
-        <engine::RefCounted as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj))
+        // SAFETY: instance is valid.
+        unsafe {
+            <engine::RefCounted as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj))
+        }
     }
 
-    pub(crate) fn as_object<R>(&self, apply: impl Fn(&mut engine::Object) -> R) -> R {
+    /// Call the function `apply` on `self` casted to an `Object`.
+    ///
+    /// # Safety
+    ///
+    /// `self` must be a valid instance, or `apply` must only call methods that can be called on freed/null
+    /// objects.
+    pub(crate) unsafe fn as_object<R>(&self, apply: impl Fn(&mut engine::Object) -> R) -> R {
         // Note: no validity check; this could be called by to_string(), which can be called on dead instances
 
         let tmp = self.ffi_cast::<engine::Object>();
@@ -200,13 +227,15 @@ impl<T: GodotClass> RawGd<T> {
         self
     }
 
+    /// Format `self` for debug printing. Using the `ty` string for the name of the smart pointer.
     pub(crate) fn debug_string(
         &self,
         f: &mut std::fmt::Formatter<'_>,
         ty: &str,
     ) -> std::fmt::Result {
         if let Some(id) = self.instance_id_or_none() {
-            let class: GodotString = self.as_object(|obj| Object::get_class(obj));
+            // SAFETY: `self` isn't freed.
+            let class: GodotString = unsafe { self.as_object(|obj| Object::get_class(obj)) };
 
             write!(f, "{ty} {{ id: {id}, class: {class} }}")
         } else {
@@ -214,8 +243,10 @@ impl<T: GodotClass> RawGd<T> {
         }
     }
 
+    /// Format `self` for display printing.
     pub(crate) fn display_string(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let string: GodotString = self.as_object(Object::to_string);
+        // SAFETY: May be called on freed instances.
+        let string: GodotString = unsafe { self.as_object(Object::to_string) };
 
         <GodotString as std::fmt::Display>::fmt(&string, f)
     }
@@ -231,12 +262,9 @@ impl<T: GodotClass> RawGd<T> {
         }
     }
 
-    // Conversions from/to Godot C++ `Object*` pointers
-    ffi_methods! {
-        type sys::GDExtensionObjectPtr = Opaque;
-
-        fn from_obj_sys = from_sys;
-        fn obj_sys = sys;
+    #[doc(hidden)]
+    pub fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
+        self.ptr
     }
 }
 
@@ -265,28 +293,9 @@ where
         }
     }
 
-    /// Creates a `Gd<T>` using a function that constructs a `T` from a provided base.
+    /// Creates a `RawGd<T>` using a function that constructs a `T` from a provided base.
     ///
-    /// Imagine you have a type `T`, which has a `#[base]` field that you cannot default-initialize.
-    /// The `init` function provides you with a `Base<T::Base>` object that you can use inside your `T`, which
-    /// is then wrapped in a `Gd<T>`.
-    ///
-    /// Example:
-    /// ```no_run
-    /// # use godot::prelude::*;
-    /// #[derive(GodotClass)]
-    /// #[class(init, base=Node2D)]
-    /// struct MyClass {
-    ///     #[base]
-    ///     my_base: Base<Node2D>,
-    ///     other_field: i32,
-    /// }
-    ///
-    /// let obj = Gd::<MyClass>::with_base(|my_base| {
-    ///     // accepts the base and returns a constructed object containing it
-    ///     MyClass { my_base, other_field: 732 }
-    /// });
-    /// ```
+    /// See also [`Gd::with_base`].
     pub fn with_base<F>(init: F) -> Self
     where
         F: FnOnce(crate::obj::Base<T::Base>) -> T,
@@ -299,11 +308,11 @@ where
     ///
     /// The pattern is very similar to interior mutability with standard [`RefCell`][std::cell::RefCell].
     /// You can either have multiple `GdRef` shared guards, or a single `GdMut` exclusive guard to a Rust
-    /// `GodotClass` instance, independently of how many `Gd` smart pointers point to it. There are runtime
+    /// `GodotClass` instance, independently of how many smart pointers point to it. There are runtime
     /// checks to ensure that Rust safety rules (e.g. no `&` and `&mut` coexistence) are upheld.
     ///
     /// # Panics
-    /// * If another `Gd` smart pointer pointing to the same Rust instance has a live `GdMut` guard bound.
+    /// * If another smart pointer pointing to the same Rust instance has a live `GdMut` guard bound.
     /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&mut T`
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
     // Note: possible names: write/read, hold/hold_mut, r/w, r/rw, ...
@@ -315,18 +324,18 @@ where
     ///
     /// The pattern is very similar to interior mutability with standard [`RefCell`][std::cell::RefCell].
     /// You can either have multiple `GdRef` shared guards, or a single `GdMut` exclusive guard to a Rust
-    /// `GodotClass` instance, independently of how many `Gd` smart pointers point to it. There are runtime
+    /// `GodotClass` instance, independently of how many smart pointers point to it. There are runtime
     /// checks to ensure that Rust safety rules (e.g. no `&mut` aliasing) are upheld.
     ///
     /// # Panics
-    /// * If another `Gd` smart pointer pointing to the same Rust instance has a live `GdRef` or `GdMut` guard bound.
+    /// * If another smart pointer pointing to the same Rust instance has a live `GdRef` or `GdMut` guard bound.
     /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&T` or `&mut T`
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
     pub fn bind_mut(&mut self) -> GdMut<T> {
         GdMut::from_cell(self.storage().get_mut())
     }
 
-    /// Storage object associated with the extension instance
+    /// Storage object associated with the extension instance.
     pub(crate) fn storage(&self) -> &InstanceStorage<T> {
         let callbacks = crate::storage::nop_instance_callbacks();
 
@@ -349,12 +358,24 @@ impl<T> RawGd<T>
 where
     T: GodotClass<Declarer = dom::EngineDomain>,
 {
-    pub fn as_inner(&self) -> &T {
-        unsafe { std::mem::transmute::<&OpaqueObject, &T>(&self.opaque) }
+    /// Get a reference to the underlying Godot object.
+    ///
+    /// # Safety
+    ///
+    /// `self` must not have been previously freed.
+    pub unsafe fn as_inner(&self) -> &T {
+        let addr = std::ptr::addr_of!(self.ptr);
+        &*(addr as *const T)
     }
 
-    pub fn as_inner_mut(&mut self) -> &mut T {
-        unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut self.opaque) }
+    /// Get a mutable reference to the underlying Godot object.
+    ///
+    /// # Safety
+    ///
+    /// `self` must not have been previously freed.
+    pub unsafe fn as_inner_mut(&mut self) -> &mut T {
+        let addr = std::ptr::addr_of_mut!(self.ptr);
+        &mut *(addr as *mut T)
     }
 }
 
@@ -370,17 +391,20 @@ unsafe impl<T> GodotFfi for RawGd<T>
 where
     T: GodotClass,
 {
-    ffi_methods! { type sys::GDExtensionTypePtr = Opaque;
-        fn from_sys;
-        fn from_sys_init;
+    unsafe fn from_sys(ptr: sys::GDExtensionTypePtr) -> Self {
+        Self::from_obj_sys(ptr as sys::GDExtensionObjectPtr)
+    }
+
+    unsafe fn from_sys_init(
+        init: impl FnOnce(<sys::GDExtensionTypePtr as sys::AsUninit>::Ptr),
+    ) -> Self {
+        let mut raw: MaybeUninit<sys::GDExtensionObjectPtr> = std::mem::MaybeUninit::uninit();
+        init(raw.as_mut_ptr() as sys::GDExtensionUninitializedTypePtr);
+        Self::from_obj_sys(raw.assume_init())
     }
 
     fn sys(&self) -> sys::GDExtensionTypePtr {
-        if self.is_null() {
-            std::ptr::null_mut()
-        } else {
-            unsafe { std::mem::transmute(self.opaque) }
-        }
+        self.ptr as sys::GDExtensionTypePtr
     }
 
     // For more context around `ref_get_object` and `ref_set_object`, see:
@@ -411,7 +435,7 @@ where
         if T::Mem::pass_as_ref(call_type) {
             interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys())
         } else {
-            std::ptr::write(ptr as *mut _, self.opaque)
+            std::ptr::write(ptr as *mut _, self.ptr)
         }
     }
 
@@ -429,7 +453,7 @@ where
         if cfg!(gdextension_api = "4.0") {
             self.sys_const()
         } else {
-            std::ptr::addr_of!(self.opaque) as sys::GDExtensionConstTypePtr
+            std::ptr::addr_of!(self.ptr) as sys::GDExtensionConstTypePtr
         }
     }
 }
@@ -437,8 +461,8 @@ where
 impl<T: GodotClass> Clone for RawGd<T> {
     fn clone(&self) -> Self {
         Self {
-            opaque: self.opaque,
-            // It's not very important that we grab the latest instance id, just that it is either the
+            ptr: self.ptr,
+            // It's not important that we grab the latest instance id, just that it is either the
             // correct instance id for the opaque object, or 0. So we can use `Relaxed`.
             cached_instance_id: self.cached_instance_id.load(Ordering::Relaxed).into(),
             _marker: self._marker,

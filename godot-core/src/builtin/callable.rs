@@ -9,7 +9,7 @@ use godot_ffi as sys;
 use crate::builtin::{inner, ToVariant, Variant};
 use crate::engine::Object;
 use crate::obj::mem::Memory;
-use crate::obj::{Gd, GodotClass, InstanceId};
+use crate::obj::{Gd, GodotClass, GodotObjectPtr, InstanceId};
 use std::fmt;
 use sys::{ffi_methods, GodotFfi};
 
@@ -108,6 +108,9 @@ impl Callable {
     /// _Godot equivalent: `get_object`_
     pub fn object(&self) -> Option<Gd<Object>> {
         // Increment refcount because we're getting a reference, and `InnerCallable::get_object` doesn't
+        // increment the refcount.
+
+        // FIXME: Mark `get_object` as unsafe function, or make it return `RawGd`. Since it doesn't properly
         // increment the refcount.
         self.as_inner().get_object().map(|object| {
             <Object as GodotClass>::Mem::maybe_inc_ref(object.raw());

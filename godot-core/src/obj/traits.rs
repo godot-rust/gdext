@@ -59,6 +59,15 @@ impl GodotClass for () {
     const CLASS_NAME: &'static str = "(no base)";
 }
 
+/// Trait to indicate what classes are thread-safe global singletons.
+///
+/// # Safety
+///
+/// - You must guarantee that the type implementing this trait fulfils the safety requirements as described by
+/// https://docs.godotengine.org/en/latest/tutorials/performance/thread_safe_apis.html#global-scope.
+/// - Singletons must live for the entire duration of a gdextension library.
+pub unsafe trait GodotSingleton: GodotClass<Declarer = dom::EngineDomain> {}
+
 /// Trait to create more references from a smart pointer or collection.
 pub trait Share {
     /// Creates a new reference that points to the same object.
@@ -220,7 +229,14 @@ pub mod dom {
     use std::ops::DerefMut;
 
     pub trait Domain: Sealed {
-        fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
+        /// Call the closure `closure` on `obj` by taking a mutable reference to the inner `T`.
+        ///
+        /// # Safety
+        ///
+        /// It must be safe to call the closure on a mutable reference to the inner `T`. This can be violated
+        /// by for instance [`EngineDomain`]'s `scoped_mut` implementation, as it can return a reference to
+        /// an invalid object, and most functions cannot be called on an invalid object.
+        unsafe fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = Self>,
             F: FnOnce(&mut T) -> R;
@@ -229,7 +245,7 @@ pub mod dom {
     pub enum EngineDomain {}
     impl Sealed for EngineDomain {}
     impl Domain for EngineDomain {
-        fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
+        unsafe fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = EngineDomain>,
             F: FnOnce(&mut T) -> R,
@@ -241,7 +257,7 @@ pub mod dom {
     pub enum UserDomain {}
     impl Sealed for UserDomain {}
     impl Domain for UserDomain {
-        fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
+        unsafe fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = Self>,
             F: FnOnce(&mut T) -> R,
@@ -268,8 +284,13 @@ pub mod mem {
         /// If ref-counted, then increment count
         fn maybe_inc_ref<T: GodotClass>(obj: &RawGd<T>);
 
-        /// If ref-counted, then decrement count
-        fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool;
+        /// If ref-counted, then decrement count.
+        ///
+        /// # Safety
+        ///
+        /// If ref-counted, then this must not cause the ref-count to drop to 0 if the object will be used
+        /// again later.
+        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool;
 
         /// Check if ref-counted, return `None` if information is not available (dynamic and obj dead)
         fn is_ref_counted<T: GodotClass>(obj: &RawGd<T>) -> Option<bool>;
@@ -305,7 +326,7 @@ pub mod mem {
             });
         }
 
-        fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool {
+        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool {
             out!("  Stat::dec   <{}>", std::any::type_name::<T>());
             obj.as_ref_counted(|refc| {
                 let is_last = refc.unreference();
@@ -350,7 +371,7 @@ pub mod mem {
             }
         }
 
-        fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool {
+        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool {
             out!("  Dyn::dec   <{}>", std::any::type_name::<T>());
             if obj
                 .instance_id_or_none()
@@ -378,7 +399,7 @@ pub mod mem {
     impl Memory for ManualMemory {
         fn maybe_init_ref<T: GodotClass>(_obj: &RawGd<T>) {}
         fn maybe_inc_ref<T: GodotClass>(_obj: &RawGd<T>) {}
-        fn maybe_dec_ref<T: GodotClass>(_obj: &RawGd<T>) -> bool {
+        unsafe fn maybe_dec_ref<T: GodotClass>(_obj: &RawGd<T>) -> bool {
             false
         }
         fn is_ref_counted<T: GodotClass>(_obj: &RawGd<T>) -> Option<bool> {

@@ -20,7 +20,7 @@ use crate::obj::{cap, dom, mem, GdMut, GdRef, GodotClass, Inherits, InstanceId, 
 use crate::out;
 use crate::property::{Export, ExportInfo, Property, TypeStringHint};
 
-use super::RawGd;
+use super::{GodotObjectPtr, RawGd};
 
 /// Smart pointer to objects owned by the Godot engine.
 ///
@@ -43,6 +43,17 @@ use super::RawGd;
 /// * For `T=Object`, the memory strategy is determined **dynamically**. Due to polymorphism, a `Gd<T>` can point to either
 ///   reference-counted or manually-managed types at runtime. The behavior corresponds to one of the two previous points.
 ///   Note that if the dynamic type is also `Object`, the memory is manually-managed.
+///
+/// # Safety
+///
+/// When using the `unsafe` methods on `Gd<T>` or the [`RawGd<T>`] from [`raw()`](GodotObjectPtr::raw), or
+/// when using this object in Godot, then make sure to uphold these safety invariants:
+///
+/// - If the instance stored in the `Gd<T>` inherits from [`RefCounted`], then the reference count must be
+/// incremented at least once for every value of `Gd<T>` that will be dropped. Incrementing it more than once
+/// is safe but may lead to a memory leak.
+/// - If the instance stored in the `Gd<T>` inherits from [`RefCounted`], then the value must not be freed
+/// for as long as there exists a `Gd<T>` with a reference to the instance.
 ///
 /// [`Object`]: crate::engine::Object
 /// [`RefCounted`]: crate::engine::RefCounted
@@ -161,19 +172,26 @@ impl<T: GodotClass> Gd<T> {
         unsafe { Self::from_raw_no_inc(raw.with_inc_refcount()) }
     }
 
-    pub fn raw(&self) -> &RawGd<T> {
-        &self.raw
-    }
-
     /// # Safety
     /// the refcount of `raw` must already be incremented.
     pub unsafe fn from_raw_no_inc(raw: RawGd<T>) -> Option<Self> {
-        // `Gd` cannot be null, however it can be a free object.
+        // `Gd` cannot be null, however it can be a freed object.
         if !raw.is_null() {
             Some(Self { raw })
         } else {
             None
         }
+    }
+
+    /// Remove the `raw` from self and return it without dropping self.
+    ///
+    /// Since `self` isn't dropped, this means that reference counts are not decremented. This can lead to a
+    /// memory leak.
+    fn take_raw(mut self) -> RawGd<T> {
+        let raw = std::mem::take(&mut self.raw);
+        // `self` is now null, this is an invalid state to drop a `Gd` in, so we must forget it.
+        std::mem::forget(self);
+        raw
     }
 
     /// Looks up the given instance ID and returns the associated object, if possible.
@@ -182,16 +200,6 @@ impl<T: GodotClass> Gd<T> {
     /// is not compatible with `T`, then `None` is returned.
     pub fn try_from_instance_id(instance_id: InstanceId) -> Option<Self> {
         Self::from_raw(RawGd::try_from_instance_id(instance_id)?)
-    }
-
-    /// Remove the `raw` from self and return it.
-    ///
-    /// This does not decrement the refcount.
-    fn take_raw(mut self) -> RawGd<T> {
-        let raw = std::mem::take(&mut self.raw);
-        // `self` is now null, this is an invalid state to drop a `Gd` in, so we must forget it.
-        std::mem::forget(self);
-        raw
     }
 
     /// ⚠️ Looks up the given instance ID and returns the associated object.
@@ -208,51 +216,8 @@ impl<T: GodotClass> Gd<T> {
             )
         });
 
-        Self::from_raw(raw).unwrap_or_else(|| {
-            panic!(
-                "Instance ID {} is either a freed or null object",
-                instance_id,
-            )
-        })
-    }
-
-    /// Returns the instance ID of this object, or `None` if the object is dead.
-    pub fn instance_id_or_none(&self) -> Option<InstanceId> {
-        self.raw.instance_id_or_none()
-    }
-
-    /// ⚠️ Returns the instance ID of this object, or `None` if no instance ID is cached.
-    ///
-    /// This function does not check that the returned instance ID points to a valid instance!
-    /// Unless performance is a problem, use [`instance_id_or_none`].
-    pub fn instance_id_or_none_unchecked(&self) -> Option<InstanceId> {
-        self.raw.instance_id_or_none_unchecked()
-    }
-
-    /// ⚠️ Returns the instance ID of this object (panics when dead).
-    ///
-    /// # Panics
-    /// If this object is no longer alive (registered in Godot's object database).
-    pub fn instance_id(&self) -> InstanceId {
-        self.instance_id_or_none().unwrap_or_else(|| {
-            panic!(
-                "failed to call instance_id() on destroyed object; \
-                use instance_id_or_none() or keep your objects alive"
-            )
-        })
-    }
-
-    /// Checks if this smart pointer points to a live object (read description!).
-    ///
-    /// Using this method is often indicative of bad design -- you should dispose of your pointers once an object is
-    /// destroyed. However, this method exists because GDScript offers it and there may be **rare** use cases.
-    ///
-    /// Do not use this method to check if you can safely access an object. Accessing dead objects is generally safe
-    /// and will panic in a defined manner. Encountering such panics is almost always a bug you should fix, and not a
-    /// runtime condition to check against.
-    pub fn is_instance_valid(&self) -> bool {
-        // This call refreshes the instance ID, and recognizes dead objects.
-        self.raw.is_instance_valid()
+        Self::from_raw(raw)
+            .unwrap_or_else(|| panic!("Instance ID {} is a null object", instance_id,))
     }
 
     /// **Upcast:** convert into a smart pointer to a base class. Always succeeds.
@@ -324,6 +289,15 @@ impl<T: GodotClass> Gd<T> {
         Callable::from_object_method(self.share(), method_name)
     }
 
+    /// Create a new `Gd` from the given `ptr`.
+    ///
+    /// # Panics
+    ///
+    /// If `ptr` is a null-pointer.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must either be null or a live pointer to an object of type `T`.
     #[doc(hidden)]
     pub(crate) unsafe fn from_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
         Self::from_raw(RawGd::from_obj_sys(ptr)).unwrap()
@@ -377,6 +351,29 @@ where
     }
 }
 
+impl<T> Gd<T>
+where
+    T: GodotClass<Declarer = dom::EngineDomain>,
+{
+    /// Get a reference to the underlying Godot object.
+    ///
+    /// # Safety
+    ///
+    /// `self` must not have been previously freed. This is always true for `RefCounted` objects.
+    pub unsafe fn as_inner_unchecked(&self) -> &T {
+        self.raw.as_inner()
+    }
+
+    /// Get a mutable reference to the underlying Godot object.
+    ///
+    /// # Safety
+    ///
+    /// `self` must not have been previously freed. This is always true for `RefCounted` objects.
+    pub unsafe fn as_inner_mut_unchecked(&mut self) -> &mut T {
+        self.raw.as_inner_mut()
+    }
+}
+
 impl<T> Deref for Gd<T>
 where
     T: GodotClass<Declarer = dom::EngineDomain>,
@@ -384,7 +381,12 @@ where
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.raw.as_inner()
+        if !self.is_instance_valid() {
+            panic!("attempt to dereference invalid reference")
+        }
+
+        // SAFETY: `self` is is refcounted or a valid instance, so it hasn't been freed.
+        unsafe { self.as_inner_unchecked() }
     }
 }
 
@@ -393,7 +395,12 @@ where
     T: GodotClass<Declarer = dom::EngineDomain>,
 {
     fn deref_mut(&mut self) -> &mut T {
-        self.raw.as_inner_mut()
+        if !self.is_instance_valid() {
+            panic!("attempt to dereference invalid reference")
+        }
+
+        // SAFETY: `self` is refcounted or a valid instance, so it hasn't been freed.
+        unsafe { self.as_inner_mut_unchecked() }
     }
 }
 
@@ -481,8 +488,17 @@ impl<T: GodotClass> Drop for Gd<T> {
 
         out!("Gd::drop   <{}>", std::any::type_name::<T>());
         let raw = std::mem::take(&mut self.raw);
-        let is_last = T::Mem::maybe_dec_ref(&raw); // may drop
+        // SAFETY:
+        // If there are no references other than `Gd` then this will only cause the refcount to drop to 0 if
+        // there are no more references left.
+        //
+        // If there are other references than `Gd`, then those can only decrement the refcount through
+        // `maybe_dec_ref`.
+        let is_last = unsafe { T::Mem::maybe_dec_ref(&raw) }; // may drop
         if is_last {
+            // SAFETY:
+            // `is_last` is true, so this `Gd` is refcounted. This means that the object is live currently,
+            // and that there are no more references around which can safely use this object.
             unsafe { raw.free() }
         }
 
@@ -500,6 +516,18 @@ impl<T: GodotClass> Drop for Gd<T> {
                 }
             }
         }*/
+    }
+}
+
+impl<T: GodotClass> GodotObjectPtr for Gd<T> {
+    type Class = T;
+
+    fn raw(&self) -> &RawGd<T> {
+        &self.raw
+    }
+
+    fn is_instance_valid(&self) -> bool {
+        T::Mem::is_ref_counted(&self.raw) == Some(true) || self.raw.is_instance_valid()
     }
 }
 
