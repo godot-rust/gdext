@@ -14,8 +14,12 @@ use godot_ffi as sys;
 ///
 /// The behavior of types implementing this trait is influenced by the associated types; check their documentation for information.
 ///
-/// You wouldn't usually implement this trait yourself; use the [`GodotClass`](godot_macros::GodotClass) derive macro instead.
-pub trait GodotClass: 'static
+/// # Safety
+///
+/// Internal.
+/// You **must not** implement this trait yourself; use [`#[derive(GodotClass)`](../bind/derive.GodotClass.html) instead.
+// Above intra-doc link to the derive-macro only works as HTML, not as symbol link.
+pub unsafe trait GodotClass: 'static
 where
     Self: Sized,
 {
@@ -51,7 +55,7 @@ where
 }
 
 /// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
-impl GodotClass for () {
+unsafe impl GodotClass for () {
     type Base = ();
     type Declarer = dom::EngineDomain;
     type Mem = mem::ManualMemory;
@@ -213,13 +217,16 @@ pub mod dom {
     use crate::obj::{Gd, GodotClass};
     use std::ops::DerefMut;
 
+    /// Trait that specifies who declares a given `GodotClass`.
     pub trait Domain: Sealed {
+        #[doc(hidden)]
         fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = Self>,
             F: FnOnce(&mut T) -> R;
     }
 
+    /// Expresses that a class is declared by the Godot engine.
     pub enum EngineDomain {}
     impl Sealed for EngineDomain {}
     impl Domain for EngineDomain {
@@ -232,6 +239,7 @@ pub mod dom {
         }
     }
 
+    /// Expresses that a class is declared by the user.
     pub enum UserDomain {}
     impl Sealed for UserDomain {}
     impl Domain for UserDomain {
@@ -255,27 +263,35 @@ pub mod mem {
     use crate::obj::{Gd, GodotClass};
     use crate::out;
 
+    /// Specifies the memory
     pub trait Memory: Sealed {
         /// Initialize reference counter
+        #[doc(hidden)]
         fn maybe_init_ref<T: GodotClass>(obj: &Gd<T>);
 
         /// If ref-counted, then increment count
+        #[doc(hidden)]
         fn maybe_inc_ref<T: GodotClass>(obj: &Gd<T>);
 
         /// If ref-counted, then decrement count
+        #[doc(hidden)]
         fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool;
 
         /// Check if ref-counted, return `None` if information is not available (dynamic and obj dead)
+        #[doc(hidden)]
         fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> Option<bool>;
 
         /// Returns `true` if argument and return pointers are passed as `Ref<T>` pointers given this
         /// [`PtrcallType`].
         ///
         /// See [`PtrcallType::Virtual`] for information about `Ref<T>` objects.
+        #[doc(hidden)]
         fn pass_as_ref(_call_type: PtrcallType) -> bool {
             false
         }
     }
+
+    #[doc(hidden)]
     pub trait PossiblyManual {}
 
     /// Memory managed through Godot reference counter (always present).

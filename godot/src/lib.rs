@@ -136,9 +136,28 @@
 //!   Experimental threading support. This enables `Send`/`Sync` traits for `Gd<T>` and makes the guard types `Gd`/`GdMut` aware of
 //!   multi-threaded references. The safety aspects of this are not ironed out yet; use at your own risk. The API may also change
 //!   at any time.
+//!
+//! # Public API
+//!
+//! Some symbols in the API are not intended for users, however Rust's visibility feature is not strong enough to express that in all cases
+//! (for example, proc-macros and separated crates may need access to internals).
+//!
+//! The following API symbols are considered private:
+//!
+//! * Symbols annotated with `#[doc(hidden)]`.
+//! * Any of the dependency crates (crate `godot` is the only public interface).
+//! * Modules named `private` and all their contents.
+//!
+//! Being private means a workflow is not supported. As such, there are **no guarantees** regarding API stability, robustness or correctness.
+//! Problems arising from using such APIs are not considered bugs, and anything relying on them may stop working without announcement.
+//! Please refrain from using undocumented and private features; if you are missing certain functionality, bring it up for discussion instead.
+//! This allows us to decide whether it fits the scope of the library and to design proper APIs for it.
 
 #[doc(inline)]
-pub use godot_core::{builtin, engine, log, obj, sys};
+pub use godot_core::{builtin, engine, log, obj};
+
+#[doc(hidden)]
+pub use godot_core::sys;
 
 pub mod init {
     pub use godot_core::init::*;

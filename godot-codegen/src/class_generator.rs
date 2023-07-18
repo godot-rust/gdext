@@ -562,7 +562,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
                 #methods
                 #constants
             }
-            impl crate::obj::GodotClass for #class_name {
+            unsafe impl crate::obj::GodotClass for #class_name {
                 type Base = #base_ty;
                 type Declarer = crate::obj::dom::EngineDomain;
                 type Mem = crate::obj::mem::#memory;

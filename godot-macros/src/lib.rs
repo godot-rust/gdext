@@ -96,8 +96,9 @@ mod itest;
 mod method_registration;
 mod util;
 
-/// Derive macro for [`GodotClass`](godot_core::obj::GodotClass) on structs. You should normally use
-/// this macro, rather than implement `GodotClass` manually for your type.
+// Below intra-doc link to the trait only works as HTML, not as symbol link.
+/// Derive macro for [the `GodotClass` trait](../obj/trait.GodotClass.html) on structs. You must use this
+/// macro; manual implementations of the `GodotClass` trait are not supported.
 ///
 /// # Construction
 ///
