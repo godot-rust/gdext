@@ -4,13 +4,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::cmp::Ordering;
 use std::fmt;
 
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{GlamConv, GlamType, IVec3};
-use crate::builtin::Vector3;
+use crate::builtin::math::{FloatExt, GlamConv, GlamType};
+use crate::builtin::{real, RVec3, Vector3, Vector3Axis};
 
 /// Vector used for 3D math using integer coordinates.
 ///
@@ -65,6 +66,50 @@ impl Vector3i {
         Self { x, y, z }
     }
 
+    /// Axis of the vector's highest value. [`None`] if at least two components are equal.
+    pub fn max_axis(self) -> Option<Vector3Axis> {
+        use Vector3Axis::*;
+
+        match self.x.cmp(&self.y) {
+            Ordering::Less => match self.y.cmp(&self.z) {
+                Ordering::Less => Some(Z),
+                Ordering::Equal => None,
+                Ordering::Greater => Some(Y),
+            },
+            Ordering::Equal => match self.x.cmp(&self.z) {
+                Ordering::Less => Some(Z),
+                _ => None,
+            },
+            Ordering::Greater => match self.x.cmp(&self.z) {
+                Ordering::Less => Some(Z),
+                Ordering::Equal => None,
+                Ordering::Greater => Some(X),
+            },
+        }
+    }
+
+    /// Axis of the vector's highest value. [`None`] if at least two components are equal.
+    pub fn min_axis(self) -> Option<Vector3Axis> {
+        use Vector3Axis::*;
+
+        match self.x.cmp(&self.y) {
+            Ordering::Less => match self.x.cmp(&self.z) {
+                Ordering::Less => Some(X),
+                Ordering::Equal => None,
+                Ordering::Greater => Some(Z),
+            },
+            Ordering::Equal => match self.x.cmp(&self.z) {
+                Ordering::Greater => Some(Z),
+                _ => None,
+            },
+            Ordering::Greater => match self.y.cmp(&self.z) {
+                Ordering::Less => Some(Y),
+                Ordering::Equal => None,
+                Ordering::Greater => Some(Z),
+            },
+        }
+    }
+
     /// Constructs a new `Vector3i` with all components set to `v`.
     pub const fn splat(v: i32) -> Self {
         Self::new(v, v, v)
@@ -80,13 +125,18 @@ impl Vector3i {
     }
 
     /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: IVec3) -> Self {
+    fn from_glam(v: glam::IVec3) -> Self {
         Self::new(v.x, v.y, v.z)
     }
 
     /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> IVec3 {
-        IVec3::new(self.x, self.y, self.z)
+    fn to_glam(self) -> glam::IVec3 {
+        glam::IVec3::new(self.x, self.y, self.z)
+    }
+
+    /// Converts `self` to the corresponding [`real`] `glam` type.
+    fn to_glam_real(self) -> RVec3 {
+        RVec3::new(self.x as real, self.y as real, self.z as real)
     }
 
     pub fn coords(&self) -> (i32, i32, i32) {
@@ -102,6 +152,8 @@ impl fmt::Display for Vector3i {
 }
 
 impl_common_vector_fns!(Vector3i, i32);
+impl_integer_vector_glam_fns!(Vector3i, real);
+impl_integer_vector_component_fns!(Vector3i, real, (x, y, z));
 impl_vector_operators!(Vector3i, i32, (x, y, z));
 impl_from_tuple_for_vector3x!(Vector3i, i32);
 
@@ -111,7 +163,7 @@ unsafe impl GodotFfi for Vector3i {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl GlamType for IVec3 {
+impl GlamType for glam::IVec3 {
     type Mapped = Vector3i;
 
     fn to_front(&self) -> Self::Mapped {
@@ -119,12 +171,12 @@ impl GlamType for IVec3 {
     }
 
     fn from_front(mapped: &Self::Mapped) -> Self {
-        IVec3::new(mapped.x, mapped.y, mapped.z)
+        glam::IVec3::new(mapped.x, mapped.y, mapped.z)
     }
 }
 
 impl GlamConv for Vector3i {
-    type Glam = IVec3;
+    type Glam = glam::IVec3;
 }
 
 #[cfg(test)]
@@ -146,5 +198,25 @@ mod test {
         let expected_json = "{\"x\":0,\"y\":0,\"z\":0}";
 
         crate::builtin::test_utils::roundtrip(&vector, expected_json);
+    }
+
+    #[test]
+    fn axis_min_max() {
+        assert_eq!(Vector3i::new(10, 5, -5).max_axis(), Some(Vector3Axis::X));
+        assert_eq!(Vector3i::new(5, 10, -5).max_axis(), Some(Vector3Axis::Y));
+        assert_eq!(Vector3i::new(5, -5, 10).max_axis(), Some(Vector3Axis::Z));
+
+        assert_eq!(Vector3i::new(-5, 5, 10).min_axis(), Some(Vector3Axis::X));
+        assert_eq!(Vector3i::new(5, -5, 10).min_axis(), Some(Vector3Axis::Y));
+        assert_eq!(Vector3i::new(5, 10, -5).min_axis(), Some(Vector3Axis::Z));
+
+        assert_eq!(Vector3i::new(15, 15, 5).max_axis(), None);
+        assert_eq!(Vector3i::new(15, 15, 15).max_axis(), None);
+        assert_eq!(Vector3i::new(15, 15, 25).min_axis(), None);
+        assert_eq!(Vector3i::new(15, 15, 15).min_axis(), None);
+
+        // Checks for non-max / non-min equality "traps"
+        assert_eq!(Vector3i::new(15, 15, 25).max_axis(), Some(Vector3Axis::Z));
+        assert_eq!(Vector3i::new(15, 5, 15).min_axis(), Some(Vector3Axis::Y));
     }
 }

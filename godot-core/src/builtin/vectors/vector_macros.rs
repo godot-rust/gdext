@@ -282,6 +282,32 @@ macro_rules! impl_float_vector_glam_fns {
     };
 }
 
+/// Implements common constants and methods for integer type vectors. Works for any vector type that
+/// has `to_glam`, `from_glam` and `to_glam_real` functions.
+macro_rules! impl_integer_vector_glam_fns {
+    (
+        // Name of the vector type.
+        $Vector:ty,
+        // Type of target component, for example `real`.
+        $Scalar:ty
+    ) => {
+        impl $Vector {
+            /// Length (magnitude) of this vector.
+            #[inline]
+            pub fn length(self) -> $Scalar {
+                self.to_glam_real().length()
+            }
+
+            /// A new vector with each component set to 1 if it's positive, -1 if it's negative,
+            /// and 0 if it's zero.
+            #[inline]
+            pub fn sign(self) -> Self {
+                Self::from_glam(self.to_glam().signum())
+            }
+        }
+    };
+}
+
 /// Implements common constants and methods for floating-point type vectors based on their components.
 macro_rules! impl_float_vector_component_fns {
     (
@@ -378,6 +404,44 @@ macro_rules! impl_float_vector_component_fns {
             #[inline]
             fn approx_eq(&self, other: &Self) -> bool {
                 $( self.$comp.approx_eq(&other.$comp) )&&*
+            }
+        }
+    };
+}
+
+/// Implements common constants and methods for integer type vectors based on their components.
+macro_rules! impl_integer_vector_component_fns {
+    (
+        // Name of the vector type.
+        $Vector:ty,
+        // Type of target component, for example `real`.
+        $Scalar:ty,
+        // Names of the components, with parentheses, for example `(x, y)`.
+        ($($comp:ident),*)
+    ) => {
+        impl $Vector {
+            /// Squared length (squared magnitude) of this vector.
+            ///
+            /// Runs faster than `length`, so prefer it if you need to compare vectors or need the
+            /// squared distance for some formula.
+            #[inline]
+            pub fn length_squared(self) -> i64 {
+                let mut val = 0;
+
+                $(
+                    val += self.$comp as i64 * self.$comp as i64;
+                )*
+
+                val
+            }
+
+            /// A new vector with each component snapped to the closest multiple of the corresponding
+            /// component in step.
+            #[inline]
+            pub fn snapped(self, step: Self) -> Self {
+                Self::new(
+                    $( (self.$comp as $Scalar).snapped(step.$comp as $Scalar) as i32 ),*
+                )
             }
         }
     };
