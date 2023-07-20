@@ -66,8 +66,10 @@ fn object_subtype_swap() {
     */
 
     // This should not panic
-    a.free();
-    b.free();
+    unsafe {
+        a.free();
+        b.free();
+    }
 }
 
 #[itest]
@@ -113,7 +115,7 @@ fn object_engine_roundtrip() {
 
     let obj2 = unsafe { Gd::<Node3D>::from_sys(ptr) };
     assert_eq!(obj2.get_position(), pos);
-    obj.free();
+    unsafe { obj.free() };
 }
 
 #[itest]
@@ -135,7 +137,7 @@ fn object_engine_display() {
     let expected = format!(".:<Node3D#{id}>:.");
 
     assert_eq!(actual, expected);
-    obj.free();
+    unsafe { obj.free() };
 }
 
 #[itest]
@@ -147,7 +149,7 @@ fn object_debug() {
     let expected = format!(".:Gd {{ id: {id}, class: Node3D }}:.");
 
     assert_eq!(actual, expected);
-    obj.free();
+    unsafe { obj.free() };
 }
 
 #[itest]
@@ -167,7 +169,7 @@ fn object_instance_id_when_freed() {
     let node: Gd<Node3D> = Node3D::new_alloc();
     assert!(node.is_instance_valid());
 
-    node.share().free(); // destroys object without moving out of reference
+    unsafe { node.share().free() }; // destroys object without moving out of reference
     assert!(!node.is_instance_valid());
 
     expect_panic("instance_id() on dead object", move || {
@@ -196,7 +198,7 @@ fn object_from_instance_id_inherits_type() {
     assert_eq!(node_as_base.instance_id(), id);
     assert_eq!(node_as_base.get_editor_description(), descr);
 
-    node_as_base.free();
+    unsafe { node_as_base.free() };
 }
 
 #[itest]
@@ -210,7 +212,7 @@ fn object_from_instance_id_unrelated_type() {
         "try_from_instance_id() with bad type must fail"
     );
 
-    node.free();
+    unsafe { node.free() };
 }
 
 #[itest]
@@ -238,8 +240,10 @@ fn object_engine_eq() {
     assert_ne!(a1, b1);
     assert_ne!(a2, b1);
 
-    a1.free();
-    b1.free();
+    unsafe {
+        a1.free();
+        b1.free();
+    }
 }
 
 #[itest]
@@ -249,7 +253,7 @@ fn object_dead_eq() {
     let b2 = b.share();
 
     // Destroy b1 without consuming it
-    b.share().free();
+    unsafe { b.share().free() };
 
     {
         let lhs = a.share();
@@ -264,7 +268,7 @@ fn object_dead_eq() {
         });
     }
 
-    a.free();
+    unsafe { a.free() };
 }
 
 #[itest]
@@ -290,7 +294,7 @@ fn object_engine_convert_variant() {
     let obj2 = Gd::<Node3D>::from_variant(&variant);
 
     assert_eq!(obj2.get_position(), pos);
-    obj.free();
+    unsafe { obj.free() };
 }
 
 #[itest]
@@ -369,7 +373,7 @@ fn object_engine_up_deref() {
     assert_eq!(node3d.instance_id(), id);
     assert_eq!(node3d.get_class(), GodotString::from("Node3D"));
 
-    node3d.free();
+    unsafe { node3d.free() };
 }
 
 #[itest]
@@ -385,7 +389,7 @@ fn object_engine_up_deref_mut() {
     node3d_ref.set_message_translation(false);
     assert!(!node3d_ref.can_translate_messages());
 
-    node3d.free();
+    unsafe { node3d.free() };
 }
 
 #[itest]
@@ -398,7 +402,7 @@ fn object_engine_upcast() {
     assert_eq!(object.get_class(), GodotString::from("Node3D"));
 
     // Deliberate free on upcast object
-    object.free();
+    unsafe { object.free() };
 }
 
 #[itest]
@@ -410,7 +414,7 @@ fn object_engine_upcast_reflexive() {
     assert_eq!(object.instance_id(), id);
     assert_eq!(object.get_class(), GodotString::from("Node3D"));
 
-    object.free();
+    unsafe { object.free() };
 }
 
 #[itest]
@@ -427,7 +431,7 @@ fn object_engine_downcast() {
     assert_eq!(node3d.instance_id(), id);
     assert_eq!(node3d.get_position(), pos);
 
-    node3d.free();
+    unsafe { node3d.free() };
 }
 
 #[derive(GodotClass)]
@@ -460,7 +464,7 @@ fn object_engine_downcast_reflexive() {
     let node3d: Gd<Node3D> = node3d.cast::<Node3D>();
     assert_eq!(node3d.instance_id(), id);
 
-    node3d.free();
+    unsafe { node3d.free() };
 }
 
 #[itest]
@@ -470,7 +474,7 @@ fn object_engine_bad_downcast() {
     let node3d: Option<Gd<Node3D>> = object.try_cast::<Node3D>();
 
     assert!(node3d.is_none());
-    free_ref.free();
+    unsafe { free_ref.free() };
 }
 
 #[itest]
@@ -487,7 +491,7 @@ fn object_engine_accept_polymorphic() {
     let actual_class = accept_object(node.share());
     assert_eq!(actual_class, expected_class);
 
-    node.free();
+    unsafe { node.free() };
 }
 
 #[itest]
@@ -566,7 +570,7 @@ fn object_engine_manual_free() {
     {
         let node = Node3D::new_alloc();
         let node2 = node.share();
-        node2.free();
+        unsafe { node2.free() };
     } // drop(node)
 }
 
@@ -576,7 +580,7 @@ fn object_engine_shared_free() {
     {
         let node = Node::new_alloc();
         let _object = node.share().upcast::<Object>();
-        node.free();
+        unsafe { node.free() };
     } // drop(_object)
 }
 
@@ -585,8 +589,10 @@ fn object_engine_manual_double_free() {
     expect_panic("double free()", || {
         let node = Node3D::new_alloc();
         let node2 = node.share();
-        node.free();
-        node2.free();
+        unsafe {
+            node.free();
+            node2.free();
+        }
     });
 }
 
@@ -595,7 +601,9 @@ fn object_engine_refcounted_free() {
     let node = RefCounted::new();
     let node2 = node.share().upcast::<Object>();
 
-    expect_panic("calling free() on RefCounted object", || node2.free())
+    expect_panic("calling free() on RefCounted object", || unsafe {
+        node2.free()
+    })
 }
 
 #[itest]
@@ -627,7 +635,7 @@ fn object_call_no_args() {
     let reflect_id = InstanceId::from_variant(&reflect_id_variant);
 
     assert_eq!(static_id, reflect_id);
-    node.free();
+    unsafe { node.free() };
 }
 
 #[itest]
@@ -644,7 +652,7 @@ fn object_call_with_args() {
 
     assert_eq!(none, Variant::nil());
     assert_eq!(actual_pos, expected_pos.to_variant());
-    node.free();
+    unsafe { node.free() };
 }
 
 #[itest]
@@ -657,6 +665,42 @@ fn object_get_scene_tree(ctx: &TestContext) {
     let count = tree.get_child_count();
     assert_eq!(count, 1);
 } // implicitly tested: node does not leak
+
+#[itest]
+fn object_deref_always_valid() {
+    let mut child = Node::new_alloc();
+    let mut node = Node::new_alloc();
+    let node2 = node.share();
+    // SAFETY: we aren't using `node2` again in a context where liveness is assumed.
+    unsafe { node2.free() };
+
+    {
+        let child = child.share();
+        expect_panic(
+            "dereferencing a freed object should always panic",
+            move || {
+                node.add_child(child);
+            },
+        )
+    }
+
+    child.queue_free();
+}
+
+// Only kept as an example of why `free` must be an unsafe function.
+#[itest(skip)]
+fn object_deref_before_free() {
+    let child = Node::new_alloc();
+    let mut node = Node::new_alloc();
+    let node2 = node.share();
+
+    let node_deref = &mut *node;
+    // SAFETY:
+    // This is unsafe, and is why `free` must be an unsafe function.
+    unsafe { node2.free() };
+    node_deref.add_child(child.share());
+    unsafe { child.free() };
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -729,7 +773,7 @@ pub mod object_test_gd {
         #[func]
         fn pass_object(&self, object: Gd<Object>) -> i64 {
             let i = object.get("i".into()).to();
-            object.free();
+            unsafe { object.free() };
             i
         }
 
@@ -784,7 +828,7 @@ pub mod object_test_gd {
 fn custom_constructor_works() {
     let obj = object_test_gd::CustomConstructor::construct_object(42);
     assert_eq!(obj.bind().val, 42);
-    obj.free();
+    unsafe { obj.free() };
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -847,8 +891,10 @@ fn double_use_reference() {
 
     std::mem::drop(guard);
 
-    double_use.free();
-    emitter.free();
+    unsafe {
+        double_use.free();
+        emitter.free();
+    }
 }
 
 #[derive(GodotClass)]

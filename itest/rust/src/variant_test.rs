@@ -153,7 +153,7 @@ fn variant_call() {
         Variant::from(77).call("to_string", &[]);
     });
 
-    node2d.free();
+    unsafe { node2d.free() };
 }
 
 #[rustfmt::skip]
@@ -290,7 +290,7 @@ fn variant_null_object_is_nil() {
     assert_eq!(raw_type, sys::GDEXTENSION_VARIANT_TYPE_OBJECT);
     assert_eq!(variant.get_type(), VariantType::Nil);
 
-    node.free();
+    unsafe { node.free() };
 }
 
 #[itest]

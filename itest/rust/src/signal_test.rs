@@ -90,6 +90,8 @@ fn signals() {
         assert!(receiver.bind().used[i].get());
     }
 
-    receiver.free();
-    emitter.free();
+    unsafe {
+        receiver.free();
+        emitter.free();
+    }
 }

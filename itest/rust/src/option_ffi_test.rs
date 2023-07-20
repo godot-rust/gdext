@@ -17,7 +17,7 @@ fn option_some_sys_conversion() {
     let v2 = unsafe { Option::<Gd<Object>>::from_sys(ptr) };
     assert_eq!(v2, v);
 
-    v.unwrap().free();
+    unsafe { v.unwrap().free() };
 }
 
 #[itest]

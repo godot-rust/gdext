@@ -350,8 +350,10 @@ fn array_mixed_values() {
         ref_counted.instance_id()
     );
 
-    object.free();
-    node.free();
+    unsafe {
+        object.free();
+        node.free();
+    }
 }
 
 #[itest]
@@ -423,7 +425,7 @@ fn typed_array_try_from_untyped() {
         array.to_variant().try_to::<Array<Option<Gd<Node>>>>(),
         Err(VariantConversionError::BadType)
     );
-    node.free();
+    unsafe { node.free() };
 }
 
 #[itest]
@@ -434,7 +436,7 @@ fn untyped_array_try_from_typed() {
         array.to_variant().try_to::<VariantArray>(),
         Err(VariantConversionError::BadType)
     );
-    node.free();
+    unsafe { node.free() };
 }
 
 #[derive(GodotClass, Debug)]

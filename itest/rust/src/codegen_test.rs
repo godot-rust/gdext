@@ -16,7 +16,7 @@ use godot::prelude::*;
 fn codegen_class_renamed() {
     // Known as `HTTPRequest` in Godot
     let obj = HttpRequest::new_alloc();
-    obj.free();
+    unsafe { obj.free() };
 }
 
 #[itest]
@@ -27,7 +27,7 @@ fn codegen_base_renamed() {
     let obj = Gd::with_base(|base| TestBaseRenamed { base });
     let _id = obj.instance_id();
 
-    obj.free();
+    unsafe { obj.free() };
 }
 
 #[itest]

@@ -20,7 +20,7 @@ fn base_instance_id() {
     let base_id = obj.bind().base.instance_id();
 
     assert_eq!(obj_id, base_id);
-    obj.free();
+    unsafe { obj.free() };
 }
 
 #[itest]
@@ -35,7 +35,7 @@ fn base_deref() {
         assert_eq!(guard.base.get_position(), pos);
     }
 
-    obj.free();
+    unsafe { obj.free() };
 }
 
 #[itest]
@@ -51,7 +51,7 @@ fn base_display() {
 
         assert_eq!(actual, expected);
     }
-    obj.free();
+    unsafe { obj.free() };
 }
 
 #[itest]
@@ -67,7 +67,7 @@ fn base_debug() {
 
         assert_eq!(actual, expected);
     }
-    obj.free();
+    unsafe { obj.free() };
 }
 
 #[itest]
@@ -82,7 +82,7 @@ fn base_with_init() {
         assert_eq!(guard.i, 732);
         assert_eq!(guard.get_rotation(), 11.0);
     }
-    obj.free();
+    unsafe { obj.free() };
 }
 
 #[derive(GodotClass)]

@@ -95,7 +95,7 @@ pub trait Share {
 /// {
 ///     let up = node.upcast(); // type Gd<Node> inferred
 ///     println!("Node #{} with name {}", up.instance_id(), up.get_name());
-///     up.free();
+///     unsafe { up.free() };
 /// }
 ///
 /// // Call with different types

@@ -454,7 +454,7 @@ fn test_notifications() {
             ReceivedEvent::Notification(NodeNotification::WmSizeChanged),
         ]
     );
-    obj.free();
+    unsafe { obj.free() };
 }
 
 // Used in `test_collision_object_2d_input_event` in `SpecialTests.gd`.

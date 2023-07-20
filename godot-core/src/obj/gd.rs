@@ -474,7 +474,13 @@ where
     /// # Panics
     /// * When the referred-to object has already been destroyed.
     /// * When this is invoked on an upcast `Gd<Object>` that dynamically points to a reference-counted type (i.e. operation not supported).
-    pub fn free(self) {
+    ///
+    /// # Safety
+    ///
+    /// You must not use the object again after calling this function. We try to guard against this where
+    /// possible, but not everything can be caught. For a safe version, use
+    /// [`queue_free`](engine::Node::queue_free) instead.
+    pub unsafe fn free(self) {
         // TODO disallow for singletons, either only at runtime or both at compile time (new memory policy) and runtime
 
         // Runtime check in case of T=Object, no-op otherwise
@@ -499,6 +505,62 @@ where
     }
 }
 
+impl<T> Gd<T>
+where
+    T: GodotClass<Declarer = dom::EngineDomain>,
+{
+    /// Return a reference to the object this `Gd` is a pointer to.
+    ///
+    /// # Safety
+    ///
+    /// The object this `Gd` points to must not have been freed previously.
+    pub unsafe fn as_inner_unchecked(&self) -> &T {
+        // SAFETY:
+        // We only implement `GodotClass` with `Declarer = dom::EngineDomain` when `T` is a struct of the
+        // form:
+        //
+        // #[repr(transparent)]
+        // struct SomeObject {
+        //     object_ptr: sys::GDExtensionObjectPtr,
+        // }
+        //
+        // `OpaqueObject` is pointer-sized, so this transmute is safe.
+        //
+        // In addition the `OpaqueObject` is guaranteed to be a pointer to a live instance of `T` for the
+        // duration of the lifetime of the reference, since the only way to invalidate it is through `free`
+        // which must not be called during this reference's lifetime.
+
+        std::mem::transmute::<&OpaqueObject, &T>(&self.opaque)
+    }
+
+    /// Return a mutable reference to the object this `Gd` is a pointer to.
+    /// ///
+    /// # Safety
+    ///
+    /// The object this `Gd` points to must not have been freed previously.
+    pub unsafe fn as_inner_mut_unchecked(&mut self) -> &mut T {
+        // SAFETY:
+        // We only implement `GodotClass` with `Declarer = dom::EngineDomain` when `T` is a struct of the
+        // form:
+        //
+        // #[repr(transparent)]
+        // struct SomeObject {
+        //     object_ptr: sys::GDExtensionObjectPtr,
+        // }
+        //
+        // `OpaqueObject` is pointer-sized.
+        //
+        // In addition the `OpaqueObject` is guaranteed to be a pointer to a live instance of `T` for the
+        // duration of the lifetime of the reference, since the only way to invalidate it is through `free`
+        // which must not be called during this reference's lifetime.
+        //
+        // Transmuting a mutable reference to another mutable reference isn't going to cause any aliasing,
+        // since we're guaranteed that the reference isn't aliased in the first place.
+
+        std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut self.opaque)
+    }
+}
+
 impl<T> Deref for Gd<T>
 where
     T: GodotClass<Declarer = dom::EngineDomain>,
@@ -506,17 +568,10 @@ where
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        // SAFETY:
-        // This relies on Gd<Node3D> having the layout as Node3D (as an example),
-        // which also needs #[repr(transparent)]:
-        //
-        // struct Gd<T: GodotClass> {
-        //     opaque: OpaqueObject,         <- size of GDExtensionObjectPtr
-        //     _marker: PhantomData,         <- ZST
-        // }
-        // struct Node3D {
-        //     object_ptr: sys::GDExtensionObjectPtr,
-        // }
+        if !self.is_instance_valid() {
+            panic!("attempted to dereference a freed object")
+        }
+
         unsafe { std::mem::transmute::<&OpaqueObject, &T>(&self.opaque) }
     }
 }
@@ -526,12 +581,10 @@ where
     T: GodotClass<Declarer = dom::EngineDomain>,
 {
     fn deref_mut(&mut self) -> &mut T {
-        // SAFETY: see also Deref
-        //
-        // The resulting &mut T is transmuted from &mut OpaqueObject, i.e. a *pointer* to the `opaque` field.
-        // `opaque` itself has a different *address* for each Gd instance, meaning that two simultaneous
-        // DerefMut borrows on two Gd instances will not alias, *even if* the underlying Godot object is the
-        // same (i.e. `opaque` has the same value, but not address).
+        if !self.is_instance_valid() {
+            panic!("attempted to dereference a freed object")
+        }
+
         unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut self.opaque) }
     }
 }

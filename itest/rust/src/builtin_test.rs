@@ -57,5 +57,5 @@ fn test_builtins_callable() {
     //
     // inner.bindv(array);
 
-    obj.free();
+    unsafe { obj.free() };
 }

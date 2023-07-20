@@ -34,7 +34,7 @@ fn node_get_node() {
     let found = found.expect("try_get_node_as() returned Some(..)");
     assert_eq!(found.instance_id(), child_id);
 
-    grandparent.free();
+    unsafe { grandparent.free() };
 }
 
 #[itest]
@@ -45,7 +45,7 @@ fn node_get_node_fail() {
     let found = child.try_get_node_as::<Node3D>(NodePath::from("non-existent"));
     assert!(found.is_none());
 
-    child.free();
+    unsafe { child.free() };
 }
 
 #[itest]
@@ -76,9 +76,11 @@ fn node_scene_tree() {
 
     // Note: parent + child are not owned by PackedScene, thus need to be freed
     // (verified by porting this very test to GDScript)
-    tree.free();
-    parent.free();
-    child.free();
+    unsafe {
+        tree.free();
+        parent.free();
+        child.free();
+    }
 }
 
 #[itest]
