@@ -62,6 +62,13 @@ pub(crate) fn is_private(class_name: &TyName, godot_method_name: &str) -> bool {
     }
 }
 
+pub(crate) fn is_unsafe(class_name: &TyName, godot_method_name: &str) -> Option<&'static str> {
+    match (class_name.godot_ty.as_str(), godot_method_name) {
+        ("Node", "queue_free") => Some("You must ensure that this object isn't dereferenced again after the object is freed by this function."),
+        _ => None,
+    }
+}
+
 #[rustfmt::skip]
 pub(crate) fn is_excluded_from_default_params(class_name: Option<&TyName>, godot_method_name: &str) -> bool {
     // None if global/utilities function

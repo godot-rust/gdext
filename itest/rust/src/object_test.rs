@@ -684,7 +684,7 @@ fn object_deref_always_valid() {
         )
     }
 
-    child.queue_free();
+    unsafe { child.queue_free() };
 }
 
 // Only kept as an example of why `free` must be an unsafe function.

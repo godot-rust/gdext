@@ -397,7 +397,7 @@ fn test_input_event(test_context: &TestContext) {
 
     assert_eq!(obj.bind().event, Some(event.upcast::<InputEvent>()));
 
-    test_viewport.queue_free();
+    unsafe { test_viewport.queue_free() };
 }
 
 // We were incrementing/decrementing the refcount wrong. Which only showed up if you had multiple virtual
@@ -432,7 +432,7 @@ fn test_input_event_multiple(test_context: &TestContext) {
         assert_eq!(obj.bind().event, Some(event.share().upcast::<InputEvent>()));
     }
 
-    test_viewport.queue_free();
+    unsafe { test_viewport.queue_free() };
 }
 
 #[itest]

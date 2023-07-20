@@ -359,7 +359,7 @@ fn array_mixed_values() {
 #[itest]
 fn untyped_array_pass_to_godot_func() {
     let mut node = Node::new_alloc();
-    node.queue_free(); // Do not leak even if the test fails.
+    unsafe { node.queue_free() }; // Do not leak even if the test fails.
 
     assert_eq!(
         node.callv(StringName::from("has_signal"), varray!["tree_entered"]),
@@ -374,7 +374,7 @@ fn untyped_array_return_from_godot_func() {
     let mut child = Node::new_alloc();
     child.set_name("child_node".into());
     node.add_child(child.share());
-    node.queue_free(); // Do not leak even if the test fails.
+    unsafe { node.queue_free() }; // Do not leak even if the test fails.
     let result = node.get_node_and_resource("child_node".into());
 
     assert_eq!(result, varray![child, Variant::nil(), NodePath::default()]);
@@ -411,7 +411,7 @@ fn typed_array_return_from_godot_func() {
     let mut child = Node::new_alloc();
     child.set_name("child_node".into());
     node.add_child(child.share());
-    node.queue_free(); // Do not leak even if the test fails.
+    unsafe { node.queue_free() }; // Do not leak even if the test fails.
     let children = node.get_children();
 
     assert_eq!(children, array![child]);

@@ -16,12 +16,12 @@ pub struct Mob {
 impl Mob {
     #[func]
     fn on_visibility_screen_exited(&mut self) {
-        self.base.queue_free();
+        unsafe { self.base.queue_free() };
     }
 
     #[func]
     fn on_start_game(&mut self) {
-        self.base.queue_free();
+        unsafe { self.base.queue_free() };
     }
 }
 

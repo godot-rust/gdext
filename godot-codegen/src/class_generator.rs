@@ -156,6 +156,7 @@ struct FnSignature<'a> {
     surrounding_class: Option<&'a TyName>, // None if global function
     is_private: bool,
     is_virtual: bool,
+    is_unsafe: Option<&'static str>, // Some(safety_comment) if the function should be marked `unsafe`
     qualifier: FnQualifier,
     params: Vec<FnParam>,
     return_value: FnReturn,
@@ -1160,6 +1161,7 @@ fn make_method_definition(
             surrounding_class: Some(class_name),
             is_private: special_cases::is_private(class_name, &method.name),
             is_virtual: false,
+            is_unsafe: special_cases::is_unsafe(class_name, &method.name),
             qualifier: FnQualifier::for_method(method.is_const, method.is_static),
             params: FnParam::new_range(&method.arguments, ctx),
             return_value: FnReturn::new(&method.return_value, ctx),
@@ -1215,6 +1217,7 @@ fn make_builtin_method_definition(
             surrounding_class: Some(inner_class_name),
             is_private: special_cases::is_private(class_name, &method.name),
             is_virtual: false,
+            is_unsafe: special_cases::is_unsafe(class_name, &method.name),
             qualifier: FnQualifier::for_method(method.is_const, method.is_static),
 
             // Disable default parameters for builtin classes.
@@ -1262,6 +1265,7 @@ pub(crate) fn make_utility_function_definition(
             surrounding_class: None,
             is_private: false,
             is_virtual: false,
+            is_unsafe: None,
             qualifier: FnQualifier::Global,
             params: FnParam::new_range(&function.arguments, ctx),
             return_value: FnReturn::new(&return_value, ctx),
@@ -1320,13 +1324,27 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
         make_vis(sig.is_private)
     };
 
-    let (maybe_unsafe, safety_doc) = if function_uses_pointers(sig) {
+    let mut safety_doc = Vec::new();
+
+    if function_uses_pointers(sig) {
+        safety_doc.push(quote! {
+            #[doc = ""]
+            #[doc = "Godot currently does not document safety requirements on this method. Make sure you understand the underlying semantics."] 
+        })
+    }
+
+    if let Some(special_safety_doc) = sig.is_unsafe {
+        safety_doc.push(quote! {
+            #[doc = ""]
+            #[doc = #special_safety_doc]
+        })
+    }
+
+    let (maybe_unsafe, safety_doc) = if !safety_doc.is_empty() {
         (
             quote! { unsafe },
             quote! {
-                #[doc = "# Safety"]
-                #[doc = ""]
-                #[doc = "Godot currently does not document safety requirements on this method. Make sure you understand the underlying semantics."]
+               #( #safety_doc )*
             },
         )
     } else {
@@ -1939,6 +1957,7 @@ fn make_virtual_method(method: &ClassMethod, ctx: &mut Context) -> TokenStream {
             surrounding_class: None, // no default parameters needed for virtual methods
             is_private: false,
             is_virtual: true,
+            is_unsafe: None,
             qualifier: FnQualifier::for_method(method.is_const, method.is_static),
             params: FnParam::new_range(&method.arguments, ctx),
             return_value: FnReturn::new(&method.return_value, ctx),

@@ -478,8 +478,7 @@ where
     /// # Safety
     ///
     /// You must not use the object again after calling this function. We try to guard against this where
-    /// possible, but not everything can be caught. For a safe version, use
-    /// [`queue_free`](engine::Node::queue_free) instead.
+    /// possible, but not everything can be caught.
     pub unsafe fn free(self) {
         // TODO disallow for singletons, either only at runtime or both at compile time (new memory policy) and runtime
 
