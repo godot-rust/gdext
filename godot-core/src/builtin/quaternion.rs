@@ -62,7 +62,7 @@ impl Quaternion {
         }
     }
 
-    pub fn from_euler(self, euler: Vector3) -> Self {
+    pub fn from_euler(euler: Vector3) -> Self {
         let half_a1 = euler.y * 0.5;
         let half_a2 = euler.x * 0.5;
         let half_a3 = euler.z * 0.5;
