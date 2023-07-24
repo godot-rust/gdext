@@ -13,7 +13,6 @@ pub use approx_eq::ApproxEq;
 pub use float::FloatExt;
 
 // Internal glam re-exports
-pub(crate) use glam::{IVec2, IVec3, IVec4};
 pub(crate) use glam_helpers::*;
 
 #[cfg(test)]

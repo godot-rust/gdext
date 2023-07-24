@@ -5,10 +5,11 @@
  */
 
 use godot_ffi as sys;
+use std::cmp::Ordering;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{GlamConv, GlamType, IVec2};
-use crate::builtin::Vector2;
+use crate::builtin::math::{FloatExt, GlamConv, GlamType};
+use crate::builtin::{real, RVec2, Vector2, Vector2Axis};
 
 use std::fmt;
 
@@ -56,6 +57,29 @@ impl Vector2i {
         Self { x, y }
     }
 
+    /// Aspect ratio: x / y, as a `real` value.
+    pub fn aspect(self) -> real {
+        self.x as real / self.y as real
+    }
+
+    /// Axis of the vector's highest value. [`None`] if components are equal.
+    pub fn max_axis(self) -> Option<Vector2Axis> {
+        match self.x.cmp(&self.y) {
+            Ordering::Less => Some(Vector2Axis::Y),
+            Ordering::Equal => None,
+            Ordering::Greater => Some(Vector2Axis::X),
+        }
+    }
+
+    /// Axis of the vector's highest value. [`None`] if components are equal.
+    pub fn min_axis(self) -> Option<Vector2Axis> {
+        match self.x.cmp(&self.y) {
+            Ordering::Less => Some(Vector2Axis::X),
+            Ordering::Equal => None,
+            Ordering::Greater => Some(Vector2Axis::Y),
+        }
+    }
+
     /// Constructs a new `Vector2i` with both components set to `v`.
     pub const fn splat(v: i32) -> Self {
         Self::new(v, v)
@@ -70,13 +94,18 @@ impl Vector2i {
     }
 
     /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: IVec2) -> Self {
+    fn from_glam(v: glam::IVec2) -> Self {
         Self::new(v.x, v.y)
     }
 
     /// Converts `self` to the corresponding `glam` type.
     fn to_glam(self) -> glam::IVec2 {
-        IVec2::new(self.x, self.y)
+        glam::IVec2::new(self.x, self.y)
+    }
+
+    /// Converts `self` to the corresponding [`real`] `glam` type.
+    fn to_glam_real(self) -> RVec2 {
+        RVec2::new(self.x as real, self.y as real)
     }
 
     pub fn coords(&self) -> (i32, i32) {
@@ -92,6 +121,8 @@ impl fmt::Display for Vector2i {
 }
 
 impl_common_vector_fns!(Vector2i, i32);
+impl_integer_vector_glam_fns!(Vector2i, real);
+impl_integer_vector_component_fns!(Vector2i, real, (x, y));
 impl_vector_operators!(Vector2i, i32, (x, y));
 impl_from_tuple_for_vector2x!(Vector2i, i32);
 
@@ -101,7 +132,7 @@ unsafe impl GodotFfi for Vector2i {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl GlamType for IVec2 {
+impl GlamType for glam::IVec2 {
     type Mapped = Vector2i;
 
     fn to_front(&self) -> Self::Mapped {
@@ -109,12 +140,12 @@ impl GlamType for IVec2 {
     }
 
     fn from_front(mapped: &Self::Mapped) -> Self {
-        IVec2::new(mapped.x, mapped.y)
+        glam::IVec2::new(mapped.x, mapped.y)
     }
 }
 
 impl GlamConv for Vector2i {
-    type Glam = IVec2;
+    type Glam = glam::IVec2;
 }
 
 #[cfg(test)]
@@ -136,5 +167,17 @@ mod test {
         let expected_json = "{\"x\":0,\"y\":0}";
 
         crate::builtin::test_utils::roundtrip(&vector, expected_json);
+    }
+
+    #[test]
+    fn axis_min_max() {
+        assert_eq!(Vector2i::new(10, 5).max_axis(), Some(Vector2Axis::X));
+        assert_eq!(Vector2i::new(5, 10).max_axis(), Some(Vector2Axis::Y));
+
+        assert_eq!(Vector2i::new(-5, 5).min_axis(), Some(Vector2Axis::X));
+        assert_eq!(Vector2i::new(5, -5).min_axis(), Some(Vector2Axis::Y));
+
+        assert_eq!(Vector2i::new(15, 15).max_axis(), None);
+        assert_eq!(Vector2i::new(15, 15).min_axis(), None);
     }
 }

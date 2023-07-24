@@ -7,8 +7,8 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{GlamConv, GlamType, IVec4};
-use crate::builtin::Vector4;
+use crate::builtin::math::{FloatExt, GlamConv, GlamType};
+use crate::builtin::{real, RVec4, Vector4, Vector4Axis};
 
 use std::fmt;
 
@@ -38,6 +38,8 @@ pub struct Vector4i {
 }
 
 impl_vector_operators!(Vector4i, i32, (x, y, z, w));
+impl_integer_vector_glam_fns!(Vector4i, real);
+impl_integer_vector_component_fns!(Vector4i, real, (x, y, z, w));
 impl_common_vector_fns!(Vector4i, i32);
 impl_from_tuple_for_vector4x!(Vector4i, i32);
 
@@ -45,6 +47,48 @@ impl Vector4i {
     /// Returns a `Vector4i` with the given components.
     pub const fn new(x: i32, y: i32, z: i32, w: i32) -> Self {
         Self { x, y, z, w }
+    }
+
+    /// Axis of the vector's highest value. [`None`] if at least two components are equal.
+    pub fn max_axis(self) -> Option<Vector4Axis> {
+        use Vector4Axis::*;
+
+        let mut max_axis = X;
+        let mut previous = None;
+        let mut max_value = self.x;
+
+        let components = [(Y, self.y), (Z, self.z), (W, self.w)];
+
+        for (axis, value) in components {
+            if value >= max_value {
+                max_axis = axis;
+                previous = Some(max_value);
+                max_value = value;
+            }
+        }
+
+        (Some(max_value) != previous).then_some(max_axis)
+    }
+
+    /// Axis of the vector's highest value. [`None`] if at least two components are equal.
+    pub fn min_axis(self) -> Option<Vector4Axis> {
+        use Vector4Axis::*;
+
+        let mut min_axis = X;
+        let mut previous = None;
+        let mut min_value = self.x;
+
+        let components = [(Y, self.y), (Z, self.z), (W, self.w)];
+
+        for (axis, value) in components {
+            if value <= min_value {
+                min_axis = axis;
+                previous = Some(min_value);
+                min_value = value;
+            }
+        }
+
+        (Some(min_value) != previous).then_some(min_axis)
     }
 
     /// Constructs a new `Vector4i` with all components set to `v`.
@@ -70,13 +114,23 @@ impl Vector4i {
     pub const ONE: Self = Self::splat(1);
 
     /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: IVec4) -> Self {
+    fn from_glam(v: glam::IVec4) -> Self {
         Self::new(v.x, v.y, v.z, v.w)
     }
 
     /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> IVec4 {
-        IVec4::new(self.x, self.y, self.z, self.w)
+    fn to_glam(self) -> glam::IVec4 {
+        glam::IVec4::new(self.x, self.y, self.z, self.w)
+    }
+
+    /// Converts `self` to the corresponding [`real`] `glam` type.
+    fn to_glam_real(self) -> RVec4 {
+        RVec4::new(
+            self.x as real,
+            self.y as real,
+            self.z as real,
+            self.w as real,
+        )
     }
 
     pub fn coords(&self) -> (i32, i32, i32, i32) {
@@ -97,7 +151,7 @@ unsafe impl GodotFfi for Vector4i {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl GlamType for IVec4 {
+impl GlamType for glam::IVec4 {
     type Mapped = Vector4i;
 
     fn to_front(&self) -> Self::Mapped {
@@ -105,12 +159,12 @@ impl GlamType for IVec4 {
     }
 
     fn from_front(mapped: &Self::Mapped) -> Self {
-        IVec4::new(mapped.x, mapped.y, mapped.z, mapped.w)
+        glam::IVec4::new(mapped.x, mapped.y, mapped.z, mapped.w)
     }
 }
 
 impl GlamConv for Vector4i {
-    type Glam = IVec4;
+    type Glam = glam::IVec4;
 }
 
 #[cfg(test)]
@@ -132,5 +186,33 @@ mod test {
         let expected_json = "{\"x\":0,\"y\":0,\"z\":0,\"w\":0}";
 
         crate::builtin::test_utils::roundtrip(&vector, expected_json);
+    }
+
+    #[test]
+    fn axis_min_max() {
+        assert_eq!(Vector4i::new(10, 5, -5, 0).max_axis(), Some(Vector4Axis::X));
+        assert_eq!(Vector4i::new(5, 10, -5, 0).max_axis(), Some(Vector4Axis::Y));
+        assert_eq!(Vector4i::new(5, -5, 10, 0).max_axis(), Some(Vector4Axis::Z));
+        assert_eq!(Vector4i::new(5, -5, 0, 10).max_axis(), Some(Vector4Axis::W));
+
+        assert_eq!(Vector4i::new(-5, 5, 10, 0).min_axis(), Some(Vector4Axis::X));
+        assert_eq!(Vector4i::new(5, -5, 10, 0).min_axis(), Some(Vector4Axis::Y));
+        assert_eq!(Vector4i::new(5, 10, -5, 0).min_axis(), Some(Vector4Axis::Z));
+        assert_eq!(Vector4i::new(5, 10, 0, -5).min_axis(), Some(Vector4Axis::W));
+
+        assert_eq!(Vector4i::new(15, 15, 5, -5).max_axis(), None);
+        assert_eq!(Vector4i::new(15, 15, 15, 5).max_axis(), None);
+        assert_eq!(Vector4i::new(15, 15, 15, 15).max_axis(), None);
+
+        assert_eq!(Vector4i::new(15, 15, 25, 35).min_axis(), None);
+        assert_eq!(Vector4i::new(15, 15, 15, 25).min_axis(), None);
+        assert_eq!(Vector4i::new(15, 15, 15, 15).min_axis(), None);
+
+        // Checks for non-max / non-min equality "traps"
+        assert_eq!(Vector4i::new(5, 5, 25, 15).max_axis(), Some(Vector4Axis::Z));
+        assert_eq!(
+            Vector4i::new(15, 15, 5, -5).min_axis(),
+            Some(Vector4Axis::W),
+        );
     }
 }
