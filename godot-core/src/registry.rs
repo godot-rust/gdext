@@ -18,13 +18,12 @@ use crate::builtin::StringName;
 use crate::out;
 use std::any::Any;
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter, Result as FmtResult};
-use std::ptr;
+use std::{fmt, ptr};
 
 /// Piece of information that is gathered by the self-registration ("plugin") system.
 #[derive(Debug)]
 pub struct ClassPlugin {
-    pub class_name: &'static str,
+    pub class_name: ClassName,
     pub component: PluginComponent,
 }
 
@@ -37,8 +36,8 @@ pub struct ErasedRegisterFn {
     pub raw: fn(&mut dyn Any),
 }
 
-impl Debug for ErasedRegisterFn {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+impl fmt::Debug for ErasedRegisterFn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x{:0>16x}", self.raw as usize)
     }
 }
@@ -48,7 +47,7 @@ impl Debug for ErasedRegisterFn {
 pub enum PluginComponent {
     /// Class definition itself, must always be available
     ClassDef {
-        base_class_name: &'static str,
+        base_class_name: ClassName,
 
         /// Godot low-level`create` function, wired up to library-generated `init`
         generated_create_fn: Option<
@@ -130,7 +129,6 @@ pub fn register_class<
     // TODO: provide overloads with only some trait impls
 
     out!("Manually register class {}", std::any::type_name::<T>());
-    let class_name = ClassName::of::<T>();
 
     let godot_params = sys::GDExtensionClassCreationInfo {
         to_string_func: Some(callbacks::to_string::<T>),
@@ -146,8 +144,8 @@ pub fn register_class<
     };
 
     register_class_raw(ClassRegistrationInfo {
-        class_name,
-        parent_class_name: Some(ClassName::of::<T::Base>()),
+        class_name: T::class_name(),
+        parent_class_name: Some(T::Base::class_name()),
         generated_register_fn: None,
         user_register_fn: Some(ErasedRegisterFn {
             raw: callbacks::register_class_by_builder::<T>,
@@ -170,9 +168,9 @@ pub fn auto_register_classes() {
     crate::private::iterate_plugins(|elem: &ClassPlugin| {
         //out!("* Plugin: {elem:#?}");
 
-        let name = ClassName::from_static(elem.class_name);
+        let name = elem.class_name;
         let class_info = map
-            .entry(name.clone())
+            .entry(name)
             .or_insert_with(|| default_registration_info(name));
 
         fill_class_info(elem.component.clone(), class_info);
@@ -198,7 +196,7 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             generated_create_fn,
             free_fn,
         } => {
-            c.parent_class_name = Some(ClassName::from_static(base_class_name));
+            c.parent_class_name = Some(base_class_name);
             fill_into(
                 &mut c.godot_params.create_instance_func,
                 generated_create_fn,
@@ -302,8 +300,8 @@ pub mod callbacks {
         T: GodotClass,
         F: FnOnce(Base<T::Base>) -> T,
     {
-        let class_name = ClassName::of::<T>();
-        let base_class_name = ClassName::of::<T::Base>();
+        let class_name = T::class_name();
+        let base_class_name = T::Base::class_name();
 
         //out!("create callback: {}", class_name.backing);
 

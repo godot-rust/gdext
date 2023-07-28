@@ -5,10 +5,8 @@
  */
 
 use crate::itest;
-use godot::{
-    engine::ClassDb,
-    prelude::{meta::ClassName, *},
-};
+use godot::engine::ClassDb;
+use godot::prelude::*;
 
 #[derive(GodotClass)]
 struct HasConstants {}
@@ -30,7 +28,6 @@ impl HasConstants {
 
 #[itest]
 fn constants_correct_value() {
-    let class_name = ClassName::of::<HasConstants>();
     const CONSTANTS: [(&str, i64); 4] = [
         ("A", HasConstants::A),
         ("B", HasConstants::B as i64),
@@ -39,15 +36,17 @@ fn constants_correct_value() {
     ];
 
     let constants = ClassDb::singleton()
-        .class_get_integer_constant_list_ex(class_name.clone().into())
+        .class_get_integer_constant_list_ex(HasConstants::class_name().to_string_name())
         .no_inheritance(true)
         .done();
 
     for (constant_name, constant_value) in CONSTANTS {
         assert!(constants.contains(constant_name.into()));
         assert_eq!(
-            ClassDb::singleton()
-                .class_get_integer_constant(class_name.clone().into(), constant_name.into()),
+            ClassDb::singleton().class_get_integer_constant(
+                HasConstants::class_name().to_string_name(),
+                constant_name.into()
+            ),
             constant_value
         );
     }
@@ -76,7 +75,7 @@ impl ::godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
         use ::godot::builtin::meta::registration::constant::*;
         // Try exporting an enum.
         ExportConstant::new(
-            ClassName::from_static("HasOtherConstants"),
+            HasOtherConstants::class_name(),
             ConstantKind::Enum {
                 name: Self::ENUM_NAME.into(),
                 enumerators: vec![
@@ -90,7 +89,7 @@ impl ::godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
 
         // Try exporting an enum.
         ExportConstant::new(
-            ClassName::from_static("HasOtherConstants"),
+            HasOtherConstants::class_name(),
             ConstantKind::Bitfield {
                 name: Self::BITFIELD_NAME.into(),
                 flags: vec![
@@ -107,7 +106,7 @@ impl ::godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
 ::godot::sys::plugin_add!(
     __GODOT_PLUGIN_REGISTRY  in::godot::private;
     ::godot::private::ClassPlugin {
-        class_name: "HasOtherConstants",
+        class_name: HasOtherConstants::class_name(),
         component: ::godot::private::PluginComponent::UserMethodBinds {
             generated_register_fn: ::godot::private::ErasedRegisterFn {
                 raw: ::godot::private::callbacks::register_user_binds::<HasOtherConstants>,
@@ -125,7 +124,7 @@ macro_rules! test_enum_export {
     ) => {
         #$attr
         fn $test_name() {
-            let class_name = ClassName::of::<$class>();
+            let class_name = <$class>::class_name();
             let enum_name = StringName::from(<$class>::$enum_name);
             let variants = [
                 $((stringify!($enumerators), <$class>::$enumerators)),*
@@ -133,7 +132,7 @@ macro_rules! test_enum_export {
 
             assert!(ClassDb::singleton()
                 .class_has_enum_ex(
-                    class_name.clone().into(),
+                    class_name.to_string_name(),
                     enum_name.clone(),
                 )
                 .no_inheritance(true)
@@ -141,14 +140,14 @@ macro_rules! test_enum_export {
 
             let godot_variants = ClassDb::singleton()
                 .class_get_enum_constants_ex(
-                    class_name.clone().into(),
+                    class_name.to_string_name(),
                     enum_name.into(),
                 )
                 .no_inheritance(true)
                 .done();
 
             let constants = ClassDb::singleton()
-                .class_get_integer_constant_list_ex(class_name.clone().into())
+                .class_get_integer_constant_list_ex(class_name.to_string_name())
                 .no_inheritance(true)
                 .done();
 
@@ -157,7 +156,7 @@ macro_rules! test_enum_export {
                 assert!(constants.contains(variant_name.into()));
                 assert_eq!(
                     ClassDb::singleton()
-                        .class_get_integer_constant(class_name.clone().into(), variant_name.into()),
+                        .class_get_integer_constant(class_name.to_string_name(), variant_name.into()),
                     variant_value
                 );
             }

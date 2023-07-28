@@ -5,7 +5,7 @@
  */
 
 use crate::util::{bail, ident, KvParser};
-use crate::ParseResult;
+use crate::{util, ParseResult};
 use proc_macro2::{Ident, Punct, TokenStream};
 use quote::{format_ident, quote};
 use venial::{Declaration, NamedField, Struct, StructFields, TyExpr};
@@ -24,9 +24,14 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
     let struct_cfg = parse_struct_attributes(class)?;
     let fields = parse_fields(class)?;
 
-    let base_ty = &struct_cfg.base_ty;
     let class_name = &class.name;
     let class_name_str = class.name.to_string();
+    let class_name_cstr = util::cstr_u8_slice(&class_name_str);
+    let class_name_obj = util::class_name_obj(class_name);
+
+    let base_ty = &struct_cfg.base_ty;
+    let base_class = quote! { ::godot::engine::#base_ty };
+    let base_class_name_obj = util::class_name_obj(&base_class);
     let inherits_macro = format_ident!("inherits_transitive_{}", base_ty);
 
     let prv = quote! { ::godot::private };
@@ -45,11 +50,13 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
 
     Ok(quote! {
         unsafe impl ::godot::obj::GodotClass for #class_name {
-            type Base = ::godot::engine::#base_ty;
+            type Base = #base_class;
             type Declarer = ::godot::obj::dom::UserDomain;
             type Mem = <Self::Base as ::godot::obj::GodotClass>::Mem;
 
-            const CLASS_NAME: &'static str = #class_name_str;
+            fn class_name() -> ::godot::builtin::meta::ClassName {
+                ::godot::builtin::meta::ClassName::from_ascii_cstr(#class_name_cstr)
+            }
         }
 
         #godot_init_impl
@@ -57,9 +64,9 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
         #deref_impl
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-            class_name: #class_name_str,
+            class_name: #class_name_obj,
             component: #prv::PluginComponent::ClassDef {
-                base_class_name: <::godot::engine::#base_ty as ::godot::obj::GodotClass>::CLASS_NAME,
+                base_class_name: #base_class_name_obj,
                 generated_create_fn: #create_fn,
                 free_fn: #prv::callbacks::free::<#class_name>,
             },

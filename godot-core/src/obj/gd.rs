@@ -210,7 +210,7 @@ impl<T: GodotClass> Gd<T> {
             panic!(
                 "Instance ID {} does not belong to a valid object of class '{}'",
                 instance_id,
-                T::CLASS_NAME
+                T::class_name()
             )
         })
     }
@@ -331,8 +331,8 @@ impl<T: GodotClass> Gd<T> {
         self.owned_cast().unwrap_or_else(|from_obj| {
             panic!(
                 "downcast from {from} to {to} failed; instance {from_obj:?}",
-                from = T::CLASS_NAME,
-                to = Derived::CLASS_NAME,
+                from = T::class_name(),
+                to = Derived::class_name(),
             )
         })
     }
@@ -344,7 +344,7 @@ impl<T: GodotClass> Gd<T> {
     {
         let as_obj =
             unsafe { self.ffi_cast::<engine::Object>() }.expect("Everything inherits object");
-        let cast_is_valid = as_obj.is_class(crate::builtin::GodotString::from(U::CLASS_NAME));
+        let cast_is_valid = as_obj.is_class(U::class_name().to_godot_string());
         std::mem::forget(as_obj);
         cast_is_valid
     }
@@ -384,8 +384,7 @@ impl<T: GodotClass> Gd<T> {
     where
         U: GodotClass,
     {
-        let class_name = ClassName::of::<U>();
-        let class_tag = interface_fn!(classdb_get_class_tag)(class_name.string_sys());
+        let class_tag = interface_fn!(classdb_get_class_tag)(U::class_name().string_sys());
         let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
 
         // Create weak object, as ownership will be moved and reference-counter stays the same
@@ -710,7 +709,7 @@ impl<T: GodotClass> TypeStringHint for Gd<T> {
                     "{}/{}:{}",
                     VariantType::Object as i32,
                     hint.ord(),
-                    T::CLASS_NAME
+                    T::class_name()
                 )
             }
             _ => format!("{}:", VariantType::Object as i32),
@@ -740,9 +739,9 @@ impl<T: GodotClass> Export for Gd<T> {
             engine::global::PropertyHint::PROPERTY_HINT_NONE
         };
 
-        // Godot does this by default too, it doesn't seem to make a difference when not a resource/node
-        // but is needed when it is a resource/node.
-        let hint_string = T::CLASS_NAME.into();
+        // Godot does this by default too; the hint is needed when the class is a resource/node,
+        // but doesn't seem to make a difference otherwise.
+        let hint_string = T::class_name().to_godot_string();
 
         ExportInfo { hint, hint_string }
     }
@@ -849,7 +848,7 @@ impl<T: GodotClass> VariantMetadata for Gd<T> {
     }
 
     fn class_name() -> ClassName {
-        ClassName::of::<T>()
+        T::class_name()
     }
 }
 
