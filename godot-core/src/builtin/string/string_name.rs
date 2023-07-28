@@ -121,6 +121,14 @@ impl fmt::Debug for StringName {
         write!(f, "&\"{string}\"")
     }
 }
+
+// SAFETY: StringName is immutable once constructed. Shared references can thus not undergo mutation.
+unsafe impl Sync for StringName {}
+
+// SAFETY: StringName is immutable once constructed. Also, its inc-ref/dec-ref operations are mutex-protected in Godot.
+// That is, it's safe to construct a StringName on thread A and destroy it on thread B.
+unsafe impl Send for StringName {}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion from/into other string-types
 
