@@ -4,84 +4,49 @@
 
 _**[Website]** | **[API Docs]** | [Discord] | [Mastodon] | [Twitter]_
 
-**gdext** is an early-stage library to bind the **Rust** language to **Godot 4**.
+**gdext** is a library to bind the **Rust** language to **Godot 4**.
 
-[Godot] is an open-source game engine, whose upcoming version 4.0 brings several improvements.
+[Godot] is an open-source game engine, whose version 4 has brought large-scale improvements.  
 Its _GDExtension_ API allows integrating third-party languages and libraries.
 
-> **Note**: if you are looking for a Rust binding for GDNative (Godot 3), checkout [`gdnative`].
+> If you are looking for a Rust binding for GDNative (Godot 3), check out [`gdnative`].
 
-> **Warning**: this library is experimental and rapidly evolving. In particular, this means:
-> * Lots of bugs. A lot of the scaffolding is still being ironed out. 
->   There are known safety issues, possible undefined behavior as well as other potential problems.
-> * Lots of missing features. The priority is to get basic interactions working;
->   as such, edge case APIs are deliberately neglected at this stage.
-> * No stability guarantees. APIs will break frequently (for releases, we try to take SemVer seriously though).
->   Resolving the above two points has currently more weight than a stable API.
 
-We do not recommend building a larger project in gdext yet.
-However, the library can serve as a playground for experimenting.
+## Philosophy
 
-To get an overview of currently supported features, consult [#24](https://github.com/godot-rust/gdext/issues/24).  
+The Rust binding is an alternative to GDScript, with a focus on type safety, scalability and performance.
+
+The primary goal of gdext is to provide a _**pragmatic Rust API**_ for game developers.
+
+Recurring workflows should be simple and require minimal boilerplate. APIs are designed to be safe and idiomatic Rust wherever possible.
+Due to interacting with Godot as a C++ engine, we sometimes follow unconventional approaches to provide a good user experience.
+
+
+## Development status
+
+The gdext library has evolved a lot during 2023 and is now in a usable state for smaller projects.
+However, it is still in an early stage and there are certain things to keep in mind.
+
+> **Warning**
+> The public API introduces breaking changes from time to time. Most of these are motivated by new features and
+> improved ergonomics for existing ones. Once we are on crates.io, we will adhere to SemVer for releases.
+
+**Features:** While most Godot features are available, some less commonly used ones are missing. See [#24] for an up-to-date overview.  
 At this point, there is **no** support for Android, iOS or WASM. Contributions are very welcome!
+
+**Bugs:** Most undefined behavior related to the FFI layer has been ironed out, but there may still be occasional safety issues. Apart from that,
+new additions to the library are typically not feature-complete from the start, but become more robust due to feedback and testing over time.
+To counter bugs, we have an elaborate CI suite including clippy, unit tests, engine integration tests and memory sanitizers.
 
 
 ## Getting started
 
-An elaborate tutorial is available [in the book] (still under construction), here is the short version.
+To dive into Rust development with gdext, check out [the godot-rust book][book]. The book is still under construction,
+but already includes a tutorial to set up a simple example.
 
-To find a version of Godot 4, the library expects either an executable of name `godot4` in the PATH, or an environment variable `GODOT4_BIN`
-containing the path to the executable (including filename).
-We currently only have a GitHub version, crates.io releases are planned once more of the foundation is ready.
+To consult the API reference, have a look at the online [API Docs].
 
-In your Cargo.toml, add:
-
-```toml
-[lib]
-crate-type = ["cdylib"]
-
-[dependencies]
-godot = { git = "https://github.com/godot-rust/gdext", branch = "master" }
-```
-To get the latest changes, you can regularly run a `cargo update` (possibly breaking). Keep your `Cargo.lock` file under version control, so that it's easy to revert updates.
-
-To register the GDExtension library with Godot, you need to create two files relative to your Godot project folder:
-
-1. First, add `res://MyExt.gdextension`, which is the equivalent of `.gdnlib` for GDNative.
-
-   The `[configuration]` section should be copied as-is.  
-   The `[libraries]` section should be updated to match the paths of your dynamic Rust libraries.
-   `{my-ext}` can be replaced with the name of your crate.
-   ```ini
-   [configuration]
-   entry_symbol = "gdext_rust_init"
-   
-   [libraries]
-   linux.debug.x86_64 = "res://../rust/target/debug/lib{my-ext}.so"
-   linux.release.x86_64 = "res://../rust/target/release/lib{my-ext}.so"
-   windows.debug.x86_64 = "res://../rust/target/debug/{my-ext}.dll"
-   windows.release.x86_64 = "res://../rust/target/release/{my-ext}.dll"
-   macos.debug = "res://../rust/target/debug/{my-ext}.dylib"
-   macos.release = "res://../rust/target/release/{my-ext}.dylib"
-   macos.debug.arm64 = "res://../rust/target/debug/{my-ext}.dylib"
-   macos.release.arm64 = "res://../rust/target/release/{my-ext}.dylib"
-   ```
-   > **Note**: for exporting your project, you'll need to use paths inside `res://`
-
-   > **Note**: If you specify your cargo compilation target via the `--target` flag or a `.cargo/config.toml` file, the rust library will be placed in a path name that includes target architecture, and the `.gdextension` library paths will need to match. E.g. for M1 Macs (`macos.debug.arm64` and `macos.release.arm64`) the path would be `"res://../rust/target/aarch64-apple-darwin/debug/{my-ext}.dylib"`
-
-2. A second file `res://.godot/extension_list.cfg` should be generated once you open the Godot editor for the first time.
-   If not, you can also manually create it, simply containing the Godot path to your `.gdextension` file:
-   ```
-   res://MyExt.gdextension
-   ```
-
-### Examples
-
-We highly recommend to have a look at a working example in the `examples/dodge-the-creeps` directory.
-This integrates a small game with Godot and has all the necessary steps set up.
-
-API documentation can be generated locally using `./check.sh doc` (use `dok` instead of `doc` to open the page in the browser).
+Furthermore, we provide a small example game in the [`examples/dodge-the-creeps` directory][dodge-the-creeps].
 
 If you need help, join our [Discord] server and ask in the `#help-gdext` channel!
 
@@ -91,20 +56,22 @@ If you need help, join our [Discord] server and ask in the `#help-gdext` channel
 We use the [Mozilla Public License 2.0][mpl]. MPL tries to find a balance between permissive (MIT, Apache, Zlib) and copyleft licenses (GPL, LGPL).
 
 The license provides a lot of freedom: you can use the library commercially and keep your own code closed-source,
-i.e. game development is not restricted. The main condition is that if you change godot-rust _itself_, you need to make
+i.e. game development is not restricted. The main condition is that if you change gdext _itself_, you need to make
 those changes available (and only those, no surrounding code).
 
 
 ## Contributing
 
-Contributions are very welcome! If you want to help out, see [`Contributing.md`](Contributing.md) for some pointers on getting started!
+Contributions are very welcome! If you want to help out, see [`Contributing.md`](Contributing.md) for some pointers on getting started.
 
-[Godot]: https://godotengine.org
+[#24]: https://github.com/godot-rust/gdext/issues/24
 [`gdnative`]: https://github.com/godot-rust/gdnative
-[mpl]: https://www.mozilla.org/en-US/MPL
-[Website]: https://godot-rust.github.io
 [API Docs]: https://godot-rust.github.io/docs/gdext
+[book]: https://godot-rust.github.io/book/gdext
 [Discord]: https://discord.gg/aKUCJ8rJsc
+[dodge-the-creeps]: examples/dodge-the-creeps
+[Godot]: https://godotengine.org
 [Mastodon]: https://mastodon.gamedev.place/@GodotRust
+[mpl]: https://www.mozilla.org/en-US/MPL
 [Twitter]: https://twitter.com/GodotRust
-[in the book]: https://godot-rust.github.io/book/gdext/intro
+[Website]: https://godot-rust.github.io
