@@ -28,3 +28,6 @@ quote = "1.0.29"
 # Since we don't use Regex for unicode parsing, the features unicode-bool/unicode-gencat are used instead of unicode-perl.
 # See also https://docs.rs/regex/latest/regex/#unicode-features.
 regex = { version = "1.5.5", default-features = false, features = ["std", "unicode-bool", "unicode-gencat"] }
+
+[build-dependencies]
+godot-bindings = { path = "../godot-bindings" } # emit_godot_version_cfg
