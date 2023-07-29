@@ -12,11 +12,10 @@ mod signature;
 pub use class_name::*;
 pub use signature::*;
 
-use crate::builtin::*;
-use crate::engine::global;
-
 use godot_ffi as sys;
 
+use crate::builtin::*;
+use crate::engine::global;
 use registration::method::MethodParamOrReturnInfo;
 
 /// Stores meta-information about registered types or properties.

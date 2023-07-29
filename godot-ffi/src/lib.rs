@@ -358,6 +358,14 @@ pub fn c_str_from_str(s: &str) -> *const std::ffi::c_char {
     c_str(s.as_bytes())
 }
 
+/// Returns an ad-hoc hash of any object.
+pub fn hash_value<T: std::hash::Hash>(t: &T) -> u64 {
+    use std::hash::Hasher;
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    t.hash(&mut hasher);
+    hasher.finish()
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[doc(hidden)]

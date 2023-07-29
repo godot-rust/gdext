@@ -240,6 +240,10 @@ pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
 }
 
+pub fn cstr_u8_slice(string: &str) -> Literal {
+    Literal::byte_string(format!("{string}\0").as_bytes())
+}
+
 #[rustfmt::skip]
 pub fn safe_ident(s: &str) -> Ident {
     // See also: https://doc.rust-lang.org/reference/keywords.html

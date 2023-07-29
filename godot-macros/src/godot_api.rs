@@ -67,8 +67,7 @@ impl BoundAttr {
 /// Codegen for `#[godot_api] impl MyType`
 fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let class_name = util::validate_impl(&decl, None, "godot_api")?;
-    let class_name_str = class_name.to_string();
-
+    let class_name_obj = util::class_name_obj(&class_name);
     let (funcs, signals) = process_godot_fns(&mut decl)?;
 
     let mut signal_name_strs: Vec<String> = Vec::new();
@@ -135,7 +134,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
             #(
                 ExportConstant::new(
-                    ClassName::of::<#class_name>(),
+                    #class_name_obj,
                     ConstantKind::Integer(
                         IntegerConstant::new(
                             StringName::from(#integer_constant_names),
@@ -159,7 +158,6 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
                 )*
 
                 unsafe {
-                    let class_name = ::godot::builtin::StringName::from(#class_name_str);
                     use ::godot::sys;
 
                     #(
@@ -172,7 +170,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
                         sys::interface_fn!(classdb_register_extension_class_signal)(
                             sys::get_library(),
-                            class_name.string_sys(),
+                            #class_name_obj.string_sys(),
                             signal_name.string_sys(),
                             parameters_info_sys.as_ptr(),
                             sys::GDExtensionInt::from(#signal_parameters_count as i64),
@@ -183,13 +181,13 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
             fn __register_constants() {
                 #register_constants
-        }
+            }
         }
 
         impl ::godot::private::Cannot_export_without_godot_api_impl for #class_name {}
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-            class_name: #class_name_str,
+            class_name: #class_name_obj,
             component: #prv::PluginComponent::UserMethodBinds {
                 generated_register_fn: #prv::ErasedRegisterFn {
                     raw: #prv::callbacks::register_user_binds::<#class_name>,
@@ -353,7 +351,7 @@ where
 /// Codegen for `#[godot_api] impl GodotExt for MyType`
 fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let (class_name, trait_name) = util::validate_trait_impl_virtual(&original_impl, "godot_api")?;
-    let class_name_str = class_name.to_string();
+    let class_name_obj = util::class_name_obj(&class_name);
 
     let mut godot_init_impl = TokenStream::new();
     let mut to_string_impl = TokenStream::new();
@@ -480,7 +478,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         }
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-            class_name: #class_name_str,
+            class_name: #class_name_obj,
             component: #prv::PluginComponent::UserVirtuals {
                 user_register_fn: #register_fn,
                 user_create_fn: #create_fn,

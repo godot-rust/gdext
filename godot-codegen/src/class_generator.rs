@@ -420,8 +420,18 @@ fn make_module_doc(class_name: &TyName) -> String {
     )
 }
 
+fn make_string_name(identifier: &str) -> TokenStream {
+    quote! {
+        StringName::from(#identifier)
+    }
+}
+
 fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
     let godot_class_name = &class.name;
+    let godot_class_stringname = make_string_name(godot_class_name);
+    // Note: this could use class_name() but is not yet done due to upcoming lazy-load refactoring.
+    //let class_name_obj = quote! { <Self as crate::obj::GodotClass>::class_name() };
+
     if ctx.is_singleton(godot_class_name) {
         // Note: we cannot return &'static mut Self, as this would be very easy to mutably alias.
         // &'static Self would be possible, but we would lose the whole mutability information (even if that is best-effort and
@@ -431,7 +441,7 @@ fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
         quote! {
             pub fn singleton() -> Gd<Self> {
                 unsafe {
-                    let __class_name = StringName::from(#godot_class_name);
+                    let __class_name = #godot_class_stringname;
                     let __object_ptr = sys::interface_fn!(global_get_singleton)(__class_name.string_sys());
                     Gd::from_obj_sys(__object_ptr)
                 }
@@ -445,7 +455,7 @@ fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
         quote! {
             pub fn new() -> Gd<Self> {
                 unsafe {
-                    let __class_name = StringName::from(#godot_class_name);
+                    let __class_name = #godot_class_stringname;
                     let __object_ptr = sys::interface_fn!(classdb_construct_object)(__class_name.string_sys());
                     //let instance = Self { object_ptr };
                     Gd::from_obj_sys(__object_ptr)
@@ -458,7 +468,7 @@ fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
             #[must_use]
             pub fn new_alloc() -> Gd<Self> {
                 unsafe {
-                    let __class_name = StringName::from(#godot_class_name);
+                    let __class_name = #godot_class_stringname;
                     let __object_ptr = sys::interface_fn!(classdb_construct_object)(__class_name.string_sys());
                     Gd::from_obj_sys(__object_ptr)
                 }
@@ -470,6 +480,7 @@ fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
 fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> GeneratedClass {
     // Strings
     let godot_class_str = &class_name.godot_ty;
+    let class_name_cstr = util::cstr_u8_slice(godot_class_str);
     let virtual_trait_str = class_name.virtual_trait_name();
 
     // Idents and tokens
@@ -542,6 +553,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         use crate::builtin::*;
         use crate::engine::native::*;
         use crate::obj::Gd;
+        use crate::builtin::meta::ClassName;
         use sys::GodotFfi as _;
         use std::ffi::c_void;
 
@@ -567,7 +579,9 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
                 type Declarer = crate::obj::dom::EngineDomain;
                 type Mem = crate::obj::mem::#memory;
 
-                const CLASS_NAME: &'static str = #godot_class_str;
+                fn class_name() -> ClassName {
+                    ClassName::from_ascii_cstr(#class_name_cstr)
+                }
             }
             impl crate::obj::EngineClass for #class_name {
                  fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr {
@@ -659,7 +673,7 @@ fn make_notification_enum(
     all_bases: &Vec<TyName>,
     ctx: &mut Context,
 ) -> (Option<TokenStream>, Ident) {
-    let Some(all_constants) = ctx.notification_constants(class_name) else {
+    let Some(all_constants) = ctx.notification_constants(class_name) else  {
         // Class has no notification constants: reuse (direct/indirect) base enum
         return (None, ctx.notification_enum_name(class_name));
     };
@@ -1110,6 +1124,7 @@ fn make_method_definition(
     }*/
 
     let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
+    let method_name_stringname = make_string_name(method_name_str);
 
     let receiver = make_receiver(
         method.is_static,
@@ -1128,9 +1143,10 @@ fn make_method_definition(
     };
 
     let class_name_str = &class_name.godot_ty;
+    let class_name_stringname = make_string_name(class_name_str);
     let init_code = quote! {
-        let __class_name = StringName::from(#class_name_str);
-        let __method_name = StringName::from(#method_name_str);
+        let __class_name = #class_name_stringname;
+        let __method_name = #method_name_stringname;
         let __method_bind = sys::interface_fn!(classdb_get_method_bind)(
             __class_name.string_sys(),
             __method_name.string_sys(),
@@ -1182,6 +1198,7 @@ fn make_builtin_method_definition(
     ctx: &mut Context,
 ) -> FnDefinition {
     let method_name_str = &method.name;
+    let method_name_stringname = make_string_name(method_name_str);
 
     let return_value = method
         .return_type
@@ -1194,7 +1211,7 @@ fn make_builtin_method_definition(
     let variant_type = &type_info.type_names.sys_variant_type;
     let init_code = quote! {
         let __variant_type = sys::#variant_type;
-        let __method_name = StringName::from(#method_name_str);
+        let __method_name = #method_name_stringname;
         let __call_fn = sys::interface_fn!(variant_get_ptr_builtin_method)(
             __variant_type,
             __method_name.string_sys(),
@@ -1241,6 +1258,8 @@ pub(crate) fn make_utility_function_definition(
     }
 
     let function_name_str = &function.name;
+    let function_name_stringname = make_string_name(function_name_str);
+
     let return_value = function
         .return_type
         .as_deref()
@@ -1248,7 +1267,7 @@ pub(crate) fn make_utility_function_definition(
     let hash = function.hash;
     let variant_ffi = function.is_vararg.then_some(VariantFfi::type_ptr());
     let init_code = quote! {
-        let __function_name = StringName::from(#function_name_str);
+        let __function_name = #function_name_stringname;
         let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
         let __call_fn = __call_fn.unwrap_unchecked();
     };

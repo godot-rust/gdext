@@ -9,6 +9,7 @@ use crate::derive_godot_class::property::field_var::{
     FieldVar, GetSet, GetterSetterImpl, UsageFlags,
 };
 use crate::derive_godot_class::Field;
+use crate::util;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
@@ -46,6 +47,8 @@ impl FieldHint {
 }
 
 pub(super) fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
+    let class_name_obj = util::class_name_obj(class_name);
+
     let mut getter_setter_impls = Vec::new();
     let mut export_tokens = Vec::new();
 
@@ -184,14 +187,13 @@ pub(super) fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenSt
 
             let property_info = ::godot::builtin::meta::PropertyInfo {
                 variant_type: <<#field_type as ::godot::bind::property::Property>::Intermediate as ::godot::builtin::meta::VariantMetadata>::variant_type(),
-                class_name: ::godot::builtin::meta::ClassName::of::<#class_name>(),
+                class_name: #class_name_obj,
                 property_name: #field_name.into(),
                 hint,
                 hint_string,
                 usage,
             };
 
-            let class_name = ::godot::builtin::StringName::from(#class_name::CLASS_NAME);
             let getter_name = ::godot::builtin::StringName::from(#getter_name);
             let setter_name = ::godot::builtin::StringName::from(#setter_name);
 
@@ -200,7 +202,7 @@ pub(super) fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenSt
             unsafe {
                 ::godot::sys::interface_fn!(classdb_register_extension_class_property)(
                     ::godot::sys::get_library(),
-                    class_name.string_sys(),
+                    #class_name::class_name().string_sys(),
                     std::ptr::addr_of!(property_info_sys),
                     setter_name.string_sys(),
                     getter_name.string_sys(),

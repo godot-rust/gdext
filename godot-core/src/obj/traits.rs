@@ -8,6 +8,7 @@ use crate::builder::ClassBuilder;
 use crate::builtin::GodotString;
 use crate::obj::Base;
 
+use crate::builtin::meta::ClassName;
 use godot_ffi as sys;
 
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
@@ -35,8 +36,8 @@ where
 
     /// The name of the class, under which it is registered in Godot.
     ///
-    /// This may deviate from the Rust struct name: `HttpRequest::CLASS_NAME == "HTTPRequest"`.
-    const CLASS_NAME: &'static str;
+    /// This may deviate from the Rust struct name: `HttpRequest::class_name().as_str() == "HTTPRequest"`.
+    fn class_name() -> ClassName;
 
     /// Returns whether `Self` inherits from `U`.
     ///
@@ -44,9 +45,9 @@ where
     ///
     /// See also [`Inherits`] for a trait bound.
     fn inherits<U: GodotClass>() -> bool {
-        if Self::CLASS_NAME == U::CLASS_NAME {
+        if Self::class_name() == U::class_name() {
             true
-        } else if Self::Base::CLASS_NAME == <()>::CLASS_NAME {
+        } else if Self::Base::class_name() == <()>::class_name() {
             false
         } else {
             Self::Base::inherits::<U>()
@@ -60,7 +61,9 @@ unsafe impl GodotClass for () {
     type Declarer = dom::EngineDomain;
     type Mem = mem::ManualMemory;
 
-    const CLASS_NAME: &'static str = "(no base)";
+    fn class_name() -> ClassName {
+        ClassName::none()
+    }
 }
 
 /// Trait to create more references from a smart pointer or collection.

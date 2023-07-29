@@ -334,7 +334,7 @@ impl<T: VariantMetadata> Array<T> {
 
     /// Checks that the inner array has the correct type set on it for storing elements of type `T`.
     fn with_checked_type(self) -> Result<Self, VariantConversionError> {
-        if self.type_info() == TypeInfo::new::<T>() {
+        if self.type_info() == TypeInfo::of::<T>() {
             Ok(self)
         } else {
             Err(VariantConversionError::BadType)
@@ -346,7 +346,7 @@ impl<T: VariantMetadata> Array<T> {
         debug_assert!(self.is_empty());
         debug_assert!(!self.type_info().is_typed());
 
-        let type_info = TypeInfo::new::<T>();
+        let type_info = TypeInfo::of::<T>();
         if type_info.is_typed() {
             let script = Variant::nil();
             unsafe {
@@ -928,16 +928,16 @@ macro_rules! varray {
 #[derive(PartialEq, Eq)]
 struct TypeInfo {
     variant_type: VariantType,
+
+    /// Not a `ClassName` because some values come from Godot engine API.
     class_name: StringName,
 }
 
 impl TypeInfo {
-    fn new<T: VariantMetadata>() -> Self {
-        let variant_type = T::variant_type();
-        let class_name: StringName = T::class_name().into();
+    fn of<T: VariantMetadata>() -> Self {
         Self {
-            variant_type,
-            class_name,
+            variant_type: T::variant_type(),
+            class_name: T::class_name().to_string_name(),
         }
     }
 

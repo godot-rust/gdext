@@ -37,7 +37,7 @@ pub trait PackedSceneExt {
         T: Inherits<Node>,
     {
         self.try_instantiate_as::<T>()
-            .unwrap_or_else(|| panic!("Failed to instantiate {to}", to = T::CLASS_NAME))
+            .unwrap_or_else(|| panic!("Failed to instantiate {to}", to = T::class_name()))
     }
 
     /// Instantiates the scene as type `T` (fallible).
@@ -73,7 +73,7 @@ pub trait NodeExt {
         self.try_get_node_as(path).unwrap_or_else(|| {
             panic!(
                 "There is no node of type {ty} path `{copy}`",
-                ty = T::CLASS_NAME
+                ty = T::class_name()
             )
         })
     }
@@ -217,11 +217,9 @@ fn load_impl<T>(path: &GodotString) -> Option<Gd<T>>
 where
     T: GodotClass + Inherits<Resource>,
 {
-    let type_hint = T::CLASS_NAME;
-
     ResourceLoader::singleton()
         .load_ex(path.clone())
-        .type_hint(type_hint.into())
+        .type_hint(T::class_name().to_godot_string())
         .done() // TODO unclone
         .and_then(|res| res.try_cast::<T>())
 }

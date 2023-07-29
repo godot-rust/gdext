@@ -7,9 +7,9 @@
 // Note: some code duplication with codegen crate
 
 use crate::ParseResult;
-use proc_macro2::{Delimiter, Group, Ident, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Group, Ident, Literal, TokenStream, TokenTree};
 use quote::spanned::Spanned;
-use quote::{format_ident, TokenStreamExt};
+use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use venial::{Error, Function, GenericParamList, Impl, WhereClause};
 
 mod kv_parser;
@@ -21,6 +21,15 @@ pub(crate) use list_parser::ListParser;
 
 pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
+}
+
+pub fn cstr_u8_slice(string: &str) -> Literal {
+    Literal::byte_string(format!("{string}\0").as_bytes())
+}
+
+pub fn class_name_obj(class: &impl ToTokens) -> TokenStream {
+    let class = class.to_token_stream();
+    quote! { <#class as ::godot::obj::GodotClass>::class_name() }
 }
 
 pub fn bail_fn<R, T>(msg: impl AsRef<str>, tokens: T) -> ParseResult<R>
