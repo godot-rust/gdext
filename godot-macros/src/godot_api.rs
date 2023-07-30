@@ -468,6 +468,13 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
             fn __virtual_call(name: &str) -> ::godot::sys::GDExtensionClassCallVirtual {
                 //println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
 
+                let __config = unsafe { ::godot::sys::config() };
+
+                if !__config.virtuals_active_in_editor
+                 && *__config.is_editor.get_or_init(|| ::godot::engine::Engine::singleton().is_editor_hint()) {
+                    return None;
+                }
+
                 match name {
                     #(
                        #virtual_method_names => #virtual_method_callbacks,
