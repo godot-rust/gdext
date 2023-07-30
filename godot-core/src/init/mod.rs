@@ -5,7 +5,10 @@
  */
 
 use godot_ffi as sys;
-use std::collections::btree_map::BTreeMap;
+use sys::out;
+
+use std::cell;
+use std::collections::BTreeMap;
 
 #[doc(hidden)]
 // TODO consider body safe despite unsafe function, and explicitly mark unsafe {} locations
@@ -15,7 +18,17 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     init: *mut sys::GDExtensionInitialization,
 ) -> sys::GDExtensionBool {
     let init_code = || {
-        sys::initialize(interface_or_get_proc_address, library);
+        let virtuals_active_in_editor = match E::editor_run_behavior() {
+            EditorRunBehavior::Full => true,
+            EditorRunBehavior::NoVirtuals => false,
+        };
+
+        let config = sys::GdextConfig {
+            virtuals_active_in_editor,
+            is_editor: cell::OnceCell::new(),
+        };
+
+        sys::initialize(interface_or_get_proc_address, library, config);
 
         let mut handle = InitHandle::new();
 
@@ -39,11 +52,6 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     let is_success = crate::private::handle_panic(ctx, init_code);
 
     is_success.unwrap_or(0)
-}
-
-#[doc(hidden)]
-pub fn __gdext_default_init(handle: &mut InitHandle) {
-    handle.register_layer(InitLevel::Scene, DefaultLayer);
 }
 
 unsafe extern "C" fn ffi_initialize_layer(
@@ -97,8 +105,8 @@ pub static mut INIT_HANDLE: Option<InitHandle> = None;
 ///
 /// ```
 /// # use godot::init::*;
-///
-/// // This is just a type tag without any functionality
+/// // This is just a type tag without any functionality.
+/// // Its name is irrelevant.
 /// struct MyExtension;
 ///
 /// #[gdextension]
@@ -113,14 +121,42 @@ pub static mut INIT_HANDLE: Option<InitHandle> = None;
 /// responsible to uphold them: namely in GDScript code or other GDExtension bindings loaded by the engine.
 /// Violating this may cause undefined behavior, even when invoking _safe_ functions.
 ///
-/// [gdextension]: crate::init::gdextension
-/// [safety]: https://godot-rust.github.io/book/gdextension/safety.html
+/// [gdextension]: attr.gdextension.html
+/// [safety]: https://godot-rust.github.io/book/gdext/advanced/safety.html
 // FIXME intra-doc link
 pub unsafe trait ExtensionLibrary {
     fn load_library(handle: &mut InitHandle) -> bool {
         handle.register_layer(InitLevel::Scene, DefaultLayer);
         true
     }
+
+    /// Determines if and how an extension's code is run in the editor.
+    fn editor_run_behavior() -> EditorRunBehavior {
+        EditorRunBehavior::NoVirtuals
+    }
+}
+
+/// Determines if and how an extension's code is run in the editor.
+///
+/// By default, Godot 4 runs all virtual lifecycle callbacks (`_ready`, `_process`, `_physics_process`, ...)
+/// for extensions. This behavior is different from Godot 3, where extension classes needed to be explicitly
+/// marked as "tool".
+///
+/// In many cases, users write extension code with the intention to run in games, not inside the editor.
+/// This is why the default behavior in gdext deviates from Godot: lifecycle callbacks are disabled inside the
+/// editor. It is however possible to restore the original behavior with this enum.
+///
+/// See also [`ExtensionLibrary::editor_run_behavior()`].
+#[derive(Copy, Clone, Debug)]
+#[non_exhaustive]
+pub enum EditorRunBehavior {
+    /// Runs the extension with full functionality in editor.
+    Full,
+
+    /// Does not invoke any Godot virtual functions.
+    ///
+    /// Classes are still registered, and calls from GDScript to Rust are still possible.
+    NoVirtuals,
 }
 
 pub trait ExtensionLayer: 'static {
@@ -179,13 +215,19 @@ impl InitHandle {
         //     f();
         // }
         if let Some(layer) = self.layers.get_mut(&level) {
+            out!("init: initialize level {level:?}...");
             layer.initialize()
+        } else {
+            out!("init: skip init of level {level:?}.");
         }
     }
 
     pub fn run_deinit_function(&mut self, level: InitLevel) {
         if let Some(layer) = self.layers.get_mut(&level) {
+            out!("init: deinitialize level {level:?}...");
             layer.deinitialize()
+        } else {
+            out!("init: skip deinit of level {level:?}.");
         }
     }
 }

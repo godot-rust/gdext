@@ -1,6 +1,4 @@
-use godot::engine::{
-    AnimatedSprite2D, Area2D, Area2DVirtual, CollisionShape2D, Engine, PhysicsBody2D,
-};
+use godot::engine::{AnimatedSprite2D, Area2D, Area2DVirtual, CollisionShape2D, PhysicsBody2D};
 use godot::prelude::*;
 
 #[derive(GodotClass)]
@@ -60,11 +58,7 @@ impl Area2DVirtual for Player {
     }
 
     fn process(&mut self, delta: f64) {
-        // Don't process if running in editor. This part should be removed when
-        // issue is resolved: https://github.com/godot-rust/gdext/issues/70
-        if Engine::singleton().is_editor_hint() {
-            return;
-        }
+        println!("process");
 
         let mut animated_sprite = self
             .base

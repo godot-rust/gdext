@@ -469,7 +469,7 @@ pub fn itest(meta: TokenStream, input: TokenStream) -> TokenStream {
 
 /// Proc-macro attribute to be used in combination with the [`ExtensionLibrary`] trait.
 ///
-/// [`ExtensionLibrary`]: crate::init::ExtensionLibrary
+/// [`ExtensionLibrary`]: trait.ExtensionLibrary.html
 // FIXME intra-doc link
 #[proc_macro_attribute]
 pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {

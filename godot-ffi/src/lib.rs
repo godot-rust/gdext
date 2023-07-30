@@ -27,6 +27,7 @@ mod plugins;
 mod toolbox;
 
 use compat::BindingCompat;
+use std::cell;
 use std::ffi::CStr;
 
 // See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
@@ -52,10 +53,16 @@ struct GodotBinding {
     library: GDExtensionClassLibraryPtr,
     method_table: GlobalMethodTable,
     runtime_metadata: GdextRuntimeMetadata,
+    config: GdextConfig,
 }
 
 struct GdextRuntimeMetadata {
     godot_version: GDExtensionGodotVersion,
+}
+
+pub struct GdextConfig {
+    pub virtuals_active_in_editor: bool,
+    pub is_editor: cell::OnceCell<bool>,
 }
 
 /// Late-init globals
@@ -71,7 +78,11 @@ static mut BINDING: Option<GodotBinding> = None;
 /// - The `library` pointer must be the pointer given by Godot at initialisation.
 /// - This function must not be called from multiple threads.
 /// - This function must be called before any use of [`get_library`].
-pub unsafe fn initialize(compat: InitCompat, library: GDExtensionClassLibraryPtr) {
+pub unsafe fn initialize(
+    compat: InitCompat,
+    library: GDExtensionClassLibraryPtr,
+    config: GdextConfig,
+) {
     out!("Initialize gdext...");
 
     out!(
@@ -100,6 +111,7 @@ pub unsafe fn initialize(compat: InitCompat, library: GDExtensionClassLibraryPtr
         method_table,
         library,
         runtime_metadata,
+        config,
     });
     out!("Assigned binding.");
 
@@ -144,10 +156,18 @@ pub unsafe fn method_table() -> &'static GlobalMethodTable {
 
 /// # Safety
 ///
-/// Must be accessed from the main thread.
+/// Must be accessed from the main thread, and the interface must have been initialized.
 #[inline(always)]
 pub(crate) unsafe fn runtime_metadata() -> &'static GdextRuntimeMetadata {
     &BINDING.as_ref().unwrap().runtime_metadata
+}
+
+/// # Safety
+///
+/// Must be accessed from the main thread, and the interface must have been initialized.
+#[inline]
+pub unsafe fn config() -> &'static GdextConfig {
+    &BINDING.as_ref().unwrap().config
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
