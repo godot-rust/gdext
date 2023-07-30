@@ -213,7 +213,7 @@ impl FnDefinitions {
 pub(crate) fn generate_class_files(
     api: &ExtensionApi,
     ctx: &mut Context,
-    _build_config: &str,
+    _build_config: [&str; 2],
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
@@ -261,7 +261,7 @@ pub(crate) fn generate_class_files(
 pub(crate) fn generate_builtin_class_files(
     api: &ExtensionApi,
     ctx: &mut Context,
-    _build_config: &str,
+    _build_config: [&str; 2],
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
@@ -307,7 +307,7 @@ pub(crate) fn generate_builtin_class_files(
 pub(crate) fn generate_native_structures_files(
     api: &ExtensionApi,
     ctx: &mut Context,
-    _build_config: &str,
+    _build_config: [&str; 2],
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
