@@ -642,7 +642,7 @@ impl<T: VariantMetadata> Share for Array<T> {
 
 impl<T: VariantMetadata + TypeStringHint> TypeStringHint for Array<T> {
     fn type_string() -> String {
-        format!("{}:{}", sys::VariantType::Array as i32, T::type_string())
+        format!("{}:{}", VariantType::Array as i32, T::type_string())
     }
 }
 

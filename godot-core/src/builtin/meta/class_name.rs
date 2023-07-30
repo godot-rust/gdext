@@ -7,9 +7,8 @@
 use godot_ffi as sys;
 use std::collections::HashMap;
 use std::ffi::CStr;
-use std::sync;
+use std::{fmt, sync};
 
-use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::hash::{Hash, Hasher};
 
 use crate::builtin::*;
@@ -26,8 +25,12 @@ use crate::builtin::*;
 static CACHED_STRING_NAMES: sync::Mutex<Option<HashMap<ClassName, Box<StringName>>>> =
     sync::Mutex::new(None);
 
-/// Utility to construct class names known at compile time.
-/// Cannot be a function since the backing string must be retained.
+/// Name of a class registered with Godot.
+///
+/// Holds the Godot name, not the Rust name (they sometimes differ, e.g. Godot `CSGMesh3D` vs Rust `CsgMesh3D`).
+///
+/// You cannot construct instances of this type yourself; use [`GodotClass::class_name()`](crate::obj::GodotClass::class_name()).
+/// This struct is very cheap to copy.
 #[derive(Copy, Clone, Debug)]
 pub struct ClassName {
     // Could use small-array optimization for common string lengths.
@@ -51,15 +54,18 @@ impl ClassName {
         Self::from_ascii_cstr(b"\0")
     }
 
+    /// Returns the class name as a string slice with static storage duration.
     pub fn as_str(&self) -> &'static str {
         // unwrap() safe, checked in constructor
         self.c_str.to_str().unwrap()
     }
 
+    /// Converts the class name to a GodotString.
     pub fn to_godot_string(&self) -> GodotString {
         self.with_string_name(|s| s.into())
     }
 
+    /// Converts the class name to a StringName.
     pub fn to_string_name(&self) -> StringName {
         self.with_string_name(|s| s.clone())
     }
@@ -102,12 +108,8 @@ impl Hash for ClassName {
     }
 }
 
-impl Display for ClassName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+impl fmt::Display for ClassName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.as_str().fmt(f)
     }
 }
-
-// SAFETY: Send is only used for the plugin system (self-registration).
-// That whole logic happens on a single thread during initialization, before running any user code.
-unsafe impl Send for ClassName {}

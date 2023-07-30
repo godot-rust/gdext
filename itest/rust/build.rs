@@ -81,7 +81,7 @@ fn collect_inputs() -> Vec<Input> {
     );
 
     // Composite
-    push!(inputs; int, InstanceId, -1, InstanceId::from_nonzero(0xFFFFFFFFFFFFFFF));
+    push!(inputs; int, InstanceId, -1, InstanceId::from_i64(0xFFFFFFFFFFFFFFF));
     push!(inputs; Variant, Variant, 123, 123i64.to_variant());
 
     // EngineEnum

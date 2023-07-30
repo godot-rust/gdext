@@ -175,7 +175,7 @@ macro_rules! debug_assert_godot {
     ($expr:expr) => {
         debug_assert!(
             $expr,
-            "Godot engine not available; make sure you are do not call it from unit/doc tests"
+            "Godot engine not available; make sure you are not calling it from unit/doc tests"
         ); // previous message: "unchecked access to Option::None"
     };
 }

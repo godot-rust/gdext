@@ -655,6 +655,9 @@ pub unsafe fn raw_object_init(
     object_ptr
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Trait impls
+
 /// Destructor with semantics depending on memory strategy.
 ///
 /// * If this `Gd` smart pointer holds a reference-counted type, this will decrement the reference counter.
@@ -747,8 +750,7 @@ impl<T: GodotClass> Export for Gd<T> {
     }
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Trait impls
+// Trait impls Property, Export and TypeStringHint for Option<Gd<T>> are covered by blanket impl for Option<T>
 
 impl<T: GodotClass> FromVariant for Gd<T> {
     fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
@@ -773,6 +775,16 @@ impl<T: GodotClass> FromVariant for Gd<T> {
             // (See https://github.com/godot-rust/gdext/issues/158)
             .and_then(|obj| obj.owned_cast().ok())
             .ok_or(VariantConversionError::BadType)
+    }
+}
+
+impl<T: GodotClass> FromVariant for Option<Gd<T>> {
+    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+        if variant.is_nil() {
+            Ok(None)
+        } else {
+            Gd::try_from_variant(variant).map(Some)
+        }
     }
 }
 
@@ -803,16 +815,6 @@ impl<T: GodotClass> ToVariant for Option<Gd<T>> {
         match self {
             Some(gd) => gd.to_variant(),
             None => Variant::nil(),
-        }
-    }
-}
-
-impl<T: GodotClass> FromVariant for Option<Gd<T>> {
-    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-        if variant.is_nil() {
-            Ok(None)
-        } else {
-            Gd::try_from_variant(variant).map(Some)
         }
     }
 }

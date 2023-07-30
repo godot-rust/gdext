@@ -380,9 +380,16 @@ fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context)
             continue;
         }
 
+        let op_enumerator_pascal = util::shout_to_pascal(name);
+        let op_enumerator_pascal = if op_enumerator_pascal == "Module" {
+            "Modulo"
+        } else {
+            &op_enumerator_pascal
+        };
+
         result
             .variant_op_enumerators_pascal
-            .push(ident(&util::shout_to_pascal(name)));
+            .push(ident(op_enumerator_pascal));
         result
             .variant_op_enumerators_ord
             .push(util::make_enumerator_ord(op.value));

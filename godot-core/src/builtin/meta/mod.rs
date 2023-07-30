@@ -69,8 +69,9 @@ impl<T: VariantMetadata> VariantMetadata for Option<T> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Rusty abstraction of sys::GDExtensionPropertyInfo
-/// Keeps the actual allocated values (the sys equivalent only keeps pointers, which fall out of scope)
+/// Rusty abstraction of `sys::GDExtensionPropertyInfo`.
+///
+/// Keeps the actual allocated values (the `sys` equivalent only keeps pointers, which fall out of scope).
 #[derive(Debug)]
 // Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
 pub struct PropertyInfo {

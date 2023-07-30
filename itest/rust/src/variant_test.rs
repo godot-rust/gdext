@@ -35,8 +35,8 @@ fn variant_nil() {
 fn variant_conversions() {
     roundtrip(false);
     roundtrip(true);
-    roundtrip(InstanceId::from_nonzero(-9223372036854775808i64));
-    // roundtrip(Some(InstanceId::from_nonzero(9223372036854775807i64)));
+    roundtrip(InstanceId::from_i64(-9223372036854775808i64));
+    // roundtrip(Some(InstanceId::from_i64(9223372036854775807i64)));
     // roundtrip(Option::<InstanceId>::None);
 
     // unsigned
