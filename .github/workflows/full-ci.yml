@@ -93,7 +93,7 @@ jobs:
 
           - name: linux
             os: ubuntu-20.04
-            rust-toolchain: '1.66.0'
+            rust-toolchain: '1.70.0'
             rust-special: -msrv
 
     steps:
