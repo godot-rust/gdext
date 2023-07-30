@@ -29,7 +29,7 @@ However, it is still in an early stage and there are certain things to keep in m
 
 > **Warning**
 > The public API introduces breaking changes from time to time. Most of these are motivated by new features and
-> improved ergonomics for existing ones. Once we are on crates.io, we will adhere to SemVer for releases.
+> improved ergonomics for existing ones. See also [API stability] in the book.
 
 **Features:** While most Godot features are available, some less commonly used ones are missing. See [#24] for an up-to-date overview.  
 At this point, there is **no** support for Android, iOS or WASM. Contributions are very welcome!
@@ -67,6 +67,7 @@ Contributions are very welcome! If you want to help out, see [`Contributing.md`]
 [#24]: https://github.com/godot-rust/gdext/issues/24
 [`gdnative`]: https://github.com/godot-rust/gdnative
 [API Docs]: https://godot-rust.github.io/docs/gdext
+[API stability]: https://godot-rust.github.io/book/gdext/advanced/compatibility.html#rust-api-stability
 [book]: https://godot-rust.github.io/book/gdext
 [Discord]: https://discord.gg/aKUCJ8rJsc
 [dodge-the-creeps]: examples/dodge-the-creeps
