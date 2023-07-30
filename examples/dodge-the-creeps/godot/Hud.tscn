@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://ccqoreueuxdb7"]
 
-[ext_resource type="FontFile" uid="uid://cit6gwe5px1q8" path="res://fonts/Xolonium-Regular.ttf" id="1_poxll"]
+[ext_resource type="FontFile" uid="uid://b0b6g57tsjvwg" path="res://fonts/Xolonium-Regular.ttf" id="1_poxll"]
 
 [sub_resource type="InputEventAction" id="InputEventAction_fopy7"]
 action = &"start_game"
