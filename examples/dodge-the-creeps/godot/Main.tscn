@@ -2,8 +2,8 @@
 
 [ext_resource type="PackedScene" uid="uid://4vwrqjegqwpj" path="res://Player.tscn" id="3"]
 [ext_resource type="PackedScene" uid="uid://ccqoreueuxdb7" path="res://Hud.tscn" id="4"]
-[ext_resource type="AudioStream" uid="uid://q2pf4fr8d0ks" path="res://art/House In a Forest Loop.ogg" id="5"]
-[ext_resource type="AudioStream" uid="uid://dw26fpygeag8o" path="res://art/gameover.wav" id="6"]
+[ext_resource type="AudioStream" uid="uid://ciubrqiaxnr8u" path="res://art/House In a Forest Loop.ogg" id="5"]
+[ext_resource type="AudioStream" uid="uid://bs6ekw8xcvudv" path="res://art/gameover.wav" id="6"]
 
 [sub_resource type="Curve2D" id="1"]
 _data = {
