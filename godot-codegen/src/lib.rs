@@ -29,6 +29,7 @@ use interface_generator::generate_sys_interface_file;
 use util::{ident, to_pascal_case, to_snake_case};
 use utilities_generator::generate_utilities_file;
 
+use crate::context::NotificationEnum;
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
 use std::path::{Path, PathBuf};
@@ -265,8 +266,7 @@ impl ToTokens for ModName {
 
 struct GeneratedClass {
     code: TokenStream,
-    notification_enum_name: Ident,
-    has_own_notification_enum: bool,
+    notification_enum: NotificationEnum,
     inherits_macro_ident: Ident,
     /// Sidecars are the associated modules with related enum/flag types, such as `node_3d` for `Node3D` class.
     has_sidecar_module: bool,
