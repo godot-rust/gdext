@@ -65,11 +65,14 @@ pub struct TestBaseRenamed {
     base: Base<HttpRequest>,
 }
 
+#[allow(unused)]
 #[godot_api]
 impl TestBaseRenamed {
-    // Test unnamed parameter in user function
     #[func]
     fn with_unnamed(&self, _: i32) {}
+
+    #[func]
+    fn with_mut(&self, mut param: i32) {}
 
     #[func]
     fn with_many_unnamed(&self, _: i32, _: GodotString) {}

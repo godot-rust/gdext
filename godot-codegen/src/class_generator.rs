@@ -186,6 +186,15 @@ impl FnDefinition {
             builders: TokenStream::new(),
         }
     }
+
+    fn into_functions_only(self) -> TokenStream {
+        assert!(
+            self.builders.is_empty(),
+            "definition of this function should not have any builders"
+        );
+
+        self.functions
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -196,6 +205,7 @@ struct FnDefinitions {
 }
 
 impl FnDefinitions {
+    /// Combines separate code from multiple function definitions into one, split by functions and builders.
     fn expand(definitions: impl Iterator<Item = FnDefinition>) -> FnDefinitions {
         // Collect needed because borrowed by 2 closures
         let definitions: Vec<_> = definitions.collect();
@@ -1314,11 +1324,8 @@ pub(crate) fn make_utility_function_definition(
         },
     );
 
-    assert!(
-        definition.builders.is_empty(),
-        "utility functions should not have builders"
-    );
-    definition.functions
+    // Utility functions have no builders.
+    definition.into_functions_only()
 }
 
 /// Defines which methods to use to convert between `Variant` and FFI (either variant ptr or type ptr)
@@ -1993,7 +2000,7 @@ fn make_virtual_method(method: &ClassMethod, ctx: &mut Context) -> TokenStream {
     );
 
     // Virtual methods have no builders.
-    definition.functions
+    definition.into_functions_only()
 }
 
 fn make_all_virtual_methods(
