@@ -14,7 +14,7 @@ use crate::{api_parser::*, SubmitFn};
 use crate::{ident, util, Context};
 
 struct CentralItems {
-    opaque_types: Vec<TokenStream>,
+    opaque_types: [Vec<TokenStream>; 2],
     variant_ty_enumerators_pascal: Vec<Ident>,
     variant_ty_enumerators_rust: Vec<TokenStream>,
     variant_ty_enumerators_ord: Vec<Literal>,
@@ -55,7 +55,7 @@ pub(crate) struct BuiltinTypeInfo<'a> {
 pub(crate) fn generate_sys_central_file(
     api: &ExtensionApi,
     ctx: &mut Context,
-    build_config: &str,
+    build_config: [&str; 2],
     sys_gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
@@ -91,7 +91,7 @@ pub(crate) fn generate_core_mod_file(gen_path: &Path, submit_fn: &mut SubmitFn) 
 pub(crate) fn generate_core_central_file(
     api: &ExtensionApi,
     ctx: &mut Context,
-    build_config: &str,
+    build_config: [&str; 2],
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
@@ -115,16 +115,22 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
     } = central_items;
 
     let build_config_struct = make_build_config(godot_version);
+    let [opaque_32bit, opaque_64bit] = opaque_types;
 
     quote! {
         use crate::{
             ffi_methods, GDExtensionConstTypePtr, GDExtensionTypePtr, GDExtensionUninitializedTypePtr,
             GDExtensionUninitializedVariantPtr, GDExtensionVariantPtr, GodotFfi,
         };
-
+        #[cfg(target_pointer_width = "32")]
         pub mod types {
-            #(#opaque_types)*
+            #(#opaque_32bit)*
         }
+        #[cfg(target_pointer_width = "64")]
+        pub mod types {
+            #(#opaque_64bit)*
+        }
+
 
         // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -315,15 +321,20 @@ fn make_core_code(central_items: &CentralItems) -> TokenStream {
     }
 }
 
-fn make_central_items(api: &ExtensionApi, build_config: &str, ctx: &mut Context) -> CentralItems {
-    let mut opaque_types = Vec::new();
+fn make_central_items(
+    api: &ExtensionApi,
+    build_config: [&str; 2],
+    ctx: &mut Context,
+) -> CentralItems {
+    let mut opaque_types = [Vec::new(), Vec::new()];
     for class in &api.builtin_class_sizes {
-        if class.build_configuration == build_config {
-            for ClassSize { name, size } in &class.sizes {
-                opaque_types.push(make_opaque_type(name, *size));
+        for i in 0..2 {
+            if class.build_configuration == build_config[i] {
+                for ClassSize { name, size } in &class.sizes {
+                    opaque_types[i].push(make_opaque_type(name, *size));
+                }
+                break;
             }
-
-            break;
         }
     }
 
