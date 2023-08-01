@@ -33,9 +33,20 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
     // let mut matches = Vec::with_capacity(values.len());
     let mut unique_ords = Vec::with_capacity(values.len());
 
+    let mut all_positive = true;
+    let mut has_max = false;
+
     for enumerator in values {
         let name = make_enumerator_name(&enumerator.name, &enum_.name);
         let ordinal = make_enumerator_ord(enumerator.value);
+
+        if enumerator.name.ends_with("_MAX") {
+            has_max = true;
+        }
+
+        if enumerator.value < 0 {
+            all_positive = false;
+        }
 
         enumerators.push(quote! {
             pub const #name: Self = Self { ord: #ordinal };
@@ -85,6 +96,26 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
             }
         }
     };
+
+    let extra_conversions = if all_positive && has_max {
+        vec!["u32", "u64", "usize"]
+    } else {
+        Vec::default()
+    };
+
+    let extra_conversions = extra_conversions
+        .into_iter()
+        .map(ident)
+        .map(|s| {
+            quote! {
+                impl std::convert::From<#enum_name> for #s {
+                    fn from(value: #enum_name) -> Self {
+                        value.ord as Self
+                    }
+                }
+            }
+        })
+        .collect::<TokenStream>();
 
     let mut derives = vec!["Copy", "Clone", "Eq", "PartialEq", "Debug", "Hash"];
 
@@ -141,6 +172,7 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
             }
         }
         #bitfield_ops
+        #extra_conversions
     }
 }
 
