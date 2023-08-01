@@ -527,7 +527,12 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
     let (notification_enum, notification_enum_name) =
         make_notification_enum(class_name, &all_bases, ctx);
-    let has_sidecar_module = !enums.is_empty();
+
+    // Associated "sidecar" module is made public if there are other symbols related to the class, which are not
+    // in top-level godot::engine module (notification enums are not in the sidecar, but in godot::engine::notify).
+    // This checks if token streams (i.e. code) is empty.
+    let has_sidecar_module = !enums.is_empty() || !builders.is_empty();
+
     let class_doc = make_class_doc(
         class_name,
         base_ident_opt,
