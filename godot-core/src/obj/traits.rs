@@ -146,6 +146,31 @@ pub trait EngineEnum: Copy {
     }
 }
 
+/// Trait for enums that can be used as indices in arrays.
+///
+/// The conditions for a Godot enum to be "index-like" are:
+/// - Contains an enumerator ending in `_MAX`, which has the highest ordinal (denotes the size).
+/// - All other enumerators are consecutive integers inside 0..max (no negative ordinals, no gaps).
+///
+/// Duplicates are explicitly allowed, to allow for renamings/deprecations. The order in which Godot exposes
+/// the enumerators in the JSON is irrelevant.
+pub trait IndexEnum: EngineEnum {
+    /// Number of **distinct** enumerators in the enum.
+    ///
+    /// All enumerators are guaranteed to be in the range `0..ENUMERATOR_COUNT`, so you can use them
+    /// as indices in an array of size `ENUMERATOR_COUNT`.
+    ///
+    /// Keep in mind that two enumerators with the same ordinal are only counted once.
+    const ENUMERATOR_COUNT: usize;
+
+    /// Converts the enumerator to `usize`, which can be used as an array index.
+    ///
+    /// Note that two enumerators may have the same index, if they have the same ordinal.
+    fn to_index(self) -> usize {
+        self.ord() as usize
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Capability traits, providing dedicated functionalities for Godot classes

@@ -92,6 +92,16 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
         derives.push("Default");
     }
 
+    let index_enum_impl = if let Some(enum_max) = try_count_index_enum(enum_) {
+        quote! {
+            impl crate::obj::IndexEnum for #enum_name {
+                const ENUMERATOR_COUNT: usize = #enum_max;
+            }
+        }
+    } else {
+        TokenStream::new()
+    };
+
     let derives = derives.into_iter().map(ident);
 
     // Enumerator ordinal stored as i32, since that's enough to hold all current values and the default repr in C++.
@@ -124,6 +134,7 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
                 self.ord
             }
         }
+        #index_enum_impl
 
         impl sys::GodotFuncMarshal for #enum_name {
             type Via = i64;
@@ -179,6 +190,42 @@ fn make_enumerator_name(enumerator_name: &str, _enum_name: &str) -> Ident {
     // tons of variantions, see test cases in lib.rs
 
     ident(enumerator_name)
+}
+
+/// If an enum qualifies as "indexable" (can be used as array index), returns the number of possible values.
+///
+/// See `godot::obj::IndexEnum` for what constitutes "indexable".
+fn try_count_index_enum(enum_: &Enum) -> Option<usize> {
+    if enum_.is_bitfield || enum_.values.is_empty() {
+        return None;
+    }
+
+    // Sort by ordinal value. Allocates for every enum in the JSON, but should be OK (most enums are indexable).
+    let enumerators = {
+        let mut enumerators = enum_.values.clone();
+        enumerators.sort_by_key(|v| v.value);
+        enumerators
+    };
+
+    // Highest ordinal must be the "MAX" one.
+    // The presence of "MAX" indicates that Godot devs intended the enum to be used as an index.
+    // The condition is not strictly necessary and could theoretically be relaxed; there would need to be concrete use cases though.
+    let last = enumerators.last().unwrap(); // safe because of is_empty check above.
+    if !last.name.ends_with("_MAX") {
+        return None;
+    }
+
+    // The rest of the enumerators must be contiguous and without gaps (duplicates are OK).
+    let mut last_value = 0;
+    for enumerator in enumerators.iter() {
+        if last_value != enumerator.value && last_value + 1 != enumerator.value {
+            return None;
+        }
+
+        last_value = enumerator.value;
+    }
+
+    Some(last.value as usize)
 }
 
 pub fn to_snake_case(class_name: &str) -> String {

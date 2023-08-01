@@ -11,6 +11,7 @@ use quote::{format_ident, quote, ToTokens};
 use std::path::Path;
 
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
+use crate::context::NotificationEnum;
 use crate::util::{
     ident, option_as_slice, parse_native_structures_format, safe_ident, to_pascal_case,
     to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
@@ -185,6 +186,15 @@ impl FnDefinition {
             builders: TokenStream::new(),
         }
     }
+
+    fn into_functions_only(self) -> TokenStream {
+        assert!(
+            self.builders.is_empty(),
+            "definition of this function should not have any builders"
+        );
+
+        self.functions
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -195,6 +205,7 @@ struct FnDefinitions {
 }
 
 impl FnDefinitions {
+    /// Combines separate code from multiple function definitions into one, split by functions and builders.
     fn expand(definitions: impl Iterator<Item = FnDefinition>) -> FnDefinitions {
         // Collect needed because borrowed by 2 closures
         let definitions: Vec<_> = definitions.collect();
@@ -244,9 +255,7 @@ pub(crate) fn generate_class_files(
         modules.push(GeneratedClassModule {
             class_name,
             module_name,
-            own_notification_enum_name: generated_class
-                .has_own_notification_enum
-                .then_some(generated_class.notification_enum_name),
+            own_notification_enum_name: generated_class.notification_enum.try_to_own_name(),
             inherits_macro_ident: generated_class.inherits_macro_ident,
             is_pub_sidecar: generated_class.has_sidecar_module,
         });
@@ -518,7 +527,12 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
     let (notification_enum, notification_enum_name) =
         make_notification_enum(class_name, &all_bases, ctx);
-    let has_sidecar_module = !enums.is_empty();
+
+    // Associated "sidecar" module is made public if there are other symbols related to the class, which are not
+    // in top-level godot::engine module (notification enums are not in the sidecar, but in godot::engine::notify).
+    // This checks if token streams (i.e. code) is empty.
+    let has_sidecar_module = !enums.is_empty() || !builders.is_empty();
+
     let class_doc = make_class_doc(
         class_name,
         base_ident_opt,
@@ -534,7 +548,9 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         &notification_enum_name,
         ctx,
     );
-    let notify_method = make_notify_method(class_name, ctx);
+
+    // notify() and notify_reversed() are added after other methods, to list others first in docs.
+    let notify_methods = make_notify_methods(class_name, ctx);
 
     let memory = if class_name.rust_ty == "Object" {
         ident("DynamicRefCount")
@@ -570,8 +586,8 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
             #notification_enum
             impl #class_name {
                 #constructor
-                #notify_method
                 #methods
+                #notify_methods
                 #constants
             }
             unsafe impl crate::obj::GodotClass for #class_name {
@@ -632,15 +648,34 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
 
     GeneratedClass {
         code: tokens,
-        notification_enum_name,
-        has_own_notification_enum: notification_enum.is_some(),
+        notification_enum: NotificationEnum {
+            name: notification_enum_name,
+            declared_by_own_class: notification_enum.is_some(),
+        },
         inherits_macro_ident: inherits_macro,
         has_sidecar_module,
     }
 }
 
-fn make_notify_method(class_name: &TyName, ctx: &mut Context) -> TokenStream {
+fn make_notify_methods(class_name: &TyName, ctx: &mut Context) -> TokenStream {
+    // Note: there are two more methods, but only from Node downwards, not from Object:
+    // - notify_thread_safe
+    // - notify_deferred_thread_group
+    // This could be modeled as either a single method, or two methods:
+    //   fn notify(what: XyNotification);
+    //   fn notify_with(what: XyNotification, mode: NotifyMode);
+    // with NotifyMode being an enum of: Normal | Reversed | ThreadSafe | DeferredThreadGroup.
+    // This would need either 2 enums (one starting at Object, one at Node) or have runtime checks.
+
     let enum_name = ctx.notification_enum_name(class_name);
+
+    // If this class does not have its own notification type, do not redefine the methods.
+    // The one from the parent class is fine.
+    if !enum_name.declared_by_own_class {
+        return TokenStream::new();
+    }
+
+    let enum_name = enum_name.name;
 
     quote! {
         /// ⚠️ Sends a Godot notification to all classes inherited by the object.
@@ -675,7 +710,7 @@ fn make_notification_enum(
 ) -> (Option<TokenStream>, Ident) {
     let Some(all_constants) = ctx.notification_constants(class_name) else  {
         // Class has no notification constants: reuse (direct/indirect) base enum
-        return (None, ctx.notification_enum_name(class_name));
+        return (None, ctx.notification_enum_name(class_name).name);
     };
 
     // Collect all notification constants from current and base classes
@@ -688,7 +723,7 @@ fn make_notification_enum(
 
     workaround_constant_collision(&mut all_constants);
 
-    let enum_name = ctx.notification_enum_name(class_name);
+    let enum_name = ctx.notification_enum_name(class_name).name;
     let doc_str = format!(
         "Notification type for class [`{c}`][crate::engine::{c}].",
         c = class_name.rust_ty
@@ -1294,11 +1329,8 @@ pub(crate) fn make_utility_function_definition(
         },
     );
 
-    assert!(
-        definition.builders.is_empty(),
-        "utility functions should not have builders"
-    );
-    definition.functions
+    // Utility functions have no builders.
+    definition.into_functions_only()
 }
 
 /// Defines which methods to use to convert between `Variant` and FFI (either variant ptr or type ptr)
@@ -1973,7 +2005,7 @@ fn make_virtual_method(method: &ClassMethod, ctx: &mut Context) -> TokenStream {
     );
 
     // Virtual methods have no builders.
-    definition.functions
+    definition.into_functions_only()
 }
 
 fn make_all_virtual_methods(

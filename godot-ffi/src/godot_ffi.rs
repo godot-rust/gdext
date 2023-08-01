@@ -14,6 +14,7 @@ use std::{error::Error, fmt::Debug, marker::PhantomData, ptr};
 ///
 /// [`from_arg_ptr`](GodotFfi::from_arg_ptr) and [`move_return_ptr`](GodotFfi::move_return_ptr)
 /// must properly initialize and clean up values given the [`PtrcallType`] provided by the caller.
+#[doc(hidden)] // shows up in implementors otherwise
 pub unsafe trait GodotFfi {
     /// Construct from Godot opaque pointer.
     ///
@@ -245,6 +246,7 @@ pub enum PtrcallType {
 }
 
 /// Trait implemented for all types that can be passed to and from Godot via function calls.
+#[doc(hidden)] // shows up in implementors otherwise
 pub trait GodotFuncMarshal: Sized {
     /// The type used when passing a value to/from Godot.
     type Via: GodotFfi;

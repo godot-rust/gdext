@@ -6,8 +6,8 @@
 
 use crate::api_parser::Class;
 use crate::{util, ExtensionApi, GodotTy, RustTy, TyName};
-use proc_macro2::Ident;
-use quote::format_ident;
+use proc_macro2::{Ident, TokenStream};
+use quote::{format_ident, ToTokens};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
@@ -19,7 +19,7 @@ pub(crate) struct Context<'a> {
     inheritance_tree: InheritanceTree,
     cached_rust_types: HashMap<GodotTy, RustTy>,
     notifications_by_class: HashMap<TyName, Vec<(Ident, i32)>>,
-    notification_enum_names_by_class: HashMap<TyName, Ident>,
+    notification_enum_names_by_class: HashMap<TyName, NotificationEnum>,
 }
 
 impl<'a> Context<'a> {
@@ -60,7 +60,7 @@ impl<'a> Context<'a> {
                 ctx.inheritance_tree.insert(class_name.clone(), base_name);
             }
 
-            // Populate notification constants
+            // Populate notification constants (first, only for classes that declare them themselves).
             if let Some(constants) = class.constants.as_ref() {
                 let mut has_notifications = false;
 
@@ -70,10 +70,12 @@ impl<'a> Context<'a> {
                         if !has_notifications {
                             ctx.notifications_by_class
                                 .insert(class_name.clone(), Vec::new());
+
                             ctx.notification_enum_names_by_class.insert(
                                 class_name.clone(),
-                                make_notification_enum_name(&class_name),
+                                NotificationEnum::for_own_class(&class_name),
                             );
+
                             has_notifications = true;
                         }
 
@@ -112,13 +114,17 @@ impl<'a> Context<'a> {
             // For all bases inheriting most-derived base that has notification constants, reuse the type name.
             for i in (0..nearest_index).rev() {
                 let base_name = &all_bases[i];
+                let enum_name = NotificationEnum::for_other_class(nearest_enum_name.clone());
+
                 ctx.notification_enum_names_by_class
-                    .insert(base_name.clone(), nearest_enum_name.clone());
+                    .insert(base_name.clone(), enum_name);
             }
 
             // Also for this class, reuse the type name.
+            let enum_name = NotificationEnum::for_other_class(nearest_enum_name);
+
             ctx.notification_enum_names_by_class
-                .insert(class_name.clone(), nearest_enum_name.clone());
+                .insert(class_name.clone(), enum_name);
         }
 
         ctx
@@ -170,7 +176,7 @@ impl<'a> Context<'a> {
         self.notifications_by_class.get(class_name)
     }
 
-    pub fn notification_enum_name(&self, class_name: &TyName) -> Ident {
+    pub fn notification_enum_name(&self, class_name: &TyName) -> NotificationEnum {
         self.notification_enum_names_by_class
             .get(class_name)
             .unwrap_or_else(|| panic!("class {} has no notification enum name", class_name.rust_ty))
@@ -182,6 +188,50 @@ impl<'a> Context<'a> {
         assert!(prev.is_none(), "no overwrites of RustTy");
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(Clone)]
+pub struct NotificationEnum {
+    /// Name of the enum.
+    pub name: Ident,
+
+    /// Whether this is declared by the current class (from context), rather than inherited.
+    pub declared_by_own_class: bool,
+}
+
+impl NotificationEnum {
+    fn for_own_class(class_name: &TyName) -> Self {
+        Self {
+            name: format_ident!("{}Notification", class_name.rust_ty),
+            declared_by_own_class: true,
+        }
+    }
+
+    fn for_other_class(other: NotificationEnum) -> Self {
+        Self {
+            name: other.name,
+            declared_by_own_class: false,
+        }
+    }
+
+    /// Returns the name of the enum if it is declared by the current class, or `None` if it is inherited.
+    pub fn try_to_own_name(&self) -> Option<Ident> {
+        if self.declared_by_own_class {
+            Some(self.name.clone())
+        } else {
+            None
+        }
+    }
+}
+
+impl ToTokens for NotificationEnum {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.name.to_tokens(tokens)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Maintains class hierarchy. Uses Rust class names, not Godot ones.
 #[derive(Default)]
@@ -206,8 +256,4 @@ impl InheritanceTree {
         }
         result
     }
-}
-
-fn make_notification_enum_name(class_name: &TyName) -> Ident {
-    format_ident!("{}Notification", class_name.rust_ty)
 }
