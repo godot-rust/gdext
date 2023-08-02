@@ -90,7 +90,6 @@ jobs:
   godot-itest:
     name: godot-itest (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
-    if: github.event.pull_request.draft != true
     continue-on-error: false
     timeout-minutes: 15
     strategy:
