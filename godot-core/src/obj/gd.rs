@@ -160,36 +160,6 @@ where
         GdMut::from_cell(self.storage().get_mut())
     }
 
-    /// Access base without locking the user object.
-    ///
-    /// If you need mutations, use [`base_mut()`][Self::base_mut]. If you need a value copy, use [`base().share()`][Share::share].
-    pub fn base(&self) -> &Gd<T::Base> {
-        self.storage().base().deref()
-    }
-
-    /// Access base mutably without locking the user object.
-    ///
-    /// The idea is to support the `gd.base_mut().mutating_method()` pattern, which is not allowed with `gd.base()`.
-    /// If you need a copy of a `Gd` object, use `base().share()`.
-    ///
-    /// The return type is currently `Gd` and not `&mut Gd` because of `&mut` aliasing restrictions. This may change in the future.
-    pub fn base_mut(&mut self) -> Gd<T::Base> {
-        // Note: we cannot give safe mutable access to a base without RefCell, because multiple Gd pointers could call base_mut(),
-        // leading to aliased &mut. And we don't want RefCell, as C++ objects (nodes etc.) don't underly Rust's exclusive-ref limitations.
-        // The whole point of the Gd::base*() methods are to not require runtime-exclusive access to the Rust object.
-        //
-        // This is not a problem when accessing the `#[base]` field of a user struct directly, because `self` is guarded by the
-        // RefCell/RwLock in the InstanceStorage.
-        //
-        // Here, we instead return a copy (for now), which for the user looks mostly the same. The idea is that:
-        // - gd.base().mutating_method() fails
-        // - gd.base_mut().mutating_method() works.
-        //
-        // Downside: small ref-counting overhead for `RefCounted` types. If this is an issue in a real game (highly unlikely),
-        // the user could always cache Gd base pointers.
-        self.storage().base().share()
-    }
-
     /// Storage object associated with the extension instance.
     pub(crate) fn storage(&self) -> &InstanceStorage<T> {
         // SAFETY: instance pointer belongs to this instance. We only get a shared reference, no exclusive access, so even
@@ -541,16 +511,16 @@ where
     }
 }
 
-impl<T> Deref for Gd<T>
-where
-    T: GodotClass<Declarer = dom::EngineDomain>,
-{
-    type Target = T;
+impl<T: GodotClass> Deref for Gd<T> {
+    // Target is always an engine class:
+    // * if T is an engine class => T
+    // * if T is a user class => T::Base
+    type Target = <<T as GodotClass>::Declarer as dom::Domain>::DerefTarget<T>;
 
     fn deref(&self) -> &Self::Target {
         // SAFETY:
         //
-        // This relies on `Gd<Node3D>` having the layout as `Node3D` (as an example),
+        // This relies on `Gd<Node3D>.opaque` having the layout as `Node3D` (as an example),
         // which also needs #[repr(transparent)]:
         //
         // struct Gd<T: GodotClass> {
@@ -560,22 +530,21 @@ where
         // struct Node3D {
         //     object_ptr: sys::GDExtensionObjectPtr,
         // }
-        unsafe { std::mem::transmute::<&OpaqueObject, &T>(&self.opaque) }
+        unsafe { std::mem::transmute::<&OpaqueObject, &Self::Target>(&self.opaque) }
     }
 }
 
-impl<T> DerefMut for Gd<T>
-where
-    T: GodotClass<Declarer = dom::EngineDomain>,
-{
-    fn deref_mut(&mut self) -> &mut T {
+impl<T: GodotClass> DerefMut for Gd<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         // SAFETY: see also Deref
         //
         // The resulting `&mut T` is transmuted from `&mut OpaqueObject`, i.e. a *pointer* to the `opaque` field.
         // `opaque` itself has a different *address* for each Gd instance, meaning that two simultaneous
         // DerefMut borrows on two Gd instances will not alias, *even if* the underlying Godot object is the
         // same (i.e. `opaque` has the same value, but not address).
-        unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut self.opaque) }
+        //
+        // The `&mut self` guarantees that no other base access can take place for *the same Gd instance* (access to other Gds is OK).
+        unsafe { std::mem::transmute::<&mut OpaqueObject, &mut Self::Target>(&mut self.opaque) }
     }
 }
 

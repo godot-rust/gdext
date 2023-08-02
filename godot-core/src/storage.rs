@@ -12,23 +12,24 @@ use std::any::type_name;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Lifecycle {
+    // Warning: when reordering/changing enumerators, update match in AtomicLifecycle below
     Alive,
     Destroying,
     Dead, // reading this would typically already be too late, only best-effort in case of UB
 }
 
 #[cfg(not(feature = "threads"))]
-pub use single_thread::*;
+pub(crate) use single_threaded::*;
 
 #[cfg(feature = "threads")]
-pub use multi_thread::*;
+pub(crate) use multi_threaded::*;
 
 #[cfg(not(feature = "threads"))]
-mod single_thread {
+mod single_threaded {
     use std::any::type_name;
     use std::cell;
 
-    use crate::obj::{Base, GodotClass};
+    use crate::obj::GodotClass;
     use crate::out;
 
     use super::Lifecycle;
@@ -36,7 +37,6 @@ mod single_thread {
     /// Manages storage and lifecycle of user's extension class instances.
     pub struct InstanceStorage<T: GodotClass> {
         user_instance: cell::RefCell<T>,
-        cached_base: Base<T::Base>,
 
         // Declared after `user_instance`, is dropped last
         pub lifecycle: cell::Cell<Lifecycle>,
@@ -45,12 +45,11 @@ mod single_thread {
 
     /// For all Godot extension classes
     impl<T: GodotClass> InstanceStorage<T> {
-        pub fn construct(user_instance: T, cached_base: Base<T::Base>) -> Self {
+        pub fn construct(user_instance: T) -> Self {
             out!("    Storage::construct             <{}>", type_name::<T>());
 
             Self {
                 user_instance: cell::RefCell::new(user_instance),
-                cached_base,
                 lifecycle: cell::Cell::new(Lifecycle::Alive),
                 godot_ref_count: cell::Cell::new(1),
             }
@@ -102,10 +101,6 @@ mod single_thread {
             })
         }
 
-        pub fn base(&self) -> &Base<T::Base> {
-            &self.cached_base
-        }
-
         pub(super) fn godot_ref_count(&self) -> u32 {
             self.godot_ref_count.get()
         }
@@ -113,40 +108,63 @@ mod single_thread {
 }
 
 #[cfg(feature = "threads")]
-mod multi_thread {
+mod multi_threaded {
     use std::any::type_name;
+    use std::sync;
     use std::sync::atomic::{AtomicU32, Ordering};
-    use std::{cell, sync};
 
-    use crate::obj::{Base, GodotClass};
-    use crate::{out, sys};
+    use crate::obj::GodotClass;
+    use crate::out;
 
     use super::Lifecycle;
+
+    pub struct AtomicLifecycle {
+        atomic: AtomicU32,
+    }
+
+    impl AtomicLifecycle {
+        pub fn new(value: Lifecycle) -> Self {
+            Self {
+                atomic: AtomicU32::new(value as u32),
+            }
+        }
+
+        pub fn get(&self) -> Lifecycle {
+            match self.atomic.load(Ordering::Relaxed) {
+                0 => Lifecycle::Alive,
+                1 => Lifecycle::Dead,
+                2 => Lifecycle::Destroying,
+                other => panic!("Invalid lifecycle {other}"),
+            }
+        }
+
+        pub fn set(&self, value: Lifecycle) {
+            self.atomic.store(value as u32, Ordering::Relaxed);
+        }
+    }
 
     /// Manages storage and lifecycle of user's extension class instances.
     pub struct InstanceStorage<T: GodotClass> {
         user_instance: sync::RwLock<T>,
-        cached_base: Base<T::Base>,
 
         // Declared after `user_instance`, is dropped last
-        pub lifecycle: cell::Cell<Lifecycle>,
+        pub lifecycle: AtomicLifecycle,
         godot_ref_count: AtomicU32,
     }
 
     /// For all Godot extension classes
     impl<T: GodotClass> InstanceStorage<T> {
-        pub fn construct(user_instance: T, cached_base: Base<T::Base>) -> Self {
+        pub fn construct(user_instance: T) -> Self {
             out!("    Storage::construct             <{}>", type_name::<T>());
 
             Self {
                 user_instance: sync::RwLock::new(user_instance),
-                cached_base,
-                lifecycle: cell::Cell::new(Lifecycle::Alive),
+                lifecycle: AtomicLifecycle::new(Lifecycle::Alive),
                 godot_ref_count: AtomicU32::new(1),
             }
         }
 
-        pub(crate) fn on_inc_ref(&mut self) {
+        pub(crate) fn on_inc_ref(&self) {
             self.godot_ref_count.fetch_add(1, Ordering::Relaxed);
             out!(
                 "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
@@ -156,7 +174,7 @@ mod multi_thread {
             );
         }
 
-        pub(crate) fn on_dec_ref(&mut self) {
+        pub(crate) fn on_dec_ref(&self) {
             self.godot_ref_count.fetch_sub(1, Ordering::Relaxed);
             out!(
                 "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
@@ -188,14 +206,25 @@ mod multi_thread {
             })
         }
 
-        pub fn base(&self) -> &Base<T::Base> {
-            &self.cached_base
-        }
-
         pub(super) fn godot_ref_count(&self) -> u32 {
             self.godot_ref_count.load(Ordering::Relaxed)
         }
+
+        // fn __static_type_check() {
+        //     enforce_sync::<InstanceStorage<T>>();
+        // }
     }
+
+    // TODO make InstanceStorage<T> Sync
+    // This type can be accessed concurrently from multiple threads, so it should be Sync. That implies however that T must be Sync too
+    // (and possibly Send, because with `&mut` access, a `T` can be extracted as a value using mem::take() etc.).
+    // Which again means that we need to infest half the codebase with T: Sync + Send bounds, *and* make it all conditional on
+    // `#[cfg(feature = "threads")]`. Until the multi-threading design is clarified, we'll thus leave it as is.
+    //
+    // The following code + __static_type_check() above would make sure that InstanceStorage is Sync.
+
+    // Make sure storage is Sync in multi-threaded case, as it can be concurrently accessed through aliased Gd<T> pointers.
+    // fn enforce_sync<T: Sync>() {}
 }
 
 impl<T: GodotClass> InstanceStorage<T> {
@@ -266,6 +295,9 @@ pub unsafe fn as_storage<'u, T: GodotClass>(
 pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClassInstancePtr) {
     let _drop = Box::from_raw(instance_ptr as *mut InstanceStorage<T>);
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Callbacks
 
 pub fn nop_instance_callbacks() -> sys::GDExtensionInstanceBindingCallbacks {
     // These could also be null pointers, if they are definitely not invoked (e.g. create_callback only passed to object_get_instance_binding(),

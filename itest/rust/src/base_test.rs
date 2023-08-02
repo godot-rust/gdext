@@ -27,12 +27,9 @@ fn base_instance_id() {
 fn base_access_unbound() {
     let mut obj = Gd::<Based>::new_default();
 
-    {
-        let pos = Vector2::new(-5.5, 7.0);
-        obj.base_mut().set_position(pos);
-
-        assert_eq!(obj.base().get_position(), pos);
-    }
+    let pos = Vector2::new(-5.5, 7.0);
+    obj.set_position(pos);
+    assert_eq!(obj.get_position(), pos);
 
     obj.free();
 }
@@ -42,12 +39,9 @@ fn base_access_unbound() {
 fn base_access_unbound_no_field() {
     let mut obj = Gd::<Baseless>::new_default();
 
-    {
-        let pos = Vector2::new(-5.5, 7.0);
-        obj.base_mut().set_position(pos);
-
-        assert_eq!(obj.base().get_position(), pos);
-    }
+    let pos = Vector2::new(-5.5, 7.0);
+    obj.set_position(pos);
+    assert_eq!(obj.get_position(), pos);
 
     obj.free();
 }

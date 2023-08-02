@@ -15,28 +15,33 @@ use godot::{
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct HasProperty {
-    #[base]
-    base: Base<Node>,
-
     #[var]
     int_val: i32,
+
     #[var(get = get_int_val_read)]
     int_val_read: i32,
+
     #[var(set = set_int_val_write)]
     int_val_write: i32,
+
     #[var(get = get_int_val_rw, set = set_int_val_rw)]
     int_val_rw: i32,
+
     #[var(get = get_int_val_getter, set)]
     int_val_getter: i32,
+
     #[var(get, set = set_int_val_setter)]
     int_val_setter: i32,
 
     #[var(get = get_string_val, set = set_string_val)]
     string_val: GodotString,
+
     #[var(get = get_object_val, set = set_object_val)]
     object_val: Option<Gd<Object>>,
+
     #[var]
     texture_val: Gd<Texture>,
+
     #[var(get = get_texture_val, set = set_texture_val, hint = PROPERTY_HINT_RESOURCE_TYPE, hint_string = "Texture")]
     texture_val_rw: Option<Gd<Texture>>,
 }
@@ -120,7 +125,7 @@ impl HasProperty {
 
 #[godot_api]
 impl NodeVirtual for HasProperty {
-    fn init(base: Base<Node>) -> Self {
+    fn init(_base: Base<Node>) -> Self {
         HasProperty {
             int_val: 0,
             int_val_read: 2,
@@ -132,7 +137,6 @@ impl NodeVirtual for HasProperty {
             string_val: GodotString::new(),
             texture_val: Texture::new(),
             texture_val_rw: None,
-            base,
         }
     }
 }

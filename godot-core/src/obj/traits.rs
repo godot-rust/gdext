@@ -260,6 +260,8 @@ pub mod dom {
 
     /// Trait that specifies who declares a given `GodotClass`.
     pub trait Domain: Sealed {
+        type DerefTarget<T: GodotClass>;
+
         #[doc(hidden)]
         fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
         where
@@ -271,6 +273,8 @@ pub mod dom {
     pub enum EngineDomain {}
     impl Sealed for EngineDomain {}
     impl Domain for EngineDomain {
+        type DerefTarget<T: GodotClass> = T;
+
         fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = EngineDomain>,
@@ -284,6 +288,8 @@ pub mod dom {
     pub enum UserDomain {}
     impl Sealed for UserDomain {}
     impl Domain for UserDomain {
+        type DerefTarget<T: GodotClass> = T::Base;
+
         fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = Self>,

@@ -763,9 +763,6 @@ pub mod object_test_gd {
     #[derive(GodotClass)]
     #[class(base=Object)]
     pub struct CustomConstructor {
-        #[base]
-        base: Base<Object>,
-
         #[var]
         pub val: i64,
     }
@@ -774,7 +771,7 @@ pub mod object_test_gd {
     impl CustomConstructor {
         #[func]
         pub fn construct_object(val: i64) -> Gd<CustomConstructor> {
-            Gd::with_base(|base| Self { base, val })
+            Gd::with_base(|_base| Self { val })
         }
     }
 }
@@ -804,10 +801,7 @@ impl DoubleUse {
 
 #[derive(GodotClass)]
 #[class(init, base=Object)]
-struct SignalEmitter {
-    #[base]
-    base: Base<Object>,
-}
+struct SignalEmitter {}
 
 #[godot_api]
 impl SignalEmitter {

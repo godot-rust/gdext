@@ -17,10 +17,7 @@ use crate::itest;
 
 #[derive(GodotClass)]
 #[class(init, base=Object)]
-struct Emitter {
-    #[base]
-    base: Base<Object>,
-}
+struct Emitter {}
 
 #[godot_api]
 impl Emitter {
@@ -81,11 +78,8 @@ fn signals() {
         let signal_name = format!("signal_{i}_arg");
         let receiver_name = format!("receive_{i}_arg");
 
-        emitter
-            .base_mut()
-            .connect(signal_name.clone().into(), receiver.callable(receiver_name));
-
-        emitter.base_mut().emit_signal(signal_name.into(), arg);
+        emitter.connect(signal_name.clone().into(), receiver.callable(receiver_name));
+        emitter.emit_signal(signal_name.into(), arg);
 
         assert!(receiver.bind().used[i].get());
     }

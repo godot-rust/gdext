@@ -311,10 +311,7 @@ pub mod callbacks {
         let base = unsafe { Base::from_sys(base_ptr) };
         let user_instance = make_user_instance(base);
 
-        // Create 2nd base to cache inside storage. This one will remain weak forever (no action on destruction).
-        let cached_base = unsafe { Base::from_sys(base_ptr) };
-
-        let instance = InstanceStorage::<T>::construct(user_instance, cached_base);
+        let instance = InstanceStorage::<T>::construct(user_instance);
         let instance_ptr = instance.into_raw();
         let instance_ptr = instance_ptr as sys::GDExtensionClassInstancePtr;
 
