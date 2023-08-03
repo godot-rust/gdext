@@ -122,17 +122,18 @@ pub trait Inherits<Base>: GodotClass {}
 
 impl<T: GodotClass> Inherits<T> for T {}
 
-/// Trait implemented for all objects that inherit from `Resource` or `Node`. As those are the only objects
-/// you can export to the editor.
+/// Trait implemented for all objects that inherit from `Resource` or `Node`.
+///
+/// Those are the only objects you can export to the editor.
 pub trait ExportableObject: GodotClass {}
 
-/// Auto-implemented for all engine-provided classes
+/// Auto-implemented for all engine-provided classes.
 pub trait EngineClass: GodotClass {
     fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr;
     fn as_type_ptr(&self) -> sys::GDExtensionTypePtr;
 }
 
-/// Auto-implemented for all engine-provided enums
+/// Auto-implemented for all engine-provided enums.
 pub trait EngineEnum: Copy {
     fn try_from_ord(ord: i32) -> Option<Self>;
 
@@ -176,6 +177,7 @@ pub trait IndexEnum: EngineEnum {
 /// Capability traits, providing dedicated functionalities for Godot classes
 pub mod cap {
     use super::*;
+    use crate::obj::Gd;
 
     /// Trait for all classes that are constructible from the Godot engine.
     ///
@@ -190,6 +192,17 @@ pub mod cap {
     pub trait GodotInit: GodotClass {
         #[doc(hidden)]
         fn __godot_init(base: Base<Self::Base>) -> Self;
+    }
+
+    /// Trait that's implemented for user-defined classes that provide a `#[base]` field.
+    ///
+    /// Gives direct access to the base pointer without going through upcast FFI.
+    pub trait WithBaseField: GodotClass {
+        #[doc(hidden)]
+        fn __godot_base(&self) -> &Gd<Self::Base>;
+
+        #[doc(hidden)]
+        fn __godot_base_mut(&mut self) -> &mut Gd<Self::Base>;
     }
 
     // TODO Evaluate whether we want this public or not
@@ -247,6 +260,8 @@ pub mod dom {
 
     /// Trait that specifies who declares a given `GodotClass`.
     pub trait Domain: Sealed {
+        type DerefTarget<T: GodotClass>;
+
         #[doc(hidden)]
         fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
         where
@@ -258,6 +273,8 @@ pub mod dom {
     pub enum EngineDomain {}
     impl Sealed for EngineDomain {}
     impl Domain for EngineDomain {
+        type DerefTarget<T: GodotClass> = T;
+
         fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = EngineDomain>,
@@ -271,6 +288,8 @@ pub mod dom {
     pub enum UserDomain {}
     impl Sealed for UserDomain {}
     impl Domain for UserDomain {
+        type DerefTarget<T: GodotClass> = T::Base;
+
         fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = Self>,

@@ -12,19 +12,20 @@ use std::any::type_name;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Lifecycle {
+    // Warning: when reordering/changing enumerators, update match in AtomicLifecycle below
     Alive,
     Destroying,
     Dead, // reading this would typically already be too late, only best-effort in case of UB
 }
 
 #[cfg(not(feature = "threads"))]
-pub use single_thread::*;
+pub(crate) use single_threaded::*;
 
 #[cfg(feature = "threads")]
-pub use multi_thread::*;
+pub(crate) use multi_threaded::*;
 
 #[cfg(not(feature = "threads"))]
-mod single_thread {
+mod single_threaded {
     use std::any::type_name;
     use std::cell;
 
@@ -38,8 +39,8 @@ mod single_thread {
         user_instance: cell::RefCell<T>,
 
         // Declared after `user_instance`, is dropped last
-        pub lifecycle: Lifecycle,
-        godot_ref_count: u32,
+        pub lifecycle: cell::Cell<Lifecycle>,
+        godot_ref_count: cell::Cell<u32>,
     }
 
     /// For all Godot extension classes
@@ -49,43 +50,34 @@ mod single_thread {
 
             Self {
                 user_instance: cell::RefCell::new(user_instance),
-                lifecycle: Lifecycle::Alive,
-                godot_ref_count: 1,
+                lifecycle: cell::Cell::new(Lifecycle::Alive),
+                godot_ref_count: cell::Cell::new(1),
             }
         }
 
-        pub(crate) fn on_inc_ref(&mut self) {
-            self.godot_ref_count += 1;
+        pub(crate) fn on_inc_ref(&self) {
+            let refc = self.godot_ref_count.get() + 1;
+            self.godot_ref_count.set(refc);
+
             out!(
                 "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
-                self.godot_ref_count(),
+                refc,
                 type_name::<T>(),
                 //self.user_instance
             );
         }
 
-        pub(crate) fn on_dec_ref(&mut self) {
-            self.godot_ref_count -= 1;
+        pub(crate) fn on_dec_ref(&self) {
+            let refc = self.godot_ref_count.get() - 1;
+            self.godot_ref_count.set(refc);
+
             out!(
                 "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
-                self.godot_ref_count(),
+                refc,
                 type_name::<T>(),
                 //self.user_instance
             );
         }
-
-        /* pub fn destroy(&mut self) {
-            assert!(
-                self.user_instance.is_some(),
-                "Cannot destroy user instance which is not yet initialized"
-            );
-            assert!(
-                !self.destroyed,
-                "Cannot destroy user instance multiple times"
-            );
-            self.user_instance = None; // drops T
-                                       // TODO drop entire Storage
-        }*/
 
         pub fn get(&self) -> cell::Ref<T> {
             self.user_instance.try_borrow().unwrap_or_else(|_e| {
@@ -98,7 +90,7 @@ mod single_thread {
             })
         }
 
-        pub fn get_mut(&mut self) -> cell::RefMut<T> {
+        pub fn get_mut(&self) -> cell::RefMut<T> {
             self.user_instance.try_borrow_mut().unwrap_or_else(|_e| {
                 panic!(
                     "Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
@@ -110,13 +102,13 @@ mod single_thread {
         }
 
         pub(super) fn godot_ref_count(&self) -> u32 {
-            self.godot_ref_count
+            self.godot_ref_count.get()
         }
     }
 }
 
 #[cfg(feature = "threads")]
-mod multi_thread {
+mod multi_threaded {
     use std::any::type_name;
     use std::sync;
     use std::sync::atomic::{AtomicU32, Ordering};
@@ -126,12 +118,37 @@ mod multi_thread {
 
     use super::Lifecycle;
 
+    pub struct AtomicLifecycle {
+        atomic: AtomicU32,
+    }
+
+    impl AtomicLifecycle {
+        pub fn new(value: Lifecycle) -> Self {
+            Self {
+                atomic: AtomicU32::new(value as u32),
+            }
+        }
+
+        pub fn get(&self) -> Lifecycle {
+            match self.atomic.load(Ordering::Relaxed) {
+                0 => Lifecycle::Alive,
+                1 => Lifecycle::Dead,
+                2 => Lifecycle::Destroying,
+                other => panic!("Invalid lifecycle {other}"),
+            }
+        }
+
+        pub fn set(&self, value: Lifecycle) {
+            self.atomic.store(value as u32, Ordering::Relaxed);
+        }
+    }
+
     /// Manages storage and lifecycle of user's extension class instances.
     pub struct InstanceStorage<T: GodotClass> {
         user_instance: sync::RwLock<T>,
 
         // Declared after `user_instance`, is dropped last
-        pub lifecycle: Lifecycle,
+        pub lifecycle: AtomicLifecycle,
         godot_ref_count: AtomicU32,
     }
 
@@ -142,12 +159,12 @@ mod multi_thread {
 
             Self {
                 user_instance: sync::RwLock::new(user_instance),
-                lifecycle: Lifecycle::Alive,
+                lifecycle: AtomicLifecycle::new(Lifecycle::Alive),
                 godot_ref_count: AtomicU32::new(1),
             }
         }
 
-        pub(crate) fn on_inc_ref(&mut self) {
+        pub(crate) fn on_inc_ref(&self) {
             self.godot_ref_count.fetch_add(1, Ordering::Relaxed);
             out!(
                 "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
@@ -157,7 +174,7 @@ mod multi_thread {
             );
         }
 
-        pub(crate) fn on_dec_ref(&mut self) {
+        pub(crate) fn on_dec_ref(&self) {
             self.godot_ref_count.fetch_sub(1, Ordering::Relaxed);
             out!(
                 "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
@@ -166,19 +183,6 @@ mod multi_thread {
                 //self.user_instance
             );
         }
-
-        /* pub fn destroy(&mut self) {
-            assert!(
-                self.user_instance.is_some(),
-                "Cannot destroy user instance which is not yet initialized"
-            );
-            assert!(
-                !self.destroyed,
-                "Cannot destroy user instance multiple times"
-            );
-            self.user_instance = None; // drops T
-                                       // TODO drop entire Storage
-        }*/
 
         pub fn get(&self) -> sync::RwLockReadGuard<T> {
             self.user_instance.read().unwrap_or_else(|_e| {
@@ -191,7 +195,7 @@ mod multi_thread {
             })
         }
 
-        pub fn get_mut(&mut self) -> sync::RwLockWriteGuard<T> {
+        pub fn get_mut(&self) -> sync::RwLockWriteGuard<T> {
             self.user_instance.write().unwrap_or_else(|_e| {
                 panic!(
                     "Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
@@ -205,7 +209,22 @@ mod multi_thread {
         pub(super) fn godot_ref_count(&self) -> u32 {
             self.godot_ref_count.load(Ordering::Relaxed)
         }
+
+        // fn __static_type_check() {
+        //     enforce_sync::<InstanceStorage<T>>();
+        // }
     }
+
+    // TODO make InstanceStorage<T> Sync
+    // This type can be accessed concurrently from multiple threads, so it should be Sync. That implies however that T must be Sync too
+    // (and possibly Send, because with `&mut` access, a `T` can be extracted as a value using mem::take() etc.).
+    // Which again means that we need to infest half the codebase with T: Sync + Send bounds, *and* make it all conditional on
+    // `#[cfg(feature = "threads")]`. Until the multi-threading design is clarified, we'll thus leave it as is.
+    //
+    // The following code + __static_type_check() above would make sure that InstanceStorage is Sync.
+
+    // Make sure storage is Sync in multi-threaded case, as it can be concurrently accessed through aliased Gd<T> pointers.
+    // fn enforce_sync<T: Sync>() {}
 }
 
 impl<T: GodotClass> InstanceStorage<T> {
@@ -214,16 +233,16 @@ impl<T: GodotClass> InstanceStorage<T> {
         Box::into_raw(Box::new(self))
     }
 
-    pub fn mark_destroyed_by_godot(&mut self) {
+    pub fn mark_destroyed_by_godot(&self) {
         out!(
             "    Storage::mark_destroyed_by_godot", // -- {:?}",
                                                     //self.user_instance
         );
-        self.lifecycle = Lifecycle::Destroying;
+        self.lifecycle.set(Lifecycle::Destroying);
         out!(
             "    mark;  self={:?}, val={:?}",
-            self as *mut _,
-            self.lifecycle
+            self as *const _,
+            self.lifecycle.get()
         );
     }
 
@@ -232,9 +251,12 @@ impl<T: GodotClass> InstanceStorage<T> {
         out!(
             "    is_d;  self={:?}, val={:?}",
             self as *const _,
-            self.lifecycle
+            self.lifecycle.get()
         );
-        matches!(self.lifecycle, Lifecycle::Destroying | Lifecycle::Dead)
+        matches!(
+            self.lifecycle.get(),
+            Lifecycle::Destroying | Lifecycle::Dead
+        )
     }
 }
 
@@ -261,12 +283,21 @@ impl<T: GodotClass> Drop for InstanceStorage<T> {
 ///
 /// # Safety
 /// `instance_ptr` is assumed to point to a valid instance.
-// FIXME unbounded ref AND &mut out of thin air is a huge hazard -- consider using with_storage(ptr, closure) and drop_storage(ptr)
+// Note: unbounded ref AND &mut out of thin air is not very beautiful, but it's  -- consider using with_storage(ptr, closure) and drop_storage(ptr)
 pub unsafe fn as_storage<'u, T: GodotClass>(
     instance_ptr: sys::GDExtensionClassInstancePtr,
-) -> &'u mut InstanceStorage<T> {
-    &mut *(instance_ptr as *mut InstanceStorage<T>)
+) -> &'u InstanceStorage<T> {
+    &*(instance_ptr as *mut InstanceStorage<T>)
 }
+
+/// # Safety
+/// `instance_ptr` is assumed to point to a valid instance. This function must only be invoked once for a pointer.
+pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClassInstancePtr) {
+    let _drop = Box::from_raw(instance_ptr as *mut InstanceStorage<T>);
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Callbacks
 
 pub fn nop_instance_callbacks() -> sys::GDExtensionInstanceBindingCallbacks {
     // These could also be null pointers, if they are definitely not invoked (e.g. create_callback only passed to object_get_instance_binding(),

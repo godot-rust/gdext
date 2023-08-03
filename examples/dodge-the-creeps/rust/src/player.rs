@@ -58,8 +58,6 @@ impl Area2DVirtual for Player {
     }
 
     fn process(&mut self, delta: f64) {
-        println!("process");
-
         let mut animated_sprite = self
             .base
             .get_node_as::<AnimatedSprite2D>("AnimatedSprite2D");

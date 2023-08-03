@@ -24,7 +24,7 @@ fn codegen_base_renamed() {
     // The registration is done at startup time, so it may already fail during GDExtension init.
     // Nevertheless, try to instantiate an object with base HttpRequest here.
 
-    let obj = Gd::with_base(|base| TestBaseRenamed { base });
+    let obj = Gd::with_base(|base| TestBaseRenamed { _base: base });
     let _id = obj.instance_id();
 
     obj.free();
@@ -62,7 +62,7 @@ fn codegen_constants() {
 #[class(base=HttpRequest)]
 pub struct TestBaseRenamed {
     #[base]
-    base: Base<HttpRequest>,
+    _base: Base<HttpRequest>,
 }
 
 #[allow(unused)]
@@ -81,7 +81,7 @@ impl TestBaseRenamed {
 #[godot_api]
 impl HttpRequestVirtual for TestBaseRenamed {
     fn init(base: Base<HttpRequest>) -> Self {
-        TestBaseRenamed { base }
+        TestBaseRenamed { _base: base }
     }
 
     // Test unnamed parameter in virtual function

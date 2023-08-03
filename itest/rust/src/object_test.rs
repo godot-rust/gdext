@@ -5,7 +5,6 @@
  */
 
 use std::cell::{Cell, RefCell};
-use std::mem;
 use std::rc::Rc;
 
 use godot::bind::{godot_api, GodotClass};
@@ -56,7 +55,7 @@ fn object_subtype_swap() {
     println!("..swap..");
     */
 
-    mem::swap(&mut *a, &mut *b);
+    std::mem::swap(&mut *a, &mut *b);
 
     /*
     dbg!(a_id);
@@ -764,9 +763,6 @@ pub mod object_test_gd {
     #[derive(GodotClass)]
     #[class(base=Object)]
     pub struct CustomConstructor {
-        #[base]
-        base: Base<Object>,
-
         #[var]
         pub val: i64,
     }
@@ -775,7 +771,7 @@ pub mod object_test_gd {
     impl CustomConstructor {
         #[func]
         pub fn construct_object(val: i64) -> Gd<CustomConstructor> {
-            Gd::with_base(|base| Self { base, val })
+            Gd::with_base(|_base| Self { val })
         }
     }
 }
@@ -792,9 +788,6 @@ fn custom_constructor_works() {
 #[derive(GodotClass)]
 #[class(init, base=Object)]
 struct DoubleUse {
-    #[base]
-    base: Base<Object>,
-
     used: Cell<bool>,
 }
 
@@ -808,10 +801,7 @@ impl DoubleUse {
 
 #[derive(GodotClass)]
 #[class(init, base=Object)]
-struct SignalEmitter {
-    #[base]
-    base: Base<Object>,
-}
+struct SignalEmitter {}
 
 #[godot_api]
 impl SignalEmitter {
@@ -849,26 +839,4 @@ fn double_use_reference() {
 
     double_use.free();
     emitter.free();
-}
-
-#[derive(GodotClass)]
-#[class(init, base=Object)]
-struct GodotApiTest {
-    #[base]
-    base: Base<Object>,
-}
-
-#[godot_api]
-impl GodotApiTest {
-    #[func]
-    fn func_only_mut(&mut self, mut _a: Gd<Object>, mut _b: Gd<Object>) {}
-    #[func]
-    fn func_mut_and_not_mut(&mut self, _a: Gd<Object>, mut _b: Gd<Object>, _c: Gd<Object>) {}
-    // #[func]
-    // fn func_optional(&mut self, _a: Gd<Object>, mut _b: Gd<Object>, #[opt(987)] _c: i32) {}
-    // #[func] // waiting https://github.com/godotengine/godot/pull/75415
-    // /// Godot Docs
-    // fn func_docs(&mut self, _a: Gd<Object>, mut _b: Gd<Object>) {}
-    // #[func]
-    // fn func_lifetime<'a>(&'a mut self) {}
 }

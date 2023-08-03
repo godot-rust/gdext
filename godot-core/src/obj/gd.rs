@@ -160,24 +160,37 @@ where
         GdMut::from_cell(self.storage().get_mut())
     }
 
-    /// Storage object associated with the extension instance
-    // FIXME proper + safe interior mutability, also that Clippy is happy
-    #[allow(clippy::mut_from_ref)]
-    pub(crate) fn storage(&self) -> &mut InstanceStorage<T> {
-        let callbacks = crate::storage::nop_instance_callbacks();
-
+    /// Storage object associated with the extension instance.
+    pub(crate) fn storage(&self) -> &InstanceStorage<T> {
+        // SAFETY: instance pointer belongs to this instance. We only get a shared reference, no exclusive access, so even
+        // calling this from multiple Gd pointers is safe.
+        // Potential issue is a concurrent free() in multi-threaded access; but that would need to be guarded against inside free().
         unsafe {
-            let token = sys::get_library() as *mut std::ffi::c_void;
-            let binding =
-                interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
-
-            debug_assert!(
-                !binding.is_null(),
-                "Class {} -- null instance; does the class have a Godot creator function?",
-                std::any::type_name::<T>()
-            );
-            crate::private::as_storage::<T>(binding as sys::GDExtensionClassInstancePtr)
+            let binding = self.resolve_instance_ptr();
+            crate::private::as_storage::<T>(binding)
         }
+    }
+
+    /// Storage object associated with the extension instance.
+    // pub(crate) fn storage_mut(&mut self) -> &mut InstanceStorage<T> {
+    //     // SAFETY:
+    //     unsafe {
+    //         let binding = self.resolve_instance_ptr();
+    //         crate::private::as_storage_mut::<T>(binding)
+    //     }
+    // }
+
+    unsafe fn resolve_instance_ptr(&self) -> sys::GDExtensionClassInstancePtr {
+        let callbacks = crate::storage::nop_instance_callbacks();
+        let token = sys::get_library() as *mut std::ffi::c_void;
+        let binding = interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
+
+        debug_assert!(
+            !binding.is_null(),
+            "Class {} -- null instance; does the class have a Godot creator function?",
+            std::any::type_name::<T>()
+        );
+        binding as sys::GDExtensionClassInstancePtr
     }
 }
 
@@ -498,42 +511,43 @@ where
     }
 }
 
-impl<T> Deref for Gd<T>
-where
-    T: GodotClass<Declarer = dom::EngineDomain>,
-{
-    type Target = T;
+impl<T: GodotClass> Deref for Gd<T> {
+    // Target is always an engine class:
+    // * if T is an engine class => T
+    // * if T is a user class => T::Base
+    type Target = <<T as GodotClass>::Declarer as dom::Domain>::DerefTarget<T>;
 
     fn deref(&self) -> &Self::Target {
         // SAFETY:
-        // This relies on Gd<Node3D> having the layout as Node3D (as an example),
+        //
+        // This relies on `Gd<Node3D>.opaque` having the layout as `Node3D` (as an example),
         // which also needs #[repr(transparent)]:
         //
         // struct Gd<T: GodotClass> {
-        //     opaque: OpaqueObject,         <- size of GDExtensionObjectPtr
-        //     _marker: PhantomData,         <- ZST
+        //     opaque: OpaqueObject,        // <- size of GDExtensionObjectPtr
+        //     _marker: PhantomData,        // <- ZST
         // }
         // struct Node3D {
         //     object_ptr: sys::GDExtensionObjectPtr,
         // }
-        unsafe { std::mem::transmute::<&OpaqueObject, &T>(&self.opaque) }
+        unsafe { std::mem::transmute::<&OpaqueObject, &Self::Target>(&self.opaque) }
     }
 }
 
-impl<T> DerefMut for Gd<T>
-where
-    T: GodotClass<Declarer = dom::EngineDomain>,
-{
-    fn deref_mut(&mut self) -> &mut T {
+impl<T: GodotClass> DerefMut for Gd<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         // SAFETY: see also Deref
         //
-        // The resulting &mut T is transmuted from &mut OpaqueObject, i.e. a *pointer* to the `opaque` field.
+        // The resulting `&mut T` is transmuted from `&mut OpaqueObject`, i.e. a *pointer* to the `opaque` field.
         // `opaque` itself has a different *address* for each Gd instance, meaning that two simultaneous
         // DerefMut borrows on two Gd instances will not alias, *even if* the underlying Godot object is the
         // same (i.e. `opaque` has the same value, but not address).
-        unsafe { std::mem::transmute::<&mut OpaqueObject, &mut T>(&mut self.opaque) }
+        //
+        // The `&mut self` guarantees that no other base access can take place for *the same Gd instance* (access to other Gds is OK).
+        unsafe { std::mem::transmute::<&mut OpaqueObject, &mut Self::Target>(&mut self.opaque) }
     }
 }
+
 // SAFETY:
 // - `move_return_ptr`
 //   When the `call_type` is `PtrcallType::Virtual`, and the current type is known to inherit from `RefCounted`
