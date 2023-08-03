@@ -169,7 +169,7 @@ pub mod init {
 /// Export user-defined classes and methods to be called by the engine.
 pub mod bind {
     pub use godot_core::property;
-    pub use godot_macros::{godot_api, FromVariant, GodotClass, ToVariant};
+    pub use godot_macros::{godot_api, Export, FromVariant, GodotClass, Property, ToVariant};
 }
 
 /// Testing facilities (unstable).
@@ -184,7 +184,7 @@ pub use godot_core::private;
 /// Often-imported symbols.
 pub mod prelude {
     pub use super::bind::property::{Export, Property, TypeStringHint};
-    pub use super::bind::{godot_api, FromVariant, GodotClass, ToVariant};
+    pub use super::bind::{godot_api, Export, FromVariant, GodotClass, Property, ToVariant};
 
     pub use super::builtin::math::FloatExt as _;
     pub use super::builtin::*;
