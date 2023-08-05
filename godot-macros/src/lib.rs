@@ -27,9 +27,9 @@
 ///
 /// # Examples
 ///
-/// ## Example with `RefCounted` as a base
+/// ## `RefCounted` as a base
 ///
-/// ```
+/// ```no_run
 ///# use godot::prelude::*;
 ///
 /// #[derive(GodotClass)]
@@ -58,9 +58,9 @@
 /// Note that you have to implement init otherwise you won't be able to call new or any
 /// other methods from GDScript.
 ///
-/// ## Example with `Node` as a Base
+/// ## `Node` as a base
 ///
-/// ```
+/// ```no_run
 ///# use godot::prelude::*;
 ///
 /// #[derive(GodotClass)]
@@ -389,32 +389,32 @@ pub fn derive_native_class(input: TokenStream) -> TokenStream {
 
 /// Derive macro for [ToVariant](godot::builtin::ToVariant) on structs or enums.
 ///
-/// Example :
+/// # Example
 ///
-/// ```ignore
+/// ```no_run
+/// # use godot::prelude::*;
 /// #[derive(FromVariant, ToVariant, PartialEq, Debug)]
 /// struct StructNamed {
 ///     field1: String,
 ///     field2: i32,
 /// }
 ///
+/// let obj = StructNamed {
+///     field1: "1".to_string(),
+///     field2: 2,
+/// };
+/// let dict = dict! {
+///    "StructNamed": dict! {
+///        "field1": "four",
+///        "field2": 5,
+///    }
+/// };
+///
 /// // This would not panic.
-/// assert!(
-///     StructNamed {
-///         field1: "1".to_string(),
-///         field2: 2,
-///     }
-///     .to_variant()
-///         == dict! {
-///           "StructNamed":dict!{
-///             "field1":"four","field2":5
-///           }
-///         }
-///         .to_variant()
-/// );
+/// assert_eq!(obj.to_variant(), dict.to_variant());
 /// ```
 ///
-/// You can use the skip attribute to ignore a field from being converted to ToVariant.
+/// You can use the `#[skip]` attribute to ignore a field from being converted to `ToVariant`.
 #[proc_macro_derive(ToVariant, attributes(variant))]
 pub fn derive_to_variant(input: TokenStream) -> TokenStream {
     translate(input, derive_to_variant::transform)
@@ -422,29 +422,29 @@ pub fn derive_to_variant(input: TokenStream) -> TokenStream {
 
 /// Derive macro for [FromVariant](godot::builtin::FromVariant) on structs or enums.
 ///
-/// Example :
+/// # Example
 ///
-/// ```ignore
+/// ```no_run
+/// # use godot::prelude::*;
 /// #[derive(FromVariant, ToVariant, PartialEq, Debug)]
 /// struct StructNamed {
 ///     field1: String,
 ///     field2: i32,
 /// }
 ///
+/// let obj = StructNamed {
+///     field1: "1".to_string(),
+///     field2: 2,
+/// };
+/// let dict_variant = dict! {
+///    "StructNamed": dict! {
+///        "field1": "four",
+///        "field2": 5,
+///    }
+/// }.to_variant();
+///
 /// // This would not panic.
-/// assert!(
-///     StructNamed::from_variant(
-///         &dict! {
-///           "StructNamed":dict!{
-///             "field1":"four","field2":5
-///           }
-///         }
-///         .to_variant()
-///     ) == StructNamed {
-///         field1: "1".to_string(),
-///         field2: 2,
-///     }
-/// );
+/// assert_eq!(StructNamed::from_variant(&dict_variant), obj);
 /// ```
 ///
 /// You can use the skip attribute to ignore a field from the provided variant and use `Default::default()`

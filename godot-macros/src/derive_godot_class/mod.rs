@@ -210,7 +210,7 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
     let rest_init = fields.all_fields.into_iter().map(|field| {
         let field_name = field.name;
         let value_expr = match field.default {
-            None => quote!(::std::default::Default::default()),
+            None => quote! { ::std::default::Default::default() },
             Some(default) => default,
         };
         quote! { #field_name: #value_expr, }

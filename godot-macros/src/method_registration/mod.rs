@@ -10,7 +10,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
 pub use register_method::make_method_registration;
-pub use virtual_method_callback::gdext_virtual_method_callback;
+pub use virtual_method_callback::make_virtual_method_callback;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 enum ReceiverType {
@@ -49,7 +49,7 @@ fn make_forwarding_closure(class_name: &Ident, signature_info: &SignatureInfo) -
                     let ( #(#params,)* ) = params;
 
                     let storage =
-                        unsafe { godot::private::as_storage::<#class_name>(instance_ptr) };
+                        unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
                     #instance_decl
 
                     instance.#method_name(#(#params),*)
@@ -142,7 +142,7 @@ fn make_ptrcall_invocation(
     };
 
     quote! {
-         <#sig_tuple as godot::builtin::meta::PtrcallSignatureTuple>::ptrcall(
+         <#sig_tuple as ::godot::builtin::meta::PtrcallSignatureTuple>::ptrcall(
             instance_ptr,
             args,
             ret,
@@ -162,7 +162,7 @@ fn make_varcall_invocation(
     let method_name_str = method_name.to_string();
 
     quote! {
-        <#sig_tuple as godot::builtin::meta::VarcallSignatureTuple>::varcall(
+        <#sig_tuple as ::godot::builtin::meta::VarcallSignatureTuple>::varcall(
             instance_ptr,
             args,
             ret,

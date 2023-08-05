@@ -4,8 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::method_registration::gdext_virtual_method_callback;
-use crate::method_registration::make_method_registration;
+use crate::method_registration::{make_method_registration, make_virtual_method_callback};
 use crate::util;
 use crate::util::bail;
 use proc_macro2::{Ident, TokenStream};
@@ -246,7 +245,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Function>), 
                 }
                 BoundAttrType::Const(_) => {
                     return attr.bail(
-                        "#[constant] can only be used on associated cosntant",
+                        "#[constant] can only be used on associated constant",
                         method,
                     )
                 }
@@ -386,9 +385,11 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                     }
                 };
 
-                register_fn = quote! { Some(#prv::ErasedRegisterFn {
-                    raw: #prv::callbacks::register_class_by_builder::<#class_name>
-                }) };
+                register_fn = quote! {
+                    Some(#prv::ErasedRegisterFn {
+                        raw: #prv::callbacks::register_class_by_builder::<#class_name>
+                    })
+                };
             }
 
             "init" => {
@@ -452,7 +453,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
     let virtual_method_callbacks: Vec<TokenStream> = virtual_methods
         .iter()
-        .map(|method| gdext_virtual_method_callback(&class_name, method))
+        .map(|method| make_virtual_method_callback(&class_name, method))
         .collect();
 
     let result = quote! {
@@ -470,9 +471,10 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
                 let __config = unsafe { ::godot::sys::config() };
 
-                if !__config.virtuals_active_in_editor
-                 && *__config.is_editor.get_or_init(|| ::godot::engine::Engine::singleton().is_editor_hint()) {
-                    return None;
+                if __config.tools_only {
+                     && *__config.is_editor.get_or_init(|| ::godot::engine::Engine::singleton().is_editor_hint()) {
+                        return None;
+                    }
                 }
 
                 match name {

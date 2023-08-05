@@ -14,7 +14,7 @@ use venial::{Declaration, StructFields};
 
 pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
     let mut body = quote! {
-        let mut root = godot::builtin::Dictionary::new();
+        let mut root = ::godot::builtin::Dictionary::new();
     };
 
     let DeclInfo {
@@ -43,8 +43,8 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
                 };
                 let arm_content = match &enum_v.contents {
                     _ if has_attr(&enum_v.attributes, "variant", "skip") => quote! {
-                        return godot::builtin::dict!{
-                            #name_string : godot::builtin::Variant::nil()
+                        return ::godot::builtin::dict! {
+                            #name_string: ::godot::builtin::Variant::nil()
                         }.to_variant();
                     },
                     StructFields::Unit => quote! { #variant_name_string.to_variant() },
@@ -69,31 +69,32 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
                 root.insert(#name_string, content);
             };
         }
-        // This is unreachable cause this case has already returned
-        // with an error in decl_get_info call.
+
+        // decl_get_info() above ensured that no other cases are possible.
         _ => unreachable!(),
     };
+
     body = quote! {
         #body
         root.to_variant()
     };
 
     let gen = generic_params.as_ref().map(|x| x.as_inline_args());
-    // we need to allow unreachable for Uninhabited enums because it uses match self {}
-    // it's okay since we can't ever have a value to call to_variant on it anyway.
-    let allow_unreachable = matches!(&decl,Declaration::Enum(e) if e.variants.is_empty());
-    let allow_unreachable = if allow_unreachable {
+
+    // We need to allow unreachable code for uninhabited enums, because it uses match self {}.
+    // This is safe, since we can't ever have a value to call to_variant on it anyway.
+    let allow_unreachable = if matches!(&decl, Declaration::Enum(e) if e.variants.is_empty()) {
         quote! {
             #[allow(unreachable_code)]
         }
     } else {
-        quote! {}
+        TokenStream::new()
     };
 
     Ok(quote! {
-        impl #generic_params godot::builtin::ToVariant for #name #gen #where_ {
+        impl #generic_params ::godot::builtin::ToVariant for #name #gen #where_ {
             #allow_unreachable
-             fn to_variant(&self) -> godot::builtin::Variant {
+             fn to_variant(&self) -> ::godot::builtin::Variant {
                 #body
             }
         }
@@ -140,12 +141,13 @@ fn make_enum_named_arm(
                 root.insert(#ident_string,#ident.to_variant());
             }
         });
+
     quote! {
-        let mut root = godot::builtin::Dictionary::new();
+        let mut root = ::godot::builtin::Dictionary::new();
         #(
             #fields
         )*
-        godot::builtin::dict!{ #variant_name_string : root }.to_variant()
+        ::godot::builtin::dict! { #variant_name_string: root }.to_variant()
     }
 }
 

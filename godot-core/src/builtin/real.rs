@@ -199,7 +199,7 @@ macro_rules! real {
 
 /// Array of reals.
 ///
-/// ### Examples
+/// # Example
 /// ```
 /// use godot_core::builtin::{real, reals};
 ///
