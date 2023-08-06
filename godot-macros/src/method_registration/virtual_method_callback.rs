@@ -4,7 +4,7 @@
 * file, You can obtain one at https://mozilla.org/MPL/2.0/.
 */
 
-use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use venial::Function;
 
@@ -17,10 +17,10 @@ use crate::util;
 //
 // There are currently no virtual static methods. Additionally, virtual static methods dont really make a lot
 // of sense. Therefore there is no need to support them.
-pub fn gdext_virtual_method_callback(
+pub fn make_virtual_method_callback(
     class_name: &Ident,
     method_signature: &Function,
-) -> TokenStream2 {
+) -> TokenStream {
     let signature_info = get_signature_info(method_signature);
     let method_name = &method_signature.name;
 
@@ -32,7 +32,7 @@ pub fn gdext_virtual_method_callback(
 
     quote! {
         {
-            use godot::sys;
+            use ::godot::sys;
 
             unsafe extern "C" fn function(
                 instance_ptr: sys::GDExtensionClassInstancePtr,

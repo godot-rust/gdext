@@ -217,29 +217,29 @@ pub(crate) fn path_ends_with(path: &[TokenTree], expected: &str) -> bool {
 pub(crate) struct DeclInfo {
     pub where_: Option<WhereClause>,
     pub generic_params: Option<GenericParamList>,
-    pub name: proc_macro2::Ident,
+    pub name: Ident,
     pub name_string: String,
 }
 
 pub(crate) fn decl_get_info(decl: &venial::Declaration) -> DeclInfo {
-    let (where_, generic_params, name, name_string) =
-        if let venial::Declaration::Struct(struct_) = decl {
-            (
-                struct_.where_clause.clone(),
-                struct_.generic_params.clone(),
-                struct_.name.clone(),
-                struct_.name.to_string(),
-            )
-        } else if let venial::Declaration::Enum(enum_) = decl {
-            (
-                enum_.where_clause.clone(),
-                enum_.generic_params.clone(),
-                enum_.name.clone(),
-                enum_.name.to_string(),
-            )
-        } else {
-            panic!("only enums and structs are supported at the moment.")
-        };
+    let (where_, generic_params, name, name_string) = match decl {
+        venial::Declaration::Struct(struct_) => (
+            struct_.where_clause.clone(),
+            struct_.generic_params.clone(),
+            struct_.name.clone(),
+            struct_.name.to_string(),
+        ),
+        venial::Declaration::Enum(enum_) => (
+            enum_.where_clause.clone(),
+            enum_.generic_params.clone(),
+            enum_.name.clone(),
+            enum_.name.to_string(),
+        ),
+        _ => {
+            panic!("only enums and structs are supported at the moment")
+        }
+    };
+
     DeclInfo {
         where_,
         generic_params,

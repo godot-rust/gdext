@@ -63,6 +63,23 @@ pub mod private {
         sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
     }
 
+    pub struct ClassConfig {
+        pub is_tool: bool,
+    }
+
+    pub fn is_class_inactive(is_tool: bool) -> bool {
+        if is_tool {
+            return false;
+        }
+
+        // SAFETY: only invoked after global library initialization.
+        let global_config = unsafe { sys::config() };
+        let is_editor = || crate::engine::Engine::singleton().is_editor_hint();
+
+        global_config.tool_only_in_editor //.
+            && *global_config.is_editor.get_or_init(is_editor)
+    }
+
     fn print_panic(err: Box<dyn std::any::Any + Send>) {
         if let Some(s) = err.downcast_ref::<&'static str>() {
             print_panic_message(s);

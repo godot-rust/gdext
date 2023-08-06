@@ -27,9 +27,9 @@
 ///
 /// # Examples
 ///
-/// ## Example with `RefCounted` as a base
+/// ## `RefCounted` as a base
 ///
-/// ```
+/// ```no_run
 ///# use godot::prelude::*;
 ///
 /// #[derive(GodotClass)]
@@ -58,9 +58,9 @@
 /// Note that you have to implement init otherwise you won't be able to call new or any
 /// other methods from GDScript.
 ///
-/// ## Example with `Node` as a Base
+/// ## `Node` as a base
 ///
-/// ```
+/// ```no_run
 ///# use godot::prelude::*;
 ///
 /// #[derive(GodotClass)]
@@ -101,6 +101,7 @@ mod util;
 // Below intra-doc link to the trait only works as HTML, not as symbol link.
 /// Derive macro for [the `GodotClass` trait](../obj/trait.GodotClass.html) on structs. You must use this
 /// macro; manual implementations of the `GodotClass` trait are not supported.
+///
 ///
 /// # Construction
 ///
@@ -182,7 +183,8 @@ mod util;
 /// }
 /// ```
 ///
-/// # Exported properties
+///
+/// # Properties and exports
 ///
 /// In GDScript, there is a distinction between
 /// [properties](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html#properties-setters-and-getters)
@@ -384,6 +386,17 @@ mod util;
 ///
 /// The `#[signal]` attribute is accepted, but not yet implemented. See [issue
 /// #8](https://github.com/godot-rust/gdext/issues/8).
+///
+///
+/// # Running code in the editor
+///
+/// If you annotate a class with `#[class(tool)]`, its lifecycle methods (`ready()`, `process()` etc.) will be invoked in the editor. This
+/// is useful for writing custom editor plugins, as opposed to classes running simply in-game.
+///
+/// See [`ExtensionLibrary::editor_run_behavior()`](../init/trait.ExtensionLibrary.html#method.editor_run_behavior)
+/// for more information and further customization.
+///
+/// This is very similar to [GDScript's `@tool` feature](https://docs.godotengine.org/en/stable/tutorials/plugins/running_code_in_the_editor.html).
 #[proc_macro_derive(GodotClass, attributes(class, base, var, export, init, signal))]
 pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)
@@ -391,32 +404,32 @@ pub fn derive_native_class(input: TokenStream) -> TokenStream {
 
 /// Derive macro for [ToVariant](godot::builtin::ToVariant) on structs or enums.
 ///
-/// Example :
+/// # Example
 ///
-/// ```ignore
+/// ```no_run
+/// # use godot::prelude::*;
 /// #[derive(FromVariant, ToVariant, PartialEq, Debug)]
 /// struct StructNamed {
 ///     field1: String,
 ///     field2: i32,
 /// }
 ///
+/// let obj = StructNamed {
+///     field1: "1".to_string(),
+///     field2: 2,
+/// };
+/// let dict = dict! {
+///    "StructNamed": dict! {
+///        "field1": "four",
+///        "field2": 5,
+///    }
+/// };
+///
 /// // This would not panic.
-/// assert!(
-///     StructNamed {
-///         field1: "1".to_string(),
-///         field2: 2,
-///     }
-///     .to_variant()
-///         == dict! {
-///           "StructNamed":dict!{
-///             "field1":"four","field2":5
-///           }
-///         }
-///         .to_variant()
-/// );
+/// assert_eq!(obj.to_variant(), dict.to_variant());
 /// ```
 ///
-/// You can use the skip attribute to ignore a field from being converted to ToVariant.
+/// You can use the `#[skip]` attribute to ignore a field from being converted to `ToVariant`.
 #[proc_macro_derive(ToVariant, attributes(variant))]
 pub fn derive_to_variant(input: TokenStream) -> TokenStream {
     translate(input, derive_to_variant::transform)
@@ -424,29 +437,29 @@ pub fn derive_to_variant(input: TokenStream) -> TokenStream {
 
 /// Derive macro for [FromVariant](godot::builtin::FromVariant) on structs or enums.
 ///
-/// Example :
+/// # Example
 ///
-/// ```ignore
+/// ```no_run
+/// # use godot::prelude::*;
 /// #[derive(FromVariant, ToVariant, PartialEq, Debug)]
 /// struct StructNamed {
 ///     field1: String,
 ///     field2: i32,
 /// }
 ///
+/// let obj = StructNamed {
+///     field1: "1".to_string(),
+///     field2: 2,
+/// };
+/// let dict_variant = dict! {
+///    "StructNamed": dict! {
+///        "field1": "four",
+///        "field2": 5,
+///    }
+/// }.to_variant();
+///
 /// // This would not panic.
-/// assert!(
-///     StructNamed::from_variant(
-///         &dict! {
-///           "StructNamed":dict!{
-///             "field1":"four","field2":5
-///           }
-///         }
-///         .to_variant()
-///     ) == StructNamed {
-///         field1: "1".to_string(),
-///         field2: 2,
-///     }
-/// );
+/// assert_eq!(StructNamed::from_variant(&dict_variant), obj);
 /// ```
 ///
 /// You can use the skip attribute to ignore a field from the provided variant and use `Default::default()`

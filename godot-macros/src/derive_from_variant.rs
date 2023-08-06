@@ -21,24 +21,26 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
         name,
         name_string,
     } = decl_get_info(&decl);
+
     let mut body = quote! {
-        let root = variant.try_to::<godot::builtin::Dictionary>()?;
-        let root = root.get(#name_string).ok_or(godot::builtin::VariantConversionError::BadType)?;
+        let root = variant.try_to::<::godot::builtin::Dictionary>()?;
+        let root = root.get(#name_string).ok_or(::godot::builtin::VariantConversionError::BadType)?;
     };
 
     match decl {
         Declaration::Struct(s) => match s.fields {
-            venial::StructFields::Unit => make_unit_struct(&mut body),
-            venial::StructFields::Tuple(fields) if fields.fields.len() == 1 => {
+            StructFields::Unit => make_unit_struct(&mut body),
+            StructFields::Tuple(fields) if fields.fields.len() == 1 => {
                 make_new_type_struct(&mut body, fields)
             }
-            venial::StructFields::Tuple(fields) => make_tuple_struct(fields, &mut body, &name),
-            venial::StructFields::Named(fields) => make_named_struct(fields, &mut body, &name),
+            StructFields::Tuple(fields) => make_tuple_struct(fields, &mut body, &name),
+            StructFields::Named(fields) => make_named_struct(fields, &mut body, &name),
         },
         Declaration::Enum(enum_) => {
             if enum_.variants.is_empty() {
+                // Uninhabited enums have no values, so we cannot convert an actual Variant into them.
                 body = quote! {
-                    panic!();
+                    panic!("cannot convert Variant into uninhabited enum {}", #name_string);
                 }
             } else {
                 let mut matches = quote! {};
@@ -89,19 +91,21 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
                 body = quote! {
                     #body
                     #matches
-                    Err(godot::builtin::VariantConversionError::MissingValue)
+                    Err(::godot::builtin::VariantConversionError::MissingValue)
                 };
             }
         }
+
+        // decl_get_info() above ensured that no other cases are possible.
         _ => unreachable!(),
     }
 
     let gen = generic_params.as_ref().map(|x| x.as_inline_args());
     Ok(quote! {
-        impl #generic_params godot::builtin::FromVariant for #name #gen #where_ {
+        impl #generic_params ::godot::builtin::FromVariant for #name #gen #where_ {
             fn try_from_variant(
-                variant: &godot::builtin::Variant
-            ) -> Result<Self, godot::builtin::VariantConversionError> {
+                variant: &::godot::builtin::Variant
+            ) -> Result<Self, ::godot::builtin::VariantConversionError> {
                 #body
             }
         }
@@ -123,7 +127,7 @@ fn make_named_struct(
             (
                 quote! {
                     let #ident = root.get(#string_ident)
-                                     .ok_or(godot::builtin::VariantConversionError::MissingValue)?;
+                        .ok_or(::godot::builtin::VariantConversionError::MissingValue)?;
                 },
                 quote! { #ident: #ident.try_to()? },
             )
@@ -132,7 +136,7 @@ fn make_named_struct(
     let (set_idents, set_self): (Vec<_>, Vec<_>) = fields.unzip();
     *body = quote! {
         #body
-        let root = root.try_to::<godot::builtin::Dictionary>()?;
+        let root = root.try_to::<::godot::builtin::Dictionary>()?;
         #(
             #set_idents
         )*
@@ -157,7 +161,7 @@ fn make_tuple_struct(
             } else {
                 quote! {
                     let #ident = root.pop_front()
-                                     .ok_or(godot::builtin::VariantConversionError::MissingValue)?
+                                     .ok_or(::godot::builtin::VariantConversionError::MissingValue)?
                                      .try_to::<#field_type>()?;
                 }
             },
@@ -166,7 +170,7 @@ fn make_tuple_struct(
     let (idents, ident_set): (Vec<_>, Vec<_>) = ident_and_set.unzip();
     *body = quote! {
         #body
-        let mut root = root.try_to::<godot::builtin::VariantArray>()?;
+        let mut root = root.try_to::<::godot::builtin::VariantArray>()?;
         #(
             #ident_set
         )*
@@ -202,7 +206,7 @@ fn make_enum_new_type(
 ) -> TokenStream {
     let field_type = &field.ty;
     quote! {
-        if let Ok(child) = root.try_to::<godot::builtin::Dictionary>() {
+        if let Ok(child) = root.try_to::<::godot::builtin::Dictionary>() {
             if let Some(variant) = child.get(#variant_name_string) {
                 return Ok(Self::#variant_name(variant.try_to::<#field_type>()?));
             }
@@ -217,7 +221,7 @@ fn make_enum_new_type_skipped(
 ) -> TokenStream {
     let field_type = &field.ty;
     quote! {
-        if let Ok(child) = root.try_to::<godot::builtin::Dictionary>() {
+        if let Ok(child) = root.try_to::<::godot::builtin::Dictionary>() {
             if let Some(v) = child.get(#variant_name_string) {
                 if v.is_nil() {
                     return Ok(Self::#variant_name(
@@ -244,7 +248,7 @@ fn make_enum_tuple(
         } else {
             quote! {
                 let #ident = variant.pop_front()
-                                    .ok_or(godot::builtin::VariantConversionError::MissingValue)?
+                                    .ok_or(::godot::builtin::VariantConversionError::MissingValue)?
                                     .try_to::<#field_type>()?;
             }
         };
@@ -253,10 +257,10 @@ fn make_enum_tuple(
     let (idents, set_idents): (Vec<_>, Vec<_>) = fields.unzip();
 
     quote! {
-        let child = root.try_to::<godot::builtin::Dictionary>();
+        let child = root.try_to::<::godot::builtin::Dictionary>();
         if let Ok(child) = child {
             if let Some(variant) = child.get(#variant_name_string) {
-                let mut variant = variant.try_to::<godot::builtin::VariantArray>()?;
+                let mut variant = variant.try_to::<::godot::builtin::VariantArray>()?;
                 #(#set_idents)*
                 return Ok(Self::#variant_name(#(#idents ,)*));
             }
@@ -272,28 +276,31 @@ fn make_enum_named(
         let field_name = &field.name;
         let field_name_string = &field.name.to_string();
         let field_type = &field.ty;
-        let set_field = if has_attr(&field.attributes,"variant","skip") {
+        let set_field = if has_attr(&field.attributes, "variant", "skip") {
             quote! {
                 let #field_name = <#field_type as Default>::default();
             }
         } else {
             quote! {
                 let #field_name = variant.get(#field_name_string)
-                                         .ok_or(godot::builtin::VariantConversionError::MissingValue)?
-                                         .try_to::<#field_type>()?;
+                    .ok_or(::godot::builtin::VariantConversionError::MissingValue)?
+                    .try_to::<#field_type>()?;
             }
         };
         (field_name.to_token_stream(), set_field)
     });
+
     let (fields, set_fields): (Vec<_>, Vec<_>) = fields.unzip();
     quote! {
-        if let Ok(root) = root.try_to::<godot::builtin::Dictionary>() {
+        if let Ok(root) = root.try_to::<::godot::builtin::Dictionary>() {
             if let Some(variant) = root.get(#variant_name_string) {
-                let variant = variant.try_to::<godot::builtin::Dictionary>()?;
+                let variant = variant.try_to::<::godot::builtin::Dictionary>()?;
                 #(
                     #set_fields
                 )*
-                return Ok(Self::#variant_name{ #(#fields,)* });
+                return Ok(Self::#variant_name {
+                    #( #fields, )*
+                });
             }
         }
     }

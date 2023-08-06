@@ -38,10 +38,10 @@ pub fn make_method_registration(
 
     quote! {
         {
-            use godot::obj::GodotClass;
-            use godot::builtin::meta::registration::method::MethodInfo;
-            use godot::builtin::{StringName, Variant};
-            use godot::sys;
+            use ::godot::obj::GodotClass;
+            use ::godot::builtin::meta::registration::method::MethodInfo;
+            use ::godot::builtin::{StringName, Variant};
+            use ::godot::sys;
 
             type Sig = #sig_tuple;
 
@@ -67,7 +67,7 @@ pub fn make_method_registration(
                 )
             };
 
-            godot::private::out!(
+            ::godot::private::out!(
                 "   Register fn:   {}::{}",
                 #class_name_str,
                 #method_name_str
@@ -97,7 +97,7 @@ fn make_varcall_func(
                 ret: sys::GDExtensionVariantPtr,
                 err: *mut sys::GDExtensionCallError,
             ) {
-                let success = godot::private::handle_panic(
+                let success = ::godot::private::handle_panic(
                     || stringify!(#method_name),
                     || #invocation
                 );
@@ -132,7 +132,7 @@ fn make_ptrcall_func(
                 args: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
             ) {
-                let success = godot::private::handle_panic(
+                let success = ::godot::private::handle_panic(
                     || stringify!(#method_name),
                     || #invocation
                 );

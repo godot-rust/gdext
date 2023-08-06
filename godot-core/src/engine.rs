@@ -160,7 +160,7 @@ where
 ///
 /// The path must be absolute (typically starting with `res://`), a local path will fail.
 ///
-/// # Example:
+/// # Example
 /// Loads a scene called `Main` located in the `path/to` subdirectory of the Godot project and caches it in a variable.
 /// The resource is directly stored with type `PackedScene`.
 ///
