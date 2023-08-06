@@ -35,7 +35,8 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 /// refer to the same underlying array, and changes to one are visible in the other.
 ///
 /// To create a copy that shares data with the original array, use [`Share::share()`]. If you want
-/// to create a copy of the data, use [`duplicate_shallow()`] or [`duplicate_deep()`].
+/// to create a copy of the data, use [`duplicate_shallow()`][Self::duplicate_shallow] or
+/// [`duplicate_deep()`][Self::duplicate_deep].
 ///
 /// # Thread safety
 ///
@@ -243,8 +244,8 @@ impl<T: VariantMetadata> Array<T> {
     /// Returns a shallow copy of the array. All array elements are copied, but any reference types
     /// (such as `Array`, `Dictionary` and `Object`) will still refer to the same value.
     ///
-    /// To create a deep copy, use [`duplicate_deep()`] instead. To create a new reference to the
-    /// same array data, use [`share()`].
+    /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
+    /// To create a new reference to the same array data, use [`share()`][Share::share].
     pub fn duplicate_shallow(&self) -> Self {
         let duplicate: VariantArray = self.as_inner().duplicate(false);
         // SAFETY: duplicate() returns a typed array with the same type as Self
@@ -255,8 +256,8 @@ impl<T: VariantMetadata> Array<T> {
     /// will not be shared with the original array. Note that any `Object`-derived elements will
     /// still be shallow copied.
     ///
-    /// To create a shallow copy, use [`duplicate_shallow()`] instead. To create a new reference to
-    /// the same array data, use [`share()`].
+    /// To create a shallow copy, use [`duplicate_shallow()`][Self::duplicate_shallow] instead.
+    /// To create a new reference to the same array data, use [`share()`][Share::share].
     pub fn duplicate_deep(&self) -> Self {
         let duplicate: VariantArray = self.as_inner().duplicate(true);
         // SAFETY: duplicate() returns a typed array with the same type as Self
@@ -273,7 +274,7 @@ impl<T: VariantMetadata> Array<T> {
     ///
     /// Array elements are copied to the slice, but any reference types (such as `Array`,
     /// `Dictionary` and `Object`) will still refer to the same value. To create a deep copy, use
-    /// [`subarray_deep()`] instead.
+    /// [`subarray_deep()`][Self::subarray_deep] instead.
     #[doc(alias = "slice")]
     pub fn subarray_shallow(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
         self.subarray_impl(begin, end, step, false)
@@ -289,7 +290,7 @@ impl<T: VariantMetadata> Array<T> {
     ///
     /// All nested arrays and dictionaries are duplicated and will not be shared with the original
     /// array. Note that any `Object`-derived elements will still be shallow copied. To create a
-    /// shallow copy, use [`subarray_shallow()`] instead.
+    /// shallow copy, use [`subarray_shallow()`][Self::subarray_shallow] instead.
     #[doc(alias = "slice")]
     pub fn subarray_deep(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
         self.subarray_impl(begin, end, step, true)

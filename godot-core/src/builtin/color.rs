@@ -242,14 +242,14 @@ impl Color {
     }
 
     /// Creates a new color resulting by making this color darker by the specified amount (ratio
-    /// from 0.0 to 1.0). See also [`lightened`].
+    /// from 0.0 to 1.0). See also [`lightened`][Self::lightened].
     #[must_use]
     pub fn darkened(self, amount: f64) -> Self {
         self.as_inner().darkened(amount)
     }
 
     /// Creates a new color resulting by making this color lighter by the specified amount, which
-    /// should be a ratio from 0.0 to 1.0. See also [`darken`].
+    /// should be a ratio from 0.0 to 1.0. See also [`darkened`][Self::darkened].
     #[must_use]
     pub fn lightened(self, amount: f64) -> Self {
         self.as_inner().lightened(amount)

@@ -24,8 +24,6 @@ use std::ops::{Mul, MulAssign};
 /// [ a.x  b.x  origin.x ]
 /// [ a.y  b.y  origin.y ]
 /// ```
-///
-/// For methods that don't take translation into account, see [`Basis2D`].
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
@@ -72,7 +70,7 @@ impl Transform2D {
 
     /// Create a new `Transform2D` with the given column vectors.
     ///
-    /// _Godot equivalent: `Transform2D(Vector2 x_axis, Vector2 y_axis, Vector2 origin)_
+    /// _Godot equivalent: `Transform2D(Vector2 x_axis, Vector2 y_axis, Vector2 origin)`_
     pub const fn from_cols(a: Vector2, b: Vector2, origin: Vector2) -> Self {
         Self { a, b, origin }
     }

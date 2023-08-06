@@ -9,7 +9,7 @@
 //! The extension entry point is passed `get_proc_address` function pointer, which can be used to load all other
 //! GDExtension FFI functions dynamically. This is a departure from the previous struct-based approach.
 //!
-//! Relevant upstream PR: https://github.com/godotengine/godot/pull/76406
+//! Relevant upstream PR: <https://github.com/godotengine/godot/pull/76406>.
 
 use crate as sys;
 use crate::compat::BindingCompat;

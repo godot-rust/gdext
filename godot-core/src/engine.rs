@@ -151,7 +151,7 @@ where
 ///
 /// If the resource cannot be loaded, or is not of type `T` or inherited, this method returns `None`.
 ///
-/// This method is a simplified version of [`ResourceLoader::load()`][crate::api::ResourceLoader::load],
+/// This method is a simplified version of [`ResourceLoader::load()`][crate::engine::ResourceLoader::load],
 /// which can be used for more advanced scenarios.
 ///
 /// # Note:

@@ -25,7 +25,7 @@ pub trait FloatExt: private::Sealed + Copy {
     fn lerp(self, to: Self, weight: Self) -> Self;
 
     /// Check if two angles are approximately equal, by comparing the distance
-    /// between the points on the unit circle with 0 using [`is_equal_approx`].
+    /// between the points on the unit circle with 0 using [`real::approx_eq`].
     fn is_angle_equal_approx(self, other: Self) -> bool;
 
     /// Check if `self` is within [`Self::CMP_EPSILON`] of `0.0`.
@@ -38,7 +38,7 @@ pub trait FloatExt: private::Sealed + Copy {
 
     /// Godot's `sign` function, returns `0.0` when self is `0.0`.
     ///
-    /// See also [`signum`](Self::signum), which always returns `-1.0` or `1.0` (or `NaN`).
+    /// See also [`f32::signum`] and [`f64::signum`], which always return `-1.0` or `1.0` (or `NaN`).
     fn sign(self) -> Self;
 
     /// Returns the derivative at the given `t` on a one-dimensional Bézier curve defined by the given
@@ -69,8 +69,8 @@ pub trait FloatExt: private::Sealed + Copy {
     /// Linearly interpolates between two angles (in radians) by a `weight` value
     /// between 0.0 and 1.0.
     ///
-    /// Similar to [`lerp`], but interpolates correctly when the angles wrap around
-    /// [`TAU`].
+    /// Similar to [`lerp`][Self::lerp], but interpolates correctly when the angles wrap around
+    /// [`TAU`][crate::builtin::real_consts::TAU].
     ///
     /// The resulting angle is not normalized.
     ///

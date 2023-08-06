@@ -150,7 +150,7 @@ impl Callable {
 
     /// Returns true if this callable has no target to call the method on.
     ///
-    /// This is not the negated form of [`is_valid`], as `is_valid` will return `false` if the callable has a
+    /// This is not the negated form of [`is_valid`][Self::is_valid], as `is_valid` will return `false` if the callable has a
     /// target but the method does not exist.
     ///
     /// _Godot equivalent: `is_null`_

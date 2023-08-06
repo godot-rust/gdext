@@ -55,7 +55,7 @@ impl Vector4 {
         Self::new(v, v, v, v)
     }
 
-    /// Constructs a new `Vector3` from a [`Vector3i`].
+    /// Constructs a new `Vector3` from a [`Vector3i`][crate::builtin::Vector3i].
     pub const fn from_vector4i(v: Vector4i) -> Self {
         Self {
             x: v.x as real,

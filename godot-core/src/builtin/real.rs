@@ -35,7 +35,7 @@ mod real_mod {
     /// This type is `f32` by default, and `f64` when the Cargo feature `double-precision` is enabled.
     ///
     /// This is not the `float` type in GDScript; that type is always 64-bits. Rather, many structs in Godot may use
-    /// either 32-bit or 64-bit floats, for example [`Vector2`](super::Vector2). To convert between [`real`] and [`f32`] or
+    /// either 32-bit or 64-bit floats, for example [`Vector2`][crate::builtin::Vector2]. To convert between [`real`] and [`f32`] or
     /// [`f64`], see [`RealConv`](super::RealConv).
     ///
     /// See also the [Godot docs on float](https://docs.godotengine.org/en/stable/classes/class_float.html).

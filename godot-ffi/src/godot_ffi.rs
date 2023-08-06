@@ -241,7 +241,7 @@ pub enum PtrcallType {
     /// To get a `GDExtensionObjectPtr` from a `GDExtensionRefPtr`, you must use `ref_get_object`, and to
     /// set a `GDExtensionRefPtr` to some object, you must use `ref_set_object`.
     ///
-    /// See also https://github.com/godotengine/godot-cpp/issues/954.
+    /// See also <https://github.com/godotengine/godot-cpp/issues/954>.
     Virtual,
 }
 

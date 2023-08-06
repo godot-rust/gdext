@@ -61,14 +61,14 @@ impl Transform3D {
 
     /// Create a new transform from a [`Basis`] and a [`Vector3`].
     ///
-    /// _Godot equivalent: Transform3D(Basis basis, Vector3 origin)_
+    /// _Godot equivalent: `Transform3D(Basis basis, Vector3 origin)`_
     pub const fn new(basis: Basis, origin: Vector3) -> Self {
         Self { basis, origin }
     }
 
     /// Create a new transform from 4 matrix-columns.
     ///
-    /// _Godot equivalent: Transform3D(Vector3 x_axis, Vector3 y_axis, Vector3 z_axis, Vector3 origin)_
+    /// _Godot equivalent: `Transform3D(Vector3 x_axis, Vector3 y_axis, Vector3 z_axis, Vector3 origin)`_
     pub const fn from_cols(a: Vector3, b: Vector3, c: Vector3, origin: Vector3) -> Self {
         Self {
             basis: Basis::from_cols(a, b, c),
@@ -79,7 +79,7 @@ impl Transform3D {
     /// Constructs a Transform3d from a Projection by trimming the last row of
     /// the projection matrix.
     ///
-    /// _Godot equivalent: Transform3D(Projection from)_
+    /// _Godot equivalent: `Transform3D(Projection from)`_
     pub fn from_projection(proj: Projection) -> Self {
         let a = Vector3::new(proj.cols[0].x, proj.cols[0].y, proj.cols[0].z);
         let b = Vector3::new(proj.cols[1].x, proj.cols[1].y, proj.cols[1].z);
@@ -112,8 +112,6 @@ impl Transform3D {
 
     /// Returns the inverse of the transform, under the assumption that the
     /// transformation is composed of rotation, scaling and translation.
-    ///
-    /// _Godot equivalent: Transform3D.affine_inverse()_
     #[must_use]
     pub fn affine_inverse(self) -> Self {
         self.glam(|aff| aff.inverse())
@@ -121,8 +119,6 @@ impl Transform3D {
 
     /// Returns a transform interpolated between this transform and another by
     /// a given weight (on the range of 0.0 to 1.0).
-    ///
-    /// _Godot equivalent: Transform3D.interpolate_with()_
     #[must_use]
     pub fn interpolate_with(self, other: Self, weight: real) -> Self {
         let src_scale = self.basis.scale();
@@ -142,10 +138,8 @@ impl Transform3D {
         }
     }
 
-    /// Returns `true if this transform is finite by calling `is_finite` on the
+    /// Returns true if this transform is finite by calling `is_finite` on the
     /// basis and origin.
-    ///
-    /// _Godot equivalent: Transform3D.is_finite()_
     pub fn is_finite(&self) -> bool {
         self.basis.is_finite() && self.origin.is_finite()
     }
@@ -154,8 +148,6 @@ impl Transform3D {
     /// points towards the `target` position.
     ///
     /// See [`Basis::new_looking_at()`] for more information.
-    ///
-    /// _Godot equivalent: Transform3D.looking_at()_
     #[cfg(before_api = "4.1")]
     #[must_use]
     pub fn looking_at(self, target: Vector3, up: Vector3) -> Self {

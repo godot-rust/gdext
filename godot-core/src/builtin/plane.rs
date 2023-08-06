@@ -127,7 +127,7 @@ impl Plane {
     /// Finds whether a point is inside the plane or not.
     ///
     /// A point is considered part of the plane if its distance to it is less or equal than
-    /// [`CMP_EPSILON`][crate::builtin::CMP_EPSILON].
+    /// [`CMP_EPSILON`][FloatExt::CMP_EPSILON].
     ///
     /// _Godot equivalent: `Plane.has_point(Vector3 point, float tolerance=1e-05)`_
     #[inline]
