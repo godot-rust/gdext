@@ -46,6 +46,8 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
         create_fn = quote! { None };
     };
 
+    let config_impl = make_config_impl(class_name, struct_cfg.is_tool);
+
     Ok(quote! {
         unsafe impl ::godot::obj::GodotClass for #class_name {
             type Base = #base_class;
@@ -59,6 +61,7 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
 
         #godot_init_impl
         #godot_exports_impl
+        #config_impl
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_obj,
@@ -77,6 +80,7 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
 fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
     let mut base_ty = ident("RefCounted");
     let mut has_generated_init = false;
+    let mut is_tool = false;
 
     // #[class] attribute on struct
     if let Some(mut parser) = KvParser::parse(&class.attributes, "class")? {
@@ -88,12 +92,17 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
             has_generated_init = true;
         }
 
+        if parser.handle_alone("tool")? {
+            is_tool = true;
+        }
+
         parser.finish()?;
     }
 
     Ok(ClassAttributes {
         base_ty,
         has_generated_init,
+        is_tool,
     })
 }
 
@@ -144,6 +153,7 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
             field.export = Some(export);
             parser.finish()?;
         }
+
         // #[var]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "var")? {
             let var = FieldVar::new_from_kv(&mut parser)?;
@@ -171,6 +181,7 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
 struct ClassAttributes {
     base_ty: Ident,
     has_generated_init: bool,
+    is_tool: bool,
 }
 
 struct Fields {
@@ -222,6 +233,19 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
                 Self {
                     #( #rest_init )*
                     #base_init
+                }
+            }
+        }
+    }
+}
+
+fn make_config_impl(class_name: &Ident, is_tool: bool) -> TokenStream {
+    quote! {
+        impl #class_name {
+            #[doc(hidden)]
+            pub fn __config() -> ::godot::private::ClassConfig {
+                ::godot::private::ClassConfig {
+                    is_tool: #is_tool,
                 }
             }
         }

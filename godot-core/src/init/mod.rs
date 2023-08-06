@@ -18,13 +18,13 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     init: *mut sys::GDExtensionInitialization,
 ) -> sys::GDExtensionBool {
     let init_code = || {
-        let virtuals_active_in_editor = match E::editor_run_behavior() {
-            EditorRunBehavior::Full => true,
-            EditorRunBehavior::NoVirtuals => false,
+        let tool_only_in_editor = match E::editor_run_behavior() {
+            EditorRunBehavior::ToolClassesOnly => true,
+            EditorRunBehavior::AllClasses => false,
         };
 
         let config = sys::GdextConfig {
-            virtuals_active_in_editor,
+            tool_only_in_editor,
             is_editor: cell::OnceCell::new(),
         };
 
@@ -132,7 +132,7 @@ pub unsafe trait ExtensionLibrary {
 
     /// Determines if and how an extension's code is run in the editor.
     fn editor_run_behavior() -> EditorRunBehavior {
-        EditorRunBehavior::NoVirtuals
+        EditorRunBehavior::ToolClassesOnly
     }
 }
 
@@ -144,19 +144,22 @@ pub unsafe trait ExtensionLibrary {
 ///
 /// In many cases, users write extension code with the intention to run in games, not inside the editor.
 /// This is why the default behavior in gdext deviates from Godot: lifecycle callbacks are disabled inside the
-/// editor. It is however possible to restore the original behavior with this enum.
+/// editor (see [`ToolClassesOnly`][Self::ToolClassesOnly]). It is possible to configure this.
 ///
 /// See also [`ExtensionLibrary::editor_run_behavior()`].
 #[derive(Copy, Clone, Debug)]
 #[non_exhaustive]
 pub enum EditorRunBehavior {
-    /// Runs the extension with full functionality in editor.
-    Full,
-
-    /// Does not invoke any Godot virtual functions.
+    /// Only runs `#[class(tool)]` classes in the editor.
     ///
-    /// Classes are still registered, and calls from GDScript to Rust are still possible.
-    NoVirtuals,
+    /// All classes are registered, and calls from GDScript to Rust are possible. However, virtual lifecycle callbacks
+    /// (`_ready`, `_process`, `_physics_process`, ...) are not run unless the class is annotated with `#[class(tool)]`.
+    ToolClassesOnly,
+
+    /// Runs the extension with full functionality in editor.
+    ///
+    /// Ignores any `#[class(tool)]` annotations.
+    AllClasses,
 }
 
 pub trait ExtensionLayer: 'static {

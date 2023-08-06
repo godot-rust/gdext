@@ -61,7 +61,7 @@ struct GdextRuntimeMetadata {
 }
 
 pub struct GdextConfig {
-    pub virtuals_active_in_editor: bool,
+    pub tool_only_in_editor: bool,
     pub is_editor: cell::OnceCell<bool>,
 }
 

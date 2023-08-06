@@ -100,6 +100,7 @@ mod util;
 /// Derive macro for [the `GodotClass` trait](../obj/trait.GodotClass.html) on structs. You must use this
 /// macro; manual implementations of the `GodotClass` trait are not supported.
 ///
+///
 /// # Construction
 ///
 /// To generate a constructor that will let you call `MyStruct.new()` from GDScript, annotate your
@@ -180,7 +181,8 @@ mod util;
 /// }
 /// ```
 ///
-/// # Exported properties
+///
+/// # Properties and exports
 ///
 /// In GDScript, there is a distinction between
 /// [properties](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html#properties-setters-and-getters)
@@ -382,6 +384,17 @@ mod util;
 ///
 /// The `#[signal]` attribute is accepted, but not yet implemented. See [issue
 /// #8](https://github.com/godot-rust/gdext/issues/8).
+///
+///
+/// # Running code in the editor
+///
+/// If you annotate a class with `#[class(tool)]`, its lifecycle methods (`ready()`, `process()` etc.) will be invoked in the editor. This
+/// is useful for writing custom editor plugins, as opposed to classes running simply in-game.
+///
+/// See [`ExtensionLibrary::editor_run_behavior()`](../init/trait.ExtensionLibrary.html#method.editor_run_behavior)
+/// for more information and further customization.
+///
+/// This is very similar to [GDScript's `@tool` feature](https://docs.godotengine.org/en/stable/tutorials/plugins/running_code_in_the_editor.html).
 #[proc_macro_derive(GodotClass, attributes(class, base, var, export, init, signal))]
 pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)

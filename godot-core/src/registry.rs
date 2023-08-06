@@ -20,6 +20,10 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::{fmt, ptr};
 
+// TODO(bromeon): some information coming from the proc-macro API is deferred through PluginComponent, while others is directly
+// translated to code. Consider moving more code to the PluginComponent, which allows for more dynamic registration and will
+// be easier for a future builder API.
+
 /// Piece of information that is gathered by the self-registration ("plugin") system.
 #[derive(Debug)]
 pub struct ClassPlugin {
