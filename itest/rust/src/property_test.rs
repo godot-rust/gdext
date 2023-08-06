@@ -8,6 +8,7 @@ use godot::{
     bind::property::ExportInfo,
     engine::{global::PropertyHint, Texture},
     prelude::*,
+    test::itest,
 };
 
 // No tests currently, tests using these classes are in Godot scripts.
@@ -293,3 +294,77 @@ struct CheckAllExports {
 
 #[godot_api]
 impl CheckAllExports {}
+
+#[repr(i64)]
+#[derive(Property, Debug, PartialEq, Eq, Export)]
+pub enum TestEnum {
+    A = 0,
+    B = 1,
+    C = 2,
+}
+
+#[derive(GodotClass)]
+pub struct DeriveProperty {
+    #[var]
+    pub foo: TestEnum,
+}
+
+#[godot_api]
+impl DeriveProperty {}
+
+#[itest]
+fn derive_property() {
+    let mut class = DeriveProperty { foo: TestEnum::B };
+    assert_eq!(class.get_foo(), TestEnum::B as i64);
+    class.set_foo(TestEnum::C as i64);
+    assert_eq!(class.foo, TestEnum::C);
+}
+
+#[derive(GodotClass)]
+pub struct DeriveExport {
+    #[export]
+    pub foo: TestEnum,
+
+    #[base]
+    pub base: Base<RefCounted>,
+}
+
+#[godot_api]
+impl DeriveExport {}
+
+#[godot_api]
+impl RefCountedVirtual for DeriveExport {
+    fn init(base: godot::obj::Base<Self::Base>) -> Self {
+        Self {
+            foo: TestEnum::B,
+            base,
+        }
+    }
+}
+
+#[itest]
+fn derive_export() {
+    let class: Gd<DeriveExport> = Gd::new_default();
+
+    let property = class
+        .get_property_list()
+        .iter_shared()
+        .find(|c| c.get_or_nil("name") == "foo".to_variant())
+        .unwrap();
+    assert_eq!(
+        property.get_or_nil("class_name"),
+        "DeriveExport".to_variant()
+    );
+    assert_eq!(
+        property.get_or_nil("type"),
+        (VariantType::Int as i32).to_variant()
+    );
+    assert_eq!(
+        property.get_or_nil("hint"),
+        (PropertyHint::PROPERTY_HINT_ENUM.ord()).to_variant()
+    );
+    assert_eq!(
+        property.get_or_nil("hint_string"),
+        "A:0,B:1,C:2".to_variant()
+    );
+}

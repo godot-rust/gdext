@@ -87,8 +87,10 @@ use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use venial::Declaration;
 
+mod derive_export;
 mod derive_from_variant;
 mod derive_godot_class;
+mod derive_property;
 mod derive_to_variant;
 mod gdextension;
 mod godot_api;
@@ -452,6 +454,57 @@ pub fn derive_to_variant(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(FromVariant, attributes(variant))]
 pub fn derive_from_variant(input: TokenStream) -> TokenStream {
     translate(input, derive_from_variant::transform)
+}
+
+/// Derive macro for [Property](godot::bind::property::Property) on enums.
+///
+/// Currently has some tight requirements which are expected to be softened as implementation expands:
+/// - Only works for enums, structs aren't supported by this derive macro at the moment.
+/// - The enum must have an explicit `#[repr(u*/i*)]` type.
+///     - This will likely stay this way, since `isize`, the default repr type, is not a concept in Godot.
+/// - The enum variants must not have any fields - currently only unit variants are supported.
+/// - The enum variants must have explicit discriminants, that is, e.g. `A = 2`, not just `A`
+///
+/// # Example
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// #[repr(i32)]
+/// #[derive(Property)]
+/// # #[derive(PartialEq, Eq, Debug)]
+/// enum TestEnum {
+///     A = 0,
+///     B = 1,
+/// }
+///
+/// #[derive(GodotClass)]
+/// struct TestClass {
+///     #[var]
+///     foo: TestEnum
+/// }
+///
+/// # //TODO: remove this when https://github.com/godot-rust/gdext/issues/187 is truly addressed
+/// # #[godot_api]
+/// # impl TestClass {}
+///
+/// # fn main() {
+/// let mut class = TestClass {foo: TestEnum::B};
+/// assert_eq!(class.get_foo(), TestEnum::B as i32);
+/// class.set_foo(TestEnum::A as i32);
+/// assert_eq!(class.foo, TestEnum::A);
+/// # }
+/// ```
+#[proc_macro_derive(Property)]
+pub fn derive_property(input: TokenStream) -> TokenStream {
+    translate(input, derive_property::transform)
+}
+
+/// Derive macro for [Export](godot::bind::property::Property) on enums.
+///
+/// Currently has some tight requirements which are expected to be softened as implementation expands, see requirements for [Property]
+#[proc_macro_derive(Export)]
+pub fn derive_export(input: TokenStream) -> TokenStream {
+    translate(input, derive_export::transform)
 }
 
 #[proc_macro_attribute]
