@@ -47,6 +47,25 @@ jobs:
         run: cargo fmt --all -- --check
 
 
+  # Needs to be its own job (apart from sync-doc), because lints don't work with --no-deps, and because it contributes to ci-status.
+  doc-lints:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: "Install Rust"
+      uses: ./.github/composite/rust
+      with:
+        components: rustdoc
+
+    - name: "Check rustdoc"
+      env:
+        RUSTDOCFLAGS: >
+          -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes 
+          -D rustdoc::invalid-rust-codeblocks -D rustdoc::invalid-html-tags -D rustdoc::bare-urls -D rustdoc::unescaped-backticks
+      run: cargo doc -p godot
+
+
   clippy:
     runs-on: ubuntu-20.04
     steps:
@@ -299,6 +318,7 @@ jobs:
     if: always() && (github.event_name == 'merge_group' || github.event_name == 'push')
     needs:
       - rustfmt
+      - doc-lints
       - clippy
       - unit-test
       - godot-itest
