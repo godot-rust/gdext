@@ -419,6 +419,10 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                 on_notification_impl = quote! {
                     impl ::godot::obj::cap::GodotNotification for #class_name {
                         fn __godot_notification(&mut self, what: i32) {
+                            if ::godot::private::is_class_inactive(Self::__config().is_tool) {
+                                return;
+                            }
+
                             <Self as #trait_name>::on_notification(self, what.into())
                         }
                     }
