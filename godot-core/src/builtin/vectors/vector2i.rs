@@ -20,8 +20,8 @@ use std::fmt;
 ///
 /// It uses integer coordinates and is therefore preferable to [`Vector2`] when exact precision is
 /// required. Note that the values are limited to 32 bits, and unlike [`Vector2`] this cannot be
-/// configured with an engine build option. Use `i64` or [`PackedInt64Array`] if 64-bit values are
-/// needed.
+/// configured with an engine build option. Use `i64` or [`PackedInt64Array`][crate::builtin::PackedInt64Array]
+/// if 64-bit values are needed.
 #[derive(Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

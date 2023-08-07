@@ -402,7 +402,7 @@ pub fn derive_native_class(input: TokenStream) -> TokenStream {
     translate(input, derive_godot_class::transform)
 }
 
-/// Derive macro for [ToVariant](godot::builtin::ToVariant) on structs or enums.
+/// Derive macro for [ToVariant](../builtin/trait.ToVariant.html) on structs or enums.
 ///
 /// # Example
 ///
@@ -435,7 +435,7 @@ pub fn derive_to_variant(input: TokenStream) -> TokenStream {
     translate(input, derive_to_variant::transform)
 }
 
-/// Derive macro for [FromVariant](godot::builtin::FromVariant) on structs or enums.
+/// Derive macro for [FromVariant](../builtin/trait.FromVariant.html) on structs or enums.
 ///
 /// # Example
 ///
@@ -469,7 +469,7 @@ pub fn derive_from_variant(input: TokenStream) -> TokenStream {
     translate(input, derive_from_variant::transform)
 }
 
-/// Derive macro for [Property](godot::bind::property::Property) on enums.
+/// Derive macro for [Property](../bind/property/trait.Property.html) on enums.
 ///
 /// Currently has some tight requirements which are expected to be softened as implementation expands:
 /// - Only works for enums, structs aren't supported by this derive macro at the moment.
@@ -512,7 +512,7 @@ pub fn derive_property(input: TokenStream) -> TokenStream {
     translate(input, derive_property::transform)
 }
 
-/// Derive macro for [Export](godot::bind::property::Property) on enums.
+/// Derive macro for [Export](../bind/property/trait.Export.html) on enums.
 ///
 /// Currently has some tight requirements which are expected to be softened as implementation expands, see requirements for [Property]
 #[proc_macro_derive(Export)]

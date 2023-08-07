@@ -267,7 +267,7 @@ impl<T: GodotClass> Gd<T> {
     /// ⚠️ Returns the instance ID of this object, or `None` if no instance ID is cached.
     ///
     /// This function does not check that the returned instance ID points to a valid instance!
-    /// Unless performance is a problem, use [`instance_id_or_none`].
+    /// Unless performance is a problem, use [`instance_id_or_none`][Self::instance_id_or_none] instead.
     pub fn instance_id_or_none_unchecked(&self) -> Option<InstanceId> {
         self.cached_instance_id.get()
     }

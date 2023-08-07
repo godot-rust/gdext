@@ -49,7 +49,7 @@ impl GodotString {
 
     /// Gets the internal chars slice from a [`GodotString`].
     ///
-    /// Note: This operation is *O*(*n*). Consider using [`chars_unchecked`]
+    /// Note: This operation is *O*(*n*). Consider using [`chars_unchecked`][Self::chars_unchecked]
     /// if you can make sure the string is a valid UTF-32.
     pub fn chars_checked(&self) -> &[char] {
         unsafe {
