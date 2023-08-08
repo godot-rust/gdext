@@ -289,3 +289,18 @@ func test_option_export():
 	assert_eq(obj.optional_export, null)
 
 	test_node.free()
+
+func test_func_rename():
+	var func_rename := FuncRename.new()
+
+	assert_eq(func_rename.has_method("long_function_name_for_is_true"), false)
+	assert_eq(func_rename.has_method("is_true"), true)
+	assert_eq(func_rename.is_true(), true)
+
+	assert_eq(func_rename.has_method("give_one_inner"), false)
+	assert_eq(func_rename.has_method("give_one"), true)
+	assert_eq(func_rename.give_one(), 1)
+
+	assert_eq(func_rename.has_method("renamed_static"), false)
+	assert_eq(func_rename.has_method("spell_static"), true)
+	assert_eq(func_rename.spell_static(), "static")

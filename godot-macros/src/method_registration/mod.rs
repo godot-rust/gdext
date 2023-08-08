@@ -27,6 +27,14 @@ struct SignatureInfo {
     pub ret_type: TokenStream,
 }
 
+/// Information used for registering a Rust function with Godot.
+pub struct FuncDefinition {
+    /// Raw information about the Rust function.
+    pub func: venial::Function,
+    /// The name the function will be exposed as in Godot. If `None`, the Rust function name is used.
+    pub rename: Option<String>,
+}
+
 /// Returns a closure expression that forwards the parameters to the Rust instance.
 fn make_forwarding_closure(class_name: &Ident, signature_info: &SignatureInfo) -> TokenStream {
     let method_name = &signature_info.method_name;

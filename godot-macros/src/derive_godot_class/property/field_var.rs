@@ -6,6 +6,7 @@
 
 use crate::derive_godot_class::{make_existence_check, Field, FieldHint};
 use crate::method_registration::make_method_registration;
+use crate::method_registration::FuncDefinition;
 use crate::util::KvParser;
 use crate::{util, ParseResult};
 use proc_macro2::{Ident, TokenStream};
@@ -188,7 +189,13 @@ impl GetterSetterImpl {
         };
 
         let signature = util::parse_signature(signature);
-        let export_token = make_method_registration(class_name, signature);
+        let export_token = make_method_registration(
+            class_name,
+            FuncDefinition {
+                func: signature,
+                rename: None,
+            },
+        );
 
         Self {
             function_name,

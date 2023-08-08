@@ -4,9 +4,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::method_registration::{make_method_registration, make_virtual_method_callback};
+use crate::method_registration::{
+    make_method_registration, make_virtual_method_callback, FuncDefinition,
+};
 use crate::util;
 use crate::util::bail;
+use crate::util::KvParser;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use quote::spanned::Spanned;
@@ -46,7 +49,7 @@ pub fn transform(input_decl: Declaration) -> Result<TokenStream, Error> {
 
 /// Attribute for user-declared function
 enum BoundAttrType {
-    Func(AttributeValue),
+    Func { rename: Option<String> },
     Signal(AttributeValue),
     Const(AttributeValue),
 }
@@ -108,7 +111,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
     let methods_registration = funcs
         .into_iter()
-        .map(|func| make_method_registration(&class_name, func));
+        .map(|func_def| make_method_registration(&class_name, func_def));
 
     let consts = process_godot_constants(&mut decl)?;
     let mut integer_constant_names = Vec::new();
@@ -198,8 +201,8 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     Ok(result)
 }
 
-fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Function>), Error> {
-    let mut func_signatures = vec![];
+fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<FuncDefinition>, Vec<Function>), Error> {
+    let mut func_definitions = vec![];
     let mut signal_signatures = vec![];
 
     let mut removed_indexes = vec![];
@@ -229,10 +232,10 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Function>), 
             }
 
             match attr.ty {
-                BoundAttrType::Func(_attr) => {
+                BoundAttrType::Func { rename } => {
                     // Signatures are the same thing without body
                     let sig = util::reduce_to_signature(method);
-                    func_signatures.push(sig);
+                    func_definitions.push(FuncDefinition { func: sig, rename });
                 }
                 BoundAttrType::Signal(ref _attr_val) => {
                     if method.return_ty.is_some() {
@@ -259,7 +262,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Function>), 
         decl.body_items.remove(index);
     }
 
-    Ok((func_signatures, signal_signatures))
+    Ok((func_definitions, signal_signatures))
 }
 
 fn process_godot_constants(decl: &mut Impl) -> Result<Vec<Constant>, Error> {
@@ -275,7 +278,7 @@ fn process_godot_constants(decl: &mut Impl) -> Result<Vec<Constant>, Error> {
             constant.attributes.remove(attr.index);
 
             match attr.ty {
-                BoundAttrType::Func(_) => {
+                BoundAttrType::Func { .. } => {
                     return bail!(constant, "#[func] can only be used on functions")
                 }
                 BoundAttrType::Signal(_) => {
@@ -308,11 +311,20 @@ where
             .expect("get_single_path_segment");
 
         let new_found = match attr_name {
-            name if name == "func" => Some(BoundAttr {
-                attr_name: attr_name.clone(),
-                index,
-                ty: BoundAttrType::Func(attr.value.clone()),
-            }),
+            name if name == "func" => {
+                // TODO you-win (August 8, 2023): handle default values here as well?
+
+                // Safe unwrap since #[func] must be present if we got to this point
+                let mut parser = KvParser::parse(attributes, "func")?.unwrap();
+
+                let rename = parser.handle_expr("rename")?.map(|ts| ts.to_string());
+
+                Some(BoundAttr {
+                    attr_name: attr_name.clone(),
+                    index,
+                    ty: BoundAttrType::Func { rename },
+                })
+            }
             name if name == "signal" => {
                 // TODO once parameters are supported, this should probably be moved to the struct definition
                 // E.g. a zero-sized type Signal<(i32, String)> with a provided emit(i32, String) method

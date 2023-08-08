@@ -15,9 +15,9 @@ use quote::quote;
 /// Generates code that registers the specified method for the given class.
 pub fn make_method_registration(
     class_name: &Ident,
-    method_signature: venial::Function,
+    func_definition: super::FuncDefinition,
 ) -> TokenStream {
-    let signature_info = get_signature_info(&method_signature);
+    let signature_info = get_signature_info(&func_definition.func);
     let sig_tuple =
         util::make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
 
@@ -33,7 +33,11 @@ pub fn make_method_registration(
 
     // String literals
     let class_name_str = class_name.to_string();
-    let method_name_str = method_name.to_string();
+    let method_name_str = if let Some(rename) = func_definition.rename {
+        rename
+    } else {
+        method_name.to_string()
+    };
     let param_ident_strs = param_idents.iter().map(|ident| ident.to_string());
 
     quote! {
