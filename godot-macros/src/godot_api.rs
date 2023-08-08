@@ -4,9 +4,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::method_registration::{make_method_registration, make_virtual_method_callback};
+use crate::method_registration::{
+    make_method_registration, make_virtual_method_callback, FuncDefinition,
+};
 use crate::util;
 use crate::util::bail;
+use crate::util::KvParser;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use quote::spanned::Spanned;
@@ -46,7 +49,7 @@ pub fn transform(input_decl: Declaration) -> Result<TokenStream, Error> {
 
 /// Attribute for user-declared function
 enum BoundAttrType {
-    Func(AttributeValue),
+    Func { rename: Option<String> },
     Signal(AttributeValue),
     Const(AttributeValue),
 }
@@ -62,6 +65,8 @@ impl BoundAttr {
         bail!(&method.name, "#[{}]: {}", self.attr_name, msg)
     }
 }
+
+type Signal = Function;
 
 /// Codegen for `#[godot_api] impl MyType`
 fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
@@ -108,7 +113,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
     let methods_registration = funcs
         .into_iter()
-        .map(|func| make_method_registration(&class_name, func));
+        .map(|func_def| make_method_registration(&class_name, func_def));
 
     let consts = process_godot_constants(&mut decl)?;
     let mut integer_constant_names = Vec::new();
@@ -198,8 +203,8 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     Ok(result)
 }
 
-fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Function>), Error> {
-    let mut func_signatures = vec![];
+fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<FuncDefinition>, Vec<Signal>), Error> {
+    let mut func_definitions = vec![];
     let mut signal_signatures = vec![];
 
     let mut removed_indexes = vec![];
@@ -229,10 +234,10 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Function>), 
             }
 
             match attr.ty {
-                BoundAttrType::Func(_attr) => {
+                BoundAttrType::Func { rename } => {
                     // Signatures are the same thing without body
                     let sig = util::reduce_to_signature(method);
-                    func_signatures.push(sig);
+                    func_definitions.push(FuncDefinition { func: sig, rename });
                 }
                 BoundAttrType::Signal(ref _attr_val) => {
                     if method.return_ty.is_some() {
@@ -259,7 +264,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<Function>, Vec<Function>), 
         decl.body_items.remove(index);
     }
 
-    Ok((func_signatures, signal_signatures))
+    Ok((func_definitions, signal_signatures))
 }
 
 fn process_godot_constants(decl: &mut Impl) -> Result<Vec<Constant>, Error> {
@@ -275,7 +280,7 @@ fn process_godot_constants(decl: &mut Impl) -> Result<Vec<Constant>, Error> {
             constant.attributes.remove(attr.index);
 
             match attr.ty {
-                BoundAttrType::Func(_) => {
+                BoundAttrType::Func { .. } => {
                     return bail!(constant, "#[func] can only be used on functions")
                 }
                 BoundAttrType::Signal(_) => {
@@ -307,12 +312,97 @@ where
             .get_single_path_segment()
             .expect("get_single_path_segment");
 
+        // const FUNC: &str = "func";
+        // const SIGNAL: &str = "signal";
+        // const CONSTANT: &str = "constant";
+
+        // let mut name_and_parser = None;
+
+        // for name in [FUNC, SIGNAL, CONSTANT] {
+        //     if let Some(valid_parser) = KvParser::parse(attributes, name)? {
+        //         name_and_parser = Some((name, valid_parser));
+        //         break;
+        //     }
+        // }
+
+        // let Some((name, mut parser)) = name_and_parser else {
+        //     continue
+        // };
+
+        // let new_found = match name {
+        //     FUNC => {
+        //         // TODO you-win (August 8, 2023): handle default values here as well?
+
+        //         let rename = parser.handle_expr("rename")?.map(|value| value.to_string());
+
+        //         parser.finish()?;
+
+        //         Some(BoundAttr {
+        //             attr_name: attr_name.clone(),
+        //             index,
+        //             ty: BoundAttrType::Func { rename },
+        //         })
+        //     }
+        //     SIGNAL => Some(BoundAttr {
+        //         attr_name: attr_name.clone(),
+        //         index,
+        //         ty: BoundAttrType::Signal(attr.value.clone()),
+        //     }),
+        //     CONSTANT => Some(BoundAttr {
+        //         attr_name: attr_name.clone(),
+        //         index,
+        //         ty: BoundAttrType::Const(attr.value.clone()),
+        //     }),
+        //     _ => None,
+        // };
+
+        // let new_found = if let Some(mut parser) = KvParser::parse(attributes, "func")? {
+        //     // TODO you-win (August 8, 2023): handle default values here as well?
+
+        //     let rename = parser.handle_expr("rename")?.map(|value| value.to_string());
+
+        //     parser.finish()?;
+
+        //     Some(BoundAttr {
+        //         attr_name: attr_name.clone(),
+        //         index,
+        //         ty: BoundAttrType::Func { rename },
+        //     })
+        // } else if KvParser::parse(attributes, "signal")?.is_some() {
+        //     Some(BoundAttr {
+        //         attr_name: attr_name.clone(),
+        //         index,
+        //         ty: BoundAttrType::Signal(attr.value.clone()),
+        //     })
+        // } else if KvParser::parse(attributes, "constant")?.is_some() {
+        //     Some(BoundAttr {
+        //         attr_name: attr_name.clone(),
+        //         index,
+        //         ty: BoundAttrType::Const(attr.value.clone()),
+        //     })
+        // } else {
+        //     None
+        // };
+
         let new_found = match attr_name {
-            name if name == "func" => Some(BoundAttr {
-                attr_name: attr_name.clone(),
-                index,
-                ty: BoundAttrType::Func(attr.value.clone()),
-            }),
+            name if name == "func" => {
+                // TODO you-win (August 8, 2023): handle default values here as well?
+
+                // Safe unwrap since #[func] must be present if we got to this point
+                let mut parser = KvParser::parse(attributes, "func")?.unwrap();
+
+                let rename = if let Ok(Some(value)) = parser.handle_expr("rename") {
+                    Some(value.to_string())
+                } else {
+                    None
+                };
+
+                Some(BoundAttr {
+                    attr_name: attr_name.clone(),
+                    index,
+                    ty: BoundAttrType::Func { rename },
+                })
+            }
             name if name == "signal" => {
                 // TODO once parameters are supported, this should probably be moved to the struct definition
                 // E.g. a zero-sized type Signal<(i32, String)> with a provided emit(i32, String) method

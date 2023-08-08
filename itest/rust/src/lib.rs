@@ -19,6 +19,7 @@ mod color_test;
 mod derive_variant;
 mod dictionary_test;
 mod enum_test;
+mod func_test;
 mod gdscript_ffi_test;
 mod init_test;
 mod native_structures_test;
