@@ -320,9 +320,21 @@ pub mod mem {
         #[doc(hidden)]
         fn maybe_inc_ref<T: GodotClass>(obj: &Gd<T>);
 
-        /// If ref-counted, then decrement count
+        /// If ref-counted, then decrement count. Returns `true` if the count hit 0 and the object can be
+        /// safely freed.
+        ///
+        /// This behavior can be overriden by a script, making it possible for the function to return `false`
+        /// even when the reference count hits 0. This is meant to be used to have a separate reference count
+        /// from Godot's internal reference count, or otherwise stop the object from being freed when the
+        /// reference count hits 0.
+        ///
+        /// # Safety
+        ///
+        /// If this method is used on a [`Gd`] that inherits from [`RefCounted`](crate::engine::RefCounted)
+        /// then the reference count must either be incremented before it hits 0, or some [`Gd`] referencing
+        /// this object must be forgotten.
         #[doc(hidden)]
-        fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool;
+        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool;
 
         /// Check if ref-counted, return `None` if information is not available (dynamic and obj dead)
         #[doc(hidden)]
@@ -362,7 +374,7 @@ pub mod mem {
             });
         }
 
-        fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool {
+        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool {
             out!("  Stat::dec   <{}>", std::any::type_name::<T>());
             obj.as_ref_counted(|refc| {
                 let is_last = refc.unreference();
@@ -407,7 +419,7 @@ pub mod mem {
             }
         }
 
-        fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool {
+        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool {
             out!("  Dyn::dec   <{}>", std::any::type_name::<T>());
             if obj
                 .instance_id_or_none()
@@ -435,7 +447,7 @@ pub mod mem {
     impl Memory for ManualMemory {
         fn maybe_init_ref<T: GodotClass>(_obj: &Gd<T>) {}
         fn maybe_inc_ref<T: GodotClass>(_obj: &Gd<T>) {}
-        fn maybe_dec_ref<T: GodotClass>(_obj: &Gd<T>) -> bool {
+        unsafe fn maybe_dec_ref<T: GodotClass>(_obj: &Gd<T>) -> bool {
             false
         }
         fn is_ref_counted<T: GodotClass>(_obj: &Gd<T>) -> Option<bool> {
