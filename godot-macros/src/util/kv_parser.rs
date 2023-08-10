@@ -18,6 +18,7 @@ pub(crate) type KvMap = HashMap<Ident, Option<KvValue>>;
 pub(crate) struct KvParser {
     map: KvMap,
     span: Span,
+    index: usize,
 }
 
 #[allow(dead_code)] // some functions will be used later
@@ -41,7 +42,7 @@ impl KvParser {
     pub fn parse(attributes: &[Attribute], expected: &str) -> ParseResult<Option<Self>> {
         let mut found_attr: Option<Self> = None;
 
-        for attr in attributes.iter() {
+        for (index, attr) in attributes.iter().enumerate() {
             let path = &attr.path;
             if path_is_single(path, expected) {
                 if found_attr.is_some() {
@@ -51,6 +52,7 @@ impl KvParser {
                 let attr_name = expected.to_string();
                 found_attr = Some(Self {
                     span: attr.tk_brackets.span,
+                    index,
                     map: ParserState::parse(attr_name, &attr.value)?,
                 });
             }
@@ -61,6 +63,10 @@ impl KvParser {
 
     pub fn span(&self) -> Span {
         self.span
+    }
+
+    pub fn index(&self) -> usize {
+        self.index
     }
 
     /// - For missing keys, returns `None`.
