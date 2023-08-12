@@ -33,6 +33,20 @@ pub struct FuncDefinition {
     pub func: venial::Function,
     /// The name the function will be exposed as in Godot. If `None`, the Rust function name is used.
     pub rename: Option<String>,
+    // TODO you-win August 12, 2023: right now, this is an all-or-nothing operation
+    // either all params must have default args or no params have default args
+    /// Default parameters in sequential order.
+    pub default_params: Option<Vec<String>>,
+}
+
+impl FuncDefinition {
+    pub fn from_signature(signature: venial::Function) -> Self {
+        FuncDefinition {
+            func: signature,
+            rename: None,
+            default_params: None,
+        }
+    }
 }
 
 /// Returns a closure expression that forwards the parameters to the Rust instance.

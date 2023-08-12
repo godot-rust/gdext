@@ -49,7 +49,10 @@ pub fn transform(input_decl: Declaration) -> Result<TokenStream, Error> {
 
 /// Attribute for user-declared function
 enum BoundAttrType {
-    Func { rename: Option<String> },
+    Func {
+        rename: Option<String>,
+        default_params: Option<Vec<String>>,
+    },
     Signal(AttributeValue),
     Const(AttributeValue),
 }
@@ -232,10 +235,17 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<FuncDefinition>, Vec<Functi
             }
 
             match attr.ty {
-                BoundAttrType::Func { rename } => {
+                BoundAttrType::Func {
+                    rename,
+                    default_params,
+                } => {
                     // Signatures are the same thing without body
                     let sig = util::reduce_to_signature(method);
-                    func_definitions.push(FuncDefinition { func: sig, rename });
+                    func_definitions.push(FuncDefinition {
+                        func: sig,
+                        rename,
+                        default_params,
+                    });
                 }
                 BoundAttrType::Signal(ref _attr_val) => {
                     if method.return_ty.is_some() {
@@ -312,17 +322,32 @@ where
 
         let new_found = match attr_name {
             name if name == "func" => {
-                // TODO you-win (August 8, 2023): handle default values here as well?
-
                 // Safe unwrap since #[func] must be present if we got to this point
                 let mut parser = KvParser::parse(attributes, "func")?.unwrap();
 
                 let rename = parser.handle_expr("rename")?.map(|ts| ts.to_string());
+                let default_params: Option<Vec<String>> =
+                    if let Some(mut list_parser) = parser.handle_array("defaults")? {
+                        let mut defaults = vec![];
+
+                        while let Ok(expr) = list_parser.next_expr() {
+                            defaults.push(expr.to_string());
+                        }
+
+                        list_parser.finish()?;
+
+                        Some(defaults)
+                    } else {
+                        None
+                    };
 
                 Some(BoundAttr {
                     attr_name: attr_name.clone(),
                     index,
-                    ty: BoundAttrType::Func { rename },
+                    ty: BoundAttrType::Func {
+                        rename,
+                        default_params,
+                    },
                 })
             }
             name if name == "signal" => {

@@ -46,3 +46,29 @@ impl RefCountedVirtual for FuncRename {
         Self
     }
 }
+
+#[derive(GodotClass)]
+#[class(base=RefCounted)]
+struct DefaultParamsPrimitives;
+
+#[godot_api]
+impl DefaultParamsPrimitives {
+    #[func(defaults = [1, 2])]
+    fn add_ints(&self, a: Variant, b: Variant) -> i32 {
+        println!("{:?}", a.get_type());
+        println!("{:?}", b.get_type());
+        (if a.is_nil() { 1 } else { a.to::<i32>() }) + (if b.is_nil() { 2 } else { b.to::<i32>() })
+    }
+
+    #[func(defaults = ["hello"])]
+    fn pass_string(&self, text: GodotString) -> GodotString {
+        text
+    }
+}
+
+#[godot_api]
+impl RefCountedVirtual for DefaultParamsPrimitives {
+    fn init(_base: Base<Self::Base>) -> Self {
+        Self
+    }
+}

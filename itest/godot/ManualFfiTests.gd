@@ -304,3 +304,12 @@ func test_func_rename():
 	assert_eq(func_rename.has_method("renamed_static"), false)
 	assert_eq(func_rename.has_method("spell_static"), true)
 	assert_eq(func_rename.spell_static(), "static")
+
+func test_default_params_primitives():
+	var tester := DefaultParamsPrimitives.new()
+
+	assert_eq(tester.add_ints(), 3)
+	assert_eq(tester.add_ints(5, 6), 11)
+
+	assert_eq(tester.pass_string(), "hello")
+	assert_eq(tester.pass_string("world"), "world")

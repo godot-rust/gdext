@@ -189,13 +189,8 @@ impl GetterSetterImpl {
         };
 
         let signature = util::parse_signature(signature);
-        let export_token = make_method_registration(
-            class_name,
-            FuncDefinition {
-                func: signature,
-                rename: None,
-            },
-        );
+        let export_token =
+            make_method_registration(class_name, FuncDefinition::from_signature(signature));
 
         Self {
             function_name,

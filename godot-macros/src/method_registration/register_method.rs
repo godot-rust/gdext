@@ -10,7 +10,7 @@ use crate::method_registration::{
 };
 use crate::util;
 use proc_macro2::{Ident, TokenStream};
-use quote::quote;
+use quote::{quote, ToTokens};
 
 /// Generates code that registers the specified method for the given class.
 pub fn make_method_registration(
@@ -39,10 +39,18 @@ pub fn make_method_registration(
         method_name.to_string()
     };
     let param_ident_strs = param_idents.iter().map(|ident| ident.to_string());
+    // TODO you-win August 12, 2023: Generate *_ex methods from this somehow?
+    // TODO you-win August 12, 2023: Definitely not working, causes Godot to hang during itests
+    let default_params = func_definition.default_params.map_or(vec![], |params| {
+        params
+            .into_iter()
+            .map(|param| param.to_token_stream())
+            .collect::<Vec<TokenStream>>()
+    });
 
     quote! {
         {
-            use ::godot::obj::GodotClass;
+            use ::godot::obj::{Gd, GodotClass};
             use ::godot::builtin::meta::registration::method::MethodInfo;
             use ::godot::builtin::{StringName, Variant};
             use ::godot::sys;
@@ -53,6 +61,8 @@ pub fn make_method_registration(
 
             let varcall_func = #varcall_func;
             let ptrcall_func = #ptrcall_func;
+
+            let default_params = vec![ #( Variant::from( #default_params ) ),* ];
 
             // SAFETY:
             // `get_varcall_func` upholds all the requirements for `call_func`.
@@ -67,7 +77,8 @@ pub fn make_method_registration(
                 &[
                     #( #param_ident_strs ),*
                 ],
-                Vec::new()
+                // Vec::new()
+                default_params
                 )
             };
 
