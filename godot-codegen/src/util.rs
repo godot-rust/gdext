@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::api_parser::{ClassConstant, Enum};
+use crate::api_parser::{BuiltinClassMethod, ClassConstant, ClassMethod, Enum};
 use crate::central_generator::TypeNames;
 use crate::special_cases::is_builtin_scalar;
 use crate::{Context, GodotTy, ModName, RustTy, TyName};
@@ -22,12 +22,20 @@ pub fn option_as_slice<T>(option: &Option<Vec<T>>) -> &[T] {
     option.as_ref().map_or(&[], Vec::as_slice)
 }
 
-pub fn make_class_method_ptr_name(class_name_str: &str, method_name_str: &str) -> Ident {
-    format_ident!("{}__{}", class_name_str, method_name_str)
+// pub fn make_class_method_ptr_name(class_name_str: &str, method_name_str: &str) -> Ident {
+//     format_ident!("{}__{}", class_name_str, method_name_str)
+// }
+
+// Use &ClassMethod instead of &str, to make sure it's the original Godot name and no rename.
+pub fn make_class_method_ptr_name(class_godot_name: &str, method: &ClassMethod) -> Ident {
+    format_ident!("{}__{}", class_godot_name, method.name)
 }
 
-pub fn make_builtin_method_ptr_name(variant_type: &TypeNames, method_name_str: &str) -> Ident {
-    format_ident!("{}__{}", variant_type.json_builtin_name, method_name_str)
+pub fn make_builtin_method_ptr_name(
+    variant_type: &TypeNames,
+    method: &BuiltinClassMethod,
+) -> Ident {
+    format_ident!("{}__{}", variant_type.json_builtin_name, method.name)
 }
 
 // TODO should eventually be removed, as all StringNames are cached

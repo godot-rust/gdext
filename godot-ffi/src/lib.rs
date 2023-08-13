@@ -196,11 +196,16 @@ pub unsafe fn load_class_method_table() {
     let binding = unwrap_ref_unchecked_mut(&mut BINDING);
 
     out!("Load class method table...");
+    let begin = std::time::Instant::now();
+
     let class_method_table = {
         let mut string_names = StringCache::new(&binding.interface, &binding.global_method_table);
         ClassMethodTable::load(&binding.interface, &mut string_names)
     };
-    out!("Loaded class method table.");
+
+    let _elapsed = std::time::Instant::now() - begin;
+
+    out!("Loaded class method table in {}s.", _elapsed.as_secs_f64());
     binding.class_method_table = Some(class_method_table);
 }
 

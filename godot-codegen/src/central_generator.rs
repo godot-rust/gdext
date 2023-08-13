@@ -9,7 +9,7 @@ use quote::{format_ident, quote, ToTokens};
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::class_generator::{is_class_excluded, is_method_excluded};
+use crate::class_generator::{is_builtin_method_excluded, is_class_excluded, is_method_excluded};
 use crate::util::{option_as_slice, to_pascal_case, to_rust_type, to_snake_case};
 use crate::{api_parser::*, SubmitFn};
 use crate::{ident, util, Context};
@@ -99,7 +99,8 @@ pub(crate) fn generate_sys_classes_file(
             crate::out!("Load class method {}::{} (hash {})...", class_name, method_name, hash);
             if method.is_null() {
                 panic!(
-                    "failed to load class method {}::{} (hash {}) -- possible Godot/gdext version mismatch",
+                    "Failed to load class method {}::{} (hash {}).\n\
+                    Make sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html",
                     class_name,
                     method_name,
                     hash
@@ -115,6 +116,8 @@ pub(crate) fn generate_sys_classes_file(
         }
 
         impl ClassMethodTable {
+            // #[allow]: some classes have no own methods (only inherited ones), so their StringNames are never referenced.
+            #[allow(unused_variables)]
             pub fn load(
                 interface: &crate::GDExtensionInterface,
                 string_names: &mut crate::StringCache,
@@ -163,10 +166,11 @@ pub(crate) fn generate_sys_builtins_file(
             method_name: &str,
             hash: i64,
         ) -> BuiltinMethodBind {
-            crate::out!("Load builtin method {}::{} (hash {})", variant_type, method_name, hash);
+            crate::out!("Load builtin method {}::{} (hash {})...", variant_type, method_name, hash);
             method.unwrap_or_else(|| {
                 panic!(
-                    "failed to load builtin method {}::{} (hash {}) -- possible Godot/gdext version mismatch",
+                    "Failed to load builtin method {}::{} (hash {}).\n\
+                    Make sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html",
                     variant_type,
                     method_name,
                     hash
@@ -564,11 +568,12 @@ fn make_class_method_items(api: &ExtensionApi, ctx: &mut Context) -> ClassMethod
         let class_var = format_ident!("sname_{}", &class.name);
         let initializer_expr = util::make_sname_ptr(&class.name);
 
-        class_inits.push(quote! {
-            let #class_var = #initializer_expr;
-        });
-
-        populate_class_methods(&mut items, &class, class_var, ctx);
+        if populate_class_methods(&mut items, class, &class_var, ctx) {
+            // Only create class variable if there any methods have been added.
+            class_inits.push(quote! {
+                let #class_var = #initializer_expr;
+            });
+        }
     }
 
     items.pre_init_code = quote! {
@@ -592,7 +597,7 @@ fn make_builtin_method_items(
             continue // for Nil
         };
 
-        populate_builtin_methods(&mut items, &builtin, &builtin_type.type_names);
+        populate_builtin_methods(&mut items, builtin, &builtin_type.type_names);
     }
 
     items.pre_init_code = quote! {
@@ -601,32 +606,32 @@ fn make_builtin_method_items(
     items
 }
 
+/// Returns whether at least 1 method was added.
 fn populate_class_methods(
     items: &mut ClassMethodItems,
     class: &Class,
-    class_var: Ident,
+    class_var: &Ident,
     ctx: &mut Context,
-) {
-    if is_class_excluded(&class.name) {
-        return;
-    }
-
+) -> bool {
     let class_name_str = class.name.as_str();
+    let mut methods_added = false;
 
     for method in option_as_slice(&class.methods) {
         if is_method_excluded(method, false, ctx) {
             continue;
         }
 
-        let method_name_str = method.name.as_str();
-        let method_field = util::make_class_method_ptr_name(class_name_str, method_name_str);
+        let method_field = util::make_class_method_ptr_name(&class.name, method);
 
         let method_decl = make_class_method_decl(&method_field);
-        let method_init = make_class_method_init(method, &method_field, &class_var, class_name_str);
+        let method_init = make_class_method_init(method, &method_field, class_var, class_name_str);
 
         items.method_decls.push(method_decl);
         items.method_inits.push(method_init);
+        methods_added = true;
     }
+
+    methods_added
 }
 
 fn populate_builtin_methods(
@@ -635,8 +640,11 @@ fn populate_builtin_methods(
     type_name: &TypeNames,
 ) {
     for method in option_as_slice(&builtin_class.methods) {
-        let method_name_str = method.name.as_str();
-        let method_field = util::make_builtin_method_ptr_name(type_name, method_name_str);
+        if is_builtin_method_excluded(method) {
+            continue;
+        }
+
+        let method_field = util::make_builtin_method_ptr_name(type_name, method);
 
         let method_decl = make_builtin_method_decl(method, &method_field);
         let method_init = make_builtin_method_init(method, &method_field, type_name);

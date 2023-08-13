@@ -1061,6 +1061,12 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
     }
 }
 
+pub(crate) fn is_builtin_method_excluded(method: &BuiltinClassMethod) -> bool {
+    // Builtin class methods that need varcall are not currently available in GDExtension.
+    // See https://github.com/godot-rust/gdext/issues/382.
+    method.is_vararg
+}
+
 #[cfg(not(feature = "codegen-full"))]
 pub(crate) fn is_class_excluded(class: &str) -> bool {
     !crate::SELECTED_CLASSES.contains(&class)
@@ -1178,8 +1184,7 @@ fn make_method_definition(
         quote! { sys::interface_fn!(object_method_bind_ptrcall) }
     };
 
-    let class_name_str = &class_name.godot_ty;
-    let fn_ptr = util::make_class_method_ptr_name(class_name_str, method_name_str);
+    let fn_ptr = util::make_class_method_ptr_name(&class_name.godot_ty, method);
 
     let init_code = quote! {
         let __method_bind = sys::class_method_table().#fn_ptr;
@@ -1221,6 +1226,10 @@ fn make_builtin_method_definition(
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> FnDefinition {
+    if is_builtin_method_excluded(method) {
+        return FnDefinition::none();
+    }
+
     let method_name_str = &method.name;
 
     let return_value = method
@@ -1231,7 +1240,7 @@ fn make_builtin_method_definition(
     let is_varcall = method.is_vararg;
     let variant_ffi = is_varcall.then(VariantFfi::type_ptr);
 
-    let fn_ptr = util::make_builtin_method_ptr_name(&type_info.type_names, method_name_str);
+    let fn_ptr = util::make_builtin_method_ptr_name(&type_info.type_names, method);
 
     let init_code = quote! {
         let __call_fn = sys::builtin_method_table().#fn_ptr;
