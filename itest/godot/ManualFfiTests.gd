@@ -308,8 +308,9 @@ func test_func_rename():
 func test_default_params_primitives():
 	var tester := DefaultParamsPrimitives.new()
 
-	assert_eq(tester.add_ints(), 3)
 	assert_eq(tester.add_ints(5, 6), 11)
+	assert_eq(tester.add_ints(5), 5)
+	assert_eq(tester.add_ints(), 0)
 
 	assert_eq(tester.pass_string(), "hello")
 	assert_eq(tester.pass_string("world"), "world")

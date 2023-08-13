@@ -47,6 +47,8 @@ impl RefCountedVirtual for FuncRename {
     }
 }
 
+// TODO you-win August 12, 2023: impl to/from variant for option<T>?
+
 #[derive(GodotClass)]
 #[class(base=RefCounted)]
 struct DefaultParamsPrimitives;
@@ -54,10 +56,8 @@ struct DefaultParamsPrimitives;
 #[godot_api]
 impl DefaultParamsPrimitives {
     #[func(defaults = [1, 2])]
-    fn add_ints(&self, a: Variant, b: Variant) -> i32 {
-        println!("{:?}", a.get_type());
-        println!("{:?}", b.get_type());
-        (if a.is_nil() { 1 } else { a.to::<i32>() }) + (if b.is_nil() { 2 } else { b.to::<i32>() })
+    fn add_ints(&self, a: i32, b: i32) -> i32 {
+        a + b
     }
 
     #[func(defaults = ["hello"])]

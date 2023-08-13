@@ -33,13 +33,13 @@ pub struct FuncDefinition {
     pub func: venial::Function,
     /// The name the function will be exposed as in Godot. If `None`, the Rust function name is used.
     pub rename: Option<String>,
-    // TODO you-win August 12, 2023: right now, this is an all-or-nothing operation
     // either all params must have default args or no params have default args
     /// Default parameters in sequential order.
     pub default_params: Option<Vec<String>>,
 }
 
 impl FuncDefinition {
+    /// Convenience function for struct creation with _only_ a signature.
     pub fn from_signature(signature: venial::Function) -> Self {
         FuncDefinition {
             func: signature,
@@ -175,22 +175,22 @@ fn make_ptrcall_invocation(
     }
 }
 
-/// Generate code for a `varcall()` call expression.
-fn make_varcall_invocation(
-    method_name: &Ident,
-    sig_tuple: &TokenStream,
-    wrapped_method: &TokenStream,
-) -> TokenStream {
-    let method_name_str = method_name.to_string();
+//// Generate code for a `varcall()` call expression.
+// fn make_varcall_invocation(
+//     method_name: &Ident,
+//     sig_tuple: &TokenStream,
+//     wrapped_method: &TokenStream,
+// ) -> TokenStream {
+//     let method_name_str = method_name.to_string();
 
-    quote! {
-        <#sig_tuple as ::godot::builtin::meta::VarcallSignatureTuple>::varcall(
-            instance_ptr,
-            args,
-            ret,
-            err,
-            #wrapped_method,
-            #method_name_str,
-        )
-    }
-}
+//     quote! {
+//         <#sig_tuple as ::godot::builtin::meta::VarcallSignatureTuple>::varcall(
+//             instance_ptr,
+//             args,
+//             ret,
+//             err,
+//             #wrapped_method,
+//             #method_name_str,
+//         )
+//     }
+// }

@@ -5,8 +5,11 @@
 */
 
 use crate::method_registration::{
-    get_signature_info, make_forwarding_closure, make_method_flags, make_ptrcall_invocation,
-    make_varcall_invocation,
+    get_signature_info,
+    make_forwarding_closure,
+    make_method_flags,
+    make_ptrcall_invocation,
+    // make_varcall_invocation,
 };
 use crate::util;
 use proc_macro2::{Ident, TokenStream};
@@ -100,7 +103,8 @@ fn make_varcall_func(
     sig_tuple: &TokenStream,
     wrapped_method: &TokenStream,
 ) -> TokenStream {
-    let invocation = make_varcall_invocation(method_name, sig_tuple, wrapped_method);
+    // let invocation = make_varcall_invocation(method_name, sig_tuple, wrapped_method);
+    let method_name_str = method_name.to_string();
 
     quote! {
         {
@@ -108,14 +112,28 @@ fn make_varcall_func(
                 _method_data: *mut std::ffi::c_void,
                 instance_ptr: sys::GDExtensionClassInstancePtr,
                 args: *const sys::GDExtensionConstVariantPtr,
-                _arg_count: sys::GDExtensionInt,
+                arg_count: sys::GDExtensionInt,
                 ret: sys::GDExtensionVariantPtr,
                 err: *mut sys::GDExtensionCallError,
             ) {
+                // let success = ::godot::private::handle_panic(
+                //     || stringify!(#method_name),
+                //     || #invocation
+                // );
                 let success = ::godot::private::handle_panic(
                     || stringify!(#method_name),
-                    || #invocation
+                    || <#sig_tuple as ::godot::builtin::meta::VarcallSignatureTuple>::varcall(
+                        instance_ptr,
+                        args,
+                        arg_count,
+                        ret,
+                        err,
+                        #wrapped_method,
+                        #method_name_str
+                    )
                 );
+
+                // println!("make_varcall_func arg_count - {_arg_count:?}");
 
                 if success.is_none() {
                     // Signal error and set return type to Nil

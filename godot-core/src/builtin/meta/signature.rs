@@ -21,6 +21,7 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
     unsafe fn varcall(
         instance_ptr: sys::GDExtensionClassInstancePtr,
         args_ptr: *const sys::GDExtensionConstVariantPtr,
+        arg_count: sys::GDExtensionInt,
         ret: sys::GDExtensionVariantPtr,
         err: *mut sys::GDExtensionCallError,
         func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
@@ -75,7 +76,7 @@ macro_rules! impl_varcall_signature_for_tuple {
         #[allow(unused_variables)]
         impl<$R, $($Pn,)*> VarcallSignatureTuple for ($R, $($Pn,)*)
             where $R: VariantMetadata + ToVariant + sys::GodotFuncMarshal + Debug,
-               $( $Pn: VariantMetadata + FromVariant + sys::GodotFuncMarshal + Debug, )*
+               $( $Pn: VariantMetadata + FromVariant + sys::GodotFuncMarshal + Debug + Default, )*
         {
             const PARAM_COUNT: usize = $PARAM_COUNT;
 
@@ -106,6 +107,7 @@ macro_rules! impl_varcall_signature_for_tuple {
             unsafe fn varcall(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
+                arg_count: sys::GDExtensionInt,
                 ret: sys::GDExtensionVariantPtr,
                 err: *mut sys::GDExtensionCallError,
                 func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
@@ -114,7 +116,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 $crate::out!("varcall: {}", method_name);
 
                 let args = ($(
-                    unsafe { varcall_arg::<$Pn, $n>(args_ptr, method_name) },
+                    unsafe { varcall_arg::<$Pn, $n>(args_ptr, arg_count as isize, method_name) },
                 )*) ;
 
                 varcall_return::<$R>(func(instance_ptr, args), ret, err)
@@ -163,10 +165,14 @@ macro_rules! impl_ptrcall_signature_for_tuple {
 ///
 /// # Safety
 /// - It must be safe to dereference the pointer at `args_ptr.offset(N)` .
-unsafe fn varcall_arg<P: FromVariant, const N: isize>(
+unsafe fn varcall_arg<P: FromVariant + Default, const N: isize>(
     args_ptr: *const sys::GDExtensionConstVariantPtr,
+    arg_count: isize,
     method_name: &str,
 ) -> P {
+    if arg_count >= N {
+        return P::default();
+    }
     let variant = &*(*args_ptr.offset(N) as *mut Variant); // TODO from_var_sys
     P::try_from_variant(variant)
         .unwrap_or_else(|_| param_error::<P>(method_name, N as i32, variant))
@@ -199,6 +205,7 @@ unsafe fn ptrcall_arg<P: sys::GodotFuncMarshal, const N: isize>(
     method_name: &str,
     call_type: sys::PtrcallType,
 ) -> P {
+    println!("ptrcall - {method_name}");
     P::try_from_arg(sys::force_mut_ptr(*args_ptr.offset(N)), call_type)
         .unwrap_or_else(|e| param_error::<P>(method_name, N as i32, &e))
 }
