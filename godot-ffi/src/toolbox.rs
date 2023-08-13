@@ -73,7 +73,7 @@ macro_rules! debug_assert_godot {
         debug_assert!(
             $expr,
             "Godot engine not available; make sure you are not calling it from unit/doc tests"
-        ); // previous message: "unchecked access to Option::None"
+        );
     };
 }
 
@@ -87,6 +87,15 @@ pub(crate) unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
 
     match opt {
         Some(ref val) => val,
+        None => std::hint::unreachable_unchecked(),
+    }
+}
+
+pub(crate) unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
+    debug_assert_godot!(opt.is_some());
+
+    match opt {
+        Some(ref mut val) => val,
         None => std::hint::unreachable_unchecked(),
     }
 }

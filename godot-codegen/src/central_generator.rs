@@ -9,7 +9,8 @@ use quote::{format_ident, quote, ToTokens};
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::util::{to_pascal_case, to_rust_type, to_snake_case};
+use crate::class_generator::{is_class_excluded, is_method_excluded};
+use crate::util::{option_as_slice, to_pascal_case, to_rust_type, to_snake_case};
 use crate::{api_parser::*, SubmitFn};
 use crate::{ident, util, Context};
 
@@ -26,7 +27,14 @@ struct CentralItems {
     godot_version: Header,
 }
 
-pub(crate) struct TypeNames {
+#[derive(Default)]
+struct ClassMethodItems {
+    pre_init_code: TokenStream,
+    method_decls: Vec<TokenStream>,
+    method_inits: Vec<TokenStream>,
+}
+
+pub struct TypeNames {
     /// Name in JSON: "int" or "PackedVector2Array"
     pub json_builtin_name: String,
 
@@ -65,11 +73,136 @@ pub(crate) fn generate_sys_central_file(
     submit_fn(sys_gen_path.join("central.rs"), sys_code);
 }
 
+pub(crate) fn generate_sys_classes_file(
+    api: &ExtensionApi,
+    ctx: &mut Context,
+    sys_gen_path: &Path,
+    submit_fn: &mut SubmitFn,
+) {
+    let ClassMethodItems {
+        pre_init_code,
+        method_decls,
+        method_inits,
+    } = make_class_method_items(api, ctx);
+
+    let code = quote! {
+        use crate as sys;
+
+        type MethodBind = sys::GDExtensionMethodBindPtr;
+
+        fn unwrap_fn_ptr(
+            method: MethodBind,
+            class_name: &str,
+            method_name: &str,
+            hash: i64,
+        ) -> MethodBind {
+            crate::out!("Load class method {}::{} (hash {})...", class_name, method_name, hash);
+            if method.is_null() {
+                panic!(
+                    "failed to load class method {}::{} (hash {}) -- possible Godot/gdext version mismatch",
+                    class_name,
+                    method_name,
+                    hash
+                )
+            }
+
+            method
+        }
+
+        #[allow(non_snake_case)]
+        pub struct ClassMethodTable {
+            #( #method_decls, )*
+        }
+
+        impl ClassMethodTable {
+            pub fn load(
+                interface: &crate::GDExtensionInterface,
+                string_names: &mut crate::StringCache,
+            ) -> Self {
+                #pre_init_code
+
+                Self {
+                    #( #method_inits, )*
+                }
+            }
+        }
+    };
+
+    submit_fn(sys_gen_path.join("classes.rs"), code);
+}
+
+pub(crate) fn generate_sys_builtins_file(
+    api: &ExtensionApi,
+    _ctx: &mut Context,
+    sys_gen_path: &Path,
+    submit_fn: &mut SubmitFn,
+) {
+    // TODO merge this and the one in central.rs, to only collect once
+    let builtin_types_map = collect_builtin_types(api);
+
+    let ClassMethodItems {
+        pre_init_code,
+        method_decls,
+        method_inits,
+    } = make_builtin_method_items(api, &builtin_types_map);
+
+    let code = quote! {
+        use crate as sys;
+
+        // GDExtensionPtrBuiltInMethod
+        type BuiltinMethodBind = unsafe extern "C" fn(
+            p_base: sys::GDExtensionTypePtr,
+            p_args: *const sys::GDExtensionConstTypePtr,
+            r_return: sys::GDExtensionTypePtr,
+            p_argument_count: ::std::os::raw::c_int,
+        );
+
+        fn unwrap_fn_ptr(
+            method: sys::GDExtensionPtrBuiltInMethod,
+            variant_type: &str,
+            method_name: &str,
+            hash: i64,
+        ) -> BuiltinMethodBind {
+            crate::out!("Load builtin method {}::{} (hash {})", variant_type, method_name, hash);
+            method.unwrap_or_else(|| {
+                panic!(
+                    "failed to load builtin method {}::{} (hash {}) -- possible Godot/gdext version mismatch",
+                    variant_type,
+                    method_name,
+                    hash
+                )
+            })
+        }
+
+        #[allow(non_snake_case)]
+        pub struct BuiltinMethodTable {
+            #( #method_decls, )*
+        }
+
+        impl BuiltinMethodTable {
+            pub fn load(
+                interface: &crate::GDExtensionInterface,
+                string_names: &mut crate::StringCache,
+            ) -> Self {
+                #pre_init_code
+
+                Self {
+                    #( #method_inits, )*
+                }
+            }
+        }
+    };
+
+    submit_fn(sys_gen_path.join("builtin_classes.rs"), code);
+}
+
 pub(crate) fn generate_sys_mod_file(core_gen_path: &Path, submit_fn: &mut SubmitFn) {
     let code = quote! {
+        pub mod builtin_classes;
         pub mod central;
-        pub mod interface;
+        pub mod classes;
         pub mod gdextension_interface;
+        pub mod interface;
     };
 
     submit_fn(core_gen_path.join("mod.rs"), code);
@@ -419,6 +552,163 @@ fn make_central_items(
     result
 }
 
+fn make_class_method_items(api: &ExtensionApi, ctx: &mut Context) -> ClassMethodItems {
+    let mut items = ClassMethodItems::default();
+    let mut class_inits = Vec::new();
+
+    for class in api.classes.iter() {
+        if is_class_excluded(&class.name) {
+            continue;
+        }
+
+        let class_var = format_ident!("sname_{}", &class.name);
+        let initializer_expr = util::make_sname_ptr(&class.name);
+
+        class_inits.push(quote! {
+            let #class_var = #initializer_expr;
+        });
+
+        populate_class_methods(&mut items, &class, class_var, ctx);
+    }
+
+    items.pre_init_code = quote! {
+        let get_method_bind = interface.classdb_get_method_bind.expect("classdb_get_method_bind absent");
+
+        #( #class_inits )*
+    };
+
+    items
+}
+
+fn make_builtin_method_items(
+    api: &ExtensionApi,
+    builtin_types_map: &HashMap<String, BuiltinTypeInfo<'_>>,
+) -> ClassMethodItems {
+    let mut items = ClassMethodItems::default();
+
+    for builtin in api.builtin_classes.iter() {
+        println!("builtin: {}", builtin.name);
+        let Some(builtin_type) = builtin_types_map.get(&builtin.name) else {
+            continue // for Nil
+        };
+
+        populate_builtin_methods(&mut items, &builtin, &builtin_type.type_names);
+    }
+
+    items.pre_init_code = quote! {
+        let get_builtin_method = interface.variant_get_ptr_builtin_method.expect("variant_get_ptr_builtin_method absent");
+    };
+    items
+}
+
+fn populate_class_methods(
+    items: &mut ClassMethodItems,
+    class: &Class,
+    class_var: Ident,
+    ctx: &mut Context,
+) {
+    if is_class_excluded(&class.name) {
+        return;
+    }
+
+    let class_name_str = class.name.as_str();
+
+    for method in option_as_slice(&class.methods) {
+        if is_method_excluded(method, false, ctx) {
+            continue;
+        }
+
+        let method_name_str = method.name.as_str();
+        let method_field = util::make_class_method_ptr_name(class_name_str, method_name_str);
+
+        let method_decl = make_class_method_decl(&method_field);
+        let method_init = make_class_method_init(method, &method_field, &class_var, class_name_str);
+
+        items.method_decls.push(method_decl);
+        items.method_inits.push(method_init);
+    }
+}
+
+fn populate_builtin_methods(
+    items: &mut ClassMethodItems,
+    builtin_class: &BuiltinClass,
+    type_name: &TypeNames,
+) {
+    for method in option_as_slice(&builtin_class.methods) {
+        let method_name_str = method.name.as_str();
+        let method_field = util::make_builtin_method_ptr_name(type_name, method_name_str);
+
+        let method_decl = make_builtin_method_decl(method, &method_field);
+        let method_init = make_builtin_method_init(method, &method_field, type_name);
+
+        items.method_decls.push(method_decl);
+        items.method_inits.push(method_init);
+    }
+}
+
+fn make_class_method_decl(method_field: &Ident) -> TokenStream {
+    // Note: varcall/ptrcall is only decided at call time; the method bind is the same for both.
+    quote! { pub #method_field: MethodBind }
+}
+
+fn make_class_method_init(
+    method: &ClassMethod,
+    method_field: &Ident,
+    class_var: &Ident,
+    class_name_str: &str,
+) -> TokenStream {
+    let method_name_str = method.name.as_str();
+    let method_sname = util::make_sname_ptr(method_name_str);
+
+    let hash = method.hash.unwrap_or_else(|| {
+        panic!(
+            "class method has no hash: {}::{}",
+            class_name_str, method_name_str
+        )
+    });
+
+    quote! {
+        #method_field: {
+            let method_bind = unsafe {
+                get_method_bind(#class_var, #method_sname, #hash)
+            };
+            unwrap_fn_ptr(method_bind, #class_name_str, #method_name_str, #hash)
+        }
+    }
+}
+
+fn make_builtin_method_decl(_method: &BuiltinClassMethod, method_field: &Ident) -> TokenStream {
+    quote! { pub #method_field: BuiltinMethodBind }
+}
+
+fn make_builtin_method_init(
+    method: &BuiltinClassMethod,
+    method_field: &Ident,
+    type_name: &TypeNames,
+) -> TokenStream {
+    let method_name_str = method.name.as_str();
+    let method_sname = util::make_sname_ptr(method_name_str);
+
+    let variant_type = &type_name.sys_variant_type;
+    let variant_type_str = &type_name.json_builtin_name;
+
+    let hash = method.hash.unwrap_or_else(|| {
+        panic!(
+            "builtin method has no hash: {}::{}",
+            variant_type_str, method_name_str
+        )
+    });
+
+    quote! {
+        #method_field: {
+            let method_bind = unsafe {
+                get_builtin_method(sys::#variant_type, #method_sname, #hash)
+            };
+            unwrap_fn_ptr(method_bind, #variant_type_str, #method_name_str, #hash)
+        }
+    }
+}
+
 /// Creates a map from "normalized" class names (lowercase without underscore, makes it easy to map from different conventions)
 /// to meta type information, including all the type name variants
 fn collect_builtin_classes(api: &ExtensionApi) -> HashMap<String, &BuiltinClass> {
@@ -432,7 +722,7 @@ fn collect_builtin_classes(api: &ExtensionApi) -> HashMap<String, &BuiltinClass>
     class_map
 }
 
-/// Returns map from "PackedStringArray" to all the info
+/// Returns map from the JSON names (e.g. "PackedStringArray") to all the info.
 pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, BuiltinTypeInfo<'_>> {
     let class_map = collect_builtin_classes(api);
 

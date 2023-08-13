@@ -36,7 +36,7 @@ pub fn make_virtual_method_callback(
 
             unsafe extern "C" fn function(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
-                args: *const sys::GDExtensionConstTypePtr,
+                args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
             ) {
                 #invocation;

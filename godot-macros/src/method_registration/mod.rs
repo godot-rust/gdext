@@ -152,7 +152,7 @@ fn make_ptrcall_invocation(
     quote! {
          <#sig_tuple as ::godot::builtin::meta::PtrcallSignatureTuple>::ptrcall(
             instance_ptr,
-            args,
+            args_ptr,
             ret,
             #wrapped_method,
             #method_name_str,

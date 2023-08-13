@@ -13,8 +13,9 @@ use std::path::Path;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
 use crate::context::NotificationEnum;
 use crate::util::{
-    ident, option_as_slice, parse_native_structures_format, safe_ident, to_pascal_case,
-    to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
+    ident, make_string_name, option_as_slice, parse_native_structures_format, safe_ident,
+    to_pascal_case, to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case,
+    NativeStructuresField,
 };
 use crate::{api_parser::*, SubmitFn};
 use crate::{
@@ -427,12 +428,6 @@ fn make_module_doc(class_name: &TyName) -> String {
         \n\n\
         See also [Godot docs for `{godot_ty}` enums]({online_link}).\n\n"
     )
-}
-
-fn make_string_name(identifier: &str) -> TokenStream {
-    quote! {
-        StringName::from(#identifier)
-    }
 }
 
 fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
@@ -1067,11 +1062,17 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
 }
 
 #[cfg(not(feature = "codegen-full"))]
-fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
-    fn is_class_excluded(class: &str) -> bool {
-        !crate::SELECTED_CLASSES.contains(&class)
-    }
+pub(crate) fn is_class_excluded(class: &str) -> bool {
+    !crate::SELECTED_CLASSES.contains(&class)
+}
 
+#[cfg(feature = "codegen-full")]
+pub(crate) fn is_class_excluded(_class: &str) -> bool {
+    false
+}
+
+#[cfg(not(feature = "codegen-full"))]
+fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     fn is_rust_type_excluded(ty: &RustTy) -> bool {
         match ty {
             RustTy::BuiltinIdent(_) => false,
@@ -1090,7 +1091,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     is_rust_type_excluded(&to_rust_type(ty, None, ctx))
 }
 
-fn is_method_excluded(
+pub(crate) fn is_method_excluded(
     method: &ClassMethod,
     is_virtual_impl: bool,
     #[allow(unused_variables)] ctx: &mut Context,
@@ -1115,7 +1116,7 @@ fn is_method_excluded(
     }
     // -- end.
 
-    if method.name.starts_with('_') && !is_virtual_impl {
+    if !is_virtual_impl && method.name.starts_with('_') {
         return true;
     }
 
@@ -1159,7 +1160,6 @@ fn make_method_definition(
     }*/
 
     let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
-    let method_name_stringname = make_string_name(method_name_str);
 
     let receiver = make_receiver(
         method.is_static,
@@ -1167,34 +1167,23 @@ fn make_method_definition(
         quote! { self.object_ptr },
     );
 
-    let hash = method.hash;
     let is_varcall = method.is_vararg;
-
     let variant_ffi = is_varcall.then(VariantFfi::variant_ptr);
-    let function_provider = if is_varcall {
-        ident("object_method_bind_call")
+
+    let function_provider = if method.is_vararg {
+        // varcall
+        quote! { sys::interface_fn!(object_method_bind_call) }
     } else {
-        ident("object_method_bind_ptrcall")
+        // ptrcall
+        quote! { sys::interface_fn!(object_method_bind_ptrcall) }
     };
 
     let class_name_str = &class_name.godot_ty;
-    let class_name_stringname = make_string_name(class_name_str);
+    let fn_ptr = util::make_class_method_ptr_name(class_name_str, method_name_str);
+
     let init_code = quote! {
-        let __class_name = #class_name_stringname;
-        let __method_name = #method_name_stringname;
-        let __method_bind = sys::interface_fn!(classdb_get_method_bind)(
-            __class_name.string_sys(),
-            __method_name.string_sys(),
-            #hash
-        );
-        assert!(
-            !__method_bind.is_null(),
-            "failed to load method {}::{} (hash {}) -- possible Godot/gdext version mismatch",
-            #class_name_str,
-            #method_name_str,
-            #hash
-        );
-        let __call_fn = sys::interface_fn!(#function_provider);
+        let __method_bind = sys::class_method_table().#fn_ptr;
+        let __call_fn = #function_provider;
     };
 
     let receiver_ffi_arg = &receiver.ffi_arg;
@@ -1233,26 +1222,19 @@ fn make_builtin_method_definition(
     ctx: &mut Context,
 ) -> FnDefinition {
     let method_name_str = &method.name;
-    let method_name_stringname = make_string_name(method_name_str);
 
     let return_value = method
         .return_type
         .as_deref()
         .map(MethodReturn::from_type_no_meta);
-    let hash = method.hash.expect("missing hash for builtin method");
+
     let is_varcall = method.is_vararg;
     let variant_ffi = is_varcall.then(VariantFfi::type_ptr);
 
-    let variant_type = &type_info.type_names.sys_variant_type;
+    let fn_ptr = util::make_builtin_method_ptr_name(&type_info.type_names, method_name_str);
+
     let init_code = quote! {
-        let __variant_type = sys::#variant_type;
-        let __method_name = #method_name_stringname;
-        let __call_fn = sys::interface_fn!(variant_get_ptr_builtin_method)(
-            __variant_type,
-            __method_name.string_sys(),
-            #hash
-        );
-        let __call_fn = __call_fn.unwrap_unchecked();
+        let __call_fn = sys::builtin_method_table().#fn_ptr;
     };
 
     let receiver = make_receiver(method.is_static, method.is_const, quote! { self.sys_ptr });

@@ -127,17 +127,18 @@ fn make_ptrcall_func(
     wrapped_method: &TokenStream,
 ) -> TokenStream {
     let invocation = make_ptrcall_invocation(method_name, sig_tuple, wrapped_method, false);
+    let method_name_str = method_name.to_string();
 
     quote! {
         {
             unsafe extern "C" fn function(
                 _method_data: *mut std::ffi::c_void,
                 instance_ptr: sys::GDExtensionClassInstancePtr,
-                args: *const sys::GDExtensionConstTypePtr,
+                args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
             ) {
                 let success = ::godot::private::handle_panic(
-                    || stringify!(#method_name),
+                    || #method_name_str,
                     || #invocation
                 );
 

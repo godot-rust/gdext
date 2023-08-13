@@ -173,6 +173,13 @@ struct DefaultLayer;
 
 impl ExtensionLayer for DefaultLayer {
     fn initialize(&mut self) {
+        // TODO move both calls out of user code, so it's not accidentally skipped when using a different ExtensionLayer.
+
+        // SAFETY: available in Scene level, and only called once -- from the main thread and after interface has been initialized.
+        unsafe {
+            sys::load_class_method_table();
+        }
+
         crate::auto_register_classes();
     }
 

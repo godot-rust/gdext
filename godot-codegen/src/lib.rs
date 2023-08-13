@@ -19,7 +19,7 @@ mod tests;
 use api_parser::{load_extension_api, ExtensionApi};
 use central_generator::{
     generate_core_central_file, generate_core_mod_file, generate_sys_central_file,
-    generate_sys_mod_file,
+    generate_sys_classes_file, generate_sys_mod_file,
 };
 use class_generator::{
     generate_builtin_class_files, generate_class_files, generate_native_structures_files,
@@ -29,6 +29,7 @@ use interface_generator::generate_sys_interface_file;
 use util::{ident, to_pascal_case, to_snake_case};
 use utilities_generator::generate_utilities_file;
 
+use crate::central_generator::generate_sys_builtins_file;
 use crate::context::NotificationEnum;
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
@@ -67,6 +68,12 @@ pub fn generate_sys_files(
 
     generate_sys_central_file(&api, &mut ctx, build_config, sys_gen_path, &mut submit_fn);
     watch.record("generate_central_file");
+
+    generate_sys_builtins_file(&api, &mut ctx, sys_gen_path, &mut submit_fn);
+    watch.record("generate_builtins_file");
+
+    generate_sys_classes_file(&api, &mut ctx, sys_gen_path, &mut submit_fn);
+    watch.record("generate_classes_file");
 
     let is_godot_4_0 = api.header.version_major == 4 && api.header.version_minor == 0;
     generate_sys_interface_file(h_path, sys_gen_path, is_godot_4_0, &mut submit_fn);

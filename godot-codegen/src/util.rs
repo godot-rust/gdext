@@ -5,6 +5,7 @@
  */
 
 use crate::api_parser::{ClassConstant, Enum};
+use crate::central_generator::TypeNames;
 use crate::special_cases::is_builtin_scalar;
 use crate::{Context, GodotTy, ModName, RustTy, TyName};
 use proc_macro2::{Ident, Literal, TokenStream};
@@ -19,6 +20,27 @@ pub struct NativeStructuresField {
 /// Small utility that turns an optional vector (often encountered as JSON deserialization type) into a slice.
 pub fn option_as_slice<T>(option: &Option<Vec<T>>) -> &[T] {
     option.as_ref().map_or(&[], Vec::as_slice)
+}
+
+pub fn make_class_method_ptr_name(class_name_str: &str, method_name_str: &str) -> Ident {
+    format_ident!("{}__{}", class_name_str, method_name_str)
+}
+
+pub fn make_builtin_method_ptr_name(variant_type: &TypeNames, method_name_str: &str) -> Ident {
+    format_ident!("{}__{}", variant_type.json_builtin_name, method_name_str)
+}
+
+// TODO should eventually be removed, as all StringNames are cached
+pub fn make_string_name(identifier: &str) -> TokenStream {
+    quote! {
+        StringName::from(#identifier)
+    }
+}
+
+pub fn make_sname_ptr(identifier: &str) -> TokenStream {
+    quote! {
+        string_names.fetch(#identifier)
+    }
 }
 
 pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
