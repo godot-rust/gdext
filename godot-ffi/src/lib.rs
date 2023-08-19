@@ -17,7 +17,17 @@
     deref_nullptr,
     clippy::redundant_static_lifetimes
 )]
-pub(crate) mod gen;
+pub(crate) mod gen {
+    pub mod table_builtin_types;
+    pub mod table_servers_classes;
+    pub mod table_scene_classes;
+    pub mod table_editor_classes;
+
+    pub mod central;
+    pub mod gdextension_interface;
+    pub mod interface;
+
+}
 
 mod compat;
 mod gdextension_plus;
@@ -40,10 +50,16 @@ pub use crate::godot_ffi::{
     from_sys_init_or_init_default, GodotFfi, GodotFuncMarshal, GodotNullablePtr,
     PrimitiveConversionError, PtrcallType,
 };
+
+// Method tables
+pub use gen::table_builtin_types::*;
+pub use gen::table_editor_classes::*;
+pub use gen::table_scene_classes::*;
+pub use gen::table_servers_classes::*;
+
+// Other
 pub use gdextension_plus::*;
-pub use gen::builtin_classes::*;
 pub use gen::central::*;
-pub use gen::classes::*;
 pub use gen::gdextension_interface::*;
 pub use gen::interface::*;
 pub use string_cache::StringCache;
@@ -52,11 +68,20 @@ pub use toolbox::*;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // API to access Godot via FFI
 
+#[derive(Debug)]
+pub enum ClassApiLevel {
+    Server,
+    Scene,
+    Editor,
+}
+
 struct GodotBinding {
     interface: GDExtensionInterface,
     library: GDExtensionClassLibraryPtr,
     global_method_table: GlobalMethodTable,
-    class_method_table: Option<ClassMethodTable>, // late-init
+    class_server_method_table: Option<ClassServersMethodTable>, // late-init
+    class_scene_method_table: Option<ClassSceneMethodTable>,    // late-init
+    class_editor_method_table: Option<ClassEditorMethodTable>,  // late-init
     builtin_method_table: BuiltinMethodTable,
     runtime_metadata: GdextRuntimeMetadata,
     config: GdextConfig,
@@ -123,7 +148,9 @@ pub unsafe fn initialize(
         interface,
         global_method_table,
         builtin_method_table,
-        class_method_table: None,
+        class_server_method_table: None,
+        class_scene_method_table: None,
+        class_editor_method_table: None,
         library,
         runtime_metadata,
         config,
@@ -173,9 +200,40 @@ pub unsafe fn method_table() -> &'static GlobalMethodTable {
 ///
 /// The interface must have been initialised with [`initialize`] before calling this function.
 #[inline(always)]
-pub unsafe fn class_method_table() -> &'static ClassMethodTable {
-    let table = &unwrap_ref_unchecked(&BINDING).class_method_table;
-    debug_assert!(table.is_some(), "class method table not loaded");
+pub unsafe fn class_servers_api() -> &'static ClassServersMethodTable {
+    let table = &unwrap_ref_unchecked(&BINDING).class_server_method_table;
+    debug_assert!(
+        table.is_some(),
+        "cannot fetch classes; init level 'Servers' not yet loaded"
+    );
+
+    table.as_ref().unwrap_unchecked()
+}
+
+/// # Safety
+///
+/// The interface must have been initialised with [`initialize`] before calling this function.
+#[inline(always)]
+pub unsafe fn class_scene_api() -> &'static ClassSceneMethodTable {
+    let table = &unwrap_ref_unchecked(&BINDING).class_scene_method_table;
+    debug_assert!(
+        table.is_some(),
+        "cannot fetch classes; init level 'Scene' not yet loaded"
+    );
+
+    table.as_ref().unwrap_unchecked()
+}
+
+/// # Safety
+///
+/// The interface must have been initialised with [`initialize`] before calling this function.
+#[inline(always)]
+pub unsafe fn class_editor_api() -> &'static ClassEditorMethodTable {
+    let table = &unwrap_ref_unchecked(&BINDING).class_editor_method_table;
+    debug_assert!(
+        table.is_some(),
+        "cannot fetch classes; init level 'Editor' not yet loaded"
+    );
 
     table.as_ref().unwrap_unchecked()
 }
@@ -192,21 +250,49 @@ pub unsafe fn builtin_method_table() -> &'static BuiltinMethodTable {
 ///
 /// The interface must have been initialised with [`initialize`] before calling this function.
 #[inline(always)]
-pub unsafe fn load_class_method_table() {
+pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
     let binding = unwrap_ref_unchecked_mut(&mut BINDING);
 
-    out!("Load class method table...");
+    out!("Load class method table for level '{:?}'...", api_level);
     let begin = std::time::Instant::now();
 
-    let class_method_table = {
-        let mut string_names = StringCache::new(&binding.interface, &binding.global_method_table);
-        ClassMethodTable::load(&binding.interface, &mut string_names)
-    };
+    let mut string_names = StringCache::new(&binding.interface, &binding.global_method_table);
+    let (class_count, method_count);
+    match api_level {
+        ClassApiLevel::Server => {
+            binding.class_server_method_table = Some(ClassServersMethodTable::load(
+                &binding.interface,
+                &mut string_names,
+            ));
+            class_count = ClassServersMethodTable::CLASS_COUNT;
+            method_count = ClassServersMethodTable::METHOD_COUNT;
+        }
+        ClassApiLevel::Scene => {
+            binding.class_scene_method_table = Some(ClassSceneMethodTable::load(
+                &binding.interface,
+                &mut string_names,
+            ));
+            class_count = ClassSceneMethodTable::CLASS_COUNT;
+            method_count = ClassSceneMethodTable::METHOD_COUNT;
+        }
+        ClassApiLevel::Editor => {
+            binding.class_editor_method_table = Some(ClassEditorMethodTable::load(
+                &binding.interface,
+                &mut string_names,
+            ));
+            class_count = ClassEditorMethodTable::CLASS_COUNT;
+            method_count = ClassEditorMethodTable::METHOD_COUNT;
+        }
+    }
 
     let _elapsed = std::time::Instant::now() - begin;
-
-    out!("Loaded class method table in {}s.", _elapsed.as_secs_f64());
-    binding.class_method_table = Some(class_method_table);
+    out!(
+        "{:?} level: loaded {} classes and {} methods in {}s.",
+        api_level,
+        class_count,
+        method_count,
+        _elapsed.as_secs_f64()
+    );
 }
 
 /// # Safety

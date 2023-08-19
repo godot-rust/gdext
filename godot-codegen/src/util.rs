@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::api_parser::{BuiltinClassMethod, ClassConstant, ClassMethod, Enum};
+use crate::api_parser::{BuiltinClassMethod, Class, ClassConstant, ClassMethod, Enum};
 use crate::central_generator::TypeNames;
 use crate::special_cases::is_builtin_scalar;
 use crate::{Context, GodotTy, ModName, RustTy, TyName};
@@ -15,6 +15,53 @@ use quote::{format_ident, quote, ToTokens};
 pub struct NativeStructuresField {
     pub field_type: String,
     pub field_name: String,
+}
+
+/// At which stage a class function pointer is loaded.
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum ClassCodegenLevel {
+    Servers,
+    Scene,
+    Editor,
+
+    /// Not pre-fetched because Godot does not load them in time.
+    Lazy,
+}
+
+impl ClassCodegenLevel {
+    pub fn with_tables() -> [Self; 3] {
+        [Self::Servers, Self::Scene, Self::Editor]
+    }
+
+    pub fn table_global_getter(self) -> Ident {
+        format_ident!("class_{}_api", self.lower())
+    }
+
+    pub fn table_file(self) -> String {
+        format!("table_{}_classes.rs", self.lower())
+    }
+
+    pub fn table_struct(self) -> Ident {
+        format_ident!("Class{}MethodTable", self.upper())
+    }
+
+    fn lower(self) -> &'static str {
+        match self {
+            Self::Servers => "servers",
+            Self::Scene => "scene",
+            Self::Editor => "editor",
+            Self::Lazy => unreachable!("lazy classes should be deleted at the moment"),
+        }
+    }
+
+    fn upper(self) -> &'static str {
+        match self {
+            Self::Servers => "Servers",
+            Self::Scene => "Scene",
+            Self::Editor => "Editor",
+            Self::Lazy => unreachable!("lazy classes should be deleted at the moment"),
+        }
+    }
 }
 
 /// Small utility that turns an optional vector (often encountered as JSON deserialization type) into a slice.
@@ -48,6 +95,24 @@ pub fn make_string_name(identifier: &str) -> TokenStream {
 pub fn make_sname_ptr(identifier: &str) -> TokenStream {
     quote! {
         string_names.fetch(#identifier)
+    }
+}
+
+pub fn get_api_level(class: &Class) -> ClassCodegenLevel {
+    if class.name == "ThemeDB" {
+        // registered in C++ register_scene_singletons(), after MODULE_INITIALIZATION_LEVEL_EDITOR happens.
+        ClassCodegenLevel::Lazy
+    } else if class.name.ends_with("Server") {
+        ClassCodegenLevel::Servers
+    } else if class.api_type == "core" {
+        ClassCodegenLevel::Scene
+    } else if class.api_type == "editor" {
+        ClassCodegenLevel::Editor
+    } else {
+        panic!(
+            "class {} has unknown API type {}",
+            class.name, class.api_type
+        )
     }
 }
 

@@ -19,7 +19,7 @@ mod tests;
 use api_parser::{load_extension_api, ExtensionApi};
 use central_generator::{
     generate_core_central_file, generate_core_mod_file, generate_sys_central_file,
-    generate_sys_classes_file, generate_sys_mod_file,
+    generate_sys_classes_file,
 };
 use class_generator::{
     generate_builtin_class_files, generate_class_files, generate_native_structures_files,
@@ -60,8 +60,6 @@ pub fn generate_sys_files(
     h_path: &Path,
     watch: &mut godot_bindings::StopWatch,
 ) {
-    generate_sys_mod_file(sys_gen_path, &mut submit_fn);
-
     let (api, build_config) = load_extension_api(watch);
     let mut ctx = Context::build_from_api(&api);
     watch.record("build_context");

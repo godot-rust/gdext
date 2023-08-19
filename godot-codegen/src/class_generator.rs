@@ -12,6 +12,7 @@ use std::path::Path;
 
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
 use crate::context::NotificationEnum;
+use crate::special_cases::is_class_deleted;
 use crate::util::{
     ident, make_string_name, option_as_slice, parse_native_structures_format, safe_ident,
     to_pascal_case, to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case,
@@ -497,10 +498,17 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     };
 
     let constructor = make_constructor(class, ctx);
+    let get_method_table = util::get_api_level(class).table_global_getter();
+
     let FnDefinitions {
         functions: methods,
         builders,
-    } = make_methods(option_as_slice(&class.methods), class_name, ctx);
+    } = make_methods(
+        option_as_slice(&class.methods),
+        class_name,
+        &get_method_table,
+        ctx,
+    );
 
     let enums = make_enums(option_as_slice(&class.enums), class_name, ctx);
     let constants = make_constants(option_as_slice(&class.constants), class_name, ctx);
@@ -1001,10 +1009,15 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
     }
 }
 
-fn make_methods(methods: &[ClassMethod], class_name: &TyName, ctx: &mut Context) -> FnDefinitions {
+fn make_methods(
+    methods: &[ClassMethod],
+    class_name: &TyName,
+    get_method_table: &Ident,
+    ctx: &mut Context,
+) -> FnDefinitions {
     let definitions = methods
         .iter()
-        .map(|method| make_method_definition(method, class_name, ctx));
+        .map(|method| make_method_definition(method, class_name, get_method_table, ctx));
 
     FnDefinitions::expand(definitions)
 }
@@ -1100,28 +1113,37 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
 pub(crate) fn is_method_excluded(
     method: &ClassMethod,
     is_virtual_impl: bool,
-    #[allow(unused_variables)] ctx: &mut Context,
+    ctx: &mut Context,
 ) -> bool {
-    // Currently excluded:
-    //
-    // * Private virtual methods are only included in a virtual
-    //   implementation.
+    let is_arg_or_return_excluded = |ty: &str, _ctx: &mut Context| {
+        let class_deleted = is_class_deleted(&TyName::from_godot(ty));
 
-    // -- FIXME remove when impl complete
-    #[cfg(not(feature = "codegen-full"))]
-    if method
-        .return_value
-        .as_ref()
-        .map_or(false, |ret| is_type_excluded(ret.type_.as_str(), ctx))
-        || method.arguments.as_ref().map_or(false, |args| {
-            args.iter()
-                .any(|arg| is_type_excluded(arg.type_.as_str(), ctx))
-        })
-    {
+        #[cfg(not(feature = "codegen-full"))]
+        {
+            class_deleted || is_type_excluded(ty, _ctx)
+        }
+        #[cfg(feature = "codegen-full")]
+        {
+            class_deleted
+        }
+    };
+
+    // Exclude if return type contains an excluded type.
+    if method.return_value.as_ref().map_or(false, |ret| {
+        is_arg_or_return_excluded(ret.type_.as_str(), ctx)
+    }) {
         return true;
     }
-    // -- end.
 
+    // Exclude if any argument contains an excluded type.
+    if method.arguments.as_ref().map_or(false, |args| {
+        args.iter()
+            .any(|arg| is_arg_or_return_excluded(arg.type_.as_str(), ctx))
+    }) {
+        return true;
+    }
+
+    // Virtual methods are not part of the class API itself, but exposed as an accompanying trait.
     if !is_virtual_impl && method.name.starts_with('_') {
         return true;
     }
@@ -1149,6 +1171,7 @@ fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
 fn make_method_definition(
     method: &ClassMethod,
     class_name: &TyName,
+    get_method_table: &Ident,
     ctx: &mut Context,
 ) -> FnDefinition {
     if is_method_excluded(method, false, ctx) || special_cases::is_deleted(class_name, &method.name)
@@ -1187,7 +1210,7 @@ fn make_method_definition(
     let fn_ptr = util::make_class_method_ptr_name(&class_name.godot_ty, method);
 
     let init_code = quote! {
-        let __method_bind = sys::class_method_table().#fn_ptr;
+        let __method_bind = sys::#get_method_table().#fn_ptr;
         let __call_fn = #function_provider;
     };
 

@@ -57,7 +57,8 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
     let level = InitLevel::from_sys(init_level);
     let ctx = || format!("failed to initialize GDExtension level `{:?}`", level);
 
-    crate::private::handle_panic(ctx, || {
+    // Swallow panics. TODO consider crashing if gdext init fails.
+    let _ = crate::private::handle_panic(ctx, || {
         gdext_on_level_init(level);
         E::on_level_init(level);
     });
@@ -70,7 +71,8 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
     let level = InitLevel::from_sys(init_level);
     let ctx = || format!("failed to deinitialize GDExtension level `{:?}`", level);
 
-    crate::private::handle_panic(ctx, || {
+    // Swallow panics.
+    let _ = crate::private::handle_panic(ctx, || {
         E::on_level_deinit(level);
         gdext_on_level_deinit(level);
     });
