@@ -147,11 +147,11 @@ jobs:
 
           # Linux compat
 
-          - name: linux-4.0.3
+          - name: linux-4.0.4
             os: ubuntu-20.04
-            artifact-name: linux-4.0.3
+            artifact-name: linux-4.0.4
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.0.3'
+            godot-prebuilt-patch: '4.0.4'
 
           # Memory checkers
 
@@ -166,12 +166,12 @@ jobs:
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
             rust-target: x86_64-unknown-linux-gnu
 
-          - name: linux-memcheck-4.0.3
+          - name: linux-memcheck-4.0.4
             os: ubuntu-20.04
-            artifact-name: linux-memcheck-clang-4.0.3
+            artifact-name: linux-memcheck-clang-4.0.4
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             godot-args: -- --disallow-focus
-            godot-prebuilt-patch: '4.0.3'
+            godot-prebuilt-patch: '4.0.4'
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
