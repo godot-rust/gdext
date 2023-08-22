@@ -193,7 +193,9 @@ generate_gdextension_api_version!(
         "4.0.1",
         "4.0.2",
         "4.0.3",
+        "4.0.4",
         "4.1",
+        "4.1.1",
     },
     (GDEXTENSION_API, gdextension_minor_api) => {
         "4.0",
