@@ -200,7 +200,7 @@ pub(crate) fn validate_class_method(
     if method.is_null() {
         panic!(
             "Failed to load class method {}::{} (hash {}).\n\
-                    Make sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html",
+            Make sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html",
             class_name,
             method_name,
             hash
@@ -233,10 +233,18 @@ pub(crate) fn validate_builtin_method(
     method.unwrap_or_else(|| {
         panic!(
             "Failed to load builtin method {}::{} (hash {}).\n\
-                    Make sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html",
+            Make sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html",
             variant_type,
             method_name,
             hash
         )
     })
+}
+
+pub(crate) fn validate_builtin_lifecycle<T>(function: Option<T>, description: &str) -> T {
+    function.unwrap_or_else(|| panic!(
+        "Failed to load builtin lifecycle function {}.\n\
+        Make sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html",
+        description
+    ))
 }

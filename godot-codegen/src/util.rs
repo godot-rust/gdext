@@ -45,7 +45,7 @@ impl ClassCodegenLevel {
         format_ident!("Class{}MethodTable", self.upper())
     }
 
-    fn lower(self) -> &'static str {
+    pub fn lower(self) -> &'static str {
         match self {
             Self::Servers => "servers",
             Self::Scene => "scene",

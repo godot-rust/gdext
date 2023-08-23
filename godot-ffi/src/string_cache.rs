@@ -15,18 +15,18 @@ pub struct StringCache<'a> {
     // Box is needed for element stability (new insertions don't move object; i.e. pointers to it remain valid).
     instances_by_str: HashMap<&'static str, Box<sys::types::OpaqueStringName>>,
     interface: &'a sys::GDExtensionInterface,
-    global_methods: &'a sys::GlobalMethodTable,
+    builtin_lifecycle: &'a sys::BuiltinLifecycleTable,
 }
 
 impl<'a> StringCache<'a> {
     pub fn new(
         interface: &'a sys::GDExtensionInterface,
-        global_methods: &'a sys::GlobalMethodTable,
+        builtin_lifecycle: &'a sys::BuiltinLifecycleTable,
     ) -> Self {
         Self {
             instances_by_str: HashMap::new(),
             interface,
-            global_methods,
+            builtin_lifecycle,
         }
     }
 
@@ -39,20 +39,20 @@ impl<'a> StringCache<'a> {
             return box_to_sname_ptr(opaque_box);
         }
 
+        let string_name_from_string = self.builtin_lifecycle.string_name_from_string;
+        let string_destroy = self.builtin_lifecycle.string_destroy;
+
+        let mut string = MaybeUninit::<sys::types::OpaqueString>::uninit();
+        let string_ptr = string.as_mut_ptr();
+
+        let mut sname = MaybeUninit::<sys::types::OpaqueStringName>::uninit();
+        let sname_ptr = sname.as_mut_ptr();
+
         let opaque = unsafe {
             let string_new_with_latin1_chars_and_len = self
                 .interface
                 .string_new_with_latin1_chars_and_len
                 .unwrap_unchecked();
-
-            let string_name_from_string = self.global_methods.string_name_from_string;
-            let string_destroy = self.global_methods.string_destroy;
-
-            let mut string = MaybeUninit::<sys::types::OpaqueString>::uninit();
-            let string_ptr = string.as_mut_ptr();
-
-            let mut sname = MaybeUninit::<sys::types::OpaqueStringName>::uninit();
-            let sname_ptr = sname.as_mut_ptr();
 
             // Construct String.
             string_new_with_latin1_chars_and_len(
@@ -85,9 +85,9 @@ impl<'a> StringCache<'a> {
 /// Destroy all string names.
 impl<'a> Drop for StringCache<'a> {
     fn drop(&mut self) {
-        unsafe {
-            let string_name_destroy = self.global_methods.string_name_destroy;
+        let string_name_destroy = self.builtin_lifecycle.string_name_destroy;
 
+        unsafe {
             for (_, mut opaque_box) in self.instances_by_str.drain() {
                 let opaque_ptr = ptr::addr_of_mut!(*opaque_box);
                 string_name_destroy(sname_type_ptr(opaque_ptr));

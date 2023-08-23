@@ -18,7 +18,8 @@
     clippy::redundant_static_lifetimes
 )]
 pub(crate) mod gen {
-    pub mod table_builtin_types;
+    pub mod table_builtins;
+    pub mod table_builtins_lifecycle;
     pub mod table_servers_classes;
     pub mod table_scene_classes;
     pub mod table_editor_classes;
@@ -52,7 +53,8 @@ pub use crate::godot_ffi::{
 };
 
 // Method tables
-pub use gen::table_builtin_types::*;
+pub use gen::table_builtins::*;
+pub use gen::table_builtins_lifecycle::*;
 pub use gen::table_editor_classes::*;
 pub use gen::table_scene_classes::*;
 pub use gen::table_servers_classes::*;
@@ -78,7 +80,7 @@ pub enum ClassApiLevel {
 struct GodotBinding {
     interface: GDExtensionInterface,
     library: GDExtensionClassLibraryPtr,
-    global_method_table: GlobalMethodTable,
+    global_method_table: BuiltinLifecycleTable,
     class_server_method_table: Option<ClassServersMethodTable>, // late-init
     class_scene_method_table: Option<ClassSceneMethodTable>,    // late-init
     class_editor_method_table: Option<ClassEditorMethodTable>,  // late-init
@@ -130,7 +132,7 @@ pub unsafe fn initialize(
     let interface = compat.load_interface();
     out!("Loaded interface.");
 
-    let global_method_table = GlobalMethodTable::load(&interface);
+    let global_method_table = BuiltinLifecycleTable::load(&interface);
     out!("Loaded global method table.");
 
     let mut string_names = StringCache::new(&interface, &global_method_table);
@@ -192,7 +194,7 @@ pub unsafe fn get_library() -> GDExtensionClassLibraryPtr {
 ///
 /// The interface must have been initialised with [`initialize`] before calling this function.
 #[inline(always)]
-pub unsafe fn method_table() -> &'static GlobalMethodTable {
+pub unsafe fn method_table() -> &'static BuiltinLifecycleTable {
     &unwrap_ref_unchecked(&BINDING).global_method_table
 }
 
