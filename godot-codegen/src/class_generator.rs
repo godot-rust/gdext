@@ -10,18 +10,17 @@ use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::path::Path;
 
+use crate::api_parser::*;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
 use crate::context::NotificationEnum;
-use crate::special_cases::is_class_deleted;
 use crate::util::{
     ident, make_string_name, option_as_slice, parse_native_structures_format, safe_ident,
     to_pascal_case, to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case,
     NativeStructuresField,
 };
-use crate::{api_parser::*, SubmitFn};
 use crate::{
-    special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
-    GeneratedClassModule, ModName, RustTy, TyName,
+    codegen_special_cases, special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule,
+    GeneratedClass, GeneratedClassModule, ModName, RustTy, SubmitFn, TyName,
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -238,12 +237,9 @@ pub(crate) fn generate_class_files(
         let class_name = TyName::from_godot(&class.name);
         let module_name = ModName::from_godot(&class.name);
 
-        #[cfg(not(feature = "codegen-full"))]
-        if !crate::SELECTED_CLASSES.contains(&class_name.godot_ty.as_str()) {
-            continue;
-        }
-
-        if special_cases::is_class_deleted(&class_name) {
+        if special_cases::is_class_deleted(&class_name)
+            || codegen_special_cases::is_class_excluded(class_name.godot_ty.as_str())
+        {
             continue;
         }
 
@@ -1074,107 +1070,14 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
     }
 }
 
-pub(crate) fn is_builtin_method_excluded(method: &BuiltinClassMethod) -> bool {
-    // Builtin class methods that need varcall are not currently available in GDExtension.
-    // See https://github.com/godot-rust/gdext/issues/382.
-    method.is_vararg
-}
-
-#[cfg(not(feature = "codegen-full"))]
-pub(crate) fn is_class_excluded(class: &str) -> bool {
-    !crate::SELECTED_CLASSES.contains(&class)
-}
-
-#[cfg(feature = "codegen-full")]
-pub(crate) fn is_class_excluded(_class: &str) -> bool {
-    false
-}
-
-#[cfg(not(feature = "codegen-full"))]
-fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
-    fn is_rust_type_excluded(ty: &RustTy) -> bool {
-        match ty {
-            RustTy::BuiltinIdent(_) => false,
-            RustTy::BuiltinArray(_) => false,
-            RustTy::RawPointer { inner, .. } => is_rust_type_excluded(&inner),
-            RustTy::EngineArray { elem_class, .. } => is_class_excluded(elem_class.as_str()),
-            RustTy::EngineEnum {
-                surrounding_class, ..
-            } => match surrounding_class.as_ref() {
-                None => false,
-                Some(class) => is_class_excluded(class.as_str()),
-            },
-            RustTy::EngineClass { class, .. } => is_class_excluded(&class),
-        }
-    }
-    is_rust_type_excluded(&to_rust_type(ty, None, ctx))
-}
-
-pub(crate) fn is_method_excluded(
-    method: &ClassMethod,
-    is_virtual_impl: bool,
-    ctx: &mut Context,
-) -> bool {
-    let is_arg_or_return_excluded = |ty: &str, _ctx: &mut Context| {
-        let class_deleted = is_class_deleted(&TyName::from_godot(ty));
-
-        #[cfg(not(feature = "codegen-full"))]
-        {
-            class_deleted || is_type_excluded(ty, _ctx)
-        }
-        #[cfg(feature = "codegen-full")]
-        {
-            class_deleted
-        }
-    };
-
-    // Exclude if return type contains an excluded type.
-    if method.return_value.as_ref().map_or(false, |ret| {
-        is_arg_or_return_excluded(ret.type_.as_str(), ctx)
-    }) {
-        return true;
-    }
-
-    // Exclude if any argument contains an excluded type.
-    if method.arguments.as_ref().map_or(false, |args| {
-        args.iter()
-            .any(|arg| is_arg_or_return_excluded(arg.type_.as_str(), ctx))
-    }) {
-        return true;
-    }
-
-    // Virtual methods are not part of the class API itself, but exposed as an accompanying trait.
-    if !is_virtual_impl && method.name.starts_with('_') {
-        return true;
-    }
-
-    false
-}
-
-#[cfg(feature = "codegen-full")]
-fn is_function_excluded(_function: &UtilityFunction, _ctx: &mut Context) -> bool {
-    false
-}
-
-#[cfg(not(feature = "codegen-full"))]
-fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
-    function
-        .return_type
-        .as_ref()
-        .map_or(false, |ret| is_type_excluded(ret.as_str(), ctx))
-        || function.arguments.as_ref().map_or(false, |args| {
-            args.iter()
-                .any(|arg| is_type_excluded(arg.type_.as_str(), ctx))
-        })
-}
-
 fn make_method_definition(
     method: &ClassMethod,
     class_name: &TyName,
     get_method_table: &Ident,
     ctx: &mut Context,
 ) -> FnDefinition {
-    if is_method_excluded(method, false, ctx) || special_cases::is_deleted(class_name, &method.name)
+    if codegen_special_cases::is_method_excluded(method, false, ctx)
+        || special_cases::is_deleted(class_name, &method.name)
     {
         return FnDefinition::none();
     }
@@ -1249,7 +1152,7 @@ fn make_builtin_method_definition(
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> FnDefinition {
-    if is_builtin_method_excluded(method) {
+    if codegen_special_cases::is_builtin_method_excluded(method) {
         return FnDefinition::none();
     }
 
@@ -1302,7 +1205,7 @@ pub(crate) fn make_utility_function_definition(
     function: &UtilityFunction,
     ctx: &mut Context,
 ) -> TokenStream {
-    if is_function_excluded(function, ctx) {
+    if codegen_special_cases::is_function_excluded(function, ctx) {
         return TokenStream::new();
     }
 
@@ -2049,7 +1952,7 @@ fn make_all_virtual_methods(
     all_virtuals
         .into_iter()
         .filter_map(|method| {
-            if is_method_excluded(&method, true, ctx) {
+            if codegen_special_cases::is_method_excluded(&method, true, ctx) {
                 None
             } else {
                 Some(make_virtual_method(&method, ctx))

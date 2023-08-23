@@ -7,6 +7,7 @@
 mod api_parser;
 mod central_generator;
 mod class_generator;
+mod codegen_special_cases;
 mod context;
 mod interface_generator;
 mod special_cases;
@@ -299,66 +300,3 @@ struct GeneratedBuiltinModule {
     class_name: TyName,
     module_name: ModName,
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Shared config
-
-// Classes for minimal config
-#[cfg(not(feature = "codegen-full"))]
-const SELECTED_CLASSES: &[&str] = &[
-    "AnimatedSprite2D",
-    "ArrayMesh",
-    "Area2D",
-    "AudioStreamPlayer",
-    "BaseButton",
-    "Button",
-    "BoxMesh",
-    "Camera2D",
-    "Camera3D",
-    "CanvasItem",
-    "CanvasLayer",
-    "ClassDB",
-    "CollisionObject2D",
-    "CollisionShape2D",
-    "Control",
-    "Engine",
-    "FileAccess",
-    "HTTPRequest",
-    "Image",
-    "ImageTextureLayered",
-    "Input",
-    "InputEvent",
-    "InputEventAction",
-    "Label",
-    "MainLoop",
-    "Marker2D",
-    "Mesh",
-    "Node",
-    "Node2D",
-    "Node3D",
-    "Node3DGizmo",
-    "Object",
-    "OS",
-    "PackedScene",
-    "PathFollow2D",
-    "PhysicsBody2D",
-    "PrimitiveMesh",
-    "RefCounted",
-    "RenderingServer",
-    "Resource",
-    "ResourceFormatLoader",
-    "ResourceLoader",
-    "RigidBody2D",
-    "SceneTree",
-    "Sprite2D",
-    "SpriteFrames",
-    "TextServer",
-    "TextServerExtension",
-    "Texture",
-    "Texture2DArray",
-    "TextureLayered",
-    "Time",
-    "Timer",
-    "Window",
-    "Viewport",
-];

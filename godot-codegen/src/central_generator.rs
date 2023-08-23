@@ -10,11 +10,10 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::api_parser::*;
-use crate::class_generator::{is_builtin_method_excluded, is_class_excluded, is_method_excluded};
 use crate::util::{
     option_as_slice, to_pascal_case, to_rust_type, to_snake_case, ClassCodegenLevel,
 };
-use crate::{ident, special_cases, util, Context, SubmitFn, TyName};
+use crate::{codegen_special_cases, ident, special_cases, util, Context, SubmitFn, TyName};
 
 struct CentralItems {
     opaque_types: [Vec<TokenStream>; 2],
@@ -561,7 +560,7 @@ fn make_class_method_table(
     let mut class_sname_decls = Vec::new();
     for class in api.classes.iter() {
         if special_cases::is_class_deleted(&TyName::from_godot(&class.name))
-            || is_class_excluded(&class.name)
+            || codegen_special_cases::is_class_excluded(&class.name)
             || util::get_api_level(class) != api_level
         {
             continue;
@@ -632,7 +631,7 @@ fn populate_class_methods(
     let class_name_str = class.name.as_str();
 
     for method in option_as_slice(&class.methods) {
-        if is_method_excluded(method, false, ctx) {
+        if codegen_special_cases::is_method_excluded(method, false, ctx) {
             continue;
         }
 
@@ -653,7 +652,7 @@ fn populate_builtin_methods(
     type_name: &TypeNames,
 ) {
     for method in option_as_slice(&builtin_class.methods) {
-        if is_builtin_method_excluded(method) {
+        if codegen_special_cases::is_builtin_method_excluded(method) {
             continue;
         }
 
