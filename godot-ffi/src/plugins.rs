@@ -87,6 +87,7 @@ macro_rules! plugin_foreach_inner {
             .unwrap();
 
         for e in guard.iter() {
+            #[allow(clippy::redundant_closure_call)]
             $closure(e);
         }
     };

@@ -336,7 +336,7 @@ fn object_engine_convert_variant_nil() {
 
     assert_eq!(
         Gd::<Area2D>::try_from_variant(&nil),
-        Err(VariantConversionError::BadType),
+        Err(VariantConversionError::VariantIsNil),
         "try_from_variant(&nil)"
     );
 
