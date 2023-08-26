@@ -17,6 +17,8 @@ fn option_some_sys_conversion() {
     let v2 = unsafe { Option::<Gd<Object>>::from_sys(ptr) };
     assert_eq!(v2, v);
 
+    // We're testing this behavior.
+    #[allow(clippy::unnecessary_literal_unwrap)]
     v.unwrap().free();
 }
 
