@@ -23,11 +23,11 @@ pub(crate) mod gen {
     pub mod table_servers_classes;
     pub mod table_scene_classes;
     pub mod table_editor_classes;
+    pub mod table_utilities;
 
     pub mod central;
     pub mod gdextension_interface;
     pub mod interface;
-
 }
 
 mod compat;
@@ -58,6 +58,7 @@ pub use gen::table_builtins_lifecycle::*;
 pub use gen::table_editor_classes::*;
 pub use gen::table_scene_classes::*;
 pub use gen::table_servers_classes::*;
+pub use gen::table_utilities::*;
 
 // Other
 pub use gdextension_plus::*;
@@ -85,6 +86,7 @@ struct GodotBinding {
     class_scene_method_table: Option<ClassSceneMethodTable>,    // late-init
     class_editor_method_table: Option<ClassEditorMethodTable>,  // late-init
     builtin_method_table: BuiltinMethodTable,
+    utility_function_table: UtilityFunctionTable,
     runtime_metadata: GdextRuntimeMetadata,
     config: GdextConfig,
 }
@@ -140,6 +142,9 @@ pub unsafe fn initialize(
     let builtin_method_table = BuiltinMethodTable::load(&interface, &mut string_names);
     out!("Loaded builtin method table.");
 
+    let utility_function_table = UtilityFunctionTable::load(&interface, &mut string_names);
+    out!("Loaded utility function table.");
+
     let runtime_metadata = GdextRuntimeMetadata {
         godot_version: version,
     };
@@ -149,10 +154,11 @@ pub unsafe fn initialize(
     BINDING = Some(GodotBinding {
         interface,
         global_method_table,
-        builtin_method_table,
         class_server_method_table: None,
         class_scene_method_table: None,
         class_editor_method_table: None,
+        builtin_method_table,
+        utility_function_table,
         library,
         runtime_metadata,
         config,
@@ -246,6 +252,14 @@ pub unsafe fn class_editor_api() -> &'static ClassEditorMethodTable {
 #[inline(always)]
 pub unsafe fn builtin_method_table() -> &'static BuiltinMethodTable {
     &unwrap_ref_unchecked(&BINDING).builtin_method_table
+}
+
+/// # Safety
+///
+/// The interface must have been initialised with [`initialize`] before calling this function.
+#[inline(always)]
+pub unsafe fn utility_function_table() -> &'static UtilityFunctionTable {
+    &unwrap_ref_unchecked(&BINDING).utility_function_table
 }
 
 /// # Safety

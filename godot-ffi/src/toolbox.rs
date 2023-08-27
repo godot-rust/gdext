@@ -218,6 +218,12 @@ pub(crate) type BuiltinMethodBind = unsafe extern "C" fn(
     p_argument_count: std::os::raw::c_int,
 );
 
+pub(crate) type UtilityFunctionBind = unsafe extern "C" fn(
+    r_return: sys::GDExtensionTypePtr,
+    p_args: *const sys::GDExtensionConstTypePtr,
+    p_argument_count: std::os::raw::c_int,
+);
+
 pub(crate) fn validate_builtin_method(
     method: sys::GDExtensionPtrBuiltInMethod,
     variant_type: &str,
@@ -231,20 +237,24 @@ pub(crate) fn validate_builtin_method(
         hash
     );*/
     method.unwrap_or_else(|| {
-        panic!(
-            "Failed to load builtin method {}::{} (hash {}).\n\
-            Make sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html",
-            variant_type,
-            method_name,
-            hash
-        )
+        panic!("Failed to load builtin method {variant_type}::{method_name} (hash {hash}).{INFO}")
     })
 }
 
 pub(crate) fn validate_builtin_lifecycle<T>(function: Option<T>, description: &str) -> T {
-    function.unwrap_or_else(|| panic!(
-        "Failed to load builtin lifecycle function {}.\n\
-        Make sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html",
-        description
-    ))
+    function.unwrap_or_else(|| {
+        panic!("Failed to load builtin lifecycle function {description}.{INFO}",)
+    })
 }
+
+pub(crate) fn validate_utility_function(
+    utility_fn: sys::GDExtensionPtrUtilityFunction,
+    name: &str,
+    hash: i64,
+) -> UtilityFunctionBind {
+    utility_fn.unwrap_or_else(|| {
+        panic!("Failed to load builtin lifecycle function {name} (hash {hash}).{INFO}")
+    })
+}
+
+const INFO: &'static str = "\nMake sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html";

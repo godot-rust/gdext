@@ -4,7 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::api_parser::{BuiltinClassMethod, Class, ClassConstant, ClassMethod, Enum};
+use crate::api_parser::{
+    BuiltinClassMethod, Class, ClassConstant, ClassMethod, Enum, UtilityFunction,
+};
 use crate::central_generator::TypeNames;
 use crate::special_cases::is_builtin_scalar;
 use crate::{Context, GodotTy, ModName, RustTy, TyName};
@@ -83,6 +85,10 @@ pub fn make_builtin_method_ptr_name(
     method: &BuiltinClassMethod,
 ) -> Ident {
     format_ident!("{}__{}", variant_type.json_builtin_name, method.name)
+}
+
+pub fn make_utility_function_ptr_name(function: &UtilityFunction) -> Ident {
+    safe_ident(&function.name)
 }
 
 // TODO should eventually be removed, as all StringNames are cached

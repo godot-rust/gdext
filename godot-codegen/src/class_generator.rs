@@ -1210,18 +1210,15 @@ pub(crate) fn make_utility_function_definition(
     }
 
     let function_name_str = &function.name;
-    let function_name_stringname = make_string_name(function_name_str);
+    let fn_ptr = util::make_utility_function_ptr_name(&function);
 
     let return_value = function
         .return_type
         .as_deref()
         .map(MethodReturn::from_type_no_meta);
-    let hash = function.hash;
     let variant_ffi = function.is_vararg.then_some(VariantFfi::type_ptr());
     let init_code = quote! {
-        let __function_name = #function_name_stringname;
-        let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
-        let __call_fn = __call_fn.unwrap_unchecked();
+        let __call_fn = sys::utility_function_table().#fn_ptr;
     };
     let invocation = quote! {
         __call_fn(return_ptr, __args_ptr, __args.len() as i32);

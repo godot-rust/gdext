@@ -31,7 +31,8 @@ use util::{ident, to_pascal_case, to_snake_case};
 use utilities_generator::generate_utilities_file;
 
 use crate::central_generator::{
-    generate_sys_builtin_lifecycle_file, generate_sys_builtin_methods_file, BuiltinTypeMap,
+    generate_sys_builtin_lifecycle_file, generate_sys_builtin_methods_file,
+    generate_sys_utilities_file, BuiltinTypeMap,
 };
 use crate::context::NotificationEnum;
 use proc_macro2::{Ident, TokenStream};
@@ -79,6 +80,9 @@ pub fn generate_sys_files(
 
     generate_sys_classes_file(&api, &mut ctx, sys_gen_path, watch, &mut submit_fn);
     // watch records inside the function.
+
+    generate_sys_utilities_file(&api, &mut ctx, sys_gen_path, &mut submit_fn);
+    watch.record("generate_utilities_file");
 
     let is_godot_4_0 = api.header.version_major == 4 && api.header.version_minor == 0;
     generate_sys_interface_file(h_path, sys_gen_path, is_godot_4_0, &mut submit_fn);

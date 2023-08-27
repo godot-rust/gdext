@@ -116,6 +116,59 @@ pub(crate) fn generate_sys_classes_file(
     }
 }
 
+pub(crate) fn generate_sys_utilities_file(
+    api: &ExtensionApi,
+    ctx: &mut Context,
+    sys_gen_path: &Path,
+    submit_fn: &mut SubmitFn,
+) {
+    let mut table = MethodTableInfo {
+        table_name: ident("UtilityFunctionTable"),
+        imports: quote! {},
+        ctor_parameters: quote! {
+            interface: &crate::GDExtensionInterface,
+            string_names: &mut crate::StringCache,
+        },
+        pre_init_code: quote! {
+            let get_utility_fn = interface.variant_get_ptr_utility_function
+                .expect("variant_get_ptr_utility_function absent");
+        },
+        method_decls: vec![],
+        method_inits: vec![],
+        class_count: 0,
+        method_count: 0,
+    };
+
+    for function in api.utility_functions.iter() {
+        if codegen_special_cases::is_function_excluded(function, ctx) {
+            continue;
+        }
+
+        let fn_name_str = &function.name;
+        let field = util::make_utility_function_ptr_name(&function);
+        let hash = function.hash;
+
+        table.method_decls.push(quote! {
+            pub #field: crate::UtilityFunctionBind,
+        });
+
+        table.method_inits.push(quote! {
+            #field: {
+                let utility_fn = unsafe {
+                    get_utility_fn(string_names.fetch(#fn_name_str), #hash)
+                };
+                crate::validate_utility_function(utility_fn, #fn_name_str, #hash)
+            },
+        });
+
+        table.method_count += 1;
+    }
+
+    let code = make_method_table(table);
+
+    submit_fn(sys_gen_path.join("table_utilities.rs"), code);
+}
+
 /// Generate code for a method table based on shared layout.
 fn make_method_table(info: MethodTableInfo) -> TokenStream {
     let MethodTableInfo {
@@ -635,10 +688,11 @@ fn populate_class_methods(
             continue;
         }
 
-        let method_field = util::make_class_method_ptr_name(&class.name, method);
+        let field = util::make_class_method_ptr_name(&class.name, method);
 
-        let method_decl = make_class_method_decl(&method_field);
-        let method_init = make_class_method_init(method, &method_field, class_var, class_name_str);
+        // Note: varcall/ptrcall is only decided at call time; the method bind is the same for both.
+        let method_decl = quote! { pub #field: crate::ClassMethodBind, };
+        let method_init = make_class_method_init(method, &field, class_var, class_name_str);
 
         table.method_decls.push(method_decl);
         table.method_inits.push(method_init);
@@ -656,10 +710,10 @@ fn populate_builtin_methods(
             continue;
         }
 
-        let method_field = util::make_builtin_method_ptr_name(type_name, method);
+        let field = util::make_builtin_method_ptr_name(type_name, method);
 
-        let method_decl = make_builtin_method_decl(method, &method_field);
-        let method_init = make_builtin_method_init(method, &method_field, type_name);
+        let method_decl = quote! { pub #field: crate::BuiltinMethodBind, };
+        let method_init = make_builtin_method_init(method, &field, type_name);
 
         table.method_decls.push(method_decl);
         table.method_inits.push(method_init);
@@ -667,14 +721,9 @@ fn populate_builtin_methods(
     }
 }
 
-fn make_class_method_decl(method_field: &Ident) -> TokenStream {
-    // Note: varcall/ptrcall is only decided at call time; the method bind is the same for both.
-    quote! { pub #method_field: crate::ClassMethodBind, }
-}
-
 fn make_class_method_init(
     method: &ClassMethod,
-    method_field: &Ident,
+    field: &Ident,
     class_var: &Ident,
     class_name_str: &str,
 ) -> TokenStream {
@@ -689,7 +738,7 @@ fn make_class_method_init(
     });
 
     quote! {
-        #method_field: {
+        #field: {
             let method_bind = unsafe {
                 get_method_bind(#class_var, #method_sname, #hash)
             };
@@ -698,13 +747,9 @@ fn make_class_method_init(
     }
 }
 
-fn make_builtin_method_decl(_method: &BuiltinClassMethod, method_field: &Ident) -> TokenStream {
-    quote! { pub #method_field: crate::BuiltinMethodBind, }
-}
-
 fn make_builtin_method_init(
     method: &BuiltinClassMethod,
-    method_field: &Ident,
+    field: &Ident,
     type_name: &TypeNames,
 ) -> TokenStream {
     let method_name_str = method.name.as_str();
@@ -721,7 +766,7 @@ fn make_builtin_method_init(
     });
 
     quote! {
-        #method_field: {
+        #field: {
             let method_bind = unsafe {
                 get_builtin_method(sys::#variant_type, #method_sname, #hash)
             };
