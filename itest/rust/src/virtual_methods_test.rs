@@ -6,7 +6,7 @@
 
 #![allow(dead_code)]
 
-use crate::{itest, TestContext};
+use crate::framework::{itest, TestContext};
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{

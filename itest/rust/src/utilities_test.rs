@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::itest;
+use crate::framework::itest;
 
 use godot::builtin::Variant;
 use godot::engine::utilities::*;

@@ -6,7 +6,7 @@
 
 #![allow(clippy::type_complexity, clippy::excessive_precision)]
 
-use crate::itest;
+use crate::framework::itest;
 
 use godot::builtin::inner::InnerProjection;
 use godot::builtin::math::assert_eq_approx;

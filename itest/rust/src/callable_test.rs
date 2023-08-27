@@ -9,7 +9,8 @@ use godot::builtin::{varray, Callable, ToVariant, Variant};
 use godot::engine::Object;
 use godot::obj::{Gd, Share};
 use godot::prelude::GodotString;
-use godot::test::itest;
+
+use crate::framework::itest;
 
 #[derive(GodotClass)]
 #[class(init, base=RefCounted)]

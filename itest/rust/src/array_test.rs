@@ -4,8 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::{expect_panic, itest};
 use godot::prelude::*;
+
+use crate::framework::{expect_panic, itest};
 
 #[itest]
 fn array_default() {

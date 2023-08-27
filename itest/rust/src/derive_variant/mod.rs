@@ -6,7 +6,7 @@
 
 use std::fmt::Debug;
 
-use crate::itest;
+use crate::framework::itest;
 use crate::variant_test::roundtrip;
 use godot::bind::FromVariant;
 use godot::bind::ToVariant;

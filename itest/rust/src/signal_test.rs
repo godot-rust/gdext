@@ -13,7 +13,7 @@ use godot::engine::Object;
 use godot::obj::{Base, Gd, Share};
 use godot::sys;
 
-use crate::itest;
+use crate::framework::itest;
 
 #[derive(GodotClass)]
 #[class(init, base=Object)]

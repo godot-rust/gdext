@@ -4,12 +4,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::{itest, TestContext};
+use std::str::FromStr;
+
 use godot::builtin::{NodePath, Variant};
 use godot::engine::{global, Node, Node3D, NodeExt, PackedScene, SceneTree};
 use godot::obj::Share;
 
-use std::str::FromStr;
+use crate::framework::{itest, TestContext};
 
 #[itest]
 fn node_get_node() {

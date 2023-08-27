@@ -7,7 +7,7 @@
 use godot::prelude::{godot_api, Gd, GodotClass, Node, Object, RefCounted};
 use godot::sys::GodotFfi;
 
-use crate::itest;
+use crate::framework::itest;
 
 #[itest]
 fn option_some_sys_conversion() {

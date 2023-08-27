@@ -6,12 +6,11 @@
 
 use std::{collections::HashSet, thread};
 
-use godot::{
-    engine::RenderingServer,
-    prelude::{inner::InnerRid, Color, Rid, Vector2},
-};
+use godot::builtin::inner::InnerRid;
+use godot::builtin::{Color, Rid, Vector2};
+use godot::engine::RenderingServer;
 
-use crate::{itest, suppress_godot_print};
+use crate::framework::{itest, suppress_godot_print};
 
 #[itest]
 fn rid_equiv() {

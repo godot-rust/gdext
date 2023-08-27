@@ -12,7 +12,7 @@ use godot::engine::{Engine, Node};
 use godot::log::godot_error;
 use godot::obj::Gd;
 
-use crate::{passes_filter, RustTestCase, TestContext};
+use crate::framework::{passes_filter, RustTestCase, TestContext};
 
 #[derive(GodotClass, Debug)]
 #[class(init)]

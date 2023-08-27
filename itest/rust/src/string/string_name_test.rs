@@ -6,7 +6,7 @@
 
 use std::collections::HashSet;
 
-use crate::itest;
+use crate::framework::itest;
 use godot::builtin::{GodotString, NodePath, StringName};
 
 #[itest]

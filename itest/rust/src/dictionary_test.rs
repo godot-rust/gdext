@@ -6,9 +6,10 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::{expect_panic, itest};
 use godot::builtin::{dict, varray, Dictionary, FromVariant, ToVariant, Variant};
 use godot::obj::Share;
+
+use crate::framework::{expect_panic, itest};
 
 #[itest]
 fn dictionary_default() {

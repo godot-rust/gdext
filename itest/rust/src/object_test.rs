@@ -18,7 +18,7 @@ use godot::obj::{Base, Gd, InstanceId};
 use godot::obj::{Inherits, Share};
 use godot::sys::{self, GodotFfi};
 
-use crate::{expect_panic, itest, TestContext};
+use crate::framework::{expect_panic, itest, TestContext};
 
 // TODO:
 // * make sure that ptrcalls are used when possible (ie. when type info available; maybe GDScript integration test)

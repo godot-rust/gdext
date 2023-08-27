@@ -54,7 +54,7 @@ pub fn attribute_itest(input_decl: Declaration) -> ParseResult<TokenStream> {
             return bad_signature(&func);
         }
     } else {
-        quote! { __unused_context: &crate::TestContext }
+        quote! { __unused_context: &crate::framework::TestContext }
     };
 
     let body = &func.body;
@@ -64,7 +64,7 @@ pub fn attribute_itest(input_decl: Declaration) -> ParseResult<TokenStream> {
             #body
         }
 
-        ::godot::sys::plugin_add!(__GODOT_ITEST in crate; crate::RustTestCase {
+        ::godot::sys::plugin_add!(__GODOT_ITEST in crate::framework; crate::framework::RustTestCase {
             name: #test_name_str,
             skipped: #skipped,
             focused: #focused,

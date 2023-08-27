@@ -7,7 +7,7 @@
 // This file tests the presence, naming and accessibility of generated symbols.
 // Functionality is only tested on a superficial level (to make sure general FFI mechanisms work).
 
-use crate::itest;
+use crate::framework::itest;
 use godot::builtin::inner::{InnerColor, InnerString};
 use godot::engine::{FileAccess, HttpRequest, HttpRequestVirtual, Image};
 use godot::prelude::*;

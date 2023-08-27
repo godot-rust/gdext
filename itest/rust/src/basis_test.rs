@@ -8,7 +8,7 @@ use godot::builtin::inner::InnerBasis;
 use godot::builtin::math::assert_eq_approx;
 use godot::builtin::{real, Basis, EulerOrder, RealConv, ToVariant, VariantOperator, Vector3};
 
-use crate::itest;
+use crate::framework::itest;
 
 const TEST_BASIS: Basis = Basis::from_rows(
     Vector3::new(0.942155, -0.270682, 0.197677),

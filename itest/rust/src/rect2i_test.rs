@@ -5,7 +5,7 @@
  */
 use std::fmt::Debug;
 
-use crate::itest;
+use crate::framework::itest;
 use godot::prelude::{inner::InnerRect2i, *};
 
 #[itest]
