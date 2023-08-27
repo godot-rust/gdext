@@ -11,7 +11,7 @@ use venial::{Declaration, Error, FnParam, Function};
 use crate::util::{bail, path_ends_with, KvParser};
 use crate::ParseResult;
 
-pub fn transform(input_decl: Declaration) -> ParseResult<TokenStream> {
+pub fn attribute_itest(input_decl: Declaration) -> ParseResult<TokenStream> {
     let func = match input_decl {
         Declaration::Function(f) => f,
         _ => return bail!(&input_decl, "#[itest] can only be applied to functions"),
@@ -54,7 +54,7 @@ pub fn transform(input_decl: Declaration) -> ParseResult<TokenStream> {
             return bad_signature(&func);
         }
     } else {
-        quote! { __unused_context: &crate::TestContext }
+        quote! { __unused_context: &crate::framework::TestContext }
     };
 
     let body = &func.body;
@@ -64,7 +64,7 @@ pub fn transform(input_decl: Declaration) -> ParseResult<TokenStream> {
             #body
         }
 
-        ::godot::sys::plugin_add!(__GODOT_ITEST in crate; crate::RustTestCase {
+        ::godot::sys::plugin_add!(__GODOT_ITEST in crate::framework; crate::framework::RustTestCase {
             name: #test_name_str,
             skipped: #skipped,
             focused: #focused,

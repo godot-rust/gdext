@@ -6,14 +6,11 @@
 
 // Note: some code duplication with codegen crate
 
-use crate::ParseResult;
-use proc_macro2::{Delimiter, Ident, TokenTree};
-
-use super::{bail, delimiter_opening_char, is_punct, kv_parser::KvValue, KvParser};
-
+use proc_macro2::{Delimiter, Ident, Span, TokenStream, TokenTree};
 use std::collections::VecDeque;
 
-use proc_macro2::{Span, TokenStream};
+use crate::util::{bail, delimiter_opening_char, is_punct, kv_parser::KvValue, KvParser};
+use crate::ParseResult;
 
 /// Parses a list of tokens as an ordered list of values. Unlike [`KvParser`] which treats the tokens as a
 /// set of values.

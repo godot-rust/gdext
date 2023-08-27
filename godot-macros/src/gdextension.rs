@@ -11,7 +11,7 @@ use venial::Declaration;
 use crate::util::{bail, ident, validate_impl, KvParser};
 use crate::ParseResult;
 
-pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
+pub fn attribute_gdextension(decl: Declaration) -> ParseResult<TokenStream> {
     let mut impl_decl = match decl {
         Declaration::Impl(item) => item,
         _ => return bail!(&decl, "#[gdextension] can only be applied to trait impls"),

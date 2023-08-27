@@ -4,103 +4,22 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-/// Extension API for Godot classes, used with `#[godot_api]`.
-///
-/// Helps with adding custom functionality:
-/// * `init` constructors
-/// * `to_string` method
-/// * Custom register methods (builder style)
-/// * All the lifecycle methods like `ready`, `process` etc.
-///
-/// These trait are special in that it needs to be used in combination with the `#[godot_api]`
-/// proc-macro attribute to ensure proper registration of its methods. All methods have
-/// default implementations, so you can select precisely which functionality you want to have.
-/// Those default implementations are never called however, the proc-macro detects what you implement.
-///
-/// Do not call any of these methods directly -- they are an interface to Godot. Functionality
-/// described here is available through other means (e.g. `init` via `Gd::new_default`).
-/// It is not enough to impl `GodotExt` to be registered in Godot, for this you should look at
-/// [ExtensionLibrary](crate::init::ExtensionLibrary).
-///
-/// If you wish to create a struct deriving GodotClass, you should impl the trait <Base>Virtual,
-/// for your desired Base (i.e. `RefCountedVirtual`, `NodeVirtual`).
-///
-/// # Examples
-///
-/// ## `RefCounted` as a base
-///
-/// ```no_run
-///# use godot::prelude::*;
-///
-/// #[derive(GodotClass)]
-/// struct MyRef;
-///
-/// #[godot_api]
-/// impl MyRef {
-///     #[func]
-///     pub fn hello_world(&mut self) {
-///         godot_print!("Hello World!")
-///     }
-/// }
-///
-/// #[godot_api]
-/// impl RefCountedVirtual for MyRef {
-///     fn init(_: Base<RefCounted>) -> Self {
-///         MyRef
-///     }
-/// }
-/// ```
-///
-/// The following example allows to use MyStruct in GDScript for instance by calling
-/// `MyStruct.new().hello_world()`.
-///
-///
-/// Note that you have to implement init otherwise you won't be able to call new or any
-/// other methods from GDScript.
-///
-/// ## `Node` as a base
-///
-/// ```no_run
-///# use godot::prelude::*;
-///
-/// #[derive(GodotClass)]
-/// #[class(base=Node)]
-/// pub struct MyNode {
-///     #[base]
-///     base: Base<Node>,
-/// }
-///
-/// #[godot_api]
-/// impl NodeVirtual for MyNode {
-///     fn init(base: Base<Node>) -> Self {
-///         MyNode { base }
-///     }
-///     fn ready(&mut self) {
-///         godot_print!("Hello World!");
-///     }
-/// }
-/// ```
-///
+mod class;
+mod derive;
+mod gdextension;
+mod itest;
+mod util;
+
 use crate::util::ident;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use venial::Declaration;
 
-mod derive_export;
-mod derive_from_variant;
-mod derive_godot_class;
-mod derive_property;
-mod derive_to_variant;
-mod gdextension;
-mod godot_api;
-mod itest;
-mod method_registration;
-mod util;
-
 // Below intra-doc link to the trait only works as HTML, not as symbol link.
-/// Derive macro for [the `GodotClass` trait](../obj/trait.GodotClass.html) on structs. You must use this
-/// macro; manual implementations of the `GodotClass` trait are not supported.
+/// Derive macro for [the `GodotClass` trait](../obj/trait.GodotClass.html) on structs.
+///
+/// You must use this macro; manual implementations of the `GodotClass` trait are not supported.
 ///
 ///
 /// # Construction
@@ -398,8 +317,89 @@ mod util;
 ///
 /// This is very similar to [GDScript's `@tool` feature](https://docs.godotengine.org/en/stable/tutorials/plugins/running_code_in_the_editor.html).
 #[proc_macro_derive(GodotClass, attributes(class, base, var, export, init, signal))]
-pub fn derive_native_class(input: TokenStream) -> TokenStream {
-    translate(input, derive_godot_class::transform)
+pub fn derive_godot_class(input: TokenStream) -> TokenStream {
+    translate(input, class::derive_godot_class)
+}
+
+/// Proc-macro attribute to be used with `impl` blocks of `#[derive(GodotClass)]` structs.
+///
+/// Can be used in two ways:
+/// ```no_run
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(base=Node)]
+/// struct MyClass {}
+///
+/// // 1) inherent impl block: user-defined, custom API
+/// #[godot_api]
+/// impl MyClass { /* ... */ }
+///
+/// // 2) trait impl block: implement Godot-specific APIs
+/// #[godot_api]
+/// impl NodeVirtual for MyClass { /* ... */ }
+/// ```
+///
+/// The second case works by implementing the corresponding trait `<Base>Virtual` for the base class of your class
+/// (for example `RefCountedVirtual` or `Node3DVirtual`). Then, you can add functionality such as:
+/// * `init` constructors
+/// * lifecycle methods like `ready` or `process`
+/// * `on_notification` method
+/// * `to_string` method
+///
+/// Neither `#[godot_api]` attribute is required. For small data bundles inheriting `RefCounted`, you may be fine with
+/// accessing properties directly from GDScript.
+///
+/// # Examples
+///
+/// ## `RefCounted` as a base, overridden `init`
+///
+/// ```no_run
+///# use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// struct MyStruct;
+///
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func]
+///     pub fn hello_world(&mut self) {
+///         godot_print!("Hello World!")
+///     }
+/// }
+///
+/// #[godot_api]
+/// impl RefCountedVirtual for MyStruct {
+///     fn init(_base: Base<RefCounted>) -> Self {
+///         MyStruct
+///     }
+/// }
+/// ```
+///
+/// Note that `init` can be either provided by overriding it, or generated with a `#[class(init)]` attribute on the struct.
+/// Classes without `init` cannot be instantiated from GDScript.
+///
+/// ## `Node` as a base, generated `init`
+///
+/// ```no_run
+///# use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init, base=Node)]
+/// pub struct MyNode {
+///     #[base]
+///     base: Base<Node>,
+/// }
+///
+/// #[godot_api]
+/// impl NodeVirtual for MyNode {
+///     fn ready(&mut self) {
+///         godot_print!("Hello World!");
+///     }
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
+    translate(input, class::attribute_godot_api)
 }
 
 /// Derive macro for [ToVariant](../builtin/trait.ToVariant.html) on structs or enums.
@@ -432,7 +432,7 @@ pub fn derive_native_class(input: TokenStream) -> TokenStream {
 /// You can use the `#[skip]` attribute to ignore a field from being converted to `ToVariant`.
 #[proc_macro_derive(ToVariant, attributes(variant))]
 pub fn derive_to_variant(input: TokenStream) -> TokenStream {
-    translate(input, derive_to_variant::transform)
+    translate(input, derive::derive_to_variant)
 }
 
 /// Derive macro for [FromVariant](../builtin/trait.FromVariant.html) on structs or enums.
@@ -466,7 +466,7 @@ pub fn derive_to_variant(input: TokenStream) -> TokenStream {
 /// to get it instead.
 #[proc_macro_derive(FromVariant, attributes(variant))]
 pub fn derive_from_variant(input: TokenStream) -> TokenStream {
-    translate(input, derive_from_variant::transform)
+    translate(input, derive::derive_from_variant)
 }
 
 /// Derive macro for [Property](../bind/property/trait.Property.html) on enums.
@@ -509,20 +509,15 @@ pub fn derive_from_variant(input: TokenStream) -> TokenStream {
 /// ```
 #[proc_macro_derive(Property)]
 pub fn derive_property(input: TokenStream) -> TokenStream {
-    translate(input, derive_property::transform)
+    translate(input, derive::derive_property)
 }
 
 /// Derive macro for [Export](../bind/property/trait.Export.html) on enums.
 ///
-/// Currently has some tight requirements which are expected to be softened as implementation expands, see requirements for [Property]
+/// Currently has some tight requirements which are expected to be softened as implementation expands, see requirements for [Property].
 #[proc_macro_derive(Export)]
 pub fn derive_export(input: TokenStream) -> TokenStream {
-    translate(input, derive_export::transform)
-}
-
-#[proc_macro_attribute]
-pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
-    translate(input, godot_api::transform)
+    translate(input, derive::derive_export)
 }
 
 /// Similar to `#[test]`, but runs an integration test with Godot.
@@ -530,7 +525,7 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// Transforms the `fn` into one returning `bool` (success of the test), which must be called explicitly.
 #[proc_macro_attribute]
 pub fn itest(meta: TokenStream, input: TokenStream) -> TokenStream {
-    translate_meta("itest", meta, input, itest::transform)
+    translate_meta("itest", meta, input, itest::attribute_itest)
 }
 
 /// Proc-macro attribute to be used in combination with the [`ExtensionLibrary`] trait.
@@ -539,7 +534,12 @@ pub fn itest(meta: TokenStream, input: TokenStream) -> TokenStream {
 // FIXME intra-doc link
 #[proc_macro_attribute]
 pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {
-    translate_meta("gdextension", meta, input, gdextension::transform)
+    translate_meta(
+        "gdextension",
+        meta,
+        input,
+        gdextension::attribute_gdextension,
+    )
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

@@ -83,9 +83,15 @@ jobs:
 
       - name: "Check clippy"
         run: |
-          cargo clippy --all-targets $GDEXT_FEATURES ${{ matrix.rust-extra-args }} -- \
-          -D clippy::suspicious -D clippy::style -D clippy::complexity -D clippy::perf \
-          -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented -D warnings
+          cargo clippy --all-targets $GDEXT_FEATURES -- \
+          -D clippy::suspicious \
+          -D clippy::style \
+          -D clippy::complexity \
+          -D clippy::perf \
+          -D clippy::dbg_macro \
+          -D clippy::todo \
+          -D clippy::unimplemented \
+          -D warnings
           
 
   unit-test:
