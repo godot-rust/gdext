@@ -4,19 +4,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{bail, ident, KvParser};
-use crate::{util, ParseResult};
 use proc_macro2::{Ident, Punct, TokenStream};
 use quote::{format_ident, quote};
-use venial::{Declaration, NamedField, Struct, StructFields, TyExpr};
+use venial::{Declaration, NamedField, Struct, StructFields};
 
-use self::property::field_export::FieldExport;
-use self::property::field_var::FieldVar;
-use self::property::{make_property_impl, FieldHint};
+use crate::class::{make_property_impl, Field, FieldExport, FieldVar, Fields};
+use crate::util::{bail, ident, KvParser};
+use crate::{util, ParseResult};
 
-mod property;
-
-pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
+pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     let class = decl
         .as_struct()
         .ok_or_else(|| venial::Error::new("Not a valid struct"))?;
@@ -75,6 +71,18 @@ pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
         #prv::class_macros::#inherits_macro!(#class_name);
     })
 }
+
+/// Checks at compile time that a function with the given name exists on `Self`.
+#[must_use]
+pub fn make_existence_check(ident: &Ident) -> TokenStream {
+    quote! {
+        #[allow(path_statements)]
+        Self::#ident;
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation
 
 /// Returns the name of the base and the default mode
 fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
@@ -184,33 +192,6 @@ struct ClassAttributes {
     is_tool: bool,
 }
 
-struct Fields {
-    /// All fields except `base_field`.
-    all_fields: Vec<Field>,
-    /// The field annotated with `#[base]`.
-    base_field: Option<Field>,
-}
-
-struct Field {
-    name: Ident,
-    ty: TyExpr,
-    default: Option<TokenStream>,
-    var: Option<FieldVar>,
-    export: Option<FieldExport>,
-}
-
-impl Field {
-    fn new(field: &NamedField) -> Self {
-        Self {
-            name: field.name.clone(),
-            ty: field.ty.clone(),
-            default: None,
-            var: None,
-            export: None,
-        }
-    }
-}
-
 fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
     let base_init = if let Some(Field { name, .. }) = fields.base_field {
         quote! { #name: base, }
@@ -249,14 +230,5 @@ fn make_config_impl(class_name: &Ident, is_tool: bool) -> TokenStream {
                 }
             }
         }
-    }
-}
-
-/// Checks at compile time that a function with the given name exists on `Self`.
-#[must_use]
-fn make_existence_check(ident: &Ident) -> TokenStream {
-    quote! {
-        #[allow(path_statements)]
-        Self::#ident;
     }
 }

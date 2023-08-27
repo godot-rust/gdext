@@ -4,13 +4,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::derive_godot_class::{make_existence_check, Field, FieldHint};
-use crate::method_registration::make_method_registration;
-use crate::method_registration::FuncDefinition;
-use crate::util::KvParser;
-use crate::{util, ParseResult};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
+
+use crate::class::{
+    make_existence_check, make_method_registration, Field, FieldHint, FuncDefinition,
+};
+use crate::util::KvParser;
+use crate::{util, ParseResult};
 
 /// Store info from `#[var]` attribute.
 #[derive(Default, Clone, Debug)]
@@ -144,7 +145,7 @@ impl GetSet {
 }
 
 #[derive(Clone, Debug)]
-pub(super) struct GetterSetterImpl {
+pub struct GetterSetterImpl {
     pub function_name: Ident,
     pub function_impl: TokenStream,
     pub export_token: TokenStream,

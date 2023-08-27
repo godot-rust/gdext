@@ -5,18 +5,10 @@
  */
 //! Parsing the `var` and `export` attributes on fields.
 
-use crate::derive_godot_class::property::field_var::{
-    FieldVar, GetSet, GetterSetterImpl, UsageFlags,
-};
-use crate::derive_godot_class::Field;
+use crate::class::{Field, FieldVar, Fields, GetSet, GetterSetterImpl, UsageFlags};
 use crate::util;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-
-use super::Fields;
-
-pub(crate) mod field_export;
-pub(crate) mod field_var;
 
 #[derive(Default, Clone, Debug)]
 pub enum FieldHint {
@@ -38,7 +30,7 @@ pub enum FieldHint {
 }
 
 impl FieldHint {
-    fn new(hint: Ident, hint_string: Option<TokenStream>) -> Self {
+    pub fn new(hint: Ident, hint_string: Option<TokenStream>) -> Self {
         match hint_string {
             None => Self::Hint(hint),
             Some(hint_string) => Self::HintWithString { hint, hint_string },
@@ -46,7 +38,7 @@ impl FieldHint {
     }
 }
 
-pub(super) fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
+pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     let class_name_obj = util::class_name_obj(class_name);
 
     let mut getter_setter_impls = Vec::new();

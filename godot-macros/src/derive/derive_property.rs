@@ -11,7 +11,7 @@ use venial::{Declaration, StructFields};
 use crate::util::{bail, decl_get_info, ident, DeclInfo};
 use crate::ParseResult;
 
-pub fn transform(decl: Declaration) -> ParseResult<TokenStream2> {
+pub fn derive_property(decl: Declaration) -> ParseResult<TokenStream2> {
     let DeclInfo {
         name, name_string, ..
     } = decl_get_info(&decl);

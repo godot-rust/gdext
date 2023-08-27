@@ -4,15 +4,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{decl_get_info, has_attr, DeclInfo};
-use crate::ParseResult;
 use proc_macro2::TokenStream;
-#[allow(unused_imports)]
-use quote::ToTokens;
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use venial::{Declaration, StructFields};
 
-pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
+use crate::util::{decl_get_info, has_attr, DeclInfo};
+use crate::ParseResult;
+
+pub fn derive_to_variant(decl: Declaration) -> ParseResult<TokenStream> {
     let mut body = quote! {
         let mut root = ::godot::builtin::Dictionary::new();
     };

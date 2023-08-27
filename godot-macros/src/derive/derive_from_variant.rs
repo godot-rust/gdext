@@ -4,17 +4,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{decl_get_info, has_attr, DeclInfo};
-use crate::ParseResult;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use venial::{Declaration, NamedStructFields, StructFields, TupleField, TupleStructFields};
+
+use crate::util::{decl_get_info, has_attr, DeclInfo};
+use crate::ParseResult;
 
 fn has_attr_skip(attributes: &[venial::Attribute]) -> bool {
     has_attr(attributes, "variant", "skip")
 }
 
-pub fn transform(decl: Declaration) -> ParseResult<TokenStream> {
+pub fn derive_from_variant(decl: Declaration) -> ParseResult<TokenStream> {
     let DeclInfo {
         where_,
         generic_params,

@@ -4,12 +4,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::method_registration::{
-    make_method_registration, make_virtual_method_callback, FuncDefinition,
-};
-use crate::util;
-use crate::util::bail;
-use crate::util::KvParser;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use quote::spanned::Spanned;
@@ -18,7 +12,11 @@ use venial::{
     TyExpr,
 };
 
-pub fn transform(input_decl: Declaration) -> Result<TokenStream, Error> {
+use crate::class::{make_method_registration, make_virtual_method_callback, FuncDefinition};
+use crate::util;
+use crate::util::{bail, KvParser};
+
+pub fn attribute_godot_api(input_decl: Declaration) -> Result<TokenStream, Error> {
     let decl = match input_decl {
         Declaration::Impl(decl) => decl,
         _ => bail!(

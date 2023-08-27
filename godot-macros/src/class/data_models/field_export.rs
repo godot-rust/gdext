@@ -4,14 +4,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::collections::HashSet;
-
-use crate::util::{KvParser, ListParser};
-use crate::ParseResult;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
+use std::collections::HashSet;
 
-use super::FieldHint;
+use crate::class::FieldHint;
+use crate::util::{KvParser, ListParser};
+use crate::ParseResult;
 
 /// Store info from `#[export]` attribute.
 pub enum FieldExport {

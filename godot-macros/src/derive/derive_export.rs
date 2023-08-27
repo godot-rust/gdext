@@ -11,7 +11,7 @@ use venial::{Declaration, StructFields};
 use crate::util::{bail, decl_get_info, DeclInfo};
 use crate::ParseResult;
 
-pub fn transform(decl: Declaration) -> ParseResult<TokenStream2> {
+pub fn derive_export(decl: Declaration) -> ParseResult<TokenStream2> {
     let DeclInfo { name, .. } = decl_get_info(&decl);
 
     let enum_ = match decl {
