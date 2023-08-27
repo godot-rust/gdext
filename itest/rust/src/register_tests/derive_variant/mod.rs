@@ -6,11 +6,12 @@
 
 use std::fmt::Debug;
 
-use crate::framework::itest;
-use crate::variant_test::roundtrip;
 use godot::bind::FromVariant;
 use godot::bind::ToVariant;
 use godot::builtin::{dict, varray, FromVariant, ToVariant, Variant};
+
+use crate::common::roundtrip;
+use crate::framework::itest;
 
 #[macro_export]
 macro_rules! roundtrip_with_skip {

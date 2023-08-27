@@ -4,17 +4,22 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::framework::{expect_panic, itest};
+use std::cmp::Ordering;
+use std::fmt::Display;
+
 use godot::builtin::{
     dict, varray, FromVariant, GodotString, NodePath, StringName, ToVariant, Variant, Vector2,
     Vector3,
 };
+use godot::builtin::{
+    Basis, Dictionary, VariantArray, VariantConversionError, VariantOperator, VariantType,
+};
 use godot::engine::Node2D;
 use godot::obj::InstanceId;
-use godot::prelude::{Basis, Dictionary, VariantArray, VariantConversionError};
-use godot::sys::{GodotFfi, VariantOperator, VariantType};
-use std::cmp::Ordering;
-use std::fmt::{Debug, Display};
+use godot::sys::GodotFfi;
+
+use crate::common::roundtrip;
+use crate::framework::{expect_panic, itest};
 
 const TEST_BASIS: Basis = Basis::from_rows(
     Vector3::new(1.0, 2.0, 3.0),
@@ -407,19 +412,6 @@ fn variant_hash_correct() {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-
-pub(crate) fn roundtrip<T>(value: T)
-where
-    T: FromVariant + ToVariant + PartialEq + Debug,
-{
-    // TODO test other roundtrip (first FromVariant, then ToVariant)
-    // Some values can be represented in Variant, but not in T (e.g. Variant(0i64) -> Option<InstanceId> -> Variant is lossy)
-
-    let variant = value.to_variant();
-    let back = T::try_from_variant(&variant).unwrap();
-
-    assert_eq!(value, back);
-}
 
 fn truncate_bad<T>(original_value: i64)
 where

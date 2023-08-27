@@ -4,4 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-mod constant_test;
+mod base_test;
+mod object_test;
+mod property_test;
+mod singleton_test;
+mod virtual_methods_test;

@@ -56,6 +56,13 @@ fn codegen_constants() {
     // assert_eq!(Material::RENDER_PRIORITY_MIN, -128);
 }
 
+#[itest]
+fn cfg_test() {
+    // Makes sure that since_api and before_api are mutually exclusive
+    assert_ne!(cfg!(since_api = "4.1"), cfg!(before_api = "4.1"));
+    assert_ne!(cfg!(since_api = "4.2"), cfg!(before_api = "4.2"));
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass)]

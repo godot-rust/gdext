@@ -4,8 +4,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#![allow(dead_code)]
-
-#[rustfmt::skip]
-#[path = "gen/gen_ffi.rs"]
-mod gen_ffi;
+mod native_structures_test;
+mod node_test;
+mod utilities_test;

@@ -5,10 +5,10 @@
  */
 
 use godot::bind::{godot_api, GodotClass};
-use godot::builtin::{varray, Callable, ToVariant, Variant};
-use godot::engine::Object;
+use godot::builtin::inner::InnerCallable;
+use godot::builtin::{varray, Callable, GodotString, StringName, ToVariant, Variant};
+use godot::engine::{Node2D, Object};
 use godot::obj::{Gd, Share};
-use godot::prelude::GodotString;
 
 use crate::framework::itest;
 
@@ -104,4 +104,24 @@ fn callable_call_return() {
     );
     // errors in godot but does not crash
     assert_eq!(callable.callv(varray!["string"]), Variant::nil());
+}
+
+#[itest]
+fn callable_call_engine() {
+    let obj = Node2D::new_alloc();
+    let cb = Callable::from_object_method(obj.share(), "set_position");
+    let inner: InnerCallable = cb.as_inner();
+
+    assert!(!inner.is_null());
+    assert_eq!(inner.get_object_id(), obj.instance_id().to_i64());
+    assert_eq!(inner.get_method(), StringName::from("set_position"));
+
+    // TODO once varargs is available
+    // let pos = Vector2::new(5.0, 7.0);
+    // inner.call(&[pos.to_variant()]);
+    // assert_eq!(obj.get_position(), pos);
+    //
+    // inner.bindv(array);
+
+    obj.free();
 }

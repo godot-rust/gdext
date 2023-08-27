@@ -16,7 +16,7 @@ use crate::framework::{passes_filter, RustTestCase, TestContext};
 
 #[derive(GodotClass, Debug)]
 #[class(init)]
-pub(crate) struct IntegrationTests {
+pub struct IntegrationTests {
     total: i64,
     passed: i64,
     skipped: i64,

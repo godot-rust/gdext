@@ -4,6 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-mod godot_string_test;
-mod node_path_test;
-mod string_name_test;
+#![allow(dead_code)]
+
+#[rustfmt::skip]
+#[path = "../gen/gen_ffi.rs"]
+mod gen_ffi;
