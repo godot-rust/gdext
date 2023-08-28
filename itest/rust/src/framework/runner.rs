@@ -8,11 +8,13 @@ use std::time::{Duration, Instant};
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{Array, GodotString, ToVariant, Variant, VariantArray};
-use godot::engine::{Engine, Node};
+use godot::engine::{Engine, Node, Os};
 use godot::log::godot_error;
 use godot::obj::Gd;
 
-use crate::framework::{passes_filter, RustTestCase, TestContext};
+use crate::framework::{
+    bencher, passes_filter, BenchResult, RustBenchmark, RustTestCase, TestContext,
+};
 
 #[derive(GodotClass, Debug)]
 #[class(init)]
@@ -46,6 +48,8 @@ impl IntegrationTests {
             .collect::<Array<_>>();
         let (rust_tests, rust_file_count, focus_run) =
             super::collect_rust_tests(filters.as_slice());
+
+        // Print based on focus/not focus.
         self.focus_run = focus_run;
         if focus_run {
             println!("  {FMT_CYAN}Focused run{FMT_END} -- execute only selected Rust tests.")
@@ -73,7 +77,40 @@ impl IntegrationTests {
             None
         };
 
-        self.conclude(rust_time, gdscript_time, allow_focus)
+        self.conclude_tests(rust_time, gdscript_time, allow_focus)
+    }
+
+    #[func]
+    fn run_all_benchmarks(&mut self, scene_tree: Gd<Node>) {
+        println!("\n\n{}Run{} Godot benchmarks...", FMT_CYAN_BOLD, FMT_END);
+
+        self.warn_if_debug();
+
+        let (benchmarks, rust_file_count) = super::collect_rust_benchmarks();
+        println!(
+            "  Rust: found {} benchmarks in {} files.",
+            benchmarks.len(),
+            rust_file_count
+        );
+
+        self.run_rust_benchmarks(benchmarks, scene_tree);
+        self.conclude_benchmarks();
+    }
+
+    fn warn_if_debug(&self) {
+        let rust_debug = cfg!(debug_assertions);
+        let godot_debug = Os::singleton().is_debug_build();
+
+        let what = match (rust_debug, godot_debug) {
+            (true, true) => Some("both Rust and Godot engine use debug builds"),
+            (true, false) => Some("Rust uses a debug build"),
+            (false, true) => Some("Godot engine uses a debug build"),
+            (false, false) => None,
+        };
+
+        if let Some(what) = what {
+            println!("{FMT_YELLOW}  Warning: {what}, benchmarks may not be expressive.{FMT_END}");
+        }
     }
 
     fn run_rust_tests(&mut self, tests: Vec<RustTestCase>, scene_tree: Gd<Node>) {
@@ -119,7 +156,7 @@ impl IntegrationTests {
         extra_duration
     }
 
-    fn conclude(
+    fn conclude_tests(
         &self,
         rust_time: Duration,
         gdscript_time: Option<Duration>,
@@ -168,6 +205,25 @@ impl IntegrationTests {
         }
     }
 
+    fn run_rust_benchmarks(&mut self, benchmarks: Vec<RustBenchmark>, _scene_tree: Gd<Node>) {
+        // let ctx = TestContext { scene_tree };
+
+        print!("\n{FMT_CYAN}{space}", space = " ".repeat(36));
+        for metrics in bencher::metrics() {
+            print!("{:>13}", metrics);
+        }
+        print!("{FMT_END}");
+
+        let mut last_file = None;
+        for bench in benchmarks {
+            print_bench_pre(bench.name, bench.file.to_string(), &mut last_file);
+            let result = bencher::run_benchmark(bench.function, bench.repetitions);
+            print_bench_post(result);
+        }
+    }
+
+    fn conclude_benchmarks(&self) {}
+
     fn update_stats(&mut self, outcome: &TestOutcome) {
         self.total += 1;
         match outcome {
@@ -203,30 +259,34 @@ fn run_rust_test(test: &RustTestCase, ctx: &TestContext) -> TestOutcome {
 }
 
 fn print_test_pre(test_case: &str, test_file: String, last_file: &mut Option<String>, flush: bool) {
-    // Check if we need to open a new category for a file
+    print_file_header(test_file, last_file);
+
+    print!("   -- {test_case} ... ");
+    if flush {
+        // Flush in GDScript, because its own print may come sooner than Rust prints otherwise.
+        // (Strictly speaking, this can also happen from Rust, when Godot prints something. So far, it didn't though...)
+        godot::private::flush_stdout();
+    }
+}
+
+fn print_file_header(file: String, last_file: &mut Option<String>) {
+    // Check if we need to open a new category for a file.
     let print_file = last_file
         .as_ref()
-        .map_or(true, |last_file| last_file != &test_file);
+        .map_or(true, |last_file| last_file != &file);
 
     if print_file {
-        let file_subtitle = if let Some(sep_pos) = test_file.rfind(&['/', '\\']) {
-            &test_file[sep_pos + 1..]
+        let file_subtitle = if let Some(sep_pos) = file.rfind(&['/', '\\']) {
+            &file[sep_pos + 1..]
         } else {
-            test_file.as_str()
+            file.as_str()
         };
 
         println!("\n   {file_subtitle}:");
     }
 
-    print!("   -- {test_case} ... ");
-    if flush {
-        // Flush in GDScript, because its own print may come sooner than Rust prints otherwise
-        // (strictly speaking, this can also happen from Rust, when Godot prints something. So far, it didn't though...
-        godot::private::flush_stdout();
-    }
-
     // State update for file-category-print
-    *last_file = Some(test_file);
+    *last_file = Some(file);
 }
 
 /// Prints a test name and its outcome.
@@ -242,6 +302,25 @@ fn print_test_post(test_case: &str, outcome: TestOutcome) {
     }
 }
 
+fn print_bench_pre(benchmark: &str, bench_file: String, last_file: &mut Option<String>) {
+    print_file_header(bench_file, last_file);
+
+    let benchmark = if benchmark.len() > 26 {
+        &benchmark[..26]
+    } else {
+        benchmark
+    };
+
+    print!("   -- {benchmark:<26} ...");
+}
+
+fn print_bench_post(result: BenchResult) {
+    for stat in result.stats.iter() {
+        print!(" {:>10.3}μs", stat.as_nanos() as f64 / 1000.0);
+    }
+    println!();
+}
+
 fn get_property(test: &Variant, property: &str) -> String {
     test.call("get", &[property.to_variant()]).to::<String>()
 }
@@ -251,6 +330,7 @@ fn get_execution_time(test: &Variant) -> Option<Duration> {
         .call("get", &["execution_time_seconds".to_variant()])
         .try_to::<f64>()
         .ok()?;
+
     Some(Duration::from_secs_f64(seconds))
 }
 

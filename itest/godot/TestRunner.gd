@@ -61,6 +61,9 @@ func _ready():
 		filters
 	)
 
+	if success:
+		rust_runner.run_all_benchmarks(self)
+
 	var exit_code: int = 0 if success else 1
 	get_tree().quit(exit_code)
 

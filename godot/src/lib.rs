@@ -175,7 +175,7 @@ pub mod bind {
 /// Testing facilities (unstable).
 #[doc(hidden)]
 pub mod test {
-    pub use godot_macros::itest;
+    pub use godot_macros::{bench, itest};
 }
 
 #[doc(hidden)]
