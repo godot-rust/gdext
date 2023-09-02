@@ -28,11 +28,13 @@ pub(crate) fn is_class_excluded(_class: &str) -> bool {
 
 #[cfg(not(feature = "codegen-full"))]
 fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
+    use crate::{util, RustTy};
+
     fn is_rust_type_excluded(ty: &RustTy) -> bool {
         match ty {
             RustTy::BuiltinIdent(_) => false,
             RustTy::BuiltinArray(_) => false,
-            RustTy::RawPointer { inner, .. } => is_rust_type_excluded(&inner),
+            RustTy::RawPointer { inner, .. } => is_rust_type_excluded(inner),
             RustTy::EngineArray { elem_class, .. } => is_class_excluded(elem_class.as_str()),
             RustTy::EngineEnum {
                 surrounding_class, ..
@@ -40,10 +42,10 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
                 None => false,
                 Some(class) => is_class_excluded(class.as_str()),
             },
-            RustTy::EngineClass { class, .. } => is_class_excluded(&class),
+            RustTy::EngineClass { class, .. } => is_class_excluded(class),
         }
     }
-    is_rust_type_excluded(&to_rust_type(ty, None, ctx))
+    is_rust_type_excluded(&util::to_rust_type(ty, None, ctx))
 }
 
 pub(crate) fn is_method_excluded(

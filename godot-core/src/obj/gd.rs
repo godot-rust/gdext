@@ -684,7 +684,8 @@ impl<T: GodotClass> Drop for Gd<T> {
         // No-op for manually managed objects
 
         out!("Gd::drop   <{}>", std::any::type_name::<T>());
-        let is_last = T::Mem::maybe_dec_ref(self); // may drop
+        // SAFETY: This `Gd` wont be dropped again after this.
+        let is_last = unsafe { T::Mem::maybe_dec_ref(self) }; // may drop
         if is_last {
             unsafe {
                 interface_fn!(object_destroy)(self.obj_sys());
@@ -788,7 +789,7 @@ impl<T: GodotClass> FromVariant for Gd<T> {
             // TODO(#234) remove this cast when Godot stops allowing illegal conversions
             // (See https://github.com/godot-rust/gdext/issues/158)
             .and_then(|obj| obj.owned_cast().ok())
-            .ok_or(VariantConversionError::BadType)
+            .ok_or(VariantConversionError::VariantIsNil)
     }
 }
 

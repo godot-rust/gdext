@@ -257,4 +257,4 @@ pub(crate) fn validate_utility_function(
     })
 }
 
-const INFO: &'static str = "\nMake sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html";
+const INFO: &str = "\nMake sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html";

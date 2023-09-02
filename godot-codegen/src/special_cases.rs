@@ -38,10 +38,12 @@ pub(crate) fn is_deleted(class_name: &TyName, godot_method_name: &str) -> bool {
 
 #[rustfmt::skip]
 pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
-    // Exclude experimental classes for now; possibly feature-gate them in the future.
-    if is_class_experimental(class_name) {
+    // TODO feature-gate experimental classes.
+    /*
+    if !cfg!(feature = "experimental-godot-api") && is_class_experimental(class_name) {
         return true;
     }
+    */
 
     match class_name.godot_ty.as_str() {
         // Hardcoded cases that are not accessible.
@@ -73,6 +75,7 @@ pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
 }
 
 #[rustfmt::skip]
+#[allow(dead_code)] // remove once used.
 fn is_class_experimental(class_name: &TyName) -> bool {
     // These classes are currently hardcoded, but the information is available in Godot's doc/classes directory.
     // The XML file contains a property <class name="NavigationMesh" ... is_experimental="true">.

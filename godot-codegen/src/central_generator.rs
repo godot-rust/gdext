@@ -145,7 +145,7 @@ pub(crate) fn generate_sys_utilities_file(
         }
 
         let fn_name_str = &function.name;
-        let field = util::make_utility_function_ptr_name(&function);
+        let field = util::make_utility_function_ptr_name(function);
         let hash = function.hash;
 
         table.method_decls.push(quote! {
@@ -664,7 +664,7 @@ fn make_builtin_method_table(api: &ExtensionApi, builtin_types: &BuiltinTypeMap)
     // TODO reuse builtin_types without api
     for builtin in api.builtin_classes.iter() {
         let Some(builtin_type) = builtin_types.map.get(&builtin.name) else {
-            continue // for Nil
+            continue; // for Nil
         };
 
         populate_builtin_methods(&mut table, builtin, &builtin_type.type_names);

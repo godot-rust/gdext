@@ -79,9 +79,15 @@ jobs:
       # Note: could use `-- --no-deps` to not lint dependencies, however it doesn't really speed up and also skips deps in workspace.
       - name: "Check clippy"
         run: |
-          cargo clippy --all-targets $GDEXT_FEATURES ${{ matrix.rust-extra-args }} -- \
-          -D clippy::suspicious -D clippy::style -D clippy::complexity -D clippy::perf \
-          -D clippy::dbg_macro -D clippy::todo -D clippy::unimplemented -D warnings 
+          cargo clippy --all-targets $GDEXT_FEATURES -- \
+          -D clippy::suspicious \
+          -D clippy::style \
+          -D clippy::complexity \
+          -D clippy::perf \
+          -D clippy::dbg_macro \
+          -D clippy::todo \
+          -D clippy::unimplemented \
+          -D warnings
 
   unit-test:
     name: unit-test (${{ matrix.name }}${{ matrix.rust-special }})
