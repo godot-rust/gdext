@@ -193,6 +193,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
                     raw: #prv::callbacks::register_user_binds::<#class_name>,
                 },
             },
+            init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
         });
     };
 
@@ -505,6 +506,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                 user_on_notification_fn: #on_notification_fn,
                 get_virtual_fn: #prv::callbacks::get_virtual::<#class_name>,
             },
+            init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
         });
     };
 

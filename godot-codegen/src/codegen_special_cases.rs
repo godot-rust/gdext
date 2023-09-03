@@ -127,6 +127,7 @@ const SELECTED_CLASSES: &[&str] = &[
     "CollisionObject2D",
     "CollisionShape2D",
     "Control",
+    "EditorPlugin",
     "Engine",
     "FileAccess",
     "HTTPRequest",

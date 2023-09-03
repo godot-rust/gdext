@@ -318,6 +318,20 @@ use crate::util::ident;
 /// for more information and further customization.
 ///
 /// This is very similar to [GDScript's `@tool` feature](https://docs.godotengine.org/en/stable/tutorials/plugins/running_code_in_the_editor.html).
+///
+/// # Editor Plugins
+///
+/// If you annotate a class with `#[class(editor_plugin)]`, it will be turned into an editor plugin. The
+/// class must then inherit from `EditorPlugin`, and an instance of that class will be automatically added
+/// to the editor when launched.
+///
+/// See [Godot's documentation of editor plugins](https://docs.godotengine.org/en/stable/tutorials/plugins/editor/index.html)
+/// for more information about editor plugins. But note that you do not need to create and enable the plugin
+/// through Godot's `Create New Plugin` menu for it to work, simply annotating the class with `editor_plugin`
+/// automatically enables it when the library is loaded.
+///
+/// This should usually be combined with `#[class(tool)]` so that the code you write will actually run in the
+/// editor.
 #[proc_macro_derive(GodotClass, attributes(class, base, var, export, init, signal))]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)
