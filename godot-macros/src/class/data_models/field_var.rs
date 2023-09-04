@@ -195,6 +195,7 @@ impl GetterSetterImpl {
             FuncDefinition {
                 func: signature,
                 rename: None,
+                has_gd_self: false,
             },
         );
 
