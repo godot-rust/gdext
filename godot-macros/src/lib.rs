@@ -4,17 +4,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+mod bench;
 mod class;
 mod derive;
 mod gdextension;
 mod itest;
 mod util;
 
-use crate::util::ident;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use venial::Declaration;
+
+use crate::util::ident;
 
 // Below intra-doc link to the trait only works as HTML, not as symbol link.
 /// Derive macro for [the `GodotClass` trait](../obj/trait.GodotClass.html) on structs.
@@ -526,6 +528,14 @@ pub fn derive_export(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn itest(meta: TokenStream, input: TokenStream) -> TokenStream {
     translate_meta("itest", meta, input, itest::attribute_itest)
+}
+
+/// Similar to `#[test]`, but runs an benchmark with Godot.
+///
+/// Calls the `fn` many times and gathers statistics from its execution time.
+#[proc_macro_attribute]
+pub fn bench(meta: TokenStream, input: TokenStream) -> TokenStream {
+    translate_meta("bench", meta, input, bench::attribute_bench)
 }
 
 /// Proc-macro attribute to be used in combination with the [`ExtensionLibrary`] trait.

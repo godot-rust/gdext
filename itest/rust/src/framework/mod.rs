@@ -7,23 +7,27 @@
 use godot::engine::{Engine, Node};
 use godot::obj::Gd;
 use godot::sys;
+use std::collections::HashSet;
 
+mod bencher;
 mod runner;
 
+pub use bencher::*;
 pub use runner::*;
 
 /// Allow re-import as `crate::framework::itest`.
-pub use godot::test::itest;
+pub use godot::test::{bench, itest};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Plugin registration
 
 // Registers all the `#[itest]` tests and `#[bench]` benchmarks.
 sys::plugin_registry!(pub(crate) __GODOT_ITEST: RustTestCase);
+sys::plugin_registry!(pub(crate) __GODOT_BENCH: RustBenchmark);
 
 /// Finds all `#[itest]` tests.
 fn collect_rust_tests(filters: &[String]) -> (Vec<RustTestCase>, usize, bool) {
-    let mut all_files = std::collections::HashSet::new();
+    let mut all_files = HashSet::new();
     let mut tests: Vec<RustTestCase> = vec![];
     let mut is_focus_run = false;
 
@@ -48,6 +52,22 @@ fn collect_rust_tests(filters: &[String]) -> (Vec<RustTestCase>, usize, bool) {
     (tests, all_files.len(), is_focus_run)
 }
 
+/// Finds all `#[bench]` benchmarks.
+fn collect_rust_benchmarks() -> (Vec<RustBenchmark>, usize) {
+    let mut all_files = HashSet::new();
+    let mut benchmarks: Vec<RustBenchmark> = vec![];
+
+    sys::plugin_foreach!(__GODOT_BENCH; |bench: &RustBenchmark| {
+        benchmarks.push(*bench);
+        all_files.insert(bench.file);
+    });
+
+    // Sort alphabetically for deterministic run order
+    benchmarks.sort_by_key(|bench| bench.file);
+
+    (benchmarks, all_files.len())
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Shared types
 
@@ -65,6 +85,16 @@ pub struct RustTestCase {
     #[allow(dead_code)]
     pub line: u32,
     pub function: fn(&TestContext),
+}
+
+#[derive(Copy, Clone)]
+pub struct RustBenchmark {
+    pub name: &'static str,
+    pub file: &'static str,
+    #[allow(dead_code)]
+    pub line: u32,
+    pub function: fn(),
+    pub repetitions: usize,
 }
 
 pub fn passes_filter(filters: &[String], test_name: &str) -> bool {

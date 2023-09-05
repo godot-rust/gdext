@@ -125,6 +125,36 @@ impl KvParser {
         }
     }
 
+    pub fn handle_usize(&mut self, key: &str) -> ParseResult<Option<usize>> {
+        let Some(expr) = self.handle_expr(key)? else {
+            return Ok(None);
+        };
+
+        let mut tokens = expr.into_iter();
+        let Some(TokenTree::Literal(lit)) = tokens.next() else {
+            return bail!(
+                key,
+                "missing value for '{key}' (must be unsigned integer literal)"
+            );
+        };
+
+        if let Some(surplus) = tokens.next() {
+            return bail!(
+                key,
+                "value for '{key}' must be unsigned integer literal; found extra {surplus:?}"
+            );
+        }
+
+        let Ok(int) = lit.to_string().parse() else {
+            return bail!(
+                key,
+                "value for '{key}' must be unsigned integer literal; found {lit:?}"
+            );
+        };
+
+        Ok(Some(int))
+    }
+
     /// Handles a key that must be provided and must have an identifier as the value.
     pub fn handle_ident_required(&mut self, key: &str) -> ParseResult<Ident> {
         self.handle_ident(key)?

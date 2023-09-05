@@ -6,6 +6,7 @@
 
 use godot::init::{gdextension, ExtensionLibrary};
 
+mod benchmarks;
 mod builtin_tests;
 mod common;
 mod engine_tests;

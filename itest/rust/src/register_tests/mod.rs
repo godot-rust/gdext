@@ -5,7 +5,7 @@
  */
 
 mod constant_test;
-mod derive_variant;
+mod derive_variant_test;
 mod func_test;
 mod gdscript_ffi_test;
 mod option_ffi_test;
