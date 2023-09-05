@@ -10,16 +10,17 @@ use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
 use std::path::Path;
 
+use crate::api_parser::*;
 use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
 use crate::context::NotificationEnum;
 use crate::util::{
-    ident, option_as_slice, parse_native_structures_format, safe_ident, to_pascal_case,
-    to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case, NativeStructuresField,
+    ident, make_string_name, option_as_slice, parse_native_structures_format, safe_ident,
+    to_pascal_case, to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case,
+    NativeStructuresField,
 };
-use crate::{api_parser::*, SubmitFn};
 use crate::{
-    special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
-    GeneratedClassModule, ModName, RustTy, TyName,
+    codegen_special_cases, special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule,
+    GeneratedClass, GeneratedClassModule, ModName, RustTy, SubmitFn, TyName,
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -236,12 +237,9 @@ pub(crate) fn generate_class_files(
         let class_name = TyName::from_godot(&class.name);
         let module_name = ModName::from_godot(&class.name);
 
-        #[cfg(not(feature = "codegen-full"))]
-        if !crate::SELECTED_CLASSES.contains(&class_name.godot_ty.as_str()) {
-            continue;
-        }
-
-        if special_cases::is_class_deleted(&class_name) {
+        if special_cases::is_class_deleted(&class_name)
+            || codegen_special_cases::is_class_excluded(class_name.godot_ty.as_str())
+        {
             continue;
         }
 
@@ -429,12 +427,6 @@ fn make_module_doc(class_name: &TyName) -> String {
     )
 }
 
-fn make_string_name(identifier: &str) -> TokenStream {
-    quote! {
-        StringName::from(#identifier)
-    }
-}
-
 fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
     let godot_class_name = &class.name;
     let godot_class_stringname = make_string_name(godot_class_name);
@@ -502,10 +494,17 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     };
 
     let constructor = make_constructor(class, ctx);
+    let get_method_table = util::get_api_level(class).table_global_getter();
+
     let FnDefinitions {
         functions: methods,
         builders,
-    } = make_methods(option_as_slice(&class.methods), class_name, ctx);
+    } = make_methods(
+        option_as_slice(&class.methods),
+        class_name,
+        &get_method_table,
+        ctx,
+    );
 
     let enums = make_enums(option_as_slice(&class.enums), class_name, ctx);
     let constants = make_constants(option_as_slice(&class.constants), class_name, ctx);
@@ -1015,10 +1014,15 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
     }
 }
 
-fn make_methods(methods: &[ClassMethod], class_name: &TyName, ctx: &mut Context) -> FnDefinitions {
+fn make_methods(
+    methods: &[ClassMethod],
+    class_name: &TyName,
+    get_method_table: &Ident,
+    ctx: &mut Context,
+) -> FnDefinitions {
     let definitions = methods
         .iter()
-        .map(|method| make_method_definition(method, class_name, ctx));
+        .map(|method| make_method_definition(method, class_name, get_method_table, ctx));
 
     FnDefinitions::expand(definitions)
 }
@@ -1075,85 +1079,14 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
     }
 }
 
-#[cfg(not(feature = "codegen-full"))]
-fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
-    fn is_class_excluded(class: &str) -> bool {
-        !crate::SELECTED_CLASSES.contains(&class)
-    }
-
-    fn is_rust_type_excluded(ty: &RustTy) -> bool {
-        match ty {
-            RustTy::BuiltinIdent(_) => false,
-            RustTy::BuiltinArray(_) => false,
-            RustTy::RawPointer { inner, .. } => is_rust_type_excluded(&inner),
-            RustTy::EngineArray { elem_class, .. } => is_class_excluded(elem_class.as_str()),
-            RustTy::EngineEnum {
-                surrounding_class, ..
-            } => match surrounding_class.as_ref() {
-                None => false,
-                Some(class) => is_class_excluded(class.as_str()),
-            },
-            RustTy::EngineClass { class, .. } => is_class_excluded(&class),
-        }
-    }
-    is_rust_type_excluded(&to_rust_type(ty, None, ctx))
-}
-
-fn is_method_excluded(
-    method: &ClassMethod,
-    is_virtual_impl: bool,
-    #[allow(unused_variables)] ctx: &mut Context,
-) -> bool {
-    // Currently excluded:
-    //
-    // * Private virtual methods are only included in a virtual
-    //   implementation.
-
-    // -- FIXME remove when impl complete
-    #[cfg(not(feature = "codegen-full"))]
-    if method
-        .return_value
-        .as_ref()
-        .map_or(false, |ret| is_type_excluded(ret.type_.as_str(), ctx))
-        || method.arguments.as_ref().map_or(false, |args| {
-            args.iter()
-                .any(|arg| is_type_excluded(arg.type_.as_str(), ctx))
-        })
-    {
-        return true;
-    }
-    // -- end.
-
-    if method.name.starts_with('_') && !is_virtual_impl {
-        return true;
-    }
-
-    false
-}
-
-#[cfg(feature = "codegen-full")]
-fn is_function_excluded(_function: &UtilityFunction, _ctx: &mut Context) -> bool {
-    false
-}
-
-#[cfg(not(feature = "codegen-full"))]
-fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
-    function
-        .return_type
-        .as_ref()
-        .map_or(false, |ret| is_type_excluded(ret.as_str(), ctx))
-        || function.arguments.as_ref().map_or(false, |args| {
-            args.iter()
-                .any(|arg| is_type_excluded(arg.type_.as_str(), ctx))
-        })
-}
-
 fn make_method_definition(
     method: &ClassMethod,
     class_name: &TyName,
+    get_method_table: &Ident,
     ctx: &mut Context,
 ) -> FnDefinition {
-    if is_method_excluded(method, false, ctx) || special_cases::is_deleted(class_name, &method.name)
+    if codegen_special_cases::is_method_excluded(method, false, ctx)
+        || special_cases::is_deleted(class_name, &method.name)
     {
         return FnDefinition::none();
     }
@@ -1168,7 +1101,6 @@ fn make_method_definition(
     }*/
 
     let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
-    let method_name_stringname = make_string_name(method_name_str);
 
     let receiver = make_receiver(
         method.is_static,
@@ -1176,34 +1108,22 @@ fn make_method_definition(
         quote! { self.object_ptr },
     );
 
-    let hash = method.hash;
     let is_varcall = method.is_vararg;
-
     let variant_ffi = is_varcall.then(VariantFfi::variant_ptr);
-    let function_provider = if is_varcall {
-        ident("object_method_bind_call")
+
+    let function_provider = if method.is_vararg {
+        // varcall
+        quote! { sys::interface_fn!(object_method_bind_call) }
     } else {
-        ident("object_method_bind_ptrcall")
+        // ptrcall
+        quote! { sys::interface_fn!(object_method_bind_ptrcall) }
     };
 
-    let class_name_str = &class_name.godot_ty;
-    let class_name_stringname = make_string_name(class_name_str);
+    let fn_ptr = util::make_class_method_ptr_name(&class_name.godot_ty, method);
+
     let init_code = quote! {
-        let __class_name = #class_name_stringname;
-        let __method_name = #method_name_stringname;
-        let __method_bind = sys::interface_fn!(classdb_get_method_bind)(
-            __class_name.string_sys(),
-            __method_name.string_sys(),
-            #hash
-        );
-        assert!(
-            !__method_bind.is_null(),
-            "failed to load method {}::{} (hash {}) -- possible Godot/gdext version mismatch",
-            #class_name_str,
-            #method_name_str,
-            #hash
-        );
-        let __call_fn = sys::interface_fn!(#function_provider);
+        let __method_bind = sys::#get_method_table().#fn_ptr;
+        let __call_fn = #function_provider;
     };
 
     let receiver_ffi_arg = &receiver.ffi_arg;
@@ -1241,27 +1161,24 @@ fn make_builtin_method_definition(
     type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> FnDefinition {
+    if codegen_special_cases::is_builtin_method_excluded(method) {
+        return FnDefinition::none();
+    }
+
     let method_name_str = &method.name;
-    let method_name_stringname = make_string_name(method_name_str);
 
     let return_value = method
         .return_type
         .as_deref()
         .map(MethodReturn::from_type_no_meta);
-    let hash = method.hash.expect("missing hash for builtin method");
+
     let is_varcall = method.is_vararg;
     let variant_ffi = is_varcall.then(VariantFfi::type_ptr);
 
-    let variant_type = &type_info.type_names.sys_variant_type;
+    let fn_ptr = util::make_builtin_method_ptr_name(&type_info.type_names, method);
+
     let init_code = quote! {
-        let __variant_type = sys::#variant_type;
-        let __method_name = #method_name_stringname;
-        let __call_fn = sys::interface_fn!(variant_get_ptr_builtin_method)(
-            __variant_type,
-            __method_name.string_sys(),
-            #hash
-        );
-        let __call_fn = __call_fn.unwrap_unchecked();
+        let __call_fn = sys::builtin_method_table().#fn_ptr;
     };
 
     let receiver = make_receiver(method.is_static, method.is_const, quote! { self.sys_ptr });
@@ -1297,23 +1214,20 @@ pub(crate) fn make_utility_function_definition(
     function: &UtilityFunction,
     ctx: &mut Context,
 ) -> TokenStream {
-    if is_function_excluded(function, ctx) {
+    if codegen_special_cases::is_function_excluded(function, ctx) {
         return TokenStream::new();
     }
 
     let function_name_str = &function.name;
-    let function_name_stringname = make_string_name(function_name_str);
+    let fn_ptr = util::make_utility_function_ptr_name(function);
 
     let return_value = function
         .return_type
         .as_deref()
         .map(MethodReturn::from_type_no_meta);
-    let hash = function.hash;
     let variant_ffi = function.is_vararg.then_some(VariantFfi::type_ptr());
     let init_code = quote! {
-        let __function_name = #function_name_stringname;
-        let __call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(__function_name.string_sys(), #hash);
-        let __call_fn = __call_fn.unwrap_unchecked();
+        let __call_fn = sys::utility_function_table().#fn_ptr;
     };
     let invocation = quote! {
         __call_fn(return_ptr, __args_ptr, __args.len() as i32);
@@ -2044,7 +1958,7 @@ fn make_all_virtual_methods(
     all_virtuals
         .into_iter()
         .filter_map(|method| {
-            if is_method_excluded(&method, true, ctx) {
+            if codegen_special_cases::is_method_excluded(&method, true, ctx) {
                 None
             } else {
                 Some(make_virtual_method(&method, ctx))

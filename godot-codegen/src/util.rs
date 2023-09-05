@@ -4,7 +4,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::api_parser::{ClassConstant, Enum};
+use crate::api_parser::{
+    BuiltinClassMethod, Class, ClassConstant, ClassMethod, Enum, UtilityFunction,
+};
+use crate::central_generator::TypeNames;
 use crate::special_cases::is_builtin_scalar;
 use crate::{Context, GodotTy, ModName, RustTy, TyName};
 use proc_macro2::{Ident, Literal, TokenStream};
@@ -16,9 +19,107 @@ pub struct NativeStructuresField {
     pub field_name: String,
 }
 
+/// At which stage a class function pointer is loaded.
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum ClassCodegenLevel {
+    Servers,
+    Scene,
+    Editor,
+
+    /// Not pre-fetched because Godot does not load them in time.
+    Lazy,
+}
+
+impl ClassCodegenLevel {
+    pub fn with_tables() -> [Self; 3] {
+        [Self::Servers, Self::Scene, Self::Editor]
+    }
+
+    pub fn table_global_getter(self) -> Ident {
+        format_ident!("class_{}_api", self.lower())
+    }
+
+    pub fn table_file(self) -> String {
+        format!("table_{}_classes.rs", self.lower())
+    }
+
+    pub fn table_struct(self) -> Ident {
+        format_ident!("Class{}MethodTable", self.upper())
+    }
+
+    pub fn lower(self) -> &'static str {
+        match self {
+            Self::Servers => "servers",
+            Self::Scene => "scene",
+            Self::Editor => "editor",
+            Self::Lazy => unreachable!("lazy classes should be deleted at the moment"),
+        }
+    }
+
+    fn upper(self) -> &'static str {
+        match self {
+            Self::Servers => "Servers",
+            Self::Scene => "Scene",
+            Self::Editor => "Editor",
+            Self::Lazy => unreachable!("lazy classes should be deleted at the moment"),
+        }
+    }
+}
+
 /// Small utility that turns an optional vector (often encountered as JSON deserialization type) into a slice.
 pub fn option_as_slice<T>(option: &Option<Vec<T>>) -> &[T] {
     option.as_ref().map_or(&[], Vec::as_slice)
+}
+
+// pub fn make_class_method_ptr_name(class_name_str: &str, method_name_str: &str) -> Ident {
+//     format_ident!("{}__{}", class_name_str, method_name_str)
+// }
+
+// Use &ClassMethod instead of &str, to make sure it's the original Godot name and no rename.
+pub fn make_class_method_ptr_name(class_godot_name: &str, method: &ClassMethod) -> Ident {
+    format_ident!("{}__{}", class_godot_name, method.name)
+}
+
+pub fn make_builtin_method_ptr_name(
+    variant_type: &TypeNames,
+    method: &BuiltinClassMethod,
+) -> Ident {
+    format_ident!("{}__{}", variant_type.json_builtin_name, method.name)
+}
+
+pub fn make_utility_function_ptr_name(function: &UtilityFunction) -> Ident {
+    safe_ident(&function.name)
+}
+
+// TODO should eventually be removed, as all StringNames are cached
+pub fn make_string_name(identifier: &str) -> TokenStream {
+    quote! {
+        StringName::from(#identifier)
+    }
+}
+
+pub fn make_sname_ptr(identifier: &str) -> TokenStream {
+    quote! {
+        string_names.fetch(#identifier)
+    }
+}
+
+pub fn get_api_level(class: &Class) -> ClassCodegenLevel {
+    if class.name == "ThemeDB" {
+        // registered in C++ register_scene_singletons(), after MODULE_INITIALIZATION_LEVEL_EDITOR happens.
+        ClassCodegenLevel::Lazy
+    } else if class.name.ends_with("Server") {
+        ClassCodegenLevel::Servers
+    } else if class.api_type == "core" {
+        ClassCodegenLevel::Scene
+    } else if class.api_type == "editor" {
+        ClassCodegenLevel::Editor
+    } else {
+        panic!(
+            "class {} has unknown API type {}",
+            class.name, class.api_type
+        )
+    }
 }
 
 pub fn make_enum_definition(enum_: &Enum) -> TokenStream {

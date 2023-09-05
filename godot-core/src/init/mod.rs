@@ -5,10 +5,8 @@
  */
 
 use godot_ffi as sys;
-use sys::out;
 
 use std::cell;
-use std::collections::BTreeMap;
 
 #[doc(hidden)]
 // TODO consider body safe despite unsafe function, and explicitly mark unsafe {} locations
@@ -30,20 +28,18 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
 
         sys::initialize(interface_or_get_proc_address, library, config);
 
-        let mut handle = InitHandle::new();
-
-        let success = E::load_library(&mut handle);
-        // No early exit, unclear if Godot still requires output parameters to be set
+        // Currently no way to express failure; could be exposed to E if necessary.
+        // No early exit, unclear if Godot still requires output parameters to be set.
+        let success = true;
 
         let godot_init_params = sys::GDExtensionInitialization {
-            minimum_initialization_level: handle.lowest_init_level().to_sys(),
+            minimum_initialization_level: E::min_level().to_sys(),
             userdata: std::ptr::null_mut(),
-            initialize: Some(ffi_initialize_layer),
-            deinitialize: Some(ffi_deinitialize_layer),
+            initialize: Some(ffi_initialize_layer::<E>),
+            deinitialize: Some(ffi_deinitialize_layer::<E>),
         };
 
         *init = godot_init_params;
-        INIT_HANDLE = Some(handle);
 
         success as u8
     };
@@ -54,45 +50,63 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     is_success.unwrap_or(0)
 }
 
-unsafe extern "C" fn ffi_initialize_layer(
+unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
     _userdata: *mut std::ffi::c_void,
     init_level: sys::GDExtensionInitializationLevel,
 ) {
-    let ctx = || {
-        format!(
-            "failed to initialize GDExtension layer `{:?}`",
-            InitLevel::from_sys(init_level)
-        )
-    };
+    let level = InitLevel::from_sys(init_level);
+    let ctx = || format!("failed to initialize GDExtension level `{:?}`", level);
 
-    crate::private::handle_panic(ctx, || {
-        let handle = INIT_HANDLE.as_mut().unwrap();
-        handle.run_init_function(InitLevel::from_sys(init_level));
+    // Swallow panics. TODO consider crashing if gdext init fails.
+    let _ = crate::private::handle_panic(ctx, || {
+        gdext_on_level_init(level);
+        E::on_level_init(level);
     });
 }
 
-unsafe extern "C" fn ffi_deinitialize_layer(
+unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
     _userdata: *mut std::ffi::c_void,
     init_level: sys::GDExtensionInitializationLevel,
 ) {
-    let ctx = || {
-        format!(
-            "failed to deinitialize GDExtension layer `{:?}`",
-            InitLevel::from_sys(init_level)
-        )
-    };
+    let level = InitLevel::from_sys(init_level);
+    let ctx = || format!("failed to deinitialize GDExtension level `{:?}`", level);
 
-    crate::private::handle_panic(ctx, || {
-        let handle = INIT_HANDLE.as_mut().unwrap();
-        handle.run_deinit_function(InitLevel::from_sys(init_level));
+    // Swallow panics.
+    let _ = crate::private::handle_panic(ctx, || {
+        E::on_level_deinit(level);
+        gdext_on_level_deinit(level);
     });
+}
+
+/// Tasks needed to be done by gdext internally upon loading an initialization level. Called before user code.
+fn gdext_on_level_init(level: InitLevel) {
+    // SAFETY: we are in the main thread, during initialization, no other logic is happening.
+    // TODO: in theory, a user could start a thread in one of the early levels, and run concurrent code that messes with the global state
+    // (e.g. class registration). This would break the assumption that the load_class_method_table() calls are exclusive.
+    // We could maybe protect globals with a mutex until initialization is complete, and then move it to a directly-accessible, read-only static.
+    unsafe {
+        match level {
+            InitLevel::Core => {}
+            InitLevel::Servers => {
+                sys::load_class_method_table(sys::ClassApiLevel::Server);
+            }
+            InitLevel::Scene => {
+                sys::load_class_method_table(sys::ClassApiLevel::Scene);
+                crate::auto_register_classes();
+            }
+            InitLevel::Editor => {
+                sys::load_class_method_table(sys::ClassApiLevel::Editor);
+            }
+        }
+    }
+}
+
+/// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
+fn gdext_on_level_deinit(_level: InitLevel) {
+    // No logic at the moment.
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-
-// FIXME make safe
-#[doc(hidden)]
-pub static mut INIT_HANDLE: Option<InitHandle> = None;
 
 /// Defines the entry point for a GDExtension Rust library.
 ///
@@ -125,14 +139,30 @@ pub static mut INIT_HANDLE: Option<InitHandle> = None;
 /// [safety]: https://godot-rust.github.io/book/gdext/advanced/safety.html
 // FIXME intra-doc link
 pub unsafe trait ExtensionLibrary {
-    fn load_library(handle: &mut InitHandle) -> bool {
-        handle.register_layer(InitLevel::Scene, DefaultLayer);
-        true
-    }
-
     /// Determines if and how an extension's code is run in the editor.
     fn editor_run_behavior() -> EditorRunBehavior {
         EditorRunBehavior::ToolClassesOnly
+    }
+
+    /// Determines the initialization level at which the extension is loaded (`Scene` by default).
+    ///
+    /// If the level is lower than [`InitLevel::Scene`], the engine needs to be restarted to take effect.
+    fn min_level() -> InitLevel {
+        InitLevel::Scene
+    }
+
+    /// Custom logic when a certain init-level of Godot is loaded.
+    ///
+    /// This will only be invoked for levels >= [`Self::min_level()`], in ascending order. Use `if` or `match` to hook to specific levels.
+    fn on_level_init(_level: InitLevel) {
+        // Nothing by default.
+    }
+
+    /// Custom logic when a certain init-level of Godot is unloaded.
+    ///
+    /// This will only be invoked for levels >= [`Self::min_level()`], in descending order. Use `if` or `match` to hook to specific levels.
+    fn on_level_deinit(_level: InitLevel) {
+        // Nothing by default.
     }
 }
 
@@ -162,91 +192,28 @@ pub enum EditorRunBehavior {
     AllClasses,
 }
 
-pub trait ExtensionLayer: 'static {
-    fn initialize(&mut self);
-    fn deinitialize(&mut self);
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-struct DefaultLayer;
-
-impl ExtensionLayer for DefaultLayer {
-    fn initialize(&mut self) {
-        crate::auto_register_classes();
-    }
-
-    fn deinitialize(&mut self) {
-        // Nothing -- note that any cleanup task should be performed outside of this method,
-        // as the user is free to use a different impl, so cleanup code may not be run.
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-pub struct InitHandle {
-    layers: BTreeMap<InitLevel, Box<dyn ExtensionLayer>>,
-    // success: bool,
-}
-
-impl InitHandle {
-    pub fn new() -> Self {
-        Self {
-            layers: BTreeMap::new(),
-            // success: true,
-        }
-    }
-
-    pub fn register_layer(&mut self, level: InitLevel, layer: impl ExtensionLayer) {
-        self.layers.insert(level, Box::new(layer));
-    }
-
-    // pub fn mark_failed(&mut self) {
-    //     self.success = false;
-    // }
-
-    pub fn lowest_init_level(&self) -> InitLevel {
-        self.layers
-            .iter()
-            .next()
-            .map(|(k, _v)| *k)
-            .unwrap_or(InitLevel::Scene)
-    }
-
-    pub fn run_init_function(&mut self, level: InitLevel) {
-        // if let Some(f) = self.init_levels.remove(&level) {
-        //     f();
-        // }
-        if let Some(layer) = self.layers.get_mut(&level) {
-            out!("init: initialize level {level:?}...");
-            layer.initialize()
-        } else {
-            out!("init: skip init of level {level:?}.");
-        }
-    }
-
-    pub fn run_deinit_function(&mut self, level: InitLevel) {
-        if let Some(layer) = self.layers.get_mut(&level) {
-            out!("init: deinitialize level {level:?}...");
-            layer.deinitialize()
-        } else {
-            out!("init: skip deinit of level {level:?}.");
-        }
-    }
-}
-
-impl Default for InitHandle {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
+/// Stage of the Godot initialization process.
+///
+/// Godot's initialization and deinitialization processes are split into multiple stages, like a stack. At each level,
+/// a different amount of engine functionality is available. Deinitialization happens in reverse order.
+///
+/// See also:
+/// - [`ExtensionLibrary::on_level_init()`]
+/// - [`ExtensionLibrary::on_level_deinit()`]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum InitLevel {
+    /// First level loaded by Godot. Builtin types are available, classes are not.
     Core,
+
+    /// Second level loaded by Godot. Only server classes and builtins are available.
     Servers,
+
+    /// Third level loaded by Godot. Most classes are available.
     Scene,
+
+    /// Fourth level loaded by Godot, only in the editor. All classes are available.
     Editor,
 }
 

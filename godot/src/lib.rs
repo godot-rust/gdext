@@ -196,7 +196,7 @@ pub mod prelude {
         PackedSceneVirtual, RefCounted, RefCountedVirtual, Resource, ResourceVirtual, SceneTree,
         SceneTreeVirtual,
     };
-    pub use super::init::{gdextension, ExtensionLayer, ExtensionLibrary, InitHandle, InitLevel};
+    pub use super::init::{gdextension, ExtensionLibrary, InitLevel};
     pub use super::log::*;
     pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, Share};
 

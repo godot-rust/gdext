@@ -6,6 +6,8 @@
 
 //! Functions and macros that are not very specific to gdext, but come in handy.
 
+use crate as sys;
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros
 
@@ -73,23 +75,12 @@ macro_rules! debug_assert_godot {
         debug_assert!(
             $expr,
             "Godot engine not available; make sure you are not calling it from unit/doc tests"
-        ); // previous message: "unchecked access to Option::None"
+        );
     };
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utility functions
-
-/// Combination of `as_ref()` and `unwrap_unchecked()`, but without the case differentiation in
-/// the former (thus raw pointer access in release mode)
-pub(crate) unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
-    debug_assert_godot!(opt.is_some());
-
-    match opt {
-        Some(ref val) => val,
-        None => std::hint::unreachable_unchecked(),
-    }
-}
 
 /// Extract value from box before `into_inner()` is stable
 #[allow(clippy::boxed_local)] // false positive
@@ -165,3 +156,105 @@ impl<T> Inner for Option<T> {
         self.expect(error_msg)
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Crate-wide support
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Utility functions
+
+/// Combination of `as_ref()` and `unwrap_unchecked()`, but without the case differentiation in
+/// the former (thus raw pointer access in release mode)
+pub(crate) unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
+    debug_assert_godot!(opt.is_some());
+
+    match opt {
+        Some(ref val) => val,
+        None => std::hint::unreachable_unchecked(),
+    }
+}
+
+pub(crate) unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
+    debug_assert_godot!(opt.is_some());
+
+    match opt {
+        Some(ref mut val) => val,
+        None => std::hint::unreachable_unchecked(),
+    }
+}
+
+pub(crate) type ClassMethodBind = sys::GDExtensionMethodBindPtr;
+
+pub(crate) fn validate_class_method(
+    method: ClassMethodBind,
+    class_name: &str,
+    method_name: &str,
+    hash: i64,
+) -> ClassMethodBind {
+    /*crate::out!(
+        "Load class method {}::{} (hash {})...",
+        class_name,
+        method_name,
+        hash
+    );*/
+    if method.is_null() {
+        panic!(
+            "Failed to load class method {}::{} (hash {}).\n\
+            Make sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html",
+            class_name,
+            method_name,
+            hash
+        )
+    }
+
+    method
+}
+
+// GDExtensionPtrBuiltInMethod
+pub(crate) type BuiltinMethodBind = unsafe extern "C" fn(
+    p_base: sys::GDExtensionTypePtr,
+    p_args: *const sys::GDExtensionConstTypePtr,
+    r_return: sys::GDExtensionTypePtr,
+    p_argument_count: std::os::raw::c_int,
+);
+
+pub(crate) type UtilityFunctionBind = unsafe extern "C" fn(
+    r_return: sys::GDExtensionTypePtr,
+    p_args: *const sys::GDExtensionConstTypePtr,
+    p_argument_count: std::os::raw::c_int,
+);
+
+pub(crate) fn validate_builtin_method(
+    method: sys::GDExtensionPtrBuiltInMethod,
+    variant_type: &str,
+    method_name: &str,
+    hash: i64,
+) -> BuiltinMethodBind {
+    /*crate::out!(
+        "Load builtin method {}::{} (hash {})...",
+        variant_type,
+        method_name,
+        hash
+    );*/
+    method.unwrap_or_else(|| {
+        panic!("Failed to load builtin method {variant_type}::{method_name} (hash {hash}).{INFO}")
+    })
+}
+
+pub(crate) fn validate_builtin_lifecycle<T>(function: Option<T>, description: &str) -> T {
+    function.unwrap_or_else(|| {
+        panic!("Failed to load builtin lifecycle function {description}.{INFO}",)
+    })
+}
+
+pub(crate) fn validate_utility_function(
+    utility_fn: sys::GDExtensionPtrUtilityFunction,
+    name: &str,
+    hash: i64,
+) -> UtilityFunctionBind {
+    utility_fn.unwrap_or_else(|| {
+        panic!("Failed to load builtin lifecycle function {name} (hash {hash}).{INFO}")
+    })
+}
+
+const INFO: &str = "\nMake sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html";

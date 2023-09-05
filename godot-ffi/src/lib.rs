@@ -17,13 +17,25 @@
     deref_nullptr,
     clippy::redundant_static_lifetimes
 )]
-pub(crate) mod gen;
+pub(crate) mod gen {
+    pub mod table_builtins;
+    pub mod table_builtins_lifecycle;
+    pub mod table_servers_classes;
+    pub mod table_scene_classes;
+    pub mod table_editor_classes;
+    pub mod table_utilities;
+
+    pub mod central;
+    pub mod gdextension_interface;
+    pub mod interface;
+}
 
 mod compat;
 mod gdextension_plus;
 mod godot_ffi;
 mod opaque;
 mod plugins;
+mod string_cache;
 mod toolbox;
 
 use compat::BindingCompat;
@@ -39,19 +51,42 @@ pub use crate::godot_ffi::{
     from_sys_init_or_init_default, GodotFfi, GodotFuncMarshal, GodotNullablePtr,
     PrimitiveConversionError, PtrcallType,
 };
+
+// Method tables
+pub use gen::table_builtins::*;
+pub use gen::table_builtins_lifecycle::*;
+pub use gen::table_editor_classes::*;
+pub use gen::table_scene_classes::*;
+pub use gen::table_servers_classes::*;
+pub use gen::table_utilities::*;
+
+// Other
 pub use gdextension_plus::*;
 pub use gen::central::*;
 pub use gen::gdextension_interface::*;
 pub use gen::interface::*;
+pub use string_cache::StringCache;
 pub use toolbox::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // API to access Godot via FFI
 
+#[derive(Debug)]
+pub enum ClassApiLevel {
+    Server,
+    Scene,
+    Editor,
+}
+
 struct GodotBinding {
     interface: GDExtensionInterface,
     library: GDExtensionClassLibraryPtr,
-    method_table: GlobalMethodTable,
+    global_method_table: BuiltinLifecycleTable,
+    class_server_method_table: Option<ClassServersMethodTable>, // late-init
+    class_scene_method_table: Option<ClassSceneMethodTable>,    // late-init
+    class_editor_method_table: Option<ClassEditorMethodTable>,  // late-init
+    builtin_method_table: BuiltinMethodTable,
+    utility_function_table: UtilityFunctionTable,
     runtime_metadata: GdextRuntimeMetadata,
     config: GdextConfig,
 }
@@ -99,16 +134,31 @@ pub unsafe fn initialize(
     let interface = compat.load_interface();
     out!("Loaded interface.");
 
-    let method_table = GlobalMethodTable::load(&interface);
-    out!("Loaded builtin table.");
+    let global_method_table = BuiltinLifecycleTable::load(&interface);
+    out!("Loaded global method table.");
+
+    let mut string_names = StringCache::new(&interface, &global_method_table);
+
+    let builtin_method_table = BuiltinMethodTable::load(&interface, &mut string_names);
+    out!("Loaded builtin method table.");
+
+    let utility_function_table = UtilityFunctionTable::load(&interface, &mut string_names);
+    out!("Loaded utility function table.");
 
     let runtime_metadata = GdextRuntimeMetadata {
         godot_version: version,
     };
 
+    drop(string_names);
+
     BINDING = Some(GodotBinding {
         interface,
-        method_table,
+        global_method_table,
+        class_server_method_table: None,
+        class_scene_method_table: None,
+        class_editor_method_table: None,
+        builtin_method_table,
+        utility_function_table,
         library,
         runtime_metadata,
         config,
@@ -150,8 +200,115 @@ pub unsafe fn get_library() -> GDExtensionClassLibraryPtr {
 ///
 /// The interface must have been initialised with [`initialize`] before calling this function.
 #[inline(always)]
-pub unsafe fn method_table() -> &'static GlobalMethodTable {
-    &unwrap_ref_unchecked(&BINDING).method_table
+pub unsafe fn method_table() -> &'static BuiltinLifecycleTable {
+    &unwrap_ref_unchecked(&BINDING).global_method_table
+}
+
+/// # Safety
+///
+/// The interface must have been initialised with [`initialize`] before calling this function.
+#[inline(always)]
+pub unsafe fn class_servers_api() -> &'static ClassServersMethodTable {
+    let table = &unwrap_ref_unchecked(&BINDING).class_server_method_table;
+    debug_assert!(
+        table.is_some(),
+        "cannot fetch classes; init level 'Servers' not yet loaded"
+    );
+
+    table.as_ref().unwrap_unchecked()
+}
+
+/// # Safety
+///
+/// The interface must have been initialised with [`initialize`] before calling this function.
+#[inline(always)]
+pub unsafe fn class_scene_api() -> &'static ClassSceneMethodTable {
+    let table = &unwrap_ref_unchecked(&BINDING).class_scene_method_table;
+    debug_assert!(
+        table.is_some(),
+        "cannot fetch classes; init level 'Scene' not yet loaded"
+    );
+
+    table.as_ref().unwrap_unchecked()
+}
+
+/// # Safety
+///
+/// The interface must have been initialised with [`initialize`] before calling this function.
+#[inline(always)]
+pub unsafe fn class_editor_api() -> &'static ClassEditorMethodTable {
+    let table = &unwrap_ref_unchecked(&BINDING).class_editor_method_table;
+    debug_assert!(
+        table.is_some(),
+        "cannot fetch classes; init level 'Editor' not yet loaded"
+    );
+
+    table.as_ref().unwrap_unchecked()
+}
+
+/// # Safety
+///
+/// The interface must have been initialised with [`initialize`] before calling this function.
+#[inline(always)]
+pub unsafe fn builtin_method_table() -> &'static BuiltinMethodTable {
+    &unwrap_ref_unchecked(&BINDING).builtin_method_table
+}
+
+/// # Safety
+///
+/// The interface must have been initialised with [`initialize`] before calling this function.
+#[inline(always)]
+pub unsafe fn utility_function_table() -> &'static UtilityFunctionTable {
+    &unwrap_ref_unchecked(&BINDING).utility_function_table
+}
+
+/// # Safety
+///
+/// The interface must have been initialised with [`initialize`] before calling this function.
+#[inline(always)]
+pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
+    let binding = unwrap_ref_unchecked_mut(&mut BINDING);
+
+    out!("Load class method table for level '{:?}'...", api_level);
+    let begin = std::time::Instant::now();
+
+    let mut string_names = StringCache::new(&binding.interface, &binding.global_method_table);
+    let (class_count, method_count);
+    match api_level {
+        ClassApiLevel::Server => {
+            binding.class_server_method_table = Some(ClassServersMethodTable::load(
+                &binding.interface,
+                &mut string_names,
+            ));
+            class_count = ClassServersMethodTable::CLASS_COUNT;
+            method_count = ClassServersMethodTable::METHOD_COUNT;
+        }
+        ClassApiLevel::Scene => {
+            binding.class_scene_method_table = Some(ClassSceneMethodTable::load(
+                &binding.interface,
+                &mut string_names,
+            ));
+            class_count = ClassSceneMethodTable::CLASS_COUNT;
+            method_count = ClassSceneMethodTable::METHOD_COUNT;
+        }
+        ClassApiLevel::Editor => {
+            binding.class_editor_method_table = Some(ClassEditorMethodTable::load(
+                &binding.interface,
+                &mut string_names,
+            ));
+            class_count = ClassEditorMethodTable::CLASS_COUNT;
+            method_count = ClassEditorMethodTable::METHOD_COUNT;
+        }
+    }
+
+    let _elapsed = std::time::Instant::now() - begin;
+    out!(
+        "{:?} level: loaded {} classes and {} methods in {}s.",
+        api_level,
+        class_count,
+        method_count,
+        _elapsed.as_secs_f64()
+    );
 }
 
 /// # Safety

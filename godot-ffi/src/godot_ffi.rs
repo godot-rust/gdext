@@ -4,8 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::{self as sys, ptr_then};
+use crate as sys;
 use std::{error::Error, fmt::Debug, marker::PhantomData, ptr};
+use sys::ptr_then;
 
 /// Adds methods to convert from and to Godot FFI pointers.
 /// See [crate::ffi_methods] for ergonomic implementation.

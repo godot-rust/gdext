@@ -110,6 +110,7 @@ pub mod private {
     /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
     ///
     /// Returns `None` if a panic occurred, and `Some(result)` with the result of `code` otherwise.
+    #[must_use]
     pub fn handle_panic<E, F, R, S>(error_context: E, code: F) -> Option<R>
     where
         E: FnOnce() -> S,

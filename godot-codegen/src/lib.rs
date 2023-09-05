@@ -7,6 +7,7 @@
 mod api_parser;
 mod central_generator;
 mod class_generator;
+mod codegen_special_cases;
 mod context;
 mod interface_generator;
 mod special_cases;
@@ -19,7 +20,7 @@ mod tests;
 use api_parser::{load_extension_api, ExtensionApi};
 use central_generator::{
     generate_core_central_file, generate_core_mod_file, generate_sys_central_file,
-    generate_sys_mod_file,
+    generate_sys_classes_file,
 };
 use class_generator::{
     generate_builtin_class_files, generate_class_files, generate_native_structures_files,
@@ -29,6 +30,10 @@ use interface_generator::generate_sys_interface_file;
 use util::{ident, to_pascal_case, to_snake_case};
 use utilities_generator::generate_utilities_file;
 
+use crate::central_generator::{
+    generate_sys_builtin_lifecycle_file, generate_sys_builtin_methods_file,
+    generate_sys_utilities_file, BuiltinTypeMap,
+};
 use crate::context::NotificationEnum;
 use proc_macro2::{Ident, TokenStream};
 use quote::{quote, ToTokens};
@@ -59,14 +64,25 @@ pub fn generate_sys_files(
     h_path: &Path,
     watch: &mut godot_bindings::StopWatch,
 ) {
-    generate_sys_mod_file(sys_gen_path, &mut submit_fn);
-
     let (api, build_config) = load_extension_api(watch);
     let mut ctx = Context::build_from_api(&api);
     watch.record("build_context");
 
     generate_sys_central_file(&api, &mut ctx, build_config, sys_gen_path, &mut submit_fn);
     watch.record("generate_central_file");
+
+    let builtin_types = BuiltinTypeMap::load(&api);
+    generate_sys_builtin_methods_file(&api, &builtin_types, sys_gen_path, &mut submit_fn);
+    watch.record("generate_builtin_methods_file");
+
+    generate_sys_builtin_lifecycle_file(&builtin_types, sys_gen_path, &mut submit_fn);
+    watch.record("generate_builtin_lifecycle_file");
+
+    generate_sys_classes_file(&api, &mut ctx, sys_gen_path, watch, &mut submit_fn);
+    // watch records inside the function.
+
+    generate_sys_utilities_file(&api, &mut ctx, sys_gen_path, &mut submit_fn);
+    watch.record("generate_utilities_file");
 
     let is_godot_4_0 = api.header.version_major == 4 && api.header.version_minor == 0;
     generate_sys_interface_file(h_path, sys_gen_path, is_godot_4_0, &mut submit_fn);
@@ -288,66 +304,3 @@ struct GeneratedBuiltinModule {
     class_name: TyName,
     module_name: ModName,
 }
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Shared config
-
-// Classes for minimal config
-#[cfg(not(feature = "codegen-full"))]
-const SELECTED_CLASSES: &[&str] = &[
-    "AnimatedSprite2D",
-    "ArrayMesh",
-    "Area2D",
-    "AudioStreamPlayer",
-    "BaseButton",
-    "Button",
-    "BoxMesh",
-    "Camera2D",
-    "Camera3D",
-    "CanvasItem",
-    "CanvasLayer",
-    "ClassDB",
-    "CollisionObject2D",
-    "CollisionShape2D",
-    "Control",
-    "Engine",
-    "FileAccess",
-    "HTTPRequest",
-    "Image",
-    "ImageTextureLayered",
-    "Input",
-    "InputEvent",
-    "InputEventAction",
-    "Label",
-    "MainLoop",
-    "Marker2D",
-    "Mesh",
-    "Node",
-    "Node2D",
-    "Node3D",
-    "Node3DGizmo",
-    "Object",
-    "OS",
-    "PackedScene",
-    "PathFollow2D",
-    "PhysicsBody2D",
-    "PrimitiveMesh",
-    "RefCounted",
-    "RenderingServer",
-    "Resource",
-    "ResourceFormatLoader",
-    "ResourceLoader",
-    "RigidBody2D",
-    "SceneTree",
-    "Sprite2D",
-    "SpriteFrames",
-    "TextServer",
-    "TextServerExtension",
-    "Texture",
-    "Texture2DArray",
-    "TextureLayered",
-    "Time",
-    "Timer",
-    "Window",
-    "Viewport",
-];

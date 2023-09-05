@@ -38,12 +38,81 @@ pub(crate) fn is_deleted(class_name: &TyName, godot_method_name: &str) -> bool {
 
 #[rustfmt::skip]
 pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
+    // TODO feature-gate experimental classes.
+    /*
+    if !cfg!(feature = "experimental-godot-api") && is_class_experimental(class_name) {
+        return true;
+    }
+    */
+
     match class_name.godot_ty.as_str() {
-        // Thread APIs
+        // Hardcoded cases that are not accessible.
+        | "JavaClassWrapper" // only on Android.
+        | "JavaScriptBridge" // only on WASM.
+        | "ThemeDB" // lazily loaded; TODO enable this.
+
+        // Thread APIs.
         | "Thread"
         | "Mutex"
         | "Semaphore"
 
+        // Internal classes that were removed in https://github.com/godotengine/godot/pull/80852, but are still available for API < 4.2.
+        | "FramebufferCacheRD"
+        | "GDScriptEditorTranslationParserPlugin"
+        | "GDScriptNativeClass"
+        | "GLTFDocumentExtensionPhysics"
+        | "GLTFDocumentExtensionTextureWebP"
+        | "GodotPhysicsServer2D"
+        | "GodotPhysicsServer3D"
+        | "IPUnix"
+        | "MovieWriterMJPEG"
+        | "MovieWriterPNGWAV"
+        | "ResourceFormatImporterSaver"
+        | "UniformSetCacheRD"
+
+        => true, _ => false
+    }
+}
+
+#[rustfmt::skip]
+#[allow(dead_code)] // remove once used.
+fn is_class_experimental(class_name: &TyName) -> bool {
+    // These classes are currently hardcoded, but the information is available in Godot's doc/classes directory.
+    // The XML file contains a property <class name="NavigationMesh" ... is_experimental="true">.
+
+    match class_name.godot_ty.as_str() {
+        | "GraphEdit"
+        | "GraphNode"
+        | "NavigationAgent2D"
+        | "NavigationAgent3D"
+        | "NavigationLink2D"
+        | "NavigationLink3D"
+        | "NavigationMesh"
+        | "NavigationMeshSourceGeometryData3D"
+        | "NavigationObstacle2D"
+        | "NavigationObstacle3D"
+        | "NavigationPathQueryParameters2D"
+        | "NavigationPathQueryParameters3D"
+        | "NavigationPathQueryResult2D"
+        | "NavigationPathQueryResult3D"
+        | "NavigationPolygon"
+        | "NavigationRegion2D"
+        | "NavigationRegion3D"
+        | "NavigationServer2D"
+        | "NavigationServer3D"
+        | "ProjectSettings"
+        | "SkeletonModification2D"
+        | "SkeletonModification2DCCDIK"
+        | "SkeletonModification2DFABRIK"
+        | "SkeletonModification2DJiggle"
+        | "SkeletonModification2DLookAt"
+        | "SkeletonModification2DPhysicalBones"
+        | "SkeletonModification2DStackHolder"
+        | "SkeletonModification2DTwoBoneIK"
+        | "SkeletonModificationStack2D"
+        | "StreamPeerGZIP"
+        | "TextureRect"
+        
         => true, _ => false
     }
 }

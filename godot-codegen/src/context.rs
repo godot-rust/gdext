@@ -5,7 +5,7 @@
  */
 
 use crate::api_parser::Class;
-use crate::{util, ExtensionApi, GodotTy, RustTy, TyName};
+use crate::{codegen_special_cases, util, ExtensionApi, GodotTy, RustTy, TyName};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, ToTokens};
 use std::collections::{HashMap, HashSet};
@@ -24,7 +24,7 @@ pub(crate) struct Context<'a> {
 
 impl<'a> Context<'a> {
     pub fn build_from_api(api: &'a ExtensionApi) -> Self {
-        let mut ctx = Context::default();
+        let mut ctx = Self::default();
 
         for class in api.singletons.iter() {
             ctx.singletons.insert(class.name.as_str());
@@ -44,8 +44,7 @@ impl<'a> Context<'a> {
         for class in api.classes.iter() {
             let class_name = TyName::from_godot(&class.name);
 
-            #[cfg(not(feature = "codegen-full"))]
-            if !crate::SELECTED_CLASSES.contains(&class_name.godot_ty.as_str()) {
+            if codegen_special_cases::is_class_excluded(class_name.godot_ty.as_str()) {
                 continue;
             }
 

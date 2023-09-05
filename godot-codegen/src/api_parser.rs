@@ -67,7 +67,7 @@ pub struct Class {
     pub is_refcounted: bool,
     pub is_instantiable: bool,
     pub inherits: Option<String>,
-    // pub api_type: String,
+    pub api_type: String,
     pub constants: Option<Vec<ClassConstant>>,
     pub enums: Option<Vec<Enum>>,
     pub methods: Option<Vec<ClassMethod>>,

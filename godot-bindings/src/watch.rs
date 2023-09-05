@@ -26,15 +26,14 @@ impl StopWatch {
         }
     }
 
-    pub fn record(&mut self, what: &'static str) {
+    pub fn record(&mut self, what: impl Into<String>) {
         let now = Instant::now();
         let duration = now - self.last_instant;
+        let name = what.into();
+
         self.last_instant = now;
-        self.lwidth = usize::max(self.lwidth, what.len());
-        self.metrics.push(Metric {
-            name: what,
-            duration,
-        });
+        self.lwidth = usize::max(self.lwidth, name.len());
+        self.metrics.push(Metric { name, duration });
     }
 
     pub fn write_stats_to(self, to_file: &Path) {
@@ -48,7 +47,7 @@ impl StopWatch {
         }
         let rwidth = log10(total.as_millis());
         let total_metric = Metric {
-            name: "total",
+            name: "total".to_string(),
             duration: total,
         };
 
@@ -79,6 +78,6 @@ fn log10(n: u128) -> usize {
 }
 
 struct Metric {
-    name: &'static str,
+    name: String,
     duration: Duration,
 }

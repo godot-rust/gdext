@@ -9,9 +9,11 @@ use quote::{format_ident, quote, ToTokens};
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::util::{to_pascal_case, to_rust_type, to_snake_case};
-use crate::{api_parser::*, SubmitFn};
-use crate::{ident, util, Context};
+use crate::api_parser::*;
+use crate::util::{
+    option_as_slice, to_pascal_case, to_rust_type, to_snake_case, ClassCodegenLevel,
+};
+use crate::{codegen_special_cases, ident, special_cases, util, Context, SubmitFn, TyName};
 
 struct CentralItems {
     opaque_types: [Vec<TokenStream>; 2],
@@ -20,13 +22,22 @@ struct CentralItems {
     variant_ty_enumerators_ord: Vec<Literal>,
     variant_op_enumerators_pascal: Vec<Ident>,
     variant_op_enumerators_ord: Vec<Literal>,
-    variant_fn_decls: Vec<TokenStream>,
-    variant_fn_inits: Vec<TokenStream>,
     global_enum_defs: Vec<TokenStream>,
     godot_version: Header,
 }
 
-pub(crate) struct TypeNames {
+struct MethodTableInfo {
+    table_name: Ident,
+    imports: TokenStream,
+    ctor_parameters: TokenStream,
+    pre_init_code: TokenStream,
+    method_decls: Vec<TokenStream>,
+    method_inits: Vec<TokenStream>,
+    class_count: usize,
+    method_count: usize,
+}
+
+pub struct TypeNames {
     /// Name in JSON: "int" or "PackedVector2Array"
     pub json_builtin_name: String,
 
@@ -52,6 +63,29 @@ pub(crate) struct BuiltinTypeInfo<'a> {
     pub operators: Option<&'a Vec<Operator>>,
 }
 
+pub(crate) struct BuiltinTypeMap<'a> {
+    map: HashMap<String, BuiltinTypeInfo<'a>>,
+}
+
+impl<'a> BuiltinTypeMap<'a> {
+    pub fn load(api: &'a ExtensionApi) -> Self {
+        Self {
+            map: collect_builtin_types(api),
+        }
+    }
+
+    /// Returns an iterator over the builtin types, ordered by `VariantType` value.
+    fn ordered(&self) -> impl Iterator<Item = &BuiltinTypeInfo<'a>> {
+        let mut ordered: Vec<_> = self.map.values().collect();
+        ordered.sort_by_key(|info| info.value);
+        ordered.into_iter()
+    }
+
+    fn count(&self) -> usize {
+        self.map.len()
+    }
+}
+
 pub(crate) fn generate_sys_central_file(
     api: &ExtensionApi,
     ctx: &mut Context,
@@ -59,20 +93,146 @@ pub(crate) fn generate_sys_central_file(
     sys_gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
-    let central_items = make_central_items(api, build_config, ctx);
+    let builtin_types = BuiltinTypeMap::load(api);
+    let central_items = make_central_items(api, build_config, builtin_types, ctx);
     let sys_code = make_sys_code(&central_items);
 
     submit_fn(sys_gen_path.join("central.rs"), sys_code);
 }
 
-pub(crate) fn generate_sys_mod_file(core_gen_path: &Path, submit_fn: &mut SubmitFn) {
-    let code = quote! {
-        pub mod central;
-        pub mod interface;
-        pub mod gdextension_interface;
+pub(crate) fn generate_sys_classes_file(
+    api: &ExtensionApi,
+    ctx: &mut Context,
+    sys_gen_path: &Path,
+    watch: &mut godot_bindings::StopWatch,
+    submit_fn: &mut SubmitFn,
+) {
+    for api_level in ClassCodegenLevel::with_tables() {
+        let code = make_class_method_table(api, api_level, ctx);
+        let filename = api_level.table_file();
+
+        submit_fn(sys_gen_path.join(filename), code);
+        watch.record(format!("generate_classes_{}_file", api_level.lower()));
+    }
+}
+
+pub(crate) fn generate_sys_utilities_file(
+    api: &ExtensionApi,
+    ctx: &mut Context,
+    sys_gen_path: &Path,
+    submit_fn: &mut SubmitFn,
+) {
+    let mut table = MethodTableInfo {
+        table_name: ident("UtilityFunctionTable"),
+        imports: quote! {},
+        ctor_parameters: quote! {
+            interface: &crate::GDExtensionInterface,
+            string_names: &mut crate::StringCache,
+        },
+        pre_init_code: quote! {
+            let get_utility_fn = interface.variant_get_ptr_utility_function
+                .expect("variant_get_ptr_utility_function absent");
+        },
+        method_decls: vec![],
+        method_inits: vec![],
+        class_count: 0,
+        method_count: 0,
     };
 
-    submit_fn(core_gen_path.join("mod.rs"), code);
+    for function in api.utility_functions.iter() {
+        if codegen_special_cases::is_function_excluded(function, ctx) {
+            continue;
+        }
+
+        let fn_name_str = &function.name;
+        let field = util::make_utility_function_ptr_name(function);
+        let hash = function.hash;
+
+        table.method_decls.push(quote! {
+            pub #field: crate::UtilityFunctionBind,
+        });
+
+        table.method_inits.push(quote! {
+            #field: {
+                let utility_fn = unsafe {
+                    get_utility_fn(string_names.fetch(#fn_name_str), #hash)
+                };
+                crate::validate_utility_function(utility_fn, #fn_name_str, #hash)
+            },
+        });
+
+        table.method_count += 1;
+    }
+
+    let code = make_method_table(table);
+
+    submit_fn(sys_gen_path.join("table_utilities.rs"), code);
+}
+
+/// Generate code for a method table based on shared layout.
+fn make_method_table(info: MethodTableInfo) -> TokenStream {
+    let MethodTableInfo {
+        table_name,
+        imports,
+        ctor_parameters,
+        pre_init_code,
+        method_decls,
+        method_inits,
+        class_count,
+        method_count,
+    } = info;
+
+    // Editor table can be empty, if the Godot binary is compiled without editor.
+    let unused_attr = method_decls
+        .is_empty()
+        .then(|| quote! { #[allow(unused_variables)] });
+
+    // Assumes that both decls and inits already have a trailing comma.
+    // This is necessary because some generators emit multiple lines (statements) per element.
+    quote! {
+        #imports
+
+        #[allow(non_snake_case)]
+        pub struct #table_name {
+            #( #method_decls )*
+        }
+
+        impl #table_name {
+            pub const CLASS_COUNT: usize = #class_count;
+            pub const METHOD_COUNT: usize = #method_count;
+
+            #unused_attr
+            pub fn load(
+                #ctor_parameters
+            ) -> Self {
+                #pre_init_code
+
+                Self {
+                    #( #method_inits )*
+                }
+            }
+        }
+    }
+}
+
+pub(crate) fn generate_sys_builtin_methods_file(
+    api: &ExtensionApi,
+    builtin_types: &BuiltinTypeMap,
+    sys_gen_path: &Path,
+    submit_fn: &mut SubmitFn,
+) {
+    let code = make_builtin_method_table(api, builtin_types);
+    submit_fn(sys_gen_path.join("table_builtins.rs"), code);
+}
+
+pub(crate) fn generate_sys_builtin_lifecycle_file(
+    builtin_types: &BuiltinTypeMap,
+    sys_gen_path: &Path,
+    submit_fn: &mut SubmitFn,
+) {
+    // TODO merge this and the one in central.rs, to only collect once
+    let code = make_builtin_lifecycle_table(builtin_types);
+    submit_fn(sys_gen_path.join("table_builtins_lifecycle.rs"), code);
 }
 
 pub(crate) fn generate_core_mod_file(gen_path: &Path, submit_fn: &mut SubmitFn) {
@@ -95,7 +255,8 @@ pub(crate) fn generate_core_central_file(
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
-    let central_items = make_central_items(api, build_config, ctx);
+    let builtin_types = BuiltinTypeMap::load(api);
+    let central_items = make_central_items(api, build_config, builtin_types, ctx);
     let core_code = make_core_code(&central_items);
 
     submit_fn(gen_path.join("central.rs"), core_code);
@@ -108,8 +269,6 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
         variant_ty_enumerators_ord,
         variant_op_enumerators_pascal,
         variant_op_enumerators_ord,
-        variant_fn_decls,
-        variant_fn_inits,
         godot_version,
         ..
     } = central_items;
@@ -118,10 +277,8 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
     let [opaque_32bit, opaque_64bit] = opaque_types;
 
     quote! {
-        use crate::{
-            ffi_methods, GDExtensionConstTypePtr, GDExtensionTypePtr, GDExtensionUninitializedTypePtr,
-            GDExtensionUninitializedVariantPtr, GDExtensionVariantPtr, GodotFfi,
-        };
+        use crate::{ffi_methods, GDExtensionTypePtr, GDExtensionVariantOperator, GDExtensionVariantType, GodotFfi};
+
         #[cfg(target_pointer_width = "32")]
         pub mod types {
             #(#opaque_32bit)*
@@ -138,20 +295,6 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
 
         // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-        pub struct GlobalMethodTable {
-            #(#variant_fn_decls)*
-        }
-
-        impl GlobalMethodTable {
-            pub(crate) unsafe fn load(interface: &crate::GDExtensionInterface) -> Self {
-                Self {
-                    #(#variant_fn_inits)*
-                }
-            }
-        }
-
-        // ----------------------------------------------------------------------------------------------------------------------------------------------
-
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
         #[repr(i32)]
         pub enum VariantType {
@@ -163,7 +306,7 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
 
         impl VariantType {
             #[doc(hidden)]
-            pub fn from_sys(enumerator: crate::GDExtensionVariantType) -> Self {
+            pub fn from_sys(enumerator: GDExtensionVariantType) -> Self {
                 // Annoying, but only stable alternative is transmute(), which dictates enum size
                 match enumerator {
                     0 => Self::Nil,
@@ -175,7 +318,7 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
             }
 
             #[doc(hidden)]
-            pub fn sys(self) -> crate::GDExtensionVariantType {
+            pub fn sys(self) -> GDExtensionVariantType {
                 self as _
             }
         }
@@ -198,7 +341,7 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
 
         impl VariantOperator {
             #[doc(hidden)]
-            pub fn from_sys(enumerator: crate::GDExtensionVariantOperator) -> Self {
+            pub fn from_sys(enumerator: GDExtensionVariantOperator) -> Self {
                 match enumerator {
                     #(
                         #variant_op_enumerators_ord => Self::#variant_op_enumerators_pascal,
@@ -208,7 +351,7 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
             }
 
             #[doc(hidden)]
-            pub fn sys(self) -> crate::GDExtensionVariantOperator {
+            pub fn sys(self) -> GDExtensionVariantOperator {
                 self as _
             }
         }
@@ -324,6 +467,7 @@ fn make_core_code(central_items: &CentralItems) -> TokenStream {
 fn make_central_items(
     api: &ExtensionApi,
     build_config: [&str; 2],
+    builtin_types: BuiltinTypeMap,
     ctx: &mut Context,
 ) -> CentralItems {
     let mut opaque_types = [Vec::new(), Vec::new()];
@@ -338,12 +482,11 @@ fn make_central_items(
         }
     }
 
-    let builtin_types_map = collect_builtin_types(api);
     let variant_operators = collect_variant_operators(api);
 
     // Generate builtin methods, now with info for all types available.
     // Separate vectors because that makes usage in quote! easier.
-    let len = builtin_types_map.len();
+    let len = builtin_types.count();
 
     let mut result = CentralItems {
         opaque_types,
@@ -352,33 +495,17 @@ fn make_central_items(
         variant_ty_enumerators_ord: Vec::with_capacity(len),
         variant_op_enumerators_pascal: Vec::new(),
         variant_op_enumerators_ord: Vec::new(),
-        variant_fn_decls: Vec::with_capacity(len),
-        variant_fn_inits: Vec::with_capacity(len),
         global_enum_defs: Vec::new(),
         godot_version: api.header.clone(),
     };
 
-    let mut builtin_types: Vec<_> = builtin_types_map.values().collect();
-    builtin_types.sort_by_key(|info| info.value);
-
     // Note: NIL is not part of this iteration, it will be added manually
-    for ty in builtin_types {
-        // Note: both are token streams, containing multiple function declarations/initializations
-        let (decls, inits) = make_variant_fns(
-            &ty.type_names,
-            ty.has_destructor,
-            ty.constructors,
-            ty.operators,
-            &builtin_types_map,
-        );
-
+    for ty in builtin_types.ordered() {
         let (pascal_name, rust_ty, ord) = make_enumerator(&ty.type_names, ty.value, ctx);
 
         result.variant_ty_enumerators_pascal.push(pascal_name);
         result.variant_ty_enumerators_rust.push(rust_ty);
         result.variant_ty_enumerators_ord.push(ord);
-        result.variant_fn_decls.push(decls);
-        result.variant_fn_inits.push(inits);
     }
 
     for op in variant_operators {
@@ -419,6 +546,235 @@ fn make_central_items(
     result
 }
 
+fn make_builtin_lifecycle_table(builtin_types: &BuiltinTypeMap) -> TokenStream {
+    let len = builtin_types.count();
+    let mut table = MethodTableInfo {
+        table_name: ident("BuiltinLifecycleTable"),
+        imports: quote! {
+            use crate::{
+                GDExtensionConstTypePtr, GDExtensionTypePtr, GDExtensionUninitializedTypePtr,
+                GDExtensionUninitializedVariantPtr, GDExtensionVariantPtr,
+            };
+        },
+        ctor_parameters: quote! {
+            interface: &crate::GDExtensionInterface,
+        },
+        pre_init_code: quote! {
+            let get_construct_fn = interface.variant_get_ptr_constructor.unwrap();
+            let get_destroy_fn = interface.variant_get_ptr_destructor.unwrap();
+            let get_operator_fn = interface.variant_get_ptr_operator_evaluator.unwrap();
+
+            let get_to_variant_fn = interface.get_variant_from_type_constructor.unwrap();
+            let get_from_variant_fn = interface.get_variant_to_type_constructor.unwrap();
+        },
+        method_decls: Vec::with_capacity(len),
+        method_inits: Vec::with_capacity(len),
+        class_count: 0,
+        method_count: len,
+    };
+
+    // Note: NIL is not part of this iteration, it will be added manually
+    for ty in builtin_types.ordered() {
+        let (decls, inits) = make_variant_fns(
+            &ty.type_names,
+            ty.has_destructor,
+            ty.constructors,
+            ty.operators,
+            &builtin_types.map,
+        );
+
+        table.method_decls.push(decls);
+        table.method_inits.push(inits);
+        table.class_count += 1;
+    }
+
+    make_method_table(table)
+}
+
+fn make_class_method_table(
+    api: &ExtensionApi,
+    api_level: ClassCodegenLevel,
+    ctx: &mut Context,
+) -> TokenStream {
+    let mut table = MethodTableInfo {
+        table_name: api_level.table_struct(),
+        imports: TokenStream::new(),
+        ctor_parameters: quote! {
+            interface: &crate::GDExtensionInterface,
+            string_names: &mut crate::StringCache,
+        },
+        pre_init_code: TokenStream::new(), // late-init, depends on class string names
+        method_decls: vec![],
+        method_inits: vec![],
+        class_count: 0,
+        method_count: 0,
+    };
+
+    let mut class_sname_decls = Vec::new();
+    for class in api.classes.iter() {
+        if special_cases::is_class_deleted(&TyName::from_godot(&class.name))
+            || codegen_special_cases::is_class_excluded(&class.name)
+            || util::get_api_level(class) != api_level
+        {
+            continue;
+        }
+
+        let class_var = format_ident!("sname_{}", &class.name);
+        let initializer_expr = util::make_sname_ptr(&class.name);
+
+        let prev_method_count = table.method_count;
+        populate_class_methods(&mut table, class, &class_var, ctx);
+        if table.method_count > prev_method_count {
+            // Only create class variable if any methods have been added.
+            class_sname_decls.push(quote! {
+                let #class_var = #initializer_expr;
+            });
+        }
+
+        table.class_count += 1;
+    }
+
+    table.pre_init_code = quote! {
+        let get_method_bind = interface.classdb_get_method_bind.expect("classdb_get_method_bind absent");
+
+        #( #class_sname_decls )*
+    };
+
+    make_method_table(table)
+}
+
+fn make_builtin_method_table(api: &ExtensionApi, builtin_types: &BuiltinTypeMap) -> TokenStream {
+    let mut table = MethodTableInfo {
+        table_name: ident("BuiltinMethodTable"),
+        imports: TokenStream::new(),
+        ctor_parameters: quote! {
+            interface: &crate::GDExtensionInterface,
+            string_names: &mut crate::StringCache,
+        },
+        pre_init_code: quote! {
+            use crate as sys;
+            let get_builtin_method = interface.variant_get_ptr_builtin_method.expect("variant_get_ptr_builtin_method absent");
+        },
+        method_decls: vec![],
+        method_inits: vec![],
+        class_count: 0,
+        method_count: 0,
+    };
+
+    // TODO reuse builtin_types without api
+    for builtin in api.builtin_classes.iter() {
+        let Some(builtin_type) = builtin_types.map.get(&builtin.name) else {
+            continue; // for Nil
+        };
+
+        populate_builtin_methods(&mut table, builtin, &builtin_type.type_names);
+        table.class_count += 1;
+    }
+
+    make_method_table(table)
+}
+
+/// Returns whether at least 1 method was added.
+fn populate_class_methods(
+    table: &mut MethodTableInfo,
+    class: &Class,
+    class_var: &Ident,
+    ctx: &mut Context,
+) {
+    let class_name_str = class.name.as_str();
+
+    for method in option_as_slice(&class.methods) {
+        if codegen_special_cases::is_method_excluded(method, false, ctx) {
+            continue;
+        }
+
+        let field = util::make_class_method_ptr_name(&class.name, method);
+
+        // Note: varcall/ptrcall is only decided at call time; the method bind is the same for both.
+        let method_decl = quote! { pub #field: crate::ClassMethodBind, };
+        let method_init = make_class_method_init(method, &field, class_var, class_name_str);
+
+        table.method_decls.push(method_decl);
+        table.method_inits.push(method_init);
+        table.method_count += 1;
+    }
+}
+
+fn populate_builtin_methods(
+    table: &mut MethodTableInfo,
+    builtin_class: &BuiltinClass,
+    type_name: &TypeNames,
+) {
+    for method in option_as_slice(&builtin_class.methods) {
+        if codegen_special_cases::is_builtin_method_excluded(method) {
+            continue;
+        }
+
+        let field = util::make_builtin_method_ptr_name(type_name, method);
+
+        let method_decl = quote! { pub #field: crate::BuiltinMethodBind, };
+        let method_init = make_builtin_method_init(method, &field, type_name);
+
+        table.method_decls.push(method_decl);
+        table.method_inits.push(method_init);
+        table.method_count += 1;
+    }
+}
+
+fn make_class_method_init(
+    method: &ClassMethod,
+    field: &Ident,
+    class_var: &Ident,
+    class_name_str: &str,
+) -> TokenStream {
+    let method_name_str = method.name.as_str();
+    let method_sname = util::make_sname_ptr(method_name_str);
+
+    let hash = method.hash.unwrap_or_else(|| {
+        panic!(
+            "class method has no hash: {}::{}",
+            class_name_str, method_name_str
+        )
+    });
+
+    quote! {
+        #field: {
+            let method_bind = unsafe {
+                get_method_bind(#class_var, #method_sname, #hash)
+            };
+            crate::validate_class_method(method_bind, #class_name_str, #method_name_str, #hash)
+        },
+    }
+}
+
+fn make_builtin_method_init(
+    method: &BuiltinClassMethod,
+    field: &Ident,
+    type_name: &TypeNames,
+) -> TokenStream {
+    let method_name_str = method.name.as_str();
+    let method_sname = util::make_sname_ptr(method_name_str);
+
+    let variant_type = &type_name.sys_variant_type;
+    let variant_type_str = &type_name.json_builtin_name;
+
+    let hash = method.hash.unwrap_or_else(|| {
+        panic!(
+            "builtin method has no hash: {}::{}",
+            variant_type_str, method_name_str
+        )
+    });
+
+    quote! {
+        #field: {
+            let method_bind = unsafe {
+                get_builtin_method(sys::#variant_type, #method_sname, #hash)
+            };
+            crate::validate_builtin_method(method_bind, #variant_type_str, #method_name_str, #hash)
+        },
+    }
+}
+
 /// Creates a map from "normalized" class names (lowercase without underscore, makes it easy to map from different conventions)
 /// to meta type information, including all the type name variants
 fn collect_builtin_classes(api: &ExtensionApi) -> HashMap<String, &BuiltinClass> {
@@ -432,7 +788,7 @@ fn collect_builtin_classes(api: &ExtensionApi) -> HashMap<String, &BuiltinClass>
     class_map
 }
 
-/// Returns map from "PackedStringArray" to all the info
+/// Returns map from the JSON names (e.g. "PackedStringArray") to all the info.
 pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, BuiltinTypeInfo<'_>> {
     let class_map = collect_builtin_classes(api);
 
@@ -549,11 +905,11 @@ fn make_variant_fns(
     let to_variant = format_ident!("{}_to_variant", type_names.snake_case);
     let from_variant = format_ident!("{}_from_variant", type_names.snake_case);
 
-    let to_variant_error = format_load_error(&to_variant);
-    let from_variant_error = format_load_error(&from_variant);
+    let to_variant_str = to_variant.to_string();
+    let from_variant_str = from_variant.to_string();
 
     let variant_type = &type_names.sys_variant_type;
-    let variant_type = quote! { crate:: #variant_type };
+    let variant_type = quote! { crate::#variant_type };
 
     // Field declaration
     // The target types are uninitialized-ptrs, because Godot performs placement new on those:
@@ -571,12 +927,12 @@ fn make_variant_fns(
     // Field initialization in new()
     let init = quote! {
         #to_variant: {
-            let ctor_fn = interface.get_variant_from_type_constructor.unwrap();
-            ctor_fn(#variant_type).expect(#to_variant_error)
+            let fptr = unsafe { get_to_variant_fn(#variant_type) };
+            crate::validate_builtin_lifecycle(fptr, #to_variant_str)
         },
-        #from_variant:  {
-            let ctor_fn = interface.get_variant_to_type_constructor.unwrap();
-            ctor_fn(#variant_type).expect(#from_variant_error)
+        #from_variant: {
+            let fptr = unsafe { get_from_variant_fn(#variant_type) };
+            crate::validate_builtin_lifecycle(fptr, #from_variant_str)
         },
         #op_eq_inits
         #op_lt_inits
@@ -627,8 +983,8 @@ fn make_construct_fns(
 
     let construct_default = format_ident!("{}_construct_default", type_names.snake_case);
     let construct_copy = format_ident!("{}_construct_copy", type_names.snake_case);
-    let construct_default_error = format_load_error(&construct_default);
-    let construct_copy_error = format_load_error(&construct_copy);
+    let construct_default_str = construct_default.to_string();
+    let construct_copy_str = construct_copy.to_string();
     let variant_type = &type_names.sys_variant_type;
 
     let (construct_extra_decls, construct_extra_inits) =
@@ -643,19 +999,23 @@ fn make_construct_fns(
     let decls = quote! {
         pub #construct_default: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
         pub #construct_copy: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
-        #(#construct_extra_decls)*
+        #(
+            #construct_extra_decls
+        )*
     };
 
     let inits = quote! {
         #construct_default: {
-            let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
-            ctor_fn(crate:: #variant_type, 0i32).expect(#construct_default_error)
+            let fptr = unsafe { get_construct_fn(crate::#variant_type, 0i32) };
+            crate::validate_builtin_lifecycle(fptr, #construct_default_str)
         },
         #construct_copy: {
-            let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
-            ctor_fn(crate:: #variant_type, 1i32).expect(#construct_copy_error)
+            let fptr = unsafe { get_construct_fn(crate::#variant_type, 1i32) };
+            crate::validate_builtin_lifecycle(fptr, #construct_copy_str)
         },
-        #(#construct_extra_inits)*
+        #(
+            #construct_extra_inits
+        )*
     };
 
     (decls, inits)
@@ -674,7 +1034,7 @@ fn make_extra_constructors(
     for (i, ctor) in constructors.iter().enumerate().skip(2) {
         if let Some(args) = &ctor.arguments {
             let type_name = &type_names.snake_case;
-            let ident = if args.len() == 1 && args[0].name == "from" {
+            let construct_custom = if args.len() == 1 && args[0].name == "from" {
                 // Conversion constructor is named according to the source type
                 // String(NodePath from) => string_from_node_path
                 let arg_type = &builtin_types[&args[0].type_].type_names.snake_case;
@@ -689,16 +1049,16 @@ fn make_extra_constructors(
                 format_ident!("{type_name}_from_{arg_names}")
             };
 
-            let err = format_load_error(&ident);
+            let construct_custom_str = construct_custom.to_string();
             extra_decls.push(quote! {
-                pub #ident: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
+                pub #construct_custom: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
             });
 
             let i = i as i32;
             extra_inits.push(quote! {
-               #ident: {
-                    let ctor_fn = interface.variant_get_ptr_constructor.unwrap();
-                    ctor_fn(crate:: #variant_type, #i).expect(#err)
+                #construct_custom: {
+                    let fptr = unsafe { get_construct_fn(crate::#variant_type, #i) };
+                    crate::validate_builtin_lifecycle(fptr, #construct_custom_str)
                 },
             });
         }
@@ -713,6 +1073,7 @@ fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStrea
     }
 
     let destroy = format_ident!("{}_destroy", type_names.snake_case);
+    let destroy_str = destroy.to_string();
     let variant_type = &type_names.sys_variant_type;
 
     let decls = quote! {
@@ -721,8 +1082,8 @@ fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStrea
 
     let inits = quote! {
         #destroy: {
-            let dtor_fn = interface.variant_get_ptr_destructor.unwrap();
-            dtor_fn(crate:: #variant_type).unwrap()
+            let fptr = unsafe { get_destroy_fn(crate::#variant_type) };
+            crate::validate_builtin_lifecycle(fptr, #destroy_str)
         },
     };
 
@@ -747,10 +1108,10 @@ fn make_operator_fns(
         type_names.snake_case,
         sys_name.to_ascii_lowercase()
     );
-    let error = format_load_error(&operator);
+    let operator_str = operator.to_string();
 
     let variant_type = &type_names.sys_variant_type;
-    let variant_type = quote! { crate:: #variant_type };
+    let variant_type = quote! { crate::#variant_type };
     let sys_ident = format_ident!("GDEXTENSION_VARIANT_OP_{}", sys_name);
 
     // Field declaration
@@ -761,20 +1122,12 @@ fn make_operator_fns(
     // Field initialization in new()
     let init = quote! {
         #operator: {
-            let op_finder = interface.variant_get_ptr_operator_evaluator.unwrap();
-            op_finder(
-                crate::#sys_ident,
-                #variant_type,
-                #variant_type,
-            ).expect(#error)
+            let fptr = unsafe { get_operator_fn(crate::#sys_ident, #variant_type, #variant_type) };
+            crate::validate_builtin_lifecycle(fptr, #operator_str)
         },
     };
 
     (decl, init)
-}
-
-fn format_load_error(ident: &impl std::fmt::Display) -> String {
-    format!("failed to load GDExtension function `{ident}`")
 }
 
 /// Returns true if the type is so trivial that most of its operations are directly provided by Rust, and there is no need

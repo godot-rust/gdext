@@ -39,7 +39,7 @@ pub fn make_virtual_method_callback(
 
             unsafe extern "C" fn function(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
-                args: *const sys::GDExtensionConstTypePtr,
+                args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
             ) {
                 #invocation;
@@ -244,19 +244,20 @@ fn make_varcall_func(
     wrapped_method: &TokenStream,
 ) -> TokenStream {
     let invocation = make_varcall_invocation(method_name, sig_tuple, wrapped_method);
+    let method_name_str = method_name.to_string();
 
     quote! {
         {
             unsafe extern "C" fn function(
                 _method_data: *mut std::ffi::c_void,
                 instance_ptr: sys::GDExtensionClassInstancePtr,
-                args: *const sys::GDExtensionConstVariantPtr,
+                args_ptr: *const sys::GDExtensionConstVariantPtr,
                 _arg_count: sys::GDExtensionInt,
                 ret: sys::GDExtensionVariantPtr,
                 err: *mut sys::GDExtensionCallError,
             ) {
                 let success = ::godot::private::handle_panic(
-                    || stringify!(#method_name),
+                    || #method_name_str,
                     || #invocation
                 );
 
@@ -287,7 +288,7 @@ fn make_ptrcall_func(
             unsafe extern "C" fn function(
                 _method_data: *mut std::ffi::c_void,
                 instance_ptr: sys::GDExtensionClassInstancePtr,
-                args: *const sys::GDExtensionConstTypePtr,
+                args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
             ) {
                 let success = ::godot::private::handle_panic(
@@ -323,7 +324,7 @@ fn make_ptrcall_invocation(
     quote! {
          <#sig_tuple as ::godot::builtin::meta::PtrcallSignatureTuple>::ptrcall(
             instance_ptr,
-            args,
+            args_ptr,
             ret,
             #wrapped_method,
             #method_name_str,
@@ -343,7 +344,7 @@ fn make_varcall_invocation(
     quote! {
         <#sig_tuple as ::godot::builtin::meta::VarcallSignatureTuple>::varcall(
             instance_ptr,
-            args,
+            args_ptr,
             ret,
             err,
             #wrapped_method,
