@@ -313,9 +313,9 @@ pub mod callbacks {
             unsafe { interface_fn!(classdb_construct_object)(base_class_name.string_sys()) };
 
         let base = unsafe { Base::from_sys(base_ptr) };
-        let user_instance = make_user_instance(base);
+        let user_instance = make_user_instance(unsafe { Base::from_base(&base) });
 
-        let instance = InstanceStorage::<T>::construct(user_instance);
+        let instance = InstanceStorage::<T>::construct(user_instance, base);
         let instance_ptr = instance.into_raw();
         let instance_ptr = instance_ptr as sys::GDExtensionClassInstancePtr;
 
