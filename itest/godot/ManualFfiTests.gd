@@ -304,3 +304,22 @@ func test_func_rename():
 	assert_eq(func_rename.has_method("renamed_static"), false)
 	assert_eq(func_rename.has_method("spell_static"), true)
 	assert_eq(func_rename.spell_static(), "static")
+
+func test_standalone_property():
+	var standalone_property := StandaloneProperty.new()
+
+	assert_eq(standalone_property.my_int, 0)
+	assert_eq(standalone_property.readonly_int, 0)
+	assert_eq(standalone_property.int_array, [0])
+
+	standalone_property.my_int = 2
+
+	assert_eq(standalone_property.my_int, 2)
+	assert_eq(standalone_property.readonly_int, 2)
+	assert_eq(standalone_property.int_array, [2])
+
+	standalone_property.int_array = [10, 11]
+
+	assert_eq(standalone_property.my_int, 10)
+	assert_eq(standalone_property.readonly_int, 10)
+	assert_eq(standalone_property.int_array, [10])

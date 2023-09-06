@@ -11,8 +11,6 @@ use godot::{
     test::itest,
 };
 
-// No tests currently, tests using these classes are in Godot scripts.
-
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct HasProperty {
@@ -366,5 +364,85 @@ fn derive_export() {
     assert_eq!(
         property.get_or_nil("hint_string"),
         "A:0,B:1,C:2".to_variant()
+    );
+}
+
+#[derive(GodotClass)]
+#[property(name = my_int, type = i32, get = get_integer, set = set_integer)]
+#[property(name = readonly_int, type = i32, get = get_integer)]
+#[property(name = int_array, type = Array<i32>, get = get_integer_as_array, set = set_integer_from_array_front)]
+pub struct StandaloneProperty {
+    integer: i32,
+}
+
+#[godot_api]
+impl RefCountedVirtual for StandaloneProperty {
+    fn init(_base: godot::obj::Base<Self::Base>) -> Self {
+        Self { integer: 0 }
+    }
+}
+
+#[godot_api]
+impl StandaloneProperty {
+    #[func]
+    fn get_integer(&self) -> i32 {
+        self.integer
+    }
+
+    #[func]
+    fn set_integer(&mut self, integer: i32) {
+        self.integer = integer;
+    }
+
+    #[func]
+    fn get_integer_as_array(&self) -> Array<i32> {
+        let mut a = Array::new();
+        a.push(self.integer);
+
+        a
+    }
+
+    #[func]
+    fn set_integer_from_array_front(&mut self, array: VariantArray) {
+        if let Some(v) = array.first() {
+            if let Ok(v) = v.try_to::<i32>() {
+                self.integer = v;
+            }
+        }
+    }
+}
+
+#[itest]
+fn standalone_property() {
+    let class: Gd<StandaloneProperty> = Gd::new_default();
+
+    let property = class
+        .get_property_list()
+        .iter_shared()
+        .find(|c| c.get_or_nil("name") == "my_int".to_variant())
+        .unwrap();
+
+    assert_eq!(
+        property.get_or_nil("class_name"),
+        "StandaloneProperty".to_variant()
+    );
+    assert_eq!(
+        property.get_or_nil("type"),
+        (VariantType::Int as i32).to_variant()
+    );
+
+    let property = class
+        .get_property_list()
+        .iter_shared()
+        .find(|c| c.get_or_nil("name") == "readonly_int".to_variant())
+        .unwrap();
+
+    assert_eq!(
+        property.get_or_nil("class_name"),
+        "StandaloneProperty".to_variant()
+    );
+    assert_eq!(
+        property.get_or_nil("type"),
+        (VariantType::Int as i32).to_variant()
     );
 }

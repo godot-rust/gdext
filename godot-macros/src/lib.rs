@@ -302,6 +302,33 @@ use crate::util::ident;
 /// impl MyStruct {}
 /// ```
 ///
+/// Alternatively, a property can be manually registered with Godot. This can be useful
+/// when accessing nested structs or when a custom property name is needed. Automatically
+/// generated getters/setters are not supported in this attribute. Custom property hints,
+/// hint strings, and usage flags are supported.
+/// ```
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// // Registers `my_field` as `my_int` with a getter and setter
+/// #[property(name = my_int, type = i64, get = get_my_field, set = set_my_field)]
+/// struct MyStruct {
+///     my_field: i64,
+/// }
+///
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func]
+///     pub fn get_my_field(&self) -> i64 {
+///         self.my_field
+///     }
+///
+///     #[func]
+///     pub fn set_my_field(&mut self, value: i64) {
+///         self.my_field = value;
+///     }
+/// }
+/// ```
 ///
 /// # Signals
 ///
@@ -318,7 +345,10 @@ use crate::util::ident;
 /// for more information and further customization.
 ///
 /// This is very similar to [GDScript's `@tool` feature](https://docs.godotengine.org/en/stable/tutorials/plugins/running_code_in_the_editor.html).
-#[proc_macro_derive(GodotClass, attributes(class, base, var, export, init, signal))]
+#[proc_macro_derive(
+    GodotClass,
+    attributes(class, base, var, export, init, signal, property)
+)]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)
 }

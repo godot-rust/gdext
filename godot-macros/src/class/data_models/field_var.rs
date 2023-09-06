@@ -87,7 +87,7 @@ pub enum GetterSetter {
 }
 
 impl GetterSetter {
-    pub(super) fn parse(parser: &mut KvParser, key: &str) -> ParseResult<Self> {
+    pub(crate) fn parse(parser: &mut KvParser, key: &str) -> ParseResult<Self> {
         let getter_setter = match parser.handle_any(key) {
             // No `get` argument
             None => GetterSetter::Omitted,
@@ -125,6 +125,10 @@ impl GetterSetter {
 
     pub fn is_omitted(&self) -> bool {
         matches!(self, GetterSetter::Omitted)
+    }
+
+    pub fn is_generated(&self) -> bool {
+        matches!(self, GetterSetter::Generated)
     }
 }
 
@@ -205,7 +209,8 @@ impl GetterSetterImpl {
         }
     }
 
-    fn from_custom_impl(function_name: &Ident) -> Self {
+    /// Create a getters/setter impl from a user-defined function.
+    pub(super) fn from_custom_impl(function_name: &Ident) -> Self {
         Self {
             function_name: function_name.clone(),
             function_impl: TokenStream::new(),

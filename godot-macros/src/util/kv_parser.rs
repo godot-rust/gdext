@@ -59,6 +59,24 @@ impl KvParser {
         Ok(found_attr)
     }
 
+    /// Create many new parsers which check for the presence of many `#[expected]` attributes.
+    pub fn parse_many(attributes: &[Attribute], expected: &str) -> ParseResult<Vec<Self>> {
+        let mut found_attrs = vec![];
+
+        for attr in attributes.iter() {
+            let path = &attr.path;
+            if path_is_single(path, expected) {
+                let attr_name = expected.to_string();
+                found_attrs.push(Self {
+                    span: attr.tk_brackets.span,
+                    map: ParserState::parse(attr_name, &attr.value)?,
+                });
+            }
+        }
+
+        Ok(found_attrs)
+    }
+
     pub fn span(&self) -> Span {
         self.span
     }

@@ -16,7 +16,17 @@ pub struct Field {
 }
 
 impl Field {
-    pub fn new(field: &venial::NamedField) -> Self {
+    pub fn new(name: Ident, ty: venial::TyExpr) -> Self {
+        Self {
+            name,
+            ty,
+            default: None,
+            var: None,
+            export: None,
+        }
+    }
+
+    pub fn from_named_field(field: &venial::NamedField) -> Self {
         Self {
             name: field.name.clone(),
             ty: field.ty.clone(),
