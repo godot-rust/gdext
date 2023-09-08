@@ -368,6 +368,12 @@ fn derive_export() {
 }
 
 #[derive(GodotClass)]
+#[class(
+    properties = [
+        (name = first_int, type = i32, get = get_integer),
+        (name = second_int, type = i32, get = get_integer)
+    ]
+)]
 #[property(name = my_int, type = i32, get = get_integer, set = set_integer)]
 #[property(name = readonly_int, type = i32, get = get_integer)]
 #[property(name = int_array, type = Array<i32>, get = get_integer_as_array, set = set_integer_from_array_front)]

@@ -15,9 +15,9 @@ use crate::ParseResult;
 /// Parses a list of tokens as an ordered list of values. Unlike [`KvParser`] which treats the tokens as a
 /// set of values.
 pub struct ListParser {
-    lists: VecDeque<KvValue>,
+    pub(super) lists: VecDeque<KvValue>,
     /// The last span of the list, usually a closing parenthesis.
-    span_close: Span,
+    pub(super) span_close: Span,
 }
 
 impl ListParser {
@@ -192,6 +192,18 @@ impl ListParser {
             Ok(None) => Ok(None),
             Err(err) => bail!(err.span(), "expected `key [= value]`"),
         }
+    }
+
+    /// Takes the next list element of the list.
+    ///
+    /// # Example
+    /// `((name = foo), (name = boo))` will yield `(name = foo)`
+    pub(crate) fn try_next_list(&mut self, delimiter: Delimiter) -> ParseResult<Option<Self>> {
+        let Some(kv) = self.pop_next() else {
+            return Ok(None);
+        };
+
+        Ok(Some(ListParser::new_from_tree(kv.single()?, delimiter)?))
     }
 
     /// Ensure all values have been consumed.

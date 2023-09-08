@@ -323,3 +323,6 @@ func test_standalone_property():
 	assert_eq(standalone_property.my_int, 10)
 	assert_eq(standalone_property.readonly_int, 10)
 	assert_eq(standalone_property.int_array, [10])
+
+	assert_eq(standalone_property.first_int, 10)
+	assert_eq(standalone_property.second_int, 10)

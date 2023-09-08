@@ -5,7 +5,7 @@
  */
 
 use crate::ParseResult;
-use proc_macro2::{Delimiter, Ident, Spacing, Span, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Ident, Punct, Spacing, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use std::collections::HashMap;
 use venial::Attribute;
@@ -75,6 +75,28 @@ impl KvParser {
         }
 
         Ok(found_attrs)
+    }
+
+    pub fn parse_from_list_parser(parser: ListParser, delimiter: Delimiter) -> ParseResult<Self> {
+        let span = parser.span_close;
+        let tokens = parser
+            .lists
+            .into_iter()
+            .flat_map(|v| {
+                let mut tokens = v.into_tokens();
+                tokens.push(TokenTree::Punct(Punct::new(',', Spacing::Alone)));
+
+                tokens
+            })
+            .collect::<Vec<TokenTree>>();
+
+        Ok(Self {
+            span,
+            map: ParserState::parse(
+                "nested list".to_string(),
+                &venial::AttributeValue::Group(venial::GroupSpan { delimiter, span }, tokens),
+            )?,
+        })
     }
 
     pub fn span(&self) -> Span {
@@ -333,7 +355,11 @@ impl<'a> ParserState<'a> {
                     } else {
                         "".to_owned()
                     };
-                    return bail!(cur, "expected identifier{parens_hint}");
+                    let attr_name = self.attr_name;
+                    let tokens = self.tokens;
+                    let prev = self.prev;
+                    let cur = self.cur;
+                    return bail!(cur, "expected identifier{parens_hint} attr {attr_name} tokens {tokens:?} prev {prev:?} cur {cur:?}");
                 }
             }
         }

@@ -106,6 +106,44 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
             is_tool = true;
         }
 
+        if let Some(mut list_parser) = parser.handle_array("properties")? {
+            while let Some(inner_list_parser) = list_parser.try_next_list(Delimiter::Parenthesis)? {
+                let mut parser =
+                    KvParser::parse_from_list_parser(inner_list_parser, Delimiter::Parenthesis)?;
+
+                let name = parser.handle_expr_required("name")?.to_string();
+                let ty = parser.handle_expr_required("type")?;
+
+                let field_var = FieldVar::new_from_kv(&mut parser)?;
+                if field_var.getter.is_omitted() && field_var.setter.is_omitted() {
+                    bail!(
+                        parser.span(),
+                        "#[properties] item must define at least 1 getter or setter"
+                    )?;
+                }
+                if field_var.getter.is_generated() || field_var.setter.is_generated() {
+                    bail!(
+                        parser.span(),
+                        "#[properties] item does not support generated getters and setters"
+                    )?;
+                }
+
+                let mut field = Field::new(
+                    ident(name.as_str()),
+                    venial::TyExpr {
+                        tokens: vec![TokenTree::Group(Group::new(Delimiter::None, ty))],
+                    },
+                );
+                field.var = Some(field_var);
+
+                standlone_properties.push(field);
+
+                parser.finish()?;
+            }
+
+            list_parser.finish()?;
+        }
+
         parser.finish()?;
     }
 
