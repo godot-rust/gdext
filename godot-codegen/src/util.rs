@@ -453,10 +453,16 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
         ("int", Some("uint32")) => "u32",
         ("int", Some("uint16")) => "u16",
         ("int", Some("uint8")) => "u8",
+        ("int", Some(meta)) => panic!("unhandled type int with meta {meta:?}"),
 
-        // Floats
+        // Floats (with single precision builds)
         ("float", Some("double") | None) => "f64",
         ("float", Some("float")) => "f32",
+        ("float", Some(meta)) => panic!("unhandled type float with meta {meta:?}"),
+
+        // Doubles (with double precision builds)
+        ("double", None) => "f64",
+        ("double", Some(meta)) => panic!("unhandled type double with meta {meta:?}"),
 
         // Others
         ("bool", None) => "bool",
@@ -474,6 +480,9 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
         ("int64_t", None) => "i64",
         ("real_t", None) => "real",
         ("void", None) => "c_void",
+
+        (ty, Some(meta)) => panic!("unhandled type {ty:?} with meta {meta:?}"),
+
         _ => return None,
     };
 
