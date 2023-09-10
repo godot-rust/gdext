@@ -38,6 +38,8 @@ pub(crate) fn is_deleted(class_name: &TyName, godot_method_name: &str) -> bool {
 
 #[rustfmt::skip]
 pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
+    let class_name = class_name.godot_ty.as_str();
+
     // TODO feature-gate experimental classes.
     /*
     if !cfg!(feature = "experimental-godot-api") && is_class_experimental(class_name) {
@@ -45,7 +47,23 @@ pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
     }
     */
 
-    match class_name.godot_ty.as_str() {
+    // OpenXR has not been available for macOS before 4.2.
+    // See e.g. https://github.com/GodotVR/godot-xr-tools/issues/479.
+    #[cfg(all(before_api = "4.2", target_os = "macos"))]
+    match class_name {
+        | "OpenXRHand"
+        | "OpenXRAction"
+        | "OpenXRActionMap"
+        | "OpenXRActionSet"
+        | "OpenXRInteractionProfile"
+        | "OpenXRIPBinding"
+        | "OpenXRInterface"
+
+          => return true,
+        _ => {}
+    }
+
+    match class_name {
         // Hardcoded cases that are not accessible.
         | "JavaClassWrapper" // only on Android.
         | "JavaScriptBridge" // only on WASM.
