@@ -11,12 +11,12 @@ use quote::{format_ident, quote, ToTokens};
 use std::path::Path;
 
 use crate::api_parser::*;
-use crate::central_generator::{collect_builtin_types, BuiltinTypeInfo};
+use crate::central_generator::collect_builtin_types;
 use crate::context::NotificationEnum;
 use crate::util::{
     ident, make_string_name, option_as_slice, parse_native_structures_format, safe_ident,
-    to_pascal_case, to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case,
-    NativeStructuresField,
+    to_pascal_case, to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case, ClassCodegenLevel,
+    MethodTableKey, NativeStructuresField,
 };
 use crate::{
     codegen_special_cases, special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule,
@@ -280,19 +280,18 @@ pub(crate) fn generate_builtin_class_files(
     let mut modules = vec![];
     for class in api.builtin_classes.iter() {
         let module_name = ModName::from_godot(&class.name);
-        let class_name = TyName::from_godot(&class.name);
-        let inner_class_name = TyName::from_godot(&format!("Inner{}", class.name));
+        let builtin_name = TyName::from_godot(&class.name);
+        let inner_builtin_name = TyName::from_godot(&format!("Inner{}", class.name));
 
-        if special_cases::is_builtin_type_deleted(&class_name) {
+        if special_cases::is_builtin_type_deleted(&builtin_name) {
             continue;
         }
 
-        let type_info = builtin_types_map
+        let _type_info = builtin_types_map
             .get(&class.name)
             .unwrap_or_else(|| panic!("builtin type not found: {}", class.name));
 
-        let generated_class =
-            make_builtin_class(class, &class_name, &inner_class_name, type_info, ctx);
+        let generated_class = make_builtin_class(class, &builtin_name, &inner_builtin_name, ctx);
         let file_contents = generated_class.code;
 
         let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
@@ -300,7 +299,7 @@ pub(crate) fn generate_builtin_class_files(
         submit_fn(out_path, file_contents);
 
         modules.push(GeneratedBuiltinModule {
-            class_name: inner_class_name,
+            class_name: inner_builtin_name,
             module_name,
         });
     }
@@ -494,17 +493,12 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     };
 
     let constructor = make_constructor(class, ctx);
-    let get_method_table = util::get_api_level(class).table_global_getter();
+    let api_level = util::get_api_level(class);
 
     let FnDefinitions {
         functions: methods,
         builders,
-    } = make_methods(
-        option_as_slice(&class.methods),
-        class_name,
-        &get_method_table,
-        ctx,
-    );
+    } = make_methods(option_as_slice(&class.methods), class_name, &api_level, ctx);
 
     let enums = make_enums(option_as_slice(&class.enums), class_name, ctx);
     let constants = make_constants(option_as_slice(&class.constants), class_name, ctx);
@@ -806,9 +800,8 @@ fn workaround_constant_collision(all_constants: &mut Vec<(Ident, i32)>) {
 
 fn make_builtin_class(
     class: &BuiltinClass,
-    class_name: &TyName,
+    builtin_name: &TyName,
     inner_class_name: &TyName,
-    type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> GeneratedBuiltin {
     let outer_class = if let RustTy::BuiltinIdent(ident) = to_rust_type(&class.name, None, ctx) {
@@ -830,14 +823,13 @@ fn make_builtin_class(
         builders,
     } = make_builtin_methods(
         option_as_slice(&class.methods),
-        class_name,
+        builtin_name,
         inner_class_name,
-        type_info,
         ctx,
     );
 
-    let enums = make_enums(&class_enums, class_name, ctx);
-    let special_constructors = make_special_builtin_methods(class_name, ctx);
+    let enums = make_enums(&class_enums, builtin_name, ctx);
+    let special_constructors = make_special_builtin_methods(builtin_name, ctx);
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let code = quote! {
@@ -1017,26 +1009,27 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
 fn make_methods(
     methods: &[ClassMethod],
     class_name: &TyName,
-    get_method_table: &Ident,
+    api_level: &ClassCodegenLevel,
     ctx: &mut Context,
 ) -> FnDefinitions {
-    let definitions = methods
-        .iter()
-        .map(|method| make_method_definition(method, class_name, get_method_table, ctx));
+    let get_method_table = api_level.table_global_getter();
+
+    let definitions = methods.iter().map(|method| {
+        make_method_definition(method, class_name, api_level, &get_method_table, ctx)
+    });
 
     FnDefinitions::expand(definitions)
 }
 
 fn make_builtin_methods(
     methods: &[BuiltinClassMethod],
-    class_name: &TyName,
+    builtin_name: &TyName,
     inner_class_name: &TyName,
-    type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> FnDefinitions {
-    let definitions = methods.iter().map(|method| {
-        make_builtin_method_definition(method, class_name, inner_class_name, type_info, ctx)
-    });
+    let definitions = methods
+        .iter()
+        .map(|method| make_builtin_method_definition(method, builtin_name, inner_class_name, ctx));
 
     FnDefinitions::expand(definitions)
 }
@@ -1082,12 +1075,11 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
 fn make_method_definition(
     method: &ClassMethod,
     class_name: &TyName,
+    api_level: &ClassCodegenLevel,
     get_method_table: &Ident,
     ctx: &mut Context,
 ) -> FnDefinition {
-    if codegen_special_cases::is_method_excluded(method, false, ctx)
-        || special_cases::is_deleted(class_name, &method.name)
-    {
+    if special_cases::is_deleted(class_name, method, ctx) {
         return FnDefinition::none();
     }
     /*if method.map_args(|args| args.is_empty()) {
@@ -1119,10 +1111,14 @@ fn make_method_definition(
         quote! { sys::interface_fn!(object_method_bind_ptrcall) }
     };
 
-    let fn_ptr = util::make_class_method_ptr_name(&class_name.godot_ty, method);
+    let table_index = ctx.get_table_index(&MethodTableKey::ClassMethod {
+        api_level: *api_level,
+        class_ty: class_name.clone(),
+        method_name: method.name.clone(),
+    });
 
     let init_code = quote! {
-        let __method_bind = sys::#get_method_table().#fn_ptr;
+        let __method_bind = sys::#get_method_table().fptr_by_index(#table_index);
         let __call_fn = #function_provider;
     };
 
@@ -1156,12 +1152,11 @@ fn make_method_definition(
 
 fn make_builtin_method_definition(
     method: &BuiltinClassMethod,
-    class_name: &TyName,
+    builtin_name: &TyName,
     inner_class_name: &TyName,
-    type_info: &BuiltinTypeInfo,
     ctx: &mut Context,
 ) -> FnDefinition {
-    if codegen_special_cases::is_builtin_method_excluded(method) {
+    if special_cases::is_builtin_deleted(builtin_name, method) {
         return FnDefinition::none();
     }
 
@@ -1175,10 +1170,13 @@ fn make_builtin_method_definition(
     let is_varcall = method.is_vararg;
     let variant_ffi = is_varcall.then(VariantFfi::type_ptr);
 
-    let fn_ptr = util::make_builtin_method_ptr_name(&type_info.type_names, method);
+    let table_index = ctx.get_table_index(&MethodTableKey::BuiltinMethod {
+        builtin_ty: builtin_name.clone(),
+        method_name: method.name.clone(),
+    });
 
     let init_code = quote! {
-        let __call_fn = sys::builtin_method_table().#fn_ptr;
+        let __call_fn = sys::builtin_method_table().fptr_by_index(#table_index);
     };
 
     let receiver = make_receiver(method.is_static, method.is_const, quote! { self.sys_ptr });
@@ -1191,7 +1189,7 @@ fn make_builtin_method_definition(
         &FnSignature {
             function_name: method_name_str,
             surrounding_class: Some(inner_class_name),
-            is_private: special_cases::is_private(class_name, &method.name),
+            is_private: special_cases::is_private(builtin_name, &method.name),
             is_virtual: false,
             qualifier: FnQualifier::for_method(method.is_const, method.is_static),
 

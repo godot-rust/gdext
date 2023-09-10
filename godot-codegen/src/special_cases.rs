@@ -17,11 +17,17 @@
 
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
-use crate::TyName;
+use crate::api_parser::{BuiltinClassMethod, ClassMethod};
+use crate::Context;
+use crate::{codegen_special_cases, TyName};
 
 #[rustfmt::skip]
-pub(crate) fn is_deleted(class_name: &TyName, godot_method_name: &str) -> bool {
-    match (class_name.godot_ty.as_str(), godot_method_name) {
+pub(crate) fn is_deleted(class_name: &TyName, method: &ClassMethod, ctx: &mut Context) -> bool {
+    if codegen_special_cases::is_method_excluded(method, false, ctx){
+        return true;
+    }
+    
+    match (class_name.godot_ty.as_str(), method.name.as_str()) {
         // Already covered by manual APIs
         //| ("Object", "to_string")
         | ("Object", "get_instance_id")
@@ -135,9 +141,18 @@ fn is_class_experimental(class_name: &TyName) -> bool {
     }
 }
 
+/// Whether a method is available in the method table as a named accessor.
 #[rustfmt::skip]
-pub(crate) fn is_private(class_name: &TyName, godot_method_name: &str) -> bool {
-    match (class_name.godot_ty.as_str(), godot_method_name) {
+pub(crate) fn is_named_accessor_in_table(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
+    // Generated methods made private are typically needed internally and exposed with a different API,
+    // so make them accessible.
+    is_private(class_or_builtin_ty, godot_method_name)
+}
+
+/// Whether a class or builtin method should be hidden from the public API.
+#[rustfmt::skip]
+pub(crate) fn is_private(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
+    match (class_or_builtin_ty.godot_ty.as_str(), godot_method_name) {
         // Already covered by manual APIs
         | ("Object", "to_string")
         | ("RefCounted", "init_ref")
@@ -159,6 +174,12 @@ pub(crate) fn is_excluded_from_default_params(class_name: Option<&TyName>, godot
 
         => true, _ => false
     }
+}
+
+/// True if builtin method is excluded. Does NOT check for type exclusion; use [`is_builtin_type_deleted`] for that.
+pub(crate) fn is_builtin_deleted(_class_name: &TyName, method: &BuiltinClassMethod) -> bool {
+    // Currently only deleted if codegen.
+    codegen_special_cases::is_builtin_method_excluded(method)
 }
 
 /// True if builtin type is excluded (`NIL` or scalars)

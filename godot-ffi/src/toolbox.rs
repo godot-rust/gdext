@@ -158,7 +158,40 @@ impl<T> Inner for Option<T> {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Crate-wide support
+// Function types used for table loaders
+
+pub(crate) type GetClassMethod = unsafe extern "C" fn(
+    p_classname: sys::GDExtensionConstStringNamePtr,
+    p_methodname: sys::GDExtensionConstStringNamePtr,
+    p_hash: sys::GDExtensionInt,
+) -> sys::GDExtensionMethodBindPtr;
+
+pub(crate) type ClassMethodBind = sys::GDExtensionMethodBindPtr;
+
+pub(crate) type GetBuiltinMethod = unsafe extern "C" fn(
+    p_type: sys::GDExtensionVariantType,
+    p_method: sys::GDExtensionConstStringNamePtr,
+    p_hash: sys::GDExtensionInt,
+) -> sys::GDExtensionPtrBuiltInMethod;
+
+// GDExtensionPtrBuiltInMethod
+pub(crate) type BuiltinMethodBind = unsafe extern "C" fn(
+    p_base: sys::GDExtensionTypePtr,
+    p_args: *const sys::GDExtensionConstTypePtr,
+    r_return: sys::GDExtensionTypePtr,
+    p_argument_count: std::os::raw::c_int,
+);
+
+pub(crate) type GetUtilityFunction = unsafe extern "C" fn(
+    p_function: sys::GDExtensionConstStringNamePtr,
+    p_hash: sys::GDExtensionInt,
+) -> sys::GDExtensionPtrUtilityFunction;
+
+pub(crate) type UtilityFunctionBind = unsafe extern "C" fn(
+    r_return: sys::GDExtensionTypePtr,
+    p_args: *const sys::GDExtensionConstTypePtr,
+    p_argument_count: std::os::raw::c_int,
+);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utility functions
@@ -183,12 +216,12 @@ pub(crate) unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T 
     }
 }
 
-pub(crate) type ClassMethodBind = sys::GDExtensionMethodBindPtr;
-
-pub(crate) fn validate_class_method(
-    method: ClassMethodBind,
-    class_name: &str,
-    method_name: &str,
+pub(crate) fn load_class_method(
+    get_method_bind: GetClassMethod,
+    string_names: &mut sys::StringCache,
+    class_sname_ptr: sys::GDExtensionStringNamePtr,
+    class_name: &'static str,
+    method_name: &'static str,
     hash: i64,
 ) -> ClassMethodBind {
     /*crate::out!(
@@ -197,6 +230,12 @@ pub(crate) fn validate_class_method(
         method_name,
         hash
     );*/
+
+    // SAFETY: function pointers provided by Godot. We have no way to validate them.
+    let method_sname_ptr: sys::GDExtensionStringNamePtr = string_names.fetch(method_name);
+    let method: ClassMethodBind =
+        unsafe { get_method_bind(class_sname_ptr, method_sname_ptr, hash) };
+
     if method.is_null() {
         panic!(
             "Failed to load class method {}::{} (hash {}).\n\
@@ -210,24 +249,12 @@ pub(crate) fn validate_class_method(
     method
 }
 
-// GDExtensionPtrBuiltInMethod
-pub(crate) type BuiltinMethodBind = unsafe extern "C" fn(
-    p_base: sys::GDExtensionTypePtr,
-    p_args: *const sys::GDExtensionConstTypePtr,
-    r_return: sys::GDExtensionTypePtr,
-    p_argument_count: std::os::raw::c_int,
-);
-
-pub(crate) type UtilityFunctionBind = unsafe extern "C" fn(
-    r_return: sys::GDExtensionTypePtr,
-    p_args: *const sys::GDExtensionConstTypePtr,
-    p_argument_count: std::os::raw::c_int,
-);
-
-pub(crate) fn validate_builtin_method(
-    method: sys::GDExtensionPtrBuiltInMethod,
-    variant_type: &str,
-    method_name: &str,
+pub(crate) fn load_builtin_method(
+    get_builtin_method: GetBuiltinMethod,
+    string_names: &mut sys::StringCache,
+    variant_type: sys::GDExtensionVariantType,
+    variant_type_str: &'static str,
+    method_name: &'static str,
     hash: i64,
 ) -> BuiltinMethodBind {
     /*crate::out!(
@@ -236,8 +263,15 @@ pub(crate) fn validate_builtin_method(
         method_name,
         hash
     );*/
+
+    // SAFETY: function pointers provided by Godot. We have no way to validate them.
+    let method_sname = string_names.fetch(method_name);
+    let method = unsafe { get_builtin_method(variant_type, method_sname, hash) };
+
     method.unwrap_or_else(|| {
-        panic!("Failed to load builtin method {variant_type}::{method_name} (hash {hash}).{INFO}")
+        panic!(
+            "Failed to load builtin method {variant_type_str}::{method_name} (hash {hash}).{INFO}"
+        )
     })
 }
 
@@ -247,13 +281,17 @@ pub(crate) fn validate_builtin_lifecycle<T>(function: Option<T>, description: &s
     })
 }
 
-pub(crate) fn validate_utility_function(
-    utility_fn: sys::GDExtensionPtrUtilityFunction,
-    name: &str,
+pub(crate) fn load_utility_function(
+    get_utility_fn: GetUtilityFunction,
+    string_names: &mut sys::StringCache,
+    fn_name_str: &'static str,
     hash: i64,
 ) -> UtilityFunctionBind {
+    // SAFETY: function pointers provided by Godot. We have no way to validate them.
+    let utility_fn = unsafe { get_utility_fn(string_names.fetch(fn_name_str), hash) };
+
     utility_fn.unwrap_or_else(|| {
-        panic!("Failed to load builtin lifecycle function {name} (hash {hash}).{INFO}")
+        panic!("Failed to load utility function {fn_name_str} (hash {hash}).{INFO}")
     })
 }
 

@@ -4,8 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::api_parser::Class;
-use crate::{codegen_special_cases, util, ExtensionApi, GodotTy, RustTy, TyName};
+use crate::api_parser::{BuiltinClass, BuiltinClassMethod, Class, ClassConstant, ClassMethod};
+use crate::util::{option_as_slice, MethodTableKey};
+use crate::{codegen_special_cases, special_cases, util, ExtensionApi, GodotTy, RustTy, TyName};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, ToTokens};
 use std::collections::{HashMap, HashSet};
@@ -20,6 +21,8 @@ pub(crate) struct Context<'a> {
     cached_rust_types: HashMap<GodotTy, RustTy>,
     notifications_by_class: HashMap<TyName, Vec<(Ident, i32)>>,
     notification_enum_names_by_class: HashMap<TyName, NotificationEnum>,
+    method_table_indices: HashMap<MethodTableKey, usize>,
+    method_table_next_index: HashMap<String, usize>,
 }
 
 impl<'a> Context<'a> {
@@ -34,6 +37,12 @@ impl<'a> Context<'a> {
         for builtin in api.builtin_classes.iter() {
             let ty_name = builtin.name.as_str();
             ctx.builtin_types.insert(ty_name);
+
+            Self::populate_builtin_class_table_indices(
+                builtin,
+                option_as_slice(&builtin.methods),
+                &mut ctx,
+            );
         }
 
         for structure in api.native_structures.iter() {
@@ -60,31 +69,17 @@ impl<'a> Context<'a> {
             }
 
             // Populate notification constants (first, only for classes that declare them themselves).
-            if let Some(constants) = class.constants.as_ref() {
-                let mut has_notifications = false;
-
-                for constant in constants.iter() {
-                    if let Some(rust_constant) = util::try_to_notification(constant) {
-                        // First time
-                        if !has_notifications {
-                            ctx.notifications_by_class
-                                .insert(class_name.clone(), Vec::new());
-
-                            ctx.notification_enum_names_by_class.insert(
-                                class_name.clone(),
-                                NotificationEnum::for_own_class(&class_name),
-                            );
-
-                            has_notifications = true;
-                        }
-
-                        ctx.notifications_by_class
-                            .get_mut(&class_name)
-                            .expect("just inserted constants; must be present")
-                            .push((rust_constant, constant.value));
-                    }
-                }
-            }
+            Self::populate_notification_constants(
+                &class_name,
+                option_as_slice(&class.constants),
+                &mut ctx,
+            );
+            Self::populate_class_table_indices(
+                class,
+                &class_name,
+                option_as_slice(&class.methods),
+                &mut ctx,
+            );
         }
 
         // Populate remaining notification enum names, by copying the one to nearest base class that has at least 1 notification.
@@ -129,13 +124,110 @@ impl<'a> Context<'a> {
         ctx
     }
 
+    fn populate_notification_constants(
+        class_name: &TyName,
+        constants: &[ClassConstant],
+        ctx: &mut Context,
+    ) {
+        let mut has_notifications = false;
+        for constant in constants.iter() {
+            if let Some(rust_constant) = util::try_to_notification(constant) {
+                // First time
+                if !has_notifications {
+                    ctx.notifications_by_class
+                        .insert(class_name.clone(), Vec::new());
+
+                    ctx.notification_enum_names_by_class.insert(
+                        class_name.clone(),
+                        NotificationEnum::for_own_class(class_name),
+                    );
+
+                    has_notifications = true;
+                }
+
+                ctx.notifications_by_class
+                    .get_mut(class_name)
+                    .expect("just inserted constants; must be present")
+                    .push((rust_constant, constant.value));
+            }
+        }
+    }
+
+    fn populate_class_table_indices(
+        class: &Class,
+        class_name: &TyName,
+        methods: &[ClassMethod],
+        ctx: &mut Context,
+    ) {
+        if special_cases::is_class_deleted(class_name) {
+            return;
+        }
+
+        for method in methods.iter() {
+            if special_cases::is_deleted(class_name, method, ctx) {
+                continue;
+            }
+
+            let key = MethodTableKey::ClassMethod {
+                api_level: util::get_api_level(class),
+                class_ty: class_name.clone(),
+                method_name: method.name.clone(),
+            };
+
+            ctx.register_table_index(key);
+        }
+    }
+
+    fn populate_builtin_class_table_indices(
+        builtin: &BuiltinClass,
+        methods: &[BuiltinClassMethod],
+        ctx: &mut Context,
+    ) {
+        let builtin_ty = TyName::from_godot(builtin.name.as_str());
+        if special_cases::is_builtin_type_deleted(&builtin_ty) {
+            return;
+        }
+
+        for method in methods.iter() {
+            if special_cases::is_builtin_deleted(&builtin_ty, method) {
+                continue;
+            }
+
+            let key = MethodTableKey::BuiltinMethod {
+                builtin_ty: builtin_ty.clone(),
+                method_name: method.name.clone(),
+            };
+
+            ctx.register_table_index(key);
+        }
+    }
+
     pub fn get_engine_class(&self, class_name: &TyName) -> &Class {
         self.engine_classes.get(class_name).unwrap()
     }
 
-    // pub fn is_engine_class(&self, class_name: &str) -> bool {
-    //     self.engine_classes.contains(class_name)
-    // }
+    // Private, because initialized in constructor. Ensures deterministic assignment.
+    fn register_table_index(&mut self, key: MethodTableKey) -> usize {
+        let key_category = key.category();
+
+        let next_index = self
+            .method_table_next_index
+            .entry(key_category)
+            .or_insert(0);
+
+        let prev = self.method_table_indices.insert(key, *next_index);
+        assert!(prev.is_none(), "table index already registered");
+
+        *next_index += 1;
+        *next_index
+    }
+
+    pub fn get_table_index(&self, key: &MethodTableKey) -> usize {
+        *self
+            .method_table_indices
+            .get(key)
+            .unwrap_or_else(|| panic!("did not register table index for key {:?}", key))
+    }
 
     /// Checks if this is a builtin type (not `Object`).
     ///
