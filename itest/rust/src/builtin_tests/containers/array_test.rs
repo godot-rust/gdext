@@ -99,7 +99,7 @@ fn array_hash() {
 #[itest]
 fn array_share() {
     let mut array = array![1, 2];
-    let shared = array.share();
+    let shared = array.clone();
     array.set(0, 3);
     assert_eq!(shared.get(0), 3);
 }
@@ -372,7 +372,7 @@ fn untyped_array_return_from_godot_func() {
     let mut node = Node::new_alloc();
     let mut child = Node::new_alloc();
     child.set_name("child_node".into());
-    node.add_child(child.share());
+    node.add_child(child.clone());
     node.queue_free(); // Do not leak even if the test fails.
     let result = node.get_node_and_resource("child_node".into());
 
@@ -409,7 +409,7 @@ fn typed_array_return_from_godot_func() {
     let mut node = Node::new_alloc();
     let mut child = Node::new_alloc();
     child.set_name("child_node".into());
-    node.add_child(child.share());
+    node.add_child(child.clone());
     node.queue_free(); // Do not leak even if the test fails.
     let children = node.get_children();
 
@@ -419,7 +419,7 @@ fn typed_array_return_from_godot_func() {
 #[itest]
 fn typed_array_try_from_untyped() {
     let node = Node::new_alloc();
-    let array = VariantArray::from(&[node.share().to_variant()]);
+    let array = VariantArray::from(&[node.clone().to_variant()]);
     assert_eq!(
         array.to_variant().try_to::<Array<Option<Gd<Node>>>>(),
         Err(VariantConversionError::BadType)
@@ -430,7 +430,7 @@ fn typed_array_try_from_untyped() {
 #[itest]
 fn untyped_array_try_from_typed() {
     let node = Node::new_alloc();
-    let array = Array::<Option<Gd<Node>>>::from(&[Some(node.share())]);
+    let array = Array::<Option<Gd<Node>>>::from(&[Some(node.clone())]);
     assert_eq!(
         array.to_variant().try_to::<VariantArray>(),
         Err(VariantConversionError::BadType)

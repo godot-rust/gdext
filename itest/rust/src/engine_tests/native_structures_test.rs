@@ -8,7 +8,7 @@ use crate::framework::itest;
 use godot::engine::native::{AudioFrame, CaretInfo, Glyph};
 use godot::engine::text_server::Direction;
 use godot::engine::{TextServer, TextServerExtension, TextServerExtensionVirtual};
-use godot::prelude::{godot_api, Base, Gd, GodotClass, Rect2, Rid, Share, Variant};
+use godot::prelude::{godot_api, Base, Gd, GodotClass, Rect2, Rid, Variant};
 
 use std::cell::Cell;
 
@@ -94,7 +94,7 @@ fn test_native_structure_out_parameter() {
     // function which uses an 'out' pointer parameter.
     let mut ext: Gd<TestTextServer> = Gd::new_default();
     let result = ext
-        .share()
+        .clone()
         .upcast::<TextServer>()
         .shaped_text_get_carets(Rid::new(100), 200);
 
@@ -127,7 +127,7 @@ fn test_native_structure_pointer_to_array_parameter() {
     // Instantiate a TextServerExtension.
     let ext: Gd<TestTextServer> = Gd::new_default();
     let result = ext
-        .share()
+        .clone()
         .upcast::<TextServer>()
         .shaped_text_get_glyphs(Rid::new(100));
 

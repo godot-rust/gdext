@@ -91,7 +91,7 @@ impl Main {
 
         mob_scene.set_rotation(direction);
 
-        self.base.add_child(mob_scene.share().upcast());
+        self.base.add_child(mob_scene.clone().upcast());
 
         let mut mob = mob_scene.cast::<mob::Mob>();
         let range = {

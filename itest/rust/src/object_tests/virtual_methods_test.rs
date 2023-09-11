@@ -21,7 +21,7 @@ use godot::engine::{
     PrimitiveMeshVirtual, RefCounted, RefCountedVirtual, ResourceFormatLoader,
     ResourceFormatLoaderVirtual, ResourceLoader, RigidBody2DVirtual, Viewport, Window,
 };
-use godot::obj::{Base, Gd, Share};
+use godot::obj::{Base, Gd};
 use godot::private::class_macros::assert_eq_approx;
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
@@ -239,8 +239,8 @@ fn test_ready(test_context: &TestContext) {
     assert_eq!(obj.bind().implementation_value, 0);
 
     // Add to scene tree
-    let mut test_node = test_context.scene_tree.share();
-    test_node.add_child(obj.share().upcast());
+    let mut test_node = test_context.scene_tree.clone();
+    test_node.add_child(obj.clone().upcast());
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
@@ -251,17 +251,17 @@ fn test_ready_multiple_fires(test_context: &TestContext) {
     let obj = Gd::<ReadyVirtualTest>::new_default();
     assert_eq!(obj.bind().implementation_value, 0);
 
-    let mut test_node = test_context.scene_tree.share();
+    let mut test_node = test_context.scene_tree.clone();
 
     // Add to scene tree
-    test_node.add_child(obj.share().upcast());
+    test_node.add_child(obj.clone().upcast());
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
 
     // Remove and re-add to scene tree
-    test_node.remove_child(obj.share().upcast());
-    test_node.add_child(obj.share().upcast());
+    test_node.remove_child(obj.clone().upcast());
+    test_node.add_child(obj.clone().upcast());
 
     // _ready does NOT run again, implementation_value should still be 1.
     assert_eq!(obj.bind().implementation_value, 1);
@@ -272,27 +272,27 @@ fn test_ready_request_ready(test_context: &TestContext) {
     let obj = Gd::<ReadyVirtualTest>::new_default();
     assert_eq!(obj.bind().implementation_value, 0);
 
-    let mut test_node = test_context.scene_tree.share();
+    let mut test_node = test_context.scene_tree.clone();
 
     // Add to scene tree
-    test_node.add_child(obj.share().upcast());
+    test_node.add_child(obj.clone().upcast());
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
 
     // Remove and re-add to scene tree
-    test_node.remove_child(obj.share().upcast());
-    test_node.add_child(obj.share().upcast());
+    test_node.remove_child(obj.clone().upcast());
+    test_node.add_child(obj.clone().upcast());
 
     // _ready does NOT run again, implementation_value should still be 1.
     assert_eq!(obj.bind().implementation_value, 1);
 
     // Request ready
-    obj.share().upcast::<Node>().request_ready();
+    obj.clone().upcast::<Node>().request_ready();
 
     // Remove and re-add to scene tree
-    test_node.remove_child(obj.share().upcast());
-    test_node.add_child(obj.share().upcast());
+    test_node.remove_child(obj.clone().upcast());
+    test_node.add_child(obj.clone().upcast());
 
     // _ready runs again since we asked it to; implementation_value should be 2.
     assert_eq!(obj.bind().implementation_value, 2);
@@ -303,18 +303,18 @@ fn test_tree_enters_exits(test_context: &TestContext) {
     let obj = Gd::<TreeVirtualTest>::new_default();
     assert_eq!(obj.bind().tree_enters, 0);
     assert_eq!(obj.bind().tree_exits, 0);
-    let mut test_node = test_context.scene_tree.share();
+    let mut test_node = test_context.scene_tree.clone();
 
     // Add to scene tree
-    test_node.add_child(obj.share().upcast());
+    test_node.add_child(obj.clone().upcast());
     assert_eq!(obj.bind().tree_enters, 1);
     assert_eq!(obj.bind().tree_exits, 0);
 
     // Remove and re-add to scene tree
-    test_node.remove_child(obj.share().upcast());
+    test_node.remove_child(obj.clone().upcast());
     assert_eq!(obj.bind().tree_enters, 1);
     assert_eq!(obj.bind().tree_exits, 1);
-    test_node.add_child(obj.share().upcast());
+    test_node.add_child(obj.clone().upcast());
     assert_eq!(obj.bind().tree_enters, 2);
     assert_eq!(obj.bind().tree_exits, 1);
 }
@@ -322,7 +322,7 @@ fn test_tree_enters_exits(test_context: &TestContext) {
 #[itest]
 fn test_virtual_method_with_return() {
     let obj = Gd::<ReturnVirtualTest>::new_default();
-    let arr = obj.share().upcast::<PrimitiveMesh>().get_mesh_arrays();
+    let arr = obj.clone().upcast::<PrimitiveMesh>().get_mesh_arrays();
     let arr_rust = obj.bind().create_mesh_array();
     assert_eq!(arr.len(), arr_rust.len());
     // can't just assert_eq because the values of some floats change slightly
@@ -357,7 +357,7 @@ fn test_format_loader(_test_context: &TestContext) {
     let format_loader = Gd::<FormatLoaderTest>::new_default();
     let mut loader = ResourceLoader::singleton();
     loader
-        .add_resource_format_loader_ex(format_loader.share().upcast())
+        .add_resource_format_loader_ex(format_loader.clone().upcast())
         .at_front(true)
         .done();
 
@@ -383,17 +383,17 @@ fn test_input_event(test_context: &TestContext) {
 
     test_context
         .scene_tree
-        .share()
-        .add_child(test_viewport.share().upcast());
+        .clone()
+        .add_child(test_viewport.clone().upcast());
 
-    test_viewport.share().add_child(obj.share().upcast());
+    test_viewport.clone().add_child(obj.clone().upcast());
 
     let mut event = InputEventAction::new();
     event.set_action("debug".into());
     event.set_pressed(true);
 
     // We're running in headless mode, so Input.parse_input_event does not work
-    test_viewport.share().push_input(event.share().upcast());
+    test_viewport.clone().push_input(event.clone().upcast());
 
     assert_eq!(obj.bind().event, Some(event.upcast::<InputEvent>()));
 
@@ -414,11 +414,11 @@ fn test_input_event_multiple(test_context: &TestContext) {
 
     test_context
         .scene_tree
-        .share()
-        .add_child(test_viewport.share().upcast());
+        .clone()
+        .add_child(test_viewport.clone().upcast());
 
     for obj in objs.iter() {
-        test_viewport.share().add_child(obj.share().upcast())
+        test_viewport.clone().add_child(obj.clone().upcast())
     }
 
     let mut event = InputEventAction::new();
@@ -426,10 +426,10 @@ fn test_input_event_multiple(test_context: &TestContext) {
     event.set_pressed(true);
 
     // We're running in headless mode, so Input.parse_input_event does not work
-    test_viewport.share().push_input(event.share().upcast());
+    test_viewport.clone().push_input(event.clone().upcast());
 
     for obj in objs.iter() {
-        assert_eq!(obj.bind().event, Some(event.share().upcast::<InputEvent>()));
+        assert_eq!(obj.bind().event, Some(event.clone().upcast::<InputEvent>()));
     }
 
     test_viewport.queue_free();
@@ -438,7 +438,7 @@ fn test_input_event_multiple(test_context: &TestContext) {
 #[itest]
 fn test_notifications() {
     let obj = Gd::<NotificationTest>::new_default();
-    let mut node = obj.share().upcast::<Node>();
+    let mut node = obj.clone().upcast::<Node>();
     node.notify(NodeNotification::Unpaused);
     node.notify(NodeNotification::EditorPostSave);
     node.notify(NodeNotification::Ready);

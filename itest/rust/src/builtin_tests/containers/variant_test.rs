@@ -116,9 +116,8 @@ fn variant_equal() {
 
 #[itest]
 fn variant_call() {
-    use godot::obj::Share;
     let node2d = Node2D::new_alloc();
-    let variant = Variant::from(node2d.share());
+    let variant = Variant::from(node2d.clone());
 
     // Object
     let position = Vector2::new(4.0, 5.0);

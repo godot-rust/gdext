@@ -39,7 +39,7 @@ use crate::{callbacks, engine, out};
 /// In particular, the memory management strategy is fully dependent on `T`:
 ///
 /// * Objects of type [`RefCounted`] or inherited from it are **reference-counted**. This means that every time a smart pointer is
-///   shared using [`Share::share()`], the reference counter is incremented, and every time one is dropped, it is decremented.
+///   shared using [`Clone::clone()`], the reference counter is incremented, and every time one is dropped, it is decremented.
 ///   This ensures that the last reference (either in Rust or Godot) will deallocate the object and call `T`'s destructor.
 ///
 /// * Objects inheriting from [`Object`] which are not `RefCounted` (or inherited) are **manually-managed**.
@@ -309,7 +309,7 @@ impl<T: GodotClass> Gd<T> {
     /// struct MyClass {}
     ///
     /// let obj: Gd<MyClass> = Gd::new_default();
-    /// let base = obj.share().upcast::<Node>();
+    /// let base = obj.clone().upcast::<Node>();
     /// ```
     pub fn upcast<Base>(self) -> Gd<Base>
     where
@@ -462,7 +462,7 @@ impl<T: GodotClass> Gd<T> {
 
     /// Returns a callable referencing a method from this object named `method_name`.
     pub fn callable<S: Into<StringName>>(&self, method_name: S) -> Callable {
-        Callable::from_object_method(self.share(), method_name)
+        Callable::from_object_method(self.clone(), method_name)
     }
 }
 
@@ -590,7 +590,7 @@ where
         if T::Mem::pass_as_ref(call_type) {
             interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys())
         } else {
-            std::ptr::write(ptr as *mut _, self.opaque)
+            ptr::write(ptr as *mut _, self.opaque)
         }
         // We've passed ownership to caller.
         std::mem::forget(self);
@@ -709,10 +709,16 @@ impl<T: GodotClass> Drop for Gd<T> {
     }
 }
 
+impl<T: GodotClass> Clone for Gd<T> {
+    fn clone(&self) -> Self {
+        out!("Gd::clone");
+        Self::from_opaque(self.opaque).with_inc_refcount()
+    }
+}
+
 impl<T: GodotClass> Share for Gd<T> {
     fn share(&self) -> Self {
-        out!("Gd::share");
-        Self::from_opaque(self.opaque).with_inc_refcount()
+        self.clone()
     }
 }
 
@@ -739,7 +745,7 @@ impl<T: GodotClass> Property for Gd<T> {
     type Intermediate = Self;
 
     fn get_property(&self) -> Self {
-        self.share()
+        self.clone()
     }
 
     fn set_property(&mut self, value: Self) {

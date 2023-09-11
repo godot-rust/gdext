@@ -46,7 +46,7 @@ impl NodePath {
 // - `from_arg_ptr`
 //   NodePaths are properly initialized through a `from_sys` call, but the ref-count should be
 //   incremented as that is the callee's responsibility. Which we do by calling
-//   `std::mem::forget(node_path.share())`.
+//   `std::mem::forget(node_path.clone())`.
 unsafe impl GodotFfi for NodePath {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn from_sys;

@@ -8,7 +8,7 @@ use godot::bind::{godot_api, GodotClass};
 use godot::builtin::inner::InnerCallable;
 use godot::builtin::{varray, Callable, GodotString, StringName, ToVariant, Variant};
 use godot::engine::{Node2D, Object};
-use godot::obj::{Gd, Share};
+use godot::obj::Gd;
 
 use crate::framework::itest;
 
@@ -66,7 +66,7 @@ fn callable_object_method() {
     let obj = Gd::<CallableTestObj>::new_default();
     let callable = obj.callable("foo");
 
-    assert_eq!(callable.object(), Some(obj.share().upcast::<Object>()));
+    assert_eq!(callable.object(), Some(obj.clone().upcast::<Object>()));
     assert_eq!(callable.object_id(), Some(obj.instance_id()));
     assert_eq!(callable.method_name(), Some("foo".into()));
 
@@ -109,7 +109,7 @@ fn callable_call_return() {
 #[itest]
 fn callable_call_engine() {
     let obj = Node2D::new_alloc();
-    let cb = Callable::from_object_method(obj.share(), "set_position");
+    let cb = Callable::from_object_method(obj.clone(), "set_position");
     let inner: InnerCallable = cb.as_inner();
 
     assert!(!inner.is_null());

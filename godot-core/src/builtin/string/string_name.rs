@@ -73,7 +73,7 @@ impl StringName {
 // - `from_arg_ptr`
 //   StringNames are properly initialized through a `from_sys` call, but the ref-count should be
 //   incremented as that is the callee's responsibility. Which we do by calling
-//   `std::mem::forget(string_name.share())`.
+//   `std::mem::forget(string_name.clone())`.
 unsafe impl GodotFfi for StringName {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn from_sys;
