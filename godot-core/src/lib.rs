@@ -105,6 +105,7 @@ pub mod private {
     struct GodotPanicInfo {
         line: u32,
         file: String,
+        //backtrace: Backtrace, // for future use
     }
 
     /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
@@ -128,6 +129,7 @@ pub mod private {
                     *info.lock().unwrap() = Some(GodotPanicInfo {
                         file: location.file().to_string(),
                         line: location.line(),
+                        //backtrace: Backtrace::capture(),
                     });
                 } else {
                     println!("panic occurred but can't get location information...");
@@ -154,6 +156,7 @@ pub mod private {
                     info.line,
                     error_context()
                 );
+                //eprintln!("Backtrace:\n{}", info.backtrace);
                 print_panic(err);
                 None
             }

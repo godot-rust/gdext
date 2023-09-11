@@ -7,11 +7,13 @@
 use crate::api_parser::{
     BuiltinClassMethod, Class, ClassConstant, ClassMethod, Enum, UtilityFunction,
 };
-use crate::central_generator::TypeNames;
 use crate::special_cases::is_builtin_scalar;
 use crate::{Context, GodotTy, ModName, RustTy, TyName};
+
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
+
+use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeStructuresField {
@@ -20,7 +22,7 @@ pub struct NativeStructuresField {
 }
 
 /// At which stage a class function pointer is loaded.
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub enum ClassCodegenLevel {
     Servers,
     Scene,
@@ -66,28 +68,95 @@ impl ClassCodegenLevel {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Lookup key for indexed method tables.
+// Could potentially save a lot of string allocations with lifetimes.
+#[derive(Eq, PartialEq, Hash)]
+pub(crate) enum MethodTableKey {
+    ClassMethod {
+        api_level: ClassCodegenLevel,
+        class_ty: TyName,
+        method_name: String,
+    },
+    BuiltinMethod {
+        builtin_ty: TyName,
+        method_name: String,
+    },
+    /*BuiltinLifecycleMethod {
+        builtin_ty: TyName,
+        method_name: String,
+    },
+    UtilityFunction {
+        function_name: String,
+    },*/
+}
+
+impl MethodTableKey {
+    /// Maps the method table key to a "category", meaning a distinct method table.
+    ///
+    /// Categories have independent address spaces for indices, meaning they begin again at 0 for each new category.
+    pub fn category(&self) -> String {
+        match self {
+            MethodTableKey::ClassMethod { api_level, .. } => format!("class.{}", api_level.lower()),
+            MethodTableKey::BuiltinMethod { .. } => "builtin".to_string(),
+            // MethodTableKey::BuiltinLifecycleMethod { .. } => "builtin.lifecycle".to_string(),
+            // MethodTableKey::UtilityFunction { .. } => "utility".to_string(),
+        }
+    }
+}
+
+impl fmt::Debug for MethodTableKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            MethodTableKey::ClassMethod {
+                api_level: _,
+                class_ty: class_name,
+                method_name,
+            } => write!(f, "ClassMethod({}.{})", class_name.godot_ty, method_name),
+            MethodTableKey::BuiltinMethod {
+                builtin_ty: variant_type,
+                method_name,
+            } => write!(
+                f,
+                "BuiltinMethod({}.{})",
+                variant_type.godot_ty, method_name
+            ),
+            /*MethodTableKey::BuiltinLifecycleMethod {
+                builtin_ty: variant_type,
+                method_name,
+            } => write!(
+                f,
+                "BuiltinLifecycleMethod({}.{})",
+                variant_type.godot_ty, method_name
+            ),
+            MethodTableKey::UtilityFunction { function_name } => {
+                write!(f, "UtilityFunction({})", function_name)
+            }*/
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Small utility that turns an optional vector (often encountered as JSON deserialization type) into a slice.
-pub fn option_as_slice<T>(option: &Option<Vec<T>>) -> &[T] {
+pub(crate) fn option_as_slice<T>(option: &Option<Vec<T>>) -> &[T] {
     option.as_ref().map_or(&[], Vec::as_slice)
 }
 
-// pub fn make_class_method_ptr_name(class_name_str: &str, method_name_str: &str) -> Ident {
-//     format_ident!("{}__{}", class_name_str, method_name_str)
-// }
-
 // Use &ClassMethod instead of &str, to make sure it's the original Godot name and no rename.
-pub fn make_class_method_ptr_name(class_godot_name: &str, method: &ClassMethod) -> Ident {
-    format_ident!("{}__{}", class_godot_name, method.name)
+pub(crate) fn make_class_method_ptr_name(class_ty: &TyName, method: &ClassMethod) -> Ident {
+    format_ident!("{}__{}", to_snake_case(&class_ty.godot_ty), method.name)
 }
 
-pub fn make_builtin_method_ptr_name(
-    variant_type: &TypeNames,
+pub(crate) fn make_builtin_method_ptr_name(
+    builtin_ty: &TyName,
     method: &BuiltinClassMethod,
 ) -> Ident {
-    format_ident!("{}__{}", variant_type.json_builtin_name, method.name)
+    format_ident!("{}__{}", to_snake_case(&builtin_ty.godot_ty), method.name)
 }
 
-pub fn make_utility_function_ptr_name(function: &UtilityFunction) -> Ident {
+pub(crate) fn make_utility_function_ptr_name(function: &UtilityFunction) -> Ident {
     safe_ident(&function.name)
 }
 
@@ -820,7 +889,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
     );
 }
 
-fn suffixed_lit(num: impl std::fmt::Display, suffix: &Ident) -> TokenStream {
+fn suffixed_lit(num: impl fmt::Display, suffix: &Ident) -> TokenStream {
     // i32, u16 etc happens to be also the literal suffix
     let combined = format!("{num}{suffix}");
     combined

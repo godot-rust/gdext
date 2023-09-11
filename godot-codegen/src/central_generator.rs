@@ -5,13 +5,15 @@
  */
 
 use proc_macro2::{Ident, Literal, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use std::collections::HashMap;
+use std::hash::Hasher;
 use std::path::Path;
 
 use crate::api_parser::*;
 use crate::util::{
-    option_as_slice, to_pascal_case, to_rust_type, to_snake_case, ClassCodegenLevel,
+    make_builtin_method_ptr_name, make_class_method_ptr_name, option_as_slice, to_pascal_case,
+    to_rust_type, to_snake_case, ClassCodegenLevel, MethodTableKey,
 };
 use crate::{codegen_special_cases, ident, special_cases, util, Context, SubmitFn, TyName};
 
@@ -26,7 +28,7 @@ struct CentralItems {
     godot_version: Header,
 }
 
-struct MethodTableInfo {
+struct NamedMethodTable {
     table_name: Ident,
     imports: TokenStream,
     ctor_parameters: TokenStream,
@@ -36,6 +38,40 @@ struct MethodTableInfo {
     class_count: usize,
     method_count: usize,
 }
+
+struct IndexedMethodTable {
+    table_name: Ident,
+    imports: TokenStream,
+    ctor_parameters: TokenStream,
+    pre_init_code: TokenStream,
+    fptr_type: TokenStream,
+    method_inits: Vec<MethodInit>,
+    named_accessors: Vec<AccessorMethod>,
+    class_count: usize,
+    method_count: usize,
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+struct MethodInit {
+    method_init: TokenStream,
+    index: usize,
+}
+
+impl ToTokens for MethodInit {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.method_init.to_tokens(tokens);
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+struct AccessorMethod {
+    name: Ident,
+    index: usize,
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub struct TypeNames {
     /// Name in JSON: "int" or "PackedVector2Array"
@@ -51,6 +87,22 @@ pub struct TypeNames {
     pub sys_variant_type: Ident,
 }
 
+impl Eq for TypeNames {}
+
+impl PartialEq for TypeNames {
+    fn eq(&self, other: &Self) -> bool {
+        self.json_builtin_name == other.json_builtin_name
+    }
+}
+
+impl std::hash::Hash for TypeNames {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.json_builtin_name.hash(state);
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Allows collecting all builtin TypeNames before generating methods
 pub(crate) struct BuiltinTypeInfo<'a> {
     pub value: i32,
@@ -62,6 +114,8 @@ pub(crate) struct BuiltinTypeInfo<'a> {
     pub constructors: Option<&'a Vec<Constructor>>,
     pub operators: Option<&'a Vec<Operator>>,
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub(crate) struct BuiltinTypeMap<'a> {
     map: HashMap<String, BuiltinTypeInfo<'a>>,
@@ -86,6 +140,8 @@ impl<'a> BuiltinTypeMap<'a> {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 pub(crate) fn generate_sys_central_file(
     api: &ExtensionApi,
     ctx: &mut Context,
@@ -102,9 +158,9 @@ pub(crate) fn generate_sys_central_file(
 
 pub(crate) fn generate_sys_classes_file(
     api: &ExtensionApi,
-    ctx: &mut Context,
     sys_gen_path: &Path,
     watch: &mut godot_bindings::StopWatch,
+    ctx: &mut Context,
     submit_fn: &mut SubmitFn,
 ) {
     for api_level in ClassCodegenLevel::with_tables() {
@@ -118,11 +174,11 @@ pub(crate) fn generate_sys_classes_file(
 
 pub(crate) fn generate_sys_utilities_file(
     api: &ExtensionApi,
-    ctx: &mut Context,
     sys_gen_path: &Path,
+    ctx: &mut Context,
     submit_fn: &mut SubmitFn,
 ) {
-    let mut table = MethodTableInfo {
+    let mut table = NamedMethodTable {
         table_name: ident("UtilityFunctionTable"),
         imports: quote! {},
         ctor_parameters: quote! {
@@ -153,25 +209,20 @@ pub(crate) fn generate_sys_utilities_file(
         });
 
         table.method_inits.push(quote! {
-            #field: {
-                let utility_fn = unsafe {
-                    get_utility_fn(string_names.fetch(#fn_name_str), #hash)
-                };
-                crate::validate_utility_function(utility_fn, #fn_name_str, #hash)
-            },
+            #field: crate::load_utility_function(get_utility_fn, string_names, #fn_name_str, #hash),
         });
 
         table.method_count += 1;
     }
 
-    let code = make_method_table(table);
+    let code = make_named_method_table(table);
 
     submit_fn(sys_gen_path.join("table_utilities.rs"), code);
 }
 
 /// Generate code for a method table based on shared layout.
-fn make_method_table(info: MethodTableInfo) -> TokenStream {
-    let MethodTableInfo {
+fn make_named_method_table(info: NamedMethodTable) -> TokenStream {
+    let NamedMethodTable {
         table_name,
         imports,
         ctor_parameters,
@@ -181,11 +232,6 @@ fn make_method_table(info: MethodTableInfo) -> TokenStream {
         class_count,
         method_count,
     } = info;
-
-    // Editor table can be empty, if the Godot binary is compiled without editor.
-    let unused_attr = method_decls
-        .is_empty()
-        .then(|| quote! { #[allow(unused_variables)] });
 
     // Assumes that both decls and inits already have a trailing comma.
     // This is necessary because some generators emit multiple lines (statements) per element.
@@ -201,7 +247,6 @@ fn make_method_table(info: MethodTableInfo) -> TokenStream {
             pub const CLASS_COUNT: usize = #class_count;
             pub const METHOD_COUNT: usize = #method_count;
 
-            #unused_attr
             pub fn load(
                 #ctor_parameters
             ) -> Self {
@@ -215,13 +260,88 @@ fn make_method_table(info: MethodTableInfo) -> TokenStream {
     }
 }
 
+fn make_indexed_method_table(info: IndexedMethodTable) -> TokenStream {
+    let IndexedMethodTable {
+        table_name,
+        imports,
+        ctor_parameters,
+        pre_init_code,
+        fptr_type,
+        mut method_inits,
+        named_accessors,
+        class_count,
+        method_count,
+    } = info;
+
+    // Editor table can be empty, if the Godot binary is compiled without editor.
+    let unused_attr = (method_count == 0).then(|| quote! { #[allow(unused_variables)] });
+    let named_method_api = make_named_accessors(&named_accessors, &fptr_type);
+
+    // Make sure methods are complete and in order of index.
+    assert_eq!(
+        method_inits.len(),
+        method_count,
+        "number of methods does not match count"
+    );
+    method_inits.sort_by_key(|init| init.index);
+
+    if let Some(last) = method_inits.last() {
+        assert_eq!(
+            last.index,
+            method_count - 1,
+            "last method should have highest index"
+        );
+    } else {
+        assert_eq!(method_count, 0, "empty method table should have count 0");
+    }
+
+    // Assumes that inits already have a trailing comma.
+    // This is necessary because some generators emit multiple lines (statements) per element.
+    quote! {
+        #imports
+
+        pub struct #table_name {
+            function_pointers: [#fptr_type; #method_count],
+        }
+
+        impl #table_name {
+            pub const CLASS_COUNT: usize = #class_count;
+            pub const METHOD_COUNT: usize = #method_count;
+
+            #unused_attr
+            pub fn load(
+                #ctor_parameters
+            ) -> Self {
+                #pre_init_code
+
+                Self {
+                    function_pointers: [
+                        #( #method_inits )*
+                    ]
+                }
+            }
+
+            #[inline(always)]
+            pub fn fptr_by_index(&self, index: usize) -> #fptr_type {
+                // SAFETY: indices are statically generated and guaranteed to be in range.
+                unsafe {
+                    *self.function_pointers.get_unchecked(index)
+                }
+            }
+
+            #named_method_api
+        }
+    }
+}
+
 pub(crate) fn generate_sys_builtin_methods_file(
     api: &ExtensionApi,
     builtin_types: &BuiltinTypeMap,
     sys_gen_path: &Path,
+    ctx: &mut Context,
     submit_fn: &mut SubmitFn,
 ) {
-    let code = make_builtin_method_table(api, builtin_types);
+    let code = make_builtin_method_table(api, builtin_types, ctx);
     submit_fn(sys_gen_path.join("table_builtins.rs"), code);
 }
 
@@ -548,7 +668,7 @@ fn make_central_items(
 
 fn make_builtin_lifecycle_table(builtin_types: &BuiltinTypeMap) -> TokenStream {
     let len = builtin_types.count();
-    let mut table = MethodTableInfo {
+    let mut table = NamedMethodTable {
         table_name: ident("BuiltinLifecycleTable"),
         imports: quote! {
             use crate::{
@@ -588,7 +708,7 @@ fn make_builtin_lifecycle_table(builtin_types: &BuiltinTypeMap) -> TokenStream {
         table.class_count += 1;
     }
 
-    make_method_table(table)
+    make_named_method_table(table)
 }
 
 fn make_class_method_table(
@@ -596,7 +716,7 @@ fn make_class_method_table(
     api_level: ClassCodegenLevel,
     ctx: &mut Context,
 ) -> TokenStream {
-    let mut table = MethodTableInfo {
+    let mut table = IndexedMethodTable {
         table_name: api_level.table_struct(),
         imports: TokenStream::new(),
         ctor_parameters: quote! {
@@ -604,15 +724,17 @@ fn make_class_method_table(
             string_names: &mut crate::StringCache,
         },
         pre_init_code: TokenStream::new(), // late-init, depends on class string names
-        method_decls: vec![],
+        fptr_type: quote! { crate::ClassMethodBind },
         method_inits: vec![],
+        named_accessors: vec![],
         class_count: 0,
         method_count: 0,
     };
 
     let mut class_sname_decls = Vec::new();
     for class in api.classes.iter() {
-        if special_cases::is_class_deleted(&TyName::from_godot(&class.name))
+        let class_ty = TyName::from_godot(&class.name);
+        if special_cases::is_class_deleted(&class_ty)
             || codegen_special_cases::is_class_excluded(&class.name)
             || util::get_api_level(class) != api_level
         {
@@ -623,7 +745,7 @@ fn make_class_method_table(
         let initializer_expr = util::make_sname_ptr(&class.name);
 
         let prev_method_count = table.method_count;
-        populate_class_methods(&mut table, class, &class_var, ctx);
+        populate_class_methods(&mut table, class, &class_ty, &class_var, ctx);
         if table.method_count > prev_method_count {
             // Only create class variable if any methods have been added.
             class_sname_decls.push(quote! {
@@ -640,11 +762,32 @@ fn make_class_method_table(
         #( #class_sname_decls )*
     };
 
-    make_method_table(table)
+    make_indexed_method_table(table)
 }
 
-fn make_builtin_method_table(api: &ExtensionApi, builtin_types: &BuiltinTypeMap) -> TokenStream {
-    let mut table = MethodTableInfo {
+/// For index-based method tables, have select methods exposed by name for internal use.
+fn make_named_accessors(accessors: &[AccessorMethod], fptr: &TokenStream) -> TokenStream {
+    let mut result_api = TokenStream::new();
+
+    for AccessorMethod { name, index } in accessors {
+        let code = quote! {
+            #[inline(always)]
+            pub fn #name(&self) -> #fptr {
+                self.fptr_by_index(#index)
+            }
+        };
+
+        result_api.append_all(code.into_iter());
+    }
+    result_api
+}
+
+fn make_builtin_method_table(
+    api: &ExtensionApi,
+    builtin_types: &BuiltinTypeMap,
+    ctx: &mut Context,
+) -> TokenStream {
+    let mut table = IndexedMethodTable {
         table_name: ident("BuiltinMethodTable"),
         imports: TokenStream::new(),
         ctor_parameters: quote! {
@@ -655,8 +798,9 @@ fn make_builtin_method_table(api: &ExtensionApi, builtin_types: &BuiltinTypeMap)
             use crate as sys;
             let get_builtin_method = interface.variant_get_ptr_builtin_method.expect("variant_get_ptr_builtin_method absent");
         },
-        method_decls: vec![],
+        fptr_type: quote! { crate::BuiltinMethodBind },
         method_inits: vec![],
+        named_accessors: vec![],
         class_count: 0,
         method_count: 0,
     };
@@ -667,93 +811,104 @@ fn make_builtin_method_table(api: &ExtensionApi, builtin_types: &BuiltinTypeMap)
             continue; // for Nil
         };
 
-        populate_builtin_methods(&mut table, builtin, &builtin_type.type_names);
+        populate_builtin_methods(&mut table, builtin, &builtin_type.type_names, ctx);
         table.class_count += 1;
     }
 
-    make_method_table(table)
+    make_indexed_method_table(table)
 }
 
-/// Returns whether at least 1 method was added.
 fn populate_class_methods(
-    table: &mut MethodTableInfo,
+    table: &mut IndexedMethodTable,
     class: &Class,
+    class_ty: &TyName,
     class_var: &Ident,
     ctx: &mut Context,
 ) {
-    let class_name_str = class.name.as_str();
-
     for method in option_as_slice(&class.methods) {
-        if codegen_special_cases::is_method_excluded(method, false, ctx) {
+        if special_cases::is_deleted(class_ty, method, ctx) {
             continue;
         }
 
-        let field = util::make_class_method_ptr_name(&class.name, method);
-
         // Note: varcall/ptrcall is only decided at call time; the method bind is the same for both.
-        let method_decl = quote! { pub #field: crate::ClassMethodBind, };
-        let method_init = make_class_method_init(method, &field, class_var, class_name_str);
+        let index = ctx.get_table_index(&MethodTableKey::ClassMethod {
+            api_level: util::get_api_level(class),
+            class_ty: class_ty.clone(),
+            method_name: method.name.clone(),
+        });
+        let method_init = make_class_method_init(method, class_var, class_ty);
 
-        table.method_decls.push(method_decl);
-        table.method_inits.push(method_init);
+        table.method_inits.push(MethodInit { method_init, index });
         table.method_count += 1;
+
+        // If requested, add a named accessor for this method.
+        if special_cases::is_named_accessor_in_table(class_ty, &method.name) {
+            table.named_accessors.push(AccessorMethod {
+                name: make_class_method_ptr_name(class_ty, method),
+                index,
+            });
+        }
     }
 }
 
 fn populate_builtin_methods(
-    table: &mut MethodTableInfo,
+    table: &mut IndexedMethodTable,
     builtin_class: &BuiltinClass,
-    type_name: &TypeNames,
+    builtin_name: &TypeNames,
+    ctx: &mut Context,
 ) {
     for method in option_as_slice(&builtin_class.methods) {
-        if codegen_special_cases::is_builtin_method_excluded(method) {
+        let builtin_ty = TyName::from_godot(&builtin_class.name);
+        if special_cases::is_builtin_deleted(&builtin_ty, method) {
             continue;
         }
 
-        let field = util::make_builtin_method_ptr_name(type_name, method);
+        let index = ctx.get_table_index(&MethodTableKey::BuiltinMethod {
+            builtin_ty: builtin_ty.clone(),
+            method_name: method.name.clone(),
+        });
 
-        let method_decl = quote! { pub #field: crate::BuiltinMethodBind, };
-        let method_init = make_builtin_method_init(method, &field, type_name);
+        let method_init = make_builtin_method_init(method, builtin_name, index);
 
-        table.method_decls.push(method_decl);
-        table.method_inits.push(method_init);
+        table.method_inits.push(MethodInit { method_init, index });
         table.method_count += 1;
+
+        // If requested, add a named accessor for this method.
+        if special_cases::is_named_accessor_in_table(&builtin_ty, &method.name) {
+            table.named_accessors.push(AccessorMethod {
+                name: make_builtin_method_ptr_name(&builtin_ty, method),
+                index,
+            });
+        }
     }
 }
 
 fn make_class_method_init(
     method: &ClassMethod,
-    field: &Ident,
     class_var: &Ident,
-    class_name_str: &str,
+    class_ty: &TyName,
 ) -> TokenStream {
+    let class_name_str = class_ty.godot_ty.as_str();
     let method_name_str = method.name.as_str();
-    let method_sname = util::make_sname_ptr(method_name_str);
 
     let hash = method.hash.unwrap_or_else(|| {
         panic!(
             "class method has no hash: {}::{}",
-            class_name_str, method_name_str
+            class_ty.godot_ty, method_name_str
         )
     });
 
     quote! {
-        #field: {
-            let method_bind = unsafe {
-                get_method_bind(#class_var, #method_sname, #hash)
-            };
-            crate::validate_class_method(method_bind, #class_name_str, #method_name_str, #hash)
-        },
+        crate::load_class_method(get_method_bind, string_names, #class_var, #class_name_str, #method_name_str, #hash),
     }
 }
 
 fn make_builtin_method_init(
     method: &BuiltinClassMethod,
-    field: &Ident,
     type_name: &TypeNames,
+    index: usize,
 ) -> TokenStream {
     let method_name_str = method.name.as_str();
-    let method_sname = util::make_sname_ptr(method_name_str);
 
     let variant_type = &type_name.sys_variant_type;
     let variant_type_str = &type_name.json_builtin_name;
@@ -766,12 +921,7 @@ fn make_builtin_method_init(
     });
 
     quote! {
-        #field: {
-            let method_bind = unsafe {
-                get_builtin_method(sys::#variant_type, #method_sname, #hash)
-            };
-            crate::validate_builtin_method(method_bind, #variant_type_str, #method_name_str, #hash)
-        },
+        {let _ = #index;crate::load_builtin_method(get_builtin_method, string_names, sys::#variant_type, #variant_type_str, #method_name_str, #hash)},
     }
 }
 

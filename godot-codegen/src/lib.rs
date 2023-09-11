@@ -72,16 +72,16 @@ pub fn generate_sys_files(
     watch.record("generate_central_file");
 
     let builtin_types = BuiltinTypeMap::load(&api);
-    generate_sys_builtin_methods_file(&api, &builtin_types, sys_gen_path, &mut submit_fn);
+    generate_sys_builtin_methods_file(&api, &builtin_types, sys_gen_path, &mut ctx, &mut submit_fn);
     watch.record("generate_builtin_methods_file");
 
     generate_sys_builtin_lifecycle_file(&builtin_types, sys_gen_path, &mut submit_fn);
     watch.record("generate_builtin_lifecycle_file");
 
-    generate_sys_classes_file(&api, &mut ctx, sys_gen_path, watch, &mut submit_fn);
+    generate_sys_classes_file(&api, sys_gen_path, watch, &mut ctx, &mut submit_fn);
     // watch records inside the function.
 
-    generate_sys_utilities_file(&api, &mut ctx, sys_gen_path, &mut submit_fn);
+    generate_sys_utilities_file(&api, sys_gen_path, &mut ctx, &mut submit_fn);
     watch.record("generate_utilities_file");
 
     let is_godot_4_0 = api.header.version_major == 4 && api.header.version_minor == 0;
@@ -224,6 +224,7 @@ impl ToTokens for RustTy {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Contains multiple naming conventions for types (classes, builtin classes, enums).
+// TODO(bromeon, 2023-09): see if it makes sense to unify this with TypeNames (which is mostly used in central generator)
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) struct TyName {
     godot_ty: String,
