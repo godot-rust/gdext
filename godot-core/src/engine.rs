@@ -112,10 +112,8 @@ where
         // This would need more sophisticated upcast design, e.g. T::upcast_{ref|mut}::<U>() for indirect relations
         // to make the indirect Deref more explicit
 
-        use crate::obj::Share;
-
         let path = path.into();
-        let node = self.share().upcast::<Node>();
+        let node = self.clone().upcast::<Node>();
 
         <Node as NodeExt>::try_get_node_as(&*node, path)
     }

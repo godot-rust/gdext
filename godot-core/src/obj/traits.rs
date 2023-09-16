@@ -71,6 +71,7 @@ pub trait Share {
     /// Creates a new reference that points to the same object.
     ///
     /// If the referred-to object is reference-counted, this will increment the count.
+    #[deprecated = "Replaced with `Clone::clone()`."]
     fn share(&self) -> Self;
 }
 

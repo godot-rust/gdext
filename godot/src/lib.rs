@@ -12,7 +12,13 @@
 //!
 //! Godot is written in C++, which doesn't have the same strict guarantees about safety and
 //! mutability that Rust does. As a result, not everything in this crate will look and feel
-//! entirely "rusty". We distinguish four different kinds of types:
+//! entirely "rusty".
+//!
+//! Traits such as `Clone`, `PartialEq` or `PartialOrd` are designed to mirror Godot semantics,
+//! except in cases where Rust is stricter (e.g. float ordering). Cloning a type results in the
+//! same observable behavior as assignment or parameter-passing of a GDScript variable.
+//!
+//! We distinguish four different kinds of types:
 //!
 //! 1. **Value types**: `i64`, `f64`, and mathematical types like
 //!    [`Vector2`][crate::builtin::Vector2] and [`Color`][crate::builtin::Color].
@@ -43,11 +49,9 @@
 //!    careful when using such types. For example, when iterating over an `Array`, make sure that
 //!    it isn't being modified at the same time through another reference.
 //!
-//!    To avoid confusion these types don't implement `Clone`. You can use
-//!    [`Share`][crate::obj::Share] to create a new reference to the same instance, and
-//!    type-specific methods such as
-//!    [`Array::duplicate_deep()`][crate::builtin::Array::duplicate_deep] to make actual
-//!    copies. <br><br>
+//!    `Clone::clone()` on these types creates a new reference to the same instance, while
+//!    type-specific methods such as [`Array::duplicate_deep()`][crate::builtin::Array::duplicate_deep]
+//!    can be used to make actual copies. <br><br>
 //!
 //! 4. **Manually managed types**: [`Gd<T>`][crate::obj::Gd] where `T` inherits from
 //!    [`Object`][crate::engine::Object] but not from [`RefCounted`][crate::engine::RefCounted];

@@ -7,7 +7,6 @@
 use std::collections::{HashMap, HashSet};
 
 use godot::builtin::{dict, varray, Dictionary, FromVariant, ToVariant, Variant};
-use godot::obj::Share;
 
 use crate::framework::{expect_panic, itest};
 
@@ -94,10 +93,10 @@ fn dictionary_clone() {
     };
     let dictionary = dict! {
         "foo": 0,
-        "bar": subdictionary.share()
+        "bar": subdictionary.clone()
     };
     #[allow(clippy::redundant_clone)]
-    let clone = dictionary.share();
+    let clone = dictionary.clone();
     Dictionary::from_variant(&clone.get("bar").unwrap()).insert("final", 4);
     assert_eq!(subdictionary.get("final"), Some(4.to_variant()));
 }
@@ -120,7 +119,7 @@ fn dictionary_duplicate_deep() {
     };
     let dictionary = dict! {
         "foo": 0,
-        "bar": subdictionary.share()
+        "bar": subdictionary.clone()
     };
     let clone = dictionary.duplicate_deep();
     Dictionary::from_variant(&clone.get("bar").unwrap()).insert("baz", 4);
@@ -139,7 +138,7 @@ fn dictionary_duplicate_shallow() {
     };
     let dictionary = dict! {
         "foo": 0,
-        "bar": subdictionary.share()
+        "bar": subdictionary.clone()
     };
     let mut clone = dictionary.duplicate_shallow();
     Dictionary::from_variant(&clone.get("bar").unwrap()).insert("baz", 4);
@@ -374,7 +373,7 @@ fn dictionary_iter_insert() {
         "baz": "foobar",
         "nil": Variant::nil(),
     };
-    let mut dictionary2 = dictionary.share();
+    let mut dictionary2 = dictionary.clone();
 
     let mut iter = dictionary.iter_shared();
     iter.next();
@@ -396,7 +395,7 @@ fn dictionary_iter_insert_after_completion() {
         "baz": "foobar",
         "nil": Variant::nil(),
     };
-    let mut dictionary2 = dictionary.share();
+    let mut dictionary2 = dictionary.clone();
     let mut iter = dictionary.iter_shared();
     for _ in 0..4 {
         iter.next();
@@ -411,7 +410,7 @@ fn dictionary_iter_insert_after_completion() {
 #[itest]
 fn dictionary_iter_big() {
     let dictionary: Dictionary = (0..256).zip(0..256).collect();
-    let mut dictionary2 = dictionary.share();
+    let mut dictionary2 = dictionary.clone();
     let mut iter = dictionary.iter_shared();
 
     for _ in 0..4 {
@@ -511,7 +510,7 @@ fn dictionary_iter_clear() {
         "baz": "foobar",
         "nil": Variant::nil(),
     };
-    let mut dictionary2 = dictionary.share();
+    let mut dictionary2 = dictionary.clone();
 
     let mut iter = dictionary.iter_shared();
     iter.next();
@@ -552,7 +551,7 @@ fn dictionary_iter_erase() {
         "baz": "foobar",
         "nil": Variant::nil(),
     };
-    let mut dictionary2 = dictionary.share();
+    let mut dictionary2 = dictionary.clone();
 
     let mut iter = dictionary.iter_shared();
     iter.next();

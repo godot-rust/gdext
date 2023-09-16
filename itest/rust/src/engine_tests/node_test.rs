@@ -8,7 +8,6 @@ use std::str::FromStr;
 
 use godot::builtin::{NodePath, Variant};
 use godot::engine::{global, Node, Node3D, NodeExt, PackedScene, SceneTree};
-use godot::obj::Share;
 
 use crate::framework::{itest, TestContext};
 
@@ -20,11 +19,11 @@ fn node_get_node() {
 
     let mut parent = Node3D::new_alloc();
     parent.set_name("parent".into());
-    parent.add_child(child.share().upcast());
+    parent.add_child(child.clone().upcast());
 
     let mut grandparent = Node::new_alloc();
     grandparent.set_name("grandparent".into());
-    grandparent.add_child(parent.share().upcast());
+    grandparent.add_child(parent.clone().upcast());
 
     // Directly on Gd<T>
     let found = grandparent.get_node_as::<Node3D>(NodePath::from("parent/child"));
@@ -51,7 +50,7 @@ fn node_get_node_fail() {
 
 #[itest]
 fn node_path_from_str(ctx: &TestContext) {
-    let child = ctx.scene_tree.share();
+    let child = ctx.scene_tree.clone();
     assert_eq!(
         child.get_path().to_string(),
         NodePath::from_str("/root/TestRunner").unwrap().to_string()
@@ -65,10 +64,10 @@ fn node_scene_tree() {
 
     let mut parent = Node::new_alloc();
     parent.set_name("parent".into());
-    parent.add_child(child.share());
+    parent.add_child(child.clone());
 
     let mut scene = PackedScene::new();
-    let err = scene.pack(parent.share());
+    let err = scene.pack(parent.clone());
     assert_eq!(err, global::Error::OK);
 
     let mut tree = SceneTree::new_alloc();
@@ -84,7 +83,7 @@ fn node_scene_tree() {
 
 #[itest]
 fn node_call_group(ctx: &TestContext) {
-    let mut node = ctx.scene_tree.share();
+    let mut node = ctx.scene_tree.clone();
     let mut tree = node.get_tree().unwrap();
 
     node.add_to_group("group".into());

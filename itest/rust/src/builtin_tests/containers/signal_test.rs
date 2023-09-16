@@ -10,7 +10,7 @@ use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{GodotString, Variant};
 
 use godot::engine::Object;
-use godot::obj::{Base, Gd, Share};
+use godot::obj::{Base, Gd};
 use godot::sys;
 
 use crate::framework::itest;
@@ -50,7 +50,7 @@ impl Receiver {
     }
     #[func]
     fn receive_2_arg(&self, arg1: Gd<Object>, arg2: GodotString) {
-        assert_eq!(self.base.share(), arg1);
+        assert_eq!(self.base.clone(), arg1);
         assert_eq!(SIGNAL_ARG_STRING, arg2.to_string());
 
         self.used[2].set(true);
@@ -69,7 +69,7 @@ fn signals() {
         vec![],
         vec![Variant::from(987)],
         vec![
-            Variant::from(receiver.share()),
+            Variant::from(receiver.clone()),
             Variant::from(SIGNAL_ARG_STRING),
         ],
     ];

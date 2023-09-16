@@ -108,7 +108,7 @@ impl GodotString {
 // - `from_arg_ptr`
 //   Strings are properly initialized through a `from_sys` call, but the ref-count should be
 //   incremented as that is the callee's responsibility. Which we do by calling
-//   `std::mem::forget(string.share())`.
+//   `std::mem::forget(string.clone())`.
 unsafe impl GodotFfi for GodotString {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn from_sys;
