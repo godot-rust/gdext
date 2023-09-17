@@ -5,8 +5,9 @@
  */
 
 use crate as sys;
-use std::{error::Error, fmt::Debug, marker::PhantomData, ptr};
-use sys::ptr_then;
+use std::error::Error;
+use std::marker::PhantomData;
+use std::ptr;
 
 /// Adds methods to convert from and to Godot FFI pointers.
 /// See [crate::ffi_methods] for ergonomic implementation.
@@ -147,7 +148,7 @@ where
     T: GodotNullablePtr,
 {
     unsafe fn from_sys(ptr: sys::GDExtensionTypePtr) -> Self {
-        ptr_then(ptr, |ptr| T::from_sys(ptr))
+        crate::ptr_then(ptr, |ptr| T::from_sys(ptr))
     }
 
     unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
@@ -215,7 +216,7 @@ unsafe fn option_from_arg_single_ptr<T>(
 where
     T: GodotNullablePtr,
 {
-    ptr_then(ptr, |ptr| T::from_arg_ptr(ptr, call_type))
+    crate::ptr_then(ptr, |ptr| T::from_arg_ptr(ptr, call_type))
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

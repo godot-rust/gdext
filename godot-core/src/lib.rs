@@ -36,6 +36,7 @@ pub mod engine;
 #[rustfmt::skip]
 #[allow(unused_imports, dead_code, non_upper_case_globals, non_snake_case)]
 #[allow(clippy::too_many_arguments, clippy::let_and_return, clippy::new_ret_no_self)]
+#[allow(clippy::let_unit_value)] // let args = ();
 #[allow(clippy::wrong_self_convention)] // to_string() is const
 #[allow(clippy::upper_case_acronyms)] // TODO remove this line once we transform names
 #[allow(unreachable_code, clippy::unimplemented)] // TODO remove once #153 is implemented

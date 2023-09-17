@@ -186,9 +186,11 @@ enum RustTy {
 
     /// `Gd<Node>`
     EngineClass {
+        /// Tokens with full `Gd<T>`
         tokens: TokenStream,
-        #[allow(dead_code)] // currently not read
-        class: String,
+        /// only inner `T`
+        #[allow(dead_code)] // only read in minimal config
+        inner_class: Ident,
     },
 }
 

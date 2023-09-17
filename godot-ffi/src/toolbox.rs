@@ -166,7 +166,7 @@ pub(crate) type GetClassMethod = unsafe extern "C" fn(
     p_hash: sys::GDExtensionInt,
 ) -> sys::GDExtensionMethodBindPtr;
 
-pub(crate) type ClassMethodBind = sys::GDExtensionMethodBindPtr;
+pub type ClassMethodBind = sys::GDExtensionMethodBindPtr;
 
 pub(crate) type GetBuiltinMethod = unsafe extern "C" fn(
     p_type: sys::GDExtensionVariantType,
@@ -175,7 +175,7 @@ pub(crate) type GetBuiltinMethod = unsafe extern "C" fn(
 ) -> sys::GDExtensionPtrBuiltInMethod;
 
 // GDExtensionPtrBuiltInMethod
-pub(crate) type BuiltinMethodBind = unsafe extern "C" fn(
+pub type BuiltinMethodBind = unsafe extern "C" fn(
     p_base: sys::GDExtensionTypePtr,
     p_args: *const sys::GDExtensionConstTypePtr,
     r_return: sys::GDExtensionTypePtr,
@@ -187,7 +187,7 @@ pub(crate) type GetUtilityFunction = unsafe extern "C" fn(
     p_hash: sys::GDExtensionInt,
 ) -> sys::GDExtensionPtrUtilityFunction;
 
-pub(crate) type UtilityFunctionBind = unsafe extern "C" fn(
+pub type UtilityFunctionBind = unsafe extern "C" fn(
     r_return: sys::GDExtensionTypePtr,
     p_args: *const sys::GDExtensionConstTypePtr,
     p_argument_count: std::os::raw::c_int,

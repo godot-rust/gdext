@@ -7,9 +7,13 @@
 pub mod registration;
 
 mod class_name;
+mod return_marshal;
 mod signature;
 
 pub use class_name::*;
+#[doc(hidden)]
+pub use return_marshal::*;
+#[doc(hidden)]
 pub use signature::*;
 
 use godot_ffi as sys;

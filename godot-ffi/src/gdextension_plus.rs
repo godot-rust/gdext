@@ -73,8 +73,11 @@ pub fn default_call_error() -> GDExtensionCallError {
 pub fn panic_call_error(
     err: &GDExtensionCallError,
     function_name: &str,
-    arg_types: &[VariantType],
+    vararg_types: &[VariantType],
 ) -> ! {
+    // This specializes on reflection-style calls, e.g. call(), rpc() etc.
+    // In these cases, varargs are the _actual_ arguments, with required args being metadata such as method name.
+
     debug_assert_ne!(err.error, GDEXTENSION_CALL_OK); // already checked outside
 
     let GDExtensionCallError {
@@ -83,11 +86,11 @@ pub fn panic_call_error(
         expected,
     } = *err;
 
-    let argc = arg_types.len();
+    let argc = vararg_types.len();
     let reason = match error {
         GDEXTENSION_CALL_ERROR_INVALID_METHOD => "method not found".to_string(),
         GDEXTENSION_CALL_ERROR_INVALID_ARGUMENT => {
-            let from = arg_types[argument as usize];
+            let from = vararg_types[argument as usize];
             let to = VariantType::from_sys(expected as GDExtensionVariantType);
             let i = argument + 1;
 

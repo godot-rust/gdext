@@ -689,8 +689,8 @@ fn make_builtin_lifecycle_table(builtin_types: &BuiltinTypeMap) -> TokenStream {
         },
         method_decls: Vec::with_capacity(len),
         method_inits: Vec::with_capacity(len),
-        class_count: 0,
-        method_count: len,
+        class_count: len,
+        method_count: 0,
     };
 
     // Note: NIL is not part of this iteration, it will be added manually
@@ -705,7 +705,6 @@ fn make_builtin_lifecycle_table(builtin_types: &BuiltinTypeMap) -> TokenStream {
 
         table.method_decls.push(decls);
         table.method_inits.push(inits);
-        table.class_count += 1;
     }
 
     make_named_method_table(table)

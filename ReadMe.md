@@ -1,6 +1,6 @@
 ![logo.png](assets/gdext-ferris.png)
 
-# Rust bindings for GDExtension
+# Rust bindings for Godot 4
 
 _**[Website]** | **[API Docs]** | [Discord] | [Mastodon] | [Twitter]_
 
