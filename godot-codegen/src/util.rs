@@ -144,6 +144,18 @@ pub(crate) fn option_as_slice<T>(option: &Option<Vec<T>>) -> &[T] {
     option.as_ref().map_or(&[], Vec::as_slice)
 }
 
+pub(crate) fn make_imports() -> TokenStream {
+    quote! {
+        use godot_ffi as sys;
+        use crate::builtin::*;
+        use crate::builtin::meta::{ClassName, PtrcallReturnUnit, PtrcallReturnT, PtrcallReturnOptionGdT, PtrcallSignatureTuple, VarcallSignatureTuple};
+        use crate::engine::native::*;
+        use crate::engine::Object;
+        use crate::obj::Gd;
+        use crate::sys::GodotFfi as _;
+    }
+}
+
 // Use &ClassMethod instead of &str, to make sure it's the original Godot name and no rename.
 pub(crate) fn make_class_method_ptr_name(class_ty: &TyName, method: &ClassMethod) -> Ident {
     format_ident!("{}__{}", to_snake_case(&class_ty.godot_ty), method.name)
@@ -693,7 +705,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
         let ty = rustify_ty(ty);
         RustTy::EngineClass {
             tokens: quote! { Gd<crate::engine::#ty> },
-            class: ty.to_string(),
+            inner_class: ty,
         }
     }
 }

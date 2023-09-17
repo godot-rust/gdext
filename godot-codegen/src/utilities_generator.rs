@@ -9,8 +9,8 @@ use std::path::Path;
 use quote::quote;
 
 use crate::class_generator::make_utility_function_definition;
-use crate::Context;
 use crate::{api_parser::*, SubmitFn};
+use crate::{util, Context};
 
 pub(crate) fn generate_utilities_file(
     api: &ExtensionApi,
@@ -24,6 +24,8 @@ pub(crate) fn generate_utilities_file(
         .iter()
         .map(|utility_fn| make_utility_function_definition(utility_fn, ctx));
 
+    let imports = util::make_imports();
+
     let tokens = quote! {
         //! Global utility functions.
         //!
@@ -32,11 +34,7 @@ pub(crate) fn generate_utilities_file(
         //!
         //! See also [Godot docs for `@GlobalScope`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#methods).
 
-        use godot_ffi as sys;
-        use crate::builtin::*;
-        use crate::obj::Gd;
-        use crate::engine::Object;
-        use sys::GodotFfi as _;
+        #imports
 
         #(#utility_fn_defs)*
     };

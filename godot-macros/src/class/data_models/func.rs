@@ -322,7 +322,7 @@ fn make_ptrcall_invocation(
     };
 
     quote! {
-         <#sig_tuple as ::godot::builtin::meta::PtrcallSignatureTuple>::ptrcall(
+         <#sig_tuple as ::godot::builtin::meta::PtrcallSignatureTuple>::in_ptrcall(
             instance_ptr,
             args_ptr,
             ret,
@@ -342,7 +342,7 @@ fn make_varcall_invocation(
     let method_name_str = method_name.to_string();
 
     quote! {
-        <#sig_tuple as ::godot::builtin::meta::VarcallSignatureTuple>::varcall(
+        <#sig_tuple as ::godot::builtin::meta::VarcallSignatureTuple>::in_varcall(
             instance_ptr,
             args_ptr,
             ret,

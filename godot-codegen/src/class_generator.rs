@@ -6,8 +6,8 @@
 
 //! Generates a file for each Godot engine + builtin class
 
-use proc_macro2::{Ident, Literal, TokenStream};
-use quote::{format_ident, quote, ToTokens};
+use proc_macro2::{Ident, TokenStream};
+use quote::{format_ident, quote};
 use std::path::Path;
 
 use crate::api_parser::*;
@@ -122,6 +122,20 @@ impl FnReturn {
             }
         }
     }
+
+    fn type_tokens(&self) -> TokenStream {
+        match &self.type_ {
+            Some(RustTy::EngineClass { tokens, .. }) => {
+                quote! { Option<#tokens> }
+            }
+            Some(ty) => {
+                quote! { #ty }
+            }
+            _ => {
+                quote! { () }
+            }
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -158,6 +172,7 @@ struct FnSignature<'a> {
     surrounding_class: Option<&'a TyName>, // None if global function
     is_private: bool,
     is_virtual: bool,
+    is_vararg: bool,
     qualifier: FnQualifier,
     params: Vec<FnParam>,
     return_value: FnReturn,
@@ -167,8 +182,6 @@ struct FnSignature<'a> {
 
 struct FnCode {
     receiver: FnReceiver,
-    variant_ffi: Option<VariantFfi>,
-    init_code: TokenStream,
     varcall_invocation: TokenStream,
     ptrcall_invocation: TokenStream,
 }
@@ -576,16 +589,12 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     };
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
+    let imports = util::make_imports();
     let tokens = quote! {
         #![doc = #module_doc]
 
-        use godot_ffi as sys;
+        #imports
         use crate::engine::notify::*;
-        use crate::builtin::*;
-        use crate::engine::native::*;
-        use crate::obj::Gd;
-        use crate::builtin::meta::ClassName;
-        use sys::GodotFfi as _;
         use std::ffi::c_void;
 
         pub(super) mod re_export {
@@ -751,7 +760,7 @@ fn make_notification_enum(
             )*
 
             /// Since Godot represents notifications as integers, it's always possible that a notification outside the known types
-            /// is received. For example, the user can manually issue notifications through `Object.notification()`.
+            /// is received. For example, the user can manually issue notifications through `Object::notify()`.
             Unknown(i32),
         }
 
@@ -828,17 +837,13 @@ fn make_builtin_class(
         ctx,
     );
 
+    let imports = util::make_imports();
     let enums = make_enums(&class_enums, builtin_name, ctx);
     let special_constructors = make_special_builtin_methods(builtin_name, ctx);
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let code = quote! {
-        use godot_ffi as sys;
-        use crate::builtin::*;
-        use crate::engine::native::*;
-        use crate::obj::Gd;
-        use crate::sys::GodotFfi as _;
-        use crate::engine::Object;
+        #imports
 
         #[repr(transparent)]
         pub struct #inner_class<'a> {
@@ -871,16 +876,12 @@ fn make_native_structure(
 ) -> GeneratedBuiltin {
     let class_name = &class_name.rust_ty;
 
+    let imports = util::make_imports();
     let fields = make_native_structure_fields(&structure.format, ctx);
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
-        use godot_ffi as sys;
-        use crate::builtin::*;
-        use crate::engine::native::*;
-        use crate::obj::Gd;
-        use crate::sys::GodotFfi as _;
-        use crate::engine::Object;
+        #imports
 
         #[repr(C)]
         pub struct #class_name {
@@ -1100,34 +1101,35 @@ fn make_method_definition(
         quote! { self.object_ptr },
     );
 
-    let is_varcall = method.is_vararg;
-    let variant_ffi = is_varcall.then(VariantFfi::variant_ptr);
-
-    let function_provider = if method.is_vararg {
-        // varcall
-        quote! { sys::interface_fn!(object_method_bind_call) }
-    } else {
-        // ptrcall
-        quote! { sys::interface_fn!(object_method_bind_ptrcall) }
-    };
-
     let table_index = ctx.get_table_index(&MethodTableKey::ClassMethod {
         api_level: *api_level,
         class_ty: class_name.clone(),
         method_name: method.name.clone(),
     });
 
-    let init_code = quote! {
-        let __method_bind = sys::#get_method_table().fptr_by_index(#table_index);
-        let __call_fn = #function_provider;
+    let receiver_ffi_arg = &receiver.ffi_arg;
+    let ptrcall_invocation = quote! {
+        let method_bind = sys::#get_method_table().fptr_by_index(#table_index);
+        let object_ptr = #receiver_ffi_arg;
+
+        <CallSig as PtrcallSignatureTuple>::out_class_ptrcall::<RetMarshal>(
+            method_bind,
+            object_ptr,
+            args
+        )
     };
 
-    let receiver_ffi_arg = &receiver.ffi_arg;
     let varcall_invocation = quote! {
-        __call_fn(__method_bind, #receiver_ffi_arg, __args_ptr, __args.len() as i64, return_ptr, std::ptr::addr_of_mut!(__err));
-    };
-    let ptrcall_invocation = quote! {
-        __call_fn(__method_bind, #receiver_ffi_arg, __args_ptr, return_ptr);
+        let method_bind = sys::#get_method_table().fptr_by_index(#table_index);
+        let type_ptr = #receiver_ffi_arg;
+
+        <CallSig as VarcallSignatureTuple>::out_class_varcall(
+            method_bind,
+            #method_name_str,
+            type_ptr,
+            args,
+            varargs
+        )
     };
 
     make_function_definition(
@@ -1136,14 +1138,13 @@ fn make_method_definition(
             surrounding_class: Some(class_name),
             is_private: special_cases::is_private(class_name, &method.name),
             is_virtual: false,
+            is_vararg: method.is_vararg,
             qualifier: FnQualifier::for_method(method.is_const, method.is_static),
             params: FnParam::new_range(&method.arguments, ctx),
             return_value: FnReturn::new(&method.return_value, ctx),
         },
         &FnCode {
             receiver,
-            variant_ffi,
-            init_code,
             varcall_invocation,
             ptrcall_invocation,
         },
@@ -1167,22 +1168,33 @@ fn make_builtin_method_definition(
         .as_deref()
         .map(MethodReturn::from_type_no_meta);
 
-    let is_varcall = method.is_vararg;
-    let variant_ffi = is_varcall.then(VariantFfi::type_ptr);
-
     let table_index = ctx.get_table_index(&MethodTableKey::BuiltinMethod {
         builtin_ty: builtin_name.clone(),
         method_name: method.name.clone(),
     });
 
-    let init_code = quote! {
-        let __call_fn = sys::builtin_method_table().fptr_by_index(#table_index);
-    };
-
     let receiver = make_receiver(method.is_static, method.is_const, quote! { self.sys_ptr });
     let receiver_ffi_arg = &receiver.ffi_arg;
+
     let ptrcall_invocation = quote! {
-        __call_fn(#receiver_ffi_arg, __args_ptr, return_ptr, __args.len() as i32);
+        let method_bind = sys::builtin_method_table().fptr_by_index(#table_index);
+        let object_ptr = #receiver_ffi_arg;
+
+        <CallSig as PtrcallSignatureTuple>::out_builtin_ptrcall::<RetMarshal>(
+            method_bind,
+            object_ptr,
+            args
+        )
+    };
+
+    let varcall_invocation = quote! {
+        <CallSig as VarcallSignatureTuple>::out_class_varcall(
+            method_bind,
+            #method_name_str,
+            object_ptr,
+            args,
+            varargs
+        )
     };
 
     make_function_definition(
@@ -1191,6 +1203,7 @@ fn make_builtin_method_definition(
             surrounding_class: Some(inner_class_name),
             is_private: special_cases::is_private(builtin_name, &method.name),
             is_virtual: false,
+            is_vararg: method.is_vararg,
             qualifier: FnQualifier::for_method(method.is_const, method.is_static),
 
             // Disable default parameters for builtin classes.
@@ -1200,9 +1213,7 @@ fn make_builtin_method_definition(
         },
         &FnCode {
             receiver,
-            variant_ffi,
-            init_code,
-            varcall_invocation: ptrcall_invocation.clone(),
+            varcall_invocation,
             ptrcall_invocation,
         },
     )
@@ -1223,12 +1234,24 @@ pub(crate) fn make_utility_function_definition(
         .return_type
         .as_deref()
         .map(MethodReturn::from_type_no_meta);
-    let variant_ffi = function.is_vararg.then_some(VariantFfi::type_ptr());
-    let init_code = quote! {
-        let __call_fn = sys::utility_function_table().#fn_ptr;
+
+    let ptrcall_invocation = quote! {
+        let utility_fn = sys::utility_function_table().#fn_ptr;
+
+        <CallSig as PtrcallSignatureTuple>::out_utility_ptrcall(
+            utility_fn,
+            args
+        )
     };
-    let invocation = quote! {
-        __call_fn(return_ptr, __args_ptr, __args.len() as i32);
+
+    let varcall_invocation = quote! {
+        let utility_fn = sys::utility_function_table().#fn_ptr;
+
+        <CallSig as VarcallSignatureTuple>::out_utility_ptrcall_varargs(
+            utility_fn,
+            args,
+            varargs
+        )
     };
 
     let definition = make_function_definition(
@@ -1237,41 +1260,20 @@ pub(crate) fn make_utility_function_definition(
             surrounding_class: None,
             is_private: false,
             is_virtual: false,
+            is_vararg: function.is_vararg,
             qualifier: FnQualifier::Global,
             params: FnParam::new_range(&function.arguments, ctx),
             return_value: FnReturn::new(&return_value, ctx),
         },
         &FnCode {
             receiver: FnReceiver::global_function(),
-            variant_ffi,
-            init_code,
-            varcall_invocation: invocation.clone(),
-            ptrcall_invocation: invocation,
+            varcall_invocation,
+            ptrcall_invocation,
         },
     );
 
     // Utility functions have no builders.
     definition.into_functions_only()
-}
-
-/// Defines which methods to use to convert between `Variant` and FFI (either variant ptr or type ptr)
-struct VariantFfi {
-    sys_method: Ident,
-    from_sys_init_method: Ident,
-}
-impl VariantFfi {
-    fn variant_ptr() -> Self {
-        Self {
-            sys_method: ident("var_sys_const"),
-            from_sys_init_method: ident("from_var_sys_init"),
-        }
-    }
-    fn type_ptr() -> Self {
-        Self {
-            sys_method: ident("sys_const"),
-            from_sys_init_method: ident("from_sys_init_default"),
-        }
-    }
 }
 
 fn make_vis(is_private: bool) -> TokenStream {
@@ -1296,23 +1298,22 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
         (
             quote! { unsafe },
             quote! {
-                #[doc = "# Safety"]
-                #[doc = ""]
-                #[doc = "Godot currently does not document safety requirements on this method. Make sure you understand the underlying semantics."]
+                /// # Safety
+                ///
+                /// Godot currently does not document safety requirements on this method. Make sure you understand the underlying semantics.
             },
         )
     } else {
         (TokenStream::new(), TokenStream::new())
     };
 
-    let is_varcall = code.variant_ffi.is_some();
-    let [params, variant_types, arg_exprs, arg_names] =
-        make_params_and_impl(&sig.params, is_varcall, false);
+    let [params, param_types, arg_names] = make_params_exprs(&sig.params);
 
+    let godot_fn_name_str = sig.function_name;
     let primary_fn_name = if has_default_params {
-        format_ident!("{}_full", safe_ident(sig.function_name))
+        format_ident!("{}_full", safe_ident(godot_fn_name_str))
     } else {
-        safe_ident(sig.function_name)
+        safe_ident(godot_fn_name_str)
     };
 
     let (default_fn_code, default_structs_code) = if has_default_params {
@@ -1321,60 +1322,33 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
         (TokenStream::new(), TokenStream::new())
     };
 
-    let args_indices = (0..arg_exprs.len()).map(Literal::usize_unsuffixed);
-
-    let (prepare_arg_types, error_fn_context);
-    if code.variant_ffi.is_some() {
-        // varcall (using varargs)
-        prepare_arg_types = quote! {
-            let mut __arg_types = Vec::with_capacity(__explicit_args.len() + varargs.len());
-            // __arg_types.extend(__explicit_args.iter().map(Variant::get_type));
-            __arg_types.extend(varargs.iter().map(Variant::get_type));
-            let __vararg_str = varargs.iter().map(|v| format!("{v}")).collect::<Vec<_>>().join(", ");
-        };
-
-        let joined = arg_names
-            .iter()
-            .map(|n| format!("{{{n}:?}}"))
-            .collect::<Vec<_>>()
-            .join(", ");
-
-        let fmt = format!("{f}({joined}; {{__vararg_str}})", f = sig.function_name);
-        error_fn_context = quote! { &format!(#fmt) };
-    } else {
-        // ptrcall
-        prepare_arg_types = quote! {
-            let __arg_types = [
-                #( #variant_types ),*
-            ];
-        };
-        error_fn_context = sig.function_name.to_token_stream();
+    let return_ty = &sig.return_value.type_tokens();
+    let call_sig = quote! {
+        ( #return_ty, #(#param_types),* )
     };
 
     let return_decl = &sig.return_value.decl;
-    let call_code = make_return_and_impl(
-        &sig.return_value,
-        code,
-        prepare_arg_types,
-        error_fn_context,
-        sig.is_virtual,
-    );
 
     let receiver_param = &code.receiver.param;
     let primary_function = if sig.is_virtual {
+        // Virtual functions
+
         quote! {
             #safety_doc
             #maybe_unsafe fn #primary_fn_name(
                 #receiver_param
                 #( #params, )*
             ) #return_decl {
-                #call_code
+                unimplemented!()
             }
         }
-    } else if let Some(variant_ffi) = code.variant_ffi.as_ref() {
-        // varcall (using varargs)
-        let sys_method = &variant_ffi.sys_method;
-        let init_code = &code.init_code;
+    } else if sig.is_vararg {
+        // Varargs (usually varcall, but not necessarily -- utilities use ptrcall)
+
+        // If the return type is not Variant, then convert to concrete target type
+        let varcall_invocation = &code.varcall_invocation;
+
+        // TODO use Result instead of panic on error
         quote! {
             #safety_doc
             #vis #maybe_unsafe fn #primary_fn_name(
@@ -1382,47 +1356,42 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
                 #( #params, )*
                 varargs: &[Variant]
             ) #return_decl {
+                type CallSig = #call_sig;
+
+                let args = (#( #arg_names, )*);
+
                 unsafe {
-                    #init_code
-
-                    let __explicit_args = [
-                        #( #arg_exprs ),*
-                    ];
-
-                    let mut __args = Vec::with_capacity(__explicit_args.len() + varargs.len());
-                    __args.extend(__explicit_args.iter().map(Variant::#sys_method));
-                    __args.extend(varargs.iter().map(Variant::#sys_method));
-
-                    let __args_ptr = __args.as_ptr();
-
-                    #call_code
+                    #varcall_invocation
                 }
             }
         }
     } else {
-        // ptrcall
-        let init_code = &code.init_code;
+        // Always ptrcall, no varargs
+
+        let ptrcall_invocation = &code.ptrcall_invocation;
+        let maybe_return_ty = &sig.return_value.type_;
+
+        // This differentiation is needed because we need to differentiate between Option<Gd<T>>, T and () as return types.
+        // Rust traits don't provide specialization and thus would encounter overlapping blanket impls, so we cannot use the type system here.
+        let ret_marshal = match maybe_return_ty {
+            Some(RustTy::EngineClass { tokens, .. }) => quote! { PtrcallReturnOptionGdT<#tokens> },
+            Some(return_ty) => quote! { PtrcallReturnT<#return_ty> },
+            None => quote! { PtrcallReturnUnit },
+        };
+
         quote! {
             #safety_doc
             #vis #maybe_unsafe fn #primary_fn_name(
                 #receiver_param
                 #( #params, )*
             ) #return_decl {
+                type RetMarshal = #ret_marshal;
+                type CallSig = #call_sig;
+
+                let args = (#( #arg_names, )*);
+
                 unsafe {
-                    #init_code
-
-                    #[allow(clippy::let_unit_value)]
-                    let __args = (
-                        #( #arg_exprs, )*
-                    );
-
-                    let __args = [
-                        #( sys::GodotFfi::as_arg_ptr(&__args.#args_indices) ),*
-                    ];
-
-                    let __args_ptr = __args.as_ptr();
-
-                    #call_code
+                    #ptrcall_invocation
                 }
             }
         }
@@ -1586,7 +1555,7 @@ fn make_extender_receiver(sig: &FnSignature) -> ExtenderReceiver {
                     // Not exactly EngineClass, but close enough
                     type_: RustTy::EngineClass {
                         tokens: quote! { &'a #builder_mut re_export::#class },
-                        class: String::new(),
+                        inner_class: ident("unknown"),
                     },
                     default_value: None,
                 }),
@@ -1714,39 +1683,21 @@ fn make_receiver(is_static: bool, is_const: bool, ffi_arg: TokenStream) -> FnRec
     }
 }
 
-fn make_params_and_impl(
-    method_args: &[FnParam],
-    is_varcall: bool,
-    skip_defaults: bool,
-) -> [Vec<TokenStream>; 4] {
+fn make_params_exprs(method_args: &[FnParam]) -> [Vec<TokenStream>; 3] {
     let mut params = vec![];
-    let mut variant_types = vec![];
-    let mut arg_exprs = vec![];
+    let mut param_types = vec![];
     let mut arg_names = vec![];
 
     for param in method_args.iter() {
-        if skip_defaults && param.default_value.is_some() {
-            continue;
-        }
-
         let param_name = &param.name;
         let param_ty = &param.type_;
 
-        let arg_expr = if is_varcall {
-            quote! { <#param_ty as ToVariant>::to_variant(&#param_name) }
-        } else if let RustTy::EngineClass { tokens: path, .. } = &param_ty {
-            quote! { <#path as sys::GodotFuncMarshal>::try_into_via(#param_name).unwrap() }
-        } else {
-            quote! { <#param_ty as sys::GodotFuncMarshal>::try_into_via(#param_name).unwrap() }
-        };
-
         params.push(quote! { #param_name: #param_ty });
-        variant_types.push(quote! { <#param_ty as VariantMetadata>::variant_type() });
-        arg_exprs.push(arg_expr);
+        param_types.push(quote! { #param_ty });
         arg_names.push(quote! { #param_name });
     }
 
-    [params, variant_types, arg_exprs, arg_names]
+    [params, param_types, arg_names]
 }
 
 fn make_params_and_args(method_args: &[&FnParam]) -> (Vec<TokenStream>, Vec<TokenStream>) {
@@ -1759,75 +1710,6 @@ fn make_params_and_args(method_args: &[&FnParam]) -> (Vec<TokenStream>, Vec<Toke
             (quote! { #param_name: #param_ty }, quote! { #param_name })
         })
         .unzip()
-}
-
-fn make_return_and_impl(
-    return_value: &FnReturn,
-    code: &FnCode,
-    prepare_arg_types: TokenStream,
-    error_fn_context: TokenStream, // only for panic message
-    is_virtual: bool,
-) -> TokenStream {
-    let return_ty = &return_value.type_;
-
-    // Virtual methods
-    if is_virtual {
-        return quote! { unimplemented!() };
-    }
-
-    // Varcall
-    if let Some(variant_ffi) = &code.variant_ffi {
-        // If the return type is not Variant, then convert to concrete target type
-        let return_expr = match return_ty {
-            None => TokenStream::new(), // unit return
-            Some(RustTy::BuiltinIdent(ident)) if ident == "Variant" => quote! { __variant },
-            Some(_) => quote! { __variant.to() },
-        };
-        let from_sys_init_method = &variant_ffi.from_sys_init_method;
-        let varcall_invocation = &code.varcall_invocation;
-
-        // Note: __err may remain unused if the #call does not handle errors (e.g. utility fn, ptrcall, ...).
-        //       __variant remains unused if the function returns unit.
-        // TODO use Result instead of panic on error
-        return quote! {
-            let __variant = Variant::#from_sys_init_method(|return_ptr| {
-                let mut __err = sys::default_call_error();
-                #varcall_invocation
-                if __err.error != sys::GDEXTENSION_CALL_OK {
-                    #prepare_arg_types
-                    sys::panic_call_error(&__err, #error_fn_context, &__arg_types);
-                }
-            });
-            #return_expr
-        };
-    }
-
-    // Ptrcall
-    let ptrcall_invocation = &code.ptrcall_invocation;
-    match return_ty {
-        Some(RustTy::EngineClass { tokens, .. }) => {
-            let return_ty = tokens;
-            quote! {
-                <#return_ty>::from_sys_init_opt(|return_ptr| {
-                    #ptrcall_invocation
-                })
-            }
-        }
-        Some(return_ty) => {
-            quote! {
-                let via = <<#return_ty as sys::GodotFuncMarshal>::Via as sys::GodotFfi>::from_sys_init_default(|return_ptr| {
-                    #ptrcall_invocation
-                });
-                <#return_ty as sys::GodotFuncMarshal>::try_from_via(via).unwrap()
-            }
-        }
-        None => {
-            quote! {
-                let return_ptr = std::ptr::null_mut();
-                #ptrcall_invocation
-            }
-        }
-    }
 }
 
 fn make_virtual_methods_trait(
@@ -1911,6 +1793,7 @@ fn make_virtual_method(method: &ClassMethod, ctx: &mut Context) -> TokenStream {
             surrounding_class: None, // no default parameters needed for virtual methods
             is_private: false,
             is_virtual: true,
+            is_vararg: false,
             qualifier: FnQualifier::for_method(method.is_const, method.is_static),
             params: FnParam::new_range(&method.arguments, ctx),
             return_value: FnReturn::new(&method.return_value, ctx),
@@ -1918,8 +1801,6 @@ fn make_virtual_method(method: &ClassMethod, ctx: &mut Context) -> TokenStream {
         &FnCode {
             receiver: make_receiver(false, method.is_const, TokenStream::new()),
             // make_return() requests following args, but they are not used for virtual methods. We can provide empty streams.
-            variant_ffi: None,
-            init_code: TokenStream::new(),
             varcall_invocation: TokenStream::new(),
             ptrcall_invocation: TokenStream::new(),
         },
