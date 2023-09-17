@@ -4,13 +4,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
+use std::fmt;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::ptr;
 
 use godot_ffi as sys;
-use godot_ffi::VariantType;
 use sys::types::OpaqueObject;
 use sys::{
     ffi_methods, interface_fn, static_assert_eq_size, GodotFfi, GodotNullablePtr, PtrcallType,
@@ -18,12 +17,13 @@ use sys::{
 
 use crate::builtin::meta::{ClassName, VariantMetadata};
 use crate::builtin::{
-    Callable, FromVariant, StringName, ToVariant, Variant, VariantConversionError,
+    Callable, FromVariant, StringName, ToVariant, Variant, VariantConversionError, VariantType,
 };
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
-use crate::obj::{cap, dom, mem, EngineEnum, GodotClass, Inherits, Share};
-use crate::obj::{GdMut, GdRef, InstanceId};
+use crate::obj::{
+    cap, dom, mem, EngineEnum, GdMut, GdRef, GodotClass, Inherits, InstanceId, Share,
+};
 use crate::property::{Export, ExportInfo, Property, TypeStringHint};
 use crate::storage::InstanceStorage;
 use crate::{callbacks, engine, out};
@@ -52,6 +52,7 @@ use crate::{callbacks, engine, out};
 ///
 /// [`Object`]: crate::engine::Object
 /// [`RefCounted`]: crate::engine::RefCounted
+#[repr(C)] // must be layout compatible with engine classes
 pub struct Gd<T: GodotClass> {
     // Note: `opaque` has the same layout as GDExtensionObjectPtr == Object* in C++, i.e. the bytes represent a pointer
     // To receive a GDExtensionTypePtr == GDExtensionObjectPtr* == Object**, we need to get the address of this
@@ -61,7 +62,7 @@ pub struct Gd<T: GodotClass> {
     pub(crate) opaque: OpaqueObject,
 
     // Last known instance ID -- this may no longer be valid!
-    cached_instance_id: std::cell::Cell<Option<InstanceId>>,
+    cached_instance_id: std::cell::Cell<InstanceId>,
     _marker: PhantomData<*const T>,
 }
 
@@ -142,6 +143,7 @@ where
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
     // Note: possible names: write/read, hold/hold_mut, r/w, r/rw, ...
     pub fn bind(&self) -> GdRef<T> {
+        engine::ensure_object_alive(self.cached_instance_id.get(), self.obj_sys(), "bind");
         GdRef::from_cell(self.storage().get())
     }
 
@@ -157,6 +159,7 @@ where
     /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&T` or `&mut T`
     ///   reference to the user instance. This can happen through re-entrancy (Rust -> GDScript -> Rust call).
     pub fn bind_mut(&mut self) -> GdMut<T> {
+        engine::ensure_object_alive(self.cached_instance_id.get(), self.obj_sys(), "bind_mut");
         GdMut::from_cell(self.storage().get_mut())
     }
 
@@ -201,8 +204,7 @@ impl<T: GodotClass> Gd<T> {
     /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
     /// is not compatible with `T`, then `None` is returned.
     pub fn try_from_instance_id(instance_id: InstanceId) -> Option<Self> {
-        // SAFETY: Godot looks up ID in ObjectDB and returns null if not found
-        let ptr = unsafe { interface_fn!(object_get_instance_from_id)(instance_id.to_u64()) };
+        let ptr = engine::object_ptr_from_id(instance_id);
 
         if ptr.is_null() {
             None
@@ -231,7 +233,7 @@ impl<T: GodotClass> Gd<T> {
     fn from_opaque(opaque: OpaqueObject) -> Self {
         let obj = Self {
             opaque,
-            cached_instance_id: std::cell::Cell::new(None),
+            cached_instance_id: std::cell::Cell::new(InstanceId::from_i64(1)), // placeholder, so we can use obj_sys()
             _marker: PhantomData,
         };
 
@@ -239,37 +241,23 @@ impl<T: GodotClass> Gd<T> {
         let id = unsafe { interface_fn!(object_get_instance_id)(obj.obj_sys()) };
         let instance_id = InstanceId::try_from_u64(id)
             .expect("Gd initialization failed; did you call share() on a dead instance?");
-        obj.cached_instance_id.set(Some(instance_id));
+        obj.cached_instance_id.set(instance_id);
 
         obj
     }
 
     /// Returns the instance ID of this object, or `None` if the object is dead.
     pub fn instance_id_or_none(&self) -> Option<InstanceId> {
-        let known_id = match self.cached_instance_id.get() {
-            // Already dead
-            None => return None,
-
-            // Possibly alive
-            Some(id) => id,
-        };
+        let known_id = self.cached_instance_id.get();
 
         // Refreshes the internal cached ID on every call, as we cannot be sure that the object has not been
         // destroyed since last time. The only reliable way to find out is to call is_instance_id_valid().
+        // Previously, we cached `None` for dead instances, but that introduced nullability for a rare corner-case optimization.
         if engine::utilities::is_instance_id_valid(known_id.to_i64()) {
             Some(known_id)
         } else {
-            self.cached_instance_id.set(None);
             None
         }
-    }
-
-    /// ⚠️ Returns the instance ID of this object, or `None` if no instance ID is cached.
-    ///
-    /// This function does not check that the returned instance ID points to a valid instance!
-    /// Unless performance is a problem, use [`instance_id_or_none`][Self::instance_id_or_none] instead.
-    pub fn instance_id_or_none_unchecked(&self) -> Option<InstanceId> {
-        self.cached_instance_id.get()
     }
 
     /// ⚠️ Returns the instance ID of this object (panics when dead).
@@ -283,6 +271,14 @@ impl<T: GodotClass> Gd<T> {
                 use instance_id_or_none() or keep your objects alive"
             )
         })
+    }
+
+    /// ⚠️ Returns the last known, possibly invalid instance ID of this object.
+    ///
+    /// This function does not check that the returned instance ID points to a valid instance!
+    /// Unless performance is a problem, use [`instance_id()`][Self::instance_id] or [`instance_id_or_none()`][Self::instance_id_or_none] instead.
+    pub fn instance_id_unchecked(&self) -> InstanceId {
+        self.cached_instance_id.get()
     }
 
     /// Checks if this smart pointer points to a live object (read description!).
@@ -520,17 +516,18 @@ impl<T: GodotClass> Deref for Gd<T> {
     fn deref(&self) -> &Self::Target {
         // SAFETY:
         //
-        // This relies on `Gd<Node3D>.opaque` having the layout as `Node3D` (as an example),
+        // This relies on `Gd<Node3D>` having the layout as `Node3D` (as an example),
         // which also needs #[repr(transparent)]:
         //
         // struct Gd<T: GodotClass> {
         //     opaque: OpaqueObject,        // <- size of GDExtensionObjectPtr
+        //     cached_instance_id,          // <- Cell is #[repr(transparent)] to its inner T
         //     _marker: PhantomData,        // <- ZST
         // }
         // struct Node3D {
         //     object_ptr: sys::GDExtensionObjectPtr,
         // }
-        unsafe { std::mem::transmute::<&OpaqueObject, &Self::Target>(&self.opaque) }
+        unsafe { std::mem::transmute::<&Self, &Self::Target>(self) }
     }
 }
 
@@ -544,7 +541,7 @@ impl<T: GodotClass> DerefMut for Gd<T> {
         // same (i.e. `opaque` has the same value, but not address).
         //
         // The `&mut self` guarantees that no other base access can take place for *the same Gd instance* (access to other Gds is OK).
-        unsafe { std::mem::transmute::<&mut OpaqueObject, &mut Self::Target>(&mut self.opaque) }
+        unsafe { std::mem::transmute::<&mut Self, &mut Self::Target>(self) }
     }
 }
 
@@ -853,14 +850,14 @@ impl<T: GodotClass> PartialEq for Gd<T> {
 
 impl<T: GodotClass> Eq for Gd<T> {}
 
-impl<T: GodotClass> Display for Gd<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+impl<T: GodotClass> fmt::Display for Gd<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         engine::display_string(self, f)
     }
 }
 
-impl<T: GodotClass> Debug for Gd<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+impl<T: GodotClass> fmt::Debug for Gd<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         engine::debug_string(self, f, "Gd")
     }
 }

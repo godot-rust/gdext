@@ -9,11 +9,13 @@
 // Re-exports of generated symbols
 use crate::builtin::{GodotString, NodePath};
 use crate::obj::dom::EngineDomain;
-use crate::obj::{Gd, GodotClass, Inherits};
+use crate::obj::{Gd, GodotClass, Inherits, InstanceId};
 
 pub use crate::gen::central::global;
 pub use crate::gen::classes::*;
 pub use crate::gen::utilities;
+
+use crate::sys;
 
 /// Support for Godot _native structures_.
 ///
@@ -204,6 +206,31 @@ pub(crate) fn display_string<T: GodotClass>(
     let string: GodotString = ptr.as_object(Object::to_string);
 
     <GodotString as std::fmt::Display>::fmt(&string, f)
+}
+
+pub(crate) fn object_ptr_from_id(instance_id: InstanceId) -> sys::GDExtensionObjectPtr {
+    // SAFETY: Godot looks up ID in ObjectDB and returns null if not found.
+    unsafe { sys::interface_fn!(object_get_instance_from_id)(instance_id.to_u64()) }
+}
+
+pub(crate) fn ensure_object_alive(
+    instance_id: InstanceId,
+    old_object_ptr: sys::GDExtensionObjectPtr,
+    method_name: &'static str,
+) {
+    let new_object_ptr = object_ptr_from_id(instance_id);
+
+    assert!(
+        !new_object_ptr.is_null(),
+        "{method_name}: access to instance with ID {instance_id} after it has been freed"
+    );
+
+    // This should not happen, as reuse of instance IDs was fixed according to https://github.com/godotengine/godot/issues/32383,
+    // namely in PR https://github.com/godotengine/godot/pull/36189. Double-check to make sure.
+    assert_eq!(
+        new_object_ptr, old_object_ptr,
+        "{method_name}: instance ID {instance_id} points to a stale, reused object. Please report this to gdext maintainers."
+    );
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
