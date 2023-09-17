@@ -468,10 +468,9 @@ fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
         quote! {
             pub fn new() -> Gd<Self> {
                 unsafe {
-                    let __class_name = #godot_class_stringname;
-                    let __object_ptr = sys::interface_fn!(classdb_construct_object)(__class_name.string_sys());
-                    //let instance = Self { object_ptr };
-                    Gd::from_obj_sys(__object_ptr)
+                    let class_name = #godot_class_stringname;
+                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.string_sys());
+                    Gd::from_obj_sys(object_ptr)
                 }
             }
         }
@@ -481,9 +480,9 @@ fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
             #[must_use]
             pub fn new_alloc() -> Gd<Self> {
                 unsafe {
-                    let __class_name = #godot_class_stringname;
-                    let __object_ptr = sys::interface_fn!(classdb_construct_object)(__class_name.string_sys());
-                    Gd::from_obj_sys(__object_ptr)
+                    let class_name = #godot_class_stringname;
+                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.string_sys());
+                    Gd::from_obj_sys(object_ptr)
                 }
             }
         }
@@ -602,9 +601,10 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
 
             #[doc = #class_doc]
             #[derive(Debug)]
-            #[repr(transparent)]
+            #[repr(C)]
             pub struct #class_name {
                 object_ptr: sys::GDExtensionObjectPtr,
+                instance_id: crate::obj::InstanceId,
             }
             #virtual_trait
             #notification_enum
@@ -1107,26 +1107,33 @@ fn make_method_definition(
         method_name: method.name.clone(),
     });
 
-    let receiver_ffi_arg = &receiver.ffi_arg;
+    let maybe_instance_id = if method.is_static {
+        quote! { None }
+    } else {
+        quote! { Some(self.instance_id) }
+    };
+
+    let object_ptr = &receiver.ffi_arg;
     let ptrcall_invocation = quote! {
         let method_bind = sys::#get_method_table().fptr_by_index(#table_index);
-        let object_ptr = #receiver_ffi_arg;
 
         <CallSig as PtrcallSignatureTuple>::out_class_ptrcall::<RetMarshal>(
             method_bind,
-            object_ptr,
-            args
+            #method_name_str,
+            #object_ptr,
+            #maybe_instance_id,
+            args,
         )
     };
 
     let varcall_invocation = quote! {
         let method_bind = sys::#get_method_table().fptr_by_index(#table_index);
-        let type_ptr = #receiver_ffi_arg;
 
         <CallSig as VarcallSignatureTuple>::out_class_varcall(
             method_bind,
             #method_name_str,
-            type_ptr,
+            #object_ptr,
+            #maybe_instance_id,
             args,
             varargs
         )
@@ -1174,27 +1181,27 @@ fn make_builtin_method_definition(
     });
 
     let receiver = make_receiver(method.is_static, method.is_const, quote! { self.sys_ptr });
-    let receiver_ffi_arg = &receiver.ffi_arg;
+    let object_ptr = &receiver.ffi_arg;
 
     let ptrcall_invocation = quote! {
         let method_bind = sys::builtin_method_table().fptr_by_index(#table_index);
-        let object_ptr = #receiver_ffi_arg;
 
         <CallSig as PtrcallSignatureTuple>::out_builtin_ptrcall::<RetMarshal>(
             method_bind,
-            object_ptr,
+            #object_ptr,
             args
         )
     };
 
+    // TODO(#382): wait for https://github.com/godot-rust/gdext/issues/382
     let varcall_invocation = quote! {
-        <CallSig as VarcallSignatureTuple>::out_class_varcall(
+        /*<CallSig as VarcallSignatureTuple>::out_class_varcall(
             method_bind,
             #method_name_str,
-            object_ptr,
+            #object_ptr,
             args,
             varargs
-        )
+        )*/
     };
 
     make_function_definition(

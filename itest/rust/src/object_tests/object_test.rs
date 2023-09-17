@@ -25,13 +25,13 @@ use crate::framework::{expect_panic, itest, TestContext};
 
 #[itest]
 fn object_construct_default() {
-    let obj = Gd::<ObjPayload>::new_default();
+    let obj = Gd::<RefcPayload>::new_default();
     assert_eq!(obj.bind().value, 111);
 }
 
 #[itest]
 fn object_construct_value() {
-    let obj = Gd::new(ObjPayload { value: 222 });
+    let obj = Gd::new(RefcPayload { value: 222 });
     assert_eq!(obj.bind().value, 222);
 }
 
@@ -71,28 +71,28 @@ fn object_subtype_swap() {
 #[itest]
 fn object_user_roundtrip_return() {
     let value: i16 = 17943;
-    let user = ObjPayload { value };
+    let user = RefcPayload { value };
 
-    let obj: Gd<ObjPayload> = Gd::new(user);
+    let obj: Gd<RefcPayload> = Gd::new(user);
     assert_eq!(obj.bind().value, value);
 
     let ptr = obj.sys();
     std::mem::forget(obj);
 
-    let obj2 = unsafe { Gd::<ObjPayload>::from_sys(ptr) };
+    let obj2 = unsafe { Gd::<RefcPayload>::from_sys(ptr) };
     assert_eq!(obj2.bind().value, value);
 } // drop
 
 #[itest]
 fn object_user_roundtrip_write() {
     let value: i16 = 17943;
-    let user = ObjPayload { value };
+    let user = RefcPayload { value };
 
-    let obj: Gd<ObjPayload> = Gd::new(user);
+    let obj: Gd<RefcPayload> = Gd::new(user);
     assert_eq!(obj.bind().value, value);
 
     let obj2 = unsafe {
-        Gd::<ObjPayload>::from_sys_init(|ptr| {
+        Gd::<RefcPayload>::from_sys_init(|ptr| {
             obj.move_return_ptr(sys::AsUninit::force_init(ptr), sys::PtrcallType::Standard)
         })
     };
@@ -116,7 +116,7 @@ fn object_engine_roundtrip() {
 
 #[itest]
 fn object_user_display() {
-    let obj = Gd::new(ObjPayload { value: 774 });
+    let obj = Gd::new(RefcPayload { value: 774 });
 
     let actual = format!(".:{obj}:.");
     let expected = ".:value=774:.".to_string();
@@ -151,12 +151,12 @@ fn object_debug() {
 #[itest]
 fn object_instance_id() {
     let value: i16 = 17943;
-    let user = ObjPayload { value };
+    let user = RefcPayload { value };
 
-    let obj: Gd<ObjPayload> = Gd::new(user);
+    let obj: Gd<RefcPayload> = Gd::new(user);
     let id = obj.instance_id();
 
-    let obj2 = Gd::<ObjPayload>::from_instance_id(id);
+    let obj2 = Gd::<RefcPayload>::from_instance_id(id);
     assert_eq!(obj2.bind().value, value);
 }
 
@@ -177,7 +177,7 @@ fn object_instance_id_when_freed() {
 fn object_from_invalid_instance_id() {
     let id = InstanceId::try_from_i64(0xDEADBEEF).unwrap();
 
-    let obj2 = Gd::<ObjPayload>::try_from_instance_id(id);
+    let obj2 = Gd::<RefcPayload>::try_from_instance_id(id);
     assert!(obj2.is_none());
 }
 
@@ -212,10 +212,61 @@ fn object_from_instance_id_unrelated_type() {
 }
 
 #[itest]
+fn object_new_has_instance_id() {
+    let obj = Gd::<SignalEmitter>::new_default(); // type doesn't matter, just Object-derived
+    let _id = obj.instance_id();
+    obj.free();
+}
+
+#[itest]
+fn object_user_bind_after_free() {
+    let obj = Gd::new(SignalEmitter {}); // type doesn't matter, just Object-derived
+    let copy = obj.clone();
+    obj.free();
+
+    expect_panic("bind() on dead user object", move || {
+        let _ = copy.bind();
+    });
+}
+
+#[itest]
+fn object_user_call_after_free() {
+    let obj = Gd::new(SignalEmitter {}); // type doesn't matter, just Object-derived
+    let mut copy = obj.clone();
+    obj.free();
+
+    expect_panic("call() on dead user object", move || {
+        let _ = copy.call("get_instance_id".into(), &[]);
+    });
+}
+
+#[itest]
+fn object_engine_use_after_free() {
+    let node: Gd<Node3D> = Node3D::new_alloc();
+    let copy = node.clone();
+    node.free();
+
+    expect_panic("call method on dead engine object", move || {
+        copy.get_position();
+    });
+}
+
+#[itest]
+fn object_engine_use_after_free_varcall() {
+    let node: Gd<Node3D> = Node3D::new_alloc();
+    let mut copy = node.clone();
+    node.free();
+
+    expect_panic("call method on dead engine object", move || {
+        copy.call_deferred("get_position".into(), &[]);
+    });
+}
+
+#[itest]
 fn object_user_eq() {
     let value: i16 = 17943;
-    let a = ObjPayload { value };
-    let b = ObjPayload { value };
+    let a = RefcPayload { value };
+    let b = RefcPayload { value };
 
     let a1 = Gd::new(a);
     let a2 = a1.clone();
@@ -268,11 +319,11 @@ fn object_dead_eq() {
 #[itest]
 fn object_user_convert_variant() {
     let value: i16 = 17943;
-    let user = ObjPayload { value };
+    let user = RefcPayload { value };
 
-    let obj: Gd<ObjPayload> = Gd::new(user);
+    let obj: Gd<RefcPayload> = Gd::new(user);
     let variant = obj.to_variant();
-    let obj2 = Gd::<ObjPayload>::from_variant(&variant);
+    let obj2 = Gd::<RefcPayload>::from_variant(&variant);
 
     assert_eq!(obj2.bind().value, value);
 }
@@ -293,7 +344,7 @@ fn object_engine_convert_variant() {
 
 #[itest]
 fn object_user_convert_variant_refcount() {
-    let obj: Gd<ObjPayload> = Gd::new(ObjPayload { value: -22222 });
+    let obj: Gd<RefcPayload> = Gd::new(RefcPayload { value: -22222 });
     let obj = obj.upcast::<RefCounted>();
     check_convert_variant_refcount(obj)
 }
@@ -490,8 +541,8 @@ fn object_engine_accept_polymorphic() {
 
 #[itest]
 fn object_user_accept_polymorphic() {
-    let obj = Gd::new(ObjPayload { value: 123 });
-    let expected_class = GodotString::from("ObjPayload");
+    let obj = Gd::new(RefcPayload { value: 123 });
+    let expected_class = GodotString::from("RefcPayload");
 
     let actual_class = accept_refcounted(obj.clone());
     assert_eq!(actual_class, expected_class);
@@ -526,31 +577,31 @@ where
 
 #[itest]
 fn object_user_upcast() {
-    let obj = user_object();
+    let obj = user_refc_instance();
     let id = obj.instance_id();
 
     let object = obj.upcast::<Object>();
     assert_eq!(object.instance_id(), id);
-    assert_eq!(object.get_class(), GodotString::from("ObjPayload"));
+    assert_eq!(object.get_class(), GodotString::from("RefcPayload"));
 }
 
 #[itest]
 fn object_user_downcast() {
-    let obj = user_object();
+    let obj = user_refc_instance();
     let id = obj.instance_id();
 
     let object = obj.upcast::<Object>();
     let intermediate: Gd<RefCounted> = object.cast::<RefCounted>();
     assert_eq!(intermediate.instance_id(), id);
 
-    let concrete: Gd<ObjPayload> = intermediate.try_cast::<ObjPayload>().expect("try_cast");
+    let concrete: Gd<RefcPayload> = intermediate.try_cast::<RefcPayload>().expect("try_cast");
     assert_eq!(concrete.instance_id(), id);
     assert_eq!(concrete.bind().value, 17943);
 }
 
 #[itest]
 fn object_user_bad_downcast() {
-    let obj = user_object();
+    let obj = user_refc_instance();
     let object = obj.upcast::<Object>();
     let node3d: Option<Gd<Node>> = object.try_cast::<Node>();
 
@@ -659,19 +710,19 @@ fn object_get_scene_tree(ctx: &TestContext) {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[inline(never)] // force to move "out of scope", can trigger potential dangling pointer errors
-fn user_object() -> Gd<ObjPayload> {
+fn user_refc_instance() -> Gd<RefcPayload> {
     let value: i16 = 17943;
-    let user = ObjPayload { value };
+    let user = RefcPayload { value };
     Gd::new(user)
 }
 
 #[derive(GodotClass, Eq, PartialEq, Debug)]
-pub struct ObjPayload {
+pub struct RefcPayload {
     value: i16,
 }
 
 #[godot_api]
-impl RefCountedVirtual for ObjPayload {
+impl RefCountedVirtual for RefcPayload {
     fn init(_base: Base<Self::Base>) -> Self {
         Self { value: 111 }
     }
@@ -808,12 +859,12 @@ impl SignalEmitter {
     fn do_use();
 }
 
-#[itest]
 /// Test that godot can call a method that takes `&self`, while there already exists an immutable reference
 /// to that type acquired through `bind`.
 ///
 /// This test is not signal-specific, the original bug would happen whenever godot would call a method that
 /// takes `&self`. However this was the easiest way to test the bug i could find.
+#[itest]
 fn double_use_reference() {
     let double_use: Gd<DoubleUse> = Gd::new_default();
     let emitter: Gd<SignalEmitter> = Gd::new_default();

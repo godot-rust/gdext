@@ -4,10 +4,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_ffi as sys;
 use std::fmt::Debug;
 
+use godot_ffi as sys;
 use sys::{BuiltinMethodBind, ClassMethodBind, UtilityFunctionBind};
+
+use crate::builtin::meta::*;
+//use crate::builtin::meta::MethodParamOrReturnInfo;
+use crate::builtin::{FromVariant, ToVariant, Variant};
+use crate::obj::InstanceId;
 
 #[doc(hidden)]
 pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
@@ -33,6 +38,7 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
         method_bind: sys::GDExtensionMethodBindPtr,
         method_name: &'static str,
         object_ptr: sys::GDExtensionObjectPtr,
+        maybe_instance_id: Option<InstanceId>, // if not static
         args: Self::Params,
         varargs: &[Variant],
     ) -> Self::Ret;
@@ -58,13 +64,15 @@ pub trait PtrcallSignatureTuple {
         args_ptr: *const sys::GDExtensionConstTypePtr,
         ret: sys::GDExtensionTypePtr,
         func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
-        method_name: &str,
+        method_name: &'static str,
         call_type: sys::PtrcallType,
     );
 
     unsafe fn out_class_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
         method_bind: sys::GDExtensionMethodBindPtr,
+        method_name: &'static str,
         object_ptr: sys::GDExtensionObjectPtr,
+        maybe_instance_id: Option<InstanceId>, // if not static
         args: Self::Params,
     ) -> Self::Ret;
 
@@ -94,10 +102,6 @@ pub trait PtrcallSignatureTuple {
 //     }
 // }
 //
-use crate::builtin::meta::*;
-use crate::builtin::{FromVariant, ToVariant, Variant};
-
-use super::registration::method::MethodParamOrReturnInfo;
 
 macro_rules! impl_varcall_signature_for_tuple {
     (
@@ -162,9 +166,16 @@ macro_rules! impl_varcall_signature_for_tuple {
                 method_bind: ClassMethodBind,
                 method_name: &'static str,
                 object_ptr: sys::GDExtensionObjectPtr,
+                maybe_instance_id: Option<InstanceId>, // if not static
                 args: Self::Params,
                 varargs: &[Variant],
             ) -> Self::Ret {
+                eprintln!("varcall: {method_name}");
+                // Note: varcalls are not safe from failing, if the happen through an object pointer -> validity check necessary.
+                if let Some(instance_id) = maybe_instance_id {
+                    crate::engine::ensure_object_alive(instance_id, object_ptr, method_name);
+                }
+
                 let class_fn = sys::interface_fn!(object_method_bind_call);
 
                 let explicit_args = [
@@ -200,7 +211,6 @@ macro_rules! impl_varcall_signature_for_tuple {
                 args: Self::Params,
                 varargs: &[Variant],
             ) -> Self::Ret {
-
                 let explicit_args: [Variant; $PARAM_COUNT] = [
                     $(
                         <$Pn as ToVariant>::to_variant(&args.$n),
@@ -249,7 +259,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
                 func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
-                method_name: &str,
+                method_name: &'static str,
                 call_type: sys::PtrcallType,
             ) {
                 // $crate::out!("ptrcall: {}", method_name);
@@ -267,9 +277,15 @@ macro_rules! impl_ptrcall_signature_for_tuple {
             #[inline]
             unsafe fn out_class_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
                 method_bind: ClassMethodBind,
+                method_name: &'static str,
                 object_ptr: sys::GDExtensionObjectPtr,
+                maybe_instance_id: Option<InstanceId>, // if not static
                 args: Self::Params,
             ) -> Self::Ret {
+                if let Some(instance_id) = maybe_instance_id {
+                    crate::engine::ensure_object_alive(instance_id, object_ptr, method_name);
+                }
+
                 let class_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
                 #[allow(clippy::let_unit_value)]

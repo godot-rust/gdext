@@ -153,8 +153,6 @@ jobs:
         # Naming: {os}[-{runtimeVersion}]-{apiVersion}
         # runtimeVersion = version of Godot binary; apiVersion = version of GDExtension API against which gdext is compiled.
 
-        # --disallow-focus: fail if #[itest(focus)] is encountered, to prevent running only a few tests for full CI
-
         # Order this way because macOS typically has the longest duration, followed by Windows, so it benefits total workflow execution time.
         # Additionally, the 'linux (msrv *)' special case will then be listed next to the other 'linux' jobs.
         # Note: Windows uses '--target x86_64-pc-windows-msvc' by default as Cargo argument.
@@ -253,7 +251,6 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-memcheck-clang-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            godot-args: -- --disallow-focus
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
             rust-extra-args: --features godot/custom-godot
@@ -264,7 +261,6 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-memcheck-clang-4.0.4
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            godot-args: -- --disallow-focus
             godot-prebuilt-patch: '4.0.4'
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
@@ -279,7 +275,7 @@ jobs:
         with:
           artifact-name: godot-${{ matrix.artifact-name }}
           godot-binary: ${{ matrix.godot-binary }}
-          godot-args: ${{ matrix.godot-args }}
+          godot-args: ${{ matrix.godot-args }} # currently unused
           godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
           rust-extra-args: ${{ matrix.rust-extra-args }} --features godot/codegen-full
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
