@@ -165,7 +165,6 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-memcheck-clang-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            godot-args: -- --disallow-focus
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
             rust-extra-args: --features godot/custom-godot
@@ -176,7 +175,6 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-memcheck-clang-4.0.4
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            godot-args: -- --disallow-focus
             godot-prebuilt-patch: '4.0.4'
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
@@ -191,7 +189,7 @@ jobs:
         with:
           artifact-name: godot-${{ matrix.artifact-name }}
           godot-binary: ${{ matrix.godot-binary }}
-          godot-args: ${{ matrix.godot-args }}
+          godot-args: ${{ matrix.godot-args }} # currently unused
           godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
           rust-extra-args: ${{ matrix.rust-extra-args }}
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
