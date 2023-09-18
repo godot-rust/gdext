@@ -389,6 +389,23 @@ unsafe fn varcall_return<R: ToVariant>(
     (*err).error = sys::GDEXTENSION_CALL_OK;
 }
 
+/// Moves `ret_val` into `ret`, if it is `Ok(...)`. Otherwise sets an error.
+///
+/// # Safety
+/// See [`varcall_return`].
+pub(crate) unsafe fn varcall_return_checked<R: ToVariant>(
+    ret_val: Result<R, ()>, // TODO Err should be custom CallError enum
+    ret: sys::GDExtensionVariantPtr,
+    err: *mut sys::GDExtensionCallError,
+) {
+    if let Ok(ret_val) = ret_val {
+        varcall_return(ret_val, ret, err);
+    } else {
+        *err = sys::default_call_error();
+        (*err).error = sys::GDEXTENSION_CALL_ERROR_INVALID_ARGUMENT;
+    }
+}
+
 /// Convert the `N`th argument of `args_ptr` into a value of type `P`.
 ///
 /// # Safety

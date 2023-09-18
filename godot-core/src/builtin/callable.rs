@@ -6,14 +6,12 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{inner, ToVariant, Variant};
+use crate::builtin::{inner, StringName, ToVariant, Variant, VariantArray};
 use crate::engine::Object;
 use crate::obj::mem::Memory;
 use crate::obj::{Gd, GodotClass, InstanceId};
-use std::fmt;
+use std::{fmt, ptr};
 use sys::{ffi_methods, GodotFfi};
-
-use super::{StringName, VariantArray};
 
 /// A `Callable` represents a function in Godot.
 ///
@@ -53,14 +51,47 @@ impl Callable {
         }
     }
 
+    /// Create a callable representing a Rust function.
+    // #[cfg(since_api = "4.2")]
+    pub fn from_custom<C: RustCallable>(callable: C) -> Self {
+        // Double box could be avoided if we propagate C through all functions.
+        let wrapper = CallableUserdata {
+            callable: Box::new(callable),
+        };
+        Self::from_custom_inner(Box::new(wrapper))
+    }
+
+    // #[cfg(since_api = "4.2")]
+    fn from_custom_inner(callable: Box<CallableUserdata>) -> Self {
+        let mut info = sys::GDExtensionCallableCustomInfo {
+            callable_userdata: Box::into_raw(callable) as *mut std::ffi::c_void,
+            token: ptr::null_mut(),
+            object: ptr::null_mut(),
+            call_func: Some(rust_callable_call),
+            is_valid_func: None,
+            free_func: Some(rust_callable_destroy),
+            hash_func: Some(rust_callable_hash),
+            equal_func: Some(rust_callable_equal),
+            // < is only used in niche scenarios and default is usually good enough, see https://github.com/godotengine/godot/issues/81901.
+            less_than_func: None,
+            to_string_func: Some(rust_callable_to_string),
+        };
+
+        unsafe {
+            Callable::from_sys_init(|type_ptr| {
+                sys::interface_fn!(callable_custom_create)(type_ptr, ptr::addr_of_mut!(info))
+            })
+        }
+    }
+
     /// Creates an invalid/empty object that is not able to be called.
     ///
     /// _Godot equivalent: `Callable()`_
     pub fn invalid() -> Self {
         unsafe {
             Self::from_sys_init(|self_ptr| {
-                let ctor = ::godot_ffi::builtin_fn!(callable_construct_default);
-                ctor(self_ptr, std::ptr::null_mut())
+                let ctor = sys::builtin_fn!(callable_construct_default);
+                ctor(self_ptr, ptr::null_mut())
             })
         }
     }
@@ -177,13 +208,10 @@ impl_builtin_traits! {
         // Currently no Default::default() to encourage explicit valid initialization.
         //Default => callable_construct_default;
 
-        // Equality for custom callables depend on the equality implementation of that custom callable. This
-        // is from what i can tell currently implemented as total equality in all cases, but i dont believe
-        // there are any guarantees that all implementations of equality for custom callables will be.
-        //
-        // So we cannot implement `Eq` here and be confident equality will be total for all future custom
-        // callables.
+        // Equality for custom callables depend on the equality implementation of that custom callable.
+        // So we cannot implement `Eq` here and be confident equality will be total for all future custom callables.
         PartialEq => callable_operator_equal;
+        // PartialOrd => callable_operator_less;
         Clone => callable_construct_copy;
         Drop => callable_destroy;
     }
@@ -202,7 +230,7 @@ unsafe impl GodotFfi for Callable {
     }
 }
 
-impl std::fmt::Debug for Callable {
+impl fmt::Debug for Callable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let method = self.method_name();
         let object = self.object();
@@ -214,8 +242,104 @@ impl std::fmt::Debug for Callable {
     }
 }
 
-impl std::fmt::Display for Callable {
+impl fmt::Display for Callable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.to_variant())
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Callbacks for custom implementations
+
+// #[cfg(since_api = "4.2")]
+use custom_callable::*;
+
+// #[cfg(since_api = "4.2")]
+pub use custom_callable::RustCallable;
+
+// #[cfg(since_api = "4.2")]
+mod custom_callable {
+    use super::*;
+    use crate::builtin::GodotString;
+    use std::hash::Hash;
+
+    pub struct CallableUserdata {
+        pub callable: Box<dyn RustCallable>,
+    }
+
+    impl CallableUserdata {
+        unsafe fn inner_from_raw<'a>(void_ptr: *mut std::ffi::c_void) -> &'a dyn RustCallable {
+            let ptr = void_ptr as *mut CallableUserdata;
+            &(*ptr).callable
+        }
+    }
+
+    pub trait RustCallable:
+        'static + Sized + PartialEq + Hash + fmt::Display + Send + Sync
+    where
+        Self: Sized,
+    {
+        fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()>;
+    }
+
+    pub unsafe extern "C" fn rust_callable_call(
+        callable_userdata: *mut std::ffi::c_void,
+        p_args: *const sys::GDExtensionConstVariantPtr,
+        p_argument_count: sys::GDExtensionInt,
+        r_return: sys::GDExtensionVariantPtr,
+        r_error: *mut sys::GDExtensionCallError,
+    ) {
+        let arg_refs: &[&Variant] =
+            Variant::unbounded_refs_from_sys(p_args, p_argument_count as usize);
+
+        let mut c = CallableUserdata::inner_from_raw(callable_userdata);
+
+        let result = c.invoke(arg_refs);
+        crate::builtin::meta::varcall_return_checked(result, r_return, r_error);
+    }
+
+    pub unsafe extern "C" fn rust_callable_destroy(callable_userdata: *mut std::ffi::c_void) {
+        let rust_ptr = callable_userdata as *mut CallableUserdata;
+        let _drop = Box::from_raw(rust_ptr);
+    }
+
+    pub unsafe extern "C" fn rust_callable_hash(callable_userdata: *mut std::ffi::c_void) -> u32 {
+        let c = CallableUserdata::inner_from_raw(callable_userdata);
+
+        // Just cut off top bits, not best-possible hash.
+        sys::hash_value(c) as u32
+    }
+
+    pub unsafe extern "C" fn rust_callable_equal(
+        callable_userdata_a: *mut std::ffi::c_void,
+        callable_userdata_b: *mut std::ffi::c_void,
+    ) -> sys::GDExtensionBool {
+        let a = CallableUserdata::inner_from_raw(callable_userdata_a);
+        let b = CallableUserdata::inner_from_raw(callable_userdata_b);
+
+        (a == b) as sys::GDExtensionBool
+    }
+
+    pub unsafe extern "C" fn rust_callable_less(
+        callable_userdata_a: *mut std::ffi::c_void,
+        callable_userdata_b: *mut std::ffi::c_void,
+    ) -> sys::GDExtensionBool {
+        let a = CallableUserdata::inner_from_raw(callable_userdata_a);
+        let b = CallableUserdata::inner_from_raw(callable_userdata_b);
+
+        (a < b) as sys::GDExtensionBool
+    }
+
+    pub unsafe extern "C" fn rust_callable_to_string(
+        callable_userdata: *mut std::ffi::c_void,
+        r_is_valid: *mut sys::GDExtensionBool,
+        r_out: sys::GDExtensionStringPtr,
+    ) {
+        let c = CallableUserdata::inner_from_raw(callable_userdata);
+        let s = StringName::from(c.to_string());
+
+        s.move_string_ptr(r_out);
+
+        *r_is_valid = true as sys::GDExtensionBool;
     }
 }

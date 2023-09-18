@@ -178,6 +178,8 @@ impl<T: VariantMetadata> Array<T> {
             interface_fn!(array_operator_index_const)(self.sys(), index)
         };
 
+        // Signature is wrong in GDExtension, semantically this is a const ptr
+        let variant_ptr = sys::to_const_ptr(variant_ptr);
         Variant::ptr_from_sys(variant_ptr)
     }
 

@@ -6,7 +6,9 @@
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::inner::InnerCallable;
-use godot::builtin::{varray, Callable, GodotString, StringName, ToVariant, Variant};
+use godot::builtin::{
+    varray, Callable, GodotString, StringName, ToVariant, Variant, VariantOperator,
+};
 use godot::engine::{Node2D, Object};
 use godot::obj::Gd;
 
@@ -124,4 +126,66 @@ fn callable_call_engine() {
     // inner.bindv(array);
 
     obj.free();
+}
+
+// #[cfg(since_api = "4.2")]
+mod custom_callable {
+    use super::*;
+    use godot::builtin::Dictionary;
+
+    #[itest]
+    fn callable_custom_invoke() {
+        let my_rust_callable = Adder { sum: 0 };
+        let callable = Callable::from_custom(my_rust_callable);
+
+        assert!(callable.is_valid());
+        assert!(!callable.is_null());
+        assert!(callable.is_custom());
+        assert!(callable.object().is_none());
+
+        let sum1 = callable.callv(varray![3, 9, 2, 1]);
+        assert_eq!(sum1, 15.to_variant());
+
+        let sum2 = callable.callv(varray![4]);
+        assert_eq!(sum2, 19.to_variant());
+    }
+
+    #[itest]
+    fn callable_custom_to_string() {
+        let my_rust_callable = Adder { sum: 0 };
+        let callable = Callable::from_custom(my_rust_callable);
+
+        println!("to_string: {}", callable);
+        println!("equal: {}", callable == callable);
+        println!("equal2: {}", callable.to_variant() == callable.to_variant());
+        println!("hash: {}", callable.hash());
+    }
+
+    #[itest]
+    fn callable_custom_equal() {
+        let a = Callable::from_custom(Adder { sum: 0 });
+        let b = Callable::from_custom(Adder { sum: 0 });
+        println!("equal: {}", a == b);
+        println!("equal2: {}", a.to_variant() == b.to_variant());
+
+        let mut dict = Dictionary::new();
+
+        dict.insert(a, "hello");
+        dict.insert(b, "hi");
+    }
+
+
+    struct Adder {
+        sum: i32,
+    }
+
+    impl godot::builtin::RustCallable for Adder {
+        fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()> {
+            for arg in args {
+                self.sum += arg.to::<i32>();
+            }
+
+            Ok(self.sum.to_variant())
+        }
+    }
 }
