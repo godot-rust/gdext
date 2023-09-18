@@ -6,10 +6,9 @@
 
 use crate::builtin::{GodotString, StringName};
 use godot_ffi as sys;
-use godot_ffi::GodotFfi;
 use std::{fmt, ptr};
 use sys::types::OpaqueVariant;
-use sys::{ffi_methods, interface_fn};
+use sys::{ffi_methods, interface_fn, GodotFfi};
 
 mod impls;
 mod variant_traits;

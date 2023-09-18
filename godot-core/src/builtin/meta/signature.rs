@@ -152,8 +152,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
                 method_name: &str,
             ) {
-                $crate::out!("varcall: {}", method_name);
-
+                //$crate::out!("in_varcall: {method_name}");
                 let args = ($(
                     unsafe { varcall_arg::<$Pn, $n>(args_ptr, method_name) },
                 )*) ;
@@ -170,7 +169,8 @@ macro_rules! impl_varcall_signature_for_tuple {
                 args: Self::Params,
                 varargs: &[Variant],
             ) -> Self::Ret {
-                eprintln!("varcall: {method_name}");
+                //$crate::out!("out_class_varcall: {method_name}");
+
                 // Note: varcalls are not safe from failing, if the happen through an object pointer -> validity check necessary.
                 if let Some(instance_id) = maybe_instance_id {
                     crate::engine::ensure_object_alive(instance_id, object_ptr, method_name);
@@ -211,6 +211,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 args: Self::Params,
                 varargs: &[Variant],
             ) -> Self::Ret {
+                //$crate::out!("out_utility_ptrcall_varargs: {method_name}");
                 let explicit_args: [Variant; $PARAM_COUNT] = [
                     $(
                         <$Pn as ToVariant>::to_variant(&args.$n),
@@ -262,8 +263,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 method_name: &'static str,
                 call_type: sys::PtrcallType,
             ) {
-                // $crate::out!("ptrcall: {}", method_name);
-
+                // $crate::out!("in_ptrcall: {method_name}");
                 let args = ($(
                     unsafe { ptrcall_arg::<$Pn, $n>(args_ptr, method_name, call_type) },
                 )*) ;
@@ -282,6 +282,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 maybe_instance_id: Option<InstanceId>, // if not static
                 args: Self::Params,
             ) -> Self::Ret {
+                // $crate::out!("out_class_ptrcall: {method_name}");
                 if let Some(instance_id) = maybe_instance_id {
                     crate::engine::ensure_object_alive(instance_id, object_ptr, method_name);
                 }
@@ -312,6 +313,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 type_ptr: sys::GDExtensionTypePtr,
                 args: Self::Params,
             ) -> Self::Ret {
+                // $crate::out!("out_builtin_ptrcall: {method_name}");
                 #[allow(clippy::let_unit_value)]
                 let marshalled_args = (
                     $(
@@ -335,6 +337,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 utility_fn: UtilityFunctionBind,
                 args: Self::Params,
             ) -> Self::Ret {
+                // $crate::out!("out_utility_ptrcall: {method_name}");
                 #[allow(clippy::let_unit_value)]
                 let marshalled_args = (
                     $(
@@ -364,9 +367,10 @@ unsafe fn varcall_arg<P: FromVariant, const N: isize>(
     args_ptr: *const sys::GDExtensionConstVariantPtr,
     method_name: &str,
 ) -> P {
-    let variant = &*(*args_ptr.offset(N) as *mut Variant); // TODO from_var_sys
-    P::try_from_variant(variant)
-        .unwrap_or_else(|_| param_error::<P>(method_name, N as i32, variant))
+    let variant_ref = &*Variant::ptr_from_sys(*args_ptr.offset(N));
+
+    P::try_from_variant(variant_ref)
+        .unwrap_or_else(|_| param_error::<P>(method_name, N as i32, variant_ref))
 }
 
 /// Moves `ret_val` into `ret`.
@@ -380,7 +384,7 @@ unsafe fn varcall_return<R: ToVariant>(
     ret: sys::GDExtensionVariantPtr,
     err: *mut sys::GDExtensionCallError,
 ) {
-    let ret_variant = ret_val.to_variant(); // TODO write_sys
+    let ret_variant = ret_val.to_variant();
     *(ret as *mut Variant) = ret_variant;
     (*err).error = sys::GDEXTENSION_CALL_OK;
 }
