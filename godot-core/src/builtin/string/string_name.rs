@@ -8,6 +8,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::inner;
+use crate::builtin::meta::impl_godot_as_self;
 use crate::builtin::{GodotString, NodePath};
 
 use std::fmt;
@@ -116,6 +117,10 @@ impl StringName {
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(string_name.clone())`.
 unsafe impl GodotFfi for StringName {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::StringName
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn from_sys;
         fn sys;
@@ -135,6 +140,8 @@ unsafe impl GodotFfi for StringName {
         result
     }
 }
+
+impl_godot_as_self!(StringName);
 
 impl_builtin_traits! {
     for StringName {

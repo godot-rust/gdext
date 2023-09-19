@@ -397,7 +397,7 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
     let [opaque_32bit, opaque_64bit] = opaque_types;
 
     quote! {
-        use crate::{ffi_methods, GDExtensionTypePtr, GDExtensionVariantOperator, GDExtensionVariantType, GodotFfi};
+        use crate::{GDExtensionVariantOperator, GDExtensionVariantType};
 
         #[cfg(target_pointer_width = "32")]
         pub mod types {
@@ -443,12 +443,6 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
             }
         }
 
-        // SAFETY:
-        // This type is represented as `Self` in Godot, so `*mut Self` is sound.
-        unsafe impl GodotFfi for VariantType {
-            ffi_methods! { type GDExtensionTypePtr = *mut Self; .. }
-        }
-
         // ----------------------------------------------------------------------------------------------------------------------------------------------
 
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
@@ -474,12 +468,6 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
             pub fn sys(self) -> GDExtensionVariantOperator {
                 self as _
             }
-        }
-
-        // SAFETY:
-        // This type is represented as `Self` in Godot, so `*mut Self` is sound.
-        unsafe impl GodotFfi for VariantOperator {
-            ffi_methods! { type GDExtensionTypePtr = *mut Self; .. }
         }
     }
 }

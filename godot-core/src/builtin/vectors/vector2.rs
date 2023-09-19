@@ -9,6 +9,7 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::inner;
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
+use crate::builtin::meta::impl_godot_as_self;
 use crate::builtin::vectors::Vector2Axis;
 use crate::builtin::{real, RAffine2, RVec2, Vector2i};
 
@@ -248,8 +249,14 @@ impl_from_tuple_for_vector2x!(Vector2, real);
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector2 {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Vector2
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+impl_godot_as_self!(Vector2);
 
 impl GlamConv for Vector2 {
     type Glam = RVec2;

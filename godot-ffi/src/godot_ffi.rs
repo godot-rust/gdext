@@ -5,10 +5,10 @@
  */
 
 use crate as sys;
-use std::error::Error;
 use std::marker::PhantomData;
-use std::ptr;
 
+/// Types that can directly and fully represent some Godot type.
+///
 /// Adds methods to convert from and to Godot FFI pointers.
 /// See [crate::ffi_methods] for ergonomic implementation.
 ///
@@ -18,6 +18,11 @@ use std::ptr;
 /// must properly initialize and clean up values given the [`PtrcallType`] provided by the caller.
 #[doc(hidden)] // shows up in implementors otherwise
 pub unsafe trait GodotFfi {
+    fn variant_type() -> sys::VariantType;
+    fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
+    }
+
     /// Construct from Godot opaque pointer.
     ///
     /// # Safety
@@ -129,94 +134,12 @@ pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Marks a type as having a nullable counterpart in Godot.
+/// Types that can represent null-values.
 ///
-/// This trait primarily exists to implement GodotFfi for `Option<Gd<T>>`, which is not possible
-/// due to Rusts orphan rule. The rule also enforces better API design, though. `godot_ffi` should
-/// not concern itself with the details of how Godot types work and merely defines the FFI abstraction.
-/// By having a marker trait for nullable types, we can provide a generic implementation for
-/// compatible types, without knowing their definition.
-///
-/// # Safety
-///
-/// The type has to have a pointer-sized counterpart in Godot, which needs to be nullable.
-/// So far, this only applies to class types (Object hierarchy).
-pub unsafe trait GodotNullablePtr: GodotFfi {}
-
-unsafe impl<T> GodotFfi for Option<T>
-where
-    T: GodotNullablePtr,
-{
-    unsafe fn from_sys(ptr: sys::GDExtensionTypePtr) -> Self {
-        crate::ptr_then(ptr, |ptr| T::from_sys(ptr))
-    }
-
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
-        let mut raw = std::mem::MaybeUninit::uninit();
-        init_fn(raw.as_mut_ptr() as sys::GDExtensionUninitializedTypePtr);
-
-        Self::from_sys(raw.assume_init())
-    }
-
-    fn sys(&self) -> sys::GDExtensionTypePtr {
-        match self {
-            Some(value) => value.sys(),
-            None => ptr::null_mut() as sys::GDExtensionTypePtr,
-        }
-    }
-
-    #[cfg(before_api = "4.1")]
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
-        match call_type {
-            PtrcallType::Standard => option_from_arg_single_ptr(ptr, call_type),
-            PtrcallType::Virtual => option_from_arg_double_ptr(ptr, call_type),
-        }
-    }
-
-    #[cfg(since_api = "4.1")]
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
-        option_from_arg_double_ptr(ptr, call_type)
-    }
-
-    unsafe fn move_return_ptr(self, ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) {
-        if let Some(value) = self {
-            value.move_return_ptr(ptr, call_type)
-        }
-    }
-}
-
-/// Return an `Option<T>` when `T` is a nullable pointer type and `ptr` is represented as `T**`.
-///
-/// # Safety
-/// `ptr` must either be null, a pointer to null, or a pointer to a pointer to a `T`.
-unsafe fn option_from_arg_double_ptr<T>(
-    ptr: sys::GDExtensionTypePtr,
-    call_type: PtrcallType,
-) -> Option<T>
-where
-    T: GodotNullablePtr,
-{
-    if ptr.is_null() || (*(ptr as *mut sys::GDExtensionTypePtr)).is_null() {
-        None
-    } else {
-        Some(T::from_arg_ptr(ptr, call_type))
-    }
-}
-
-// 4.1 represents every object as `T**`.
-#[cfg(before_api = "4.1")]
-/// Return an `Option<T>` when `T` is a nullable pointer type and `ptr` is represented as `T*`.
-///
-/// # Safety
-/// `ptr` must either be null, or a pointer to a `T`.
-unsafe fn option_from_arg_single_ptr<T>(
-    ptr: sys::GDExtensionTypePtr,
-    call_type: PtrcallType,
-) -> Option<T>
-where
-    T: GodotNullablePtr,
-{
-    crate::ptr_then(ptr, |ptr| T::from_arg_ptr(ptr, call_type))
+/// Used to blanket implement various conversions over `Option<T>`.
+pub trait GodotNullableFfi: Sized + GodotFfi {
+    fn flatten_option(opt: Option<Self>) -> Self;
+    fn is_null(&self) -> bool;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -245,54 +168,6 @@ pub enum PtrcallType {
     ///
     /// See also <https://github.com/godotengine/godot-cpp/issues/954>.
     Virtual,
-}
-
-/// Trait implemented for all types that can be passed to and from Godot via function calls.
-#[doc(hidden)] // shows up in implementors otherwise
-pub trait GodotFuncMarshal: Sized {
-    /// The type used when passing a value to/from Godot.
-    type Via: GodotFfi;
-    /// Error type returned when a value of type `Via` fails to be converted into `Self`.
-    type FromViaError: Error;
-    /// Error type returned when a value of type `Self` fails to be converted into `Via`.
-    type IntoViaError: Error;
-
-    /// Try to convert the value from [`Self::Via`] to [`Self`].
-    fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError>;
-
-    /// Try to convert the value from [`Self`] to [`Self::Via`].
-    fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError>;
-
-    /// Used for function arguments. On failure, the argument which can't be converted to Self is returned.
-    ///
-    /// # Safety
-    /// The value behind `ptr` must be the C FFI type that corresponds to [`Self::Via`].
-    /// See also [`GodotFfi::from_arg_ptr`].
-    unsafe fn try_from_arg(
-        ptr: sys::GDExtensionTypePtr,
-        call_type: PtrcallType,
-    ) -> Result<Self, Self::FromViaError> {
-        let via = Self::Via::from_arg_ptr(ptr, call_type);
-
-        Self::try_from_via(via)
-    }
-
-    /// Used for function return values. On failure, `self` which can't be converted to Via is returned.
-    ///
-    /// # Safety
-    /// `dst` must point to an initialized value of type [`Self::Via`].
-    /// See also [`GodotFfi::move_return_ptr`].
-    unsafe fn try_return(
-        self,
-        dst: sys::GDExtensionTypePtr,
-        call_type: PtrcallType,
-    ) -> Result<(), Self::IntoViaError> {
-        let via = self.try_into_via()?;
-
-        via.move_return_ptr(dst, call_type);
-
-        Ok(())
-    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -539,10 +414,10 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation for common types (needs to be this crate due to orphan rule)
 mod scalars {
-    use super::{GodotFfi, GodotFuncMarshal, PrimitiveConversionError};
+    use super::GodotFfi;
     use crate as sys;
-    use std::convert::Infallible;
 
+    /*
     macro_rules! impl_godot_marshalling {
         ($T:ty) => {
             // SAFETY:
@@ -592,34 +467,44 @@ mod scalars {
             }
         };
     }
+    */
+    unsafe impl GodotFfi for bool {
+        fn variant_type() -> sys::VariantType {
+            sys::VariantType::Bool
+        }
 
-    // Directly implements GodotFfi + GodotFuncMarshal (through blanket impl)
-    impl_godot_marshalling!(bool);
-    impl_godot_marshalling!(i64);
-    impl_godot_marshalling!(f64);
-
-    // Only implements GodotFuncMarshal
-    impl_godot_marshalling!(i32 as i64);
-    impl_godot_marshalling!(u32 as i64);
-    impl_godot_marshalling!(i16 as i64);
-    impl_godot_marshalling!(u16 as i64);
-    impl_godot_marshalling!(i8 as i64);
-    impl_godot_marshalling!(u8 as i64);
-
-    // Some places Godot will pass along 64-bit numbers that are intended to be interpreted as unsigned
-    // integers despite Godot integers being signed by default.
-    impl_godot_marshalling!(u64 as i64; lossy);
-    impl_godot_marshalling!(f32 as f64; lossy);
-
-    unsafe impl<T> GodotFfi for *const T {
         ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
     }
 
-    unsafe impl<T> GodotFfi for *mut T {
+    unsafe impl GodotFfi for i64 {
+        fn variant_type() -> sys::VariantType {
+            sys::VariantType::Int
+        }
+
+        fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+            sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64
+        }
+
+        ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+    }
+
+    unsafe impl GodotFfi for f64 {
+        fn variant_type() -> sys::VariantType {
+            sys::VariantType::Float
+        }
+
+        fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+            sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_DOUBLE
+        }
+
         ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
     }
 
     unsafe impl GodotFfi for () {
+        fn variant_type() -> sys::VariantType {
+            sys::VariantType::Nil
+        }
+
         unsafe fn from_sys(_ptr: sys::GDExtensionTypePtr) -> Self {
             // Do nothing
         }
@@ -649,25 +534,6 @@ mod scalars {
             _call_type: super::PtrcallType,
         ) {
             // Do nothing
-        }
-    }
-
-    impl<T> GodotFuncMarshal for T
-    where
-        T: GodotFfi,
-    {
-        type Via = Self;
-        type FromViaError = Infallible;
-        type IntoViaError = Infallible;
-
-        #[inline]
-        fn try_from_via(via: Self::Via) -> Result<Self, Self::FromViaError> {
-            Ok(via)
-        }
-
-        #[inline]
-        fn try_into_via(self) -> Result<Self::Via, Self::IntoViaError> {
-            Ok(self)
         }
     }
 }

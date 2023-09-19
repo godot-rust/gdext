@@ -13,6 +13,8 @@ use sys::{ffi_methods, GodotFfi};
 
 use std::ops;
 
+use super::meta::impl_godot_as_self;
+
 /// Color built-in type, in floating-point RGBA format.
 ///
 /// Channel values are _typically_ in the range of 0 to 1, but this is not a requirement, and
@@ -315,8 +317,14 @@ impl Color {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Color {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Color
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+impl_godot_as_self!(Color);
 
 impl ApproxEq for Color {
     fn approx_eq(&self, other: &Self) -> bool {

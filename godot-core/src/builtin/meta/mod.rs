@@ -7,27 +7,120 @@
 pub mod registration;
 
 mod class_name;
+mod godot_compat;
 mod return_marshal;
 mod signature;
 
 pub use class_name::*;
+pub use godot_compat::*;
 #[doc(hidden)]
 pub use return_marshal::*;
 #[doc(hidden)]
 pub use signature::*;
 
 use godot_ffi as sys;
+use sys::{GodotFfi, GodotNullableFfi};
 
 use crate::builtin::*;
 use crate::engine::global;
 use registration::method::MethodParamOrReturnInfo;
 
-/// Stores meta-information about registered types or properties.
+/// Conversion of GodotFfi-types into/from [`Variant`].
+pub trait GodotFfiVariant: Sized + GodotFfi {
+    fn ffi_to_variant(&self) -> Variant;
+    fn ffi_from_variant(variant: &Variant) -> Result<Self, VariantConversionError>;
+}
+
+mod sealed {
+    // To ensure the user does not implement `GodotType` for their own types.
+
+    use godot_ffi::GodotNullableFfi;
+
+    use super::GodotType;
+    use crate::builtin::*;
+    use crate::obj::*;
+
+    pub trait Sealed {}
+
+    impl Sealed for Aabb {}
+    impl Sealed for Basis {}
+    impl Sealed for Callable {}
+    impl Sealed for Vector2 {}
+    impl Sealed for Vector3 {}
+    impl Sealed for Vector4 {}
+    impl Sealed for Vector2i {}
+    impl Sealed for Vector3i {}
+    impl Sealed for Vector4i {}
+    impl Sealed for Quaternion {}
+    impl Sealed for Color {}
+    impl Sealed for GodotString {}
+    impl Sealed for StringName {}
+    impl Sealed for NodePath {}
+    impl Sealed for PackedByteArray {}
+    impl Sealed for PackedInt32Array {}
+    impl Sealed for PackedInt64Array {}
+    impl Sealed for PackedFloat32Array {}
+    impl Sealed for PackedFloat64Array {}
+    impl Sealed for PackedStringArray {}
+    impl Sealed for PackedVector2Array {}
+    impl Sealed for PackedVector3Array {}
+    impl Sealed for PackedColorArray {}
+    impl Sealed for Plane {}
+    impl Sealed for Projection {}
+    impl Sealed for Rid {}
+    impl Sealed for Rect2 {}
+    impl Sealed for Rect2i {}
+    impl Sealed for Signal {}
+    impl Sealed for Transform2D {}
+    impl Sealed for Transform3D {}
+    impl Sealed for Dictionary {}
+    impl Sealed for bool {}
+    impl Sealed for i64 {}
+    impl Sealed for i32 {}
+    impl Sealed for i16 {}
+    impl Sealed for i8 {}
+    impl Sealed for u64 {}
+    impl Sealed for u32 {}
+    impl Sealed for u16 {}
+    impl Sealed for u8 {}
+    impl Sealed for f64 {}
+    impl Sealed for f32 {}
+    impl Sealed for () {}
+    impl Sealed for Variant {}
+    impl<T: GodotType> Sealed for Array<T> {}
+    impl<T: GodotClass> Sealed for RawGd<T> {}
+    impl<T: GodotClass> Sealed for Gd<T> {}
+    impl<T> Sealed for Option<T>
+    where
+        T: GodotType,
+        T::Ffi: GodotNullableFfi,
+    {
+    }
+}
+
+/// Types that can represent some Godot type.
 ///
-/// Filling this information properly is important so that Godot can use ptrcalls instead of varcalls
-/// (requires typed GDScript + sufficient information from the extension side)
-pub trait VariantMetadata {
-    fn variant_type() -> VariantType;
+/// This trait cannot be implemented for custom user types, for that you should see [`GodotCompatible`]
+/// instead.
+///
+/// Unlike [`GodotFfi`], types implementing this trait don't need to fully represent its corresponding Godot
+/// type. For instance [`i32`] does not implement [`GodotFfi`] because it cannot represent all values of
+/// Godot's `int` type, however it does implement `GodotType` because we can set the metadata of values with
+/// this type to indicate that they are 32 bits large.
+pub trait GodotType: GodotCompatible<Via = Self> + ToGodot + FromGodot + sealed::Sealed {
+    type Ffi: GodotFfiVariant;
+
+    fn to_ffi(&self) -> Self::Ffi;
+    fn into_ffi(self) -> Self::Ffi;
+    fn try_from_ffi(ffi: Self::Ffi) -> Option<Self>;
+
+    fn from_ffi(ffi: Self::Ffi) -> Self {
+        Self::try_from_ffi(ffi).unwrap()
+    }
+
+    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        Self::Ffi::default_param_metadata()
+    }
 
     fn class_name() -> ClassName {
         // If we use `ClassName::of::<()>()` then this type shows up as `(no base)` in documentation.
@@ -36,17 +129,13 @@ pub trait VariantMetadata {
 
     fn property_info(property_name: &str) -> PropertyInfo {
         PropertyInfo {
-            variant_type: Self::variant_type(),
+            variant_type: Self::Ffi::variant_type(),
             class_name: Self::class_name(),
             property_name: StringName::from(property_name),
             hint: global::PropertyHint::PROPERTY_HINT_NONE,
             hint_string: GodotString::new(),
             usage: global::PropertyUsageFlags::PROPERTY_USAGE_DEFAULT,
         }
-    }
-
-    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
     }
 
     fn argument_info(property_name: &str) -> MethodParamOrReturnInfo {
@@ -61,15 +150,43 @@ pub trait VariantMetadata {
     }
 }
 
-impl<T: VariantMetadata> VariantMetadata for Option<T> {
-    fn variant_type() -> VariantType {
-        T::variant_type()
+impl<T> GodotType for Option<T>
+where
+    T: GodotType,
+    T::Ffi: GodotNullableFfi,
+{
+    type Ffi = T::Ffi;
+
+    fn to_ffi(&self) -> Self::Ffi {
+        GodotNullableFfi::flatten_option(self.as_ref().map(|t| t.to_ffi()))
     }
 
-    fn class_name() -> ClassName {
-        T::class_name()
+    fn into_ffi(self) -> Self::Ffi {
+        GodotNullableFfi::flatten_option(self.map(|t| t.into_ffi()))
+    }
+
+    fn try_from_ffi(ffi: Self::Ffi) -> Option<Self> {
+        if ffi.is_null() {
+            return Some(None);
+        }
+
+        let t = GodotType::try_from_ffi(ffi);
+        t.map(Some)
+    }
+
+    fn from_ffi(ffi: Self::Ffi) -> Self {
+        if ffi.is_null() {
+            return None;
+        }
+
+        Some(GodotType::from_ffi(ffi))
     }
 }
+
+/// Stores meta-information about registered types or properties.
+///
+/// Filling this information properly is important so that Godot can use ptrcalls instead of varcalls
+/// (requires typed GDScript + sufficient information from the extension side)
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

@@ -17,6 +17,8 @@ pub use impls::*;
 pub use sys::{VariantOperator, VariantType};
 pub use variant_traits::*;
 
+use super::meta::{impl_godot_as_self, FromGodot, ToGodot};
+
 #[repr(C, align(8))]
 pub struct Variant {
     opaque: OpaqueVariant,
@@ -31,7 +33,7 @@ impl Variant {
     /// Create a variant holding a non-nil value.
     ///
     /// Equivalent to `value.to_variant()`.
-    pub fn from<T: ToVariant>(value: T) -> Self {
+    pub fn from<T: ToGodot>(value: T) -> Self {
         value.to_variant()
     }
 
@@ -41,14 +43,14 @@ impl Variant {
     ///
     /// # Panics
     /// When this variant holds a different type.
-    pub fn to<T: FromVariant>(&self) -> T {
+    pub fn to<T: FromGodot>(&self) -> T {
         T::from_variant(self)
     }
 
     /// Convert to type `T`, returning `Err` on failure.
     ///
     /// Equivalent to `T::try_from_variant(&self)`.
-    pub fn try_to<T: FromVariant>(&self) -> Result<T, VariantConversionError> {
+    pub fn try_to<T: FromGodot>(&self) -> Result<T, VariantConversionError> {
         T::try_from_variant(self)
     }
 
@@ -259,6 +261,10 @@ impl Variant {
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.
 // `std::mem::swap` is sufficient for returning a value.
 unsafe impl GodotFfi for Variant {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Nil
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
@@ -267,6 +273,11 @@ unsafe impl GodotFfi for Variant {
         result
     }
 }
+
+impl_godot_as_self!(
+    Variant,
+    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8
+);
 
 impl Clone for Variant {
     fn clone(&self) -> Self {

@@ -442,13 +442,18 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, class::attribute_godot_api)
 }
 
-/// Derive macro for [ToVariant](../builtin/trait.ToVariant.html) on structs or enums.
+#[proc_macro_derive(GodotCompatible)]
+pub fn derive_godot_compatible(input: TokenStream) -> TokenStream {
+    translate(input, derive::derive_godot_compatible)
+}
+
+/// Derive macro for [ToGodot](../builtin/meta/trait.ToGodot.html) on structs or enums.
 ///
 /// # Example
 ///
 /// ```no_run
 /// # use godot::prelude::*;
-/// #[derive(FromVariant, ToVariant, PartialEq, Debug)]
+/// #[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug)]
 /// struct StructNamed {
 ///     field1: String,
 ///     field2: i32,
@@ -470,18 +475,18 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// You can use the `#[skip]` attribute to ignore a field from being converted to `ToVariant`.
-#[proc_macro_derive(ToVariant, attributes(variant))]
-pub fn derive_to_variant(input: TokenStream) -> TokenStream {
-    translate(input, derive::derive_to_variant)
+#[proc_macro_derive(ToGodot, attributes(variant))]
+pub fn derive_to_godot(input: TokenStream) -> TokenStream {
+    translate(input, derive::derive_to_godot)
 }
 
-/// Derive macro for [FromVariant](../builtin/trait.FromVariant.html) on structs or enums.
+/// Derive macro for [FromGodot](../builtin/meta/trait.FromVariant.html) on structs or enums.
 ///
 /// # Example
 ///
 /// ```no_run
 /// # use godot::prelude::*;
-/// #[derive(FromVariant, ToVariant, PartialEq, Debug)]
+/// #[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug)]
 /// struct StructNamed {
 ///     field1: String,
 ///     field2: i32,
@@ -504,9 +509,9 @@ pub fn derive_to_variant(input: TokenStream) -> TokenStream {
 ///
 /// You can use the skip attribute to ignore a field from the provided variant and use `Default::default()`
 /// to get it instead.
-#[proc_macro_derive(FromVariant, attributes(variant))]
-pub fn derive_from_variant(input: TokenStream) -> TokenStream {
-    translate(input, derive::derive_from_variant)
+#[proc_macro_derive(FromGodot, attributes(variant))]
+pub fn derive_from_godot(input: TokenStream) -> TokenStream {
+    translate(input, derive::derive_from_godot)
 }
 
 /// Derive macro for [Property](../bind/property/trait.Property.html) on enums.

@@ -6,6 +6,7 @@
 
 use godot_ffi as sys;
 
+use crate::builtin::meta::ToGodot;
 use crate::builtin::*;
 use std::fmt;
 use sys::types::*;
@@ -439,6 +440,10 @@ macro_rules! impl_packed_array {
         }
 
         unsafe impl GodotFfi for $PackedArray {
+            fn variant_type() -> sys::VariantType {
+                sys::VariantType::$PackedArray
+            }
+
             ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
                 fn from_sys;
                 fn sys;
@@ -464,8 +469,9 @@ macro_rules! impl_packed_array {
                 init_fn(result.sys_mut());
                 result
             }
-
         }
+
+        $crate::builtin::meta::impl_godot_as_self!($PackedArray);
     }
 }
 

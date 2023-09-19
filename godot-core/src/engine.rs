@@ -6,10 +6,12 @@
 
 //! Godot engine classes and methods.
 
+use godot_ffi::GodotNullableFfi;
+
 // Re-exports of generated symbols
 use crate::builtin::{GodotString, NodePath};
 use crate::obj::dom::EngineDomain;
-use crate::obj::{Gd, GodotClass, Inherits, InstanceId};
+use crate::obj::{Gd, GodotClass, Inherits, InstanceId, RawGd};
 
 pub use crate::gen::central::global;
 pub use crate::gen::classes::*;
@@ -186,7 +188,7 @@ where
 // Utilities for crate
 
 pub(crate) fn debug_string<T: GodotClass>(
-    ptr: &Gd<T>,
+    ptr: &RawGd<T>,
     f: &mut std::fmt::Formatter<'_>,
     ty: &str,
 ) -> std::fmt::Result {
@@ -194,13 +196,15 @@ pub(crate) fn debug_string<T: GodotClass>(
         let class: GodotString = ptr.as_object(|obj| Object::get_class(obj));
 
         write!(f, "{ty} {{ id: {id}, class: {class} }}")
+    } else if ptr.is_null() {
+        write!(f, "{ty} {{ null }}")
     } else {
         write!(f, "{ty} {{ freed obj }}")
     }
 }
 
 pub(crate) fn display_string<T: GodotClass>(
-    ptr: &Gd<T>,
+    ptr: &RawGd<T>,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
     let string: GodotString = ptr.as_object(Object::to_string);
@@ -214,10 +218,14 @@ pub(crate) fn object_ptr_from_id(instance_id: InstanceId) -> sys::GDExtensionObj
 }
 
 pub(crate) fn ensure_object_alive(
-    instance_id: InstanceId,
+    instance_id: Option<InstanceId>,
     old_object_ptr: sys::GDExtensionObjectPtr,
     method_name: &'static str,
 ) {
+    let Some(instance_id) = instance_id else {
+        panic!("{method_name}: instance id is null")
+    };
+
     let new_object_ptr = object_ptr_from_id(instance_id);
 
     assert!(

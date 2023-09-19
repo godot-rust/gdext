@@ -13,7 +13,7 @@ type IoResult = std::io::Result<()>;
 
 /// Push with GDScript expr in string
 macro_rules! pushs {
-    ($inputs:ident; $GDScriptTy:expr, $RustTy:ty, $gdscript_val:expr, $rust_val:expr) => {
+    ($inputs:ident; $GDScriptTy:expr, $RustTy:ty, $gdscript_val:expr, $rust_val:expr $(; $($extra:tt)*)?) => {
         $inputs.push(Input {
             ident: stringify!($RustTy)
                 .to_ascii_lowercase()
@@ -23,6 +23,7 @@ macro_rules! pushs {
             gdscript_val: $gdscript_val,
             rust_ty: quote! { $RustTy },
             rust_val: quote! { $rust_val },
+            extra: quote! { $($($extra)*)? },
         });
     };
 }
@@ -36,6 +37,42 @@ macro_rules! push {
     ($inputs:ident; $GDScriptTy:expr, $RustTy:ty, $gdscript_val:expr, $rust_val:expr) => {
         pushs!($inputs; $GDScriptTy, $RustTy, stringify!($gdscript_val), $rust_val);
     };
+}
+
+macro_rules! push_newtype {
+    ($inputs:ident; $GDScriptTy:expr, $name:ident($T:ty), $val:expr) => {
+        push_newtype!($inputs; $GDScriptTy, $name($T), $val, $name($val));
+    };
+
+    ($inputs:ident; $GDScriptTy:expr, $name:ident($T:ty), $gdscript_val:expr, $rust_val:expr) => {
+        push_newtype!(@s $inputs; $GDScriptTy, $name($T), stringify!($gdscript_val), $rust_val);
+    };
+
+    (@s $inputs:ident; $GDScriptTy:expr, $name:ident($T:ty), $gdscript_val:expr, $rust_val:expr) => {
+        pushs!(
+            $inputs; $GDScriptTy, $name, $gdscript_val, $rust_val;
+
+            #[derive(Debug, Clone, PartialEq)]
+            pub struct $name($T);
+
+            impl godot::builtin::meta::GodotCompatible for $name {
+                type Via = $T;
+            }
+
+            impl godot::builtin::meta::ToGodot for $name {
+                #[allow(clippy::clone_on_copy)]
+                fn to_godot(&self) -> Self::Via {
+                    self.0.clone()
+                }
+            }
+
+            impl godot::builtin::meta::FromGodot for $name {
+                fn try_from_godot(via: Self::Via) -> Option<Self> {
+                    Some(Self(via))
+                }
+            }
+        );
+    }
 }
 
 // Edit this to change involved types
@@ -63,6 +100,27 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; Vector2i, Vector2i, Vector2i(-2147483648, 2147483647), Vector2i::new(-2147483648, 2147483647));
     push!(inputs; Vector3i, Vector3i, Vector3i(-1, -2147483648, 2147483647), Vector3i::new(-1, -2147483648, 2147483647));
     push!(inputs; Callable, Callable, Callable(), Callable::invalid());
+
+    push_newtype!(inputs; int, NewI64(i64), -922337203685477580);
+    push_newtype!(inputs; int, NewI32(i32), -2147483648);
+    push_newtype!(inputs; int, NewU32(u32), 4294967295);
+    push_newtype!(inputs; int, NewI16(i16), -32767);
+    push_newtype!(inputs; int, NewU16(u16), 65535);
+    push_newtype!(inputs; int, NewI8(i8), -128);
+    push_newtype!(inputs; int, NewU8(u8), 255);
+    push_newtype!(inputs; float, NewF32(f32), 12.5);
+    push_newtype!(inputs; float, NewF64(f64), 127.83156478);
+    push_newtype!(inputs; bool, NewBool(bool), true);
+    push_newtype!(inputs; Color, NewColor(Color), Color(0.7, 0.5, 0.3, 0.2), NewColor(Color::from_rgba(0.7, 0.5, 0.3, 0.2)));
+    push_newtype!(inputs; String, NewString(GodotString), "hello", NewString("hello".into()));
+    push_newtype!(inputs; StringName, NewStringName(StringName), &"hello", NewStringName("hello".into()));
+    push_newtype!(@s inputs; NodePath, NewNodePath(NodePath), r#"^"hello""#, NewNodePath("hello".into()));
+    push_newtype!(inputs; Vector2, NewVector2(Vector2), Vector2(12.5, -3.5), NewVector2(Vector2::new(12.5, -3.5)));
+    push_newtype!(inputs; Vector3, NewVector3(Vector3), Vector3(117.5, 100.0, -323.25), NewVector3(Vector3::new(117.5, 100.0, -323.25)));
+    push_newtype!(inputs; Vector4, NewVector4(Vector4), Vector4(-18.5, 24.75, -1.25, 777.875), NewVector4(Vector4::new(-18.5, 24.75, -1.25, 777.875)));
+    push_newtype!(inputs; Vector2i, NewVector2i(Vector2i), Vector2i(-2147483648, 2147483647), NewVector2i(Vector2i::new(-2147483648, 2147483647)));
+    push_newtype!(inputs; Vector3i, NewVector3i(Vector3i), Vector3i(-1, -2147483648, 2147483647), NewVector3i(Vector3i::new(-1, -2147483648, 2147483647)));
+    push_newtype!(inputs; Callable, NewCallable(Callable), Callable(), NewCallable(Callable::invalid()));
 
     // Data structures
     // TODO enable below, when GDScript has typed array literals, or find a hack with eval/lambdas
@@ -93,9 +151,11 @@ fn collect_inputs() -> Vec<Input> {
 fn main() {
     let inputs = collect_inputs();
     let methods = generate_rust_methods(&inputs);
+    let extras = inputs.iter().map(|input| &input.extra);
 
     let rust_tokens = quote::quote! {
         use godot::builtin::*;
+        use godot::builtin::meta::*;
         use godot::obj::InstanceId;
         use godot::engine::global::Error;
 
@@ -108,6 +168,8 @@ fn main() {
         impl GenFfi {
             #(#methods)*
         }
+
+        #(#extras)*
     };
 
     let rust_output_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen"));
@@ -162,6 +224,7 @@ struct Input {
     gdscript_val: &'static str,
     rust_ty: TokenStream,
     rust_val: TokenStream,
+    extra: TokenStream,
 }
 
 fn generate_rust_methods(inputs: &[Input]) -> Vec<TokenStream> {

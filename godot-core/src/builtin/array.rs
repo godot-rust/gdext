@@ -6,13 +6,14 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::meta::VariantMetadata;
 use crate::builtin::*;
 use crate::obj::Share;
 use crate::property::{Export, ExportInfo, Property, TypeStringHint};
 use std::fmt;
 use std::marker::PhantomData;
 use sys::{ffi_methods, interface_fn, GodotFfi};
+
+use super::meta::{FromGodot, GodotCompatible, GodotFfiVariant, GodotType, ToGodot};
 
 /// Godot's `Array` type.
 ///
@@ -27,7 +28,7 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 ///
 /// Godot also supports typed arrays, which are also just `Variant` arrays under the hood, but with
 /// runtime checks that no values of the wrong type are put into the array. We represent this as
-/// `Array<T>`, where the type `T` implements `VariantMetadata`, `FromVariant` and `ToVariant`.
+/// `Array<T>`, where the type `T` implements `VariantMetadata`, `FromGodot` and `ToGodot`.
 ///
 /// # Reference semantics
 ///
@@ -47,11 +48,11 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 /// concurrent modification on other threads (e.g. created through GDScript).
 
 // `T` must be restricted to `VariantMetadata` in the type, because `Drop` can only be implemented
-// for `T: VariantMetadata` because `drop()` requires `sys_mut()`, which is on the `GodotFfi`
+// for `T: GodotType` because `drop()` requires `sys_mut()`, which is on the `GodotFfi`
 // trait, whose `from_sys_init()` requires `Default`, which is only implemented for `T:
 // VariantMetadata`. Whew. This could be fixed by splitting up `GodotFfi` if desired.
 #[repr(C)]
-pub struct Array<T: VariantMetadata> {
+pub struct Array<T: GodotType> {
     opaque: sys::types::OpaqueArray,
     _phantom: PhantomData<T>,
 }
@@ -72,7 +73,7 @@ impl_builtin_froms!(VariantArray;
     PackedVector3Array => array_from_packed_vector3_array,
 );
 
-impl<T: VariantMetadata> Array<T> {
+impl<T: GodotType> Array<T> {
     fn from_opaque(opaque: sys::types::OpaqueArray) -> Self {
         // Note: type is not yet checked at this point, because array has not yet been initialized!
         Self {
@@ -231,13 +232,13 @@ impl<T: VariantMetadata> Array<T> {
     ///   from variants may fail.
     /// In the current implementation, both cases will produce a panic rather than undefined
     /// behavior, but this should not be relied upon.
-    unsafe fn assume_type<U: VariantMetadata>(self) -> Array<U> {
+    unsafe fn assume_type<U: GodotType>(self) -> Array<U> {
         // SAFETY: The memory layout of `TypedArray<T>` does not depend on `T`.
         unsafe { std::mem::transmute(self) }
     }
 }
 
-impl<T: VariantMetadata> Array<T> {
+impl<T: GodotType> Array<T> {
     /// Constructs an empty `Array`.
     pub fn new() -> Self {
         Self::default()
@@ -364,7 +365,7 @@ impl<T: VariantMetadata> Array<T> {
     }
 }
 
-impl<T: VariantMetadata + FromVariant> Array<T> {
+impl<T: GodotType + FromGodot> Array<T> {
     /// Returns an iterator over the elements of the `Array`. Note that this takes the array
     /// by reference but returns its elements by value, since they are internally converted from
     /// `Variant`.
@@ -468,7 +469,7 @@ impl<T: VariantMetadata + FromVariant> Array<T> {
     }
 }
 
-impl<T: VariantMetadata + ToVariant> Array<T> {
+impl<T: GodotType + ToGodot> Array<T> {
     /// Finds the index of an existing value in a sorted array using binary search. Equivalent of
     /// `bsearch` in GDScript.
     ///
@@ -595,7 +596,11 @@ impl<T: VariantMetadata + ToVariant> Array<T> {
 // - `from_arg_ptr`
 //   Arrays are properly initialized through a `from_sys` call, but the ref-count should be incremented
 //   as that is the callee's responsibility. Which we do by calling `std::mem::forget(array.clone())`.
-unsafe impl<T: VariantMetadata> GodotFfi for Array<T> {
+unsafe impl<T: GodotType> GodotFfi for Array<T> {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Array
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn from_sys;
         fn sys;
@@ -616,7 +621,27 @@ unsafe impl<T: VariantMetadata> GodotFfi for Array<T> {
     }
 }
 
-impl<T: VariantMetadata> fmt::Debug for Array<T> {
+impl<T: GodotType> GodotCompatible for Array<T> {
+    type Via = Self;
+}
+
+impl<T: GodotType> ToGodot for Array<T> {
+    fn to_godot(&self) -> Self::Via {
+        self.clone()
+    }
+
+    fn into_godot(self) -> Self::Via {
+        self
+    }
+}
+
+impl<T: GodotType> FromGodot for Array<T> {
+    fn try_from_godot(via: Self::Via) -> Option<Self> {
+        Some(via)
+    }
+}
+
+impl<T: GodotType> fmt::Debug for Array<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Going through `Variant` because there doesn't seem to be a direct way.
         write!(f, "{:?}", self.to_variant().stringify())
@@ -628,7 +653,7 @@ impl<T: VariantMetadata> fmt::Debug for Array<T> {
 ///
 /// To create a (mostly) independent copy instead, see [`Array::duplicate_shallow()`] and
 /// [`Array::duplicate_deep()`].
-impl<T: VariantMetadata> Clone for Array<T> {
+impl<T: GodotType> Clone for Array<T> {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid array, since we have a reference that keeps it alive.
         let array = unsafe {
@@ -645,19 +670,19 @@ impl<T: VariantMetadata> Clone for Array<T> {
     }
 }
 
-impl<T: VariantMetadata> Share for Array<T> {
+impl<T: GodotType> Share for Array<T> {
     fn share(&self) -> Self {
         self.clone()
     }
 }
 
-impl<T: VariantMetadata + TypeStringHint> TypeStringHint for Array<T> {
+impl<T: GodotType + TypeStringHint> TypeStringHint for Array<T> {
     fn type_string() -> String {
         format!("{}:{}", VariantType::Array as i32, T::type_string())
     }
 }
 
-impl<T: VariantMetadata> Property for Array<T> {
+impl<T: GodotType> Property for Array<T> {
     type Intermediate = Self;
 
     fn get_property(&self) -> Self::Intermediate {
@@ -669,7 +694,7 @@ impl<T: VariantMetadata> Property for Array<T> {
     }
 }
 
-impl<T: VariantMetadata + TypeStringHint> Export for Array<T> {
+impl<T: GodotType + TypeStringHint> Export for Array<T> {
     fn default_export_info() -> ExportInfo {
         ExportInfo {
             hint: crate::engine::global::PropertyHint::PROPERTY_HINT_TYPE_STRING,
@@ -684,7 +709,7 @@ impl Export for Array<Variant> {
     }
 }
 
-impl<T: VariantMetadata> Default for Array<T> {
+impl<T: GodotType> Default for Array<T> {
     #[inline]
     fn default() -> Self {
         let mut array = unsafe {
@@ -698,7 +723,7 @@ impl<T: VariantMetadata> Default for Array<T> {
     }
 }
 
-impl<T: VariantMetadata> Drop for Array<T> {
+impl<T: GodotType> Drop for Array<T> {
     #[inline]
     fn drop(&mut self) {
         unsafe {
@@ -708,17 +733,24 @@ impl<T: VariantMetadata> Drop for Array<T> {
     }
 }
 
-impl<T: VariantMetadata> VariantMetadata for Array<T> {
-    fn variant_type() -> VariantType {
-        VariantType::Array
+impl<T: GodotType> GodotType for Array<T> {
+    type Ffi = Self;
+
+    fn to_ffi(&self) -> Self::Ffi {
+        self.clone()
+    }
+
+    fn into_ffi(self) -> Self::Ffi {
+        self
+    }
+
+    fn try_from_ffi(ffi: Self::Ffi) -> Option<Self> {
+        Some(ffi)
     }
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Conversion traits
-
-impl<T: VariantMetadata> ToVariant for Array<T> {
-    fn to_variant(&self) -> Variant {
+impl<T: GodotType> GodotFfiVariant for Array<T> {
+    fn ffi_to_variant(&self) -> Variant {
         unsafe {
             Variant::from_var_sys_init(|variant_ptr| {
                 let array_to_variant = sys::builtin_fn!(array_to_variant);
@@ -726,10 +758,8 @@ impl<T: VariantMetadata> ToVariant for Array<T> {
             })
         }
     }
-}
 
-impl<T: VariantMetadata> FromVariant for Array<T> {
-    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+    fn ffi_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
         if variant.get_type() != Self::variant_type() {
             return Err(VariantConversionError::BadType);
         }
@@ -745,15 +775,18 @@ impl<T: VariantMetadata> FromVariant for Array<T> {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Conversion traits
+
 /// Creates a `Array` from the given Rust array.
-impl<T: VariantMetadata + ToVariant, const N: usize> From<&[T; N]> for Array<T> {
+impl<T: GodotType + ToGodot, const N: usize> From<&[T; N]> for Array<T> {
     fn from(arr: &[T; N]) -> Self {
         Self::from(&arr[..])
     }
 }
 
 /// Creates a `Array` from the given slice.
-impl<T: VariantMetadata + ToVariant> From<&[T]> for Array<T> {
+impl<T: GodotType + ToGodot> From<&[T]> for Array<T> {
     fn from(slice: &[T]) -> Self {
         let mut array = Self::new();
         let len = slice.len();
@@ -775,7 +808,7 @@ impl<T: VariantMetadata + ToVariant> From<&[T]> for Array<T> {
 }
 
 /// Creates a `Array` from an iterator.
-impl<T: VariantMetadata + ToVariant> FromIterator<T> for Array<T> {
+impl<T: GodotType + ToGodot> FromIterator<T> for Array<T> {
     fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
         let mut array = Self::new();
         array.extend(iter);
@@ -784,7 +817,7 @@ impl<T: VariantMetadata + ToVariant> FromIterator<T> for Array<T> {
 }
 
 /// Extends a `Array` with the contents of an iterator.
-impl<T: VariantMetadata + ToVariant> Extend<T> for Array<T> {
+impl<T: GodotType + ToGodot> Extend<T> for Array<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
         // Otherwise we could use it to pre-allocate based on `iter.size_hint()`.
@@ -798,7 +831,7 @@ impl<T: VariantMetadata + ToVariant> Extend<T> for Array<T> {
 }
 
 /// Converts this array to a strongly typed Rust vector.
-impl<T: VariantMetadata + FromVariant> From<&Array<T>> for Vec<T> {
+impl<T: GodotType + FromGodot> From<&Array<T>> for Vec<T> {
     fn from(array: &Array<T>) -> Vec<T> {
         let len = array.len();
         let mut vec = Vec::with_capacity(len);
@@ -816,12 +849,12 @@ impl<T: VariantMetadata + FromVariant> From<&Array<T>> for Vec<T> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-pub struct Iter<'a, T: VariantMetadata> {
+pub struct Iter<'a, T: GodotType> {
     array: &'a Array<T>,
     next_idx: usize,
 }
 
-impl<'a, T: VariantMetadata + FromVariant> Iterator for Iter<'a, T> {
+impl<'a, T: GodotType + FromGodot> Iterator for Iter<'a, T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -842,7 +875,7 @@ impl<'a, T: VariantMetadata + FromVariant> Iterator for Iter<'a, T> {
 }
 
 // TODO There's a macro for this, but it doesn't support generics yet; add support and use it
-impl<T: VariantMetadata> PartialEq for Array<T> {
+impl<T: GodotType> PartialEq for Array<T> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         unsafe {
@@ -855,7 +888,7 @@ impl<T: VariantMetadata> PartialEq for Array<T> {
     }
 }
 
-impl<T: VariantMetadata> PartialOrd for Array<T> {
+impl<T: GodotType> PartialOrd for Array<T> {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         let op_less = |lhs, rhs| unsafe {
@@ -920,7 +953,7 @@ macro_rules! varray {
     // Note: use to_variant() and not Variant::from(), as that works with both references and values
     ($($elements:expr),* $(,)?) => {
         {
-            use $crate::builtin::ToVariant as _;
+            use $crate::builtin::meta::ToGodot as _;
             let mut array = $crate::builtin::VariantArray::default();
             $(
                 array.push($elements.to_variant());
@@ -945,10 +978,10 @@ struct TypeInfo {
 }
 
 impl TypeInfo {
-    fn of<T: VariantMetadata>() -> Self {
+    fn of<T: GodotType>() -> Self {
         Self {
-            variant_type: T::variant_type(),
-            class_name: T::class_name().to_string_name(),
+            variant_type: <T::Via as GodotType>::Ffi::variant_type(),
+            class_name: T::Via::class_name().to_string_name(),
         }
     }
 

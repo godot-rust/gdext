@@ -8,13 +8,13 @@ use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use godot::bind::{godot_api, GodotClass};
-use godot::builtin::{
-    FromVariant, GodotString, StringName, ToVariant, Variant, VariantConversionError, Vector3,
-};
+use godot::builtin::meta::{FromGodot, ToGodot};
+use godot::builtin::{GodotString, StringName, Variant, VariantConversionError, Vector3};
 use godot::engine::{
     file_access, Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted, RefCountedVirtual,
 };
-use godot::obj::{Base, Gd, Inherits, InstanceId};
+use godot::obj::{Base, Gd, Inherits, InstanceId, RawGd};
+use godot::prelude::meta::GodotType;
 use godot::sys::{self, GodotFfi};
 
 use crate::framework::{expect_panic, itest, TestContext};
@@ -76,10 +76,12 @@ fn object_user_roundtrip_return() {
     let obj: Gd<RefcPayload> = Gd::new(user);
     assert_eq!(obj.bind().value, value);
 
-    let ptr = obj.sys();
+    let raw = obj.to_ffi();
+    let ptr = raw.sys();
     std::mem::forget(obj);
 
-    let obj2 = unsafe { Gd::<RefcPayload>::from_sys(ptr) };
+    let raw2 = unsafe { RawGd::<ObjPayload>::from_sys(ptr) };
+    let obj2 = Gd::from_ffi(raw2);
     assert_eq!(obj2.bind().value, value);
 } // drop
 
@@ -90,12 +92,14 @@ fn object_user_roundtrip_write() {
 
     let obj: Gd<RefcPayload> = Gd::new(user);
     assert_eq!(obj.bind().value, value);
+    let raw = obj.to_ffi();
 
-    let obj2 = unsafe {
-        Gd::<RefcPayload>::from_sys_init(|ptr| {
-            obj.move_return_ptr(sys::AsUninit::force_init(ptr), sys::PtrcallType::Standard)
+    let raw2 = unsafe {
+        RawGd::<ObjPayload>::from_sys_init(|ptr| {
+            raw.move_return_ptr(sys::AsUninit::force_init(ptr), sys::PtrcallType::Standard)
         })
     };
+    let obj2 = Gd::from_ffi(raw2);
     assert_eq!(obj2.bind().value, value);
 } // drop
 
@@ -107,9 +111,11 @@ fn object_engine_roundtrip() {
     obj.set_position(pos);
     assert_eq!(obj.get_position(), pos);
 
-    let ptr = obj.sys();
+    let raw = obj.to_ffi();
+    let ptr = raw.sys();
 
-    let obj2 = unsafe { Gd::<Node3D>::from_sys(ptr) };
+    let raw2 = unsafe { RawGd::<Node3D>::from_sys(ptr) };
+    let obj2 = Gd::from_ffi(raw2);
     assert_eq!(obj2.get_position(), pos);
     obj.free();
 }
@@ -386,7 +392,7 @@ fn object_engine_convert_variant_nil() {
 
     assert_eq!(
         Gd::<Area2D>::try_from_variant(&nil),
-        Err(VariantConversionError::VariantIsNil),
+        Err(VariantConversionError::BadValue),
         "try_from_variant(&nil)"
     );
 

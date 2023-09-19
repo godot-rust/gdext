@@ -9,6 +9,16 @@
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
+use super::meta::impl_godot_as_self;
+
 // TODO: Swap more inner math types with glam types
 // Note: ordered by enum ord in extension JSON
 impl_builtin_stub!(Signal, OpaqueSignal);
+
+impl_builtin_traits! {
+    for Signal {
+        Clone => signal_construct_copy;
+    }
+}
+
+impl_godot_as_self!(Signal);

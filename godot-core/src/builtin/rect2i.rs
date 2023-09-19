@@ -8,7 +8,7 @@ use std::cmp;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use super::{Rect2, RectSide, Vector2i};
+use super::{meta::impl_godot_as_self, Rect2, RectSide, Vector2i};
 
 /// 2D axis-aligned integer bounding box.
 ///
@@ -265,8 +265,14 @@ impl Rect2i {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Rect2i {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Rect2i
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+impl_godot_as_self!(Rect2i);
 
 impl std::fmt::Display for Rect2i {
     /// Formats `Rect2i` to match Godot's string representation.

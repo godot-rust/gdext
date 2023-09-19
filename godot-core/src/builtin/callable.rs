@@ -6,7 +6,8 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{inner, StringName, ToVariant, Variant, VariantArray};
+use crate::builtin::meta::{impl_godot_as_self, GodotType, ToGodot};
+use crate::builtin::{inner, StringName, Variant, VariantArray};
 use crate::engine::Object;
 use crate::obj::mem::Memory;
 use crate::obj::{Gd, GodotClass, InstanceId};
@@ -45,7 +46,7 @@ impl Callable {
         unsafe {
             sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(callable_from_object_method);
-                let args = [object.as_arg_ptr(), method.sys_const()];
+                let args = [object.to_ffi().as_arg_ptr(), method.sys_const()];
                 ctor(self_ptr, args.as_ptr());
             })
         }
@@ -190,7 +191,7 @@ impl Callable {
         // Increment refcount because we're getting a reference, and `InnerCallable::get_object` doesn't
         // increment the refcount.
         self.as_inner().get_object().map(|object| {
-            <Object as GodotClass>::Mem::maybe_inc_ref(&object);
+            <Object as GodotClass>::Mem::maybe_inc_ref(&object.raw);
             object
         })
     }
@@ -270,6 +271,10 @@ impl_builtin_traits! {
 // The `opaque` in `Callable` is just a pair of pointers, and requires no special initialization or cleanup
 // beyond what is done in `from_opaque` and `drop`. So using `*mut Opaque` is safe.
 unsafe impl GodotFfi for Callable {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Callable
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
@@ -278,6 +283,8 @@ unsafe impl GodotFfi for Callable {
         result
     }
 }
+
+impl_godot_as_self!(Callable);
 
 impl fmt::Debug for Callable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

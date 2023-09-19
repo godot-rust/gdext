@@ -11,6 +11,7 @@ use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
 use crate::builtin::inner;
+use crate::builtin::meta::impl_godot_as_self;
 
 use super::string_chars::validate_unicode_scalar_sequence;
 use super::{NodePath, StringName};
@@ -110,6 +111,10 @@ impl GodotString {
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(string.clone())`.
 unsafe impl GodotFfi for GodotString {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::String
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn from_sys;
         fn sys;
@@ -129,6 +134,8 @@ unsafe impl GodotFfi for GodotString {
         result
     }
 }
+
+impl_godot_as_self!(GodotString);
 
 impl_builtin_traits! {
     for GodotString {

@@ -13,6 +13,8 @@ use crate::builtin::{real, Aabb, Basis, Plane, Projection, RAffine3, Vector3};
 use std::fmt::Display;
 use std::ops::Mul;
 
+use super::meta::impl_godot_as_self;
+
 /// Affine 3D transform (3x4 matrix).
 ///
 /// Used for 3D linear transformations. Uses a basis + origin representation.
@@ -382,8 +384,14 @@ impl GlamConv for Transform3D {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Transform3D {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Transform3D
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+impl_godot_as_self!(Transform3D);
 
 #[cfg(test)]
 mod test {

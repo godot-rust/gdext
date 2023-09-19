@@ -9,9 +9,12 @@ use std::fmt::Debug;
 use godot_ffi as sys;
 use sys::{BuiltinMethodBind, ClassMethodBind, UtilityFunctionBind};
 
+// TODO:
+// separate arguments and return values, so that a type can be used in function arguments even if it doesn't
+// implement `ToGodot`, and the other way around for return values.
+
 use crate::builtin::meta::*;
-//use crate::builtin::meta::MethodParamOrReturnInfo;
-use crate::builtin::{FromVariant, ToVariant, Variant};
+use crate::builtin::Variant;
 use crate::obj::InstanceId;
 
 #[doc(hidden)]
@@ -107,14 +110,17 @@ macro_rules! impl_varcall_signature_for_tuple {
     (
         $PARAM_COUNT:literal;
         $R:ident
-        $(, $Pn:ident : $n:tt)* // $n cannot be literal if substituted as tuple index .0
+        $(, ($pn:ident, $n:tt) : $Pn:ident)* // $n cannot be literal if substituted as tuple index .0
     ) => {
         // R: FromVariantIndirect, Pn: ToVariant -> when calling engine APIs
         // R: ToVariant, Pn:
         #[allow(unused_variables)]
         impl<$R, $($Pn,)*> VarcallSignatureTuple for ($R, $($Pn,)*)
-            where $R: VariantMetadata + FromVariantIndirect + ToVariant + sys::GodotFuncMarshal + Debug,
-               $( $Pn: VariantMetadata + ToVariant + FromVariant + sys::GodotFuncMarshal + Debug, )*
+            where
+                $R: ToGodot + FromGodot + FromVariantIndirect + Debug,
+                $(
+                    $Pn: ToGodot + FromGodot + Debug,
+                )*
         {
             const PARAM_COUNT: usize = $PARAM_COUNT;
 
@@ -122,7 +128,7 @@ macro_rules! impl_varcall_signature_for_tuple {
             fn param_info(index: usize, param_name: &str) -> Option<MethodParamOrReturnInfo> {
                 match index {
                     $(
-                        $n => Some($Pn::argument_info(param_name)),
+                        $n => Some($Pn::Via::argument_info(param_name)),
                     )*
                     _ => None,
                 }
@@ -130,14 +136,14 @@ macro_rules! impl_varcall_signature_for_tuple {
 
             #[inline]
             fn return_info() -> Option<MethodParamOrReturnInfo> {
-                $R::return_info()
+                $R::Via::return_info()
             }
 
             #[inline]
             fn param_property_info(index: usize, param_name: &str) -> PropertyInfo {
                 match index {
                     $(
-                        $n => $Pn::property_info(param_name),
+                        $n => $Pn::Via::property_info(param_name),
                     )*
                     _ => unreachable!("property_info: unavailable for index {}", index),
                 }
@@ -166,21 +172,21 @@ macro_rules! impl_varcall_signature_for_tuple {
                 method_name: &'static str,
                 object_ptr: sys::GDExtensionObjectPtr,
                 maybe_instance_id: Option<InstanceId>, // if not static
-                args: Self::Params,
+                ($($pn,)*): Self::Params,
                 varargs: &[Variant],
             ) -> Self::Ret {
                 //$crate::out!("out_class_varcall: {method_name}");
 
                 // Note: varcalls are not safe from failing, if the happen through an object pointer -> validity check necessary.
                 if let Some(instance_id) = maybe_instance_id {
-                    crate::engine::ensure_object_alive(instance_id, object_ptr, method_name);
+                    crate::engine::ensure_object_alive(Some(instance_id), object_ptr, method_name);
                 }
 
                 let class_fn = sys::interface_fn!(object_method_bind_call);
 
                 let explicit_args = [
                     $(
-                        <$Pn as ToVariant>::to_variant(&args.$n),
+                        GodotFfiVariant::ffi_to_variant(&into_ffi($pn)),
                     )*
                 ];
 
@@ -208,13 +214,13 @@ macro_rules! impl_varcall_signature_for_tuple {
             #[inline]
             unsafe fn out_utility_ptrcall_varargs(
                 utility_fn: UtilityFunctionBind,
-                args: Self::Params,
+                ($($pn,)*): Self::Params,
                 varargs: &[Variant],
             ) -> Self::Ret {
                 //$crate::out!("out_utility_ptrcall_varargs: {method_name}");
                 let explicit_args: [Variant; $PARAM_COUNT] = [
                     $(
-                        <$Pn as ToVariant>::to_variant(&args.$n),
+                        GodotFfiVariant::ffi_to_variant(&into_ffi($pn)),
                     )*
                 ];
 
@@ -244,12 +250,12 @@ macro_rules! impl_varcall_signature_for_tuple {
 macro_rules! impl_ptrcall_signature_for_tuple {
     (
         $R:ident
-        $(, $Pn:ident : $n:tt)* // $n cannot be literal if substituted as tuple index .0
+        $(, ($pn:ident, $n:tt) : $Pn:ident)* // $n cannot be literal if substituted as tuple index .0
     ) => {
         #[allow(unused_variables)]
         impl<$R, $($Pn,)*> PtrcallSignatureTuple for ($R, $($Pn,)*)
-            where $R: sys::GodotFuncMarshal + Debug,
-               $( $Pn: sys::GodotFuncMarshal + Debug, )*
+            where $R: ToGodot + FromGodot + Debug,
+               $( $Pn: ToGodot + FromGodot + Debug, )*
         {
             type Params = ($($Pn,)*);
             type Ret = $R;
@@ -280,11 +286,11 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 method_name: &'static str,
                 object_ptr: sys::GDExtensionObjectPtr,
                 maybe_instance_id: Option<InstanceId>, // if not static
-                args: Self::Params,
+                ($($pn,)*): Self::Params,
             ) -> Self::Ret {
                 // $crate::out!("out_class_ptrcall: {method_name}");
                 if let Some(instance_id) = maybe_instance_id {
-                    crate::engine::ensure_object_alive(instance_id, object_ptr, method_name);
+                    crate::engine::ensure_object_alive(Some(instance_id), object_ptr, method_name);
                 }
 
                 let class_fn = sys::interface_fn!(object_method_bind_ptrcall);
@@ -292,7 +298,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 #[allow(clippy::let_unit_value)]
                 let marshalled_args = (
                     $(
-                        <$Pn as sys::GodotFuncMarshal>::try_into_via(args.$n).unwrap(),
+                        into_ffi($pn),
                     )*
                 );
 
@@ -311,13 +317,13 @@ macro_rules! impl_ptrcall_signature_for_tuple {
             unsafe fn out_builtin_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
                 builtin_fn: BuiltinMethodBind,
                 type_ptr: sys::GDExtensionTypePtr,
-                args: Self::Params,
+                ($($pn,)*): Self::Params,
             ) -> Self::Ret {
                 // $crate::out!("out_builtin_ptrcall: {method_name}");
                 #[allow(clippy::let_unit_value)]
                 let marshalled_args = (
                     $(
-                        <$Pn as sys::GodotFuncMarshal>::try_into_via(args.$n).unwrap(),
+                        into_ffi($pn),
                     )*
                 );
 
@@ -335,13 +341,13 @@ macro_rules! impl_ptrcall_signature_for_tuple {
             #[inline]
             unsafe fn out_utility_ptrcall(
                 utility_fn: UtilityFunctionBind,
-                args: Self::Params,
+                ($($pn,)*): Self::Params,
             ) -> Self::Ret {
                 // $crate::out!("out_utility_ptrcall: {method_name}");
                 #[allow(clippy::let_unit_value)]
                 let marshalled_args = (
                     $(
-                        <$Pn as sys::GodotFuncMarshal>::try_into_via(args.$n).unwrap(),
+                        into_ffi($pn),
                     )*
                 );
 
@@ -363,7 +369,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
 ///
 /// # Safety
 /// - It must be safe to dereference the pointer at `args_ptr.offset(N)` .
-unsafe fn varcall_arg<P: FromVariant, const N: isize>(
+unsafe fn varcall_arg<P: FromGodot, const N: isize>(
     args_ptr: *const sys::GDExtensionConstVariantPtr,
     method_name: &str,
 ) -> P {
@@ -379,7 +385,7 @@ unsafe fn varcall_arg<P: FromVariant, const N: isize>(
 /// - `ret` must be a pointer to an initialized `Variant`.
 /// - It must be safe to write a `Variant` once to `ret`.
 /// - It must be safe to write a `sys::GDExtensionCallError` once to `err`.
-unsafe fn varcall_return<R: ToVariant>(
+unsafe fn varcall_return<R: ToGodot>(
     ret_val: R,
     ret: sys::GDExtensionVariantPtr,
     err: *mut sys::GDExtensionCallError,
@@ -413,13 +419,17 @@ pub(crate) unsafe fn varcall_return_checked<R: ToVariant>(
 /// - It must be safe to dereference the address at `args_ptr.offset(N)` .
 /// - The pointer at `args_ptr.offset(N)` must follow the safety requirements as laid out in
 ///   [`GodotFuncMarshal::try_from_arg`][sys::GodotFuncMarshal::try_from_arg].
-unsafe fn ptrcall_arg<P: sys::GodotFuncMarshal, const N: isize>(
+unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
     args_ptr: *const sys::GDExtensionConstTypePtr,
     method_name: &str,
     call_type: sys::PtrcallType,
 ) -> P {
-    P::try_from_arg(sys::force_mut_ptr(*args_ptr.offset(N)), call_type)
-        .unwrap_or_else(|e| param_error::<P>(method_name, N as i32, &e))
+    let ffi = <P::Via as GodotType>::Ffi::from_arg_ptr(
+        sys::force_mut_ptr(*args_ptr.offset(N)),
+        call_type,
+    );
+
+    try_from_ffi(ffi).unwrap_or_else(|| param_error::<P>(method_name, N as i32, &"TODO"))
 }
 
 /// Moves `ret_val` into `ret`.
@@ -427,15 +437,14 @@ unsafe fn ptrcall_arg<P: sys::GodotFuncMarshal, const N: isize>(
 /// # Safety
 /// `ret_val`, `ret`, and `call_type` must follow the safety requirements as laid out in
 /// [`GodotFuncMarshal::try_return`](sys::GodotFuncMarshal::try_return).
-unsafe fn ptrcall_return<R: sys::GodotFuncMarshal + std::fmt::Debug>(
+unsafe fn ptrcall_return<R: ToGodot>(
     ret_val: R,
     ret: sys::GDExtensionTypePtr,
-    method_name: &str,
+    _method_name: &str,
     call_type: sys::PtrcallType,
 ) {
-    ret_val
-        .try_return(ret, call_type)
-        .unwrap_or_else(|ret_val| return_error::<R>(method_name, &ret_val))
+    let val = into_ffi(ret_val);
+    val.move_return_ptr(ret, call_type);
 }
 
 fn param_error<P>(method_name: &str, index: i32, arg: &impl Debug) -> ! {
@@ -445,7 +454,7 @@ fn param_error<P>(method_name: &str, index: i32, arg: &impl Debug) -> ! {
     );
 }
 
-fn return_error<R>(method_name: &str, arg: &impl Debug) -> ! {
+fn _return_error<R>(method_name: &str, arg: &impl Debug) -> ! {
     let return_ty = std::any::type_name::<R>();
     panic!("{method_name}: return type {return_ty} is unable to store value {arg:?}",);
 }
@@ -456,7 +465,7 @@ fn check_varcall_error<T>(
     explicit_args: &[T],
     varargs: &[Variant],
 ) where
-    T: Debug + ToVariant,
+    T: Debug + ToGodot,
 {
     if err.error == sys::GDEXTENSION_CALL_OK {
         return;
@@ -488,11 +497,7 @@ trait FromVariantIndirect {
     fn convert(variant: Variant) -> Self;
 }
 
-impl FromVariantIndirect for () {
-    fn convert(_variant: Variant) -> Self {}
-}
-
-impl<T: FromVariant> FromVariantIndirect for T {
+impl<T: FromGodot> FromVariantIndirect for T {
     fn convert(variant: Variant) -> Self {
         T::from_variant(&variant)
     }
@@ -503,33 +508,33 @@ impl<T: FromVariant> FromVariantIndirect for T {
 // For example, RenderingServer::environment_set_volumetric_fog() has 14 parameters. We may need to extend this if the API adds more such methods.
 
 impl_varcall_signature_for_tuple!(0; R);
-impl_varcall_signature_for_tuple!(1; R, P0: 0);
-impl_varcall_signature_for_tuple!(2; R, P0: 0, P1: 1);
-impl_varcall_signature_for_tuple!(3; R, P0: 0, P1: 1, P2: 2);
-impl_varcall_signature_for_tuple!(4; R, P0: 0, P1: 1, P2: 2, P3: 3);
-impl_varcall_signature_for_tuple!(5; R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4);
-impl_varcall_signature_for_tuple!(6; R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5);
-impl_varcall_signature_for_tuple!(7; R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6);
-impl_varcall_signature_for_tuple!(8; R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7);
-impl_varcall_signature_for_tuple!(9; R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8);
-impl_varcall_signature_for_tuple!(10; R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9);
-impl_varcall_signature_for_tuple!(11; R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9, P10: 10);
-impl_varcall_signature_for_tuple!(12; R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9, P10: 10, P11: 11);
-impl_varcall_signature_for_tuple!(13; R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9, P10: 10, P11: 11, P12: 12);
-impl_varcall_signature_for_tuple!(14; R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9, P10: 10, P11: 11, P12: 12, P13: 13);
+impl_varcall_signature_for_tuple!(1; R, (p0, 0): P0);
+impl_varcall_signature_for_tuple!(2; R, (p0, 0): P0, (p1, 1): P1);
+impl_varcall_signature_for_tuple!(3; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2);
+impl_varcall_signature_for_tuple!(4; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3);
+impl_varcall_signature_for_tuple!(5; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4);
+impl_varcall_signature_for_tuple!(6; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5);
+impl_varcall_signature_for_tuple!(7; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6);
+impl_varcall_signature_for_tuple!(8; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7);
+impl_varcall_signature_for_tuple!(9; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8);
+impl_varcall_signature_for_tuple!(10; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9);
+impl_varcall_signature_for_tuple!(11; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10);
+impl_varcall_signature_for_tuple!(12; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11);
+impl_varcall_signature_for_tuple!(13; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11, (p12, 12): P12);
+impl_varcall_signature_for_tuple!(14; R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11, (p12, 12): P12, (p13, 13): P13);
 
 impl_ptrcall_signature_for_tuple!(R);
-impl_ptrcall_signature_for_tuple!(R, P0: 0);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9, P10: 10);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9, P10: 10, P11: 11);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9, P10: 10, P11: 11, P12: 12);
-impl_ptrcall_signature_for_tuple!(R, P0: 0, P1: 1, P2: 2, P3: 3, P4: 4, P5: 5, P6: 6, P7: 7, P8: 8, P9: 9, P10: 10, P11: 11, P12: 12, P13: 13);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11, (p12, 12): P12);
+impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11, (p12, 12): P12, (p13, 13): P13);

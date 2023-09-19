@@ -334,21 +334,22 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
         }
         #index_enum_impl
 
-        impl sys::GodotFuncMarshal for #enum_name {
+        impl crate::builtin::meta::GodotCompatible for #enum_name {
             type Via = i64;
-            type FromViaError = sys::PrimitiveConversionError<i64, i32>;
-            type IntoViaError = std::convert::Infallible;
-
-            fn try_from_via(via: Self::Via) -> std::result::Result<Self, Self::FromViaError> {
-                let err = sys::PrimitiveConversionError::new(via);
-                let ord = i32::try_from(via).map_err(|_| err)?;
-                <Self as crate::obj::EngineEnum>::try_from_ord(ord).ok_or(err)
         }
 
-            fn try_into_via(self) -> std::result::Result<Self::Via, Self::IntoViaError> {
-                Ok(<Self as crate::obj::EngineEnum>::ord(self).into())
+        impl crate::builtin::meta::ToGodot for #enum_name {
+            fn to_godot(&self) -> Self::Via {
+                <Self as crate::obj::EngineEnum>::ord(*self) as i64
             }
         }
+
+        impl crate::builtin::meta::FromGodot for #enum_name {
+            fn try_from_godot(via: Self::Via) -> Option<Self> {
+                <Self as crate::obj::EngineEnum>::try_from_ord(i32::try_from(via).ok()?)
+            }
+        }
+
         #bitfield_ops
     }
 }

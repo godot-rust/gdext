@@ -4,6 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot::obj::RawGd;
+use godot::prelude::meta::GodotType;
 use godot::prelude::{godot_api, Gd, GodotClass, Node, Object, RefCounted};
 use godot::sys::GodotFfi;
 
@@ -12,9 +14,11 @@ use crate::framework::itest;
 #[itest]
 fn option_some_sys_conversion() {
     let v = Some(Object::new_alloc());
-    let ptr = v.sys();
+    let v_raw = v.to_ffi();
+    let ptr = v_raw.sys();
 
-    let v2 = unsafe { Option::<Gd<Object>>::from_sys(ptr) };
+    let v2_raw = unsafe { RawGd::<Object>::from_sys(ptr) };
+    let v2 = Option::<Gd<Object>>::from_ffi(v2_raw);
     assert_eq!(v2, v);
 
     // We're testing this behavior.
@@ -24,10 +28,12 @@ fn option_some_sys_conversion() {
 
 #[itest]
 fn option_none_sys_conversion() {
-    let v = None;
-    let ptr = v.sys();
+    let v: Option<Gd<Object>> = None;
+    let v_raw = v.to_ffi();
+    let ptr = v_raw.sys();
 
-    let v2 = unsafe { Option::<Gd<Object>>::from_sys(ptr) };
+    let v2_raw = unsafe { RawGd::<Object>::from_sys(ptr) };
+    let v2 = Option::<Gd<Object>>::from_ffi(v2_raw);
     assert_eq!(v2, v);
 }
 

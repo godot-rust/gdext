@@ -15,7 +15,7 @@ fn has_attr_skip(attributes: &[venial::Attribute]) -> bool {
     has_attr(attributes, "variant", "skip")
 }
 
-pub fn derive_from_variant(decl: Declaration) -> ParseResult<TokenStream> {
+pub fn derive_from_godot(decl: Declaration) -> ParseResult<TokenStream> {
     let DeclInfo {
         where_,
         generic_params,
@@ -24,8 +24,8 @@ pub fn derive_from_variant(decl: Declaration) -> ParseResult<TokenStream> {
     } = decl_get_info(&decl);
 
     let mut body = quote! {
-        let root = variant.try_to::<::godot::builtin::Dictionary>()?;
-        let root = root.get(#name_string).ok_or(::godot::builtin::VariantConversionError::BadType)?;
+        let root = variant.try_to::<::godot::builtin::Dictionary>().ok()?;
+        let root = root.get(#name_string)?;
     };
 
     match decl {
@@ -52,7 +52,7 @@ pub fn derive_from_variant(decl: Declaration) -> ParseResult<TokenStream> {
                         _ if has_attr_skip(&enum_v.attributes) => {
                             quote! {
                                 if root == Variant::nil() {
-                                    return Ok(Self::default());
+                                    return Some(Self::default());
                                 }
                             }
                         }
@@ -60,7 +60,7 @@ pub fn derive_from_variant(decl: Declaration) -> ParseResult<TokenStream> {
                             quote! {
                                 let child = root.try_to::<String>();
                                 if child == Ok(String::from(#variant_name_string)) {
-                                    return Ok(Self::#variant_name);
+                                    return Some(Self::#variant_name);
                                 }
                             }
                         }
@@ -92,7 +92,7 @@ pub fn derive_from_variant(decl: Declaration) -> ParseResult<TokenStream> {
                 body = quote! {
                     #body
                     #matches
-                    Err(::godot::builtin::VariantConversionError::MissingValue)
+                    None
                 };
             }
         }
@@ -103,10 +103,11 @@ pub fn derive_from_variant(decl: Declaration) -> ParseResult<TokenStream> {
 
     let gen = generic_params.as_ref().map(|x| x.as_inline_args());
     Ok(quote! {
-        impl #generic_params ::godot::builtin::FromVariant for #name #gen #where_ {
-            fn try_from_variant(
-                variant: &::godot::builtin::Variant
-            ) -> Result<Self, ::godot::builtin::VariantConversionError> {
+        impl #generic_params ::godot::builtin::meta::FromGodot for #name #gen #where_ {
+            fn try_from_godot(
+                variant: ::godot::builtin::Variant
+            ) -> Option<Self> {
+                let variant = &variant;
                 #body
             }
         }
@@ -127,21 +128,20 @@ fn make_named_struct(
         } else {
             (
                 quote! {
-                    let #ident = root.get(#string_ident)
-                        .ok_or(::godot::builtin::VariantConversionError::MissingValue)?;
+                    let #ident = root.get(#string_ident)?;
                 },
-                quote! { #ident: #ident.try_to()? },
+                quote! { #ident: #ident.try_to().ok()? },
             )
         }
     });
     let (set_idents, set_self): (Vec<_>, Vec<_>) = fields.unzip();
     *body = quote! {
         #body
-        let root = root.try_to::<::godot::builtin::Dictionary>()?;
+        let root = root.try_to::<::godot::builtin::Dictionary>().ok()?;
         #(
             #set_idents
         )*
-        Ok(Self { #(#set_self,)* })
+        Some(Self { #(#set_self,)* })
     }
 }
 
@@ -161,9 +161,9 @@ fn make_tuple_struct(
                 }
             } else {
                 quote! {
-                    let #ident = root.pop_front()
-                                     .ok_or(::godot::builtin::VariantConversionError::MissingValue)?
-                                     .try_to::<#field_type>()?;
+                    let #ident = root.pop_front()?
+                                     .try_to::<#field_type>()
+                                     .ok()?;
                 }
             },
         )
@@ -171,11 +171,11 @@ fn make_tuple_struct(
     let (idents, ident_set): (Vec<_>, Vec<_>) = ident_and_set.unzip();
     *body = quote! {
         #body
-        let mut root = root.try_to::<::godot::builtin::VariantArray>()?;
+        let mut root = root.try_to::<::godot::builtin::VariantArray>().ok()?;
         #(
             #ident_set
         )*
-        Ok(Self(
+        Some(Self(
             #(#idents,)*
         ))
     };
@@ -183,12 +183,12 @@ fn make_tuple_struct(
 
 fn make_new_type_struct(body: &mut TokenStream, fields: venial::TupleStructFields) {
     *body = if has_attr_skip(&fields.fields.first().unwrap().0.attributes) {
-        quote! { Ok(Self::default()) }
+        quote! { Some(Self::default()) }
     } else {
         quote! {
             #body
-            let root = root.try_to()?;
-            Ok(Self(root))
+            let root = root.try_to().ok()?;
+            Some(Self(root))
         }
     }
 }
@@ -196,7 +196,7 @@ fn make_new_type_struct(body: &mut TokenStream, fields: venial::TupleStructField
 fn make_unit_struct(body: &mut TokenStream) {
     *body = quote! {
         #body
-        return Ok(Self);
+        return Some(Self);
     }
 }
 
@@ -209,7 +209,7 @@ fn make_enum_new_type(
     quote! {
         if let Ok(child) = root.try_to::<::godot::builtin::Dictionary>() {
             if let Some(variant) = child.get(#variant_name_string) {
-                return Ok(Self::#variant_name(variant.try_to::<#field_type>()?));
+                return Some(Self::#variant_name(variant.try_to::<#field_type>().ok()?));
             }
         }
     }
@@ -225,7 +225,7 @@ fn make_enum_new_type_skipped(
         if let Ok(child) = root.try_to::<::godot::builtin::Dictionary>() {
             if let Some(v) = child.get(#variant_name_string) {
                 if v.is_nil() {
-                    return Ok(Self::#variant_name(
+                    return Some(Self::#variant_name(
                         <#field_type as Default>::default(),
                     ));
                 }
@@ -248,9 +248,9 @@ fn make_enum_tuple(
             }
         } else {
             quote! {
-                let #ident = variant.pop_front()
-                                    .ok_or(::godot::builtin::VariantConversionError::MissingValue)?
-                                    .try_to::<#field_type>()?;
+                let #ident = variant.pop_front()?
+                                    .try_to::<#field_type>()
+                                    .ok()?;
             }
         };
         (ident.to_token_stream(), set_ident)
@@ -261,9 +261,9 @@ fn make_enum_tuple(
         let child = root.try_to::<::godot::builtin::Dictionary>();
         if let Ok(child) = child {
             if let Some(variant) = child.get(#variant_name_string) {
-                let mut variant = variant.try_to::<::godot::builtin::VariantArray>()?;
+                let mut variant = variant.try_to::<::godot::builtin::VariantArray>().ok()?;
                 #(#set_idents)*
-                return Ok(Self::#variant_name(#(#idents ,)*));
+                return Some(Self::#variant_name(#(#idents ,)*));
             }
         }
     }
@@ -283,9 +283,9 @@ fn make_enum_named(
             }
         } else {
             quote! {
-                let #field_name = variant.get(#field_name_string)
-                    .ok_or(::godot::builtin::VariantConversionError::MissingValue)?
-                    .try_to::<#field_type>()?;
+                let #field_name = variant.get(#field_name_string)?
+                    .try_to::<#field_type>()
+                    .ok()?;
             }
         };
         (field_name.to_token_stream(), set_field)
@@ -295,11 +295,11 @@ fn make_enum_named(
     quote! {
         if let Ok(root) = root.try_to::<::godot::builtin::Dictionary>() {
             if let Some(variant) = root.get(#variant_name_string) {
-                let variant = variant.try_to::<::godot::builtin::Dictionary>()?;
+                let variant = variant.try_to::<::godot::builtin::Dictionary>().ok()?;
                 #(
                     #set_fields
                 )*
-                return Ok(Self::#variant_name {
+                return Some(Self::#variant_name {
                     #( #fields, )*
                 });
             }

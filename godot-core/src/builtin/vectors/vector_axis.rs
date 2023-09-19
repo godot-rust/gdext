@@ -4,10 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::builtin::meta::{FromGodot, GodotCompatible, ToGodot};
 use crate::builtin::{real, Vector2, Vector2i, Vector3, Vector3i, Vector4, Vector4i};
 use crate::obj::EngineEnum;
-use godot_ffi as sys;
-use sys::{ffi_methods, GodotFfi};
 
 /// Access vector components in different order.
 ///
@@ -98,10 +97,20 @@ impl EngineEnum for Vector2Axis {
     }
 }
 
-// SAFETY:
-// This type is represented as `Self` in Godot, so `*mut Self` is sound.
-unsafe impl GodotFfi for Vector2Axis {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+impl GodotCompatible for Vector2Axis {
+    type Via = i64;
+}
+
+impl ToGodot for Vector2Axis {
+    fn to_godot(&self) -> Self::Via {
+        self.ord() as i64
+    }
+}
+
+impl FromGodot for Vector2Axis {
+    fn try_from_godot(via: Self::Via) -> Option<Self> {
+        Self::try_from_ord(via as i32)
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -136,10 +145,20 @@ impl EngineEnum for Vector3Axis {
     }
 }
 
-// SAFETY:
-// This type is represented as `Self` in Godot, so `*mut Self` is sound.
-unsafe impl GodotFfi for Vector3Axis {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+impl GodotCompatible for Vector3Axis {
+    type Via = i64;
+}
+
+impl ToGodot for Vector3Axis {
+    fn to_godot(&self) -> Self::Via {
+        self.ord() as i64
+    }
+}
+
+impl FromGodot for Vector3Axis {
+    fn try_from_godot(via: Self::Via) -> Option<Self> {
+        Self::try_from_ord(via as i32)
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -177,10 +196,20 @@ impl EngineEnum for Vector4Axis {
     }
 }
 
-// SAFETY:
-// This type is represented as `Self` in Godot, so `*mut Self` is sound.
-unsafe impl GodotFfi for Vector4Axis {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+impl GodotCompatible for Vector4Axis {
+    type Via = i64;
+}
+
+impl ToGodot for Vector4Axis {
+    fn to_godot(&self) -> Self::Via {
+        self.ord() as i64
+    }
+}
+
+impl FromGodot for Vector4Axis {
+    fn try_from_godot(via: Self::Via) -> Option<Self> {
+        Self::try_from_ord(via as i32)
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

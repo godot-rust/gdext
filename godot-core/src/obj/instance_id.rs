@@ -4,10 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::VariantMetadata;
-use crate::builtin::{FromVariant, ToVariant, Variant, VariantConversionError};
-use godot_ffi as sys;
-use godot_ffi::{ffi_methods, GodotFfi, VariantType};
+use crate::builtin::meta::{FromGodot, GodotCompatible, ToGodot};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::num::NonZeroU64;
 
@@ -77,23 +74,19 @@ impl Debug for InstanceId {
     }
 }
 
-// SAFETY:
-// This type is represented as `Self` in Godot, so `*mut Self` is sound.
-unsafe impl GodotFfi for InstanceId {
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+impl GodotCompatible for InstanceId {
+    type Via = u64;
 }
 
-impl FromVariant for InstanceId {
-    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-        i64::try_from_variant(variant)
-            .and_then(|i| InstanceId::try_from_i64(i).ok_or(VariantConversionError::BadValue))
+impl ToGodot for InstanceId {
+    fn to_godot(&self) -> Self::Via {
+        self.value.get()
     }
 }
 
-impl ToVariant for InstanceId {
-    fn to_variant(&self) -> Variant {
-        let int = self.to_i64();
-        int.to_variant()
+impl FromGodot for InstanceId {
+    fn try_from_godot(via: Self::Via) -> Option<Self> {
+        Self::try_from_u64(via)
     }
 }
 
@@ -121,13 +114,3 @@ impl ToVariant for Option<InstanceId> {
     }
 }
 */
-
-impl VariantMetadata for InstanceId {
-    fn variant_type() -> VariantType {
-        VariantType::Int
-    }
-
-    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT64
-    }
-}

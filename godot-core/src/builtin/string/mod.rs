@@ -12,33 +12,34 @@ mod node_path;
 mod string_chars;
 mod string_name;
 
-use godot_ffi::VariantType;
 pub use godot_string::*;
 pub use node_path::*;
 pub use string_name::*;
 
-use super::{meta::VariantMetadata, FromVariant, ToVariant, Variant, VariantConversionError};
+use super::meta::{FromGodot, GodotCompatible, ToGodot};
 
-impl ToVariant for &str {
-    fn to_variant(&self) -> Variant {
-        GodotString::from(*self).to_variant()
+impl GodotCompatible for &str {
+    type Via = GodotString;
+}
+
+impl ToGodot for &str {
+    fn to_godot(&self) -> Self::Via {
+        GodotString::from(*self)
     }
 }
 
-impl ToVariant for String {
-    fn to_variant(&self) -> Variant {
-        GodotString::from(self).to_variant()
+impl GodotCompatible for String {
+    type Via = GodotString;
+}
+
+impl ToGodot for String {
+    fn to_godot(&self) -> Self::Via {
+        GodotString::from(self)
     }
 }
 
-impl FromVariant for String {
-    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-        Ok(GodotString::try_from_variant(variant)?.to_string())
-    }
-}
-
-impl VariantMetadata for String {
-    fn variant_type() -> VariantType {
-        VariantType::String
+impl FromGodot for String {
+    fn try_from_godot(via: Self::Via) -> Option<Self> {
+        Some(via.to_string())
     }
 }

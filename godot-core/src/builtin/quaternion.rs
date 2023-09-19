@@ -11,6 +11,8 @@ use crate::builtin::{inner, real, Basis, EulerOrder, RQuat, Vector3};
 
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
+use super::meta::impl_godot_as_self;
+
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
@@ -248,8 +250,14 @@ impl Mul<Quaternion> for Quaternion {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Quaternion {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Quaternion
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+impl_godot_as_self!(Quaternion);
 
 impl std::fmt::Display for Quaternion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
