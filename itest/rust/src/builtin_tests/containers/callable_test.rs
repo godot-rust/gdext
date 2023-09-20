@@ -138,6 +138,37 @@ mod custom_callable {
     use std::sync::{Arc, Mutex};
 
     #[itest]
+    fn callable_from_fn() {
+        let callable = Callable::from_fn("sum", sum);
+
+        assert!(callable.is_valid());
+        assert!(!callable.is_null());
+        assert!(callable.is_custom());
+        assert!(callable.object().is_none());
+
+        let sum1 = callable.callv(varray![1, 2, 4, 8]);
+        assert_eq!(sum1, 15.to_variant());
+
+        let sum2 = callable.callv(varray![5]);
+        assert_eq!(sum2, 5.to_variant());
+    }
+
+    #[itest]
+    fn callable_from_fn_eq() {
+        let a = Callable::from_fn("sum", sum);
+        let b = a.clone();
+        let c = Callable::from_fn("sum", sum);
+
+        assert_eq!(a, b, "same function, same instance -> equal");
+        assert_ne!(a, c, "same function, different instance -> not equal");
+    }
+
+    fn sum(args: &[&Variant]) -> Result<Variant, ()> {
+        let sum: i32 = args.iter().map(|arg| arg.to::<i32>()).sum();
+        Ok(sum.to_variant())
+    }
+
+    #[itest]
     fn callable_custom_invoke() {
         let my_rust_callable = Adder::new(0);
         let callable = Callable::from_custom(my_rust_callable);
