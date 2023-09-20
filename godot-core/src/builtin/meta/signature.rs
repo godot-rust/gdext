@@ -393,6 +393,7 @@ unsafe fn varcall_return<R: ToVariant>(
 ///
 /// # Safety
 /// See [`varcall_return`].
+#[cfg(since_api = "4.2")] // unused before
 pub(crate) unsafe fn varcall_return_checked<R: ToVariant>(
     ret_val: Result<R, ()>, // TODO Err should be custom CallError enum
     ret: sys::GDExtensionVariantPtr,

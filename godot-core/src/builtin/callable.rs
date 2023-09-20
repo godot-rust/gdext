@@ -6,7 +6,7 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{inner, StringName, ToVariant, Variant, VariantArray};
+use crate::builtin::{inner, GodotString, StringName, ToVariant, Variant, VariantArray};
 use crate::engine::Object;
 use crate::obj::mem::Memory;
 use crate::obj::{Gd, GodotClass, InstanceId};
@@ -51,30 +51,28 @@ impl Callable {
         }
     }
 
-    /// Create a callable representing a Rust function.
-    // #[cfg(since_api = "4.2")]
+    /// Create a highly configurable callable from Rust.
+    ///
+    /// See [`RustCallable`] for requirements on the type.
+    #[cfg(since_api = "4.2")]
     pub fn from_custom<C: RustCallable>(callable: C) -> Self {
-        // Double box could be avoided if we propagate C through all functions.
-        let wrapper = CallableUserdata {
-            callable: Box::new(callable),
-        };
-        Self::from_custom_inner(Box::new(wrapper))
-    }
+        // Could theoretically use `dyn` but would need:
+        // - double boxing
+        // - a type-erased workaround for PartialEq supertrait (which has a `Self` type parameter and thus is not object-safe)
+        let wrapper = CallableUserdata { callable };
 
-    // #[cfg(since_api = "4.2")]
-    fn from_custom_inner(callable: Box<CallableUserdata>) -> Self {
         let mut info = sys::GDExtensionCallableCustomInfo {
-            callable_userdata: Box::into_raw(callable) as *mut std::ffi::c_void,
+            callable_userdata: Box::into_raw(Box::new(wrapper)) as *mut std::ffi::c_void,
             token: ptr::null_mut(),
             object: ptr::null_mut(),
-            call_func: Some(rust_callable_call),
-            is_valid_func: None,
-            free_func: Some(rust_callable_destroy),
-            hash_func: Some(rust_callable_hash),
-            equal_func: Some(rust_callable_equal),
-            // < is only used in niche scenarios and default is usually good enough, see https://github.com/godotengine/godot/issues/81901.
+            call_func: Some(rust_callable_call::<C>),
+            is_valid_func: None, // could be customized, but no real use case yet.
+            free_func: Some(rust_callable_destroy::<C>),
+            hash_func: Some(rust_callable_hash::<C>),
+            equal_func: Some(rust_callable_equal::<C>),
+            // Op < is only used in niche scenarios and default is usually good enough, see https://github.com/godotengine/godot/issues/81901.
             less_than_func: None,
-            to_string_func: Some(rust_callable_to_string),
+            to_string_func: Some(rust_callable_to_string::<C>),
         };
 
         unsafe {
@@ -251,38 +249,46 @@ impl fmt::Display for Callable {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Callbacks for custom implementations
 
-// #[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")]
 use custom_callable::*;
 
-// #[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")]
 pub use custom_callable::RustCallable;
 
-// #[cfg(since_api = "4.2")]
+#[cfg(since_api = "4.2")]
 mod custom_callable {
     use super::*;
-    use crate::builtin::GodotString;
     use std::hash::Hash;
 
-    pub struct CallableUserdata {
-        pub callable: Box<dyn RustCallable>,
+    pub struct CallableUserdata<C: RustCallable> {
+        pub callable: C,
     }
 
-    impl CallableUserdata {
-        unsafe fn inner_from_raw<'a>(void_ptr: *mut std::ffi::c_void) -> &'a dyn RustCallable {
-            let ptr = void_ptr as *mut CallableUserdata;
-            &(*ptr).callable
+    impl<C: RustCallable> CallableUserdata<C> {
+        /// # Safety
+        /// Returns an unbounded reference. `void_ptr` must be a valid pointer to a `CallableUserdata`.
+        unsafe fn inner_from_raw<'a>(void_ptr: *mut std::ffi::c_void) -> &'a mut C {
+            let ptr = void_ptr as *mut CallableUserdata<C>;
+            &mut (*ptr).callable
         }
     }
 
-    pub trait RustCallable:
-        'static + Sized + PartialEq + Hash + fmt::Display + Send + Sync
-    where
-        Self: Sized,
-    {
+    /// Represents a custom callable object defined in Rust.
+    ///
+    /// This trait has a single method, `invoke`, which is called upon invocation.
+    ///
+    /// Since callables can be invoked from anywhere, they must be self-contained (`'static`) and thread-safe (`Send + Sync`).
+    /// They also should implement `Display` for the Godot string representation.
+    /// Furthermore, `PartialEq` and `Hash` are required for equality checks and usage as a key in a `Dictionary`.
+    pub trait RustCallable: 'static + PartialEq + Hash + fmt::Display + Send + Sync {
+        /// Invokes the callable with the given arguments as `Variant` references.
+        ///
+        /// Return `Ok(...)` if the call succeeded, and `Err(())` otherwise.
+        /// Error handling is mostly needed in case argument number or types mismatch.
         fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()>;
     }
 
-    pub unsafe extern "C" fn rust_callable_call(
+    pub unsafe extern "C" fn rust_callable_call<C: RustCallable>(
         callable_userdata: *mut std::ffi::c_void,
         p_args: *const sys::GDExtensionConstVariantPtr,
         p_argument_count: sys::GDExtensionInt,
@@ -292,51 +298,55 @@ mod custom_callable {
         let arg_refs: &[&Variant] =
             Variant::unbounded_refs_from_sys(p_args, p_argument_count as usize);
 
-        let mut c = CallableUserdata::inner_from_raw(callable_userdata);
+        let c: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
 
         let result = c.invoke(arg_refs);
         crate::builtin::meta::varcall_return_checked(result, r_return, r_error);
     }
 
-    pub unsafe extern "C" fn rust_callable_destroy(callable_userdata: *mut std::ffi::c_void) {
-        let rust_ptr = callable_userdata as *mut CallableUserdata;
+    pub unsafe extern "C" fn rust_callable_destroy<C: RustCallable>(
+        callable_userdata: *mut std::ffi::c_void,
+    ) {
+        let rust_ptr = callable_userdata as *mut CallableUserdata<C>;
         let _drop = Box::from_raw(rust_ptr);
     }
 
-    pub unsafe extern "C" fn rust_callable_hash(callable_userdata: *mut std::ffi::c_void) -> u32 {
-        let c = CallableUserdata::inner_from_raw(callable_userdata);
+    pub unsafe extern "C" fn rust_callable_hash<C: RustCallable>(
+        callable_userdata: *mut std::ffi::c_void,
+    ) -> u32 {
+        let c: &C = CallableUserdata::<C>::inner_from_raw(callable_userdata);
 
         // Just cut off top bits, not best-possible hash.
         sys::hash_value(c) as u32
     }
 
-    pub unsafe extern "C" fn rust_callable_equal(
+    pub unsafe extern "C" fn rust_callable_equal<C: RustCallable>(
         callable_userdata_a: *mut std::ffi::c_void,
         callable_userdata_b: *mut std::ffi::c_void,
     ) -> sys::GDExtensionBool {
-        let a = CallableUserdata::inner_from_raw(callable_userdata_a);
-        let b = CallableUserdata::inner_from_raw(callable_userdata_b);
+        let a: &C = CallableUserdata::inner_from_raw(callable_userdata_a);
+        let b: &C = CallableUserdata::inner_from_raw(callable_userdata_b);
 
         (a == b) as sys::GDExtensionBool
     }
 
-    pub unsafe extern "C" fn rust_callable_less(
-        callable_userdata_a: *mut std::ffi::c_void,
-        callable_userdata_b: *mut std::ffi::c_void,
-    ) -> sys::GDExtensionBool {
-        let a = CallableUserdata::inner_from_raw(callable_userdata_a);
-        let b = CallableUserdata::inner_from_raw(callable_userdata_b);
+    // pub unsafe extern "C" fn rust_callable_less<C: RustCallable>(
+    //     callable_userdata_a: *mut std::ffi::c_void,
+    //     callable_userdata_b: *mut std::ffi::c_void,
+    // ) -> sys::GDExtensionBool {
+    //     let a: &C = CallableUserdata::inner_from_raw(callable_userdata_a);
+    //     let b: &C = CallableUserdata::inner_from_raw(callable_userdata_b);
+    //
+    //     (a < b) as sys::GDExtensionBool
+    // }
 
-        (a < b) as sys::GDExtensionBool
-    }
-
-    pub unsafe extern "C" fn rust_callable_to_string(
+    pub unsafe extern "C" fn rust_callable_to_string<C: RustCallable>(
         callable_userdata: *mut std::ffi::c_void,
         r_is_valid: *mut sys::GDExtensionBool,
         r_out: sys::GDExtensionStringPtr,
     ) {
-        let c = CallableUserdata::inner_from_raw(callable_userdata);
-        let s = StringName::from(c.to_string());
+        let c: &C = CallableUserdata::inner_from_raw(callable_userdata);
+        let s = GodotString::from(c.to_string());
 
         s.move_string_ptr(r_out);
 

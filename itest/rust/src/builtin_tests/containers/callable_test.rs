@@ -6,9 +6,7 @@
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::inner::InnerCallable;
-use godot::builtin::{
-    varray, Callable, GodotString, StringName, ToVariant, Variant, VariantOperator,
-};
+use godot::builtin::{varray, Callable, GodotString, StringName, ToVariant, Variant};
 use godot::engine::{Node2D, Object};
 use godot::obj::Gd;
 
@@ -128,14 +126,20 @@ fn callable_call_engine() {
     obj.free();
 }
 
-// #[cfg(since_api = "4.2")]
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Tests and infrastructure for custom callables
+
+#[cfg(since_api = "4.2")]
 mod custom_callable {
     use super::*;
     use godot::builtin::Dictionary;
+    use std::fmt;
+    use std::hash::Hash;
+    use std::sync::{Arc, Mutex};
 
     #[itest]
     fn callable_custom_invoke() {
-        let my_rust_callable = Adder { sum: 0 };
+        let my_rust_callable = Adder::new(0);
         let callable = Callable::from_custom(my_rust_callable);
 
         assert!(callable.is_valid());
@@ -152,31 +156,117 @@ mod custom_callable {
 
     #[itest]
     fn callable_custom_to_string() {
-        let my_rust_callable = Adder { sum: 0 };
+        let my_rust_callable = Adder::new(-2);
         let callable = Callable::from_custom(my_rust_callable);
 
-        println!("to_string: {}", callable);
-        println!("equal: {}", callable == callable);
-        println!("equal2: {}", callable.to_variant() == callable.to_variant());
-        println!("hash: {}", callable.hash());
+        let variant = callable.to_variant();
+        assert_eq!(variant.stringify(), GodotString::from("Adder(sum=-2)"));
     }
 
     #[itest]
-    fn callable_custom_equal() {
-        let a = Callable::from_custom(Adder { sum: 0 });
-        let b = Callable::from_custom(Adder { sum: 0 });
-        println!("equal: {}", a == b);
-        println!("equal2: {}", a.to_variant() == b.to_variant());
+    fn callable_custom_eq() {
+        // Godot only invokes custom equality function if the operands are not the same instance of the Callable.
+
+        let at = Tracker::new();
+        let bt = Tracker::new();
+        let ct = Tracker::new();
+
+        let a = Callable::from_custom(Adder::new_tracked(3, at.clone()));
+        let b = Callable::from_custom(Adder::new_tracked(3, bt.clone()));
+        let c = Callable::from_custom(Adder::new_tracked(4, ct.clone()));
+
+        assert_eq!(a, a);
+        assert_eq!(
+            eq_count(&at),
+            0,
+            "if it's the same Callable, Godot does not invoke custom eq"
+        );
+
+        assert_eq!(a, b);
+        assert_eq!(eq_count(&at), 1);
+        assert_eq!(eq_count(&bt), 1);
+
+        assert_ne!(a, c);
+        assert_eq!(eq_count(&at), 2);
+        assert_eq!(eq_count(&ct), 1);
+
+        assert_eq!(a.to_variant(), b.to_variant(), "equality inside Variant");
+        assert_eq!(eq_count(&at), 3);
+        assert_eq!(eq_count(&bt), 2);
+
+        assert_ne!(a.to_variant(), c.to_variant(), "inequality inside Variant");
+        assert_eq!(eq_count(&at), 4);
+        assert_eq!(eq_count(&ct), 2);
+    }
+
+    #[itest]
+    fn callable_custom_eq_hash() {
+        // Godot only invokes custom equality function if the operands are not the same instance of the Callable.
+
+        let at = Tracker::new();
+        let bt = Tracker::new();
+
+        let a = Callable::from_custom(Adder::new_tracked(3, at.clone()));
+        let b = Callable::from_custom(Adder::new_tracked(3, bt.clone()));
 
         let mut dict = Dictionary::new();
 
-        dict.insert(a, "hello");
-        dict.insert(b, "hi");
-    }
+        dict.set(a, "hello");
+        assert_eq!(hash_count(&at), 1, "hash needed for a dict key");
+        assert_eq!(eq_count(&at), 0, "eq not needed if dict bucket is empty");
 
+        dict.set(b, "hi");
+        assert_eq!(hash_count(&at), 1, "hash for a untouched if b is inserted");
+        assert_eq!(hash_count(&bt), 1, "hash needed for b dict key");
+        assert_eq!(eq_count(&at), 1, "hash collision, eq for a needed");
+        assert_eq!(eq_count(&bt), 1, "hash collision, eq for b needed");
+    }
 
     struct Adder {
         sum: i32,
+
+        // Track usage of PartialEq and Hash
+        tracker: Arc<Mutex<Tracker>>,
+    }
+
+    impl Adder {
+        fn new(sum: i32) -> Self {
+            Self {
+                sum,
+                tracker: Tracker::new(),
+            }
+        }
+
+        fn new_tracked(sum: i32, tracker: Arc<Mutex<Tracker>>) -> Self {
+            Self { sum, tracker }
+        }
+    }
+
+    impl PartialEq for Adder {
+        fn eq(&self, other: &Self) -> bool {
+            let mut guard = self.tracker.lock().unwrap();
+            guard.eq_counter += 1;
+
+            let mut guard = other.tracker.lock().unwrap();
+            guard.eq_counter += 1;
+
+            self.sum == other.sum
+        }
+    }
+
+    impl Hash for Adder {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            let mut guard = self.tracker.lock().unwrap();
+            guard.hash_counter += 1;
+
+            self.sum.hash(state);
+        }
+    }
+
+    impl fmt::Display for Adder {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "Adder(sum={})", self.sum)
+        }
     }
 
     impl godot::builtin::RustCallable for Adder {
@@ -188,4 +278,28 @@ mod custom_callable {
             Ok(self.sum.to_variant())
         }
     }
+
+    struct Tracker {
+        eq_counter: usize,
+        hash_counter: usize,
+    }
+
+    impl Tracker {
+        fn new() -> Arc<Mutex<Self>> {
+            Arc::new(Mutex::new(Self {
+                eq_counter: 0,
+                hash_counter: 0,
+            }))
+        }
+    }
+
+    fn eq_count(tracker: &Arc<Mutex<Tracker>>) -> usize {
+        tracker.lock().unwrap().eq_counter
+    }
+
+    fn hash_count(tracker: &Arc<Mutex<Tracker>>) -> usize {
+        tracker.lock().unwrap().hash_counter
+    }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------

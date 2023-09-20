@@ -234,7 +234,9 @@ impl Variant {
     }
 
     /// # Safety
-    ///
+    /// `variant_ptr_array` must be a valid pointer to an array of `length` variant pointers.
+    /// The caller is responsible of keeping the backing storage alive while the unbounded references exist.
+    #[cfg(since_api = "4.2")] // unused before
     pub(crate) unsafe fn unbounded_refs_from_sys<'a>(
         variant_ptr_array: *const sys::GDExtensionConstVariantPtr,
         length: usize,
