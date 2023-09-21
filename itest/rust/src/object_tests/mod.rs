@@ -5,6 +5,7 @@
  */
 
 mod base_test;
+mod class_rename_test;
 mod object_test;
 mod property_test;
 mod singleton_test;

@@ -21,7 +21,10 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     let fields = parse_fields(class)?;
 
     let class_name = &class.name;
-    let class_name_str = class.name.to_string();
+    let class_name_str: String = struct_cfg
+        .rename
+        .map_or_else(|| class.name.clone(), |rename| rename)
+        .to_string();
     let class_name_cstr = util::cstr_u8_slice(&class_name_str);
     let class_name_obj = util::class_name_obj(class_name);
 
@@ -108,6 +111,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
     let mut has_generated_init = false;
     let mut is_tool = false;
     let mut is_editor_plugin = false;
+    let mut rename: Option<Ident> = None;
 
     // #[class] attribute on struct
     if let Some(mut parser) = KvParser::parse(&class.attributes, "class")? {
@@ -127,6 +131,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
         if parser.handle_alone_ident("editor_plugin")?.is_some() {
             is_editor_plugin = true;
         }
+        rename = parser.handle_ident("rename")?;
 
         parser.finish()?;
     }
@@ -136,6 +141,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
         has_generated_init,
         is_tool,
         is_editor_plugin,
+        rename,
     })
 }
 
@@ -216,6 +222,7 @@ struct ClassAttributes {
     has_generated_init: bool,
     is_tool: bool,
     is_editor_plugin: bool,
+    rename: Option<Ident>,
 }
 
 fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {

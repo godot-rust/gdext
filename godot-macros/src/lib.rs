@@ -332,6 +332,30 @@ use crate::util::ident;
 ///
 /// This should usually be combined with `#[class(tool)]` so that the code you write will actually run in the
 /// editor.
+///
+/// # Class Renaming
+///
+/// You may want to have structs with the same name. With Rust, this is allowed using `mod`. However in GDScript,
+/// there are no modules, namespaces, or any such disambiguation.  Therefore, you need to change the names before they
+/// can get to Godot. You can use the `rename` key while defining your `GodotClass` for this.
+///
+/// ```
+/// mod animal {
+///     # use godot::prelude::*;
+///     #[derive(GodotClass)]
+///     #[class(init, rename=AnimalToad)]
+///     pub struct Toad {}
+/// }
+///
+/// mod npc {
+///     # use godot::prelude::*;
+///     #[derive(GodotClass)]
+///     #[class(init, rename=NpcToad)]
+///     pub struct Toad {}
+/// }
+/// ```
+///
+/// These classes will appear in the Godot editor and GDScript as "AnimalToad" or "NpcToad".
 #[proc_macro_derive(GodotClass, attributes(class, base, var, export, init, signal))]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)
