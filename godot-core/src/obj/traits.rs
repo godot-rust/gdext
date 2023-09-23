@@ -6,6 +6,7 @@
 
 use crate::builder::ClassBuilder;
 use crate::builtin::GodotString;
+use crate::init::InitLevel;
 use crate::obj::Base;
 
 use crate::builtin::meta::ClassName;
@@ -34,6 +35,12 @@ where
     /// Defines the memory strategy.
     type Mem: mem::Memory;
 
+    /// During which initialization level this class is available/should be initialized with Godot.
+    ///
+    /// Is `None` if the class has complicated initialization requirements, and generally cannot be inherited
+    /// from.
+    const INIT_LEVEL: Option<InitLevel>;
+
     /// The name of the class, under which it is registered in Godot.
     ///
     /// This may deviate from the Rust struct name: `HttpRequest::class_name().as_str() == "HTTPRequest"`.
@@ -60,6 +67,7 @@ unsafe impl GodotClass for () {
     type Base = ();
     type Declarer = dom::EngineDomain;
     type Mem = mem::ManualMemory;
+    const INIT_LEVEL: Option<InitLevel> = None;
 
     fn class_name() -> ClassName {
         ClassName::none()

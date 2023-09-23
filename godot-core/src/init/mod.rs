@@ -92,12 +92,12 @@ fn gdext_on_level_init(level: InitLevel) {
             }
             InitLevel::Scene => {
                 sys::load_class_method_table(sys::ClassApiLevel::Scene);
-                crate::auto_register_classes();
             }
             InitLevel::Editor => {
                 sys::load_class_method_table(sys::ClassApiLevel::Editor);
             }
         }
+        crate::auto_register_classes(level);
     }
 }
 

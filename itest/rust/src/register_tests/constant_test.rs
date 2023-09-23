@@ -112,6 +112,7 @@ impl ::godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
                 raw: ::godot::private::callbacks::register_user_binds::<HasOtherConstants>,
             },
         },
+        init_level: HasOtherConstants::INIT_LEVEL,
     }
 );
 

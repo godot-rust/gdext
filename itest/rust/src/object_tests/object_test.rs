@@ -890,3 +890,12 @@ fn double_use_reference() {
     double_use.free();
     emitter.free();
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// There isn't a good way to test editor plugins, but we can at least declare one to ensure that the macro
+// compiles.
+#[cfg(since_api = "4.1")]
+#[derive(GodotClass)]
+#[class(base = EditorPlugin, editor_plugin)]
+struct CustomEditorPlugin;

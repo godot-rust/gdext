@@ -71,9 +71,15 @@ pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
 
     match class_name {
         // Hardcoded cases that are not accessible.
-        | "JavaClassWrapper" // only on Android.
-        | "JavaScriptBridge" // only on WASM.
-        | "ThemeDB" // lazily loaded; TODO enable this.
+        // Only on Android.
+        | "JavaClassWrapper"
+        | "JNISingleton"
+        | "JavaClass"
+        // Only on WASM.
+        | "JavaScriptBridge"
+        | "JavaScriptObject"
+        // lazily loaded; TODO enable this.
+        | "ThemeDB" 
 
         // Thread APIs.
         | "Thread"
@@ -124,7 +130,6 @@ fn is_class_experimental(class_name: &TyName) -> bool {
         | "NavigationRegion3D"
         | "NavigationServer2D"
         | "NavigationServer3D"
-        | "ProjectSettings"
         | "SkeletonModification2D"
         | "SkeletonModification2DCCDIK"
         | "SkeletonModification2DFABRIK"

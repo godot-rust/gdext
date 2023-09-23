@@ -506,6 +506,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
 
     let constructor = make_constructor(class, ctx);
     let api_level = util::get_api_level(class);
+    let init_level = api_level.to_init_level();
 
     let FnDefinitions {
         functions: methods,
@@ -618,6 +619,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
                 type Base = #base_ty;
                 type Declarer = crate::obj::dom::EngineDomain;
                 type Mem = crate::obj::mem::#memory;
+                const INIT_LEVEL: Option<crate::init::InitLevel> = #init_level;
 
                 fn class_name() -> ClassName {
                     ClassName::from_ascii_cstr(#class_name_cstr)

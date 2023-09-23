@@ -168,6 +168,9 @@ pub mod private {
         use std::io::Write;
         std::io::stdout().flush().expect("flush stdout");
     }
+
+    /// Ensure `T` is an editor plugin.
+    pub const fn is_editor_plugin<T: crate::obj::Inherits<crate::engine::EditorPlugin>>() {}
 }
 
 macro_rules! generate_gdextension_api_version {

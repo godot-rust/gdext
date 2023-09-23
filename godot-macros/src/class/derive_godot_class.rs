@@ -33,6 +33,20 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     let prv = quote! { ::godot::private };
     let godot_exports_impl = make_property_impl(class_name, &fields);
 
+    let editor_plugin = if struct_cfg.is_editor_plugin {
+        quote! {
+            ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
+                class_name: #class_name_obj,
+                component: #prv::PluginComponent::EditorPlugin,
+                init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
+            });
+
+            const _: () = #prv::is_editor_plugin::<#class_name>();
+        }
+    } else {
+        quote! {}
+    };
+
     let (godot_init_impl, create_fn);
     if struct_cfg.has_generated_init {
         godot_init_impl = make_godot_init_impl(class_name, fields);
@@ -49,6 +63,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
             type Base = #base_class;
             type Declarer = ::godot::obj::dom::UserDomain;
             type Mem = <Self::Base as ::godot::obj::GodotClass>::Mem;
+            const INIT_LEVEL: Option<::godot::init::InitLevel> = <#base_class as ::godot::obj::GodotClass>::INIT_LEVEL;
 
             fn class_name() -> ::godot::builtin::meta::ClassName {
                 ::godot::builtin::meta::ClassName::from_ascii_cstr(#class_name_cstr)
@@ -66,7 +81,10 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 generated_create_fn: #create_fn,
                 free_fn: #prv::callbacks::free::<#class_name>,
             },
+            init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
         });
+
+        #editor_plugin
 
         #prv::class_macros::#inherits_macro!(#class_name);
     })
@@ -89,6 +107,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
     let mut base_ty = ident("RefCounted");
     let mut has_generated_init = false;
     let mut is_tool = false;
+    let mut is_editor_plugin = false;
 
     // #[class] attribute on struct
     if let Some(mut parser) = KvParser::parse(&class.attributes, "class")? {
@@ -104,6 +123,11 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
             is_tool = true;
         }
 
+        // TODO: better error message when using in Godot 4.0
+        if parser.handle_alone_ident("editor_plugin")?.is_some() {
+            is_editor_plugin = true;
+        }
+
         parser.finish()?;
     }
 
@@ -111,6 +135,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
         base_ty,
         has_generated_init,
         is_tool,
+        is_editor_plugin,
     })
 }
 
@@ -190,6 +215,7 @@ struct ClassAttributes {
     base_ty: Ident,
     has_generated_init: bool,
     is_tool: bool,
+    is_editor_plugin: bool,
 }
 
 fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {

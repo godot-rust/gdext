@@ -6,6 +6,8 @@
 
 #![allow(dead_code)] // FIXME
 
+use crate::init::InitLevel;
+use crate::log;
 use crate::obj::*;
 use crate::private::as_storage;
 use crate::storage::InstanceStorage;
@@ -29,6 +31,7 @@ use std::{fmt, ptr};
 pub struct ClassPlugin {
     pub class_name: ClassName,
     pub component: PluginComponent,
+    pub init_level: Option<InitLevel>,
 }
 
 /// Type-erased function object, holding a `register_class` function.
@@ -109,6 +112,9 @@ pub enum PluginComponent {
             p_name: sys::GDExtensionConstStringNamePtr,
         ) -> sys::GDExtensionClassCallVirtual,
     },
+
+    #[cfg(since_api = "4.1")]
+    EditorPlugin,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -120,6 +126,8 @@ struct ClassRegistrationInfo {
     generated_register_fn: Option<ErasedRegisterFn>,
     user_register_fn: Option<ErasedRegisterFn>,
     godot_params: sys::GDExtensionClassCreationInfo,
+    init_level: InitLevel,
+    is_editor_plugin: bool,
 }
 
 /// Registers a class with static type information.
@@ -128,7 +136,8 @@ pub fn register_class<
         + cap::ImplementsGodotVirtual
         + cap::GodotToString
         + cap::GodotNotification
-        + cap::GodotRegisterClass,
+        + cap::GodotRegisterClass
+        + GodotClass,
 >() {
     // TODO: provide overloads with only some trait impls
 
@@ -155,22 +164,33 @@ pub fn register_class<
             raw: callbacks::register_class_by_builder::<T>,
         }),
         godot_params,
+        init_level: T::INIT_LEVEL.unwrap_or_else(|| {
+            panic!("Unknown initialization level for class {}", T::class_name())
+        }),
+        is_editor_plugin: false,
     });
 }
 
 /// Lets Godot know about all classes that have self-registered through the plugin system.
-pub fn auto_register_classes() {
-    out!("Auto-register classes...");
+pub fn auto_register_classes(init_level: InitLevel) {
+    out!("Auto-register classes at level `{init_level:?}`...");
 
     // Note: many errors are already caught by the compiler, before this runtime validation even takes place:
     // * missing #[derive(GodotClass)] or impl GodotClass for T
     // * duplicate impl GodotInit for T
     //
-
     let mut map = HashMap::<ClassName, ClassRegistrationInfo>::new();
 
     crate::private::iterate_plugins(|elem: &ClassPlugin| {
         //out!("* Plugin: {elem:#?}");
+        match elem.init_level {
+            None => {
+                log::godot_error!("Unknown initialization level for class {}", elem.class_name);
+                return;
+            }
+            Some(elem_init_level) if elem_init_level != init_level => return,
+            _ => (),
+        }
 
         let name = elem.class_name;
         let class_info = map
@@ -183,11 +203,14 @@ pub fn auto_register_classes() {
     //out!("Class-map: {map:#?}");
 
     for info in map.into_values() {
-        out!("Register class:   {}", info.class_name);
+        out!(
+            "Register class:   {} at level `{init_level:?}`",
+            info.class_name
+        );
         register_class_raw(info);
     }
 
-    out!("All classes auto-registered.");
+    out!("All classes for level `{init_level:?}` auto-registered.");
 }
 
 /// Populate `c` with all the relevant data from `component` (depending on component type).
@@ -226,6 +249,10 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             c.godot_params.to_string_func = user_to_string_fn;
             c.godot_params.notification_func = user_on_notification_fn;
             c.godot_params.get_virtual_func = Some(get_virtual_fn);
+        }
+        #[cfg(since_api = "4.1")]
+        PluginComponent::EditorPlugin => {
+            c.is_editor_plugin = true;
         }
     }
     // out!("|   reg (after):     {c:?}");
@@ -282,6 +309,13 @@ fn register_class_raw(info: ClassRegistrationInfo) {
     if let Some(register_fn) = info.user_register_fn {
         (register_fn.raw)(&mut class_builder);
     }
+
+    #[cfg(since_api = "4.1")]
+    if info.is_editor_plugin {
+        unsafe { interface_fn!(editor_add_plugin)(class_name.string_sys()) };
+    }
+    #[cfg(before_api = "4.1")]
+    assert!(!info.is_editor_plugin);
 }
 
 /// Callbacks that are passed as function pointers to Godot upon class registration.
@@ -444,6 +478,8 @@ fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
         generated_register_fn: None,
         user_register_fn: None,
         godot_params: default_creation_info(),
+        init_level: InitLevel::Scene,
+        is_editor_plugin: false,
     }
 }
 
