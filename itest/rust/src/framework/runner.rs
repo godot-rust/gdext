@@ -82,6 +82,11 @@ impl IntegrationTests {
 
     #[func]
     fn run_all_benchmarks(&mut self, scene_tree: Gd<Node>) {
+        if self.focus_run {
+            println!("  Benchmarks skipped (focused run).");
+            return;
+        }
+
         println!("\n\n{}Run{} Godot benchmarks...", FMT_CYAN_BOLD, FMT_END);
 
         self.warn_if_debug();

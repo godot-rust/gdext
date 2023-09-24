@@ -6,10 +6,9 @@
 
 use crate::builtin::{GodotString, StringName};
 use godot_ffi as sys;
-use godot_ffi::GodotFfi;
 use std::{fmt, ptr};
 use sys::types::OpaqueVariant;
-use sys::{ffi_methods, interface_fn};
+use sys::{ffi_methods, interface_fn, GodotFfi};
 
 mod impls;
 mod variant_traits;
@@ -230,8 +229,24 @@ impl Variant {
     }
 
     /// Converts to variant pointer; can be a null pointer.
-    pub(crate) fn ptr_from_sys(variant_ptr: sys::GDExtensionVariantPtr) -> *const Variant {
+    pub(crate) fn ptr_from_sys(variant_ptr: sys::GDExtensionConstVariantPtr) -> *const Variant {
         variant_ptr as *const Variant
+    }
+
+    /// # Safety
+    /// `variant_ptr_array` must be a valid pointer to an array of `length` variant pointers.
+    /// The caller is responsible of keeping the backing storage alive while the unbounded references exist.
+    #[cfg(since_api = "4.2")] // unused before
+    pub(crate) unsafe fn unbounded_refs_from_sys<'a>(
+        variant_ptr_array: *const sys::GDExtensionConstVariantPtr,
+        length: usize,
+    ) -> &'a [&'a Variant] {
+        let variant_ptr_array: &'a [sys::GDExtensionConstVariantPtr] =
+            std::slice::from_raw_parts(variant_ptr_array, length);
+
+        // SAFETY: raw pointers and references have the same memory layout.
+        // See https://doc.rust-lang.org/reference/type-layout.html#pointers-and-references-layout.
+        unsafe { std::mem::transmute(variant_ptr_array) }
     }
 
     /// Converts to variant mut pointer; can be a null pointer.

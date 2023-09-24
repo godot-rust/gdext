@@ -431,6 +431,7 @@ pub mod callbacks {
         storage.on_dec_ref();
     }
 
+    // ----------------------------------------------------------------------------------------------------------------------------------------------
     // Safe, higher-level methods
 
     /// Abstracts the `GodotInit` away, for contexts where this trait bound is not statically available
@@ -468,7 +469,9 @@ pub mod callbacks {
     }
 }
 
-// Substitute for Default impl
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Substitutes for Default impl
+
 // Yes, bindgen can implement Default, but only for _all_ types (with single exceptions).
 // For FFI types, it's better to have explicit initialization in the general case though.
 fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
