@@ -141,6 +141,11 @@
 //!   multi-threaded references. The safety aspects of this are not ironed out yet; use at your own risk. The API may also change
 //!   at any time.
 //!
+//! * **`experimental-godot-api`**
+//!
+//!   Access to `godot::engine` APIs that Godot marks "experimental". These are under heavy development and may change at any time.
+//!   If you opt in to this feature, expect breaking changes at compile and runtime.
+//!
 //! # Public API
 //!
 //! Some symbols in the API are not intended for users, however Rust's visibility feature is not strong enough to express that in all cases

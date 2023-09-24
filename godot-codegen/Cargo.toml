@@ -13,6 +13,7 @@ codegen-fmt = []
 codegen-full = []
 double-precision = []
 custom-godot = ["godot-bindings/custom-godot"]
+experimental-godot-api = []
 
 [dependencies]
 godot-bindings = { path = "../godot-bindings" }

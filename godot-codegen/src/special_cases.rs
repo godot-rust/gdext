@@ -44,14 +44,12 @@ pub(crate) fn is_deleted(class_name: &TyName, method: &ClassMethod, ctx: &mut Co
 
 #[rustfmt::skip]
 pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
-    let class_name = class_name.godot_ty.as_str();
-
-    // TODO feature-gate experimental classes.
-    /*
+    // Exclude experimental APIs unless opted-in.
     if !cfg!(feature = "experimental-godot-api") && is_class_experimental(class_name) {
         return true;
     }
-    */
+
+    let class_name = class_name.godot_ty.as_str();
 
     // OpenXR has not been available for macOS before 4.2.
     // See e.g. https://github.com/GodotVR/godot-xr-tools/issues/479.
@@ -105,7 +103,6 @@ pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
 }
 
 #[rustfmt::skip]
-#[allow(dead_code)] // remove once used.
 fn is_class_experimental(class_name: &TyName) -> bool {
     // These classes are currently hardcoded, but the information is available in Godot's doc/classes directory.
     // The XML file contains a property <class name="NavigationMesh" ... is_experimental="true">.

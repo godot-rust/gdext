@@ -10,6 +10,7 @@ categories = ["game-engines", "graphics"]
 [features]
 custom-godot = ["godot-bindings/custom-godot"]
 codegen-fmt = ["godot-codegen/codegen-fmt"]
+experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 trace = []
 
 [dependencies]
