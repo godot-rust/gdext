@@ -149,7 +149,7 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/custom-godot,godot/threads,godot/serde
+            rust-extra-args: --features godot/custom-godot,godot/experimental-threads,godot/serde
 
           # Linux compat
 

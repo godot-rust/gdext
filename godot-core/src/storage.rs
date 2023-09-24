@@ -18,13 +18,13 @@ pub enum Lifecycle {
     Dead, // reading this would typically already be too late, only best-effort in case of UB
 }
 
-#[cfg(not(feature = "threads"))]
+#[cfg(not(feature = "experimental-threads"))]
 pub(crate) use single_threaded::*;
 
-#[cfg(feature = "threads")]
+#[cfg(feature = "experimental-threads")]
 pub(crate) use multi_threaded::*;
 
-#[cfg(not(feature = "threads"))]
+#[cfg(not(feature = "experimental-threads"))]
 mod single_threaded {
     use std::any::type_name;
     use std::cell;
@@ -107,7 +107,7 @@ mod single_threaded {
     }
 }
 
-#[cfg(feature = "threads")]
+#[cfg(feature = "experimental-threads")]
 mod multi_threaded {
     use std::any::type_name;
     use std::sync;
@@ -219,7 +219,7 @@ mod multi_threaded {
     // This type can be accessed concurrently from multiple threads, so it should be Sync. That implies however that T must be Sync too
     // (and possibly Send, because with `&mut` access, a `T` can be extracted as a value using mem::take() etc.).
     // Which again means that we need to infest half the codebase with T: Sync + Send bounds, *and* make it all conditional on
-    // `#[cfg(feature = "threads")]`. Until the multi-threading design is clarified, we'll thus leave it as is.
+    // `#[cfg(feature = "experimental-threads")]`. Until the multi-threading design is clarified, we'll thus leave it as is.
     //
     // The following code + __static_type_check() above would make sure that InstanceStorage is Sync.
 
