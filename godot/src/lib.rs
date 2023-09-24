@@ -99,7 +99,7 @@
 //! As a rule of thumb, if you must use threading, prefer to use [Rust threads](https://doc.rust-lang.org/std/thread)
 //! over Godot threads.
 //!
-//! The Cargo feature `threads` provides experimental support for multithreading. The underlying safety
+//! The Cargo feature `experimental-threads` provides experimental support for multithreading. The underlying safety
 //! rules are still being worked out, as such you may encounter unsoundness and an unstable API.
 //!
 //! # Cargo features
@@ -135,11 +135,11 @@
 //!   The serialized representation underlies **no stability guarantees** and may change at any time, even without a SemVer-breaking change.
 //!   <br><br>
 //!
-//! * **`threads`**
+//! * **`experimental-threads`**
 //!
 //!   Experimental threading support. This enables `Send`/`Sync` traits for `Gd<T>` and makes the guard types `Gd`/`GdMut` aware of
-//!   multi-threaded references. The safety aspects of this are not ironed out yet; use at your own risk. The API may also change
-//!   at any time.
+//!   multi-threaded references. There safety aspects are not ironed out yet; there is a high risk of unsoundness at the moment.
+//!   As this evolves, it is very likely that the API becomes more strict.
 //!
 //! * **`experimental-godot-api`**
 //!

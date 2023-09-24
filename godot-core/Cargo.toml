@@ -15,7 +15,7 @@ codegen-full = ["godot-codegen/codegen-full"]
 double-precision = ["godot-codegen/double-precision"]
 custom-godot = ["godot-ffi/custom-godot", "godot-codegen/custom-godot"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
-threads = []
+experimental-threads = []
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi" }

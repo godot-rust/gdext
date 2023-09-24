@@ -13,7 +13,7 @@ custom-godot = ["godot-core/custom-godot"]
 double-precision = ["godot-core/double-precision"]
 formatted = ["godot-core/codegen-fmt"]
 serde = ["godot-core/serde"]
-threads = ["godot-core/threads"]
+experimental-threads = ["godot-core/experimental-threads"]
 experimental-godot-api = ["godot-core/experimental-godot-api"]
 
 # Private features, they are under no stability guarantee
