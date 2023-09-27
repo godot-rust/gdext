@@ -194,7 +194,7 @@ impl Vector3 {
     }
 
     pub fn reflect(self, normal: Self) -> Self {
-        Self::from_glam(self.to_glam().reject_from(normal.to_glam()))
+        2.0 * normal * self.dot(normal) - self
     }
 
     pub fn round(self) -> Self {
