@@ -22,6 +22,7 @@ pub struct IntegrationTests {
     total: i64,
     passed: i64,
     skipped: i64,
+    failed_list: Vec<String>,
     focus_run: bool,
 }
 
@@ -70,6 +71,7 @@ impl IntegrationTests {
         let clock = Instant::now();
         self.run_rust_tests(rust_tests, scene_tree);
         let rust_time = clock.elapsed();
+
         let gdscript_time = if !focus_run {
             let extra_duration = self.run_gdscript_tests(gdscript_tests);
             Some((clock.elapsed() - rust_time) + extra_duration)
@@ -126,7 +128,7 @@ impl IntegrationTests {
             print_test_pre(test.name, test.file.to_string(), &mut last_file, false);
             let outcome = run_rust_test(&test, &ctx);
 
-            self.update_stats(&outcome);
+            self.update_stats(&outcome, test.file, test.name);
             print_test_post(test.name, outcome);
         }
     }
@@ -139,7 +141,7 @@ impl IntegrationTests {
             let test_file = get_property(&test, "suite_name");
             let test_case = get_property(&test, "method_name");
 
-            print_test_pre(&test_case, test_file, &mut last_file, true);
+            print_test_pre(&test_case, test_file.clone(), &mut last_file, true);
             let result = test.call("run", &[]);
             // In case a test needs to disable error messages to ensure it runs properly.
             Engine::singleton().set_print_error_messages(true);
@@ -155,7 +157,7 @@ impl IntegrationTests {
             }
             let outcome = TestOutcome::from_bool(success);
 
-            self.update_stats(&outcome);
+            self.update_stats(&outcome, &test_file, &test_case);
             print_test_post(&test_case, outcome);
         }
         extra_duration
@@ -202,6 +204,20 @@ impl IntegrationTests {
             println!("  Time: {rust_time:.2}s.");
         }
 
+        if !all_passed {
+            println!("\n  Failed tests:");
+            let max = 10;
+            for test in self.failed_list.iter().take(max) {
+                println!("  * {test}");
+            }
+
+            if self.failed_list.len() > max {
+                println!("  * ... and {} more.", self.failed_list.len() - max);
+            }
+
+            println!();
+        }
+
         if focused_run && !allow_focus {
             println!("  {FMT_YELLOW}Focus run disallowed; return failure.{FMT_END}");
             false
@@ -229,11 +245,15 @@ impl IntegrationTests {
 
     fn conclude_benchmarks(&self) {}
 
-    fn update_stats(&mut self, outcome: &TestOutcome) {
+    fn update_stats(&mut self, outcome: &TestOutcome, test_file: &str, test_name: &str) {
         self.total += 1;
         match outcome {
             TestOutcome::Passed => self.passed += 1,
-            TestOutcome::Failed => {}
+            TestOutcome::Failed => self.failed_list.push(format!(
+                "{} > {}",
+                extract_file_subtitle(test_file),
+                test_name
+            )),
             TestOutcome::Skipped => self.skipped += 1,
         }
     }
@@ -281,17 +301,19 @@ fn print_file_header(file: String, last_file: &mut Option<String>) {
         .map_or(true, |last_file| last_file != &file);
 
     if print_file {
-        let file_subtitle = if let Some(sep_pos) = file.rfind(&['/', '\\']) {
-            &file[sep_pos + 1..]
-        } else {
-            file.as_str()
-        };
-
-        println!("\n   {file_subtitle}:");
+        println!("\n   {}:", extract_file_subtitle(&file));
     }
 
     // State update for file-category-print
     *last_file = Some(file);
+}
+
+fn extract_file_subtitle(file: &str) -> &str {
+    if let Some(sep_pos) = file.rfind(&['/', '\\']) {
+        &file[sep_pos + 1..]
+    } else {
+        file
+    }
 }
 
 /// Prints a test name and its outcome.
