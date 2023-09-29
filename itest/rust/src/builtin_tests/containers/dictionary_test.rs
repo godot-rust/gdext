@@ -95,6 +95,7 @@ fn dictionary_clone() {
         "foo": 0,
         "bar": subdictionary.clone()
     };
+
     #[allow(clippy::redundant_clone)]
     let clone = dictionary.clone();
     Dictionary::from_variant(&clone.get("bar").unwrap()).insert("final", 4);
@@ -103,12 +104,33 @@ fn dictionary_clone() {
 
 #[itest]
 fn dictionary_hash() {
-    let dictionary = dict! {
+    use godot::builtin::Vector2i;
+
+    let a = dict! {
         "foo": 0,
         "bar": true,
-        "baz": "foobar"
+        (Vector2i::new(4, -1)): "foobar",
     };
-    dictionary.hash();
+    let b = dict! {
+        "foo": 0,
+        "bar": true,
+        (Vector2i::new(4, -1)): "foobar" // No comma to test macro.
+    };
+    let c = dict! {
+        "foo": 0,
+        (Vector2i::new(4, -1)): "foobar",
+        "bar": true,
+    };
+
+    assert_eq!(a.hash(), b.hash(), "equal dictionaries have same hash");
+    assert_ne!(
+        a.hash(),
+        c.hash(),
+        "dictionaries with reordered content have different hash"
+    );
+
+    // NaNs are not equal (since Godot 4.2) but share same hash.
+    assert_eq!(dict! {772: f32::NAN}.hash(), dict! {772: f32::NAN}.hash());
 }
 
 #[itest]
@@ -328,8 +350,13 @@ fn dictionary_keys_values() {
 #[itest]
 fn dictionary_equal() {
     assert_eq!(dict! {"foo": "bar"}, dict! {"foo": "bar"});
-    assert_eq!(dict! {1: f32::NAN}, dict! {1: f32::NAN}); // yes apparently Godot considers these equal
     assert_ne!(dict! {"foo": "bar"}, dict! {"bar": "foo"});
+
+    // Changed in https://github.com/godotengine/godot/pull/74588.
+    #[cfg(before_api = "4.2")]
+    assert_eq!(dict! {1: f32::NAN}, dict! {1: f32::NAN});
+    #[cfg(since_api = "4.2")]
+    assert_ne!(dict! {1: f32::NAN}, dict! {1: f32::NAN});
 }
 
 #[itest]
