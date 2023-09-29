@@ -7,6 +7,7 @@
 
 mod base_test;
 mod class_rename_test;
+mod lateinit_test;
 mod object_test;
 mod property_template_test;
 mod property_test;
