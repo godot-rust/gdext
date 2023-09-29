@@ -425,9 +425,4 @@ mod custom_callable {
         w.name.clone().move_string_ptr(r_out);
         *r_is_valid = true as sys::GDExtensionBool;
     }
-
-    pub fn unqualified_type_name<T>() -> &'static str {
-        let type_name = std::any::type_name::<T>();
-        type_name.split("::").last().unwrap()
-    }
 }
