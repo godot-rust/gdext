@@ -16,7 +16,7 @@ pub fn parse_godot_version(version_str: &str) -> Result<GodotVersion, Box<dyn Er
     // https://github.com/godot-rust/gdext/issues/118#issuecomment-1465748123
     // We assume that it's on a line of its own, but it may be surrounded by other lines.
     let regex = Regex::new(
-        r#"(?xm)
+        r"(?xm)
         # x: ignore whitespace and allow line comments (starting with `#`)
         # m: multi-line mode, ^ and $ match start and end of line
         ^
@@ -32,15 +32,17 @@ pub fn parse_godot_version(version_str: &str) -> Result<GodotVersion, Box<dyn Er
         (\.[^.]+)+?
         # Git commit SHA1, currently truncated to 9 chars, but accept the full thing
         (?:\.(?P<custom_rev>[a-f0-9]{9,40}))?
+        # Optional newline printed in some systems (e.g. Arch Linux, see #416)
+        (?:\\n)?
         $
-    "#,
+        ",
     )?;
 
     let fail = || format!("Version substring cannot be parsed: `{version_str}`");
     let caps = regex.captures(version_str).ok_or_else(fail)?;
 
     Ok(GodotVersion {
-        full_string: caps.get(0).unwrap().as_str().to_string(),
+        full_string: caps.get(0).unwrap().as_str().trim().to_string(),
         major: cap(&caps, "major")?.unwrap(),
         minor: cap(&caps, "minor")?.unwrap(),
         patch: cap(&caps, "patch")?.unwrap_or(0),
@@ -86,6 +88,7 @@ fn test_godot_versions() {
         ("4.0.beta8.mono.custom_build.b28ddd918", 4, 0, 0, "beta8", s("b28ddd918")),
         ("4.0.rc1.official.8843d9ad3", 4, 0, 0, "rc1", s("8843d9ad3")),
         ("4.0.stable.arch_linux", 4, 0, 0, "stable", None),
+        ("4.1.1.stable.arch_linux\n", 4, 1, 1, "stable", None),
         // Output from 4.0.stable on MacOS in debug mode:
         // https://github.com/godotengine/godot/issues/74906
         ("arguments
@@ -104,7 +107,7 @@ Current path: /Users/runner/work/gdext/gdext/godot-core
     for (full, major, minor, patch, status, custom_rev) in good_versions {
         let expected = GodotVersion {
             // Version line is last in every test at the moment.
-            full_string: full.lines().last().unwrap().to_owned(),
+            full_string: full.lines().last().unwrap().trim().to_owned(),
             major,
             minor,
             patch,

@@ -40,6 +40,10 @@ pub struct GodotVersion {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Regenerate all files
 
+// This file is explicitly included in unit tests. Needs regex dependency.
+#[cfg(test)]
+mod godot_version;
+
 #[cfg(feature = "custom-godot")]
 #[path = ""]
 mod custom {
