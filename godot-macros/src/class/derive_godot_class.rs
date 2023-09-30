@@ -50,13 +50,19 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         quote! {}
     };
 
-    let (godot_init_impl, create_fn);
+    let (godot_init_impl, create_fn, recreate_fn);
     if struct_cfg.has_generated_init {
         godot_init_impl = make_godot_init_impl(class_name, fields);
         create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
+        if cfg!(since_api = "4.2") {
+            recreate_fn = quote! { Some(#prv::callbacks::recreate::<#class_name>) };
+        } else {
+            recreate_fn = quote! { None };
+        }
     } else {
         godot_init_impl = TokenStream::new();
         create_fn = quote! { None };
+        recreate_fn = quote! { None };
     };
 
     let config_impl = make_config_impl(class_name, struct_cfg.is_tool);
@@ -82,6 +88,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
             component: #prv::PluginComponent::ClassDef {
                 base_class_name: #base_class_name_obj,
                 generated_create_fn: #create_fn,
+                generated_recreate_fn: #recreate_fn,
                 free_fn: #prv::callbacks::free::<#class_name>,
             },
             init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,

@@ -7,6 +7,9 @@ license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "derive", "macro"]
 categories = ["game-engines", "graphics"]
 
+[features]
+custom-godot = ["godot-bindings/custom-godot"]
+
 [lib]
 proc-macro = true
 
@@ -20,3 +23,6 @@ proc-macro2 = "1.0.63"
 quote = "1.0.29"
 
 venial = "0.5"
+
+[build-dependencies]
+godot-bindings = { path = "../godot-bindings" } # emit_godot_version_cfg

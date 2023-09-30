@@ -393,6 +393,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
     let mut register_fn = quote! { None };
     let mut create_fn = quote! { None };
+    let mut recreate_fn = quote! { None };
     let mut to_string_fn = quote! { None };
     let mut on_notification_fn = quote! { None };
 
@@ -435,6 +436,9 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                     }
                 };
                 create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
+                if cfg!(since_api = "4.2") {
+                    recreate_fn = quote! { Some(#prv::callbacks::recreate::<#class_name>) };
+                }
             }
 
             "to_string" => {
@@ -525,6 +529,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
             component: #prv::PluginComponent::UserVirtuals {
                 user_register_fn: #register_fn,
                 user_create_fn: #create_fn,
+                user_recreate_fn: #recreate_fn,
                 user_to_string_fn: #to_string_fn,
                 user_on_notification_fn: #on_notification_fn,
                 get_virtual_fn: #prv::callbacks::get_virtual::<#class_name>,
