@@ -98,6 +98,16 @@ impl fmt::Debug for NodePath {
 
 impl_rust_string_conv!(NodePath);
 
+impl<S> From<S> for NodePath
+where
+    S: AsRef<str>,
+{
+    fn from(string: S) -> Self {
+        let intermediate = GodotString::from(string.as_ref());
+        Self::from(&intermediate)
+    }
+}
+
 impl From<&GodotString> for NodePath {
     fn from(string: &GodotString) -> Self {
         unsafe {

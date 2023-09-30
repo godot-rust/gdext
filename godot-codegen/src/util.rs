@@ -181,13 +181,20 @@ pub(crate) fn make_utility_function_ptr_name(function: &UtilityFunction) -> Iden
     safe_ident(&function.name)
 }
 
-// TODO should eventually be removed, as all StringNames are cached
+#[cfg(since_api = "4.2")]
+pub fn make_string_name(identifier: &str) -> TokenStream {
+    let lit = proc_macro2::Literal::byte_string(format!("{identifier}\0").as_bytes());
+    quote! {
+        StringName::from_latin1_with_nul(#lit)
+    }
+}
+
+#[cfg(before_api = "4.2")]
 pub fn make_string_name(identifier: &str) -> TokenStream {
     quote! {
         StringName::from(#identifier)
     }
 }
-
 pub fn make_sname_ptr(identifier: &str) -> TokenStream {
     quote! {
         string_names.fetch(#identifier)

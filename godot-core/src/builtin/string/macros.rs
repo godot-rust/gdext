@@ -8,16 +8,6 @@
 
 macro_rules! impl_rust_string_conv {
     ($Ty:ty) => {
-        impl<S> From<S> for $Ty
-        where
-            S: AsRef<str>,
-        {
-            fn from(string: S) -> Self {
-                let intermediate = GodotString::from(string.as_ref());
-                Self::from(&intermediate)
-            }
-        }
-
         impl From<&$Ty> for String {
             fn from(string: &$Ty) -> Self {
                 let intermediate = GodotString::from(string);
