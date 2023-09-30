@@ -9,11 +9,11 @@ func test_missing_init():
 
 	var expr = Expression.new()
 	var error = expr.parse("WithoutInit.new()")
-	if !assert_eq(error, OK, "Failed to parse dynamic expression"):
+	if not assert_eq(error, OK, "Failed to parse dynamic expression"):
 		return
 
 	var instance = expr.execute()
-	if !assert_that(!expr.has_execute_failed(), "Failed to evaluate dynamic expression"):
+	if not assert_that(!expr.has_execute_failed(), "Failed to evaluate dynamic expression"):
 		return
 
 	print("[GD] WithoutInit is: ", instance)
