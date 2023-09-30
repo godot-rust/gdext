@@ -25,3 +25,7 @@ godot4-prebuilt = { optional = true, git = "https://github.com/godot-rust/godot4
 bindgen = { optional = true, version = "0.65", default-features = false, features = ["runtime"] }
 regex = { optional = true, version = "1.5.5", default-features = false, features = ["std", "unicode-gencat"] }
 which = { optional = true, version = "4" }
+
+[dev-dependencies]
+# For tests, we need regex unconditionally. Keep this in sync with above dependency.
+regex = { version = "1.5.5", default-features = false, features = ["std", "unicode-gencat"] }

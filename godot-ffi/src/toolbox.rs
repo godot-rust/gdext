@@ -138,6 +138,13 @@ pub fn hash_value<T: std::hash::Hash>(t: &T) -> u64 {
     hasher.finish()
 }
 
+/*
+pub fn unqualified_type_name<T>() -> &'static str {
+    let type_name = std::any::type_name::<T>();
+    type_name.split("::").last().unwrap()
+}
+*/
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Private helpers
 

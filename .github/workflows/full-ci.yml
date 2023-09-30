@@ -15,6 +15,7 @@ on:
 
 env:
   GDEXT_FEATURES: ''
+#  GDEXT_FEATURES: '--features godot/serde'
   RETRY: ${{ github.workspace }}/.github/other/retry.sh
 
   # LSan options: https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer

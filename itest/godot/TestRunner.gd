@@ -92,7 +92,7 @@ class GDScriptExecutableTestCase extends GDScriptTestCase:
 		# This is a no-op if the suite doesn't have this property.
 		suite.set("_assertion_failed", false)
 		var result = suite.call(method_name)
-		var ok: bool = (result == true || result == null) && !suite.get("_assertion_failed")
+		var ok: bool = (result == true or result == null) and not suite.get("_assertion_failed")
 		return ok
 
 # Hardcoded test case used for special cases where the standard testing API is not sufficient.

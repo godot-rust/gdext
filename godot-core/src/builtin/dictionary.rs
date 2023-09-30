@@ -142,6 +142,7 @@ impl Dictionary {
     }
 
     /// Returns a 32-bit integer hash value representing the dictionary and its contents.
+    #[must_use]
     pub fn hash(&self) -> u32 {
         self.as_inner().hash().try_into().unwrap()
     }
