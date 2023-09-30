@@ -43,7 +43,8 @@ macro_rules! impl_packed_array {
         },
     ) => {
         // TODO expand type names in doc comments (use e.g. `paste` crate)
-        /// Implements Godot's `$PackedArray` type, which is an efficient array of `$Element`s.
+        #[doc = concat!("Implements Godot's `", stringify!($PackedArray), "` type,")]
+        #[doc = concat!("which is an efficient array of `", stringify!($Element), "`s.")]
         ///
         /// Note that, unlike `Array`, this type has value semantics: each copy will be independent
         /// of the original. (Under the hood, Godot uses copy-on-write, so copies are still cheap
@@ -51,11 +52,11 @@ macro_rules! impl_packed_array {
         ///
         /// # Thread safety
         ///
-        /// Usage is safe if the `$PackedArray` is used on a single thread only. Concurrent reads on
-        /// different threads are also safe, but any writes must be externally synchronized. The
-        /// Rust compiler will enforce this as long as you use only Rust threads, but it cannot
-        /// protect against concurrent modification on other threads (e.g. created through
-        /// GDScript).
+        #[doc = concat!("Usage is safe if the `", stringify!($PackedArray), "`")]
+        /// is used on a single thread only. Concurrent reads on different threads are also safe,
+        /// but any writes must be externally synchronized. The Rust compiler will enforce this as
+        /// long as you use only Rust threads, but it cannot protect against concurrent modification
+        /// on other threads (e.g. created through GDScript).
         #[repr(C)]
         pub struct $PackedArray {
             opaque: $Opaque,
@@ -356,9 +357,9 @@ macro_rules! impl_packed_array {
                 ptr
             }
 
-            /// Converts an `$Element` into a value that can be passed into API functions. For most
-            /// types, this is a no-op. But `u8` and `i32` are widened to `i64`, and `real` is
-            /// widened to `f64` if it is an `f32`.
+            #[doc = concat!("Converts a `", stringify!($Element), "` into a value that can be")]
+            /// passed into API functions. For most types, this is a no-op. But `u8` and `i32` are
+            /// widened to `i64`, and `real` is widened to `f64` if it is an `f32`.
             #[inline]
             fn into_arg(e: $Element) -> $Arg {
                 e.into()
@@ -376,14 +377,14 @@ macro_rules! impl_packed_array {
             }
         }
 
-        /// Creates a `$PackedArray` from the given Rust array.
+        #[doc = concat!("Creates a `", stringify!($PackedArray), "` from the given Rust array.")]
         impl<const N: usize> From<&[$Element; N]> for $PackedArray {
             fn from(arr: &[$Element; N]) -> Self {
                 Self::from(&arr[..])
             }
         }
 
-        /// Creates a `$PackedArray` from the given slice.
+        #[doc = concat!("Creates a `", stringify!($PackedArray), "` from the given slice.")]
         impl From<&[$Element]> for $PackedArray {
             fn from(slice: &[$Element]) -> Self {
                 let mut array = Self::new();
@@ -405,7 +406,7 @@ macro_rules! impl_packed_array {
             }
         }
 
-        /// Creates a `$PackedArray` from an iterator.
+        #[doc = concat!("Creates a `", stringify!($PackedArray), "` from an iterator.")]
         impl FromIterator<$Element> for $PackedArray {
             fn from_iter<I: IntoIterator<Item = $Element>>(iter: I) -> Self {
                 let mut array = $PackedArray::default();
@@ -414,7 +415,7 @@ macro_rules! impl_packed_array {
             }
         }
 
-        /// Extends a `$PackedArray` with the contents of an iterator.
+        #[doc = concat!("Extends a`", stringify!($PackedArray), "` with the contents of an iterator")]
         impl Extend<$Element> for $PackedArray {
             fn extend<I: IntoIterator<Item = $Element>>(&mut self, iter: I) {
                 // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
