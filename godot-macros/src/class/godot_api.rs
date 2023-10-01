@@ -47,7 +47,10 @@ pub fn attribute_godot_api(input_decl: Declaration) -> Result<TokenStream, Error
 
 /// Attribute for user-declared function
 enum BoundAttrType {
-    Func { rename: Option<String> },
+    Func {
+        rename: Option<String>,
+        has_gd_self: bool,
+    },
     Signal(AttributeValue),
     Const(AttributeValue),
 }
@@ -230,11 +233,25 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<FuncDefinition>, Vec<Functi
                 return attr.bail("generic fn parameters are not supported", method);
             }
 
-            match attr.ty {
-                BoundAttrType::Func { rename } => {
+            match &attr.ty {
+                BoundAttrType::Func {
+                    rename,
+                    has_gd_self,
+                } => {
                     // Signatures are the same thing without body
-                    let sig = util::reduce_to_signature(method);
-                    func_definitions.push(FuncDefinition { func: sig, rename });
+                    let mut sig = util::reduce_to_signature(method);
+                    if *has_gd_self {
+                        if sig.params.is_empty() {
+                            return attr.bail("with attribute key `gd_self`, the method must have a first parameter of type Gd<Self>", method);
+                        } else {
+                            sig.params.inner.remove(0);
+                        }
+                    }
+                    func_definitions.push(FuncDefinition {
+                        func: sig,
+                        rename: rename.clone(),
+                        has_gd_self: *has_gd_self,
+                    });
                 }
                 BoundAttrType::Signal(ref _attr_val) => {
                     if method.return_ty.is_some() {
@@ -317,11 +334,15 @@ where
                 let mut parser = KvParser::parse(attributes, "func")?.unwrap();
 
                 let rename = parser.handle_expr("rename")?.map(|ts| ts.to_string());
+                let has_gd_self = parser.handle_alone("gd_self")?;
 
                 Some(BoundAttr {
                     attr_name: attr_name.clone(),
                     index,
-                    ty: BoundAttrType::Func { rename },
+                    ty: BoundAttrType::Func {
+                        rename,
+                        has_gd_self,
+                    },
                 })
             }
             name if name == "signal" => {

@@ -35,6 +35,12 @@ pub struct Base<T: GodotClass> {
 }
 
 impl<T: GodotClass> Base<T> {
+    /// # Safety
+    /// The returned Base is a weak pointer, so holding it will not keep the object alive. It must not be accessed after the object is destroyed.
+    pub(crate) unsafe fn from_base(base: &Base<T>) -> Base<T> {
+        Base::from_obj(Gd::from_obj_sys_weak(base.obj_sys()))
+    }
+
     // Note: not &mut self, to only borrow one field and not the entire struct
     pub(crate) unsafe fn from_sys(base_ptr: sys::GDExtensionObjectPtr) -> Self {
         assert!(!base_ptr.is_null(), "instance base is null pointer");

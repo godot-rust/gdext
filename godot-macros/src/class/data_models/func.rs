@@ -14,6 +14,7 @@ pub struct FuncDefinition {
     pub func: venial::Function,
     /// The name the function will be exposed as in Godot. If `None`, the Rust function name is used.
     pub rename: Option<String>,
+    pub has_gd_self: bool,
 }
 
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
@@ -24,7 +25,7 @@ pub fn make_virtual_method_callback(
     class_name: &Ident,
     method_signature: &venial::Function,
 ) -> TokenStream {
-    let signature_info = get_signature_info(method_signature);
+    let signature_info = get_signature_info(method_signature, false);
     let method_name = &method_signature.name;
 
     let wrapped_method = make_forwarding_closure(class_name, &signature_info);
@@ -54,7 +55,7 @@ pub fn make_method_registration(
     class_name: &Ident,
     func_definition: FuncDefinition,
 ) -> TokenStream {
-    let signature_info = get_signature_info(&func_definition.func);
+    let signature_info = get_signature_info(&func_definition.func, func_definition.has_gd_self);
     let sig_tuple =
         util::make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
 
@@ -127,6 +128,7 @@ pub fn make_method_registration(
 enum ReceiverType {
     Ref,
     Mut,
+    GdSelf,
     Static,
 }
 
@@ -167,6 +169,18 @@ fn make_forwarding_closure(class_name: &Ident, signature_info: &SignatureInfo) -
                 }
             }
         }
+        ReceiverType::GdSelf => {
+            quote! {
+                |instance_ptr, params| {
+                    let ( #(#params,)* ) = params;
+
+                    let storage =
+                        unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
+
+                    <#class_name>::#method_name(storage.get_gd(), #(#params),*)
+                }
+            }
+        }
         ReceiverType::Static => {
             quote! {
                 |_, params| {
@@ -178,9 +192,13 @@ fn make_forwarding_closure(class_name: &Ident, signature_info: &SignatureInfo) -
     }
 }
 
-fn get_signature_info(signature: &venial::Function) -> SignatureInfo {
+fn get_signature_info(signature: &venial::Function, has_gd_self: bool) -> SignatureInfo {
     let method_name = signature.name.clone();
-    let mut receiver_type = ReceiverType::Static;
+    let mut receiver_type = if has_gd_self {
+        ReceiverType::GdSelf
+    } else {
+        ReceiverType::Static
+    };
     let mut param_idents: Vec<Ident> = Vec::new();
     let mut param_types = Vec::new();
     let ret_type = match &signature.return_ty {
@@ -192,6 +210,11 @@ fn get_signature_info(signature: &venial::Function) -> SignatureInfo {
     for (arg, _) in &signature.params.inner {
         match arg {
             venial::FnParam::Receiver(recv) => {
+                if receiver_type == ReceiverType::GdSelf {
+                    // This shouldn't happen, as when has_gd_self is true the first function parameter should have been removed.
+                    // And the first parameter should be the only one that can be a Receiver.
+                    panic!("has_gd_self is true for a signature starting with a Receiver param.");
+                }
                 receiver_type = if recv.tk_mut.is_some() {
                     ReceiverType::Mut
                 } else if recv.tk_ref.is_some() {
@@ -228,7 +251,7 @@ fn get_signature_info(signature: &venial::Function) -> SignatureInfo {
 
 fn make_method_flags(method_type: ReceiverType) -> TokenStream {
     match method_type {
-        ReceiverType::Ref | ReceiverType::Mut => {
+        ReceiverType::Ref | ReceiverType::Mut | ReceiverType::GdSelf => {
             quote! { ::godot::engine::global::MethodFlags::METHOD_FLAGS_DEFAULT }
         }
         ReceiverType::Static => {

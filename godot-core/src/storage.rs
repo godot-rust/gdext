@@ -29,7 +29,7 @@ mod single_threaded {
     use std::any::type_name;
     use std::cell;
 
-    use crate::obj::GodotClass;
+    use crate::obj::{Base, Gd, GodotClass, Inherits};
     use crate::out;
 
     use super::Lifecycle;
@@ -37,6 +37,7 @@ mod single_threaded {
     /// Manages storage and lifecycle of user's extension class instances.
     pub struct InstanceStorage<T: GodotClass> {
         user_instance: cell::RefCell<T>,
+        base: Base<T::Base>,
 
         // Declared after `user_instance`, is dropped last
         pub lifecycle: cell::Cell<Lifecycle>,
@@ -45,11 +46,12 @@ mod single_threaded {
 
     /// For all Godot extension classes
     impl<T: GodotClass> InstanceStorage<T> {
-        pub fn construct(user_instance: T) -> Self {
+        pub fn construct(user_instance: T, base: Base<T::Base>) -> Self {
             out!("    Storage::construct             <{}>", type_name::<T>());
 
             Self {
                 user_instance: cell::RefCell::new(user_instance),
+                base,
                 lifecycle: cell::Cell::new(Lifecycle::Alive),
                 godot_ref_count: cell::Cell::new(1),
             }
@@ -101,6 +103,13 @@ mod single_threaded {
             })
         }
 
+        pub fn get_gd(&self) -> Gd<T>
+        where
+            T: Inherits<<T as GodotClass>::Base>,
+        {
+            self.base.clone().cast()
+        }
+
         pub(super) fn godot_ref_count(&self) -> u32 {
             self.godot_ref_count.get()
         }
@@ -113,7 +122,7 @@ mod multi_threaded {
     use std::sync;
     use std::sync::atomic::{AtomicU32, Ordering};
 
-    use crate::obj::GodotClass;
+    use crate::obj::{Base, Gd, GodotClass, Inherits, Share};
     use crate::out;
 
     use super::Lifecycle;
@@ -146,6 +155,7 @@ mod multi_threaded {
     /// Manages storage and lifecycle of user's extension class instances.
     pub struct InstanceStorage<T: GodotClass> {
         user_instance: sync::RwLock<T>,
+        base: Base<T::Base>,
 
         // Declared after `user_instance`, is dropped last
         pub lifecycle: AtomicLifecycle,
@@ -154,11 +164,12 @@ mod multi_threaded {
 
     /// For all Godot extension classes
     impl<T: GodotClass> InstanceStorage<T> {
-        pub fn construct(user_instance: T) -> Self {
+        pub fn construct(user_instance: T, base: Base<T::Base>) -> Self {
             out!("    Storage::construct             <{}>", type_name::<T>());
 
             Self {
                 user_instance: sync::RwLock::new(user_instance),
+                base,
                 lifecycle: AtomicLifecycle::new(Lifecycle::Alive),
                 godot_ref_count: AtomicU32::new(1),
             }
@@ -204,6 +215,13 @@ mod multi_threaded {
                     type_name::<T>()
                 )
             })
+        }
+
+        pub fn get_gd(&self) -> Gd<T>
+        where
+            T: Inherits<<T as GodotClass>::Base>,
+        {
+            self.base.clone().cast()
         }
 
         pub(super) fn godot_ref_count(&self) -> u32 {

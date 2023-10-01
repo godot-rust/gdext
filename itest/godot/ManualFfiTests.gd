@@ -304,3 +304,25 @@ func test_func_rename():
 	assert_eq(func_rename.has_method("renamed_static"), false)
 	assert_eq(func_rename.has_method("spell_static"), true)
 	assert_eq(func_rename.spell_static(), "static")
+
+var gd_self_reference: GdSelfReference
+func update_self_reference(value):
+	gd_self_reference.update_internal(value)
+
+# Todo: Once there is a way to assert for a SCRIPT ERROR failure this can be reenabled.
+"""
+func test_gd_self_reference_fails():
+	# Create the gd_self_reference and connect its signal to a gdscript method that calls back into it.
+	gd_self_reference = GdSelfReference.new()
+	gd_self_reference.update_internal_signal.connect(update_self_reference)
+	
+	# The returned value will still be 0 because update_internal can't be called in update_self_reference due to a borrowing issue.
+	assert_eq(gd_self_reference.fail_to_update_internal_value_due_to_conflicting_borrow(10), 0)
+"""
+
+func test_gd_self_reference_succeeds():
+	# Create the gd_self_reference and connect its signal to a gdscript method that calls back into it.
+	gd_self_reference = GdSelfReference.new()
+	gd_self_reference.update_internal_signal.connect(update_self_reference)
+
+	assert_eq(gd_self_reference.succeed_at_updating_internal_value(10), 10)
