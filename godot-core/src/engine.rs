@@ -6,12 +6,10 @@
 
 //! Godot engine classes and methods.
 
-use godot_ffi::GodotNullableFfi;
-
 // Re-exports of generated symbols
 use crate::builtin::{GodotString, NodePath};
 use crate::obj::dom::EngineDomain;
-use crate::obj::{Gd, GodotClass, Inherits, InstanceId, RawGd};
+use crate::obj::{Gd, GodotClass, Inherits, InstanceId};
 
 pub use crate::gen::central::global;
 pub use crate::gen::classes::*;
@@ -188,27 +186,23 @@ where
 // Utilities for crate
 
 pub(crate) fn debug_string<T: GodotClass>(
-    ptr: &RawGd<T>,
+    obj: &Gd<T>,
     f: &mut std::fmt::Formatter<'_>,
     ty: &str,
 ) -> std::fmt::Result {
-    if let Some(id) = ptr.instance_id_or_none() {
-        let class: GodotString = ptr.as_object(|obj| Object::get_class(obj));
-
+    if let Some(id) = obj.instance_id_or_none() {
+        let class: GodotString = obj.raw.as_object(|obj| Object::get_class(obj));
         write!(f, "{ty} {{ id: {id}, class: {class} }}")
-    } else if ptr.is_null() {
-        write!(f, "{ty} {{ null }}")
     } else {
         write!(f, "{ty} {{ freed obj }}")
     }
 }
 
 pub(crate) fn display_string<T: GodotClass>(
-    ptr: &RawGd<T>,
+    obj: &Gd<T>,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
-    let string: GodotString = ptr.as_object(Object::to_string);
-
+    let string: GodotString = obj.raw.as_object(Object::to_string);
     <GodotString as std::fmt::Display>::fmt(&string, f)
 }
 
@@ -223,7 +217,7 @@ pub(crate) fn ensure_object_alive(
     method_name: &'static str,
 ) {
     let Some(instance_id) = instance_id else {
-        panic!("{method_name}: instance id is null")
+        panic!("{method_name}: cannot call method on null object")
     };
 
     let new_object_ptr = object_ptr_from_id(instance_id);

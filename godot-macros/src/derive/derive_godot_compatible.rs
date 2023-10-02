@@ -22,7 +22,7 @@ pub fn derive_godot_compatible(decl: Declaration) -> ParseResult<TokenStream> {
     let gen = generic_params.as_ref().map(|x| x.as_inline_args());
 
     Ok(quote! {
-        impl #generic_params ::godot::builtin::meta::GodotCompatible for #name #gen #where_ {
+        impl #generic_params ::godot::builtin::meta::GodotConvert for #name #gen #where_ {
             type Via = ::godot::builtin::Variant;
         }
     })

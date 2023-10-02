@@ -442,7 +442,7 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, class::attribute_godot_api)
 }
 
-#[proc_macro_derive(GodotCompatible)]
+#[proc_macro_derive(GodotConvert)]
 pub fn derive_godot_compatible(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_godot_compatible)
 }
@@ -453,7 +453,7 @@ pub fn derive_godot_compatible(input: TokenStream) -> TokenStream {
 ///
 /// ```no_run
 /// # use godot::prelude::*;
-/// #[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug)]
+/// #[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
 /// struct StructNamed {
 ///     field1: String,
 ///     field2: i32,
@@ -474,7 +474,7 @@ pub fn derive_godot_compatible(input: TokenStream) -> TokenStream {
 /// assert_eq!(obj.to_variant(), dict.to_variant());
 /// ```
 ///
-/// You can use the `#[skip]` attribute to ignore a field from being converted to `ToVariant`.
+/// You can use the `#[skip]` attribute to ignore a field from being converted to `ToGodot`.
 #[proc_macro_derive(ToGodot, attributes(variant))]
 pub fn derive_to_godot(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_to_godot)
@@ -486,7 +486,7 @@ pub fn derive_to_godot(input: TokenStream) -> TokenStream {
 ///
 /// ```no_run
 /// # use godot::prelude::*;
-/// #[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug)]
+/// #[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
 /// struct StructNamed {
 ///     field1: String,
 ///     field2: i32,

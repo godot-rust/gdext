@@ -4,14 +4,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt;
+
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::inner;
 use crate::builtin::meta::impl_godot_as_self;
 use crate::builtin::{GodotString, NodePath};
-
-use std::fmt;
 
 /// A string optimized for unique names.
 ///

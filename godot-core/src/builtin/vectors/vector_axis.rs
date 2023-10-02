@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{FromGodot, GodotCompatible, ToGodot};
+use crate::builtin::meta::{FromGodot, GodotConvert, ToGodot};
 use crate::builtin::{real, Vector2, Vector2i, Vector3, Vector3i, Vector4, Vector4i};
 use crate::obj::EngineEnum;
 
@@ -97,19 +97,19 @@ impl EngineEnum for Vector2Axis {
     }
 }
 
-impl GodotCompatible for Vector2Axis {
-    type Via = i64;
+impl GodotConvert for Vector2Axis {
+    type Via = i32;
 }
 
 impl ToGodot for Vector2Axis {
     fn to_godot(&self) -> Self::Via {
-        self.ord() as i64
+        self.ord()
     }
 }
 
 impl FromGodot for Vector2Axis {
     fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Self::try_from_ord(via as i32)
+        Self::try_from_ord(via)
     }
 }
 
@@ -145,19 +145,19 @@ impl EngineEnum for Vector3Axis {
     }
 }
 
-impl GodotCompatible for Vector3Axis {
-    type Via = i64;
+impl GodotConvert for Vector3Axis {
+    type Via = i32;
 }
 
 impl ToGodot for Vector3Axis {
     fn to_godot(&self) -> Self::Via {
-        self.ord() as i64
+        self.ord()
     }
 }
 
 impl FromGodot for Vector3Axis {
     fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Self::try_from_ord(via as i32)
+        Self::try_from_ord(via)
     }
 }
 
@@ -196,19 +196,19 @@ impl EngineEnum for Vector4Axis {
     }
 }
 
-impl GodotCompatible for Vector4Axis {
-    type Via = i64;
+impl GodotConvert for Vector4Axis {
+    type Via = i32;
 }
 
 impl ToGodot for Vector4Axis {
     fn to_godot(&self) -> Self::Via {
-        self.ord() as i64
+        self.ord()
     }
 }
 
 impl FromGodot for Vector4Axis {
     fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Self::try_from_ord(via as i32)
+        Self::try_from_ord(via)
     }
 }
 

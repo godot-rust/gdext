@@ -55,7 +55,7 @@ macro_rules! push_newtype {
             #[derive(Debug, Clone, PartialEq)]
             pub struct $name($T);
 
-            impl godot::builtin::meta::GodotCompatible for $name {
+            impl godot::builtin::meta::GodotConvert for $name {
                 type Via = $T;
             }
 

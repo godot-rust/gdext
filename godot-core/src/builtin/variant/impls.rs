@@ -188,4 +188,8 @@ impl GodotType for Variant {
             usage: global::PropertyUsageFlags::PROPERTY_USAGE_NIL_IS_VARIANT,
         }
     }
+
+    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8
+    }
 }

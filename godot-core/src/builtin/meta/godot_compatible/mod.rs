@@ -6,8 +6,6 @@
 
 mod impls;
 
-use godot_ffi as sys;
-
 use crate::builtin::{Variant, VariantConversionError};
 
 use super::{GodotFfiVariant, GodotType};
@@ -17,7 +15,7 @@ use super::{GodotFfiVariant, GodotType};
 /// The type specified here is what will be used to pass this type across to ffi-boundary to/from Godot.
 /// Generally [`ToGodot`] needs to be implemented to pass a type to Godot, and [`FromGodot`] to receive this
 /// type from Godot.
-pub trait GodotCompatible {
+pub trait GodotConvert {
     /// The type used for ffi-passing.
     type Via: GodotType;
 }
@@ -29,11 +27,14 @@ pub trait GodotCompatible {
 /// starting value.
 ///
 /// Violating these assumptions is safe but will give unexpected results.
-pub trait ToGodot: Sized + GodotCompatible {
+pub trait ToGodot: Sized + GodotConvert {
     /// Converts this type to the Godot type by reference, usually by cloning.
     fn to_godot(&self) -> Self::Via;
 
     /// Converts this type to the Godot type.
+    ///
+    /// This can in some cases enable some optimizations, such as avoiding reference counting for
+    /// reference-counted values.
     fn into_godot(self) -> Self::Via {
         self.to_godot()
     }
@@ -51,9 +52,10 @@ pub trait ToGodot: Sized + GodotCompatible {
 /// starting value.
 ///
 /// Violating these assumptions is safe but will give unexpected results.
-pub trait FromGodot: Sized + GodotCompatible {
+pub trait FromGodot: Sized + GodotConvert {
     // TODO: better error
     /// Performs the conversion.
+    #[must_use]
     fn try_from_godot(via: Self::Via) -> Option<Self>;
 
     /// ⚠️ Performs the conversion.
@@ -91,8 +93,8 @@ pub(crate) fn try_from_ffi<T: FromGodot>(ffi: <T::Via as GodotType>::Ffi) -> Opt
 }
 
 macro_rules! impl_godot_as_self {
-    ($T:ty$(, $param_metadata:expr)?) => {
-        impl $crate::builtin::meta::GodotCompatible for $T {
+    ($T:ty) => {
+        impl $crate::builtin::meta::GodotConvert for $T {
             type Via = $T;
         }
 

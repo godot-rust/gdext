@@ -46,7 +46,8 @@ impl Callable {
         unsafe {
             sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(callable_from_object_method);
-                let args = [object.to_ffi().as_arg_ptr(), method.sys_const()];
+                let raw = object.to_ffi();
+                let args = [raw.as_arg_ptr(), method.sys_const()];
                 ctor(self_ptr, args.as_ptr());
             })
         }

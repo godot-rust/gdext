@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{FromGodot, GodotCompatible, ToGodot};
+use crate::builtin::meta::{FromGodot, GodotConvert, ToGodot};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::num::NonZeroU64;
 
@@ -74,7 +74,7 @@ impl Debug for InstanceId {
     }
 }
 
-impl GodotCompatible for InstanceId {
+impl GodotConvert for InstanceId {
     type Via = u64;
 }
 
@@ -89,28 +89,3 @@ impl FromGodot for InstanceId {
         Self::try_from_u64(via)
     }
 }
-
-/*
-// Note: Option impl is only possible as long as `FromVariant` and `InstanceId` are in same crate.
-// (Rust rationale: if upstream crate later adds blanket `impl FromVariant for Option<T>`, this would collide)
-impl FromVariant for Option<InstanceId> {
-    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-        if variant.is_nil() {
-            Ok(None)
-        } else {
-            // Should 0 in variant be mapped to None, or cause an error like now?
-            i64::try_from_variant(variant).map(|i| InstanceId::try_from_i64(i))
-        }
-    }
-}
-
-impl ToVariant for Option<InstanceId> {
-    fn to_variant(&self) -> Variant {
-        if let Some(id) = self {
-            id.to_variant()
-        } else {
-            0i64.to_variant()
-        }
-    }
-}
-*/

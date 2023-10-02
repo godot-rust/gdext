@@ -137,6 +137,9 @@ pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
 /// Types that can represent null-values.
 ///
 /// Used to blanket implement various conversions over `Option<T>`.
+///
+/// This is currently only implemented for `RawGd`.
+// TODO: Consider implementing for `Variant`.
 pub trait GodotNullableFfi: Sized + GodotFfi {
     fn flatten_option(opt: Option<Self>) -> Self;
     fn is_null(&self) -> bool;

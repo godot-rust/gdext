@@ -6,7 +6,7 @@
 
 use std::fmt::Debug;
 
-use godot::bind::{FromGodot, GodotCompatible, ToGodot};
+use godot::bind::{FromGodot, GodotConvert, ToGodot};
 use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{dict, varray, Variant};
 
@@ -16,35 +16,35 @@ use crate::framework::itest;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // General FromGodot/ToGodot derive tests
 
-#[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug)]
+#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
 struct StructUnit;
 
-#[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug)]
+#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
 struct StructNewType(String);
 
-#[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug)]
+#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
 struct StructTuple(String, i32);
 
-#[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug)]
+#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
 struct StructNamed {
     field1: String,
     field2: i32,
 }
 
-#[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug)]
+#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
 struct StructGenWhere<T>(T)
 where
     T: ToGodot + FromGodot;
 
 trait Bound {}
 
-#[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug)]
+#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
 struct StructGenBound<T: Bound + ToGodot + FromGodot>(T);
 
-#[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug, Clone)]
+#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug, Clone)]
 enum Uninhabited {}
 
-#[derive(FromGodot, ToGodot, GodotCompatible, PartialEq, Debug, Clone)]
+#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug, Clone)]
 enum Enum {
     Unit,
     OneTuple(i32),
@@ -145,7 +145,7 @@ macro_rules! roundtrip_with_skip {
     };
 }
 
-#[derive(Debug, Default, Clone, PartialEq, ToGodot, FromGodot, GodotCompatible)]
+#[derive(Debug, Default, Clone, PartialEq, ToGodot, FromGodot, GodotConvert)]
 enum EnumWithSkip {
     #[variant(skip)]
     Skipped(String),
@@ -209,10 +209,10 @@ roundtrip_with_skip!(
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Skipping of structs
 
-#[derive(Debug, Default, PartialEq, ToGodot, FromGodot, GodotCompatible)]
+#[derive(Debug, Default, PartialEq, ToGodot, FromGodot, GodotConvert)]
 struct NewTypeStructWithSkip(#[variant(skip)] String);
 
-#[derive(Debug, Default, PartialEq, ToGodot, FromGodot, GodotCompatible)]
+#[derive(Debug, Default, PartialEq, ToGodot, FromGodot, GodotConvert)]
 struct StructWithSkip {
     #[variant(skip)]
     skipped_field: String,

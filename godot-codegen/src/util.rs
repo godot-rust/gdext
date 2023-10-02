@@ -334,19 +334,19 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
         }
         #index_enum_impl
 
-        impl crate::builtin::meta::GodotCompatible for #enum_name {
-            type Via = i64;
+        impl crate::builtin::meta::GodotConvert for #enum_name {
+            type Via = i32;
         }
 
         impl crate::builtin::meta::ToGodot for #enum_name {
             fn to_godot(&self) -> Self::Via {
-                <Self as crate::obj::EngineEnum>::ord(*self) as i64
+                <Self as crate::obj::EngineEnum>::ord(*self)
             }
         }
 
         impl crate::builtin::meta::FromGodot for #enum_name {
             fn try_from_godot(via: Self::Via) -> Option<Self> {
-                <Self as crate::obj::EngineEnum>::try_from_ord(i32::try_from(via).ok()?)
+                <Self as crate::obj::EngineEnum>::try_from_ord(via)
             }
         }
 

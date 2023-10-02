@@ -13,7 +13,7 @@ use std::fmt;
 use std::marker::PhantomData;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use super::meta::{FromGodot, GodotCompatible, GodotFfiVariant, GodotType, ToGodot};
+use super::meta::{FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
 
 /// Godot's `Array` type.
 ///
@@ -28,7 +28,7 @@ use super::meta::{FromGodot, GodotCompatible, GodotFfiVariant, GodotType, ToGodo
 ///
 /// Godot also supports typed arrays, which are also just `Variant` arrays under the hood, but with
 /// runtime checks that no values of the wrong type are put into the array. We represent this as
-/// `Array<T>`, where the type `T` implements `VariantMetadata`, `FromGodot` and `ToGodot`.
+/// `Array<T>`, where the type `T` implements `GodotType`.
 ///
 /// # Reference semantics
 ///
@@ -47,10 +47,10 @@ use super::meta::{FromGodot, GodotCompatible, GodotFfiVariant, GodotType, ToGodo
 
 /// concurrent modification on other threads (e.g. created through GDScript).
 
-// `T` must be restricted to `VariantMetadata` in the type, because `Drop` can only be implemented
+// `T` must be restricted to `GodotType` in the type, because `Drop` can only be implemented
 // for `T: GodotType` because `drop()` requires `sys_mut()`, which is on the `GodotFfi`
 // trait, whose `from_sys_init()` requires `Default`, which is only implemented for `T:
-// VariantMetadata`. Whew. This could be fixed by splitting up `GodotFfi` if desired.
+// GodotType`. Whew. This could be fixed by splitting up `GodotFfi` if desired.
 #[repr(C)]
 pub struct Array<T: GodotType> {
     opaque: sys::types::OpaqueArray,
@@ -621,7 +621,7 @@ unsafe impl<T: GodotType> GodotFfi for Array<T> {
     }
 }
 
-impl<T: GodotType> GodotCompatible for Array<T> {
+impl<T: GodotType> GodotConvert for Array<T> {
     type Via = Self;
 }
 

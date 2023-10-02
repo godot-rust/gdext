@@ -65,13 +65,13 @@ impl<T: GodotClass> Base<T> {
 
 impl<T: GodotClass> Debug for Base<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        engine::debug_string(&self.obj.raw, f, "Base")
+        engine::debug_string(&self.obj, f, "Base")
     }
 }
 
 impl<T: GodotClass> Display for Base<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        engine::display_string(&self.obj.raw, f)
+        engine::display_string(&self.obj, f)
     }
 }
 

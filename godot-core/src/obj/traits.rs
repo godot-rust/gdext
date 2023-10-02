@@ -288,7 +288,10 @@ pub mod dom {
             T: GodotClass<Declarer = EngineDomain>,
             F: FnOnce(&mut T) -> R,
         {
-            closure(obj.as_target_mut())
+            closure(
+                obj.as_target_mut()
+                    .expect("scoped mut should not be called on a null object"),
+            )
         }
     }
 
@@ -312,7 +315,7 @@ pub mod dom {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub mod mem {
-    use godot_ffi::{GodotNullableFfi, PtrcallType};
+    use godot_ffi::PtrcallType;
 
     use super::private::Sealed;
     use crate::obj::{GodotClass, RawGd};
@@ -417,10 +420,11 @@ pub mod mem {
         fn maybe_init_ref<T: GodotClass>(obj: &RawGd<T>) {
             out!("  Dyn::init  <{}>", std::any::type_name::<T>());
             if obj
-                .instance_id_or_none()
+                .instance_id_unchecked()
                 .map(|id| id.is_ref_counted())
                 .unwrap_or(false)
             {
+                // Will call `RefCounted::init_ref()` which checks for liveness.
                 StaticRefCount::maybe_init_ref(obj)
             }
         }
@@ -428,10 +432,11 @@ pub mod mem {
         fn maybe_inc_ref<T: GodotClass>(obj: &RawGd<T>) {
             out!("  Dyn::inc   <{}>", std::any::type_name::<T>());
             if obj
-                .instance_id_or_none()
+                .instance_id_unchecked()
                 .map(|id| id.is_ref_counted())
                 .unwrap_or(false)
             {
+                // Will call `RefCounted::reference()` which checks for liveness.
                 StaticRefCount::maybe_inc_ref(obj)
             }
         }
@@ -439,10 +444,11 @@ pub mod mem {
         unsafe fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool {
             out!("  Dyn::dec   <{}>", std::any::type_name::<T>());
             if obj
-                .instance_id_or_none()
+                .instance_id_unchecked()
                 .map(|id| id.is_ref_counted())
                 .unwrap_or(false)
             {
+                // Will call `RefCounted::unreference()` which checks for liveness.
                 StaticRefCount::maybe_dec_ref(obj)
             } else {
                 false
@@ -451,7 +457,7 @@ pub mod mem {
 
         fn is_ref_counted<T: GodotClass>(obj: &RawGd<T>) -> Option<bool> {
             // Return `None` if obj is dead
-            obj.instance_id_or_none().map(|id| id.is_ref_counted())
+            obj.instance_id_unchecked().map(|id| id.is_ref_counted())
         }
     }
 

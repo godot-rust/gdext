@@ -7,12 +7,12 @@
 pub mod registration;
 
 mod class_name;
-mod godot_compat;
+mod godot_compatible;
 mod return_marshal;
 mod signature;
 
 pub use class_name::*;
-pub use godot_compat::*;
+pub use godot_compatible::*;
 #[doc(hidden)]
 pub use return_marshal::*;
 #[doc(hidden)]
@@ -100,14 +100,17 @@ mod sealed {
 
 /// Types that can represent some Godot type.
 ///
-/// This trait cannot be implemented for custom user types, for that you should see [`GodotCompatible`]
-/// instead.
+/// This trait cannot be implemented for custom user types, for that you should see [`GodotConvert`]
+/// instead. A type implements `GodotType` when it can directly represent some primitive type exposed by
+/// Godot. For instance, [`i64`] implements `GodotType`, since it can be directly represented by Godot's
+/// `int` type. But [`VariantType`] does not implement `GodotType`. Since while it is an enum Godot uses, we
+/// have no native way to indicate to Godot that a value should be one of the variants of `VariantType`.
 ///
 /// Unlike [`GodotFfi`], types implementing this trait don't need to fully represent its corresponding Godot
 /// type. For instance [`i32`] does not implement [`GodotFfi`] because it cannot represent all values of
 /// Godot's `int` type, however it does implement `GodotType` because we can set the metadata of values with
 /// this type to indicate that they are 32 bits large.
-pub trait GodotType: GodotCompatible<Via = Self> + ToGodot + FromGodot + sealed::Sealed {
+pub trait GodotType: GodotConvert<Via = Self> + ToGodot + FromGodot + sealed::Sealed {
     type Ffi: GodotFfiVariant;
 
     fn to_ffi(&self) -> Self::Ffi;
@@ -181,12 +184,27 @@ where
 
         Some(GodotType::from_ffi(ffi))
     }
-}
 
-/// Stores meta-information about registered types or properties.
-///
-/// Filling this information properly is important so that Godot can use ptrcalls instead of varcalls
-/// (requires typed GDScript + sufficient information from the extension side)
+    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        T::param_metadata()
+    }
+
+    fn class_name() -> ClassName {
+        T::class_name()
+    }
+
+    fn property_info(property_name: &str) -> PropertyInfo {
+        T::property_info(property_name)
+    }
+
+    fn argument_info(property_name: &str) -> MethodParamOrReturnInfo {
+        T::argument_info(property_name)
+    }
+
+    fn return_info() -> Option<MethodParamOrReturnInfo> {
+        T::return_info()
+    }
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

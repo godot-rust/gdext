@@ -16,9 +16,9 @@ pub use godot_string::*;
 pub use node_path::*;
 pub use string_name::*;
 
-use super::meta::{FromGodot, GodotCompatible, ToGodot};
+use super::meta::{FromGodot, GodotConvert, ToGodot};
 
-impl GodotCompatible for &str {
+impl GodotConvert for &str {
     type Via = GodotString;
 }
 
@@ -28,7 +28,7 @@ impl ToGodot for &str {
     }
 }
 
-impl GodotCompatible for String {
+impl GodotConvert for String {
     type Via = GodotString;
 }
 

@@ -274,10 +274,7 @@ unsafe impl GodotFfi for Variant {
     }
 }
 
-impl_godot_as_self!(
-    Variant,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8
-);
+impl_godot_as_self!(Variant);
 
 impl Clone for Variant {
     fn clone(&self) -> Self {
