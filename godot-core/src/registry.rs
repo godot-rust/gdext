@@ -227,6 +227,12 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             fill_into(
                 &mut c.godot_params.create_instance_func,
                 generated_create_fn,
+            )
+            .unwrap_or_else(|_|
+                panic!(
+                    "Godot class `{}` is defined multiple times in Rust; you can rename them with #[class(rename=NewName)]",
+                    c.class_name,
+                )
             );
             c.godot_params.free_instance_func = Some(free_fn);
         }
@@ -245,7 +251,9 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             get_virtual_fn,
         } => {
             c.user_register_fn = user_register_fn;
-            fill_into(&mut c.godot_params.create_instance_func, user_create_fn);
+            // this shouldn't panic since rustc will error if there's
+            // multiple `impl {Class}Virtual for Thing` definitions
+            fill_into(&mut c.godot_params.create_instance_func, user_create_fn).unwrap();
             c.godot_params.to_string_func = user_to_string_fn;
             c.godot_params.notification_func = user_on_notification_fn;
             c.godot_params.get_virtual_func = Some(get_virtual_fn);
@@ -260,12 +268,13 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
 }
 
 /// If `src` is occupied, it moves the value into `dst`, while ensuring that no previous value is present in `dst`.
-fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) {
+fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) -> Result<(), ()> {
     match (dst, src) {
         (dst @ None, src) => *dst = src,
-        (Some(_), Some(_)) => panic!("option already filled"),
+        (Some(_), Some(_)) => return Err(()),
         (Some(_), None) => { /* do nothing */ }
     }
+    Ok(())
 }
 
 /// Registers a class with given the dynamic type information `info`.
