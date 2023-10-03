@@ -24,6 +24,10 @@ impl HasConstants {
 
     #[constant]
     const D: usize = 20 + 33 * 45;
+
+    #[constant]
+    #[rustfmt::skip]
+    const DONT_PANIC_WITH_SEGMENTED_PATH_ATTRIBUTE: bool = true;
 }
 
 #[itest]

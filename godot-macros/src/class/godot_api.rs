@@ -322,9 +322,10 @@ where
 {
     let mut found = None;
     for (index, attr) in attributes.iter().enumerate() {
-        let attr_name = attr
-            .get_single_path_segment()
-            .expect("get_single_path_segment");
+        let Some(attr_name) = attr.get_single_path_segment() else {
+            // Attribute of the form #[segmented::path] can't be what we are looking for
+            continue;
+        };
 
         let new_found = match attr_name {
             name if name == "func" => {

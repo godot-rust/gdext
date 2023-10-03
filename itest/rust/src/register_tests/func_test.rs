@@ -61,6 +61,16 @@ impl GdSelfReference {
     }
 
     #[func]
+    #[rustfmt::skip]
+    fn func_shouldnt_panic_with_segmented_path_attribute() -> bool {
+        true
+    }
+
+    #[signal]
+    #[rustfmt::skip]
+    fn signal_shouldnt_panic_with_segmented_path_attribute();
+
+    #[func]
     fn fail_to_update_internal_value_due_to_conflicting_borrow(
         &mut self,
         new_internal: i32,
