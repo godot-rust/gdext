@@ -6,7 +6,10 @@
 
 use godot::{
     bind::property::ExportInfo,
-    engine::{global::PropertyHint, Texture},
+    engine::{
+        global::{PropertyHint, PropertyUsageFlags},
+        Texture,
+    },
     prelude::*,
     test::itest,
 };
@@ -351,20 +354,101 @@ fn derive_export() {
         .iter_shared()
         .find(|c| c.get_or_nil("name") == "foo".to_variant())
         .unwrap();
-    assert_eq!(
-        property.get_or_nil("class_name"),
-        "DeriveExport".to_variant()
+    // `class_name` should be empty for non-Object variants.
+    check_property(&property, "class_name", "");
+    check_property(&property, "type", VariantType::Int as i32);
+    check_property(&property, "hint", PropertyHint::PROPERTY_HINT_ENUM.ord());
+    check_property(&property, "hint_string", "A:0,B:1,C:2");
+    check_property(
+        &property,
+        "usage",
+        PropertyUsageFlags::PROPERTY_USAGE_DEFAULT.ord(),
     );
-    assert_eq!(
-        property.get_or_nil("type"),
-        (VariantType::Int as i32).to_variant()
+}
+
+#[derive(GodotClass)]
+#[class(init, base=Resource)]
+pub struct CustomResource {}
+
+#[godot_api]
+impl CustomResource {}
+
+#[godot_api]
+impl ResourceVirtual for CustomResource {}
+
+#[derive(GodotClass)]
+#[class(init, base=Resource, rename=NewNameCustomResource)]
+pub struct RenamedCustomResource {}
+
+#[godot_api]
+impl RenamedCustomResource {}
+
+#[godot_api]
+impl ResourceVirtual for RenamedCustomResource {}
+
+#[derive(GodotClass)]
+#[class(init, base=Node)]
+pub struct ExportResource {
+    #[export]
+    #[var(usage_flags=[PROPERTY_USAGE_DEFAULT, PROPERTY_USAGE_EDITOR_INSTANTIATE_OBJECT])]
+    pub foo: Option<Gd<CustomResource>>,
+
+    #[export]
+    pub bar: Option<Gd<RenamedCustomResource>>,
+}
+
+#[godot_api]
+impl ExportResource {}
+
+#[godot_api]
+impl NodeVirtual for ExportResource {}
+
+#[itest]
+fn export_resource() {
+    let class: Gd<ExportResource> = Gd::new_default();
+
+    let property = class
+        .get_property_list()
+        .iter_shared()
+        .find(|c| c.get_or_nil("name") == "foo".to_variant())
+        .unwrap();
+    check_property(&property, "class_name", "CustomResource");
+    check_property(&property, "type", VariantType::Object as i32);
+    check_property(
+        &property,
+        "hint",
+        PropertyHint::PROPERTY_HINT_RESOURCE_TYPE.ord(),
     );
-    assert_eq!(
-        property.get_or_nil("hint"),
-        (PropertyHint::PROPERTY_HINT_ENUM.ord()).to_variant()
+    check_property(&property, "hint_string", "CustomResource");
+    check_property(
+        &property,
+        "usage",
+        PropertyUsageFlags::PROPERTY_USAGE_DEFAULT.ord()
+            | PropertyUsageFlags::PROPERTY_USAGE_EDITOR_INSTANTIATE_OBJECT.ord(),
     );
-    assert_eq!(
-        property.get_or_nil("hint_string"),
-        "A:0,B:1,C:2".to_variant()
+
+    let property = class
+        .get_property_list()
+        .iter_shared()
+        .find(|c| c.get_or_nil("name") == "bar".to_variant())
+        .unwrap();
+    check_property(&property, "class_name", "NewNameCustomResource");
+    check_property(&property, "type", VariantType::Object as i32);
+    check_property(
+        &property,
+        "hint",
+        PropertyHint::PROPERTY_HINT_RESOURCE_TYPE.ord(),
     );
+    check_property(&property, "hint_string", "NewNameCustomResource");
+    check_property(
+        &property,
+        "usage",
+        PropertyUsageFlags::PROPERTY_USAGE_DEFAULT.ord(),
+    );
+
+    class.free();
+}
+
+fn check_property(property: &Dictionary, key: &str, expected: impl ToVariant) {
+    assert_eq!(property.get_or_nil(key), expected.to_variant());
 }

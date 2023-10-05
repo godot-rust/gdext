@@ -32,6 +32,16 @@ pub fn class_name_obj(class: &impl ToTokens) -> TokenStream {
     quote! { <#class as ::godot::obj::GodotClass>::class_name() }
 }
 
+pub fn property_variant_type(property_type: &impl ToTokens) -> TokenStream {
+    let property_type = property_type.to_token_stream();
+    quote! {<<#property_type as ::godot::bind::property::Property>::Intermediate as ::godot::builtin::meta::VariantMetadata>::variant_type()}
+}
+
+pub fn property_variant_class_name(property_type: &impl ToTokens) -> TokenStream {
+    let property_type = property_type.to_token_stream();
+    quote! {<<#property_type as ::godot::bind::property::Property>::Intermediate as ::godot::builtin::meta::VariantMetadata>::class_name()}
+}
+
 pub fn bail_fn<R, T>(msg: impl AsRef<str>, tokens: T) -> ParseResult<R>
 where
     T: Spanned,

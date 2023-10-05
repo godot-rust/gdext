@@ -67,6 +67,8 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             continue;
         };
 
+        let field_variant_type = util::property_variant_type(field_type);
+        let field_class_name = util::property_variant_class_name(field_type);
         let field_name = field_ident.to_string();
 
         // rustfmt wont format this if we put it in the let-else.
@@ -178,8 +180,8 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             let usage = #usage_flags;
 
             let property_info = ::godot::builtin::meta::PropertyInfo {
-                variant_type: <<#field_type as ::godot::bind::property::Property>::Intermediate as ::godot::builtin::meta::VariantMetadata>::variant_type(),
-                class_name: #class_name_obj,
+                variant_type: #field_variant_type,
+                class_name: #field_class_name,
                 property_name: #field_name.into(),
                 hint,
                 hint_string,
@@ -194,7 +196,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             unsafe {
                 ::godot::sys::interface_fn!(classdb_register_extension_class_property)(
                     ::godot::sys::get_library(),
-                    #class_name::class_name().string_sys(),
+                    #class_name_obj.string_sys(),
                     std::ptr::addr_of!(property_info_sys),
                     setter_name.string_sys(),
                     getter_name.string_sys(),
