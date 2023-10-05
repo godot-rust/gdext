@@ -206,10 +206,12 @@ impl<T: GodotClass> Gd<T> {
         })
     }
 
-    /// ⚠️ Returns the last known, possibly invalid instance ID of this object.
+    /// Returns the last known, possibly invalid instance ID of this object.
     ///
     /// This function does not check that the returned instance ID points to a valid instance!
     /// Unless performance is a problem, use [`instance_id()`][Self::instance_id] instead.
+    ///
+    /// This method is safe and never panics.
     pub fn instance_id_unchecked(&self) -> InstanceId {
         // SAFETY:
         // A `Gd` can only be created from a non-null `RawGd`. Meaning `raw.instance_id_unchecked()` will
@@ -390,10 +392,15 @@ where
     /// example to the node tree in case of nodes.
     ///
     /// # Panics
-    /// * When the referred-to object has already been destroyed.
-    /// * When this is invoked on an upcast `Gd<Object>` that dynamically points to a reference-counted type (i.e. operation not supported).
+    /// - When the referred-to object has already been destroyed.
+    /// - When this is invoked on an upcast `Gd<Object>` that dynamically points to a reference-counted type (i.e. operation not supported).
+    /// - When the object is bound by an ongoing `bind()` or `bind_mut()` call (through a separate `Gd` pointer).
     pub fn free(self) {
+        // Note: this method is NOT invoked when the free() call happens dynamically (e.g. through GDScript or reflection).
+        // As such, do not use it for operations and validations to perform upon destruction.
+
         // TODO disallow for singletons, either only at runtime or both at compile time (new memory policy) and runtime
+        use dom::Domain;
 
         // Runtime check in case of T=Object, no-op otherwise
         let ref_counted = T::Mem::is_ref_counted(&self.raw);
@@ -408,7 +415,17 @@ where
             "called free() on already destroyed object"
         );
 
-        // This destroys the Storage instance, no need to run destructor again
+        // SAFETY: object must be alive, which was just checked above. No multithreading here.
+        // Also checked in the C free_instance_func callback, however error message can be more precise here and we don't need to instruct
+        // the engine about object destruction. Both paths are tested.
+        let bound = unsafe { T::Declarer::is_currently_bound(&self.raw) };
+        assert!(
+            !bound,
+            "called free() while a bind() or bind_mut() call is active"
+        );
+
+        // SAFETY: object alive as checked.
+        // This destroys the Storage instance, no need to run destructor again.
         unsafe {
             sys::interface_fn!(object_destroy)(self.raw.obj_sys());
         }

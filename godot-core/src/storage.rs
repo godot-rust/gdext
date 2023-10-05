@@ -40,7 +40,7 @@ mod single_threaded {
         base: Base<T::Base>,
 
         // Declared after `user_instance`, is dropped last
-        pub lifecycle: cell::Cell<Lifecycle>,
+        pub(super) lifecycle: cell::Cell<Lifecycle>,
         godot_ref_count: cell::Cell<u32>,
     }
 
@@ -79,6 +79,11 @@ mod single_threaded {
                 type_name::<T>(),
                 //self.user_instance
             );
+        }
+
+        pub fn is_bound(&self) -> bool {
+            // Needs to borrow mutably, otherwise it succeeds if shared borrows are alive.
+            self.user_instance.try_borrow_mut().is_err()
         }
 
         pub fn get(&self) -> cell::Ref<T> {
@@ -122,7 +127,7 @@ mod multi_threaded {
     use std::sync;
     use std::sync::atomic::{AtomicU32, Ordering};
 
-    use crate::obj::{Base, Gd, GodotClass, Inherits, Share};
+    use crate::obj::{Base, Gd, GodotClass, Inherits};
     use crate::out;
 
     use super::Lifecycle;
@@ -158,7 +163,7 @@ mod multi_threaded {
         base: Base<T::Base>,
 
         // Declared after `user_instance`, is dropped last
-        pub lifecycle: AtomicLifecycle,
+        pub(super) lifecycle: AtomicLifecycle,
         godot_ref_count: AtomicU32,
     }
 
@@ -193,6 +198,11 @@ mod multi_threaded {
                 type_name::<T>(),
                 //self.user_instance
             );
+        }
+
+        pub fn is_bound(&self) -> bool {
+            // Needs to borrow mutably, otherwise it succeeds if shared borrows are alive.
+            self.user_instance.try_write().is_err()
         }
 
         pub fn get(&self) -> sync::RwLockReadGuard<T> {
@@ -311,7 +321,14 @@ pub unsafe fn as_storage<'u, T: GodotClass>(
 /// # Safety
 /// `instance_ptr` is assumed to point to a valid instance. This function must only be invoked once for a pointer.
 pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClassInstancePtr) {
-    let _drop = Box::from_raw(instance_ptr as *mut InstanceStorage<T>);
+    let raw = instance_ptr as *mut InstanceStorage<T>;
+
+    assert!(
+        !(*raw).is_bound(),
+        "tried to destroy object while a bind() or bind_mut() call is active"
+    );
+
+    let _drop = Box::from_raw(raw);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
