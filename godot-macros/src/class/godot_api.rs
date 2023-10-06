@@ -238,6 +238,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<FuncDefinition>, Vec<Functi
                     rename,
                     has_gd_self,
                 } => {
+                    let external_attributes = method.attributes.clone();
                     // Signatures are the same thing without body
                     let mut sig = util::reduce_to_signature(method);
                     if *has_gd_self {
@@ -249,6 +250,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<FuncDefinition>, Vec<Functi
                     }
                     func_definitions.push(FuncDefinition {
                         func: sig,
+                        external_attributes,
                         rename: rename.clone(),
                         has_gd_self: *has_gd_self,
                     });
