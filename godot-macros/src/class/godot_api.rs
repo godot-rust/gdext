@@ -337,42 +337,43 @@ where
                 let rename = parser.handle_expr("rename")?.map(|ts| ts.to_string());
                 let has_gd_self = parser.handle_alone("gd_self")?;
 
-                Some(BoundAttr {
+                BoundAttr {
                     attr_name: attr_name.clone(),
                     index,
                     ty: BoundAttrType::Func {
                         rename,
                         has_gd_self,
                     },
-                })
+                }
             }
             name if name == "signal" => {
                 // TODO once parameters are supported, this should probably be moved to the struct definition
                 // E.g. a zero-sized type Signal<(i32, String)> with a provided emit(i32, String) method
                 // This could even be made public (callable on the struct obj itself)
-                Some(BoundAttr {
+                BoundAttr {
                     attr_name: attr_name.clone(),
                     index,
                     ty: BoundAttrType::Signal(attr.value.clone()),
-                })
+                }
             }
-            name if name == "constant" => Some(BoundAttr {
+            name if name == "constant" => BoundAttr {
                 attr_name: attr_name.clone(),
                 index,
                 ty: BoundAttrType::Const(attr.value.clone()),
-            }),
-            _ => None,
+            },
+            // Ignore unknown attributes
+            _ => continue,
         };
 
         // Validate at most 1 attribute
-        if found.is_some() && new_found.is_some() {
+        if found.is_some() {
             bail!(
                 &error_scope,
                 "at most one #[func], #[signal], or #[constant] attribute per declaration allowed",
             )?;
         }
 
-        found = new_found;
+        found = Some(new_found);
     }
 
     Ok(found)

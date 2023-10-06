@@ -4,9 +4,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Needed for Clippy to accept #[cfg(all())]
+#![allow(clippy::non_minimal_cfg)]
+
 use crate::framework::itest;
 use godot::engine::ClassDb;
 use godot::prelude::*;
+use godot::sys::static_assert;
 
 #[derive(GodotClass)]
 struct HasConstants {}
@@ -28,6 +32,14 @@ impl HasConstants {
     #[constant]
     #[rustfmt::skip]
     const DONT_PANIC_WITH_SEGMENTED_PATH_ATTRIBUTE: bool = true;
+
+    #[cfg(all())]
+    #[constant]
+    const CONSTANT_RECOGNIZED_WITH_SIMPLE_PATH_ATTRIBUTE_ABOVE_CONST_ATTR: bool = true;
+
+    #[constant]
+    #[cfg(all())]
+    const CONSTANT_RECOGNIZED_WITH_SIMPLE_PATH_ATTRIBUTE_BELOW_CONST_ATTR: bool = true;
 }
 
 #[itest]
@@ -54,6 +66,10 @@ fn constants_correct_value() {
             constant_value
         );
     }
+
+    // Ensure the constants are still present and are equal to 'true'
+    static_assert!(HasConstants::CONSTANT_RECOGNIZED_WITH_SIMPLE_PATH_ATTRIBUTE_ABOVE_CONST_ATTR);
+    static_assert!(HasConstants::CONSTANT_RECOGNIZED_WITH_SIMPLE_PATH_ATTRIBUTE_BELOW_CONST_ATTR);
 }
 
 #[derive(GodotClass)]
@@ -73,7 +89,7 @@ impl HasOtherConstants {
 
 // TODO: replace with proc-macro api when constant enums and bitfields can be exported through the
 // proc-macro.
-impl ::godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
+impl godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
     fn __register_methods() {}
     fn __register_constants() {
         use ::godot::builtin::meta::registration::constant::*;
@@ -107,8 +123,8 @@ impl ::godot::obj::cap::ImplementsGodotApi for HasOtherConstants {
     }
 }
 
-::godot::sys::plugin_add!(
-    __GODOT_PLUGIN_REGISTRY  in::godot::private;
+godot::sys::plugin_add!(
+    __GODOT_PLUGIN_REGISTRY in ::godot::private;
     ::godot::private::ClassPlugin {
         class_name: HasOtherConstants::class_name(),
         component: ::godot::private::PluginComponent::UserMethodBinds {
