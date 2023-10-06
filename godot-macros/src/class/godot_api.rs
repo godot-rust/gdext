@@ -67,21 +67,35 @@ impl BoundAttr {
     }
 }
 
+/// Holds information known from a signal's definition
+struct SignalDefinition {
+    /// The signal's function signature.
+    signature: Function,
+
+    /// The signal's non-gdext attributes (all except #[signal]).
+    external_attributes: Vec<Attribute>,
+}
+
 /// Codegen for `#[godot_api] impl MyType`
 fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     let class_name = util::validate_impl(&decl, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
     let (funcs, signals) = process_godot_fns(&mut decl)?;
 
+    let mut signal_cfg_attrs: Vec<Vec<&Attribute>> = Vec::new();
     let mut signal_name_strs: Vec<String> = Vec::new();
     let mut signal_parameters_count: Vec<usize> = Vec::new();
     let mut signal_parameters: Vec<TokenStream> = Vec::new();
 
-    for signature in signals {
+    for signal in signals.iter() {
+        let SignalDefinition {
+            signature,
+            external_attributes,
+        } = signal;
         let mut param_types: Vec<TyExpr> = Vec::new();
         let mut param_names: Vec<String> = Vec::new();
 
-        for param in signature.params.inner {
+        for param in signature.params.inner.iter() {
             match &param.0 {
                 FnParam::Typed(param) => {
                     param_types.push(param.ty.clone());
@@ -103,6 +117,13 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
             ]
         };
 
+        // Transport #[cfg] attrs to the FFI glue to ensure signals which were conditionally
+        // removed from compilation don't cause errors.
+        signal_cfg_attrs.push(
+            util::extract_cfg_attrs(external_attributes)
+                .into_iter()
+                .collect(),
+        );
         signal_name_strs.push(signature.name.to_string());
         signal_parameters_count.push(param_names.len());
         signal_parameters.push(param_array_decl);
@@ -164,20 +185,23 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
                     use ::godot::sys;
 
                     #(
-                        let parameters_info: [::godot::builtin::meta::PropertyInfo; #signal_parameters_count] = #signal_parameters;
+                        #(#signal_cfg_attrs)*
+                        {
+                            let parameters_info: [::godot::builtin::meta::PropertyInfo; #signal_parameters_count] = #signal_parameters;
 
-                        let mut parameters_info_sys: [::godot::sys::GDExtensionPropertyInfo; #signal_parameters_count] =
-                            std::array::from_fn(|i| parameters_info[i].property_sys());
+                            let mut parameters_info_sys: [::godot::sys::GDExtensionPropertyInfo; #signal_parameters_count] =
+                                std::array::from_fn(|i| parameters_info[i].property_sys());
 
-                        let signal_name = ::godot::builtin::StringName::from(#signal_name_strs);
+                            let signal_name = ::godot::builtin::StringName::from(#signal_name_strs);
 
-                        sys::interface_fn!(classdb_register_extension_class_signal)(
-                            sys::get_library(),
-                            #class_name_obj.string_sys(),
-                            signal_name.string_sys(),
-                            parameters_info_sys.as_ptr(),
-                            sys::GDExtensionInt::from(#signal_parameters_count as i64),
-                        );
+                            sys::interface_fn!(classdb_register_extension_class_signal)(
+                                sys::get_library(),
+                                #class_name_obj.string_sys(),
+                                signal_name.string_sys(),
+                                parameters_info_sys.as_ptr(),
+                                sys::GDExtensionInt::from(#signal_parameters_count as i64),
+                            );
+                        };
                     )*
                 }
             }
@@ -203,9 +227,11 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     Ok(result)
 }
 
-fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<FuncDefinition>, Vec<Function>), Error> {
+fn process_godot_fns(
+    decl: &mut Impl,
+) -> Result<(Vec<FuncDefinition>, Vec<SignalDefinition>), Error> {
     let mut func_definitions = vec![];
-    let mut signal_signatures = vec![];
+    let mut signal_definitions = vec![];
 
     let mut removed_indexes = vec![];
     for (index, item) in decl.body_items.iter_mut().enumerate() {
@@ -259,9 +285,13 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<FuncDefinition>, Vec<Functi
                     if method.return_ty.is_some() {
                         return attr.bail("return types are not supported", method);
                     }
+                    let external_attributes = method.attributes.clone();
                     let sig = util::reduce_to_signature(method);
 
-                    signal_signatures.push(sig.clone());
+                    signal_definitions.push(SignalDefinition {
+                        signature: sig,
+                        external_attributes,
+                    });
                     removed_indexes.push(index);
                 }
                 BoundAttrType::Const(_) => {
@@ -280,7 +310,7 @@ fn process_godot_fns(decl: &mut Impl) -> Result<(Vec<FuncDefinition>, Vec<Functi
         decl.body_items.remove(index);
     }
 
-    Ok((func_definitions, signal_signatures))
+    Ok((func_definitions, signal_definitions))
 }
 
 fn process_godot_constants(decl: &mut Impl) -> Result<Vec<Constant>, Error> {
