@@ -7,11 +7,11 @@
 
 use crate::framework::{expect_panic, itest};
 
-use godot::obj::LateInit;
+use godot::obj::OnReady;
 
 #[itest]
 fn lateinit_deref() {
-    let mut l = LateInit::<i32>::new(|| 42);
+    let mut l = OnReady::<i32>::new(|| 42);
     l.init();
 
     // DerefMut
@@ -27,12 +27,12 @@ fn lateinit_deref() {
 #[itest]
 fn lateinit_deref_on_uninit() {
     expect_panic("Deref on uninit fails", || {
-        let l = LateInit::<i32>::new(|| 42);
+        let l = OnReady::<i32>::new(|| 42);
         let _ref: &i32 = &*l;
     });
 
     expect_panic("DerefMut on uninit fails", || {
-        let mut l = LateInit::<i32>::new(|| 42);
+        let mut l = OnReady::<i32>::new(|| 42);
         let _ref: &mut i32 = &mut *l;
     });
 }
@@ -40,7 +40,7 @@ fn lateinit_deref_on_uninit() {
 #[itest]
 fn lateinit_multi_init() {
     expect_panic("init() on already initialized container fails", || {
-        let mut l = LateInit::<i32>::new(|| 42);
+        let mut l = OnReady::<i32>::new(|| 42);
         l.init();
         l.init();
     });
