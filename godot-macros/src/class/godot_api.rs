@@ -136,6 +136,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
         .map(|func_def| make_method_registration(&class_name, func_def));
 
     let consts = process_godot_constants(&mut decl)?;
+    let mut integer_constant_cfg_attrs = Vec::new();
     let mut integer_constant_names = Vec::new();
     let mut integer_constant_values = Vec::new();
 
@@ -146,6 +147,15 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
 
         let name = &constant.name;
 
+        // Unlike with #[func] and #[signal], we don't remove the attributes from Constant
+        // signatures within 'process_godot_constants'.
+        let cfg_attrs = util::extract_cfg_attrs(&constant.attributes)
+            .into_iter()
+            .collect::<Vec<_>>();
+
+        // Transport #[cfg] attrs to the FFI glue to ensure constants which were conditionally
+        // removed from compilation don't cause errors.
+        integer_constant_cfg_attrs.push(cfg_attrs);
         integer_constant_names.push(constant.name.to_string());
         integer_constant_values.push(quote! { #class_name::#name });
     }
@@ -157,6 +167,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
             use ::godot::builtin::StringName;
 
             #(
+                #(#integer_constant_cfg_attrs)*
                 ExportConstant::new(
                     #class_name_obj,
                     ConstantKind::Integer(
