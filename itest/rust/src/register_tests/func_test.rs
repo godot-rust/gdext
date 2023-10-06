@@ -4,6 +4,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Needed for Clippy to accept #[cfg(all())]
+#![allow(clippy::non_minimal_cfg)]
+
 use godot::prelude::*;
 
 #[derive(GodotClass)]
@@ -66,9 +69,37 @@ impl GdSelfReference {
         true
     }
 
+    #[cfg(all())]
+    #[func]
+    fn func_recognized_with_simple_path_attribute_above_func_attr() -> bool {
+        true
+    }
+
+    #[func]
+    #[cfg(all())]
+    fn func_recognized_with_simple_path_attribute_below_func_attr() -> bool {
+        true
+    }
+
+    #[func]
+    fn funcs_above_are_kept() -> bool {
+        let f2 = Self::func_recognized_with_simple_path_attribute_above_func_attr();
+        let f1 = Self::func_recognized_with_simple_path_attribute_below_func_attr();
+
+        f1 && f2
+    }
+
     #[signal]
     #[rustfmt::skip]
     fn signal_shouldnt_panic_with_segmented_path_attribute();
+
+    #[cfg(all())]
+    #[signal]
+    fn signal_recognized_with_simple_path_attribute_above_signal_attr();
+
+    #[signal]
+    #[cfg(all())]
+    fn signal_recognized_with_simple_path_attribute_below_signal_attr();
 
     #[func]
     fn fail_to_update_internal_value_due_to_conflicting_borrow(
