@@ -68,10 +68,10 @@ macro_rules! impl_builtin_traits_inner {
         impl Eq for $Type {}
     };
 
-    ( PartialOrd for $Type:ty => $gd_method:ident ) => {
-        impl PartialOrd for $Type {
+    ( Ord for $Type:ty => $gd_method:ident ) => {
+        impl Ord for $Type {
             #[inline]
-            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
                 let op_less = |lhs, rhs| unsafe {
                     let mut result = false;
                     ::godot_ffi::builtin_call! {
@@ -81,22 +81,18 @@ macro_rules! impl_builtin_traits_inner {
                 };
 
                 if op_less(self.sys(), other.sys()) {
-                    Some(std::cmp::Ordering::Less)
+                    std::cmp::Ordering::Less
                 } else if op_less(other.sys(), self.sys()) {
-                    Some(std::cmp::Ordering::Greater)
+                    std::cmp::Ordering::Greater
                 } else {
-                    Some(std::cmp::Ordering::Equal)
+                    std::cmp::Ordering::Equal
                 }
             }
         }
-    };
-
-    ( Ord for $Type:ty => $gd_method:ident ) => {
-        impl_builtin_traits_inner!(PartialOrd for $Type => $gd_method);
-        impl Ord for $Type {
+        impl PartialOrd for $Type {
             #[inline]
-            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-                PartialOrd::partial_cmp(self, other).expect("PartialOrd::partial_cmp")
+            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+                Some(self.cmp(other))
             }
         }
     };

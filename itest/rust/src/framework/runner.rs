@@ -364,7 +364,7 @@ fn get_execution_time(test: &Variant) -> Option<Duration> {
 fn get_errors(test: &Variant) -> Array<GodotString> {
     test.call("get", &["errors".to_variant()])
         .try_to::<Array<GodotString>>()
-        .unwrap_or(Array::new())
+        .unwrap_or_default()
 }
 
 #[must_use]

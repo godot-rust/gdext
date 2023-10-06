@@ -167,7 +167,7 @@ impl ListParser {
 
     /// Take the next element of the list, if it is a key-value pair of the form `key = expression`.
     pub(crate) fn try_next_key_value(&mut self) -> Option<(Ident, KvValue)> {
-        let Some(kv) = self.peek() else { return None };
+        let kv = self.peek()?;
 
         if let Ok((key, value)) = kv.as_key_value() {
             _ = self.pop_next();
