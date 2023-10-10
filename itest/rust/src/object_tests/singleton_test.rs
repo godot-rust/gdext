@@ -5,9 +5,11 @@
  */
 
 use crate::framework::itest;
+use godot::bind::godot_api;
 use godot::builtin::GodotString;
-use godot::engine::{Input, Os};
+use godot::engine::{Engine, Input, Os};
 use godot::obj::Gd;
+use godot::prelude::GodotClass;
 
 #[itest]
 fn singleton_is_unique() {
@@ -41,4 +43,34 @@ fn singleton_is_operational() {
 
     let read_value = os.get_environment(key);
     assert_eq!(read_value, value);
+}
+
+#[itest(focus)]
+fn singleton_manually_registered_is_not_destroyed() {
+    let mut engine = Engine::singleton();
+
+    let singleton = Gd::<RustSingleton>::new_default();
+    engine.register_singleton("RustSingleton".into(), singleton.upcast());
+
+    // If this is destroyed, a potential use-after-free could occur, as Godot still holds it.
+    let singleton_back = engine.get_singleton("RustSingleton".into()).unwrap();
+    drop(singleton_back);
+
+    assert!(
+        singleton.is_instance_valid(),
+        "singletons must not be destroyed"
+    );
+}
+
+#[derive(GodotClass)]
+#[class(init, base=RefCounted)] // RefCounted is crucial here.
+struct RustSingleton {}
+
+#[godot_api]
+impl RustSingleton {}
+
+impl Drop for RustSingleton {
+    fn drop(&mut self) {
+        println!("Line {}: dropped!", line!());
+    }
 }
