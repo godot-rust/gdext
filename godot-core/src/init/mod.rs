@@ -102,8 +102,8 @@ fn gdext_on_level_init(level: InitLevel) {
 }
 
 /// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
-fn gdext_on_level_deinit(_level: InitLevel) {
-    // No logic at the moment.
+fn gdext_on_level_deinit(level: InitLevel) {
+    crate::unregister_classes(level);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
