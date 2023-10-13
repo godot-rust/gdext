@@ -7,10 +7,10 @@
 #![allow(dead_code)] // FIXME
 
 use crate::init::InitLevel;
+use crate::log;
 use crate::obj::*;
 use crate::private::as_storage;
 use crate::storage::InstanceStorage;
-use crate::{godot_print, log};
 use godot_ffi as sys;
 
 use sys::interface_fn;
@@ -264,7 +264,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
             .push(info.class_name);
         register_class_raw(info);
 
-        godot_print!("Class {} loaded", class_name);
+        out!("Class {} loaded", class_name);
     }
 
     out!("All classes for level `{init_level:?}` auto-registered.");
@@ -459,7 +459,7 @@ fn unregister_class_raw(class_name: &ClassName) {
             class_name.string_sys(),
         );
     }
-    godot_print!("Class {class_name} unloaded");
+    out!("Class {class_name} unloaded");
 }
 
 /// Callbacks that are passed as function pointers to Godot upon class registration.
