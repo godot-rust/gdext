@@ -13,6 +13,7 @@ mod geometry {
     mod rect2i_test;
     mod transform2d_test;
     mod transform3d_test;
+    mod vector_test;
 }
 
 mod containers {
