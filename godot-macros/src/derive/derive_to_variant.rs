@@ -11,7 +11,7 @@ use venial::{Declaration, StructFields};
 use crate::util::{decl_get_info, has_attr, DeclInfo};
 use crate::ParseResult;
 
-pub fn derive_to_variant(decl: Declaration) -> ParseResult<TokenStream> {
+pub fn derive_to_godot(decl: Declaration) -> ParseResult<TokenStream> {
     let mut body = quote! {
         let mut root = ::godot::builtin::Dictionary::new();
     };
@@ -91,9 +91,9 @@ pub fn derive_to_variant(decl: Declaration) -> ParseResult<TokenStream> {
     };
 
     Ok(quote! {
-        impl #generic_params ::godot::builtin::ToVariant for #name #gen #where_ {
+        impl #generic_params ::godot::builtin::meta::ToGodot for #name #gen #where_ {
             #allow_unreachable
-             fn to_variant(&self) -> ::godot::builtin::Variant {
+             fn to_godot(&self) -> ::godot::builtin::Variant {
                 #body
             }
         }

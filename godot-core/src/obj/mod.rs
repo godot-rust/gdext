@@ -14,10 +14,14 @@ mod base;
 mod gd;
 mod guards;
 mod instance_id;
+mod raw;
 mod traits;
 
 pub use base::*;
 pub use gd::*;
 pub use guards::*;
 pub use instance_id::*;
+pub use raw::*;
 pub use traits::*;
+
+type GdDerefTarget<T> = <<T as GodotClass>::Declarer as dom::Domain>::DerefTarget<T>;

@@ -8,7 +8,8 @@ use crate::framework::itest;
 
 use godot::builtin::inner::InnerPlane;
 use godot::builtin::math::{assert_eq_approx, ApproxEq};
-use godot::builtin::{real, Plane, RealConv, ToVariant, Vector3};
+use godot::builtin::meta::ToGodot;
+use godot::builtin::{real, Plane, RealConv, Vector3};
 
 use std::fmt::Debug;
 
@@ -117,7 +118,7 @@ fn plane_intersect_segment() {
         "intersect_segment",
         a.intersect_segment(b, c)
             .as_ref()
-            .map(ToVariant::to_variant)
+            .map(ToGodot::to_variant)
             .unwrap_or_default(),
         inner_a.intersects_segment(b, c),
     );
@@ -130,7 +131,7 @@ fn plane_intersect_segment() {
         "intersect_segment",
         a.intersect_segment(b, c)
             .as_ref()
-            .map(ToVariant::to_variant)
+            .map(ToGodot::to_variant)
             .unwrap_or_default(),
         inner_a.intersects_segment(b, c),
     );
@@ -146,7 +147,7 @@ fn plane_intersect_ray() {
         "intersect_ray",
         a.intersect_ray(b, c)
             .as_ref()
-            .map(ToVariant::to_variant)
+            .map(ToGodot::to_variant)
             .unwrap_or_default(),
         inner_a.intersects_ray(b, c),
     );
@@ -157,7 +158,7 @@ fn plane_intersect_ray() {
         "intersect_ray",
         a.intersect_ray(b, c)
             .as_ref()
-            .map(ToVariant::to_variant)
+            .map(ToGodot::to_variant)
             .unwrap_or_default(),
         inner_a.intersects_ray(b, c),
     );
@@ -215,7 +216,7 @@ fn plane_intersect_3() {
         "intersect_3",
         a.intersect_3(&b, &c)
             .as_ref()
-            .map(ToVariant::to_variant)
+            .map(ToGodot::to_variant)
             .unwrap_or_default(),
         inner_a.intersect_3(b, c),
     );
@@ -228,7 +229,7 @@ fn plane_intersect_3() {
         "intersect_3",
         a.intersect_3(&b, &c)
             .as_ref()
-            .map(ToVariant::to_variant)
+            .map(ToGodot::to_variant)
             .unwrap_or_default(),
         inner_a.intersect_3(b, c),
     );

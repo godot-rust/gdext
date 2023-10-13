@@ -7,10 +7,8 @@
 use std::cmp::Ordering;
 use std::fmt::Display;
 
-use godot::builtin::{
-    dict, varray, FromVariant, GodotString, NodePath, StringName, ToVariant, Variant, Vector2,
-    Vector3,
-};
+use godot::builtin::meta::{FromGodot, ToGodot};
+use godot::builtin::{dict, varray, GodotString, NodePath, StringName, Variant, Vector2, Vector3};
 use godot::builtin::{
     Basis, Dictionary, VariantArray, VariantConversionError, VariantOperator, VariantType,
 };
@@ -414,7 +412,7 @@ fn variant_hash_correct() {
 
 fn truncate_bad<T>(original_value: i64)
 where
-    T: FromVariant + Display,
+    T: FromGodot + Display,
 {
     let variant = original_value.to_variant();
     let result = T::try_from_variant(&variant);
@@ -431,8 +429,8 @@ where
 
 fn equal<T, U>(lhs: T, rhs: U, expected: bool)
 where
-    T: ToVariant,
-    U: ToVariant,
+    T: ToGodot,
+    U: ToGodot,
 {
     if expected {
         assert_eq!(lhs.to_variant(), rhs.to_variant());
@@ -443,9 +441,9 @@ where
 
 fn evaluate<T, U, E>(op: VariantOperator, lhs: T, rhs: U, expected: E)
 where
-    T: ToVariant,
-    U: ToVariant,
-    E: ToVariant,
+    T: ToGodot,
+    U: ToGodot,
+    E: ToGodot,
 {
     let lhs = lhs.to_variant();
     let rhs = rhs.to_variant();
@@ -456,8 +454,8 @@ where
 
 fn evaluate_fail<T, U>(op: VariantOperator, lhs: T, rhs: U)
 where
-    T: ToVariant,
-    U: ToVariant,
+    T: ToGodot,
+    U: ToGodot,
 {
     let lhs = lhs.to_variant();
     let rhs = rhs.to_variant();
@@ -467,8 +465,8 @@ where
 
 fn total_order<T, U>(lhs: T, rhs: U, expected_order: Ordering)
 where
-    T: ToVariant,
-    U: ToVariant,
+    T: ToGodot,
+    U: ToGodot,
 {
     fn eval(v: Option<Variant>) -> bool {
         v.expect("comparison is valid").to::<bool>()

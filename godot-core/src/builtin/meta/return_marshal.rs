@@ -7,6 +7,8 @@
 use crate::obj::{Gd, GodotClass};
 use crate::sys;
 
+use super::{FromGodot, GodotType};
+
 /// Specifies how the return type is marshalled in a ptrcall.
 #[doc(hidden)]
 pub trait PtrcallReturn {
@@ -35,15 +37,17 @@ pub struct PtrcallReturnT<R> {
     _marker: std::marker::PhantomData<R>,
 }
 
-impl<T: sys::GodotFuncMarshal> PtrcallReturn for PtrcallReturnT<T> {
+impl<T: FromGodot> PtrcallReturn for PtrcallReturnT<T> {
     type Ret = T;
 
     unsafe fn call(mut process_return_ptr: impl FnMut(sys::GDExtensionTypePtr)) -> Self::Ret {
-        let via = <T::Via as sys::GodotFfi>::from_sys_init_default(|return_ptr| {
-            process_return_ptr(return_ptr)
-        });
+        let ffi =
+            <<T::Via as GodotType>::Ffi as sys::GodotFfi>::from_sys_init_default(|return_ptr| {
+                process_return_ptr(return_ptr)
+            });
 
-        T::try_from_via(via).unwrap()
+        let via = T::Via::try_from_ffi(ffi).unwrap();
+        T::from_godot(via)
     }
 }
 

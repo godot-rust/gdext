@@ -6,13 +6,13 @@
 
 use std::fmt::Debug;
 
-use godot::builtin::{FromVariant, ToVariant};
+use godot::builtin::meta::{FromGodot, ToGodot};
 
 pub fn roundtrip<T>(value: T)
 where
-    T: FromVariant + ToVariant + PartialEq + Debug,
+    T: FromGodot + ToGodot + PartialEq + Debug,
 {
-    // TODO test other roundtrip (first FromVariant, then ToVariant)
+    // TODO test other roundtrip (first FromGodot, then ToGodot)
     // Some values can be represented in Variant, but not in T (e.g. Variant(0i64) -> Option<InstanceId> -> Variant is lossy)
 
     let variant = value.to_variant();

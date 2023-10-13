@@ -10,6 +10,7 @@ use godot_ffi as sys;
 use godot_ffi::{ffi_methods, GDExtensionTypePtr, GodotFfi};
 
 use crate::builtin::inner;
+use crate::builtin::meta::impl_godot_as_self;
 
 use super::{GodotString, StringName};
 
@@ -48,6 +49,10 @@ impl NodePath {
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(node_path.clone())`.
 unsafe impl GodotFfi for NodePath {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::NodePath
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn from_sys;
         fn sys;
@@ -67,6 +72,8 @@ unsafe impl GodotFfi for NodePath {
         result
     }
 }
+
+impl_godot_as_self!(NodePath);
 
 impl_builtin_traits! {
     for NodePath {

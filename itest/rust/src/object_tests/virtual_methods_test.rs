@@ -9,10 +9,11 @@
 use crate::framework::{itest, TestContext};
 
 use godot::bind::{godot_api, GodotClass};
+use godot::builtin::meta::ToGodot;
 use godot::builtin::{
     real, varray, Color, GodotString, PackedByteArray, PackedColorArray, PackedFloat32Array,
     PackedInt32Array, PackedStringArray, PackedVector2Array, PackedVector3Array, RealConv,
-    StringName, ToVariant, Variant, VariantArray, Vector2, Vector3,
+    StringName, Variant, VariantArray, Vector2, Vector3,
 };
 use godot::engine::notify::NodeNotification;
 use godot::engine::resource_loader::CacheMode;
@@ -484,7 +485,7 @@ impl CollisionObject2DTest {
     fn get_viewport(&self) -> Variant {
         self.viewport
             .as_ref()
-            .map(ToVariant::to_variant)
+            .map(ToGodot::to_variant)
             .unwrap_or(Variant::nil())
     }
 }

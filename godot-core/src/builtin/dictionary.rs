@@ -6,7 +6,8 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{inner, FromVariant, ToVariant, Variant};
+use crate::builtin::meta::{FromGodot, ToGodot};
+use crate::builtin::{inner, Variant};
 use crate::obj::Share;
 use crate::property::{Export, ExportInfo, Property};
 use std::fmt;
@@ -15,6 +16,7 @@ use std::ptr::addr_of_mut;
 use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, AsUninit, GodotFfi};
 
+use super::meta::impl_godot_as_self;
 use super::VariantArray;
 
 /// Godot's `Dictionary` type.
@@ -74,7 +76,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `erase`_
     #[doc(alias = "erase")]
-    pub fn remove<K: ToVariant>(&mut self, key: K) -> Option<Variant> {
+    pub fn remove<K: ToGodot>(&mut self, key: K) -> Option<Variant> {
         let key = key.to_variant();
         let old_value = self.get(key.clone());
         self.as_inner().erase(key);
@@ -90,7 +92,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `find_key`_
     #[doc(alias = "find_key")]
-    pub fn find_key_by_value<V: ToVariant>(&self, value: V) -> Option<Variant> {
+    pub fn find_key_by_value<V: ToGodot>(&self, value: V) -> Option<Variant> {
         let key = self.as_inner().find_key(value.to_variant());
 
         if !key.is_nil() || self.contains_key(key.clone()) {
@@ -104,7 +106,7 @@ impl Dictionary {
     ///
     /// Note that `NIL` values are returned as `Some(Variant::nil())`, while absent values are returned as `None`.
     /// If you want to treat both as `NIL`, use [`Self::get_or_nil`].
-    pub fn get<K: ToVariant>(&self, key: K) -> Option<Variant> {
+    pub fn get<K: ToGodot>(&self, key: K) -> Option<Variant> {
         let key = key.to_variant();
         if !self.contains_key(key.clone()) {
             return None;
@@ -120,7 +122,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `dict.get(key, null)`_
     #[doc(alias = "get")]
-    pub fn get_or_nil<K: ToVariant>(&self, key: K) -> Variant {
+    pub fn get_or_nil<K: ToGodot>(&self, key: K) -> Variant {
         self.as_inner().get(key.to_variant(), Variant::nil())
     }
 
@@ -128,7 +130,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `has`_
     #[doc(alias = "has")]
-    pub fn contains_key<K: ToVariant>(&self, key: K) -> bool {
+    pub fn contains_key<K: ToGodot>(&self, key: K) -> bool {
         let key = key.to_variant();
         self.as_inner().has(key)
     }
@@ -189,7 +191,7 @@ impl Dictionary {
     /// Insert a value at the given key, returning the previous value for that key (if available).
     ///
     /// If you don't need the previous value, use [`Self::set`] instead.
-    pub fn insert<K: ToVariant, V: ToVariant>(&mut self, key: K, value: V) -> Option<Variant> {
+    pub fn insert<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) -> Option<Variant> {
         let key = key.to_variant();
         let old_value = self.get(key.clone());
         self.set(key, value);
@@ -201,7 +203,7 @@ impl Dictionary {
     /// If you are interested in the previous value, use [`Self::insert`] instead.
     ///
     /// _Godot equivalent: `dict[key] = value`_
-    pub fn set<K: ToVariant, V: ToVariant>(&mut self, key: K, value: V) {
+    pub fn set<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) {
         let key = key.to_variant();
 
         // SAFETY: always returns a valid pointer to a value in the dictionary; either pre-existing or newly inserted.
@@ -240,7 +242,7 @@ impl Dictionary {
     /// Get the pointer corresponding to the given key in the dictionary.
     ///
     /// If there exists no value at the given key, a `NIL` variant will be inserted for that key.
-    fn get_ptr_mut<K: ToVariant>(&mut self, key: K) -> *mut Variant {
+    fn get_ptr_mut<K: ToGodot>(&mut self, key: K) -> *mut Variant {
         let key = key.to_variant();
 
         // SAFETY: accessing an unknown key _mutably_ creates that entry in the dictionary, with value `NIL`.
@@ -266,6 +268,10 @@ impl Dictionary {
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(dictionary.clone())`.
 unsafe impl GodotFfi for Dictionary {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Dictionary
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn from_sys;
         fn from_sys_init;
@@ -285,6 +291,8 @@ unsafe impl GodotFfi for Dictionary {
         dictionary
     }
 }
+
+impl_godot_as_self!(Dictionary);
 
 impl_builtin_traits! {
     for Dictionary {
@@ -351,8 +359,8 @@ impl Export for Dictionary {
 impl<'a, 'b, K, V, I> From<I> for Dictionary
 where
     I: IntoIterator<Item = (&'a K, &'b V)>,
-    K: ToVariant + 'a,
-    V: ToVariant + 'b,
+    K: ToGodot + 'a,
+    V: ToGodot + 'b,
 {
     fn from(iterable: I) -> Self {
         iterable
@@ -366,7 +374,7 @@ where
 ///
 /// Inserts all key-value pairs from the iterator into the dictionary. Previous values for keys appearing
 /// in `iter` will be overwritten.
-impl<K: ToVariant, V: ToVariant> Extend<(K, V)> for Dictionary {
+impl<K: ToGodot, V: ToGodot> Extend<(K, V)> for Dictionary {
     fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, iter: I) {
         for (k, v) in iter.into_iter() {
             self.set(k.to_variant(), v.to_variant())
@@ -374,7 +382,7 @@ impl<K: ToVariant, V: ToVariant> Extend<(K, V)> for Dictionary {
     }
 }
 
-impl<K: ToVariant, V: ToVariant> FromIterator<(K, V)> for Dictionary {
+impl<K: ToGodot, V: ToGodot> FromIterator<(K, V)> for Dictionary {
     fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
         let mut dict = Dictionary::new();
         dict.extend(iter);
@@ -496,7 +504,7 @@ impl<'a> Iter<'a> {
 
     /// Creates an iterator that converts each `(Variant, Variant)` key-value pair into a `(K, V)` key-value
     /// pair, panicking upon conversion failure.
-    pub fn typed<K: FromVariant, V: FromVariant>(self) -> TypedIter<'a, K, V> {
+    pub fn typed<K: FromGodot, V: FromGodot>(self) -> TypedIter<'a, K, V> {
         TypedIter::from_untyped(self)
     }
 }
@@ -527,7 +535,7 @@ impl<'a> Keys<'a> {
 
     /// Creates an iterator that will convert each `Variant` key into a key of type `K`,
     /// panicking upon failure to convert.
-    pub fn typed<K: FromVariant>(self) -> TypedKeys<'a, K> {
+    pub fn typed<K: FromGodot>(self) -> TypedKeys<'a, K> {
         TypedKeys::from_untyped(self)
     }
 
@@ -569,7 +577,7 @@ impl<'a, K, V> TypedIter<'a, K, V> {
     }
 }
 
-impl<'a, K: FromVariant, V: FromVariant> Iterator for TypedIter<'a, K, V> {
+impl<'a, K: FromGodot, V: FromGodot> Iterator for TypedIter<'a, K, V> {
     type Item = (K, V);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -598,7 +606,7 @@ impl<'a, K> TypedKeys<'a, K> {
     }
 }
 
-impl<'a, K: FromVariant> Iterator for TypedKeys<'a, K> {
+impl<'a, K: FromGodot> Iterator for TypedKeys<'a, K> {
     type Item = K;
 
     fn next(&mut self) -> Option<Self::Item> {

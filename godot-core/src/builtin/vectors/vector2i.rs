@@ -9,6 +9,7 @@ use std::cmp::Ordering;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
+use crate::builtin::meta::impl_godot_as_self;
 use crate::builtin::{real, RVec2, Vector2, Vector2Axis};
 
 use std::fmt;
@@ -129,8 +130,14 @@ impl_from_tuple_for_vector2x!(Vector2i, i32);
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector2i {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Vector2i
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+impl_godot_as_self!(Vector2i);
 
 impl GlamType for glam::IVec2 {
     type Mapped = Vector2i;

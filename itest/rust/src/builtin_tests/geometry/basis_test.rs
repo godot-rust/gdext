@@ -6,7 +6,8 @@
 
 use godot::builtin::inner::InnerBasis;
 use godot::builtin::math::assert_eq_approx;
-use godot::builtin::{real, Basis, EulerOrder, RealConv, ToVariant, VariantOperator, Vector3};
+use godot::builtin::meta::ToGodot;
+use godot::builtin::{real, Basis, EulerOrder, RealConv, VariantOperator, Vector3};
 
 use crate::framework::itest;
 

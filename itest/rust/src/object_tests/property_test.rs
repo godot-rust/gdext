@@ -449,6 +449,6 @@ fn export_resource() {
     class.free();
 }
 
-fn check_property(property: &Dictionary, key: &str, expected: impl ToVariant) {
+fn check_property(property: &Dictionary, key: &str, expected: impl ToGodot) {
     assert_eq!(property.get_or_nil(key), expected.to_variant());
 }

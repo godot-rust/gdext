@@ -186,13 +186,12 @@ where
 // Utilities for crate
 
 pub(crate) fn debug_string<T: GodotClass>(
-    ptr: &Gd<T>,
+    obj: &Gd<T>,
     f: &mut std::fmt::Formatter<'_>,
     ty: &str,
 ) -> std::fmt::Result {
-    if let Some(id) = ptr.instance_id_or_none() {
-        let class: GodotString = ptr.as_object(|obj| Object::get_class(obj));
-
+    if let Some(id) = obj.instance_id_or_none() {
+        let class: GodotString = obj.raw.as_object(|obj| Object::get_class(obj));
         write!(f, "{ty} {{ id: {id}, class: {class} }}")
     } else {
         write!(f, "{ty} {{ freed obj }}")
@@ -200,11 +199,10 @@ pub(crate) fn debug_string<T: GodotClass>(
 }
 
 pub(crate) fn display_string<T: GodotClass>(
-    ptr: &Gd<T>,
+    obj: &Gd<T>,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
-    let string: GodotString = ptr.as_object(Object::to_string);
-
+    let string: GodotString = obj.raw.as_object(Object::to_string);
     <GodotString as std::fmt::Display>::fmt(&string, f)
 }
 
@@ -214,10 +212,14 @@ pub(crate) fn object_ptr_from_id(instance_id: InstanceId) -> sys::GDExtensionObj
 }
 
 pub(crate) fn ensure_object_alive(
-    instance_id: InstanceId,
+    instance_id: Option<InstanceId>,
     old_object_ptr: sys::GDExtensionObjectPtr,
     method_name: &'static str,
 ) {
+    let Some(instance_id) = instance_id else {
+        panic!("{method_name}: cannot call method on null object")
+    };
+
     let new_object_ptr = object_ptr_from_id(instance_id);
 
     assert!(

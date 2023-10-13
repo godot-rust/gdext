@@ -264,15 +264,14 @@ mod private {
 
 pub mod dom {
     use super::private::Sealed;
-    use crate::obj::{Gd, GodotClass};
-    use std::ops::DerefMut;
+    use crate::obj::{GodotClass, RawGd};
 
     /// Trait that specifies who declares a given `GodotClass`.
     pub trait Domain: Sealed {
         type DerefTarget<T: GodotClass>;
 
         #[doc(hidden)]
-        fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
+        fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = Self>,
             F: FnOnce(&mut T) -> R;
@@ -284,12 +283,15 @@ pub mod dom {
     impl Domain for EngineDomain {
         type DerefTarget<T: GodotClass> = T;
 
-        fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
+        fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = EngineDomain>,
             F: FnOnce(&mut T) -> R,
         {
-            closure(obj.deref_mut())
+            closure(
+                obj.as_target_mut()
+                    .expect("scoped mut should not be called on a null object"),
+            )
         }
     }
 
@@ -299,13 +301,13 @@ pub mod dom {
     impl Domain for UserDomain {
         type DerefTarget<T: GodotClass> = T::Base;
 
-        fn scoped_mut<T, F, R>(obj: &mut Gd<T>, closure: F) -> R
+        fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
         where
             T: GodotClass<Declarer = Self>,
             F: FnOnce(&mut T) -> R,
         {
             let mut guard = obj.bind_mut();
-            closure(guard.deref_mut())
+            closure(&mut *guard)
         }
     }
 }
@@ -316,18 +318,18 @@ pub mod mem {
     use godot_ffi::PtrcallType;
 
     use super::private::Sealed;
-    use crate::obj::{Gd, GodotClass};
+    use crate::obj::{GodotClass, RawGd};
     use crate::out;
 
     /// Specifies the memory
     pub trait Memory: Sealed {
         /// Initialize reference counter
         #[doc(hidden)]
-        fn maybe_init_ref<T: GodotClass>(obj: &Gd<T>);
+        fn maybe_init_ref<T: GodotClass>(obj: &RawGd<T>);
 
         /// If ref-counted, then increment count
         #[doc(hidden)]
-        fn maybe_inc_ref<T: GodotClass>(obj: &Gd<T>);
+        fn maybe_inc_ref<T: GodotClass>(obj: &RawGd<T>);
 
         /// If ref-counted, then decrement count. Returns `true` if the count hit 0 and the object can be
         /// safely freed.
@@ -343,11 +345,11 @@ pub mod mem {
         /// then the reference count must either be incremented before it hits 0, or some [`Gd`] referencing
         /// this object must be forgotten.
         #[doc(hidden)]
-        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool;
+        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool;
 
         /// Check if ref-counted, return `None` if information is not available (dynamic and obj dead)
         #[doc(hidden)]
-        fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> Option<bool>;
+        fn is_ref_counted<T: GodotClass>(obj: &RawGd<T>) -> Option<bool>;
 
         /// Returns `true` if argument and return pointers are passed as `Ref<T>` pointers given this
         /// [`PtrcallType`].
@@ -367,24 +369,33 @@ pub mod mem {
     pub struct StaticRefCount {}
     impl Sealed for StaticRefCount {}
     impl Memory for StaticRefCount {
-        fn maybe_init_ref<T: GodotClass>(obj: &Gd<T>) {
+        fn maybe_init_ref<T: GodotClass>(obj: &RawGd<T>) {
             out!("  Stat::init  <{}>", std::any::type_name::<T>());
+            if obj.is_null() {
+                return;
+            }
             obj.as_ref_counted(|refc| {
                 let success = refc.init_ref();
                 assert!(success, "init_ref() failed");
             });
         }
 
-        fn maybe_inc_ref<T: GodotClass>(obj: &Gd<T>) {
+        fn maybe_inc_ref<T: GodotClass>(obj: &RawGd<T>) {
             out!("  Stat::inc   <{}>", std::any::type_name::<T>());
+            if obj.is_null() {
+                return;
+            }
             obj.as_ref_counted(|refc| {
                 let success = refc.reference();
                 assert!(success, "reference() failed");
             });
         }
 
-        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool {
+        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool {
             out!("  Stat::dec   <{}>", std::any::type_name::<T>());
+            if obj.is_null() {
+                return false;
+            }
             obj.as_ref_counted(|refc| {
                 let is_last = refc.unreference();
                 out!("  +-- was last={is_last}");
@@ -392,7 +403,7 @@ pub mod mem {
             })
         }
 
-        fn is_ref_counted<T: GodotClass>(_obj: &Gd<T>) -> Option<bool> {
+        fn is_ref_counted<T: GodotClass>(_obj: &RawGd<T>) -> Option<bool> {
             Some(true)
         }
 
@@ -406,44 +417,47 @@ pub mod mem {
     pub struct DynamicRefCount {}
     impl Sealed for DynamicRefCount {}
     impl Memory for DynamicRefCount {
-        fn maybe_init_ref<T: GodotClass>(obj: &Gd<T>) {
+        fn maybe_init_ref<T: GodotClass>(obj: &RawGd<T>) {
             out!("  Dyn::init  <{}>", std::any::type_name::<T>());
             if obj
-                .instance_id_or_none()
+                .instance_id_unchecked()
                 .map(|id| id.is_ref_counted())
                 .unwrap_or(false)
             {
+                // Will call `RefCounted::init_ref()` which checks for liveness.
                 StaticRefCount::maybe_init_ref(obj)
             }
         }
 
-        fn maybe_inc_ref<T: GodotClass>(obj: &Gd<T>) {
+        fn maybe_inc_ref<T: GodotClass>(obj: &RawGd<T>) {
             out!("  Dyn::inc   <{}>", std::any::type_name::<T>());
             if obj
-                .instance_id_or_none()
+                .instance_id_unchecked()
                 .map(|id| id.is_ref_counted())
                 .unwrap_or(false)
             {
+                // Will call `RefCounted::reference()` which checks for liveness.
                 StaticRefCount::maybe_inc_ref(obj)
             }
         }
 
-        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &Gd<T>) -> bool {
+        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool {
             out!("  Dyn::dec   <{}>", std::any::type_name::<T>());
             if obj
-                .instance_id_or_none()
+                .instance_id_unchecked()
                 .map(|id| id.is_ref_counted())
                 .unwrap_or(false)
             {
+                // Will call `RefCounted::unreference()` which checks for liveness.
                 StaticRefCount::maybe_dec_ref(obj)
             } else {
                 false
             }
         }
 
-        fn is_ref_counted<T: GodotClass>(obj: &Gd<T>) -> Option<bool> {
+        fn is_ref_counted<T: GodotClass>(obj: &RawGd<T>) -> Option<bool> {
             // Return `None` if obj is dead
-            obj.instance_id_or_none().map(|id| id.is_ref_counted())
+            obj.instance_id_unchecked().map(|id| id.is_ref_counted())
         }
     }
 
@@ -454,12 +468,12 @@ pub mod mem {
     pub struct ManualMemory {}
     impl Sealed for ManualMemory {}
     impl Memory for ManualMemory {
-        fn maybe_init_ref<T: GodotClass>(_obj: &Gd<T>) {}
-        fn maybe_inc_ref<T: GodotClass>(_obj: &Gd<T>) {}
-        unsafe fn maybe_dec_ref<T: GodotClass>(_obj: &Gd<T>) -> bool {
+        fn maybe_init_ref<T: GodotClass>(_obj: &RawGd<T>) {}
+        fn maybe_inc_ref<T: GodotClass>(_obj: &RawGd<T>) {}
+        unsafe fn maybe_dec_ref<T: GodotClass>(_obj: &RawGd<T>) -> bool {
             false
         }
-        fn is_ref_counted<T: GodotClass>(_obj: &Gd<T>) -> Option<bool> {
+        fn is_ref_counted<T: GodotClass>(_obj: &RawGd<T>) -> Option<bool> {
             Some(false)
         }
     }

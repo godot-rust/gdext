@@ -7,7 +7,8 @@
 use std::time::{Duration, Instant};
 
 use godot::bind::{godot_api, GodotClass};
-use godot::builtin::{Array, GodotString, ToVariant, Variant, VariantArray};
+use godot::builtin::meta::ToGodot;
+use godot::builtin::{Array, GodotString, Variant, VariantArray};
 use godot::engine::{Engine, Node, Os};
 use godot::log::godot_error;
 use godot::obj::Gd;

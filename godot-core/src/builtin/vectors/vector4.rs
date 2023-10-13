@@ -8,6 +8,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
+use crate::builtin::meta::impl_godot_as_self;
 use crate::builtin::{real, RVec4, Vector4i};
 
 use std::fmt;
@@ -99,8 +100,14 @@ impl fmt::Display for Vector4 {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector4 {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Vector4
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+impl_godot_as_self!(Vector4);
 
 impl GlamType for RVec4 {
     type Mapped = Vector4;

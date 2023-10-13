@@ -48,8 +48,8 @@ use std::ffi::CStr;
 pub use paste;
 
 pub use crate::godot_ffi::{
-    from_sys_init_or_init_default, GodotFfi, GodotFuncMarshal, GodotNullablePtr,
-    PrimitiveConversionError, PtrcallType,
+    from_sys_init_or_init_default, GodotFfi, GodotNullableFfi, PrimitiveConversionError,
+    PtrcallType,
 };
 
 // Method tables

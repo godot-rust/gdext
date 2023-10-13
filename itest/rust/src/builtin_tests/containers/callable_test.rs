@@ -6,7 +6,8 @@
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::inner::InnerCallable;
-use godot::builtin::{varray, Callable, GodotString, StringName, ToVariant, Variant};
+use godot::builtin::meta::ToGodot;
+use godot::builtin::{varray, Callable, GodotString, StringName, Variant};
 use godot::engine::{Node2D, Object};
 use godot::obj::Gd;
 

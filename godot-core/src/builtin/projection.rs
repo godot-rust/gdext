@@ -13,6 +13,8 @@ use crate::builtin::{real, Plane, RMat4, RealConv, Transform3D, Vector2, Vector4
 
 use std::ops::Mul;
 
+use super::meta::impl_godot_as_self;
+
 /// A 4x4 matrix used for 3D projective transformations. It can represent
 /// transformations such as translation, rotation, scaling, shearing, and
 /// perspective division. It consists of four Vector4 columns.
@@ -509,8 +511,14 @@ impl GlamConv for Projection {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Projection {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Projection
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+impl_godot_as_self!(Projection);
 
 /// A projections clipping plane.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]

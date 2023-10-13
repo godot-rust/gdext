@@ -174,7 +174,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         };
 
         export_tokens.push(quote! {
-            use ::godot::builtin::meta::VariantMetadata;
+            use ::godot::sys::GodotFfi;
 
             let (hint, hint_string) = #hint;
             let usage = #usage_flags;

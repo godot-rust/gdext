@@ -15,6 +15,8 @@ use std::cmp::Ordering;
 use std::fmt::Display;
 use std::ops::{Mul, MulAssign};
 
+use super::meta::impl_godot_as_self;
+
 /// A 3x3 matrix, typically used as an orthogonal basis for [`Transform3D`](crate::builtin::Transform3D).
 ///
 /// Indexing into a `Basis` is done in row-major order. So `mat[1]` would return the first *row* and not
@@ -594,8 +596,14 @@ impl Mul<Vector3> for Basis {
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Basis {
+    fn variant_type() -> sys::VariantType {
+        sys::VariantType::Basis
+    }
+
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
+
+impl_godot_as_self!(Basis);
 
 /// The ordering used to interpret a set of euler angles as extrinsic
 /// rotations.
