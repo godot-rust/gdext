@@ -100,33 +100,26 @@ fn update_version_file(version: &str) {
 */
 
 pub(crate) fn read_godot_version(godot_bin: &Path) -> GodotVersion {
-    let output = Command::new(godot_bin)
-        .arg("--version")
-        .output()
-        .unwrap_or_else(|_| {
-            panic!(
-                "failed to invoke Godot executable '{}'",
-                godot_bin.display()
-            )
-        });
+    let mut cmd = Command::new(godot_bin);
+    cmd.arg("--version");
 
-    let output = String::from_utf8(output.stdout).expect("convert Godot version to UTF-8");
-    println!("Godot version: {output}");
+    let output = execute(cmd, "read Godot version");
+    let stdout = String::from_utf8(output.stdout).expect("convert Godot version to UTF-8");
 
-    match parse_godot_version(&output) {
+    match parse_godot_version(&stdout) {
         Ok(parsed) => {
             assert_eq!(
                 parsed.major,
                 4,
                 "Only Godot versions >= 4.0 are supported; found version {}.",
-                output.trim()
+                stdout.trim()
             );
 
             parsed
         }
         Err(e) => {
             // Don't treat this as fatal error
-            panic!("failed to parse Godot version '{output}': {e}")
+            panic!("failed to parse Godot version '{stdout}': {e}")
         }
     }
 }
@@ -275,10 +268,14 @@ pub(crate) fn locate_godot_binary() -> PathBuf {
     }
 }
 
-fn execute(mut cmd: Command, error_message: &str) -> Output {
+fn execute(cmd: Command, error_message: &str) -> Output {
+    try_execute(cmd, error_message).unwrap_or_else(|e| panic!("{}", e))
+}
+
+fn try_execute(mut cmd: Command, error_message: &str) -> Result<Output, String> {
     let output = cmd
         .output()
-        .unwrap_or_else(|_| panic!("failed to execute command: {error_message}"));
+        .map_err(|_| format!("failed to invoke command ({error_message})\n\t{cmd:?}"))?;
 
     if output.status.success() {
         println!(
@@ -290,12 +287,14 @@ fn execute(mut cmd: Command, error_message: &str) -> Output {
             String::from_utf8(output.stderr.clone()).unwrap()
         );
         println!("[status] {}", output.status);
-        output
+        Ok(output)
     } else {
         println!("[stdout] {}", String::from_utf8(output.stdout).unwrap());
         println!("[stderr] {}", String::from_utf8(output.stderr).unwrap());
         println!("[status] {}", output.status);
-        panic!("command returned error: {error_message}");
+        Err(format!(
+            "command returned error ({error_message})\n\t{cmd:?}"
+        ))
     }
 }
 
