@@ -5,11 +5,11 @@
 name: llvm
 description: "Install LLVM + Clang, with caching"
 
-#inputs:
-#  llvm:
-#    required: false
-#    default: 'true'
-#    description: "Whether LLVM should be installed ('true' by default)"
+inputs:
+  llvm-version:
+    required: false
+    default: '15.0.7'
+    description: "LLVM versions. Greater than 15 may not be supported in all runners."
 
 runs:
   using: "composite"
@@ -31,12 +31,13 @@ runs:
 #          C:/Program Files/LLVM
 #          ./llvm
         path: ${{ env.LLVM_INSTALL_DIR }}
-        key: llvm-10.0
+        key: "llvm-${{ inputs.llvm-version }}"
 
     - uses: KyleMayes/install-llvm-action@v1
       # if: inputs.llvm == 'true'
       with:
-        version: "10.0"
+        # Newer versions failed on macOS with "Unsupported target! (platform='darwin', version='17.0.2')"
+        version: "${{ inputs.llvm-version }}"
         directory: ${{ env.LLVM_INSTALL_DIR }}
         cached: ${{ steps.cache-llvm.outputs.cache-hit }}
 
