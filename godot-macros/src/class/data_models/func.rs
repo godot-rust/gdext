@@ -12,6 +12,8 @@ use quote::{format_ident, quote};
 pub struct FuncDefinition {
     /// Raw information about the Rust function.
     pub func: venial::Function,
+    /// The function's non-gdext attributes (all except #[func]).
+    pub external_attributes: Vec<venial::Attribute>,
     /// The name the function will be exposed as in Godot. If `None`, the Rust function name is used.
     pub rename: Option<String>,
     pub has_gd_self: bool,
@@ -78,7 +80,14 @@ pub fn make_method_registration(
     };
     let param_ident_strs = param_idents.iter().map(|ident| ident.to_string());
 
+    // Transport #[cfg] attrs to the FFI glue to ensure functions which were conditionally
+    // removed from compilation don't cause errors.
+    let cfg_attrs = util::extract_cfg_attrs(&func_definition.external_attributes)
+        .into_iter()
+        .collect::<Vec<_>>();
+
     quote! {
+        #(#cfg_attrs)*
         {
             use ::godot::obj::GodotClass;
             use ::godot::builtin::meta::registration::method::MethodInfo;

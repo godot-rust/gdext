@@ -194,6 +194,12 @@ impl GetterSetterImpl {
             class_name,
             FuncDefinition {
                 func: signature,
+                // Since we're analyzing a struct's field, we don't have access to the corresponding get/set function's
+                // external (non-#[func]) attributes. We have to assume the function exists and has the name the user
+                // gave us, with the expected signature.
+                // Ideally, we'd be able to place #[cfg_attr] on #[var(get)] and #[var(set)] to be able to match a
+                // #[cfg()] (for instance) placed on the getter/setter function, but that is not currently supported.
+                external_attributes: Vec::new(),
                 rename: None,
                 has_gd_self: false,
             },

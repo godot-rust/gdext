@@ -227,6 +227,15 @@ pub(crate) fn path_ends_with(path: &[TokenTree], expected: &str) -> bool {
         .unwrap_or(false)
 }
 
+pub(crate) fn extract_cfg_attrs(
+    attrs: &[venial::Attribute],
+) -> impl IntoIterator<Item = &venial::Attribute> {
+    attrs.iter().filter(|attr| {
+        attr.get_single_path_segment()
+            .map_or(false, |name| name == "cfg")
+    })
+}
+
 pub(crate) struct DeclInfo {
     pub where_: Option<WhereClause>,
     pub generic_params: Option<GenericParamList>,

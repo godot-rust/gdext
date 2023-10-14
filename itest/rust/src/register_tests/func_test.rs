@@ -7,6 +7,8 @@
 // Needed for Clippy to accept #[cfg(all())]
 #![allow(clippy::non_minimal_cfg)]
 
+use crate::framework::itest;
+use godot::engine::ClassDb;
 use godot::prelude::*;
 
 #[derive(GodotClass)]
@@ -28,6 +30,26 @@ impl FuncRename {
     #[func(rename=spell_static)]
     fn renamed_static() -> GodotString {
         GodotString::from("static")
+    }
+
+    #[cfg(all())]
+    fn returns_hello_world(&self) -> GodotString {
+        GodotString::from("Hello world!")
+    }
+
+    #[cfg(any())]
+    fn returns_hello_world(&self) -> GodotString {
+        compile_error!("Removed by #[cfg]")
+    }
+
+    #[cfg(any())]
+    fn returns_bye_world(&self) -> GodotString {
+        compile_error!("Removed by #[cfg]")
+    }
+
+    #[cfg(all())]
+    fn returns_bye_world(&self) -> GodotString {
+        GodotString::from("Bye world!")
     }
 }
 
@@ -89,6 +111,35 @@ impl GdSelfReference {
         f1 && f2
     }
 
+    #[func]
+    fn cfg_removes_duplicate_function_impl() -> bool {
+        true
+    }
+
+    #[cfg(any())]
+    #[func]
+    fn cfg_removes_duplicate_function_impl() -> bool {
+        compile_error!("Removed by #[cfg]")
+    }
+
+    #[func]
+    #[cfg(any())]
+    fn cfg_removes_duplicate_function_impl() -> bool {
+        compile_error!("Removed by #[cfg]")
+    }
+
+    #[cfg(any())]
+    #[func]
+    fn cfg_removes_function() -> bool {
+        compile_error!("Removed by #[cfg]")
+    }
+
+    #[func]
+    #[cfg(any())]
+    fn cfg_removes_function() -> bool {
+        compile_error!("Removed by #[cfg]")
+    }
+
     #[signal]
     #[rustfmt::skip]
     fn signal_shouldnt_panic_with_segmented_path_attribute();
@@ -100,6 +151,25 @@ impl GdSelfReference {
     #[signal]
     #[cfg(all())]
     fn signal_recognized_with_simple_path_attribute_below_signal_attr();
+
+    #[signal]
+    fn cfg_removes_duplicate_signal();
+
+    #[cfg(any())]
+    #[signal]
+    fn cfg_removes_duplicate_signal();
+
+    #[signal]
+    #[cfg(any())]
+    fn cfg_removes_duplicate_signal();
+
+    #[cfg(any())]
+    #[signal]
+    fn cfg_removes_signal();
+
+    #[signal]
+    #[cfg(any())]
+    fn cfg_removes_signal();
 
     #[func]
     fn fail_to_update_internal_value_due_to_conflicting_borrow(
@@ -147,4 +217,59 @@ impl RefCountedVirtual for GdSelfReference {
             base,
         }
     }
+}
+
+/// Checks at runtime if a class has a given method through [ClassDb].
+fn class_has_method<T: GodotClass>(name: &str) -> bool {
+    ClassDb::singleton()
+        .class_has_method_ex(T::class_name().to_string_name(), name.into())
+        .no_inheritance(true)
+        .done()
+}
+
+/// Checks at runtime if a class has a given signal through [ClassDb].
+fn class_has_signal<T: GodotClass>(name: &str) -> bool {
+    ClassDb::singleton().class_has_signal(T::class_name().to_string_name(), name.into())
+}
+
+#[itest]
+fn cfg_doesnt_interfere_with_valid_method_impls() {
+    // If we re-implement this method but the re-implementation is removed, that should keep the non-removed implementation.
+    let object = Gd::new(FuncRename);
+    assert_eq!(
+        object.bind().returns_hello_world(),
+        GodotString::from("Hello world!")
+    );
+    assert_eq!(
+        object.bind().returns_bye_world(),
+        GodotString::from("Bye world!")
+    );
+}
+
+#[itest]
+fn cfg_removes_or_keeps_methods() {
+    assert!(class_has_method::<GdSelfReference>(
+        "func_recognized_with_simple_path_attribute_above_func_attr"
+    ));
+    assert!(class_has_method::<GdSelfReference>(
+        "func_recognized_with_simple_path_attribute_below_func_attr"
+    ));
+    assert!(class_has_method::<GdSelfReference>(
+        "cfg_removes_duplicate_function_impl"
+    ));
+    assert!(!class_has_method::<GdSelfReference>("cfg_removes_function"));
+}
+
+#[itest]
+fn cfg_removes_or_keeps_signals() {
+    assert!(class_has_signal::<GdSelfReference>(
+        "signal_recognized_with_simple_path_attribute_above_signal_attr"
+    ));
+    assert!(class_has_signal::<GdSelfReference>(
+        "signal_recognized_with_simple_path_attribute_below_signal_attr"
+    ));
+    assert!(class_has_signal::<GdSelfReference>(
+        "cfg_removes_duplicate_signal"
+    ));
+    assert!(!class_has_signal::<GdSelfReference>("cfg_removes_signal"));
 }

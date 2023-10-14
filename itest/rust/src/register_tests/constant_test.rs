@@ -40,15 +40,45 @@ impl HasConstants {
     #[constant]
     #[cfg(all())]
     const CONSTANT_RECOGNIZED_WITH_SIMPLE_PATH_ATTRIBUTE_BELOW_CONST_ATTR: bool = true;
+
+    // The three identically-named definitions below should be mutually exclusive thanks to #[cfg].
+    #[constant]
+    const CFG_REMOVES_DUPLICATE_CONSTANT_DEF: i64 = 5;
+
+    #[cfg(any())]
+    #[constant]
+    const CFG_REMOVES_DUPLICATE_CONSTANT_DEF: i64 = compile_error!("Removed by #[cfg]");
+
+    #[constant]
+    #[cfg(any())]
+    const CFG_REMOVES_DUPLICATE_CONSTANT_DEF: i64 = compile_error!("Removed by #[cfg]");
+
+    // The constant below should end up not being defined at all.
+    #[cfg(any())]
+    #[constant]
+    const CFG_REMOVES_CONSTANT: bool = compile_error!("Removed by #[cfg]");
+
+    #[constant]
+    #[cfg(any())]
+    const CFG_REMOVES_CONSTANT: bool = compile_error!("Removed by #[cfg]");
+}
+
+/// Checks at runtime if a class has a given integer constant through [ClassDb].
+fn class_has_integer_constant<T: GodotClass>(name: &str) -> bool {
+    ClassDb::singleton().class_has_integer_constant(T::class_name().to_string_name(), name.into())
 }
 
 #[itest]
 fn constants_correct_value() {
-    const CONSTANTS: [(&str, i64); 4] = [
+    const CONSTANTS: [(&str, i64); 5] = [
         ("A", HasConstants::A),
         ("B", HasConstants::B as i64),
         ("C", HasConstants::C as i64),
         ("D", HasConstants::D as i64),
+        (
+            "CFG_REMOVES_DUPLICATE_CONSTANT_DEF",
+            HasConstants::CFG_REMOVES_DUPLICATE_CONSTANT_DEF,
+        ),
     ];
 
     let constants = ClassDb::singleton()
@@ -70,6 +100,16 @@ fn constants_correct_value() {
     // Ensure the constants are still present and are equal to 'true'
     static_assert!(HasConstants::CONSTANT_RECOGNIZED_WITH_SIMPLE_PATH_ATTRIBUTE_ABOVE_CONST_ATTR);
     static_assert!(HasConstants::CONSTANT_RECOGNIZED_WITH_SIMPLE_PATH_ATTRIBUTE_BELOW_CONST_ATTR);
+}
+
+#[itest]
+fn cfg_removes_or_keeps_constants() {
+    assert!(class_has_integer_constant::<HasConstants>(
+        "CFG_REMOVES_DUPLICATE_CONSTANT_DEF"
+    ));
+    assert!(!class_has_integer_constant::<HasConstants>(
+        "CFG_REMOVES_CONSTANT"
+    ));
 }
 
 #[derive(GodotClass)]
