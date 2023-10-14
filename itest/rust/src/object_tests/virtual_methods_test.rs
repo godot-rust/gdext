@@ -76,6 +76,11 @@ impl Node2DVirtual for ReadyVirtualTest {
     fn ready(&mut self) {
         self.implementation_value += 1;
     }
+
+    #[cfg(any())]
+    fn to_string(&self) -> GodotString {
+        compile_error!("Removed by #[cfg]")
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

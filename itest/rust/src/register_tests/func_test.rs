@@ -217,6 +217,36 @@ impl RefCountedVirtual for GdSelfReference {
             base,
         }
     }
+
+    #[cfg(any())]
+    fn init(base: Base<Self::Base>) -> Self {
+        compile_error!("Removed by #[cfg]")
+    }
+
+    #[cfg(all())]
+    fn to_string(&self) -> GodotString {
+        GodotString::new()
+    }
+
+    #[cfg(any())]
+    fn register_class() {
+        compile_error!("Removed by #[cfg]");
+    }
+
+    #[cfg(all())]
+    fn on_notification(&mut self, _: godot::engine::notify::ObjectNotification) {
+        godot_print!("Hello!");
+    }
+
+    #[cfg(any())]
+    fn on_notification(&mut self, _: godot::engine::notify::ObjectNotification) {
+        compile_error!("Removed by #[cfg]");
+    }
+
+    #[cfg(any())]
+    fn cfg_removes_this() {
+        compile_error!("Removed by #[cfg]");
+    }
 }
 
 /// Checks at runtime if a class has a given method through [ClassDb].
