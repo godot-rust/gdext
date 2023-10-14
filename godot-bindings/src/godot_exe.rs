@@ -104,7 +104,7 @@ pub(crate) fn read_godot_version(godot_bin: &Path) -> GodotVersion {
     cmd.arg("--version");
 
     let output = execute(cmd, "read Godot version");
-    let stdout = String::from_utf8(output.stdout).expect("convert Godot version to UTF-8");
+    let stdout = std::str::from_utf8(&output.stdout).expect("convert Godot version to UTF-8");
 
     match parse_godot_version(&stdout) {
         Ok(parsed) => {
@@ -277,21 +277,13 @@ fn try_execute(mut cmd: Command, error_message: &str) -> Result<Output, String> 
         .output()
         .map_err(|_| format!("failed to invoke command ({error_message})\n\t{cmd:?}"))?;
 
+    println!("[stdout] {}", std::str::from_utf8(&output.stdout).unwrap());
+    println!("[stderr] {}", std::str::from_utf8(&output.stderr).unwrap());
+    println!("[status] {}", output.status);
+
     if output.status.success() {
-        println!(
-            "[stdout] {}",
-            String::from_utf8(output.stdout.clone()).unwrap()
-        );
-        println!(
-            "[stderr] {}",
-            String::from_utf8(output.stderr.clone()).unwrap()
-        );
-        println!("[status] {}", output.status);
         Ok(output)
     } else {
-        println!("[stdout] {}", String::from_utf8(output.stdout).unwrap());
-        println!("[stderr] {}", String::from_utf8(output.stderr).unwrap());
-        println!("[status] {}", output.status);
         Err(format!(
             "command returned error ({error_message})\n\t{cmd:?}"
         ))
