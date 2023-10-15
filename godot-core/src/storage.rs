@@ -202,11 +202,11 @@ mod multi_threaded {
 
         pub fn is_bound(&self) -> bool {
             // Needs to borrow mutably, otherwise it succeeds if shared borrows are alive.
-            self.user_instance.try_write().is_err()
+            self.write_ignoring_poison().is_none()
         }
 
         pub fn get(&self) -> sync::RwLockReadGuard<T> {
-            self.user_instance.read().unwrap_or_else(|_e| {
+            self.read_ignoring_poison().unwrap_or_else(|| {
                 panic!(
                     "Gd<T>::bind() failed, already bound; T = {}.\n  \
                      Make sure there is no &mut T live at the time.\n  \
@@ -217,7 +217,7 @@ mod multi_threaded {
         }
 
         pub fn get_mut(&self) -> sync::RwLockWriteGuard<T> {
-            self.user_instance.write().unwrap_or_else(|_e| {
+            self.write_ignoring_poison().unwrap_or_else(|| {
                 panic!(
                     "Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
                      Make sure there is no &T or &mut T live at the time.\n  \
@@ -225,6 +225,28 @@ mod multi_threaded {
                     type_name::<T>()
                 )
             })
+        }
+
+        /// Returns a write guard (even if poisoned), or `None` when the lock is held by another thread.
+        /// This might need adjustment if threads should await locks.
+        #[must_use]
+        fn write_ignoring_poison(&self) -> Option<sync::RwLockWriteGuard<T>> {
+            match self.user_instance.try_write() {
+                Ok(guard) => Some(guard),
+                Err(sync::TryLockError::Poisoned(poison_error)) => Some(poison_error.into_inner()),
+                Err(sync::TryLockError::WouldBlock) => None,
+            }
+        }
+
+        /// Returns a read guard (even if poisoned), or `None` when the lock is held by another writing thread.
+        /// This might need adjustment if threads should await locks.
+        #[must_use]
+        fn read_ignoring_poison(&self) -> Option<sync::RwLockReadGuard<T>> {
+            match self.user_instance.try_read() {
+                Ok(guard) => Some(guard),
+                Err(sync::TryLockError::Poisoned(poison_error)) => Some(poison_error.into_inner()),
+                Err(sync::TryLockError::WouldBlock) => None,
+            }
         }
 
         pub fn get_gd(&self) -> Gd<T>
