@@ -127,6 +127,18 @@ fn callable_call_engine() {
     obj.free();
 }
 
+// Testing https://github.com/godot-rust/gdext/issues/410
+
+#[derive(GodotClass)]
+#[class(init, base = Node)]
+pub struct CallableRefcountTest {}
+
+#[godot_api]
+impl CallableRefcountTest {
+    #[func]
+    fn accept_callable(&self, _call: Callable) {}
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Tests and infrastructure for custom callables
 

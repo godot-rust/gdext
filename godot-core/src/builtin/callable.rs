@@ -252,6 +252,10 @@ impl Callable {
     pub fn as_inner(&self) -> inner::InnerCallable {
         inner::InnerCallable::from_outer(self)
     }
+
+    fn inc_ref(&self) {
+        std::mem::forget(self.clone())
+    }
 }
 
 impl_builtin_traits! {
@@ -276,7 +280,18 @@ unsafe impl GodotFfi for Callable {
         sys::VariantType::Callable
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
+        fn from_sys;
+        fn sys;
+        fn from_sys_init;
+        fn move_return_ptr;
+    }
+
+    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
+        let callable = Self::from_sys(ptr);
+        callable.inc_ref();
+        callable
+    }
 
     unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::invalid();

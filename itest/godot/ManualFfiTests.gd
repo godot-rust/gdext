@@ -326,3 +326,15 @@ func test_gd_self_reference_succeeds():
 	gd_self_reference.update_internal_signal.connect(update_self_reference)
 
 	assert_eq(gd_self_reference.succeed_at_updating_internal_value(10), 10)
+
+func sample_func():
+	pass
+
+func test_callable_refcount():
+	var test_obj: CallableRefcountTest = CallableRefcountTest.new()
+	for i in range(10):
+		var method := Callable(self, "sample_func")
+		test_obj.accept_callable(method)
+	var method := Callable(self, "sample_func")
+	assert(method.is_valid())
+	test_obj.free()
