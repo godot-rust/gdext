@@ -219,20 +219,20 @@ fn object_from_instance_id_unrelated_type() {
 
 #[itest]
 fn object_new_has_instance_id() {
-    let obj = Gd::<SignalEmitter>::new_default(); // type doesn't matter, just Object-derived
+    let obj = Gd::<ObjPayload>::new_default();
     let _id = obj.instance_id();
     obj.free();
 }
 
 #[itest]
 fn object_dynamic_free() {
-    let mut obj = Gd::<SignalEmitter>::new_default();
+    let mut obj = Gd::<ObjPayload>::new_default();
     let id = obj.instance_id();
 
     obj.call("free".into(), &[]);
 
     assert_eq!(
-        Gd::<SignalEmitter>::try_from_instance_id(id),
+        Gd::<ObjPayload>::try_from_instance_id(id),
         None,
         "dynamic free() call must destroy object"
     );
@@ -240,7 +240,7 @@ fn object_dynamic_free() {
 
 #[itest]
 fn object_user_bind_after_free() {
-    let obj = Gd::new(SignalEmitter {}); // type doesn't matter, just Object-derived
+    let obj = Gd::new(ObjPayload {});
     let copy = obj.clone();
     obj.free();
 
@@ -251,7 +251,7 @@ fn object_user_bind_after_free() {
 
 #[itest]
 fn object_user_free_during_bind() {
-    let obj = Gd::new(SignalEmitter {}); // type doesn't matter, just Object-derived
+    let obj = Gd::new(ObjPayload {});
     let guard = obj.bind();
 
     let copy = obj.clone(); // TODO clone allowed while bound?
@@ -277,7 +277,7 @@ fn object_user_dynamic_free_during_bind() {
     // 3. Holding a guard (GdRef/GdMut) across function calls -- not possible, guard's lifetime is coupled to a Gd and cannot be stored in
     //    fields or global variables due to that.
 
-    let obj = Gd::new(SignalEmitter {}); // type doesn't matter, just Object-derived
+    let obj = Gd::new(ObjPayload {});
     let guard = obj.bind();
 
     let mut copy = obj.clone(); // TODO clone allowed while bound?
@@ -298,7 +298,7 @@ fn object_user_dynamic_free_during_bind() {
 
 #[itest]
 fn object_user_call_after_free() {
-    let obj = Gd::new(SignalEmitter {}); // type doesn't matter, just Object-derived
+    let obj = Gd::new(ObjPayload {});
     let mut copy = obj.clone();
     obj.free();
 
@@ -716,7 +716,7 @@ fn object_engine_refcounted_free() {
 
 #[itest]
 fn object_user_double_free() {
-    let mut obj = Gd::<SignalEmitter>::new_default();
+    let mut obj = Gd::<ObjPayload>::new_default();
     let obj2 = obj.clone();
     obj.call("free".into(), &[]);
 
@@ -784,6 +784,18 @@ fn object_get_scene_tree(ctx: &TestContext) {
     let count = tree.get_child_count();
     assert_eq!(count, 1);
 } // implicitly tested: node does not leak
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+struct ObjPayload {}
+
+#[godot_api]
+impl ObjPayload {
+    #[signal]
+    fn do_use();
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -927,16 +939,6 @@ impl DoubleUse {
     }
 }
 
-#[derive(GodotClass)]
-#[class(init, base=Object)]
-struct SignalEmitter {}
-
-#[godot_api]
-impl SignalEmitter {
-    #[signal]
-    fn do_use();
-}
-
 /// Test that Godot can call a method that takes `&self`, while there already exists an immutable reference
 /// to that type acquired through `bind`.
 ///
@@ -944,7 +946,7 @@ impl SignalEmitter {
 #[itest]
 fn double_use_reference() {
     let double_use: Gd<DoubleUse> = Gd::new_default();
-    let emitter: Gd<SignalEmitter> = Gd::new_default();
+    let emitter: Gd<ObjPayload> = Gd::new_default();
 
     emitter
         .clone()
