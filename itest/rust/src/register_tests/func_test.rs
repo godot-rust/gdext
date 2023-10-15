@@ -235,7 +235,7 @@ impl RefCountedVirtual for GdSelfReference {
 
     #[cfg(all())]
     fn on_notification(&mut self, _: godot::engine::notify::ObjectNotification) {
-        godot_print!("Hello!");
+        // Do nothing.
     }
 
     #[cfg(any())]

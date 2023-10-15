@@ -8,14 +8,11 @@ use crate::obj::GodotClass;
 use crate::out;
 use godot_ffi as sys;
 
-use std::any::type_name;
-
 #[derive(Copy, Clone, Debug)]
 pub enum Lifecycle {
     // Warning: when reordering/changing enumerators, update match in AtomicLifecycle below
     Alive,
     Destroying,
-    Dead, // reading this would typically already be too late, only best-effort in case of UB
 }
 
 #[cfg(not(feature = "experimental-threads"))]
@@ -123,7 +120,6 @@ mod single_threaded {
 
 #[cfg(feature = "experimental-threads")]
 mod multi_threaded {
-    use std::any::type_name;
     use std::sync;
     use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -146,14 +142,18 @@ mod multi_threaded {
         pub fn get(&self) -> Lifecycle {
             match self.atomic.load(Ordering::Relaxed) {
                 0 => Lifecycle::Alive,
-                1 => Lifecycle::Dead,
-                2 => Lifecycle::Destroying,
-                other => panic!("Invalid lifecycle {other}"),
+                1 => Lifecycle::Destroying,
+                other => panic!("invalid lifecycle {other}"),
             }
         }
 
-        pub fn set(&self, value: Lifecycle) {
-            self.atomic.store(value as u32, Ordering::Relaxed);
+        pub fn set(&self, lifecycle: Lifecycle) {
+            let value = match lifecycle {
+                Lifecycle::Alive => 0,
+                Lifecycle::Destroying => 1,
+            };
+
+            self.atomic.store(value, Ordering::Relaxed);
         }
     }
 
@@ -170,7 +170,7 @@ mod multi_threaded {
     /// For all Godot extension classes
     impl<T: GodotClass> InstanceStorage<T> {
         pub fn construct(user_instance: T, base: Base<T::Base>) -> Self {
-            out!("    Storage::construct             <{}>", type_name::<T>());
+            out!("    Storage::construct             <{:?}>", base);
 
             Self {
                 user_instance: sync::RwLock::new(user_instance),
@@ -183,20 +183,18 @@ mod multi_threaded {
         pub(crate) fn on_inc_ref(&self) {
             self.godot_ref_count.fetch_add(1, Ordering::Relaxed);
             out!(
-                "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
+                "    Storage::on_inc_ref (rc={})     <{:?}>",
                 self.godot_ref_count(),
-                type_name::<T>(),
-                //self.user_instance
+                self.base,
             );
         }
 
         pub(crate) fn on_dec_ref(&self) {
             self.godot_ref_count.fetch_sub(1, Ordering::Relaxed);
             out!(
-                "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
+                "  | Storage::on_dec_ref (rc={})     <{:?}>",
                 self.godot_ref_count(),
-                type_name::<T>(),
-                //self.user_instance
+                self.base,
             );
         }
 
@@ -208,10 +206,10 @@ mod multi_threaded {
         pub fn get(&self) -> sync::RwLockReadGuard<T> {
             self.read_ignoring_poison().unwrap_or_else(|| {
                 panic!(
-                    "Gd<T>::bind() failed, already bound; T = {}.\n  \
+                    "Gd<T>::bind() failed, already bound; obj = {}.\n  \
                      Make sure there is no &mut T live at the time.\n  \
                      This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
-                    type_name::<T>()
+                    self.base,
                 )
             })
         }
@@ -219,10 +217,10 @@ mod multi_threaded {
         pub fn get_mut(&self) -> sync::RwLockWriteGuard<T> {
             self.write_ignoring_poison().unwrap_or_else(|| {
                 panic!(
-                    "Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
+                    "Gd<T>::bind_mut() failed, already bound; obj = {}.\n  \
                      Make sure there is no &T or &mut T live at the time.\n  \
                      This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
-                    type_name::<T>()
+                    self.base,
                 )
             })
         }
@@ -311,27 +309,19 @@ impl<T: GodotClass> InstanceStorage<T> {
             self.lifecycle.get(),
             self.base,
         );
-        matches!(
-            self.lifecycle.get(),
-            Lifecycle::Destroying | Lifecycle::Dead
-        )
+        matches!(self.lifecycle.get(), Lifecycle::Destroying)
     }
 }
 
 impl<T: GodotClass> Drop for InstanceStorage<T> {
     fn drop(&mut self) {
         out!(
-            "    Storage::drop (rc={})           <{}>", // -- {:?}",
+            "    Storage::drop (rc={})           <{:?}>",
             self.godot_ref_count(),
-            type_name::<T>(),
-            //self.user_instance
+            self.base,
         );
         //let _ = mem::take(&mut self.user_instance);
-        out!(
-            "    Storage::drop end              <{}>", //  -- {:?}",
-            type_name::<T>(),
-            //self.user_instance
-        );
+        //out!("    Storage::drop end              <{:?}>", self.base);
     }
 }
 
