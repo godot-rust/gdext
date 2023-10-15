@@ -254,14 +254,14 @@ func test_custom_property():
 func test_custom_property_wrong_values_1():
 	var has_property: HasCustomProperty = HasCustomProperty.new()
 	disable_error_messages()
-	has_property.some_c_style_enum = 10
+	has_property.some_c_style_enum = 10 # Should fail.
 	enable_error_messages()
 	assert_fail("HasCustomProperty.some_c_style_enum should only accept integers in the range `(0 ..= 2)`")
 
 func test_custom_property_wrong_values_2():
 	var has_property: HasCustomProperty = HasCustomProperty.new()
 	disable_error_messages()
-	has_property.not_exportable = {"a": "hello", "b": Callable()}
+	has_property.not_exportable = {"a": "hello", "b": Callable()}  # Should fail.
 	enable_error_messages()
 	assert_fail("HasCustomProperty.not_exportable should only accept dictionaries with float values")
 

@@ -89,7 +89,7 @@ class GDScriptTestCase:
 		var script: GDScript = suite.get_script()
 		return str(script.resource_path.get_file().get_basename(), ".gd")
 
-# Standard test case used for whenever something can be tested by just running a gdscript function.
+# Standard test case used for whenever something can be tested by just running a GDScript function.
 class GDScriptExecutableTestCase extends GDScriptTestCase:
 	func run():
 		# This is a no-op if the suite doesn't have this property.

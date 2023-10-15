@@ -37,7 +37,7 @@ mod single_threaded {
     /// Manages storage and lifecycle of user's extension class instances.
     pub struct InstanceStorage<T: GodotClass> {
         user_instance: cell::RefCell<T>,
-        base: Base<T::Base>,
+        pub(super) base: Base<T::Base>,
 
         // Declared after `user_instance`, is dropped last
         pub(super) lifecycle: cell::Cell<Lifecycle>,
@@ -160,7 +160,7 @@ mod multi_threaded {
     /// Manages storage and lifecycle of user's extension class instances.
     pub struct InstanceStorage<T: GodotClass> {
         user_instance: sync::RwLock<T>,
-        base: Base<T::Base>,
+        pub(super) base: Base<T::Base>,
 
         // Declared after `user_instance`, is dropped last
         pub(super) lifecycle: AtomicLifecycle,
@@ -256,6 +256,12 @@ mod multi_threaded {
 }
 
 impl<T: GodotClass> InstanceStorage<T> {
+    pub fn debug_info(&self) -> String {
+        // Unlike get_gd(), this doesn't require special trait bounds.
+
+        format!("{:?}", self.base)
+    }
+
     #[must_use]
     pub fn into_raw(self) -> *mut Self {
         Box::into_raw(Box::new(self))
@@ -268,18 +274,20 @@ impl<T: GodotClass> InstanceStorage<T> {
         );
         self.lifecycle.set(Lifecycle::Destroying);
         out!(
-            "    mark;  self={:?}, val={:?}",
+            "    mark;  self={:?}, val={:?}, obj={:?}",
             self as *const _,
-            self.lifecycle.get()
+            self.lifecycle.get(),
+            self.base,
         );
     }
 
     #[inline(always)]
     pub fn destroyed_by_godot(&self) -> bool {
         out!(
-            "    is_d;  self={:?}, val={:?}",
+            "    is_d;  self={:?}, val={:?}, obj={:?}",
             self as *const _,
-            self.lifecycle.get()
+            self.lifecycle.get(),
+            self.base,
         );
         matches!(
             self.lifecycle.get(),
@@ -325,7 +333,9 @@ pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClass
 
     assert!(
         !(*raw).is_bound(),
-        "tried to destroy object while a bind() or bind_mut() call is active"
+        "tried to destroy object while a bind() or bind_mut() call is active\n  \
+        object: {}",
+        (*raw).debug_info()
     );
 
     let _drop = Box::from_raw(raw);

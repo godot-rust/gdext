@@ -406,7 +406,8 @@ where
         let ref_counted = T::Mem::is_ref_counted(&self.raw);
         assert_ne!(
             ref_counted, Some(true),
-            "called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types."
+            "called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types\n\
+            object: {self:?}"
         );
 
         // If ref_counted returned None, that means the instance was destroyed
