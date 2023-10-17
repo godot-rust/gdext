@@ -7,6 +7,10 @@
 use crate::builtin::meta::{impl_godot_as_self, FromGodot, GodotConvert, GodotType, ToGodot};
 use godot_ffi as sys;
 
+// The following ToGodot/FromGodot/Convert impls are auto-generated for each engine type, co-located with their definitions:
+// - enum
+// - const/mut pointer to native struct
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Option
 
@@ -86,41 +90,6 @@ impl ToGodot for sys::VariantOperator {
 impl FromGodot for sys::VariantOperator {
     fn try_from_godot(via: Self::Via) -> Option<Self> {
         Some(Self::from_sys(via as sys::GDExtensionVariantOperator))
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Pointers
-
-impl<T> GodotConvert for *mut T {
-    type Via = i64;
-}
-
-impl<T> ToGodot for *mut T {
-    fn to_godot(&self) -> Self::Via {
-        *self as i64
-    }
-}
-
-impl<T> FromGodot for *mut T {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(via as Self)
-    }
-}
-
-impl<T> GodotConvert for *const T {
-    type Via = i64;
-}
-
-impl<T> ToGodot for *const T {
-    fn to_godot(&self) -> Self::Via {
-        *self as i64
-    }
-}
-
-impl<T> FromGodot for *const T {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(via as Self)
     }
 }
 
