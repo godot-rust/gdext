@@ -11,7 +11,7 @@ use venial::Declaration;
 use crate::util::{decl_get_info, DeclInfo};
 use crate::ParseResult;
 
-pub fn derive_godot_compatible(decl: Declaration) -> ParseResult<TokenStream> {
+pub fn derive_godot_convert(decl: Declaration) -> ParseResult<TokenStream> {
     let DeclInfo {
         where_,
         generic_params,

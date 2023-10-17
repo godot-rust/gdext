@@ -19,6 +19,7 @@ pub trait PtrcallReturn {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[doc(hidden)]
 pub struct PtrcallReturnOptionGdT<R> {
     _marker: std::marker::PhantomData<R>,
 }
@@ -33,6 +34,7 @@ impl<T: GodotClass> PtrcallReturn for PtrcallReturnOptionGdT<Gd<T>> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[doc(hidden)]
 pub struct PtrcallReturnT<R> {
     _marker: std::marker::PhantomData<R>,
 }
@@ -53,6 +55,7 @@ impl<T: FromGodot> PtrcallReturn for PtrcallReturnT<T> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[doc(hidden)]
 pub enum PtrcallReturnUnit {}
 
 impl PtrcallReturn for PtrcallReturnUnit {
