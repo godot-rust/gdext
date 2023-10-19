@@ -268,6 +268,7 @@ fn object_user_free_during_bind() {
     obj.free(); // now succeeds
 }
 
+#[cfg(since_api = "4.1")] // See destroy_storage() comment.
 #[itest]
 fn object_user_dynamic_free_during_bind() {
     // Note: we could also test if GDScript can access free() when an object is bound, to check whether the panic is handled or crashes

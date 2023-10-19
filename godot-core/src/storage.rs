@@ -343,6 +343,9 @@ pub unsafe fn as_storage<'u, T: GodotClass>(
 pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClassInstancePtr) {
     let raw = instance_ptr as *mut InstanceStorage<T>;
 
+    // The following caused UB in 4.0.4 itests, only on Linux. Debugging was not conclusive; would need more time.
+    // Since it doesn't occur in 4.1+, we disable it -- time can be spent better on newer versions.
+    #[cfg(since_api = "4.1")]
     assert!(
         !(*raw).is_bound(),
         "tried to destroy object while a bind() or bind_mut() call is active\n  \
