@@ -301,7 +301,7 @@ fn make_indexed_method_table(info: IndexedMethodTable) -> TokenStream {
         #imports
 
         pub struct #table_name {
-            function_pointers: [#fptr_type; #method_count],
+            function_pointers: Vec<#fptr_type>,
         }
 
         impl #table_name {
@@ -315,7 +315,7 @@ fn make_indexed_method_table(info: IndexedMethodTable) -> TokenStream {
                 #pre_init_code
 
                 Self {
-                    function_pointers: [
+                    function_pointers: vec![
                         #( #method_inits )*
                     ]
                 }
