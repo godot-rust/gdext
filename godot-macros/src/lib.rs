@@ -443,8 +443,8 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_derive(GodotConvert)]
-pub fn derive_godot_compatible(input: TokenStream) -> TokenStream {
-    translate(input, derive::derive_godot_compatible)
+pub fn derive_godot_convert(input: TokenStream) -> TokenStream {
+    translate(input, derive::derive_godot_convert)
 }
 
 /// Derive macro for [ToGodot](../builtin/meta/trait.ToGodot.html) on structs or enums.

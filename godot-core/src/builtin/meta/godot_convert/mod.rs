@@ -10,13 +10,15 @@ use crate::builtin::{Variant, VariantConversionError};
 
 use super::{GodotFfiVariant, GodotType};
 
-/// Indicates that a type has some canonical Godot type that can represent it.
+/// Indicates that a type can be passed to/from Godot, either directly or through an intermediate "via" type.
 ///
-/// The type specified here is what will be used to pass this type across to ffi-boundary to/from Godot.
-/// Generally [`ToGodot`] needs to be implemented to pass a type to Godot, and [`FromGodot`] to receive this
-/// type from Godot.
+/// The associated type `Via` specifies _how_ this type is passed across the FFI boundary to/from Godot.
+/// Generally [`ToGodot`] needs to be implemented to pass a type to Godot, and [`FromGodot`] to receive this type from Godot.
+///
+/// [`GodotType`] is a stronger bound than [`GodotConvert`], since it expresses that a type is _directly_ representable
+/// in Godot (without intermediate "via"). Every `GodotType` also implements `GodotConvert` with `Via = Self`.
 pub trait GodotConvert {
-    /// The type used for ffi-passing.
+    /// The type through which `Self` is represented in Godot.
     type Via: GodotType;
 }
 
@@ -33,8 +35,7 @@ pub trait ToGodot: Sized + GodotConvert {
 
     /// Converts this type to the Godot type.
     ///
-    /// This can in some cases enable some optimizations, such as avoiding reference counting for
-    /// reference-counted values.
+    /// This can in some cases enable minor optimizations, such as avoiding reference counting operations.
     fn into_godot(self) -> Self::Via {
         self.to_godot()
     }

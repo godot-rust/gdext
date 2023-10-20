@@ -880,14 +880,51 @@ fn make_native_structure(
 
     let imports = util::make_imports();
     let fields = make_native_structure_fields(&structure.format, ctx);
+    let doc = format!("[`ToGodot`] and [`FromGodot`] are implemented for `*mut {class_name}` and `*const {class_name}`.");
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
         #imports
+        use crate::builtin::meta::{GodotConvert, FromGodot, ToGodot};
 
+        /// Native structure; can be passed via pointer in APIs that are not exposed to GDScript.
+        ///
+        #[doc = #doc]
         #[repr(C)]
         pub struct #class_name {
             #fields
+        }
+
+        impl GodotConvert for *mut #class_name {
+            type Via = i64;
+        }
+
+        impl ToGodot for *mut #class_name {
+            fn to_godot(&self) -> Self::Via {
+                *self as i64
+            }
+        }
+
+        impl FromGodot for *mut #class_name {
+            fn try_from_godot(via: Self::Via) -> Option<Self> {
+                Some(via as Self)
+            }
+        }
+
+        impl GodotConvert for *const #class_name {
+            type Via = i64;
+        }
+
+        impl ToGodot for *const #class_name {
+            fn to_godot(&self) -> Self::Via {
+                *self as i64
+            }
+        }
+
+        impl FromGodot for *const #class_name {
+            fn try_from_godot(via: Self::Via) -> Option<Self> {
+                Some(via as Self)
+            }
         }
     };
     // note: TypePtr -> ObjectPtr conversion OK?

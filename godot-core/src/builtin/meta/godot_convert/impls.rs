@@ -7,6 +7,10 @@
 use crate::builtin::meta::{impl_godot_as_self, FromGodot, GodotConvert, GodotType, ToGodot};
 use godot_ffi as sys;
 
+// The following ToGodot/FromGodot/Convert impls are auto-generated for each engine type, co-located with their definitions:
+// - enum
+// - const/mut pointer to native struct
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Option
 
@@ -86,41 +90,6 @@ impl ToGodot for sys::VariantOperator {
 impl FromGodot for sys::VariantOperator {
     fn try_from_godot(via: Self::Via) -> Option<Self> {
         Some(Self::from_sys(via as sys::GDExtensionVariantOperator))
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Pointers
-
-impl<T> GodotConvert for *mut T {
-    type Via = i64;
-}
-
-impl<T> ToGodot for *mut T {
-    fn to_godot(&self) -> Self::Via {
-        *self as i64
-    }
-}
-
-impl<T> FromGodot for *mut T {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(via as Self)
-    }
-}
-
-impl<T> GodotConvert for *const T {
-    type Via = i64;
-}
-
-impl<T> ToGodot for *const T {
-    fn to_godot(&self) -> Self::Via {
-        *self as i64
-    }
-}
-
-impl<T> FromGodot for *const T {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(via as Self)
     }
 }
 
@@ -239,7 +208,6 @@ impl_godot_scalar!(
     u8 as i64,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT8
 );
-
 impl_godot_scalar!(
     u64 as i64,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT64;
@@ -250,3 +218,25 @@ impl_godot_scalar!(
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_FLOAT;
     lossy
 );
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Raw pointers
+
+// const void* is used in some APIs like OpenXrApiExtension::transform_from_pose().
+// Other impls for raw pointers are generated for native structures.
+
+impl GodotConvert for *const std::ffi::c_void {
+    type Via = i64;
+}
+
+impl ToGodot for *const std::ffi::c_void {
+    fn to_godot(&self) -> Self::Via {
+        *self as i64
+    }
+}
+
+impl FromGodot for *const std::ffi::c_void {
+    fn try_from_godot(via: Self::Via) -> Option<Self> {
+        Some(via as Self)
+    }
+}

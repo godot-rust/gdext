@@ -7,12 +7,12 @@
 pub mod registration;
 
 mod class_name;
-mod godot_compatible;
+mod godot_convert;
 mod return_marshal;
 mod signature;
 
 pub use class_name::*;
-pub use godot_compatible::*;
+pub use godot_convert::*;
 #[doc(hidden)]
 pub use return_marshal::*;
 #[doc(hidden)]
@@ -25,7 +25,8 @@ use crate::builtin::*;
 use crate::engine::global;
 use registration::method::MethodParamOrReturnInfo;
 
-/// Conversion of GodotFfi-types into/from [`Variant`].
+/// Conversion of [`GodotFfi`] types to/from [`Variant`].
+#[doc(hidden)]
 pub trait GodotFfiVariant: Sized + GodotFfi {
     fn ffi_to_variant(&self) -> Variant;
     fn ffi_from_variant(variant: &Variant) -> Result<Self, VariantConversionError>;
@@ -98,38 +99,48 @@ mod sealed {
     }
 }
 
-/// Types that can represent some Godot type.
+/// Type that is directly representable in the engine.
 ///
-/// This trait cannot be implemented for custom user types, for that you should see [`GodotConvert`]
-/// instead. A type implements `GodotType` when it can directly represent some primitive type exposed by
-/// Godot. For instance, [`i64`] implements `GodotType`, since it can be directly represented by Godot's
-/// `int` type. But [`VariantType`] does not implement `GodotType`. Since while it is an enum Godot uses, we
-/// have no native way to indicate to Godot that a value should be one of the variants of `VariantType`.
-///
-/// Unlike [`GodotFfi`], types implementing this trait don't need to fully represent its corresponding Godot
-/// type. For instance [`i32`] does not implement [`GodotFfi`] because it cannot represent all values of
-/// Godot's `int` type, however it does implement `GodotType` because we can set the metadata of values with
-/// this type to indicate that they are 32 bits large.
+/// This trait cannot be implemented for custom user types; for those, [`GodotConvert`] exists instead.
+/// A type implements `GodotType` when Godot has a direct, native representation for it. For instance:
+/// - [`i64`] implements `GodotType`, since it can be directly represented by Godot's `int` type.
+/// - But [`VariantType`] does not implement `GodotType`. While it is an enum Godot uses, we have no native way to indicate
+///   to Godot that a value should be one of the variants of `VariantType`.
+//
+// Unlike `GodotFfi`, types implementing this trait don't need to fully represent its corresponding Godot
+// type. For instance [`i32`] does not implement `GodotFfi` because it cannot represent all values of
+// Godot's `int` type, however it does implement `GodotType` because we can set the metadata of values with
+// this type to indicate that they are 32 bits large.
 pub trait GodotType: GodotConvert<Via = Self> + ToGodot + FromGodot + sealed::Sealed {
+    #[doc(hidden)]
     type Ffi: GodotFfiVariant;
 
+    #[doc(hidden)]
     fn to_ffi(&self) -> Self::Ffi;
+
+    #[doc(hidden)]
     fn into_ffi(self) -> Self::Ffi;
+
+    #[doc(hidden)]
     fn try_from_ffi(ffi: Self::Ffi) -> Option<Self>;
 
+    #[doc(hidden)]
     fn from_ffi(ffi: Self::Ffi) -> Self {
         Self::try_from_ffi(ffi).unwrap()
     }
 
+    #[doc(hidden)]
     fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
         Self::Ffi::default_param_metadata()
     }
 
+    #[doc(hidden)]
     fn class_name() -> ClassName {
         // If we use `ClassName::of::<()>()` then this type shows up as `(no base)` in documentation.
         ClassName::none()
     }
 
+    #[doc(hidden)]
     fn property_info(property_name: &str) -> PropertyInfo {
         PropertyInfo {
             variant_type: Self::Ffi::variant_type(),
@@ -141,10 +152,12 @@ pub trait GodotType: GodotConvert<Via = Self> + ToGodot + FromGodot + sealed::Se
         }
     }
 
+    #[doc(hidden)]
     fn argument_info(property_name: &str) -> MethodParamOrReturnInfo {
         MethodParamOrReturnInfo::new(Self::property_info(property_name), Self::param_metadata())
     }
 
+    #[doc(hidden)]
     fn return_info() -> Option<MethodParamOrReturnInfo> {
         Some(MethodParamOrReturnInfo::new(
             Self::property_info(""),

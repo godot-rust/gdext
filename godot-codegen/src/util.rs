@@ -431,9 +431,10 @@ pub fn to_snake_case(class_name: &str) -> String {
     use heck::ToSnakeCase;
 
     // Special cases
-    #[allow(clippy::single_match)]
     match class_name {
         "JSONRPC" => return "json_rpc".to_string(),
+        "OpenXRAPIExtension" => return "open_xr_api_extension".to_string(),
+        "OpenXRIPBinding" => return "open_xr_ip_binding".to_string(),
         _ => {}
     }
 
@@ -448,10 +449,11 @@ pub fn to_snake_case(class_name: &str) -> String {
 pub fn to_pascal_case(class_name: &str) -> String {
     use heck::ToPascalCase;
 
-    // Special cases
-    #[allow(clippy::single_match)]
+    // Special cases: reuse snake_case impl to ensure at least consistency between those 2.
     match class_name {
-        "JSONRPC" => return "JsonRpc".to_string(),
+        "JSONRPC" | "OpenXRAPIExtension" | "OpenXRIPBinding" => {
+            return to_snake_case(class_name).to_pascal_case()
+        }
         _ => {}
     }
 
