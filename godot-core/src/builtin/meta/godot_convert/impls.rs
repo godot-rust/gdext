@@ -208,7 +208,6 @@ impl_godot_scalar!(
     u8 as i64,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT8
 );
-
 impl_godot_scalar!(
     u64 as i64,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT64;
@@ -219,3 +218,25 @@ impl_godot_scalar!(
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_FLOAT;
     lossy
 );
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Raw pointers
+
+// const void* is used in some APIs like OpenXrApiExtension::transform_from_pose().
+// Other impls for raw pointers are generated for native structures.
+
+impl GodotConvert for *const std::ffi::c_void {
+    type Via = i64;
+}
+
+impl ToGodot for *const std::ffi::c_void {
+    fn to_godot(&self) -> Self::Via {
+        *self as i64
+    }
+}
+
+impl FromGodot for *const std::ffi::c_void {
+    fn try_from_godot(via: Self::Via) -> Option<Self> {
+        Some(via as Self)
+    }
+}
