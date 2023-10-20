@@ -39,20 +39,21 @@ impl<'a> StringCache<'a> {
             return box_to_sname_ptr(opaque_box);
         }
 
-        let string_name_from_string = self.builtin_lifecycle.string_name_from_string;
-        let string_destroy = self.builtin_lifecycle.string_destroy;
-
-        let mut string = MaybeUninit::<sys::types::OpaqueString>::uninit();
-        let string_ptr = string.as_mut_ptr();
-
         let mut sname = MaybeUninit::<sys::types::OpaqueStringName>::uninit();
         let sname_ptr = sname.as_mut_ptr();
 
-        let opaque = unsafe {
+        // For Godot 4.0 and 4.1, construct StringName via String + conversion.
+        #[cfg(before_api = "4.2")]
+        unsafe {
             let string_new_with_latin1_chars_and_len = self
                 .interface
                 .string_new_with_latin1_chars_and_len
                 .unwrap_unchecked();
+            let string_name_from_string = self.builtin_lifecycle.string_name_from_string;
+            let string_destroy = self.builtin_lifecycle.string_destroy;
+
+            let mut string = MaybeUninit::<sys::types::OpaqueString>::uninit();
+            let string_ptr = string.as_mut_ptr();
 
             // Construct String.
             string_new_with_latin1_chars_and_len(
@@ -69,10 +70,27 @@ impl<'a> StringCache<'a> {
 
             // Destroy String.
             string_destroy(string_type_ptr(string_ptr));
+        }
 
-            // Return StringName.
-            sname.assume_init()
-        };
+        // For Godot 4.2+, construct StringName directly from C string.
+        #[cfg(since_api = "4.2")]
+        unsafe {
+            let string_name_new_with_utf8_chars_and_len = self
+                .interface
+                .string_name_new_with_utf8_chars_and_len
+                .unwrap_unchecked();
+
+            // Construct StringName from string (non-static, we only need them during the cache's lifetime).
+            // There is no _latin_*() variant that takes length, so we have to use _utf8_*() instead.
+            string_name_new_with_utf8_chars_and_len(
+                sname_uninit_ptr(sname_ptr),
+                key.as_ptr() as *const std::os::raw::c_char,
+                key.len() as sys::GDExtensionInt,
+            );
+        }
+
+        // Return StringName.
+        let opaque = unsafe { sname.assume_init() };
 
         let mut opaque_box = Box::new(opaque);
         let sname_ptr = box_to_sname_ptr(&mut opaque_box);
@@ -108,20 +126,30 @@ fn box_to_sname_ptr(
     opaque_ptr as sys::GDExtensionStringNamePtr
 }
 
+#[cfg(before_api = "4.2")]
 unsafe fn string_type_ptr(opaque_ptr: *mut sys::types::OpaqueString) -> sys::GDExtensionTypePtr {
     ptr::addr_of_mut!(*opaque_ptr) as sys::GDExtensionTypePtr
 }
 
+#[cfg(before_api = "4.2")]
 unsafe fn string_uninit_ptr(
     opaque_ptr: *mut sys::types::OpaqueString,
 ) -> sys::GDExtensionUninitializedStringPtr {
     ptr::addr_of_mut!(*opaque_ptr) as sys::GDExtensionUninitializedStringPtr
 }
 
+#[cfg(since_api = "4.2")]
+unsafe fn sname_uninit_ptr(
+    opaque_ptr: *mut sys::types::OpaqueStringName,
+) -> sys::GDExtensionUninitializedStringNamePtr {
+    ptr::addr_of_mut!(*opaque_ptr) as sys::GDExtensionUninitializedStringNamePtr
+}
+
 unsafe fn sname_type_ptr(opaque_ptr: *mut sys::types::OpaqueStringName) -> sys::GDExtensionTypePtr {
     ptr::addr_of_mut!(*opaque_ptr) as sys::GDExtensionTypePtr
 }
 
+#[cfg(before_api = "4.2")]
 unsafe fn sname_uninit_type_ptr(
     opaque_ptr: *mut sys::types::OpaqueStringName,
 ) -> sys::GDExtensionUninitializedTypePtr {
