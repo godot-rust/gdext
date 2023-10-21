@@ -10,9 +10,10 @@ use godot_ffi as sys;
 use sys::{interface_fn, GodotFfi, GodotNullableFfi, PtrcallType};
 
 use crate::builtin::meta::{
-    ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
+    ClassName, ConvertError, FromGodot, FromVariantError, GodotConvert, GodotFfiVariant, GodotType,
+    ToGodot,
 };
-use crate::builtin::{Variant, VariantConversionError};
+use crate::builtin::Variant;
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
 use crate::obj::GdDerefTarget;
@@ -413,8 +414,8 @@ impl<T: GodotClass> ToGodot for RawGd<T> {
 }
 
 impl<T: GodotClass> FromGodot for RawGd<T> {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(via)
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(via)
     }
 }
 
@@ -510,8 +511,8 @@ impl<T: GodotClass> GodotType for RawGd<T> {
         self
     }
 
-    fn try_from_ffi(ffi: Self::Ffi) -> Option<Self> {
-        Some(ffi)
+    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
+        Ok(ffi)
     }
 
     fn class_name() -> ClassName {
@@ -544,7 +545,7 @@ impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
         }
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         let raw = unsafe {
             // TODO(#234) replace Gd::<Object> with Self when Godot stops allowing illegal conversions
             // See https://github.com/godot-rust/gdext/issues/158
@@ -558,17 +559,22 @@ impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
             })
         };
 
-        raw.with_inc_refcount()
-            .owned_cast()
-            .map_err(|_| VariantConversionError::BadType)
+        raw.with_inc_refcount().owned_cast().map_err(|raw| {
+            FromVariantError::WrongClass {
+                expected: T::class_name(),
+            }
+            .into_error(raw)
+        })
     }
 }
 
 impl<T: GodotClass> std::fmt::Debug for RawGd<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct(&format!("RawGd<{}>", std::any::type_name::<T>()))
-            .field("obj", &self.obj)
-            .field("cached_instance_id", &self.cached_instance_id)
-            .finish()
+        if self.is_null() {
+            return write!(f, "{} {{ null obj }}", std::any::type_name::<T>());
+        }
+
+        let gd = super::Gd::from_ffi(self.clone());
+        write!(f, "{gd:?}")
     }
 }

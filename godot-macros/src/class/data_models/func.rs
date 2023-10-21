@@ -356,10 +356,10 @@ fn make_ptrcall_invocation(
     quote! {
          <#sig_tuple as ::godot::builtin::meta::PtrcallSignatureTuple>::in_ptrcall(
             instance_ptr,
+            #method_name_str,
             args_ptr,
             ret,
             #wrapped_method,
-            #method_name_str,
             #ptrcall_type,
         )
     }
@@ -376,11 +376,11 @@ fn make_varcall_invocation(
     quote! {
         <#sig_tuple as ::godot::builtin::meta::VarcallSignatureTuple>::in_varcall(
             instance_ptr,
+            #method_name_str,
             args_ptr,
             ret,
             err,
             #wrapped_method,
-            #method_name_str,
         )
     }
 }

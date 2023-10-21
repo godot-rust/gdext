@@ -13,7 +13,10 @@ use std::fmt;
 use std::marker::PhantomData;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use super::meta::{FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
+use super::meta::{
+    ConvertError, FromGodot, FromGodotError, FromVariantError, GodotConvert, GodotFfiVariant,
+    GodotType, ToGodot,
+};
 
 /// Godot's `Array` type.
 ///
@@ -337,11 +340,18 @@ impl<T: GodotType> Array<T> {
     }
 
     /// Checks that the inner array has the correct type set on it for storing elements of type `T`.
-    fn with_checked_type(self) -> Result<Self, VariantConversionError> {
-        if self.type_info() == TypeInfo::of::<T>() {
+    fn with_checked_type(self) -> Result<Self, ConvertError> {
+        let self_ty = self.type_info();
+        let target_ty = TypeInfo::of::<T>();
+
+        if self_ty == target_ty {
             Ok(self)
         } else {
-            Err(VariantConversionError::BadType)
+            Err(FromGodotError::BadArrayType {
+                expected: target_ty,
+                got: self_ty,
+            }
+            .into_error(self))
         }
     }
 
@@ -633,11 +643,15 @@ impl<T: GodotType> ToGodot for Array<T> {
     fn into_godot(self) -> Self::Via {
         self
     }
+
+    fn to_variant(&self) -> Variant {
+        self.ffi_to_variant()
+    }
 }
 
 impl<T: GodotType> FromGodot for Array<T> {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(via)
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(via)
     }
 }
 
@@ -755,6 +769,7 @@ impl<T: GodotType> GodotType for Array<T> {
     type Ffi = Self;
 
     fn to_ffi(&self) -> Self::Ffi {
+        // `to_ffi` is sometimes intentionally called with an array in an invalid state.
         self.clone()
     }
 
@@ -762,8 +777,8 @@ impl<T: GodotType> GodotType for Array<T> {
         self
     }
 
-    fn try_from_ffi(ffi: Self::Ffi) -> Option<Self> {
-        Some(ffi)
+    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
+        Ok(ffi)
     }
 
     fn godot_type_name() -> String {
@@ -781,9 +796,13 @@ impl<T: GodotType> GodotFfiVariant for Array<T> {
         }
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         if variant.get_type() != Self::variant_type() {
-            return Err(VariantConversionError::BadType);
+            return Err(FromVariantError::BadType {
+                expected: Self::variant_type(),
+                got: variant.get_type(),
+            }
+            .into_error(variant.clone()));
         }
 
         let array = unsafe {
@@ -992,7 +1011,7 @@ macro_rules! varray {
 ///
 /// We ignore the `script` parameter because it has no impact on typing in Godot.
 #[derive(PartialEq, Eq)]
-struct TypeInfo {
+pub(crate) struct TypeInfo {
     variant_type: VariantType,
 
     /// Not a `ClassName` because some values come from Godot engine API.
@@ -1007,8 +1026,16 @@ impl TypeInfo {
         }
     }
 
-    fn is_typed(&self) -> bool {
+    pub fn is_typed(&self) -> bool {
         self.variant_type != VariantType::Nil
+    }
+
+    pub fn variant_type(&self) -> VariantType {
+        self.variant_type
+    }
+
+    pub fn class_name(&self) -> &StringName {
+        &self.class_name
     }
 }
 

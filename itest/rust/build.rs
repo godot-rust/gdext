@@ -92,8 +92,8 @@ macro_rules! push_newtype {
             }
 
             impl godot::builtin::meta::FromGodot for $name {
-                fn try_from_godot(via: Self::Via) -> Option<Self> {
-                    Some(Self(via))
+                fn try_from_godot(via: Self::Via) -> Result<Self, godot::builtin::meta::ConvertError> {
+                    Ok(Self(via))
                 }
             }
         );

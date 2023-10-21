@@ -4,7 +4,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{impl_godot_as_self, FromGodot, GodotConvert, GodotType, ToGodot};
+use crate::builtin::meta::{
+    impl_godot_as_self, ConvertError, FromGodot, GodotConvert, GodotType, ToGodot,
+};
+use crate::builtin::Variant;
 use godot_ffi as sys;
 
 // The following ToGodot/FromGodot/Convert impls are auto-generated for each engine type, co-located with their definitions:
@@ -32,21 +35,45 @@ where
     fn into_godot(self) -> Self::Via {
         self.map(ToGodot::into_godot)
     }
+
+    fn to_variant(&self) -> Variant {
+        match self {
+            Some(inner) => inner.to_variant(),
+            None => Variant::nil(),
+        }
+    }
 }
 
 impl<T: FromGodot> FromGodot for Option<T>
 where
     Option<T::Via>: GodotType,
 {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
         match via {
             Some(via) => T::try_from_godot(via).map(Some),
-            None => Some(None),
+            None => Ok(None),
         }
     }
 
     fn from_godot(via: Self::Via) -> Self {
         via.map(T::from_godot)
+    }
+
+    fn try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+        if variant.is_nil() {
+            return Ok(None);
+        }
+
+        let value = T::try_from_variant(variant)?;
+        Ok(Some(value))
+    }
+
+    fn from_variant(variant: &Variant) -> Self {
+        if variant.is_nil() {
+            return None;
+        }
+
+        Some(T::from_variant(variant))
     }
 }
 
@@ -68,8 +95,8 @@ impl ToGodot for sys::VariantType {
 }
 
 impl FromGodot for sys::VariantType {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(Self::from_sys(via as sys::GDExtensionVariantType))
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(Self::from_sys(via as sys::GDExtensionVariantType))
     }
 }
 
@@ -88,8 +115,8 @@ impl ToGodot for sys::VariantOperator {
 }
 
 impl FromGodot for sys::VariantOperator {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(Self::from_sys(via as sys::GDExtensionVariantOperator))
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(Self::from_sys(via as sys::GDExtensionVariantOperator))
     }
 }
 
@@ -97,7 +124,7 @@ impl FromGodot for sys::VariantOperator {
 // Scalars
 
 macro_rules! impl_godot_scalar {
-    ($T:ty as $Via:ty $(, $param_metadata:expr)?) => {
+    ($T:ty as $Via:ty, $err:path $(, $param_metadata:expr)?) => {
         impl GodotType for $T {
             type Ffi = $Via;
 
@@ -109,8 +136,8 @@ macro_rules! impl_godot_scalar {
                 self.into()
             }
 
-            fn try_from_ffi(ffi: Self::Ffi) -> Option<Self> {
-                Self::try_from(ffi).ok()
+            fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
+                Self::try_from(ffi).map_err(|_| $err.into_error(ffi))
             }
 
             $(
@@ -135,8 +162,8 @@ macro_rules! impl_godot_scalar {
         }
 
         impl FromGodot for $T {
-            fn try_from_godot(via: Self::Via) -> Option<Self> {
-                Some(via)
+            fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+                Ok(via)
             }
         }
     };
@@ -153,8 +180,8 @@ macro_rules! impl_godot_scalar {
                 self as $Via
             }
 
-            fn try_from_ffi(ffi: Self::Ffi) -> Option<Self> {
-                Some(ffi as $T)
+            fn try_from_ffi(ffi: Self::Ffi) -> Result<Self,ConvertError> {
+                Ok(ffi as $T)
             }
 
             $(
@@ -174,13 +201,13 @@ macro_rules! impl_godot_scalar {
 
         impl ToGodot for $T {
             fn to_godot(&self) -> Self::Via {
-                *self
+               *self
             }
         }
 
         impl FromGodot for $T {
-            fn try_from_godot(via: Self::Via) -> Option<Self> {
-                Some(via)
+            fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+                Ok(via)
             }
         }
     };
@@ -194,26 +221,32 @@ impl_godot_as_self!(());
 
 impl_godot_scalar!(
     i32 as i64,
+    crate::builtin::meta::FromFfiError::I32,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32
 );
 impl_godot_scalar!(
     i16 as i64,
+    crate::builtin::meta::FromFfiError::I16,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16
 );
 impl_godot_scalar!(
     i8 as i64,
+    crate::builtin::meta::FromFfiError::I8,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8
 );
 impl_godot_scalar!(
     u32 as i64,
+    crate::builtin::meta::FromFfiError::U32,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT32
 );
 impl_godot_scalar!(
     u16 as i64,
+    crate::builtin::meta::FromFfiError::U16,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT16
 );
 impl_godot_scalar!(
     u8 as i64,
+    crate::builtin::meta::FromFfiError::U8,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT8
 );
 impl_godot_scalar!(
@@ -245,8 +278,8 @@ impl ToGodot for *const std::ffi::c_void {
 }
 
 impl FromGodot for *const std::ffi::c_void {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(via as Self)
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(via as Self)
     }
 }
 
@@ -261,7 +294,7 @@ impl ToGodot for *mut std::ffi::c_void {
 }
 
 impl FromGodot for *mut std::ffi::c_void {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(via as Self)
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(via as Self)
     }
 }

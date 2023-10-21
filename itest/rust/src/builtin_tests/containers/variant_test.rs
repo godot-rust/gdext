@@ -9,9 +9,7 @@ use std::fmt::Display;
 
 use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{dict, varray, GString, NodePath, StringName, Variant, Vector2, Vector3};
-use godot::builtin::{
-    Basis, Dictionary, VariantArray, VariantConversionError, VariantOperator, VariantType,
-};
+use godot::builtin::{Basis, Dictionary, VariantArray, VariantOperator, VariantType};
 use godot::engine::Node2D;
 use godot::obj::InstanceId;
 use godot::sys::GodotFfi;
@@ -122,8 +120,11 @@ fn variant_call() {
     let result = variant.call("set_position", &[position.to_variant()]);
     assert!(result.is_nil());
 
-    let result = variant.call("get_position", &[]);
-    assert_eq!(result.try_to::<Vector2>(), Ok(position));
+    let result = variant
+        .call("get_position", &[])
+        .try_to::<Vector2>()
+        .expect("`get_position` should return Vector2");
+    assert_eq!(result, position);
 
     let result = variant.call("to_string", &[]);
     assert_eq!(result.get_type(), VariantType::String);
@@ -297,34 +298,29 @@ fn variant_null_object_is_nil() {
 
 #[itest]
 fn variant_conversion_fails() {
-    assert_eq!(
-        "hello".to_variant().try_to::<i64>(),
-        Err(VariantConversionError::BadType)
-    );
-    assert_eq!(
-        28.to_variant().try_to::<f32>(),
-        Err(VariantConversionError::BadType)
-    );
-    assert_eq!(
-        10.to_variant().try_to::<bool>(),
-        Err(VariantConversionError::BadType)
-    );
-    assert_eq!(
-        false.to_variant().try_to::<String>(),
-        Err(VariantConversionError::BadType)
-    );
-    assert_eq!(
-        VariantArray::default().to_variant().try_to::<StringName>(),
-        Err(VariantConversionError::BadType)
-    );
+    fn assert_convert_err<T: ToGodot, U: FromGodot + std::fmt::Debug>(value: T) {
+        use std::any::type_name;
+        value.to_variant().try_to::<U>().expect_err(&format!(
+            "`{}` should not convert to `{}`",
+            type_name::<T>(),
+            type_name::<U>()
+        ));
+    }
+
+    assert_convert_err::<_, i64>("hello");
+    assert_convert_err::<i32, f32>(28);
+    assert_convert_err::<i32, bool>(10);
+    assert_convert_err::<_, String>(false);
+    assert_convert_err::<_, StringName>(VariantArray::default());
+
     //assert_eq!(
     //    Dictionary::default().to_variant().try_to::<Array>(),
     //    Err(VariantConversionError)
     //);
-    assert_eq!(
-        Variant::nil().to_variant().try_to::<Dictionary>(),
-        Err(VariantConversionError::BadType)
-    );
+    Variant::nil()
+        .to_variant()
+        .try_to::<Dictionary>()
+        .expect_err("`nil` should not convert to `Dictionary`");
 }
 
 #[itest]

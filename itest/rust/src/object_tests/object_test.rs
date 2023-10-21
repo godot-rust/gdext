@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::meta::{FromGodot, ToGodot};
-use godot::builtin::{GString, StringName, Variant, VariantConversionError, Vector3};
+use godot::builtin::{GString, StringName, Variant, Vector3};
 use godot::engine::{
     file_access, Area2D, Camera3D, FileAccess, IRefCounted, Node, Node3D, Object, RefCounted,
 };
@@ -189,8 +189,8 @@ fn object_instance_id_when_freed() {
 fn object_from_invalid_instance_id() {
     let id = InstanceId::try_from_i64(0xDEADBEEF).unwrap();
 
-    let obj2 = Gd::<RefcPayload>::try_from_instance_id(id);
-    assert!(obj2.is_none());
+    Gd::<RefcPayload>::try_from_instance_id(id)
+        .expect_err("invalid instance id should not return a valid object");
 }
 
 #[itest]
@@ -214,11 +214,8 @@ fn object_from_instance_id_unrelated_type() {
     let node: Gd<Node3D> = Node3D::new_alloc();
     let id = node.instance_id();
 
-    let obj = Gd::<RefCounted>::try_from_instance_id(id);
-    assert!(
-        obj.is_none(),
-        "try_from_instance_id() with bad type must fail"
-    );
+    Gd::<RefCounted>::try_from_instance_id(id)
+        .expect_err("try_from_instance_id() with bad type should fail");
 
     node.free();
 }
@@ -237,11 +234,8 @@ fn object_dynamic_free() {
 
     obj.call("free".into(), &[]);
 
-    assert_eq!(
-        Gd::<ObjPayload>::try_from_instance_id(id),
-        None,
-        "dynamic free() call must destroy object"
-    );
+    Gd::<ObjPayload>::try_from_instance_id(id)
+        .expect_err("dynamic free() call must destroy object");
 }
 
 #[itest]
@@ -456,11 +450,7 @@ fn check_convert_variant_refcount(obj: Gd<RefCounted>) {
 fn object_engine_convert_variant_nil() {
     let nil = Variant::nil();
 
-    assert_eq!(
-        Gd::<Area2D>::try_from_variant(&nil),
-        Err(VariantConversionError::BadValue),
-        "try_from_variant(&nil)"
-    );
+    Gd::<Area2D>::try_from_variant(&nil).expect_err("`nil` should not convert to `Gd<Area2D>`");
 
     expect_panic("from_variant(&nil)", || {
         Gd::<Area2D>::from_variant(&nil);

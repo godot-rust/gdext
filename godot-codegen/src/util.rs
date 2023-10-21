@@ -337,8 +337,9 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
         }
 
         impl crate::builtin::meta::FromGodot for #enum_name {
-            fn try_from_godot(via: Self::Via) -> Option<Self> {
+            fn try_from_godot(via: Self::Via) -> std::result::Result<Self, crate::builtin::meta::ConvertError> {
                 <Self as crate::obj::EngineEnum>::try_from_ord(via)
+                    .ok_or_else(|| crate::builtin::meta::FromGodotError::InvalidEnum.into_error(via))
             }
         }
 

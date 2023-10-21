@@ -32,16 +32,17 @@ fn array_eq() {
 fn typed_array_from_to_variant() {
     let array = array![1, 2];
     let variant = array.to_variant();
-    let result = Array::try_from_variant(&variant);
-    assert_eq!(result, Ok(array));
+    let result = Array::try_from_variant(&variant).expect("typed array conversion should succeed");
+    assert_eq!(result, array);
 }
 
 #[itest]
 fn untyped_array_from_to_variant() {
     let array = varray![1, 2];
     let variant = array.to_variant();
-    let result = VariantArray::try_from_variant(&variant);
-    assert_eq!(result, Ok(array));
+    let result =
+        VariantArray::try_from_variant(&variant).expect("untyped array conversion should succeed");
+    assert_eq!(result, array);
 }
 
 #[itest]
@@ -417,10 +418,12 @@ fn typed_array_return_from_godot_func() {
 fn typed_array_try_from_untyped() {
     let node = Node::new_alloc();
     let array = VariantArray::from(&[node.clone().to_variant()]);
-    assert_eq!(
-        array.to_variant().try_to::<Array<Option<Gd<Node>>>>(),
-        Err(VariantConversionError::BadType)
-    );
+
+    array
+        .to_variant()
+        .try_to::<Array<Option<Gd<Node>>>>()
+        .expect_err("untyped array should not coerce to typed array");
+
     node.free();
 }
 
@@ -428,10 +431,12 @@ fn typed_array_try_from_untyped() {
 fn untyped_array_try_from_typed() {
     let node = Node::new_alloc();
     let array = Array::<Option<Gd<Node>>>::from(&[Some(node.clone())]);
-    assert_eq!(
-        array.to_variant().try_to::<VariantArray>(),
-        Err(VariantConversionError::BadType)
-    );
+
+    array
+        .to_variant()
+        .try_to::<VariantArray>()
+        .expect_err("typed array should not coerce to untyped array");
+
     node.free();
 }
 

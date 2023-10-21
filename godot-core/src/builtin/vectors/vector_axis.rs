@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{FromGodot, GodotConvert, ToGodot};
+use crate::builtin::meta::{ConvertError, FromGodot, FromGodotError, GodotConvert, ToGodot};
 use crate::builtin::{real, Vector2, Vector2i, Vector3, Vector3i, Vector4, Vector4i};
 use crate::obj::EngineEnum;
 
@@ -108,8 +108,8 @@ impl ToGodot for Vector2Axis {
 }
 
 impl FromGodot for Vector2Axis {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Self::try_from_ord(via)
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Self::try_from_ord(via).ok_or_else(|| FromGodotError::InvalidEnum.into_error(via))
     }
 }
 
@@ -156,8 +156,8 @@ impl ToGodot for Vector3Axis {
 }
 
 impl FromGodot for Vector3Axis {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Self::try_from_ord(via)
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Self::try_from_ord(via).ok_or_else(|| FromGodotError::InvalidEnum.into_error(via))
     }
 }
 
@@ -207,8 +207,8 @@ impl ToGodot for Vector4Axis {
 }
 
 impl FromGodot for Vector4Axis {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Self::try_from_ord(via)
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Self::try_from_ord(via).ok_or_else(|| FromGodotError::InvalidEnum.into_error(via))
     }
 }
 

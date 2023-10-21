@@ -12,6 +12,7 @@ mod return_marshal;
 mod signature;
 
 pub use class_name::*;
+pub(crate) use godot_convert::convert_error::*;
 pub use godot_convert::*;
 #[doc(hidden)]
 pub use return_marshal::*;
@@ -29,7 +30,7 @@ use registration::method::MethodParamOrReturnInfo;
 #[doc(hidden)]
 pub trait GodotFfiVariant: Sized + GodotFfi {
     fn ffi_to_variant(&self) -> Variant;
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, VariantConversionError>;
+    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError>;
 }
 
 mod sealed {
@@ -111,7 +112,9 @@ mod sealed {
 // type. For instance [`i32`] does not implement `GodotFfi` because it cannot represent all values of
 // Godot's `int` type, however it does implement `GodotType` because we can set the metadata of values with
 // this type to indicate that they are 32 bits large.
-pub trait GodotType: GodotConvert<Via = Self> + ToGodot + FromGodot + sealed::Sealed {
+pub trait GodotType:
+    GodotConvert<Via = Self> + ToGodot + FromGodot + sealed::Sealed + 'static
+{
     #[doc(hidden)]
     type Ffi: GodotFfiVariant;
 
@@ -122,7 +125,7 @@ pub trait GodotType: GodotConvert<Via = Self> + ToGodot + FromGodot + sealed::Se
     fn into_ffi(self) -> Self::Ffi;
 
     #[doc(hidden)]
-    fn try_from_ffi(ffi: Self::Ffi) -> Option<Self>;
+    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError>;
 
     #[doc(hidden)]
     fn from_ffi(ffi: Self::Ffi) -> Self {
@@ -184,13 +187,12 @@ where
         GodotNullableFfi::flatten_option(self.map(|t| t.into_ffi()))
     }
 
-    fn try_from_ffi(ffi: Self::Ffi) -> Option<Self> {
+    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
         if ffi.is_null() {
-            return Some(None);
+            return Ok(None);
         }
 
-        let t = GodotType::try_from_ffi(ffi);
-        t.map(Some)
+        GodotType::try_from_ffi(ffi).map(Some)
     }
 
     fn from_ffi(ffi: Self::Ffi) -> Self {
