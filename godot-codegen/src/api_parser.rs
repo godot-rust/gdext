@@ -8,6 +8,8 @@
 #![allow(dead_code)]
 #![allow(clippy::question_mark)] // in #[derive(DeJson)]
 
+use std::collections::HashSet;
+
 use nanoserde::DeJson;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -264,11 +266,118 @@ pub fn load_extension_api(
     #[allow(clippy::useless_asref)]
     let json_str: &str = json.as_ref();
 
-    let model: ExtensionApi =
+    let mut model: ExtensionApi =
         DeJson::deserialize_json(json_str).expect("failed to deserialize JSON");
     watch.record("deserialize_json");
 
     println!("Parsed extension_api.json for version {:?}", model.header);
 
+    let used_class_names = option_env!("RUST_GDEXT_USED_CLASS_NAMES");
+    if let Some(used_class_names) = used_class_names {
+        let filter = HashSet::from_iter(
+            used_class_names
+                .split(",")
+                .map(|name| name.trim().to_string()),
+        );
+
+        filter_class_names(&mut model, filter);
+    } else {
+        println!("Not filtering extension_api.json");
+    }
+
     (model, build_config)
+}
+
+const MINIMAL_CLASSES: [&'static str; 27] = [
+    "Engine",
+    "EditorPlugin",
+    "ResourceLoader",
+    "AudioStreamPlayer",
+    "AudioStreamPlayerVirtual",
+    "Camera2D",
+    "Camera2DVirtual",
+    "Camera3D",
+    "Camera3DVirtual",
+    "Input",
+    "Node",
+    "Node2D",
+    "Node2DVirtual",
+    "Node3D",
+    "Node3DVirtual",
+    "NodeVirtual",
+    "Object",
+    "ObjectVirtual",
+    "PackedScene",
+    "PackedSceneExt",
+    "PackedSceneVirtual",
+    "RefCounted",
+    "RefCountedVirtual",
+    "Resource",
+    "ResourceVirtual",
+    "SceneTree",
+    "SceneTreeVirtual",
+];
+
+fn filter_class_names(model: &mut ExtensionApi, mut allowed_class_names: HashSet<String>) {
+    println!(
+        "User asked to filer extension_api.json to only include the classes {:?}",
+        allowed_class_names
+    );
+
+    allowed_class_names.extend(MINIMAL_CLASSES.iter().map(|x| x.to_string()));
+
+    let all_class_names: Vec<_> = model.classes.iter().map(|class| &class.name).collect();
+
+    let mut new_class_names = Vec::new();
+    new_class_names.extend(allowed_class_names.iter().map(|name| name.clone()));
+    while !new_class_names.is_empty() {
+        let new_class_name = new_class_names.pop().unwrap();
+        for class in model.classes.iter() {
+            if class.name != new_class_name {
+                continue;
+            }
+            if let Some(parent) = class.inherits.clone() {
+                if allowed_class_names.insert(parent.clone()) {
+                    new_class_names.push(parent);
+                }
+            }
+            if let Some(methods) = &class.methods {
+                for method in methods.iter() {
+                    if let Some(arguments) = &method.arguments {
+                        for argument in arguments.iter() {
+                            for class_name in all_class_names.iter() {
+                                if argument.type_.contains(*class_name) {
+                                    if allowed_class_names.insert((*class_name).clone()) {
+                                        new_class_names.push((*class_name).clone());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if let Some(return_value) = &method.return_value {
+                        for class_name in all_class_names.iter() {
+                            if return_value.type_.contains(*class_name) {
+                                if allowed_class_names.insert((*class_name).clone()) {
+                                    new_class_names.push((*class_name).clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    println!(
+        "Filtering extension_api.json to only include the classes {:?}",
+        allowed_class_names
+    );
+
+    let mut classes = vec![];
+    std::mem::swap(&mut classes, &mut model.classes);
+    model.classes.extend(
+        classes
+            .into_iter()
+            .filter(|class: &Class| allowed_class_names.contains(&class.name as &str)),
+    );
 }

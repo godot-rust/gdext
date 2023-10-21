@@ -17,6 +17,7 @@ fn main() {
 
     godot_codegen::generate_core_files(gen_path);
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-env-changed=RUST_GDEXT_USED_CLASS_NAMES");
 
     godot_bindings::emit_godot_version_cfg();
 }
