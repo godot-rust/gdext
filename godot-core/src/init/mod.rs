@@ -8,6 +8,8 @@ use godot_ffi as sys;
 
 use std::cell;
 
+pub use sys::GdextBuild;
+
 #[doc(hidden)]
 // TODO consider body safe despite unsafe function, and explicitly mark unsafe {} locations
 pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(

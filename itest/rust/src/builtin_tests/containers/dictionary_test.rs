@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 
 use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{dict, varray, Dictionary, Variant};
+use godot::sys::GdextBuild;
 
 use crate::framework::{expect_panic, itest};
 
@@ -354,10 +355,11 @@ fn dictionary_equal() {
     assert_ne!(dict! {"foo": "bar"}, dict! {"bar": "foo"});
 
     // Changed in https://github.com/godotengine/godot/pull/74588.
-    #[cfg(before_api = "4.2")]
-    assert_eq!(dict! {1: f32::NAN}, dict! {1: f32::NAN});
-    #[cfg(since_api = "4.2")]
-    assert_ne!(dict! {1: f32::NAN}, dict! {1: f32::NAN});
+    if GdextBuild::before_api("4.2") {
+        assert_eq!(dict! {1: f32::NAN}, dict! {1: f32::NAN});
+    } else {
+        assert_ne!(dict! {1: f32::NAN}, dict! {1: f32::NAN});
+    }
 }
 
 #[itest]
