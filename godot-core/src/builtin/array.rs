@@ -682,6 +682,12 @@ impl<T: GodotType + TypeStringHint> TypeStringHint for Array<T> {
     }
 }
 
+impl TypeStringHint for VariantArray {
+    fn type_string() -> String {
+        format!("{}:Array", VariantType::Array as i32)
+    }
+}
+
 impl<T: GodotType> Property for Array<T> {
     type Intermediate = Self;
 
