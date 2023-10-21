@@ -462,6 +462,10 @@ impl<T: GodotClass> GodotType for Gd<T> {
     fn class_name() -> crate::builtin::meta::ClassName {
         T::class_name()
     }
+
+    fn godot_type_name() -> String {
+        T::class_name().to_string()
+    }
 }
 
 impl<T: GodotClass> Clone for Gd<T> {

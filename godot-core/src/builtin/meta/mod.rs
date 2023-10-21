@@ -164,6 +164,9 @@ pub trait GodotType: GodotConvert<Via = Self> + ToGodot + FromGodot + sealed::Se
             Self::param_metadata(),
         ))
     }
+
+    #[doc(hidden)]
+    fn godot_type_name() -> String;
 }
 
 impl<T> GodotType for Option<T>
@@ -216,6 +219,10 @@ where
 
     fn return_info() -> Option<MethodParamOrReturnInfo> {
         T::return_info()
+    }
+
+    fn godot_type_name() -> String {
+        T::godot_type_name()
     }
 }
 

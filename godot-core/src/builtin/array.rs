@@ -698,6 +698,14 @@ impl<T: GodotType> Property for Array<T> {
     fn set_property(&mut self, value: Self::Intermediate) {
         *self = value;
     }
+
+    #[cfg(since_api = "4.2")]
+    fn property_hint() -> ExportInfo {
+        ExportInfo {
+            hint: crate::engine::global::PropertyHint::PROPERTY_HINT_ARRAY_TYPE,
+            hint_string: T::godot_type_name().into(),
+        }
+    }
 }
 
 impl<T: GodotType + TypeStringHint> Export for Array<T> {
@@ -752,6 +760,10 @@ impl<T: GodotType> GodotType for Array<T> {
 
     fn try_from_ffi(ffi: Self::Ffi) -> Option<Self> {
         Some(ffi)
+    }
+
+    fn godot_type_name() -> String {
+        "Array".into()
     }
 }
 

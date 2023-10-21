@@ -16,6 +16,9 @@ use crate::engine::global::PropertyHint;
 pub trait Property {
     type Intermediate;
 
+    fn property_hint() -> ExportInfo {
+        ExportInfo::with_hint_none()
+    }
     fn get_property(&self) -> Self::Intermediate;
     fn set_property(&mut self, value: Self::Intermediate);
 }

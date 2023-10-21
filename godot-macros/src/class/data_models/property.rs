@@ -113,10 +113,8 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 } else {
                     quote! {
                         {
-                            (
-                                ::godot::engine::global::PropertyHint::PROPERTY_HINT_NONE,
-                                ::godot::builtin::GodotString::new()
-                            )
+                            let default_export_info = <#field_type as ::godot::bind::property::Property>::property_hint();
+                            (default_export_info.hint, default_export_info.hint_string)
                         }
                     }
                 }
