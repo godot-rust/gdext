@@ -146,6 +146,13 @@
 //!   Access to `godot::engine` APIs that Godot marks "experimental". These are under heavy development and may change at any time.
 //!   If you opt in to this feature, expect breaking changes at compile and runtime.
 //!
+//! * **`lazy-function-tables`**
+//!
+//!   Instead of loading all engine function pointers at startup, load them lazily on first use. This reduces startup time and RAM usage, but
+//!   incurs additional overhead in each FFI call. Also, you lose the guarantee that once the library has booted, all function pointers are
+//!   truly available. Function calls may thus panic only at runtime, possibly in deeply nested code paths.
+//!   This feature is not yet thread-safe and can thus not be combined with `experimental-threads`.
+//!
 //! # Public API
 //!
 //! Some symbols in the API are not intended for users, however Rust's visibility feature is not strong enough to express that in all cases
@@ -167,6 +174,9 @@ pub use godot_core::{builtin, engine, log, obj};
 
 #[doc(hidden)]
 pub use godot_core::sys;
+
+#[cfg(all(feature = "lazy-function-tables", feature = "experimental-threads"))]
+compile_error!("Thread safety for lazy function pointers is not yet implemented.");
 
 pub mod init {
     pub use godot_core::init::*;

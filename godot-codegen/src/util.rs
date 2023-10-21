@@ -81,6 +81,7 @@ impl ClassCodegenLevel {
 
 /// Lookup key for indexed method tables.
 // Could potentially save a lot of string allocations with lifetimes.
+// See also crate::lazy_keys.
 #[derive(Eq, PartialEq, Hash)]
 pub(crate) enum MethodTableKey {
     ClassMethod {

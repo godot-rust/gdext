@@ -1055,7 +1055,7 @@ fn make_methods(
     let get_method_table = api_level.table_global_getter();
 
     let definitions = methods.iter().map(|method| {
-        make_method_definition(method, class_name, api_level, &get_method_table, ctx)
+        make_class_method_definition(method, class_name, api_level, &get_method_table, ctx)
     });
 
     FnDefinitions::expand(definitions)
@@ -1113,7 +1113,7 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
     }
 }
 
-fn make_method_definition(
+fn make_class_method_definition(
     method: &ClassMethod,
     class_name: &TyName,
     api_level: &ClassCodegenLevel,
@@ -1133,6 +1133,7 @@ fn make_method_definition(
         }
     }*/
 
+    let class_name_str = &class_name.godot_ty;
     let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
 
     let receiver = make_receiver(
@@ -1153,9 +1154,22 @@ fn make_method_definition(
         quote! { Some(self.instance_id) }
     };
 
+    let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {
+        let hash = method.hash.expect("hash present for class method");
+        quote! {
+            fptr_by_key(sys::lazy_keys::ClassMethodKey {
+                class_name: #class_name_str,
+                method_name: #method_name_str,
+                hash: #hash,
+            })
+        }
+    } else {
+        quote! { fptr_by_index(#table_index) }
+    };
+
     let object_ptr = &receiver.ffi_arg;
     let ptrcall_invocation = quote! {
-        let method_bind = sys::#get_method_table().fptr_by_index(#table_index);
+        let method_bind = sys::#get_method_table().#fptr_access;
 
         <CallSig as PtrcallSignatureTuple>::out_class_ptrcall::<RetMarshal>(
             method_bind,
@@ -1167,7 +1181,7 @@ fn make_method_definition(
     };
 
     let varcall_invocation = quote! {
-        let method_bind = sys::#get_method_table().fptr_by_index(#table_index);
+        let method_bind = sys::#get_method_table().#fptr_access;
 
         <CallSig as VarcallSignatureTuple>::out_class_varcall(
             method_bind,
@@ -1215,16 +1229,32 @@ fn make_builtin_method_definition(
         .as_deref()
         .map(MethodReturn::from_type_no_meta);
 
-    let table_index = ctx.get_table_index(&MethodTableKey::BuiltinMethod {
-        builtin_ty: builtin_name.clone(),
-        method_name: method.name.clone(),
-    });
+    let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {
+        let variant_type = quote! { sys::VariantType::#builtin_name };
+        let variant_type_str = &builtin_name.godot_ty;
+        let hash = method.hash.expect("hash present for class method");
+
+        quote! {
+            fptr_by_key(sys::lazy_keys::BuiltinMethodKey {
+                variant_type: #variant_type,
+                variant_type_str: #variant_type_str,
+                method_name: #method_name_str,
+                hash: #hash,
+            })
+        }
+    } else {
+        let table_index = ctx.get_table_index(&MethodTableKey::BuiltinMethod {
+            builtin_ty: builtin_name.clone(),
+            method_name: method.name.clone(),
+        });
+        quote! { fptr_by_index(#table_index) }
+    };
 
     let receiver = make_receiver(method.is_static, method.is_const, quote! { self.sys_ptr });
     let object_ptr = &receiver.ffi_arg;
 
     let ptrcall_invocation = quote! {
-        let method_bind = sys::builtin_method_table().fptr_by_index(#table_index);
+        let method_bind = sys::builtin_method_table().#fptr_access;
 
         <CallSig as PtrcallSignatureTuple>::out_builtin_ptrcall::<RetMarshal>(
             method_bind,

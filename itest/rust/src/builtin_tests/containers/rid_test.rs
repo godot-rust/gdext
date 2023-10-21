@@ -4,10 +4,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::{collections::HashSet, thread};
-
 use godot::builtin::inner::InnerRid;
-use godot::builtin::{Color, Rid, Vector2};
+use godot::builtin::Rid;
 use godot::engine::RenderingServer;
 
 use crate::framework::{itest, suppress_godot_print};
@@ -38,10 +36,14 @@ fn canvas_set_parent() {
 }
 
 #[itest]
+#[cfg(feature = "experimental-threads")]
 fn multi_thread_test() {
+    use godot::builtin::{Color, Vector2};
+    use std::collections::HashSet;
+
     let threads = (0..10)
         .map(|_| {
-            thread::spawn(|| {
+            std::thread::spawn(|| {
                 let mut server = RenderingServer::singleton();
                 (0..1000).map(|_| server.canvas_item_create()).collect()
             })

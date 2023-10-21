@@ -13,6 +13,7 @@ custom-godot = ["godot-core/custom-godot"]
 double-precision = ["godot-core/double-precision"]
 formatted = ["godot-core/codegen-fmt"]
 serde = ["godot-core/serde"]
+lazy-function-tables = ["godot-core/codegen-lazy-fptrs"]
 experimental-threads = ["godot-core/experimental-threads"]
 experimental-godot-api = ["godot-core/experimental-godot-api"]
 

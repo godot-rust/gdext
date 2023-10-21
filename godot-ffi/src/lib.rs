@@ -85,7 +85,7 @@ struct GodotBinding {
     class_server_method_table: Option<ClassServersMethodTable>, // late-init
     class_scene_method_table: Option<ClassSceneMethodTable>,    // late-init
     class_editor_method_table: Option<ClassEditorMethodTable>,  // late-init
-    builtin_method_table: BuiltinMethodTable,
+    builtin_method_table: Option<BuiltinMethodTable>,           // late-init
     utility_function_table: UtilityFunctionTable,
     runtime_metadata: GdextRuntimeMetadata,
     config: GdextConfig,
@@ -139,14 +139,24 @@ pub unsafe fn initialize(
 
     let mut string_names = StringCache::new(&interface, &global_method_table);
 
-    let builtin_method_table = BuiltinMethodTable::load(&interface, &mut string_names);
-    out!("Loaded builtin method table.");
-
     let utility_function_table = UtilityFunctionTable::load(&interface, &mut string_names);
     out!("Loaded utility function table.");
 
     let runtime_metadata = GdextRuntimeMetadata {
         godot_version: version,
+    };
+
+    let builtin_method_table = {
+        #[cfg(feature = "codegen-lazy-fptrs")]
+        {
+            None // loaded later
+        }
+        #[cfg(not(feature = "codegen-lazy-fptrs"))]
+        {
+            let table = BuiltinMethodTable::load(&interface, &mut string_names);
+            out!("Loaded builtin method table.");
+            Some(table)
+        }
     };
 
     drop(string_names);
@@ -164,6 +174,14 @@ pub unsafe fn initialize(
         config,
     });
     out!("Assigned binding.");
+
+    // Lazy case: load afterwards because table's internal StringCache stores &'static references to the interface.
+    #[cfg(feature = "codegen-lazy-fptrs")]
+    {
+        let builtin_method_table = BuiltinMethodTable::load();
+        BINDING.as_mut().unwrap().builtin_method_table = Some(builtin_method_table);
+        out!("Loaded builtin method table (lazily).");
+    }
 
     println!(
         "Initialize GDExtension API for Rust: {}",
@@ -251,7 +269,10 @@ pub unsafe fn class_editor_api() -> &'static ClassEditorMethodTable {
 /// The interface must have been initialised with [`initialize`] before calling this function.
 #[inline(always)]
 pub unsafe fn builtin_method_table() -> &'static BuiltinMethodTable {
-    &unwrap_ref_unchecked(&BINDING).builtin_method_table
+    unwrap_ref_unchecked(&BINDING)
+        .builtin_method_table
+        .as_ref()
+        .unwrap_unchecked()
 }
 
 /// # Safety
@@ -272,30 +293,53 @@ pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
     out!("Load class method table for level '{:?}'...", api_level);
     let begin = std::time::Instant::now();
 
+    #[cfg(not(feature = "codegen-lazy-fptrs"))]
     let mut string_names = StringCache::new(&binding.interface, &binding.global_method_table);
+
     let (class_count, method_count);
     match api_level {
         ClassApiLevel::Server => {
-            binding.class_server_method_table = Some(ClassServersMethodTable::load(
-                &binding.interface,
-                &mut string_names,
-            ));
+            #[cfg(feature = "codegen-lazy-fptrs")]
+            {
+                binding.class_server_method_table = Some(ClassServersMethodTable::load());
+            }
+            #[cfg(not(feature = "codegen-lazy-fptrs"))]
+            {
+                binding.class_server_method_table = Some(ClassServersMethodTable::load(
+                    &binding.interface,
+                    &mut string_names,
+                ));
+            }
             class_count = ClassServersMethodTable::CLASS_COUNT;
             method_count = ClassServersMethodTable::METHOD_COUNT;
         }
         ClassApiLevel::Scene => {
-            binding.class_scene_method_table = Some(ClassSceneMethodTable::load(
-                &binding.interface,
-                &mut string_names,
-            ));
+            #[cfg(feature = "codegen-lazy-fptrs")]
+            {
+                binding.class_scene_method_table = Some(ClassSceneMethodTable::load());
+            }
+            #[cfg(not(feature = "codegen-lazy-fptrs"))]
+            {
+                binding.class_scene_method_table = Some(ClassSceneMethodTable::load(
+                    &binding.interface,
+                    &mut string_names,
+                ));
+            }
             class_count = ClassSceneMethodTable::CLASS_COUNT;
             method_count = ClassSceneMethodTable::METHOD_COUNT;
         }
         ClassApiLevel::Editor => {
-            binding.class_editor_method_table = Some(ClassEditorMethodTable::load(
-                &binding.interface,
-                &mut string_names,
-            ));
+            #[cfg(feature = "codegen-lazy-fptrs")]
+            {
+                binding.class_editor_method_table = Some(ClassEditorMethodTable::load());
+            }
+            #[cfg(not(feature = "codegen-lazy-fptrs"))]
+            {
+                binding.class_editor_method_table = Some(ClassEditorMethodTable::load(
+                    &binding.interface,
+                    &mut string_names,
+                ));
+            }
             class_count = ClassEditorMethodTable::CLASS_COUNT;
             method_count = ClassEditorMethodTable::METHOD_COUNT;
         }
