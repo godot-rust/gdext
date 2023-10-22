@@ -151,6 +151,13 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features godot/custom-godot,godot/experimental-threads,godot/serde
 
+          # TODO merge with other jobs
+          - name: linux-lazy-fptrs
+            os: ubuntu-20.04
+            artifact-name: linux-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            rust-extra-args: --features godot/lazy-function-tables
+
           # Linux compat
 
           - name: linux-4.0.4

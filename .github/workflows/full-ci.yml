@@ -142,6 +142,7 @@ jobs:
       - name: "Test"
         run: cargo test $GDEXT_FEATURES ${{ matrix.rust-extra-args }}
 
+
   # For complex matrix workflow, see https://stackoverflow.com/a/65434401
   godot-itest:
     name: godot-itest (${{ matrix.name }})
@@ -178,6 +179,13 @@ jobs:
             godot-binary: godot.macos.editor.dev.x86_64
             #godot-prebuilt-patch: '4.1'
 
+          # TODO merge with other jobs
+          - name: macos-lazy-fptrs
+            os: macos-12
+            artifact-name: macos-nightly
+            godot-binary: godot.macos.editor.dev.x86_64
+            rust-extra-args: --features godot/lazy-function-tables
+
           # Windows
 
           - name: windows
@@ -197,6 +205,13 @@ jobs:
             artifact-name: windows-stable
             godot-binary: godot.windows.editor.dev.x86_64.exe
             #godot-prebuilt-patch: '4.1'
+
+          # TODO merge with other jobs
+          - name: windows-lazy-fptrs
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            rust-extra-args: --features godot/lazy-function-tables
 
           # Linux
 
@@ -219,6 +234,13 @@ jobs:
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features godot/custom-godot,godot/experimental-threads,godot/serde
+
+          # TODO merge with other jobs
+          - name: linux-lazy-fptrs
+            os: ubuntu-20.04
+            artifact-name: linux-nightly
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            rust-extra-args: --features godot/lazy-function-tables
 
           # Linux compat
 
