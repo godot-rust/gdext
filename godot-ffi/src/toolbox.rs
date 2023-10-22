@@ -225,7 +225,7 @@ pub(crate) unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T 
 pub(crate) fn load_class_method(
     get_method_bind: GetClassMethod,
     string_names: &mut sys::StringCache,
-    class_sname_ptr: sys::GDExtensionStringNamePtr,
+    class_sname_ptr: Option<sys::GDExtensionStringNamePtr>,
     class_name: &'static str,
     method_name: &'static str,
     hash: i64,
@@ -237,8 +237,10 @@ pub(crate) fn load_class_method(
         hash
     );*/
 
-    // SAFETY: function pointers provided by Godot. We have no way to validate them.
     let method_sname_ptr: sys::GDExtensionStringNamePtr = string_names.fetch(method_name);
+    let class_sname_ptr = class_sname_ptr.unwrap_or_else(|| string_names.fetch(class_name));
+
+    // SAFETY: function pointers provided by Godot. We have no way to validate them.
     let method: ClassMethodBind =
         unsafe { get_method_bind(class_sname_ptr, method_sname_ptr, hash) };
 

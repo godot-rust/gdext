@@ -39,6 +39,7 @@ struct NamedMethodTable {
     method_count: usize,
 }
 
+#[allow(dead_code)] // for lazy feature
 struct IndexedMethodTable {
     table_name: Ident,
     imports: TokenStream,
@@ -46,6 +47,8 @@ struct IndexedMethodTable {
     pre_init_code: TokenStream,
     fptr_type: TokenStream,
     method_inits: Vec<MethodInit>,
+    lazy_key_type: TokenStream,
+    lazy_method_init: TokenStream,
     named_accessors: Vec<AccessorMethod>,
     class_count: usize,
     method_count: usize,
@@ -53,6 +56,7 @@ struct IndexedMethodTable {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[cfg_attr(feature = "codegen-lazy-fptrs", allow(dead_code))]
 struct MethodInit {
     method_init: TokenStream,
     index: usize,
@@ -69,6 +73,7 @@ impl ToTokens for MethodInit {
 struct AccessorMethod {
     name: Ident,
     index: usize,
+    lazy_key: TokenStream,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -260,7 +265,8 @@ fn make_named_method_table(info: NamedMethodTable) -> TokenStream {
     }
 }
 
-fn make_indexed_method_table(info: IndexedMethodTable) -> TokenStream {
+#[cfg(not(feature = "codegen-lazy-fptrs"))]
+fn make_method_table(info: IndexedMethodTable) -> TokenStream {
     let IndexedMethodTable {
         table_name,
         imports,
@@ -268,6 +274,8 @@ fn make_indexed_method_table(info: IndexedMethodTable) -> TokenStream {
         pre_init_code,
         fptr_type,
         mut method_inits,
+        lazy_key_type: _,
+        lazy_method_init: _,
         named_accessors,
         class_count,
         method_count,
@@ -301,7 +309,7 @@ fn make_indexed_method_table(info: IndexedMethodTable) -> TokenStream {
         #imports
 
         pub struct #table_name {
-            function_pointers: [#fptr_type; #method_count],
+            function_pointers: Vec<#fptr_type>,
         }
 
         impl #table_name {
@@ -315,7 +323,7 @@ fn make_indexed_method_table(info: IndexedMethodTable) -> TokenStream {
                 #pre_init_code
 
                 Self {
-                    function_pointers: [
+                    function_pointers: vec![
                         #( #method_inits )*
                     ]
                 }
@@ -327,6 +335,79 @@ fn make_indexed_method_table(info: IndexedMethodTable) -> TokenStream {
                 unsafe {
                     *self.function_pointers.get_unchecked(index)
                 }
+            }
+
+            #named_method_api
+        }
+    }
+}
+
+#[cfg(feature = "codegen-lazy-fptrs")]
+fn make_method_table(info: IndexedMethodTable) -> TokenStream {
+    let IndexedMethodTable {
+        table_name,
+        imports,
+        ctor_parameters: _,
+        pre_init_code: _,
+        fptr_type,
+        method_inits: _,
+        lazy_key_type,
+        lazy_method_init,
+        named_accessors,
+        class_count,
+        method_count,
+    } = info;
+
+    // Editor table can be empty, if the Godot binary is compiled without editor.
+    let unused_attr = (method_count == 0).then(|| quote! { #[allow(unused_variables)] });
+    let named_method_api = make_named_accessors(&named_accessors, &fptr_type);
+
+    // Assumes that inits already have a trailing comma.
+    // This is necessary because some generators emit multiple lines (statements) per element.
+    quote! {
+        #imports
+        use crate::StringCache;
+        use std::collections::HashMap;
+        use std::cell::RefCell;
+
+        // Exists to be stored inside RefCell.
+        struct InnerTable {
+            // 'static because at this point, the interface and lifecycle tables are globally available.
+            string_cache: StringCache<'static>,
+            function_pointers: HashMap<#lazy_key_type, #fptr_type>,
+        }
+
+        // Note: get_method_bind and other function pointers could potentially be stored as fields in table, to avoid interface_fn!.
+        pub struct #table_name {
+            inner: RefCell<InnerTable>,
+        }
+
+        impl #table_name {
+            pub const CLASS_COUNT: usize = #class_count;
+            pub const METHOD_COUNT: usize = #method_count;
+
+            #unused_attr
+            pub fn load() -> Self {
+                // SAFETY: interface and lifecycle tables are initialized at this point, so we can get 'static references to them.
+                let (interface, lifecycle_table) = unsafe {
+                    (crate::get_interface(), crate::method_table())
+                };
+
+                Self {
+                    inner: RefCell::new(InnerTable {
+                        string_cache: StringCache::new(interface, lifecycle_table),
+                        function_pointers: HashMap::new(),
+                    }),
+                }
+            }
+
+            #[inline(always)]
+            pub fn fptr_by_key(&self, key: #lazy_key_type) -> #fptr_type {
+                let mut guard = self.inner.borrow_mut();
+                let inner = &mut *guard;
+                *inner.function_pointers.entry(key.clone()).or_insert_with(|| {
+                    #lazy_method_init
+                })
             }
 
             #named_method_api
@@ -515,6 +596,32 @@ fn make_build_config(header: &Header) -> TokenStream {
                     crate::runtime_metadata().godot_version
                 };
                 (version.major as u8, version.minor as u8, version.patch as u8)
+            }
+
+            /// For a string "4.x", returns `true` if the current Godot version is strictly less than 4.x.
+            ///
+            /// Runtime equivalent of `#[cfg(before_api = "4.x")]`.
+            ///
+            /// # Panics
+            /// On bad input.
+            pub fn before_api(major_minor: &str) -> bool {
+                let mut parts = major_minor.split('.');
+                let queried_major = parts.next().unwrap().parse::<u8>().expect("invalid major version");
+                let queried_minor = parts.next().unwrap().parse::<u8>().expect("invalid minor version");
+                assert_eq!(queried_major, 4, "major version must be 4");
+
+                let (_, minor, _) = Self::godot_runtime_version_triple();
+                minor < queried_minor
+            }
+
+            /// For a string "4.x", returns `true` if the current Godot version is equal or greater to 4.x.
+            ///
+            /// Runtime equivalent of `#[cfg(since_api = "4.x")]`.
+            ///
+            /// # Panics
+            /// On bad input.
+            pub fn since_api(major_minor: &str) -> bool {
+                !Self::before_api(major_minor)
             }
         }
     }
@@ -713,6 +820,18 @@ fn make_class_method_table(
         pre_init_code: TokenStream::new(), // late-init, depends on class string names
         fptr_type: quote! { crate::ClassMethodBind },
         method_inits: vec![],
+        lazy_key_type: quote! { crate::lazy_keys::ClassMethodKey },
+        lazy_method_init: quote! {
+            let get_method_bind = crate::interface_fn!(classdb_get_method_bind);
+            crate::load_class_method(
+                get_method_bind,
+                &mut inner.string_cache,
+                None,
+                key.class_name,
+                key.method_name,
+                key.hash
+            )
+        },
         named_accessors: vec![],
         class_count: 0,
         method_count: 0,
@@ -749,18 +868,33 @@ fn make_class_method_table(
         #( #class_sname_decls )*
     };
 
-    make_indexed_method_table(table)
+    make_method_table(table)
 }
 
 /// For index-based method tables, have select methods exposed by name for internal use.
 fn make_named_accessors(accessors: &[AccessorMethod], fptr: &TokenStream) -> TokenStream {
     let mut result_api = TokenStream::new();
 
-    for AccessorMethod { name, index } in accessors {
-        let code = quote! {
-            #[inline(always)]
-            pub fn #name(&self) -> #fptr {
-                self.fptr_by_index(#index)
+    for accessor in accessors {
+        let AccessorMethod {
+            name,
+            index,
+            lazy_key,
+        } = accessor;
+
+        let code = if cfg!(feature = "codegen-lazy-fptrs") {
+            quote! {
+                #[inline(always)]
+                pub fn #name(&self) -> #fptr {
+                    self.fptr_by_key(#lazy_key)
+                }
+            }
+        } else {
+            quote! {
+                #[inline(always)]
+                pub fn #name(&self) -> #fptr {
+                    self.fptr_by_index(#index)
+                }
             }
         };
 
@@ -787,6 +921,18 @@ fn make_builtin_method_table(
         },
         fptr_type: quote! { crate::BuiltinMethodBind },
         method_inits: vec![],
+        lazy_key_type: quote! { crate::lazy_keys::BuiltinMethodKey },
+        lazy_method_init: quote! {
+            let get_builtin_method = crate::interface_fn!(variant_get_ptr_builtin_method);
+            crate::load_builtin_method(
+                get_builtin_method,
+                &mut inner.string_cache,
+                key.variant_type.sys(),
+                key.variant_type_str,
+                key.method_name,
+                key.hash
+            )
+        },
         named_accessors: vec![],
         class_count: 0,
         method_count: 0,
@@ -802,7 +948,7 @@ fn make_builtin_method_table(
         table.class_count += 1;
     }
 
-    make_indexed_method_table(table)
+    make_method_table(table)
 }
 
 fn populate_class_methods(
@@ -830,9 +976,20 @@ fn populate_class_methods(
 
         // If requested, add a named accessor for this method.
         if special_cases::is_named_accessor_in_table(class_ty, &method.name) {
+            let class_name_str = class_ty.godot_ty.as_str();
+            let method_name_str = method.name.as_str();
+            let hash = method.hash.expect("hash present");
+
             table.named_accessors.push(AccessorMethod {
                 name: make_class_method_ptr_name(class_ty, method),
                 index,
+                lazy_key: quote! {
+                    crate::lazy_keys::ClassMethodKey {
+                        class_name: #class_name_str,
+                        method_name: #method_name_str,
+                        hash: #hash,
+                    }
+                },
             });
         }
     }
@@ -862,9 +1019,22 @@ fn populate_builtin_methods(
 
         // If requested, add a named accessor for this method.
         if special_cases::is_named_accessor_in_table(&builtin_ty, &method.name) {
+            let variant_type = &builtin_name.sys_variant_type;
+            let variant_type_str = &builtin_name.json_builtin_name;
+            let method_name_str = method.name.as_str();
+            let hash = method.hash.expect("hash present");
+
             table.named_accessors.push(AccessorMethod {
                 name: make_builtin_method_ptr_name(&builtin_ty, method),
                 index,
+                lazy_key: quote! {
+                    crate::lazy_keys::BuiltinMethodKey {
+                        variant_type: #variant_type,
+                        variant_type_str: #variant_type_str,
+                        method_name: #method_name_str,
+                        hash: #hash,
+                    }
+                },
             });
         }
     }
@@ -885,8 +1055,9 @@ fn make_class_method_init(
         )
     });
 
+    // Could reuse lazy key, but less code like this -> faster parsing.
     quote! {
-        crate::load_class_method(get_method_bind, string_names, #class_var, #class_name_str, #method_name_str, #hash),
+        crate::load_class_method(get_method_bind, string_names, Some(#class_var), #class_name_str, #method_name_str, #hash),
     }
 }
 
@@ -907,8 +1078,19 @@ fn make_builtin_method_init(
         )
     });
 
+    // Could reuse lazy key, but less code like this -> faster parsing.
     quote! {
-        {let _ = #index;crate::load_builtin_method(get_builtin_method, string_names, sys::#variant_type, #variant_type_str, #method_name_str, #hash)},
+        {
+            let _ = #index;
+            crate::load_builtin_method(
+                get_builtin_method,
+                string_names,
+                sys::#variant_type,
+                #variant_type_str,
+                #method_name_str,
+                #hash
+            )
+        },
     }
 }
 

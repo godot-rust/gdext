@@ -111,3 +111,25 @@ pub fn panic_call_error(
     // In Godot source: variant.cpp:3043 or core_bind.cpp:2742
     panic!("Function call failed:  {function_name} -- {reason}.");
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Lazy method table key types
+// Could reuse them in normal load functions, but less code when passing separate parameters -> faster parsing.
+
+#[cfg(feature = "codegen-lazy-fptrs")]
+pub mod lazy_keys {
+    #[derive(Clone, Eq, PartialEq, Hash)]
+    pub struct ClassMethodKey {
+        pub class_name: &'static str,
+        pub method_name: &'static str,
+        pub hash: i64,
+    }
+
+    #[derive(Clone, Eq, PartialEq, Hash)]
+    pub struct BuiltinMethodKey {
+        pub variant_type: crate::VariantType,
+        pub variant_type_str: &'static str,
+        pub method_name: &'static str,
+        pub hash: i64,
+    }
+}

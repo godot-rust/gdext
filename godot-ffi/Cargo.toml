@@ -10,6 +10,7 @@ categories = ["game-engines", "graphics"]
 [features]
 custom-godot = ["godot-bindings/custom-godot"]
 codegen-fmt = ["godot-codegen/codegen-fmt"]
+codegen-lazy-fptrs = ["godot-codegen/codegen-lazy-fptrs"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 trace = []
 

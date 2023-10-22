@@ -47,6 +47,7 @@ impl StringName {
         let c_str = std::ffi::CStr::from_bytes_with_nul(latin1_c_str)
             .unwrap_or_else(|_| panic!("invalid or not nul-terminated CStr: '{latin1_c_str:?}'"));
 
+        // SAFETY: latin1_c_str is nul-terminated and remains valid for entire program duration.
         let result = unsafe {
             Self::from_string_sys_init(|ptr| {
                 sys::interface_fn!(string_name_new_with_latin1_chars)(

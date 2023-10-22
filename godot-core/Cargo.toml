@@ -9,13 +9,14 @@ categories = ["game-engines", "graphics"]
 
 [features]
 default = []
-trace = ["godot-ffi/trace"]
 codegen-fmt = ["godot-ffi/codegen-fmt", "godot-codegen/codegen-fmt"]
 codegen-full = ["godot-codegen/codegen-full"]
-double-precision = ["godot-codegen/double-precision"]
+codegen-lazy-fptrs = ["godot-ffi/codegen-lazy-fptrs", "godot-codegen/codegen-lazy-fptrs"]
 custom-godot = ["godot-ffi/custom-godot", "godot-codegen/custom-godot"]
+double-precision = ["godot-codegen/double-precision"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = []
+trace = ["godot-ffi/trace"]
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi" }
