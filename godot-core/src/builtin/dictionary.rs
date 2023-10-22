@@ -9,7 +9,7 @@ use godot_ffi as sys;
 use crate::builtin::meta::{FromGodot, ToGodot};
 use crate::builtin::{inner, Variant};
 use crate::obj::Share;
-use crate::property::{Export, ExportInfo, Property, TypeStringHint};
+use crate::property::{Export, Property, PropertyHintInfo, TypeStringHint};
 use std::fmt;
 use std::marker::PhantomData;
 use std::ptr::addr_of_mut;
@@ -351,8 +351,8 @@ impl TypeStringHint for Dictionary {
 }
 
 impl Export for Dictionary {
-    fn default_export_info() -> ExportInfo {
-        ExportInfo::with_hint_none()
+    fn default_export_info() -> PropertyHintInfo {
+        PropertyHintInfo::with_hint_none("Dictionary")
     }
 }
 

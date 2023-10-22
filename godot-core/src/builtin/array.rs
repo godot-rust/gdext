@@ -8,7 +8,7 @@ use godot_ffi as sys;
 
 use crate::builtin::*;
 use crate::obj::Share;
-use crate::property::{Export, ExportInfo, Property, TypeStringHint};
+use crate::property::{Export, Property, PropertyHintInfo, TypeStringHint};
 use std::fmt;
 use std::marker::PhantomData;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -700,8 +700,12 @@ impl<T: GodotType> Property for Array<T> {
     }
 
     #[cfg(since_api = "4.2")]
-    fn property_hint() -> ExportInfo {
-        ExportInfo {
+    fn property_hint() -> PropertyHintInfo {
+        if T::Ffi::variant_type() == VariantType::Nil {
+            return PropertyHintInfo::with_hint_none("");
+        }
+
+        PropertyHintInfo {
             hint: crate::engine::global::PropertyHint::PROPERTY_HINT_ARRAY_TYPE,
             hint_string: T::godot_type_name().into(),
         }
@@ -709,8 +713,8 @@ impl<T: GodotType> Property for Array<T> {
 }
 
 impl<T: GodotType + TypeStringHint> Export for Array<T> {
-    fn default_export_info() -> ExportInfo {
-        ExportInfo {
+    fn default_export_info() -> PropertyHintInfo {
+        PropertyHintInfo {
             hint: crate::engine::global::PropertyHint::PROPERTY_HINT_TYPE_STRING,
             hint_string: T::type_string().into(),
         }
@@ -718,8 +722,8 @@ impl<T: GodotType + TypeStringHint> Export for Array<T> {
 }
 
 impl Export for Array<Variant> {
-    fn default_export_info() -> ExportInfo {
-        ExportInfo::with_hint_none()
+    fn default_export_info() -> PropertyHintInfo {
+        PropertyHintInfo::with_hint_none("Array")
     }
 }
 

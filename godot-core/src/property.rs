@@ -12,21 +12,22 @@ use crate::engine::global::PropertyHint;
 
 /// Trait implemented for types that can be used as `#[var]` fields. This creates a copy of the
 /// value, for some type-specific definition of "copy". For example, `Array`, `Dictionary` and `Gd` are
-/// returned via `Share::share()` instead of copying the actual data.
+/// returned by shared reference instead of copying the actual data.
 pub trait Property {
     type Intermediate;
 
-    fn property_hint() -> ExportInfo {
-        ExportInfo::with_hint_none()
-    }
     fn get_property(&self) -> Self::Intermediate;
     fn set_property(&mut self, value: Self::Intermediate);
+
+    fn property_hint() -> PropertyHintInfo {
+        PropertyHintInfo::with_hint_none("")
+    }
 }
 
 /// Trait implemented for types that can be used as `#[export]` fields.
 pub trait Export: Property {
     /// The export info to use for an exported field of this type, if no other export info is specified.
-    fn default_export_info() -> ExportInfo;
+    fn default_export_info() -> PropertyHintInfo;
 }
 
 /// Trait for types that can be represented as a type string for use with
@@ -77,7 +78,7 @@ impl<T> Export for Option<T>
 where
     T: Export + From<<T as Property>::Intermediate>,
 {
-    fn default_export_info() -> ExportInfo {
+    fn default_export_info() -> PropertyHintInfo {
         T::default_export_info()
     }
 }
@@ -87,18 +88,20 @@ where
 
 /// Info needed for godot to understand how to export a type to the editor.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct ExportInfo {
+pub struct PropertyHintInfo {
     pub hint: PropertyHint,
     pub hint_string: GodotString,
 }
 
-impl ExportInfo {
-    /// Create a new `ExportInfo` with a property hint of
+impl PropertyHintInfo {
+    /// Create a new `PropertyHintInfo` with a property hint of
     /// [`PROPERTY_HINT_NONE`](PropertyHint::PROPERTY_HINT_NONE).
-    pub fn with_hint_none() -> Self {
+    ///
+    /// Usually Godot expects this to be combined with a `hint_string` containing the name of the type.
+    pub fn with_hint_none<S: Into<GodotString>>(type_name: S) -> Self {
         Self {
             hint: PropertyHint::PROPERTY_HINT_NONE,
-            hint_string: GodotString::new(),
+            hint_string: type_name.into(),
         }
     }
 }
@@ -125,7 +128,7 @@ pub mod export_info_functions {
     use crate::builtin::GodotString;
     use crate::engine::global::PropertyHint;
 
-    use super::ExportInfo;
+    use super::PropertyHintInfo;
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
     /// to a true boolean variable.
@@ -156,7 +159,7 @@ pub mod export_info_functions {
         radians: bool,
         degrees: bool,
         hide_slider: bool,
-    ) -> ExportInfo {
+    ) -> PropertyHintInfo {
         let min_max = format!("{},{}", min, max);
 
         let rest =
@@ -168,7 +171,7 @@ pub mod export_info_functions {
             format!("{min_max},{rest}")
         };
 
-        ExportInfo {
+        PropertyHintInfo {
             hint: PropertyHint::PROPERTY_HINT_RANGE,
             hint_string: hint_string.into(),
         }
@@ -217,22 +220,22 @@ pub mod export_info_functions {
 
     type EnumVariant = ExportValueWithKey<i64>;
 
-    pub fn export_enum<T>(variants: &[T]) -> ExportInfo
+    pub fn export_enum<T>(variants: &[T]) -> PropertyHintInfo
     where
         for<'a> &'a T: Into<EnumVariant>,
     {
         let hint_string: String = EnumVariant::slice_as_hint_string(variants);
 
-        ExportInfo {
+        PropertyHintInfo {
             hint: PropertyHint::PROPERTY_HINT_ENUM,
             hint_string: hint_string.into(),
         }
     }
 
-    pub fn export_exp_easing(attenuation: bool, positive_only: bool) -> ExportInfo {
+    pub fn export_exp_easing(attenuation: bool, positive_only: bool) -> PropertyHintInfo {
         let hint_string = comma_separate_boolean_idents!(attenuation, positive_only);
 
-        ExportInfo {
+        PropertyHintInfo {
             hint: PropertyHint::PROPERTY_HINT_EXP_EASING,
             hint_string: hint_string.into(),
         }
@@ -240,41 +243,41 @@ pub mod export_info_functions {
 
     type BitFlag = ExportValueWithKey<u32>;
 
-    pub fn export_flags<T>(bits: &[T]) -> ExportInfo
+    pub fn export_flags<T>(bits: &[T]) -> PropertyHintInfo
     where
         for<'a> &'a T: Into<BitFlag>,
     {
         let hint_string = BitFlag::slice_as_hint_string(bits);
 
-        ExportInfo {
+        PropertyHintInfo {
             hint: PropertyHint::PROPERTY_HINT_FLAGS,
             hint_string: hint_string.into(),
         }
     }
 
-    pub fn export_file<S: AsRef<str>>(filter: S) -> ExportInfo {
+    pub fn export_file<S: AsRef<str>>(filter: S) -> PropertyHintInfo {
         export_file_inner(false, filter)
     }
 
-    pub fn export_global_file<S: AsRef<str>>(filter: S) -> ExportInfo {
+    pub fn export_global_file<S: AsRef<str>>(filter: S) -> PropertyHintInfo {
         export_file_inner(true, filter)
     }
 
-    pub fn export_file_inner<S: AsRef<str>>(global: bool, filter: S) -> ExportInfo {
+    pub fn export_file_inner<S: AsRef<str>>(global: bool, filter: S) -> PropertyHintInfo {
         let hint = if global {
-            PropertyHint::PROPERTY_HINT_FILE
-        } else {
             PropertyHint::PROPERTY_HINT_GLOBAL_FILE
+        } else {
+            PropertyHint::PROPERTY_HINT_FILE
         };
 
-        ExportInfo {
+        PropertyHintInfo {
             hint,
             hint_string: filter.as_ref().into(),
         }
     }
 
-    pub fn export_placeholder<S: AsRef<str>>(placeholder: S) -> ExportInfo {
-        ExportInfo {
+    pub fn export_placeholder<S: AsRef<str>>(placeholder: S) -> PropertyHintInfo {
+        PropertyHintInfo {
             hint: PropertyHint::PROPERTY_HINT_PLACEHOLDER_TEXT,
             hint_string: placeholder.as_ref().into(),
         }
@@ -285,8 +288,8 @@ pub mod export_info_functions {
             $( $function_name:ident => $property_hint:ident, )*
         ) => {
             $(
-                pub fn $function_name() -> ExportInfo {
-                    ExportInfo {
+                pub fn $function_name() -> PropertyHintInfo {
+                    PropertyHintInfo {
                         hint: PropertyHint::$property_hint,
                         hint_string: GodotString::new()
                     }
@@ -356,8 +359,8 @@ mod export_impls {
 
         (@export $Ty:ty) => {
             impl Export for $Ty {
-                fn default_export_info() -> ExportInfo {
-                    ExportInfo::with_hint_none()
+                fn default_export_info() -> PropertyHintInfo {
+                    PropertyHintInfo::with_hint_none(<$Ty as $crate::builtin::meta::GodotType>::godot_type_name())
                 }
             }
         };

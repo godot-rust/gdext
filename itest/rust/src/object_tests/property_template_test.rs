@@ -399,10 +399,11 @@ struct PropertyTemplateRust {
     #[export(multiline)]
     export_multiline: GodotString,
     #[export(range = (0.0, 20.0))]
-    export_range_0_20: f64,
+    export_range_float_0_20: f64,
     // We're missing step currently.
     // #[export(range = (-10, 20 /* , 0.2 */))]
     // export_range_float_neg_10_20_02: f64,
+    // we can only export ranges of floats currently
     // #[export(range = (0, 100, 1, "or_greater", "or_less"))]
     // export_range_int_0_100_1_or_greater_or_less: int,
     #[export(exp_easing)]
@@ -454,7 +455,7 @@ fn property_template_test(ctx: &TestContext) {
             .unwrap()
             .to::<GodotString>()
             .to_string();
-        if name.starts_with("property_") {
+        if name.starts_with("property_") || name.starts_with("export_") {
             properties.insert(name, property);
         }
     }

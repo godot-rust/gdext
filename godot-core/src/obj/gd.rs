@@ -16,7 +16,7 @@ use crate::builtin::meta::{FromGodot, GodotConvert, GodotType, ToGodot};
 use crate::builtin::{Callable, StringName};
 use crate::obj::{cap, dom, mem, EngineEnum, GdDerefTarget, GodotClass, Inherits, Share};
 use crate::obj::{GdMut, GdRef, InstanceId};
-use crate::property::{Export, ExportInfo, Property, TypeStringHint};
+use crate::property::{Export, Property, PropertyHintInfo, TypeStringHint};
 use crate::{callbacks, engine, out};
 
 use super::RawGd;
@@ -513,7 +513,7 @@ impl<T: GodotClass> Property for Gd<T> {
 }
 
 impl<T: GodotClass> Export for Gd<T> {
-    fn default_export_info() -> ExportInfo {
+    fn default_export_info() -> PropertyHintInfo {
         let hint = if T::inherits::<engine::Resource>() {
             engine::global::PropertyHint::PROPERTY_HINT_RESOURCE_TYPE
         } else if T::inherits::<engine::Node>() {
@@ -526,7 +526,7 @@ impl<T: GodotClass> Export for Gd<T> {
         // but doesn't seem to make a difference otherwise.
         let hint_string = T::class_name().to_godot_string();
 
-        ExportInfo { hint, hint_string }
+        PropertyHintInfo { hint, hint_string }
     }
 }
 

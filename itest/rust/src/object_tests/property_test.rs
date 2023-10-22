@@ -5,7 +5,7 @@
  */
 
 use godot::{
-    bind::property::ExportInfo,
+    bind::property::PropertyHintInfo,
     engine::{
         global::{PropertyHint, PropertyUsageFlags},
         Texture,
@@ -172,8 +172,8 @@ impl Property for SomeCStyleEnum {
 }
 
 impl Export for SomeCStyleEnum {
-    fn default_export_info() -> ExportInfo {
-        ExportInfo {
+    fn default_export_info() -> PropertyHintInfo {
+        PropertyHintInfo {
             hint: PropertyHint::PROPERTY_HINT_ENUM,
             hint_string: "A,B,C".into(),
         }
