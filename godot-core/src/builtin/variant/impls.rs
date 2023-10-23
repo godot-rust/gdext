@@ -21,7 +21,7 @@ use sys::GodotFfi;
 //
 // Thus we can use `init` to indicate when it must be initialized in 4.0.
 macro_rules! impl_ffi_variant {
-    ($T:ty, $from_fn:ident, $to_fn:ident $(; $gd_ty:ident)?) => {
+    ($T:ty, $from_fn:ident, $to_fn:ident $(; $godot_type_name:ident)?) => {
         impl GodotFfiVariant for $T {
             fn ffi_to_variant(&self) -> Variant {
                 let variant = unsafe {
@@ -74,7 +74,7 @@ macro_rules! impl_ffi_variant {
                 Some(ffi)
             }
 
-            impl_ffi_variant!(@godot_type_name $T $(, $gd_ty)?);
+            impl_ffi_variant!(@godot_type_name $T $(, $godot_type_name)?);
         }
     };
 
@@ -84,9 +84,9 @@ macro_rules! impl_ffi_variant {
         }
     };
 
-    (@godot_type_name $T:ty, $gd_ty:ident) => {
+    (@godot_type_name $T:ty, $godot_type_name:ident) => {
         fn godot_type_name() -> String {
-            stringify!($gd_ty).into()
+            stringify!($godot_type_name).into()
         }
     };
 }
