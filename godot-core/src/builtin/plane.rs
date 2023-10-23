@@ -109,6 +109,17 @@ impl Plane {
         }
     }
 
+    /// Creates a new `Plane` with default values. This new `Plane` will be invalid.
+    ///
+    /// _Godot equivalent: `Plane()`_
+    #[inline]
+    pub fn invalid() -> Self {
+        Self {
+            normal: Default::default(),
+            d: Default::default(),
+        }
+    }
+
     /// Finds the shortest distance between the plane and a point.
     ///
     /// The distance will be positive if `point` is above the plane, and will be negative if
