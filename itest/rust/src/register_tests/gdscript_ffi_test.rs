@@ -8,4 +8,4 @@
 
 #[rustfmt::skip]
 #[path = "../gen/gen_ffi.rs"]
-mod gen_ffi;
+pub mod gen_ffi;

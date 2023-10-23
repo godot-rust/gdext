@@ -321,12 +321,12 @@ mod export_impls {
     use godot_ffi as sys;
 
     macro_rules! impl_property_by_clone {
-        ($Ty:ty => $variant_type:ident; no_export) => {
+        ($Ty:ty => $variant_type:ident, no_export) => {
             impl_property_by_clone!(@property $Ty => $variant_type);
             impl_property_by_clone!(@type_string_hint $Ty, $variant_type);
         };
 
-        ($Ty:ty => $variant_type:ident, $type_string_name:ident; no_export) => {
+        ($Ty:ty => $variant_type:ident, no_export; $type_string_name:ident) => {
             impl_property_by_clone!(@property $Ty => $variant_type);
             impl_property_by_clone!(@type_string_hint $Ty, $type_string_name);
         };
@@ -337,7 +337,7 @@ mod export_impls {
             impl_property_by_clone!(@type_string_hint $Ty, $variant_type);
         };
 
-        ($Ty:ty => $variant_type:ident, $type_string_name:ident) => {
+        ($Ty:ty => $variant_type:ident; $type_string_name:ident) => {
             impl_property_by_clone!(@property $Ty => $variant_type);
             impl_property_by_clone!(@export $Ty);
             impl_property_by_clone!(@type_string_hint $Ty, $type_string_name);
@@ -377,7 +377,7 @@ mod export_impls {
     }
 
     // Bounding Boxes
-    impl_property_by_clone!(Aabb => Aabb, AABB);
+    impl_property_by_clone!(Aabb => Aabb; AABB);
     impl_property_by_clone!(Rect2 => Rect2);
     impl_property_by_clone!(Rect2i => Rect2i);
 
@@ -418,28 +418,28 @@ mod export_impls {
     impl_property_by_clone!(PackedColorArray => PackedColorArray);
 
     // Primitives
-    impl_property_by_clone!(f64 => Float, float);
-    impl_property_by_clone!(i64 => Int, int);
-    impl_property_by_clone!(bool => Bool, bool);
+    impl_property_by_clone!(f64 => Float; float);
+    impl_property_by_clone!(i64 => Int; int);
+    impl_property_by_clone!(bool => Bool; bool);
 
     // Godot uses f64 internally for floats, and if Godot tries to pass an invalid f32 into a rust property
     // then the property will just round the value or become inf.
-    impl_property_by_clone!(f32 => Float, float);
+    impl_property_by_clone!(f32 => Float; float);
 
     // Godot uses i64 internally for integers, and if Godot tries to pass an invalid integer into a property
     // accepting one of the below values then rust will panic. In the editor this will appear as the property
     // failing to be set to a value and an error printed in the console. During runtime this will crash the
     // program and print the panic from rust stating that the property cannot store the value.
-    impl_property_by_clone!(i32 => Int, int);
-    impl_property_by_clone!(i16 => Int, int);
-    impl_property_by_clone!(i8 => Int, int);
-    impl_property_by_clone!(u32 => Int, int);
-    impl_property_by_clone!(u16 => Int, int);
-    impl_property_by_clone!(u8 => Int, int);
+    impl_property_by_clone!(i32 => Int; int);
+    impl_property_by_clone!(i16 => Int; int);
+    impl_property_by_clone!(i8 => Int; int);
+    impl_property_by_clone!(u32 => Int; int);
+    impl_property_by_clone!(u16 => Int; int);
+    impl_property_by_clone!(u8 => Int; int);
 
     // Callables are useless when exported to the editor, so we only need to make them available as
     // properties.
-    impl_property_by_clone!(Callable => Callable; no_export);
+    impl_property_by_clone!(Callable => Callable, no_export);
 
     // RIDs when exported act slightly weird. They are largely read-only, however you can reset them to their
     // default value. This seems to me very unintuitive. Since if we are storing an RID we would likely not
@@ -448,7 +448,7 @@ mod export_impls {
     //
     // Additionally, RIDs aren't persistent, and can sometimes behave a bit weirdly when passed from the
     // editor to the runtime.
-    impl_property_by_clone!(Rid => Rid, RID; no_export);
+    impl_property_by_clone!(Rid => Rid, no_export; RID);
 
     // impl_property_by_clone!(Signal => Signal);
 }

@@ -38,7 +38,7 @@ impl IntegrationTests {
         allow_focus: bool,
         scene_tree: Gd<Node>,
         filters: VariantArray,
-        property_template: Gd<Node>,
+        property_tests: Gd<Node>,
     ) -> bool {
         println!("{}Run{} Godot integration tests...", FMT_CYAN_BOLD, FMT_END);
         let filters: Vec<String> = filters.iter_shared().map(|v| v.to::<String>()).collect();
@@ -71,9 +71,9 @@ impl IntegrationTests {
         }
 
         let clock = Instant::now();
-        self.run_rust_tests(rust_tests, scene_tree, property_template.clone());
+        self.run_rust_tests(rust_tests, scene_tree, property_tests.clone());
         let rust_time = clock.elapsed();
-        property_template.free();
+        property_tests.free();
 
         let gdscript_time = if !focus_run {
             let extra_duration = self.run_gdscript_tests(gdscript_tests);
@@ -127,11 +127,11 @@ impl IntegrationTests {
         &mut self,
         tests: Vec<RustTestCase>,
         scene_tree: Gd<Node>,
-        property_template: Gd<Node>,
+        property_tests: Gd<Node>,
     ) {
         let ctx = TestContext {
             scene_tree,
-            property_template,
+            property_tests,
         };
 
         let mut last_file = None;

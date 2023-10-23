@@ -21,7 +21,7 @@ use sys::GodotFfi;
 //
 // Thus we can use `init` to indicate when it must be initialized in 4.0.
 macro_rules! impl_ffi_variant {
-    ($T:ty, $from_fn:ident, $to_fn:ident $(; $gd_ty:ident)?) => {
+    ($T:ty, $from_fn:ident, $to_fn:ident $(; $godot_type_name:ident)?) => {
         impl GodotFfiVariant for $T {
             fn ffi_to_variant(&self) -> Variant {
                 let variant = unsafe {
@@ -74,7 +74,7 @@ macro_rules! impl_ffi_variant {
                 Some(ffi)
             }
 
-            impl_ffi_variant!(@godot_type_name $T $(, $gd_ty)?);
+            impl_ffi_variant!(@godot_type_name $T $(, $godot_type_name)?);
         }
     };
 
@@ -84,9 +84,9 @@ macro_rules! impl_ffi_variant {
         }
     };
 
-    (@godot_type_name $T:ty, $gd_ty:ident) => {
+    (@godot_type_name $T:ty, $godot_type_name:ident) => {
         fn godot_type_name() -> String {
-            stringify!($gd_ty).into()
+            stringify!($godot_type_name).into()
         }
     };
 }
@@ -108,7 +108,7 @@ mod impls {
     impl_ffi_variant!(Vector4, vector4_to_variant, vector4_from_variant);
     impl_ffi_variant!(Vector2i, vector2i_to_variant, vector2i_from_variant);
     impl_ffi_variant!(Vector3i, vector3i_to_variant, vector3i_from_variant);
-    impl_ffi_variant!(Vector4i, vector3i_to_variant, vector3i_from_variant);
+    impl_ffi_variant!(Vector4i, vector4i_to_variant, vector4i_from_variant);
     impl_ffi_variant!(Quaternion, quaternion_to_variant, quaternion_from_variant);
     impl_ffi_variant!(Color, color_to_variant, color_from_variant);
     impl_ffi_variant!(GodotString, string_to_variant, string_from_variant; String);

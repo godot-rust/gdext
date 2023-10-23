@@ -73,7 +73,7 @@ fn collect_rust_benchmarks() -> (Vec<RustBenchmark>, usize) {
 
 pub struct TestContext {
     pub scene_tree: Gd<Node>,
-    pub property_template: Gd<Node>,
+    pub property_tests: Gd<Node>,
 }
 
 #[derive(Copy, Clone)]
