@@ -108,7 +108,7 @@ mod impls {
     impl_ffi_variant!(Vector4, vector4_to_variant, vector4_from_variant);
     impl_ffi_variant!(Vector2i, vector2i_to_variant, vector2i_from_variant);
     impl_ffi_variant!(Vector3i, vector3i_to_variant, vector3i_from_variant);
-    impl_ffi_variant!(Vector4i, vector3i_to_variant, vector3i_from_variant);
+    impl_ffi_variant!(Vector4i, vector4i_to_variant, vector4i_from_variant);
     impl_ffi_variant!(Quaternion, quaternion_to_variant, quaternion_from_variant);
     impl_ffi_variant!(Color, color_to_variant, color_from_variant);
     impl_ffi_variant!(GodotString, string_to_variant, string_from_variant; String);
