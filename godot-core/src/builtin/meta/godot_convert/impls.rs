@@ -223,6 +223,7 @@ impl_godot_scalar!(
 // Raw pointers
 
 // const void* is used in some APIs like OpenXrApiExtension::transform_from_pose().
+// void* is used by ScriptExtension::instance_create().
 // Other impls for raw pointers are generated for native structures.
 
 impl GodotConvert for *const std::ffi::c_void {
@@ -236,6 +237,22 @@ impl ToGodot for *const std::ffi::c_void {
 }
 
 impl FromGodot for *const std::ffi::c_void {
+    fn try_from_godot(via: Self::Via) -> Option<Self> {
+        Some(via as Self)
+    }
+}
+
+impl GodotConvert for *mut std::ffi::c_void {
+    type Via = i64;
+}
+
+impl ToGodot for *mut std::ffi::c_void {
+    fn to_godot(&self) -> Self::Via {
+        *self as i64
+    }
+}
+
+impl FromGodot for *mut std::ffi::c_void {
     fn try_from_godot(via: Self::Via) -> Option<Self> {
         Some(via as Self)
     }

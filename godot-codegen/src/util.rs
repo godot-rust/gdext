@@ -27,9 +27,6 @@ pub enum ClassCodegenLevel {
     Servers,
     Scene,
     Editor,
-
-    /// Not pre-fetched because Godot does not load them in time.
-    Lazy,
 }
 
 impl ClassCodegenLevel {
@@ -54,7 +51,6 @@ impl ClassCodegenLevel {
             Self::Servers => "servers",
             Self::Scene => "scene",
             Self::Editor => "editor",
-            Self::Lazy => unreachable!("lazy classes should be deleted at the moment"),
         }
     }
 
@@ -63,7 +59,6 @@ impl ClassCodegenLevel {
             Self::Servers => "Servers",
             Self::Scene => "Scene",
             Self::Editor => "Editor",
-            Self::Lazy => unreachable!("lazy classes should be deleted at the moment"),
         }
     }
 
@@ -72,7 +67,6 @@ impl ClassCodegenLevel {
             Self::Servers => quote! { Some(crate::init::InitLevel::Servers) },
             Self::Scene => quote! { Some(crate::init::InitLevel::Scene) },
             Self::Editor => quote! { Some(crate::init::InitLevel::Editor) },
-            Self::Lazy => quote! { None },
         }
     }
 }
@@ -203,10 +197,7 @@ pub fn make_sname_ptr(identifier: &str) -> TokenStream {
 }
 
 pub fn get_api_level(class: &Class) -> ClassCodegenLevel {
-    if class.name == "ThemeDB" {
-        // registered in C++ register_scene_singletons(), after MODULE_INITIALIZATION_LEVEL_EDITOR happens.
-        ClassCodegenLevel::Lazy
-    } else if class.name.ends_with("Server") {
+    if class.name.ends_with("Server") {
         ClassCodegenLevel::Servers
     } else if class.api_type == "core" {
         ClassCodegenLevel::Scene
