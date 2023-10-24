@@ -67,6 +67,14 @@ pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
         _ => {}
     }
 
+    // ThemeDB was previously loaded lazily
+    // in 4.2 it loads at the Scene level
+    // see: https://github.com/godotengine/godot/pull/81305
+    #[cfg(before_api = "4.2")]
+    if class_name == "ThemeDB" {
+        return true;
+    }
+
     match class_name {
         // Hardcoded cases that are not accessible.
         // Only on Android.
@@ -76,8 +84,6 @@ pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
         // Only on WASM.
         | "JavaScriptBridge"
         | "JavaScriptObject"
-        // lazily loaded; TODO enable this.
-        | "ThemeDB" 
 
         // Thread APIs.
         | "Thread"
