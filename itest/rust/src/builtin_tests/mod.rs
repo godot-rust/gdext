@@ -33,6 +33,10 @@ mod string {
     mod string_name_test;
 }
 
+mod script {
+    mod script_instance_tests;
+}
+
 mod color_test;
 
 mod convert_test;
