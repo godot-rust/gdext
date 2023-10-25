@@ -53,6 +53,23 @@ impl Callable {
         }
     }
 
+    #[cfg(since_api = "4.2")]
+    fn default_callable_custom_info() -> sys::GDExtensionCallableCustomInfo {
+        sys::GDExtensionCallableCustomInfo {
+            callable_userdata: ptr::null_mut(),
+            token: ptr::null_mut(),
+            object_id: 0,
+            call_func: None,
+            is_valid_func: None, // could be customized, but no real use case yet.
+            free_func: None,
+            hash_func: None,
+            equal_func: None,
+            // Op < is only used in niche scenarios and default is usually good enough, see https://github.com/godotengine/godot/issues/81901.
+            less_than_func: None,
+            to_string_func: None,
+        }
+    }
+
     /// Create a callable from a Rust function or closure.
     ///
     /// `name` is used for the string representation of the closure, which helps debugging.
@@ -83,16 +100,10 @@ impl Callable {
 
         let info = sys::GDExtensionCallableCustomInfo {
             callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
-            token: ptr::null_mut(),
-            object: ptr::null_mut(),
             call_func: Some(rust_callable_call_fn::<F>),
-            is_valid_func: None, // could be customized, but no real use case yet.
             free_func: Some(rust_callable_destroy::<FnWrapper<F>>),
-            hash_func: None,
-            equal_func: None,
-            // Op < is only used in niche scenarios and default is usually good enough, see https://github.com/godotengine/godot/issues/81901.
-            less_than_func: None,
             to_string_func: Some(rust_callable_to_string_named::<F>),
+            ..Self::default_callable_custom_info()
         };
 
         Self::from_custom_info(info)
@@ -110,16 +121,12 @@ impl Callable {
 
         let info = sys::GDExtensionCallableCustomInfo {
             callable_userdata: Box::into_raw(Box::new(userdata)) as *mut std::ffi::c_void,
-            token: ptr::null_mut(),
-            object: ptr::null_mut(),
             call_func: Some(rust_callable_call_custom::<C>),
-            is_valid_func: None, // could be customized, but no real use case yet.
             free_func: Some(rust_callable_destroy::<C>),
             hash_func: Some(rust_callable_hash::<C>),
             equal_func: Some(rust_callable_equal::<C>),
-            // Op < is only used in niche scenarios and default is usually good enough, see https://github.com/godotengine/godot/issues/81901.
-            less_than_func: None,
             to_string_func: Some(rust_callable_to_string_display::<C>),
+            ..Self::default_callable_custom_info()
         };
 
         Self::from_custom_info(info)
