@@ -200,13 +200,15 @@ fn collect_inputs() -> Vec<Input> {
 fn main() {
     let inputs = collect_inputs();
     let methods = generate_rust_methods(&inputs);
-    let PropertyTemplate {
-        rust: rust_property_template,
-        gdscript: gdscript_property_template,
+    let PropertyTests {
+        rust: rust_property_tests,
+        gdscript: gdscript_property_tests,
     } = generate_property_template(&inputs);
     let extras = inputs.iter().map(|input| &input.extra);
 
     let rust_tokens = quote::quote! {
+        #![allow(clippy::partialeq_to_none)]
+
         use godot::builtin::*;
         use godot::builtin::meta::*;
         use godot::obj::{Gd, InstanceId};
@@ -223,13 +225,13 @@ fn main() {
             #(#methods)*
         }
 
-        mod property_template {
+        mod property_tests {
             use godot::prelude::*;
 
-            #rust_property_template
+            #rust_property_tests
         }
 
-        pub use property_template::*;
+        pub use property_tests::*;
 
         #(#extras)*
     };
@@ -241,14 +243,14 @@ fn main() {
     let rust_file = rust_output_dir.join("gen_ffi.rs");
     let gdscript_template = godot_input_dir.join("GenFfiTests.template.gd");
     let gdscript_file = godot_output_dir.join("GenFfiTests.gd");
-    let gdscript_property_template_file = godot_output_dir.join("GenPropertyTemplate.gd");
+    let gdscript_property_tests_file = godot_output_dir.join("GenPropertyTests.gd");
 
     std::fs::create_dir_all(rust_output_dir).expect("create Rust parent dir");
     std::fs::create_dir_all(godot_output_dir).expect("create GDScript parent dir");
     std::fs::write(&rust_file, rust_tokens.to_string()).expect("write to Rust file");
     write_gdscript_code(&inputs, &gdscript_template, &gdscript_file)
         .expect("write to GDScript file");
-    std::fs::write(gdscript_property_template_file, gdscript_property_template)
+    std::fs::write(gdscript_property_tests_file, gdscript_property_tests)
         .expect("write to GDScript Property Template file");
 
     println!("cargo:rerun-if-changed={}", gdscript_template.display());
@@ -336,17 +338,15 @@ fn generate_rust_methods(inputs: &[Input]) -> Vec<TokenStream> {
         .collect()
 }
 
-struct PropertyTemplate {
+struct PropertyTests {
     rust: TokenStream,
     gdscript: String,
 }
 
-fn generate_property_template(inputs: &[Input]) -> PropertyTemplate {
+fn generate_property_template(inputs: &[Input]) -> PropertyTests {
     let mut rust = Vec::new();
     let mut gdscript = Vec::new();
-    gdscript.push(String::from(
-        "class_name PropertyTemplateGDScript extends Node\n",
-    ));
+    gdscript.push(String::from("extends Node\n"));
     for input in inputs.iter() {
         let Input {
             ident,
@@ -405,7 +405,7 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTemplate {
     let rust = quote! {
         #[derive(GodotClass)]
         #[class(base = Node, init)]
-        pub struct PropertyTemplateRust {
+        pub struct PropertyTestsRust {
             #(#rust,)*
 
             #[export(file)]
@@ -459,39 +459,41 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTemplate {
         }
 
         #[godot_api]
-        impl PropertyTemplateRust {}
+        impl PropertyTestsRust {}
     };
 
-    gdscript.extend([
-        r#"@export_file var export_file: String"#.to_string(),
-        r#"@export_file("*.txt") var export_file_wildcard_txt: String"#.to_string(),
-        r#"@export_global_file var export_global_file: String"#.to_string(),
-        r#"@export_global_file("*.png") var export_global_file_wildcard_png: String"#.to_string(),
-        r#"@export_dir var export_dir: String"#.to_string(),
-        r#"@export_global_dir var export_global_dir: String"#.to_string(),
-        r#"@export_multiline var export_multiline: String"#.to_string(),
-        r#"@export_range(0, 20) var export_range_float_0_20: float"#.to_string(),
-        r#"@export_range(-10, 20, 0.2) var export_range_float_neg_10_20_02: float"#.to_string(),
-        r#"@export_range(0, 100, 1, "or_greater", "or_less") var export_range_int_0_100_1_or_greater_or_less: int"#.to_string(),
-        r#"@export_exp_easing var export_exp_easing: float"#.to_string(),
-        r#"@export_color_no_alpha var export_color_no_alpha: Color"#.to_string(),
-        r#"@export_node_path("Button", "TouchScreenButton") var export_node_path_button_touch_screen_button: NodePath"#.to_string(),
-        r#"@export_flags("Fire", "Water", "Earth", "Wind") var export_flags_fire_water_earth_wind: int"#.to_string(),
-        r#"@export_flags("Self:4", "Allies:8", "Foes:16") var export_flags_self_4_allies_8_foes_16: int"#.to_string(),
-        r#"@export_flags_2d_physics var export_flags_2d_physics: int"#.to_string(),
-        r#"@export_flags_2d_render var export_flags_2d_render: int"#.to_string(),
-        r#"@export_flags_2d_navigation var export_flags_2d_navigation: int"#.to_string(),
-        r#"@export_flags_3d_physics var export_flags_3d_physics: int"#.to_string(),
-        r#"@export_flags_3d_render var export_flags_3d_render: int"#.to_string(),
-        r#"@export_flags_3d_navigation var export_flags_3d_navigation: int"#.to_string(),
-        r#"@export_enum("Warrior", "Magician", "Thief") var export_enum_int_warrior_magician_thief: int"#.to_string(),
-        r#"@export_enum("Slow:30", "Average:60", "VeryFast:200") var export_enum_int_slow_30_average_60_very_fast_200: int"#.to_string(),
-        r#"@export_enum("Rebecca", "Mary", "Leah") var export_enum_string_rebecca_mary_leah: String"#.to_string(),
-    ]);
+    let gdscript = format!(
+        r#"
+{}
+@export_file var export_file: String
+@export_file("*.txt") var export_file_wildcard_txt: String
+@export_global_file var export_global_file: String
+@export_global_file("*.png") var export_global_file_wildcard_png: String
+@export_dir var export_dir: String
+@export_global_dir var export_global_dir: String
+@export_multiline var export_multiline: String
+@export_range(0, 20) var export_range_float_0_20: float
+@export_range(-10, 20, 0.2) var export_range_float_neg_10_20_02: float
+@export_range(0, 100, 1, "or_greater", "or_less") var export_range_int_0_100_1_or_greater_or_less: int
+@export_exp_easing var export_exp_easing: float
+@export_color_no_alpha var export_color_no_alpha: Color
+@export_node_path("Button", "TouchScreenButton") var export_node_path_button_touch_screen_button: NodePath
+@export_flags("Fire", "Water", "Earth", "Wind") var export_flags_fire_water_earth_wind: int
+@export_flags("Self:4", "Allies:8", "Foes:16") var export_flags_self_4_allies_8_foes_16: int
+@export_flags_2d_physics var export_flags_2d_physics: int
+@export_flags_2d_render var export_flags_2d_render: int
+@export_flags_2d_navigation var export_flags_2d_navigation: int
+@export_flags_3d_physics var export_flags_3d_physics: int
+@export_flags_3d_render var export_flags_3d_render: int
+@export_flags_3d_navigation var export_flags_3d_navigation: int
+@export_enum("Warrior", "Magician", "Thief") var export_enum_int_warrior_magician_thief: int
+@export_enum("Slow:30", "Average:60", "VeryFast:200") var export_enum_int_slow_30_average_60_very_fast_200: int
+@export_enum("Rebecca", "Mary", "Leah") var export_enum_string_rebecca_mary_leah: String
+"#,
+        gdscript.join("\n")
+    );
 
-    let gdscript = gdscript.join("\n");
-
-    PropertyTemplate { rust, gdscript }
+    PropertyTests { rust, gdscript }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

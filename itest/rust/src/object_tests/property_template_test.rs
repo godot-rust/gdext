@@ -3,7 +3,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-//! Testing that GDScript and rust produces the same property info for properties exported to Godot.
+//! Testing that GDScript and Rust produces the same property info for properties exported to Godot.
 
 // We're using some weird formatting just for simplicity's sake.
 #![allow(non_snake_case)]
@@ -11,16 +11,18 @@
 use std::collections::HashMap;
 
 use crate::framework::itest;
-use godot::{engine::global::PropertyUsageFlags, prelude::*};
+use godot::engine::global::PropertyUsageFlags;
+use godot::prelude::*;
+use godot::sys::GdextBuild;
 
 use crate::framework::TestContext;
 
-use crate::register_tests::gen_ffi::PropertyTemplateRust;
+use crate::register_tests::gen_ffi::PropertyTestsRust;
 
 #[itest]
 fn property_template_test(ctx: &TestContext) {
-    let rust_properties = Gd::<PropertyTemplateRust>::new_default();
-    let gdscript_properties = ctx.property_template.clone();
+    let rust_properties = Gd::<PropertyTestsRust>::new_default();
+    let gdscript_properties = ctx.property_tests.clone();
 
     // Accumulate errors so we can catch all of them in one go.
     let mut errors: Vec<String> = Vec::new();
@@ -32,6 +34,18 @@ fn property_template_test(ctx: &TestContext) {
             .unwrap()
             .to::<GodotString>()
             .to_string();
+
+        // The format of array-properties in Godot 4.2 changed. This doesn't seem to cause issues if we
+        // compile against 4.1 and provide the property in the format 4.1 expects but run it with Godot 4.2.
+        // However this test checks that our output matches that of Godot, and so would fail in this
+        // circumstance. So here for now, just ignore array properties when we compile for 4.1 but run in 4.2.
+        if GdextBuild::since_api("4.2")
+            && cfg!(before_api = "4.2")
+            && name.starts_with("property_array_")
+        {
+            continue;
+        }
+
         if name.starts_with("property_") || name.starts_with("export_") {
             properties.insert(name, property);
         }
@@ -65,7 +79,7 @@ fn property_template_test(ctx: &TestContext) {
 
         if rust_prop != property {
             errors.push(format!(
-                "mismatch in property {name}, gdscript: {property:?}, rust: {rust_prop:?}"
+                "mismatch in property {name}, GDScript: {property:?}, Rust: {rust_prop:?}"
             ));
         }
     }
