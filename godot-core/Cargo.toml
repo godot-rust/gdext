@@ -11,7 +11,10 @@ categories = ["game-engines", "graphics"]
 default = []
 codegen-fmt = ["godot-ffi/codegen-fmt", "godot-codegen/codegen-fmt"]
 codegen-full = ["godot-codegen/codegen-full"]
-codegen-lazy-fptrs = ["godot-ffi/codegen-lazy-fptrs", "godot-codegen/codegen-lazy-fptrs"]
+codegen-lazy-fptrs = [
+    "godot-ffi/codegen-lazy-fptrs",
+    "godot-codegen/codegen-lazy-fptrs",
+]
 custom-godot = ["godot-ffi/custom-godot", "godot-codegen/custom-godot"]
 double-precision = ["godot-codegen/double-precision"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
