@@ -23,7 +23,7 @@ Larger code style changes should be split though.
 
 If your pull request changes a single thing, please squash the commits into one. Avoid commits like "integrate review feedback" or "fix rustfmt".
 Instead, use `git commit --amend` or `git rebase -i` and force-push follow-up commits to your branch (`git push --force-with-lease`).
-Since we use the _bors_ bot to merge PRs, we can unfortunately not squash commits upon merge.
+Since we use GitHub merge queues, we can unfortunately not decide to squash commits upon merge per PR.
 
 
 ### Draft PRs
@@ -41,4 +41,4 @@ The book also elaborates design principles and conventions behind our API.
 
 [GitHub issue]: https://github.com/godot-rust/gdext/issues
 [Discord]: https://discord.gg/aKUCJ8rJsc
-[godot-rust book](https://godot-rust.github.io/gdext/contribute).
+[godot-rust book]: https://godot-rust.github.io/book/contribute

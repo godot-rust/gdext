@@ -2,14 +2,14 @@
 
 # Rust bindings for Godot 4
 
-_**[Website]** | **[API Docs]** | [Discord] | [Mastodon] | [Twitter]_
+_**[Website]** | **[Book][book]** | **[API Docs]** | [Discord] | [Mastodon] | [Twitter] | [Sponsor]_
 
-**gdext** is a library to bind the **Rust** language to **Godot 4**.
+**gdext** is a library to bind the Rust language to Godot 4.
 
 [Godot] is an open-source game engine, whose version 4 has brought large-scale improvements.  
 Its _GDExtension_ API allows integrating third-party languages and libraries.
 
-> If you are looking for a Rust binding for GDNative (Godot 3), check out [`gdnative`].
+> If you are looking for a Rust binding for Godot 3 (GDNative API), check out [`gdnative`].
 
 
 ## Philosophy
@@ -31,11 +31,11 @@ However, it is still in an early stage and there are certain things to keep in m
 > The public API introduces breaking changes from time to time. Most of these are motivated by new features and
 > improved ergonomics for existing ones. See also [API stability] in the book.
 
-**Features:** While most Godot features are available, some less commonly used ones are missing. See [#24] for an up-to-date overview.  
+**Features:** While most Godot features are available, some less commonly used ones are missing. See [#24] for an up-to-date overview.
 At this point, there is **no** support for Android, iOS or WASM. Contributions are very welcome!
 
 **Bugs:** Most undefined behavior related to the FFI layer has been ironed out, but there may still be occasional safety issues. Apart from that,
-new additions to the library are typically not feature-complete from the start, but become more robust due to feedback and testing over time.
+new additions to the library are typically not feature-complete from the start, but become more robust with feedback and testing over time.
 To counter bugs, we have an elaborate CI suite including clippy, unit tests, engine integration tests and memory sanitizers.
 
 
@@ -67,12 +67,13 @@ Contributions are very welcome! If you want to help out, see [`Contributing.md`]
 [#24]: https://github.com/godot-rust/gdext/issues/24
 [`gdnative`]: https://github.com/godot-rust/gdnative
 [API Docs]: https://godot-rust.github.io/docs/gdext
-[API stability]: https://godot-rust.github.io/book/gdext/advanced/compatibility.html#rust-api-stability
-[book]: https://godot-rust.github.io/book/gdext
+[API stability]: https://godot-rust.github.io/book/toolchain/compatibility.html#rust-api-stability
+[book]: https://godot-rust.github.io/book
 [Discord]: https://discord.gg/aKUCJ8rJsc
 [dodge-the-creeps]: examples/dodge-the-creeps
 [Godot]: https://godotengine.org
 [Mastodon]: https://mastodon.gamedev.place/@GodotRust
 [mpl]: https://www.mozilla.org/en-US/MPL
+[Sponsor]: https://github.com/sponsors/Bromeon
 [Twitter]: https://twitter.com/GodotRust
 [Website]: https://godot-rust.github.io
