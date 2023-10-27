@@ -10,3 +10,5 @@ mod func_test;
 mod gdscript_ffi_test;
 mod option_ffi_test;
 mod var_test;
+
+pub use gdscript_ffi_test::gen_ffi;

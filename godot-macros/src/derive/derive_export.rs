@@ -65,8 +65,8 @@ pub fn derive_export(decl: Declaration) -> ParseResult<TokenStream2> {
     let out = quote! {
         #[allow(unused_parens)]
         impl godot::bind::property::Export for #name {
-            fn default_export_info() -> godot::bind::property::ExportInfo {
-                godot::bind::property::ExportInfo {
+            fn default_export_info() -> godot::bind::property::PropertyHintInfo {
+                godot::bind::property::PropertyHintInfo {
                     hint: godot::engine::global::PropertyHint::PROPERTY_HINT_ENUM,
                     hint_string: godot::prelude::GodotString::from(#hint_string),
                 }

@@ -118,6 +118,10 @@ macro_rules! impl_godot_scalar {
                     $param_metadata
                 }
             )?
+
+            fn godot_type_name() -> String {
+                <$Via as GodotType>::godot_type_name()
+            }
         }
 
         impl GodotConvert for $T {
@@ -158,6 +162,10 @@ macro_rules! impl_godot_scalar {
                     $param_metadata
                 }
             )?
+
+            fn godot_type_name() -> String {
+                <$Via as GodotType>::godot_type_name()
+            }
         }
 
         impl GodotConvert for $T {

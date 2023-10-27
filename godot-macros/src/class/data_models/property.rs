@@ -25,7 +25,7 @@ pub enum FieldHint {
         hint_string: TokenStream,
     },
 
-    /// The hint and hint string are given by a token stream returning an `ExportInfo` struct.
+    /// The hint and hint string are given by a token stream returning an `PropertyHintInfo` struct.
     HintFromExportFunction(TokenStream),
 }
 
@@ -113,10 +113,8 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 } else {
                     quote! {
                         {
-                            (
-                                ::godot::engine::global::PropertyHint::PROPERTY_HINT_NONE,
-                                ::godot::builtin::GodotString::new()
-                            )
+                            let default_export_info = <#field_type as ::godot::bind::property::Property>::property_hint();
+                            (default_export_info.hint, default_export_info.hint_string)
                         }
                     }
                 }
@@ -135,7 +133,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             },
             FieldHint::HintFromExportFunction(expression) => quote! {
                 {
-                    let ::godot::bind::property::ExportInfo { hint, hint_string } = #expression;
+                    let ::godot::bind::property::PropertyHintInfo { hint, hint_string } = #expression;
                     (hint, hint_string)
                 }
             },

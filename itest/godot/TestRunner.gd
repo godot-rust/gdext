@@ -53,12 +53,15 @@ func _ready():
 			if method_name.begins_with("test_"):
 				gdscript_tests.push_back(await suite.run_test(suite, method_name))
 
+	var property_tests = load("res://gen/GenPropertyTests.gd").new()
+
 	var success: bool = rust_runner.run_all_tests(
 		gdscript_tests,
 		gdscript_suites.size(),
 		allow_focus,
 		self,
-		filters
+		filters,
+		property_tests
 	)
 
 	if success:

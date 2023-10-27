@@ -516,6 +516,10 @@ impl<T: GodotClass> GodotType for RawGd<T> {
     fn class_name() -> ClassName {
         T::class_name()
     }
+
+    fn godot_type_name() -> String {
+        T::class_name().to_string()
+    }
 }
 
 impl<T: GodotClass> GodotFfiVariant for RawGd<T> {

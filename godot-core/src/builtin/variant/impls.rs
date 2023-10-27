@@ -21,7 +21,7 @@ use sys::GodotFfi;
 //
 // Thus we can use `init` to indicate when it must be initialized in 4.0.
 macro_rules! impl_ffi_variant {
-    ($T:ty, $from_fn:ident, $to_fn:ident) => {
+    ($T:ty, $from_fn:ident, $to_fn:ident $(; $godot_type_name:ident)?) => {
         impl GodotFfiVariant for $T {
             fn ffi_to_variant(&self) -> Variant {
                 let variant = unsafe {
@@ -73,6 +73,20 @@ macro_rules! impl_ffi_variant {
             fn try_from_ffi(ffi: Self::Ffi) -> Option<Self> {
                 Some(ffi)
             }
+
+            impl_ffi_variant!(@godot_type_name $T $(, $godot_type_name)?);
+        }
+    };
+
+    (@godot_type_name $T:ty) => {
+        fn godot_type_name() -> String {
+            stringify!($T).into()
+        }
+    };
+
+    (@godot_type_name $T:ty, $godot_type_name:ident) => {
+        fn godot_type_name() -> String {
+            stringify!($godot_type_name).into()
         }
     };
 }
@@ -85,7 +99,7 @@ macro_rules! impl_ffi_variant {
 mod impls {
     use super::*;
 
-    impl_ffi_variant!(Aabb, aabb_to_variant, aabb_from_variant);
+    impl_ffi_variant!(Aabb, aabb_to_variant, aabb_from_variant; AABB);
     impl_ffi_variant!(bool, bool_to_variant, bool_from_variant);
     impl_ffi_variant!(Basis, basis_to_variant, basis_from_variant);
     impl_ffi_variant!(Callable, callable_to_variant, callable_from_variant);
@@ -94,10 +108,10 @@ mod impls {
     impl_ffi_variant!(Vector4, vector4_to_variant, vector4_from_variant);
     impl_ffi_variant!(Vector2i, vector2i_to_variant, vector2i_from_variant);
     impl_ffi_variant!(Vector3i, vector3i_to_variant, vector3i_from_variant);
-    impl_ffi_variant!(Vector4i, vector3i_to_variant, vector3i_from_variant);
+    impl_ffi_variant!(Vector4i, vector4i_to_variant, vector4i_from_variant);
     impl_ffi_variant!(Quaternion, quaternion_to_variant, quaternion_from_variant);
     impl_ffi_variant!(Color, color_to_variant, color_from_variant);
-    impl_ffi_variant!(GodotString, string_to_variant, string_from_variant);
+    impl_ffi_variant!(GodotString, string_to_variant, string_from_variant; String);
     impl_ffi_variant!(StringName, string_name_to_variant, string_name_from_variant);
     impl_ffi_variant!(NodePath, node_path_to_variant, node_path_from_variant);
     impl_ffi_variant!(PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant);
@@ -111,15 +125,15 @@ mod impls {
     impl_ffi_variant!(PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant);
     impl_ffi_variant!(Plane, plane_to_variant, plane_from_variant);
     impl_ffi_variant!(Projection, projection_to_variant, projection_from_variant);
-    impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant);
+    impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant; RID);
     impl_ffi_variant!(Rect2, rect2_to_variant, rect2_from_variant);
     impl_ffi_variant!(Rect2i, rect2i_to_variant, rect2i_from_variant);
     impl_ffi_variant!(Signal, signal_to_variant, signal_from_variant);
     impl_ffi_variant!(Transform2D, transform_2d_to_variant, transform_2d_from_variant);
     impl_ffi_variant!(Transform3D, transform_3d_to_variant, transform_3d_from_variant);
     impl_ffi_variant!(Dictionary, dictionary_to_variant, dictionary_from_variant);
-    impl_ffi_variant!(i64, int_to_variant, int_from_variant);
-    impl_ffi_variant!(f64, float_to_variant, float_from_variant);
+    impl_ffi_variant!(i64, int_to_variant, int_from_variant; int);
+    impl_ffi_variant!(f64, float_to_variant, float_from_variant; float);
     
 }
 
@@ -150,6 +164,10 @@ impl GodotType for () {
 
     fn try_from_ffi(_: Self::Ffi) -> Option<Self> {
         Some(())
+    }
+
+    fn godot_type_name() -> String {
+        "Variant".into()
     }
 }
 
@@ -191,5 +209,9 @@ impl GodotType for Variant {
 
     fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
         sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8
+    }
+
+    fn godot_type_name() -> String {
+        "Variant".into()
     }
 }
