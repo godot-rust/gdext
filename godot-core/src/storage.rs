@@ -5,7 +5,7 @@
  */
 
 use crate::obj::GodotClass;
-use crate::out;
+use crate::{godot_error, out};
 use godot_ffi as sys;
 
 #[derive(Copy, Clone, Debug)]
@@ -343,17 +343,45 @@ pub unsafe fn as_storage<'u, T: GodotClass>(
 pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClassInstancePtr) {
     let raw = instance_ptr as *mut InstanceStorage<T>;
 
-    // The following caused UB in 4.0.4 itests, only on Linux. Debugging was not conclusive; would need more time.
-    // Since it doesn't occur in 4.1+, we disable it -- time can be spent better on newer versions.
-    #[cfg(since_api = "4.1")]
-    assert!(
-        !(*raw).is_bound(),
-        "tried to destroy object while a bind() or bind_mut() call is active\n  \
-        object: {}",
-        (*raw).debug_info()
-    );
+    // We cannot panic here, since this code is invoked from a C callback. Panicking would mean unwinding into C code, which is UB.
+    // We have the following options:
+    // 1. Print an error as a best-effort, knowing that UB is likely to occur whenever the user will access &T or &mut T. (Technically, the
+    //    mere existence of these references is UB since the T is dead.)
+    // 2. Abort the process. This is the safest option, but a very drastic measure, and not what gdext does elsewhere.
+    //    We can use Godot's OS.crash() API here.
+    // 3. Change everything to "C-unwind" API. Would make the FFI unwinding safe, but still not clear if Godot would handle it appropriately.
+    //    Even if yes, it's likely the same behavior as OS.crash().
+    // 4. Prevent destruction of the Rust part (InstanceStorage). This would solve the immediate problem of &T and &mut T becoming invalid,
+    //    but it would leave a zombie object behind, where all base operations and Godot interactions suddenly fail, which likely creates
+    //    its own set of edge cases. It would _also_ make the problem less observable, since the user can keep interacting with the Rust
+    //    object and slowly accumulate memory leaks.
+    //    - Letting Gd<T> and InstanceStorage<T> know about this specific object state and panicking in the next Rust call might be an option,
+    //      but we still can't control direct access to the T.
+    //
+    // For now we choose option 2 in Debug mode, and 4 in Release.
+    let mut leak_rust_object = false;
+    if (*raw).is_bound() {
+        let error = format!(
+            "Destroyed an object from Godot side, while a bind() or bind_mut() call was active.\n  \
+            This is a bug in your code that may cause UB and logic errors. Make sure that objects are not\n  \
+            destroyed while you still hold a Rust reference to them, or use Gd::free() which is safe.\n  \
+            object: {}",
+            (*raw).debug_info()
+        );
 
-    let _drop = Box::from_raw(raw);
+        // In Debug mode, crash which may trigger breakpoint.
+        // In release mode, leak player object (Godot philosophy: don't crash if somehow avoidable). Likely leads to follow-up issues.
+        if cfg!(debug_assertions) {
+            crate::engine::Os::singleton().crash(error.into());
+        } else {
+            leak_rust_object = true;
+            godot_error!("{}", error);
+        }
+    }
+
+    if !leak_rust_object {
+        let _drop = Box::from_raw(raw);
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

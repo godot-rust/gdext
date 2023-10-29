@@ -268,8 +268,7 @@ fn object_user_free_during_bind() {
     obj.free(); // now succeeds
 }
 
-#[cfg(since_api = "4.1")] // See destroy_storage() comment.
-#[itest]
+#[itest(skip)] // This deliberately crashes the engine. Un-skip to manually test this.
 fn object_user_dynamic_free_during_bind() {
     // Note: we could also test if GDScript can access free() when an object is bound, to check whether the panic is handled or crashes
     // the engine. However, that is only possible under the following scenarios:
@@ -283,16 +282,15 @@ fn object_user_dynamic_free_during_bind() {
 
     let mut copy = obj.clone(); // TODO clone allowed while bound?
 
-    expect_panic("engine-routed free() on user while it's bound", move || {
-        copy.call("free".into(), &[]);
-    });
+    // This technically triggers UB, but in practice no one accesses the references.
+    // There is no alternative to test this, see destroy_storage() comments.
+    copy.call("free".into(), &[]);
 
     drop(guard);
     assert!(
-        obj.is_instance_valid(),
-        "object lives on after failed dynamic free()"
+        !obj.is_instance_valid(),
+        "dynamic free() destroys object even if it's bound"
     );
-    obj.free(); // now succeeds
 }
 
 // TODO test if engine destroys it, eg. call()
