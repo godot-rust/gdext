@@ -54,30 +54,6 @@ mod single_threaded {
             }
         }
 
-        pub(crate) fn on_inc_ref(&self) {
-            let refc = self.godot_ref_count.get() + 1;
-            self.godot_ref_count.set(refc);
-
-            out!(
-                "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
-                refc,
-                type_name::<T>(),
-                //self.user_instance
-            );
-        }
-
-        pub(crate) fn on_dec_ref(&self) {
-            let refc = self.godot_ref_count.get() - 1;
-            self.godot_ref_count.set(refc);
-
-            out!(
-                "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
-                refc,
-                type_name::<T>(),
-                //self.user_instance
-            );
-        }
-
         pub fn is_bound(&self) -> bool {
             // Needs to borrow mutably, otherwise it succeeds if shared borrows are alive.
             self.user_instance.try_borrow_mut().is_err()
@@ -114,6 +90,30 @@ mod single_threaded {
 
         pub(super) fn godot_ref_count(&self) -> u32 {
             self.godot_ref_count.get()
+        }
+
+        pub(crate) fn on_inc_ref(&self) {
+            let refc = self.godot_ref_count.get() + 1;
+            self.godot_ref_count.set(refc);
+
+            out!(
+                "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
+                refc,
+                type_name::<T>(),
+                //self.user_instance
+            );
+        }
+
+        pub(crate) fn on_dec_ref(&self) {
+            let refc = self.godot_ref_count.get() - 1;
+            self.godot_ref_count.set(refc);
+
+            out!(
+                "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
+                refc,
+                type_name::<T>(),
+                //self.user_instance
+            );
         }
     }
 }
@@ -180,24 +180,6 @@ mod multi_threaded {
             }
         }
 
-        pub(crate) fn on_inc_ref(&self) {
-            self.godot_ref_count.fetch_add(1, Ordering::Relaxed);
-            out!(
-                "    Storage::on_inc_ref (rc={})     <{:?}>",
-                self.godot_ref_count(),
-                self.base,
-            );
-        }
-
-        pub(crate) fn on_dec_ref(&self) {
-            self.godot_ref_count.fetch_sub(1, Ordering::Relaxed);
-            out!(
-                "  | Storage::on_dec_ref (rc={})     <{:?}>",
-                self.godot_ref_count(),
-                self.base,
-            );
-        }
-
         pub fn is_bound(&self) -> bool {
             // Needs to borrow mutably, otherwise it succeeds if shared borrows are alive.
             self.write_ignoring_poison().is_none()
@@ -225,6 +207,35 @@ mod multi_threaded {
             })
         }
 
+        pub fn get_gd(&self) -> Gd<T>
+        where
+            T: Inherits<<T as GodotClass>::Base>,
+        {
+            self.base.clone().cast()
+        }
+
+        pub(super) fn godot_ref_count(&self) -> u32 {
+            self.godot_ref_count.load(Ordering::Relaxed)
+        }
+
+        pub(crate) fn on_inc_ref(&self) {
+            self.godot_ref_count.fetch_add(1, Ordering::Relaxed);
+            out!(
+                "    Storage::on_inc_ref (rc={})     <{:?}>",
+                self.godot_ref_count(),
+                self.base,
+            );
+        }
+
+        pub(crate) fn on_dec_ref(&self) {
+            self.godot_ref_count.fetch_sub(1, Ordering::Relaxed);
+            out!(
+                "  | Storage::on_dec_ref (rc={})     <{:?}>",
+                self.godot_ref_count(),
+                self.base,
+            );
+        }
+
         /// Returns a write guard (even if poisoned), or `None` when the lock is held by another thread.
         /// This might need adjustment if threads should await locks.
         #[must_use]
@@ -247,17 +258,6 @@ mod multi_threaded {
             }
         }
 
-        pub fn get_gd(&self) -> Gd<T>
-        where
-            T: Inherits<<T as GodotClass>::Base>,
-        {
-            self.base.clone().cast()
-        }
-
-        pub(super) fn godot_ref_count(&self) -> u32 {
-            self.godot_ref_count.load(Ordering::Relaxed)
-        }
-
         // fn __static_type_check() {
         //     enforce_sync::<InstanceStorage<T>>();
         // }
@@ -267,10 +267,12 @@ mod multi_threaded {
     // This type can be accessed concurrently from multiple threads, so it should be Sync. That implies however that T must be Sync too
     // (and possibly Send, because with `&mut` access, a `T` can be extracted as a value using mem::take() etc.).
     // Which again means that we need to infest half the codebase with T: Sync + Send bounds, *and* make it all conditional on
-    // `#[cfg(feature = "experimental-threads")]`. Until the multi-threading design is clarified, we'll thus leave it as is.
+    // `#[cfg(feature = "experimental-threads")]`.
+    //
+    // A better design would be a distinct Gds<T: Sync> pointer, which requires synchronized.
+    // This needs more design on the multi-threading front (#18).
     //
     // The following code + __static_type_check() above would make sure that InstanceStorage is Sync.
-
     // Make sure storage is Sync in multi-threaded case, as it can be concurrently accessed through aliased Gd<T> pointers.
     // fn enforce_sync<T: Sync>() {}
 }
