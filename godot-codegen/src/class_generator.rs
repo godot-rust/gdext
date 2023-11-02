@@ -391,6 +391,8 @@ fn make_class_doc(
         godot_ty.to_ascii_lowercase()
     );
 
+    let trait_name = class_name.virtual_trait_name();
+
     format!(
         "Godot class `{godot_ty}.`\n\n\
         \
@@ -398,7 +400,7 @@ fn make_class_doc(
         \
         Related symbols:\n\n\
         {sidecar_line}\
-        * [`{rust_ty}Virtual`][crate::engine::{rust_ty}Virtual]: virtual methods\n\
+        * [`{trait_name}`][crate::engine::{trait_name}]: virtual methods\n\
         {notify_line}\
         \n\n\
         See also [Godot docs for `{godot_ty}`]({online_link}).\n\n",

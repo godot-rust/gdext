@@ -353,8 +353,8 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
         } => {
             c.user_register_fn = user_register_fn;
 
-            // following unwraps of fill_into shouldn't panic since rustc will error if there's
-            // multiple `impl {Class}Virtual for Thing` definitions
+            // The following unwraps of fill_into() shouldn't panic, since rustc will error if there are
+            // multiple `impl I{Class} for Thing` definitions.
 
             fill_into(&mut c.godot_params.create_instance_func, user_create_fn).unwrap();
 

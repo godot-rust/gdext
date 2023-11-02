@@ -173,11 +173,11 @@ pub(crate) fn validate_trait_impl_virtual(
     // Validate trait
     if !typename
         .as_ref()
-        .map_or(false, |seg| seg.ident.to_string().ends_with("Virtual"))
+        .map_or(false, |seg| seg.ident.to_string().starts_with('I'))
     {
         return bail!(
             original_impl,
-            "#[{attr}] for trait impls requires a virtual method trait (trait name should end in 'Virtual')",
+            "#[{attr}] for trait impls requires a virtual method trait (trait name should start with 'I')",
         );
     }
 

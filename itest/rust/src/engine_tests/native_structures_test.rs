@@ -7,7 +7,7 @@
 use crate::framework::itest;
 use godot::engine::native::{AudioFrame, CaretInfo, Glyph};
 use godot::engine::text_server::Direction;
-use godot::engine::{TextServer, TextServerExtension, TextServerExtensionVirtual};
+use godot::engine::{ITextServerExtension, TextServer, TextServerExtension};
 use godot::prelude::{godot_api, Base, Gd, GodotClass, Rect2, Rid, Variant};
 
 use std::cell::Cell;
@@ -37,7 +37,7 @@ fn sample_glyph(start: i32) -> Glyph {
 }
 
 #[godot_api]
-impl TextServerExtensionVirtual for TestTextServer {
+impl ITextServerExtension for TestTextServer {
     fn init(_base: Base<TextServerExtension>) -> Self {
         TestTextServer {
             glyphs: [sample_glyph(99), sample_glyph(700)],

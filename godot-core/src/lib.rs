@@ -23,7 +23,7 @@ pub use registry::*;
 ///
 /// This module contains the following symbols:
 /// * Classes: `CanvasItem`, etc.
-/// * Virtual traits: `CanvasItemVirtual`, etc.
+/// * Virtual traits: `ICanvasItem`, etc.
 /// * Enum/flag modules: `canvas_item`, etc.
 ///
 /// Noteworthy sub-modules are:

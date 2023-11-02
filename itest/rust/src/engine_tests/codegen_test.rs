@@ -9,7 +9,7 @@
 
 use crate::framework::itest;
 use godot::builtin::inner::{InnerColor, InnerString};
-use godot::engine::{FileAccess, HttpRequest, HttpRequestVirtual, Image};
+use godot::engine::{FileAccess, HttpRequest, IHttpRequest, Image};
 use godot::prelude::*;
 
 #[itest]
@@ -86,7 +86,7 @@ impl TestBaseRenamed {
 }
 
 #[godot_api]
-impl HttpRequestVirtual for TestBaseRenamed {
+impl IHttpRequest for TestBaseRenamed {
     fn init(base: Base<HttpRequest>) -> Self {
         TestBaseRenamed { _base: base }
     }

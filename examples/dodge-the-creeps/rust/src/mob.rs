@@ -1,4 +1,4 @@
-use godot::engine::{AnimatedSprite2D, RigidBody2D, RigidBody2DVirtual};
+use godot::engine::{AnimatedSprite2D, IRigidBody2D, RigidBody2D};
 use godot::prelude::*;
 use rand::seq::SliceRandom;
 
@@ -26,7 +26,7 @@ impl Mob {
 }
 
 #[godot_api]
-impl RigidBody2DVirtual for Mob {
+impl IRigidBody2D for Mob {
     fn init(base: Base<RigidBody2D>) -> Self {
         Mob {
             min_speed: 150.0,

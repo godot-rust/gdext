@@ -128,7 +128,7 @@ impl HasProperty {
 }
 
 #[godot_api]
-impl NodeVirtual for HasProperty {
+impl INode for HasProperty {
     fn init(_base: Base<Node>) -> Self {
         HasProperty {
             int_val: 0,
@@ -336,7 +336,7 @@ pub struct DeriveExport {
 impl DeriveExport {}
 
 #[godot_api]
-impl RefCountedVirtual for DeriveExport {
+impl IRefCounted for DeriveExport {
     fn init(base: godot::obj::Base<Self::Base>) -> Self {
         Self {
             foo: TestEnum::B,
@@ -374,7 +374,7 @@ pub struct CustomResource {}
 impl CustomResource {}
 
 #[godot_api]
-impl ResourceVirtual for CustomResource {}
+impl IResource for CustomResource {}
 
 #[derive(GodotClass)]
 #[class(init, base=Resource, rename=NewNameCustomResource)]
@@ -384,7 +384,7 @@ pub struct RenamedCustomResource {}
 impl RenamedCustomResource {}
 
 #[godot_api]
-impl ResourceVirtual for RenamedCustomResource {}
+impl IResource for RenamedCustomResource {}
 
 #[derive(GodotClass)]
 #[class(init, base=Node)]
@@ -401,7 +401,7 @@ pub struct ExportResource {
 impl ExportResource {}
 
 #[godot_api]
-impl NodeVirtual for ExportResource {}
+impl INode for ExportResource {}
 
 #[itest]
 fn export_resource() {

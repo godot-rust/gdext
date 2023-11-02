@@ -210,7 +210,7 @@ impl GdSelfReference {
 }
 
 #[godot_api]
-impl RefCountedVirtual for GdSelfReference {
+impl IRefCounted for GdSelfReference {
     fn init(base: Base<Self::Base>) -> Self {
         Self {
             internal_value: 0,
