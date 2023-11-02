@@ -5,17 +5,14 @@
  */
 
 use crate::obj::GodotClass;
-use crate::out;
+use crate::{godot_error, out};
 use godot_ffi as sys;
-
-use std::any::type_name;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Lifecycle {
     // Warning: when reordering/changing enumerators, update match in AtomicLifecycle below
     Alive,
     Destroying,
-    Dead, // reading this would typically already be too late, only best-effort in case of UB
 }
 
 #[cfg(not(feature = "experimental-threads"))]
@@ -37,10 +34,10 @@ mod single_threaded {
     /// Manages storage and lifecycle of user's extension class instances.
     pub struct InstanceStorage<T: GodotClass> {
         user_instance: cell::RefCell<T>,
-        base: Base<T::Base>,
+        pub(super) base: Base<T::Base>,
 
         // Declared after `user_instance`, is dropped last
-        pub lifecycle: cell::Cell<Lifecycle>,
+        pub(super) lifecycle: cell::Cell<Lifecycle>,
         godot_ref_count: cell::Cell<u32>,
     }
 
@@ -57,28 +54,9 @@ mod single_threaded {
             }
         }
 
-        pub(crate) fn on_inc_ref(&self) {
-            let refc = self.godot_ref_count.get() + 1;
-            self.godot_ref_count.set(refc);
-
-            out!(
-                "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
-                refc,
-                type_name::<T>(),
-                //self.user_instance
-            );
-        }
-
-        pub(crate) fn on_dec_ref(&self) {
-            let refc = self.godot_ref_count.get() - 1;
-            self.godot_ref_count.set(refc);
-
-            out!(
-                "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
-                refc,
-                type_name::<T>(),
-                //self.user_instance
-            );
+        pub fn is_bound(&self) -> bool {
+            // Needs to borrow mutably, otherwise it succeeds if shared borrows are alive.
+            self.user_instance.try_borrow_mut().is_err()
         }
 
         pub fn get(&self) -> cell::Ref<T> {
@@ -113,16 +91,39 @@ mod single_threaded {
         pub(super) fn godot_ref_count(&self) -> u32 {
             self.godot_ref_count.get()
         }
+
+        pub(crate) fn on_inc_ref(&self) {
+            let refc = self.godot_ref_count.get() + 1;
+            self.godot_ref_count.set(refc);
+
+            out!(
+                "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
+                refc,
+                type_name::<T>(),
+                //self.user_instance
+            );
+        }
+
+        pub(crate) fn on_dec_ref(&self) {
+            let refc = self.godot_ref_count.get() - 1;
+            self.godot_ref_count.set(refc);
+
+            out!(
+                "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
+                refc,
+                type_name::<T>(),
+                //self.user_instance
+            );
+        }
     }
 }
 
 #[cfg(feature = "experimental-threads")]
 mod multi_threaded {
-    use std::any::type_name;
     use std::sync;
     use std::sync::atomic::{AtomicU32, Ordering};
 
-    use crate::obj::{Base, Gd, GodotClass, Inherits, Share};
+    use crate::obj::{Base, Gd, GodotClass, Inherits};
     use crate::out;
 
     use super::Lifecycle;
@@ -141,31 +142,35 @@ mod multi_threaded {
         pub fn get(&self) -> Lifecycle {
             match self.atomic.load(Ordering::Relaxed) {
                 0 => Lifecycle::Alive,
-                1 => Lifecycle::Dead,
-                2 => Lifecycle::Destroying,
-                other => panic!("Invalid lifecycle {other}"),
+                1 => Lifecycle::Destroying,
+                other => panic!("invalid lifecycle {other}"),
             }
         }
 
-        pub fn set(&self, value: Lifecycle) {
-            self.atomic.store(value as u32, Ordering::Relaxed);
+        pub fn set(&self, lifecycle: Lifecycle) {
+            let value = match lifecycle {
+                Lifecycle::Alive => 0,
+                Lifecycle::Destroying => 1,
+            };
+
+            self.atomic.store(value, Ordering::Relaxed);
         }
     }
 
     /// Manages storage and lifecycle of user's extension class instances.
     pub struct InstanceStorage<T: GodotClass> {
         user_instance: sync::RwLock<T>,
-        base: Base<T::Base>,
+        pub(super) base: Base<T::Base>,
 
         // Declared after `user_instance`, is dropped last
-        pub lifecycle: AtomicLifecycle,
+        pub(super) lifecycle: AtomicLifecycle,
         godot_ref_count: AtomicU32,
     }
 
     /// For all Godot extension classes
     impl<T: GodotClass> InstanceStorage<T> {
         pub fn construct(user_instance: T, base: Base<T::Base>) -> Self {
-            out!("    Storage::construct             <{}>", type_name::<T>());
+            out!("    Storage::construct             <{:?}>", base);
 
             Self {
                 user_instance: sync::RwLock::new(user_instance),
@@ -175,44 +180,29 @@ mod multi_threaded {
             }
         }
 
-        pub(crate) fn on_inc_ref(&self) {
-            self.godot_ref_count.fetch_add(1, Ordering::Relaxed);
-            out!(
-                "    Storage::on_inc_ref (rc={})     <{}>", // -- {:?}",
-                self.godot_ref_count(),
-                type_name::<T>(),
-                //self.user_instance
-            );
-        }
-
-        pub(crate) fn on_dec_ref(&self) {
-            self.godot_ref_count.fetch_sub(1, Ordering::Relaxed);
-            out!(
-                "  | Storage::on_dec_ref (rc={})     <{}>", // -- {:?}",
-                self.godot_ref_count(),
-                type_name::<T>(),
-                //self.user_instance
-            );
+        pub fn is_bound(&self) -> bool {
+            // Needs to borrow mutably, otherwise it succeeds if shared borrows are alive.
+            self.write_ignoring_poison().is_none()
         }
 
         pub fn get(&self) -> sync::RwLockReadGuard<T> {
-            self.user_instance.read().unwrap_or_else(|_e| {
+            self.read_ignoring_poison().unwrap_or_else(|| {
                 panic!(
-                    "Gd<T>::bind() failed, already bound; T = {}.\n  \
+                    "Gd<T>::bind() failed, already bound; obj = {}.\n  \
                      Make sure there is no &mut T live at the time.\n  \
                      This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
-                    type_name::<T>()
+                    self.base,
                 )
             })
         }
 
         pub fn get_mut(&self) -> sync::RwLockWriteGuard<T> {
-            self.user_instance.write().unwrap_or_else(|_e| {
+            self.write_ignoring_poison().unwrap_or_else(|| {
                 panic!(
-                    "Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
+                    "Gd<T>::bind_mut() failed, already bound; obj = {}.\n  \
                      Make sure there is no &T or &mut T live at the time.\n  \
                      This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
-                    type_name::<T>()
+                    self.base,
                 )
             })
         }
@@ -228,6 +218,46 @@ mod multi_threaded {
             self.godot_ref_count.load(Ordering::Relaxed)
         }
 
+        pub(crate) fn on_inc_ref(&self) {
+            self.godot_ref_count.fetch_add(1, Ordering::Relaxed);
+            out!(
+                "    Storage::on_inc_ref (rc={})     <{:?}>",
+                self.godot_ref_count(),
+                self.base,
+            );
+        }
+
+        pub(crate) fn on_dec_ref(&self) {
+            self.godot_ref_count.fetch_sub(1, Ordering::Relaxed);
+            out!(
+                "  | Storage::on_dec_ref (rc={})     <{:?}>",
+                self.godot_ref_count(),
+                self.base,
+            );
+        }
+
+        /// Returns a write guard (even if poisoned), or `None` when the lock is held by another thread.
+        /// This might need adjustment if threads should await locks.
+        #[must_use]
+        fn write_ignoring_poison(&self) -> Option<sync::RwLockWriteGuard<T>> {
+            match self.user_instance.try_write() {
+                Ok(guard) => Some(guard),
+                Err(sync::TryLockError::Poisoned(poison_error)) => Some(poison_error.into_inner()),
+                Err(sync::TryLockError::WouldBlock) => None,
+            }
+        }
+
+        /// Returns a read guard (even if poisoned), or `None` when the lock is held by another writing thread.
+        /// This might need adjustment if threads should await locks.
+        #[must_use]
+        fn read_ignoring_poison(&self) -> Option<sync::RwLockReadGuard<T>> {
+            match self.user_instance.try_read() {
+                Ok(guard) => Some(guard),
+                Err(sync::TryLockError::Poisoned(poison_error)) => Some(poison_error.into_inner()),
+                Err(sync::TryLockError::WouldBlock) => None,
+            }
+        }
+
         // fn __static_type_check() {
         //     enforce_sync::<InstanceStorage<T>>();
         // }
@@ -237,15 +267,23 @@ mod multi_threaded {
     // This type can be accessed concurrently from multiple threads, so it should be Sync. That implies however that T must be Sync too
     // (and possibly Send, because with `&mut` access, a `T` can be extracted as a value using mem::take() etc.).
     // Which again means that we need to infest half the codebase with T: Sync + Send bounds, *and* make it all conditional on
-    // `#[cfg(feature = "experimental-threads")]`. Until the multi-threading design is clarified, we'll thus leave it as is.
+    // `#[cfg(feature = "experimental-threads")]`.
+    //
+    // A better design would be a distinct Gds<T: Sync> pointer, which requires synchronized.
+    // This needs more design on the multi-threading front (#18).
     //
     // The following code + __static_type_check() above would make sure that InstanceStorage is Sync.
-
     // Make sure storage is Sync in multi-threaded case, as it can be concurrently accessed through aliased Gd<T> pointers.
     // fn enforce_sync<T: Sync>() {}
 }
 
 impl<T: GodotClass> InstanceStorage<T> {
+    pub fn debug_info(&self) -> String {
+        // Unlike get_gd(), this doesn't require special trait bounds.
+
+        format!("{:?}", self.base)
+    }
+
     #[must_use]
     pub fn into_raw(self) -> *mut Self {
         Box::into_raw(Box::new(self))
@@ -258,40 +296,34 @@ impl<T: GodotClass> InstanceStorage<T> {
         );
         self.lifecycle.set(Lifecycle::Destroying);
         out!(
-            "    mark;  self={:?}, val={:?}",
+            "    mark;  self={:?}, val={:?}, obj={:?}",
             self as *const _,
-            self.lifecycle.get()
+            self.lifecycle.get(),
+            self.base,
         );
     }
 
     #[inline(always)]
     pub fn destroyed_by_godot(&self) -> bool {
         out!(
-            "    is_d;  self={:?}, val={:?}",
+            "    is_d;  self={:?}, val={:?}, obj={:?}",
             self as *const _,
-            self.lifecycle.get()
-        );
-        matches!(
             self.lifecycle.get(),
-            Lifecycle::Destroying | Lifecycle::Dead
-        )
+            self.base,
+        );
+        matches!(self.lifecycle.get(), Lifecycle::Destroying)
     }
 }
 
 impl<T: GodotClass> Drop for InstanceStorage<T> {
     fn drop(&mut self) {
         out!(
-            "    Storage::drop (rc={})           <{}>", // -- {:?}",
+            "    Storage::drop (rc={})           <{:?}>",
             self.godot_ref_count(),
-            type_name::<T>(),
-            //self.user_instance
+            self.base,
         );
         //let _ = mem::take(&mut self.user_instance);
-        out!(
-            "    Storage::drop end              <{}>", //  -- {:?}",
-            type_name::<T>(),
-            //self.user_instance
-        );
+        //out!("    Storage::drop end              <{:?}>", self.base);
     }
 }
 
@@ -311,7 +343,47 @@ pub unsafe fn as_storage<'u, T: GodotClass>(
 /// # Safety
 /// `instance_ptr` is assumed to point to a valid instance. This function must only be invoked once for a pointer.
 pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClassInstancePtr) {
-    let _drop = Box::from_raw(instance_ptr as *mut InstanceStorage<T>);
+    let raw = instance_ptr as *mut InstanceStorage<T>;
+
+    // We cannot panic here, since this code is invoked from a C callback. Panicking would mean unwinding into C code, which is UB.
+    // We have the following options:
+    // 1. Print an error as a best-effort, knowing that UB is likely to occur whenever the user will access &T or &mut T. (Technically, the
+    //    mere existence of these references is UB since the T is dead.)
+    // 2. Abort the process. This is the safest option, but a very drastic measure, and not what gdext does elsewhere.
+    //    We can use Godot's OS.crash() API here.
+    // 3. Change everything to "C-unwind" API. Would make the FFI unwinding safe, but still not clear if Godot would handle it appropriately.
+    //    Even if yes, it's likely the same behavior as OS.crash().
+    // 4. Prevent destruction of the Rust part (InstanceStorage). This would solve the immediate problem of &T and &mut T becoming invalid,
+    //    but it would leave a zombie object behind, where all base operations and Godot interactions suddenly fail, which likely creates
+    //    its own set of edge cases. It would _also_ make the problem less observable, since the user can keep interacting with the Rust
+    //    object and slowly accumulate memory leaks.
+    //    - Letting Gd<T> and InstanceStorage<T> know about this specific object state and panicking in the next Rust call might be an option,
+    //      but we still can't control direct access to the T.
+    //
+    // For now we choose option 2 in Debug mode, and 4 in Release.
+    let mut leak_rust_object = false;
+    if (*raw).is_bound() {
+        let error = format!(
+            "Destroyed an object from Godot side, while a bind() or bind_mut() call was active.\n  \
+            This is a bug in your code that may cause UB and logic errors. Make sure that objects are not\n  \
+            destroyed while you still hold a Rust reference to them, or use Gd::free() which is safe.\n  \
+            object: {}",
+            (*raw).debug_info()
+        );
+
+        // In Debug mode, crash which may trigger breakpoint.
+        // In release mode, leak player object (Godot philosophy: don't crash if somehow avoidable). Likely leads to follow-up issues.
+        if cfg!(debug_assertions) {
+            crate::engine::Os::singleton().crash(error.into());
+        } else {
+            leak_rust_object = true;
+            godot_error!("{}", error);
+        }
+    }
+
+    if !leak_rust_object {
+        let _drop = Box::from_raw(raw);
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

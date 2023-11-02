@@ -275,6 +275,15 @@ pub mod dom {
         where
             T: GodotClass<Declarer = Self>,
             F: FnOnce(&mut T) -> R;
+
+        /// Check if the object is a user object *and* currently locked by a `bind()` or `bind_mut()` guard.
+        ///
+        /// # Safety
+        /// Object must be alive.
+        #[doc(hidden)]
+        unsafe fn is_currently_bound<T>(obj: &RawGd<T>) -> bool
+        where
+            T: GodotClass<Declarer = Self>;
     }
 
     /// Expresses that a class is declared by the Godot engine.
@@ -293,6 +302,13 @@ pub mod dom {
                     .expect("scoped mut should not be called on a null object"),
             )
         }
+
+        unsafe fn is_currently_bound<T>(_obj: &RawGd<T>) -> bool
+        where
+            T: GodotClass<Declarer = Self>,
+        {
+            false
+        }
     }
 
     /// Expresses that a class is declared by the user.
@@ -308,6 +324,13 @@ pub mod dom {
         {
             let mut guard = obj.bind_mut();
             closure(&mut *guard)
+        }
+
+        unsafe fn is_currently_bound<T>(obj: &RawGd<T>) -> bool
+        where
+            T: GodotClass<Declarer = Self>,
+        {
+            obj.storage().unwrap_unchecked().is_bound()
         }
     }
 }

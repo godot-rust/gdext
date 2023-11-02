@@ -153,20 +153,40 @@ impl IntegrationTests {
             let test_case = get_property(&test, "method_name");
 
             print_test_pre(&test_case, test_file.clone(), &mut last_file, true);
-            let result = test.call("run", &[]);
-            // In case a test needs to disable error messages to ensure it runs properly.
+
+            // If GDScript invokes Rust code that fails, the panic would break through; catch it.
+            // TODO(bromeon): use try_call() once available.
+            let result = std::panic::catch_unwind(|| test.call("run", &[]));
+
+            // In case a test needs to disable error messages, to ensure it runs properly.
             Engine::singleton().set_print_error_messages(true);
 
             if let Some(duration) = get_execution_time(&test) {
                 extra_duration += duration;
             }
-            let success = result.try_to::<bool>().unwrap_or_else(|_| {
-                panic!("GDScript test case {test} returned non-bool: {result}")
-            });
-            for error in get_errors(&test).iter_shared() {
-                godot_error!("{error}");
-            }
-            let outcome = TestOutcome::from_bool(success);
+
+            let outcome = match result {
+                Ok(result) => {
+                    let success = result.try_to::<bool>().unwrap_or_else(|_| {
+                        // Not a failing test, but an error in the test setup.
+                        panic!("GDScript test case {test} returned non-bool: {result}")
+                    });
+
+                    for error in get_errors(&test).iter_shared() {
+                        godot_error!("{error}");
+                    }
+                    TestOutcome::from_bool(success)
+                }
+                Err(e) => {
+                    // TODO(bromeon) should this be a fatal error, i.e. panicking and aborting tests -> bad test setup?
+                    // If GDScript receives panics, this can also happen in user code that is _not_ invoked from Rust, and thus a panic
+                    // could not be caught, causing UB at the Godot FFI boundary (in practice, this will be a defined Godot crash with
+                    // stack trace though).
+                    godot_error!("GDScript test panicked");
+                    godot::private::print_panic(e);
+                    TestOutcome::Failed
+                }
+            };
 
             self.update_stats(&outcome, &test_file, &test_case);
             print_test_post(&test_case, outcome);

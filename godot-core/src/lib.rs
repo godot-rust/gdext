@@ -82,7 +82,7 @@ pub mod private {
             && *global_config.is_editor.get_or_init(is_editor)
     }
 
-    fn print_panic(err: Box<dyn std::any::Any + Send>) {
+    pub fn print_panic(err: Box<dyn std::any::Any + Send>) {
         if let Some(s) = err.downcast_ref::<&'static str>() {
             print_panic_message(s);
         } else if let Some(s) = err.downcast_ref::<String>() {

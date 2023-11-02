@@ -219,14 +219,28 @@ fn object_from_instance_id_unrelated_type() {
 
 #[itest]
 fn object_new_has_instance_id() {
-    let obj = Gd::<SignalEmitter>::new_default(); // type doesn't matter, just Object-derived
+    let obj = Gd::<ObjPayload>::new_default();
     let _id = obj.instance_id();
     obj.free();
 }
 
 #[itest]
+fn object_dynamic_free() {
+    let mut obj = Gd::<ObjPayload>::new_default();
+    let id = obj.instance_id();
+
+    obj.call("free".into(), &[]);
+
+    assert_eq!(
+        Gd::<ObjPayload>::try_from_instance_id(id),
+        None,
+        "dynamic free() call must destroy object"
+    );
+}
+
+#[itest]
 fn object_user_bind_after_free() {
-    let obj = Gd::new(SignalEmitter {}); // type doesn't matter, just Object-derived
+    let obj = Gd::new(ObjPayload {});
     let copy = obj.clone();
     obj.free();
 
@@ -236,8 +250,54 @@ fn object_user_bind_after_free() {
 }
 
 #[itest]
+fn object_user_free_during_bind() {
+    let obj = Gd::new(ObjPayload {});
+    let guard = obj.bind();
+
+    let copy = obj.clone(); // TODO clone allowed while bound?
+
+    expect_panic("direct free() on user while it's bound", move || {
+        copy.free();
+    });
+
+    drop(guard);
+    assert!(
+        obj.is_instance_valid(),
+        "object lives on after failed free()"
+    );
+    obj.free(); // now succeeds
+}
+
+#[itest(skip)] // This deliberately crashes the engine. Un-skip to manually test this.
+fn object_user_dynamic_free_during_bind() {
+    // Note: we could also test if GDScript can access free() when an object is bound, to check whether the panic is handled or crashes
+    // the engine. However, that is only possible under the following scenarios:
+    // 1. Multithreading -- needs to be outlawed on Gd<T> in general, anyway. If we allow a thread-safe Gd<T>, we however need to handle that.
+    // 2. Re-entrant calls -- Rust binds a Gd<T>, calls GDScript, which frees the same Gd. This is the same as the test here.
+    // 3. Holding a guard (GdRef/GdMut) across function calls -- not possible, guard's lifetime is coupled to a Gd and cannot be stored in
+    //    fields or global variables due to that.
+
+    let obj = Gd::new(ObjPayload {});
+    let guard = obj.bind();
+
+    let mut copy = obj.clone(); // TODO clone allowed while bound?
+
+    // This technically triggers UB, but in practice no one accesses the references.
+    // There is no alternative to test this, see destroy_storage() comments.
+    copy.call("free".into(), &[]);
+
+    drop(guard);
+    assert!(
+        !obj.is_instance_valid(),
+        "dynamic free() destroys object even if it's bound"
+    );
+}
+
+// TODO test if engine destroys it, eg. call()
+
+#[itest]
 fn object_user_call_after_free() {
-    let obj = Gd::new(SignalEmitter {}); // type doesn't matter, just Object-derived
+    let obj = Gd::new(ObjPayload {});
     let mut copy = obj.clone();
     obj.free();
 
@@ -617,7 +677,6 @@ fn object_user_bad_downcast() {
 #[itest]
 fn object_engine_manual_free() {
     // Tests if no panic or memory leak
-
     {
         let node = Node3D::new_alloc();
         let node2 = node.clone();
@@ -637,10 +696,11 @@ fn object_engine_shared_free() {
 
 #[itest]
 fn object_engine_manual_double_free() {
-    expect_panic("double free()", || {
-        let node = Node3D::new_alloc();
-        let node2 = node.clone();
-        node.free();
+    let node = Node3D::new_alloc();
+    let node2 = node.clone();
+    node.free();
+
+    expect_panic("double free()", move || {
         node2.free();
     });
 }
@@ -651,6 +711,17 @@ fn object_engine_refcounted_free() {
     let node2 = node.clone().upcast::<Object>();
 
     expect_panic("calling free() on RefCounted object", || node2.free())
+}
+
+#[itest]
+fn object_user_double_free() {
+    let mut obj = Gd::<ObjPayload>::new_default();
+    let obj2 = obj.clone();
+    obj.call("free".into(), &[]);
+
+    expect_panic("double free()", move || {
+        obj2.free();
+    });
 }
 
 #[itest]
@@ -712,6 +783,18 @@ fn object_get_scene_tree(ctx: &TestContext) {
     let count = tree.get_child_count();
     assert_eq!(count, 1);
 } // implicitly tested: node does not leak
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(GodotClass)]
+#[class(init, base=Object)]
+struct ObjPayload {}
+
+#[godot_api]
+impl ObjPayload {
+    #[signal]
+    fn do_use();
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -855,25 +938,14 @@ impl DoubleUse {
     }
 }
 
-#[derive(GodotClass)]
-#[class(init, base=Object)]
-struct SignalEmitter {}
-
-#[godot_api]
-impl SignalEmitter {
-    #[signal]
-    fn do_use();
-}
-
-/// Test that godot can call a method that takes `&self`, while there already exists an immutable reference
+/// Test that Godot can call a method that takes `&self`, while there already exists an immutable reference
 /// to that type acquired through `bind`.
 ///
-/// This test is not signal-specific, the original bug would happen whenever godot would call a method that
-/// takes `&self`. However this was the easiest way to test the bug i could find.
+/// This test is not signal-specific, the original bug would happen whenever Godot would call a method that takes `&self`.
 #[itest]
 fn double_use_reference() {
     let double_use: Gd<DoubleUse> = Gd::new_default();
-    let emitter: Gd<SignalEmitter> = Gd::new_default();
+    let emitter: Gd<ObjPayload> = Gd::new_default();
 
     emitter
         .clone()
@@ -891,7 +963,7 @@ fn double_use_reference() {
 
     assert!(guard.used.get(), "use_1 was not called");
 
-    std::mem::drop(guard);
+    drop(guard);
 
     double_use.free();
     emitter.free();
