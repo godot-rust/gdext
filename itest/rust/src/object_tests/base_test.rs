@@ -29,7 +29,7 @@ fn base_access_unbound() {
 
     let pos = Vector2::new(-5.5, 7.0);
     obj.set_position(pos);
-    assert_eq!(obj.get_position(), pos);
+    assert_eq!(obj.position(), pos);
 
     obj.free();
 }
@@ -41,7 +41,7 @@ fn base_access_unbound_no_field() {
 
     let pos = Vector2::new(-5.5, 7.0);
     obj.set_position(pos);
-    assert_eq!(obj.get_position(), pos);
+    assert_eq!(obj.position(), pos);
 
     obj.free();
 }
@@ -88,7 +88,7 @@ fn base_with_init() {
     {
         let guard = obj.bind();
         assert_eq!(guard.i, 732);
-        assert_eq!(guard.base.get_rotation(), 11.0);
+        assert_eq!(guard.base.rotation(), 11.0);
     }
     obj.free();
 }

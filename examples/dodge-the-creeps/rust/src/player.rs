@@ -52,7 +52,7 @@ impl IArea2D for Player {
     }
 
     fn ready(&mut self) {
-        let viewport = self.base.get_viewport_rect();
+        let viewport = self.base.viewport_rect();
         self.screen_size = viewport.size;
         self.base.hide();
     }
@@ -101,7 +101,7 @@ impl IArea2D for Player {
         }
 
         let change = velocity * real::from_f64(delta);
-        let position = self.base.get_global_position() + change;
+        let position = self.base.global_position() + change;
         let position = Vector2::new(
             position.x.clamp(0.0, self.screen_size.x),
             position.y.clamp(0.0, self.screen_size.y),

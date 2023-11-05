@@ -45,7 +45,7 @@ impl Main {
 
         self.score = 0;
 
-        player.bind_mut().start(start_position.get_position());
+        player.bind_mut().start(start_position.position());
         start_timer.start();
 
         let mut hud = self.base.get_node_as::<Hud>("Hud");
@@ -84,9 +84,9 @@ impl Main {
         let progress = rng.gen_range(u32::MIN..u32::MAX);
 
         mob_spawn_location.set_progress(progress as f32);
-        mob_scene.set_position(mob_spawn_location.get_position());
+        mob_scene.set_position(mob_spawn_location.position());
 
-        let mut direction = mob_spawn_location.get_rotation() + PI / 2.0;
+        let mut direction = mob_spawn_location.rotation() + PI / 2.0;
         direction += rng.gen_range(-PI / 4.0..PI / 4.0);
 
         mob_scene.set_rotation(direction);
@@ -101,7 +101,7 @@ impl Main {
         };
 
         mob.set_linear_velocity(Vector2::new(range, 0.0));
-        let lin_vel = mob.get_linear_velocity().rotated(real::from_f32(direction));
+        let lin_vel = mob.linear_velocity().rotated(real::from_f32(direction));
         mob.set_linear_velocity(lin_vel);
 
         let mut hud = self.base.get_node_as::<Hud>("Hud");

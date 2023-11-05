@@ -328,7 +328,7 @@ fn test_tree_enters_exits(test_context: &TestContext) {
 #[itest]
 fn test_virtual_method_with_return() {
     let obj = Gd::<IReturnTest>::new_default();
-    let arr = obj.clone().upcast::<PrimitiveMesh>().get_mesh_arrays();
+    let arr = obj.clone().upcast::<PrimitiveMesh>().mesh_arrays();
     let arr_rust = obj.bind().create_mesh_array();
     assert_eq!(arr.len(), arr_rust.len());
     // can't just assert_eq because the values of some floats change slightly
@@ -487,7 +487,7 @@ impl CollisionObject2DTest {
     }
 
     #[func]
-    fn get_viewport(&self) -> Variant {
+    fn viewport(&self) -> Variant {
         self.viewport
             .as_ref()
             .map(ToGodot::to_variant)
