@@ -79,14 +79,18 @@ struct MethodInitGroup {
 }
 
 impl MethodInitGroup {
-    fn new(class_godot_name: &str, class_var: Ident, method_inits: Vec<MethodInit>) -> Self {
+    fn new(
+        godot_class_name: &str,
+        class_var: Option<Ident>,
+        method_inits: Vec<MethodInit>,
+    ) -> Self {
         Self {
-            class_name: ident(class_godot_name),
+            class_name: ident(godot_class_name),
             // Only create class variable if any methods have been added.
-            class_var_init: if method_inits.is_empty() {
+            class_var_init: if class_var.is_none() || method_inits.is_empty() {
                 None
             } else {
-                let initializer_expr = util::make_sname_ptr(class_godot_name);
+                let initializer_expr = util::make_sname_ptr(godot_class_name);
                 Some(quote! {
                     let #class_var = #initializer_expr;
                 })
@@ -111,7 +115,7 @@ struct AccessorMethod {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-pub struct TypeNames {
+pub struct BuiltinName {
     /// Name in JSON: "int" or "PackedVector2Array"
     pub json_builtin_name: String,
 
@@ -125,15 +129,15 @@ pub struct TypeNames {
     pub sys_variant_type: Ident,
 }
 
-impl Eq for TypeNames {}
+impl Eq for BuiltinName {}
 
-impl PartialEq for TypeNames {
+impl PartialEq for BuiltinName {
     fn eq(&self, other: &Self) -> bool {
         self.json_builtin_name == other.json_builtin_name
     }
 }
 
-impl std::hash::Hash for TypeNames {
+impl std::hash::Hash for BuiltinName {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.json_builtin_name.hash(state);
     }
@@ -144,7 +148,7 @@ impl std::hash::Hash for TypeNames {
 /// Allows collecting all builtin TypeNames before generating methods
 pub(crate) struct BuiltinTypeInfo<'a> {
     pub value: i32,
-    pub type_names: TypeNames,
+    pub type_names: BuiltinName,
 
     /// If `variant_get_ptr_destructor` returns a non-null function pointer for this type.
     /// List is directly sourced from extension_api.json (information would also be in variant_destruct.cpp).
@@ -1010,6 +1014,8 @@ fn populate_class_methods(
     class_ty: &TyName,
     ctx: &mut Context,
 ) {
+    // Note: already checked outside whether class is active in codegen.
+
     let class_var = format_ident!("sname_{}", &class.name);
     let mut method_inits = vec![];
 
@@ -1049,22 +1055,31 @@ fn populate_class_methods(
         }
     }
 
-    table.method_init_groups.push(MethodInitGroup::new(
-        &class_ty.godot_ty,
-        class_var,
-        method_inits,
-    ));
-    table.class_count += 1;
+    // No methods available, or all excluded (e.g. virtual ones) -> no group needed.
+    if !method_inits.is_empty() {
+        table.method_init_groups.push(MethodInitGroup::new(
+            &class_ty.godot_ty,
+            Some(class_var),
+            method_inits,
+        ));
+
+        table.class_count += 1;
+    }
 }
 
 fn populate_builtin_methods(
     table: &mut IndexedMethodTable,
     builtin_class: &BuiltinClass,
-    builtin_name: &TypeNames,
+    builtin_name: &BuiltinName,
     ctx: &mut Context,
 ) {
-    let class_var = format_ident!("sname_{}", &builtin_class.name);
     let mut method_inits = vec![];
+
+    // Skip types such as int, float, bool.
+    // TODO separate BuiltinName + TyName needed?
+    if special_cases::is_builtin_type_deleted(&TyName::from_godot(&builtin_class.name)) {
+        return;
+    }
 
     for method in option_as_slice(&builtin_class.methods) {
         let builtin_ty = TyName::from_godot(&builtin_class.name);
@@ -1105,7 +1120,7 @@ fn populate_builtin_methods(
 
     table.method_init_groups.push(MethodInitGroup::new(
         &builtin_class.name,
-        class_var,
+        None, // load_builtin_method() doesn't need a StringName for the class, as it accepts the VariantType enum.
         method_inits,
     ));
     table.class_count += 1;
@@ -1141,7 +1156,7 @@ fn make_class_method_init(
 
 fn make_builtin_method_init(
     method: &BuiltinClassMethod,
-    type_name: &TypeNames,
+    type_name: &BuiltinName,
     index: usize,
 ) -> TokenStream {
     let method_name_str = method.name.as_str();
@@ -1229,7 +1244,7 @@ pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, Built
             operators = None;
         }
 
-        let type_names = TypeNames {
+        let type_names = BuiltinName {
             json_builtin_name: class_name.clone(),
             snake_case: to_snake_case(&class_name),
             //shout_case: shout_case.to_string(),
@@ -1263,7 +1278,7 @@ fn collect_variant_operators(api: &ExtensionApi) -> Vec<&EnumConstant> {
 }
 
 fn make_enumerator(
-    type_names: &TypeNames,
+    type_names: &BuiltinName,
     value: i32,
     ctx: &mut Context,
 ) -> (Ident, TokenStream, Literal) {
@@ -1287,7 +1302,7 @@ fn make_opaque_type(name: &str, size: usize) -> TokenStream {
 }
 
 fn make_variant_fns(
-    type_names: &TypeNames,
+    type_names: &BuiltinName,
     has_destructor: bool,
     constructors: Option<&Vec<Constructor>>,
     operators: Option<&Vec<Operator>>,
@@ -1341,7 +1356,7 @@ fn make_variant_fns(
 }
 
 fn make_construct_fns(
-    type_names: &TypeNames,
+    type_names: &BuiltinName,
     constructors: Option<&Vec<Constructor>>,
     builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (TokenStream, TokenStream) {
@@ -1420,7 +1435,7 @@ fn make_construct_fns(
 
 /// Lists special cases for useful constructors
 fn make_extra_constructors(
-    type_names: &TypeNames,
+    type_names: &BuiltinName,
     constructors: &Vec<Constructor>,
     builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (Vec<TokenStream>, Vec<TokenStream>) {
@@ -1464,7 +1479,7 @@ fn make_extra_constructors(
     (extra_decls, extra_inits)
 }
 
-fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStream, TokenStream) {
+fn make_destroy_fns(type_names: &BuiltinName, has_destructor: bool) -> (TokenStream, TokenStream) {
     if !has_destructor || is_trivial(type_names) {
         return (TokenStream::new(), TokenStream::new());
     }
@@ -1488,7 +1503,7 @@ fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStrea
 }
 
 fn make_operator_fns(
-    type_names: &TypeNames,
+    type_names: &BuiltinName,
     operators: Option<&Vec<Operator>>,
     json_name: &str,
     sys_name: &str,
@@ -1529,7 +1544,7 @@ fn make_operator_fns(
 
 /// Returns true if the type is so trivial that most of its operations are directly provided by Rust, and there is no need
 /// to expose the construct/destruct/operator methods from Godot
-fn is_trivial(type_names: &TypeNames) -> bool {
+fn is_trivial(type_names: &BuiltinName) -> bool {
     let list = ["bool", "int", "float"];
 
     list.contains(&type_names.json_builtin_name.as_str())

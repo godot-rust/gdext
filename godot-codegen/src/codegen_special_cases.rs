@@ -11,7 +11,7 @@ use crate::context::Context;
 use crate::{special_cases, TyName};
 
 pub(crate) fn is_builtin_method_excluded(method: &BuiltinClassMethod) -> bool {
-    // Builtin class methods that need varcall are not currently available in GDExtension.
+    // TODO Fall back to varcall (recent addition in GDExtension API).
     // See https://github.com/godot-rust/gdext/issues/382.
     method.is_vararg
 }
