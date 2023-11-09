@@ -31,7 +31,7 @@ pub(crate) fn generate_sys_interface_file(
             #[path = "../compat/compat_4_0.rs"]
             mod compat_4_0;
 
-            pub use compat_4_0::InitCompat;
+            pub use compat_4_0::*;
         }
     } else {
         generate_proc_address_funcs(h_path)

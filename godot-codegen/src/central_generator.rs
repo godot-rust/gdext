@@ -46,7 +46,8 @@ struct IndexedMethodTable {
     ctor_parameters: TokenStream,
     pre_init_code: TokenStream,
     fptr_type: TokenStream,
-    method_inits: Vec<MethodInit>,
+    fetch_fptr_type: TokenStream,
+    method_init_groups: Vec<MethodInitGroup>,
     lazy_key_type: TokenStream,
     lazy_method_init: TokenStream,
     named_accessors: Vec<AccessorMethod>,
@@ -70,6 +71,42 @@ impl ToTokens for MethodInit {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[cfg_attr(feature = "codegen-lazy-fptrs", allow(dead_code))]
+struct MethodInitGroup {
+    class_name: Ident,
+    class_var_init: Option<TokenStream>,
+    method_inits: Vec<MethodInit>,
+}
+
+impl MethodInitGroup {
+    fn new(
+        godot_class_name: &str,
+        class_var: Option<Ident>,
+        method_inits: Vec<MethodInit>,
+    ) -> Self {
+        Self {
+            class_name: ident(godot_class_name),
+            // Only create class variable if any methods have been added.
+            class_var_init: if class_var.is_none() || method_inits.is_empty() {
+                None
+            } else {
+                let initializer_expr = util::make_sname_ptr(godot_class_name);
+                Some(quote! {
+                    let #class_var = #initializer_expr;
+                })
+            },
+            method_inits,
+        }
+    }
+
+    #[cfg(not(feature = "codegen-lazy-fptrs"))]
+    fn function_name(&self) -> Ident {
+        format_ident!("load_{}_methods", self.class_name)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 struct AccessorMethod {
     name: Ident,
     index: usize,
@@ -78,7 +115,7 @@ struct AccessorMethod {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-pub struct TypeNames {
+pub struct BuiltinName {
     /// Name in JSON: "int" or "PackedVector2Array"
     pub json_builtin_name: String,
 
@@ -92,15 +129,15 @@ pub struct TypeNames {
     pub sys_variant_type: Ident,
 }
 
-impl Eq for TypeNames {}
+impl Eq for BuiltinName {}
 
-impl PartialEq for TypeNames {
+impl PartialEq for BuiltinName {
     fn eq(&self, other: &Self) -> bool {
         self.json_builtin_name == other.json_builtin_name
     }
 }
 
-impl std::hash::Hash for TypeNames {
+impl std::hash::Hash for BuiltinName {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.json_builtin_name.hash(state);
     }
@@ -111,7 +148,7 @@ impl std::hash::Hash for TypeNames {
 /// Allows collecting all builtin TypeNames before generating methods
 pub(crate) struct BuiltinTypeInfo<'a> {
     pub value: i32,
-    pub type_names: TypeNames,
+    pub type_names: BuiltinName,
 
     /// If `variant_get_ptr_destructor` returns a non-null function pointer for this type.
     /// List is directly sourced from extension_api.json (information would also be in variant_destruct.cpp).
@@ -273,7 +310,8 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
         ctor_parameters,
         pre_init_code,
         fptr_type,
-        mut method_inits,
+        fetch_fptr_type,
+        method_init_groups,
         lazy_key_type: _,
         lazy_method_init: _,
         named_accessors,
@@ -287,15 +325,18 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
 
     // Make sure methods are complete and in order of index.
     assert_eq!(
-        method_inits.len(),
+        method_init_groups
+            .iter()
+            .map(|group| group.method_inits.len())
+            .sum::<usize>(),
         method_count,
         "number of methods does not match count"
     );
-    method_inits.sort_by_key(|init| init.index);
+    // method_inits.sort_by_key(|init| init.index);
 
-    if let Some(last) = method_inits.last() {
+    if let Some(last) = method_init_groups.last() {
         assert_eq!(
-            last.index,
+            last.method_inits.last().unwrap().index,
             method_count - 1,
             "last method should have highest index"
         );
@@ -303,10 +344,39 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
         assert_eq!(method_count, 0, "empty method table should have count 0");
     }
 
+    let method_load_inits = method_init_groups.iter().map(|group| {
+        let func = group.function_name();
+        quote! {
+            #func(&mut function_pointers, string_names, fetch_fptr);
+        }
+    });
+
+    let method_load_decls = method_init_groups.iter().map(|group| {
+        let func = group.function_name();
+        let method_inits = &group.method_inits;
+        let class_var_init = &group.class_var_init;
+
+        quote! {
+            fn #func(
+                function_pointers: &mut Vec<#fptr_type>,
+                string_names: &mut crate::StringCache,
+                fetch_fptr: FetchFn,
+            ) {
+                #class_var_init
+
+                #(
+                    function_pointers.push(#method_inits);
+                )*
+            }
+        }
+    });
+
     // Assumes that inits already have a trailing comma.
     // This is necessary because some generators emit multiple lines (statements) per element.
     quote! {
         #imports
+
+        type FetchFn = <#fetch_fptr_type as crate::Inner>::FnPtr;
 
         pub struct #table_name {
             function_pointers: Vec<#fptr_type>,
@@ -322,11 +392,10 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
             ) -> Self {
                 #pre_init_code
 
-                Self {
-                    function_pointers: vec![
-                        #( #method_inits )*
-                    ]
-                }
+                let mut function_pointers = Vec::with_capacity(#method_count);
+                #( #method_load_inits )*
+
+                Self { function_pointers }
             }
 
             #[inline(always)]
@@ -339,6 +408,8 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
 
             #named_method_api
         }
+
+        #( #method_load_decls )*
     }
 }
 
@@ -350,7 +421,8 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
         ctor_parameters: _,
         pre_init_code: _,
         fptr_type,
-        method_inits: _,
+        fetch_fptr_type: _,
+        method_init_groups: _,
         lazy_key_type,
         lazy_method_init,
         named_accessors,
@@ -819,7 +891,8 @@ fn make_class_method_table(
         },
         pre_init_code: TokenStream::new(), // late-init, depends on class string names
         fptr_type: quote! { crate::ClassMethodBind },
-        method_inits: vec![],
+        fetch_fptr_type: quote! { crate::GDExtensionInterfaceClassdbGetMethodBind },
+        method_init_groups: vec![],
         lazy_key_type: quote! { crate::lazy_keys::ClassMethodKey },
         lazy_method_init: quote! {
             let get_method_bind = crate::interface_fn!(classdb_get_method_bind);
@@ -837,7 +910,6 @@ fn make_class_method_table(
         method_count: 0,
     };
 
-    let mut class_sname_decls = Vec::new();
     for class in api.classes.iter() {
         let class_ty = TyName::from_godot(&class.name);
         if special_cases::is_class_deleted(&class_ty)
@@ -847,25 +919,11 @@ fn make_class_method_table(
             continue;
         }
 
-        let class_var = format_ident!("sname_{}", &class.name);
-        let initializer_expr = util::make_sname_ptr(&class.name);
-
-        let prev_method_count = table.method_count;
-        populate_class_methods(&mut table, class, &class_ty, &class_var, ctx);
-        if table.method_count > prev_method_count {
-            // Only create class variable if any methods have been added.
-            class_sname_decls.push(quote! {
-                let #class_var = #initializer_expr;
-            });
-        }
-
-        table.class_count += 1;
+        populate_class_methods(&mut table, class, &class_ty, ctx);
     }
 
     table.pre_init_code = quote! {
-        let get_method_bind = interface.classdb_get_method_bind.expect("classdb_get_method_bind absent");
-
-        #( #class_sname_decls )*
+        let fetch_fptr = interface.classdb_get_method_bind.expect("classdb_get_method_bind absent");
     };
 
     make_method_table(table)
@@ -916,16 +974,16 @@ fn make_builtin_method_table(
             string_names: &mut crate::StringCache,
         },
         pre_init_code: quote! {
-            use crate as sys;
-            let get_builtin_method = interface.variant_get_ptr_builtin_method.expect("variant_get_ptr_builtin_method absent");
+            let fetch_fptr = interface.variant_get_ptr_builtin_method.expect("variant_get_ptr_builtin_method absent");
         },
         fptr_type: quote! { crate::BuiltinMethodBind },
-        method_inits: vec![],
+        fetch_fptr_type: quote! { crate::GDExtensionInterfaceVariantGetPtrBuiltinMethod },
+        method_init_groups: vec![],
         lazy_key_type: quote! { crate::lazy_keys::BuiltinMethodKey },
         lazy_method_init: quote! {
-            let get_builtin_method = crate::interface_fn!(variant_get_ptr_builtin_method);
+            let fetch_fptr = crate::interface_fn!(variant_get_ptr_builtin_method);
             crate::load_builtin_method(
-                get_builtin_method,
+                fetch_fptr,
                 &mut inner.string_cache,
                 key.variant_type.sys(),
                 key.variant_type_str,
@@ -945,7 +1003,6 @@ fn make_builtin_method_table(
         };
 
         populate_builtin_methods(&mut table, builtin, &builtin_type.type_names, ctx);
-        table.class_count += 1;
     }
 
     make_method_table(table)
@@ -955,9 +1012,13 @@ fn populate_class_methods(
     table: &mut IndexedMethodTable,
     class: &Class,
     class_ty: &TyName,
-    class_var: &Ident,
     ctx: &mut Context,
 ) {
+    // Note: already checked outside whether class is active in codegen.
+
+    let class_var = format_ident!("sname_{}", &class.name);
+    let mut method_inits = vec![];
+
     for method in option_as_slice(&class.methods) {
         if special_cases::is_deleted(class_ty, method, ctx) {
             continue;
@@ -969,9 +1030,9 @@ fn populate_class_methods(
             class_ty: class_ty.clone(),
             method_name: method.name.clone(),
         });
-        let method_init = make_class_method_init(method, class_var, class_ty);
 
-        table.method_inits.push(MethodInit { method_init, index });
+        let method_init = make_class_method_init(method, &class_var, class_ty);
+        method_inits.push(MethodInit { method_init, index });
         table.method_count += 1;
 
         // If requested, add a named accessor for this method.
@@ -993,14 +1054,33 @@ fn populate_class_methods(
             });
         }
     }
+
+    // No methods available, or all excluded (e.g. virtual ones) -> no group needed.
+    if !method_inits.is_empty() {
+        table.method_init_groups.push(MethodInitGroup::new(
+            &class_ty.godot_ty,
+            Some(class_var),
+            method_inits,
+        ));
+
+        table.class_count += 1;
+    }
 }
 
 fn populate_builtin_methods(
     table: &mut IndexedMethodTable,
     builtin_class: &BuiltinClass,
-    builtin_name: &TypeNames,
+    builtin_name: &BuiltinName,
     ctx: &mut Context,
 ) {
+    let mut method_inits = vec![];
+
+    // Skip types such as int, float, bool.
+    // TODO separate BuiltinName + TyName needed?
+    if special_cases::is_builtin_type_deleted(&TyName::from_godot(&builtin_class.name)) {
+        return;
+    }
+
     for method in option_as_slice(&builtin_class.methods) {
         let builtin_ty = TyName::from_godot(&builtin_class.name);
         if special_cases::is_builtin_deleted(&builtin_ty, method) {
@@ -1013,8 +1093,7 @@ fn populate_builtin_methods(
         });
 
         let method_init = make_builtin_method_init(method, builtin_name, index);
-
-        table.method_inits.push(MethodInit { method_init, index });
+        method_inits.push(MethodInit { method_init, index });
         table.method_count += 1;
 
         // If requested, add a named accessor for this method.
@@ -1038,6 +1117,13 @@ fn populate_builtin_methods(
             });
         }
     }
+
+    table.method_init_groups.push(MethodInitGroup::new(
+        &builtin_class.name,
+        None, // load_builtin_method() doesn't need a StringName for the class, as it accepts the VariantType enum.
+        method_inits,
+    ));
+    table.class_count += 1;
 }
 
 fn make_class_method_init(
@@ -1057,13 +1143,20 @@ fn make_class_method_init(
 
     // Could reuse lazy key, but less code like this -> faster parsing.
     quote! {
-        crate::load_class_method(get_method_bind, string_names, Some(#class_var), #class_name_str, #method_name_str, #hash),
+        crate::load_class_method(
+            fetch_fptr,
+            string_names,
+            Some(#class_var),
+            #class_name_str,
+            #method_name_str,
+            #hash
+        ),
     }
 }
 
 fn make_builtin_method_init(
     method: &BuiltinClassMethod,
-    type_name: &TypeNames,
+    type_name: &BuiltinName,
     index: usize,
 ) -> TokenStream {
     let method_name_str = method.name.as_str();
@@ -1083,9 +1176,9 @@ fn make_builtin_method_init(
         {
             let _ = #index;
             crate::load_builtin_method(
-                get_builtin_method,
+                fetch_fptr,
                 string_names,
-                sys::#variant_type,
+                crate::#variant_type,
                 #variant_type_str,
                 #method_name_str,
                 #hash
@@ -1151,7 +1244,7 @@ pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, Built
             operators = None;
         }
 
-        let type_names = TypeNames {
+        let type_names = BuiltinName {
             json_builtin_name: class_name.clone(),
             snake_case: to_snake_case(&class_name),
             //shout_case: shout_case.to_string(),
@@ -1185,7 +1278,7 @@ fn collect_variant_operators(api: &ExtensionApi) -> Vec<&EnumConstant> {
 }
 
 fn make_enumerator(
-    type_names: &TypeNames,
+    type_names: &BuiltinName,
     value: i32,
     ctx: &mut Context,
 ) -> (Ident, TokenStream, Literal) {
@@ -1209,7 +1302,7 @@ fn make_opaque_type(name: &str, size: usize) -> TokenStream {
 }
 
 fn make_variant_fns(
-    type_names: &TypeNames,
+    type_names: &BuiltinName,
     has_destructor: bool,
     constructors: Option<&Vec<Constructor>>,
     operators: Option<&Vec<Operator>>,
@@ -1263,7 +1356,7 @@ fn make_variant_fns(
 }
 
 fn make_construct_fns(
-    type_names: &TypeNames,
+    type_names: &BuiltinName,
     constructors: Option<&Vec<Constructor>>,
     builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (TokenStream, TokenStream) {
@@ -1342,7 +1435,7 @@ fn make_construct_fns(
 
 /// Lists special cases for useful constructors
 fn make_extra_constructors(
-    type_names: &TypeNames,
+    type_names: &BuiltinName,
     constructors: &Vec<Constructor>,
     builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (Vec<TokenStream>, Vec<TokenStream>) {
@@ -1386,7 +1479,7 @@ fn make_extra_constructors(
     (extra_decls, extra_inits)
 }
 
-fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStream, TokenStream) {
+fn make_destroy_fns(type_names: &BuiltinName, has_destructor: bool) -> (TokenStream, TokenStream) {
     if !has_destructor || is_trivial(type_names) {
         return (TokenStream::new(), TokenStream::new());
     }
@@ -1410,7 +1503,7 @@ fn make_destroy_fns(type_names: &TypeNames, has_destructor: bool) -> (TokenStrea
 }
 
 fn make_operator_fns(
-    type_names: &TypeNames,
+    type_names: &BuiltinName,
     operators: Option<&Vec<Operator>>,
     json_name: &str,
     sys_name: &str,
@@ -1451,7 +1544,7 @@ fn make_operator_fns(
 
 /// Returns true if the type is so trivial that most of its operations are directly provided by Rust, and there is no need
 /// to expose the construct/destruct/operator methods from Godot
-fn is_trivial(type_names: &TypeNames) -> bool {
+fn is_trivial(type_names: &BuiltinName) -> bool {
     let list = ["bool", "int", "float"];
 
     list.contains(&type_names.json_builtin_name.as_str())

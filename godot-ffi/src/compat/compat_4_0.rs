@@ -55,3 +55,22 @@ impl BindingCompat for *const sys::GDExtensionInterface {
         unsafe { **self }
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Polyfill for types referenced in function pointer tables
+
+pub(crate) type GDExtensionInterfaceVariantGetPtrBuiltinMethod = Option<
+    unsafe extern "C" fn(
+        p_type: crate::GDExtensionVariantType,
+        p_method: crate::GDExtensionConstStringNamePtr,
+        p_hash: crate::GDExtensionInt,
+    ) -> crate::GDExtensionPtrBuiltInMethod,
+>;
+
+pub(crate) type GDExtensionInterfaceClassdbGetMethodBind = Option<
+    unsafe extern "C" fn(
+        p_classname: crate::GDExtensionConstStringNamePtr,
+        p_methodname: crate::GDExtensionConstStringNamePtr,
+        p_hash: crate::GDExtensionInt,
+    ) -> crate::GDExtensionMethodBindPtr,
+>;
