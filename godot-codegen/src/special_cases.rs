@@ -53,18 +53,10 @@ pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
 
     // OpenXR has not been available for macOS before 4.2.
     // See e.g. https://github.com/GodotVR/godot-xr-tools/issues/479.
+    // Do not hardcode a list of OpenXR classes, as more may be added in future Godot versions; instead use prefix.
     #[cfg(all(before_api = "4.2", target_os = "macos"))]
-    match class_name {
-        | "OpenXRHand"
-        | "OpenXRAction"
-        | "OpenXRActionMap"
-        | "OpenXRActionSet"
-        | "OpenXRInteractionProfile"
-        | "OpenXRIPBinding"
-        | "OpenXRInterface"
-
-          => return true,
-        _ => {}
+    if class_name.starts_with("OpenXR") {
+        return true;
     }
 
     // ThemeDB was previously loaded lazily
