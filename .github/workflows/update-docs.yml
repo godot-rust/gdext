@@ -58,7 +58,9 @@ jobs:
       # Opened/reopened/updated PR: include PR author + title
       - name: "Construct JSON (for PR sync)"
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
+        # Escape double quotes in PR title, as it will be used in a JSON string.
         run: |
+          escapedPrTitle=$(echo "${{ github.event.pull_request.title }}" | sed 's/"/\\"/g')
           payload=$(cat <<'HEREDOC'
           {
             "op": "put",
@@ -68,7 +70,7 @@ jobs:
             "commit-sha": "${{ github.event.pull_request.head.sha }}",
             "date": "${{ github.event.pull_request.updated_at }}",
             "pr-author": "${{ github.event.pull_request.user.login }}",
-            "pr-title": "${{ github.event.pull_request.title }}"
+            "pr-title": "$escapedPrTitle"
           }
           HEREDOC)
           echo "VAR=$payload"
