@@ -14,7 +14,7 @@ impl Hud {
     fn start_game();
 
     #[func]
-    pub fn show_message(&self, text: GodotString) {
+    pub fn show_message(&self, text: GString) {
         let mut message_label = self.base.get_node_as::<Label>("MessageLabel");
         message_label.set_text(text);
         message_label.show();

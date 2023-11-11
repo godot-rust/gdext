@@ -68,7 +68,7 @@ pub fn derive_export(decl: Declaration) -> ParseResult<TokenStream2> {
             fn default_export_info() -> godot::bind::property::PropertyHintInfo {
                 godot::bind::property::PropertyHintInfo {
                     hint: godot::engine::global::PropertyHint::PROPERTY_HINT_ENUM,
-                    hint_string: godot::prelude::GodotString::from(#hint_string),
+                    hint_string: godot::prelude::GString::from(#hint_string),
                 }
             }
         }

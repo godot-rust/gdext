@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::meta::ToGodot;
-use godot::builtin::{Array, GodotString, Variant, VariantArray};
+use godot::builtin::{Array, GString, Variant, VariantArray};
 use godot::engine::{Engine, Node, Os};
 use godot::log::godot_error;
 use godot::obj::Gd;
@@ -392,9 +392,9 @@ fn get_execution_time(test: &Variant) -> Option<Duration> {
     Some(Duration::from_secs_f64(seconds))
 }
 
-fn get_errors(test: &Variant) -> Array<GodotString> {
+fn get_errors(test: &Variant) -> Array<GString> {
     test.call("get", &["errors".to_variant()])
-        .try_to::<Array<GodotString>>()
+        .try_to::<Array<GString>>()
         .unwrap_or_default()
 }
 

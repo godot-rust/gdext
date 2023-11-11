@@ -26,7 +26,7 @@ mod containers {
 }
 
 mod string {
-    mod godot_string_test;
+    mod gstring_test;
     mod node_path_test;
     mod string_name_test;
 }

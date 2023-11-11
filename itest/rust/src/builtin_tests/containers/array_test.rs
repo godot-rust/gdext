@@ -51,7 +51,7 @@ fn array_from_packed_array() {
     // This tests that the resulting array doesn't secretly have a runtime type assigned to it,
     // which is not reflected in our static type. It would make sense if it did, but Godot decided
     // otherwise: we get an untyped array.
-    array.push(GodotString::from("hi").to_variant());
+    array.push(GString::from("hi").to_variant());
     assert_eq!(array, varray![42, "hi"]);
 }
 
@@ -216,7 +216,7 @@ fn array_min_max() {
     assert_eq!(int_array.min(), Some(1));
     assert_eq!(int_array.max(), Some(2));
 
-    let uncomparable_array = varray![1, GodotString::from("two")];
+    let uncomparable_array = varray![1, GString::from("two")];
 
     assert_eq!(uncomparable_array.min(), None);
     assert_eq!(uncomparable_array.max(), None);
@@ -305,7 +305,7 @@ fn array_shuffle() {
 #[itest]
 fn array_mixed_values() {
     let int = 1;
-    let string = GodotString::from("hello");
+    let string = GString::from("hello");
     let packed_array = PackedByteArray::from(&[1, 2]);
     let typed_array = array![1, 2];
     let object = Object::new_alloc();
@@ -323,10 +323,7 @@ fn array_mixed_values() {
     ];
 
     assert_eq!(i64::try_from_variant(&array.get(0)).unwrap(), int);
-    assert_eq!(
-        GodotString::try_from_variant(&array.get(1)).unwrap(),
-        string
-    );
+    assert_eq!(GString::try_from_variant(&array.get(1)).unwrap(), string);
     assert_eq!(
         PackedByteArray::try_from_variant(&array.get(2)).unwrap(),
         packed_array

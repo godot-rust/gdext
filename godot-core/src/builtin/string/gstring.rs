@@ -16,14 +16,50 @@ use crate::builtin::meta::impl_godot_as_self;
 use super::string_chars::validate_unicode_scalar_sequence;
 use super::{NodePath, StringName};
 
+#[deprecated = "Renamed to `GString`, will soon be removed."]
+pub type GodotString = GString;
+
 /// Godot's reference counted string type.
+///
+/// This is the Rust binding of GDScript's `String` type. It represents the native string class used within the Godot engine,
+/// and as such has different memory layout and characteristics than `std::string::String`.
+///
+/// `GString` uses copy-on-write semantics and is cheap to clone. Modifying a string may trigger a copy, if that instance shares
+/// its backing storage with other strings.
+///
+/// Note that `GString` is not immutable, but it offers a very limited set of write APIs. Most operations return new strings.
+/// In order to modify Godot strings, it's often easiest to convert them to Rust strings, perform the modifications and convert back.
+///
+/// # `GString` vs. `String`
+///
+/// When interfacing with the Godot engine API, you often have the choice between `String` and `GString`. In user-declared methods
+/// exposed to Godot through the `#[func]` attribute, both types can be used as parameters and return types, and conversions
+/// are done transparently. For auto-generated binding APIs in `godot::engine`, both parameters and return types are `GString`.
+/// In the future, we will likely declare parameters as `impl Into<GString>`, allowing `String` or `&str` to be passed.
+///
+/// As a general guideline, use `GString` if:
+/// * your strings are very large, so you can avoid copying them
+/// * you need specific operations only available in Godot (e.g. `sha256_text()`, `c_escape()`, ...)
+/// * you primarily pass them between different Godot APIs, without string processing in user code
+///
+/// Use Rust's `String` if:
+/// * you need to modify the string
+/// * you would like to decouple part of your code from Godot (e.g. independent game logic, standalone tests)
+/// * you want a standard type for interoperability with third-party code (e.g. `regex` crate)
+/// * you have a large number of method calls per string instance (which are more expensive due to indirectly calling into Godot)
+/// * you need UTF-8 encoding (`GString`'s encoding is platform-dependent and unspecified)
+///
+/// # Other string types
+///
+/// Godot also provides two separate string classes with slightly different semantics: [`StringName`] and [`NodePath`].
+#[doc(alias = "String")]
 #[repr(C, align(8))]
-pub struct GodotString {
+pub struct GString {
     opaque: OpaqueString,
 }
 
-impl GodotString {
-    /// Construct a new empty GodotString.
+impl GString {
+    /// Construct a new empty GString.
     pub fn new() -> Self {
         Self::default()
     }
@@ -43,12 +79,12 @@ impl GodotString {
     /// Move `self` into a system pointer. This transfers ownership and thus does not call the destructor.
     ///
     /// # Safety
-    /// `dst` must be a pointer to a `GodotString` which is suitable for ffi with Godot.
+    /// `dst` must be a pointer to a `GString` which is suitable for ffi with Godot.
     pub unsafe fn move_string_ptr(self, dst: sys::GDExtensionStringPtr) {
         self.move_return_ptr(dst as *mut _, sys::PtrcallType::Standard);
     }
 
-    /// Gets the internal chars slice from a [`GodotString`].
+    /// Gets the internal chars slice from a [`GString`].
     ///
     /// Note: This operation is *O*(*n*). Consider using [`chars_unchecked`][Self::chars_unchecked]
     /// if you can make sure the string is a valid UTF-32.
@@ -64,11 +100,11 @@ impl GodotString {
             }
 
             validate_unicode_scalar_sequence(std::slice::from_raw_parts(ptr, len as usize))
-                .expect("GodotString::chars_checked: string contains invalid unicode scalar values")
+                .expect("GString::chars_checked: string contains invalid unicode scalar values")
         }
     }
 
-    /// Gets the internal chars slice from a [`GodotString`].
+    /// Gets the internal chars slice from a [`GString`].
     ///
     /// # Safety
     ///
@@ -110,7 +146,7 @@ impl GodotString {
 //   Strings are properly initialized through a `from_sys` call, but the ref-count should be
 //   incremented as that is the callee's responsibility. Which we do by calling
 //   `std::mem::forget(string.clone())`.
-unsafe impl GodotFfi for GodotString {
+unsafe impl GodotFfi for GString {
     fn variant_type() -> sys::VariantType {
         sys::VariantType::String
     }
@@ -135,10 +171,10 @@ unsafe impl GodotFfi for GodotString {
     }
 }
 
-impl_godot_as_self!(GodotString);
+impl_godot_as_self!(GString);
 
 impl_builtin_traits! {
-    for GodotString {
+    for GString {
         Default => string_construct_default;
         Clone => string_construct_copy;
         Drop => string_destroy;
@@ -148,7 +184,7 @@ impl_builtin_traits! {
     }
 }
 
-impl fmt::Display for GodotString {
+impl fmt::Display for GString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s: String = self.chars_checked().iter().collect();
         f.write_str(s.as_str())
@@ -156,7 +192,7 @@ impl fmt::Display for GodotString {
 }
 
 /// Uses literal syntax from GDScript: `"string"`
-impl fmt::Debug for GodotString {
+impl fmt::Debug for GString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = String::from(self);
         write!(f, "\"{s}\"")
@@ -166,7 +202,7 @@ impl fmt::Debug for GodotString {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion from/into Rust string-types
 
-impl<S> From<S> for GodotString
+impl<S> From<S> for GString
 where
     S: AsRef<str>,
 {
@@ -186,8 +222,8 @@ where
     }
 }
 
-impl From<&GodotString> for String {
-    fn from(string: &GodotString) -> Self {
+impl From<&GString> for String {
+    fn from(string: &GString) -> Self {
         unsafe {
             let len =
                 interface_fn!(string_to_utf8_chars)(string.string_sys(), std::ptr::null_mut(), 0);
@@ -207,16 +243,16 @@ impl From<&GodotString> for String {
     }
 }
 
-impl From<GodotString> for String {
-    /// Converts this `GodotString` to a `String`.
+impl From<GString> for String {
+    /// Converts this `GString` to a `String`.
     ///
     /// This is identical to `String::from(&string)`, and as such there is no performance benefit.
-    fn from(string: GodotString) -> Self {
+    fn from(string: GString) -> Self {
         Self::from(&string)
     }
 }
 
-impl FromStr for GodotString {
+impl FromStr for GString {
     type Err = Infallible;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -227,7 +263,7 @@ impl FromStr for GodotString {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion from other Godot string-types
 
-impl From<&StringName> for GodotString {
+impl From<&StringName> for GString {
     fn from(string: &StringName) -> Self {
         unsafe {
             sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
@@ -239,16 +275,16 @@ impl From<&StringName> for GodotString {
     }
 }
 
-impl From<StringName> for GodotString {
-    /// Converts this `StringName` to a `GodotString`.
+impl From<StringName> for GString {
+    /// Converts this `StringName` to a `GString`.
     ///
-    /// This is identical to `GodotString::from(&string_name)`, and as such there is no performance benefit.
+    /// This is identical to `GString::from(&string_name)`, and as such there is no performance benefit.
     fn from(string_name: StringName) -> Self {
         Self::from(&string_name)
     }
 }
 
-impl From<&NodePath> for GodotString {
+impl From<&NodePath> for GString {
     fn from(path: &NodePath) -> Self {
         unsafe {
             sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
@@ -260,10 +296,10 @@ impl From<&NodePath> for GodotString {
     }
 }
 
-impl From<NodePath> for GodotString {
-    /// Converts this `NodePath` to a `GodotString`.
+impl From<NodePath> for GString {
+    /// Converts this `NodePath` to a `GString`.
     ///
-    /// This is identical to `GodotString::from(&path)`, and as such there is no performance benefit.
+    /// This is identical to `GString::from(&path)`, and as such there is no performance benefit.
     fn from(path: NodePath) -> Self {
         Self::from(&path)
     }

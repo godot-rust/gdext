@@ -9,7 +9,7 @@ use std::rc::Rc;
 
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::meta::{FromGodot, ToGodot};
-use godot::builtin::{GodotString, StringName, Variant, VariantConversionError, Vector3};
+use godot::builtin::{GString, StringName, Variant, VariantConversionError, Vector3};
 use godot::engine::{
     file_access, Area2D, Camera3D, FileAccess, IRefCounted, Node, Node3D, Object, RefCounted,
 };
@@ -189,7 +189,7 @@ fn object_from_invalid_instance_id() {
 
 #[itest]
 fn object_from_instance_id_inherits_type() {
-    let descr = GodotString::from("some very long description");
+    let descr = GString::from("some very long description");
 
     let mut node: Gd<Node3D> = Node3D::new_alloc();
     node.set_editor_description(descr.clone());
@@ -482,7 +482,7 @@ fn object_engine_up_deref() {
 
     // Deref chain: Gd<Node3D> -> &Node3D -> &Node -> &Object
     assert_eq!(node3d.instance_id(), id);
-    assert_eq!(node3d.get_class(), GodotString::from("Node3D"));
+    assert_eq!(node3d.get_class(), GString::from("Node3D"));
 
     node3d.free();
 }
@@ -510,7 +510,7 @@ fn object_engine_upcast() {
 
     let object = node3d.upcast::<Object>();
     assert_eq!(object.instance_id(), id);
-    assert_eq!(object.get_class(), GodotString::from("Node3D"));
+    assert_eq!(object.get_class(), GString::from("Node3D"));
 
     // Deliberate free on upcast object
     object.free();
@@ -523,7 +523,7 @@ fn object_engine_upcast_reflexive() {
 
     let object = node3d.upcast::<Node3D>();
     assert_eq!(object.instance_id(), id);
-    assert_eq!(object.get_class(), GodotString::from("Node3D"));
+    assert_eq!(object.get_class(), GString::from("Node3D"));
 
     object.free();
 }
@@ -592,9 +592,9 @@ fn object_engine_bad_downcast() {
 fn object_engine_accept_polymorphic() {
     let mut node = Camera3D::new_alloc();
     let expected_name = StringName::from("Node name");
-    let expected_class = GodotString::from("Camera3D");
+    let expected_class = GString::from("Camera3D");
 
-    node.set_name(GodotString::from(&expected_name));
+    node.set_name(GString::from(&expected_name));
 
     let actual_name = accept_node(node.clone());
     assert_eq!(actual_name, expected_name);
@@ -608,7 +608,7 @@ fn object_engine_accept_polymorphic() {
 #[itest]
 fn object_user_accept_polymorphic() {
     let obj = Gd::new(RefcPayload { value: 123 });
-    let expected_class = GodotString::from("RefcPayload");
+    let expected_class = GString::from("RefcPayload");
 
     let actual_class = accept_refcounted(obj.clone());
     assert_eq!(actual_class, expected_class);
@@ -625,7 +625,7 @@ where
     up.name()
 }
 
-fn accept_refcounted<T>(node: Gd<T>) -> GodotString
+fn accept_refcounted<T>(node: Gd<T>) -> GString
 where
     T: Inherits<RefCounted>,
 {
@@ -633,7 +633,7 @@ where
     up.get_class()
 }
 
-fn accept_object<T>(node: Gd<T>) -> GodotString
+fn accept_object<T>(node: Gd<T>) -> GString
 where
     T: Inherits<Object>,
 {
@@ -648,7 +648,7 @@ fn object_user_upcast() {
 
     let object = obj.upcast::<Object>();
     assert_eq!(object.instance_id(), id);
-    assert_eq!(object.get_class(), GodotString::from("RefcPayload"));
+    assert_eq!(object.get_class(), GString::from("RefcPayload"));
 }
 
 #[itest]
@@ -816,7 +816,7 @@ impl IRefCounted for RefcPayload {
         Self { value: 111 }
     }
 
-    fn to_string(&self) -> GodotString {
+    fn to_string(&self) -> GString {
         format!("value={}", self.value).into()
     }
 }

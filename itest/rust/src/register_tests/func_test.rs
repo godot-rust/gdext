@@ -28,28 +28,28 @@ impl FuncRename {
     }
 
     #[func(rename=spell_static)]
-    fn renamed_static() -> GodotString {
-        GodotString::from("static")
+    fn renamed_static() -> GString {
+        GString::from("static")
     }
 
     #[cfg(all())]
-    fn returns_hello_world(&self) -> GodotString {
-        GodotString::from("Hello world!")
+    fn returns_hello_world(&self) -> GString {
+        GString::from("Hello world!")
     }
 
     #[cfg(any())]
-    fn returns_hello_world(&self) -> GodotString {
+    fn returns_hello_world(&self) -> GString {
         compile_error!("Removed by #[cfg]")
     }
 
     #[cfg(any())]
-    fn returns_bye_world(&self) -> GodotString {
+    fn returns_bye_world(&self) -> GString {
         compile_error!("Removed by #[cfg]")
     }
 
     #[cfg(all())]
-    fn returns_bye_world(&self) -> GodotString {
-        GodotString::from("Bye world!")
+    fn returns_bye_world(&self) -> GString {
+        GString::from("Bye world!")
     }
 }
 
@@ -224,8 +224,8 @@ impl IRefCounted for GdSelfReference {
     }
 
     #[cfg(all())]
-    fn to_string(&self) -> GodotString {
-        GodotString::new()
+    fn to_string(&self) -> GString {
+        GString::new()
     }
 
     #[cfg(any())]
@@ -268,11 +268,11 @@ fn cfg_doesnt_interfere_with_valid_method_impls() {
     let object = Gd::new(FuncRename);
     assert_eq!(
         object.bind().returns_hello_world(),
-        GodotString::from("Hello world!")
+        GString::from("Hello world!")
     );
     assert_eq!(
         object.bind().returns_bye_world(),
-        GodotString::from("Bye world!")
+        GString::from("Bye world!")
     );
 }
 

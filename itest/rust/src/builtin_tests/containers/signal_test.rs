@@ -7,7 +7,7 @@
 use std::cell::Cell;
 
 use godot::bind::{godot_api, GodotClass};
-use godot::builtin::{GodotString, Variant};
+use godot::builtin::{GString, Variant};
 
 use godot::engine::Object;
 use godot::obj::{Base, Gd};
@@ -26,7 +26,7 @@ impl Emitter {
     #[signal]
     fn signal_1_arg(arg1: i64);
     #[signal]
-    fn signal_2_arg(arg1: Gd<Object>, arg2: GodotString);
+    fn signal_2_arg(arg1: Gd<Object>, arg2: GString);
 }
 
 #[derive(GodotClass)]
@@ -49,7 +49,7 @@ impl Receiver {
         assert_eq!(arg1, 987);
     }
     #[func]
-    fn receive_2_arg(&self, arg1: Gd<Object>, arg2: GodotString) {
+    fn receive_2_arg(&self, arg1: Gd<Object>, arg2: GString) {
         assert_eq!(self.base.clone(), arg1);
         assert_eq!(SIGNAL_ARG_STRING, arg2.to_string());
 

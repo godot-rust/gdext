@@ -7,28 +7,28 @@
 use std::collections::HashSet;
 
 use crate::framework::itest;
-use godot::builtin::{GodotString, NodePath, StringName};
+use godot::builtin::{GString, NodePath, StringName};
 
 #[itest]
 fn string_name_default() {
     let name = StringName::default();
-    let back = GodotString::from(&name);
+    let back = GString::from(&name);
 
-    assert_eq!(back, GodotString::new());
+    assert_eq!(back, GString::new());
 }
 
 #[itest]
 fn string_name_conversion() {
     // Note: StringName::from(&str) uses direct FFI constructor from Godot 4.2 onwards.
 
-    let string = GodotString::from("some string");
+    let string = GString::from("some string");
     let name = StringName::from(&string);
-    let back = GodotString::from(&name);
+    let back = GString::from(&name);
 
     assert_eq!(string, back);
 
     let second = StringName::from(string.clone());
-    let back = GodotString::from(second);
+    let back = GString::from(second);
 
     assert_eq!(string, back);
 }

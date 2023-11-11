@@ -8,7 +8,7 @@ use std::cmp::Ordering;
 use std::fmt::Display;
 
 use godot::builtin::meta::{FromGodot, ToGodot};
-use godot::builtin::{dict, varray, GodotString, NodePath, StringName, Variant, Vector2, Vector3};
+use godot::builtin::{dict, varray, GString, NodePath, StringName, Variant, Vector2, Vector3};
 use godot::builtin::{
     Basis, Dictionary, VariantArray, VariantConversionError, VariantOperator, VariantType,
 };
@@ -134,7 +134,7 @@ fn variant_call() {
     assert_eq!(result, 3.to_variant());
 
     // String
-    let string = GodotString::from("move_local_x");
+    let string = GString::from("move_local_x");
     let result = string.to_variant().call("capitalize", &[]);
     assert_eq!(result, "Move Local X".to_variant());
 
@@ -514,8 +514,8 @@ where
     }
 }
 
-fn gstr(s: &str) -> GodotString {
-    GodotString::from(s)
+fn gstr(s: &str) -> GString {
+    GString::from(s)
 }
 
 fn gname(s: &str) -> StringName {

@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::GodotString;
+use crate::builtin::GString;
 use crate::engine::global::PropertyHint;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -90,7 +90,7 @@ where
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct PropertyHintInfo {
     pub hint: PropertyHint,
-    pub hint_string: GodotString,
+    pub hint_string: GString,
 }
 
 impl PropertyHintInfo {
@@ -98,7 +98,7 @@ impl PropertyHintInfo {
     /// [`PROPERTY_HINT_NONE`](PropertyHint::PROPERTY_HINT_NONE).
     ///
     /// Usually Godot expects this to be combined with a `hint_string` containing the name of the type.
-    pub fn with_hint_none<S: Into<GodotString>>(type_name: S) -> Self {
+    pub fn with_hint_none<S: Into<GString>>(type_name: S) -> Self {
         Self {
             hint: PropertyHint::PROPERTY_HINT_NONE,
             hint_string: type_name.into(),
@@ -125,7 +125,7 @@ pub trait Cannot_export_without_godot_api_impl {
 
 /// Functions used to translate user-provided arguments into export hints.
 pub mod export_info_functions {
-    use crate::builtin::GodotString;
+    use crate::builtin::GString;
     use crate::engine::global::PropertyHint;
 
     use super::PropertyHintInfo;
@@ -291,7 +291,7 @@ pub mod export_info_functions {
                 pub fn $function_name() -> PropertyHintInfo {
                     PropertyHintInfo {
                         hint: PropertyHint::$property_hint,
-                        hint_string: GodotString::new()
+                        hint_string: GString::new()
                     }
                 }
             )*
@@ -400,7 +400,7 @@ mod export_impls {
     impl_property_by_clone!(Plane => Plane);
 
     // Stringy Types
-    impl_property_by_clone!(GodotString => String);
+    impl_property_by_clone!(GString => String);
     impl_property_by_clone!(StringName => StringName);
     impl_property_by_clone!(NodePath => NodePath);
 

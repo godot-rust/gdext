@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::{GodotString, StringName};
+use crate::builtin::{GString, StringName};
 use godot_ffi as sys;
 use std::{fmt, ptr};
 use sys::types::OpaqueVariant;
@@ -94,7 +94,7 @@ impl Variant {
 
     /// ⚠️ Calls the specified `method` with the given `args`.
     ///
-    /// Supports `Object` as well as built-ins with methods (e.g. `Array`, `Vector3`, `GodotString`, etc).
+    /// Supports `Object` as well as built-ins with methods (e.g. `Array`, `Vector3`, `GString`, etc).
     ///
     /// # Panics
     /// * If `self` is not a variant type which supports method calls.
@@ -159,10 +159,10 @@ impl Variant {
         }
     }
 
-    /// return a `GodotString` representing the variant
+    /// return a `GString` representing the variant
     #[allow(unused_mut)]
-    pub fn stringify(&self) -> GodotString {
-        let mut result = GodotString::new();
+    pub fn stringify(&self) -> GString {
+        let mut result = GString::new();
         unsafe {
             interface_fn!(variant_stringify)(self.var_sys(), result.string_sys());
         }

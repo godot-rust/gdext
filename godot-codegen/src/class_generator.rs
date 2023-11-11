@@ -1851,7 +1851,7 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         ///
         /// Override this method to define how the instance is represented as a string.
         /// Used by `impl Display for Gd<T>`, as well as `str()` and `print()` in GDScript.
-        fn to_string(&self) -> crate::builtin::GodotString {
+        fn to_string(&self) -> crate::builtin::GString {
             unimplemented!()
         }
 

@@ -5,7 +5,7 @@
  */
 
 use crate::framework::itest;
-use godot::builtin::GodotString;
+use godot::builtin::GString;
 use godot::engine::{Input, Os};
 use godot::obj::Gd;
 
@@ -33,8 +33,8 @@ fn singleton_from_instance_id() {
 #[itest]
 fn singleton_is_operational() {
     let os: Gd<Os> = Os::singleton();
-    let key = GodotString::from("MY_TEST_ENV");
-    let value = GodotString::from("SOME_VALUE");
+    let key = GString::from("MY_TEST_ENV");
+    let value = GString::from("SOME_VALUE");
 
     // set_environment is const, for some reason
     os.set_environment(key.clone(), value.clone());

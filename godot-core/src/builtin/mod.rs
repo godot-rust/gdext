@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! Built-in types like `Vector2`, `GodotString` and `Variant`.
+//! Built-in types like `Vector2`, `GString` and `Variant`.
 //!
 //! # Background on the design of vector algebra types
 //!

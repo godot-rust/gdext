@@ -29,11 +29,7 @@ fn property_template_test(ctx: &TestContext) {
     let mut properties: HashMap<String, Dictionary> = HashMap::new();
 
     for property in rust_properties.get_property_list().iter_shared() {
-        let name = property
-            .get("name")
-            .unwrap()
-            .to::<GodotString>()
-            .to_string();
+        let name = property.get("name").unwrap().to::<String>();
 
         // The format of array-properties in Godot 4.2 changed. This doesn't seem to cause issues if we
         // compile against 4.1 and provide the property in the format 4.1 expects but run it with Godot 4.2.
@@ -54,11 +50,7 @@ fn property_template_test(ctx: &TestContext) {
     assert!(!properties.is_empty());
 
     for property in gdscript_properties.get_property_list().iter_shared() {
-        let name = property
-            .get("name")
-            .unwrap()
-            .to::<GodotString>()
-            .to_string();
+        let name = property.get("name").unwrap().to::<String>();
 
         let Some(mut rust_prop) = properties.remove(&name) else {
             continue;

@@ -10,7 +10,7 @@ macro_rules! impl_rust_string_conv {
     ($Ty:ty) => {
         impl From<&$Ty> for String {
             fn from(string: &$Ty) -> Self {
-                let intermediate = GodotString::from(string);
+                let intermediate = GString::from(string);
                 Self::from(&intermediate)
             }
         }

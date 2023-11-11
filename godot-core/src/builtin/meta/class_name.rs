@@ -60,8 +60,8 @@ impl ClassName {
         self.c_str.to_str().unwrap()
     }
 
-    /// Converts the class name to a GodotString.
-    pub fn to_godot_string(&self) -> GodotString {
+    /// Converts the class name to a GString.
+    pub fn to_godot_string(&self) -> GString {
         self.with_string_name(|s| s.into())
     }
 

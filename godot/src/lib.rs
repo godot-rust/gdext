@@ -27,7 +27,7 @@
 //!    `Copy` as well. They are implemented with the same memory layout as their counterparts in
 //!    Godot itself, and typically have public fields. <br><br>
 //!
-//! 2. **Copy-on-write types**: [`GodotString`][crate::builtin::GodotString],
+//! 2. **Copy-on-write types**: [`GString`][crate::builtin::GString],
 //!    [`StringName`][crate::builtin::StringName], and `Packed*Array` types.
 //!
 //!    These mostly act like value types, similar to Rust's own `Vec`. You can `Clone` them to get

@@ -54,7 +54,7 @@ mod sealed {
     impl Sealed for Vector4i {}
     impl Sealed for Quaternion {}
     impl Sealed for Color {}
-    impl Sealed for GodotString {}
+    impl Sealed for GString {}
     impl Sealed for StringName {}
     impl Sealed for NodePath {}
     impl Sealed for PackedByteArray {}
@@ -147,7 +147,7 @@ pub trait GodotType: GodotConvert<Via = Self> + ToGodot + FromGodot + sealed::Se
             class_name: Self::class_name(),
             property_name: StringName::from(property_name),
             hint: global::PropertyHint::PROPERTY_HINT_NONE,
-            hint_string: GodotString::new(),
+            hint_string: GString::new(),
             usage: global::PropertyUsageFlags::PROPERTY_USAGE_DEFAULT,
         }
     }
@@ -238,7 +238,7 @@ pub struct PropertyInfo {
     pub class_name: ClassName,
     pub property_name: StringName,
     pub hint: global::PropertyHint,
-    pub hint_string: GodotString,
+    pub hint_string: GString,
     pub usage: global::PropertyUsageFlags,
 }
 
