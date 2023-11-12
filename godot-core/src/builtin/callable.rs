@@ -89,7 +89,7 @@ impl Callable {
     pub fn from_fn<F, S>(name: S, rust_function: F) -> Self
     where
         F: 'static + Send + Sync + FnMut(&[&Variant]) -> Result<Variant, ()>,
-        S: Into<crate::builtin::GodotString>,
+        S: Into<crate::builtin::GString>,
     {
         let userdata = CallableUserdata {
             inner: FnWrapper {
@@ -339,7 +339,7 @@ pub use custom_callable::RustCallable;
 #[cfg(since_api = "4.2")]
 mod custom_callable {
     use super::*;
-    use crate::builtin::GodotString;
+    use crate::builtin::GString;
     use std::hash::Hash;
 
     pub struct CallableUserdata<T> {
@@ -357,7 +357,7 @@ mod custom_callable {
 
     pub(crate) struct FnWrapper<F> {
         pub(crate) rust_function: F,
-        pub(crate) name: GodotString,
+        pub(crate) name: GString,
     }
 
     /// Represents a custom callable object defined in Rust.
@@ -439,7 +439,7 @@ mod custom_callable {
         r_out: sys::GDExtensionStringPtr,
     ) {
         let c: &T = CallableUserdata::inner_from_raw(callable_userdata);
-        let s = crate::builtin::GodotString::from(c.to_string());
+        let s = crate::builtin::GString::from(c.to_string());
 
         s.move_string_ptr(r_out);
         *r_is_valid = true as sys::GDExtensionBool;

@@ -7,26 +7,26 @@
 use std::collections::HashSet;
 
 use crate::framework::itest;
-use godot::builtin::{GodotString, NodePath};
+use godot::builtin::{GString, NodePath};
 
 #[itest]
 fn node_path_default() {
     let name = NodePath::default();
-    let back = GodotString::from(&name);
+    let back = GString::from(&name);
 
-    assert_eq!(back, GodotString::new());
+    assert_eq!(back, GString::new());
 }
 
 #[itest]
 fn node_path_conversion() {
-    let string = GodotString::from("some string");
+    let string = GString::from("some string");
     let name = NodePath::from(&string);
-    let back = GodotString::from(&name);
+    let back = GString::from(&name);
 
     assert_eq!(string, back);
 
     let second = NodePath::from(string.clone());
-    let back = GodotString::from(second);
+    let back = GString::from(second);
 
     assert_eq!(string, back);
 }

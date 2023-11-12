@@ -5,7 +5,7 @@
  */
 
 use crate::builder::ClassBuilder;
-use crate::builtin::GodotString;
+use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::obj::Base;
 
@@ -218,7 +218,7 @@ pub mod cap {
     #[doc(hidden)]
     pub trait GodotToString: GodotClass {
         #[doc(hidden)]
-        fn __godot_to_string(&self) -> GodotString;
+        fn __godot_to_string(&self) -> GString;
     }
 
     // TODO Evaluate whether we want this public or not

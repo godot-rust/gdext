@@ -12,7 +12,7 @@ use godot_ffi::{ffi_methods, GDExtensionTypePtr, GodotFfi};
 use crate::builtin::inner;
 use crate::builtin::meta::impl_godot_as_self;
 
-use super::{GodotString, StringName};
+use super::{GString, StringName};
 
 /// A pre-parsed scene tree path.
 #[repr(C)]
@@ -87,15 +87,15 @@ impl_builtin_traits! {
 
 impl fmt::Display for NodePath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let string = GodotString::from(self);
-        <GodotString as fmt::Display>::fmt(&string, f)
+        let string = GString::from(self);
+        <GString as fmt::Display>::fmt(&string, f)
     }
 }
 
 /// Uses literal syntax from GDScript: `^"node_path"`
 impl fmt::Debug for NodePath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let string = GodotString::from(self);
+        let string = GString::from(self);
         write!(f, "^\"{string}\"")
     }
 }
@@ -110,13 +110,13 @@ where
     S: AsRef<str>,
 {
     fn from(string: S) -> Self {
-        let intermediate = GodotString::from(string.as_ref());
+        let intermediate = GString::from(string.as_ref());
         Self::from(&intermediate)
     }
 }
 
-impl From<&GodotString> for NodePath {
-    fn from(string: &GodotString) -> Self {
+impl From<&GString> for NodePath {
+    fn from(string: &GString) -> Self {
         unsafe {
             sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(node_path_from_string);
@@ -127,18 +127,18 @@ impl From<&GodotString> for NodePath {
     }
 }
 
-impl From<GodotString> for NodePath {
-    /// Converts this `GodotString` to a `NodePath`.
+impl From<GString> for NodePath {
+    /// Converts this `GString` to a `NodePath`.
     ///
     /// This is identical to `NodePath::from(&string)`, and as such there is no performance benefit.
-    fn from(string: GodotString) -> Self {
+    fn from(string: GString) -> Self {
         Self::from(&string)
     }
 }
 
 impl From<&StringName> for NodePath {
     fn from(string_name: &StringName) -> Self {
-        Self::from(GodotString::from(string_name))
+        Self::from(GString::from(string_name))
     }
 }
 
@@ -147,6 +147,6 @@ impl From<StringName> for NodePath {
     ///
     /// This is identical to `NodePath::from(&string_name)`, and as such there is no performance benefit.
     fn from(string_name: StringName) -> Self {
-        Self::from(GodotString::from(string_name))
+        Self::from(GString::from(string_name))
     }
 }

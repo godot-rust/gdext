@@ -38,7 +38,7 @@ struct HasProperty {
     int_val_setter: i32,
 
     #[var(get = get_string_val, set = set_string_val)]
-    string_val: GodotString,
+    string_val: GString,
 
     #[var(get = get_object_val, set = set_object_val)]
     object_val: Option<Gd<Object>>,
@@ -89,12 +89,12 @@ impl HasProperty {
     }
 
     #[func]
-    pub fn get_string_val(&self) -> GodotString {
+    pub fn get_string_val(&self) -> GString {
         self.string_val.clone()
     }
 
     #[func]
-    pub fn set_string_val(&mut self, val: GodotString) {
+    pub fn set_string_val(&mut self, val: GString) {
         self.string_val = val;
     }
 
@@ -138,7 +138,7 @@ impl INode for HasProperty {
             int_val_getter: 0,
             int_val_setter: 0,
             object_val: None,
-            string_val: GodotString::new(),
+            string_val: GString::new(),
             texture_val: Texture::new(),
             texture_val_rw: None,
         }
@@ -217,7 +217,7 @@ struct HasCustomProperty {
 #[godot_api]
 impl HasCustomProperty {
     #[func]
-    fn enum_as_string(&self) -> GodotString {
+    fn enum_as_string(&self) -> GString {
         use SomeCStyleEnum::*;
 
         match self.some_c_style_enum {
@@ -232,7 +232,7 @@ impl HasCustomProperty {
 #[derive(GodotClass)]
 struct CheckAllExports {
     #[export]
-    normal: GodotString,
+    normal: GString,
 
     #[export(range = (0.0, 10.0, or_greater, or_less, exp, radians, hide_slider))]
     range_exported: f64,
@@ -268,28 +268,28 @@ struct CheckAllExports {
     flags_3d_navigation: u32,
 
     #[export(file)]
-    file_no_filter: GodotString,
+    file_no_filter: GString,
 
     #[export(file = "*.jpg")]
-    file_filter: GodotString,
+    file_filter: GString,
 
     #[export(global_file)]
-    global_file_no_filter: GodotString,
+    global_file_no_filter: GString,
 
     #[export(global_file = "*.txt")]
-    global_file_filter: GodotString,
+    global_file_filter: GString,
 
     #[export(dir)]
-    dir: GodotString,
+    dir: GString,
 
     #[export(global_dir)]
-    global_dir: GodotString,
+    global_dir: GString,
 
     #[export(multiline)]
-    multiline: GodotString,
+    multiline: GString,
 
     #[export(placeholder = "placeholder")]
-    placeholder: GodotString,
+    placeholder: GString,
 
     #[export(color_no_alpha)]
     color_no_alpha: Color,

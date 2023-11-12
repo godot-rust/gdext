@@ -552,7 +552,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotToString for #class_name {
-                        fn __godot_to_string(&self) -> ::godot::builtin::GodotString {
+                        fn __godot_to_string(&self) -> ::godot::builtin::GString {
                             <Self as #trait_name>::to_string(self)
                         }
                     }

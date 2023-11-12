@@ -230,11 +230,11 @@ use crate::util::ident;
 ///
 ///     // @export_file
 ///     #[export(file)]
-///     file: GodotString,
+///     file: GString,
 ///
 ///     // @export_file("*.gd")
 ///     #[export(file = "*.gd")]
-///     gdscript_file: GodotString,
+///     gdscript_file: GString,
 ///
 ///     // @export_flags_3d_physics
 ///     #[export(flags_3d_physics)]

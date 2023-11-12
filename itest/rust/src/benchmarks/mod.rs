@@ -10,15 +10,15 @@ use std::hint::black_box;
 
 use godot::bind::GodotClass;
 use godot::builtin::inner::InnerRect2i;
-use godot::builtin::{GodotString, Rect2i, StringName, Vector2i};
+use godot::builtin::{GString, Rect2i, StringName, Vector2i};
 use godot::engine::{Node3D, Os, RefCounted};
 use godot::obj::{Gd, InstanceId};
 
 use crate::framework::bench;
 
 #[bench]
-fn builtin_string_ctor() -> GodotString {
-    GodotString::from("some test string")
+fn builtin_string_ctor() -> GString {
+    GString::from("some test string")
 }
 
 #[bench]

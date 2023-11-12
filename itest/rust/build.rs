@@ -116,7 +116,7 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; float, f64, 127.83156478);
     push!(inputs; bool, bool, true);
     push!(inputs; Color, Color, Color(0.7, 0.5, 0.3, 0.2), Color::from_rgba(0.7, 0.5, 0.3, 0.2));
-    push!(inputs; String, GodotString, "hello", "hello".into());
+    push!(inputs; String, GString, "hello", "hello".into());
     push!(inputs; StringName, StringName, &"hello", "hello".into());
     pushs!(inputs; NodePath, NodePath, r#"^"hello""#, "hello".into(), true, true, None);
     push!(inputs; Vector2, Vector2, Vector2(12.5, -3.5), Vector2::new(12.5, -3.5));
@@ -159,7 +159,7 @@ fn collect_inputs() -> Vec<Input> {
     push_newtype!(inputs; float, NewF64(f64), 127.83156478);
     push_newtype!(inputs; bool, NewBool(bool), true);
     push_newtype!(inputs; Color, NewColor(Color), Color(0.7, 0.5, 0.3, 0.2), NewColor(Color::from_rgba(0.7, 0.5, 0.3, 0.2)));
-    push_newtype!(inputs; String, NewString(GodotString), "hello", NewString("hello".into()));
+    push_newtype!(inputs; String, NewString(GString), "hello", NewString("hello".into()));
     push_newtype!(inputs; StringName, NewStringName(StringName), &"hello", NewStringName("hello".into()));
     push_newtype!(@s inputs; NodePath, NewNodePath(NodePath), r#"^"hello""#, NewNodePath("hello".into()));
     push_newtype!(inputs; Vector2, NewVector2(Vector2), Vector2(12.5, -3.5), NewVector2(Vector2::new(12.5, -3.5)));
@@ -409,19 +409,19 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
             #(#rust,)*
 
             #[export(file)]
-            export_file: GodotString,
+            export_file: GString,
             #[export(file = "*.txt")]
-            export_file_wildcard_txt: GodotString,
+            export_file_wildcard_txt: GString,
             #[export(global_file)]
-            export_global_file: GodotString,
+            export_global_file: GString,
             #[export(global_file = "*.png")]
-            export_global_file_wildcard_png: GodotString,
+            export_global_file_wildcard_png: GString,
             #[export(dir)]
-            export_dir: GodotString,
+            export_dir: GString,
             #[export(global_dir)]
-            export_global_dir: GodotString,
+            export_global_dir: GString,
             #[export(multiline)]
-            export_multiline: GodotString,
+            export_multiline: GString,
             #[export(range = (0.0, 20.0))]
             export_range_float_0_20: f64,
             // We're missing step currently.
@@ -455,7 +455,7 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
             #[export(enum = (Slow = 30, Average = 60, VeryFast = 200))]
             export_enum_int_slow_30_average_60_very_fast_200: i64,
             #[export(enum = (Rebecca, Mary, Leah))]
-            export_enum_string_rebecca_mary_leah: GodotString,
+            export_enum_string_rebecca_mary_leah: GString,
         }
 
         #[godot_api]

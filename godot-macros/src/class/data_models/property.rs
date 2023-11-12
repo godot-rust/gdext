@@ -122,13 +122,13 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             FieldHint::Hint(hint) => quote! {
                 (
                     ::godot::engine::global::PropertyHint::#hint,
-                    ::godot::builtin::GodotString::new()
+                    ::godot::builtin::GString::new()
                 )
             },
             FieldHint::HintWithString { hint, hint_string } => quote! {
                 (
                     ::godot::engine::global::PropertyHint::#hint,
-                    ::godot::builtin::GodotString::from(#hint_string)
+                    ::godot::builtin::GString::from(#hint_string)
                 )
             },
             FieldHint::HintFromExportFunction(expression) => quote! {

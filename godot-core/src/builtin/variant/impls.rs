@@ -111,7 +111,7 @@ mod impls {
     impl_ffi_variant!(Vector4i, vector4i_to_variant, vector4i_from_variant);
     impl_ffi_variant!(Quaternion, quaternion_to_variant, quaternion_from_variant);
     impl_ffi_variant!(Color, color_to_variant, color_from_variant);
-    impl_ffi_variant!(GodotString, string_to_variant, string_from_variant; String);
+    impl_ffi_variant!(GString, string_to_variant, string_from_variant; String);
     impl_ffi_variant!(StringName, string_name_to_variant, string_name_from_variant);
     impl_ffi_variant!(NodePath, node_path_to_variant, node_path_from_variant);
     impl_ffi_variant!(PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant);
@@ -202,7 +202,7 @@ impl GodotType for Variant {
             class_name: Self::class_name(),
             property_name: StringName::from(property_name),
             hint: global::PropertyHint::PROPERTY_HINT_NONE,
-            hint_string: GodotString::new(),
+            hint_string: GString::new(),
             usage: global::PropertyUsageFlags::PROPERTY_USAGE_NIL_IS_VARIANT,
         }
     }

@@ -96,7 +96,7 @@ macro_rules! impl_packed_array {
                         // SAFETY: Packed arrays are stored contiguously in memory, so we can use
                         // pointer arithmetic instead of going through `$operator_index_const` for
                         // every index.
-                        // Note that we do need to use `.clone()` because `GodotString` is refcounted;
+                        // Note that we do need to use `.clone()` because `GString` is refcounted;
                         // we can't just do a memcpy.
                         let element = unsafe { (*ptr.offset(offset)).clone() };
                         vec.push(element);
@@ -398,7 +398,7 @@ macro_rules! impl_packed_array {
                 for (i, element) in slice.iter().enumerate() {
                     // SAFETY: The array contains exactly `len` elements, stored contiguously in memory.
                     unsafe {
-                        // `GodotString` does not implement `Copy` so we have to call `.clone()`
+                        // `GString` does not implement `Copy` so we have to call `.clone()`
                         // here.
                         *ptr.offset(to_isize(i)) = element.clone();
                     }
@@ -567,10 +567,10 @@ impl_packed_array!(
 
 impl_packed_array!(
     type_name: PackedStringArray,
-    element_type: GodotString,
+    element_type: GString,
     opaque_type: OpaquePackedStringArray,
     inner_type: InnerPackedStringArray,
-    argument_type: GodotString,
+    argument_type: GString,
     return_type: __GdextString,
     from_array: packed_string_array_from_array,
     operator_index: packed_string_array_operator_index,

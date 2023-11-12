@@ -6,7 +6,7 @@
 
 use crate::builtin::inner::InnerColor;
 use crate::builtin::math::ApproxEq;
-use crate::builtin::GodotString;
+use crate::builtin::GString;
 
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
@@ -104,7 +104,7 @@ impl Color {
     /// - `#RGB` and `RGB`. Equivalent to `#RRGGBBff`.
     ///
     /// Returns `None` if the format is invalid.
-    pub fn from_html<S: Into<GodotString>>(html: S) -> Option<Self> {
+    pub fn from_html<S: Into<GString>>(html: S) -> Option<Self> {
         let html = html.into();
         InnerColor::html_is_valid(html.clone()).then(|| InnerColor::html(html))
     }
@@ -123,7 +123,7 @@ impl Color {
     ///
     /// [color_constants]: https://docs.godotengine.org/en/latest/classes/class_color.html#constants
     /// [cheat_sheet]: https://raw.githubusercontent.com/godotengine/godot-docs/master/img/color_constants.png
-    pub fn from_string<S: Into<GodotString>>(string: S) -> Option<Self> {
+    pub fn from_string<S: Into<GString>>(string: S) -> Option<Self> {
         let color = InnerColor::from_string(
             string.into(),
             Self::from_rgba(f32::NAN, f32::NAN, f32::NAN, f32::NAN),
@@ -282,13 +282,13 @@ impl Color {
 
     /// Returns the HTML color code representation of this color, as 8 lowercase hex digits in the
     /// order `RRGGBBAA`, without the `#` prefix.
-    pub fn to_html(self) -> GodotString {
+    pub fn to_html(self) -> GString {
         self.as_inner().to_html(true)
     }
 
     /// Returns the HTML color code representation of this color, as 6 lowercase hex digits in the
     /// order `RRGGBB`, without the `#` prefix. The alpha channel is ignored.
-    pub fn to_html_without_alpha(self) -> GodotString {
+    pub fn to_html_without_alpha(self) -> GString {
         self.as_inner().to_html(false)
     }
 

@@ -65,7 +65,7 @@ macro_rules! godot_print {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
         $crate::log::print(&[
             $crate::builtin::Variant::from(
-                $crate::builtin::GodotString::from(
+                $crate::builtin::GString::from(
                     format!($fmt $(, $args)*)
                 )
             )

@@ -558,7 +558,7 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
 
         // Others
         ("bool", None) => "bool",
-        ("String", None) => "GodotString",
+        ("String", None) => "GString",
         ("Array", None) => "VariantArray",
 
         // Types needed for native structures mapping
@@ -832,11 +832,11 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
         } else {
             match ty {
                 RustTy::BuiltinIdent(ident)
-                    if ident == "GodotString" || ident == "StringName" || ident == "NodePath" =>
+                    if ident == "GString" || ident == "StringName" || ident == "NodePath" =>
                 {
                     quote! { #ident::from(#expr) }
                 }
-                _ => quote! { GodotString::from(#expr) },
+                _ => quote! { GString::from(#expr) },
                 //_ => panic!("cannot map string literal \"{expr}\" to type {ty:?}"),
             }
         };
@@ -861,7 +861,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
 
         let (rust_ty, ctor) = match godot_ty {
             "NodePath" => ("NodePath", "from"),
-            "String" => ("GodotString", "from"),
+            "String" => ("GString", "from"),
             "StringName" => ("StringName", "from"),
             "RID" => ("Rid", "default"),
             "Rect2" => ("Rect2", "from_components"),
@@ -955,7 +955,7 @@ fn gdscript_to_rust_expr() {
     // };
     // let ty_object = Some(&ty_object);
 
-    let ty_string = RustTy::BuiltinIdent(ident("GodotString"));
+    let ty_string = RustTy::BuiltinIdent(ident("GString"));
     let ty_string = Some(&ty_string);
 
     let ty_stringname = RustTy::BuiltinIdent(ident("StringName"));
@@ -1009,12 +1009,12 @@ fn gdscript_to_rust_expr() {
         //("null",                                           ty_object,          quote! { None }),
 
         // String-likes
-        ("\" \"",                                          None,               quote! { GodotString::from(" ") }),
-        ("\"{_}\"",                                        None,               quote! { GodotString::from("{_}") }),
+        ("\" \"",                                          None,               quote! { GString::from(" ") }),
+        ("\"{_}\"",                                        None,               quote! { GString::from("{_}") }),
         ("&\"text\"",                                      None,               quote! { StringName::from("text") }),
         ("^\"text\"",                                      None,               quote! { NodePath::from("text") }),
 
-        ("\"text\"",                                       ty_string,          quote! { GodotString::from("text") }),
+        ("\"text\"",                                       ty_string,          quote! { GString::from("text") }),
         ("\"text\"",                                       ty_stringname,      quote! { StringName::from("text") }),
         ("\"text\"",                                       ty_nodepath,        quote! { NodePath::from("text") }),
         

@@ -11,7 +11,7 @@ use crate::framework::{itest, TestContext};
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::meta::ToGodot;
 use godot::builtin::{
-    real, varray, Color, GodotString, PackedByteArray, PackedColorArray, PackedFloat32Array,
+    real, varray, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,
     PackedInt32Array, PackedStringArray, PackedVector2Array, PackedVector3Array, RealConv,
     StringName, Variant, VariantArray, Vector2, Vector3,
 };
@@ -49,7 +49,7 @@ impl VirtualMethodTest {}
 
 #[godot_api]
 impl IRefCounted for VirtualMethodTest {
-    fn to_string(&self) -> GodotString {
+    fn to_string(&self) -> GString {
         format!("VirtualMethodTest[integer={}]", self.integer).into()
     }
 }
@@ -78,7 +78,7 @@ impl INode2D for IReadyTest {
     }
 
     #[cfg(any())]
-    fn to_string(&self) -> GodotString {
+    fn to_string(&self) -> GString {
         compile_error!("Removed by #[cfg]")
     }
 }
@@ -170,33 +170,33 @@ struct FormatLoaderTest {
 }
 
 impl FormatLoaderTest {
-    fn resource_type() -> GodotString {
-        GodotString::from("foo")
+    fn resource_type() -> GString {
+        GString::from("foo")
     }
 }
 
 #[godot_api]
 impl IResourceFormatLoader for FormatLoaderTest {
     fn get_recognized_extensions(&self) -> PackedStringArray {
-        [GodotString::from("extension")].into_iter().collect()
+        [GString::from("extension")].into_iter().collect()
     }
 
     fn handles_type(&self, type_: StringName) -> bool {
         type_.to_string() == Self::resource_type().to_string()
     }
 
-    fn get_resource_type(&self, _path: GodotString) -> GodotString {
+    fn get_resource_type(&self, _path: GString) -> GString {
         Self::resource_type()
     }
 
-    fn exists(&self, _path: GodotString) -> bool {
+    fn exists(&self, _path: GString) -> bool {
         true
     }
 
     fn load(
         &self,
-        _path: GodotString,
-        _original_path: GodotString,
+        _path: GString,
+        _original_path: GString,
         _use_sub_threads: bool,
         _cache_mode: i32,
     ) -> Variant {
