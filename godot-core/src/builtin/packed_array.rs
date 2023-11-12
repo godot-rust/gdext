@@ -15,6 +15,10 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 // FIXME remove dependency on these types
 use sys::{__GdextString, __GdextType};
 
+// TODO(bromeon): ensure and test that all element types can be packed.
+// Many builtin types don't have a #[repr] themselves, but they are used in packed arrays, which assumes certain size and alignment.
+// This is mostly a problem for as_slice(), which reinterprets the FFI representation into the "frontend" type like GString.
+
 /// Defines and implements a single packed array type. This macro is not hygienic and is meant to
 /// be used only in the current module.
 macro_rules! impl_packed_array {
