@@ -21,7 +21,7 @@ use crate::register_tests::gen_ffi::PropertyTestsRust;
 
 #[itest]
 fn property_template_test(ctx: &TestContext) {
-    let rust_properties = Gd::<PropertyTestsRust>::new_default();
+    let rust_properties = PropertyTestsRust::alloc_gd();
     let gdscript_properties = ctx.property_tests.clone();
 
     // Accumulate errors so we can catch all of them in one go.

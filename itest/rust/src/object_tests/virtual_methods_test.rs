@@ -22,7 +22,7 @@ use godot::engine::{
     InputEvent, InputEventAction, Node, Node2D, PrimitiveMesh, RefCounted, ResourceFormatLoader,
     ResourceLoader, Viewport, Window,
 };
-use godot::obj::{Base, Gd};
+use godot::obj::{Base, Gd, UserClass};
 use godot::private::class_macros::assert_eq_approx;
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
@@ -58,16 +58,16 @@ impl IRefCounted for VirtualMethodTest {
 
 #[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
-struct IReadyTest {
+struct VirtualReadyTest {
     #[base]
     some_base: Base<Node2D>,
     implementation_value: i32,
 }
 
 #[godot_api]
-impl INode2D for IReadyTest {
+impl INode2D for VirtualReadyTest {
     fn init(base: Base<Node2D>) -> Self {
-        IReadyTest {
+        VirtualReadyTest {
             some_base: base,
             implementation_value: 0,
         }
@@ -87,7 +87,7 @@ impl INode2D for IReadyTest {
 
 #[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
-struct ITreeTest {
+struct VirtualTreeTest {
     #[base]
     some_base: Base<Node2D>,
     tree_enters: i32,
@@ -95,9 +95,9 @@ struct ITreeTest {
 }
 
 #[godot_api]
-impl INode2D for ITreeTest {
+impl INode2D for VirtualTreeTest {
     fn init(base: Base<Node2D>) -> Self {
-        ITreeTest {
+        VirtualTreeTest {
             some_base: base,
             tree_enters: 0,
             tree_exits: 0,
@@ -117,13 +117,13 @@ impl INode2D for ITreeTest {
 
 #[derive(GodotClass, Debug)]
 #[class(init, base=PrimitiveMesh)]
-struct IReturnTest {
+struct VirtualReturnTest {
     #[base]
     base: Base<PrimitiveMesh>,
 }
 
 #[godot_api]
-impl IPrimitiveMesh for IReturnTest {
+impl IPrimitiveMesh for VirtualReturnTest {
     fn create_mesh_array(&self) -> VariantArray {
         varray![
             PackedVector3Array::from_iter([Vector3::LEFT]),
@@ -145,16 +145,16 @@ impl IPrimitiveMesh for IReturnTest {
 
 #[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
-struct IInputTest {
+struct VirtualInputTest {
     #[base]
     base: Base<Node2D>,
     event: Option<Gd<InputEvent>>,
 }
 
 #[godot_api]
-impl INode2D for IInputTest {
+impl INode2D for VirtualInputTest {
     fn init(base: Base<Node2D>) -> Self {
-        IInputTest { base, event: None }
+        VirtualInputTest { base, event: None }
     }
 
     fn input(&mut self, event: Gd<InputEvent>) {
@@ -236,12 +236,12 @@ impl INode for NotificationTest {
 
 #[itest]
 fn test_to_string() {
-    let _obj = Gd::<VirtualMethodTest>::new_default();
+    let _obj = VirtualMethodTest::new_gd();
 }
 
 #[itest]
 fn test_ready(test_context: &TestContext) {
-    let obj = Gd::<IReadyTest>::new_default();
+    let obj = VirtualReadyTest::alloc_gd();
     assert_eq!(obj.bind().implementation_value, 0);
 
     // Add to scene tree
@@ -254,7 +254,7 @@ fn test_ready(test_context: &TestContext) {
 
 #[itest]
 fn test_ready_multiple_fires(test_context: &TestContext) {
-    let obj = Gd::<IReadyTest>::new_default();
+    let obj = VirtualReadyTest::alloc_gd();
     assert_eq!(obj.bind().implementation_value, 0);
 
     let mut test_node = test_context.scene_tree.clone();
@@ -275,7 +275,7 @@ fn test_ready_multiple_fires(test_context: &TestContext) {
 
 #[itest]
 fn test_ready_request_ready(test_context: &TestContext) {
-    let obj = Gd::<IReadyTest>::new_default();
+    let obj = VirtualReadyTest::alloc_gd();
     assert_eq!(obj.bind().implementation_value, 0);
 
     let mut test_node = test_context.scene_tree.clone();
@@ -306,7 +306,7 @@ fn test_ready_request_ready(test_context: &TestContext) {
 
 #[itest]
 fn test_tree_enters_exits(test_context: &TestContext) {
-    let obj = Gd::<ITreeTest>::new_default();
+    let obj = VirtualTreeTest::alloc_gd();
     assert_eq!(obj.bind().tree_enters, 0);
     assert_eq!(obj.bind().tree_exits, 0);
     let mut test_node = test_context.scene_tree.clone();
@@ -327,7 +327,7 @@ fn test_tree_enters_exits(test_context: &TestContext) {
 
 #[itest]
 fn test_virtual_method_with_return() {
-    let obj = Gd::<IReturnTest>::new_default();
+    let obj = VirtualReturnTest::new_gd();
     let arr = obj.clone().upcast::<PrimitiveMesh>().get_mesh_arrays();
     let arr_rust = obj.bind().create_mesh_array();
     assert_eq!(arr.len(), arr_rust.len());
@@ -360,7 +360,7 @@ fn test_virtual_method_with_return() {
 
 #[itest]
 fn test_format_loader(_test_context: &TestContext) {
-    let format_loader = Gd::<FormatLoaderTest>::new_default();
+    let format_loader = FormatLoaderTest::new_gd();
     let mut loader = ResourceLoader::singleton();
     loader
         .add_resource_format_loader_ex(format_loader.clone().upcast())
@@ -383,7 +383,7 @@ fn test_format_loader(_test_context: &TestContext) {
 
 #[itest]
 fn test_input_event(test_context: &TestContext) {
-    let obj = Gd::<IInputTest>::new_default();
+    let obj = VirtualInputTest::alloc_gd();
     assert_eq!(obj.bind().event, None);
     let mut test_viewport = Window::new_alloc();
 
@@ -412,7 +412,7 @@ fn test_input_event(test_context: &TestContext) {
 fn test_input_event_multiple(test_context: &TestContext) {
     let mut objs = Vec::new();
     for _ in 0..5 {
-        let obj = Gd::<IInputTest>::new_default();
+        let obj = VirtualInputTest::alloc_gd();
         assert_eq!(obj.bind().event, None);
         objs.push(obj);
     }
@@ -443,7 +443,7 @@ fn test_input_event_multiple(test_context: &TestContext) {
 
 #[itest]
 fn test_notifications() {
-    let obj = Gd::<NotificationTest>::new_default();
+    let obj = NotificationTest::alloc_gd();
     let mut node = obj.clone().upcast::<Node>();
     node.notify(NodeNotification::Unpaused);
     node.notify(NodeNotification::EditorPostSave);

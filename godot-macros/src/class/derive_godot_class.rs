@@ -78,6 +78,9 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 ::godot::builtin::meta::ClassName::from_ascii_cstr(#class_name_cstr)
             }
         }
+        impl ::godot::obj::UserClass for #class_name {
+
+        }
 
         #godot_init_impl
         #godot_exports_impl
@@ -249,8 +252,8 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
     });
 
     quote! {
-        impl ::godot::obj::cap::GodotInit for #class_name {
-            fn __godot_init(base: ::godot::obj::Base<Self::Base>) -> Self {
+        impl ::godot::obj::cap::GodotDefault for #class_name {
+            fn __godot_user_init(base: ::godot::obj::Base<Self::Base>) -> Self {
                 Self {
                     #( #rest_init )*
                     #base_init

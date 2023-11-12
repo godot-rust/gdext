@@ -5,11 +5,11 @@
  */
 
 use crate::builder::ClassBuilder;
+use crate::builtin::meta::ClassName;
 use crate::builtin::GString;
 use crate::init::InitLevel;
-use crate::obj::Base;
+use crate::obj::Gd;
 
-use crate::builtin::meta::ClassName;
 use godot_ffi as sys;
 
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
@@ -136,6 +136,31 @@ impl<T: GodotClass> Inherits<T> for T {}
 /// Those are the only objects you can export to the editor.
 pub trait ExportableObject: GodotClass {}
 
+/// Implemented for all user-defined classes, providing extensions on the raw object to interact with `Gd`.
+pub trait UserClass: GodotClass<Declarer = dom::UserDomain> {
+    /// Return a new Gd which contains a default-constructed instance.
+    ///
+    /// `MyClass::new_gd()` is equivalent to `Gd::<MyClass>::default()`.
+    fn new_gd() -> Gd<Self>
+    where
+        Self: cap::GodotDefault + GodotClass<Mem = mem::StaticRefCount>,
+    {
+        Gd::default()
+    }
+
+    /// Return a new Gd which contains a default-constructed instance.
+    ///
+    /// `MyClass::new_gd()` is equivalent to `Gd::<MyClass>::default()`.
+    #[must_use]
+    fn alloc_gd<U>() -> Gd<Self>
+    where
+        Self: cap::GodotDefault + GodotClass<Mem = U>,
+        U: mem::PossiblyManual,
+    {
+        Gd::default_instance()
+    }
+}
+
 /// Auto-implemented for all engine-provided classes.
 pub trait EngineClass: GodotClass {
     fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr;
@@ -186,21 +211,50 @@ pub trait IndexEnum: EngineEnum {
 /// Capability traits, providing dedicated functionalities for Godot classes
 pub mod cap {
     use super::*;
-    use crate::obj::Gd;
+    use crate::obj::{Base, Gd};
 
-    /// Trait for all classes that are constructible from the Godot engine.
+    /// Trait for all classes that are default-constructible from the Godot engine.
     ///
-    /// Godot can only construct user-provided classes in one way: with the default
-    /// constructor. This is what happens when you write `MyClass.new()` in GDScript.
-    /// You can disable this constructor by not providing an `init` method for your
-    /// class; in that case construction fails.
+    /// Enables the `MyClass.new()` syntax in GDScript, and allows the type to be used by the editor, which often default-constructs objects.
     ///
-    /// This trait is not manually implemented, and you cannot call any methods.
-    /// Instead, the trait will be provided to you by the proc macros, and you can
-    /// use it as a bound.
-    pub trait GodotInit: GodotClass {
+    /// This trait is automatically implemented for the following classes:
+    /// - User defined classes if either:
+    ///   - they override an `init()` method
+    ///   - they have `#[class(init)]` attribute
+    /// - Engine classes if:
+    ///   - they are reference-counted and constructible (i.e. provide a `new()` method).
+    ///
+    /// This trait is not manually implemented, and you cannot call any methods. You can use it as a bound, but typically you'd use
+    /// it indirectly through [`Gd::default()`][crate::obj::Gd::default()]. Note that `Gd::default()` has an additional requirement on
+    /// being reference-counted, meaning not every `GodotDefault` class can automatically be used with `Gd::default()`.
+    pub trait GodotDefault: GodotClass {
+        /// Provides a default smart pointer instance.
+        ///
+        /// Semantics:
+        /// - For user-defined classes, this calls `T::init()` or the generated init-constructor.
+        /// - For engine classes, this calls `T::new()`.
         #[doc(hidden)]
-        fn __godot_init(base: Base<Self::Base>) -> Self;
+        fn __godot_default() -> Gd<Self> {
+            // This is a bit hackish, but the alternatives are:
+            // 1. Separate trait `GodotUserDefault` for user classes, which then proliferates through all APIs and makes abstraction harder.
+            // 2. Repeatedly implementing __godot_default() that forwards to something like Gd::default_user_instance(). Possible, but this
+            //    will make the step toward builder APIs more difficult, as users would need to re-implement this as well.
+            debug_assert_eq!(
+                std::any::TypeId::of::<<Self as GodotClass>::Declarer>(),
+                std::any::TypeId::of::<dom::UserDomain>(),
+                "__godot_default() called on engine class; must be overridden for user classes"
+            );
+
+            Gd::default_instance()
+        }
+
+        /// Only provided for user classes.
+        #[doc(hidden)]
+        fn __godot_user_init(_base: Base<Self::Base>) -> Self {
+            unreachable!(
+                "__godot_user_init() called on engine class; must be overridden for user classes"
+            )
+        }
     }
 
     /// Trait that's implemented for user-defined classes that provide a `#[base]` field.

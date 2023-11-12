@@ -84,14 +84,6 @@ impl GString {
             .expect("Godot hashes are uint32_t")
     }
 
-    /// Move `self` into a system pointer. This transfers ownership and thus does not call the destructor.
-    ///
-    /// # Safety
-    /// `dst` must be a pointer to a `GString` which is suitable for ffi with Godot.
-    pub unsafe fn move_string_ptr(self, dst: sys::GDExtensionStringPtr) {
-        self.move_return_ptr(dst as *mut _, sys::PtrcallType::Standard);
-    }
-
     /// Gets the internal chars slice from a [`GString`].
     ///
     /// Note: This operation is *O*(*n*). Consider using [`chars_unchecked`][Self::chars_unchecked]
@@ -137,6 +129,14 @@ impl GString {
         fn from_string_sys = from_sys;
         fn from_string_sys_init = from_sys_init;
         fn string_sys = sys;
+    }
+
+    /// Move `self` into a system pointer. This transfers ownership and thus does not call the destructor.
+    ///
+    /// # Safety
+    /// `dst` must be a pointer to a `GString` which is suitable for ffi with Godot.
+    pub(crate) unsafe fn move_string_ptr(self, dst: sys::GDExtensionStringPtr) {
+        self.move_return_ptr(dst as *mut _, sys::PtrcallType::Standard);
     }
 
     #[doc(hidden)]

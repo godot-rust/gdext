@@ -5,10 +5,13 @@
  */
 
 use crate::framework::itest;
+
+use godot::bind::{godot_api, GodotClass};
+use godot::builtin::{Rect2, Rid, Variant};
 use godot::engine::native::{AudioFrame, CaretInfo, Glyph};
 use godot::engine::text_server::Direction;
 use godot::engine::{ITextServerExtension, TextServer, TextServerExtension};
-use godot::prelude::{godot_api, Base, Gd, GodotClass, Rect2, Rid, Variant};
+use godot::obj::{Base, UserClass};
 
 use std::cell::Cell;
 
@@ -92,7 +95,7 @@ fn test_native_structures_codegen() {
 fn test_native_structure_out_parameter() {
     // Instantiate a TextServerExtension and then have Godot call a
     // function which uses an 'out' pointer parameter.
-    let mut ext: Gd<TestTextServer> = Gd::new_default();
+    let mut ext = TestTextServer::new_gd();
     let result = ext
         .clone()
         .upcast::<TextServer>()
@@ -125,7 +128,7 @@ fn test_native_structure_out_parameter() {
 #[itest]
 fn test_native_structure_pointer_to_array_parameter() {
     // Instantiate a TextServerExtension.
-    let ext: Gd<TestTextServer> = Gd::new_default();
+    let ext = TestTextServer::new_gd();
     let result = ext
         .clone()
         .upcast::<TextServer>()

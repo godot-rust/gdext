@@ -9,7 +9,7 @@ use godot::builtin::inner::InnerCallable;
 use godot::builtin::meta::ToGodot;
 use godot::builtin::{varray, Callable, GString, StringName, Variant};
 use godot::engine::{Node2D, Object};
-use godot::obj::Gd;
+use godot::obj::UserClass;
 
 use crate::framework::itest;
 
@@ -34,7 +34,7 @@ impl CallableTestObj {
 
 #[itest]
 fn callable_validity() {
-    let obj = Gd::<CallableTestObj>::new_default();
+    let obj = CallableTestObj::new_gd();
 
     // non-null object, valid method
     assert!(obj.callable("foo").is_valid());
@@ -57,14 +57,14 @@ fn callable_validity() {
 
 #[itest]
 fn callable_hash() {
-    let obj = Gd::<CallableTestObj>::new_default();
+    let obj = CallableTestObj::new_gd();
     assert_eq!(obj.callable("foo").hash(), obj.callable("foo").hash());
     assert_ne!(obj.callable("foo").hash(), obj.callable("bar").hash());
 }
 
 #[itest]
 fn callable_object_method() {
-    let obj = Gd::<CallableTestObj>::new_default();
+    let obj = CallableTestObj::new_gd();
     let callable = obj.callable("foo");
 
     assert_eq!(callable.object(), Some(obj.clone().upcast::<Object>()));
@@ -78,7 +78,7 @@ fn callable_object_method() {
 
 #[itest]
 fn callable_call() {
-    let obj = Gd::<CallableTestObj>::new_default();
+    let obj = CallableTestObj::new_gd();
     let callable = obj.callable("foo");
 
     assert_eq!(obj.bind().value, 0);
@@ -96,7 +96,7 @@ fn callable_call() {
 
 #[itest]
 fn callable_call_return() {
-    let obj = Gd::<CallableTestObj>::new_default();
+    let obj = CallableTestObj::new_gd();
     let callable = obj.callable("bar");
 
     assert_eq!(

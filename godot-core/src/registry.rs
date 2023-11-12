@@ -166,7 +166,7 @@ struct ClassRegistrationInfo {
 
 /// Registers a class with static type information.
 pub fn register_class<
-    T: cap::GodotInit
+    T: cap::GodotDefault
         + cap::ImplementsGodotVirtual
         + cap::GodotToString
         + cap::GodotNotification
@@ -226,7 +226,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
 
     // Note: many errors are already caught by the compiler, before this runtime validation even takes place:
     // * missing #[derive(GodotClass)] or impl GodotClass for T
-    // * duplicate impl GodotInit for T
+    // * duplicate impl GodotDefault for T
     //
     let mut map = HashMap::<ClassName, ClassRegistrationInfo>::new();
 
@@ -471,18 +471,18 @@ pub mod callbacks {
     use crate::builder::ClassBuilder;
     use crate::obj::Base;
 
-    pub unsafe extern "C" fn create<T: cap::GodotInit>(
+    pub unsafe extern "C" fn create<T: cap::GodotDefault>(
         _class_userdata: *mut std::ffi::c_void,
     ) -> sys::GDExtensionObjectPtr {
-        create_custom(T::__godot_init)
+        create_custom(T::__godot_user_init)
     }
 
     #[cfg(since_api = "4.2")]
-    pub unsafe extern "C" fn recreate<T: cap::GodotInit>(
+    pub unsafe extern "C" fn recreate<T: cap::GodotDefault>(
         _class_userdata: *mut std::ffi::c_void,
         object: sys::GDExtensionObjectPtr,
     ) -> sys::GDExtensionClassInstancePtr {
-        create_rust_part_for_existing_godot_part(T::__godot_init, object)
+        create_rust_part_for_existing_godot_part(T::__godot_user_init, object)
     }
 
     pub(crate) fn create_custom<T, F>(make_user_instance: F) -> sys::GDExtensionObjectPtr
@@ -618,14 +618,14 @@ pub mod callbacks {
     // ----------------------------------------------------------------------------------------------------------------------------------------------
     // Safe, higher-level methods
 
-    /// Abstracts the `GodotInit` away, for contexts where this trait bound is not statically available
-    pub fn erased_init<T: cap::GodotInit>(base: Box<dyn Any>) -> Box<dyn Any> {
+    /// Abstracts the `GodotDefault` away, for contexts where this trait bound is not statically available
+    pub fn erased_init<T: cap::GodotDefault>(base: Box<dyn Any>) -> Box<dyn Any> {
         let concrete = base
             .downcast::<Base<<T as GodotClass>::Base>>()
             .expect("erased_init: bad type erasure");
         let extracted: Base<_> = sys::unbox(concrete);
 
-        let instance = T::__godot_init(extracted);
+        let instance = T::__godot_user_init(extracted);
         Box::new(instance)
     }
 

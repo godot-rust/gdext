@@ -347,7 +347,7 @@ impl IRefCounted for DeriveExport {
 
 #[itest]
 fn derive_export() {
-    let class: Gd<DeriveExport> = Gd::new_default();
+    let class = DeriveExport::new_gd();
 
     let property = class
         .get_property_list()
@@ -405,7 +405,7 @@ impl INode for ExportResource {}
 
 #[itest]
 fn export_resource() {
-    let class: Gd<ExportResource> = Gd::new_default();
+    let class = ExportResource::alloc_gd();
 
     let property = class
         .get_property_list()

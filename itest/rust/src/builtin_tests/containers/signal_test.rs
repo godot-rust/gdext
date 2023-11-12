@@ -10,7 +10,7 @@ use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{GString, Variant};
 
 use godot::engine::Object;
-use godot::obj::{Base, Gd};
+use godot::obj::{Base, Gd, UserClass};
 use godot::sys;
 
 use crate::framework::itest;
@@ -62,8 +62,8 @@ const SIGNAL_ARG_STRING: &str = "Signal string arg";
 #[itest]
 /// Test that godot can call a method that is connect with a signal
 fn signals() {
-    let mut emitter = Gd::<Emitter>::new_default();
-    let receiver = Gd::<Receiver>::new_default();
+    let mut emitter = Emitter::alloc_gd();
+    let receiver = Receiver::alloc_gd();
 
     let args = [
         vec![],
