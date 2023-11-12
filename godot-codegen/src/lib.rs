@@ -250,7 +250,7 @@ impl TyName {
     }
 
     fn virtual_trait_name(&self) -> String {
-        format!("{}Virtual", self.rust_ty)
+        format!("I{}", self.rust_ty)
     }
 }
 

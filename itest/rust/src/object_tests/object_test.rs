@@ -11,7 +11,7 @@ use godot::bind::{godot_api, GodotClass};
 use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{GodotString, StringName, Variant, VariantConversionError, Vector3};
 use godot::engine::{
-    file_access, Area2D, Camera3D, FileAccess, Node, Node3D, Object, RefCounted, RefCountedVirtual,
+    file_access, Area2D, Camera3D, FileAccess, IRefCounted, Node, Node3D, Object, RefCounted,
 };
 use godot::obj::{Base, Gd, Inherits, InstanceId, RawGd};
 use godot::prelude::meta::GodotType;
@@ -811,7 +811,7 @@ pub struct RefcPayload {
 }
 
 #[godot_api]
-impl RefCountedVirtual for RefcPayload {
+impl IRefCounted for RefcPayload {
     fn init(_base: Base<Self::Base>) -> Self {
         Self { value: 111 }
     }
