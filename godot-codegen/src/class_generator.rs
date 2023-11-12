@@ -8,6 +8,7 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
+use std::borrow::Cow;
 use std::path::Path;
 
 use crate::api_parser::*;
@@ -1125,22 +1126,34 @@ fn make_class_method_definition(
     if special_cases::is_deleted(class_name, method, ctx) {
         return FnDefinition::none();
     }
-    /*if method.map_args(|args| args.is_empty()) {
-        // Getters (i.e. 0 arguments) will be stripped of their `get_` prefix, to conform to Rust convention
-        if let Some(remainder) = method_name.strip_prefix("get_") {
-            // TODO Do not apply for FileAccess::get_16, StreamPeer::get_u16, etc
-            if !remainder.chars().nth(0).unwrap().is_ascii_digit() {
-                method_name = remainder;
-            }
-        }
-    }*/
 
     let class_name_str = &class_name.godot_ty;
-    let method_name_str = special_cases::maybe_renamed(class_name, &method.name);
+    let godot_method_name = &method.name;
+    let renamed_method_name = special_cases::maybe_renamed(class_name, godot_method_name);
+
+    let mut rust_method_name = Cow::Borrowed(renamed_method_name);
+    let mut override_is_const = None;
+
+    if method.map_args(|args| args.is_empty()) {
+        // Getters (i.e. 0 arguments) are stripped of their `get_` prefix, to conform to Rust convention.
+        // Currently also applies to static methods, but NOT to methods which have default parameters but can be called with 0 arguments.
+        // TODO(bromeon): should we add #[doc(alias)]?
+        if let Some(remainder) = renamed_method_name.strip_prefix("get_") {
+            // Do not apply for FileAccess::get_16, StreamPeer::get_u16, etc.
+            if !special_cases::keeps_get_prefix(class_name, method) {
+                rust_method_name = Cow::Owned(remainder.to_string());
+
+                // Many getters are mutably qualified (GltfAccessor::get_max, CameraAttributes::get_exposure_multiplier, ...).
+                override_is_const = Some(true);
+            }
+        }
+    }
+
+    let rust_method_name = rust_method_name.as_ref();
 
     let receiver = make_receiver(
         method.is_static,
-        method.is_const,
+        override_is_const.unwrap_or(method.is_const),
         quote! { self.object_ptr },
     );
 
@@ -1161,7 +1174,7 @@ fn make_class_method_definition(
         quote! {
             fptr_by_key(sys::lazy_keys::ClassMethodKey {
                 class_name: #class_name_str,
-                method_name: #method_name_str,
+                method_name: #godot_method_name,
                 hash: #hash,
             })
         }
@@ -1175,7 +1188,7 @@ fn make_class_method_definition(
 
         <CallSig as PtrcallSignatureTuple>::out_class_ptrcall::<RetMarshal>(
             method_bind,
-            #method_name_str,
+            #rust_method_name,
             #object_ptr,
             #maybe_instance_id,
             args,
@@ -1187,7 +1200,7 @@ fn make_class_method_definition(
 
         <CallSig as VarcallSignatureTuple>::out_class_varcall(
             method_bind,
-            #method_name_str,
+            #rust_method_name,
             #object_ptr,
             #maybe_instance_id,
             args,
@@ -1197,9 +1210,9 @@ fn make_class_method_definition(
 
     make_function_definition(
         &FnSignature {
-            function_name: method_name_str,
+            function_name: rust_method_name,
             surrounding_class: Some(class_name),
-            is_private: special_cases::is_private(class_name, &method.name),
+            is_private: special_cases::is_private(class_name, godot_method_name),
             is_virtual: false,
             is_vararg: method.is_vararg,
             qualifier: FnQualifier::for_method(method.is_const, method.is_static),

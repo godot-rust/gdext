@@ -41,7 +41,7 @@ impl IRigidBody2D for Mob {
             .get_node_as::<AnimatedSprite2D>("AnimatedSprite2D");
 
         sprite.play();
-        let anim_names = sprite.get_sprite_frames().unwrap().get_animation_names();
+        let anim_names = sprite.sprite_frames().unwrap().animation_names();
 
         // TODO use pick_random() once implemented
         let anim_names = anim_names.to_vec();
