@@ -398,7 +398,7 @@ fn typed_array_pass_to_godot_func() {
     let error = texture.create_from_images(images);
 
     assert_eq!(error, Error::OK);
-    assert_eq!((texture.width(), texture.height()), (2, 4));
+    assert_eq!((texture.get_width(), texture.get_height()), (2, 4));
 }
 
 #[itest]

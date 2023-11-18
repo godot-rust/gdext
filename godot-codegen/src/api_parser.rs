@@ -200,15 +200,6 @@ pub struct ClassMethod {
     pub arguments: Option<Vec<MethodArg>>,
 }
 
-impl ClassMethod {
-    pub fn map_args<R>(&self, f: impl FnOnce(&Vec<MethodArg>) -> R) -> R {
-        match self.arguments.as_ref() {
-            Some(args) => f(args),
-            None => f(&vec![]),
-        }
-    }
-}
-
 // Example: set_point_weight_scale ->
 // [ {name: "id", type: "int", meta: "int64"},
 //   {name: "weight_scale", type: "float", meta: "float"},

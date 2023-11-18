@@ -33,7 +33,7 @@ func test_collision_object_2d_input_event():
 	window.add_child(collision_object)
 
 	assert_that(not collision_object.input_event_called())
-	assert_eq(collision_object.viewport(), null)
+	assert_eq(collision_object.get_viewport(), null)
 
 	var event := InputEventMouseMotion.new()
 	event.global_position = Vector2.ZERO
@@ -43,7 +43,7 @@ func test_collision_object_2d_input_event():
 	await root.get_tree().physics_frame
 
 	assert_that(collision_object.input_event_called())
-	assert_eq(collision_object.viewport(), window)
+	assert_eq(collision_object.get_viewport(), window)
 
 	window.queue_free()
 

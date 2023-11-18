@@ -106,7 +106,7 @@ pub trait Share {
 ///     T: Inherits<Node>,
 /// {
 ///     let up = node.upcast(); // type Gd<Node> inferred
-///     println!("Node #{} with name {}", up.instance_id(), up.name());
+///     println!("Node #{} with name {}", up.instance_id(), up.get_name());
 ///     up.free();
 /// }
 ///

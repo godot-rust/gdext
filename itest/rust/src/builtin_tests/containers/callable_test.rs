@@ -120,7 +120,7 @@ fn callable_call_engine() {
     // TODO once varargs is available
     // let pos = Vector2::new(5.0, 7.0);
     // inner.call(&[pos.to_variant()]);
-    // assert_eq!(obj.position(), pos);
+    // assert_eq!(obj.get_position(), pos);
     //
     // inner.bindv(array);
 

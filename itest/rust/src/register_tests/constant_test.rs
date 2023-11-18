@@ -116,12 +116,12 @@ fn cfg_removes_or_keeps_constants() {
 struct HasOtherConstants {}
 
 impl HasOtherConstants {
-    const ENUM_NAME: &str = "SomeEnum";
+    const ENUM_NAME: &'static str = "SomeEnum";
     const ENUM_A: i64 = 0;
     const ENUM_B: i64 = 1;
     const ENUM_C: i64 = 2;
 
-    const BITFIELD_NAME: &str = "SomeBitfield";
+    const BITFIELD_NAME: &'static str = "SomeBitfield";
     const BITFIELD_A: i64 = 1;
     const BITFIELD_B: i64 = 2;
     const BITFIELD_C: i64 = 4;
