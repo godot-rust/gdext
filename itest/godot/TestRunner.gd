@@ -2,10 +2,19 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+@tool # To ensure that itest is not run from the editor; see below.
+
 extends Node
 class_name GDScriptTestRunner
 
 func _ready():
+	# Check that tests are invoked from the command line. Loading the editor may break some parts (e.g. generated test code).
+	# Both checks are needed (it's possible to invoke `godot -e --headless`).
+	if Engine.is_editor_hint() || DisplayServer.get_name() != 'headless':
+		push_error("Integration tests must be run in headless mode (without editor).")
+		get_tree().quit(2)
+		return
+
 	# Ensure physics is initialized, for tests that require it.
 	await get_tree().physics_frame
 
