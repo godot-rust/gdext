@@ -61,7 +61,7 @@ fn class_refcounted_life() -> Gd<RefCounted> {
 
 #[bench(repeat = 25)]
 fn class_user_refc_life() -> Gd<MyBenchType> {
-    Gd::<MyBenchType>::new_default()
+    Gd::default()
 }
 
 #[bench]

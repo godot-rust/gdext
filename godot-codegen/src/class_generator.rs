@@ -441,19 +441,24 @@ fn make_module_doc(class_name: &TyName) -> String {
     )
 }
 
-fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
+fn make_constructor_and_default(
+    class: &Class,
+    class_name: &TyName,
+    ctx: &Context,
+) -> (TokenStream, TokenStream) {
     let godot_class_name = &class.name;
     let godot_class_stringname = make_string_name(godot_class_name);
     // Note: this could use class_name() but is not yet done due to upcoming lazy-load refactoring.
     //let class_name_obj = quote! { <Self as crate::obj::GodotClass>::class_name() };
 
+    let (constructor, godot_default_impl);
     if ctx.is_singleton(godot_class_name) {
         // Note: we cannot return &'static mut Self, as this would be very easy to mutably alias.
         // &'static Self would be possible, but we would lose the whole mutability information (even if that is best-effort and
         // not strict Rust mutability, it makes the API much more usable).
         // As long as the user has multiple Gd smart pointers to the same singletons, only the internal raw pointers are aliased.
         // See also Deref/DerefMut impl for Gd.
-        quote! {
+        constructor = quote! {
             pub fn singleton() -> Gd<Self> {
                 unsafe {
                     let __class_name = #godot_class_stringname;
@@ -461,13 +466,15 @@ fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
                     Gd::from_obj_sys(__object_ptr)
                 }
             }
-        }
+        };
+        godot_default_impl = TokenStream::new();
     } else if !class.is_instantiable {
         // Abstract base classes or non-singleton classes without constructor
-        TokenStream::new()
+        constructor = TokenStream::new();
+        godot_default_impl = TokenStream::new();
     } else if class.is_refcounted {
         // RefCounted, Resource, etc
-        quote! {
+        constructor = quote! {
             pub fn new() -> Gd<Self> {
                 unsafe {
                     let class_name = #godot_class_stringname;
@@ -475,10 +482,17 @@ fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
                     Gd::from_obj_sys(object_ptr)
                 }
             }
-        }
+        };
+        godot_default_impl = quote! {
+            impl crate::obj::cap::GodotDefault for #class_name {
+                fn __godot_default() -> crate::obj::Gd<Self> {
+                    Self::new()
+                }
+            }
+        };
     } else {
         // Manually managed classes: Object, Node etc
-        quote! {
+        constructor = quote! {
             #[must_use]
             pub fn new_alloc() -> Gd<Self> {
                 unsafe {
@@ -487,8 +501,11 @@ fn make_constructor(class: &Class, ctx: &Context) -> TokenStream {
                     Gd::from_obj_sys(object_ptr)
                 }
             }
-        }
+        };
+        godot_default_impl = TokenStream::new();
     }
+
+    (constructor, godot_default_impl)
 }
 
 fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> GeneratedClass {
@@ -506,7 +523,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         None => (quote! { () }, None),
     };
 
-    let constructor = make_constructor(class, ctx);
+    let (constructor, godot_default_impl) = make_constructor_and_default(class, class_name, ctx);
     let api_level = util::get_api_level(class);
     let init_level = api_level.to_init_level();
 
@@ -640,7 +657,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
             )*
 
             #exportable_impl
-
+            #godot_default_impl
             #deref_impl
 
             #[macro_export]

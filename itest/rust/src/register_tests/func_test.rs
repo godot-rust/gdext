@@ -265,7 +265,7 @@ fn class_has_signal<T: GodotClass>(name: &str) -> bool {
 #[itest]
 fn cfg_doesnt_interfere_with_valid_method_impls() {
     // If we re-implement this method but the re-implementation is removed, that should keep the non-removed implementation.
-    let object = Gd::new(FuncRename);
+    let object = Gd::from_object(FuncRename);
     assert_eq!(
         object.bind().returns_hello_world(),
         GString::from("Hello world!")

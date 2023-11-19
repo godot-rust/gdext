@@ -6,7 +6,6 @@
 
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::ops::{Deref, DerefMut};
-use std::ptr;
 
 use godot_ffi as sys;
 use godot_ffi::VariantType;
@@ -23,28 +22,65 @@ use super::RawGd;
 
 /// Smart pointer to objects owned by the Godot engine.
 ///
+/// See also [chapter about objects][book] in the book.
+///
 /// This smart pointer can only hold _objects_ in the Godot sense: instances of Godot classes (`Node`, `RefCounted`, etc.)
-/// or user-declared structs (`#[derive(GodotClass)]`). It does **not** hold built-in types (`Vector3`, `Color`, `i32`).
+/// or user-declared structs (declared with `#[derive(GodotClass)]`). It does **not** hold built-in types (`Vector3`, `Color`, `i32`).
 ///
 /// `Gd<T>` never holds null objects. If you need nullability, use `Option<Gd<T>>`.
+///
+/// # Memory management
 ///
 /// This smart pointer behaves differently depending on `T`'s associated types, see [`GodotClass`] for their documentation.
 /// In particular, the memory management strategy is fully dependent on `T`:
 ///
-/// * Objects of type [`RefCounted`] or inherited from it are **reference-counted**. This means that every time a smart pointer is
+/// - **Reference-counted**<br>
+///   Objects of type [`RefCounted`] or inherited from it are **reference-counted**. This means that every time a smart pointer is
 ///   shared using [`Clone::clone()`], the reference counter is incremented, and every time one is dropped, it is decremented.
-///   This ensures that the last reference (either in Rust or Godot) will deallocate the object and call `T`'s destructor.
+///   This ensures that the last reference (either in Rust or Godot) will deallocate the object and call `T`'s destructor.<br><br>
 ///
-/// * Objects inheriting from [`Object`] which are not `RefCounted` (or inherited) are **manually-managed**.
+/// - **Manual**<br>
+///   Objects inheriting from [`Object`] which are not `RefCounted` (or inherited) are **manually-managed**.
 ///   Their destructor is not automatically called (unless they are part of the scene tree). Creating a `Gd<T>` means that
-///   you are responsible of explicitly deallocating such objects using [`Gd::free()`].
+///   you are responsible of explicitly deallocating such objects using [`free()`][Self::free].<br><br>
 ///
-/// * For `T=Object`, the memory strategy is determined **dynamically**. Due to polymorphism, a `Gd<T>` can point to either
+/// - **Dynamic**<br>
+///   For `T=Object`, the memory strategy is determined **dynamically**. Due to polymorphism, a `Gd<Object>` can point to either
 ///   reference-counted or manually-managed types at runtime. The behavior corresponds to one of the two previous points.
 ///   Note that if the dynamic type is also `Object`, the memory is manually-managed.
 ///
-/// [`Object`]: crate::engine::Object
-/// [`RefCounted`]: crate::engine::RefCounted
+/// # Construction
+///
+/// To construct default instances of various `Gd<T>` types, there are extension methods on the type `T` itself:
+///
+/// | Type \ Memory Strategy | Ref-counted          | Manually managed      | Singleton               |
+/// |------------------------|----------------------|-----------------------|-------------------------|
+/// | **Engine type**        | `Resource::new()`    | `Node::new_alloc()`   | `Os::singleton()`       |
+/// | **User type**          | `MyClass::new_gd()`  | `MyClass::alloc_gd()` | _(not yet implemented)_ |
+///
+/// In addition, the smart pointer can be constructed in multiple ways:
+///
+/// * [`Gd::default()`] for reference-counted types that are constructible. For user types, this means they must expose an `init` function
+///   or have a generated one. `Gd::<T>::default()` is equivalent to the shorter `T::new_gd()` and primarily useful for derives or generics.
+/// * [`Gd::from_init_fn(function)`][Gd::from_init_fn] for Rust objects with `#[base]` field, which are constructed inside the smart pointer.
+///   This is a very handy function if you want to pass extra parameters to your object upon construction.
+/// * [`Gd::from_object(rust_obj)`][Gd::from_object] for existing Rust objects without a `#[base]` field that are moved _into_ the smart pointer.
+/// * [`Gd::from_instance_id(id)`][Gd::from_instance_id] and [`Gd::try_from_instance_id(id)`][Gd::try_from_instance_id]
+///   to obtain a pointer to an object which is already alive in the engine.
+///
+/// # Binds
+///
+/// The [`bind()`][Self::bind] and [`bind_mut()`][Self::bind_mut] methods allow you to obtain a shared or exclusive guard to the user instance.
+/// These provide interior mutability similar to [`RefCell`][std::cell::RefCell], with the addition that `Gd` simultaneously handles reference
+/// counting (for some types `T`).
+///
+/// When you declare a `#[func]` method on your own class and it accepts `&self` or `&mut self`, an implicit `bind()` or `bind_mut()` call
+/// on the owning `Gd<T>` is performed. This is important to keep in mind, as you can get into situations that violate dynamic borrow rules; for
+/// example if you are inside a `&mut self` method, make a call to GDScript and indirectly call another method on the same object (re-entrancy).
+///
+/// [book]: https://godot-rust.github.io/book/intro/objects.html
+/// [`Object`]: engine::Object
+/// [`RefCounted`]: engine::RefCounted
 #[repr(C)] // must be layout compatible with engine classes
 pub struct Gd<T: GodotClass> {
     // Note: `opaque` has the same layout as GDExtensionObjectPtr == Object* in C++, i.e. the bytes represent a pointer
@@ -68,27 +104,6 @@ impl<T> Gd<T>
 where
     T: GodotClass<Declarer = dom::UserDomain>,
 {
-    /// Moves a user-created object into this smart pointer, submitting ownership to the Godot engine.
-    ///
-    /// This is only useful for types `T` which do not store their base objects (if they have a base,
-    /// you cannot construct them standalone).
-    pub fn new(user_object: T) -> Self {
-        Self::with_base(move |_base| user_object)
-    }
-
-    /// Creates a default-constructed instance of `T` inside a smart pointer.
-    ///
-    /// This is equivalent to the GDScript expression `T.new()`.
-    pub fn new_default() -> Self
-    where
-        T: cap::GodotInit,
-    {
-        unsafe {
-            let object_ptr = callbacks::create::<T>(ptr::null_mut());
-            Gd::from_obj_sys(object_ptr)
-        }
-    }
-
     /// Creates a `Gd<T>` using a function that constructs a `T` from a provided base.
     ///
     /// Imagine you have a type `T`, which has a `#[base]` field that you cannot default-initialize.
@@ -106,17 +121,46 @@ where
     ///     other_field: i32,
     /// }
     ///
-    /// let obj = Gd::<MyClass>::with_base(|my_base| {
+    /// let obj = Gd::from_init_fn(|my_base| {
     ///     // accepts the base and returns a constructed object containing it
     ///     MyClass { my_base, other_field: 732 }
     /// });
     /// ```
-    pub fn with_base<F>(init: F) -> Self
+    pub fn from_init_fn<F>(init: F) -> Self
     where
         F: FnOnce(crate::obj::Base<T::Base>) -> T,
     {
         let object_ptr = callbacks::create_custom(init);
         unsafe { Gd::from_obj_sys(object_ptr) }
+    }
+
+    /// Moves a user-created object into this smart pointer, submitting ownership to the Godot engine.
+    ///
+    /// This is only useful for types `T` which do not store their base objects (if they have a base,
+    /// you cannot construct them standalone).
+    pub fn from_object(user_object: T) -> Self {
+        Self::from_init_fn(move |_base| user_object)
+    }
+
+    #[deprecated = "Use `Gd::from_object()` instead."]
+    pub fn new(user_object: T) -> Self {
+        Self::from_object(user_object)
+    }
+
+    #[deprecated = "Use `Gd::default()` or the short-hands `T::new_gd()` and `T::alloc_gd()` instead."]
+    pub fn new_default() -> Self
+    where
+        T: cap::GodotDefault,
+    {
+        Self::default_instance()
+    }
+
+    #[deprecated = "Use `Gd::from_init_fn()` instead."]
+    pub fn with_base<F>(init: F) -> Self
+    where
+        F: FnOnce(crate::obj::Base<T::Base>) -> T,
+    {
+        Self::from_init_fn(init)
     }
 
     /// Hands out a guard for a shared borrow, through which the user instance can be read.
@@ -242,7 +286,7 @@ impl<T: GodotClass> Gd<T> {
     /// #[class(init, base=Node2D)]
     /// struct MyClass {}
     ///
-    /// let obj: Gd<MyClass> = Gd::new_default();
+    /// let obj: Gd<MyClass> = MyClass::alloc_gd();
     /// let base = obj.clone().upcast::<Node>();
     /// ```
     pub fn upcast<Base>(self) -> Gd<Base>
@@ -295,7 +339,19 @@ impl<T: GodotClass> Gd<T> {
             .map_err(Self::from_ffi)
     }
 
-    #[doc(hidden)]
+    /// Create default instance for all types that have `GodotDefault`.
+    ///
+    /// Deliberately more loose than `Gd::default()`, does not require ref-counted memory strategy for user types.
+    pub(crate) fn default_instance() -> Self
+    where
+        T: cap::GodotDefault,
+    {
+        unsafe {
+            let object_ptr = crate::callbacks::create::<T>(std::ptr::null_mut());
+            Gd::from_obj_sys(object_ptr)
+        }
+    }
+
     pub(crate) unsafe fn from_obj_sys_or_none(ptr: sys::GDExtensionObjectPtr) -> Option<Self> {
         Self::try_from_ffi(RawGd::from_obj_sys(ptr))
     }
@@ -305,26 +361,21 @@ impl<T: GodotClass> Gd<T> {
     ///
     /// This is the default for most initializations from FFI. In cases where reference counter
     /// should explicitly **not** be updated, [`Self::from_obj_sys_weak`] is available.
-    #[doc(hidden)]
     pub(crate) unsafe fn from_obj_sys(ptr: sys::GDExtensionObjectPtr) -> Self {
         Self::from_obj_sys_or_none(ptr).unwrap()
     }
 
-    #[doc(hidden)]
     pub(crate) unsafe fn from_obj_sys_weak_or_none(ptr: sys::GDExtensionObjectPtr) -> Option<Self> {
         Self::try_from_ffi(RawGd::from_obj_sys_weak(ptr))
     }
 
-    #[doc(hidden)]
     pub(crate) unsafe fn from_obj_sys_weak(ptr: sys::GDExtensionObjectPtr) -> Self {
         Self::from_obj_sys_weak_or_none(ptr).unwrap()
     }
 
-    #[doc(hidden)]
     pub(crate) fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
         self.raw.obj_sys()
     }
-
     /// Returns a callable referencing a method from this object named `method_name`.
     pub fn callable<S: Into<StringName>>(&self, method_name: S) -> Callable {
         Callable::from_object_method(self.clone(), method_name)
@@ -483,6 +534,22 @@ impl<T: GodotClass> GodotType for Gd<T> {
 
     fn godot_type_name() -> String {
         T::class_name().to_string()
+    }
+}
+
+impl<T> Default for Gd<T>
+where
+    T: cap::GodotDefault + GodotClass<Mem = mem::StaticRefCount>,
+{
+    /// Creates a default-constructed `T` inside a smart pointer.
+    ///
+    /// This is equivalent to the GDScript expression `T.new()`, and to the shorter Rust expression `T::new_gd()`.
+    ///
+    /// This trait is only implemented for reference-counted classes. Classes with manually-managed memory (e.g. `Node`) are not covered,
+    /// because they need explicit memory management, and deriving `Default` has a high chance of the user forgetting to call `free()` on those.
+    /// `T::alloc_gd()` should be used for those instead.
+    fn default() -> Self {
+        T::__godot_default()
     }
 }
 

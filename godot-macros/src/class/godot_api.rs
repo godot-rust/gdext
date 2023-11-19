@@ -526,8 +526,8 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                     #godot_init_impl
 
                     #(#cfg_attrs)*
-                    impl ::godot::obj::cap::GodotInit for #class_name {
-                        fn __godot_init(base: ::godot::obj::Base<Self::Base>) -> Self {
+                    impl ::godot::obj::cap::GodotDefault for #class_name {
+                        fn __godot_user_init(base: ::godot::obj::Base<Self::Base>) -> Self {
                             <Self as #trait_name>::init(base)
                         }
                     }
