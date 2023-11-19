@@ -4,6 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+mod gfile_test;
 mod native_structures_test;
 mod node_test;
 mod utilities_test;

@@ -17,6 +17,10 @@ pub use crate::gen::utilities;
 
 use crate::sys;
 
+mod gfile;
+
+pub use gfile::{GFile, NotUniqueError};
+
 /// Support for Godot _native structures_.
 ///
 /// Native structures are a niche API in Godot. These are low-level data types that are passed as pointers to/from the engine.
