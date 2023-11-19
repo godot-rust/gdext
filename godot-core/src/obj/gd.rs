@@ -134,15 +134,6 @@ where
         unsafe { Gd::from_obj_sys(object_ptr) }
     }
 
-    /// Construct default instance for manually managed pointer.
-    pub fn new_alloc<ManualMem>() -> Self
-    where
-        T: GodotClass<Mem = ManualMem> + cap::GodotDefault,
-        ManualMem: mem::PossiblyManual,
-    {
-        Self::default_instance()
-    }
-
     /// Moves a user-created object into this smart pointer, submitting ownership to the Godot engine.
     ///
     /// This is only useful for types `T` which do not store their base objects (if they have a base,
