@@ -53,7 +53,8 @@ pub type GodotString = GString;
 ///
 /// Godot also provides two separate string classes with slightly different semantics: [`StringName`] and [`NodePath`].
 #[doc(alias = "String")]
-#[repr(C, align(8))]
+// #[repr] is needed on GString itself rather than the opaque field, because PackedStringArray::as_slice() relies on a packed representation.
+#[repr(transparent)]
 pub struct GString {
     opaque: OpaqueString,
 }
