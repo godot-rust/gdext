@@ -58,21 +58,25 @@ jobs:
       # Opened/reopened/updated PR: include PR author + title
       - name: "Construct JSON (for PR sync)"
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
-        # Escape double quotes in PR title, as it will be used in a JSON string.
+        # jq escapes backticks, double quotes etc. in PR title.
         run: |
-          escapedPrTitle=$(echo "${{ github.event.pull_request.title }}" | sed 's/"/\\"/g')
-          payload=$(cat <<'HEREDOC'
-          {
+          payload=$(jq -n \
+          --arg repoOwner '${{ github.repository_owner }}' \
+          --arg num '${{ github.event.number }}' \
+          --arg commitSha '${{ github.event.pull_request.head.sha }}' \
+          --arg date '${{ github.event.pull_request.updated_at }}' \
+          --arg prAuthor '${{ github.event.pull_request.user.login }}' \
+          --arg prTitle '${{ github.event.pull_request.title }}' \
+          '{
             "op": "put",
             "repo": "gdext",
-            "repo-owner": "${{ github.repository_owner }}",
-            "num": "${{ github.event.number }}",
-            "commit-sha": "${{ github.event.pull_request.head.sha }}",
-            "date": "${{ github.event.pull_request.updated_at }}",
-            "pr-author": "${{ github.event.pull_request.user.login }}",
-            "pr-title": "$escapedPrTitle"
-          }
-          HEREDOC)
+            "repo-owner": $repoOwner,
+            "num": $num,
+            "commit-sha": $commitSha,
+            "date": $date,
+            "pr-author": $prAuthor,
+            "pr-title": $prTitle
+          }')
           echo "VAR=$payload"
           echo "GDEXT_JSON<<HEREDOC" >> $GITHUB_ENV
           echo "${payload}" >> $GITHUB_ENV

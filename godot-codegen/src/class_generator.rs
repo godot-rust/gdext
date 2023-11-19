@@ -8,7 +8,6 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
-use std::borrow::Cow;
 use std::path::Path;
 
 use crate::api_parser::*;
@@ -1129,31 +1128,28 @@ fn make_class_method_definition(
 
     let class_name_str = &class_name.godot_ty;
     let godot_method_name = &method.name;
-    let renamed_method_name = special_cases::maybe_renamed(class_name, godot_method_name);
+    let rust_method_name = special_cases::maybe_renamed(class_name, godot_method_name);
 
-    let mut rust_method_name = Cow::Borrowed(renamed_method_name);
+    // Override const-qualification for known special cases (FileAccess::get_16, StreamPeer::get_u16, etc.).
+    /* TODO enable this once JSON/domain models are separated. Remove #[allow] above.
     let mut override_is_const = None;
-
-    if method.map_args(|args| args.is_empty()) {
-        // Getters (i.e. 0 arguments) are stripped of their `get_` prefix, to conform to Rust convention.
-        // Currently also applies to static methods, but NOT to methods which have default parameters but can be called with 0 arguments.
-        // TODO(bromeon): should we add #[doc(alias)]?
-        if let Some(remainder) = renamed_method_name.strip_prefix("get_") {
-            // Do not apply for FileAccess::get_16, StreamPeer::get_u16, etc.
-            if !special_cases::keeps_get_prefix(class_name, method) {
-                rust_method_name = Cow::Owned(remainder.to_string());
-
-                // Many getters are mutably qualified (GltfAccessor::get_max, CameraAttributes::get_exposure_multiplier, ...).
-                override_is_const = Some(true);
-            }
-        }
+    if let Some(override_const) = special_cases::is_method_const(class_name, &method) {
+        override_is_const = Some(override_const);
     }
 
-    let rust_method_name = rust_method_name.as_ref();
+    // Getters in particular are re-qualified as const (if there isn't already an override).
+    if override_is_const.is_none() && option_as_slice(&method.arguments).is_empty() {
+        if rust_method_name.starts_with("get_") {
+            // Many getters are mutably qualified (GltfAccessor::get_max, CameraAttributes::get_exposure_multiplier, ...).
+            // As a default, set those to const.
+            override_is_const = Some(true);
+        }
+    }*/
 
     let receiver = make_receiver(
         method.is_static,
-        override_is_const.unwrap_or(method.is_const),
+        //override_is_const.unwrap_or(method.is_const),
+        method.is_const,
         quote! { self.object_ptr },
     );
 
@@ -1912,8 +1908,8 @@ fn make_all_virtual_methods(
         all_virtuals.extend(
             get_methods_in_class(class)
                 .iter()
-                .cloned()
-                .filter(|m| m.is_virtual),
+                .filter(|m| m.is_virtual)
+                .cloned(),
         );
     };
 

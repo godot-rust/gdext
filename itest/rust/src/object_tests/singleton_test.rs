@@ -27,7 +27,7 @@ fn singleton_from_instance_id() {
 
     let b: Gd<Os> = Gd::from_instance_id(id);
 
-    assert_eq!(a.executable_path(), b.executable_path());
+    assert_eq!(a.get_executable_path(), b.get_executable_path());
 }
 
 #[itest]

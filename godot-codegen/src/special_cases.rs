@@ -176,66 +176,36 @@ pub(crate) fn is_excluded_from_default_params(class_name: Option<&TyName>, godot
     }
 }
 
+/// Return `true` if a method should have `&self` receiver in Rust, `false` if `&mut self` and `None` if original qualifier should be kept.
+///
+/// In cases where the method falls under some general category (like getters) that have their own const-qualification overrides, `Some`
+/// should be returned to take precedence over general rules. Example: `FileAccess::get_pascal_string()` is mut, but would be const-qualified
+/// since it looks like a getter.
 #[rustfmt::skip]
-pub(crate) fn keeps_get_prefix(class_name: &TyName, method: &ClassMethod) -> bool {
-    // Also list those which have default parameters and can be called with 0 arguments. Those are anyway
-    // excluded at the moment, but this is more robust if the outer logic changes.
-
-    match (class_name.godot_ty.as_str(), method.name.as_str()) {
-        // For Object
-        // https://docs.godotengine.org/en/stable/classes/class_object.html#methods
-        | ("Object", "get_class")
-        | ("Object", "get_instance_id") // currently removed, but would be shadowed by Gd::instance_id().
-        | ("Object", "get_script")
-        | ("Object", "get_script_instance")
-        // The following ones often have slight variations with parameters, so it's more consistent to have get_signal_list() and
-        // get_signal_connection_list(signal). This may change in the future.
-        | ("Object", "get_incoming_connections")
-        | ("Object", "get_meta_list")
-        | ("Object", "get_method_list")
-        | ("Object", "get_property_list")
-        | ("Object", "get_signal_list")
-
-        // For Node
-        // https://docs.godotengine.org/en/stable/classes/class_node.html#methods
-        // TODO get_child_count?
-
-        // https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#methods
+#[cfg(FALSE)] // TODO enable this once JSON/domain models are separated.
+pub(crate) fn is_method_const(class_name: &TyName, godot_method: &ClassMethod) -> Option<bool> {
+    match (class_name.godot_ty.as_str(), godot_method.name.as_str()) {
+        // Changed to mut.
         | ("FileAccess", "get_16")
         | ("FileAccess", "get_32")
         | ("FileAccess", "get_64")
         | ("FileAccess", "get_8")
-        | ("FileAccess", "get_as_text")
         | ("FileAccess", "get_csv_line")
-        | ("FileAccess", "get_double")
-        | ("FileAccess", "get_error") // If this has side effects, should definitely keep prefix. Not clear.
-        | ("FileAccess", "get_float")
-        | ("FileAccess", "get_line")
-        | ("FileAccess", "get_open_error")
-        | ("FileAccess", "get_pascal_string")
         | ("FileAccess", "get_real")
+        | ("FileAccess", "get_float")
+        | ("FileAccess", "get_double")
         | ("FileAccess", "get_var")
-
-        // https://docs.godotengine.org/en/stable/classes/class_streampeer.html#methods
-        // do for 8,16,32,64 and u*
+        | ("FileAccess", "get_line")
+        | ("FileAccess", "get_pascal_string") // already mut.
+        | ("StreamPeer", "get_8")
         | ("StreamPeer", "get_16")
         | ("StreamPeer", "get_32")
         | ("StreamPeer", "get_64")
-        | ("StreamPeer", "get_8")
-        | ("StreamPeer", "get_double")
         | ("StreamPeer", "get_float")
-        | ("StreamPeer", "get_string")
-        | ("StreamPeer", "get_u16")
-        | ("StreamPeer", "get_u32")
-        | ("StreamPeer", "get_u64")
-        | ("StreamPeer", "get_u8")
-        | ("StreamPeer", "get_utf8_string")
-        | ("StreamPeer", "get_var")
+        | ("StreamPeer", "get_double")
+        => Some(false),
 
-        // Others that conflict with a verb:
-        | ("AnimationPlayer", "get_queue")
-
-        => true, _ => false,
+        _ => None,
     }
 }
 

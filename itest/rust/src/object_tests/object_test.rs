@@ -109,14 +109,14 @@ fn object_engine_roundtrip() {
 
     let mut obj: Gd<Node3D> = Node3D::new_alloc();
     obj.set_position(pos);
-    assert_eq!(obj.position(), pos);
+    assert_eq!(obj.get_position(), pos);
 
     let raw = obj.to_ffi();
     let ptr = raw.sys();
 
     let raw2 = unsafe { RawGd::<Node3D>::from_sys(ptr) };
     let obj2 = Gd::from_ffi(raw2);
-    assert_eq!(obj2.position(), pos);
+    assert_eq!(obj2.get_position(), pos);
     obj.free();
 }
 
@@ -198,7 +198,7 @@ fn object_from_instance_id_inherits_type() {
 
     let node_as_base = Gd::<Node>::from_instance_id(id);
     assert_eq!(node_as_base.instance_id(), id);
-    assert_eq!(node_as_base.editor_description(), descr);
+    assert_eq!(node_as_base.get_editor_description(), descr);
 
     node_as_base.free();
 }
@@ -313,7 +313,7 @@ fn object_engine_use_after_free() {
     node.free();
 
     expect_panic("call method on dead engine object", move || {
-        copy.position();
+        copy.get_position();
     });
 }
 
@@ -404,7 +404,7 @@ fn object_engine_convert_variant() {
     let variant = obj.to_variant();
     let obj2 = Gd::<Node3D>::from_variant(&variant);
 
-    assert_eq!(obj2.position(), pos);
+    assert_eq!(obj2.get_position(), pos);
     obj.free();
 }
 
@@ -424,26 +424,26 @@ fn object_engine_convert_variant_refcount() {
 /// Converts between Object <-> Variant and verifies the reference counter at each stage.
 fn check_convert_variant_refcount(obj: Gd<RefCounted>) {
     // Freshly created -> refcount 1
-    assert_eq!(obj.reference_count(), 1);
+    assert_eq!(obj.get_reference_count(), 1);
 
     {
         // Variant created from object -> increment
         let variant = obj.to_variant();
-        assert_eq!(obj.reference_count(), 2);
+        assert_eq!(obj.get_reference_count(), 2);
 
         {
             // Yet another object created *from* variant -> increment
             let another_object = variant.to::<Gd<RefCounted>>();
-            assert_eq!(obj.reference_count(), 3);
-            assert_eq!(another_object.reference_count(), 3);
+            assert_eq!(obj.get_reference_count(), 3);
+            assert_eq!(another_object.get_reference_count(), 3);
         }
 
         // `another_object` destroyed -> decrement
-        assert_eq!(obj.reference_count(), 2);
+        assert_eq!(obj.get_reference_count(), 2);
     }
 
     // `variant` destroyed -> decrement
-    assert_eq!(obj.reference_count(), 1);
+    assert_eq!(obj.get_reference_count(), 1);
 }
 
 #[itest]
@@ -472,7 +472,7 @@ fn object_engine_returned_refcount() {
     assert!(file.is_open());
 
     // There was a bug which incremented ref-counts of just-returned objects, keep this as regression test.
-    assert_eq!(file.reference_count(), 1);
+    assert_eq!(file.get_reference_count(), 1);
 }
 
 #[itest]
@@ -540,7 +540,7 @@ fn object_engine_downcast() {
     let node3d: Gd<Node3D> = node.try_cast::<Node3D>().expect("try_cast");
 
     assert_eq!(node3d.instance_id(), id);
-    assert_eq!(node3d.position(), pos);
+    assert_eq!(node3d.get_position(), pos);
 
     node3d.free();
 }
@@ -622,7 +622,7 @@ where
     T: Inherits<Node>,
 {
     let up = node.upcast();
-    up.name()
+    up.get_name()
 }
 
 fn accept_refcounted<T>(node: Gd<T>) -> GString
