@@ -424,8 +424,8 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
             export_multiline: GString,
             #[export(range = (0.0, 20.0))]
             export_range_float_0_20: f64,
-            // We're missing step currently.
-            //  #[export(range = (-10, 20 /*, 0.2 */))] export_range_float_neg_10_20_02: f64,
+            #[export(range = (-10.0, 20.0, 0.2))]
+            export_range_float_neg10_20_02: f64,
             // We can only export ranges of floats currently.
             //  #[export(range = (0, 100, 1, "or_greater", "or_less"))] export_range_int_0_100_1_or_greater_or_less: int,
             #[export(exp_easing)]
@@ -473,7 +473,7 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
 @export_global_dir var export_global_dir: String
 @export_multiline var export_multiline: String
 @export_range(0, 20) var export_range_float_0_20: float
-@export_range(-10, 20, 0.2) var export_range_float_neg_10_20_02: float
+@export_range(-10, 20, 0.2) var export_range_float_neg10_20_02: float
 @export_range(0, 100, 1, "or_greater", "or_less") var export_range_int_0_100_1_or_greater_or_less: int
 @export_exp_easing var export_exp_easing: float
 @export_color_no_alpha var export_color_no_alpha: Color

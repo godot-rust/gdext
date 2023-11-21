@@ -237,6 +237,9 @@ struct CheckAllExports {
     #[export(range = (0.0, 10.0, or_greater, or_less, exp, radians, hide_slider))]
     range_exported: f64,
 
+    #[export(range = (0.0, 10.0, 0.2, or_greater, or_less, exp, radians, hide_slider))]
+    range_exported_with_step: f64,
+
     #[export(enum = (A = 10, B, C, D = 20))]
     enum_exported: i64,
 

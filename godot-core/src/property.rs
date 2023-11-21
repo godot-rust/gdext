@@ -153,6 +153,7 @@ pub mod export_info_functions {
     pub fn export_range(
         min: f64,
         max: f64,
+        step: Option<f64>,
         or_greater: bool,
         or_less: bool,
         exp: bool,
@@ -160,15 +161,18 @@ pub mod export_info_functions {
         degrees: bool,
         hide_slider: bool,
     ) -> PropertyHintInfo {
-        let min_max = format!("{},{}", min, max);
-
+        let hint_beginning = if let Some(step) = step {
+            format!("{min},{max},{step}")
+        } else {
+            format!("{min},{max}")
+        };
         let rest =
             comma_separate_boolean_idents!(or_greater, or_less, exp, radians, degrees, hide_slider);
 
         let hint_string = if rest.is_empty() {
-            min_max
+            hint_beginning
         } else {
-            format!("{min_max},{rest}")
+            format!("{hint_beginning},{rest}")
         };
 
         PropertyHintInfo {
