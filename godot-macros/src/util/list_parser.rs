@@ -132,6 +132,19 @@ impl ListParser {
         Ok(Some(kv.ident()?))
     }
 
+    /// Check if the next element of the list is an identifier.
+    ///
+    /// Returns `None` if there are no more elements left, `Some(true)` if the next element is identifier and `Some(false)` if it is not.
+    pub fn is_next_ident(&mut self) -> Option<bool> {
+        let Some(kv) = self.peek() else {
+            return None;
+        };
+
+        let res = kv.as_ident();
+
+        Some(res.is_ok())
+    }
+
     /// Take the next element of the list, if it is an identifier.
     ///
     /// Returns `Ok(None)` if there are no more elements left or the next element isn't an identifier.

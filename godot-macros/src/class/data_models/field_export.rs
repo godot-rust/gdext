@@ -31,6 +31,7 @@ pub enum FieldExport {
     Range {
         min: TokenStream,
         max: TokenStream,
+        step: TokenStream,
         or_greater: bool,
         or_less: bool,
         exp: bool,
@@ -265,6 +266,15 @@ impl FieldExport {
 
         let min = parser.next_expr()?;
         let max = parser.next_expr()?;
+        // TODO: During parser refactor, try to remove the need for `is_next_ident` there. Currently needed only for this functionality.
+        // See discussion for rationale here: https://github.com/godot-rust/gdext/pull/484#pullrequestreview-1738612069
+        let step = match parser.is_next_ident() {
+            Some(false) => {
+                let value = parser.next_expr()?;
+                quote! { Some(#value) }
+            }
+            _ => quote! { None },
+        };
 
         let mut options = HashSet::new();
 
@@ -277,6 +287,7 @@ impl FieldExport {
         Ok(FieldExport::Range {
             min,
             max,
+            step,
             or_greater: options.contains("or_greater"),
             or_less: options.contains("or_less"),
             exp: options.contains("exp"),
@@ -360,6 +371,7 @@ impl FieldExport {
             FieldExport::Range {
                 min,
                 max,
+                step,
                 or_greater,
                 or_less,
                 exp,
@@ -367,7 +379,7 @@ impl FieldExport {
                 degrees,
                 hide_slider,
             } => quote_export_func! {
-                export_range(#min, #max, #or_greater, #or_less, #exp, #radians, #degrees, #hide_slider)
+                export_range(#min, #max, #step, #or_greater, #or_less, #exp, #radians, #degrees, #hide_slider)
             },
 
             FieldExport::Enum { variants } => {
