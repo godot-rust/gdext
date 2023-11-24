@@ -168,6 +168,15 @@ fn array_get() {
 }
 
 #[itest]
+fn array_try_get() {
+    let array = array![1, 2];
+
+    assert_eq!(array.try_get(0), Some(1));
+    assert_eq!(array.try_get(1), Some(2));
+    assert_eq!(array.try_get(2), None);
+}
+
+#[itest]
 fn array_first_last() {
     let array = array![1, 2];
 
