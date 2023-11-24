@@ -146,6 +146,11 @@
 //!   Access to `godot::engine` APIs that Godot marks "experimental". These are under heavy development and may change at any time.
 //!   If you opt in to this feature, expect breaking changes at compile and runtime.
 //!
+//! * **`experimental-wasm`**
+//!
+//!   Support for WebAssembly exports is still a work-in-progress and is not yet well tested. This feature is in place for users
+//!   to explicitly opt-in to any instabilities or rough edges that may result.
+//!
 //! * **`lazy-function-tables`**
 //!
 //!   Instead of loading all engine function pointers at startup, load them lazily on first use. This reduces startup time and RAM usage, but
@@ -177,6 +182,9 @@ pub use godot_core::sys;
 
 #[cfg(all(feature = "lazy-function-tables", feature = "experimental-threads"))]
 compile_error!("Thread safety for lazy function pointers is not yet implemented.");
+
+#[cfg(all(target_family = "wasm", not(feature = "experimental-wasm")))]
+compile_error!("Must opt-in using `experimental-wasm` Cargo feature; keep in mind that this is work in progress");
 
 pub mod init {
     pub use godot_core::init::*;

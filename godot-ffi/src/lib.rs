@@ -47,6 +47,10 @@ use std::ffi::CStr;
 #[doc(hidden)]
 pub use paste;
 
+#[doc(hidden)]
+#[cfg(target_family = "wasm")]
+pub use gensym::gensym;
+
 pub use crate::godot_ffi::{
     from_sys_init_or_init_default, GodotFfi, GodotNullableFfi, PrimitiveConversionError,
     PtrcallType,
