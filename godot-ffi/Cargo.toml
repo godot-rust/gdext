@@ -17,6 +17,9 @@ trace = []
 [dependencies]
 paste = "1"
 
+[target.'cfg(target_family = "wasm")'.dependencies]
+gensym = "0.1.1"
+
 [build-dependencies]
 godot-bindings = { path = "../godot-bindings" }
 godot-codegen = { path = "../godot-codegen" }

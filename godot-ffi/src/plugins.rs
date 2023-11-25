@@ -32,6 +32,28 @@ macro_rules! plugin_registry {
 #[cfg_attr(rustfmt, rustfmt::skip)]
 // ^ skip: paste's [< >] syntax chokes fmt
 //   cfg_attr: workaround for https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
+macro_rules! plugin_add_inner_wasm {
+    ($gensym:ident,) => {
+        // Rust presently requires that statics with a custom `#[link_section]` must be a simple
+        // list of bytes on the wasm target (with no extra levels of indirection such as references).
+        //
+        // As such, instead we export a fn with a random name of predictable format to be used
+        // by the embedder.
+        $crate::paste::paste! {
+            #[no_mangle]
+            extern "C" fn [< rust_gdext_registrant_ $gensym >] () {
+                __init();
+            }
+        }
+    };
+}
+
+#[doc(hidden)]
+#[macro_export]
+#[allow(clippy::deprecated_cfg_attr)]
+#[cfg_attr(rustfmt, rustfmt::skip)]
+// ^ skip: paste's [< >] syntax chokes fmt
+//   cfg_attr: workaround for https://github.com/rust-lang/rust/pull/52234#issuecomment-976702997
 macro_rules! plugin_add_inner {
     ($registry:ident; $plugin:expr; $( $path_tt:tt )* ) => {
         const _: () = {
@@ -60,6 +82,9 @@ macro_rules! plugin_add_inner {
                 }
                 __inner_init
             };
+
+            #[cfg(target_family = "wasm")]
+            $crate::gensym! { $crate::plugin_add_inner_wasm!() }
         };
     };
 }

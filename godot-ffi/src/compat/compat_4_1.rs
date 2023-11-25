@@ -16,6 +16,7 @@ use crate::compat::BindingCompat;
 
 pub type InitCompat = sys::GDExtensionInterfaceGetProcAddress;
 
+#[cfg(not(target_family = "wasm"))]
 #[repr(C)]
 struct LegacyLayout {
     version_major: u32,
@@ -25,6 +26,13 @@ struct LegacyLayout {
 }
 
 impl BindingCompat for sys::GDExtensionInterfaceGetProcAddress {
+    // Fundamentally in wasm function references and data pointers live in different memory
+    // spaces so trying to read the "memory" at a function pointer (an index into a table) to
+    // heuristically determine which API we have (as is done below) is not quite going to work.
+    #[cfg(target_family = "wasm")]
+    fn ensure_static_runtime_compatibility(&self) {}
+
+    #[cfg(not(target_family = "wasm"))]
     fn ensure_static_runtime_compatibility(&self) {
         // In Godot 4.0.x, before the new GetProcAddress mechanism, the init function looked as follows.
         // In place of the `get_proc_address` function pointer, the `p_interface` data pointer was passed.
