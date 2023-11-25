@@ -376,7 +376,7 @@ fn test_format_loader(_test_context: &TestContext) {
         .cache_mode(CacheMode::CACHE_MODE_IGNORE)
         .done()
         .unwrap();
-    assert!(resource.try_cast::<BoxMesh>().is_some());
+    assert!(resource.try_cast::<BoxMesh>().is_ok());
 
     loader.remove_resource_format_loader(format_loader.upcast());
 }

@@ -308,12 +308,12 @@ impl<T: GodotClass> Gd<T> {
     /// If `T`'s dynamic type is not `Derived` or one of its subclasses, `None` is returned
     /// and the reference is dropped. Otherwise, `Some` is returned and the ownership is moved
     /// to the returned value.
-    // TODO consider Result<Gd<Derived>, Self> so that user can still use original object (e.g. to free if manual)
-    pub fn try_cast<Derived>(self) -> Option<Gd<Derived>>
+    pub fn try_cast<Derived>(self) -> Result<Gd<Derived>, Self>
     where
         Derived: GodotClass + Inherits<T>,
     {
-        self.owned_cast().ok()
+        // Separate method due to more restrictive bounds.
+        self.owned_cast()
     }
 
     /// ⚠️ **Downcast:** convert into a smart pointer to a derived class. Panics on error.
