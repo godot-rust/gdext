@@ -235,5 +235,6 @@ pub mod prelude {
     // Make trait methods available
     pub use super::engine::NodeExt as _;
     pub use super::obj::EngineEnum as _;
-    pub use super::obj::UserClass as _; // new_gd(), self_gd()
+    pub use super::obj::UserClass as _; // new_gd(), alloc_gd()
+    pub use super::obj::WithBaseField as _; // to_gd()
 }

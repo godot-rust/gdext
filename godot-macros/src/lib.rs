@@ -100,7 +100,7 @@ use crate::util::ident;
 /// #[class(base = Node2D)]
 /// struct MyStruct {
 ///     #[base]
-///     base: Gd<Node2D>,
+///     base: Base<Node2D>,
 /// }
 /// ```
 ///
