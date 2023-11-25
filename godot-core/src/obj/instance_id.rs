@@ -4,7 +4,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{FromGodot, GodotConvert, ToGodot};
+use crate::builtin::meta::{ConvertError, FromGodot, FromGodotError, GodotConvert, ToGodot};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::num::NonZeroU64;
 
@@ -85,7 +85,7 @@ impl ToGodot for InstanceId {
 }
 
 impl FromGodot for InstanceId {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Self::try_from_u64(via)
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Self::try_from_u64(via).ok_or_else(|| FromGodotError::ZeroInstanceId.into_error(via))
     }
 }

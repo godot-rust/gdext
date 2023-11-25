@@ -5,7 +5,7 @@
  */
 
 use super::*;
-use crate::builtin::meta::{GodotFfiVariant, GodotType, PropertyInfo};
+use crate::builtin::meta::{FromVariantError, GodotFfiVariant, GodotType, PropertyInfo};
 use crate::builtin::*;
 use crate::engine::global;
 use godot_ffi as sys;
@@ -34,10 +34,14 @@ macro_rules! impl_ffi_variant {
                 variant
             }
 
-            fn ffi_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+            fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
                 // Type check -- at the moment, a strict match is required.
                 if variant.get_type() != Self::variant_type() {
-                    return Err(VariantConversionError::BadType);
+                    return Err(FromVariantError::BadType {
+                        expected: Self::variant_type(),
+                        got: variant.get_type(),
+                    }
+                    .into_error(variant.clone()));
                 }
 
                 // For 4.0:
@@ -70,8 +74,8 @@ macro_rules! impl_ffi_variant {
                 self
             }
 
-            fn try_from_ffi(ffi: Self::Ffi) -> Option<Self> {
-                Some(ffi)
+            fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
+                Ok(ffi)
             }
 
             impl_ffi_variant!(@godot_type_name $T $(, $godot_type_name)?);
@@ -146,12 +150,16 @@ impl GodotFfiVariant for () {
         Variant::nil()
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         if variant.is_nil() {
             return Ok(());
         }
 
-        Err(VariantConversionError::BadValue)
+        Err(FromVariantError::BadType {
+            expected: VariantType::Nil,
+            got: variant.get_type(),
+        }
+        .into_error(variant.clone()))
     }
 }
 
@@ -162,8 +170,8 @@ impl GodotType for () {
 
     fn into_ffi(self) -> Self::Ffi {}
 
-    fn try_from_ffi(_: Self::Ffi) -> Option<Self> {
-        Some(())
+    fn try_from_ffi(_: Self::Ffi) -> Result<Self, ConvertError> {
+        Ok(())
     }
 
     fn godot_type_name() -> String {
@@ -176,7 +184,7 @@ impl GodotFfiVariant for Variant {
         self.clone()
     }
 
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         Ok(variant.clone())
     }
 }
@@ -192,8 +200,8 @@ impl GodotType for Variant {
         self
     }
 
-    fn try_from_ffi(ffi: Self::Ffi) -> Option<Self> {
-        Some(ffi)
+    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
+        Ok(ffi)
     }
 
     fn property_info(property_name: &str) -> PropertyInfo {

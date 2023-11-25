@@ -4,9 +4,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+pub(crate) mod convert_error;
 mod impls;
 
-use crate::builtin::{Variant, VariantConversionError};
+pub use convert_error::ConvertError;
+
+use crate::builtin::Variant;
 
 use super::{GodotFfiVariant, GodotType};
 
@@ -54,10 +57,8 @@ pub trait ToGodot: Sized + GodotConvert {
 ///
 /// Violating these assumptions is safe but will give unexpected results.
 pub trait FromGodot: Sized + GodotConvert {
-    // TODO: better error
     /// Performs the conversion.
-    #[must_use]
-    fn try_from_godot(via: Self::Via) -> Option<Self>;
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError>;
 
     /// ⚠️ Performs the conversion.
     ///
@@ -68,10 +69,11 @@ pub trait FromGodot: Sized + GodotConvert {
     }
 
     /// Performs the conversion from a [`Variant`].
-    fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
+    fn try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         let ffi = <Self::Via as GodotType>::Ffi::ffi_from_variant(variant)?;
-        let via = Self::Via::try_from_ffi(ffi).ok_or(VariantConversionError::BadValue)?;
-        Self::try_from_godot(via).ok_or(VariantConversionError::BadValue)
+
+        let via = Self::Via::try_from_ffi(ffi)?;
+        Self::try_from_godot(via)
     }
 
     /// ⚠️ Performs the conversion from a [`Variant`].
@@ -83,12 +85,13 @@ pub trait FromGodot: Sized + GodotConvert {
     }
 }
 
-pub(crate) fn into_ffi<T: ToGodot>(t: T) -> <T::Via as GodotType>::Ffi {
-    let via = t.into_godot();
-    via.into_ffi()
+pub(crate) fn into_ffi<T: ToGodot>(value: T) -> <T::Via as GodotType>::Ffi {
+    value.into_godot().into_ffi()
 }
 
-pub(crate) fn try_from_ffi<T: FromGodot>(ffi: <T::Via as GodotType>::Ffi) -> Option<T> {
+pub(crate) fn try_from_ffi<T: FromGodot>(
+    ffi: <T::Via as GodotType>::Ffi,
+) -> Result<T, ConvertError> {
     let via = <T::Via as GodotType>::try_from_ffi(ffi)?;
     T::try_from_godot(via)
 }
@@ -113,8 +116,8 @@ macro_rules! impl_godot_as_self {
 
         impl $crate::builtin::meta::FromGodot for $T {
             #[inline]
-            fn try_from_godot(via: Self::Via) -> Option<Self> {
-                Some(via)
+            fn try_from_godot(via: Self::Via) -> Result<Self, $crate::builtin::meta::ConvertError> {
+                Ok(via)
             }
         }
     };

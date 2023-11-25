@@ -11,13 +11,10 @@ use sys::types::OpaqueVariant;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
 mod impls;
-mod variant_traits;
 
-pub use impls::*;
 pub use sys::{VariantOperator, VariantType};
-pub use variant_traits::*;
 
-use super::meta::{impl_godot_as_self, FromGodot, ToGodot};
+use super::meta::{impl_godot_as_self, ConvertError, FromGodot, ToGodot};
 
 #[repr(C, align(8))]
 pub struct Variant {
@@ -50,7 +47,7 @@ impl Variant {
     /// Convert to type `T`, returning `Err` on failure.
     ///
     /// Equivalent to `T::try_from_variant(&self)`.
-    pub fn try_to<T: FromGodot>(&self) -> Result<T, VariantConversionError> {
+    pub fn try_to<T: FromGodot>(&self) -> Result<T, ConvertError> {
         T::try_from_variant(self)
     }
 

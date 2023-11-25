@@ -925,8 +925,8 @@ fn make_native_structure(
         }
 
         impl FromGodot for *mut #class_name {
-            fn try_from_godot(via: Self::Via) -> Option<Self> {
-                Some(via as Self)
+            fn try_from_godot(via: Self::Via) -> Result<Self, crate::builtin::meta::ConvertError> {
+                Ok(via as Self)
             }
         }
 
@@ -941,8 +941,8 @@ fn make_native_structure(
         }
 
         impl FromGodot for *const #class_name {
-            fn try_from_godot(via: Self::Via) -> Option<Self> {
-                Some(via as Self)
+            fn try_from_godot(via: Self::Via) -> Result<Self, crate::builtin::meta::ConvertError> {
+                Ok(via as Self)
             }
         }
     };
@@ -1286,6 +1286,7 @@ fn make_builtin_method_definition(
 
         <CallSig as PtrcallSignatureTuple>::out_builtin_ptrcall::<RetMarshal>(
             method_bind,
+            #method_name_str,
             #object_ptr,
             args
         )
@@ -1345,6 +1346,7 @@ pub(crate) fn make_utility_function_definition(
 
         <CallSig as PtrcallSignatureTuple>::out_utility_ptrcall(
             utility_fn,
+            #function_name_str,
             args
         )
     };
@@ -1354,6 +1356,7 @@ pub(crate) fn make_utility_function_definition(
 
         <CallSig as VarcallSignatureTuple>::out_utility_ptrcall_varargs(
             utility_fn,
+            #function_name_str,
             args,
             varargs
         )

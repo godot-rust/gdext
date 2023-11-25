@@ -30,11 +30,11 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
     // ret: sys::GDExtensionUninitializedTypePtr
     unsafe fn in_varcall(
         instance_ptr: sys::GDExtensionClassInstancePtr,
+        method_name: &str,
         args_ptr: *const sys::GDExtensionConstVariantPtr,
         ret: sys::GDExtensionVariantPtr,
         err: *mut sys::GDExtensionCallError,
         func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
-        method_name: &str,
     );
 
     unsafe fn out_class_varcall(
@@ -48,6 +48,7 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
 
     unsafe fn out_utility_ptrcall_varargs(
         utility_fn: UtilityFunctionBind,
+        method_name: &'static str,
         args: Self::Params,
         varargs: &[Variant],
     ) -> Self::Ret;
@@ -64,10 +65,10 @@ pub trait PtrcallSignatureTuple {
     // We could fall back to varcalls in such cases, and not require GodotFfi categorically.
     unsafe fn in_ptrcall(
         instance_ptr: sys::GDExtensionClassInstancePtr,
+        method_name: &'static str,
         args_ptr: *const sys::GDExtensionConstTypePtr,
         ret: sys::GDExtensionTypePtr,
         func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
-        method_name: &'static str,
         call_type: sys::PtrcallType,
     );
 
@@ -81,12 +82,16 @@ pub trait PtrcallSignatureTuple {
 
     unsafe fn out_builtin_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
         builtin_fn: BuiltinMethodBind,
+        method_name: &'static str,
         type_ptr: sys::GDExtensionTypePtr,
         args: Self::Params,
     ) -> Self::Ret;
 
-    unsafe fn out_utility_ptrcall(utility_fn: UtilityFunctionBind, args: Self::Params)
-        -> Self::Ret;
+    unsafe fn out_utility_ptrcall(
+        utility_fn: UtilityFunctionBind,
+        method_name: &'static str,
+        args: Self::Params,
+    ) -> Self::Ret;
 }
 
 // impl<P, const N: usize> Sig for [P; N]
@@ -150,11 +155,11 @@ macro_rules! impl_varcall_signature_for_tuple {
             #[inline]
             unsafe fn in_varcall(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
+                method_name: &str,
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
                 ret: sys::GDExtensionVariantPtr,
                 err: *mut sys::GDExtensionCallError,
                 func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
-                method_name: &str,
             ) {
                 //$crate::out!("in_varcall: {method_name}");
                 let args = ($(
@@ -205,13 +210,16 @@ macro_rules! impl_varcall_signature_for_tuple {
 
                     check_varcall_error(&err, method_name, &explicit_args, varargs);
                 });
-                <Self::Ret as FromVariantIndirect>::convert(variant)
+
+                let result = <Self::Ret as FromGodot>::try_from_variant(&variant);
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(method_name, err))
             }
 
             // Note: this is doing a ptrcall, but uses variant conversions for it
             #[inline]
             unsafe fn out_utility_ptrcall_varargs(
                 utility_fn: UtilityFunctionBind,
+                method_name: &str,
                 ($($pn,)*): Self::Params,
                 varargs: &[Variant],
             ) -> Self::Ret {
@@ -227,9 +235,10 @@ macro_rules! impl_varcall_signature_for_tuple {
                 type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys_const));
 
                 // Important: this calls from_sys_init_default().
-                PtrcallReturnT::<$R>::call(|return_ptr| {
+                let result = PtrcallReturnT::<$R>::call(|return_ptr| {
                     utility_fn(return_ptr, type_ptrs.as_ptr(), type_ptrs.len() as i32);
-                })
+                });
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(method_name, err))
             }
 
             #[inline]
@@ -261,10 +270,10 @@ macro_rules! impl_ptrcall_signature_for_tuple {
             #[inline]
             unsafe fn in_ptrcall(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
+                method_name: &str,
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
                 func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
-                method_name: &'static str,
                 call_type: sys::PtrcallType,
             ) {
                 // $crate::out!("in_ptrcall: {method_name}");
@@ -306,14 +315,16 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                     )*
                 ];
 
-                Rr::call(|return_ptr| {
+                let result = Rr::call(|return_ptr| {
                     class_fn(method_bind, object_ptr, type_ptrs.as_ptr(), return_ptr);
-                })
+                });
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(method_name, err))
             }
 
             #[inline]
             unsafe fn out_builtin_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
                 builtin_fn: BuiltinMethodBind,
+                method_name: &'static str,
                 type_ptr: sys::GDExtensionTypePtr,
                 ($($pn,)*): Self::Params,
             ) -> Self::Ret {
@@ -331,14 +342,16 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                     )*
                 ];
 
-                Rr::call(|return_ptr| {
+                let result = Rr::call(|return_ptr| {
                     builtin_fn(type_ptr, type_ptrs.as_ptr(), return_ptr, type_ptrs.len() as i32);
-                })
+                });
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(method_name, err))
             }
 
             #[inline]
             unsafe fn out_utility_ptrcall(
                 utility_fn: UtilityFunctionBind,
+                method_name: &'static str,
                 ($($pn,)*): Self::Params,
             ) -> Self::Ret {
                 // $crate::out!("out_utility_ptrcall: {method_name}");
@@ -355,9 +368,10 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                     )*
                 ];
 
-                PtrcallReturnT::<$R>::call(|return_ptr| {
+                let result = PtrcallReturnT::<$R>::call(|return_ptr| {
                     utility_fn(return_ptr, arg_ptrs.as_ptr(), arg_ptrs.len() as i32);
-                })
+                });
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(method_name, err))
             }
         }
     };
@@ -373,8 +387,8 @@ unsafe fn varcall_arg<P: FromGodot, const N: isize>(
 ) -> P {
     let variant_ref = &*Variant::ptr_from_sys(*args_ptr.offset(N));
 
-    P::try_from_variant(variant_ref)
-        .unwrap_or_else(|_| param_error::<P>(method_name, N as i32, variant_ref))
+    let result = P::try_from_variant(variant_ref);
+    result.unwrap_or_else(|err| param_error::<P>(method_name, N as i32, err))
 }
 
 /// Moves `ret_val` into `ret`.
@@ -427,7 +441,7 @@ unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
         call_type,
     );
 
-    try_from_ffi(ffi).unwrap_or_else(|| param_error::<P>(method_name, N as i32, &"TODO"))
+    try_from_ffi(ffi).unwrap_or_else(|err| param_error::<P>(method_name, N as i32, err))
 }
 
 /// Moves `ret_val` into `ret`.
@@ -445,16 +459,14 @@ unsafe fn ptrcall_return<R: ToGodot>(
     val.move_return_ptr(ret, call_type);
 }
 
-fn param_error<P>(method_name: &str, index: i32, arg: &impl Debug) -> ! {
+fn param_error<P>(method_name: &str, index: i32, err: ConvertError) -> ! {
     let param_ty = std::any::type_name::<P>();
-    panic!(
-        "{method_name}: parameter [{index}] has type {param_ty}, which is unable to store argument {arg:?}",
-    );
+    panic!("in method `{method_name}` at parameter [{index}] of type {param_ty}: {err}",);
 }
 
-fn _return_error<R>(method_name: &str, arg: &impl Debug) -> ! {
+fn return_error<R>(method_name: &str, err: ConvertError) -> ! {
     let return_ty = std::any::type_name::<R>();
-    panic!("{method_name}: return type {return_ty} is unable to store value {arg:?}",);
+    panic!("in method `{method_name}` at return type {return_ty}: {err}",);
 }
 
 fn check_varcall_error<T>(

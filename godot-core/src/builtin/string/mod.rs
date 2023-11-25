@@ -16,7 +16,7 @@ pub use gstring::*;
 pub use node_path::*;
 pub use string_name::*;
 
-use super::meta::{FromGodot, GodotConvert, ToGodot};
+use super::meta::{ConvertError, FromGodot, GodotConvert, ToGodot};
 
 impl GodotConvert for &str {
     type Via = GString;
@@ -39,7 +39,7 @@ impl ToGodot for String {
 }
 
 impl FromGodot for String {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(via.to_string())
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(via.to_string())
     }
 }

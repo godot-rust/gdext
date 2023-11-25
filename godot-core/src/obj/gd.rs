@@ -11,7 +11,9 @@ use godot_ffi as sys;
 use godot_ffi::VariantType;
 use sys::static_assert_eq_size;
 
-use crate::builtin::meta::{FromGodot, GodotConvert, GodotType, ToGodot};
+use crate::builtin::meta::{
+    ConvertError, FromFfiError, FromGodot, GodotConvert, GodotType, ToGodot,
+};
 use crate::builtin::{Callable, StringName};
 use crate::obj::{cap, dom, mem, EngineEnum, GdDerefTarget, GodotClass, Inherits, Share};
 use crate::obj::{GdMut, GdRef, InstanceId};
@@ -201,12 +203,14 @@ impl<T: GodotClass> Gd<T> {
     ///
     /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
     /// is not compatible with `T`, then `None` is returned.
-    pub fn try_from_instance_id(instance_id: InstanceId) -> Option<Self> {
+    pub fn try_from_instance_id(instance_id: InstanceId) -> Result<Self, ConvertError> {
         let ptr = engine::object_ptr_from_id(instance_id);
 
         // SAFETY: assumes that the returned GDExtensionObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
         let untyped = unsafe { Gd::<engine::Object>::from_obj_sys_or_none(ptr)? };
-        untyped.owned_cast::<T>().ok()
+        untyped
+            .owned_cast::<T>()
+            .map_err(|obj| FromFfiError::WrongObjectType.into_error(obj))
     }
 
     /// ⚠️ Looks up the given instance ID and returns the associated object.
@@ -215,11 +219,12 @@ impl<T: GodotClass> Gd<T> {
     /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
     /// is not compatible with `T`.
     pub fn from_instance_id(instance_id: InstanceId) -> Self {
-        Self::try_from_instance_id(instance_id).unwrap_or_else(|| {
+        Self::try_from_instance_id(instance_id).unwrap_or_else(|err| {
             panic!(
-                "Instance ID {} does not belong to a valid object of class '{}'",
+                "Instance ID {} does not belong to a valid object of class '{}': {}",
                 instance_id,
-                T::class_name()
+                T::class_name(),
+                err
             )
         })
     }
@@ -352,7 +357,9 @@ impl<T: GodotClass> Gd<T> {
         }
     }
 
-    pub(crate) unsafe fn from_obj_sys_or_none(ptr: sys::GDExtensionObjectPtr) -> Option<Self> {
+    pub(crate) unsafe fn from_obj_sys_or_none(
+        ptr: sys::GDExtensionObjectPtr,
+    ) -> Result<Self, ConvertError> {
         Self::try_from_ffi(RawGd::from_obj_sys(ptr))
     }
 
@@ -365,7 +372,9 @@ impl<T: GodotClass> Gd<T> {
         Self::from_obj_sys_or_none(ptr).unwrap()
     }
 
-    pub(crate) unsafe fn from_obj_sys_weak_or_none(ptr: sys::GDExtensionObjectPtr) -> Option<Self> {
+    pub(crate) unsafe fn from_obj_sys_weak_or_none(
+        ptr: sys::GDExtensionObjectPtr,
+    ) -> Result<Self, ConvertError> {
         Self::try_from_ffi(RawGd::from_obj_sys_weak(ptr))
     }
 
@@ -504,8 +513,8 @@ impl<T: GodotClass> ToGodot for Gd<T> {
 }
 
 impl<T: GodotClass> FromGodot for Gd<T> {
-    fn try_from_godot(via: Self::Via) -> Option<Self> {
-        Some(via)
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(via)
     }
 }
 
@@ -520,11 +529,11 @@ impl<T: GodotClass> GodotType for Gd<T> {
         self.raw
     }
 
-    fn try_from_ffi(raw: Self::Ffi) -> Option<Self> {
+    fn try_from_ffi(raw: Self::Ffi) -> Result<Self, ConvertError> {
         if raw.is_null() {
-            None
+            Err(FromFfiError::NullRawGd.into_error(raw))
         } else {
-            Some(Self { raw })
+            Ok(Self { raw })
         }
     }
 

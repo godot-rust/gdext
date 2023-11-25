@@ -32,3 +32,5 @@ mod string {
 }
 
 mod color_test;
+
+mod convert_test;
