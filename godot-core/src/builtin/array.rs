@@ -404,6 +404,18 @@ impl<T: GodotType + FromGodot> Array<T> {
         T::from_variant(variant)
     }
 
+    /// Returns the value at the specified index or `None` if the index is out-of-bounds.
+    pub fn try_get(&self, index: usize) -> Option<T> {
+        let ptr = self.ptr_or_null(index);
+        if ptr.is_null() {
+            None
+        } else {
+            // SAFETY: `ptr.is_null()` just verified that the index is not out of bounds.
+            let variant = unsafe { &*ptr };
+            Some(T::from_variant(variant))
+        }
+    }
+
     /// Returns the first element in the array, or `None` if the array is empty. Equivalent of
     /// `front()` in GDScript.
     pub fn first(&self) -> Option<T> {
