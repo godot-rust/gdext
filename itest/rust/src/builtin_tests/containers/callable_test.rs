@@ -110,7 +110,7 @@ fn callable_call_return() {
 #[itest]
 fn callable_call_engine() {
     let obj = Node2D::new_alloc();
-    let cb = Callable::from_object_method(obj.clone(), "set_position");
+    let cb = Callable::from_object_method(&obj, "set_position");
     let inner: InnerCallable = cb.as_inner();
 
     assert!(!inner.is_null());

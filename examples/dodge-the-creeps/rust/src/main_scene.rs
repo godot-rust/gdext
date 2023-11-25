@@ -105,10 +105,7 @@ impl Main {
         mob.set_linear_velocity(lin_vel);
 
         let mut hud = self.base.get_node_as::<Hud>("Hud");
-        hud.connect(
-            "start_game".into(),
-            Callable::from_object_method(mob, "on_start_game"),
-        );
+        hud.connect("start_game".into(), mob.callable("on_start_game"));
     }
 
     fn music(&mut self) -> &mut AudioStreamPlayer {

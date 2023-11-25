@@ -35,8 +35,10 @@ impl Callable {
 
     /// Create a callable for the method `object::method_name`.
     ///
+    /// See also [`Gd::callable()`].
+    ///
     /// _Godot equivalent: `Callable(Object object, StringName method)`_
-    pub fn from_object_method<T, S>(object: Gd<T>, method_name: S) -> Self
+    pub fn from_object_method<T, S>(object: &Gd<T>, method_name: S) -> Self
     where
         T: GodotClass, // + Inherits<Object>,
         S: Into<StringName>,
