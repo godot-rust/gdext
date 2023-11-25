@@ -529,7 +529,7 @@ pub fn derive_from_godot(input: TokenStream) -> TokenStream {
 /// # use godot::prelude::*;
 /// #[repr(i32)]
 /// #[derive(Property)]
-/// # #[derive(PartialEq, Eq, Debug)]
+/// # #[derive(Eq, PartialEq, Debug)]
 /// enum TestEnum {
 ///     A = 0,
 ///     B = 1,

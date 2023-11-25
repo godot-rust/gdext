@@ -1022,7 +1022,7 @@ macro_rules! varray {
 /// [`set_typed`](https://docs.godotengine.org/en/latest/classes/class_array.html#class-array-method-set-typed).
 ///
 /// We ignore the `script` parameter because it has no impact on typing in Godot.
-#[derive(PartialEq, Eq)]
+#[derive(Eq, PartialEq)]
 pub(crate) struct TypeInfo {
     variant_type: VariantType,
 

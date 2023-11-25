@@ -73,7 +73,7 @@ pub trait ToVector: Sized {
 }
 
 /// Enumerates the axes in a [`Vector2`].
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 #[repr(i32)]
 pub enum Vector2Axis {
     /// The X axis.
@@ -117,7 +117,7 @@ impl FromGodot for Vector2Axis {
 
 /// Enumerates the axes in a [`Vector3`].
 // TODO auto-generate this, alongside all the other builtin type's enums
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 #[repr(i32)]
 pub enum Vector3Axis {
     /// The X axis.
@@ -164,7 +164,7 @@ impl FromGodot for Vector3Axis {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Enumerates the axes in a [`Vector4`].
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 #[repr(i32)]
 pub enum Vector4Axis {
     /// The X axis.

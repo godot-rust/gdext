@@ -15,7 +15,7 @@ use quote::{format_ident, quote, ToTokens};
 
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct NativeStructuresField {
     pub field_type: String,
     pub field_name: String,

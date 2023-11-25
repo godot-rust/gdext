@@ -41,10 +41,10 @@ trait Bound {}
 #[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
 struct StructGenBound<T: Bound + ToGodot + FromGodot>(T);
 
-#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug, Clone)]
+#[derive(FromGodot, ToGodot, GodotConvert, Clone, PartialEq, Debug)]
 enum Uninhabited {}
 
-#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug, Clone)]
+#[derive(FromGodot, ToGodot, GodotConvert, Clone, PartialEq, Debug)]
 enum Enum {
     Unit,
     OneTuple(i32),
@@ -145,7 +145,7 @@ macro_rules! roundtrip_with_skip {
     };
 }
 
-#[derive(Debug, Default, Clone, PartialEq, ToGodot, FromGodot, GodotConvert)]
+#[derive(ToGodot, FromGodot, GodotConvert, Default, Clone, PartialEq, Debug)]
 enum EnumWithSkip {
     #[variant(skip)]
     Skipped(String),
@@ -209,10 +209,10 @@ roundtrip_with_skip!(
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Skipping of structs
 
-#[derive(Debug, Default, PartialEq, ToGodot, FromGodot, GodotConvert)]
+#[derive(ToGodot, FromGodot, GodotConvert, Default, PartialEq, Debug)]
 struct NewTypeStructWithSkip(#[variant(skip)] String);
 
-#[derive(Debug, Default, PartialEq, ToGodot, FromGodot, GodotConvert)]
+#[derive(ToGodot, FromGodot, GodotConvert, Default, PartialEq, Debug)]
 struct StructWithSkip {
     #[variant(skip)]
     skipped_field: String,

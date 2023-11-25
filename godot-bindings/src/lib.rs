@@ -19,7 +19,7 @@ compile_error!(
 
 // This is outside of `godot_version` to allow us to use it even when we don't have the `custom-godot`
 // feature enabled.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct GodotVersion {
     /// the original string (trimmed, stripped of text around)
     pub full_string: String,

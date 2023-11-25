@@ -302,7 +302,7 @@ struct CheckAllExports {
 impl CheckAllExports {}
 
 #[repr(i64)]
-#[derive(Property, Debug, PartialEq, Eq, Export)]
+#[derive(Property, Export, Eq, PartialEq, Debug)]
 pub enum TestEnum {
     A = 0,
     B = 1,
