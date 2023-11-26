@@ -77,10 +77,10 @@ struct SignalDefinition {
 }
 
 /// Codegen for `#[godot_api] impl MyType`
-fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
-    let class_name = util::validate_impl(&decl, None, "godot_api")?;
+fn transform_inherent_impl(mut original_impl: Impl) -> Result<TokenStream, Error> {
+    let class_name = util::validate_impl(&original_impl, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
-    let (funcs, signals) = process_godot_fns(&mut decl)?;
+    let (funcs, signals) = process_godot_fns(&mut original_impl)?;
 
     let mut signal_cfg_attrs: Vec<Vec<&Attribute>> = Vec::new();
     let mut signal_name_strs: Vec<String> = Vec::new();
@@ -135,7 +135,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
         .into_iter()
         .map(|func_def| make_method_registration(&class_name, func_def));
 
-    let consts = process_godot_constants(&mut decl)?;
+    let consts = process_godot_constants(&mut original_impl)?;
     let mut integer_constant_cfg_attrs = Vec::new();
     let mut integer_constant_names = Vec::new();
     let mut integer_constant_values = Vec::new();
@@ -184,7 +184,7 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
     };
 
     let result = quote! {
-        #decl
+        #original_impl
 
         impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
             fn __register_methods() {
@@ -227,8 +227,8 @@ fn transform_inherent_impl(mut decl: Impl) -> Result<TokenStream, Error> {
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_obj,
             component: #prv::PluginComponent::UserMethodBinds {
-                generated_register_fn: #prv::ErasedRegisterFn {
-                    raw: #prv::callbacks::register_user_binds::<#class_name>,
+                register_methods_constants_fn: #prv::ErasedRegisterFn {
+                    raw: #prv::callbacks::register_user_methods_constants::<#class_name>,
                 },
             },
             init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
