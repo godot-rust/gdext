@@ -90,7 +90,7 @@ pub fn make_method_registration(
         #(#cfg_attrs)*
         {
             use ::godot::obj::GodotClass;
-            use ::godot::builtin::meta::registration::method::MethodInfo;
+            use ::godot::builtin::meta::registration::method::ClassMethodInfo;
             use ::godot::builtin::{StringName, Variant};
             use ::godot::sys;
 
@@ -105,7 +105,7 @@ pub fn make_method_registration(
             // `get_varcall_func` upholds all the requirements for `call_func`.
             // `get_ptrcall_func` upholds all the requirements for `ptrcall_func`
             let method_info = unsafe {
-                MethodInfo::from_signature::<Sig>(
+                ClassMethodInfo::from_signature::<Sig>(
                 #class_name::class_name(),
                 method_name,
                 Some(varcall_func),

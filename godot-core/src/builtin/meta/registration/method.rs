@@ -24,7 +24,7 @@ impl MethodParamOrReturnInfo {
 }
 
 /// All info needed to register a method for a class with Godot.
-pub struct MethodInfo {
+pub struct ClassMethodInfo {
     class_name: ClassName,
     method_name: StringName,
     call_func: sys::GDExtensionClassMethodCall,
@@ -35,7 +35,7 @@ pub struct MethodInfo {
     default_arguments: Vec<Variant>,
 }
 
-impl MethodInfo {
+impl ClassMethodInfo {
     /// # Safety
     ///
     /// `ptrcall_func`, if provided, must:
