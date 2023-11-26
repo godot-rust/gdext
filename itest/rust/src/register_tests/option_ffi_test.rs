@@ -103,6 +103,3 @@ struct OptionExportFfiTest {
     #[export]
     optional_export: Option<Gd<Node>>,
 }
-
-#[godot_api]
-impl OptionExportFfiTest {}

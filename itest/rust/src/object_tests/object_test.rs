@@ -844,18 +844,12 @@ pub mod object_test_gd {
         i: i64,
     }
 
-    #[godot_api]
-    impl MockObjRust {}
-
     #[derive(GodotClass)]
     #[class(init, base=RefCounted)]
     struct MockRefCountedRust {
         #[var]
         i: i64,
     }
-
-    #[godot_api]
-    impl MockRefCountedRust {}
 
     #[derive(GodotClass, Debug)]
     #[class(init, base=RefCounted)]
