@@ -20,7 +20,7 @@ use crate::obj::mem::Memory as _;
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::GdDerefTarget;
 use crate::obj::{dom, GdMut, GdRef, GodotClass, InstanceId};
-use crate::storage::InstanceStorage;
+use crate::storage::{InstanceStorage, Storage};
 use crate::{engine, out};
 
 /// Low-level bindings for object pointers in Godot.
@@ -305,7 +305,7 @@ where
     // Note: possible names: write/read, hold/hold_mut, r/w, r/rw, ...
     pub(crate) fn bind(&self) -> GdRef<T> {
         self.check_rtti("bind");
-        GdRef::from_cell(self.storage().unwrap().get())
+        GdRef::from_guard(self.storage().unwrap().get())
     }
 
     /// Hands out a guard for an exclusive borrow, through which the user instance can be read and written.
@@ -313,7 +313,7 @@ where
     /// See [`crate::obj::Gd::bind_mut()`] for a more in depth explanation.
     pub(crate) fn bind_mut(&mut self) -> GdMut<T> {
         self.check_rtti("bind_mut");
-        GdMut::from_cell(self.storage().unwrap().get_mut())
+        GdMut::from_guard(self.storage().unwrap().get_mut())
     }
 
     /// Storage object associated with the extension instance.

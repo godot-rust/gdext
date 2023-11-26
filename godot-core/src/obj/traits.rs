@@ -367,7 +367,10 @@ mod private {
 
 pub mod dom {
     use super::private::Sealed;
-    use crate::obj::{GodotClass, RawGd};
+    use crate::{
+        obj::{GodotClass, RawGd},
+        storage::Storage,
+    };
 
     /// Trait that specifies who declares a given `GodotClass`.
     pub trait Domain: Sealed {

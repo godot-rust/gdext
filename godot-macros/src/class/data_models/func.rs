@@ -186,10 +186,10 @@ fn make_forwarding_closure(
 
     let instance_decl = match &signature_info.receiver_type {
         ReceiverType::Ref => quote! {
-            let instance = storage.get();
+            let instance = ::godot::private::Storage::get(storage);
         },
         ReceiverType::Mut => quote! {
-            let mut instance = storage.get_mut();
+            let mut instance = ::godot::private::Storage::get_mut(storage);
         },
         _ => quote! {},
     };
@@ -236,7 +236,7 @@ fn make_forwarding_closure(
                         unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
 
                     #before_method_call
-                    <#class_name>::#method_name(storage.get_gd(), #(#params),*)
+                    <#class_name>::#method_name(::godot::private::Storage::get_gd(storage), #(#params),*)
                 }
             }
         }
