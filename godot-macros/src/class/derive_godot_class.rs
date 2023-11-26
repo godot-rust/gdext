@@ -53,7 +53,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     let godot_withbase_impl = if let Some(Field { name, .. }) = &fields.base_field {
         quote! {
             impl ::godot::obj::WithBaseField for #class_name {
-                fn to_gd(&self) -> Gd<Self> {
+                fn to_gd(&self) -> ::godot::obj::Gd<Self> {
                     ::godot::obj::Gd::clone(&*self.#name).cast()
                 }
             }
