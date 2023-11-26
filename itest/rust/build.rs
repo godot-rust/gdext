@@ -77,7 +77,7 @@ macro_rules! push_newtype {
         pushs!(
             $inputs; $GDScriptTy, $name, $gdscript_val, $rust_val, false, false, None;
 
-            #[derive(Debug, Clone, PartialEq)]
+            #[derive(Clone, PartialEq, Debug)]
             pub struct $name($T);
 
             impl godot::builtin::meta::GodotConvert for $name {

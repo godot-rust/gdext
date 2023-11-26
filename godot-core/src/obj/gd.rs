@@ -308,12 +308,12 @@ impl<T: GodotClass> Gd<T> {
     /// If `T`'s dynamic type is not `Derived` or one of its subclasses, `None` is returned
     /// and the reference is dropped. Otherwise, `Some` is returned and the ownership is moved
     /// to the returned value.
-    // TODO consider Result<Gd<Derived>, Self> so that user can still use original object (e.g. to free if manual)
-    pub fn try_cast<Derived>(self) -> Option<Gd<Derived>>
+    pub fn try_cast<Derived>(self) -> Result<Gd<Derived>, Self>
     where
         Derived: GodotClass + Inherits<T>,
     {
-        self.owned_cast().ok()
+        // Separate method due to more restrictive bounds.
+        self.owned_cast()
     }
 
     /// ⚠️ **Downcast:** convert into a smart pointer to a derived class. Panics on error.
@@ -385,9 +385,12 @@ impl<T: GodotClass> Gd<T> {
     pub(crate) fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
         self.raw.obj_sys()
     }
+
     /// Returns a callable referencing a method from this object named `method_name`.
+    ///
+    /// This is shorter syntax for [`Callable::from_object_method(self, method_name)`][Callable::from_object_method].
     pub fn callable<S: Into<StringName>>(&self, method_name: S) -> Callable {
-        Callable::from_object_method(self.clone(), method_name)
+        Callable::from_object_method(self, method_name)
     }
 }
 

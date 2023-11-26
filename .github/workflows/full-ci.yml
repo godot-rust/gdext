@@ -8,10 +8,7 @@ name: Full CI
 
 on:
   merge_group:
-  push:
-    branches:
-      - staging
-      - trying
+#  push:
 
 env:
   GDEXT_FEATURES: ''
@@ -328,9 +325,9 @@ jobs:
   # CI status report
 
   # Job to notify merge queue about success/failure
-  # 'push' is for workflows still triggered by bors
   ci-status:
-    if: always() && (github.event_name == 'merge_group' || github.event_name == 'push')
+    # Check for 'merge_group' not strictly necessary, but helpful when adding add-hoc `push:` trigger to `on:` for testing branch.
+    if: always() && github.event_name == 'merge_group'
     needs:
       - rustfmt
       - doc-lints

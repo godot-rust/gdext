@@ -93,6 +93,19 @@ fn base_with_init() {
     obj.free();
 }
 
+#[itest]
+fn base_gd_self() {
+    let obj = Based::alloc_gd();
+    let obj2 = obj.bind().access_gd_self();
+
+    assert_eq!(obj, obj2);
+    assert_eq!(obj.instance_id(), obj2.instance_id());
+
+    obj.free();
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[derive(GodotClass)]
 #[class(init, base=Node2D)]
 struct Based {
@@ -100,6 +113,13 @@ struct Based {
     base: Base<Node2D>,
 
     i: i32,
+}
+
+impl Based {
+    fn access_gd_self(&self) -> Gd<Self> {
+        use godot::obj::WithBaseField as _;
+        self.to_gd()
+    }
 }
 
 #[derive(GodotClass)]

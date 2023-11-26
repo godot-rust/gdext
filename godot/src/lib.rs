@@ -106,11 +106,6 @@
 //!
 //! The following features can be enabled for this crate. All off them are off by default.
 //!
-//! * **`formatted`**
-//!
-//!   Format the generated bindings with `rustfmt`. This significantly increases initial compile times and is
-//!   mostly useful when you actively contribute to the library and/or want to inspect generated files.<br><br>
-//!
 //! * **`double-precision`**
 //!
 //!   Use `f64` instead of `f32` for the floating-point type [`real`][type@builtin::real]. Requires Godot to be compiled with the
@@ -131,32 +126,38 @@
 //!
 //! * **`serde`**
 //!
-//!   Implement the [serde](https://docs.rs/serde) traits `Serialize` and `Deserialize` traits for certain built-in types.
+//!   Implement the [serde](https://serde.rs/) traits `Serialize` and `Deserialize` traits for certain built-in types.
 //!   The serialized representation underlies **no stability guarantees** and may change at any time, even without a SemVer-breaking change.
 //!   <br><br>
-//!
-//! * **`experimental-threads`**
-//!
-//!   Experimental threading support. This enables `Send`/`Sync` traits for `Gd<T>` and makes the guard types `Gd`/`GdMut` aware of
-//!   multi-threaded references. There safety aspects are not ironed out yet; there is a high risk of unsoundness at the moment.
-//!   As this evolves, it is very likely that the API becomes more strict.
-//!
-//! * **`experimental-godot-api`**
-//!
-//!   Access to `godot::engine` APIs that Godot marks "experimental". These are under heavy development and may change at any time.
-//!   If you opt in to this feature, expect breaking changes at compile and runtime.
-//!
-//! * **`experimental-wasm`**
-//!
-//!   Support for WebAssembly exports is still a work-in-progress and is not yet well tested. This feature is in place for users
-//!   to explicitly opt-in to any instabilities or rough edges that may result.
 //!
 //! * **`lazy-function-tables`**
 //!
 //!   Instead of loading all engine function pointers at startup, load them lazily on first use. This reduces startup time and RAM usage, but
 //!   incurs additional overhead in each FFI call. Also, you lose the guarantee that once the library has booted, all function pointers are
 //!   truly available. Function calls may thus panic only at runtime, possibly in deeply nested code paths.
-//!   This feature is not yet thread-safe and can thus not be combined with `experimental-threads`.
+//!   This feature is not yet thread-safe and can thus not be combined with `experimental-threads`.<br><br>
+//!
+//! * **`formatted`**
+//!
+//!   Format the generated binding code with a custom-built formatter, which aims to strike a balance between runtime and human readability.
+//!   rustfmt generates nice output, but it is unfortunately excessively slow across hundreds of Godot classes.<br><br>
+//!
+//! * **`experimental-threads`**
+//!
+//!   Experimental threading support. This enables `Send`/`Sync` traits for `Gd<T>` and makes the guard types `Gd`/`GdMut` aware of
+//!   multi-threaded references. There safety aspects are not ironed out yet; there is a high risk of unsoundness at the moment.
+//!   As this evolves, it is very likely that the API becomes more strict.<br><br>
+//!
+//! * **`experimental-godot-api`**
+//!
+//!   Access to `godot::engine` APIs that Godot marks "experimental". These are under heavy development and may change at any time.
+//!   If you opt in to this feature, expect breaking changes at compile and runtime.<br><br>
+//!
+//! * **`experimental-wasm`**
+//!
+//!   Support for WebAssembly exports is still a work-in-progress and is not yet well tested. This feature is in place for users
+//!   to explicitly opt-in to any instabilities or rough edges that may result. Due to a limitation in Godot, it might currently not
+//!   work Firefox browser.<br><br>
 //!
 //! # Public API
 //!
@@ -234,5 +235,6 @@ pub mod prelude {
     // Make trait methods available
     pub use super::engine::NodeExt as _;
     pub use super::obj::EngineEnum as _;
-    pub use super::obj::UserClass as _; // new_gd(), self_gd()
+    pub use super::obj::UserClass as _; // new_gd(), alloc_gd()
+    pub use super::obj::WithBaseField as _; // to_gd()
 }

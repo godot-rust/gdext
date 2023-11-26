@@ -552,7 +552,7 @@ fn object_reject_invalid_downcast() {
     let instance = Gd::from_object(CustomClassA {});
     let object = instance.upcast::<Object>();
 
-    assert!(object.try_cast::<CustomClassB>().is_none());
+    assert!(object.try_cast::<CustomClassB>().is_err());
 }
 
 #[itest]
@@ -577,11 +577,12 @@ fn object_engine_downcast_reflexive() {
 #[itest]
 fn object_engine_bad_downcast() {
     let object: Gd<Object> = Object::new_alloc();
-    let free_ref = object.clone();
-    let node3d: Option<Gd<Node3D>> = object.try_cast::<Node3D>();
+    let object2 = object.clone();
 
-    assert!(node3d.is_none());
-    free_ref.free();
+    let node3d: Result<Gd<Node3D>, Gd<Object>> = object.try_cast::<Node3D>();
+
+    assert_eq!(node3d, Err(object2.clone()));
+    object2.free();
 }
 
 #[itest]
@@ -665,9 +666,11 @@ fn object_user_downcast() {
 fn object_user_bad_downcast() {
     let obj = user_refc_instance();
     let object = obj.upcast::<Object>();
-    let node3d: Option<Gd<Node>> = object.try_cast::<Node>();
+    let object2 = object.clone();
 
-    assert!(node3d.is_none());
+    let node3d: Result<Gd<Node>, Gd<Object>> = object.try_cast::<Node>();
+
+    assert_eq!(node3d, Err(object2));
 }
 
 #[itest]

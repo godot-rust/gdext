@@ -59,7 +59,7 @@ impl PackedSceneExt for PackedScene {
     where
         T: Inherits<Node>,
     {
-        self.instantiate().and_then(|gd| gd.try_cast::<T>())
+        self.instantiate().and_then(|gd| gd.try_cast::<T>().ok())
     }
 }
 
@@ -102,7 +102,7 @@ impl NodeExt for Node {
 
         // TODO differentiate errors (not found, bad type) with Result
         self.get_node_or_null(path)
-            .and_then(|node| node.try_cast::<T>())
+            .and_then(|node| node.try_cast::<T>().ok())
     }
 }
 
@@ -252,5 +252,5 @@ where
         .load_ex(path.clone())
         .type_hint(T::class_name().to_godot_string())
         .done() // TODO unclone
-        .and_then(|res| res.try_cast::<T>())
+        .and_then(|res| res.try_cast::<T>().ok())
 }

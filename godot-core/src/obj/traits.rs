@@ -206,6 +206,18 @@ pub trait IndexEnum: EngineEnum {
     }
 }
 
+/// Trait that's implemented for user-defined classes that provide a `#[base]` field.
+///
+/// Gives direct access to the containing `Gd<Self>` from `Self`.
+// Possible alternative for builder APIs, although even less ergonomic: Base<T> could be Base<T, Self> and return Gd<Self>.
+pub trait WithBaseField: GodotClass {
+    /// Returns the `Gd` pointer containing this object.
+    ///
+    /// This is intended to be stored or passed to engine methods. You cannot call `bind()` or `bind_mut()` on it, while the method
+    /// calling `to_gd()` is still running; that would lead to a double borrow panic.
+    fn to_gd(&self) -> Gd<Self>;
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Capability traits, providing dedicated functionalities for Godot classes
@@ -255,17 +267,6 @@ pub mod cap {
                 "__godot_user_init() called on engine class; must be overridden for user classes"
             )
         }
-    }
-
-    /// Trait that's implemented for user-defined classes that provide a `#[base]` field.
-    ///
-    /// Gives direct access to the base pointer without going through upcast FFI.
-    pub trait WithBaseField: GodotClass {
-        #[doc(hidden)]
-        fn __godot_base(&self) -> &Gd<Self::Base>;
-
-        #[doc(hidden)]
-        fn __godot_base_mut(&mut self) -> &mut Gd<Self::Base>;
     }
 
     // TODO Evaluate whether we want this public or not

@@ -261,8 +261,8 @@ fn make_enum_tuple(
         } else {
             quote! {
                 let #ident = variant.pop_front()
-                                    .ok_or(ConvertError::with_cause_value("missing expected value", variant.clone()))?
-                                    .try_to::<#field_type>()?;
+                    .ok_or(ConvertError::with_cause_value("missing expected value", variant.clone()))?
+                    .try_to::<#field_type>()?;
             }
         };
         (ident.to_token_stream(), set_ident)

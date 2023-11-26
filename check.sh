@@ -125,7 +125,7 @@ function cmd_fmt() {
 }
 
 function cmd_clippy() {
-    run cargo clippy "${extraCargoArgs[@]}" -- \
+    run cargo clippy --all-targets "${extraCargoArgs[@]}" -- \
         -D clippy::suspicious \
         -D clippy::style \
         -D clippy::complexity \

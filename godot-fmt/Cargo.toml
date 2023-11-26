@@ -8,9 +8,13 @@ edition = "2021"
 [dependencies]
 proc-macro2 = "1"
 
-[dev-dependencies]
-criterion = "0.3"
 
-[[bench]]
-name = "gdext_bench"
-harness = false
+# Disabled below, since it pulls in too many dependencies during `cargo test` but is not really used.
+# Dev-dependencies cannot be optional and feature-gated. Enable manually when needed.
+
+#[[bench]]
+#name = "gdext_bench"
+#harness = false
+#
+#[dev-dependencies]
+#criterion = "0.5"

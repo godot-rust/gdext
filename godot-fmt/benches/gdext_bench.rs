@@ -4,6 +4,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// IMPORTANT: to enable this benchmark, uncomment the corresponding lines in Cargo.toml.
+// First tried with #![allow(clippy::all)], but clippy still tries to compile the code and fails on imports.
+#![cfg(FALSE)]
+
 use std::{path::PathBuf, str::FromStr};
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};

@@ -50,6 +50,18 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         quote! {}
     };
 
+    let godot_withbase_impl = if let Some(Field { name, .. }) = &fields.base_field {
+        quote! {
+            impl ::godot::obj::WithBaseField for #class_name {
+                fn to_gd(&self) -> Gd<Self> {
+                    ::godot::obj::Gd::clone(&*self.#name).cast()
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
+
     let (godot_init_impl, create_fn, recreate_fn);
     if struct_cfg.has_generated_init {
         godot_init_impl = make_godot_init_impl(class_name, fields);
@@ -78,11 +90,10 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 ::godot::builtin::meta::ClassName::from_ascii_cstr(#class_name_cstr)
             }
         }
-        impl ::godot::obj::UserClass for #class_name {
-
-        }
+        impl ::godot::obj::UserClass for #class_name {}
 
         #godot_init_impl
+        #godot_withbase_impl
         #godot_exports_impl
         #config_impl
 

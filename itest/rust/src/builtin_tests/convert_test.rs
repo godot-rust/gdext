@@ -92,7 +92,7 @@ fn error_maintains_value() {
 }
 
 // Manual implementation of `GodotConvert` and related traits to ensure conversion works.
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq, Debug)]
 struct Foo {
     a: i32,
     b: f32,

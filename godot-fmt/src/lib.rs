@@ -88,7 +88,7 @@ fn indent(n: usize) -> &'static str {
 /// State that is kept between processing `TokenTree`s, used to decide
 /// how to insert whitespace.
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 enum FormatState {
     /// Starting state, meaning no whitespace is needed
     Start,
