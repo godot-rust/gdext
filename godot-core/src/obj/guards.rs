@@ -10,9 +10,12 @@ use godot_ffi::out;
 #[cfg(not(feature = "experimental-threads"))]
 use std::cell;
 use std::fmt::Debug;
+use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 #[cfg(feature = "experimental-threads")]
 use std::sync;
+
+use super::{Gd, GodotClass};
 
 /// Immutably/shared bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
 ///
@@ -99,5 +102,37 @@ impl<T> DerefMut for GdMut<'_, T> {
 impl<T> Drop for GdMut<'_, T> {
     fn drop(&mut self) {
         out!("GdMut drop: {:?}", std::any::type_name::<T>());
+    }
+}
+
+pub struct BaseRef<'a, T: GodotClass> {
+    pub(crate) gd: Gd<T>,
+    pub(crate) _p: PhantomData<&'a ()>,
+}
+
+impl<T: GodotClass> Deref for BaseRef<'_, T> {
+    type Target = Gd<T>;
+
+    fn deref(&self) -> &Gd<T> {
+        &self.gd
+    }
+}
+
+pub struct BaseMut<'a, T: GodotClass> {
+    pub(crate) gd: Gd<T>,
+    pub(crate) _p: PhantomData<&'a mut ()>,
+}
+
+impl<T: GodotClass> Deref for BaseMut<'_, T> {
+    type Target = Gd<T>;
+
+    fn deref(&self) -> &Gd<T> {
+        &self.gd
+    }
+}
+
+impl<T: GodotClass> DerefMut for BaseMut<'_, T> {
+    fn deref_mut(&mut self) -> &mut Gd<T> {
+        &mut self.gd
     }
 }

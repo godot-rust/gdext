@@ -10,7 +10,6 @@ use crate::obj::GodotClass;
 use crate::{engine, sys};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
-use std::ops::{Deref, DerefMut};
 
 /// Restricted version of `Gd`, to hold the base instance inside a user's `GodotClass`.
 ///
@@ -39,7 +38,7 @@ impl<T: GodotClass> Base<T> {
     /// # Safety
     /// The returned Base is a weak pointer, so holding it will not keep the object alive. It must not be accessed after the object is destroyed.
     pub(crate) unsafe fn from_base(base: &Base<T>) -> Base<T> {
-        Base::from_obj(Gd::from_obj_sys_weak(base.obj_sys()))
+        Base::from_obj(Gd::from_obj_sys_weak(base.as_gd().obj_sys()))
     }
 
     // Note: not &mut self, to only borrow one field and not the entire struct
@@ -62,6 +61,22 @@ impl<T: GodotClass> Base<T> {
             obj: ManuallyDrop::new(obj),
         }
     }
+
+    /// Returns a [`Gd`] referencing the same object as this reference.
+    ///
+    /// Using this method to call methods on the base field of a Rust object is discouraged, instead use the
+    /// methods from [`WithBaseField`](super::WithBaseField) when possible.
+    pub fn to_gd(&self) -> Gd<T> {
+        (*self.obj).clone()
+    }
+
+    /// Returns a [`Gd`] referencing the same object as this reference.
+    ///
+    /// Using this method to call methods on the base field of a Rust object is discouraged, instead use the
+    /// methods from [`WithBaseField`](super::WithBaseField) when possible.
+    pub fn as_gd(&self) -> &Gd<T> {
+        &self.obj
+    }
 }
 
 impl<T: GodotClass> Debug for Base<T> {
@@ -73,21 +88,5 @@ impl<T: GodotClass> Debug for Base<T> {
 impl<T: GodotClass> Display for Base<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         engine::display_string(&self.obj, f)
-    }
-}
-
-impl<T: GodotClass> Deref for Base<T> {
-    type Target = Gd<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.obj
-    }
-}
-
-// Note: having DerefMut is almost equivalent to directly storing Gd<T>
-// Main difference is that an existing Gd<T> cannot be used as the base, and mem::take/replace() don't work as easily
-impl<T: GodotClass> DerefMut for Base<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.obj
     }
 }

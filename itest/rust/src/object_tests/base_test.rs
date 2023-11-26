@@ -18,7 +18,7 @@ fn base_test_is_weak() {
 fn base_instance_id() {
     let obj = Based::alloc_gd();
     let obj_id = obj.instance_id();
-    let base_id = obj.bind().base.instance_id();
+    let base_id = obj.bind().base().instance_id();
 
     assert_eq!(obj_id, base_id);
     obj.free();
@@ -52,7 +52,7 @@ fn base_display() {
     let obj = Based::alloc_gd();
     {
         let guard = obj.bind();
-        let id = guard.base.instance_id();
+        let id = guard.base().instance_id();
 
         // We expect the dynamic type to be part of Godot's to_string(), so Based and not Node2D
         let actual = format!(".:{}:.", guard.base);
@@ -68,7 +68,7 @@ fn base_debug() {
     let obj = Based::alloc_gd();
     {
         let guard = obj.bind();
-        let id = guard.base.instance_id();
+        let id = guard.base().instance_id();
 
         // We expect the dynamic type to be part of Godot's to_string(), so Based and not Node2D
         let actual = format!(".:{:?}:.", guard.base);
@@ -81,15 +81,15 @@ fn base_debug() {
 
 #[itest]
 fn base_with_init() {
-    let obj = Gd::<Based>::from_init_fn(|mut base| {
-        base.set_rotation(11.0);
+    let obj = Gd::<Based>::from_init_fn(|base| {
+        base.to_gd().set_rotation(11.0);
         Based { base, i: 732 }
     });
 
     {
         let guard = obj.bind();
         assert_eq!(guard.i, 732);
-        assert_eq!(guard.base.get_rotation(), 11.0);
+        assert_eq!(guard.base().get_rotation(), 11.0);
     }
     obj.free();
 }

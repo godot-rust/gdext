@@ -16,12 +16,12 @@ pub struct Mob {
 impl Mob {
     #[func]
     fn on_visibility_screen_exited(&mut self) {
-        self.base.queue_free();
+        self.base_mut().queue_free();
     }
 
     #[func]
     fn on_start_game(&mut self) {
-        self.base.queue_free();
+        self.base_mut().queue_free();
     }
 }
 
@@ -37,7 +37,7 @@ impl IRigidBody2D for Mob {
 
     fn ready(&mut self) {
         let mut sprite = self
-            .base
+            .base()
             .get_node_as::<AnimatedSprite2D>("AnimatedSprite2D");
 
         sprite.play();

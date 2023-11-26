@@ -24,13 +24,13 @@ pub struct Main {
 impl Main {
     #[func]
     fn game_over(&mut self) {
-        let mut score_timer = self.base.get_node_as::<Timer>("ScoreTimer");
-        let mut mob_timer = self.base.get_node_as::<Timer>("MobTimer");
+        let mut score_timer = self.base().get_node_as::<Timer>("ScoreTimer");
+        let mut mob_timer = self.base().get_node_as::<Timer>("MobTimer");
 
         score_timer.stop();
         mob_timer.stop();
 
-        let mut hud = self.base.get_node_as::<Hud>("Hud");
+        let mut hud = self.base().get_node_as::<Hud>("Hud");
         hud.bind_mut().show_game_over();
 
         self.music().stop();
@@ -39,16 +39,16 @@ impl Main {
 
     #[func]
     pub fn new_game(&mut self) {
-        let start_position = self.base.get_node_as::<Marker2D>("StartPosition");
-        let mut player = self.base.get_node_as::<player::Player>("Player");
-        let mut start_timer = self.base.get_node_as::<Timer>("StartTimer");
+        let start_position = self.base().get_node_as::<Marker2D>("StartPosition");
+        let mut player = self.base().get_node_as::<player::Player>("Player");
+        let mut start_timer = self.base().get_node_as::<Timer>("StartTimer");
 
         self.score = 0;
 
         player.bind_mut().start(start_position.get_position());
         start_timer.start();
 
-        let mut hud = self.base.get_node_as::<Hud>("Hud");
+        let mut hud = self.base().get_node_as::<Hud>("Hud");
         let hud = hud.bind_mut();
         hud.update_score(self.score);
         hud.show_message("Get Ready".into());
@@ -58,8 +58,8 @@ impl Main {
 
     #[func]
     fn on_start_timer_timeout(&self) {
-        let mut mob_timer = self.base.get_node_as::<Timer>("MobTimer");
-        let mut score_timer = self.base.get_node_as::<Timer>("ScoreTimer");
+        let mut mob_timer = self.base().get_node_as::<Timer>("MobTimer");
+        let mut score_timer = self.base().get_node_as::<Timer>("ScoreTimer");
         mob_timer.start();
         score_timer.start();
     }
@@ -68,14 +68,14 @@ impl Main {
     fn on_score_timer_timeout(&mut self) {
         self.score += 1;
 
-        let mut hud = self.base.get_node_as::<Hud>("Hud");
+        let mut hud = self.base().get_node_as::<Hud>("Hud");
         hud.bind_mut().update_score(self.score);
     }
 
     #[func]
     fn on_mob_timer_timeout(&mut self) {
         let mut mob_spawn_location = self
-            .base
+            .base()
             .get_node_as::<PathFollow2D>("MobPath/MobSpawnLocation");
 
         let mut mob_scene = self.mob_scene.instantiate_as::<RigidBody2D>();
@@ -91,7 +91,7 @@ impl Main {
 
         mob_scene.set_rotation(direction);
 
-        self.base.add_child(mob_scene.clone().upcast());
+        self.base_mut().add_child(mob_scene.clone().upcast());
 
         let mut mob = mob_scene.cast::<mob::Mob>();
         let range = {
@@ -102,7 +102,7 @@ impl Main {
 
         mob.set_linear_velocity(Vector2::new(range, 0.0).rotated(real::from_f32(direction)));
 
-        let mut hud = self.base.get_node_as::<Hud>("Hud");
+        let mut hud = self.base().get_node_as::<Hud>("Hud");
         hud.connect("start_game".into(), mob.callable("on_start_game"));
     }
 
@@ -132,7 +132,7 @@ impl INode for Main {
         // If the resource does not exist or has an incompatible type, this panics.
         // There is also try_load() if you want to check whether loading succeeded.
         self.mob_scene = load("res://Mob.tscn");
-        self.music = Some(self.base.get_node_as("Music"));
-        self.death_sound = Some(self.base.get_node_as("DeathSound"));
+        self.music = Some(self.base().get_node_as("Music"));
+        self.death_sound = Some(self.base().get_node_as("DeathSound"));
     }
 }

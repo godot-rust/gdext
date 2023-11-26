@@ -60,6 +60,10 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 fn to_gd(&self) -> ::godot::obj::Gd<Self> {
                     ::godot::obj::Gd::clone(&*self.#name).cast()
                 }
+
+                fn base_field(&self) -> &::godot::obj::Base<<Self as ::godot::obj::GodotClass>::Base> {
+                    &self.#name
+                }
             }
         }
     } else {

@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::marker::PhantomData;
+
 use crate::builder::ClassBuilder;
 use crate::builtin::meta::ClassName;
 use crate::builtin::GString;
@@ -12,6 +14,8 @@ use crate::init::InitLevel;
 use crate::obj::Gd;
 
 use godot_ffi as sys;
+
+use super::{Base, BaseMut, BaseRef};
 
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
 ///
@@ -241,6 +245,25 @@ pub trait WithBaseField: GodotClass {
     /// This is intended to be stored or passed to engine methods. You cannot call `bind()` or `bind_mut()` on it, while the method
     /// calling `to_gd()` is still running; that would lead to a double borrow panic.
     fn to_gd(&self) -> Gd<Self>;
+
+    /// Returns a reference to the `Base` stored by this object.
+    fn base_field(&self) -> &Base<Self::Base>;
+
+    /// Returns a shared reference suitable for calling engine methods on this object.
+    fn base(&self) -> BaseRef<'_, Self::Base> {
+        BaseRef {
+            gd: self.base_field().to_gd(),
+            _p: PhantomData,
+        }
+    }
+
+    /// Returns a mutable reference suitable for calling engine methods on this object.
+    fn base_mut(&mut self) -> BaseMut<'_, Self::Base> {
+        BaseMut {
+            gd: self.base_field().to_gd(),
+            _p: PhantomData,
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

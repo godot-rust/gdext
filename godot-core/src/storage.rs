@@ -86,7 +86,7 @@ mod single_threaded {
         where
             T: Inherits<<T as GodotClass>::Base>,
         {
-            self.base.clone().cast()
+            self.base.to_gd().cast()
         }
 
         pub(super) fn godot_ref_count(&self) -> u32 {
@@ -212,7 +212,7 @@ mod multi_threaded {
         where
             T: Inherits<<T as GodotClass>::Base>,
         {
-            self.base.clone().cast()
+            self.base().clone().cast()
         }
 
         pub(super) fn godot_ref_count(&self) -> u32 {

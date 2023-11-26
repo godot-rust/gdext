@@ -180,7 +180,7 @@ impl GdSelfReference {
         // Since a self reference is held while the signal is emitted, when
         // GDScript tries to call update_internal(), there will be a failure due
         // to the double borrow and self.internal_value won't be changed.
-        self.base.emit_signal(
+        self.base_mut().emit_signal(
             "update_internal_signal".into(),
             &[new_internal.to_variant()],
         );
