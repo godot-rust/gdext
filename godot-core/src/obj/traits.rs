@@ -5,13 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::marker::PhantomData;
-
-use crate::builder::ClassBuilder;
 use crate::builtin::meta::ClassName;
 use crate::builtin::GString;
 use crate::init::InitLevel;
 use crate::obj::Gd;
+use crate::{builder::ClassBuilder, storage::Storage};
 
 use godot_ffi as sys;
 
@@ -239,7 +237,7 @@ pub trait IndexEnum: EngineEnum {
 ///
 /// Gives direct access to the containing `Gd<Self>` from `Self`.
 // Possible alternative for builder APIs, although even less ergonomic: Base<T> could be Base<T, Self> and return Gd<Self>.
-pub trait WithBaseField: GodotClass {
+pub trait WithBaseField: GodotClass<Declarer = dom::UserDomain> {
     /// Returns the `Gd` pointer containing this object.
     ///
     /// This is intended to be stored or passed to engine methods. You cannot call `bind()` or `bind_mut()` on it, while the method
@@ -250,19 +248,153 @@ pub trait WithBaseField: GodotClass {
     fn base_field(&self) -> &Base<Self::Base>;
 
     /// Returns a shared reference suitable for calling engine methods on this object.
-    fn base(&self) -> BaseRef<'_, Self::Base> {
-        BaseRef {
-            gd: self.base_field().to_gd(),
-            _p: PhantomData,
-        }
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use godot::prelude::*;
+    ///
+    /// #[derive(GodotClass)]
+    /// #[class(init, base = Node)]
+    /// struct MyClass {
+    ///     #[base]
+    ///     base: Base<Node>,
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl INode for MyClass {
+    ///     fn process(&mut self, _delta: f64) {
+    ///         let name = self.base().get_name();
+    ///         godot_print!("name is {name}");
+    ///     }
+    /// }
+    ///
+    /// # pub struct Test;
+    ///
+    /// # #[gdextension]
+    /// # unsafe impl ExtensionLibrary for Test {}
+    /// ```
+    ///
+    /// However we cannot call methods that require `&mut Base`, such as
+    /// [`Node::add_child()`](crate::engine::Node::add_child).
+    ///
+    /// ```compile_fail
+    /// use godot::prelude::*;
+    ///
+    /// #[derive(GodotClass)]
+    /// #[class(init, base = Node)]
+    /// struct MyClass {
+    ///     #[base]
+    ///     base: Base<Node>,
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl INode for MyClass {
+    ///     fn process(&mut self, _delta: f64) {
+    ///         let node = Node::new_alloc();
+    ///         // fails because `add_child` requires a mutable reference.
+    ///         self.base().add_child(node);
+    ///     }
+    /// }
+    ///
+    /// # pub struct Test;
+    ///
+    /// # #[gdextension]
+    /// # unsafe impl ExtensionLibrary for Test {}
+    /// ```
+    ///
+    /// For this, use [`base_mut()`](WithBaseField::base_mut()) instead.
+    fn base(&self) -> BaseRef<'_, Self> {
+        let gd = self.base_field().to_gd();
+
+        BaseRef::new(gd, self)
     }
 
     /// Returns a mutable reference suitable for calling engine methods on this object.
-    fn base_mut(&mut self) -> BaseMut<'_, Self::Base> {
-        BaseMut {
-            gd: self.base_field().to_gd(),
-            _p: PhantomData,
-        }
+    ///
+    /// This method will allow you to call back into the same object from Godot, unlike what would happen
+    /// if you used [`to_gd()`](WithBaseField::to_gd).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use godot::prelude::*;
+    ///
+    /// #[derive(GodotClass)]
+    /// #[class(init, base = Node)]
+    /// struct MyClass {
+    ///     #[base]
+    ///     base: Base<Node>,
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl INode for MyClass {
+    ///     fn process(&mut self, _delta: f64) {
+    ///         let node = Node::new_alloc();
+    ///         self.base_mut().add_child(node);
+    ///     }
+    /// }
+    ///
+    /// # pub struct Test;
+    ///
+    /// # #[gdextension]
+    /// # unsafe impl ExtensionLibrary for Test {}
+    /// ```
+    ///
+    /// We can call back into `self` through Godot:
+    ///
+    /// ```
+    /// use godot::prelude::*;
+    ///
+    /// #[derive(GodotClass)]
+    /// #[class(init, base = Node)]
+    /// struct MyClass {
+    ///     #[base]
+    ///     base: Base<Node>,
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl INode for MyClass {
+    ///     fn process(&mut self, _delta: f64) {
+    ///         self.base_mut().call("other_method".into(), &[]);
+    ///     }
+    /// }
+    ///
+    /// #[godot_api]
+    /// impl MyClass {
+    ///     #[func]
+    ///     fn other_method(&mut self) {}
+    /// }
+    ///
+    /// # pub struct Test;
+    ///
+    /// # #[gdextension]
+    /// # unsafe impl ExtensionLibrary for Test {}
+    /// ```
+    #[allow(clippy::let_unit_value)]
+    fn base_mut(&mut self) -> BaseMut<'_, Self> {
+        let base_gd = self.base_field().to_gd();
+
+        let gd = self.to_gd();
+        // SAFETY:
+        // - We have a `Gd<Self>` so, provided that `storage_unbounded` succeeds, the associated instance
+        //   storage has been created.
+        //
+        // - Since we can get a `&'a Base<Self::Base>` from `&'a self`, that must mean we have a Rust object
+        //   somewhere that has this base object. The only way to have such a base object is by being the
+        //   Rust object referenced by that base object. I.e this storage's user-instance is that Rust
+        //   object. That means this storage cannot be destroyed for the lifetime of that Rust object. And
+        //   since we have a reference to the base object derived from that Rust object, then that Rust
+        //   object must outlive `'a`. And so the storage cannot be destroyed during the lifetime `'a`.
+        let storage = unsafe {
+            gd.raw
+                .storage_unbounded()
+                .expect("we have a `Gd<Self>` so the raw should not be null")
+        };
+
+        let guard = storage.get_base_mut(self);
+
+        BaseMut::new(base_gd, guard)
     }
 }
 

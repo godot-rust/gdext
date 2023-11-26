@@ -154,6 +154,31 @@ jobs:
         run: cargo test $GDEXT_FEATURES ${{ matrix.rust-extra-args }}
 
 
+  miri-test:
+    name: miri-test
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: "Install Rust"
+        uses: ./.github/composite/rust
+      
+      - name: "Install Miri"
+        run: |
+          rustup toolchain install nightly --component miri
+          rustup override set nightly
+          cargo miri setup
+
+      - name: "Compile tests"
+        run: cargo +nightly miri test -p godot-cell --no-run
+
+      - name: "Test stacked borrows"
+        run: cargo +nightly miri test -p godot-cell
+      
+      - name: "Test tree borrows"
+        run: MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test -p godot-cell
+
+
   # For complex matrix workflow, see https://stackoverflow.com/a/65434401
   godot-itest:
     name: godot-itest (${{ matrix.name }})

@@ -15,6 +15,7 @@ serde = ["dep:serde", "dep:serde_json", "godot/serde"]
 # Do not add features here that are 1:1 forwarded to the `godot` crate.
 # Instead, compile itest with `--features godot/my-feature`.
 
+
 [dependencies]
 godot = { path = "../../godot", default-features = false }
 serde = { version = "1", features = ["derive"], optional = true }
@@ -25,4 +26,3 @@ godot-bindings = { path = "../../godot-bindings" } # emit_godot_version_cfg
 # Minimum versions compatible with -Zminimal-versions
 proc-macro2 = "1.0.63"
 quote = "1.0.29"
-

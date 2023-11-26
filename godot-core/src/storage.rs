@@ -18,38 +18,118 @@ pub enum Lifecycle {
     Destroying,
 }
 
+#[cfg_attr(not(feature = "experimental-threads"), allow(dead_code))]
+pub struct AtomicLifecycle {
+    atomic: std::sync::atomic::AtomicU32,
+}
+
+#[cfg_attr(not(feature = "experimental-threads"), allow(dead_code))]
+impl AtomicLifecycle {
+    pub fn new(value: Lifecycle) -> Self {
+        Self {
+            atomic: std::sync::atomic::AtomicU32::new(value as u32),
+        }
+    }
+
+    pub fn get(&self) -> Lifecycle {
+        match self.atomic.load(std::sync::atomic::Ordering::Relaxed) {
+            0 => Lifecycle::Alive,
+            1 => Lifecycle::Destroying,
+            other => panic!("invalid lifecycle {other}"),
+        }
+    }
+
+    pub fn set(&self, lifecycle: Lifecycle) {
+        let value = match lifecycle {
+            Lifecycle::Alive => 0,
+            Lifecycle::Destroying => 1,
+        };
+
+        self.atomic
+            .store(value, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 #[cfg_attr(feature = "experimental-threads", allow(dead_code))]
 mod single_threaded;
 
 #[cfg_attr(not(feature = "experimental-threads"), allow(dead_code))]
 mod multi_threaded;
 
-pub trait Storage {
+/// A storage for an instance binding.
+///
+/// # Safety
+///
+/// [`is_bound()`](Storage::is_bound()) must return `true` if any references to the stored user instance
+/// exists.
+///
+/// It must be safe to drop this storage if we have a `&mut` reference to the storage and  
+/// [`is_bound()`](Storage::is_bound()) returns `false`.
+pub unsafe trait Storage {
+    /// The type of instances stored by this storage.
     type Instance: GodotClass;
+
+    /// The type of guards returned when a shared reference is taken.
     type RefGuard<'a>: Deref<Target = Self::Instance>
     where
         Self: 'a;
+
+    /// The type of guards returned when a mutable reference is taken.
     type MutGuard<'a>: Deref<Target = Self::Instance> + DerefMut
     where
         Self: 'a;
 
+    /// The type of guards returned when we know that a mutable reference can be safely ignored for purposes
+    /// of taking mutable references.
+    type BaseMutGuard<'a>
+    where
+        Self: 'a;
+
+    /// Constructs a new storage for an instance binding referencing `user_instance`.
     fn construct(
         user_instance: Self::Instance,
         base: Base<<Self::Instance as GodotClass>::Base>,
     ) -> Self;
 
+    /// Returns `true` when there are any outstanding references to this storage's instance.
     fn is_bound(&self) -> bool;
 
+    /// The base object that this storage contains.
     fn base(&self) -> &Base<<Self::Instance as GodotClass>::Base>;
 
+    /// Returns a shared reference to this storage's instance.
+    ///
+    /// This will ensure Rust's rules surrounding references are upheld. Possibly panicking at runtime if
+    /// they are violated.
     fn get(&self) -> Self::RefGuard<'_>;
 
+    /// Returns a mutable/exclusive reference to this storage's instance.
+    ///
+    /// This will ensure Rust's rules surrounding references are upheld. Possibly panicking at runtime if
+    /// they are violated.
     fn get_mut(&self) -> Self::MutGuard<'_>;
 
+    /// Returns a guard that allows calling methods on `Gd<Base>` that take `&mut self`.
+    ///
+    /// This can use the provided `instance` to provide extra safety guarantees such as allowing reentrant
+    /// code to create new mutable references.
+    fn get_base_mut<'a: 'b, 'b>(
+        &'a self,
+        instance: &'b mut Self::Instance,
+    ) -> Self::BaseMutGuard<'b>;
+
+    /// Returns whether this storage is currently alive or being destroyed.
+    ///
+    /// This is purely informational and cannot be relied on for safety.
     fn get_lifecycle(&self) -> Lifecycle;
 
+    /// Mark this storage as currently alive or being destroyed.
+    ///
+    /// This is purely informational and thus is safe to set to whatever value, but it should still be set as
+    /// expected.
     fn set_lifecycle(&self, lifecycle: Lifecycle);
 
+    /// Get a `Gd` referencing this storage's instance.
     fn get_gd(&self) -> Gd<Self::Instance>
     where
         Self::Instance: Inherits<<Self::Instance as GodotClass>::Base>,
@@ -57,12 +137,9 @@ pub trait Storage {
         self.base().to_gd().cast()
     }
 
-    fn debug_info(&self) -> String {
-        // Unlike get_gd(), this doesn't require special trait bounds.
-
-        format!("{:?}", self.base())
-    }
-
+    /// Puts self onto the heap and returns a pointer to this new heap-allocation.
+    ///
+    /// This will leak memory and so the caller is responsible for manually managing the memory.
     #[must_use]
     fn into_raw(self) -> *mut Self
     where
@@ -97,6 +174,7 @@ pub trait Storage {
     }
 }
 
+/// An internal trait for keeping track of reference counts for a storage.
 pub(crate) trait StorageRefCounted: Storage {
     fn godot_ref_count(&self) -> u32;
 
@@ -107,23 +185,18 @@ pub(crate) trait StorageRefCounted: Storage {
 
 #[cfg(not(feature = "experimental-threads"))]
 pub type InstanceStorage<T> = single_threaded::InstanceStorage<T>;
+
 #[cfg(feature = "experimental-threads")]
 pub type InstanceStorage<T> = multi_threaded::InstanceStorage<T>;
 
 pub type RefGuard<'a, T> = <InstanceStorage<T> as Storage>::RefGuard<'a>;
 pub type MutGuard<'a, T> = <InstanceStorage<T> as Storage>::MutGuard<'a>;
+pub type BaseMutGuard<'a, T> = <InstanceStorage<T> as Storage>::BaseMutGuard<'a>;
 
-impl<T: GodotClass> Drop for InstanceStorage<T> {
-    fn drop(&mut self) {
-        out!(
-            "    Storage::drop (rc={})           <{:?}>",
-            self.godot_ref_count(),
-            self.base(),
-        );
-        //let _ = mem::take(&mut self.user_instance);
-        //out!("    Storage::drop end              <{:?}>", self.base);
-    }
-}
+const fn _assert_implements_storage<T: Storage + StorageRefCounted>() {}
+
+const _INSTANCE_STORAGE_IMPLEMENTS_STORAGE: () =
+    _assert_implements_storage::<InstanceStorage<crate::engine::Object>>();
 
 /// Interprets the opaque pointer as pointing to `InstanceStorage<T>`.
 ///
@@ -131,6 +204,7 @@ impl<T: GodotClass> Drop for InstanceStorage<T> {
 ///
 /// # Safety
 /// `instance_ptr` is assumed to point to a valid instance.
+/// The returned reference must be live for the duration of `'u`.
 // Note: unbounded ref AND &mut out of thin air is not very beautiful, but it's  -- consider using with_storage(ptr, closure) and drop_storage(ptr)
 pub unsafe fn as_storage<'u, T: GodotClass>(
     instance_ptr: sys::GDExtensionClassInstancePtr,
@@ -165,8 +239,8 @@ pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClass
             "Destroyed an object from Godot side, while a bind() or bind_mut() call was active.\n  \
             This is a bug in your code that may cause UB and logic errors. Make sure that objects are not\n  \
             destroyed while you still hold a Rust reference to them, or use Gd::free() which is safe.\n  \
-            object: {}",
-            (*raw).debug_info()
+            object: {:?}",
+            (*raw).base()
         );
 
         // In Debug mode, crash which may trigger breakpoint.
@@ -180,7 +254,13 @@ pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClass
     }
 
     if !leak_rust_object {
-        let _drop = Box::from_raw(raw);
+        // SAFETY:
+        // `leak_rust_object` is false, meaning that `is_bound()` returned `false`. Because if it were `true`
+        // then the process would either be aborted, or we set `leak_rust_object = true`.
+        //
+        // Therefore we can safely drop this storage as per the safety contract of `Storage`. Which we know
+        // `InstanceStorage<T>` implements because of `_INSTANCE_STORAGE_IMPLEMENTS_STORAGE`.
+        let _drop = unsafe { Box::from_raw(raw) };
     }
 }
 

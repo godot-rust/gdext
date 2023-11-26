@@ -8,10 +8,9 @@
 use godot_ffi::out;
 
 use std::fmt::Debug;
-use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 
-use crate::storage::{MutGuard, RefGuard};
+use crate::storage::{BaseMutGuard, MutGuard, RefGuard};
 
 use super::{Gd, GodotClass};
 
@@ -81,34 +80,67 @@ impl<T: GodotClass> Drop for GdMut<'_, T> {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Shared reference guard for a [`Base`](crate::obj::Base) pointer.
+///
+/// This can be used to call methods on the base object of a rust object that take `&self` as the receiver.
+///
+/// See [`WithBaseField::base()`](super::WithBaseField::base()) for usage.
 pub struct BaseRef<'a, T: GodotClass> {
-    pub(crate) gd: Gd<T>,
-    pub(crate) _p: PhantomData<&'a ()>,
+    gd: Gd<T::Base>,
+    _instance: &'a T,
+}
+
+impl<'a, T: GodotClass> BaseRef<'a, T> {
+    pub(crate) fn new(gd: Gd<T::Base>, instance: &'a T) -> Self {
+        Self {
+            gd,
+            _instance: instance,
+        }
+    }
 }
 
 impl<T: GodotClass> Deref for BaseRef<'_, T> {
-    type Target = Gd<T>;
+    type Target = Gd<T::Base>;
 
-    fn deref(&self) -> &Gd<T> {
+    fn deref(&self) -> &Gd<T::Base> {
         &self.gd
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Mutable/exclusive reference guard for a [`Base`](crate::obj::Base) pointer.
+///
+/// This can be used to call methods on the base object of a rust object that take `&self` or `&mut self` as
+/// the receiver.
+///
+/// See [`WithBaseField::base_mut()`](super::WithBaseField::base_mut()) for usage.
 pub struct BaseMut<'a, T: GodotClass> {
-    pub(crate) gd: Gd<T>,
-    pub(crate) _p: PhantomData<&'a mut ()>,
+    gd: Gd<T::Base>,
+    _base_mut_guard: BaseMutGuard<'a, T>,
+}
+
+impl<'a, T: GodotClass> BaseMut<'a, T> {
+    pub(crate) fn new(gd: Gd<T::Base>, base_mut_guard: BaseMutGuard<'a, T>) -> Self {
+        Self {
+            gd,
+            _base_mut_guard: base_mut_guard,
+        }
+    }
 }
 
 impl<T: GodotClass> Deref for BaseMut<'_, T> {
-    type Target = Gd<T>;
+    type Target = Gd<T::Base>;
 
-    fn deref(&self) -> &Gd<T> {
+    fn deref(&self) -> &Gd<T::Base> {
         &self.gd
     }
 }
 
 impl<T: GodotClass> DerefMut for BaseMut<'_, T> {
-    fn deref_mut(&mut self) -> &mut Gd<T> {
+    fn deref_mut(&mut self) -> &mut Gd<T::Base> {
         &mut self.gd
     }
 }

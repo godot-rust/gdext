@@ -1,43 +1,21 @@
-use std::sync;
+/*
+ * Copyright (c) godot-rust; Bromeon and contributors.
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+use std::any::type_name;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::obj::{Base, GodotClass};
 use crate::out;
 
-use super::Lifecycle;
+use super::{AtomicLifecycle, Lifecycle, Storage, StorageRefCounted};
 
-pub struct AtomicLifecycle {
-    atomic: AtomicU32,
-}
-
-impl AtomicLifecycle {
-    pub fn new(value: Lifecycle) -> Self {
-        Self {
-            atomic: AtomicU32::new(value as u32),
-        }
-    }
-
-    pub fn get(&self) -> Lifecycle {
-        match self.atomic.load(Ordering::Relaxed) {
-            0 => Lifecycle::Alive,
-            1 => Lifecycle::Destroying,
-            other => panic!("invalid lifecycle {other}"),
-        }
-    }
-
-    pub fn set(&self, lifecycle: Lifecycle) {
-        let value = match lifecycle {
-            Lifecycle::Alive => 0,
-            Lifecycle::Destroying => 1,
-        };
-
-        self.atomic.store(value, Ordering::Relaxed);
-    }
-}
-
-/// Manages storage and lifecycle of user's extension class instances.
 pub struct InstanceStorage<T: GodotClass> {
-    user_instance: sync::RwLock<T>,
+    user_instance: Pin<Box<godot_cell::GdCell<T>>>,
     pub(super) base: Base<T::Base>,
 
     // Declared after `user_instance`, is dropped last
@@ -45,50 +23,30 @@ pub struct InstanceStorage<T: GodotClass> {
     godot_ref_count: AtomicU32,
 }
 
-/// For all Godot extension classes
-impl<T: GodotClass> InstanceStorage<T> {
-    /// Returns a write guard (even if poisoned), or `None` when the lock is held by another thread.
-    /// This might need adjustment if threads should await locks.
-    #[must_use]
-    fn write_ignoring_poison(&self) -> Option<sync::RwLockWriteGuard<T>> {
-        match self.user_instance.try_write() {
-            Ok(guard) => Some(guard),
-            Err(sync::TryLockError::Poisoned(poison_error)) => Some(poison_error.into_inner()),
-            Err(sync::TryLockError::WouldBlock) => None,
-        }
-    }
-
-    /// Returns a read guard (even if poisoned), or `None` when the lock is held by another writing thread.
-    /// This might need adjustment if threads should await locks.
-    #[must_use]
-    fn read_ignoring_poison(&self) -> Option<sync::RwLockReadGuard<T>> {
-        match self.user_instance.try_read() {
-            Ok(guard) => Some(guard),
-            Err(sync::TryLockError::Poisoned(poison_error)) => Some(poison_error.into_inner()),
-            Err(sync::TryLockError::WouldBlock) => None,
-        }
-    }
-
-    // fn __static_type_check() {
-    //     enforce_sync::<InstanceStorage<T>>();
-    // }
-}
-
-impl<T: GodotClass> super::Storage for InstanceStorage<T> {
+// SAFETY:
+// The only way to get a reference to the user instance is by going through the `GdCell` in `user_instance`.
+// If this `GdCell` has returned any references, then `self.user_instance.as_ref().is_currently_bound()` will
+// return true. So `is_bound` will return true when a reference to the user instance exists.
+//
+// If `is_bound` is false, then there are no references to the user instance in this storage. And if a `&mut`
+// reference to the storage exists then no other references to data in this storage can exist. So we can
+// safely drop it.
+unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
     type Instance = T;
 
-    type RefGuard<'a> = sync::RwLockReadGuard<'a, T>;
+    type RefGuard<'a> = godot_cell::RefGuard<'a, T>;
 
-    type MutGuard<'a> = sync::RwLockWriteGuard<'a, T>;
+    type MutGuard<'a> = godot_cell::MutGuard<'a, T>;
+
+    type BaseMutGuard<'a> = godot_cell::NonAliasingGuard<'a, T>;
 
     fn construct(
         user_instance: Self::Instance,
         base: Base<<Self::Instance as GodotClass>::Base>,
     ) -> Self {
-        out!("    Storage::construct             <{:?}>", base);
-
+        out!("    Storage::construct             <{}>", type_name::<T>());
         Self {
-            user_instance: sync::RwLock::new(user_instance),
+            user_instance: godot_cell::GdCell::new(user_instance),
             base,
             lifecycle: AtomicLifecycle::new(Lifecycle::Alive),
             godot_ref_count: AtomicU32::new(1),
@@ -96,8 +54,7 @@ impl<T: GodotClass> super::Storage for InstanceStorage<T> {
     }
 
     fn is_bound(&self) -> bool {
-        // Needs to borrow mutably, otherwise it succeeds if shared borrows are alive.
-        self.write_ignoring_poison().is_none()
+        self.user_instance.as_ref().is_currently_bound()
     }
 
     fn base(&self) -> &Base<<Self::Instance as GodotClass>::Base> {
@@ -105,25 +62,50 @@ impl<T: GodotClass> super::Storage for InstanceStorage<T> {
     }
 
     fn get(&self) -> Self::RefGuard<'_> {
-        self.read_ignoring_poison().unwrap_or_else(|| {
+        self.user_instance.as_ref().borrow().unwrap_or_else(|err| {
             panic!(
-                "Gd<T>::bind() failed, already bound; obj = {}.\n  \
-                     Make sure there is no &mut T live at the time.\n  \
-                     This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
-                self.base,
+                "\
+                    Gd<T>::bind() failed, already bound; T = {}.\n  \
+                    Make sure to use `self.base_mut()` or `self.base()` instead of `self.to_gd()` when possible.\n  \
+                    Details: {err}.\
+                ",
+                type_name::<T>()
             )
         })
     }
 
     fn get_mut(&self) -> Self::MutGuard<'_> {
-        self.write_ignoring_poison().unwrap_or_else(|| {
-            panic!(
-                "Gd<T>::bind_mut() failed, already bound; obj = {}.\n  \
-                     Make sure there is no &T or &mut T live at the time.\n  \
-                     This often occurs when calling a GDScript function/signal from Rust, which then calls again Rust code.",
-                self.base,
-            )
-        })
+        self.user_instance
+            .as_ref()
+            .borrow_mut()
+            .unwrap_or_else(|err| {
+                panic!(
+                    "\
+                    Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
+                    Make sure to use `self.base_mut()` instead of `self.to_gd()` when possible.\n  \
+                    Details: {err}.\
+                ",
+                    type_name::<T>()
+                )
+            })
+    }
+
+    fn get_base_mut<'a: 'b, 'b>(&'a self, value: &'b mut Self::Instance) -> Self::BaseMutGuard<'b> {
+        self.user_instance
+            .as_ref()
+            .set_non_aliasing(value)
+            .unwrap_or_else(|err| {
+                // We should never hit this, except maybe in extreme cases like having more than
+                // `usize::MAX` borrows.
+                panic!(
+                    "\
+                        `base_mut()` failed for type T = {}.\n  \
+                        This is most likely a bug, please report it.\n  \
+                        Details: {err}.\
+                    ",
+                    type_name::<T>()
+                )
+            })
     }
 
     fn get_lifecycle(&self) -> Lifecycle {
@@ -135,7 +117,7 @@ impl<T: GodotClass> super::Storage for InstanceStorage<T> {
     }
 }
 
-impl<T: GodotClass> super::StorageRefCounted for InstanceStorage<T> {
+impl<T: GodotClass> StorageRefCounted for InstanceStorage<T> {
     fn godot_ref_count(&self) -> u32 {
         self.godot_ref_count.load(Ordering::Relaxed)
     }
@@ -159,15 +141,12 @@ impl<T: GodotClass> super::StorageRefCounted for InstanceStorage<T> {
     }
 }
 
-// TODO make InstanceStorage<T> Sync
-// This type can be accessed concurrently from multiple threads, so it should be Sync. That implies however that T must be Sync too
-// (and possibly Send, because with `&mut` access, a `T` can be extracted as a value using mem::take() etc.).
-// Which again means that we need to infest half the codebase with T: Sync + Send bounds, *and* make it all conditional on
-// `#[cfg(feature = "experimental-threads")]`.
-//
-// A better design would be a distinct Gds<T: Sync> pointer, which requires synchronized.
-// This needs more design on the multi-threading front (#18).
-//
-// The following code + __static_type_check() above would make sure that InstanceStorage is Sync.
-// Make sure storage is Sync in multi-threaded case, as it can be concurrently accessed through aliased Gd<T> pointers.
-// fn enforce_sync<T: Sync>() {}
+impl<T: GodotClass> Drop for InstanceStorage<T> {
+    fn drop(&mut self) {
+        out!(
+            "    Storage::drop (rc={})           <{:?}>",
+            self.godot_ref_count(),
+            self.base(),
+        );
+    }
+}

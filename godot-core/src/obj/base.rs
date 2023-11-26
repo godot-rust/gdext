@@ -66,6 +66,7 @@ impl<T: GodotClass> Base<T> {
     ///
     /// Using this method to call methods on the base field of a Rust object is discouraged, instead use the
     /// methods from [`WithBaseField`](super::WithBaseField) when possible.
+    #[doc(hidden)]
     pub fn to_gd(&self) -> Gd<T> {
         (*self.obj).clone()
     }
@@ -74,6 +75,7 @@ impl<T: GodotClass> Base<T> {
     ///
     /// Using this method to call methods on the base field of a Rust object is discouraged, instead use the
     /// methods from [`WithBaseField`](super::WithBaseField) when possible.
+    #[doc(hidden)]
     pub fn as_gd(&self) -> &Gd<T> {
         &self.obj
     }

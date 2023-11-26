@@ -6,6 +6,7 @@ members = [
     "godot-ffi",
     "godot-core",
     "godot-macros",
+    "godot-cell",
     "godot",
 
     # Godot integration
