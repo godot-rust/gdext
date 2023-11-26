@@ -39,6 +39,9 @@ static LOADED_CLASSES: Mutex<Option<HashMap<InitLevel, Vec<ClassName>>>> = Mutex
 pub struct ClassPlugin {
     pub class_name: ClassName,
     pub component: PluginComponent,
+
+    // Init-level is per ClassPlugin and not per PluginComponent, because all components of all classes are mixed together in one
+    // huge linker list. There is no per-class aggregation going on, so this allows to easily filter relevant classes.
     pub init_level: Option<InitLevel>,
 }
 
@@ -60,11 +63,11 @@ impl fmt::Debug for ErasedRegisterFn {
 /// Represents the data part of a [`ClassPlugin`] instance.
 #[derive(Clone, Debug)]
 pub enum PluginComponent {
-    /// Class definition itself, must always be available
+    /// Class definition itself, must always be available.
     ClassDef {
         base_class_name: ClassName,
 
-        /// Godot low-level`create` function, wired up to library-generated `init`
+        /// Godot low-level `create` function, wired up to library-generated `init`.
         generated_create_fn: Option<
             unsafe extern "C" fn(
                 _class_userdata: *mut std::ffi::c_void, //
@@ -78,6 +81,9 @@ pub enum PluginComponent {
             ) -> sys::GDExtensionClassInstancePtr,
         >,
 
+        /// Callback to library-generated function which registers properties in the `struct` definition.
+        register_properties_fn: ErasedRegisterFn,
+
         free_fn: unsafe extern "C" fn(
             _class_user_data: *mut std::ffi::c_void,
             instance: sys::GDExtensionClassInstancePtr,
@@ -86,18 +92,18 @@ pub enum PluginComponent {
 
     /// Collected from `#[godot_api] impl MyClass`
     UserMethodBinds {
-        /// Callback to library-generated function which registers functions in the `impl`
+        /// Callback to library-generated function which registers functions and constants in the `impl` block.
         ///
         /// Always present since that's the entire point of this `impl` block.
-        generated_register_fn: ErasedRegisterFn,
+        register_methods_constants_fn: ErasedRegisterFn,
     },
 
     /// Collected from `#[godot_api] impl GodotExt for MyClass`
     UserVirtuals {
-        /// Callback to user-defined `register_class` function
+        /// Callback to user-defined `register_class` function.
         user_register_fn: Option<ErasedRegisterFn>,
 
-        /// Godot low-level`create` function, wired up to the user's `init`
+        /// Godot low-level `create` function, wired up to the user's `init`.
         user_create_fn: Option<
             unsafe extern "C" fn(
                 _class_userdata: *mut std::ffi::c_void, //
@@ -111,7 +117,7 @@ pub enum PluginComponent {
             ) -> sys::GDExtensionClassInstancePtr,
         >,
 
-        /// User-defined `to_string` function
+        /// User-defined `to_string` function.
         user_to_string_fn: Option<
             unsafe extern "C" fn(
                 p_instance: sys::GDExtensionClassInstancePtr,
@@ -120,7 +126,7 @@ pub enum PluginComponent {
             ),
         >,
 
-        /// User-defined `on_notification` function
+        /// User-defined `on_notification` function.
         #[cfg(before_api = "4.2")]
         user_on_notification_fn: Option<
             unsafe extern "C" fn(
@@ -137,7 +143,7 @@ pub enum PluginComponent {
             ),
         >,
 
-        /// Callback for other virtuals
+        /// Callback for other virtuals.
         get_virtual_fn: unsafe extern "C" fn(
             p_userdata: *mut std::os::raw::c_void,
             p_name: sys::GDExtensionConstStringNamePtr,
@@ -154,8 +160,12 @@ pub enum PluginComponent {
 struct ClassRegistrationInfo {
     class_name: ClassName,
     parent_class_name: Option<ClassName>,
-    generated_register_fn: Option<ErasedRegisterFn>,
+    // Following functions are stored separately, since their order matters.
+    register_methods_constants_fn: Option<ErasedRegisterFn>,
+    register_properties_fn: Option<ErasedRegisterFn>,
     user_register_fn: Option<ErasedRegisterFn>,
+
+    /// Godot low-level class creation parameters.
     #[cfg(before_api = "4.2")]
     godot_params: sys::GDExtensionClassCreationInfo,
     #[cfg(since_api = "4.2")]
@@ -208,7 +218,8 @@ pub fn register_class<
     register_class_raw(ClassRegistrationInfo {
         class_name: T::class_name(),
         parent_class_name: Some(T::Base::class_name()),
-        generated_register_fn: None,
+        register_methods_constants_fn: None,
+        register_properties_fn: None,
         user_register_fn: Some(ErasedRegisterFn {
             raw: callbacks::register_class_by_builder::<T>,
         }),
@@ -232,13 +243,15 @@ pub fn auto_register_classes(init_level: InitLevel) {
 
     crate::private::iterate_plugins(|elem: &ClassPlugin| {
         //out!("* Plugin: {elem:#?}");
+
+        // Filter per ClassPlugin and not PluginComponent, because all components of all classes are mixed together in one huge list.
         match elem.init_level {
             None => {
                 log::godot_error!("Unknown initialization level for class {}", elem.class_name);
                 return;
             }
             Some(elem_init_level) if elem_init_level != init_level => return,
-            _ => (),
+            _ => { /* Nothing */ }
         }
 
         let name = elem.class_name;
@@ -304,6 +317,7 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             base_class_name,
             generated_create_fn,
             generated_recreate_fn,
+            register_properties_fn,
             free_fn,
         } => {
             c.parent_class_name = Some(base_class_name);
@@ -335,12 +349,13 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             assert!(generated_recreate_fn.is_none()); // not used
 
             c.godot_params.free_instance_func = Some(free_fn);
+            c.register_properties_fn = Some(register_properties_fn);
         }
 
         PluginComponent::UserMethodBinds {
-            generated_register_fn,
+            register_methods_constants_fn,
         } => {
-            c.generated_register_fn = Some(generated_register_fn);
+            c.register_methods_constants_fn = Some(register_methods_constants_fn);
         }
 
         PluginComponent::UserVirtuals {
@@ -433,11 +448,18 @@ fn register_class_raw(info: ClassRegistrationInfo) {
     //let mut class_builder = crate::builder::ClassBuilder::<?>::new();
     let mut class_builder = 0; // TODO dummy argument; see callbacks
 
-    // First call generated (proc-macro) registration function, then user-defined one.
-    // This mimics the intuition that proc-macros are running "before" normal runtime code.
-    if let Some(register_fn) = info.generated_register_fn {
+    // Order of the following registrations is crucial:
+    // 1. Methods and constants.
+    // 2. Properties (they may depend on get/set methods).
+    // 3. User-defined registration function (intuitively, user expects their own code to run after proc-macro generated code).
+    if let Some(register_fn) = info.register_methods_constants_fn {
         (register_fn.raw)(&mut class_builder);
     }
+
+    if let Some(register_fn) = info.register_properties_fn {
+        (register_fn.raw)(&mut class_builder);
+    }
+
     if let Some(register_fn) = info.user_register_fn {
         (register_fn.raw)(&mut class_builder);
     }
@@ -639,7 +661,11 @@ pub mod callbacks {
         T::__godot_register_class(&mut class_builder);
     }
 
-    pub fn register_user_binds<T: cap::ImplementsGodotApi + cap::ImplementsGodotExports>(
+    pub fn register_user_properties<T: cap::ImplementsGodotExports>(_class_builder: &mut dyn Any) {
+        T::__register_exports();
+    }
+
+    pub fn register_user_methods_constants<T: cap::ImplementsGodotApi>(
         _class_builder: &mut dyn Any,
     ) {
         // let class_builder = class_builder
@@ -649,7 +675,6 @@ pub mod callbacks {
         //T::register_methods(class_builder);
         T::__register_methods();
         T::__register_constants();
-        T::__register_exports();
     }
 }
 
@@ -662,7 +687,8 @@ fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
     ClassRegistrationInfo {
         class_name,
         parent_class_name: None,
-        generated_register_fn: None,
+        register_methods_constants_fn: None,
+        register_properties_fn: None,
         user_register_fn: None,
         godot_params: default_creation_info(),
         init_level: InitLevel::Scene,

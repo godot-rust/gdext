@@ -20,7 +20,3 @@ struct WithInitDefaults {
     #[init(default = -42)]
     expr_int: i64,
 }
-
-// TODO Remove once https://github.com/godot-rust/gdext/issues/187 is fixed
-#[godot_api]
-impl WithInitDefaults {}

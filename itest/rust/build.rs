@@ -457,9 +457,6 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
             #[export(enum = (Rebecca, Mary, Leah))]
             export_enum_string_rebecca_mary_leah: GString,
         }
-
-        #[godot_api]
-        impl PropertyTestsRust {}
     };
 
     let gdscript = format!(

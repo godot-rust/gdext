@@ -45,9 +45,6 @@ struct VirtualMethodTest {
 }
 
 #[godot_api]
-impl VirtualMethodTest {}
-
-#[godot_api]
 impl IRefCounted for VirtualMethodTest {
     fn to_string(&self) -> GString {
         format!("VirtualMethodTest[integer={}]", self.integer).into()

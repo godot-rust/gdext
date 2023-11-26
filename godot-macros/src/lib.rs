@@ -124,17 +124,11 @@ use crate::util::ident;
 ///     #[var]
 ///     my_field: i64,
 /// }
-///
-/// #[godot_api]
-/// impl MyStruct {}
 /// ```
 ///
 /// This makes the field accessible in GDScript using `my_struct.my_field` syntax. Additionally, it
 /// generates a trivial getter and setter named `get_my_field` and `set_my_field`, respectively.
 /// These are `pub` in Rust, since they're exposed from GDScript anyway.
-///
-/// For technical reasons, an impl-block with the `#[godot_api]` attribute is required for properties to
-/// work. Failing to include one will cause a compile error if you try to create any properties.
 ///
 /// If you want to implement your own getter and/or setter, write those as a function on your Rust
 /// type, expose it using `#[func]`, and annotate the field with
@@ -196,9 +190,6 @@ use crate::util::ident;
 ///     #[export]
 ///     my_field: i64,
 /// }
-///
-/// #[godot_api]
-/// impl MyStruct {}
 /// ```
 ///
 /// If you dont also include a `#[var]` attribute, then a default one will be generated.
@@ -252,9 +243,6 @@ use crate::util::ident;
 ///     #[export(flags = (A = 1, B = 2, AB = 3))]
 ///     flags: u32,
 /// }
-///
-/// #[godot_api]
-/// impl MyStruct {}
 /// ```
 ///
 /// Most values in expressions like `key = value`, can be an arbitrary expression that evaluates to the
@@ -274,9 +262,6 @@ use crate::util::ident;
 ///     #[export(flags = (A = 0b0001, B = 0b0010, C = 0b0100, D = 0b1000))]
 ///     flags: u32,
 /// }
-///
-/// #[godot_api]
-/// impl MyStruct {}
 /// ```
 ///
 /// You can specify custom property hints, hint strings, and usage flags in a `#[var]` attribute using the
@@ -297,9 +282,6 @@ use crate::util::ident;
 ///     )]
 ///     my_field: i64,
 /// }
-///
-/// #[godot_api]
-/// impl MyStruct {}
 /// ```
 ///
 ///
@@ -540,10 +522,6 @@ pub fn derive_from_godot(input: TokenStream) -> TokenStream {
 ///     #[var]
 ///     foo: TestEnum
 /// }
-///
-/// # //TODO: remove this when https://github.com/godot-rust/gdext/issues/187 is truly addressed
-/// # #[godot_api]
-/// # impl TestClass {}
 ///
 /// # fn main() {
 /// let mut class = TestClass {foo: TestEnum::B};

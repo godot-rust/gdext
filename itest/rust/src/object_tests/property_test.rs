@@ -298,9 +298,6 @@ struct CheckAllExports {
     color_no_alpha: Color,
 }
 
-#[godot_api]
-impl CheckAllExports {}
-
 #[repr(i64)]
 #[derive(Property, Export, Eq, PartialEq, Debug)]
 pub enum TestEnum {
@@ -314,9 +311,6 @@ pub struct DeriveProperty {
     #[var]
     pub foo: TestEnum,
 }
-
-#[godot_api]
-impl DeriveProperty {}
 
 #[itest]
 fn derive_property() {
@@ -334,9 +328,6 @@ pub struct DeriveExport {
     #[base]
     pub base: Base<RefCounted>,
 }
-
-#[godot_api]
-impl DeriveExport {}
 
 #[godot_api]
 impl IRefCounted for DeriveExport {
@@ -373,21 +364,9 @@ fn derive_export() {
 #[class(init, base=Resource)]
 pub struct CustomResource {}
 
-#[godot_api]
-impl CustomResource {}
-
-#[godot_api]
-impl IResource for CustomResource {}
-
 #[derive(GodotClass)]
 #[class(init, base=Resource, rename=NewNameCustomResource)]
 pub struct RenamedCustomResource {}
-
-#[godot_api]
-impl RenamedCustomResource {}
-
-#[godot_api]
-impl IResource for RenamedCustomResource {}
 
 #[derive(GodotClass)]
 #[class(init, base=Node)]
@@ -399,12 +378,6 @@ pub struct ExportResource {
     #[export]
     pub bar: Option<Gd<RenamedCustomResource>>,
 }
-
-#[godot_api]
-impl ExportResource {}
-
-#[godot_api]
-impl INode for ExportResource {}
 
 #[itest]
 fn export_resource() {

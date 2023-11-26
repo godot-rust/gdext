@@ -103,6 +103,9 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 base_class_name: #base_class_name_obj,
                 generated_create_fn: #create_fn,
                 generated_recreate_fn: #recreate_fn,
+                register_properties_fn: #prv::ErasedRegisterFn {
+                    raw: #prv::callbacks::register_user_properties::<#class_name>,
+                },
                 free_fn: #prv::callbacks::free::<#class_name>,
             },
             init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,

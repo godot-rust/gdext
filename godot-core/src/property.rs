@@ -106,23 +106,6 @@ impl PropertyHintInfo {
     }
 }
 
-/// To export properties to Godot, you must have an impl-block with the `#[godot_api]` attribute, even if
-/// it is empty.
-///
-/// This trait is automatically implemented when such an impl-block is present. If Rust complains that it is
-/// not implemented, then you can usually fix this by adding:
-///
-/// ```ignore
-/// #[godot_api]
-/// impl MyClass {}
-/// ```
-///
-/// Where you replace `MyClass` with the name of your class.
-#[allow(non_camel_case_types)]
-pub trait Cannot_export_without_godot_api_impl {
-    const EXISTS: () = ();
-}
-
 /// Functions used to translate user-provided arguments into export hints.
 pub mod export_info_functions {
     use crate::builtin::GString;

@@ -168,8 +168,8 @@ godot::sys::plugin_add!(
     ::godot::private::ClassPlugin {
         class_name: HasOtherConstants::class_name(),
         component: ::godot::private::PluginComponent::UserMethodBinds {
-            generated_register_fn: ::godot::private::ErasedRegisterFn {
-                raw: ::godot::private::callbacks::register_user_binds::<HasOtherConstants>,
+            register_methods_constants_fn: ::godot::private::ErasedRegisterFn {
+                raw: ::godot::private::callbacks::register_user_methods_constants::<HasOtherConstants>,
             },
         },
         init_level: HasOtherConstants::INIT_LEVEL,
