@@ -654,6 +654,16 @@ impl<T: GodotClass> Debug for Gd<T> {
     }
 }
 
+impl<T: GodotClass> std::hash::Hash for Gd<T> {
+    /// ⚠️ Hashes this object based on its instance ID.
+    ///
+    /// # Panics
+    /// When `self` is dead.
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.instance_id().hash(state);
+    }
+}
+
 // Gd unwinding across panics does not invalidate any invariants;
 // its mutability is anyway present, in the Godot engine.
 impl<T: GodotClass> std::panic::UnwindSafe for Gd<T> {}
