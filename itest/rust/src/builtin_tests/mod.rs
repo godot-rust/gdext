@@ -35,3 +35,6 @@ mod string {
 mod color_test;
 
 mod convert_test;
+
+#[cfg(feature = "serde")]
+mod serde_test;

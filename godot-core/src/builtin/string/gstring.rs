@@ -313,3 +313,51 @@ impl From<NodePath> for GString {
         Self::from(&path)
     }
 }
+
+#[cfg(feature = "serde")]
+mod serialize {
+    use super::*;
+    use serde::de::{Error, Visitor};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::fmt::Formatter;
+
+    impl Serialize for GString {
+        #[inline]
+        fn serialize<S>(
+            &self,
+            serializer: S,
+        ) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+        where
+            S: Serializer,
+        {
+            serializer.serialize_str(&self.to_string())
+        }
+    }
+
+    #[cfg(feature = "serde")]
+    impl<'de> serialize::Deserialize<'de> for GString {
+        #[inline]
+        fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            struct GStringVisitor;
+            impl<'de> Visitor<'de> for GStringVisitor {
+                type Value = GString;
+
+                fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                    formatter.write_str("a GString")
+                }
+
+                fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+                where
+                    E: Error,
+                {
+                    Ok(GString::from(s))
+                }
+            }
+
+            deserializer.deserialize_str(GStringVisitor)
+        }
+    }
+}

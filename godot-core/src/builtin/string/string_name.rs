@@ -245,3 +245,50 @@ impl From<NodePath> for StringName {
         Self::from(GString::from(path))
     }
 }
+
+#[cfg(feature = "serde")]
+mod serialize {
+    use super::*;
+    use serde::de::{Error, Visitor};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::fmt::Formatter;
+
+    impl Serialize for StringName {
+        #[inline]
+        fn serialize<S>(
+            &self,
+            serializer: S,
+        ) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+        where
+            S: Serializer,
+        {
+            serializer.serialize_str(&self.to_string())
+        }
+    }
+
+    impl<'de> serialize::Deserialize<'de> for StringName {
+        #[inline]
+        fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'de>>::Error>
+        where
+            D: Deserializer<'de>,
+        {
+            struct StringNameVisitor;
+            impl<'de> Visitor<'de> for StringNameVisitor {
+                type Value = StringName;
+
+                fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                    formatter.write_str("a StringName")
+                }
+
+                fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+                where
+                    E: Error,
+                {
+                    Ok(StringName::from(s))
+                }
+            }
+
+            deserializer.deserialize_str(StringNameVisitor)
+        }
+    }
+}
