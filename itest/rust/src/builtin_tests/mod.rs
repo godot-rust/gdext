@@ -20,6 +20,7 @@ mod containers {
     mod array_test;
     mod callable_test;
     mod dictionary_test;
+    mod packed_array_test;
     mod rid_test;
     mod signal_test;
     mod variant_test;
