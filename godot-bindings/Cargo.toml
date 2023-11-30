@@ -18,7 +18,7 @@ custom-godot = ["dep:bindgen", "dep:regex", "dep:which"]
 custom-godot-extheader = []
 
 [dependencies]
-godot4-prebuilt = { optional = true, git = "https://github.com/godot-rust/godot4-prebuilt", branch = "4.1.1" }
+godot4-prebuilt = { optional = true, git = "https://github.com/godot-rust/godot4-prebuilt", branch = "4.2" }
 
 # Version >= 1.5.5 for security: https://blog.rust-lang.org/2022/03/08/cve-2022-24713.html
 # 'unicode-gencat' needed for \d, see: https://docs.rs/regex/1.5.5/regex/#unicode-features
