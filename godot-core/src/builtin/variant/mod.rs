@@ -174,7 +174,7 @@ impl Variant {
     }
 
     /// return a false only if the variant is `Variant::NIL`
-    /// or an empty `TypedArray` or `Dictionary`.
+    /// or an empty `Array` or `Dictionary`.
     pub fn booleanize(&self) -> bool {
         unsafe { interface_fn!(variant_booleanize)(self.var_sys()) != 0 }
     }
