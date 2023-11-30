@@ -31,6 +31,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 # Reverse dev dependencies so doctests can use `godot::` prefix
 [dev-dependencies]
 godot = { path = "../godot" }
+serde_json = { version = "1.0" }
 
 [build-dependencies]
 godot-bindings = { path = "../godot-bindings" }

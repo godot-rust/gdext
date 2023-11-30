@@ -171,6 +171,9 @@ for arg in "$@"; do
             echo "$HELP_TEXT"
             exit 0
             ;;
+        --use-serde)
+            extraCargoArgs+=("--features" "serde")
+            ;;
         --double)
             extraCargoArgs+=("--features" "godot/double-precision")
             ;;
