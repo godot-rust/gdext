@@ -92,6 +92,10 @@ pub mod private {
         }
     }
 
+    pub fn auto_init<T>(l: &mut crate::obj::OnReady<T>) {
+        l.init_auto();
+    }
+
     fn print_panic_message(msg: &str) {
         // If the message contains newlines, print all of the lines after a line break, and indent them.
         let lbegin = "\n  ";

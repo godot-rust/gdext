@@ -7,44 +7,48 @@
 
 use std::mem;
 
-/// Ergonomic late-initialization container.
+/// Ergonomic late-initialization container with `ready()` support.
 ///
 /// While deferred initialization is generally seen as bad practice, it is often inevitable in game development.
 /// Godot in particular encourages initialization inside `ready()`, e.g. to access the scene tree after a node is inserted into it.
+/// The alternative to using this pattern is [`Option<T>`][option], which needs to be explicitly unwrapped with `unwrap()` or `expect()` each time.
 ///
-/// `Late<T>` is a mix of [`Option<T>`][std::option::Option] and [`Lazy<T>`](https://docs.rs/once_cell/1/once_cell/unsync/struct.Lazy.html).
+/// `OnReady<T>` should always be used as a field. There are two modes to use it:
+///
+/// 1. **Automatic mode, using [`new()`](Self::new).**<br>
+///    Before `ready()` is called, all `OnReady` fields constructed with `new()` are automatically initialized, in the order of
+///    declaration. This means that you can safely access them in `ready()`.<br><br>
+/// 2. **Manual mode, using [`manual()`](Self::manual).**<br>
+///    These fields are left uninitialized until you call [`init()`][Self::init] on them. This is useful if you need more complex
+///    initialization scenarios than a closure allows. If you forget initialization, a panic will occur on first access.
+///
+/// Conceptually, `OnReady<T>` is very close to [once_cell's `Lazy<T>`][lazy], with additional hooks into the Godot lifecycle.
+/// The absence of methods to check initialization state is deliberate: you don't need them if you follow the above two patterns.
+/// This container is not designed as a general late-initialization solution, but tailored to the `ready()` semantics of Godot.
+///
+/// This type is not thread-safe. `ready()` runs on the main thread and you are expected to access its value on the main thread, as well.
+///
+/// [option]: std::option::Option
+/// [lazy]: https://docs.rs/once_cell/1/once_cell/unsync/struct.Lazy.html
 ///
 /// # Example
 /// ```
-/// use godot::obj::OnReady;
-///
-/// // Inside init():
-/// Self {
-///  auto = OnReady::<i32>::new(|| -42);
-///
-/// // Inside ready():
-/// l.init();
-/// assert_eq!(*l, -42); // uses Deref
-/// assert_eq!(l.abs(), 42); // method calls look like direct access
-/// ```
-///
-/// // Write a GodotObject impl with init() and ready:
-/// ```
 /// use godot::prelude::*;
-/// use godot::obj::OnReady;
 ///
 /// #[derive(GodotClass)]
+/// #[class(base = Node)]
 /// struct MyClass {
+///    #[onready]
 ///    auto: OnReady<i32>,
 ///    manual: OnReady<i32>,
 /// }
 ///
 /// #[godot_api]
-/// impl RefCountedVirtual for MyClass {
-///     fn init(_base: Base<RefCounted>) -> Self {
+/// impl INode for MyClass {
+///     fn init(_base: Base<Node>) -> Self {
 ///        Self {
 ///            auto: OnReady::new(|| 11),
-///            manual: OnReady::uninit(),
+///            manual: OnReady::manual(),
 ///        }
 ///     }
 ///
@@ -69,7 +73,7 @@ impl<T> OnReady<T> {
     ///
     /// The value is also initialized when you don't override `ready()`.
     ///
-    /// For more control over initialization, use the [`OnReady::uninit()`] constructor, followed by a [`self.init()`][OnReady::init]
+    /// For more control over initialization, use the [`OnReady::manual()`] constructor, followed by a [`self.init()`][OnReady::init]
     /// call during `ready()`.
     pub fn new<F>(init_fn: F) -> Self
     where
@@ -85,7 +89,7 @@ impl<T> OnReady<T> {
     /// Leave uninitialized, expects manual initialization during `ready()`.
     ///
     /// If you use this method, you _must_ call [`init()`][Self::init] during the `ready()` callback, otherwise a panic will occur.
-    pub fn uninit() -> Self {
+    pub fn manual() -> Self {
         Self {
             state: InitState::ManualUninitialized,
         }
@@ -99,7 +103,7 @@ impl<T> OnReady<T> {
     pub fn init(&mut self, value: T) {
         match &self.state {
             InitState::ManualUninitialized { .. } => {
-                *self.state = InitState::Initialized { value };
+                self.state = InitState::Initialized { value };
             }
             InitState::AutoPrepared { .. } => {
                 panic!("cannot call init() on auto-initialized OnReady objects")
@@ -108,7 +112,9 @@ impl<T> OnReady<T> {
                 // SAFETY: Loading is ephemeral state that is only set in init_auto() and immediately overwritten.
                 unsafe { std::hint::unreachable_unchecked() }
             }
-            InitState::Initialized { .. } => panic!("already initialized; did you call init() more than once?"),
+            InitState::Initialized { .. } => {
+                panic!("already initialized; did you call init() more than once?")
+            }
         };
     }
 

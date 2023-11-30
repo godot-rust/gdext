@@ -13,7 +13,10 @@ use venial::{
     TyExpr,
 };
 
-use crate::class::{make_method_registration, make_virtual_method_callback, FuncDefinition};
+use crate::class::{
+    get_signature_info, make_method_registration, make_virtual_callback, BeforeKind,
+    FuncDefinition, SignatureInfo,
+};
 use crate::util;
 use crate::util::{bail, KvParser};
 
@@ -571,6 +574,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotNotification for #class_name {
                         fn __godot_notification(&mut self, what: i32) {
+                            use ::godot::obj::UserClass as _;
                             if ::godot::private::is_class_inactive(Self::__config().is_tool) {
                                 return;
                             }
@@ -603,20 +607,46 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                 } else {
                     format!("_{method_name}")
                 };
+
+                let signature_info = get_signature_info(&method, false);
+
+                // Overridden ready() methods additionally have an additional `__before_ready()` call (for OnReady inits).
+                let before_kind = if method_name == "ready" {
+                    BeforeKind::WithBefore
+                } else {
+                    BeforeKind::Without
+                };
+
                 // Note that, if the same method is implemented multiple times (with different cfg attr combinations),
                 // then there will be multiple match arms annotated with the same cfg attr combinations, thus they will
                 // be reduced to just one arm (at most, if the implementations aren't all removed from compilation) for
                 // each distinct method.
                 virtual_method_cfg_attrs.push(cfg_attrs);
                 virtual_method_names.push(virtual_method_name);
-                virtual_methods.push(method);
+                virtual_methods.push((signature_info, before_kind));
             }
         }
     }
 
-    let virtual_method_callbacks: Vec<TokenStream> = virtual_methods
+    // If there is no ready() method explicitly overridden, we need to add one, to ensure that __before_ready() is called to
+    // initialize the OnReady fields.
+    if !virtual_methods
         .iter()
-        .map(|method| make_virtual_method_callback(&class_name, method))
+        .any(|(sig, _)| sig.method_name == "ready")
+    {
+        let signature_info = SignatureInfo::fn_ready();
+
+        virtual_method_cfg_attrs.push(vec![]);
+        virtual_method_names.push("_ready".to_string());
+        virtual_methods.push((signature_info, BeforeKind::OnlyBefore));
+    }
+
+    let tool_check = util::make_virtual_tool_check();
+    let virtual_method_callbacks: Vec<TokenStream> = virtual_methods
+        .into_iter()
+        .map(|(signature_info, before_kind)| {
+            make_virtual_callback(&class_name, signature_info, before_kind)
+        })
         .collect();
 
     // Use 'match' as a way to only emit 'Some(...)' if the given cfg attrs allow.
@@ -642,10 +672,8 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         impl ::godot::obj::cap::ImplementsGodotVirtual for #class_name {
             fn __virtual_call(name: &str) -> ::godot::sys::GDExtensionClassCallVirtual {
                 //println!("virtual_call: {}.{}", std::any::type_name::<Self>(), name);
-
-                if ::godot::private::is_class_inactive(Self::__config().is_tool) {
-                    return None;
-                }
+                use ::godot::obj::UserClass as _;
+                #tool_check
 
                 match name {
                     #(

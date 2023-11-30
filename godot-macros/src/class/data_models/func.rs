@@ -6,6 +6,7 @@
  */
 
 use crate::util;
+use crate::util::ident;
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
@@ -24,14 +25,14 @@ pub struct FuncDefinition {
 //
 // There are currently no virtual static methods. Additionally, virtual static methods dont really make a lot
 // of sense. Therefore there is no need to support them.
-pub fn make_virtual_method_callback(
+pub fn make_virtual_callback(
     class_name: &Ident,
-    method_signature: &venial::Function,
+    signature_info: SignatureInfo,
+    before_kind: BeforeKind,
 ) -> TokenStream {
-    let signature_info = get_signature_info(method_signature, false);
-    let method_name = &method_signature.name;
+    let method_name = &signature_info.method_name;
 
-    let wrapped_method = make_forwarding_closure(class_name, &signature_info);
+    let wrapped_method = make_forwarding_closure(class_name, &signature_info, before_kind);
     let sig_tuple =
         util::make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
 
@@ -67,7 +68,8 @@ pub fn make_method_registration(
 
     let method_flags = make_method_flags(signature_info.receiver_type);
 
-    let forwarding_closure = make_forwarding_closure(class_name, &signature_info);
+    let forwarding_closure =
+        make_forwarding_closure(class_name, &signature_info, BeforeKind::Without);
 
     let varcall_func = make_varcall_func(method_name, &sig_tuple, &forwarding_closure);
     let ptrcall_func = make_ptrcall_func(method_name, &sig_tuple, &forwarding_closure);
@@ -135,14 +137,14 @@ pub fn make_method_registration(
 // Implementation
 
 #[derive(Copy, Clone, Eq, PartialEq)]
-enum ReceiverType {
+pub enum ReceiverType {
     Ref,
     Mut,
     GdSelf,
     Static,
 }
 
-struct SignatureInfo {
+pub struct SignatureInfo {
     pub method_name: Ident,
     pub receiver_type: ReceiverType,
     pub param_idents: Vec<Ident>,
@@ -150,8 +152,35 @@ struct SignatureInfo {
     pub ret_type: TokenStream,
 }
 
+impl SignatureInfo {
+    pub fn fn_ready() -> Self {
+        Self {
+            method_name: ident("ready"),
+            receiver_type: ReceiverType::Mut,
+            param_idents: vec![],
+            param_types: vec![],
+            ret_type: quote! { () },
+        }
+    }
+}
+
+pub enum BeforeKind {
+    /// Default: just call the method.
+    Without,
+
+    /// Call `before_{method}` before calling the method itself.
+    WithBefore,
+
+    /// Call **only** `before_{method}`, not the method itself.
+    OnlyBefore,
+}
+
 /// Returns a closure expression that forwards the parameters to the Rust instance.
-fn make_forwarding_closure(class_name: &Ident, signature_info: &SignatureInfo) -> TokenStream {
+fn make_forwarding_closure(
+    class_name: &Ident,
+    signature_info: &SignatureInfo,
+    before_kind: BeforeKind,
+) -> TokenStream {
     let method_name = &signature_info.method_name;
     let params = &signature_info.param_idents;
 
@@ -165,21 +194,40 @@ fn make_forwarding_closure(class_name: &Ident, signature_info: &SignatureInfo) -
         _ => quote! {},
     };
 
+    let before_method_call = match before_kind {
+        BeforeKind::WithBefore | BeforeKind::OnlyBefore => {
+            let before_method = format_ident!("__before_{}", method_name);
+            quote! { instance.#before_method(); }
+        }
+        BeforeKind::Without => TokenStream::new(),
+    };
+
     match signature_info.receiver_type {
         ReceiverType::Ref | ReceiverType::Mut => {
+            // Generated default virtual methods (e.g. for ready) may not have an actual implementation (user code), so
+            // all they need to do is call the __before_ready() method. This means the actual method call may be optional.
+            let method_call = if matches!(before_kind, BeforeKind::OnlyBefore) {
+                TokenStream::new()
+            } else {
+                quote! { instance.#method_name(#(#params),*) }
+            };
+
             quote! {
                 |instance_ptr, params| {
                     let ( #(#params,)* ) = params;
 
                     let storage =
                         unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
-                    #instance_decl
 
-                    instance.#method_name(#(#params),*)
+                    #instance_decl
+                    #before_method_call
+                    #method_call
                 }
             }
         }
         ReceiverType::GdSelf => {
+            // Method call is always present, since GdSelf implies that the user declares the method.
+            // (Absent method is only used in the case of a generated default virtual method, e.g. for ready()).
             quote! {
                 |instance_ptr, params| {
                     let ( #(#params,)* ) = params;
@@ -187,11 +235,13 @@ fn make_forwarding_closure(class_name: &Ident, signature_info: &SignatureInfo) -
                     let storage =
                         unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
 
+                    #before_method_call
                     <#class_name>::#method_name(storage.get_gd(), #(#params),*)
                 }
             }
         }
         ReceiverType::Static => {
+            // No before-call needed, since static methods are not virtual.
             quote! {
                 |_, params| {
                     let ( #(#params,)* ) = params;
@@ -202,7 +252,7 @@ fn make_forwarding_closure(class_name: &Ident, signature_info: &SignatureInfo) -
     }
 }
 
-fn get_signature_info(signature: &venial::Function, has_gd_self: bool) -> SignatureInfo {
+pub(crate) fn get_signature_info(signature: &venial::Function, has_gd_self: bool) -> SignatureInfo {
     let method_name = signature.name.clone();
     let mut receiver_type = if has_gd_self {
         ReceiverType::GdSelf
