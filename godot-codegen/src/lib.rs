@@ -163,13 +163,13 @@ enum RustTy {
     /// `bool`, `Vector3i`
     BuiltinIdent(Ident),
 
-    /// `TypedArray<i32>`
+    /// `Array<i32>`
     BuiltinArray(TokenStream),
 
     /// C-style raw pointer to a `RustTy`.
     RawPointer { inner: Box<RustTy>, is_const: bool },
 
-    /// `TypedArray<Gd<PhysicsBody3D>>`
+    /// `Array<Gd<PhysicsBody3D>>`
     EngineArray {
         tokens: TokenStream,
         #[allow(dead_code)] // only read in minimal config

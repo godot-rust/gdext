@@ -215,7 +215,7 @@ impl<T: GodotType> Array<T> {
 
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerArray {
-        // SAFETY: The memory layout of `TypedArray<T>` does not depend on `T`.
+        // SAFETY: The memory layout of `Array<T>` does not depend on `T`.
         inner::InnerArray::from_outer_typed(self)
     }
 
@@ -223,7 +223,7 @@ impl<T: GodotType> Array<T> {
     /// functions that return a variant array even though we know its type, and for API functions
     /// that take a variant array even though we want to pass a typed one.
     ///
-    /// This is marked `unsafe` since it can be used to break the invariant that a `TypedArray<T>`
+    /// This is marked `unsafe` since it can be used to break the invariant that a `Array<T>`
     /// always holds a Godot array whose runtime type is `T`.
     ///
     /// # Safety
@@ -236,7 +236,7 @@ impl<T: GodotType> Array<T> {
     /// In the current implementation, both cases will produce a panic rather than undefined
     /// behavior, but this should not be relied upon.
     unsafe fn assume_type<U: GodotType>(self) -> Array<U> {
-        // SAFETY: The memory layout of `TypedArray<T>` does not depend on `T`.
+        // SAFETY: The memory layout of `Array<T>` does not depend on `T`.
         unsafe { std::mem::transmute(self) }
     }
 }
@@ -276,7 +276,7 @@ impl<T: GodotType> Array<T> {
     ///
     /// If specified, `step` is the relative index between source elements. It can be negative,
     /// in which case `begin` must be higher than `end`. For example,
-    /// `TypedArray::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
+    /// `Array::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
     ///
     /// Array elements are copied to the slice, but any reference types (such as `Array`,
     /// `Dictionary` and `Object`) will still refer to the same value. To create a deep copy, use
@@ -292,7 +292,7 @@ impl<T: GodotType> Array<T> {
     ///
     /// If specified, `step` is the relative index between source elements. It can be negative,
     /// in which case `begin` must be higher than `end`. For example,
-    /// `TypedArray::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
+    /// `Array::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
     ///
     /// All nested arrays and dictionaries are duplicated and will not be shared with the original
     /// array. Note that any `Object`-derived elements will still be shallow copied. To create a
@@ -576,7 +576,7 @@ impl<T: GodotType + ToGodot> Array<T> {
         let len = self.len();
         assert!(
             index <= len,
-            "TypedArray insertion index {index} is out of bounds: length is {len}",
+            "Array insertion index {index} is out of bounds: length is {len}",
         );
         self.as_inner().insert(to_i64(index), value.to_variant());
     }
@@ -604,9 +604,9 @@ impl<T: GodotType + ToGodot> Array<T> {
 // but `[NAN] == [NAN]` is `true`. If they decide to make all NaNs equal, we can implement `Eq` and
 // `Ord`; if they decide to make all NaNs unequal, we can remove this comment.
 //
-// impl<T> Eq for TypedArray<T> {}
+// impl<T> Eq for Array<T> {}
 //
-// impl<T> Ord for TypedArray<T> {
+// impl<T> Ord for Array<T> {
 //     ...
 // }
 
