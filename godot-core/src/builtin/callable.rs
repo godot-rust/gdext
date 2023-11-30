@@ -375,6 +375,7 @@ mod custom_callable {
         ///
         /// Return `Ok(...)` if the call succeeded, and `Err(())` otherwise.
         /// Error handling is mostly needed in case argument number or types mismatch.
+        #[allow(clippy::result_unit_err)] // TODO remove once there's a clear error type here.
         fn invoke(&mut self, args: &[&Variant]) -> Result<Variant, ()>;
     }
 

@@ -220,7 +220,11 @@ mod custom_callable {
         let b = Callable::from_custom(Adder::new_tracked(3, bt.clone()));
         let c = Callable::from_custom(Adder::new_tracked(4, ct.clone()));
 
-        assert_eq!(a, a);
+        // clippy complains with assert_eq!(a, a) and it can't be suppressed with the suggested #[allow(clippy::eq_op)], hence this ceremony.
+        #[allow(clippy::eq_op)]
+        if a != a {
+            panic!("a != a; left: {a:?}, right: {a:?}");
+        }
         assert_eq!(
             eq_count(&at),
             0,
