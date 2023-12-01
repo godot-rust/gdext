@@ -100,9 +100,7 @@ impl Main {
             rng.gen_range(mob.min_speed..mob.max_speed)
         };
 
-        mob.set_linear_velocity(Vector2::new(range, 0.0));
-        let lin_vel = mob.get_linear_velocity().rotated(real::from_f32(direction));
-        mob.set_linear_velocity(lin_vel);
+        mob.set_linear_velocity(Vector2::new(range, 0.0).rotated(real::from_f32(direction)));
 
         let mut hud = self.base.get_node_as::<Hud>("Hud");
         hud.connect("start_game".into(), mob.callable("on_start_game"));
