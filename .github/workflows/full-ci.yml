@@ -52,6 +52,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: "Patch Cargo.toml to use nightly extension API"
+      run: .github/other/patch-prebuilt.sh nightly
+
     - name: "Install Rust"
       uses: ./.github/composite/rust
       with:
@@ -69,6 +72,9 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
+
+      - name: "Patch Cargo.toml to use nightly extension API"
+        run: .github/other/patch-prebuilt.sh nightly
 
       - name: "Install Rust"
         uses: ./.github/composite/rust
@@ -123,6 +129,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+
+      - name: "Patch Cargo.toml to use nightly extension API"
+        # Only on Linux because godot4-prebuilt/nightly branch doesn't have artifacts for other platforms.
+        if: matrix.name == 'linux' && matrix.rust-special == ''
+        run: .github/other/patch-prebuilt.sh nightly
 
       - name: "Install Rust"
         uses: ./.github/composite/rust
