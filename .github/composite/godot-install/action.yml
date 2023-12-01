@@ -1,3 +1,4 @@
+# Copyright (c) godot-rust; Bromeon and contributors.
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -43,12 +44,10 @@ runs:
       # If a specific Godot revision should be used, rather than latest, use this:
       # curl https://nightly.link/Bromeon/godot4-nightly/actions/runs/4910907653/${{ inputs.artifact-name }}.zip \
       run: |
-        if [[ $ARTIFACT_NAME == *"stable"* ]]; then
-          url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-stable/master/$ARTIFACT_NAME.zip"
-        elif [[ $ARTIFACT_NAME == *"4.0.4"* ]]; then
-          url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-4.0/master/$ARTIFACT_NAME.zip"
-        else
+        if [[ $ARTIFACT_NAME == *"nightly"* ]]; then
           url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-nightly/master/$ARTIFACT_NAME.zip"
+        else
+          url="https://nightly.link/Bromeon/godot4-nightly/workflows/compile-godot-stable/master/$ARTIFACT_NAME.zip"
         fi
         
         curl "$url" -Lo artifact.zip --retry 3

@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -123,6 +124,8 @@ pub use prebuilt::*;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Common
 
+const NEXT_MINOR_VERSION: u8 = 3;
+
 pub fn clear_dir(dir: &Path, watch: &mut StopWatch) {
     if dir.exists() {
         std::fs::remove_dir_all(dir).unwrap_or_else(|e| panic!("failed to delete dir: {e}"));
@@ -140,7 +143,7 @@ pub fn emit_godot_version_cfg() {
     } = get_godot_version();
 
     // Start at 1; checking for "since/before 4.0" makes no sense
-    let max = 2;
+    let max = NEXT_MINOR_VERSION;
     for m in 1..=minor {
         println!(r#"cargo:rustc-cfg=since_api="{major}.{m}""#);
     }

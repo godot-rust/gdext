@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
@@ -35,7 +36,8 @@ impl StringName {
     /// ```no_run
     /// use godot::builtin::StringName;
     ///
-    /// let sname = StringName::from_latin1_with_nul(b"± Latin-1 string\0");
+    /// // '±' is a Latin-1 character with codepoint 0xB1. Note that this is not UTF-8, where it would need two bytes.
+    /// let sname = StringName::from_latin1_with_nul(b"\xb1 Latin-1 string\0");
     /// ```
     ///
     /// # Panics
