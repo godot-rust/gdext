@@ -55,13 +55,15 @@ pub fn attribute_gdextension(decl: Declaration) -> ParseResult<TokenStream> {
             let script = std::ffi::CString::new(concat!(
                 "var pkgName = '", env!("CARGO_PKG_NAME"), "';", r#"
                 var libName = pkgName.replaceAll('-', '_') + '.wasm';
-                var dso = LDSO.loadedLibsByName[libName]["module"];
+                var dso = LDSO.loadedLibsByName[libName];
+                // This property was renamed as of emscripten 3.1.34
+                var dso_exports = "module" in dso ? dso["module"] : dso["exports"];
                 var registrants = [];
-                for (sym in dso) {
+                for (sym in dso_exports) {
                     if (sym.startsWith("dynCall_")) {
                         if (!(sym in Module)) {
                             console.log(`Patching Module with ${sym}`);
-                            Module[sym] = dso[sym];
+                            Module[sym] = dso_exports[sym];
                         }
                     } else if (sym.startsWith("rust_gdext_registrant_")) {
                         registrants.push(sym);
@@ -69,7 +71,7 @@ pub fn attribute_gdextension(decl: Declaration) -> ParseResult<TokenStream> {
                 }
                 for (sym of registrants) {
                     console.log(`Running registrant ${sym}`);
-                    dso[sym]();
+                    dso_exports[sym]();
                 }
                 console.log("Added",  registrants.length, "plugins to registry!");
             "#)).expect("Unable to create CString from script");
