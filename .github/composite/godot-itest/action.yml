@@ -86,35 +86,46 @@ runs:
     - name: "Patch prebuilt version ({{ inputs.godot-prebuilt-patch }})"
       if: inputs.godot-prebuilt-patch != ''
       env:
-        VERSION: ${{ inputs.godot-prebuilt-patch }}
+        PATCHED_VERSION: ${{ inputs.godot-prebuilt-patch }}
       # sed -i'' needed for macOS compatibility, see https://stackoverflow.com/q/4247068
       run: |
-        echo "Patch prebuilt version to $VERSION..."
+        # Find the godot4-prebuilt version that gdext currently depends on.
+        defaultVersion=$(grep 'godot4-prebuilt = {' godot-bindings/Cargo.toml | sed -n 's/.*branch = "\([^"]*\)".*/\1/p')
+        if [ -z "$defaultVersion" ]; then
+          echo "::error::prebuilt version not found or format is incorrect."
+          exit 1
+        else
+          echo "Default prebuilt version: $defaultVersion"
+        fi
         
-        # Reduce version to "major.minor" format
-        apiVersion=$(echo $VERSION | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
+        # Apply [patch] for godot4-prebuilt crate if needed.
+        if [[ "$PATCHED_VERSION" != $defaultVersion ]]; then
+          .github/other/patch-prebuilt.sh "$PATCHED_VERSION"
+        fi
         
-        # For newer versions, update the compatibility_minimum in .gdextension files to the respective version.
-        # Nothing needs to be done for 4.0.x, as compatibility_minimum didn't exist back then.
-        if [[ "$apiVersion" == "4.2" ]]; then
+        # Reduce versions to "major.minor" format.
+        apiVersion=$(echo "$PATCHED_VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
+        apiDefaultVersion=$(echo "$defaultVersion" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
+        
+        # For newer versions, update 'compatibility_minimum' in .gdextension files to the respective version.
+        # Nothing needs to be done for 4.0.x, as compatibility_minimum didn't exist back then (we do it due to easier code, anyway).
+        if [[ "$apiVersion" == "$apiDefaultVersion" ]]; then
+          echo "Already has version $version; no need to change compatibility_minimum."
+      
+        else
           echo "Update compatibility_minimum in .gdextension files to '$apiVersion'..."
           dirs=("itest" "examples")
+        
+          # Note that this is still hardcoded to 4.1, the start of GDExtension's compatibility promise. This makes it easier for users
+          # to use gdext with older Godot versions. There is anyway a runtime check in gdext that checks compatibility again.
           for dir in "${dirs[@]}"; do
-              find "$dir" -type f -name "*.gdextension" -exec sed -i'.bak' 's/compatibility_minimum = 4\.1/compatibility_minimum = $apiVersion/' {} +
+              find "$dir" -type f -name "*.gdextension" -exec sed -i'.bak' "s/compatibility_minimum = 4\.1/compatibility_minimum = $apiVersion/" {} +
           done
         
-        # Apply Cargo.toml patch for godot4-prebuilt crate
-        else
-          # Patch only needed if version is not already set
-          if grep -E 'godot4-prebuilt = { .+ branch = "$VERSION" }' godot-bindings/Cargo.toml; then
-            echo "Already has version $version; no need for patch."
-          else
-            cat << HEREDOC >> Cargo.toml
-        [patch."https://github.com/godot-rust/godot4-prebuilt"]
-        godot4-prebuilt = { git = "https://github.com//godot-rust/godot4-prebuilt", branch = "$VERSION" }
-        HEREDOC
-            echo "Patched Cargo.toml for version $version."
-          fi
+          echo "Example output: itest/godot/itest.gdextension"
+          echo "----------------------------------------------------"
+          cat itest/godot/itest.gdextension
+          echo "----------------------------------------------------"
         fi
 
       shell: bash

@@ -24,7 +24,7 @@ jobs:
     steps:
       # Checkout is always needed, for the notify step
       - name: "Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # This is just a sanity check to make sure that the follow-up docs generation doesn't break.
       # So we use the Rust version provided by the GitHub runners, which hopefully is >= MSRV.
