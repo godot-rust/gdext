@@ -41,7 +41,7 @@ jobs:
   rustfmt:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: "Install Rust"
         uses: ./.github/composite/rust
@@ -57,7 +57,7 @@ jobs:
   doc-lints:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: "Install Rust"
         uses: ./.github/composite/rust
@@ -75,7 +75,7 @@ jobs:
   clippy:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: "Patch Cargo.toml to use nightly extension API"
         run: .github/other/patch-prebuilt.sh nightly
@@ -102,7 +102,7 @@ jobs:
     name: unit-test
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: "Patch Cargo.toml to use nightly extension API"
         run: .github/other/patch-prebuilt.sh nightly
@@ -202,7 +202,7 @@ jobs:
             rust-target: x86_64-unknown-linux-gnu
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: "Run Godot integration test"
         uses: ./.github/composite/godot-itest
@@ -222,10 +222,10 @@ jobs:
   license-guard:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: "Check and fix license headers"
-        uses: apache/skywalking-eyes/header@v0.4.0
+        uses: apache/skywalking-eyes/header@v0.5.0
         with:
           # log: debug # optional: set the log level. The default value is `info`.
           config: .github/other/licenserc.yml
