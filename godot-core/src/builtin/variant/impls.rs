@@ -42,7 +42,7 @@ macro_rules! impl_ffi_variant {
                         expected: Self::variant_type(),
                         got: variant.get_type(),
                     }
-                    .into_error(variant.clone()));
+                    .into_error(variant));
                 }
 
                 // For 4.0:
@@ -160,7 +160,7 @@ impl GodotFfiVariant for () {
             expected: VariantType::Nil,
             got: variant.get_type(),
         }
-        .into_error(variant.clone()))
+        .into_error(variant))
     }
 }
 

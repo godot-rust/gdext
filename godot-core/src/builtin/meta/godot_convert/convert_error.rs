@@ -19,7 +19,7 @@ type Cause = Box<dyn Error + Send + Sync>;
 pub struct ConvertError {
     kind: ErrorKind,
     cause: Option<Cause>,
-    value: Option<Box<dyn fmt::Debug>>,
+    value: Option<String>,
 }
 
 impl ConvertError {
@@ -41,14 +41,20 @@ impl ConvertError {
     }
 
     /// Create a new custom error for a conversion with the value that failed to convert.
-    pub fn with_value<V: fmt::Debug + 'static>(value: V) -> Self {
+    pub fn with_value<V>(value: V) -> Self
+    where
+        V: fmt::Debug,
+    {
         let mut err = Self::custom();
-        err.value = Some(Box::new(value));
+        err.value = Some(format!("{value:?}"));
         err
     }
 
     /// Create a new custom error with a rust-error as an underlying cause for the conversion error.
-    pub fn with_cause<C: Into<Cause>>(cause: C) -> Self {
+    pub fn with_cause<C>(cause: C) -> Self
+    where
+        C: Into<Cause>,
+    {
         let mut err = Self::custom();
         err.cause = Some(cause.into());
         err
@@ -56,10 +62,14 @@ impl ConvertError {
 
     /// Create a new custom error with a rust-error as an underlying cause for the conversion error, and the
     /// value that failed to convert.
-    pub fn with_cause_value<C: Into<Cause>, V: fmt::Debug + 'static>(cause: C, value: V) -> Self {
+    pub fn with_cause_value<C, V>(cause: C, value: V) -> Self
+    where
+        C: Into<Cause>,
+        V: fmt::Debug,
+    {
         let mut err = Self::custom();
         err.cause = Some(cause.into());
-        err.value = Some(Box::new(value));
+        err.value = Some(format!("{value:?}"));
         err
     }
 
@@ -68,8 +78,8 @@ impl ConvertError {
         self.cause.as_deref()
     }
 
-    /// Returns the value that failed to convert, if one exists.
-    pub fn value(&self) -> Option<&(dyn fmt::Debug)> {
+    /// Returns a string representation of the value that failed to convert, if one exists.
+    pub fn value_str(&self) -> Option<&str> {
         self.value.as_deref()
     }
 
@@ -140,11 +150,14 @@ pub(crate) enum FromGodotError {
 }
 
 impl FromGodotError {
-    pub fn into_error<V: fmt::Debug + 'static>(self, value: V) -> ConvertError {
+    pub fn into_error<V>(self, value: V) -> ConvertError
+    where
+        V: fmt::Debug,
+    {
         ConvertError {
             kind: ErrorKind::FromGodot(self),
             cause: None,
-            value: Some(Box::new(value)),
+            value: Some(format!("{value:?}")),
         }
     }
 
@@ -199,11 +212,14 @@ pub(crate) enum FromFfiError {
 }
 
 impl FromFfiError {
-    pub fn into_error<V: fmt::Debug + 'static>(self, value: V) -> ConvertError {
+    pub fn into_error<V>(self, value: V) -> ConvertError
+    where
+        V: fmt::Debug,
+    {
         ConvertError {
             kind: ErrorKind::FromFfi(self),
             cause: None,
-            value: Some(Box::new(value)),
+            value: Some(format!("{value:?}")),
         }
     }
 
@@ -237,11 +253,14 @@ pub(crate) enum FromVariantError {
 }
 
 impl FromVariantError {
-    pub fn into_error<V: fmt::Debug + 'static>(self, value: V) -> ConvertError {
+    pub fn into_error<V>(self, value: V) -> ConvertError
+    where
+        V: fmt::Debug,
+    {
         ConvertError {
             kind: ErrorKind::FromVariant(self),
             cause: None,
-            value: Some(Box::new(value)),
+            value: Some(format!("{value:?}")),
         }
     }
 
@@ -255,4 +274,9 @@ impl FromVariantError {
             }
         }
     }
+}
+
+fn __ensure_send_sync() {
+    fn check<T: Send + Sync>() {}
+    check::<ConvertError>();
 }

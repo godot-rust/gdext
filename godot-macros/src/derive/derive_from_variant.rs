@@ -262,7 +262,7 @@ fn make_enum_tuple(
         } else {
             quote! {
                 let #ident = variant.pop_front()
-                    .ok_or(ConvertError::with_cause_value("missing expected value", variant.clone()))?
+                    .ok_or(ConvertError::with_cause_value("missing expected value", &variant))?
                     .try_to::<#field_type>()?;
             }
         };
@@ -298,7 +298,7 @@ fn make_enum_named(
             let err = format!("missing expected value {field_name_string}");
             quote! {
                 let #field_name = variant.get(#field_name_string)
-                    .ok_or(ConvertError::with_cause_value(#err, variant.clone()))?
+                    .ok_or(ConvertError::with_cause_value(#err, &variant))?
                     .try_to::<#field_type>()?;
             }
         };

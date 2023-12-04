@@ -59,7 +59,7 @@ fn error_has_value_and_no_cause() {
 
     for (err, err_str) in errors.into_iter() {
         assert!(
-            err.value().is_some(),
+            err.value_str().is_some(),
             "{err_str} conversion has no value: {err:?}"
         );
         assert!(
@@ -74,22 +74,17 @@ fn error_has_value_and_no_cause() {
 /// Check that the value stored in an error is the same as the value we tried to convert.
 #[itest]
 fn error_maintains_value() {
-    // Need to use Debug to check equality here since we get a `dyn Debug` and thus cannot check equality
-    // directly.
     let value = i32::MAX;
     let err = Vector2Axis::try_from_godot(value).unwrap_err();
-    assert_eq!(format!("{value:?}"), format!("{:?}", err.value().unwrap()));
+    assert_eq!(format!("{value:?}"), err.value_str().unwrap());
 
     let value = i64::MAX;
     let err = value.to_variant().try_to::<i32>().unwrap_err();
-    assert_eq!(format!("{value:?}"), format!("{:?}", err.value().unwrap()));
+    assert_eq!(format!("{value:?}"), err.value_str().unwrap());
 
-    let value = f64::MAX;
-    let err = value.to_variant().try_to::<i32>().unwrap_err();
-    assert_eq!(
-        format!("{:?}", value.to_variant()),
-        format!("{:?}", err.value().unwrap())
-    );
+    let value = f64::MAX.to_variant();
+    let err = value.try_to::<i32>().unwrap_err();
+    assert_eq!(format!("{value:?}"), err.value_str().unwrap());
 }
 
 // Manual implementation of `GodotConvert` and related traits to ensure conversion works.
@@ -167,6 +162,7 @@ fn custom_convert_error_from_variant() {
         .to_variant()
         .try_to::<Foo>()
         .expect_err("should be missing key `a`");
+
     assert_eq!(err.cause().unwrap().to_string(), Foo::MISSING_KEY_A);
 
     let missing_b = dict! {
@@ -176,6 +172,7 @@ fn custom_convert_error_from_variant() {
         .to_variant()
         .try_to::<Foo>()
         .expect_err("should be missing key `b`");
+
     assert_eq!(err.cause().unwrap().to_string(), Foo::MISSING_KEY_B);
 
     let too_many_keys = dict! {
@@ -187,6 +184,7 @@ fn custom_convert_error_from_variant() {
         .to_variant()
         .try_to::<Foo>()
         .expect_err("should have too many keys");
+
     assert_eq!(err.cause().unwrap().to_string(), Foo::TOO_MANY_KEYS);
 
     let wrong_type_a = dict! {
@@ -197,11 +195,10 @@ fn custom_convert_error_from_variant() {
         .to_variant()
         .try_to::<Foo>()
         .expect_err("should have wrongly typed key `a`");
+
     assert!(err.cause().is_none());
-    // Need to use Debug to check equality here since we get a `dyn Debug` and thus cannot check equality
-    // directly.
     assert_eq!(
-        format!("{:?}", err.value().unwrap()),
+        err.value_str().unwrap(),
         format!("{:?}", "hello".to_variant())
     );
 
@@ -213,9 +210,10 @@ fn custom_convert_error_from_variant() {
         .to_variant()
         .try_to::<Foo>()
         .expect_err("should have wrongly typed key `b`");
+
     assert!(err.cause().is_none());
     assert_eq!(
-        format!("{:?}", err.value().unwrap()),
+        err.value_str().unwrap(),
         format!("{:?}", Vector2::new(1.0, 23.4).to_variant())
     );
 
@@ -227,9 +225,7 @@ fn custom_convert_error_from_variant() {
         .to_variant()
         .try_to::<Foo>()
         .expect_err("should have too big value for field `a`");
+
     assert!(err.cause().is_none());
-    assert_eq!(
-        format!("{:?}", err.value().unwrap()),
-        format!("{:?}", i64::MAX)
-    );
+    assert_eq!(err.value_str().unwrap(), format!("{:?}", i64::MAX));
 }
