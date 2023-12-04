@@ -135,6 +135,7 @@ pub(crate) enum FromGodotError {
         expected: array_inner::TypeInfo,
         got: array_inner::TypeInfo,
     },
+    /// InvalidEnum is also used by bitfields.
     InvalidEnum,
     ZeroInstanceId,
 }

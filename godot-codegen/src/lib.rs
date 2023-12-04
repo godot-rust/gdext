@@ -185,6 +185,14 @@ enum RustTy {
         surrounding_class: Option<String>,
     },
 
+    /// `module::Bitfield`
+    EngineBitfield {
+        tokens: TokenStream,
+        /// `None` for globals
+        #[allow(dead_code)] // only read in minimal config
+        surrounding_class: Option<String>,
+    },
+
     /// `Gd<Node>`
     EngineClass {
         /// Tokens with full `Gd<T>`
@@ -219,6 +227,7 @@ impl ToTokens for RustTy {
             } => quote! { *mut #inner }.to_tokens(tokens),
             RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
+            RustTy::EngineBitfield { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
         }
     }

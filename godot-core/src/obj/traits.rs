@@ -182,6 +182,19 @@ pub trait EngineEnum: Copy {
     }
 }
 
+/// Auto-implemented for all engine-provided bitfields.
+pub trait EngineBitfield: Copy {
+    fn try_from_ord(ord: u64) -> Option<Self>;
+
+    /// Ordinal value of the bit flag, as specified in Godot.
+    fn ord(self) -> u64;
+
+    fn from_ord(ord: u64) -> Self {
+        Self::try_from_ord(ord)
+            .unwrap_or_else(|| panic!("ordinal {ord} does not map to any valid bit flag"))
+    }
+}
+
 /// Trait for enums that can be used as indices in arrays.
 ///
 /// The conditions for a Godot enum to be "index-like" are:

@@ -97,7 +97,7 @@ impl ClassMethodInfo {
     }
 
     pub fn register_extension_class_method(&self) {
-        use crate::obj::EngineEnum as _;
+        use crate::obj::EngineBitfield as _;
 
         let (return_value_info, return_value_metadata) = match &self.return_value {
             Some(info) => (Some(&info.info), info.metadata),
