@@ -19,8 +19,10 @@ pub use crate::gen::utilities;
 use crate::sys;
 
 mod gfile;
+mod script_instance;
 
 pub use gfile::{GFile, NotUniqueError};
+pub use script_instance::{create_script_instance, ScriptInstance};
 
 /// Support for Godot _native structures_.
 ///

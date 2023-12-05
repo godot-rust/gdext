@@ -236,7 +236,6 @@ impl Variant {
     /// # Safety
     /// `variant_ptr_array` must be a valid pointer to an array of `length` variant pointers.
     /// The caller is responsible of keeping the backing storage alive while the unbounded references exist.
-    #[cfg(since_api = "4.2")] // unused before
     pub(crate) unsafe fn unbounded_refs_from_sys<'a>(
         variant_ptr_array: *const sys::GDExtensionConstVariantPtr,
         length: usize,
@@ -252,6 +251,14 @@ impl Variant {
     /// Converts to variant mut pointer; can be a null pointer.
     pub(crate) fn ptr_from_sys_mut(variant_ptr: sys::GDExtensionVariantPtr) -> *mut Variant {
         variant_ptr as *mut Variant
+    }
+
+    /// Move `self` into a system pointer. This transfers ownership and thus does not call the destructor.
+    ///
+    /// # Safety
+    /// `dst` must be a pointer to a [`Variant`] which is suitable for ffi with Godot.
+    pub(crate) unsafe fn move_var_ptr(self, dst: sys::GDExtensionVariantPtr) {
+        self.move_return_ptr(dst as *mut _, sys::PtrcallType::Standard);
     }
 }
 

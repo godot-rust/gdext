@@ -275,3 +275,63 @@ impl PropertyInfo {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct MethodInfo {
+    pub id: i32,
+    pub method_name: StringName,
+    pub class_name: ClassName,
+    pub return_type: PropertyInfo,
+    pub arguments: Vec<PropertyInfo>,
+    pub default_arguments: Vec<Variant>,
+    pub flags: global::MethodFlags,
+}
+
+impl MethodInfo {
+    /// Converts to the FFI type. Keep this object allocated while using that!
+    ///
+    /// The struct returned by this function contains pointers into the fields of `self`. `self` should therefore not be dropped while the
+    /// [`sys::GDExtensionMethodInfo`] is still in use.
+    ///
+    /// This function also leaks memory that has to be cleaned up by the caller once it is no longer used. Specifically the `arguments` and
+    /// `default_arguments` vectors have to be reconstructed from the pointer and length and then dropped/freed.
+    ///
+    /// Each vector can be reconstructed with `Vec::from_raw_parts` since the pointers were created with `Vec::into_boxed_slice`, which
+    /// guarantees that the vector capacity and length are equal.
+    pub fn method_sys(&self) -> sys::GDExtensionMethodInfo {
+        use crate::obj::EngineBitfield as _;
+
+        let argument_count = self.arguments.len() as u32;
+        let argument_vec = self
+            .arguments
+            .iter()
+            .map(|arg| arg.property_sys())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        // SAFETY: dereferencing the new box pointer is fine as it is guaranteed to not be null
+        let arguments = unsafe { (*Box::into_raw(argument_vec)).as_mut_ptr() };
+
+        let default_argument_count = self.default_arguments.len() as u32;
+        let default_argument_vec = self
+            .default_arguments
+            .iter()
+            .map(|arg| arg.var_sys())
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
+        // SAFETY: dereferencing the new box pointer is fine as it is guaranteed to not be null
+        let default_arguments = unsafe { (*Box::into_raw(default_argument_vec)).as_mut_ptr() };
+
+        sys::GDExtensionMethodInfo {
+            id: self.id,
+            name: self.method_name.string_sys(),
+            return_value: self.return_type.property_sys(),
+            argument_count,
+            arguments,
+            default_argument_count,
+            default_arguments,
+            flags: u32::try_from(self.flags.ord()).expect("flags should be valid"),
+        }
+    }
+}
