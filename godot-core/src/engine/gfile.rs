@@ -92,6 +92,8 @@ pub struct GFile {
     fa: Gd<FileAccess>,
     buffer: Vec<u8>,
     last_buffer_size: usize,
+    write_buffer: PackedByteArray,
+    file_length: Option<u64>,
 }
 
 impl GFile {
@@ -428,6 +430,7 @@ impl GFile {
     #[doc(alias = "store_8")]
     pub fn write_u8(&mut self, value: u8) -> IoResult<()> {
         self.fa.store_8(value);
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -439,6 +442,7 @@ impl GFile {
     #[doc(alias = "store_16")]
     pub fn write_u16(&mut self, value: u16) -> IoResult<()> {
         self.fa.store_16(value);
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -450,6 +454,7 @@ impl GFile {
     #[doc(alias = "store_32")]
     pub fn write_u32(&mut self, value: u32) -> IoResult<()> {
         self.fa.store_32(value);
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -461,6 +466,7 @@ impl GFile {
     #[doc(alias = "store_64")]
     pub fn write_u64(&mut self, value: u64) -> IoResult<()> {
         self.fa.store_64(value);
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -472,6 +478,7 @@ impl GFile {
     #[doc(alias = "store_float")]
     pub fn write_f32(&mut self, value: f32) -> IoResult<()> {
         self.fa.store_float(value);
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -483,6 +490,7 @@ impl GFile {
     #[doc(alias = "store_double")]
     pub fn write_f64(&mut self, value: f64) -> IoResult<()> {
         self.fa.store_double(value);
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -496,6 +504,7 @@ impl GFile {
     #[doc(alias = "store_real")]
     pub fn write_real(&mut self, value: real) -> IoResult<()> {
         self.fa.store_real(value);
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -509,6 +518,7 @@ impl GFile {
     #[doc(alias = "store_string")]
     pub fn write_gstring(&mut self, value: impl Into<GString>) -> IoResult<()> {
         self.fa.store_string(value.into());
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -526,6 +536,7 @@ impl GFile {
     #[doc(alias = "store_pascal_string")]
     pub fn write_pascal_string(&mut self, value: impl Into<GString>) -> IoResult<()> {
         self.fa.store_pascal_string(value.into());
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -537,6 +548,7 @@ impl GFile {
     #[doc(alias = "store_line")]
     pub fn write_gstring_line(&mut self, value: impl Into<GString>) -> IoResult<()> {
         self.fa.store_line(value.into());
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -554,6 +566,7 @@ impl GFile {
         delim: impl Into<GString>,
     ) -> IoResult<()> {
         self.fa.store_csv_line_ex(values).delim(delim.into()).done();
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -572,6 +585,7 @@ impl GFile {
             .store_var_ex(value)
             .full_objects(full_objects)
             .done();
+        self.clear_file_length();
         self.check_error()?;
         Ok(())
     }
@@ -635,13 +649,47 @@ impl GFile {
         ))
     }
 
+    // File length cache is stored and kept when possible because `FileAccess::get_length()` turned out to be slowing down
+    // reading operations on big files with methods stemming from `std::io::Read` and `std::io::BufRead`.
+    fn check_file_length(&mut self) -> u64 {
+        if let Some(length) = self.file_length {
+            return length;
+        }
+        let file_length = self.fa.get_length();
+        self.file_length = Some(file_length);
+        file_length
+    }
+
+    // The file length cache is cleared during writing operations, as this is the only place when the file length could be
+    // changed - unless file is modified by some other `GFile`, but we cannot do anything about it then.
+    fn clear_file_length(&mut self) {
+        self.file_length = None;
+    }
+
     // Private constructor function.
     fn from_inner(fa: Gd<FileAccess>) -> Self {
+        let file_length = Some(fa.get_length());
         Self {
             fa,
-            buffer: Vec::new(),
+            buffer: vec![0; Self::BUFFER_SIZE],
             last_buffer_size: 0,
+            write_buffer: PackedByteArray::new(),
+            file_length,
         }
+    }
+
+    // Writer utilities.
+    fn extend_write_buffer(&mut self, len: usize) {
+        if self.write_buffer.len() >= len {
+            return;
+        }
+        self.write_buffer.resize(len)
+    }
+
+    fn pack_into_write_buffer(&mut self, buf: &[u8]) {
+        self.extend_write_buffer(buf.len());
+        let write_slice = self.write_buffer.as_mut_slice();
+        write_slice[0..buf.len()].copy_from_slice(buf);
     }
 }
 
@@ -650,7 +698,7 @@ impl GFile {
 
 impl Read for GFile {
     fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
-        let length = self.fa.get_length();
+        let length = self.check_file_length();
         let position = self.fa.get_position();
         if position >= length {
             return Ok(0);
@@ -662,33 +710,30 @@ impl Read for GFile {
             return Ok(0);
         }
 
-        let mut read_bytes = 0;
-        while read_bytes < bytes_to_read {
-            buf[read_bytes] = self.fa.get_8();
-            read_bytes += 1;
-            self.check_error()?;
-        }
+        let gd_buffer = self.fa.get_buffer(bytes_to_read as i64);
+        let bytes_read = gd_buffer.len();
+        buf[0..bytes_read].copy_from_slice(gd_buffer.as_slice());
 
-        Ok(read_bytes)
+        self.check_error()?;
+
+        Ok(bytes_read)
     }
 }
 
 impl Write for GFile {
     fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
-        // TODO: Refactor to make use of `FileAccess::store_buffer()` method for higher efficiency in writing to file.
-        let bytes_to_write = buf.len();
-        let mut bytes_written = 0;
+        self.pack_into_write_buffer(buf);
+        self.fa
+            .store_buffer(self.write_buffer.subarray(0, buf.len()));
+        self.clear_file_length();
+        self.check_error()?;
 
-        while bytes_written < bytes_to_write {
-            self.fa.store_8(buf[bytes_written]);
-            bytes_written += 1;
-            self.check_error()?;
-        }
-        Ok(bytes_written)
+        Ok(buf.len())
     }
 
     fn flush(&mut self) -> IoResult<()> {
-        // TODO: After refactoring `write` implementation, assess if this method can stay as no-opt.
+        self.fa.flush();
+        self.check_error()?;
         Ok(())
     }
 }
@@ -698,16 +743,18 @@ impl Seek for GFile {
         match pos {
             SeekFrom::Start(position) => {
                 self.fa.seek(position);
+                self.check_error()?;
                 Ok(position)
             }
             SeekFrom::End(offset) => {
-                if (self.fa.get_length() as i64) < offset {
+                if (self.check_file_length() as i64) < offset {
                     return Err(IoError::new(
                         ErrorKind::InvalidInput,
                         "Position can't be set before the file beginning",
                     ));
                 }
                 self.fa.seek_end_ex().position(offset).done();
+                self.check_error()?;
                 Ok(self.fa.get_position())
             }
             SeekFrom::Current(offset) => {
@@ -720,6 +767,7 @@ impl Seek for GFile {
                 }
                 let new_pos = new_pos as u64;
                 self.fa.seek(new_pos);
+                self.check_error()?;
                 Ok(new_pos)
             }
         }
@@ -729,7 +777,7 @@ impl Seek for GFile {
 impl BufRead for GFile {
     fn fill_buf(&mut self) -> IoResult<&[u8]> {
         // We need to determine number of remaining bytes - otherwise the `FileAccess::get_buffer return in an error`.
-        let remaining_bytes = self.fa.get_length() - self.fa.get_position();
+        let remaining_bytes = self.check_file_length() - self.fa.get_position();
         let buffer_read_size = cmp::min(remaining_bytes as usize, Self::BUFFER_SIZE);
 
         // We need to keep the amount of last read side to be able to adjust cursor position in `consume`.
@@ -739,11 +787,11 @@ impl BufRead for GFile {
         let gd_buffer = self.fa.get_buffer(buffer_read_size as i64);
         self.check_error()?;
 
-        for i in 0..gd_buffer.len() {
-            self.buffer[i] = gd_buffer.get(i);
-        }
+        let read_buffer = &mut self.buffer[0..gd_buffer.len()];
 
-        Ok(&self.buffer[0..gd_buffer.len()])
+        read_buffer.copy_from_slice(gd_buffer.as_slice());
+
+        Ok(read_buffer)
     }
 
     fn consume(&mut self, amt: usize) {
@@ -782,6 +830,7 @@ impl BufRead for GFile {
 ///     assert_eq!(error.get_reference_count(), 2)
 /// }
 /// ```
+#[derive(Debug)]
 pub struct NotUniqueError {
     reference_count: i32,
 }
