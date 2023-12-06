@@ -120,12 +120,12 @@ pub(crate) fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context
 #[cfg(not(feature = "codegen-full"))]
 const SELECTED_CLASSES: &[&str] = &[
     "AnimatedSprite2D",
-    "ArrayMesh",
     "Area2D",
+    "ArrayMesh",
     "AudioStreamPlayer",
     "BaseButton",
-    "Button",
     "BoxMesh",
+    "Button",
     "Camera2D",
     "Camera3D",
     "CanvasItem",
@@ -164,6 +164,7 @@ const SELECTED_CLASSES: &[&str] = &[
     "ResourceLoader",
     "RigidBody2D",
     "SceneTree",
+    "SceneTreeTimer",
     "Script",
     "ScriptExtension",
     "ScriptLanguage",
@@ -176,6 +177,6 @@ const SELECTED_CLASSES: &[&str] = &[
     "TextureLayered",
     "Time",
     "Timer",
-    "Window",
     "Viewport",
+    "Window",
 ];
