@@ -15,6 +15,7 @@ use crate::builtin::{real, Plane, RMat4, RealConv, Transform3D, Vector2, Vector4
 use std::ops::Mul;
 
 use super::meta::impl_godot_as_self;
+use super::{Aabb, Rect2, Vector3};
 
 /// A 4x4 matrix used for 3D projective transformations. It can represent
 /// transformations such as translation, rotation, scaling, shearing, and
@@ -82,6 +83,24 @@ impl Projection {
             Vector4::new(0.0, if flip_y { -1.0 } else { 1.0 }, 0.0, 0.0),
             Vector4::new(0.0, 0.0, 0.5, 0.0),
             Vector4::new(0.0, 0.0, 0.5, 1.0),
+        )
+    }
+
+    /// Creates a new Projection that scales a given projection to fit around
+    /// a given AABB in projection space.
+    ///
+    /// _Godot equivalent: Projection.create_fit_aabb()_
+    pub fn create_fit_aabb(aabb: Aabb) -> Self {
+        let translate_unscaled = -2.0 * aabb.position - aabb.size; // -(start+end)
+
+        let scale = Vector3::splat(2.0) / aabb.size;
+        let translate = translate_unscaled / aabb.size;
+
+        Self::from_cols(
+            Vector4::new(scale.x, 0.0, 0.0, 0.0),
+            Vector4::new(0.0, scale.y, 0.0, 0.0),
+            Vector4::new(0.0, 0.0, scale.z, 0.0),
+            Vector4::new(translate.x, translate.y, translate.z, 1.0),
         )
     }
 
@@ -180,6 +199,18 @@ impl Projection {
             Vector4::new(0.0, y, 0.0, 0.0),
             Vector4::new(a, b, c, -1.0),
             Vector4::new(0.0, 0.0, d, 0.0),
+        )
+    }
+
+    /// Creates a new Projection that projects positions into the given Rect2.
+    ///
+    /// _Godot equivalent: Projection.create_light_atlas_rect()_
+    pub fn create_light_atlas_rect(rect: Rect2) -> Self {
+        Self::from_cols(
+            Vector4::new(rect.size.x, 0.0, 0.0, 0.0),
+            Vector4::new(0.0, rect.size.y, 0.0, 0.0),
+            Vector4::new(0.0, 0.0, 1.0, 0.0),
+            Vector4::new(rect.position.x, rect.position.y, 0.0, 1.0),
         )
     }
 
@@ -337,8 +368,13 @@ impl Projection {
     /// has the given horizontal field of view (in degrees) and aspect ratio.
     ///
     /// _Godot equivalent: Projection.get_fovy()_
-    pub fn fovy_of(fov_x: real, aspect: real) -> real {
-        real::from_f64(InnerProjection::get_fovy(fov_x.as_f64(), aspect.as_f64()))
+    #[doc(alias = "get_fovy")]
+    pub fn create_fovy(fov_x: real, aspect: real) -> real {
+        let half_angle_fov_x = f64::to_radians(fov_x.as_f64() * 0.5);
+        let vertical_transform = f64::atan(aspect.as_f64() * f64::tan(half_angle_fov_x));
+        let full_angle_fov_y = f64::to_degrees(vertical_transform * 2.0);
+
+        real::from_f64(full_angle_fov_y)
     }
 
     /// Returns the factor by which the visible level of detail is scaled by
