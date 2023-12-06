@@ -148,7 +148,7 @@ impl std::hash::Hash for BuiltinName {
 
 /// Allows collecting all builtin TypeNames before generating methods
 pub(crate) struct BuiltinTypeInfo<'a> {
-    pub value: i32,
+    pub variant_type_ord: i32,
     pub type_names: BuiltinName,
 
     /// If `variant_get_ptr_destructor` returns a non-null function pointer for this type.
@@ -174,7 +174,7 @@ impl<'a> BuiltinTypeMap<'a> {
     /// Returns an iterator over the builtin types, ordered by `VariantType` value.
     fn ordered(&self) -> impl Iterator<Item = &BuiltinTypeInfo<'a>> {
         let mut ordered: Vec<_> = self.map.values().collect();
-        ordered.sort_by_key(|info| info.value);
+        ordered.sort_by_key(|info| info.variant_type_ord);
         ordered.into_iter()
     }
 
@@ -789,7 +789,7 @@ fn make_central_items(
 
     // Note: NIL is not part of this iteration, it will be added manually
     for ty in builtin_types.ordered() {
-        let (pascal_name, rust_ty, ord) = make_enumerator(&ty.type_names, ty.value, ctx);
+        let (pascal_name, rust_ty, ord) = make_enumerator(&ty.type_names, ty.variant_type_ord, ctx);
 
         result.variant_ty_enumerators_pascal.push(pascal_name);
         result.variant_ty_enumerators_rust.push(rust_ty);
@@ -818,7 +818,7 @@ fn make_central_items(
             .push(ident(op_enumerator_pascal));
         result
             .variant_op_enumerators_ord
-            .push(util::make_enumerator_ord(op.value));
+            .push(util::make_enumerator_ord_unsuffixed(op.to_enum_ord()));
     }
 
     for enum_ in api.global_enums.iter() {
@@ -1252,12 +1252,11 @@ pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, Built
             sys_variant_type: format_ident!("GDEXTENSION_VARIANT_TYPE_{}", shout_case),
         };
 
-        let value = ty.value;
-
+        let variant_type_ord = ty.to_enum_ord();
         builtin_types_map.insert(
             type_names.json_builtin_name.clone(),
             BuiltinTypeInfo {
-                value,
+                variant_type_ord,
                 type_names,
                 has_destructor,
                 constructors,
@@ -1278,6 +1277,9 @@ fn collect_variant_operators(api: &ExtensionApi) -> Vec<&EnumConstant> {
     variant_operator_enum.values.iter().collect()
 }
 
+/// Only used for `VariantType` enum at the moment.
+///
+/// Returns **unsuffixed** ordinals, to allow for different platform types of the C definition. Adjust if suffixed is desired, for type safety.
 fn make_enumerator(
     type_names: &BuiltinName,
     value: i32,
@@ -1286,7 +1288,7 @@ fn make_enumerator(
     let enumerator_name = &type_names.json_builtin_name;
     let pascal_name = to_pascal_case(enumerator_name);
     let rust_ty = to_rust_type(enumerator_name, None, ctx);
-    let ord = util::make_enumerator_ord(value);
+    let ord = util::make_enumerator_ord_unsuffixed(value);
 
     (ident(&pascal_name), rust_ty.to_token_stream(), ord)
 }

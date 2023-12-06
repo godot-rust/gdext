@@ -149,7 +149,7 @@ impl<'a> Context<'a> {
                 ctx.notifications_by_class
                     .get_mut(class_name)
                     .expect("just inserted constants; must be present")
-                    .push((rust_constant, constant.value));
+                    .push((rust_constant, constant.to_enum_ord()));
             }
         }
     }

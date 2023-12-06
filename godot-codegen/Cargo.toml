@@ -21,7 +21,7 @@ godot-bindings = { path = "../godot-bindings" }
 godot-fmt = { path = "../godot-fmt" }
 
 heck = "0.4"
-nanoserde = "0.1.29"
+nanoserde = "0.1.35"
 
 # Minimum versions compatible with -Zminimal-versions
 proc-macro2 = "1.0.63"

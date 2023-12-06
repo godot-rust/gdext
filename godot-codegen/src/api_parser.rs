@@ -116,7 +116,39 @@ impl BuiltinClassEnum {
 #[derive(DeJson, Clone)]
 pub struct EnumConstant {
     pub name: String,
-    pub value: i32,
+
+    // i64 is common denominator for enum, bitfield and constant values.
+    // Note that values > i64::MAX will be implicitly wrapped, see https://github.com/not-fl3/nanoserde/issues/89.
+    pub value: i64,
+}
+
+impl EnumConstant {
+    pub fn to_enum_ord(&self) -> i32 {
+        self.value.try_into().unwrap_or_else(|_| {
+            panic!(
+                "enum value {} = {} is out of range for i32, please report this",
+                self.name, self.value
+            )
+        })
+    }
+
+    pub fn to_bitfield_ord(&self) -> u64 {
+        self.value.try_into().unwrap_or_else(|_| {
+            panic!(
+                "bitfield value {} = {} is negative, please report this",
+                self.name, self.value
+            )
+        })
+    }
+
+    pub fn to_constant(&self) -> i32 {
+        self.value.try_into().unwrap_or_else(|_| {
+            panic!(
+                "constant {} = {} is out of range for i32, please report this",
+                self.name, self.value
+            )
+        })
+    }
 }
 
 pub type ClassConstant = EnumConstant;

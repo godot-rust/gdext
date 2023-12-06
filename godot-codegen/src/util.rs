@@ -221,25 +221,25 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
 
     let values = &enum_.values;
     let mut enumerators = Vec::with_capacity(values.len());
-    // let mut matches = Vec::with_capacity(values.len());
+
+    // This is only used for enum ords (i32), not bitfield flags (u64).
     let mut unique_ords = Vec::with_capacity(values.len());
 
     for enumerator in values {
         let name = make_enumerator_name(&enumerator.name, &enum_.name);
-        let ordinal = make_enumerator_ord(enumerator.value);
+        let ordinal_lit = if enum_.is_bitfield {
+            let bitfield_ord: u64 = enumerator.to_bitfield_ord();
+            make_bitfield_flag_ord(bitfield_ord)
+        } else {
+            let enum_ord: i32 = enumerator.to_enum_ord();
+            unique_ords.push(enum_ord);
+            make_enumerator_ord(enum_ord)
+        };
 
         enumerators.push(quote! {
-            pub const #name: Self = Self { ord: #ordinal };
+            pub const #name: Self = Self { ord: #ordinal_lit };
         });
-        // matches.push(quote! {
-        //     #ordinal => Some(Self::#name),
-        // });
-        unique_ords.push(enumerator.value);
     }
-
-    // They are not necessarily in order
-    unique_ords.sort();
-    unique_ords.dedup();
 
     let mut derives = vec!["Copy", "Clone", "Eq", "PartialEq", "Hash", "Debug"];
 
@@ -297,20 +297,15 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
             }
         };
     } else {
+        // Ordinals are not necessarily in order.
+        unique_ords.sort();
+        unique_ords.dedup();
+
         bitfield_ops = TokenStream::new();
         enum_ord_type = quote! { i32 };
         self_as_trait = quote! { <Self as crate::obj::EngineEnum> };
         engine_impl = quote! {
             impl crate::obj::EngineEnum for #enum_name {
-                // fn try_from_ord(ord: i32) -> Option<Self> {
-                //     match ord {
-                //         #(
-                //             #matches
-                //         )*
-                //         _ => None,
-                //     }
-                // }
-
                 fn try_from_ord(ord: i32) -> Option<Self> {
                     match ord {
                         #( ord @ #unique_ords )|* => Some(Self { ord }),
@@ -341,10 +336,8 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
         }
 
         #engine_impl
-
-        #bitfield_ops
-
         #index_enum_impl
+        #bitfield_ops
 
         impl crate::builtin::meta::GodotConvert for #enum_name {
             type Via = #enum_ord_type;
@@ -366,8 +359,8 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
 }
 
 pub fn make_constant_definition(constant: &ClassConstant) -> TokenStream {
-    let ClassConstant { name, value } = constant;
-    let name = ident(name);
+    let name = ident(&constant.name);
+    let value = constant.to_constant();
 
     if constant.name.starts_with("NOTIFICATION_") {
         // Already exposed through enums
@@ -790,7 +783,17 @@ pub fn parse_native_structures_format(input: &str) -> Option<Vec<NativeStructure
 }
 
 pub(crate) fn make_enumerator_ord(ord: i32) -> Literal {
+    Literal::i32_suffixed(ord)
+}
+
+/// This method is needed for platform-dependent types like raw `VariantOperator`, which can be `i32` or `u32`.
+/// Do not suffix them.
+pub(crate) fn make_enumerator_ord_unsuffixed(ord: i32) -> Literal {
     Literal::i32_unsuffixed(ord)
+}
+
+pub(crate) fn make_bitfield_flag_ord(ord: u64) -> Literal {
+    Literal::u64_suffixed(ord)
 }
 
 pub(crate) fn to_rust_expr(expr: &str, ty: &RustTy) -> TokenStream {
