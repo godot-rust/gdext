@@ -122,6 +122,11 @@ pub struct EnumConstant {
     pub value: i64,
 }
 
+pub enum ConstValue {
+    I32(i32),
+    I64(i64),
+}
+
 impl EnumConstant {
     pub fn to_enum_ord(&self) -> i32 {
         self.value.try_into().unwrap_or_else(|_| {
@@ -141,13 +146,12 @@ impl EnumConstant {
         })
     }
 
-    pub fn to_constant(&self) -> i32 {
-        self.value.try_into().unwrap_or_else(|_| {
-            panic!(
-                "constant {} = {} is out of range for i32, please report this",
-                self.name, self.value
-            )
-        })
+    pub fn to_constant(&self) -> ConstValue {
+        if let Ok(value) = i32::try_from(self.value) {
+            ConstValue::I32(value)
+        } else {
+            ConstValue::I64(self.value)
+        }
     }
 }
 
