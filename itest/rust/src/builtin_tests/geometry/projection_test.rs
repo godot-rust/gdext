@@ -11,7 +11,7 @@ use crate::framework::itest;
 
 use godot::builtin::inner::InnerProjection;
 use godot::builtin::math::assert_eq_approx;
-use godot::builtin::{real, Projection, RealConv, Vector2};
+use godot::builtin::{real, Aabb, Projection, RealConv, Rect2, Vector2, Vector3};
 
 #[itest]
 fn test_create_orthogonal() {
@@ -41,6 +41,37 @@ fn test_create_orthogonal() {
             "orthogonal: left={left} right={right} bottom={bottom} top={top} near={near} far={far}"
         );
     }
+}
+
+#[itest]
+fn test_create_fit_aabb() {
+    let aabb = Aabb::new(Vector3::new(1., 1., 1.), Vector3::new(3., 3., 3.));
+
+    assert_eq_approx!(
+        Projection::create_fit_aabb(aabb),
+        InnerProjection::create_fit_aabb(aabb)
+    )
+}
+
+#[itest]
+fn test_fovy() {
+    let fov_x: real = 80.0;
+    let aspect: real = 2.0;
+
+    assert_eq_approx!(
+        Projection::create_fovy(fov_x, aspect).as_f64(),
+        InnerProjection::get_fovy(fov_x.as_f64(), aspect.as_f64()),
+    );
+}
+
+#[itest]
+fn test_create_light_atlas_rect() {
+    let rect: Rect2 = Rect2::new(Vector2::new(10.0, 10.0), Vector2::new(15.0, 15.0));
+
+    assert_eq_approx!(
+        Projection::create_light_atlas_rect(rect),
+        InnerProjection::create_light_atlas_rect(rect),
+    );
 }
 
 #[itest]
