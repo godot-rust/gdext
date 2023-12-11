@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::io::{BufRead, Read, Seek, SeekFrom, Write};
+use std::io::{BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 
 use crate::framework::itest;
 use godot::builtin::GString;
@@ -84,6 +84,43 @@ fn read_trait_works() {
 
     assert_eq!(integers, read_integers);
     drop(file);
+    remove_test_file();
+}
+
+#[itest]
+fn bufwriter_works() {
+    let file = GFile::open(TEST_FULL_PATH, ModeFlags::WRITE).unwrap();
+    let mut bufwriter = BufWriter::new(file);
+
+    let integers: Vec<u8> = (0..=255).collect();
+    bufwriter
+        .write_all(&integers)
+        .expect("couldn't write integer vector");
+
+    drop(bufwriter);
+
+    remove_test_file();
+}
+
+#[itest]
+fn bufreader_works() {
+    let mut file = GFile::open(TEST_FULL_PATH, ModeFlags::WRITE).unwrap();
+
+    let integers: Vec<u8> = (0..=50).collect();
+    file.write_all(&integers)
+        .expect("couldn't write integer vector");
+    drop(file);
+
+    let file = GFile::open(TEST_FULL_PATH, ModeFlags::READ).unwrap();
+    let mut bufreader = BufReader::new(file);
+
+    let mut read_integers = Vec::new();
+    bufreader
+        .read_to_end(&mut read_integers)
+        .expect("couldn't read numbers");
+
+    assert_eq!(integers, read_integers);
+    drop(bufreader);
     remove_test_file();
 }
 
