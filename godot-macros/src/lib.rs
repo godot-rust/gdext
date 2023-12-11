@@ -339,10 +339,7 @@ use crate::util::ident;
 /// ```
 ///
 /// These classes will appear in the Godot editor and GDScript as "AnimalToad" or "NpcToad".
-#[proc_macro_derive(
-    GodotClass,
-    attributes(class, base, onready, var, export, init, signal)
-)]
+#[proc_macro_derive(GodotClass, attributes(class, base, var, export, init, signal))]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)
 }

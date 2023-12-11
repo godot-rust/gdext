@@ -121,9 +121,7 @@ fn onready_lifecycle_with_impl_without_ready() {
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct OnReadyWithImpl {
-    #[onready]
     auto: OnReady<i32>,
-    #[onready]
     manual: OnReady<i32>,
     runs_manual_init: bool,
 }
@@ -158,7 +156,6 @@ impl INode for OnReadyWithImpl {
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct OnReadyWithoutImpl {
-    #[onready]
     auto: OnReady<i32>,
     // No manual one, since those cannot be initialized without a ready() override.
     // (Technically they _can_ at the moment, but in the future we might ensure initialization after ready, so this is not a supported workflow).
@@ -181,7 +178,6 @@ impl OnReadyWithoutImpl {
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct OnReadyWithImplWithoutReady {
-    #[onready]
     auto: OnReady<i32>,
     // No manual one, since those cannot be initialized without a ready() override.
     // (Technically they _can_ at the moment, but in the future we might ensure initialization after ready, so this is not a supported workflow).

@@ -270,17 +270,9 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
             parser.finish()?;
         }
 
-        // #[onready]
-        if let Some(parser) = KvParser::parse(&named_field.attributes, "onready")? {
-            if !path_ends_with_complex(&field.ty, "OnReady") {
-                return bail!(
-                    parser.span(),
-                    "#[onready] can only be applied to fields of type `OnReady<T>`"
-                );
-            }
-
+        // OnReady<T> type inference
+        if path_ends_with_complex(&field.ty, "OnReady") {
             field.is_onready = true;
-            parser.finish()?;
         }
 
         // #[init]
@@ -312,8 +304,8 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
         }
     }
 
-    // TODO emit warnings if Base<T> is used without #[base] attribute, or OnReady<T> without #[onready].
-    // Could later also detect solely based on types (would have edge cases like type aliases, etc...)
+    // TODO detect #[base] based on type instead of attribute
+    // Edge cases (type aliases, user types with same name, ...) could be handled with #[hint(base)] or #[hint(no_base)].
 
     Ok(Fields {
         all_fields,

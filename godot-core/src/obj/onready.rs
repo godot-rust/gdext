@@ -38,7 +38,6 @@ use std::mem;
 /// #[derive(GodotClass)]
 /// #[class(base = Node)]
 /// struct MyClass {
-///    #[onready]
 ///    auto: OnReady<i32>,
 ///    manual: OnReady<i32>,
 /// }
