@@ -222,9 +222,19 @@ pub(crate) fn path_is_single(path: &[TokenTree], expected: &str) -> bool {
 }
 
 pub(crate) fn path_ends_with(path: &[TokenTree], expected: &str) -> bool {
-    // could also use TyExpr::as_path()
+    // Could also use TyExpr::as_path(), or fn below this one.
     path.last()
         .map(|last| last.to_string() == expected)
+        .unwrap_or(false)
+}
+
+pub(crate) fn path_ends_with_complex(path: &venial::TyExpr, expected: &str) -> bool {
+    path.as_path()
+        .map(|path| {
+            path.segments
+                .last()
+                .map_or(false, |seg| seg.ident == expected)
+        })
         .unwrap_or(false)
 }
 
@@ -268,5 +278,13 @@ pub(crate) fn decl_get_info(decl: &venial::Declaration) -> DeclInfo {
         generic_params,
         name,
         name_string,
+    }
+}
+
+pub fn make_virtual_tool_check() -> TokenStream {
+    quote! {
+        if ::godot::private::is_class_inactive(Self::__config().is_tool) {
+            return None;
+        }
     }
 }

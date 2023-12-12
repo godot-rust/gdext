@@ -14,6 +14,7 @@ pub struct Field {
     pub default: Option<TokenStream>,
     pub var: Option<FieldVar>,
     pub export: Option<FieldExport>,
+    pub is_onready: bool,
 }
 
 impl Field {
@@ -24,6 +25,7 @@ impl Field {
             default: None,
             var: None,
             export: None,
+            is_onready: false,
         }
     }
 }

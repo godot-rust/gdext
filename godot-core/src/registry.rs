@@ -89,6 +89,15 @@ pub enum PluginComponent {
             _class_user_data: *mut std::ffi::c_void,
             instance: sys::GDExtensionClassInstancePtr,
         ),
+
+        /// Calls `__before_ready()`, if there is at least one `OnReady` field. Used if there is no `#[godot_api] impl` block
+        /// overriding ready.
+        default_get_virtual_fn: Option<
+            unsafe extern "C" fn(
+                p_userdata: *mut std::os::raw::c_void,
+                p_name: sys::GDExtensionConstStringNamePtr,
+            ) -> sys::GDExtensionClassCallVirtual,
+        >,
     },
 
     /// Collected from `#[godot_api] impl MyClass`
@@ -165,6 +174,8 @@ struct ClassRegistrationInfo {
     register_methods_constants_fn: Option<ErasedRegisterFn>,
     register_properties_fn: Option<ErasedRegisterFn>,
     user_register_fn: Option<ErasedRegisterFn>,
+    default_virtual_fn: sys::GDExtensionClassGetVirtual, // Option (set if there is at least one OnReady field)
+    user_virtual_fn: sys::GDExtensionClassGetVirtual, // Option (set if there is a `#[godot_api] impl I*`)
 
     /// Godot low-level class creation parameters.
     #[cfg(before_api = "4.2")]
@@ -224,6 +235,8 @@ pub fn register_class<
         user_register_fn: Some(ErasedRegisterFn {
             raw: callbacks::register_class_by_builder::<T>,
         }),
+        user_virtual_fn: None,
+        default_virtual_fn: None,
         godot_params,
         init_level: T::INIT_LEVEL.unwrap_or_else(|| {
             panic!("Unknown initialization level for class {}", T::class_name())
@@ -276,8 +289,8 @@ pub fn auto_register_classes(init_level: InitLevel) {
             .entry(init_level)
             .or_default()
             .push(info.class_name);
-        register_class_raw(info);
 
+        register_class_raw(info);
         out!("Class {} loaded", class_name);
     }
 
@@ -320,6 +333,7 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             generated_recreate_fn,
             register_properties_fn,
             free_fn,
+            default_get_virtual_fn,
         } => {
             c.parent_class_name = Some(base_class_name);
 
@@ -350,6 +364,7 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             assert!(generated_recreate_fn.is_none()); // not used
 
             c.godot_params.free_instance_func = Some(free_fn);
+            c.default_virtual_fn = default_get_virtual_fn;
             c.register_properties_fn = Some(register_properties_fn);
         }
 
@@ -382,7 +397,7 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
 
             c.godot_params.to_string_func = user_to_string_fn;
             c.godot_params.notification_func = user_on_notification_fn;
-            c.godot_params.get_virtual_func = Some(get_virtual_fn);
+            c.user_virtual_fn = Some(get_virtual_fn);
         }
         #[cfg(since_api = "4.1")]
         PluginComponent::EditorPlugin => {
@@ -404,13 +419,19 @@ fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) -> Result<(), ()> {
 }
 
 /// Registers a class with given the dynamic type information `info`.
-fn register_class_raw(info: ClassRegistrationInfo) {
+fn register_class_raw(mut info: ClassRegistrationInfo) {
     // First register class...
 
     let class_name = info.class_name;
     let parent_class_name = info
         .parent_class_name
         .expect("class defined (parent_class_name)");
+
+    // Register virtual functions -- if the user provided some via #[godot_api], take those; otherwise, use the
+    // ones generated alongside #[derive(GodotClass)]. The latter can also be null, if no OnReady is provided.
+    if info.godot_params.get_virtual_func.is_none() {
+        info.godot_params.get_virtual_func = info.user_virtual_fn.or(info.default_virtual_fn);
+    }
 
     unsafe {
         // Try to register class...
@@ -587,6 +608,18 @@ pub mod callbacks {
         T::__virtual_call(method_name.as_str())
     }
 
+    pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
+        _class_user_data: *mut std::ffi::c_void,
+        name: sys::GDExtensionConstStringNamePtr,
+    ) -> sys::GDExtensionClassCallVirtual {
+        // This string is not ours, so we cannot call the destructor on it.
+        let borrowed_string = StringName::from_string_sys(sys::force_mut_ptr(name));
+        let method_name = borrowed_string.to_string();
+        std::mem::forget(borrowed_string);
+
+        T::__default_virtual_call(method_name.as_str())
+    }
+
     pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
         instance: sys::GDExtensionClassInstancePtr,
         _is_valid: *mut sys::GDExtensionBool,
@@ -691,6 +724,8 @@ fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
         register_methods_constants_fn: None,
         register_properties_fn: None,
         user_register_fn: None,
+        default_virtual_fn: None,
+        user_virtual_fn: None,
         godot_params: default_creation_info(),
         init_level: InitLevel::Scene,
         is_editor_plugin: false,

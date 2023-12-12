@@ -73,7 +73,6 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         let field_class_name = util::property_variant_class_name(field_type);
         let field_name = field_ident.to_string();
 
-        // rustfmt wont format this if we put it in the let-else.
         let FieldVar {
             getter,
             setter,
@@ -141,37 +140,16 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             },
         };
 
-        let getter_name = if let Some(getter_impl) = getter.to_impl(class_name, GetSet::Get, field)
-        {
-            let GetterSetterImpl {
-                function_name,
-                function_impl,
-                export_token,
-            } = getter_impl;
-
-            getter_setter_impls.push(function_impl);
-            export_tokens.push(export_token);
-
-            function_name.to_string()
-        } else {
-            String::new()
-        };
-
-        let setter_name = if let Some(setter_impl) = setter.to_impl(class_name, GetSet::Set, field)
-        {
-            let GetterSetterImpl {
-                function_name,
-                function_impl,
-                export_token,
-            } = setter_impl;
-
-            getter_setter_impls.push(function_impl);
-            export_tokens.push(export_token);
-
-            function_name.to_string()
-        } else {
-            String::new()
-        };
+        let getter_name = make_getter_setter(
+            getter.to_impl(class_name, GetSet::Get, field),
+            &mut getter_setter_impls,
+            &mut export_tokens,
+        );
+        let setter_name = make_getter_setter(
+            setter.to_impl(class_name, GetSet::Set, field),
+            &mut getter_setter_impls,
+            &mut export_tokens,
+        );
 
         export_tokens.push(quote! {
             use ::godot::sys::GodotFfi;
@@ -219,5 +197,26 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 )*
             }
         }
+    }
+}
+
+fn make_getter_setter(
+    getter_setter_impl: Option<GetterSetterImpl>,
+    getter_setter_impls: &mut Vec<TokenStream>,
+    export_tokens: &mut Vec<TokenStream>,
+) -> String {
+    if let Some(getter_impl) = getter_setter_impl {
+        let GetterSetterImpl {
+            function_name,
+            function_impl,
+            export_token,
+        } = getter_impl;
+
+        getter_setter_impls.push(function_impl);
+        export_tokens.push(export_token);
+
+        function_name.to_string()
+    } else {
+        String::new()
     }
 }

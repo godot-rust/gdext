@@ -160,6 +160,17 @@ pub trait UserClass: GodotClass<Declarer = dom::UserDomain> {
     {
         Gd::default_instance()
     }
+
+    #[doc(hidden)]
+    fn __config() -> crate::private::ClassConfig;
+
+    #[doc(hidden)]
+    fn __before_ready(&mut self);
+
+    #[doc(hidden)]
+    fn __default_virtual_call(_method_name: &str) -> sys::GDExtensionClassCallVirtual {
+        None
+    }
 }
 
 /// Auto-implemented for all engine-provided classes.

@@ -9,8 +9,11 @@ use proc_macro2::{Ident, Punct, TokenStream};
 use quote::{format_ident, quote};
 use venial::{Declaration, NamedField, Struct, StructFields};
 
-use crate::class::{make_property_impl, Field, FieldExport, FieldVar, Fields};
-use crate::util::{bail, ident, KvParser};
+use crate::class::{
+    make_property_impl, make_virtual_callback, BeforeKind, Field, FieldExport, FieldVar, Fields,
+    SignatureInfo,
+};
+use crate::util::{bail, ident, path_ends_with_complex, KvParser};
 use crate::{util, ParseResult};
 
 pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
@@ -63,6 +66,9 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         quote! {}
     };
 
+    let (user_class_impl, has_default_virtual) =
+        make_user_class_impl(class_name, struct_cfg.is_tool, &fields.all_fields);
+
     let (godot_init_impl, create_fn, recreate_fn);
     if struct_cfg.has_generated_init {
         godot_init_impl = make_godot_init_impl(class_name, fields);
@@ -78,7 +84,11 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         recreate_fn = quote! { None };
     };
 
-    let config_impl = make_config_impl(class_name, struct_cfg.is_tool);
+    let default_get_virtual_fn = if has_default_virtual {
+        quote! { Some(#prv::callbacks::default_get_virtual::<#class_name>) }
+    } else {
+        quote! { None }
+    };
 
     Ok(quote! {
         unsafe impl ::godot::obj::GodotClass for #class_name {
@@ -91,12 +101,11 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 ::godot::builtin::meta::ClassName::from_ascii_cstr(#class_name_cstr)
             }
         }
-        impl ::godot::obj::UserClass for #class_name {}
 
         #godot_init_impl
         #godot_withbase_impl
         #godot_exports_impl
-        #config_impl
+        #user_class_impl
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_obj,
@@ -108,6 +117,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                     raw: #prv::callbacks::register_user_properties::<#class_name>,
                 },
                 free_fn: #prv::callbacks::free::<#class_name>,
+                default_get_virtual_fn: #default_get_virtual_fn,
             },
             init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
         });
@@ -116,6 +126,62 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
 
         #prv::class_macros::#inherits_macro!(#class_name);
     })
+}
+
+fn make_user_class_impl(
+    class_name: &Ident,
+    is_tool: bool,
+    all_fields: &[Field],
+) -> (TokenStream, bool) {
+    let onready_field_inits = all_fields
+        .iter()
+        .filter(|&field| field.is_onready)
+        .map(|field| {
+            let field = &field.name;
+            quote! {
+                ::godot::private::auto_init(&mut self.#field);
+            }
+        });
+
+    let default_virtual_fn = if all_fields.iter().any(|field| field.is_onready) {
+        let tool_check = util::make_virtual_tool_check();
+        let signature_info = SignatureInfo::fn_ready();
+
+        let callback = make_virtual_callback(class_name, signature_info, BeforeKind::OnlyBefore);
+        let default_virtual_fn = quote! {
+            fn __default_virtual_call(name: &str) -> ::godot::sys::GDExtensionClassCallVirtual {
+                use ::godot::obj::UserClass as _;
+                #tool_check
+
+                if name == "_ready" {
+                    #callback
+                } else {
+                    None
+                }
+            }
+        };
+        Some(default_virtual_fn)
+    } else {
+        None
+    };
+
+    let user_class_impl = quote! {
+        impl ::godot::obj::UserClass for #class_name {
+            fn __config() -> ::godot::private::ClassConfig {
+                ::godot::private::ClassConfig {
+                    is_tool: #is_tool,
+                }
+            }
+
+            fn __before_ready(&mut self) {
+                #( #onready_field_inits )*
+            }
+
+            #default_virtual_fn
+        }
+    };
+
+    (user_class_impl, default_virtual_fn.is_some())
 }
 
 /// Checks at compile time that a function with the given name exists on `Self`.
@@ -194,14 +260,19 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
         // #[base]
         if let Some(parser) = KvParser::parse(&named_field.attributes, "base")? {
             if let Some(prev_base) = base_field.as_ref() {
-                bail!(
+                return bail!(
                     parser.span(),
                     "#[base] allowed for at most 1 field, already applied to `{}`",
                     prev_base.name
-                )?;
+                );
             }
             is_base = true;
             parser.finish()?;
+        }
+
+        // OnReady<T> type inference
+        if path_ends_with_complex(&field.ty, "OnReady") {
+            field.is_onready = true;
         }
 
         // #[init]
@@ -232,6 +303,9 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
             all_fields.push(field);
         }
     }
+
+    // TODO detect #[base] based on type instead of attribute
+    // Edge cases (type aliases, user types with same name, ...) could be handled with #[hint(base)] or #[hint(no_base)].
 
     Ok(Fields {
         all_fields,
@@ -272,19 +346,6 @@ fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
                 Self {
                     #( #rest_init )*
                     #base_init
-                }
-            }
-        }
-    }
-}
-
-fn make_config_impl(class_name: &Ident, is_tool: bool) -> TokenStream {
-    quote! {
-        impl #class_name {
-            #[doc(hidden)]
-            pub fn __config() -> ::godot::private::ClassConfig {
-                ::godot::private::ClassConfig {
-                    is_tool: #is_tool,
                 }
             }
         }
