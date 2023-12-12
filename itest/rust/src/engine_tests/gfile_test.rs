@@ -24,22 +24,6 @@ fn remove_test_file() {
 }
 
 #[itest]
-fn non_unique_error_works() {
-    use godot::engine::NotUniqueError;
-    use godot::engine::RefCounted;
-
-    let unique = RefCounted::new();
-    assert!(NotUniqueError::check(unique).is_ok());
-
-    let shared = RefCounted::new();
-    let cloned = shared.clone();
-    match NotUniqueError::check(cloned) {
-        Err(error) => assert_eq!(error.get_reference_count(), 2),
-        Ok(_) => panic!("NotUniqueError::check must not succeed"),
-    }
-}
-
-#[itest]
 fn basic_read_write_works() {
     let mut file = GFile::open(TEST_FULL_PATH, ModeFlags::WRITE).unwrap();
     let line_to_store = GString::from("TESTING1");
