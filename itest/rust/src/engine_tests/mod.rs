@@ -8,4 +8,5 @@
 mod gfile_test;
 mod native_structures_test;
 mod node_test;
+mod save_load_test;
 mod utilities_test;

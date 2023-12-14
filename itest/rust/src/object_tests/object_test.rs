@@ -989,8 +989,8 @@ struct CustomEditorPlugin;
 
 #[itest]
 fn non_unique_error_works() {
-    use godot::obj::NotUniqueError;
     use godot::engine::RefCounted;
+    use godot::obj::NotUniqueError;
 
     let unique = RefCounted::new();
     assert!(NotUniqueError::check(unique).is_ok());

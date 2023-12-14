@@ -9,12 +9,12 @@ use crate::builtin::{real, GString, PackedByteArray, PackedStringArray, Variant}
 use crate::engine::file_access::{CompressionMode, ModeFlags};
 use crate::gen::central::global::Error;
 use crate::gen::classes::FileAccess;
-use crate::obj::{Gd, NotUniqueError};
+use crate::obj::Gd;
+
+use crate::engine::io::IoError;
 
 use std::cmp;
-use std::io::{
-    BufRead, Error as IoError, ErrorKind, Read, Result as IoResult, Seek, SeekFrom, Write,
-};
+use std::io::{BufRead, ErrorKind, Read, Seek, SeekFrom, Write};
 
 /// Open a file for reading or writing.
 ///
@@ -102,10 +102,10 @@ impl GFile {
     ///
     /// Opens a file located at `path`, creating new [`GFile`] object. For [`ModeFlags`] description check the [`GFile`]
     /// documentation.
-    pub fn open(path: impl Into<GString>, flags: ModeFlags) -> IoResult<Self> {
+    pub fn open(path: impl Into<GString>, flags: ModeFlags) -> std::io::Result<Self> {
         let path: GString = path.into();
         let fa = FileAccess::open(path.clone(), flags).ok_or_else(|| {
-            IoError::new(
+            std::io::Error::new(
                 ErrorKind::Other,
                 format!(
                     "can't open file {} in mode {:?}; GodotError: {:?}",
@@ -127,13 +127,13 @@ impl GFile {
         path: impl Into<GString>,
         flags: ModeFlags,
         compression_mode: CompressionMode,
-    ) -> IoResult<Self> {
+    ) -> std::io::Result<Self> {
         let path: GString = path.into();
         let fa = FileAccess::open_compressed_ex(path.clone(), flags)
             .compression_mode(compression_mode)
             .done()
             .ok_or_else(|| {
-                IoError::new(
+                std::io::Error::new(
                     ErrorKind::Other,
                     format!(
                         "can't open file {} in mode {:?}; GodotError: {:?}",
@@ -155,10 +155,10 @@ impl GFile {
         path: impl Into<GString>,
         flags: ModeFlags,
         key: PackedByteArray,
-    ) -> IoResult<Self> {
+    ) -> std::io::Result<Self> {
         let path: GString = path.into();
         let fa = FileAccess::open_encrypted(path.clone(), flags, key).ok_or_else(|| {
-            IoError::new(
+            std::io::Error::new(
                 ErrorKind::Other,
                 format!(
                     "can't open file {} in mode {:?}; GodotError: {:?}",
@@ -180,11 +180,11 @@ impl GFile {
         path: impl Into<GString>,
         flags: ModeFlags,
         pass: GString,
-    ) -> IoResult<Self> {
+    ) -> std::io::Result<Self> {
         let path: GString = path.into();
         let fa =
             FileAccess::open_encrypted_with_pass(path.clone(), flags, pass).ok_or_else(|| {
-                IoError::new(
+                std::io::Error::new(
                     ErrorKind::Other,
                     format!(
                         "can't open file {} in mode {:?}; GodotError: {:?}",
@@ -203,9 +203,8 @@ impl GFile {
     /// Its state is retained: both [`ModeFlags`] with which it was open and current internal cursor position.
     ///
     /// See also [`into_inner`](Self::into_inner) for the opposite operation.
-    pub fn try_from_unique(file_access: Gd<FileAccess>) -> Result<Self, NotUniqueError> {
-        // TODO: Remodel to add check `file_access.is_open()`, Err otherwise
-        let file_access = NotUniqueError::check(file_access)?;
+    pub fn try_from_unique(file_access: Gd<FileAccess>) -> Result<Self, IoError> {
+        let file_access = IoError::check_unique_open_file_access(file_access)?;
         Ok(Self::from_inner(file_access))
     }
 
@@ -224,11 +223,11 @@ impl GFile {
 
     /// Get last modified time as an unix timestamp.
     #[doc(alias = "get_modified_time")]
-    pub fn modified_time(path: impl Into<GString>) -> IoResult<u64> {
+    pub fn modified_time(path: impl Into<GString>) -> std::io::Result<u64> {
         let modified_time = FileAccess::get_modified_time(path.into());
 
         if modified_time == 0 {
-            Err(IoError::new(
+            Err(std::io::Error::new(
                 ErrorKind::Other,
                 "can't retrieve last modified time",
             ))
@@ -239,10 +238,10 @@ impl GFile {
 
     /// Calculates the MD5 checksum of the file at the given path.
     #[doc(alias = "get_md5")]
-    pub fn md5(path: impl Into<GString>) -> IoResult<GString> {
+    pub fn md5(path: impl Into<GString>) -> std::io::Result<GString> {
         let md5 = FileAccess::get_md5(path.into());
         if md5.is_empty() {
-            Err(IoError::new(
+            Err(std::io::Error::new(
                 ErrorKind::Other,
                 "failed to compute file's MD5 checksum",
             ))
@@ -253,11 +252,11 @@ impl GFile {
 
     /// Calculates the SHA-256 checksum of the file at the given path.
     #[doc(alias = "get_sha256")]
-    pub fn sha256(path: impl Into<GString>) -> IoResult<GString> {
+    pub fn sha256(path: impl Into<GString>) -> std::io::Result<GString> {
         let sha256 = FileAccess::get_sha256(path.into());
 
         if sha256.is_empty() {
-            Err(IoError::new(
+            Err(std::io::Error::new(
                 ErrorKind::Other,
                 "failed to compute file's SHA-256 checksum",
             ))
@@ -271,7 +270,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::get_8`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-8).
     #[doc(alias = "get_8")]
-    pub fn read_u8(&mut self) -> IoResult<u8> {
+    pub fn read_u8(&mut self) -> std::io::Result<u8> {
         let val = self.fa.get_8();
         self.check_error()?;
         Ok(val)
@@ -282,7 +281,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::get_16`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-16).
     #[doc(alias = "get_16")]
-    pub fn read_u16(&mut self) -> IoResult<u16> {
+    pub fn read_u16(&mut self) -> std::io::Result<u16> {
         let val = self.fa.get_16();
         self.check_error()?;
         Ok(val)
@@ -293,7 +292,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::get_32`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-32).
     #[doc(alias = "get_32")]
-    pub fn read_u32(&mut self) -> IoResult<u32> {
+    pub fn read_u32(&mut self) -> std::io::Result<u32> {
         let val = self.fa.get_32();
         self.check_error()?;
         Ok(val)
@@ -304,7 +303,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::get_64`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-64).
     #[doc(alias = "get_64")]
-    pub fn read_u64(&mut self) -> IoResult<u64> {
+    pub fn read_u64(&mut self) -> std::io::Result<u64> {
         let val = self.fa.get_64();
         self.check_error()?;
         Ok(val)
@@ -319,7 +318,7 @@ impl GFile {
     /// - [Wikipedia article](https://en.wikipedia.org/wiki/String_(computer_science)#Length-prefixed)
     /// - [Godot `FileAccess::get_pascal_string`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-pascal-string)
     #[doc(alias = "get_pascal_string")]
-    pub fn read_pascal_string(&mut self) -> IoResult<GString> {
+    pub fn read_pascal_string(&mut self) -> std::io::Result<GString> {
         let val = self.fa.get_pascal_string();
         self.check_error()?;
         Ok(val)
@@ -333,7 +332,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::get_line`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-line).
     #[doc(alias = "get_line")]
-    pub fn read_gstring_line(&mut self) -> IoResult<GString> {
+    pub fn read_gstring_line(&mut self) -> std::io::Result<GString> {
         let val = self.fa.get_line();
         self.check_error()?;
         Ok(val)
@@ -349,7 +348,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::get_as_text`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-as-text).
     #[doc(alias = "get_as_text")]
-    pub fn read_as_gstring_entire(&mut self, skip_cr: bool) -> IoResult<GString> {
+    pub fn read_as_gstring_entire(&mut self, skip_cr: bool) -> std::io::Result<GString> {
         let val = self.fa.get_as_text_ex().skip_cr(skip_cr).done();
         self.check_error()?;
         Ok(val)
@@ -362,7 +361,10 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::get_csv_line`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-csv-line).
     #[doc(alias = "get_csv_line")]
-    pub fn read_csv_line(&mut self, delim: impl Into<GString>) -> IoResult<PackedStringArray> {
+    pub fn read_csv_line(
+        &mut self,
+        delim: impl Into<GString>,
+    ) -> std::io::Result<PackedStringArray> {
         let val = self.fa.get_csv_line_ex().delim(delim.into()).done();
         self.check_error()?;
         Ok(val)
@@ -373,7 +375,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::get_float`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-float).
     #[doc(alias = "get_float")]
-    pub fn read_f32(&mut self) -> IoResult<f32> {
+    pub fn read_f32(&mut self) -> std::io::Result<f32> {
         let val = self.fa.get_float();
         self.check_error()?;
         Ok(val)
@@ -384,7 +386,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::get_double`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-double).
     #[doc(alias = "get_double")]
-    pub fn read_f64(&mut self) -> IoResult<f64> {
+    pub fn read_f64(&mut self) -> std::io::Result<f64> {
         let val = self.fa.get_double();
         self.check_error()?;
         Ok(val)
@@ -406,7 +408,7 @@ impl GFile {
     /// (single or double) than the one used to write the value.
     /// </div>
     #[doc(alias = "get_real")]
-    pub fn read_real(&mut self) -> IoResult<real> {
+    pub fn read_real(&mut self) -> std::io::Result<real> {
         #[cfg(feature = "double-precision")]
         let val = self.fa.get_double();
 
@@ -429,7 +431,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::get_var`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-var).
     #[doc(alias = "get_var")]
-    pub fn read_variant(&mut self, allow_objects: bool) -> IoResult<Variant> {
+    pub fn read_variant(&mut self, allow_objects: bool) -> std::io::Result<Variant> {
         let val = self.fa.get_var_ex().allow_objects(allow_objects).done();
         self.check_error()?;
         Ok(val)
@@ -440,7 +442,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_8`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-8).
     #[doc(alias = "store_8")]
-    pub fn write_u8(&mut self, value: u8) -> IoResult<()> {
+    pub fn write_u8(&mut self, value: u8) -> std::io::Result<()> {
         self.fa.store_8(value);
         self.clear_file_length();
         self.check_error()?;
@@ -452,7 +454,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_16`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-16).
     #[doc(alias = "store_16")]
-    pub fn write_u16(&mut self, value: u16) -> IoResult<()> {
+    pub fn write_u16(&mut self, value: u16) -> std::io::Result<()> {
         self.fa.store_16(value);
         self.clear_file_length();
         self.check_error()?;
@@ -464,7 +466,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_32`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-32).
     #[doc(alias = "store_32")]
-    pub fn write_u32(&mut self, value: u32) -> IoResult<()> {
+    pub fn write_u32(&mut self, value: u32) -> std::io::Result<()> {
         self.fa.store_32(value);
         self.clear_file_length();
         self.check_error()?;
@@ -476,7 +478,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_64`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-64).
     #[doc(alias = "store_64")]
-    pub fn write_u64(&mut self, value: u64) -> IoResult<()> {
+    pub fn write_u64(&mut self, value: u64) -> std::io::Result<()> {
         self.fa.store_64(value);
         self.clear_file_length();
         self.check_error()?;
@@ -488,7 +490,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_float`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-float).
     #[doc(alias = "store_float")]
-    pub fn write_f32(&mut self, value: f32) -> IoResult<()> {
+    pub fn write_f32(&mut self, value: f32) -> std::io::Result<()> {
         self.fa.store_float(value);
         self.clear_file_length();
         self.check_error()?;
@@ -500,7 +502,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_double`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-double).
     #[doc(alias = "store_double")]
-    pub fn write_f64(&mut self, value: f64) -> IoResult<()> {
+    pub fn write_f64(&mut self, value: f64) -> std::io::Result<()> {
         self.fa.store_double(value);
         self.clear_file_length();
         self.check_error()?;
@@ -523,7 +525,7 @@ impl GFile {
     /// (single or double) than the one used to write the value.
     /// </div>
     #[doc(alias = "store_real")]
-    pub fn write_real(&mut self, value: real) -> IoResult<()> {
+    pub fn write_real(&mut self, value: real) -> std::io::Result<()> {
         // FileAccess::store_real() does not accept an actual real_t; work around this.
 
         #[cfg(feature = "double-precision")]
@@ -544,7 +546,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_string`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-string).
     #[doc(alias = "store_string")]
-    pub fn write_gstring(&mut self, value: impl Into<GString>) -> IoResult<()> {
+    pub fn write_gstring(&mut self, value: impl Into<GString>) -> std::io::Result<()> {
         self.fa.store_string(value.into());
         self.clear_file_length();
         self.check_error()?;
@@ -562,7 +564,7 @@ impl GFile {
     /// - [Wikipedia article](https://en.wikipedia.org/wiki/String_(computer_science)#Length-prefixed)
     /// - [Godot `FileAccess::store_pascal_string`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-pascal-string)
     #[doc(alias = "store_pascal_string")]
-    pub fn write_pascal_string(&mut self, value: impl Into<GString>) -> IoResult<()> {
+    pub fn write_pascal_string(&mut self, value: impl Into<GString>) -> std::io::Result<()> {
         self.fa.store_pascal_string(value.into());
         self.clear_file_length();
         self.check_error()?;
@@ -574,7 +576,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_line`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-line).
     #[doc(alias = "store_line")]
-    pub fn write_gstring_line(&mut self, value: impl Into<GString>) -> IoResult<()> {
+    pub fn write_gstring_line(&mut self, value: impl Into<GString>) -> std::io::Result<()> {
         self.fa.store_line(value.into());
         self.clear_file_length();
         self.check_error()?;
@@ -592,7 +594,7 @@ impl GFile {
         &mut self,
         values: PackedStringArray,
         delim: impl Into<GString>,
-    ) -> IoResult<()> {
+    ) -> std::io::Result<()> {
         self.fa.store_csv_line_ex(values).delim(delim.into()).done();
         self.clear_file_length();
         self.check_error()?;
@@ -608,7 +610,7 @@ impl GFile {
     /// Underlying Godot method:
     /// [`FileAccess::store_var`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-var).
     #[doc(alias = "store_var")]
-    pub fn write_variant(&mut self, value: Variant, full_objects: bool) -> IoResult<()> {
+    pub fn write_variant(&mut self, value: Variant, full_objects: bool) -> std::io::Result<()> {
         self.fa
             .store_var_ex(value)
             .full_objects(full_objects)
@@ -665,13 +667,13 @@ impl GFile {
     // Private methods.
 
     // Error handling utility function.
-    fn check_error(&self) -> Result<(), IoError> {
+    fn check_error(&self) -> Result<(), std::io::Error> {
         let error = self.fa.get_error();
         if error == Error::OK {
             return Ok(());
         }
 
-        Err(IoError::new(
+        Err(std::io::Error::new(
             ErrorKind::Other,
             format!("GodotError: {:?}", error),
         ))
@@ -725,7 +727,7 @@ impl GFile {
 // Trait implementations.
 
 impl Read for GFile {
-    fn read(&mut self, buf: &mut [u8]) -> IoResult<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let length = self.check_file_length();
         let position = self.fa.get_position();
         if position >= length {
@@ -749,7 +751,7 @@ impl Read for GFile {
 }
 
 impl Write for GFile {
-    fn write(&mut self, buf: &[u8]) -> IoResult<usize> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.pack_into_write_buffer(buf);
         self.fa
             .store_buffer(self.write_buffer.subarray(0, buf.len()));
@@ -759,7 +761,7 @@ impl Write for GFile {
         Ok(buf.len())
     }
 
-    fn flush(&mut self) -> IoResult<()> {
+    fn flush(&mut self) -> std::io::Result<()> {
         self.fa.flush();
         self.check_error()?;
         Ok(())
@@ -767,7 +769,7 @@ impl Write for GFile {
 }
 
 impl Seek for GFile {
-    fn seek(&mut self, pos: SeekFrom) -> IoResult<u64> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         match pos {
             SeekFrom::Start(position) => {
                 self.fa.seek(position);
@@ -776,7 +778,7 @@ impl Seek for GFile {
             }
             SeekFrom::End(offset) => {
                 if (self.check_file_length() as i64) < offset {
-                    return Err(IoError::new(
+                    return Err(std::io::Error::new(
                         ErrorKind::InvalidInput,
                         "Position can't be set before the file beginning",
                     ));
@@ -788,7 +790,7 @@ impl Seek for GFile {
             SeekFrom::Current(offset) => {
                 let new_pos = self.fa.get_position() as i64 + offset;
                 if new_pos < 0 {
-                    return Err(IoError::new(
+                    return Err(std::io::Error::new(
                         ErrorKind::InvalidInput,
                         "Position can't be set before the file beginning",
                     ));
@@ -803,7 +805,7 @@ impl Seek for GFile {
 }
 
 impl BufRead for GFile {
-    fn fill_buf(&mut self) -> IoResult<&[u8]> {
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
         // We need to determine number of remaining bytes - otherwise the `FileAccess::get_buffer return in an error`.
         let remaining_bytes = self.check_file_length() - self.fa.get_position();
         let buffer_read_size = cmp::min(remaining_bytes as usize, Self::BUFFER_SIZE);
