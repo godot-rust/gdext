@@ -55,7 +55,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     is_rust_type_excluded(&util::to_rust_type(ty, None, ctx))
 }
 
-pub(crate) fn is_method_excluded(
+pub(crate) fn is_class_method_excluded(
     method: &ClassMethod,
     is_virtual_impl: bool,
     ctx: &mut Context,

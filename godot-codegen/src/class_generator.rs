@@ -1140,18 +1140,18 @@ fn make_class_method_definition(
     get_method_table: &Ident,
     ctx: &mut Context,
 ) -> FnDefinition {
-    if special_cases::is_deleted(class_name, method, ctx) {
+    if special_cases::is_class_method_deleted(class_name, method, ctx) {
         return FnDefinition::none();
     }
 
     let class_name_str = &class_name.godot_ty;
     let godot_method_name = &method.name;
-    let rust_method_name = special_cases::maybe_renamed(class_name, godot_method_name);
+    let rust_method_name = special_cases::maybe_rename_class_method(class_name, godot_method_name);
 
     // Override const-qualification for known special cases (FileAccess::get_16, StreamPeer::get_u16, etc.).
     /* TODO enable this once JSON/domain models are separated. Remove #[allow] above.
     let mut override_is_const = None;
-    if let Some(override_const) = special_cases::is_method_const(class_name, &method) {
+    if let Some(override_const) = special_cases::is_class_method_const(class_name, &method) {
         override_is_const = Some(override_const);
     }
 
@@ -1226,7 +1226,7 @@ fn make_class_method_definition(
         &FnSignature {
             function_name: rust_method_name,
             surrounding_class: Some(class_name),
-            is_private: special_cases::is_private(class_name, godot_method_name),
+            is_private: special_cases::is_method_private(class_name, godot_method_name),
             is_virtual: false,
             is_vararg: method.is_vararg,
             qualifier: FnQualifier::for_method(method.is_const, method.is_static),
@@ -1247,7 +1247,7 @@ fn make_builtin_method_definition(
     inner_class_name: &TyName,
     ctx: &mut Context,
 ) -> FnDefinition {
-    if special_cases::is_builtin_deleted(builtin_name, method) {
+    if special_cases::is_builtin_method_deleted(builtin_name, method) {
         return FnDefinition::none();
     }
 
@@ -1308,7 +1308,7 @@ fn make_builtin_method_definition(
         &FnSignature {
             function_name: method_name_str,
             surrounding_class: Some(inner_class_name),
-            is_private: special_cases::is_private(builtin_name, &method.name),
+            is_private: special_cases::is_method_private(builtin_name, &method.name),
             is_virtual: false,
             is_vararg: method.is_vararg,
             qualifier: FnQualifier::for_method(method.is_const, method.is_static),
@@ -1946,7 +1946,7 @@ fn make_all_virtual_methods(
     all_virtuals
         .into_iter()
         .filter_map(|method| {
-            if codegen_special_cases::is_method_excluded(&method, true, ctx) {
+            if codegen_special_cases::is_class_method_excluded(&method, true, ctx) {
                 None
             } else {
                 Some(make_virtual_method(&method, ctx))
@@ -1994,5 +1994,8 @@ fn function_uses_pointers(sig: &FnSignature) -> bool {
 
 fn function_uses_default_params(sig: &FnSignature) -> bool {
     sig.params.iter().any(|arg| arg.default_value.is_some())
-        && !special_cases::is_excluded_from_default_params(sig.surrounding_class, sig.function_name)
+        && !special_cases::is_method_excluded_from_default_params(
+            sig.surrounding_class,
+            sig.function_name,
+        )
 }

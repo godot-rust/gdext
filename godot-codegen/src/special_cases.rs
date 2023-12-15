@@ -7,6 +7,11 @@
 
 // Lists all cases in the Godot class API, where deviations are considered appropriate (e.g. for safety).
 
+// Naming:
+// * Class methods:             is_class_method_*
+// * Builtin methods:           is_builtin_method_*
+// * Class or builtin methods:  is_method_*
+
 // Open design decisions:
 // * Should Godot types like Node3D have all the "obj level" methods like to_string(), get_instance_id(), etc; or should those
 //   be reserved for the Gd<T> pointer? The latter seems like a limitation. User objects also have to_string() (but not get_instance_id())
@@ -23,8 +28,8 @@ use crate::Context;
 use crate::{codegen_special_cases, TyName};
 
 #[rustfmt::skip]
-pub(crate) fn is_deleted(class_name: &TyName, method: &ClassMethod, ctx: &mut Context) -> bool {
-    if codegen_special_cases::is_method_excluded(method, false, ctx){
+pub(crate) fn is_class_method_deleted(class_name: &TyName, method: &ClassMethod, ctx: &mut Context) -> bool {
+    if codegen_special_cases::is_class_method_excluded(method, false, ctx){
         return true;
     }
     
@@ -147,12 +152,12 @@ fn is_class_experimental(class_name: &TyName) -> bool {
 pub(crate) fn is_named_accessor_in_table(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
     // Generated methods made private are typically needed internally and exposed with a different API,
     // so make them accessible.
-    is_private(class_or_builtin_ty, godot_method_name)
+    is_method_private(class_or_builtin_ty, godot_method_name)
 }
 
 /// Whether a class or builtin method should be hidden from the public API.
 #[rustfmt::skip]
-pub(crate) fn is_private(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
+pub(crate) fn is_method_private(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
     match (class_or_builtin_ty.godot_ty.as_str(), godot_method_name) {
         // Already covered by manual APIs
         | ("Object", "to_string")
@@ -166,7 +171,7 @@ pub(crate) fn is_private(class_or_builtin_ty: &TyName, godot_method_name: &str) 
 }
 
 #[rustfmt::skip]
-pub(crate) fn is_excluded_from_default_params(class_name: Option<&TyName>, godot_method_name: &str) -> bool {
+pub(crate) fn is_method_excluded_from_default_params(class_name: Option<&TyName>, godot_method_name: &str) -> bool {
     // None if global/utilities function
     let class_name = class_name.map_or("", |ty| ty.godot_ty.as_str());
 
@@ -184,7 +189,7 @@ pub(crate) fn is_excluded_from_default_params(class_name: Option<&TyName>, godot
 /// since it looks like a getter.
 #[rustfmt::skip]
 #[cfg(FALSE)] // TODO enable this once JSON/domain models are separated.
-pub(crate) fn is_method_const(class_name: &TyName, godot_method: &ClassMethod) -> Option<bool> {
+pub(crate) fn is_class_method_const(class_name: &TyName, godot_method: &ClassMethod) -> Option<bool> {
     match (class_name.godot_ty.as_str(), godot_method.name.as_str()) {
         // Changed to mut.
         | ("FileAccess", "get_16")
@@ -211,7 +216,7 @@ pub(crate) fn is_method_const(class_name: &TyName, godot_method: &ClassMethod) -
 }
 
 /// True if builtin method is excluded. Does NOT check for type exclusion; use [`is_builtin_type_deleted`] for that.
-pub(crate) fn is_builtin_deleted(_class_name: &TyName, method: &BuiltinClassMethod) -> bool {
+pub(crate) fn is_builtin_method_deleted(_class_name: &TyName, method: &BuiltinClassMethod) -> bool {
     // Currently only deleted if codegen.
     codegen_special_cases::is_builtin_method_excluded(method)
 }
@@ -219,15 +224,18 @@ pub(crate) fn is_builtin_deleted(_class_name: &TyName, method: &BuiltinClassMeth
 /// True if builtin type is excluded (`NIL` or scalars)
 pub(crate) fn is_builtin_type_deleted(class_name: &TyName) -> bool {
     let name = class_name.godot_ty.as_str();
-    name == "Nil" || is_builtin_scalar(name)
+    name == "Nil" || is_builtin_type_scalar(name)
 }
 
 /// True if `int`, `float`, `bool`, ...
-pub(crate) fn is_builtin_scalar(name: &str) -> bool {
+pub(crate) fn is_builtin_type_scalar(name: &str) -> bool {
     name.chars().next().unwrap().is_ascii_lowercase()
 }
 
-pub(crate) fn maybe_renamed<'m>(class_name: &TyName, godot_method_name: &'m str) -> &'m str {
+pub(crate) fn maybe_rename_class_method<'m>(
+    class_name: &TyName,
+    godot_method_name: &'m str,
+) -> &'m str {
     match (class_name.godot_ty.as_str(), godot_method_name) {
         // GDScript, GDScriptNativeClass, possibly more in the future
         (_, "new") => "instantiate",

@@ -8,7 +8,7 @@
 use crate::api_parser::{
     BuiltinClassMethod, Class, ClassConstant, ClassMethod, ConstValue, Enum, UtilityFunction,
 };
-use crate::special_cases::is_builtin_scalar;
+use crate::special_cases::is_builtin_type_scalar;
 use crate::{Context, GodotTy, ModName, RustTy, TyName};
 
 use proc_macro2::{Ident, Literal, TokenStream};
@@ -640,7 +640,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 
     /// Transforms a Godot class/builtin/enum IDENT (without `::` or other syntax) to a Rust one
     fn rustify_ty(ty: &str) -> Ident {
-        if is_builtin_scalar(ty) {
+        if is_builtin_type_scalar(ty) {
             ident(ty)
         } else {
             TyName::from_godot(ty).rust_ty
