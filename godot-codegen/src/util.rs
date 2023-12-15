@@ -198,12 +198,21 @@ pub fn make_sname_ptr(identifier: &str) -> TokenStream {
 }
 
 pub fn get_api_level(class: &Class) -> ClassCodegenLevel {
+    // Work around wrong classification in https://github.com/godotengine/godot/issues/86206.
+    fn override_editor(class_name: &str) -> bool {
+        cfg!(before_api = "4.3")
+            && matches!(
+                class_name,
+                "ResourceImporterOggVorbis" | "ResourceImporterMP3"
+            )
+    }
+
     if class.name.ends_with("Server") {
         ClassCodegenLevel::Servers
+    } else if class.api_type == "editor" || override_editor(&class.name) {
+        ClassCodegenLevel::Editor
     } else if class.api_type == "core" {
         ClassCodegenLevel::Scene
-    } else if class.api_type == "editor" {
-        ClassCodegenLevel::Editor
     } else {
         panic!(
             "class {} has unknown API type {}",
