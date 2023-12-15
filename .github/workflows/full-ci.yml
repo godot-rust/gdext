@@ -230,17 +230,25 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features godot/custom-godot
 
-          - name: linux-double
+          # Full codegen could also be moved to another job.
+          - name: linux-double-full
             os: ubuntu-20.04
             artifact-name: linux-double-nightly
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
-            rust-extra-args: --features godot/custom-godot,godot/double-precision
+            rust-extra-args: --features godot/custom-godot,godot/double-precision,godot/codegen-full
 
           - name: linux-features
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features godot/custom-godot,godot/experimental-threads,godot/serde
+
+          - name: linux-release
+            os: ubuntu-20.04
+            artifact-name: linux-release-nightly
+            godot-binary: godot.linuxbsd.template_release.x86_64
+            rust-extra-args: --release
+            rust-cache-key: release
 
           # TODO merge with other jobs
           - name: linux-lazy-fptrs
@@ -321,6 +329,7 @@ jobs:
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
           rust-target: ${{ matrix.rust-target }}
+          rust-cache-key: ${{ matrix.rust-cache-key }}
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'custom-godot') }}
           godot-check-header: ${{ matrix.godot-check-header }}
 

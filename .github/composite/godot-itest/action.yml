@@ -51,6 +51,11 @@ inputs:
     default: ''
     description: "If provided, acts as an argument for '--target', and results in output files written to ./target/{target}"
 
+  rust-cache-key:
+    required: false
+    default: ''
+    description: "Extra key to resolve Rust cache"
+
   with-llvm:
     required: false
     default: ''
@@ -82,6 +87,7 @@ runs:
       with:
         rust: ${{ inputs.rust-toolchain }}
         with-llvm: ${{ inputs.with-llvm }}
+        cache-key: ${{ inputs.rust-cache-key }}
 
     - name: "Patch prebuilt version ({{ inputs.godot-prebuilt-patch }})"
       if: inputs.godot-prebuilt-patch != ''
