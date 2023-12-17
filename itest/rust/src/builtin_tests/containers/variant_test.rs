@@ -16,7 +16,7 @@ use godot::obj::InstanceId;
 use godot::sys::GodotFfi;
 
 use crate::common::roundtrip;
-use crate::framework::{expect_panic, itest};
+use crate::framework::{expect_panic, itest, runs_release};
 
 const TEST_BASIS: Basis = Basis::from_rows(
     Vector3::new(1.0, 2.0, 3.0),
@@ -146,16 +146,18 @@ fn variant_call() {
     let result = vector.to_variant().call("dot", &[vector_rhs.to_variant()]);
     assert_eq!(result, 2.0.to_variant());
 
-    // Error cases
-    expect_panic("Variant::call on non-existent method", || {
-        variant.call("gut_position", &[]);
-    });
-    expect_panic("Variant::call with bad signature", || {
-        variant.call("set_position", &[]);
-    });
-    expect_panic("Variant::call with non-object variant (int)", || {
-        Variant::from(77).call("to_string", &[]);
-    });
+    // Dynamic checks are only available in Debug builds.
+    if !runs_release() {
+        expect_panic("Variant::call on non-existent method", || {
+            variant.call("gut_position", &[]);
+        });
+        expect_panic("Variant::call with bad signature", || {
+            variant.call("set_position", &[]);
+        });
+        expect_panic("Variant::call with non-object variant (int)", || {
+            Variant::from(77).call("to_string", &[]);
+        });
+    }
 
     node2d.free();
 }

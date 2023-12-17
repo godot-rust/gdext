@@ -66,3 +66,8 @@ func assert_fail(message: String = "") -> bool:
 		print_error("Test execution should have failed")
 
 	return false
+
+## Some tests are disabled, as they rely on Godot checks which are only available in Debug builds.
+## See https://github.com/godotengine/godot/issues/86264.
+static func runs_release() -> bool:
+	return !OS.is_debug_build()

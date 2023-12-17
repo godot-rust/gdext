@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::engine::{Engine, Node};
+use godot::engine::{Engine, Node, Os};
 use godot::obj::Gd;
 use godot::sys;
 use std::collections::HashSet;
@@ -127,4 +127,10 @@ pub fn suppress_godot_print(mut f: impl FnMut()) {
     Engine::singleton().set_print_error_messages(false);
     f();
     Engine::singleton().set_print_error_messages(true);
+}
+
+/// Some tests are disabled, as they rely on Godot checks which are only available in Debug builds.
+/// See https://github.com/godotengine/godot/issues/86264.
+pub fn runs_release() -> bool {
+    !Os::singleton().is_debug_build()
 }
