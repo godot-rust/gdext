@@ -1021,7 +1021,7 @@ fn populate_class_methods(
     let mut method_inits = vec![];
 
     for method in option_as_slice(&class.methods) {
-        if special_cases::is_deleted(class_ty, method, ctx) {
+        if special_cases::is_class_method_deleted(class_ty, method, ctx) {
             continue;
         }
 
@@ -1084,7 +1084,7 @@ fn populate_builtin_methods(
 
     for method in option_as_slice(&builtin_class.methods) {
         let builtin_ty = TyName::from_godot(&builtin_class.name);
-        if special_cases::is_builtin_deleted(&builtin_ty, method) {
+        if special_cases::is_builtin_method_deleted(&builtin_ty, method) {
             continue;
         }
 

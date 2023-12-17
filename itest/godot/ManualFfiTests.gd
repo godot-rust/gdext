@@ -253,6 +253,9 @@ func test_custom_property():
 	assert_eq(d.b, 33)
 
 func test_custom_property_wrong_values_1():
+	if runs_release():
+		return
+
 	var has_property: HasCustomProperty = HasCustomProperty.new()
 	disable_error_messages()
 	has_property.some_c_style_enum = 10 # Should fail.
@@ -260,6 +263,9 @@ func test_custom_property_wrong_values_1():
 	assert_fail("HasCustomProperty.some_c_style_enum should only accept integers in the range `(0 ..= 2)`")
 
 func test_custom_property_wrong_values_2():
+	if runs_release():
+		return
+
 	var has_property: HasCustomProperty = HasCustomProperty.new()
 	disable_error_messages()
 	has_property.not_exportable = {"a": "hello", "b": Callable()}  # Should fail.

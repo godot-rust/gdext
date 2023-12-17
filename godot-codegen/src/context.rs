@@ -165,7 +165,7 @@ impl<'a> Context<'a> {
         }
 
         for method in methods.iter() {
-            if special_cases::is_deleted(class_name, method, ctx) {
+            if special_cases::is_class_method_deleted(class_name, method, ctx) {
                 continue;
             }
 
@@ -190,7 +190,7 @@ impl<'a> Context<'a> {
         }
 
         for method in methods.iter() {
-            if special_cases::is_builtin_deleted(&builtin_ty, method) {
+            if special_cases::is_builtin_method_deleted(&builtin_ty, method) {
                 continue;
             }
 
