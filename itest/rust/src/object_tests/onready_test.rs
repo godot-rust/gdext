@@ -11,6 +11,7 @@ use godot::engine::notify::NodeNotification;
 use godot::engine::INode;
 
 use godot::obj::{Gd, OnReady};
+use godot::prelude::ToGodot;
 
 #[itest]
 fn onready_deref() {
@@ -116,12 +117,36 @@ fn onready_lifecycle_with_impl_without_ready() {
     obj.free();
 }
 
+#[itest]
+fn onready_property_access() {
+    let mut obj = OnReadyWithImpl::create(true);
+    obj.notify(NodeNotification::Ready);
+
+    obj.set("auto".into(), 33.to_variant());
+    obj.set("manual".into(), 44.to_variant());
+
+    {
+        let obj = obj.bind();
+        assert_eq!(*obj.auto, 33);
+        assert_eq!(*obj.manual, 44);
+    }
+
+    let auto = obj.get("auto".into()).to::<i32>();
+    let manual = obj.get("manual".into()).to::<i64>();
+    assert_eq!(auto, 33);
+    assert_eq!(manual, 44);
+
+    obj.free();
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct OnReadyWithImpl {
+    #[export]
     auto: OnReady<i32>,
+    #[var]
     manual: OnReady<i32>,
     runs_manual_init: bool,
 }

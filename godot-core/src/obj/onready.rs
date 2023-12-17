@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::property::{Export, Property, PropertyHintInfo};
 use std::mem;
 
 /// Ergonomic late-initialization container with `ready()` support.
@@ -186,7 +187,32 @@ impl<T> std::ops::DerefMut for OnReady<T> {
     }
 }
 
+impl<T: Property> Property for OnReady<T> {
+    type Intermediate = T::Intermediate;
+
+    fn get_property(&self) -> Self::Intermediate {
+        let deref: &T = self;
+        deref.get_property()
+    }
+
+    fn set_property(&mut self, value: Self::Intermediate) {
+        let deref: &mut T = self;
+        deref.set_property(value);
+    }
+
+    fn property_hint() -> PropertyHintInfo {
+        T::property_hint()
+    }
+}
+
+impl<T: Export> Export for OnReady<T> {
+    fn default_export_info() -> PropertyHintInfo {
+        T::default_export_info()
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation
 
 enum InitState<T> {
     ManualUninitialized,
