@@ -158,25 +158,25 @@ jobs:
     name: miri-test
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: "Install Rust"
         uses: ./.github/composite/rust
+        with:
+          rust: nightly
+          components: miri
       
-      - name: "Install Miri"
-        run: |
-          rustup toolchain install nightly --component miri
-          rustup override set nightly
-          cargo miri setup
+      - name: "Setup Miri"
+        run: cargo miri setup
 
       - name: "Compile tests"
-        run: cargo +nightly miri test -p godot-cell --no-run
+        run: cargo miri test -p godot-cell --no-run
 
       - name: "Test stacked borrows"
-        run: cargo +nightly miri test -p godot-cell
+        run: cargo miri test -p godot-cell
       
       - name: "Test tree borrows"
-        run: MIRIFLAGS="-Zmiri-tree-borrows" cargo +nightly miri test -p godot-cell
+        run: MIRIFLAGS="-Zmiri-tree-borrows" cargo miri test -p godot-cell
 
 
   # For complex matrix workflow, see https://stackoverflow.com/a/65434401

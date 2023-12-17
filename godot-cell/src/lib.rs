@@ -5,11 +5,21 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! A re-entrant cell implementation which allows for `&mut` references to be re-taken even while `&mut`
+//! A re-entrant cell implementation which allows for `&mut` references to be re-borrowed even while `&mut`
 //! references still exist.
 //!
 //! This is done by ensuring any existing `&mut` references cannot alias the new reference, and that the new
 //! reference is derived from the previous one.
+//!
+//! This emulates rust's system for function calls. i.e `my_func(&mut borrowed)` creates a second `&mut`
+//! reference inside the function.
+//!
+//! Instead of directly using the concept of `aliasing` pointers, we use the term `accessible` instead. A
+//! reference (or other pointer) to some value is considered accessible when it is possible to either read
+//! from or write to the value it points to without using `unsafe`. Importantly, if we know that a reference
+//! `a` is inaccessible, and then we create a new reference `b` to the same value, then we know for sure that
+//! `b` wont alias `a`. This is because aliasing in rust is based on accesses, and if we never access `a`
+//! then we cannot ever violate aliasing for `a` and `b`.
 
 mod borrow_state;
 mod guards;
@@ -22,10 +32,10 @@ use std::ptr::NonNull;
 use std::sync::Mutex;
 
 use borrow_state::BorrowState;
-pub use guards::{MutGuard, NonAliasingGuard, RefGuard};
+pub use guards::{InaccessibleGuard, MutGuard, RefGuard};
 
-/// A cell which can hand out new `&mut` references to it's value even when one already exists, as long as
-/// any pre-existing such references have been handed back to the cell first, and no shared references exist.
+/// A cell which can hand out new `&mut` references to its value even when one already exists, as long as
+/// any such pre-existing references have been handed back to the cell first, and no shared references exist.
 ///
 /// This cell must be pinned to be usable, as it stores self-referential pointers.
 // TODO: consider not using `Mutex`
@@ -56,19 +66,19 @@ impl<T> GdCell<T> {
 
     /// Returns a new shared reference to the contents of the cell.
     ///
-    /// Fails if an aliasing mutable reference exists.
+    /// Fails if an accessible mutable reference exists.
     pub fn borrow(self: Pin<&Self>) -> Result<RefGuard<'_, T>, Box<dyn Error>> {
         let mut state = self.state.lock().unwrap();
         state.borrow_state.increment_shared()?;
 
         // SAFETY:
-        // `increment_shared` succeeded, therefore there cannot currently be any aliasing mutable references.
+        // `increment_shared` succeeded, therefore there cannot currently be any accessible mutable references.
         unsafe { Ok(RefGuard::new(&self.get_ref().state, state.get_ptr())) }
     }
 
-    /// Returns a new shared reference to the contents of the cell.
+    /// Returns a new mutable reference to the contents of the cell.
     ///
-    /// Fails if an aliasing mutable reference exists, or a shared reference exists.
+    /// Fails if an accessible mutable reference exists, or a shared reference exists.
     pub fn borrow_mut(self: Pin<&Self>) -> Result<MutGuard<'_, T>, Box<dyn Error>> {
         let mut state = self.state.lock().unwrap();
         state.borrow_state.increment_mut()?;
@@ -76,52 +86,36 @@ impl<T> GdCell<T> {
         let value = state.get_ptr();
 
         // SAFETY:
-        // `increment_mut` succeeded, therefore any existing mutable references do not alias, and no new
-        // references may be made unless this one is guaranteed not to alias those.
+        // `increment_mut` succeeded, therefore any existing mutable references are inaccessible.
+        // Additionally no new references can be created, unless the returned guard is made inaccessible.
         //
         // This is the case because the only way for a new `GdMut` or `GdRef` to be made after this, is for
-        // either this guard to be dropped or `set_non_aliasing` to be called.
+        // either this guard to be dropped or `make_inaccessible` to be called.
         //
         // If this guard is dropped, then we dont need to worry.
         //
-        // If `set_non_aliasing` is called, then either a mutable reference from this guard is passed in.
-        // In which case, we cannot use this guard again until the resulting non-aliasing guard is dropped.
+        // If `make_inaccessible` is called, then either a mutable reference from this guard is passed in.
+        // In which case, we cannot use this guard again until the resulting inaccessible guard is dropped.
         //
-        // We cannot pass in a different mutable reference, since `set_non_aliasing` ensures any references
+        // We cannot pass in a different mutable reference, since `make_inaccessible` ensures any references
         // matches the ones this one would return. And only one mutable reference to the same value can exist
         // since we cannot have any other aliasing mutable references around to pass in.
         unsafe { Ok(MutGuard::new(&self.get_ref().state, count, value)) }
     }
 
-    /// Set the current mutable borrow as not aliasing any other references.
+    /// Make the current mutable borrow inaccessible, thus freeing the value up to be reborrowed again.
     ///
-    /// Will error if there is no current possibly aliasing mutable borrow, or if there are any shared
+    /// Will error if there is no current accessible mutable borrow, or if there are any shared
     /// references.
-    pub fn set_non_aliasing<'a, 'b>(
+    pub fn make_inaccessible<'a: 'b, 'b>(
         self: Pin<&'a Self>,
         current_ref: &'b mut T,
-    ) -> Result<NonAliasingGuard<'b, T>, Box<dyn Error>>
-    where
-        'a: 'b,
-    {
-        let mut state = self.state.lock().unwrap();
-        let current_ptr = state.get_ptr();
-        let ptr = NonNull::from(current_ref);
-
-        if current_ptr != ptr {
-            // it is likely not unsound for this to happen, but it's unexpected
-            return Err("wrong reference passed in".into());
-        }
-
-        state.borrow_state.set_non_aliasing()?;
-        let old_ptr = state.get_ptr();
-        state.set_ptr(ptr);
-
-        Ok(NonAliasingGuard::new(&self.get_ref().state, old_ptr))
+    ) -> Result<InaccessibleGuard<'b, T>, Box<dyn Error>> {
+        InaccessibleGuard::new(&self.get_ref().state, current_ref)
     }
 
     /// Returns `true` if there are any mutable or shared references, regardless of whether the mutable
-    /// references are aliasing or not.
+    /// references are accessible or not.
     ///
     /// In particular this means that it is safe to destroy this cell and the value contained within, as no
     /// references can exist that can reference this cell.
@@ -148,14 +142,15 @@ unsafe impl<T: Sync> Sync for GdCell<T> {}
 struct CellState<T> {
     /// Tracking the borrows this cell has. This ensures relevant invariants are upheld.
     borrow_state: BorrowState,
+
     /// Current pointer to the value.
     ///
-    /// This is initialized upon first usage, as we cannot construct the cell pinned in general.
+    /// This is an `Option` as we must initialize the value after pinning it.
     ///
     /// When a reference is handed to a cell to enable re-entrancy, then this pointer is set to that
     /// reference.
     ///
-    /// We always generate new pointer based off of the reference currently in this field, to ensure any new
+    /// We always generate new pointer based off of the pointer currently in this field, to ensure any new
     /// references are derived from the most recent `&mut` reference.
     ptr: Option<NonNull<T>>,
 }
@@ -247,7 +242,7 @@ mod test {
     }
 
     #[test]
-    fn allow_non_aliasing_mut_mut() {
+    fn allow_inaccessible_mut_mut() {
         const VAL: i32 = 23456;
         let cell = GdCell::new(VAL);
         let cell = cell.as_ref();
@@ -257,7 +252,7 @@ mod test {
         assert_eq!(*mut1, VAL);
         *mut1 = VAL + 50;
 
-        let no_alias_guard = cell.set_non_aliasing(mut1).unwrap();
+        let inaccessible_guard = cell.make_inaccessible(mut1).unwrap();
 
         let mut guard2 = cell.borrow_mut().unwrap();
         let mut2 = &mut *guard2;
@@ -265,7 +260,7 @@ mod test {
         *mut2 = VAL - 30;
         drop(guard2);
 
-        drop(no_alias_guard);
+        drop(inaccessible_guard);
 
         assert_eq!(*mut1, VAL - 30);
         *mut1 = VAL - 5;
@@ -277,26 +272,7 @@ mod test {
     }
 
     #[test]
-    fn prevent_mut_mut_without_non_aliasing() {
-        const VAL: i32 = 23456;
-        let cell = GdCell::new(VAL);
-        let cell = cell.as_ref();
-
-        let mut guard1 = cell.borrow_mut().unwrap();
-        let mut1 = &mut *guard1;
-        assert_eq!(*mut1, VAL);
-        *mut1 = VAL + 50;
-
-        // let no_alias_guard = cell.set_non_aliasing(mut1).unwrap();
-
-        cell.borrow_mut()
-            .expect_err("reference may be aliasing so should be prevented");
-
-        drop(guard1);
-    }
-
-    #[test]
-    fn different_non_aliasing() {
+    fn different_inaccessible() {
         const VAL1: i32 = 23456;
         const VAL2: i32 = 11111;
         let cell1 = GdCell::new(VAL1);
@@ -316,11 +292,11 @@ mod test {
         assert_eq!(*mut2, VAL2);
         *mut2 = VAL2 + 10;
 
-        let no_alias_guard = cell1
-            .set_non_aliasing(mut2)
+        let inaccessible_guard = cell1
+            .make_inaccessible(mut2)
             .expect_err("should not allow different references");
 
-        drop(no_alias_guard);
+        drop(inaccessible_guard);
 
         drop(guard1);
         drop(guard2);

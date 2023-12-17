@@ -15,7 +15,7 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::{atomic::AtomicUsize, Mutex, OnceLock};
 
-use godot_cell::{GdCell, NonAliasingGuard};
+use godot_cell::{GdCell, InaccessibleGuard};
 
 struct InstanceBinding(*mut ());
 
@@ -105,14 +105,14 @@ impl<T> Base<T> {
 
 struct BaseGuard<'a, T> {
     instance_id: usize,
-    _non_aliasing_guard: NonAliasingGuard<'a, T>,
+    _inaccessible_guard: InaccessibleGuard<'a, T>,
 }
 
 impl<'a, T> BaseGuard<'a, T> {
-    fn new(instance_id: usize, non_aliasing_guard: NonAliasingGuard<'a, T>) -> Self {
+    fn new(instance_id: usize, inaccessible_guard: InaccessibleGuard<'a, T>) -> Self {
         Self {
             instance_id,
-            _non_aliasing_guard: non_aliasing_guard,
+            _inaccessible_guard: inaccessible_guard,
         }
     }
 
@@ -201,7 +201,7 @@ impl MyClass {
 
     fn base(&mut self) -> BaseGuard<'_, Self> {
         let cell = self.base.cell();
-        BaseGuard::new(self.base.instance_id, cell.set_non_aliasing(self).unwrap())
+        BaseGuard::new(self.base.instance_id, cell.make_inaccessible(self).unwrap())
     }
 }
 

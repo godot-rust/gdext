@@ -38,7 +38,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
 
     type MutGuard<'a> = godot_cell::MutGuard<'a, T>;
 
-    type BaseMutGuard<'a> = godot_cell::NonAliasingGuard<'a, T>;
+    type BaseMutGuard<'a> = godot_cell::InaccessibleGuard<'a, T>;
 
     fn construct(
         user_instance: Self::Instance,
@@ -93,7 +93,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
     fn get_base_mut<'a: 'b, 'b>(&'a self, value: &'b mut Self::Instance) -> Self::BaseMutGuard<'b> {
         self.user_instance
             .as_ref()
-            .set_non_aliasing(value)
+            .make_inaccessible(value)
             .unwrap_or_else(|err| {
                 // We should never hit this, except maybe in extreme cases like having more than
                 // `usize::MAX` borrows.

@@ -8,11 +8,11 @@
 /// A type that tracks the state of borrows for a [`GdCell`].
 ///
 /// This state upholds these invariants:
-/// - You can only take a shared borrow when there is no aliasing mutable borrow.
-/// - You can only take a mutable borrow when there is neither an aliasing mutable borrow, nor a shared
+/// - You can only take a shared borrow when there is no accessible mutable borrow.
+/// - You can only take a mutable borrow when there is neither an accessible mutable borrow, nor a shared
 /// borrow.
-/// - You can only set a mutable borrow as non-aliasing when an aliasing mutable borrow exists.
-/// - You can only unset a mutable borrow as non-aliasing when there is no aliasing mutable borrow and no
+/// - You can only set a mutable borrow as inaccessible when an accessible mutable borrow exists.
+/// - You can only unset a mutable borrow as inaccessible when there is no accessible mutable borrow and no
 /// shared borrows.  
 ///
 /// If a catastrophic error occurs, then the state will be poisoned. If the state is poisoned then that's
@@ -24,8 +24,8 @@ pub struct BorrowState {
     shared_count: usize,
     /// The number of `&mut T` references that are tracked.
     mut_count: usize,
-    /// The number of `&mut T` references that cannot be aliased.
-    non_aliasing_count: usize,
+    /// The number of `&mut T` references that are inaccessible.
+    inaccessible_count: usize,
     /// `true` if the borrow state has reached an erroneous or unreliable state.
     poisoned: bool,
 }
@@ -36,18 +36,18 @@ impl BorrowState {
         Self {
             shared_count: 0,
             mut_count: 0,
-            non_aliasing_count: 0,
+            inaccessible_count: 0,
             poisoned: false,
         }
     }
 
-    /// Returns `true` if there may be an aliasing mutable reference.
-    pub fn has_possibly_aliasing(&self) -> bool {
-        let count = self.mut_count - self.non_aliasing_count;
+    /// Returns `true` if there are any accessible mutable references.
+    pub fn has_accessible(&self) -> bool {
+        let count = self.mut_count - self.inaccessible_count;
 
         assert!(
             count <= 1,
-            "there should never be more than 1 aliasing reference"
+            "there should never be more than 1 accessible mutable reference"
         );
 
         count == 1
@@ -90,8 +90,8 @@ impl BorrowState {
     fn ensure_can_ref(&self) -> Result<(), BorrowStateErr> {
         self.ensure_not_poisoned()?;
 
-        if self.has_possibly_aliasing() {
-            return Err("cannot borrow while possibly aliasing borrow exists".into());
+        if self.has_accessible() {
+            return Err("cannot borrow while accessible mutable borrow exists".into());
         }
 
         Ok(())
@@ -100,8 +100,8 @@ impl BorrowState {
     fn ensure_can_mut_ref(&self) -> Result<(), BorrowStateErr> {
         self.ensure_not_poisoned()?;
 
-        if self.has_possibly_aliasing() {
-            return Err("cannot borrow while possibly aliasing borrow exists".into());
+        if self.has_accessible() {
+            return Err("cannot borrow while accessible mutable borrow exists".into());
         }
 
         if self.shared_count != 0 {
@@ -116,7 +116,7 @@ impl BorrowState {
     /// Returns the new total number of shared references.
     ///
     /// This fails when:
-    /// - There exists a possibly aliasing mutable reference.
+    /// - There exists an accessible mutable reference.
     /// - There exist `usize::MAX` shared references.
     pub fn increment_shared(&mut self) -> Result<usize, BorrowStateErr> {
         self.ensure_not_poisoned()?;
@@ -144,8 +144,8 @@ impl BorrowState {
             return Err("cannot decrement shared counter when no shared reference exists".into());
         }
 
-        if self.has_possibly_aliasing() {
-            self.poison("shared reference tracked while aliasing mutable reference exists")?;
+        if self.has_accessible() {
+            self.poison("shared reference tracked while accessible mutable reference exists")?;
         }
 
         // We know `shared_count` isn't 0.
@@ -159,11 +159,11 @@ impl BorrowState {
     /// Returns the new total number of mutable references.
     ///
     /// This fails when:
-    /// - There exists a possibly aliasing mutable reference.
+    /// - There exists an accessible mutable reference.
     /// - There exists a shared reference.
     /// - There are `usize::MAX` tracked mutable references.
     ///
-    /// Any amount of shared references will prevent [`Self::increment_non_aliasing`] from succeeding.
+    /// Any amount of shared references will prevent [`Self::increment_inaccessible`] from succeeding.
     pub fn increment_mut(&mut self) -> Result<usize, BorrowStateErr> {
         self.ensure_not_poisoned()?;
 
@@ -183,7 +183,7 @@ impl BorrowState {
     ///
     /// This fails when:
     /// - There are currently no mutable references.
-    /// - There is a mutable reference, but it's guaranteed to be non-aliasing.
+    /// - There is a mutable reference, but it's inaccessible.
     pub fn decrement_mut(&mut self) -> Result<usize, BorrowStateErr> {
         self.ensure_not_poisoned()?;
 
@@ -191,15 +191,15 @@ impl BorrowState {
             return Err("cannot decrement mutable counter when no mutable reference exists".into());
         }
 
-        if self.mut_count == self.non_aliasing_count {
+        if self.mut_count == self.inaccessible_count {
             return Err(
-                "cannot decrement mutable counter when current mutable reference is non-aliasing"
+                "cannot decrement mutable counter when current mutable reference is inaccessible"
                     .into(),
             );
         }
 
-        if self.mut_count - 1 != self.non_aliasing_count {
-            self.poison("`non_aliasing_count` does not fit its invariant")?;
+        if self.mut_count - 1 != self.inaccessible_count {
+            self.poison("`inaccessible_count` does not fit its invariant")?;
         }
 
         // We know `mut_count` isn't 0.
@@ -208,53 +208,52 @@ impl BorrowState {
         Ok(self.mut_count)
     }
 
-    /// Set the current mutable reference as non-aliasing.
+    /// Set the current mutable reference as inaccessible.
     ///
-    /// Returns the new total of non-aliasing mutable references.
+    /// Returns the new total of inaccessible mutable references.
     ///
     /// Fails when:
     /// - There is no current
-    pub fn set_non_aliasing(&mut self) -> Result<usize, BorrowStateErr> {
-        if !self.has_possibly_aliasing() {
+    pub fn set_inaccessible(&mut self) -> Result<usize, BorrowStateErr> {
+        if !self.has_accessible() {
             return Err(
-                "cannot set current reference as non-aliasing when no possibly aliasing reference exists"
+                "cannot set current reference as inaccessible when no accessible reference exists"
                     .into(),
             );
         }
 
-        self.non_aliasing_count = self
-            .non_aliasing_count
+        self.inaccessible_count = self
+            .inaccessible_count
             .checked_add(1)
-            .ok_or("could not increment non-aliasing count")?;
+            .ok_or("could not increment inaccessible count")?;
 
-        Ok(self.non_aliasing_count)
+        Ok(self.inaccessible_count)
     }
 
-    pub fn unset_non_aliasing(&mut self) -> Result<usize, BorrowStateErr> {
-        if self.has_possibly_aliasing() {
-            return Err("cannot set current reference as possibly aliasing when possibly aliasing reference already exists".into());
+    pub fn unset_inaccessible(&mut self) -> Result<usize, BorrowStateErr> {
+        if self.has_accessible() {
+            return Err("cannot set current reference as accessible when an accessible mutable reference already exists".into());
         }
 
         if self.shared_count() > 0 {
             return Err(
-                "cannot set current reference as possibly aliasing when a shared reference exists"
-                    .into(),
+                "cannot set current reference as accessible when a shared reference exists".into(),
             );
         }
 
-        if self.non_aliasing_count == 0 {
+        if self.inaccessible_count == 0 {
             return Err(
-                "cannot mark mut pointer as aliasing when there are no possibly aliasing pointers"
+                "cannot mark mut pointer as accessible when there are no inaccessible pointers"
                     .into(),
             );
         }
 
-        self.non_aliasing_count = self
-            .non_aliasing_count
+        self.inaccessible_count = self
+            .inaccessible_count
             .checked_sub(1)
-            .ok_or("could not decrement non-aliasing count")?;
+            .ok_or("could not decrement inaccessible count")?;
 
-        Ok(self.non_aliasing_count)
+        Ok(self.inaccessible_count)
     }
 }
 
@@ -296,7 +295,7 @@ impl From<String> for BorrowStateErr {
 }
 
 #[cfg(all(test, not(miri)))]
-mod test {
+mod proptests {
     use super::*;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};
 
@@ -312,8 +311,8 @@ mod test {
         DecShared,
         IncMut,
         DecMut,
-        SetNoAlias,
-        UnsetNoAlias,
+        SetInaccessible,
+        UnsetInaccessible,
     }
 
     impl Operation {
@@ -325,8 +324,8 @@ mod test {
                 Op::DecShared => state.decrement_shared(),
                 Op::IncMut => state.increment_mut(),
                 Op::DecMut => state.decrement_mut(),
-                Op::SetNoAlias => state.set_non_aliasing(),
-                Op::UnsetNoAlias => state.unset_non_aliasing(),
+                Op::SetInaccessible => state.set_inaccessible(),
+                Op::UnsetInaccessible => state.unset_inaccessible(),
             };
 
             result.map(|_| ())
@@ -342,8 +341,8 @@ mod test {
                 1 => Op::DecShared,
                 2 => Op::IncMut,
                 3 => Op::DecMut,
-                4 => Op::SetNoAlias,
-                5 => Op::UnsetNoAlias,
+                4 => Op::SetInaccessible,
+                5 => Op::UnsetInaccessible,
                 _ => unreachable!()
             }
         }
@@ -435,12 +434,12 @@ mod test {
                         original.mut_count -= 1;
                         original
                     },
-                    Op::SetNoAlias => |mut original: BorrowState| {
-                        original.non_aliasing_count += 1;
+                    Op::SetInaccessible => |mut original: BorrowState| {
+                        original.inaccessible_count += 1;
                         original
                     },
-                    Op::UnsetNoAlias => |mut original: BorrowState| {
-                        original.non_aliasing_count -= 1;
+                    Op::UnsetInaccessible => |mut original: BorrowState| {
+                        original.inaccessible_count -= 1;
                         original
                     },
                 };
@@ -477,7 +476,7 @@ mod test {
             for op in operations {
                 _ = op.execute(&mut state);
                 if state.has_shared_reference() {
-                    assert!(!state.has_possibly_aliasing())
+                    assert!(!state.has_accessible())
                 }
             }
         }
@@ -500,12 +499,12 @@ mod test {
 
     proptest! {
         #[test]
-        fn cannot_borrow_shared_when_borrowed_aliasing(operations in arbitrary_ops(50)) {
+        fn cannot_borrow_shared_when_borrowed_accessible(operations in arbitrary_ops(50)) {
             let mut state = BorrowState::new();
 
             for op in operations {
                 _ = op.execute(&mut state);
-                if state.has_possibly_aliasing() {
+                if state.has_accessible() {
                     assert!(state.increment_shared().is_err());
                 }
             }
@@ -514,12 +513,12 @@ mod test {
 
     proptest! {
         #[test]
-        fn can_borrow_shared_when_not_borrowed_aliasing(operations in arbitrary_ops(50)) {
+        fn can_borrow_shared_when_not_borrowed_accessible(operations in arbitrary_ops(50)) {
             let mut state = BorrowState::new();
 
             for op in operations {
                 _ = op.execute(&mut state);
-                if !state.has_possibly_aliasing() {
+                if !state.has_accessible() {
                     assert!(state.increment_shared().is_ok());
                     assert!(state.decrement_shared().is_ok());
                 }
@@ -529,12 +528,12 @@ mod test {
 
     proptest! {
         #[test]
-        fn can_borrow_mut_when_no_shared_and_no_aliasing(operations in arbitrary_ops(50)) {
+        fn can_borrow_mut_when_no_shared_and_no_accessible(operations in arbitrary_ops(50)) {
             let mut state = BorrowState::new();
 
             for op in operations {
                 _ = op.execute(&mut state);
-                if !state.has_possibly_aliasing() && !state.has_shared_reference() {
+                if !state.has_accessible() && !state.has_shared_reference() {
                     assert!(state.increment_mut().is_ok());
                     assert!(state.decrement_mut().is_ok());
                 }
@@ -558,12 +557,12 @@ mod test {
 
     proptest! {
         #[test]
-        fn cannot_borrow_mut_when_has_aliasing(operations in arbitrary_ops(50)) {
+        fn cannot_borrow_mut_when_has_accessible(operations in arbitrary_ops(50)) {
             let mut state = BorrowState::new();
 
             for op in operations {
                 _ = op.execute(&mut state);
-                if state.has_possibly_aliasing() {
+                if state.has_accessible() {
                     assert!(state.increment_mut().is_err());
                 }
             }
@@ -572,14 +571,14 @@ mod test {
 
     proptest! {
         #[test]
-        fn can_set_nonaliasing_when_aliasing(operations in arbitrary_ops(50)) {
+        fn can_set_inaccessible_when_accessible(operations in arbitrary_ops(50)) {
             let mut state = BorrowState::new();
 
             for op in operations {
                 _ = op.execute(&mut state);
-                if state.has_possibly_aliasing() {
-                    assert!(state.set_non_aliasing().is_ok());
-                    assert!(state.unset_non_aliasing().is_ok());
+                if state.has_accessible() {
+                    assert!(state.set_inaccessible().is_ok());
+                    assert!(state.unset_inaccessible().is_ok());
                 }
             }
         }
@@ -587,13 +586,13 @@ mod test {
 
     proptest! {
         #[test]
-        fn cannot_set_nonaliasing_when_shared(operations in arbitrary_ops(50)) {
+        fn cannot_set_inaccessible_when_shared(operations in arbitrary_ops(50)) {
             let mut state = BorrowState::new();
 
             for op in operations {
                 _ = op.execute(&mut state);
                 if state.has_shared_reference() {
-                    assert!(state.set_non_aliasing().is_err());
+                    assert!(state.set_inaccessible().is_err());
                 }
             }
         }
@@ -601,13 +600,13 @@ mod test {
 
     proptest! {
         #[test]
-        fn cannot_set_nonaliasing_when_nonaliasing(operations in arbitrary_ops(50)) {
+        fn cannot_set_inaccessible_when_inaccessible(operations in arbitrary_ops(50)) {
             let mut state = BorrowState::new();
 
             for op in operations {
                 _ = op.execute(&mut state);
-                if !state.has_possibly_aliasing() {
-                    assert!(state.set_non_aliasing().is_err());
+                if !state.has_accessible() {
+                    assert!(state.set_inaccessible().is_err());
                 }
             }
         }
@@ -627,6 +626,11 @@ mod test {
             assert_eq!(state_all, state_no_shared_pairs);
         }
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
 
     #[test]
     fn poisoned_unset_shared_ref() {
@@ -635,11 +639,11 @@ mod test {
 
         _ = state.increment_mut();
         assert!(!state.is_poisoned());
-        _ = state.set_non_aliasing();
+        _ = state.set_inaccessible();
         assert!(!state.is_poisoned());
         _ = state.increment_shared();
         assert!(!state.is_poisoned());
-        _ = state.unset_non_aliasing();
+        _ = state.unset_inaccessible();
         assert!(!state.is_poisoned());
         _ = state.increment_shared();
         assert!(!state.is_poisoned());
