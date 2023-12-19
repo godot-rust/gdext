@@ -150,6 +150,13 @@ fn is_class_experimental(class_name: &TyName) -> bool {
 /// Whether a method is available in the method table as a named accessor.
 #[rustfmt::skip]
 pub(crate) fn is_named_accessor_in_table(class_or_builtin_ty: &TyName, godot_method_name: &str) -> bool {
+    // Hand-selected APIs.
+    match (class_or_builtin_ty.godot_ty.as_str(), godot_method_name) {
+        | ("OS", "has_feature")
+
+        => return true, _ => {}
+    }
+
     // Generated methods made private are typically needed internally and exposed with a different API,
     // so make them accessible.
     is_method_private(class_or_builtin_ty, godot_method_name)

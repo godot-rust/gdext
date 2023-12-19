@@ -8,6 +8,10 @@
 use godot_ffi as sys;
 
 use std::cell;
+use sys::GodotFfi;
+
+use crate::builtin::{GString, StringName};
+use crate::out;
 
 pub use sys::GdextBuild;
 
@@ -95,6 +99,7 @@ fn gdext_on_level_init(level: InitLevel) {
             }
             InitLevel::Scene => {
                 sys::load_class_method_table(sys::ClassApiLevel::Scene);
+                ensure_godot_features_compatible();
             }
             InitLevel::Editor => {
                 sys::load_class_method_table(sys::ClassApiLevel::Editor);
@@ -242,5 +247,54 @@ impl InitLevel {
             Self::Scene => sys::GDEXTENSION_INITIALIZATION_SCENE,
             Self::Editor => sys::GDEXTENSION_INITIALIZATION_EDITOR,
         }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+fn ensure_godot_features_compatible() {
+    // The reason why we don't simply call Os::has_feature() here is that we might move the high-level engine classes out of godot-core
+    // later, and godot-core would only depend on godot-sys. This makes future migrations easier. We still have access to builtins though.
+
+    out!("Check Godot precision setting...");
+
+    let os_class = StringName::from("OS");
+    let single = GString::from("single");
+    let double = GString::from("double");
+
+    // SAFETY: main thread, after initialize(), valid string pointers.
+    let gdext_is_double = cfg!(feature = "double-precision");
+    let godot_is_double = unsafe {
+        let is_single = sys::godot_has_feature(os_class.string_sys(), single.sys_const());
+        let is_double = sys::godot_has_feature(os_class.string_sys(), double.sys_const());
+
+        assert_ne!(
+            is_single, is_double,
+            "Godot has invalid configuration: single={is_single}, double={is_double}"
+        );
+
+        is_double
+    };
+
+    let s = |is_double: bool| -> &'static str {
+        if is_double {
+            "double"
+        } else {
+            "single"
+        }
+    };
+
+    out!(
+        "Is double precision: Godot={}, gdext={}",
+        s(godot_is_double),
+        s(gdext_is_double)
+    );
+
+    if godot_is_double != gdext_is_double {
+        panic!(
+            "Godot runs with {} precision, but gdext was compiled with {} precision.\n\
+            Cargo feature `double-precision` must be used if and only if Godot is compiled with `precision=double`.\n",
+            s(godot_is_double), s(gdext_is_double),
+        );
     }
 }

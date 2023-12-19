@@ -291,7 +291,7 @@ pub unsafe fn utility_function_table() -> &'static UtilityFunctionTable {
 /// # Safety
 ///
 /// The interface must have been initialised with [`initialize`] before calling this function.
-#[inline(always)]
+#[inline]
 pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
     let binding = unwrap_ref_unchecked_mut(&mut BINDING);
 
@@ -358,6 +358,35 @@ pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
         method_count,
         _elapsed.as_secs_f64()
     );
+}
+
+/// # Safety
+///
+/// Must be accessed from the main thread, and the interface must have been initialized.
+/// `tag_string` must be a valid type pointer of a `String` instance.
+#[inline]
+pub unsafe fn godot_has_feature(
+    os_class_sname: GDExtensionConstStringNamePtr,
+    tag_string: GDExtensionConstTypePtr,
+) -> bool {
+    // Issue a raw C call to OS.has_feature(tag_string).
+
+    let method_bind = class_scene_api().os__has_feature();
+    let get_singleton = get_interface().global_get_singleton.unwrap();
+    let class_ptrcall = get_interface().object_method_bind_ptrcall.unwrap();
+
+    let object_ptr = get_singleton(os_class_sname);
+    let mut return_ptr = false;
+    let type_ptrs = [tag_string];
+
+    class_ptrcall(
+        method_bind,
+        object_ptr,
+        type_ptrs.as_ptr(),
+        return_ptr.sys_mut(),
+    );
+
+    return_ptr
 }
 
 /// # Safety
