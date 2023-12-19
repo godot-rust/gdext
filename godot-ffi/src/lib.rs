@@ -32,7 +32,7 @@ pub(crate) mod gen {
 }
 
 mod compat;
-mod gdextension_plus;
+mod extras;
 mod godot_ffi;
 mod opaque;
 mod plugins;
@@ -66,7 +66,7 @@ pub use gen::table_servers_classes::*;
 pub use gen::table_utilities::*;
 
 // Other
-pub use gdextension_plus::*;
+pub use extras::*;
 pub use gen::central::*;
 pub use gen::gdextension_interface::*;
 pub use gen::interface::*;
@@ -223,7 +223,7 @@ pub unsafe fn get_library() -> GDExtensionClassLibraryPtr {
 ///
 /// The interface must have been initialised with [`initialize`] before calling this function.
 #[inline(always)]
-pub unsafe fn method_table() -> &'static BuiltinLifecycleTable {
+pub unsafe fn builtin_lifecycle_api() -> &'static BuiltinLifecycleTable {
     &unwrap_ref_unchecked(&BINDING).global_method_table
 }
 
@@ -383,7 +383,7 @@ pub unsafe fn config() -> &'static GdextConfig {
 #[doc(hidden)]
 macro_rules! builtin_fn {
     ($name:ident $(@1)?) => {
-        $crate::method_table().$name
+        $crate::builtin_lifecycle_api().$name
     };
 }
 
@@ -391,7 +391,7 @@ macro_rules! builtin_fn {
 #[doc(hidden)]
 macro_rules! builtin_call {
         ($name:ident ( $($args:expr),* $(,)? )) => {
-            ($crate::method_table().$name)( $($args),* )
+            ($crate::builtin_lifecycle_api().$name)( $($args),* )
         };
     }
 
