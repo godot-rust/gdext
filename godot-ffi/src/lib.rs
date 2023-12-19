@@ -41,7 +41,6 @@ mod toolbox;
 
 use compat::BindingCompat;
 use std::cell;
-use std::ffi::CStr;
 
 // See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
 // and https://users.rust-lang.org/t/proc-macros-using-third-party-crate/42465/4
@@ -188,12 +187,14 @@ pub unsafe fn initialize(
         out!("Loaded builtin method table (lazily).");
     }
 
-    println!(
-        "Initialize GDExtension API for Rust: {}",
-        CStr::from_ptr(version.string)
-            .to_str()
-            .expect("unknown Godot version")
-    );
+    print_preamble(version);
+}
+
+fn print_preamble(version: GDExtensionGodotVersion) {
+    let api_version: &'static str = GdextBuild::godot_static_version_string();
+    let runtime_version = read_version_string(&version);
+
+    println!("Initialize godot-rust (API {api_version}, runtime {runtime_version})");
 }
 
 /// # Safety

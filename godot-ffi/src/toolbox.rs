@@ -304,4 +304,18 @@ pub(crate) fn load_utility_function(
     })
 }
 
+pub(crate) fn read_version_string(version_ptr: &sys::GDExtensionGodotVersion) -> String {
+    let char_ptr = version_ptr.string;
+
+    // SAFETY: GDExtensionGodotVersion has the (manually upheld) invariant of a valid string field.
+    let c_str = unsafe { std::ffi::CStr::from_ptr(char_ptr) };
+
+    let full_version = c_str.to_str().unwrap_or("(invalid UTF-8 in version)");
+
+    full_version
+        .strip_prefix("Godot Engine ")
+        .unwrap_or(full_version)
+        .to_string()
+}
+
 const INFO: &str = "\nMake sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html";
