@@ -397,10 +397,24 @@ impl GFile {
     /// See [`real`][type@real] type for more information.
     ///
     /// Underlying Godot method:
-    /// [`FileAccess::get_real`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-real).
+    /// [`FileAccess::get_float`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-float) or
+    /// [`FileAccess::get_double`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-double)
+    /// (note that [`FileAccess::get_real`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-get-real)
+    /// does not return an actual `real`).
+    ///
+    /// <div class="warning">
+    /// <strong>Warning:</strong>
+    /// Since this involves a configuration-dependent type, you may not be able to read the value back if Godot uses different precision setting
+    /// (single or double) than the one used to write the value.
+    /// </div>
     #[doc(alias = "get_real")]
     pub fn read_real(&mut self) -> IoResult<real> {
-        let val = self.fa.get_real();
+        #[cfg(feature = "double-precision")]
+        let val = self.fa.get_double();
+
+        #[cfg(not(feature = "double-precision"))]
+        let val = self.fa.get_float();
+
         self.check_error()?;
         Ok(val)
     }
@@ -410,7 +424,7 @@ impl GFile {
     /// If `allow_objects` is set to `true`, objects will be decoded.
     ///
     /// <div class="warning">
-    /// **Warning:** Deserialized objects can contain code which gets executed. Do not use this option if the serialized object
+    /// <strong>Warning:</strong> Deserialized objects can contain code which gets executed. Do not use this option if the serialized object
     /// comes from untrusted sources, to avoid potential security threats such as remote code execution.
     /// </div>
     ///
@@ -500,10 +514,26 @@ impl GFile {
     /// See [`real`][type@real] type for more information.
     ///
     /// Underlying Godot method:
-    /// [`FileAccess::store_real`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-real).
+    /// [`FileAccess::store_float`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-float) or
+    /// [`FileAccess::store_double`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-double)
+    /// (note that [`FileAccess::store_real`](https://docs.godotengine.org/en/stable/classes/class_fileaccess.html#class-fileaccess-method-store-real)
+    /// does not accept an actual `real`).
+    ///
+    /// <div class="warning">
+    /// <strong>Warning:</strong>
+    /// Since this involves a configuration-dependent type, you may not be able to read the value back if Godot uses different precision setting
+    /// (single or double) than the one used to write the value.
+    /// </div>
     #[doc(alias = "store_real")]
     pub fn write_real(&mut self, value: real) -> IoResult<()> {
-        self.fa.store_real(value);
+        // FileAccess::store_real() does not accept an actual real_t; work around this.
+
+        #[cfg(feature = "double-precision")]
+        self.fa.store_double(value);
+
+        #[cfg(not(feature = "double-precision"))]
+        self.fa.store_float(value);
+
         self.clear_file_length();
         self.check_error()?;
         Ok(())
