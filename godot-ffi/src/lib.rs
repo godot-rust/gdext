@@ -32,7 +32,7 @@ pub(crate) mod gen {
 }
 
 mod compat;
-mod gdextension_plus;
+mod extras;
 mod godot_ffi;
 mod opaque;
 mod plugins;
@@ -41,7 +41,6 @@ mod toolbox;
 
 use compat::BindingCompat;
 use std::cell;
-use std::ffi::CStr;
 
 // See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
 // and https://users.rust-lang.org/t/proc-macros-using-third-party-crate/42465/4
@@ -66,7 +65,7 @@ pub use gen::table_servers_classes::*;
 pub use gen::table_utilities::*;
 
 // Other
-pub use gdextension_plus::*;
+pub use extras::*;
 pub use gen::central::*;
 pub use gen::gdextension_interface::*;
 pub use gen::interface::*;
@@ -188,12 +187,14 @@ pub unsafe fn initialize(
         out!("Loaded builtin method table (lazily).");
     }
 
-    println!(
-        "Initialize GDExtension API for Rust: {}",
-        CStr::from_ptr(version.string)
-            .to_str()
-            .expect("unknown Godot version")
-    );
+    print_preamble(version);
+}
+
+fn print_preamble(version: GDExtensionGodotVersion) {
+    let api_version: &'static str = GdextBuild::godot_static_version_string();
+    let runtime_version = read_version_string(&version);
+
+    println!("Initialize godot-rust (API {api_version}, runtime {runtime_version})");
 }
 
 /// # Safety
@@ -223,7 +224,7 @@ pub unsafe fn get_library() -> GDExtensionClassLibraryPtr {
 ///
 /// The interface must have been initialised with [`initialize`] before calling this function.
 #[inline(always)]
-pub unsafe fn method_table() -> &'static BuiltinLifecycleTable {
+pub unsafe fn builtin_lifecycle_api() -> &'static BuiltinLifecycleTable {
     &unwrap_ref_unchecked(&BINDING).global_method_table
 }
 
@@ -291,7 +292,7 @@ pub unsafe fn utility_function_table() -> &'static UtilityFunctionTable {
 /// # Safety
 ///
 /// The interface must have been initialised with [`initialize`] before calling this function.
-#[inline(always)]
+#[inline]
 pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
     let binding = unwrap_ref_unchecked_mut(&mut BINDING);
 
@@ -363,6 +364,35 @@ pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
 /// # Safety
 ///
 /// Must be accessed from the main thread, and the interface must have been initialized.
+/// `tag_string` must be a valid type pointer of a `String` instance.
+#[inline]
+pub unsafe fn godot_has_feature(
+    os_class_sname: GDExtensionConstStringNamePtr,
+    tag_string: GDExtensionConstTypePtr,
+) -> bool {
+    // Issue a raw C call to OS.has_feature(tag_string).
+
+    let method_bind = class_scene_api().os__has_feature();
+    let get_singleton = get_interface().global_get_singleton.unwrap();
+    let class_ptrcall = get_interface().object_method_bind_ptrcall.unwrap();
+
+    let object_ptr = get_singleton(os_class_sname);
+    let mut return_ptr = false;
+    let type_ptrs = [tag_string];
+
+    class_ptrcall(
+        method_bind,
+        object_ptr,
+        type_ptrs.as_ptr(),
+        return_ptr.sys_mut(),
+    );
+
+    return_ptr
+}
+
+/// # Safety
+///
+/// Must be accessed from the main thread, and the interface must have been initialized.
 #[inline(always)]
 pub(crate) unsafe fn runtime_metadata() -> &'static GdextRuntimeMetadata {
     &BINDING.as_ref().unwrap().runtime_metadata
@@ -383,7 +413,7 @@ pub unsafe fn config() -> &'static GdextConfig {
 #[doc(hidden)]
 macro_rules! builtin_fn {
     ($name:ident $(@1)?) => {
-        $crate::method_table().$name
+        $crate::builtin_lifecycle_api().$name
     };
 }
 
@@ -391,7 +421,7 @@ macro_rules! builtin_fn {
 #[doc(hidden)]
 macro_rules! builtin_call {
         ($name:ident ( $($args:expr),* $(,)? )) => {
-            ($crate::method_table().$name)( $($args),* )
+            ($crate::builtin_lifecycle_api().$name)( $($args),* )
         };
     }
 

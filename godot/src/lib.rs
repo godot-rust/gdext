@@ -188,6 +188,10 @@ compile_error!("Thread safety for lazy function pointers is not yet implemented.
 #[cfg(all(target_family = "wasm", not(feature = "experimental-wasm")))]
 compile_error!("Must opt-in using `experimental-wasm` Cargo feature; keep in mind that this is work in progress");
 
+// See also https://github.com/godotengine/godot/issues/86346.
+#[cfg(all(feature = "double-precision", not(feature = "custom-godot")))]
+compile_error!("The feature `double-precision` currently requires `custom-godot` due to incompatibilities in the GDExtension API JSON.");
+
 pub mod init {
     pub use godot_core::init::*;
 

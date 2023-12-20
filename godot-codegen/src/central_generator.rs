@@ -463,7 +463,7 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
             pub fn load() -> Self {
                 // SAFETY: interface and lifecycle tables are initialized at this point, so we can get 'static references to them.
                 let (interface, lifecycle_table) = unsafe {
-                    (crate::get_interface(), crate::method_table())
+                    (crate::get_interface(), crate::builtin_lifecycle_api())
                 };
 
                 Self {
