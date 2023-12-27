@@ -237,6 +237,51 @@ fn object_user_free_during_bind() {
     obj.free(); // now succeeds
 }
 
+#[itest]
+fn object_engine_freed_argument_passing(ctx: &TestContext) {
+    let node: Gd<Node> = Node::new_alloc();
+
+    let mut tree = ctx.scene_tree.clone();
+    let node2 = node.clone();
+
+    // Destroy object and then pass it to a Godot engine API.
+    node.free();
+    expect_panic("pass freed Gd<T> to Godot engine API (T=Node)", || {
+        tree.add_child(node2);
+    });
+}
+
+#[itest]
+fn object_user_freed_casts() {
+    let obj = Gd::from_object(ObjPayload {});
+    let obj2 = obj.clone();
+    let base_obj = obj.clone().upcast::<Object>();
+
+    // Destroy object and then pass it to a Godot engine API (upcast itself works, see other tests).
+    obj.free();
+    expect_panic("Gd<T>::upcast() on dead object (T=user)", || {
+        let _ = obj2.upcast::<Object>();
+    });
+    expect_panic("Gd<T>::cast() on dead object (T=user)", || {
+        let _ = base_obj.cast::<ObjPayload>();
+    });
+}
+
+#[itest]
+fn object_user_freed_argument_passing() {
+    let obj = Gd::from_object(ObjPayload {});
+    let obj = obj.upcast::<Object>();
+    let obj2 = obj.clone();
+
+    let mut engine = Engine::singleton();
+
+    // Destroy object and then pass it to a Godot engine API (upcast itself works, see other tests).
+    obj.free();
+    expect_panic("pass freed Gd<T> to Godot engine API (T=user)", || {
+        engine.register_singleton("NeverRegistered".into(), obj2);
+    });
+}
+
 #[itest(skip)] // This deliberately crashes the engine. Un-skip to manually test this.
 fn object_user_dynamic_free_during_bind() {
     // Note: we could also test if GDScript can access free() when an object is bound, to check whether the panic is handled or crashes
