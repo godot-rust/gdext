@@ -373,7 +373,7 @@ pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClass
         );
 
         // In Debug mode, crash which may trigger breakpoint.
-        // In release mode, leak player object (Godot philosophy: don't crash if somehow avoidable). Likely leads to follow-up issues.
+        // In Release mode, leak player object (Godot philosophy: don't crash if somehow avoidable). Likely leads to follow-up issues.
         if cfg!(debug_assertions) {
             crate::engine::Os::singleton().crash(error.into());
         } else {

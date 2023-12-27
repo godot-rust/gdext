@@ -65,6 +65,8 @@ pub mod private {
         sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
     }
 
+    pub use crate::obj::rtti::ObjectRtti;
+
     pub struct ClassConfig {
         pub is_tool: bool,
     }

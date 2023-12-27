@@ -76,10 +76,10 @@ fn empty_string_chars() {
 fn string_chars() {
     let string = String::from("some_string");
     let string_chars: Vec<char> = string.chars().collect();
-    let godot_string = GString::from(string);
-    let godot_string_chars: Vec<char> = godot_string.chars_checked().to_vec();
+    let gstring = GString::from(string);
+    let gstring_chars: Vec<char> = gstring.chars_checked().to_vec();
 
-    assert_eq!(godot_string_chars, string_chars);
+    assert_eq!(gstring_chars, string_chars);
 }
 
 #[itest]

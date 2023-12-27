@@ -12,7 +12,8 @@ use godot::bind::{godot_api, GodotClass};
 use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{GString, StringName, Variant, Vector3};
 use godot::engine::{
-    file_access, Area2D, Camera3D, FileAccess, IRefCounted, Node, Node3D, Object, RefCounted,
+    file_access, Area2D, Camera3D, Engine, FileAccess, IRefCounted, Node, Node3D, Object,
+    RefCounted,
 };
 use godot::obj::{Base, Gd, Inherits, InstanceId, RawGd, UserClass};
 use godot::prelude::meta::GodotType;
@@ -40,39 +41,6 @@ fn object_construct_new_gd() {
 fn object_construct_value() {
     let obj = Gd::from_object(RefcPayload { value: 222 });
     assert_eq!(obj.bind().value, 222);
-}
-
-// TODO(#23): DerefMut on Gd pointer may be used to break subtyping relations
-#[itest(skip)]
-fn object_subtype_swap() {
-    let mut a: Gd<Node> = Node::new_alloc();
-    let mut b: Gd<Node3D> = Node3D::new_alloc();
-
-    /*
-    let a_id = a.instance_id();
-    let b_id = b.instance_id();
-    let a_class = a.get_class();
-    let b_class = b.get_class();
-
-    dbg!(a_id);
-    dbg!(b_id);
-    dbg!(&a_class);
-    dbg!(&b_class);
-    println!("..swap..");
-    */
-
-    std::mem::swap(&mut *a, &mut *b);
-
-    /*
-    dbg!(a_id);
-    dbg!(b_id);
-    dbg!(&a_class);
-    dbg!(&b_class);
-    */
-
-    // This should not panic
-    a.free();
-    b.free();
 }
 
 #[itest]
@@ -267,6 +235,51 @@ fn object_user_free_during_bind() {
         "object lives on after failed free()"
     );
     obj.free(); // now succeeds
+}
+
+#[itest]
+fn object_engine_freed_argument_passing(ctx: &TestContext) {
+    let node: Gd<Node> = Node::new_alloc();
+
+    let mut tree = ctx.scene_tree.clone();
+    let node2 = node.clone();
+
+    // Destroy object and then pass it to a Godot engine API.
+    node.free();
+    expect_panic("pass freed Gd<T> to Godot engine API (T=Node)", || {
+        tree.add_child(node2);
+    });
+}
+
+#[itest]
+fn object_user_freed_casts() {
+    let obj = Gd::from_object(ObjPayload {});
+    let obj2 = obj.clone();
+    let base_obj = obj.clone().upcast::<Object>();
+
+    // Destroy object and then pass it to a Godot engine API (upcast itself works, see other tests).
+    obj.free();
+    expect_panic("Gd<T>::upcast() on dead object (T=user)", || {
+        let _ = obj2.upcast::<Object>();
+    });
+    expect_panic("Gd<T>::cast() on dead object (T=user)", || {
+        let _ = base_obj.cast::<ObjPayload>();
+    });
+}
+
+#[itest]
+fn object_user_freed_argument_passing() {
+    let obj = Gd::from_object(ObjPayload {});
+    let obj = obj.upcast::<Object>();
+    let obj2 = obj.clone();
+
+    let mut engine = Engine::singleton();
+
+    // Destroy object and then pass it to a Godot engine API (upcast itself works, see other tests).
+    obj.free();
+    expect_panic("pass freed Gd<T> to Godot engine API (T=user)", || {
+        engine.register_singleton("NeverRegistered".into(), obj2);
+    });
 }
 
 #[itest(skip)] // This deliberately crashes the engine. Un-skip to manually test this.
@@ -788,7 +801,7 @@ fn object_get_scene_tree(ctx: &TestContext) {
 
 #[derive(GodotClass)]
 #[class(init, base=Object)]
-struct ObjPayload {}
+pub(super) struct ObjPayload {}
 
 #[godot_api]
 impl ObjPayload {

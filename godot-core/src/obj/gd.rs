@@ -263,8 +263,7 @@ impl<T: GodotClass> Gd<T> {
     ///
     /// This method is safe and never panics.
     pub fn instance_id_unchecked(&self) -> InstanceId {
-        // SAFETY:
-        // A `Gd` can only be created from a non-null `RawGd`. Meaning `raw.instance_id_unchecked()` will
+        // SAFETY: a `Gd` can only be created from a non-null `RawGd`, meaning `raw.instance_id_unchecked()` will
         // always return `Some`.
         unsafe { self.raw.instance_id_unchecked().unwrap_unchecked() }
     }
@@ -278,8 +277,7 @@ impl<T: GodotClass> Gd<T> {
     /// and will panic in a defined manner. Encountering such panics is almost always a bug you should fix, and not a
     /// runtime condition to check against.
     pub fn is_instance_valid(&self) -> bool {
-        // This call refreshes the instance ID, and recognizes dead objects.
-        self.instance_id_or_none().is_some()
+        self.raw.is_instance_valid()
     }
 
     /// **Upcast:** convert into a smart pointer to a base class. Always succeeds.
@@ -443,7 +441,7 @@ impl<T: GodotClass> Gd<T> {
 impl<T, M> Gd<T>
 where
     T: GodotClass<Mem = M>,
-    M: mem::PossiblyManual + mem::Memory,
+    M: mem::Memory + mem::PossiblyManual,
 {
     /// Destroy the manually-managed Godot object.
     ///
@@ -463,31 +461,53 @@ where
         // Note: this method is NOT invoked when the free() call happens dynamically (e.g. through GDScript or reflection).
         // As such, do not use it for operations and validations to perform upon destruction.
 
+        // free() is likely to be invoked in destructors during panic unwind. In this case, we cannot panic again.
+        // Instead, we print an error and exit free() immediately. The closure is supposed to be used in a unit return statement.
+        let is_panic_unwind = std::thread::panicking();
+        let error_or_panic = |msg: String| {
+            if is_panic_unwind {
+                crate::godot_error!(
+                    "Encountered 2nd panic in free() during panic unwind; will skip destruction:\n{msg}"
+                );
+            } else {
+                panic!("{}", msg);
+            }
+        };
+
         // TODO disallow for singletons, either only at runtime or both at compile time (new memory policy) and runtime
         use dom::Domain;
 
         // Runtime check in case of T=Object, no-op otherwise
         let ref_counted = T::Mem::is_ref_counted(&self.raw);
-        assert_ne!(
-            ref_counted, Some(true),
-            "called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types\n\
-            object: {self:?}"
-        );
+        if ref_counted == Some(true) {
+            return error_or_panic(format!(
+                "Called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types\n\
+                Object: {self:?}"
+            ));
+        }
 
         // If ref_counted returned None, that means the instance was destroyed
-        assert!(
-            ref_counted == Some(false) && self.is_instance_valid(),
-            "called free() on already destroyed object"
-        );
+        if ref_counted != Some(false) || !self.is_instance_valid() {
+            return error_or_panic("called free() on already destroyed object".to_string());
+        }
+
+        // If the object is still alive, make sure the dynamic type matches. Necessary because subsequent checks may rely on the
+        // static type information to be correct. This is a no-op in Release mode.
+        // Skip check during panic unwind; would need to rewrite whole thing to use Result instead. Having BOTH panic-in-panic and bad type is
+        // a very unlikely corner case.
+        if !is_panic_unwind {
+            self.raw.check_dynamic_type("free");
+        }
 
         // SAFETY: object must be alive, which was just checked above. No multithreading here.
         // Also checked in the C free_instance_func callback, however error message can be more precise here and we don't need to instruct
         // the engine about object destruction. Both paths are tested.
         let bound = unsafe { T::Declarer::is_currently_bound(&self.raw) };
-        assert!(
-            !bound,
-            "called free() while a bind() or bind_mut() call is active"
-        );
+        if bound {
+            return error_or_panic(
+                "called free() while a bind() or bind_mut() call is active".to_string(),
+            );
+        }
 
         // SAFETY: object alive as checked.
         // This destroys the Storage instance, no need to run destructor again.
@@ -495,6 +515,7 @@ where
             sys::interface_fn!(object_destroy)(self.raw.obj_sys());
         }
 
+        // TODO: this might leak associated data in Gd<T>, e.g. ClassName.
         std::mem::forget(self);
     }
 }
@@ -508,10 +529,12 @@ impl<T: GodotClass> GodotConvert for Gd<T> {
 
 impl<T: GodotClass> ToGodot for Gd<T> {
     fn to_godot(&self) -> Self::Via {
+        self.raw.check_rtti("Gd<T>::to_godot");
         self.clone()
     }
 
     fn into_godot(self) -> Self::Via {
+        self.raw.check_rtti("Gd<T>::into_godot");
         self
     }
 }
@@ -622,7 +645,7 @@ impl<T: GodotClass> Export for Gd<T> {
 
         // Godot does this by default too; the hint is needed when the class is a resource/node,
         // but doesn't seem to make a difference otherwise.
-        let hint_string = T::class_name().to_godot_string();
+        let hint_string = T::class_name().to_gstring();
 
         PropertyHintInfo { hint, hint_string }
     }
