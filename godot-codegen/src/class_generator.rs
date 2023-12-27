@@ -600,6 +600,15 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     // notify() and notify_reversed() are added after other methods, to list others first in docs.
     let notify_methods = make_notify_methods(class_name, ctx);
 
+    let internal_methods = quote! {
+        fn __checked_id(&self) -> Option<crate::obj::InstanceId> {
+            // SAFETY: only Option due to layout-compatibility with RawGd<T>; it is always Some because stored in Gd<T> which is non-null.
+            let rtti = unsafe { self.rtti.as_ref().unwrap_unchecked() };
+            let instance_id = rtti.check_type::<Self>();
+            Some(instance_id)
+        }
+    };
+
     let memory = if class_name.rust_ty == "Object" {
         ident("DynamicRefCount")
     } else if class.is_refcounted {
@@ -608,7 +617,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         ident("ManualMemory")
     };
 
-    // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
+    // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub.
     let imports = util::make_imports();
     let tokens = quote! {
         #![doc = #module_doc]
@@ -625,7 +634,10 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
             #[repr(C)]
             pub struct #class_name {
                 object_ptr: sys::GDExtensionObjectPtr,
-                instance_id: crate::obj::InstanceId,
+
+                // This field should never be None. Type Option<T> is chosen to be layout-compatible with Gd<T>, which uses RawGd<T> inside.
+                // The RawGd<T>'s identity field can be None because of generality (it can represent null pointers, as opposed to Gd<T>).
+                rtti: Option<crate::private::ObjectRtti>,
             }
             #virtual_trait
             #notification_enum
@@ -633,6 +645,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
                 #constructor
                 #methods
                 #notify_methods
+                #internal_methods
                 #constants
             }
             unsafe impl crate::obj::GodotClass for #class_name {
@@ -646,12 +659,12 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
                 }
             }
             impl crate::obj::EngineClass for #class_name {
-                 fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr {
-                     self.object_ptr
-                 }
-                 fn as_type_ptr(&self) -> sys::GDExtensionTypePtr {
-                    std::ptr::addr_of!(self.object_ptr) as sys::GDExtensionTypePtr
-                 }
+                fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr {
+                    self.object_ptr
+                }
+                fn as_type_ptr(&self) -> sys::GDExtensionTypePtr {
+                   std::ptr::addr_of!(self.object_ptr) as sys::GDExtensionTypePtr
+                }
             }
             #(
                 impl crate::obj::Inherits<crate::engine::#all_bases> for #class_name {}
@@ -1180,7 +1193,7 @@ fn make_class_method_definition(
     let maybe_instance_id = if method.is_static {
         quote! { None }
     } else {
-        quote! { Some(self.instance_id) }
+        quote! { self.__checked_id() }
     };
 
     let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {

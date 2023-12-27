@@ -24,6 +24,9 @@ mod script_instance;
 pub use gfile::{GFile, NotUniqueError};
 pub use script_instance::{create_script_instance, ScriptInstance};
 
+#[cfg(debug_assertions)]
+use crate::builtin::meta::ClassName;
+
 /// Support for Godot _native structures_.
 ///
 /// Native structures are a niche API in Godot. These are low-level data types that are passed as pointers to/from the engine.
@@ -218,15 +221,14 @@ pub(crate) fn object_ptr_from_id(instance_id: InstanceId) -> sys::GDExtensionObj
     unsafe { sys::interface_fn!(object_get_instance_from_id)(instance_id.to_u64()) }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation of this file
+
 pub(crate) fn ensure_object_alive(
-    instance_id: Option<InstanceId>,
+    instance_id: InstanceId,
     old_object_ptr: sys::GDExtensionObjectPtr,
     method_name: &'static str,
 ) {
-    let Some(instance_id) = instance_id else {
-        panic!("{method_name}: cannot call method on null object")
-    };
-
     let new_object_ptr = object_ptr_from_id(instance_id);
 
     assert!(
@@ -242,8 +244,26 @@ pub(crate) fn ensure_object_alive(
     );
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Implementation of this file
+#[cfg(debug_assertions)]
+pub(crate) fn ensure_object_inherits(
+    derived: &ClassName,
+    base: &ClassName,
+    instance_id: InstanceId,
+) -> bool {
+    // TODO static cache.
+
+    if derived == base
+        || base == &Object::class_name() // always true
+        || ClassDb::singleton().is_parent_class(derived.to_string_name(), base.to_string_name())
+    {
+        return true;
+    }
+
+    panic!(
+        "Instance of ID {instance_id} has type {derived} but is incorrectly stored in a Gd<{base}>.\n\
+        This may happen if you change an object's identity through DerefMut."
+    )
+}
 
 // Separate function, to avoid constructing string twice
 // Note that more optimizations than that likely make no sense, as loading is quite expensive
@@ -253,7 +273,7 @@ where
 {
     ResourceLoader::singleton()
         .load_ex(path.clone())
-        .type_hint(T::class_name().to_godot_string())
+        .type_hint(T::class_name().to_gstring())
         .done() // TODO unclone
         .and_then(|res| res.try_cast::<T>().ok())
 }

@@ -103,12 +103,15 @@ pub fn passes_filter(filters: &[String], test_name: &str) -> bool {
     filters.is_empty() || filters.iter().any(|x| test_name.contains(x))
 }
 
-pub fn expect_panic(context: &str, code: impl FnOnce() + std::panic::UnwindSafe) {
+pub fn expect_panic(context: &str, code: impl FnOnce()) {
     use std::panic;
 
     // Exchange panic hook, to disable printing during expected panics
     let prev_hook = panic::take_hook();
     panic::set_hook(Box::new(|_panic_info| {}));
+
+    // Generally, types should be unwind safe, and this helps ergonomics in testing (especially around &mut in expect_panic closures).
+    let code = panic::AssertUnwindSafe(code);
 
     // Run code that should panic, restore hook
     let panic = panic::catch_unwind(code);

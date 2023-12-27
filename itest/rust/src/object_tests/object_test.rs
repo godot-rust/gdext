@@ -12,7 +12,8 @@ use godot::bind::{godot_api, GodotClass};
 use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{GString, StringName, Variant, Vector3};
 use godot::engine::{
-    file_access, Area2D, Camera3D, FileAccess, IRefCounted, Node, Node3D, Object, RefCounted,
+    file_access, Area2D, Camera3D, Engine, FileAccess, IRefCounted, Node, Node3D, Object,
+    RefCounted,
 };
 use godot::obj::{Base, Gd, Inherits, InstanceId, RawGd, UserClass};
 use godot::prelude::meta::GodotType;
@@ -40,39 +41,6 @@ fn object_construct_new_gd() {
 fn object_construct_value() {
     let obj = Gd::from_object(RefcPayload { value: 222 });
     assert_eq!(obj.bind().value, 222);
-}
-
-// TODO(#23): DerefMut on Gd pointer may be used to break subtyping relations
-#[itest(skip)]
-fn object_subtype_swap() {
-    let mut a: Gd<Node> = Node::new_alloc();
-    let mut b: Gd<Node3D> = Node3D::new_alloc();
-
-    /*
-    let a_id = a.instance_id();
-    let b_id = b.instance_id();
-    let a_class = a.get_class();
-    let b_class = b.get_class();
-
-    dbg!(a_id);
-    dbg!(b_id);
-    dbg!(&a_class);
-    dbg!(&b_class);
-    println!("..swap..");
-    */
-
-    std::mem::swap(&mut *a, &mut *b);
-
-    /*
-    dbg!(a_id);
-    dbg!(b_id);
-    dbg!(&a_class);
-    dbg!(&b_class);
-    */
-
-    // This should not panic
-    a.free();
-    b.free();
 }
 
 #[itest]
@@ -788,7 +756,7 @@ fn object_get_scene_tree(ctx: &TestContext) {
 
 #[derive(GodotClass)]
 #[class(init, base=Object)]
-struct ObjPayload {}
+pub(super) struct ObjPayload {}
 
 #[godot_api]
 impl ObjPayload {

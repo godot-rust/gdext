@@ -167,7 +167,8 @@ macro_rules! impl_varcall_signature_for_tuple {
                     unsafe { varcall_arg::<$Pn, $n>(args_ptr, method_name) },
                 )*) ;
 
-                varcall_return::<$R>(func(instance_ptr, args), ret, err)
+                let rust_result = func(instance_ptr, args);
+                varcall_return::<$R>(rust_result, ret, err)
             }
 
             #[inline]
@@ -181,9 +182,9 @@ macro_rules! impl_varcall_signature_for_tuple {
             ) -> Self::Ret {
                 //$crate::out!("out_class_varcall: {method_name}");
 
-                // Note: varcalls are not safe from failing, if the happen through an object pointer -> validity check necessary.
+                // Note: varcalls are not safe from failing, if they happen through an object pointer -> validity check necessary.
                 if let Some(instance_id) = maybe_instance_id {
-                    crate::engine::ensure_object_alive(Some(instance_id), object_ptr, method_name);
+                    crate::engine::ensure_object_alive(instance_id, object_ptr, method_name);
                 }
 
                 let class_fn = sys::interface_fn!(object_method_bind_call);
@@ -298,7 +299,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
             ) -> Self::Ret {
                 // $crate::out!("out_class_ptrcall: {method_name}");
                 if let Some(instance_id) = maybe_instance_id {
-                    crate::engine::ensure_object_alive(Some(instance_id), object_ptr, method_name);
+                    crate::engine::ensure_object_alive(instance_id, object_ptr, method_name);
                 }
 
                 let class_fn = sys::interface_fn!(object_method_bind_ptrcall);

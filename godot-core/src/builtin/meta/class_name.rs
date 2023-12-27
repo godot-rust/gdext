@@ -61,18 +61,18 @@ impl ClassName {
         self.c_str.to_str().unwrap()
     }
 
-    /// Converts the class name to a GString.
-    pub fn to_godot_string(&self) -> GString {
+    /// Converts the class name to a `GString`.
+    pub fn to_gstring(&self) -> GString {
         self.with_string_name(|s| s.into())
     }
 
-    /// Converts the class name to a StringName.
+    /// Converts the class name to a `StringName`.
     pub fn to_string_name(&self) -> StringName {
         self.with_string_name(|s| s.clone())
     }
 
     /// The returned pointer is valid indefinitely, as entries are never deleted from the cache.
-    /// Since we use Box<StringName>, HashMap reallocations don't affect the validity of the StringName.
+    /// Since we use `Box<StringName>`, `HashMap` reallocations don't affect the validity of the StringName.
     #[doc(hidden)]
     pub fn string_sys(&self) -> sys::GDExtensionStringNamePtr {
         self.with_string_name(|s| s.string_sys())

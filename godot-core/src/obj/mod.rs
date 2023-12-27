@@ -19,6 +19,8 @@ mod onready;
 mod raw;
 mod traits;
 
+pub(crate) mod rtti;
+
 pub use base::*;
 pub use gd::*;
 pub use guards::*;
@@ -26,5 +28,7 @@ pub use instance_id::*;
 pub use onready::*;
 pub use raw::*;
 pub use traits::*;
+
+// Do not re-export rtti here.
 
 type GdDerefTarget<T> = <<T as GodotClass>::Declarer as dom::Domain>::DerefTarget<T>;

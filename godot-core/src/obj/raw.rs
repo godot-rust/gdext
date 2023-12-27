@@ -17,9 +17,9 @@ use crate::builtin::meta::{
 use crate::builtin::Variant;
 use crate::obj::dom::Domain as _;
 use crate::obj::mem::Memory as _;
+use crate::obj::rtti::ObjectRtti;
 use crate::obj::GdDerefTarget;
-use crate::obj::{dom, GodotClass};
-use crate::obj::{GdMut, GdRef, InstanceId};
+use crate::obj::{dom, GdMut, GdRef, GodotClass, InstanceId};
 use crate::storage::InstanceStorage;
 use crate::{engine, out};
 
@@ -32,7 +32,7 @@ use crate::{engine, out};
 pub struct RawGd<T: GodotClass> {
     pub(super) obj: *mut T,
     // Must not be changed after initialization.
-    cached_instance_id: Option<InstanceId>,
+    cached_rtti: Option<ObjectRtti>,
 }
 
 impl<T: GodotClass> RawGd<T> {
@@ -40,7 +40,7 @@ impl<T: GodotClass> RawGd<T> {
     pub(super) fn null() -> Self {
         Self {
             obj: ptr::null_mut(),
-            cached_instance_id: None,
+            cached_rtti: None,
         }
     }
 
@@ -51,16 +51,21 @@ impl<T: GodotClass> RawGd<T> {
     ///
     /// `obj` must be a valid object pointer or a null pointer.
     pub(super) unsafe fn from_obj_sys_weak(obj: sys::GDExtensionObjectPtr) -> Self {
-        let mut instance_id = None;
-        if !obj.is_null() {
-            let id =
+        let rtti = if obj.is_null() {
+            None
+        } else {
+            let raw_id =
                 unsafe { interface_fn!(object_get_instance_id)(obj as sys::GDExtensionObjectPtr) };
-            instance_id = InstanceId::try_from_u64(id);
-        }
+
+            let instance_id = InstanceId::try_from_u64(raw_id)
+                .expect("constructed RawGd weak pointer with instance ID 0");
+
+            Some(ObjectRtti::of::<T>(instance_id))
+        };
 
         Self {
             obj: obj as *mut T,
-            cached_instance_id: instance_id,
+            cached_rtti: rtti,
         }
     }
 
@@ -91,16 +96,17 @@ impl<T: GodotClass> RawGd<T> {
     /// This does not check if the object is dead, for that use
     /// [`instance_id_or_none()`](Self::instance_id_or_none).
     pub(crate) fn is_null(&self) -> bool {
-        self.obj.is_null() || self.cached_instance_id.is_none()
+        self.obj.is_null() || self.cached_rtti.is_none()
     }
 
     pub(crate) fn instance_id_unchecked(&self) -> Option<InstanceId> {
-        self.cached_instance_id
+        self.cached_rtti.as_ref().map(|rtti| rtti.instance_id)
     }
 
     pub(crate) fn is_instance_valid(&self) -> bool {
-        self.cached_instance_id
-            .map(|id| engine::utilities::is_instance_id_valid(id.to_i64()))
+        self.cached_rtti
+            .as_ref()
+            .map(|rtti| engine::utilities::is_instance_id_valid(rtti.instance_id.to_i64()))
             .unwrap_or(false)
     }
 
@@ -116,10 +122,12 @@ impl<T: GodotClass> RawGd<T> {
 
         let as_obj =
             unsafe { self.ffi_cast::<engine::Object>() }.expect("Everything inherits object");
+
         let cast_is_valid = as_obj
             .as_target()
             .expect("object is not null")
-            .is_class(U::class_name().to_godot_string());
+            .is_class(U::class_name().to_gstring());
+
         std::mem::forget(as_obj);
         cast_is_valid
     }
@@ -170,10 +178,15 @@ impl<T: GodotClass> RawGd<T> {
             return Some(RawGd::null());
         }
 
+        // Before Godot API calls, make sure the object is alive (and in Debug mode, of the correct type).
+        // Current design decision: EVERY cast fails, even if target type is correct. This avoids the risk of violated invariants that leak to
+        // Godot implementation. Also, we do not provide a way to recover from bad types, this is always a bug that must be solved by the user.
+        self.check_rtti("ffi_cast");
+
         let class_tag = interface_fn!(classdb_get_class_tag)(U::class_name().string_sys());
         let cast_object_ptr = interface_fn!(object_cast_to)(self.obj_sys(), class_tag);
 
-        // Create weak object, as ownership will be moved and reference-counter stays the same
+        // Create weak object, as ownership will be moved and reference-counter stays the same.
         sys::ptr_then(cast_object_ptr, |ptr| RawGd::from_obj_sys_weak(ptr))
     }
 
@@ -257,6 +270,26 @@ impl<T: GodotClass> RawGd<T> {
         Some(target)
     }
 
+    /// Verify that the object is non-null and alive. In Debug mode, additionally verify that it is of type `T` or derived.
+    pub(crate) fn check_rtti(&self, context: &'static str) {
+        let instance_id = self.check_dynamic_type(context);
+        engine::ensure_object_alive(instance_id, self.obj_sys(), context);
+    }
+
+    /// Checks only type, not alive-ness. Used in Gd<T> in case of `free()`.
+    pub(crate) fn check_dynamic_type(&self, context: &'static str) -> InstanceId {
+        debug_assert!(
+            !self.is_null(),
+            "{context}: cannot call method on null object",
+        );
+
+        let rtti = self.cached_rtti.as_ref();
+
+        // SAFETY: code surrounding RawGd<T> ensures that `self` is non-null; above is just a sanity check against internal bugs.
+        let rtti = unsafe { rtti.unwrap_unchecked() };
+        rtti.check_type::<T>()
+    }
+
     pub(super) fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
         self.obj as sys::GDExtensionObjectPtr
     }
@@ -271,7 +304,7 @@ where
     /// See [`crate::obj::Gd::bind()`] for a more in depth explanation.
     // Note: possible names: write/read, hold/hold_mut, r/w, r/rw, ...
     pub(crate) fn bind(&self) -> GdRef<T> {
-        engine::ensure_object_alive(self.cached_instance_id, self.obj_sys(), "bind");
+        self.check_rtti("bind");
         GdRef::from_cell(self.storage().unwrap().get())
     }
 
@@ -279,7 +312,7 @@ where
     ///
     /// See [`crate::obj::Gd::bind_mut()`] for a more in depth explanation.
     pub(crate) fn bind_mut(&mut self) -> GdMut<T> {
-        engine::ensure_object_alive(self.cached_instance_id, self.obj_sys(), "bind_mut");
+        self.check_rtti("bind_mut");
         GdMut::from_cell(self.storage().unwrap().get_mut())
     }
 
@@ -378,16 +411,16 @@ where
     }
 
     fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
-        // We're passing a reference to the object to the callee. If the reference count needs to be
-        // incremented then the callee will do so. We do not need to prematurely do so.
-        //
-        // In Rust terms, if `T` is refcounted then we are effectively passing a `&Arc<T>`, and the callee
-        // would need to call `.clone()` if desired.
+        // No need to call self.check_rtti("as_arg_ptr") here, since this is already done in ToGodot impl.
 
-        // In 4.0, argument pointers are passed to godot as `T*`, except for in virtual method calls. We
-        // can't perform virtual method calls currently, so they are always `T*`.
+        // We pass an object to a Godot API. If the reference count needs to be incremented, then the callee (Godot C++ function) will do so.
+        // We do not need to prematurely do so. In Rust terms, if `T` is ref-counted, then we are effectively passing a `&Arc<T>`, and the
+        // callee would need to invoke `.clone()` if desired.
+
+        // In 4.0, argument pointers are passed to godot as `T*`, except for in virtual method calls. We can't perform virtual method calls
+        // currently, so they are always `T*`.
         //
-        // In 4.1 argument pointers were standardized to always be `T**`.
+        // In 4.1, argument pointers were standardized to always be `T**`.
         #[cfg(before_api = "4.1")]
         {
             self.sys_const()
@@ -395,7 +428,7 @@ where
 
         #[cfg(since_api = "4.1")]
         {
-            std::ptr::addr_of!(self.obj) as sys::GDExtensionConstTypePtr
+            ptr::addr_of!(self.obj) as sys::GDExtensionConstTypePtr
         }
     }
 }
@@ -493,6 +526,8 @@ impl<T: GodotClass> Drop for RawGd<T> {
 impl<T: GodotClass> Clone for RawGd<T> {
     fn clone(&self) -> Self {
         out!("RawGd::clone");
+        self.check_rtti("clone");
+
         if !self.is_null() {
             unsafe { Self::from_obj_sys(self.obj as sys::GDExtensionObjectPtr) }
         } else {
