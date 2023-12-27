@@ -181,14 +181,36 @@ fn object_subtype_swap_casts() {
     swapped_free!(obj, node3d);
 }
 
-#[itest(focus)]
+#[itest]
 fn object_subtype_swap_func_return() {
-    let mut swapped = SwapHolder::new_gd();
-
-    // Call through Godot.
-    let result = swapped.call("return_swapped_node".into(), &[]);
-    dbg!(result);
+    let mut holder = SwapHolder::new_gd();
+    expect_panic(
+        "returning badly typed Gd<T> from #[func] causes panic",
+        || {
+            // Call through Godot.
+            holder.call("return_swapped_node".into(), &[]);
+        },
+    );
 }
+
+#[itest]
+fn object_freed_func_return() {
+    let mut holder = SwapHolder::new_gd();
+    expect_panic("returning dead Gd<T> from #[func] causes panic", || {
+        // Call through Godot.
+        let _dead = holder.call("add_dead_object_and_return".into(), &[]);
+    }); // Destructor will not panic again (which would cause abort).
+}
+
+// This is not strictly testing subtype-swapping, but it's convenient to have hear due to SwapHolder's `gc` list.
+#[itest]
+fn object_freed_panic_during_unwind() {
+    expect_panic("free() in destructor will not panic again", || {
+        // Holder declared locally, as its destructor is expected to free the object and encounter errors.
+        let mut holder = SwapHolder::new_gd();
+        holder.bind_mut().add_dead_object_and_panic();
+    }); // Destructor will not panic again (which would cause abort).
+} // This is not strictly testing subtype-swapping, but it's convenient to have hear due to SwapHolder's `gc` list.
 
 //----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -209,19 +231,32 @@ impl SwapHolder {
 
         std::mem::swap(&mut *object, &mut *node);
 
-        // Dynamic free which is unchecked
-        object.call("free".into(), &[]);
-
         node
+    }
+
+    #[func]
+    fn add_dead_object_and_return(&self) -> Gd<Object> {
+        let mut node: Gd<Object> = Object::new_alloc();
+        // Don't register with self.gc; already freed.
+
+        node.call("free".into(), &[]);
+        node
+    }
+
+    fn add_dead_object_and_panic(&mut self) {
+        let mut node: Gd<Object> = Object::new_alloc();
+        self.gc.push(node.clone());
+
+        // Free already but still register with self.gc, to trigger 2nd error in destructor.
+        node.call("free".into(), &[]);
+        panic!("artificially trigger panic");
     }
 }
 
 impl Drop for SwapHolder {
     fn drop(&mut self) {
         for obj in self.gc.drain(..) {
-            println!("sw free");
             obj.free();
-            println!("after free");
         }
     }
 }

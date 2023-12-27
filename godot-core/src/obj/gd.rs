@@ -458,41 +458,56 @@ where
     /// - When this is invoked on an upcast `Gd<Object>` that dynamically points to a reference-counted type (i.e. operation not supported).
     /// - When the object is bound by an ongoing `bind()` or `bind_mut()` call (through a separate `Gd` pointer).
     pub fn free(self) {
-        // FIXME: free() is likely to be invoked in destructors during panic unwind. In this case, we cannot panic again.
-        // Check this with std::thread::panicking() and if an assertion fails, return + godot_error! instead of panicking.
-
         // Note: this method is NOT invoked when the free() call happens dynamically (e.g. through GDScript or reflection).
         // As such, do not use it for operations and validations to perform upon destruction.
+
+        // free() is likely to be invoked in destructors during panic unwind. In this case, we cannot panic again.
+        // Instead, we print an error and exit free() immediately. The closure is supposed to be used in a unit return statement.
+        let is_panic_unwind = std::thread::panicking();
+        let error_or_panic = |msg: String| {
+            if is_panic_unwind {
+                crate::godot_error!(
+                    "Encountered 2nd panic in free() during panic unwind; will skip destruction:\n{msg}"
+                );
+            } else {
+                panic!("{}", msg);
+            }
+        };
 
         // TODO disallow for singletons, either only at runtime or both at compile time (new memory policy) and runtime
         use dom::Domain;
 
         // Runtime check in case of T=Object, no-op otherwise
         let ref_counted = T::Mem::is_ref_counted(&self.raw);
-        assert_ne!(
-            ref_counted, Some(true),
-            "called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types\n\
-            object: {self:?}"
-        );
+        if ref_counted == Some(true) {
+            return error_or_panic(format!(
+                "Called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types\n\
+                Object: {self:?}"
+            ));
+        }
 
         // If ref_counted returned None, that means the instance was destroyed
-        assert!(
-            ref_counted == Some(false) && self.is_instance_valid(),
-            "called free() on already destroyed object"
-        );
+        if ref_counted != Some(false) || !self.is_instance_valid() {
+            return error_or_panic("called free() on already destroyed object".to_string());
+        }
 
         // If the object is still alive, make sure the dynamic type matches. Necessary because subsequent checks may rely on the
         // static type information to be correct. This is a no-op in Release mode.
-        self.raw.check_dynamic_type("free");
+        // Skip check during panic unwind; would need to rewrite whole thing to use Result instead. Having BOTH panic-in-panic and bad type is
+        // a very unlikely corner case.
+        if !is_panic_unwind {
+            self.raw.check_dynamic_type("free");
+        }
 
         // SAFETY: object must be alive, which was just checked above. No multithreading here.
         // Also checked in the C free_instance_func callback, however error message can be more precise here and we don't need to instruct
         // the engine about object destruction. Both paths are tested.
         let bound = unsafe { T::Declarer::is_currently_bound(&self.raw) };
-        assert!(
-            !bound,
-            "called free() while a bind() or bind_mut() call is active"
-        );
+        if bound {
+            return error_or_panic(
+                "called free() while a bind() or bind_mut() call is active".to_string(),
+            );
+        }
 
         // SAFETY: object alive as checked.
         // This destroys the Storage instance, no need to run destructor again.
@@ -500,6 +515,7 @@ where
             sys::interface_fn!(object_destroy)(self.raw.obj_sys());
         }
 
+        // TODO: this might leak associated data in Gd<T>, e.g. ClassName.
         std::mem::forget(self);
     }
 }
