@@ -16,11 +16,13 @@ env:
 #  GDEXT_FEATURES: '--features godot/serde'
   RETRY: ${{ github.workspace }}/.github/other/retry.sh
 
+  # ASan options: https://github.com/google/sanitizers/wiki/AddressSanitizerFlags
   # LSan options: https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer
   # * report_objects: list individual leaked objects when running LeakSanitizer
   LSAN_OPTIONS: report_objects=1
 
-  # ASan options: https://github.com/google/sanitizers/wiki/AddressSanitizerFlags
+  CARGO_DENY_VERSION: "0.14.3"
+  CARGO_MACHETE_VERSION: "0.6.0"
 
 defaults:
   run:
@@ -188,11 +190,11 @@ jobs:
             godot-binary: godot.macos.editor.dev.x86_64
 #            godot-prebuilt-patch: '4.2.x'
 
-          - name: macos-4.1
-            os: macos-12
-            artifact-name: macos-4.1
-            godot-binary: godot.macos.editor.dev.x86_64
-            godot-prebuilt-patch: '4.1.3'
+#          - name: macos-4.1
+#            os: macos-12
+#            artifact-name: macos-4.1
+#            godot-binary: godot.macos.editor.dev.x86_64
+#            godot-prebuilt-patch: '4.1.3'
 
           # Windows
 
@@ -214,11 +216,11 @@ jobs:
             godot-binary: godot.windows.editor.dev.x86_64.exe
             #godot-prebuilt-patch: '4.2.x'
 
-          - name: windows-4.1
-            os: windows-latest
-            artifact-name: windows-4.1
-            godot-binary: godot.windows.editor.dev.x86_64.exe
-            godot-prebuilt-patch: '4.1.3'
+#          - name: windows-4.1
+#            os: windows-latest
+#            artifact-name: windows-4.1
+#            godot-binary: godot.windows.editor.dev.x86_64.exe
+#            godot-prebuilt-patch: '4.1.3'
 
           # Linux
 
@@ -230,12 +232,12 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features godot/custom-godot
 
-          # Full codegen could also be moved to another job.
-          - name: linux-double-full
+          # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
+          - name: linux-double-full-lazy
             os: ubuntu-20.04
             artifact-name: linux-double-nightly
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
-            rust-extra-args: --features godot/custom-godot,godot/double-precision,godot/codegen-full
+            rust-extra-args: --features godot/custom-godot,godot/double-precision,godot/codegen-full,godot/lazy-function-tables
 
           - name: linux-features
             os: ubuntu-20.04
@@ -250,14 +252,7 @@ jobs:
             rust-extra-args: --release
             rust-cache-key: release
 
-          # TODO merge with other jobs
-          - name: linux-lazy-fptrs
-            os: ubuntu-20.04
-            artifact-name: linux-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/lazy-function-tables
-
-          # Linux compat
+          # Linux compat (4.0 and 4.1 disabled, already covered by memcheck)
 
           - name: linux-4.2
             os: ubuntu-20.04
@@ -265,17 +260,17 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             #godot-prebuilt-patch: '4.2.x'
 
-          - name: linux-4.1
-            os: ubuntu-20.04
-            artifact-name: linux-4.2
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.1.3'
-
-          - name: linux-4.0
-            os: ubuntu-20.04
-            artifact-name: linux-4.0
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.0.4'
+#          - name: linux-4.1
+#            os: ubuntu-20.04
+#            artifact-name: linux-4.2
+#            godot-binary: godot.linuxbsd.editor.dev.x86_64
+#            godot-prebuilt-patch: '4.1.3'
+#
+#          - name: linux-4.0
+#            os: ubuntu-20.04
+#            artifact-name: linux-4.0
+#            godot-binary: godot.linuxbsd.editor.dev.x86_64
+#            godot-prebuilt-patch: '4.0.4'
 
 
           # Memory checks: special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
@@ -356,6 +351,32 @@ jobs:
         run: ./.github/other/check-example.sh dodge-the-creeps
 
 
+  cargo-deny-machete:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # Deny
+      # Note: manually downloading is ~30s faster than https://github.com/EmbarkStudios/cargo-deny-action
+      - name: "Install cargo-deny"
+        run: |
+          wget --no-verbose https://github.com/EmbarkStudios/cargo-deny/releases/download/$CARGO_DENY_VERSION/cargo-deny-$CARGO_DENY_VERSION-x86_64-unknown-linux-musl.tar.gz -O cargo-deny.tar.gz
+          tar -zxvf cargo-deny.tar.gz
+          mkdir -p $HOME/.cargo/bin
+          mv cargo-deny-$CARGO_DENY_VERSION-x86_64-unknown-linux-musl/cargo-deny $HOME/.cargo/bin
+      - name: "Deny non-conforming dependencies"
+        run: cargo deny check --config .github/other/deny.toml
+
+      # Machete
+      - name: "Install cargo-machete"
+        uses: baptiste0928/cargo-install@v2
+        with:
+          crate: cargo-machete
+          version: ${{ env.CARGO_MACHETE_VERSION }}
+      - name: "Use machete to cut down dependencies"
+        run: cargo machete
+
+
   license-guard:
     runs-on: ubuntu-20.04
     steps:
@@ -386,6 +407,7 @@ jobs:
       - unit-test
       - godot-itest
       - run-examples
+      - cargo-deny-machete
       - license-guard
 
     runs-on: ubuntu-20.04
