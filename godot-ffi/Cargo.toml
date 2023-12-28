@@ -14,6 +14,9 @@ codegen-lazy-fptrs = ["godot-codegen/codegen-lazy-fptrs"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 trace = []
 
+# TODO: get rid of paste and gensym, they are trivially implementable with proc-macros. Update cargo-deny.
+# Especially gensym which pulls in entire syn for 10 LoC. See https://github.com/regiontog/gensym/blob/master/src/lib.rs.
+# Might however require godot-ffi to depend on godot-macro, which is not ideal...
 [dependencies]
 paste = "1"
 

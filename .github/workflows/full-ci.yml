@@ -16,11 +16,13 @@ env:
 #  GDEXT_FEATURES: '--features godot/serde'
   RETRY: ${{ github.workspace }}/.github/other/retry.sh
 
+  # ASan options: https://github.com/google/sanitizers/wiki/AddressSanitizerFlags
   # LSan options: https://github.com/google/sanitizers/wiki/AddressSanitizerLeakSanitizer
   # * report_objects: list individual leaked objects when running LeakSanitizer
   LSAN_OPTIONS: report_objects=1
 
-  # ASan options: https://github.com/google/sanitizers/wiki/AddressSanitizerFlags
+  CARGO_DENY_VERSION: "0.14.3"
+  CARGO_MACHETE_VERSION: "0.6.0"
 
 defaults:
   run:
@@ -349,6 +351,32 @@ jobs:
         run: ./.github/other/check-example.sh dodge-the-creeps
 
 
+  cargo-deny-machete:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # Deny
+      # Note: manually downloading is ~30s faster than https://github.com/EmbarkStudios/cargo-deny-action
+      - name: "Install cargo-deny"
+        run: |
+          wget --no-verbose https://github.com/EmbarkStudios/cargo-deny/releases/download/$CARGO_DENY_VERSION/cargo-deny-$CARGO_DENY_VERSION-x86_64-unknown-linux-musl.tar.gz -O cargo-deny.tar.gz
+          tar -zxvf cargo-deny.tar.gz
+          mkdir -p $HOME/.cargo/bin
+          mv cargo-deny-$CARGO_DENY_VERSION-x86_64-unknown-linux-musl/cargo-deny $HOME/.cargo/bin
+      - name: "Deny non-conforming dependencies"
+        run: cargo deny check --config .github/other/deny.toml
+
+      # Machete
+      - name: "Install cargo-machete"
+        uses: baptiste0928/cargo-install@v2
+        with:
+          crate: cargo-machete
+          version: ${{ env.CARGO_MACHETE_VERSION }}
+      - name: "Use machete to cut down dependencies"
+        run: cargo machete
+
+
   license-guard:
     runs-on: ubuntu-20.04
     steps:
@@ -379,6 +407,7 @@ jobs:
       - unit-test
       - godot-itest
       - run-examples
+      - cargo-deny-machete
       - license-guard
 
     runs-on: ubuntu-20.04
