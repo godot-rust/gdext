@@ -5,30 +5,28 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#![allow(dead_code)] // FIXME
-
+use crate::builtin::meta::ClassName;
+use crate::builtin::StringName;
 use crate::init::InitLevel;
 use crate::log;
 use crate::obj::*;
+use crate::out;
 use crate::private::as_storage;
 use crate::storage::InstanceStorage;
 use godot_ffi as sys;
 
 use sys::interface_fn;
 
-use crate::builtin::meta::ClassName;
-use crate::builtin::StringName;
-use crate::out;
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, TryLockError};
 use std::{fmt, ptr};
 
-// For now, that variable is needed for class unregistering. It's populated during class
-// registering. There is no actual concurrency here, because Godot call register/unregister in main
-// thread - Mutex is just casual way to ensure safety in this performance non-critical path.
-// Note that we panic on concurrent access instead of blocking - that's fail fast approach. If that
-// happen, most likely something changed on Godot side and analysis required to adopt these changes.
+// Needed for class unregistering. The variable is populated during class registering. There is no actual concurrency here, because Godot
+// calls register/unregister in the main thread. Mutex is just casual way to ensure safety in this non-performance-critical path.
+// Note that we panic on concurrent access instead of blocking (fail-fast approach). If that happens, most likely something changed on Godot
+// side and analysis required to adopt these changes.
+// For now, don't use Global<T> because we need try_lock(), which isn't yet provided.
 static LOADED_CLASSES: Mutex<Option<HashMap<InitLevel, Vec<ClassName>>>> = Mutex::new(None);
 
 // TODO(bromeon): some information coming from the proc-macro API is deferred through PluginComponent, while others is directly
@@ -182,6 +180,7 @@ struct ClassRegistrationInfo {
     godot_params: sys::GDExtensionClassCreationInfo,
     #[cfg(since_api = "4.2")]
     godot_params: sys::GDExtensionClassCreationInfo2,
+    #[allow(dead_code)] // Currently unused; may be useful for diagnostics in the future.
     init_level: InitLevel,
     is_editor_plugin: bool,
 }
@@ -305,7 +304,7 @@ pub fn unregister_classes(init_level: InitLevel) {
         .unwrap_or_default();
     out!("Unregistering classes of level {init_level:?}...");
     for class_name in loaded_classes_current_level.iter().rev() {
-        unregister_class_raw(class_name);
+        unregister_class_raw(*class_name);
     }
 }
 
@@ -315,9 +314,9 @@ fn get_loaded_classes_with_mutex() -> MutexGuard<'static, Option<HashMap<InitLev
         Ok(it) => it,
         Err(err) => match err {
             TryLockError::Poisoned(_err) => panic!(
-                "LOADED_CLASSES poisoned. seems like class registration or deregistration panicked."
+                "global lock for loaded classes poisoned; class registration or deregistration may have panicked"
             ),
-            TryLockError::WouldBlock => panic!("unexpected concurrent access detected to CLASSES"),
+            TryLockError::WouldBlock => panic!("unexpected concurrent access to global lock for loaded classes"),
         },
     }
 }
@@ -494,7 +493,7 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
     assert!(!info.is_editor_plugin);
 }
 
-fn unregister_class_raw(class_name: &ClassName) {
+fn unregister_class_raw(class_name: ClassName) {
     out!("Unregister class: {class_name}");
     unsafe {
         #[allow(clippy::let_unit_value)]

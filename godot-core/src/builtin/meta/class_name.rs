@@ -8,23 +8,15 @@
 use godot_ffi as sys;
 use std::collections::HashMap;
 use std::ffi::CStr;
-use std::{fmt, sync};
-
+use std::fmt;
 use std::hash::{Hash, Hasher};
 
 use crate::builtin::*;
+use sys::Global;
 
-// Why is this so ugly?
-// - Mutex: needed for global access (Sync).
-// - Option: needed to initialize lazily, because HashMap::new() is not const.
-// - Box: needed for pointer stability (HashMap insertion may invalidate pointers -- with_capacity() would be an alternative,
-//   but we don't know how many classes).
-// In theory a static mut would do the job, however if we allow for manual class registration (at any time), we need to count with
-// later adjustments.
-// We may also consider OnceLock with a static per class, but that needs to be code-generated (for #[derive] and engine classes), and
-// any manually registered classes would need to replicate it later.
-static CACHED_STRING_NAMES: sync::Mutex<Option<HashMap<ClassName, Box<StringName>>>> =
-    sync::Mutex::new(None);
+// Box is needed for pointer stability (HashMap insertion may invalidate pointers -- with_capacity() would be an alternative,
+// but we don't know how many classes).
+static CACHED_STRING_NAMES: Global<HashMap<ClassName, Box<StringName>>> = Global::default();
 
 /// Name of a class registered with Godot.
 ///
@@ -80,8 +72,7 @@ impl ClassName {
 
     // Takes a closure because the mutex guard protects the reference; so the &StringName cannot leave the scope.
     fn with_string_name<R>(&self, func: impl FnOnce(&StringName) -> R) -> R {
-        let mut guard = CACHED_STRING_NAMES.lock().unwrap();
-        let map = guard.get_or_insert_with(HashMap::new);
+        let mut map = CACHED_STRING_NAMES.lock();
 
         let value = map
             .entry(*self)

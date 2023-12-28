@@ -27,7 +27,7 @@ impl IntegerConstant {
         }
     }
 
-    fn register(&self, class_name: &ClassName, enum_name: &StringName, is_bitfield: bool) {
+    fn register(&self, class_name: ClassName, enum_name: &StringName, is_bitfield: bool) {
         unsafe {
             interface_fn!(classdb_register_extension_class_integer_constant)(
                 sys::get_library(),
@@ -56,7 +56,7 @@ pub enum ConstantKind {
 }
 
 impl ConstantKind {
-    fn register(&self, class_name: &ClassName) {
+    fn register(&self, class_name: ClassName) {
         match self {
             ConstantKind::Integer(integer) => {
                 integer.register(class_name, &StringName::default(), false)
@@ -87,6 +87,6 @@ impl ExportConstant {
     }
 
     pub fn register(&self) {
-        self.kind.register(&self.class_name)
+        self.kind.register(self.class_name)
     }
 }
