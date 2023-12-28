@@ -119,7 +119,7 @@ impl Main {
 impl INode for Main {
     fn init(base: Base<Node>) -> Self {
         Main {
-            mob_scene: PackedScene::new(),
+            mob_scene: PackedScene::new_gd(),
             score: 0,
             base,
             music: None,

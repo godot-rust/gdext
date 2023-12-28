@@ -161,8 +161,16 @@ pub(crate) fn object_ptr_from_id(instance_id: InstanceId) -> sys::GDExtensionObj
     unsafe { sys::interface_fn!(object_get_instance_from_id)(instance_id.to_u64()) }
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Implementation of this file
+pub(crate) fn construct_engine_object<T>() -> Gd<T>
+where
+    T: GodotClass<Declarer = EngineDomain>,
+{
+    // SAFETY: adhere to Godot API; valid class name and returned pointer is an object.
+    unsafe {
+        let object_ptr = sys::interface_fn!(classdb_construct_object)(T::class_name().string_sys());
+        Gd::from_obj_sys(object_ptr)
+    }
+}
 
 pub(crate) fn ensure_object_alive(
     instance_id: InstanceId,
@@ -202,6 +210,9 @@ pub(crate) fn ensure_object_inherits(
         This may happen if you change an object's identity through DerefMut."
     )
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation of this file
 
 /// Checks if `derived` inherits from `base`, using a cache for _successful_ queries.
 #[cfg(debug_assertions)]

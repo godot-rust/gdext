@@ -10,7 +10,7 @@ use godot::builtin::inner::InnerCallable;
 use godot::builtin::meta::ToGodot;
 use godot::builtin::{varray, Callable, GString, StringName, Variant};
 use godot::engine::{Node2D, Object};
-use godot::obj::UserClass;
+use godot::obj::{NewAlloc, NewGd};
 
 use crate::framework::itest;
 

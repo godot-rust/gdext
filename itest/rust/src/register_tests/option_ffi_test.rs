@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::obj::RawGd;
+use godot::obj::{NewAlloc, NewGd, RawGd};
 use godot::prelude::meta::GodotType;
 use godot::prelude::{godot_api, Gd, GodotClass, Node, Object, RefCounted};
 use godot::sys::GodotFfi;
@@ -56,7 +56,7 @@ impl OptionFfiTest {
 
     #[func]
     fn return_option_refcounted_some(&self) -> Option<Gd<RefCounted>> {
-        Some(RefCounted::new())
+        Some(RefCounted::new_gd())
     }
 
     #[func]

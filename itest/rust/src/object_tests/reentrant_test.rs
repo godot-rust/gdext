@@ -46,7 +46,7 @@ impl MyClass {
 
 #[itest]
 fn reentrant_call_succeeds() {
-    let mut class = MyClass::alloc_gd();
+    let mut class = MyClass::new_alloc();
 
     assert!(!class.bind().first_called_pre);
     assert!(!class.bind().first_called_post);
@@ -63,7 +63,7 @@ fn reentrant_call_succeeds() {
 
 #[itest]
 fn reentrant_emit_succeeds() {
-    let mut class = MyClass::alloc_gd();
+    let mut class = MyClass::new_alloc();
 
     let callable = class.callable("second");
     class.connect("some_signal".into(), callable);

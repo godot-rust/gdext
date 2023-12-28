@@ -131,20 +131,12 @@ impl<T: GodotClass> Inherits<T> for T {}
 pub trait ExportableObject: GodotClass {}
 
 /// Implemented for all user-defined classes, providing extensions on the raw object to interact with `Gd`.
+// #[deprecated = "Use `NewGd` and `NewAlloc` traits instead."]
 pub trait UserClass: GodotClass<Declarer = dom::UserDomain> {
     /// Return a new Gd which contains a default-constructed instance.
     ///
     /// `MyClass::new_gd()` is equivalent to `Gd::<MyClass>::default()`.
-    fn new_gd() -> Gd<Self>
-    where
-        Self: cap::GodotDefault + GodotClass<Mem = mem::StaticRefCount>,
-    {
-        Gd::default()
-    }
-
-    /// Return a new Gd which contains a default-constructed instance.
-    ///
-    /// `MyClass::new_gd()` is equivalent to `Gd::<MyClass>::default()`.
+    #[deprecated = "Use `NewAlloc::new_alloc()` instead."]
     #[must_use]
     fn alloc_gd<U>() -> Gd<Self>
     where
@@ -389,6 +381,45 @@ pub trait WithBaseField: GodotClass<Declarer = dom::UserDomain> {
     }
 }
 
+/// Extension trait for all reference-counted classes.
+pub trait NewGd: GodotClass {
+    /// Return a new Gd which contains a default-constructed instance.
+    ///
+    /// `MyClass::new_gd()` is equivalent to `Gd::<MyClass>::default()`.
+    fn new_gd() -> Gd<Self>;
+}
+
+impl<T> NewGd for T
+where
+    T: cap::GodotDefault + GodotClass<Mem = mem::StaticRefCount>,
+{
+    fn new_gd() -> Gd<Self> {
+        Gd::default()
+    }
+}
+
+/// Extension trait for all manually managed classes.
+pub trait NewAlloc: GodotClass {
+    /// Return a new Gd which contains a default-constructed instance.
+    ///
+    /// The result must be manually managed, e.g. by attaching it to the scene tree or calling `free()` after usage.
+    /// Failure to do so will result in memory leaks.
+    #[must_use]
+    fn new_alloc() -> Gd<Self>;
+}
+
+impl<T, U> NewAlloc for T
+where
+    T: cap::GodotDefault + GodotClass<Mem = U>,
+    U: mem::PossiblyManual,
+{
+    fn new_alloc() -> Gd<Self> {
+        use crate::obj::dom::Domain as _;
+
+        <Self as GodotClass>::Declarer::create_gd()
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Capability traits, providing dedicated functionalities for Godot classes
@@ -425,7 +456,7 @@ pub mod cap {
             debug_assert_eq!(
                 std::any::TypeId::of::<<Self as GodotClass>::Declarer>(),
                 std::any::TypeId::of::<dom::UserDomain>(),
-                "__godot_default() called on engine class; must be overridden for user classes"
+                "__godot_default() called on engine class; must be overridden for engine classes"
             );
 
             Gd::default_instance()
@@ -490,10 +521,10 @@ mod private {
 
 pub mod dom {
     use super::private::Sealed;
-    use crate::{
-        obj::{GodotClass, RawGd},
-        storage::Storage,
-    };
+    use crate::obj::cap::GodotDefault;
+    use crate::obj::{Gd, GodotClass, RawGd};
+    use crate::{callbacks, sys};
+    use crate::storage::Storage;
 
     /// Trait that specifies who declares a given `GodotClass`.
     pub trait Domain: Sealed {
@@ -513,6 +544,11 @@ pub mod dom {
         unsafe fn is_currently_bound<T>(obj: &RawGd<T>) -> bool
         where
             T: GodotClass<Declarer = Self>;
+
+        #[doc(hidden)]
+        fn create_gd<T>() -> Gd<T>
+        where
+            T: GodotDefault + GodotClass<Declarer = Self>;
     }
 
     /// Expresses that a class is declared by the Godot engine.
@@ -538,6 +574,17 @@ pub mod dom {
         {
             false
         }
+
+        fn create_gd<T>() -> Gd<T>
+        where
+            T: GodotDefault + GodotClass<Declarer = Self>,
+        {
+            unsafe {
+                let object_ptr =
+                    sys::interface_fn!(classdb_construct_object)(T::class_name().string_sys());
+                Gd::from_obj_sys(object_ptr)
+            }
+        }
     }
 
     /// Expresses that a class is declared by the user.
@@ -560,6 +607,16 @@ pub mod dom {
             T: GodotClass<Declarer = Self>,
         {
             obj.storage().unwrap_unchecked().is_bound()
+        }
+
+        fn create_gd<T>() -> Gd<T>
+        where
+            T: GodotDefault + GodotClass<Declarer = Self>,
+        {
+            unsafe {
+                let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
+                Gd::from_obj_sys(object_ptr)
+            }
         }
     }
 }

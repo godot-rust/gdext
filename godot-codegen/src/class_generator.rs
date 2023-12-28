@@ -452,7 +452,7 @@ fn make_constructor_and_default(
     // Note: this could use class_name() but is not yet done due to upcoming lazy-load refactoring.
     //let class_name_obj = quote! { <Self as crate::obj::GodotClass>::class_name() };
 
-    let (constructor, godot_default_impl);
+    let (constructor, has_godot_default_impl);
     if ctx.is_singleton(godot_class_name) {
         // Note: we cannot return &'static mut Self, as this would be very easy to mutably alias.
         // &'static Self would be possible, but we would lose the whole mutability information (even if that is best-effort and
@@ -468,43 +468,38 @@ fn make_constructor_and_default(
                 }
             }
         };
-        godot_default_impl = TokenStream::new();
+        has_godot_default_impl = false;
     } else if !class.is_instantiable {
         // Abstract base classes or non-singleton classes without constructor
         constructor = TokenStream::new();
-        godot_default_impl = TokenStream::new();
+        has_godot_default_impl = false;
     } else if class.is_refcounted {
         // RefCounted, Resource, etc
         constructor = quote! {
+            #[deprecated = "Replaced with `new_gd` in extension trait `NewGd`."]
             pub fn new() -> Gd<Self> {
-                unsafe {
-                    let class_name = #godot_class_stringname;
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.string_sys());
-                    Gd::from_obj_sys(object_ptr)
-                }
+                // <Self as crate::obj::NewGd>::new_gd()
+                crate::obj::Gd::default()
             }
         };
-        godot_default_impl = quote! {
-            impl crate::obj::cap::GodotDefault for #class_name {
-                fn __godot_default() -> crate::obj::Gd<Self> {
-                    Self::new()
-                }
-            }
-        };
+        has_godot_default_impl = true;
     } else {
         // Manually managed classes: Object, Node etc
-        constructor = quote! {
-            #[must_use]
-            pub fn new_alloc() -> Gd<Self> {
-                unsafe {
-                    let class_name = #godot_class_stringname;
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.string_sys());
-                    Gd::from_obj_sys(object_ptr)
+        constructor = quote! {};
+        has_godot_default_impl = true;
+    }
+
+    let godot_default_impl = if has_godot_default_impl {
+        quote! {
+            impl crate::obj::cap::GodotDefault for #class_name {
+                fn __godot_default() -> crate::obj::Gd<Self> {
+                    crate::engine::construct_engine_object::<Self>()
                 }
             }
-        };
-        godot_default_impl = TokenStream::new();
-    }
+        }
+    } else {
+        TokenStream::new()
+    };
 
     (constructor, godot_default_impl)
 }

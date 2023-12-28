@@ -140,7 +140,7 @@ impl INode for HasProperty {
             int_val_setter: 0,
             object_val: None,
             string_val: GString::new(),
-            texture_val: Texture::new(),
+            texture_val: Texture::new_gd(),
             texture_val_rw: None,
         }
     }
@@ -382,7 +382,7 @@ pub struct ExportResource {
 
 #[itest]
 fn export_resource() {
-    let class = ExportResource::alloc_gd();
+    let class = ExportResource::new_alloc();
 
     let property = class
         .get_property_list()

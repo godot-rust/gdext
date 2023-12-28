@@ -56,10 +56,9 @@ use super::RawGd;
 ///
 /// To construct default instances of various `Gd<T>` types, there are extension methods on the type `T` itself:
 ///
-/// | Type \ Memory Strategy | Ref-counted          | Manually managed      | Singleton               |
-/// |------------------------|----------------------|-----------------------|-------------------------|
-/// | **Engine type**        | `Resource::new()`    | `Node::new_alloc()`   | `Os::singleton()`       |
-/// | **User type**          | `MyClass::new_gd()`  | `MyClass::alloc_gd()` | _(not yet implemented)_ |
+/// - Manually managed: [`NewAlloc::new_alloc()`][crate::obj::NewAlloc::new_alloc]
+/// - Reference-counted: [`NewGd::new_gd()`][crate::obj::NewGd::new_gd]
+/// - Singletons: `T::singleton()` (inherent)
 ///
 /// In addition, the smart pointer can be constructed in multiple ways:
 ///
@@ -150,7 +149,7 @@ where
         Self::from_object(user_object)
     }
 
-    #[deprecated = "Use `Gd::default()` or the short-hands `T::new_gd()` and `T::alloc_gd()` instead."]
+    #[deprecated = "Use `Gd::default()` or the short-hands `T::new_gd()` and `T::new_alloc()` instead."]
     pub fn new_default() -> Self
     where
         T: cap::GodotDefault,
@@ -351,7 +350,7 @@ impl<T: GodotClass> Gd<T> {
         T: cap::GodotDefault,
     {
         unsafe {
-            let object_ptr = crate::callbacks::create::<T>(std::ptr::null_mut());
+            let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
             Gd::from_obj_sys(object_ptr)
         }
     }

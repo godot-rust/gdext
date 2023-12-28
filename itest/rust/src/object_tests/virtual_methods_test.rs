@@ -23,7 +23,7 @@ use godot::engine::{
     InputEvent, InputEventAction, Node, Node2D, PrimitiveMesh, RefCounted, ResourceFormatLoader,
     ResourceLoader, Viewport, Window,
 };
-use godot::obj::{Base, Gd, UserClass};
+use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::private::class_macros::assert_eq_approx;
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
@@ -198,7 +198,7 @@ impl IResourceFormatLoader for FormatLoaderTest {
         _use_sub_threads: bool,
         _cache_mode: i32,
     ) -> Variant {
-        BoxMesh::new().to_variant()
+        BoxMesh::new_gd().to_variant()
     }
 }
 
@@ -239,7 +239,7 @@ fn test_to_string() {
 
 #[itest]
 fn test_ready(test_context: &TestContext) {
-    let obj = VirtualReadyTest::alloc_gd();
+    let obj = VirtualReadyTest::new_alloc();
     assert_eq!(obj.bind().implementation_value, 0);
 
     // Add to scene tree
@@ -252,7 +252,7 @@ fn test_ready(test_context: &TestContext) {
 
 #[itest]
 fn test_ready_multiple_fires(test_context: &TestContext) {
-    let obj = VirtualReadyTest::alloc_gd();
+    let obj = VirtualReadyTest::new_alloc();
     assert_eq!(obj.bind().implementation_value, 0);
 
     let mut test_node = test_context.scene_tree.clone();
@@ -273,7 +273,7 @@ fn test_ready_multiple_fires(test_context: &TestContext) {
 
 #[itest]
 fn test_ready_request_ready(test_context: &TestContext) {
-    let obj = VirtualReadyTest::alloc_gd();
+    let obj = VirtualReadyTest::new_alloc();
     assert_eq!(obj.bind().implementation_value, 0);
 
     let mut test_node = test_context.scene_tree.clone();
@@ -304,7 +304,7 @@ fn test_ready_request_ready(test_context: &TestContext) {
 
 #[itest]
 fn test_tree_enters_exits(test_context: &TestContext) {
-    let obj = VirtualTreeTest::alloc_gd();
+    let obj = VirtualTreeTest::new_alloc();
     assert_eq!(obj.bind().tree_enters, 0);
     assert_eq!(obj.bind().tree_exits, 0);
     let mut test_node = test_context.scene_tree.clone();
@@ -381,7 +381,7 @@ fn test_format_loader(_test_context: &TestContext) {
 
 #[itest]
 fn test_input_event(test_context: &TestContext) {
-    let obj = VirtualInputTest::alloc_gd();
+    let obj = VirtualInputTest::new_alloc();
     assert_eq!(obj.bind().event, None);
     let mut test_viewport = Window::new_alloc();
 
@@ -392,7 +392,7 @@ fn test_input_event(test_context: &TestContext) {
 
     test_viewport.clone().add_child(obj.clone().upcast());
 
-    let mut event = InputEventAction::new();
+    let mut event = InputEventAction::new_gd();
     event.set_action("debug".into());
     event.set_pressed(true);
 
@@ -410,7 +410,7 @@ fn test_input_event(test_context: &TestContext) {
 fn test_input_event_multiple(test_context: &TestContext) {
     let mut objs = Vec::new();
     for _ in 0..5 {
-        let obj = VirtualInputTest::alloc_gd();
+        let obj = VirtualInputTest::new_alloc();
         assert_eq!(obj.bind().event, None);
         objs.push(obj);
     }
@@ -425,7 +425,7 @@ fn test_input_event_multiple(test_context: &TestContext) {
         test_viewport.clone().add_child(obj.clone().upcast())
     }
 
-    let mut event = InputEventAction::new();
+    let mut event = InputEventAction::new_gd();
     event.set_action("debug".into());
     event.set_pressed(true);
 
@@ -441,7 +441,7 @@ fn test_input_event_multiple(test_context: &TestContext) {
 
 #[itest]
 fn test_notifications() {
-    let obj = NotificationTest::alloc_gd();
+    let obj = NotificationTest::new_alloc();
     let mut node = obj.clone().upcast::<Node>();
     node.notify(NodeNotification::Unpaused);
     node.notify(NodeNotification::EditorPostSave);

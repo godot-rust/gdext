@@ -7,7 +7,7 @@
 
 use godot::bind::GodotClass;
 use godot::engine::{load, save, try_load, try_save};
-use godot::obj::UserClass;
+use godot::obj::NewGd;
 
 use crate::framework::itest;
 
