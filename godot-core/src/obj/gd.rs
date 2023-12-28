@@ -16,7 +16,7 @@ use crate::builtin::meta::{
     ConvertError, FromFfiError, FromGodot, GodotConvert, GodotType, ToGodot,
 };
 use crate::builtin::{Callable, StringName};
-use crate::obj::{cap, dom, mem, EngineEnum, GdDerefTarget, GodotClass, Inherits, Share};
+use crate::obj::{cap, dom, mem, EngineEnum, GdDerefTarget, GodotClass, Inherits};
 use crate::obj::{GdMut, GdRef, InstanceId};
 use crate::property::{Export, Property, PropertyHintInfo, TypeStringHint};
 use crate::{callbacks, engine, out};
@@ -593,12 +593,6 @@ impl<T: GodotClass> Clone for Gd<T> {
     fn clone(&self) -> Self {
         out!("Gd::clone");
         Self::from_ffi(self.raw.clone())
-    }
-}
-
-impl<T: GodotClass> Share for Gd<T> {
-    fn share(&self) -> Self {
-        self.clone()
     }
 }
 

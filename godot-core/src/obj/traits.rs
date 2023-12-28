@@ -77,15 +77,6 @@ unsafe impl GodotClass for () {
     }
 }
 
-/// Trait to create more references from a smart pointer or collection.
-pub trait Share {
-    /// Creates a new reference that points to the same object.
-    ///
-    /// If the referred-to object is reference-counted, this will increment the count.
-    #[deprecated = "Replaced with `Clone::clone()`."]
-    fn share(&self) -> Self;
-}
-
 /// Non-strict inheritance relationship in the Godot class hierarchy.
 ///
 /// `Derived: Inherits<Base>` means that either `Derived` is a subclass of `Base`, or the class `Base` itself (hence "non-strict").
