@@ -33,6 +33,7 @@ pub(crate) mod gen {
 
 mod compat;
 mod extras;
+mod global;
 mod godot_ffi;
 mod opaque;
 mod plugins;
@@ -69,6 +70,7 @@ pub use extras::*;
 pub use gen::central::*;
 pub use gen::gdextension_interface::*;
 pub use gen::interface::*;
+pub use global::*;
 pub use string_cache::StringCache;
 pub use toolbox::*;
 
