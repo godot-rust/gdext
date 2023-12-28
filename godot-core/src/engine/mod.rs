@@ -7,11 +7,12 @@
 
 //! Godot engine classes and methods.
 
-// Re-exports of generated symbols
 use crate::builtin::{GString, NodePath};
 use crate::obj::dom::EngineDomain;
 use crate::obj::{Gd, GodotClass, Inherits, InstanceId};
+use std::collections::HashSet;
 
+// Re-exports of generated symbols
 pub use crate::gen::central::global;
 pub use crate::gen::classes::*;
 pub use crate::gen::utilities;
@@ -246,15 +247,13 @@ pub(crate) fn ensure_object_alive(
 
 #[cfg(debug_assertions)]
 pub(crate) fn ensure_object_inherits(
-    derived: &ClassName,
-    base: &ClassName,
+    derived: ClassName,
+    base: ClassName,
     instance_id: InstanceId,
 ) -> bool {
-    // TODO static cache.
-
     if derived == base
-        || base == &Object::class_name() // always true
-        || ClassDb::singleton().is_parent_class(derived.to_string_name(), base.to_string_name())
+        || base == Object::class_name() // for Object base, anything inherits by definition
+        || is_derived_base_cached(derived, base)
     {
         return true;
     }
@@ -263,6 +262,30 @@ pub(crate) fn ensure_object_inherits(
         "Instance of ID {instance_id} has type {derived} but is incorrectly stored in a Gd<{base}>.\n\
         This may happen if you change an object's identity through DerefMut."
     )
+}
+
+/// Checks if `derived` inherits from `base`, using a cache for _successful_ queries.
+#[cfg(debug_assertions)]
+fn is_derived_base_cached(derived: ClassName, base: ClassName) -> bool {
+    use sys::Global;
+    static CACHE: Global<HashSet<(ClassName, ClassName)>> = Global::default();
+
+    let mut cache = CACHE.lock();
+    let key = (derived, base);
+    if cache.contains(&key) {
+        return true;
+    }
+
+    // Query Godot API (takes linear time in depth of inheritance tree).
+    let is_parent_class =
+        ClassDb::singleton().is_parent_class(derived.to_string_name(), base.to_string_name());
+
+    // Insert only successful queries. Those that fail are on the error path already and don't need to be fast.
+    if is_parent_class {
+        cache.insert(key);
+    }
+
+    is_parent_class
 }
 
 // Separate function, to avoid constructing string twice
