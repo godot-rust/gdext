@@ -15,19 +15,17 @@ use crate::private::as_storage;
 use crate::storage::InstanceStorage;
 use godot_ffi as sys;
 
-use sys::interface_fn;
+use sys::{interface_fn, Global, GlobalGuard, GlobalLockError};
 
 use std::any::Any;
 use std::collections::HashMap;
-use std::sync::{Mutex, MutexGuard, TryLockError};
 use std::{fmt, ptr};
 
 // Needed for class unregistering. The variable is populated during class registering. There is no actual concurrency here, because Godot
 // calls register/unregister in the main thread. Mutex is just casual way to ensure safety in this non-performance-critical path.
 // Note that we panic on concurrent access instead of blocking (fail-fast approach). If that happens, most likely something changed on Godot
 // side and analysis required to adopt these changes.
-// For now, don't use Global<T> because we need try_lock(), which isn't yet provided.
-static LOADED_CLASSES: Mutex<Option<HashMap<InitLevel, Vec<ClassName>>>> = Mutex::new(None);
+static LOADED_CLASSES: Global<HashMap<InitLevel, Vec<ClassName>>> = Global::default();
 
 // TODO(bromeon): some information coming from the proc-macro API is deferred through PluginComponent, while others is directly
 // translated to code. Consider moving more code to the PluginComponent, which allows for more dynamic registration and will
@@ -275,9 +273,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
         fill_class_info(elem.component.clone(), class_info);
     });
 
-    let mut loaded_classes_guard = get_loaded_classes_with_mutex();
-    let loaded_classes_by_level = loaded_classes_guard.get_or_insert_with(HashMap::default);
-
+    let mut loaded_classes_by_level = global_loaded_classes();
     for info in map.into_values() {
         out!(
             "Register class:   {} at level `{init_level:?}`",
@@ -297,8 +293,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
 }
 
 pub fn unregister_classes(init_level: InitLevel) {
-    let mut loaded_classes_guard = get_loaded_classes_with_mutex();
-    let loaded_classes_by_level = loaded_classes_guard.get_or_insert_with(HashMap::default);
+    let mut loaded_classes_by_level = global_loaded_classes();
     let loaded_classes_current_level = loaded_classes_by_level
         .remove(&init_level)
         .unwrap_or_default();
@@ -308,15 +303,15 @@ pub fn unregister_classes(init_level: InitLevel) {
     }
 }
 
-fn get_loaded_classes_with_mutex() -> MutexGuard<'static, Option<HashMap<InitLevel, Vec<ClassName>>>>
-{
+fn global_loaded_classes() -> GlobalGuard<'static, HashMap<InitLevel, Vec<ClassName>>> {
     match LOADED_CLASSES.try_lock() {
         Ok(it) => it,
         Err(err) => match err {
-            TryLockError::Poisoned(_err) => panic!(
+            GlobalLockError::Poisoned {..} => panic!(
                 "global lock for loaded classes poisoned; class registration or deregistration may have panicked"
             ),
-            TryLockError::WouldBlock => panic!("unexpected concurrent access to global lock for loaded classes"),
+            GlobalLockError::WouldBlock => panic!("unexpected concurrent access to global lock for loaded classes"),
+            GlobalLockError::InitFailed => unreachable!("global lock for loaded classes not initialized"),
         },
     }
 }

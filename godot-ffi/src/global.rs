@@ -6,7 +6,7 @@
  */
 
 use std::ops::{Deref, DerefMut};
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Mutex, MutexGuard, TryLockError};
 
 /// Ergonomic global variables.
 ///
@@ -19,8 +19,8 @@ use std::sync::{Mutex, MutexGuard};
 /// - Ergonomic access through guards to both `&T` and `&mut T`.
 /// - Completely safe usage. Almost completely safe implementation (besides `unreachable_unchecked`).
 ///
-/// There are two main methods: [`new()`](Self::new) and [`lock()`](Self::lock). Additionally, [`default()`](Self::default) is provided
-/// for convenience.
+/// There are two methods for construction: [`new()`](Self::new) and [`default()`](Self::default).
+/// For access, you should primarily use [`lock()`](Self::lock). There is also [`try_lock()`](Self::try_lock) for special cases.
 pub struct Global<T> {
     // When needed, this could be changed to use RwLock and separate read/write guards.
     value: Mutex<InitState<T>>,
@@ -55,24 +55,57 @@ impl<T> Global<T> {
     /// If the initialization function panics. Once that happens, the global is considered poisoned and all future calls to `lock()` will panic.
     /// This can currently not be recovered from.
     pub fn lock(&self) -> GlobalGuard<'_, T> {
-        let guard = self.ensure_init();
-        debug_assert!(matches!(*guard, InitState::Initialized(_)));
+        let mutex_guard = self
+            .value
+            .lock()
+            .expect("Global<T> poisoned; a thread has panicked while holding a lock to it");
 
-        GlobalGuard { guard }
+        let guard = Self::ensure_init(mutex_guard, true)
+            .unwrap_or_else(|| panic!("previous Global<T> initialization failed due to panic"));
+
+        debug_assert!(matches!(*guard.mutex_guard, InitState::Initialized(_)));
+        guard
     }
 
-    fn ensure_init(&self) -> MutexGuard<'_, InitState<T>> {
-        let mut guard = self.value.lock().expect("lock poisoned");
-        let pending_state = match &mut *guard {
+    /// Non-panicking access with error introspection.
+    pub fn try_lock(&self) -> Result<GlobalGuard<'_, T>, GlobalLockError<'_, T>> {
+        let guard = match self.value.try_lock() {
+            Ok(mutex_guard) => Self::ensure_init(mutex_guard, false),
+            Err(TryLockError::WouldBlock) => {
+                return Err(GlobalLockError::WouldBlock);
+            }
+            Err(TryLockError::Poisoned(poisoned)) => {
+                return Err(GlobalLockError::Poisoned {
+                    circumvent: GlobalGuard {
+                        mutex_guard: poisoned.into_inner(),
+                    },
+                });
+            }
+        };
+
+        match guard {
+            None => Err(GlobalLockError::InitFailed),
+            Some(guard) => {
+                debug_assert!(matches!(*guard.mutex_guard, InitState::Initialized(_)));
+                Ok(guard)
+            }
+        }
+    }
+
+    fn ensure_init(
+        mut mutex_guard: MutexGuard<'_, InitState<T>>,
+        may_panic: bool,
+    ) -> Option<GlobalGuard<'_, T>> {
+        let pending_state = match &mut *mutex_guard {
             InitState::Initialized(_) => {
-                return guard;
+                return Some(GlobalGuard { mutex_guard });
             }
             InitState::TransientInitializing => {
                 // SAFETY: only set inside this function and all paths (panic + return) leave the enum in a different state.
                 unsafe { std::hint::unreachable_unchecked() };
             }
             InitState::Failed => {
-                panic!("previous Global<T> initialization failed due to panic")
+                return None;
             }
             state @ InitState::Pending(_) => {
                 std::mem::replace(state, InitState::TransientInitializing)
@@ -87,15 +120,21 @@ impl<T> Global<T> {
         // Unwinding should be safe here, as there is no unsafe code relying on it.
         let init_fn = std::panic::AssertUnwindSafe(init_fn);
         match std::panic::catch_unwind(init_fn) {
-            Ok(value) => *guard = InitState::Initialized(value),
+            Ok(value) => *mutex_guard = InitState::Initialized(value),
             Err(e) => {
                 eprintln!("panic during Global<T> initialization");
-                *guard = InitState::Failed;
-                std::panic::resume_unwind(e);
+                *mutex_guard = InitState::Failed;
+
+                if may_panic {
+                    std::panic::resume_unwind(e);
+                } else {
+                    // Note: this currently swallows panic.
+                    return None;
+                }
             }
         };
 
-        guard
+        Some(GlobalGuard { mutex_guard })
     }
 }
 
@@ -104,21 +143,36 @@ impl<T> Global<T> {
 
 /// Guard that temporarily gives access to a `Global<T>`'s inner value.
 pub struct GlobalGuard<'a, T> {
-    guard: MutexGuard<'a, InitState<T>>,
+    mutex_guard: MutexGuard<'a, InitState<T>>,
 }
 
 impl<T> Deref for GlobalGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        self.guard.unwrap_ref()
+        self.mutex_guard.unwrap_ref()
     }
 }
 
 impl<T> DerefMut for GlobalGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.guard.unwrap_mut()
+        self.mutex_guard.unwrap_mut()
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Errors
+
+/// Guard that temporarily gives access to a `Global<T>`'s inner value.
+pub enum GlobalLockError<'a, T> {
+    /// The mutex is currently locked by another thread.
+    WouldBlock,
+
+    /// A panic occurred while a lock was held. This excludes initialization errors.
+    Poisoned { circumvent: GlobalGuard<'a, T> },
+
+    /// The initialization function panicked.
+    InitFailed,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -163,6 +217,8 @@ mod tests {
 
     static MAP: Global<HashMap<i32, &'static str>> = Global::default();
     static VEC: Global<Vec<i32>> = Global::new(|| vec![1, 2, 3]);
+    static FAILED: Global<()> = Global::new(|| panic!("failed"));
+    static POISON: Global<i32> = Global::new(|| 36);
 
     #[test]
     fn test_global_map() {
@@ -193,5 +249,38 @@ mod tests {
 
         let vec = VEC.lock();
         assert_eq!(*vec, &[1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn test_global_would_block() {
+        let vec = VEC.lock();
+
+        let vec2 = VEC.try_lock();
+        assert!(matches!(vec2, Err(GlobalLockError::WouldBlock)));
+    }
+
+    #[test]
+    fn test_global_init_failed() {
+        let guard = FAILED.try_lock();
+        assert!(matches!(guard, Err(GlobalLockError::InitFailed)));
+
+        // Subsequent access still returns same error.
+        let guard = FAILED.try_lock();
+        assert!(matches!(guard, Err(GlobalLockError::InitFailed)));
+    }
+
+    #[test]
+    fn test_global_poison() {
+        let result = std::panic::catch_unwind(|| {
+            let guard = POISON.lock();
+            panic!("poison injection");
+        });
+        assert!(result.is_err());
+
+        let guard = POISON.try_lock();
+        let Err(GlobalLockError::Poisoned { circumvent }) = guard else {
+            panic!("expected GlobalLockError::Poisoned");
+        };
+        assert_eq!(*circumvent, 36);
     }
 }
