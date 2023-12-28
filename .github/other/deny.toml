@@ -9,6 +9,8 @@
 # The values provided in this template are the default values that will be used
 # when any section or field is not specified in your own configuration
 
+# Root options
+
 # If 1 or more target triples (and optionally, target_features) are specified,
 # only the specified targets will be checked when running `cargo deny check`.
 # This means, if a particular package is only ever used as a target specific
@@ -26,6 +28,30 @@ targets = [
     # the actual valid features supported by the target architecture.
     #{ triple = "wasm32-unknown-unknown", features = ["atomics"] },
 ]
+# When creating the dependency graph used as the source of truth when checks are
+# executed, this field can be used to prune crates from the graph, removing them
+# from the view of cargo-deny. This is an extremely heavy hammer, as if a crate
+# is pruned from the graph, all of its dependencies will also be pruned unless
+# they are connected to another crate in the graph that hasn't been pruned,
+# so it should be used with care. The identifiers are [Package ID Specifications]
+# (https://doc.rust-lang.org/cargo/reference/pkgid-spec.html)
+#exclude = []
+# If true, metadata will be collected with `--all-features`. Note that this can't
+# be toggled off if true, if you want to conditionally enable `--all-features` it
+# is recommended to pass `--all-features` on the cmd line instead
+all-features = false
+# If true, metadata will be collected with `--no-default-features`. The same
+# caveat with `all-features` applies
+no-default-features = false
+# If set, these feature will be enabled when collecting metadata. If `--features`
+# is specified on the cmd line they will take precedence over this option.
+#features = []
+# When outputting inclusion graphs in diagnostics that include features, this
+# option can be used to specify the depth at which feature edges will be added.
+# This option is included since the graphs can be quite large and the addition
+# of features from the crate(s) to all of the graph roots can be far too verbose.
+# This option can be overridden via `--feature-depth` on the cmd line
+feature-depth = 1
 
 # This section is considered when running `cargo deny check advisories`
 # More documentation for the advisories section can be found here:
@@ -48,7 +74,7 @@ notice = "warn"
 # A list of advisory IDs to ignore. Note that ignored advisories will still
 # output a note when they are encountered.
 ignore = [
-    # "RUSTSEC-0000-0000",
+    #"RUSTSEC-0000-0000",
 ]
 # Threshold for security vulnerabilities, any vulnerability with a CVSS score
 # lower than the range specified will be ignored. Note that ignored advisories
@@ -59,6 +85,12 @@ ignore = [
 # * High - CVSS Score 7.0 - 8.9
 # * Critical - CVSS Score 9.0 - 10.0
 #severity-threshold =
+
+# If this is true, then cargo deny will use the git executable to fetch advisory database.
+# If this is false, then it uses a built-in git library.
+# Setting this to true can be helpful if you have special authentication requirements that cargo-deny does not support.
+# See Git Authentication for more information about setting up git authentication.
+#git-fetch-with-cli = true
 
 # This section is considered when running `cargo deny check licenses`
 # More documentation for the licenses section can be found here:
@@ -79,16 +111,6 @@ allow = [
     "MPL-2.0",
     #"Apache-2.0 WITH LLVM-exception",
 ]
-# What to do if a license in the above list is not actually used in a dependency
-# We allow this since we don't want to fine-tune deny.toml every time we add/remove
-# a permissive license.
-unused-allowed-license = "allow"
-# Allow 1 or more licenses on a per-crate basis, so that particular licenses
-# aren't accepted for every possible crate as with the normal allow list
-exceptions = [
-    # Each entry is the crate and version constraint, and its specific allow list
-    # { name = "crate", allow = ["License"], version = "*" },
-]
 # List of explicitly disallowed licenses
 # See https://spdx.org/licenses/ for list of possible licenses
 # [possible values: any SPDX 3.11 short identifier (+ optional exception)].
@@ -100,8 +122,10 @@ copyleft = "deny"
 # Blanket approval or denial for OSI-approved or FSF Free/Libre licenses
 # * both - The license will be approved if it is both OSI-approved *AND* FSF
 # * either - The license will be approved if it is either OSI-approved *OR* FSF
-# * osi-only - The license will be approved if is OSI-approved *AND NOT* FSF
-# * fsf-only - The license will be approved if is FSF *AND NOT* OSI-approved
+# * osi - The license will be approved if it is OSI approved
+# * fsf - The license will be approved if it is FSF Free
+# * osi-only - The license will be approved if it is OSI-approved *AND NOT* FSF
+# * fsf-only - The license will be approved if it is FSF *AND NOT* OSI-approved
 # * neither - This predicate is ignored and the default lint level is used
 allow-osi-fsf-free = "neither"
 # Lint level used when no other predicates are matched
@@ -114,6 +138,13 @@ default = "deny"
 # canonical license text of a valid SPDX license file.
 # [possible values: any between 0.0 and 1.0].
 confidence-threshold = 0.8
+# Allow 1 or more licenses on a per-crate basis, so that particular licenses
+# aren't accepted for every possible crate as with the normal allow list
+exceptions = [
+    # Each entry is the crate and version constraint, and its specific allow
+    # list
+    #{ allow = ["Zlib"], name = "adler32", version = "*" },
+]
 
 # Some crates don't have (easily) machine readable licensing information,
 # adding a clarification entry for it allows you to manually specify the
@@ -131,8 +162,8 @@ confidence-threshold = 0.8
 # and the crate will be checked normally, which may produce warnings or errors
 # depending on the rest of your configuration
 #license-files = [
-# Each entry is a crate relative path, and the (opaque) hash of its contents
-#{ path = "LICENSE", hash = 0xbd0eed23 }
+    # Each entry is a crate relative path, and the (opaque) hash of its contents
+    #{ path = "LICENSE", hash = 0xbd0eed23 }
 #]
 
 [licenses.private]
@@ -162,6 +193,14 @@ wildcards = "allow"
 # * simplest-path - The path to the version with the fewest edges is highlighted
 # * all - Both lowest-version and simplest-path are used
 highlight = "all"
+# The default lint level for `default` features for crates that are members of
+# the workspace that is being checked. This can be overridden by allowing/denying
+# `default` on a crate-by-crate basis if desired.
+workspace-default-features = "allow"
+# The default lint level for `default` features for external crates that are not
+# members of the workspace. This can be overridden by allowing/denying `default`
+# on a crate-by-crate basis if desired.
+external-default-features = "allow"
 # List of crates that are allowed. Use with care!
 allow = [
     #{ name = "ansi_term", version = "=0.11.0" },
@@ -189,6 +228,30 @@ deny = [
     { name = "syn", wrappers = ["bindgen", "gensym"] },
     { name = "serde", wrappers = ["godot-core", "serde_json"] },
 ]
+
+# List of features to allow/deny
+# Each entry the name of a crate and a version range. If version is
+# not specified, all versions will be matched.
+#[[bans.features]]
+#name = "reqwest"
+# Features to not allow
+#deny = ["json"]
+# Features to allow
+#allow = [
+#    "rustls",
+#    "__rustls",
+#    "__tls",
+#    "hyper-rustls",
+#    "rustls",
+#    "rustls-pemfile",
+#    "rustls-tls-webpki-roots",
+#    "tokio-rustls",
+#    "webpki-roots",
+#]
+# If true, the allowed features must exactly match the enabled feature set. If
+# this is set there is no point setting `deny`
+#exact = true
+
 # Certain crates/versions that will be skipped when doing duplicate detection.
 skip = [
     #{ name = "ansi_term", version = "=0.11.0" },
@@ -196,7 +259,7 @@ skip = [
 # Similarly to `skip` allows you to skip certain crates during duplicate
 # detection. Unlike skip, it also includes the entire tree of transitive
 # dependencies starting at the specified crate, up to a certain depth, which is
-# by default infinite
+# by default infinite.
 skip-tree = [
     #{ name = "ansi_term", version = "=0.11.0", depth = 20 },
 ]
@@ -218,6 +281,7 @@ allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = []
 
 [sources.allow-org]
+# 1 or more github.com organizations to allow git sources for
 github = ["godot-rust"]
 # 1 or more gitlab.com organizations to allow git sources for
 #gitlab = [""]
