@@ -8,8 +8,7 @@
 //! Godot engine classes and methods.
 
 use crate::builtin::{GString, NodePath};
-use crate::obj::dom::EngineDomain;
-use crate::obj::{Gd, GodotClass, Inherits, InstanceId};
+use crate::obj::{bounds, Bounds, Gd, GodotClass, Inherits, InstanceId};
 use std::collections::HashSet;
 
 // Re-exports of generated symbols
@@ -115,7 +114,7 @@ impl NodeExt for Node {
 
 impl<U> NodeExt for Gd<U>
 where
-    U: GodotClass<Declarer = EngineDomain> + Inherits<Node>,
+    U: Bounds<Declarer = bounds::DeclEngine> + Inherits<Node>,
 {
     fn try_get_node_as<T>(&self, path: impl Into<NodePath>) -> Option<Gd<T>>
     where
@@ -163,7 +162,7 @@ pub(crate) fn object_ptr_from_id(instance_id: InstanceId) -> sys::GDExtensionObj
 
 pub(crate) fn construct_engine_object<T>() -> Gd<T>
 where
-    T: GodotClass<Declarer = EngineDomain>,
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
 {
     // SAFETY: adhere to Godot API; valid class name and returned pointer is an object.
     unsafe {

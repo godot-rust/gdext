@@ -604,12 +604,18 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         }
     };
 
-    let memory = if class_name.rust_ty == "Object" {
-        ident("DynamicRefCount")
+    let assoc_dyn_memory = if class_name.rust_ty == "Object" {
+        ident("MemDynamic")
     } else if class.is_refcounted {
-        ident("StaticRefCount")
+        ident("MemRefCounted")
     } else {
-        ident("ManualMemory")
+        ident("MemManual")
+    };
+
+    let assoc_memory = if class.is_refcounted {
+        ident("MemRefCounted")
+    } else {
+        ident("MemManual")
     };
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub.
@@ -643,15 +649,18 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
                 #internal_methods
                 #constants
             }
-            unsafe impl crate::obj::GodotClass for #class_name {
+            impl crate::obj::GodotClass for #class_name {
                 type Base = #base_ty;
-                type Declarer = crate::obj::dom::EngineDomain;
-                type Mem = crate::obj::mem::#memory;
                 const INIT_LEVEL: Option<crate::init::InitLevel> = #init_level;
 
                 fn class_name() -> ClassName {
                     ClassName::from_ascii_cstr(#class_name_cstr)
                 }
+            }
+            unsafe impl crate::obj::Bounds for #class_name {
+                type Memory = crate::obj::bounds::#assoc_memory;
+                type DynMemory = crate::obj::bounds::#assoc_dyn_memory;
+                type Declarer = crate::obj::bounds::DeclEngine;
             }
             impl crate::obj::EngineClass for #class_name {
                 fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr {

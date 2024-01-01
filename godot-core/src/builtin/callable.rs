@@ -10,7 +10,8 @@ use godot_ffi as sys;
 use crate::builtin::meta::{impl_godot_as_self, GodotType, ToGodot};
 use crate::builtin::{inner, StringName, Variant, VariantArray};
 use crate::engine::Object;
-use crate::obj::mem::Memory;
+use crate::obj::bounds::DynMemory;
+use crate::obj::Bounds;
 use crate::obj::{Gd, GodotClass, InstanceId};
 use std::{fmt, ptr};
 use sys::{ffi_methods, GodotFfi};
@@ -202,7 +203,7 @@ impl Callable {
         // Increment refcount because we're getting a reference, and `InnerCallable::get_object` doesn't
         // increment the refcount.
         self.as_inner().get_object().map(|object| {
-            <Object as GodotClass>::Mem::maybe_inc_ref(&object.raw);
+            <Object as Bounds>::DynMemory::maybe_inc_ref(&object.raw);
             object
         })
     }

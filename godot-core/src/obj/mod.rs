@@ -29,6 +29,10 @@ pub use onready::*;
 pub use raw::*;
 pub use traits::*;
 
+pub mod bounds;
+
+pub use bounds::private::Bounds;
+
 // Do not re-export rtti here.
 
-type GdDerefTarget<T> = <<T as GodotClass>::Declarer as dom::Domain>::DerefTarget<T>;
+type GdDerefTarget<T> = <<T as Bounds>::Declarer as bounds::Declarer>::DerefTarget<T>;

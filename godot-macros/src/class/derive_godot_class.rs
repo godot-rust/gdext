@@ -95,15 +95,19 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     };
 
     Ok(quote! {
-        unsafe impl ::godot::obj::GodotClass for #class_name {
+        impl ::godot::obj::GodotClass for #class_name {
             type Base = #base_class;
-            type Declarer = ::godot::obj::dom::UserDomain;
-            type Mem = <Self::Base as ::godot::obj::GodotClass>::Mem;
             const INIT_LEVEL: Option<::godot::init::InitLevel> = <#base_class as ::godot::obj::GodotClass>::INIT_LEVEL;
 
             fn class_name() -> ::godot::builtin::meta::ClassName {
                 ::godot::builtin::meta::ClassName::from_ascii_cstr(#class_name_cstr)
             }
+        }
+
+        unsafe impl ::godot::obj::Bounds for #class_name {
+            type Memory = <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::Bounds>::Memory;
+            type DynMemory = <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::Bounds>::DynMemory;
+            type Declarer = ::godot::obj::bounds::DeclUser;
         }
 
         #godot_init_impl

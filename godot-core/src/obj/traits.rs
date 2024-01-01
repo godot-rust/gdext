@@ -5,38 +5,25 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::builder::ClassBuilder;
 use crate::builtin::meta::ClassName;
 use crate::builtin::GString;
 use crate::init::InitLevel;
-use crate::obj::Gd;
-use crate::{builder::ClassBuilder, storage::Storage};
+use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
+use crate::storage::Storage;
 
 use godot_ffi as sys;
-
-use super::{Base, BaseMut, BaseRef};
 
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
 ///
 /// The behavior of types implementing this trait is influenced by the associated types; check their documentation for information.
-///
-/// # Safety
-///
-/// Internal.
-/// You **must not** implement this trait yourself; use [`#[derive(GodotClass)`](../bind/derive.GodotClass.html) instead.
 // Above intra-doc link to the derive-macro only works as HTML, not as symbol link.
-pub unsafe trait GodotClass: 'static
+pub trait GodotClass: Bounds + 'static
 where
     Self: Sized,
 {
     /// The immediate superclass of `T`. This is always a Godot engine class.
     type Base: GodotClass; // not EngineClass because it can be ()
-
-    /// Whether this class is a core Godot class provided by the engine, or declared by the user as a Rust struct.
-    // TODO what about GDScript user classes?
-    type Declarer: dom::Domain;
-
-    /// Defines the memory strategy.
-    type Mem: mem::Memory;
 
     /// During which initialization level this class is available/should be initialized with Godot.
     ///
@@ -66,15 +53,19 @@ where
 }
 
 /// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
-unsafe impl GodotClass for () {
+impl GodotClass for () {
     type Base = ();
-    type Declarer = dom::EngineDomain;
-    type Mem = mem::ManualMemory;
     const INIT_LEVEL: Option<InitLevel> = None;
 
     fn class_name() -> ClassName {
         ClassName::none()
     }
+}
+
+unsafe impl Bounds for () {
+    type Memory = bounds::MemManual;
+    type DynMemory = bounds::MemManual;
+    type Declarer = bounds::DeclEngine;
 }
 
 /// Non-strict inheritance relationship in the Godot class hierarchy.
@@ -132,16 +123,15 @@ pub trait ExportableObject: GodotClass {}
 
 /// Implemented for all user-defined classes, providing extensions on the raw object to interact with `Gd`.
 // #[deprecated = "Use `NewGd` and `NewAlloc` traits instead."]
-pub trait UserClass: GodotClass<Declarer = dom::UserDomain> {
+pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {
     /// Return a new Gd which contains a default-constructed instance.
     ///
     /// `MyClass::new_gd()` is equivalent to `Gd::<MyClass>::default()`.
     #[deprecated = "Use `NewAlloc::new_alloc()` instead."]
     #[must_use]
-    fn alloc_gd<U>() -> Gd<Self>
+    fn alloc_gd() -> Gd<Self>
     where
-        Self: cap::GodotDefault + GodotClass<Mem = U>,
-        U: mem::PossiblyManual,
+        Self: cap::GodotDefault + Bounds<Memory = bounds::MemManual>,
     {
         Gd::default_instance()
     }
@@ -220,7 +210,7 @@ pub trait IndexEnum: EngineEnum {
 ///
 /// Gives direct access to the containing `Gd<Self>` from `Self`.
 // Possible alternative for builder APIs, although even less ergonomic: Base<T> could be Base<T, Self> and return Gd<Self>.
-pub trait WithBaseField: GodotClass<Declarer = dom::UserDomain> {
+pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// Returns the `Gd` pointer containing this object.
     ///
     /// This is intended to be stored or passed to engine methods. You cannot call `bind()` or `bind_mut()` on it, while the method
@@ -391,7 +381,7 @@ pub trait NewGd: GodotClass {
 
 impl<T> NewGd for T
 where
-    T: cap::GodotDefault + GodotClass<Mem = mem::StaticRefCount>,
+    T: cap::GodotDefault + Bounds<Memory = bounds::MemRefCounted>,
 {
     fn new_gd() -> Gd<Self> {
         Gd::default()
@@ -408,15 +398,14 @@ pub trait NewAlloc: GodotClass {
     fn new_alloc() -> Gd<Self>;
 }
 
-impl<T, U> NewAlloc for T
+impl<T> NewAlloc for T
 where
-    T: cap::GodotDefault + GodotClass<Mem = U>,
-    U: mem::PossiblyManual,
+    T: cap::GodotDefault + Bounds<Memory = bounds::MemManual>,
 {
     fn new_alloc() -> Gd<Self> {
-        use crate::obj::dom::Domain as _;
+        use crate::obj::bounds::Declarer as _;
 
-        <Self as GodotClass>::Declarer::create_gd()
+        <Self as Bounds>::Declarer::create_gd()
     }
 }
 
@@ -425,7 +414,7 @@ where
 /// Capability traits, providing dedicated functionalities for Godot classes
 pub mod cap {
     use super::*;
-    use crate::obj::{Base, Gd};
+    use crate::obj::{Base, Bounds, Gd};
 
     /// Trait for all classes that are default-constructible from the Godot engine.
     ///
@@ -454,8 +443,8 @@ pub mod cap {
             // 2. Repeatedly implementing __godot_default() that forwards to something like Gd::default_user_instance(). Possible, but this
             //    will make the step toward builder APIs more difficult, as users would need to re-implement this as well.
             debug_assert_eq!(
-                std::any::TypeId::of::<<Self as GodotClass>::Declarer>(),
-                std::any::TypeId::of::<dom::UserDomain>(),
+                std::any::TypeId::of::<<Self as Bounds>::Declarer>(),
+                std::any::TypeId::of::<bounds::DeclUser>(),
                 "__godot_default() called on engine class; must be overridden for engine classes"
             );
 
@@ -510,281 +499,4 @@ pub mod cap {
         #[doc(hidden)]
         fn __virtual_call(_name: &str) -> sys::GDExtensionClassCallVirtual;
     }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Domain + Memory classifiers
-
-mod private {
-    pub trait Sealed {}
-}
-
-pub mod dom {
-    use super::private::Sealed;
-    use crate::obj::cap::GodotDefault;
-    use crate::obj::{Gd, GodotClass, RawGd};
-    use crate::{callbacks, sys};
-    use crate::storage::Storage;
-
-    /// Trait that specifies who declares a given `GodotClass`.
-    pub trait Domain: Sealed {
-        type DerefTarget<T: GodotClass>;
-
-        #[doc(hidden)]
-        fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
-        where
-            T: GodotClass<Declarer = Self>,
-            F: FnOnce(&mut T) -> R;
-
-        /// Check if the object is a user object *and* currently locked by a `bind()` or `bind_mut()` guard.
-        ///
-        /// # Safety
-        /// Object must be alive.
-        #[doc(hidden)]
-        unsafe fn is_currently_bound<T>(obj: &RawGd<T>) -> bool
-        where
-            T: GodotClass<Declarer = Self>;
-
-        #[doc(hidden)]
-        fn create_gd<T>() -> Gd<T>
-        where
-            T: GodotDefault + GodotClass<Declarer = Self>;
-    }
-
-    /// Expresses that a class is declared by the Godot engine.
-    pub enum EngineDomain {}
-    impl Sealed for EngineDomain {}
-    impl Domain for EngineDomain {
-        type DerefTarget<T: GodotClass> = T;
-
-        fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
-        where
-            T: GodotClass<Declarer = EngineDomain>,
-            F: FnOnce(&mut T) -> R,
-        {
-            closure(
-                obj.as_target_mut()
-                    .expect("scoped mut should not be called on a null object"),
-            )
-        }
-
-        unsafe fn is_currently_bound<T>(_obj: &RawGd<T>) -> bool
-        where
-            T: GodotClass<Declarer = Self>,
-        {
-            false
-        }
-
-        fn create_gd<T>() -> Gd<T>
-        where
-            T: GodotDefault + GodotClass<Declarer = Self>,
-        {
-            unsafe {
-                let object_ptr =
-                    sys::interface_fn!(classdb_construct_object)(T::class_name().string_sys());
-                Gd::from_obj_sys(object_ptr)
-            }
-        }
-    }
-
-    /// Expresses that a class is declared by the user.
-    pub enum UserDomain {}
-    impl Sealed for UserDomain {}
-    impl Domain for UserDomain {
-        type DerefTarget<T: GodotClass> = T::Base;
-
-        fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
-        where
-            T: GodotClass<Declarer = Self>,
-            F: FnOnce(&mut T) -> R,
-        {
-            let mut guard = obj.bind_mut();
-            closure(&mut *guard)
-        }
-
-        unsafe fn is_currently_bound<T>(obj: &RawGd<T>) -> bool
-        where
-            T: GodotClass<Declarer = Self>,
-        {
-            obj.storage().unwrap_unchecked().is_bound()
-        }
-
-        fn create_gd<T>() -> Gd<T>
-        where
-            T: GodotDefault + GodotClass<Declarer = Self>,
-        {
-            unsafe {
-                let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
-                Gd::from_obj_sys(object_ptr)
-            }
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-pub mod mem {
-    use godot_ffi::PtrcallType;
-
-    use super::private::Sealed;
-    use crate::obj::{GodotClass, RawGd};
-    use crate::out;
-
-    /// Specifies the memory
-    pub trait Memory: Sealed {
-        /// Initialize reference counter
-        #[doc(hidden)]
-        fn maybe_init_ref<T: GodotClass>(obj: &RawGd<T>);
-
-        /// If ref-counted, then increment count
-        #[doc(hidden)]
-        fn maybe_inc_ref<T: GodotClass>(obj: &RawGd<T>);
-
-        /// If ref-counted, then decrement count. Returns `true` if the count hit 0 and the object can be
-        /// safely freed.
-        ///
-        /// This behavior can be overriden by a script, making it possible for the function to return `false`
-        /// even when the reference count hits 0. This is meant to be used to have a separate reference count
-        /// from Godot's internal reference count, or otherwise stop the object from being freed when the
-        /// reference count hits 0.
-        ///
-        /// # Safety
-        ///
-        /// If this method is used on a [`Gd`] that inherits from [`RefCounted`](crate::engine::RefCounted)
-        /// then the reference count must either be incremented before it hits 0, or some [`Gd`] referencing
-        /// this object must be forgotten.
-        #[doc(hidden)]
-        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool;
-
-        /// Check if ref-counted, return `None` if information is not available (dynamic and obj dead)
-        #[doc(hidden)]
-        fn is_ref_counted<T: GodotClass>(obj: &RawGd<T>) -> Option<bool>;
-
-        /// Returns `true` if argument and return pointers are passed as `Ref<T>` pointers given this
-        /// [`PtrcallType`].
-        ///
-        /// See [`PtrcallType::Virtual`] for information about `Ref<T>` objects.
-        #[doc(hidden)]
-        fn pass_as_ref(_call_type: PtrcallType) -> bool {
-            false
-        }
-    }
-
-    #[doc(hidden)]
-    pub trait PossiblyManual {}
-
-    /// Memory managed through Godot reference counter (always present).
-    /// This is used for `RefCounted` classes and derived.
-    pub struct StaticRefCount {}
-    impl Sealed for StaticRefCount {}
-    impl Memory for StaticRefCount {
-        fn maybe_init_ref<T: GodotClass>(obj: &RawGd<T>) {
-            out!("  Stat::init  <{}>", std::any::type_name::<T>());
-            if obj.is_null() {
-                return;
-            }
-            obj.as_ref_counted(|refc| {
-                let success = refc.init_ref();
-                assert!(success, "init_ref() failed");
-            });
-        }
-
-        fn maybe_inc_ref<T: GodotClass>(obj: &RawGd<T>) {
-            out!("  Stat::inc   <{}>", std::any::type_name::<T>());
-            if obj.is_null() {
-                return;
-            }
-            obj.as_ref_counted(|refc| {
-                let success = refc.reference();
-                assert!(success, "reference() failed");
-            });
-        }
-
-        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool {
-            out!("  Stat::dec   <{}>", std::any::type_name::<T>());
-            if obj.is_null() {
-                return false;
-            }
-            obj.as_ref_counted(|refc| {
-                let is_last = refc.unreference();
-                out!("  +-- was last={is_last}");
-                is_last
-            })
-        }
-
-        fn is_ref_counted<T: GodotClass>(_obj: &RawGd<T>) -> Option<bool> {
-            Some(true)
-        }
-
-        fn pass_as_ref(call_type: PtrcallType) -> bool {
-            matches!(call_type, PtrcallType::Virtual)
-        }
-    }
-
-    /// Memory managed through Godot reference counter, if present; otherwise manual.
-    /// This is used only for `Object` classes.
-    pub struct DynamicRefCount {}
-    impl Sealed for DynamicRefCount {}
-    impl Memory for DynamicRefCount {
-        fn maybe_init_ref<T: GodotClass>(obj: &RawGd<T>) {
-            out!("  Dyn::init  <{}>", std::any::type_name::<T>());
-            if obj
-                .instance_id_unchecked()
-                .map(|id| id.is_ref_counted())
-                .unwrap_or(false)
-            {
-                // Will call `RefCounted::init_ref()` which checks for liveness.
-                StaticRefCount::maybe_init_ref(obj)
-            }
-        }
-
-        fn maybe_inc_ref<T: GodotClass>(obj: &RawGd<T>) {
-            out!("  Dyn::inc   <{}>", std::any::type_name::<T>());
-            if obj
-                .instance_id_unchecked()
-                .map(|id| id.is_ref_counted())
-                .unwrap_or(false)
-            {
-                // Will call `RefCounted::reference()` which checks for liveness.
-                StaticRefCount::maybe_inc_ref(obj)
-            }
-        }
-
-        unsafe fn maybe_dec_ref<T: GodotClass>(obj: &RawGd<T>) -> bool {
-            out!("  Dyn::dec   <{}>", std::any::type_name::<T>());
-            if obj
-                .instance_id_unchecked()
-                .map(|id| id.is_ref_counted())
-                .unwrap_or(false)
-            {
-                // Will call `RefCounted::unreference()` which checks for liveness.
-                StaticRefCount::maybe_dec_ref(obj)
-            } else {
-                false
-            }
-        }
-
-        fn is_ref_counted<T: GodotClass>(obj: &RawGd<T>) -> Option<bool> {
-            // Return `None` if obj is dead
-            obj.instance_id_unchecked().map(|id| id.is_ref_counted())
-        }
-    }
-
-    impl PossiblyManual for DynamicRefCount {}
-
-    /// No memory management, user responsible for not leaking.
-    /// This is used for all `Object` derivates, which are not `RefCounted`. `Object` itself is also excluded.
-    pub struct ManualMemory {}
-    impl Sealed for ManualMemory {}
-    impl Memory for ManualMemory {
-        fn maybe_init_ref<T: GodotClass>(_obj: &RawGd<T>) {}
-        fn maybe_inc_ref<T: GodotClass>(_obj: &RawGd<T>) {}
-        unsafe fn maybe_dec_ref<T: GodotClass>(_obj: &RawGd<T>) -> bool {
-            false
-        }
-        fn is_ref_counted<T: GodotClass>(_obj: &RawGd<T>) -> Option<bool> {
-            Some(false)
-        }
-    }
-    impl PossiblyManual for ManualMemory {}
 }
