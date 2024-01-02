@@ -392,7 +392,7 @@ pub trait WithBaseField: GodotClass<Declarer = dom::UserDomain> {
                 .expect("we have a `Gd<Self>` so the raw should not be null")
         };
 
-        let guard = storage.get_base_mut(self);
+        let guard = storage.get_inaccessible(self);
 
         BaseMut::new(base_gd, guard)
     }

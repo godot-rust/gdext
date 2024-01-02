@@ -35,11 +35,11 @@ fn binding() -> &'static Mutex<HashMap<usize, InstanceBinding>> {
 fn register_instance<T>(instance: T) -> usize {
     static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
+    let key = COUNTER.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+
     let binding = binding();
 
     let mut guard = binding.lock().unwrap();
-
-    let key = COUNTER.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
 
     assert!(!guard.contains_key(&key));
 
@@ -105,23 +105,42 @@ impl<T> Base<T> {
 
 struct BaseGuard<'a, T> {
     instance_id: usize,
-    _inaccessible_guard: InaccessibleGuard<'a, T>,
+    inaccessible_guard: Option<InaccessibleGuard<'a, T>>,
 }
 
 impl<'a, T> BaseGuard<'a, T> {
     fn new(instance_id: usize, inaccessible_guard: InaccessibleGuard<'a, T>) -> Self {
         Self {
             instance_id,
-            _inaccessible_guard: inaccessible_guard,
+            inaccessible_guard: Some(inaccessible_guard),
         }
     }
 
-    fn call_immut(&self, f: fn(&T)) {
-        unsafe { call_immut_method(self.instance_id, f).unwrap() }
+    fn call_immut(&self, f: fn(&T)) -> Result<(), Box<dyn Error>> {
+        unsafe { call_immut_method(self.instance_id, f) }
     }
 
-    fn call_mut(&self, f: fn(&mut T)) {
-        unsafe { call_mut_method(self.instance_id, f).unwrap() }
+    fn call_mut(&self, f: fn(&mut T)) -> Result<(), Box<dyn Error>> {
+        unsafe { call_mut_method(self.instance_id, f) }
+    }
+}
+
+impl<'a, T> Drop for BaseGuard<'a, T> {
+    fn drop(&mut self) {
+        // Block while waiting for the guard to be droppable.
+        // This is only needed to make multi-threaded code work nicely, the default drop-impl for
+        // `InaccessibleGuard` may panic and get poisoned in multi-threaded code, which is non-ideal but
+        // still safe behavior.
+        let mut guard_opt = Some(std::mem::ManuallyDrop::new(
+            self.inaccessible_guard.take().unwrap(),
+        ));
+
+        while let Some(guard) = guard_opt.take() {
+            if let Err(new_guard) = std::mem::ManuallyDrop::into_inner(guard).try_drop() {
+                guard_opt = Some(new_guard);
+                std::hint::spin_loop()
+            }
+        }
     }
 }
 
@@ -166,7 +185,7 @@ impl MyClass {
         println!("mut_calls_immut #1: int is {}", self.int);
         self.int += 1;
         println!("mut_calls_immut #2: int is now {}", self.int);
-        self.base().call_immut(Self::immut_method);
+        _ = self.base().call_immut(Self::immut_method);
         println!("mut_calls_immut #3: int is now {}", self.int);
     }
 
@@ -174,7 +193,7 @@ impl MyClass {
         println!("mut_calls_mut #1: int is {}", self.int);
         self.int += 1;
         println!("mut_calls_mut #2: int is now {}", self.int);
-        self.base().call_mut(Self::mut_method);
+        _ = self.base().call_mut(Self::mut_method);
         println!("mut_calls_mut #3: int is now {}", self.int);
     }
 
@@ -182,7 +201,7 @@ impl MyClass {
         println!("mut_calls_twice #1: int is {}", self.int);
         self.int += 1;
         println!("mut_calls_twice #2: int is now {}", self.int);
-        self.base().call_mut(Self::mut_method_calls_immut);
+        _ = self.base().call_mut(Self::mut_method_calls_immut);
         println!("mut_calls_twice #3: int is now {}", self.int);
     }
 
@@ -190,7 +209,7 @@ impl MyClass {
         println!("mut_calls_twice_mut #1: int is {}", self.int);
         self.int += 1;
         println!("mut_calls_twice_mut #2: int is now {}", self.int);
-        self.base().call_mut(Self::mut_method_calls_mut);
+        _ = self.base().call_mut(Self::mut_method_calls_mut);
         println!("mut_calls_twice_mut #3: int is now {}", self.int);
     }
 
@@ -212,104 +231,207 @@ fn call_works() {
     unsafe { call_immut_method(instance_id, MyClass::immut_method).unwrap() };
 }
 
+/// `instance_id` must be the key of a `MyClass`.
+unsafe fn get_int(instance_id: usize) -> i64 {
+    let storage = unsafe { get_instance::<MyClass>(instance_id) };
+    let bind = storage.cell.as_ref().borrow().unwrap();
+    bind.int
+}
+
+/// `instance_id` must be the key of a `MyClass`.
+unsafe fn assert_id_is(instance_id: usize, target: i64) {
+    let storage = unsafe { get_instance::<MyClass>(instance_id) };
+    let bind = storage.cell.as_ref().borrow().unwrap();
+    assert_eq!(bind.int, target);
+}
+
+type MethodCall = unsafe fn(usize) -> Result<(), Box<dyn Error>>;
+
+/// A list of each calls to each method of `MyClass`. The numbers are the minimum and maximum increment
+/// of the method call.
+static CALLS: &[(MethodCall, i64, i64)] = &[
+    (
+        |id| unsafe { call_immut_method(id, MyClass::immut_method) },
+        0,
+        0,
+    ),
+    (
+        |id| unsafe { call_mut_method(id, MyClass::mut_method) },
+        1,
+        1,
+    ),
+    (
+        |id| unsafe { call_mut_method(id, MyClass::mut_method_calls_immut) },
+        1,
+        1,
+    ),
+    (
+        |id| unsafe { call_mut_method(id, MyClass::mut_method_calls_mut) },
+        1,
+        2,
+    ),
+    (
+        |id| unsafe { call_mut_method(id, MyClass::mut_method_calls_twice) },
+        1,
+        2,
+    ),
+    (
+        |id| unsafe { call_mut_method(id, MyClass::mut_method_calls_twice_mut) },
+        1,
+        3,
+    ),
+    (
+        |id| unsafe { call_immut_method(id, MyClass::immut_calls_immut_directly) },
+        0,
+        0,
+    ),
+];
+
+/// Run each test once ensuring the integer changes as expected.
 #[test]
 fn all_calls_work() {
     let instance_id = MyClass::init();
 
-    fn assert_int_is(instance_id: usize, target: i64) {
-        let storage = unsafe { get_instance::<MyClass>(instance_id) };
-        let bind = storage.cell.as_ref().borrow().unwrap();
-        assert_eq!(bind.int, target);
+    unsafe {
+        assert_id_is(instance_id, 0);
     }
 
-    assert_int_is(instance_id, 0);
-    unsafe { call_immut_method(instance_id, MyClass::immut_method).unwrap() };
-    assert_int_is(instance_id, 0);
-    unsafe { call_mut_method(instance_id, MyClass::mut_method).unwrap() };
-    assert_int_is(instance_id, 1);
-    unsafe { call_mut_method(instance_id, MyClass::mut_method_calls_immut).unwrap() };
-    assert_int_is(instance_id, 2);
-    unsafe { call_mut_method(instance_id, MyClass::mut_method_calls_mut).unwrap() };
-    assert_int_is(instance_id, 4);
-    unsafe { call_mut_method(instance_id, MyClass::mut_method_calls_twice).unwrap() };
-    assert_int_is(instance_id, 6);
-    unsafe { call_mut_method(instance_id, MyClass::mut_method_calls_twice_mut).unwrap() };
-    assert_int_is(instance_id, 9);
-    unsafe { call_immut_method(instance_id, MyClass::immut_calls_immut_directly).unwrap() };
-    assert_int_is(instance_id, 9);
+    // We're not running in parallel, so it will never fail to increment completely.
+    for (f, _, expected_increment) in CALLS {
+        let start = unsafe { get_int(instance_id) };
+        unsafe {
+            f(instance_id).unwrap();
+        }
+        unsafe {
+            assert_id_is(instance_id, start + *expected_increment);
+        }
+    }
 }
 
+/// Run each method both from the main thread and a newly created thread.
 #[test]
 fn calls_different_thread() {
     use std::thread;
 
     let instance_id = MyClass::init();
-    fn assert_int_is(instance_id: usize, target: i64) {
-        let storage = unsafe { get_instance::<MyClass>(instance_id) };
-        let bind = storage.cell.as_ref().borrow().unwrap();
-        assert_eq!(bind.int, target);
+
+    // We're not running in parallel, so it will never fail to increment completely.
+    for (f, _, expected_increment) in CALLS {
+        let start = unsafe { get_int(instance_id) };
+        unsafe {
+            f(instance_id).unwrap();
+
+            assert_id_is(instance_id, start + expected_increment);
+        }
+        let start = start + expected_increment;
+        thread::spawn(move || unsafe { f(instance_id).unwrap() })
+            .join()
+            .unwrap();
+        unsafe {
+            assert_id_is(instance_id, start + expected_increment);
+        }
+    }
+}
+
+/// Call each method from different threads, allowing them to run in parallel.
+///
+/// This may cause borrow failures, we do a best-effort attempt at estimating the value then. We can detect
+/// if the first call failed, so then we know the integer was incremented by 0. Otherwise we at least know
+/// the range of values that it can be incremented by.
+#[test]
+fn calls_parallel() {
+    use std::thread;
+
+    let instance_id = MyClass::init();
+    let mut handles = Vec::new();
+
+    for (f, min_increment, max_increment) in CALLS {
+        let handle = thread::spawn(move || unsafe {
+            f(instance_id).map_or((0, 0), |_| (*min_increment, *max_increment))
+        });
+        handles.push(handle);
     }
 
-    assert_int_is(instance_id, 0);
-
-    unsafe { call_immut_method(instance_id, MyClass::immut_method).unwrap() };
-    assert_int_is(instance_id, 0);
-    thread::spawn(move || unsafe {
-        call_immut_method(instance_id, MyClass::immut_method).unwrap()
-    })
-    .join()
-    .unwrap();
-    assert_int_is(instance_id, 0);
-
-    unsafe { call_mut_method(instance_id, MyClass::mut_method).unwrap() };
-    assert_int_is(instance_id, 1);
-    thread::spawn(move || unsafe { call_mut_method(instance_id, MyClass::mut_method).unwrap() })
-        .join()
+    let (min_expected, max_expected) = handles
+        .into_iter()
+        .map(|handle| handle.join().unwrap())
+        .reduce(|(curr_min, curr_max), (min, max)| (curr_min + min, curr_max + max))
         .unwrap();
-    assert_int_is(instance_id, 2);
 
-    unsafe { call_mut_method(instance_id, MyClass::mut_method_calls_immut).unwrap() };
-    assert_int_is(instance_id, 3);
-    thread::spawn(move || unsafe {
-        call_mut_method(instance_id, MyClass::mut_method_calls_immut).unwrap()
-    })
-    .join()
-    .unwrap();
-    assert_int_is(instance_id, 4);
+    unsafe {
+        assert!(get_int(instance_id) >= min_expected);
+        assert!(get_int(instance_id) <= max_expected);
+    }
+}
 
-    unsafe { call_mut_method(instance_id, MyClass::mut_method_calls_mut).unwrap() };
-    assert_int_is(instance_id, 6);
-    thread::spawn(move || unsafe {
-        call_mut_method(instance_id, MyClass::mut_method_calls_mut).unwrap()
-    })
-    .join()
-    .unwrap();
-    assert_int_is(instance_id, 8);
+/// Call each method from different threads, allowing them to run in parallel.
+///
+/// This may cause borrow failures, we do a best-effort attempt at estimating the value then. We can detect
+/// if the first call failed, so then we know the integer was incremented by 0. Otherwise we at least know
+/// the range of values that it can be incremented by.
+///
+/// Runs each method several times in a row. This should reduce the non-determinism that comes from
+/// scheduling of threads.
+#[test]
+fn calls_parallel_many_serial() {
+    use std::thread;
 
-    unsafe { call_mut_method(instance_id, MyClass::mut_method_calls_twice).unwrap() };
-    assert_int_is(instance_id, 10);
-    thread::spawn(move || unsafe {
-        call_mut_method(instance_id, MyClass::mut_method_calls_twice).unwrap()
-    })
-    .join()
-    .unwrap();
-    assert_int_is(instance_id, 12);
+    let instance_id = MyClass::init();
+    let mut handles = Vec::new();
 
-    unsafe { call_mut_method(instance_id, MyClass::mut_method_calls_twice_mut).unwrap() };
-    assert_int_is(instance_id, 15);
-    thread::spawn(move || unsafe {
-        call_mut_method(instance_id, MyClass::mut_method_calls_twice_mut).unwrap()
-    })
-    .join()
-    .unwrap();
-    assert_int_is(instance_id, 18);
+    for (f, min_increment, max_increment) in CALLS {
+        for _ in 0..10 {
+            let handle = thread::spawn(move || unsafe {
+                f(instance_id).map_or((0, 0), |_| (*min_increment, *max_increment))
+            });
+            handles.push(handle);
+        }
+    }
 
-    unsafe { call_immut_method(instance_id, MyClass::immut_calls_immut_directly).unwrap() };
-    assert_int_is(instance_id, 18);
-    thread::spawn(move || unsafe {
-        call_immut_method(instance_id, MyClass::immut_calls_immut_directly).unwrap()
-    })
-    .join()
-    .unwrap();
-    assert_int_is(instance_id, 18);
+    let (min_expected, max_expected) = handles
+        .into_iter()
+        .map(|handle| handle.join().unwrap())
+        .reduce(|(curr_min, curr_max), (min, max)| (curr_min + min, curr_max + max))
+        .unwrap();
+
+    unsafe {
+        assert!(get_int(instance_id) >= min_expected);
+        assert!(get_int(instance_id) <= max_expected);
+    }
+}
+
+/// Call each method from different threads, allowing them to run in parallel.
+///
+/// This may cause borrow failures, we do a best-effort attempt at estimating the value then. We can detect
+/// if the first call failed, so then we know the integer was incremented by 0. Otherwise we at least know
+/// the range of values that it can be incremented by.
+///
+/// Runs all the tests several times. This is different from [`calls_parallel_many_serial`] as that calls the
+/// methods like AAA...BBB...CCC..., whereas this interleaves the methods like ABC...ABC...ABC...
+#[test]
+fn calls_parallel_many_parallel() {
+    use std::thread;
+
+    let instance_id = MyClass::init();
+    let mut handles = Vec::new();
+
+    for _ in 0..10 {
+        for (f, min_increment, max_increment) in CALLS {
+            let handle = thread::spawn(move || unsafe {
+                f(instance_id).map_or((0, 0), |_| (*min_increment, *max_increment))
+            });
+            handles.push(handle);
+        }
+    }
+
+    let (min_expected, max_expected) = handles
+        .into_iter()
+        .map(|handle| handle.join().unwrap())
+        .reduce(|(curr_min, curr_max), (min, max)| (curr_min + min, curr_max + max))
+        .unwrap();
+
+    unsafe {
+        assert!(get_int(instance_id) >= min_expected);
+        assert!(get_int(instance_id) <= max_expected);
+    }
 }

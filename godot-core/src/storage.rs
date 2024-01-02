@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::ops::{Deref, DerefMut};
-
 use crate::obj::{Base, Gd, GodotClass, Inherits};
 use crate::{godot_error, out};
 use godot_ffi as sys;
@@ -69,22 +67,6 @@ pub unsafe trait Storage {
     /// The type of instances stored by this storage.
     type Instance: GodotClass;
 
-    /// The type of guards returned when a shared reference is taken.
-    type RefGuard<'a>: Deref<Target = Self::Instance>
-    where
-        Self: 'a;
-
-    /// The type of guards returned when a mutable reference is taken.
-    type MutGuard<'a>: Deref<Target = Self::Instance> + DerefMut
-    where
-        Self: 'a;
-
-    /// The type of guards returned when we know that a mutable reference can be safely ignored for purposes
-    /// of taking mutable references.
-    type BaseMutGuard<'a>
-    where
-        Self: 'a;
-
     /// Constructs a new storage for an instance binding referencing `user_instance`.
     fn construct(
         user_instance: Self::Instance,
@@ -101,22 +83,22 @@ pub unsafe trait Storage {
     ///
     /// This will ensure Rust's rules surrounding references are upheld. Possibly panicking at runtime if
     /// they are violated.
-    fn get(&self) -> Self::RefGuard<'_>;
+    fn get(&self) -> godot_cell::RefGuard<'_, Self::Instance>;
 
     /// Returns a mutable/exclusive reference to this storage's instance.
     ///
     /// This will ensure Rust's rules surrounding references are upheld. Possibly panicking at runtime if
     /// they are violated.
-    fn get_mut(&self) -> Self::MutGuard<'_>;
+    fn get_mut(&self) -> godot_cell::MutGuard<'_, Self::Instance>;
 
     /// Returns a guard that allows calling methods on `Gd<Base>` that take `&mut self`.
     ///
     /// This can use the provided `instance` to provide extra safety guarantees such as allowing reentrant
     /// code to create new mutable references.
-    fn get_base_mut<'a: 'b, 'b>(
+    fn get_inaccessible<'a: 'b, 'b>(
         &'a self,
         instance: &'b mut Self::Instance,
-    ) -> Self::BaseMutGuard<'b>;
+    ) -> godot_cell::InaccessibleGuard<'b, Self::Instance>;
 
     /// Returns whether this storage is currently alive or being destroyed.
     ///
@@ -188,10 +170,6 @@ pub type InstanceStorage<T> = single_threaded::InstanceStorage<T>;
 
 #[cfg(feature = "experimental-threads")]
 pub type InstanceStorage<T> = multi_threaded::InstanceStorage<T>;
-
-pub type RefGuard<'a, T> = <InstanceStorage<T> as Storage>::RefGuard<'a>;
-pub type MutGuard<'a, T> = <InstanceStorage<T> as Storage>::MutGuard<'a>;
-pub type BaseMutGuard<'a, T> = <InstanceStorage<T> as Storage>::BaseMutGuard<'a>;
 
 const fn _assert_implements_storage<T: Storage + StorageRefCounted>() {}
 

@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! A re-entrant cell implementation which allows for `&mut` references to be re-borrowed even while `&mut`
+//! A re-entrant cell implementation which allows for `&mut` references to be reborrowed even while `&mut`
 //! references still exist.
 //!
 //! This is done by ensuring any existing `&mut` references cannot alias the new reference, and that the new
@@ -17,9 +17,11 @@
 //! Instead of directly using the concept of `aliasing` pointers, we use the term `accessible` instead. A
 //! reference (or other pointer) to some value is considered accessible when it is possible to either read
 //! from or write to the value it points to without using `unsafe`. Importantly, if we know that a reference
-//! `a` is inaccessible, and then we create a new reference `b` to the same value, then we know for sure that
-//! `b` wont alias `a`. This is because aliasing in rust is based on accesses, and if we never access `a`
-//! then we cannot ever violate aliasing for `a` and `b`.
+//! `a` is inaccessible, and then we create a new reference `b` derived from `a` to the same value, then we
+//! know for sure that `b` wont alias `a`. This is because aliasing in rust is based on accesses, and if we
+//! never access `a` then we cannot ever violate aliasing for `a` and `b`. And since `b` is derived from `a`
+//! (that is, `b` was created from `a` somehow such as by casting `a` to a raw pointer then to a reference
+//! `b`), then `a` wont get invalidated by accesses to `b`.
 
 mod borrow_state;
 mod guards;
@@ -34,7 +36,7 @@ use std::sync::Mutex;
 use borrow_state::BorrowState;
 pub use guards::{InaccessibleGuard, MutGuard, RefGuard};
 
-/// A cell which can hand out new `&mut` references to its value even when one already exists, as long as
+/// A cell which can hand out new `&mut` references to its value even when one already exists. As long as
 /// any such pre-existing references have been handed back to the cell first, and no shared references exist.
 ///
 /// This cell must be pinned to be usable, as it stores self-referential pointers.
@@ -71,8 +73,8 @@ impl<T> GdCell<T> {
         let mut state = self.state.lock().unwrap();
         state.borrow_state.increment_shared()?;
 
-        // SAFETY:
-        // `increment_shared` succeeded, therefore there cannot currently be any accessible mutable references.
+        // SAFETY: `increment_shared` succeeded, therefore there cannot currently be any accessible mutable
+        // references.
         unsafe { Ok(RefGuard::new(&self.get_ref().state, state.get_ptr())) }
     }
 
@@ -85,32 +87,30 @@ impl<T> GdCell<T> {
         let count = state.borrow_state.mut_count();
         let value = state.get_ptr();
 
-        // SAFETY:
-        // `increment_mut` succeeded, therefore any existing mutable references are inaccessible.
+        // SAFETY: `increment_mut` succeeded, therefore any existing mutable references are inaccessible.
         // Additionally no new references can be created, unless the returned guard is made inaccessible.
         //
-        // This is the case because the only way for a new `GdMut` or `GdRef` to be made after this, is for
-        // either this guard to be dropped or `make_inaccessible` to be called.
+        // This is the case because the only way for a new `GdMut` or `GdRef` to be made after this is for
+        // either this guard to be dropped or `make_inaccessible` to be called and succeed.
         //
         // If this guard is dropped, then we dont need to worry.
         //
-        // If `make_inaccessible` is called, then either a mutable reference from this guard is passed in.
-        // In which case, we cannot use this guard again until the resulting inaccessible guard is dropped.
-        //
-        // We cannot pass in a different mutable reference, since `make_inaccessible` ensures any references
-        // matches the ones this one would return. And only one mutable reference to the same value can exist
-        // since we cannot have any other aliasing mutable references around to pass in.
+        // If `make_inaccessible` is called and succeeds, then a mutable reference from this guard is passed
+        // in. In which case, we cannot use this guard again until the resulting inaccessible guard is
+        // dropped.
         unsafe { Ok(MutGuard::new(&self.get_ref().state, count, value)) }
     }
 
     /// Make the current mutable borrow inaccessible, thus freeing the value up to be reborrowed again.
     ///
-    /// Will error if there is no current accessible mutable borrow, or if there are any shared
-    /// references.
-    pub fn make_inaccessible<'a: 'b, 'b>(
-        self: Pin<&'a Self>,
-        current_ref: &'b mut T,
-    ) -> Result<InaccessibleGuard<'b, T>, Box<dyn Error>> {
+    /// Will error if:
+    /// - There is currently no accessible mutable borrow.
+    /// - There are any shared references.
+    /// - `current_ref` is not equal to the pointer in `self.state`.
+    pub fn make_inaccessible<'cell: 'val, 'val>(
+        self: Pin<&'cell Self>,
+        current_ref: &'val mut T,
+    ) -> Result<InaccessibleGuard<'val, T>, Box<dyn Error>> {
         InaccessibleGuard::new(&self.get_ref().state, current_ref)
     }
 
@@ -130,8 +130,7 @@ impl<T> GdCell<T> {
     }
 }
 
-// SAFETY:
-// `T` is sync so we can return references to it on different threads.
+// SAFETY: `T` is sync so we can return references to it on different threads.
 // Additionally all internal state is synchronized via a mutex, so we wont have race conditions when trying
 // to use it from multiple threads.
 unsafe impl<T: Sync> Sync for GdCell<T> {}
@@ -145,14 +144,20 @@ struct CellState<T> {
 
     /// Current pointer to the value.
     ///
-    /// This is an `Option` as we must initialize the value after pinning it.
+    /// This will always be non-null after initialization.
     ///
-    /// When a reference is handed to a cell to enable re-entrancy, then this pointer is set to that
+    /// When a reference is handed to a cell to enable reborrowing, then this pointer is set to that
     /// reference.
     ///
     /// We always generate new pointer based off of the pointer currently in this field, to ensure any new
     /// references are derived from the most recent `&mut` reference.
-    ptr: Option<NonNull<T>>,
+    // TODO: Consider using `NonNull<T>` instead.
+    ptr: *mut T,
+
+    /// How many pointers have been handed out.
+    ///
+    /// This is used to ensure that the pointers are not replaced in the wrong order.
+    stack_depth: usize,
 }
 
 impl<T> CellState<T> {
@@ -161,14 +166,16 @@ impl<T> CellState<T> {
     fn new() -> Self {
         Self {
             borrow_state: BorrowState::new(),
-            ptr: None,
+            ptr: std::ptr::null_mut(),
+            stack_depth: 0,
         }
     }
 
     /// Initialize the pointer if it is `None`.
     fn initialize_ptr(&mut self, value: &UnsafeCell<T>) {
-        if self.ptr.is_none() {
-            self.set_ptr(NonNull::new(value.get()).unwrap());
+        if self.ptr.is_null() {
+            self.ptr = value.get();
+            assert!(!self.ptr.is_null());
         } else {
             panic!("Cannot initialize pointer as it is already initialized.")
         }
@@ -176,12 +183,21 @@ impl<T> CellState<T> {
 
     /// Returns the current pointer. Panics if uninitialized.
     fn get_ptr(&self) -> NonNull<T> {
-        self.ptr.unwrap()
+        NonNull::new(self.ptr).unwrap()
     }
 
-    /// Set the current pointer to the new pointer.
-    fn set_ptr(&mut self, new_ptr: NonNull<T>) {
-        self.ptr = Some(new_ptr);
+    /// Push a pointer to this state..
+    fn push_ptr(&mut self, new_ptr: NonNull<T>) -> usize {
+        self.ptr = new_ptr.as_ptr();
+        self.stack_depth += 1;
+        self.stack_depth
+    }
+
+    /// Pop a pointer to this state, resetting it to the given old pointer.
+    fn pop_ptr(&mut self, old_ptr: NonNull<T>) -> usize {
+        self.ptr = old_ptr.as_ptr();
+        self.stack_depth -= 1;
+        self.stack_depth
     }
 }
 

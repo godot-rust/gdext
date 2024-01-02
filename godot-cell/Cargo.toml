@@ -3,5 +3,8 @@ name = "godot-cell"
 version = "0.1.0"
 edition = "2021"
 
-[dev-dependencies]
-proptest = "1.4.0"
+[features]
+proptest = ["dep:proptest"]
+
+[dependencies]
+proptest = { version = "1.4.0", optional = true }

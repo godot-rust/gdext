@@ -73,7 +73,7 @@ impl BorrowState {
     /// Set self as having reached an erroneous or unreliable state.
     ///
     /// Always returns [`BorrowStateErr::Poisoned`].
-    fn poison(&mut self, err: impl Into<String>) -> Result<(), BorrowStateErr> {
+    pub(crate) fn poison(&mut self, err: impl Into<String>) -> Result<(), BorrowStateErr> {
         self.poisoned = true;
 
         Err(BorrowStateErr::Poisoned(err.into()))
@@ -230,6 +230,10 @@ impl BorrowState {
         Ok(self.inaccessible_count)
     }
 
+    pub(crate) fn may_unset_inaccessible(&self) -> bool {
+        !self.has_accessible() && self.shared_count() == 0 && self.inaccessible_count > 0
+    }
+
     pub fn unset_inaccessible(&mut self) -> Result<usize, BorrowStateErr> {
         if self.has_accessible() {
             return Err("cannot set current reference as accessible when an accessible mutable reference already exists".into());
@@ -294,7 +298,7 @@ impl From<String> for BorrowStateErr {
     }
 }
 
-#[cfg(all(test, not(miri)))]
+#[cfg(all(test, feature = "proptest"))]
 mod proptests {
     use super::*;
     use proptest::{arbitrary::Arbitrary, collection::vec, prelude::*};

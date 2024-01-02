@@ -5,12 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot_cell::{InaccessibleGuard, MutGuard, RefGuard};
 use godot_ffi::out;
 
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
-
-use crate::storage::{BaseMutGuard, MutGuard, RefGuard};
 
 use super::{Gd, GodotClass};
 
@@ -119,14 +118,14 @@ impl<T: GodotClass> Deref for BaseRef<'_, T> {
 /// See [`WithBaseField::base_mut()`](super::WithBaseField::base_mut()) for usage.
 pub struct BaseMut<'a, T: GodotClass> {
     gd: Gd<T::Base>,
-    _base_mut_guard: BaseMutGuard<'a, T>,
+    _inaccessible_guard: InaccessibleGuard<'a, T>,
 }
 
 impl<'a, T: GodotClass> BaseMut<'a, T> {
-    pub(crate) fn new(gd: Gd<T::Base>, base_mut_guard: BaseMutGuard<'a, T>) -> Self {
+    pub(crate) fn new(gd: Gd<T::Base>, inaccessible_guard: InaccessibleGuard<'a, T>) -> Self {
         Self {
             gd,
-            _base_mut_guard: base_mut_guard,
+            _inaccessible_guard: inaccessible_guard,
         }
     }
 }

@@ -34,12 +34,6 @@ pub struct InstanceStorage<T: GodotClass> {
 unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
     type Instance = T;
 
-    type RefGuard<'a> = godot_cell::RefGuard<'a, T>;
-
-    type MutGuard<'a> = godot_cell::MutGuard<'a, T>;
-
-    type BaseMutGuard<'a> = godot_cell::InaccessibleGuard<'a, T>;
-
     fn construct(
         user_instance: Self::Instance,
         base: Base<<Self::Instance as GodotClass>::Base>,
@@ -61,7 +55,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
         &self.base
     }
 
-    fn get(&self) -> Self::RefGuard<'_> {
+    fn get(&self) -> godot_cell::RefGuard<'_, T> {
         self.user_instance.as_ref().borrow().unwrap_or_else(|err| {
             panic!(
                 "\
@@ -74,7 +68,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
         })
     }
 
-    fn get_mut(&self) -> Self::MutGuard<'_> {
+    fn get_mut(&self) -> godot_cell::MutGuard<'_, T> {
         self.user_instance
             .as_ref()
             .borrow_mut()
@@ -90,7 +84,10 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
             })
     }
 
-    fn get_base_mut<'a: 'b, 'b>(&'a self, value: &'b mut Self::Instance) -> Self::BaseMutGuard<'b> {
+    fn get_inaccessible<'a: 'b, 'b>(
+        &'a self,
+        value: &'b mut Self::Instance,
+    ) -> godot_cell::InaccessibleGuard<'b, T> {
         self.user_instance
             .as_ref()
             .make_inaccessible(value)
