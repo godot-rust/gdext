@@ -108,7 +108,6 @@ pub(super) mod private {
     /// impl GodotClass for MyClass {
     ///     type Base = Node;
     ///
-    /// # const INIT_LEVEL: Option<InitLevel> = None;
     ///     fn class_name() -> ClassName {
     ///         ClassName::from_ascii_cstr(b"MyClass\0")
     ///     }

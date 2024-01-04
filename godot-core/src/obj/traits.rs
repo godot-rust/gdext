@@ -25,16 +25,16 @@ where
     /// The immediate superclass of `T`. This is always a Godot engine class.
     type Base: GodotClass; // not EngineClass because it can be ()
 
-    /// During which initialization level this class is available/should be initialized with Godot.
-    ///
-    /// Is `None` if the class has complicated initialization requirements, and generally cannot be inherited
-    /// from (currently only for `()`, the "base" of `Object`).
-    const INIT_LEVEL: Option<InitLevel>;
-
     /// The name of the class, under which it is registered in Godot.
     ///
     /// This may deviate from the Rust struct name: `HttpRequest::class_name().as_str() == "HTTPRequest"`.
     fn class_name() -> ClassName;
+
+    /// Initialization level, during which this class should be initialized with Godot.
+    ///
+    /// The default is a good choice in most cases; override only if you have very specific initialization requirements.
+    /// It must not be less than `Base::INIT_LEVEL`.
+    const INIT_LEVEL: InitLevel = <Self::Base as GodotClass>::INIT_LEVEL;
 
     /// Returns whether `Self` inherits from `U`.
     ///
@@ -55,11 +55,12 @@ where
 /// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
 impl GodotClass for () {
     type Base = ();
-    const INIT_LEVEL: Option<InitLevel> = None;
 
     fn class_name() -> ClassName {
         ClassName::none()
     }
+
+    const INIT_LEVEL: InitLevel = InitLevel::Core; // arbitrary; never read.
 }
 
 /// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.

@@ -8,7 +8,6 @@
 use crate::builtin::meta::ClassName;
 use crate::builtin::StringName;
 use crate::init::InitLevel;
-use crate::log;
 use crate::obj::*;
 use crate::out;
 use crate::private::as_storage;
@@ -39,7 +38,7 @@ pub struct ClassPlugin {
 
     // Init-level is per ClassPlugin and not per PluginComponent, because all components of all classes are mixed together in one
     // huge linker list. There is no per-class aggregation going on, so this allows to easily filter relevant classes.
-    pub init_level: Option<InitLevel>,
+    pub init_level: InitLevel,
 }
 
 /// Type-erased function object, holding a `register_class` function.
@@ -224,6 +223,11 @@ pub fn register_class<
         ..default_creation_info()
     };
 
+    assert!(
+        !T::class_name().as_str().is_empty(),
+        "cannot register () or unnamed class"
+    );
+
     register_class_raw(ClassRegistrationInfo {
         class_name: T::class_name(),
         parent_class_name: Some(T::Base::class_name()),
@@ -235,9 +239,7 @@ pub fn register_class<
         user_virtual_fn: None,
         default_virtual_fn: None,
         godot_params,
-        init_level: T::INIT_LEVEL.unwrap_or_else(|| {
-            panic!("Unknown initialization level for class {}", T::class_name())
-        }),
+        init_level: T::INIT_LEVEL,
         is_editor_plugin: false,
     });
 }
@@ -256,13 +258,8 @@ pub fn auto_register_classes(init_level: InitLevel) {
         //out!("* Plugin: {elem:#?}");
 
         // Filter per ClassPlugin and not PluginComponent, because all components of all classes are mixed together in one huge list.
-        match elem.init_level {
-            None => {
-                log::godot_error!("Unknown initialization level for class {}", elem.class_name);
-                return;
-            }
-            Some(elem_init_level) if elem_init_level != init_level => return,
-            _ => { /* Nothing */ }
+        if elem.init_level != init_level {
+            return;
         }
 
         let name = elem.class_name;

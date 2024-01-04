@@ -651,11 +651,12 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
             }
             impl crate::obj::GodotClass for #class_name {
                 type Base = #base_ty;
-                const INIT_LEVEL: Option<crate::init::InitLevel> = #init_level;
 
                 fn class_name() -> ClassName {
                     ClassName::from_ascii_cstr(#class_name_cstr)
                 }
+
+                const INIT_LEVEL: crate::init::InitLevel = #init_level;
             }
             unsafe impl crate::obj::Bounds for #class_name {
                 type Memory = crate::obj::bounds::#assoc_memory;
