@@ -78,6 +78,8 @@ fn array_from_slice() {
 #[itest]
 fn array_try_into_vec() {
     let array = array![1, 2];
+
+    #[allow(clippy::unnecessary_fallible_conversions)]
     let result = Vec::<i64>::try_from(&array);
     assert_eq!(result, Ok(vec![1, 2]));
 }

@@ -12,5 +12,6 @@ mod object_test;
 mod onready_test;
 mod property_template_test;
 mod property_test;
+mod reentrant_test;
 mod singleton_test;
 mod virtual_methods_test;

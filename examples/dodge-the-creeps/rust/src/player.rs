@@ -18,11 +18,11 @@ impl Player {
 
     #[func]
     fn on_player_body_entered(&mut self, _body: Gd<PhysicsBody2D>) {
-        self.base.hide();
-        self.base.emit_signal("hit".into(), &[]);
+        self.base_mut().hide();
+        self.base_mut().emit_signal("hit".into(), &[]);
 
         let mut collision_shape = self
-            .base
+            .base()
             .get_node_as::<CollisionShape2D>("CollisionShape2D");
 
         collision_shape.set_deferred("disabled".into(), true.to_variant());
@@ -30,11 +30,11 @@ impl Player {
 
     #[func]
     pub fn start(&mut self, pos: Vector2) {
-        self.base.set_global_position(pos);
-        self.base.show();
+        self.base_mut().set_global_position(pos);
+        self.base_mut().show();
 
         let mut collision_shape = self
-            .base
+            .base()
             .get_node_as::<CollisionShape2D>("CollisionShape2D");
 
         collision_shape.set_disabled(false);
@@ -52,14 +52,14 @@ impl IArea2D for Player {
     }
 
     fn ready(&mut self) {
-        let viewport = self.base.get_viewport_rect();
+        let viewport = self.base().get_viewport_rect();
         self.screen_size = viewport.size;
-        self.base.hide();
+        self.base_mut().hide();
     }
 
     fn process(&mut self, delta: f64) {
         let mut animated_sprite = self
-            .base
+            .base()
             .get_node_as::<AnimatedSprite2D>("AnimatedSprite2D");
 
         let mut velocity = Vector2::new(0.0, 0.0);
@@ -101,11 +101,11 @@ impl IArea2D for Player {
         }
 
         let change = velocity * real::from_f64(delta);
-        let position = self.base.get_global_position() + change;
+        let position = self.base().get_global_position() + change;
         let position = Vector2::new(
             position.x.clamp(0.0, self.screen_size.x),
             position.y.clamp(0.0, self.screen_size.y),
         );
-        self.base.set_global_position(position);
+        self.base_mut().set_global_position(position);
     }
 }

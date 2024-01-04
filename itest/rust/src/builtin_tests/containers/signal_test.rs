@@ -11,7 +11,7 @@ use godot::bind::{godot_api, GodotClass};
 use godot::builtin::{GString, Variant};
 
 use godot::engine::Object;
-use godot::obj::{Base, Gd, UserClass};
+use godot::obj::{Base, Gd, UserClass, WithBaseField};
 use godot::sys;
 
 use crate::framework::itest;
@@ -51,7 +51,7 @@ impl Receiver {
     }
     #[func]
     fn receive_2_arg(&self, arg1: Gd<Object>, arg2: GString) {
-        assert_eq!(self.base.clone(), arg1);
+        assert_eq!(self.base().clone(), arg1);
         assert_eq!(SIGNAL_ARG_STRING, arg2.to_string());
 
         self.used[2].set(true);

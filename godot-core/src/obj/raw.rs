@@ -20,7 +20,7 @@ use crate::obj::mem::Memory as _;
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::GdDerefTarget;
 use crate::obj::{dom, GdMut, GdRef, GodotClass, InstanceId};
-use crate::storage::InstanceStorage;
+use crate::storage::{InstanceStorage, Storage};
 use crate::{engine, out};
 
 /// Low-level bindings for object pointers in Godot.
@@ -305,7 +305,7 @@ where
     // Note: possible names: write/read, hold/hold_mut, r/w, r/rw, ...
     pub(crate) fn bind(&self) -> GdRef<T> {
         self.check_rtti("bind");
-        GdRef::from_cell(self.storage().unwrap().get())
+        GdRef::from_guard(self.storage().unwrap().get())
     }
 
     /// Hands out a guard for an exclusive borrow, through which the user instance can be read and written.
@@ -313,15 +313,39 @@ where
     /// See [`crate::obj::Gd::bind_mut()`] for a more in depth explanation.
     pub(crate) fn bind_mut(&mut self) -> GdMut<T> {
         self.check_rtti("bind_mut");
-        GdMut::from_cell(self.storage().unwrap().get_mut())
+        GdMut::from_guard(self.storage().unwrap().get_mut())
     }
 
     /// Storage object associated with the extension instance.
     ///
     /// Returns `None` if self is null.
     pub(crate) fn storage(&self) -> Option<&InstanceStorage<T>> {
+        // SAFETY:
+        // - We have a `&self`, so the storage must already have been created.
+        // - The storage cannot be destroyed while we have a `&self` reference, so it will not be
+        //   destroyed for the duration of `'a`.
+        unsafe { self.storage_unbounded() }
+    }
+
+    /// Storage object associated with the extension instance.
+    ///
+    /// Returns `None` if self is null.
+    ///
+    /// # Safety
+    ///
+    /// This method provides a reference to the storage with an arbitrarily long lifetime `'b`. The reference
+    /// must actually be live for the duration of this lifetime.
+    ///
+    /// The only time when a `&mut` reference can be taken to a `InstanceStorage` is when it is constructed
+    /// or destroyed. So it is sufficient to ensure that the storage is not created or destroyed during the
+    /// lifetime `'b`.
+    pub(crate) unsafe fn storage_unbounded<'b>(&self) -> Option<&'b InstanceStorage<T>> {
         // SAFETY: instance pointer belongs to this instance. We only get a shared reference, no exclusive access, so even
         // calling this from multiple Gd pointers is safe.
+        //
+        // The caller is responsible for ensuring that the storage is live for the duration of the lifetime
+        // `'b`.
+        //
         // Potential issue is a concurrent free() in multi-threaded access; but that would need to be guarded against inside free().
         unsafe {
             let binding = self.resolve_instance_ptr();
@@ -329,6 +353,7 @@ where
         }
     }
 
+    // TODO: document unsafety in this function, and double check that it actually needs to be unsafe.
     unsafe fn resolve_instance_ptr(&self) -> sys::GDExtensionClassInstancePtr {
         if self.is_null() {
             return ptr::null_mut();

@@ -508,6 +508,7 @@ pub mod callbacks {
     use super::*;
     use crate::builder::ClassBuilder;
     use crate::obj::Base;
+    use crate::storage::{Storage, StorageRefCounted};
 
     pub unsafe extern "C" fn create<T: cap::GodotDefault>(
         _class_userdata: *mut std::ffi::c_void,
