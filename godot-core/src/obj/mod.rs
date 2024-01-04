@@ -30,7 +30,6 @@ pub use raw::*;
 pub use traits::*;
 
 pub mod bounds;
-
 pub use bounds::private::Bounds;
 
 // Do not re-export rtti here.

@@ -62,13 +62,25 @@ pub(super) mod private {
 
     /// Library-implemented trait to check bounds on `GodotClass` types.
     ///
-    /// See also [`bounds`](crate::obj::bounds) module documentation.
+    /// See [`bounds`](crate::obj::bounds) module for how to use this for bounds checking.
+    ///
+    /// <div class="warning">
+    /// <strong>Never</strong> implement this trait manually.
+    /// </div>
+    ///
+    /// Most of the time, this trait is covered by [`#[derive(GodotClass)`](../bind/derive.GodotClass.html).
+    /// If you implement `GodotClass` manually, use the [`implement_godot_bounds!`][crate::implement_godot_bounds] macro.
+    ///
+    /// There are two reasons to avoid a hand-written `impl Bounds`:
+    /// - The trait is `unsafe` and it is very easy to get internal bounds wrong. This will lead to immediate UB.
+    /// - Apart from the documented members, the trait may have undocumented items that may be broken at any time and stand under no SemVer
+    ///   guarantees.
     ///
     /// # Safety
     ///
-    /// Internal.
-    /// You **must not** implement this trait yourself. [`#[derive(GodotClass)`](../bind/derive.GodotClass.html) will automatically do it.
+    /// Internal. The library implements this trait and ensures safety.
     pub unsafe trait Bounds {
+        /// Defines the memory strategy of the static type.
         type Memory: Memory;
 
         /// Defines the memory strategy of the instance (at runtime).
@@ -79,8 +91,49 @@ pub(super) mod private {
         type Declarer: Declarer;
     }
 
+    /// Implements [`Bounds`] for a user-defined class.
+    ///
+    /// This is only necessary if you do not use the proc-macro API.
+    ///
+    /// Since `Bounds` is a supertrait of [`GodotClass`][crate::obj::GodotClass], you cannot accidentally forget to implement it.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use godot::prelude::*;
+    /// use godot::obj::bounds::implement_godot_bounds;
+    /// use godot::builtin::meta::ClassName;
+    ///
+    /// struct MyClass {}
+    ///
+    /// impl GodotClass for MyClass {
+    ///     type Base = Node;
+    ///
+    /// # const INIT_LEVEL: Option<InitLevel> = None;
+    ///     fn class_name() -> ClassName {
+    ///         ClassName::from_ascii_cstr(b"MyClass\0")
+    ///     }
+    /// }
+    ///
+    /// implement_godot_bounds!(MyClass);
+    #[macro_export]
+    macro_rules! implement_godot_bounds {
+        ($UserClass:ty) => {
+            // SAFETY: bounds are library-defined, dependent on base. User has no influence in selecting them -> macro is safe.
+            unsafe impl $crate::obj::Bounds for $UserClass {
+                type Memory = <<$UserClass as $crate::obj::GodotClass>::Base as $crate::obj::Bounds>::Memory;
+                type DynMemory = <<$UserClass as $crate::obj::GodotClass>::Base as $crate::obj::Bounds>::DynMemory;
+                type Declarer = $crate::obj::bounds::DeclUser;
+            }
+        };
+    }
+
     pub trait Sealed {}
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Macro re-exports
+
+pub use crate::implement_godot_bounds;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Memory bounds

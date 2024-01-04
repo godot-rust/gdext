@@ -62,6 +62,7 @@ impl GodotClass for () {
     }
 }
 
+/// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
 unsafe impl Bounds for () {
     type Memory = bounds::MemManual;
     type DynMemory = bounds::MemManual;
