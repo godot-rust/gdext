@@ -224,3 +224,12 @@ fn packed_array_reverse() {
     array.reverse();
     assert_eq!(array.to_vec(), vec![2, 1]);
 }
+
+#[itest]
+fn packed_array_format() {
+    let a = PackedByteArray::from(&[2, 1]);
+    assert_eq!(format!("{a}"), "[2, 1]");
+
+    let a = PackedByteArray::new();
+    assert_eq!(format!("{a}"), "[]");
+}

@@ -452,6 +452,15 @@ fn untyped_array_try_from_typed() {
     node.free();
 }
 
+#[itest]
+fn array_should_format_with_display() {
+    let a = array![1, 2, 3, 4];
+    assert_eq!(format!("{a}"), "[1, 2, 3, 4]");
+
+    let a = Array::<real>::new();
+    assert_eq!(format!("{a}"), "[]");
+}
+
 #[derive(GodotClass, Debug)]
 #[class(init, base=RefCounted)]
 struct ArrayTest;

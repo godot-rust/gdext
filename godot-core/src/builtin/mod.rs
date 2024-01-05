@@ -135,7 +135,7 @@ pub(crate) fn u8_to_bool(u: u8) -> bool {
 ///
 /// _Godot equivalent: `@GlobalScope.Side`_
 #[doc(alias = "Side")]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub enum RectSide {
     Left = 0,

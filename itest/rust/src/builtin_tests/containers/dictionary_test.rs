@@ -615,3 +615,16 @@ fn dictionary_iter_erase() {
     ```
      */
 }
+
+#[itest]
+fn dictionary_should_format_with_display() {
+    let d = Dictionary::new();
+    assert_eq!(format!("{d}"), "{  }");
+
+    let d = dict! {
+        "one": 1,
+        "two": true,
+        "three": Variant::nil()
+    };
+    assert_eq!(format!("{d}"), "{ one: 1, two: true, three: <null> }")
+}

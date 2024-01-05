@@ -308,6 +308,19 @@ impl fmt::Debug for Dictionary {
         write!(f, "{:?}", self.to_variant().stringify())
     }
 }
+impl fmt::Display for Dictionary {
+    /// Formats `Dictionary` to match Godot's string representation.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{ ")?;
+        for (count, (key, value)) in self.iter_shared().enumerate() {
+            if count != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{key}: {value}")?;
+        }
+        write!(f, " }}")
+    }
+}
 
 /// Creates a new reference to the data in this dictionary. Changes to the original dictionary will be
 /// reflected in the copy and vice versa.

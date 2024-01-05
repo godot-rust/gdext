@@ -675,6 +675,27 @@ impl<T: GodotType> fmt::Debug for Array<T> {
     }
 }
 
+impl<T: GodotType + fmt::Display> fmt::Display for Array<T> {
+    /// Formats `Array` to match Godot's string representation.
+    ///
+    /// Example:
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// let a = array![1,2,3,4];
+    /// assert_eq!(format!("{a}"), "[1, 2, 3, 4]");
+    /// ```
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[")?;
+        for (count, v) in self.iter_shared().enumerate() {
+            if count != 0 {
+                write!(f, ", ")?;
+            }
+            write!(f, "{v}")?;
+        }
+        write!(f, "]")
+    }
+}
+
 /// Creates a new reference to the data in this array. Changes to the original array will be
 /// reflected in the copy and vice versa.
 ///

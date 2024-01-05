@@ -444,6 +444,20 @@ macro_rules! impl_packed_array {
             }
         }
 
+        impl fmt::Display for $PackedArray {
+            /// Formats `PackedArray` to match Godot's string representation.
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "[")?;
+                for i in 0..self.len() {
+                    if i != 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", self.get(i))?;
+                }
+                write!(f, "]")
+            }
+        }
+
         unsafe impl GodotFfi for $PackedArray {
             fn variant_type() -> sys::VariantType {
                 sys::VariantType::$PackedArray
