@@ -279,7 +279,7 @@ impl_godot_as_self!(Rect2i);
 impl std::fmt::Display for Rect2i {
     /// Formats `Rect2i` to match Godot's string representation.
     ///
-    /// Example:
+    /// # Example
     /// ```
     /// use godot::prelude::*;
     /// let rect = Rect2i::new(Vector2i::new(0, 0), Vector2i::new(1, 1));

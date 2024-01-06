@@ -192,6 +192,7 @@ compile_error!("Must opt-in using `experimental-wasm` Cargo feature; keep in min
 #[cfg(all(feature = "double-precision", not(feature = "custom-godot")))]
 compile_error!("The feature `double-precision` currently requires `custom-godot` due to incompatibilities in the GDExtension API JSON.");
 
+/// Entry point and global init/shutdown of the library.
 pub mod init {
     pub use godot_core::init::*;
 
@@ -199,7 +200,7 @@ pub mod init {
     pub use godot_macros::gdextension;
 }
 
-/// Register Rust symbols in Godot: classes, methods, enums...
+/// Register/export Rust symbols to Godot: classes, methods, enums...
 pub mod register {
     pub use godot_core::property;
     pub use godot_macros::{godot_api, Export, FromGodot, GodotClass, GodotConvert, ToGodot, Var};

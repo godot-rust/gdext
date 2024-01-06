@@ -288,7 +288,7 @@ impl ApproxEq for Plane {
 impl std::fmt::Display for Plane {
     /// Formats `Plane` to match Godot's string representation.
     ///
-    /// Example:
+    /// # Example
     /// ```
     /// use godot::prelude::*;
     /// let plane = Plane::new(Vector3::new(1.0, 0.0, 0.0), 1.0);

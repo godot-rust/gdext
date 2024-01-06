@@ -385,7 +385,7 @@ impl Aabb {
 impl std::fmt::Display for Aabb {
     /// Formats `Aabb` to match godot's display style.
     ///
-    /// Example:
+    /// # Example
     /// ```
     /// use godot::prelude::*;
     /// let aabb = Aabb::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));

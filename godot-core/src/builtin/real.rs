@@ -202,6 +202,8 @@ macro_rules! real {
 
 /// Array of reals.
 ///
+/// The expression has type `[real; N]` where `N` is the number of elements in the array.
+///
 /// # Example
 /// ```
 /// use godot_core::builtin::{real, reals};

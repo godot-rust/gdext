@@ -677,7 +677,7 @@ impl<T: GodotType> fmt::Debug for Array<T> {
 impl<T: GodotType + fmt::Display> fmt::Display for Array<T> {
     /// Formats `Array` to match Godot's string representation.
     ///
-    /// Example:
+    /// # Example
     /// ```no_run
     /// # use godot::prelude::*;
     /// let a = array![1,2,3,4];
@@ -985,13 +985,16 @@ impl<T: GodotType> PartialOrd for Array<T> {
 ///
 /// The type of the array is inferred from the arguments.
 ///
-/// Example:
+/// # Example
 /// ```no_run
 /// # use godot::prelude::*;
 /// let arr = array![3, 1, 4];  // Array<i32>
 /// ```
 ///
+/// # See also
 /// To create an `Array` of variants, see the [`varray!`] macro.
+///
+/// For dictionaries, a similar macro [`dict!`] exists.
 #[macro_export]
 macro_rules! array {
     ($($elements:expr),* $(,)?) => {
@@ -1007,15 +1010,18 @@ macro_rules! array {
 
 /// Constructs [`VariantArray`] literals, similar to Rust's standard `vec!` macro.
 ///
-/// The type of the array is always [`Variant`].
+/// The type of the array elements is always [`Variant`].
 ///
-/// Example:
+/// # Example
 /// ```no_run
 /// # use godot::prelude::*;
 /// let arr: VariantArray = varray![42_i64, "hello", true];
 /// ```
 ///
+/// # See also
 /// To create a typed `Array` with a single element type, see the [`array!`] macro.
+///
+/// For dictionaries, a similar macro [`dict!`] exists.
 #[macro_export]
 macro_rules! varray {
     // Note: use to_variant() and not Variant::from(), as that works with both references and values

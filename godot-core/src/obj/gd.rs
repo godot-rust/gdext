@@ -113,7 +113,7 @@ where
     /// The `init` function provides you with a `Base<T::Base>` object that you can use inside your `T`, which
     /// is then wrapped in a `Gd<T>`.
     ///
-    /// Example:
+    /// # Example
     /// ```no_run
     /// # use godot::prelude::*;
     /// #[derive(GodotClass)]

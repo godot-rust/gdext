@@ -632,7 +632,7 @@ impl<'a, K: FromGodot> Iterator for TypedKeys<'a, K> {
 /// Any value can be used as a key, but to use an expression you need to surround it
 /// in `()` or `{}`.
 ///
-/// Example:
+/// # Example
 /// ```no_run
 /// use godot::builtin::{dict, Variant};
 ///
@@ -644,6 +644,10 @@ impl<'a, K: FromGodot> Iterator for TypedKeys<'a, K> {
 ///     (1 + 2): "final",
 /// };
 /// ```
+///
+/// # See also
+///
+/// For arrays, similar macros [`array!`][macro@crate::builtin::array] and [`varray!`][macro@crate::builtin::varray] exist.
 #[macro_export]
 macro_rules! dict {
     ($($key:tt: $value:expr),* $(,)?) => {
