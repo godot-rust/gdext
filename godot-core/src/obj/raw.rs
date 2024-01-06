@@ -61,6 +61,8 @@ impl<T: GodotClass> RawGd<T> {
             let instance_id = InstanceId::try_from_u64(raw_id)
                 .expect("constructed RawGd weak pointer with instance ID 0");
 
+            // TODO(bromeon): this should query dynamic type of object, which can be different from T (upcast, FromGodot, etc).
+            // See comment in ObjectRtti.
             Some(ObjectRtti::of::<T>(instance_id))
         };
 
@@ -101,13 +103,13 @@ impl<T: GodotClass> RawGd<T> {
     }
 
     pub(crate) fn instance_id_unchecked(&self) -> Option<InstanceId> {
-        self.cached_rtti.as_ref().map(|rtti| rtti.instance_id)
+        self.cached_rtti.as_ref().map(|rtti| rtti.instance_id())
     }
 
     pub(crate) fn is_instance_valid(&self) -> bool {
         self.cached_rtti
             .as_ref()
-            .map(|rtti| engine::utilities::is_instance_id_valid(rtti.instance_id.to_i64()))
+            .map(|rtti| engine::utilities::is_instance_id_valid(rtti.instance_id().to_i64()))
             .unwrap_or(false)
     }
 
@@ -122,7 +124,7 @@ impl<T: GodotClass> RawGd<T> {
         }
 
         let as_obj =
-            unsafe { self.ffi_cast::<engine::Object>() }.expect("Everything inherits object");
+            unsafe { self.ffi_cast::<engine::Object>() }.expect("everything inherits Object");
 
         let cast_is_valid = as_obj
             .as_target()
@@ -169,10 +171,12 @@ impl<T: GodotClass> RawGd<T> {
     where
         U: GodotClass,
     {
-        // `self` may be null when we convert a null-variant into a `Option<Gd<T>>`. Since we use `ffi_cast`
-        // in the `ffi_from_variant` conversion function to ensure type-correctness. So a null-variant would
-        // be cast into a null `RawGd<Object>` which is then casted to a null `RawGd<T>` which is then
-        // converted into a `None` `Option<Gd<T>>`.
+        // `self` may be null when we convert a null-variant into a `Option<Gd<T>>`, since we use `ffi_cast`
+        // in the `ffi_from_variant` conversion function to ensure type-correctness. So the chain would be as follows:
+        // - Variant::nil()
+        // - null RawGd<Object>
+        // - null RawGd<T>
+        // - Option::<Gd<T>>::None
         if self.is_null() {
             // Null can be cast to anything.
             // Forgetting a null doesn't do anything, since dropping a null also does nothing.
@@ -180,8 +184,9 @@ impl<T: GodotClass> RawGd<T> {
         }
 
         // Before Godot API calls, make sure the object is alive (and in Debug mode, of the correct type).
-        // Current design decision: EVERY cast fails, even if target type is correct. This avoids the risk of violated invariants that leak to
-        // Godot implementation. Also, we do not provide a way to recover from bad types, this is always a bug that must be solved by the user.
+        // Current design decision: EVERY cast fails on incorrect type, even if target type is correct. This avoids the risk of violated
+        // invariants that leak to the Godot implementation. Also, we do not provide a way to recover from bad types -- this is always
+        // a bug that must be solved by the user.
         self.check_rtti("ffi_cast");
 
         let class_tag = interface_fn!(classdb_get_class_tag)(U::class_name().string_sys());

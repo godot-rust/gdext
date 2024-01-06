@@ -18,11 +18,15 @@ use crate::obj::{GodotClass, InstanceId};
 #[derive(Debug)]
 pub struct ObjectRtti {
     /// Cached instance ID. May point to dead objects.
-    pub instance_id: InstanceId,
+    instance_id: InstanceId,
 
     /// Only in Debug mode: dynamic class.
     #[cfg(debug_assertions)]
-    pub class_name: crate::builtin::meta::ClassName,
+    class_name: crate::builtin::meta::ClassName,
+    //
+    // TODO(bromeon): class_name is not always most-derived class; ObjectRtti is sometimes constructed from a base class, via RawGd::from_obj_sys_weak().
+    // Examples: after upcast, when receiving Gd<Base> from Godot, etc.
+    // Thus, dynamic lookup via Godot get_class() is needed. However, this returns a String, and ClassName is 'static + Copy right now.
 }
 
 impl ObjectRtti {
@@ -46,6 +50,11 @@ impl ObjectRtti {
         #[cfg(debug_assertions)]
         crate::engine::ensure_object_inherits(self.class_name, T::class_name(), self.instance_id);
 
+        self.instance_id
+    }
+
+    #[inline]
+    pub fn instance_id(&self) -> InstanceId {
         self.instance_id
     }
 }

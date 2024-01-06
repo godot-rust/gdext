@@ -290,7 +290,7 @@ impl<T: GodotClass> Gd<T> {
     /// #[class(init, base=Node2D)]
     /// struct MyClass {}
     ///
-    /// let obj: Gd<MyClass> = MyClass::alloc_gd();
+    /// let obj: Gd<MyClass> = MyClass::new_alloc();
     /// let base = obj.clone().upcast::<Node>();
     /// ```
     pub fn upcast<Base>(self) -> Gd<Base>
@@ -583,7 +583,7 @@ where
     ///
     /// This trait is only implemented for reference-counted classes. Classes with manually-managed memory (e.g. `Node`) are not covered,
     /// because they need explicit memory management, and deriving `Default` has a high chance of the user forgetting to call `free()` on those.
-    /// `T::alloc_gd()` should be used for those instead.
+    /// `T::new_alloc()` should be used for those instead.
     fn default() -> Self {
         T::__godot_default()
     }

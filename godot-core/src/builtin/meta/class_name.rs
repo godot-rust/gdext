@@ -26,10 +26,15 @@ static CACHED_STRING_NAMES: Global<HashMap<ClassName, Box<StringName>>> = Global
 /// This struct is very cheap to copy.
 #[derive(Copy, Clone, Debug)]
 pub struct ClassName {
-    // Could use small-array optimization for common string lengths.
     c_str: &'static CStr,
+    // Could use small-array optimization for common string lengths.
     // Possible optimization: could store pre-computed hash. Would need a custom S parameter for HashMap<K, V, S>, see
     // https://doc.rust-lang.org/std/hash/trait.BuildHasher.html. (The default hasher recomputes the hash repeatedly).
+    // Alternatively, it could become CoW-style:
+    // pub enum ClassName {
+    //    Static(&'static CStr),
+    //    Dynamic(StringName),
+    // }
 }
 
 impl ClassName {
@@ -48,6 +53,14 @@ impl ClassName {
     pub fn none() -> Self {
         // In Godot, an empty class name means "no class".
         Self::from_ascii_cstr(b"\0")
+    }
+
+    #[doc(hidden)]
+    pub fn is_empty(&self) -> bool {
+        // From Rust 1.71 onward:
+        // self.c_str.is_empty()
+
+        self.c_str.to_bytes().is_empty()
     }
 
     /// Returns the class name as a string slice with static storage duration.
