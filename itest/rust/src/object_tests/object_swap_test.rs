@@ -16,7 +16,7 @@
 use godot::bind::{godot_api, GodotClass};
 use godot::builtin::GString;
 use godot::engine::{Node, Node3D, Object};
-use godot::obj::{Gd, UserClass};
+use godot::obj::{Gd, NewAlloc, NewGd};
 
 use crate::framework::{expect_panic, itest, TestContext};
 use crate::object_tests::object_test::ObjPayload;
@@ -26,7 +26,7 @@ use crate::object_tests::object_test::ObjPayload;
 /// Needed because freeing a `Gd<T>` with wrong runtime type panics, and otherwise we get a memory leak.
 ///
 /// This is a macro because a function needs excessive bounds, e.g.
-/// `T: GodotClass<Mem = Mt>, Mt: godot::obj::mem::Memory + godot::obj::mem::PossiblyManual` and then even more for `DerefMut`...
+/// `T: GodotClass<DynMemory = Mt>, Mt: godot::obj::mem::Memory + godot::obj::mem::PossiblyManual` and then even more for `DerefMut`...
 /// Maybe something to improve in the future, as generic programming is quite hard like this...
 macro_rules! swapped_free {
     ($lhs:ident, $rhs:ident) => {{
@@ -118,7 +118,7 @@ fn object_subtype_swap_argument_passing(ctx: &TestContext) {
 #[itest]
 fn object_subtype_swap_bind() {
     let mut obj: Gd<Object> = Object::new_alloc();
-    let mut user: Gd<ObjPayload> = ObjPayload::alloc_gd();
+    let mut user: Gd<ObjPayload> = ObjPayload::new_alloc();
 
     let obj_id = obj.instance_id();
     let user_id = user.instance_id();

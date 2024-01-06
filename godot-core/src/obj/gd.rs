@@ -16,7 +16,8 @@ use crate::builtin::meta::{
     ConvertError, FromFfiError, FromGodot, GodotConvert, GodotType, ToGodot,
 };
 use crate::builtin::{Callable, StringName};
-use crate::obj::{cap, dom, mem, EngineEnum, GdDerefTarget, GodotClass, Inherits, Share};
+use crate::obj::Bounds;
+use crate::obj::{bounds, cap, EngineEnum, GdDerefTarget, GodotClass, Inherits};
 use crate::obj::{GdMut, GdRef, InstanceId};
 use crate::property::{Export, Property, PropertyHintInfo, TypeStringHint};
 use crate::{callbacks, engine, out};
@@ -56,10 +57,9 @@ use super::RawGd;
 ///
 /// To construct default instances of various `Gd<T>` types, there are extension methods on the type `T` itself:
 ///
-/// | Type \ Memory Strategy | Ref-counted          | Manually managed      | Singleton               |
-/// |------------------------|----------------------|-----------------------|-------------------------|
-/// | **Engine type**        | `Resource::new()`    | `Node::new_alloc()`   | `Os::singleton()`       |
-/// | **User type**          | `MyClass::new_gd()`  | `MyClass::alloc_gd()` | _(not yet implemented)_ |
+/// - Manually managed: [`NewAlloc::new_alloc()`][crate::obj::NewAlloc::new_alloc]
+/// - Reference-counted: [`NewGd::new_gd()`][crate::obj::NewGd::new_gd]
+/// - Singletons: `T::singleton()` (inherent)
 ///
 /// In addition, the smart pointer can be constructed in multiple ways:
 ///
@@ -105,7 +105,7 @@ static_assert_eq_size!(
 /// structs with `#[derive(GodotClass)]` but not Godot classes like `Node` or `RefCounted`._ <br><br>
 impl<T> Gd<T>
 where
-    T: GodotClass<Declarer = dom::UserDomain>,
+    T: GodotClass + Bounds<Declarer = bounds::DeclUser>,
 {
     /// Creates a `Gd<T>` using a function that constructs a `T` from a provided base.
     ///
@@ -150,7 +150,7 @@ where
         Self::from_object(user_object)
     }
 
-    #[deprecated = "Use `Gd::default()` or the short-hands `T::new_gd()` and `T::alloc_gd()` instead."]
+    #[deprecated = "Use `Gd::default()` or the short-hands `T::new_gd()` and `T::new_alloc()` instead."]
     pub fn new_default() -> Self
     where
         T: cap::GodotDefault,
@@ -351,7 +351,7 @@ impl<T: GodotClass> Gd<T> {
         T: cap::GodotDefault,
     {
         unsafe {
-            let object_ptr = crate::callbacks::create::<T>(std::ptr::null_mut());
+            let object_ptr = callbacks::create::<T>(std::ptr::null_mut());
             Gd::from_obj_sys(object_ptr)
         }
     }
@@ -438,10 +438,9 @@ impl<T: GodotClass> Gd<T> {
 
 /// _The methods in this impl block are only available for objects `T` that are manually managed,
 /// i.e. anything that is not `RefCounted` or inherited from it._ <br><br>
-impl<T, M> Gd<T>
+impl<T> Gd<T>
 where
-    T: GodotClass<Mem = M>,
-    M: mem::Memory + mem::PossiblyManual,
+    T: GodotClass + Bounds<Memory = bounds::MemManual>,
 {
     /// Destroy the manually-managed Godot object.
     ///
@@ -475,10 +474,11 @@ where
         };
 
         // TODO disallow for singletons, either only at runtime or both at compile time (new memory policy) and runtime
-        use dom::Domain;
+        use bounds::Declarer;
 
         // Runtime check in case of T=Object, no-op otherwise
-        let ref_counted = T::Mem::is_ref_counted(&self.raw);
+        let ref_counted =
+            <<T as Bounds>::DynMemory as bounds::DynMemory>::is_ref_counted(&self.raw);
         if ref_counted == Some(true) {
             return error_or_panic(format!(
                 "Called free() on Gd<Object> which points to a RefCounted dynamic type; free() only supported for manually managed types\n\
@@ -575,7 +575,7 @@ impl<T: GodotClass> GodotType for Gd<T> {
 
 impl<T> Default for Gd<T>
 where
-    T: cap::GodotDefault + GodotClass<Mem = mem::StaticRefCount>,
+    T: cap::GodotDefault + Bounds<Memory = bounds::MemRefCounted>,
 {
     /// Creates a default-constructed `T` inside a smart pointer.
     ///
@@ -593,12 +593,6 @@ impl<T: GodotClass> Clone for Gd<T> {
     fn clone(&self) -> Self {
         out!("Gd::clone");
         Self::from_ffi(self.raw.clone())
-    }
-}
-
-impl<T: GodotClass> Share for Gd<T> {
-    fn share(&self) -> Self {
-        self.clone()
     }
 }
 

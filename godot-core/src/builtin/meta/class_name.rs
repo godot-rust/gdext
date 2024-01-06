@@ -33,7 +33,10 @@ pub struct ClassName {
 }
 
 impl ClassName {
-    #[doc(hidden)]
+    /// Construct from a null-terminated ASCII string.
+    ///
+    /// # Panics
+    /// If the string is not null-terminated or contains internal null bytes.
     pub fn from_ascii_cstr(bytes: &'static [u8]) -> Self {
         assert!(bytes.is_ascii(), "string must be ASCII"); // only half of u8 range
         let c_str = CStr::from_bytes_with_nul(bytes).expect("string must be null-terminated");

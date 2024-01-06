@@ -235,14 +235,14 @@ pub mod prelude {
     };
     pub use super::init::{gdextension, ExtensionLibrary, InitLevel};
     pub use super::log::*;
-    pub use super::obj::{
-        Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnReady, Share,
-    };
+    pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnReady};
 
     // Make trait methods available
     pub use super::engine::NodeExt as _;
     pub use super::obj::EngineBitfield as _;
     pub use super::obj::EngineEnum as _;
-    pub use super::obj::UserClass as _; // new_gd(), alloc_gd()
+    pub use super::obj::NewAlloc as _;
+    pub use super::obj::NewGd as _;
+    pub use super::obj::UserClass as _; // new_gd(), alloc_gd() -- TODO: remove (exposed functions are deprecated)
     pub use super::obj::WithBaseField as _; // to_gd()
 }

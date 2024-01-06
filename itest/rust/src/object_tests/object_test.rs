@@ -15,7 +15,7 @@ use godot::engine::{
     file_access, Area2D, Camera3D, Engine, FileAccess, IRefCounted, Node, Node3D, Object,
     RefCounted,
 };
-use godot::obj::{Base, Gd, Inherits, InstanceId, RawGd, UserClass};
+use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd};
 use godot::prelude::meta::GodotType;
 use godot::sys::{self, GodotFfi};
 
@@ -191,14 +191,14 @@ fn object_from_instance_id_unrelated_type() {
 
 #[itest]
 fn object_new_has_instance_id() {
-    let obj = ObjPayload::alloc_gd();
+    let obj = ObjPayload::new_alloc();
     let _id = obj.instance_id();
     obj.free();
 }
 
 #[itest]
 fn object_dynamic_free() {
-    let mut obj = ObjPayload::alloc_gd();
+    let mut obj = ObjPayload::new_alloc();
     let id = obj.instance_id();
 
     obj.call("free".into(), &[]);
@@ -431,7 +431,7 @@ fn object_user_convert_variant_refcount() {
 
 #[itest]
 fn object_engine_convert_variant_refcount() {
-    let obj = RefCounted::new();
+    let obj = RefCounted::new_gd();
     check_convert_variant_refcount(obj);
 }
 
@@ -720,7 +720,7 @@ fn object_engine_manual_double_free() {
 
 #[itest]
 fn object_engine_refcounted_free() {
-    let node = RefCounted::new();
+    let node = RefCounted::new_gd();
     let node2 = node.clone().upcast::<Object>();
 
     expect_panic("calling free() on RefCounted object", || node2.free())
@@ -728,7 +728,7 @@ fn object_engine_refcounted_free() {
 
 #[itest]
 fn object_user_double_free() {
-    let mut obj = ObjPayload::alloc_gd();
+    let mut obj = ObjPayload::new_alloc();
     let obj2 = obj.clone();
     obj.call("free".into(), &[]);
 
@@ -951,8 +951,8 @@ impl DoubleUse {
 /// This test is not signal-specific, the original bug would happen whenever Godot would call a method that takes `&self`.
 #[itest]
 fn double_use_reference() {
-    let double_use: Gd<DoubleUse> = DoubleUse::alloc_gd();
-    let emitter: Gd<ObjPayload> = ObjPayload::alloc_gd();
+    let double_use: Gd<DoubleUse> = DoubleUse::new_alloc();
+    let emitter: Gd<ObjPayload> = ObjPayload::new_alloc();
 
     emitter
         .clone()
@@ -992,10 +992,10 @@ fn non_unique_error_works() {
     use godot::engine::RefCounted;
     use godot::obj::NotUniqueError;
 
-    let unique = RefCounted::new();
+    let unique = RefCounted::new_gd();
     assert!(NotUniqueError::check(unique).is_ok());
 
-    let shared = RefCounted::new();
+    let shared = RefCounted::new_gd();
     let cloned = shared.clone();
     match NotUniqueError::check(cloned) {
         Err(error) => assert_eq!(error.get_reference_count(), 2),

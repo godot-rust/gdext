@@ -9,6 +9,7 @@ use std::str::FromStr;
 
 use godot::builtin::{NodePath, Variant};
 use godot::engine::{global, Node, Node3D, NodeExt, PackedScene, SceneTree};
+use godot::obj::{NewAlloc, NewGd};
 
 use crate::framework::{itest, TestContext};
 
@@ -67,7 +68,7 @@ fn node_scene_tree() {
     parent.set_name("parent".into());
     parent.add_child(child.clone());
 
-    let mut scene = PackedScene::new();
+    let mut scene = PackedScene::new_gd();
     let err = scene.pack(parent.clone());
     assert_eq!(err, global::Error::OK);
 

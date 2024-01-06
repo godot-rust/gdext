@@ -23,7 +23,7 @@ use crate::register_tests::gen_ffi::PropertyTestsRust;
 
 #[itest]
 fn property_template_test(ctx: &TestContext) {
-    let rust_properties = PropertyTestsRust::alloc_gd();
+    let rust_properties = PropertyTestsRust::new_alloc();
     let gdscript_properties = ctx.property_tests.clone();
 
     // Accumulate errors so we can catch all of them in one go.

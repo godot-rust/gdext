@@ -10,7 +10,7 @@ use godot::builtin::{
     dict, Array, Dictionary, GString, Variant, VariantArray, Vector2, Vector2Axis,
 };
 use godot::engine::{Node, Resource};
-use godot::obj::Gd;
+use godot::obj::{Gd, NewAlloc};
 
 use crate::framework::itest;
 

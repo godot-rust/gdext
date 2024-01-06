@@ -12,7 +12,7 @@ use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{dict, varray, GString, NodePath, StringName, Variant, Vector2, Vector3};
 use godot::builtin::{Basis, Dictionary, VariantArray, VariantOperator, VariantType};
 use godot::engine::Node2D;
-use godot::obj::InstanceId;
+use godot::obj::{InstanceId, NewAlloc};
 use godot::sys::GodotFfi;
 
 use crate::common::roundtrip;

@@ -12,7 +12,7 @@ use godot::builtin::{Rect2, Rid, Variant};
 use godot::engine::native::{AudioFrame, CaretInfo, Glyph};
 use godot::engine::text_server::Direction;
 use godot::engine::{ITextServerExtension, TextServer, TextServerExtension};
-use godot::obj::{Base, UserClass};
+use godot::obj::{Base, NewGd};
 
 use std::cell::Cell;
 

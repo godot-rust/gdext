@@ -8,7 +8,6 @@
 use godot_ffi as sys;
 
 use crate::builtin::*;
-use crate::obj::Share;
 use crate::property::{Export, Property, PropertyHintInfo, TypeStringHint};
 use std::fmt;
 use std::marker::PhantomData;
@@ -715,12 +714,6 @@ impl<T: GodotType> Clone for Array<T> {
         array
             .with_checked_type()
             .expect("copied array should have same type as original array")
-    }
-}
-
-impl<T: GodotType> Share for Array<T> {
-    fn share(&self) -> Self {
-        self.clone()
     }
 }
 

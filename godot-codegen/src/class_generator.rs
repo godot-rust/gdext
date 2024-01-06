@@ -452,7 +452,7 @@ fn make_constructor_and_default(
     // Note: this could use class_name() but is not yet done due to upcoming lazy-load refactoring.
     //let class_name_obj = quote! { <Self as crate::obj::GodotClass>::class_name() };
 
-    let (constructor, godot_default_impl);
+    let (constructor, has_godot_default_impl);
     if ctx.is_singleton(godot_class_name) {
         // Note: we cannot return &'static mut Self, as this would be very easy to mutably alias.
         // &'static Self would be possible, but we would lose the whole mutability information (even if that is best-effort and
@@ -468,43 +468,38 @@ fn make_constructor_and_default(
                 }
             }
         };
-        godot_default_impl = TokenStream::new();
+        has_godot_default_impl = false;
     } else if !class.is_instantiable {
         // Abstract base classes or non-singleton classes without constructor
         constructor = TokenStream::new();
-        godot_default_impl = TokenStream::new();
+        has_godot_default_impl = false;
     } else if class.is_refcounted {
         // RefCounted, Resource, etc
         constructor = quote! {
+            #[deprecated = "Replaced with `new_gd` in extension trait `NewGd`."]
             pub fn new() -> Gd<Self> {
-                unsafe {
-                    let class_name = #godot_class_stringname;
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.string_sys());
-                    Gd::from_obj_sys(object_ptr)
-                }
+                // <Self as crate::obj::NewGd>::new_gd()
+                crate::obj::Gd::default()
             }
         };
-        godot_default_impl = quote! {
-            impl crate::obj::cap::GodotDefault for #class_name {
-                fn __godot_default() -> crate::obj::Gd<Self> {
-                    Self::new()
-                }
-            }
-        };
+        has_godot_default_impl = true;
     } else {
         // Manually managed classes: Object, Node etc
-        constructor = quote! {
-            #[must_use]
-            pub fn new_alloc() -> Gd<Self> {
-                unsafe {
-                    let class_name = #godot_class_stringname;
-                    let object_ptr = sys::interface_fn!(classdb_construct_object)(class_name.string_sys());
-                    Gd::from_obj_sys(object_ptr)
+        constructor = quote! {};
+        has_godot_default_impl = true;
+    }
+
+    let godot_default_impl = if has_godot_default_impl {
+        quote! {
+            impl crate::obj::cap::GodotDefault for #class_name {
+                fn __godot_default() -> crate::obj::Gd<Self> {
+                    crate::engine::construct_engine_object::<Self>()
                 }
             }
-        };
-        godot_default_impl = TokenStream::new();
-    }
+        }
+    } else {
+        TokenStream::new()
+    };
 
     (constructor, godot_default_impl)
 }
@@ -609,12 +604,18 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         }
     };
 
-    let memory = if class_name.rust_ty == "Object" {
-        ident("DynamicRefCount")
+    let assoc_dyn_memory = if class_name.rust_ty == "Object" {
+        ident("MemDynamic")
     } else if class.is_refcounted {
-        ident("StaticRefCount")
+        ident("MemRefCounted")
     } else {
-        ident("ManualMemory")
+        ident("MemManual")
+    };
+
+    let assoc_memory = if class.is_refcounted {
+        ident("MemRefCounted")
+    } else {
+        ident("MemManual")
     };
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub.
@@ -648,15 +649,19 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
                 #internal_methods
                 #constants
             }
-            unsafe impl crate::obj::GodotClass for #class_name {
+            impl crate::obj::GodotClass for #class_name {
                 type Base = #base_ty;
-                type Declarer = crate::obj::dom::EngineDomain;
-                type Mem = crate::obj::mem::#memory;
-                const INIT_LEVEL: Option<crate::init::InitLevel> = #init_level;
 
                 fn class_name() -> ClassName {
                     ClassName::from_ascii_cstr(#class_name_cstr)
                 }
+
+                const INIT_LEVEL: crate::init::InitLevel = #init_level;
+            }
+            unsafe impl crate::obj::Bounds for #class_name {
+                type Memory = crate::obj::bounds::#assoc_memory;
+                type DynMemory = crate::obj::bounds::#assoc_dyn_memory;
+                type Declarer = crate::obj::bounds::DeclEngine;
             }
             impl crate::obj::EngineClass for #class_name {
                 fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr {

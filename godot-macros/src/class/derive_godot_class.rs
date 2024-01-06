@@ -95,15 +95,18 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     };
 
     Ok(quote! {
-        unsafe impl ::godot::obj::GodotClass for #class_name {
+        impl ::godot::obj::GodotClass for #class_name {
             type Base = #base_class;
-            type Declarer = ::godot::obj::dom::UserDomain;
-            type Mem = <Self::Base as ::godot::obj::GodotClass>::Mem;
-            const INIT_LEVEL: Option<::godot::init::InitLevel> = <#base_class as ::godot::obj::GodotClass>::INIT_LEVEL;
 
             fn class_name() -> ::godot::builtin::meta::ClassName {
                 ::godot::builtin::meta::ClassName::from_ascii_cstr(#class_name_cstr)
             }
+        }
+
+        unsafe impl ::godot::obj::Bounds for #class_name {
+            type Memory = <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::Bounds>::Memory;
+            type DynMemory = <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::Bounds>::DynMemory;
+            type Declarer = ::godot::obj::bounds::DeclUser;
         }
 
         #godot_init_impl
@@ -123,7 +126,21 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 free_fn: #prv::callbacks::free::<#class_name>,
                 default_get_virtual_fn: #default_get_virtual_fn,
             },
-            init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
+            init_level: {
+                let level = <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL;
+                let base_level = <#base_class as ::godot::obj::GodotClass>::INIT_LEVEL;
+
+                // Sanity check for init levels. Note that this does not cover cases where GodotClass is manually defined;
+                // might make sense to add a run-time check during class registration.
+                assert!(
+                    level >= base_level,
+                    "Class `{class}` has init level `{level:?}`, but its base class has init level `{base_level:?}`.\n\
+                    A class cannot be registered before its base class.",
+                    class = #class_name_str,
+                );
+
+                level
+            }
         });
 
         #editor_plugin

@@ -15,11 +15,12 @@ use crate::builtin::meta::{
     ToGodot,
 };
 use crate::builtin::Variant;
-use crate::obj::dom::Domain as _;
-use crate::obj::mem::Memory as _;
+use crate::obj::bounds::Declarer as _;
+use crate::obj::bounds::DynMemory as _;
 use crate::obj::rtti::ObjectRtti;
+use crate::obj::Bounds;
 use crate::obj::GdDerefTarget;
-use crate::obj::{dom, GdMut, GdRef, GodotClass, InstanceId};
+use crate::obj::{bounds, GdMut, GdRef, GodotClass, InstanceId};
 use crate::storage::{InstanceStorage, Storage};
 use crate::{engine, out};
 
@@ -87,7 +88,7 @@ impl<T: GodotClass> RawGd<T> {
         // Note: use init_ref and not inc_ref, since this might be the first reference increment.
         // Godot expects RefCounted::init_ref to be called instead of RefCounted::reference in that case.
         // init_ref also doesn't hurt (except 1 possibly unnecessary check).
-        T::Mem::maybe_init_ref(&self);
+        T::DynMemory::maybe_init_ref(&self);
         self
     }
 
@@ -194,7 +195,7 @@ impl<T: GodotClass> RawGd<T> {
         let tmp = unsafe { self.ffi_cast::<engine::RefCounted>() };
         let mut tmp = tmp.expect("object expected to inherit RefCounted");
         let return_val =
-            <engine::RefCounted as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
+            <engine::RefCounted as Bounds>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
 
         std::mem::forget(tmp); // no ownership transfer
         return_val
@@ -205,7 +206,7 @@ impl<T: GodotClass> RawGd<T> {
         let mut tmp = tmp.expect("object expected to inherit Object; should never fail");
         // let return_val = apply(tmp.inner_mut());
         let return_val =
-            <engine::Object as GodotClass>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
+            <engine::Object as Bounds>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
 
         std::mem::forget(tmp); // no ownership transfer
         return_val
@@ -241,7 +242,7 @@ impl<T: GodotClass> RawGd<T> {
         let target = unsafe {
             std::mem::transmute::<
                 &Self,
-                &<<T as GodotClass>::Declarer as dom::Domain>::DerefTarget<T>,
+                &<<T as Bounds>::Declarer as bounds::Declarer>::DerefTarget<T>,
             >(self)
         };
 
@@ -263,7 +264,7 @@ impl<T: GodotClass> RawGd<T> {
         let target = unsafe {
             std::mem::transmute::<
                 &mut Self,
-                &mut <<T as GodotClass>::Declarer as dom::Domain>::DerefTarget<T>,
+                &mut <<T as Bounds>::Declarer as bounds::Declarer>::DerefTarget<T>,
             >(self)
         };
 
@@ -297,7 +298,7 @@ impl<T: GodotClass> RawGd<T> {
 
 impl<T> RawGd<T>
 where
-    T: GodotClass<Declarer = dom::UserDomain>,
+    T: GodotClass + Bounds<Declarer = bounds::DeclUser>,
 {
     /// Hands out a guard for a shared borrow, through which the user instance can be read.
     ///
@@ -409,7 +410,7 @@ where
             return Self::null();
         }
 
-        let obj_ptr = if T::Mem::pass_as_ref(call_type) {
+        let obj_ptr = if T::DynMemory::pass_as_ref(call_type) {
             // ptr is `Ref<T>*`
             // See the docs for `PtrcallType::Virtual` for more info on `Ref<T>`.
             interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr)
@@ -426,7 +427,7 @@ where
     }
 
     unsafe fn move_return_ptr(self, ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) {
-        if T::Mem::pass_as_ref(call_type) {
+        if T::DynMemory::pass_as_ref(call_type) {
             interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys())
         } else {
             ptr::write(ptr as *mut _, self.obj)
@@ -524,7 +525,7 @@ impl<T: GodotClass> Drop for RawGd<T> {
         // out!("RawGd::drop   <{}>", std::any::type_name::<T>());
 
         // SAFETY: This `Gd` wont be dropped again after this.
-        let is_last = unsafe { T::Mem::maybe_dec_ref(self) }; // may drop
+        let is_last = unsafe { T::DynMemory::maybe_dec_ref(self) }; // may drop
         if is_last {
             unsafe {
                 interface_fn!(object_destroy)(self.obj_sys());
@@ -537,7 +538,7 @@ impl<T: GodotClass> Drop for RawGd<T> {
 
         // If destruction is triggered by Godot, Storage already knows about it, no need to notify it
         if !self.storage().destroyed_by_godot() {
-            let is_last = T::Mem::maybe_dec_ref(&self); // may drop
+            let is_last = T::DynMemory::maybe_dec_ref(&self); // may drop
             if is_last {
                 //T::Declarer::destroy(self);
                 unsafe {

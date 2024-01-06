@@ -65,9 +65,9 @@ impl ClassCodegenLevel {
 
     pub fn to_init_level(self) -> TokenStream {
         match self {
-            Self::Servers => quote! { Some(crate::init::InitLevel::Servers) },
-            Self::Scene => quote! { Some(crate::init::InitLevel::Scene) },
-            Self::Editor => quote! { Some(crate::init::InitLevel::Editor) },
+            Self::Servers => quote! { crate::init::InitLevel::Servers },
+            Self::Scene => quote! { crate::init::InitLevel::Scene },
+            Self::Editor => quote! { crate::init::InitLevel::Editor },
         }
     }
 }

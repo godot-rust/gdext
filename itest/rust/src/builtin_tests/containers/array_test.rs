@@ -323,7 +323,7 @@ fn array_mixed_values() {
     let typed_array = array![1, 2];
     let object = Object::new_alloc();
     let node = Node::new_alloc();
-    let ref_counted = RefCounted::new();
+    let ref_counted = RefCounted::new_gd();
 
     let array = varray![
         int,
@@ -398,7 +398,7 @@ fn typed_array_pass_to_godot_func() {
     use godot::engine::image::Format;
     use godot::engine::{Image, Texture2DArray};
 
-    let mut image = Image::new();
+    let mut image = Image::new_gd();
     image.set_data(
         2,
         4,
@@ -407,7 +407,7 @@ fn typed_array_pass_to_godot_func() {
         PackedByteArray::from(&[255, 0, 255, 0, 0, 255, 0, 255]),
     );
     let images = array![image];
-    let mut texture = Texture2DArray::new();
+    let mut texture = Texture2DArray::new_gd();
     let error = texture.create_from_images(images);
 
     assert_eq!(error, Error::OK);

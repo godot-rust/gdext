@@ -9,7 +9,6 @@ use godot_ffi as sys;
 
 use crate::builtin::meta::{FromGodot, ToGodot};
 use crate::builtin::{inner, Variant};
-use crate::obj::Share;
 use crate::property::{Export, Property, PropertyHintInfo, TypeStringHint};
 use std::fmt;
 use std::marker::PhantomData;
@@ -337,12 +336,6 @@ impl Clone for Dictionary {
                 ctor(self_ptr, args.as_ptr());
             })
         }
-    }
-}
-
-impl Share for Dictionary {
-    fn share(&self) -> Self {
-        self.clone()
     }
 }
 

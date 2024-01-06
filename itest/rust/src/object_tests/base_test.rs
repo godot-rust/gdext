@@ -16,7 +16,7 @@ fn base_test_is_weak() {
 
 #[itest]
 fn base_instance_id() {
-    let obj = Based::alloc_gd();
+    let obj = Based::new_alloc();
     let obj_id = obj.instance_id();
     let base_id = obj.bind().base().instance_id();
 
@@ -26,7 +26,7 @@ fn base_instance_id() {
 
 #[itest]
 fn base_access_unbound() {
-    let mut obj = Based::alloc_gd();
+    let mut obj = Based::new_alloc();
 
     let pos = Vector2::new(-5.5, 7.0);
     obj.set_position(pos);
@@ -38,7 +38,7 @@ fn base_access_unbound() {
 // Tests whether access to base is possible from outside the Gd<T>, even if there is no `#[base]` field.
 #[itest]
 fn base_access_unbound_no_field() {
-    let mut obj = Baseless::alloc_gd();
+    let mut obj = Baseless::new_alloc();
 
     let pos = Vector2::new(-5.5, 7.0);
     obj.set_position(pos);
@@ -49,7 +49,7 @@ fn base_access_unbound_no_field() {
 
 #[itest]
 fn base_display() {
-    let obj = Based::alloc_gd();
+    let obj = Based::new_alloc();
     {
         let guard = obj.bind();
         let id = guard.base().instance_id();
@@ -65,7 +65,7 @@ fn base_display() {
 
 #[itest]
 fn base_debug() {
-    let obj = Based::alloc_gd();
+    let obj = Based::new_alloc();
     {
         let guard = obj.bind();
         let id = guard.base().instance_id();
@@ -96,7 +96,7 @@ fn base_with_init() {
 
 #[itest]
 fn base_gd_self() {
-    let obj = Based::alloc_gd();
+    let obj = Based::new_alloc();
     let obj2 = obj.bind().access_gd_self();
 
     assert_eq!(obj, obj2);

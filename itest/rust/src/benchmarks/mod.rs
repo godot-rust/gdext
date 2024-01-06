@@ -13,7 +13,7 @@ use godot::bind::GodotClass;
 use godot::builtin::inner::InnerRect2i;
 use godot::builtin::{GString, Rect2i, StringName, Vector2i};
 use godot::engine::{Node3D, Os, RefCounted};
-use godot::obj::{Gd, InstanceId};
+use godot::obj::{Gd, InstanceId, NewAlloc, NewGd};
 
 use crate::framework::bench;
 
@@ -57,7 +57,7 @@ fn class_node_life() -> InstanceId {
 
 #[bench(repeat = 25)]
 fn class_refcounted_life() -> Gd<RefCounted> {
-    RefCounted::new()
+    RefCounted::new_gd()
 }
 
 #[bench(repeat = 25)]
