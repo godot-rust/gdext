@@ -6,7 +6,7 @@
  */
 
 use godot::{
-    bind::property::PropertyHintInfo,
+    register::property::PropertyHintInfo,
     engine::{
         global::{PropertyHint, PropertyUsageFlags},
         Texture,

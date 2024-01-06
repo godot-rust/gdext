@@ -199,12 +199,18 @@ pub mod init {
     pub use godot_macros::gdextension;
 }
 
-/// Export user-defined classes and methods to be called by the engine.
-pub mod bind {
+/// Register Rust symbols in Godot: classes, methods, enums...
+pub mod register {
     pub use godot_core::property;
     pub use godot_macros::{
         godot_api, Export, FromGodot, GodotClass, GodotConvert, Property, ToGodot,
     };
+}
+
+#[deprecated = "Renamed to `register`."]
+/// Renamed to [`register`] module.
+pub mod bind {
+    pub use super::register::*;
 }
 
 /// Testing facilities (unstable).
@@ -218,8 +224,8 @@ pub use godot_core::private;
 
 /// Often-imported symbols.
 pub mod prelude {
-    pub use super::bind::property::{Export, Property, TypeStringHint};
-    pub use super::bind::{
+    pub use super::register::property::{Export, Property, TypeStringHint};
+    pub use super::register::{
         godot_api, Export, FromGodot, GodotClass, GodotConvert, Property, ToGodot,
     };
 

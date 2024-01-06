@@ -7,7 +7,7 @@
 
 use crate::framework::itest;
 
-use godot::bind::{godot_api, GodotClass};
+use godot::register::{godot_api, GodotClass};
 use godot::builtin::{Rect2, Rid, Variant};
 use godot::engine::native::{AudioFrame, CaretInfo, Glyph};
 use godot::engine::text_server::Direction;

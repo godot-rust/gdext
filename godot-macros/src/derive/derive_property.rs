@@ -106,7 +106,7 @@ pub fn derive_property(decl: Declaration) -> ParseResult<TokenStream2> {
 
     let out = quote! {
         #[allow(unused_parens)]
-        impl godot::bind::property::Property for #name {
+        impl godot::register::property::Property for #name {
             type Intermediate = #intermediate;
 
             fn get_property(&self) -> #intermediate {

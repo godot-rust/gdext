@@ -13,7 +13,7 @@
 // Disabled in Release mode, since we don't perform the subtype check there.
 #![cfg(debug_assertions)]
 
-use godot::bind::{godot_api, GodotClass};
+use godot::register::{godot_api, GodotClass};
 use godot::builtin::GString;
 use godot::engine::{Node, Node3D, Object};
 use godot::obj::{Gd, NewAlloc, NewGd};

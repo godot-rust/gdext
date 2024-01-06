@@ -8,7 +8,7 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use godot::bind::{godot_api, GodotClass};
+use godot::register::{godot_api, GodotClass};
 use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{GString, StringName, Variant, Vector3};
 use godot::engine::{

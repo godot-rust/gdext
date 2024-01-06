@@ -9,7 +9,7 @@
 
 use crate::framework::{itest, TestContext};
 
-use godot::bind::{godot_api, GodotClass};
+use godot::register::{godot_api, GodotClass};
 use godot::builtin::meta::ToGodot;
 use godot::builtin::{
     real, varray, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,

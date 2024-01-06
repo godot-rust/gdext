@@ -7,7 +7,7 @@
 
 use std::ffi::c_void;
 
-use godot::bind::{godot_api, GodotClass};
+use godot::register::{godot_api, GodotClass};
 use godot::builtin::meta::{ClassName, FromGodot, MethodInfo, PropertyInfo, ToGodot};
 use godot::builtin::{GString, StringName, Variant, VariantType};
 use godot::engine::global::{MethodFlags, PropertyHint, PropertyUsageFlags};

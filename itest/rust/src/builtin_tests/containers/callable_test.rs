@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::bind::{godot_api, GodotClass};
+use godot::register::{godot_api, GodotClass};
 use godot::builtin::inner::InnerCallable;
 use godot::builtin::meta::ToGodot;
 use godot::builtin::{varray, Callable, GString, StringName, Variant};

@@ -107,14 +107,14 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 if export.is_some() {
                     quote! {
                         {
-                            let default_export_info = <#field_type as ::godot::bind::property::Export>::default_export_info();
+                            let default_export_info = <#field_type as ::godot::register::property::Export>::default_export_info();
                             (default_export_info.hint, default_export_info.hint_string)
                         }
                     }
                 } else {
                     quote! {
                         {
-                            let default_export_info = <#field_type as ::godot::bind::property::Property>::property_hint();
+                            let default_export_info = <#field_type as ::godot::register::property::Property>::property_hint();
                             (default_export_info.hint, default_export_info.hint_string)
                         }
                     }
@@ -134,7 +134,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             },
             FieldHint::HintFromExportFunction(expression) => quote! {
                 {
-                    let ::godot::bind::property::PropertyHintInfo { hint, hint_string } = #expression;
+                    let ::godot::register::property::PropertyHintInfo { hint, hint_string } = #expression;
                     (hint, hint_string)
                 }
             },

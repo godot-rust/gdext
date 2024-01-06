@@ -7,7 +7,7 @@
 
 use std::cell::Cell;
 
-use godot::bind::{godot_api, GodotClass};
+use godot::register::{godot_api, GodotClass};
 use godot::builtin::{GString, Variant};
 
 use godot::engine::Object;

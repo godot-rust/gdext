@@ -216,12 +216,12 @@ fn main() {
         use godot::engine::global::Error;
         use godot::engine::{Node, Resource};
 
-        #[derive(godot::bind::GodotClass)]
+        #[derive(godot::register::GodotClass)]
         #[class(init)]
         struct GenFfi {}
 
         #[allow(clippy::bool_comparison)] // i == true
-        #[godot::bind::godot_api]
+        #[godot::register::godot_api]
         impl GenFfi {
             #(#methods)*
         }
