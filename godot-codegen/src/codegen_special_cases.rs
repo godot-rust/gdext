@@ -162,6 +162,7 @@ const SELECTED_CLASSES: &[&str] = &[
     "Resource",
     "ResourceFormatLoader",
     "ResourceLoader",
+    "ResourceSaver",
     "RigidBody2D",
     "SceneTree",
     "SceneTreeTimer",
