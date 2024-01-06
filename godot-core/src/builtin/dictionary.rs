@@ -8,16 +8,14 @@
 use godot_ffi as sys;
 
 use crate::builtin::meta::{FromGodot, ToGodot};
-use crate::builtin::{inner, Variant};
-use crate::property::{Export, Property, PropertyHintInfo, TypeStringHint};
-use std::fmt;
+use crate::builtin::{inner, Variant, VariantArray};
+use crate::property::{Export, PropertyHintInfo, TypeStringHint, Var};
 use std::marker::PhantomData;
-use std::ptr::addr_of_mut;
+use std::{fmt, ptr};
 use sys::types::OpaqueDictionary;
-use sys::{ffi_methods, interface_fn, AsUninit, GodotFfi, VariantType};
+use sys::{ffi_methods, interface_fn, AsUninit, GodotFfi};
 
 use super::meta::impl_godot_as_self;
-use super::VariantArray;
 
 /// Godot's `Dictionary` type.
 ///
@@ -339,7 +337,7 @@ impl Clone for Dictionary {
     }
 }
 
-impl Property for Dictionary {
+impl Var for Dictionary {
     type Intermediate = Self;
 
     fn get_property(&self) -> Self::Intermediate {
@@ -353,7 +351,7 @@ impl Property for Dictionary {
 
 impl TypeStringHint for Dictionary {
     fn type_string() -> String {
-        format!("{}:Dictionary", VariantType::Dictionary as i32)
+        format!("{}:Dictionary", sys::VariantType::Dictionary as i32)
     }
 }
 
@@ -484,7 +482,7 @@ impl<'a> DictionaryIter<'a> {
             iter_fn(
                 dictionary.var_sys(),
                 next_value.var_sys(),
-                addr_of_mut!(valid_u8),
+                ptr::addr_of_mut!(valid_u8),
             )
         };
         let valid = super::u8_to_bool(valid_u8);
@@ -634,7 +632,7 @@ impl<'a, K: FromGodot> Iterator for TypedKeys<'a, K> {
 /// Any value can be used as a key, but to use an expression you need to surround it
 /// in `()` or `{}`.
 ///
-/// Example:
+/// # Example
 /// ```no_run
 /// use godot::builtin::{dict, Variant};
 ///
@@ -646,6 +644,10 @@ impl<'a, K: FromGodot> Iterator for TypedKeys<'a, K> {
 ///     (1 + 2): "final",
 /// };
 /// ```
+///
+/// # See also
+///
+/// For arrays, similar macros [`array!`][macro@crate::builtin::array] and [`varray!`][macro@crate::builtin::varray] exist.
 #[macro_export]
 macro_rules! dict {
     ($($key:tt: $value:expr),* $(,)?) => {

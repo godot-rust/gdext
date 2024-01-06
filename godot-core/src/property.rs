@@ -5,16 +5,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+//! Registration support for property types.
+
 use crate::builtin::GString;
 use crate::engine::global::PropertyHint;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
 
-/// Trait implemented for types that can be used as `#[var]` fields. This creates a copy of the
-/// value, for some type-specific definition of "copy". For example, `Array`, `Dictionary` and `Gd` are
+/// Trait implemented for types that can be used as `#[var]` fields.
+///
+/// This creates a copy of the value, according to copy semantics provided by `Clone`. For example, `Array`, `Dictionary` and `Gd` are
 /// returned by shared reference instead of copying the actual data.
-pub trait Property {
+pub trait Var {
     type Intermediate;
 
     fn get_property(&self) -> Self::Intermediate;
@@ -26,13 +29,16 @@ pub trait Property {
 }
 
 /// Trait implemented for types that can be used as `#[export]` fields.
-pub trait Export: Property {
+pub trait Export: Var {
     /// The export info to use for an exported field of this type, if no other export info is specified.
     fn default_export_info() -> PropertyHintInfo;
 }
 
-/// Trait for types that can be represented as a type string for use with
-/// [`PropertyHint::PROPERTY_HINT_TYPE_STRING`].
+/// Marks types that are registered via "type string hint" in Godot.
+///
+/// See [`PropertyHint::PROPERTY_HINT_TYPE_STRING`] and [upstream docs].
+///
+/// [upstream docs]: https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint
 pub trait TypeStringHint {
     /// Returns the representation of this type as a type string.
     ///
@@ -51,14 +57,14 @@ impl<T: TypeStringHint> TypeStringHint for Option<T> {
     }
 }
 
-impl<T> Property for Option<T>
+impl<T> Var for Option<T>
 where
-    T: Property + From<<T as Property>::Intermediate>,
+    T: Var + From<<T as Var>::Intermediate>,
 {
     type Intermediate = Option<T::Intermediate>;
 
     fn get_property(&self) -> Self::Intermediate {
-        self.as_ref().map(Property::get_property)
+        self.as_ref().map(Var::get_property)
     }
 
     fn set_property(&mut self, value: Self::Intermediate) {
@@ -77,7 +83,7 @@ where
 
 impl<T> Export for Option<T>
 where
-    T: Export + From<<T as Property>::Intermediate>,
+    T: Export + From<<T as Var>::Intermediate>,
 {
     fn default_export_info() -> PropertyHintInfo {
         T::default_export_info()
@@ -87,7 +93,7 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Export machinery
 
-/// Info needed for godot to understand how to export a type to the editor.
+/// Info needed by Godot, for how to export a type to the editor.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct PropertyHintInfo {
     pub hint: PropertyHint,
@@ -332,7 +338,7 @@ mod export_impls {
         };
 
         (@property $Ty:ty => $variant_type:ident) => {
-            impl Property for $Ty {
+            impl Var for $Ty {
                 type Intermediate = Self;
 
                 fn get_property(&self) -> Self {

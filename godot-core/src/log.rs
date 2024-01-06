@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+//! Printing and logging functionality.
+
 #[macro_export]
 #[doc(hidden)]
 macro_rules! inner_godot_msg {
@@ -33,7 +35,7 @@ macro_rules! inner_godot_msg {
 
 /// Pushes a warning message to Godot's built-in debugger and to the OS terminal.
 ///
-/// _Godot equivalent: @GlobalScope.push_warning()_
+/// _Godot equivalent: [`@GlobalScope.push_warning()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-push-warning)_.
 #[macro_export]
 macro_rules! godot_warn {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
@@ -43,7 +45,7 @@ macro_rules! godot_warn {
 
 /// Pushes an error message to Godot's built-in debugger and to the OS terminal.
 ///
-/// _Godot equivalent: @GlobalScope.push_error()_
+/// _Godot equivalent: [`@GlobalScope.push_error()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-push-error)_.
 #[macro_export]
 macro_rules! godot_error {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
@@ -51,6 +53,7 @@ macro_rules! godot_error {
     };
 }
 
+/// Logs a script error to Godot's built-in debugger and to the OS terminal.
 #[macro_export]
 macro_rules! godot_script_error {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
@@ -60,7 +63,7 @@ macro_rules! godot_script_error {
 
 /// Prints to the Godot console.
 ///
-/// _Godot equivalent: @GlobalScope.print()_
+/// _Godot equivalent: [`@GlobalScope.print()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-print)_.
 #[macro_export]
 macro_rules! godot_print {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
@@ -79,7 +82,7 @@ pub use crate::{godot_error, godot_print, godot_script_error, godot_warn};
 use crate::builtin::{StringName, Variant};
 use crate::sys::{self, GodotFfi};
 
-/// Prints to the Godot console, used by the godot_print! macro.
+/// Prints to the Godot console, used by the [`godot_print!`] macro.
 pub fn print(varargs: &[Variant]) {
     unsafe {
         let method_name = StringName::from("print");

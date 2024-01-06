@@ -101,7 +101,7 @@ impl Rid {
 impl std::fmt::Display for Rid {
     /// Formats `Rid` to match Godot's string representation.
     ///
-    /// Example:
+    /// # Example
     /// ```
     /// use godot::prelude::*;
     /// let id = Rid::new(1);

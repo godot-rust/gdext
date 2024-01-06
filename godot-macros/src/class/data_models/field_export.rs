@@ -359,7 +359,7 @@ impl FieldExport {
 macro_rules! quote_export_func {
     ($function_name:ident($($tt:tt)*)) => {
         FieldHint::HintFromExportFunction(quote! {
-            ::godot::bind::property::export_info_functions::$function_name($($tt)*)
+            ::godot::register::property::export_info_functions::$function_name($($tt)*)
         })
     }
 }

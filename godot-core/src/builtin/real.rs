@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+/// Convenience conversion between `real` and `f32`/`f64`.
+///
 /// Clippy often complains if you do `f as f64` when `f` is already an `f64`. This trait exists to make it easy to
 /// convert between the different reals and floats without a lot of allowing clippy lints for your code.
 pub trait RealConv {
@@ -199,6 +201,8 @@ macro_rules! real {
 }
 
 /// Array of reals.
+///
+/// The expression has type `[real; N]` where `N` is the number of elements in the array.
 ///
 /// # Example
 /// ```

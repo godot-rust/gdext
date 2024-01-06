@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::property::{Export, Property, PropertyHintInfo};
+use crate::property::{Export, PropertyHintInfo, Var};
 use std::mem;
 
 /// Ergonomic late-initialization container with `ready()` support.
@@ -187,7 +187,7 @@ impl<T> std::ops::DerefMut for OnReady<T> {
     }
 }
 
-impl<T: Property> Property for OnReady<T> {
+impl<T: Var> Var for OnReady<T> {
     type Intermediate = T::Intermediate;
 
     fn get_property(&self) -> Self::Intermediate {

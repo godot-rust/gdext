@@ -7,9 +7,9 @@
 
 use std::fmt::Debug;
 
-use godot::bind::{FromGodot, GodotConvert, ToGodot};
 use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{dict, varray, Variant};
+use godot::register::{FromGodot, GodotConvert, ToGodot};
 
 use crate::common::roundtrip;
 use crate::framework::itest;

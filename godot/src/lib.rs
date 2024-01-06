@@ -192,6 +192,7 @@ compile_error!("Must opt-in using `experimental-wasm` Cargo feature; keep in min
 #[cfg(all(feature = "double-precision", not(feature = "custom-godot")))]
 compile_error!("The feature `double-precision` currently requires `custom-godot` due to incompatibilities in the GDExtension API JSON.");
 
+/// Entry point and global init/shutdown of the library.
 pub mod init {
     pub use godot_core::init::*;
 
@@ -199,12 +200,16 @@ pub mod init {
     pub use godot_macros::gdextension;
 }
 
-/// Export user-defined classes and methods to be called by the engine.
-pub mod bind {
+/// Register/export Rust symbols to Godot: classes, methods, enums...
+pub mod register {
     pub use godot_core::property;
-    pub use godot_macros::{
-        godot_api, Export, FromGodot, GodotClass, GodotConvert, Property, ToGodot,
-    };
+    pub use godot_macros::{godot_api, Export, FromGodot, GodotClass, GodotConvert, ToGodot, Var};
+}
+
+/// Renamed to [`register`] module.
+#[deprecated = "Renamed to `register`."]
+pub mod bind {
+    pub use super::register::*;
 }
 
 /// Testing facilities (unstable).
@@ -217,32 +222,4 @@ pub mod test {
 pub use godot_core::private;
 
 /// Often-imported symbols.
-pub mod prelude {
-    pub use super::bind::property::{Export, Property, TypeStringHint};
-    pub use super::bind::{
-        godot_api, Export, FromGodot, GodotClass, GodotConvert, Property, ToGodot,
-    };
-
-    pub use super::builtin::math::FloatExt as _;
-    pub use super::builtin::meta::{FromGodot, ToGodot};
-    pub use super::builtin::*;
-    pub use super::builtin::{array, dict, varray}; // Re-export macros.
-    pub use super::engine::{
-        load, try_load, utilities, AudioStreamPlayer, Camera2D, Camera3D, GFile,
-        IAudioStreamPlayer, ICamera2D, ICamera3D, INode, INode2D, INode3D, IObject, IPackedScene,
-        IRefCounted, IResource, ISceneTree, Input, Node, Node2D, Node3D, Object, PackedScene,
-        PackedSceneExt, RefCounted, Resource, SceneTree,
-    };
-    pub use super::init::{gdextension, ExtensionLibrary, InitLevel};
-    pub use super::log::*;
-    pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnReady};
-
-    // Make trait methods available
-    pub use super::engine::NodeExt as _;
-    pub use super::obj::EngineBitfield as _;
-    pub use super::obj::EngineEnum as _;
-    pub use super::obj::NewAlloc as _;
-    pub use super::obj::NewGd as _;
-    pub use super::obj::UserClass as _; // new_gd(), alloc_gd() -- TODO: remove (exposed functions are deprecated)
-    pub use super::obj::WithBaseField as _; // to_gd()
-}
+pub mod prelude;

@@ -12,7 +12,7 @@ use venial::{Declaration, StructFields};
 use crate::util::{bail, decl_get_info, ident, DeclInfo};
 use crate::ParseResult;
 
-pub fn derive_property(decl: Declaration) -> ParseResult<TokenStream2> {
+pub fn derive_var(decl: Declaration) -> ParseResult<TokenStream2> {
     let DeclInfo {
         name, name_string, ..
     } = decl_get_info(&decl);
@@ -106,7 +106,7 @@ pub fn derive_property(decl: Declaration) -> ParseResult<TokenStream2> {
 
     let out = quote! {
         #[allow(unused_parens)]
-        impl godot::bind::property::Property for #name {
+        impl godot::register::property::Var for #name {
             type Intermediate = #intermediate;
 
             fn get_property(&self) -> #intermediate {

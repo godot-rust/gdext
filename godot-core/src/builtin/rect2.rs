@@ -278,7 +278,7 @@ impl ApproxEq for Rect2 {
 impl std::fmt::Display for Rect2 {
     /// Formats `Rect2` to match Godot's string representation.
     ///
-    /// Example:
+    /// # Example
     /// ```
     /// use godot::prelude::*;
     /// let rect = Rect2::new(Vector2::new(0.0, 0.0), Vector2::new(1.0, 1.0));

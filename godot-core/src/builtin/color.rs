@@ -520,7 +520,7 @@ fn to_be_words(mut u: u64) -> [u16; 4] {
 impl std::fmt::Display for Color {
     /// Formats `Color` to match Godot's string representation.
     ///
-    /// Example:
+    /// # Example
     /// ```
     /// use godot::prelude::*;
     /// let color = Color::from_rgba(1.0,1.0,1.0,1.0);

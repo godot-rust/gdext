@@ -581,7 +581,7 @@ pub enum ProjectionEye {
 impl std::fmt::Display for Projection {
     /// Formats `Projection` to match Godot's string representation.
     ///
-    /// Example:
+    /// # Example
     /// ```
     /// use godot::prelude::*;
     /// let proj = Projection::new([

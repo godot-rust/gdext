@@ -5,9 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::bind::GodotClass;
 use godot::engine::{load, save, try_load, try_save};
 use godot::obj::NewGd;
+use godot::register::GodotClass;
 
 use crate::framework::itest;
 
