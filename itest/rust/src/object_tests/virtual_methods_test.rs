@@ -9,7 +9,6 @@
 
 use crate::framework::{itest, TestContext};
 
-use godot::register::{godot_api, GodotClass};
 use godot::builtin::meta::ToGodot;
 use godot::builtin::{
     real, varray, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,
@@ -25,6 +24,7 @@ use godot::engine::{
 };
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::private::class_macros::assert_eq_approx;
+use godot::register::{godot_api, GodotClass};
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
 #[derive(GodotClass, Debug)]

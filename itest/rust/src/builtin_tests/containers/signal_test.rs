@@ -7,8 +7,8 @@
 
 use std::cell::Cell;
 
-use godot::register::{godot_api, GodotClass};
 use godot::builtin::{GString, Variant};
+use godot::register::{godot_api, GodotClass};
 
 use godot::engine::Object;
 use godot::obj::{Base, Gd, NewAlloc, WithBaseField};

@@ -19,7 +19,7 @@ use crate::builtin::{Callable, StringName};
 use crate::obj::Bounds;
 use crate::obj::{bounds, cap, EngineEnum, GdDerefTarget, GodotClass, Inherits};
 use crate::obj::{GdMut, GdRef, InstanceId};
-use crate::property::{Export, Property, PropertyHintInfo, TypeStringHint};
+use crate::property::{Export, PropertyHintInfo, TypeStringHint, Var};
 use crate::{callbacks, engine, out};
 
 use super::RawGd;
@@ -615,7 +615,7 @@ impl<T: GodotClass> TypeStringHint for Gd<T> {
     }
 }
 
-impl<T: GodotClass> Property for Gd<T> {
+impl<T: GodotClass> Var for Gd<T> {
     type Intermediate = Self;
 
     fn get_property(&self) -> Self {

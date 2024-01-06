@@ -8,7 +8,7 @@
 use godot_ffi as sys;
 
 use crate::builtin::*;
-use crate::property::{Export, Property, PropertyHintInfo, TypeStringHint};
+use crate::property::{Export, PropertyHintInfo, TypeStringHint, Var};
 use std::fmt;
 use std::marker::PhantomData;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -729,7 +729,7 @@ impl TypeStringHint for VariantArray {
     }
 }
 
-impl<T: GodotType> Property for Array<T> {
+impl<T: GodotType> Var for Array<T> {
     type Intermediate = Self;
 
     fn get_property(&self) -> Self::Intermediate {

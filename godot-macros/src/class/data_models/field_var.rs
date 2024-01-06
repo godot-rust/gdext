@@ -168,18 +168,18 @@ impl GetterSetterImpl {
         match kind {
             GetSet::Get => {
                 signature = quote! {
-                    fn #function_name(&self) -> <#field_type as ::godot::register::property::Property>::Intermediate
+                    fn #function_name(&self) -> <#field_type as ::godot::register::property::Var>::Intermediate
                 };
                 function_body = quote! {
-                    <#field_type as ::godot::register::property::Property>::get_property(&self.#field_name)
+                    <#field_type as ::godot::register::property::Var>::get_property(&self.#field_name)
                 };
             }
             GetSet::Set => {
                 signature = quote! {
-                    fn #function_name(&mut self, #field_name: <#field_type as ::godot::register::property::Property>::Intermediate)
+                    fn #function_name(&mut self, #field_name: <#field_type as ::godot::register::property::Var>::Intermediate)
                 };
                 function_body = quote! {
-                    <#field_type as ::godot::register::property::Property>::set_property(&mut self.#field_name, #field_name);
+                    <#field_type as ::godot::register::property::Var>::set_property(&mut self.#field_name, #field_name);
                 };
             }
         }

@@ -202,9 +202,7 @@ pub mod init {
 /// Register Rust symbols in Godot: classes, methods, enums...
 pub mod register {
     pub use godot_core::property;
-    pub use godot_macros::{
-        godot_api, Export, FromGodot, GodotClass, GodotConvert, Property, ToGodot,
-    };
+    pub use godot_macros::{godot_api, Export, FromGodot, GodotClass, GodotConvert, ToGodot, Var};
 }
 
 #[deprecated = "Renamed to `register`."]
@@ -224,9 +222,9 @@ pub use godot_core::private;
 
 /// Often-imported symbols.
 pub mod prelude {
-    pub use super::register::property::{Export, Property, TypeStringHint};
+    pub use super::register::property::{Export, TypeStringHint, Var};
     pub use super::register::{
-        godot_api, Export, FromGodot, GodotClass, GodotConvert, Property, ToGodot,
+        godot_api, Export, FromGodot, GodotClass, GodotConvert, ToGodot, Var,
     };
 
     pub use super::builtin::math::FloatExt as _;

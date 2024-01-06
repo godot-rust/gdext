@@ -7,12 +7,12 @@
 
 use std::time::{Duration, Instant};
 
-use godot::register::{godot_api, GodotClass};
 use godot::builtin::meta::ToGodot;
 use godot::builtin::{Array, GString, Variant, VariantArray};
 use godot::engine::{Engine, Node, Os};
 use godot::log::godot_error;
 use godot::obj::Gd;
+use godot::register::{godot_api, GodotClass};
 
 use crate::framework::{
     bencher, passes_filter, BenchResult, RustBenchmark, RustTestCase, TestContext,

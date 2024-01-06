@@ -6,12 +6,12 @@
  */
 
 use godot::{
-    register::property::PropertyHintInfo,
     engine::{
         global::{PropertyHint, PropertyUsageFlags},
         Texture,
     },
     prelude::*,
+    register::property::PropertyHintInfo,
     test::itest,
 };
 
@@ -155,7 +155,7 @@ enum SomeCStyleEnum {
     C = 2,
 }
 
-impl Property for SomeCStyleEnum {
+impl Var for SomeCStyleEnum {
     type Intermediate = i64;
 
     fn get_property(&self) -> Self::Intermediate {
@@ -187,7 +187,7 @@ struct NotExportable {
     b: i64,
 }
 
-impl Property for NotExportable {
+impl Var for NotExportable {
     type Intermediate = Dictionary;
 
     fn get_property(&self) -> Self::Intermediate {
@@ -300,7 +300,7 @@ struct CheckAllExports {
 }
 
 #[repr(i64)]
-#[derive(Property, Export, Eq, PartialEq, Debug)]
+#[derive(Var, Export, Eq, PartialEq, Debug)]
 pub enum TestEnum {
     A = 0,
     B = 1,

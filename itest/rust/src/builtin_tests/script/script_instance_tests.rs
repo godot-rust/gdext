@@ -7,7 +7,6 @@
 
 use std::ffi::c_void;
 
-use godot::register::{godot_api, GodotClass};
 use godot::builtin::meta::{ClassName, FromGodot, MethodInfo, PropertyInfo, ToGodot};
 use godot::builtin::{GString, StringName, Variant, VariantType};
 use godot::engine::global::{MethodFlags, PropertyHint, PropertyUsageFlags};
@@ -16,6 +15,7 @@ use godot::engine::{
     ScriptLanguage,
 };
 use godot::obj::{Base, Gd, WithBaseField};
+use godot::register::{godot_api, GodotClass};
 use godot::sys;
 
 #[derive(GodotClass)]

@@ -10,11 +10,11 @@
 mod derive_export;
 mod derive_from_variant;
 mod derive_godot_convert;
-mod derive_property;
 mod derive_to_variant;
+mod derive_var;
 
 pub(crate) use derive_export::*;
 pub(crate) use derive_from_variant::*;
 pub(crate) use derive_godot_convert::*;
-pub(crate) use derive_property::*;
 pub(crate) use derive_to_variant::*;
+pub(crate) use derive_var::*;

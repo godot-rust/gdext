@@ -7,12 +7,12 @@
 
 use crate::framework::itest;
 
-use godot::register::{godot_api, GodotClass};
 use godot::builtin::{Rect2, Rid, Variant};
 use godot::engine::native::{AudioFrame, CaretInfo, Glyph};
 use godot::engine::text_server::Direction;
 use godot::engine::{ITextServerExtension, TextServer, TextServerExtension};
 use godot::obj::{Base, NewGd};
+use godot::register::{godot_api, GodotClass};
 
 use std::cell::Cell;
 

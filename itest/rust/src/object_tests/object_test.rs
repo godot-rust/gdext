@@ -8,7 +8,6 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
-use godot::register::{godot_api, GodotClass};
 use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{GString, StringName, Variant, Vector3};
 use godot::engine::{
@@ -17,6 +16,7 @@ use godot::engine::{
 };
 use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd};
 use godot::prelude::meta::GodotType;
+use godot::register::{godot_api, GodotClass};
 use godot::sys::{self, GodotFfi};
 
 use crate::framework::{expect_panic, itest, TestContext};

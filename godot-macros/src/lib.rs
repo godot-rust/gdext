@@ -20,7 +20,7 @@ use venial::Declaration;
 use crate::util::ident;
 
 // Below intra-doc link to the trait only works as HTML, not as symbol link.
-/// Derive macro for [the `GodotClass` trait](../obj/trait.GodotClass.html) on structs.
+/// Derive macro for [`GodotClass`](../obj/trait.GodotClass.html) on structs.
 ///
 /// You must use this macro; manual implementations of the `GodotClass` trait are not supported.
 ///
@@ -285,12 +285,23 @@ use crate::util::ident;
 /// }
 /// ```
 ///
-///
 /// # Signals
 ///
-/// The `#[signal]` attribute is accepted, but not yet implemented. See [issue
-/// #8](https://github.com/godot-rust/gdext/issues/8).
+/// The `#[signal]` attribute is quite limited at the moment and can only be used for parameter-less signals.
+/// It will be fundamentally reworked.
 ///
+/// ```no_run
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// struct MyClass {}
+///
+/// #[godot_api]
+/// impl MyClass {
+///     #[signal]
+///     fn some_signal();
+/// }
+/// ```
 ///
 /// # Running code in the editor
 ///
@@ -344,7 +355,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)
 }
 
-/// Proc-macro attribute to be used with `impl` blocks of `#[derive(GodotClass)]` structs.
+/// Proc-macro attribute to be used with `impl` blocks of [`#[derive(GodotClass)]`][GodotClass] structs.
 ///
 /// Can be used in two ways:
 /// ```no_run
@@ -425,12 +436,13 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, class::attribute_godot_api)
 }
 
+/// Derive macro for [`GodotConvert`](../builtin/meta/trait.GodotConvert.html) on structs (required by [`ToGodot`] and [`FromGodot`]).
 #[proc_macro_derive(GodotConvert)]
 pub fn derive_godot_convert(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_godot_convert)
 }
 
-/// Derive macro for [ToGodot](../builtin/meta/trait.ToGodot.html) on structs or enums.
+/// Derive macro for [`ToGodot`](../builtin/meta/trait.ToGodot.html) on structs or enums.
 ///
 /// # Example
 ///
@@ -463,7 +475,7 @@ pub fn derive_to_godot(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_to_godot)
 }
 
-/// Derive macro for [FromGodot](../builtin/meta/trait.FromVariant.html) on structs or enums.
+/// Derive macro for [`FromGodot`](../builtin/meta/trait.FromVariant.html) on structs or enums.
 ///
 /// # Example
 ///
@@ -497,7 +509,7 @@ pub fn derive_from_godot(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_from_godot)
 }
 
-/// Derive macro for [Property](../bind/property/trait.Property.html) on enums.
+/// Derive macro for [`Var`](../bind/property/trait.Var.html) on enums.
 ///
 /// Currently has some tight requirements which are expected to be softened as implementation expands:
 /// - Only works for enums, structs aren't supported by this derive macro at the moment.
@@ -510,35 +522,36 @@ pub fn derive_from_godot(input: TokenStream) -> TokenStream {
 ///
 /// ```no_run
 /// # use godot::prelude::*;
+/// #[derive(Var)]
 /// #[repr(i32)]
-/// #[derive(Property)]
 /// # #[derive(Eq, PartialEq, Debug)]
-/// enum TestEnum {
+/// enum MyEnum {
 ///     A = 0,
 ///     B = 1,
 /// }
 ///
 /// #[derive(GodotClass)]
-/// struct TestClass {
+/// struct MyClass {
 ///     #[var]
-///     foo: TestEnum
+///     foo: MyEnum,
 /// }
 ///
-/// # fn main() {
-/// let mut class = TestClass {foo: TestEnum::B};
-/// assert_eq!(class.get_foo(), TestEnum::B as i32);
-/// class.set_foo(TestEnum::A as i32);
-/// assert_eq!(class.foo, TestEnum::A);
-/// # }
+/// fn main() {
+///     let mut class = MyClass { foo: MyEnum::B };
+///     assert_eq!(class.get_foo(), MyEnum::B as i32);
+///
+///     class.set_foo(MyEnum::A as i32);
+///     assert_eq!(class.foo, MyEnum::A);
+/// }
 /// ```
-#[proc_macro_derive(Property)]
+#[proc_macro_derive(Var)]
 pub fn derive_property(input: TokenStream) -> TokenStream {
-    translate(input, derive::derive_property)
+    translate(input, derive::derive_var)
 }
 
-/// Derive macro for [Export](../bind/property/trait.Export.html) on enums.
+/// Derive macro for [`Export`](../bind/property/trait.Export.html) on enums.
 ///
-/// Currently has some tight requirements which are expected to be softened as implementation expands, see requirements for [Property].
+/// Currently has some tight requirements which are expected to be softened as implementation expands, see requirements for [`Var`].
 #[proc_macro_derive(Export)]
 pub fn derive_export(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_export)
