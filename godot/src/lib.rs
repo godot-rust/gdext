@@ -205,8 +205,8 @@ pub mod register {
     pub use godot_macros::{godot_api, Export, FromGodot, GodotClass, GodotConvert, ToGodot, Var};
 }
 
-#[deprecated = "Renamed to `register`."]
 /// Renamed to [`register`] module.
+#[deprecated = "Renamed to `register`."]
 pub mod bind {
     pub use super::register::*;
 }
@@ -221,32 +221,4 @@ pub mod test {
 pub use godot_core::private;
 
 /// Often-imported symbols.
-pub mod prelude {
-    pub use super::register::property::{Export, TypeStringHint, Var};
-    pub use super::register::{
-        godot_api, Export, FromGodot, GodotClass, GodotConvert, ToGodot, Var,
-    };
-
-    pub use super::builtin::math::FloatExt as _;
-    pub use super::builtin::meta::{FromGodot, ToGodot};
-    pub use super::builtin::*;
-    pub use super::builtin::{array, dict, varray}; // Re-export macros.
-    pub use super::engine::{
-        load, try_load, utilities, AudioStreamPlayer, Camera2D, Camera3D, GFile,
-        IAudioStreamPlayer, ICamera2D, ICamera3D, INode, INode2D, INode3D, IObject, IPackedScene,
-        IRefCounted, IResource, ISceneTree, Input, Node, Node2D, Node3D, Object, PackedScene,
-        PackedSceneExt, RefCounted, Resource, SceneTree,
-    };
-    pub use super::init::{gdextension, ExtensionLibrary, InitLevel};
-    pub use super::log::*;
-    pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnReady};
-
-    // Make trait methods available
-    pub use super::engine::NodeExt as _;
-    pub use super::obj::EngineBitfield as _;
-    pub use super::obj::EngineEnum as _;
-    pub use super::obj::NewAlloc as _;
-    pub use super::obj::NewGd as _;
-    pub use super::obj::UserClass as _; // new_gd(), alloc_gd() -- TODO: remove (exposed functions are deprecated)
-    pub use super::obj::WithBaseField as _; // to_gd()
-}
+pub mod prelude;
