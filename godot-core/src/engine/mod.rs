@@ -140,7 +140,7 @@ pub(crate) fn debug_string<T: GodotClass>(
     ty: &str,
 ) -> std::fmt::Result {
     if let Some(id) = obj.instance_id_or_none() {
-        let class: GString = obj.raw.as_object(|obj| Object::get_class(obj));
+        let class: GString = obj.raw.as_object().get_class();
         write!(f, "{ty} {{ id: {id}, class: {class} }}")
     } else {
         write!(f, "{ty} {{ freed obj }}")
@@ -151,7 +151,7 @@ pub(crate) fn display_string<T: GodotClass>(
     obj: &Gd<T>,
     f: &mut std::fmt::Formatter<'_>,
 ) -> std::fmt::Result {
-    let string: GString = obj.raw.as_object(Object::to_string);
+    let string: GString = obj.raw.as_object().to_string();
     <GString as std::fmt::Display>::fmt(&string, f)
 }
 

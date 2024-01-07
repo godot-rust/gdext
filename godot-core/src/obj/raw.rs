@@ -15,7 +15,7 @@ use crate::builtin::meta::{
     ToGodot,
 };
 use crate::builtin::Variant;
-use crate::obj::bounds::{Declarer as _, DynMemory as _};
+use crate::obj::bounds::DynMemory as _;
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
 use crate::storage::{InstanceStorage, Storage};
@@ -83,11 +83,11 @@ impl<T: GodotClass> RawGd<T> {
     }
 
     /// Returns `self` but with initialized ref-count.
-    fn with_inc_refcount(self) -> Self {
+    fn with_inc_refcount(mut self) -> Self {
         // Note: use init_ref and not inc_ref, since this might be the first reference increment.
         // Godot expects RefCounted::init_ref to be called instead of RefCounted::reference in that case.
         // init_ref also doesn't hurt (except 1 possibly unnecessary check).
-        T::DynMemory::maybe_init_ref(&self);
+        T::DynMemory::maybe_init_ref(&mut self);
         self
     }
 
@@ -193,25 +193,26 @@ impl<T: GodotClass> RawGd<T> {
         sys::ptr_then(cast_object_ptr, |ptr| RawGd::from_obj_sys_weak(ptr))
     }
 
-    pub(crate) fn as_ref_counted<R>(&self, apply: impl Fn(&mut engine::RefCounted) -> R) -> R {
+    pub(crate) fn with_ref_counted<R>(&self, apply: impl Fn(&mut engine::RefCounted) -> R) -> R {
+        // Note: this previously called Declarer::scoped_mut() - however, no need to go through bind() for changes in base RefCounted.
+        // Any accesses to user objects (e.g. destruction if refc=0) would bind anyway.
+
         let tmp = unsafe { self.ffi_cast::<engine::RefCounted>() };
         let mut tmp = tmp.expect("object expected to inherit RefCounted");
-        let return_val =
-            <engine::RefCounted as Bounds>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
+        let return_val = apply(tmp.as_target_mut());
 
         std::mem::forget(tmp); // no ownership transfer
         return_val
     }
 
-    pub(crate) fn as_object<R>(&self, apply: impl Fn(&mut engine::Object) -> R) -> R {
-        let tmp = unsafe { self.ffi_cast::<engine::Object>() };
-        let mut tmp = tmp.expect("object expected to inherit Object; should never fail");
-        // let return_val = apply(tmp.inner_mut());
-        let return_val =
-            <engine::Object as Bounds>::Declarer::scoped_mut(&mut tmp, |obj| apply(obj));
+    // TODO replace the above with this -- last time caused UB; investigate.
+    // pub(crate) unsafe fn as_ref_counted_unchecked(&mut self) -> &mut engine::RefCounted {
+    //     self.as_target_mut()
+    // }
 
-        std::mem::forget(tmp); // no ownership transfer
-        return_val
+    pub(crate) fn as_object(&self) -> &engine::Object {
+        // SAFETY: Object is always a valid upcast target.
+        unsafe { self.as_upcast_ref() }
     }
 
     /// # Panics

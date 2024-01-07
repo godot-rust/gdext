@@ -323,7 +323,8 @@ fn array_mixed_values() {
     let typed_array = array![1, 2];
     let object = Object::new_alloc();
     let node = Node::new_alloc();
-    let ref_counted = RefCounted::new_gd();
+    let engine_refc = RefCounted::new_gd();
+    let user_refc = ArrayTest::new_gd(); // user RefCounted type
 
     let array = varray![
         int,
@@ -332,7 +333,8 @@ fn array_mixed_values() {
         typed_array,
         object,
         node,
-        ref_counted,
+        engine_refc,
+        user_refc,
     ];
 
     assert_eq!(i64::try_from_variant(&array.get(0)).unwrap(), int);
@@ -354,11 +356,18 @@ fn array_mixed_values() {
             .instance_id(),
         node.instance_id()
     );
+
     assert_eq!(
         Gd::<RefCounted>::try_from_variant(&array.get(6))
             .unwrap()
             .instance_id(),
-        ref_counted.instance_id()
+        engine_refc.instance_id()
+    );
+    assert_eq!(
+        Gd::<ArrayTest>::try_from_variant(&array.get(7))
+            .unwrap()
+            .instance_id(),
+        user_refc.instance_id()
     );
 
     object.free();
