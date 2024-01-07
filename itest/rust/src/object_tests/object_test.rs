@@ -14,10 +14,11 @@ use godot::engine::{
     file_access, Area2D, Camera3D, Engine, FileAccess, IRefCounted, Node, Node3D, Object,
     RefCounted,
 };
+use godot::obj;
 use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd};
 use godot::prelude::meta::GodotType;
 use godot::register::{godot_api, GodotClass};
-use godot::sys::{self, GodotFfi};
+use godot::sys::{self, interface_fn, GodotFfi};
 
 use crate::framework::{expect_panic, itest, TestContext};
 
@@ -522,8 +523,30 @@ fn object_engine_upcast() {
     assert_eq!(object.instance_id(), id);
     assert_eq!(object.get_class(), GString::from("Node3D"));
 
-    // Deliberate free on upcast object
+    // Deliberate free on upcast object.
     object.free();
+}
+
+fn ref_instance_id(obj: &Object) -> InstanceId {
+    // SAFETY: raw FFI call since we can't access get_instance_id() of a raw Object anymore, and call() needs &mut.
+    use obj::EngineClass as _;
+
+    let obj_ptr = obj.as_object_ptr();
+
+    let raw_id = unsafe { interface_fn!(object_get_instance_id)(obj_ptr) };
+    InstanceId::try_from_i64(raw_id as i64).unwrap()
+}
+
+#[itest]
+fn object_engine_upcast_ref() {
+    let node3d: Gd<Node3D> = Node3D::new_alloc();
+    let id = node3d.instance_id();
+
+    let object = node3d.upcast_ref::<Object>();
+    assert_eq!(ref_instance_id(object), id);
+    assert_eq!(object.get_class(), GString::from("Node3D"));
+
+    node3d.free();
 }
 
 #[itest]
@@ -660,6 +683,30 @@ fn object_user_upcast() {
     let object = obj.upcast::<Object>();
     assert_eq!(object.instance_id(), id);
     assert_eq!(object.get_class(), GString::from("RefcPayload"));
+}
+
+#[itest]
+fn object_user_upcast_ref() {
+    let obj = user_refc_instance();
+    let id = obj.instance_id();
+
+    let object = obj.upcast_ref::<Object>();
+    assert_eq!(ref_instance_id(object), id);
+    assert_eq!(object.get_class(), GString::from("RefcPayload"));
+}
+
+#[itest]
+fn object_user_upcast_mut() {
+    let mut obj = user_refc_instance();
+    let id = obj.instance_id();
+
+    let object = obj.upcast_mut::<Object>();
+    assert_eq!(ref_instance_id(object), id);
+    assert_eq!(object.get_class(), GString::from("RefcPayload"));
+    assert_eq!(
+        object.call("to_string".into(), &[]),
+        "value=17943".to_variant()
+    );
 }
 
 #[itest]

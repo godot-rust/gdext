@@ -9,20 +9,19 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::ops::{Deref, DerefMut};
 
 use godot_ffi as sys;
-use godot_ffi::VariantType;
-use sys::static_assert_eq_size;
+
+use sys::{static_assert_eq_size, VariantType};
 
 use crate::builtin::meta::{
     ConvertError, FromFfiError, FromGodot, GodotConvert, GodotType, ToGodot,
 };
 use crate::builtin::{Callable, StringName};
-use crate::obj::Bounds;
-use crate::obj::{bounds, cap, EngineEnum, GdDerefTarget, GodotClass, Inherits};
-use crate::obj::{GdMut, GdRef, InstanceId};
+use crate::obj::raw::RawGd;
+use crate::obj::{
+    bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
+};
 use crate::property::{Export, PropertyHintInfo, TypeStringHint, Var};
 use crate::{callbacks, engine, out};
-
-use super::RawGd;
 
 /// Smart pointer to objects owned by the Godot engine.
 ///
@@ -290,7 +289,7 @@ impl<T: GodotClass> Gd<T> {
     /// #[class(init, base=Node2D)]
     /// struct MyClass {}
     ///
-    /// let obj: Gd<MyClass> = MyClass::alloc_gd();
+    /// let obj: Gd<MyClass> = MyClass::new_alloc();
     /// let base = obj.clone().upcast::<Node>();
     /// ```
     pub fn upcast<Base>(self) -> Gd<Base>
@@ -300,6 +299,50 @@ impl<T: GodotClass> Gd<T> {
     {
         self.owned_cast()
             .expect("Upcast failed. This is a bug; please report it.")
+    }
+
+    /// **Upcast shared-ref:** access this object as a shared reference to a base class.
+    ///
+    /// This is semantically equivalent to multiple applications of [`Self::deref()`]. Not really useful on its own, but combined with
+    /// generic programming:
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// fn print_node_name<T>(node: &Gd<T>)
+    /// where
+    ///     T: Inherits<Node>,
+    /// {
+    ///     println!("Node name: {}", node.upcast_ref().get_name());
+    /// }
+    /// ```
+    pub fn upcast_ref<Base>(&self) -> &Base
+    where
+        Base: GodotClass,
+        T: Inherits<Base>,
+    {
+        // SAFETY: valid upcast enforced by Inherits bound.
+        unsafe { self.raw.as_upcast_ref::<Base>() }
+    }
+
+    /// **Upcast exclusive-ref:** access this object as an exclusive reference to a base class.
+    ///
+    /// This is semantically equivalent to multiple applications of [`Self::deref_mut()`]. Not really useful on its own, but combined with
+    /// generic programming:
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// fn set_node_name<T>(node: &mut Gd<T>, name: &str)
+    /// where
+    ///     T: Inherits<Node>,
+    /// {
+    ///     node.upcast_mut().set_name(name.into());
+    /// }
+    /// ```
+    pub fn upcast_mut<Base>(&mut self) -> &mut Base
+    where
+        Base: GodotClass,
+        T: Inherits<Base>,
+    {
+        // SAFETY: valid upcast enforced by Inherits bound.
+        unsafe { self.raw.as_upcast_mut::<Base>() }
     }
 
     /// **Downcast:** try to convert into a smart pointer to a derived class.
@@ -400,13 +443,13 @@ impl<T: GodotClass> Deref for Gd<T> {
     type Target = GdDerefTarget<T>;
 
     fn deref(&self) -> &Self::Target {
-        self.raw.as_target().expect("`Gd` is never null")
+        self.raw.as_target()
     }
 }
 
 impl<T: GodotClass> DerefMut for Gd<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.raw.as_target_mut().expect("`Gd` is never null")
+        self.raw.as_target_mut()
     }
 }
 
@@ -583,7 +626,7 @@ where
     ///
     /// This trait is only implemented for reference-counted classes. Classes with manually-managed memory (e.g. `Node`) are not covered,
     /// because they need explicit memory management, and deriving `Default` has a high chance of the user forgetting to call `free()` on those.
-    /// `T::alloc_gd()` should be used for those instead.
+    /// `T::new_alloc()` should be used for those instead.
     fn default() -> Self {
         T::__godot_default()
     }

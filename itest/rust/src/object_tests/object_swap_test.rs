@@ -32,7 +32,10 @@ macro_rules! swapped_free {
     ($lhs:ident, $rhs:ident) => {{
         let mut lhs = $lhs;
         let mut rhs = $rhs;
-        std::mem::swap(&mut *lhs, &mut *rhs);
+
+        // Standard DerefMut no longer works, as it checks the RTTI which then panics.
+        // std::mem::swap(&mut *lhs, &mut *rhs);
+        std::mem::swap(&mut lhs, unsafe { std::mem::transmute(&mut rhs) });
 
         lhs.free();
         rhs.free();
@@ -56,9 +59,15 @@ fn object_subtype_swap_method() {
 
     // Explicitly allowed to call get_class() because it's on Object and every class inherits that.
     assert_eq!(node.get_class(), GString::from("Node3D"));
-    assert_eq!(node_3d.get_class(), GString::from("Node"));
 
+    // Previous behavior allowed calls as long as the runtime type would be compatible with the FFI caller type:
+    // assert_eq!(user.get_class(), GString::from("Object"));
+    // This is now more strict and requires the type to be correct even before Deref, in an attempt to catch more errors.
     expect_panic("method call on Gd<T> with invalid runtime type", || {
+        node_3d.get_class();
+    });
+
+    expect_panic("method call on Gd<T> with invalid runtime type II", || {
         node_3d.get_position(); // only Node3D has this method
     });
 
@@ -128,7 +137,13 @@ fn object_subtype_swap_bind() {
     assert_eq!(obj.instance_id(), user_id);
     assert_eq!(user.instance_id(), obj_id);
     assert_eq!(obj.get_class(), GString::from("ObjPayload"));
-    assert_eq!(user.get_class(), GString::from("Object"));
+
+    // Previous behavior allowed calls as long as the runtime type would be compatible with the FFI caller type:
+    // assert_eq!(user.get_class(), GString::from("Object"));
+    // This is now more strict and requires the type to be correct even before Deref, in an attempt to catch more errors.
+    expect_panic("method call on Gd<T> with invalid runtime type", || {
+        user.get_class();
+    });
 
     expect_panic("access badly typed Gd<T> using bind()", || {
         let _ = user.bind();

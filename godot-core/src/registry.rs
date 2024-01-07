@@ -224,7 +224,7 @@ pub fn register_class<
     };
 
     assert!(
-        !T::class_name().as_str().is_empty(),
+        !T::class_name().is_empty(),
         "cannot register () or unnamed class"
     );
 

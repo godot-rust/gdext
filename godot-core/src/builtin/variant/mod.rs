@@ -17,6 +17,13 @@ pub use sys::{VariantOperator, VariantType};
 
 use super::meta::{impl_godot_as_self, ConvertError, FromGodot, ToGodot};
 
+/// Godot variant type, able to store a variety of different types.
+///
+/// While Godot variants do not appear very frequently in Rust due to their lack of compile-time type-safety, they are central to all sorts of
+/// dynamic APIs. For example, if you want to call a method on an object based on a string, you will need variants to store arguments and return
+/// value.  
+///
+/// See also [Godot documentation for `Variant`](https://docs.godotengine.org/en/stable/classes/class_variant.html).
 #[repr(C, align(8))]
 pub struct Variant {
     opaque: OpaqueVariant,
@@ -127,6 +134,12 @@ impl Variant {
         result
     }
 
+    /// Evaluates an expression using a GDScript operator.
+    ///
+    /// Returns the result of the operation, or `None` if the operation is not defined for the given operand types.
+    ///
+    /// Recommended to be used with fully-qualified call syntax.
+    /// For example, `Variant::evaluate(&a, &b, VariantOperator::Add)` is equivalent to `a + b` in GDScript.
     pub fn evaluate(&self, rhs: &Variant, op: VariantOperator) -> Option<Variant> {
         let op_sys = op.sys();
         let mut is_valid = false as u8;
@@ -157,8 +170,10 @@ impl Variant {
         }
     }
 
-    /// return a `GString` representing the variant
-    #[allow(unused_mut)]
+    /// Return Godot's string representation of the variant.
+    ///
+    /// See also `Display` impl.
+    #[allow(unused_mut)] // result
     pub fn stringify(&self) -> GString {
         let mut result = GString::new();
         unsafe {
@@ -167,16 +182,25 @@ impl Variant {
         result
     }
 
-    /// return the hash value of the variant.
+    /// Return Godot's hash value for the variant.
     ///
     /// _Godot equivalent : `@GlobalScope.hash()`_
     pub fn hash(&self) -> i64 {
         unsafe { interface_fn!(variant_hash)(self.var_sys()) }
     }
 
-    /// return a false only if the variant is `Variant::NIL`
-    /// or an empty `Array` or `Dictionary`.
+    /// Interpret the `Variant` as `bool`.
+    ///
+    /// Returns `false` only if the variant's current value is the default value for its type. For example:
+    /// - `nil` for the nil type
+    /// - `false` for bool
+    /// - zero for numeric types
+    /// - empty string
+    /// - empty container (array, packed array, dictionary)
+    /// - default-constructed other builtins (e.g. zero vector, degenerate plane, zero RID, etc...)
     pub fn booleanize(&self) -> bool {
+        // See Variant::is_zero(), roughly https://github.com/godotengine/godot/blob/master/core/variant/variant.cpp#L859.
+
         unsafe { interface_fn!(variant_booleanize)(self.var_sys()) != 0 }
     }
 
@@ -217,6 +241,7 @@ impl Variant {
     ///
     /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
     #[cfg(since_api = "4.1")]
+    #[doc(hidden)]
     pub unsafe fn from_var_sys_init_or_init_default(
         init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr),
     ) -> Self {

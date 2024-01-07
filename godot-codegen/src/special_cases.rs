@@ -195,10 +195,15 @@ pub(crate) fn is_method_excluded_from_default_params(class_name: Option<&TyName>
 /// should be returned to take precedence over general rules. Example: `FileAccess::get_pascal_string()` is mut, but would be const-qualified
 /// since it looks like a getter.
 #[rustfmt::skip]
-#[cfg(FALSE)] // TODO enable this once JSON/domain models are separated.
 pub(crate) fn is_class_method_const(class_name: &TyName, godot_method: &ClassMethod) -> Option<bool> {
     match (class_name.godot_ty.as_str(), godot_method.name.as_str()) {
+        // Changed to const.
+        | ("Object", "to_string")
+        => Some(true),
+
         // Changed to mut.
+        // Needs some fixes to make sure _ex() builders have consistent signature, e.g. FileAccess::get_csv_line_full().
+        /*
         | ("FileAccess", "get_16")
         | ("FileAccess", "get_32")
         | ("FileAccess", "get_64")
@@ -217,6 +222,7 @@ pub(crate) fn is_class_method_const(class_name: &TyName, godot_method: &ClassMet
         | ("StreamPeer", "get_float")
         | ("StreamPeer", "get_double")
         => Some(false),
+        */
 
         _ => None,
     }

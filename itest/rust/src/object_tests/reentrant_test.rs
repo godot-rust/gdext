@@ -10,7 +10,7 @@ use godot::prelude::*;
 
 #[derive(GodotClass)]
 #[class(init, base = Object)]
-pub struct MyClass {
+pub struct ReentrantClass {
     #[base]
     base: Base<Object>,
 
@@ -20,7 +20,7 @@ pub struct MyClass {
 }
 
 #[godot_api]
-impl MyClass {
+impl ReentrantClass {
     #[signal]
     fn some_signal();
 
@@ -46,7 +46,7 @@ impl MyClass {
 
 #[itest]
 fn reentrant_call_succeeds() {
-    let mut class = MyClass::new_alloc();
+    let mut class = ReentrantClass::new_alloc();
 
     assert!(!class.bind().first_called_pre);
     assert!(!class.bind().first_called_post);
@@ -63,7 +63,7 @@ fn reentrant_call_succeeds() {
 
 #[itest]
 fn reentrant_emit_succeeds() {
-    let mut class = MyClass::new_alloc();
+    let mut class = ReentrantClass::new_alloc();
 
     let callable = class.callable("second");
     class.connect("some_signal".into(), callable);

@@ -202,8 +202,8 @@ impl Callable {
     pub fn object(&self) -> Option<Gd<Object>> {
         // Increment refcount because we're getting a reference, and `InnerCallable::get_object` doesn't
         // increment the refcount.
-        self.as_inner().get_object().map(|object| {
-            <Object as Bounds>::DynMemory::maybe_inc_ref(&object.raw);
+        self.as_inner().get_object().map(|mut object| {
+            <Object as Bounds>::DynMemory::maybe_inc_ref(&mut object.raw);
             object
         })
     }

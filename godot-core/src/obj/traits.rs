@@ -114,7 +114,7 @@ unsafe impl Bounds for () {
 /// print_node(Node3D::new_alloc().upcast());
 /// ```
 ///
-pub trait Inherits<Base>: GodotClass {}
+pub trait Inherits<Base: GodotClass>: GodotClass {}
 
 impl<T: GodotClass> Inherits<T> for T {}
 
