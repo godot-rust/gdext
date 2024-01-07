@@ -301,7 +301,7 @@ impl DynMemory for MemManual {
 
 /// Trait that specifies who declares a given `GodotClass`.
 pub trait Declarer: Sealed {
-    type DerefTarget<T: GodotClass>;
+    type DerefTarget<T: GodotClass>: GodotClass;
 
     #[doc(hidden)]
     fn scoped_mut<T, F, R>(obj: &mut RawGd<T>, closure: F) -> R
@@ -335,10 +335,7 @@ impl Declarer for DeclEngine {
         T: GodotClass + Bounds<Declarer = DeclEngine>,
         F: FnOnce(&mut T) -> R,
     {
-        closure(
-            obj.as_target_mut()
-                .expect("scoped mut should not be called on a null object"),
-        )
+        closure(obj.as_target_mut())
     }
 
     unsafe fn is_currently_bound<T>(_obj: &RawGd<T>) -> bool

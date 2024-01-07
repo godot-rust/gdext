@@ -9,20 +9,19 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::ops::{Deref, DerefMut};
 
 use godot_ffi as sys;
-use godot_ffi::VariantType;
-use sys::static_assert_eq_size;
+
+use sys::{static_assert_eq_size, VariantType};
 
 use crate::builtin::meta::{
     ConvertError, FromFfiError, FromGodot, GodotConvert, GodotType, ToGodot,
 };
 use crate::builtin::{Callable, StringName};
-use crate::obj::Bounds;
-use crate::obj::{bounds, cap, EngineEnum, GdDerefTarget, GodotClass, Inherits};
-use crate::obj::{GdMut, GdRef, InstanceId};
+use crate::obj::raw::RawGd;
+use crate::obj::{
+    bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
+};
 use crate::property::{Export, PropertyHintInfo, TypeStringHint, Var};
 use crate::{callbacks, engine, out};
-
-use super::RawGd;
 
 /// Smart pointer to objects owned by the Godot engine.
 ///
@@ -320,7 +319,8 @@ impl<T: GodotClass> Gd<T> {
         Base: GodotClass,
         T: Inherits<Base>,
     {
-        self.raw.as_upcast_ref::<Base>()
+        // SAFETY: valid upcast enforced by Inherits bound.
+        unsafe { self.raw.as_upcast_ref::<Base>() }
     }
 
     /// **Upcast exclusive-ref:** access this object as an exclusive reference to a base class.
@@ -341,7 +341,8 @@ impl<T: GodotClass> Gd<T> {
         Base: GodotClass,
         T: Inherits<Base>,
     {
-        self.raw.as_upcast_mut::<Base>()
+        // SAFETY: valid upcast enforced by Inherits bound.
+        unsafe { self.raw.as_upcast_mut::<Base>() }
     }
 
     /// **Downcast:** try to convert into a smart pointer to a derived class.
@@ -442,13 +443,13 @@ impl<T: GodotClass> Deref for Gd<T> {
     type Target = GdDerefTarget<T>;
 
     fn deref(&self) -> &Self::Target {
-        self.raw.as_target().expect("`Gd` is never null")
+        self.raw.as_target()
     }
 }
 
 impl<T: GodotClass> DerefMut for Gd<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.raw.as_target_mut().expect("`Gd` is never null")
+        self.raw.as_target_mut()
     }
 }
 

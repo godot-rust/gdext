@@ -15,10 +15,9 @@ use crate::builtin::meta::{
     ToGodot,
 };
 use crate::builtin::Variant;
-use crate::obj::bounds::Declarer as _;
-use crate::obj::bounds::DynMemory as _;
+use crate::obj::bounds::{Declarer as _, DynMemory as _};
 use crate::obj::rtti::ObjectRtti;
-use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId};
+use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
 use crate::storage::{InstanceStorage, Storage};
 use crate::{engine, out};
 
@@ -121,12 +120,12 @@ impl<T: GodotClass> RawGd<T> {
             return true;
         }
 
+        // SAFETY: object is forgotten below.
         let as_obj =
             unsafe { self.ffi_cast::<engine::Object>() }.expect("everything inherits Object");
 
-        let cast_is_valid = as_obj
-            .as_target()
-            .expect("object is not null")
+        // SAFETY: Object is always a base class.
+        let cast_is_valid = unsafe { as_obj.as_upcast_ref::<engine::Object>() }
             .is_class(U::class_name().to_gstring());
 
         std::mem::forget(as_obj);
@@ -215,10 +214,17 @@ impl<T: GodotClass> RawGd<T> {
         return_val
     }
 
-    pub(super) fn as_upcast_ref<Base>(&self) -> &Base
+    /// # Panics
+    /// If this `RawGd` is null. In Debug mode, sanity checks (valid upcast, ID comparisons) can also lead to panics.
+    ///
+    /// # Safety
+    /// It's the caller's responsibility to ensure `Base` is actually a base class of `T`.
+    ///
+    /// This is not done via bounds because that would infect all APIs with `Inherits<T>` and leads to cycles in `Deref`.
+    /// Bounds should be added on user-facing safe APIs.
+    pub(super) unsafe fn as_upcast_ref<Base>(&self) -> &Base
     where
         Base: GodotClass,
-        T: Inherits<Base>,
     {
         self.ensure_valid_upcast::<Base>();
 
@@ -241,13 +247,20 @@ impl<T: GodotClass> RawGd<T> {
         //
         // The pointers have the same meaning despite different types, and so the whole struct is layout-compatible.
         // In addition, Gd<T> as opposed to RawGd<T> will have the Option always set to Some.
-        unsafe { std::mem::transmute::<&Self, &Base>(self) }
+        std::mem::transmute::<&Self, &Base>(self)
     }
 
-    pub(super) fn as_upcast_mut<Base>(&mut self) -> &mut Base
+    /// # Panics
+    /// If this `RawGd` is null. In Debug mode, sanity checks (valid upcast, ID comparisons) can also lead to panics.
+    ///
+    /// # Safety
+    /// It's the caller's responsibility to ensure `Base` is actually a base class of `T`.
+    ///
+    /// This is not done via bounds because that would infect all APIs with `Inherits<T>` and leads to cycles in `Deref`.
+    /// Bounds should be added on user-facing safe APIs.
+    pub(super) unsafe fn as_upcast_mut<Base>(&mut self) -> &mut Base
     where
         Base: GodotClass,
-        T: Inherits<Base>,
     {
         self.ensure_valid_upcast::<Base>();
 
@@ -258,11 +271,30 @@ impl<T: GodotClass> RawGd<T> {
         //
         // There cannot be aliasing on the same internal Base object, as every Gd<T> has a different such object -- aliasing
         // of the internal object would thus require multiple &mut Gd<T>, which cannot happen.
-        unsafe { std::mem::transmute::<&mut Self, &mut Base>(self) }
+        std::mem::transmute::<&mut Self, &mut Base>(self)
+    }
+
+    /// # Panics
+    /// If this `RawGd` is null.
+    pub(super) fn as_target(&self) -> &GdDerefTarget<T> {
+        // SAFETY: There are two possible Declarer::DerefTarget types:
+        // - T, if T is an engine class
+        // - T::Base, if T is a user class
+        // Both are valid targets for upcast. And both are always engine types.
+        unsafe { self.as_upcast_ref::<GdDerefTarget<T>>() }
+    }
+
+    /// # Panics
+    /// If this `RawGd` is null.
+    pub(super) fn as_target_mut(&mut self) -> &mut GdDerefTarget<T> {
+        // SAFETY: See as_target().
+        unsafe { self.as_upcast_mut::<GdDerefTarget<T>>() }
     }
 
     fn ensure_valid_upcast<Base>(&self)
-    where Base: GodotClass{
+    where
+        Base: GodotClass,
+    {
         // Validation object identity.
         self.check_rtti("upcast_ref");
         debug_assert!(!self.is_null(), "cannot upcast null object refs");
@@ -287,44 +319,6 @@ impl<T: GodotClass> RawGd<T> {
 
             std::mem::forget(ffi_ref);
         }
-    }
-
-    // Target is always an engine class:
-    // * if T is an engine class => T
-    // * if T is a user class => T::Base
-    pub(super) fn as_target(&self) -> Option<&GdDerefTarget<T>> {
-        if self.is_null() {
-            return None;
-        }
-
-        // SAFETY: see as_upast_ref().
-        let target = unsafe {
-            std::mem::transmute::<
-                &Self,
-                &<<T as Bounds>::Declarer as bounds::Declarer>::DerefTarget<T>,
-            >(self)
-        };
-
-        Some(target)
-    }
-
-    // Target is always an engine class:
-    // * if T is an engine class => T
-    // * if T is a user class => T::Base
-    pub(super) fn as_target_mut(&mut self) -> Option<&mut GdDerefTarget<T>> {
-        if self.is_null() {
-            return None;
-        }
-
-        // SAFETY: see as_upcast_mut().
-        let target = unsafe {
-            std::mem::transmute::<
-                &mut Self,
-                &mut <<T as Bounds>::Declarer as bounds::Declarer>::DerefTarget<T>,
-            >(self)
-        };
-
-        Some(target)
     }
 
     /// Verify that the object is non-null and alive. In Debug mode, additionally verify that it is of type `T` or derived.
