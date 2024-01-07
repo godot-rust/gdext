@@ -138,6 +138,16 @@ pub fn hash_value<T: std::hash::Hash>(t: &T) -> u64 {
     hasher.finish()
 }
 
+/// Check whether contents of `lhs` and `rhs` are bitwise equal.
+///
+/// # Safety
+/// Requires valid pointers, properly aligned.
+pub unsafe fn bitwise_equal<T>(lhs: *const T, rhs: *const T) -> bool {
+    // Convert to raw parts
+    std::slice::from_raw_parts(lhs as *const u8, std::mem::size_of::<T>())
+        == std::slice::from_raw_parts(rhs as *const u8, std::mem::size_of::<T>())
+}
+
 /*
 pub fn unqualified_type_name<T>() -> &'static str {
     let type_name = std::any::type_name::<T>();

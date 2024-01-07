@@ -18,9 +18,7 @@ use crate::builtin::Variant;
 use crate::obj::bounds::Declarer as _;
 use crate::obj::bounds::DynMemory as _;
 use crate::obj::rtti::ObjectRtti;
-use crate::obj::Bounds;
-use crate::obj::GdDerefTarget;
-use crate::obj::{bounds, GdMut, GdRef, GodotClass, InstanceId};
+use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId};
 use crate::storage::{InstanceStorage, Storage};
 use crate::{engine, out};
 
@@ -217,6 +215,80 @@ impl<T: GodotClass> RawGd<T> {
         return_val
     }
 
+    pub(super) fn as_upcast_ref<Base>(&self) -> &Base
+    where
+        Base: GodotClass,
+        T: Inherits<Base>,
+    {
+        self.ensure_valid_upcast::<Base>();
+
+        // SAFETY:
+        // Every engine object is a struct like:
+        //
+        // #[repr(C)]
+        // struct Node3D {
+        //     object_ptr: sys::GDExtensionObjectPtr,
+        //     rtti: Option<ObjectRtti>,
+        // }
+        //
+        // and `RawGd` looks like:
+        //
+        // #[repr(C)]
+        // pub struct RawGd<T: GodotClass> {
+        //     obj: *mut T,
+        //     cached_rtti: Option<ObjectRtti>,
+        // }
+        //
+        // The pointers have the same meaning despite different types, and so the whole struct is layout-compatible.
+        // In addition, Gd<T> as opposed to RawGd<T> will have the Option always set to Some.
+        unsafe { std::mem::transmute::<&Self, &Base>(self) }
+    }
+
+    pub(super) fn as_upcast_mut<Base>(&mut self) -> &mut Base
+    where
+        Base: GodotClass,
+        T: Inherits<Base>,
+    {
+        self.ensure_valid_upcast::<Base>();
+
+        // SAFETY: see also `as_upcast_ref()`.
+        //
+        // We have a mutable reference to self, and thus it's safe to transmute that into a
+        // mutable reference to a compatible type.
+        //
+        // There cannot be aliasing on the same internal Base object, as every Gd<T> has a different such object -- aliasing
+        // of the internal object would thus require multiple &mut Gd<T>, which cannot happen.
+        unsafe { std::mem::transmute::<&mut Self, &mut Base>(self) }
+    }
+
+    fn ensure_valid_upcast<Base>(&self)
+    where Base: GodotClass{
+        // Validation object identity.
+        self.check_rtti("upcast_ref");
+        debug_assert!(!self.is_null(), "cannot upcast null object refs");
+
+        // In Debug builds, go the long path via Godot FFI to verify the results are the same.
+        #[cfg(debug_assertions)]
+        {
+            // SAFETY: we forget the object below and do not leave the function before.
+            let ffi_ref: RawGd<Base> =
+                unsafe { self.ffi_cast::<Base>().expect("failed FFI upcast") };
+
+            // The ID check is not that expressive; we should do a complete comparison of the ObjectRtti, but currently the dynamic types can
+            // be different (see comment in ObjectRtti struct). This at least checks that the transmuted object is not complete garbage.
+            // We get direct_id from Self and not Base because the latter has no API with current bounds; but this equivalence is tested in Deref.
+            let direct_id = self.instance_id_unchecked().expect("direct_id null");
+            let ffi_id = ffi_ref.instance_id_unchecked().expect("ffi_id null");
+
+            assert_eq!(
+                direct_id, ffi_id,
+                "upcast_ref: direct and FFI IDs differ. This is a bug, please report to gdext maintainers."
+            );
+
+            std::mem::forget(ffi_ref);
+        }
+    }
+
     // Target is always an engine class:
     // * if T is an engine class => T
     // * if T is a user class => T::Base
@@ -225,25 +297,7 @@ impl<T: GodotClass> RawGd<T> {
             return None;
         }
 
-        // SAFETY:
-        // Every engine object is a struct like
-        //
-        // #[repr(C)]
-        // struct Node3D {
-        //     object_ptr: sys::GDExtensionObjectPtr,  // <- pointer
-        //     instance_id: InstanceId,                // <- non-zero u64
-        // }
-        //
-        // and `RawGd` looks like
-        //
-        // #[repr(C)]
-        // pub struct RawGd<T: GodotClass> {
-        //     pub(super) obj: *mut T,                 // <- pointer
-        //     cached_instance_id: Option<InstanceId>, // <- u64
-        // }
-        //
-        // So since self isn't null, that means `cached_instance_id` is not 0, and the two layouts are
-        // compatible.
+        // SAFETY: see as_upast_ref().
         let target = unsafe {
             std::mem::transmute::<
                 &Self,
@@ -262,10 +316,7 @@ impl<T: GodotClass> RawGd<T> {
             return None;
         }
 
-        // SAFETY: see also `as_target()`
-        //
-        // We have a mutable reference to self, and thus it's entirely safe to transmute that into a
-        // mutable reference to a compatible type.
+        // SAFETY: see as_upcast_mut().
         let target = unsafe {
             std::mem::transmute::<
                 &mut Self,

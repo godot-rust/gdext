@@ -302,6 +302,48 @@ impl<T: GodotClass> Gd<T> {
             .expect("Upcast failed. This is a bug; please report it.")
     }
 
+    /// **Upcast shared-ref:** access this object as a shared reference to a base class.
+    ///
+    /// This is semantically equivalent to multiple applications of [`Self::deref()`]. Not really useful on its own, but combined with
+    /// generic programming:
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// fn print_node_name<T>(node: &Gd<T>)
+    /// where
+    ///     T: Inherits<Node>,
+    /// {
+    ///     println!("Node name: {}", node.upcast_ref().get_name());
+    /// }
+    /// ```
+    pub fn upcast_ref<Base>(&self) -> &Base
+    where
+        Base: GodotClass,
+        T: Inherits<Base>,
+    {
+        self.raw.as_upcast_ref::<Base>()
+    }
+
+    /// **Upcast exclusive-ref:** access this object as an exclusive reference to a base class.
+    ///
+    /// This is semantically equivalent to multiple applications of [`Self::deref_mut()`]. Not really useful on its own, but combined with
+    /// generic programming:
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// fn set_node_name<T>(node: &mut Gd<T>, name: &str)
+    /// where
+    ///     T: Inherits<Node>,
+    /// {
+    ///     node.upcast_mut().set_name(name.into());
+    /// }
+    /// ```
+    pub fn upcast_mut<Base>(&mut self) -> &mut Base
+    where
+        Base: GodotClass,
+        T: Inherits<Base>,
+    {
+        self.raw.as_upcast_mut::<Base>()
+    }
+
     /// **Downcast:** try to convert into a smart pointer to a derived class.
     ///
     /// If `T`'s dynamic type is not `Derived` or one of its subclasses, `None` is returned
