@@ -1167,12 +1167,13 @@ fn make_class_method_definition(
     let rust_method_name = special_cases::maybe_rename_class_method(class_name, godot_method_name);
 
     // Override const-qualification for known special cases (FileAccess::get_16, StreamPeer::get_u16, etc.).
-    /* TODO enable this once JSON/domain models are separated. Remove #[allow] above.
-    let mut override_is_const = None;
-    if let Some(override_const) = special_cases::is_class_method_const(class_name, &method) {
-        override_is_const = Some(override_const);
+    let mut is_actually_const = method.is_const;
+    if let Some(override_const) = special_cases::is_class_method_const(class_name, method) {
+        is_actually_const = override_const;
     }
 
+    /*
+    // TODO re-enable this once JSON/domain models are separated.
     // Getters in particular are re-qualified as const (if there isn't already an override).
     if override_is_const.is_none() && option_as_slice(&method.arguments).is_empty() {
         if rust_method_name.starts_with("get_") {
@@ -1185,7 +1186,7 @@ fn make_class_method_definition(
     let receiver = make_receiver(
         method.is_static,
         //override_is_const.unwrap_or(method.is_const),
-        method.is_const,
+        is_actually_const,
         quote! { self.object_ptr },
     );
 
