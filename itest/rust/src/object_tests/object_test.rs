@@ -703,7 +703,10 @@ fn object_user_upcast_mut() {
     let object = obj.upcast_mut::<Object>();
     assert_eq!(ref_instance_id(object), id);
     assert_eq!(object.get_class(), GString::from("RefcPayload"));
-    assert_eq!(object.call("to_string".into(), &[]), "value=17943".to_variant());
+    assert_eq!(
+        object.call("to_string".into(), &[]),
+        "value=17943".to_variant()
+    );
 }
 
 #[itest]
