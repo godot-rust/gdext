@@ -88,8 +88,11 @@ fn array_try_into_vec() {
 fn array_iter_shared() {
     let array = array![1, 2];
     let mut iter = array.iter_shared();
+    assert_eq!(iter.size_hint(), (2, Some(2)));
     assert_eq!(iter.next(), Some(1));
+    assert_eq!(iter.size_hint(), (1, Some(1)));
     assert_eq!(iter.next(), Some(2));
+    assert_eq!(iter.size_hint(), (0, Some(0)));
     assert_eq!(iter.next(), None);
 }
 
