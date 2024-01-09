@@ -940,6 +940,11 @@ impl<'a, T: GodotType + FromGodot> Iterator for Iter<'a, T> {
             None
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.array.len() - self.next_idx;
+        (remaining, Some(remaining))
+    }
 }
 
 // TODO There's a macro for this, but it doesn't support generics yet; add support and use it
