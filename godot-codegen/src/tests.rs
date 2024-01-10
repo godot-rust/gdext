@@ -5,9 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{
-    parse_native_structures_format, to_pascal_case, to_snake_case, NativeStructuresField,
-};
+use crate::conv;
+use crate::util::{parse_native_structures_format, NativeStructuresField};
 
 #[test]
 fn test_pascal_conversion() {
@@ -52,7 +51,7 @@ fn test_pascal_conversion() {
     ];
 
     for (class_name, expected) in mappings {
-        let actual = to_pascal_case(class_name);
+        let actual = conv::to_pascal_case(class_name);
         assert_eq!(actual, expected, "PascalCase: ident `{class_name}`");
     }
 }
@@ -113,7 +112,7 @@ fn test_snake_conversion() {
     ];
 
     for (class_name, expected) in mappings {
-        let actual = to_snake_case(class_name);
+        let actual = conv::to_snake_case(class_name);
         assert_eq!(actual, expected, "snake_case: ident `{class_name}`");
     }
 }

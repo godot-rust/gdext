@@ -29,7 +29,7 @@ pub(crate) fn is_class_excluded(_class: &str) -> bool {
 
 #[cfg(not(feature = "codegen-full"))]
 fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
-    use crate::{util, RustTy};
+    use crate::{conv, RustTy};
 
     fn is_rust_type_excluded(ty: &RustTy) -> bool {
         match ty {
@@ -52,7 +52,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
             RustTy::EngineClass { inner_class, .. } => is_class_excluded(&inner_class.to_string()),
         }
     }
-    is_rust_type_excluded(&util::to_rust_type(ty, None, ctx))
+    is_rust_type_excluded(&conv::to_rust_type(ty, None, ctx))
 }
 
 pub(crate) fn is_class_method_excluded(
