@@ -233,7 +233,8 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
     // This would allow exhaustive matches (or at least auto-completed matches + #[non_exhaustive]). But even without #[non_exhaustive],
     // this might be a forward compatibility hazard, if Godot deprecates enumerators and adds new ones with existing ords.
 
-    let enum_name = conv::make_enum_name(&enum_.name);
+    let enum_name_str = conv::make_enum_name_str(&enum_.name);
+    let enum_name = ident(&enum_name_str);
 
     // TODO remove once deprecated is removed.
     let deprecated_enum_decl = if enum_name != enum_.name {
@@ -249,12 +250,14 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
 
     let values = &enum_.values;
     let mut enumerators = Vec::with_capacity(values.len());
+    let mut deprecated_enumerators = Vec::new();
 
     // This is only used for enum ords (i32), not bitfield flags (u64).
     let mut unique_ords = Vec::with_capacity(values.len());
 
     for enumerator in values {
-        let name = conv::make_enumerator_name(&enumerator.name, &enum_.name);
+        let godot_name_str = &enumerator.name;
+        let enumerator_name = conv::make_enumerator_name(godot_name_str, &enum_name_str);
         let ordinal_lit = if enum_.is_bitfield {
             let bitfield_ord: u64 = enumerator.to_bitfield_ord();
             make_bitfield_flag_ord(bitfield_ord)
@@ -264,10 +267,31 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
             make_enumerator_ord(enum_ord)
         };
 
+        let doc_alias = if enumerator_name == godot_name_str {
+            TokenStream::new()
+        } else {
+            // Godot and Rust names differ -> add doc alias for searchability.
+            let msg = format!("Renamed to `{}`.", enumerator_name);
+            let deprecated_ident = ident(godot_name_str);
+
+            // For now, list previous identifier at the end.
+            deprecated_enumerators.push(quote! {
+                #[deprecated = #msg]
+                pub const #deprecated_ident: Self = Self { ord: #ordinal_lit };
+            });
+
+            quote! {
+                #[doc(alias = #godot_name_str)]
+            }
+        };
+
         enumerators.push(quote! {
-            pub const #name: Self = Self { ord: #ordinal_lit };
+            #doc_alias
+            pub const #enumerator_name: Self = Self { ord: #ordinal_lit };
         });
     }
+
+    enumerators.extend(deprecated_enumerators);
 
     let mut derives = vec!["Copy", "Clone", "Eq", "PartialEq", "Hash", "Debug"];
 

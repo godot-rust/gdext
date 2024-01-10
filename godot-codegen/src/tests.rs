@@ -118,65 +118,103 @@ fn test_snake_conversion() {
 }
 
 #[test]
-#[ignore] // enable once implemented
 fn test_enumerator_names() {
     // How to deal with a naming convention that has evolved over a decade :)
     #[rustfmt::skip]
-    let _mappings = [
+    let mappings = [
         // No changes
         ("ModeFlags",                  "READ_WRITE",                          "READ_WRITE"),
 
         // Remove entire enum name
-        ("SystemDir",                  "SYSTEM_DIR_DCIM",                     "DCIM"),
-        ("Month",                      "MONTH_FEBRUARY",                      "FEBRUARY"),
-        ("ProcessMode",                "PROCESS_MODE_WHEN_PAUSED",            "WHEN_PAUSED"),
         ("BodyMode",                   "BODY_MODE_KINEMATIC",                 "KINEMATIC"),
+        ("CacheMode",                  "CACHE_MODE_IGNORE",                   "IGNORE"),
+        ("CenterOfMassMode",           "CENTER_OF_MASS_MODE_AUTO",            "AUTO"),
+        ("Format",                     "FORMAT_RF",                           "RF"),
         ("GenEditState",               "GEN_EDIT_STATE_DISABLED",             "DISABLED"),
         ("JointType",                  "JOINT_TYPE_PIN",                      "PIN"),
+        ("Mode",                       "MODE_SKY",                            "SKY"),
+        ("Month",                      "MONTH_FEBRUARY",                      "FEBRUARY"),
+        ("ProcessMode",                "PROCESS_MODE_WHEN_PAUSED",            "WHEN_PAUSED"),
         ("RenderingInfo",              "RENDERING_INFO_BUFFER_MEM_USED",      "BUFFER_MEM_USED"),
-        ("CacheMode",                  "CACHE_MODE_IGNORE",                   "IGNORE"),
+        ("SystemDir",                  "SYSTEM_DIR_DCIM",                     "DCIM"),
 
         // Remove entire name, but MiXED case
         ("VoxelGIQuality",             "VOXEL_GI_QUALITY_LOW",                "LOW"),
         ("CCDMode",                    "CCD_MODE_CAST_RAY",                   "CAST_RAY"),
+        ("UPNPResult",                 "UPNP_RESULT_HTTP_ERROR",              "HTTP_ERROR"),
+        ("SDFGIYScale",                "SDFGI_Y_SCALE_100_PERCENT",           "SCALE_100_PERCENT"),
+        ("EnvironmentSDFGIYScale",     "ENV_SDFGI_Y_SCALE_50_PERCENT",        "SCALE_50_PERCENT"),
 
         // Entire enum name, but changed
         ("Parameter",                  "PARAM_INITIAL_LINEAR_VELOCITY",       "INITIAL_LINEAR_VELOCITY"),
-        ("SpaceParameter",             "SPACE_PARAM_CONTACT_MAX_SEPARATION",  "MAX_SEPARATION"),
+        ("SpaceParameter",             "SPACE_PARAM_CONTACT_MAX_SEPARATION",  "CONTACT_MAX_SEPARATION"),
         ("AreaParameter",              "AREA_PARAM_GRAVITY",                  "GRAVITY"),
         ("StencilOperation",           "STENCIL_OP_KEEP",                     "KEEP"),
         ("CompareOperator",            "COMPARE_OP_LESS",                     "LESS"),
         ("CubeMapLayer",               "CUBEMAP_LAYER_RIGHT",                 "RIGHT"),
+        ("Camera2DProcessCallback",    "CAMERA2D_PROCESS_PHYSICS",            "PHYSICS"),
 
         // Prefix omitted
-        ("ProcessInfo",                "INFO_COLLISION_PAIRS",                "COLLISION_PAIRS"),
+        ("ArrayType",                  "ARRAY_CUSTOM0",                       "CUSTOM0"),
+        ("PathPostProcessing",         "PATH_POSTPROCESSING_EDGECENTERED",    "EDGECENTERED"),
         ("PipelineDynamicStateFlags",  "DYNAMIC_STATE_DEPTH_BIAS",            "DEPTH_BIAS"),
+        ("ProcessInfo",                "INFO_COLLISION_PAIRS",                "COLLISION_PAIRS"),
+        ("ResponseCode",               "RESPONSE_NO_CONTENT",                 "NO_CONTENT"),
+        ("UpdateMode",                 "UPDATE_WHEN_VISIBLE",                 "WHEN_VISIBLE"),
+        ("ZipAppend",                  "APPEND_CREATE",                       "CREATE"),
 
         // Plural
         ("Hands",                      "HAND_LEFT",                           "LEFT"),
         ("Features",                   "FEATURE_SHADERS",                     "SHADERS"),
+        ("Flags",                      "FLAG_ALBEDO_TEXTURE_FORCE_SRGB",      "ALBEDO_TEXTURE_FORCE_SRGB"),
 
         // Unrelated name
         ("GlobalShaderParameterType",  "GLOBAL_VAR_TYPE_BOOL",                "BOOL"),
+        ("ArrayFormat",                "ARRAY_FLAG_FORMAT_VERSION_2",         "VERSION_2"),
+        ("CustomControlContainer",     "CONTAINER_CANVAS_EDITOR_SIDE_LEFT",   "CANVAS_EDITOR_SIDE_LEFT"),
 
-        // Implicitly used class name instead of enum name (OpenXRAction)
-        ("ActionType",                 "OPENXR_ACTION_POSE",                  "POSE"),
+        // Implicitly used class name instead of enum name (OpenXR*, XR*)
+        ("ActionType",                 "OPENXR_ACTION_POSE",                  "POSE"), // class OpenXRAction
+        ("TrackingConfidence",         "XR_TRACKING_CONFIDENCE_NONE",         "NONE"), // class XRPose
+        ("TrackingStatus",             "XR_NOT_TRACKING",                     "NOT_TRACKING"), // class XRInterface
+        ("EnvironmentBlendMode",       "XR_ENV_BLEND_MODE_OPAQUE",            "OPAQUE"),
+
+        // Abbreviation
+        ("Operator",                   "OP_ATAN2",                            "ATAN2"), // class "VisualShaderNodeVectorOp"
+        ("Function",                   "FUNC_LOG",                            "LOG"),
+        ("EnvironmentSSAOQuality",     "ENV_SSAO_QUALITY_HIGH",               "HIGH"),
 
         // Remove postfix (Mode, Type, Flags, Param, ...)
         ("CompressionMode",            "COMPRESSION_DEFLATE",                 "DEFLATE"),
         ("AreaSpaceOverrideMode",      "AREA_SPACE_OVERRIDE_COMBINE",         "COMBINE"),
         ("ProjectionType",             "PROJECTION_ORTHOGONAL",               "ORTHOGONAL"),
         ("ConnectFlags",               "CONNECT_PERSIST",                     "PERSIST"),
+        ("HandJointFlags",             "HAND_JOINT_ORIENTATION_TRACKED",      "ORIENTATION_TRACKED"),
         ("ParticleFlags",              "PARTICLE_FLAG_ROTATE_Y",              "ROTATE_Y"),
         ("G6DOFJointAxisParam",        "G6DOF_JOINT_LINEAR_LOWER_LIMIT",      "LINEAR_LOWER_LIMIT"),
-        ("MultimeshTransformFormat",   "MULTIMESH_TRANSFORM_3D",              "3D"),
         ("ThreadLoadStatus",           "THREAD_LOAD_INVALID_RESOURCE",        "INVALID_RESOURCE"),
+        ("ViewportScaling3DMode",      "VIEWPORT_SCALING_3D_MODE_BILINEAR",   "BILINEAR"),
 
-        /*
-        // Not handled:
-        ("ActionType", "PROJECTION_ORTHOGONAL", "ORTHOGONAL", "OpenXRAction") // last = class name
-        */
+        // Remaining identifier is non-valid
+        ("Subdiv",                     "SUBDIV_64",                           "SUBDIV_64"),
+        ("FFTSize",                    "FFT_SIZE_256",                        "SIZE_256"),
+        ("MSAA",                       "MSAA_8X",                             "MSAA_8X"),
+        ("MultimeshTransformFormat",   "MULTIMESH_TRANSFORM_3D",              "TRANSFORM_3D"),
+
+        // Test cases that are not perfect but accepted as they are.
+        //("SpecialHistory",             "REMOTE_HISTORY",                      "REMOTE_HISTORY"),
+        //("Mode",                       "CONVEX_DECOMPOSITION_MODE_VOXEL",     "VOXEL"), // class ConvexDecompositionSettings
     ];
+
+    for (enum_name, enumerator_name, expected) in mappings {
+        let mapped_enum_name = conv::to_pascal_case(enum_name);
+        let actual = conv::make_enumerator_name(enumerator_name, &mapped_enum_name);
+
+        assert_eq!(
+            actual, expected,
+            "enumerator `{enum_name}.{enumerator_name}`"
+        );
+    }
 }
 
 #[test]
