@@ -97,6 +97,19 @@ fn test_snake_conversion() {
                       ("X509Certificate", "x509_certificate"),
                              ("XRServer", "xr_server"),
                                 ("YSort", "y_sort"),
+
+        // Enum names
+                        ("AfterGUIInput", "after_gui_input"),
+                           ("ASTCFormat", "astc_format"),
+              ("Camera2DProcessCallback", "camera_2d_process_callback"),
+                             ("FilterDB", "filter_db"),
+                   ("G6DOFJointAxisFlag", "g6dof_joint_axis_flag"),
+                               ("GIMode", "gi_mode"),
+                                 ("MSAA", "msaa"),
+                          ("SDFGIYScale", "sdfgi_y_scale"),
+                         ("ViewportMSAA", "viewport_msaa"),
+                              ("VRSMode", "vrs_mode"),
+                            ("VSyncMode", "vsync_mode"),
     ];
 
     for (class_name, expected) in mappings {
@@ -159,7 +172,6 @@ fn test_enumerator_names() {
         ("G6DOFJointAxisParam",        "G6DOF_JOINT_LINEAR_LOWER_LIMIT",      "LINEAR_LOWER_LIMIT"),
         ("MultimeshTransformFormat",   "MULTIMESH_TRANSFORM_3D",              "3D"),
         ("ThreadLoadStatus",           "THREAD_LOAD_INVALID_RESOURCE",        "INVALID_RESOURCE"),
-
 
         /*
         // Not handled:

@@ -226,7 +226,19 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
     // This would allow exhaustive matches (or at least auto-completed matches + #[non_exhaustive]). But even without #[non_exhaustive],
     // this might be a forward compatibility hazard, if Godot deprecates enumerators and adds new ones with existing ords.
 
-    let enum_name = ident(&enum_.name);
+    let enum_name = make_enum_name(&enum_.name);
+
+    // TODO remove once deprecated is removed.
+    let deprecated_enum_decl = if enum_name != enum_.name {
+        let deprecated_enum_name = ident(&enum_.name);
+        let msg = format!("Renamed to `{enum_name}`.");
+        quote! {
+            #[deprecated = #msg]
+            pub type #deprecated_enum_name = #enum_name;
+        }
+    } else {
+        TokenStream::new()
+    };
 
     let values = &enum_.values;
     let mut enumerators = Vec::with_capacity(values.len());
@@ -333,6 +345,8 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
     // Public interface is i64 though, for consistency (and possibly forward compatibility?).
     // Bitfield ordinals are stored as u64. See also: https://github.com/godotengine/godot-cpp/pull/1320
     quote! {
+        #deprecated_enum_decl
+
         #[repr(transparent)]
         #[derive(#( #derives ),*)]
         pub struct #enum_name {
@@ -390,9 +404,7 @@ pub fn try_to_notification(constant: &ClassConstant) -> Option<Ident> {
 }
 
 fn make_enum_name(enum_name: &str) -> Ident {
-    // TODO clean up enum name
-
-    ident(enum_name)
+    ident(&to_pascal_case(enum_name))
 }
 
 fn make_enumerator_name(enumerator_name: &str, _enum_name: &str) -> Ident {
@@ -440,9 +452,14 @@ fn try_count_index_enum(enum_: &Enum) -> Option<usize> {
 
 fn to_snake_special_case(class_name: &str) -> Option<&'static str> {
     match class_name {
+        // Classes
         "JSONRPC" => Some("json_rpc"),
         "OpenXRAPIExtension" => Some("open_xr_api_extension"),
         "OpenXRIPBinding" => Some("open_xr_ip_binding"),
+
+        // Enums
+        "SDFGIYScale" => Some("sdfgi_y_scale"),
+        "VSyncMode" => Some("vsync_mode"),
         _ => None,
     }
 }
@@ -456,6 +473,7 @@ pub fn to_snake_case(class_name: &str) -> String {
     }
 
     class_name
+        .replace("1D", "_1d") // e.g. animation_node_blend_space_1d
         .replace("2D", "_2d")
         .replace("3D", "_3d")
         .replace("GDNative", "Gdnative")
@@ -467,8 +485,8 @@ pub fn to_pascal_case(class_name: &str) -> String {
     use heck::ToPascalCase;
 
     // Special cases: reuse snake_case impl to ensure at least consistency between those 2.
-    if let Some(special_case) = to_snake_special_case(class_name) {
-        return special_case.to_pascal_case();
+    if let Some(snake_special) = to_snake_special_case(class_name) {
+        return snake_special.to_pascal_case();
     }
 
     class_name
