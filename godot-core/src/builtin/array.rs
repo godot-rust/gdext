@@ -135,8 +135,21 @@ impl<T: GodotType> Array<T> {
     /// Note: The sorting algorithm used is not
     /// [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability). This means that values
     /// considered equal may have their order changed when using `sort_unstable`.
+    #[doc(alias = "sort")]
     pub fn sort_unstable(&mut self) {
         self.as_inner().sort();
+    }
+
+    /// Sorts the array.
+    ///
+    /// Uses the provided `Callable` to determine ordering.
+    ///
+    /// Note: The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
+    /// This means that values considered equal may have their order changed when using
+    /// `sort_unstable`.
+    #[doc(alias = "sort_custom")]
+    pub fn sort_unstable_custom(&mut self, func: Callable) {
+        self.as_inner().sort_custom(func);
     }
 
     /// Shuffles the array such that the items will have a random order. This method uses the
@@ -492,15 +505,34 @@ impl<T: GodotType + FromGodot> Array<T> {
 }
 
 impl<T: GodotType + ToGodot> Array<T> {
-    /// Finds the index of an existing value in a sorted array using binary search. Equivalent of
-    /// `bsearch` in GDScript.
+    /// Finds the index of an existing value in a sorted array using binary search.
+    /// Equivalent of `bsearch` in GDScript.
     ///
-    /// If the value is not present in the array, returns the insertion index that would maintain
-    /// sorting order.
+    /// If the value is not present in the array, returns the insertion index that
+    /// would maintain sorting order.
     ///
-    /// Calling `binary_search` on an unsorted array results in unspecified behavior.
-    pub fn binary_search(&self, value: &T) -> usize {
+    /// Calling `bsearch` on an unsorted array results in unspecified behavior.
+    pub fn bsearch(&self, value: &T) -> usize {
         to_usize(self.as_inner().bsearch(value.to_variant(), true))
+    }
+
+    /// Finds the index of an existing value in a sorted array using binary search.
+    /// Equivalent of `bsearch_custom` in GDScript.
+    ///
+    /// Takes a `Callable` and uses the return value of it to perform binary search.
+    ///
+    /// If the value is not present in the array, returns the insertion index that
+    /// would maintain sorting order.
+    ///
+    /// Calling `bsearch_custom` on an unsorted array results in unspecified behavior.
+    ///
+    /// Consider using `sort_custom()` to ensure the sorting order is compatible with
+    /// your callable's ordering
+    pub fn bsearch_custom(&self, value: &T, func: Callable) -> usize {
+        to_usize(
+            self.as_inner()
+                .bsearch_custom(value.to_variant(), func, true),
+        )
     }
 
     /// Returns the number of times a value is in the array.
