@@ -438,15 +438,21 @@ fn try_count_index_enum(enum_: &Enum) -> Option<usize> {
     Some(last.value as usize)
 }
 
+fn to_snake_special_case(class_name: &str) -> Option<&'static str> {
+    match class_name {
+        "JSONRPC" => Some("json_rpc"),
+        "OpenXRAPIExtension" => Some("open_xr_api_extension"),
+        "OpenXRIPBinding" => Some("open_xr_ip_binding"),
+        _ => None,
+    }
+}
+
 pub fn to_snake_case(class_name: &str) -> String {
     use heck::ToSnakeCase;
 
     // Special cases
-    match class_name {
-        "JSONRPC" => return "json_rpc".to_string(),
-        "OpenXRAPIExtension" => return "open_xr_api_extension".to_string(),
-        "OpenXRIPBinding" => return "open_xr_ip_binding".to_string(),
-        _ => {}
+    if let Some(special_case) = to_snake_special_case(class_name) {
+        return special_case.to_string();
     }
 
     class_name
@@ -461,11 +467,8 @@ pub fn to_pascal_case(class_name: &str) -> String {
     use heck::ToPascalCase;
 
     // Special cases: reuse snake_case impl to ensure at least consistency between those 2.
-    match class_name {
-        "JSONRPC" | "OpenXRAPIExtension" | "OpenXRIPBinding" => {
-            return to_snake_case(class_name).to_pascal_case()
-        }
-        _ => {}
+    if let Some(special_case) = to_snake_special_case(class_name) {
+        return special_case.to_pascal_case();
     }
 
     class_name
