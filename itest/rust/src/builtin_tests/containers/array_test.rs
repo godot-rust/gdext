@@ -415,7 +415,7 @@ fn typed_array_pass_to_godot_func() {
         2,
         4,
         false,
-        Format::FORMAT_L8,
+        Format::L8,
         PackedByteArray::from(&[255, 0, 255, 0, 0, 255, 0, 255]),
     );
     let images = array![image];

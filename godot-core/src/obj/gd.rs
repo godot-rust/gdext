@@ -644,8 +644,7 @@ impl<T: GodotClass> TypeStringHint for Gd<T> {
         use engine::global::PropertyHint;
 
         match Self::default_export_info().hint {
-            hint @ (PropertyHint::PROPERTY_HINT_RESOURCE_TYPE
-            | PropertyHint::PROPERTY_HINT_NODE_TYPE) => {
+            hint @ (PropertyHint::RESOURCE_TYPE | PropertyHint::NODE_TYPE) => {
                 format!(
                     "{}/{}:{}",
                     VariantType::Object as i32,
@@ -673,11 +672,11 @@ impl<T: GodotClass> Var for Gd<T> {
 impl<T: GodotClass> Export for Gd<T> {
     fn default_export_info() -> PropertyHintInfo {
         let hint = if T::inherits::<engine::Resource>() {
-            engine::global::PropertyHint::PROPERTY_HINT_RESOURCE_TYPE
+            engine::global::PropertyHint::RESOURCE_TYPE
         } else if T::inherits::<engine::Node>() {
-            engine::global::PropertyHint::PROPERTY_HINT_NODE_TYPE
+            engine::global::PropertyHint::NODE_TYPE
         } else {
-            engine::global::PropertyHint::PROPERTY_HINT_NONE
+            engine::global::PropertyHint::NONE
         };
 
         // Godot does this by default too; the hint is needed when the class is a resource/node,

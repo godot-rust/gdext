@@ -312,10 +312,10 @@ pub(crate) fn get_signature_info(signature: &venial::Function, has_gd_self: bool
 fn make_method_flags(method_type: ReceiverType) -> TokenStream {
     match method_type {
         ReceiverType::Ref | ReceiverType::Mut | ReceiverType::GdSelf => {
-            quote! { ::godot::engine::global::MethodFlags::METHOD_FLAGS_DEFAULT }
+            quote! { ::godot::engine::global::MethodFlags::DEFAULT }
         }
         ReceiverType::Static => {
-            quote! { ::godot::engine::global::MethodFlags::METHOD_FLAG_STATIC }
+            quote! { ::godot::engine::global::MethodFlags::STATIC }
         }
     }
 }

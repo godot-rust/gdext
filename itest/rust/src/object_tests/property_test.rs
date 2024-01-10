@@ -175,7 +175,7 @@ impl Var for SomeCStyleEnum {
 impl Export for SomeCStyleEnum {
     fn default_export_info() -> PropertyHintInfo {
         PropertyHintInfo {
-            hint: PropertyHint::PROPERTY_HINT_ENUM,
+            hint: PropertyHint::ENUM,
             hint_string: "A,B,C".into(),
         }
     }
@@ -352,13 +352,9 @@ fn derive_export() {
     // `class_name` should be empty for non-Object variants.
     check_property(&property, "class_name", "");
     check_property(&property, "type", VariantType::Int as i32);
-    check_property(&property, "hint", PropertyHint::PROPERTY_HINT_ENUM.ord());
+    check_property(&property, "hint", PropertyHint::ENUM.ord());
     check_property(&property, "hint_string", "A:0,B:1,C:2");
-    check_property(
-        &property,
-        "usage",
-        PropertyUsageFlags::PROPERTY_USAGE_DEFAULT.ord(),
-    );
+    check_property(&property, "usage", PropertyUsageFlags::DEFAULT.ord());
 }
 
 #[derive(GodotClass)]
@@ -391,17 +387,12 @@ fn export_resource() {
         .unwrap();
     check_property(&property, "class_name", "CustomResource");
     check_property(&property, "type", VariantType::Object as i32);
-    check_property(
-        &property,
-        "hint",
-        PropertyHint::PROPERTY_HINT_RESOURCE_TYPE.ord(),
-    );
+    check_property(&property, "hint", PropertyHint::RESOURCE_TYPE.ord());
     check_property(&property, "hint_string", "CustomResource");
     check_property(
         &property,
         "usage",
-        PropertyUsageFlags::PROPERTY_USAGE_DEFAULT.ord()
-            | PropertyUsageFlags::PROPERTY_USAGE_EDITOR_INSTANTIATE_OBJECT.ord(),
+        PropertyUsageFlags::DEFAULT.ord() | PropertyUsageFlags::EDITOR_INSTANTIATE_OBJECT.ord(),
     );
 
     let property = class
@@ -411,17 +402,9 @@ fn export_resource() {
         .unwrap();
     check_property(&property, "class_name", "NewNameCustomResource");
     check_property(&property, "type", VariantType::Object as i32);
-    check_property(
-        &property,
-        "hint",
-        PropertyHint::PROPERTY_HINT_RESOURCE_TYPE.ord(),
-    );
+    check_property(&property, "hint", PropertyHint::RESOURCE_TYPE.ord());
     check_property(&property, "hint_string", "NewNameCustomResource");
-    check_property(
-        &property,
-        "usage",
-        PropertyUsageFlags::PROPERTY_USAGE_DEFAULT.ord(),
-    );
+    check_property(&property, "usage", PropertyUsageFlags::DEFAULT.ord());
 
     class.free();
 }

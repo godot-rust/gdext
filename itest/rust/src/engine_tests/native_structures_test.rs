@@ -56,8 +56,8 @@ impl ITextServerExtension for TestTextServer {
         *caret = CaretInfo {
             leading_caret: Rect2::from_components(0.0, 0.0, 0.0, 0.0),
             trailing_caret: Rect2::from_components(1.0, 1.0, 1.0, 1.0),
-            leading_direction: Direction::DIRECTION_AUTO,
-            trailing_direction: Direction::DIRECTION_LTR,
+            leading_direction: Direction::AUTO,
+            trailing_direction: Direction::LTR,
         };
     }
 
@@ -118,11 +118,11 @@ fn test_native_structure_out_parameter() {
     );
     assert_eq!(
         result.get("leading_direction"),
-        Some(Variant::from(Direction::DIRECTION_AUTO))
+        Some(Variant::from(Direction::AUTO))
     );
     assert_eq!(
         result.get("trailing_direction"),
-        Some(Variant::from(Direction::DIRECTION_LTR))
+        Some(Variant::from(Direction::LTR))
     );
 }
 

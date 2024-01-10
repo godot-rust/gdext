@@ -36,7 +36,7 @@ pub trait Export: Var {
 
 /// Marks types that are registered via "type string hint" in Godot.
 ///
-/// See [`PropertyHint::PROPERTY_HINT_TYPE_STRING`] and [upstream docs].
+/// See [`PropertyHint::TYPE_STRING`] and [upstream docs].
 ///
 /// [upstream docs]: https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint
 pub trait TypeStringHint {
@@ -102,12 +102,12 @@ pub struct PropertyHintInfo {
 
 impl PropertyHintInfo {
     /// Create a new `PropertyHintInfo` with a property hint of
-    /// [`PROPERTY_HINT_NONE`](PropertyHint::PROPERTY_HINT_NONE).
+    /// [`PROPERTY_HINT_NONE`](PropertyHint::NONE).
     ///
     /// Usually Godot expects this to be combined with a `hint_string` containing the name of the type.
     pub fn with_hint_none<S: Into<GString>>(type_name: S) -> Self {
         Self {
-            hint: PropertyHint::PROPERTY_HINT_NONE,
+            hint: PropertyHint::NONE,
             hint_string: type_name.into(),
         }
     }
@@ -166,7 +166,7 @@ pub mod export_info_functions {
         };
 
         PropertyHintInfo {
-            hint: PropertyHint::PROPERTY_HINT_RANGE,
+            hint: PropertyHint::RANGE,
             hint_string: hint_string.into(),
         }
     }
@@ -221,7 +221,7 @@ pub mod export_info_functions {
         let hint_string: String = EnumVariant::slice_as_hint_string(variants);
 
         PropertyHintInfo {
-            hint: PropertyHint::PROPERTY_HINT_ENUM,
+            hint: PropertyHint::ENUM,
             hint_string: hint_string.into(),
         }
     }
@@ -230,7 +230,7 @@ pub mod export_info_functions {
         let hint_string = comma_separate_boolean_idents!(attenuation, positive_only);
 
         PropertyHintInfo {
-            hint: PropertyHint::PROPERTY_HINT_EXP_EASING,
+            hint: PropertyHint::EXP_EASING,
             hint_string: hint_string.into(),
         }
     }
@@ -244,7 +244,7 @@ pub mod export_info_functions {
         let hint_string = BitFlag::slice_as_hint_string(bits);
 
         PropertyHintInfo {
-            hint: PropertyHint::PROPERTY_HINT_FLAGS,
+            hint: PropertyHint::FLAGS,
             hint_string: hint_string.into(),
         }
     }
@@ -259,9 +259,9 @@ pub mod export_info_functions {
 
     pub fn export_file_inner<S: AsRef<str>>(global: bool, filter: S) -> PropertyHintInfo {
         let hint = if global {
-            PropertyHint::PROPERTY_HINT_GLOBAL_FILE
+            PropertyHint::GLOBAL_FILE
         } else {
-            PropertyHint::PROPERTY_HINT_FILE
+            PropertyHint::FILE
         };
 
         PropertyHintInfo {
@@ -272,7 +272,7 @@ pub mod export_info_functions {
 
     pub fn export_placeholder<S: AsRef<str>>(placeholder: S) -> PropertyHintInfo {
         PropertyHintInfo {
-            hint: PropertyHint::PROPERTY_HINT_PLACEHOLDER_TEXT,
+            hint: PropertyHint::PLACEHOLDER_TEXT,
             hint_string: placeholder.as_ref().into(),
         }
     }
@@ -296,16 +296,16 @@ pub mod export_info_functions {
     // right side are the corresponding property hint. Godot is not always consistent between the two, such
     // as `export_multiline` being `PROPERTY_HINT_MULTILINE_TEXT`.
     default_export_funcs!(
-        export_flags_2d_physics => PROPERTY_HINT_LAYERS_2D_PHYSICS,
-        export_flags_2d_render => PROPERTY_HINT_LAYERS_2D_RENDER,
-        export_flags_2d_navigation => PROPERTY_HINT_LAYERS_2D_NAVIGATION,
-        export_flags_3d_physics => PROPERTY_HINT_LAYERS_3D_PHYSICS,
-        export_flags_3d_render => PROPERTY_HINT_LAYERS_3D_RENDER,
-        export_flags_3d_navigation => PROPERTY_HINT_LAYERS_3D_NAVIGATION,
-        export_dir => PROPERTY_HINT_DIR,
-        export_global_dir => PROPERTY_HINT_GLOBAL_DIR,
-        export_multiline => PROPERTY_HINT_MULTILINE_TEXT,
-        export_color_no_alpha => PROPERTY_HINT_COLOR_NO_ALPHA,
+        export_flags_2d_physics => LAYERS_2D_PHYSICS,
+        export_flags_2d_render => LAYERS_2D_RENDER,
+        export_flags_2d_navigation => LAYERS_2D_NAVIGATION,
+        export_flags_3d_physics => LAYERS_3D_PHYSICS,
+        export_flags_3d_render => LAYERS_3D_RENDER,
+        export_flags_3d_navigation => LAYERS_3D_NAVIGATION,
+        export_dir => DIR,
+        export_global_dir => GLOBAL_DIR,
+        export_multiline => MULTILINE_TEXT,
+        export_color_no_alpha => COLOR_NO_ALPHA,
     );
 }
 
