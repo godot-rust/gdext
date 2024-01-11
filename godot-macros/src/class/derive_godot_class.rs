@@ -54,6 +54,18 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         quote! {}
     };
 
+    let hidden = if struct_cfg.is_hidden {
+        quote! {
+            ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
+                class_name: #class_name_obj,
+                component: #prv::PluginComponent::Unexposed,
+                init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
+            });
+        }
+    } else {
+        quote! {}
+    };
+
     let godot_withbase_impl = if let Some(Field { name, .. }) = &fields.base_field {
         quote! {
             impl ::godot::obj::WithBaseField for #class_name {
@@ -144,6 +156,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         });
 
         #editor_plugin
+        #hidden
 
         #prv::class_macros::#inherits_macro!(#class_name);
     })
@@ -223,6 +236,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
     let mut has_generated_init = false;
     let mut is_tool = false;
     let mut is_editor_plugin = false;
+    let mut is_hidden = false;
     let mut rename: Option<Ident> = None;
 
     // #[class] attribute on struct
@@ -243,6 +257,11 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
         if parser.handle_alone_ident("editor_plugin")?.is_some() {
             is_editor_plugin = true;
         }
+
+        if parser.handle_alone("hide")? {
+            is_hidden = true;
+        }
+
         rename = parser.handle_ident("rename")?;
 
         parser.finish()?;
@@ -253,6 +272,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
         has_generated_init,
         is_tool,
         is_editor_plugin,
+        is_hidden,
         rename,
     })
 }
@@ -342,6 +362,7 @@ struct ClassAttributes {
     has_generated_init: bool,
     is_tool: bool,
     is_editor_plugin: bool,
+    is_hidden: bool,
     rename: Option<Ident>,
 }
 

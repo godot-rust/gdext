@@ -157,6 +157,8 @@ pub enum PluginComponent {
 
     #[cfg(since_api = "4.1")]
     EditorPlugin,
+    #[cfg(since_api = "4.2")]
+    Unexposed,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -393,6 +395,10 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
         #[cfg(since_api = "4.1")]
         PluginComponent::EditorPlugin => {
             c.is_editor_plugin = true;
+        }
+        #[cfg(since_api = "4.2")]
+        PluginComponent::Unexposed => {
+            c.godot_params.is_exposed = false as sys::GDExtensionBool;
         }
     }
     // out!("|   reg (after):     {c:?}");
@@ -771,6 +777,6 @@ fn default_creation_info() -> sys::GDExtensionClassCreationInfo2 {
         call_virtual_with_data_func: None,
         get_rid_func: None,
         class_userdata: ptr::null_mut(),
-        is_exposed: true as u8,
+        is_exposed: true as sys::GDExtensionBool,
     }
 }
