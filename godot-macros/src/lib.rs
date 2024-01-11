@@ -350,6 +350,20 @@ use crate::util::ident;
 /// ```
 ///
 /// These classes will appear in the Godot editor and GDScript as "AnimalToad" or "NpcToad".
+///
+/// # Hiding Classes
+///
+/// If you want to register a class with Godot, but not have it show up in the editor then you can use `#[class(hide)]`.
+///
+/// ```
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(base = Node, init, hide)]
+/// pub struct Foo {}
+/// ```
+///
+/// Even though this class is a `Node` and it has an init function, it still won't show up in the editor as a node you can add to a scene
+/// because we have added a `hide` key to the class. This will also prevent it from showing up in documentation.
 #[proc_macro_derive(GodotClass, attributes(class, base, var, export, init, signal))]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)
