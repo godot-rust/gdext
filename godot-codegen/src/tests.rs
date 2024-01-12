@@ -208,7 +208,7 @@ fn test_enumerator_names() {
 
     for (enum_name, enumerator_name, expected) in mappings {
         let mapped_enum_name = conv::to_pascal_case(enum_name);
-        let actual = conv::make_enumerator_name(enumerator_name, &mapped_enum_name);
+        let actual = conv::make_enumerator_names(enumerator_name, &mapped_enum_name);
 
         assert_eq!(
             actual, expected,

@@ -827,7 +827,7 @@ fn make_central_items(
             continue;
         }
 
-        let def = util::make_enum_definition(enum_);
+        let def = util::make_enum_definition(enum_, None);
         result.global_enum_defs.push(def);
     }
 

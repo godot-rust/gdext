@@ -228,7 +228,7 @@ pub fn get_api_level(class: &Class) -> ClassCodegenLevel {
     }
 }
 
-pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
+pub fn make_enum_definition(enum_: &Enum, class_name: Option<&str>) -> TokenStream {
     // TODO enums which have unique ords could be represented as Rust enums
     // This would allow exhaustive matches (or at least auto-completed matches + #[non_exhaustive]). But even without #[non_exhaustive],
     // this might be a forward compatibility hazard, if Godot deprecates enumerators and adds new ones with existing ords.
@@ -248,16 +248,19 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
         TokenStream::new()
     };
 
-    let values = &enum_.values;
-    let mut enumerators = Vec::with_capacity(values.len());
+    let godot_enumerators = &enum_.values;
+    let mut enumerators = Vec::with_capacity(godot_enumerators.len());
     let mut deprecated_enumerators = Vec::new();
 
     // This is only used for enum ords (i32), not bitfield flags (u64).
-    let mut unique_ords = Vec::with_capacity(values.len());
+    let mut unique_ords = Vec::with_capacity(godot_enumerators.len());
 
-    for enumerator in values {
-        let godot_name_str = &enumerator.name;
-        let enumerator_name = conv::make_enumerator_name(godot_name_str, &enum_name_str);
+    let rust_enumerator_names = {
+        let original_enumerator_names = enum_.values.iter().map(|e| e.name.as_str()).collect();
+        conv::make_enumerator_names(class_name, &enum_name_str, original_enumerator_names)
+    };
+
+    for (enumerator, enumerator_name) in godot_enumerators.iter().zip(rust_enumerator_names) {
         let ordinal_lit = if enum_.is_bitfield {
             let bitfield_ord: u64 = enumerator.to_bitfield_ord();
             make_bitfield_flag_ord(bitfield_ord)
@@ -267,6 +270,7 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
             make_enumerator_ord(enum_ord)
         };
 
+        let godot_name_str = &enumerator.name;
         let doc_alias = if enumerator_name == godot_name_str {
             TokenStream::new()
         } else {

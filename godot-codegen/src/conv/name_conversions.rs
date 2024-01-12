@@ -88,38 +88,6 @@ pub fn shout_to_pascal(shout_case: &str) -> String {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Enum conversions
 
-/// Checks an enum name against possible replacements for parts of the enumerator.
-///
-/// Key: part of an enum name.
-/// Value: part of an enumerator name.
-///
-/// If the enum contains the key, then the algorithm runs *in addition* with the replaced value.
-const ENUM_REPLACEMENTS: &[(&str, &str)] = &[
-    // Sorted alphabetically.
-    // Note: ERROR -> ERR is explicitly excluded, because without prefix, ERROR.* cannot easily be differentiated from Error.OK/FAILED.
-    ("CAMERA_2D", "CAMERA2D"), // Exception; most enumerators containing "1D/2D/3D" have "_" before it.
-    ("COLOR_SPACE", "GRADIENT_COLOR_SPACE"), // class Gradient
-    ("COMPARISON_TYPE", "CTYPE"),
-    ("COMPRESSION", "COMPRESS"),
-    ("CONDITION", "COND"),
-    ("CUBE_MAP", "CUBEMAP"),
-    ("ENVIRONMENT", "ENV"),
-    ("FUNCTION", "FUNC"),
-    ("G6DOF_JOINT_AXIS_FLAG", "G6DOF_JOINT_FLAG"),
-    ("INTERPOLATION", "INTERPOLATE"),
-    ("INTERPOLATION_MODE", "GRADIENT_INTERPOLATE"), // class Gradient
-    ("OPERATION", "OP"),                            // enum PolyBooleanOperation
-    ("OPERATOR", "OP"),
-    ("PARAMETER", "PARAM"),
-    ("POST_PROCESSING", "POSTPROCESSING"),
-    ("PROCESS_THREAD_MESSAGES", "FLAG_PROCESS_THREAD"), // class Node
-    ("QUALIFIER", "QUAL"),
-    ("SHADER_PARAMETER_TYPE", "VAR_TYPE"),
-    ("TRANSITION", "TRANS"),
-    ("VIEWPORT_OCCLUSION_CULLING", "VIEWPORT_OCCLUSION"),
-    ("VISIBLE_CHARACTERS_BEHAVIOR", "VC"),
-];
-
 pub fn make_enum_name(enum_name: &str) -> Ident {
     ident(&make_enum_name_str(enum_name))
 }
@@ -133,104 +101,169 @@ pub fn make_enum_name_str(enum_name: &str) -> String {
 /// Takes into account redundancies in the enumerator, mostly if it contains parts of the enum name. This avoids
 /// repetition and leads to significantly shorter names, without losing information. `#[doc(alias)]` ensures that
 /// the original name can still be found in API docs.
-pub fn make_enumerator_name(enumerator: &str, enum_name: &str) -> Ident {
+pub fn make_enumerator_names(
+    godot_class_name: Option<&str>,
+    godot_enum_name: &str,
+    enumerators: Vec<&str>,
+) -> Vec<Ident> {
     debug_assert_eq!(
-        make_enum_name(enum_name),
-        enum_name,
+        make_enum_name(godot_enum_name),
+        godot_enum_name,
         "enum name must already be mapped"
     );
 
-    ident(&transform_enumerator_name(enumerator, enum_name))
+    shorten_enumerator_names(godot_class_name, godot_enum_name, enumerators)
+        .iter()
+        .map(|e| ident(e))
+        .collect()
 }
 
-fn transform_enumerator_name(enumerator: &str, enum_name: &str) -> String {
-    // Go through snake case, to ensure consistent mapping to underscore-based names. Don't use heck's to_shouty_snake_case() directly.
-    let enum_upper = to_snake_case(enum_name).to_ascii_uppercase();
-
-    // Enumerator contains enum or beginning parts of it as prefix:
-    // * JointType::JOINT_TYPE_PIN -> PIN.
-    let search = &enum_upper[..];
-
-    // Enumerator "XR_" prefix is always implied by the surrounding class name:
-    // * Class XRInterface - enums Capabilities, TrackingStatus, PlayAreaMode, EnvironmentBlendMode
-    // * Class XRPose - enum TrackingConfidence
-    let enumerator = enumerator.strip_prefix("XR_").unwrap_or(enumerator);
-    // * Class OpenXRAction - enum ActionType
-    let enumerator = enumerator.strip_prefix("OPENXR_").unwrap_or(enumerator);
-
-    // Check if there are abbreviations, replace on first match (unlike that there are more...).
-    for (original, replaced) in ENUM_REPLACEMENTS {
-        if search.contains(original) {
-            let replaced_enumerator = search.replace(original, replaced);
-            let replaced = strip_enumerator_prefix(enumerator, &replaced_enumerator);
-
-            // If this is already an improvement, return here.
-            if replaced != enumerator {
-                return replaced;
-            }
-        }
+/// Finds a common prefix in all enumerators, that is then stripped.
+///
+/// This won't work if there is only one enumerator (there are some special cases for those).
+///
+/// `class_name` is the containing class, or `None` if it is a global enum.
+pub fn shorten_enumerator_names<'e>(
+    godot_class_name: Option<&str>,
+    godot_enum_name: &str,
+    enumerators: Vec<&'e str>,
+) -> Vec<&'e str> {
+    // Hardcoded exceptions.
+    if let Some(prefixes) = reduce_hardcoded_prefix(godot_class_name, godot_enum_name) {
+        // Remove prefix from every enumerator.
+        return enumerators
+            .iter()
+            .map(|e| try_strip_prefixes(e, prefixes))
+            .collect::<Vec<_>>();
     }
 
-    // Try without the first part of the enum name:
-    // * ZipAppend::APPEND_CREATE -> CREATE
-    // * ProcessInfo::INFO_COLLISION_PAIRS -> COLLISION_PAIRS
-    const NUM_REPETITIONS: usize = 2;
-    if let Some(mut sep_index) = search.find('_') {
-        for _ in 0..NUM_REPETITIONS {
-            let remain = &search[sep_index + 1..];
-            let replaced = strip_enumerator_prefix(enumerator, remain);
-
-            if replaced != enumerator {
-                return replaced;
-            }
-
-            if let Some(next_sep) = remain.find('_') {
-                sep_index += next_sep + 1;
-            } else {
-                break;
-            }
-        }
+    if enumerators.len() <= 1 {
+        return enumerators;
     }
 
-    strip_enumerator_prefix(enumerator, search)
-}
-
-fn valid_ident(ident: &str) -> Option<&str> {
-    let Some(ident) = ident.strip_prefix('_') else {
-        return None;
+    // Look for common prefix; start at everything before last underscore.
+    let original = &enumerators[0];
+    let Some((mut longest_prefix, mut pos)) = enumerator_prefix(original, enumerators[0].len())
+    else {
+        // If there is no underscore (i.e. enumerator consists of only one part), return that immediately.
+        return enumerators;
     };
 
-    // Not empty and starts with alpha.
-    let is_valid = ident
-        .chars()
-        .next()
-        .map_or(false, |c| c.is_ascii_alphabetic());
-
-    is_valid.then_some(ident)
-}
-
-/// Split a string `SOME_ENUMERATOR_VALUE` into its parts, return remainder of prefix-matching `search` with some variations.
-fn strip_enumerator_prefix(enumerator: &str, mut search: &str) -> String {
-    loop {
-        if let Some(remain) = enumerator.strip_prefix(search) {
-            // If already exhausted, leave the enumerator as is.
-            if let Some(remain) = valid_ident(remain) {
-                return remain.to_string();
+    // Go through remaining enumerators, shorten prefix until it is contained in all of them.
+    'outer: for e in enumerators[1..].iter() {
+        // if all enums should have common prefix, change condition:   ... || starts_with_invalid_char(&e[pos..])
+        while !e.starts_with(longest_prefix) {
+            // Find a shorter prefix...
+            if let Some((prefix, new_pos)) = enumerator_prefix(original, pos - 1) {
+                // Found: shorten prefix, rewind position.
+                longest_prefix = prefix;
+                pos = new_pos;
+            } else {
+                // Not found: there is no common prefix. We keep the original enumerators, exit here.
+                pos = 0;
+                break 'outer;
             }
         }
-
-        // Plural: Hands::HAND_LEFT -> LEFT
-        if let Some(singular) = search.strip_suffix('S') {
-            if let Some(remain) = enumerator.strip_prefix(singular) {
-                if let Some(remain) = valid_ident(remain) {
-                    return remain.to_string();
-                }
-            }
-        }
-
-        let Some(sep) = search.rfind('_') else { break };
-        search = &search[..sep];
     }
 
-    enumerator.to_string()
+    let pos = pos; // immutable.
+    let last_index = enumerators.len() - 1;
+    enumerators
+        .into_iter()
+        .enumerate()
+        .map(|(i, e)| {
+            // Special-case MAX constants which refer to enum size and should not be prefixed.
+            // Examples: FftSize.SIZE_MAX (2x), EnvironmentSdfgiRayCount.COUNT_MAX, JointType.TYPE_MAX
+            if e.ends_with("_MAX") && i == last_index {
+                // TODO for enums, this could be an associated constants, as it's not part of the possible values.
+                // Special case that act like a max: Curve.TangentMode.MODE_COUNT
+                return "MAX";
+            }
+
+            // If an enumerator begins with a digit, include one more prefix part -- but only for that enumerator, not the whole group.
+            let mut local_pos = pos;
+            while starts_with_invalid_char(&e[local_pos..]) {
+                // Move pos to the one '_' before its current position (or beginning), in order to include one part more.
+                // 'while' instead of 'if' because previous part could also start with a digit.
+                debug_assert!(local_pos > 0, "enumerator {e} starts with digit");
+
+                // Example:     Source.SOURCE_3D_NORMAL -> 3D_NORMAL after prefix removal.
+                // After rewind, again SOURCE_3D_NORMAL.
+                local_pos = if let Some(new_pos) = e[..local_pos - 1].rfind('_') {
+                    new_pos + 1
+                } else {
+                    0
+                };
+            }
+
+            &e[local_pos..]
+        })
+        .collect()
+}
+
+/// Exceptions for enums, where the heuristic wrongly identifies common prefixes, or those are not intuitive.
+///
+/// Parameters:
+/// - `class_name` is the containing class, or `None` if it is a global enum.
+/// - `enum_name` is the name of the enum. All of its enums will be shortened according to the same prefix.
+///
+/// Returns:
+/// - `None` if the heuristic should be used.
+/// - `Some(prefix)` if the specified `prefix` should be removed from every enumerator. If it's missing, the enumerator is left as-is.
+fn reduce_hardcoded_prefix(
+    class_name: Option<&str>,
+    enum_name: &str,
+) -> Option<&'static [&'static str]> {
+    let result: &[&str] = match (class_name, enum_name) {
+        (None, "Key") => &["KEY_"],
+
+        // Inconsistency with varying prefixes.
+        (Some("RenderingServer" | "Mesh"), "ArrayFormat") => &["ARRAY_FORMAT_", "ARRAY_"],
+        (Some("AudioServer"), "SpeakerMode") => &["SPEAKER_MODE_", "SPEAKER_"],
+        (None, "MethodFlags") => &["METHOD_FLAG_", "METHOD_FLAGS_"],
+
+        // There are two "mask" entries which span multiple bits: KEY_CODE_MASK, KEY_MODIFIER_MASK -> CODE_MASK, MODIFIER_MASK.
+        // All other entries are one bit only, clarify this: KEY_MASK_CTRL -> CTRL.
+        (None, "KeyModifierMask") => &["KEY_MASK_", "KEY_"],
+
+        // Only 1 enumerator; algorithm can't detect common prefixes.
+        (Some("RenderingDevice"), "StorageBufferUsage") => &["STORAGE_BUFFER_USAGE_"],
+        (Some(_), "PathfindingAlgorithm") => &["PATHFINDING_ALGORITHM_"],
+
+        // All others use heuristic.
+        _ => return None,
+    };
+
+    Some(result)
+}
+
+// Could have signature:  try_strip_prefixes<'e>(enumerator: &'e str, prefixes: &[&str]) -> &'e str
+// But not much point, result expects owned strings.
+// fn try_strip_prefixes(enumerator: &str, prefixes: &[&str]) -> String {
+fn try_strip_prefixes<'e>(enumerator: &'e str, prefixes: &[&str]) -> &'e str {
+    // Try all prefixes in order, use full enumerator otherwise.
+    for prefix in prefixes {
+        if let Some(stripped) = enumerator.strip_prefix(prefix) {
+            // If resulting enumerator is invalid, try next one
+            if !starts_with_invalid_char(stripped) {
+                return stripped;
+            }
+        }
+    }
+
+    // No prefix worked, use full enumerator.
+    enumerator
+}
+
+fn starts_with_invalid_char(s: &str) -> bool {
+    s.starts_with(|c: char| c.is_ascii_digit())
+}
+
+fn enumerator_prefix(original: &str, rfind_pos: usize) -> Option<(&str, usize)> {
+    assert_ne!(rfind_pos, 0);
+
+    // Find next underscore from the end, return prefix before that. pos+1 to include "_" in prefix.
+    original[..rfind_pos]
+        .rfind('_')
+        .map(|pos| (&original[..pos + 1], pos + 1))
 }

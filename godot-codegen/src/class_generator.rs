@@ -1113,8 +1113,10 @@ fn make_builtin_methods(
     FnDefinitions::expand(definitions)
 }
 
-fn make_enums(enums: &[Enum], _class_name: &TyName, _ctx: &Context) -> TokenStream {
-    let definitions = enums.iter().map(util::make_enum_definition);
+fn make_enums(enums: &[Enum], class_name: &TyName, _ctx: &Context) -> TokenStream {
+    let definitions = enums
+        .iter()
+        .map(|e| util::make_enum_definition(e, Some(&class_name.godot_ty)));
 
     quote! {
         #( #definitions )*
