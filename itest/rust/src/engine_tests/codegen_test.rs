@@ -25,7 +25,7 @@ fn codegen_base_renamed() {
     // The registration is done at startup time, so it may already fail during GDExtension init.
     // Nevertheless, try to instantiate an object with base HttpRequest here.
 
-    let obj = Gd::new(|base| TestBaseRenamed { _base: base });
+    let obj = Gd::from_init_fn(|base| TestBaseRenamed { _base: base });
     let _id = obj.instance_id();
 
     obj.free();
