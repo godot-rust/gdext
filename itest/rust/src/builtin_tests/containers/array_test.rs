@@ -200,11 +200,11 @@ fn array_first_last() {
 fn array_binary_search() {
     let array = array![1, 3];
 
-    assert_eq!(array.binary_search(&0), 0);
-    assert_eq!(array.binary_search(&1), 0);
-    assert_eq!(array.binary_search(&2), 1);
-    assert_eq!(array.binary_search(&3), 1);
-    assert_eq!(array.binary_search(&4), 2);
+    assert_eq!(array.bsearch(&0), 0);
+    assert_eq!(array.bsearch(&1), 0);
+    assert_eq!(array.bsearch(&2), 1);
+    assert_eq!(array.bsearch(&3), 1);
+    assert_eq!(array.bsearch(&4), 2);
 }
 
 #[itest]
@@ -471,6 +471,30 @@ fn array_should_format_with_display() {
 
     let a = Array::<real>::new();
     assert_eq!(format!("{a}"), "[]");
+}
+
+#[itest]
+#[cfg(since_api = "4.2")]
+fn array_sort_custom() {
+    let mut a = array![1, 2, 3, 4];
+    let func = Callable::from_fn("sort backwards", |args: &[&Variant]| {
+        let res = i32::from_variant(args[0]) > i32::from_variant(args[1]);
+        Ok(Variant::from(res))
+    });
+    a.sort_unstable_custom(func);
+    assert_eq!(a, array![4, 3, 2, 1]);
+}
+
+#[itest]
+#[cfg(since_api = "4.2")]
+fn array_binary_search_custom() {
+    let a = array![5, 4, 2, 1];
+    let func = Callable::from_fn("sort backwards", |args: &[&Variant]| {
+        let res = i32::from_variant(args[0]) > i32::from_variant(args[1]);
+        Ok(Variant::from(res))
+    });
+    assert_eq!(a.bsearch_custom(&1, func.clone()), 3);
+    assert_eq!(a.bsearch_custom(&3, func), 2);
 }
 
 #[derive(GodotClass, Debug)]
