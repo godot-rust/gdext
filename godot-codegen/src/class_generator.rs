@@ -1906,6 +1906,28 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         fn on_notification(&mut self, what: #notification_enum_name) {
             unimplemented!()
         }
+
+        /// Called whenever [`get()`](crate::engine::Object::get) is called or Godot gets the value of a property.
+        ///
+        /// Should return the given `property`'s value as `Some(value)`, or `None` if the property should be handled normally.
+        ///
+        /// See also in Godot docs:
+        /// * [`Object::_get`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-get).
+        fn get(&self, property: StringName) -> Option<Variant> {
+            unimplemented!()
+        }
+
+        /// Called whenever Godot [`set()`](crate::engine::Object::set) is called or Godot sets the value of a property.
+        ///
+        /// Should set `property` to the given `value` and return `true`, or return `false` to indicate the `property`
+        /// should be handled normally.
+        ///
+        /// See also in Godot docs:
+        /// * [`Object::_set`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-set).
+        fn set(&mut self, property: StringName, value: Variant) -> bool {
+            unimplemented!()
+        }
+
     }
 }
 

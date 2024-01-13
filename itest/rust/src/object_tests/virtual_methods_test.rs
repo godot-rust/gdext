@@ -232,6 +232,64 @@ impl INode for NotificationTest {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[derive(GodotClass)]
+#[class(init)]
+struct GetTest {
+    #[var]
+    always_get_hello: i64,
+    #[var]
+    gettable: i64,
+
+    get_called: std::cell::Cell<bool>,
+}
+
+#[godot_api]
+impl IRefCounted for GetTest {
+    fn get(&self, property: StringName) -> Option<Variant> {
+        self.get_called.set(true);
+
+        match String::from(property).as_str() {
+            "always_get_hello" => Some("hello".to_variant()),
+            "gettable" => Some(self.gettable.to_variant()),
+            _ => None,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(GodotClass)]
+#[class(init)]
+struct SetTest {
+    #[var]
+    always_set_to_100: i64,
+    #[var]
+    settable: i64,
+
+    set_called: bool,
+}
+
+#[godot_api]
+impl IRefCounted for SetTest {
+    fn set(&mut self, property: StringName, value: Variant) -> bool {
+        self.set_called = true;
+
+        match String::from(property).as_str() {
+            "always_set_to_100" => {
+                self.always_set_to_100 = 100;
+                true
+            }
+            "settable" => {
+                self.settable = value.to();
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[itest]
 fn test_to_string() {
     let _obj = VirtualMethodTest::new_gd();
@@ -461,6 +519,58 @@ fn test_notifications() {
     obj.free();
 }
 
+#[itest]
+fn test_get_called() {
+    let obj = GetTest::new_gd();
+    assert!(!obj.bind().get_called.get());
+    assert!(obj.get("foo".into()).is_nil());
+    assert!(obj.bind().get_called.get());
+
+    let obj = GetTest::new_gd();
+    assert!(!obj.bind().get_called.get());
+    obj.get("always_get_hello".into());
+    assert!(obj.bind().get_called.get());
+}
+
+#[itest]
+fn test_get_returns_correct() {
+    let mut obj = GetTest::new_gd();
+
+    {
+        let mut obj = obj.bind_mut();
+        obj.always_get_hello = 100;
+        obj.gettable = 200;
+    }
+
+    assert_eq!(obj.get("always_get_hello".into()), "hello".to_variant());
+    assert_eq!(obj.get("gettable".into()), 200.to_variant());
+}
+
+#[itest]
+fn test_set_called() {
+    let mut obj = SetTest::new_gd();
+    assert!(!obj.bind().set_called);
+    obj.set("foo".into(), Variant::nil());
+    assert!(obj.bind().set_called);
+
+    let mut obj = SetTest::new_gd();
+    assert!(!obj.bind().set_called);
+    obj.set("settable".into(), 20.to_variant());
+    assert!(obj.bind().set_called);
+}
+
+#[itest]
+fn test_set_sets_correct() {
+    let mut obj = SetTest::new_gd();
+
+    assert_eq!(obj.bind().always_set_to_100, i64::default());
+    assert_eq!(obj.bind().settable, i64::default());
+    obj.set("always_set_to_100".into(), "hello".to_variant());
+    obj.set("settable".into(), 500.to_variant());
+    assert_eq!(obj.bind().always_set_to_100, 100);
+    assert_eq!(obj.bind().settable, 500);
+}
+
 // Used in `test_collision_object_2d_input_event` in `SpecialTests.gd`.
 #[derive(GodotClass)]
 #[class(init, base = RigidBody2D)]
@@ -490,5 +600,74 @@ impl CollisionObject2DTest {
             .as_ref()
             .map(ToGodot::to_variant)
             .unwrap_or(Variant::nil())
+    }
+}
+
+#[derive(GodotClass)]
+#[class(init)]
+pub struct GetSetTest {
+    #[var]
+    always_get_100: i64,
+    #[var]
+    set_get: i64,
+
+    get_called: std::cell::Cell<bool>,
+    set_called: bool,
+}
+
+#[godot_api]
+impl IRefCounted for GetSetTest {
+    fn get(&self, property: StringName) -> Option<Variant> {
+        self.get_called.set(true);
+
+        match String::from(property).as_str() {
+            "always_get_100" => Some(100.to_variant()),
+            "set_get" => Some(self.set_get.to_variant()),
+            _ => None,
+        }
+    }
+
+    fn set(&mut self, property: StringName, value: Variant) -> bool {
+        self.set_called = true;
+
+        match String::from(property).as_str() {
+            "always_get_100" => {
+                self.always_get_100 = value.to();
+                true
+            }
+            "set_get" => {
+                self.set_get = value.to();
+                true
+            }
+            _ => false,
+        }
+    }
+}
+
+#[godot_api]
+impl GetSetTest {
+    #[func]
+    fn is_get_called(&self) -> bool {
+        self.get_called.get()
+    }
+
+    #[func]
+    fn unset_get_called(&mut self) {
+        self.get_called.set(false)
+    }
+
+    #[func]
+    fn is_set_called(&self) -> bool {
+        self.set_called
+    }
+
+    #[func]
+    fn unset_set_called(&mut self) {
+        self.set_called = false
+    }
+
+    #[func]
+    fn get_real_always_get_100(&self) -> i64 {
+        self.always_get_100
     }
 }

@@ -345,3 +345,26 @@ func test_callable_refcount():
 	var method := Callable(self, "sample_func")
 	assert(method.is_valid())
 	test_obj.free()
+
+func test_get_set():
+	var obj: GetSetTest = GetSetTest.new()
+	assert(not obj.is_get_called())
+	assert(not obj.is_set_called())
+
+	assert_eq(obj.always_get_100, 100)
+	assert(obj.is_get_called())
+	assert(not obj.is_set_called())
+	obj.unset_get_called()
+
+	obj.always_get_100 = 10
+	assert_eq(obj.always_get_100, 100)
+	assert_eq(obj.get_real_always_get_100(), 10)
+	assert(obj.is_set_called())
+	obj.unset_get_called()
+	obj.unset_set_called()
+
+	obj.set_get = 1000
+	assert_eq(obj.set_get, 1000)
+	assert(obj.is_set_called())
+	assert(obj.is_get_called())
+
