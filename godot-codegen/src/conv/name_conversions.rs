@@ -44,6 +44,7 @@ pub fn to_snake_case(class_name: &str) -> String {
         .replace("GDExtension", "Gdextension")
         .replace("VSync", "Vsync")
         .replace("SDFGIY", "SdfgiY")
+        .replace("ENet", "Enet")
         .to_snake_case()
 }
 
@@ -220,6 +221,7 @@ fn reduce_hardcoded_prefix(
         // Inconsistency with varying prefixes.
         (Some("RenderingServer" | "Mesh"), "ArrayFormat") => &["ARRAY_FORMAT_", "ARRAY_"],
         (Some("AudioServer"), "SpeakerMode") => &["SPEAKER_MODE_", "SPEAKER_"],
+        (Some("ENetConnection"), "HostStatistic") => &["HOST_"], // do not remove TOTAL_ prefix (shared by all), e.g. TOTAL_SENT_DATA.
         (None, "MethodFlags") => &["METHOD_FLAG_", "METHOD_FLAGS_"],
 
         // There are two "mask" entries which span multiple bits: KEY_CODE_MASK, KEY_MODIFIER_MASK -> CODE_MASK, MODIFIER_MASK.
