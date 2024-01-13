@@ -6,7 +6,8 @@
  */
 
 // TODO remove this warning once impl is complete
-#![allow(dead_code)]
+// Several types have #[allow(dead_code)], can be subsequently removed.
+
 #![allow(clippy::question_mark)] // in #[derive(DeJson)]
 
 use nanoserde::DeJson;
@@ -15,19 +16,19 @@ use nanoserde::DeJson;
 // JSON models
 
 #[derive(DeJson)]
-pub struct ExtensionApi {
-    pub header: Header,
-    pub builtin_class_sizes: Vec<ClassSizes>,
-    pub builtin_classes: Vec<BuiltinClass>,
-    pub classes: Vec<Class>,
-    pub global_enums: Vec<Enum>,
-    pub utility_functions: Vec<UtilityFunction>,
-    pub native_structures: Vec<NativeStructure>,
-    pub singletons: Vec<Singleton>,
+pub struct JsonExtensionApi {
+    pub header: JsonHeader,
+    pub builtin_class_sizes: Vec<JsonClassSizes>,
+    pub builtin_classes: Vec<JsonBuiltin>,
+    pub classes: Vec<JsonClass>,
+    pub global_enums: Vec<JsonEnum>,
+    pub utility_functions: Vec<JsonUtilityFunction>,
+    pub native_structures: Vec<JsonNativeStructure>,
+    pub singletons: Vec<JsonSingleton>,
 }
 
 #[derive(DeJson, Clone, Debug)]
-pub struct Header {
+pub struct JsonHeader {
     pub version_major: u8,
     pub version_minor: u8,
     pub version_patch: u8,
@@ -37,53 +38,53 @@ pub struct Header {
 }
 
 #[derive(DeJson)]
-pub struct ClassSizes {
+pub struct JsonClassSizes {
     pub build_configuration: String,
-    pub sizes: Vec<ClassSize>,
+    pub sizes: Vec<JsonClassSize>,
 }
 
 #[derive(DeJson)]
-pub struct ClassSize {
+pub struct JsonClassSize {
     pub name: String,
     pub size: usize,
 }
 
 #[derive(DeJson)]
-pub struct BuiltinClass {
+pub struct JsonBuiltin {
     pub name: String,
     pub indexing_return_type: Option<String>,
     pub is_keyed: bool,
-    pub members: Option<Vec<Member>>,
+    // pub members: Option<Vec<Member>>,
     // pub constants: Option<Vec<BuiltinConstant>>,
-    pub enums: Option<Vec<BuiltinClassEnum>>, // no bitfield
-    pub operators: Vec<Operator>,
-    pub methods: Option<Vec<BuiltinClassMethod>>,
-    pub constructors: Vec<Constructor>,
+    pub enums: Option<Vec<JsonBuiltinEnum>>, // no bitfield
+    pub operators: Vec<JsonOperator>,
+    pub methods: Option<Vec<JsonBuiltinMethod>>,
+    pub constructors: Vec<JsonConstructor>,
     pub has_destructor: bool,
 }
 
 #[derive(DeJson)]
-pub struct Class {
+pub struct JsonClass {
     pub name: String,
     pub is_refcounted: bool,
     pub is_instantiable: bool,
     pub inherits: Option<String>,
     pub api_type: String,
-    pub constants: Option<Vec<ClassConstant>>,
-    pub enums: Option<Vec<Enum>>,
-    pub methods: Option<Vec<ClassMethod>>,
+    pub constants: Option<Vec<JsonClassConstant>>,
+    pub enums: Option<Vec<JsonEnum>>,
+    pub methods: Option<Vec<JsonClassMethod>>,
     // pub properties: Option<Vec<Property>>,
     // pub signals: Option<Vec<Signal>>,
 }
 
 #[derive(DeJson)]
-pub struct NativeStructure {
+pub struct JsonNativeStructure {
     pub name: String,
     pub format: String,
 }
 
 #[derive(DeJson)]
-pub struct Singleton {
+pub struct JsonSingleton {
     pub name: String,
     // Note: `type` currently has always same value as `name`, thus redundant
     // #[nserde(rename = "type")]
@@ -91,21 +92,21 @@ pub struct Singleton {
 }
 
 #[derive(DeJson)]
-pub struct Enum {
+pub struct JsonEnum {
     pub name: String,
     pub is_bitfield: bool,
-    pub values: Vec<EnumConstant>,
+    pub values: Vec<JsonEnumConstant>,
 }
 
 #[derive(DeJson)]
-pub struct BuiltinClassEnum {
+pub struct JsonBuiltinEnum {
     pub name: String,
-    pub values: Vec<EnumConstant>,
+    pub values: Vec<JsonEnumConstant>,
 }
 
-impl BuiltinClassEnum {
-    pub(crate) fn to_enum(&self) -> Enum {
-        Enum {
+impl JsonBuiltinEnum {
+    pub(crate) fn to_enum(&self) -> JsonEnum {
+        JsonEnum {
             name: self.name.clone(),
             is_bitfield: false,
             values: self.values.clone(),
@@ -114,7 +115,7 @@ impl BuiltinClassEnum {
 }
 
 #[derive(DeJson, Clone)]
-pub struct EnumConstant {
+pub struct JsonEnumConstant {
     pub name: String,
 
     // i64 is common denominator for enum, bitfield and constant values.
@@ -122,12 +123,12 @@ pub struct EnumConstant {
     pub value: i64,
 }
 
-pub enum ConstValue {
+pub enum JsonConstValue {
     I32(i32),
     I64(i64),
 }
 
-impl EnumConstant {
+impl JsonEnumConstant {
     pub fn to_enum_ord(&self) -> i32 {
         self.value.try_into().unwrap_or_else(|_| {
             panic!(
@@ -146,21 +147,21 @@ impl EnumConstant {
         })
     }
 
-    pub fn to_constant(&self) -> ConstValue {
+    pub fn to_constant(&self) -> JsonConstValue {
         if let Ok(value) = i32::try_from(self.value) {
-            ConstValue::I32(value)
+            JsonConstValue::I32(value)
         } else {
-            ConstValue::I64(self.value)
+            JsonConstValue::I64(self.value)
         }
     }
 }
 
-pub type ClassConstant = EnumConstant;
+pub type JsonClassConstant = JsonEnumConstant;
 
 /*
 // Constants of builtin types have a string value like "Vector2(1, 1)", hence also a type field
 #[derive(DeJson)]
-pub struct BuiltinConstant {
+pub struct JsonBuiltinConstant {
     pub name: String,
     #[nserde(rename = "type")]
     pub type_: String,
@@ -169,21 +170,22 @@ pub struct BuiltinConstant {
 */
 
 #[derive(DeJson)]
-pub struct Operator {
+pub struct JsonOperator {
     pub name: String,
     pub right_type: Option<String>, // null if unary
     pub return_type: String,
 }
 
 #[derive(DeJson)]
-pub struct Member {
+pub struct JsonMember {
     pub name: String,
     #[nserde(rename = "type")]
     pub type_: String,
 }
 
 #[derive(DeJson)]
-pub struct Property {
+#[allow(dead_code)]
+pub struct JsonProperty {
     #[nserde(rename = "type")]
     type_: String,
     name: String,
@@ -193,55 +195,57 @@ pub struct Property {
 }
 
 #[derive(DeJson)]
-pub struct Signal {
+#[allow(dead_code)]
+pub struct JsonSignal {
     name: String,
-    arguments: Option<Vec<MethodArg>>,
+    arguments: Option<Vec<JsonMethodArg>>,
 }
 
 #[derive(DeJson)]
-pub struct Constructor {
+pub struct JsonConstructor {
     pub index: usize,
-    pub arguments: Option<Vec<MethodArg>>,
+    pub arguments: Option<Vec<JsonMethodArg>>,
 }
 
 #[derive(DeJson)]
-pub struct UtilityFunction {
+pub struct JsonUtilityFunction {
     pub name: String,
     pub return_type: Option<String>,
+    /// `"general"` or `"math"`
     pub category: String,
     pub is_vararg: bool,
     pub hash: i64,
-    pub arguments: Option<Vec<MethodArg>>,
+    pub arguments: Option<Vec<JsonMethodArg>>,
 }
 
 #[derive(DeJson)]
-pub struct BuiltinClassMethod {
+pub struct JsonBuiltinMethod {
     pub name: String,
     pub return_type: Option<String>,
     pub is_vararg: bool,
     pub is_const: bool,
     pub is_static: bool,
     pub hash: Option<i64>,
-    pub arguments: Option<Vec<MethodArg>>,
+    pub arguments: Option<Vec<JsonMethodArg>>,
 }
 
 #[derive(DeJson, Clone)]
-pub struct ClassMethod {
+pub struct JsonClassMethod {
     pub name: String,
     pub is_const: bool,
     pub is_vararg: bool,
     pub is_static: bool,
     pub is_virtual: bool,
     pub hash: Option<i64>,
-    pub return_value: Option<MethodReturn>,
-    pub arguments: Option<Vec<MethodArg>>,
+    pub return_value: Option<JsonMethodReturn>,
+    pub arguments: Option<Vec<JsonMethodArg>>,
 }
 
 // Example: set_point_weight_scale ->
 // [ {name: "id", type: "int", meta: "int64"},
 //   {name: "weight_scale", type: "float", meta: "float"},
 #[derive(DeJson, Clone)]
-pub struct MethodArg {
+pub struct JsonMethodArg {
     pub name: String,
     #[nserde(rename = "type")]
     pub type_: String,
@@ -251,13 +255,13 @@ pub struct MethodArg {
 
 // Example: get_available_point_id -> {type: "int", meta: "int64"}
 #[derive(DeJson, Clone)]
-pub struct MethodReturn {
+pub struct JsonMethodReturn {
     #[nserde(rename = "type")]
     pub type_: String,
     pub meta: Option<String>,
 }
 
-impl MethodReturn {
+impl JsonMethodReturn {
     pub fn from_type_no_meta(type_: &str) -> Self {
         Self {
             type_: type_.to_owned(),
@@ -271,7 +275,7 @@ impl MethodReturn {
 
 pub fn load_extension_api(
     watch: &mut godot_bindings::StopWatch,
-) -> (ExtensionApi, [&'static str; 2]) {
+) -> (JsonExtensionApi, [&'static str; 2]) {
     // For float/double inference, see:
     // * https://github.com/godotengine/godot-proposals/issues/892
     // * https://github.com/godotengine/godot-cpp/pull/728
@@ -292,7 +296,7 @@ pub fn load_extension_api(
     #[allow(clippy::useless_asref)]
     let json_str: &str = json.as_ref();
 
-    let model: ExtensionApi =
+    let model: JsonExtensionApi =
         DeJson::deserialize_json(json_str).expect("failed to deserialize JSON");
     watch.record("deserialize_json");
 

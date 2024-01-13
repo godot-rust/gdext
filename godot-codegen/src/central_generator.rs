@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::hash::Hasher;
 use std::path::Path;
 
-use crate::api_parser::*;
+use crate::json_models::*;
 use crate::util::{
     make_builtin_method_ptr_name, make_class_method_ptr_name, option_as_slice, ClassCodegenLevel,
     MethodTableKey,
@@ -26,7 +26,7 @@ struct CentralItems {
     variant_op_enumerators_pascal: Vec<Ident>,
     variant_op_enumerators_ord: Vec<Literal>,
     global_enum_defs: Vec<TokenStream>,
-    godot_version: Header,
+    godot_version: JsonHeader,
 }
 
 struct NamedMethodTable {
@@ -154,8 +154,8 @@ pub(crate) struct BuiltinTypeInfo<'a> {
     /// If `variant_get_ptr_destructor` returns a non-null function pointer for this type.
     /// List is directly sourced from extension_api.json (information would also be in variant_destruct.cpp).
     pub has_destructor: bool,
-    pub constructors: Option<&'a Vec<Constructor>>,
-    pub operators: Option<&'a Vec<Operator>>,
+    pub constructors: Option<&'a Vec<JsonConstructor>>,
+    pub operators: Option<&'a Vec<JsonOperator>>,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -165,7 +165,7 @@ pub(crate) struct BuiltinTypeMap<'a> {
 }
 
 impl<'a> BuiltinTypeMap<'a> {
-    pub fn load(api: &'a ExtensionApi) -> Self {
+    pub fn load(api: &'a JsonExtensionApi) -> Self {
         Self {
             map: collect_builtin_types(api),
         }
@@ -186,7 +186,7 @@ impl<'a> BuiltinTypeMap<'a> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub(crate) fn generate_sys_central_file(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     ctx: &mut Context,
     build_config: [&str; 2],
     sys_gen_path: &Path,
@@ -200,7 +200,7 @@ pub(crate) fn generate_sys_central_file(
 }
 
 pub(crate) fn generate_sys_classes_file(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     sys_gen_path: &Path,
     watch: &mut godot_bindings::StopWatch,
     ctx: &mut Context,
@@ -216,7 +216,7 @@ pub(crate) fn generate_sys_classes_file(
 }
 
 pub(crate) fn generate_sys_utilities_file(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     sys_gen_path: &Path,
     ctx: &mut Context,
     submit_fn: &mut SubmitFn,
@@ -489,7 +489,7 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
 }
 
 pub(crate) fn generate_sys_builtin_methods_file(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     builtin_types: &BuiltinTypeMap,
     sys_gen_path: &Path,
     ctx: &mut Context,
@@ -523,7 +523,7 @@ pub(crate) fn generate_core_mod_file(gen_path: &Path, submit_fn: &mut SubmitFn) 
 }
 
 pub(crate) fn generate_core_central_file(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     ctx: &mut Context,
     build_config: [&str; 2],
     gen_path: &Path,
@@ -626,7 +626,7 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
     }
 }
 
-fn make_build_config(header: &Header) -> TokenStream {
+fn make_build_config(header: &JsonHeader) -> TokenStream {
     let version_string = header
         .version_full_name
         .strip_prefix("Godot Engine ")
@@ -753,7 +753,7 @@ fn make_core_code(central_items: &CentralItems) -> TokenStream {
 }
 
 fn make_central_items(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     build_config: [&str; 2],
     builtin_types: BuiltinTypeMap,
     ctx: &mut Context,
@@ -762,7 +762,7 @@ fn make_central_items(
     for class in &api.builtin_class_sizes {
         for i in 0..2 {
             if class.build_configuration == build_config[i] {
-                for ClassSize { name, size } in &class.sizes {
+                for JsonClassSize { name, size } in &class.sizes {
                     opaque_types[i].push(make_opaque_type(name, *size));
                 }
                 break;
@@ -879,7 +879,7 @@ fn make_builtin_lifecycle_table(builtin_types: &BuiltinTypeMap) -> TokenStream {
 }
 
 fn make_class_method_table(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     api_level: ClassCodegenLevel,
     ctx: &mut Context,
 ) -> TokenStream {
@@ -963,7 +963,7 @@ fn make_named_accessors(accessors: &[AccessorMethod], fptr: &TokenStream) -> Tok
 }
 
 fn make_builtin_method_table(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     builtin_types: &BuiltinTypeMap,
     ctx: &mut Context,
 ) -> TokenStream {
@@ -1011,7 +1011,7 @@ fn make_builtin_method_table(
 
 fn populate_class_methods(
     table: &mut IndexedMethodTable,
-    class: &Class,
+    class: &JsonClass,
     class_ty: &TyName,
     ctx: &mut Context,
 ) {
@@ -1070,7 +1070,7 @@ fn populate_class_methods(
 
 fn populate_builtin_methods(
     table: &mut IndexedMethodTable,
-    builtin_class: &BuiltinClass,
+    builtin_class: &JsonBuiltin,
     builtin_name: &BuiltinName,
     ctx: &mut Context,
 ) {
@@ -1128,7 +1128,7 @@ fn populate_builtin_methods(
 }
 
 fn make_class_method_init(
-    method: &ClassMethod,
+    method: &JsonClassMethod,
     class_var: &Ident,
     class_ty: &TyName,
 ) -> TokenStream {
@@ -1156,7 +1156,7 @@ fn make_class_method_init(
 }
 
 fn make_builtin_method_init(
-    method: &BuiltinClassMethod,
+    method: &JsonBuiltinMethod,
     type_name: &BuiltinName,
     index: usize,
 ) -> TokenStream {
@@ -1190,7 +1190,7 @@ fn make_builtin_method_init(
 
 /// Creates a map from "normalized" class names (lowercase without underscore, makes it easy to map from different conventions)
 /// to meta type information, including all the type name variants
-fn collect_builtin_classes(api: &ExtensionApi) -> HashMap<String, &BuiltinClass> {
+fn collect_builtin_classes(api: &JsonExtensionApi) -> HashMap<String, &JsonBuiltin> {
     let mut class_map = HashMap::new();
     for class in &api.builtin_classes {
         let normalized_name = class.name.to_ascii_lowercase();
@@ -1202,7 +1202,9 @@ fn collect_builtin_classes(api: &ExtensionApi) -> HashMap<String, &BuiltinClass>
 }
 
 /// Returns map from the JSON names (e.g. "PackedStringArray") to all the info.
-pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, BuiltinTypeInfo<'_>> {
+pub(crate) fn collect_builtin_types(
+    api: &JsonExtensionApi,
+) -> HashMap<String, BuiltinTypeInfo<'_>> {
     let class_map = collect_builtin_classes(api);
 
     let variant_type_enum = api
@@ -1230,8 +1232,8 @@ pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, Built
         // e.g. there's no point in providing operator< for int
         let class_name: String;
         let has_destructor: bool;
-        let constructors: Option<&Vec<Constructor>>;
-        let operators: Option<&Vec<Operator>>;
+        let constructors: Option<&Vec<JsonConstructor>>;
+        let operators: Option<&Vec<JsonOperator>>;
         if let Some(class) = class_map.get(&normalized) {
             class_name = class.name.clone();
             has_destructor = class.has_destructor;
@@ -1267,7 +1269,7 @@ pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, Built
     builtin_types_map
 }
 
-fn collect_variant_operators(api: &ExtensionApi) -> Vec<&EnumConstant> {
+fn collect_variant_operators(api: &JsonExtensionApi) -> Vec<&JsonEnumConstant> {
     let variant_operator_enum = api
         .global_enums
         .iter()
@@ -1307,8 +1309,8 @@ fn make_opaque_type(name: &str, size: usize) -> TokenStream {
 fn make_variant_fns(
     type_names: &BuiltinName,
     has_destructor: bool,
-    constructors: Option<&Vec<Constructor>>,
-    operators: Option<&Vec<Operator>>,
+    constructors: Option<&Vec<JsonConstructor>>,
+    operators: Option<&Vec<JsonOperator>>,
     builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (TokenStream, TokenStream) {
     let (construct_decls, construct_inits) =
@@ -1360,7 +1362,7 @@ fn make_variant_fns(
 
 fn make_construct_fns(
     type_names: &BuiltinName,
-    constructors: Option<&Vec<Constructor>>,
+    constructors: Option<&Vec<JsonConstructor>>,
     builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (TokenStream, TokenStream) {
     let constructors = match constructors {
@@ -1439,7 +1441,7 @@ fn make_construct_fns(
 /// Lists special cases for useful constructors
 fn make_extra_constructors(
     type_names: &BuiltinName,
-    constructors: &Vec<Constructor>,
+    constructors: &Vec<JsonConstructor>,
     builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (Vec<TokenStream>, Vec<TokenStream>) {
     let mut extra_decls = Vec::with_capacity(constructors.len() - 2);
@@ -1507,7 +1509,7 @@ fn make_destroy_fns(type_names: &BuiltinName, has_destructor: bool) -> (TokenStr
 
 fn make_operator_fns(
     type_names: &BuiltinName,
-    operators: Option<&Vec<Operator>>,
+    operators: Option<&Vec<JsonOperator>>,
     json_name: &str,
     sys_name: &str,
 ) -> (TokenStream, TokenStream) {

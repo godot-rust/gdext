@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::api_parser::{
-    BuiltinClassMethod, Class, ClassConstant, ClassMethod, ConstValue, Enum, UtilityFunction,
+use crate::json_models::{
+    JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod, JsonConstValue, JsonEnum,
+    JsonUtilityFunction,
 };
 use crate::{conv, RustTy, TyName};
 
@@ -161,7 +162,7 @@ pub(crate) fn make_imports() -> TokenStream {
 }
 
 // Use &ClassMethod instead of &str, to make sure it's the original Godot name and no rename.
-pub(crate) fn make_class_method_ptr_name(class_ty: &TyName, method: &ClassMethod) -> Ident {
+pub(crate) fn make_class_method_ptr_name(class_ty: &TyName, method: &JsonClassMethod) -> Ident {
     format_ident!(
         "{}__{}",
         conv::to_snake_case(&class_ty.godot_ty),
@@ -171,7 +172,7 @@ pub(crate) fn make_class_method_ptr_name(class_ty: &TyName, method: &ClassMethod
 
 pub(crate) fn make_builtin_method_ptr_name(
     builtin_ty: &TyName,
-    method: &BuiltinClassMethod,
+    method: &JsonBuiltinMethod,
 ) -> Ident {
     format_ident!(
         "{}__{}",
@@ -180,7 +181,7 @@ pub(crate) fn make_builtin_method_ptr_name(
     )
 }
 
-pub(crate) fn make_utility_function_ptr_name(function: &UtilityFunction) -> Ident {
+pub(crate) fn make_utility_function_ptr_name(function: &JsonUtilityFunction) -> Ident {
     safe_ident(&function.name)
 }
 
@@ -204,7 +205,7 @@ pub fn make_sname_ptr(identifier: &str) -> TokenStream {
     }
 }
 
-pub fn get_api_level(class: &Class) -> ClassCodegenLevel {
+pub fn get_api_level(class: &JsonClass) -> ClassCodegenLevel {
     // Work around wrong classification in https://github.com/godotengine/godot/issues/86206.
     fn override_editor(class_name: &str) -> bool {
         cfg!(before_api = "4.3")
@@ -228,7 +229,7 @@ pub fn get_api_level(class: &Class) -> ClassCodegenLevel {
     }
 }
 
-pub fn make_enum_definition(enum_: &Enum, class_name: Option<&str>) -> TokenStream {
+pub fn make_enum_definition(enum_: &JsonEnum, class_name: Option<&str>) -> TokenStream {
     // TODO enums which have unique ords could be represented as Rust enums
     // This would allow exhaustive matches (or at least auto-completed matches + #[non_exhaustive]). But even without #[non_exhaustive],
     // this might be a forward compatibility hazard, if Godot deprecates enumerators and adds new ones with existing ords.
@@ -416,7 +417,7 @@ pub fn make_enum_definition(enum_: &Enum, class_name: Option<&str>) -> TokenStre
     }
 }
 
-pub fn make_constant_definition(constant: &ClassConstant) -> TokenStream {
+pub fn make_constant_definition(constant: &JsonClassConstant) -> TokenStream {
     let name = ident(&constant.name);
     let vis = if constant.name.starts_with("NOTIFICATION_") {
         quote! { pub(crate) }
@@ -425,13 +426,13 @@ pub fn make_constant_definition(constant: &ClassConstant) -> TokenStream {
     };
 
     match constant.to_constant() {
-        ConstValue::I32(value) => quote! { #vis const #name: i32 = #value; },
-        ConstValue::I64(value) => quote! { #vis const #name: i64 = #value; },
+        JsonConstValue::I32(value) => quote! { #vis const #name: i32 = #value; },
+        JsonConstValue::I64(value) => quote! { #vis const #name: i64 = #value; },
     }
 }
 
 /// Tries to interpret the constant as a notification one, and transforms it to a Rust identifier on success.
-pub fn try_to_notification(constant: &ClassConstant) -> Option<Ident> {
+pub fn try_to_notification(constant: &JsonClassConstant) -> Option<Ident> {
     constant
         .name
         .strip_prefix("NOTIFICATION_")
@@ -441,7 +442,7 @@ pub fn try_to_notification(constant: &ClassConstant) -> Option<Ident> {
 /// If an enum qualifies as "indexable" (can be used as array index), returns the number of possible values.
 ///
 /// See `godot::obj::IndexEnum` for what constitutes "indexable".
-fn try_count_index_enum(enum_: &Enum) -> Option<usize> {
+fn try_count_index_enum(enum_: &JsonEnum) -> Option<usize> {
     if enum_.is_bitfield || enum_.values.is_empty() {
         return None;
     }

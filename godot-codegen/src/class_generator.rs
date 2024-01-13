@@ -11,9 +11,9 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use std::path::Path;
 
-use crate::api_parser::*;
 use crate::central_generator::collect_builtin_types;
 use crate::context::NotificationEnum;
+use crate::json_models::*;
 use crate::util::{
     ident, make_string_name, option_as_slice, parse_native_structures_format, safe_ident,
     ClassCodegenLevel, MethodTableKey, NativeStructuresField,
@@ -58,7 +58,7 @@ struct FnParam {
 }
 
 impl FnParam {
-    fn new_range(method_args: &Option<Vec<MethodArg>>, ctx: &mut Context) -> Vec<FnParam> {
+    fn new_range(method_args: &Option<Vec<JsonMethodArg>>, ctx: &mut Context) -> Vec<FnParam> {
         option_as_slice(method_args)
             .iter()
             .map(|arg| Self::new(arg, ctx))
@@ -66,7 +66,7 @@ impl FnParam {
     }
 
     fn new_range_no_defaults(
-        method_args: &Option<Vec<MethodArg>>,
+        method_args: &Option<Vec<JsonMethodArg>>,
         ctx: &mut Context,
     ) -> Vec<FnParam> {
         option_as_slice(method_args)
@@ -75,7 +75,7 @@ impl FnParam {
             .collect()
     }
 
-    fn new(method_arg: &MethodArg, ctx: &mut Context) -> FnParam {
+    fn new(method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
         let name = safe_ident(&method_arg.name);
         let type_ = conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx);
         let default_value = method_arg
@@ -90,7 +90,7 @@ impl FnParam {
         }
     }
 
-    fn new_no_defaults(method_arg: &MethodArg, ctx: &mut Context) -> FnParam {
+    fn new_no_defaults(method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
         FnParam {
             name: safe_ident(&method_arg.name),
             type_: conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx),
@@ -108,7 +108,7 @@ struct FnReturn {
 }
 
 impl FnReturn {
-    fn new(return_value: &Option<MethodReturn>, ctx: &mut Context) -> Self {
+    fn new(return_value: &Option<JsonMethodReturn>, ctx: &mut Context) -> Self {
         if let Some(ret) = return_value {
             let ty = conv::to_rust_type(&ret.type_, ret.meta.as_ref(), ctx);
 
@@ -237,7 +237,7 @@ impl FnDefinitions {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub(crate) fn generate_class_files(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     ctx: &mut Context,
     _build_config: [&str; 2],
     gen_path: &Path,
@@ -280,7 +280,7 @@ pub(crate) fn generate_class_files(
 }
 
 pub(crate) fn generate_builtin_class_files(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     ctx: &mut Context,
     _build_config: [&str; 2],
     gen_path: &Path,
@@ -325,7 +325,7 @@ pub(crate) fn generate_builtin_class_files(
 }
 
 pub(crate) fn generate_native_structures_files(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     ctx: &mut Context,
     _build_config: [&str; 2],
     gen_path: &Path,
@@ -443,7 +443,7 @@ fn make_module_doc(class_name: &TyName) -> String {
 }
 
 fn make_constructor_and_default(
-    class: &Class,
+    class: &JsonClass,
     class_name: &TyName,
     ctx: &Context,
 ) -> (TokenStream, TokenStream) {
@@ -504,7 +504,7 @@ fn make_constructor_and_default(
     (constructor, godot_default_impl)
 }
 
-fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> GeneratedClass {
+fn make_class(class: &JsonClass, class_name: &TyName, ctx: &mut Context) -> GeneratedClass {
     // Strings
     let godot_class_str = &class_name.godot_ty;
     let class_name_cstr = util::cstr_u8_slice(godot_class_str);
@@ -848,7 +848,7 @@ fn workaround_constant_collision(all_constants: &mut Vec<(Ident, i32)>) {
 }
 
 fn make_builtin_class(
-    class: &BuiltinClass,
+    class: &JsonBuiltin,
     builtin_name: &TyName,
     inner_class_name: &TyName,
     ctx: &mut Context,
@@ -864,8 +864,8 @@ fn make_builtin_class(
     let class_enums = class.enums.as_ref().map_or(Vec::new(), |class_enums| {
         class_enums
             .iter()
-            .map(BuiltinClassEnum::to_enum)
-            .collect::<Vec<Enum>>()
+            .map(JsonBuiltinEnum::to_enum)
+            .collect::<Vec<JsonEnum>>()
     });
 
     let FnDefinitions {
@@ -911,7 +911,7 @@ fn make_builtin_class(
 }
 
 fn make_native_structure(
-    structure: &NativeStructure,
+    structure: &JsonNativeStructure,
     class_name: &TyName,
     ctx: &mut Context,
 ) -> GeneratedBuiltin {
@@ -1086,7 +1086,7 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
 }
 
 fn make_methods(
-    methods: &[ClassMethod],
+    methods: &[JsonClassMethod],
     class_name: &TyName,
     api_level: &ClassCodegenLevel,
     ctx: &mut Context,
@@ -1101,7 +1101,7 @@ fn make_methods(
 }
 
 fn make_builtin_methods(
-    methods: &[BuiltinClassMethod],
+    methods: &[JsonBuiltinMethod],
     builtin_name: &TyName,
     inner_class_name: &TyName,
     ctx: &mut Context,
@@ -1113,7 +1113,7 @@ fn make_builtin_methods(
     FnDefinitions::expand(definitions)
 }
 
-fn make_enums(enums: &[Enum], class_name: &TyName, _ctx: &Context) -> TokenStream {
+fn make_enums(enums: &[JsonEnum], class_name: &TyName, _ctx: &Context) -> TokenStream {
     let definitions = enums
         .iter()
         .map(|e| util::make_enum_definition(e, Some(&class_name.godot_ty)));
@@ -1124,7 +1124,7 @@ fn make_enums(enums: &[Enum], class_name: &TyName, _ctx: &Context) -> TokenStrea
 }
 
 fn make_constants(
-    constants: &[ClassConstant],
+    constants: &[JsonClassConstant],
     _class_name: &TyName,
     _ctx: &Context,
 ) -> TokenStream {
@@ -1155,7 +1155,7 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
 }
 
 fn make_class_method_definition(
-    method: &ClassMethod,
+    method: &JsonClassMethod,
     class_name: &TyName,
     api_level: &ClassCodegenLevel,
     get_method_table: &Ident,
@@ -1264,7 +1264,7 @@ fn make_class_method_definition(
 }
 
 fn make_builtin_method_definition(
-    method: &BuiltinClassMethod,
+    method: &JsonBuiltinMethod,
     builtin_name: &TyName,
     inner_class_name: &TyName,
     ctx: &mut Context,
@@ -1278,7 +1278,7 @@ fn make_builtin_method_definition(
     let return_value = method
         .return_type
         .as_deref()
-        .map(MethodReturn::from_type_no_meta);
+        .map(JsonMethodReturn::from_type_no_meta);
 
     let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {
         let variant_type = quote! { sys::VariantType::#builtin_name };
@@ -1349,7 +1349,7 @@ fn make_builtin_method_definition(
 }
 
 pub(crate) fn make_utility_function_definition(
-    function: &UtilityFunction,
+    function: &JsonUtilityFunction,
     ctx: &mut Context,
 ) -> TokenStream {
     if codegen_special_cases::is_function_excluded(function, ctx) {
@@ -1362,7 +1362,7 @@ pub(crate) fn make_utility_function_definition(
     let return_value = function
         .return_type
         .as_deref()
-        .map(MethodReturn::from_type_no_meta);
+        .map(JsonMethodReturn::from_type_no_meta);
 
     let ptrcall_invocation = quote! {
         let utility_fn = sys::utility_function_table().#fn_ptr;
@@ -1844,7 +1844,7 @@ fn make_params_and_args(method_args: &[&FnParam]) -> (Vec<TokenStream>, Vec<Toke
 }
 
 fn make_virtual_methods_trait(
-    class: &Class,
+    class: &JsonClass,
     class_name: &TyName,
     all_base_names: &[TyName],
     trait_name: &str,
@@ -1912,7 +1912,7 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
     }
 }
 
-fn make_virtual_method(method: &ClassMethod, ctx: &mut Context) -> TokenStream {
+fn make_virtual_method(method: &JsonClassMethod, ctx: &mut Context) -> TokenStream {
     let method_name = virtual_method_name(method);
 
     // Virtual methods are never static.
@@ -1942,7 +1942,7 @@ fn make_virtual_method(method: &ClassMethod, ctx: &mut Context) -> TokenStream {
 }
 
 fn make_all_virtual_methods(
-    class: &Class,
+    class: &JsonClass,
     all_base_names: &[TyName],
     ctx: &mut Context,
 ) -> Vec<TokenStream> {
@@ -1977,14 +1977,14 @@ fn make_all_virtual_methods(
         .collect()
 }
 
-fn get_methods_in_class(class: &Class) -> &[ClassMethod] {
+fn get_methods_in_class(class: &JsonClass) -> &[JsonClassMethod] {
     match &class.methods {
         None => &[],
         Some(methods) => methods,
     }
 }
 
-fn virtual_method_name(class_method: &ClassMethod) -> &str {
+fn virtual_method_name(class_method: &JsonClassMethod) -> &str {
     // Matching the C++ convention, we remove the leading underscore
     // from virtual method names.
     let method_name = class_method

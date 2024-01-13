@@ -7,11 +7,11 @@
 
 //! Codegen-dependent exclusions. Can be removed if feature `codegen-full` is removed.
 
-use crate::api_parser::{BuiltinClassMethod, ClassMethod, UtilityFunction};
 use crate::context::Context;
+use crate::json_models::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
 use crate::{special_cases, TyName};
 
-pub(crate) fn is_builtin_method_excluded(method: &BuiltinClassMethod) -> bool {
+pub(crate) fn is_builtin_method_excluded(method: &JsonBuiltinMethod) -> bool {
     // TODO Fall back to varcall (recent addition in GDExtension API).
     // See https://github.com/godot-rust/gdext/issues/382.
     method.is_vararg
@@ -56,7 +56,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
 }
 
 pub(crate) fn is_class_method_excluded(
-    method: &ClassMethod,
+    method: &JsonClassMethod,
     is_virtual_impl: bool,
     ctx: &mut Context,
 ) -> bool {
@@ -97,12 +97,12 @@ pub(crate) fn is_class_method_excluded(
 }
 
 #[cfg(feature = "codegen-full")]
-pub(crate) fn is_function_excluded(_function: &UtilityFunction, _ctx: &mut Context) -> bool {
+pub(crate) fn is_function_excluded(_function: &JsonUtilityFunction, _ctx: &mut Context) -> bool {
     false
 }
 
 #[cfg(not(feature = "codegen-full"))]
-pub(crate) fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
+pub(crate) fn is_function_excluded(function: &JsonUtilityFunction, ctx: &mut Context) -> bool {
     function
         .return_type
         .as_ref()

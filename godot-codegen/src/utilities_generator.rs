@@ -10,11 +10,11 @@ use std::path::Path;
 use quote::quote;
 
 use crate::class_generator::make_utility_function_definition;
-use crate::{api_parser::*, SubmitFn};
+use crate::{json_models::*, SubmitFn};
 use crate::{util, Context};
 
 pub(crate) fn generate_utilities_file(
-    api: &ExtensionApi,
+    api: &JsonExtensionApi,
     ctx: &mut Context,
     gen_path: &Path,
     submit_fn: &mut SubmitFn,

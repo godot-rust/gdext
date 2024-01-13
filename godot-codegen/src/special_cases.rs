@@ -23,12 +23,12 @@
 
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
-use crate::api_parser::{BuiltinClassMethod, ClassMethod};
+use crate::json_models::{JsonBuiltinMethod, JsonClassMethod};
 use crate::Context;
 use crate::{codegen_special_cases, TyName};
 
 #[rustfmt::skip]
-pub(crate) fn is_class_method_deleted(class_name: &TyName, method: &ClassMethod, ctx: &mut Context) -> bool {
+pub(crate) fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ctx: &mut Context) -> bool {
     if codegen_special_cases::is_class_method_excluded(method, false, ctx){
         return true;
     }
@@ -195,7 +195,7 @@ pub(crate) fn is_method_excluded_from_default_params(class_name: Option<&TyName>
 /// should be returned to take precedence over general rules. Example: `FileAccess::get_pascal_string()` is mut, but would be const-qualified
 /// since it looks like a getter.
 #[rustfmt::skip]
-pub(crate) fn is_class_method_const(class_name: &TyName, godot_method: &ClassMethod) -> Option<bool> {
+pub(crate) fn is_class_method_const(class_name: &TyName, godot_method: &JsonClassMethod) -> Option<bool> {
     match (class_name.godot_ty.as_str(), godot_method.name.as_str()) {
         // Changed to const.
         | ("Object", "to_string")
@@ -229,7 +229,7 @@ pub(crate) fn is_class_method_const(class_name: &TyName, godot_method: &ClassMet
 }
 
 /// True if builtin method is excluded. Does NOT check for type exclusion; use [`is_builtin_type_deleted`] for that.
-pub(crate) fn is_builtin_method_deleted(_class_name: &TyName, method: &BuiltinClassMethod) -> bool {
+pub(crate) fn is_builtin_method_deleted(_class_name: &TyName, method: &JsonBuiltinMethod) -> bool {
     // Currently only deleted if codegen.
     codegen_special_cases::is_builtin_method_excluded(method)
 }

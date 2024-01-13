@@ -5,13 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-mod api_parser;
 mod central_generator;
 mod class_generator;
 mod codegen_special_cases;
 mod context;
 mod conv;
 mod interface_generator;
+mod json_models;
 mod special_cases;
 mod util;
 mod utilities_generator;
@@ -19,7 +19,6 @@ mod utilities_generator;
 #[cfg(test)]
 mod tests;
 
-use api_parser::{load_extension_api, ExtensionApi};
 use central_generator::{
     generate_core_central_file, generate_core_mod_file, generate_sys_central_file,
     generate_sys_classes_file,
@@ -29,6 +28,7 @@ use class_generator::{
 };
 use context::Context;
 use interface_generator::generate_sys_interface_file;
+use json_models::{load_extension_api, JsonExtensionApi};
 use util::ident;
 use utilities_generator::generate_utilities_file;
 
