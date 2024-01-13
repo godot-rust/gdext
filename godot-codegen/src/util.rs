@@ -7,7 +7,6 @@
 
 use crate::json_models::{
     JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod, JsonConstValue, JsonEnum,
-    JsonUtilityFunction,
 };
 use crate::{conv, RustTy, TyName};
 
@@ -181,8 +180,8 @@ pub(crate) fn make_builtin_method_ptr_name(
     )
 }
 
-pub(crate) fn make_utility_function_ptr_name(function: &JsonUtilityFunction) -> Ident {
-    safe_ident(&function.name)
+pub(crate) fn make_utility_function_ptr_name(godot_function_name: &str) -> Ident {
+    safe_ident(godot_function_name)
 }
 
 #[cfg(since_api = "4.2")]

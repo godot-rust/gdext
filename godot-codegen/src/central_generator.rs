@@ -239,12 +239,12 @@ pub(crate) fn generate_sys_utilities_file(
     };
 
     for function in api.utility_functions.iter() {
-        if codegen_special_cases::is_function_excluded(function, ctx) {
+        if special_cases::is_utility_function_deleted(function, ctx) {
             continue;
         }
 
         let fn_name_str = &function.name;
-        let field = util::make_utility_function_ptr_name(function);
+        let field = util::make_utility_function_ptr_name(fn_name_str);
         let hash = function.hash;
 
         table.method_decls.push(quote! {
@@ -339,7 +339,8 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
         assert_eq!(
             last.method_inits.last().unwrap().index,
             method_count - 1,
-            "last method should have highest index"
+            "last method should have highest index (table {})",
+            table_name
         );
     } else {
         assert_eq!(method_count, 0, "empty method table should have count 0");
@@ -1021,7 +1022,9 @@ fn populate_class_methods(
     let mut method_inits = vec![];
 
     for method in option_as_slice(&class.methods) {
-        if special_cases::is_class_method_deleted(class_ty, method, ctx) {
+        // Virtual methods are not part of the class API itself, but exposed as an accompanying trait.
+        // Earlier code to detect virtuals: method.name.starts_with('_')
+        if special_cases::is_class_method_deleted(class_ty, method, ctx) || method.is_virtual {
             continue;
         }
 
@@ -1034,6 +1037,11 @@ fn populate_class_methods(
 
         let method_init = make_class_method_init(method, &class_var, class_ty);
         method_inits.push(MethodInit { method_init, index });
+
+        println!(
+            "method {}, index {}, count {}",
+            method.name, index, table.method_count
+        );
         table.method_count += 1;
 
         // If requested, add a named accessor for this method.

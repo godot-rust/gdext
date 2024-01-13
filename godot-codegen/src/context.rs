@@ -169,7 +169,8 @@ impl<'a> Context<'a> {
         }
 
         for method in methods.iter() {
-            if special_cases::is_class_method_deleted(class_name, method, ctx) {
+            if special_cases::is_class_method_deleted(class_name, method, ctx) || method.is_virtual
+            {
                 continue;
             }
 

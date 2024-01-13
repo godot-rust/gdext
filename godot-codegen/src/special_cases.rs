@@ -23,13 +23,13 @@
 
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
-use crate::json_models::{JsonBuiltinMethod, JsonClassMethod};
+use crate::json_models::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
 use crate::Context;
 use crate::{codegen_special_cases, TyName};
 
 #[rustfmt::skip]
 pub(crate) fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ctx: &mut Context) -> bool {
-    if codegen_special_cases::is_class_method_excluded(method, false, ctx){
+    if codegen_special_cases::is_class_method_excluded(method, ctx){
         return true;
     }
     
@@ -245,6 +245,13 @@ pub(crate) fn is_builtin_type_scalar(name: &str) -> bool {
     name.chars().next().unwrap().is_ascii_lowercase()
 }
 
+pub(crate) fn is_utility_function_deleted(
+    function: &JsonUtilityFunction,
+    ctx: &mut Context,
+) -> bool {
+    codegen_special_cases::is_utility_function_excluded(function, ctx)
+}
+
 pub(crate) fn maybe_rename_class_method<'m>(
     class_name: &TyName,
     godot_method_name: &'m str,
@@ -253,5 +260,15 @@ pub(crate) fn maybe_rename_class_method<'m>(
         // GDScript, GDScriptNativeClass, possibly more in the future
         (_, "new") => "instantiate",
         _ => godot_method_name,
+    }
+}
+
+// Maybe merge with above?
+pub(crate) fn maybe_rename_virtual_method(rust_method_name: &str) -> &str {
+    // A few classes define a virtual method called "_init" (distinct from the constructor)
+    // -> rename those to avoid a name conflict in I* interface trait.
+    match rust_method_name {
+        "init" => "init_ext",
+        _ => rust_method_name,
     }
 }

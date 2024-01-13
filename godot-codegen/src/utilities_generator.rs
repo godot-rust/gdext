@@ -10,8 +10,9 @@ use std::path::Path;
 use quote::quote;
 
 use crate::class_generator::make_utility_function_definition;
-use crate::{json_models::*, SubmitFn};
-use crate::{util, Context};
+use crate::domain_models::UtilityFunction;
+use crate::json_models::*;
+use crate::{util, Context, SubmitFn};
 
 pub(crate) fn generate_utilities_file(
     api: &JsonExtensionApi,
@@ -20,10 +21,9 @@ pub(crate) fn generate_utilities_file(
     submit_fn: &mut SubmitFn,
 ) {
     // note: category unused -> could be their own mod
-    let utility_fn_defs = api
-        .utility_functions
-        .iter()
-        .map(|utility_fn| make_utility_function_definition(utility_fn, ctx));
+    let utility_fn_defs = api.utility_functions.iter().filter_map(|utility_fn| {
+        UtilityFunction::from_json(utility_fn, ctx).map(|f| make_utility_function_definition(&f))
+    });
 
     let imports = util::make_imports();
 

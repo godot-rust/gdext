@@ -7,6 +7,8 @@
 
 //! Codegen-dependent exclusions. Can be removed if feature `codegen-full` is removed.
 
+// TODO make this file private and only accessed by special_cases.rs.
+
 use crate::context::Context;
 use crate::json_models::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
 use crate::{special_cases, TyName};
@@ -55,11 +57,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     is_rust_type_excluded(&conv::to_rust_type(ty, None, ctx))
 }
 
-pub(crate) fn is_class_method_excluded(
-    method: &JsonClassMethod,
-    is_virtual_impl: bool,
-    ctx: &mut Context,
-) -> bool {
+pub(crate) fn is_class_method_excluded(method: &JsonClassMethod, ctx: &mut Context) -> bool {
     let is_arg_or_return_excluded = |ty: &str, _ctx: &mut Context| {
         let class_deleted = special_cases::is_class_deleted(&TyName::from_godot(ty));
 
@@ -88,21 +86,22 @@ pub(crate) fn is_class_method_excluded(
         return true;
     }
 
-    // Virtual methods are not part of the class API itself, but exposed as an accompanying trait.
-    if !is_virtual_impl && method.name.starts_with('_') {
-        return true;
-    }
-
     false
 }
 
 #[cfg(feature = "codegen-full")]
-pub(crate) fn is_function_excluded(_function: &JsonUtilityFunction, _ctx: &mut Context) -> bool {
+pub(crate) fn is_utility_function_excluded(
+    _function: &JsonUtilityFunction,
+    _ctx: &mut Context,
+) -> bool {
     false
 }
 
 #[cfg(not(feature = "codegen-full"))]
-pub(crate) fn is_function_excluded(function: &JsonUtilityFunction, ctx: &mut Context) -> bool {
+pub(crate) fn is_utility_function_excluded(
+    function: &JsonUtilityFunction,
+    ctx: &mut Context,
+) -> bool {
     function
         .return_type
         .as_ref()

@@ -10,6 +10,8 @@ mod class_generator;
 mod codegen_special_cases;
 mod context;
 mod conv;
+mod domain_mapping;
+mod domain_models;
 mod interface_generator;
 mod json_models;
 mod special_cases;
