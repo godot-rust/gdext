@@ -9,7 +9,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType};
-use crate::builtin::{inner, real, Basis, EulerOrder, RQuat, Vector3};
+use crate::builtin::{inner, real, Basis, EulerOrder, RQuat, RealConv, Vector3};
 
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
@@ -30,21 +30,29 @@ impl Quaternion {
         Self { x, y, z, w }
     }
 
-    pub fn from_angle_axis(axis: Vector3, angle: real) -> Self {
+    /// Creates a quaternion from a Vector3 and an angle.
+    ///
+    /// # Panics
+    /// If the vector3 is not normalized.
+    pub fn from_axis_angle(axis: Vector3, angle: real) -> Self {
+        assert!(
+            axis.is_normalized(),
+            "Quaternion axis {axis:?} is not normalized."
+        );
         let d = axis.length();
-        if d == 0.0 {
-            Self::new(0.0, 0.0, 0.0, 0.0)
-        } else {
-            let sin_angle = (angle * 0.5).sin();
-            let cos_angle = (angle * 0.5).cos();
-            let s = sin_angle / d;
-            let x = axis.x * s;
-            let y = axis.y * s;
-            let z = axis.z * s;
-            let w = cos_angle;
-            Self::new(x, y, z, w)
-        }
+        let sin_angle = (angle * 0.5).sin();
+        let cos_angle = (angle * 0.5).cos();
+        let s = sin_angle / d;
+        let x = axis.x * s;
+        let y = axis.y * s;
+        let z = axis.z * s;
+        let w = cos_angle;
+        Self::new(x, y, z, w)
     }
+
+    // TODO: Constructors.
+    // pub fn from_vector_vector(arc_to: Vector3, arc_from: Vector3) -> Self {}
+    // pub fn from_basis(basis: Basis) -> Self {}
 
     pub fn angle_to(self, to: Self) -> real {
         self.glam2(&to, RQuat::angle_between)
@@ -62,7 +70,7 @@ impl Quaternion {
         if theta < real::CMP_EPSILON || !v.is_normalized() {
             Self::default()
         } else {
-            Self::from_angle_axis(v, theta)
+            Self::from_axis_angle(v, theta)
         }
     }
 
@@ -130,69 +138,89 @@ impl Quaternion {
         Quaternion::new(v.x, v.y, v.z, 0.0)
     }
 
+    /// # Panics
+    /// If the quaternion has length of 0.
     pub fn normalized(self) -> Self {
-        self / self.length()
+        let length = self.length();
+        assert!(!length.approx_eq(&0.0), "Quaternion has length 0");
+        self / length
     }
 
+    /// # Panics
+    /// If either quaternion is not normalized.
     pub fn slerp(self, to: Self, weight: real) -> Self {
-        let mut cosom = self.dot(to);
-        let to1: Self;
-        let omega: real;
-        let sinom: real;
-        let scale0: real;
-        let scale1: real;
-        if cosom < 0.0 {
-            cosom = -cosom;
-            to1 = -to;
-        } else {
-            to1 = to;
-        }
+        let normalized_inputs = self.ensure_normalized(&[&to]);
+        assert!(normalized_inputs, "Slerp requires normalized quaternions");
 
-        if 1.0 - cosom > real::CMP_EPSILON {
-            omega = cosom.acos();
-            sinom = omega.sin();
-            scale0 = ((1.0 - weight) * omega).sin() / sinom;
-            scale1 = (weight * omega).sin() / sinom;
-        } else {
-            scale0 = 1.0 - weight;
-            scale1 = weight;
-        }
-
-        scale0 * self + scale1 * to1
+        self.as_inner().slerp(to, weight.as_f64())
     }
 
+    /// # Panics
+    /// If either quaternion is not normalized.
     pub fn slerpni(self, to: Self, weight: real) -> Self {
-        let dot = self.dot(to);
-        if dot.abs() > 0.9999 {
-            return self;
-        }
-        let theta = dot.acos();
-        let sin_t = 1.0 / theta.sin();
-        let new_factor = (weight * theta).sin() * sin_t;
-        let inv_factor = ((1.0 - weight) * theta).sin() * sin_t;
+        let normalized_inputs = self.ensure_normalized(&[&to]);
+        assert!(normalized_inputs, "Slerpni requires normalized quaternions");
 
-        inv_factor * self + new_factor * to
+        self.as_inner().slerpni(to, weight.as_f64())
     }
 
-    // pub fn spherical_cubic_interpolate(self, b: Self, pre_a: Self, post_b: Self, weight: real) -> Self {}
-    // TODO: Implement godot's function in Rust
-    /*
-        pub fn spherical_cubic_interpolate_in_time(
-            self,
-            b: Self,
-            pre_a: Self,
-            post_b: Self,
-            weight: real,
-            b_t: real,
-            pre_a_t: real,
-            post_b_t: real,
-        ) -> Self {
-        }
-    */
+    /// # Panics
+    /// If any quaternions are not normalized.
+    pub fn spherical_cubic_interpolate(
+        self,
+        b: Self,
+        pre_a: Self,
+        post_b: Self,
+        weight: real,
+    ) -> Self {
+        let normalized_inputs = self.ensure_normalized(&[&b, &pre_a, &post_b]);
+        assert!(
+            normalized_inputs,
+            "Spherical cubic interpolation requires normalized quaternions"
+        );
+
+        self.as_inner()
+            .spherical_cubic_interpolate(b, pre_a, post_b, weight.as_f64())
+    }
+
+    /// # Panics
+    /// If any quaternions are not normalized.
+    #[allow(clippy::too_many_arguments)]
+    pub fn spherical_cubic_interpolate_in_time(
+        self,
+        b: Self,
+        pre_a: Self,
+        post_b: Self,
+        weight: real,
+        b_t: real,
+        pre_a_t: real,
+        post_b_t: real,
+    ) -> Self {
+        let normalized_inputs = self.ensure_normalized(&[&b, &pre_a, &post_b]);
+        assert!(
+            normalized_inputs,
+            "Spherical cubic interpolation in time requires normalized quaternions"
+        );
+
+        self.as_inner().spherical_cubic_interpolate_in_time(
+            b,
+            pre_a,
+            post_b,
+            weight.as_f64(),
+            b_t.as_f64(),
+            pre_a_t.as_f64(),
+            post_b_t.as_f64(),
+        )
+    }
 
     #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerQuaternion {
         inner::InnerQuaternion::from_outer(self)
+    }
+
+    #[doc(hidden)]
+    fn ensure_normalized(&self, quats: &[&Quaternion]) -> bool {
+        quats.iter().all(|v| v.is_normalized()) && self.is_normalized()
     }
 }
 
