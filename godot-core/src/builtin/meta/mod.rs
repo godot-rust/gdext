@@ -150,9 +150,9 @@ pub trait GodotType:
             variant_type: Self::Ffi::variant_type(),
             class_name: Self::class_name(),
             property_name: StringName::from(property_name),
-            hint: global::PropertyHint::PROPERTY_HINT_NONE,
+            hint: global::PropertyHint::NONE,
             hint_string: GString::new(),
-            usage: global::PropertyUsageFlags::PROPERTY_USAGE_DEFAULT,
+            usage: global::PropertyUsageFlags::DEFAULT,
         }
     }
 
@@ -269,9 +269,9 @@ impl PropertyInfo {
             type_: VariantType::Nil.sys(),
             name: std::ptr::null_mut(),
             class_name: std::ptr::null_mut(),
-            hint: global::PropertyHint::PROPERTY_HINT_NONE.ord() as u32,
+            hint: global::PropertyHint::NONE.ord() as u32,
             hint_string: std::ptr::null_mut(),
-            usage: global::PropertyUsageFlags::PROPERTY_USAGE_NONE.ord() as u32,
+            usage: global::PropertyUsageFlags::NONE.ord() as u32,
         }
     }
 }

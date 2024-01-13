@@ -13,10 +13,10 @@ use std::path::Path;
 
 use crate::api_parser::*;
 use crate::util::{
-    make_builtin_method_ptr_name, make_class_method_ptr_name, option_as_slice, to_pascal_case,
-    to_rust_type, to_snake_case, ClassCodegenLevel, MethodTableKey,
+    make_builtin_method_ptr_name, make_class_method_ptr_name, option_as_slice, ClassCodegenLevel,
+    MethodTableKey,
 };
-use crate::{codegen_special_cases, ident, special_cases, util, Context, SubmitFn, TyName};
+use crate::{codegen_special_cases, conv, ident, special_cases, util, Context, SubmitFn, TyName};
 
 struct CentralItems {
     opaque_types: [Vec<TokenStream>; 2],
@@ -806,7 +806,7 @@ fn make_central_items(
             continue;
         }
 
-        let op_enumerator_pascal = util::shout_to_pascal(name);
+        let op_enumerator_pascal = conv::shout_to_pascal(name);
         let op_enumerator_pascal = if op_enumerator_pascal == "Module" {
             "Modulo"
         } else {
@@ -827,7 +827,7 @@ fn make_central_items(
             continue;
         }
 
-        let def = util::make_enum_definition(enum_);
+        let def = util::make_enum_definition(enum_, None);
         result.global_enum_defs.push(def);
     }
 
@@ -1247,7 +1247,7 @@ pub(crate) fn collect_builtin_types(api: &ExtensionApi) -> HashMap<String, Built
 
         let type_names = BuiltinName {
             json_builtin_name: class_name.clone(),
-            snake_case: to_snake_case(&class_name),
+            snake_case: conv::to_snake_case(&class_name),
             //shout_case: shout_case.to_string(),
             sys_variant_type: format_ident!("GDEXTENSION_VARIANT_TYPE_{}", shout_case),
         };
@@ -1286,15 +1286,15 @@ fn make_enumerator(
     ctx: &mut Context,
 ) -> (Ident, TokenStream, Literal) {
     let enumerator_name = &type_names.json_builtin_name;
-    let pascal_name = to_pascal_case(enumerator_name);
-    let rust_ty = to_rust_type(enumerator_name, None, ctx);
+    let pascal_name = conv::to_pascal_case(enumerator_name);
+    let rust_ty = conv::to_rust_type(enumerator_name, None, ctx);
     let ord = util::make_enumerator_ord_unsuffixed(value);
 
     (ident(&pascal_name), rust_ty.to_token_stream(), ord)
 }
 
 fn make_opaque_type(name: &str, size: usize) -> TokenStream {
-    let name = to_pascal_case(name);
+    let name = conv::to_pascal_case(name);
     let (first, rest) = name.split_at(1);
 
     // Capitalize: "int" -> "Int"

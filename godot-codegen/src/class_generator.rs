@@ -16,12 +16,12 @@ use crate::central_generator::collect_builtin_types;
 use crate::context::NotificationEnum;
 use crate::util::{
     ident, make_string_name, option_as_slice, parse_native_structures_format, safe_ident,
-    to_pascal_case, to_rust_expr, to_rust_type, to_rust_type_abi, to_snake_case, ClassCodegenLevel,
-    MethodTableKey, NativeStructuresField,
+    ClassCodegenLevel, MethodTableKey, NativeStructuresField,
 };
 use crate::{
-    codegen_special_cases, special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule,
-    GeneratedClass, GeneratedClassModule, ModName, RustTy, SubmitFn, TyName,
+    codegen_special_cases, conv, special_cases, util, Context, GeneratedBuiltin,
+    GeneratedBuiltinModule, GeneratedClass, GeneratedClassModule, ModName, RustTy, SubmitFn,
+    TyName,
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -77,11 +77,11 @@ impl FnParam {
 
     fn new(method_arg: &MethodArg, ctx: &mut Context) -> FnParam {
         let name = safe_ident(&method_arg.name);
-        let type_ = to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx);
+        let type_ = conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx);
         let default_value = method_arg
             .default_value
             .as_ref()
-            .map(|v| to_rust_expr(v, &type_));
+            .map(|v| conv::to_rust_expr(v, &type_));
 
         FnParam {
             name,
@@ -93,7 +93,7 @@ impl FnParam {
     fn new_no_defaults(method_arg: &MethodArg, ctx: &mut Context) -> FnParam {
         FnParam {
             name: safe_ident(&method_arg.name),
-            type_: to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx),
+            type_: conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx),
             //type_: to_rust_type(&method_arg.type_, &method_arg.meta, ctx),
             default_value: None,
         }
@@ -110,7 +110,7 @@ struct FnReturn {
 impl FnReturn {
     fn new(return_value: &Option<MethodReturn>, ctx: &mut Context) -> Self {
         if let Some(ret) = return_value {
-            let ty = to_rust_type(&ret.type_, ret.meta.as_ref(), ctx);
+            let ty = conv::to_rust_type(&ret.type_, ret.meta.as_ref(), ctx);
 
             Self {
                 decl: ty.return_decl(),
@@ -513,7 +513,7 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     // Idents and tokens
     let (base_ty, base_ident_opt) = match class.inherits.as_ref() {
         Some(base) => {
-            let base = ident(&to_pascal_case(base));
+            let base = ident(&conv::to_pascal_case(base));
             (quote! { crate::engine::#base }, Some(base))
         }
         None => (quote! { () }, None),
@@ -853,11 +853,12 @@ fn make_builtin_class(
     inner_class_name: &TyName,
     ctx: &mut Context,
 ) -> GeneratedBuiltin {
-    let outer_class = if let RustTy::BuiltinIdent(ident) = to_rust_type(&class.name, None, ctx) {
-        ident
-    } else {
-        panic!("Rust type `{}` categorized wrong", class.name)
-    };
+    let outer_class =
+        if let RustTy::BuiltinIdent(ident) = conv::to_rust_type(&class.name, None, ctx) {
+            ident
+        } else {
+            panic!("Rust type `{}` categorized wrong", class.name)
+        };
     let inner_class = &inner_class_name.rust_ty;
 
     let class_enums = class.enums.as_ref().map_or(Vec::new(), |class_enums| {
@@ -986,8 +987,8 @@ fn make_native_structure_field_definition(
     ctx: &mut Context,
 ) -> TokenStream {
     let field_type = normalize_native_structure_field_type(&field.field_type);
-    let field_type = to_rust_type_abi(&field_type, ctx);
-    let field_name = ident(&to_snake_case(&field.field_name));
+    let field_type = conv::to_rust_type_abi(&field_type, ctx);
+    let field_name = ident(&conv::to_snake_case(&field.field_name));
     quote! {
         pub #field_name: #field_type,
     }
@@ -1112,8 +1113,10 @@ fn make_builtin_methods(
     FnDefinitions::expand(definitions)
 }
 
-fn make_enums(enums: &[Enum], _class_name: &TyName, _ctx: &Context) -> TokenStream {
-    let definitions = enums.iter().map(util::make_enum_definition);
+fn make_enums(enums: &[Enum], class_name: &TyName, _ctx: &Context) -> TokenStream {
+    let definitions = enums
+        .iter()
+        .map(|e| util::make_enum_definition(e, Some(&class_name.godot_ty)));
 
     quote! {
         #( #definitions )*
@@ -1733,7 +1736,7 @@ fn make_extender(
     let len = all_fn_params.size_hint().0;
 
     let mut result = Extender {
-        builder_ty: format_ident!("Ex{}", to_pascal_case(sig.function_name)),
+        builder_ty: format_ident!("Ex{}", conv::to_pascal_case(sig.function_name)),
         builder_lifetime: lifetime,
         builder_anon_lifetime: anon_lifetime,
         builder_methods: Vec::with_capacity(default_fn_params.len()),

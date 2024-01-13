@@ -5,10 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-mod codegen_enums_test;
-mod codegen_test;
-mod gfile_test;
-mod native_structures_test;
-mod node_test;
-mod save_load_test;
-mod utilities_test;
+mod name_conversions;
+mod type_conversions;
+
+pub(crate) use name_conversions::*;
+pub(crate) use type_conversions::*;

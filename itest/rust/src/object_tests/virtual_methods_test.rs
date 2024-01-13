@@ -371,7 +371,7 @@ fn test_format_loader(_test_context: &TestContext) {
     assert_eq!(extensions, extensions_rust);
     let resource = loader
         .load_ex("path.extension".into())
-        .cache_mode(CacheMode::CACHE_MODE_IGNORE)
+        .cache_mode(CacheMode::IGNORE)
         .done()
         .unwrap();
     assert!(resource.try_cast::<BoxMesh>().is_ok());

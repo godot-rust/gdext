@@ -10,6 +10,7 @@ mod central_generator;
 mod class_generator;
 mod codegen_special_cases;
 mod context;
+mod conv;
 mod interface_generator;
 mod special_cases;
 mod util;
@@ -28,7 +29,7 @@ use class_generator::{
 };
 use context::Context;
 use interface_generator::generate_sys_interface_file;
-use util::{ident, to_pascal_case, to_snake_case};
+use util::ident;
 use utilities_generator::generate_utilities_file;
 
 use crate::central_generator::{
@@ -247,7 +248,7 @@ impl TyName {
     fn from_godot(godot_ty: &str) -> Self {
         Self {
             godot_ty: godot_ty.to_owned(),
-            rust_ty: ident(&to_pascal_case(godot_ty)),
+            rust_ty: ident(&conv::to_pascal_case(godot_ty)),
         }
     }
 
@@ -282,7 +283,7 @@ impl ModName {
     fn from_godot(godot_ty: &str) -> Self {
         Self {
             // godot_mod: godot_ty.to_owned(),
-            rust_mod: ident(&to_snake_case(godot_ty)),
+            rust_mod: ident(&conv::to_snake_case(godot_ty)),
         }
     }
 }

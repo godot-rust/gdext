@@ -5,9 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{
-    parse_native_structures_format, to_pascal_case, to_snake_case, NativeStructuresField,
-};
+// Tests translation of certain symbols.
+// See also integration tests: itest/engine_tests/codegen_[enums_]test.rs.
+
+use crate::conv;
+use crate::util::{parse_native_structures_format, NativeStructuresField};
 
 #[test]
 fn test_pascal_conversion() {
@@ -52,7 +54,7 @@ fn test_pascal_conversion() {
     ];
 
     for (class_name, expected) in mappings {
-        let actual = to_pascal_case(class_name);
+        let actual = conv::to_pascal_case(class_name);
         assert_eq!(actual, expected, "PascalCase: ident `{class_name}`");
     }
 }
@@ -97,75 +99,25 @@ fn test_snake_conversion() {
                       ("X509Certificate", "x509_certificate"),
                              ("XRServer", "xr_server"),
                                 ("YSort", "y_sort"),
+
+        // Enum names
+                        ("AfterGUIInput", "after_gui_input"),
+                           ("ASTCFormat", "astc_format"),
+              ("Camera2DProcessCallback", "camera_2d_process_callback"),
+                             ("FilterDB", "filter_db"),
+                   ("G6DOFJointAxisFlag", "g6dof_joint_axis_flag"),
+                               ("GIMode", "gi_mode"),
+                                 ("MSAA", "msaa"),
+                          ("SDFGIYScale", "sdfgi_y_scale"),
+                         ("ViewportMSAA", "viewport_msaa"),
+                              ("VRSMode", "vrs_mode"),
+                            ("VSyncMode", "vsync_mode"),
     ];
 
     for (class_name, expected) in mappings {
-        let actual = to_snake_case(class_name);
+        let actual = conv::to_snake_case(class_name);
         assert_eq!(actual, expected, "snake_case: ident `{class_name}`");
     }
-}
-
-#[test]
-#[ignore] // enable once implemented
-fn test_enumerator_names() {
-    // How to deal with a naming convention that has evolved over a decade :)
-    #[rustfmt::skip]
-    let _mappings = [
-        // No changes
-        ("ModeFlags",                  "READ_WRITE",                          "READ_WRITE"),
-
-        // Remove entire enum name
-        ("SystemDir",                  "SYSTEM_DIR_DCIM",                     "DCIM"),
-        ("Month",                      "MONTH_FEBRUARY",                      "FEBRUARY"),
-        ("ProcessMode",                "PROCESS_MODE_WHEN_PAUSED",            "WHEN_PAUSED"),
-        ("BodyMode",                   "BODY_MODE_KINEMATIC",                 "KINEMATIC"),
-        ("GenEditState",               "GEN_EDIT_STATE_DISABLED",             "DISABLED"),
-        ("JointType",                  "JOINT_TYPE_PIN",                      "PIN"),
-        ("RenderingInfo",              "RENDERING_INFO_BUFFER_MEM_USED",      "BUFFER_MEM_USED"),
-        ("CacheMode",                  "CACHE_MODE_IGNORE",                   "IGNORE"),
-
-        // Remove entire name, but MiXED case
-        ("VoxelGIQuality",             "VOXEL_GI_QUALITY_LOW",                "LOW"),
-        ("CCDMode",                    "CCD_MODE_CAST_RAY",                   "CAST_RAY"),
-
-        // Entire enum name, but changed
-        ("Parameter",                  "PARAM_INITIAL_LINEAR_VELOCITY",       "INITIAL_LINEAR_VELOCITY"),
-        ("SpaceParameter",             "SPACE_PARAM_CONTACT_MAX_SEPARATION",  "MAX_SEPARATION"),
-        ("AreaParameter",              "AREA_PARAM_GRAVITY",                  "GRAVITY"),
-        ("StencilOperation",           "STENCIL_OP_KEEP",                     "KEEP"),
-        ("CompareOperator",            "COMPARE_OP_LESS",                     "LESS"),
-        ("CubeMapLayer",               "CUBEMAP_LAYER_RIGHT",                 "RIGHT"),
-
-        // Prefix omitted
-        ("ProcessInfo",                "INFO_COLLISION_PAIRS",                "COLLISION_PAIRS"),
-        ("PipelineDynamicStateFlags",  "DYNAMIC_STATE_DEPTH_BIAS",            "DEPTH_BIAS"),
-
-        // Plural
-        ("Hands",                      "HAND_LEFT",                           "LEFT"),
-        ("Features",                   "FEATURE_SHADERS",                     "SHADERS"),
-
-        // Unrelated name
-        ("GlobalShaderParameterType",  "GLOBAL_VAR_TYPE_BOOL",                "BOOL"),
-
-        // Implicitly used class name instead of enum name (OpenXRAction)
-        ("ActionType",                 "OPENXR_ACTION_POSE",                  "POSE"),
-
-        // Remove postfix (Mode, Type, Flags, Param, ...)
-        ("CompressionMode",            "COMPRESSION_DEFLATE",                 "DEFLATE"),
-        ("AreaSpaceOverrideMode",      "AREA_SPACE_OVERRIDE_COMBINE",         "COMBINE"),
-        ("ProjectionType",             "PROJECTION_ORTHOGONAL",               "ORTHOGONAL"),
-        ("ConnectFlags",               "CONNECT_PERSIST",                     "PERSIST"),
-        ("ParticleFlags",              "PARTICLE_FLAG_ROTATE_Y",              "ROTATE_Y"),
-        ("G6DOFJointAxisParam",        "G6DOF_JOINT_LINEAR_LOWER_LIMIT",      "LINEAR_LOWER_LIMIT"),
-        ("MultimeshTransformFormat",   "MULTIMESH_TRANSFORM_3D",              "3D"),
-        ("ThreadLoadStatus",           "THREAD_LOAD_INVALID_RESOURCE",        "INVALID_RESOURCE"),
-
-
-        /*
-        // Not handled:
-        ("ActionType", "PROJECTION_ORTHOGONAL", "ORTHOGONAL", "OpenXRAction") // last = class name
-        */
-    ];
 }
 
 #[test]

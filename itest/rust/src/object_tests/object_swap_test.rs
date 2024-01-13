@@ -227,7 +227,7 @@ fn object_freed_panic_during_unwind() {
     }); // Destructor will not panic again (which would cause abort).
 } // This is not strictly testing subtype-swapping, but it's convenient to have hear due to SwapHolder's `gc` list.
 
-//----------------------------------------------------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass)]
 #[class(init)]
