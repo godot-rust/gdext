@@ -7,13 +7,19 @@
 
 use crate::context::Context;
 use crate::domain_models::{
-    BuiltinMethod, ClassMethod, FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon,
-    UtilityFunction,
+    BuiltinMethod, ClassConstant, ClassConstantValue, ClassMethod, Enum, Enumerator,
+    EnumeratorValue, FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon, UtilityFunction,
 };
 use crate::json_models::{
-    JsonBuiltinMethod, JsonClassMethod, JsonMethodReturn, JsonUtilityFunction,
+    JsonBuiltinMethod, JsonClassConstant, JsonClassMethod, JsonEnum, JsonEnumConstant,
+    JsonMethodReturn, JsonUtilityFunction,
 };
-use crate::{special_cases, TyName};
+use crate::util::ident;
+use crate::{conv, special_cases, TyName};
+use proc_macro2::Ident;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Functions
 
 impl BuiltinMethod {
     pub fn from_json(
@@ -179,5 +185,88 @@ impl UtilityFunction {
                 },
             },
         })
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Enums + enumerator constants
+
+impl Enum {
+    pub fn from_json(json_enum: &JsonEnum, surrounding_class: Option<&TyName>) -> Self {
+        let godot_name = &json_enum.name;
+        let is_bitfield = json_enum.is_bitfield;
+
+        let rust_enum_name = conv::make_enum_name_str(godot_name);
+        let rust_enumerator_names = {
+            let godot_enumerator_names = json_enum.values.iter().map(|e| e.name.as_str()).collect();
+            let godot_class_name = surrounding_class.as_ref().map(|ty| ty.godot_ty.as_str());
+
+            conv::make_enumerator_names(godot_class_name, &rust_enum_name, godot_enumerator_names)
+        };
+
+        let enumerators = json_enum
+            .values
+            .iter()
+            .zip(rust_enumerator_names)
+            .map(|(json_constant, rust_name)| {
+                Enumerator::from_json(json_constant, rust_name, is_bitfield)
+            })
+            .collect();
+
+        Self {
+            name: ident(&rust_enum_name),
+            godot_name: godot_name.clone(),
+            is_bitfield,
+            enumerators,
+        }
+    }
+}
+
+impl Enumerator {
+    pub fn from_json(json: &JsonEnumConstant, rust_name: Ident, is_bitfield: bool) -> Self {
+        let value = if is_bitfield {
+            let ord = json.value.try_into().unwrap_or_else(|_| {
+                panic!(
+                    "bitfield value {} = {} is negative; please report this",
+                    json.name, json.value
+                )
+            });
+
+            EnumeratorValue::Bitfield(ord)
+        } else {
+            let ord = json.value.try_into().unwrap_or_else(|_| {
+                panic!(
+                    "enum value {} = {} is out of range for i32; please report this",
+                    json.name, json.value
+                )
+            });
+
+            EnumeratorValue::Enum(ord)
+        };
+
+        Self {
+            name: rust_name,
+            godot_name: json.name.clone(),
+            value,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Constants
+
+impl ClassConstant {
+    pub fn from_json(json: &JsonClassConstant) -> Self {
+        // Godot types only use i32, but other extensions may have i64. Use smallest possible type.
+        let value = if let Ok(i32_value) = i32::try_from(json.value) {
+            ClassConstantValue::I32(i32_value)
+        } else {
+            ClassConstantValue::I64(json.value)
+        };
+
+        Self {
+            name: json.name.clone(),
+            value,
+        }
     }
 }

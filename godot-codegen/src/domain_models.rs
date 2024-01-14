@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+#![allow(dead_code)] // TODO remove when mapped
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Domain models
 
@@ -49,58 +51,60 @@ pub struct Singleton {
 }
 
 pub struct Enum {
-    pub name: String,
+    pub name: Ident,
+    pub godot_name: String,
     pub is_bitfield: bool,
-    pub values: Vec<EnumConstant>,
+    pub enumerators: Vec<Enumerator>,
 }
 
 pub struct BuiltinClassEnum {
     pub name: String,
-    pub values: Vec<EnumConstant>,
+    pub values: Vec<Enumerator>,
 }
 
-pub struct EnumConstant {
-    pub name: String,
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Enumerators
+
+pub struct Enumerator {
+    pub name: Ident,
+
+    pub godot_name: String,
 
     // i64 is common denominator for enum, bitfield and constant values.
     // Note that values > i64::MAX will be implicitly wrapped, see https://github.com/not-fl3/nanoserde/issues/89.
-    pub value: i64,
+    pub value: EnumeratorValue,
+}
+pub enum EnumeratorValue {
+    Enum(i32),
+    Bitfield(u64),
 }
 
-pub enum ConstValue {
-    I32(i32),
-    I64(i64),
-}
-
-impl EnumConstant {
-    pub fn to_enum_ord(&self) -> i32 {
-        self.value.try_into().unwrap_or_else(|_| {
-            panic!(
-                "enum value {} = {} is out of range for i32, please report this",
-                self.name, self.value
-            )
-        })
-    }
-
-    pub fn to_bitfield_ord(&self) -> u64 {
-        self.value.try_into().unwrap_or_else(|_| {
-            panic!(
-                "bitfield value {} = {} is negative, please report this",
-                self.name, self.value
-            )
-        })
-    }
-
-    pub fn to_constant(&self) -> ConstValue {
-        if let Ok(value) = i32::try_from(self.value) {
-            ConstValue::I32(value)
-        } else {
-            ConstValue::I64(self.value)
+impl EnumeratorValue {
+    pub fn to_i64(&self) -> i64 {
+        // Conversion is safe because i64 is used in the original JSON.
+        match self {
+            EnumeratorValue::Enum(i) => *i as i64,
+            EnumeratorValue::Bitfield(i) => *i as i64,
         }
     }
 }
 
-pub type ClassConstant = EnumConstant;
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Constants
+
+trait Constant {
+    fn name(&self) -> &str;
+}
+
+pub struct ClassConstant {
+    pub name: String,
+    pub value: ClassConstantValue,
+}
+
+pub enum ClassConstantValue {
+    I32(i32),
+    I64(i64),
+}
 
 /*
 // Constants of builtin types have a string value like "Vector2(1, 1)", hence also a type field

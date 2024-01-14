@@ -401,7 +401,13 @@ fn make_class(class: &JsonClass, class_name: &TyName, ctx: &mut Context) -> Gene
     } = make_methods(option_as_slice(&class.methods), class_name, &api_level, ctx);
 
     let enums = make_enums(option_as_slice(&class.enums), class_name, ctx);
-    let constants = make_constants(option_as_slice(&class.constants), class_name, ctx);
+
+    let constants = option_as_slice(&class.constants)
+        .iter()
+        .map(ClassConstant::from_json)
+        .collect::<Vec<_>>();
+
+    let constants = make_constants(&constants);
     let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
 
     let (exportable_impl, exportable_macro_impl) = if ctx.is_exportable(class_name) {
@@ -993,21 +999,19 @@ fn make_builtin_methods(
     FnDefinitions::expand(definitions)
 }
 
-fn make_enums(enums: &[JsonEnum], class_name: &TyName, _ctx: &Context) -> TokenStream {
-    let definitions = enums
-        .iter()
-        .map(|e| util::make_enum_definition(e, Some(&class_name.godot_ty)));
+fn make_enums(enums: &[JsonEnum], class_name: &TyName, _ctx: &mut Context) -> TokenStream {
+    let definitions = enums.iter().map(|json| {
+        let domain = Enum::from_json(json, Some(class_name));
+
+        util::make_enum_definition(&domain)
+    });
 
     quote! {
         #( #definitions )*
     }
 }
 
-fn make_constants(
-    constants: &[JsonClassConstant],
-    _class_name: &TyName,
-    _ctx: &Context,
-) -> TokenStream {
+fn make_constants(constants: &[ClassConstant]) -> TokenStream {
     let definitions = constants.iter().map(util::make_constant_definition);
 
     quote! {
@@ -1064,7 +1068,7 @@ fn make_class_method_definition(
     let table_index = ctx.get_table_index(&MethodTableKey::ClassMethod {
         api_level: *api_level,
         class_ty: class_name.clone(),
-        method_name: method.name().to_string(),
+        method_name: method.godot_name().to_string(),
     });
 
     let maybe_instance_id = if method.qualifier() == FnQualifier::Static {

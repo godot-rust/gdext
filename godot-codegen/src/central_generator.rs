@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use std::hash::Hasher;
 use std::path::Path;
 
+use crate::domain_models::Enum;
 use crate::json_models::*;
 use crate::util::{
     make_builtin_method_ptr_name, make_class_method_ptr_name, option_as_slice, ClassCodegenLevel,
@@ -822,13 +823,15 @@ fn make_central_items(
             .push(util::make_enumerator_ord_unsuffixed(op.to_enum_ord()));
     }
 
-    for enum_ in api.global_enums.iter() {
+    for json_enum in api.global_enums.iter() {
         // Skip those enums which are already explicitly handled
-        if matches!(enum_.name.as_str(), "Variant.Type" | "Variant.Operator") {
+        if matches!(json_enum.name.as_str(), "Variant.Type" | "Variant.Operator") {
             continue;
         }
 
-        let def = util::make_enum_definition(enum_, None);
+        let domain_enum = Enum::from_json(json_enum, None);
+
+        let def = util::make_enum_definition(&domain_enum);
         result.global_enum_defs.push(def);
     }
 

@@ -123,11 +123,6 @@ pub struct JsonEnumConstant {
     pub value: i64,
 }
 
-pub enum JsonConstValue {
-    I32(i32),
-    I64(i64),
-}
-
 impl JsonEnumConstant {
     pub fn to_enum_ord(&self) -> i32 {
         self.value.try_into().unwrap_or_else(|_| {
@@ -136,23 +131,6 @@ impl JsonEnumConstant {
                 self.name, self.value
             )
         })
-    }
-
-    pub fn to_bitfield_ord(&self) -> u64 {
-        self.value.try_into().unwrap_or_else(|_| {
-            panic!(
-                "bitfield value {} = {} is negative, please report this",
-                self.name, self.value
-            )
-        })
-    }
-
-    pub fn to_constant(&self) -> JsonConstValue {
-        if let Ok(value) = i32::try_from(self.value) {
-            JsonConstValue::I32(value)
-        } else {
-            JsonConstValue::I64(self.value)
-        }
     }
 }
 

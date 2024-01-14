@@ -241,7 +241,7 @@ impl ToTokens for RustTy {
 /// Contains multiple naming conventions for types (classes, builtin classes, enums).
 // TODO(bromeon, 2023-09): see if it makes sense to unify this with TypeNames (which is mostly used in central generator)
 #[derive(Clone, Eq, PartialEq, Hash)]
-pub(crate) struct TyName {
+pub struct TyName {
     godot_ty: String,
     rust_ty: Ident,
 }
@@ -276,7 +276,7 @@ impl ToTokens for TyName {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Contains naming conventions for modules.
-pub(crate) struct ModName {
+pub struct ModName {
     // godot_mod: String,
     rust_mod: Ident,
 }
