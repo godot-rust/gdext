@@ -223,8 +223,13 @@ pub(crate) fn is_class_method_const(class_name: &TyName, godot_method: &JsonClas
         | ("StreamPeer", "get_double")
         => Some(false),
         */
+        
+        _ => {
+            // TODO Many getters are mutably qualified (GltfAccessor::get_max, CameraAttributes::get_exposure_multiplier, ...).
+            // As a default, set those to const.
 
-        _ => None,
+            None
+        },
     }
 }
 

@@ -7,17 +7,271 @@
 
 use crate::context::Context;
 use crate::domain_models::{
-    BuiltinMethod, ClassConstant, ClassConstantValue, ClassMethod, Constructor, Enum, Enumerator,
-    EnumeratorValue, FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon, Operator,
-    UtilityFunction,
+    BuiltinClass, BuiltinMethod, BuiltinVariant, Class, ClassCommons, ClassConstant,
+    ClassConstantValue, ClassMethod, Constructor, Enum, Enumerator, EnumeratorValue, ExtensionApi,
+    FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon, NativeStructure, Operator,
+    Singleton, UtilityFunction,
 };
 use crate::json_models::{
-    JsonBuiltinMethod, JsonClassConstant, JsonClassMethod, JsonConstructor, JsonEnum,
-    JsonEnumConstant, JsonMethodReturn, JsonOperator, JsonUtilityFunction,
+    JsonBuiltin, JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod, JsonConstructor,
+    JsonEnum, JsonEnumConstant, JsonExtensionApi, JsonMethodReturn, JsonNativeStructure,
+    JsonOperator, JsonSingleton, JsonUtilityFunction,
 };
-use crate::util::ident;
-use crate::{conv, special_cases, TyName};
+use crate::util::{get_api_level, ident, option_as_slice};
+use crate::{codegen_special_cases, conv, special_cases, ModName, TyName};
 use proc_macro2::Ident;
+use std::collections::HashMap;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Top-level
+
+/*
+
+pub struct ExtensionApiDomain {
+    pub builtins: Vec<BuiltinClass>,
+    pub classes: Vec<Class>,
+    pub enums: Vec<Enum>,
+    pub native_structures: Vec<NativeStructure>,
+    pub singletons: Vec<Singleton>,
+    pub utility_functions: Vec<UtilityFunction>,
+}
+ */
+impl ExtensionApi {
+    pub fn from_json(
+        json: &JsonExtensionApi,
+        build_config: [&'static str; 2],
+        ctx: &mut Context,
+    ) -> Self {
+        Self {
+            builtins: BuiltinVariant::all_from_json(&json.global_enums, &json.builtin_classes, ctx),
+            classes: json
+                .classes
+                .iter()
+                .filter_map(|json| Class::from_json(json, ctx))
+                .collect(),
+            singletons: json.singletons.iter().map(Singleton::from_json).collect(),
+            native_structures: json
+                .native_structures
+                .iter()
+                .map(NativeStructure::from_json)
+                .collect(),
+            utility_functions: json
+                .utility_functions
+                .iter()
+                .filter_map(|json| UtilityFunction::from_json(json, ctx))
+                .collect(),
+            global_enums: json
+                .global_enums
+                .iter()
+                .map(|json| Enum::from_json(json, None))
+                .collect(),
+            build_config,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Builtins + classes + singletons
+
+impl Class {
+    pub fn from_json(json: &JsonClass, ctx: &mut Context) -> Option<Self> {
+        let ty_name = TyName::from_godot(&json.name);
+        if special_cases::is_class_deleted(&ty_name)
+            || codegen_special_cases::is_class_excluded(ty_name.godot_ty.as_str())
+        {
+            return None;
+        }
+
+        let mod_name = ModName::from_godot(&ty_name.godot_ty);
+
+        let constants = option_as_slice(&json.constants)
+            .iter()
+            .map(ClassConstant::from_json)
+            .collect();
+
+        let enums = option_as_slice(&json.enums)
+            .iter()
+            .map(|e| {
+                let surrounding_class = Some(&ty_name);
+                Enum::from_json(e, surrounding_class)
+            })
+            .collect();
+
+        let methods = option_as_slice(&json.methods)
+            .iter()
+            .filter_map(|m| {
+                let surrounding_class = &ty_name;
+                ClassMethod::from_json(m, surrounding_class, ctx)
+            })
+            .collect();
+
+        Some(Self {
+            common: ClassCommons {
+                name: ty_name,
+                mod_name,
+            },
+            is_refcounted: json.is_refcounted,
+            is_instantiable: json.is_instantiable,
+            inherits: json.inherits.clone(),
+            api_level: get_api_level(json),
+            constants,
+            enums,
+            methods,
+        })
+    }
+}
+
+impl BuiltinClass {
+    pub fn from_json(json: &JsonBuiltin, ctx: &mut Context) -> Option<Self> {
+        let ty_name = TyName::from_godot(&json.name);
+
+        if special_cases::is_builtin_type_deleted(&ty_name) {
+            return None;
+        }
+
+        let inner_name = TyName::from_godot(&format!("Inner{}", ty_name.godot_ty));
+        let mod_name = ModName::from_godot(&ty_name.godot_ty);
+
+        let operators = json.operators.iter().map(Operator::from_json).collect();
+
+        let methods = option_as_slice(&json.methods)
+            .iter()
+            .filter_map(|m| {
+                let inner_class_name = &ty_name;
+                BuiltinMethod::from_json(m, &ty_name, inner_class_name, ctx)
+            })
+            .collect();
+
+        let constructors = json
+            .constructors
+            .iter()
+            .map(Constructor::from_json)
+            .collect();
+
+        let has_destructor = json.has_destructor;
+
+        let enums = option_as_slice(&json.enums)
+            .iter()
+            .map(|e| {
+                let surrounding_class = Some(&ty_name);
+                Enum::from_json(&e.to_enum(), surrounding_class)
+            })
+            .collect();
+
+        Some(Self {
+            common: ClassCommons {
+                name: ty_name,
+                mod_name,
+            },
+            inner_name,
+            operators,
+            methods,
+            constructors,
+            has_destructor,
+            enums,
+        })
+    }
+}
+
+impl Singleton {
+    pub fn from_json(json: &JsonSingleton) -> Self {
+        Self {
+            name: TyName::from_godot(&json.name),
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Builtin variants
+
+/*
+pub struct BuiltinVariant {
+    pub(super) name: String,
+    pub(super) ty: Option<BuiltinClass>,
+    pub variant_type_ord: i32,
+}
+ */
+
+impl BuiltinVariant {
+    /// Returns all builtins, ordered by enum ordinal value.
+    pub fn all_from_json(
+        global_enums: &[JsonEnum],
+        builtin_classes: &[JsonBuiltin],
+        ctx: &mut Context,
+    ) -> Vec<Self> {
+        fn normalize(name: &str) -> String {
+            name.to_ascii_lowercase().replace('_', "")
+        }
+
+        let variant_type_enum = global_enums
+            .iter()
+            .find(|e| &e.name == "Variant.Type")
+            .expect("missing enum for VariantType in JSON");
+
+        // Make HashMap from builtin_classes, keyed by a normalized version of their names (all-lower, no underscores)
+        let builtin_classes: HashMap<String, &JsonBuiltin> = builtin_classes
+            .iter()
+            .map(|c| (normalize(&c.name), c))
+            .collect();
+
+        let mut all = variant_type_enum
+            .values
+            .iter()
+            .filter_map(|e| {
+                let shout_case = e
+                    .name
+                    .strip_prefix("TYPE_")
+                    .expect("variant enumerator lacks prefix 'TYPE_'");
+
+                if shout_case == "NIL" || shout_case == "MAX" {
+                    return None;
+                }
+
+                let name = normalize(shout_case);
+                let ty = builtin_classes.get(&name).map(|b| *b);
+                let ord = e.to_enum_ord();
+
+                Some(Self::from_json(shout_case, ord, ty, ctx))
+            })
+            .collect::<Vec<_>>();
+
+        all.sort_by_key(|v| v.variant_type_ord);
+        all
+    }
+
+    pub fn from_json(
+        json_variant_enumerator_name: &str,
+        json_variant_enumerator_ord: i32,
+        json_builtin: Option<&JsonBuiltin>,
+        ctx: &mut Context,
+    ) -> Self {
+        let builtin_class;
+        let godot_original_name;
+
+        if let Some(json_builtin) = json_builtin {
+            builtin_class = BuiltinClass::from_json(json_builtin, ctx);
+            godot_original_name = json_builtin.name.clone();
+            // assert!(
+            //     builtin_class.is_some() || special_cases::is_class_deleted(),
+            //     "no builtin class `{}`",
+            //     json_builtin.name
+            // );
+        } else {
+            assert_eq!(json_variant_enumerator_name, "OBJECT");
+
+            builtin_class = None;
+            godot_original_name = "Object".to_string();
+        };
+
+        Self {
+            godot_original_name,
+            godot_shout_name: json_variant_enumerator_name.to_string(), // Without `TYPE_` prefix.
+            godot_snake_name: conv::to_snake_case(&json_variant_enumerator_name),
+            builtin_class,
+            variant_type_ord: json_variant_enumerator_ord,
+        }
+    }
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Constructors, operators
@@ -34,7 +288,7 @@ impl Constructor {
 impl Operator {
     pub fn from_json(json: &JsonOperator) -> Self {
         Self {
-            name: json.name.clone(),
+            symbol: json.name.clone(),
         }
     }
 }
@@ -81,6 +335,18 @@ impl BuiltinMethod {
 }
 
 impl ClassMethod {
+    pub fn from_json(
+        method: &JsonClassMethod,
+        class_name: &TyName,
+        ctx: &mut Context,
+    ) -> Option<ClassMethod> {
+        if method.is_virtual {
+            Self::from_json_virtual(method, class_name, ctx)
+        } else {
+            Self::from_json_outbound(method, class_name, ctx)
+        }
+    }
+
     pub fn from_json_outbound(
         method: &JsonClassMethod,
         class_name: &TyName,
@@ -288,6 +554,18 @@ impl ClassConstant {
         Self {
             name: json.name.clone(),
             value,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Native structures
+
+impl NativeStructure {
+    pub fn from_json(json: &JsonNativeStructure) -> Self {
+        Self {
+            name: json.name.clone(),
+            format: json.format.clone(),
         }
     }
 }

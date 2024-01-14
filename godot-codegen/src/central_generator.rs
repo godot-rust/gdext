@@ -7,11 +7,12 @@
 
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use std::collections::HashMap;
-use std::hash::Hasher;
 use std::path::Path;
 
-use crate::domain_models::{BuiltinMethod, Constructor, Enum, Function, Operator};
+use crate::domain_models::{
+    BuiltinMethod, BuiltinVariant, ClassLike, Constructor, Enum, Enumerator, ExtensionApi,
+    Function, Operator,
+};
 use crate::json_models::*;
 use crate::util::{
     make_builtin_method_ptr_name, make_class_method_ptr_name, option_as_slice, ClassCodegenLevel,
@@ -117,85 +118,15 @@ struct AccessorMethod {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-pub struct BuiltinName {
-    /// Name in JSON: "int" or "PackedVector2Array"
-    pub json_builtin_name: String,
-
-    /// "packed_vector2_array"
-    pub snake_case: String,
-
-    /// "PACKED_VECTOR2_ARRAY"
-    //pub shout_case: String,
-
-    /// GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR2_ARRAY
-    pub sys_variant_type: Ident,
-}
-
-impl Eq for BuiltinName {}
-
-impl PartialEq for BuiltinName {
-    fn eq(&self, other: &Self) -> bool {
-        self.json_builtin_name == other.json_builtin_name
-    }
-}
-
-impl std::hash::Hash for BuiltinName {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.json_builtin_name.hash(state);
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Allows collecting all builtin TypeNames before generating methods
-pub(crate) struct BuiltinTypeInfo<'a> {
-    pub variant_type_ord: i32,
-    pub type_names: BuiltinName,
-
-    /// If `variant_get_ptr_destructor` returns a non-null function pointer for this type.
-    /// List is directly sourced from extension_api.json (information would also be in variant_destruct.cpp).
-    pub has_destructor: bool,
-    pub constructors: Option<&'a Vec<JsonConstructor>>,
-    pub operators: Option<&'a Vec<JsonOperator>>,
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-pub(crate) struct BuiltinTypeMap<'a> {
-    map: HashMap<String, BuiltinTypeInfo<'a>>,
-}
-
-impl<'a> BuiltinTypeMap<'a> {
-    pub fn load(api: &'a JsonExtensionApi) -> Self {
-        Self {
-            map: collect_builtin_types(api),
-        }
-    }
-
-    /// Returns an iterator over the builtin types, ordered by `VariantType` value.
-    fn ordered(&self) -> impl Iterator<Item = &BuiltinTypeInfo<'a>> {
-        let mut ordered: Vec<_> = self.map.values().collect();
-        ordered.sort_by_key(|info| info.variant_type_ord);
-        ordered.into_iter()
-    }
-
-    fn count(&self) -> usize {
-        self.map.len()
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
 pub(crate) fn generate_sys_central_file(
-    api: &JsonExtensionApi,
+    json_api: &JsonExtensionApi,
+    api: &ExtensionApi,
     ctx: &mut Context,
-    build_config: [&str; 2],
     sys_gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
-    let builtin_types = BuiltinTypeMap::load(api);
-    let central_items = make_central_items(api, build_config, builtin_types, ctx);
-    let sys_code = make_sys_code(&central_items);
+    let central_items = make_central_items(json_api, api, ctx);
+    let sys_code = make_sys_code(central_items);
 
     submit_fn(sys_gen_path.join("central.rs"), sys_code);
 }
@@ -334,7 +265,6 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
         method_count,
         "number of methods does not match count"
     );
-    // method_inits.sort_by_key(|init| init.index);
 
     if let Some(last) = method_init_groups.last() {
         assert_eq!(
@@ -491,28 +421,26 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
 }
 
 pub(crate) fn generate_sys_builtin_methods_file(
-    api: &JsonExtensionApi,
-    builtin_types: &BuiltinTypeMap,
+    api: &ExtensionApi,
     sys_gen_path: &Path,
     ctx: &mut Context,
     submit_fn: &mut SubmitFn,
 ) {
-    let code = make_builtin_method_table(api, builtin_types, ctx);
+    let code = make_builtin_method_table(api, ctx);
     submit_fn(sys_gen_path.join("table_builtins.rs"), code);
 }
 
 pub(crate) fn generate_sys_builtin_lifecycle_file(
-    builtin_types: &BuiltinTypeMap,
+    api: &ExtensionApi,
     sys_gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
-    // TODO merge this and the one in central.rs, to only collect once
-    let code = make_builtin_lifecycle_table(builtin_types);
+    let code = make_builtin_lifecycle_table(api);
     submit_fn(sys_gen_path.join("table_builtins_lifecycle.rs"), code);
 }
 
 pub(crate) fn generate_core_mod_file(gen_path: &Path, submit_fn: &mut SubmitFn) {
-    // When invoked by another crate during unit-test (not integration test), don't run generator
+    // When invoked by another crate during unit-test (not integration test), don't run generator.
     let code = quote! {
         pub mod central;
         pub mod classes;
@@ -525,20 +453,19 @@ pub(crate) fn generate_core_mod_file(gen_path: &Path, submit_fn: &mut SubmitFn) 
 }
 
 pub(crate) fn generate_core_central_file(
-    api: &JsonExtensionApi,
+    json_api: &JsonExtensionApi,
+    api: &ExtensionApi,
     ctx: &mut Context,
-    build_config: [&str; 2],
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
-    let builtin_types = BuiltinTypeMap::load(api);
-    let central_items = make_central_items(api, build_config, builtin_types, ctx);
+    let central_items = make_central_items(json_api, api, ctx);
     let core_code = make_core_code(&central_items);
 
     submit_fn(gen_path.join("central.rs"), core_code);
 }
 
-fn make_sys_code(central_items: &CentralItems) -> TokenStream {
+fn make_sys_code(central_items: CentralItems) -> TokenStream {
     let CentralItems {
         opaque_types,
         variant_ty_enumerators_pascal,
@@ -549,7 +476,7 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
         ..
     } = central_items;
 
-    let build_config_struct = make_build_config(godot_version);
+    let build_config_struct = make_build_config(&godot_version);
     let [opaque_32bit, opaque_64bit] = opaque_types;
 
     quote! {
@@ -583,7 +510,7 @@ fn make_sys_code(central_items: &CentralItems) -> TokenStream {
         impl VariantType {
             #[doc(hidden)]
             pub fn from_sys(enumerator: GDExtensionVariantType) -> Self {
-                // Annoying, but only stable alternative is transmute(), which dictates enum size
+                // Annoying, but only stable alternative is transmute(), which dictates enum size.
                 match enumerator {
                     0 => Self::Nil,
                     #(
@@ -712,7 +639,7 @@ fn make_core_code(central_items: &CentralItems) -> TokenStream {
 
     // TODO impl Clone, Debug, PartialEq, PartialOrd, Hash for VariantDispatch
     // TODO could use try_to().unwrap_unchecked(), since type is already verified. Also directly overload from_variant().
-    // But this requires that all the variant types support this
+    // But this requires that all the variant types support this.
     quote! {
         use crate::builtin::*;
         use crate::engine::Object;
@@ -755,15 +682,14 @@ fn make_core_code(central_items: &CentralItems) -> TokenStream {
 }
 
 fn make_central_items(
-    api: &JsonExtensionApi,
-    build_config: [&str; 2],
-    builtin_types: BuiltinTypeMap,
+    json_api: &JsonExtensionApi,
+    api: &ExtensionApi,
     ctx: &mut Context,
 ) -> CentralItems {
     let mut opaque_types = [Vec::new(), Vec::new()];
-    for class in &api.builtin_class_sizes {
+    for class in &json_api.builtin_class_sizes {
         for i in 0..2 {
-            if class.build_configuration == build_config[i] {
+            if class.build_configuration == api.build_config[i] {
                 for JsonClassSize { name, size } in &class.sizes {
                     opaque_types[i].push(make_opaque_type(name, *size));
                 }
@@ -776,7 +702,7 @@ fn make_central_items(
 
     // Generate builtin methods, now with info for all types available.
     // Separate vectors because that makes usage in quote! easier.
-    let len = builtin_types.count();
+    let len = api.builtins.len();
 
     let mut result = CentralItems {
         opaque_types,
@@ -786,45 +712,42 @@ fn make_central_items(
         variant_op_enumerators_pascal: Vec::new(),
         variant_op_enumerators_ord: Vec::new(),
         global_enum_defs: Vec::new(),
-        godot_version: api.header.clone(),
+        godot_version: json_api.header.clone(),
     };
 
-    // Note: NIL is not part of this iteration, it will be added manually
-    for ty in builtin_types.ordered() {
-        let (pascal_name, rust_ty, ord) = make_enumerator(&ty.type_names, ty.variant_type_ord, ctx);
+    // Note: NIL is not part of this iteration, it will be added manually.
+    for builtin in api.builtins.iter() {
+        let original_name = builtin.godot_original_name();
+        let rust_ty = conv::to_rust_type(original_name, None, ctx);
+        let pascal_case = conv::to_pascal_case(original_name);
+        let ord = builtin.unsuffixed_ord_lit();
 
-        result.variant_ty_enumerators_pascal.push(pascal_name);
-        result.variant_ty_enumerators_rust.push(rust_ty);
+        result
+            .variant_ty_enumerators_pascal
+            .push(ident(&pascal_case));
+        result
+            .variant_ty_enumerators_rust
+            .push(rust_ty.to_token_stream());
         result.variant_ty_enumerators_ord.push(ord);
     }
 
     for op in variant_operators {
-        let name = op
-            .name
-            .strip_prefix("OP_")
-            .expect("expected `OP_` prefix for variant operators");
+        let pascal_name = conv::to_pascal_case(&op.name.to_string());
 
-        if name == "MAX" {
-            continue;
-        }
-
-        let op_enumerator_pascal = conv::shout_to_pascal(name);
-        let op_enumerator_pascal = if op_enumerator_pascal == "Module" {
-            "Modulo"
+        let enumerator_name = if pascal_name == "Module" {
+            ident("Modulo")
         } else {
-            &op_enumerator_pascal
+            ident(&pascal_name)
         };
 
-        result
-            .variant_op_enumerators_pascal
-            .push(ident(op_enumerator_pascal));
+        result.variant_op_enumerators_pascal.push(enumerator_name);
         result
             .variant_op_enumerators_ord
-            .push(util::make_enumerator_ord_unsuffixed(op.to_enum_ord()));
+            .push(op.value.unsuffixed_lit());
     }
 
-    for json_enum in api.global_enums.iter() {
-        // Skip those enums which are already explicitly handled
+    for json_enum in json_api.global_enums.iter() {
+        // Skip those enums which are already explicitly handled.
         if matches!(json_enum.name.as_str(), "Variant.Type" | "Variant.Operator") {
             continue;
         }
@@ -838,8 +761,10 @@ fn make_central_items(
     result
 }
 
-fn make_builtin_lifecycle_table(builtin_types: &BuiltinTypeMap) -> TokenStream {
-    let len = builtin_types.count();
+fn make_builtin_lifecycle_table(api: &ExtensionApi) -> TokenStream {
+    let builtins = &api.builtins;
+    let len = builtins.len();
+
     let mut table = NamedMethodTable {
         table_name: ident("BuiltinLifecycleTable"),
         imports: quote! {
@@ -865,27 +790,9 @@ fn make_builtin_lifecycle_table(builtin_types: &BuiltinTypeMap) -> TokenStream {
         method_count: 0,
     };
 
-    // Note: NIL is not part of this iteration, it will be added manually
-    for ty in builtin_types.ordered() {
-        let empty = vec![];
-        let constructors = ty.constructors.unwrap_or(&empty);
-
-        let empty = vec![];
-        let operators = ty.operators.unwrap_or(&empty);
-
-        let (decls, inits) = make_variant_fns(
-            &ty.type_names,
-            ty.has_destructor,
-            &constructors
-                .iter()
-                .map(|ctor| Constructor::from_json(ctor))
-                .collect::<Vec<_>>(),
-            &operators
-                .iter()
-                .map(|op| Operator::from_json(op))
-                .collect::<Vec<_>>(),
-            &builtin_types.map,
-        );
+    // Note: NIL is not part of this iteration, it will be added manually.
+    for variant in builtins.iter() {
+        let (decls, inits) = make_variant_fns(api, variant);
 
         table.method_decls.push(decls);
         table.method_inits.push(inits);
@@ -978,11 +885,7 @@ fn make_named_accessors(accessors: &[AccessorMethod], fptr: &TokenStream) -> Tok
     result_api
 }
 
-fn make_builtin_method_table(
-    api: &JsonExtensionApi,
-    builtin_types: &BuiltinTypeMap,
-    ctx: &mut Context,
-) -> TokenStream {
+fn make_builtin_method_table(api: &ExtensionApi, ctx: &mut Context) -> TokenStream {
     let mut table = IndexedMethodTable {
         table_name: ident("BuiltinMethodTable"),
         imports: TokenStream::new(),
@@ -1013,13 +916,8 @@ fn make_builtin_method_table(
         method_count: 0,
     };
 
-    // TODO reuse builtin_types without api
-    for builtin in api.builtin_classes.iter() {
-        let Some(builtin_type) = builtin_types.map.get(&builtin.name) else {
-            continue; // for Nil
-        };
-
-        populate_builtin_methods(&mut table, builtin, &builtin_type.type_names, ctx);
+    for builtin in api.builtins.iter() {
+        populate_builtin_methods(&mut table, builtin, ctx);
     }
 
     make_method_table(table)
@@ -1093,40 +991,31 @@ fn populate_class_methods(
 
 fn populate_builtin_methods(
     table: &mut IndexedMethodTable,
-    builtin_class: &JsonBuiltin,
-    builtin_name: &BuiltinName,
+    builtin: &BuiltinVariant,
     ctx: &mut Context,
 ) {
-    let mut method_inits = vec![];
-
-    // Skip types such as int, float, bool.
-    // TODO separate BuiltinName + TyName needed? Of course not :)
-    let builtin_ty = TyName::from_godot(&builtin_class.name);
-    if special_cases::is_builtin_type_deleted(&builtin_ty) {
+    let Some(builtin_class) = builtin.associated_builtin_class() else {
+        // Ignore those where no class is generated (Object, int, bool etc.).
         return;
-    }
+    };
 
-    for method in option_as_slice(&builtin_class.methods) {
-        // TODO temporary
-        let inner_builtin_name = TyName::from_godot(&format!("Inner{}", builtin_class.name));
-        let Some(method) = BuiltinMethod::from_json(method, &builtin_ty, &inner_builtin_name, ctx)
-        else {
-            continue;
-        };
+    let builtin_ty = builtin_class.name();
 
+    let mut method_inits = vec![];
+    for method in builtin_class.methods.iter() {
         let index = ctx.get_table_index(&MethodTableKey::BuiltinMethod {
             builtin_ty: builtin_ty.clone(),
             method_name: method.name().to_string(),
         });
 
-        let method_init = make_builtin_method_init(&method, builtin_name, index);
+        let method_init = make_builtin_method_init(builtin, &method, index);
         method_inits.push(MethodInit { method_init, index });
         table.method_count += 1;
 
         // If requested, add a named accessor for this method.
-        if special_cases::is_named_accessor_in_table(&builtin_ty, &method.name()) {
-            let variant_type = &builtin_name.sys_variant_type;
-            let variant_type_str = &builtin_name.json_builtin_name;
+        if special_cases::is_named_accessor_in_table(&builtin_ty, method.name()) {
+            let variant_type = builtin.sys_variant_type();
+            let variant_type_str = builtin.godot_original_name();
             let method_name_str = method.name();
             let hash = method.hash();
 
@@ -1146,7 +1035,7 @@ fn populate_builtin_methods(
     }
 
     table.method_init_groups.push(MethodInitGroup::new(
-        &builtin_class.name,
+        &builtin_class.name().godot_ty,
         None, // load_builtin_method() doesn't need a StringName for the class, as it accepts the VariantType enum.
         method_inits,
     ));
@@ -1182,14 +1071,14 @@ fn make_class_method_init(
 }
 
 fn make_builtin_method_init(
+    builtin: &BuiltinVariant,
     method: &BuiltinMethod,
-    type_name: &BuiltinName,
     index: usize,
 ) -> TokenStream {
     let method_name_str = method.name();
 
-    let variant_type = &type_name.sys_variant_type;
-    let variant_type_str = &type_name.json_builtin_name;
+    let variant_type = builtin.sys_variant_type();
+    let variant_type_str = builtin.godot_original_name();
 
     let hash = method.hash();
 
@@ -1209,160 +1098,85 @@ fn make_builtin_method_init(
     }
 }
 
-/// Creates a map from "normalized" class names (lowercase without underscore, makes it easy to map from different conventions)
-/// to meta type information, including all the type name variants
-fn collect_builtin_classes(api: &JsonExtensionApi) -> HashMap<String, &JsonBuiltin> {
-    let mut class_map = HashMap::new();
-    for class in &api.builtin_classes {
-        let normalized_name = class.name.to_ascii_lowercase();
+fn collect_variant_operators(api: &ExtensionApi) -> Vec<&Enumerator> {
+    println!(
+        "{:?}",
+        api.global_enums.iter().map(|e| &e.name).collect::<Vec<_>>()
+    );
 
-        class_map.insert(normalized_name, class);
-    }
-
-    class_map
-}
-
-/// Returns map from the JSON names (e.g. "PackedStringArray") to all the info.
-pub(crate) fn collect_builtin_types(
-    api: &JsonExtensionApi,
-) -> HashMap<String, BuiltinTypeInfo<'_>> {
-    let class_map = collect_builtin_classes(api);
-
-    let variant_type_enum = api
-        .global_enums
-        .iter()
-        .find(|e| &e.name == "Variant.Type")
-        .expect("missing enum for VariantType in JSON");
-
-    // Collect all `BuiltinTypeInfo`s
-    let mut builtin_types_map = HashMap::new();
-    for ty in &variant_type_enum.values {
-        let shout_case = ty
-            .name
-            .strip_prefix("TYPE_")
-            .expect("enum name begins with 'TYPE_'");
-
-        if shout_case == "NIL" || shout_case == "MAX" {
-            continue;
-        }
-
-        // Lowercase without underscore, to map SHOUTY_CASE to shoutycase
-        let normalized = shout_case.to_ascii_lowercase().replace('_', "");
-
-        // TODO cut down on the number of cached functions generated
-        // e.g. there's no point in providing operator< for int
-        let class_name: String;
-        let has_destructor: bool;
-        let constructors: Option<&Vec<JsonConstructor>>;
-        let operators: Option<&Vec<JsonOperator>>;
-        if let Some(class) = class_map.get(&normalized) {
-            class_name = class.name.clone();
-            has_destructor = class.has_destructor;
-            constructors = Some(&class.constructors);
-            operators = Some(&class.operators);
-        } else {
-            assert_eq!(normalized, "object");
-            class_name = "Object".to_string();
-            has_destructor = false;
-            constructors = None;
-            operators = None;
-        }
-
-        let type_names = BuiltinName {
-            json_builtin_name: class_name.clone(),
-            snake_case: conv::to_snake_case(&class_name),
-            //shout_case: shout_case.to_string(),
-            sys_variant_type: format_ident!("GDEXTENSION_VARIANT_TYPE_{}", shout_case),
-        };
-
-        let variant_type_ord = ty.to_enum_ord();
-        builtin_types_map.insert(
-            type_names.json_builtin_name.clone(),
-            BuiltinTypeInfo {
-                variant_type_ord,
-                type_names,
-                has_destructor,
-                constructors,
-                operators,
-            },
-        );
-    }
-    builtin_types_map
-}
-
-fn collect_variant_operators(api: &JsonExtensionApi) -> Vec<&JsonEnumConstant> {
     let variant_operator_enum = api
         .global_enums
         .iter()
-        .find(|e| &e.name == "Variant.Operator")
+        .find(|e| &e.name == "VariantOperator") // in JSON: "Variant.Operator"
         .expect("missing enum for VariantOperator in JSON");
 
-    variant_operator_enum.values.iter().collect()
-}
-
-/// Only used for `VariantType` enum at the moment.
-///
-/// Returns **unsuffixed** ordinals, to allow for different platform types of the C definition. Adjust if suffixed is desired, for type safety.
-fn make_enumerator(
-    type_names: &BuiltinName,
-    value: i32,
-    ctx: &mut Context,
-) -> (Ident, TokenStream, Literal) {
-    let enumerator_name = &type_names.json_builtin_name;
-    let pascal_name = conv::to_pascal_case(enumerator_name);
-    let rust_ty = conv::to_rust_type(enumerator_name, None, ctx);
-    let ord = util::make_enumerator_ord_unsuffixed(value);
-
-    (ident(&pascal_name), rust_ty.to_token_stream(), ord)
+    variant_operator_enum.enumerators.iter().collect()
 }
 
 fn make_opaque_type(name: &str, size: usize) -> TokenStream {
     let name = conv::to_pascal_case(name);
     let (first, rest) = name.split_at(1);
 
-    // Capitalize: "int" -> "Int"
+    // Capitalize: "int" -> "Int".
     let ident = format_ident!("Opaque{}{}", first.to_ascii_uppercase(), rest);
     quote! {
         pub type #ident = crate::opaque::Opaque<#size>;
     }
 }
 
-fn make_variant_fns(
-    type_names: &BuiltinName,
-    has_destructor: bool,
-    constructors: &[Constructor],
-    operators: &[Operator],
-    builtin_types: &HashMap<String, BuiltinTypeInfo>,
-) -> (TokenStream, TokenStream) {
-    let (construct_decls, construct_inits) =
-        make_construct_fns(type_names, constructors, builtin_types);
-    let (destroy_decls, destroy_inits) = make_destroy_fns(type_names, has_destructor);
-    let (op_eq_decls, op_eq_inits) = make_operator_fns(type_names, operators, "==", "EQUAL");
-    let (op_lt_decls, op_lt_inits) = make_operator_fns(type_names, operators, "<", "LESS");
+fn make_variant_fns(api: &ExtensionApi, builtin: &BuiltinVariant) -> (TokenStream, TokenStream) {
+    let (special_decls, special_inits);
+    if let Some(builtin_class) = builtin.associated_builtin_class() {
+        let (construct_decls, construct_inits) =
+            make_construct_fns(api, builtin, &builtin_class.constructors);
 
-    let to_variant = format_ident!("{}_to_variant", type_names.snake_case);
-    let from_variant = format_ident!("{}_from_variant", type_names.snake_case);
+        let (destroy_decls, destroy_inits) =
+            make_destroy_fns(builtin, builtin_class.has_destructor);
+
+        let (op_eq_decls, op_eq_inits) =
+            make_operator_fns(builtin, &builtin_class.operators, "==", "EQUAL");
+
+        let (op_lt_decls, op_lt_inits) =
+            make_operator_fns(builtin, &builtin_class.operators, "<", "LESS");
+
+        special_decls = quote! {
+            #op_eq_decls
+            #op_lt_decls
+            #construct_decls
+            #destroy_decls
+        };
+        special_inits = quote! {
+            #op_eq_inits
+            #op_lt_inits
+            #construct_inits
+            #destroy_inits
+        };
+    } else {
+        special_decls = TokenStream::new();
+        special_inits = TokenStream::new();
+    };
+
+    let snake_case = builtin.snake_name();
+    let to_variant = format_ident!("{}_to_variant", snake_case);
+    let from_variant = format_ident!("{}_from_variant", snake_case);
 
     let to_variant_str = to_variant.to_string();
     let from_variant_str = from_variant.to_string();
 
-    let variant_type = &type_names.sys_variant_type;
+    let variant_type = builtin.sys_variant_type();
     let variant_type = quote! { crate::#variant_type };
 
-    // Field declaration
+    // Field declaration.
     // The target types are uninitialized-ptrs, because Godot performs placement new on those:
     // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/variant/variant_internal.h#L1535-L1535
 
     let decl = quote! {
         pub #to_variant: unsafe extern "C" fn(GDExtensionUninitializedVariantPtr, GDExtensionTypePtr),
         pub #from_variant: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, GDExtensionVariantPtr),
-        #op_eq_decls
-        #op_lt_decls
-        #construct_decls
-        #destroy_decls
+        #special_decls
     };
 
-    // Field initialization in new()
+    // Field initialization in new().
     let init = quote! {
         #to_variant: {
             let fptr = unsafe { get_to_variant_fn(#variant_type) };
@@ -1372,21 +1186,18 @@ fn make_variant_fns(
             let fptr = unsafe { get_from_variant_fn(#variant_type) };
             crate::validate_builtin_lifecycle(fptr, #from_variant_str)
         },
-        #op_eq_inits
-        #op_lt_inits
-        #construct_inits
-        #destroy_inits
+        #special_inits
     };
 
     (decl, init)
 }
 
 fn make_construct_fns(
-    type_names: &BuiltinName,
+    api: &ExtensionApi,
+    builtin: &BuiltinVariant,
     constructors: &[Constructor],
-    builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (TokenStream, TokenStream) {
-    if constructors.is_empty() || is_trivial(type_names) {
+    if constructors.is_empty() {
         return (TokenStream::new(), TokenStream::new());
     };
 
@@ -1396,7 +1207,7 @@ fn make_construct_fns(
     //   [2]: (optional) typically the most common conversion constructor (e.g. StringName -> String)
     //  rest: (optional) other conversion constructors and multi-arg constructors (e.g. Vector3(x, y, z))
 
-    // Sanity checks -- ensure format is as expected
+    // Sanity checks -- ensure format is as expected.
     for (i, c) in constructors.iter().enumerate() {
         assert_eq!(i, c.index);
     }
@@ -1409,16 +1220,18 @@ fn make_construct_fns(
     let args = &constructors[1].raw_parameters;
     assert_eq!(args.len(), 1);
     assert_eq!(args[0].name, "from");
-    assert_eq!(args[0].type_, type_names.json_builtin_name);
+    assert_eq!(args[0].type_, builtin.godot_original_name());
 
-    let construct_default = format_ident!("{}_construct_default", type_names.snake_case);
-    let construct_copy = format_ident!("{}_construct_copy", type_names.snake_case);
+    let builtin_snake_name = builtin.snake_name();
+    let variant_type = builtin.sys_variant_type();
+
+    let construct_default = format_ident!("{builtin_snake_name}_construct_default");
+    let construct_copy = format_ident!("{builtin_snake_name}_construct_copy");
     let construct_default_str = construct_default.to_string();
     let construct_copy_str = construct_copy.to_string();
-    let variant_type = &type_names.sys_variant_type;
 
     let (construct_extra_decls, construct_extra_inits) =
-        make_extra_constructors(type_names, constructors, builtin_types);
+        make_extra_constructors(api, builtin, constructors);
 
     // Target types are uninitialized pointers, because Godot uses placement-new for raw pointer constructions. Callstack:
     // https://github.com/godotengine/godot/blob/b40b35fb39f0d0768d7ec2976135adffdce1b96d/core/extension/gdextension_interface.cpp#L511
@@ -1453,13 +1266,13 @@ fn make_construct_fns(
 
 /// Lists special cases for useful constructors
 fn make_extra_constructors(
-    type_names: &BuiltinName,
+    api: &ExtensionApi,
+    builtin: &BuiltinVariant,
     constructors: &[Constructor],
-    builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (Vec<TokenStream>, Vec<TokenStream>) {
     let mut extra_decls = Vec::with_capacity(constructors.len() - 2);
     let mut extra_inits = Vec::with_capacity(constructors.len() - 2);
-    let variant_type = &type_names.sys_variant_type;
+    let variant_type = builtin.sys_variant_type();
 
     for (i, ctor) in constructors.iter().enumerate().skip(2) {
         let args = &ctor.raw_parameters;
@@ -1468,14 +1281,15 @@ fn make_extra_constructors(
             "custom constructors must have at least 1 parameter"
         );
 
-        let type_name = &type_names.snake_case;
+        let type_name = builtin.snake_name();
         let construct_custom = if args.len() == 1 && args[0].name == "from" {
-            // Conversion constructor is named according to the source type
+            // Conversion constructor is named according to the source type:
             // String(NodePath from) => string_from_node_path
-            let arg_type = &builtin_types[&args[0].type_].type_names.snake_case;
+
+            let arg_type = api.builtin_by_original_name(&args[0].type_).snake_name();
             format_ident!("{type_name}_from_{arg_type}")
         } else {
-            // Type-specific constructor is named according to the argument names
+            // Type-specific constructor is named according to the argument names:
             // Vector3(float x, float y, float z) => vector3_from_x_y_z
             let mut arg_names = args
                 .iter()
@@ -1501,14 +1315,14 @@ fn make_extra_constructors(
     (extra_decls, extra_inits)
 }
 
-fn make_destroy_fns(type_names: &BuiltinName, has_destructor: bool) -> (TokenStream, TokenStream) {
-    if !has_destructor || is_trivial(type_names) {
+fn make_destroy_fns(builtin: &BuiltinVariant, has_destructor: bool) -> (TokenStream, TokenStream) {
+    if !has_destructor {
         return (TokenStream::new(), TokenStream::new());
     }
 
-    let destroy = format_ident!("{}_destroy", type_names.snake_case);
+    let destroy = format_ident!("{}_destroy", builtin.snake_name());
     let destroy_str = destroy.to_string();
-    let variant_type = &type_names.sys_variant_type;
+    let variant_type = builtin.sys_variant_type();
 
     let decls = quote! {
         pub #destroy: unsafe extern "C" fn(GDExtensionTypePtr),
@@ -1525,35 +1339,33 @@ fn make_destroy_fns(type_names: &BuiltinName, has_destructor: bool) -> (TokenStr
 }
 
 fn make_operator_fns(
-    type_names: &BuiltinName,
+    builtin: &BuiltinVariant,
     operators: &[Operator],
-    json_name: &str,
+    json_symbol: &str,
     sys_name: &str,
 ) -> (TokenStream, TokenStream) {
-    if operators.is_empty()
-        || !operators.iter().any(|op| op.name == json_name)
-        || is_trivial(type_names)
-    {
+    // If there are no operators for that builtin type, or none of the operator matches symbol, then don't generate function.
+    if operators.is_empty() || !operators.iter().any(|op| op.symbol == json_symbol) {
         return (TokenStream::new(), TokenStream::new());
     }
 
     let operator = format_ident!(
         "{}_operator_{}",
-        type_names.snake_case,
+        builtin.snake_name(),
         sys_name.to_ascii_lowercase()
     );
     let operator_str = operator.to_string();
 
-    let variant_type = &type_names.sys_variant_type;
+    let variant_type = builtin.sys_variant_type();
     let variant_type = quote! { crate::#variant_type };
     let sys_ident = format_ident!("GDEXTENSION_VARIANT_OP_{}", sys_name);
 
-    // Field declaration
+    // Field declaration.
     let decl = quote! {
         pub #operator: unsafe extern "C" fn(GDExtensionConstTypePtr, GDExtensionConstTypePtr, GDExtensionTypePtr),
     };
 
-    // Field initialization in new()
+    // Field initialization in new().
     let init = quote! {
         #operator: {
             let fptr = unsafe { get_operator_fn(crate::#sys_ident, #variant_type, #variant_type) };
@@ -1562,12 +1374,4 @@ fn make_operator_fns(
     };
 
     (decl, init)
-}
-
-/// Returns true if the type is so trivial that most of its operations are directly provided by Rust, and there is no need
-/// to expose the construct/destruct/operator methods from Godot
-fn is_trivial(type_names: &BuiltinName) -> bool {
-    let list = ["bool", "int", "float"];
-
-    list.contains(&type_names.json_builtin_name.as_str())
 }

@@ -11,19 +11,16 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use std::path::Path;
 
-use crate::central_generator::collect_builtin_types;
 use crate::context::NotificationEnum;
 use crate::domain_models::BuiltinMethod;
 use crate::domain_models::*;
-use crate::json_models::*;
 use crate::util::{
     ident, make_string_name, option_as_slice, parse_native_structures_format, safe_ident,
     ClassCodegenLevel, MethodTableKey, NativeStructuresField,
 };
 use crate::{
-    codegen_special_cases, conv, special_cases, util, Context, GeneratedBuiltin,
-    GeneratedBuiltinModule, GeneratedClass, GeneratedClassModule, ModName, RustTy, SubmitFn,
-    TyName,
+    conv, special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
+    GeneratedClassModule, ModName, RustTy, SubmitFn, TyName,
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -36,7 +33,6 @@ struct FnReceiver {
     ffi_arg: TokenStream,
 
     /// `Self::`, `self.`
-    #[allow(dead_code)] // TODO remove as soon as used
     self_prefix: TokenStream,
 }
 
@@ -109,7 +105,7 @@ impl FnDefinitions {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub(crate) fn generate_class_files(
-    api: &JsonExtensionApi,
+    api: &ExtensionApi,
     ctx: &mut Context,
     _build_config: [&str; 2],
     gen_path: &Path,
@@ -120,25 +116,16 @@ pub(crate) fn generate_class_files(
 
     let mut modules = vec![];
     for class in api.classes.iter() {
-        let class_name = TyName::from_godot(&class.name);
-        let module_name = ModName::from_godot(&class.name);
-
-        if special_cases::is_class_deleted(&class_name)
-            || codegen_special_cases::is_class_excluded(class_name.godot_ty.as_str())
-        {
-            continue;
-        }
-
-        let generated_class = make_class(class, &class_name, ctx);
+        let generated_class = make_class(&class, ctx);
         let file_contents = generated_class.code;
 
-        let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
+        let out_path = gen_path.join(format!("{}.rs", class.mod_name().rust_mod));
 
         submit_fn(out_path, file_contents);
 
         modules.push(GeneratedClassModule {
-            class_name,
-            module_name,
+            class_name: class.name().clone(),
+            module_name: class.mod_name().clone(),
             own_notification_enum_name: generated_class.notification_enum.try_to_own_name(),
             inherits_macro_ident: generated_class.inherits_macro_ident,
             is_pub_sidecar: generated_class.has_sidecar_module,
@@ -152,7 +139,7 @@ pub(crate) fn generate_class_files(
 }
 
 pub(crate) fn generate_builtin_class_files(
-    api: &JsonExtensionApi,
+    api: &ExtensionApi,
     ctx: &mut Context,
     _build_config: [&str; 2],
     gen_path: &Path,
@@ -161,23 +148,16 @@ pub(crate) fn generate_builtin_class_files(
     let _ = std::fs::remove_dir_all(gen_path);
     std::fs::create_dir_all(gen_path).expect("create classes directory");
 
-    let builtin_types_map = collect_builtin_types(api);
-
     let mut modules = vec![];
-    for class in api.builtin_classes.iter() {
-        let module_name = ModName::from_godot(&class.name);
-        let builtin_name = TyName::from_godot(&class.name);
-        let inner_builtin_name = TyName::from_godot(&format!("Inner{}", class.name));
-
-        if special_cases::is_builtin_type_deleted(&builtin_name) {
+    for class in api.builtins.iter() {
+        let Some(class) = class.builtin_class.as_ref() else {
             continue;
-        }
+        };
 
-        let _type_info = builtin_types_map
-            .get(&class.name)
-            .unwrap_or_else(|| panic!("builtin type not found: {}", class.name));
+        // let godot_class_name = &class.name().godot_ty;
+        let module_name = class.mod_name();
 
-        let generated_class = make_builtin_class(class, &builtin_name, &inner_builtin_name, ctx);
+        let generated_class = make_builtin_class(&class, ctx);
         let file_contents = generated_class.code;
 
         let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
@@ -185,8 +165,8 @@ pub(crate) fn generate_builtin_class_files(
         submit_fn(out_path, file_contents);
 
         modules.push(GeneratedBuiltinModule {
-            class_name: inner_builtin_name,
-            module_name,
+            symbol_ident: class.inner_name().clone(),
+            module_name: module_name.clone(),
         });
     }
 
@@ -197,7 +177,7 @@ pub(crate) fn generate_builtin_class_files(
 }
 
 pub(crate) fn generate_native_structures_files(
-    api: &JsonExtensionApi,
+    api: &ExtensionApi,
     ctx: &mut Context,
     _build_config: [&str; 2],
     gen_path: &Path,
@@ -219,7 +199,7 @@ pub(crate) fn generate_native_structures_files(
         submit_fn(out_path, file_contents);
 
         modules.push(GeneratedBuiltinModule {
-            class_name,
+            symbol_ident: class_name.rust_ty.clone(),
             module_name,
         });
     }
@@ -314,12 +294,8 @@ fn make_module_doc(class_name: &TyName) -> String {
     )
 }
 
-fn make_constructor_and_default(
-    class: &JsonClass,
-    class_name: &TyName,
-    ctx: &Context,
-) -> (TokenStream, TokenStream) {
-    let godot_class_name = &class.name;
+fn make_constructor_and_default(class: &Class, ctx: &Context) -> (TokenStream, TokenStream) {
+    let godot_class_name = &class.name().godot_ty;
     let godot_class_stringname = make_string_name(godot_class_name);
     // Note: this could use class_name() but is not yet done due to upcoming lazy-load refactoring.
     //let class_name_obj = quote! { <Self as crate::obj::GodotClass>::class_name() };
@@ -362,6 +338,7 @@ fn make_constructor_and_default(
     }
 
     let godot_default_impl = if has_godot_default_impl {
+        let class_name = &class.name().rust_ty;
         quote! {
             impl crate::obj::cap::GodotDefault for #class_name {
                 fn __godot_default() -> crate::obj::Gd<Self> {
@@ -376,7 +353,9 @@ fn make_constructor_and_default(
     (constructor, godot_default_impl)
 }
 
-fn make_class(class: &JsonClass, class_name: &TyName, ctx: &mut Context) -> GeneratedClass {
+fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
+    let class_name = class.name();
+
     // Strings
     let godot_class_str = &class_name.godot_ty;
     let class_name_cstr = util::cstr_u8_slice(godot_class_str);
@@ -391,23 +370,18 @@ fn make_class(class: &JsonClass, class_name: &TyName, ctx: &mut Context) -> Gene
         None => (quote! { () }, None),
     };
 
-    let (constructor, godot_default_impl) = make_constructor_and_default(class, class_name, ctx);
-    let api_level = util::get_api_level(class);
+    let (constructor, godot_default_impl) = make_constructor_and_default(class, ctx);
+    let api_level = class.api_level;
     let init_level = api_level.to_init_level();
 
     let FnDefinitions {
         functions: methods,
         builders,
-    } = make_methods(option_as_slice(&class.methods), class_name, &api_level, ctx);
+    } = make_methods(&class.methods, class_name, &api_level, ctx);
 
-    let enums = make_enums(option_as_slice(&class.enums), class_name, ctx);
+    let enums = make_enums(&class.enums);
 
-    let constants = option_as_slice(&class.constants)
-        .iter()
-        .map(ClassConstant::from_json)
-        .collect::<Vec<_>>();
-
-    let constants = make_constants(&constants);
+    let constants = make_constants(&class.constants);
     let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
 
     let (exportable_impl, exportable_macro_impl) = if ctx.is_exportable(class_name) {
@@ -463,7 +437,6 @@ fn make_class(class: &JsonClass, class_name: &TyName, ctx: &mut Context) -> Gene
     let module_doc = make_module_doc(class_name);
     let virtual_trait = make_virtual_methods_trait(
         class,
-        class_name,
         &all_bases,
         &virtual_trait_str,
         &notification_enum_name,
@@ -725,40 +698,22 @@ fn workaround_constant_collision(all_constants: &mut Vec<(Ident, i32)>) {
     }
 }
 
-fn make_builtin_class(
-    class: &JsonBuiltin,
-    builtin_name: &TyName,
-    inner_class_name: &TyName,
-    ctx: &mut Context,
-) -> GeneratedBuiltin {
-    let outer_class =
-        if let RustTy::BuiltinIdent(ident) = conv::to_rust_type(&class.name, None, ctx) {
-            ident
-        } else {
-            panic!("Rust type `{}` categorized wrong", class.name)
-        };
-    let inner_class = &inner_class_name.rust_ty;
+fn make_builtin_class(class: &BuiltinClass, ctx: &mut Context) -> GeneratedBuiltin {
+    let godot_name = &class.name().godot_ty;
 
-    let class_enums = class.enums.as_ref().map_or(Vec::new(), |class_enums| {
-        class_enums
-            .iter()
-            .map(JsonBuiltinEnum::to_enum)
-            .collect::<Vec<JsonEnum>>()
-    });
+    let RustTy::BuiltinIdent(outer_class) = conv::to_rust_type(godot_name, None, ctx) else {
+        panic!("Rust type `{}` categorized wrong", godot_name)
+    };
+    let inner_class = class.inner_name();
 
     let FnDefinitions {
         functions: methods,
         builders,
-    } = make_builtin_methods(
-        option_as_slice(&class.methods),
-        builtin_name,
-        inner_class_name,
-        ctx,
-    );
+    } = make_builtin_methods(&class.methods, class.name(), ctx);
 
     let imports = util::make_imports();
-    let enums = make_enums(&class_enums, builtin_name, ctx);
-    let special_constructors = make_special_builtin_methods(builtin_name, ctx);
+    let enums = make_enums(&class.enums);
+    let special_constructors = make_special_builtin_methods(class.name(), ctx);
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let code = quote! {
@@ -789,7 +744,7 @@ fn make_builtin_class(
 }
 
 fn make_native_structure(
-    structure: &JsonNativeStructure,
+    structure: &NativeStructure,
     class_name: &TyName,
     ctx: &mut Context,
 ) -> GeneratedBuiltin {
@@ -948,13 +903,13 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
     let decls = classes_and_modules.iter().map(|m| {
         let GeneratedBuiltinModule {
             module_name,
-            class_name,
+            symbol_ident,
             ..
         } = m;
 
         quote! {
             mod #module_name;
-            pub use #module_name::#class_name;
+            pub use #module_name::#symbol_ident;
         }
     });
 
@@ -964,7 +919,7 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
 }
 
 fn make_methods(
-    methods: &[JsonClassMethod],
+    methods: &[ClassMethod],
     class_name: &TyName,
     api_level: &ClassCodegenLevel,
     ctx: &mut Context,
@@ -972,39 +927,26 @@ fn make_methods(
     let get_method_table = api_level.table_global_getter();
 
     let definitions = methods.iter().map(|method| {
-        match ClassMethod::from_json_outbound(method, class_name, ctx) {
-            None => FnDefinition::none(),
-            Some(method) => {
-                make_class_method_definition(&method, class_name, api_level, &get_method_table, ctx)
-            }
-        }
+        make_class_method_definition(method, class_name, api_level, &get_method_table, ctx)
     });
 
     FnDefinitions::expand(definitions)
 }
 
 fn make_builtin_methods(
-    methods: &[JsonBuiltinMethod],
+    methods: &[BuiltinMethod],
     builtin_name: &TyName,
-    inner_class_name: &TyName,
     ctx: &mut Context,
 ) -> FnDefinitions {
-    let definitions = methods.iter().map(|method| {
-        match BuiltinMethod::from_json(method, builtin_name, inner_class_name, ctx) {
-            None => FnDefinition::none(),
-            Some(method) => make_builtin_method_definition(&method, builtin_name, ctx),
-        }
-    });
+    let definitions = methods
+        .iter()
+        .map(|method| make_builtin_method_definition(method, builtin_name, ctx));
 
     FnDefinitions::expand(definitions)
 }
 
-fn make_enums(enums: &[JsonEnum], class_name: &TyName, _ctx: &mut Context) -> TokenStream {
-    let definitions = enums.iter().map(|json| {
-        let domain = Enum::from_json(json, Some(class_name));
-
-        util::make_enum_definition(&domain)
-    });
+fn make_enums(enums: &[Enum]) -> TokenStream {
+    let definitions = enums.iter().map(util::make_enum_definition);
 
     quote! {
         #( #definitions )*
@@ -1048,17 +990,6 @@ fn make_class_method_definition(
     let FnDirection::Outbound { hash } = method.direction() else {
         return FnDefinition::none();
     };
-
-    /*
-    // TODO re-enable this once JSON/domain models are separated.
-    // Getters in particular are re-qualified as const (if there isn't already an override).
-    if override_is_const.is_none() && option_as_slice(&method.arguments).is_empty() {
-        if rust_method_name.starts_with("get_") {
-            // Many getters are mutably qualified (GltfAccessor::get_max, CameraAttributes::get_exposure_multiplier, ...).
-            // As a default, set those to const.
-            override_is_const = Some(true);
-        }
-    }*/
 
     let rust_method_name = method.name();
     let godot_method_name = method.godot_name();
@@ -1665,8 +1596,7 @@ fn make_params_and_args(method_args: &[&FnParam]) -> (Vec<TokenStream>, Vec<Toke
 }
 
 fn make_virtual_methods_trait(
-    class: &JsonClass,
-    class_name: &TyName,
+    class: &Class,
     all_base_names: &[TyName],
     trait_name: &str,
     notification_enum_name: &Ident,
@@ -1674,10 +1604,10 @@ fn make_virtual_methods_trait(
 ) -> TokenStream {
     let trait_name = ident(trait_name);
 
-    let virtual_method_fns = make_all_virtual_methods(class, class_name, all_base_names, ctx);
+    let virtual_method_fns = make_all_virtual_methods(class, all_base_names, ctx);
     let special_virtual_methods = special_virtual_methods(notification_enum_name);
 
-    let trait_doc = make_virtual_trait_doc(class_name);
+    let trait_doc = make_virtual_trait_doc(class.name());
 
     quote! {
         #[doc = #trait_doc]
@@ -1733,7 +1663,11 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
     }
 }
 
-fn make_virtual_method(method: &ClassMethod) -> TokenStream {
+fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
+    if !method.is_virtual() {
+        return None;
+    }
+
     // Virtual methods are never static.
     let qualifier = method.qualifier();
     assert!(matches!(qualifier, FnQualifier::Mut | FnQualifier::Const));
@@ -1749,48 +1683,41 @@ fn make_virtual_method(method: &ClassMethod) -> TokenStream {
     );
 
     // Virtual methods have no builders.
-    definition.into_functions_only()
+    Some(definition.into_functions_only())
 }
 
 fn make_all_virtual_methods(
-    class: &JsonClass,
-    class_name: &TyName,
+    class: &Class,
     all_base_names: &[TyName],
     ctx: &mut Context,
 ) -> Vec<TokenStream> {
-    let mut all_virtuals = vec![];
-    let mut extend_virtuals = |class| {
-        all_virtuals.extend(
-            get_methods_in_class(class)
-                .iter()
-                .filter(|m| m.is_virtual)
-                .cloned(),
-        );
-    };
+    let mut all_tokens = vec![];
 
-    // Get virtuals defined on the current class.
-    extend_virtuals(class);
-
-    // Add virtuals from superclasses.
-    for base in all_base_names {
-        let superclass = ctx.get_engine_class(base);
-        extend_virtuals(superclass);
+    for method in class.methods.iter() {
+        // Assumes that inner function filters on is_virtual.
+        if let Some(tokens) = make_virtual_method(method) {
+            all_tokens.push(tokens);
+        }
     }
 
-    all_virtuals
-        .into_iter()
-        .filter_map(|method| {
-            ClassMethod::from_json_virtual(&method, class_name, ctx)
-                .map(|m| make_virtual_method(&m))
-        })
-        .collect()
-}
+    for base_name in all_base_names {
+        let json_base_class = ctx.get_engine_class(base_name);
+        for json_method in option_as_slice(&json_base_class.methods) {
+            // FIXME temporary workaround, the ctx doesn't cross-over borrowed fields in ctx
+            let hack_ptr = ctx as *const _ as *mut _;
+            let hack_ctx = unsafe { &mut *hack_ptr }; // UB
 
-fn get_methods_in_class(class: &JsonClass) -> &[JsonClassMethod] {
-    match &class.methods {
-        None => &[],
-        Some(methods) => methods,
+            if let Some(method) =
+                ClassMethod::from_json_virtual(json_method, class.name(), hack_ctx)
+            {
+                if let Some(tokens) = make_virtual_method(&method) {
+                    all_tokens.push(tokens);
+                }
+            }
+        }
     }
+
+    all_tokens
 }
 
 fn function_uses_pointers(sig: &dyn Function) -> bool {

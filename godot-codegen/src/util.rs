@@ -576,12 +576,6 @@ pub(crate) fn make_enumerator_ord(ord: i32) -> Literal {
     Literal::i32_suffixed(ord)
 }
 
-/// This method is needed for platform-dependent types like raw `VariantOperator`, which can be `i32` or `u32`.
-/// Do not suffix them.
-pub(crate) fn make_enumerator_ord_unsuffixed(ord: i32) -> Literal {
-    Literal::i32_unsuffixed(ord)
-}
-
 pub(crate) fn make_bitfield_flag_ord(ord: u64) -> Literal {
     Literal::u64_suffixed(ord)
 }

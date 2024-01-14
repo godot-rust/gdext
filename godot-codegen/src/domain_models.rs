@@ -12,30 +12,136 @@
 
 use crate::context::Context;
 use crate::json_models::{JsonMethodArg, JsonMethodReturn};
-use crate::util::{option_as_slice, safe_ident};
-use crate::{conv, RustTy, TyName};
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
+use crate::util::{option_as_slice, safe_ident, ClassCodegenLevel};
+use crate::{conv, ModName, RustTy, TyName};
+
+use proc_macro2::{Ident, Literal, TokenStream};
+use quote::{format_ident, quote};
 use std::fmt;
 
-pub struct BuiltinClass {
+pub struct ExtensionApi {
+    pub builtins: Vec<BuiltinVariant>,
+    pub classes: Vec<Class>,
+    pub singletons: Vec<Singleton>,
+    pub native_structures: Vec<NativeStructure>,
+    pub utility_functions: Vec<UtilityFunction>,
+    pub global_enums: Vec<Enum>,
+    pub build_config: [&'static str; 2],
+}
+
+impl ExtensionApi {
+    /// O(n) search time, often leads to O(n^2), but less than 40 builtins total.
+    pub fn builtin_by_original_name(&self, name: &str) -> &BuiltinVariant {
+        self.builtins
+            .iter()
+            .find(|b| b.godot_original_name() == name)
+            .unwrap_or_else(|| panic!("builtin_by_name: invalid `{}`", name))
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Builtins + classes + singletons
+
+pub trait ClassLike {
+    fn common(&self) -> &ClassCommons;
+
+    fn name(&self) -> &TyName {
+        &self.common().name
+    }
+
+    fn mod_name(&self) -> &ModName {
+        &self.common().mod_name
+    }
+}
+
+pub struct ClassCommons {
     pub name: TyName,
-    pub enums: Vec<BuiltinClassEnum>,
-    pub operators: Vec<Operator>,
+    pub mod_name: ModName,
+}
+
+pub struct BuiltinClass {
+    pub(super) common: ClassCommons,
+    pub(super) inner_name: TyName,
     pub methods: Vec<BuiltinMethod>,
     pub constructors: Vec<Constructor>,
+    pub operators: Vec<Operator>,
     pub has_destructor: bool,
+    pub enums: Vec<Enum>,
+}
+
+impl BuiltinClass {
+    pub fn inner_name(&self) -> &Ident {
+        &self.inner_name.rust_ty
+    }
+}
+
+impl ClassLike for BuiltinClass {
+    fn common(&self) -> &ClassCommons {
+        &self.common
+    }
+}
+
+/// All information about a builtin type, including its type (if available).
+pub struct BuiltinVariant {
+    pub(super) godot_original_name: String,
+    pub(super) godot_shout_name: String,
+    pub(super) godot_snake_name: String,
+    pub(super) builtin_class: Option<BuiltinClass>,
+
+    pub variant_type_ord: i32,
+}
+
+impl BuiltinVariant {
+    /// Name in JSON for the class: `"int"` or `"PackedVector2Array"`.
+    pub fn godot_original_name(&self) -> &str {
+        &self.godot_original_name
+    }
+
+    /// Name in JSON: `"INT"` or `"PACKED_VECTOR2_ARRAY"`.
+    pub fn godot_shout_name(&self) -> &str {
+        &self.godot_shout_name
+    }
+
+    /// snake_case name like `"packed_vector2_array"`.
+    pub fn snake_name(&self) -> &str {
+        &self.godot_snake_name
+    }
+
+    /// Excludes variant types if:
+    /// - There is no builtin class definition in the JSON. For example, `OBJECT` is a variant type but has no corresponding class.
+    /// - The type is so trivial that most of its operations are directly provided by Rust, and there is no need
+    ///   to expose the construct/destruct/operator methods from Godot (e.g. `int`, `bool`).
+    ///
+    /// See also `BuiltinClass::from_json()`
+    pub fn associated_builtin_class(&self) -> Option<&BuiltinClass> {
+        self.builtin_class.as_ref()
+    }
+
+    /// Returns an ident like `GDEXTENSION_VARIANT_TYPE_PACKED_VECTOR2_ARRAY`.
+    pub fn sys_variant_type(&self) -> Ident {
+        format_ident!("GDEXTENSION_VARIANT_TYPE_{}", self.godot_shout_name())
+    }
+
+    pub fn unsuffixed_ord_lit(&self) -> Literal {
+        Literal::i32_unsuffixed(self.variant_type_ord)
+    }
 }
 
 pub struct Class {
-    pub name: String,
+    pub(super) common: ClassCommons,
     pub is_refcounted: bool,
     pub is_instantiable: bool,
     pub inherits: Option<String>,
-    pub api_type: String,
+    pub api_level: ClassCodegenLevel,
     pub constants: Vec<ClassConstant>,
     pub enums: Vec<Enum>,
     pub methods: Vec<ClassMethod>,
+}
+
+impl ClassLike for Class {
+    fn common(&self) -> &ClassCommons {
+        &self.common
+    }
 }
 
 pub struct NativeStructure {
@@ -44,7 +150,7 @@ pub struct NativeStructure {
 }
 
 pub struct Singleton {
-    pub name: String,
+    pub name: TyName,
     // Note: `type` currently has always same value as `name`, thus redundant
     // type_: String,
 }
@@ -54,11 +160,6 @@ pub struct Enum {
     pub godot_name: String,
     pub is_bitfield: bool,
     pub enumerators: Vec<Enumerator>,
-}
-
-pub struct BuiltinClassEnum {
-    pub name: String,
-    pub values: Vec<Enumerator>,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -85,6 +186,14 @@ impl EnumeratorValue {
             EnumeratorValue::Enum(i) => *i as i64,
             EnumeratorValue::Bitfield(i) => *i as i64,
         }
+    }
+
+    /// This method is needed for platform-dependent types like raw `VariantOperator`, which can be `i32` or `u32`.
+    /// Do not suffix them.
+    ///
+    /// See also `BuiltinVariant::unsuffixed_ord_lit()`.
+    pub fn unsuffixed_lit(&self) -> Literal {
+        Literal::i64_unsuffixed(self.to_i64())
     }
 }
 
@@ -117,7 +226,7 @@ pub struct BuiltinConstant {
 */
 
 pub struct Operator {
-    pub name: String,
+    pub symbol: String,
     //pub right_type: Option<String>, // null if unary
     //pub return_type: String,
 }
@@ -166,11 +275,11 @@ pub trait Function: fmt::Display {
     fn is_private(&self) -> bool {
         self.common().is_private
     }
-    fn direction(&self) -> FnDirection {
-        self.common().direction
-    }
     fn is_virtual(&self) -> bool {
         matches!(self.direction(), FnDirection::Virtual)
+    }
+    fn direction(&self) -> FnDirection {
+        self.common().direction
     }
 }
 
@@ -269,9 +378,11 @@ impl Function for ClassMethod {
     fn common(&self) -> &FunctionCommon {
         &self.common
     }
+
     fn qualifier(&self) -> FnQualifier {
         self.qualifier
     }
+
     fn surrounding_class(&self) -> Option<&TyName> {
         Some(&self.surrounding_class)
     }

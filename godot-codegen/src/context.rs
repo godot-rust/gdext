@@ -17,7 +17,7 @@ use quote::{format_ident, ToTokens};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
-pub(crate) struct Context<'a> {
+pub struct Context<'a> {
     engine_classes: HashMap<TyName, &'a JsonClass>,
     builtin_types: HashSet<&'a str>,
     native_structures_types: HashSet<&'a str>,

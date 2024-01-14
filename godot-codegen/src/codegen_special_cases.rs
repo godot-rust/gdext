@@ -20,12 +20,12 @@ pub(crate) fn is_builtin_method_excluded(method: &JsonBuiltinMethod) -> bool {
 }
 
 #[cfg(not(feature = "codegen-full"))]
-pub(crate) fn is_class_excluded(class: &str) -> bool {
-    !SELECTED_CLASSES.contains(&class)
+pub(crate) fn is_class_excluded(godot_class_name: &str) -> bool {
+    !SELECTED_CLASSES.contains(&godot_class_name)
 }
 
 #[cfg(feature = "codegen-full")]
-pub(crate) fn is_class_excluded(_class: &str) -> bool {
+pub(crate) fn is_class_excluded(_godot_class_name: &str) -> bool {
     false
 }
 
