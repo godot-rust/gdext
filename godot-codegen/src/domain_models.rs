@@ -17,7 +17,6 @@ use crate::{conv, RustTy, TyName};
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use std::fmt;
-use std::fmt::Display;
 
 pub struct BuiltinClass {
     pub name: TyName,
@@ -119,13 +118,14 @@ pub struct BuiltinConstant {
 
 pub struct Operator {
     pub name: String,
-    pub right_type: Option<String>, // null if unary
-    pub return_type: String,
+    //pub right_type: Option<String>, // null if unary
+    //pub return_type: String,
 }
 
 pub struct Constructor {
     pub index: usize,
-    pub parameters: Vec<FnParam>,
+    pub raw_parameters: Vec<JsonMethodArg>,
+    // pub parameters: Vec<FnParam>,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -141,7 +141,7 @@ pub struct FunctionCommon {
     pub direction: FnDirection,
 }
 
-pub trait Function: Display {
+pub trait Function: fmt::Display {
     // Required:
     fn common(&self) -> &FunctionCommon;
     fn qualifier(&self) -> FnQualifier;
@@ -206,7 +206,7 @@ impl Function for UtilityFunction {
     }
 }
 
-impl Display for UtilityFunction {
+impl fmt::Display for UtilityFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "utility function `{}`", self.name())
     }
@@ -219,6 +219,15 @@ pub struct BuiltinMethod {
     pub(super) common: FunctionCommon,
     pub(super) qualifier: FnQualifier,
     pub(super) surrounding_class: TyName,
+}
+
+impl BuiltinMethod {
+    pub fn hash(&self) -> i64 {
+        match self.direction() {
+            FnDirection::Virtual => unreachable!("builtin method cannot be virtual"),
+            FnDirection::Outbound { hash } => hash,
+        }
+    }
 }
 
 impl Function for BuiltinMethod {

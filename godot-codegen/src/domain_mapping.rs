@@ -7,16 +7,37 @@
 
 use crate::context::Context;
 use crate::domain_models::{
-    BuiltinMethod, ClassConstant, ClassConstantValue, ClassMethod, Enum, Enumerator,
-    EnumeratorValue, FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon, UtilityFunction,
+    BuiltinMethod, ClassConstant, ClassConstantValue, ClassMethod, Constructor, Enum, Enumerator,
+    EnumeratorValue, FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon, Operator,
+    UtilityFunction,
 };
 use crate::json_models::{
-    JsonBuiltinMethod, JsonClassConstant, JsonClassMethod, JsonEnum, JsonEnumConstant,
-    JsonMethodReturn, JsonUtilityFunction,
+    JsonBuiltinMethod, JsonClassConstant, JsonClassMethod, JsonConstructor, JsonEnum,
+    JsonEnumConstant, JsonMethodReturn, JsonOperator, JsonUtilityFunction,
 };
 use crate::util::ident;
 use crate::{conv, special_cases, TyName};
 use proc_macro2::Ident;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Constructors, operators
+
+impl Constructor {
+    pub fn from_json(json: &JsonConstructor) -> Self {
+        Self {
+            index: json.index, // TODO use enum for Default/Copy/Other(index)
+            raw_parameters: json.arguments.as_ref().map_or(vec![], |vec| vec.clone()),
+        }
+    }
+}
+
+impl Operator {
+    pub fn from_json(json: &JsonOperator) -> Self {
+        Self {
+            name: json.name.clone(),
+        }
+    }
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Functions

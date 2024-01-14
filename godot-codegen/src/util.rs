@@ -5,13 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::json_models::{JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod};
+use crate::json_models::{JsonClass, JsonClassConstant, JsonClassMethod};
 use crate::{conv, RustTy, TyName};
 
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
 
-use crate::domain_models::{ClassConstant, ClassConstantValue, Enum, Enumerator, EnumeratorValue};
+use crate::domain_models::{
+    BuiltinMethod, ClassConstant, ClassConstantValue, Enum, Enumerator, EnumeratorValue, Function,
+};
 use std::fmt;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -168,14 +170,11 @@ pub(crate) fn make_class_method_ptr_name(class_ty: &TyName, method: &JsonClassMe
     )
 }
 
-pub(crate) fn make_builtin_method_ptr_name(
-    builtin_ty: &TyName,
-    method: &JsonBuiltinMethod,
-) -> Ident {
+pub(crate) fn make_builtin_method_ptr_name(builtin_ty: &TyName, method: &BuiltinMethod) -> Ident {
     format_ident!(
         "{}__{}",
         conv::to_snake_case(&builtin_ty.godot_ty),
-        method.name
+        method.name()
     )
 }
 

@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::hash::Hasher;
 use std::path::Path;
 
-use crate::domain_models::Enum;
+use crate::domain_models::{BuiltinMethod, Constructor, Enum, Function, Operator};
 use crate::json_models::*;
 use crate::util::{
     make_builtin_method_ptr_name, make_class_method_ptr_name, option_as_slice, ClassCodegenLevel,
@@ -867,11 +867,23 @@ fn make_builtin_lifecycle_table(builtin_types: &BuiltinTypeMap) -> TokenStream {
 
     // Note: NIL is not part of this iteration, it will be added manually
     for ty in builtin_types.ordered() {
+        let empty = vec![];
+        let constructors = ty.constructors.unwrap_or(&empty);
+
+        let empty = vec![];
+        let operators = ty.operators.unwrap_or(&empty);
+
         let (decls, inits) = make_variant_fns(
             &ty.type_names,
             ty.has_destructor,
-            ty.constructors,
-            ty.operators,
+            &constructors
+                .iter()
+                .map(|ctor| Constructor::from_json(ctor))
+                .collect::<Vec<_>>(),
+            &operators
+                .iter()
+                .map(|op| Operator::from_json(op))
+                .collect::<Vec<_>>(),
             &builtin_types.map,
         );
 
@@ -1088,35 +1100,38 @@ fn populate_builtin_methods(
     let mut method_inits = vec![];
 
     // Skip types such as int, float, bool.
-    // TODO separate BuiltinName + TyName needed?
-    if special_cases::is_builtin_type_deleted(&TyName::from_godot(&builtin_class.name)) {
+    // TODO separate BuiltinName + TyName needed? Of course not :)
+    let builtin_ty = TyName::from_godot(&builtin_class.name);
+    if special_cases::is_builtin_type_deleted(&builtin_ty) {
         return;
     }
 
     for method in option_as_slice(&builtin_class.methods) {
-        let builtin_ty = TyName::from_godot(&builtin_class.name);
-        if special_cases::is_builtin_method_deleted(&builtin_ty, method) {
+        // TODO temporary
+        let inner_builtin_name = TyName::from_godot(&format!("Inner{}", builtin_class.name));
+        let Some(method) = BuiltinMethod::from_json(method, &builtin_ty, &inner_builtin_name, ctx)
+        else {
             continue;
-        }
+        };
 
         let index = ctx.get_table_index(&MethodTableKey::BuiltinMethod {
             builtin_ty: builtin_ty.clone(),
-            method_name: method.name.clone(),
+            method_name: method.name().to_string(),
         });
 
-        let method_init = make_builtin_method_init(method, builtin_name, index);
+        let method_init = make_builtin_method_init(&method, builtin_name, index);
         method_inits.push(MethodInit { method_init, index });
         table.method_count += 1;
 
         // If requested, add a named accessor for this method.
-        if special_cases::is_named_accessor_in_table(&builtin_ty, &method.name) {
+        if special_cases::is_named_accessor_in_table(&builtin_ty, &method.name()) {
             let variant_type = &builtin_name.sys_variant_type;
             let variant_type_str = &builtin_name.json_builtin_name;
-            let method_name_str = method.name.as_str();
-            let hash = method.hash.expect("hash present");
+            let method_name_str = method.name();
+            let hash = method.hash();
 
             table.named_accessors.push(AccessorMethod {
-                name: make_builtin_method_ptr_name(&builtin_ty, method),
+                name: make_builtin_method_ptr_name(&builtin_ty, &method),
                 index,
                 lazy_key: quote! {
                     crate::lazy_keys::BuiltinMethodKey {
@@ -1167,21 +1182,16 @@ fn make_class_method_init(
 }
 
 fn make_builtin_method_init(
-    method: &JsonBuiltinMethod,
+    method: &BuiltinMethod,
     type_name: &BuiltinName,
     index: usize,
 ) -> TokenStream {
-    let method_name_str = method.name.as_str();
+    let method_name_str = method.name();
 
     let variant_type = &type_name.sys_variant_type;
     let variant_type_str = &type_name.json_builtin_name;
 
-    let hash = method.hash.unwrap_or_else(|| {
-        panic!(
-            "builtin method has no hash: {}::{}",
-            variant_type_str, method_name_str
-        )
-    });
+    let hash = method.hash();
 
     // Could reuse lazy key, but less code like this -> faster parsing.
     quote! {
@@ -1320,8 +1330,8 @@ fn make_opaque_type(name: &str, size: usize) -> TokenStream {
 fn make_variant_fns(
     type_names: &BuiltinName,
     has_destructor: bool,
-    constructors: Option<&Vec<JsonConstructor>>,
-    operators: Option<&Vec<JsonOperator>>,
+    constructors: &[Constructor],
+    operators: &[Operator],
     builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (TokenStream, TokenStream) {
     let (construct_decls, construct_inits) =
@@ -1373,17 +1383,12 @@ fn make_variant_fns(
 
 fn make_construct_fns(
     type_names: &BuiltinName,
-    constructors: Option<&Vec<JsonConstructor>>,
+    constructors: &[Constructor],
     builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (TokenStream, TokenStream) {
-    let constructors = match constructors {
-        Some(c) => c,
-        None => return (TokenStream::new(), TokenStream::new()),
-    };
-
-    if is_trivial(type_names) {
+    if constructors.is_empty() || is_trivial(type_names) {
         return (TokenStream::new(), TokenStream::new());
-    }
+    };
 
     // Constructor vec layout:
     //   [0]: default constructor
@@ -1396,18 +1401,15 @@ fn make_construct_fns(
         assert_eq!(i, c.index);
     }
 
-    assert!(constructors[0].arguments.is_none());
+    assert!(
+        constructors[0].raw_parameters.is_empty(),
+        "default constructor at index 0 must have no parameters"
+    );
 
-    if let Some(args) = &constructors[1].arguments {
-        assert_eq!(args.len(), 1);
-        assert_eq!(args[0].name, "from");
-        assert_eq!(args[0].type_, type_names.json_builtin_name);
-    } else {
-        panic!(
-            "type {}: no constructor args found for copy constructor",
-            type_names.json_builtin_name
-        );
-    }
+    let args = &constructors[1].raw_parameters;
+    assert_eq!(args.len(), 1);
+    assert_eq!(args[0].name, "from");
+    assert_eq!(args[0].type_, type_names.json_builtin_name);
 
     let construct_default = format_ident!("{}_construct_default", type_names.snake_case);
     let construct_copy = format_ident!("{}_construct_copy", type_names.snake_case);
@@ -1452,7 +1454,7 @@ fn make_construct_fns(
 /// Lists special cases for useful constructors
 fn make_extra_constructors(
     type_names: &BuiltinName,
-    constructors: &Vec<JsonConstructor>,
+    constructors: &[Constructor],
     builtin_types: &HashMap<String, BuiltinTypeInfo>,
 ) -> (Vec<TokenStream>, Vec<TokenStream>) {
     let mut extra_decls = Vec::with_capacity(constructors.len() - 2);
@@ -1460,36 +1462,40 @@ fn make_extra_constructors(
     let variant_type = &type_names.sys_variant_type;
 
     for (i, ctor) in constructors.iter().enumerate().skip(2) {
-        if let Some(args) = &ctor.arguments {
-            let type_name = &type_names.snake_case;
-            let construct_custom = if args.len() == 1 && args[0].name == "from" {
-                // Conversion constructor is named according to the source type
-                // String(NodePath from) => string_from_node_path
-                let arg_type = &builtin_types[&args[0].type_].type_names.snake_case;
-                format_ident!("{type_name}_from_{arg_type}")
-            } else {
-                // Type-specific constructor is named according to the argument names
-                // Vector3(float x, float y, float z) => vector3_from_x_y_z
-                let mut arg_names = args
-                    .iter()
-                    .fold(String::new(), |acc, arg| acc + &arg.name + "_");
-                arg_names.pop(); // remove trailing '_'
-                format_ident!("{type_name}_from_{arg_names}")
-            };
+        let args = &ctor.raw_parameters;
+        assert!(
+            !args.is_empty(),
+            "custom constructors must have at least 1 parameter"
+        );
 
-            let construct_custom_str = construct_custom.to_string();
-            extra_decls.push(quote! {
+        let type_name = &type_names.snake_case;
+        let construct_custom = if args.len() == 1 && args[0].name == "from" {
+            // Conversion constructor is named according to the source type
+            // String(NodePath from) => string_from_node_path
+            let arg_type = &builtin_types[&args[0].type_].type_names.snake_case;
+            format_ident!("{type_name}_from_{arg_type}")
+        } else {
+            // Type-specific constructor is named according to the argument names
+            // Vector3(float x, float y, float z) => vector3_from_x_y_z
+            let mut arg_names = args
+                .iter()
+                .fold(String::new(), |acc, arg| acc + &arg.name + "_");
+            arg_names.pop(); // remove trailing '_'
+            format_ident!("{type_name}_from_{arg_names}")
+        };
+
+        let construct_custom_str = construct_custom.to_string();
+        extra_decls.push(quote! {
                 pub #construct_custom: unsafe extern "C" fn(GDExtensionUninitializedTypePtr, *const GDExtensionConstTypePtr),
             });
 
-            let i = i as i32;
-            extra_inits.push(quote! {
-                #construct_custom: {
-                    let fptr = unsafe { get_construct_fn(crate::#variant_type, #i) };
-                    crate::validate_builtin_lifecycle(fptr, #construct_custom_str)
-                },
-            });
-        }
+        let i = i as i32;
+        extra_inits.push(quote! {
+            #construct_custom: {
+                let fptr = unsafe { get_construct_fn(crate::#variant_type, #i) };
+                crate::validate_builtin_lifecycle(fptr, #construct_custom_str)
+            },
+        });
     }
 
     (extra_decls, extra_inits)
@@ -1520,12 +1526,12 @@ fn make_destroy_fns(type_names: &BuiltinName, has_destructor: bool) -> (TokenStr
 
 fn make_operator_fns(
     type_names: &BuiltinName,
-    operators: Option<&Vec<JsonOperator>>,
+    operators: &[Operator],
     json_name: &str,
     sys_name: &str,
 ) -> (TokenStream, TokenStream) {
-    if operators.is_none()
-        || !operators.unwrap().iter().any(|op| op.name == json_name)
+    if operators.is_empty()
+        || !operators.iter().any(|op| op.name == json_name)
         || is_trivial(type_names)
     {
         return (TokenStream::new(), TokenStream::new());
