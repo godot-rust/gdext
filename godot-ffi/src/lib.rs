@@ -41,7 +41,6 @@ mod string_cache;
 mod toolbox;
 
 use compat::BindingCompat;
-use std::cell;
 
 // See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
 // and https://users.rust-lang.org/t/proc-macros-using-third-party-crate/42465/4
@@ -77,6 +76,253 @@ pub use toolbox::*;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // API to access Godot via FFI
 
+mod binding {
+    // Ensure both crates are checked regardless of cfg, for the sake of development convenience.
+    #[cfg_attr(not(feature = "experimental-threads"), allow(dead_code))]
+    mod multi_threaded;
+    #[cfg_attr(feature = "experimental-threads", allow(dead_code))]
+    mod single_threaded;
+
+    use crate::{
+        BuiltinLifecycleTable, BuiltinMethodTable, ClassEditorMethodTable, ClassSceneMethodTable,
+        ClassServersMethodTable, GDExtensionInterface, GdextRuntimeMetadata, UtilityFunctionTable,
+    };
+
+    #[cfg(feature = "experimental-threads")]
+    use multi_threaded::BindingStorage;
+    #[cfg(feature = "experimental-threads")]
+    pub use multi_threaded::{GdextConfig, GodotBinding};
+    #[cfg(not(feature = "experimental-threads"))]
+    use single_threaded::BindingStorage;
+    #[cfg(not(feature = "experimental-threads"))]
+    pub use single_threaded::{GdextConfig, GodotBinding};
+
+    /// Newtype around `GDExtensionClassLibraryPtr` so we can implement `Sync` and `Send` manually for this.
+    struct GDExtensionClassLibraryPtr(crate::GDExtensionClassLibraryPtr);
+
+    // SAFETY: It is safe to have access to the library pointer from any thread, as we ensure any access is thread-safe through other means.
+    // Even without "experimental-threads", there is no way without `unsafe` to cause UB by accessing the library from different threads.
+    unsafe impl Sync for GDExtensionClassLibraryPtr {}
+    // SAFETY: See `Sync` impl safety doc.
+    unsafe impl Send for GDExtensionClassLibraryPtr {}
+
+    /// Initializes the Godot binding.
+    ///
+    /// Most other functions in this module rely on this function being called first as a safety condition.
+    pub(crate) fn initialize_binding(binding: GodotBinding) {
+        BindingStorage::initialize(binding).expect("`initialize` must only be called once");
+    }
+
+    /// # Safety
+    ///
+    /// The Godot binding must have been initialized before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    #[inline(always)]
+    pub unsafe fn get_binding() -> &'static GodotBinding {
+        BindingStorage::get_binding_unchecked()
+    }
+
+    /// # Safety
+    ///
+    /// The Godot binding must have been initialized before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    pub(crate) unsafe fn initialize_class_server_method_table(table: ClassServersMethodTable) {
+        // SAFETY: `get_binding` has the same preconditions as this function.
+        let binding = unsafe { get_binding() };
+
+        binding
+            .class_server_method_table
+            .set(table)
+            .ok()
+            .expect("server method table should only be initialized once")
+    }
+
+    /// # Safety
+    ///
+    /// The Godot binding must have been initialized before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    pub(crate) unsafe fn initialize_class_scene_method_table(table: ClassSceneMethodTable) {
+        // SAFETY: `get_binding` has the same preconditions as this function.
+        let binding = unsafe { get_binding() };
+
+        binding
+            .class_scene_method_table
+            .set(table)
+            .ok()
+            .expect("scene method table should only be initialized once")
+    }
+
+    /// # Safety
+    ///
+    /// The Godot binding must have been initialized before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    pub(crate) unsafe fn initialize_class_editor_method_table(table: ClassEditorMethodTable) {
+        // SAFETY: `get_binding` has the same preconditions as this function.
+        let binding = unsafe { get_binding() };
+
+        binding
+            .class_editor_method_table
+            .set(table)
+            .ok()
+            .expect("editor method table should only be initialized once")
+    }
+
+    /// # Safety
+    ///
+    /// The Godot binding must have been initialized before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    pub(crate) unsafe fn initialize_builtin_method_table(table: BuiltinMethodTable) {
+        // SAFETY: `get_binding` has the same preconditions as this function.
+        let binding = unsafe { get_binding() };
+
+        binding
+            .builtin_method_table
+            .set(table)
+            .ok()
+            .expect("builtin method table should only be initialized once")
+    }
+
+    pub fn is_initialized() -> bool {
+        BindingStorage::is_initialized()
+    }
+
+    /// # Safety
+    ///
+    /// The Godot binding must have been initialized before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    #[inline(always)]
+    pub unsafe fn get_interface() -> &'static GDExtensionInterface {
+        &get_binding().interface
+    }
+
+    /// # Safety
+    ///
+    /// The Godot binding must have been initialized before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    #[inline(always)]
+    pub unsafe fn get_library() -> crate::GDExtensionClassLibraryPtr {
+        get_binding().library.0
+    }
+
+    /// # Safety
+    ///
+    /// The Godot binding must have been initialized before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    #[inline(always)]
+    pub unsafe fn builtin_lifecycle_api() -> &'static BuiltinLifecycleTable {
+        &get_binding().global_method_table
+    }
+
+    /// # Safety
+    ///
+    /// - The Godot binding must have been initialized before calling this function.
+    /// - [`initialize_class_server_method_table`] must have been called before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    #[inline(always)]
+    pub unsafe fn class_servers_api() -> &'static ClassServersMethodTable {
+        let table = get_binding().class_server_method_table.get();
+
+        debug_assert!(
+            table.is_some(),
+            "cannot fetch classes; init level 'Servers' not yet loaded"
+        );
+
+        table.unwrap_unchecked()
+    }
+
+    /// # Safety
+    ///
+    /// - The Godot binding must have been initialized before calling this function.
+    /// - [`initialize_class_scene_method_table`] must have been called before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    #[inline(always)]
+    pub unsafe fn class_scene_api() -> &'static ClassSceneMethodTable {
+        let table = get_binding().class_scene_method_table.get();
+
+        debug_assert!(
+            table.is_some(),
+            "cannot fetch classes; init level 'Scene' not yet loaded"
+        );
+
+        table.unwrap_unchecked()
+    }
+
+    /// # Safety
+    ///
+    /// - The Godot binding must have been initialized before calling this function.
+    /// - [`initialize_class_editor_method_table`] must have been called before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    #[inline(always)]
+    pub unsafe fn class_editor_api() -> &'static ClassEditorMethodTable {
+        let table = get_binding().class_editor_method_table.get();
+
+        debug_assert!(
+            table.is_some(),
+            "cannot fetch classes; init level 'Editor' not yet loaded"
+        );
+
+        table.unwrap_unchecked()
+    }
+
+    /// # Safety
+    ///
+    /// - The Godot binding must have been initialized before calling this function.
+    /// - [`initialize_builtin_method_table`] must have been called before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    #[inline(always)]
+    pub unsafe fn builtin_method_table() -> &'static BuiltinMethodTable {
+        get_binding().builtin_method_table.get().unwrap_unchecked()
+    }
+
+    /// # Safety
+    ///
+    /// The Godot binding must have been initialized before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    #[inline(always)]
+    pub unsafe fn utility_function_table() -> &'static UtilityFunctionTable {
+        &get_binding().utility_function_table
+    }
+
+    /// # Safety
+    ///
+    /// The Godot binding must have been initialized before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    #[inline(always)]
+    pub(crate) unsafe fn runtime_metadata() -> &'static GdextRuntimeMetadata {
+        &get_binding().runtime_metadata
+    }
+
+    /// # Safety
+    ///
+    /// The Godot binding must have been initialized before calling this function.
+    ///
+    /// If the "experimental-threads" is not enabled then this must be called from the same thread that the bindings were initialized from.
+    #[inline]
+    pub unsafe fn config() -> &'static GdextConfig {
+        &get_binding().config
+    }
+}
+
+pub use binding::*;
+use binding::{
+    initialize_binding, initialize_builtin_method_table, initialize_class_editor_method_table,
+    initialize_class_scene_method_table, initialize_class_server_method_table, runtime_metadata,
+};
+
 #[derive(Debug)]
 pub enum ClassApiLevel {
     Server,
@@ -84,32 +330,24 @@ pub enum ClassApiLevel {
     Editor,
 }
 
-struct GodotBinding {
-    interface: GDExtensionInterface,
-    library: GDExtensionClassLibraryPtr,
-    global_method_table: BuiltinLifecycleTable,
-    class_server_method_table: Option<ClassServersMethodTable>, // late-init
-    class_scene_method_table: Option<ClassSceneMethodTable>,    // late-init
-    class_editor_method_table: Option<ClassEditorMethodTable>,  // late-init
-    builtin_method_table: Option<BuiltinMethodTable>,           // late-init
-    utility_function_table: UtilityFunctionTable,
-    runtime_metadata: GdextRuntimeMetadata,
-    config: GdextConfig,
-}
-
-struct GdextRuntimeMetadata {
+pub struct GdextRuntimeMetadata {
     godot_version: GDExtensionGodotVersion,
 }
 
-pub struct GdextConfig {
-    pub tool_only_in_editor: bool,
-    pub is_editor: cell::OnceCell<bool>,
+impl GdextRuntimeMetadata {
+    /// # Safety
+    ///
+    /// - The `string` field of `godot_version` must not be written to while this struct exists.
+    /// - The `string` field of `godot_version` must be safe to read from while this struct exists.
+    pub unsafe fn new(godot_version: GDExtensionGodotVersion) -> Self {
+        Self { godot_version }
+    }
 }
 
-/// Late-init globals
-// Note: static mut is _very_ dangerous. Here a bit less so, since modification happens only once (during init) and no
-// &mut references are handed out (except for registry, see below). Overall, UnsafeCell/RefCell + Sync might be a safer abstraction.
-static mut BINDING: Option<GodotBinding> = None;
+// SAFETY: The `string` pointer in `godot_version` is only ever read from while the struct exists, so we cannot have any race conditions.
+unsafe impl Sync for GdextRuntimeMetadata {}
+// SAFETY: See `Sync` impl safety doc.
+unsafe impl Send for GdextRuntimeMetadata {}
 
 /// # Safety
 ///
@@ -148,9 +386,7 @@ pub unsafe fn initialize(
     let utility_function_table = UtilityFunctionTable::load(&interface, &mut string_names);
     out!("Loaded utility function table.");
 
-    let runtime_metadata = GdextRuntimeMetadata {
-        godot_version: version,
-    };
+    let runtime_metadata = GdextRuntimeMetadata::new(version);
 
     let builtin_method_table = {
         #[cfg(feature = "codegen-lazy-fptrs")]
@@ -167,25 +403,28 @@ pub unsafe fn initialize(
 
     drop(string_names);
 
-    BINDING = Some(GodotBinding {
+    initialize_binding(GodotBinding::new(
         interface,
-        global_method_table,
-        class_server_method_table: None,
-        class_scene_method_table: None,
-        class_editor_method_table: None,
-        builtin_method_table,
-        utility_function_table,
         library,
+        global_method_table,
+        utility_function_table,
         runtime_metadata,
         config,
-    });
+    ));
+
+    if let Some(table) = builtin_method_table {
+        initialize_builtin_method_table(table);
+    }
+
     out!("Assigned binding.");
 
     // Lazy case: load afterwards because table's internal StringCache stores &'static references to the interface.
     #[cfg(feature = "codegen-lazy-fptrs")]
     {
-        let builtin_method_table = BuiltinMethodTable::load();
-        BINDING.as_mut().unwrap().builtin_method_table = Some(builtin_method_table);
+        let table = BuiltinMethodTable::load();
+
+        initialize_builtin_method_table(table);
+
         out!("Loaded builtin method table (lazily).");
     }
 
@@ -201,120 +440,26 @@ fn print_preamble(version: GDExtensionGodotVersion) {
 
 /// # Safety
 ///
-/// Must be called from the same thread as `initialize()` previously.
-pub unsafe fn is_initialized() -> bool {
-    BINDING.is_some()
-}
-
-/// # Safety
-///
-/// The interface must have been initialised with [`initialize`] before calling this function.
-#[inline(always)]
-pub unsafe fn get_interface() -> &'static GDExtensionInterface {
-    &unwrap_ref_unchecked(&BINDING).interface
-}
-
-/// # Safety
-///
-/// The library must have been initialised with [`initialize`] before calling this function.
-#[inline(always)]
-pub unsafe fn get_library() -> GDExtensionClassLibraryPtr {
-    unwrap_ref_unchecked(&BINDING).library
-}
-
-/// # Safety
-///
-/// The interface must have been initialised with [`initialize`] before calling this function.
-#[inline(always)]
-pub unsafe fn builtin_lifecycle_api() -> &'static BuiltinLifecycleTable {
-    &unwrap_ref_unchecked(&BINDING).global_method_table
-}
-
-/// # Safety
-///
-/// The interface must have been initialised with [`initialize`] before calling this function.
-#[inline(always)]
-pub unsafe fn class_servers_api() -> &'static ClassServersMethodTable {
-    let table = &unwrap_ref_unchecked(&BINDING).class_server_method_table;
-    debug_assert!(
-        table.is_some(),
-        "cannot fetch classes; init level 'Servers' not yet loaded"
-    );
-
-    table.as_ref().unwrap_unchecked()
-}
-
-/// # Safety
-///
-/// The interface must have been initialised with [`initialize`] before calling this function.
-#[inline(always)]
-pub unsafe fn class_scene_api() -> &'static ClassSceneMethodTable {
-    let table = &unwrap_ref_unchecked(&BINDING).class_scene_method_table;
-    debug_assert!(
-        table.is_some(),
-        "cannot fetch classes; init level 'Scene' not yet loaded"
-    );
-
-    table.as_ref().unwrap_unchecked()
-}
-
-/// # Safety
-///
-/// The interface must have been initialised with [`initialize`] before calling this function.
-#[inline(always)]
-pub unsafe fn class_editor_api() -> &'static ClassEditorMethodTable {
-    let table = &unwrap_ref_unchecked(&BINDING).class_editor_method_table;
-    debug_assert!(
-        table.is_some(),
-        "cannot fetch classes; init level 'Editor' not yet loaded"
-    );
-
-    table.as_ref().unwrap_unchecked()
-}
-
-/// # Safety
-///
-/// The interface must have been initialised with [`initialize`] before calling this function.
-#[inline(always)]
-pub unsafe fn builtin_method_table() -> &'static BuiltinMethodTable {
-    unwrap_ref_unchecked(&BINDING)
-        .builtin_method_table
-        .as_ref()
-        .unwrap_unchecked()
-}
-
-/// # Safety
-///
-/// The interface must have been initialised with [`initialize`] before calling this function.
-#[inline(always)]
-pub unsafe fn utility_function_table() -> &'static UtilityFunctionTable {
-    &unwrap_ref_unchecked(&BINDING).utility_function_table
-}
-
-/// # Safety
-///
 /// The interface must have been initialised with [`initialize`] before calling this function.
 #[inline]
 pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
-    let binding = unwrap_ref_unchecked_mut(&mut BINDING);
-
     out!("Load class method table for level '{:?}'...", api_level);
     let begin = std::time::Instant::now();
 
     #[cfg(not(feature = "codegen-lazy-fptrs"))]
-    let mut string_names = StringCache::new(&binding.interface, &binding.global_method_table);
+    let mut string_names = StringCache::new(get_interface(), builtin_lifecycle_api());
 
     let (class_count, method_count);
     match api_level {
         ClassApiLevel::Server => {
             #[cfg(feature = "codegen-lazy-fptrs")]
             {
-                binding.class_server_method_table = Some(ClassServersMethodTable::load());
+                initialize_class_server_method_table(ClassServersMethodTable::load());
             }
             #[cfg(not(feature = "codegen-lazy-fptrs"))]
             {
-                binding.class_server_method_table = Some(ClassServersMethodTable::load(
-                    &binding.interface,
+                initialize_class_server_method_table(ClassServersMethodTable::load(
+                    get_interface(),
                     &mut string_names,
                 ));
             }
@@ -324,12 +469,12 @@ pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
         ClassApiLevel::Scene => {
             #[cfg(feature = "codegen-lazy-fptrs")]
             {
-                binding.class_scene_method_table = Some(ClassSceneMethodTable::load());
+                initialize_class_scene_method_table(ClassSceneMethodTable::load());
             }
             #[cfg(not(feature = "codegen-lazy-fptrs"))]
             {
-                binding.class_scene_method_table = Some(ClassSceneMethodTable::load(
-                    &binding.interface,
+                initialize_class_scene_method_table(ClassSceneMethodTable::load(
+                    get_interface(),
                     &mut string_names,
                 ));
             }
@@ -339,12 +484,12 @@ pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
         ClassApiLevel::Editor => {
             #[cfg(feature = "codegen-lazy-fptrs")]
             {
-                binding.class_editor_method_table = Some(ClassEditorMethodTable::load());
+                initialize_class_editor_method_table(ClassEditorMethodTable::load());
             }
             #[cfg(not(feature = "codegen-lazy-fptrs"))]
             {
-                binding.class_editor_method_table = Some(ClassEditorMethodTable::load(
-                    &binding.interface,
+                initialize_class_editor_method_table(ClassEditorMethodTable::load(
+                    get_interface(),
                     &mut string_names,
                 ));
             }
@@ -383,29 +528,13 @@ pub unsafe fn godot_has_feature(
     let type_ptrs = [tag_string];
 
     class_ptrcall(
-        method_bind,
+        method_bind.0,
         object_ptr,
         type_ptrs.as_ptr(),
         return_ptr.sys_mut(),
     );
 
     return_ptr
-}
-
-/// # Safety
-///
-/// Must be accessed from the main thread, and the interface must have been initialized.
-#[inline(always)]
-pub(crate) unsafe fn runtime_metadata() -> &'static GdextRuntimeMetadata {
-    &BINDING.as_ref().unwrap().runtime_metadata
-}
-
-/// # Safety
-///
-/// Must be accessed from the main thread, and the interface must have been initialized.
-#[inline]
-pub unsafe fn config() -> &'static GdextConfig {
-    &BINDING.as_ref().unwrap().config
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

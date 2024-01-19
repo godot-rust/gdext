@@ -81,7 +81,7 @@ pub mod private {
         let is_editor = || crate::engine::Engine::singleton().is_editor_hint();
 
         global_config.tool_only_in_editor //.
-            && *global_config.is_editor.get_or_init(is_editor)
+            && global_config.is_editor_or_init(is_editor)
     }
 
     pub fn print_panic(err: Box<dyn std::any::Any + Send>) {

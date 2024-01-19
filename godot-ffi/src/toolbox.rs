@@ -69,17 +69,6 @@ macro_rules! cast_fn_ptr {
     }};
 }
 
-/// Makes sure that Godot is running, or panics. Debug mode only!
-/// (private macro)
-macro_rules! debug_assert_godot {
-    ($expr:expr) => {
-        debug_assert!(
-            $expr,
-            "Godot engine not available; make sure you are not calling it from unit/doc tests"
-        );
-    };
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utility functions
 
@@ -183,7 +172,15 @@ pub(crate) type GetClassMethod = unsafe extern "C" fn(
     p_hash: sys::GDExtensionInt,
 ) -> sys::GDExtensionMethodBindPtr;
 
-pub type ClassMethodBind = sys::GDExtensionMethodBindPtr;
+#[derive(Clone, Copy)]
+pub struct ClassMethodBind(pub sys::GDExtensionMethodBindPtr);
+
+// SAFETY: `sys::GDExtensionMethodBindPtr` is effectively the same as a `unsafe extern "C" fn`. So sharing it between
+// threads is fine, as using it in any way requires `unsafe` and it is up to the caller to ensure it is thread safe
+// to do so.
+unsafe impl Sync for ClassMethodBind {}
+// SAFETY: See `Sync` impl safety doc.
+unsafe impl Send for ClassMethodBind {}
 
 pub(crate) type GetBuiltinMethod = unsafe extern "C" fn(
     p_type: sys::GDExtensionVariantType,
@@ -213,26 +210,6 @@ pub type UtilityFunctionBind = unsafe extern "C" fn(
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utility functions
 
-/// Combination of `as_ref()` and `unwrap_unchecked()`, but without the case differentiation in
-/// the former (thus raw pointer access in release mode)
-pub(crate) unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
-    debug_assert_godot!(opt.is_some());
-
-    match opt {
-        Some(ref val) => val,
-        None => std::hint::unreachable_unchecked(),
-    }
-}
-
-pub(crate) unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
-    debug_assert_godot!(opt.is_some());
-
-    match opt {
-        Some(ref mut val) => val,
-        None => std::hint::unreachable_unchecked(),
-    }
-}
-
 pub(crate) fn load_class_method(
     get_method_bind: GetClassMethod,
     string_names: &mut sys::StringCache,
@@ -252,7 +229,7 @@ pub(crate) fn load_class_method(
     let class_sname_ptr = class_sname_ptr.unwrap_or_else(|| string_names.fetch(class_name));
 
     // SAFETY: function pointers provided by Godot. We have no way to validate them.
-    let method: ClassMethodBind =
+    let method: sys::GDExtensionMethodBindPtr =
         unsafe { get_method_bind(class_sname_ptr, method_sname_ptr, hash) };
 
     if method.is_null() {
@@ -265,7 +242,7 @@ pub(crate) fn load_class_method(
         )
     }
 
-    method
+    ClassMethodBind(method)
 }
 
 pub(crate) fn load_builtin_method(
@@ -283,8 +260,8 @@ pub(crate) fn load_builtin_method(
         hash
     );*/
 
-    // SAFETY: function pointers provided by Godot. We have no way to validate them.
     let method_sname = string_names.fetch(method_name);
+    // SAFETY: function pointers provided by Godot. We have no way to validate them.
     let method = unsafe { get_builtin_method(variant_type, method_sname, hash) };
 
     method.unwrap_or_else(|| {

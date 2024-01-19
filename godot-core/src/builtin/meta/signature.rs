@@ -39,7 +39,7 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
     );
 
     unsafe fn out_class_varcall(
-        method_bind: sys::GDExtensionMethodBindPtr,
+        method_bind: ClassMethodBind,
         method_name: &'static str,
         object_ptr: sys::GDExtensionObjectPtr,
         maybe_instance_id: Option<InstanceId>, // if not static
@@ -74,7 +74,7 @@ pub trait PtrcallSignatureTuple {
     );
 
     unsafe fn out_class_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
-        method_bind: sys::GDExtensionMethodBindPtr,
+        method_bind: ClassMethodBind,
         method_name: &'static str,
         object_ptr: sys::GDExtensionObjectPtr,
         maybe_instance_id: Option<InstanceId>, // if not static
@@ -202,7 +202,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 let variant = Variant::from_var_sys_init(|return_ptr| {
                     let mut err = sys::default_call_error();
                     class_fn(
-                        method_bind,
+                        method_bind.0,
                         object_ptr,
                         variant_ptrs.as_ptr(),
                         variant_ptrs.len() as i64,
@@ -318,7 +318,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 ];
 
                 let result = Rr::call(|return_ptr| {
-                    class_fn(method_bind, object_ptr, type_ptrs.as_ptr(), return_ptr);
+                    class_fn(method_bind.0, object_ptr, type_ptrs.as_ptr(), return_ptr);
                 });
                 result.unwrap_or_else(|err| return_error::<Self::Ret>(method_name, err))
             }
