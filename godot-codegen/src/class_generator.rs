@@ -16,7 +16,7 @@ use crate::domain_models::BuiltinMethod;
 use crate::domain_models::*;
 use crate::util::{
     ident, make_string_name, option_as_slice, parse_native_structures_format, safe_ident,
-    ClassCodegenLevel, MethodTableKey, NativeStructuresField,
+    MethodTableKey, NativeStructuresField,
 };
 use crate::{
     conv, special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
@@ -116,7 +116,7 @@ pub(crate) fn generate_class_files(
 
     let mut modules = vec![];
     for class in api.classes.iter() {
-        let generated_class = make_class(&class, ctx);
+        let generated_class = make_class(class, ctx);
         let file_contents = generated_class.code;
 
         let out_path = gen_path.join(format!("{}.rs", class.mod_name().rust_mod));
@@ -157,7 +157,7 @@ pub(crate) fn generate_builtin_class_files(
         // let godot_class_name = &class.name().godot_ty;
         let module_name = class.mod_name();
 
-        let generated_class = make_builtin_class(&class, ctx);
+        let generated_class = make_builtin_class(class, ctx);
         let file_contents = generated_class.code;
 
         let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
@@ -377,7 +377,7 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
     let FnDefinitions {
         functions: methods,
         builders,
-    } = make_methods(&class.methods, class_name, &api_level, ctx);
+    } = make_methods(class, &class.methods, ctx);
 
     let enums = make_enums(&class.enums);
 
@@ -709,7 +709,7 @@ fn make_builtin_class(class: &BuiltinClass, ctx: &mut Context) -> GeneratedBuilt
     let FnDefinitions {
         functions: methods,
         builders,
-    } = make_builtin_methods(&class.methods, class.name(), ctx);
+    } = make_builtin_methods(class, &class.methods, ctx);
 
     let imports = util::make_imports();
     let enums = make_enums(&class.enums);
@@ -918,29 +918,24 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
     }
 }
 
-fn make_methods(
-    methods: &[ClassMethod],
-    class_name: &TyName,
-    api_level: &ClassCodegenLevel,
-    ctx: &mut Context,
-) -> FnDefinitions {
-    let get_method_table = api_level.table_global_getter();
+fn make_methods(class: &Class, methods: &[ClassMethod], ctx: &mut Context) -> FnDefinitions {
+    let get_method_table = class.api_level.table_global_getter();
 
-    let definitions = methods.iter().map(|method| {
-        make_class_method_definition(method, class_name, api_level, &get_method_table, ctx)
-    });
+    let definitions = methods
+        .iter()
+        .map(|method| make_class_method_definition(class, method, &get_method_table, ctx));
 
     FnDefinitions::expand(definitions)
 }
 
 fn make_builtin_methods(
+    builtin_class: &BuiltinClass,
     methods: &[BuiltinMethod],
-    builtin_name: &TyName,
     ctx: &mut Context,
 ) -> FnDefinitions {
     let definitions = methods
         .iter()
-        .map(|method| make_builtin_method_definition(method, builtin_name, ctx));
+        .map(|method| make_builtin_method_definition(builtin_class, method, ctx));
 
     FnDefinitions::expand(definitions)
 }
@@ -981,9 +976,8 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
 }
 
 fn make_class_method_definition(
+    class: &Class,
     method: &ClassMethod,
-    class_name: &TyName,
-    api_level: &ClassCodegenLevel,
     get_method_table: &Ident,
     ctx: &mut Context,
 ) -> FnDefinition {
@@ -996,11 +990,7 @@ fn make_class_method_definition(
 
     let receiver = make_receiver(method.qualifier(), quote! { self.object_ptr });
 
-    let table_index = ctx.get_table_index(&MethodTableKey::ClassMethod {
-        api_level: *api_level,
-        class_ty: class_name.clone(),
-        method_name: method.godot_name().to_string(),
-    });
+    let table_index = ctx.get_table_index(&MethodTableKey::from_class(class, method));
 
     let maybe_instance_id = if method.qualifier() == FnQualifier::Static {
         quote! { None }
@@ -1009,7 +999,7 @@ fn make_class_method_definition(
     };
 
     let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {
-        let class_name_str = &class_name.godot_ty;
+        let class_name_str = &class.name().godot_ty;
         quote! {
             fptr_by_key(sys::lazy_keys::ClassMethodKey {
                 class_name: #class_name_str,
@@ -1058,15 +1048,16 @@ fn make_class_method_definition(
 }
 
 fn make_builtin_method_definition(
+    builtin_class: &BuiltinClass,
     method: &BuiltinMethod,
-    builtin_name: &TyName,
     ctx: &mut Context,
 ) -> FnDefinition {
     let FnDirection::Outbound { hash } = method.direction() else {
         unreachable!("builtin methods are never virtual")
     };
 
-    let method_name_str = method.name();
+    let builtin_name = builtin_class.name();
+    let method_name_str = method.godot_name();
 
     let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {
         let variant_type = quote! { sys::VariantType::#builtin_name };
@@ -1081,10 +1072,8 @@ fn make_builtin_method_definition(
             })
         }
     } else {
-        let table_index = ctx.get_table_index(&MethodTableKey::BuiltinMethod {
-            builtin_ty: builtin_name.clone(),
-            method_name: method_name_str.to_string(),
-        });
+        let table_index = ctx.get_table_index(&MethodTableKey::from_builtin(builtin_class, method));
+
         quote! { fptr_by_index(#table_index) }
     };
 
@@ -1703,13 +1692,15 @@ fn make_all_virtual_methods(
     for base_name in all_base_names {
         let json_base_class = ctx.get_engine_class(base_name);
         for json_method in option_as_slice(&json_base_class.methods) {
+            if !json_method.is_virtual {
+                continue;
+            }
+
             // FIXME temporary workaround, the ctx doesn't cross-over borrowed fields in ctx
             let hack_ptr = ctx as *const _ as *mut _;
             let hack_ctx = unsafe { &mut *hack_ptr }; // UB
 
-            if let Some(method) =
-                ClassMethod::from_json_virtual(json_method, class.name(), hack_ctx)
-            {
+            if let Some(method) = ClassMethod::from_json(json_method, class.name(), hack_ctx) {
                 if let Some(tokens) = make_virtual_method(&method) {
                     all_tokens.push(tokens);
                 }

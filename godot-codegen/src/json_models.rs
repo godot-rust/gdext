@@ -18,8 +18,8 @@ use nanoserde::DeJson;
 #[derive(DeJson)]
 pub struct JsonExtensionApi {
     pub header: JsonHeader,
-    pub builtin_class_sizes: Vec<JsonClassSizes>,
-    pub builtin_classes: Vec<JsonBuiltin>,
+    pub builtin_class_sizes: Vec<JsonBuiltinSizes>,
+    pub builtin_classes: Vec<JsonBuiltinClass>,
     pub classes: Vec<JsonClass>,
     pub global_enums: Vec<JsonEnum>,
     pub utility_functions: Vec<JsonUtilityFunction>,
@@ -38,19 +38,19 @@ pub struct JsonHeader {
 }
 
 #[derive(DeJson)]
-pub struct JsonClassSizes {
+pub struct JsonBuiltinSizes {
     pub build_configuration: String,
-    pub sizes: Vec<JsonClassSize>,
+    pub sizes: Vec<JsonBuiltinSizeForConfig>,
 }
 
 #[derive(DeJson)]
-pub struct JsonClassSize {
+pub struct JsonBuiltinSizeForConfig {
     pub name: String,
     pub size: usize,
 }
 
 #[derive(DeJson)]
-pub struct JsonBuiltin {
+pub struct JsonBuiltinClass {
     pub name: String,
     pub indexing_return_type: Option<String>,
     pub is_keyed: bool,

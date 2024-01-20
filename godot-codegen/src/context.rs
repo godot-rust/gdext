@@ -6,7 +6,7 @@
  */
 
 use crate::json_models::{
-    JsonBuiltin, JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod,
+    JsonBuiltinClass, JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod,
 };
 use crate::util::{option_as_slice, MethodTableKey};
 use crate::{
@@ -185,7 +185,7 @@ impl<'a> Context<'a> {
     }
 
     fn populate_builtin_class_table_indices(
-        builtin: &JsonBuiltin,
+        builtin: &JsonBuiltinClass,
         methods: &[JsonBuiltinMethod],
         ctx: &mut Context,
     ) {

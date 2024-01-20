@@ -7,35 +7,24 @@
 
 use crate::context::Context;
 use crate::domain_models::{
-    BuiltinClass, BuiltinMethod, BuiltinVariant, Class, ClassCommons, ClassConstant,
-    ClassConstantValue, ClassMethod, Constructor, Enum, Enumerator, EnumeratorValue, ExtensionApi,
-    FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon, NativeStructure, Operator,
-    Singleton, UtilityFunction,
+    BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
+    ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, Constructor, Enum, Enumerator,
+    EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon,
+    GodotApiVersion, NativeStructure, Operator, Singleton, UtilityFunction,
 };
 use crate::json_models::{
-    JsonBuiltin, JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod, JsonConstructor,
-    JsonEnum, JsonEnumConstant, JsonExtensionApi, JsonMethodReturn, JsonNativeStructure,
-    JsonOperator, JsonSingleton, JsonUtilityFunction,
+    JsonBuiltinClass, JsonBuiltinMethod, JsonBuiltinSizes, JsonClass, JsonClassConstant,
+    JsonClassMethod, JsonConstructor, JsonEnum, JsonEnumConstant, JsonExtensionApi, JsonHeader,
+    JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSingleton, JsonUtilityFunction,
 };
 use crate::util::{get_api_level, ident, option_as_slice};
-use crate::{codegen_special_cases, conv, special_cases, ModName, TyName};
+use crate::{conv, special_cases, ModName, TyName};
 use proc_macro2::Ident;
 use std::collections::HashMap;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Top-level
 
-/*
-
-pub struct ExtensionApiDomain {
-    pub builtins: Vec<BuiltinClass>,
-    pub classes: Vec<Class>,
-    pub enums: Vec<Enum>,
-    pub native_structures: Vec<NativeStructure>,
-    pub singletons: Vec<Singleton>,
-    pub utility_functions: Vec<UtilityFunction>,
-}
- */
 impl ExtensionApi {
     pub fn from_json(
         json: &JsonExtensionApi,
@@ -66,7 +55,30 @@ impl ExtensionApi {
                 .map(|json| Enum::from_json(json, None))
                 .collect(),
             build_config,
+            godot_version: GodotApiVersion::from_json(&json.header),
+            builtin_sizes: Self::builtin_size_from_json(&json.builtin_class_sizes),
         }
+    }
+
+    fn builtin_size_from_json(json_builtin_sizes: &[JsonBuiltinSizes]) -> Vec<BuiltinSize> {
+        let mut result = Vec::new();
+
+        for json_builtin_size in json_builtin_sizes {
+            let build_config_str = json_builtin_size.build_configuration.as_str();
+            let config = BuildConfiguration::from_json(build_config_str);
+
+            if config.is_applicable() {
+                for size_for_config in &json_builtin_size.sizes {
+                    result.push(BuiltinSize {
+                        builtin_original_name: size_for_config.name.clone(),
+                        config,
+                        size: size_for_config.size,
+                    });
+                }
+            }
+        }
+
+        result
     }
 }
 
@@ -76,9 +88,7 @@ impl ExtensionApi {
 impl Class {
     pub fn from_json(json: &JsonClass, ctx: &mut Context) -> Option<Self> {
         let ty_name = TyName::from_godot(&json.name);
-        if special_cases::is_class_deleted(&ty_name)
-            || codegen_special_cases::is_class_excluded(ty_name.godot_ty.as_str())
-        {
+        if special_cases::is_class_deleted(&ty_name) {
             return None;
         }
 
@@ -122,7 +132,7 @@ impl Class {
 }
 
 impl BuiltinClass {
-    pub fn from_json(json: &JsonBuiltin, ctx: &mut Context) -> Option<Self> {
+    pub fn from_json(json: &JsonBuiltinClass, ctx: &mut Context) -> Option<Self> {
         let ty_name = TyName::from_godot(&json.name);
 
         if special_cases::is_builtin_type_deleted(&ty_name) {
@@ -184,19 +194,11 @@ impl Singleton {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Builtin variants
 
-/*
-pub struct BuiltinVariant {
-    pub(super) name: String,
-    pub(super) ty: Option<BuiltinClass>,
-    pub variant_type_ord: i32,
-}
- */
-
 impl BuiltinVariant {
     /// Returns all builtins, ordered by enum ordinal value.
     pub fn all_from_json(
         global_enums: &[JsonEnum],
-        builtin_classes: &[JsonBuiltin],
+        builtin_classes: &[JsonBuiltinClass],
         ctx: &mut Context,
     ) -> Vec<Self> {
         fn normalize(name: &str) -> String {
@@ -209,7 +211,7 @@ impl BuiltinVariant {
             .expect("missing enum for VariantType in JSON");
 
         // Make HashMap from builtin_classes, keyed by a normalized version of their names (all-lower, no underscores)
-        let builtin_classes: HashMap<String, &JsonBuiltin> = builtin_classes
+        let builtin_classes: HashMap<String, &JsonBuiltinClass> = builtin_classes
             .iter()
             .map(|c| (normalize(&c.name), c))
             .collect();
@@ -218,20 +220,25 @@ impl BuiltinVariant {
             .values
             .iter()
             .filter_map(|e| {
-                let shout_case = e
+                let json_shout_case = e
                     .name
                     .strip_prefix("TYPE_")
                     .expect("variant enumerator lacks prefix 'TYPE_'");
 
-                if shout_case == "NIL" || shout_case == "MAX" {
+                if json_shout_case == "NIL" || json_shout_case == "MAX" {
                     return None;
                 }
 
-                let name = normalize(shout_case);
-                let ty = builtin_classes.get(&name).map(|b| *b);
-                let ord = e.to_enum_ord();
+                let name = normalize(json_shout_case);
+                let json_builtin_class = builtin_classes.get(&name).copied();
+                let json_ord = e.to_enum_ord();
 
-                Some(Self::from_json(shout_case, ord, ty, ctx))
+                Some(Self::from_json(
+                    json_shout_case,
+                    json_ord,
+                    json_builtin_class,
+                    ctx,
+                ))
             })
             .collect::<Vec<_>>();
 
@@ -242,20 +249,17 @@ impl BuiltinVariant {
     pub fn from_json(
         json_variant_enumerator_name: &str,
         json_variant_enumerator_ord: i32,
-        json_builtin: Option<&JsonBuiltin>,
+        json_builtin_class: Option<&JsonBuiltinClass>,
         ctx: &mut Context,
     ) -> Self {
         let builtin_class;
         let godot_original_name;
 
-        if let Some(json_builtin) = json_builtin {
+        // Nil, int, float etc. are not represented by a BuiltinVariant.
+        // Object has no BuiltinClass, but still gets its BuiltinVariant instance.
+        if let Some(json_builtin) = json_builtin_class {
             builtin_class = BuiltinClass::from_json(json_builtin, ctx);
             godot_original_name = json_builtin.name.clone();
-            // assert!(
-            //     builtin_class.is_some() || special_cases::is_class_deleted(),
-            //     "no builtin class `{}`",
-            //     json_builtin.name
-            // );
         } else {
             assert_eq!(json_variant_enumerator_name, "OBJECT");
 
@@ -266,7 +270,7 @@ impl BuiltinVariant {
         Self {
             godot_original_name,
             godot_shout_name: json_variant_enumerator_name.to_string(), // Without `TYPE_` prefix.
-            godot_snake_name: conv::to_snake_case(&json_variant_enumerator_name),
+            godot_snake_name: conv::to_snake_case(json_variant_enumerator_name),
             builtin_class,
             variant_type_ord: json_variant_enumerator_ord,
         }
@@ -289,6 +293,38 @@ impl Operator {
     pub fn from_json(json: &JsonOperator) -> Self {
         Self {
             symbol: json.name.clone(),
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Build config + version
+
+impl BuildConfiguration {
+    pub fn from_json(json: &str) -> Self {
+        match json {
+            "float_32" => Self::Float32,
+            "float_64" => Self::Float64,
+            "double_32" => Self::Double32,
+            "double_64" => Self::Double64,
+            _ => panic!("invalid build configuration: {}", json),
+        }
+    }
+}
+
+impl GodotApiVersion {
+    pub fn from_json(json: &JsonHeader) -> Self {
+        let version_string = json
+            .version_full_name
+            .strip_prefix("Godot Engine ")
+            .unwrap_or(&json.version_full_name)
+            .to_string();
+
+        Self {
+            major: json.version_major,
+            minor: json.version_minor,
+            patch: json.version_patch,
+            version_string,
         }
     }
 }
@@ -340,6 +376,12 @@ impl ClassMethod {
         class_name: &TyName,
         ctx: &mut Context,
     ) -> Option<ClassMethod> {
+        assert!(!special_cases::is_class_deleted(class_name));
+
+        if special_cases::is_class_method_deleted(class_name, method, ctx) {
+            return None;
+        }
+
         if method.is_virtual {
             Self::from_json_virtual(method, class_name, ctx)
         } else {
@@ -347,15 +389,12 @@ impl ClassMethod {
         }
     }
 
-    pub fn from_json_outbound(
+    fn from_json_outbound(
         method: &JsonClassMethod,
         class_name: &TyName,
         ctx: &mut Context,
     ) -> Option<Self> {
-        if method.is_virtual {
-            return None;
-        }
-
+        assert!(!method.is_virtual);
         let hash = method
             .hash
             .expect("hash absent for non-virtual class method");
@@ -370,15 +409,13 @@ impl ClassMethod {
             ctx,
         )
     }
-    pub fn from_json_virtual(
+
+    fn from_json_virtual(
         method: &JsonClassMethod,
         class_name: &TyName,
         ctx: &mut Context,
     ) -> Option<Self> {
-        if !method.is_virtual {
-            return None;
-        }
-
+        assert!(method.is_virtual);
         assert!(
             method.hash.is_none(),
             "hash present for virtual class method"

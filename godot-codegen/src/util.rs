@@ -5,14 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::json_models::{JsonClass, JsonClassConstant, JsonClassMethod};
+use crate::json_models::{JsonClass, JsonClassConstant};
 use crate::{conv, RustTy, TyName};
 
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
 
 use crate::domain_models::{
-    BuiltinMethod, ClassConstant, ClassConstantValue, Enum, Enumerator, EnumeratorValue, Function,
+    BuiltinClass, BuiltinMethod, Class, ClassConstant, ClassConstantValue, ClassLike, ClassMethod,
+    Enum, Enumerator, EnumeratorValue, Function,
 };
 use std::fmt;
 
@@ -98,6 +99,21 @@ pub(crate) enum MethodTableKey {
 }
 
 impl MethodTableKey {
+    pub fn from_class(class: &Class, method: &ClassMethod) -> MethodTableKey {
+        Self::ClassMethod {
+            api_level: class.api_level,
+            class_ty: class.name().clone(),
+            method_name: method.godot_name().to_string(),
+        }
+    }
+
+    pub fn from_builtin(builtin_class: &BuiltinClass, method: &BuiltinMethod) -> MethodTableKey {
+        Self::BuiltinMethod {
+            builtin_ty: builtin_class.name().clone(),
+            method_name: method.godot_name().to_string(),
+        }
+    }
+
     /// Maps the method table key to a "category", meaning a distinct method table.
     ///
     /// Categories have independent address spaces for indices, meaning they begin again at 0 for each new category.
@@ -162,19 +178,11 @@ pub(crate) fn make_imports() -> TokenStream {
 }
 
 // Use &ClassMethod instead of &str, to make sure it's the original Godot name and no rename.
-pub(crate) fn make_class_method_ptr_name(class_ty: &TyName, method: &JsonClassMethod) -> Ident {
+pub(crate) fn make_table_accessor_name(class_ty: &TyName, method: &dyn Function) -> Ident {
     format_ident!(
         "{}__{}",
         conv::to_snake_case(&class_ty.godot_ty),
-        method.name
-    )
-}
-
-pub(crate) fn make_builtin_method_ptr_name(builtin_ty: &TyName, method: &BuiltinMethod) -> Ident {
-    format_ident!(
-        "{}__{}",
-        conv::to_snake_case(&builtin_ty.godot_ty),
-        method.name()
+        method.godot_name()
     )
 }
 

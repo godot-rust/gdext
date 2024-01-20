@@ -57,18 +57,19 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     is_rust_type_excluded(&conv::to_rust_type(ty, None, ctx))
 }
 
+#[cfg(feature = "codegen-full")]
+fn is_type_excluded(_ty: &str, _ctx: &mut Context) -> bool {
+    false
+}
+
 pub(crate) fn is_class_method_excluded(method: &JsonClassMethod, ctx: &mut Context) -> bool {
     let is_arg_or_return_excluded = |ty: &str, _ctx: &mut Context| {
-        let class_deleted = special_cases::is_class_deleted(&TyName::from_godot(ty));
+        // First check if the type is explicitly deleted. In Godot, type names are unique without further categorization,
+        // so passing in a class name while checking for any types is fine.
+        let class_deleted = special_cases::is_godot_type_deleted(&TyName::from_godot(ty));
 
-        #[cfg(not(feature = "codegen-full"))]
-        {
-            class_deleted || is_type_excluded(ty, _ctx)
-        }
-        #[cfg(feature = "codegen-full")]
-        {
-            class_deleted
-        }
+        // Then also check if the type is excluded from codegen (due to current Cargo feature. RHS is always false in full-codegen.
+        class_deleted || is_type_excluded(ty, _ctx)
     };
 
     // Exclude if return type contains an excluded type.

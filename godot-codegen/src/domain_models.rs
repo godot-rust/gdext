@@ -27,6 +27,10 @@ pub struct ExtensionApi {
     pub utility_functions: Vec<UtilityFunction>,
     pub global_enums: Vec<Enum>,
     pub build_config: [&'static str; 2],
+    pub godot_version: GodotApiVersion,
+
+    /// Map `(original Godot name, build config) -> builtin size` in bytes.
+    pub builtin_sizes: Vec<BuiltinSize>,
 }
 
 impl ExtensionApi {
@@ -214,17 +218,6 @@ pub enum ClassConstantValue {
     I64(i64),
 }
 
-/*
-// Constants of builtin types have a string value like "Vector2(1, 1)", hence also a type field
-
-pub struct BuiltinConstant {
-    pub name: String,
-    #[nserde(rename = "type")]
-    pub type_: String,
-    pub value: String,
-}
-*/
-
 pub struct Operator {
     pub symbol: String,
     //pub right_type: Option<String>, // null if unary
@@ -235,6 +228,62 @@ pub struct Constructor {
     pub index: usize,
     pub raw_parameters: Vec<JsonMethodArg>,
     // pub parameters: Vec<FnParam>,
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Build config + version
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum BuildConfiguration {
+    Float32,
+    Float64,
+    Double32,
+    Double64,
+}
+
+impl BuildConfiguration {
+    #[cfg(feature = "double-precision")]
+    pub fn is_applicable(self) -> bool {
+        matches!(self, Self::Double32 | Self::Double64)
+    }
+
+    #[cfg(not(feature = "double-precision"))]
+    pub fn is_applicable(self) -> bool {
+        matches!(self, Self::Float32 | Self::Float64)
+    }
+
+    // Rewrite the above using #[cfg].
+    #[cfg(feature = "double-precision")]
+    pub fn all_applicable() -> [BuildConfiguration; 2] {
+        [BuildConfiguration::Double32, BuildConfiguration::Double64]
+    }
+
+    #[cfg(not(feature = "double-precision"))]
+    pub fn all_applicable() -> [BuildConfiguration; 2] {
+        [BuildConfiguration::Float32, BuildConfiguration::Float64]
+    }
+
+    pub fn is_64bit(self) -> bool {
+        matches!(self, Self::Float64 | Self::Double64)
+    }
+}
+
+pub struct BuiltinSize {
+    pub builtin_original_name: String,
+    pub config: BuildConfiguration,
+    pub size: usize,
+}
+
+/// Godot API version (from the JSON; not runtime version).
+// Could be consolidated with versions in other part of codegen, e.g. the one in godot-bindings.
+#[derive(Clone)]
+pub struct GodotApiVersion {
+    pub major: u8,
+    pub minor: u8,
+    pub patch: u8,
+
+    /// Without "Godot Engine " prefix.
+    pub version_string: String,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -299,6 +348,15 @@ struct FnSignature<'a> {
 
 pub struct UtilityFunction {
     pub(super) common: FunctionCommon,
+}
+
+impl UtilityFunction {
+    pub fn hash(&self) -> i64 {
+        match self.direction() {
+            FnDirection::Virtual => unreachable!("utility function cannot be virtual"),
+            FnDirection::Outbound { hash } => hash,
+        }
+    }
 }
 
 impl Function for UtilityFunction {

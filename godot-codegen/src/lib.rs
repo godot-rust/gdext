@@ -77,7 +77,11 @@ pub fn generate_sys_files(
     let api = ExtensionApi::from_json(&json_api, build_config, &mut ctx);
     watch.record("map_domain_models");
 
-    generate_sys_central_file(&json_api, &api, &mut ctx, sys_gen_path, &mut submit_fn);
+    // TODO if ctx is no longer needed for below functions:
+    // Deallocate all the JSON models; no longer needed for codegen.
+    // drop(json_api);
+
+    generate_sys_central_file(&api, &mut ctx, sys_gen_path, &mut submit_fn);
     watch.record("generate_central_file");
 
     generate_sys_builtin_methods_file(&api, sys_gen_path, &mut ctx, &mut submit_fn);
@@ -86,13 +90,13 @@ pub fn generate_sys_files(
     generate_sys_builtin_lifecycle_file(&api, sys_gen_path, &mut submit_fn);
     watch.record("generate_builtin_lifecycle_file");
 
-    generate_sys_classes_file(&json_api, sys_gen_path, watch, &mut ctx, &mut submit_fn);
+    generate_sys_classes_file(&api, sys_gen_path, watch, &mut ctx, &mut submit_fn);
     // watch records inside the function.
 
-    generate_sys_utilities_file(&json_api, sys_gen_path, &mut ctx, &mut submit_fn);
+    generate_sys_utilities_file(&api, sys_gen_path, &mut submit_fn);
     watch.record("generate_utilities_file");
 
-    let is_godot_4_0 = json_api.header.version_major == 4 && json_api.header.version_minor == 0;
+    let is_godot_4_0 = api.godot_version.major == 4 && api.godot_version.minor == 0;
     generate_sys_interface_file(h_path, sys_gen_path, is_godot_4_0, &mut submit_fn);
     watch.record("generate_interface_file");
 }
@@ -102,23 +106,27 @@ pub fn generate_core_files(core_gen_path: &Path) {
 
     generate_core_mod_file(core_gen_path, &mut submit_fn);
 
-    let (api, build_config) = load_extension_api(&mut watch);
-    let mut ctx = Context::build_from_api(&api);
+    let (json_api, build_config) = load_extension_api(&mut watch);
+    let mut ctx = Context::build_from_api(&json_api);
     watch.record("build_context");
 
-    let domain = ExtensionApi::from_json(&api, build_config, &mut ctx);
+    let api = ExtensionApi::from_json(&json_api, build_config, &mut ctx);
     watch.record("map_domain_models");
 
-    generate_core_central_file(&api, &domain, &mut ctx, core_gen_path, &mut submit_fn);
+    // TODO if ctx is no longer needed for below functions:
+    // Deallocate all the JSON models; no longer needed for codegen.
+    // drop(json_api);
+
+    generate_core_central_file(&api, &mut ctx, core_gen_path, &mut submit_fn);
     watch.record("generate_central_file");
 
-    generate_utilities_file(&api, &mut ctx, core_gen_path, &mut submit_fn);
+    generate_utilities_file(&api, core_gen_path, &mut submit_fn);
     watch.record("generate_utilities_file");
 
     // Class files -- currently output in godot-core; could maybe be separated cleaner
     // Note: deletes entire generated directory!
     generate_class_files(
-        &domain,
+        &api,
         &mut ctx,
         build_config,
         &core_gen_path.join("classes"),
@@ -127,7 +135,7 @@ pub fn generate_core_files(core_gen_path: &Path) {
     watch.record("generate_class_files");
 
     generate_builtin_class_files(
-        &domain,
+        &api,
         &mut ctx,
         build_config,
         &core_gen_path.join("builtin_classes"),
@@ -136,7 +144,7 @@ pub fn generate_core_files(core_gen_path: &Path) {
     watch.record("generate_builtin_class_files");
 
     generate_native_structures_files(
-        &domain,
+        &api,
         &mut ctx,
         build_config,
         &core_gen_path.join("native"),

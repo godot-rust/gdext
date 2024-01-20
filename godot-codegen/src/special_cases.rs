@@ -48,14 +48,18 @@ pub(crate) fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMet
     }
 }
 
-#[rustfmt::skip]
 pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
+    codegen_special_cases::is_class_excluded(&class_name.godot_ty)
+        || is_godot_type_deleted(class_name)
+}
+
+pub(crate) fn is_godot_type_deleted(ty_name: &TyName) -> bool {
     // Exclude experimental APIs unless opted-in.
-    if !cfg!(feature = "experimental-godot-api") && is_class_experimental(class_name) {
+    if !cfg!(feature = "experimental-godot-api") && is_class_experimental(ty_name) {
         return true;
     }
 
-    let class_name = class_name.godot_ty.as_str();
+    let class_name = ty_name.godot_ty.as_str();
 
     // OpenXR has not been available for macOS before 4.2.
     // See e.g. https://github.com/GodotVR/godot-xr-tools/issues/479.

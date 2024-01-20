@@ -10,15 +10,11 @@ use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use std::path::Path;
 
 use crate::domain_models::{
-    BuiltinMethod, BuiltinVariant, ClassLike, Constructor, Enum, Enumerator, ExtensionApi,
-    Function, Operator,
+    BuiltinMethod, BuiltinVariant, Class, ClassLike, ClassMethod, Constructor, Enumerator,
+    ExtensionApi, FnDirection, Function, GodotApiVersion, Operator,
 };
-use crate::json_models::*;
-use crate::util::{
-    make_builtin_method_ptr_name, make_class_method_ptr_name, option_as_slice, ClassCodegenLevel,
-    MethodTableKey,
-};
-use crate::{codegen_special_cases, conv, ident, special_cases, util, Context, SubmitFn, TyName};
+use crate::util::{make_table_accessor_name, ClassCodegenLevel, MethodTableKey};
+use crate::{conv, ident, special_cases, util, Context, SubmitFn, TyName};
 
 struct CentralItems {
     opaque_types: [Vec<TokenStream>; 2],
@@ -28,7 +24,7 @@ struct CentralItems {
     variant_op_enumerators_pascal: Vec<Ident>,
     variant_op_enumerators_ord: Vec<Literal>,
     global_enum_defs: Vec<TokenStream>,
-    godot_version: JsonHeader,
+    godot_version: GodotApiVersion,
 }
 
 struct NamedMethodTable {
@@ -119,20 +115,19 @@ struct AccessorMethod {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub(crate) fn generate_sys_central_file(
-    json_api: &JsonExtensionApi,
     api: &ExtensionApi,
     ctx: &mut Context,
     sys_gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
-    let central_items = make_central_items(json_api, api, ctx);
+    let central_items = make_central_items(api, ctx);
     let sys_code = make_sys_code(central_items);
 
     submit_fn(sys_gen_path.join("central.rs"), sys_code);
 }
 
 pub(crate) fn generate_sys_classes_file(
-    api: &JsonExtensionApi,
+    api: &ExtensionApi,
     sys_gen_path: &Path,
     watch: &mut godot_bindings::StopWatch,
     ctx: &mut Context,
@@ -148,9 +143,8 @@ pub(crate) fn generate_sys_classes_file(
 }
 
 pub(crate) fn generate_sys_utilities_file(
-    api: &JsonExtensionApi,
+    api: &ExtensionApi,
     sys_gen_path: &Path,
-    ctx: &mut Context,
     submit_fn: &mut SubmitFn,
 ) {
     let mut table = NamedMethodTable {
@@ -171,13 +165,9 @@ pub(crate) fn generate_sys_utilities_file(
     };
 
     for function in api.utility_functions.iter() {
-        if special_cases::is_utility_function_deleted(function, ctx) {
-            continue;
-        }
-
-        let fn_name_str = &function.name;
+        let fn_name_str = function.name();
         let field = util::make_utility_function_ptr_name(fn_name_str);
-        let hash = function.hash;
+        let hash = function.hash();
 
         table.method_decls.push(quote! {
             pub #field: crate::UtilityFunctionBind,
@@ -453,13 +443,12 @@ pub(crate) fn generate_core_mod_file(gen_path: &Path, submit_fn: &mut SubmitFn) 
 }
 
 pub(crate) fn generate_core_central_file(
-    json_api: &JsonExtensionApi,
     api: &ExtensionApi,
     ctx: &mut Context,
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
-    let central_items = make_central_items(json_api, api, ctx);
+    let central_items = make_central_items(api, ctx);
     let core_code = make_core_code(&central_items);
 
     submit_fn(gen_path.join("central.rs"), core_code);
@@ -555,14 +544,13 @@ fn make_sys_code(central_items: CentralItems) -> TokenStream {
     }
 }
 
-fn make_build_config(header: &JsonHeader) -> TokenStream {
-    let version_string = header
-        .version_full_name
-        .strip_prefix("Godot Engine ")
-        .unwrap_or(&header.version_full_name);
-    let major = header.version_major;
-    let minor = header.version_minor;
-    let patch = header.version_patch;
+fn make_build_config(header: &GodotApiVersion) -> TokenStream {
+    let GodotApiVersion {
+        major,
+        minor,
+        patch,
+        version_string,
+    } = header;
 
     // Should this be mod?
     quote! {
@@ -681,21 +669,13 @@ fn make_core_code(central_items: &CentralItems) -> TokenStream {
     }
 }
 
-fn make_central_items(
-    json_api: &JsonExtensionApi,
-    api: &ExtensionApi,
-    ctx: &mut Context,
-) -> CentralItems {
+fn make_central_items(api: &ExtensionApi, ctx: &mut Context) -> CentralItems {
     let mut opaque_types = [Vec::new(), Vec::new()];
-    for class in &json_api.builtin_class_sizes {
-        for i in 0..2 {
-            if class.build_configuration == api.build_config[i] {
-                for JsonClassSize { name, size } in &class.sizes {
-                    opaque_types[i].push(make_opaque_type(name, *size));
-                }
-                break;
-            }
-        }
+
+    for b in api.builtin_sizes.iter() {
+        let index = b.config.is_64bit() as usize;
+
+        opaque_types[index].push(make_opaque_type(&b.builtin_original_name, b.size));
     }
 
     let variant_operators = collect_variant_operators(api);
@@ -712,7 +692,7 @@ fn make_central_items(
         variant_op_enumerators_pascal: Vec::new(),
         variant_op_enumerators_ord: Vec::new(),
         global_enum_defs: Vec::new(),
-        godot_version: json_api.header.clone(),
+        godot_version: api.godot_version.clone(),
     };
 
     // Note: NIL is not part of this iteration, it will be added manually.
@@ -746,15 +726,13 @@ fn make_central_items(
             .push(op.value.unsuffixed_lit());
     }
 
-    for json_enum in json_api.global_enums.iter() {
-        // Skip those enums which are already explicitly handled.
-        if matches!(json_enum.name.as_str(), "Variant.Type" | "Variant.Operator") {
+    for enum_ in api.global_enums.iter() {
+        // Skip those enums which are already manually handled.
+        if enum_.name == "VariantType" || enum_.name == "VariantOperator" {
             continue;
         }
 
-        let domain_enum = Enum::from_json(json_enum, None);
-
-        let def = util::make_enum_definition(&domain_enum);
+        let def = util::make_enum_definition(enum_);
         result.global_enum_defs.push(def);
     }
 
@@ -802,7 +780,7 @@ fn make_builtin_lifecycle_table(api: &ExtensionApi) -> TokenStream {
 }
 
 fn make_class_method_table(
-    api: &JsonExtensionApi,
+    api: &ExtensionApi,
     api_level: ClassCodegenLevel,
     ctx: &mut Context,
 ) -> TokenStream {
@@ -834,17 +812,10 @@ fn make_class_method_table(
         method_count: 0,
     };
 
-    for class in api.classes.iter() {
-        let class_ty = TyName::from_godot(&class.name);
-        if special_cases::is_class_deleted(&class_ty)
-            || codegen_special_cases::is_class_excluded(&class.name)
-            || util::get_api_level(class) != api_level
-        {
-            continue;
-        }
-
-        populate_class_methods(&mut table, class, &class_ty, ctx);
-    }
+    api.classes
+        .iter()
+        .filter(|c| c.api_level == api_level)
+        .for_each(|c| populate_class_methods(&mut table, c, ctx));
 
     table.pre_init_code = quote! {
         let fetch_fptr = interface.classdb_get_method_bind.expect("classdb_get_method_bind absent");
@@ -882,6 +853,7 @@ fn make_named_accessors(accessors: &[AccessorMethod], fptr: &TokenStream) -> Tok
 
         result_api.append_all(code.into_iter());
     }
+
     result_api
 }
 
@@ -923,48 +895,33 @@ fn make_builtin_method_table(api: &ExtensionApi, ctx: &mut Context) -> TokenStre
     make_method_table(table)
 }
 
-fn populate_class_methods(
-    table: &mut IndexedMethodTable,
-    class: &JsonClass,
-    class_ty: &TyName,
-    ctx: &mut Context,
-) {
+fn populate_class_methods(table: &mut IndexedMethodTable, class: &Class, ctx: &mut Context) {
     // Note: already checked outside whether class is active in codegen.
 
-    let class_var = format_ident!("sname_{}", &class.name);
+    let class_ty = class.name();
+    let class_var = format_ident!("sname_{}", class_ty.godot_ty);
     let mut method_inits = vec![];
 
-    for method in option_as_slice(&class.methods) {
+    for method in class.methods.iter() {
         // Virtual methods are not part of the class API itself, but exposed as an accompanying trait.
-        // Earlier code to detect virtuals: method.name.starts_with('_')
-        if special_cases::is_class_method_deleted(class_ty, method, ctx) || method.is_virtual {
+        let FnDirection::Outbound { hash } = method.direction() else {
             continue;
-        }
+        };
 
         // Note: varcall/ptrcall is only decided at call time; the method bind is the same for both.
-        let index = ctx.get_table_index(&MethodTableKey::ClassMethod {
-            api_level: util::get_api_level(class),
-            class_ty: class_ty.clone(),
-            method_name: method.name.clone(),
-        });
+        let index = ctx.get_table_index(&MethodTableKey::from_class(class, method));
 
-        let method_init = make_class_method_init(method, &class_var, class_ty);
+        let method_init = make_class_method_init(method, hash, &class_var, class_ty);
         method_inits.push(MethodInit { method_init, index });
-
-        println!(
-            "method {}, index {}, count {}",
-            method.name, index, table.method_count
-        );
         table.method_count += 1;
 
         // If requested, add a named accessor for this method.
-        if special_cases::is_named_accessor_in_table(class_ty, &method.name) {
+        if special_cases::is_named_accessor_in_table(class_ty, method.godot_name()) {
             let class_name_str = class_ty.godot_ty.as_str();
-            let method_name_str = method.name.as_str();
-            let hash = method.hash.expect("hash present");
+            let method_name_str = method.name();
 
             table.named_accessors.push(AccessorMethod {
-                name: make_class_method_ptr_name(class_ty, method),
+                name: make_table_accessor_name(class_ty, method),
                 index,
                 lazy_key: quote! {
                     crate::lazy_keys::ClassMethodKey {
@@ -1003,24 +960,21 @@ fn populate_builtin_methods(
 
     let mut method_inits = vec![];
     for method in builtin_class.methods.iter() {
-        let index = ctx.get_table_index(&MethodTableKey::BuiltinMethod {
-            builtin_ty: builtin_ty.clone(),
-            method_name: method.name().to_string(),
-        });
+        let index = ctx.get_table_index(&MethodTableKey::from_builtin(builtin_class, method));
 
-        let method_init = make_builtin_method_init(builtin, &method, index);
+        let method_init = make_builtin_method_init(builtin, method, index);
         method_inits.push(MethodInit { method_init, index });
         table.method_count += 1;
 
         // If requested, add a named accessor for this method.
-        if special_cases::is_named_accessor_in_table(&builtin_ty, method.name()) {
+        if special_cases::is_named_accessor_in_table(builtin_ty, method.godot_name()) {
             let variant_type = builtin.sys_variant_type();
             let variant_type_str = builtin.godot_original_name();
             let method_name_str = method.name();
             let hash = method.hash();
 
             table.named_accessors.push(AccessorMethod {
-                name: make_builtin_method_ptr_name(&builtin_ty, &method),
+                name: make_table_accessor_name(builtin_ty, method),
                 index,
                 lazy_key: quote! {
                     crate::lazy_keys::BuiltinMethodKey {
@@ -1043,19 +997,13 @@ fn populate_builtin_methods(
 }
 
 fn make_class_method_init(
-    method: &JsonClassMethod,
+    method: &ClassMethod,
+    hash: i64,
     class_var: &Ident,
     class_ty: &TyName,
 ) -> TokenStream {
     let class_name_str = class_ty.godot_ty.as_str();
-    let method_name_str = method.name.as_str();
-
-    let hash = method.hash.unwrap_or_else(|| {
-        panic!(
-            "class method has no hash: {}::{}",
-            class_ty.godot_ty, method_name_str
-        )
-    });
+    let method_name_str = method.godot_name();
 
     // Could reuse lazy key, but less code like this -> faster parsing.
     quote! {
@@ -1099,11 +1047,6 @@ fn make_builtin_method_init(
 }
 
 fn collect_variant_operators(api: &ExtensionApi) -> Vec<&Enumerator> {
-    println!(
-        "{:?}",
-        api.global_enums.iter().map(|e| &e.name).collect::<Vec<_>>()
-    );
-
     let variant_operator_enum = api
         .global_enums
         .iter()
@@ -1113,8 +1056,8 @@ fn collect_variant_operators(api: &ExtensionApi) -> Vec<&Enumerator> {
     variant_operator_enum.enumerators.iter().collect()
 }
 
-fn make_opaque_type(name: &str, size: usize) -> TokenStream {
-    let name = conv::to_pascal_case(name);
+fn make_opaque_type(godot_original_name: &str, size: usize) -> TokenStream {
+    let name = conv::to_pascal_case(godot_original_name);
     let (first, rest) = name.split_at(1);
 
     // Capitalize: "int" -> "Int".
