@@ -292,6 +292,8 @@ impl<T: GodotClass> RawGd<T> {
         unsafe { self.as_upcast_mut::<GdDerefTarget<T>>() }
     }
 
+    // Clippy believes the type parameters are not used, however they are used in the `.ffi_cast::<Base>` call.
+    #[allow(clippy::extra_unused_type_parameters)]
     fn ensure_valid_upcast<Base>(&self)
     where
         Base: GodotClass,
