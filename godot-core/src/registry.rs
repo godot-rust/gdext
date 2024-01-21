@@ -148,6 +148,22 @@ pub enum PluginComponent {
             ),
         >,
 
+        user_set_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr,
+                p_name: sys::GDExtensionConstStringNamePtr,
+                p_value: sys::GDExtensionConstVariantPtr,
+            ) -> sys::GDExtensionBool,
+        >,
+
+        user_get_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr,
+                p_name: sys::GDExtensionConstStringNamePtr,
+                r_ret: sys::GDExtensionVariantPtr,
+            ) -> sys::GDExtensionBool,
+        >,
+
         /// Callback for other virtuals.
         get_virtual_fn: unsafe extern "C" fn(
             p_userdata: *mut std::os::raw::c_void,
@@ -373,6 +389,8 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             user_recreate_fn,
             user_to_string_fn,
             user_on_notification_fn,
+            user_set_fn,
+            user_get_fn,
             get_virtual_fn,
         } => {
             c.user_register_fn = user_register_fn;
@@ -390,6 +408,8 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
 
             c.godot_params.to_string_func = user_to_string_fn;
             c.godot_params.notification_func = user_on_notification_fn;
+            c.godot_params.set_func = user_set_fn;
+            c.godot_params.get_func = user_get_fn;
             c.user_virtual_fn = Some(get_virtual_fn);
         }
         #[cfg(since_api = "4.1")]
@@ -510,6 +530,7 @@ fn unregister_class_raw(class_name: ClassName) {
 pub mod callbacks {
     use super::*;
     use crate::builder::ClassBuilder;
+    use crate::builtin::Variant;
     use crate::obj::Base;
     use crate::storage::{Storage, StorageRefCounted};
 
@@ -655,6 +676,43 @@ pub mod callbacks {
         let mut instance = storage.get_mut();
 
         T::__godot_notification(&mut *instance, what);
+    }
+
+    pub unsafe extern "C" fn get<T: cap::GodotGet>(
+        instance: sys::GDExtensionClassInstancePtr,
+        name: sys::GDExtensionConstStringNamePtr,
+        ret: sys::GDExtensionVariantPtr,
+    ) -> sys::GDExtensionBool {
+        let storage = as_storage::<T>(instance);
+        let instance = storage.get();
+        let property = StringName::from_string_sys(sys::force_mut_ptr(name));
+
+        std::mem::forget(property.clone());
+
+        match T::__godot_get(&*instance, property) {
+            Some(value) => {
+                value.move_var_ptr(ret);
+                true as sys::GDExtensionBool
+            }
+            None => false as sys::GDExtensionBool,
+        }
+    }
+
+    pub unsafe extern "C" fn set<T: cap::GodotSet>(
+        instance: sys::GDExtensionClassInstancePtr,
+        name: sys::GDExtensionConstStringNamePtr,
+        value: sys::GDExtensionConstVariantPtr,
+    ) -> sys::GDExtensionBool {
+        let storage = as_storage::<T>(instance);
+        let mut instance = storage.get_mut();
+
+        let property = StringName::from_string_sys(sys::force_mut_ptr(name));
+        let value = Variant::from_var_sys(sys::force_mut_ptr(value));
+
+        std::mem::forget(property.clone());
+        std::mem::forget(value.clone());
+
+        T::__godot_set(&mut *instance, property, value) as sys::GDExtensionBool
     }
 
     pub unsafe extern "C" fn reference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {

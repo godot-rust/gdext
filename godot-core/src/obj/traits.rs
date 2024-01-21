@@ -416,6 +416,7 @@ where
 /// Capability traits, providing dedicated functionalities for Godot classes
 pub mod cap {
     use super::*;
+    use crate::builtin::{StringName, Variant};
     use crate::obj::{Base, Bounds, Gd};
 
     /// Trait for all classes that are default-constructible from the Godot engine.
@@ -481,6 +482,18 @@ pub mod cap {
     pub trait GodotRegisterClass: GodotClass {
         #[doc(hidden)]
         fn __godot_register_class(builder: &mut ClassBuilder<Self>);
+    }
+
+    #[doc(hidden)]
+    pub trait GodotGet: GodotClass {
+        #[doc(hidden)]
+        fn __godot_get(&self, property: StringName) -> Option<Variant>;
+    }
+
+    #[doc(hidden)]
+    pub trait GodotSet: GodotClass {
+        #[doc(hidden)]
+        fn __godot_set(&mut self, property: StringName, value: Variant) -> bool;
     }
 
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks
