@@ -7,11 +7,12 @@
 
 use std::cell::Cell;
 
-use godot::builtin::{GString, Variant};
+use godot::builtin::meta::ToGodot;
+use godot::builtin::{Callable, GString, Signal, StringName, Variant};
 use godot::register::{godot_api, GodotClass};
 
-use godot::engine::Object;
-use godot::obj::{Base, Gd, NewAlloc, WithBaseField};
+use godot::engine::{Object, RefCounted};
+use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
 use godot::sys;
 
 use crate::framework::itest;
@@ -87,4 +88,61 @@ fn signals() {
 
     receiver.free();
     emitter.free();
+}
+
+#[itest]
+fn instantiate_signal() {
+    let mut object = RefCounted::new_gd();
+
+    object.add_user_signal("test_signal".into());
+
+    let signal = Signal::from_object_signal(&object, "test_signal");
+
+    assert!(!signal.is_null());
+    assert_eq!(signal.name(), StringName::from("test_signal"));
+    assert_eq!(signal.object().unwrap(), object.clone().upcast());
+    assert_eq!(signal.object_id().unwrap(), object.instance_id());
+}
+
+#[itest]
+fn emit_signal() {
+    let mut object = RefCounted::new_gd();
+
+    object.add_user_signal("test_signal".into());
+
+    let signal = Signal::from_object_signal(&object, "test_signal");
+    let receiver = Receiver::new_alloc();
+
+    object.connect(
+        StringName::from("test_signal"),
+        Callable::from_object_method(&receiver, "receive_1_arg"),
+    );
+
+    assert_eq!(signal.connections().len(), 1);
+
+    signal.emit(&[987i64.to_variant()]);
+
+    assert!(receiver.bind().used[1].get());
+
+    receiver.free();
+}
+
+#[itest]
+fn connect_signal() {
+    let mut object = RefCounted::new_gd();
+
+    object.add_user_signal("test_signal".into());
+
+    let signal = Signal::from_object_signal(&object, "test_signal");
+    let receiver = Receiver::new_alloc();
+
+    signal.connect(Callable::from_object_method(&receiver, "receive_1_arg"), 0);
+
+    assert_eq!(signal.connections().len(), 1);
+
+    object.emit_signal(StringName::from("test_signal"), &[987i64.to_variant()]);
+
+    assert!(receiver.bind().used[1].get());
+
+    receiver.free();
 }

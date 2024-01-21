@@ -431,9 +431,10 @@ mod export_impls {
     impl_property_by_clone!(u16 => Int; int);
     impl_property_by_clone!(u8 => Int; int);
 
-    // Callables are useless when exported to the editor, so we only need to make them available as
+    // Callables and Signals are useless when exported to the editor, so we only need to make them available as
     // properties.
     impl_property_by_clone!(Callable => Callable, no_export);
+    impl_property_by_clone!(Signal => Signal, no_export);
 
     // RIDs when exported act slightly weird. They are largely read-only, however you can reset them to their
     // default value. This seems to me very unintuitive. Since if we are storing an RID we would likely not

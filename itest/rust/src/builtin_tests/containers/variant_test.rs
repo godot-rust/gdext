@@ -9,7 +9,9 @@ use std::cmp::Ordering;
 use std::fmt::Display;
 
 use godot::builtin::meta::{FromGodot, ToGodot};
-use godot::builtin::{dict, varray, GString, NodePath, StringName, Variant, Vector2, Vector3};
+use godot::builtin::{
+    dict, varray, GString, NodePath, Signal, StringName, Variant, Vector2, Vector3,
+};
 use godot::builtin::{Basis, Dictionary, VariantArray, VariantOperator, VariantType};
 use godot::engine::Node2D;
 use godot::obj::{InstanceId, NewAlloc};
@@ -67,6 +69,9 @@ fn variant_conversions() {
 
     // basis
     roundtrip(TEST_BASIS);
+
+    // signal
+    roundtrip(Signal::invalid());
 }
 
 #[itest]

@@ -123,34 +123,6 @@ macro_rules! impl_builtin_traits {
     )
 }
 
-macro_rules! impl_builtin_stub {
-    // ($Class:ident, $OpaqueTy:ident $( ; )? $( $Traits:ident ),* ) => {
-    ($Class:ident, $OpaqueTy:ident) => {
-        #[repr(C)]
-        // #[derive(Copy, Clone)]
-        pub struct $Class {
-            opaque: sys::types::$OpaqueTy,
-        }
-
-        impl $Class {
-            fn from_opaque(opaque: sys::types::$OpaqueTy) -> Self {
-                Self { opaque }
-            }
-        }
-
-        // SAFETY:
-        // This is simply a wrapper around an `Opaque` value representing a value of the type.
-        // So this is safe.
-        unsafe impl GodotFfi for $Class {
-            fn variant_type() -> sys::VariantType {
-                sys::VariantType::$Class
-            }
-
-            ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
-        }
-    };
-}
-
 macro_rules! impl_builtin_froms {
     ($To:ty; $($From:ty => $from_fn:ident),* $(,)?) => {
         $(impl From<&$From> for $To {

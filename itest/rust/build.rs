@@ -127,6 +127,7 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; Vector3i, Vector3i, Vector3i(-1, -2147483648, 2147483647), Vector3i::new(-1, -2147483648, 2147483647));
     push!(inputs; Vector4i, Vector4i, Vector4i(-1, -2147483648, 2147483647, 1000), Vector4i::new(-1, -2147483648, 2147483647, 100));
     pushs!(inputs; Callable, Callable, "Callable()", Callable::invalid(), true, false, Some(quote! { Callable::invalid() }));
+    pushs!(inputs; Signal, Signal, "Signal()", Signal::invalid(), true, false, Some(quote! { Signal::invalid() }));
     push!(inputs; Rect2, Rect2, Rect2(), Rect2::default());
     push!(inputs; Rect2i, Rect2i, Rect2i(), Rect2i::default());
     push!(inputs; Transform2D, Transform2D, Transform2D(), Transform2D::default());
