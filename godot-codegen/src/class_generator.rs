@@ -11,17 +11,16 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 use std::path::Path;
 
-use crate::api_parser::*;
-use crate::central_generator::collect_builtin_types;
 use crate::context::NotificationEnum;
+use crate::models::domain::BuiltinMethod;
+use crate::models::domain::*;
 use crate::util::{
     ident, make_string_name, option_as_slice, parse_native_structures_format, safe_ident,
-    ClassCodegenLevel, MethodTableKey, NativeStructuresField,
+    MethodTableKey, NativeStructuresField,
 };
 use crate::{
-    codegen_special_cases, conv, special_cases, util, Context, GeneratedBuiltin,
-    GeneratedBuiltinModule, GeneratedClass, GeneratedClassModule, ModName, RustTy, SubmitFn,
-    TyName,
+    conv, special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
+    GeneratedClassModule, ModName, SubmitFn,
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -34,7 +33,6 @@ struct FnReceiver {
     ffi_arg: TokenStream,
 
     /// `Self::`, `self.`
-    #[allow(dead_code)] // TODO remove as soon as used
     self_prefix: TokenStream,
 }
 
@@ -47,136 +45,6 @@ impl FnReceiver {
             self_prefix: TokenStream::new(),
         }
     }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-struct FnParam {
-    name: Ident,
-    type_: RustTy,
-    default_value: Option<TokenStream>,
-}
-
-impl FnParam {
-    fn new_range(method_args: &Option<Vec<MethodArg>>, ctx: &mut Context) -> Vec<FnParam> {
-        option_as_slice(method_args)
-            .iter()
-            .map(|arg| Self::new(arg, ctx))
-            .collect()
-    }
-
-    fn new_range_no_defaults(
-        method_args: &Option<Vec<MethodArg>>,
-        ctx: &mut Context,
-    ) -> Vec<FnParam> {
-        option_as_slice(method_args)
-            .iter()
-            .map(|arg| Self::new_no_defaults(arg, ctx))
-            .collect()
-    }
-
-    fn new(method_arg: &MethodArg, ctx: &mut Context) -> FnParam {
-        let name = safe_ident(&method_arg.name);
-        let type_ = conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx);
-        let default_value = method_arg
-            .default_value
-            .as_ref()
-            .map(|v| conv::to_rust_expr(v, &type_));
-
-        FnParam {
-            name,
-            type_,
-            default_value,
-        }
-    }
-
-    fn new_no_defaults(method_arg: &MethodArg, ctx: &mut Context) -> FnParam {
-        FnParam {
-            name: safe_ident(&method_arg.name),
-            type_: conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx),
-            //type_: to_rust_type(&method_arg.type_, &method_arg.meta, ctx),
-            default_value: None,
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-struct FnReturn {
-    decl: TokenStream,
-    type_: Option<RustTy>,
-}
-
-impl FnReturn {
-    fn new(return_value: &Option<MethodReturn>, ctx: &mut Context) -> Self {
-        if let Some(ret) = return_value {
-            let ty = conv::to_rust_type(&ret.type_, ret.meta.as_ref(), ctx);
-
-            Self {
-                decl: ty.return_decl(),
-                type_: Some(ty),
-            }
-        } else {
-            Self {
-                decl: TokenStream::new(),
-                type_: None,
-            }
-        }
-    }
-
-    fn type_tokens(&self) -> TokenStream {
-        match &self.type_ {
-            Some(RustTy::EngineClass { tokens, .. }) => {
-                quote! { Option<#tokens> }
-            }
-            Some(ty) => {
-                quote! { #ty }
-            }
-            _ => {
-                quote! { () }
-            }
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-enum FnQualifier {
-    Mut,    // &mut self
-    Const,  // &self
-    Static, // Self
-    Global, // (nothing)
-}
-
-impl FnQualifier {
-    fn is_static_or_global(&self) -> bool {
-        matches!(self, Self::Static | Self::Global)
-    }
-}
-
-impl FnQualifier {
-    fn for_method(is_const: bool, is_static: bool) -> FnQualifier {
-        if is_static {
-            FnQualifier::Static
-        } else if is_const {
-            FnQualifier::Const
-        } else {
-            FnQualifier::Mut
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-struct FnSignature<'a> {
-    function_name: &'a str,
-    surrounding_class: Option<&'a TyName>, // None if global function
-    is_private: bool,
-    is_virtual: bool,
-    is_vararg: bool,
-    qualifier: FnQualifier,
-    params: Vec<FnParam>,
-    return_value: FnReturn,
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -239,7 +107,6 @@ impl FnDefinitions {
 pub(crate) fn generate_class_files(
     api: &ExtensionApi,
     ctx: &mut Context,
-    _build_config: [&str; 2],
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
@@ -248,25 +115,16 @@ pub(crate) fn generate_class_files(
 
     let mut modules = vec![];
     for class in api.classes.iter() {
-        let class_name = TyName::from_godot(&class.name);
-        let module_name = ModName::from_godot(&class.name);
-
-        if special_cases::is_class_deleted(&class_name)
-            || codegen_special_cases::is_class_excluded(class_name.godot_ty.as_str())
-        {
-            continue;
-        }
-
-        let generated_class = make_class(class, &class_name, ctx);
+        let generated_class = make_class(class, ctx);
         let file_contents = generated_class.code;
 
-        let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
+        let out_path = gen_path.join(format!("{}.rs", class.mod_name().rust_mod));
 
         submit_fn(out_path, file_contents);
 
         modules.push(GeneratedClassModule {
-            class_name,
-            module_name,
+            class_name: class.name().clone(),
+            module_name: class.mod_name().clone(),
             own_notification_enum_name: generated_class.notification_enum.try_to_own_name(),
             inherits_macro_ident: generated_class.inherits_macro_ident,
             is_pub_sidecar: generated_class.has_sidecar_module,
@@ -282,30 +140,22 @@ pub(crate) fn generate_class_files(
 pub(crate) fn generate_builtin_class_files(
     api: &ExtensionApi,
     ctx: &mut Context,
-    _build_config: [&str; 2],
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
     let _ = std::fs::remove_dir_all(gen_path);
     std::fs::create_dir_all(gen_path).expect("create classes directory");
 
-    let builtin_types_map = collect_builtin_types(api);
-
     let mut modules = vec![];
-    for class in api.builtin_classes.iter() {
-        let module_name = ModName::from_godot(&class.name);
-        let builtin_name = TyName::from_godot(&class.name);
-        let inner_builtin_name = TyName::from_godot(&format!("Inner{}", class.name));
-
-        if special_cases::is_builtin_type_deleted(&builtin_name) {
+    for class in api.builtins.iter() {
+        let Some(class) = class.builtin_class.as_ref() else {
             continue;
-        }
+        };
 
-        let _type_info = builtin_types_map
-            .get(&class.name)
-            .unwrap_or_else(|| panic!("builtin type not found: {}", class.name));
+        // let godot_class_name = &class.name().godot_ty;
+        let module_name = class.mod_name();
 
-        let generated_class = make_builtin_class(class, &builtin_name, &inner_builtin_name, ctx);
+        let generated_class = make_builtin_class(class, ctx);
         let file_contents = generated_class.code;
 
         let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
@@ -313,8 +163,8 @@ pub(crate) fn generate_builtin_class_files(
         submit_fn(out_path, file_contents);
 
         modules.push(GeneratedBuiltinModule {
-            class_name: inner_builtin_name,
-            module_name,
+            symbol_ident: class.inner_name().clone(),
+            module_name: module_name.clone(),
         });
     }
 
@@ -327,7 +177,6 @@ pub(crate) fn generate_builtin_class_files(
 pub(crate) fn generate_native_structures_files(
     api: &ExtensionApi,
     ctx: &mut Context,
-    _build_config: [&str; 2],
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
@@ -347,7 +196,7 @@ pub(crate) fn generate_native_structures_files(
         submit_fn(out_path, file_contents);
 
         modules.push(GeneratedBuiltinModule {
-            class_name,
+            symbol_ident: class_name.rust_ty.clone(),
             module_name,
         });
     }
@@ -442,12 +291,8 @@ fn make_module_doc(class_name: &TyName) -> String {
     )
 }
 
-fn make_constructor_and_default(
-    class: &Class,
-    class_name: &TyName,
-    ctx: &Context,
-) -> (TokenStream, TokenStream) {
-    let godot_class_name = &class.name;
+fn make_constructor_and_default(class: &Class, ctx: &Context) -> (TokenStream, TokenStream) {
+    let godot_class_name = &class.name().godot_ty;
     let godot_class_stringname = make_string_name(godot_class_name);
     // Note: this could use class_name() but is not yet done due to upcoming lazy-load refactoring.
     //let class_name_obj = quote! { <Self as crate::obj::GodotClass>::class_name() };
@@ -490,6 +335,7 @@ fn make_constructor_and_default(
     }
 
     let godot_default_impl = if has_godot_default_impl {
+        let class_name = &class.name().rust_ty;
         quote! {
             impl crate::obj::cap::GodotDefault for #class_name {
                 fn __godot_default() -> crate::obj::Gd<Self> {
@@ -504,7 +350,9 @@ fn make_constructor_and_default(
     (constructor, godot_default_impl)
 }
 
-fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> GeneratedClass {
+fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
+    let class_name = class.name();
+
     // Strings
     let godot_class_str = &class_name.godot_ty;
     let class_name_cstr = util::cstr_u8_slice(godot_class_str);
@@ -519,17 +367,18 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
         None => (quote! { () }, None),
     };
 
-    let (constructor, godot_default_impl) = make_constructor_and_default(class, class_name, ctx);
-    let api_level = util::get_api_level(class);
+    let (constructor, godot_default_impl) = make_constructor_and_default(class, ctx);
+    let api_level = class.api_level;
     let init_level = api_level.to_init_level();
 
     let FnDefinitions {
         functions: methods,
         builders,
-    } = make_methods(option_as_slice(&class.methods), class_name, &api_level, ctx);
+    } = make_methods(class, &class.methods, ctx);
 
-    let enums = make_enums(option_as_slice(&class.enums), class_name, ctx);
-    let constants = make_constants(option_as_slice(&class.constants), class_name, ctx);
+    let enums = make_enums(&class.enums);
+
+    let constants = make_constants(&class.constants);
     let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
 
     let (exportable_impl, exportable_macro_impl) = if ctx.is_exportable(class_name) {
@@ -585,7 +434,6 @@ fn make_class(class: &Class, class_name: &TyName, ctx: &mut Context) -> Generate
     let module_doc = make_module_doc(class_name);
     let virtual_trait = make_virtual_methods_trait(
         class,
-        class_name,
         &all_bases,
         &virtual_trait_str,
         &notification_enum_name,
@@ -847,40 +695,22 @@ fn workaround_constant_collision(all_constants: &mut Vec<(Ident, i32)>) {
     }
 }
 
-fn make_builtin_class(
-    class: &BuiltinClass,
-    builtin_name: &TyName,
-    inner_class_name: &TyName,
-    ctx: &mut Context,
-) -> GeneratedBuiltin {
-    let outer_class =
-        if let RustTy::BuiltinIdent(ident) = conv::to_rust_type(&class.name, None, ctx) {
-            ident
-        } else {
-            panic!("Rust type `{}` categorized wrong", class.name)
-        };
-    let inner_class = &inner_class_name.rust_ty;
+fn make_builtin_class(class: &BuiltinClass, ctx: &mut Context) -> GeneratedBuiltin {
+    let godot_name = &class.name().godot_ty;
 
-    let class_enums = class.enums.as_ref().map_or(Vec::new(), |class_enums| {
-        class_enums
-            .iter()
-            .map(BuiltinClassEnum::to_enum)
-            .collect::<Vec<Enum>>()
-    });
+    let RustTy::BuiltinIdent(outer_class) = conv::to_rust_type(godot_name, None, ctx) else {
+        panic!("Rust type `{}` categorized wrong", godot_name)
+    };
+    let inner_class = class.inner_name();
 
     let FnDefinitions {
         functions: methods,
         builders,
-    } = make_builtin_methods(
-        option_as_slice(&class.methods),
-        builtin_name,
-        inner_class_name,
-        ctx,
-    );
+    } = make_builtin_methods(class, &class.methods, ctx);
 
     let imports = util::make_imports();
-    let enums = make_enums(&class_enums, builtin_name, ctx);
-    let special_constructors = make_special_builtin_methods(builtin_name, ctx);
+    let enums = make_enums(&class.enums);
+    let special_constructors = make_special_builtin_methods(class.name(), ctx);
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let code = quote! {
@@ -1070,13 +900,13 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
     let decls = classes_and_modules.iter().map(|m| {
         let GeneratedBuiltinModule {
             module_name,
-            class_name,
+            symbol_ident,
             ..
         } = m;
 
         quote! {
             mod #module_name;
-            pub use #module_name::#class_name;
+            pub use #module_name::#symbol_ident;
         }
     });
 
@@ -1085,49 +915,37 @@ fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>) ->
     }
 }
 
-fn make_methods(
-    methods: &[ClassMethod],
-    class_name: &TyName,
-    api_level: &ClassCodegenLevel,
-    ctx: &mut Context,
-) -> FnDefinitions {
-    let get_method_table = api_level.table_global_getter();
+fn make_methods(class: &Class, methods: &[ClassMethod], ctx: &mut Context) -> FnDefinitions {
+    let get_method_table = class.api_level.table_global_getter();
 
-    let definitions = methods.iter().map(|method| {
-        make_class_method_definition(method, class_name, api_level, &get_method_table, ctx)
-    });
+    let definitions = methods
+        .iter()
+        .map(|method| make_class_method_definition(class, method, &get_method_table, ctx));
 
     FnDefinitions::expand(definitions)
 }
 
 fn make_builtin_methods(
-    methods: &[BuiltinClassMethod],
-    builtin_name: &TyName,
-    inner_class_name: &TyName,
+    builtin_class: &BuiltinClass,
+    methods: &[BuiltinMethod],
     ctx: &mut Context,
 ) -> FnDefinitions {
     let definitions = methods
         .iter()
-        .map(|method| make_builtin_method_definition(method, builtin_name, inner_class_name, ctx));
+        .map(|method| make_builtin_method_definition(builtin_class, method, ctx));
 
     FnDefinitions::expand(definitions)
 }
 
-fn make_enums(enums: &[Enum], class_name: &TyName, _ctx: &Context) -> TokenStream {
-    let definitions = enums
-        .iter()
-        .map(|e| util::make_enum_definition(e, Some(&class_name.godot_ty)));
+fn make_enums(enums: &[Enum]) -> TokenStream {
+    let definitions = enums.iter().map(util::make_enum_definition);
 
     quote! {
         #( #definitions )*
     }
 }
 
-fn make_constants(
-    constants: &[ClassConstant],
-    _class_name: &TyName,
-    _ctx: &Context,
-) -> TokenStream {
+fn make_constants(constants: &[ClassConstant]) -> TokenStream {
     let definitions = constants.iter().map(util::make_constant_definition);
 
     quote! {
@@ -1155,58 +973,30 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
 }
 
 fn make_class_method_definition(
+    class: &Class,
     method: &ClassMethod,
-    class_name: &TyName,
-    api_level: &ClassCodegenLevel,
     get_method_table: &Ident,
     ctx: &mut Context,
 ) -> FnDefinition {
-    if special_cases::is_class_method_deleted(class_name, method, ctx) {
+    let FnDirection::Outbound { hash } = method.direction() else {
         return FnDefinition::none();
-    }
+    };
 
-    let class_name_str = &class_name.godot_ty;
-    let godot_method_name = &method.name;
-    let rust_method_name = special_cases::maybe_rename_class_method(class_name, godot_method_name);
+    let rust_method_name = method.name();
+    let godot_method_name = method.godot_name();
 
-    // Override const-qualification for known special cases (FileAccess::get_16, StreamPeer::get_u16, etc.).
-    let mut is_actually_const = method.is_const;
-    if let Some(override_const) = special_cases::is_class_method_const(class_name, method) {
-        is_actually_const = override_const;
-    }
+    let receiver = make_receiver(method.qualifier(), quote! { self.object_ptr });
 
-    /*
-    // TODO re-enable this once JSON/domain models are separated.
-    // Getters in particular are re-qualified as const (if there isn't already an override).
-    if override_is_const.is_none() && option_as_slice(&method.arguments).is_empty() {
-        if rust_method_name.starts_with("get_") {
-            // Many getters are mutably qualified (GltfAccessor::get_max, CameraAttributes::get_exposure_multiplier, ...).
-            // As a default, set those to const.
-            override_is_const = Some(true);
-        }
-    }*/
+    let table_index = ctx.get_table_index(&MethodTableKey::from_class(class, method));
 
-    let receiver = make_receiver(
-        method.is_static,
-        //override_is_const.unwrap_or(method.is_const),
-        is_actually_const,
-        quote! { self.object_ptr },
-    );
-
-    let table_index = ctx.get_table_index(&MethodTableKey::ClassMethod {
-        api_level: *api_level,
-        class_ty: class_name.clone(),
-        method_name: method.name.clone(),
-    });
-
-    let maybe_instance_id = if method.is_static {
+    let maybe_instance_id = if method.qualifier() == FnQualifier::Static {
         quote! { None }
     } else {
         quote! { self.__checked_id() }
     };
 
     let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {
-        let hash = method.hash.expect("hash present for class method");
+        let class_name_str = &class.name().godot_ty;
         quote! {
             fptr_by_key(sys::lazy_keys::ClassMethodKey {
                 class_name: #class_name_str,
@@ -1245,16 +1035,7 @@ fn make_class_method_definition(
     };
 
     make_function_definition(
-        &FnSignature {
-            function_name: rust_method_name,
-            surrounding_class: Some(class_name),
-            is_private: special_cases::is_method_private(class_name, godot_method_name),
-            is_virtual: false,
-            is_vararg: method.is_vararg,
-            qualifier: FnQualifier::for_method(method.is_const, method.is_static),
-            params: FnParam::new_range(&method.arguments, ctx),
-            return_value: FnReturn::new(&method.return_value, ctx),
-        },
+        method,
         &FnCode {
             receiver,
             varcall_invocation,
@@ -1264,26 +1045,20 @@ fn make_class_method_definition(
 }
 
 fn make_builtin_method_definition(
-    method: &BuiltinClassMethod,
-    builtin_name: &TyName,
-    inner_class_name: &TyName,
+    builtin_class: &BuiltinClass,
+    method: &BuiltinMethod,
     ctx: &mut Context,
 ) -> FnDefinition {
-    if special_cases::is_builtin_method_deleted(builtin_name, method) {
-        return FnDefinition::none();
-    }
+    let FnDirection::Outbound { hash } = method.direction() else {
+        unreachable!("builtin methods are never virtual")
+    };
 
-    let method_name_str = &method.name;
-
-    let return_value = method
-        .return_type
-        .as_deref()
-        .map(MethodReturn::from_type_no_meta);
+    let builtin_name = builtin_class.name();
+    let method_name_str = method.godot_name();
 
     let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {
         let variant_type = quote! { sys::VariantType::#builtin_name };
         let variant_type_str = &builtin_name.godot_ty;
-        let hash = method.hash.expect("hash present for class method");
 
         quote! {
             fptr_by_key(sys::lazy_keys::BuiltinMethodKey {
@@ -1294,14 +1069,12 @@ fn make_builtin_method_definition(
             })
         }
     } else {
-        let table_index = ctx.get_table_index(&MethodTableKey::BuiltinMethod {
-            builtin_ty: builtin_name.clone(),
-            method_name: method.name.clone(),
-        });
+        let table_index = ctx.get_table_index(&MethodTableKey::from_builtin(builtin_class, method));
+
         quote! { fptr_by_index(#table_index) }
     };
 
-    let receiver = make_receiver(method.is_static, method.is_const, quote! { self.sys_ptr });
+    let receiver = make_receiver(method.qualifier(), quote! { self.sys_ptr });
     let object_ptr = &receiver.ffi_arg;
 
     let ptrcall_invocation = quote! {
@@ -1327,19 +1100,7 @@ fn make_builtin_method_definition(
     };
 
     make_function_definition(
-        &FnSignature {
-            function_name: method_name_str,
-            surrounding_class: Some(inner_class_name),
-            is_private: special_cases::is_method_private(builtin_name, &method.name),
-            is_virtual: false,
-            is_vararg: method.is_vararg,
-            qualifier: FnQualifier::for_method(method.is_const, method.is_static),
-
-            // Disable default parameters for builtin classes.
-            // They are not public-facing and need more involved implementation (lifetimes etc). Also reduces number of symbols in API.
-            params: FnParam::new_range_no_defaults(&method.arguments, ctx),
-            return_value: FnReturn::new(&return_value, ctx),
-        },
+        method,
         &FnCode {
             receiver,
             varcall_invocation,
@@ -1348,21 +1109,9 @@ fn make_builtin_method_definition(
     )
 }
 
-pub(crate) fn make_utility_function_definition(
-    function: &UtilityFunction,
-    ctx: &mut Context,
-) -> TokenStream {
-    if codegen_special_cases::is_function_excluded(function, ctx) {
-        return TokenStream::new();
-    }
-
-    let function_name_str = &function.name;
-    let fn_ptr = util::make_utility_function_ptr_name(function);
-
-    let return_value = function
-        .return_type
-        .as_deref()
-        .map(MethodReturn::from_type_no_meta);
+pub(crate) fn make_utility_function_definition(function: &UtilityFunction) -> TokenStream {
+    let function_name_str = function.name();
+    let fn_ptr = util::make_utility_function_ptr_name(function_name_str);
 
     let ptrcall_invocation = quote! {
         let utility_fn = sys::utility_function_table().#fn_ptr;
@@ -1386,16 +1135,7 @@ pub(crate) fn make_utility_function_definition(
     };
 
     let definition = make_function_definition(
-        &FnSignature {
-            function_name: function_name_str,
-            surrounding_class: None,
-            is_private: false,
-            is_virtual: false,
-            is_vararg: function.is_vararg,
-            qualifier: FnQualifier::Global,
-            params: FnParam::new_range(&function.arguments, ctx),
-            return_value: FnReturn::new(&return_value, ctx),
-        },
+        function,
         &FnCode {
             receiver: FnReceiver::global_function(),
             varcall_invocation,
@@ -1415,14 +1155,14 @@ fn make_vis(is_private: bool) -> TokenStream {
     }
 }
 
-fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
+fn make_function_definition(sig: &dyn Function, code: &FnCode) -> FnDefinition {
     let has_default_params = function_uses_default_params(sig);
     let vis = if has_default_params {
         // Public API mapped by separate function.
         // Needs to be crate-public because default-arg builder lives outside of the module.
         quote! { pub(crate) }
     } else {
-        make_vis(sig.is_private)
+        make_vis(sig.is_private())
     };
 
     let (maybe_unsafe, safety_doc) = if function_uses_pointers(sig) {
@@ -1438,13 +1178,13 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
         (TokenStream::new(), TokenStream::new())
     };
 
-    let [params, param_types, arg_names] = make_params_exprs(&sig.params);
+    let [params, param_types, arg_names] = make_params_exprs(sig.params());
 
-    let godot_fn_name_str = sig.function_name;
+    let rust_function_name_str = sig.name();
     let primary_fn_name = if has_default_params {
-        format_ident!("{}_full", safe_ident(godot_fn_name_str))
+        format_ident!("{}_full", safe_ident(rust_function_name_str))
     } else {
-        safe_ident(godot_fn_name_str)
+        safe_ident(rust_function_name_str)
     };
 
     let (default_fn_code, default_structs_code) = if has_default_params {
@@ -1453,15 +1193,15 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
         (TokenStream::new(), TokenStream::new())
     };
 
-    let return_ty = &sig.return_value.type_tokens();
+    let return_ty = &sig.return_value().type_tokens();
     let call_sig = quote! {
         ( #return_ty, #(#param_types),* )
     };
 
-    let return_decl = &sig.return_value.decl;
+    let return_decl = &sig.return_value().decl;
 
     let receiver_param = &code.receiver.param;
-    let primary_function = if sig.is_virtual {
+    let primary_function = if sig.is_virtual() {
         // Virtual functions
 
         quote! {
@@ -1473,7 +1213,7 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
                 unimplemented!()
             }
         }
-    } else if sig.is_vararg {
+    } else if sig.is_vararg() {
         // Varargs (usually varcall, but not necessarily -- utilities use ptrcall)
 
         // If the return type is not Variant, then convert to concrete target type
@@ -1500,7 +1240,7 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
         // Always ptrcall, no varargs
 
         let ptrcall_invocation = &code.ptrcall_invocation;
-        let maybe_return_ty = &sig.return_value.type_;
+        let maybe_return_ty = &sig.return_value().type_;
 
         // This differentiation is needed because we need to differentiate between Option<Gd<T>>, T and () as return types.
         // Rust traits don't provide specialization and thus would encounter overlapping blanket impls, so we cannot use the type system here.
@@ -1538,18 +1278,18 @@ fn make_function_definition(sig: &FnSignature, code: &FnCode) -> FnDefinition {
 }
 
 fn make_function_definition_with_defaults(
-    sig: &FnSignature,
+    sig: &dyn Function,
     code: &FnCode,
     full_fn_name: &Ident,
 ) -> (TokenStream, TokenStream) {
     let (default_fn_params, required_fn_params): (Vec<_>, Vec<_>) = sig
-        .params
+        .params()
         .iter()
         .partition(|arg| arg.default_value.is_some());
 
-    let simple_fn_name = safe_ident(sig.function_name);
+    let simple_fn_name = safe_ident(sig.name());
     let extended_fn_name = format_ident!("{}_ex", simple_fn_name);
-    let vis = make_vis(sig.is_private);
+    let vis = make_vis(sig.is_private());
 
     let (builder_doc, surround_class_prefix) = make_extender_doc(sig, &extended_fn_name);
 
@@ -1572,7 +1312,7 @@ fn make_function_definition_with_defaults(
     let receiver_param = &code.receiver.param;
     let receiver_self = &code.receiver.self_prefix;
     let (required_params, required_args) = make_params_and_args(&required_fn_params);
-    let return_decl = &sig.return_value.decl;
+    let return_decl = &sig.return_value().decl;
 
     // Technically, the builder would not need a lifetime -- it could just maintain an `object_ptr` copy.
     // However, this increases the risk that it is used out of place (not immediately for a default-param call).
@@ -1638,13 +1378,13 @@ fn make_function_definition_with_defaults(
     (functions, builders)
 }
 
-fn make_extender_doc(sig: &FnSignature, extended_fn_name: &Ident) -> (String, TokenStream) {
+fn make_extender_doc(sig: &dyn Function, extended_fn_name: &Ident) -> (String, TokenStream) {
     // Not in the above match, because this is true for both static/instance methods.
     // Static/instance is determined by first argument (always use fully qualified function call syntax).
     let surround_class_prefix;
     let builder_doc;
 
-    match sig.surrounding_class {
+    match sig.surrounding_class() {
         Some(TyName { rust_ty, .. }) => {
             surround_class_prefix = quote! { re_export::#rust_ty:: };
             builder_doc = format!(
@@ -1667,17 +1407,19 @@ fn make_extender_doc(sig: &FnSignature, extended_fn_name: &Ident) -> (String, To
     (builder_doc, surround_class_prefix)
 }
 
-fn make_extender_receiver(sig: &FnSignature) -> ExtenderReceiver {
-    let builder_mut = if matches!(sig.qualifier, FnQualifier::Const) {
-        quote! {}
-    } else {
-        quote! { mut }
+fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
+    let builder_mut = match sig.qualifier() {
+        FnQualifier::Const | FnQualifier::Static => quote! {},
+        FnQualifier::Mut => quote! { mut },
+        FnQualifier::Global => {
+            unreachable!("default parameters not supported for global methods; {sig}")
+        }
     };
 
     // Treat the object parameter like other parameters, as first in list.
     // Only add it if the method is not global or static.
-    match &sig.surrounding_class {
-        Some(surrounding_class) if !sig.qualifier.is_static_or_global() => {
+    match sig.surrounding_class() {
+        Some(surrounding_class) if !sig.qualifier().is_static_or_global() => {
             let class = &surrounding_class.rust_ty;
 
             ExtenderReceiver {
@@ -1719,24 +1461,24 @@ struct Extender {
 }
 
 fn make_extender(
-    sig: &FnSignature,
+    sig: &dyn Function,
     object_fn_param: Option<FnParam>,
     default_fn_params: Vec<&FnParam>,
 ) -> Extender {
     // Note: could build a documentation string with default values here, but the Rust tokens are not very readable,
     // and often not helpful, such as Enum::from_ord(13). Maybe one day those could be resolved and curated.
 
-    let (lifetime, anon_lifetime) = if sig.qualifier.is_static_or_global() {
+    let (lifetime, anon_lifetime) = if sig.qualifier().is_static_or_global() {
         (TokenStream::new(), TokenStream::new())
     } else {
         (quote! { <'a> }, quote! { <'_> })
     };
 
-    let all_fn_params = object_fn_param.iter().chain(&sig.params);
+    let all_fn_params = object_fn_param.iter().chain(sig.params().iter());
     let len = all_fn_params.size_hint().0;
 
     let mut result = Extender {
-        builder_ty: format_ident!("Ex{}", conv::to_pascal_case(sig.function_name)),
+        builder_ty: format_ident!("Ex{}", conv::to_pascal_case(sig.name())),
         builder_lifetime: lifetime,
         builder_anon_lifetime: anon_lifetime,
         builder_methods: Vec::with_capacity(default_fn_params.len()),
@@ -1784,27 +1526,23 @@ fn make_extender(
     result
 }
 
-fn make_receiver(is_static: bool, is_const: bool, ffi_arg: TokenStream) -> FnReceiver {
-    // could reuse FnQualifier as parameter
+fn make_receiver(qualifier: FnQualifier, ffi_arg_in: TokenStream) -> FnReceiver {
+    assert_ne!(qualifier, FnQualifier::Global, "expected class");
 
-    let param = if is_static {
-        quote! {}
-    } else if is_const {
-        quote! { &self, }
-    } else {
-        quote! { &mut self, }
+    let param = match qualifier {
+        FnQualifier::Const => quote! { &self, },
+        FnQualifier::Mut => quote! { &mut self, },
+        FnQualifier::Static => quote! {},
+        FnQualifier::Global => quote! {},
     };
 
-    let ffi_arg = if is_static {
-        quote! { std::ptr::null_mut() }
+    let (ffi_arg, self_prefix);
+    if matches!(qualifier, FnQualifier::Static) {
+        ffi_arg = quote! { std::ptr::null_mut() };
+        self_prefix = quote! { Self:: };
     } else {
-        ffi_arg
-    };
-
-    let self_prefix = if is_static {
-        quote! { Self:: }
-    } else {
-        quote! { self. }
+        ffi_arg = ffi_arg_in;
+        self_prefix = quote! { self. };
     };
 
     FnReceiver {
@@ -1845,7 +1583,6 @@ fn make_params_and_args(method_args: &[&FnParam]) -> (Vec<TokenStream>, Vec<Toke
 
 fn make_virtual_methods_trait(
     class: &Class,
-    class_name: &TyName,
     all_base_names: &[TyName],
     trait_name: &str,
     notification_enum_name: &Ident,
@@ -1856,7 +1593,7 @@ fn make_virtual_methods_trait(
     let virtual_method_fns = make_all_virtual_methods(class, all_base_names, ctx);
     let special_virtual_methods = special_virtual_methods(notification_enum_name);
 
-    let trait_doc = make_virtual_trait_doc(class_name);
+    let trait_doc = make_virtual_trait_doc(class.name());
 
     quote! {
         #[doc = #trait_doc]
@@ -1912,25 +1649,19 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
     }
 }
 
-fn make_virtual_method(method: &ClassMethod, ctx: &mut Context) -> TokenStream {
-    let method_name = virtual_method_name(method);
+fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
+    if !method.is_virtual() {
+        return None;
+    }
 
     // Virtual methods are never static.
-    assert!(!method.is_static);
+    let qualifier = method.qualifier();
+    assert!(matches!(qualifier, FnQualifier::Mut | FnQualifier::Const));
 
     let definition = make_function_definition(
-        &FnSignature {
-            function_name: method_name,
-            surrounding_class: None, // no default parameters needed for virtual methods
-            is_private: false,
-            is_virtual: true,
-            is_vararg: false,
-            qualifier: FnQualifier::for_method(method.is_const, method.is_static),
-            params: FnParam::new_range(&method.arguments, ctx),
-            return_value: FnReturn::new(&method.return_value, ctx),
-        },
+        method,
         &FnCode {
-            receiver: make_receiver(false, method.is_const, TokenStream::new()),
+            receiver: make_receiver(qualifier, TokenStream::new()),
             // make_return() requests following args, but they are not used for virtual methods. We can provide empty streams.
             varcall_invocation: TokenStream::new(),
             ptrcall_invocation: TokenStream::new(),
@@ -1938,7 +1669,7 @@ fn make_virtual_method(method: &ClassMethod, ctx: &mut Context) -> TokenStream {
     );
 
     // Virtual methods have no builders.
-    definition.into_functions_only()
+    Some(definition.into_functions_only())
 }
 
 fn make_all_virtual_methods(
@@ -1946,78 +1677,53 @@ fn make_all_virtual_methods(
     all_base_names: &[TyName],
     ctx: &mut Context,
 ) -> Vec<TokenStream> {
-    let mut all_virtuals = vec![];
-    let mut extend_virtuals = |class| {
-        all_virtuals.extend(
-            get_methods_in_class(class)
-                .iter()
-                .filter(|m| m.is_virtual)
-                .cloned(),
-        );
-    };
+    let mut all_tokens = vec![];
 
-    // Get virtuals defined on the current class.
-    extend_virtuals(class);
-
-    // Add virtuals from superclasses.
-    for base in all_base_names {
-        let superclass = ctx.get_engine_class(base);
-        extend_virtuals(superclass);
+    for method in class.methods.iter() {
+        // Assumes that inner function filters on is_virtual.
+        if let Some(tokens) = make_virtual_method(method) {
+            all_tokens.push(tokens);
+        }
     }
 
-    all_virtuals
-        .into_iter()
-        .filter_map(|method| {
-            if codegen_special_cases::is_class_method_excluded(&method, true, ctx) {
-                None
-            } else {
-                Some(make_virtual_method(&method, ctx))
+    for base_name in all_base_names {
+        let json_base_class = ctx.get_engine_class(base_name);
+        for json_method in option_as_slice(&json_base_class.methods) {
+            if !json_method.is_virtual {
+                continue;
             }
-        })
-        .collect()
-}
 
-fn get_methods_in_class(class: &Class) -> &[ClassMethod] {
-    match &class.methods {
-        None => &[],
-        Some(methods) => methods,
+            // FIXME temporary workaround, the ctx doesn't cross-over borrowed fields in ctx
+            let hack_ptr = ctx as *const _ as *mut _;
+            let hack_ctx = unsafe { &mut *hack_ptr }; // UB
+
+            if let Some(method) = ClassMethod::from_json(json_method, class.name(), hack_ctx) {
+                if let Some(tokens) = make_virtual_method(&method) {
+                    all_tokens.push(tokens);
+                }
+            }
+        }
     }
+
+    all_tokens
 }
 
-fn virtual_method_name(class_method: &ClassMethod) -> &str {
-    // Matching the C++ convention, we remove the leading underscore
-    // from virtual method names.
-    let method_name = class_method
-        .name
-        .strip_prefix('_')
-        .unwrap_or(&class_method.name);
-
-    // As a special exception, a few classes define a virtual method
-    // called "_init" (distinct from the constructor), so we rename
-    // those to avoid a name conflict in our trait.
-    if method_name == "init" {
-        "init_ext"
-    } else {
-        method_name
-    }
-}
-
-fn function_uses_pointers(sig: &FnSignature) -> bool {
+fn function_uses_pointers(sig: &dyn Function) -> bool {
     let has_pointer_params = sig
-        .params
+        .params()
         .iter()
         .any(|param| matches!(param.type_, RustTy::RawPointer { .. }));
 
-    let has_pointer_return = matches!(sig.return_value.type_, Some(RustTy::RawPointer { .. }));
+    let has_pointer_return = matches!(sig.return_value().type_, Some(RustTy::RawPointer { .. }));
 
     // No short-circuiting due to variable decls, but that's fine.
     has_pointer_params || has_pointer_return
 }
 
-fn function_uses_default_params(sig: &FnSignature) -> bool {
-    sig.params.iter().any(|arg| arg.default_value.is_some())
+fn function_uses_default_params(sig: &dyn Function) -> bool {
+    sig.params().iter().any(|arg| arg.default_value.is_some())
         && !special_cases::is_method_excluded_from_default_params(
-            sig.surrounding_class,
-            sig.function_name,
+            sig.surrounding_class(),
+            sig.name(),
         )
 }

@@ -7,29 +7,33 @@
 
 //! Codegen-dependent exclusions. Can be removed if feature `codegen-full` is removed.
 
-use crate::api_parser::{BuiltinClassMethod, ClassMethod, UtilityFunction};
-use crate::context::Context;
-use crate::{special_cases, TyName};
+// TODO make this file private and only accessed by special_cases.rs.
 
-pub(crate) fn is_builtin_method_excluded(method: &BuiltinClassMethod) -> bool {
+use crate::context::Context;
+use crate::models::domain::TyName;
+use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
+use crate::special_cases;
+
+pub(crate) fn is_builtin_method_excluded(method: &JsonBuiltinMethod) -> bool {
     // TODO Fall back to varcall (recent addition in GDExtension API).
     // See https://github.com/godot-rust/gdext/issues/382.
     method.is_vararg
 }
 
 #[cfg(not(feature = "codegen-full"))]
-pub(crate) fn is_class_excluded(class: &str) -> bool {
-    !SELECTED_CLASSES.contains(&class)
+pub(crate) fn is_class_excluded(godot_class_name: &str) -> bool {
+    !SELECTED_CLASSES.contains(&godot_class_name)
 }
 
 #[cfg(feature = "codegen-full")]
-pub(crate) fn is_class_excluded(_class: &str) -> bool {
+pub(crate) fn is_class_excluded(_godot_class_name: &str) -> bool {
     false
 }
 
 #[cfg(not(feature = "codegen-full"))]
 fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
-    use crate::{conv, RustTy};
+    use crate::conv;
+    use crate::models::domain::RustTy;
 
     fn is_rust_type_excluded(ty: &RustTy) -> bool {
         match ty {
@@ -55,22 +59,19 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     is_rust_type_excluded(&conv::to_rust_type(ty, None, ctx))
 }
 
-pub(crate) fn is_class_method_excluded(
-    method: &ClassMethod,
-    is_virtual_impl: bool,
-    ctx: &mut Context,
-) -> bool {
-    let is_arg_or_return_excluded = |ty: &str, _ctx: &mut Context| {
-        let class_deleted = special_cases::is_class_deleted(&TyName::from_godot(ty));
+#[cfg(feature = "codegen-full")]
+fn is_type_excluded(_ty: &str, _ctx: &mut Context) -> bool {
+    false
+}
 
-        #[cfg(not(feature = "codegen-full"))]
-        {
-            class_deleted || is_type_excluded(ty, _ctx)
-        }
-        #[cfg(feature = "codegen-full")]
-        {
-            class_deleted
-        }
+pub(crate) fn is_class_method_excluded(method: &JsonClassMethod, ctx: &mut Context) -> bool {
+    let is_arg_or_return_excluded = |ty: &str, _ctx: &mut Context| {
+        // First check if the type is explicitly deleted. In Godot, type names are unique without further categorization,
+        // so passing in a class name while checking for any types is fine.
+        let class_deleted = special_cases::is_godot_type_deleted(&TyName::from_godot(ty));
+
+        // Then also check if the type is excluded from codegen (due to current Cargo feature. RHS is always false in full-codegen.
+        class_deleted || is_type_excluded(ty, _ctx)
     };
 
     // Exclude if return type contains an excluded type.
@@ -88,21 +89,22 @@ pub(crate) fn is_class_method_excluded(
         return true;
     }
 
-    // Virtual methods are not part of the class API itself, but exposed as an accompanying trait.
-    if !is_virtual_impl && method.name.starts_with('_') {
-        return true;
-    }
-
     false
 }
 
 #[cfg(feature = "codegen-full")]
-pub(crate) fn is_function_excluded(_function: &UtilityFunction, _ctx: &mut Context) -> bool {
+pub(crate) fn is_utility_function_excluded(
+    _function: &JsonUtilityFunction,
+    _ctx: &mut Context,
+) -> bool {
     false
 }
 
 #[cfg(not(feature = "codegen-full"))]
-pub(crate) fn is_function_excluded(function: &UtilityFunction, ctx: &mut Context) -> bool {
+pub(crate) fn is_utility_function_excluded(
+    function: &JsonUtilityFunction,
+    ctx: &mut Context,
+) -> bool {
     function
         .return_type
         .as_ref()

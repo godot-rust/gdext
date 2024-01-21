@@ -26,9 +26,10 @@ If no commands are specified, the following commands will be run:
 
 Commands:
     fmt           format code, fail if bad
-    clippy        validate clippy lints
     test          run unit tests (no Godot needed)
     itest         run integration tests (from within Godot)
+    clippy        validate clippy lints
+    klippy        validate + fix clippy
     doc           generate docs for 'godot' crate
     dok           generate docs and open in browser
 
@@ -137,6 +138,18 @@ function cmd_clippy() {
         -D warnings
 }
 
+function cmd_klippy() {
+    run cargo clippy --fix --all-targets "${extraCargoArgs[@]}" -- \
+        -D clippy::suspicious \
+        -D clippy::style \
+        -D clippy::complexity \
+        -D clippy::perf \
+        -D clippy::dbg_macro \
+        -D clippy::todo \
+        -D clippy::unimplemented \
+        -D warnings
+}
+
 function cmd_test() {
     run cargo test "${extraCargoArgs[@]}"
 }
@@ -178,7 +191,7 @@ for arg in "$@"; do
         --double)
             extraCargoArgs+=("--features" "godot/double-precision")
             ;;
-        fmt | clippy | test | itest | doc | dok)
+        fmt | test | itest | clippy | klippy | doc | dok)
             cmds+=("$arg")
             ;;
         -f | --filter)

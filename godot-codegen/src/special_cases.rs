@@ -23,13 +23,14 @@
 
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
-use crate::api_parser::{BuiltinClassMethod, ClassMethod};
+use crate::codegen_special_cases;
+use crate::models::domain::TyName;
+use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
 use crate::Context;
-use crate::{codegen_special_cases, TyName};
 
 #[rustfmt::skip]
-pub(crate) fn is_class_method_deleted(class_name: &TyName, method: &ClassMethod, ctx: &mut Context) -> bool {
-    if codegen_special_cases::is_class_method_excluded(method, false, ctx){
+pub(crate) fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ctx: &mut Context) -> bool {
+    if codegen_special_cases::is_class_method_excluded(method, ctx){
         return true;
     }
     
@@ -48,14 +49,18 @@ pub(crate) fn is_class_method_deleted(class_name: &TyName, method: &ClassMethod,
     }
 }
 
-#[rustfmt::skip]
 pub(crate) fn is_class_deleted(class_name: &TyName) -> bool {
+    codegen_special_cases::is_class_excluded(&class_name.godot_ty)
+        || is_godot_type_deleted(class_name)
+}
+
+pub(crate) fn is_godot_type_deleted(ty_name: &TyName) -> bool {
     // Exclude experimental APIs unless opted-in.
-    if !cfg!(feature = "experimental-godot-api") && is_class_experimental(class_name) {
+    if !cfg!(feature = "experimental-godot-api") && is_class_experimental(ty_name) {
         return true;
     }
 
-    let class_name = class_name.godot_ty.as_str();
+    let class_name = ty_name.godot_ty.as_str();
 
     // OpenXR has not been available for macOS before 4.2.
     // See e.g. https://github.com/GodotVR/godot-xr-tools/issues/479.
@@ -195,7 +200,7 @@ pub(crate) fn is_method_excluded_from_default_params(class_name: Option<&TyName>
 /// should be returned to take precedence over general rules. Example: `FileAccess::get_pascal_string()` is mut, but would be const-qualified
 /// since it looks like a getter.
 #[rustfmt::skip]
-pub(crate) fn is_class_method_const(class_name: &TyName, godot_method: &ClassMethod) -> Option<bool> {
+pub(crate) fn is_class_method_const(class_name: &TyName, godot_method: &JsonClassMethod) -> Option<bool> {
     match (class_name.godot_ty.as_str(), godot_method.name.as_str()) {
         // Changed to const.
         | ("Object", "to_string")
@@ -223,13 +228,18 @@ pub(crate) fn is_class_method_const(class_name: &TyName, godot_method: &ClassMet
         | ("StreamPeer", "get_double")
         => Some(false),
         */
+        
+        _ => {
+            // TODO Many getters are mutably qualified (GltfAccessor::get_max, CameraAttributes::get_exposure_multiplier, ...).
+            // As a default, set those to const.
 
-        _ => None,
+            None
+        },
     }
 }
 
 /// True if builtin method is excluded. Does NOT check for type exclusion; use [`is_builtin_type_deleted`] for that.
-pub(crate) fn is_builtin_method_deleted(_class_name: &TyName, method: &BuiltinClassMethod) -> bool {
+pub(crate) fn is_builtin_method_deleted(_class_name: &TyName, method: &JsonBuiltinMethod) -> bool {
     // Currently only deleted if codegen.
     codegen_special_cases::is_builtin_method_excluded(method)
 }
@@ -245,6 +255,13 @@ pub(crate) fn is_builtin_type_scalar(name: &str) -> bool {
     name.chars().next().unwrap().is_ascii_lowercase()
 }
 
+pub(crate) fn is_utility_function_deleted(
+    function: &JsonUtilityFunction,
+    ctx: &mut Context,
+) -> bool {
+    codegen_special_cases::is_utility_function_excluded(function, ctx)
+}
+
 pub(crate) fn maybe_rename_class_method<'m>(
     class_name: &TyName,
     godot_method_name: &'m str,
@@ -253,5 +270,15 @@ pub(crate) fn maybe_rename_class_method<'m>(
         // GDScript, GDScriptNativeClass, possibly more in the future
         (_, "new") => "instantiate",
         _ => godot_method_name,
+    }
+}
+
+// Maybe merge with above?
+pub(crate) fn maybe_rename_virtual_method(rust_method_name: &str) -> &str {
+    // A few classes define a virtual method called "_init" (distinct from the constructor)
+    // -> rename those to avoid a name conflict in I* interface trait.
+    match rust_method_name {
+        "init" => "init_ext",
+        _ => rust_method_name,
     }
 }

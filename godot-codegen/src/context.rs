@@ -5,16 +5,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::api_parser::{BuiltinClass, BuiltinClassMethod, Class, ClassConstant, ClassMethod};
+use crate::models::domain::{GodotTy, RustTy, TyName};
+use crate::models::json::{
+    JsonBuiltinClass, JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod,
+};
 use crate::util::{option_as_slice, MethodTableKey};
-use crate::{codegen_special_cases, special_cases, util, ExtensionApi, GodotTy, RustTy, TyName};
+use crate::{codegen_special_cases, special_cases, util, JsonExtensionApi};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, ToTokens};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
-pub(crate) struct Context<'a> {
-    engine_classes: HashMap<TyName, &'a Class>,
+pub struct Context<'a> {
+    engine_classes: HashMap<TyName, &'a JsonClass>,
     builtin_types: HashSet<&'a str>,
     native_structures_types: HashSet<&'a str>,
     singletons: HashSet<&'a str>,
@@ -27,7 +30,7 @@ pub(crate) struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    pub fn build_from_api(api: &'a ExtensionApi) -> Self {
+    pub fn build_from_api(api: &'a JsonExtensionApi) -> Self {
         let mut ctx = Self::default();
 
         for class in api.singletons.iter() {
@@ -127,7 +130,7 @@ impl<'a> Context<'a> {
 
     fn populate_notification_constants(
         class_name: &TyName,
-        constants: &[ClassConstant],
+        constants: &[JsonClassConstant],
         ctx: &mut Context,
     ) {
         let mut has_notifications = false;
@@ -155,9 +158,9 @@ impl<'a> Context<'a> {
     }
 
     fn populate_class_table_indices(
-        class: &Class,
+        class: &JsonClass,
         class_name: &TyName,
-        methods: &[ClassMethod],
+        methods: &[JsonClassMethod],
         ctx: &mut Context,
     ) {
         if special_cases::is_class_deleted(class_name) {
@@ -165,7 +168,8 @@ impl<'a> Context<'a> {
         }
 
         for method in methods.iter() {
-            if special_cases::is_class_method_deleted(class_name, method, ctx) {
+            if special_cases::is_class_method_deleted(class_name, method, ctx) || method.is_virtual
+            {
                 continue;
             }
 
@@ -180,8 +184,8 @@ impl<'a> Context<'a> {
     }
 
     fn populate_builtin_class_table_indices(
-        builtin: &BuiltinClass,
-        methods: &[BuiltinClassMethod],
+        builtin: &JsonBuiltinClass,
+        methods: &[JsonBuiltinMethod],
         ctx: &mut Context,
     ) {
         let builtin_ty = TyName::from_godot(builtin.name.as_str());
@@ -203,7 +207,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn get_engine_class(&self, class_name: &TyName) -> &Class {
+    pub fn get_engine_class(&self, class_name: &TyName) -> &JsonClass {
         self.engine_classes.get(class_name).unwrap()
     }
 
@@ -327,7 +331,7 @@ impl ToTokens for NotificationEnum {
 
 /// Maintains class hierarchy. Uses Rust class names, not Godot ones.
 #[derive(Default)]
-pub(crate) struct InheritanceTree {
+pub struct InheritanceTree {
     derived_to_base: HashMap<TyName, TyName>,
 }
 

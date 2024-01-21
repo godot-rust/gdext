@@ -80,7 +80,7 @@ fn test_snake_conversion() {
                                  ("JSON", "json"),
                       ("JSONParseResult", "json_parse_result"),
                               ("JSONRPC", "json_rpc"),
-             ("NetworkedMultiplayerENet", "networked_multiplayer_e_net"),
+             ("NetworkedMultiplayerENet", "networked_multiplayer_enet"),
                              ("ObjectID", "object_id"),
                    ("OpenXRAPIExtension", "open_xr_api_extension"),
                       ("OpenXRIPBinding", "open_xr_ip_binding"),

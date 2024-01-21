@@ -12,9 +12,10 @@ use quote::{quote, ToTokens};
 use std::fmt;
 
 use crate::context::Context;
+use crate::models::domain::{GodotTy, RustTy, TyName};
 use crate::special_cases::is_builtin_type_scalar;
 use crate::util::{ident, unmap_meta};
-use crate::{conv, GodotTy, ModName, RustTy, TyName};
+use crate::{conv, ModName};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Godot -> Rust types

@@ -5,13 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-mod api_parser;
 mod central_generator;
 mod class_generator;
 mod codegen_special_cases;
 mod context;
 mod conv;
 mod interface_generator;
+mod models;
 mod special_cases;
 mod util;
 mod utilities_generator;
@@ -19,26 +19,22 @@ mod utilities_generator;
 #[cfg(test)]
 mod tests;
 
-use api_parser::{load_extension_api, ExtensionApi};
-use central_generator::{
-    generate_core_central_file, generate_core_mod_file, generate_sys_central_file,
-    generate_sys_classes_file,
+use crate::central_generator::{
+    generate_core_central_file, generate_core_mod_file, generate_sys_builtin_lifecycle_file,
+    generate_sys_builtin_methods_file, generate_sys_central_file, generate_sys_classes_file,
+    generate_sys_utilities_file,
 };
-use class_generator::{
+use crate::class_generator::{
     generate_builtin_class_files, generate_class_files, generate_native_structures_files,
 };
-use context::Context;
-use interface_generator::generate_sys_interface_file;
-use util::ident;
-use utilities_generator::generate_utilities_file;
-
-use crate::central_generator::{
-    generate_sys_builtin_lifecycle_file, generate_sys_builtin_methods_file,
-    generate_sys_utilities_file, BuiltinTypeMap,
-};
-use crate::context::NotificationEnum;
+use crate::context::{Context, NotificationEnum};
+use crate::interface_generator::generate_sys_interface_file;
+use crate::models::domain::{ExtensionApi, TyName};
+use crate::models::json::{load_extension_api, JsonExtensionApi};
+use crate::util::ident;
+use crate::utilities_generator::generate_utilities_file;
 use proc_macro2::{Ident, TokenStream};
-use quote::{quote, ToTokens};
+use quote::ToTokens;
 use std::path::{Path, PathBuf};
 
 pub type SubmitFn = dyn FnMut(PathBuf, TokenStream);
@@ -66,27 +62,34 @@ pub fn generate_sys_files(
     h_path: &Path,
     watch: &mut godot_bindings::StopWatch,
 ) {
-    let (api, build_config) = load_extension_api(watch);
-    let mut ctx = Context::build_from_api(&api);
+    let json_api = load_extension_api(watch);
+
+    let mut ctx = Context::build_from_api(&json_api);
     watch.record("build_context");
 
-    generate_sys_central_file(&api, &mut ctx, build_config, sys_gen_path, &mut submit_fn);
+    let api = ExtensionApi::from_json(&json_api, &mut ctx);
+    watch.record("map_domain_models");
+
+    // TODO if ctx is no longer needed for below functions:
+    // Deallocate all the JSON models; no longer needed for codegen.
+    // drop(json_api);
+
+    generate_sys_central_file(&api, &mut ctx, sys_gen_path, &mut submit_fn);
     watch.record("generate_central_file");
 
-    let builtin_types = BuiltinTypeMap::load(&api);
-    generate_sys_builtin_methods_file(&api, &builtin_types, sys_gen_path, &mut ctx, &mut submit_fn);
+    generate_sys_builtin_methods_file(&api, sys_gen_path, &mut ctx, &mut submit_fn);
     watch.record("generate_builtin_methods_file");
 
-    generate_sys_builtin_lifecycle_file(&builtin_types, sys_gen_path, &mut submit_fn);
+    generate_sys_builtin_lifecycle_file(&api, sys_gen_path, &mut submit_fn);
     watch.record("generate_builtin_lifecycle_file");
 
     generate_sys_classes_file(&api, sys_gen_path, watch, &mut ctx, &mut submit_fn);
     // watch records inside the function.
 
-    generate_sys_utilities_file(&api, sys_gen_path, &mut ctx, &mut submit_fn);
+    generate_sys_utilities_file(&api, sys_gen_path, &mut submit_fn);
     watch.record("generate_utilities_file");
 
-    let is_godot_4_0 = api.header.version_major == 4 && api.header.version_minor == 0;
+    let is_godot_4_0 = api.godot_version.major == 4 && api.godot_version.minor == 0;
     generate_sys_interface_file(h_path, sys_gen_path, is_godot_4_0, &mut submit_fn);
     watch.record("generate_interface_file");
 }
@@ -96,14 +99,21 @@ pub fn generate_core_files(core_gen_path: &Path) {
 
     generate_core_mod_file(core_gen_path, &mut submit_fn);
 
-    let (api, build_config) = load_extension_api(&mut watch);
-    let mut ctx = Context::build_from_api(&api);
+    let json_api = load_extension_api(&mut watch);
+    let mut ctx = Context::build_from_api(&json_api);
     watch.record("build_context");
 
-    generate_core_central_file(&api, &mut ctx, build_config, core_gen_path, &mut submit_fn);
+    let api = ExtensionApi::from_json(&json_api, &mut ctx);
+    watch.record("map_domain_models");
+
+    // TODO if ctx is no longer needed for below functions:
+    // Deallocate all the JSON models; no longer needed for codegen.
+    // drop(json_api);
+
+    generate_core_central_file(&api, &mut ctx, core_gen_path, &mut submit_fn);
     watch.record("generate_central_file");
 
-    generate_utilities_file(&api, &mut ctx, core_gen_path, &mut submit_fn);
+    generate_utilities_file(&api, core_gen_path, &mut submit_fn);
     watch.record("generate_utilities_file");
 
     // Class files -- currently output in godot-core; could maybe be separated cleaner
@@ -111,7 +121,6 @@ pub fn generate_core_files(core_gen_path: &Path) {
     generate_class_files(
         &api,
         &mut ctx,
-        build_config,
         &core_gen_path.join("classes"),
         &mut submit_fn,
     );
@@ -120,7 +129,6 @@ pub fn generate_core_files(core_gen_path: &Path) {
     generate_builtin_class_files(
         &api,
         &mut ctx,
-        build_config,
         &core_gen_path.join("builtin_classes"),
         &mut submit_fn,
     );
@@ -129,7 +137,6 @@ pub fn generate_core_files(core_gen_path: &Path) {
     generate_native_structures_files(
         &api,
         &mut ctx,
-        build_config,
         &core_gen_path.join("native"),
         &mut submit_fn,
     );
@@ -139,142 +146,10 @@ pub fn generate_core_files(core_gen_path: &Path) {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Shared utility types
-
-// Same as above, without lifetimes
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-struct GodotTy {
-    ty: String,
-    meta: Option<String>,
-}
-
-// impl GodotTy {
-//     fn new<'a>(ty: &'a String, meta: &'a Option<String>) -> Self {
-//         Self {
-//             ty: ty.clone(),
-//             meta: meta.clone(),
-//         }
-//     }
-// }
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-#[derive(Clone, Debug)]
-enum RustTy {
-    /// `bool`, `Vector3i`
-    BuiltinIdent(Ident),
-
-    /// `Array<i32>`
-    BuiltinArray(TokenStream),
-
-    /// C-style raw pointer to a `RustTy`.
-    RawPointer { inner: Box<RustTy>, is_const: bool },
-
-    /// `Array<Gd<PhysicsBody3D>>`
-    EngineArray {
-        tokens: TokenStream,
-        #[allow(dead_code)] // only read in minimal config
-        elem_class: String,
-    },
-
-    /// `module::Enum`
-    EngineEnum {
-        tokens: TokenStream,
-        /// `None` for globals
-        #[allow(dead_code)] // only read in minimal config
-        surrounding_class: Option<String>,
-    },
-
-    /// `module::Bitfield`
-    EngineBitfield {
-        tokens: TokenStream,
-        /// `None` for globals
-        #[allow(dead_code)] // only read in minimal config
-        surrounding_class: Option<String>,
-    },
-
-    /// `Gd<Node>`
-    EngineClass {
-        /// Tokens with full `Gd<T>`
-        tokens: TokenStream,
-        /// only inner `T`
-        #[allow(dead_code)] // only read in minimal config
-        inner_class: Ident,
-    },
-}
-
-impl RustTy {
-    pub fn return_decl(&self) -> TokenStream {
-        match self {
-            Self::EngineClass { tokens, .. } => quote! { -> Option<#tokens> },
-            other => quote! { -> #other },
-        }
-    }
-}
-
-impl ToTokens for RustTy {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            RustTy::BuiltinIdent(ident) => ident.to_tokens(tokens),
-            RustTy::BuiltinArray(path) => path.to_tokens(tokens),
-            RustTy::RawPointer {
-                inner,
-                is_const: true,
-            } => quote! { *const #inner }.to_tokens(tokens),
-            RustTy::RawPointer {
-                inner,
-                is_const: false,
-            } => quote! { *mut #inner }.to_tokens(tokens),
-            RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
-            RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
-            RustTy::EngineBitfield { tokens: path, .. } => path.to_tokens(tokens),
-            RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Contains multiple naming conventions for types (classes, builtin classes, enums).
-// TODO(bromeon, 2023-09): see if it makes sense to unify this with TypeNames (which is mostly used in central generator)
-#[derive(Clone, Eq, PartialEq, Hash)]
-pub(crate) struct TyName {
-    godot_ty: String,
-    rust_ty: Ident,
-}
-
-impl TyName {
-    fn from_godot(godot_ty: &str) -> Self {
-        Self {
-            godot_ty: godot_ty.to_owned(),
-            rust_ty: ident(&conv::to_pascal_case(godot_ty)),
-        }
-    }
-
-    fn description(&self) -> String {
-        if self.rust_ty == self.godot_ty {
-            self.godot_ty.clone()
-        } else {
-            format!("{}  [renamed {}]", self.godot_ty, self.rust_ty)
-        }
-    }
-
-    fn virtual_trait_name(&self) -> String {
-        format!("I{}", self.rust_ty)
-    }
-}
-
-impl ToTokens for TyName {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.rust_ty.to_tokens(tokens)
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Contains naming conventions for modules.
-pub(crate) struct ModName {
+#[derive(Clone)]
+pub struct ModName {
     // godot_mod: String,
     rust_mod: Ident,
 }
@@ -315,6 +190,6 @@ struct GeneratedClassModule {
 }
 
 struct GeneratedBuiltinModule {
-    class_name: TyName,
+    symbol_ident: Ident,
     module_name: ModName,
 }
