@@ -13,13 +13,7 @@ use regex::Regex;
 use std::fs;
 use std::path::Path;
 
-struct GodotFuncPtr {
-    name: Ident,
-    func_ptr_ty: Ident,
-    doc: String,
-}
-
-pub(crate) fn generate_sys_interface_file(
+pub fn generate_sys_interface_file(
     h_path: &Path,
     sys_gen_path: &Path,
     is_godot_4_0: bool,
@@ -39,6 +33,15 @@ pub(crate) fn generate_sys_interface_file(
     };
 
     submit_fn(sys_gen_path.join("interface.rs"), code);
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation
+
+struct GodotFuncPtr {
+    name: Ident,
+    func_ptr_ty: Ident,
+    doc: String,
 }
 
 fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {

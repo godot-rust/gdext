@@ -459,16 +459,16 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let mut to_string_impl = TokenStream::new();
     let mut register_class_impl = TokenStream::new();
     let mut on_notification_impl = TokenStream::new();
-    let mut get_impl = TokenStream::new();
-    let mut set_impl = TokenStream::new();
+    let mut get_property_impl = TokenStream::new();
+    let mut set_property_impl = TokenStream::new();
 
     let mut register_fn = None;
     let mut create_fn = None;
     let mut recreate_fn = None;
     let mut to_string_fn = None;
     let mut on_notification_fn = None;
-    let mut get_fn = None;
-    let mut set_fn = None;
+    let mut get_property_fn = None;
+    let mut set_property_fn = None;
 
     let mut virtual_methods = vec![];
     let mut virtual_method_cfg_attrs = vec![];
@@ -595,51 +595,45 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                 });
             }
 
-            "get" => {
-                get_impl = quote! {
-                    #get_impl
-
+            "get_property" => {
+                get_property_impl = quote! {
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotGet for #class_name {
-                        fn __godot_get(&self, property: ::godot::builtin::StringName) -> Option<::godot::builtin::Variant> {
+                        fn __godot_get_property(&self, property: ::godot::builtin::StringName) -> Option<::godot::builtin::Variant> {
                             use ::godot::obj::UserClass as _;
                             if ::godot::private::is_class_inactive(Self::__config().is_tool) {
                                 return None;
                             }
 
-                            <Self as #trait_name>::get(self, property)
+                            <Self as #trait_name>::get_property(self, property)
                         }
                     }
                 };
 
-                get_fn = Some(quote! {
-                    #get_fn
+                get_property_fn = Some(quote! {
                     #(#cfg_attrs)*
-                    () => Some(#prv::callbacks::get::<#class_name>),
+                    () => Some(#prv::callbacks::get_property::<#class_name>),
                 });
             }
 
-            "set" => {
-                set_impl = quote! {
-                    #set_impl
-
+            "set_property" => {
+                set_property_impl = quote! {
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotSet for #class_name {
-                        fn __godot_set(&mut self, property: ::godot::builtin::StringName, value: ::godot::builtin::Variant) -> bool {
+                        fn __godot_set_property(&mut self, property: ::godot::builtin::StringName, value: ::godot::builtin::Variant) -> bool {
                             use ::godot::obj::UserClass as _;
                             if ::godot::private::is_class_inactive(Self::__config().is_tool) {
                                 return false;
                             }
 
-                            <Self as #trait_name>::set(self, property, value)
+                            <Self as #trait_name>::set_property(self, property, value)
                         }
                     }
                 };
 
-                set_fn = Some(quote! {
-                    #set_fn
+                set_property_fn = Some(quote! {
                     #(#cfg_attrs)*
-                    () => Some(#prv::callbacks::set::<#class_name>),
+                    () => Some(#prv::callbacks::set_property::<#class_name>),
                 });
             }
 
@@ -711,8 +705,8 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let recreate_fn = convert_to_match_expression_or_none(recreate_fn);
     let to_string_fn = convert_to_match_expression_or_none(to_string_fn);
     let on_notification_fn = convert_to_match_expression_or_none(on_notification_fn);
-    let get_fn = convert_to_match_expression_or_none(get_fn);
-    let set_fn = convert_to_match_expression_or_none(set_fn);
+    let get_fn = convert_to_match_expression_or_none(get_property_fn);
+    let set_fn = convert_to_match_expression_or_none(set_property_fn);
 
     let result = quote! {
         #original_impl
@@ -720,8 +714,8 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
         #to_string_impl
         #on_notification_impl
         #register_class_impl
-        #get_impl
-        #set_impl
+        #get_property_impl
+        #set_property_impl
 
         impl ::godot::private::You_forgot_the_attribute__godot_api for #class_name {}
 

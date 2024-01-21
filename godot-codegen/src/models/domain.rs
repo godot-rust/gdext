@@ -11,9 +11,9 @@
 // Domain models
 
 use crate::context::Context;
+use crate::conv;
 use crate::models::json::{JsonMethodArg, JsonMethodReturn};
-use crate::util::{ident, option_as_slice, safe_ident, ClassCodegenLevel};
-use crate::{conv, ModName};
+use crate::util::{ident, option_as_slice, safe_ident};
 
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
@@ -714,5 +714,81 @@ impl TyName {
 impl ToTokens for TyName {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.rust_ty.to_tokens(tokens)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Contains naming conventions for modules.
+#[derive(Clone)]
+pub struct ModName {
+    // godot_mod: String,
+    pub rust_mod: Ident,
+}
+
+impl ModName {
+    pub fn from_godot(godot_ty: &str) -> Self {
+        Self {
+            // godot_mod: godot_ty.to_owned(),
+            rust_mod: ident(&conv::to_snake_case(godot_ty)),
+        }
+    }
+}
+
+impl ToTokens for ModName {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.rust_mod.to_tokens(tokens)
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// At which stage a class function pointer is loaded.
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+pub enum ClassCodegenLevel {
+    Servers,
+    Scene,
+    Editor,
+}
+
+impl ClassCodegenLevel {
+    pub fn with_tables() -> [Self; 3] {
+        [Self::Servers, Self::Scene, Self::Editor]
+    }
+
+    pub fn table_global_getter(self) -> Ident {
+        format_ident!("class_{}_api", self.lower())
+    }
+
+    pub fn table_file(self) -> String {
+        format!("table_{}_classes.rs", self.lower())
+    }
+
+    pub fn table_struct(self) -> Ident {
+        format_ident!("Class{}MethodTable", self.upper())
+    }
+
+    pub fn lower(self) -> &'static str {
+        match self {
+            Self::Servers => "servers",
+            Self::Scene => "scene",
+            Self::Editor => "editor",
+        }
+    }
+
+    fn upper(self) -> &'static str {
+        match self {
+            Self::Servers => "Servers",
+            Self::Scene => "Scene",
+            Self::Editor => "Editor",
+        }
+    }
+
+    pub fn to_init_level(self) -> TokenStream {
+        match self {
+            Self::Servers => quote! { crate::init::InitLevel::Servers },
+            Self::Scene => quote! { crate::init::InitLevel::Scene },
+            Self::Editor => quote! { crate::init::InitLevel::Editor },
+        }
     }
 }
