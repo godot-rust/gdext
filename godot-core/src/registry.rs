@@ -173,6 +173,7 @@ pub enum PluginComponent {
 
     #[cfg(since_api = "4.1")]
     EditorPlugin,
+
     #[cfg(since_api = "4.2")]
     Unexposed,
 }
@@ -198,6 +199,34 @@ struct ClassRegistrationInfo {
     #[allow(dead_code)] // Currently unused; may be useful for diagnostics in the future.
     init_level: InitLevel,
     is_editor_plugin: bool,
+
+    component_already_filled: [bool; 5],
+}
+
+impl ClassRegistrationInfo {
+    fn validate_unique(&mut self, component: &PluginComponent) {
+        // We could use mem::Discriminant, but match will fail to compile when a new component is added.
+
+        // Note: when changing this match, make sure the array has sufficient size.
+        let index = match component {
+            PluginComponent::ClassDef { .. } => 0,
+            PluginComponent::UserMethodBinds { .. } => 1,
+            PluginComponent::UserVirtuals { .. } => 2,
+            #[cfg(since_api = "4.1")]
+            PluginComponent::EditorPlugin => 3,
+            #[cfg(since_api = "4.2")]
+            PluginComponent::Unexposed => 4,
+        };
+
+        if self.component_already_filled[index] {
+            panic!(
+                "Godot class `{}` is defined multiple times in Rust; you can rename it with #[class(rename=NewName)]",
+                self.class_name,
+            )
+        }
+
+        self.component_already_filled[index] = true;
+    }
 }
 
 /// Registers a class with static type information.
@@ -259,6 +288,7 @@ pub fn register_class<
         godot_params,
         init_level: T::INIT_LEVEL,
         is_editor_plugin: false,
+        component_already_filled: Default::default(), // [false; N]
     });
 }
 
@@ -273,12 +303,12 @@ pub fn auto_register_classes(init_level: InitLevel) {
     let mut map = HashMap::<ClassName, ClassRegistrationInfo>::new();
 
     crate::private::iterate_plugins(|elem: &ClassPlugin| {
-        //out!("* Plugin: {elem:#?}");
-
         // Filter per ClassPlugin and not PluginComponent, because all components of all classes are mixed together in one huge list.
         if elem.init_level != init_level {
             return;
         }
+
+        //out!("* Plugin: {elem:#?}");
 
         let name = elem.class_name;
         let class_info = map
@@ -333,6 +363,8 @@ fn global_loaded_classes() -> GlobalGuard<'static, HashMap<InitLevel, Vec<ClassN
 
 /// Populate `c` with all the relevant data from `component` (depending on component type).
 fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
+    c.validate_unique(&component);
+
     // out!("|   reg (before):    {c:?}");
     // out!("|   comp:            {component:?}");
     match component {
@@ -350,24 +382,14 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
                 &mut c.godot_params.create_instance_func,
                 generated_create_fn,
             )
-            .unwrap_or_else(|_|
-                panic!(
-                    "Godot class `{}` is defined multiple times in Rust; you can rename them with #[class(rename=NewName)]",
-                    c.class_name,
-                )
-            );
+            .expect("duplicate: create_instance_func (def)");
 
             #[cfg(since_api = "4.2")]
             fill_into(
                 &mut c.godot_params.recreate_instance_func,
                 generated_recreate_fn,
             )
-            .unwrap_or_else(|_|
-                panic!(
-                    "Godot class `{}` is defined multiple times in Rust; you can rename them with #[class(rename=NewName)]",
-                    c.class_name,
-                )
-            );
+            .expect("duplicate: recreate_instance_func (def)");
 
             #[cfg(before_api = "4.2")]
             assert!(generated_recreate_fn.is_none()); // not used
@@ -398,10 +420,10 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             // The following unwraps of fill_into() shouldn't panic, since rustc will error if there are
             // multiple `impl I{Class} for Thing` definitions.
 
-            fill_into(&mut c.godot_params.create_instance_func, user_create_fn).unwrap();
+            fill_into(&mut c.godot_params.create_instance_func, user_create_fn).expect("duplicate: create_instance_func (i)");
 
             #[cfg(since_api = "4.2")]
-            fill_into(&mut c.godot_params.recreate_instance_func, user_recreate_fn).unwrap();
+            fill_into(&mut c.godot_params.recreate_instance_func, user_recreate_fn).expect("duplicate: recreate_instance_func (i)");
 
             #[cfg(before_api = "4.2")]
             assert!(user_recreate_fn.is_none()); // not used
@@ -412,10 +434,12 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             c.godot_params.get_func = user_get_fn;
             c.user_virtual_fn = Some(get_virtual_fn);
         }
+
         #[cfg(since_api = "4.1")]
         PluginComponent::EditorPlugin => {
             c.is_editor_plugin = true;
         }
+
         #[cfg(since_api = "4.2")]
         PluginComponent::Unexposed => {
             c.godot_params.is_exposed = false as sys::GDExtensionBool;
@@ -785,6 +809,7 @@ fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
         godot_params: default_creation_info(),
         init_level: InitLevel::Scene,
         is_editor_plugin: false,
+        component_already_filled: Default::default(), // [false; N]
     }
 }
 
