@@ -245,7 +245,7 @@ struct GetTest {
 
 #[godot_api]
 impl IRefCounted for GetTest {
-    fn get(&self, property: StringName) -> Option<Variant> {
+    fn get_property(&self, property: StringName) -> Option<Variant> {
         self.get_called.set(true);
 
         match String::from(property).as_str() {
@@ -271,7 +271,7 @@ struct SetTest {
 
 #[godot_api]
 impl IRefCounted for SetTest {
-    fn set(&mut self, property: StringName, value: Variant) -> bool {
+    fn set_property(&mut self, property: StringName, value: Variant) -> bool {
         self.set_called = true;
 
         match String::from(property).as_str() {
@@ -617,7 +617,7 @@ pub struct GetSetTest {
 
 #[godot_api]
 impl IRefCounted for GetSetTest {
-    fn get(&self, property: StringName) -> Option<Variant> {
+    fn get_property(&self, property: StringName) -> Option<Variant> {
         self.get_called.set(true);
 
         match String::from(property).as_str() {
@@ -627,7 +627,7 @@ impl IRefCounted for GetSetTest {
         }
     }
 
-    fn set(&mut self, property: StringName, value: Variant) -> bool {
+    fn set_property(&mut self, property: StringName, value: Variant) -> bool {
         self.set_called = true;
 
         match String::from(property).as_str() {

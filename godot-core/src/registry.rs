@@ -678,7 +678,7 @@ pub mod callbacks {
         T::__godot_notification(&mut *instance, what);
     }
 
-    pub unsafe extern "C" fn get<T: cap::GodotGet>(
+    pub unsafe extern "C" fn get_property<T: cap::GodotGet>(
         instance: sys::GDExtensionClassInstancePtr,
         name: sys::GDExtensionConstStringNamePtr,
         ret: sys::GDExtensionVariantPtr,
@@ -689,7 +689,7 @@ pub mod callbacks {
 
         std::mem::forget(property.clone());
 
-        match T::__godot_get(&*instance, property) {
+        match T::__godot_get_property(&*instance, property) {
             Some(value) => {
                 value.move_var_ptr(ret);
                 true as sys::GDExtensionBool
@@ -698,7 +698,7 @@ pub mod callbacks {
         }
     }
 
-    pub unsafe extern "C" fn set<T: cap::GodotSet>(
+    pub unsafe extern "C" fn set_property<T: cap::GodotSet>(
         instance: sys::GDExtensionClassInstancePtr,
         name: sys::GDExtensionConstStringNamePtr,
         value: sys::GDExtensionConstVariantPtr,
@@ -712,7 +712,7 @@ pub mod callbacks {
         std::mem::forget(property.clone());
         std::mem::forget(value.clone());
 
-        T::__godot_set(&mut *instance, property, value) as sys::GDExtensionBool
+        T::__godot_set_property(&mut *instance, property, value) as sys::GDExtensionBool
     }
 
     pub unsafe extern "C" fn reference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {

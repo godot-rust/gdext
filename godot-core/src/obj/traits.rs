@@ -487,13 +487,13 @@ pub mod cap {
     #[doc(hidden)]
     pub trait GodotGet: GodotClass {
         #[doc(hidden)]
-        fn __godot_get(&self, property: StringName) -> Option<Variant>;
+        fn __godot_get_property(&self, property: StringName) -> Option<Variant>;
     }
 
     #[doc(hidden)]
     pub trait GodotSet: GodotClass {
         #[doc(hidden)]
-        fn __godot_set(&mut self, property: StringName, value: Variant) -> bool;
+        fn __godot_set_property(&mut self, property: StringName, value: Variant) -> bool;
     }
 
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks
