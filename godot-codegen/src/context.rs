@@ -12,7 +12,7 @@ use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod,
 };
 use crate::util::option_as_slice;
-use crate::{codegen_special_cases, special_cases, util, JsonExtensionApi};
+use crate::{special_cases, util, JsonExtensionApi};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, ToTokens};
 use std::collections::{HashMap, HashSet};
@@ -59,7 +59,7 @@ impl<'a> Context<'a> {
         for class in api.classes.iter() {
             let class_name = TyName::from_godot(&class.name);
 
-            if codegen_special_cases::is_class_excluded(class_name.godot_ty.as_str()) {
+            if special_cases::is_class_deleted(&class_name) {
                 continue;
             }
 

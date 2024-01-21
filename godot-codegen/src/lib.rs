@@ -5,7 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-mod codegen_special_cases;
 mod context;
 mod conv;
 mod generator;
