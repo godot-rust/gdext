@@ -10,7 +10,7 @@ use std::path::Path;
 use quote::quote;
 
 use crate::class_generator::make_utility_function_definition;
-use crate::domain_models::ExtensionApi;
+use crate::models::domain::ExtensionApi;
 use crate::{util, SubmitFn};
 
 pub(crate) fn generate_utilities_file(

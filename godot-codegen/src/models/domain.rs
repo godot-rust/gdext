@@ -11,12 +11,12 @@
 // Domain models
 
 use crate::context::Context;
-use crate::json_models::{JsonMethodArg, JsonMethodReturn};
-use crate::util::{option_as_slice, safe_ident, ClassCodegenLevel};
-use crate::{conv, ModName, RustTy, TyName};
+use crate::models::json::{JsonMethodArg, JsonMethodReturn};
+use crate::util::{ident, option_as_slice, safe_ident, ClassCodegenLevel};
+use crate::{conv, ModName};
 
 use proc_macro2::{Ident, Literal, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use std::fmt;
 
 pub struct ExtensionApi {
@@ -64,8 +64,8 @@ pub struct ClassCommons {
 }
 
 pub struct BuiltinClass {
-    pub(super) common: ClassCommons,
-    pub(super) inner_name: TyName,
+    pub common: ClassCommons,
+    pub inner_name: TyName,
     pub methods: Vec<BuiltinMethod>,
     pub constructors: Vec<Constructor>,
     pub operators: Vec<Operator>,
@@ -87,10 +87,10 @@ impl ClassLike for BuiltinClass {
 
 /// All information about a builtin type, including its type (if available).
 pub struct BuiltinVariant {
-    pub(super) godot_original_name: String,
-    pub(super) godot_shout_name: String,
-    pub(super) godot_snake_name: String,
-    pub(super) builtin_class: Option<BuiltinClass>,
+    pub godot_original_name: String,
+    pub godot_shout_name: String,
+    pub godot_snake_name: String,
+    pub builtin_class: Option<BuiltinClass>,
 
     pub variant_type_ord: i32,
 }
@@ -132,7 +132,7 @@ impl BuiltinVariant {
 }
 
 pub struct Class {
-    pub(super) common: ClassCommons,
+    pub common: ClassCommons,
     pub is_refcounted: bool,
     pub is_instantiable: bool,
     pub inherits: Option<String>,
@@ -347,7 +347,7 @@ struct FnSignature<'a> {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub struct UtilityFunction {
-    pub(super) common: FunctionCommon,
+    pub common: FunctionCommon,
 }
 
 impl UtilityFunction {
@@ -383,9 +383,9 @@ impl fmt::Display for UtilityFunction {
 
 pub struct BuiltinMethod {
     // variant_type:
-    pub(super) common: FunctionCommon,
-    pub(super) qualifier: FnQualifier,
-    pub(super) surrounding_class: TyName,
+    pub common: FunctionCommon,
+    pub qualifier: FnQualifier,
+    pub surrounding_class: TyName,
 }
 
 impl BuiltinMethod {
@@ -425,9 +425,9 @@ impl fmt::Display for BuiltinMethod {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub struct ClassMethod {
-    pub(super) common: FunctionCommon,
-    pub(super) qualifier: FnQualifier,
-    pub(super) surrounding_class: TyName,
+    pub common: FunctionCommon,
+    pub qualifier: FnQualifier,
+    pub surrounding_class: TyName,
 }
 
 impl ClassMethod {}
@@ -584,5 +584,136 @@ impl FnReturn {
                 quote! { () }
             }
         }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Godot type
+
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub struct GodotTy {
+    pub ty: String,
+    pub meta: Option<String>,
+}
+
+// impl GodotTy {
+//     fn new<'a>(ty: &'a String, meta: &'a Option<String>) -> Self {
+//         Self {
+//             ty: ty.clone(),
+//             meta: meta.clone(),
+//         }
+//     }
+// }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Rust type
+
+#[derive(Clone, Debug)]
+pub enum RustTy {
+    /// `bool`, `Vector3i`
+    BuiltinIdent(Ident),
+
+    /// `Array<i32>`
+    BuiltinArray(TokenStream),
+
+    /// C-style raw pointer to a `RustTy`.
+    RawPointer { inner: Box<RustTy>, is_const: bool },
+
+    /// `Array<Gd<PhysicsBody3D>>`
+    EngineArray {
+        tokens: TokenStream,
+        #[allow(dead_code)] // only read in minimal config
+        elem_class: String,
+    },
+
+    /// `module::Enum`
+    EngineEnum {
+        tokens: TokenStream,
+        /// `None` for globals
+        #[allow(dead_code)] // only read in minimal config
+        surrounding_class: Option<String>,
+    },
+
+    /// `module::Bitfield`
+    EngineBitfield {
+        tokens: TokenStream,
+        /// `None` for globals
+        #[allow(dead_code)] // only read in minimal config
+        surrounding_class: Option<String>,
+    },
+
+    /// `Gd<Node>`
+    EngineClass {
+        /// Tokens with full `Gd<T>`
+        tokens: TokenStream,
+        /// only inner `T`
+        #[allow(dead_code)] // only read in minimal config
+        inner_class: Ident,
+    },
+}
+
+impl RustTy {
+    pub fn return_decl(&self) -> TokenStream {
+        match self {
+            Self::EngineClass { tokens, .. } => quote! { -> Option<#tokens> },
+            other => quote! { -> #other },
+        }
+    }
+}
+
+impl ToTokens for RustTy {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            RustTy::BuiltinIdent(ident) => ident.to_tokens(tokens),
+            RustTy::BuiltinArray(path) => path.to_tokens(tokens),
+            RustTy::RawPointer {
+                inner,
+                is_const: true,
+            } => quote! { *const #inner }.to_tokens(tokens),
+            RustTy::RawPointer {
+                inner,
+                is_const: false,
+            } => quote! { *mut #inner }.to_tokens(tokens),
+            RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
+            RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
+            RustTy::EngineBitfield { tokens: path, .. } => path.to_tokens(tokens),
+            RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Contains multiple naming conventions for types (classes, builtin classes, enums).
+#[derive(Clone, Eq, PartialEq, Hash)]
+pub struct TyName {
+    pub godot_ty: String,
+    pub rust_ty: Ident,
+}
+
+impl TyName {
+    pub fn from_godot(godot_ty: &str) -> Self {
+        Self {
+            godot_ty: godot_ty.to_owned(),
+            rust_ty: ident(&conv::to_pascal_case(godot_ty)),
+        }
+    }
+
+    pub fn description(&self) -> String {
+        if self.rust_ty == self.godot_ty {
+            self.godot_ty.clone()
+        } else {
+            format!("{}  [renamed {}]", self.godot_ty, self.rust_ty)
+        }
+    }
+
+    pub fn virtual_trait_name(&self) -> String {
+        format!("I{}", self.rust_ty)
+    }
+}
+
+impl ToTokens for TyName {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.rust_ty.to_tokens(tokens)
     }
 }

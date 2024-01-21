@@ -5,13 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::json_models::{
+use crate::models::domain::{GodotTy, RustTy, TyName};
+use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod,
 };
 use crate::util::{option_as_slice, MethodTableKey};
-use crate::{
-    codegen_special_cases, special_cases, util, GodotTy, JsonExtensionApi, RustTy, TyName,
-};
+use crate::{codegen_special_cases, special_cases, util, JsonExtensionApi};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, ToTokens};
 use std::collections::{HashMap, HashSet};
@@ -332,7 +331,7 @@ impl ToTokens for NotificationEnum {
 
 /// Maintains class hierarchy. Uses Rust class names, not Godot ones.
 #[derive(Default)]
-pub(crate) struct InheritanceTree {
+pub struct InheritanceTree {
     derived_to_base: HashMap<TyName, TyName>,
 }
 

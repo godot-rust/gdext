@@ -5,15 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::json_models::{JsonClass, JsonClassConstant};
-use crate::{conv, RustTy, TyName};
+use crate::conv;
+use crate::models::json::{JsonClass, JsonClassConstant};
 
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
 
-use crate::domain_models::{
+use crate::models::domain::{
     BuiltinClass, BuiltinMethod, Class, ClassConstant, ClassConstantValue, ClassLike, ClassMethod,
-    Enum, Enumerator, EnumeratorValue, Function,
+    Enum, Enumerator, EnumeratorValue, Function, RustTy, TyName,
 };
 use std::fmt;
 
@@ -79,7 +79,7 @@ impl ClassCodegenLevel {
 // Could potentially save a lot of string allocations with lifetimes.
 // See also crate::lazy_keys.
 #[derive(Eq, PartialEq, Hash)]
-pub(crate) enum MethodTableKey {
+pub enum MethodTableKey {
     ClassMethod {
         api_level: ClassCodegenLevel,
         class_ty: TyName,

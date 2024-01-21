@@ -10,8 +10,9 @@
 // TODO make this file private and only accessed by special_cases.rs.
 
 use crate::context::Context;
-use crate::json_models::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
-use crate::{special_cases, TyName};
+use crate::models::domain::TyName;
+use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
+use crate::special_cases;
 
 pub(crate) fn is_builtin_method_excluded(method: &JsonBuiltinMethod) -> bool {
     // TODO Fall back to varcall (recent addition in GDExtension API).
@@ -31,7 +32,8 @@ pub(crate) fn is_class_excluded(_godot_class_name: &str) -> bool {
 
 #[cfg(not(feature = "codegen-full"))]
 fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
-    use crate::{conv, RustTy};
+    use crate::conv;
+    use crate::models::domain::RustTy;
 
     fn is_rust_type_excluded(ty: &RustTy) -> bool {
         match ty {

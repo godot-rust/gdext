@@ -105,7 +105,7 @@ pub struct JsonBuiltinEnum {
 }
 
 impl JsonBuiltinEnum {
-    pub(crate) fn to_enum(&self) -> JsonEnum {
+    pub fn to_enum(&self) -> JsonEnum {
         JsonEnum {
             name: self.name.clone(),
             is_bitfield: false,

@@ -9,12 +9,12 @@ use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
 use std::path::Path;
 
-use crate::domain_models::{
+use crate::models::domain::{
     BuiltinMethod, BuiltinVariant, Class, ClassLike, ClassMethod, Constructor, Enumerator,
-    ExtensionApi, FnDirection, Function, GodotApiVersion, Operator,
+    ExtensionApi, FnDirection, Function, GodotApiVersion, Operator, TyName,
 };
 use crate::util::{make_table_accessor_name, ClassCodegenLevel, MethodTableKey};
-use crate::{conv, ident, special_cases, util, Context, SubmitFn, TyName};
+use crate::{conv, ident, special_cases, util, Context, SubmitFn};
 
 struct CentralItems {
     opaque_types: [Vec<TokenStream>; 2],

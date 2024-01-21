@@ -6,19 +6,19 @@
  */
 
 use crate::context::Context;
-use crate::domain_models::{
+use crate::models::domain::{
     BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
     ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, Constructor, Enum, Enumerator,
     EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon,
-    GodotApiVersion, NativeStructure, Operator, Singleton, UtilityFunction,
+    GodotApiVersion, NativeStructure, Operator, Singleton, TyName, UtilityFunction,
 };
-use crate::json_models::{
+use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonBuiltinSizes, JsonClass, JsonClassConstant,
     JsonClassMethod, JsonConstructor, JsonEnum, JsonEnumConstant, JsonExtensionApi, JsonHeader,
     JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSingleton, JsonUtilityFunction,
 };
 use crate::util::{get_api_level, ident, option_as_slice};
-use crate::{conv, special_cases, ModName, TyName};
+use crate::{conv, special_cases, ModName};
 use proc_macro2::Ident;
 use std::collections::HashMap;
 

@@ -12,15 +12,15 @@ use quote::{format_ident, quote};
 use std::path::Path;
 
 use crate::context::NotificationEnum;
-use crate::domain_models::BuiltinMethod;
-use crate::domain_models::*;
+use crate::models::domain::BuiltinMethod;
+use crate::models::domain::*;
 use crate::util::{
     ident, make_string_name, option_as_slice, parse_native_structures_format, safe_ident,
     MethodTableKey, NativeStructuresField,
 };
 use crate::{
     conv, special_cases, util, Context, GeneratedBuiltin, GeneratedBuiltinModule, GeneratedClass,
-    GeneratedClassModule, ModName, RustTy, SubmitFn, TyName,
+    GeneratedClassModule, ModName, SubmitFn,
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

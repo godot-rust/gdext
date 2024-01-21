@@ -23,9 +23,10 @@
 
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
-use crate::json_models::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
+use crate::codegen_special_cases;
+use crate::models::domain::TyName;
+use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
 use crate::Context;
-use crate::{codegen_special_cases, TyName};
 
 #[rustfmt::skip]
 pub(crate) fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ctx: &mut Context) -> bool {
