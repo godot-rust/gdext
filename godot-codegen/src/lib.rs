@@ -5,36 +5,32 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-mod central_generator;
-mod class_generator;
 mod codegen_special_cases;
 mod context;
 mod conv;
-mod interface_generator;
+mod generator;
 mod models;
 mod special_cases;
 mod util;
-mod utilities_generator;
 
 #[cfg(test)]
 mod tests;
 
-use crate::central_generator::{
+use crate::context::Context;
+use crate::generator::builtins::generate_builtin_class_files;
+use crate::generator::classes::generate_class_files;
+use crate::generator::extension_interface::generate_sys_interface_file;
+use crate::generator::native_structures::generate_native_structures_files;
+use crate::generator::utility_functions::generate_utilities_file;
+use crate::generator::{
     generate_core_central_file, generate_core_mod_file, generate_sys_builtin_lifecycle_file,
     generate_sys_builtin_methods_file, generate_sys_central_file, generate_sys_classes_file,
     generate_sys_utilities_file,
 };
-use crate::class_generator::{
-    generate_builtin_class_files, generate_class_files, generate_native_structures_files,
-};
-use crate::context::{Context, NotificationEnum};
-use crate::interface_generator::generate_sys_interface_file;
-use crate::models::domain::{ExtensionApi, TyName};
+use crate::models::domain::ExtensionApi;
 use crate::models::json::{load_extension_api, JsonExtensionApi};
-use crate::util::ident;
-use crate::utilities_generator::generate_utilities_file;
-use proc_macro2::{Ident, TokenStream};
-use quote::ToTokens;
+
+use proc_macro2::TokenStream;
 use std::path::{Path, PathBuf};
 
 pub type SubmitFn = dyn FnMut(PathBuf, TokenStream);
@@ -143,53 +139,4 @@ pub fn generate_core_files(core_gen_path: &Path) {
     watch.record("generate_native_structures_files");
 
     watch.write_stats_to(&core_gen_path.join("codegen-stats.txt"));
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Contains naming conventions for modules.
-#[derive(Clone)]
-pub struct ModName {
-    // godot_mod: String,
-    rust_mod: Ident,
-}
-
-impl ModName {
-    fn from_godot(godot_ty: &str) -> Self {
-        Self {
-            // godot_mod: godot_ty.to_owned(),
-            rust_mod: ident(&conv::to_snake_case(godot_ty)),
-        }
-    }
-}
-
-impl ToTokens for ModName {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.rust_mod.to_tokens(tokens)
-    }
-}
-
-struct GeneratedClass {
-    code: TokenStream,
-    notification_enum: NotificationEnum,
-    inherits_macro_ident: Ident,
-    /// Sidecars are the associated modules with related enum/flag types, such as `node_3d` for `Node3D` class.
-    has_sidecar_module: bool,
-}
-
-struct GeneratedBuiltin {
-    code: TokenStream,
-}
-
-struct GeneratedClassModule {
-    class_name: TyName,
-    module_name: ModName,
-    own_notification_enum_name: Option<Ident>,
-    inherits_macro_ident: Ident,
-    is_pub_sidecar: bool,
-}
-
-struct GeneratedBuiltinModule {
-    symbol_ident: Ident,
-    module_name: ModName,
 }

@@ -12,10 +12,10 @@ use quote::{quote, ToTokens};
 use std::fmt;
 
 use crate::context::Context;
-use crate::models::domain::{GodotTy, RustTy, TyName};
+use crate::conv;
+use crate::models::domain::{GodotTy, ModName, RustTy, TyName};
 use crate::special_cases::is_builtin_type_scalar;
-use crate::util::{ident, unmap_meta};
-use crate::{conv, ModName};
+use crate::util::ident;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Godot -> Rust types
@@ -549,4 +549,28 @@ fn gdscript_to_rust_expr() {
         // println!("{actual} -> {expected}");
         assert_eq!(actual, expected);
     }
+}
+
+/// Converts a potential "meta" type (like u32) to its canonical type (like i64).
+///
+/// Avoids dragging along the meta type through [`RustTy::BuiltinIdent`].
+pub(crate) fn unmap_meta(rust_ty: &RustTy) -> Option<Ident> {
+    let RustTy::BuiltinIdent(rust_ty) = rust_ty else {
+        return None;
+    };
+
+    // Don't use match because it needs allocation (unless == is repeated)
+    // Even though i64 and f64 can have a meta of the same type, there's no need to return that here, as there won't be any conversion.
+
+    for ty in ["u64", "u32", "u16", "u8", "i32", "i16", "i8"] {
+        if rust_ty == ty {
+            return Some(ident("i64"));
+        }
+    }
+
+    if rust_ty == "f32" {
+        return Some(ident("f64"));
+    }
+
+    None
 }

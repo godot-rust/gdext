@@ -9,7 +9,8 @@
 // See also integration tests: itest/engine_tests/codegen_[enums_]test.rs.
 
 use crate::conv;
-use crate::util::{parse_native_structures_format, NativeStructuresField};
+use crate::generator::native_structures::parse_native_structures_format;
+use crate::generator::native_structures::NativeStructuresField;
 
 #[test]
 fn test_pascal_conversion() {

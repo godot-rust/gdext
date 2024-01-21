@@ -5,11 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::generator::method_tables::MethodTableKey;
+use crate::generator::notifications;
 use crate::models::domain::{GodotTy, RustTy, TyName};
 use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonClass, JsonClassConstant, JsonClassMethod,
 };
-use crate::util::{option_as_slice, MethodTableKey};
+use crate::util::option_as_slice;
 use crate::{codegen_special_cases, special_cases, util, JsonExtensionApi};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, ToTokens};
@@ -135,7 +137,7 @@ impl<'a> Context<'a> {
     ) {
         let mut has_notifications = false;
         for constant in constants.iter() {
-            if let Some(rust_constant) = util::try_to_notification(constant) {
+            if let Some(rust_constant) = notifications::try_to_notification(constant) {
                 // First time
                 if !has_notifications {
                     ctx.notifications_by_class

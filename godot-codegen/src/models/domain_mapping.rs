@@ -10,7 +10,7 @@ use crate::models::domain::{
     BuildConfiguration, BuiltinClass, BuiltinMethod, BuiltinSize, BuiltinVariant, Class,
     ClassCommons, ClassConstant, ClassConstantValue, ClassMethod, Constructor, Enum, Enumerator,
     EnumeratorValue, ExtensionApi, FnDirection, FnParam, FnQualifier, FnReturn, FunctionCommon,
-    GodotApiVersion, NativeStructure, Operator, Singleton, TyName, UtilityFunction,
+    GodotApiVersion, ModName, NativeStructure, Operator, Singleton, TyName, UtilityFunction,
 };
 use crate::models::json::{
     JsonBuiltinClass, JsonBuiltinMethod, JsonBuiltinSizes, JsonClass, JsonClassConstant,
@@ -18,7 +18,7 @@ use crate::models::json::{
     JsonMethodReturn, JsonNativeStructure, JsonOperator, JsonSingleton, JsonUtilityFunction,
 };
 use crate::util::{get_api_level, ident, option_as_slice};
-use crate::{conv, special_cases, ModName};
+use crate::{conv, special_cases};
 use proc_macro2::Ident;
 use std::collections::HashMap;
 
