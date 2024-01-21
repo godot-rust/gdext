@@ -26,7 +26,6 @@ pub struct ExtensionApi {
     pub native_structures: Vec<NativeStructure>,
     pub utility_functions: Vec<UtilityFunction>,
     pub global_enums: Vec<Enum>,
-    pub build_config: [&'static str; 2],
     pub godot_version: GodotApiVersion,
 
     /// Map `(original Godot name, build config) -> builtin size` in bytes.

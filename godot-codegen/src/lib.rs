@@ -62,12 +62,12 @@ pub fn generate_sys_files(
     h_path: &Path,
     watch: &mut godot_bindings::StopWatch,
 ) {
-    let (json_api, build_config) = load_extension_api(watch);
+    let json_api = load_extension_api(watch);
 
     let mut ctx = Context::build_from_api(&json_api);
     watch.record("build_context");
 
-    let api = ExtensionApi::from_json(&json_api, build_config, &mut ctx);
+    let api = ExtensionApi::from_json(&json_api, &mut ctx);
     watch.record("map_domain_models");
 
     // TODO if ctx is no longer needed for below functions:
@@ -99,11 +99,11 @@ pub fn generate_core_files(core_gen_path: &Path) {
 
     generate_core_mod_file(core_gen_path, &mut submit_fn);
 
-    let (json_api, build_config) = load_extension_api(&mut watch);
+    let json_api = load_extension_api(&mut watch);
     let mut ctx = Context::build_from_api(&json_api);
     watch.record("build_context");
 
-    let api = ExtensionApi::from_json(&json_api, build_config, &mut ctx);
+    let api = ExtensionApi::from_json(&json_api, &mut ctx);
     watch.record("map_domain_models");
 
     // TODO if ctx is no longer needed for below functions:
@@ -121,7 +121,6 @@ pub fn generate_core_files(core_gen_path: &Path) {
     generate_class_files(
         &api,
         &mut ctx,
-        build_config,
         &core_gen_path.join("classes"),
         &mut submit_fn,
     );
@@ -130,7 +129,6 @@ pub fn generate_core_files(core_gen_path: &Path) {
     generate_builtin_class_files(
         &api,
         &mut ctx,
-        build_config,
         &core_gen_path.join("builtin_classes"),
         &mut submit_fn,
     );
@@ -139,7 +137,6 @@ pub fn generate_core_files(core_gen_path: &Path) {
     generate_native_structures_files(
         &api,
         &mut ctx,
-        build_config,
         &core_gen_path.join("native"),
         &mut submit_fn,
     );

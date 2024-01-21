@@ -26,11 +26,7 @@ use std::collections::HashMap;
 // Top-level
 
 impl ExtensionApi {
-    pub fn from_json(
-        json: &JsonExtensionApi,
-        build_config: [&'static str; 2],
-        ctx: &mut Context,
-    ) -> Self {
+    pub fn from_json(json: &JsonExtensionApi, ctx: &mut Context) -> Self {
         Self {
             builtins: BuiltinVariant::all_from_json(&json.global_enums, &json.builtin_classes, ctx),
             classes: json
@@ -54,7 +50,6 @@ impl ExtensionApi {
                 .iter()
                 .map(|json| Enum::from_json(json, None))
                 .collect(),
-            build_config,
             godot_version: GodotApiVersion::from_json(&json.header),
             builtin_sizes: Self::builtin_size_from_json(&json.builtin_class_sizes),
         }
