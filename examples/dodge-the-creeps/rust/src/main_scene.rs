@@ -16,7 +16,6 @@ pub struct Main {
     music: Option<Gd<AudioStreamPlayer>>,
     death_sound: Option<Gd<AudioStreamPlayer>>,
     score: i64,
-    #[base]
     base: Base<Node>,
 }
 

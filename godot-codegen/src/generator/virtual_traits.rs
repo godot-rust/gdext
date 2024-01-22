@@ -50,7 +50,7 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
 
         /// Godot constructor, accepting an injected `base` object.
         ///
-        /// `base` refers to the base instance of the class, which can either be stored in a `#[base]` field or discarded.
+        /// `base` refers to the base instance of the class, which can either be stored in a `Base<T>` field or discarded.
         /// This method returns a fully-constructed instance, which will then be moved into a [`Gd<T>`][crate::obj::Gd] pointer.
         ///
         /// If the class has a `#[class(init)]` attribute, this method will be auto-generated and must not be overridden.

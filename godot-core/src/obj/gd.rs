@@ -64,9 +64,9 @@ use crate::{callbacks, engine, out};
 ///
 /// * [`Gd::default()`] for reference-counted types that are constructible. For user types, this means they must expose an `init` function
 ///   or have a generated one. `Gd::<T>::default()` is equivalent to the shorter `T::new_gd()` and primarily useful for derives or generics.
-/// * [`Gd::from_init_fn(function)`][Gd::from_init_fn] for Rust objects with `#[base]` field, which are constructed inside the smart pointer.
+/// * [`Gd::from_init_fn(function)`][Gd::from_init_fn] for Rust objects with `Base<T>` field, which are constructed inside the smart pointer.
 ///   This is a very handy function if you want to pass extra parameters to your object upon construction.
-/// * [`Gd::from_object(rust_obj)`][Gd::from_object] for existing Rust objects without a `#[base]` field that are moved _into_ the smart pointer.
+/// * [`Gd::from_object(rust_obj)`][Gd::from_object] for existing Rust objects without a `Base<T>` field that are moved _into_ the smart pointer.
 /// * [`Gd::from_instance_id(id)`][Gd::from_instance_id] and [`Gd::try_from_instance_id(id)`][Gd::try_from_instance_id]
 ///   to obtain a pointer to an object which is already alive in the engine.
 ///
@@ -108,7 +108,7 @@ where
 {
     /// Creates a `Gd<T>` using a function that constructs a `T` from a provided base.
     ///
-    /// Imagine you have a type `T`, which has a `#[base]` field that you cannot default-initialize.
+    /// Imagine you have a type `T`, which has a base field that you cannot default-initialize.
     /// The `init` function provides you with a `Base<T::Base>` object that you can use inside your `T`, which
     /// is then wrapped in a `Gd<T>`.
     ///
@@ -118,7 +118,6 @@ where
     /// #[derive(GodotClass)]
     /// #[class(init, base=Node2D)]
     /// struct MyClass {
-    ///     #[base]
     ///     my_base: Base<Node2D>,
     ///     other_field: i32,
     /// }

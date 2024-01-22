@@ -71,7 +71,6 @@ impl FuncRename {
 struct GdSelfReference {
     internal_value: i32,
 
-    #[base]
     base: Base<RefCounted>,
 }
 

@@ -35,7 +35,7 @@ fn base_access_unbound() {
     obj.free();
 }
 
-// Tests whether access to base is possible from outside the Gd<T>, even if there is no `#[base]` field.
+// Tests whether access to base is possible from outside the Gd<T>, even if there is no Base<T> field.
 #[itest]
 fn base_access_unbound_no_field() {
     let mut obj = Baseless::new_alloc();
@@ -110,7 +110,6 @@ fn base_gd_self() {
 #[derive(GodotClass)]
 #[class(init, base=Node2D)]
 struct Based {
-    #[base]
     base: Base<Node2D>,
 
     i: i32,

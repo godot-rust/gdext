@@ -39,9 +39,8 @@ use crate::util::ident;
 /// }
 /// ```
 ///
-/// The generated `init` function will initialize each struct field (except the field annotated
-/// with `#[base]`, if any) using `Default::default()`. To assign some other value, annotate the
-/// field with `#[init(default = ...)]`:
+/// The generated `init` function will initialize each struct field (except the field of type `Base<T>`, if any)
+/// using `Default::default()`. To assign some other value, annotate the field with `#[init(default = ...)]`:
 ///
 /// ```
 /// # use godot_macros::GodotClass;
@@ -91,8 +90,8 @@ use crate::util::ident;
 /// }
 /// ```
 ///
-/// If you need a reference to the base class, you can add a field of type `Gd<Base>` and annotate
-/// it with `#[base]`:
+/// If you need a reference to the base class, you can add a field of type `Base<T>`. The derive macro will pick this up and wire
+/// your object accordingly. You can access it through `self.base()` and `self.base_mut()` methods.
 ///
 /// ```
 /// use godot::prelude::*;
@@ -100,7 +99,6 @@ use crate::util::ident;
 /// #[derive(GodotClass)]
 /// #[class(base = Node2D)]
 /// struct MyStruct {
-///     #[base]
 ///     base: Base<Node2D>,
 /// }
 /// ```
@@ -434,7 +432,6 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// #[derive(GodotClass)]
 /// #[class(init, base=Node)]
 /// pub struct MyNode {
-///     #[base]
 ///     base: Base<Node>,
 /// }
 ///

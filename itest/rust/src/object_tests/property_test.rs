@@ -326,7 +326,6 @@ pub struct DeriveExport {
     #[export]
     pub foo: TestEnum,
 
-    #[base]
     pub base: Base<RefCounted>,
 }
 

@@ -37,7 +37,6 @@ impl Emitter {
 #[class(init, base=Object)]
 struct Receiver {
     used: [Cell<bool>; 3],
-    #[base]
     base: Base<Object>,
 }
 

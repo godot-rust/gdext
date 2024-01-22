@@ -7,7 +7,6 @@ pub struct Player {
     speed: real,
     screen_size: Vector2,
 
-    #[base]
     base: Base<Area2D>,
 }
 

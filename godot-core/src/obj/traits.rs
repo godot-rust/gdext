@@ -208,7 +208,7 @@ pub trait IndexEnum: EngineEnum {
     }
 }
 
-/// Trait that's implemented for user-defined classes that provide a `#[base]` field.
+/// Trait that's implemented for user-defined classes that provide a `Base<T>` field.
 ///
 /// Gives direct access to the containing `Gd<Self>` from `Self`.
 // Possible alternative for builder APIs, although even less ergonomic: Base<T> could be Base<T, Self> and return Gd<Self>.
@@ -232,7 +232,6 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// #[derive(GodotClass)]
     /// #[class(init, base = Node)]
     /// struct MyClass {
-    ///     #[base]
     ///     base: Base<Node>,
     /// }
     ///
@@ -259,8 +258,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// #[derive(GodotClass)]
     /// #[class(init, base = Node)]
     /// struct MyClass {
-    ///     #[base]
-    ///     base: Base<Node>,
+    ///     ///     base: Base<Node>,
     /// }
     ///
     /// #[godot_api]
@@ -298,7 +296,6 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// #[derive(GodotClass)]
     /// #[class(init, base = Node)]
     /// struct MyClass {
-    ///     #[base]
     ///     base: Base<Node>,
     /// }
     ///
@@ -324,7 +321,6 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// #[derive(GodotClass)]
     /// #[class(init, base = Node)]
     /// struct MyClass {
-    ///     #[base]
     ///     base: Base<Node>,
     /// }
     ///
