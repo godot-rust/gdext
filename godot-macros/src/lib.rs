@@ -364,7 +364,7 @@ use crate::util::ident;
 ///
 /// Even though this class is a `Node` and it has an init function, it still won't show up in the editor as a node you can add to a scene
 /// because we have added a `hide` key to the class. This will also prevent it from showing up in documentation.
-#[proc_macro_derive(GodotClass, attributes(class, base, var, export, init, signal))]
+#[proc_macro_derive(GodotClass, attributes(class, base, hint, var, export, init, signal))]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)
 }

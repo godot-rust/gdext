@@ -58,6 +58,12 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         quote! {}
     };
 
+    let deprecated_base_warning = if fields.has_deprecated_base {
+        quote! { ::godot::private::__base_attribute_warning_expand!(); }
+    } else {
+        TokenStream::new()
+    };
+
     let (user_class_impl, has_default_virtual) =
         make_user_class_impl(class_name, struct_cfg.is_tool, &fields.all_fields);
 
@@ -134,6 +140,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         });
 
         #prv::class_macros::#inherits_macro!(#class_name);
+        #deprecated_base_warning
     })
 }
 
@@ -262,6 +269,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
 fn parse_fields(class: &Struct) -> ParseResult<Fields> {
     let mut all_fields = vec![];
     let mut base_field = Option::<Field>::None;
+    let mut has_deprecated_base = false;
 
     let named_fields: Vec<(NamedField, Punct)> = match &class.fields {
         StructFields::Unit => {
@@ -279,17 +287,23 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
         let mut is_base = false;
         let mut field = Field::new(&named_field);
 
-        // #[base]
-        if let Some(parser) = KvParser::parse(&named_field.attributes, "base")? {
+        // Base<T> type inference
+        if path_ends_with_complex(&field.ty, "Base") {
             if let Some(prev_base) = base_field.as_ref() {
                 return bail!(
-                    parser.span(),
-                    "#[base] allowed for at most 1 field, already applied to `{}`",
+                    field.name,
+                    "at most 1 field can have type Base<T>; previous is `{}`",
                     prev_base.name
                 );
             }
+
             is_base = true;
-            parser.finish()?;
+        }
+
+        // deprecated #[base]
+        if KvParser::parse(&named_field.attributes, "base")?.is_some() {
+            has_deprecated_base = true;
+            is_base = true;
         }
 
         // OnReady<T> type inference
@@ -332,6 +346,7 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
     Ok(Fields {
         all_fields,
         base_field,
+        has_deprecated_base,
     })
 }
 
