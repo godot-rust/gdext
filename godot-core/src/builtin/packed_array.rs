@@ -53,8 +53,16 @@ macro_rules! impl_packed_array {
         #[doc = concat!("which is an efficient array of `", stringify!($Element), "`s.")]
         ///
         /// Note that, unlike `Array`, this type has value semantics: each copy will be independent
-        /// of the original. (Under the hood, Godot uses copy-on-write, so copies are still cheap
-        /// to make.)
+        /// of the original. Under the hood, Godot uses copy-on-write, so copies are still cheap
+        /// to make.
+        ///
+        /// # Registering properties
+        ///
+        /// You can use both `#[var]` and `#[export]` with packed arrays. However, since they use copy-on-write, GDScript (for `#[var]`) and the
+        /// editor (for `#[export]`) will effectively keep an independent copy of the array. Writes to the packed array from Rust are thus not
+        /// reflected on the other side -- you may need to replace the entire array.
+        ///
+        /// See also [#godot/76150](https://github.com/godotengine/godot/issues/76150) for details.
         ///
         /// # Thread safety
         ///
@@ -124,6 +132,7 @@ macro_rules! impl_packed_array {
 
             /// Returns a sub-range `begin..end`, as a new packed array.
             ///
+            /// This method is called `slice()` in Godot.
             /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
             ///
             /// To obtain Rust slices, see [`as_slice`][Self::as_slice] and [`as_mut_slice`][Self::as_mut_slice].
