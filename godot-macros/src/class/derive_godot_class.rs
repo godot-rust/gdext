@@ -228,8 +228,14 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
             is_tool = true;
         }
 
-        // TODO: better error message when using in Godot 4.0
-        if parser.handle_alone_ident("editor_plugin")?.is_some() {
+        if let Some(attr_key) = parser.handle_alone_ident("editor_plugin")? {
+            if cfg!(before_api = "4.1") {
+                return bail!(
+                    attr_key,
+                    "#[class(editor_plugin)] is not supported in Godot 4.0"
+                );
+            }
+
             is_editor_plugin = true;
         }
 
