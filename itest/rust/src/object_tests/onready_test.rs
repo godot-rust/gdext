@@ -112,6 +112,9 @@ fn onready_lifecycle_with_impl_without_ready() {
 
         *obj.auto = 77;
         assert_eq!(*obj.auto, 77);
+
+        // Test #[hint(no_onready)]: we can still initialize it (would panic if already auto-initialized).
+        godot::private::auto_init(&mut obj.nothing);
     }
 
     obj.free();
@@ -199,20 +202,27 @@ impl OnReadyWithoutImpl {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+type Ordy<T> = OnReady<T>;
+
 // Class that has a #[godot_api] impl, but does not override ready. Used to test whether variables are still initialized.
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct OnReadyWithImplWithoutReady {
-    auto: OnReady<i32>,
+    // Test also #[hint] at the same time.
+    #[hint(onready)]
+    auto: Ordy<i32>,
     // No manual one, since those cannot be initialized without a ready() override.
     // (Technically they _can_ at the moment, but in the future we might ensure initialization after ready, so this is not a supported workflow).
+    #[hint(no_onready)]
+    nothing: OnReady<i32>,
 }
 
 // Rust-only impl, no proc macros.
 impl OnReadyWithImplWithoutReady {
     fn create() -> Gd<OnReadyWithImplWithoutReady> {
         let obj = Self {
-            auto: OnReady::new(|| 66),
+            auto: Ordy::new(|| 66),
+            nothing: Ordy::new(|| -111),
         };
 
         Gd::from_object(obj)

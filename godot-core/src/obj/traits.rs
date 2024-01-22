@@ -17,6 +17,8 @@ use godot_ffi as sys;
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
 ///
 /// The behavior of types implementing this trait is influenced by the associated types; check their documentation for information.
+///
+/// Normally, you don't need to implement this trait yourself; use [`#[derive(GodotClass)]`](../register/derive.GodotClass.html) instead.
 // Above intra-doc link to the derive-macro only works as HTML, not as symbol link.
 pub trait GodotClass: Bounds + 'static
 where
