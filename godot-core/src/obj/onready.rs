@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::property::{Export, PropertyHintInfo, Var};
+use crate::property::{PropertyHintInfo, Var};
 use std::mem;
 
 /// Ergonomic late-initialization container with `ready()` support.
@@ -26,6 +26,9 @@ use std::mem;
 /// Conceptually, `OnReady<T>` is very close to [once_cell's `Lazy<T>`][lazy], with additional hooks into the Godot lifecycle.
 /// The absence of methods to check initialization state is deliberate: you don't need them if you follow the above two patterns.
 /// This container is not designed as a general late-initialization solution, but tailored to the `ready()` semantics of Godot.
+///
+/// `OnReady<T>` cannot be used with `#[export]` fields, because `ready()` is typically not called in the editor (unless `#[class(tool)]`
+/// is specified). You can however use it with `#[var]` -- just make sure to access the fields in GDScript after `ready()`.
 ///
 /// This type is not thread-safe. `ready()` runs on the main thread and you are expected to access its value on the main thread, as well.
 ///
@@ -202,12 +205,6 @@ impl<T: Var> Var for OnReady<T> {
 
     fn property_hint() -> PropertyHintInfo {
         T::property_hint()
-    }
-}
-
-impl<T: Export> Export for OnReady<T> {
-    fn default_export_info() -> PropertyHintInfo {
-        T::default_export_info()
     }
 }
 

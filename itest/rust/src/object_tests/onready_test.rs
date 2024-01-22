@@ -144,7 +144,7 @@ fn onready_property_access() {
 #[derive(GodotClass)]
 #[class(base=Node)]
 struct OnReadyWithImpl {
-    #[export]
+    #[var]
     auto: OnReady<i32>,
     #[var]
     manual: OnReady<i32>,
