@@ -168,7 +168,7 @@ godot::sys::plugin_add!(
     __GODOT_PLUGIN_REGISTRY in ::godot::private;
     ::godot::private::ClassPlugin {
         class_name: HasOtherConstants::class_name(),
-        component: ::godot::private::PluginComponent::UserMethodBinds {
+        item: ::godot::private::PluginItem::InherentImpl {
             register_methods_constants_fn: ::godot::private::ErasedRegisterFn {
                 raw: ::godot::private::callbacks::register_user_methods_constants::<HasOtherConstants>,
             },

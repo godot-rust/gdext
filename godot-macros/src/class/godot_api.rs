@@ -228,7 +228,7 @@ fn transform_inherent_impl(mut original_impl: Impl) -> Result<TokenStream, Error
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_obj,
-            component: #prv::PluginComponent::UserMethodBinds {
+            item: #prv::PluginItem::InherentImpl {
                 register_methods_constants_fn: #prv::ErasedRegisterFn {
                     raw: #prv::callbacks::register_user_methods_constants::<#class_name>,
                 },
@@ -705,8 +705,8 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let recreate_fn = convert_to_match_expression_or_none(recreate_fn);
     let to_string_fn = convert_to_match_expression_or_none(to_string_fn);
     let on_notification_fn = convert_to_match_expression_or_none(on_notification_fn);
-    let get_fn = convert_to_match_expression_or_none(get_property_fn);
-    let set_fn = convert_to_match_expression_or_none(set_property_fn);
+    let get_property_fn = convert_to_match_expression_or_none(get_property_fn);
+    let set_property_fn = convert_to_match_expression_or_none(set_property_fn);
 
     let result = quote! {
         #original_impl
@@ -737,14 +737,14 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_obj,
-            component: #prv::PluginComponent::UserVirtuals {
+            item: #prv::PluginItem::ITraitImpl {
                 user_register_fn: #register_fn,
                 user_create_fn: #create_fn,
                 user_recreate_fn: #recreate_fn,
                 user_to_string_fn: #to_string_fn,
                 user_on_notification_fn: #on_notification_fn,
-                user_set_fn: #set_fn,
-                user_get_fn: #get_fn,
+                user_set_fn: #set_property_fn,
+                user_get_fn: #get_property_fn,
                 get_virtual_fn: #prv::callbacks::get_virtual::<#class_name>,
             },
             init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,

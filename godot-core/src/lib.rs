@@ -49,7 +49,7 @@ pub mod private {
     use std::sync::{Arc, Mutex};
 
     pub use crate::gen::classes::class_macros;
-    pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginComponent};
+    pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginItem};
     pub use crate::storage::{as_storage, Storage};
     pub use sys::out;
 

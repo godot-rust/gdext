@@ -26,17 +26,17 @@ use std::{fmt, ptr};
 // side and analysis required to adopt these changes.
 static LOADED_CLASSES: Global<HashMap<InitLevel, Vec<ClassName>>> = Global::default();
 
-// TODO(bromeon): some information coming from the proc-macro API is deferred through PluginComponent, while others is directly
-// translated to code. Consider moving more code to the PluginComponent, which allows for more dynamic registration and will
+// TODO(bromeon): some information coming from the proc-macro API is deferred through PluginItem, while others is directly
+// translated to code. Consider moving more code to the PluginItem, which allows for more dynamic registration and will
 // be easier for a future builder API.
 
 /// Piece of information that is gathered by the self-registration ("plugin") system.
 #[derive(Debug)]
 pub struct ClassPlugin {
     pub class_name: ClassName,
-    pub component: PluginComponent,
+    pub item: PluginItem,
 
-    // Init-level is per ClassPlugin and not per PluginComponent, because all components of all classes are mixed together in one
+    // Init-level is per ClassPlugin and not per PluginItem, because all components of all classes are mixed together in one
     // huge linker list. There is no per-class aggregation going on, so this allows to easily filter relevant classes.
     pub init_level: InitLevel,
 }
@@ -61,9 +61,9 @@ impl fmt::Debug for ErasedRegisterFn {
 /// Each enumerator represents a different item in Rust code, which is processed by an independent proc macro (for example,
 /// `#[derive(GodotClass)]` on structs, or `#[godot_api]` on impl blocks).
 #[derive(Clone, Debug)]
-pub enum PluginComponent {
+pub enum PluginItem {
     /// Class definition itself, must always be available -- created by `#[derive(GodotClass)]`.
-    ClassDef {
+    Struct {
         base_class_name: ClassName,
 
         /// Godot low-level `create` function, wired up to library-generated `init`.
@@ -105,7 +105,7 @@ pub enum PluginComponent {
     },
 
     /// Collected from `#[godot_api] impl MyClass`.
-    UserMethodBinds {
+    InherentImpl {
         /// Callback to library-generated function which registers functions and constants in the `impl` block.
         ///
         /// Always present since that's the entire point of this `impl` block.
@@ -113,7 +113,7 @@ pub enum PluginComponent {
     },
 
     /// Collected from `#[godot_api] impl I... for MyClass`.
-    UserVirtuals {
+    ITraitImpl {
         /// Callback to user-defined `register_class` function.
         user_register_fn: Option<ErasedRegisterFn>,
 
@@ -208,14 +208,14 @@ struct ClassRegistrationInfo {
 }
 
 impl ClassRegistrationInfo {
-    fn validate_unique(&mut self, component: &PluginComponent) {
+    fn validate_unique(&mut self, item: &PluginItem) {
         // We could use mem::Discriminant, but match will fail to compile when a new component is added.
 
         // Note: when changing this match, make sure the array has sufficient size.
-        let index = match component {
-            PluginComponent::ClassDef { .. } => 0,
-            PluginComponent::UserMethodBinds { .. } => 1,
-            PluginComponent::UserVirtuals { .. } => 2,
+        let index = match item {
+            PluginItem::Struct { .. } => 0,
+            PluginItem::InherentImpl { .. } => 1,
+            PluginItem::ITraitImpl { .. } => 2,
         };
 
         if self.component_already_filled[index] {
@@ -303,7 +303,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
     let mut map = HashMap::<ClassName, ClassRegistrationInfo>::new();
 
     crate::private::iterate_plugins(|elem: &ClassPlugin| {
-        // Filter per ClassPlugin and not PluginComponent, because all components of all classes are mixed together in one huge list.
+        // Filter per ClassPlugin and not PluginItem, because all components of all classes are mixed together in one huge list.
         if elem.init_level != init_level {
             return;
         }
@@ -315,7 +315,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
             .entry(name)
             .or_insert_with(|| default_registration_info(name));
 
-        fill_class_info(elem.component.clone(), class_info);
+        fill_class_info(elem.item.clone(), class_info);
     });
 
     let mut loaded_classes_by_level = global_loaded_classes();
@@ -362,13 +362,13 @@ fn global_loaded_classes() -> GlobalGuard<'static, HashMap<InitLevel, Vec<ClassN
 }
 
 /// Populate `c` with all the relevant data from `component` (depending on component type).
-fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
-    c.validate_unique(&component);
+fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
+    c.validate_unique(&item);
 
     // out!("|   reg (before):    {c:?}");
     // out!("|   comp:            {component:?}");
-    match component {
-        PluginComponent::ClassDef {
+    match item {
+        PluginItem::Struct {
             base_class_name,
             generated_create_fn,
             generated_recreate_fn,
@@ -407,13 +407,13 @@ fn fill_class_info(component: PluginComponent, c: &mut ClassRegistrationInfo) {
             c.is_editor_plugin = is_editor_plugin;
         }
 
-        PluginComponent::UserMethodBinds {
+        PluginItem::InherentImpl {
             register_methods_constants_fn,
         } => {
             c.register_methods_constants_fn = Some(register_methods_constants_fn);
         }
 
-        PluginComponent::UserVirtuals {
+        PluginItem::ITraitImpl {
             user_register_fn,
             user_create_fn,
             user_recreate_fn,

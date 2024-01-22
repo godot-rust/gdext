@@ -104,7 +104,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_obj,
-            component: #prv::PluginComponent::ClassDef {
+            item: #prv::PluginItem::Struct {
                 base_class_name: #base_class_name_obj,
                 generated_create_fn: #create_fn,
                 generated_recreate_fn: #recreate_fn,
