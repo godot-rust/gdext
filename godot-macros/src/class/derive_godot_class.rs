@@ -32,6 +32,8 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     let class_name_cstr = util::cstr_u8_slice(&class_name_str);
     let class_name_obj = util::class_name_obj(class_name);
 
+    let is_editor_plugin = struct_cfg.is_editor_plugin;
+    let is_hidden = struct_cfg.is_hidden;
     let base_ty = &struct_cfg.base_ty;
     let base_class = quote! { ::godot::engine::#base_ty };
     let base_class_name_obj = util::class_name_obj(&base_class);
@@ -39,32 +41,6 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
 
     let prv = quote! { ::godot::private };
     let godot_exports_impl = make_property_impl(class_name, &fields);
-
-    let editor_plugin = if struct_cfg.is_editor_plugin {
-        quote! {
-            ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-                class_name: #class_name_obj,
-                component: #prv::PluginComponent::EditorPlugin,
-                init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
-            });
-
-            const _: () = #prv::is_editor_plugin::<#class_name>();
-        }
-    } else {
-        quote! {}
-    };
-
-    let hidden = if struct_cfg.is_hidden {
-        quote! {
-            ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-                class_name: #class_name_obj,
-                component: #prv::PluginComponent::Unexposed,
-                init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
-            });
-        }
-    } else {
-        quote! {}
-    };
 
     let godot_withbase_impl = if let Some(Field { name, .. }) = &fields.base_field {
         quote! {
@@ -128,7 +104,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_obj,
-            component: #prv::PluginComponent::ClassDef {
+            item: #prv::PluginItem::Struct {
                 base_class_name: #base_class_name_obj,
                 generated_create_fn: #create_fn,
                 generated_recreate_fn: #recreate_fn,
@@ -137,6 +113,8 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 },
                 free_fn: #prv::callbacks::free::<#class_name>,
                 default_get_virtual_fn: #default_get_virtual_fn,
+                is_editor_plugin: #is_editor_plugin,
+                is_hidden: #is_hidden,
             },
             init_level: {
                 let level = <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL;
@@ -154,9 +132,6 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 level
             }
         });
-
-        #editor_plugin
-        #hidden
 
         #prv::class_macros::#inherits_macro!(#class_name);
     })
