@@ -94,7 +94,7 @@ pub fn make_enum_name(enum_name: &str) -> Ident {
 }
 
 pub fn make_enum_name_str(enum_name: &str) -> String {
-    to_pascal_case(enum_name)
+    to_pascal_case(&str::replace(enum_name, ".", "_"))
 }
 
 /// Maps enumerator names from Godot to Rust, applying a best-effort heuristic.

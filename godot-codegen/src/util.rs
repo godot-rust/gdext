@@ -75,7 +75,7 @@ pub fn get_api_level(class: &JsonClass) -> ClassCodegenLevel {
 }
 
 pub fn ident(s: &str) -> Ident {
-    format_ident!("{}", s)
+    format_ident!("{}", str::replace(s, ".", "_"))
 }
 
 pub fn cstr_u8_slice(string: &str) -> Literal {
