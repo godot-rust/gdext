@@ -8,7 +8,6 @@ pub struct Mob {
     pub min_speed: real,
     pub max_speed: real,
 
-    #[base]
     base: Base<RigidBody2D>,
 }
 

@@ -30,7 +30,6 @@ use godot::register::{godot_api, GodotClass};
 #[derive(GodotClass, Debug)]
 #[class(base=RefCounted)]
 struct WithoutInit {
-    #[base]
     some_base: Base<RefCounted>,
 }
 
@@ -39,7 +38,6 @@ struct WithoutInit {
 #[derive(GodotClass, Debug)]
 #[class(init, base=RefCounted)]
 struct VirtualMethodTest {
-    #[base]
     some_base: Base<RefCounted>,
 
     integer: i32,
@@ -57,7 +55,6 @@ impl IRefCounted for VirtualMethodTest {
 #[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
 struct VirtualReadyTest {
-    #[base]
     some_base: Base<Node2D>,
     implementation_value: i32,
 }
@@ -86,7 +83,6 @@ impl INode2D for VirtualReadyTest {
 #[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
 struct VirtualTreeTest {
-    #[base]
     some_base: Base<Node2D>,
     tree_enters: i32,
     tree_exits: i32,
@@ -116,7 +112,6 @@ impl INode2D for VirtualTreeTest {
 #[derive(GodotClass, Debug)]
 #[class(init, base=PrimitiveMesh)]
 struct VirtualReturnTest {
-    #[base]
     base: Base<PrimitiveMesh>,
 }
 
@@ -144,7 +139,6 @@ impl IPrimitiveMesh for VirtualReturnTest {
 #[derive(GodotClass, Debug)]
 #[class(base=Node2D)]
 struct VirtualInputTest {
-    #[base]
     base: Base<Node2D>,
     event: Option<Gd<InputEvent>>,
 }
@@ -163,7 +157,6 @@ impl INode2D for VirtualInputTest {
 #[derive(GodotClass, Debug)]
 #[class(init, base=ResourceFormatLoader)]
 struct FormatLoaderTest {
-    #[base]
     base: Base<ResourceFormatLoader>,
 }
 
@@ -213,7 +206,6 @@ enum ReceivedEvent {
 #[derive(GodotClass, Debug)]
 #[class(base=Node, init)]
 struct NotificationTest {
-    #[base]
     base: Base<Node>,
 
     sequence: Vec<ReceivedEvent>,

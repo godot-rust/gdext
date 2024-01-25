@@ -17,6 +17,8 @@ use godot_ffi as sys;
 /// Makes `T` eligible to be managed by Godot and stored in [`Gd<T>`][crate::obj::Gd] pointers.
 ///
 /// The behavior of types implementing this trait is influenced by the associated types; check their documentation for information.
+///
+/// Normally, you don't need to implement this trait yourself; use [`#[derive(GodotClass)]`](../register/derive.GodotClass.html) instead.
 // Above intra-doc link to the derive-macro only works as HTML, not as symbol link.
 pub trait GodotClass: Bounds + 'static
 where
@@ -208,7 +210,7 @@ pub trait IndexEnum: EngineEnum {
     }
 }
 
-/// Trait that's implemented for user-defined classes that provide a `#[base]` field.
+/// Trait that's implemented for user-defined classes that provide a `Base<T>` field.
 ///
 /// Gives direct access to the containing `Gd<Self>` from `Self`.
 // Possible alternative for builder APIs, although even less ergonomic: Base<T> could be Base<T, Self> and return Gd<Self>.
@@ -232,7 +234,6 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// #[derive(GodotClass)]
     /// #[class(init, base = Node)]
     /// struct MyClass {
-    ///     #[base]
     ///     base: Base<Node>,
     /// }
     ///
@@ -259,8 +260,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// #[derive(GodotClass)]
     /// #[class(init, base = Node)]
     /// struct MyClass {
-    ///     #[base]
-    ///     base: Base<Node>,
+    ///     ///     base: Base<Node>,
     /// }
     ///
     /// #[godot_api]
@@ -298,7 +298,6 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// #[derive(GodotClass)]
     /// #[class(init, base = Node)]
     /// struct MyClass {
-    ///     #[base]
     ///     base: Base<Node>,
     /// }
     ///
@@ -324,7 +323,6 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// #[derive(GodotClass)]
     /// #[class(init, base = Node)]
     /// struct MyClass {
-    ///     #[base]
     ///     base: Base<Node>,
     /// }
     ///

@@ -69,7 +69,6 @@ fn cfg_test() {
 #[derive(GodotClass)]
 #[class(base=HttpRequest)]
 pub struct TestBaseRenamed {
-    #[base]
     _base: Base<HttpRequest>,
 }
 

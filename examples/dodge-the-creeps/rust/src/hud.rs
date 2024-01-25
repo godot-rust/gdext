@@ -4,7 +4,6 @@ use godot::prelude::*;
 #[derive(GodotClass)]
 #[class(base=CanvasLayer)]
 pub struct Hud {
-    #[base]
     base: Base<CanvasLayer>,
 }
 

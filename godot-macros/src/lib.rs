@@ -39,9 +39,8 @@ use crate::util::ident;
 /// }
 /// ```
 ///
-/// The generated `init` function will initialize each struct field (except the field annotated
-/// with `#[base]`, if any) using `Default::default()`. To assign some other value, annotate the
-/// field with `#[init(default = ...)]`:
+/// The generated `init` function will initialize each struct field (except the field of type `Base<T>`, if any)
+/// using `Default::default()`. To assign some other value, annotate the field with `#[init(default = ...)]`:
 ///
 /// ```
 /// # use godot_macros::GodotClass;
@@ -82,8 +81,7 @@ use crate::util::ident;
 /// your `struct`:
 ///
 /// ```
-/// use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(base = Node2D)]
 /// struct MyStruct {
@@ -91,16 +89,14 @@ use crate::util::ident;
 /// }
 /// ```
 ///
-/// If you need a reference to the base class, you can add a field of type `Gd<Base>` and annotate
-/// it with `#[base]`:
+/// If you need a reference to the base class, you can add a field of type `Base<T>`. The derive macro will pick this up and wire
+/// your object accordingly. You can access it through `self.base()` and `self.base_mut()` methods.
 ///
 /// ```
-/// use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(base = Node2D)]
 /// struct MyStruct {
-///     #[base]
 ///     base: Base<Node2D>,
 /// }
 /// ```
@@ -118,8 +114,7 @@ use crate::util::ident;
 /// To create a property, you can use the `#[var]` annotation:
 ///
 /// ```
-/// use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// struct MyStruct {
 ///     #[var]
@@ -136,8 +131,7 @@ use crate::util::ident;
 /// `#[export(get = ..., set = ...)]`:
 ///
 /// ```
-/// use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// struct MyStruct {
 ///     #[var(get = get_my_field, set = set_my_field)]
@@ -163,8 +157,7 @@ use crate::util::ident;
 /// generated getter or setter in these cases anyway, use `get` or `set` without a value:
 ///
 /// ```
-/// use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// struct MyStruct {
 ///     // Default getter, custom setter.
@@ -184,8 +177,7 @@ use crate::util::ident;
 /// For exporting properties to the editor, you can use the `#[export]` attribute:
 ///
 /// ```
-/// use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// struct MyStruct {
 ///     #[export]
@@ -208,8 +200,7 @@ use crate::util::ident;
 /// As an example of some different export attributes:
 ///
 /// ```
-/// use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// struct MyStruct {
 ///     // @export
@@ -251,8 +242,7 @@ use crate::util::ident;
 /// the export attributes.
 ///
 /// ```
-/// use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// const MAX_HEALTH: f64 = 100.0;
 ///
 /// #[derive(GodotClass)]
@@ -269,8 +259,7 @@ use crate::util::ident;
 /// `hint`, `hint_string`, and `usage_flags` keys in the attribute:
 ///
 /// ```
-/// use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// struct MyStruct {
 ///     // Treated as an enum with two values: "One" and "Two"
@@ -291,8 +280,7 @@ use crate::util::ident;
 /// It will be fundamentally reworked.
 ///
 /// ```no_run
-/// use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// struct MyClass {}
 ///
@@ -313,7 +301,7 @@ use crate::util::ident;
 ///
 /// This is very similar to [GDScript's `@tool` feature](https://docs.godotengine.org/en/stable/tutorials/plugins/running_code_in_the_editor.html).
 ///
-/// # Editor Plugins
+/// # Editor plugins
 ///
 /// If you annotate a class with `#[class(editor_plugin)]`, it will be turned into an editor plugin. The
 /// class must then inherit from `EditorPlugin`, and an instance of that class will be automatically added
@@ -327,13 +315,13 @@ use crate::util::ident;
 /// This should usually be combined with `#[class(tool)]` so that the code you write will actually run in the
 /// editor.
 ///
-/// # Class Renaming
+/// # Class renaming
 ///
 /// You may want to have structs with the same name. With Rust, this is allowed using `mod`. However in GDScript,
 /// there are no modules, namespaces, or any such disambiguation.  Therefore, you need to change the names before they
 /// can get to Godot. You can use the `rename` key while defining your `GodotClass` for this.
 ///
-/// ```
+/// ```no_run
 /// mod animal {
 ///     # use godot::prelude::*;
 ///     #[derive(GodotClass)]
@@ -351,7 +339,7 @@ use crate::util::ident;
 ///
 /// These classes will appear in the Godot editor and GDScript as "AnimalToad" or "NpcToad".
 ///
-/// # Hiding Classes
+/// # Hiding classes
 ///
 /// If you want to register a class with Godot, but not have it show up in the editor then you can use `#[class(hide)]`.
 ///
@@ -364,7 +352,36 @@ use crate::util::ident;
 ///
 /// Even though this class is a `Node` and it has an init function, it still won't show up in the editor as a node you can add to a scene
 /// because we have added a `hide` key to the class. This will also prevent it from showing up in documentation.
-#[proc_macro_derive(GodotClass, attributes(class, base, var, export, init, signal))]
+///
+/// # Fine-grained inference hints
+///
+/// The derive macro is relatively smart about recognizing `Base<T>` and `OnReady<T>` types, and works also if those are qualified.
+///
+/// However, there may be situations where you need to help it out -- for example, if you have a type alias for `Base<T>`, or use an unrelated
+/// `my_module::Base<T>` with a different meaning.
+///
+/// In this case, you can manually override the behavior with the `#[hint]` attribute. It takes multiple standalone keys:
+/// - `base` and `no_base`
+/// - `onready` and `no_onready`
+///
+/// ```no_run
+/// use godot::engine::Node;
+///
+/// // There's no reason to do this, but for the sake of example:
+/// type Super<T> = godot::obj::Base<T>;
+/// type Base<T> = godot::obj::Gd<T>;
+///
+/// #[derive(godot::register::GodotClass)]
+/// #[class(base = Node)]
+/// struct MyStruct {
+///    #[hint(base)]
+///    base: Super<Node>,
+///
+///    #[hint(no_base)]
+///    unbase: Base<Node>,
+/// }
+/// ```
+#[proc_macro_derive(GodotClass, attributes(class, base, hint, var, export, init, signal))]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
     translate(input, class::derive_godot_class)
 }
@@ -434,7 +451,6 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// #[derive(GodotClass)]
 /// #[class(init, base=Node)]
 /// pub struct MyNode {
-///     #[base]
 ///     base: Base<Node>,
 /// }
 ///
@@ -489,7 +505,7 @@ pub fn derive_to_godot(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_to_godot)
 }
 
-/// Derive macro for [`FromGodot`](../builtin/meta/trait.FromVariant.html) on structs or enums.
+/// Derive macro for [`FromGodot`](../builtin/meta/trait.FromGodot.html) on structs or enums.
 ///
 /// # Example
 ///
@@ -523,7 +539,7 @@ pub fn derive_from_godot(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_from_godot)
 }
 
-/// Derive macro for [`Var`](../bind/property/trait.Var.html) on enums.
+/// Derive macro for [`Var`](../register/property/trait.Var.html) on enums.
 ///
 /// Currently has some tight requirements which are expected to be softened as implementation expands:
 /// - Only works for enums, structs aren't supported by this derive macro at the moment.
@@ -563,7 +579,7 @@ pub fn derive_property(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_var)
 }
 
-/// Derive macro for [`Export`](../bind/property/trait.Export.html) on enums.
+/// Derive macro for [`Export`](../register/property/trait.Export.html) on enums.
 ///
 /// Currently has some tight requirements which are expected to be softened as implementation expands, see requirements for [`Var`].
 #[proc_macro_derive(Export)]

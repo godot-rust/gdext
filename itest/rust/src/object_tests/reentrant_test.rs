@@ -11,7 +11,6 @@ use godot::prelude::*;
 #[derive(GodotClass)]
 #[class(init, base = Object)]
 pub struct ReentrantClass {
-    #[base]
     base: Base<Object>,
 
     first_called_pre: bool,

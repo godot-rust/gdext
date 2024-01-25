@@ -21,7 +21,6 @@ use godot::sys;
 #[derive(GodotClass)]
 #[class(base = ScriptExtension, init)]
 struct TestScript {
-    #[base]
     base: Base<ScriptExtension>,
 }
 

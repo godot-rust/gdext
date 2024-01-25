@@ -68,7 +68,7 @@ pub(super) mod private {
     /// <strong>Never</strong> implement this trait manually.
     /// </div>
     ///
-    /// Most of the time, this trait is covered by [`#[derive(GodotClass)`](../bind/derive.GodotClass.html).
+    /// Most of the time, this trait is covered by [`#[derive(GodotClass)]`](../register/derive.GodotClass.html).
     /// If you implement `GodotClass` manually, use the [`implement_godot_bounds!`][crate::implement_godot_bounds] macro.
     ///
     /// There are two reasons to avoid a hand-written `impl Bounds`:

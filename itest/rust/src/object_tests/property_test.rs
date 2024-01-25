@@ -326,8 +326,8 @@ pub struct DeriveExport {
     #[export]
     pub foo: TestEnum,
 
-    #[base]
-    pub base: Base<RefCounted>,
+    // Tests also qualified base path (type inference of Base<T> without #[hint]).
+    pub base: godot::obj::Base<RefCounted>,
 }
 
 #[godot_api]

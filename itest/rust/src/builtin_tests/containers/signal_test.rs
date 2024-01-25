@@ -25,8 +25,10 @@ struct Emitter {}
 impl Emitter {
     #[signal]
     fn signal_0_arg();
+
     #[signal]
     fn signal_1_arg(arg1: i64);
+
     #[signal]
     fn signal_2_arg(arg1: Gd<Object>, arg2: GString);
 }
@@ -35,7 +37,6 @@ impl Emitter {
 #[class(init, base=Object)]
 struct Receiver {
     used: [Cell<bool>; 3],
-    #[base]
     base: Base<Object>,
 }
 
@@ -45,11 +46,13 @@ impl Receiver {
     fn receive_0_arg(&self) {
         self.used[0].set(true);
     }
+
     #[func]
     fn receive_1_arg(&self, arg1: i64) {
         self.used[1].set(true);
         assert_eq!(arg1, 987);
     }
+
     #[func]
     fn receive_2_arg(&self, arg1: Gd<Object>, arg2: GString) {
         assert_eq!(self.base().clone(), arg1);

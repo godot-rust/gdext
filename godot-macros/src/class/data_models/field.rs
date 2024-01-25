@@ -34,6 +34,9 @@ pub struct Fields {
     /// All fields except `base_field`.
     pub all_fields: Vec<Field>,
 
-    /// The field annotated with `#[base]`.
+    /// The field with type `Base<T>`, if available.
     pub base_field: Option<Field>,
+
+    /// Whether a deprecated `#[base]` was used.
+    pub has_deprecated_base: bool,
 }

@@ -58,6 +58,12 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         quote! {}
     };
 
+    let deprecated_base_warning = if fields.has_deprecated_base {
+        quote! { ::godot::private::__base_attribute_warning_expand!(); }
+    } else {
+        TokenStream::new()
+    };
+
     let (user_class_impl, has_default_virtual) =
         make_user_class_impl(class_name, struct_cfg.is_tool, &fields.all_fields);
 
@@ -134,6 +140,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         });
 
         #prv::class_macros::#inherits_macro!(#class_name);
+        #deprecated_base_warning
     })
 }
 
@@ -228,8 +235,14 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
             is_tool = true;
         }
 
-        // TODO: better error message when using in Godot 4.0
-        if parser.handle_alone_ident("editor_plugin")?.is_some() {
+        if let Some(attr_key) = parser.handle_alone_ident("editor_plugin")? {
+            if cfg!(before_api = "4.1") {
+                return bail!(
+                    attr_key,
+                    "#[class(editor_plugin)] is not supported in Godot 4.0"
+                );
+            }
+
             is_editor_plugin = true;
         }
 
@@ -256,6 +269,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
 fn parse_fields(class: &Struct) -> ParseResult<Fields> {
     let mut all_fields = vec![];
     let mut base_field = Option::<Field>::None;
+    let mut has_deprecated_base = false;
 
     let named_fields: Vec<(NamedField, Punct)> = match &class.fields {
         StructFields::Unit => {
@@ -273,17 +287,15 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
         let mut is_base = false;
         let mut field = Field::new(&named_field);
 
-        // #[base]
-        if let Some(parser) = KvParser::parse(&named_field.attributes, "base")? {
-            if let Some(prev_base) = base_field.as_ref() {
-                return bail!(
-                    parser.span(),
-                    "#[base] allowed for at most 1 field, already applied to `{}`",
-                    prev_base.name
-                );
-            }
+        // Base<T> type inference
+        if path_ends_with_complex(&field.ty, "Base") {
             is_base = true;
-            parser.finish()?;
+        }
+
+        // deprecated #[base]
+        if KvParser::parse(&named_field.attributes, "base")?.is_some() {
+            has_deprecated_base = true;
+            is_base = true;
         }
 
         // OnReady<T> type inference
@@ -312,21 +324,67 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
             parser.finish()?;
         }
 
-        // Exported or Rust-only fields
+        // #[hint] to override type inference (must be at the end).
+        if let Some(mut parser) = KvParser::parse(&named_field.attributes, "hint")? {
+            if let Some(override_base) = handle_opposite_keys(&mut parser, "base")? {
+                is_base = override_base;
+            }
+
+            if let Some(override_onready) = handle_opposite_keys(&mut parser, "onready")? {
+                field.is_onready = override_onready;
+            }
+            parser.finish()?;
+        }
+
+        // Extra validation; eventually assign to base_fields or all_fields.
         if is_base {
-            base_field = Some(field);
+            if field.is_onready
+                || field.var.is_some()
+                || field.export.is_some()
+                || field.default.is_some()
+            {
+                return bail!(
+                    &named_field,
+                    "base field cannot have type `OnReady<T>` or attributes #[var], #[export] or #[init]"
+                );
+            }
+
+            if let Some(prev_base) = base_field.replace(field) {
+                // Ensure at most one Base<T>.
+                return bail!(
+                    // base_field.unwrap().name,
+                    named_field,
+                    "at most 1 field can have type Base<T>; previous is `{}`",
+                    prev_base.name
+                );
+            }
         } else {
             all_fields.push(field);
         }
     }
 
-    // TODO detect #[base] based on type instead of attribute
-    // Edge cases (type aliases, user types with same name, ...) could be handled with #[hint(base)] or #[hint(no_base)].
-
     Ok(Fields {
         all_fields,
         base_field,
+        has_deprecated_base,
     })
+}
+
+fn handle_opposite_keys(parser: &mut KvParser, key: &str) -> ParseResult<Option<bool>> {
+    let antikey = format!("no_{}", key);
+
+    let is_key = parser.handle_alone(key)?;
+    let is_no_key = parser.handle_alone(&antikey)?;
+
+    match (is_key, is_no_key) {
+        (true, false) => Ok(Some(true)),
+        (false, true) => Ok(Some(false)),
+        (false, false) => Ok(None),
+        (true, true) => bail!(
+            parser.span(),
+            "#[hint] attribute keys `{key}` and `{antikey}` are mutually exclusive",
+        ),
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
