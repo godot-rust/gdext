@@ -9,7 +9,6 @@
 
 use crate::builtin::{GString, NodePath};
 use crate::obj::{bounds, Bounds, Gd, GodotClass, Inherits, InstanceId};
-use std::collections::HashSet;
 
 // Re-exports of generated symbols
 pub use crate::gen::central::global;
@@ -216,6 +215,7 @@ pub(crate) fn ensure_object_inherits(
 /// Checks if `derived` inherits from `base`, using a cache for _successful_ queries.
 #[cfg(debug_assertions)]
 fn is_derived_base_cached(derived: ClassName, base: ClassName) -> bool {
+    use std::collections::HashSet;
     use sys::Global;
     static CACHE: Global<HashSet<(ClassName, ClassName)>> = Global::default();
 
