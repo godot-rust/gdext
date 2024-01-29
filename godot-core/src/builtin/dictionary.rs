@@ -408,6 +408,7 @@ struct DictionaryIter<'a> {
     last_key: Option<Variant>,
     dictionary: &'a Dictionary,
     is_first: bool,
+    next_idx: usize,
 }
 
 impl<'a> DictionaryIter<'a> {
@@ -416,6 +417,7 @@ impl<'a> DictionaryIter<'a> {
             last_key: None,
             dictionary,
             is_first: true,
+            next_idx: 0,
         }
     }
 
@@ -426,6 +428,10 @@ impl<'a> DictionaryIter<'a> {
         } else {
             Self::call_next(self.dictionary, self.last_key.take()?)
         };
+
+        if self.next_idx < self.dictionary.len() {
+            self.next_idx += 1;
+        }
 
         self.last_key = new_key.clone();
         new_key
@@ -439,6 +445,14 @@ impl<'a> DictionaryIter<'a> {
 
         let value = self.dictionary.as_inner().get(key.clone(), Variant::nil());
         Some((key, value))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        // Need to check for underflow in case any entry was removed while
+        // iterating (i.e. next_index > dicitonary.len())
+        let remaining = usize::saturating_sub(self.dictionary.len(), self.next_idx);
+
+        (remaining, Some(remaining))
     }
 
     fn call_init(dictionary: &Dictionary) -> Option<Variant> {
@@ -526,6 +540,10 @@ impl<'a> Iterator for Iter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next_key_value()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -564,6 +582,10 @@ impl<'a> Iterator for Keys<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next_key()
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -596,6 +618,10 @@ impl<'a, K: FromGodot, V: FromGodot> Iterator for TypedIter<'a, K, V> {
             .next_key_value()
             .map(|(key, value)| (K::from_variant(&key), V::from_variant(&value)))
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -622,6 +648,10 @@ impl<'a, K: FromGodot> Iterator for TypedKeys<'a, K> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next_key().map(|k| K::from_variant(&k))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
     }
 }
 

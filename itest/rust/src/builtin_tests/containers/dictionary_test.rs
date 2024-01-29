@@ -384,6 +384,45 @@ fn dictionary_iter() {
 }
 
 #[itest]
+fn dictionary_iter_size_hint() {
+    // Test a completely empty dict.
+    let dictionary = Dictionary::new();
+    let iter = dictionary.iter_shared();
+    assert_eq!(iter.size_hint(), (0, Some(0)));
+
+    // Test a full dictionary being emptied.
+    let dictionary = dict! {
+        "foo": 0,
+        "bar": true,
+        "baz": "foobar",
+        "nil": Variant::nil(),
+    };
+
+    let mut dictionary_clone = dictionary.clone();
+    let mut iter = dictionary.iter_shared();
+    assert_eq!(iter.size_hint(), (4, Some(4)));
+
+    iter.next();
+    iter.next();
+    iter.next();
+    assert_eq!(iter.size_hint(), (1, Some(1)));
+
+    iter.next();
+    assert_eq!(iter.size_hint(), (0, Some(0)));
+
+    iter.next();
+    assert_eq!(iter.size_hint(), (0, Some(0)));
+
+    // Insertion while iterating is allowed and might change size hint.
+    dictionary_clone.insert("new_key", "soma_val");
+    assert_eq!(iter.size_hint(), (1, Some(1)));
+
+    // Removal while iterating is also allowed and might change size_hint.
+    dictionary_clone.remove("new_key");
+    assert_eq!(iter.size_hint(), (0, Some(0)));
+}
+
+#[itest]
 fn dictionary_iter_equals_big() {
     let dictionary: Dictionary = (0..1000).zip(0..1000).collect();
     let map: HashMap<i64, i64> = (0..1000).zip(0..1000).collect();
