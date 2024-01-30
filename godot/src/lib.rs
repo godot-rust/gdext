@@ -206,12 +206,6 @@ pub mod register {
     pub use godot_macros::{godot_api, Export, FromGodot, GodotClass, GodotConvert, ToGodot, Var};
 }
 
-/// Renamed to [`register`] module.
-#[deprecated = "Renamed to `register`."]
-pub mod bind {
-    pub use super::register::*;
-}
-
 /// Testing facilities (unstable).
 #[doc(hidden)]
 pub mod test {
