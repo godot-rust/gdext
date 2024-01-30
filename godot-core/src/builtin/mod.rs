@@ -51,7 +51,7 @@ pub use rect2::*;
 pub use rect2i::*;
 pub use rid::*;
 pub use signal::*;
-pub use string::*;
+pub use string::{GString, NodePath, StringName};
 pub use transform2d::*;
 pub use transform3d::*;
 pub use variant::*;
@@ -71,6 +71,11 @@ pub mod array {
 /// Specialized types related to dictionaries.
 pub mod dictionary {
     pub use super::dictionary_inner::{Iter, Keys, TypedIter, TypedKeys};
+}
+
+/// Specialized types related to Godot's various string implementations.
+pub mod strings {
+    pub use super::string::TransientStringNameOrd;
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -145,6 +150,7 @@ pub enum RectSide {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// #[test] utils for serde
 
 #[cfg(all(test, feature = "serde"))]
 pub(crate) mod test_utils {

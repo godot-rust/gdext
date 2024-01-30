@@ -14,8 +14,8 @@ mod string_chars;
 mod string_name;
 
 pub use gstring::*;
-pub use node_path::*;
-pub use string_name::*;
+pub use node_path::NodePath;
+pub use string_name::{StringName, TransientStringNameOrd};
 
 use super::meta::{ConvertError, FromGodot, GodotConvert, ToGodot};
 

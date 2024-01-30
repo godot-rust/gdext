@@ -58,17 +58,29 @@ fn string_name_equality() {
     assert_ne!(string, different);
 }
 
-// TODO: add back in when ordering StringNames is fixed
-#[itest(skip)]
-fn string_name_ordering() {
-    let _low = StringName::from("Alpha");
-    let _high = StringName::from("Beta");
-    /*
+#[itest]
+#[allow(clippy::eq_op)]
+fn string_name_transient_ord() {
+    // We can't deterministically know the ordering, so this test only ensures consistency between different operators.
+    let low = StringName::from("Alpha");
+    let high = StringName::from("Beta");
+
+    let mut low = low.transient_ord();
+    let mut high = high.transient_ord();
+
+    if low > high {
+        std::mem::swap(&mut low, &mut high);
+    }
+
     assert!(low < high);
     assert!(low <= high);
-    assert!(high > low);
+    assert!(high > low); // implied.
     assert!(high >= low);
-     */
+
+    // Check PartialEq/Eq relation.
+    assert!(low == low);
+    assert!(low != high);
+    assert!(high == high);
 }
 
 #[itest]
