@@ -137,3 +137,19 @@ pub fn suppress_godot_print(mut f: impl FnMut()) {
 pub fn runs_release() -> bool {
     !Os::singleton().is_debug_build()
 }
+
+/// Workaround for tests of the form `assert!(a == a)`.
+///
+/// We can't always use `assert_eq!(a, a)` because of lacking `Debug` impl.
+///
+/// Clippy however complains, yet the suggested `#[allow(clippy::eq_op)]` cannot be used to suppress the Clippy warning (likely a bug).
+#[macro_export]
+macro_rules! assert_eq_self {
+    ($a:expr) => {{
+        if !($a == $a) {
+            panic!("assertion failed: `(a == a)`");
+        }
+    }};
+}
+
+pub use crate::assert_eq_self;

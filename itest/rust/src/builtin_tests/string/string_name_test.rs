@@ -7,7 +7,7 @@
 
 use std::collections::HashSet;
 
-use crate::framework::itest;
+use crate::framework::{assert_eq_self, itest};
 use godot::builtin::{GString, NodePath, StringName};
 
 #[itest]
@@ -78,9 +78,9 @@ fn string_name_transient_ord() {
     assert!(high >= low);
 
     // Check PartialEq/Eq relation.
-    assert!(low == low);
+    assert_eq_self!(low);
+    assert_eq_self!(high);
     assert!(low != high);
-    assert!(high == high);
 }
 
 #[itest]
