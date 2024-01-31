@@ -10,10 +10,9 @@ pub use super::register::property::{Export, TypeStringHint, Var};
 // Re-export macros.
 pub use super::register::{godot_api, Export, FromGodot, GodotClass, GodotConvert, ToGodot, Var};
 
+pub use super::builtin::__prelude_reexport::*;
 pub use super::builtin::math::FloatExt as _;
 pub use super::builtin::meta::{FromGodot, ToGodot};
-pub use super::builtin::*;
-pub use super::builtin::{array, dict, varray};
 
 pub use super::engine::{
     load, try_load, utilities, AudioStreamPlayer, Camera2D, Camera3D, GFile, IAudioStreamPlayer,

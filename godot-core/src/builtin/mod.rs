@@ -36,26 +36,35 @@
 // Re-export macros.
 pub use crate::{array, dict, real, reals, varray};
 
-pub use aabb::*;
-pub use array_inner::{Array, VariantArray};
-pub use basis::*;
-pub use callable::*;
-pub use color::*;
-pub use dictionary_inner::Dictionary;
-pub use packed_array::*;
-pub use plane::*;
-pub use projection::*;
-pub use quaternion::*;
-pub use real_inner::*;
-pub use rect2::*;
-pub use rect2i::*;
-pub use rid::*;
-pub use signal::*;
-pub use string::{GString, NodePath, StringName};
-pub use transform2d::*;
-pub use transform3d::*;
-pub use variant::*;
-pub use vectors::*;
+#[doc(hidden)]
+pub mod __prelude_reexport {
+    use super::*;
+
+    pub use aabb::*;
+    pub use array_inner::{Array, VariantArray};
+    pub use basis::*;
+    pub use callable::*;
+    pub use color::*;
+    pub use dictionary_inner::Dictionary;
+    pub use packed_array::*;
+    pub use plane::*;
+    pub use projection::*;
+    pub use quaternion::*;
+    pub use real_inner::*;
+    pub use rect2::*;
+    pub use rect2i::*;
+    pub use rid::*;
+    pub use signal::*;
+    pub use string::{GString, NodePath, StringName};
+    pub use transform2d::*;
+    pub use transform3d::*;
+    pub use variant::*;
+    pub use vectors::*;
+
+    pub use crate::{array, dict, real, reals, varray};
+}
+
+pub use __prelude_reexport::*;
 
 /// Meta-information about variant types, properties and class names.
 pub mod meta;

@@ -7,7 +7,9 @@
 
 use crate::framework::itest;
 
-use godot::prelude::{inner::InnerTransform2D, *};
+use godot::builtin::inner::InnerTransform2D;
+use godot::builtin::meta::ToGodot;
+use godot::builtin::{real, RealConv, Rect2, Transform2D, VariantOperator, Vector2};
 use godot::private::class_macros::assert_eq_approx;
 
 const TEST_TRANSFORM: Transform2D = Transform2D::from_cols(
@@ -23,7 +25,7 @@ fn transform2d_equiv() {
     let vec = Vector2::new(1.0, 2.0);
 
     #[rustfmt::skip]
-    let mappings_transform = [
+        let mappings_transform = [
         ("affine_inverse",   inner.affine_inverse(),                             outer.affine_inverse()                            ),
         ("orthonormalized",  inner.orthonormalized(),                            outer.orthonormalized()                           ),
         ("rotated",          inner.rotated(1.0),                                 outer.rotated(1.0)                                ),

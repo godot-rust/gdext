@@ -7,7 +7,9 @@
 
 use crate::framework::itest;
 
-use godot::prelude::{inner::InnerTransform3D, *};
+use godot::builtin::inner::InnerTransform3D;
+use godot::builtin::meta::ToGodot;
+use godot::builtin::{Aabb, Basis, Plane, Transform3D, VariantOperator, Vector3};
 use godot::private::class_macros::assert_eq_approx;
 
 const TEST_TRANSFORM: Transform3D = Transform3D::new(
