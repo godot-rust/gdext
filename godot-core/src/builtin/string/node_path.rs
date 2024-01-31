@@ -82,6 +82,7 @@ impl_builtin_traits! {
         Clone => node_path_construct_copy;
         Drop => node_path_destroy;
         Eq => node_path_operator_equal;
+        // NodePath provides no < operator.
         Hash;
     }
 }

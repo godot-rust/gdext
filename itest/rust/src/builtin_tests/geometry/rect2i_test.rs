@@ -8,7 +8,8 @@
 use std::fmt::Debug;
 
 use crate::framework::itest;
-use godot::prelude::{inner::InnerRect2i, *};
+use godot::builtin::inner::InnerRect2i;
+use godot::builtin::{Rect2i, RectSide, Vector2i};
 
 #[itest]
 fn rect2i_equiv_unary() {

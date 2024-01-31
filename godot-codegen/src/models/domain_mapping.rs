@@ -343,7 +343,6 @@ impl BuiltinMethod {
             .as_deref()
             .map(JsonMethodReturn::from_type_no_meta);
 
-        // use BuiltinMethod, but adopt values from above FnSignature expr
         Some(Self {
             common: FunctionCommon {
                 // Fill in these fields

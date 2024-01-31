@@ -17,9 +17,6 @@ use crate::builtin::meta::impl_godot_as_self;
 use super::string_chars::validate_unicode_scalar_sequence;
 use super::{NodePath, StringName};
 
-#[deprecated = "Renamed to `GString`, will soon be removed."]
-pub type GodotString = GString;
-
 /// Godot's reference counted string type.
 ///
 /// This is the Rust binding of GDScript's `String` type. It represents the native string class used within the Godot engine,

@@ -8,15 +8,14 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
+use godot::builtin::meta::GodotType;
 use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{GString, StringName, Variant, Vector3};
 use godot::engine::{
     file_access, Area2D, Camera3D, Engine, FileAccess, IRefCounted, Node, Node3D, Object,
     RefCounted,
 };
-use godot::obj;
 use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd};
-use godot::prelude::meta::GodotType;
 use godot::register::{godot_api, GodotClass};
 use godot::sys::{self, interface_fn, GodotFfi};
 
@@ -529,7 +528,7 @@ fn object_engine_upcast() {
 
 fn ref_instance_id(obj: &Object) -> InstanceId {
     // SAFETY: raw FFI call since we can't access get_instance_id() of a raw Object anymore, and call() needs &mut.
-    use obj::EngineClass as _;
+    use godot::obj::EngineClass as _;
 
     let obj_ptr = obj.as_object_ptr();
 

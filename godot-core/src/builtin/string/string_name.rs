@@ -18,6 +18,14 @@ use crate::builtin::{GString, NodePath};
 ///
 /// StringNames are immutable strings designed for representing unique names. StringName ensures that only
 /// one instance of a given name exists.
+///
+/// # Ordering
+///
+/// In Godot, `StringName`s are **not** ordered lexicographically, and the ordering relation is **not** stable across multiple runs of your
+/// application. Therefore, this type does not implement `PartialOrd` and `Ord`, as it would be very easy to introduce bugs by accidentally
+/// relying on lexicographical ordering.
+///
+/// Instead, we provide [`transient_ord()`][Self::transient_ord] for ordering relations.
 #[repr(C)]
 pub struct StringName {
     opaque: sys::types::OpaqueStringName,
@@ -90,6 +98,19 @@ impl StringName {
             .expect("Godot hashes are uint32_t")
     }
 
+    /// O(1), non-lexicographic, non-stable ordering relation.
+    ///
+    /// The result of the comparison is **not** lexicographic and **not** stable across multiple runs of your application.
+    ///
+    /// However, it is very fast. It doesn't depend on the length of the strings, but on the memory location of string names.
+    /// This can still be useful if you need to establish an ordering relation, but are not interested in the actual order of the strings
+    /// (example: binary search).
+    ///
+    /// For lexicographical ordering, convert to `GString` (significantly slower).
+    pub fn transient_ord(&self) -> TransientStringNameOrd<'_> {
+        TransientStringNameOrd(self)
+    }
+
     ffi_methods! {
         type sys::GDExtensionStringNamePtr = *mut Opaque;
 
@@ -152,8 +173,8 @@ impl_builtin_traits! {
         Clone => string_name_construct_copy;
         Drop => string_name_destroy;
         Eq => string_name_operator_equal;
-        // currently broken: https://github.com/godotengine/godot/issues/76218
-        // Ord => string_name_operator_less;
+        // Do not provide PartialOrd or Ord. Even though Godot provides a `operator <`, it is non-lexicographic and non-deterministic
+        // (based on pointers). See transient_ord() method.
         Hash;
     }
 }
@@ -247,6 +268,61 @@ impl From<NodePath> for StringName {
         Self::from(GString::from(path))
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Ordering
+
+/// Type that implements `Ord` for `StringNames`.
+///
+/// See [`StringName::transient_ord()`].
+pub struct TransientStringNameOrd<'a>(&'a StringName);
+
+impl<'a> PartialEq for TransientStringNameOrd<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl<'a> Eq for TransientStringNameOrd<'a> {}
+
+impl<'a> PartialOrd for TransientStringNameOrd<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+// implement Ord like above
+impl<'a> Ord for TransientStringNameOrd<'a> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        // SAFETY: builtin operator provided by Godot.
+        let op_less = |lhs, rhs| unsafe {
+            let mut result = false;
+            sys::builtin_call! {
+                string_name_operator_less(lhs, rhs, result.sys_mut())
+            }
+            result
+        };
+
+        let self_ptr = self.0.sys();
+        let other_ptr = other.0.sys();
+
+        if op_less(self_ptr, other_ptr) {
+            std::cmp::Ordering::Less
+        } else if op_less(other_ptr, self_ptr) {
+            std::cmp::Ordering::Greater
+        } else if self.eq(other) {
+            std::cmp::Ordering::Equal
+        } else {
+            panic!(
+                "Godot provides inconsistent StringName ordering for \"{}\" and \"{}\"",
+                self.0, other.0
+            );
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// serde support
 
 #[cfg(feature = "serde")]
 mod serialize {

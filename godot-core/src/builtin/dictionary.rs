@@ -297,6 +297,8 @@ impl_builtin_traits! {
         Default => dictionary_construct_default;
         Drop => dictionary_destroy;
         PartialEq => dictionary_operator_equal;
+        // No < operator for dictionaries.
+        // Hash could be added, but without Eq it's not that useful.
     }
 }
 
@@ -305,6 +307,7 @@ impl fmt::Debug for Dictionary {
         write!(f, "{:?}", self.to_variant().stringify())
     }
 }
+
 impl fmt::Display for Dictionary {
     /// Formats `Dictionary` to match Godot's string representation.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -271,15 +271,16 @@ impl Callable {
 
 impl_builtin_traits! {
     for Callable {
-        // Currently no Default::default() to encourage explicit valid initialization.
-        //Default => callable_construct_default;
+        // Default is absent by design, to encourage explicit valid initialization.
+
+        Clone => callable_construct_copy;
+        Drop => callable_destroy;
 
         // Equality for custom callables depend on the equality implementation of that custom callable.
         // So we cannot implement `Eq` here and be confident equality will be total for all future custom callables.
-        // Godot does not define a less-than operator, so there is no `PartialOrd`.
         PartialEq => callable_operator_equal;
-        Clone => callable_construct_copy;
-        Drop => callable_destroy;
+        // Godot does not define a less-than operator, so there is no `PartialOrd`.
+        // Hash could be added, but without Eq it's not that useful; wait for actual use cases.
     }
 }
 

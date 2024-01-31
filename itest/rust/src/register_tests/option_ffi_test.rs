@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::obj::{NewAlloc, NewGd, RawGd};
-use godot::prelude::meta::GodotType;
-use godot::prelude::{godot_api, Gd, GodotClass, Node, Object, RefCounted};
+use godot::builtin::meta::GodotType;
+use godot::engine::{Node, Object, RefCounted};
+use godot::obj::{Gd, NewAlloc, NewGd, RawGd};
+use godot::register::{godot_api, GodotClass};
 use godot::sys::GodotFfi;
 
 use crate::framework::itest;

@@ -17,18 +17,15 @@ use std::ops::Mul;
 use super::meta::impl_godot_as_self;
 use super::{Aabb, Rect2, Vector3};
 
-/// A 4x4 matrix used for 3D projective transformations. It can represent
-/// transformations such as translation, rotation, scaling, shearing, and
-/// perspective division. It consists of four Vector4 columns.
+/// A 4x4 matrix used for 3D projective transformations.
 ///
-/// For purely linear transformations (translation, rotation, and scale), it is
-/// recommended to use Transform3D, as it is more performant and has a lower
-/// memory footprint.
+/// `Projection` can represent transformations such as translation, rotation, scaling, shearing, and perspective division.
+/// It consists of four [`Vector4`] columns. It is used internally as `Camera3D`'s projection matrix.
 ///
-/// Used internally as Camera3D's projection matrix.
+/// For purely linear transformations (translation, rotation, and scale), it is recommended to use [`Transform3D`], as that is
+/// more performant and has a lower memory footprint.
 ///
-/// Note: The current implementation largely makes calls to godot for its
-/// methods and as such are not as performant as other types.
+/// This builtin comes with two related types [`ProjectionEye`] and [`ProjectionPlane`], that are type-safe pendants to Godot's integers.
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
@@ -40,14 +37,10 @@ pub struct Projection {
 impl Projection {
     /// A Projection with no transformation defined. When applied to other data
     /// structures, no transformation is performed.
-    ///
-    /// _Godot equivalent: Projection.IDENTITY_
     pub const IDENTITY: Self = Self::from_diagonal(1.0, 1.0, 1.0, 1.0);
 
     /// A Projection with all values initialized to 0. When applied to other
     /// data structures, they will be zeroed.
-    ///
-    /// _Godot equivalent: Projection.ZERO_
     pub const ZERO: Self = Self::from_diagonal(0.0, 0.0, 0.0, 0.0);
 
     /// Create a new projection from a list of column vectors.
@@ -67,7 +60,7 @@ impl Projection {
 
     /// Create a matrix from four column vectors.
     ///
-    /// _Godot equivalent: Projection(Vector4 x_axis, Vector4 y_axis, Vector4 z_axis, Vector4 w_axis)_
+    /// _Godot equivalent: `Projection(Vector4 x_axis, Vector4 y_axis, Vector4 z_axis, Vector4 w_axis)`_
     pub const fn from_cols(x: Vector4, y: Vector4, z: Vector4, w: Vector4) -> Self {
         Self { cols: [x, y, z, w] }
     }
@@ -76,7 +69,7 @@ impl Projection {
     /// -1 to 1 to one that ranges from 0 to 1, and flips the projected
     /// positions vertically, according to flip_y.
     ///
-    /// _Godot equivalent: Projection.create_depth_correction()_
+    /// _Godot equivalent: `Projection.create_depth_correction()`_
     pub fn create_depth_correction(flip_y: bool) -> Self {
         Self::from_cols(
             Vector4::new(1.0, 0.0, 0.0, 0.0),
@@ -89,7 +82,7 @@ impl Projection {
     /// Creates a new Projection that scales a given projection to fit around
     /// a given AABB in projection space.
     ///
-    /// _Godot equivalent: Projection.create_fit_aabb()_
+    /// _Godot equivalent: `Projection.create_fit_aabb()`_
     pub fn create_fit_aabb(aabb: Aabb) -> Self {
         let translate_unscaled = -2.0 * aabb.position - aabb.size; // -(start+end)
 
@@ -108,7 +101,7 @@ impl Projection {
     /// display with the given X:Y aspect ratio, distance between eyes, display
     /// width, distance to lens, oversampling factor, and depth clipping planes.
     ///
-    /// _Godot equivalent: Projection.create_for_hmd()_
+    /// _Godot equivalent: `Projection.create_for_hmd()`_
     #[allow(clippy::too_many_arguments)]
     pub fn create_for_hmd(
         eye: ProjectionEye,
@@ -137,7 +130,7 @@ impl Projection {
     /// Creates a new Projection that projects positions in a frustum with the
     /// given clipping planes.
     ///
-    /// _Godot equivalent: Projection.create_frustum()_
+    /// _Godot equivalent: `Projection.create_frustum()`_
     pub fn create_frustum(
         left: real,
         right: real,
@@ -171,7 +164,7 @@ impl Projection {
     /// `flip_fov` determines whether the projection's field of view is flipped
     /// over its diagonal.
     ///
-    /// _Godot equivalent: Projection.create_frustum_aspect()_
+    /// _Godot equivalent: `Projection.create_frustum_aspect()`_
     pub fn create_frustum_aspect(
         size: real,
         aspect: real,
@@ -204,7 +197,7 @@ impl Projection {
 
     /// Creates a new Projection that projects positions into the given Rect2.
     ///
-    /// _Godot equivalent: Projection.create_light_atlas_rect()_
+    /// _Godot equivalent: `Projection.create_light_atlas_rect()`_
     pub fn create_light_atlas_rect(rect: Rect2) -> Self {
         Self::from_cols(
             Vector4::new(rect.size.x, 0.0, 0.0, 0.0),
@@ -217,7 +210,7 @@ impl Projection {
     /// Creates a new Projection that projects positions using an orthogonal
     /// projection with the given clipping planes.
     ///
-    /// _Godot equivalent: Projection.create_orthogonal()_
+    /// _Godot equivalent: `Projection.create_orthogonal()`_
     pub fn create_orthogonal(
         left: real,
         right: real,
@@ -235,7 +228,7 @@ impl Projection {
     /// `flip_fov` determines whether the projection's field of view is flipped
     /// over its diagonal.
     ///
-    /// _Godot equivalent: Projection.create_orthogonal_aspect()_
+    /// _Godot equivalent: `Projection.create_orthogonal_aspect()`_
     pub fn create_orthogonal_aspect(
         size: real,
         aspect: real,
@@ -261,7 +254,7 @@ impl Projection {
     /// `flip_fov` determines whether the projection's field of view is flipped
     /// over its diagonal.
     ///
-    /// _Godot equivalent: Projection.create_perspective()_
+    /// _Godot equivalent: `Projection.create_perspective()`_
     pub fn create_perspective(
         fov_y: real,
         aspect: real,
@@ -286,7 +279,7 @@ impl Projection {
     /// `flip_fov` determines whether the projection's field of view is flipped
     /// over its diagonal.
     ///
-    /// _Godot equivalent: Projection.create_perspective_hmd()_
+    /// _Godot equivalent: `Projection.create_perspective_hmd()`_
     #[allow(clippy::too_many_arguments)]
     pub fn create_perspective_hmd(
         fov_y: real,
@@ -326,48 +319,10 @@ impl Projection {
         ret
     }
 
-    /// Return the determinant of the matrix.
-    ///
-    /// _Godot equivalent: Projection.determinant()_
-    pub fn determinant(&self) -> real {
-        self.glam(|mat| mat.determinant())
-    }
-
-    /// Returns a copy of this Projection with the signs of the values of the Y
-    /// column flipped.
-    ///
-    /// _Godot equivalent: Projection.flipped_y()_
-    pub fn flipped_y(self) -> Self {
-        let [x, y, z, w] = self.cols;
-        Self::from_cols(x, -y, z, w)
-    }
-
-    /// Returns the X:Y aspect ratio of this Projection's viewport.
-    ///
-    /// _Godot equivalent: Projection.get_aspect()_
-    pub fn aspect(&self) -> real {
-        real::from_f64(self.as_inner().get_aspect())
-    }
-
-    /// Returns the dimensions of the far clipping plane of the projection,
-    /// divided by two.
-    ///
-    /// _Godot equivalent: Projection.get_far_plane_half_extents()_
-    pub fn far_plane_half_extents(&self) -> Vector2 {
-        self.as_inner().get_far_plane_half_extents()
-    }
-
-    /// Returns the horizontal field of view of the projection (in degrees).
-    ///
-    /// _Godot equivalent: Projection.get_fov()_
-    pub fn fov(&self) -> real {
-        real::from_f64(self.as_inner().get_fov())
-    }
-
     /// Returns the vertical field of view of a projection (in degrees) which
     /// has the given horizontal field of view (in degrees) and aspect ratio.
     ///
-    /// _Godot equivalent: Projection.get_fovy()_
+    /// _Godot equivalent: `Projection.get_fovy()`_
     #[doc(alias = "get_fovy")]
     pub fn create_fovy(fov_x: real, aspect: real) -> real {
         let half_angle_fov_x = f64::to_radians(fov_x.as_f64() * 0.5);
@@ -377,10 +332,39 @@ impl Projection {
         real::from_f64(full_angle_fov_y)
     }
 
+    /// Return the determinant of the matrix.
+    pub fn determinant(&self) -> real {
+        self.glam(|mat| mat.determinant())
+    }
+
+    /// Returns a copy of this projection, with the signs of the values of the Y column flipped.
+    pub fn flipped_y(self) -> Self {
+        let [x, y, z, w] = self.cols;
+        Self::from_cols(x, -y, z, w)
+    }
+
+    /// Returns the X:Y aspect ratio of this Projection's viewport.
+    pub fn aspect(&self) -> real {
+        real::from_f64(self.as_inner().get_aspect())
+    }
+
+    /// Returns the dimensions of the far clipping plane of the projection,
+    /// divided by two.
+    pub fn far_plane_half_extents(&self) -> Vector2 {
+        self.as_inner().get_far_plane_half_extents()
+    }
+
+    /// Returns the horizontal field of view of the projection (in degrees).
+    ///
+    /// _Godot equivalent: `Projection.get_fov()`_
+    pub fn fov(&self) -> real {
+        real::from_f64(self.as_inner().get_fov())
+    }
+
     /// Returns the factor by which the visible level of detail is scaled by
     /// this Projection.
     ///
-    /// _Godot equivalent: Projection.get_lod_multiplier()_
+    /// _Godot equivalent: `Projection.get_lod_multiplier()`_
     pub fn lod_multiplier(&self) -> real {
         real::from_f64(self.as_inner().get_lod_multiplier())
     }
@@ -388,23 +372,23 @@ impl Projection {
     /// Returns the number of pixels with the given pixel width displayed per
     /// meter, after this Projection is applied.
     ///
-    /// _Godot equivalent: Projection.get_pixels_per_meter()_
-    pub fn pixels_per_meter(&self, pixel_width: i64) -> i64 {
+    /// _Godot equivalent: `Projection.get_pixels_per_meter()`_
+    pub fn get_pixels_per_meter(&self, pixel_width: i64) -> i64 {
         self.as_inner().get_pixels_per_meter(pixel_width)
     }
 
     /// Returns the clipping plane of this Projection whose index is given by
     /// plane.
     ///
-    /// _Godot equivalent: Projection.get_projection_plane()_
-    pub fn projection_plane(&self, plane: ProjectionPlane) -> Plane {
+    /// _Godot equivalent: `Projection.get_projection_plane()`_
+    pub fn get_projection_plane(&self, plane: ProjectionPlane) -> Plane {
         self.as_inner().get_projection_plane(plane as i64)
     }
 
     /// Returns the dimensions of the viewport plane that this Projection
     /// projects positions onto, divided by two.
     ///
-    /// _Godot equivalent: Projection.get_viewport_half_extents()_
+    /// _Godot equivalent: `Projection.get_viewport_half_extents()`_
     pub fn viewport_half_extents(&self) -> Vector2 {
         self.as_inner().get_viewport_half_extents()
     }
@@ -412,7 +396,7 @@ impl Projection {
     /// Returns the distance for this Projection beyond which positions are
     /// clipped.
     ///
-    /// _Godot equivalent: Projection.get_z_far()_
+    /// _Godot equivalent: `Projection.get_z_far()`_
     pub fn z_far(&self) -> real {
         real::from_f64(self.as_inner().get_z_far())
     }
@@ -420,22 +404,20 @@ impl Projection {
     /// Returns the distance for this Projection before which positions are
     /// clipped.
     ///
-    /// _Godot equivalent: Projection.get_z_near()_
+    /// _Godot equivalent: `Projection.get_z_near()`_
     pub fn z_near(&self) -> real {
         real::from_f64(self.as_inner().get_z_near())
     }
 
     /// Returns a Projection that performs the inverse of this Projection's
     /// projective transformation.
-    ///
-    /// _Godot equivalent: Projection.inverse()_
     pub fn inverse(self) -> Self {
         self.glam(|mat| mat.inverse())
     }
 
     /// Returns `true` if this Projection performs an orthogonal projection.
     ///
-    /// _Godot equivalent: Projection.is_orthogonal()_
+    /// _Godot equivalent: `Projection.is_orthogonal()`_
     pub fn is_orthogonal(&self) -> bool {
         self.cols[3].w == 1.0
 
@@ -450,7 +432,7 @@ impl Projection {
     /// Returns a Projection with the X and Y values from the given [`Vector2`]
     /// added to the first and second values of the final column respectively.
     ///
-    /// _Godot equivalent: Projection.jitter_offseted()_
+    /// _Godot equivalent: `Projection.jitter_offseted()`_
     #[must_use]
     pub fn jitter_offset(&self, offset: Vector2) -> Self {
         Self::from_cols(
@@ -466,7 +448,7 @@ impl Projection {
     ///
     /// Note: The original Projection must be a perspective projection.
     ///
-    /// _Godot equivalent: Projection.perspective_znear_adjusted()_
+    /// _Godot equivalent: `Projection.perspective_znear_adjusted()`_
     pub fn perspective_znear_adjusted(&self, new_znear: real) -> Self {
         self.as_inner()
             .perspective_znear_adjusted(new_znear.as_f64())
@@ -545,8 +527,7 @@ impl GlamConv for Projection {
     type Glam = RMat4;
 }
 
-// SAFETY:
-// This type is represented as `Self` in Godot, so `*mut Self` is sound.
+// SAFETY: This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Projection {
     fn variant_type() -> sys::VariantType {
         sys::VariantType::Projection
@@ -557,7 +538,9 @@ unsafe impl GodotFfi for Projection {
 
 impl_godot_as_self!(Projection);
 
-/// A projections clipping plane.
+/// A projection's clipping plane.
+///
+/// See [Godot docs about `Projection` constants](https://docs.godotengine.org/en/stable/classes/class_projection.html#constants).
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[repr(C)]
 pub enum ProjectionPlane {
@@ -569,8 +552,22 @@ pub enum ProjectionPlane {
     Bottom = 5,
 }
 
-/// The eye to create a projection for, when creating a projection adjusted
-/// for head-mounted displays.
+impl ProjectionPlane {
+    /// Convert from one of GDScript's `Projection.PLANE_*` integer constants.
+    pub fn try_from_ord(ord: i64) -> Option<Self> {
+        match ord {
+            0 => Some(Self::Near),
+            1 => Some(Self::Far),
+            2 => Some(Self::Left),
+            3 => Some(Self::Top),
+            4 => Some(Self::Right),
+            5 => Some(Self::Bottom),
+            _ => None,
+        }
+    }
+}
+
+/// The eye to create a projection for, when creating a projection adjusted for head-mounted displays.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[repr(C)]
 pub enum ProjectionEye {
@@ -578,24 +575,37 @@ pub enum ProjectionEye {
     Right = 2,
 }
 
+impl ProjectionEye {
+    /// Convert from numbers `1` and `2`.
+    pub fn try_from_ord(ord: i64) -> Option<Self> {
+        match ord {
+            1 => Some(Self::Left),
+            2 => Some(Self::Right),
+            _ => None,
+        }
+    }
+}
+
 impl std::fmt::Display for Projection {
     /// Formats `Projection` to match Godot's string representation.
     ///
     /// # Example
     /// ```
-    /// use godot::prelude::*;
+    /// # use godot::prelude::*;
     /// let proj = Projection::new([
     ///     Vector4::new(1.0, 2.5, 1.0, 0.5),
     ///     Vector4::new(0.0, 1.5, 2.0, 0.5),
     ///     Vector4::new(0.0, 0.0, 3.0, 2.5),
     ///     Vector4::new(3.0, 1.0, 4.0, 1.5),
     /// ]);
+    ///
     /// const FMT_RESULT: &str = r"
     /// 1, 0, 0, 3
     /// 2.5, 1.5, 0, 1
     /// 1, 2, 3, 4
     /// 0.5, 0.5, 2.5, 1.5
     /// ";
+    ///
     /// assert_eq!(format!("{}", proj), FMT_RESULT);
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

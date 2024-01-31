@@ -331,18 +331,6 @@ pub trait Function: fmt::Display {
     }
 }
 
-#[deprecated]
-struct FnSignature<'a> {
-    function_name: &'a str,
-    surrounding_class: Option<&'a TyName>, // None if global function
-    is_private: bool,
-    is_virtual: bool,
-    is_vararg: bool,
-    qualifier: FnQualifier,
-    params: Vec<FnParam>,
-    return_value: FnReturn,
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub struct UtilityFunction {
