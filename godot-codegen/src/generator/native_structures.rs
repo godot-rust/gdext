@@ -75,6 +75,7 @@ fn make_native_structure(
         /// Native structure; can be passed via pointer in APIs that are not exposed to GDScript.
         ///
         #[doc = #doc]
+        #[derive(Clone, PartialEq, Debug)]
         #[repr(C)]
         pub struct #class_name {
             #fields

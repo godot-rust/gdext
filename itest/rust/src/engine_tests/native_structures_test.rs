@@ -8,7 +8,7 @@
 use crate::framework::itest;
 
 use godot::builtin::{Rect2, Rid, Variant};
-use godot::engine::native::{AudioFrame, CaretInfo, Glyph};
+use godot::engine::native::{AudioFrame, CaretInfo, Glyph, ObjectId};
 use godot::engine::text_server::Direction;
 use godot::engine::{ITextServerExtension, TextServer, TextServerExtension};
 use godot::obj::{Base, NewGd};
@@ -139,4 +139,53 @@ fn test_native_structure_pointer_to_array_parameter() {
     assert_eq!(result.len(), 2);
     assert_eq!(result.get(0).get("start"), Some(Variant::from(99)));
     assert_eq!(result.get(1).get("start"), Some(Variant::from(700)));
+}
+
+#[itest]
+fn test_native_structure_clone() {
+    // Instantiate CaretInfo directly.
+    let caret1 = CaretInfo {
+        leading_caret: Rect2::from_components(0.0, 0.0, 0.0, 0.0),
+        trailing_caret: Rect2::from_components(1.0, 1.0, 1.0, 1.0),
+        leading_direction: Direction::AUTO,
+        trailing_direction: Direction::LTR,
+    };
+
+    // Clone a new CaretInfo.
+    let caret2 = caret1.clone();
+
+    // Test field-wise equality
+    // between the original constructor arguments and the clone.
+    assert_eq!(
+        caret2.leading_caret,
+        Rect2::from_components(0.0, 0.0, 0.0, 0.0)
+    );
+    assert_eq!(
+        caret2.trailing_caret,
+        Rect2::from_components(1.0, 1.0, 1.0, 1.0)
+    );
+    assert_eq!(caret2.leading_direction, Direction::AUTO);
+    assert_eq!(caret2.trailing_direction, Direction::LTR);
+}
+
+#[itest]
+fn test_native_structure_partialeq() {
+    // Test basic equality between two identically-constructed
+    // (but distinct) native structures.
+    assert_eq!(sample_glyph(5), sample_glyph(5));
+    assert_ne!(sample_glyph(1), sample_glyph(2));
+}
+
+#[itest]
+fn test_native_structure_debug() {
+    // Test debug output, both pretty-printed and not.
+    let object_id = ObjectId { id: 256 };
+    assert_eq!(
+        format!("{:?}", object_id),
+        String::from("ObjectId { id: 256 }")
+    );
+    assert_eq!(
+        format!("{:#?}", object_id),
+        String::from("ObjectId {\n    id: 256,\n}")
+    );
 }
