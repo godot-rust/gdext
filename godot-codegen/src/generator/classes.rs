@@ -10,8 +10,8 @@ use crate::generator::functions_common::{FnCode, FnDefinition, FnDefinitions};
 use crate::generator::method_tables::MethodTableKey;
 use crate::generator::{constants, docs, enums, functions_common, notifications, virtual_traits};
 use crate::models::domain::{
-    Class, ClassLike, ClassMethod, ExtensionApi, FnDirection, FnQualifier, Function, ModName,
-    TyName,
+    ApiView, Class, ClassLike, ClassMethod, ExtensionApi, FnDirection, FnQualifier, Function,
+    ModName, TyName,
 };
 use crate::util::{ident, make_string_name};
 use crate::{conv, util, SubmitFn};
@@ -22,6 +22,7 @@ use std::path::Path;
 pub fn generate_class_files(
     api: &ExtensionApi,
     ctx: &mut Context,
+    view: &ApiView,
     gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
@@ -30,7 +31,7 @@ pub fn generate_class_files(
 
     let mut modules = vec![];
     for class in api.classes.iter() {
-        let generated_class = make_class(class, ctx);
+        let generated_class = make_class(class, ctx, view);
         let file_contents = generated_class.code;
 
         let out_path = gen_path.join(format!("{}.rs", class.mod_name().rust_mod));
@@ -71,7 +72,7 @@ struct GeneratedClassModule {
     is_pub_sidecar: bool,
 }
 
-fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
+fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClass {
     let class_name = class.name();
 
     // Strings
@@ -124,7 +125,7 @@ fn make_class(class: &Class, ctx: &mut Context) -> GeneratedClass {
         &all_bases,
         &virtual_trait_str,
         &notification_enum_name,
-        ctx,
+        view,
     );
 
     // notify() and notify_reversed() are added after other methods, to list others first in docs.

@@ -5,6 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Codegen has no FFI and thus no reason to use unsafe code.
+#![forbid(unsafe_code)]
+
 mod context;
 mod conv;
 mod generator;
@@ -26,7 +29,7 @@ use crate::generator::{
     generate_sys_builtin_methods_file, generate_sys_central_file, generate_sys_classes_file,
     generate_sys_utilities_file,
 };
-use crate::models::domain::ExtensionApi;
+use crate::models::domain::{ApiView, ExtensionApi};
 use crate::models::json::{load_extension_api, JsonExtensionApi};
 
 use proc_macro2::TokenStream;
@@ -99,6 +102,7 @@ pub fn generate_core_files(core_gen_path: &Path) {
     watch.record("build_context");
 
     let api = ExtensionApi::from_json(&json_api, &mut ctx);
+    let view = ApiView::new(&api);
     watch.record("map_domain_models");
 
     // TODO if ctx is no longer needed for below functions:
@@ -116,6 +120,7 @@ pub fn generate_core_files(core_gen_path: &Path) {
     generate_class_files(
         &api,
         &mut ctx,
+        &view,
         &core_gen_path.join("classes"),
         &mut submit_fn,
     );
