@@ -31,6 +31,11 @@ fn to_snake_special_case(class_name: &str) -> Option<&'static str> {
 pub fn to_snake_case(ty_name: &str) -> String {
     use heck::ToSnakeCase;
 
+    assert!(
+        is_valid_ident(ty_name),
+        "invalid identifier for snake_case conversion: {ty_name}"
+    );
+
     // Special cases
     if let Some(special_case) = to_snake_special_case(ty_name) {
         return special_case.to_string();
@@ -72,6 +77,11 @@ pub fn to_pascal_case(ty_name: &str) -> String {
 
 pub fn shout_to_pascal(shout_case: &str) -> String {
     // TODO use heck?
+
+    assert!(
+        is_valid_shout_ident(shout_case),
+        "invalid identifier for SHOUT_CASE -> PascalCase conversion: {shout_case}"
+    );
 
     let mut result = String::with_capacity(shout_case.len());
     let mut next_upper = true;
@@ -270,6 +280,12 @@ fn try_strip_prefixes<'e>(enumerator: &'e str, prefixes: &[&str]) -> &'e str {
 /// Check if input is a valid identifier; ie. no special characters except '_' and not starting with a digit.
 fn is_valid_ident(s: &str) -> bool {
     !starts_with_invalid_char(s) && s.chars().all(|c| c == '_' || c.is_ascii_alphanumeric())
+}
+
+fn is_valid_shout_ident(s: &str) -> bool {
+    !starts_with_invalid_char(s)
+        && s.chars()
+            .all(|c| c == '_' || c.is_ascii_digit() || c.is_ascii_uppercase())
 }
 
 fn starts_with_invalid_char(s: &str) -> bool {

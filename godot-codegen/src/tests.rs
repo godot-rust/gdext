@@ -128,6 +128,15 @@ fn test_parse_native_structures_format() {
         NativeStructuresField {
             field_type: String::from(ty),
             field_name: String::from(name),
+            array_size: None,
+        }
+    }
+
+    fn native_array(ty: &str, name: &str, array_size: usize) -> NativeStructuresField {
+        NativeStructuresField {
+            field_type: String::from(ty),
+            field_name: String::from(name),
+            array_size: Some(array_size),
         }
     }
 
@@ -147,11 +156,11 @@ fn test_parse_native_structures_format() {
     );
 
     let actual = parse_native_structures_format(
-        "Vector3 position;Vector3 normal;Vector3 collider_velocity;Vector3 collider_angular_velocity;real_t depth;int local_shape;ObjectID collider_id;RID collider;int collider_shape"
+        "Vector3 position;Vector3 normal[5];Vector3 collider_velocity;Vector3 collider_angular_velocity;real_t depth;int local_shape;ObjectID collider_id;RID collider;int collider_shape"
     );
     let expected = vec![
         native("Vector3", "position"),
-        native("Vector3", "normal"),
+        native_array("Vector3", "normal", 5),
         native("Vector3", "collider_velocity"),
         native("Vector3", "collider_angular_velocity"),
         native("real_t", "depth"),
