@@ -10,7 +10,6 @@
 // TODO make this file private and only accessed by special_cases.rs.
 
 use crate::context::Context;
-use crate::models::domain::TyName;
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
 use crate::special_cases;
 
@@ -68,7 +67,7 @@ pub(crate) fn is_class_method_excluded(method: &JsonClassMethod, ctx: &mut Conte
     let is_arg_or_return_excluded = |ty: &str, _ctx: &mut Context| {
         // First check if the type is explicitly deleted. In Godot, type names are unique without further categorization,
         // so passing in a class name while checking for any types is fine.
-        let class_deleted = special_cases::is_godot_type_deleted(&TyName::from_godot(ty));
+        let class_deleted = special_cases::is_godot_type_deleted(ty);
 
         // Then also check if the type is excluded from codegen (due to current Cargo feature. RHS is always false in full-codegen.
         class_deleted || is_type_excluded(ty, _ctx)

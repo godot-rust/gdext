@@ -52,8 +52,9 @@ pub fn generate_native_structures_files(
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub(crate) struct NativeStructuresField {
-    pub field_type: String,
     pub field_name: String,
+    pub field_type: String,
+    pub array_size: Option<usize>,
 }
 
 fn make_native_structure(
@@ -121,9 +122,11 @@ fn make_native_structure(
 fn make_native_structure_fields(format_str: &str, ctx: &mut Context) -> TokenStream {
     let fields = parse_native_structures_format(format_str)
         .expect("Could not parse native_structures format field");
+
     let field_definitions = fields
         .into_iter()
         .map(|field| make_native_structure_field_definition(field, ctx));
+
     quote! {
         #( #field_definitions )*
     }
@@ -135,7 +138,16 @@ fn make_native_structure_field_definition(
 ) -> TokenStream {
     let field_type = normalize_native_structure_field_type(&field.field_type);
     let field_type = conv::to_rust_type_abi(&field_type, ctx);
+
+    // Make array if needed.
+    let field_type = if let Some(size) = field.array_size {
+        quote! { [#field_type; #size] }
+    } else {
+        quote! { #field_type }
+    };
+
     let field_name = ident(&conv::to_snake_case(&field.field_name));
+
     quote! {
         pub #field_name: #field_type,
     }
@@ -163,8 +175,7 @@ pub(crate) fn parse_native_structures_format(input: &str) -> Option<Vec<NativeSt
             let mut field_type = parts.next()?.to_owned();
             let mut field_name = parts.next()?.to_owned();
 
-            // If the field is a pointer, put the star on the type, not
-            // the name.
+            // If the field is a pointer, put the star on the type, not the name.
             if field_name.starts_with('*') {
                 field_name.remove(0);
                 field_type.push('*');
@@ -176,9 +187,18 @@ pub(crate) fn parse_native_structures_format(input: &str) -> Option<Vec<NativeSt
                 field_name.truncate(index);
             }
 
+            // If the field is an array, store array size separately.
+            // Not part of type because fixed-size arrays are not a concept in the JSON outside of native structures.
+            let mut array_size = None;
+            if let Some(index) = field_name.find('[') {
+                array_size = Some(field_name[index + 1..field_name.len() - 1].parse().ok()?);
+                field_name.truncate(index);
+            }
+
             Some(NativeStructuresField {
-                field_type,
                 field_name,
+                field_type,
+                array_size,
             })
         })
         .collect()

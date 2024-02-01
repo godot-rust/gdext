@@ -28,15 +28,20 @@ fn to_snake_special_case(class_name: &str) -> Option<&'static str> {
 }
 
 /// Used for `snake_case` identifiers: modules.
-pub fn to_snake_case(class_name: &str) -> String {
+pub fn to_snake_case(ty_name: &str) -> String {
     use heck::ToSnakeCase;
 
+    assert!(
+        is_valid_ident(ty_name),
+        "invalid identifier for snake_case conversion: {ty_name}"
+    );
+
     // Special cases
-    if let Some(special_case) = to_snake_special_case(class_name) {
+    if let Some(special_case) = to_snake_special_case(ty_name) {
         return special_case.to_string();
     }
 
-    class_name
+    ty_name
         .replace("1D", "_1d") // e.g. animation_node_blend_space_1d
         .replace("2D", "_2d")
         .replace("3D", "_3d")
@@ -49,15 +54,20 @@ pub fn to_snake_case(class_name: &str) -> String {
 }
 
 /// Used for `PascalCase` identifiers: classes and enums.
-pub fn to_pascal_case(class_name: &str) -> String {
+pub fn to_pascal_case(ty_name: &str) -> String {
     use heck::ToPascalCase;
 
+    assert!(
+        is_valid_ident(ty_name),
+        "invalid identifier for PascalCase conversion: {ty_name}"
+    );
+
     // Special cases: reuse snake_case impl to ensure at least consistency between those 2.
-    if let Some(snake_special) = to_snake_special_case(class_name) {
+    if let Some(snake_special) = to_snake_special_case(ty_name) {
         return snake_special.to_pascal_case();
     }
 
-    class_name
+    ty_name
         .to_pascal_case()
         .replace("GdExtension", "GDExtension")
         .replace("GdNative", "GDNative")
@@ -67,6 +77,11 @@ pub fn to_pascal_case(class_name: &str) -> String {
 
 pub fn shout_to_pascal(shout_case: &str) -> String {
     // TODO use heck?
+
+    assert!(
+        is_valid_shout_ident(shout_case),
+        "invalid identifier for SHOUT_CASE -> PascalCase conversion: {shout_case}"
+    );
 
     let mut result = String::with_capacity(shout_case.len());
     let mut next_upper = true;
@@ -94,7 +109,12 @@ pub fn make_enum_name(enum_name: &str) -> Ident {
 }
 
 pub fn make_enum_name_str(enum_name: &str) -> String {
-    to_pascal_case(enum_name)
+    match enum_name {
+        // Special cases with '.' in name.
+        "Variant.Type" => "VariantType".to_string(),
+        "Variant.Operator" => "VariantOperator".to_string(),
+        e => to_pascal_case(e),
+    }
 }
 
 /// Maps enumerator names from Godot to Rust, applying a best-effort heuristic.
@@ -255,6 +275,17 @@ fn try_strip_prefixes<'e>(enumerator: &'e str, prefixes: &[&str]) -> &'e str {
 
     // No prefix worked, use full enumerator.
     enumerator
+}
+
+/// Check if input is a valid identifier; ie. no special characters except '_' and not starting with a digit.
+fn is_valid_ident(s: &str) -> bool {
+    !starts_with_invalid_char(s) && s.chars().all(|c| c == '_' || c.is_ascii_alphanumeric())
+}
+
+fn is_valid_shout_ident(s: &str) -> bool {
+    !starts_with_invalid_char(s)
+        && s.chars()
+            .all(|c| c == '_' || c.is_ascii_digit() || c.is_ascii_uppercase())
 }
 
 fn starts_with_invalid_char(s: &str) -> bool {

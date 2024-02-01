@@ -19,7 +19,6 @@ use std::collections::{HashMap, HashSet};
 
 #[derive(Default)]
 pub struct Context<'a> {
-    engine_classes: HashMap<TyName, &'a JsonClass>,
     builtin_types: HashSet<&'a str>,
     native_structures_types: HashSet<&'a str>,
     singletons: HashSet<&'a str>,
@@ -56,6 +55,7 @@ impl<'a> Context<'a> {
             ctx.native_structures_types.insert(ty_name);
         }
 
+        let mut engine_classes = HashMap::new();
         for class in api.classes.iter() {
             let class_name = TyName::from_godot(&class.name);
 
@@ -65,7 +65,7 @@ impl<'a> Context<'a> {
 
             // Populate class lookup by name
             println!("-- add engine class {}", class_name.description());
-            ctx.engine_classes.insert(class_name.clone(), class);
+            engine_classes.insert(class_name.clone(), class);
 
             // Populate derived-to-base relations
             if let Some(base) = class.inherits.as_ref() {
@@ -80,6 +80,7 @@ impl<'a> Context<'a> {
                 option_as_slice(&class.constants),
                 &mut ctx,
             );
+
             Self::populate_class_table_indices(
                 class,
                 &class_name,
@@ -91,7 +92,7 @@ impl<'a> Context<'a> {
         // Populate remaining notification enum names, by copying the one to nearest base class that has at least 1 notification.
         // At this point all classes with notifications are registered.
         // (Used to avoid re-generating the same notification enum for multiple base classes).
-        for class_name in ctx.engine_classes.keys() {
+        for class_name in engine_classes.keys() {
             if ctx
                 .notification_enum_names_by_class
                 .contains_key(class_name)
@@ -165,9 +166,7 @@ impl<'a> Context<'a> {
         methods: &[JsonClassMethod],
         ctx: &mut Context,
     ) {
-        if special_cases::is_class_deleted(class_name) {
-            return;
-        }
+        // Note: already checked for class excluded/deleted.
 
         for method in methods.iter() {
             if special_cases::is_class_method_deleted(class_name, method, ctx) || method.is_virtual
@@ -207,10 +206,6 @@ impl<'a> Context<'a> {
 
             ctx.register_table_index(key);
         }
-    }
-
-    pub fn get_engine_class(&self, class_name: &TyName) -> &JsonClass {
-        self.engine_classes.get(class_name).unwrap()
     }
 
     // Private, because initialized in constructor. Ensures deterministic assignment.

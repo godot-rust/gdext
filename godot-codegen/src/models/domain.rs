@@ -17,6 +17,7 @@ use crate::util::{ident, option_as_slice, safe_ident};
 
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote, ToTokens};
+use std::collections::HashMap;
 use std::fmt;
 
 pub struct ExtensionApi {
@@ -39,6 +40,27 @@ impl ExtensionApi {
             .iter()
             .find(|b| b.godot_original_name() == name)
             .unwrap_or_else(|| panic!("builtin_by_name: invalid `{}`", name))
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// View and indexing over existing ExtensionApi
+
+pub struct ApiView<'a> {
+    class_by_ty: HashMap<TyName, &'a Class>,
+}
+
+impl<'a> ApiView<'a> {
+    pub fn new(api: &'a ExtensionApi) -> ApiView<'a> {
+        let class_by_ty = api.classes.iter().map(|c| (c.name().clone(), c)).collect();
+
+        Self { class_by_ty }
+    }
+
+    pub fn get_engine_class(&self, ty: &TyName) -> &'a Class {
+        self.class_by_ty
+            .get(ty)
+            .unwrap_or_else(|| panic!("specified type `{}` is not an engine class", ty.godot_ty))
     }
 }
 

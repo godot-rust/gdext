@@ -5,11 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::context::Context;
 use crate::generator::functions_common::FnCode;
 use crate::generator::{docs, functions_common};
-use crate::models::domain::{Class, ClassLike, ClassMethod, FnQualifier, Function, TyName};
-use crate::util::{ident, option_as_slice};
+use crate::models::domain::{
+    ApiView, Class, ClassLike, ClassMethod, FnQualifier, Function, TyName,
+};
+use crate::util::ident;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
@@ -18,11 +19,11 @@ pub fn make_virtual_methods_trait(
     all_base_names: &[TyName],
     trait_name: &str,
     notification_enum_name: &Ident,
-    ctx: &mut Context,
+    view: &ApiView,
 ) -> TokenStream {
     let trait_name = ident(trait_name);
 
-    let virtual_method_fns = make_all_virtual_methods(class, all_base_names, ctx);
+    let virtual_method_fns = make_all_virtual_methods(class, all_base_names, view);
     let special_virtual_methods = special_virtual_methods(notification_enum_name);
 
     let trait_doc = docs::make_virtual_trait_doc(class.name());
@@ -132,7 +133,7 @@ fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
 fn make_all_virtual_methods(
     class: &Class,
     all_base_names: &[TyName],
-    ctx: &mut Context,
+    view: &ApiView,
 ) -> Vec<TokenStream> {
     let mut all_tokens = vec![];
 
@@ -144,20 +145,10 @@ fn make_all_virtual_methods(
     }
 
     for base_name in all_base_names {
-        let json_base_class = ctx.get_engine_class(base_name);
-        for json_method in option_as_slice(&json_base_class.methods) {
-            if !json_method.is_virtual {
-                continue;
-            }
-
-            // FIXME temporary workaround, the ctx doesn't cross-over borrowed fields in ctx
-            let hack_ptr = ctx as *const _ as *mut _;
-            let hack_ctx = unsafe { &mut *hack_ptr }; // UB
-
-            if let Some(method) = ClassMethod::from_json(json_method, class.name(), hack_ctx) {
-                if let Some(tokens) = make_virtual_method(&method) {
-                    all_tokens.push(tokens);
-                }
+        let base_class = view.get_engine_class(base_name);
+        for method in base_class.methods.iter() {
+            if let Some(tokens) = make_virtual_method(method) {
+                all_tokens.push(tokens);
             }
         }
     }
