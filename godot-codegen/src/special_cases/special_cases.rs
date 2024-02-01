@@ -53,22 +53,22 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
 
 pub fn is_class_deleted(class_name: &TyName) -> bool {
     codegen_special_cases::is_class_excluded(&class_name.godot_ty)
-        || is_godot_type_deleted(class_name)
+        || is_godot_type_deleted(&class_name.godot_ty)
 }
 
-pub fn is_godot_type_deleted(ty_name: &TyName) -> bool {
+pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
+    // Note: parameter can be a class or builtin name, but also something like "enum::AESContext.Mode".
+
     // Exclude experimental APIs unless opted-in.
-    if !cfg!(feature = "experimental-godot-api") && is_class_experimental(ty_name) {
+    if !cfg!(feature = "experimental-godot-api") && is_class_experimental(godot_ty) {
         return true;
     }
-
-    let class_name = ty_name.godot_ty.as_str();
 
     // OpenXR has not been available for macOS before 4.2.
     // See e.g. https://github.com/GodotVR/godot-xr-tools/issues/479.
     // Do not hardcode a list of OpenXR classes, as more may be added in future Godot versions; instead use prefix.
     #[cfg(all(before_api = "4.2", target_os = "macos"))]
-    if class_name.starts_with("OpenXR") {
+    if godot_ty.starts_with("OpenXR") {
         return true;
     }
 
@@ -76,11 +76,11 @@ pub fn is_godot_type_deleted(ty_name: &TyName) -> bool {
     // in 4.2 it loads at the Scene level
     // see: https://github.com/godotengine/godot/pull/81305
     #[cfg(before_api = "4.2")]
-    if class_name == "ThemeDB" {
+    if godot_ty == "ThemeDB" {
         return true;
     }
 
-    match class_name {
+    match godot_ty {
         // Hardcoded cases that are not accessible.
         // Only on Android.
         | "JavaClassWrapper"
@@ -114,11 +114,13 @@ pub fn is_godot_type_deleted(ty_name: &TyName) -> bool {
 }
 
 #[rustfmt::skip]
-fn is_class_experimental(class_name: &TyName) -> bool {
+fn is_class_experimental(godot_class_name: &str) -> bool {
+    // Note: parameter can be a class or builtin name, but also something like "enum::AESContext.Mode".
+
     // These classes are currently hardcoded, but the information is available in Godot's doc/classes directory.
     // The XML file contains a property <class name="NavigationMesh" ... is_experimental="true">.
 
-    match class_name.godot_ty.as_str() {
+    match godot_class_name {
         | "GraphEdit"
         | "GraphNode"
         | "NavigationAgent2D"

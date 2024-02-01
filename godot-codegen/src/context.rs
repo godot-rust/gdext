@@ -80,6 +80,7 @@ impl<'a> Context<'a> {
                 option_as_slice(&class.constants),
                 &mut ctx,
             );
+
             Self::populate_class_table_indices(
                 class,
                 &class_name,
@@ -165,9 +166,7 @@ impl<'a> Context<'a> {
         methods: &[JsonClassMethod],
         ctx: &mut Context,
     ) {
-        if special_cases::is_class_deleted(class_name) {
-            return;
-        }
+        // Note: already checked for class excluded/deleted.
 
         for method in methods.iter() {
             if special_cases::is_class_method_deleted(class_name, method, ctx) || method.is_virtual
