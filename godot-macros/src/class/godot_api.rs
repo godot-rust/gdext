@@ -14,7 +14,7 @@ use venial::{
 };
 
 use crate::class::{
-    get_signature_info, make_method_registration, make_virtual_callback, BeforeKind,
+    into_signature_info, make_method_registration, make_virtual_callback, BeforeKind,
     FuncDefinition, SignatureInfo,
 };
 use crate::util;
@@ -654,7 +654,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                     format!("_{method_name}")
                 };
 
-                let signature_info = get_signature_info(&method, false);
+                let signature_info = into_signature_info(method, &class_name, false);
 
                 // Overridden ready() methods additionally have an additional `__before_ready()` call (for OnReady inits).
                 let before_kind = if method_name == "ready" {

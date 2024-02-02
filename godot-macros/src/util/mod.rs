@@ -105,7 +105,7 @@ pub fn parse_signature(mut signature: TokenStream) -> Function {
 /// Returns a type expression that can be used as a `VarcallSignatureTuple`.
 pub fn make_signature_tuple_type(
     ret_type: &TokenStream,
-    param_types: &Vec<venial::TyExpr>,
+    param_types: &[venial::TyExpr],
 ) -> TokenStream {
     quote::quote! {
         (#ret_type, #(#param_types),*)

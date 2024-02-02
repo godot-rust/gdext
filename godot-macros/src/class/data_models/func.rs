@@ -7,7 +7,7 @@
 
 use crate::util;
 use crate::util::ident;
-use proc_macro2::{Ident, TokenStream};
+use proc_macro2::{Group, Ident, TokenStream, TokenTree};
 use quote::{format_ident, quote};
 
 /// Information used for registering a Rust function with Godot.
@@ -59,18 +59,20 @@ pub fn make_method_registration(
     class_name: &Ident,
     func_definition: FuncDefinition,
 ) -> TokenStream {
-    let signature_info = get_signature_info(&func_definition.func, func_definition.has_gd_self);
+    let signature_info = into_signature_info(
+        func_definition.func,
+        class_name,
+        func_definition.has_gd_self,
+    );
     let sig_tuple =
         util::make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
-
-    let method_name = &signature_info.method_name;
-    let param_idents = &signature_info.param_idents;
 
     let method_flags = make_method_flags(signature_info.receiver_type);
 
     let forwarding_closure =
         make_forwarding_closure(class_name, &signature_info, BeforeKind::Without);
 
+    let method_name = &signature_info.method_name;
     let varcall_func = make_varcall_func(method_name, &sig_tuple, &forwarding_closure);
     let ptrcall_func = make_ptrcall_func(method_name, &sig_tuple, &forwarding_closure);
 
@@ -81,7 +83,10 @@ pub fn make_method_registration(
     } else {
         method_name.to_string()
     };
-    let param_ident_strs = param_idents.iter().map(|ident| ident.to_string());
+    let param_ident_strs = signature_info
+        .param_idents
+        .into_iter()
+        .map(|ident| ident.to_string());
 
     // Transport #[cfg] attrs to the FFI glue to ensure functions which were conditionally
     // removed from compilation don't cause errors.
@@ -252,22 +257,50 @@ fn make_forwarding_closure(
     }
 }
 
-pub(crate) fn get_signature_info(signature: &venial::Function, has_gd_self: bool) -> SignatureInfo {
+/// Maps each usage of `Self` to the struct it's referencing,
+/// since `Self` can't be used inside nested functions.
+fn map_self_to_class_name<In, Out>(tokens: In, class_name: &Ident) -> Out
+where
+    In: IntoIterator<Item = TokenTree>,
+    Out: FromIterator<TokenTree>,
+{
+    tokens
+        .into_iter()
+        .map(|tt| match tt {
+            // Change instances of Self to the class name.
+            TokenTree::Ident(ident) if ident == "Self" => TokenTree::Ident(class_name.clone()),
+            // Recurse into groups and make sure ALL instances are changed.
+            TokenTree::Group(group) => TokenTree::Group(Group::new(
+                group.delimiter(),
+                map_self_to_class_name(group.stream(), class_name),
+            )),
+            // Pass all other tokens through unchanged.
+            tt => tt,
+        })
+        .collect()
+}
+
+pub(crate) fn into_signature_info(
+    signature: venial::Function,
+    class_name: &Ident,
+    has_gd_self: bool,
+) -> SignatureInfo {
     let method_name = signature.name.clone();
     let mut receiver_type = if has_gd_self {
         ReceiverType::GdSelf
     } else {
         ReceiverType::Static
     };
-    let mut param_idents: Vec<Ident> = Vec::new();
-    let mut param_types = Vec::new();
-    let ret_type = match &signature.return_ty {
+    let num_params = signature.params.inner.len();
+    let mut param_idents = Vec::with_capacity(num_params);
+    let mut param_types = Vec::with_capacity(num_params);
+    let ret_type = match signature.return_ty {
         None => quote! { () },
-        Some(ty) => quote! { #ty },
+        Some(ty) => map_self_to_class_name(ty.tokens, class_name),
     };
 
     let mut next_unnamed_index = 0;
-    for (arg, _) in &signature.params.inner {
+    for (arg, _) in signature.params.inner {
         match arg {
             venial::FnParam::Receiver(recv) => {
                 if receiver_type == ReceiverType::GdSelf {
@@ -290,9 +323,11 @@ pub(crate) fn get_signature_info(signature: &venial::Function, has_gd_self: bool
                     next_unnamed_index += 1;
                     ident
                 } else {
-                    arg.name.clone()
+                    arg.name
                 };
-                let ty = arg.ty.clone();
+                let ty = venial::TyExpr {
+                    tokens: map_self_to_class_name(arg.ty.tokens, class_name),
+                };
 
                 param_types.push(ty);
                 param_idents.push(ident);
