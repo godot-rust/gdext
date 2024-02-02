@@ -33,8 +33,11 @@ pub fn make_virtual_callback(
     let method_name = &signature_info.method_name;
 
     let wrapped_method = make_forwarding_closure(class_name, &signature_info, before_kind);
-    let sig_tuple =
-        util::make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
+    let sig_tuple = util::make_signature_tuple_type(
+        class_name,
+        &signature_info.ret_type,
+        &signature_info.param_types,
+    );
 
     let invocation = make_ptrcall_invocation(method_name, &sig_tuple, &wrapped_method, true);
 
@@ -60,8 +63,11 @@ pub fn make_method_registration(
     func_definition: FuncDefinition,
 ) -> TokenStream {
     let signature_info = get_signature_info(&func_definition.func, func_definition.has_gd_self);
-    let sig_tuple =
-        util::make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
+    let sig_tuple = util::make_signature_tuple_type(
+        class_name,
+        &signature_info.ret_type,
+        &signature_info.param_types,
+    );
 
     let method_name = &signature_info.method_name;
     let param_idents = &signature_info.param_idents;

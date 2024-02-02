@@ -11,7 +11,7 @@ use crate::ParseResult;
 use proc_macro2::{Delimiter, Group, Ident, Literal, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use venial::{Error, Function, GenericParamList, Impl, WhereClause};
+use venial::{Error, Function, GenericParamList, Impl, TyExpr, WhereClause};
 
 mod kv_parser;
 mod list_parser;
@@ -104,11 +104,48 @@ pub fn parse_signature(mut signature: TokenStream) -> Function {
 
 /// Returns a type expression that can be used as a `VarcallSignatureTuple`.
 pub fn make_signature_tuple_type(
+    class_name: &Ident,
     ret_type: &TokenStream,
-    param_types: &Vec<venial::TyExpr>,
+    param_types: &[TyExpr],
 ) -> TokenStream {
+    let param_types: Vec<TyExpr> = param_types
+        .iter()
+        .map(|ty| {
+            let tokens = ty
+                .tokens
+                .iter()
+                .flat_map(|tt| tt.into_token_stream())
+                .map(|tt| map_self_to_class_name(tt, class_name))
+                .collect();
+            TyExpr { tokens }
+        })
+        .collect();
+
+    let ret_type: TokenStream = ret_type
+        .clone()
+        .into_iter()
+        .map(|tt| map_self_to_class_name(tt, class_name))
+        .collect();
+
     quote::quote! {
         (#ret_type, #(#param_types),*)
+    }
+}
+
+/// Maps each usage of `Self` to the struct it's referencing,
+/// since `Self` can't be used inside nested functions.
+fn map_self_to_class_name(tokens: TokenTree, class_name: &Ident) -> TokenTree {
+    match tokens {
+        TokenTree::Group(group) => {
+            let stream: proc_macro2::TokenStream = group
+                .stream()
+                .into_iter()
+                .map(|tt| map_self_to_class_name(tt, class_name))
+                .collect();
+            TokenTree::Group(Group::new(group.delimiter(), stream))
+        }
+        TokenTree::Ident(ident) if ident == "Self" => TokenTree::Ident(class_name.clone()),
+        tt => tt,
     }
 }
 

@@ -109,7 +109,8 @@ fn transform_inherent_impl(mut original_impl: Impl) -> Result<TokenStream, Error
             };
         }
 
-        let signature_tuple = util::make_signature_tuple_type(&quote! { () }, &param_types);
+        let signature_tuple =
+            util::make_signature_tuple_type(&class_name, &quote! { () }, &param_types);
         let indexes = 0..param_types.len();
         let param_array_decl = quote! {
             [
