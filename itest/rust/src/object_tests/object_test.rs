@@ -911,12 +911,16 @@ pub mod object_test_gd {
         i: i64,
     }
 
-    #[derive(GodotClass, Debug)]
-    #[class(init, base=RefCounted)]
-    struct ObjectTest;
+    mod nested {
+        use godot::prelude::*;
+        #[derive(GodotClass, Debug)]
+        #[class(init, base=RefCounted)]
+        pub(super) struct ObjectTest;
+    }
+    use nested::ObjectTest;
 
     #[godot_api]
-    impl ObjectTest {
+    impl nested::ObjectTest {
         #[func]
         fn pass_object(&self, object: Gd<Object>) -> i64 {
             let i = object.get("i".into()).to();
@@ -947,6 +951,16 @@ pub mod object_test_gd {
         #[func]
         fn return_refcounted_as_object(&self) -> Gd<Object> {
             Gd::from_object(MockRefCountedRust { i: 42 }).upcast()
+        }
+
+        #[func]
+        fn return_self() -> Gd<Self> {
+            Gd::from_object(Self)
+        }
+
+        #[func]
+        fn return_nested_self() -> Array<Gd<<Self as GodotClass>::Base>> {
+            array![Self::return_self().upcast()]
         }
     }
 
