@@ -56,7 +56,7 @@ enum BoundAttrType {
         has_gd_self: bool,
     },
     Signal(AttributeValue),
-    Const(AttributeValue),
+    Const(#[allow(dead_code)] AttributeValue),
 }
 
 struct BoundAttr {
