@@ -267,19 +267,20 @@ impl FieldExport {
 
         let min = parser.next_expr()?;
         let max = parser.next_expr()?;
-        // TODO: During parser refactor, try to remove the need for `is_next_ident` there. Currently needed only for this functionality.
-        // See discussion for rationale here: https://github.com/godot-rust/gdext/pull/484#pullrequestreview-1738612069
-        let step = match parser.is_next_ident() {
-            Some(false) => {
-                let value = parser.next_expr()?;
-                quote! { Some(#value) }
-            }
-            _ => quote! { None },
+        // If there is a next element and it is not an identifier,
+        // we take its tokens directly.
+        let step = if parser.peek().is_some_and(|kv| kv.as_ident().is_err()) {
+            let value = parser
+                .next_expr()
+                .expect("already guaranteed there was a TokenTree to parse");
+            quote! { Some(#value) }
+        } else {
+            quote! { None }
         };
 
         let mut options = HashSet::new();
 
-        while let Some(option) = parser.next_any_ident(&ALLOWED_OPTIONS[..])? {
+        while let Some(option) = parser.next_allowed_ident(&ALLOWED_OPTIONS[..])? {
             options.insert(option.to_string());
         }
 
@@ -302,10 +303,7 @@ impl FieldExport {
         let mut variants = Vec::new();
 
         while let Some((key, kv)) = parser.next_key_optional_value()? {
-            let integer = match kv {
-                Some(kv) => Some(kv.expr()?),
-                None => None,
-            };
+            let integer = kv.map(|kv| kv.expr()).transpose()?;
 
             variants.push(ValueWithKey {
                 key,
@@ -323,7 +321,7 @@ impl FieldExport {
 
         let mut options = HashSet::new();
 
-        while let Some(option) = parser.next_any_ident(&ALLOWED_OPTIONS[..])? {
+        while let Some(option) = parser.next_allowed_ident(&ALLOWED_OPTIONS[..])? {
             options.insert(option.to_string());
         }
 
@@ -339,10 +337,7 @@ impl FieldExport {
         let mut bits = Vec::new();
 
         while let Some((key, kv)) = parser.next_key_optional_value()? {
-            let integer = match kv {
-                Some(kv) => Some(kv.expr()?),
-                None => None,
-            };
+            let integer = kv.map(|kv| kv.expr()).transpose()?;
 
             bits.push(ValueWithKey {
                 key,

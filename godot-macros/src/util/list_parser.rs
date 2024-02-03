@@ -109,46 +109,30 @@ impl ListParser {
         self.lists.pop_front()
     }
 
-    fn peek(&self) -> Option<&KvValue> {
+    pub(crate) fn peek(&self) -> Option<&KvValue> {
         self.lists.front()
     }
 
     /// Take the next element of the list, ensuring it is an expression.
-    pub fn next_expr(&mut self) -> ParseResult<TokenStream> {
-        let Some(kv) = self.pop_next() else {
-            return bail!(self.span_close, "expected expression");
-        };
-
-        kv.expr()
+    pub(crate) fn next_expr(&mut self) -> ParseResult<TokenStream> {
+        match self.pop_next() {
+            Some(kv) => kv.expr(),
+            None => bail!(self.span_close, "expected expression"),
+        }
     }
 
-    /// Take the next element of the list, if it is an identifier.
+    /// Take the next element of the list unconditionally,
+    /// and returns an error if it is not an identifier.
     ///
     /// Returns `Ok(None)` if there are no more elements left.
-    pub fn next_ident(&mut self) -> ParseResult<Option<Ident>> {
-        let Some(kv) = self.pop_next() else {
-            return Ok(None);
-        };
-
-        Ok(Some(kv.ident()?))
-    }
-
-    /// Check if the next element of the list is an identifier.
-    ///
-    /// Returns `None` if there are no more elements left, `Some(true)` if the next element is identifier and `Some(false)` if it is not.
-    pub fn is_next_ident(&mut self) -> Option<bool> {
-        let Some(kv) = self.peek() else {
-            return None;
-        };
-
-        let res = kv.as_ident();
-
-        Some(res.is_ok())
+    pub(crate) fn next_ident(&mut self) -> ParseResult<Option<Ident>> {
+        self.pop_next().map(|kv| kv.ident()).transpose()
     }
 
     /// Take the next element of the list, if it is an identifier.
     ///
-    /// Returns `Ok(None)` if there are no more elements left or the next element isn't an identifier.
+    /// Returns `Err` if the next element isn't an identifier,
+    /// or `Ok(None)` if there are no more elements left
     pub fn try_next_ident(&mut self) -> ParseResult<Option<Ident>> {
         let Some(kv) = self.peek() else {
             return Ok(None);
@@ -161,21 +145,27 @@ impl ListParser {
         Ok(Some(id))
     }
 
-    /// Take the next element of the list, ensuring it is one of the given identifiers.
+    /// Checks to see if there is a next element, and if so,
+    /// whether it is one of the allowed identifiers,
+    /// returning `Ok(Some(ident))` if successful.
+    ///
+    /// Returns `Err(e)` if the next identifier is not in the allowed list,
+    /// but does not consume it.
     ///
     /// Returns `Ok(None)` if there are no more elements left.
-    pub fn next_any_ident(&mut self, ids: &[&str]) -> ParseResult<Option<Ident>> {
+    pub fn next_allowed_ident(&mut self, allowed_ids: &[&str]) -> ParseResult<Option<Ident>> {
         let Some(next_id) = self.try_next_ident()? else {
             return Ok(None);
         };
 
-        for id in ids {
+        for id in allowed_ids {
             if next_id == id {
                 return Ok(Some(next_id));
             }
         }
 
-        let allowed_values = ids.join(",");
+        // None of the allowed identifiers matched, so we return an error
+        let allowed_values = allowed_ids.join(",");
         bail!(next_id, "expected one of: \"{allowed_values}\"")
     }
 
@@ -184,6 +174,7 @@ impl ListParser {
         let kv = self.peek()?;
 
         if let Ok((key, value)) = kv.as_key_value() {
+            // If peek() parsed successfully, we consume the next element
             _ = self.pop_next();
 
             Some((key, value))
@@ -202,8 +193,7 @@ impl ListParser {
         }
 
         match self.try_next_ident() {
-            Ok(Some(key)) => Ok(Some((key, None))),
-            Ok(None) => Ok(None),
+            Ok(opt) => Ok(opt.map(|k| (k, None))),
             Err(err) => bail!(err.span(), "expected `key [= value]`"),
         }
     }
