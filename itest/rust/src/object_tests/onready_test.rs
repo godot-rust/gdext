@@ -145,7 +145,7 @@ fn onready_property_access() {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass)]
-#[class(base=Node)]
+#[class(no_init, base=Node)]
 struct OnReadyWithImpl {
     #[var]
     auto: OnReady<i32>,
@@ -182,7 +182,7 @@ impl INode for OnReadyWithImpl {
 
 // Class that doesn't have a #[godot_api] impl. Used to test whether variables are still initialized.
 #[derive(GodotClass)]
-#[class(base=Node)]
+#[class(no_init, base=Node)]
 struct OnReadyWithoutImpl {
     auto: OnReady<i32>,
     // No manual one, since those cannot be initialized without a ready() override.
@@ -206,7 +206,7 @@ type Ordy<T> = OnReady<T>;
 
 // Class that has a #[godot_api] impl, but does not override ready. Used to test whether variables are still initialized.
 #[derive(GodotClass)]
-#[class(base=Node)]
+#[class(no_init, base=Node)]
 struct OnReadyWithImplWithoutReady {
     // Test also #[hint] at the same time.
     #[hint(onready)]

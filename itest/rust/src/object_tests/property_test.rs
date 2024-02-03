@@ -231,6 +231,7 @@ impl HasCustomProperty {
 
 // These should all compile, but we can't easily test that they look right at the moment.
 #[derive(GodotClass)]
+#[class(no_init)]
 struct CheckAllExports {
     #[export]
     normal: GString,
@@ -308,6 +309,7 @@ pub enum TestEnum {
 }
 
 #[derive(GodotClass)]
+#[class(no_init)]
 pub struct DeriveProperty {
     #[var]
     pub foo: TestEnum,
@@ -369,7 +371,7 @@ pub struct RenamedCustomResource {}
 #[class(init, base=Node)]
 pub struct ExportResource {
     #[export]
-    #[var(usage_flags=[PROPERTY_USAGE_DEFAULT, PROPERTY_USAGE_EDITOR_INSTANTIATE_OBJECT])]
+    #[var(usage_flags=[DEFAULT, EDITOR_INSTANTIATE_OBJECT])]
     pub foo: Option<Gd<CustomResource>>,
 
     #[export]

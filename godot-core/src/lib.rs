@@ -186,21 +186,20 @@ pub mod private {
     // https://github.com/rust-lang/rust/pull/58994. Fortunately, an extra layer of indirection solves most problems: we generate a declarative
     // macro that itself isn't deprecated, but _its_ expansion is. Since the expansion happens in a later step, the warning is emitted.
 
-    #[doc(hidden)]
     #[inline(always)]
     #[deprecated = "#[base] is no longer needed; Base<T> is recognized directly. \n\
         More information on https://github.com/godot-rust/gdext/pull/577."]
-    pub const fn base_attribute_warning() {}
+    pub const fn base_attribute() {}
 
     #[doc(hidden)]
     #[macro_export]
-    macro_rules! __base_attribute_warning_expand {
-        () => {
-            const _: () = $crate::private::base_attribute_warning();
+    macro_rules! __emit_deprecated_warning {
+        ($warning_fn:ident) => {
+            const _: () = $crate::private::$warning_fn();
         };
     }
 
-    pub use crate::__base_attribute_warning_expand;
+    pub use crate::__emit_deprecated_warning;
 }
 
 macro_rules! generate_gdextension_api_version {

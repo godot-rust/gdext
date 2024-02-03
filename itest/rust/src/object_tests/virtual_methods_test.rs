@@ -28,7 +28,7 @@ use godot::register::{godot_api, GodotClass};
 
 /// Simple class, that deliberately has no constructor accessible from GDScript
 #[derive(GodotClass, Debug)]
-#[class(base=RefCounted)]
+#[class(no_init, base=RefCounted)]
 struct WithoutInit {
     some_base: Base<RefCounted>,
 }

@@ -83,12 +83,12 @@ impl KvParser {
     /// Handles a key that can only occur without a value, e.g. `#[attr(toggle)]`. Returns whether
     /// the key is present.
     pub fn handle_alone(&mut self, key: &str) -> ParseResult<bool> {
-        self.handle_alone_ident(key).map(|id| id.is_some())
+        self.handle_alone_with_span(key).map(|id| id.is_some())
     }
 
-    /// Handles a key that can only occur without a value, e.g. `#[attr(toggle)]`. Returns the key if it is
-    /// present.
-    pub fn handle_alone_ident(&mut self, key: &str) -> ParseResult<Option<Ident>> {
+    /// Handles a key that can only occur without a value, e.g. `#[attr(toggle)]`. Returns the key (as an ident with a span)
+    /// if it is present.
+    pub fn handle_alone_with_span(&mut self, key: &str) -> ParseResult<Option<Ident>> {
         match self.handle_any_entry(key) {
             None => Ok(None),
             Some((id, value)) => match value {

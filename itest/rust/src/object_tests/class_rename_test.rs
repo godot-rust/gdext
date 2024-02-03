@@ -12,6 +12,7 @@ pub mod dont_rename {
     use super::*;
 
     #[derive(GodotClass)]
+    #[class(no_init)]
     pub struct RepeatMe {}
 }
 
@@ -19,7 +20,7 @@ pub mod rename {
     use super::*;
 
     #[derive(GodotClass)]
-    #[class(rename = NoRepeat)]
+    #[class(rename=NoRepeat, no_init)]
     pub struct RepeatMe {}
 }
 

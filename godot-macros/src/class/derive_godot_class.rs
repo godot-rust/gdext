@@ -59,7 +59,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     };
 
     let deprecated_base_warning = if fields.has_deprecated_base {
-        quote! { ::godot::private::__base_attribute_warning_expand!(); }
+        quote! { ::godot::private::__emit_deprecated_warning!(base_attribute); }
     } else {
         TokenStream::new()
     };
@@ -67,19 +67,34 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     let (user_class_impl, has_default_virtual) =
         make_user_class_impl(class_name, struct_cfg.is_tool, &fields.all_fields);
 
-    let (godot_init_impl, create_fn, recreate_fn);
-    if struct_cfg.has_generated_init {
-        godot_init_impl = make_godot_init_impl(class_name, fields);
-        create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
-        if cfg!(since_api = "4.2") {
-            recreate_fn = quote! { Some(#prv::callbacks::recreate::<#class_name>) };
-        } else {
-            recreate_fn = quote! { None };
+    let mut init_expecter = TokenStream::new();
+    let mut godot_init_impl = TokenStream::new();
+    let mut create_fn = quote! { None };
+    let mut recreate_fn = quote! { None };
+
+    match struct_cfg.init_strategy {
+        InitStrategy::GenerateDefault => {
+            godot_init_impl = make_godot_init_impl(class_name, fields);
+            create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
+
+            if cfg!(since_api = "4.2") {
+                recreate_fn = quote! { Some(#prv::callbacks::recreate::<#class_name>) };
+            }
         }
-    } else {
-        godot_init_impl = TokenStream::new();
-        create_fn = quote! { None };
-        recreate_fn = quote! { None };
+        InitStrategy::Manual => {
+            let fn_name = format_ident!("class_{}_must_have_an_init_method", class_name);
+            init_expecter = quote! {
+                #[allow(non_snake_case)]
+                fn #fn_name() {
+                    fn __type_check<T: ::godot::obj::cap::GodotDefault>() {}
+
+                    __type_check::<#class_name>();
+                }
+            }
+        }
+        InitStrategy::Absent => {
+            // nothing
+        }
     };
 
     let default_get_virtual_fn = if has_default_virtual {
@@ -107,6 +122,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         #godot_withbase_impl
         #godot_exports_impl
         #user_class_impl
+        #init_expecter
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_obj,
@@ -142,6 +158,61 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         #prv::class_macros::#inherits_macro!(#class_name);
         #deprecated_base_warning
     })
+}
+
+/// Checks at compile time that a function with the given name exists on `Self`.
+#[must_use]
+pub fn make_existence_check(ident: &Ident) -> TokenStream {
+    quote! {
+        #[allow(path_statements)]
+        Self::#ident;
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Implementation
+
+enum InitStrategy {
+    GenerateDefault,
+    Manual,
+    Absent,
+}
+
+struct ClassAttributes {
+    base_ty: Ident,
+    init_strategy: InitStrategy,
+    is_tool: bool,
+    is_editor_plugin: bool,
+    is_hidden: bool,
+    rename: Option<Ident>,
+}
+
+fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
+    let base_init = if let Some(Field { name, .. }) = fields.base_field {
+        quote! { #name: base, }
+    } else {
+        TokenStream::new()
+    };
+
+    let rest_init = fields.all_fields.into_iter().map(|field| {
+        let field_name = field.name;
+        let value_expr = field
+            .default
+            .unwrap_or_else(|| quote! { ::std::default::Default::default() });
+
+        quote! { #field_name: #value_expr, }
+    });
+
+    quote! {
+        impl ::godot::obj::cap::GodotDefault for #class_name {
+            fn __godot_user_init(base: ::godot::obj::Base<Self::Base>) -> Self {
+                Self {
+                    #( #rest_init )*
+                    #base_init
+                }
+            }
+        }
+    }
 }
 
 fn make_user_class_impl(
@@ -200,22 +271,10 @@ fn make_user_class_impl(
     (user_class_impl, default_virtual_fn.is_some())
 }
 
-/// Checks at compile time that a function with the given name exists on `Self`.
-#[must_use]
-pub fn make_existence_check(ident: &Ident) -> TokenStream {
-    quote! {
-        #[allow(path_statements)]
-        Self::#ident;
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Implementation
-
 /// Returns the name of the base and the default mode
 fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
     let mut base_ty = ident("RefCounted");
-    let mut has_generated_init = false;
+    let mut init_strategy = InitStrategy::Manual;
     let mut is_tool = false;
     let mut is_editor_plugin = false;
     let mut is_hidden = false;
@@ -223,19 +282,28 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
 
     // #[class] attribute on struct
     if let Some(mut parser) = KvParser::parse(&class.attributes, "class")? {
+        // #[class(base = Base)]
         if let Some(base) = parser.handle_ident("base")? {
             base_ty = base;
         }
 
-        if parser.handle_alone("init")? {
-            has_generated_init = true;
+        // #[class(rename = NewName)]
+        rename = parser.handle_ident("rename")?;
+
+        // #[class(init)], #[class(no_init)]
+        match handle_opposite_keys(&mut parser, "init", "class")? {
+            Some(true) => init_strategy = InitStrategy::GenerateDefault,
+            Some(false) => init_strategy = InitStrategy::Absent,
+            None => {}
         }
 
+        // #[class(tool)]
         if parser.handle_alone("tool")? {
             is_tool = true;
         }
 
-        if let Some(attr_key) = parser.handle_alone_ident("editor_plugin")? {
+        // #[class(editor_plugin)]
+        if let Some(attr_key) = parser.handle_alone_with_span("editor_plugin")? {
             if cfg!(before_api = "4.1") {
                 return bail!(
                     attr_key,
@@ -246,18 +314,17 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
             is_editor_plugin = true;
         }
 
+        // #[class(hide)]
         if parser.handle_alone("hide")? {
             is_hidden = true;
         }
-
-        rename = parser.handle_ident("rename")?;
 
         parser.finish()?;
     }
 
     Ok(ClassAttributes {
         base_ty,
-        has_generated_init,
+        init_strategy,
         is_tool,
         is_editor_plugin,
         is_hidden,
@@ -326,11 +393,11 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
 
         // #[hint] to override type inference (must be at the end).
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "hint")? {
-            if let Some(override_base) = handle_opposite_keys(&mut parser, "base")? {
+            if let Some(override_base) = handle_opposite_keys(&mut parser, "base", "hint")? {
                 is_base = override_base;
             }
 
-            if let Some(override_onready) = handle_opposite_keys(&mut parser, "onready")? {
+            if let Some(override_onready) = handle_opposite_keys(&mut parser, "onready", "hint")? {
                 field.is_onready = override_onready;
             }
             parser.finish()?;
@@ -370,7 +437,11 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
     })
 }
 
-fn handle_opposite_keys(parser: &mut KvParser, key: &str) -> ParseResult<Option<bool>> {
+fn handle_opposite_keys(
+    parser: &mut KvParser,
+    key: &str,
+    attribute: &str,
+) -> ParseResult<Option<bool>> {
     let antikey = format!("no_{}", key);
 
     let is_key = parser.handle_alone(key)?;
@@ -382,47 +453,7 @@ fn handle_opposite_keys(parser: &mut KvParser, key: &str) -> ParseResult<Option<
         (false, false) => Ok(None),
         (true, true) => bail!(
             parser.span(),
-            "#[hint] attribute keys `{key}` and `{antikey}` are mutually exclusive",
+            "#[{attribute}] attribute keys `{key}` and `{antikey}` are mutually exclusive",
         ),
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// General helpers
-
-struct ClassAttributes {
-    base_ty: Ident,
-    has_generated_init: bool,
-    is_tool: bool,
-    is_editor_plugin: bool,
-    is_hidden: bool,
-    rename: Option<Ident>,
-}
-
-fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
-    let base_init = if let Some(Field { name, .. }) = fields.base_field {
-        quote! { #name: base, }
-    } else {
-        TokenStream::new()
-    };
-
-    let rest_init = fields.all_fields.into_iter().map(|field| {
-        let field_name = field.name;
-        let value_expr = match field.default {
-            None => quote! { ::std::default::Default::default() },
-            Some(default) => default,
-        };
-        quote! { #field_name: #value_expr, }
-    });
-
-    quote! {
-        impl ::godot::obj::cap::GodotDefault for #class_name {
-            fn __godot_user_init(base: ::godot::obj::Base<Self::Base>) -> Self {
-                Self {
-                    #( #rest_init )*
-                    #base_init
-                }
-            }
-        }
     }
 }

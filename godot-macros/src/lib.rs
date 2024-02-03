@@ -27,7 +27,8 @@ use crate::util::ident;
 ///
 /// # Construction
 ///
-/// To generate a constructor that will let you call `MyStruct.new()` from GDScript, annotate your
+/// If you don't override `init()` manually (within a `#[godot_api]` block), gdext can generate a default constructor for you.
+/// This constructor is made available to Godot and lets you call `MyStruct.new()` from GDScript. To enable it, annotate your
 /// struct with `#[class(init)]`:
 ///
 /// ```
@@ -64,10 +65,22 @@ use crate::util::ident;
 /// # #[derive(GodotClass)]
 /// # #[class(init)]
 /// # struct MyStruct {
-///     #[init(default = (HashMap::<i64, i64>::new()))]
-///     //                             ^ parentheses needed due to this comma
-/// #   my_field: HashMap<i64, i64>,
+/// #[init(default = (HashMap::<i64, i64>::new()))]
+/// //                             ^ parentheses needed due to this comma
+/// my_field: HashMap<i64, i64>,
 /// # }
+/// ```
+///
+/// You can also _disable_ construction from GDScript. This needs to be explicit via `#[class(no_init)]`.
+/// Simply omitting the `init`/`no_init` keys and not overriding your own constructor will cause a compile error.
+///
+/// ```
+/// # use godot_macros::GodotClass;
+/// #[derive(GodotClass)]
+/// #[class(no_init)]
+/// struct MyStruct {
+///    // ...
+/// }
 /// ```
 ///
 /// # Inheritance
@@ -83,7 +96,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
-/// #[class(base = Node2D)]
+/// #[class(init, base=Node2D)]
 /// struct MyStruct {
 ///     // ...
 /// }
@@ -95,7 +108,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
-/// #[class(base = Node2D)]
+/// #[class(init, base=Node2D)]
 /// struct MyStruct {
 ///     base: Base<Node2D>,
 /// }
@@ -116,6 +129,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     #[var]
 ///     my_field: i64,
@@ -133,6 +147,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     #[var(get = get_my_field, set = set_my_field)]
 ///     my_field: i64,
@@ -159,6 +174,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     // Default getter, custom setter.
 ///     #[var(get, set = set_my_field)]
@@ -179,6 +195,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     #[export]
 ///     my_field: i64,
@@ -202,6 +219,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     // @export
 ///     #[export]
@@ -235,6 +253,7 @@ use crate::util::ident;
 ///     #[export(flags = (A = 1, B = 2, AB = 3))]
 ///     flags: u32,
 /// }
+///
 /// ```
 ///
 /// Most values in expressions like `key = value`, can be an arbitrary expression that evaluates to the
@@ -246,6 +265,7 @@ use crate::util::ident;
 /// const MAX_HEALTH: f64 = 100.0;
 ///
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     #[export(range = (0.0, MAX_HEALTH))]
 ///     health: f64,
@@ -256,19 +276,21 @@ use crate::util::ident;
 /// ```
 ///
 /// You can specify custom property hints, hint strings, and usage flags in a `#[var]` attribute using the
-/// `hint`, `hint_string`, and `usage_flags` keys in the attribute:
+/// `hint`, `hint_string`, and `usage_flags` keys in the attribute. These are constants in the `PropertyHint`
+/// and `PropertyUsageFlags` enums, respectively.
 ///
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     // Treated as an enum with two values: "One" and "Two"
 ///     // Displayed in the editor
 ///     // Treated as read-only by the editor
 ///     #[var(
-///         hint = PROPERTY_HINT_ENUM,
+///         hint = ENUM,
 ///         hint_string = "One,Two",
-///         usage_flags = [PROPERTY_USAGE_EDITOR, PROPERTY_USAGE_READ_ONLY]
+///         usage_flags = [EDITOR, READ_ONLY]
 ///     )]
 ///     my_field: i64,
 /// }
@@ -282,6 +304,7 @@ use crate::util::ident;
 /// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyClass {}
 ///
 /// #[godot_api]
@@ -346,7 +369,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
-/// #[class(base = Node, init, hide)]
+/// #[class(base=Node, init, hide)]
 /// pub struct Foo {}
 /// ```
 ///
@@ -372,7 +395,7 @@ use crate::util::ident;
 /// type Base<T> = godot::obj::Gd<T>;
 ///
 /// #[derive(godot::register::GodotClass)]
-/// #[class(base = Node)]
+/// #[class(base=Node)]
 /// struct MyStruct {
 ///    #[hint(base)]
 ///    base: Super<Node>,
@@ -380,6 +403,10 @@ use crate::util::ident;
 ///    #[hint(no_base)]
 ///    unbase: Base<Node>,
 /// }
+/// # #[godot::register::godot_api]
+/// # impl godot::engine::INode for MyStruct {
+/// #     fn init(base: godot::obj::Base<Self::Base>) -> Self { todo!() }
+/// # }
 /// ```
 #[proc_macro_derive(GodotClass, attributes(class, base, hint, var, export, init, signal))]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
@@ -392,7 +419,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
-/// #[class(base=Node)]
+/// #[class(init, base=Node)]
 /// struct MyClass {}
 ///
 /// // 1) inherent impl block: user-defined, custom API
@@ -422,6 +449,8 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///# use godot::prelude::*;
 ///
 /// #[derive(GodotClass)]
+/// // no #[class(init)] here, since init() is overridden below.
+/// // #[class(base=RefCounted)] is implied if no base is specified.
 /// struct MyStruct;
 ///
 /// #[godot_api]
@@ -561,6 +590,7 @@ pub fn derive_from_godot(input: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[derive(GodotClass)]
+/// #[class(no_init)] // No Godot default constructor.
 /// struct MyClass {
 ///     #[var]
 ///     foo: MyEnum,
