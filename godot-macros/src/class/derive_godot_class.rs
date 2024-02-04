@@ -312,6 +312,20 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
             }
 
             is_editor_plugin = true;
+
+            // Requires #[class(tool, base=EditorPlugin)].
+            if !is_tool {
+                return bail!(
+                    attr_key,
+                    "#[class(editor_plugin)] requires additional key `tool`"
+                );
+            }
+            if base_ty != ident("EditorPlugin") {
+                return bail!(
+                    attr_key,
+                    "#[class(editor_plugin)] requires additional key-value `base=EditorPlugin`"
+                );
+            }
         }
 
         // #[class(hide)]
