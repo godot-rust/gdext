@@ -11,8 +11,7 @@ use std::pin::Pin;
 
 use crate::obj::{Base, GodotClass};
 use crate::out;
-
-use super::{Lifecycle, Storage, StorageRefCounted};
+use crate::storage::{Lifecycle, Storage, StorageRefCounted};
 
 pub struct InstanceStorage<T: GodotClass> {
     user_instance: Pin<Box<godot_cell::GdCell<T>>>,

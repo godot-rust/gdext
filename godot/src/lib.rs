@@ -213,6 +213,8 @@ pub mod test {
 }
 
 #[doc(hidden)]
+pub use godot_core::__deprecated;
+#[doc(hidden)]
 pub use godot_core::private;
 
 /// Often-imported symbols.

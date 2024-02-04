@@ -59,7 +59,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     };
 
     let deprecated_base_warning = if fields.has_deprecated_base {
-        quote! { ::godot::private::__emit_deprecated_warning!(base_attribute); }
+        quote! { ::godot::__deprecated::emit_deprecated_warning!(base_attribute); }
     } else {
         TokenStream::new()
     };
