@@ -69,17 +69,6 @@ macro_rules! cast_fn_ptr {
     }};
 }
 
-/// Makes sure that Godot is running, or panics. Debug mode only!
-/// (private macro)
-macro_rules! debug_assert_godot {
-    ($expr:expr) => {
-        debug_assert!(
-            $expr,
-            "Godot engine not available; make sure you are not calling it from unit/doc tests"
-        );
-    };
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utility functions
 
@@ -183,7 +172,16 @@ pub(crate) type GetClassMethod = unsafe extern "C" fn(
     p_hash: sys::GDExtensionInt,
 ) -> sys::GDExtensionMethodBindPtr;
 
-pub type ClassMethodBind = sys::GDExtensionMethodBindPtr;
+/// Newtype around `GDExtensionMethodBindPtr` so we can implement `Sync` and `Send` for it manually.    
+#[derive(Clone, Copy)]
+pub struct ClassMethodBind(pub sys::GDExtensionMethodBindPtr);
+
+// SAFETY: `sys::GDExtensionMethodBindPtr` is effectively the same as a `unsafe extern "C" fn`. So sharing it between
+// threads is fine, as using it in any way requires `unsafe` and it is up to the caller to ensure it is thread safe
+// to do so.
+unsafe impl Sync for ClassMethodBind {}
+// SAFETY: See `Sync` impl safety doc.
+unsafe impl Send for ClassMethodBind {}
 
 pub(crate) type GetBuiltinMethod = unsafe extern "C" fn(
     p_type: sys::GDExtensionVariantType,
@@ -213,26 +211,6 @@ pub type UtilityFunctionBind = unsafe extern "C" fn(
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utility functions
 
-/// Combination of `as_ref()` and `unwrap_unchecked()`, but without the case differentiation in
-/// the former (thus raw pointer access in release mode)
-pub(crate) unsafe fn unwrap_ref_unchecked<T>(opt: &Option<T>) -> &T {
-    debug_assert_godot!(opt.is_some());
-
-    match opt {
-        Some(ref val) => val,
-        None => std::hint::unreachable_unchecked(),
-    }
-}
-
-pub(crate) unsafe fn unwrap_ref_unchecked_mut<T>(opt: &mut Option<T>) -> &mut T {
-    debug_assert_godot!(opt.is_some());
-
-    match opt {
-        Some(ref mut val) => val,
-        None => std::hint::unreachable_unchecked(),
-    }
-}
-
 pub(crate) fn load_class_method(
     get_method_bind: GetClassMethod,
     string_names: &mut sys::StringCache,
@@ -252,7 +230,7 @@ pub(crate) fn load_class_method(
     let class_sname_ptr = class_sname_ptr.unwrap_or_else(|| string_names.fetch(class_name));
 
     // SAFETY: function pointers provided by Godot. We have no way to validate them.
-    let method: ClassMethodBind =
+    let method: sys::GDExtensionMethodBindPtr =
         unsafe { get_method_bind(class_sname_ptr, method_sname_ptr, hash) };
 
     if method.is_null() {
@@ -265,7 +243,7 @@ pub(crate) fn load_class_method(
         )
     }
 
-    method
+    ClassMethodBind(method)
 }
 
 pub(crate) fn load_builtin_method(
@@ -283,8 +261,8 @@ pub(crate) fn load_builtin_method(
         hash
     );*/
 
-    // SAFETY: function pointers provided by Godot. We have no way to validate them.
     let method_sname = string_names.fetch(method_name);
+    // SAFETY: function pointers provided by Godot. We have no way to validate them.
     let method = unsafe { get_builtin_method(variant_type, method_sname, hash) };
 
     method.unwrap_or_else(|| {
@@ -329,3 +307,95 @@ pub(crate) fn read_version_string(version_ptr: &sys::GDExtensionGodotVersion) ->
 }
 
 const INFO: &str = "\nMake sure gdext and Godot are compatible: https://godot-rust.github.io/book/gdext/advanced/compatibility.html";
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Private abstractions
+// Dont use abstractions made here outside this crate, if needed then we should discuss making it more of a first-class
+// abstraction like `godot-cell`.
+
+/// Module to encapsulate `UnsafeOnceCell`.
+mod unsafe_once_cell {
+    use std::{cell::UnsafeCell, hint::unreachable_unchecked};
+
+    /// A cell which can only be written to once, where the caller is responsible for synchronization.
+    ///
+    /// Similar to a [`OnceLock`](std::sync::OnceLock), but without the overhead of locking for initialization. In most cases the compiler
+    /// seems able to optimize `OnceLock` to equivalent code. But this guaranteed does not have any overhead at runtime.
+    pub(crate) struct UnsafeOnceCell<T> {
+        // Invariant: Is `None` until initialized, and then never modified after (except, possibly, through interior mutability).
+        cell: UnsafeCell<Option<T>>,
+    }
+
+    impl<T> UnsafeOnceCell<T> {
+        /// Creates a new empty cell.
+        pub const fn new() -> Self {
+            Self {
+                cell: UnsafeCell::new(None),
+            }
+        }
+
+        /// Initialize the value stored in this cell.
+        ///
+        /// # Safety
+        ///
+        /// - Must only be called once.
+        /// - Calls to this method must not happen concurrently with a call to any other method on this cell.
+        ///
+        /// Note that the other methods of this cell do not have a safety invariant that they are not called concurrently with `set`.
+        /// This is because doing so would violate the safety invariants of `set` and so they do not need to explicitly have that as a
+        /// safety invariant as well. This has the added benefit that `is_initialized` can be a safe method.
+        #[inline]
+        pub unsafe fn set(&self, value: T) {
+            // SAFETY: `set` is only ever called once, and is not called concurrently with any other methods. Therefore we can take
+            // a mutable reference to the contents of the cell.
+            let cell = unsafe { &mut *self.cell.get() };
+
+            debug_assert!(cell.is_none(), "`set` should only ever be called once");
+
+            // Tell the compiler to assume the cell is `None`, even if it can't prove that on its own.
+            if cell.is_some() {
+                // SAFETY: `cell` is initialized to `None`, and `set` is the only way to set it to a `Some`. Since `set`
+                // is never called more than once, we know for sure that it is still `None` at this point.
+                unsafe { unreachable_unchecked() }
+            }
+
+            *cell = Some(value);
+        }
+
+        /// Gets the value stored in the cell.
+        ///
+        /// # Safety
+        ///
+        /// - [`set`](UnsafeOnceCell::set) must have been called before calling this method.
+        #[inline]
+        pub unsafe fn get_unchecked(&self) -> &T {
+            // SAFETY: There are no `&mut` references, since only `set` can create one and this method cannot be called concurrently with `set`.
+            let option = unsafe { &*self.cell.get() };
+
+            debug_assert!(
+                option.is_some(),
+                "get_unchecked must be called after `set` has been called once"
+            );
+
+            // SAFETY: `set` has been called before this, so the option is known to be a `Some`.
+            unsafe { option.as_ref().unwrap_unchecked() }
+        }
+
+        /// Gets the value stored in the cell.
+        #[inline]
+        pub fn is_initialized(&self) -> bool {
+            // SAFETY: There are no `&mut` references, since only `set` can create one and this method cannot be called concurrently with `set`.
+            let option = unsafe { &*self.cell.get() };
+
+            option.is_some()
+        }
+    }
+
+    // SAFETY: The user is responsible for ensuring thread safe initialization of the cell.
+    // This also requires `Send` for the same reasons `OnceLock` does.
+    unsafe impl<T: Send + Sync> Sync for UnsafeOnceCell<T> {}
+    // SAFETY: See `Sync` impl.
+    unsafe impl<T: Send> Send for UnsafeOnceCell<T> {}
+}
+
+pub(crate) use unsafe_once_cell::UnsafeOnceCell;
