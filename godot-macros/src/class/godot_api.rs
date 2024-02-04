@@ -452,7 +452,7 @@ fn convert_to_match_expression_or_none(tokens: Option<TokenStream>) -> TokenStre
 
 /// Codegen for `#[godot_api] impl GodotExt for MyType`
 fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
-    let (class_name, trait_name) = util::validate_trait_impl_virtual(&original_impl, "godot_api")?;
+    let (class_name, trait_path) = util::validate_trait_impl_virtual(&original_impl, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
 
     let mut godot_init_impl = TokenStream::new();
@@ -505,7 +505,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotRegisterClass for #class_name {
                         fn __godot_register_class(builder: &mut ::godot::builder::GodotBuilder<Self>) {
-                            <Self as #trait_name>::register_class(builder)
+                            <Self as #trait_path>::register_class(builder)
                         }
                     }
                 };
@@ -534,7 +534,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotDefault for #class_name {
                         fn __godot_user_init(base: ::godot::obj::Base<Self::Base>) -> Self {
-                            <Self as #trait_name>::init(base)
+                            <Self as #trait_path>::init(base)
                         }
                     }
                 };
@@ -559,7 +559,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotToString for #class_name {
                         fn __godot_to_string(&self) -> ::godot::builtin::GString {
-                            <Self as #trait_name>::to_string(self)
+                            <Self as #trait_path>::to_string(self)
                         }
                     }
                 };
@@ -583,7 +583,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                                 return;
                             }
 
-                            <Self as #trait_name>::on_notification(self, what.into())
+                            <Self as #trait_path>::on_notification(self, what.into())
                         }
                     }
                 };
@@ -605,7 +605,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                                 return None;
                             }
 
-                            <Self as #trait_name>::get_property(self, property)
+                            <Self as #trait_path>::get_property(self, property)
                         }
                     }
                 };
@@ -626,7 +626,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
                                 return false;
                             }
 
-                            <Self as #trait_name>::set_property(self, property, value)
+                            <Self as #trait_path>::set_property(self, property, value)
                         }
                     }
                 };

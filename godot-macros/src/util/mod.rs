@@ -11,7 +11,7 @@ use crate::ParseResult;
 use proc_macro2::{Delimiter, Group, Ident, Literal, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use venial::{Error, Function, GenericParamList, Impl, WhereClause};
+use venial::{Error, Function, GenericParamList, Impl, TyExpr, WhereClause};
 
 mod kv_parser;
 mod list_parser;
@@ -162,12 +162,12 @@ pub(crate) fn validate_impl(
     validate_self(original_impl, attr)
 }
 
-/// Validates that the declaration is the of the form `impl Trait for
-/// SomeType`, where the name of `Trait` ends in `Virtual`.
-pub(crate) fn validate_trait_impl_virtual(
-    original_impl: &Impl,
+/// Validates that the declaration is the of the form `impl Trait for SomeType`, where the name
+/// of `Trait` begins with `I`.
+pub(crate) fn validate_trait_impl_virtual<'a>(
+    original_impl: &'a Impl,
     attr: &str,
-) -> ParseResult<(Ident, Ident)> {
+) -> ParseResult<(Ident, &'a TyExpr)> {
     let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
     let typename = extract_typename(trait_name);
 
@@ -184,8 +184,8 @@ pub(crate) fn validate_trait_impl_virtual(
 
     // Validate self
     validate_self(original_impl, attr).map(|class_name| {
-        let trait_name = typename.unwrap(); // unwrap: already checked in 'Validate trait'
-        (class_name, trait_name.ident)
+        // let trait_name = typename.unwrap(); // unwrap: already checked in 'Validate trait'
+        (class_name, trait_name)
     })
 }
 
@@ -207,7 +207,7 @@ fn validate_self(original_impl: &Impl, attr: &str) -> ParseResult<Ident> {
     }
 }
 
-/// Gets the right-most type name in the path
+/// Gets the right-most type name in the path.
 fn extract_typename(ty: &venial::TyExpr) -> Option<venial::PathSegment> {
     match ty.as_path() {
         Some(mut path) => path.segments.pop(),
