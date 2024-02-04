@@ -29,17 +29,17 @@ func assert_that(what: bool, message: String = "") -> bool:
 		print_error("GDScript assertion failed.")
 	return false
 
-func assert_eq(left, right, message: String = "") -> bool:
-	if left == right:
+func assert_eq(actual, expected, message: String = "") -> bool:
+	if actual == expected:
 		return true
 
 	_assertion_failed = true
 
 	print_newline() # previous line not yet broken
 	if message:
-		print_error("GDScript assertion failed:  %s\n  left: %s\n right: %s" % [message, left, right])
+		print_error("GDScript assertion failed:  %s\n  actual:   %s\n  expected: %s" % [message, actual, expected])
 	else:
-		print_error("GDScript assertion failed:  `(left == right)`\n  left: %s\n right: %s" % [left, right])
+		print_error("GDScript assertion failed:  `(actual == expected)`\n  actual: %s\n expected: %s" % [actual, expected])
 	return false
 
 # Disable error message printing from godot. 

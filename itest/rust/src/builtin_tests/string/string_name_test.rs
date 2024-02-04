@@ -138,14 +138,6 @@ fn string_name_from_latin1_with_nul() {
         let a = StringName::from_latin1_with_nul(bytes);
         let b = StringName::from(string);
 
-        println!();
-        println!(
-            "Arrays: a={:?}, b={:?}",
-            a.to_string().as_bytes(),
-            b.to_string().as_bytes()
-        );
-        println!("Hashes: a={:?}, b={:?}", a.hash(), b.hash());
-        println!("Lengths: a={}, b={}", a.len(), b.len());
         assert_eq!(a, b);
     }
 }
