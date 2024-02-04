@@ -22,7 +22,27 @@ use crate::util::ident;
 // Below intra-doc link to the trait only works as HTML, not as symbol link.
 /// Derive macro for [`GodotClass`](../obj/trait.GodotClass.html) on structs.
 ///
-/// You must use this macro; manual implementations of the `GodotClass` trait are not supported.
+/// You should use this macro; manual implementations of the `GodotClass` trait are not encouraged.
+///
+/// This is typically used in combination with [`#[godot_api]`](attr.godot_api.html), which can implement custom functions and constants,
+/// as well as override virtual methods.
+///
+/// See also [book chapter _Registering classes_](https://godot-rust.github.io/book/register/classes.html).
+///
+/// **Table of contents:**
+/// - [Construction](#construction)
+/// - [Inheritance](#inheritance)
+/// - [Properties and exports](#properties-and-exports)
+///    - [Property registration](#property-registration)
+///    - [Property exports](#property-exports)
+/// - [Signals](#signals)
+/// - [Further class customization](#further-class-customization)
+///    - [Running code in the editor](#running-code-in-the-editor)
+///    - [Editor plugins](#editor-plugins)
+///    - [Class renaming](#class-renaming)
+///    - [Class hiding](#class-hiding)
+/// - [Further field customization](#further-field-customization)
+///    - [Fine-grained inference hints](#fine-grained-inference-hints)
 ///
 ///
 /// # Construction
@@ -117,12 +137,15 @@ use crate::util::ident;
 ///
 /// # Properties and exports
 ///
+/// See also [book chapter _Registering properties_](https://godot-rust.github.io/book/register/properties.html#registering-properties).
+///
 /// In GDScript, there is a distinction between
 /// [properties](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html#properties-setters-and-getters)
 /// (fields with a `get` or `set` declaration) and
 /// [exports](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_exports.html)
-/// (fields annotated with `@export`). In the GDExtension API, these two concepts are represented with
-/// `#[var]` and `#[export]` attributes respectively.
+/// (fields annotated with `@export`). In the gdext API, these two concepts are represented with `#[var]` and `#[export]` attributes respectively.
+///
+/// ## Property registration
 ///
 /// To create a property, you can use the `#[var]` annotation:
 ///
@@ -189,6 +212,8 @@ use crate::util::ident;
 ///     }
 /// }
 /// ```
+///
+/// ## Property exports
 ///
 /// For exporting properties to the editor, you can use the `#[export]` attribute:
 ///
@@ -314,7 +339,9 @@ use crate::util::ident;
 /// }
 /// ```
 ///
-/// # Running code in the editor
+/// # Further class customization
+///
+/// ## Running code in the editor
 ///
 /// If you annotate a class with `#[class(tool)]`, its lifecycle methods (`ready()`, `process()` etc.) will be invoked in the editor. This
 /// is useful for writing custom editor plugins, as opposed to classes running simply in-game.
@@ -324,7 +351,7 @@ use crate::util::ident;
 ///
 /// This is very similar to [GDScript's `@tool` feature](https://docs.godotengine.org/en/stable/tutorials/plugins/running_code_in_the_editor.html).
 ///
-/// # Editor plugins
+/// ## Editor plugins
 ///
 /// If you annotate a class with `#[class(editor_plugin)]`, it will be turned into an editor plugin. The
 /// class must then inherit from `EditorPlugin`, and an instance of that class will be automatically added
@@ -338,7 +365,7 @@ use crate::util::ident;
 /// This should usually be combined with `#[class(tool)]` so that the code you write will actually run in the
 /// editor.
 ///
-/// # Class renaming
+/// ## Class renaming
 ///
 /// You may want to have structs with the same name. With Rust, this is allowed using `mod`. However in GDScript,
 /// there are no modules, namespaces, or any such disambiguation.  Therefore, you need to change the names before they
@@ -362,7 +389,7 @@ use crate::util::ident;
 ///
 /// These classes will appear in the Godot editor and GDScript as "AnimalToad" or "NpcToad".
 ///
-/// # Hiding classes
+/// ## Class hiding
 ///
 /// If you want to register a class with Godot, but not have it show up in the editor then you can use `#[class(hide)]`.
 ///
@@ -376,7 +403,9 @@ use crate::util::ident;
 /// Even though this class is a `Node` and it has an init function, it still won't show up in the editor as a node you can add to a scene
 /// because we have added a `hide` key to the class. This will also prevent it from showing up in documentation.
 ///
-/// # Fine-grained inference hints
+/// # Further field customization
+///
+/// ## Fine-grained inference hints
 ///
 /// The derive macro is relatively smart about recognizing `Base<T>` and `OnReady<T>` types, and works also if those are qualified.
 ///
@@ -415,6 +444,8 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 
 /// Proc-macro attribute to be used with `impl` blocks of [`#[derive(GodotClass)]`][GodotClass] structs.
 ///
+/// See also [book chapter _Registering functions_](https://godot-rust.github.io/book/register/functions.html) and following.
+///
 /// Can be used in two ways:
 /// ```no_run
 /// # use godot::prelude::*;
@@ -422,11 +453,11 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// #[class(init, base=Node)]
 /// struct MyClass {}
 ///
-/// // 1) inherent impl block: user-defined, custom API
+/// // 1) inherent impl block: user-defined, custom API.
 /// #[godot_api]
 /// impl MyClass { /* ... */ }
 ///
-/// // 2) trait impl block: implement Godot-specific APIs
+/// // 2) trait impl block: implement Godot-specific APIs.
 /// #[godot_api]
 /// impl INode for MyClass { /* ... */ }
 /// ```
@@ -635,8 +666,7 @@ pub fn bench(meta: TokenStream, input: TokenStream) -> TokenStream {
 
 /// Proc-macro attribute to be used in combination with the [`ExtensionLibrary`] trait.
 ///
-/// [`ExtensionLibrary`]: trait.ExtensionLibrary.html
-// FIXME intra-doc link
+/// [`ExtensionLibrary`]: ../init/trait.ExtensionLibrary.html
 #[proc_macro_attribute]
 pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {
     translate_meta(
