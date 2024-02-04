@@ -6,18 +6,13 @@
 extends TestSuite
 
 func test_missing_init():
-	return # TODO: fix dynamic eval
+	var class_found = ClassDB.class_exists("WithoutInit")
+	var can_instantiate = ClassDB.can_instantiate("WithoutInit")
+	var instance = ClassDB.instantiate("WithoutInit")
 
-	var expr = Expression.new()
-	var error = expr.parse("WithoutInit.new()")
-	if not assert_eq(error, OK, "Failed to parse dynamic expression"):
-		return
-
-	var instance = expr.execute()
-	if not assert_that(!expr.has_execute_failed(), "Failed to evaluate dynamic expression"):
-		return
-
-	print("[GD] WithoutInit is: ", instance)
+	assert_eq(class_found, true, "ClassDB.class_exists() is true")
+	assert_eq(can_instantiate, false, "ClassDB.can_instantiate() is false")
+	assert_eq(instance, null, "ClassDB.instantiate() returns null")
 
 func test_init_defaults():
 	var obj = WithInitDefaults.new()

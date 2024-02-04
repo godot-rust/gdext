@@ -102,6 +102,9 @@ pub enum PluginItem {
 
         /// Whether `#[class(hidden)]` was used.
         is_hidden: bool,
+
+        /// Whether the class has a default constructor.
+        is_instantiable: bool,
     },
 
     /// Collected from `#[godot_api] impl MyClass`.
@@ -377,8 +380,19 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             default_get_virtual_fn,
             is_editor_plugin,
             is_hidden,
+            is_instantiable,
         } => {
             c.parent_class_name = Some(base_class_name);
+
+            // Classes marked #[class(no_init)] are translated to "abstract" in Godot. This disables their default constructor.
+            // "Abstract" is a misnomer -- it's not an abstract base class, but rather a "utility/static class" (although it can have instance
+            // methods). Examples are Input, IP, FileAccess, DisplayServer.
+            //
+            // Abstract base classes on the other hand are called "virtual" in Godot. Examples are Mesh, Material, Texture.
+            // For some reason, certain ABCs like PhysicsBody2D are not marked "virtual" but "abstract".
+            //
+            // See also: https://github.com/godotengine/godot/pull/58972
+            c.godot_params.is_abstract = (!is_instantiable) as sys::GDExtensionBool;
 
             fill_into(
                 &mut c.godot_params.create_instance_func,

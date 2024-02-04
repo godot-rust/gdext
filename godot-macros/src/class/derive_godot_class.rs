@@ -71,6 +71,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     let mut godot_init_impl = TokenStream::new();
     let mut create_fn = quote! { None };
     let mut recreate_fn = quote! { None };
+    let mut is_instantiable = true;
 
     match struct_cfg.init_strategy {
         InitStrategy::Generated => {
@@ -93,7 +94,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
             }
         }
         InitStrategy::Absent => {
-            // nothing
+            is_instantiable = false;
         }
     };
 
@@ -137,6 +138,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 default_get_virtual_fn: #default_get_virtual_fn,
                 is_editor_plugin: #is_editor_plugin,
                 is_hidden: #is_hidden,
+                is_instantiable: #is_instantiable,
             },
             init_level: {
                 let level = <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL;
