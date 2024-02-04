@@ -578,9 +578,11 @@ fn object_engine_downcast() {
 }
 
 #[derive(GodotClass)]
+#[class(no_init)]
 struct CustomClassA {}
 
 #[derive(GodotClass)]
+#[class(no_init)]
 struct CustomClassB {}
 
 #[itest]
@@ -883,6 +885,7 @@ impl IRefCounted for RefcPayload {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotClass, Eq, PartialEq, Debug)]
+#[class(no_init)]
 pub struct Tracker {
     drop_count: Rc<RefCell<i32>>,
 }
@@ -967,7 +970,7 @@ pub mod object_test_gd {
     // ----------------------------------------------------------------------------------------------------------------------------------------------
 
     #[derive(GodotClass)]
-    #[class(base=Object)]
+    #[class(base=Object, no_init)]
     pub struct CustomConstructor {
         #[var]
         pub val: i64,
@@ -1042,7 +1045,7 @@ fn double_use_reference() {
 // compiles.
 #[cfg(since_api = "4.1")]
 #[derive(GodotClass)]
-#[class(base = EditorPlugin, editor_plugin)]
+#[class(no_init, base = EditorPlugin, editor_plugin, tool)]
 struct CustomEditorPlugin;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

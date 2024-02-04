@@ -14,6 +14,7 @@ use godot::prelude::*;
 use godot::sys::static_assert;
 
 #[derive(GodotClass)]
+#[class(no_init)]
 struct HasConstants {}
 
 #[godot_api]
@@ -114,6 +115,7 @@ fn cfg_removes_or_keeps_constants() {
 }
 
 #[derive(GodotClass)]
+#[class(no_init)]
 struct HasOtherConstants {}
 
 impl HasOtherConstants {

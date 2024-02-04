@@ -22,12 +22,33 @@ use crate::util::ident;
 // Below intra-doc link to the trait only works as HTML, not as symbol link.
 /// Derive macro for [`GodotClass`](../obj/trait.GodotClass.html) on structs.
 ///
-/// You must use this macro; manual implementations of the `GodotClass` trait are not supported.
+/// You should use this macro; manual implementations of the `GodotClass` trait are not encouraged.
+///
+/// This is typically used in combination with [`#[godot_api]`](attr.godot_api.html), which can implement custom functions and constants,
+/// as well as override virtual methods.
+///
+/// See also [book chapter _Registering classes_](https://godot-rust.github.io/book/register/classes.html).
+///
+/// **Table of contents:**
+/// - [Construction](#construction)
+/// - [Inheritance](#inheritance)
+/// - [Properties and exports](#properties-and-exports)
+///    - [Property registration](#property-registration)
+///    - [Property exports](#property-exports)
+/// - [Signals](#signals)
+/// - [Further class customization](#further-class-customization)
+///    - [Running code in the editor](#running-code-in-the-editor)
+///    - [Editor plugins](#editor-plugins)
+///    - [Class renaming](#class-renaming)
+///    - [Class hiding](#class-hiding)
+/// - [Further field customization](#further-field-customization)
+///    - [Fine-grained inference hints](#fine-grained-inference-hints)
 ///
 ///
 /// # Construction
 ///
-/// To generate a constructor that will let you call `MyStruct.new()` from GDScript, annotate your
+/// If you don't override `init()` manually (within a `#[godot_api]` block), gdext can generate a default constructor for you.
+/// This constructor is made available to Godot and lets you call `MyStruct.new()` from GDScript. To enable it, annotate your
 /// struct with `#[class(init)]`:
 ///
 /// ```
@@ -64,10 +85,22 @@ use crate::util::ident;
 /// # #[derive(GodotClass)]
 /// # #[class(init)]
 /// # struct MyStruct {
-///     #[init(default = (HashMap::<i64, i64>::new()))]
-///     //                             ^ parentheses needed due to this comma
-/// #   my_field: HashMap<i64, i64>,
+/// #[init(default = (HashMap::<i64, i64>::new()))]
+/// //                             ^ parentheses needed due to this comma
+/// my_field: HashMap<i64, i64>,
 /// # }
+/// ```
+///
+/// You can also _disable_ construction from GDScript. This needs to be explicit via `#[class(no_init)]`.
+/// Simply omitting the `init`/`no_init` keys and not overriding your own constructor will cause a compile error.
+///
+/// ```
+/// # use godot_macros::GodotClass;
+/// #[derive(GodotClass)]
+/// #[class(no_init)]
+/// struct MyStruct {
+///    // ...
+/// }
 /// ```
 ///
 /// # Inheritance
@@ -83,7 +116,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
-/// #[class(base = Node2D)]
+/// #[class(init, base=Node2D)]
 /// struct MyStruct {
 ///     // ...
 /// }
@@ -95,7 +128,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
-/// #[class(base = Node2D)]
+/// #[class(init, base=Node2D)]
 /// struct MyStruct {
 ///     base: Base<Node2D>,
 /// }
@@ -104,18 +137,22 @@ use crate::util::ident;
 ///
 /// # Properties and exports
 ///
+/// See also [book chapter _Registering properties_](https://godot-rust.github.io/book/register/properties.html#registering-properties).
+///
 /// In GDScript, there is a distinction between
 /// [properties](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html#properties-setters-and-getters)
 /// (fields with a `get` or `set` declaration) and
 /// [exports](https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_exports.html)
-/// (fields annotated with `@export`). In the GDExtension API, these two concepts are represented with
-/// `#[var]` and `#[export]` attributes respectively.
+/// (fields annotated with `@export`). In the gdext API, these two concepts are represented with `#[var]` and `#[export]` attributes respectively.
+///
+/// ## Property registration
 ///
 /// To create a property, you can use the `#[var]` annotation:
 ///
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     #[var]
 ///     my_field: i64,
@@ -133,6 +170,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     #[var(get = get_my_field, set = set_my_field)]
 ///     my_field: i64,
@@ -159,6 +197,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     // Default getter, custom setter.
 ///     #[var(get, set = set_my_field)]
@@ -174,11 +213,14 @@ use crate::util::ident;
 /// }
 /// ```
 ///
+/// ## Property exports
+///
 /// For exporting properties to the editor, you can use the `#[export]` attribute:
 ///
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     #[export]
 ///     my_field: i64,
@@ -202,6 +244,7 @@ use crate::util::ident;
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     // @export
 ///     #[export]
@@ -235,6 +278,7 @@ use crate::util::ident;
 ///     #[export(flags = (A = 1, B = 2, AB = 3))]
 ///     flags: u32,
 /// }
+///
 /// ```
 ///
 /// Most values in expressions like `key = value`, can be an arbitrary expression that evaluates to the
@@ -246,6 +290,7 @@ use crate::util::ident;
 /// const MAX_HEALTH: f64 = 100.0;
 ///
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     #[export(range = (0.0, MAX_HEALTH))]
 ///     health: f64,
@@ -256,19 +301,21 @@ use crate::util::ident;
 /// ```
 ///
 /// You can specify custom property hints, hint strings, and usage flags in a `#[var]` attribute using the
-/// `hint`, `hint_string`, and `usage_flags` keys in the attribute:
+/// `hint`, `hint_string`, and `usage_flags` keys in the attribute. These are constants in the `PropertyHint`
+/// and `PropertyUsageFlags` enums, respectively.
 ///
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyStruct {
 ///     // Treated as an enum with two values: "One" and "Two"
 ///     // Displayed in the editor
 ///     // Treated as read-only by the editor
 ///     #[var(
-///         hint = PROPERTY_HINT_ENUM,
+///         hint = ENUM,
 ///         hint_string = "One,Two",
-///         usage_flags = [PROPERTY_USAGE_EDITOR, PROPERTY_USAGE_READ_ONLY]
+///         usage_flags = [EDITOR, READ_ONLY]
 ///     )]
 ///     my_field: i64,
 /// }
@@ -282,6 +329,7 @@ use crate::util::ident;
 /// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
+/// # #[class(init)]
 /// struct MyClass {}
 ///
 /// #[godot_api]
@@ -291,7 +339,9 @@ use crate::util::ident;
 /// }
 /// ```
 ///
-/// # Running code in the editor
+/// # Further class customization
+///
+/// ## Running code in the editor
 ///
 /// If you annotate a class with `#[class(tool)]`, its lifecycle methods (`ready()`, `process()` etc.) will be invoked in the editor. This
 /// is useful for writing custom editor plugins, as opposed to classes running simply in-game.
@@ -301,7 +351,7 @@ use crate::util::ident;
 ///
 /// This is very similar to [GDScript's `@tool` feature](https://docs.godotengine.org/en/stable/tutorials/plugins/running_code_in_the_editor.html).
 ///
-/// # Editor plugins
+/// ## Editor plugins
 ///
 /// If you annotate a class with `#[class(editor_plugin)]`, it will be turned into an editor plugin. The
 /// class must then inherit from `EditorPlugin`, and an instance of that class will be automatically added
@@ -315,7 +365,7 @@ use crate::util::ident;
 /// This should usually be combined with `#[class(tool)]` so that the code you write will actually run in the
 /// editor.
 ///
-/// # Class renaming
+/// ## Class renaming
 ///
 /// You may want to have structs with the same name. With Rust, this is allowed using `mod`. However in GDScript,
 /// there are no modules, namespaces, or any such disambiguation.  Therefore, you need to change the names before they
@@ -339,21 +389,23 @@ use crate::util::ident;
 ///
 /// These classes will appear in the Godot editor and GDScript as "AnimalToad" or "NpcToad".
 ///
-/// # Hiding classes
+/// ## Class hiding
 ///
 /// If you want to register a class with Godot, but not have it show up in the editor then you can use `#[class(hide)]`.
 ///
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
-/// #[class(base = Node, init, hide)]
+/// #[class(base=Node, init, hide)]
 /// pub struct Foo {}
 /// ```
 ///
 /// Even though this class is a `Node` and it has an init function, it still won't show up in the editor as a node you can add to a scene
 /// because we have added a `hide` key to the class. This will also prevent it from showing up in documentation.
 ///
-/// # Fine-grained inference hints
+/// # Further field customization
+///
+/// ## Fine-grained inference hints
 ///
 /// The derive macro is relatively smart about recognizing `Base<T>` and `OnReady<T>` types, and works also if those are qualified.
 ///
@@ -372,7 +424,7 @@ use crate::util::ident;
 /// type Base<T> = godot::obj::Gd<T>;
 ///
 /// #[derive(godot::register::GodotClass)]
-/// #[class(base = Node)]
+/// #[class(base=Node)]
 /// struct MyStruct {
 ///    #[hint(base)]
 ///    base: Super<Node>,
@@ -380,6 +432,10 @@ use crate::util::ident;
 ///    #[hint(no_base)]
 ///    unbase: Base<Node>,
 /// }
+/// # #[godot::register::godot_api]
+/// # impl godot::engine::INode for MyStruct {
+/// #     fn init(base: godot::obj::Base<Self::Base>) -> Self { todo!() }
+/// # }
 /// ```
 #[proc_macro_derive(GodotClass, attributes(class, base, hint, var, export, init, signal))]
 pub fn derive_godot_class(input: TokenStream) -> TokenStream {
@@ -388,18 +444,20 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 
 /// Proc-macro attribute to be used with `impl` blocks of [`#[derive(GodotClass)]`][GodotClass] structs.
 ///
+/// See also [book chapter _Registering functions_](https://godot-rust.github.io/book/register/functions.html) and following.
+///
 /// Can be used in two ways:
 /// ```no_run
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
-/// #[class(base=Node)]
+/// #[class(init, base=Node)]
 /// struct MyClass {}
 ///
-/// // 1) inherent impl block: user-defined, custom API
+/// // 1) inherent impl block: user-defined, custom API.
 /// #[godot_api]
 /// impl MyClass { /* ... */ }
 ///
-/// // 2) trait impl block: implement Godot-specific APIs
+/// // 2) trait impl block: implement Godot-specific APIs.
 /// #[godot_api]
 /// impl INode for MyClass { /* ... */ }
 /// ```
@@ -422,6 +480,8 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///# use godot::prelude::*;
 ///
 /// #[derive(GodotClass)]
+/// // no #[class(init)] here, since init() is overridden below.
+/// // #[class(base=RefCounted)] is implied if no base is specified.
 /// struct MyStruct;
 ///
 /// #[godot_api]
@@ -561,6 +621,7 @@ pub fn derive_from_godot(input: TokenStream) -> TokenStream {
 /// }
 ///
 /// #[derive(GodotClass)]
+/// #[class(no_init)] // No Godot default constructor.
 /// struct MyClass {
 ///     #[var]
 ///     foo: MyEnum,
@@ -605,8 +666,7 @@ pub fn bench(meta: TokenStream, input: TokenStream) -> TokenStream {
 
 /// Proc-macro attribute to be used in combination with the [`ExtensionLibrary`] trait.
 ///
-/// [`ExtensionLibrary`]: trait.ExtensionLibrary.html
-// FIXME intra-doc link
+/// [`ExtensionLibrary`]: ../init/trait.ExtensionLibrary.html
 #[proc_macro_attribute]
 pub fn gdextension(meta: TokenStream, input: TokenStream) -> TokenStream {
     translate_meta(
