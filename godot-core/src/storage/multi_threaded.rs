@@ -11,8 +11,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::obj::{Base, GodotClass};
 use crate::out;
-
-use super::{AtomicLifecycle, Lifecycle, Storage, StorageRefCounted};
+use crate::storage::{AtomicLifecycle, Lifecycle, Storage, StorageRefCounted};
 
 pub struct InstanceStorage<T: GodotClass> {
     user_instance: Pin<Box<godot_cell::GdCell<T>>>,

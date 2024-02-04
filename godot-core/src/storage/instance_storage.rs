@@ -48,12 +48,6 @@ impl AtomicLifecycle {
     }
 }
 
-#[cfg_attr(feature = "experimental-threads", allow(dead_code))]
-mod single_threaded;
-
-#[cfg_attr(not(feature = "experimental-threads"), allow(dead_code))]
-mod multi_threaded;
-
 /// A storage for an instance binding.
 ///
 /// # Safety
@@ -166,10 +160,10 @@ pub(crate) trait StorageRefCounted: Storage {
 }
 
 #[cfg(not(feature = "experimental-threads"))]
-pub type InstanceStorage<T> = single_threaded::InstanceStorage<T>;
+pub type InstanceStorage<T> = crate::storage::single_threaded::InstanceStorage<T>;
 
 #[cfg(feature = "experimental-threads")]
-pub type InstanceStorage<T> = multi_threaded::InstanceStorage<T>;
+pub type InstanceStorage<T> = crate::storage::multi_threaded::InstanceStorage<T>;
 
 const fn _assert_implements_storage<T: Storage + StorageRefCounted>() {}
 
