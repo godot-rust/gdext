@@ -22,7 +22,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         .ok_or_else(|| venial::Error::new("Not a valid struct"))?;
 
     let struct_cfg = parse_struct_attributes(class)?;
-    let fields = parse_fields(class)?;
+    let fields = parse_fields(class, struct_cfg.init_strategy)?;
 
     let class_name = &class.name;
     let class_name_str: String = struct_cfg
@@ -73,7 +73,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     let mut recreate_fn = quote! { None };
 
     match struct_cfg.init_strategy {
-        InitStrategy::GenerateDefault => {
+        InitStrategy::Generated => {
             godot_init_impl = make_godot_init_impl(class_name, fields);
             create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
 
@@ -81,7 +81,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 recreate_fn = quote! { Some(#prv::callbacks::recreate::<#class_name>) };
             }
         }
-        InitStrategy::Manual => {
+        InitStrategy::UserDefined => {
             let fn_name = format_ident!("class_{}_must_have_an_init_method", class_name);
             init_expecter = quote! {
                 #[allow(non_snake_case)]
@@ -172,9 +172,10 @@ pub fn make_existence_check(ident: &Ident) -> TokenStream {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
+#[derive(Copy, Clone)]
 enum InitStrategy {
-    GenerateDefault,
-    Manual,
+    Generated,
+    UserDefined,
     Absent,
 }
 
@@ -274,7 +275,7 @@ fn make_user_class_impl(
 /// Returns the name of the base and the default mode
 fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
     let mut base_ty = ident("RefCounted");
-    let mut init_strategy = InitStrategy::Manual;
+    let mut init_strategy = InitStrategy::UserDefined;
     let mut is_tool = false;
     let mut is_editor_plugin = false;
     let mut is_hidden = false;
@@ -292,7 +293,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
 
         // #[class(init)], #[class(no_init)]
         match handle_opposite_keys(&mut parser, "init", "class")? {
-            Some(true) => init_strategy = InitStrategy::GenerateDefault,
+            Some(true) => init_strategy = InitStrategy::Generated,
             Some(false) => init_strategy = InitStrategy::Absent,
             None => {}
         }
@@ -347,7 +348,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
 }
 
 /// Returns field names and 1 base field, if available
-fn parse_fields(class: &Struct) -> ParseResult<Fields> {
+fn parse_fields(class: &Struct, init_strategy: InitStrategy) -> ParseResult<Fields> {
     let mut all_fields = vec![];
     let mut base_field = Option::<Field>::None;
     let mut has_deprecated_base = false;
@@ -386,6 +387,15 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
 
         // #[init]
         if let Some(mut parser) = KvParser::parse(&named_field.attributes, "init")? {
+            // #[init] on fields is useless if there is no generated constructor.
+            if !matches!(init_strategy, InitStrategy::Generated) {
+                return bail!(
+                    parser.span(),
+                    "field attribute #[init] requires struct attribute #[class(init)]"
+                );
+            }
+
+            // #[init(default = expr)]
             let default = parser.handle_expr("default")?;
             field.default = default;
             parser.finish()?;
@@ -425,7 +435,7 @@ fn parse_fields(class: &Struct) -> ParseResult<Fields> {
                 || field.default.is_some()
             {
                 return bail!(
-                    &named_field,
+                    named_field,
                     "base field cannot have type `OnReady<T>` or attributes #[var], #[export] or #[init]"
                 );
             }
