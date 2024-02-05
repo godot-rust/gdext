@@ -19,6 +19,7 @@ use crate::sys;
 
 mod io;
 mod script_instance;
+pub mod translate;
 
 pub use io::*;
 pub use script_instance::{create_script_instance, ScriptInstance};

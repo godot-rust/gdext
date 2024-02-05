@@ -37,6 +37,7 @@ pub use registry::*;
 /// * [`notify`][crate::engine::notify]: all notification types, used when working with the virtual callback to handle lifecycle notifications.
 /// * [`global`][crate::engine::global]: global enums not belonging to a specific class.
 /// * [`utilities`][crate::engine::utilities]: utility methods that are global in Godot.
+/// * [`translate`][crate::engine::translate]: convenience macros for translation.
 pub mod engine;
 
 // Output of generated code. Mimics the file structure, symbols are re-exported.
