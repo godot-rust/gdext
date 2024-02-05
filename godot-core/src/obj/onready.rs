@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::builtin::meta::GodotConvert;
 use crate::property::{PropertyHintInfo, Var};
 use std::mem;
 
@@ -190,15 +191,17 @@ impl<T> std::ops::DerefMut for OnReady<T> {
     }
 }
 
-impl<T: Var> Var for OnReady<T> {
-    type Intermediate = T::Intermediate;
+impl<T: GodotConvert> GodotConvert for OnReady<T> {
+    type Via = T::Via;
+}
 
-    fn get_property(&self) -> Self::Intermediate {
+impl<T: Var> Var for OnReady<T> {
+    fn get_property(&self) -> Self::Via {
         let deref: &T = self;
         deref.get_property()
     }
 
-    fn set_property(&mut self, value: Self::Intermediate) {
+    fn set_property(&mut self, value: Self::Via) {
         let deref: &mut T = self;
         deref.set_property(value);
     }

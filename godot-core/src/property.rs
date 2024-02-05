@@ -7,6 +7,7 @@
 
 //! Registration support for property types.
 
+use crate::builtin::meta::{FromGodot, GodotConvert, ToGodot};
 use crate::builtin::GString;
 use crate::engine::global::PropertyHint;
 
@@ -17,11 +18,12 @@ use crate::engine::global::PropertyHint;
 ///
 /// This creates a copy of the value, according to copy semantics provided by `Clone`. For example, `Array`, `Dictionary` and `Gd` are
 /// returned by shared reference instead of copying the actual data.
-pub trait Var {
-    type Intermediate;
-
-    fn get_property(&self) -> Self::Intermediate;
-    fn set_property(&mut self, value: Self::Intermediate);
+///
+/// This does not require [`FromGodot`] or [`ToGodot`], so that something can be used as a property even if it can't be used in function
+/// arguments/return types.
+pub trait Var: GodotConvert {
+    fn get_property(&self) -> Self::Via;
+    fn set_property(&mut self, value: Self::Via);
 
     fn property_hint() -> PropertyHintInfo {
         PropertyHintInfo::with_hint_none("")
@@ -59,21 +61,20 @@ impl<T: TypeStringHint> TypeStringHint for Option<T> {
 
 impl<T> Var for Option<T>
 where
-    T: Var + From<<T as Var>::Intermediate>,
+    T: Var + FromGodot,
+    Option<T>: GodotConvert<Via = Option<T::Via>>,
 {
-    type Intermediate = Option<T::Intermediate>;
-
-    fn get_property(&self) -> Self::Intermediate {
+    fn get_property(&self) -> Self::Via {
         self.as_ref().map(Var::get_property)
     }
 
-    fn set_property(&mut self, value: Self::Intermediate) {
+    fn set_property(&mut self, value: Self::Via) {
         match value {
             Some(value) => {
                 if let Some(current_value) = self {
                     current_value.set_property(value)
                 } else {
-                    *self = Some(T::from(value))
+                    *self = Some(FromGodot::from_godot(value))
                 }
             }
             None => *self = None,
@@ -83,7 +84,8 @@ where
 
 impl<T> Export for Option<T>
 where
-    T: Export + From<<T as Var>::Intermediate>,
+    T: Export,
+    Option<T>: Var,
 {
     fn default_export_info() -> PropertyHintInfo {
         T::default_export_info()
@@ -314,39 +316,26 @@ mod export_impls {
     use crate::builtin::*;
     use godot_ffi as sys;
 
-    macro_rules! impl_property_by_clone {
-        ($Ty:ty => $variant_type:ident, no_export) => {
-            impl_property_by_clone!(@property $Ty => $variant_type);
-            impl_property_by_clone!(@type_string_hint $Ty, $variant_type);
+    macro_rules! impl_property_by_godot_convert {
+        ($Ty:ty, no_export) => {
+            impl_property_by_godot_convert!(@property $Ty);
+            impl_property_by_godot_convert!(@type_string_hint $Ty);
         };
 
-        ($Ty:ty => $variant_type:ident, no_export; $type_string_name:ident) => {
-            impl_property_by_clone!(@property $Ty => $variant_type);
-            impl_property_by_clone!(@type_string_hint $Ty, $type_string_name);
+        ($Ty:ty) => {
+            impl_property_by_godot_convert!(@property $Ty);
+            impl_property_by_godot_convert!(@export $Ty);
+            impl_property_by_godot_convert!(@type_string_hint $Ty);
         };
 
-        ($Ty:ty => $variant_type:ident) => {
-            impl_property_by_clone!(@property $Ty => $variant_type);
-            impl_property_by_clone!(@export $Ty);
-            impl_property_by_clone!(@type_string_hint $Ty, $variant_type);
-        };
-
-        ($Ty:ty => $variant_type:ident; $type_string_name:ident) => {
-            impl_property_by_clone!(@property $Ty => $variant_type);
-            impl_property_by_clone!(@export $Ty);
-            impl_property_by_clone!(@type_string_hint $Ty, $type_string_name);
-        };
-
-        (@property $Ty:ty => $variant_type:ident) => {
+        (@property $Ty:ty) => {
             impl Var for $Ty {
-                type Intermediate = Self;
-
-                fn get_property(&self) -> Self {
-                    self.clone()
+                fn get_property(&self) -> Self::Via {
+                    self.to_godot()
                 }
 
-                fn set_property(&mut self, value: Self) {
-                    *self = value;
+                fn set_property(&mut self, value: Self::Via) {
+                    *self = FromGodot::from_godot(value);
                 }
             }
         };
@@ -359,82 +348,83 @@ mod export_impls {
             }
         };
 
-        (@type_string_hint $Ty:ty, $type_string_name:ident) => {
+        (@type_string_hint $Ty:ty) => {
             impl TypeStringHint for $Ty {
                 fn type_string() -> String {
                     use sys::GodotFfi;
                     let variant_type = <$Ty as $crate::builtin::meta::GodotType>::Ffi::variant_type();
-                    format!("{}:{}", variant_type as i32, stringify!($type_string_name))
+                    let type_name = <$Ty as $crate::builtin::meta::GodotType>::godot_type_name();
+                    format!("{}:{}", variant_type as i32, type_name)
                 }
             }
         }
     }
 
     // Bounding Boxes
-    impl_property_by_clone!(Aabb => Aabb; AABB);
-    impl_property_by_clone!(Rect2 => Rect2);
-    impl_property_by_clone!(Rect2i => Rect2i);
+    impl_property_by_godot_convert!(Aabb);
+    impl_property_by_godot_convert!(Rect2);
+    impl_property_by_godot_convert!(Rect2i);
 
     // Matrices
-    impl_property_by_clone!(Basis => Basis);
-    impl_property_by_clone!(Transform2D => Transform2D);
-    impl_property_by_clone!(Transform3D => Transform3D);
-    impl_property_by_clone!(Projection => Projection);
+    impl_property_by_godot_convert!(Basis);
+    impl_property_by_godot_convert!(Transform2D);
+    impl_property_by_godot_convert!(Transform3D);
+    impl_property_by_godot_convert!(Projection);
 
     // Vectors
-    impl_property_by_clone!(Vector2 => Vector2);
-    impl_property_by_clone!(Vector2i => Vector2i);
-    impl_property_by_clone!(Vector3 => Vector3);
-    impl_property_by_clone!(Vector3i => Vector3i);
-    impl_property_by_clone!(Vector4 => Vector4);
-    impl_property_by_clone!(Vector4i => Vector4i);
+    impl_property_by_godot_convert!(Vector2);
+    impl_property_by_godot_convert!(Vector2i);
+    impl_property_by_godot_convert!(Vector3);
+    impl_property_by_godot_convert!(Vector3i);
+    impl_property_by_godot_convert!(Vector4);
+    impl_property_by_godot_convert!(Vector4i);
 
     // Misc Math
-    impl_property_by_clone!(Quaternion => Quaternion);
-    impl_property_by_clone!(Plane => Plane);
+    impl_property_by_godot_convert!(Quaternion);
+    impl_property_by_godot_convert!(Plane);
 
     // Stringy Types
-    impl_property_by_clone!(GString => String);
-    impl_property_by_clone!(StringName => StringName);
-    impl_property_by_clone!(NodePath => NodePath);
+    impl_property_by_godot_convert!(GString);
+    impl_property_by_godot_convert!(StringName);
+    impl_property_by_godot_convert!(NodePath);
 
-    impl_property_by_clone!(Color => Color);
+    impl_property_by_godot_convert!(Color);
 
     // Arrays
-    impl_property_by_clone!(PackedByteArray => PackedByteArray);
-    impl_property_by_clone!(PackedInt32Array => PackedInt32Array);
-    impl_property_by_clone!(PackedInt64Array => PackedInt64Array);
-    impl_property_by_clone!(PackedFloat32Array => PackedFloat32Array);
-    impl_property_by_clone!(PackedFloat64Array => PackedFloat64Array);
-    impl_property_by_clone!(PackedStringArray => PackedStringArray);
-    impl_property_by_clone!(PackedVector2Array => PackedVector2Array);
-    impl_property_by_clone!(PackedVector3Array => PackedVector3Array);
-    impl_property_by_clone!(PackedColorArray => PackedColorArray);
+    impl_property_by_godot_convert!(PackedByteArray);
+    impl_property_by_godot_convert!(PackedInt32Array);
+    impl_property_by_godot_convert!(PackedInt64Array);
+    impl_property_by_godot_convert!(PackedFloat32Array);
+    impl_property_by_godot_convert!(PackedFloat64Array);
+    impl_property_by_godot_convert!(PackedStringArray);
+    impl_property_by_godot_convert!(PackedVector2Array);
+    impl_property_by_godot_convert!(PackedVector3Array);
+    impl_property_by_godot_convert!(PackedColorArray);
 
     // Primitives
-    impl_property_by_clone!(f64 => Float; float);
-    impl_property_by_clone!(i64 => Int; int);
-    impl_property_by_clone!(bool => Bool; bool);
+    impl_property_by_godot_convert!(f64);
+    impl_property_by_godot_convert!(i64);
+    impl_property_by_godot_convert!(bool);
 
     // Godot uses f64 internally for floats, and if Godot tries to pass an invalid f32 into a rust property
     // then the property will just round the value or become inf.
-    impl_property_by_clone!(f32 => Float; float);
+    impl_property_by_godot_convert!(f32);
 
     // Godot uses i64 internally for integers, and if Godot tries to pass an invalid integer into a property
     // accepting one of the below values then rust will panic. In the editor this will appear as the property
     // failing to be set to a value and an error printed in the console. During runtime this will crash the
     // program and print the panic from rust stating that the property cannot store the value.
-    impl_property_by_clone!(i32 => Int; int);
-    impl_property_by_clone!(i16 => Int; int);
-    impl_property_by_clone!(i8 => Int; int);
-    impl_property_by_clone!(u32 => Int; int);
-    impl_property_by_clone!(u16 => Int; int);
-    impl_property_by_clone!(u8 => Int; int);
+    impl_property_by_godot_convert!(i32);
+    impl_property_by_godot_convert!(i16);
+    impl_property_by_godot_convert!(i8);
+    impl_property_by_godot_convert!(u32);
+    impl_property_by_godot_convert!(u16);
+    impl_property_by_godot_convert!(u8);
 
     // Callables and Signals are useless when exported to the editor, so we only need to make them available as
     // properties.
-    impl_property_by_clone!(Callable => Callable, no_export);
-    impl_property_by_clone!(Signal => Signal, no_export);
+    impl_property_by_godot_convert!(Callable, no_export);
+    impl_property_by_godot_convert!(Signal, no_export);
 
     // RIDs when exported act slightly weird. They are largely read-only, however you can reset them to their
     // default value. This seems to me very unintuitive. Since if we are storing an RID we would likely not
@@ -443,7 +433,7 @@ mod export_impls {
     //
     // Additionally, RIDs aren't persistent, and can sometimes behave a bit weirdly when passed from the
     // editor to the runtime.
-    impl_property_by_clone!(Rid => Rid, no_export; RID);
+    impl_property_by_godot_convert!(Rid, no_export);
 
-    // impl_property_by_clone!(Signal => Signal);
+    // impl_property_by_godot_convert!(Signal);
 }

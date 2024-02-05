@@ -762,14 +762,12 @@ impl TypeStringHint for VariantArray {
 }
 
 impl<T: GodotType> Var for Array<T> {
-    type Intermediate = Self;
-
-    fn get_property(&self) -> Self::Intermediate {
-        self.clone()
+    fn get_property(&self) -> Self::Via {
+        self.to_godot()
     }
 
-    fn set_property(&mut self, value: Self::Intermediate) {
-        *self = value;
+    fn set_property(&mut self, value: Self::Via) {
+        *self = FromGodot::from_godot(value)
     }
 
     #[cfg(since_api = "4.2")]

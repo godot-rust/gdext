@@ -601,6 +601,8 @@ pub fn derive_from_godot(input: TokenStream) -> TokenStream {
 
 /// Derive macro for [`Var`](../register/property/trait.Var.html) on enums.
 ///
+/// This also requires deriving `GodotConvert`.
+///
 /// Currently has some tight requirements which are expected to be softened as implementation expands:
 /// - Only works for enums, structs aren't supported by this derive macro at the moment.
 /// - The enum must have an explicit `#[repr(u*/i*)]` type.
@@ -612,7 +614,7 @@ pub fn derive_from_godot(input: TokenStream) -> TokenStream {
 ///
 /// ```no_run
 /// # use godot::prelude::*;
-/// #[derive(Var)]
+/// #[derive(Var, GodotConvert)]
 /// #[repr(i32)]
 /// # #[derive(Eq, PartialEq, Debug)]
 /// enum MyEnum {

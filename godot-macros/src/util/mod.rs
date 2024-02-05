@@ -35,12 +35,12 @@ pub fn class_name_obj(class: &impl ToTokens) -> TokenStream {
 
 pub fn property_variant_type(property_type: &impl ToTokens) -> TokenStream {
     let property_type = property_type.to_token_stream();
-    quote! { <<<#property_type as ::godot::register::property::Var>::Intermediate as ::godot::builtin::meta::GodotConvert>::Via as ::godot::builtin::meta::GodotType>::Ffi::variant_type() }
+    quote! { <<#property_type as ::godot::builtin::meta::GodotConvert>::Via as ::godot::builtin::meta::GodotType>::Ffi::variant_type() }
 }
 
 pub fn property_variant_class_name(property_type: &impl ToTokens) -> TokenStream {
     let property_type = property_type.to_token_stream();
-    quote! { <<<#property_type as ::godot::register::property::Var>::Intermediate as ::godot::builtin::meta::GodotConvert>::Via as ::godot::builtin::meta::GodotType>::class_name() }
+    quote! { <<#property_type as ::godot::builtin::meta::GodotConvert>::Via as ::godot::builtin::meta::GodotType>::class_name() }
 }
 
 pub fn bail_fn<R, T>(msg: impl AsRef<str>, tokens: T) -> ParseResult<R>
@@ -287,4 +287,75 @@ pub fn make_virtual_tool_check() -> TokenStream {
             return None;
         }
     }
+}
+
+pub enum ViaType {
+    Struct,
+    EnumWithRepr { int_ty: Ident },
+    Enum,
+}
+
+impl ToTokens for ViaType {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            ViaType::Struct | ViaType::Enum => {
+                quote! { ::godot::builtin::Variant }.to_tokens(tokens)
+            }
+            ViaType::EnumWithRepr { int_ty } => int_ty.to_tokens(tokens),
+        }
+    }
+}
+
+pub fn via_type(declaration: &venial::Declaration) -> ParseResult<ViaType> {
+    use venial::Declaration;
+
+    match declaration {
+        Declaration::Enum(enum_) => enum_repr(enum_),
+        Declaration::Struct(_) => Ok(ViaType::Struct),
+        other => bail!(
+            other,
+            "cannot get via type for {:?}, only structs and enums are supported currently",
+            other.name()
+        ),
+    }
+}
+
+pub fn enum_repr(enum_: &venial::Enum) -> ParseResult<ViaType> {
+    let Some(repr) = enum_
+        .attributes
+        .iter()
+        .find(|attr| attr.get_single_path_segment() == Some(&ident("repr")))
+    else {
+        return Ok(ViaType::Enum);
+    };
+
+    let venial::AttributeValue::Group(_, repr_value) = &repr.value else {
+        // `repr` is always going to look like `#[repr(..)]`
+        unreachable!()
+    };
+
+    let Some(repr_type) = repr_value.first() else {
+        // `#[repr()]` is just a warning apparently, so we're gonna give an error if that's provided.
+        return bail!(&repr.value, "expected non-empty `repr` list");
+    };
+
+    let TokenTree::Ident(repr_type) = &repr_type else {
+        // all valid non-empty `#[repr(..)]` will have an ident as its first element.
+        unreachable!();
+    };
+
+    if !matches!(
+        repr_type.to_string().as_str(),
+        "i8" | "u8" | "i16" | "u16" | "i32" | "u32" | "i64"
+    ) {
+        return bail!(
+            &repr_type,
+            "enum with repr #[repr({})] cannot implement `GodotConvert`, repr must be one of: i8, i16, i32, i64, u8, u16, u32",
+            repr_type.to_string(),
+        );
+    }
+
+    Ok(ViaType::EnumWithRepr {
+        int_ty: repr_type.clone(),
+    })
 }

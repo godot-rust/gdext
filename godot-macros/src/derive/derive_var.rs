@@ -6,10 +6,10 @@
  */
 
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{quote, ToTokens};
+use quote::quote;
 use venial::{Declaration, StructFields};
 
-use crate::util::{bail, decl_get_info, ident, DeclInfo};
+use crate::util::{bail, decl_get_info, via_type, DeclInfo};
 use crate::ParseResult;
 
 pub fn derive_var(decl: Declaration) -> ParseResult<TokenStream2> {
@@ -19,7 +19,7 @@ pub fn derive_var(decl: Declaration) -> ParseResult<TokenStream2> {
 
     let body_get;
     let body_set;
-    let intermediate;
+    let via_type = via_type(&decl)?;
 
     let enum_ = match decl {
         Declaration::Enum(e) => e,
@@ -40,18 +40,6 @@ pub fn derive_var(decl: Declaration) -> ParseResult<TokenStream2> {
     } else {
         let mut matches_get = quote! {};
         let mut matches_set = quote! {};
-        intermediate = if let Some(attr) = enum_
-            .attributes
-            .iter()
-            .find(|attr| attr.get_single_path_segment() == Some(&ident("repr")))
-        {
-            attr.value.to_token_stream()
-        } else {
-            return bail!(
-                name,
-                "Property can only be derived on enums with an explicit `#[repr(i*/u*)]` type"
-            );
-        };
 
         for (enum_v, _) in enum_.variants.inner.iter() {
             let v_name = enum_v.name.clone();
@@ -99,7 +87,7 @@ pub fn derive_var(decl: Declaration) -> ParseResult<TokenStream2> {
         body_set = quote! {
             *self = match value {
                 #matches_set
-                _ => panic!("Incorrect conversion from {} to {}", stringify!(#intermediate), #name_string),
+                _ => panic!("Incorrect conversion from {} to {}", stringify!(#via_type), #name_string),
             }
         };
     }
@@ -107,13 +95,11 @@ pub fn derive_var(decl: Declaration) -> ParseResult<TokenStream2> {
     let out = quote! {
         #[allow(unused_parens)]
         impl godot::register::property::Var for #name {
-            type Intermediate = #intermediate;
-
-            fn get_property(&self) -> #intermediate {
+            fn get_property(&self) -> #via_type {
                 #body_get
             }
 
-            fn set_property(&mut self, value: #intermediate) {
+            fn set_property(&mut self, value: #via_type) {
                 #body_set
             }
         }
