@@ -171,6 +171,16 @@ pub trait GodotType:
 
     #[doc(hidden)]
     fn godot_type_name() -> String;
+
+    /// Special-casing for `FromVariant` conversions higher up: true if the variant can be interpreted as `Option<Self>::None`.
+    ///
+    /// Returning false only means that this is not a special case, not that it cannot be `None`. Regular checks are expected to run afterwards.
+    ///
+    /// This exists only for varcalls and serves a similar purpose as `GodotNullableFfi::is_null()` (although that handles general cases).
+    #[doc(hidden)]
+    fn qualifies_as_special_none(_from_variant: &Variant) -> bool {
+        false
+    }
 }
 
 impl<T> GodotType for Option<T>

@@ -13,8 +13,8 @@ use godot::builtin::{
     dict, varray, GString, NodePath, Signal, StringName, Variant, Vector2, Vector3,
 };
 use godot::builtin::{Basis, Dictionary, VariantArray, VariantOperator, VariantType};
-use godot::engine::Node2D;
-use godot::obj::{InstanceId, NewAlloc};
+use godot::engine::{Node, Node2D};
+use godot::obj::{Gd, InstanceId, NewAlloc};
 use godot::sys::GodotFfi;
 
 use crate::common::roundtrip;
@@ -77,6 +77,14 @@ fn variant_conversions() {
 #[itest]
 fn variant_forbidden_conversions() {
     truncate_bad::<i8>(128);
+}
+
+#[itest]
+fn variant_special_conversions() {
+    // See https://github.com/godot-rust/gdext/pull/598.
+    let variant = NodePath::default().to_variant();
+    let object = variant.try_to::<Option<Gd<Node>>>();
+    assert!(matches!(object, Ok(None)));
 }
 
 #[itest]

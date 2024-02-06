@@ -61,6 +61,12 @@ where
     }
 
     fn try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+        // Note: this forwards to T::Via, not Self::Via (= Option<T>::Via).
+        // For Option<T>, there is a blanket impl GodotType, so case differentiations are not possible.
+        if T::Via::qualifies_as_special_none(variant) {
+            return Ok(None);
+        }
+
         if variant.is_nil() {
             return Ok(None);
         }
