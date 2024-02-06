@@ -5,15 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::{
-    engine::{
-        global::{PropertyHint, PropertyUsageFlags},
-        Texture,
-    },
-    prelude::*,
-    register::property::PropertyHintInfo,
-    test::itest,
-};
+use godot::builtin::meta::{GodotConvert, ToGodot};
+use godot::builtin::{dict, Color, Dictionary, GString, Variant, VariantType};
+use godot::engine::global::{PropertyHint, PropertyUsageFlags};
+use godot::engine::{INode, IRefCounted, Node, Object, RefCounted, Texture};
+use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd};
+use godot::register::property::{Export, PropertyHintInfo, Var};
+use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
+use godot::test::itest;
 
 // No tests currently, tests using these classes are in Godot scripts.
 
@@ -155,14 +154,16 @@ enum SomeCStyleEnum {
     C = 2,
 }
 
-impl Var for SomeCStyleEnum {
-    type Intermediate = i64;
+impl GodotConvert for SomeCStyleEnum {
+    type Via = i64;
+}
 
-    fn get_property(&self) -> Self::Intermediate {
+impl Var for SomeCStyleEnum {
+    fn get_property(&self) -> Self::Via {
         (*self) as i64
     }
 
-    fn set_property(&mut self, value: Self::Intermediate) {
+    fn set_property(&mut self, value: Self::Via) {
         match value {
             0 => *self = Self::A,
             1 => *self = Self::B,
@@ -187,17 +188,19 @@ struct NotExportable {
     b: i64,
 }
 
-impl Var for NotExportable {
-    type Intermediate = Dictionary;
+impl GodotConvert for NotExportable {
+    type Via = Dictionary;
+}
 
-    fn get_property(&self) -> Self::Intermediate {
+impl Var for NotExportable {
+    fn get_property(&self) -> Self::Via {
         dict! {
             "a": self.a,
             "b": self.b
         }
     }
 
-    fn set_property(&mut self, value: Self::Intermediate) {
+    fn set_property(&mut self, value: Self::Via) {
         let a = value.get("a").unwrap().to::<i64>();
         let b = value.get("b").unwrap().to::<i64>();
 
@@ -300,8 +303,8 @@ struct CheckAllExports {
     color_no_alpha: Color,
 }
 
+#[derive(GodotConvert, Var, Export, Eq, PartialEq, Debug)]
 #[repr(i64)]
-#[derive(Var, Export, Eq, PartialEq, Debug)]
 pub enum TestEnum {
     A = 0,
     B = 1,

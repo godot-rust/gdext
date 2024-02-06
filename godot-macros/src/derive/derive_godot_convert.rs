@@ -9,7 +9,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use venial::Declaration;
 
-use crate::util::{decl_get_info, DeclInfo};
+use crate::util::{decl_get_info, via_type, DeclInfo};
 use crate::ParseResult;
 
 pub fn derive_godot_convert(decl: Declaration) -> ParseResult<TokenStream> {
@@ -22,9 +22,11 @@ pub fn derive_godot_convert(decl: Declaration) -> ParseResult<TokenStream> {
 
     let gen = generic_params.as_ref().map(|x| x.as_inline_args());
 
+    let via_type = via_type(&decl)?;
+
     Ok(quote! {
         impl #generic_params ::godot::builtin::meta::GodotConvert for #name #gen #where_ {
-            type Via = ::godot::builtin::Variant;
+            type Via = #via_type;
         }
     })
 }

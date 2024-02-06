@@ -656,15 +656,15 @@ impl<T: GodotClass> TypeStringHint for Gd<T> {
     }
 }
 
+// TODO: Do we even want to implement `Var` and `Export` for `Gd<T>`? You basically always want to use `Option<Gd<T>>` because the editor
+// may otherwise try to set the object to a null value.
 impl<T: GodotClass> Var for Gd<T> {
-    type Intermediate = Self;
-
-    fn get_property(&self) -> Self {
-        self.clone()
+    fn get_property(&self) -> Self::Via {
+        self.to_godot()
     }
 
-    fn set_property(&mut self, value: Self) {
-        *self = value;
+    fn set_property(&mut self, value: Self::Via) {
+        *self = FromGodot::from_godot(value)
     }
 }
 
