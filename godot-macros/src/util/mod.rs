@@ -7,6 +7,8 @@
 
 // Note: some code duplication with codegen crate
 
+use std::collections::HashMap;
+
 use crate::ParseResult;
 use proc_macro2::{Delimiter, Group, Ident, Literal, TokenStream, TokenTree};
 use quote::spanned::Spanned;
@@ -287,75 +289,4 @@ pub fn make_virtual_tool_check() -> TokenStream {
             return None;
         }
     }
-}
-
-pub enum ViaType {
-    Struct,
-    EnumWithRepr { int_ty: Ident },
-    Enum,
-}
-
-impl ToTokens for ViaType {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            ViaType::Struct | ViaType::Enum => {
-                quote! { ::godot::builtin::Variant }.to_tokens(tokens)
-            }
-            ViaType::EnumWithRepr { int_ty } => int_ty.to_tokens(tokens),
-        }
-    }
-}
-
-pub fn via_type(declaration: &venial::Declaration) -> ParseResult<ViaType> {
-    use venial::Declaration;
-
-    match declaration {
-        Declaration::Enum(enum_) => enum_repr(enum_),
-        Declaration::Struct(_) => Ok(ViaType::Struct),
-        other => bail!(
-            other,
-            "cannot get via type for {:?}, only structs and enums are supported currently",
-            other.name()
-        ),
-    }
-}
-
-pub fn enum_repr(enum_: &venial::Enum) -> ParseResult<ViaType> {
-    let Some(repr) = enum_
-        .attributes
-        .iter()
-        .find(|attr| attr.get_single_path_segment() == Some(&ident("repr")))
-    else {
-        return Ok(ViaType::Enum);
-    };
-
-    let venial::AttributeValue::Group(_, repr_value) = &repr.value else {
-        // `repr` is always going to look like `#[repr(..)]`
-        unreachable!()
-    };
-
-    let Some(repr_type) = repr_value.first() else {
-        // `#[repr()]` is just a warning apparently, so we're gonna give an error if that's provided.
-        return bail!(&repr.value, "expected non-empty `repr` list");
-    };
-
-    let TokenTree::Ident(repr_type) = &repr_type else {
-        // all valid non-empty `#[repr(..)]` will have an ident as its first element.
-        unreachable!();
-    };
-
-    if !matches!(
-        repr_type.to_string().as_str(),
-        "i8" | "u8" | "i16" | "u16" | "i32" | "u32" | "i64"
-    ) {
-        return bail!(
-            &repr_type,
-            "enum with repr #[repr({})] cannot implement `GodotConvert`, repr must be one of: i8, i16, i32, i64, u8, u16, u32",
-            repr_type.to_string(),
-        );
-    }
-
-    Ok(ViaType::EnumWithRepr {
-        int_ty: repr_type.clone(),
-    })
 }

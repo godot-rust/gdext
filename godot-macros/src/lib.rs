@@ -527,7 +527,7 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
 }
 
 /// Derive macro for [`GodotConvert`](../builtin/meta/trait.GodotConvert.html) on structs (required by [`ToGodot`] and [`FromGodot`]).
-#[proc_macro_derive(GodotConvert)]
+#[proc_macro_derive(GodotConvert, attributes(godot))]
 pub fn derive_godot_convert(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_godot_convert)
 }
@@ -560,7 +560,7 @@ pub fn derive_godot_convert(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// You can use the `#[skip]` attribute to ignore a field from being converted to `ToGodot`.
-#[proc_macro_derive(ToGodot, attributes(variant))]
+#[proc_macro_derive(ToGodot, attributes(godot))]
 pub fn derive_to_godot(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_to_godot)
 }
@@ -594,7 +594,7 @@ pub fn derive_to_godot(input: TokenStream) -> TokenStream {
 ///
 /// You can use the skip attribute to ignore a field from the provided variant and use `Default::default()`
 /// to get it instead.
-#[proc_macro_derive(FromGodot, attributes(variant))]
+#[proc_macro_derive(FromGodot, attributes(godot))]
 pub fn derive_from_godot(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_from_godot)
 }
@@ -637,7 +637,7 @@ pub fn derive_from_godot(input: TokenStream) -> TokenStream {
 ///     assert_eq!(class.foo, MyEnum::A);
 /// }
 /// ```
-#[proc_macro_derive(Var)]
+#[proc_macro_derive(Var, attributes(godot))]
 pub fn derive_property(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_var)
 }
@@ -645,7 +645,7 @@ pub fn derive_property(input: TokenStream) -> TokenStream {
 /// Derive macro for [`Export`](../register/property/trait.Export.html) on enums.
 ///
 /// Currently has some tight requirements which are expected to be softened as implementation expands, see requirements for [`Var`].
-#[proc_macro_derive(Export)]
+#[proc_macro_derive(Export, attributes(godot))]
 pub fn derive_export(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_export)
 }
