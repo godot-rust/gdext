@@ -66,7 +66,8 @@ pub trait FromGodot: Sized + GodotConvert {
     /// # Panics
     /// If the conversion fails.
     fn from_godot(via: Self::Via) -> Self {
-        Self::try_from_godot(via).unwrap()
+        Self::try_from_godot(via)
+            .unwrap_or_else(|err| panic!("FromGodot::from_godot() failed: {err}"))
     }
 
     /// Performs the conversion from a [`Variant`].
@@ -82,7 +83,8 @@ pub trait FromGodot: Sized + GodotConvert {
     /// # Panics
     /// If the conversion fails.
     fn from_variant(variant: &Variant) -> Self {
-        Self::try_from_variant(variant).unwrap()
+        Self::try_from_variant(variant)
+            .unwrap_or_else(|err| panic!("FromGodot::from_variant() failed: {err}"))
     }
 }
 
