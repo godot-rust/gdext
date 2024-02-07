@@ -5,36 +5,39 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Ident, Literal, TokenStream};
+use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use venial::Declaration;
 
-use crate::derive::data_model::{ConvertData, GodotConvert, ViaType};
-use crate::ParseResult;
+use crate::derive::data_models::{CStyleEnum, ConvertType, GodotConvert, NewtypeStruct, ViaType};
 
-use super::data_model::{CStyleEnum, NewtypeField};
-
-pub fn derive_to_godot(declaration: Declaration) -> ParseResult<TokenStream> {
-    let GodotConvert { name, data } = GodotConvert::parse_declaration(declaration)?;
+/// Creates a `ToGodot` impl for the given `GodotConvert`.
+///
+/// There is no dedicated `ToGodot` derive macro currently, this is instead called by the `GodotConvert` derive macro.
+pub fn make_togodot(convert: &GodotConvert) -> TokenStream {
+    let GodotConvert {
+        ty_name: name,
+        convert_type: data,
+    } = convert;
 
     match data {
-        ConvertData::NewType { field } => to_newtype(name, field),
-        ConvertData::Enum {
+        ConvertType::NewType { field } => make_togodot_for_newtype_struct(name, field),
+        ConvertType::Enum {
             variants,
-            via: ViaType::GString(_),
-        } => to_enum_string(name, variants),
-        ConvertData::Enum {
+            via: ViaType::GString { .. },
+        } => make_togodot_for_string_enum(name, variants),
+        ConvertType::Enum {
             variants,
-            via: ViaType::Int(_, int),
-        } => to_enum_int(name, variants, int.to_ident()),
+            via: ViaType::Int { int_ident },
+        } => make_togodot_for_int_enum(name, variants, int_ident),
     }
 }
 
-fn to_newtype(name: Ident, field: NewtypeField) -> ParseResult<TokenStream> {
+/// Derives `ToGodot` for newtype structs.
+fn make_togodot_for_newtype_struct(name: &Ident, field: &NewtypeStruct) -> TokenStream {
     let field_name = field.field_name();
-    let via_type = field.ty;
+    let via_type = &field.ty;
 
-    Ok(quote! {
+    quote! {
         impl ::godot::builtin::meta::ToGodot for #name {
             fn to_godot(&self) -> #via_type {
                 ::godot::builtin::meta::ToGodot::to_godot(&self.#field_name)
@@ -44,18 +47,15 @@ fn to_newtype(name: Ident, field: NewtypeField) -> ParseResult<TokenStream> {
                 ::godot::builtin::meta::ToGodot::into_godot(self.#field_name)
             }
         }
-    })
+    }
 }
 
-fn to_enum_int(name: Ident, enum_: CStyleEnum, int: Ident) -> ParseResult<TokenStream> {
-    let discriminants = enum_
-        .discriminants()
-        .iter()
-        .map(|i| Literal::i64_unsuffixed(*i))
-        .collect::<Vec<_>>();
+/// Derives `ToGodot` for enums with a via type of integers.
+fn make_togodot_for_int_enum(name: &Ident, enum_: &CStyleEnum, int: &Ident) -> TokenStream {
+    let discriminants = enum_.discriminants();
     let names = enum_.names();
 
-    Ok(quote! {
+    quote! {
         impl ::godot::builtin::meta::ToGodot for #name {
             fn to_godot(&self) -> #int {
                 match self {
@@ -65,14 +65,15 @@ fn to_enum_int(name: Ident, enum_: CStyleEnum, int: Ident) -> ParseResult<TokenS
                 }
             }
         }
-    })
+    }
 }
 
-fn to_enum_string(name: Ident, enum_: CStyleEnum) -> ParseResult<TokenStream> {
+/// Derives `ToGodot` for enums with a via type of `GString`.
+fn make_togodot_for_string_enum(name: &Ident, enum_: &CStyleEnum) -> TokenStream {
     let names = enum_.names();
     let names_str = names.iter().map(ToString::to_string).collect::<Vec<_>>();
 
-    Ok(quote! {
+    quote! {
         impl ::godot::builtin::meta::ToGodot for #name {
             fn to_godot(&self) -> ::godot::builtin::GString {
                 match self {
@@ -82,5 +83,5 @@ fn to_enum_string(name: Ident, enum_: CStyleEnum) -> ParseResult<TokenStream> {
                 }
             }
         }
-    })
+    }
 }

@@ -9,16 +9,18 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use venial::Declaration;
 
+use crate::derive::data_models::GodotConvert;
 use crate::ParseResult;
 
-use super::data_model::GodotConvert;
-
+/// Derives `Var` for the given declaration.
+///
+/// This uses `ToGodot` and `FromGodot` for the `get_property` and `set_property` implementations.
 pub fn derive_var(declaration: Declaration) -> ParseResult<TokenStream> {
     let convert = GodotConvert::parse_declaration(declaration)?;
 
     let property_hint_impl = create_property_hint_impl(&convert);
 
-    let name = convert.name;
+    let name = convert.ty_name;
 
     Ok(quote! {
         impl ::godot::register::property::Var for #name {
@@ -38,11 +40,14 @@ pub fn derive_var(declaration: Declaration) -> ParseResult<TokenStream> {
     })
 }
 
+/// Make an appropriate property hint implementation.
+///
+/// For newtype structs we just defer to the wrapped type. For enums we use `PropertyHint::ENUM` with an appropriate hint string.
 fn create_property_hint_impl(convert: &GodotConvert) -> TokenStream {
-    use super::data_model::ConvertData as Data;
-    use super::data_model::ViaType;
+    use super::data_models::ConvertType as Data;
+    use super::data_models::ViaType;
 
-    match &convert.data {
+    match &convert.convert_type {
         Data::NewType { field } => {
             let ty = &field.ty;
             quote! {
@@ -51,8 +56,8 @@ fn create_property_hint_impl(convert: &GodotConvert) -> TokenStream {
         }
         Data::Enum { variants, via } => {
             let hint_string = match via {
-                ViaType::GString(_) => variants.to_string_hint(),
-                ViaType::Int(_, _) => variants.to_int_hint(),
+                ViaType::GString { .. } => variants.to_string_hint(),
+                ViaType::Int { .. } => variants.to_int_hint(),
             };
 
             quote! {

@@ -526,125 +526,149 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, class::attribute_godot_api)
 }
 
-/// Derive macro for [`GodotConvert`](../builtin/meta/trait.GodotConvert.html) on structs (required by [`ToGodot`] and [`FromGodot`]).
+/// Derive macro for [`GodotConvert`](../builtin/meta/trait.GodotConvert.html) on structs.
+///
+/// This derive macro also derives [`ToGodot`](../builtin/meta/trait.ToGodot.html) and [`FromGodot`](../builtin/meta/trait.FromGodot.html).
+///
+/// # Choosing a Via type
+///
+/// To specify the `Via` type that your type should be converted to, you must use the `godot` attribute.
+/// There are currently two modes supported.
+///
+/// ## `transparent`
+///
+/// If you specify `#[godot(transparent)]` on single-field struct, your struct will be treated as a newtype struct. This means that all derived
+/// operations on the struct will defer to the type of that single field.
+///
+/// ### Example
+///
+/// ```no_run
+/// use godot::prelude::*;
+///
+/// #[derive(GodotConvert)]
+/// #[godot(transparent)]
+/// struct CustomVector2(Vector2);
+///
+/// let obj = CustomVector2(Vector2::new(10.0, 25.0));
+/// assert_eq!(obj.to_godot(), Vector2::new(10.0, 25.0));
+/// ```
+///
+/// This also works for named structs with a single field:
+/// ```no_run
+/// use godot::prelude::*;
+///
+/// #[derive(GodotConvert)]
+/// #[godot(transparent)]
+/// struct MyNewtype {
+///     string: GString,
+/// }
+///
+/// let obj = MyNewtype {
+///     string: "hello!".into(),
+/// };
+/// assert_eq!(obj.to_godot(), GString::from("hello!"));
+/// ```
+///
+/// However it will not work for structs with more than one field, even if that field is zero sized:
+/// ```compile_fail
+/// use godot::prelude::*;
+///
+/// #[derive(GodotConvert)]
+/// #[godot(transparent)]
+/// struct SomeNewtype {
+///     int: i64,
+///     zst: (),
+/// }
+/// ```
+///
+/// You can also not use `transparent` with enums:
+/// ```compile_fail
+/// use godot::prelude::*;
+///
+/// #[derive(GodotConvert)]
+/// #[godot(transparent)]
+/// enum MyEnum {
+///     Int(i64)
+/// }
+/// ```
+///
+/// ## `via = <type>`
+///
+/// For c-style enums, that is enums where all the variants are unit-like, you can use `via = <type>` to convert the enum into that
+/// type.
+///
+/// The types you can use this with currently are:
+/// - `GString`
+/// - `i8`, `i16`, `i32`, `i64`
+/// - `u8`, `u16`, `u32`
+///
+/// When using one of the integer types, each variant of the enum will be converted into its discriminant.
+///
+/// ### Examples
+///
+/// ```no_run
+/// use godot::prelude::*;
+/// #[derive(GodotConvert)]
+/// #[godot(via = GString)]
+/// enum MyEnum {
+///     A,
+///     B,
+///     C,
+/// }
+///
+/// assert_eq!(MyEnum::A.to_godot(), GString::from("A"));
+/// assert_eq!(MyEnum::B.to_godot(), GString::from("B"));
+/// assert_eq!(MyEnum::C.to_godot(), GString::from("C"));
+/// ```
+///
+/// ```no_run
+/// use godot::prelude::*;
+/// #[derive(GodotConvert)]
+/// #[godot(via = i64)]
+/// enum MyEnum {
+///     A,
+///     B,
+///     C,
+/// }
+///
+/// assert_eq!(MyEnum::A.to_godot(), 0);
+/// assert_eq!(MyEnum::B.to_godot(), 1);
+/// assert_eq!(MyEnum::C.to_godot(), 2);
+/// ```
+///
+/// Explicit discriminants are used for integers:
+///
+/// ```no_run
+/// use godot::prelude::*;
+/// #[derive(GodotConvert)]
+/// #[godot(via = u8)]
+/// enum MyEnum {
+///     A,
+///     B = 10,
+///     C,
+/// }
+///
+/// assert_eq!(MyEnum::A.to_godot(), 0);
+/// assert_eq!(MyEnum::B.to_godot(), 10);
+/// assert_eq!(MyEnum::C.to_godot(), 11);
+/// ```
 #[proc_macro_derive(GodotConvert, attributes(godot))]
 pub fn derive_godot_convert(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_godot_convert)
 }
 
-/// Derive macro for [`ToGodot`](../builtin/meta/trait.ToGodot.html) on structs or enums.
-///
-/// # Example
-///
-/// ```no_run
-/// # use godot::prelude::*;
-/// #[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
-/// struct StructNamed {
-///     field1: String,
-///     field2: i32,
-/// }
-///
-/// let obj = StructNamed {
-///     field1: "1".to_string(),
-///     field2: 2,
-/// };
-/// let dict = dict! {
-///    "StructNamed": dict! {
-///        "field1": "four",
-///        "field2": 5,
-///    }
-/// };
-///
-/// // This would not panic.
-/// assert_eq!(obj.to_variant(), dict.to_variant());
-/// ```
-///
-/// You can use the `#[skip]` attribute to ignore a field from being converted to `ToGodot`.
-#[proc_macro_derive(ToGodot, attributes(godot))]
-pub fn derive_to_godot(input: TokenStream) -> TokenStream {
-    translate(input, derive::derive_to_godot)
-}
-
-/// Derive macro for [`FromGodot`](../builtin/meta/trait.FromGodot.html) on structs or enums.
-///
-/// # Example
-///
-/// ```no_run
-/// # use godot::prelude::*;
-/// #[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
-/// struct StructNamed {
-///     field1: String,
-///     field2: i32,
-/// }
-///
-/// let obj = StructNamed {
-///     field1: "1".to_string(),
-///     field2: 2,
-/// };
-/// let dict_variant = dict! {
-///    "StructNamed": dict! {
-///        "field1": "four",
-///        "field2": 5,
-///    }
-/// }.to_variant();
-///
-/// // This would not panic.
-/// assert_eq!(StructNamed::from_variant(&dict_variant), obj);
-/// ```
-///
-/// You can use the skip attribute to ignore a field from the provided variant and use `Default::default()`
-/// to get it instead.
-#[proc_macro_derive(FromGodot, attributes(godot))]
-pub fn derive_from_godot(input: TokenStream) -> TokenStream {
-    translate(input, derive::derive_from_godot)
-}
-
 /// Derive macro for [`Var`](../register/property/trait.Var.html) on enums.
 ///
-/// This also requires deriving `GodotConvert`.
-///
-/// Currently has some tight requirements which are expected to be softened as implementation expands:
-/// - Only works for enums, structs aren't supported by this derive macro at the moment.
-/// - The enum must have an explicit `#[repr(u*/i*)]` type.
-///     - This will likely stay this way, since `isize`, the default repr type, is not a concept in Godot.
-/// - The enum variants must not have any fields - currently only unit variants are supported.
-/// - The enum variants must have explicit discriminants, that is, e.g. `A = 2`, not just `A`
-///
-/// # Example
-///
-/// ```no_run
-/// # use godot::prelude::*;
-/// #[derive(Var, GodotConvert)]
-/// #[repr(i32)]
-/// # #[derive(Eq, PartialEq, Debug)]
-/// enum MyEnum {
-///     A = 0,
-///     B = 1,
-/// }
-///
-/// #[derive(GodotClass)]
-/// #[class(no_init)] // No Godot default constructor.
-/// struct MyClass {
-///     #[var]
-///     foo: MyEnum,
-/// }
-///
-/// fn main() {
-///     let mut class = MyClass { foo: MyEnum::B };
-///     assert_eq!(class.get_foo(), MyEnum::B as i32);
-///
-///     class.set_foo(MyEnum::A as i32);
-///     assert_eq!(class.foo, MyEnum::A);
-/// }
-/// ```
+/// This expects a derived [`GodotConvert`](../builtin/meta/trait.GodotConvert.html) implementation, using a manual
+/// implementation of `GodotConvert` may lead to incorrect values being displayed in Godot.
 #[proc_macro_derive(Var, attributes(godot))]
-pub fn derive_property(input: TokenStream) -> TokenStream {
+pub fn derive_var(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_var)
 }
 
 /// Derive macro for [`Export`](../register/property/trait.Export.html) on enums.
 ///
-/// Currently has some tight requirements which are expected to be softened as implementation expands, see requirements for [`Var`].
+/// See also [`Var`].
 #[proc_macro_derive(Export, attributes(godot))]
 pub fn derive_export(input: TokenStream) -> TokenStream {
     translate(input, derive::derive_export)

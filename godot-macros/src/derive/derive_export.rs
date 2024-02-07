@@ -11,10 +11,13 @@ use venial::Declaration;
 
 use crate::ParseResult;
 
-use super::data_model::GodotConvert;
+use crate::derive::data_models::GodotConvert;
 
+/// Derives `Export` for the declaration.
+///
+/// This currently just reuses the property hint from the `Var` implementation.
 pub fn derive_export(declaration: Declaration) -> ParseResult<TokenStream> {
-    let GodotConvert { name, .. } = GodotConvert::parse_declaration(declaration)?;
+    let GodotConvert { ty_name: name, .. } = GodotConvert::parse_declaration(declaration)?;
 
     Ok(quote! {
         impl ::godot::register::property::Export for #name {

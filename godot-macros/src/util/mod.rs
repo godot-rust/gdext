@@ -7,18 +7,15 @@
 
 // Note: some code duplication with codegen crate
 
-use std::collections::HashMap;
-
 use crate::ParseResult;
 use proc_macro2::{Delimiter, Group, Ident, Literal, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use venial::{Error, Function, GenericParamList, Impl, TyExpr, WhereClause};
+use venial::{Error, Function, Impl, TyExpr};
 
 mod kv_parser;
 mod list_parser;
 
-pub(crate) use kv_parser::has_attr;
 pub(crate) use kv_parser::KvParser;
 pub(crate) use list_parser::ListParser;
 
@@ -247,40 +244,6 @@ pub(crate) fn extract_cfg_attrs(
         attr.get_single_path_segment()
             .map_or(false, |name| name == "cfg")
     })
-}
-
-pub(crate) struct DeclInfo {
-    pub where_: Option<WhereClause>,
-    pub generic_params: Option<GenericParamList>,
-    pub name: Ident,
-    pub name_string: String,
-}
-
-pub(crate) fn decl_get_info(decl: &venial::Declaration) -> DeclInfo {
-    let (where_, generic_params, name, name_string) = match decl {
-        venial::Declaration::Struct(struct_) => (
-            struct_.where_clause.clone(),
-            struct_.generic_params.clone(),
-            struct_.name.clone(),
-            struct_.name.to_string(),
-        ),
-        venial::Declaration::Enum(enum_) => (
-            enum_.where_clause.clone(),
-            enum_.generic_params.clone(),
-            enum_.name.clone(),
-            enum_.name.to_string(),
-        ),
-        _ => {
-            panic!("only enums and structs are supported at the moment")
-        }
-    };
-
-    DeclInfo {
-        where_,
-        generic_params,
-        name,
-        name_string,
-    }
 }
 
 pub fn make_virtual_tool_check() -> TokenStream {

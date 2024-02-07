@@ -11,7 +11,7 @@ use godot::engine::global::{PropertyHint, PropertyUsageFlags};
 use godot::engine::{INode, IRefCounted, Node, Object, RefCounted, Texture};
 use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd};
 use godot::register::property::{Export, PropertyHintInfo, Var};
-use godot::register::{godot_api, Export, FromGodot, GodotClass, GodotConvert, ToGodot, Var};
+use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 use godot::test::itest;
 
 // No tests currently, tests using these classes are in Godot scripts.
@@ -303,8 +303,9 @@ struct CheckAllExports {
     color_no_alpha: Color,
 }
 
-#[derive(GodotConvert, ToGodot, FromGodot, Var, Export, Eq, PartialEq, Debug)]
+#[derive(GodotConvert, Var, Export, Eq, PartialEq, Debug)]
 #[godot(via = i64)]
+#[repr(i64)]
 pub enum TestEnum {
     A = 0,
     B = 1,

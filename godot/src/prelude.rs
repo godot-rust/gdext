@@ -8,7 +8,7 @@
 pub use super::register::property::{Export, TypeStringHint, Var};
 
 // Re-export macros.
-pub use super::register::{godot_api, Export, FromGodot, GodotClass, GodotConvert, ToGodot, Var};
+pub use super::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 
 pub use super::builtin::__prelude_reexport::*;
 pub use super::builtin::math::FloatExt as _;

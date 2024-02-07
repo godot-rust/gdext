@@ -7,9 +7,9 @@
 
 use std::fmt::Debug;
 
-use godot::builtin::meta::{FromGodot, ToGodot};
-use godot::builtin::{dict, varray, GString, Variant, Vector2};
-use godot::register::{FromGodot, GodotConvert, ToGodot};
+use godot::builtin::meta::ToGodot;
+use godot::builtin::{GString, Vector2};
+use godot::register::GodotConvert;
 
 use crate::common::roundtrip;
 use crate::framework::itest;
@@ -17,17 +17,17 @@ use crate::framework::itest;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // General FromGodot/ToGodot derive tests
 
-#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
+#[derive(GodotConvert, PartialEq, Debug)]
 #[godot(transparent)]
 struct TupleNewtype(GString);
 
-#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
+#[derive(GodotConvert, PartialEq, Debug)]
 #[godot(transparent)]
 struct NamedNewtype {
     field1: Vector2,
 }
 
-#[derive(FromGodot, ToGodot, GodotConvert, Clone, PartialEq, Debug)]
+#[derive(GodotConvert, Clone, PartialEq, Debug)]
 #[godot(via = GString)]
 enum EnumStringy {
     A,
@@ -36,7 +36,7 @@ enum EnumStringy {
     D = 50,
 }
 
-#[derive(FromGodot, ToGodot, GodotConvert, Clone, PartialEq, Debug)]
+#[derive(GodotConvert, Clone, PartialEq, Debug)]
 #[godot(via = i64)]
 enum EnumInty {
     A = 10,
@@ -61,32 +61,34 @@ fn newtype_named_struct() {
 #[itest]
 fn enum_stringy() {
     roundtrip(EnumStringy::A);
-    assert_eq!(EnumStringy::A.to_godot(), "A".into());
     roundtrip(EnumStringy::B);
-    assert_eq!(EnumStringy::B.to_godot(), "B".into());
     roundtrip(EnumStringy::C);
-    assert_eq!(EnumStringy::C.to_godot(), "C".into());
     roundtrip(EnumStringy::D);
+
+    assert_eq!(EnumStringy::A.to_godot(), "A".into());
+    assert_eq!(EnumStringy::B.to_godot(), "B".into());
+    assert_eq!(EnumStringy::C.to_godot(), "C".into());
     assert_eq!(EnumStringy::D.to_godot(), "D".into());
 }
 
 #[itest]
 fn enum_inty() {
     roundtrip(EnumInty::A);
-    assert_eq!(EnumInty::A.to_godot(), 10);
     roundtrip(EnumInty::B);
-    assert_eq!(EnumInty::B.to_godot(), 0);
     roundtrip(EnumInty::C);
-    assert_eq!(EnumInty::C.to_godot(), 2);
     roundtrip(EnumInty::D);
-    assert_eq!(EnumInty::D.to_godot(), 1);
     roundtrip(EnumInty::E);
-    assert_eq!(EnumInty::E.to_godot(), 3);
+
+    assert_eq!(EnumInty::A.to_godot(), 10);
+    assert_eq!(EnumInty::B.to_godot(), 11);
+    assert_eq!(EnumInty::C.to_godot(), 12);
+    assert_eq!(EnumInty::D.to_godot(), 1);
+    assert_eq!(EnumInty::E.to_godot(), 2);
 }
 
 macro_rules! test_inty {
     ($T:ident, $test_name:ident, $class_name:ident) => {
-        #[derive(FromGodot, ToGodot, GodotConvert, Clone, PartialEq, Debug)]
+        #[derive(GodotConvert, Clone, PartialEq, Debug)]
         #[godot(via = $T)]
         enum $class_name {
             A,

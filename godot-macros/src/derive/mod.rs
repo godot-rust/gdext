@@ -7,7 +7,7 @@
 
 //! Derive macros on types outside of classes.
 
-mod data_model;
+mod data_models;
 mod derive_export;
 mod derive_from_godot;
 mod derive_godot_convert;
