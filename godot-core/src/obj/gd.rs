@@ -15,7 +15,7 @@ use sys::{static_assert_eq_size, VariantType};
 use crate::builtin::meta::{
     ConvertError, FromFfiError, FromGodot, GodotConvert, GodotType, ToGodot,
 };
-use crate::builtin::{Callable, StringName};
+use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::obj::raw::RawGd;
 use crate::obj::{
     bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
@@ -612,6 +612,21 @@ impl<T: GodotClass> GodotType for Gd<T> {
 
     fn godot_type_name() -> String {
         T::class_name().to_string()
+    }
+
+    fn qualifies_as_special_none(from_variant: &Variant) -> bool {
+        // Behavior in Godot 4.2 when unsetting an #[export]'ed property:
+        // 🔁 reset button: passes null object pointer inside Variant (as expected).
+        // 🧹 clear button: sends a NodePath with an empty string (!?).
+
+        // We recognize the latter case and return a Gd::null() instead of failing to convert the NodePath.
+        if let Ok(node_path) = from_variant.try_to::<NodePath>() {
+            if node_path.is_empty() {
+                return true;
+            }
+        }
+
+        false
     }
 }
 

@@ -26,6 +26,10 @@ impl NodePath {
         Self { opaque }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.as_inner().is_empty()
+    }
+
     /// Returns a 32-bit integer hash value representing the string.
     pub fn hash(&self) -> u32 {
         self.as_inner()
