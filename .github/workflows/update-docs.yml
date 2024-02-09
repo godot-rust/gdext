@@ -59,7 +59,9 @@ jobs:
       # Opened/reopened/updated PR: include PR author + title
       - name: "Construct JSON (for PR sync)"
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
-        # jq escapes backticks, double quotes etc. in PR title.
+        env:
+          # jq escapes backticks, double quotes etc. in PR title.
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           payload=$(jq -n \
           --arg repoOwner '${{ github.repository_owner }}' \
@@ -67,7 +69,7 @@ jobs:
           --arg commitSha '${{ github.event.pull_request.head.sha }}' \
           --arg date '${{ github.event.pull_request.updated_at }}' \
           --arg prAuthor '${{ github.event.pull_request.user.login }}' \
-          --arg prTitle '${{ github.event.pull_request.title }}' \
+          --arg prTitle '$PR_TITLE' \
           '{
             "op": "put",
             "repo": "gdext",
