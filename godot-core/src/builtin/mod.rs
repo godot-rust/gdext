@@ -98,6 +98,7 @@ mod aabb;
 mod basis;
 mod callable;
 mod color;
+mod color_constants; // After color, so that constants are listed after methods in docs (alphabetic ensures that).
 mod packed_array;
 mod plane;
 mod projection;
