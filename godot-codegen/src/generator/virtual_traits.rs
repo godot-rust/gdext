@@ -124,6 +124,7 @@ fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
             varcall_invocation: TokenStream::new(),
             ptrcall_invocation: TokenStream::new(),
         },
+        None,
     );
 
     // Virtual methods have no builders.

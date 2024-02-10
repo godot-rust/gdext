@@ -469,5 +469,6 @@ fn make_class_method_definition(
             varcall_invocation,
             ptrcall_invocation,
         },
+        None,
     )
 }
