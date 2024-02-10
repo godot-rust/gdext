@@ -37,7 +37,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
     let base_ty = &struct_cfg.base_ty;
     let base_class = quote! { ::godot::engine::#base_ty };
     let base_class_name_obj = util::class_name_obj(&base_class);
-    let inherits_macro = format_ident!("inherits_transitive_{}", base_ty);
+    let inherits_macro = format_ident!("unsafe_inherits_transitive_{}", base_ty);
 
     let prv = quote! { ::godot::private };
     let godot_exports_impl = make_property_impl(class_name, &fields);

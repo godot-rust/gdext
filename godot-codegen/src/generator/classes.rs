@@ -86,7 +86,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
             let base = ident(&conv::to_pascal_case(base));
             (quote! { crate::engine::#base }, Some(base))
         }
-        None => (quote! { () }, None),
+        None => (quote! { crate::obj::NoBase }, None),
     };
 
     let (constructor, godot_default_impl) = make_constructor_and_default(class, ctx);
@@ -100,8 +100,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
 
     let enums = enums::make_enums(&class.enums);
     let constants = constants::make_constants(&class.constants);
-    let inherits_macro = format_ident!("inherits_transitive_{}", class_name.rust_ty);
-    let (exportable_impl, exportable_macro_impl) = make_exportable_impl(class_name, ctx);
+    let inherits_macro = format_ident!("unsafe_inherits_transitive_{}", class_name.rust_ty);
     let deref_impl = make_deref_impl(class_name, &base_ty);
 
     let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
@@ -187,31 +186,26 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
                 type DynMemory = crate::obj::bounds::#assoc_dyn_memory;
                 type Declarer = crate::obj::bounds::DeclEngine;
             }
-            impl crate::obj::EngineClass for #class_name {
-                fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr {
-                    self.object_ptr
-                }
-                fn as_type_ptr(&self) -> sys::GDExtensionTypePtr {
-                   std::ptr::addr_of!(self.object_ptr) as sys::GDExtensionTypePtr
-                }
-            }
+
             #(
-                impl crate::obj::Inherits<crate::engine::#all_bases> for #class_name {}
+                // SAFETY: #all_bases is a list of classes provided by Godot such that #class_name is guaranteed a subclass of all of them.
+                unsafe impl crate::obj::Inherits<crate::engine::#all_bases> for #class_name {}
             )*
 
-            #exportable_impl
             #godot_default_impl
             #deref_impl
 
+            /// # Safety
+            ///
+            #[doc = concat!("The provided class must be a subclass of all the superclasses of ", stringify!(#class_name))]
             #[macro_export]
             #[allow(non_snake_case)]
             macro_rules! #inherits_macro {
                 ($Class:ident) => {
-                    impl ::godot::obj::Inherits<::godot::engine::#class_name> for $Class {}
+                    unsafe impl ::godot::obj::Inherits<::godot::engine::#class_name> for $Class {}
                     #(
-                        impl ::godot::obj::Inherits<::godot::engine::#all_bases> for $Class {}
+                        unsafe impl ::godot::obj::Inherits<::godot::engine::#all_bases> for $Class {}
                     )*
-                    #exportable_macro_impl
                 }
             }
         }
@@ -351,26 +345,8 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> (TokenStream, T
     (constructor, godot_default_impl)
 }
 
-fn make_exportable_impl(class_name: &TyName, ctx: &mut Context) -> (TokenStream, TokenStream) {
-    let (exportable_impl, exportable_macro_impl);
-
-    if ctx.is_exportable(class_name) {
-        exportable_impl = quote! {
-            impl crate::obj::ExportableObject for #class_name {}
-        };
-        exportable_macro_impl = quote! {
-            impl ::godot::obj::ExportableObject for $Class {}
-        };
-    } else {
-        exportable_impl = TokenStream::new();
-        exportable_macro_impl = TokenStream::new();
-    };
-
-    (exportable_impl, exportable_macro_impl)
-}
-
 fn make_deref_impl(class_name: &TyName, base_ty: &TokenStream) -> TokenStream {
-    // The base_ty of `Object` is `()`, and we dont want every engine class to deref to `()`.
+    // The base_ty of `Object` is `NoBase`, and we dont want every engine class to deref to `NoBase`.
     if class_name.rust_ty == "Object" {
         return TokenStream::new();
     }
