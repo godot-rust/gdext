@@ -47,6 +47,7 @@ pub fn to_snake_case(ty_name: &str) -> String {
         .replace("3D", "_3d")
         .replace("GDNative", "Gdnative")
         .replace("GDExtension", "Gdextension")
+        .replace("GDScript", "Gdscript")
         .replace("VSync", "Vsync")
         .replace("SDFGIY", "SdfgiY")
         .replace("ENet", "Enet")
@@ -71,6 +72,7 @@ pub fn to_pascal_case(ty_name: &str) -> String {
         .to_pascal_case()
         .replace("GdExtension", "GDExtension")
         .replace("GdNative", "GDNative")
+        .replace("GdScript", "GDScript")
         .replace("Vsync", "VSync")
         .replace("Sdfgiy", "SdfgiY")
 }
