@@ -17,8 +17,8 @@ use crate::class::{
     into_signature_info, make_method_registration, make_virtual_callback, BeforeKind,
     FuncDefinition, SignatureInfo,
 };
-use crate::util;
 use crate::util::{bail, KvParser};
+use crate::{util, ParseResult};
 
 pub fn attribute_godot_api(input_decl: Declaration) -> Result<TokenStream, Error> {
     let decl = match input_decl {
@@ -81,15 +81,55 @@ struct SignalDefinition {
 }
 
 /// Codegen for `#[godot_api] impl MyType`
-fn transform_inherent_impl(mut original_impl: Impl) -> Result<TokenStream, Error> {
+fn transform_inherent_impl(mut original_impl: Impl) -> ParseResult<TokenStream> {
     let class_name = util::validate_impl(&original_impl, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
+    let prv = quote! { ::godot::private };
+
     let (funcs, signals) = process_godot_fns(&mut original_impl)?;
 
-    let mut signal_cfg_attrs: Vec<Vec<&Attribute>> = Vec::new();
-    let mut signal_name_strs: Vec<String> = Vec::new();
-    let mut signal_parameters_count: Vec<usize> = Vec::new();
-    let mut signal_parameters: Vec<TokenStream> = Vec::new();
+    let signal_registrations = make_signal_registrations(signals, &class_name_obj);
+
+    let method_registrations = funcs
+        .into_iter()
+        .map(|func_def| make_method_registration(&class_name, func_def));
+
+    let constant_registration =
+        make_constant_registration(&mut original_impl, &class_name, &class_name_obj)?;
+
+    let result = quote! {
+        #original_impl
+
+        impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
+            fn __register_methods() {
+                #( #method_registrations )*
+                #( #signal_registrations )*
+            }
+
+            fn __register_constants() {
+                #constant_registration
+            }
+        }
+
+        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
+            class_name: #class_name_obj,
+            item: #prv::PluginItem::InherentImpl {
+                register_methods_constants_fn: #prv::ErasedRegisterFn {
+                    raw: #prv::callbacks::register_user_methods_constants::<#class_name>,
+                },
+            },
+            init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
+        });
+    };
+
+    Ok(result)
+}
+
+fn make_signal_registrations(
+    signals: Vec<SignalDefinition>,
+    class_name_obj: &TokenStream,
+) -> Vec<TokenStream> {
+    let mut signal_registrations = Vec::new();
 
     for signal in signals.iter() {
         let SignalDefinition {
@@ -113,7 +153,7 @@ fn transform_inherent_impl(mut original_impl: Impl) -> Result<TokenStream, Error
         let indexes = 0..param_types.len();
         let param_array_decl = quote! {
             [
-                // Don't use raw sys pointers directly, very easy to have objects going out of scope.
+                // Don't use raw sys pointers directly; it's very easy to have objects going out of scope.
                 #(
                     <#signature_tuple as godot::builtin::meta::VarcallSignatureTuple>
                         ::param_property_info(#indexes, #param_names),
@@ -121,25 +161,47 @@ fn transform_inherent_impl(mut original_impl: Impl) -> Result<TokenStream, Error
             ]
         };
 
-        // Transport #[cfg] attrs to the FFI glue to ensure signals which were conditionally
+        // Transport #[cfg] attributes to the FFI glue, to ensure signals which were conditionally
         // removed from compilation don't cause errors.
-        signal_cfg_attrs.push(
-            util::extract_cfg_attrs(external_attributes)
-                .into_iter()
-                .collect(),
-        );
-        signal_name_strs.push(signature.name.to_string());
-        signal_parameters_count.push(param_names.len());
-        signal_parameters.push(param_array_decl);
+        let signal_cfg_attrs: Vec<&Attribute> = util::extract_cfg_attrs(external_attributes)
+            .into_iter()
+            .collect();
+        let signal_name_str = signature.name.to_string();
+        let signal_parameters_count = param_names.len();
+        let signal_parameters = param_array_decl;
+
+        let signal_registration = quote! {
+            #(#signal_cfg_attrs)*
+            unsafe {
+                use ::godot::sys;
+                let parameters_info: [::godot::builtin::meta::PropertyInfo; #signal_parameters_count] = #signal_parameters;
+
+                let mut parameters_info_sys: [sys::GDExtensionPropertyInfo; #signal_parameters_count] =
+                    std::array::from_fn(|i| parameters_info[i].property_sys());
+
+                let signal_name = ::godot::builtin::StringName::from(#signal_name_str);
+
+                sys::interface_fn!(classdb_register_extension_class_signal)(
+                    sys::get_library(),
+                    #class_name_obj.string_sys(),
+                    signal_name.string_sys(),
+                    parameters_info_sys.as_ptr(),
+                    sys::GDExtensionInt::from(#signal_parameters_count as i64),
+                );
+            }
+        };
+
+        signal_registrations.push(signal_registration);
     }
+    signal_registrations
+}
 
-    let prv = quote! { ::godot::private };
-
-    let methods_registration = funcs
-        .into_iter()
-        .map(|func_def| make_method_registration(&class_name, func_def));
-
-    let consts = process_godot_constants(&mut original_impl)?;
+fn make_constant_registration(
+    original_impl: &mut Impl,
+    class_name: &Ident,
+    class_name_obj: &TokenStream,
+) -> ParseResult<TokenStream> {
+    let consts = process_godot_constants(original_impl)?;
     let mut integer_constant_cfg_attrs = Vec::new();
     let mut integer_constant_names = Vec::new();
     let mut integer_constant_values = Vec::new();
@@ -151,20 +213,20 @@ fn transform_inherent_impl(mut original_impl: Impl) -> Result<TokenStream, Error
 
         let name = &constant.name;
 
-        // Unlike with #[func] and #[signal], we don't remove the attributes from Constant
-        // signatures within 'process_godot_constants'.
+        // In contrast #[func] and #[signal], we don't remove the attributes from constant signatures
+        // within process_godot_constants().
         let cfg_attrs = util::extract_cfg_attrs(&constant.attributes)
             .into_iter()
             .collect::<Vec<_>>();
 
-        // Transport #[cfg] attrs to the FFI glue to ensure constants which were conditionally
-        // removed from compilation don't cause errors.
+        // Transport #[cfg] attributes to the FFI glue, to ensure constants which were conditionally removed
+        // from compilation don't cause errors.
         integer_constant_cfg_attrs.push(cfg_attrs);
         integer_constant_names.push(constant.name.to_string());
         integer_constant_values.push(quote! { #class_name::#name });
     }
 
-    let register_constants = if !integer_constant_names.is_empty() {
+    let tokens = if !integer_constant_names.is_empty() {
         quote! {
             use ::godot::builtin::meta::registration::constant::*;
             use ::godot::builtin::meta::ClassName;
@@ -184,135 +246,83 @@ fn transform_inherent_impl(mut original_impl: Impl) -> Result<TokenStream, Error
             )*
         }
     } else {
-        quote! {}
+        TokenStream::new()
     };
 
-    let result = quote! {
-        #original_impl
-
-        impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
-            fn __register_methods() {
-                #(
-                    #methods_registration
-                )*
-
-                unsafe {
-                    use ::godot::sys;
-
-                    #(
-                        #(#signal_cfg_attrs)*
-                        {
-                            let parameters_info: [::godot::builtin::meta::PropertyInfo; #signal_parameters_count] = #signal_parameters;
-
-                            let mut parameters_info_sys: [::godot::sys::GDExtensionPropertyInfo; #signal_parameters_count] =
-                                std::array::from_fn(|i| parameters_info[i].property_sys());
-
-                            let signal_name = ::godot::builtin::StringName::from(#signal_name_strs);
-
-                            sys::interface_fn!(classdb_register_extension_class_signal)(
-                                sys::get_library(),
-                                #class_name_obj.string_sys(),
-                                signal_name.string_sys(),
-                                parameters_info_sys.as_ptr(),
-                                sys::GDExtensionInt::from(#signal_parameters_count as i64),
-                            );
-                        };
-                    )*
-                }
-            }
-
-            fn __register_constants() {
-                #register_constants
-            }
-        }
-
-        ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
-            class_name: #class_name_obj,
-            item: #prv::PluginItem::InherentImpl {
-                register_methods_constants_fn: #prv::ErasedRegisterFn {
-                    raw: #prv::callbacks::register_user_methods_constants::<#class_name>,
-                },
-            },
-            init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
-        });
-    };
-
-    Ok(result)
+    Ok(tokens)
 }
 
 fn process_godot_fns(
-    decl: &mut Impl,
+    impl_block: &mut Impl,
 ) -> Result<(Vec<FuncDefinition>, Vec<SignalDefinition>), Error> {
     let mut func_definitions = vec![];
     let mut signal_definitions = vec![];
 
     let mut removed_indexes = vec![];
-    for (index, item) in decl.body_items.iter_mut().enumerate() {
-        let method = if let ImplMember::Method(method) = item {
-            method
-        } else {
+    for (index, item) in impl_block.body_items.iter_mut().enumerate() {
+        let ImplMember::Method(method) = item else {
             continue;
         };
 
-        if let Some(attr) = extract_attributes(&method, &method.attributes)? {
-            // Remaining code no longer has attribute -- rest stays
-            method.attributes.remove(attr.index);
+        let Some(attr) = extract_attributes(&method, &method.attributes)? else {
+            continue;
+        };
 
-            if method.qualifiers.tk_default.is_some()
-                || method.qualifiers.tk_const.is_some()
-                || method.qualifiers.tk_async.is_some()
-                || method.qualifiers.tk_unsafe.is_some()
-                || method.qualifiers.tk_extern.is_some()
-                || method.qualifiers.extern_abi.is_some()
-            {
-                return attr.bail("fn qualifiers are not allowed", method);
-            }
+        // Remaining code no longer has attribute -- rest stays
+        method.attributes.remove(attr.index);
 
-            if method.generic_params.is_some() {
-                return attr.bail("generic fn parameters are not supported", method);
-            }
+        if method.qualifiers.tk_default.is_some()
+            || method.qualifiers.tk_const.is_some()
+            || method.qualifiers.tk_async.is_some()
+            || method.qualifiers.tk_unsafe.is_some()
+            || method.qualifiers.tk_extern.is_some()
+            || method.qualifiers.extern_abi.is_some()
+        {
+            return attr.bail("fn qualifiers are not allowed", method);
+        }
 
-            match &attr.ty {
-                BoundAttrType::Func {
-                    rename,
-                    has_gd_self,
-                } => {
-                    let external_attributes = method.attributes.clone();
-                    // Signatures are the same thing without body
-                    let mut sig = util::reduce_to_signature(method);
-                    if *has_gd_self {
-                        if sig.params.is_empty() {
-                            return attr.bail("with attribute key `gd_self`, the method must have a first parameter of type Gd<Self>", method);
-                        } else {
-                            sig.params.inner.remove(0);
-                        }
+        match &attr.ty {
+            BoundAttrType::Func {
+                rename,
+                has_gd_self,
+            } => {
+                let external_attributes = method.attributes.clone();
+                // Signatures are the same thing without body
+                let mut sig = util::reduce_to_signature(method);
+                if *has_gd_self {
+                    if sig.params.is_empty() {
+                        return attr.bail("with attribute key `gd_self`, the method must have a first parameter of type Gd<Self>", method);
+                    } else {
+                        sig.params.inner.remove(0);
                     }
-                    func_definitions.push(FuncDefinition {
-                        func: sig,
-                        external_attributes,
-                        rename: rename.clone(),
-                        has_gd_self: *has_gd_self,
-                    });
                 }
-                BoundAttrType::Signal(ref _attr_val) => {
-                    if method.return_ty.is_some() {
-                        return attr.bail("return types are not supported", method);
-                    }
-                    let external_attributes = method.attributes.clone();
-                    let sig = util::reduce_to_signature(method);
+                func_definitions.push(FuncDefinition {
+                    func: sig,
+                    external_attributes,
+                    rename: rename.clone(),
+                    has_gd_self: *has_gd_self,
+                });
+            }
+            BoundAttrType::Signal(ref _attr_val) => {
+                if method.return_ty.is_some() {
+                    return attr.bail("return types are not supported", method);
+                }
 
-                    signal_definitions.push(SignalDefinition {
-                        signature: sig,
-                        external_attributes,
-                    });
-                    removed_indexes.push(index);
-                }
-                BoundAttrType::Const(_) => {
-                    return attr.bail(
-                        "#[constant] can only be used on associated constant",
-                        method,
-                    )
-                }
+                let external_attributes = method.attributes.clone();
+                let sig = util::reduce_to_signature(method);
+
+                signal_definitions.push(SignalDefinition {
+                    signature: sig,
+                    external_attributes,
+                });
+
+                removed_indexes.push(index);
+            }
+            BoundAttrType::Const(_) => {
+                return attr.bail(
+                    "#[constant] can only be used on associated constant",
+                    method,
+                )
             }
         }
     }
@@ -320,7 +330,7 @@ fn process_godot_fns(
     // Remove some elements (e.g. signals) from impl.
     // O(n^2); alternative: retain(), but elements themselves don't have the necessary information.
     for index in removed_indexes.into_iter().rev() {
-        decl.body_items.remove(index);
+        impl_block.body_items.remove(index);
     }
 
     Ok((func_definitions, signal_definitions))
