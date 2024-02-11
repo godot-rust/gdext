@@ -45,6 +45,7 @@ pub mod __prelude_reexport {
     pub use basis::*;
     pub use callable::*;
     pub use color::*;
+    pub use color_hsv::*;
     pub use dictionary_inner::Dictionary;
     pub use packed_array::*;
     pub use plane::*;
@@ -99,6 +100,7 @@ mod basis;
 mod callable;
 mod color;
 mod color_constants; // After color, so that constants are listed after methods in docs (alphabetic ensures that).
+mod color_hsv;
 mod packed_array;
 mod plane;
 mod projection;

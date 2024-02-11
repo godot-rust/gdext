@@ -15,11 +15,14 @@ use sys::{ffi_methods, GodotFfi};
 use std::ops;
 
 use super::meta::impl_godot_as_self;
+use super::{rgba_to_hsva, ColorHsv};
 
 /// Color built-in type, in floating-point RGBA format.
 ///
 /// Channel values are _typically_ in the range of 0 to 1, but this is not a requirement, and
 /// values outside this range are explicitly allowed for e.g. High Dynamic Range (HDR).
+///
+/// To access its [**HSVA**](super::ColorHsv) representation, use [`Color::to_hsv`].
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -122,9 +125,12 @@ impl Color {
         }
     }
 
-    /// Constructs a `Color` from an [HSV profile](https://en.wikipedia.org/wiki/HSL_and_HSV). The
-    /// hue (`h`), saturation (`s`), and value (`v`) are typically between 0.0 and 1.0. Alpha is
-    /// set to 1; use [`Color::with_alpha`] to change it.
+    /// Constructs a `Color` from an [HSV profile](https://en.wikipedia.org/wiki/HSL_and_HSV) using
+    /// [Godot's builtin method](https://docs.godotengine.org/en/stable/classes/class_color.html#class-color-method-from-hsv).
+    /// The hue (`h`), saturation (`s`), and value (`v`) are typically between 0.0 and 1.0. Alpha is set to 1; use [`Color::with_alpha`]
+    /// to change it.
+    ///
+    /// See also: [`ColorHsv::to_rgb`] for fast conversion on Rust side.
     pub fn from_hsv(h: f64, s: f64, v: f64) -> Self {
         InnerColor::from_hsv(h, s, v, 1.0)
     }
@@ -195,8 +201,6 @@ impl Color {
     pub fn set_a8(&mut self, a: u8) {
         self.a = from_u8(a);
     }
-
-    // TODO add getters and setters for h, s, v (needs generated property wrappers)
 
     /// Returns the light intensity of the color, as a value between 0.0 and 1.0 (inclusive). This
     /// is useful when determining whether a color is light or dark. Colors with a luminance
@@ -292,6 +296,49 @@ impl Color {
             to_u16(self.b),
             to_u16(self.a),
         ]))
+    }
+
+    /// ⚠️ Convert `Color` into [`ColorHsv`].
+    ///
+    /// # Panics
+    ///
+    /// Method will panic if the RGBA values are outside of the valid range `0.0..=1.0`. You can use [`Color::normalized`] to ensure that
+    /// they are in range, or use [`Color::try_to_hsv`].
+    pub fn to_hsv(self) -> ColorHsv {
+        self.try_to_hsv().unwrap_or_else(|e| panic!("{e}"))
+    }
+
+    /// Fallible `Color` conversion into [`ColorHsv`]. See also [`Color::to_hsv`].
+    pub fn try_to_hsv(self) -> Result<ColorHsv, String> {
+        if !self.is_normalized() {
+            return Err(format!("RGBA values need to be in range `0.0..=1.0` before conversion, but were {self:?}. See: `Color::normalized()` method."));
+        }
+        let (h, s, v, a) = rgba_to_hsva(self.r, self.g, self.b, self.a);
+
+        Ok(ColorHsv { h, s, v, a })
+    }
+
+    /// Clamps all components to an usually valid range `0.0..=1.0`. Useful for transformations between different color representations.
+    #[must_use]
+    pub fn normalized(self) -> Self {
+        Self {
+            r: self.r.clamp(0.0, 1.0),
+            g: self.g.clamp(0.0, 1.0),
+            b: self.b.clamp(0.0, 1.0),
+            a: self.a.clamp(0.0, 1.0),
+        }
+    }
+
+    // For internal checks before transformations between different color representation.
+    pub(crate) fn is_normalized(&self) -> bool {
+        self.r >= 0.0
+            && self.r <= 1.0
+            && self.g >= 0.0
+            && self.g <= 1.0
+            && self.b >= 0.0
+            && self.b <= 1.0
+            && self.a >= 0.0
+            && self.a <= 1.0
     }
 
     fn as_inner(&self) -> InnerColor {

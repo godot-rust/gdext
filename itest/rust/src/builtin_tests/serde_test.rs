@@ -6,7 +6,7 @@
  */
 
 use crate::framework::itest;
-use godot::builtin::{array, Array, GString, NodePath, StringName, Vector2i};
+use godot::builtin::{array, Array, Color, ColorHsv, GString, NodePath, StringName, Vector2i};
 use serde::{Deserialize, Serialize};
 
 fn serde_roundtrip<T>(value: &T, expected_json: &str)
@@ -77,4 +77,18 @@ fn serde_array_godot_type() {
     let expected_json = r#"[{"x":1,"y":1},{"x":2,"y":2},{"x":3,"y":3}]"#;
 
     serde_roundtrip(&value, expected_json)
+}
+
+#[itest]
+fn color_serde() {
+    let color = Color::default();
+    let expected_json = r#"{"r":0.0,"g":0.0,"b":0.0,"a":1.0}"#;
+    serde_roundtrip(&color, expected_json);
+}
+
+#[itest]
+fn color_hsv_serde() {
+    let color = ColorHsv::default();
+    let expected_json = r#"{"h":0.0,"s":0.0,"v":0.0,"a":1.0}"#;
+    serde_roundtrip(&color, expected_json);
 }

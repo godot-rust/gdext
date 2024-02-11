@@ -6,7 +6,8 @@
  */
 
 use crate::framework::itest;
-use godot::builtin::{Color, ColorChannelOrder};
+use godot::builtin::math::assert_eq_approx;
+use godot::builtin::{Color, ColorChannelOrder, ColorHsv};
 
 #[itest]
 fn color_from_rgba8() {
@@ -110,4 +111,90 @@ fn color_to_u64() {
     assert_eq!(c.to_u64(ColorChannelOrder::Rgba), 0x0101_0202_0303_0404);
     assert_eq!(c.to_u64(ColorChannelOrder::Abgr), 0x0404_0303_0202_0101);
     assert_eq!(c.to_u64(ColorChannelOrder::Argb), 0x0404_0101_0202_0303);
+}
+
+// Multiple specific cases because HSV->RGB conversion algorithm used is very dependent on Hue value, taking into account different values
+// based on the the Hue sector.
+const COLOR_HSV_CASES_HSV: [(f32, f32, f32); 9] = [
+    (0.0, 0.43, 1.),
+    (0.05, 0.34, 0.23),
+    (0.22, 1., 0.54),
+    (0.42, 0.42, 0.15),
+    (0.58, 0.89, 0.23),
+    (0.74, 0.69, 0.18),
+    (0.96, 0.82, 0.12),
+    (1., 0.23, 0.73),
+    (1., 0.55, 0.23),
+];
+
+const COLOR_HSV_CASES_RGB: [(f32, f32, f32); 6] = [
+    (0.32, 0.75, 1.),
+    (1., 0.32, 1.),
+    (0.5, 0., 0.),
+    (0.23, 0.12, 0.78),
+    (1., 1., 1.),
+    (0., 0., 0.),
+];
+
+#[itest]
+fn color_from_color_hsv() {
+    for (h, s, v) in COLOR_HSV_CASES_HSV {
+        let c_hsv = ColorHsv::from_hsv(h, s, v);
+        let c1 = Color::from_hsv(c_hsv.h as f64, c_hsv.s as f64, c_hsv.v as f64);
+        let c2: Color = c_hsv.to_rgb();
+
+        assert_eq_approx!(c1, c2, "h: {h}, s: {s}, v: {v}");
+    }
+}
+
+#[itest]
+fn color_hsv_wraps_correctly() {
+    for (hue_origin, hue_shift, hue_expected) in [
+        (0.75, -0.85, 0.90),
+        (0.5, 0.65, 0.15),
+        (0.15, 3.25, 0.40),
+        (0.45, -5.43, 0.02),
+    ] {
+        let mut c_hsv = ColorHsv {
+            h: hue_origin,
+            ..Default::default()
+        };
+        c_hsv.h += hue_shift;
+
+        c_hsv = c_hsv.normalized_wrapped_h();
+
+        assert_eq_approx!(c_hsv.h, hue_expected);
+    }
+}
+
+#[itest]
+fn color_hsv_roundtrip() {
+    for (h, s, v) in COLOR_HSV_CASES_HSV {
+        let c1 = ColorHsv::from_hsv(h, s, v);
+        let c2 = c1.to_rgb().to_hsv();
+
+        assert_eq_approx!(c1, c2, "h: {h}, s: {s}, v: {v}");
+    }
+}
+
+#[itest]
+fn color_hsv_from_color_roundtrip() {
+    for (r, g, b) in COLOR_HSV_CASES_RGB {
+        let c = Color::from_rgb(r, g, b);
+        let c_back = c.to_hsv().to_rgb();
+
+        assert_eq_approx!(c, c_back);
+    }
+}
+
+#[itest]
+fn color_hsv_multi_roundtrip() {
+    for (r, g, b) in COLOR_HSV_CASES_RGB {
+        let original = Color::from_rgb(r, g, b);
+        let mut c_back = original;
+        for _ in 0..10 {
+            c_back = c_back.to_hsv().to_rgb();
+        }
+        assert_eq_approx!(original, c_back);
+    }
 }
