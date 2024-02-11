@@ -386,8 +386,9 @@ fn make_varcall_func(
                 );
 
                 if success.is_none() {
-                    // Signal error and set return type to Nil
-                    (*err).error = sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD; // no better fitting enum?
+                    // Signal error and set return type to Nil.
+                    // None of the sys::GDEXTENSION_CALL_ERROR enums fits; so we use our own outside Godot's official range.
+                    (*err).error = sys::GODOT_RUST_CALL_ERROR;
 
                     // TODO(uninit)
                     sys::interface_fn!(variant_new_nil)(sys::AsUninit::as_uninit(ret));
