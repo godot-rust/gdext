@@ -170,6 +170,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
             ) {
                 //$crate::out!("in_varcall: {call_ctx}");
+                check_arg_count(arg_count, $PARAM_COUNT, call_ctx);
 
                 let args = ($(
                     unsafe { varcall_arg::<$Pn, $n>(args_ptr, call_ctx) },
@@ -614,5 +615,25 @@ impl<'a> CallContext<'a> {
 impl<'a> fmt::Display for CallContext<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}::{}", self.class_name, self.function_name)
+    }
+}
+
+fn check_arg_count(arg_count: i64, param_count: i64, call_ctx: &CallContext) {
+    // This will need to be adjusted once optional parameters are supported in #[func].
+    if arg_count != param_count {
+        let param_plural = plural(param_count);
+        let arg_plural = plural(arg_count);
+        panic!(
+            "{call_ctx} - function has {param_count} parameter{param_plural}, \
+            but received {arg_count} argument{arg_plural}"
+        );
+    }
+}
+
+fn plural(count: i64) -> &'static str {
+    if count == 1 {
+        ""
+    } else {
+        "s"
     }
 }
