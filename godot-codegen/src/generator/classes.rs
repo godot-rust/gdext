@@ -431,6 +431,7 @@ fn make_class_method_definition(
         return FnDefinition::none();
     };
 
+    let rust_class_name = class.name().rust_ty.to_string();
     let rust_method_name = method.name();
     let godot_method_name = method.godot_name();
 
@@ -445,10 +446,10 @@ fn make_class_method_definition(
     };
 
     let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {
-        let class_name_str = &class.name().godot_ty;
+        let godot_class_name = &class.name().godot_ty;
         quote! {
             fptr_by_key(sys::lazy_keys::ClassMethodKey {
-                class_name: #class_name_str,
+                class_name: #godot_class_name,
                 method_name: #godot_method_name,
                 hash: #hash,
             })
@@ -463,6 +464,7 @@ fn make_class_method_definition(
 
         <CallSig as PtrcallSignatureTuple>::out_class_ptrcall::<RetMarshal>(
             method_bind,
+            #rust_class_name,
             #rust_method_name,
             #object_ptr,
             #maybe_instance_id,
@@ -475,6 +477,7 @@ fn make_class_method_definition(
 
         <CallSig as VarcallSignatureTuple>::out_class_varcall(
             method_bind,
+            #rust_class_name,
             #rust_method_name,
             #object_ptr,
             #maybe_instance_id,

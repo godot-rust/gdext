@@ -99,7 +99,7 @@ where
                     //backtrace: Backtrace::capture(),
                 });
             } else {
-                println!("panic occurred but can't get location information...");
+                eprintln!("panic occurred, but can't get location information");
             }
         }));
     }
@@ -118,7 +118,7 @@ where
             let guard = info.lock().unwrap();
             let info = guard.as_ref().expect("no panic info available");
             log::godot_error!(
-                "Rust function panicked in file {} at line {}. Context: {}",
+                "Rust function panicked at {}:{}.\nContext: {}",
                 info.file,
                 info.line,
                 error_context()

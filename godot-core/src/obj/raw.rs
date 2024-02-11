@@ -11,8 +11,8 @@ use godot_ffi as sys;
 use sys::{interface_fn, GodotFfi, GodotNullableFfi, PtrcallType};
 
 use crate::builtin::meta::{
-    ClassName, ConvertError, FromGodot, FromVariantError, GodotConvert, GodotFfiVariant, GodotType,
-    ToGodot,
+    CallContext, ClassName, ConvertError, FromGodot, FromVariantError, GodotConvert,
+    GodotFfiVariant, GodotType, ToGodot,
 };
 use crate::builtin::Variant;
 use crate::obj::bounds::DynMemory as _;
@@ -325,16 +325,18 @@ impl<T: GodotClass> RawGd<T> {
     }
 
     /// Verify that the object is non-null and alive. In Debug mode, additionally verify that it is of type `T` or derived.
-    pub(crate) fn check_rtti(&self, context: &'static str) {
-        let instance_id = self.check_dynamic_type(context);
-        engine::ensure_object_alive(instance_id, self.obj_sys(), context);
+    pub(crate) fn check_rtti(&self, method_name: &'static str) {
+        let call_ctx = CallContext::gd::<T>(method_name);
+
+        let instance_id = self.check_dynamic_type(&call_ctx);
+        engine::ensure_object_alive(instance_id, self.obj_sys(), &call_ctx);
     }
 
     /// Checks only type, not alive-ness. Used in Gd<T> in case of `free()`.
-    pub(crate) fn check_dynamic_type(&self, context: &'static str) -> InstanceId {
+    pub(crate) fn check_dynamic_type(&self, call_ctx: &CallContext<'static>) -> InstanceId {
         debug_assert!(
             !self.is_null(),
-            "{context}: cannot call method on null object",
+            "{call_ctx}: cannot call method on null object",
         );
 
         let rtti = self.cached_rtti.as_ref();
