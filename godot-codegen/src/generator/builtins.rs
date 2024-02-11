@@ -173,6 +173,7 @@ fn make_builtin_method_definition(
     };
 
     let builtin_name = builtin_class.name();
+    let builtin_name_str = builtin_name.rust_ty.to_string();
     let method_name_str = method.godot_name();
 
     let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {
@@ -201,6 +202,7 @@ fn make_builtin_method_definition(
 
         <CallSig as PtrcallSignatureTuple>::out_builtin_ptrcall::<RetMarshal>(
             method_bind,
+            #builtin_name_str,
             #method_name_str,
             #object_ptr,
             args

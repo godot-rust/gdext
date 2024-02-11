@@ -5,18 +5,17 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::fmt::Debug;
-
+use crate::builtin::meta::*;
+use crate::builtin::Variant;
+use crate::obj::{GodotClass, InstanceId};
 use godot_ffi as sys;
+use std::fmt;
+use std::fmt::Debug;
 use sys::{BuiltinMethodBind, ClassMethodBind, UtilityFunctionBind};
 
 // TODO:
 // separate arguments and return values, so that a type can be used in function arguments even if it doesn't
 // implement `ToGodot`, and the other way around for return values.
-
-use crate::builtin::meta::*;
-use crate::builtin::Variant;
-use crate::obj::InstanceId;
 
 #[doc(hidden)]
 pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
@@ -31,8 +30,9 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
     // ret: sys::GDExtensionUninitializedTypePtr
     unsafe fn in_varcall(
         instance_ptr: sys::GDExtensionClassInstancePtr,
-        method_name: &str,
+        call_ctx: &CallContext,
         args_ptr: *const sys::GDExtensionConstVariantPtr,
+        arg_count: i64,
         ret: sys::GDExtensionVariantPtr,
         err: *mut sys::GDExtensionCallError,
         func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
@@ -40,6 +40,8 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
 
     unsafe fn out_class_varcall(
         method_bind: ClassMethodBind,
+        // Separate parameters to reduce tokens in generated class API.
+        class_name: &'static str,
         method_name: &'static str,
         object_ptr: sys::GDExtensionObjectPtr,
         maybe_instance_id: Option<InstanceId>, // if not static
@@ -49,7 +51,7 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
 
     unsafe fn out_utility_ptrcall_varargs(
         utility_fn: UtilityFunctionBind,
-        method_name: &'static str,
+        function_name: &'static str,
         args: Self::Params,
         varargs: &[Variant],
     ) -> Self::Ret;
@@ -66,7 +68,7 @@ pub trait PtrcallSignatureTuple {
     // We could fall back to varcalls in such cases, and not require GodotFfi categorically.
     unsafe fn in_ptrcall(
         instance_ptr: sys::GDExtensionClassInstancePtr,
-        method_name: &'static str,
+        call_ctx: &CallContext<'static>,
         args_ptr: *const sys::GDExtensionConstTypePtr,
         ret: sys::GDExtensionTypePtr,
         func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
@@ -75,6 +77,8 @@ pub trait PtrcallSignatureTuple {
 
     unsafe fn out_class_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
         method_bind: ClassMethodBind,
+        // Separate parameters to reduce tokens in generated class API.
+        class_name: &'static str,
         method_name: &'static str,
         object_ptr: sys::GDExtensionObjectPtr,
         maybe_instance_id: Option<InstanceId>, // if not static
@@ -83,6 +87,8 @@ pub trait PtrcallSignatureTuple {
 
     unsafe fn out_builtin_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
         builtin_fn: BuiltinMethodBind,
+        // Separate parameters to reduce tokens in generated class API.
+        class_name: &'static str,
         method_name: &'static str,
         type_ptr: sys::GDExtensionTypePtr,
         args: Self::Params,
@@ -90,7 +96,7 @@ pub trait PtrcallSignatureTuple {
 
     unsafe fn out_utility_ptrcall(
         utility_fn: UtilityFunctionBind,
-        method_name: &'static str,
+        function_name: &'static str,
         args: Self::Params,
     ) -> Self::Ret;
 }
@@ -156,15 +162,18 @@ macro_rules! impl_varcall_signature_for_tuple {
             #[inline]
             unsafe fn in_varcall(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
-                method_name: &str,
+                call_ctx: &CallContext,
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
+                arg_count: i64,
                 ret: sys::GDExtensionVariantPtr,
                 err: *mut sys::GDExtensionCallError,
                 func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
             ) {
-                //$crate::out!("in_varcall: {method_name}");
+                //$crate::out!("in_varcall: {call_ctx}");
+                check_arg_count(arg_count, $PARAM_COUNT, call_ctx);
+
                 let args = ($(
-                    unsafe { varcall_arg::<$Pn, $n>(args_ptr, method_name) },
+                    unsafe { varcall_arg::<$Pn, $n>(args_ptr, call_ctx) },
                 )*) ;
 
                 let rust_result = func(instance_ptr, args);
@@ -174,17 +183,20 @@ macro_rules! impl_varcall_signature_for_tuple {
             #[inline]
             unsafe fn out_class_varcall(
                 method_bind: ClassMethodBind,
+                // Separate parameters to reduce tokens in generated class API.
+                class_name: &'static str,
                 method_name: &'static str,
                 object_ptr: sys::GDExtensionObjectPtr,
                 maybe_instance_id: Option<InstanceId>, // if not static
                 ($($pn,)*): Self::Params,
                 varargs: &[Variant],
             ) -> Self::Ret {
-                //$crate::out!("out_class_varcall: {method_name}");
+                let call_ctx = CallContext::outbound(class_name, method_name);
+                //$crate::out!("out_class_varcall: {call_ctx}");
 
                 // Note: varcalls are not safe from failing, if they happen through an object pointer -> validity check necessary.
                 if let Some(instance_id) = maybe_instance_id {
-                    crate::engine::ensure_object_alive(instance_id, object_ptr, method_name);
+                    crate::engine::ensure_object_alive(instance_id, object_ptr, &call_ctx);
                 }
 
                 let class_fn = sys::interface_fn!(object_method_bind_call);
@@ -210,22 +222,24 @@ macro_rules! impl_varcall_signature_for_tuple {
                         std::ptr::addr_of_mut!(err),
                     );
 
-                    check_varcall_error(&err, method_name, &explicit_args, varargs);
+                    check_varcall_error(&err, &call_ctx, &explicit_args, varargs);
                 });
 
                 let result = <Self::Ret as FromGodot>::try_from_variant(&variant);
-                result.unwrap_or_else(|err| return_error::<Self::Ret>(method_name, err))
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }
 
             // Note: this is doing a ptrcall, but uses variant conversions for it
             #[inline]
             unsafe fn out_utility_ptrcall_varargs(
                 utility_fn: UtilityFunctionBind,
-                method_name: &str,
+                function_name: &'static str,
                 ($($pn,)*): Self::Params,
                 varargs: &[Variant],
             ) -> Self::Ret {
-                //$crate::out!("out_utility_ptrcall_varargs: {method_name}");
+                let call_ctx = CallContext::outbound("", function_name);
+                //$crate::out!("out_utility_ptrcall_varargs: {call_ctx}");
+
                 let explicit_args: [Variant; $PARAM_COUNT] = [
                     $(
                         GodotFfiVariant::ffi_to_variant(&into_ffi($pn)),
@@ -240,7 +254,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 let result = PtrcallReturnT::<$R>::call(|return_ptr| {
                     utility_fn(return_ptr, type_ptrs.as_ptr(), type_ptrs.len() as i32);
                 });
-                result.unwrap_or_else(|err| return_error::<Self::Ret>(method_name, err))
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }
 
             #[inline]
@@ -272,34 +286,39 @@ macro_rules! impl_ptrcall_signature_for_tuple {
             #[inline]
             unsafe fn in_ptrcall(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
-                method_name: &str,
+                call_ctx: &CallContext,
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
                 func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
                 call_type: sys::PtrcallType,
             ) {
-                // $crate::out!("in_ptrcall: {method_name}");
+                // $crate::out!("in_ptrcall: {call_ctx}");
+
                 let args = ($(
-                    unsafe { ptrcall_arg::<$Pn, $n>(args_ptr, method_name, call_type) },
+                    unsafe { ptrcall_arg::<$Pn, $n>(args_ptr, call_ctx, call_type) },
                 )*) ;
 
                 // SAFETY:
                 // `ret` is always a pointer to an initialized value of type $R
                 // TODO: double-check the above
-                ptrcall_return::<$R>(func(instance_ptr, args), ret, method_name, call_type)
+                ptrcall_return::<$R>(func(instance_ptr, args), ret, call_ctx, call_type)
             }
 
             #[inline]
             unsafe fn out_class_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
                 method_bind: ClassMethodBind,
+                // Separate parameters to reduce tokens in generated class API.
+                class_name: &'static str,
                 method_name: &'static str,
                 object_ptr: sys::GDExtensionObjectPtr,
                 maybe_instance_id: Option<InstanceId>, // if not static
                 ($($pn,)*): Self::Params,
             ) -> Self::Ret {
-                // $crate::out!("out_class_ptrcall: {method_name}");
+                let call_ctx = CallContext::outbound(class_name, method_name);
+                // $crate::out!("out_class_ptrcall: {call_ctx}");
+
                 if let Some(instance_id) = maybe_instance_id {
-                    crate::engine::ensure_object_alive(instance_id, object_ptr, method_name);
+                    crate::engine::ensure_object_alive(instance_id, object_ptr, &call_ctx);
                 }
 
                 let class_fn = sys::interface_fn!(object_method_bind_ptrcall);
@@ -320,17 +339,21 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 let result = Rr::call(|return_ptr| {
                     class_fn(method_bind.0, object_ptr, type_ptrs.as_ptr(), return_ptr);
                 });
-                result.unwrap_or_else(|err| return_error::<Self::Ret>(method_name, err))
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }
 
             #[inline]
             unsafe fn out_builtin_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
                 builtin_fn: BuiltinMethodBind,
+                // Separate parameters to reduce tokens in generated class API.
+                class_name: &'static str,
                 method_name: &'static str,
                 type_ptr: sys::GDExtensionTypePtr,
                 ($($pn,)*): Self::Params,
             ) -> Self::Ret {
-                // $crate::out!("out_builtin_ptrcall: {method_name}");
+                let call_ctx = CallContext::outbound(class_name, method_name);
+                // $crate::out!("out_builtin_ptrcall: {call_ctx}");
+
                 #[allow(clippy::let_unit_value)]
                 let marshalled_args = (
                     $(
@@ -347,16 +370,18 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 let result = Rr::call(|return_ptr| {
                     builtin_fn(type_ptr, type_ptrs.as_ptr(), return_ptr, type_ptrs.len() as i32);
                 });
-                result.unwrap_or_else(|err| return_error::<Self::Ret>(method_name, err))
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }
 
             #[inline]
             unsafe fn out_utility_ptrcall(
                 utility_fn: UtilityFunctionBind,
-                method_name: &'static str,
+                function_name: &'static str,
                 ($($pn,)*): Self::Params,
             ) -> Self::Ret {
-                // $crate::out!("out_utility_ptrcall: {method_name}");
+                let call_ctx = CallContext::outbound("", function_name);
+                // $crate::out!("out_utility_ptrcall: {call_ctx}");
+
                 #[allow(clippy::let_unit_value)]
                 let marshalled_args = (
                     $(
@@ -373,7 +398,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 let result = PtrcallReturnT::<$R>::call(|return_ptr| {
                     utility_fn(return_ptr, arg_ptrs.as_ptr(), arg_ptrs.len() as i32);
                 });
-                result.unwrap_or_else(|err| return_error::<Self::Ret>(method_name, err))
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }
         }
     };
@@ -385,12 +410,12 @@ macro_rules! impl_ptrcall_signature_for_tuple {
 /// - It must be safe to dereference the pointer at `args_ptr.offset(N)` .
 unsafe fn varcall_arg<P: FromGodot, const N: isize>(
     args_ptr: *const sys::GDExtensionConstVariantPtr,
-    method_name: &str,
+    call_ctx: &CallContext,
 ) -> P {
     let variant_ref = &*Variant::ptr_from_sys(*args_ptr.offset(N));
 
     let result = P::try_from_variant(variant_ref);
-    result.unwrap_or_else(|err| param_error::<P>(method_name, N as i32, err))
+    result.unwrap_or_else(|err| param_error::<P>(call_ctx, N as i32, err))
 }
 
 /// Moves `ret_val` into `ret`.
@@ -435,7 +460,7 @@ pub(crate) unsafe fn varcall_return_checked<R: ToGodot>(
 ///   [`GodotFuncMarshal::try_from_arg`][sys::GodotFuncMarshal::try_from_arg].
 unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
     args_ptr: *const sys::GDExtensionConstTypePtr,
-    method_name: &str,
+    call_ctx: &CallContext,
     call_type: sys::PtrcallType,
 ) -> P {
     let ffi = <P::Via as GodotType>::Ffi::from_arg_ptr(
@@ -443,7 +468,7 @@ unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
         call_type,
     );
 
-    try_from_ffi(ffi).unwrap_or_else(|err| param_error::<P>(method_name, N as i32, err))
+    try_from_ffi(ffi).unwrap_or_else(|err| param_error::<P>(call_ctx, N as i32, err))
 }
 
 /// Moves `ret_val` into `ret`.
@@ -454,26 +479,26 @@ unsafe fn ptrcall_arg<P: FromGodot, const N: isize>(
 unsafe fn ptrcall_return<R: ToGodot>(
     ret_val: R,
     ret: sys::GDExtensionTypePtr,
-    _method_name: &str,
+    _call_ctx: &CallContext,
     call_type: sys::PtrcallType,
 ) {
     let val = into_ffi(ret_val);
     val.move_return_ptr(ret, call_type);
 }
 
-fn param_error<P>(method_name: &str, index: i32, err: ConvertError) -> ! {
+fn param_error<P>(call_ctx: &CallContext, index: i32, err: ConvertError) -> ! {
     let param_ty = std::any::type_name::<P>();
-    panic!("in method `{method_name}` at parameter [{index}] of type {param_ty}: {err}",);
+    panic!("in function `{call_ctx}` at parameter [{index}] of type {param_ty}: {err}");
 }
 
-fn return_error<R>(method_name: &str, err: ConvertError) -> ! {
+fn return_error<R>(call_ctx: &CallContext, err: ConvertError) -> ! {
     let return_ty = std::any::type_name::<R>();
-    panic!("in method `{method_name}` at return type {return_ty}: {err}",);
+    panic!("in function `{call_ctx}` at return type {return_ty}: {err}");
 }
 
 fn check_varcall_error<T>(
     err: &sys::GDExtensionCallError,
-    fn_name: &str,
+    call_ctx: &CallContext,
     explicit_args: &[T],
     varargs: &[Variant],
 ) where
@@ -492,7 +517,7 @@ fn check_varcall_error<T>(
     let explicit_args_str = join_to_string(explicit_args);
     let vararg_str = join_to_string(varargs);
 
-    let func_str = format!("{fn_name}({explicit_args_str}; varargs {vararg_str})");
+    let func_str = format!("{call_ctx}({explicit_args_str}; varargs {vararg_str})");
 
     sys::panic_call_error(err, &func_str, &arg_types);
 }
@@ -550,3 +575,65 @@ impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3,
 impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11);
 impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11, (p12, 12): P12);
 impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3, 3): P3, (p4, 4): P4, (p5, 5): P5, (p6, 6): P6, (p7, 7): P7, (p8, 8): P8, (p9, 9): P9, (p10, 10): P10, (p11, 11): P11, (p12, 12): P12, (p13, 13): P13);
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Information about function and method calls.
+
+// Lazy Display, so we don't create tens of thousands of extra string literals.
+pub struct CallContext<'a> {
+    pub class_name: &'a str,
+    pub function_name: &'a str,
+}
+
+impl<'a> CallContext<'a> {
+    /// Call from Godot into a user-defined #[func] function.
+    pub const fn func(class_name: &'a str, function_name: &'a str) -> Self {
+        Self {
+            class_name,
+            function_name,
+        }
+    }
+
+    /// Outbound call from Rust into the engine, class/builtin APIs.
+    pub const fn outbound(class_name: &'a str, function_name: &'a str) -> Self {
+        Self {
+            class_name,
+            function_name,
+        }
+    }
+
+    /// Outbound call from Rust into the engine, via Gd methods.
+    pub fn gd<T: GodotClass>(function_name: &'a str) -> Self {
+        let class_name = T::class_name().as_str();
+        Self {
+            class_name,
+            function_name,
+        }
+    }
+}
+
+impl<'a> fmt::Display for CallContext<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}::{}", self.class_name, self.function_name)
+    }
+}
+
+fn check_arg_count(arg_count: i64, param_count: i64, call_ctx: &CallContext) {
+    // This will need to be adjusted once optional parameters are supported in #[func].
+    if arg_count != param_count {
+        let param_plural = plural(param_count);
+        let arg_plural = plural(arg_count);
+        panic!(
+            "{call_ctx} - function has {param_count} parameter{param_plural}, \
+            but received {arg_count} argument{arg_plural}"
+        );
+    }
+}
+
+fn plural(count: i64) -> &'static str {
+    if count == 1 {
+        ""
+    } else {
+        "s"
+    }
+}

@@ -14,15 +14,15 @@ use crate::obj::{bounds, Bounds, Gd, GodotClass, Inherits, InstanceId};
 pub use crate::gen::central::global;
 pub use crate::gen::classes::*;
 pub use crate::gen::utilities;
+pub use io::*;
+pub use script_instance::{create_script_instance, ScriptInstance};
 
+use crate::builtin::meta::CallContext;
 use crate::sys;
 
 mod io;
 mod script_instance;
 pub mod translate;
-
-pub use io::*;
-pub use script_instance::{create_script_instance, ScriptInstance};
 
 #[cfg(debug_assertions)]
 use crate::builtin::meta::ClassName;
@@ -174,20 +174,20 @@ where
 pub(crate) fn ensure_object_alive(
     instance_id: InstanceId,
     old_object_ptr: sys::GDExtensionObjectPtr,
-    method_name: &'static str,
+    call_ctx: &CallContext,
 ) {
     let new_object_ptr = object_ptr_from_id(instance_id);
 
     assert!(
         !new_object_ptr.is_null(),
-        "{method_name}: access to instance with ID {instance_id} after it has been freed"
+        "{call_ctx}: access to instance with ID {instance_id} after it has been freed"
     );
 
     // This should not happen, as reuse of instance IDs was fixed according to https://github.com/godotengine/godot/issues/32383,
     // namely in PR https://github.com/godotengine/godot/pull/36189. Double-check to make sure.
     assert_eq!(
         new_object_ptr, old_object_ptr,
-        "{method_name}: instance ID {instance_id} points to a stale, reused object. Please report this to gdext maintainers."
+        "{call_ctx}: instance ID {instance_id} points to a stale, reused object. Please report this to gdext maintainers."
     );
 }
 

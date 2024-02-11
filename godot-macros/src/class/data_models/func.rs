@@ -36,7 +36,11 @@ pub fn make_virtual_callback(
     let sig_tuple =
         util::make_signature_tuple_type(&signature_info.ret_type, &signature_info.param_types);
 
-    let invocation = make_ptrcall_invocation(method_name, &sig_tuple, &wrapped_method, true);
+    let call_ctx = make_call_context(
+        class_name.to_string().as_str(),
+        method_name.to_string().as_str(),
+    );
+    let invocation = make_ptrcall_invocation(&call_ctx, &sig_tuple, &wrapped_method, true);
 
     quote! {
         {
@@ -72,17 +76,20 @@ pub fn make_method_registration(
     let forwarding_closure =
         make_forwarding_closure(class_name, &signature_info, BeforeKind::Without);
 
-    let method_name = &signature_info.method_name;
-    let varcall_func = make_varcall_func(method_name, &sig_tuple, &forwarding_closure);
-    let ptrcall_func = make_ptrcall_func(method_name, &sig_tuple, &forwarding_closure);
-
     // String literals
+    let method_name = &signature_info.method_name;
     let class_name_str = class_name.to_string();
     let method_name_str = if let Some(rename) = func_definition.rename {
         rename
     } else {
         method_name.to_string()
     };
+
+    let call_ctx = make_call_context(&class_name_str, &method_name_str);
+    let varcall_func = make_varcall_func(&call_ctx, &sig_tuple, &forwarding_closure);
+    let ptrcall_func = make_ptrcall_func(&call_ctx, &sig_tuple, &forwarding_closure);
+
+    // String literals II
     let param_ident_strs = signature_info
         .param_idents
         .into_iter()
@@ -357,12 +364,11 @@ fn make_method_flags(method_type: ReceiverType) -> TokenStream {
 
 /// Generate code for a C FFI function that performs a varcall.
 fn make_varcall_func(
-    method_name: &Ident,
+    call_ctx: &TokenStream,
     sig_tuple: &TokenStream,
     wrapped_method: &TokenStream,
 ) -> TokenStream {
-    let invocation = make_varcall_invocation(method_name, sig_tuple, wrapped_method);
-    let method_name_str = method_name.to_string();
+    let invocation = make_varcall_invocation(call_ctx, sig_tuple, wrapped_method);
 
     quote! {
         {
@@ -370,12 +376,12 @@ fn make_varcall_func(
                 _method_data: *mut std::ffi::c_void,
                 instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDExtensionConstVariantPtr,
-                _arg_count: sys::GDExtensionInt,
+                arg_count: sys::GDExtensionInt,
                 ret: sys::GDExtensionVariantPtr,
                 err: *mut sys::GDExtensionCallError,
             ) {
                 let success = ::godot::private::handle_panic(
-                    || #method_name_str,
+                    || #call_ctx,
                     || #invocation
                 );
 
@@ -395,12 +401,11 @@ fn make_varcall_func(
 
 /// Generate code for a C FFI function that performs a ptrcall.
 fn make_ptrcall_func(
-    method_name: &Ident,
+    call_ctx: &TokenStream,
     sig_tuple: &TokenStream,
     wrapped_method: &TokenStream,
 ) -> TokenStream {
-    let invocation = make_ptrcall_invocation(method_name, sig_tuple, wrapped_method, false);
-    let method_name_str = method_name.to_string();
+    let invocation = make_ptrcall_invocation(call_ctx, sig_tuple, wrapped_method, false);
 
     quote! {
         {
@@ -411,7 +416,7 @@ fn make_ptrcall_func(
                 ret: sys::GDExtensionTypePtr,
             ) {
                 let success = ::godot::private::handle_panic(
-                    || #method_name_str,
+                    || #call_ctx,
                     || #invocation
                 );
 
@@ -427,13 +432,11 @@ fn make_ptrcall_func(
 
 /// Generate code for a `ptrcall` call expression.
 fn make_ptrcall_invocation(
-    method_name: &Ident,
+    call_ctx: &TokenStream,
     sig_tuple: &TokenStream,
     wrapped_method: &TokenStream,
     is_virtual: bool,
 ) -> TokenStream {
-    let method_name_str = method_name.to_string();
-
     let ptrcall_type = if is_virtual {
         quote! { sys::PtrcallType::Virtual }
     } else {
@@ -443,7 +446,7 @@ fn make_ptrcall_invocation(
     quote! {
          <#sig_tuple as ::godot::builtin::meta::PtrcallSignatureTuple>::in_ptrcall(
             instance_ptr,
-            #method_name_str,
+            & #call_ctx,
             args_ptr,
             ret,
             #wrapped_method,
@@ -454,20 +457,25 @@ fn make_ptrcall_invocation(
 
 /// Generate code for a `varcall()` call expression.
 fn make_varcall_invocation(
-    method_name: &Ident,
+    call_ctx: &TokenStream,
     sig_tuple: &TokenStream,
     wrapped_method: &TokenStream,
 ) -> TokenStream {
-    let method_name_str = method_name.to_string();
-
     quote! {
         <#sig_tuple as ::godot::builtin::meta::VarcallSignatureTuple>::in_varcall(
             instance_ptr,
-            #method_name_str,
+            & #call_ctx,
             args_ptr,
+            arg_count,
             ret,
             err,
             #wrapped_method,
         )
+    }
+}
+
+fn make_call_context(class_name_str: &str, method_name_str: &str) -> TokenStream {
+    quote! {
+        ::godot::builtin::meta::CallContext::func(#class_name_str, #method_name_str)
     }
 }

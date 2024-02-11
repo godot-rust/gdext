@@ -835,6 +835,38 @@ fn object_call_with_args() {
 }
 
 #[itest]
+fn object_call_with_too_few_args() {
+    let mut obj = ObjPayload::new_alloc();
+
+    expect_panic("call with too few arguments", || {
+        obj.call("take_1_int".into(), &[]);
+    });
+
+    obj.free();
+}
+
+#[itest]
+fn object_call_with_too_many_args() {
+    let mut obj = ObjPayload::new_alloc();
+
+    expect_panic("call with too many arguments", || {
+        obj.call("take_1_int".into(), &[42.to_variant(), 43.to_variant()]);
+    });
+
+    obj.free();
+}
+
+#[itest(skip)] // Not yet implemented.
+fn object_call_panic_is_nil() {
+    let mut obj = ObjPayload::new_alloc();
+
+    let result = obj.call("do_panic".into(), &[]);
+    assert_eq!(result, Variant::nil());
+
+    obj.free();
+}
+
+#[itest]
 fn object_get_scene_tree(ctx: &TestContext) {
     let node = Node3D::new_alloc();
 
@@ -855,6 +887,16 @@ pub(super) struct ObjPayload {}
 impl ObjPayload {
     #[signal]
     fn do_use();
+
+    #[func]
+    fn take_1_int(&self, value: i64) -> i64 {
+        value
+    }
+
+    #[func]
+    fn do_panic(&self) {
+        panic!("panic from Rust");
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
