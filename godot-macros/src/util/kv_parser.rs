@@ -388,13 +388,6 @@ impl<'a> ParserState<'a> {
     }
 }
 
-pub(crate) fn has_attr(attributes: &[Attribute], expected: &str, key: &str) -> bool {
-    match KvParser::parse(attributes, expected) {
-        Ok(Some(mut kvp)) => kvp.handle_alone(key).unwrap(),
-        _ => false,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -7,9 +7,9 @@
 
 use std::fmt::Debug;
 
-use godot::builtin::meta::{FromGodot, ToGodot};
-use godot::builtin::{dict, varray, Variant};
-use godot::register::{FromGodot, GodotConvert, ToGodot};
+use godot::builtin::meta::ToGodot;
+use godot::builtin::{GString, Vector2};
+use godot::register::GodotConvert;
 
 use crate::common::roundtrip;
 use crate::framework::itest;
@@ -17,251 +17,96 @@ use crate::framework::itest;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // General FromGodot/ToGodot derive tests
 
-#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
-struct StructUnit;
+#[derive(GodotConvert, PartialEq, Debug)]
+#[godot(transparent)]
+struct TupleNewtype(GString);
 
-#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
-struct StructNewType(String);
-
-#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
-struct StructTuple(String, i32);
-
-#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
-struct StructNamed {
-    field1: String,
-    field2: i32,
+#[derive(GodotConvert, PartialEq, Debug)]
+#[godot(transparent)]
+struct NamedNewtype {
+    field1: Vector2,
 }
 
-#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
-struct StructGenWhere<T>(T)
-where
-    T: ToGodot + FromGodot;
+#[derive(GodotConvert, Clone, PartialEq, Debug)]
+#[godot(via = GString)]
+enum EnumStringy {
+    A,
+    B,
+    C = 10,
+    D = 50,
+}
 
-trait Bound {}
-
-#[derive(FromGodot, ToGodot, GodotConvert, PartialEq, Debug)]
-struct StructGenBound<T: Bound + ToGodot + FromGodot>(T);
-
-#[derive(FromGodot, ToGodot, GodotConvert, Clone, PartialEq, Debug)]
-enum Uninhabited {}
-
-#[derive(FromGodot, ToGodot, GodotConvert, Clone, PartialEq, Debug)]
-enum Enum {
-    Unit,
-    OneTuple(i32),
-    Named { data: String },
-    Tuple(String, i32),
+#[derive(GodotConvert, Clone, PartialEq, Debug)]
+#[godot(via = i64)]
+enum EnumInty {
+    A = 10,
+    B,
+    C,
+    D = 1,
+    E,
 }
 
 #[itest]
-fn unit_struct() {
-    roundtrip(StructUnit);
-    roundtrip(dict! { "StructUnit": godot::builtin::Variant::nil() });
+fn newtype_tuple_struct() {
+    roundtrip(TupleNewtype("hello!".into()));
 }
 
 #[itest]
-fn new_type_struct() {
-    roundtrip(StructNewType(String::from("five")));
-    roundtrip(dict! { "StructNewType" : "five" })
-}
-
-#[itest]
-fn tuple_struct() {
-    roundtrip(StructTuple(String::from("one"), 2));
-    roundtrip(dict! {
-        "StructTuple": varray!["one", 2]
+fn newtype_named_struct() {
+    roundtrip(NamedNewtype {
+        field1: Vector2::new(10.0, 25.0),
     });
 }
 
 #[itest]
-fn named_struct() {
-    roundtrip(StructNamed {
-        field1: String::from("four"),
-        field2: 5,
-    });
-    roundtrip(dict! {
-        "StructNamed": dict! { "field1": "four", "field2": 5 }
-    });
+fn enum_stringy() {
+    roundtrip(EnumStringy::A);
+    roundtrip(EnumStringy::B);
+    roundtrip(EnumStringy::C);
+    roundtrip(EnumStringy::D);
+
+    assert_eq!(EnumStringy::A.to_godot(), "A".into());
+    assert_eq!(EnumStringy::B.to_godot(), "B".into());
+    assert_eq!(EnumStringy::C.to_godot(), "C".into());
+    assert_eq!(EnumStringy::D.to_godot(), "D".into());
 }
 
 #[itest]
-fn generics() {
-    roundtrip(StructGenWhere(String::from("4")));
-    roundtrip(dict! { "StructGenWhere": "4" });
+fn enum_inty() {
+    roundtrip(EnumInty::A);
+    roundtrip(EnumInty::B);
+    roundtrip(EnumInty::C);
+    roundtrip(EnumInty::D);
+    roundtrip(EnumInty::E);
+
+    assert_eq!(EnumInty::A.to_godot(), 10);
+    assert_eq!(EnumInty::B.to_godot(), 11);
+    assert_eq!(EnumInty::C.to_godot(), 12);
+    assert_eq!(EnumInty::D.to_godot(), 1);
+    assert_eq!(EnumInty::E.to_godot(), 2);
 }
 
-impl Bound for String {}
-
-#[itest]
-fn generics_bound() {
-    roundtrip(StructGenBound(String::from("4")));
-    roundtrip(dict! { "StructGenBound": "4" });
-}
-
-#[itest]
-fn enum_unit() {
-    roundtrip(Enum::Unit);
-    roundtrip(dict! { "Enum": "Unit" });
-}
-
-#[itest]
-fn enum_one_tuple() {
-    roundtrip(Enum::OneTuple(4));
-    roundtrip(dict! {
-        "Enum": dict! { "OneTuple" : 4 }
-    });
-}
-
-#[itest]
-fn enum_tuple() {
-    roundtrip(Enum::Tuple(String::from("four"), 5));
-    roundtrip(dict! { "Enum": dict! { "Tuple" : varray!["four", 5] } });
-}
-
-#[itest]
-fn enum_named() {
-    roundtrip(Enum::Named {
-        data: String::from("data"),
-    });
-    roundtrip(dict! {
-        "Enum": dict!{ "Named": dict!{ "data": "data" } }
-    });
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Skipping of enums
-
-macro_rules! roundtrip_with_skip {
-    ($name_to:ident, $name_from:ident, $value:expr, $to_var:expr, $from_var:expr) => {
-        #[itest]
-        fn $name_to() {
-            let s = $value;
-            assert_eq!(s.to_variant(), $to_var.to_variant(),)
+macro_rules! test_inty {
+    ($T:ident, $test_name:ident, $class_name:ident) => {
+        #[derive(GodotConvert, Clone, PartialEq, Debug)]
+        #[godot(via = $T)]
+        enum $class_name {
+            A,
+            B,
         }
 
         #[itest]
-        fn $name_from() {
-            assert_eq!(EnumWithSkip::from_variant(&$to_var.to_variant()), $from_var);
+        fn $test_name() {
+            roundtrip($class_name::A);
+            roundtrip($class_name::B);
         }
     };
 }
 
-#[derive(ToGodot, FromGodot, GodotConvert, Default, Clone, PartialEq, Debug)]
-enum EnumWithSkip {
-    #[variant(skip)]
-    Skipped(String),
-    NewType(#[variant(skip)] String),
-    PartSkippedTuple(#[variant(skip)] String, String),
-    PartSkippedNamed {
-        #[variant(skip)]
-        skipped_data: String,
-        data: String,
-    },
-    #[default]
-    Default,
-}
-
-roundtrip_with_skip!(
-    skipped_to_variant,
-    skipped_from_variant,
-    EnumWithSkip::Skipped("one".to_string()),
-    dict! { "EnumWithSkip" : Variant::nil() },
-    EnumWithSkip::default()
-);
-
-roundtrip_with_skip!(
-    skipped_newtype_to_variant,
-    skipped_newtype_from_variant,
-    EnumWithSkip::NewType("whatever".to_string()),
-    dict! { "EnumWithSkip" : dict!{ "NewType" : Variant::nil() } },
-    EnumWithSkip::NewType(String::default())
-);
-
-roundtrip_with_skip!(
-    skipped_tuple_to_variant,
-    skipped_tuple_from_variant,
-    EnumWithSkip::PartSkippedTuple("skipped".to_string(), "three".to_string()),
-    dict! {
-        "EnumWithSkip": dict!{
-            "PartSkippedTuple" : varray!["three"]
-        }
-    },
-    EnumWithSkip::PartSkippedTuple(String::default(), "three".to_string())
-);
-
-roundtrip_with_skip!(
-    named_skipped_to_variant,
-    named_skipped_from_variant,
-    EnumWithSkip::PartSkippedNamed {
-        skipped_data: "four".to_string(),
-        data: "five".to_string(),
-    },
-    dict! {
-        "EnumWithSkip": dict!{
-            "PartSkippedNamed" : dict! { "data" : "five" }
-        }
-    },
-    EnumWithSkip::PartSkippedNamed {
-        data: "five".to_string(),
-        skipped_data: String::default()
-    }
-);
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Skipping of structs
-
-#[derive(ToGodot, FromGodot, GodotConvert, Default, PartialEq, Debug)]
-struct NewTypeStructWithSkip(#[variant(skip)] String);
-
-#[derive(ToGodot, FromGodot, GodotConvert, Default, PartialEq, Debug)]
-struct StructWithSkip {
-    #[variant(skip)]
-    skipped_field: String,
-    field: String,
-}
-
-#[itest]
-fn new_type_to_variant() {
-    assert_eq!(
-        NewTypeStructWithSkip("four".to_string()).to_variant(),
-        dict! {"NewTypeStructWithSkip" : varray![] }.to_variant()
-    );
-}
-
-#[itest]
-fn new_type_from_variant() {
-    let s = NewTypeStructWithSkip("four".to_string());
-    assert_eq!(
-        NewTypeStructWithSkip::from_variant(&s.to_variant()),
-        NewTypeStructWithSkip::default()
-    )
-}
-
-#[itest]
-fn struct_with_skip_to_variant() {
-    assert_eq!(
-        StructWithSkip {
-            skipped_field: "four".to_string(),
-            field: "seven".to_string(),
-        }
-        .to_variant(),
-        dict! { "StructWithSkip" : dict! { "field" : "seven" } }.to_variant()
-    );
-}
-
-#[itest]
-fn struct_with_skip_from_variant() {
-    assert_eq!(
-        StructWithSkip {
-            field: "seven".to_string(),
-            ..Default::default()
-        },
-        StructWithSkip::from_variant(
-            &StructWithSkip {
-                skipped_field: "four".to_string(),
-                field: "seven".to_string(),
-            }
-            .to_variant()
-        )
-    );
-}
+test_inty!(i8, test_enum_i8, EnumI8);
+test_inty!(i16, test_enum_16, EnumI16);
+test_inty!(i32, test_enum_i32, EnumI32);
+test_inty!(i64, test_enum_i64, EnumI64);
+test_inty!(u8, test_enum_u8, EnumU8);
+test_inty!(u16, test_enum_u16, EnumU16);
+test_inty!(u32, test_enum_u32, EnumU32);

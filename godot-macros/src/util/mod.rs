@@ -11,12 +11,11 @@ use crate::ParseResult;
 use proc_macro2::{Delimiter, Group, Ident, Literal, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use venial::{Error, Function, GenericParamList, Impl, TyExpr, WhereClause};
+use venial::{Error, Function, Impl, TyExpr};
 
 mod kv_parser;
 mod list_parser;
 
-pub(crate) use kv_parser::has_attr;
 pub(crate) use kv_parser::KvParser;
 pub(crate) use list_parser::ListParser;
 
@@ -247,115 +246,10 @@ pub(crate) fn extract_cfg_attrs(
     })
 }
 
-pub(crate) struct DeclInfo {
-    pub where_: Option<WhereClause>,
-    pub generic_params: Option<GenericParamList>,
-    pub name: Ident,
-    pub name_string: String,
-}
-
-pub(crate) fn decl_get_info(decl: &venial::Declaration) -> DeclInfo {
-    let (where_, generic_params, name, name_string) = match decl {
-        venial::Declaration::Struct(struct_) => (
-            struct_.where_clause.clone(),
-            struct_.generic_params.clone(),
-            struct_.name.clone(),
-            struct_.name.to_string(),
-        ),
-        venial::Declaration::Enum(enum_) => (
-            enum_.where_clause.clone(),
-            enum_.generic_params.clone(),
-            enum_.name.clone(),
-            enum_.name.to_string(),
-        ),
-        _ => {
-            panic!("only enums and structs are supported at the moment")
-        }
-    };
-
-    DeclInfo {
-        where_,
-        generic_params,
-        name,
-        name_string,
-    }
-}
-
 pub fn make_virtual_tool_check() -> TokenStream {
     quote! {
         if ::godot::private::is_class_inactive(Self::__config().is_tool) {
             return None;
         }
     }
-}
-
-pub enum ViaType {
-    Struct,
-    EnumWithRepr { int_ty: Ident },
-    Enum,
-}
-
-impl ToTokens for ViaType {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            ViaType::Struct | ViaType::Enum => {
-                quote! { ::godot::builtin::Variant }.to_tokens(tokens)
-            }
-            ViaType::EnumWithRepr { int_ty } => int_ty.to_tokens(tokens),
-        }
-    }
-}
-
-pub fn via_type(declaration: &venial::Declaration) -> ParseResult<ViaType> {
-    use venial::Declaration;
-
-    match declaration {
-        Declaration::Enum(enum_) => enum_repr(enum_),
-        Declaration::Struct(_) => Ok(ViaType::Struct),
-        other => bail!(
-            other,
-            "cannot get via type for {:?}, only structs and enums are supported currently",
-            other.name()
-        ),
-    }
-}
-
-pub fn enum_repr(enum_: &venial::Enum) -> ParseResult<ViaType> {
-    let Some(repr) = enum_
-        .attributes
-        .iter()
-        .find(|attr| attr.get_single_path_segment() == Some(&ident("repr")))
-    else {
-        return Ok(ViaType::Enum);
-    };
-
-    let venial::AttributeValue::Group(_, repr_value) = &repr.value else {
-        // `repr` is always going to look like `#[repr(..)]`
-        unreachable!()
-    };
-
-    let Some(repr_type) = repr_value.first() else {
-        // `#[repr()]` is just a warning apparently, so we're gonna give an error if that's provided.
-        return bail!(&repr.value, "expected non-empty `repr` list");
-    };
-
-    let TokenTree::Ident(repr_type) = &repr_type else {
-        // all valid non-empty `#[repr(..)]` will have an ident as its first element.
-        unreachable!();
-    };
-
-    if !matches!(
-        repr_type.to_string().as_str(),
-        "i8" | "u8" | "i16" | "u16" | "i32" | "u32" | "i64"
-    ) {
-        return bail!(
-            &repr_type,
-            "enum with repr #[repr({})] cannot implement `GodotConvert`, repr must be one of: i8, i16, i32, i64, u8, u16, u32",
-            repr_type.to_string(),
-        );
-    }
-
-    Ok(ViaType::EnumWithRepr {
-        int_ty: repr_type.clone(),
-    })
 }

@@ -304,6 +304,7 @@ struct CheckAllExports {
 }
 
 #[derive(GodotConvert, Var, Export, Eq, PartialEq, Debug)]
+#[godot(via = i64)]
 #[repr(i64)]
 pub enum TestEnum {
     A = 0,
