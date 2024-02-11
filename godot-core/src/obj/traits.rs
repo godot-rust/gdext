@@ -183,6 +183,11 @@ pub trait EngineBitfield: Copy {
         Self::try_from_ord(ord)
             .unwrap_or_else(|| panic!("ordinal {ord} does not map to any valid bit flag"))
     }
+
+    // TODO consolidate API: named methods vs. | & ! etc.
+    fn is_set(self, flag: Self) -> bool {
+        self.ord() & flag.ord() != 0
+    }
 }
 
 /// Trait for enums that can be used as indices in arrays.
