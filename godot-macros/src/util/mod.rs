@@ -58,7 +58,20 @@ macro_rules! bail {
     }
 }
 
-pub(crate) use bail;
+macro_rules! require_api_version {
+    ($min_version:literal, $span:expr, $attribute:literal) => {
+        if !cfg!(since_api = $min_version) {
+            bail!(
+                $span,
+                "{} requires at least Godot API version {}",
+                $attribute,
+                $min_version
+            )
+        } else {
+            Ok(())
+        }
+    };
+}
 
 pub fn error_fn<T>(msg: impl AsRef<str>, tokens: T) -> Error
 where
@@ -73,7 +86,9 @@ macro_rules! error {
     }
 }
 
+pub(crate) use bail;
 pub(crate) use error;
+pub(crate) use require_api_version;
 
 pub fn reduce_to_signature(function: &Function) -> Function {
     let mut reduced = function.clone();

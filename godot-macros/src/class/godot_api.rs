@@ -13,7 +13,7 @@ use crate::class::{
     into_signature_info, make_method_registration, make_virtual_callback, BeforeKind,
     FuncDefinition, SignatureInfo,
 };
-use crate::util::{bail, KvParser};
+use crate::util::{bail, require_api_version, KvParser};
 use crate::{util, ParseResult};
 
 pub fn attribute_godot_api(input_decl: venial::Declaration) -> ParseResult<TokenStream> {
@@ -513,7 +513,12 @@ where
                 let rename = parser.handle_expr("rename")?.map(|ts| ts.to_string());
 
                 // #[func(virtual)]
-                let is_virtual = parser.handle_alone("virtual")?;
+                let is_virtual = if let Some(span) = parser.handle_alone_with_span("virtual")? {
+                    require_api_version!("4.3", span, "#[func(virtual)]")?;
+                    true
+                } else {
+                    false
+                };
 
                 // #[func(gd_self)]
                 let has_gd_self = parser.handle_alone("gd_self")?;

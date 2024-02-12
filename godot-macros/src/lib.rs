@@ -391,12 +391,12 @@ use crate::util::ident;
 ///
 /// ## Class hiding
 ///
-/// If you want to register a class with Godot, but not have it show up in the editor then you can use `#[class(hide)]`.
+/// If you want to register a class with Godot, but not have it show up in the editor then you can use `#[class(hidden)]`.
 ///
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
-/// #[class(base=Node, init, hide)]
+/// #[class(base=Node, init, hidden)]
 /// pub struct Foo {}
 /// ```
 ///
