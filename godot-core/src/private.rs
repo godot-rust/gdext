@@ -130,6 +130,14 @@ where
     }
 }
 
+#[cfg(since_api = "4.3")]
+pub unsafe fn has_virtual_script_method(
+    object_ptr: sys::GDExtensionObjectPtr,
+    method_sname: sys::GDExtensionConstStringNamePtr,
+) -> bool {
+    sys::interface_fn!(object_has_script_method)(sys::to_const_ptr(object_ptr), method_sname) != 0
+}
+
 pub fn flush_stdout() {
     use std::io::Write;
     std::io::stdout().flush().expect("flush stdout");

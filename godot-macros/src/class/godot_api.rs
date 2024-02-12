@@ -5,13 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Ident, TokenStream};
-use quote::quote;
+use proc_macro2::{Delimiter, Group, Ident, TokenStream};
 use quote::spanned::Spanned;
-use venial::{
-    Attribute, AttributeValue, Constant, Declaration, Error, FnParam, Function, Impl, ImplMember,
-    TyExpr,
-};
+use quote::{format_ident, quote};
 
 use crate::class::{
     into_signature_info, make_method_registration, make_virtual_callback, BeforeKind,
@@ -20,9 +16,9 @@ use crate::class::{
 use crate::util::{bail, KvParser};
 use crate::{util, ParseResult};
 
-pub fn attribute_godot_api(input_decl: Declaration) -> Result<TokenStream, Error> {
+pub fn attribute_godot_api(input_decl: venial::Declaration) -> ParseResult<TokenStream> {
     let decl = match input_decl {
-        Declaration::Impl(decl) => decl,
+        venial::Declaration::Impl(decl) => decl,
         _ => bail!(
             input_decl,
             "#[godot_api] can only be applied on impl blocks",
@@ -50,55 +46,62 @@ pub fn attribute_godot_api(input_decl: Declaration) -> Result<TokenStream, Error
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Attribute for user-declared function
-enum BoundAttrType {
+enum ItemAttrType {
     Func {
         rename: Option<String>,
+        is_virtual: bool,
         has_gd_self: bool,
     },
-    Signal(AttributeValue),
-    Const(#[allow(dead_code)] AttributeValue),
+    Signal(venial::AttributeValue),
+    Const(#[allow(dead_code)] venial::AttributeValue),
 }
 
-struct BoundAttr {
+struct ItemAttr {
     attr_name: Ident,
     index: usize,
-    ty: BoundAttrType,
+    ty: ItemAttrType,
 }
 
-impl BoundAttr {
-    fn bail<R>(self, msg: &str, method: &Function) -> Result<R, Error> {
+impl ItemAttr {
+    fn bail<R>(self, msg: &str, method: &venial::Function) -> ParseResult<R> {
         bail!(&method.name, "#[{}]: {}", self.attr_name, msg)
     }
+}
+
+fn bail_attr<R>(attr_name: Ident, msg: &str, method: &venial::Function) -> ParseResult<R> {
+    bail!(&method.name, "#[{}]: {}", attr_name, msg)
 }
 
 /// Holds information known from a signal's definition
 struct SignalDefinition {
     /// The signal's function signature.
-    signature: Function,
+    signature: venial::Function,
 
     /// The signal's non-gdext attributes (all except #[signal]).
-    external_attributes: Vec<Attribute>,
+    external_attributes: Vec<venial::Attribute>,
 }
 
 /// Codegen for `#[godot_api] impl MyType`
-fn transform_inherent_impl(mut original_impl: Impl) -> ParseResult<TokenStream> {
+fn transform_inherent_impl(mut original_impl: venial::Impl) -> ParseResult<TokenStream> {
     let class_name = util::validate_impl(&original_impl, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
     let prv = quote! { ::godot::private };
 
-    let (funcs, signals) = process_godot_fns(&mut original_impl)?;
+    let (funcs, signals, out_virtual_impl) = process_godot_fns(&class_name, &mut original_impl)?;
 
     let signal_registrations = make_signal_registrations(signals, &class_name_obj);
 
-    let method_registrations = funcs
+    let method_registrations: Vec<TokenStream> = funcs
         .into_iter()
-        .map(|func_def| make_method_registration(&class_name, func_def));
+        .map(|func_def| make_method_registration(&class_name, func_def))
+        .collect::<ParseResult<Vec<TokenStream>>>()?; // <- FIXME transpose this
 
     let constant_registration =
         make_constant_registration(&mut original_impl, &class_name, &class_name_obj)?;
 
     let result = quote! {
         #original_impl
+        #out_virtual_impl
 
         impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
             fn __register_methods() {
@@ -136,16 +139,16 @@ fn make_signal_registrations(
             signature,
             external_attributes,
         } = signal;
-        let mut param_types: Vec<TyExpr> = Vec::new();
+        let mut param_types: Vec<venial::TyExpr> = Vec::new();
         let mut param_names: Vec<String> = Vec::new();
 
         for param in signature.params.inner.iter() {
             match &param.0 {
-                FnParam::Typed(param) => {
+                venial::FnParam::Typed(param) => {
                     param_types.push(param.ty.clone());
                     param_names.push(param.name.to_string());
                 }
-                FnParam::Receiver(_) => {}
+                venial::FnParam::Receiver(_) => {}
             };
         }
 
@@ -163,9 +166,10 @@ fn make_signal_registrations(
 
         // Transport #[cfg] attributes to the FFI glue, to ensure signals which were conditionally
         // removed from compilation don't cause errors.
-        let signal_cfg_attrs: Vec<&Attribute> = util::extract_cfg_attrs(external_attributes)
-            .into_iter()
-            .collect();
+        let signal_cfg_attrs: Vec<&venial::Attribute> =
+            util::extract_cfg_attrs(external_attributes)
+                .into_iter()
+                .collect();
         let signal_name_str = signature.name.to_string();
         let signal_parameters_count = param_names.len();
         let signal_parameters = param_array_decl;
@@ -197,7 +201,7 @@ fn make_signal_registrations(
 }
 
 fn make_constant_registration(
-    original_impl: &mut Impl,
+    original_impl: &mut venial::Impl,
     class_name: &Ident,
     class_name_obj: &TokenStream,
 ) -> ParseResult<TokenStream> {
@@ -253,63 +257,102 @@ fn make_constant_registration(
 }
 
 fn process_godot_fns(
-    impl_block: &mut Impl,
-) -> Result<(Vec<FuncDefinition>, Vec<SignalDefinition>), Error> {
+    class_name: &Ident,
+    impl_block: &mut venial::Impl,
+) -> ParseResult<(Vec<FuncDefinition>, Vec<SignalDefinition>, TokenStream)> {
     let mut func_definitions = vec![];
     let mut signal_definitions = vec![];
+    let mut virtual_functions = vec![];
 
     let mut removed_indexes = vec![];
     for (index, item) in impl_block.body_items.iter_mut().enumerate() {
-        let ImplMember::Method(method) = item else {
+        let venial::ImplMember::Method(function) = item else {
             continue;
         };
 
-        let Some(attr) = extract_attributes(&method, &method.attributes)? else {
+        let Some(attr) = extract_attributes(&function, &function.attributes)? else {
             continue;
         };
 
         // Remaining code no longer has attribute -- rest stays
-        method.attributes.remove(attr.index);
+        function.attributes.remove(attr.index);
 
-        if method.qualifiers.tk_default.is_some()
-            || method.qualifiers.tk_const.is_some()
-            || method.qualifiers.tk_async.is_some()
-            || method.qualifiers.tk_unsafe.is_some()
-            || method.qualifiers.tk_extern.is_some()
-            || method.qualifiers.extern_abi.is_some()
+        if function.qualifiers.tk_default.is_some()
+            || function.qualifiers.tk_const.is_some()
+            || function.qualifiers.tk_async.is_some()
+            || function.qualifiers.tk_unsafe.is_some()
+            || function.qualifiers.tk_extern.is_some()
+            || function.qualifiers.extern_abi.is_some()
         {
-            return attr.bail("fn qualifiers are not allowed", method);
+            return attr.bail("fn qualifiers are not allowed", function);
         }
 
-        match &attr.ty {
-            BoundAttrType::Func {
+        if function.generic_params.is_some() {
+            return attr.bail("generic fn parameters are not supported", function);
+        }
+
+        match attr.ty {
+            ItemAttrType::Func {
                 rename,
+                is_virtual,
                 has_gd_self,
             } => {
-                let external_attributes = method.attributes.clone();
-                // Signatures are the same thing without body
-                let mut sig = util::reduce_to_signature(method);
-                if *has_gd_self {
-                    if sig.params.is_empty() {
-                        return attr.bail("with attribute key `gd_self`, the method must have a first parameter of type Gd<Self>", method);
+                let external_attributes = function.attributes.clone();
+
+                // Signatures are the same thing without body.
+                let mut signature = util::reduce_to_signature(function);
+                let gd_self_parameter = if has_gd_self {
+                    if signature.params.is_empty() {
+                        return bail_attr(
+                            attr.attr_name,
+                            "with attribute key `gd_self`, the method must have a first parameter of type Gd<Self>",
+                            function
+                        );
                     } else {
-                        sig.params.inner.remove(0);
+                        let param = signature.params.inner.remove(0);
+
+                        let venial::FnParam::Typed(param) = param.0 else {
+                            return bail_attr(
+                                attr.attr_name,
+                                "with attribute key `gd_self`, the first parameter must be Gd<Self> (not a `self` receiver)",
+                                function
+                            );
+                        };
+
+                        Some(param.name)
                     }
-                }
+                } else {
+                    None
+                };
+
+                // For virtual methods, rename/mangle existing user method and create a new method with the original name,
+                // which performs a dynamic dispatch.
+                if is_virtual {
+                    add_virtual_script_call(
+                        &mut virtual_functions,
+                        function,
+                        &signature,
+                        class_name,
+                        &rename,
+                        gd_self_parameter,
+                    );
+                };
+
                 func_definitions.push(FuncDefinition {
-                    func: sig,
+                    signature,
                     external_attributes,
-                    rename: rename.clone(),
-                    has_gd_self: *has_gd_self,
+                    rename,
+                    is_virtual,
+                    has_gd_self,
                 });
             }
-            BoundAttrType::Signal(ref _attr_val) => {
-                if method.return_ty.is_some() {
-                    return attr.bail("return types are not supported", method);
+            ItemAttrType::Signal(ref _attr_val) => {
+                if function.return_ty.is_some() {
+                    return attr.bail("return types are not supported", function);
                 }
 
-                let external_attributes = method.attributes.clone();
-                let sig = util::reduce_to_signature(method);
+                let external_attributes = function.attributes.clone();
+                let sig = util::reduce_to_signature(function);
 
                 signal_definitions.push(SignalDefinition {
                     signature: sig,
@@ -318,10 +361,10 @@ fn process_godot_fns(
 
                 removed_indexes.push(index);
             }
-            BoundAttrType::Const(_) => {
+            ItemAttrType::Const(_) => {
                 return attr.bail(
                     "#[constant] can only be used on associated constant",
-                    method,
+                    function,
                 )
             }
         }
@@ -333,14 +376,92 @@ fn process_godot_fns(
         impl_block.body_items.remove(index);
     }
 
-    Ok((func_definitions, signal_definitions))
+    let out_virtual_impl = if virtual_functions.is_empty() {
+        TokenStream::new()
+    } else {
+        quote! {
+            impl #class_name {
+                #(#virtual_functions)*
+            }
+        }
+    };
+
+    Ok((func_definitions, signal_definitions, out_virtual_impl))
 }
 
-fn process_godot_constants(decl: &mut Impl) -> Result<Vec<Constant>, Error> {
+fn add_virtual_script_call(
+    virtual_functions: &mut Vec<venial::Function>,
+    function: &mut venial::Function,
+    reduced_signature: &venial::Function,
+    class_name: &Ident,
+    rename: &Option<String>,
+    gd_self_parameter: Option<Ident>,
+) {
+    assert!(cfg!(since_api = "4.3"));
+
+    let class_name_str = class_name.to_string();
+    let early_bound_name = format_ident!("__earlybound_{}", &function.name);
+    let method_name_str = rename.clone().unwrap_or_else(|| function.name.to_string());
+
+    // Clone might not strictly be necessary, but the 2 other callers of into_signature_info() are better off with pass-by-value.
+    let signature_info = into_signature_info(
+        reduced_signature.clone(),
+        class_name,
+        gd_self_parameter.is_some(),
+    );
+
+    let sig_tuple = signature_info.tuple_type();
+    let arg_names = &signature_info.param_idents;
+
+    let (object_ptr, receiver);
+    if let Some(gd_self_parameter) = gd_self_parameter {
+        object_ptr = quote! { #gd_self_parameter.obj_sys() };
+        receiver = gd_self_parameter;
+    } else {
+        object_ptr = quote! { <Self as ::godot::obj::WithBaseField>::base_field(self).obj_sys() };
+        receiver = util::ident("self");
+    };
+
+    let code = quote! {
+        let object_ptr = #object_ptr;
+        let method_sname = ::godot::builtin::StringName::from(#method_name_str);
+        let method_sname_ptr = method_sname.string_sys_const();
+        let has_virtual_method = unsafe { ::godot::private::has_virtual_script_method(object_ptr, method_sname_ptr) };
+
+        if has_virtual_method {
+            // Dynamic dispatch.
+            type CallSig = #sig_tuple;
+            let args = (#( #arg_names, )*);
+            unsafe {
+                <CallSig as ::godot::builtin::meta::VarcallSignatureTuple>::out_script_virtual_call(
+                    #class_name_str,
+                    #method_name_str,
+                    method_sname_ptr,
+                    object_ptr,
+                    args,
+                )
+            }
+        } else {
+            // Fall back to default implementation.
+            Self::#early_bound_name(#receiver, #(#arg_names),*)
+        }
+    };
+
+    let mut early_bound_function = venial::Function {
+        name: early_bound_name,
+        body: Some(Group::new(Delimiter::Brace, code)),
+        ..function.clone()
+    };
+
+    std::mem::swap(&mut function.body, &mut early_bound_function.body);
+    virtual_functions.push(early_bound_function);
+}
+
+fn process_godot_constants(decl: &mut venial::Impl) -> ParseResult<Vec<venial::Constant>> {
     let mut constant_signatures = vec![];
 
     for item in decl.body_items.iter_mut() {
-        let ImplMember::Constant(constant) = item else {
+        let venial::ImplMember::Constant(constant) = item else {
             continue;
         };
 
@@ -349,13 +470,13 @@ fn process_godot_constants(decl: &mut Impl) -> Result<Vec<Constant>, Error> {
             constant.attributes.remove(attr.index);
 
             match attr.ty {
-                BoundAttrType::Func { .. } => {
+                ItemAttrType::Func { .. } => {
                     return bail!(constant, "#[func] can only be used on functions")
                 }
-                BoundAttrType::Signal(_) => {
+                ItemAttrType::Signal(_) => {
                     return bail!(constant, "#[signal] can only be used on functions")
                 }
-                BoundAttrType::Const(_) => {
+                ItemAttrType::Const(_) => {
                     if constant.initializer.is_none() {
                         return bail!(constant, "exported constant must have initializer");
                     }
@@ -370,8 +491,8 @@ fn process_godot_constants(decl: &mut Impl) -> Result<Vec<Constant>, Error> {
 
 fn extract_attributes<T>(
     error_scope: T,
-    attributes: &[Attribute],
-) -> Result<Option<BoundAttr>, Error>
+    attributes: &[venial::Attribute],
+) -> ParseResult<Option<ItemAttr>>
 where
     for<'a> &'a T: Spanned,
 {
@@ -383,48 +504,60 @@ where
         };
 
         let new_found = match attr_name {
+            // #[func]
             name if name == "func" => {
-                // TODO you-win (August 8, 2023): handle default values here as well?
-
                 // Safe unwrap since #[func] must be present if we got to this point
                 let mut parser = KvParser::parse(attributes, "func")?.unwrap();
 
+                // #[func(rename = MyClass)]
                 let rename = parser.handle_expr("rename")?.map(|ts| ts.to_string());
+
+                // #[func(virtual)]
+                let is_virtual = parser.handle_alone("virtual")?;
+
+                // #[func(gd_self)]
                 let has_gd_self = parser.handle_alone("gd_self")?;
 
-                BoundAttr {
+                parser.finish()?;
+
+                ItemAttr {
                     attr_name: attr_name.clone(),
                     index,
-                    ty: BoundAttrType::Func {
+                    ty: ItemAttrType::Func {
                         rename,
+                        is_virtual,
                         has_gd_self,
                     },
                 }
             }
+
+            // #[signal]
             name if name == "signal" => {
                 // TODO once parameters are supported, this should probably be moved to the struct definition
                 // E.g. a zero-sized type Signal<(i32, String)> with a provided emit(i32, String) method
                 // This could even be made public (callable on the struct obj itself)
-                BoundAttr {
+                ItemAttr {
                     attr_name: attr_name.clone(),
                     index,
-                    ty: BoundAttrType::Signal(attr.value.clone()),
+                    ty: ItemAttrType::Signal(attr.value.clone()),
                 }
             }
-            name if name == "constant" => BoundAttr {
+
+            // #[constant]
+            name if name == "constant" => ItemAttr {
                 attr_name: attr_name.clone(),
                 index,
-                ty: BoundAttrType::Const(attr.value.clone()),
+                ty: ItemAttrType::Const(attr.value.clone()),
             },
-            // Ignore unknown attributes
+            // Ignore unknown attributes.
             _ => continue,
         };
 
-        // Validate at most 1 attribute
+        // Ensure at most 1 attribute.
         if found.is_some() {
             bail!(
                 &error_scope,
-                "at most one #[func], #[signal], or #[constant] attribute per declaration allowed",
+                "at most one #[func], #[signal] or #[constant] attribute per declaration allowed",
             )?;
         }
 
@@ -461,7 +594,7 @@ fn convert_to_match_expression_or_none(tokens: Option<TokenStream>) -> TokenStre
 }
 
 /// Codegen for `#[godot_api] impl GodotExt for MyType`
-fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
+fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream> {
     let (class_name, trait_path) = util::validate_trait_impl_virtual(&original_impl, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
 
@@ -487,7 +620,7 @@ fn transform_trait_impl(original_impl: Impl) -> Result<TokenStream, Error> {
     let prv = quote! { ::godot::private };
 
     for item in original_impl.body_items.iter() {
-        let method = if let ImplMember::Method(f) = item {
+        let method = if let venial::ImplMember::Method(f) = item {
             f
         } else {
             continue;

@@ -112,7 +112,7 @@ pub(crate) fn read_godot_version(godot_bin: &Path) -> GodotVersion {
     let output = execute(cmd, "read Godot version");
     let stdout = std::str::from_utf8(&output.stdout).expect("convert Godot version to UTF-8");
 
-    match parse_godot_version(&stdout) {
+    match parse_godot_version(stdout) {
         Ok(parsed) => {
             assert_eq!(
                 parsed.major,

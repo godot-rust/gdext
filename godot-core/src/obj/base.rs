@@ -79,6 +79,12 @@ impl<T: GodotClass> Base<T> {
     pub fn as_gd(&self) -> &Gd<T> {
         &self.obj
     }
+
+    // Currently only used in outbound virtual calls (for scripts).
+    #[doc(hidden)]
+    pub fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
+        self.obj.obj_sys()
+    }
 }
 
 impl<T: GodotClass> Debug for Base<T> {

@@ -12,4 +12,7 @@ mod gdscript_ffi_test;
 mod option_ffi_test;
 mod var_test;
 
+#[cfg(since_api = "4.3")]
+mod func_virtual_test;
+
 pub use gdscript_ffi_test::gen_ffi;

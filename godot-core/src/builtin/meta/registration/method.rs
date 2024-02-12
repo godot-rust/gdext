@@ -136,8 +136,16 @@ impl ClassMethodInfo {
             default_argument_count: self.default_argument_count(),
             default_arguments: default_arguments_sys.as_mut_ptr(),
         };
-        // SAFETY:
-        // The lifetime of the data we use here is at least as long as this function's scope. So we can
+
+        if self.method_flags.is_set(MethodFlags::VIRTUAL) {
+            self.register_virtual_class_method(method_info_sys, return_value_sys);
+        } else {
+            self.register_nonvirtual_class_method(method_info_sys);
+        }
+    }
+
+    fn register_nonvirtual_class_method(&self, method_info_sys: sys::GDExtensionClassMethodInfo) {
+        // SAFETY: The lifetime of the data we use here is at least as long as this function's scope. So we can
         // safely call this function without issue.
         //
         // Null pointers will only be passed along if we indicate to Godot that they are unused.
@@ -148,6 +156,42 @@ impl ClassMethodInfo {
                 std::ptr::addr_of!(method_info_sys),
             )
         }
+    }
+
+    #[cfg(since_api = "4.3")]
+    fn register_virtual_class_method(
+        &self,
+        normal_method_info: sys::GDExtensionClassMethodInfo,
+        return_value_sys: sys::GDExtensionPropertyInfo, // passed separately because value, not pointer.
+    ) {
+        // Copy everything possible from regular method info.
+        let method_info_sys = sys::GDExtensionClassVirtualMethodInfo {
+            name: normal_method_info.name,
+            method_flags: normal_method_info.method_flags,
+            return_value: return_value_sys,
+            return_value_metadata: normal_method_info.return_value_metadata,
+            argument_count: normal_method_info.argument_count,
+            arguments: normal_method_info.arguments_info,
+            arguments_metadata: normal_method_info.arguments_metadata,
+        };
+
+        // SAFETY: Godot only needs arguments to be alive during the method call.
+        unsafe {
+            interface_fn!(classdb_register_extension_class_virtual_method)(
+                sys::get_library(),
+                self.class_name.string_sys(),
+                std::ptr::addr_of!(method_info_sys),
+            )
+        }
+    }
+
+    // Polyfill doing nothing.
+    #[cfg(before_api = "4.3")]
+    fn register_virtual_class_method(
+        &self,
+        _normal_method_info: sys::GDExtensionClassMethodInfo,
+        _return_value_sys: sys::GDExtensionPropertyInfo,
+    ) {
     }
 
     fn argument_count(&self) -> u32 {

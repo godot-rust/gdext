@@ -293,7 +293,7 @@ func test_option_export():
 	test_node.free()
 
 func test_func_rename():
-	var func_rename := FuncRename.new()
+	var func_rename := FuncObj.new()
 
 	assert_eq(func_rename.has_method("long_function_name_for_is_true"), false)
 	assert_eq(func_rename.has_method("is_true"), true)
@@ -307,27 +307,25 @@ func test_func_rename():
 	assert_eq(func_rename.has_method("spell_static"), true)
 	assert_eq(func_rename.spell_static(), "static")
 
-var gd_self_reference: GdSelfReference
+var gd_self_obj: GdSelfObj
 func update_self_reference(value):
-	gd_self_reference.update_internal(value)
+	gd_self_obj.update_internal(value)
 
-# Todo: Once there is a way to assert for a SCRIPT ERROR failure this can be reenabled.
-"""
-func test_gd_self_reference_fails():
-	# Create the gd_self_reference and connect its signal to a gdscript method that calls back into it.
-	gd_self_reference = GdSelfReference.new()
-	gd_self_reference.update_internal_signal.connect(update_self_reference)
-	
-	# The returned value will still be 0 because update_internal can't be called in update_self_reference due to a borrowing issue.
-	assert_eq(gd_self_reference.fail_to_update_internal_value_due_to_conflicting_borrow(10), 0)
-"""
+# TODO: Once there is a way to assert for a SCRIPT ERROR failure, this can be re-enabled.
+#func test_gd_self_obj_fails():
+#	# Create the gd_self_obj and connect its signal to a gdscript method that calls back into it.
+#	gd_self_obj = GdSelfObj.new()
+#	gd_self_obj.update_internal_signal.connect(update_self_reference)
+#	
+#	# The returned value will still be 0 because update_internal can't be called in update_self_reference due to a borrowing issue.
+#	assert_eq(gd_self_obj.fail_to_update_internal_value_due_to_conflicting_borrow(10), 0)
 
-func test_gd_self_reference_succeeds():
-	# Create the gd_self_reference and connect its signal to a gdscript method that calls back into it.
-	gd_self_reference = GdSelfReference.new()
-	gd_self_reference.update_internal_signal.connect(update_self_reference)
+func test_gd_self_obj_succeeds():
+	# Create the gd_self_obj and connect its signal to a gdscript method that calls back into it.
+	gd_self_obj = GdSelfObj.new()
+	gd_self_obj.update_internal_signal.connect(update_self_reference)
 
-	assert_eq(gd_self_reference.succeed_at_updating_internal_value(10), 10)
+	assert_eq(gd_self_obj.succeed_at_updating_internal_value(10), 10)
 
 func sample_func():
 	pass

@@ -14,10 +14,10 @@ use godot::prelude::*;
 
 #[derive(GodotClass)]
 #[class(init, base=RefCounted)]
-struct FuncRename;
+struct FuncObj;
 
 #[godot_api]
-impl FuncRename {
+impl FuncObj {
     #[func(rename=is_true)]
     fn long_function_name_for_is_true(&self) -> bool {
         true
@@ -54,7 +54,7 @@ impl FuncRename {
     }
 }
 
-impl FuncRename {
+impl FuncObj {
     /// Unused but present to demonstrate how `rename = ...` can be used to avoid name clashes.
     #[allow(dead_code)]
     fn is_true(&self) -> bool {
@@ -68,14 +68,14 @@ impl FuncRename {
 
 #[derive(GodotClass)]
 #[class(base=RefCounted)]
-struct GdSelfReference {
+struct GdSelfObj {
     internal_value: i32,
 
     base: Base<RefCounted>,
 }
 
 #[godot_api]
-impl GdSelfReference {
+impl GdSelfObj {
     // A signal that will be looped back to update_internal through gdscript.
     #[signal]
     fn update_internal_signal(new_internal: i32);
@@ -198,19 +198,19 @@ impl GdSelfReference {
     }
 
     #[func(gd_self)]
-    fn takes_gd_as_equivalent(mut this: Gd<GdSelfReference>) -> bool {
+    fn takes_gd_as_equivalent(mut this: Gd<GdSelfObj>) -> bool {
         this.bind_mut();
         true
     }
 
     #[func(gd_self)]
-    fn takes_gd_as_self_no_return_type(this: Gd<GdSelfReference>) {
+    fn takes_gd_as_self_no_return_type(this: Gd<GdSelfObj>) {
         this.bind();
     }
 }
 
 #[godot_api]
-impl IRefCounted for GdSelfReference {
+impl IRefCounted for GdSelfObj {
     fn init(base: Base<Self::Base>) -> Self {
         Self {
             internal_value: 0,
@@ -249,23 +249,13 @@ impl IRefCounted for GdSelfReference {
     }
 }
 
-/// Checks at runtime if a class has a given method through [ClassDb].
-fn class_has_method<T: GodotClass>(name: &str) -> bool {
-    ClassDb::singleton()
-        .class_has_method_ex(T::class_name().to_string_name(), name.into())
-        .no_inheritance(true)
-        .done()
-}
-
-/// Checks at runtime if a class has a given signal through [ClassDb].
-fn class_has_signal<T: GodotClass>(name: &str) -> bool {
-    ClassDb::singleton().class_has_signal(T::class_name().to_string_name(), name.into())
-}
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Tests
 
 #[itest]
 fn cfg_doesnt_interfere_with_valid_method_impls() {
     // If we re-implement this method but the re-implementation is removed, that should keep the non-removed implementation.
-    let object = Gd::from_object(FuncRename);
+    let object = Gd::from_object(FuncObj);
     assert_eq!(
         object.bind().returns_hello_world(),
         GString::from("Hello world!")
@@ -278,28 +268,44 @@ fn cfg_doesnt_interfere_with_valid_method_impls() {
 
 #[itest]
 fn cfg_removes_or_keeps_methods() {
-    assert!(class_has_method::<GdSelfReference>(
+    assert!(class_has_method::<GdSelfObj>(
         "func_recognized_with_simple_path_attribute_above_func_attr"
     ));
-    assert!(class_has_method::<GdSelfReference>(
+    assert!(class_has_method::<GdSelfObj>(
         "func_recognized_with_simple_path_attribute_below_func_attr"
     ));
-    assert!(class_has_method::<GdSelfReference>(
+    assert!(class_has_method::<GdSelfObj>(
         "cfg_removes_duplicate_function_impl"
     ));
-    assert!(!class_has_method::<GdSelfReference>("cfg_removes_function"));
+    assert!(!class_has_method::<GdSelfObj>("cfg_removes_function"));
 }
 
 #[itest]
 fn cfg_removes_or_keeps_signals() {
-    assert!(class_has_signal::<GdSelfReference>(
+    assert!(class_has_signal::<GdSelfObj>(
         "signal_recognized_with_simple_path_attribute_above_signal_attr"
     ));
-    assert!(class_has_signal::<GdSelfReference>(
+    assert!(class_has_signal::<GdSelfObj>(
         "signal_recognized_with_simple_path_attribute_below_signal_attr"
     ));
-    assert!(class_has_signal::<GdSelfReference>(
+    assert!(class_has_signal::<GdSelfObj>(
         "cfg_removes_duplicate_signal"
     ));
-    assert!(!class_has_signal::<GdSelfReference>("cfg_removes_signal"));
+    assert!(!class_has_signal::<GdSelfObj>("cfg_removes_signal"));
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Helpers
+
+/// Checks at runtime if a class has a given method through [ClassDb].
+fn class_has_method<T: GodotClass>(name: &str) -> bool {
+    ClassDb::singleton()
+        .class_has_method_ex(T::class_name().to_string_name(), name.into())
+        .no_inheritance(true)
+        .done()
+}
+
+/// Checks at runtime if a class has a given signal through [ClassDb].
+fn class_has_signal<T: GodotClass>(name: &str) -> bool {
+    ClassDb::singleton().class_has_signal(T::class_name().to_string_name(), name.into())
 }

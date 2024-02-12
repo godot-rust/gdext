@@ -121,6 +121,11 @@ impl StringName {
     }
 
     #[doc(hidden)]
+    pub fn string_sys_const(&self) -> sys::GDExtensionConstStringNamePtr {
+        sys::to_const_ptr(self.string_sys())
+    }
+
+    #[doc(hidden)]
     pub fn as_inner(&self) -> inner::InnerStringName {
         inner::InnerStringName::from_outer(self)
     }

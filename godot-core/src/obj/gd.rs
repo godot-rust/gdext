@@ -423,7 +423,8 @@ impl<T: GodotClass> Gd<T> {
         Self::from_obj_sys_weak_or_none(ptr).unwrap()
     }
 
-    pub(crate) fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
+    #[doc(hidden)]
+    pub fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
         self.raw.obj_sys()
     }
 

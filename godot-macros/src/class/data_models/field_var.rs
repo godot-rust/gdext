@@ -194,7 +194,7 @@ impl GetterSetterImpl {
         let export_token = make_method_registration(
             class_name,
             FuncDefinition {
-                func: signature,
+                signature,
                 // Since we're analyzing a struct's field, we don't have access to the corresponding get/set function's
                 // external (non-#[func]) attributes. We have to assume the function exists and has the name the user
                 // gave us, with the expected signature.
@@ -202,9 +202,12 @@ impl GetterSetterImpl {
                 // #[cfg()] (for instance) placed on the getter/setter function, but that is not currently supported.
                 external_attributes: Vec::new(),
                 rename: None,
+                is_virtual: false,
                 has_gd_self: false,
             },
         );
+
+        let export_token = export_token.expect("getter/setter generation should not fail");
 
         Self {
             function_name,
