@@ -49,6 +49,19 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
         varargs: &[Variant],
     ) -> Self::Ret;
 
+    /// Outbound virtual call to a method overridden by a script attached to the object.
+    ///
+    /// Returns `None` if the script does not override the method.
+    #[cfg(since_api = "4.3")]
+    unsafe fn out_script_virtual_call(
+        // Separate parameters to reduce tokens in macro-generated API.
+        class_name: &'static str,
+        method_name: &'static str,
+        method_sname_ptr: sys::GDExtensionConstStringNamePtr,
+        object_ptr: sys::GDExtensionObjectPtr,
+        args: Self::Params,
+    ) -> Self::Ret;
+
     unsafe fn out_utility_ptrcall_varargs(
         utility_fn: UtilityFunctionBind,
         function_name: &'static str,
@@ -229,6 +242,45 @@ macro_rules! impl_varcall_signature_for_tuple {
                 result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }
 
+            #[cfg(since_api = "4.3")]
+            unsafe fn out_script_virtual_call(
+                // Separate parameters to reduce tokens in macro-generated API.
+                class_name: &'static str,
+                method_name: &'static str,
+                method_sname_ptr: sys::GDExtensionConstStringNamePtr,
+                object_ptr: sys::GDExtensionObjectPtr,
+                ($($pn,)*): Self::Params,
+            ) -> Self::Ret {
+                // Assumes that caller has previously checked existence of a virtual method.
+
+                let call_ctx = CallContext::outbound(class_name, method_name);
+                //$crate::out!("out_script_virtual_call: {call_ctx}");
+
+                let object_call_script_method = sys::interface_fn!(object_call_script_method);
+                let explicit_args = [
+                    $(
+                        GodotFfiVariant::ffi_to_variant(&into_ffi($pn)),
+                    )*
+                ];
+
+                let variant_ptrs = explicit_args.iter().map(Variant::var_sys_const).collect::<Vec<_>>();
+
+                let variant = Variant::from_var_sys_init(|return_ptr| {
+                    let mut err = sys::default_call_error();
+                    object_call_script_method(
+                        object_ptr,
+                        method_sname_ptr,
+                        variant_ptrs.as_ptr(),
+                        variant_ptrs.len() as i64,
+                        return_ptr,
+                        std::ptr::addr_of_mut!(err),
+                    );
+                });
+
+                let result = <Self::Ret as FromGodot>::try_from_variant(&variant);
+                result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
+            }
+
             // Note: this is doing a ptrcall, but uses variant conversions for it
             #[inline]
             unsafe fn out_utility_ptrcall_varargs(
@@ -256,6 +308,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 });
                 result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }
+
 
             #[inline]
             fn format_args(args: &Self::Params) -> String {

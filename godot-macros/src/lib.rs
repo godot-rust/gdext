@@ -394,12 +394,12 @@ use crate::util::ident;
 ///
 /// ## Class hiding
 ///
-/// If you want to register a class with Godot, but not have it show up in the editor then you can use `#[class(hide)]`.
+/// If you want to register a class with Godot, but not have it show up in the editor then you can use `#[class(hidden)]`.
 ///
 /// ```
 /// # use godot::prelude::*;
 /// #[derive(GodotClass)]
-/// #[class(base=Node, init, hide)]
+/// #[class(base=Node, init, hidden)]
 /// pub struct Foo {}
 /// ```
 ///
@@ -447,8 +447,6 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 
 /// Proc-macro attribute to be used with `impl` blocks of [`#[derive(GodotClass)]`][GodotClass] structs.
 ///
-/// See also [book chapter _Registering functions_](https://godot-rust.github.io/book/register/functions.html) and following.
-///
 /// Can be used in two ways:
 /// ```no_run
 /// # use godot::prelude::*;
@@ -465,35 +463,41 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// impl INode for MyClass { /* ... */ }
 /// ```
 ///
-/// The second case works by implementing the corresponding trait `I<Base>` for the base class of your class
+/// The second case works by implementing the corresponding trait `I*` for the base class of your class
 /// (for example `IRefCounted` or `INode3D`). Then, you can add functionality such as:
 /// * `init` constructors
 /// * lifecycle methods like `ready` or `process`
 /// * `on_notification` method
 /// * `to_string` method
 ///
-/// Neither `#[godot_api]` attribute is required. For small data bundles inheriting `RefCounted`, you may be fine with
+/// Neither of the two `#[godot_api]` blocks is required. For small data bundles inheriting `RefCounted`, you may be fine with
 /// accessing properties directly from GDScript.
 ///
-/// # Examples
+/// See also [book chapter _Registering functions_](https://godot-rust.github.io/book/register/functions.html) and following.
 ///
-/// ## `RefCounted` as a base, overridden `init`
+/// **Table of contents**
+/// - [Constructors](#constructors)
+///   - [User-defined `init`](#user-defined-init)
+///   - [Generated `init`](#generated-init)
+/// - [Lifecycle functions](#lifecycle-functions)
+/// - [User-defined functions](#user-defined-functions)
+///   - [Associated functions and methods](#associated-functions-and-methods)
+///   - [Virtual methods](#virtual-methods)
+/// - [Constants and signals](#signals)
+///
+/// # Constructors
+///
+/// Note that `init` (the Godot default constructor) can be either provided by overriding it, or generated with a `#[class(init)]` attribute
+/// on the struct. Classes without `init` cannot be instantiated from GDScript.
+///
+/// ## User-defined `init`
 ///
 /// ```no_run
-///# use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// // no #[class(init)] here, since init() is overridden below.
 /// // #[class(base=RefCounted)] is implied if no base is specified.
 /// struct MyStruct;
-///
-/// #[godot_api]
-/// impl MyStruct {
-///     #[func]
-///     pub fn hello_world(&mut self) {
-///         godot_print!("Hello World!")
-///     }
-/// }
 ///
 /// #[godot_api]
 /// impl IRefCounted for MyStruct {
@@ -503,19 +507,33 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// Note that `init` can be either provided by overriding it, or generated with a `#[class(init)]` attribute on the struct.
-/// Classes without `init` cannot be instantiated from GDScript.
+/// ## Generated `init`
 ///
-/// ## `Node` as a base, generated `init`
+/// This initializes the `Base<T>` field, and every other field with either `Default::default()` or the value specified in `#[init(default = ...)]`.
 ///
 /// ```no_run
-///# use godot::prelude::*;
-///
+/// # use godot::prelude::*;
 /// #[derive(GodotClass)]
 /// #[class(init, base=Node)]
 /// pub struct MyNode {
 ///     base: Base<Node>,
+///
+///     #[init(default = 42)]
+///     some_integer: i64,
 /// }
+/// ```
+///
+///
+/// # Lifecycle functions
+///
+/// You can override the lifecycle functions `ready`, `process`, `physics_process` and so on, by implementing the trait corresponding to the
+/// base class.
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init, base=Node)]
+/// pub struct MyNode;
 ///
 /// #[godot_api]
 /// impl INode for MyNode {
@@ -524,6 +542,93 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///     }
 /// }
 /// ```
+///
+///
+/// # User-defined functions
+///
+/// You can use the `#[func]` attribute to declare your own functions. These are exposed to Godot and callable from GDScript.
+///
+/// ## Associated functions and methods
+///
+/// If `#[func]` functions are called from the engine, they implicitly bind the surrounding `Gd<T>` pointer: `Gd::bind()` in case of `&self`,
+/// `Gd::bind_mut()` in case of `&mut self`. To avoid that, use `#[func(gd_self)]`, which requires an explicit first argument of type `Gd<T>`.
+///
+/// Functions without a receiver become static functions in Godot. They can be called from GDScript using `MyStruct.static_function()`.
+/// If they return `Gd<Self>`, they are effectively constructors that allow taking arguments.
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyStruct {
+///     field: i64,
+///     base: Base<RefCounted>,
+/// }
+///
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func]
+///     pub fn hello_world(&mut self) {
+///         godot_print!("Hello World!")
+///     }
+///
+///     #[func]
+///     pub fn static_function(constructor_arg: i64) -> Gd<Self> {
+///         Gd::from_init_fn(|base| {
+///            MyStruct { field: constructor_arg, base }
+///         })
+///     }
+///
+///     #[func(gd_self)]
+///     pub fn explicit_receiver(mut this: Gd<Self>, other_arg: bool) {
+///         // Only bind Gd pointer if needed.
+///         if other_arg {
+///             this.bind_mut().field = 55;
+///         }
+///     }
+/// }
+/// ```
+///
+/// ## Virtual methods
+///
+/// Functions with the `#[func(virtual)]` attribute are virtual functions, meaning attached scripts can override them.
+///
+/// ```no_run
+/// # #[cfg(since_api = "4.3")]
+/// # mod conditional {
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct MyStruct {
+///     // Virtual functions require base object.
+///     base: Base<RefCounted>,
+/// }
+///
+/// #[godot_api]
+/// impl MyStruct {
+///     #[func(virtual)]
+///     fn language(&self) -> GString {
+///         "Rust".into()
+///     }
+/// }
+/// # }
+/// ```
+///
+/// In GDScript, your method is available with a `_` prefix, following Godot convention for virtual methods:
+/// ```gdscript
+/// extends MyStruct
+///
+/// func _language():
+///    return "GDScript"
+/// ```
+///
+/// Now, `obj.language()` from Rust will dynamically dispatch the call.
+///
+/// Make sure you understand the limitations in the [tutorial](https://godot-rust.github.io/book/register/virtual-functions.html).
+///
+/// # Constants and signals
+///
+/// Please refer to [the book](https://godot-rust.github.io/book/register/constants.html).
 #[proc_macro_attribute]
 pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
     translate(input, class::attribute_godot_api)

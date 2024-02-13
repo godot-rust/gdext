@@ -138,6 +138,7 @@ const SELECTED_CLASSES: &[&str] = &[
     "EditorPlugin",
     "Engine",
     "FileAccess",
+    "GDScript",
     "HTTPRequest",
     "Image",
     "ImageTextureLayered",

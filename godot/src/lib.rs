@@ -107,6 +107,8 @@
 //!
 //! The following features can be enabled for this crate. All off them are off by default.
 //!
+//! Avoid `default-features = false` unless you know exactly what you are doing; it will disable some required internal features.
+//!
 //! * **`double-precision`**
 //!
 //!   Use `f64` instead of `f32` for the floating-point type [`real`][type@builtin::real]. Requires Godot to be compiled with the

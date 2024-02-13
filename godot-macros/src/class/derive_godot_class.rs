@@ -13,7 +13,7 @@ use crate::class::{
     make_property_impl, make_virtual_callback, BeforeKind, Field, FieldExport, FieldVar, Fields,
     SignatureInfo,
 };
-use crate::util::{bail, ident, path_ends_with_complex, KvParser};
+use crate::util::{bail, ident, path_ends_with_complex, require_api_version, KvParser};
 use crate::{util, ParseResult};
 
 pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
@@ -307,12 +307,7 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
 
         // #[class(editor_plugin)]
         if let Some(attr_key) = parser.handle_alone_with_span("editor_plugin")? {
-            if cfg!(before_api = "4.1") {
-                return bail!(
-                    attr_key,
-                    "#[class(editor_plugin)] is not supported in Godot 4.0"
-                );
-            }
+            require_api_version!("4.1", &attr_key, "#[class(editor_plugin)]")?;
 
             is_editor_plugin = true;
 
@@ -331,8 +326,9 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
             }
         }
 
-        // #[class(hide)]
-        if parser.handle_alone("hide")? {
+        // #[class(hidden)]
+        if let Some(span) = parser.handle_alone_with_span("hidden")? {
+            require_api_version!("4.2", span, "#[class(hidden)]")?;
             is_hidden = true;
         }
 
