@@ -323,7 +323,7 @@ use crate::util::ident;
 ///
 /// # Signals
 ///
-/// The `#[signal]` attribute is quite limited at the moment and can only be used for parameter-less signals.
+/// The `#[signal]` attribute is quite limited at the moment. The functions it decorates (the signals) can accept parameters.
 /// It will be fundamentally reworked.
 ///
 /// ```no_run
@@ -336,6 +336,9 @@ use crate::util::ident;
 /// impl MyClass {
 ///     #[signal]
 ///     fn some_signal();
+///
+///     #[signal]
+///     fn some_signal_with_parameters(my_parameter: Gd<Node>);
 /// }
 /// ```
 ///
