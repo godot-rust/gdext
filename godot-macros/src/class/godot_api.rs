@@ -401,7 +401,9 @@ fn add_virtual_script_call(
 
     let class_name_str = class_name.to_string();
     let early_bound_name = format_ident!("__earlybound_{}", &function.name);
-    let method_name_str = rename.clone().unwrap_or_else(|| function.name.to_string());
+    let method_name_str = rename
+        .clone()
+        .unwrap_or_else(|| format!("_{}", function.name));
 
     // Clone might not strictly be necessary, but the 2 other callers of into_signature_info() are better off with pass-by-value.
     let signature_info = into_signature_info(

@@ -611,11 +611,11 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// # }
 /// ```
 ///
-/// In GDScript:
+/// In GDScript, your method is available with a `_` prefix, following Godot convention for virtual methods:
 /// ```gdscript
 /// extends MyStruct
 ///
-/// func language():
+/// func _language():
 ///    return "GDScript"
 /// ```
 ///

@@ -60,7 +60,7 @@ fn func_virtual() {
     assert_eq!(object.bind().greet_lang(72), GString::from("GDScript#72"));
 
     // Dynamic call: "GDScript".
-    let result = object.call("greet_lang".into(), &[72.to_variant()]);
+    let result = object.call("_greet_lang".into(), &[72.to_variant()]);
     assert_eq!(result, "GDScript#72".to_variant());
 }
 
@@ -102,7 +102,7 @@ fn func_virtual_gd_self() {
     );
 
     // Dynamic call: "GDScript".
-    let result = object.call("greet_lang3".into(), &["Hoi".to_variant()]);
+    let result = object.call("_greet_lang3".into(), &["Hoi".to_variant()]);
     assert_eq!(result, "Hoi GDScript".to_variant());
 }
 
@@ -124,19 +124,19 @@ extends VirtualScriptCalls
 
 var thing
 
-func greet_lang(i: int) -> String:
+func _greet_lang(i: int) -> String:
     return str("GDScript#", i)
     
 func greet_lang2(s: String) -> String:
     return str(s, " GDScript")
 
-func greet_lang3(s: String) -> String:
+func _greet_lang3(s: String) -> String:
     return str(s, " GDScript")
 
-func set_thing(anything):
+func _set_thing(anything):
     thing = anything
 
-func get_thing():
+func _get_thing():
     return thing
 "#;
 
@@ -155,11 +155,11 @@ func get_thing():
     assert_eq!(
         methods,
         varray![
-            "greet_lang",
+            "_greet_lang",
             "greet_lang2",
-            "greet_lang3",
-            "set_thing",
-            "get_thing"
+            "_greet_lang3",
+            "_set_thing",
+            "_get_thing"
         ]
     );
 
