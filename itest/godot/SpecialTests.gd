@@ -33,18 +33,23 @@ func test_collision_object_2d_input_event():
 
 	window.add_child(collision_object)
 
-	assert_that(not collision_object.input_event_called())
-	assert_eq(collision_object.get_viewport(), null)
+	assert_that(not collision_object.input_event_called(), "Input event should not be propagated")
+	assert_eq(collision_object.get_viewport(), null, "Collision viewport should be null")
 
 	var event := InputEventMouseMotion.new()
 	event.global_position = Vector2.ZERO
-	window.push_unhandled_input(event)
+
+	# Godot 4.0 compat: behavior of `push_unhandled_input` was not consistent with `push_input`.
+	if Engine.get_version_info().minor == 0:
+		window.push_unhandled_input(event)
+	else:
+		window.push_input(event)
 
 	# Ensure we run a full physics frame
 	await root.get_tree().physics_frame
 
-	assert_that(collision_object.input_event_called())
-	assert_eq(collision_object.get_viewport(), window)
+	assert_that(collision_object.input_event_called(), "Input event should be propagated")
+	assert_eq(collision_object.get_viewport(), window, "Collision viewport should be the (non-null) window")
 
 	window.queue_free()
 
