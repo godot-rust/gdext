@@ -265,6 +265,15 @@ impl Variant {
         variant_ptr_array: *const sys::GDExtensionConstVariantPtr,
         length: usize,
     ) -> &'a [&'a Variant] {
+        // Godot may pass null to signal "no arguments" (e.g. in custom callables).
+        if variant_ptr_array.is_null() {
+            debug_assert_eq!(
+                length, 0,
+                "Variant::unbounded_refs_from_sys(): pointer is null but length is not 0"
+            );
+            return &[];
+        }
+
         let variant_ptr_array: &'a [sys::GDExtensionConstVariantPtr] =
             std::slice::from_raw_parts(variant_ptr_array, length);
 

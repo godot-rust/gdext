@@ -169,6 +169,10 @@ mod custom_callable {
 
         let sum2 = callable.callv(varray![5]);
         assert_eq!(sum2, 5.to_variant());
+
+        // Important to test 0 arguments, as the FFI call passes a null pointer for the argument array.
+        let sum3 = callable.callv(varray![]);
+        assert_eq!(sum3, 0.to_variant());
     }
 
     #[itest]
