@@ -62,11 +62,11 @@ pub struct Array<T: GodotType> {
 }
 
 /// Guard that can only call immutable methods on the array.
-struct InnerArrayRef<'a> {
+struct ImmutableInnerArray<'a> {
     inner: inner::InnerArray<'a>,
 }
 
-impl<'a> std::ops::Deref for InnerArrayRef<'a> {
+impl<'a> std::ops::Deref for ImmutableInnerArray<'a> {
     type Target = inner::InnerArray<'a>;
 
     fn deref(&self) -> &Self::Target {
@@ -105,7 +105,7 @@ impl<T: GodotType> Array<T> {
     /// it in a variable. For loops, prefer iterators.
     #[doc(alias = "size")]
     pub fn len(&self) -> usize {
-        to_usize(self.as_inner_ref().size())
+        to_usize(self.as_inner().size())
     }
 
     /// Returns `true` if the array is empty.
@@ -113,7 +113,7 @@ impl<T: GodotType> Array<T> {
     /// Checking for emptiness incurs an FFI call. If you know the size hasn't changed, you may consider storing
     /// it in a variable. For loops, prefer iterators.
     pub fn is_empty(&self) -> bool {
-        self.as_inner_ref().is_empty()
+        self.as_inner().is_empty()
     }
 
     /// Returns a 32-bit integer hash value representing the array and its contents.
@@ -124,19 +124,19 @@ impl<T: GodotType> Array<T> {
     pub fn hash(&self) -> u32 {
         // The GDExtension interface only deals in `i64`, but the engine's own `hash()` function
         // actually returns `uint32_t`.
-        self.as_inner_ref().hash().try_into().unwrap()
+        self.as_inner().hash().try_into().unwrap()
     }
 
     /// Clears the array, removing all elements.
     pub fn clear(&mut self) {
         // SAFETY: No new values are written to the array, we only remove values from the array.
-        unsafe { self.as_inner() }.clear();
+        unsafe { self.as_inner_mut() }.clear();
     }
 
     /// Reverses the order of the elements in the array.
     pub fn reverse(&mut self) {
         // SAFETY: We do not write any values that dont already exist in the array, so all values have the correct type.
-        unsafe { self.as_inner() }.reverse();
+        unsafe { self.as_inner_mut() }.reverse();
     }
 
     /// Sorts the array.
@@ -147,7 +147,7 @@ impl<T: GodotType> Array<T> {
     #[doc(alias = "sort")]
     pub fn sort_unstable(&mut self) {
         // SAFETY: We do not write any values that dont already exist in the array, so all values have the correct type.
-        unsafe { self.as_inner() }.sort();
+        unsafe { self.as_inner_mut() }.sort();
     }
 
     /// Sorts the array.
@@ -160,7 +160,7 @@ impl<T: GodotType> Array<T> {
     #[doc(alias = "sort_custom")]
     pub fn sort_unstable_custom(&mut self, func: Callable) {
         // SAFETY: We do not write any values that dont already exist in the array, so all values have the correct type.
-        unsafe { self.as_inner() }.sort_custom(func);
+        unsafe { self.as_inner_mut() }.sort_custom(func);
     }
 
     /// Shuffles the array such that the items will have a random order. This method uses the
@@ -168,20 +168,43 @@ impl<T: GodotType> Array<T> {
     /// ensure that a new seed will be used each time if you want non-reproducible shuffling.
     pub fn shuffle(&mut self) {
         // SAFETY: We do not write any values that dont already exist in the array, so all values have the correct type.
-        unsafe { self.as_inner() }.shuffle();
+        unsafe { self.as_inner_mut() }.shuffle();
     }
 
     /// Shrinks the array down to `new_size`.
     ///
+    /// This will only change the size of the array if `new_size` is smaller than the current size. Returns `true` if the array was shrunk.
+    ///
     /// If you want to increase the size of the array, use [`resize_with`](Array::resize_with) instead.
     #[doc(alias = "resize")]
-    pub fn shrink(&mut self, new_size: usize) {
+    pub fn shrink(&mut self, new_size: usize) -> bool {
         if new_size >= self.len() {
-            return;
+            return false;
         }
 
         // SAFETY: Since `new_size` is less than the current size, we'll only be removing elements from the array.
-        unsafe { self.as_inner() }.resize(to_i64(new_size));
+        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+
+        true
+    }
+
+    /// Resizes the array to contain a different number of elements.
+    ///
+    /// If the new size is smaller than the current size, then it removes elements from the end. If the new size is bigger than the current one
+    /// then the new elements are set to `value`.
+    ///
+    /// If you know that the new size is smaller, then consider using [`shrink`](Array::shrink) instead.
+    pub fn resize(&mut self, new_size: usize, value: &T) {
+        let original_size = self.len();
+
+        // SAFETY: While we do insert `Variant::nil()` if the new size is larger, we then fill it with `value` ensuring that all values in the
+        // array are of type `T` still.
+        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+
+        // If new_size < original_size then this is an empty iterator and does nothing.
+        for i in original_size..new_size {
+            self.set(i, value.to_godot());
+        }
     }
 
     /// Asserts that the given index refers to an existing element.
@@ -259,15 +282,15 @@ impl<T: GodotType> Array<T> {
     /// In particular this means that all reads are fine, since all values can be converted to `Variant`. However writes are only ok
     /// if they match the type `T`.
     #[doc(hidden)]
-    pub unsafe fn as_inner(&self) -> inner::InnerArray {
+    pub unsafe fn as_inner_mut(&self) -> inner::InnerArray {
         // The memory layout of `Array<T>` does not depend on `T`.
         inner::InnerArray::from_outer_typed(self)
     }
 
-    fn as_inner_ref(&self) -> InnerArrayRef {
-        InnerArrayRef {
+    fn as_inner(&self) -> ImmutableInnerArray {
+        ImmutableInnerArray {
             // SAFETY: We can only read from the array.
-            inner: unsafe { self.as_inner() },
+            inner: unsafe { self.as_inner_mut() },
         }
     }
 
@@ -307,7 +330,8 @@ impl<T: GodotType> Array<T> {
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_shallow(&self) -> Self {
         // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
-        let duplicate: VariantArray = unsafe { self.as_inner_ref().duplicate(false) };
+        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(false) };
+
         // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
         unsafe { duplicate.assume_type() }
     }
@@ -320,7 +344,8 @@ impl<T: GodotType> Array<T> {
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_deep(&self) -> Self {
         // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
-        let duplicate: VariantArray = unsafe { self.as_inner_ref().duplicate(true) };
+        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(true) };
+
         // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
         unsafe { duplicate.assume_type() }
     }
@@ -367,7 +392,7 @@ impl<T: GodotType> Array<T> {
 
         // SAFETY: The type of the array is `T` and we convert the returned array to an `Array<T>` immediately.
         let subarray: VariantArray = unsafe {
-            self.as_inner_ref()
+            self.as_inner()
                 .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep)
         };
 
@@ -379,18 +404,19 @@ impl<T: GodotType> Array<T> {
     pub fn extend_array(&mut self, other: Array<T>) {
         // SAFETY: `append_array` will only read values from `other`, and all types can be converted to `Variant`.
         let other: VariantArray = unsafe { other.assume_type::<Variant>() };
+
         // SAFETY: `append_array` will only write values gotten from `other` into `self`, and all values in `other` are guaranteed
         // to be of type `T`.
-        let mut inner_self = unsafe { self.as_inner() };
+        let mut inner_self = unsafe { self.as_inner_mut() };
         inner_self.append_array(other);
     }
 
     /// Returns the runtime type info of this array.
     fn type_info(&self) -> TypeInfo {
         let variant_type = VariantType::from_sys(
-            self.as_inner_ref().get_typed_builtin() as sys::GDExtensionVariantType
+            self.as_inner().get_typed_builtin() as sys::GDExtensionVariantType
         );
-        let class_name = self.as_inner_ref().get_typed_class_name();
+        let class_name = self.as_inner().get_typed_class_name();
 
         TypeInfo {
             variant_type,
@@ -426,6 +452,7 @@ impl<T: GodotType> Array<T> {
         let type_info = TypeInfo::of::<T>();
         if type_info.is_typed() {
             let script = Variant::nil();
+
             // SAFETY: The array is a newly created empty untyped array.
             unsafe {
                 interface_fn!(array_set_typed)(
@@ -484,7 +511,7 @@ impl<T: GodotType + FromGodot> Array<T> {
     /// `front()` in GDScript.
     pub fn first(&self) -> Option<T> {
         (!self.is_empty()).then(|| {
-            let variant = self.as_inner_ref().front();
+            let variant = self.as_inner().front();
             T::from_variant(&variant)
         })
     }
@@ -493,7 +520,7 @@ impl<T: GodotType + FromGodot> Array<T> {
     /// `back()` in GDScript.
     pub fn last(&self) -> Option<T> {
         (!self.is_empty()).then(|| {
-            let variant = self.as_inner_ref().back();
+            let variant = self.as_inner().back();
             T::from_variant(&variant)
         })
     }
@@ -501,21 +528,21 @@ impl<T: GodotType + FromGodot> Array<T> {
     /// Returns the minimum value contained in the array if all elements are of comparable types.
     /// If the elements can't be compared or the array is empty, `None` is returned.
     pub fn min(&self) -> Option<T> {
-        let min = self.as_inner_ref().min();
+        let min = self.as_inner().min();
         (!min.is_nil()).then(|| T::from_variant(&min))
     }
 
     /// Returns the maximum value contained in the array if all elements are of comparable types.
     /// If the elements can't be compared or the array is empty, `None` is returned.
     pub fn max(&self) -> Option<T> {
-        let max = self.as_inner_ref().max();
+        let max = self.as_inner().max();
         (!max.is_nil()).then(|| T::from_variant(&max))
     }
 
     /// Returns a random element from the array, or `None` if it is empty.
     pub fn pick_random(&self) -> Option<T> {
         (!self.is_empty()).then(|| {
-            let variant = self.as_inner_ref().pick_random();
+            let variant = self.as_inner().pick_random();
             T::from_variant(&variant)
         })
     }
@@ -525,7 +552,7 @@ impl<T: GodotType + FromGodot> Array<T> {
     pub fn pop(&mut self) -> Option<T> {
         (!self.is_empty()).then(|| {
             // SAFETY: We do not write any values to the array, we just remove one.
-            let variant = unsafe { self.as_inner() }.pop_back();
+            let variant = unsafe { self.as_inner_mut() }.pop_back();
             T::from_variant(&variant)
         })
     }
@@ -537,7 +564,7 @@ impl<T: GodotType + FromGodot> Array<T> {
     pub fn pop_front(&mut self) -> Option<T> {
         (!self.is_empty()).then(|| {
             // SAFETY: We do not write any values to the array, we just remove one.
-            let variant = unsafe { self.as_inner() }.pop_front();
+            let variant = unsafe { self.as_inner_mut() }.pop_front();
             T::from_variant(&variant)
         })
     }
@@ -552,8 +579,9 @@ impl<T: GodotType + FromGodot> Array<T> {
     /// If `index` is out of bounds.
     pub fn remove(&mut self, index: usize) -> T {
         self.check_bounds(index);
+
         // SAFETY: We do not write any values to the array, we just remove one.
-        let variant = unsafe { self.as_inner() }.pop_at(to_i64(index));
+        let variant = unsafe { self.as_inner_mut() }.pop_at(to_i64(index));
         T::from_variant(&variant)
     }
 }
@@ -567,7 +595,7 @@ impl<T: GodotType + ToGodot> Array<T> {
     ///
     /// Calling `bsearch` on an unsorted array results in unspecified behavior.
     pub fn bsearch(&self, value: &T) -> usize {
-        to_usize(self.as_inner_ref().bsearch(value.to_variant(), true))
+        to_usize(self.as_inner().bsearch(value.to_variant(), true))
     }
 
     /// Finds the index of an existing value in a sorted array using binary search.
@@ -584,26 +612,26 @@ impl<T: GodotType + ToGodot> Array<T> {
     /// your callable's ordering
     pub fn bsearch_custom(&self, value: &T, func: Callable) -> usize {
         to_usize(
-            self.as_inner_ref()
+            self.as_inner()
                 .bsearch_custom(value.to_variant(), func, true),
         )
     }
 
     /// Returns the number of times a value is in the array.
     pub fn count(&self, value: &T) -> usize {
-        to_usize(self.as_inner_ref().count(value.to_variant()))
+        to_usize(self.as_inner().count(value.to_variant()))
     }
 
     /// Returns `true` if the array contains the given value. Equivalent of `has` in GDScript.
     pub fn contains(&self, value: &T) -> bool {
-        self.as_inner_ref().has(value.to_variant())
+        self.as_inner().has(value.to_variant())
     }
 
     /// Searches the array for the first occurrence of a value and returns its index, or `None` if
     /// not found. Starts searching at index `from`; pass `None` to search the entire array.
     pub fn find(&self, value: &T, from: Option<usize>) -> Option<usize> {
         let from = to_i64(from.unwrap_or(0));
-        let index = self.as_inner_ref().find(value.to_variant(), from);
+        let index = self.as_inner().find(value.to_variant(), from);
         if index >= 0 {
             Some(index.try_into().unwrap())
         } else {
@@ -616,7 +644,7 @@ impl<T: GodotType + ToGodot> Array<T> {
     /// array.
     pub fn rfind(&self, value: &T, from: Option<usize>) -> Option<usize> {
         let from = from.map(to_i64).unwrap_or(-1);
-        let index = self.as_inner_ref().rfind(value.to_variant(), from);
+        let index = self.as_inner().rfind(value.to_variant(), from);
         // It's not documented, but `rfind` returns -1 if not found.
         if index >= 0 {
             Some(to_usize(index))
@@ -632,6 +660,7 @@ impl<T: GodotType + ToGodot> Array<T> {
     /// If `index` is out of bounds.
     pub fn set(&mut self, index: usize, value: T) {
         let ptr_mut = self.ptr_mut(index);
+
         // SAFETY: `ptr_mut` just checked that the index is not out of bounds.
         unsafe {
             *ptr_mut = value.to_variant();
@@ -642,7 +671,7 @@ impl<T: GodotType + ToGodot> Array<T> {
     /// GDScript.
     pub fn push(&mut self, value: T) {
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
-        unsafe { self.as_inner() }.push_back(value.to_variant());
+        unsafe { self.as_inner_mut() }.push_back(value.to_variant());
     }
 
     /// Adds an element at the beginning of the array. See also `push`.
@@ -651,7 +680,7 @@ impl<T: GodotType + ToGodot> Array<T> {
     /// array's elements. The larger the array, the slower `push_front` will be.
     pub fn push_front(&mut self, value: T) {
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
-        unsafe { self.as_inner() }.push_front(value.to_variant());
+        unsafe { self.as_inner_mut() }.push_front(value.to_variant());
     }
 
     /// Inserts a new element at a given index in the array. The index must be valid, or at the end
@@ -666,8 +695,9 @@ impl<T: GodotType + ToGodot> Array<T> {
             index <= len,
             "Array insertion index {index} is out of bounds: length is {len}",
         );
+
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
-        unsafe { self.as_inner() }.insert(to_i64(index), value.to_variant());
+        unsafe { self.as_inner_mut() }.insert(to_i64(index), value.to_variant());
     }
 
     /// Removes the first occurrence of a value from the array. If the value does not exist in the
@@ -677,34 +707,14 @@ impl<T: GodotType + ToGodot> Array<T> {
     /// elements after the removed element. The larger the array, the slower `remove` will be.
     pub fn erase(&mut self, value: &T) {
         // SAFETY: We don't write anything to the array.
-        unsafe { self.as_inner() }.erase(value.to_variant());
+        unsafe { self.as_inner_mut() }.erase(value.to_variant());
     }
 
     /// Assigns the given value to all elements in the array. This can be used together with
     /// `resize` to create an array with a given size and initialized elements.
     pub fn fill(&mut self, value: &T) {
         // SAFETY: The array has type `T` and we're writing values of type `T` to it.
-        unsafe { self.as_inner() }.fill(value.to_variant());
-    }
-
-    /// Resizes the array to contain a different number of elements.
-    ///
-    /// If the new size is smaller than the current size, then it removes elements from the end. If the new size is bigger than the current one
-    /// then the new elements are set to `value`.
-    ///
-    /// If you know that the new size is smaller, then consider using [`shrink`](Array::shrink) instead.
-    #[doc(alias = "resize")]
-    pub fn resize_with(&mut self, new_size: usize, value: &T) {
-        let original_size = self.len();
-        // SAFETY: While we do insert `Variant::nil()` if the new size is larger, we then fill it with `value` ensuring that all values in the
-        // array are of type `T` still.
-        unsafe { self.as_inner() }.resize(to_i64(new_size));
-
-        if new_size > original_size {
-            for i in original_size..new_size {
-                self.set(i, value.to_godot());
-            }
-        }
+        unsafe { self.as_inner_mut() }.fill(value.to_variant());
     }
 }
 
@@ -886,6 +896,7 @@ impl<T: GodotType> Default for Array<T> {
                 ctor(self_ptr, std::ptr::null_mut())
             })
         };
+
         // SAFETY: We just created this array, and haven't called `init_inner_type` before.
         unsafe { array.init_inner_type() };
         array
@@ -971,9 +982,10 @@ impl<T: GodotType + ToGodot> From<&[T]> for Array<T> {
         if len == 0 {
             return array;
         }
+
         // SAFETY: We fill the array with `Variant::nil()`, however since we're resizing to the size of the slice we'll end up rewriting all
         // the nulls with values of type `T`.
-        unsafe { array.as_inner() }.resize(to_i64(len));
+        unsafe { array.as_inner_mut() }.resize(to_i64(len));
 
         let ptr = array.ptr_mut_or_null(0);
         for (i, element) in slice.iter().enumerate() {

@@ -54,9 +54,11 @@ where
     }
 }
 
-/// Type representing an object without a base. It is used as the base class for exactly one class: `Object`.
+/// Type representing the absence of a base class, at the root of the hierarchy.
 ///
-/// This is an enum without any variants as we should never construct an instance of this class.
+/// `NoBase` is used as the base class for exactly one class: [`Object`][crate::engine::Object].
+///
+/// This is an enum without any variants, as we should never construct an instance of this class.
 pub enum NoBase {}
 
 impl GodotClass for NoBase {

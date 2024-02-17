@@ -139,7 +139,17 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
             let instance_id = rtti.check_type::<Self>();
             Some(instance_id)
         }
+
+        #[doc(hidden)]
+        pub fn __object_ptr(&self) -> sys::GDExtensionObjectPtr {
+            self.object_ptr
+        }
     };
+
+    let inherits_macro_safety_doc = format!(
+        "The provided class must be a subclass of all the superclasses of [`{}`]",
+        class_name.rust_ty
+    );
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub.
     let imports = util::make_imports();
@@ -197,7 +207,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
 
             /// # Safety
             ///
-            #[doc = concat!("The provided class must be a subclass of all the superclasses of ", stringify!(#class_name))]
+            #[doc = #inherits_macro_safety_doc]
             #[macro_export]
             #[allow(non_snake_case)]
             macro_rules! #inherits_macro {

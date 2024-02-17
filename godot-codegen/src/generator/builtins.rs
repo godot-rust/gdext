@@ -163,16 +163,16 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
     }
 }
 
-/// Get the safety docs of a method if it should be unsafe
+/// Get the safety docs of an unsafe method, or `None` if it is safe.
 fn method_safety_doc(class_name: &TyName, method: &BuiltinMethod) -> Option<TokenStream> {
-    if class_name.godot_ty == "Array" {
-        if &method.return_value().type_tokens().to_string() == "VariantArray" {
-            return Some(quote! {
-                #[doc = "# Safety"]
-                #[doc = ""]
-                #[doc = "You must ensure that the returned array fulfils the safety invariants of [`Array`](crate::builtin::Array)"]
-            });
-        }
+    if class_name.godot_ty == "Array"
+        && &method.return_value().type_tokens().to_string() == "VariantArray"
+    {
+        return Some(quote! {
+            /// # Safety
+            ///
+            /// You must ensure that the returned array fulfils the safety invariants of [`Array`](crate::builtin::Array).
+        });
     }
 
     None
