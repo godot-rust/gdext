@@ -17,6 +17,8 @@ use godot::register::GodotClass;
 
 use crate::framework::bench;
 
+mod color;
+
 #[bench]
 fn builtin_string_ctor() -> GString {
     GString::from("some test string")
