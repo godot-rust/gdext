@@ -145,11 +145,11 @@ jobs:
 
           # Linux
 
-          - name: linux
+          - name: linux-full
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/custom-godot
+            rust-extra-args: --features codegen-full-experimental
 
           - name: linux-features
             os: ubuntu-20.04

@@ -265,14 +265,17 @@ jobs:
 
           # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
-          - name: linux
+
+          # Uses full+experimental codegen, so that compatibility breakage towards nightly is detected.
+          # If the experimental part causes problems, consider using only godot/codegen-full.
+          - name: linux-full
             os: ubuntu-20.04
-            artifact-name: linux-nightly
+            artifact-name: linux-full-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/custom-godot
+            rust-extra-args: --features codegen-full-experimental
 
           # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
-          - name: linux-double-full-lazy
+          - name: linux-double-lazy
             os: ubuntu-20.04
             artifact-name: linux-double-nightly
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
