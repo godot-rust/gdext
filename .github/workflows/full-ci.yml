@@ -270,7 +270,7 @@ jobs:
           # If the experimental part causes problems, consider using only godot/codegen-full.
           - name: linux-full
             os: ubuntu-20.04
-            artifact-name: linux-full-nightly
+            artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features codegen-full-experimental
 
@@ -447,6 +447,8 @@ jobs:
       - doc-lints
       - clippy
       - unit-test
+      - miri-test
+      - proptest
       - godot-itest
       - run-examples
       - cargo-deny-machete
