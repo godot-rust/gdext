@@ -267,10 +267,21 @@ jobs:
 
     runs-on: ubuntu-20.04
     steps:
-      - name: "Success"
-        if: ${{ !(contains(needs.*.result, 'failure')) }}
-        run: exit 0
-
-      - name: "Failure"
-        if: ${{ contains(needs.*.result, 'failure') }}
-        run: exit 1
+      - name: "Determine success or failure"
+        run: |
+          DEPENDENCIES='${{ toJson(needs) }}'
+          
+          echo "Dependency jobs:"
+          all_success=true
+          for job in $(echo "$DEPENDENCIES" | jq -r 'keys[]'); do
+              status=$(echo "$DEPENDENCIES" | jq -r ".[\"$job\"].result")
+              echo "* $job -> $status"
+              if [[ "$status" != "success" ]]; then
+                  all_success=false
+              fi
+          done
+          
+          if [[ "$all_success" == "false" ]]; then
+              echo "One or more dependency jobs failed or were cancelled."
+              exit 1
+          fi
