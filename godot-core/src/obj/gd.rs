@@ -143,27 +143,6 @@ where
         Self::from_init_fn(move |_base| user_object)
     }
 
-    #[deprecated = "Use `Gd::from_object()` instead."]
-    pub fn new(user_object: T) -> Self {
-        Self::from_object(user_object)
-    }
-
-    #[deprecated = "Use `Gd::default()` or the short-hands `T::new_gd()` and `T::new_alloc()` instead."]
-    pub fn new_default() -> Self
-    where
-        T: cap::GodotDefault,
-    {
-        Self::default_instance()
-    }
-
-    #[deprecated = "Use `Gd::from_init_fn()` instead."]
-    pub fn with_base<F>(init: F) -> Self
-    where
-        F: FnOnce(crate::obj::Base<T::Base>) -> T,
-    {
-        Self::from_init_fn(init)
-    }
-
     /// Hands out a guard for a shared borrow, through which the user instance can be read.
     ///
     /// The pattern is very similar to interior mutability with standard [`RefCell`][std::cell::RefCell].
@@ -755,10 +734,10 @@ impl<T: GodotClass> std::panic::RefUnwindSafe for Gd<T> {}
 /// ## Example
 ///
 /// ```no_run
-/// use godot::engine::RefCounted;
+/// use godot::prelude::*;
 /// use godot::obj::NotUniqueError;
 ///
-/// let shared = RefCounted::new();
+/// let shared = RefCounted::new_gd();
 /// let cloned = shared.clone();
 /// let result = NotUniqueError::check(shared);
 ///
@@ -782,13 +761,13 @@ impl NotUniqueError {
     /// ## Example
     ///
     /// ```no_run
-    /// use godot::engine::RefCounted;
+    /// use godot::prelude::*;
     /// use godot::obj::NotUniqueError;
     ///
-    /// let unique = RefCounted::new();
+    /// let unique = RefCounted::new_gd();
     /// assert!(NotUniqueError::check(unique).is_ok());
     ///
-    /// let shared = RefCounted::new();
+    /// let shared = RefCounted::new_gd();
     /// let cloned = shared.clone();
     /// assert!(NotUniqueError::check(shared).is_err());
     /// assert!(NotUniqueError::check(cloned).is_err());

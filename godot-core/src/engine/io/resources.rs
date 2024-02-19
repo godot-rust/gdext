@@ -84,7 +84,7 @@ where
 /// use godot::prelude::*;
 /// use godot::engine::save;
 ///
-/// save(Resource::new(), "res://base_resource.tres")
+/// save(Resource::new_gd(), "res://base_resource.tres")
 /// ```
 /// use godot::
 #[inline]

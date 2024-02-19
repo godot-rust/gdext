@@ -30,5 +30,4 @@ pub use super::obj::EngineBitfield as _;
 pub use super::obj::EngineEnum as _;
 pub use super::obj::NewAlloc as _;
 pub use super::obj::NewGd as _;
-pub use super::obj::UserClass as _; // TODO: remove (exposed functions are deprecated)
 pub use super::obj::WithBaseField as _; // base(), base_mut(), to_gd()

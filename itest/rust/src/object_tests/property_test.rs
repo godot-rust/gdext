@@ -46,7 +46,7 @@ struct HasProperty {
     #[var]
     texture_val: Gd<Texture>,
 
-    #[var(get = get_texture_val, set = set_texture_val, hint = PROPERTY_HINT_RESOURCE_TYPE, hint_string = "Texture")]
+    #[var(get = get_texture_val, set = set_texture_val, hint = RESOURCE_TYPE, hint_string = "Texture")]
     texture_val_rw: Option<Gd<Texture>>,
 }
 
