@@ -41,6 +41,11 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         //| ("Object", "to_string")
         | ("Object", "get_instance_id")
 
+        // Removed in https://github.com/godotengine/godot/pull/88418, but they cannot reasonably be used before, either.
+        | ("GDExtension", "open_library")
+        | ("GDExtension", "initialize_library")
+        | ("GDExtension", "close_library")
+
         // Thread APIs
         | ("ResourceLoader", "load_threaded_get")
         | ("ResourceLoader", "load_threaded_get_status")
