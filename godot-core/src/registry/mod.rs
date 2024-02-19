@@ -21,7 +21,7 @@ pub mod callbacks;
 // calls register/unregister in the main thread. Mutex is just casual way to ensure safety in this non-performance-critical path.
 // Note that we panic on concurrent access instead of blocking (fail-fast approach). If that happens, most likely something changed on Godot
 // side and analysis required to adopt these changes.
-static LOADED_CLASSES: Global<HashMap<InitLevel, Vec<ClassName>>> = Global::default();
+static LOADED_CLASSES: Global<HashMap<InitLevel, Vec<LoadedClass>>> = Global::default();
 
 // TODO(bromeon): some information coming from the proc-macro API is deferred through PluginItem, while others is directly
 // translated to code. Consider moving more code to the PluginItem, which allows for more dynamic registration and will
@@ -181,6 +181,14 @@ pub enum PluginItem {
     },
 }
 
+/// Represents a class who is currently loaded and retained in memory.
+///
+/// Besides the name, this type holds information relevant for the deregistration of the class.
+pub struct LoadedClass {
+    name: ClassName,
+    is_editor_plugin: bool,
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(Debug)]
@@ -320,18 +328,19 @@ pub fn auto_register_classes(init_level: InitLevel) {
 
     let mut loaded_classes_by_level = global_loaded_classes();
     for info in map.into_values() {
-        out!(
-            "Register class:   {} at level `{init_level:?}`",
-            info.class_name
-        );
         let class_name = info.class_name;
+        out!("Register class:   {class_name} at level `{init_level:?}`");
+        let loaded_class = LoadedClass {
+            name: class_name,
+            is_editor_plugin: info.is_editor_plugin,
+        };
         loaded_classes_by_level
             .entry(init_level)
             .or_default()
-            .push(info.class_name);
+            .push(loaded_class);
 
         register_class_raw(info);
-        out!("Class {} loaded", class_name);
+        out!("Class {class_name} loaded");
     }
 
     out!("All classes for level `{init_level:?}` auto-registered.");
@@ -343,12 +352,12 @@ pub fn unregister_classes(init_level: InitLevel) {
         .remove(&init_level)
         .unwrap_or_default();
     out!("Unregistering classes of level {init_level:?}...");
-    for class_name in loaded_classes_current_level.iter().rev() {
-        unregister_class_raw(*class_name);
+    for class_name in loaded_classes_current_level.into_iter().rev() {
+        unregister_class_raw(class_name);
     }
 }
 
-fn global_loaded_classes() -> GlobalGuard<'static, HashMap<InitLevel, Vec<ClassName>>> {
+fn global_loaded_classes() -> GlobalGuard<'static, HashMap<InitLevel, Vec<LoadedClass>>> {
     match LOADED_CLASSES.try_lock() {
         Ok(it) => it,
         Err(err) => match err {
@@ -542,19 +551,30 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
     if info.is_editor_plugin {
         unsafe { interface_fn!(editor_add_plugin)(class_name.string_sys()) };
     }
-    #[cfg(before_api = "4.1")]
-    assert!(!info.is_editor_plugin);
 }
 
-fn unregister_class_raw(class_name: ClassName) {
+fn unregister_class_raw(class: LoadedClass) {
+    let class_name = class.name;
     out!("Unregister class: {class_name}");
-    unsafe {
-        #[allow(clippy::let_unit_value)]
-        let _: () = interface_fn!(classdb_unregister_extension_class)(
+
+    // If class is an editor plugin, unregister that first.
+    #[cfg(since_api = "4.1")]
+    if class.is_editor_plugin {
+        unsafe {
+            interface_fn!(editor_remove_plugin)(class_name.string_sys());
+        }
+
+        out!("> Editor plugin removed");
+    }
+
+    #[allow(clippy::let_unit_value)]
+    let _: () = unsafe {
+        interface_fn!(classdb_unregister_extension_class)(
             sys::get_library(),
             class_name.string_sys(),
-        );
-    }
+        )
+    };
+
     out!("Class {class_name} unloaded");
 }
 

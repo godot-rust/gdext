@@ -13,13 +13,16 @@ use std::sync::{Mutex, MutexGuard, TryLockError};
 /// No more `Mutex<Option<...>>` shenanigans with lazy initialization on each use site, or `OnceLock` which limits to immutable access.
 ///
 /// This type is very similar to [`once_cell::Lazy`](https://docs.rs/once_cell/latest/once_cell/sync/struct.Lazy.html) in its nature,
-/// with a minimalistic implementation. It features:
-/// - A `const` constructor, allowing to be used in `static` variables without `Option`.
+/// with a minimalistic implementation. Unlike `Lazy`, it is only designed for global variables, not for local lazy initialization
+/// (following "do one thing and do it well").
+///
+/// `Global<T>` features:
+/// - `const` constructors, allowing to be used in `static` variables without `Option`.
 /// - Initialization function provided in constructor, not in each use site separately.
 /// - Ergonomic access through guards to both `&T` and `&mut T`.
 /// - Completely safe usage. Almost completely safe implementation (besides `unreachable_unchecked`).
 ///
-/// There are two methods for construction: [`new()`](Self::new) and [`default()`](Self::default).
+/// There are two `const` methods for construction: [`new()`](Self::new) and [`default()`](Self::default).
 /// For access, you should primarily use [`lock()`](Self::lock). There is also [`try_lock()`](Self::try_lock) for special cases.
 pub struct Global<T> {
     // When needed, this could be changed to use RwLock and separate read/write guards.
