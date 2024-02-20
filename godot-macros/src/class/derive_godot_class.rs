@@ -104,6 +104,8 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
         quote! { None }
     };
 
+    let is_tool = struct_cfg.is_tool;
+
     Ok(quote! {
         impl ::godot::obj::GodotClass for #class_name {
             type Base = #base_class;
@@ -136,6 +138,7 @@ pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
                 },
                 free_fn: #prv::callbacks::free::<#class_name>,
                 default_get_virtual_fn: #default_get_virtual_fn,
+                is_tool: #is_tool,
                 is_editor_plugin: #is_editor_plugin,
                 is_hidden: #is_hidden,
                 is_instantiable: #is_instantiable,

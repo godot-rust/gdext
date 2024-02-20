@@ -30,6 +30,8 @@ pub struct ClassConfig {
     pub is_tool: bool,
 }
 
+// Starting from 4.3, Godot has "runtime classes"; this emulation is no longer needed.
+#[cfg(before_api = "4.3")]
 pub fn is_class_inactive(is_tool: bool) -> bool {
     if is_tool {
         return false;
@@ -41,6 +43,21 @@ pub fn is_class_inactive(is_tool: bool) -> bool {
 
     global_config.tool_only_in_editor //.
         && global_config.is_editor_or_init(is_editor)
+}
+
+// Starting from 4.3, Godot has "runtime classes"; we only need to check whether editor is running.
+#[cfg(since_api = "4.3")]
+pub fn is_class_runtime(is_tool: bool) -> bool {
+    if is_tool {
+        return false;
+    }
+
+    // SAFETY: only invoked after global library initialization.
+    let global_config = unsafe { sys::config() };
+
+    // If this is not a #[class(tool)] and we only run tool classes in the editor, then don't run this in editor -> make it a runtime class.
+    // If we run all classes in the editor (!tool_only_in_editor), then it's not a runtime class.
+    global_config.tool_only_in_editor
 }
 
 pub fn print_panic(err: Box<dyn std::any::Any + Send>) {

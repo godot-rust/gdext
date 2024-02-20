@@ -73,7 +73,10 @@ impl BindingStorage {
 }
 
 pub struct GdextConfig {
+    /// True if only `#[class(tool)]` classes are active in editor; false if all classes are.
     pub tool_only_in_editor: bool,
+
+    /// Whether the extension is loaded in an editor.
     is_editor: OnceLock<bool>,
 }
 
