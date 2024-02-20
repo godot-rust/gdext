@@ -12,9 +12,7 @@ fn main() {
     // struggle with static analysis when symbols are outside the crate directory (April 2023).
     let gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen"));
 
-    if gen_path.exists() {
-        std::fs::remove_dir_all(gen_path).unwrap_or_else(|e| panic!("failed to delete dir: {e}"));
-    }
+    godot_bindings::remove_dir_all_reliable(gen_path);
 
     godot_codegen::generate_core_files(gen_path);
     println!("cargo:rerun-if-changed=build.rs");

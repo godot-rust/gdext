@@ -128,7 +128,7 @@ const NEXT_MINOR_VERSION: u8 = 3;
 
 pub fn clear_dir(dir: &Path, watch: &mut StopWatch) {
     if dir.exists() {
-        std::fs::remove_dir_all(dir).unwrap_or_else(|e| panic!("failed to delete dir: {e}"));
+        remove_dir_all_reliable(dir);
         watch.record("delete_gen_dir");
     }
     std::fs::create_dir_all(dir).unwrap_or_else(|e| panic!("failed to create dir: {e}"));
@@ -159,5 +159,27 @@ pub fn emit_godot_version_cfg() {
         println!(r#"cargo:rustc-cfg=gdextension_exact_api="{major}.{minor}.{patch}""#);
     } else {
         println!(r#"cargo:rustc-cfg=gdextension_exact_api="{major}.{minor}""#);
+    }
+}
+
+// Function for safely removal of build directory. Workaround for errors happening during CI builds:
+// https://github.com/godot-rust/gdext/issues/616
+pub fn remove_dir_all_reliable(path: &std::path::Path) {
+    let mut retry_count = 0;
+
+    while path.exists() {
+        match std::fs::remove_dir_all(path) {
+            Ok(_) => break,
+            Err(err) => {
+                assert_ne!(
+                    retry_count,
+                    5,
+                    "cannot remove directory: {path_display} after 5 tries with error: {err}",
+                    path_display = path.display()
+                );
+                retry_count += 1;
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
     }
 }
