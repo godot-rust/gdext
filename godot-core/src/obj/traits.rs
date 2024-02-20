@@ -126,20 +126,7 @@ impl<T: GodotClass> Inherits<T> for T {}
 pub trait ExportableObject: GodotClass {}
 
 /// Implemented for all user-defined classes, providing extensions on the raw object to interact with `Gd`.
-// #[deprecated = "Use `NewGd` and `NewAlloc` traits instead."]
 pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {
-    /// Return a new Gd which contains a default-constructed instance.
-    ///
-    /// `MyClass::new_gd()` is equivalent to `Gd::<MyClass>::default()`.
-    #[deprecated = "Use `NewAlloc::new_alloc()` instead."]
-    #[must_use]
-    fn alloc_gd() -> Gd<Self>
-    where
-        Self: cap::GodotDefault + Bounds<Memory = bounds::MemManual>,
-    {
-        Gd::default_instance()
-    }
-
     #[doc(hidden)]
     fn __config() -> crate::private::ClassConfig;
 

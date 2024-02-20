@@ -15,20 +15,20 @@ use crate::ParseResult;
 
 /// Store info from `#[export]` attribute.
 pub enum FieldExport {
-    /// ### GDScript Annotations
+    /// ### GDScript annotations
     /// - `@export`
     ///
-    /// ### Property Hints
-    /// - `PROPERTY_HINT_NONE` (usually)
+    /// ### Property hints
+    /// - `NONE` (usually)
     ///
     /// Can become other property hints, depends on context.
     Default,
 
-    /// ### GDScript Annotations
+    /// ### GDScript annotations
     /// - `@export_range`
     ///
-    /// ### Property Hints
-    /// - `PROPERTY_HINT_RANGE`
+    /// ### Property hints
+    /// - `RANGE`
     Range {
         min: TokenStream,
         max: TokenStream,
@@ -41,31 +41,31 @@ pub enum FieldExport {
         hide_slider: bool,
     },
 
-    /// ### GDScript Annotations
+    /// ### GDScript annotations
     /// - `@export_enum`
     ///
-    /// ### Property Hints
-    /// - `PROPERTY_HINT_ENUM`
+    /// ### Property hints
+    /// - `ENUM`
     Enum { variants: Vec<ValueWithKey> },
 
-    /// ### GDScript Annotations
+    /// ### GDScript annotations
     /// - `@export_exp_easing`
     ///
-    /// ### Property Hints
-    /// - `PROPERTY_HINT_EXP_EASING`
+    /// ### Property hints
+    /// - `EXP_EASING`
     ExpEasing {
         attenuation: bool,
         positive_only: bool,
     },
 
-    /// ### GDScript Annotations
+    /// ### GDScript annotations
     /// - `@export_flags`
     ///
-    /// ### Property Hints
-    /// - `PROPERTY_HINT_FLAGS`
+    /// ### Property hints
+    /// - `FLAGS`
     Flags { bits: Vec<ValueWithKey> },
 
-    /// ### GDScript Annotations
+    /// ### GDScript annotations
     /// - `@export_flags_2d_physics`
     /// - `@export_flags_2d_render`
     /// - `@export_flags_2d_navigation`
@@ -73,50 +73,50 @@ pub enum FieldExport {
     /// - `@export_flags_3d_render`
     /// - `@export_flags_3d_navigation`
     ///
-    /// ### Property Hints
-    /// - `PROPERTY_HINT_LAYERS_2D_PHYSICS`
-    /// - `PROPERTY_HINT_LAYERS_2D_RENDER`
-    /// - `PROPERTY_HINT_LAYERS_2D_NAVIGATION`
-    /// - `PROPERTY_HINT_LAYERS_3D_PHYSICS`
-    /// - `PROPERTY_HINT_LAYERS_3D_RENDER`
-    /// - `PROPERTY_HINT_LAYERS_3D_NAVIGATION`
+    /// ### Property hints
+    /// - `LAYERS_2D_PHYSICS`
+    /// - `LAYERS_2D_RENDER`
+    /// - `LAYERS_2D_NAVIGATION`
+    /// - `LAYERS_3D_PHYSICS`
+    /// - `LAYERS_3D_RENDER`
+    /// - `LAYERS_3D_NAVIGATION`
     Layers {
         dimension: LayerDimension,
         kind: LayerKind,
     },
 
-    /// ### GDScript Annotations
+    /// ### GDScript annotations
     /// - `@export_file`
     /// - `@export_global_file`
     /// - `@export_dir`
     /// - `@export_global_dir`
     ///
-    /// ### Property Hints
-    /// - `PROPERTY_HINT_FILE`
-    /// - `PROPERTY_HINT_GLOBAL_FILE`
-    /// - `PROPERTY_HINT_DIR`
-    /// - `PROPERTY_HINT_GLOBAL_DIR`
+    /// ### Property hints
+    /// - `FILE`
+    /// - `GLOBAL_FILE`
+    /// - `DIR`
+    /// - `GLOBAL_DIR`
     File { global: bool, kind: FileKind },
 
-    /// ### GDScript Annotations
+    /// ### GDScript annotations
     /// - `@export_multiline`
     ///
-    /// ### Property Hints
-    /// - `PROPERTY_HINT_MULTILINE_TEXT`
+    /// ### Property hints
+    /// - `MULTILINE_TEXT`
     Multiline,
 
-    /// ### GDScript Annotations
+    /// ### GDScript annotations
     /// - `@export_placeholder`
     ///
-    /// ### Property Hints
-    /// - `PROPERTY_HINT_PLACEHOLDER_TEXT`
+    /// ### Property hints
+    /// - `PLACEHOLDER_TEXT`
     PlaceholderText { placeholder: TokenStream },
 
-    /// ### GDScript Annotations
+    /// ### GDScript annotations
     /// - `@export_color_no_alpha`
     ///
-    /// ### Property Hints
-    /// - `PROPERTY_HINT_COLOR_NO_ALPHA`
+    /// ### Property hints
+    /// - `COLOR_NO_ALPHA`
     ColorNoAlpha,
 }
 

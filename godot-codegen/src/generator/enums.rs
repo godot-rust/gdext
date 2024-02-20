@@ -24,15 +24,9 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
     // this might be a forward compatibility hazard, if Godot deprecates enumerators and adds new ones with existing ords.
 
     let rust_enum_name = &enum_.name;
-
-    // TODO remove once deprecated is removed.
-    let deprecated_enum_decl = if rust_enum_name != enum_.godot_name.as_str() {
-        let deprecated_enum_name = util::ident(&enum_.godot_name);
-        let msg = format!("Renamed to `{rust_enum_name}`.");
-        quote! {
-            #[deprecated = #msg]
-            pub type #deprecated_enum_name = #rust_enum_name;
-        }
+    let godot_name_doc = if rust_enum_name != enum_.godot_name.as_str() {
+        let doc = format!("Godot enum name: `{}`.", enum_.godot_name);
+        quote! { #[doc = #doc] }
     } else {
         TokenStream::new()
     };
@@ -40,25 +34,18 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
     let rust_enumerators = &enum_.enumerators;
 
     let mut enumerators = Vec::with_capacity(rust_enumerators.len());
-    let mut deprecated_enumerators = Vec::new();
 
     // This is only used for enum ords (i32), not bitfield flags (u64).
     let mut unique_ords = Vec::with_capacity(rust_enumerators.len());
 
     for enumerator in rust_enumerators.iter() {
-        let (def, deprecated_def) = make_enumerator_definition(enumerator);
+        let def = make_enumerator_definition(enumerator);
         enumerators.push(def);
-
-        if let Some(def) = deprecated_def {
-            deprecated_enumerators.push(def);
-        }
 
         if let EnumeratorValue::Enum(ord) = enumerator.value {
             unique_ords.push(ord);
         }
     }
-
-    enumerators.extend(deprecated_enumerators);
 
     let mut derives = vec!["Copy", "Clone", "Eq", "PartialEq", "Hash", "Debug"];
 
@@ -143,10 +130,9 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
     // Public interface is i64 though, for consistency (and possibly forward compatibility?).
     // Bitfield ordinals are stored as u64. See also: https://github.com/godotengine/godot-cpp/pull/1320
     quote! {
-        #deprecated_enum_decl
-
         #[repr(transparent)]
         #[derive(#( #derives ),*)]
+        #godot_name_doc
         pub struct #rust_enum_name {
             ord: #enum_ord_type
         }
@@ -190,7 +176,7 @@ fn make_bitfield_flag_ord(ord: u64) -> Literal {
     Literal::u64_suffixed(ord)
 }
 
-fn make_enumerator_definition(enumerator: &Enumerator) -> (TokenStream, Option<TokenStream>) {
+fn make_enumerator_definition(enumerator: &Enumerator) -> TokenStream {
     let ordinal_lit = match enumerator.value {
         EnumeratorValue::Enum(ord) => make_enumerator_ord(ord),
         EnumeratorValue::Bitfield(ord) => make_bitfield_flag_ord(ord),
@@ -199,33 +185,20 @@ fn make_enumerator_definition(enumerator: &Enumerator) -> (TokenStream, Option<T
     let rust_ident = &enumerator.name;
     let godot_name_str = &enumerator.godot_name;
 
-    let (doc_alias, deprecated_def);
-
-    if rust_ident == godot_name_str {
-        deprecated_def = None;
-        doc_alias = TokenStream::new();
+    let doc = if rust_ident == godot_name_str {
+        TokenStream::new()
     } else {
-        // Godot and Rust names differ -> add doc alias for searchability.
-        let msg = format!("Renamed to `{rust_ident}`.");
-        let deprecated_ident = util::ident(godot_name_str);
-
-        // For now, list previous identifier at the end.
-        deprecated_def = Some(quote! {
-            #[deprecated = #msg]
-            pub const #deprecated_ident: Self = Self { ord: #ordinal_lit };
-        });
-
-        doc_alias = quote! {
+        let doc_string = format!("Godot enumerator name: `{}`.", godot_name_str);
+        quote! {
             #[doc(alias = #godot_name_str)]
-        };
+            #[doc = #doc_string]
+        }
     };
 
-    let def = quote! {
-        #doc_alias
+    quote! {
+        #doc
         pub const #rust_ident: Self = Self { ord: #ordinal_lit };
-    };
-
-    (def, deprecated_def)
+    }
 }
 
 /// If an enum qualifies as "indexable" (can be used as array index), returns the number of possible values.

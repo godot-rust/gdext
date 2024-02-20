@@ -319,19 +319,10 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> (TokenStream, T
         // Abstract base classes or non-singleton classes without constructor
         constructor = TokenStream::new();
         has_godot_default_impl = false;
-    } else if class.is_refcounted {
-        // RefCounted, Resource, etc
-        constructor = quote! {
-            #[deprecated = "Replaced with `new_gd` in extension trait `NewGd`."]
-            pub fn new() -> Gd<Self> {
-                // <Self as crate::obj::NewGd>::new_gd()
-                crate::obj::Gd::default()
-            }
-        };
-        has_godot_default_impl = true;
     } else {
-        // Manually managed classes: Object, Node etc
-        constructor = quote! {};
+        // Manually managed classes (Object, Node, ...) as well as ref-counted ones (RefCounted, Resource, ...).
+        // The constructors are provided as associated methods in NewGd::new_gd() and NewAlloc::new_alloc().
+        constructor = TokenStream::new();
         has_godot_default_impl = true;
     }
 
