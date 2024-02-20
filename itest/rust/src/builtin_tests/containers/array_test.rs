@@ -497,6 +497,53 @@ fn array_binary_search_custom() {
     assert_eq!(a.bsearch_custom(&3, func), 2);
 }
 
+#[itest]
+fn array_shrink() {
+    let mut a = array![1, 5, 4, 3, 8];
+
+    assert!(!a.shrink(10));
+    assert_eq!(a.len(), 5);
+
+    assert!(a.shrink(3));
+    assert_eq!(a.len(), 3);
+    assert_eq!(a, array![1, 5, 4]);
+}
+
+#[itest]
+fn array_resize() {
+    let mut a = array![
+        GString::from("hello"),
+        GString::from("bar"),
+        GString::from("mixed"),
+        GString::from("baz"),
+        GString::from("meow")
+    ];
+
+    let new = GString::from("new!");
+
+    a.resize(10, &new);
+    assert_eq!(a.len(), 10);
+    assert_eq!(
+        a,
+        array![
+            GString::from("hello"),
+            GString::from("bar"),
+            GString::from("mixed"),
+            GString::from("baz"),
+            GString::from("meow"),
+            new.clone(),
+            new.clone(),
+            new.clone(),
+            new.clone(),
+            new.clone(),
+        ]
+    );
+
+    a.resize(2, &new);
+
+    assert_eq!(a, array![GString::from("hello"), GString::from("bar"),]);
+}
+
 #[derive(GodotClass, Debug)]
 #[class(init, base=RefCounted)]
 struct ArrayTest;

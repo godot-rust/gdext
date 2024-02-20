@@ -527,11 +527,8 @@ fn object_engine_upcast() {
 }
 
 fn ref_instance_id(obj: &Object) -> InstanceId {
+    let obj_ptr = obj.__object_ptr();
     // SAFETY: raw FFI call since we can't access get_instance_id() of a raw Object anymore, and call() needs &mut.
-    use godot::obj::EngineClass as _;
-
-    let obj_ptr = obj.as_object_ptr();
-
     let raw_id = unsafe { interface_fn!(object_get_instance_id)(obj_ptr) };
     InstanceId::try_from_i64(raw_id as i64).unwrap()
 }

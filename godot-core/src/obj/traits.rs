@@ -46,7 +46,7 @@ where
     fn inherits<U: GodotClass>() -> bool {
         if Self::class_name() == U::class_name() {
             true
-        } else if Self::Base::class_name() == <()>::class_name() {
+        } else if Self::Base::class_name() == <NoBase>::class_name() {
             false
         } else {
             Self::Base::inherits::<U>()
@@ -54,9 +54,15 @@ where
     }
 }
 
-/// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
-impl GodotClass for () {
-    type Base = ();
+/// Type representing the absence of a base class, at the root of the hierarchy.
+///
+/// `NoBase` is used as the base class for exactly one class: [`Object`][crate::engine::Object].
+///
+/// This is an enum without any variants, as we should never construct an instance of this class.
+pub enum NoBase {}
+
+impl GodotClass for NoBase {
+    type Base = NoBase;
 
     fn class_name() -> ClassName {
         ClassName::none()
@@ -65,8 +71,7 @@ impl GodotClass for () {
     const INIT_LEVEL: InitLevel = InitLevel::Core; // arbitrary; never read.
 }
 
-/// Unit impl only exists to represent "no base", and is used for exactly one class: `Object`.
-unsafe impl Bounds for () {
+unsafe impl Bounds for NoBase {
     type Memory = bounds::MemManual;
     type DynMemory = bounds::MemManual;
     type Declarer = bounds::DeclEngine;
@@ -116,14 +121,15 @@ unsafe impl Bounds for () {
 /// print_node(Node3D::new_alloc().upcast());
 /// ```
 ///
-pub trait Inherits<Base: GodotClass>: GodotClass {}
-
-impl<T: GodotClass> Inherits<T> for T {}
-
-/// Trait implemented for all objects that inherit from `Resource` or `Node`.
+/// # Safety
 ///
-/// Those are the only objects you can export to the editor.
-pub trait ExportableObject: GodotClass {}
+/// This trait must only be implemented for subclasses of `Base`.
+///
+/// Importantly, this means it is always safe to upcast a value of type `Gd<Self>` to `Gd<Base>`.
+pub unsafe trait Inherits<Base: GodotClass>: GodotClass {}
+
+// SAFETY: Every class is a subclass of itself.
+unsafe impl<T: GodotClass> Inherits<T> for T {}
 
 /// Implemented for all user-defined classes, providing extensions on the raw object to interact with `Gd`.
 pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {
@@ -137,12 +143,6 @@ pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {
     fn __default_virtual_call(_method_name: &str) -> sys::GDExtensionClassCallVirtual {
         None
     }
-}
-
-/// Auto-implemented for all engine-provided classes.
-pub trait EngineClass: GodotClass {
-    fn as_object_ptr(&self) -> sys::GDExtensionObjectPtr;
-    fn as_type_ptr(&self) -> sys::GDExtensionTypePtr;
 }
 
 /// Auto-implemented for all engine-provided enums.

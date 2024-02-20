@@ -82,7 +82,11 @@ impl FnDefinitions {
     }
 }
 
-pub fn make_function_definition(sig: &dyn Function, code: &FnCode) -> FnDefinition {
+pub fn make_function_definition(
+    sig: &dyn Function,
+    code: &FnCode,
+    safety_doc: Option<TokenStream>,
+) -> FnDefinition {
     let has_default_params = default_parameters::function_uses_default_params(sig);
     let vis = if has_default_params {
         // Public API mapped by separate function.
@@ -92,7 +96,9 @@ pub fn make_function_definition(sig: &dyn Function, code: &FnCode) -> FnDefiniti
         make_vis(sig.is_private())
     };
 
-    let (maybe_unsafe, safety_doc) = if function_uses_pointers(sig) {
+    let (maybe_unsafe, safety_doc) = if let Some(safety_doc) = safety_doc {
+        (quote! { unsafe }, safety_doc)
+    } else if function_uses_pointers(sig) {
         (
             quote! { unsafe },
             quote! {
