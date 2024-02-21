@@ -261,10 +261,16 @@ pub(crate) fn extract_cfg_attrs(
     })
 }
 
+#[cfg(before_api = "4.3")]
 pub fn make_virtual_tool_check() -> TokenStream {
     quote! {
         if ::godot::private::is_class_inactive(Self::__config().is_tool) {
             return None;
         }
     }
+}
+
+#[cfg(since_api = "4.3")]
+pub fn make_virtual_tool_check() -> TokenStream {
+    TokenStream::new()
 }

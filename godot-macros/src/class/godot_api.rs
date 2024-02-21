@@ -729,6 +729,8 @@ fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream>
                     impl ::godot::obj::cap::GodotNotification for #class_name {
                         fn __godot_notification(&mut self, what: i32) {
                             use ::godot::obj::UserClass as _;
+
+                            #[cfg(before_api = "4.3")]
                             if ::godot::private::is_class_inactive(Self::__config().is_tool) {
                                 return;
                             }
@@ -751,6 +753,8 @@ fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream>
                     impl ::godot::obj::cap::GodotGet for #class_name {
                         fn __godot_get_property(&self, property: ::godot::builtin::StringName) -> Option<::godot::builtin::Variant> {
                             use ::godot::obj::UserClass as _;
+
+                            #[cfg(before_api = "4.3")]
                             if ::godot::private::is_class_inactive(Self::__config().is_tool) {
                                 return None;
                             }
@@ -772,6 +776,8 @@ fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream>
                     impl ::godot::obj::cap::GodotSet for #class_name {
                         fn __godot_set_property(&mut self, property: ::godot::builtin::StringName, value: ::godot::builtin::Variant) -> bool {
                             use ::godot::obj::UserClass as _;
+
+                            #[cfg(before_api = "4.3")]
                             if ::godot::private::is_class_inactive(Self::__config().is_tool) {
                                 return false;
                             }

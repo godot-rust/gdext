@@ -94,6 +94,9 @@ pub enum PluginItem {
             ) -> sys::GDExtensionClassCallVirtual,
         >,
 
+        /// Whether `#[class(tool)]` was used.
+        is_tool: bool,
+
         /// Whether `#[class(editor_plugin)]` was used.
         is_editor_plugin: bool,
 
@@ -205,8 +208,11 @@ struct ClassRegistrationInfo {
     /// Godot low-level class creation parameters.
     #[cfg(before_api = "4.2")]
     godot_params: sys::GDExtensionClassCreationInfo,
-    #[cfg(since_api = "4.2")]
+    #[cfg(all(since_api = "4.2", before_api = "4.3"))]
     godot_params: sys::GDExtensionClassCreationInfo2,
+    #[cfg(since_api = "4.3")]
+    godot_params: sys::GDExtensionClassCreationInfo3,
+
     #[allow(dead_code)] // Currently unused; may be useful for diagnostics in the future.
     init_level: InitLevel,
     is_editor_plugin: bool,
@@ -238,6 +244,7 @@ impl ClassRegistrationInfo {
 }
 
 /// Registers a class with static type information.
+// Currently dead code, but will be needed for builder API. Don't remove.
 pub fn register_class<
     T: cap::GodotDefault
         + cap::ImplementsGodotVirtual
@@ -250,27 +257,20 @@ pub fn register_class<
 
     out!("Manually register class {}", std::any::type_name::<T>());
 
+    // This works as long as fields are called the same. May still need individual #[cfg]s for newer fields.
     #[cfg(before_api = "4.2")]
-    let godot_params = sys::GDExtensionClassCreationInfo {
+    type CreationInfo = sys::GDExtensionClassCreationInfo;
+    #[cfg(all(since_api = "4.2", before_api = "4.3"))]
+    type CreationInfo = sys::GDExtensionClassCreationInfo2;
+    #[cfg(since_api = "4.3")]
+    type CreationInfo = sys::GDExtensionClassCreationInfo3;
+
+    let godot_params = CreationInfo {
         to_string_func: Some(callbacks::to_string::<T>),
         notification_func: Some(callbacks::on_notification::<T>),
         reference_func: Some(callbacks::reference::<T>),
         unreference_func: Some(callbacks::unreference::<T>),
         create_instance_func: Some(callbacks::create::<T>),
-        free_instance_func: Some(callbacks::free::<T>),
-        get_virtual_func: Some(callbacks::get_virtual::<T>),
-        get_rid_func: None,
-        class_userdata: ptr::null_mut(), // will be passed to create fn, but global per class
-        ..default_creation_info()
-    };
-    #[cfg(since_api = "4.2")]
-    let godot_params = sys::GDExtensionClassCreationInfo2 {
-        to_string_func: Some(callbacks::to_string::<T>),
-        notification_func: Some(callbacks::on_notification::<T>),
-        reference_func: Some(callbacks::reference::<T>),
-        unreference_func: Some(callbacks::unreference::<T>),
-        create_instance_func: Some(callbacks::create::<T>),
-        recreate_instance_func: Some(callbacks::recreate::<T>),
         free_instance_func: Some(callbacks::free::<T>),
         get_virtual_func: Some(callbacks::get_virtual::<T>),
         get_rid_func: None,
@@ -384,11 +384,15 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             register_properties_fn,
             free_fn,
             default_get_virtual_fn,
+            is_tool,
             is_editor_plugin,
             is_hidden,
             is_instantiable,
         } => {
             c.parent_class_name = Some(base_class_name);
+            c.default_virtual_fn = default_get_virtual_fn;
+            c.register_properties_fn = Some(register_properties_fn);
+            c.is_editor_plugin = is_editor_plugin;
 
             // Classes marked #[class(no_init)] are translated to "abstract" in Godot. This disables their default constructor.
             // "Abstract" is a misnomer -- it's not an abstract base class, but rather a "utility/static class" (although it can have instance
@@ -399,6 +403,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             //
             // See also: https://github.com/godotengine/godot/pull/58972
             c.godot_params.is_abstract = (!is_instantiable) as sys::GDExtensionBool;
+            c.godot_params.free_instance_func = Some(free_fn);
 
             fill_into(
                 &mut c.godot_params.create_instance_func,
@@ -420,11 +425,11 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             #[cfg(before_api = "4.2")]
             assert!(generated_recreate_fn.is_none()); // not used
 
-            c.godot_params.free_instance_func = Some(free_fn);
-            c.default_virtual_fn = default_get_virtual_fn;
-            c.register_properties_fn = Some(register_properties_fn);
-
-            c.is_editor_plugin = is_editor_plugin;
+            #[cfg(since_api = "4.3")]
+            {
+                c.godot_params.is_runtime =
+                    crate::private::is_class_runtime(is_tool) as sys::GDExtensionBool;
+            }
         }
 
         PluginItem::InherentImpl {
@@ -494,12 +499,12 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
         info.godot_params.get_virtual_func = info.user_virtual_fn.or(info.default_virtual_fn);
     }
 
+    // The explicit () type notifies us if Godot API ever adds a return type.
+    #[allow(clippy::let_unit_value)]
     unsafe {
         // Try to register class...
 
         #[cfg(before_api = "4.2")]
-        #[allow(clippy::let_unit_value)]
-        // notifies us if Godot API ever adds a return type.
         let _: () = interface_fn!(classdb_register_extension_class)(
             sys::get_library(),
             class_name.string_sys(),
@@ -507,10 +512,16 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
             ptr::addr_of!(info.godot_params),
         );
 
-        #[cfg(since_api = "4.2")]
-        #[allow(clippy::let_unit_value)]
-        // notifies us if Godot API ever adds a return type.
+        #[cfg(all(since_api = "4.2", before_api = "4.3"))]
         let _: () = interface_fn!(classdb_register_extension_class2)(
+            sys::get_library(),
+            class_name.string_sys(),
+            parent_class_name.string_sys(),
+            ptr::addr_of!(info.godot_params),
+        );
+
+        #[cfg(since_api = "4.3")]
+        let _: () = interface_fn!(classdb_register_extension_class3)(
             sys::get_library(),
             class_name.string_sys(),
             parent_class_name.string_sys(),
@@ -602,8 +613,8 @@ fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
 #[cfg(before_api = "4.2")]
 fn default_creation_info() -> sys::GDExtensionClassCreationInfo {
     sys::GDExtensionClassCreationInfo {
-        is_abstract: false as u8,
         is_virtual: false as u8,
+        is_abstract: false as u8,
         set_func: None,
         get_func: None,
         get_property_list_func: None,
@@ -622,11 +633,12 @@ fn default_creation_info() -> sys::GDExtensionClassCreationInfo {
     }
 }
 
-#[cfg(since_api = "4.2")]
+#[cfg(all(since_api = "4.2", before_api = "4.3"))]
 fn default_creation_info() -> sys::GDExtensionClassCreationInfo2 {
     sys::GDExtensionClassCreationInfo2 {
-        is_abstract: false as u8,
         is_virtual: false as u8,
+        is_abstract: false as u8,
+        is_exposed: true as sys::GDExtensionBool,
         set_func: None,
         get_func: None,
         get_property_list_func: None,
@@ -646,6 +658,34 @@ fn default_creation_info() -> sys::GDExtensionClassCreationInfo2 {
         call_virtual_with_data_func: None,
         get_rid_func: None,
         class_userdata: ptr::null_mut(),
+    }
+}
+
+#[cfg(since_api = "4.3")]
+fn default_creation_info() -> sys::GDExtensionClassCreationInfo3 {
+    sys::GDExtensionClassCreationInfo3 {
+        is_virtual: false as u8,
+        is_abstract: false as u8,
         is_exposed: true as sys::GDExtensionBool,
+        is_runtime: true as sys::GDExtensionBool,
+        set_func: None,
+        get_func: None,
+        get_property_list_func: None,
+        free_property_list_func: None,
+        property_can_revert_func: None,
+        property_get_revert_func: None,
+        validate_property_func: None,
+        notification_func: None,
+        to_string_func: None,
+        reference_func: None,
+        unreference_func: None,
+        create_instance_func: None,
+        free_instance_func: None,
+        recreate_instance_func: None,
+        get_virtual_func: None,
+        get_virtual_call_data_func: None,
+        call_virtual_with_data_func: None,
+        get_rid_func: None,
+        class_userdata: ptr::null_mut(),
     }
 }
