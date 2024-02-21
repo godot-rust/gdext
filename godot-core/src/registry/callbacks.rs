@@ -198,6 +198,83 @@ pub unsafe extern "C" fn set_property<T: cap::GodotSet>(
     T::__godot_set_property(&mut *instance, property, value) as sys::GDExtensionBool
 }
 
+pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
+    instance: sys::GDExtensionClassInstancePtr,
+    count: *mut u32,
+) -> *const sys::GDExtensionPropertyInfo {
+    let storage = as_storage::<T>(instance);
+    let instance = storage.get();
+
+    let v = T::__godot_get_property_list(&*instance);
+    let list = storage.store_property_list(v);
+
+    // SAFETY: We are not calling `instance.free_property_list()`, so this reference will not get invalidated before the end of this function.
+    // Additionally, the raw pointer we're passing to Godot will not be used after Godot calls `free_property_list`.
+    let list_ref = unsafe { &*list };
+
+    // SAFETY: Godot gives us exclusive ownership over `count` for the purposes of returning the length of the property list, so we can safely
+    // write a value of type `u32` to `count`.
+    unsafe {
+        (*count) = list_ref.len().try_into().unwrap();
+    }
+
+    list_ref.as_ptr()
+}
+
+pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
+    instance: sys::GDExtensionClassInstancePtr,
+    _list: *const sys::GDExtensionPropertyInfo,
+) {
+    let storage = as_storage::<T>(instance);
+
+    // SAFETY: We do not access the property list outside of `get_property_list`, and it does not call this function.
+    // Godot will only call this function once it's done with accessing the pointer we give it in `get_propery_list`.
+    unsafe {
+        storage.free_property_list();
+    }
+}
+
+pub unsafe extern "C" fn property_can_revert<T: cap::GodotPropertyCanRevert>(
+    instance: sys::GDExtensionClassInstancePtr,
+    name: sys::GDExtensionConstStringNamePtr,
+) -> sys::GDExtensionBool {
+    let storage = as_storage::<T>(instance);
+    let instance = storage.get();
+
+    let property = StringName::from_string_sys(sys::force_mut_ptr(name));
+
+    std::mem::forget(property.clone());
+
+    T::__godot_property_can_revert(&*instance, property) as sys::GDExtensionBool
+}
+
+pub unsafe extern "C" fn user_property_get_revert_fn<T: cap::GodotPropertyGetRevert>(
+    instance: sys::GDExtensionClassInstancePtr,
+    name: sys::GDExtensionConstStringNamePtr,
+    ret: sys::GDExtensionVariantPtr,
+) -> sys::GDExtensionBool {
+    let storage = as_storage::<T>(instance);
+    let instance = storage.get();
+
+    let property = StringName::from_string_sys(sys::force_mut_ptr(name));
+
+    std::mem::forget(property.clone());
+
+    let value = T::__godot_property_get_revert(&*instance, property);
+
+    match value {
+        Some(value) => {
+            // SAFETY: `ret` is a pointer Godot has given us exclusive ownership over for the purpose of writing a `Variant` to when we return
+            // `true` from this function. So this write is safe.
+            unsafe {
+                value.move_var_ptr(ret);
+            }
+            true as sys::GDExtensionBool
+        }
+        None => false as sys::GDExtensionBool,
+    }
+}
+
 pub unsafe extern "C" fn reference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {
     let storage = as_storage::<T>(instance);
     storage.on_inc_ref();

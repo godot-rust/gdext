@@ -406,6 +406,7 @@ where
 /// Capability traits, providing dedicated functionalities for Godot classes
 pub mod cap {
     use super::*;
+    use crate::builtin::meta::PropertyInfo;
     use crate::builtin::{StringName, Variant};
     use crate::obj::{Base, Bounds, Gd};
 
@@ -484,6 +485,24 @@ pub mod cap {
     pub trait GodotSet: GodotClass {
         #[doc(hidden)]
         fn __godot_set_property(&mut self, property: StringName, value: Variant) -> bool;
+    }
+
+    #[doc(hidden)]
+    pub trait GodotGetPropertyList: GodotClass {
+        #[doc(hidden)]
+        fn __godot_get_property_list(&self) -> Vec<PropertyInfo>;
+    }
+
+    #[doc(hidden)]
+    pub trait GodotPropertyCanRevert: GodotClass {
+        #[doc(hidden)]
+        fn __godot_property_can_revert(&self, property: StringName) -> bool;
+    }
+
+    #[doc(hidden)]
+    pub trait GodotPropertyGetRevert: GodotClass {
+        #[doc(hidden)]
+        fn __godot_property_get_revert(&self, property: StringName) -> Option<Variant>;
     }
 
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks

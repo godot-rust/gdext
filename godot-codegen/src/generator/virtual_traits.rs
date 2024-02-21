@@ -104,6 +104,41 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
             unimplemented!()
         }
 
+        /// Called whenever the Godot engine needs to determine the properties an object has.
+        ///
+        /// This method can be used to dynamically update the properties displayed by the editor depending on various conditions. This should
+        /// usually be combined with `#[class(tool)]` so that the code actually runs in the editor. Additionally if the property list changes
+        /// you need to call [`notify_property_list_changed`](crate::engine::Object::notify_property_list_changed) to actually notify the engine
+        /// that the property list has changed, otherwise nothing will appear to have happened.
+        ///
+        /// See also in Godot docs:
+        /// * [`Object::_get_property_list`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-get-property-list).
+        fn get_property_list(&self) -> Vec<PropertyInfo> {
+            unimplemented!()
+        }
+
+        /// Called by Godot to determine if a property has a custom default value.
+        ///
+        /// Should return `true` when the property has a custom default value, otherwise should return `false`. Must be used in conjunction with
+        /// [`property_get_revert()`] to specify the custom default value.
+        ///
+        /// See also in Godot docs:
+        /// * [`Object::_property_can_revert`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-property-can-revert).
+        fn property_can_revert(&self, property: StringName) -> bool {
+            unimplemented!()
+        }
+
+        /// Called by Godot to determine the custom default value of a property.
+        ///
+        /// Should return the given property's custom default value as `Some(value)`, or `None` if the given property doesn't have a custom
+        /// default value.
+        ///
+        /// See also in Godot docs:
+        /// * [`Object::_property_get_revert`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-property-get-revert).
+        fn property_get_revert(&self, property: StringName) -> Option<Variant> {
+            unimplemented!()
+        }
+
     }
 }
 

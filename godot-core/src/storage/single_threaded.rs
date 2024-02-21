@@ -11,7 +11,8 @@ use std::pin::Pin;
 
 use crate::obj::{Base, GodotClass};
 use crate::out;
-use crate::storage::{Lifecycle, Storage, StorageRefCounted};
+use crate::storage::{Lifecycle, PropertyList, Storage, StorageRefCounted};
+use godot_ffi as sys;
 
 pub struct InstanceStorage<T: GodotClass> {
     user_instance: Pin<Box<godot_cell::GdCell<T>>>,
@@ -20,6 +21,8 @@ pub struct InstanceStorage<T: GodotClass> {
     // Declared after `user_instance`, is dropped last
     pub(super) lifecycle: cell::Cell<Lifecycle>,
     godot_ref_count: cell::Cell<u32>,
+
+    property_list: cell::Cell<Option<PropertyList>>,
 }
 
 // SAFETY:
@@ -43,6 +46,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
             base,
             lifecycle: cell::Cell::new(Lifecycle::Alive),
             godot_ref_count: cell::Cell::new(1),
+            property_list: cell::Cell::new(None),
         }
     }
 
@@ -110,6 +114,22 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
 
     fn set_lifecycle(&self, lifecycle: Lifecycle) {
         self.lifecycle.set(lifecycle)
+    }
+
+    fn store_property_list(
+        &self,
+        property_list: Vec<crate::builtin::meta::PropertyInfo>,
+    ) -> *const [sys::GDExtensionPropertyInfo] {
+        let list = PropertyList::new(property_list);
+        let sys_info = list.sys();
+        let old_list = self.property_list.replace(Some(list));
+        assert!(old_list.is_none());
+        sys_info
+    }
+
+    unsafe fn free_property_list(&self) {
+        let list = self.property_list.take();
+        assert!(list.is_some());
     }
 }
 

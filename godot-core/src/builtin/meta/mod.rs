@@ -23,6 +23,7 @@ pub(crate) use godot_convert::convert_error::*;
 
 use crate::builtin::*;
 use crate::engine::global;
+use crate::property::{Export, PropertyHintInfo, Var};
 use godot_ffi as sys;
 use registration::method::MethodParamOrReturnInfo;
 use sys::{GodotFfi, GodotNullableFfi};
@@ -256,6 +257,34 @@ pub struct PropertyInfo {
 }
 
 impl PropertyInfo {
+    /// Create a new `PropertyInfo` for a property that isn't exported to the editor.
+    ///
+    /// `P` is the type the property will be declared as, and `property_name` is the name the property will have.  
+    pub fn new_var<P: Var>(property_name: &str) -> Self {
+        let PropertyHintInfo { hint, hint_string } = P::property_hint();
+
+        Self {
+            hint,
+            hint_string,
+            usage: global::PropertyUsageFlags::NO_EDITOR,
+            ..P::Via::property_info(property_name)
+        }
+    }
+
+    /// Create a new `PropertyInfo` for a property that is exported to the editor.
+    ///
+    /// `P` is the type the property will be declared as, and `property_name` is the name the property will have.  
+    pub fn new_export<P: Export>(property_name: &str) -> Self {
+        let PropertyHintInfo { hint, hint_string } = P::default_export_info();
+
+        Self {
+            hint,
+            hint_string,
+            usage: global::PropertyUsageFlags::DEFAULT,
+            ..P::Via::property_info(property_name)
+        }
+    }
+
     /// Converts to the FFI type. Keep this object allocated while using that!
     pub fn property_sys(&self) -> sys::GDExtensionPropertyInfo {
         use crate::obj::EngineBitfield as _;

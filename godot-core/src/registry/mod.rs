@@ -176,6 +176,35 @@ pub enum PluginItem {
             ) -> sys::GDExtensionBool,
         >,
 
+        user_get_property_list_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr,
+                r_count: *mut u32,
+            ) -> *const sys::GDExtensionPropertyInfo,
+        >,
+
+        user_free_property_list_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr,
+                p_list: *const sys::GDExtensionPropertyInfo,
+            ),
+        >,
+
+        user_property_can_revert_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr,
+                p_name: sys::GDExtensionConstStringNamePtr,
+            ) -> sys::GDExtensionBool,
+        >,
+
+        user_property_get_revert_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr,
+                p_name: sys::GDExtensionConstStringNamePtr,
+                r_ret: sys::GDExtensionVariantPtr,
+            ) -> sys::GDExtensionBool,
+        >,
+
         /// Callback for other virtuals.
         get_virtual_fn: unsafe extern "C" fn(
             p_userdata: *mut std::os::raw::c_void,
@@ -446,6 +475,10 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             user_on_notification_fn,
             user_set_fn,
             user_get_fn,
+            user_get_property_list_fn: user_get_property_list,
+            user_free_property_list_fn: user_free_property_list,
+            user_property_can_revert_fn: user_property_can_revert,
+            user_property_get_revert_fn: user_property_get_revert,
             get_virtual_fn,
         } => {
             c.user_register_fn = user_register_fn;
@@ -467,6 +500,10 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             c.godot_params.notification_func = user_on_notification_fn;
             c.godot_params.set_func = user_set_fn;
             c.godot_params.get_func = user_get_fn;
+            c.godot_params.get_property_list_func = user_get_property_list;
+            c.godot_params.free_property_list_func = user_free_property_list;
+            c.godot_params.property_can_revert_func = user_property_can_revert;
+            c.godot_params.property_get_revert_func = user_property_get_revert;
             c.user_virtual_fn = Some(get_virtual_fn);
         }
     }
