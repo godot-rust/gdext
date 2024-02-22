@@ -99,7 +99,7 @@ impl ScriptInstance for TestScriptInstance {
         GString::from("TestScript")
     }
 
-    fn set(&mut self, name: StringName, value: &Variant) -> bool {
+    fn set_property(&mut self, name: StringName, value: &Variant) -> bool {
         if name.to_string() == "script_property_b" {
             self.script_property_b = FromGodot::from_variant(value);
             true
@@ -108,7 +108,7 @@ impl ScriptInstance for TestScriptInstance {
         }
     }
 
-    fn get(&self, name: StringName) -> Option<Variant> {
+    fn get_property(&self, name: StringName) -> Option<Variant> {
         match name.to_string().as_str() {
             "script_property_a" => Some(Variant::from(10)),
             "script_property_b" => Some(Variant::from(self.script_property_b)),

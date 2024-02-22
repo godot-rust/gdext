@@ -15,18 +15,67 @@ use crate::sys;
 
 use super::{Script, ScriptLanguage};
 
-/// Interface for Godot's `GDExtensionScriptInstance`, which cannot be directly constructed by an extension. Instead a type that implements this
-/// trait has to be passed to the [`create_script_instance`] function, which returns a [`sys::GDExtensionScriptInstancePtr`] pointer. This pointer
-/// can then be returned from [`IScriptExtension::instance_create`](crate::engine::IScriptExtension::instance_create).
+/// Implement custom scripts that can be attached to objects in Godot.
+///
+/// To use script instances, implement this trait for your own type.
+///
+/// You can use the [`create_script_instance()`] function to create a low-level pointer to your script instance.
+/// This pointer should then be returned from [`IScriptExtension::instance_create()`](crate::engine::IScriptExtension::instance_create).
+///
+/// # Example
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// # use godot::engine::{IScriptExtension, Script, ScriptExtension};
+/// # trait ScriptInstance {} // trick 17 to avoid listing all the methods. Needs also a method.
+/// # fn create_script_instance(_: MyScriptInstance) -> *mut std::ffi::c_void { std::ptr::null_mut() }
+/// // 1) Define the script.
+/// #[derive(GodotClass)]
+/// #[class(init, base=ScriptExtension)]
+/// struct MyScript {
+///    base: Base<ScriptExtension>,
+///    // ... other fields
+/// }
+///
+/// // 2) Define the script _instance_, and implement the trait for it.
+/// struct MyScriptInstance;
+/// impl MyScriptInstance {
+///     fn from_gd(script: Gd<Script>) -> Self {
+///         Self { /* ... */ }
+///     }
+/// }
+///
+/// impl ScriptInstance for MyScriptInstance {
+///     // Implement all the methods...
+/// }
+///
+/// // 3) Implement the script's virtual interface to wire up 1) and 2).
+/// #[godot_api]
+/// impl IScriptExtension for MyScript {
+///     unsafe fn instance_create(&self, _for_object: Gd<Object>) -> *mut std::ffi::c_void {
+///         // Upcast Gd<ScriptExtension> to Gd<Script>.
+///         let script = self.to_gd().upcast();
+///         let script_instance = MyScriptInstance::from_gd(script);
+///
+///         // Note on safety: the returned pointer must be obtained
+///         // through create_script_instance().
+///         create_script_instance(script_instance)
+///     }
+/// }
+/// ```
 pub trait ScriptInstance {
     /// Name of the new class the script implements.
     fn class_name(&self) -> GString;
 
-    /// Property setter for Godots virtual dispatch system. The engine will call this function when it wants to change a property on the script.
-    fn set(&mut self, name: StringName, value: &Variant) -> bool;
+    /// Property setter for Godot's virtual dispatch system.
+    ///
+    /// The engine will call this function when it wants to change a property on the script.
+    fn set_property(&mut self, name: StringName, value: &Variant) -> bool;
 
-    /// Property getter for Godots virtual dispatch system. The engine will call this function when it wants to read a property on the script.
-    fn get(&self, name: StringName) -> Option<Variant>;
+    /// Property getter for Godot's virtual dispatch system.
+    ///
+    /// The engine will call this function when it wants to read a property on the script.
+    fn get_property(&self, name: StringName) -> Option<Variant>;
 
     /// A list of all the properties a script exposes to the engine.
     fn get_property_list(&self) -> &[PropertyInfo];
@@ -34,7 +83,7 @@ pub trait ScriptInstance {
     /// A list of all the methods a script exposes to the engine.
     fn get_method_list(&self) -> &[MethodInfo];
 
-    /// Method invoker for Godots virtual dispatch system. The engine will call this function when it wants to call a method on the script.
+    /// Method invoker for Godot's virtual dispatch system. The engine will call this function when it wants to call a method on the script.
     ///
     /// All method calls are taking a mutable reference of the script instance, as the engine does not differentiate between immutable and
     /// mutable method calls like rust.
@@ -49,7 +98,7 @@ pub trait ScriptInstance {
 
     /// Identifies the script instance as a placeholder. If this function and
     /// [IScriptExtension::is_placeholder_fallback_enabled](crate::engine::IScriptExtension::is_placeholder_fallback_enabled) return true,
-    /// Godot will call [`Self::property_set_fallback`] instead of [`Self::set`].
+    /// Godot will call [`Self::property_set_fallback`] instead of [`Self::set_property`].
     fn is_placeholder(&self) -> bool;
 
     /// Validation function for the engine to verify if the script exposes a certain method.
@@ -81,7 +130,7 @@ pub trait ScriptInstance {
     /// Callback from the engine when the reference count of the base object has been increased.
     fn on_refcount_incremented(&self);
 
-    /// The engine may call this function if it failed to get a property value via [ScriptInstance::get] or the native types getter.
+    /// The engine may call this function if it failed to get a property value via [ScriptInstance::get_property] or the native types getter.
     fn property_get_fallback(&self, name: StringName) -> Option<Variant>;
 
     /// The engine may call this function if ScriptLanguage::is_placeholder_fallback_enabled is enabled.
@@ -93,12 +142,12 @@ impl<T: ScriptInstance + ?Sized> ScriptInstance for Box<T> {
         self.as_ref().class_name()
     }
 
-    fn set(&mut self, name: StringName, value: &Variant) -> bool {
-        self.as_mut().set(name, value)
+    fn set_property(&mut self, name: StringName, value: &Variant) -> bool {
+        self.as_mut().set_property(name, value)
     }
 
-    fn get(&self, name: StringName) -> Option<Variant> {
-        self.as_ref().get(name)
+    fn get_property(&self, name: StringName) -> Option<Variant> {
+        self.as_ref().get_property(name)
     }
 
     fn get_property_list(&self) -> &[PropertyInfo] {
@@ -117,16 +166,16 @@ impl<T: ScriptInstance + ?Sized> ScriptInstance for Box<T> {
         self.as_mut().call(method, args)
     }
 
-    fn get_script(&self) -> &Gd<Script> {
-        self.as_ref().get_script()
-    }
-
     fn is_placeholder(&self) -> bool {
         self.as_ref().is_placeholder()
     }
 
     fn has_method(&self, method: StringName) -> bool {
         self.as_ref().has_method(method)
+    }
+
+    fn get_script(&self) -> &Gd<Script> {
+        self.as_ref().get_script()
     }
 
     fn get_property_type(&self, name: StringName) -> VariantType {
@@ -145,12 +194,12 @@ impl<T: ScriptInstance + ?Sized> ScriptInstance for Box<T> {
         self.as_ref().get_language()
     }
 
-    fn on_refcount_incremented(&self) {
-        self.as_ref().on_refcount_incremented();
-    }
-
     fn on_refcount_decremented(&self) -> bool {
         self.as_ref().on_refcount_decremented()
+    }
+
+    fn on_refcount_incremented(&self) {
+        self.as_ref().on_refcount_incremented();
     }
 
     fn property_get_fallback(&self, name: StringName) -> Option<Variant> {
@@ -162,62 +211,85 @@ impl<T: ScriptInstance + ?Sized> ScriptInstance for Box<T> {
     }
 }
 
+#[cfg(before_api = "4.2")]
+type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo;
+#[cfg(since_api = "4.2")]
+type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo2;
+
 struct ScriptInstanceData<T: ScriptInstance> {
     inner: RefCell<T>,
-    gd_instance_ptr: *mut sys::GDExtensionScriptInstanceInfo,
+    script_instance_ptr: *mut ScriptInstanceInfo,
 }
 
 impl<T: ScriptInstance> Drop for ScriptInstanceData<T> {
     fn drop(&mut self) {
-        // SAFETY: The ownership of ScriptInstaceData is transferred to Godot after it's creation. The engine then calls
+        // SAFETY: The ownership of ScriptInstanceData is transferred to Godot after its creation. The engine then calls
         // script_instance_info::free_func when it frees its own GDExtensionScriptInstance and subsequently wants to drop the ScriptInstanceData.
-        // After the the data has been dropped the instance info is no longer being used, but never freed. It is therefore safe to drop the
-        // instace info at the same time.
-        let instance = unsafe { Box::from_raw(self.gd_instance_ptr) };
+        // After the data has been dropped, the instance info is no longer being used, but never freed. It is therefore safe to drop the
+        // instance info at the same time.
+        let instance = unsafe { Box::from_raw(self.script_instance_ptr) };
 
         drop(instance);
     }
 }
 
-/// Creates a new [`sys::GDExtensionScriptInstancePtr`] from a type that implements [`ScriptInstance`].
+/// Creates a new  from a type that implements [`ScriptInstance`].
 ///
-// The return type of `*mut c_void` is actually a `sys::GDExtensionScriptInstancePtr` but this type is not used in the public API.
+/// See [`ScriptInstance`] for usage. Discarding the resulting value will result in a memory leak.
+///
+/// The exact GDExtension type of the pointer is `sys::GDExtensionScriptInstancePtr`, but you can treat it like an opaque pointer.
+#[must_use]
 pub fn create_script_instance<T: ScriptInstance>(rs_instance: T) -> *mut c_void {
-    let gd_instance = sys::GDExtensionScriptInstanceInfo {
-        set_func: Some(script_instance_info::set_func::<T>),
-        get_func: Some(script_instance_info::get_func::<T>),
+    // Field grouping matches C header.
+    let gd_instance = ScriptInstanceInfo {
+        set_func: Some(script_instance_info::set_property_func::<T>),
+        get_func: Some(script_instance_info::get_property_func::<T>),
         get_property_list_func: Some(script_instance_info::get_property_list_func::<T>),
         free_property_list_func: Some(script_instance_info::free_property_list_func::<T>),
-        // unimplemented until it's clear if it's needed.
-        property_get_revert_func: None,
-        // unimplemented until it's clear if it's needed.
-        property_can_revert_func: None,
-        // script_instance::get_owner is never called by godot 4.0 to 4.2
+
+        #[cfg(since_api = "4.2")]
+        get_class_category_func: None, // not yet implemented.
+
+        property_can_revert_func: None, // unimplemented until needed.
+        property_get_revert_func: None, // unimplemented until needed.
+
+        // ScriptInstance::get_owner() is apparently not called by Godot 4.0 to 4.2 (to verify).
         get_owner_func: None,
         get_property_state_func: Some(script_instance_info::get_property_state_func::<T>),
-        get_script_func: Some(script_instance_info::get_script_func::<T>),
-        get_language_func: Some(script_instance_info::get_language_func::<T>),
+
         get_method_list_func: Some(script_instance_info::get_method_list_func::<T>),
-        get_property_type_func: Some(script_instance_info::get_property_type_func::<T>),
-        free_func: Some(script_instance_info::free_func::<T>),
         free_method_list_func: Some(script_instance_info::free_method_list_func::<T>),
+        get_property_type_func: Some(script_instance_info::get_property_type_func::<T>),
+        #[cfg(since_api = "4.2")]
+        validate_property_func: None, // not yet implemented.
+
         has_method_func: Some(script_instance_info::has_method_func::<T>),
+
         call_func: Some(script_instance_info::call_func::<T>),
-        // deprecated by Godot.
-        notification_func: None,
+        notification_func: None, // not yet implemented.
+
         to_string_func: Some(script_instance_info::to_string_func::<T>),
-        refcount_decremented_func: Some(script_instance_info::refcount_decremented_func::<T>),
+
         refcount_incremented_func: Some(script_instance_info::refcount_incremented_func::<T>),
+        refcount_decremented_func: Some(script_instance_info::refcount_decremented_func::<T>),
+
+        get_script_func: Some(script_instance_info::get_script_func::<T>),
+
         is_placeholder_func: Some(script_instance_info::is_placeholder_func::<T>),
+
         get_fallback_func: Some(script_instance_info::get_fallback_func::<T>),
         set_fallback_func: Some(script_instance_info::set_fallback_func::<T>),
+
+        get_language_func: Some(script_instance_info::get_language_func::<T>),
+
+        free_func: Some(script_instance_info::free_func::<T>),
     };
 
     let instance_ptr = Box::into_raw(Box::new(gd_instance));
 
     let data = ScriptInstanceData {
         inner: RefCell::new(rs_instance),
-        gd_instance_ptr: instance_ptr,
+        script_instance_ptr: instance_ptr,
     };
 
     let data_ptr = Box::into_raw(Box::new(data));
@@ -227,7 +299,13 @@ pub fn create_script_instance<T: ScriptInstance>(rs_instance: T) -> *mut c_void 
     //
     // It is expected that the engine upholds the safety invariants stated on each of the GDEXtensionScriptInstanceInfo functions.
     unsafe {
-        sys::interface_fn!(script_instance_create)(
+        #[cfg(before_api = "4.2")]
+        let create_fn = sys::interface_fn!(script_instance_create);
+
+        #[cfg(since_api = "4.2")]
+        let create_fn = sys::interface_fn!(script_instance_create2);
+
+        create_fn(
             instance_ptr,
             data_ptr as sys::GDExtensionScriptInstanceDataPtr,
         ) as *mut c_void
@@ -366,10 +444,10 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - `p_name` has to be a valid pointer to a StringName.
     /// - `p_value` has to be a valid pointer to a Variant.
-    pub(super) unsafe extern "C" fn set_func<T: ScriptInstance>(
+    pub(super) unsafe extern "C" fn set_property_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_name: sys::GDExtensionConstStringNamePtr,
         p_value: sys::GDExtensionConstVariantPtr,
@@ -381,9 +459,9 @@ mod script_instance_info {
         let result = handle_panic(ctx, || {
             let instance = instance_data_as_script_instance::<T>(p_instance);
 
-            borrow_instance_mut(instance).set(name, value)
+            borrow_instance_mut(instance).set_property(name, value)
         })
-        // unwrapping to a default of false to indicate that the assignment as not handled by the script.
+        // Unwrapping to a default of false, to indicate that the assignment is not handled by the script.
         .unwrap_or_default();
 
         transfer_bool_to_godot(result)
@@ -391,9 +469,9 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - `r_ret` will be a valid owned variant pointer after this call.
-    pub(super) unsafe extern "C" fn get_func<T: ScriptInstance>(
+    pub(super) unsafe extern "C" fn get_property_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_name: sys::GDExtensionConstStringNamePtr,
         r_ret: sys::GDExtensionVariantPtr,
@@ -404,7 +482,7 @@ mod script_instance_info {
         let return_value = handle_panic(ctx, || {
             let instance = instance_data_as_script_instance::<T>(p_instance);
 
-            borrow_instance(instance).get(name.clone())
+            borrow_instance(instance).get_property(name.clone())
         });
 
         let result = match return_value {
@@ -419,7 +497,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - `r_count` is expected to be a valid pointer to an u32.
     pub(super) unsafe extern "C" fn get_property_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -448,7 +526,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - `r_count` is expected to be a valid pointer to an u32.
     pub(super) unsafe extern "C" fn get_method_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -477,7 +555,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - The length of `p_prop_info` list is expected to not have changed since it was transferred to the engine.
     pub(super) unsafe extern "C" fn free_property_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -505,7 +583,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - `p_method` has to be a valid Godot string name ptr.
     /// - `p_args` has to point to a list of Variant pointers of length `p_argument_count`.
     /// - `r_return` has to be a valid variant pointer into which the return value can be moved.
@@ -542,7 +620,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - A pointer to a `Script` reference will be returned. The caller is then responsible for freeing the reference, including the adjustment
     ///   of the reference count.
     pub(super) unsafe extern "C" fn get_script_func<T: ScriptInstance>(
@@ -564,7 +642,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - The boolean result is returned as an GDExtensionBool.
     pub(super) unsafe extern "C" fn is_placeholder_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -583,7 +661,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - `p_method` has to point to a valid string name.
     pub(super) unsafe extern "C" fn has_method_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -604,7 +682,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - The length of `p_method_info` list is expected to not have changed since it was transferred to the engine.
     pub(super) unsafe extern "C" fn free_method_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -637,7 +715,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - `p_name` is expected to be a valid ptr to a Godot string name.
     /// - `r_is_valid` is expected to be a valid ptr to a [`GDExtensionBool`] which can be modified to reflect the validity of the return value.
     pub(super) unsafe extern "C" fn get_property_type_func<T: ScriptInstance>(
@@ -670,8 +748,8 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
-    /// - `r_is_valid` is expected to be a valid [`GDEXtensionBool`] ptr which can be modified to reflect the validity of the return value.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
+    /// - `r_is_valid` is expected to be a valid `GDExtensionBool` ptr which can be modified to reflect the validity of the return value.
     /// - `r_str` is expected to be a string pointer into which the return value can be moved.
     pub(super) unsafe extern "C" fn to_string_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -688,7 +766,7 @@ mod script_instance_info {
                 // can't handle the call and leave r_is_valid at it's default value of false.
                 //
                 // This is one of the  only members of GDExtensionScripInstanceInfo which appeares to be called from an API function
-                // (beside get_func, set_func, call_func). The unexpected behavior here is that it is being called as a replacement of Godots
+                // (beside get_func, set_func, call_func). The unexpected behavior here is that it is being called as a replacement of Godot's
                 // Object::to_string for the owner object. This then also happens when trying to call to_string on the base object inside a
                 // script, which feels wrong, and most importantly, would obviously cause a panic when acquiring the Ref guard.
 
@@ -709,7 +787,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - A string name ptr and a const Variant ptr are passed for each script property to the `property_state_add` callback function. The callback is then
     ///   responsible for freeing the memory.
     /// - `userdata` has to be a valid pointer that satisfies the invariants of `property_state_add`.
@@ -737,7 +815,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - A ptr to a [`ScriptLanguage´] reference will be returned, ScriptLanguage is a manually managed object and the caller has to verify
     ///   it's validity as it could be freed at any time.
     pub(super) unsafe extern "C" fn get_language_func<T: ScriptInstance>(
@@ -760,7 +838,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - The instance data will be freed and the pointer won't be valid anymore after this function has been called.
     pub(super) unsafe extern "C" fn free_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -770,7 +848,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     pub(super) unsafe extern "C" fn refcount_decremented_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
     ) -> sys::GDExtensionBool {
@@ -793,7 +871,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     pub(super) unsafe extern "C" fn refcount_incremented_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
     ) {
@@ -814,7 +892,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - `p_name` has to be a valid pointer to a `StringName`.
     /// - `r_ret` has to be a valid pointer to which the return value can be moved.
     pub(super) unsafe extern "C" fn get_fallback_func<T: ScriptInstance>(
@@ -849,7 +927,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstaceData<T>`.
+    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
     /// - `p_name` has to be a valid pointer to a `StringName`.
     pub(super) unsafe extern "C" fn set_fallback_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,

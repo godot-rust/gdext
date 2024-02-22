@@ -9,8 +9,8 @@
 //!
 //! Single module for documentation, rather than having it in each symbol-specific file, so it's easier to keep docs consistent.
 
-use crate::models::domain::ModName;
-use crate::models::domain::TyName;
+use crate::models::domain::{ModName, TyName};
+use crate::special_cases;
 use proc_macro2::Ident;
 
 pub fn make_class_doc(
@@ -49,6 +49,10 @@ pub fn make_class_doc(
 
     let trait_name = class_name.virtual_trait_name();
 
+    let notes = special_cases::get_class_extra_docs(class_name)
+        .map(|notes| format!("# Specific notes for this class\n\n{}", notes))
+        .unwrap_or_default();
+
     format!(
         "Godot class `{godot_ty}.`\n\n\
         \
@@ -59,11 +63,11 @@ pub fn make_class_doc(
         * [`{trait_name}`][crate::engine::{trait_name}]: virtual methods\n\
         {notify_line}\
         \n\n\
-        See also [Godot docs for `{godot_ty}`]({online_link}).\n\n",
+        See also [Godot docs for `{godot_ty}`]({online_link}).\n\n{notes}",
     )
 }
 
-pub fn make_virtual_trait_doc(class_name: &TyName) -> String {
+pub fn make_virtual_trait_doc(trait_name_str: &str, class_name: &TyName) -> String {
     let TyName { rust_ty, godot_ty } = class_name;
 
     let online_link = format!(
@@ -71,12 +75,16 @@ pub fn make_virtual_trait_doc(class_name: &TyName) -> String {
         godot_ty.to_ascii_lowercase()
     );
 
+    let notes = special_cases::get_interface_extra_docs(trait_name_str)
+        .map(|notes| format!("# Specific notes for this interface\n\n{}", notes))
+        .unwrap_or_default();
+
     format!(
         "Virtual methods for class [`{rust_ty}`][crate::engine::{rust_ty}].\
         \n\n\
         These methods represent constructors (`init`) or callbacks invoked by the engine.\
         \n\n\
-        See also [Godot docs for `{godot_ty}` methods]({online_link}).\n\n"
+        See also [Godot docs for `{godot_ty}` methods]({online_link}).\n\n{notes}"
     )
 }
 
