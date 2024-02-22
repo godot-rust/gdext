@@ -17,16 +17,16 @@ use quote::quote;
 pub fn make_virtual_methods_trait(
     class: &Class,
     all_base_names: &[TyName],
-    trait_name: &str,
+    trait_name_str: &str,
     notification_enum_name: &Ident,
     view: &ApiView,
 ) -> TokenStream {
-    let trait_name = ident(trait_name);
+    let trait_name = ident(trait_name_str);
 
     let virtual_method_fns = make_all_virtual_methods(class, all_base_names, view);
     let special_virtual_methods = special_virtual_methods(notification_enum_name);
 
-    let trait_doc = docs::make_virtual_trait_doc(class.name());
+    let trait_doc = docs::make_virtual_trait_doc(trait_name_str, class.name());
 
     quote! {
         #[doc = #trait_doc]

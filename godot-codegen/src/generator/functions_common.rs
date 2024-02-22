@@ -96,6 +96,11 @@ pub fn make_function_definition(
         make_vis(sig.is_private())
     };
 
+    // Functions are marked unsafe as soon as raw pointers are involved, irrespectively of whether they appear in parameter or return type
+    // position. In cases of virtual functions called by Godot, a returned pointer must be valid and of the expected type. It might be possible
+    // to only use `unsafe` for pointers in parameters (for outbound calls), and in return values (for virtual calls). Or technically more
+    // correct, make the entire trait unsafe as soon as one function can return pointers, but that's very unergonomic and non-local.
+    // Thus, let's keep things simple and more conservative.
     let (maybe_unsafe, safety_doc) = if let Some(safety_doc) = safety_doc {
         (quote! { unsafe }, safety_doc)
     } else if function_uses_pointers(sig) {
