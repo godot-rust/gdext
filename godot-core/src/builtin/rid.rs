@@ -116,6 +116,13 @@ impl std::fmt::Display for Rid {
     }
 }
 
+impl Default for Rid {
+    /// Produces an invalid Rid
+    fn default() -> Self {
+        Self::Invalid
+    }
+}
+
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Rid {
