@@ -242,17 +242,41 @@ where
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Rusty abstraction of `sys::GDExtensionPropertyInfo`.
+/// Representation of a property in Godot.
 ///
-/// Keeps the actual allocated values (the `sys` equivalent only keeps pointers, which fall out of scope).
+/// Stores all info needed to inform Godot about how to interpret a property. This is used for actual properties, function arguments,
+/// return types, signal arguments, and other similar cases.
+///
+/// A mismatch between property info and the actual type of a property may lead to runtime errors as Godot tries to use the property in the
+/// wrong way, such as by inserting the wrong type or expecting a different type to be returned.
+///
+/// Rusty abstraction of `sys::GDExtensionPropertyInfo`, keeps the actual allocated values (the `sys` equivalent only keeps pointers, which
+/// fall out of scope).
 #[derive(Debug)]
-// Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
+// It is uncertain if we want to add more fields to this in the future, so we'll mark it `non_exhaustive` as a precautionary measure.
+#[non_exhaustive]
 pub struct PropertyInfo {
+    /// The variant type of the property.
+    ///
+    /// Note that for classes this will be `Object`, and the `class_name` field will specify what specific class this property is.
     pub variant_type: VariantType,
+    /// The class name of the property.
+    ///
+    /// This only matters if `variant_type` is `Object`. Otherwise it's ignored by Godot.
     pub class_name: ClassName,
+    /// The name this property will have in Godot.
     pub property_name: StringName,
+    /// The property hint that will determine how Godot interprets this value.
+    ///
+    /// See Godot docs for more information:
+    /// * [`PropertyHint`](https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint).
     pub hint: global::PropertyHint,
+    /// Extra information used in conjunction with `hint`.
     pub hint_string: GString,
+    /// How Godot will use this property.
+    ///
+    /// See Godot docs for more inormation:
+    /// * [`PropertyUsageFlags`](https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyusageflags).
     pub usage: global::PropertyUsageFlags,
 }
 
@@ -285,6 +309,26 @@ impl PropertyInfo {
         }
     }
 
+    /// Create a new `PropertyInfo` for the return type of a method.
+    ///
+    /// `P` is the type the property will be declared as.  
+    pub fn new_return<P: ToGodot>() -> Self {
+        Self {
+            usage: global::PropertyUsageFlags::NONE,
+            ..P::Via::property_info("")
+        }
+    }
+
+    /// Create a new `PropertyInfo` for an argument of a method.
+    ///
+    /// `P` is the type the property will be declared as, and `property_name` is the name the argument will have.  
+    pub fn new_arg<P: FromGodot>(arg_name: &str) -> Self {
+        Self {
+            usage: global::PropertyUsageFlags::NONE,
+            ..P::Via::property_info(arg_name)
+        }
+    }
+
     /// Converts to the FFI type. Keep this object allocated while using that!
     pub fn property_sys(&self) -> sys::GDExtensionPropertyInfo {
         use crate::obj::EngineBitfield as _;
@@ -298,6 +342,44 @@ impl PropertyInfo {
             hint_string: self.hint_string.string_sys(),
             usage: u32::try_from(self.usage.ord()).expect("usage.ord()"),
         }
+    }
+
+    /// Converts to the FFI type.
+    ///
+    /// Unlike [`property_sys`](PropertyInfo::property_sys) this object does not need to be kept allocated while using the returned value,
+    /// however if you do not explicitly free the returned value at some point then this will lead to a memory leak. See
+    /// [`drop_property_sys`](PropertyInfo::drop_property_sys).
+    pub fn into_property_sys(self) -> sys::GDExtensionPropertyInfo {
+        use crate::obj::EngineBitfield as _;
+        use crate::obj::EngineEnum as _;
+
+        let Self {
+            variant_type,
+            class_name,
+            property_name,
+            hint,
+            hint_string,
+            usage,
+        } = self;
+
+        sys::GDExtensionPropertyInfo {
+            type_: variant_type.sys(),
+            name: property_name.into_string_sys(),
+            class_name: class_name.string_sys(),
+            hint: u32::try_from(hint.ord()).expect("hint.ord()"),
+            hint_string: hint_string.into_string_sys(),
+            usage: u32::try_from(usage.ord()).expect("usage.ord()"),
+        }
+    }
+
+    /// Consumes a [sys::GDExtensionPropertyInfo].
+    ///
+    /// # Safety
+    ///
+    /// The given property info must have been returned from a call to [`into_property_sys`](PropertyInfo::into_property_sys).
+    pub unsafe fn drop_property_sys(property_sys: sys::GDExtensionPropertyInfo) {
+        let _property_name = StringName::from_string_sys(property_sys.name);
+        let _hint_string = GString::from_string_sys(property_sys.hint_string);
     }
 
     pub fn empty_sys() -> sys::GDExtensionPropertyInfo {

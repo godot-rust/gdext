@@ -157,14 +157,12 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             let (hint, hint_string) = #hint;
             let usage = #usage_flags;
 
-            let property_info = ::godot::builtin::meta::PropertyInfo {
-                variant_type: #field_variant_type,
-                class_name: #field_class_name,
-                property_name: #field_name.into(),
-                hint,
-                hint_string,
-                usage,
-            };
+            let mut property_info = ::godot::builtin::meta::PropertyInfo::new_var::<#field_type>(#field_name);
+            property_info.variant_type = #field_variant_type;
+            property_info.class_name = #field_class_name;
+            property_info.hint = hint;
+            property_info.hint_string = hint_string;
+            property_info.usage = usage;
 
             let getter_name = ::godot::builtin::StringName::from(#getter_name);
             let setter_name = ::godot::builtin::StringName::from(#setter_name);

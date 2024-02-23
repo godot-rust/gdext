@@ -111,6 +111,8 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         /// you need to call [`notify_property_list_changed`](crate::engine::Object::notify_property_list_changed) to actually notify the engine
         /// that the property list has changed, otherwise nothing will appear to have happened.
         ///
+        /// The returned `Vec` cannot have more than `u32::MAX` or `usize::MAX - 1` elements, whichever is smaller.
+        ///
         /// See also in Godot docs:
         /// * [`Object::_get_property_list`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-get-property-list).
         fn get_property_list(&self) -> Vec<PropertyInfo> {

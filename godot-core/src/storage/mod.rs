@@ -12,5 +12,3 @@ mod multi_threaded;
 mod single_threaded;
 
 pub use instance_storage::*;
-
-use instance_storage::PropertyList;

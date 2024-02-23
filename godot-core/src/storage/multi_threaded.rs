@@ -8,12 +8,10 @@
 use std::any::type_name;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Mutex;
 
 use crate::obj::{Base, GodotClass};
 use crate::out;
-use crate::storage::{AtomicLifecycle, Lifecycle, PropertyList, Storage, StorageRefCounted};
-use godot_ffi as sys;
+use crate::storage::{AtomicLifecycle, Lifecycle, Storage, StorageRefCounted};
 
 pub struct InstanceStorage<T: GodotClass> {
     user_instance: Pin<Box<godot_cell::GdCell<T>>>,
@@ -22,8 +20,6 @@ pub struct InstanceStorage<T: GodotClass> {
     // Declared after `user_instance`, is dropped last
     pub(super) lifecycle: AtomicLifecycle,
     godot_ref_count: AtomicU32,
-
-    property_list: Mutex<Option<PropertyList>>,
 }
 
 // SAFETY:
@@ -47,7 +43,6 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
             base,
             lifecycle: AtomicLifecycle::new(Lifecycle::Alive),
             godot_ref_count: AtomicU32::new(1),
-            property_list: Mutex::new(None),
         }
     }
 
@@ -115,22 +110,6 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
 
     fn set_lifecycle(&self, lifecycle: Lifecycle) {
         self.lifecycle.set(lifecycle)
-    }
-
-    fn store_property_list(
-        &self,
-        property_list: Vec<crate::builtin::meta::PropertyInfo>,
-    ) -> *const [sys::GDExtensionPropertyInfo] {
-        let list = PropertyList::new(property_list);
-        let sys_info = list.sys();
-        let old_list = self.property_list.lock().unwrap().replace(list);
-        assert!(old_list.is_none());
-        sys_info
-    }
-
-    unsafe fn free_property_list(&self) {
-        let list = self.property_list.lock().unwrap().take();
-        assert!(list.is_some());
     }
 }
 

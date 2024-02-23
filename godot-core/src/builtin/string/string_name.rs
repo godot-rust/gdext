@@ -130,6 +130,12 @@ impl StringName {
         inner::InnerStringName::from_outer(self)
     }
 
+    #[doc(hidden)]
+    pub fn into_string_sys(self) -> sys::GDExtensionStringNamePtr {
+        let string_name = Box::leak(Box::new(self));
+        string_name.string_sys()
+    }
+
     /// Increment ref-count. This may leak memory if used wrongly.
     fn inc_ref(&self) {
         std::mem::forget(self.clone());

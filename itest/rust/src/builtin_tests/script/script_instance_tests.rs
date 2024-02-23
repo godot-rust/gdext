@@ -48,44 +48,16 @@ impl TestScriptInstance {
         Self {
             script,
             script_property_b: false,
-            prop_list: vec![PropertyInfo {
-                variant_type: VariantType::Int,
-                property_name: StringName::from("script_property_a"),
-                class_name: ClassName::from_ascii_cstr("\0".as_bytes()),
-                hint: PropertyHint::NONE,
-                hint_string: GString::new(),
-                usage: PropertyUsageFlags::NONE,
-            }],
+            prop_list: vec![PropertyInfo::new_var::<i64>("script_property_a")],
 
             method_list: vec![MethodInfo {
                 id: 1,
                 method_name: StringName::from("script_method_a"),
                 class_name: ClassName::from_ascii_cstr("TestScript\0".as_bytes()),
-                return_type: PropertyInfo {
-                    variant_type: VariantType::String,
-                    class_name: ClassName::none(),
-                    property_name: StringName::from(""),
-                    hint: PropertyHint::NONE,
-                    hint_string: GString::new(),
-                    usage: PropertyUsageFlags::NONE,
-                },
+                return_type: PropertyInfo::new_return::<GString>(),
                 arguments: vec![
-                    PropertyInfo {
-                        variant_type: VariantType::String,
-                        class_name: ClassName::none(),
-                        property_name: StringName::from(""),
-                        hint: PropertyHint::NONE,
-                        hint_string: GString::new(),
-                        usage: PropertyUsageFlags::NONE,
-                    },
-                    PropertyInfo {
-                        variant_type: VariantType::Int,
-                        class_name: ClassName::none(),
-                        property_name: StringName::from(""),
-                        hint: PropertyHint::NONE,
-                        hint_string: GString::new(),
-                        usage: PropertyUsageFlags::NONE,
-                    },
+                    PropertyInfo::new_arg::<GString>(""),
+                    PropertyInfo::new_arg::<i64>(""),
                 ],
                 default_arguments: vec![],
                 flags: MethodFlags::NORMAL,

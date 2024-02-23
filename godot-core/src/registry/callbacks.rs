@@ -11,6 +11,7 @@
 #![allow(clippy::missing_safety_doc)]
 
 use crate::builder::ClassBuilder;
+use crate::builtin::meta::PropertyInfo;
 use crate::builtin::{StringName, Variant};
 use crate::obj::{cap, Base, GodotClass, UserClass};
 use crate::storage::{as_storage, InstanceStorage, Storage, StorageRefCounted};
@@ -205,32 +206,111 @@ pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
     let storage = as_storage::<T>(instance);
     let instance = storage.get();
 
-    let v = T::__godot_get_property_list(&*instance);
-    let list = storage.store_property_list(v);
+    let property_infos = T::__godot_get_property_list(&*instance);
+    let property_count: u32 = property_infos
+        .len()
+        .try_into()
+        .expect("cannot pass more properties than `u32::MAX`");
+    let vec_length: usize = property_count
+        .try_into()
+        .expect("gdext does not support targets with `u32` bigger than `usize`");
+    // This can only fail if vec_length = u32::MAX and usize is the same size as u32.
+    let vec_length = vec_length
+        .checked_add(1)
+        .expect("cannot pass more properties than `usize::MAX - 1`");
 
-    // SAFETY: We are not calling `instance.free_property_list()`, so this reference will not get invalidated before the end of this function.
-    // Additionally, the raw pointer we're passing to Godot will not be used after Godot calls `free_property_list`.
-    let list_ref = unsafe { &*list };
+    // Use `ManuallyDrop` here so we intentionally leak this vec, as we want to pass ownership of this array to Godot until ownership is
+    // returned to us in `free_property_list`.
+    let mut list = Vec::with_capacity(vec_length);
+    list.extend(
+        property_infos
+            .into_iter()
+            .map(PropertyInfo::into_property_sys),
+    );
+
+    // Use as null-terminator. `PropertyInfo::into_property_sys` will never create a `sys::GDExtensionPropertyInfo` with values like this.
+    // This is *important*. If we do have a value before the final one that is equal to `empty_sys()` then we would later call
+    // `Vec::from_raw_parts` with an incorrect capacity and trigger UB.
+    list.push(PropertyInfo::empty_sys());
+
+    // So at least in debug mode, let's check that our assumptions about `list` hold true.
+    if cfg!(debug_assertions) {
+        for prop in list.iter().take(vec_length - 1) {
+            assert!(
+                !prop.name.is_null(),
+                "Invalid property info found: {:?}",
+                prop
+            );
+        }
+        assert_eq!(list.len(), vec_length);
+        assert_eq!(list.capacity(), vec_length);
+        assert!((property_count as usize) < vec_length)
+    }
 
     // SAFETY: Godot gives us exclusive ownership over `count` for the purposes of returning the length of the property list, so we can safely
     // write a value of type `u32` to `count`.
     unsafe {
-        (*count) = list_ref.len().try_into().unwrap();
+        count.write(property_count);
     }
 
-    list_ref.as_ptr()
+    let slice = Box::into_raw(list.into_boxed_slice());
+
+    // Since `list` is in a `ManuallyDrop`, this leaks the `list` and thus passes ownership of the vec to the caller (which is gonna be Godot).
+    (*slice).as_mut_ptr() as *const _
+}
+
+/// Get the length of a "null"-terminated array.
+///
+/// Where "null" here is defined by `terminator_fn` returning true.
+///
+/// # Panics
+///
+/// The given array has more than `isize::MAX` elements.
+///
+/// # Safety
+///
+/// `arr` must be dereferencable to `&T`.
+///
+/// Whenever `terminator_fn(&*arr.offset(i))` is false, for every i in `0..n`, then:
+/// - `arr.offset(n)` must be safe, see safety docs for `offset`.
+/// - `arr.offset(n)` must be dereferencable to `&T`.
+unsafe fn arr_length<T>(arr: *const T, terminator_fn: impl Fn(&T) -> bool) -> usize {
+    let mut list_index = 0;
+    loop {
+        // SAFETY: `terminator_fn` has not returned `true` yet, therefore we are allowed to do `arr.offset(list_index)`.
+        let arr_offset = unsafe { arr.offset(list_index) };
+
+        // SAFETY: `terminator_fn` has not returned `true` yet, therefore we can dereference `arr_offset` to `&T`.
+        let elem = unsafe { &*arr_offset };
+
+        if terminator_fn(elem) {
+            break;
+        }
+
+        list_index = list_index
+            .checked_add(1)
+            .expect("there should not be more than `isize::MAX` elements in the array");
+    }
+
+    usize::try_from(list_index).expect("the size of the array should never be negative") + 1
 }
 
 pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
-    instance: sys::GDExtensionClassInstancePtr,
-    _list: *const sys::GDExtensionPropertyInfo,
+    _instance: sys::GDExtensionClassInstancePtr,
+    list: *const sys::GDExtensionPropertyInfo,
 ) {
-    let storage = as_storage::<T>(instance);
+    // SAFETY: `list` was created in `get_property_list` from a `Vec` with some fixed length, where the final element is a
+    // `sys::GDExtensionPropertyInfo` with a null `name` field. So all the given safety conditions hold.
+    let list_length = unsafe { arr_length(list, |prop| prop.name.is_null()) };
 
-    // SAFETY: We do not access the property list outside of `get_property_list`, and it does not call this function.
-    // Godot will only call this function once it's done with accessing the pointer we give it in `get_propery_list`.
-    unsafe {
-        storage.free_property_list();
+    // SAFETY: `list` was created in `get_property_list` from a `Vec` with length `list_length`. The length and capacity of this list
+    // are the same, as the vec was made using `with_capacity` to have exactly the same capacity as the amount of elements we put in the vec.
+    let v = unsafe { Vec::from_raw_parts(sys::force_mut_ptr(list), list_length, list_length) };
+
+    for prop in v.into_iter().take(list_length - 1) {
+        // SAFETY: All elements of `v` were created using `into_property_sys`, except for the last one. We are iterating over all elements
+        // except the last one, so all `prop` values were created with `into_property_sys`.
+        unsafe { crate::builtin::meta::PropertyInfo::drop_property_sys(prop) }
     }
 }
 

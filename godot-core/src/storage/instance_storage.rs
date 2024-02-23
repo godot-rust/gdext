@@ -5,7 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::PropertyInfo;
 use crate::obj::{Base, Gd, GodotClass, Inherits};
 use crate::{godot_error, out};
 use godot_ffi as sys;
@@ -128,13 +127,6 @@ pub unsafe trait Storage {
         Box::into_raw(Box::new(self))
     }
 
-    fn store_property_list(
-        &self,
-        property_list: Vec<PropertyInfo>,
-    ) -> *const [sys::GDExtensionPropertyInfo];
-
-    unsafe fn free_property_list(&self);
-
     fn mark_destroyed_by_godot(&self) {
         out!(
             "    Storage::mark_destroyed_by_godot", // -- {:?}",
@@ -158,31 +150,6 @@ pub unsafe trait Storage {
             self.base(),
         );
         matches!(self.get_lifecycle(), Lifecycle::Destroying)
-    }
-}
-
-pub(super) struct PropertyList {
-    _list: Box<[PropertyInfo]>,
-    list_sys: Box<[sys::GDExtensionPropertyInfo]>,
-}
-
-impl PropertyList {
-    pub fn new(list: Vec<PropertyInfo>) -> Self {
-        let list = list.into_boxed_slice();
-        let list_sys = list
-            .iter()
-            .map(PropertyInfo::property_sys)
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-
-        Self {
-            _list: list,
-            list_sys,
-        }
-    }
-
-    pub fn sys(&self) -> *const [sys::GDExtensionPropertyInfo] {
-        &*self.list_sys as *const [sys::GDExtensionPropertyInfo]
     }
 }
 

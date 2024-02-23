@@ -141,3 +141,30 @@ fn string_name_from_latin1_with_nul() {
         assert_eq!(a, b);
     }
 }
+
+#[itest]
+fn string_name_into_string_sys() {
+    const TARGET_STRING_NAMES: &[&'static str] = &[
+        "property_number_one",
+        "another property here",
+        "wow properties",
+        "odakfhgjlk",
+        "more stuffsies",
+    ];
+    let mut string_names = Vec::new();
+
+    for i in 0..100 {
+        let string_name = TARGET_STRING_NAMES[i % TARGET_STRING_NAMES.len()];
+        string_names.push(StringName::from(string_name).into_string_sys());
+    }
+
+    for (i, string_name_sys) in string_names.iter().enumerate() {
+        let target_name = TARGET_STRING_NAMES[i % TARGET_STRING_NAMES.len()];
+        let string_name = unsafe { StringName::from_string_sys(*string_name_sys) };
+        assert_eq!(
+            string_name.to_string().as_str(),
+            target_name,
+            "iteration: {i}",
+        );
+    }
+}
