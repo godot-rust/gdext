@@ -67,7 +67,7 @@ macro_rules! godot_script_error {
 #[macro_export]
 macro_rules! godot_print {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
-        $crate::log::print(&[
+        $crate::log::print(false, &[
             $crate::builtin::Variant::from(
                 $crate::builtin::GString::from(
                     format!($fmt $(, $args)*)
@@ -77,15 +77,31 @@ macro_rules! godot_print {
     };
 }
 
-pub use crate::{godot_error, godot_print, godot_script_error, godot_warn};
+#[macro_export]
+macro_rules! godot_print_rich {
+    ($fmt:literal $(, $args:expr)* $(,)?) => {
+        $crate::log::print(true, &[
+            $crate::builtin::Variant::from(
+                $crate::builtin::GString::from(
+                    format!($fmt $(, $args)*)
+                )
+            )
+        ])
+    };
+}
+
+pub use crate::{godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn};
 
 use crate::builtin::{StringName, Variant};
 use crate::sys::{self, GodotFfi};
 
-/// Prints to the Godot console, used by the [`godot_print!`] macro.
-pub fn print(varargs: &[Variant]) {
+/// Prints to the Godot console, used by the [`godot_print!`] and  [`godot_print_rich!`] macros.
+pub fn print(use_bbcode: bool, varargs: &[Variant]) {
     unsafe {
-        let method_name = StringName::from("print");
+        let method_name = match use_bbcode {
+            false => StringName::from("print"),
+            true => StringName::from("print_rich"),
+        };
         let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(
             method_name.string_sys(),
             2648703342i64,
