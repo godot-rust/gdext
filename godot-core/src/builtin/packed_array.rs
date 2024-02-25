@@ -325,6 +325,9 @@ macro_rules! impl_packed_array {
                 self.as_inner().sort();
             }
 
+            // Include specific functions in the code only if the Packed*Array provides the function.
+            impl_specific_packed_array_functions!($PackedArray);
+
             /// Asserts that the given index refers to an existing element.
             ///
             /// # Panics
@@ -501,6 +504,53 @@ macro_rules! impl_packed_array {
 
         $crate::builtin::meta::impl_godot_as_self!($PackedArray);
     }
+}
+
+// Helper macro to only include specific functions in the code if the Packed*Array provides the function.
+macro_rules! impl_specific_packed_array_functions {
+    (PackedByteArray) => {
+        /// Returns a copy of the data converted to a `PackedFloat32Array`, where each block of 4 bytes has been converted to a 32-bit float.
+        ///
+        /// The size of the input array must be a multiple of 4 (size of 32-bit float). The size of the new array will be `byte_array.size() / 4`.
+        ///
+        /// If the original data can't be converted to 32-bit floats, the resulting data is undefined.
+        pub fn to_float32_array(&self) -> PackedFloat32Array {
+            self.as_inner().to_float32_array()
+        }
+
+        /// Returns a copy of the data converted to a `PackedFloat64Array`, where each block of 8 bytes has been converted to a 64-bit float.
+        ///
+        /// The size of the input array must be a multiple of 8 (size of 64-bit float). The size of the new array will be `byte_array.size() / 8`.
+        ///
+        /// If the original data can't be converted to 64-bit floats, the resulting data is undefined.
+        pub fn to_float64_array(&self) -> PackedFloat64Array {
+            self.as_inner().to_float64_array()
+        }
+
+        /// Returns a copy of the data converted to a `PackedInt32Array`, where each block of 4 bytes has been converted to a 32-bit integer.
+        ///
+        /// The size of the input array must be a multiple of 4 (size of 32-bit integer). The size of the new array will be `byte_array.size() / 4`.
+        ///
+        /// If the original data can't be converted to 32-bit integers, the resulting data is undefined.
+        pub fn to_int32_array(&self) -> PackedInt32Array {
+            self.as_inner().to_int32_array()
+        }
+
+        /// Returns a copy of the data converted to a `PackedInt64Array`, where each block of 8 bytes has been converted to a 64-bit integer.
+        ///
+        /// The size of the input array must be a multiple of 8 (size of 64-bit integer). The size of the new array will be `byte_array.size() / 8`.
+        ///
+        /// If the original data can't be converted to 64-bit integers, the resulting data is undefined.
+        pub fn to_int64_array(&self) -> PackedInt64Array {
+            self.as_inner().to_int64_array()
+        }
+    };
+    ($PackedArray:ident) => {
+        /// Returns a `PackedByteArray` with each value encoded as bytes.
+        pub fn to_byte_array(&self) -> PackedByteArray {
+            self.as_inner().to_byte_array()
+        }
+    };
 }
 
 impl_packed_array!(
