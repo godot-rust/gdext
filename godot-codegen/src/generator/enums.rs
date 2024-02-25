@@ -89,15 +89,15 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
                 }
             }
         };
-        enum_ord_type = quote! { u64 };
+        enum_ord_type = quote! { i64 };
         self_as_trait = quote! { <Self as crate::obj::EngineBitfield> };
         engine_impl = quote! {
             impl crate::obj::EngineBitfield for #rust_enum_name {
-                fn try_from_ord(ord: u64) -> Option<Self> {
+                fn try_from_ord(ord: i64) -> Option<Self> {
                     Some(Self { ord })
                 }
 
-                fn ord(self) -> u64 {
+                fn ord(self) -> i64 {
                     self.ord
                 }
             }
@@ -128,7 +128,7 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
 
     // Enumerator ordinal stored as i32, since that's enough to hold all current values and the default repr in C++.
     // Public interface is i64 though, for consistency (and possibly forward compatibility?).
-    // Bitfield ordinals are stored as u64. See also: https://github.com/godotengine/godot-cpp/pull/1320
+    // Bitfield ordinals are stored as i64.
     quote! {
         #[repr(transparent)]
         #[derive(#( #derives ),*)]
@@ -172,8 +172,8 @@ pub fn make_enumerator_ord(ord: i32) -> Literal {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-fn make_bitfield_flag_ord(ord: u64) -> Literal {
-    Literal::u64_suffixed(ord)
+fn make_bitfield_flag_ord(ord: i64) -> Literal {
+    Literal::i64_suffixed(ord)
 }
 
 fn make_enumerator_definition(enumerator: &Enumerator) -> TokenStream {
