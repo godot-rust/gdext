@@ -227,7 +227,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 let variant = Variant::from_var_sys_init(|return_ptr| {
                     let mut err = sys::default_call_error();
                     class_fn(
-                        method_bind.0,
+                        method_bind,
                         object_ptr,
                         variant_ptrs.as_ptr(),
                         variant_ptrs.len() as i64,
@@ -390,7 +390,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 ];
 
                 let result = Rr::call(|return_ptr| {
-                    class_fn(method_bind.0, object_ptr, type_ptrs.as_ptr(), return_ptr);
+                    class_fn(method_bind, object_ptr, type_ptrs.as_ptr(), return_ptr);
                 });
                 result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }

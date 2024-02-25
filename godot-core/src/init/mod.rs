@@ -7,6 +7,7 @@
 
 use godot_ffi as sys;
 
+use std::cell;
 use sys::GodotFfi;
 
 use crate::builtin::{GString, StringName};
@@ -27,7 +28,10 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
             EditorRunBehavior::AllClasses => false,
         };
 
-        let config = sys::GdextConfig::new(tool_only_in_editor);
+        let config = sys::GdextConfig {
+            tool_only_in_editor,
+            is_editor: cell::OnceCell::new(),
+        };
 
         sys::initialize(interface_or_get_proc_address, library, config);
 
