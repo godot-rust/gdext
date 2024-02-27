@@ -7,7 +7,7 @@
 
 use godot_ffi::Global;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{atomic, Arc, Mutex};
 
 pub use crate::gen::classes::class_macros;
 pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginItem};
@@ -21,6 +21,12 @@ use crate::{log, sys};
 // Global variables
 
 static CALL_ERRORS: Global<CallErrors> = Global::default();
+
+/// Level:
+/// - 0: no error printing (during `expect_panic` in test)
+/// - 1: not yet implemented, but intended for `try_` function calls (which are expected to fail, so error is annoying)
+/// - 2: normal printing
+static ERROR_PRINT_LEVEL: atomic::AtomicU8 = atomic::AtomicU8::new(2);
 
 sys::plugin_registry!(pub __GODOT_PLUGIN_REGISTRY: ClassPlugin);
 
@@ -180,6 +186,16 @@ fn format_panic_message(msg: String) -> String {
     }
 }
 
+pub fn set_error_print_level(level: u8) -> u8 {
+    assert!(level <= 2);
+    ERROR_PRINT_LEVEL.swap(level, atomic::Ordering::Relaxed)
+}
+
+pub(crate) fn has_error_print_level(level: u8) -> bool {
+    assert!(level <= 2);
+    ERROR_PRINT_LEVEL.load(atomic::Ordering::Relaxed) >= level
+}
+
 /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
 ///
 /// Returns `Err(message)` if a panic occurred, and `Ok(result)` with the result of `code` otherwise.
@@ -189,7 +205,7 @@ where
     F: FnOnce() -> R + std::panic::UnwindSafe,
     S: std::fmt::Display,
 {
-    handle_panic_with_print(error_context, code, true)
+    handle_panic_with_print(error_context, code, has_error_print_level(1))
 }
 
 pub fn handle_varcall_panic<F, R>(
@@ -214,7 +230,11 @@ pub fn handle_varcall_panic<F, R>(
     };
 
     // Print failed calls to Godot's console.
-    log::godot_error!("{call_error}");
+    // TODO Level 1 is not yet set, so this will always print if level != 0. Needs better logic to recognize try_* calls and avoid printing.
+    // But a bit tricky with multiple threads and re-entrancy; maybe pass in info in error struct.
+    if has_error_print_level(2) {
+        log::godot_error!("{call_error}");
+    }
 
     out_err.error = sys::GODOT_RUST_CUSTOM_CALL_ERROR;
     call_error_insert(call_error, out_err);
@@ -260,14 +280,16 @@ where
 
             let guard = info.lock().unwrap();
             let info = guard.as_ref().expect("no panic info available");
-            // log::godot_print!("");
-            log::godot_error!(
-                "Rust function panicked at {}:{}.\n  Context: {}",
-                info.file,
-                info.line,
-                error_context()
-            );
-            //eprintln!("Backtrace:\n{}", info.backtrace);
+
+            if print {
+                log::godot_error!(
+                    "Rust function panicked at {}:{}.\n  Context: {}",
+                    info.file,
+                    info.line,
+                    error_context()
+                );
+                //eprintln!("Backtrace:\n{}", info.backtrace);
+            }
 
             let msg = extract_panic_message(err);
             let msg = format_panic_message(msg);
