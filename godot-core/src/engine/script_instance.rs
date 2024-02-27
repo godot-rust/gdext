@@ -486,10 +486,10 @@ mod script_instance_info {
         });
 
         let result = match return_value {
-            Some(return_value) => return_value
+            Ok(return_value) => return_value
                 .map(|variant| transfer_variant_to_godot(variant, r_ret))
                 .is_some(),
-            None => false,
+            Err(_) => false,
         };
 
         transfer_bool_to_godot(result)
@@ -606,13 +606,14 @@ mod script_instance_info {
         });
 
         match result {
-            Some(Ok(ret)) => {
+            Ok(Ok(ret)) => {
                 transfer_variant_to_godot(ret, r_return);
                 (*r_error).error = sys::GDEXTENSION_CALL_OK;
             }
 
-            Some(Err(err)) => (*r_error).error = err,
-            None => {
+            Ok(Err(err)) => (*r_error).error = err,
+
+            Err(_) => {
                 (*r_error).error = sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD;
             }
         };
@@ -635,8 +636,8 @@ mod script_instance_info {
         });
 
         match script {
-            Some(script) => transfer_script_to_godot(&script),
-            None => std::ptr::null_mut(),
+            Ok(script) => transfer_script_to_godot(&script),
+            Err(_) => std::ptr::null_mut(),
         }
     }
 
@@ -737,13 +738,13 @@ mod script_instance_info {
             borrow_instance(instance).get_property_type(name.clone())
         });
 
-        let Some(result) = result else {
+        if let Ok(result) = result {
+            *r_is_valid = transfer_bool_to_godot(true);
+            result.sys()
+        } else {
             *r_is_valid = transfer_bool_to_godot(false);
-            return 0;
-        };
-
-        *r_is_valid = transfer_bool_to_godot(true);
-        result.sys()
+            0
+        }
     }
 
     /// # Safety
@@ -775,6 +776,7 @@ mod script_instance_info {
 
             Some(inner.to_string())
         })
+        .ok()
         .flatten();
 
         let Some(string) = string else {
@@ -829,11 +831,11 @@ mod script_instance_info {
             borrow_instance(instance).get_language()
         });
 
-        let Some(language) = language else {
-            return std::ptr::null::<c_void>() as sys::GDExtensionScriptLanguagePtr;
-        };
-
-        transfer_script_lang_to_godot(language)
+        if let Ok(language) = language {
+            transfer_script_lang_to_godot(language)
+        } else {
+            std::ptr::null::<c_void>() as sys::GDExtensionScriptLanguagePtr
+        }
     }
 
     /// # Safety
@@ -916,10 +918,10 @@ mod script_instance_info {
         });
 
         let result = match return_value {
-            Some(return_value) => return_value
+            Ok(return_value) => return_value
                 .map(|value| transfer_variant_to_godot(value, r_ret))
                 .is_some(),
-            None => false,
+            Err(_) => false,
         };
 
         transfer_bool_to_godot(result)

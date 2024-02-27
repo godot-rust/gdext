@@ -36,7 +36,7 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
         ret: sys::GDExtensionVariantPtr,
         err: *mut sys::GDExtensionCallError,
         func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
-    );
+    ) -> Result<(), CallError>;
 
     unsafe fn out_class_varcall(
         method_bind: ClassMethodBind,
@@ -47,7 +47,7 @@ pub trait VarcallSignatureTuple: PtrcallSignatureTuple {
         maybe_instance_id: Option<InstanceId>, // if not static
         args: Self::Params,
         varargs: &[Variant],
-    ) -> Self::Ret;
+    ) -> Result<Self::Ret, CallError>;
 
     /// Outbound virtual call to a method overridden by a script attached to the object.
     ///
@@ -181,16 +181,17 @@ macro_rules! impl_varcall_signature_for_tuple {
                 ret: sys::GDExtensionVariantPtr,
                 err: *mut sys::GDExtensionCallError,
                 func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
-            ) {
+            ) -> Result<(), CallError> {
                 //$crate::out!("in_varcall: {call_ctx}");
-                check_arg_count(arg_count, $PARAM_COUNT, call_ctx);
+                CallError::check_arg_count(call_ctx, arg_count, $PARAM_COUNT)?;
 
                 let args = ($(
-                    unsafe { varcall_arg::<$Pn, $n>(args_ptr, call_ctx) },
+                    unsafe { varcall_arg::<$Pn, $n>(args_ptr, call_ctx)? },
                 )*) ;
 
                 let rust_result = func(instance_ptr, args);
-                varcall_return::<$R>(rust_result, ret, err)
+                varcall_return::<$R>(rust_result, ret, err);
+                Ok(())
             }
 
             #[inline]
@@ -203,7 +204,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 maybe_instance_id: Option<InstanceId>, // if not static
                 ($($pn,)*): Self::Params,
                 varargs: &[Variant],
-            ) -> Self::Ret {
+            ) -> Result<Self::Ret, CallError> {
                 let call_ctx = CallContext::outbound(class_name, method_name);
                 //$crate::out!("out_class_varcall: {call_ctx}");
 
@@ -224,7 +225,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 variant_ptrs.extend(explicit_args.iter().map(Variant::var_sys_const));
                 variant_ptrs.extend(varargs.iter().map(Variant::var_sys_const));
 
-                let variant = Variant::from_var_sys_init(|return_ptr| {
+                let variant: Result<Variant, CallError> = Variant::from_var_sys_init_result(|return_ptr| {
                     let mut err = sys::default_call_error();
                     class_fn(
                         method_bind.0,
@@ -235,11 +236,15 @@ macro_rules! impl_varcall_signature_for_tuple {
                         std::ptr::addr_of_mut!(err),
                     );
 
-                    check_varcall_error(&err, &call_ctx, &explicit_args, varargs);
+                    CallError::check_out_varcall(&call_ctx, err, &explicit_args, varargs)
                 });
 
-                let result = <Self::Ret as FromGodot>::try_from_variant(&variant);
-                result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
+                variant.and_then(|v| {
+                    v.try_to::<Self::Ret>()
+                        .or_else(|e| {
+                            Err(CallError::failed_return_conversion::<Self::Ret>(&call_ctx, e))
+                        })
+                })
             }
 
             #[cfg(since_api = "4.3")]
@@ -281,7 +286,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }
 
-            // Note: this is doing a ptrcall, but uses variant conversions for it
+            // Note: this is doing a ptrcall, but uses variant conversions for it.
             #[inline]
             unsafe fn out_utility_ptrcall_varargs(
                 utility_fn: UtilityFunctionBind,
@@ -308,7 +313,6 @@ macro_rules! impl_varcall_signature_for_tuple {
                 });
                 result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }
-
 
             #[inline]
             fn format_args(args: &Self::Params) -> String {
@@ -464,11 +468,11 @@ macro_rules! impl_ptrcall_signature_for_tuple {
 unsafe fn varcall_arg<P: FromGodot, const N: isize>(
     args_ptr: *const sys::GDExtensionConstVariantPtr,
     call_ctx: &CallContext,
-) -> P {
+) -> Result<P, CallError> {
     let variant_ref = &*Variant::ptr_from_sys(*args_ptr.offset(N));
 
-    let result = P::try_from_variant(variant_ref);
-    result.unwrap_or_else(|err| param_error::<P>(call_ctx, N as i32, err))
+    P::try_from_variant(variant_ref)
+        .or_else(|err| Err(CallError::failed_param_conversion::<P>(call_ctx, N, err)))
 }
 
 /// Moves `ret_val` into `ret`.
@@ -547,39 +551,6 @@ fn param_error<P>(call_ctx: &CallContext, index: i32, err: ConvertError) -> ! {
 fn return_error<R>(call_ctx: &CallContext, err: ConvertError) -> ! {
     let return_ty = std::any::type_name::<R>();
     panic!("in function `{call_ctx}` at return type {return_ty}: {err}");
-}
-
-fn check_varcall_error<T>(
-    err: &sys::GDExtensionCallError,
-    call_ctx: &CallContext,
-    explicit_args: &[T],
-    varargs: &[Variant],
-) where
-    T: Debug + ToGodot,
-{
-    if err.error == sys::GDEXTENSION_CALL_OK {
-        return;
-    }
-
-    // TODO(optimize): split into non-generic, expensive parts after error check
-
-    let mut arg_types = Vec::with_capacity(explicit_args.len() + varargs.len());
-    arg_types.extend(explicit_args.iter().map(|arg| arg.to_variant().get_type()));
-    arg_types.extend(varargs.iter().map(Variant::get_type));
-
-    let explicit_args_str = join_to_string(explicit_args);
-    let vararg_str = join_to_string(varargs);
-
-    let func_str = format!("{call_ctx}({explicit_args_str}; varargs {vararg_str})");
-
-    sys::panic_call_error(err, &func_str, &arg_types);
-}
-
-fn join_to_string<T: Debug>(list: &[T]) -> String {
-    list.iter()
-        .map(|v| format!("{v:?}"))
-        .collect::<Vec<_>>()
-        .join(", ")
 }
 
 /// Helper trait to support `()` which doesn't implement `FromVariant`.
@@ -668,25 +639,5 @@ impl<'a> CallContext<'a> {
 impl<'a> fmt::Display for CallContext<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}::{}", self.class_name, self.function_name)
-    }
-}
-
-fn check_arg_count(arg_count: i64, param_count: i64, call_ctx: &CallContext) {
-    // This will need to be adjusted once optional parameters are supported in #[func].
-    if arg_count != param_count {
-        let param_plural = plural(param_count);
-        let arg_plural = plural(arg_count);
-        panic!(
-            "{call_ctx} - function has {param_count} parameter{param_plural}, \
-            but received {arg_count} argument{arg_plural}"
-        );
-    }
-}
-
-fn plural(count: i64) -> &'static str {
-    if count == 1 {
-        ""
-    } else {
-        "s"
     }
 }

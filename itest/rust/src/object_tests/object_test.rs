@@ -802,68 +802,6 @@ fn object_user_share_drop() {
 }
 
 #[itest]
-fn object_call_no_args() {
-    let mut node = Node3D::new_alloc().upcast::<Object>();
-
-    let static_id = node.instance_id();
-    let reflect_id_variant = node.call(StringName::from("get_instance_id"), &[]);
-
-    let reflect_id = InstanceId::from_variant(&reflect_id_variant);
-
-    assert_eq!(static_id, reflect_id);
-    node.free();
-}
-
-#[itest]
-fn object_call_with_args() {
-    let mut node = Node3D::new_alloc();
-
-    let expected_pos = Vector3::new(2.5, 6.42, -1.11);
-
-    let none = node.call(
-        StringName::from("set_position"),
-        &[expected_pos.to_variant()],
-    );
-    let actual_pos = node.call(StringName::from("get_position"), &[]);
-
-    assert_eq!(none, Variant::nil());
-    assert_eq!(actual_pos, expected_pos.to_variant());
-    node.free();
-}
-
-#[itest]
-fn object_call_with_too_few_args() {
-    let mut obj = ObjPayload::new_alloc();
-
-    expect_panic("call with too few arguments", || {
-        obj.call("take_1_int".into(), &[]);
-    });
-
-    obj.free();
-}
-
-#[itest]
-fn object_call_with_too_many_args() {
-    let mut obj = ObjPayload::new_alloc();
-
-    expect_panic("call with too many arguments", || {
-        obj.call("take_1_int".into(), &[42.to_variant(), 43.to_variant()]);
-    });
-
-    obj.free();
-}
-
-#[itest(skip)] // Not yet implemented.
-fn object_call_panic_is_nil() {
-    let mut obj = ObjPayload::new_alloc();
-
-    let result = obj.call("do_panic".into(), &[]);
-    assert_eq!(result, Variant::nil());
-
-    obj.free();
-}
-
-#[itest]
 fn object_get_scene_tree(ctx: &TestContext) {
     let node = Node3D::new_alloc();
 
@@ -892,7 +830,7 @@ impl ObjPayload {
 
     #[func]
     fn do_panic(&self) {
-        panic!("panic from Rust");
+        panic!("do_panic exploded");
     }
 }
 

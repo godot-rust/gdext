@@ -24,14 +24,6 @@ pub struct ConvertError {
 
 impl ConvertError {
     /// Create a new custom error for a conversion.
-    pub fn new() -> Self {
-        Self {
-            kind: ErrorKind::Custom,
-            cause: None,
-            value: None,
-        }
-    }
-
     fn custom() -> Self {
         Self {
             kind: ErrorKind::Custom,
@@ -85,12 +77,6 @@ impl ConvertError {
 
     fn description(&self) -> Option<String> {
         self.kind.description()
-    }
-}
-
-impl Default for ConvertError {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
