@@ -158,6 +158,7 @@ pub fn is_class_runtime(is_tool: bool) -> bool {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Panic handling
 
+#[derive(Debug)]
 struct GodotPanicInfo {
     line: u32,
     file: String,
@@ -180,9 +181,9 @@ fn format_panic_message(msg: String) -> String {
     let indented = msg.replace('\n', lbegin);
 
     if indented.len() != msg.len() {
-        format!("Panic msg:{lbegin}{indented}")
+        format!("[panic]{lbegin}{indented}")
     } else {
-        format!("Panic msg:  {msg}")
+        format!("[panic]  {msg}")
     }
 }
 

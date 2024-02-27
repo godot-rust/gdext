@@ -40,7 +40,7 @@ macro_rules! impl_ffi_variant {
                 if variant.get_type() != Self::variant_type() {
                     return Err(FromVariantError::BadType {
                         expected: Self::variant_type(),
-                        got: variant.get_type(),
+                        actual: variant.get_type(),
                     }
                     .into_error(variant));
                 }
@@ -158,7 +158,7 @@ impl GodotFfiVariant for () {
 
         Err(FromVariantError::BadType {
             expected: VariantType::Nil,
-            got: variant.get_type(),
+            actual: variant.get_type(),
         }
         .into_error(variant))
     }

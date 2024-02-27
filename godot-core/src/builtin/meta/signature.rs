@@ -183,7 +183,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 func: fn(sys::GDExtensionClassInstancePtr, Self::Params) -> Self::Ret,
             ) -> Result<(), CallError> {
                 //$crate::out!("in_varcall: {call_ctx}");
-                CallError::check_arg_count(call_ctx, arg_count, $PARAM_COUNT)?;
+                CallError::check_arg_count(call_ctx, arg_count as usize, $PARAM_COUNT)?;
 
                 let args = ($(
                     unsafe { varcall_arg::<$Pn, $n>(args_ptr, call_ctx)? },
@@ -241,9 +241,7 @@ macro_rules! impl_varcall_signature_for_tuple {
 
                 variant.and_then(|v| {
                     v.try_to::<Self::Ret>()
-                        .or_else(|e| {
-                            Err(CallError::failed_return_conversion::<Self::Ret>(&call_ctx, e))
-                        })
+                        .map_err(|e| CallError::failed_return_conversion::<Self::Ret>(&call_ctx, e))
                 })
             }
 
@@ -472,7 +470,7 @@ unsafe fn varcall_arg<P: FromGodot, const N: isize>(
     let variant_ref = &*Variant::ptr_from_sys(*args_ptr.offset(N));
 
     P::try_from_variant(variant_ref)
-        .or_else(|err| Err(CallError::failed_param_conversion::<P>(call_ctx, N, err)))
+        .map_err(|err| CallError::failed_param_conversion::<P>(call_ctx, N, err))
 }
 
 /// Moves `ret_val` into `ret`.

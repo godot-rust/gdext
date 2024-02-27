@@ -16,6 +16,8 @@ use std::fmt;
 ///
 /// This type is returned from _varcall_ functions in the Godot API that begin with `try_` prefixes,
 /// e.g. [`Object::try_call()`](crate::engine::Object::try_call) or [`Node::try_rpc()`](crate::engine::Node::try_rpc).
+/// _Varcall_ refers to the "variant call" calling convention, meaning that arguments and return values are passed as `Variant` (as opposed
+/// to _ptrcall_, which passes direct pointers to Rust objects).
 ///
 /// Allows to inspect the involved class and method via `class_name()` and `method_name()`. Implements the `std::error::Error` trait, so
 /// it comes with `Display` and `Error::source()` APIs.
@@ -25,7 +27,7 @@ use std::fmt;
 ///
 /// - **Invalid method**: The method does not exist on the object.
 /// - **Failed argument conversion**: The arguments passed to the method cannot be converted to the declared parameter types.
-/// - **Failed return value conversion**: The return value of a dynamic method (`Variant`) cannot be converted to the expected return type.
+/// - **Failed return value conversion**: The returned `Variant` of a dynamic method cannot be converted to the expected return type.
 /// - **Too many or too few arguments**: The number of arguments passed to the method does not match the number of parameters.
 /// - **User panic**: A Rust method caused a panic.
 ///
@@ -49,14 +51,23 @@ use std::fmt;
 /// }
 ///
 /// fn some_method() {
-///     let obj: Gd<MyClass> = MyClass::new_gd();
+///     let mut obj: Gd<MyClass> = MyClass::new_gd();
 ///
 ///     // Dynamic call. Note: forgot to pass the argument.
-///     let result: Result<Variant, CallError> = obj.try_call("my_method", &[]);
+///     let result: Result<Variant, CallError> = obj.try_call("my_method".into(), &[]);
 ///
-///     // Get immediate and original errors. Note that source() can be None or have type ConvertError.
+///     // Get immediate and original errors.
+///     // Note that source() can be None or of type ConvertError.
 ///     let outer: CallError = result.unwrap_err();
-///     let inner: CallError = outer.source().downcast_ref::<CallError>().unwrap();
+///     let inner: &CallError = outer.source().unwrap().downcast_ref::<CallError>().unwrap();
+///
+///     // Immediate error: try_call() internally invokes Object::call().
+///     assert_eq!(outer.class_name(), Some("Object"));
+///     assert_eq!(outer.method_name(), "call");
+///
+///     // Original error: my_method() failed.
+///     assert_eq!(inner.class_name(), Some("MyClass"));
+///     assert_eq!(inner.method_name(), "my_method");
 /// }
 #[derive(Debug)]
 pub struct CallError {
@@ -91,59 +102,23 @@ impl CallError {
         &self.function_name
     }
 
-    /// Describes the error.
-    ///
-    /// This is the same as the `Display`/`ToString` repr, but without the prefix mentioning that this is a function call error,
-    /// and without any source error information.
-    fn message(&self, with_source: bool) -> String {
-        let Self {
-            call_expr, reason, ..
-        } = self;
-
-        let reason_str = if reason.is_empty() {
-            String::new()
-        } else {
-            format!("\n  Reason: {reason}")
-        };
-
-        // let source_str = if with_source {
-        //     self.source()
-        //         .map(|e| format!("\n  Source: {}", e))
-        //         .unwrap_or_default()
-        // } else {
-        //     String::new()
-        // };
-
-        let source_str = match &self.source {
-            Some(SourceError::Convert(e)) if with_source => format!("\n  Source: {}", e),
-            Some(SourceError::Call(e)) if with_source => format!("\n  Source: {}", e.message(true)),
-            _ => String::new(),
-        };
-
-        format!("{call_expr}{reason_str}{source_str}")
-    }
+    // ------------------------------------------------------------------------------------------------------------------------------------------
+    // Constructors returning Result<(), Self>; possible failure
 
     /// Checks whether number of arguments matches the number of parameters.
     pub(crate) fn check_arg_count(
         call_ctx: &CallContext,
-        arg_count: i64,
-        param_count: i64,
+        arg_count: usize,
+        param_count: usize,
     ) -> Result<(), Self> {
         // This will need to be adjusted once optional parameters are supported in #[func].
         if arg_count == param_count {
             return Ok(());
         }
 
-        let param_plural = plural(param_count);
-        let arg_plural = plural(arg_count);
+        let call_error = Self::failed_param_count(call_ctx, arg_count, param_count);
 
-        Err(Self::new(
-            call_ctx,
-            format!(
-                "function has {param_count} parameter{param_plural}, but received {arg_count} argument{arg_plural}"
-            ),
-            None,
-        ))
+        Err(call_error)
     }
 
     /// Checks the Godot side of a varcall (low-level `sys::GDExtensionCallError`).
@@ -165,7 +140,7 @@ impl CallError {
         let vararg_str = if varargs.is_empty() {
             String::new()
         } else {
-            format!(", varargs {}", join_args(varargs.into_iter().cloned()))
+            format!(", [va] {}", join_args(varargs.iter().cloned()))
         };
 
         let call_expr = format!("{call_ctx}({explicit_args_str}{vararg_str})");
@@ -182,9 +157,13 @@ impl CallError {
             call_expr,
             err,
             &arg_types,
+            explicit_args.len(),
             source_error,
         ))
     }
+
+    // ------------------------------------------------------------------------------------------------------------------------------------------
+    // Constructors returning Self; guaranteed failure
 
     /// Returns an error for a failed parameter conversion.
     pub(crate) fn failed_param_conversion<P>(
@@ -196,12 +175,33 @@ impl CallError {
 
         Self::new(
             call_ctx,
-            format!("parameter [{param_index}] of type {param_ty} failed conversion"),
+            format!("parameter #{param_index} ({param_ty}) conversion"),
             Some(convert_error),
         )
     }
 
+    fn failed_param_conversion_engine(
+        call_ctx: &CallContext,
+        param_index: i32,
+        actual: VariantType,
+        expected: VariantType,
+    ) -> Self {
+        // Note: reason is same wording as in FromVariantError::description().
+        let reason = format!(
+            "parameter #{param_index} conversion -- expected type `{expected:?}`, got `{actual:?}`"
+        );
+
+        Self::new(call_ctx, reason, None)
+    }
+
     /// Returns an error for a failed return type conversion.
+    ///
+    /// **Note:** There are probably no practical scenarios where this occurs. Different calls:
+    /// - outbound engine API: return values are statically typed (correct by binding) or Variant (infallible)
+    /// - #[func] methods: dynamic calls return Variant
+    /// - GDScript -> Rust calls: value is checked on GDScript side (at parse or runtime), not involving this.
+    ///
+    /// It might only occur if there are mistakes in the binding, or if we at some point add typed dynamic calls, à la `call<R>((1, "str"))`.
     pub(crate) fn failed_return_conversion<R>(
         call_ctx: &CallContext,
         convert_error: ConvertError,
@@ -210,8 +210,25 @@ impl CallError {
 
         Self::new(
             call_ctx,
-            format!("return value {return_ty} failed conversion"),
+            format!("return value {return_ty} conversion"),
             Some(convert_error),
+        )
+    }
+
+    fn failed_param_count(
+        call_ctx: &CallContext,
+        arg_count: usize,
+        param_count: usize,
+    ) -> CallError {
+        let param_plural = plural(param_count);
+        let arg_plural = plural(arg_count);
+
+        Self::new(
+            call_ctx,
+            format!(
+                "function has {param_count} parameter{param_plural}, but received {arg_count} argument{arg_plural}"
+            ),
+            None,
         )
     }
 
@@ -220,6 +237,7 @@ impl CallError {
         call_expr: String,
         err: sys::GDExtensionCallError,
         arg_types: &[VariantType],
+        vararg_offset: usize,
         source: Option<SourceError>,
     ) -> Self {
         // This specializes on reflection-style calls, e.g. call(), rpc() etc.
@@ -233,35 +251,52 @@ impl CallError {
             expected,
         } = err;
 
-        let argc = arg_types.len();
-        let reason = match error {
-            sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD => "method not found".to_string(),
+        let mut call_error = match error {
+            sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD => {
+                Self::new(call_ctx, "method not found", None)
+            }
             sys::GDEXTENSION_CALL_ERROR_INVALID_ARGUMENT => {
-                let from = arg_types[argument as usize];
+                // Index calculation relies on patterns like call("...", varargs), might not always work...
+                let from = arg_types[vararg_offset + argument as usize];
                 let to = VariantType::from_sys(expected as sys::GDExtensionVariantType);
                 let i = argument + 1;
 
-                format!("cannot convert argument #{i} from {from:?} to {to:?}")
+                Self::failed_param_conversion_engine(call_ctx, i, from, to)
             }
-            sys::GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS => {
-                format!("too many arguments; expected {argument}, but called with {argc}")
+            sys::GDEXTENSION_CALL_ERROR_TOO_MANY_ARGUMENTS
+            | sys::GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS => {
+                let arg_count = arg_types.len() - vararg_offset;
+                let param_count = expected as usize;
+                Self::failed_param_count(call_ctx, arg_count, param_count)
             }
-            sys::GDEXTENSION_CALL_ERROR_TOO_FEW_ARGUMENTS => {
-                format!("too few arguments; expected {argument}, but called with {argc}")
+            sys::GDEXTENSION_CALL_ERROR_INSTANCE_IS_NULL => {
+                Self::new(call_ctx, "instance is null", None)
             }
-            sys::GDEXTENSION_CALL_ERROR_INSTANCE_IS_NULL => "instance is null".to_string(),
-            sys::GDEXTENSION_CALL_ERROR_METHOD_NOT_CONST => "method is not const".to_string(), // not handled in Godot
-            sys::GODOT_RUST_CUSTOM_CALL_ERROR => String::new(),
-            _ => format!("unknown reason (error code {error})"),
+            sys::GDEXTENSION_CALL_ERROR_METHOD_NOT_CONST => {
+                Self::new(call_ctx, "method is not const", None)
+            }
+            sys::GODOT_RUST_CUSTOM_CALL_ERROR => {
+                // Not emitted by Godot.
+                Self::new(call_ctx, String::new(), None)
+            }
+            _ => Self::new(
+                call_ctx,
+                format!("unknown reason (error code {error})"),
+                None,
+            ),
         };
 
-        Self {
-            class_name: call_ctx.class_name.to_string(),
-            function_name: call_ctx.function_name.to_string(),
-            call_expr,
-            reason,
-            source,
-        }
+        // Self {
+        //     class_name: call_ctx.class_name.to_string(),
+        //     function_name: call_ctx.function_name.to_string(),
+        //     call_expr,
+        //     reason,
+        //     source,
+        // }
+
+        call_error.source = source;
+        call_error.call_expr = call_expr;
+        call_error
     }
 
     #[doc(hidden)]
@@ -269,14 +304,50 @@ impl CallError {
         Self::new(call_ctx, reason, None)
     }
 
-    fn new(call_ctx: &CallContext, reason: String, source: Option<ConvertError>) -> Self {
+    fn new(
+        call_ctx: &CallContext,
+        reason: impl Into<String>,
+        source: Option<ConvertError>,
+    ) -> Self {
         Self {
             class_name: call_ctx.class_name.to_string(),
             function_name: call_ctx.function_name.to_string(),
             call_expr: format!("{call_ctx}()"),
-            reason,
+            reason: reason.into(),
             source: source.map(|e| SourceError::Convert(Box::new(e))),
         }
+    }
+
+    /// Describes the error.
+    ///
+    /// This is the same as the `Display`/`ToString` repr, but without the prefix mentioning that this is a function call error,
+    /// and without any source error information.
+    fn message(&self, with_source: bool) -> String {
+        let Self {
+            call_expr, reason, ..
+        } = self;
+
+        let reason_str = if reason.is_empty() {
+            String::new()
+        } else {
+            format!("\n    Reason: {reason}")
+        };
+
+        // let source_str = if with_source {
+        //     self.source()
+        //         .map(|e| format!("\n  Source: {}", e))
+        //         .unwrap_or_default()
+        // } else {
+        //     String::new()
+        // };
+
+        let source_str = match &self.source {
+            Some(SourceError::Convert(e)) if with_source => format!("\n  Source: {}", e),
+            Some(SourceError::Call(e)) if with_source => format!("\n  Source: {}", e.message(true)),
+            _ => String::new(),
+        };
+
+        format!("{call_expr}{reason_str}{source_str}")
     }
 }
 
@@ -317,7 +388,7 @@ fn join_args(args: impl Iterator<Item = Variant>) -> String {
     join_debug(args)
 }
 
-fn plural(count: i64) -> &'static str {
+fn plural(count: usize) -> &'static str {
     if count == 1 {
         ""
     } else {

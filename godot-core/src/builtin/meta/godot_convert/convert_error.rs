@@ -229,7 +229,7 @@ pub(crate) enum FromVariantError {
     /// Variant type does not match expected type
     BadType {
         expected: VariantType,
-        got: VariantType,
+        actual: VariantType,
     },
 
     WrongClass {
@@ -247,11 +247,12 @@ impl FromVariantError {
 
     fn description(&self) -> String {
         match self {
-            Self::BadType { expected, got } => {
-                format!("Variant type mismatch -- expected `{expected:?}` but got `{got:?}`")
+            Self::BadType { expected, actual } => {
+                // Note: wording is the same as in CallError::failed_param_conversion_engine()
+                format!("expected type `{expected:?}`, got `{actual:?}`")
             }
             Self::WrongClass { expected } => {
-                format!("Variant class mismatch -- expected `{expected}`")
+                format!("expected class `{expected}`")
             }
         }
     }
