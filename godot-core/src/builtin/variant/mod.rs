@@ -5,7 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::builtin::meta::{impl_godot_as_self, ConvertError, FromGodot, ToGodot};
 use crate::builtin::{GString, StringName};
+use crate::gen::central::VariantDispatch;
 use godot_ffi as sys;
 use std::{fmt, ptr};
 use sys::types::OpaqueVariant;
@@ -14,8 +16,6 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 mod impls;
 
 pub use sys::{VariantOperator, VariantType};
-
-use super::meta::{impl_godot_as_self, ConvertError, FromGodot, ToGodot};
 
 /// Godot variant type, able to store a variety of different types.
 ///
@@ -375,8 +375,6 @@ impl fmt::Display for Variant {
 
 impl fmt::Debug for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ty = self.get_type();
-        let val = self.stringify();
-        write!(f, "Variant(ty={ty:?}, val={val})")
+        VariantDispatch::from_variant(self).fmt(f)
     }
 }

@@ -8,7 +8,7 @@
 use crate::builtin::meta::{CallContext, ConvertError, ToGodot};
 use crate::builtin::Variant;
 use crate::sys;
-use godot_ffi::{join_with, VariantType};
+use godot_ffi::{join_debug, VariantType};
 use std::error::Error;
 use std::fmt;
 
@@ -314,7 +314,7 @@ where
 }
 
 fn join_args(args: impl Iterator<Item = Variant>) -> String {
-    join_with(args, ", ", |arg| arg.brief_debug())
+    join_debug(args)
 }
 
 fn plural(count: i64) -> &'static str {

@@ -145,6 +145,14 @@ where
     join_with(iter, ", ", |item| format!("{item}"))
 }
 
+pub fn join_debug<T, I>(iter: I) -> String
+where
+    T: std::fmt::Debug,
+    I: Iterator<Item = T>,
+{
+    join_with(iter, ", ", |item| format!("{item:?}"))
+}
+
 pub fn join_with<T, I, F>(mut iter: I, sep: &str, mut format_elem: F) -> String
 where
     I: Iterator<Item = T>,
