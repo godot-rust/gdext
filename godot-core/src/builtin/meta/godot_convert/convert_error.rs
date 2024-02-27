@@ -19,30 +19,35 @@ type Cause = Box<dyn Error + Send + Sync>;
 pub struct ConvertError {
     kind: ErrorKind,
     cause: Option<Cause>,
-    value: Option<String>,
+    value_str: Option<String>,
 }
 
 impl ConvertError {
+    // Constructors are private (or hidden) as only the library or its proc-macros should construct this type.
+
     /// Create a new custom error for a conversion.
     fn custom() -> Self {
         Self {
             kind: ErrorKind::Custom,
             cause: None,
-            value: None,
+            value_str: None,
         }
     }
 
     /// Create a new custom error for a conversion with the value that failed to convert.
-    pub fn with_value<V>(value: V) -> Self
+    pub(crate) fn with_kind_value<V>(kind: ErrorKind, value: V) -> Self
     where
         V: fmt::Debug,
     {
-        let mut err = Self::custom();
-        err.value = Some(format!("{value:?}"));
-        err
+        Self {
+            kind,
+            cause: None,
+            value_str: Some(format!("{value:?}")),
+        }
     }
 
     /// Create a new custom error with a rust-error as an underlying cause for the conversion error.
+    #[doc(hidden)]
     pub fn with_cause<C>(cause: C) -> Self
     where
         C: Into<Cause>,
@@ -54,6 +59,7 @@ impl ConvertError {
 
     /// Create a new custom error with a rust-error as an underlying cause for the conversion error, and the
     /// value that failed to convert.
+    #[doc(hidden)]
     pub fn with_cause_value<C, V>(cause: C, value: V) -> Self
     where
         C: Into<Cause>,
@@ -61,7 +67,7 @@ impl ConvertError {
     {
         let mut err = Self::custom();
         err.cause = Some(cause.into());
-        err.value = Some(format!("{value:?}"));
+        err.value_str = Some(format!("{value:?}"));
         err
     }
 
@@ -72,7 +78,7 @@ impl ConvertError {
 
     /// Returns a string representation of the value that failed to convert, if one exists.
     pub fn value_str(&self) -> Option<&str> {
-        self.value.as_deref()
+        self.value_str.as_deref()
     }
 
     fn description(&self) -> Option<String> {
@@ -89,8 +95,8 @@ impl fmt::Display for ConvertError {
             (None, None) => write!(f, "unknown error: {:?}", self.kind)?,
         }
 
-        if let Some(value) = self.value.as_ref() {
-            write!(f, "\n\tvalue: `{value:?}`")?;
+        if let Some(value) = self.value_str.as_ref() {
+            write!(f, ": {value}")?;
         }
 
         Ok(())
@@ -141,11 +147,7 @@ impl FromGodotError {
     where
         V: fmt::Debug,
     {
-        ConvertError {
-            kind: ErrorKind::FromGodot(self),
-            cause: None,
-            value: Some(format!("{value:?}")),
-        }
+        ConvertError::with_kind_value(ErrorKind::FromGodot(self), value)
     }
 
     fn description(&self) -> String {
@@ -203,11 +205,7 @@ impl FromFfiError {
     where
         V: fmt::Debug,
     {
-        ConvertError {
-            kind: ErrorKind::FromFfi(self),
-            cause: None,
-            value: Some(format!("{value:?}")),
-        }
+        ConvertError::with_kind_value(ErrorKind::FromFfi(self), value)
     }
 
     fn description(&self) -> String {
@@ -244,20 +242,16 @@ impl FromVariantError {
     where
         V: fmt::Debug,
     {
-        ConvertError {
-            kind: ErrorKind::FromVariant(self),
-            cause: None,
-            value: Some(format!("{value:?}")),
-        }
+        ConvertError::with_kind_value(ErrorKind::FromVariant(self), value)
     }
 
     fn description(&self) -> String {
         match self {
             Self::BadType { expected, got } => {
-                format!("expected Variant of type `{expected:?}` but got Variant of type `{got:?}`")
+                format!("Variant type mismatch -- expected `{expected:?}` but got `{got:?}`")
             }
             Self::WrongClass { expected } => {
-                format!("expected class `{expected}`, got variant with wrong class")
+                format!("Variant class mismatch -- expected `{expected}`")
             }
         }
     }

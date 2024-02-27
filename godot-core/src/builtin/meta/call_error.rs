@@ -196,7 +196,7 @@ impl CallError {
 
         Self::new(
             call_ctx,
-            format!("parameter [{param_index}] of type {param_ty} failed to convert to Variant; {convert_error}"),
+            format!("parameter [{param_index}] of type {param_ty} failed conversion"),
             Some(convert_error),
         )
     }
@@ -210,7 +210,7 @@ impl CallError {
 
         Self::new(
             call_ctx,
-            format!("return type {return_ty} failed to convert from Variant; {convert_error}"),
+            format!("return value {return_ty} failed conversion"),
             Some(convert_error),
         )
     }

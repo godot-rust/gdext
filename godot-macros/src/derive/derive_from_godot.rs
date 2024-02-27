@@ -61,7 +61,8 @@ fn make_fromgodot_for_int_enum(name: &Ident, enum_: &CStyleEnum, int: &Ident) ->
                     #(
                         #discriminants => Ok(#name::#names),
                     )*
-                    other => Err(::godot::builtin::meta::ConvertError::with_cause_value(#bad_variant_error, other))
+                    // Pass `via` and not `other`, to retain debug info of original type.
+                    other => Err(::godot::builtin::meta::ConvertError::with_cause_value(#bad_variant_error, via))
                 }
             }
         }
@@ -81,7 +82,8 @@ fn make_fromgodot_for_gstring_enum(name: &Ident, enum_: &CStyleEnum) -> TokenStr
                     #(
                         #names_str => Ok(#name::#names),
                     )*
-                    other => Err(::godot::builtin::meta::ConvertError::with_cause_value(#bad_variant_error, other))
+                    // Pass `via` and not `other`, to retain debug info of original type.
+                    other => Err(::godot::builtin::meta::ConvertError::with_cause_value(#bad_variant_error, via))
                 }
             }
         }
