@@ -147,7 +147,7 @@ fn callable_bindv() {
 fn callable_bind() {
     let obj = CallableTestObj::new_gd();
     let callable = obj.callable("bar");
-    let callable_bound = callable.bind(10.to_variant());
+    let callable_bound = callable.bind(&[10.to_variant()]);
 
     assert_eq!(callable_bound.callv(varray![]), 10.to_variant());
 }
