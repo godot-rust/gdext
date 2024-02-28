@@ -142,6 +142,12 @@ impl GString {
     pub fn as_inner(&self) -> inner::InnerString {
         inner::InnerString::from_outer(self)
     }
+
+    #[doc(hidden)]
+    pub fn into_string_sys(self) -> sys::GDExtensionStringPtr {
+        let string_name = Box::leak(Box::new(self));
+        string_name.string_sys()
+    }
 }
 
 // SAFETY:

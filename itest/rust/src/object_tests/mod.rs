@@ -7,6 +7,7 @@
 
 mod base_test;
 mod class_rename_test;
+mod dyn_property_test;
 mod object_swap_test;
 mod object_test;
 mod onready_test;

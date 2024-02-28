@@ -57,6 +57,9 @@ impl AtomicLifecycle {
 ///
 /// It must be safe to drop this storage if we have a `&mut` reference to the storage and  
 /// [`is_bound()`](Storage::is_bound()) returns `false`.
+///
+/// The pointer returned from [`store_property_list`](Storage::store_property_list) must be valid for reads until
+/// [`free_property_list`](Storage::free_property_list) is called.
 pub unsafe trait Storage {
     /// The type of instances stored by this storage.
     type Instance: GodotClass;

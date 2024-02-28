@@ -96,3 +96,26 @@ fn string_hash() {
     .collect();
     assert_eq!(set.len(), 5);
 }
+
+#[itest]
+fn gstring_name_into_string_sys() {
+    const TARGET_STRINGS: &[&'static str] = &[
+        "property_number_one",
+        "another property here",
+        "wow properties",
+        "odakfhgjlk",
+        "more stuffsies",
+    ];
+    let mut strings = Vec::new();
+
+    for i in 0..100 {
+        let string = TARGET_STRINGS[i % TARGET_STRINGS.len()];
+        strings.push(GString::from(string).into_string_sys());
+    }
+
+    for (i, string_sys) in strings.iter().enumerate() {
+        let target = TARGET_STRINGS[i % TARGET_STRINGS.len()];
+        let string = unsafe { GString::from_string_sys(*string_sys) };
+        assert_eq!(string.to_string().as_str(), target, "iteration: {i}",);
+    }
+}

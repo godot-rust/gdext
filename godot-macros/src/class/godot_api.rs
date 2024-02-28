@@ -611,6 +611,9 @@ fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream>
     let mut on_notification_impl = TokenStream::new();
     let mut get_property_impl = TokenStream::new();
     let mut set_property_impl = TokenStream::new();
+    let mut get_property_list_impl = TokenStream::new();
+    let mut property_can_revert_impl = TokenStream::new();
+    let mut property_get_revert_impl = TokenStream::new();
 
     let mut register_fn = None;
     let mut create_fn = None;
@@ -619,6 +622,10 @@ fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream>
     let mut on_notification_fn = None;
     let mut get_property_fn = None;
     let mut set_property_fn = None;
+    let mut get_property_list_fn = None;
+    let mut free_property_list_fn = None;
+    let mut property_can_revert_fn = None;
+    let mut property_get_revert_fn = None;
 
     let mut virtual_methods = vec![];
     let mut virtual_method_cfg_attrs = vec![];
@@ -793,6 +800,80 @@ fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream>
                 });
             }
 
+            "get_property_list" => {
+                get_property_list_impl = quote! {
+                    #(#cfg_attrs)*
+                    impl ::godot::obj::cap::GodotGetPropertyList for #class_name {
+                        fn __godot_get_property_list(&self) -> Vec<::godot::builtin::meta::PropertyInfo> {
+                            use ::godot::obj::UserClass as _;
+
+                            #[cfg(before_api = "4.3")]
+                            if ::godot::private::is_class_inactive(Self::__config().is_tool) {
+                                return Vec::new();
+                            }
+
+                            <Self as #trait_path>::get_property_list(self)
+                        }
+                    }
+                };
+
+                get_property_list_fn = Some(quote! {
+                    #(#cfg_attrs)*
+                    () => Some(#prv::callbacks::get_property_list::<#class_name>),
+                });
+
+                free_property_list_fn = Some(quote! {
+                    #(#cfg_attrs)*
+                    () => Some(#prv::callbacks::free_property_list::<#class_name>),
+                });
+            }
+
+            "property_can_revert" => {
+                property_can_revert_impl = quote! {
+                    #(#cfg_attrs)*
+                    impl ::godot::obj::cap::GodotPropertyCanRevert for #class_name {
+                        fn __godot_property_can_revert(&self, property: ::godot::builtin::StringName) -> bool {
+                            use ::godot::obj::UserClass as _;
+
+                            #[cfg(before_api = "4.3")]
+                            if ::godot::private::is_class_inactive(Self::__config().is_tool) {
+                                return false;
+                            }
+
+                            <Self as #trait_path>::property_can_revert(self, property)
+                        }
+                    }
+                };
+
+                property_can_revert_fn = Some(quote! {
+                    #(#cfg_attrs)*
+                    () => Some(#prv::callbacks::property_can_revert::<#class_name>),
+                });
+            }
+
+            "property_get_revert" => {
+                property_get_revert_impl = quote! {
+                    #(#cfg_attrs)*
+                    impl ::godot::obj::cap::GodotPropertyGetRevert for #class_name {
+                        fn __godot_property_get_revert(&mut self, property: ::godot::builtin::StringName) -> Option<::godot::builtin::Variant> {
+                            use ::godot::obj::UserClass as _;
+
+                            #[cfg(before_api = "4.3")]
+                            if ::godot::private::is_class_inactive(Self::__config().is_tool) {
+                                return None;
+                            }
+
+                            <Self as #trait_path>::property_get_revert(self, property)
+                        }
+                    }
+                };
+
+                property_get_revert_fn = Some(quote! {
+                    #(#cfg_attrs)*
+                    () => Some(#prv::callbacks::property_get_revert::<#class_name>),
+                });
+            }
+
             // Other virtual methods, like ready, process etc.
             _ => {
                 let method = util::reduce_to_signature(method);
@@ -863,6 +944,10 @@ fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream>
     let on_notification_fn = convert_to_match_expression_or_none(on_notification_fn);
     let get_property_fn = convert_to_match_expression_or_none(get_property_fn);
     let set_property_fn = convert_to_match_expression_or_none(set_property_fn);
+    let get_property_list_fn = convert_to_match_expression_or_none(get_property_list_fn);
+    let free_property_list_fn = convert_to_match_expression_or_none(free_property_list_fn);
+    let property_can_revert_fn = convert_to_match_expression_or_none(property_can_revert_fn);
+    let property_get_revert_fn = convert_to_match_expression_or_none(property_get_revert_fn);
 
     let result = quote! {
         #original_impl
@@ -872,6 +957,9 @@ fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream>
         #register_class_impl
         #get_property_impl
         #set_property_impl
+        #get_property_list_impl
+        #property_can_revert_impl
+        #property_get_revert_impl
 
         impl ::godot::private::You_forgot_the_attribute__godot_api for #class_name {}
 
@@ -901,6 +989,10 @@ fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream>
                 user_on_notification_fn: #on_notification_fn,
                 user_set_fn: #set_property_fn,
                 user_get_fn: #get_property_fn,
+                user_get_property_list_fn: #get_property_list_fn,
+                user_free_property_list_fn: #free_property_list_fn,
+                user_property_can_revert_fn: #property_can_revert_fn,
+                user_property_get_revert_fn: #property_get_revert_fn,
                 get_virtual_fn: #prv::callbacks::get_virtual::<#class_name>,
             },
             init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
