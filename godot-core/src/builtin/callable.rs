@@ -181,6 +181,13 @@ impl Callable {
         self.as_inner().bindv(arguments)
     }
 
+    /// Returns a copy of this Callable with one argument bound.
+    ///
+    /// _Godot equivalent: `bind`_
+    pub fn bind(&self, argument: Variant) -> Self {
+        self.as_inner().bind(argument)
+    }
+
     /// Returns the name of the method represented by this callable. If the callable is a lambda function,
     /// returns the function's name.
     ///
