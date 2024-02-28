@@ -177,8 +177,8 @@ impl Callable {
     /// Returns a copy of this Callable with one or more arguments bound, reading them from an array.
     ///
     /// _Godot equivalent: `bindv`_
-    pub fn bindv(&self, arguments: VariantArray) -> Self {
-        self.as_inner().bindv(arguments)
+    pub fn bind(&self, varargs: &[Variant]) -> Self {
+        self.as_inner().bind(varargs)
     }
 
     /// Returns a copy of this Callable with one argument bound.
