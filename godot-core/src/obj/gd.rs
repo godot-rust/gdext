@@ -487,9 +487,11 @@ where
         let is_panic_unwind = std::thread::panicking();
         let error_or_panic = |msg: String| {
             if is_panic_unwind {
-                crate::godot_error!(
-                    "Encountered 2nd panic in free() during panic unwind; will skip destruction:\n{msg}"
-                );
+                if crate::private::has_error_print_level(1) {
+                    crate::godot_error!(
+                        "Encountered 2nd panic in free() during panic unwind; will skip destruction:\n{msg}"
+                    );
+                }
             } else {
                 panic!("{}", msg);
             }

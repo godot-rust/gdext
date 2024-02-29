@@ -101,7 +101,7 @@ pub fn make_function_definition(
     // to only use `unsafe` for pointers in parameters (for outbound calls), and in return values (for virtual calls). Or technically more
     // correct, make the entire trait unsafe as soon as one function can return pointers, but that's very unergonomic and non-local.
     // Thus, let's keep things simple and more conservative.
-    let (maybe_unsafe, safety_doc) = if let Some(safety_doc) = safety_doc {
+    let (maybe_unsafe, maybe_safety_doc) = if let Some(safety_doc) = safety_doc {
         (quote! { unsafe }, safety_doc)
     } else if function_uses_pointers(sig) {
         (
@@ -109,7 +109,8 @@ pub fn make_function_definition(
             quote! {
                 /// # Safety
                 ///
-                /// Godot currently does not document safety requirements on this method. Make sure you understand the underlying semantics.
+                /// This method has automatically been marked `unsafe` because it accepts raw pointers as parameters.
+                /// If Godot does not document any safety requirements, make sure you understand the underlying semantics.
             },
         )
     } else {
@@ -143,7 +144,7 @@ pub fn make_function_definition(
         // Virtual functions
 
         quote! {
-            #safety_doc
+            #maybe_safety_doc
             #maybe_unsafe fn #primary_fn_name(
                 #receiver_param
                 #( #params, )*
@@ -157,20 +158,61 @@ pub fn make_function_definition(
         // If the return type is not Variant, then convert to concrete target type
         let varcall_invocation = &code.varcall_invocation;
 
-        // TODO use Result instead of panic on error
-        quote! {
-            #safety_doc
-            #vis #maybe_unsafe fn #primary_fn_name(
-                #receiver_param
-                #( #params, )*
-                varargs: &[Variant]
-            ) #return_decl {
-                type CallSig = #call_sig;
+        // TODO Utility functions: update as well.
+        if code.receiver.param.is_empty() {
+            quote! {
+                #maybe_safety_doc
+                #vis #maybe_unsafe fn #primary_fn_name(
+                    #receiver_param
+                    #( #params, )*
+                    varargs: &[Variant]
+                ) #return_decl {
+                    type CallSig = #call_sig;
 
-                let args = (#( #arg_names, )*);
+                    let args = (#( #arg_names, )*);
 
-                unsafe {
-                    #varcall_invocation
+                    unsafe {
+                        #varcall_invocation
+                    }
+                }
+            }
+        } else {
+            let try_return_decl = &sig.return_value().call_result_decl();
+            let try_fn_name = format_ident!("try_{}", rust_function_name_str);
+
+            // Note: all varargs functions are non-static, which is why there are some shortcuts in try_*() argument forwarding.
+            // This can be made more complex if ever necessary.
+
+            quote! {
+                /// # Panics
+                /// This is a _varcall_ method, meaning parameters and return values are passed as `Variant`.
+                /// It can detect call failures and will panic in such a case.
+                #maybe_safety_doc
+                #vis #maybe_unsafe fn #primary_fn_name(
+                    #receiver_param
+                    #( #params, )*
+                    varargs: &[Variant]
+                ) #return_decl {
+                    Self::#try_fn_name(self, #( #arg_names, )* varargs)
+                        .unwrap_or_else(|e| panic!("{e}"))
+                }
+
+                /// # Return type
+                /// This is a _varcall_ method, meaning parameters and return values are passed as `Variant`.
+                /// It can detect call failures and will return `Err` in such a case.
+                #maybe_safety_doc
+                #vis #maybe_unsafe fn #try_fn_name(
+                    #receiver_param
+                    #( #params, )*
+                    varargs: &[Variant]
+                ) #try_return_decl {
+                    type CallSig = #call_sig;
+
+                    let args = (#( #arg_names, )*);
+
+                    unsafe {
+                        #varcall_invocation
+                    }
                 }
             }
         }
@@ -189,7 +231,7 @@ pub fn make_function_definition(
         };
 
         quote! {
-            #safety_doc
+            #maybe_safety_doc
             #vis #maybe_unsafe fn #primary_fn_name(
                 #receiver_param
                 #( #params, )*

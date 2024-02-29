@@ -402,6 +402,7 @@ fn make_varcall_func(
 ) -> TokenStream {
     let invocation = make_varcall_invocation(call_ctx, sig_tuple, wrapped_method);
 
+    // TODO reduce amount of code generated, by delegating work to a library function. Could even be one that produces this function pointer.
     quote! {
         {
             unsafe extern "C" fn function(
@@ -412,19 +413,11 @@ fn make_varcall_func(
                 ret: sys::GDExtensionVariantPtr,
                 err: *mut sys::GDExtensionCallError,
             ) {
-                let success = ::godot::private::handle_panic(
-                    || #call_ctx,
+                ::godot::private::handle_varcall_panic(
+                    #call_ctx,
+                    &mut *err,
                     || #invocation
                 );
-
-                if success.is_none() {
-                    // Signal error and set return type to Nil.
-                    // None of the sys::GDEXTENSION_CALL_ERROR enums fits; so we use our own outside Godot's official range.
-                    (*err).error = sys::GODOT_RUST_CALL_ERROR;
-
-                    // TODO(uninit)
-                    sys::interface_fn!(variant_new_nil)(sys::AsUninit::as_uninit(ret));
-                }
             }
 
             function
@@ -448,14 +441,14 @@ fn make_ptrcall_func(
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
             ) {
-                let success = ::godot::private::handle_panic(
+                let _success = ::godot::private::handle_panic(
                     || #call_ctx,
                     || #invocation
                 );
 
-                if success.is_none() {
-                    // TODO set return value to T::default()?
-                }
+                // if success.is_err() {
+                //     // TODO set return value to T::default()?
+                // }
             }
 
             function

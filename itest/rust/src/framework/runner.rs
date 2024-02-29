@@ -184,7 +184,7 @@ impl IntegrationTests {
                     // could not be caught, causing UB at the Godot FFI boundary (in practice, this will be a defined Godot crash with
                     // stack trace though).
                     godot_error!("GDScript test panicked");
-                    godot::private::print_panic(e);
+                    godot::private::extract_panic_message(e);
                     TestOutcome::Failed
                 }
             };
@@ -310,9 +310,9 @@ fn run_rust_test(test: &RustTestCase, ctx: &TestContext) -> TestOutcome {
 
     // Explicit type to prevent tests from returning a value
     let err_context = || format!("itest `{}` failed", test.name);
-    let success: Option<()> = godot::private::handle_panic(err_context, || (test.function)(ctx));
+    let success: Result<(), _> = godot::private::handle_panic(err_context, || (test.function)(ctx));
 
-    TestOutcome::from_bool(success.is_some())
+    TestOutcome::from_bool(success.is_ok())
 }
 
 fn print_test_pre(test_case: &str, test_file: String, last_file: &mut Option<String>, flush: bool) {

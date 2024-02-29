@@ -126,18 +126,26 @@ pub fn make_core_central_code(api: &ExtensionApi, ctx: &mut Context) -> TokenStr
             )*
         }
 
-        #[cfg(FALSE)]
-        impl FromVariant for VariantDispatch {
-            fn try_from_variant(variant: &Variant) -> Result<Self, VariantConversionError> {
-                let dispatch = match variant.get_type() {
+        impl VariantDispatch {
+            pub fn from_variant(variant: &Variant) -> Self {
+                match variant.get_type() {
                     VariantType::Nil => Self::Nil,
                     #(
                         VariantType::#variant_ty_enumerators_pascal
                             => Self::#variant_ty_enumerators_pascal(variant.to::<#variant_ty_enumerators_rust>()),
                     )*
-                };
+                }
+            }
+        }
 
-                Ok(dispatch)
+        impl std::fmt::Debug for VariantDispatch {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                match self {
+                    Self::Nil => write!(f, "null"),
+                    #(
+                        Self::#variant_ty_enumerators_pascal(v) => write!(f, "{v:?}"),
+                    )*
+                }
             }
         }
 

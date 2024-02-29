@@ -330,6 +330,8 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
         }
 
         // #[class(hidden)]
+        // TODO consider naming this "internal"; godot-cpp uses that terminology:
+        // https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/class_db.hpp#L327
         if let Some(span) = parser.handle_alone_with_span("hidden")? {
             require_api_version!("4.2", span, "#[class(hidden)]")?;
             is_hidden = true;
