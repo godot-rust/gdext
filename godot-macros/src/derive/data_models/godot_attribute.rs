@@ -7,7 +7,6 @@
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
-use venial::Declaration;
 
 use crate::util::{bail, KvParser};
 use crate::ParseResult;
@@ -21,8 +20,8 @@ pub enum GodotAttribute {
 }
 
 impl GodotAttribute {
-    pub fn parse_attribute(declaration: &Declaration) -> ParseResult<Self> {
-        let mut parser = KvParser::parse_required(declaration.attributes(), "godot", declaration)?;
+    pub fn parse_attribute(item: &venial::Item) -> ParseResult<Self> {
+        let mut parser = KvParser::parse_required(item.attributes(), "godot", item)?;
         let attribute = Self::parse(&mut parser)?;
         parser.finish()?;
 

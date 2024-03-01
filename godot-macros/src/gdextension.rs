@@ -7,15 +7,14 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use venial::Declaration;
 
 use crate::util::{bail, ident, validate_impl, KvParser};
 use crate::ParseResult;
 
-pub fn attribute_gdextension(decl: Declaration) -> ParseResult<TokenStream> {
-    let mut impl_decl = match decl {
-        Declaration::Impl(item) => item,
-        _ => return bail!(&decl, "#[gdextension] can only be applied to trait impls"),
+pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
+    let mut impl_decl = match item {
+        venial::Item::Impl(item) => item,
+        _ => return bail!(&item, "#[gdextension] can only be applied to trait impls"),
     };
 
     validate_impl(&impl_decl, Some("ExtensionLibrary"), "gdextension")?;

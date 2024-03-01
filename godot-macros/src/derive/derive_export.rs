@@ -7,7 +7,6 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use venial::Declaration;
 
 use crate::ParseResult;
 
@@ -16,8 +15,8 @@ use crate::derive::data_models::GodotConvert;
 /// Derives `Export` for the declaration.
 ///
 /// This currently just reuses the property hint from the `Var` implementation.
-pub fn derive_export(declaration: Declaration) -> ParseResult<TokenStream> {
-    let GodotConvert { ty_name: name, .. } = GodotConvert::parse_declaration(declaration)?;
+pub fn derive_export(item: venial::Item) -> ParseResult<TokenStream> {
+    let GodotConvert { ty_name: name, .. } = GodotConvert::parse_declaration(item)?;
 
     Ok(quote! {
         impl ::godot::register::property::Export for #name {

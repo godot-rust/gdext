@@ -11,7 +11,6 @@ use crate::ParseResult;
 use proc_macro2::{Delimiter, Group, Ident, Literal, TokenStream, TokenTree};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote, ToTokens, TokenStreamExt};
-use venial::{Error, Function, Impl, TyExpr};
 
 mod kv_parser;
 mod list_parser;
@@ -73,11 +72,11 @@ macro_rules! require_api_version {
     };
 }
 
-pub fn error_fn<T>(msg: impl AsRef<str>, tokens: T) -> Error
+pub fn error_fn<T>(msg: impl AsRef<str>, tokens: T) -> venial::Error
 where
     T: Spanned,
 {
-    Error::new_at_span(tokens.__span(), msg.as_ref())
+    venial::Error::new_at_span(tokens.__span(), msg.as_ref())
 }
 
 macro_rules! error {
@@ -90,7 +89,7 @@ pub(crate) use bail;
 pub(crate) use error;
 pub(crate) use require_api_version;
 
-pub fn reduce_to_signature(function: &Function) -> Function {
+pub fn reduce_to_signature(function: &venial::Function) -> venial::Function {
     let mut reduced = function.clone();
     reduced.vis_marker = None; // TODO needed?
     reduced.attributes.clear();
@@ -100,26 +99,26 @@ pub fn reduce_to_signature(function: &Function) -> Function {
     reduced
 }
 
-pub fn parse_signature(mut signature: TokenStream) -> Function {
+pub fn parse_signature(mut signature: TokenStream) -> venial::Function {
     // Signature needs {} body to be parseable by venial
     signature.append(TokenTree::Group(Group::new(
         Delimiter::Brace,
         TokenStream::new(),
     )));
 
-    let method_declaration = venial::parse_declaration(signature)
+    let function_item = venial::parse_item(signature)
         .unwrap()
         .as_function()
         .unwrap()
         .clone();
 
-    reduce_to_signature(&method_declaration)
+    reduce_to_signature(&function_item)
 }
 
 /// Returns a type expression that can be used as a `VarcallSignatureTuple`.
 pub fn make_signature_tuple_type(
     ret_type: &TokenStream,
-    param_types: &[venial::TyExpr],
+    param_types: &[venial::TypeExpr],
 ) -> TokenStream {
     quote::quote! {
         (#ret_type, #(#param_types),*)
@@ -149,7 +148,7 @@ fn delimiter_opening_char(delimiter: Delimiter) -> char {
 ///
 /// That is, if `name` is `"MyTrait"`, then this function returns true if and only if `original_impl` is a
 /// declaration of the form `impl MyTrait for SomeType`. The type `SomeType` is irrelevant in this example.
-pub(crate) fn is_impl_named(original_impl: &Impl, name: &str) -> bool {
+pub(crate) fn is_impl_named(original_impl: &venial::Impl, name: &str) -> bool {
     let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
     extract_typename(trait_name).map_or(false, |seg| seg.ident == name)
 }
@@ -158,7 +157,7 @@ pub(crate) fn is_impl_named(original_impl: &Impl, name: &str) -> bool {
 /// a) the declaration is `impl Trait for SomeType`, if `expected_trait` is `Some("Trait")`
 /// b) the declaration is `impl SomeType`, if `expected_trait` is `None`
 pub(crate) fn validate_impl(
-    original_impl: &Impl,
+    original_impl: &venial::Impl,
     expected_trait: Option<&str>,
     attr: &str,
 ) -> ParseResult<Ident> {
@@ -179,9 +178,9 @@ pub(crate) fn validate_impl(
 /// Validates that the declaration is the of the form `impl Trait for SomeType`, where the name
 /// of `Trait` begins with `I`.
 pub(crate) fn validate_trait_impl_virtual<'a>(
-    original_impl: &'a Impl,
+    original_impl: &'a venial::Impl,
     attr: &str,
-) -> ParseResult<(Ident, &'a TyExpr)> {
+) -> ParseResult<(Ident, &'a venial::TypeExpr)> {
     let trait_name = original_impl.trait_ty.as_ref().unwrap(); // unwrap: already checked outside
     let typename = extract_typename(trait_name);
 
@@ -203,7 +202,7 @@ pub(crate) fn validate_trait_impl_virtual<'a>(
     })
 }
 
-fn validate_self(original_impl: &Impl, attr: &str) -> ParseResult<Ident> {
+fn validate_self(original_impl: &venial::Impl, attr: &str) -> ParseResult<Ident> {
     if let Some(segment) = extract_typename(&original_impl.self_ty) {
         if segment.generic_args.is_none() {
             Ok(segment.ident)
@@ -222,7 +221,7 @@ fn validate_self(original_impl: &Impl, attr: &str) -> ParseResult<Ident> {
 }
 
 /// Gets the right-most type name in the path.
-fn extract_typename(ty: &venial::TyExpr) -> Option<venial::PathSegment> {
+fn extract_typename(ty: &venial::TypeExpr) -> Option<venial::PathSegment> {
     match ty.as_path() {
         Some(mut path) => path.segments.pop(),
         _ => None,
@@ -236,13 +235,13 @@ pub(crate) fn path_is_single(path: &[TokenTree], expected: &str) -> bool {
 }
 
 pub(crate) fn path_ends_with(path: &[TokenTree], expected: &str) -> bool {
-    // Could also use TyExpr::as_path(), or fn below this one.
+    // Could also use TypeExpr::as_path(), or fn below this one.
     path.last()
         .map(|last| last.to_string() == expected)
         .unwrap_or(false)
 }
 
-pub(crate) fn path_ends_with_complex(path: &venial::TyExpr, expected: &str) -> bool {
+pub(crate) fn path_ends_with_complex(path: &venial::TypeExpr, expected: &str) -> bool {
     path.as_path()
         .map(|path| {
             path.segments

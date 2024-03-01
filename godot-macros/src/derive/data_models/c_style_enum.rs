@@ -108,12 +108,12 @@ pub struct CStyleEnumerator {
 impl CStyleEnumerator {
     /// Parse an enum variant, erroring if it isn't a unit variant.
     fn parse_enum_variant(enum_variant: &venial::EnumVariant) -> ParseResult<Self> {
-        match enum_variant.contents {
-            venial::StructFields::Unit => {}
+        match enum_variant.fields {
+            venial::Fields::Unit => {}
             _ => {
                 return bail!(
-                    &enum_variant.contents,
-                    "GodotConvert only supports c-style enums"
+                    &enum_variant.fields,
+                    "GodotConvert only supports C-style enums"
                 )
             }
         }

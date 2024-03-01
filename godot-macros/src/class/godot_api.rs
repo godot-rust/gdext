@@ -16,9 +16,9 @@ use crate::class::{
 use crate::util::{bail, require_api_version, KvParser};
 use crate::{util, ParseResult};
 
-pub fn attribute_godot_api(input_decl: venial::Declaration) -> ParseResult<TokenStream> {
+pub fn attribute_godot_api(input_decl: venial::Item) -> ParseResult<TokenStream> {
     let decl = match input_decl {
-        venial::Declaration::Impl(decl) => decl,
+        venial::Item::Impl(decl) => decl,
         _ => bail!(
             input_decl,
             "#[godot_api] can only be applied on impl blocks",
@@ -139,7 +139,7 @@ fn make_signal_registrations(
             signature,
             external_attributes,
         } = signal;
-        let mut param_types: Vec<venial::TyExpr> = Vec::new();
+        let mut param_types: Vec<venial::TypeExpr> = Vec::new();
         let mut param_names: Vec<String> = Vec::new();
 
         for param in signature.params.inner.iter() {
@@ -266,7 +266,7 @@ fn process_godot_fns(
 
     let mut removed_indexes = vec![];
     for (index, item) in impl_block.body_items.iter_mut().enumerate() {
-        let venial::ImplMember::Method(function) = item else {
+        let venial::ImplMember::AssocFunction(function) = item else {
             continue;
         };
 
@@ -463,7 +463,7 @@ fn process_godot_constants(decl: &mut venial::Impl) -> ParseResult<Vec<venial::C
     let mut constant_signatures = vec![];
 
     for item in decl.body_items.iter_mut() {
-        let venial::ImplMember::Constant(constant) = item else {
+        let venial::ImplMember::AssocConstant(constant) = item else {
             continue;
         };
 
@@ -627,7 +627,7 @@ fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStream>
     let prv = quote! { ::godot::private };
 
     for item in original_impl.body_items.iter() {
-        let method = if let venial::ImplMember::Method(f) = item {
+        let method = if let venial::ImplMember::AssocFunction(f) = item {
             f
         } else {
             continue;

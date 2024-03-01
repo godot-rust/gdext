@@ -7,16 +7,15 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use venial::{Declaration, Error, Function};
 
 use crate::util::{bail, KvParser};
 use crate::ParseResult;
 
 const DEFAULT_REPETITIONS: usize = 100;
 
-pub fn attribute_bench(input_decl: Declaration) -> ParseResult<TokenStream> {
+pub fn attribute_bench(input_decl: venial::Item) -> ParseResult<TokenStream> {
     let func = match input_decl {
-        Declaration::Function(f) => f,
+        venial::Item::Function(f) => f,
         _ => return bail!(&input_decl, "#[bench] can only be applied to functions"),
     };
 
@@ -61,7 +60,7 @@ pub fn attribute_bench(input_decl: Declaration) -> ParseResult<TokenStream> {
     })
 }
 
-fn bad_signature(func: &Function) -> Result<TokenStream, Error> {
+fn bad_signature(func: &venial::Function) -> Result<TokenStream, venial::Error> {
     bail!(
         func,
         "#[bench] function must have one of these signatures:\

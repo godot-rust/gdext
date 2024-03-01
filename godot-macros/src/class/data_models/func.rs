@@ -166,7 +166,7 @@ pub struct SignatureInfo {
     pub method_name: Ident,
     pub receiver_type: ReceiverType,
     pub param_idents: Vec<Ident>,
-    pub param_types: Vec<venial::TyExpr>,
+    pub param_types: Vec<venial::TypeExpr>,
     pub ret_type: TokenStream,
 }
 
@@ -344,7 +344,7 @@ pub(crate) fn into_signature_info(
                 } else {
                     arg.name
                 };
-                let ty = venial::TyExpr {
+                let ty = venial::TypeExpr {
                     tokens: map_self_to_class_name(arg.ty.tokens, class_name),
                 };
 
