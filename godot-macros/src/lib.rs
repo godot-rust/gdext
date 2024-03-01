@@ -15,7 +15,6 @@ mod util;
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use venial::Declaration;
 
 use crate::util::ident;
 
@@ -817,11 +816,11 @@ type ParseResult<T> = Result<T, venial::Error>;
 
 fn translate<F>(input: TokenStream, transform: F) -> TokenStream
 where
-    F: FnOnce(Declaration) -> ParseResult<TokenStream2>,
+    F: FnOnce(venial::Item) -> ParseResult<TokenStream2>,
 {
     let input2 = TokenStream2::from(input);
 
-    let result2 = venial::parse_declaration(input2)
+    let result2 = venial::parse_item(input2)
         .and_then(transform)
         .unwrap_or_else(|e| e.to_compile_error());
 
@@ -835,7 +834,7 @@ fn translate_meta<F>(
     transform: F,
 ) -> TokenStream
 where
-    F: FnOnce(Declaration) -> ParseResult<TokenStream2>,
+    F: FnOnce(venial::Item) -> ParseResult<TokenStream2>,
 {
     let self_name = ident(self_name);
     let input2 = TokenStream2::from(input);
@@ -847,7 +846,7 @@ where
         #input2
     };
 
-    let result2 = venial::parse_declaration(input)
+    let result2 = venial::parse_item(input)
         .and_then(transform)
         .unwrap_or_else(|e| e.to_compile_error());
 

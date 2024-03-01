@@ -7,7 +7,6 @@
 
 use proc_macro2::{Ident, Punct, TokenStream};
 use quote::{format_ident, quote};
-use venial::{Declaration, NamedField, Struct, StructFields};
 
 use crate::class::{
     make_property_impl, make_virtual_callback, BeforeKind, Field, FieldExport, FieldVar, Fields,
@@ -16,8 +15,8 @@ use crate::class::{
 use crate::util::{bail, ident, path_ends_with_complex, require_api_version, KvParser};
 use crate::{util, ParseResult};
 
-pub fn derive_godot_class(decl: Declaration) -> ParseResult<TokenStream> {
-    let class = decl
+pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
+    let class = item
         .as_struct()
         .ok_or_else(|| venial::Error::new("Not a valid struct"))?;
 
@@ -278,7 +277,7 @@ fn make_user_class_impl(
 }
 
 /// Returns the name of the base and the default mode
-fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
+fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttributes> {
     let mut base_ty = ident("RefCounted");
     let mut init_strategy = InitStrategy::UserDefined;
     let mut is_tool = false;
@@ -351,20 +350,20 @@ fn parse_struct_attributes(class: &Struct) -> ParseResult<ClassAttributes> {
 }
 
 /// Returns field names and 1 base field, if available
-fn parse_fields(class: &Struct, init_strategy: InitStrategy) -> ParseResult<Fields> {
+fn parse_fields(class: &venial::Struct, init_strategy: InitStrategy) -> ParseResult<Fields> {
     let mut all_fields = vec![];
     let mut base_field = Option::<Field>::None;
     let mut has_deprecated_base = false;
 
-    let named_fields: Vec<(NamedField, Punct)> = match &class.fields {
-        StructFields::Unit => {
+    let named_fields: Vec<(venial::NamedField, Punct)> = match &class.fields {
+        venial::Fields::Unit => {
             vec![]
         }
-        StructFields::Tuple(_) => bail!(
+        venial::Fields::Tuple(_) => bail!(
             &class.fields,
             "#[derive(GodotClass)] not supported for tuple structs",
         )?,
-        StructFields::Named(fields) => fields.fields.inner.clone(),
+        venial::Fields::Named(fields) => fields.fields.inner.clone(),
     };
 
     // Attributes on struct fields

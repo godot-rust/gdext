@@ -7,7 +7,6 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use venial::TyExpr;
 
 use crate::util::bail;
 use crate::ParseResult;
@@ -19,7 +18,7 @@ pub struct NewtypeStruct {
     /// If `None`, then this is represents a tuple-struct with one field.
     pub name: Option<Ident>,
     /// The type of the field.
-    pub ty: TyExpr,
+    pub ty: venial::TypeExpr,
 }
 
 impl NewtypeStruct {
@@ -28,8 +27,8 @@ impl NewtypeStruct {
     /// This will fail if the struct doesn't have exactly one field.
     pub fn parse_struct(struct_: &venial::Struct) -> ParseResult<NewtypeStruct> {
         match &struct_.fields {
-            venial::StructFields::Unit => bail!(&struct_.fields, "GodotConvert expects a struct with a single field, unit structs are currently not supported"),
-            venial::StructFields::Tuple(fields) => {
+            venial::Fields::Unit => bail!(&struct_.fields, "GodotConvert expects a struct with a single field, unit structs are currently not supported"),
+            venial::Fields::Tuple(fields) => {
                 if fields.fields.len() != 1 {
                     return bail!(&fields.fields, "GodotConvert expects a struct with a single field, not {} fields", fields.fields.len())
                 }
@@ -38,7 +37,7 @@ impl NewtypeStruct {
 
                 Ok(NewtypeStruct { name: None, ty: field.ty })
             },
-            venial::StructFields::Named(fields) => {
+            venial::Fields::Named(fields) => {
                 if fields.fields.len() != 1 {
                     return bail!(&fields.fields, "GodotConvert expects a struct with a single field, not {} fields", fields.fields.len())
                 }

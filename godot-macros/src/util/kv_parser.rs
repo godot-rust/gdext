@@ -9,7 +9,6 @@ use crate::ParseResult;
 use proc_macro2::{Delimiter, Ident, Spacing, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use std::collections::HashMap;
-use venial::Attribute;
 
 use super::{bail, error, ident, is_punct, path_is_single, ListParser};
 
@@ -27,7 +26,7 @@ impl KvParser {
     ///
     /// `context` is used for the span in error messages.
     pub fn parse_required(
-        attributes: &[Attribute],
+        attributes: &[venial::Attribute],
         expected: &str,
         context: impl ToTokens,
     ) -> ParseResult<Self> {
@@ -39,7 +38,7 @@ impl KvParser {
     }
 
     /// Create a new parser which checks for presence of an `#[expected]` attribute.
-    pub fn parse(attributes: &[Attribute], expected: &str) -> ParseResult<Option<Self>> {
+    pub fn parse(attributes: &[venial::Attribute], expected: &str) -> ParseResult<Option<Self>> {
         let mut found_attr: Option<Self> = None;
 
         for attr in attributes.iter() {
@@ -434,7 +433,7 @@ mod tests {
             #input_tokens
             fn func();
         };
-        let decl = venial::parse_declaration(input);
+        let decl = venial::parse_item(input);
 
         let attrs = &decl
             .as_ref()

@@ -7,7 +7,6 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use venial::Declaration;
 
 use crate::derive::data_models::GodotConvert;
 use crate::derive::{make_fromgodot, make_togodot};
@@ -16,8 +15,8 @@ use crate::ParseResult;
 /// Derives `GodotConvert` for the given declaration.
 ///
 /// This also derives `FromGodot` and `ToGodot`.
-pub fn derive_godot_convert(declaration: Declaration) -> ParseResult<TokenStream> {
-    let convert = GodotConvert::parse_declaration(declaration)?;
+pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
+    let convert = GodotConvert::parse_declaration(item)?;
 
     let name = &convert.ty_name;
     let via_type = convert.convert_type.via_type();
