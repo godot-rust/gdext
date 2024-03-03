@@ -7,20 +7,6 @@
 
 //! Printing and logging functionality.
 
-// https://stackoverflow.com/a/40234666
-#[macro_export]
-#[doc(hidden)]
-macro_rules! inner_function {
-    () => {{
-        fn f() {}
-        fn type_name_of<T>(_: T) -> &'static str {
-            std::any::type_name::<T>()
-        }
-        let name = type_name_of(f);
-        name.strip_suffix("::f").unwrap()
-    }};
-}
-
 #[macro_export]
 #[doc(hidden)]
 macro_rules! inner_godot_msg {
@@ -33,10 +19,9 @@ macro_rules! inner_godot_msg {
 
             // Check whether engine is loaded, otherwise fall back to stderr.
             if $crate::sys::is_initialized() {
-                let function = format!("{}\0", $crate::inner_function!());
                 $crate::sys::interface_fn!($godot_fn)(
                     $crate::sys::c_str_from_str(&msg),
-                    $crate::sys::c_str_from_str(&function),
+                    $crate::sys::c_str(b"<function unset>\0"),
                     $crate::sys::c_str_from_str(concat!(file!(), "\0")),
                     line!() as i32,
                     false as $crate::sys::GDExtensionBool, // whether to create a toast notification in editor
@@ -76,6 +61,33 @@ macro_rules! godot_script_error {
     };
 }
 
+#[macro_export]
+#[doc(hidden)]
+macro_rules! inner_godot_print {
+    // FIXME expr needs to be parenthesised, see usages
+    ($godot_fn:ident; $fmt:literal $(, $args:expr)* $(,)?) => {
+    //($($args:tt),* $(,)?) => {
+        unsafe {
+            let msg = format!("{}\0", format_args!($fmt $(, $args)*));
+            // assert!(msg.is_ascii(), "godot_print: message must be ASCII");
+
+            // Check whether engine is loaded, otherwise fall back to stdout.
+            if $crate::sys::is_initialized() {
+                utilities::$godot_fn(
+                    $crate::builtin::Variant::from(
+                        $crate::builtin::GString::from(
+                            msg
+                        )
+                    ),
+                    &[],
+                );
+            } else {
+                println!("[{}] {}", stringify!($godot_fn), &msg[..msg.len() - 1]);
+            }
+        }
+    };
+}
+
 /// Prints to the Godot console.
 ///
 /// _Godot equivalent: [`@GlobalScope.print()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-print)_.
@@ -90,8 +102,9 @@ macro_rules! godot_print {
     };
 }
 
-
-/// Prints to the Godot console. Supports BBCode, color and URL tags. Slower than godot_print! (typically twice as slow or worse).
+/// Prints to the Godot console. Supports BBCode, color and URL tags.
+///
+/// Slower than [`godot_print!`].
 ///
 /// _Godot equivalent: [`@GlobalScope.print_rich()`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#class-globalscope-method-print-rich)_.
 #[macro_export]
@@ -105,13 +118,13 @@ macro_rules! godot_print_rich {
     };
 }
 
-
 pub use crate::{godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn};
 
 use crate::builtin::{StringName, Variant};
 use crate::sys::{self, GodotFfi};
 
-/// Prints to the Godot console, used by the [`godot_print!`] macro.
+#[doc(hidden)]
+/// Prints to the Godot console, used by the [`godot_print!`] macros.
 pub fn print(varargs: &[Variant]) {
     unsafe {
         let method_name = StringName::from("print");
@@ -134,7 +147,8 @@ pub fn print(varargs: &[Variant]) {
     // crate::engine::utilities::print(head, rest);
 }
 
-/// Prints to the Godot console, used by the [`godot_print_rich!`] macro.
+#[doc(hidden)]
+/// Prints to the Godot console, used by the [`godot_print_rich!`] macros.
 pub fn print_rich(varargs: &[Variant]) {
     unsafe {
         let method_name = StringName::from("print_rich");
