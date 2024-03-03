@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
+
 use godot_ffi as sys;
 
 use sys::GodotFfi;
@@ -60,6 +62,8 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     is_success.unwrap_or(0)
 }
 
+static LEVEL_SERVERS_CORE_LOADED: AtomicBool = AtomicBool::new(false);
+
 unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
     _userdata: *mut std::ffi::c_void,
     init_level: sys::GDExtensionInitializationLevel,
@@ -67,10 +71,29 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
     let level = InitLevel::from_sys(init_level);
     let ctx = || format!("failed to initialize GDExtension level `{:?}`", level);
 
-    // Swallow panics. TODO consider crashing if gdext init fails.
-    let _ = crate::private::handle_panic(ctx, || {
+    fn try_load<E: ExtensionLibrary>(level: InitLevel) {
+        // Workaround for https://github.com/godot-rust/gdext/issues/629:
+        // When using editor plugins, Godot may unload all levels but only reload from Scene upward.
+        // Manually run initialization of lower levels.
+
+        // TODO: Remove this workaround once after the upstream issue is resolved.
+        if level == InitLevel::Scene {
+            if !LEVEL_SERVERS_CORE_LOADED.load(Relaxed) {
+                try_load::<E>(InitLevel::Core);
+                try_load::<E>(InitLevel::Servers);
+            }
+        } else if level == InitLevel::Core {
+            // When it's normal initialization, the `Servers` level is normally initialized.
+            LEVEL_SERVERS_CORE_LOADED.store(true, Relaxed);
+        }
+
         gdext_on_level_init(level);
         E::on_level_init(level);
+    }
+
+    // Swallow panics. TODO consider crashing if gdext init fails.
+    let _ = crate::private::handle_panic(ctx, || {
+        try_load::<E>(level);
     });
 }
 
@@ -83,6 +106,11 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
 
     // Swallow panics.
     let _ = crate::private::handle_panic(ctx, || {
+        if level == InitLevel::Core {
+            // Once the CORE api is unloaded, reset the flag to initial state.
+            LEVEL_SERVERS_CORE_LOADED.store(false, Relaxed);
+        }
+
         E::on_level_deinit(level);
         gdext_on_level_deinit(level);
     });
