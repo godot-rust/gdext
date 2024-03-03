@@ -7,6 +7,20 @@
 
 //! Printing and logging functionality.
 
+// https://stackoverflow.com/a/40234666
+#[macro_export]
+#[doc(hidden)]
+macro_rules! inner_function {
+    () => {{
+        fn f() {}
+        fn type_name_of<T>(_: T) -> &'static str {
+            std::any::type_name::<T>()
+        }
+        let name = type_name_of(f);
+        name.strip_suffix("::f").unwrap()
+    }};
+}
+
 #[macro_export]
 #[doc(hidden)]
 macro_rules! inner_godot_msg {
@@ -19,9 +33,10 @@ macro_rules! inner_godot_msg {
 
             // Check whether engine is loaded, otherwise fall back to stderr.
             if $crate::sys::is_initialized() {
+                let function = format!("{}\0", $crate::inner_function!());
                 $crate::sys::interface_fn!($godot_fn)(
                     $crate::sys::c_str_from_str(&msg),
-                    $crate::sys::c_str(b"<function unset>\0"),
+                    $crate::sys::c_str_from_str(&function),
                     $crate::sys::c_str_from_str(concat!(file!(), "\0")),
                     line!() as i32,
                     false as $crate::sys::GDExtensionBool, // whether to create a toast notification in editor
@@ -58,33 +73,6 @@ macro_rules! godot_error {
 macro_rules! godot_script_error {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
         $crate::inner_godot_msg!(print_script_error; $fmt $(, $args)*);
-    };
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! inner_godot_print {
-    // FIXME expr needs to be parenthesised, see usages
-    ($godot_fn:ident; $fmt:literal $(, $args:expr)* $(,)?) => {
-    //($($args:tt),* $(,)?) => {
-        unsafe {
-            let msg = format!("{}\0", format_args!($fmt $(, $args)*));
-            // assert!(msg.is_ascii(), "godot_print: message must be ASCII");
-
-            // Check whether engine is loaded, otherwise fall back to stdout.
-            if $crate::sys::is_initialized() {
-                utilities::$godot_fn(
-                    $crate::builtin::Variant::from(
-                        $crate::builtin::GString::from(
-                            msg
-                        )
-                    ),
-                    &[],
-                );
-            } else {
-                println!("[{}] {}", stringify!($godot_fn), &msg[..msg.len() - 1]);
-            }
-        }
     };
 }
 
