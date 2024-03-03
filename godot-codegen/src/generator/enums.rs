@@ -5,20 +5,21 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::context::Context;
 use crate::models::domain::{Enum, Enumerator, EnumeratorValue};
 use crate::util;
 use proc_macro2::{Literal, TokenStream};
 use quote::quote;
 
-pub fn make_enums(enums: &[Enum]) -> TokenStream {
-    let definitions = enums.iter().map(make_enum_definition);
+pub fn make_enums(enums: &[Enum], ctx: &mut Context) -> TokenStream {
+    let definitions = enums.iter().map(|enum_| make_enum_definition(enum_, ctx));
 
     quote! {
         #( #definitions )*
     }
 }
 
-pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
+pub fn make_enum_definition(enum_: &Enum, ctx: &mut Context) -> TokenStream {
     // TODO enums which have unique ords could be represented as Rust enums
     // This would allow exhaustive matches (or at least auto-completed matches + #[non_exhaustive]). But even without #[non_exhaustive],
     // this might be a forward compatibility hazard, if Godot deprecates enumerators and adds new ones with existing ords.
@@ -39,7 +40,7 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
     let mut unique_ords = Vec::with_capacity(rust_enumerators.len());
 
     for enumerator in rust_enumerators.iter() {
-        let def = make_enumerator_definition(enumerator);
+        let def = make_enumerator_definition(enumerator, ctx);
         enumerators.push(def);
 
         if let EnumeratorValue::Enum(ord) = enumerator.value {
@@ -176,10 +177,20 @@ fn make_bitfield_flag_ord(ord: i64) -> Literal {
     Literal::i64_suffixed(ord)
 }
 
-fn make_enumerator_definition(enumerator: &Enumerator) -> TokenStream {
+fn make_enumerator_definition(enumerator: &Enumerator, ctx: &mut Context) -> TokenStream {
     let ordinal_lit = match enumerator.value {
         EnumeratorValue::Enum(ord) => make_enumerator_ord(ord),
-        EnumeratorValue::Bitfield(ord) => make_bitfield_flag_ord(ord),
+        EnumeratorValue::Bitfield(ord) => {
+            if ord < 0 {
+                ctx.warnings_mut().push(format!(
+                    "Encountered negative bitfield. {} = {}. This is currently being discussed in the following issues: https://github.com/godotengine/godot/issues/88962, https://github.com/CoaguCo-Industries/GodotSteam/issues/424", 
+                    enumerator.godot_name,
+                    ord
+                ))
+            }
+
+            make_bitfield_flag_ord(ord)
+        }
     };
 
     let rust_ident = &enumerator.name;
