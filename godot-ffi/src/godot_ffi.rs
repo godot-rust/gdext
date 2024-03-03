@@ -218,41 +218,6 @@ macro_rules! ffi_methods_one {
         }
     };
 
-    // type $Ptr = Opaque
-    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys:ident = from_sys) => {
-        $( #[$attr] )? $vis
-        unsafe fn $from_sys(ptr: $Ptr) -> Self {
-            let opaque = std::mem::transmute(ptr);
-            Self::from_opaque(opaque)
-        }
-    };
-    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
-        $( #[$attr] )? $vis
-        unsafe fn $from_sys_init(init: impl FnOnce(<$Ptr as $crate::AsUninit>::Ptr)) -> Self {
-            let mut raw = std::mem::MaybeUninit::uninit();
-            init(std::mem::transmute(raw.as_mut_ptr()));
-            Self::from_opaque(raw.assume_init())
-        }
-    };
-    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys:ident = sys) => {
-        $( #[$attr] )? $vis
-        fn $sys(&self) -> $Ptr {
-            unsafe { std::mem::transmute(self.opaque) }
-        }
-    };
-    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
-        $( #[$attr] )? $vis
-        unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
-            Self::from_sys(ptr as *mut _)
-        }
-    };
-    (OpaqueValue $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
-        $( #[$attr] )? $vis
-        unsafe fn $move_return_ptr(mut self, dst: $Ptr, _call_type: $crate::PtrcallType) {
-            std::ptr::swap(dst, std::mem::transmute::<_, $Ptr>(self.opaque))
-        }
-    };
-
     // type $Ptr = *mut Self
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys:ident = from_sys) => {
         $( #[$attr] )? $vis

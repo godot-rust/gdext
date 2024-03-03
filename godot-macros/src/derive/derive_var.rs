@@ -7,7 +7,6 @@
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use venial::Declaration;
 
 use crate::derive::data_models::GodotConvert;
 use crate::ParseResult;
@@ -15,8 +14,8 @@ use crate::ParseResult;
 /// Derives `Var` for the given declaration.
 ///
 /// This uses `ToGodot` and `FromGodot` for the `get_property` and `set_property` implementations.
-pub fn derive_var(declaration: Declaration) -> ParseResult<TokenStream> {
-    let convert = GodotConvert::parse_declaration(declaration)?;
+pub fn derive_var(item: venial::Item) -> ParseResult<TokenStream> {
+    let convert = GodotConvert::parse_declaration(item)?;
 
     let property_hint_impl = create_property_hint_impl(&convert);
 

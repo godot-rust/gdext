@@ -7,7 +7,6 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::ToTokens;
-use venial::Declaration;
 
 use crate::util::bail;
 use crate::ParseResult;
@@ -25,14 +24,14 @@ pub struct GodotConvert {
 }
 
 impl GodotConvert {
-    pub fn parse_declaration(declaration: Declaration) -> ParseResult<Self> {
-        let (name, where_clause, generic_params) = match &declaration {
-            venial::Declaration::Struct(struct_) => (
+    pub fn parse_declaration(item: venial::Item) -> ParseResult<Self> {
+        let (name, where_clause, generic_params) = match &item {
+            venial::Item::Struct(struct_) => (
                 struct_.name.clone(),
                 &struct_.where_clause,
                 &struct_.generic_params,
             ),
-            venial::Declaration::Enum(enum_) => (
+            venial::Item::Enum(enum_) => (
                 enum_.name.clone(),
                 &enum_.where_clause,
                 &enum_.generic_params,
@@ -56,7 +55,7 @@ impl GodotConvert {
             return bail!(generic_params, "`GodotConvert` does not support generics");
         }
 
-        let data = ConvertType::parse_declaration(declaration)?;
+        let data = ConvertType::parse_declaration(item)?;
 
         Ok(Self {
             ty_name: name,
@@ -74,11 +73,11 @@ pub enum ConvertType {
 }
 
 impl ConvertType {
-    pub fn parse_declaration(declaration: Declaration) -> ParseResult<Self> {
-        let attribute = GodotAttribute::parse_attribute(&declaration)?;
+    pub fn parse_declaration(item: venial::Item) -> ParseResult<Self> {
+        let attribute = GodotAttribute::parse_attribute(&item)?;
 
-        match &declaration {
-            Declaration::Struct(struct_) => {
+        match &item {
+            venial::Item::Struct(struct_) => {
                 let GodotAttribute::Transparent { .. } = attribute else {
                     return bail!(attribute.span(), "`GodotConvert` on structs only works with `#[godot(transparent)]` currently");
                 };
@@ -87,7 +86,7 @@ impl ConvertType {
                     field: NewtypeStruct::parse_struct(struct_)?,
                 })
             }
-            Declaration::Enum(enum_) => {
+            venial::Item::Enum(enum_) => {
                 let GodotAttribute::Via { via_type, .. } = attribute else {
                     return bail!(
                         attribute.span(),
@@ -101,7 +100,7 @@ impl ConvertType {
                 })
             }
             _ => bail!(
-                declaration,
+                item,
                 "`GodotConvert` only supports structs and enums currently"
             ),
         }

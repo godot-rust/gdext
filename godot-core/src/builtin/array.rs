@@ -948,7 +948,7 @@ impl<T: GodotType> GodotFfiVariant for Array<T> {
         if variant.get_type() != Self::variant_type() {
             return Err(FromVariantError::BadType {
                 expected: Self::variant_type(),
-                got: variant.get_type(),
+                actual: variant.get_type(),
             }
             .into_error(variant));
         }

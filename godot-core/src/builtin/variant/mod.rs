@@ -5,7 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::builtin::meta::{impl_godot_as_self, ConvertError, FromGodot, ToGodot};
 use crate::builtin::{GString, StringName};
+use crate::gen::central::VariantDispatch;
 use godot_ffi as sys;
 use std::{fmt, ptr};
 use sys::types::OpaqueVariant;
@@ -14,8 +16,6 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 mod impls;
 
 pub use sys::{VariantOperator, VariantType};
-
-use super::meta::{impl_godot_as_self, ConvertError, FromGodot, ToGodot};
 
 /// Godot variant type, able to store a variety of different types.
 ///
@@ -228,7 +228,6 @@ impl Variant {
     }
 
     /// # Safety
-    ///
     /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
     #[cfg(before_api = "4.1")]
     pub unsafe fn from_var_sys_init_or_init_default(
@@ -238,7 +237,6 @@ impl Variant {
     }
 
     /// # Safety
-    ///
     /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
     #[cfg(since_api = "4.1")]
     #[doc(hidden)]
@@ -246,6 +244,22 @@ impl Variant {
         init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr),
     ) -> Self {
         Self::from_var_sys_init(init_fn)
+    }
+
+    /// # Safety
+    /// See [`GodotFfi::from_sys_init`].
+    #[doc(hidden)]
+    pub unsafe fn from_var_sys_init_result<E>(
+        init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr) -> Result<(), E>,
+    ) -> Result<Self, E> {
+        // Relies on current macro expansion of from_var_sys_init() having a certain implementation.
+
+        let mut raw = std::mem::MaybeUninit::<OpaqueVariant>::uninit();
+
+        let var_uninit_ptr =
+            raw.as_mut_ptr() as <sys::GDExtensionVariantPtr as ::godot_ffi::AsUninit>::Ptr;
+
+        init_fn(var_uninit_ptr).map(|_err| Self::from_opaque(raw.assume_init()))
     }
 
     #[doc(hidden)]
@@ -361,8 +375,6 @@ impl fmt::Display for Variant {
 
 impl fmt::Debug for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ty = self.get_type();
-        let val = self.stringify();
-        write!(f, "Variant(ty={ty:?}, val={val})")
+        VariantDispatch::from_variant(self).fmt(f)
     }
 }

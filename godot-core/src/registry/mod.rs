@@ -425,6 +425,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             #[cfg(before_api = "4.2")]
             assert!(generated_recreate_fn.is_none()); // not used
 
+            #[cfg(before_api = "4.3")]
+            let _ = is_tool; // mark used
             #[cfg(since_api = "4.3")]
             {
                 c.godot_params.is_runtime =

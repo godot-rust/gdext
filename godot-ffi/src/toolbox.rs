@@ -137,6 +137,40 @@ pub unsafe fn bitwise_equal<T>(lhs: *const T, rhs: *const T) -> bool {
         == std::slice::from_raw_parts(rhs as *const u8, std::mem::size_of::<T>())
 }
 
+pub fn join<T, I>(iter: I) -> String
+where
+    T: std::fmt::Display,
+    I: Iterator<Item = T>,
+{
+    join_with(iter, ", ", |item| format!("{item}"))
+}
+
+pub fn join_debug<T, I>(iter: I) -> String
+where
+    T: std::fmt::Debug,
+    I: Iterator<Item = T>,
+{
+    join_with(iter, ", ", |item| format!("{item:?}"))
+}
+
+pub fn join_with<T, I, F>(mut iter: I, sep: &str, mut format_elem: F) -> String
+where
+    I: Iterator<Item = T>,
+    F: FnMut(&T) -> String,
+{
+    let mut result = String::new();
+
+    if let Some(first) = iter.next() {
+        result.push_str(&format_elem(&first));
+        for item in iter {
+            result.push_str(sep);
+            result.push_str(&format_elem(&item));
+        }
+    }
+
+    result
+}
+
 /*
 pub fn unqualified_type_name<T>() -> &'static str {
     let type_name = std::any::type_name::<T>();

@@ -10,7 +10,7 @@ use proc_macro2::{Ident, TokenStream};
 
 pub struct Field {
     pub name: Ident,
-    pub ty: venial::TyExpr,
+    pub ty: venial::TypeExpr,
     pub default: Option<TokenStream>,
     pub var: Option<FieldVar>,
     pub export: Option<FieldExport>,

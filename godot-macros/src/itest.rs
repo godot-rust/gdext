@@ -7,15 +7,14 @@
 
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use venial::{Declaration, Error, FnParam, Function};
 
 use crate::util::{bail, path_ends_with, KvParser};
 use crate::ParseResult;
 
-pub fn attribute_itest(input_decl: Declaration) -> ParseResult<TokenStream> {
-    let func = match input_decl {
-        Declaration::Function(f) => f,
-        _ => return bail!(&input_decl, "#[itest] can only be applied to functions"),
+pub fn attribute_itest(input_item: venial::Item) -> ParseResult<TokenStream> {
+    let func = match input_item {
+        venial::Item::Function(f) => f,
+        _ => return bail!(&input_item, "#[itest] can only be applied to functions"),
     };
 
     // Note: allow attributes for things like #[rustfmt] or #[clippy]
@@ -44,7 +43,7 @@ pub fn attribute_itest(input_decl: Declaration) -> ParseResult<TokenStream> {
 
     // Detect parameter name chosen by user, or unused fallback
     let param = if let Some((param, _punct)) = func.params.first() {
-        if let FnParam::Typed(param) = param {
+        if let venial::FnParam::Typed(param) = param {
             // Correct parameter type (crude macro check) -> reuse parameter name
             if path_ends_with(&param.ty.tokens, "TestContext") {
                 param.to_token_stream()
@@ -76,7 +75,7 @@ pub fn attribute_itest(input_decl: Declaration) -> ParseResult<TokenStream> {
     })
 }
 
-fn bad_signature(func: &Function) -> Result<TokenStream, Error> {
+fn bad_signature(func: &venial::Function) -> Result<TokenStream, venial::Error> {
     bail!(
         func,
         "#[itest] function must have one of these signatures:\

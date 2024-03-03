@@ -131,6 +131,18 @@ fn callable_call_engine() {
     obj.free();
 }
 
+#[itest]
+fn callable_bindv() {
+    let obj = CallableTestObj::new_gd();
+    let callable = obj.callable("bar");
+    let callable_bound = callable.bindv(varray![10]);
+
+    assert_eq!(
+        callable_bound.callv(varray![]),
+        10.to_variant().stringify().to_variant()
+    );
+}
+
 // Testing https://github.com/godot-rust/gdext/issues/410
 
 #[derive(GodotClass)]

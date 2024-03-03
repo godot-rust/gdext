@@ -174,6 +174,13 @@ impl Callable {
         self.as_inner().callv(arguments)
     }
 
+    /// Returns a copy of this Callable with one or more arguments bound, reading them from an array.
+    ///
+    /// _Godot equivalent: `bindv`_
+    pub fn bindv(&self, arguments: VariantArray) -> Self {
+        self.as_inner().bindv(arguments)
+    }
+
     /// Returns the name of the method represented by this callable. If the callable is a lambda function,
     /// returns the function's name.
     ///
