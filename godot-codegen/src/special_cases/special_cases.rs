@@ -71,8 +71,9 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
 
     // OpenXR has not been available for macOS before 4.2.
     // See e.g. https://github.com/GodotVR/godot-xr-tools/issues/479.
+    // OpenXR is also not available on iOS: https://github.com/godotengine/godot/blob/13ba673c42951fd7cfa6fd8a7f25ede7e9ad92bb/modules/openxr/config.py#L2
     // Do not hardcode a list of OpenXR classes, as more may be added in future Godot versions; instead use prefix.
-    #[cfg(all(before_api = "4.2", target_os = "macos"))]
+    #[cfg(any(all(before_api = "4.2", target_os = "macos"), target_os = "ios"))]
     if godot_ty.starts_with("OpenXR") {
         return true;
     }
