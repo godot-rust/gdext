@@ -225,7 +225,7 @@ impl Variant {
     pub unsafe fn from_var_sys_init_or_init_default(
         init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
     ) -> Self {
-        Self::new_with_var_init(|value| init_fn(value))
+        Self::new_with_var_init(|value| init_fn(value.var_sys_mut()))
     }
 
     /// # Safety

@@ -266,9 +266,9 @@ macro_rules! impl_varcall_signature_for_tuple {
                     )*
                 ];
 
-                let variant_ptrs = explicit_args.iter().map(Variant::var_sys_const).collect::<Vec<_>>();
+                let variant_ptrs = explicit_args.iter().map(Variant::var_sys).collect::<Vec<_>>();
 
-                let variant = Variant::from_var_sys_init(|return_ptr| {
+                let variant = Variant::new_with_var_uninit(|return_ptr| {
                     let mut err = sys::default_call_error();
                     object_call_script_method(
                         object_ptr,

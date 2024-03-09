@@ -518,7 +518,7 @@ where
         // In 4.1, argument pointers were standardized to always be `T**`.
         #[cfg(before_api = "4.1")]
         {
-            self.sys_const()
+            self.sys()
         }
 
         #[cfg(since_api = "4.1")]
