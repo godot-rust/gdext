@@ -103,9 +103,8 @@ pub unsafe extern "C" fn get_virtual<T: cap::ImplementsGodotVirtual>(
     name: sys::GDExtensionConstStringNamePtr,
 ) -> sys::GDExtensionClassCallVirtual {
     // This string is not ours, so we cannot call the destructor on it.
-    let borrowed_string = StringName::from_string_sys(sys::force_mut_ptr(name));
+    let borrowed_string = StringName::borrow_string_sys(name);
     let method_name = borrowed_string.to_string();
-    std::mem::forget(borrowed_string);
 
     T::__virtual_call(method_name.as_str())
 }
@@ -115,9 +114,8 @@ pub unsafe extern "C" fn default_get_virtual<T: UserClass>(
     name: sys::GDExtensionConstStringNamePtr,
 ) -> sys::GDExtensionClassCallVirtual {
     // This string is not ours, so we cannot call the destructor on it.
-    let borrowed_string = StringName::from_string_sys(sys::force_mut_ptr(name));
+    let borrowed_string = StringName::borrow_string_sys(name);
     let method_name = borrowed_string.to_string();
-    std::mem::forget(borrowed_string);
 
     T::__default_virtual_call(method_name.as_str())
 }
@@ -168,9 +166,7 @@ pub unsafe extern "C" fn get_property<T: cap::GodotGet>(
 ) -> sys::GDExtensionBool {
     let storage = as_storage::<T>(instance);
     let instance = storage.get();
-    let property = StringName::from_string_sys(sys::force_mut_ptr(name));
-
-    std::mem::forget(property.clone());
+    let property = StringName::new_from_string_sys(name);
 
     match T::__godot_get_property(&*instance, property) {
         Some(value) => {
@@ -189,11 +185,8 @@ pub unsafe extern "C" fn set_property<T: cap::GodotSet>(
     let storage = as_storage::<T>(instance);
     let mut instance = storage.get_mut();
 
-    let property = StringName::from_string_sys(sys::force_mut_ptr(name));
-    let value = Variant::from_var_sys(sys::force_mut_ptr(value));
-
-    std::mem::forget(property.clone());
-    std::mem::forget(value.clone());
+    let property = StringName::new_from_string_sys(name);
+    let value = Variant::new_from_var_sys(value);
 
     T::__godot_set_property(&mut *instance, property, value) as sys::GDExtensionBool
 }

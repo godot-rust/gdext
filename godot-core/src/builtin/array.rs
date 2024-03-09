@@ -253,7 +253,7 @@ impl<T: GodotType> Array<T> {
     /// # Panics
     ///
     /// If `index` is out of bounds.
-    fn ptr_mut(&self, index: usize) -> *mut Variant {
+    fn ptr_mut(&mut self, index: usize) -> *mut Variant {
         let ptr = self.ptr_mut_or_null(index);
         assert!(
             !ptr.is_null(),
@@ -264,11 +264,11 @@ impl<T: GodotType> Array<T> {
     }
 
     /// Returns a pointer to the element at the given index, or null if out of bounds.
-    fn ptr_mut_or_null(&self, index: usize) -> *mut Variant {
+    fn ptr_mut_or_null(&mut self, index: usize) -> *mut Variant {
         // SAFETY: array_operator_index returns null for invalid indexes.
         let variant_ptr = unsafe {
             let index = to_i64(index);
-            interface_fn!(array_operator_index)(self.sys(), index)
+            interface_fn!(array_operator_index)(self.sys_mut(), index)
         };
 
         Variant::ptr_from_sys_mut(variant_ptr)
@@ -456,7 +456,7 @@ impl<T: GodotType> Array<T> {
             // SAFETY: The array is a newly created empty untyped array.
             unsafe {
                 interface_fn!(array_set_typed)(
-                    self.sys(),
+                    self.sys_mut(),
                     type_info.variant_type.sys(),
                     type_info.class_name.string_sys(),
                     script.var_sys(),
@@ -744,24 +744,7 @@ unsafe impl<T: GodotType> GodotFfi for Array<T> {
         sys::VariantType::Array
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn from_sys_init;
-        fn move_return_ptr;
-    }
-
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self::default();
-        init_fn(result.sys_mut());
-        result
-    }
-
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let array = Self::from_sys(ptr);
-        std::mem::forget(array.clone());
-        array
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
 impl<T: GodotType> GodotConvert for Array<T> {
@@ -825,9 +808,9 @@ impl<T: GodotType> Clone for Array<T> {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid array, since we have a reference that keeps it alive.
         let array = unsafe {
-            Self::from_sys_init(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = ::godot_ffi::builtin_fn!(array_construct_copy);
-                let args = [self.sys_const()];
+                let args = [self.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         };
@@ -891,7 +874,7 @@ impl<T: GodotType> Default for Array<T> {
     #[inline]
     fn default() -> Self {
         let mut array = unsafe {
-            Self::from_sys_init(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(array_construct_default);
                 ctor(self_ptr, std::ptr::null_mut())
             })
@@ -937,9 +920,9 @@ impl<T: GodotType> GodotType for Array<T> {
 impl<T: GodotType> GodotFfiVariant for Array<T> {
     fn ffi_to_variant(&self) -> Variant {
         unsafe {
-            Variant::from_var_sys_init(|variant_ptr| {
+            Variant::new_with_var_uninit(|variant_ptr| {
                 let array_to_variant = sys::builtin_fn!(array_to_variant);
-                array_to_variant(variant_ptr, self.sys());
+                array_to_variant(variant_ptr, sys::SysPtr::force_mut(self.sys()));
             })
         }
     }
@@ -956,7 +939,7 @@ impl<T: GodotType> GodotFfiVariant for Array<T> {
         let array = unsafe {
             sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let array_from_variant = sys::builtin_fn!(array_from_variant);
-                array_from_variant(self_ptr, variant.var_sys());
+                array_from_variant(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
             })
         };
 
@@ -977,7 +960,7 @@ impl<T: GodotType + ToGodot, const N: usize> From<&[T; N]> for Array<T> {
 /// Creates a `Array` from the given slice.
 impl<T: GodotType + ToGodot> From<&[T]> for Array<T> {
     fn from(slice: &[T]) -> Self {
-        let array = Self::new();
+        let mut array = Self::new();
         let len = slice.len();
         if len == 0 {
             return array;

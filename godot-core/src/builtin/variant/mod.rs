@@ -24,7 +24,7 @@ pub use sys::{VariantOperator, VariantType};
 /// value.  
 ///
 /// See also [Godot documentation for `Variant`](https://docs.godotengine.org/en/stable/classes/class_variant.html).
-#[repr(C, align(8))]
+#[repr(transparent)]
 pub struct Variant {
     opaque: OpaqueVariant,
 }
@@ -81,7 +81,7 @@ impl Variant {
             let object_ptr = unsafe {
                 crate::obj::raw_object_init(|type_ptr| {
                     let converter = sys::builtin_fn!(object_from_variant);
-                    converter(type_ptr, self.var_sys());
+                    converter(type_ptr, sys::SysPtr::force_mut(self.var_sys()));
                 })
             };
 
@@ -111,13 +111,13 @@ impl Variant {
     }
 
     fn call_inner(&self, method: StringName, args: &[Variant]) -> Variant {
-        let args_sys: Vec<_> = args.iter().map(|v| v.var_sys_const()).collect();
+        let args_sys: Vec<_> = args.iter().map(|v| v.var_sys()).collect();
         let mut error = sys::default_call_error();
 
         let result = unsafe {
             Variant::from_var_sys_init_or_init_default(|variant_ptr| {
                 interface_fn!(variant_call)(
-                    self.var_sys(),
+                    sys::SysPtr::force_mut(self.var_sys()),
                     method.string_sys(),
                     args_sys.as_ptr(),
                     args_sys.len() as i64,
@@ -177,7 +177,7 @@ impl Variant {
     pub fn stringify(&self) -> GString {
         let mut result = GString::new();
         unsafe {
-            interface_fn!(variant_stringify)(self.var_sys(), result.string_sys());
+            interface_fn!(variant_stringify)(self.var_sys(), result.string_sys_mut());
         }
         result
     }
@@ -212,19 +212,11 @@ impl Variant {
     ffi_methods! {
         type sys::GDExtensionVariantPtr = *mut Opaque;
 
-        fn from_var_sys = from_sys;
-        fn from_var_sys_init = from_sys_init;
+        fn new_from_var_sys = new_from_sys;
+        fn new_with_var_uninit = new_with_uninit;
+        fn new_with_var_init = new_with_init;
         fn var_sys = sys;
-    }
-
-    #[doc(hidden)]
-    pub unsafe fn from_var_sys_init_default(
-        init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
-    ) -> Self {
-        #[allow(unused_mut)]
-        let mut variant = Variant::nil();
-        init_fn(variant.var_sys());
-        variant
+        fn var_sys_mut = sys_mut;
     }
 
     /// # Safety
@@ -233,7 +225,7 @@ impl Variant {
     pub unsafe fn from_var_sys_init_or_init_default(
         init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
     ) -> Self {
-        Self::from_var_sys_init_default(init_fn)
+        Self::new_with_var_init(|value| init_fn(value))
     }
 
     /// # Safety
@@ -243,13 +235,13 @@ impl Variant {
     pub unsafe fn from_var_sys_init_or_init_default(
         init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr),
     ) -> Self {
-        Self::from_var_sys_init(init_fn)
+        Self::new_with_var_uninit(init_fn)
     }
 
     /// # Safety
     /// See [`GodotFfi::from_sys_init`].
     #[doc(hidden)]
-    pub unsafe fn from_var_sys_init_result<E>(
+    pub unsafe fn new_with_var_uninit_result<E>(
         init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr) -> Result<(), E>,
     ) -> Result<Self, E> {
         // Relies on current macro expansion of from_var_sys_init() having a certain implementation.
@@ -257,14 +249,9 @@ impl Variant {
         let mut raw = std::mem::MaybeUninit::<OpaqueVariant>::uninit();
 
         let var_uninit_ptr =
-            raw.as_mut_ptr() as <sys::GDExtensionVariantPtr as ::godot_ffi::AsUninit>::Ptr;
+            raw.as_mut_ptr() as <sys::GDExtensionVariantPtr as ::godot_ffi::SysPtr>::Uninit;
 
         init_fn(var_uninit_ptr).map(|_err| Self::from_opaque(raw.assume_init()))
-    }
-
-    #[doc(hidden)]
-    pub fn var_sys_const(&self) -> sys::GDExtensionConstVariantPtr {
-        sys::to_const_ptr(self.var_sys())
     }
 
     /// Converts to variant pointer; can be a null pointer.
@@ -318,13 +305,7 @@ unsafe impl GodotFfi for Variant {
         sys::VariantType::Nil
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
-
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self::default();
-        init_fn(result.sys_mut());
-        result
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
 impl_godot_as_self!(Variant);
@@ -332,7 +313,7 @@ impl_godot_as_self!(Variant);
 impl Default for Variant {
     fn default() -> Self {
         unsafe {
-            Self::from_var_sys_init(|variant_ptr| {
+            Self::new_with_var_uninit(|variant_ptr| {
                 interface_fn!(variant_new_nil)(variant_ptr);
             })
         }
@@ -342,7 +323,7 @@ impl Default for Variant {
 impl Clone for Variant {
     fn clone(&self) -> Self {
         unsafe {
-            Self::from_var_sys_init(|variant_ptr| {
+            Self::new_with_var_uninit(|variant_ptr| {
                 interface_fn!(variant_new_copy)(variant_ptr, self.var_sys());
             })
         }
@@ -352,7 +333,7 @@ impl Clone for Variant {
 impl Drop for Variant {
     fn drop(&mut self) {
         unsafe {
-            interface_fn!(variant_destroy)(self.var_sys());
+            interface_fn!(variant_destroy)(self.var_sys_mut());
         }
     }
 }

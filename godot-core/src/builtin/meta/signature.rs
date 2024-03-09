@@ -222,10 +222,10 @@ macro_rules! impl_varcall_signature_for_tuple {
                 ];
 
                 let mut variant_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
-                variant_ptrs.extend(explicit_args.iter().map(Variant::var_sys_const));
-                variant_ptrs.extend(varargs.iter().map(Variant::var_sys_const));
+                variant_ptrs.extend(explicit_args.iter().map(Variant::var_sys));
+                variant_ptrs.extend(varargs.iter().map(Variant::var_sys));
 
-                let variant: Result<Variant, CallError> = Variant::from_var_sys_init_result(|return_ptr| {
+                let variant: Result<Variant, CallError> = Variant::new_with_var_uninit_result(|return_ptr| {
                     let mut err = sys::default_call_error();
                     class_fn(
                         method_bind.0,
@@ -302,8 +302,8 @@ macro_rules! impl_varcall_signature_for_tuple {
                 ];
 
                 let mut type_ptrs = Vec::with_capacity(explicit_args.len() + varargs.len());
-                type_ptrs.extend(explicit_args.iter().map(sys::GodotFfi::sys_const));
-                type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys_const));
+                type_ptrs.extend(explicit_args.iter().map(sys::GodotFfi::sys));
+                type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
 
                 // Important: this calls from_sys_init_default().
                 let result = PtrcallReturnT::<$R>::call(|return_ptr| {

@@ -13,7 +13,7 @@ use crate::property::{Export, PropertyHintInfo, TypeStringHint, Var};
 use std::marker::PhantomData;
 use std::{fmt, ptr};
 use sys::types::OpaqueDictionary;
-use sys::{ffi_methods, interface_fn, AsUninit, GodotFfi};
+use sys::{ffi_methods, interface_fn, GodotFfi};
 
 use super::meta::impl_godot_as_self;
 
@@ -244,9 +244,8 @@ impl Dictionary {
         let key = key.to_variant();
 
         // SAFETY: accessing an unknown key _mutably_ creates that entry in the dictionary, with value `NIL`.
-        let ptr = unsafe {
-            interface_fn!(dictionary_operator_index)(self.sys_mut(), key.var_sys_const())
-        };
+        let ptr =
+            unsafe { interface_fn!(dictionary_operator_index)(self.sys_mut(), key.var_sys()) };
 
         // Never a null pointer, since entry either existed already or was inserted above.
         Variant::ptr_from_sys_mut(ptr)
@@ -270,24 +269,7 @@ unsafe impl GodotFfi for Dictionary {
         sys::VariantType::Dictionary
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn from_sys_init;
-        fn sys;
-        fn move_return_ptr;
-    }
-
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self::default();
-        init_fn(result.sys_mut());
-        result
-    }
-
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let dictionary = Self::from_sys(ptr);
-        std::mem::forget(dictionary.clone());
-        dictionary
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
 impl_godot_as_self!(Dictionary);
@@ -331,9 +313,9 @@ impl Clone for Dictionary {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid dictionary, since we have a reference that keeps it alive.
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(dictionary_construct_copy);
-                let args = [self.sys_const()];
+                let args = [self.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         }
@@ -459,7 +441,7 @@ impl<'a> DictionaryIter<'a> {
     fn call_init(dictionary: &Dictionary) -> Option<Variant> {
         let variant: Variant = Variant::nil();
         let iter_fn = |dictionary, next_value: sys::GDExtensionVariantPtr, valid| unsafe {
-            interface_fn!(variant_iter_init)(dictionary, next_value.as_uninit(), valid)
+            interface_fn!(variant_iter_init)(dictionary, sys::SysPtr::as_uninit(next_value), valid)
         };
 
         Self::ffi_iterate(iter_fn, dictionary, variant)
@@ -484,7 +466,7 @@ impl<'a> DictionaryIter<'a> {
             *mut sys::GDExtensionBool,
         ) -> sys::GDExtensionBool,
         dictionary: &Dictionary,
-        next_value: Variant,
+        mut next_value: Variant,
     ) -> Option<Variant> {
         let dictionary = dictionary.to_variant();
         let mut valid_u8: u8 = 0;
@@ -496,7 +478,7 @@ impl<'a> DictionaryIter<'a> {
         let has_next = unsafe {
             iter_fn(
                 dictionary.var_sys(),
-                next_value.var_sys(),
+                next_value.var_sys_mut(),
                 ptr::addr_of_mut!(valid_u8),
             )
         };

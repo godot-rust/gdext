@@ -123,11 +123,12 @@ impl GString {
     }
 
     ffi_methods! {
-        type sys::GDExtensionStringPtr = *mut Opaque;
+        type sys::GDExtensionStringPtr = *mut Self;
 
-        fn from_string_sys = from_sys;
-        fn from_string_sys_init = from_sys_init;
+        fn new_from_string_sys = new_from_sys;
+        fn new_with_string_uninit = new_with_uninit;
         fn string_sys = sys;
+        fn string_sys_mut = sys_mut;
     }
 
     /// Move `self` into a system pointer. This transfers ownership and thus does not call the destructor.
@@ -158,24 +159,7 @@ unsafe impl GodotFfi for GString {
         sys::VariantType::String
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn from_sys_init;
-        fn move_return_ptr;
-    }
-
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let string = Self::from_sys(ptr);
-        std::mem::forget(string.clone());
-        string
-    }
-
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self::default();
-        init_fn(result.sys_mut());
-        result
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; ..}
 }
 
 impl_godot_as_self!(GString);
@@ -217,7 +201,7 @@ where
         let bytes = s.as_ref().as_bytes();
 
         unsafe {
-            Self::from_string_sys_init(|string_ptr| {
+            Self::new_with_string_uninit(|string_ptr| {
                 let ctor = interface_fn!(string_new_with_utf8_chars_and_len);
                 ctor(
                     string_ptr,
@@ -275,7 +259,7 @@ impl From<&StringName> for GString {
         unsafe {
             sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_string_name);
-                let args = [string.sys_const()];
+                let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         }
@@ -296,7 +280,7 @@ impl From<&NodePath> for GString {
         unsafe {
             sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_node_path);
-                let args = [path.sys_const()];
+                let args = [path.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         }

@@ -445,7 +445,7 @@ impl<T: GodotClass> Gd<T> {
     pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Option<Self> {
         // TODO(uninit) - should we use GDExtensionUninitializedTypePtr instead? Then update all the builtin codegen...
         let init_fn = |ptr| {
-            init_fn(sys::AsUninit::force_init(ptr));
+            init_fn(sys::SysPtr::force_init(ptr));
         };
 
         // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).

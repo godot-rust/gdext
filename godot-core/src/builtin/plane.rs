@@ -267,7 +267,20 @@ unsafe impl GodotFfi for Plane {
         sys::VariantType::Plane
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self;
+        fn new_from_sys;
+        fn sys;
+        fn sys_mut;
+        fn new_with_uninit;
+        fn from_arg_ptr;
+        fn move_return_ptr;
+    }
+
+    unsafe fn new_with_init(init: impl FnOnce(&mut Self)) -> Self {
+        let mut plane = Plane::new(Vector3::UP, 0.0);
+        init(&mut plane);
+        plane
+    }
 }
 
 impl_godot_as_self!(Plane);

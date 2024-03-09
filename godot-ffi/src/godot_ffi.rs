@@ -31,13 +31,13 @@ pub unsafe trait GodotFfi {
     /// which is different depending on the type.
     /// The type in `ptr` must not require any special consideration upon referencing. Such as
     /// incrementing a refcount.
-    unsafe fn from_sys(ptr: sys::GDExtensionTypePtr) -> Self;
+    unsafe fn new_from_sys(ptr: sys::GDExtensionConstTypePtr) -> Self;
 
     /// Construct uninitialized opaque data, then initialize it with `init_fn` function.
     ///
     /// # Safety
     /// `init_fn` must be a function that correctly handles a (possibly-uninitialized) _type ptr_.
-    unsafe fn from_sys_init(init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self;
+    unsafe fn new_with_uninit(init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self;
 
     /// Like [`Self::from_sys_init`], but pre-initializes the sys pointer to a `Default::default()` instance
     /// before calling `init_fn`.
@@ -49,44 +49,23 @@ pub unsafe trait GodotFfi {
     ///
     /// # Safety
     /// `init_fn` must be a function that correctly handles a (possibly-uninitialized) _type ptr_.
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self
-    where
-        Self: Sized, // + Default
-    {
-        // SAFETY: this default implementation is potentially incorrect.
-        // By implementing the GodotFfi trait, you acknowledge that these may need to be overridden.
-        Self::from_sys_init(|ptr| init_fn(sys::AsUninit::force_init(ptr)))
-
-        // TODO consider using this, if all the implementors support it
-        // let mut result = Self::default();
-        // init_fn(result.sys_mut().as_uninit());
-        // result
-    }
+    unsafe fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self;
 
     /// Return Godot opaque pointer, for an immutable operation.
     ///
     /// Note that this is a `*mut` pointer despite taking `&self` by shared-ref.
     /// This is because most of Godot's Rust API is not const-correct. This can still
     /// enhance user code (calling `sys_mut` ensures no aliasing at the time of the call).
-    fn sys(&self) -> sys::GDExtensionTypePtr;
+    fn sys(&self) -> sys::GDExtensionConstTypePtr;
 
     /// Return Godot opaque pointer, for a mutable operation.
     ///
     /// Should usually not be overridden; behaves like `sys()` but ensures no aliasing
     /// at the time of the call (not necessarily during any subsequent modifications though).
-    fn sys_mut(&mut self) -> sys::GDExtensionTypePtr {
-        self.sys()
-    }
-
-    // TODO check if sys() can take over this
-    // also, from_sys() might take *const T
-    // possibly separate 2 pointer types
-    fn sys_const(&self) -> sys::GDExtensionConstTypePtr {
-        self.sys()
-    }
+    fn sys_mut(&mut self) -> sys::GDExtensionTypePtr;
 
     fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
-        self.sys_const()
+        self.sys()
     }
 
     /// Construct from a pointer to an argument in a call.
@@ -120,7 +99,7 @@ pub unsafe trait GodotFfi {
 pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionTypePtr),
 ) -> T {
-    T::from_sys_init_default(init_fn)
+    T::new_with_init(|value| init_fn(value.sys_mut()))
 }
 
 /// # Safety
@@ -130,7 +109,7 @@ pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
 pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
 ) -> T {
-    T::from_sys_init(init_fn)
+    T::new_with_uninit(init_fn)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -183,73 +162,104 @@ pub enum PtrcallType {
 #[doc(hidden)]
 macro_rules! ffi_methods_one {
     // type $Ptr = *mut Opaque
-    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys:ident = from_sys) => {
+    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_from_sys:ident = new_from_sys) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_sys(ptr: $Ptr) -> Self {
-            let opaque = std::ptr::read(ptr as *mut _);
-            Self::from_opaque(opaque)
+        unsafe fn $new_from_sys(ptr: <$Ptr as $crate::SysPtr>::Const) -> Self {
+            let opaque = std::ptr::read(ptr.cast());
+            let new = Self::from_opaque(opaque);
+            std::mem::forget(new.clone());
+            new
         }
     };
-    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
+    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_uninit:ident = new_with_uninit) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_sys_init(init: impl FnOnce(<$Ptr as $crate::AsUninit>::Ptr)) -> Self {
+        unsafe fn $new_with_uninit(init: impl FnOnce(<$Ptr as $crate::SysPtr>::Uninit)) -> Self {
             let mut raw = std::mem::MaybeUninit::uninit();
-            init(raw.as_mut_ptr() as <$Ptr as $crate::AsUninit>::Ptr);
+            init(raw.as_mut_ptr() as *mut _);
 
             Self::from_opaque(raw.assume_init())
         }
     };
+    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_init:ident = new_with_init) => {
+        $( #[$attr] )? $vis
+        unsafe fn $new_with_init(init: impl FnOnce(&mut Self)) -> Self {
+            let mut default = Default::default();
+            init(&mut default);
+            default
+        }
+    };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys:ident = sys) => {
         $( #[$attr] )? $vis
-        fn $sys(&self) -> $Ptr {
-            &self.opaque as *const _ as $Ptr
+        fn $sys(&self) -> <$Ptr as $crate::SysPtr>::Const {
+            std::ptr::from_ref(&self.opaque).cast()
+        }
+    };
+    (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys_mut:ident = sys_mut) => {
+        $( #[$attr] )? $vis
+        fn $sys_mut(&mut self) -> $Ptr {
+            std::ptr::from_mut(&mut self.opaque).cast()
         }
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
         unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
-            Self::from_sys(ptr as *mut _)
+            Self::new_from_sys(ptr.cast())
         }
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
         $( #[$attr] )? $vis
         unsafe fn $move_return_ptr(mut self, dst: $Ptr, _call_type: $crate::PtrcallType) {
-            std::ptr::swap(dst as *mut _, std::ptr::addr_of_mut!(self.opaque))
+            std::ptr::swap(dst.cast(), std::ptr::addr_of_mut!(self.opaque))
         }
     };
 
     // type $Ptr = *mut Self
-    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys:ident = from_sys) => {
+    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_from_sys:ident = new_from_sys) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_sys(ptr: $Ptr) -> Self {
-            *(ptr as *mut Self)
+        unsafe fn $new_from_sys(ptr: <$Ptr as $crate::SysPtr>::Const) -> Self {
+            let borrowed = &*ptr.cast::<Self>();
+            borrowed.clone()
         }
     };
-    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_sys_init:ident = from_sys_init) => {
+    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_uninit:ident = new_with_uninit) => {
         $( #[$attr] )? $vis
-        unsafe fn $from_sys_init(init: impl FnOnce(<$Ptr as $crate::AsUninit>::Ptr)) -> Self {
+        unsafe fn $new_with_uninit(init: impl FnOnce(<$Ptr as $crate::SysPtr>::Uninit)) -> Self {
             let mut raw = std::mem::MaybeUninit::<Self>::uninit();
-            init(raw.as_mut_ptr() as <$Ptr as $crate::AsUninit>::Ptr);
+            init(raw.as_mut_ptr().cast());
 
             raw.assume_init()
         }
     };
+    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_init:ident = new_with_init) => {
+        $( #[$attr] )? $vis
+        unsafe fn $new_with_init(init: impl FnOnce(&mut Self)) -> Self {
+            let mut default = Default::default();
+            init(&mut default);
+            default
+        }
+    };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys:ident = sys) => {
         $( #[$attr] )? $vis
-        fn $sys(&self) -> $Ptr {
-            self as *const Self as $Ptr
+        fn $sys(&self) -> <$Ptr as $crate::SysPtr>::Const {
+            std::ptr::from_ref(self).cast()
+        }
+    };
+    (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $sys_mut:ident = sys_mut) => {
+        $( #[$attr] )? $vis
+        fn $sys_mut(&mut self) -> $Ptr {
+            std::ptr::from_mut(self).cast()
         }
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $from_arg_ptr:ident = from_arg_ptr) => {
         $( #[$attr] )? $vis
         unsafe fn $from_arg_ptr(ptr: $Ptr, _call_type: $crate::PtrcallType) -> Self {
-            *(ptr as *mut Self)
+            Self::new_from_sys(ptr.cast())
         }
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $move_return_ptr:ident = move_return_ptr) => {
         $( #[$attr] )? $vis
         unsafe fn $move_return_ptr(self, dst: $Ptr, _call_type: $crate::PtrcallType) {
-            *(dst as *mut Self) = self
+            *(dst.cast::<Self>()) = self
         }
     };
 }
@@ -272,9 +282,11 @@ macro_rules! ffi_methods_rest {
     ( // impl GodotFfi for T (default all 5)
         $Impl:ident $Ptr:ty; ..
     ) => {
-        $crate::ffi_methods_one!($Impl $Ptr; from_sys = from_sys);
-        $crate::ffi_methods_one!($Impl $Ptr; from_sys_init = from_sys_init);
+        $crate::ffi_methods_one!($Impl $Ptr; new_from_sys = new_from_sys);
+        $crate::ffi_methods_one!($Impl $Ptr; new_with_uninit = new_with_uninit);
+        $crate::ffi_methods_one!($Impl $Ptr; new_with_init = new_with_init);
         $crate::ffi_methods_one!($Impl $Ptr; sys = sys);
+        $crate::ffi_methods_one!($Impl $Ptr; sys_mut = sys_mut);
         $crate::ffi_methods_one!($Impl $Ptr; from_arg_ptr = from_arg_ptr);
         $crate::ffi_methods_one!($Impl $Ptr; move_return_ptr = move_return_ptr);
     };
@@ -474,17 +486,28 @@ mod scalars {
             sys::VariantType::Nil
         }
 
-        unsafe fn from_sys(_ptr: sys::GDExtensionTypePtr) -> Self {
+        unsafe fn new_from_sys(_ptr: sys::GDExtensionConstTypePtr) -> Self {
             // Do nothing
         }
 
-        unsafe fn from_sys_init(_init: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
+        unsafe fn new_with_uninit(
+            _init: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
+        ) -> Self {
             // Do nothing
         }
 
-        fn sys(&self) -> sys::GDExtensionTypePtr {
+        unsafe fn new_with_init(_init: impl FnOnce(&mut ())) -> Self {
+            // Do nothing
+        }
+
+        fn sys(&self) -> sys::GDExtensionConstTypePtr {
             // ZST dummy pointer
-            self as *const _ as sys::GDExtensionTypePtr
+            std::ptr::from_ref(self).cast()
+        }
+
+        fn sys_mut(&mut self) -> sys::GDExtensionTypePtr {
+            // ZST dummy pointer
+            std::ptr::from_mut(self).cast()
         }
 
         // SAFETY:

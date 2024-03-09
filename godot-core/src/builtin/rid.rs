@@ -123,7 +123,20 @@ unsafe impl GodotFfi for Rid {
         sys::VariantType::Rid
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self;
+        fn new_from_sys;
+        fn sys;
+        fn sys_mut;
+        fn new_with_uninit;
+        fn from_arg_ptr;
+        fn move_return_ptr;
+    }
+
+    unsafe fn new_with_init(init: impl FnOnce(&mut Self)) -> Self {
+        let mut rid = Self::Invalid;
+        init(&mut rid);
+        rid
+    }
 }
 
 impl_godot_as_self!(Rid);

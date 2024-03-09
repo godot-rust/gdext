@@ -351,23 +351,6 @@ mod script_instance_info {
         &*(p_instance as *mut ScriptInstanceData<T>)
     }
 
-    /// # Safety
-    ///
-    /// - We expect the engine to provide a valid const string name pointer.
-    unsafe fn transfer_string_name_from_godot(
-        p_name: sys::GDExtensionConstStringNamePtr,
-    ) -> StringName {
-        // This `StringName` is not ours and the engine will decrement the reference count later. To own our own `StringName` reference we
-        // cannot call the destructor on the "original" `StringName`, but have to clone it to increase the reference count. This new instance can
-        // then be passed around and eventually droped which will decrement the reference count again.
-        //
-        // By wrapping the initial `StringName` in a `ManuallyDrop` the destructor is prevented from being executed, which would decrement the
-        // reference count.
-        ManuallyDrop::new(StringName::from_string_sys(sys::force_mut_ptr(p_name)))
-            .deref()
-            .clone()
-    }
-
     fn transfer_bool_to_godot(value: bool) -> sys::GDExtensionBool {
         value as sys::GDExtensionBool
     }
@@ -452,7 +435,7 @@ mod script_instance_info {
         p_name: sys::GDExtensionConstStringNamePtr,
         p_value: sys::GDExtensionConstVariantPtr,
     ) -> sys::GDExtensionBool {
-        let name = transfer_string_name_from_godot(p_name);
+        let name = StringName::new_from_string_sys(p_name);
         let value = &*Variant::ptr_from_sys(p_value);
         let ctx = || format!("error when calling {}::set", type_name::<T>());
 
@@ -476,7 +459,7 @@ mod script_instance_info {
         p_name: sys::GDExtensionConstStringNamePtr,
         r_ret: sys::GDExtensionVariantPtr,
     ) -> sys::GDExtensionBool {
-        let name = transfer_string_name_from_godot(p_name);
+        let name = StringName::new_from_string_sys(p_name);
         let ctx = || format!("error when calling {}::get", type_name::<T>());
 
         let return_value = handle_panic(ctx, || {
@@ -596,7 +579,7 @@ mod script_instance_info {
         r_return: sys::GDExtensionVariantPtr,
         r_error: *mut sys::GDExtensionCallError,
     ) {
-        let method = transfer_string_name_from_godot(p_method);
+        let method = StringName::new_from_string_sys(p_method);
         let args = Variant::unbounded_refs_from_sys(p_args, p_argument_count as usize);
         let ctx = || format!("error when calling {}::call", type_name::<T>());
 
@@ -668,7 +651,7 @@ mod script_instance_info {
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_method: sys::GDExtensionConstStringNamePtr,
     ) -> sys::GDExtensionBool {
-        let method = transfer_string_name_from_godot(p_method);
+        let method = StringName::new_from_string_sys(p_method);
         let ctx = || format!("error when calling {}::has_method", type_name::<T>());
 
         let has_method = handle_panic(ctx, || {
@@ -730,7 +713,7 @@ mod script_instance_info {
                 type_name::<T>()
             )
         };
-        let name = transfer_string_name_from_godot(p_name);
+        let name = StringName::new_from_string_sys(p_name);
 
         let result = handle_panic(ctx, || {
             let instance = instance_data_as_script_instance::<T>(p_instance);
@@ -902,7 +885,7 @@ mod script_instance_info {
         p_name: sys::GDExtensionConstStringNamePtr,
         r_ret: sys::GDExtensionVariantPtr,
     ) -> sys::GDExtensionBool {
-        let name = transfer_string_name_from_godot(p_name);
+        let name = StringName::new_from_string_sys(p_name);
 
         let ctx = || {
             format!(
@@ -936,7 +919,7 @@ mod script_instance_info {
         p_name: sys::GDExtensionConstStringNamePtr,
         p_value: sys::GDExtensionConstVariantPtr,
     ) -> sys::GDExtensionBool {
-        let name = transfer_string_name_from_godot(p_name);
+        let name = StringName::new_from_string_sys(p_name);
         let value = &*Variant::ptr_from_sys(p_value);
 
         let ctx = || {

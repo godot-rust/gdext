@@ -444,17 +444,31 @@ where
         sys::VariantType::Object
     }
 
-    unsafe fn from_sys(ptr: sys::GDExtensionTypePtr) -> Self {
+    unsafe fn new_from_sys(ptr: sys::GDExtensionConstTypePtr) -> Self {
         Self::from_obj_sys_weak(ptr as sys::GDExtensionObjectPtr)
     }
 
-    unsafe fn from_sys_init(init: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
+    unsafe fn new_with_uninit(init: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
         let obj = raw_object_init(init);
         Self::from_obj_sys_weak(obj)
     }
 
-    fn sys(&self) -> sys::GDExtensionTypePtr {
-        self.obj as sys::GDExtensionTypePtr
+    unsafe fn new_with_init(init: impl FnOnce(&mut Self)) -> Self {
+        let mut obj = Self {
+            obj: std::ptr::null_mut(),
+            cached_rtti: None,
+        };
+
+        init(&mut obj);
+        obj
+    }
+
+    fn sys(&self) -> sys::GDExtensionConstTypePtr {
+        self.obj.cast()
+    }
+
+    fn sys_mut(&mut self) -> sys::GDExtensionTypePtr {
+        self.obj.cast()
     }
 
     // For more context around `ref_get_object` and `ref_set_object`, see:
@@ -647,7 +661,7 @@ impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
         // (This behaves differently in the opposite direction `variant_to_object`.)
 
         unsafe {
-            Variant::from_var_sys_init(|variant_ptr| {
+            Variant::new_with_var_uninit(|variant_ptr| {
                 let converter = sys::builtin_fn!(object_to_variant);
 
                 // Note: this is a special case because of an inconsistency in Godot, where sometimes the equivalency is
@@ -670,9 +684,9 @@ impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
             // TODO(uninit) - see if we can use from_sys_init()
 
             // raw_object_init?
-            RawGd::<engine::Object>::from_sys_init(|self_ptr| {
+            RawGd::<engine::Object>::new_with_uninit(|self_ptr| {
                 let converter = sys::builtin_fn!(object_from_variant);
-                converter(self_ptr, variant.var_sys());
+                converter(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
             })
         };
 

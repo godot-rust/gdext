@@ -26,9 +26,9 @@ macro_rules! impl_ffi_variant {
         impl GodotFfiVariant for $T {
             fn ffi_to_variant(&self) -> Variant {
                 let variant = unsafe {
-                    Variant::from_var_sys_init(|variant_ptr| {
+                    Variant::new_with_var_uninit(|variant_ptr| {
                         let converter = sys::builtin_fn!($from_fn);
-                        converter(variant_ptr, self.sys());
+                        converter(variant_ptr, sys::SysPtr::force_mut(self.sys()));
                     })
                 };
 
@@ -56,7 +56,7 @@ macro_rules! impl_ffi_variant {
                 let result = unsafe {
                     sys::from_sys_init_or_init_default(|self_ptr| {
                         let converter = sys::builtin_fn!($to_fn);
-                        converter(self_ptr, variant.var_sys());
+                        converter(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
                     })
                 };
 

@@ -51,7 +51,7 @@ impl Callable {
             sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(callable_from_object_method);
                 let raw = object.to_ffi();
-                let args = [raw.as_arg_ptr(), method.sys_const()];
+                let args = [raw.as_arg_ptr(), method.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         }
@@ -140,7 +140,7 @@ impl Callable {
     fn from_custom_info(mut info: sys::GDExtensionCallableCustomInfo) -> Callable {
         // SAFETY: callable_custom_create() is a valid way of creating callables.
         unsafe {
-            Callable::from_sys_init(|type_ptr| {
+            Callable::new_with_uninit(|type_ptr| {
                 sys::interface_fn!(callable_custom_create)(type_ptr, ptr::addr_of_mut!(info))
             })
         }
@@ -151,7 +151,7 @@ impl Callable {
     /// _Godot equivalent: `Callable()`_
     pub fn invalid() -> Self {
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(callable_construct_default);
                 ctor(self_ptr, ptr::null_mut())
             })
@@ -300,21 +300,17 @@ unsafe impl GodotFfi for Callable {
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
+        fn new_from_sys;
         fn sys;
-        fn from_sys_init;
+        fn sys_mut;
+        fn new_with_uninit;
         fn move_return_ptr;
+        fn from_arg_ptr;
     }
 
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let callable = Self::from_sys(ptr);
-        callable.inc_ref();
-        callable
-    }
-
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+    unsafe fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self {
         let mut result = Self::invalid();
-        init_fn(result.sys_mut());
+        init_fn(&mut result);
         result
     }
 }

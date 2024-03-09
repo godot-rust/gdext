@@ -44,7 +44,7 @@ impl Signal {
             sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(signal_from_object_signal);
                 let raw = object.to_ffi();
-                let args = [raw.as_arg_ptr(), signal_name.sys_const()];
+                let args = [raw.as_arg_ptr(), signal_name.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         }
@@ -55,7 +55,7 @@ impl Signal {
     /// _Godot equivalent: `Signal()`_
     pub fn invalid() -> Self {
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(signal_construct_default);
                 ctor(self_ptr, ptr::null_mut())
             })
@@ -163,20 +163,17 @@ unsafe impl GodotFfi for Signal {
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
+        fn new_from_sys;
         fn sys;
-        fn from_sys_init;
+        fn sys_mut;
+        fn new_with_uninit;
         fn move_return_ptr;
+        fn from_arg_ptr;
     }
 
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        Self::from_sys(ptr)
-    }
-
-    #[cfg(before_api = "4.1")]
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+    unsafe fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self {
         let mut result = Self::invalid();
-        init_fn(result.sys_mut());
+        init_fn(&mut result);
         result
     }
 }
