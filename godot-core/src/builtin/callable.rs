@@ -48,7 +48,7 @@ impl Callable {
         // upcast not needed
         let method = method_name.into();
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(callable_from_object_method);
                 let raw = object.to_ffi();
                 let args = [raw.as_arg_ptr(), method.sys()];
@@ -392,7 +392,7 @@ mod custom_callable {
         r_error: *mut sys::GDExtensionCallError,
     ) {
         let arg_refs: &[&Variant] =
-            Variant::unbounded_refs_from_sys(p_args, p_argument_count as usize);
+            Variant::borrow_var_ref_slice(p_args, p_argument_count as usize);
 
         let c: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
 
@@ -410,7 +410,7 @@ mod custom_callable {
         F: FnMut(&[&Variant]) -> Result<Variant, ()>,
     {
         let arg_refs: &[&Variant] =
-            Variant::unbounded_refs_from_sys(p_args, p_argument_count as usize);
+            Variant::borrow_var_ref_slice(p_args, p_argument_count as usize);
 
         let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
@@ -450,7 +450,7 @@ mod custom_callable {
         let c: &T = CallableUserdata::inner_from_raw(callable_userdata);
         let s = crate::builtin::GString::from(c.to_string());
 
-        s.move_string_ptr(r_out);
+        s.move_return_string_ptr(r_out, sys::PtrcallType::Standard);
         *r_is_valid = true as sys::GDExtensionBool;
     }
 
@@ -461,7 +461,9 @@ mod custom_callable {
     ) {
         let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
-        w.name.clone().move_string_ptr(r_out);
+        w.name
+            .clone()
+            .move_return_string_ptr(r_out, sys::PtrcallType::Standard);
         *r_is_valid = true as sys::GDExtensionBool;
     }
 }

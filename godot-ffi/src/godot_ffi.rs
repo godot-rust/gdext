@@ -96,7 +96,7 @@ pub unsafe trait GodotFfi {
 ///
 /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
 #[cfg(before_api = "4.1")]
-pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
+pub unsafe fn new_with_uninit_or_init<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionTypePtr),
 ) -> T {
     T::new_with_init(|value| init_fn(value.sys_mut()))
@@ -106,7 +106,7 @@ pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
 ///
 /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
 #[cfg(since_api = "4.1")]
-pub unsafe fn from_sys_init_or_init_default<T: GodotFfi>(
+pub unsafe fn new_with_uninit_or_init<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
 ) -> T {
     T::new_with_uninit(init_fn)

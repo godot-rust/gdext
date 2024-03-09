@@ -115,7 +115,7 @@ impl Variant {
         let mut error = sys::default_call_error();
 
         let result = unsafe {
-            Variant::from_var_sys_init_or_init_default(|variant_ptr| {
+            Variant::new_with_var_uninit_or_init(|variant_ptr| {
                 interface_fn!(variant_call)(
                     sys::SysPtr::force_mut(self.var_sys()),
                     method.string_sys(),
@@ -145,7 +145,7 @@ impl Variant {
         let mut is_valid = false as u8;
 
         let result = unsafe {
-            Self::from_var_sys_init_or_init_default(|variant_ptr| {
+            Self::new_with_var_uninit_or_init(|variant_ptr| {
                 interface_fn!(variant_evaluate)(
                     op_sys,
                     self.var_sys(),
@@ -217,12 +217,13 @@ impl Variant {
         fn new_with_var_init = new_with_init;
         fn var_sys = sys;
         fn var_sys_mut = sys_mut;
+        fn move_return_var_ptr = move_return_ptr;
     }
 
     /// # Safety
     /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
     #[cfg(before_api = "4.1")]
-    pub unsafe fn from_var_sys_init_or_init_default(
+    pub unsafe fn new_with_var_uninit_or_init(
         init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
     ) -> Self {
         Self::new_with_var_init(|value| init_fn(value.var_sys_mut()))
@@ -232,7 +233,7 @@ impl Variant {
     /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
     #[cfg(since_api = "4.1")]
     #[doc(hidden)]
-    pub unsafe fn from_var_sys_init_or_init_default(
+    pub unsafe fn new_with_var_uninit_or_init(
         init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr),
     ) -> Self {
         Self::new_with_var_uninit(init_fn)
@@ -256,16 +257,30 @@ impl Variant {
 
     /// Converts to variant pointer; can be a null pointer.
     pub(crate) fn ptr_from_sys(variant_ptr: sys::GDExtensionConstVariantPtr) -> *const Variant {
+        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
         variant_ptr as *const Variant
+    }
+
+    /// Converts to variant mut pointer; can be a null pointer.
+    pub(crate) fn ptr_from_sys_mut(variant_ptr: sys::GDExtensionVariantPtr) -> *mut Variant {
+        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
+        variant_ptr as *mut Variant
+    }
+
+    pub unsafe fn borrow_var_sys<'a>(ptr: sys::GDExtensionConstVariantPtr) -> &'a Variant {
+        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
+        &*(ptr.cast::<Variant>())
     }
 
     /// # Safety
     /// `variant_ptr_array` must be a valid pointer to an array of `length` variant pointers.
     /// The caller is responsible of keeping the backing storage alive while the unbounded references exist.
-    pub(crate) unsafe fn unbounded_refs_from_sys<'a>(
+    pub(crate) unsafe fn borrow_var_ref_slice<'a>(
         variant_ptr_array: *const sys::GDExtensionConstVariantPtr,
         length: usize,
     ) -> &'a [&'a Variant] {
+        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
+
         // Godot may pass null to signal "no arguments" (e.g. in custom callables).
         if variant_ptr_array.is_null() {
             debug_assert_eq!(
@@ -275,25 +290,11 @@ impl Variant {
             return &[];
         }
 
-        let variant_ptr_array: &'a [sys::GDExtensionConstVariantPtr] =
-            std::slice::from_raw_parts(variant_ptr_array, length);
-
-        // SAFETY: raw pointers and references have the same memory layout.
+        // raw pointers and references have the same memory layout.
         // See https://doc.rust-lang.org/reference/type-layout.html#pointers-and-references-layout.
-        unsafe { std::mem::transmute(variant_ptr_array) }
-    }
+        let variant_ptr_array = variant_ptr_array.cast::<&Variant>();
 
-    /// Converts to variant mut pointer; can be a null pointer.
-    pub(crate) fn ptr_from_sys_mut(variant_ptr: sys::GDExtensionVariantPtr) -> *mut Variant {
-        variant_ptr as *mut Variant
-    }
-
-    /// Move `self` into a system pointer. This transfers ownership and thus does not call the destructor.
-    ///
-    /// # Safety
-    /// `dst` must be a pointer to a [`Variant`] which is suitable for ffi with Godot.
-    pub(crate) unsafe fn move_var_ptr(self, dst: sys::GDExtensionVariantPtr) {
-        self.move_return_ptr(dst as *mut _, sys::PtrcallType::Standard);
+        std::slice::from_raw_parts(variant_ptr_array, length)
     }
 }
 

@@ -937,7 +937,7 @@ impl<T: GodotType> GodotFfiVariant for Array<T> {
         }
 
         let array = unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let array_from_variant = sys::builtin_fn!(array_from_variant);
                 array_from_variant(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
             })

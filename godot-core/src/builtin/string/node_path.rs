@@ -8,7 +8,7 @@
 use std::fmt;
 
 use godot_ffi as sys;
-use godot_ffi::{ffi_methods, GDExtensionTypePtr, GodotFfi};
+use godot_ffi::{ffi_methods, GodotFfi};
 
 use crate::builtin::inner;
 use crate::builtin::meta::impl_godot_as_self;
@@ -16,7 +16,6 @@ use crate::builtin::meta::impl_godot_as_self;
 use super::{GString, StringName};
 
 /// A pre-parsed scene tree path.
-#[repr(C)]
 pub struct NodePath {
     opaque: sys::types::OpaqueNodePath,
 }
@@ -107,7 +106,7 @@ where
 impl From<&GString> for NodePath {
     fn from(string: &GString) -> Self {
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(node_path_from_string);
                 let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());

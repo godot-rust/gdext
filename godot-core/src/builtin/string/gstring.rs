@@ -54,17 +54,13 @@ use super::{NodePath, StringName};
 // #[repr] is needed on GString itself rather than the opaque field, because PackedStringArray::as_slice() relies on a packed representation.
 #[repr(transparent)]
 pub struct GString {
-    opaque: OpaqueString,
+    _opaque: OpaqueString,
 }
 
 impl GString {
     /// Construct a new empty GString.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    fn from_opaque(opaque: OpaqueString) -> Self {
-        Self { opaque }
     }
 
     pub fn len(&self) -> usize {
@@ -129,14 +125,7 @@ impl GString {
         fn new_with_string_uninit = new_with_uninit;
         fn string_sys = sys;
         fn string_sys_mut = sys_mut;
-    }
-
-    /// Move `self` into a system pointer. This transfers ownership and thus does not call the destructor.
-    ///
-    /// # Safety
-    /// `dst` must be a pointer to a `GString` which is suitable for ffi with Godot.
-    pub(crate) unsafe fn move_string_ptr(self, dst: sys::GDExtensionStringPtr) {
-        self.move_return_ptr(dst as *mut _, sys::PtrcallType::Standard);
+        fn move_return_string_ptr = move_return_ptr;
     }
 
     #[doc(hidden)]
@@ -159,7 +148,7 @@ unsafe impl GodotFfi for GString {
         sys::VariantType::String
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; ..}
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
 impl_godot_as_self!(GString);
@@ -257,7 +246,7 @@ impl FromStr for GString {
 impl From<&StringName> for GString {
     fn from(string: &StringName) -> Self {
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_string_name);
                 let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());
@@ -278,7 +267,7 @@ impl From<StringName> for GString {
 impl From<&NodePath> for GString {
     fn from(path: &NodePath) -> Self {
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_node_path);
                 let args = [path.sys()];
                 ctor(self_ptr, args.as_ptr());

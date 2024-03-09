@@ -41,7 +41,7 @@ impl Signal {
     {
         let signal_name = signal_name.into();
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(signal_from_object_signal);
                 let raw = object.to_ffi();
                 let args = [raw.as_arg_ptr(), signal_name.sys()];

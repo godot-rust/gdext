@@ -54,7 +54,7 @@ macro_rules! impl_ffi_variant {
                 //
                 // This was changed in 4.1.
                 let result = unsafe {
-                    sys::from_sys_init_or_init_default(|self_ptr| {
+                    sys::new_with_uninit_or_init(|self_ptr| {
                         let converter = sys::builtin_fn!($to_fn);
                         converter(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
                     })

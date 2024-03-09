@@ -26,7 +26,8 @@ use crate::builtin::{GString, NodePath};
 /// relying on lexicographical ordering.
 ///
 /// Instead, we provide [`transient_ord()`][Self::transient_ord] for ordering relations.
-#[repr(C)]
+// Currently we rely on `transparent` for `borrow_string_sys`.
+#[repr(transparent)]
 pub struct StringName {
     opaque: sys::types::OpaqueStringName,
 }
@@ -225,7 +226,7 @@ where
 impl From<&GString> for StringName {
     fn from(string: &GString) -> Self {
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_name_from_string);
                 let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());

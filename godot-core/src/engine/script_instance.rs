@@ -359,7 +359,7 @@ mod script_instance_info {
     ///
     /// - We expect the engine to provide a valid variant pointer the return value can be moved into.
     unsafe fn transfer_variant_to_godot(variant: Variant, return_ptr: sys::GDExtensionVariantPtr) {
-        variant.move_var_ptr(return_ptr)
+        variant.move_return_var_ptr(return_ptr, sys::PtrcallType::Standard)
     }
 
     /// # Safety
@@ -391,7 +391,7 @@ mod script_instance_info {
     ///
     /// - The engine has to provide a valid string return pointer.
     unsafe fn transfer_string_to_godot(string: GString, return_ptr: sys::GDExtensionStringPtr) {
-        string.move_string_ptr(return_ptr);
+        string.move_return_string_ptr(return_ptr, sys::PtrcallType::Standard);
     }
 
     /// # Safety
@@ -580,7 +580,7 @@ mod script_instance_info {
         r_error: *mut sys::GDExtensionCallError,
     ) {
         let method = StringName::new_from_string_sys(p_method);
-        let args = Variant::unbounded_refs_from_sys(p_args, p_argument_count as usize);
+        let args = Variant::borrow_var_ref_slice(p_args, p_argument_count as usize);
         let ctx = || format!("error when calling {}::call", type_name::<T>());
 
         let result = handle_panic(ctx, || {

@@ -133,7 +133,7 @@ pub unsafe extern "C" fn to_string<T: cap::GodotToString>(
     let string = T::__godot_to_string(&*instance);
 
     // Transfer ownership to Godot
-    string.move_string_ptr(out_string);
+    string.move_return_string_ptr(out_string, sys::PtrcallType::Standard);
 }
 
 #[cfg(before_api = "4.2")]
@@ -170,7 +170,7 @@ pub unsafe extern "C" fn get_property<T: cap::GodotGet>(
 
     match T::__godot_get_property(&*instance, property) {
         Some(value) => {
-            value.move_var_ptr(ret);
+            value.move_return_var_ptr(ret, sys::PtrcallType::Standard);
             true as sys::GDExtensionBool
         }
         None => false as sys::GDExtensionBool,
