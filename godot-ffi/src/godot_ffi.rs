@@ -55,17 +55,10 @@ pub unsafe trait GodotFfi {
     unsafe fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self;
 
     /// Return Godot opaque pointer, for an immutable operation.
-    ///
-    /// Note that this is a `*mut` pointer despite taking `&self` by shared-ref.
-    /// This is because most of Godot's Rust API is not const-correct. This can still
-    /// enhance user code (calling `sys_mut` ensures no aliasing at the time of the call).
     #[doc(hidden)]
     fn sys(&self) -> sys::GDExtensionConstTypePtr;
 
     /// Return Godot opaque pointer, for a mutable operation.
-    ///
-    /// Should usually not be overridden; behaves like `sys()` but ensures no aliasing
-    /// at the time of the call (not necessarily during any subsequent modifications though).
     #[doc(hidden)]
     fn sys_mut(&mut self) -> sys::GDExtensionTypePtr;
 
@@ -102,7 +95,7 @@ pub unsafe trait GodotFfi {
 
 /// # Safety
 ///
-/// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
+/// See [`GodotFfi::new_with_uninit`] and [`GodotFfi::new_with_init`].
 #[cfg(before_api = "4.1")]
 pub unsafe fn new_with_uninit_or_init<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionTypePtr),
@@ -112,7 +105,7 @@ pub unsafe fn new_with_uninit_or_init<T: GodotFfi>(
 
 /// # Safety
 ///
-/// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
+/// See [`GodotFfi::new_with_uninit`] and [`GodotFfi::new_with_init`].
 #[cfg(since_api = "4.1")]
 pub unsafe fn new_with_uninit_or_init<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
@@ -173,6 +166,7 @@ macro_rules! ffi_methods_one {
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_from_sys:ident = new_from_sys) => {
         $( #[$attr] )? $vis
         unsafe fn $new_from_sys(ptr: <$Ptr as $crate::SysPtr>::Const) -> Self {
+            // TODO: Directly use copy constructors here?
             let opaque = std::ptr::read(ptr.cast());
             let new = Self::from_opaque(opaque);
             std::mem::forget(new.clone());

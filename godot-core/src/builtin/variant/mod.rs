@@ -204,13 +204,9 @@ impl Variant {
         unsafe { interface_fn!(variant_booleanize)(self.var_sys()) != 0 }
     }
 
-    fn from_opaque(opaque: OpaqueVariant) -> Self {
-        Self { opaque }
-    }
-
     // Conversions from/to Godot C++ `Variant*` pointers
     ffi_methods! {
-        type sys::GDExtensionVariantPtr = *mut Opaque;
+        type sys::GDExtensionVariantPtr = *mut Self;
 
         fn new_from_var_sys = new_from_sys;
         fn new_with_var_uninit = new_with_uninit;
@@ -240,48 +236,48 @@ impl Variant {
         Self::new_with_var_uninit(init_fn)
     }
 
+    /// Fallible construction of a `Variant` using a function.
+    ///
     /// # Safety
-    /// See [`GodotFfi::new_with_uninit`].
+    ///
+    /// If `init_fn` returns `Ok(())`, then it must have initialized the pointer passed to it in accordance with [`GodotFfi::new_with_uninit`].
     #[doc(hidden)]
     pub unsafe fn new_with_var_uninit_result<E>(
         init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr) -> Result<(), E>,
     ) -> Result<Self, E> {
         // Relies on current macro expansion of from_var_sys_init() having a certain implementation.
 
-        let mut raw = std::mem::MaybeUninit::<OpaqueVariant>::uninit();
+        let mut raw = std::mem::MaybeUninit::<Variant>::uninit();
 
         let var_uninit_ptr =
             raw.as_mut_ptr() as <sys::GDExtensionVariantPtr as ::godot_ffi::SysPtr>::Uninit;
 
-        init_fn(var_uninit_ptr).map(|_err| Self::from_opaque(raw.assume_init()))
+        // SAFETY: `map` only runs the provided closure for the `Ok(())` variant, in which case `raw` has definitely been initialized.
+        init_fn(var_uninit_ptr).map(|_succ| unsafe { raw.assume_init() })
     }
 
-    /// Converts to variant pointer; can be a null pointer.
-    pub(crate) fn ptr_from_sys(variant_ptr: sys::GDExtensionConstVariantPtr) -> *const Variant {
-        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
-        variant_ptr as *const Variant
-    }
-
-    /// Converts to variant mut pointer; can be a null pointer.
-    pub(crate) fn ptr_from_sys_mut(variant_ptr: sys::GDExtensionVariantPtr) -> *mut Variant {
-        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
-        variant_ptr as *mut Variant
-    }
-
+    /// Convert a `Variant` sys pointer to a reference to a `Variant`.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must point to a live `Variant` for the duration of `'a`.
     pub(crate) unsafe fn borrow_var_sys<'a>(ptr: sys::GDExtensionConstVariantPtr) -> &'a Variant {
         sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
-        &*(ptr.cast::<Variant>())
+
+        // SAFETY: `ptr` is a pointer to a live `Variant` for the duration of `'a`.
+        unsafe { &*(ptr.cast::<Variant>()) }
     }
 
+    /// Convert an array of `Variant` sys pointers to a slice of `Variant` references.
+    ///
     /// # Safety
-    /// `variant_ptr_array` must be a valid pointer to an array of `length` variant pointers.
-    /// The caller is responsible of keeping the backing storage alive while the unbounded references exist.
+    ///
+    /// Either `variant_ptr_array` is null, or it must be safe to call [`std::slice::from_raw_parts`] with
+    /// `variant_ptr_array` cast to `*const &'a Variant` and `length`.
     pub(crate) unsafe fn borrow_var_ref_slice<'a>(
         variant_ptr_array: *const sys::GDExtensionConstVariantPtr,
         length: usize,
     ) -> &'a [&'a Variant] {
-        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
-
         // Godot may pass null to signal "no arguments" (e.g. in custom callables).
         if variant_ptr_array.is_null() {
             debug_assert_eq!(
@@ -295,7 +291,66 @@ impl Variant {
         // See https://doc.rust-lang.org/reference/type-layout.html#pointers-and-references-layout.
         let variant_ptr_array = variant_ptr_array.cast::<&Variant>();
 
-        std::slice::from_raw_parts(variant_ptr_array, length)
+        // SAFETY: `variant_ptr_array` isn't null so it is safe to call `from_raw_parts` on the pointer cast to `*const &Variant`.
+        unsafe { std::slice::from_raw_parts(variant_ptr_array, length) }
+    }
+
+    /// Convert an array of `Variant` sys pointers to a slice of mutable `Variant` references.
+    ///
+    /// # Safety
+    ///
+    /// Either `variant_array` is null, or it must be safe to call [`std::slice::from_raw_parts`] with
+    /// `variant_array` cast to `*const Variant` and `length`.
+    pub(crate) unsafe fn borrow_var_slice<'a>(
+        variant_array: sys::GDExtensionConstVariantPtr,
+        length: usize,
+    ) -> &'a [Variant] {
+        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
+
+        // Godot may pass null to signal "no arguments" (e.g. in custom callables).
+        if variant_array.is_null() {
+            debug_assert_eq!(
+                length, 0,
+                "Variant::unbounded_refs_from_sys(): pointer is null but length is not 0"
+            );
+            return &[];
+        }
+
+        // raw pointers and references have the same memory layout.
+        // See https://doc.rust-lang.org/reference/type-layout.html#pointers-and-references-layout.
+        let variant_array = variant_array.cast::<Variant>();
+
+        // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts` on the pointer cast to `*const &Variant`.
+        unsafe { std::slice::from_raw_parts(variant_array, length) }
+    }
+
+    /// Convert an array of `Variant` sys pointers to a slice of mutable `Variant` references.
+    ///
+    /// # Safety
+    ///
+    /// Either `variant_array` is null, or it must be safe to call [`std::slice::from_raw_parts_mut`] with
+    /// `variant_array` cast to `*mut Variant` and `length`.
+    pub(crate) unsafe fn borrow_var_slice_mut<'a>(
+        variant_array: sys::GDExtensionVariantPtr,
+        length: usize,
+    ) -> &'a mut [Variant] {
+        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
+
+        // Godot may pass null to signal "no arguments" (e.g. in custom callables).
+        if variant_array.is_null() {
+            debug_assert_eq!(
+                length, 0,
+                "Variant::unbounded_refs_from_sys(): pointer is null but length is not 0"
+            );
+            return &mut [];
+        }
+
+        // raw pointers and references have the same memory layout.
+        // See https://doc.rust-lang.org/reference/type-layout.html#pointers-and-references-layout.
+        let variant_array = variant_array.cast::<Variant>();
+
+        // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts_mut` on the pointer cast to `*const &Variant`.
+        unsafe { std::slice::from_raw_parts_mut(variant_array, length) }
     }
 }
 

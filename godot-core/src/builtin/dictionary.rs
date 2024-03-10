@@ -204,9 +204,11 @@ impl Dictionary {
     pub fn set<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) {
         let key = key.to_variant();
 
-        // SAFETY: always returns a valid pointer to a value in the dictionary; either pre-existing or newly inserted.
+        // SAFETY: `self.get_ptr_mut(key)` always returns a valid pointer to a value in the dictionary; either pre-existing or newly inserted.
         unsafe {
-            *self.get_ptr_mut(key) = value.to_variant();
+            value
+                .to_variant()
+                .move_return_var_ptr(self.get_ptr_mut(key), sys::PtrcallType::Standard);
         }
     }
 
@@ -240,7 +242,7 @@ impl Dictionary {
     /// Get the pointer corresponding to the given key in the dictionary.
     ///
     /// If there exists no value at the given key, a `NIL` variant will be inserted for that key.
-    fn get_ptr_mut<K: ToGodot>(&mut self, key: K) -> *mut Variant {
+    fn get_ptr_mut<K: ToGodot>(&mut self, key: K) -> sys::GDExtensionVariantPtr {
         let key = key.to_variant();
 
         // SAFETY: accessing an unknown key _mutably_ creates that entry in the dictionary, with value `NIL`.
@@ -248,7 +250,7 @@ impl Dictionary {
             unsafe { interface_fn!(dictionary_operator_index)(self.sys_mut(), key.var_sys()) };
 
         // Never a null pointer, since entry either existed already or was inserted above.
-        Variant::ptr_from_sys_mut(ptr)
+        ptr
     }
 }
 

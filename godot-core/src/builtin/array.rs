@@ -225,7 +225,7 @@ impl<T: GodotType> Array<T> {
     /// # Panics
     ///
     /// If `index` is out of bounds.
-    fn ptr(&self, index: usize) -> *const Variant {
+    fn ptr(&self, index: usize) -> sys::GDExtensionConstVariantPtr {
         let ptr = self.ptr_or_null(index);
         assert!(
             !ptr.is_null(),
@@ -236,7 +236,7 @@ impl<T: GodotType> Array<T> {
     }
 
     /// Returns a pointer to the element at the given index, or null if out of bounds.
-    fn ptr_or_null(&self, index: usize) -> *const Variant {
+    fn ptr_or_null(&self, index: usize) -> sys::GDExtensionConstVariantPtr {
         // SAFETY: array_operator_index_const returns null for invalid indexes.
         let variant_ptr = unsafe {
             let index = to_i64(index);
@@ -244,8 +244,7 @@ impl<T: GodotType> Array<T> {
         };
 
         // Signature is wrong in GDExtension, semantically this is a const ptr
-        let variant_ptr = sys::to_const_ptr(variant_ptr);
-        Variant::ptr_from_sys(variant_ptr)
+        sys::SysPtr::as_const(variant_ptr)
     }
 
     /// Returns a mutable pointer to the element at the given index.
@@ -253,7 +252,7 @@ impl<T: GodotType> Array<T> {
     /// # Panics
     ///
     /// If `index` is out of bounds.
-    fn ptr_mut(&mut self, index: usize) -> *mut Variant {
+    fn ptr_mut(&mut self, index: usize) -> sys::GDExtensionVariantPtr {
         let ptr = self.ptr_mut_or_null(index);
         assert!(
             !ptr.is_null(),
@@ -264,14 +263,14 @@ impl<T: GodotType> Array<T> {
     }
 
     /// Returns a pointer to the element at the given index, or null if out of bounds.
-    fn ptr_mut_or_null(&mut self, index: usize) -> *mut Variant {
+    fn ptr_mut_or_null(&mut self, index: usize) -> sys::GDExtensionVariantPtr {
         // SAFETY: array_operator_index returns null for invalid indexes.
         let variant_ptr = unsafe {
             let index = to_i64(index);
             interface_fn!(array_operator_index)(self.sys_mut(), index)
         };
 
-        Variant::ptr_from_sys_mut(variant_ptr)
+        variant_ptr
     }
 
     /// # Safety
@@ -490,8 +489,8 @@ impl<T: GodotType + FromGodot> Array<T> {
         // Panics on out-of-bounds
         let ptr = self.ptr(index);
 
-        // SAFETY: `ptr()` just verified that the index is not out of bounds.
-        let variant = unsafe { &*ptr };
+        // SAFETY: `ptr` is a live pointer to a variant since `ptr.is_null()` just verified that the index is not out of bounds.
+        let variant = unsafe { Variant::borrow_var_sys(ptr) };
         T::from_variant(variant)
     }
 
@@ -501,8 +500,8 @@ impl<T: GodotType + FromGodot> Array<T> {
         if ptr.is_null() {
             None
         } else {
-            // SAFETY: `ptr.is_null()` just verified that the index is not out of bounds.
-            let variant = unsafe { &*ptr };
+            // SAFETY: `ptr` is a live pointer to a variant since `ptr.is_null()` just verified that the index is not out of bounds.
+            let variant = unsafe { Variant::borrow_var_sys(ptr) };
             Some(T::from_variant(variant))
         }
     }
@@ -663,7 +662,9 @@ impl<T: GodotType + ToGodot> Array<T> {
 
         // SAFETY: `ptr_mut` just checked that the index is not out of bounds.
         unsafe {
-            *ptr_mut = value.to_variant();
+            value
+                .to_variant()
+                .move_return_var_ptr(ptr_mut, sys::PtrcallType::Standard);
         }
     }
 
@@ -970,14 +971,14 @@ impl<T: GodotType + ToGodot> From<&[T]> for Array<T> {
         // the nulls with values of type `T`.
         unsafe { array.as_inner_mut() }.resize(to_i64(len));
 
-        let ptr = array.ptr_mut_or_null(0);
-        for (i, element) in slice.iter().enumerate() {
-            // SAFETY: The array contains exactly `len` elements, stored contiguously in memory.
-            // Also, the pointer is non-null, as we checked for emptiness above.
-            unsafe {
-                *ptr.offset(to_isize(i)) = element.to_variant();
-            }
+        // SAFETY: `array` has `len` elements since we just resized it, and they are all valid `Variant`s. Additionally, since
+        // the array was created in this function, and we do not access the array while this slice exists, the slice has unique
+        // access to the elements.
+        let elements = unsafe { Variant::borrow_var_slice_mut(array.ptr_mut(0), len) };
+        for (element, array_slot) in slice.iter().zip(elements.iter_mut()) {
+            *array_slot = element.to_variant();
         }
+
         array
     }
 }
@@ -1010,14 +1011,13 @@ impl<T: GodotType + FromGodot> From<&Array<T>> for Vec<T> {
     fn from(array: &Array<T>) -> Vec<T> {
         let len = array.len();
         let mut vec = Vec::with_capacity(len);
-        let ptr = array.ptr(0);
-        for offset in 0..to_isize(len) {
-            // SAFETY: Arrays are stored contiguously in memory, so we can use pointer arithmetic
-            // instead of going through `array_operator_index_const` for every index.
-            let variant = unsafe { &*ptr.offset(offset) };
-            let element = T::from_variant(variant);
-            vec.push(element);
-        }
+
+        // SAFETY: Unless `experimental-threads` is enabled, then we cannot have concurrent access to this array.
+        // And since we dont concurrently access the array in this function, we can create a slice to its contents.
+        let elements = unsafe { Variant::borrow_var_slice(array.ptr(0), len) };
+
+        vec.extend(elements.iter().map(T::from_variant));
+
         vec
     }
 }
@@ -1040,7 +1040,8 @@ impl<'a, T: GodotType + FromGodot> Iterator for Iter<'a, T> {
             let element_ptr = self.array.ptr_or_null(idx);
 
             // SAFETY: We just checked that the index is not out of bounds, so the pointer won't be null.
-            let variant = unsafe { &*element_ptr };
+            // We immediately convert this to the right element, so barring `experimental-threads` the pointer wont be invalidated in time.
+            let variant = unsafe { Variant::borrow_var_sys(element_ptr) };
             let element = T::from_variant(variant);
             Some(element)
         } else {

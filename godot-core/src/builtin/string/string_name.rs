@@ -122,6 +122,11 @@ impl StringName {
         fn string_sys_mut = sys_mut;
     }
 
+    /// Convert a `StringName` sys pointer to a reference to a `StringName`.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must point to a live `StringName` for the duration of `'a`.
     pub(crate) unsafe fn borrow_string_sys<'a>(
         ptr: sys::GDExtensionConstStringNamePtr,
     ) -> &'a StringName {
