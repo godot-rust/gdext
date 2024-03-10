@@ -21,7 +21,6 @@ use sys::{ffi_methods, GodotFfi};
 /// A `Signal` represents a signal of an Object instance in Godot.
 ///
 /// Signals are composed of a reference to an `Object` and the name of the signal on this object.
-#[repr(C, align(8))]
 pub struct Signal {
     opaque: sys::types::OpaqueSignal,
 }

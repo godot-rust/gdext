@@ -26,7 +26,7 @@ pub use sys::{VariantOperator, VariantType};
 /// See also [Godot documentation for `Variant`](https://docs.godotengine.org/en/stable/classes/class_variant.html).
 #[repr(transparent)]
 pub struct Variant {
-    opaque: OpaqueVariant,
+    _opaque: OpaqueVariant,
 }
 
 impl Variant {
@@ -236,7 +236,7 @@ impl Variant {
         Self::new_with_var_uninit(init_fn)
     }
 
-    /// Fallible construction of a `Variant` using a function.
+    /// Fallible construction of a `Variant` using a fallible initialization function.
     ///
     /// # Safety
     ///
@@ -262,7 +262,7 @@ impl Variant {
     ///
     /// `ptr` must point to a live `Variant` for the duration of `'a`.
     pub(crate) unsafe fn borrow_var_sys<'a>(ptr: sys::GDExtensionConstVariantPtr) -> &'a Variant {
-        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
+        sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
 
         // SAFETY: `ptr` is a pointer to a live `Variant` for the duration of `'a`.
         unsafe { &*(ptr.cast::<Variant>()) }
@@ -278,6 +278,7 @@ impl Variant {
         variant_ptr_array: *const sys::GDExtensionConstVariantPtr,
         length: usize,
     ) -> &'a [&'a Variant] {
+        sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
         // Godot may pass null to signal "no arguments" (e.g. in custom callables).
         if variant_ptr_array.is_null() {
             debug_assert_eq!(
@@ -305,7 +306,7 @@ impl Variant {
         variant_array: sys::GDExtensionConstVariantPtr,
         length: usize,
     ) -> &'a [Variant] {
-        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
+        sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
 
         // Godot may pass null to signal "no arguments" (e.g. in custom callables).
         if variant_array.is_null() {
@@ -320,7 +321,7 @@ impl Variant {
         // See https://doc.rust-lang.org/reference/type-layout.html#pointers-and-references-layout.
         let variant_array = variant_array.cast::<Variant>();
 
-        // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts` on the pointer cast to `*const &Variant`.
+        // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts` on the pointer cast to `*const Variant`.
         unsafe { std::slice::from_raw_parts(variant_array, length) }
     }
 
@@ -334,7 +335,7 @@ impl Variant {
         variant_array: sys::GDExtensionVariantPtr,
         length: usize,
     ) -> &'a mut [Variant] {
-        sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
+        sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
 
         // Godot may pass null to signal "no arguments" (e.g. in custom callables).
         if variant_array.is_null() {
@@ -349,7 +350,7 @@ impl Variant {
         // See https://doc.rust-lang.org/reference/type-layout.html#pointers-and-references-layout.
         let variant_array = variant_array.cast::<Variant>();
 
-        // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts_mut` on the pointer cast to `*const &Variant`.
+        // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts_mut` on the pointer cast to `*mut Variant`.
         unsafe { std::slice::from_raw_parts_mut(variant_array, length) }
     }
 }

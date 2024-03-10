@@ -25,7 +25,6 @@ use super::meta::impl_godot_as_self;
 /// # Thread safety
 ///
 /// The same principles apply as for [`VariantArray`]. Consult its documentation for details.
-#[repr(C)]
 pub struct Dictionary {
     opaque: OpaqueDictionary,
 }
@@ -245,12 +244,9 @@ impl Dictionary {
     fn get_ptr_mut<K: ToGodot>(&mut self, key: K) -> sys::GDExtensionVariantPtr {
         let key = key.to_variant();
 
-        // SAFETY: accessing an unknown key _mutably_ creates that entry in the dictionary, with value `NIL`.
-        let ptr =
-            unsafe { interface_fn!(dictionary_operator_index)(self.sys_mut(), key.var_sys()) };
-
         // Never a null pointer, since entry either existed already or was inserted above.
-        ptr
+        // SAFETY: accessing an unknown key _mutably_ creates that entry in the dictionary, with value `NIL`.
+        unsafe { interface_fn!(dictionary_operator_index)(self.sys_mut(), key.var_sys()) }
     }
 }
 

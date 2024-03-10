@@ -54,7 +54,6 @@ use super::meta::{
 // for `T: GodotType` because `drop()` requires `sys_mut()`, which is on the `GodotFfi`
 // trait, whose `from_sys_init()` requires `Default`, which is only implemented for `T:
 // GodotType`. Whew. This could be fixed by splitting up `GodotFfi` if desired.
-#[repr(C)]
 pub struct Array<T: GodotType> {
     // Safety Invariant: The type of all values in `opaque` matches the type `T`.
     opaque: sys::types::OpaqueArray,
@@ -265,12 +264,10 @@ impl<T: GodotType> Array<T> {
     /// Returns a pointer to the element at the given index, or null if out of bounds.
     fn ptr_mut_or_null(&mut self, index: usize) -> sys::GDExtensionVariantPtr {
         // SAFETY: array_operator_index returns null for invalid indexes.
-        let variant_ptr = unsafe {
+        unsafe {
             let index = to_i64(index);
             interface_fn!(array_operator_index)(self.sys_mut(), index)
-        };
-
-        variant_ptr
+        }
     }
 
     /// # Safety

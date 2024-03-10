@@ -71,7 +71,6 @@ macro_rules! impl_packed_array {
         /// but any writes must be externally synchronized. The Rust compiler will enforce this as
         /// long as you use only Rust threads, but it cannot protect against concurrent modification
         /// on other threads (e.g. created through GDScript).
-        #[repr(C)]
         pub struct $PackedArray {
             opaque: $Opaque,
         }
