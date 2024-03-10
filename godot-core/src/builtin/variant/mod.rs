@@ -221,8 +221,9 @@ impl Variant {
     }
 
     /// # Safety
-    /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
+    /// See [`GodotFfi::new_with_uninit`] and [`GodotFfi::new_with_init`].
     #[cfg(before_api = "4.1")]
+    #[doc(hidden)]
     pub unsafe fn new_with_var_uninit_or_init(
         init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
     ) -> Self {
@@ -230,7 +231,7 @@ impl Variant {
     }
 
     /// # Safety
-    /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
+    /// See [`GodotFfi::new_with_uninit`] and [`GodotFfi::new_with_init`].
     #[cfg(since_api = "4.1")]
     #[doc(hidden)]
     pub unsafe fn new_with_var_uninit_or_init(
@@ -240,7 +241,7 @@ impl Variant {
     }
 
     /// # Safety
-    /// See [`GodotFfi::from_sys_init`].
+    /// See [`GodotFfi::new_with_uninit`].
     #[doc(hidden)]
     pub unsafe fn new_with_var_uninit_result<E>(
         init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr) -> Result<(), E>,
@@ -267,7 +268,7 @@ impl Variant {
         variant_ptr as *mut Variant
     }
 
-    pub unsafe fn borrow_var_sys<'a>(ptr: sys::GDExtensionConstVariantPtr) -> &'a Variant {
+    pub(crate) unsafe fn borrow_var_sys<'a>(ptr: sys::GDExtensionConstVariantPtr) -> &'a Variant {
         sys::static_assert_eq_size!(Variant, sys::types::OpaqueVariant);
         &*(ptr.cast::<Variant>())
     }

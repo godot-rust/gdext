@@ -467,7 +467,7 @@ unsafe fn varcall_arg<P: FromGodot, const N: isize>(
     args_ptr: *const sys::GDExtensionConstVariantPtr,
     call_ctx: &CallContext,
 ) -> Result<P, CallError> {
-    let variant_ref = &*Variant::ptr_from_sys(*args_ptr.offset(N));
+    let variant_ref = Variant::borrow_var_sys(*args_ptr.offset(N));
 
     P::try_from_variant(variant_ref)
         .map_err(|err| CallError::failed_param_conversion::<P>(call_ctx, N, err))

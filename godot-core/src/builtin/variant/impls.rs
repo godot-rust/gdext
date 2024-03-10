@@ -10,7 +10,6 @@ use crate::builtin::meta::{FromVariantError, GodotFfiVariant, GodotType, Propert
 use crate::builtin::*;
 use crate::engine::global;
 use godot_ffi as sys;
-use sys::GodotFfi;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macro definitions

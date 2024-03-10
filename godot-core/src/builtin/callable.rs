@@ -270,10 +270,6 @@ impl Callable {
     pub fn as_inner(&self) -> inner::InnerCallable {
         inner::InnerCallable::from_outer(self)
     }
-
-    fn inc_ref(&self) {
-        std::mem::forget(self.clone())
-    }
 }
 
 impl_builtin_traits! {

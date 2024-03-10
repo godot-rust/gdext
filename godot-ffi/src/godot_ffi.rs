@@ -19,7 +19,10 @@ use std::marker::PhantomData;
 /// must properly initialize and clean up values given the [`PtrcallType`] provided by the caller.
 #[doc(hidden)] // shows up in implementors otherwise
 pub unsafe trait GodotFfi {
+    #[doc(hidden)]
     fn variant_type() -> sys::VariantType;
+
+    #[doc(hidden)]
     fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
         sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
     }
@@ -29,14 +32,14 @@ pub unsafe trait GodotFfi {
     /// # Safety
     /// `ptr` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
     /// which is different depending on the type.
-    /// The type in `ptr` must not require any special consideration upon referencing. Such as
-    /// incrementing a refcount.
+    #[doc(hidden)]
     unsafe fn new_from_sys(ptr: sys::GDExtensionConstTypePtr) -> Self;
 
     /// Construct uninitialized opaque data, then initialize it with `init_fn` function.
     ///
     /// # Safety
     /// `init_fn` must be a function that correctly handles a (possibly-uninitialized) _type ptr_.
+    #[doc(hidden)]
     unsafe fn new_with_uninit(init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self;
 
     /// Like [`Self::from_sys_init`], but pre-initializes the sys pointer to a `Default::default()` instance
@@ -45,10 +48,10 @@ pub unsafe trait GodotFfi {
     /// Some FFI functions in Godot expect a pre-existing instance at the destination pointer, e.g. CoW/ref-counted
     /// builtin types like `Array`, `Dictionary`, `String`, `StringName`.
     ///
-    /// If not overridden, this just calls [`Self::from_sys_init`].
-    ///
     /// # Safety
-    /// `init_fn` must be a function that correctly handles a (possibly-uninitialized) _type ptr_.
+    /// While this does call `init_fn` with a `&mut Self` reference, that value may have a broken safety invariant.
+    /// So `init_fn` must ensure that the reference passed to it is fully initialized when the function returns.
+    #[doc(hidden)]
     unsafe fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self;
 
     /// Return Godot opaque pointer, for an immutable operation.
@@ -56,14 +59,17 @@ pub unsafe trait GodotFfi {
     /// Note that this is a `*mut` pointer despite taking `&self` by shared-ref.
     /// This is because most of Godot's Rust API is not const-correct. This can still
     /// enhance user code (calling `sys_mut` ensures no aliasing at the time of the call).
+    #[doc(hidden)]
     fn sys(&self) -> sys::GDExtensionConstTypePtr;
 
     /// Return Godot opaque pointer, for a mutable operation.
     ///
     /// Should usually not be overridden; behaves like `sys()` but ensures no aliasing
     /// at the time of the call (not necessarily during any subsequent modifications though).
+    #[doc(hidden)]
     fn sys_mut(&mut self) -> sys::GDExtensionTypePtr;
 
+    #[doc(hidden)]
     fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
         self.sys()
     }
@@ -75,6 +81,7 @@ pub unsafe trait GodotFfi {
     ///   which is different depending on the type.
     ///
     /// * `ptr` must encode `Self` according to the given `call_type`'s encoding of argument values.
+    #[doc(hidden)]
     unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self;
 
     /// Move self into the pointer in pointer `dst`, dropping what is already in `dst.
@@ -85,6 +92,7 @@ pub unsafe trait GodotFfi {
     ///
     /// * `dst` must be able to accept a value of type `Self` encoded according to the given
     ///   `call_type`'s encoding of return values.
+    #[doc(hidden)]
     unsafe fn move_return_ptr(self, dst: sys::GDExtensionTypePtr, call_type: PtrcallType);
 }
 

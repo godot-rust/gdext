@@ -317,7 +317,6 @@ mod script_instance_info {
     use std::cell::{BorrowError, Ref, RefMut};
     use std::ffi::c_void;
     use std::mem::ManuallyDrop;
-    use std::ops::Deref;
 
     use crate::builtin::{GString, StringName, Variant};
     use crate::engine::ScriptLanguage;
@@ -436,7 +435,7 @@ mod script_instance_info {
         p_value: sys::GDExtensionConstVariantPtr,
     ) -> sys::GDExtensionBool {
         let name = StringName::new_from_string_sys(p_name);
-        let value = &*Variant::ptr_from_sys(p_value);
+        let value = Variant::borrow_var_sys(p_value);
         let ctx = || format!("error when calling {}::set", type_name::<T>());
 
         let result = handle_panic(ctx, || {
@@ -920,7 +919,7 @@ mod script_instance_info {
         p_value: sys::GDExtensionConstVariantPtr,
     ) -> sys::GDExtensionBool {
         let name = StringName::new_from_string_sys(p_name);
-        let value = &*Variant::ptr_from_sys(p_value);
+        let value = Variant::borrow_var_sys(p_value);
 
         let ctx = || {
             format!(

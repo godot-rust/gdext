@@ -122,7 +122,9 @@ impl StringName {
         fn string_sys_mut = sys_mut;
     }
 
-    pub unsafe fn borrow_string_sys<'a>(ptr: sys::GDExtensionConstStringNamePtr) -> &'a StringName {
+    pub(crate) unsafe fn borrow_string_sys<'a>(
+        ptr: sys::GDExtensionConstStringNamePtr,
+    ) -> &'a StringName {
         sys::static_assert_eq_size!(StringName, sys::types::OpaqueStringName);
         &*(ptr.cast::<StringName>())
     }
