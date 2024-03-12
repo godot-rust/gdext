@@ -391,15 +391,16 @@ mod export_impls {
     impl_property_by_godot_convert!(Color);
 
     // Arrays
-    impl_property_by_godot_convert!(PackedByteArray);
-    impl_property_by_godot_convert!(PackedInt32Array);
-    impl_property_by_godot_convert!(PackedInt64Array);
-    impl_property_by_godot_convert!(PackedFloat32Array);
-    impl_property_by_godot_convert!(PackedFloat64Array);
-    impl_property_by_godot_convert!(PackedStringArray);
-    impl_property_by_godot_convert!(PackedVector2Array);
-    impl_property_by_godot_convert!(PackedVector3Array);
-    impl_property_by_godot_convert!(PackedColorArray);
+    // We manually implement `Export`.
+    impl_property_by_godot_convert!(PackedByteArray, no_export);
+    impl_property_by_godot_convert!(PackedInt32Array, no_export);
+    impl_property_by_godot_convert!(PackedInt64Array, no_export);
+    impl_property_by_godot_convert!(PackedFloat32Array, no_export);
+    impl_property_by_godot_convert!(PackedFloat64Array, no_export);
+    impl_property_by_godot_convert!(PackedStringArray, no_export);
+    impl_property_by_godot_convert!(PackedVector2Array, no_export);
+    impl_property_by_godot_convert!(PackedVector3Array, no_export);
+    impl_property_by_godot_convert!(PackedColorArray, no_export);
 
     // Primitives
     impl_property_by_godot_convert!(f64);
