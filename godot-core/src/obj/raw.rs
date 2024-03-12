@@ -628,7 +628,9 @@ impl<T: GodotClass> Drop for RawGd<T> {
 impl<T: GodotClass> Clone for RawGd<T> {
     fn clone(&self) -> Self {
         out!("RawGd::clone");
-        self.check_rtti("clone");
+        if !self.is_null() {
+            self.check_rtti("clone");
+        }
 
         if !self.is_null() {
             unsafe { Self::from_obj_sys(self.obj as sys::GDExtensionObjectPtr) }
