@@ -434,7 +434,7 @@ impl<T: GodotType> Array<T> {
         } else {
             Err(FromGodotError::BadArrayType {
                 expected: target_ty,
-                got: self_ty,
+                actual: self_ty,
             }
             .into_error(self))
         }
