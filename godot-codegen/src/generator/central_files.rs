@@ -108,7 +108,7 @@ pub fn make_core_central_code(api: &ExtensionApi, ctx: &mut Context) -> TokenStr
         ..
     } = make_variant_enums(api, ctx);
 
-    let global_enum_defs = make_global_enums(api);
+    let global_enum_defs = make_global_enums(api, ctx);
 
     // TODO impl Clone, Debug, PartialEq, PartialOrd, Hash for VariantDispatch
     // TODO could use try_to().unwrap_unchecked(), since type is already verified. Also directly overload from_variant().
@@ -256,7 +256,7 @@ fn make_variant_enums(api: &ExtensionApi, ctx: &mut Context) -> VariantEnums {
     result
 }
 
-fn make_global_enums(api: &ExtensionApi) -> Vec<TokenStream> {
+fn make_global_enums(api: &ExtensionApi, ctx: &mut Context) -> Vec<TokenStream> {
     let mut global_enum_defs = vec![];
 
     for enum_ in api.global_enums.iter() {
@@ -265,7 +265,7 @@ fn make_global_enums(api: &ExtensionApi) -> Vec<TokenStream> {
             continue;
         }
 
-        let def = enums::make_enum_definition(enum_);
+        let def = enums::make_enum_definition(enum_, ctx);
         global_enum_defs.push(def);
     }
 

@@ -100,6 +100,7 @@ pub fn generate_core_mod_file(gen_path: &Path, submit_fn: &mut SubmitFn) {
         pub mod builtin_classes;
         pub mod utilities;
         pub mod native;
+        pub mod warn;
     };
 
     submit_fn(gen_path.join("mod.rs"), code);
@@ -114,4 +115,16 @@ pub fn generate_core_central_file(
     let core_code = central_files::make_core_central_code(api, ctx);
 
     submit_fn(gen_path.join("central.rs"), core_code);
+}
+
+pub fn generate_core_warn_file(ctx: &mut Context, gen_path: &Path, submit_fn: &mut SubmitFn) {
+    // When invoked by another crate during unit-test (not integration test), don't run generator.
+
+    let warnings = ctx.warnings();
+
+    let code = quote! {
+        pub fn warnings() -> Vec<&'static str> { vec![#(#warnings),*] }
+    };
+
+    submit_fn(gen_path.join("warn.rs"), code);
 }

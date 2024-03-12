@@ -25,9 +25,9 @@ use crate::generator::extension_interface::generate_sys_interface_file;
 use crate::generator::native_structures::generate_native_structures_files;
 use crate::generator::utility_functions::generate_utilities_file;
 use crate::generator::{
-    generate_core_central_file, generate_core_mod_file, generate_sys_builtin_lifecycle_file,
-    generate_sys_builtin_methods_file, generate_sys_central_file, generate_sys_classes_file,
-    generate_sys_utilities_file,
+    generate_core_central_file, generate_core_mod_file, generate_core_warn_file,
+    generate_sys_builtin_lifecycle_file, generate_sys_builtin_methods_file,
+    generate_sys_central_file, generate_sys_classes_file, generate_sys_utilities_file,
 };
 use crate::models::domain::{ApiView, ExtensionApi};
 use crate::models::json::{load_extension_api, JsonExtensionApi};
@@ -141,6 +141,9 @@ pub fn generate_core_files(core_gen_path: &Path) {
         &mut submit_fn,
     );
     watch.record("generate_native_structures_files");
+
+    generate_core_warn_file(&mut ctx, core_gen_path, &mut submit_fn);
+    watch.record("generate_warn_file");
 
     watch.write_stats_to(&core_gen_path.join("codegen-stats.txt"));
 }

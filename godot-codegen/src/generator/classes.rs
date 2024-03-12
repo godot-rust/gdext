@@ -98,7 +98,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         builders,
     } = make_class_methods(class, &class.methods, ctx);
 
-    let enums = enums::make_enums(&class.enums);
+    let enums = enums::make_enums(&class.enums, ctx);
     let constants = constants::make_constants(&class.constants);
     let inherits_macro = format_ident!("unsafe_inherits_transitive_{}", class_name.rust_ty);
     let deref_impl = make_deref_impl(class_name, &base_ty);

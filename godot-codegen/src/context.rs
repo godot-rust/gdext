@@ -28,6 +28,7 @@ pub struct Context<'a> {
     notification_enum_names_by_class: HashMap<TyName, NotificationEnum>,
     method_table_indices: HashMap<MethodTableKey, usize>,
     method_table_next_index: HashMap<String, usize>,
+    warnings: Vec<String>,
 }
 
 impl<'a> Context<'a> {
@@ -268,6 +269,14 @@ impl<'a> Context<'a> {
     pub fn insert_rust_type(&mut self, godot_ty: GodotTy, resolved: RustTy) {
         let prev = self.cached_rust_types.insert(godot_ty, resolved);
         assert!(prev.is_none(), "no overwrites of RustTy");
+    }
+
+    pub fn warnings(&self) -> &Vec<String> {
+        &self.warnings
+    }
+
+    pub fn warnings_mut(&mut self) -> &mut Vec<String> {
+        &mut self.warnings
     }
 }
 

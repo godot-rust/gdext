@@ -201,7 +201,7 @@ pub struct Enumerator {
 }
 pub enum EnumeratorValue {
     Enum(i32),
-    Bitfield(u64),
+    Bitfield(i64),
 }
 
 impl EnumeratorValue {
@@ -209,7 +209,7 @@ impl EnumeratorValue {
         // Conversion is safe because i64 is used in the original JSON.
         match self {
             EnumeratorValue::Enum(i) => *i as i64,
-            EnumeratorValue::Bitfield(i) => *i as i64,
+            EnumeratorValue::Bitfield(i) => *i,
         }
     }
 

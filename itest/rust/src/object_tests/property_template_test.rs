@@ -61,12 +61,12 @@ fn property_template_test(ctx: &TestContext) {
         let mut rust_usage = rust_prop.get("usage").unwrap().to::<i64>();
 
         // the GDSscript variables are script variables, and so have `PROPERTY_USAGE_SCRIPT_VARIABLE` set.
-        if rust_usage == PropertyUsageFlags::STORAGE.ord() as i64 {
+        if rust_usage == PropertyUsageFlags::STORAGE.ord() {
             // `PROPERTY_USAGE_SCRIPT_VARIABLE` does the same thing as `PROPERTY_USAGE_STORAGE` and so
             // GDScript doesn't set both if it doesn't need to.
-            rust_usage = PropertyUsageFlags::SCRIPT_VARIABLE.ord() as i64
+            rust_usage = PropertyUsageFlags::SCRIPT_VARIABLE.ord()
         } else {
-            rust_usage |= PropertyUsageFlags::SCRIPT_VARIABLE.ord() as i64;
+            rust_usage |= PropertyUsageFlags::SCRIPT_VARIABLE.ord();
         }
 
         rust_prop.set("usage", rust_usage);
