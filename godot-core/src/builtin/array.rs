@@ -950,7 +950,7 @@ impl<T: GodotType> GodotFfiVariant for Array<T> {
                 expected: Self::variant_type(),
                 actual: variant.get_type(),
             }
-            .into_error(variant));
+            .into_error(variant.clone()));
         }
 
         let array = unsafe {

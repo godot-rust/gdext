@@ -42,7 +42,7 @@ macro_rules! impl_ffi_variant {
                         expected: Self::variant_type(),
                         actual: variant.get_type(),
                     }
-                    .into_error(variant));
+                    .into_error(variant.clone()));
                 }
 
                 // For 4.0:
@@ -139,7 +139,7 @@ mod impls {
     impl_ffi_variant!(Dictionary, dictionary_to_variant, dictionary_from_variant);
     impl_ffi_variant!(i64, int_to_variant, int_from_variant; int);
     impl_ffi_variant!(f64, float_to_variant, float_from_variant; float);
-    
+
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -160,7 +160,7 @@ impl GodotFfiVariant for () {
             expected: VariantType::Nil,
             actual: variant.get_type(),
         }
-        .into_error(variant))
+        .into_error(variant.clone()))
     }
 }
 
