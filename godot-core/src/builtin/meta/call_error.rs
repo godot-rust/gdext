@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{CallContext, ConvertError, ToGodot};
+use crate::builtin::meta::{CallContext, ConvertError, ErasedConvertError, ToGodot};
 use crate::builtin::Variant;
 use crate::sys;
 use godot_ffi::{join_debug, VariantType};
@@ -314,7 +314,10 @@ impl CallError {
             function_name: call_ctx.function_name.to_string(),
             call_expr: format!("{call_ctx}()"),
             reason: reason.into(),
-            source: source.map(|e| SourceError::Convert(Box::new(e))),
+            source: source.map(|e| SourceError::Convert {
+                value: e.value().map_or_else(String::new, |v| format!("{:?}", v)),
+                erased_error: e.into(),
+            }),
         }
     }
 
@@ -342,7 +345,15 @@ impl CallError {
         // };
 
         let source_str = match &self.source {
-            Some(SourceError::Convert(e)) if with_source => format!("\n  Source: {}", e),
+            Some(SourceError::Convert {
+                erased_error,
+                value,
+            }) if with_source => {
+                format!(
+                    "\n  Source: {erased_error}{}{value}",
+                    if value.is_empty() { "" } else { ": " },
+                )
+            }
             Some(SourceError::Call(e)) if with_source => format!("\n  Source: {}", e.message(true)),
             _ => String::new(),
         };
@@ -360,7 +371,9 @@ impl fmt::Display for CallError {
 impl Error for CallError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self.source.as_ref() {
-            Some(SourceError::Convert(e)) => deref_to::<ConvertError>(e),
+            Some(SourceError::Convert {
+                erased_error: e, ..
+            }) => deref_to::<ErasedConvertError>(e),
             Some(SourceError::Call(e)) => deref_to::<CallError>(e),
             None => None,
         }
@@ -372,7 +385,10 @@ impl Error for CallError {
 
 #[derive(Debug)]
 enum SourceError {
-    Convert(Box<ConvertError>),
+    Convert {
+        erased_error: ErasedConvertError,
+        value: String,
+    },
     Call(Box<CallError>),
 }
 
