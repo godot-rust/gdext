@@ -445,7 +445,7 @@ mod custom_callable {
         let c: &T = CallableUserdata::inner_from_raw(callable_userdata);
         let s = crate::builtin::GString::from(c.to_string());
 
-        s.move_return_string_ptr(r_out, sys::PtrcallType::Standard);
+        s.move_into_string_ptr(r_out);
         *r_is_valid = true as sys::GDExtensionBool;
     }
 
@@ -456,9 +456,7 @@ mod custom_callable {
     ) {
         let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
-        w.name
-            .clone()
-            .move_return_string_ptr(r_out, sys::PtrcallType::Standard);
+        w.name.clone().move_into_string_ptr(r_out);
         *r_is_valid = true as sys::GDExtensionBool;
     }
 }

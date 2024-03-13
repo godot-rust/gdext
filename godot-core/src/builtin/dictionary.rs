@@ -205,9 +205,7 @@ impl Dictionary {
 
         // SAFETY: `self.get_ptr_mut(key)` always returns a valid pointer to a value in the dictionary; either pre-existing or newly inserted.
         unsafe {
-            value
-                .to_variant()
-                .move_return_var_ptr(self.get_ptr_mut(key), sys::PtrcallType::Standard);
+            value.to_variant().move_into_var_ptr(self.get_ptr_mut(key));
         }
     }
 

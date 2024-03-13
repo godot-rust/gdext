@@ -659,9 +659,7 @@ impl<T: GodotType + ToGodot> Array<T> {
 
         // SAFETY: `ptr_mut` just checked that the index is not out of bounds.
         unsafe {
-            value
-                .to_variant()
-                .move_return_var_ptr(ptr_mut, sys::PtrcallType::Standard);
+            value.to_variant().move_into_var_ptr(ptr_mut);
         }
     }
 

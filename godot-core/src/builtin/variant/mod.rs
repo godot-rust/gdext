@@ -213,7 +213,20 @@ impl Variant {
         fn new_with_var_init = new_with_init;
         fn var_sys = sys;
         fn var_sys_mut = sys_mut;
-        fn move_return_var_ptr = move_return_ptr;
+    }
+
+    /// Moves this variant into a variant sys pointer. This is the same as using [`GodotFfi::move_return_ptr`].
+    ///
+    /// # Safety
+    ///
+    /// `dst` must be a valid variant pointer.
+    pub(crate) unsafe fn move_into_var_ptr(self, dst: sys::GDExtensionVariantPtr) {
+        let dst: sys::GDExtensionTypePtr = dst.cast();
+        // SAFETY: `dst` is a valid string pointer. Additionally `Variant` doesn't behave differently for `Standard` and `Virtual`
+        // pointer calls.
+        unsafe {
+            self.move_return_ptr(dst, sys::PtrcallType::Standard);
+        }
     }
 
     /// # Safety

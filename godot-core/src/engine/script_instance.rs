@@ -358,7 +358,7 @@ mod script_instance_info {
     ///
     /// - We expect the engine to provide a valid variant pointer the return value can be moved into.
     unsafe fn transfer_variant_to_godot(variant: Variant, return_ptr: sys::GDExtensionVariantPtr) {
-        variant.move_return_var_ptr(return_ptr, sys::PtrcallType::Standard)
+        variant.move_into_var_ptr(return_ptr)
     }
 
     /// # Safety
@@ -390,7 +390,7 @@ mod script_instance_info {
     ///
     /// - The engine has to provide a valid string return pointer.
     unsafe fn transfer_string_to_godot(string: GString, return_ptr: sys::GDExtensionStringPtr) {
-        string.move_return_string_ptr(return_ptr, sys::PtrcallType::Standard);
+        string.move_into_string_ptr(return_ptr);
     }
 
     /// # Safety
