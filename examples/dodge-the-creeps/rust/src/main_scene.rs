@@ -13,8 +13,10 @@ use std::f32::consts::PI;
 #[class(base=Node)]
 pub struct Main {
     mob_scene: Gd<PackedScene>,
+    #[export]
     music: Option<Gd<AudioStreamPlayer>>,
-    death_sound: Option<Gd<AudioStreamPlayer>>,
+    #[export]
+    death_sounde: Option<Gd<AudioStreamPlayer>>,
     score: i64,
     base: Base<Node>,
 }
@@ -110,7 +112,7 @@ impl Main {
     }
 
     fn death_sound(&mut self) -> &mut AudioStreamPlayer {
-        self.death_sound.as_deref_mut().unwrap()
+        self.death_sounde.as_deref_mut().unwrap()
     }
 }
 
@@ -122,7 +124,7 @@ impl INode for Main {
             score: 0,
             base,
             music: None,
-            death_sound: None,
+            death_sounde: None,
         }
     }
 
@@ -132,6 +134,12 @@ impl INode for Main {
         // There is also try_load() if you want to check whether loading succeeded.
         self.mob_scene = load("res://Mob.tscn");
         self.music = Some(self.base().get_node_as("Music"));
-        self.death_sound = Some(self.base().get_node_as("DeathSound"));
+        self.death_sounde = Some(self.base().get_node_as("DeathSound"));
     }
+}
+
+#[derive(GodotClass)]
+#[class(init, base=Node)]
+pub struct Mx {
+
 }

@@ -1,6 +1,7 @@
 [configuration]
 entry_symbol = "gdext_rust_init"
 compatibility_minimum = 4.1
+reloadable = true
 
 [libraries]
 linux.debug.x86_64 = "res://../../../target/debug/libdodge_the_creeps.so"
