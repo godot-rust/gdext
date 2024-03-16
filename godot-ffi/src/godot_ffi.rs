@@ -29,6 +29,10 @@ pub unsafe trait GodotFfi {
 
     /// Construct from Godot opaque pointer.
     ///
+    /// This will increment reference counts if the type is reference counted. If you need to avoid this then a `borrow_sys` method should
+    /// usually be used. Which is a method that takes a sys-pointer and returns it as a `&Self` reference. This must be manually implemented for
+    /// each relevant type as not all types can be borrowed like this.
+    ///
     /// # Safety
     /// `ptr` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
     /// which is different depending on the type.
@@ -42,8 +46,8 @@ pub unsafe trait GodotFfi {
     #[doc(hidden)]
     unsafe fn new_with_uninit(init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self;
 
-    /// Like [`Self::from_sys_init`], but pre-initializes the sys pointer to a `Default::default()` instance
-    /// before calling `init_fn`.
+    /// Like [`new_with_uninit`](GodotFfi::new_with_uninit), but pre-initializes the sys pointer to a default instance (usually
+    /// [`Default::default()`]) before calling `init_fn`.
     ///
     /// Some FFI functions in Godot expect a pre-existing instance at the destination pointer, e.g. CoW/ref-counted
     /// builtin types like `Array`, `Dictionary`, `String`, `StringName`.
@@ -302,11 +306,6 @@ macro_rules! ffi_methods_rest {
 ///   The **address of** the `Opaque` field is used as the sys pointer.
 ///   Expects a `from_opaque()` constructor and a `opaque` field.
 ///
-/// * `Opaque`<br>
-///   Implements FFI methods for a type with `Opaque` data.
-///   The sys pointer is directly reinterpreted from/to the `Opaque` and **not** its address.
-///   Expects a `from_opaque()` constructor and a `opaque` field.
-///
 /// * `*mut Self`<br>
 ///   Implements FFI methods for a type implemented with standard Rust fields (not opaque).
 ///   The address of `Self` is directly reinterpreted as the sys pointer.
@@ -321,12 +320,6 @@ macro_rules! ffi_methods_rest {
 /// dereferenced argument pointer.
 /// Returning a value from a pointer call is simply calling [`std::ptr::swap`] on the return pointer
 /// and the address to the `opaque` field.
-///
-/// ## Using `Opaque`
-///
-/// Turning pointer call arguments into a value is simply calling `from_opaque` on the argument pointer.
-/// Returning a value from a pointer call is simply calling [`std::ptr::swap`] on the return pointer
-/// and the `opaque` field transmuted into a pointer.
 ///  
 /// ## Using `*mut Self`
 ///
@@ -339,13 +332,6 @@ macro_rules! ffi_methods {
         $( $rest:tt )*
     ) => {
         $crate::ffi_methods_rest!(OpaquePtr $Ptr; $($rest)*);
-    };
-
-    ( // Sys pointer = value of opaque
-        type $Ptr:ty = Opaque;
-        $( $rest:tt )*
-    ) => {
-        $crate::ffi_methods_rest!(OpaqueValue $Ptr; $($rest)*);
     };
 
     ( // Sys pointer = address of self
