@@ -12,6 +12,7 @@ members = [
     # Godot integration
     "itest/rust",
     "examples/dodge-the-creeps/rust",
+    "examples/hot-reload/rust",
 
     # utils
     "godot-fmt",

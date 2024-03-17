@@ -56,6 +56,11 @@ inputs:
     default: ''
     description: "Extra key to resolve Rust cache"
 
+  with-hotreload:
+    required: false
+    default: ''
+    description: "Set to 'true' if the hot-reload example should be tested"
+
   with-llvm:
     required: false
     default: ''
@@ -141,6 +146,12 @@ runs:
       if: inputs.godot-prebuilt-patch == ''
       run: |
           echo "No patch selected; use default godot4-prebuilt version."
+      shell: bash
+
+    - name: "Build and test hot-reload"
+      if: inputs.with-hotreload == 'true'
+      working-directory: examples/hot-reload/godot/test
+      run: ./run-test.sh
       shell: bash
 
     - name: "Build gdext (itest)"

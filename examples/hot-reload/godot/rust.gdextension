@@ -1,0 +1,16 @@
+[configuration]
+entry_symbol = "gdext_rust_init"
+compatibility_minimum = 4.1
+reloadable = true
+
+[libraries]
+linux.debug.x86_64 = "res://../../../target/debug/libhot_reload.so"
+linux.release.x86_64 = "res://../../../target/release/libhot_reload.so"
+windows.debug.x86_64 = "res://../../../target/debug/hot_reload.dll"
+windows.release.x86_64 = "res://../../../target/release/hot_reload.dll"
+macos.debug = "res://../../../target/debug/libhot_reload.dylib"
+macos.release = "res://../../../target/release/libhot_reload.dylib"
+macos.debug.arm64 = "res://../../../target/debug/libhot_reload.dylib"
+macos.release.arm64 = "res://../../../target/release/libhot_reload.dylib"
+web.debug.wasm32 = "res://../../../target/wasm32-unknown-emscripten/debug/hot_reload.wasm"
+web.release.wasm32 = "res://../../../target/wasm32-unknown-emscripten/release/hot_reload.wasm"
