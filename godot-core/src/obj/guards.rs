@@ -11,6 +11,8 @@ use godot_ffi::out;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
+use crate::engine::ScriptInstance;
+
 use super::{Gd, GodotClass};
 
 /// Immutably/shared bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
@@ -81,65 +83,105 @@ impl<T: GodotClass> Drop for GdMut<'_, T> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Shared reference guard for a [`Base`](crate::obj::Base) pointer.
-///
-/// This can be used to call methods on the base object of a rust object that take `&self` as the receiver.
-///
-/// See [`WithBaseField::base()`](super::WithBaseField::base()) for usage.
-pub struct BaseRef<'a, T: GodotClass> {
-    gd: Gd<T::Base>,
-    _instance: &'a T,
-}
-
-impl<'a, T: GodotClass> BaseRef<'a, T> {
-    pub(crate) fn new(gd: Gd<T::Base>, instance: &'a T) -> Self {
-        Self {
-            gd,
-            _instance: instance,
+macro_rules! make_base_ref {
+    ($ident:ident, $bound:ident, $doc_type:ident, $doc_path:path, $object_name:literal) => {
+        /// Shared reference guard for a [`Base`](crate::obj::Base) pointer.
+        ///
+        #[doc = concat!("This can be used to call methods on the base object of a ", $object_name, " that takes `&self` as the receiver.\n\n")]
+        #[doc = concat!("See [`", stringify!($doc_type), "::base()`](", stringify!($doc_path), "::base()) for usage.")]
+        pub struct $ident<'a, T: $bound> {
+            gd: Gd<T::Base>,
+            _instance: &'a T,
         }
-    }
-}
 
-impl<T: GodotClass> Deref for BaseRef<'_, T> {
-    type Target = Gd<T::Base>;
+        impl<'a, T: $bound> $ident<'a, T> {
+            pub(crate) fn new(gd: Gd<T::Base>, instance: &'a T) -> Self {
+                Self {
+                    gd,
+                    _instance: instance,
+                }
+            }
+        }
 
-    fn deref(&self) -> &Gd<T::Base> {
-        &self.gd
-    }
+        impl<T: $bound> Deref for $ident<'_, T> {
+            type Target = Gd<T::Base>;
+
+            fn deref(&self) -> &Gd<T::Base> {
+                &self.gd
+            }
+        }
+    };
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Mutable/exclusive reference guard for a [`Base`](crate::obj::Base) pointer.
-///
-/// This can be used to call methods on the base object of a rust object that take `&self` or `&mut self` as
-/// the receiver.
-///
-/// See [`WithBaseField::base_mut()`](super::WithBaseField::base_mut()) for usage.
-pub struct BaseMut<'a, T: GodotClass> {
-    gd: Gd<T::Base>,
-    _inaccessible_guard: InaccessibleGuard<'a, T>,
-}
-
-impl<'a, T: GodotClass> BaseMut<'a, T> {
-    pub(crate) fn new(gd: Gd<T::Base>, inaccessible_guard: InaccessibleGuard<'a, T>) -> Self {
-        Self {
-            gd,
-            _inaccessible_guard: inaccessible_guard,
+macro_rules! make_base_mut {
+    ($ident:ident, $bound:ident, $doc_type:ident, $doc_path:path, $object_name:literal) => {
+        /// Mutable/exclusive reference guard for a [`Base`](crate::obj::Base) pointer.
+        ///
+        #[doc = "This can be used to call methods on the base object of a rust object that takes `&self` or `&mut self` as\n"]
+        #[doc = "the receiver.\n"]
+        #[doc = "\n"]
+        #[doc = concat!("See [`", stringify!($doc_type), "::base_mut()`](", stringify!($doc_path), "::base_mut()) for usage.\n")]
+        pub struct $ident<'a, T: $bound> {
+            gd: Gd<T::Base>,
+            _inaccessible_guard: InaccessibleGuard<'a, T>,
         }
-    }
+
+        impl<'a, T: $bound> $ident<'a, T> {
+            pub(crate) fn new(
+                gd: Gd<T::Base>,
+                inaccessible_guard: InaccessibleGuard<'a, T>,
+            ) -> Self {
+                Self {
+                    gd,
+                    _inaccessible_guard: inaccessible_guard,
+                }
+            }
+        }
+
+        impl<T: $bound> Deref for $ident<'_, T> {
+            type Target = Gd<T::Base>;
+
+            fn deref(&self) -> &Gd<T::Base> {
+                &self.gd
+            }
+        }
+
+        impl<T: $bound> DerefMut for $ident<'_, T> {
+            fn deref_mut(&mut self) -> &mut Gd<T::Base> {
+                &mut self.gd
+            }
+        }
+    };
 }
 
-impl<T: GodotClass> Deref for BaseMut<'_, T> {
-    type Target = Gd<T::Base>;
+make_base_ref!(
+    BaseRef,
+    GodotClass,
+    WithBaseField,
+    super::WithBaseField,
+    "rust object"
+);
+make_base_mut!(
+    BaseMut,
+    GodotClass,
+    WithBaseField,
+    super::WithBaseField,
+    "rust object"
+);
 
-    fn deref(&self) -> &Gd<T::Base> {
-        &self.gd
-    }
-}
-
-impl<T: GodotClass> DerefMut for BaseMut<'_, T> {
-    fn deref_mut(&mut self) -> &mut Gd<T::Base> {
-        &mut self.gd
-    }
-}
+make_base_ref!(
+    ScriptBaseRef,
+    ScriptInstance,
+    SiMut,
+    crate::engine::SiMut,
+    "[`ScriptInstance`]"
+);
+make_base_mut!(
+    ScriptBaseMut,
+    ScriptInstance,
+    SiMut,
+    crate::engine::SiMut,
+    "['ScriptInstance']"
+);

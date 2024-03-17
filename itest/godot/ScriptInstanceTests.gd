@@ -73,3 +73,35 @@ func test_script_instance_to_string():
 	var object = create_script_instance()
 
 	assert_eq(object.to_string(), "script instance to string")
+
+
+func test_script_instance_mut_call():
+	var object = create_script_instance()
+	var before = object.script_property_b
+	
+	var result = object.script_method_toggle_property_b()
+
+	assert(result)
+	assert_eq(object.script_property_b, !before)
+
+
+func test_script_instance_re_entering_call():
+	var object = create_script_instance()
+	var before = object.script_property_b
+	
+	var result = object.script_method_re_entering()
+
+	assert(result)
+	assert_eq(object.script_property_b, !before)
+
+
+func test_object_script_instance():
+	var object = Node.new()
+	var script = TestScript.new()
+
+	object.script = script
+
+	var result = object.script_method_re_entering()
+
+	assert(result)
+	object.free()

@@ -41,6 +41,12 @@ impl<T: GodotClass> Base<T> {
         Base::from_obj(Gd::from_obj_sys_weak(base.as_gd().obj_sys()))
     }
 
+    /// # Safety
+    /// The returned Base is a weak pointer, so holding it will not keep the object alive. It must not be accessed after the object is destroyed.
+    pub(crate) unsafe fn from_gd(gd: &Gd<T>) -> Self {
+        Base::from_obj(Gd::from_obj_sys_weak(gd.obj_sys()))
+    }
+
     // Note: not &mut self, to only borrow one field and not the entire struct
     pub(crate) unsafe fn from_sys(base_ptr: sys::GDExtensionObjectPtr) -> Self {
         assert!(!base_ptr.is_null(), "instance base is null pointer");

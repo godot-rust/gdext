@@ -5,14 +5,17 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
+use std::ops::{Deref, DerefMut};
+use std::pin::Pin;
 use std::sync::Mutex;
+
+use godot_cell::{GdCell, MutGuard};
 
 use crate::builtin::meta::{MethodInfo, PropertyInfo};
 use crate::builtin::{GString, StringName, Variant, VariantType};
-use crate::obj::Gd;
+use crate::obj::{Base, Gd, GodotClass, ScriptBaseMut, ScriptBaseRef};
 use crate::sys;
 
 use super::{Script, ScriptLanguage};
@@ -65,14 +68,16 @@ use super::{Script, ScriptLanguage};
 ///     }
 /// }
 /// ```
-pub trait ScriptInstance {
+pub trait ScriptInstance: Sized {
+    type Base: GodotClass;
+
     /// Name of the new class the script implements.
     fn class_name(&self) -> GString;
 
     /// Property setter for Godot's virtual dispatch system.
     ///
     /// The engine will call this function when it wants to change a property on the script.
-    fn set_property(&mut self, name: StringName, value: &Variant) -> bool;
+    fn set_property(this: SiMut<Self>, name: StringName, value: &Variant) -> bool;
 
     /// Property getter for Godot's virtual dispatch system.
     ///
@@ -93,7 +98,7 @@ pub trait ScriptInstance {
     /// It's important that the script does not cause a second call to this function while executing a method call. This would result in a panic.
     // TODO: map the sys::GDExtensionCallErrorType to some public API type.
     fn call(
-        &mut self,
+        this: SiMut<Self>,
         method: StringName,
         args: &[&Variant],
     ) -> Result<Variant, sys::GDExtensionCallErrorType>;
@@ -136,81 +141,7 @@ pub trait ScriptInstance {
     fn property_get_fallback(&self, name: StringName) -> Option<Variant>;
 
     /// The engine may call this function if ScriptLanguage::is_placeholder_fallback_enabled is enabled.
-    fn property_set_fallback(&mut self, name: StringName, value: &Variant) -> bool;
-}
-
-impl<T: ScriptInstance + ?Sized> ScriptInstance for Box<T> {
-    fn class_name(&self) -> GString {
-        self.as_ref().class_name()
-    }
-
-    fn set_property(&mut self, name: StringName, value: &Variant) -> bool {
-        self.as_mut().set_property(name, value)
-    }
-
-    fn get_property(&self, name: StringName) -> Option<Variant> {
-        self.as_ref().get_property(name)
-    }
-
-    fn get_property_list(&self) -> Vec<PropertyInfo> {
-        self.as_ref().get_property_list()
-    }
-
-    fn get_method_list(&self) -> Vec<MethodInfo> {
-        self.as_ref().get_method_list()
-    }
-
-    fn call(
-        &mut self,
-        method: StringName,
-        args: &[&Variant],
-    ) -> Result<Variant, sys::GDExtensionCallErrorType> {
-        self.as_mut().call(method, args)
-    }
-
-    fn is_placeholder(&self) -> bool {
-        self.as_ref().is_placeholder()
-    }
-
-    fn has_method(&self, method: StringName) -> bool {
-        self.as_ref().has_method(method)
-    }
-
-    fn get_script(&self) -> &Gd<Script> {
-        self.as_ref().get_script()
-    }
-
-    fn get_property_type(&self, name: StringName) -> VariantType {
-        self.as_ref().get_property_type(name)
-    }
-
-    fn to_string(&self) -> GString {
-        self.as_ref().to_string()
-    }
-
-    fn get_property_state(&self) -> Vec<(StringName, Variant)> {
-        self.as_ref().get_property_state()
-    }
-
-    fn get_language(&self) -> Gd<ScriptLanguage> {
-        self.as_ref().get_language()
-    }
-
-    fn on_refcount_decremented(&self) -> bool {
-        self.as_ref().on_refcount_decremented()
-    }
-
-    fn on_refcount_incremented(&self) {
-        self.as_ref().on_refcount_incremented();
-    }
-
-    fn property_get_fallback(&self, name: StringName) -> Option<Variant> {
-        self.as_ref().property_get_fallback(name)
-    }
-
-    fn property_set_fallback(&mut self, name: StringName, value: &Variant) -> bool {
-        self.as_mut().property_set_fallback(name, value)
-    }
+    fn property_set_fallback(this: SiMut<Self>, name: StringName, value: &Variant) -> bool;
 }
 
 #[cfg(before_api = "4.2")]
@@ -219,10 +150,11 @@ type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo;
 type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo2;
 
 struct ScriptInstanceData<T: ScriptInstance> {
-    inner: RefCell<T>,
+    inner: Pin<Box<GdCell<T>>>,
     script_instance_ptr: *mut ScriptInstanceInfo,
     property_list: Mutex<HashMap<*const sys::GDExtensionPropertyInfo, Vec<PropertyInfo>>>,
     method_list: Mutex<HashMap<*const sys::GDExtensionMethodInfo, Vec<MethodInfo>>>,
+    base: Base<T::Base>,
 }
 
 impl<T: ScriptInstance> Drop for ScriptInstanceData<T> {
@@ -242,8 +174,14 @@ impl<T: ScriptInstance> Drop for ScriptInstanceData<T> {
 /// See [`ScriptInstance`] for usage. Discarding the resulting value will result in a memory leak.
 ///
 /// The exact GDExtension type of the pointer is `sys::GDExtensionScriptInstancePtr`, but you can treat it like an opaque pointer.
+///
+/// # Safety
+/// The caller must ensure that `for_object` is not freed before passing the returned pointer back to Godot.
 #[must_use]
-pub fn create_script_instance<T: ScriptInstance>(rs_instance: T) -> *mut c_void {
+pub unsafe fn create_script_instance<T: ScriptInstance>(
+    rust_instance: T,
+    for_object: Gd<T::Base>,
+) -> *mut c_void {
     // Field grouping matches C header.
     let gd_instance = ScriptInstanceInfo {
         set_func: Some(script_instance_info::set_property_func::<T>),
@@ -292,10 +230,13 @@ pub fn create_script_instance<T: ScriptInstance>(rs_instance: T) -> *mut c_void 
     let instance_ptr = Box::into_raw(Box::new(gd_instance));
 
     let data = ScriptInstanceData {
-        inner: RefCell::new(rs_instance),
+        inner: GdCell::new(rust_instance),
         script_instance_ptr: instance_ptr,
         property_list: Default::default(),
         method_list: Default::default(),
+        // SAFETY: The script instance is always freed before the base object is destroyed. The weak reference should therefore never be
+        // accessed after it has been freed.
+        base: unsafe { Base::from_gd(&for_object) },
     };
 
     let data_ptr = Box::into_raw(Box::new(data));
@@ -318,11 +259,154 @@ pub fn create_script_instance<T: ScriptInstance>(rs_instance: T) -> *mut c_void 
     }
 }
 
+/// Mutable/exclusive reference guard for a `T` where `T` implements [`ScriptInstance`].
+///
+/// This can be used to access the base object of a [`ScriptInstance`], which in turn can be used to make reentrant calls to engine APIs.
+/// For details see [`SiMut::base_mut()`].
+pub struct SiMut<'a, T: ScriptInstance> {
+    mut_ref: &'a mut T,
+    cell: Pin<&'a GdCell<T>>,
+    base_ref: &'a Base<T::Base>,
+}
+
+impl<'a, T: ScriptInstance> SiMut<'a, T> {
+    fn new(
+        cell: Pin<&'a GdCell<T>>,
+        cell_guard: &'a mut MutGuard<T>,
+        base_ref: &'a Base<T::Base>,
+    ) -> Self {
+        let mut_ref = cell_guard.deref_mut();
+
+        Self {
+            mut_ref,
+            cell,
+            base_ref,
+        }
+    }
+
+    /// Returns a shared reference suitable for calling engine methods on this object.
+    ///
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// # use godot::engine::{ScriptInstance, SiMut, ScriptLanguage, Script};
+    /// # use godot::builtin::meta::{MethodInfo, PropertyInfo};
+    /// # use godot::sys;
+    /// struct ExampleScriptInstance;
+    ///
+    /// impl ScriptInstance for ExampleScriptInstance {
+    ///     type Base = Node;
+    ///
+    ///     fn call(
+    ///         this: SiMut<Self>,
+    ///         method: StringName,
+    ///         args: &[&Variant],
+    ///     ) -> Result<Variant, sys::GDExtensionCallErrorType>{
+    ///         let name = this.base().get_name();
+    ///         godot_print!("name is {name}");
+    ///         // However, we cannot call methods that require `&mut Base`, such as:
+    ///         // this.base().add_child(node);
+    ///         Ok(Variant::nil())
+    ///     }
+    ///     # fn class_name(&self) -> GString { todo!() }
+    ///     # fn set_property(_: SiMut<'_, Self>, _: godot::prelude::StringName, _: &godot::prelude::Variant) -> bool { todo!() }
+    ///     # fn get_property(&self, _: godot::prelude::StringName) -> Option<godot::prelude::Variant> { todo!() }
+    ///     # fn get_property_list(&self) -> Vec<PropertyInfo> { todo!() }
+    ///     # fn get_method_list(&self) -> Vec<MethodInfo> { todo!() }
+    ///     # fn is_placeholder(&self) -> bool { todo!() }
+    ///     # fn has_method(&self, _: godot::prelude::StringName) -> bool { todo!() }
+    ///     # fn get_script(&self) -> &Gd<Script> { todo!() }
+    ///     # fn get_property_type(&self, _: godot::prelude::StringName) -> VariantType { todo!() }
+    ///     # fn to_string(&self) -> GString { todo!() }
+    ///     # fn get_property_state(&self) -> Vec<(godot::prelude::StringName, godot::prelude::Variant)> { todo!() }
+    ///     # fn get_language(&self) -> Gd<ScriptLanguage> { todo!() }
+    ///     # fn on_refcount_decremented(&self) -> bool { todo!() }
+    ///     # fn on_refcount_incremented(&self) { todo!() }
+    ///     # fn property_get_fallback(&self, _: godot::prelude::StringName) -> Option<godot::prelude::Variant> { todo!() }
+    ///     # fn property_set_fallback(_: SiMut<'_, Self>, _: godot::prelude::StringName, _: &godot::prelude::Variant) -> bool { todo!() }
+    /// }
+    /// ```
+    pub fn base(&self) -> ScriptBaseRef<T> {
+        ScriptBaseRef::new(self.base_ref.to_gd(), self.mut_ref)
+    }
+
+    /// Returns a mutable reference suitable for calling engine methods on this object.
+    ///
+    /// This method will allow you to call back into the same object from Godot.
+    ///
+    /// ```no_run
+    /// # use godot::prelude::*;
+    /// # use godot::engine::{ScriptInstance, SiMut, ScriptLanguage, Script};
+    /// # use godot::builtin::meta::{MethodInfo, PropertyInfo};
+    /// # use godot::sys;
+    /// struct ExampleScriptInstance;
+    ///
+    /// impl ScriptInstance for ExampleScriptInstance {
+    ///     type Base = Object;
+    ///
+    ///     fn call(
+    ///         mut this: SiMut<Self>,
+    ///         method: StringName,
+    ///         args: &[&Variant],
+    ///     ) -> Result<Variant, sys::GDExtensionCallErrorType> {
+    ///         // Check whether method is available on this script
+    ///         if method == StringName::from("script_method") {
+    ///             godot_print!("script_method called!");
+    ///             return Ok(true.to_variant());
+    ///         }
+    ///
+    ///         let node = Node::new_alloc();
+    ///
+    ///         // We can call back into `self` through Godot:
+    ///         this.base_mut().call("script_method".into(), &[]);
+    ///
+    ///         Ok(Variant::nil())
+    ///     }
+    ///     # fn class_name(&self) -> GString { todo!() }
+    ///     # fn set_property(_: SiMut<'_, Self>, _: godot::prelude::StringName, _: &godot::prelude::Variant) -> bool { todo!() }
+    ///     # fn get_property(&self, _: godot::prelude::StringName) -> Option<godot::prelude::Variant> { todo!() }
+    ///     # fn get_property_list(&self) -> Vec<PropertyInfo> { todo!() }
+    ///     # fn get_method_list(&self) -> Vec<MethodInfo> { todo!() }
+    ///     # fn is_placeholder(&self) -> bool { todo!() }
+    ///     # fn has_method(&self, _: godot::prelude::StringName) -> bool { todo!() }
+    ///     # fn get_script(&self) -> &Gd<Script> { todo!() }
+    ///     # fn get_property_type(&self, _: godot::prelude::StringName) -> VariantType { todo!() }
+    ///     # fn to_string(&self) -> GString { todo!() }
+    ///     # fn get_property_state(&self) -> Vec<(godot::prelude::StringName, godot::prelude::Variant)> { todo!() }
+    ///     # fn get_language(&self) -> Gd<ScriptLanguage> { todo!() }
+    ///     # fn on_refcount_decremented(&self) -> bool { todo!() }
+    ///     # fn on_refcount_incremented(&self) { todo!() }
+    ///     # fn property_get_fallback(&self, _: godot::prelude::StringName) -> Option<godot::prelude::Variant> { todo!() }
+    ///     # fn property_set_fallback(_: SiMut<'_, Self>, _: godot::prelude::StringName, _: &godot::prelude::Variant) -> bool { todo!() }
+    /// }
+    /// ```
+    pub fn base_mut(&mut self) -> ScriptBaseMut<T> {
+        let guard = self.cell.make_inaccessible(self.mut_ref).unwrap();
+
+        ScriptBaseMut::new(self.base_ref.to_gd(), guard)
+    }
+}
+
+impl<'a, T: ScriptInstance> Deref for SiMut<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.mut_ref
+    }
+}
+
+impl<'a, T: ScriptInstance> DerefMut for SiMut<'a, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.mut_ref
+    }
+}
+
 mod script_instance_info {
     use std::any::type_name;
-    use std::cell::{BorrowError, Ref, RefMut};
     use std::ffi::c_void;
     use std::mem::ManuallyDrop;
+    use std::pin::Pin;
+
+    use godot_cell::{GdCell, RefGuard};
 
     use crate::builtin::{GString, StringName, Variant};
     use crate::engine::ScriptLanguage;
@@ -330,20 +414,31 @@ mod script_instance_info {
     use crate::private::handle_panic;
     use crate::sys;
 
-    use super::{ScriptInstance, ScriptInstanceData};
+    use super::{ScriptInstance, ScriptInstanceData, SiMut};
 
-    fn borrow_instance_mut<T: ScriptInstance>(instance: &ScriptInstanceData<T>) -> RefMut<'_, T> {
-        instance.inner.borrow_mut()
+    fn borrow_panic<T: ScriptInstance, R>(err: Box<dyn std::error::Error>) -> R {
+        panic!(
+            "\
+                ScriptInstance borrow failed, already bound; T = {}.\n  \
+                Make sure to use `SiMut::base_mut()` when possible.\n  \
+                Details: {err}.\
+            ",
+            type_name::<T>(),
+        );
     }
 
-    fn borrow_instance<T: ScriptInstance>(instance: &ScriptInstanceData<T>) -> Ref<'_, T> {
-        instance.inner.borrow()
+    fn borrow_instance<T: ScriptInstance>(instance: &ScriptInstanceData<T>) -> RefGuard<'_, T> {
+        instance
+            .inner
+            .as_ref()
+            .borrow()
+            .unwrap_or_else(borrow_panic::<T, _>)
     }
 
-    fn try_borrow_instance<T: ScriptInstance>(
+    fn borrow_instance_cell<T: ScriptInstance>(
         instance: &ScriptInstanceData<T>,
-    ) -> Result<Ref<'_, T>, BorrowError> {
-        instance.inner.try_borrow()
+    ) -> Pin<&GdCell<T>> {
+        instance.inner.as_ref()
     }
 
     /// # Safety
@@ -446,8 +541,15 @@ mod script_instance_info {
 
         let result = handle_panic(ctx, || {
             let instance = instance_data_as_script_instance::<T>(p_instance);
+            let cell = borrow_instance_cell(instance);
+            let mut guard = cell
+                .as_ref()
+                .borrow_mut()
+                .unwrap_or_else(borrow_panic::<T, _>);
 
-            borrow_instance_mut(instance).set_property(name, value)
+            let instance_guard = SiMut::new(cell, &mut guard, &instance.base);
+
+            ScriptInstance::set_property(instance_guard, name, value)
         })
         // Unwrapping to a default of false, to indicate that the assignment is not handled by the script.
         .unwrap_or_default();
@@ -604,7 +706,12 @@ mod script_instance_info {
 
         let result = handle_panic(ctx, || {
             let instance = instance_data_as_script_instance::<T>(p_self);
-            borrow_instance_mut(instance).call(method.clone(), args)
+            let cell = borrow_instance_cell(instance);
+            let mut guard = cell.borrow_mut().unwrap_or_else(borrow_panic::<T, _>);
+
+            let instance_guard = SiMut::new(cell, &mut guard, &instance.base);
+
+            ScriptInstance::call(instance_guard, method.clone(), args)
         });
 
         match result {
@@ -764,22 +871,9 @@ mod script_instance_info {
         let string = handle_panic(ctx, || {
             let instance = instance_data_as_script_instance::<T>(p_instance);
 
-            let Ok(inner) = try_borrow_instance(instance) else {
-                // to_string of a script instance can be called when calling to_string on the owning base object. In this case we pretend like we
-                // can't handle the call and leave r_is_valid at it's default value of false.
-                //
-                // This is one of the  only members of GDExtensionScripInstanceInfo which appeares to be called from an API function
-                // (beside get_func, set_func, call_func). The unexpected behavior here is that it is being called as a replacement of Godot's
-                // Object::to_string for the owner object. This then also happens when trying to call to_string on the base object inside a
-                // script, which feels wrong, and most importantly, would obviously cause a panic when acquiring the Ref guard.
-
-                return None;
-            };
-
-            Some(inner.to_string())
+            borrow_instance(instance).to_string()
         })
-        .ok()
-        .flatten();
+        .ok();
 
         let Some(string) = string else {
             return;
@@ -950,8 +1044,11 @@ mod script_instance_info {
 
         let result = handle_panic(ctx, || {
             let instance = instance_data_as_script_instance::<T>(p_instance);
+            let cell = borrow_instance_cell(instance);
+            let mut guard = cell.borrow_mut().unwrap_or_else(borrow_panic::<T, _>);
 
-            borrow_instance_mut(instance).property_set_fallback(name, value)
+            let instance_guard = SiMut::new(cell, &mut guard, &instance.base);
+            ScriptInstance::property_set_fallback(instance_guard, name, value)
         })
         .unwrap_or_default();
 

@@ -12,7 +12,7 @@ use godot::builtin::{GString, StringName, Variant, VariantType};
 use godot::engine::global::{MethodFlags, PropertyHint, PropertyUsageFlags};
 use godot::engine::{
     create_script_instance, IScriptExtension, Object, Script, ScriptExtension, ScriptInstance,
-    ScriptLanguage,
+    ScriptLanguage, SiMut,
 };
 use godot::obj::{Base, Gd, WithBaseField};
 use godot::register::{godot_api, GodotClass};
@@ -26,8 +26,8 @@ struct TestScript {
 
 #[godot_api]
 impl IScriptExtension for TestScript {
-    unsafe fn instance_create(&self, _for_object: Gd<Object>) -> *mut c_void {
-        create_script_instance(TestScriptInstance::new(self.to_gd().upcast()))
+    unsafe fn instance_create(&self, for_object: Gd<Object>) -> *mut c_void {
+        create_script_instance(TestScriptInstance::new(self.to_gd().upcast()), for_object)
     }
 
     fn can_instantiate(&self) -> bool {
@@ -92,16 +92,28 @@ impl TestScriptInstance {
             }],
         }
     }
+
+    /// Method of the test script and will be called during test runs.
+    fn script_method_a(&self, arg_a: GString, arg_b: i32) -> String {
+        format!("{arg_a}{arg_b}")
+    }
+
+    fn script_method_toggle_property_b(&mut self) -> bool {
+        self.script_property_b = !self.script_property_b;
+        true
+    }
 }
 
 impl ScriptInstance for TestScriptInstance {
+    type Base = Object;
+
     fn class_name(&self) -> GString {
         GString::from("TestScript")
     }
 
-    fn set_property(&mut self, name: StringName, value: &Variant) -> bool {
+    fn set_property(mut this: SiMut<Self>, name: StringName, value: &Variant) -> bool {
         if name.to_string() == "script_property_b" {
-            self.script_property_b = FromGodot::from_variant(value);
+            this.script_property_b = FromGodot::from_variant(value);
             true
         } else {
             false
@@ -125,7 +137,7 @@ impl ScriptInstance for TestScriptInstance {
     }
 
     fn call(
-        &mut self,
+        mut this: SiMut<Self>,
         method: StringName,
         args: &[&Variant],
     ) -> Result<Variant, sys::GDExtensionCallErrorType> {
@@ -134,7 +146,20 @@ impl ScriptInstance for TestScriptInstance {
                 let arg_a = args[0].to::<GString>();
                 let arg_b = args[1].to::<i32>();
 
-                Ok(format!("{arg_a}{arg_b}").to_variant())
+                Ok(this.script_method_a(arg_a, arg_b).to_variant())
+            }
+
+            "script_method_toggle_property_b" => {
+                let result = this.script_method_toggle_property_b();
+
+                Ok(result.to_variant())
+            }
+
+            "script_method_re_entering" => {
+                let mut base = this.base_mut();
+                let result = base.call("script_method_toggle_property_b".into(), &[]);
+
+                Ok(result)
             }
 
             _ => Err(sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD),
@@ -182,7 +207,7 @@ impl ScriptInstance for TestScriptInstance {
         None
     }
 
-    fn property_set_fallback(&mut self, _name: StringName, _value: &Variant) -> bool {
+    fn property_set_fallback(_this: SiMut<Self>, _name: StringName, _value: &Variant) -> bool {
         false
     }
 }
