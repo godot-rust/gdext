@@ -186,14 +186,16 @@ pub unsafe trait ExtensionLibrary {
     /// Custom logic when a certain init-level of Godot is loaded.
     ///
     /// This will only be invoked for levels >= [`Self::min_level()`], in ascending order. Use `if` or `match` to hook to specific levels.
-    fn on_level_init(_level: InitLevel) {
+    #[allow(unused_variables)]
+    fn on_level_init(level: InitLevel) {
         // Nothing by default.
     }
 
     /// Custom logic when a certain init-level of Godot is unloaded.
     ///
     /// This will only be invoked for levels >= [`Self::min_level()`], in descending order. Use `if` or `match` to hook to specific levels.
-    fn on_level_deinit(_level: InitLevel) {
+    #[allow(unused_variables)]
+    fn on_level_deinit(level: InitLevel) {
         // Nothing by default.
     }
 }
