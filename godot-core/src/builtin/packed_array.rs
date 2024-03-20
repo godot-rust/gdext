@@ -503,6 +503,21 @@ macro_rules! impl_packed_array {
         }
 
         $crate::builtin::meta::impl_godot_as_self!($PackedArray);
+
+        impl $crate::property::Export for $PackedArray {
+            fn default_export_info() -> $crate::property::PropertyHintInfo {
+                if sys::GdextBuild::since_api("4.3") {
+                    // In 4.3 Godot can (and does) use type hint strings for packed arrays.
+                    // https://github.com/godotengine/godot/pull/82952
+                    $crate::property::PropertyHintInfo {
+                        hint: $crate::engine::global::PropertyHint::TYPE_STRING,
+                        hint_string: <$Element as $crate::property::TypeStringHint>::type_string().into(),
+                    }
+                } else {
+                    $crate::property::PropertyHintInfo::with_hint_none(<$PackedArray as $crate::builtin::meta::GodotType>::godot_type_name())
+                }
+            }
+        }
     }
 }
 

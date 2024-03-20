@@ -15,6 +15,8 @@ use crate::builtin::{array_inner, meta::ClassName};
 type Cause = Box<dyn Error + Send + Sync>;
 
 /// Represents errors that can occur when converting values from Godot.
+///
+/// To create user-defined errors, you can use [`ConvertError::default()`] or [`ConvertError::new("message")`][Self::new].
 #[derive(Debug)]
 pub struct ConvertError {
     kind: ErrorKind,
@@ -23,12 +25,12 @@ pub struct ConvertError {
 }
 
 impl ConvertError {
-    // Constructors are private (or hidden) as only the library or its proc-macros should construct this type.
-
-    /// Create a new custom error for a conversion.
-    fn custom() -> Self {
+    /// Construct with a user-defined message.
+    ///
+    /// If you don't need a custom message, consider using [`ConvertError::default()`] instead.
+    pub fn new(user_message: impl Into<String>) -> Self {
         Self {
-            kind: ErrorKind::Custom,
+            kind: ErrorKind::Custom(Some(user_message.into())),
             cause: None,
             value_str: None,
         }
@@ -52,9 +54,10 @@ impl ConvertError {
     where
         C: Into<Cause>,
     {
-        let mut err = Self::custom();
-        err.cause = Some(cause.into());
-        err
+        Self {
+            cause: Some(cause.into()),
+            ..Default::default()
+        }
     }
 
     /// Create a new custom error with a rust-error as an underlying cause for the conversion error, and the
@@ -65,10 +68,11 @@ impl ConvertError {
         C: Into<Cause>,
         V: fmt::Debug,
     {
-        let mut err = Self::custom();
-        err.cause = Some(cause.into());
-        err.value_str = Some(format!("{value:?}"));
-        err
+        Self {
+            cause: Some(cause.into()),
+            value_str: Some(format!("{value:?}")),
+            ..Default::default()
+        }
     }
 
     /// Returns the rust-error that caused this error, if one exists.
@@ -111,12 +115,25 @@ impl Error for ConvertError {
     }
 }
 
+impl Default for ConvertError {
+    /// Create a custom error, without any description.
+    ///
+    /// If you need a custom message, consider using [`ConvertError::new("message")`][Self::new] instead.
+    fn default() -> Self {
+        Self {
+            kind: ErrorKind::Custom(None),
+            cause: None,
+            value_str: None,
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum ErrorKind {
     FromGodot(FromGodotError),
     FromFfi(FromFfiError),
     FromVariant(FromVariantError),
-    Custom,
+    Custom(Option<String>),
 }
 
 impl ErrorKind {
@@ -125,7 +142,7 @@ impl ErrorKind {
             Self::FromGodot(from_godot) => Some(from_godot.description()),
             Self::FromVariant(from_variant) => Some(from_variant.description()),
             Self::FromFfi(from_ffi) => Some(from_ffi.description()),
-            Self::Custom => None,
+            Self::Custom(description) => description.clone(),
         }
     }
 }
@@ -135,7 +152,7 @@ impl ErrorKind {
 pub(crate) enum FromGodotError {
     BadArrayType {
         expected: array_inner::TypeInfo,
-        got: array_inner::TypeInfo,
+        actual: array_inner::TypeInfo,
     },
     /// InvalidEnum is also used by bitfields.
     InvalidEnum,
@@ -152,32 +169,32 @@ impl FromGodotError {
 
     fn description(&self) -> String {
         match self {
-            Self::BadArrayType { expected, got } => {
-                if expected.variant_type() != got.variant_type() {
-                    if expected.is_typed() {
-                        return format!(
+            Self::BadArrayType { expected, actual } => {
+                if expected.variant_type() != actual.variant_type() {
+                    return if expected.is_typed() {
+                        format!(
                             "expected array of type {:?}, got array of type {:?}",
                             expected.variant_type(),
-                            got.variant_type()
-                        );
+                            actual.variant_type()
+                        )
                     } else {
-                        return format!(
+                        format!(
                             "expected untyped array, got array of type {:?}",
-                            got.variant_type()
-                        );
-                    }
+                            actual.variant_type()
+                        )
+                    };
                 }
 
                 assert_ne!(
                     expected.class_name(),
-                    got.class_name(),
+                    actual.class_name(),
                     "BadArrayType with expected == got, this is a gdext bug"
                 );
 
                 format!(
                     "expected array of class {}, got array of class {}",
                     expected.class_name(),
-                    got.class_name()
+                    actual.class_name()
                 )
             }
             Self::InvalidEnum => "invalid engine enum value".into(),
