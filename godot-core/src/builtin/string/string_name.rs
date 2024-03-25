@@ -26,7 +26,8 @@ use crate::builtin::{GString, NodePath};
 /// relying on lexicographical ordering.
 ///
 /// Instead, we provide [`transient_ord()`][Self::transient_ord] for ordering relations.
-#[repr(C)]
+// Currently we rely on `transparent` for `borrow_string_sys`.
+#[repr(transparent)]
 pub struct StringName {
     opaque: sys::types::OpaqueStringName,
 }
@@ -59,7 +60,7 @@ impl StringName {
 
         // SAFETY: latin1_c_str is nul-terminated and remains valid for entire program duration.
         let result = unsafe {
-            Self::from_string_sys_init(|ptr| {
+            Self::new_with_string_uninit(|ptr| {
                 sys::interface_fn!(string_name_new_with_latin1_chars)(
                     ptr,
                     c_str.as_ptr(),
@@ -115,14 +116,22 @@ impl StringName {
         type sys::GDExtensionStringNamePtr = *mut Opaque;
 
         // Note: unlike from_sys, from_string_sys does not default-construct instance first. Typical usage in C++ is placement new.
-        fn from_string_sys = from_sys;
-        fn from_string_sys_init = from_sys_init;
+        fn new_from_string_sys = new_from_sys;
+        fn new_with_string_uninit = new_with_uninit;
         fn string_sys = sys;
+        fn string_sys_mut = sys_mut;
     }
 
-    #[doc(hidden)]
-    pub fn string_sys_const(&self) -> sys::GDExtensionConstStringNamePtr {
-        sys::to_const_ptr(self.string_sys())
+    /// Convert a `StringName` sys pointer to a reference with unbounded lifetime.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must point to a live `StringName` for the duration of `'a`.
+    pub(crate) unsafe fn borrow_string_sys<'a>(
+        ptr: sys::GDExtensionConstStringNamePtr,
+    ) -> &'a StringName {
+        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueStringName);
+        &*(ptr.cast::<StringName>())
     }
 
     #[doc(hidden)]
@@ -150,24 +159,7 @@ unsafe impl GodotFfi for StringName {
         sys::VariantType::StringName
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn from_sys_init;
-        fn move_return_ptr;
-    }
-
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let string_name = Self::from_sys(ptr);
-        string_name.inc_ref();
-        string_name
-    }
-
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self::default();
-        init_fn(result.sys_mut());
-        result
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
 impl_godot_as_self!(StringName);
@@ -227,7 +219,7 @@ where
 
         // SAFETY: Rust guarantees validity and range of string.
         unsafe {
-            Self::from_string_sys_init(|ptr| {
+            Self::new_with_string_uninit(|ptr| {
                 sys::interface_fn!(string_name_new_with_utf8_chars_and_len)(
                     ptr,
                     utf8.as_ptr() as *const std::ffi::c_char,
@@ -241,9 +233,9 @@ where
 impl From<&GString> for StringName {
     fn from(string: &GString) -> Self {
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_name_from_string);
-                let args = [string.sys_const()];
+                let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         }

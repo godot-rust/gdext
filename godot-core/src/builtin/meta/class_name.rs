@@ -82,7 +82,7 @@ impl ClassName {
     /// The returned pointer is valid indefinitely, as entries are never deleted from the cache.
     /// Since we use `Box<StringName>`, `HashMap` reallocations don't affect the validity of the StringName.
     #[doc(hidden)]
-    pub fn string_sys(&self) -> sys::GDExtensionStringNamePtr {
+    pub fn string_sys(&self) -> sys::GDExtensionConstStringNamePtr {
         self.with_string_name(|s| s.string_sys())
     }
 

@@ -13,7 +13,7 @@ macro_rules! impl_builtin_traits_inner {
             #[inline]
             fn default() -> Self {
                 unsafe {
-                    Self::from_sys_init(|self_ptr| {
+                    Self::new_with_uninit(|self_ptr| {
                         let ctor = ::godot_ffi::builtin_fn!($gd_method);
                         ctor(self_ptr, std::ptr::null_mut())
                     })
@@ -27,9 +27,9 @@ macro_rules! impl_builtin_traits_inner {
             #[inline]
             fn clone(&self) -> Self {
                 unsafe {
-                    Self::from_sys_init(|self_ptr| {
+                    Self::new_with_uninit(|self_ptr| {
                         let ctor = ::godot_ffi::builtin_fn!($gd_method);
-                        let args = [self.sys_const()];
+                        let args = [self.sys()];
                         ctor(self_ptr, args.as_ptr());
                     })
                 }
@@ -129,8 +129,8 @@ macro_rules! impl_builtin_froms {
             fn from(other: &$From) -> Self {
                 unsafe {
                     // TODO should this be from_sys_init_default()?
-                    Self::from_sys_init(|ptr| {
-                        let args = [other.sys_const()];
+                    Self::new_with_uninit(|ptr| {
+                        let args = [other.sys()];
                         ::godot_ffi::builtin_call! {
                             $from_fn(ptr, args.as_ptr())
                         }

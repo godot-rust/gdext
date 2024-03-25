@@ -19,7 +19,7 @@ fn option_some_sys_conversion() {
     let v_raw = v.to_ffi();
     let ptr = v_raw.sys();
 
-    let v2_raw = unsafe { RawGd::<Object>::from_sys(ptr) };
+    let v2_raw = unsafe { RawGd::<Object>::new_from_sys(ptr) };
     let v2 = Option::<Gd<Object>>::from_ffi(v2_raw);
     assert_eq!(v2, v);
 
@@ -34,7 +34,7 @@ fn option_none_sys_conversion() {
     let v_raw = v.to_ffi();
     let ptr = v_raw.sys();
 
-    let v2_raw = unsafe { RawGd::<Object>::from_sys(ptr) };
+    let v2_raw = unsafe { RawGd::<Object>::new_from_sys(ptr) };
     let v2 = Option::<Gd<Object>>::from_ffi(v2_raw);
     assert_eq!(v2, v);
 }

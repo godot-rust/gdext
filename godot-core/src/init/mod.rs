@@ -289,8 +289,8 @@ fn ensure_godot_features_compatible() {
     // SAFETY: main thread, after initialize(), valid string pointers.
     let gdext_is_double = cfg!(feature = "double-precision");
     let godot_is_double = unsafe {
-        let is_single = sys::godot_has_feature(os_class.string_sys(), single.sys_const());
-        let is_double = sys::godot_has_feature(os_class.string_sys(), double.sys_const());
+        let is_single = sys::godot_has_feature(os_class.string_sys(), single.sys());
+        let is_double = sys::godot_has_feature(os_class.string_sys(), double.sys());
 
         assert_ne!(
             is_single, is_double,

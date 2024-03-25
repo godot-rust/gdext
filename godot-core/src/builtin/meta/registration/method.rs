@@ -118,11 +118,14 @@ impl ClassMethodInfo {
         let mut arguments_metadata: Vec<sys::GDExtensionClassMethodArgumentMetadata> =
             self.arguments.iter().map(|info| info.metadata).collect();
 
-        let mut default_arguments_sys: Vec<sys::GDExtensionVariantPtr> =
-            self.default_arguments.iter().map(|v| v.var_sys()).collect();
+        let mut default_arguments_sys: Vec<sys::GDExtensionVariantPtr> = self
+            .default_arguments
+            .iter()
+            .map(|v| sys::SysPtr::force_mut(v.var_sys()))
+            .collect();
 
         let method_info_sys = sys::GDExtensionClassMethodInfo {
-            name: self.method_name.string_sys(),
+            name: sys::SysPtr::force_mut(self.method_name.string_sys()),
             method_userdata: std::ptr::null_mut(),
             call_func: self.call_func,
             ptrcall_func: self.ptrcall_func,

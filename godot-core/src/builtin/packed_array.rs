@@ -71,7 +71,6 @@ macro_rules! impl_packed_array {
         /// but any writes must be externally synchronized. The Rust compiler will enforce this as
         /// long as you use only Rust threads, but it cannot protect against concurrent modification
         /// on other threads (e.g. created through GDScript).
-        #[repr(C)]
         pub struct $PackedArray {
             opaque: $Opaque,
         }
@@ -362,13 +361,13 @@ macro_rules! impl_packed_array {
             /// # Panics
             ///
             /// If `index` is out of bounds.
-            fn ptr_mut(&self, index: usize) -> *mut $Element {
+            fn ptr_mut(&mut self, index: usize) -> *mut $Element {
                 self.check_bounds(index);
 
                 // SAFETY: We just checked that the index is not out of bounds.
                 let ptr = unsafe {
                     let item_ptr: *mut $IndexRetType =
-                        (interface_fn!($operator_index))(self.sys(), to_i64(index));
+                        (interface_fn!($operator_index))(self.sys_mut(), to_i64(index));
                     item_ptr as *mut $Element
                 };
                 assert!(!ptr.is_null());
@@ -475,31 +474,7 @@ macro_rules! impl_packed_array {
                 sys::VariantType::$PackedArray
             }
 
-            ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
-                fn from_sys;
-                fn sys;
-                fn from_sys_init;
-                // SAFETY:
-                // Nothing special needs to be done beyond a `std::mem::swap` when returning a packed array.
-                fn move_return_ptr;
-            }
-
-            // SAFETY:
-            // Packed arrays are properly initialized through a `from_sys` call, but the ref-count should be
-            // incremented as that is the callee's responsibility.
-            //
-            // Using `std::mem::forget(array.clone())` increments the ref count.
-            unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-                let array = Self::from_sys(ptr);
-                std::mem::forget(array.clone());
-                array
-            }
-
-            unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-                let mut result = Self::default();
-                init_fn(result.sys_mut());
-                result
-            }
+            ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
         }
 
         $crate::builtin::meta::impl_godot_as_self!($PackedArray);

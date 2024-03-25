@@ -123,11 +123,11 @@ pub fn print(varargs: &[Variant]) {
         let call_fn = call_fn.unwrap_unchecked();
 
         let mut args = Vec::new();
-        args.extend(varargs.iter().map(Variant::sys_const));
+        args.extend(varargs.iter().map(Variant::sys));
 
         let args_ptr = args.as_ptr();
-        let _variant = Variant::from_sys_init_default(|return_ptr| {
-            call_fn(return_ptr, args_ptr, args.len() as i32);
+        let _variant = Variant::new_with_init(|return_var| {
+            call_fn(return_var.sys_mut(), args_ptr, args.len() as i32);
         });
     }
 
@@ -147,11 +147,11 @@ pub fn print_rich(varargs: &[Variant]) {
         let call_fn = call_fn.unwrap_unchecked();
 
         let mut args = Vec::new();
-        args.extend(varargs.iter().map(Variant::sys_const));
+        args.extend(varargs.iter().map(Variant::sys));
 
         let args_ptr = args.as_ptr();
-        let _variant = Variant::from_sys_init_default(|return_ptr| {
-            call_fn(return_ptr, args_ptr, args.len() as i32);
+        let _variant = Variant::new_with_init(|return_var| {
+            call_fn(return_var.sys_mut(), args_ptr, args.len() as i32);
         });
     }
 

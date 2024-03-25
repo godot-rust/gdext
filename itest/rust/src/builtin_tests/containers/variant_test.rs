@@ -261,7 +261,7 @@ fn variant_sys_conversion() {
     let v = Variant::from(7);
     let ptr = v.sys();
 
-    let v2 = unsafe { Variant::from_sys(ptr) };
+    let v2 = unsafe { Variant::new_from_sys(ptr) };
     assert_eq!(v2, v);
 }
 
@@ -281,7 +281,7 @@ fn variant_sys_conversion2() {
     };
 
     let v2 = unsafe {
-        Variant::from_sys_init(|ptr| {
+        Variant::new_with_uninit(|ptr| {
             std::ptr::copy(
                 buffer.as_ptr(),
                 ptr as *mut u8,
