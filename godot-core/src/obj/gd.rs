@@ -10,7 +10,7 @@ use std::ops::{Deref, DerefMut};
 
 use godot_ffi as sys;
 
-use sys::{static_assert_eq_size, VariantType};
+use sys::{static_assert_eq_size_align, VariantType};
 
 use crate::builtin::meta::{
     CallContext, ConvertError, FromFfiError, FromGodot, GodotConvert, GodotType, ToGodot,
@@ -94,7 +94,7 @@ pub struct Gd<T: GodotClass> {
 }
 
 // Size equality check (should additionally be covered by mem::transmute())
-static_assert_eq_size!(
+static_assert_eq_size_align!(
     sys::GDExtensionObjectPtr,
     sys::types::OpaqueObject,
     "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
@@ -405,6 +405,14 @@ impl<T: GodotClass> Gd<T> {
     #[doc(hidden)]
     pub fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
         self.raw.obj_sys()
+    }
+
+    #[doc(hidden)]
+    pub fn script_sys(&self) -> sys::GDExtensionScriptLanguagePtr
+    where
+        T: Inherits<crate::engine::ScriptLanguage>,
+    {
+        self.raw.script_sys()
     }
 
     /// Returns a callable referencing a method from this object named `method_name`.

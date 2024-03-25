@@ -15,8 +15,13 @@ use std::marker::PhantomData;
 ///
 /// # Safety
 ///
-/// [`from_arg_ptr`](GodotFfi::from_arg_ptr) and [`move_return_ptr`](GodotFfi::move_return_ptr)
+/// - [`from_arg_ptr`](GodotFfi::from_arg_ptr) and [`move_return_ptr`](GodotFfi::move_return_ptr)
 /// must properly initialize and clean up values given the [`PtrcallType`] provided by the caller.
+///
+/// - [`new_with_uninit`](GodotFfi::new_with_uninit) must call `init_fn` with a pointer to a *new*
+/// [allocated object](https://doc.rust-lang.org/std/ptr/index.html#safety).
+///
+/// - [`new_with_init`](GodotFfi::new_with_init) must call `init_fn` with a reference to a *new* value.
 #[doc(hidden)] // shows up in implementors otherwise
 pub unsafe trait GodotFfi {
     #[doc(hidden)]
@@ -29,9 +34,9 @@ pub unsafe trait GodotFfi {
 
     /// Construct from Godot opaque pointer.
     ///
-    /// This will increment reference counts if the type is reference counted. If you need to avoid this then a `borrow_sys` method should
-    /// usually be used. Which is a method that takes a sys-pointer and returns it as a `&Self` reference. This must be manually implemented for
-    /// each relevant type as not all types can be borrowed like this.
+    /// This will increment reference counts if the type is reference counted. If you need to avoid this, then a `borrow_sys` associated
+    /// function should usually be used. That function that takes a sys-pointer and returns it as a `&Self` reference. This must be manually
+    /// implemented for each relevant type, as not all types can be borrowed like this.
     ///
     /// # Safety
     /// `ptr` must be a valid _type ptr_: it must follow Godot's convention to encode `Self`,
@@ -52,11 +57,13 @@ pub unsafe trait GodotFfi {
     /// Some FFI functions in Godot expect a pre-existing instance at the destination pointer, e.g. CoW/ref-counted
     /// builtin types like `Array`, `Dictionary`, `String`, `StringName`.
     ///
-    /// # Safety
-    /// While this does call `init_fn` with a `&mut Self` reference, that value may have a broken safety invariant.
-    /// So `init_fn` must ensure that the reference passed to it is fully initialized when the function returns.
+    /// # Note
+    ///
+    /// This does call `init_fn` with a `&mut Self` reference, but in some cases initializing the reference to a more appropriate
+    /// value may involve violating the value's safety invariant. In those cases it is important to ensure that this violation isn't
+    /// leaked to user-code.
     #[doc(hidden)]
-    unsafe fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self;
+    fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self;
 
     /// Return Godot opaque pointer, for an immutable operation.
     #[doc(hidden)]
@@ -188,7 +195,7 @@ macro_rules! ffi_methods_one {
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_init:ident = new_with_init) => {
         $( #[$attr] )? $vis
-        unsafe fn $new_with_init(init: impl FnOnce(&mut Self)) -> Self {
+        fn $new_with_init(init: impl FnOnce(&mut Self)) -> Self {
             let mut default = Default::default();
             init(&mut default);
             default
@@ -238,7 +245,7 @@ macro_rules! ffi_methods_one {
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_init:ident = new_with_init) => {
         $( #[$attr] )? $vis
-        unsafe fn $new_with_init(init: impl FnOnce(&mut Self)) -> Self {
+        fn $new_with_init(init: impl FnOnce(&mut Self)) -> Self {
             let mut default = Default::default();
             init(&mut default);
             default
@@ -484,7 +491,7 @@ mod scalars {
             // Do nothing
         }
 
-        unsafe fn new_with_init(_init: impl FnOnce(&mut ())) -> Self {
+        fn new_with_init(_init: impl FnOnce(&mut ())) -> Self {
             // Do nothing
         }
 

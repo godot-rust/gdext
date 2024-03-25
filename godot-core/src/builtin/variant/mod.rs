@@ -24,6 +24,7 @@ pub use sys::{VariantOperator, VariantType};
 /// value.  
 ///
 /// See also [Godot documentation for `Variant`](https://docs.godotengine.org/en/stable/classes/class_variant.html).
+// We rely on the layout of `Variant` being the same as Godot's layout in `borrow_slice` and `borrow_slice_mut`.
 #[repr(transparent)]
 pub struct Variant {
     _opaque: OpaqueVariant,
@@ -214,7 +215,13 @@ impl Variant {
         fn var_sys = sys;
         fn var_sys_mut = sys_mut;
     }
+}
 
+// All manually implemented unsafe functions on `Variant`.
+// Deny `unsafe_op_in_unsafe_fn` so we don't forget to check safety invariants.
+#[doc(hidden)]
+#[deny(unsafe_op_in_unsafe_fn)]
+impl Variant {
     /// Moves this variant into a variant sys pointer. This is the same as using [`GodotFfi::move_return_ptr`].
     ///
     /// # Safety
@@ -222,7 +229,7 @@ impl Variant {
     /// `dst` must be a valid variant pointer.
     pub(crate) unsafe fn move_into_var_ptr(self, dst: sys::GDExtensionVariantPtr) {
         let dst: sys::GDExtensionTypePtr = dst.cast();
-        // SAFETY: `dst` is a valid string pointer. Additionally `Variant` doesn't behave differently for `Standard` and `Virtual`
+        // SAFETY: `dst` is a valid Variant pointer. Additionally `Variant` doesn't behave differently for `Standard` and `Virtual`
         // pointer calls.
         unsafe {
             self.move_return_ptr(dst, sys::PtrcallType::Standard);
@@ -230,23 +237,29 @@ impl Variant {
     }
 
     /// # Safety
-    /// See [`GodotFfi::new_with_uninit`] and [`GodotFfi::new_with_init`].
+    ///
+    /// For Godot 4.0, see [`GodotFfi::new_with_init`].
+    /// For all other versions, see [`GodotFfi::new_with_uninit`].
     #[cfg(before_api = "4.1")]
     #[doc(hidden)]
     pub unsafe fn new_with_var_uninit_or_init(
         init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
     ) -> Self {
+        // SAFETY: We're in Godot 4.0, and so the caller must ensure this is safe.
         Self::new_with_var_init(|value| init_fn(value.var_sys_mut()))
     }
 
     /// # Safety
-    /// See [`GodotFfi::new_with_uninit`] and [`GodotFfi::new_with_init`].
+    ///
+    /// For Godot 4.0, see [`GodotFfi::new_with_init`].
+    /// For all other versions, see [`GodotFfi::new_with_uninit`].
     #[cfg(since_api = "4.1")]
     #[doc(hidden)]
     pub unsafe fn new_with_var_uninit_or_init(
         init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr),
     ) -> Self {
-        Self::new_with_var_uninit(init_fn)
+        // SAFETY: We're not in Godot 4.0, and so the caller must ensure this is safe.
+        unsafe { Self::new_with_var_uninit(init_fn) }
     }
 
     /// Fallible construction of a `Variant` using a fallible initialization function.
@@ -266,7 +279,7 @@ impl Variant {
             raw.as_mut_ptr() as <sys::GDExtensionVariantPtr as ::godot_ffi::SysPtr>::Uninit;
 
         // SAFETY: `map` only runs the provided closure for the `Ok(())` variant, in which case `raw` has definitely been initialized.
-        init_fn(var_uninit_ptr).map(|_succ| unsafe { raw.assume_init() })
+        init_fn(var_uninit_ptr).map(|_success| unsafe { raw.assume_init() })
     }
 
     /// Convert a `Variant` sys pointer to a reference to a `Variant`.
@@ -281,13 +294,13 @@ impl Variant {
         unsafe { &*(ptr.cast::<Variant>()) }
     }
 
-    /// Convert an array of `Variant` sys pointers to a slice of `Variant` references.
+    /// Convert an array of `Variant` sys pointers to a slice of `Variant` references all with unbounded lifetimes.
     ///
     /// # Safety
     ///
     /// Either `variant_ptr_array` is null, or it must be safe to call [`std::slice::from_raw_parts`] with
     /// `variant_ptr_array` cast to `*const &'a Variant` and `length`.
-    pub(crate) unsafe fn borrow_var_ref_slice<'a>(
+    pub(crate) unsafe fn borrow_ref_slice<'a>(
         variant_ptr_array: *const sys::GDExtensionConstVariantPtr,
         length: usize,
     ) -> &'a [&'a Variant] {
@@ -301,7 +314,7 @@ impl Variant {
             return &[];
         }
 
-        // raw pointers and references have the same memory layout.
+        // Note: Raw pointers and references have the same memory layout.
         // See https://doc.rust-lang.org/reference/type-layout.html#pointers-and-references-layout.
         let variant_ptr_array = variant_ptr_array.cast::<&Variant>();
 
@@ -309,13 +322,13 @@ impl Variant {
         unsafe { std::slice::from_raw_parts(variant_ptr_array, length) }
     }
 
-    /// Convert an array of `Variant` sys pointers to a slice of mutable `Variant` references.
+    /// Convert an array of `Variant` sys pointers to a slice with unbounded lifetime.
     ///
     /// # Safety
     ///
     /// Either `variant_array` is null, or it must be safe to call [`std::slice::from_raw_parts`] with
     /// `variant_array` cast to `*const Variant` and `length`.
-    pub(crate) unsafe fn borrow_var_slice<'a>(
+    pub(crate) unsafe fn borrow_slice<'a>(
         variant_array: sys::GDExtensionConstVariantPtr,
         length: usize,
     ) -> &'a [Variant] {
@@ -330,21 +343,19 @@ impl Variant {
             return &[];
         }
 
-        // raw pointers and references have the same memory layout.
-        // See https://doc.rust-lang.org/reference/type-layout.html#pointers-and-references-layout.
         let variant_array = variant_array.cast::<Variant>();
 
         // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts` on the pointer cast to `*const Variant`.
         unsafe { std::slice::from_raw_parts(variant_array, length) }
     }
 
-    /// Convert an array of `Variant` sys pointers to a slice of mutable `Variant` references.
+    /// Convert an array of `Variant` sys pointers to a mutable slice with unbounded lifetime.
     ///
     /// # Safety
     ///
     /// Either `variant_array` is null, or it must be safe to call [`std::slice::from_raw_parts_mut`] with
     /// `variant_array` cast to `*mut Variant` and `length`.
-    pub(crate) unsafe fn borrow_var_slice_mut<'a>(
+    pub(crate) unsafe fn borrow_slice_mut<'a>(
         variant_array: sys::GDExtensionVariantPtr,
         length: usize,
     ) -> &'a mut [Variant] {
@@ -359,8 +370,6 @@ impl Variant {
             return &mut [];
         }
 
-        // raw pointers and references have the same memory layout.
-        // See https://doc.rust-lang.org/reference/type-layout.html#pointers-and-references-layout.
         let variant_array = variant_array.cast::<Variant>();
 
         // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts_mut` on the pointer cast to `*mut Variant`.

@@ -134,11 +134,8 @@ impl GString {
     /// `dst` must be a valid string pointer.
     pub(crate) unsafe fn move_into_string_ptr(self, dst: sys::GDExtensionStringPtr) {
         let dst: sys::GDExtensionTypePtr = dst.cast();
-        // SAFETY: `dst` is a valid string pointer. Additionally `String` doesn't behave differently for `Standard` and `Virtual`
-        // pointer calls.
-        unsafe {
-            self.move_return_ptr(dst, sys::PtrcallType::Standard);
-        }
+
+        self.move_return_ptr(dst, sys::PtrcallType::Standard);
     }
 
     #[doc(hidden)]

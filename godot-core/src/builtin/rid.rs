@@ -8,7 +8,7 @@
 use std::num::NonZeroU64;
 
 use godot_ffi as sys;
-use sys::{ffi_methods, static_assert, static_assert_eq_size, GodotFfi};
+use sys::{ffi_methods, static_assert, static_assert_eq_size_align, GodotFfi};
 
 use super::meta::impl_godot_as_self;
 
@@ -45,7 +45,7 @@ pub enum Rid {
 // Ensure that `Rid`s actually have the layout we expect. Since `Rid` has the same size as `u64`, it cannot
 // have any padding. As the `Valid` variant must take up all but one of the niches (since it contains a
 // `NonZerou64`), and the `Invalid` variant must take up the final niche.
-static_assert_eq_size!(Rid, u64);
+static_assert_eq_size_align!(Rid, u64);
 
 // SAFETY:
 // As Rid and u64 have the same size, and `Rid::Invalid` is initialized, it must be represented by some `u64`
@@ -125,14 +125,14 @@ unsafe impl GodotFfi for Rid {
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self;
         fn new_from_sys;
-        fn sys;
-        fn sys_mut;
         fn new_with_uninit;
         fn from_arg_ptr;
+        fn sys;
+        fn sys_mut;
         fn move_return_ptr;
     }
 
-    unsafe fn new_with_init(init: impl FnOnce(&mut Self)) -> Self {
+    fn new_with_init(init: impl FnOnce(&mut Self)) -> Self {
         let mut rid = Self::Invalid;
         init(&mut rid);
         rid

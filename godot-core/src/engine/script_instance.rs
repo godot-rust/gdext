@@ -579,7 +579,7 @@ mod script_instance_info {
         r_error: *mut sys::GDExtensionCallError,
     ) {
         let method = StringName::new_from_string_sys(p_method);
-        let args = Variant::borrow_var_ref_slice(p_args, p_argument_count as usize);
+        let args = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
         let ctx = || format!("error when calling {}::call", type_name::<T>());
 
         let result = handle_panic(ctx, || {

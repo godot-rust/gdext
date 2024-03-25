@@ -122,7 +122,7 @@ impl StringName {
         fn string_sys_mut = sys_mut;
     }
 
-    /// Convert a `StringName` sys pointer to a reference to a `StringName`.
+    /// Convert a `StringName` sys pointer to a reference with unbounded lifetime.
     ///
     /// # Safety
     ///
@@ -130,7 +130,7 @@ impl StringName {
     pub(crate) unsafe fn borrow_string_sys<'a>(
         ptr: sys::GDExtensionConstStringNamePtr,
     ) -> &'a StringName {
-        sys::static_assert_eq_size!(StringName, sys::types::OpaqueStringName);
+        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueStringName);
         &*(ptr.cast::<StringName>())
     }
 

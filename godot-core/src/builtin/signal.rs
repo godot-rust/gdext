@@ -163,14 +163,14 @@ unsafe impl GodotFfi for Signal {
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn new_from_sys;
+        fn new_with_uninit;
+        fn from_arg_ptr;
         fn sys;
         fn sys_mut;
-        fn new_with_uninit;
         fn move_return_ptr;
-        fn from_arg_ptr;
     }
 
-    unsafe fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self {
+    fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self {
         let mut result = Self::invalid();
         init_fn(&mut result);
         result

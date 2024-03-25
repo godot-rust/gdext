@@ -296,14 +296,14 @@ unsafe impl GodotFfi for Callable {
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
         fn new_from_sys;
+        fn new_with_uninit;
+        fn from_arg_ptr;
         fn sys;
         fn sys_mut;
-        fn new_with_uninit;
         fn move_return_ptr;
-        fn from_arg_ptr;
     }
 
-    unsafe fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self {
+    fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self {
         let mut result = Self::invalid();
         init_fn(&mut result);
         result
@@ -386,8 +386,7 @@ mod custom_callable {
         r_return: sys::GDExtensionVariantPtr,
         r_error: *mut sys::GDExtensionCallError,
     ) {
-        let arg_refs: &[&Variant] =
-            Variant::borrow_var_ref_slice(p_args, p_argument_count as usize);
+        let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
         let c: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
 
@@ -404,8 +403,7 @@ mod custom_callable {
     ) where
         F: FnMut(&[&Variant]) -> Result<Variant, ()>,
     {
-        let arg_refs: &[&Variant] =
-            Variant::borrow_var_ref_slice(p_args, p_argument_count as usize);
+        let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
         let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 

@@ -969,7 +969,7 @@ impl<T: GodotType + ToGodot> From<&[T]> for Array<T> {
         // SAFETY: `array` has `len` elements since we just resized it, and they are all valid `Variant`s. Additionally, since
         // the array was created in this function, and we do not access the array while this slice exists, the slice has unique
         // access to the elements.
-        let elements = unsafe { Variant::borrow_var_slice_mut(array.ptr_mut(0), len) };
+        let elements = unsafe { Variant::borrow_slice_mut(array.ptr_mut(0), len) };
         for (element, array_slot) in slice.iter().zip(elements.iter_mut()) {
             *array_slot = element.to_variant();
         }
@@ -1009,7 +1009,7 @@ impl<T: GodotType + FromGodot> From<&Array<T>> for Vec<T> {
 
         // SAFETY: Unless `experimental-threads` is enabled, then we cannot have concurrent access to this array.
         // And since we dont concurrently access the array in this function, we can create a slice to its contents.
-        let elements = unsafe { Variant::borrow_var_slice(array.ptr(0), len) };
+        let elements = unsafe { Variant::borrow_slice(array.ptr(0), len) };
 
         vec.extend(elements.iter().map(T::from_variant));
 

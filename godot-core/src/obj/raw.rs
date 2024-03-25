@@ -349,6 +349,13 @@ impl<T: GodotClass> RawGd<T> {
     pub(super) fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
         self.obj as sys::GDExtensionObjectPtr
     }
+
+    pub(super) fn script_sys(&self) -> sys::GDExtensionScriptLanguagePtr
+    where
+        T: super::Inherits<crate::engine::ScriptLanguage>,
+    {
+        self.obj.cast()
+    }
 }
 
 impl<T> RawGd<T>
@@ -453,7 +460,7 @@ where
         Self::from_obj_sys_weak(obj)
     }
 
-    unsafe fn new_with_init(init: impl FnOnce(&mut Self)) -> Self {
+    fn new_with_init(init: impl FnOnce(&mut Self)) -> Self {
         let mut obj = Self {
             obj: std::ptr::null_mut(),
             cached_rtti: None,
