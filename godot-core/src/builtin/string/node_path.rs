@@ -8,7 +8,7 @@
 use std::fmt;
 
 use godot_ffi as sys;
-use godot_ffi::{ffi_methods, GDExtensionTypePtr, GodotFfi};
+use godot_ffi::{ffi_methods, GodotFfi};
 
 use crate::builtin::inner;
 use crate::builtin::meta::impl_godot_as_self;
@@ -16,7 +16,6 @@ use crate::builtin::meta::impl_godot_as_self;
 use super::{GString, StringName};
 
 /// A pre-parsed scene tree path.
-#[repr(C)]
 pub struct NodePath {
     opaque: sys::types::OpaqueNodePath,
 }
@@ -58,24 +57,7 @@ unsafe impl GodotFfi for NodePath {
         sys::VariantType::NodePath
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn from_sys_init;
-        fn move_return_ptr;
-    }
-
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let node_path = Self::from_sys(ptr);
-        std::mem::forget(node_path.clone());
-        node_path
-    }
-
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(GDExtensionTypePtr)) -> Self {
-        let mut result = Self::default();
-        init_fn(result.sys_mut());
-        result
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
 impl_godot_as_self!(NodePath);
@@ -124,9 +106,9 @@ where
 impl From<&GString> for NodePath {
     fn from(string: &GString) -> Self {
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(node_path_from_string);
-                let args = [string.sys_const()];
+                let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         }

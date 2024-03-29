@@ -52,8 +52,7 @@ pub use paste;
 pub use gensym::gensym;
 
 pub use crate::godot_ffi::{
-    from_sys_init_or_init_default, GodotFfi, GodotNullableFfi, PrimitiveConversionError,
-    PtrcallType,
+    new_with_uninit_or_init, GodotFfi, GodotNullableFfi, PrimitiveConversionError, PtrcallType,
 };
 
 // Method tables

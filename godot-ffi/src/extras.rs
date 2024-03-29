@@ -23,37 +23,70 @@ impl Distinct for GDExtensionConstTypePtr {}
 // Extension traits for conversion
 
 /// Convert a GDExtension pointer type to its uninitialized version.
-pub trait AsUninit {
-    type Ptr;
+pub trait SysPtr {
+    type Const;
+    type Uninit;
 
     #[allow(clippy::wrong_self_convention)]
-    fn as_uninit(self) -> Self::Ptr;
+    fn as_const(self) -> Self::Const;
+    #[allow(clippy::wrong_self_convention)]
+    fn as_uninit(self) -> Self::Uninit;
 
-    fn force_init(uninit: Self::Ptr) -> Self;
+    fn force_mut(const_ptr: Self::Const) -> Self;
+    fn force_init(uninit_ptr: Self::Uninit) -> Self;
 }
 
-macro_rules! impl_as_uninit {
-    ($Ptr:ty, $Uninit:ty) => {
-        impl AsUninit for $Ptr {
-            type Ptr = $Uninit;
+macro_rules! impl_sys_ptr {
+    ($Ptr:ty, $Const:ty, $Uninit:ty) => {
+        impl SysPtr for $Ptr {
+            type Const = $Const;
+            type Uninit = $Uninit;
 
-            fn as_uninit(self) -> $Uninit {
-                self as $Uninit
+            fn as_const(self) -> Self::Const {
+                self as Self::Const
             }
 
-            fn force_init(uninit: Self::Ptr) -> Self {
-                uninit as Self
+            #[allow(clippy::wrong_self_convention)]
+            fn as_uninit(self) -> Self::Uninit {
+                self as Self::Uninit
+            }
+
+            fn force_mut(const_ptr: Self::Const) -> Self {
+                const_ptr as Self
+            }
+
+            fn force_init(uninit_ptr: Self::Uninit) -> Self {
+                uninit_ptr as Self
             }
         }
     };
 }
 
-#[rustfmt::skip]
-impl_as_uninit!(GDExtensionStringNamePtr, GDExtensionUninitializedStringNamePtr);
-impl_as_uninit!(GDExtensionVariantPtr, GDExtensionUninitializedVariantPtr);
-impl_as_uninit!(GDExtensionStringPtr, GDExtensionUninitializedStringPtr);
-impl_as_uninit!(GDExtensionObjectPtr, GDExtensionUninitializedObjectPtr);
-impl_as_uninit!(GDExtensionTypePtr, GDExtensionUninitializedTypePtr);
+impl_sys_ptr!(
+    GDExtensionStringNamePtr,
+    GDExtensionConstStringNamePtr,
+    GDExtensionUninitializedStringNamePtr
+);
+impl_sys_ptr!(
+    GDExtensionVariantPtr,
+    GDExtensionConstVariantPtr,
+    GDExtensionUninitializedVariantPtr
+);
+impl_sys_ptr!(
+    GDExtensionStringPtr,
+    GDExtensionConstStringPtr,
+    GDExtensionUninitializedStringPtr
+);
+impl_sys_ptr!(
+    GDExtensionObjectPtr,
+    GDExtensionConstObjectPtr,
+    GDExtensionUninitializedObjectPtr
+);
+impl_sys_ptr!(
+    GDExtensionTypePtr,
+    GDExtensionConstTypePtr,
+    GDExtensionUninitializedTypePtr
+);
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Helper functions

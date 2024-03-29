@@ -24,14 +24,21 @@ macro_rules! static_assert {
     };
 }
 
-/// Verifies at compile time that two types `T` and `U` have the same size.
+/// Verifies at compile time that two types `T` and `U` have the same size and alignment.
 #[macro_export]
-macro_rules! static_assert_eq_size {
+macro_rules! static_assert_eq_size_align {
     ($T:ty, $U:ty) => {
-        godot_ffi::static_assert!(std::mem::size_of::<$T>() == std::mem::size_of::<$U>());
+        godot_ffi::static_assert!(
+            std::mem::size_of::<$T>() == std::mem::size_of::<$U>()
+                && std::mem::align_of::<$T>() == std::mem::align_of::<$U>()
+        );
     };
     ($T:ty, $U:ty, $msg:literal) => {
-        godot_ffi::static_assert!(std::mem::size_of::<$T>() == std::mem::size_of::<$U>(), $msg);
+        godot_ffi::static_assert!(
+            std::mem::size_of::<$T>() == std::mem::size_of::<$U>()
+                && std::mem::align_of::<$T>() == std::mem::align_of::<$U>(),
+            $msg
+        );
     };
 }
 

@@ -54,17 +54,13 @@ use super::{NodePath, StringName};
 // #[repr] is needed on GString itself rather than the opaque field, because PackedStringArray::as_slice() relies on a packed representation.
 #[repr(transparent)]
 pub struct GString {
-    opaque: OpaqueString,
+    _opaque: OpaqueString,
 }
 
 impl GString {
     /// Construct a new empty GString.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    fn from_opaque(opaque: OpaqueString) -> Self {
-        Self { opaque }
     }
 
     pub fn len(&self) -> usize {
@@ -123,19 +119,23 @@ impl GString {
     }
 
     ffi_methods! {
-        type sys::GDExtensionStringPtr = *mut Opaque;
+        type sys::GDExtensionStringPtr = *mut Self;
 
-        fn from_string_sys = from_sys;
-        fn from_string_sys_init = from_sys_init;
+        fn new_from_string_sys = new_from_sys;
+        fn new_with_string_uninit = new_with_uninit;
         fn string_sys = sys;
+        fn string_sys_mut = sys_mut;
     }
 
-    /// Move `self` into a system pointer. This transfers ownership and thus does not call the destructor.
+    /// Moves this string into a string sys pointer. This is the same as using [`GodotFfi::move_return_ptr`].
     ///
     /// # Safety
-    /// `dst` must be a pointer to a `GString` which is suitable for ffi with Godot.
-    pub(crate) unsafe fn move_string_ptr(self, dst: sys::GDExtensionStringPtr) {
-        self.move_return_ptr(dst as *mut _, sys::PtrcallType::Standard);
+    ///
+    /// `dst` must be a valid string pointer.
+    pub(crate) unsafe fn move_into_string_ptr(self, dst: sys::GDExtensionStringPtr) {
+        let dst: sys::GDExtensionTypePtr = dst.cast();
+
+        self.move_return_ptr(dst, sys::PtrcallType::Standard);
     }
 
     #[doc(hidden)]
@@ -158,24 +158,7 @@ unsafe impl GodotFfi for GString {
         sys::VariantType::String
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn from_sys_init;
-        fn move_return_ptr;
-    }
-
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let string = Self::from_sys(ptr);
-        std::mem::forget(string.clone());
-        string
-    }
-
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self::default();
-        init_fn(result.sys_mut());
-        result
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
 impl_godot_as_self!(GString);
@@ -217,7 +200,7 @@ where
         let bytes = s.as_ref().as_bytes();
 
         unsafe {
-            Self::from_string_sys_init(|string_ptr| {
+            Self::new_with_string_uninit(|string_ptr| {
                 let ctor = interface_fn!(string_new_with_utf8_chars_and_len);
                 ctor(
                     string_ptr,
@@ -273,9 +256,9 @@ impl FromStr for GString {
 impl From<&StringName> for GString {
     fn from(string: &StringName) -> Self {
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_string_name);
-                let args = [string.sys_const()];
+                let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         }
@@ -294,9 +277,9 @@ impl From<StringName> for GString {
 impl From<&NodePath> for GString {
     fn from(path: &NodePath) -> Self {
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_node_path);
-                let args = [path.sys_const()];
+                let args = [path.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         }

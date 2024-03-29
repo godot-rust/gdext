@@ -55,7 +55,7 @@ fn object_user_roundtrip_return() {
     let ptr = raw.sys();
     std::mem::forget(obj);
 
-    let raw2 = unsafe { RawGd::<RefcPayload>::from_sys(ptr) };
+    let raw2 = unsafe { RawGd::<RefcPayload>::new_from_sys(ptr) };
     let obj2 = Gd::from_ffi(raw2);
     assert_eq!(obj2.bind().value, value);
 } // drop
@@ -70,8 +70,8 @@ fn object_user_roundtrip_write() {
     let raw = obj.to_ffi();
 
     let raw2 = unsafe {
-        RawGd::<RefcPayload>::from_sys_init(|ptr| {
-            raw.move_return_ptr(sys::AsUninit::force_init(ptr), sys::PtrcallType::Standard)
+        RawGd::<RefcPayload>::new_with_uninit(|ptr| {
+            raw.move_return_ptr(sys::SysPtr::force_init(ptr), sys::PtrcallType::Standard)
         })
     };
     let obj2 = Gd::from_ffi(raw2);
@@ -89,7 +89,7 @@ fn object_engine_roundtrip() {
     let raw = obj.to_ffi();
     let ptr = raw.sys();
 
-    let raw2 = unsafe { RawGd::<Node3D>::from_sys(ptr) };
+    let raw2 = unsafe { RawGd::<Node3D>::new_from_sys(ptr) };
     let obj2 = Gd::from_ffi(raw2);
     assert_eq!(obj2.get_position(), pos);
     obj.free();
