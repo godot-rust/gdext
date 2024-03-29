@@ -126,7 +126,7 @@ jobs:
 
           - name: linux
             os: ubuntu-20.04
-            rust-toolchain: '1.70.0'
+            rust-toolchain: "1.77.1"
             rust-special: -msrv
 
     steps:
