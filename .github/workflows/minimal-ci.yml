@@ -69,7 +69,7 @@ jobs:
           RUSTDOCFLAGS: >
             -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes 
             -D rustdoc::invalid-rust-codeblocks -D rustdoc::invalid-html-tags -D rustdoc::bare-urls -D rustdoc::unescaped-backticks
-        run: cargo doc -p godot
+        run: cargo doc -p godot --ignore-rust-version
 
 
   clippy:
