@@ -127,17 +127,38 @@ fn string_name_is_empty() {
 
 #[itest]
 #[cfg(since_api = "4.2")]
-fn string_name_from_latin1_with_nul() {
-    let cases: [(&[u8], &str); 3] = [
-        (b"pure ASCII\t[~]\0", "pure ASCII\t[~]\0"),
-        (b"\xB1\0", "±"),
-        (b"Latin-1 \xA3 \xB1 text \xBE\0", "Latin-1 £ ± text ¾"),
+fn string_name_from_cstr() {
+    use std::ffi::CStr;
+
+    let cases: [(&CStr, &str); 3] = [
+        (c"pure ASCII\t[~]", "pure ASCII\t[~]"),
+        (c"\xB1", "±"),
+        (c"Latin-1 \xA3 \xB1 text \xBE", "Latin-1 £ ± text ¾"),
     ];
 
     for (bytes, string) in cases.into_iter() {
-        let a = StringName::from_latin1_with_nul(bytes);
+        let a = StringName::from(bytes);
         let b = StringName::from(string);
 
         assert_eq!(a, b);
+    }
+}
+
+#[itest]
+fn string_name_with_null() {
+    // Godot always ignores bytes after a null byte.
+    let cases: &[(&str, &str)] = &[
+        (
+            "some random string",
+            "some random string\0 with a null byte",
+        ),
+        ("", "\0"),
+    ];
+
+    for (left, right) in cases.iter() {
+        let left = StringName::from(*left);
+        let right = StringName::from(*right);
+
+        assert_eq!(left, right);
     }
 }

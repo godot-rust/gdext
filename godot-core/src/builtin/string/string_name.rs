@@ -26,6 +26,11 @@ use crate::builtin::{GString, NodePath};
 /// relying on lexicographical ordering.
 ///
 /// Instead, we provide [`transient_ord()`][Self::transient_ord] for ordering relations.
+///
+/// # Null bytes
+///
+/// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and `"hello, world!\0 ignored by Godot"`
+/// will be treated as the same string if converted to a `StringName`.
 // Currently we rely on `transparent` for `borrow_string_sys`.
 #[repr(transparent)]
 pub struct StringName {
@@ -54,26 +59,12 @@ impl StringName {
     ///
     /// Note that every byte is valid in Latin-1, so there is no encoding validation being performed.
     #[cfg(since_api = "4.2")]
+    #[deprecated = "Since Rust 1.77, you can use c-string literals with `From/Into` instead of this function."]
     pub fn from_latin1_with_nul(latin1_c_str: &'static [u8]) -> Self {
         let c_str = std::ffi::CStr::from_bytes_with_nul(latin1_c_str)
             .unwrap_or_else(|_| panic!("invalid or not nul-terminated CStr: '{latin1_c_str:?}'"));
 
-        // SAFETY: latin1_c_str is nul-terminated and remains valid for entire program duration.
-        let result = unsafe {
-            Self::new_with_string_uninit(|ptr| {
-                sys::interface_fn!(string_name_new_with_latin1_chars)(
-                    ptr,
-                    c_str.as_ptr(),
-                    true as sys::GDExtensionBool, // p_is_static
-                )
-            })
-        };
-
-        // StringName expects that the destructor is not invoked on static instances (or only at global exit; see SNAME(..) macro in Godot).
-        // According to testing with godot4 --verbose, there is no mention of "Orphan StringName" at shutdown when incrementing the ref-count,
-        // so this should not leak memory.
-        result.inc_ref();
-        result
+        c_str.into()
     }
 
     /// Returns the number of characters in the string.
@@ -203,19 +194,16 @@ unsafe impl Send for StringName {}
 
 impl_rust_string_conv!(StringName);
 
-impl<S> From<S> for StringName
-where
-    S: AsRef<str>,
-{
+impl From<&str> for StringName {
     #[cfg(before_api = "4.2")]
-    fn from(string: S) -> Self {
-        let intermediate = GString::from(string.as_ref());
+    fn from(string: &str) -> Self {
+        let intermediate = GString::from(string);
         Self::from(&intermediate)
     }
 
     #[cfg(since_api = "4.2")]
-    fn from(string: S) -> Self {
-        let utf8 = string.as_ref().as_bytes();
+    fn from(string: &str) -> Self {
+        let utf8 = string.as_bytes();
 
         // SAFETY: Rust guarantees validity and range of string.
         unsafe {
@@ -227,6 +215,18 @@ where
                 );
             })
         }
+    }
+}
+
+impl From<String> for StringName {
+    fn from(value: String) -> Self {
+        value.as_str().into()
+    }
+}
+
+impl From<&String> for StringName {
+    fn from(value: &String) -> Self {
+        value.as_str().into()
     }
 }
 
@@ -263,6 +263,42 @@ impl From<NodePath> for StringName {
     /// This is identical to `StringName::from(&path)`, and as such there is no performance benefit.
     fn from(path: NodePath) -> Self {
         Self::from(GString::from(path))
+    }
+}
+
+#[cfg(since_api = "4.2")]
+impl From<&'static std::ffi::CStr> for StringName {
+    /// Creates a `StringName` from a static ASCII/Latin-1 `c"string"`.
+    ///
+    /// This avoids unnecessary copies and allocations and directly uses the backing buffer. Useful for literals.
+    ///
+    /// Note that while Latin-1 encoding is the most common encoding for c-strings, it isn't a requirement. So if your c-string
+    /// uses a different encoding (e.g. UTF-8), it is possible that some characters will not show up as expected.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use godot::builtin::StringName;
+    ///
+    /// // '±' is a Latin-1 character with codepoint 0xB1. Note that this is not UTF-8, where it would need two bytes.
+    /// let sname = StringName::from(c"\xb1 Latin-1 string");
+    /// ```
+    fn from(c_str: &'static std::ffi::CStr) -> Self {
+        // SAFETY: c_str is nul-terminated and remains valid for entire program duration.
+        let result = unsafe {
+            Self::new_with_string_uninit(|ptr| {
+                sys::interface_fn!(string_name_new_with_latin1_chars)(
+                    ptr,
+                    c_str.as_ptr(),
+                    true as sys::GDExtensionBool, // p_is_static
+                )
+            })
+        };
+
+        // StringName expects that the destructor is not invoked on static instances (or only at global exit; see SNAME(..) macro in Godot).
+        // According to testing with godot4 --verbose, there is no mention of "Orphan StringName" at shutdown when incrementing the ref-count,
+        // so this should not leak memory.
+        result.inc_ref();
+        result
     }
 }
 
