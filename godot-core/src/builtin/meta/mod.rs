@@ -246,7 +246,7 @@ where
 /// Rusty abstraction of `sys::GDExtensionPropertyInfo`.
 ///
 /// Keeps the actual allocated values (the `sys` equivalent only keeps pointers, which fall out of scope).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
 pub struct PropertyInfo {
     pub variant_type: VariantType,
@@ -288,7 +288,7 @@ impl PropertyInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MethodInfo {
     pub id: i32,
     pub method_name: StringName,
