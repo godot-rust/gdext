@@ -14,10 +14,10 @@
 use std::sync::OnceLock;
 
 use super::GodotBinding;
-use crate::UnsafeOnceCell;
+use crate::ManualInitCell;
 
 pub(super) struct BindingStorage {
-    binding: UnsafeOnceCell<GodotBinding>,
+    binding: ManualInitCell<GodotBinding>,
 }
 
 impl BindingStorage {
@@ -25,7 +25,7 @@ impl BindingStorage {
     #[inline(always)]
     fn storage() -> &'static Self {
         static BINDING: BindingStorage = BindingStorage {
-            binding: UnsafeOnceCell::new(),
+            binding: ManualInitCell::new(),
         };
         &BINDING
     }

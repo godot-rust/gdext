@@ -8,7 +8,7 @@
 use crate::{
     BuiltinLifecycleTable, BuiltinMethodTable, ClassEditorMethodTable, ClassSceneMethodTable,
     ClassServersMethodTable, GDExtensionClassLibraryPtr, GDExtensionInterface,
-    GdextRuntimeMetadata, UnsafeOnceCell, UtilityFunctionTable,
+    GdextRuntimeMetadata, ManualInitCell, UtilityFunctionTable,
 };
 
 #[cfg(feature = "experimental-threads")]
@@ -33,10 +33,10 @@ pub(crate) struct GodotBinding {
     interface: GDExtensionInterface,
     library: ClassLibraryPtr,
     global_method_table: BuiltinLifecycleTable,
-    class_server_method_table: UnsafeOnceCell<ClassServersMethodTable>,
-    class_scene_method_table: UnsafeOnceCell<ClassSceneMethodTable>,
-    class_editor_method_table: UnsafeOnceCell<ClassEditorMethodTable>,
-    builtin_method_table: UnsafeOnceCell<BuiltinMethodTable>,
+    class_server_method_table: ManualInitCell<ClassServersMethodTable>,
+    class_scene_method_table: ManualInitCell<ClassSceneMethodTable>,
+    class_editor_method_table: ManualInitCell<ClassEditorMethodTable>,
+    builtin_method_table: ManualInitCell<BuiltinMethodTable>,
     utility_function_table: UtilityFunctionTable,
     runtime_metadata: GdextRuntimeMetadata,
     config: GdextConfig,
@@ -55,10 +55,10 @@ impl GodotBinding {
             interface,
             library: ClassLibraryPtr(library),
             global_method_table,
-            class_server_method_table: UnsafeOnceCell::new(),
-            class_scene_method_table: UnsafeOnceCell::new(),
-            class_editor_method_table: UnsafeOnceCell::new(),
-            builtin_method_table: UnsafeOnceCell::new(),
+            class_server_method_table: ManualInitCell::new(),
+            class_scene_method_table: ManualInitCell::new(),
+            class_editor_method_table: ManualInitCell::new(),
+            builtin_method_table: ManualInitCell::new(),
             utility_function_table,
             runtime_metadata,
             config,

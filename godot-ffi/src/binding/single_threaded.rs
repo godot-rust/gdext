@@ -13,12 +13,12 @@ use std::cell::Cell;
 use std::thread::ThreadId;
 
 use super::GodotBinding;
-use crate::UnsafeOnceCell;
+use crate::ManualInitCell;
 
 pub(super) struct BindingStorage {
     // Is used in to check that we've been called from the right thread, so must be thread-safe to access.
     main_thread_id: Cell<Option<ThreadId>>,
-    binding: UnsafeOnceCell<GodotBinding>,
+    binding: ManualInitCell<GodotBinding>,
 }
 
 impl BindingStorage {
@@ -31,7 +31,7 @@ impl BindingStorage {
     unsafe fn storage() -> &'static Self {
         static BINDING: BindingStorage = BindingStorage {
             main_thread_id: Cell::new(None),
-            binding: UnsafeOnceCell::new(),
+            binding: ManualInitCell::new(),
         };
 
         &BINDING

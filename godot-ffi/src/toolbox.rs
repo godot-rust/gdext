@@ -354,9 +354,10 @@ const INFO: &str = "\nMake sure gdext and Godot are compatible: https://godot-ru
 // Don't use abstractions made here outside this crate, if needed then we should discuss making it more of a first-class
 // abstraction like `godot-cell`.
 
-/// Module to encapsulate `UnsafeOnceCell`.
-mod unsafe_once_cell {
-    use std::{cell::UnsafeCell, hint::unreachable_unchecked};
+/// Module to encapsulate `ManualInitCell`.
+mod manual_init_cell {
+    use std::cell::UnsafeCell;
+    use std::hint::unreachable_unchecked;
 
     /// A cell which can be initialized and uninitialized, with manual synchronization from the caller.
     ///
@@ -365,12 +366,12 @@ mod unsafe_once_cell {
     ///
     /// This cell additionally allows to deinitialize the value, which is useful in scenarios where the state needs to be reset (e.g.
     /// hot-reloading on Linux).
-    pub(crate) struct UnsafeOnceCell<T> {
+    pub(crate) struct ManualInitCell<T> {
         // Invariant: Is `None` until initialized, and then never modified after (except, possibly, through interior mutability).
         cell: UnsafeCell<Option<T>>,
     }
 
-    impl<T> UnsafeOnceCell<T> {
+    impl<T> ManualInitCell<T> {
         /// Creates a new empty cell.
         pub const fn new() -> Self {
             Self {
@@ -429,7 +430,7 @@ mod unsafe_once_cell {
         ///
         /// # Safety
         ///
-        /// - [`set`](UnsafeOnceCell::set) must have been called before calling this method.
+        /// - [`set`](ManualInitCell::set) must have been called before calling this method.
         #[inline]
         pub unsafe fn get_unchecked(&self) -> &T {
             // SAFETY: There are no `&mut` references, since only `set` can create one and this method cannot be called concurrently with `set`.
@@ -456,9 +457,9 @@ mod unsafe_once_cell {
 
     // SAFETY: The user is responsible for ensuring thread safe initialization of the cell.
     // This also requires `Send` for the same reasons `OnceLock` does.
-    unsafe impl<T: Send + Sync> Sync for UnsafeOnceCell<T> {}
+    unsafe impl<T: Send + Sync> Sync for ManualInitCell<T> {}
     // SAFETY: See `Sync` impl.
-    unsafe impl<T: Send> Send for UnsafeOnceCell<T> {}
+    unsafe impl<T: Send> Send for ManualInitCell<T> {}
 }
 
-pub(crate) use unsafe_once_cell::UnsafeOnceCell;
+pub(crate) use manual_init_cell::ManualInitCell;
