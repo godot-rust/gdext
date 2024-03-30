@@ -351,23 +351,27 @@ const INFO: &str = "\nMake sure gdext and Godot are compatible: https://godot-ru
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Private abstractions
-// Dont use abstractions made here outside this crate, if needed then we should discuss making it more of a first-class
+// Don't use abstractions made here outside this crate, if needed then we should discuss making it more of a first-class
 // abstraction like `godot-cell`.
 
-/// Module to encapsulate `UnsafeOnceCell`.
-mod unsafe_once_cell {
-    use std::{cell::UnsafeCell, hint::unreachable_unchecked};
+/// Module to encapsulate `ManualInitCell`.
+mod manual_init_cell {
+    use std::cell::UnsafeCell;
+    use std::hint::unreachable_unchecked;
 
-    /// A cell which can only be written to once, where the caller is responsible for synchronization.
+    /// A cell which can be initialized and uninitialized, with manual synchronization from the caller.
     ///
     /// Similar to a [`OnceLock`](std::sync::OnceLock), but without the overhead of locking for initialization. In most cases the compiler
     /// seems able to optimize `OnceLock` to equivalent code. But this guaranteed does not have any overhead at runtime.
-    pub(crate) struct UnsafeOnceCell<T> {
+    ///
+    /// This cell additionally allows to deinitialize the value, which is useful in scenarios where the state needs to be reset (e.g.
+    /// hot-reloading on Linux).
+    pub(crate) struct ManualInitCell<T> {
         // Invariant: Is `None` until initialized, and then never modified after (except, possibly, through interior mutability).
         cell: UnsafeCell<Option<T>>,
     }
 
-    impl<T> UnsafeOnceCell<T> {
+    impl<T> ManualInitCell<T> {
         /// Creates a new empty cell.
         pub const fn new() -> Self {
             Self {
@@ -379,7 +383,7 @@ mod unsafe_once_cell {
         ///
         /// # Safety
         ///
-        /// - Must only be called once.
+        /// - Must only be called once, unless a [`clear()`][Self::clear] call has happened in between.
         /// - Calls to this method must not happen concurrently with a call to any other method on this cell.
         ///
         /// Note that the other methods of this cell do not have a safety invariant that they are not called concurrently with `set`.
@@ -387,42 +391,57 @@ mod unsafe_once_cell {
         /// safety invariant as well. This has the added benefit that `is_initialized` can be a safe method.
         #[inline]
         pub unsafe fn set(&self, value: T) {
-            // SAFETY: `set` is only ever called once, and is not called concurrently with any other methods. Therefore we can take
-            // a mutable reference to the contents of the cell.
-            let cell = unsafe { &mut *self.cell.get() };
+            // SAFETY: `set` has exclusive access to the cell, per the safety requirements.
+            let option = unsafe { &mut *self.cell.get() };
 
-            debug_assert!(cell.is_none(), "`set` should only ever be called once");
-
-            // Tell the compiler to assume the cell is `None`, even if it can't prove that on its own.
-            if cell.is_some() {
-                // SAFETY: `cell` is initialized to `None`, and `set` is the only way to set it to a `Some`. Since `set`
-                // is never called more than once, we know for sure that it is still `None` at this point.
+            // Tell the compiler that the cell is `None`, even if it can't prove that on its own.
+            if option.is_some() {
+                // SAFETY: `set` cannot be called multiple times without `clear` in between, so the cell must be `None` at this point.
+                // This panics in Debug mode.
                 unsafe { unreachable_unchecked() }
             }
 
-            *cell = Some(value);
+            *option = Some(value);
+        }
+
+        /// Clear the value stored in this cell.
+        ///
+        /// # Safety
+        ///
+        /// - Must only be called after [`set`](Self::set) has been called.
+        /// - Calls to this method must not happen concurrently with a call to any other method on this cell.
+        #[inline]
+        pub unsafe fn clear(&self) {
+            // SAFETY: `set` is only ever called once, and is not called concurrently with any other methods. Therefore we can take
+            // a mutable reference to the contents of the cell.
+            let option = unsafe { &mut *self.cell.get() };
+
+            // Tell the compiler that the cell is `Some`.
+            if option.is_none() {
+                // SAFETY: `set` has been called before this, so the option is known to be a `Some`.
+                // This panics in Debug mode.
+                unsafe { unreachable_unchecked() }
+            }
+
+            *option = None;
         }
 
         /// Gets the value stored in the cell.
         ///
         /// # Safety
         ///
-        /// - [`set`](UnsafeOnceCell::set) must have been called before calling this method.
+        /// - [`set`](ManualInitCell::set) must have been called before calling this method.
         #[inline]
         pub unsafe fn get_unchecked(&self) -> &T {
             // SAFETY: There are no `&mut` references, since only `set` can create one and this method cannot be called concurrently with `set`.
             let option = unsafe { &*self.cell.get() };
 
-            debug_assert!(
-                option.is_some(),
-                "get_unchecked must be called after `set` has been called once"
-            );
-
             // SAFETY: `set` has been called before this, so the option is known to be a `Some`.
+            // This panics in Debug mode.
             unsafe { option.as_ref().unwrap_unchecked() }
         }
 
-        /// Gets the value stored in the cell.
+        /// Checks whether the cell contains a value.
         #[inline]
         pub fn is_initialized(&self) -> bool {
             // SAFETY: There are no `&mut` references, since only `set` can create one and this method cannot be called concurrently with `set`.
@@ -434,9 +453,9 @@ mod unsafe_once_cell {
 
     // SAFETY: The user is responsible for ensuring thread safe initialization of the cell.
     // This also requires `Send` for the same reasons `OnceLock` does.
-    unsafe impl<T: Send + Sync> Sync for UnsafeOnceCell<T> {}
+    unsafe impl<T: Send + Sync> Sync for ManualInitCell<T> {}
     // SAFETY: See `Sync` impl.
-    unsafe impl<T: Send> Send for UnsafeOnceCell<T> {}
+    unsafe impl<T: Send> Send for ManualInitCell<T> {}
 }
 
-pub(crate) use unsafe_once_cell::UnsafeOnceCell;
+pub(crate) use manual_init_cell::ManualInitCell;

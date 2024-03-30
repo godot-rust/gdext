@@ -119,6 +119,8 @@ unsafe impl Sync for GdextRuntimeMetadata {}
 // SAFETY: See `Sync` impl safety doc.
 unsafe impl Send for GdextRuntimeMetadata {}
 
+/// Initializes the library.
+///
 /// # Safety
 ///
 /// - The `interface` pointer must be either:
@@ -199,6 +201,18 @@ pub unsafe fn initialize(
     }
 
     print_preamble(version);
+}
+
+/// Deinitializes the library.
+///
+/// Does not perform much logic, mostly used for consistency:
+/// - Ensure that the binding is not accessed after it has been deinitialized.
+/// - Allow re-initialization for hot-reloading on Linux.
+///
+/// # Safety
+/// See [`initialize`].
+pub unsafe fn deinitialize() {
+    unsafe { deinitialize_binding() }
 }
 
 fn print_preamble(version: GDExtensionGodotVersion) {

@@ -216,6 +216,7 @@ jobs:
             artifact-name: macos-nightly
             godot-binary: godot.macos.editor.dev.x86_64
             rust-extra-args: --features godot/custom-godot
+            with-hot-reload: true
 
           - name: macos-double
             os: macos-12
@@ -242,6 +243,7 @@ jobs:
             artifact-name: windows-nightly
             godot-binary: godot.windows.editor.dev.x86_64.exe
             rust-extra-args: --features godot/custom-godot
+            with-hot-reload: true
 
           - name: windows-double
             os: windows-latest
@@ -273,6 +275,7 @@ jobs:
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features codegen-full-experimental
+            with-hot-reload: true
 
           # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
           - name: linux-double-lazy
@@ -369,6 +372,12 @@ jobs:
           rust-cache-key: ${{ matrix.rust-cache-key }}
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'custom-godot') }}
           godot-check-header: ${{ matrix.godot-check-header }}
+          
+      - name: "Build and test hot-reload"
+        if: ${{ matrix.with-hot-reload }}
+        working-directory: examples/hot-reload/godot/test
+        run: ./run-test.sh
+        shell: bash
 
 
   run-examples:
