@@ -13,6 +13,8 @@ cleanup() {
 set -euo pipefail
 trap cleanup EXIT
 
+echo "[Bash]     Start hot-reload integration test..."
+
 # Restore un-reloaded file (for local testing).
 git checkout  --quiet ../../rust/src/lib.rs ../rust.gdextension
 
