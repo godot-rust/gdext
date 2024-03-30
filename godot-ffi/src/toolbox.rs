@@ -436,12 +436,8 @@ mod manual_init_cell {
             // SAFETY: There are no `&mut` references, since only `set` can create one and this method cannot be called concurrently with `set`.
             let option = unsafe { &*self.cell.get() };
 
-            debug_assert!(
-                option.is_some(),
-                "get_unchecked must be called after `set` has been called once"
-            );
-
             // SAFETY: `set` has been called before this, so the option is known to be a `Some`.
+            // This panics in Debug mode.
             unsafe { option.as_ref().unwrap_unchecked() }
         }
 
