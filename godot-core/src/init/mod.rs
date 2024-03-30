@@ -136,6 +136,17 @@ fn gdext_on_level_init(level: InitLevel) {
 /// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
 fn gdext_on_level_deinit(level: InitLevel) {
     crate::unregister_classes(level);
+
+    if level == InitLevel::Core {
+        // If lowest level is unloaded, call global deinitialization.
+        // No business logic by itself, but ensures consistency if re-initialization (hot-reload on Linux) occurs.
+
+        // SAFETY: called after all other logic, so no concurrent access.
+        // TODO: multithreading must make sure other threads are joined/stopped here.
+        unsafe {
+            sys::deinitialize();
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

@@ -90,9 +90,16 @@ unsafe impl Send for ClassLibraryPtr {}
 ///
 /// If "experimental-threads" is enabled, then must be called from the main thread.
 pub(crate) unsafe fn initialize_binding(binding: GodotBinding) {
-    unsafe {
-        BindingStorage::initialize(binding);
-    }
+    BindingStorage::initialize(binding);
+}
+
+/// Deinitializes the Godot binding.
+///
+/// # Safety
+///
+/// See [`initialize_binding`].
+pub(crate) unsafe fn deinitialize_binding() {
+    BindingStorage::deinitialize();
 }
 
 /// # Safety
