@@ -41,22 +41,6 @@ python orchestrate.py replace
 # Compile updated Rust source.
 cargo build -p hot-reload $cargoArgs
 
-# Check if GDEXT_RENAME_SO is set.
-if [[ -z "${GDEXT_RENAME_SO+x}" ]]; then
-  GDEXT_RENAME_SO="false"
-fi
-
-# If GDEXT_RENAME_SO is 'true', we need to rename libhot_reload.so to libhot_reload_new.so after reload.
-# TODO this is a workaround, but the .so seems to be not properly un-/reloaded if the same filename is used.
-if [[ "${GDEXT_RENAME_SO:-false}" == "true" ]]; then
-  echo "[Bash]     Rename libhot_reload.so to libhot_reload_new.so..."
-  mv ../../../../target/debug/libhot_reload.so ../../../../target/debug/libhot_reload_new.so
-
-  # Update reference in .gdextension file.
-  sed -i 's|libhot_reload.so|libhot_reload_new.so|' ../rust.gdextension
-fi
-
-
 python orchestrate.py notify
 
 echo "[Bash]     Wait for Godot exit..."

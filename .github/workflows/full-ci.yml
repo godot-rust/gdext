@@ -376,8 +376,6 @@ jobs:
       - name: "Build and test hot-reload"
         if: ${{ matrix.with-hot-reload }}
         working-directory: examples/hot-reload/godot/test
-        env: # On Linux, rename .so files.
-          GDEXT_RENAME_SO: ${{ startsWith(matrix.name, 'linux') }}
         run: ./run-test.sh
         shell: bash
 
