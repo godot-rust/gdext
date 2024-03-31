@@ -16,6 +16,11 @@ use crate::builtin::meta::impl_godot_as_self;
 use super::{GString, StringName};
 
 /// A pre-parsed scene tree path.
+///
+/// # Null bytes
+///
+/// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and `"hello, world!\0 ignored by Godot"`
+/// will be treated as the same string if converted to a `NodePath`.
 pub struct NodePath {
     opaque: sys::types::OpaqueNodePath,
 }
@@ -93,13 +98,21 @@ impl fmt::Debug for NodePath {
 
 impl_rust_string_conv!(NodePath);
 
-impl<S> From<S> for NodePath
-where
-    S: AsRef<str>,
-{
-    fn from(string: S) -> Self {
-        let intermediate = GString::from(string.as_ref());
-        Self::from(&intermediate)
+impl From<&str> for NodePath {
+    fn from(s: &str) -> Self {
+        GString::from(s).into()
+    }
+}
+
+impl From<String> for NodePath {
+    fn from(s: String) -> Self {
+        GString::from(s).into()
+    }
+}
+
+impl From<&String> for NodePath {
+    fn from(s: &String) -> Self {
+        GString::from(s).into()
     }
 }
 

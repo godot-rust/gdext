@@ -50,6 +50,11 @@ use super::{NodePath, StringName};
 /// # Other string types
 ///
 /// Godot also provides two separate string classes with slightly different semantics: [`StringName`] and [`NodePath`].
+///
+/// # Null bytes
+///
+/// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and `"hello, world!\0 ignored by Godot"`
+/// will be treated as the same string if converted to a `GString`.
 #[doc(alias = "String")]
 // #[repr] is needed on GString itself rather than the opaque field, because PackedStringArray::as_slice() relies on a packed representation.
 #[repr(transparent)]
@@ -192,12 +197,9 @@ impl fmt::Debug for GString {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Conversion from/into Rust string-types
 
-impl<S> From<S> for GString
-where
-    S: AsRef<str>,
-{
-    fn from(s: S) -> Self {
-        let bytes = s.as_ref().as_bytes();
+impl From<&str> for GString {
+    fn from(s: &str) -> Self {
+        let bytes = s.as_bytes();
 
         unsafe {
             Self::new_with_string_uninit(|string_ptr| {
@@ -209,6 +211,18 @@ where
                 );
             })
         }
+    }
+}
+
+impl From<String> for GString {
+    fn from(value: String) -> Self {
+        value.as_str().into()
+    }
+}
+
+impl From<&String> for GString {
+    fn from(value: &String) -> Self {
+        value.as_str().into()
     }
 }
 

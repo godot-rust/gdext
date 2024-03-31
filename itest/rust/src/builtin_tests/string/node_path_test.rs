@@ -64,3 +64,22 @@ fn node_path_hash() {
     .collect();
     assert_eq!(set.len(), 5);
 }
+
+#[itest]
+fn node_path_with_null() {
+    // Godot always ignores bytes after a null byte.
+    let cases: &[(&str, &str)] = &[
+        (
+            "some random string",
+            "some random string\0 with a null byte",
+        ),
+        ("", "\0"),
+    ];
+
+    for (left, right) in cases.iter() {
+        let left = NodePath::from(*left);
+        let right = NodePath::from(*right);
+
+        assert_eq!(left, right);
+    }
+}
