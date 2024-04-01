@@ -15,13 +15,13 @@ var extension_name: String
 
 
 func _ready() -> void:
-	print("[GDScript] Start...")
+	print("[GD Editor] Start...")
 
 	var r = Reloadable.new()
 	var num = r.get_number()
 	r.free()
 
-	print("[GDScript] Sanity check: initial number is ", num)
+	print("[GD Editor] Sanity check: initial number is ", num)
 	
 	var extensions = GDExtensionManager.get_loaded_extensions()
 	if extensions.size() == 1:
@@ -31,17 +31,14 @@ func _ready() -> void:
 		return
 
 	udp.bind(1337)
-	print("[GDScript] ReloadTest ready to receive...")
+	print("[GD Editor] ReloadTest ready to receive...")
 
 	send_udp()
 
 
 func send_udp():
-	# Attempt to bind the UDP socket to any available port for sending.
-	# You can specify a port number instead of 0 if you need to bind to a specific port.
 	var out_udp = PacketPeerUDP.new()
 
-	# Set the destination address and port for the message
 	if out_udp.set_dest_address("127.0.0.1", 1338) != OK:
 		fail("Failed to set destination address")
 		return
@@ -50,12 +47,12 @@ func send_udp():
 		fail("Failed to send packet")
 		return
 
-	print("[GDScript] Packet sent successfully")
+	print("[GD Editor] Packet sent successfully")
 	out_udp.close()
 
 
 func _exit_tree() -> void:
-	print("[GDScript] ReloadTest exit.")
+	print("[GD Editor] ReloadTest exit.")
 	udp.close()
 
 
@@ -64,7 +61,7 @@ func _process(delta: float) -> void:
 		return
 
 	var packet = udp.get_packet().get_string_from_ascii()
-	print("[GDScript] Received UDP packet [", packet.length(), "]: ", packet)
+	print("[GD Editor] Received UDP packet [", packet.length(), "]: ", packet)
 
 	if not _hot_reload():
 		return
@@ -74,7 +71,7 @@ func _process(delta: float) -> void:
 	r.free()
 
 	if num == 777:
-		print("[GDScript] Successful hot-reload! Exit...")
+		print("[GD Editor] Successful hot-reload! Exit...")
 		get_tree().quit(0)
 	else:
 		fail(str("Number was not updated correctly (is ", num, ")"))
@@ -82,7 +79,6 @@ func _process(delta: float) -> void:
 
 
 func _hot_reload():
-	# TODO sometimes fails because .so is not found
 	var status = GDExtensionManager.reload_extension(extension_name)
 	if status != OK:
 		fail(str("Failed to reload extension: ", status))
@@ -92,7 +88,7 @@ func _hot_reload():
 
 
 func fail(s: String) -> void:
-	print("::error::[GDScript] ", s) # GitHub Action syntax
+	print("::error::[GD Editor] ", s) # GitHub Action syntax
 	get_tree().quit(1)
 
 
