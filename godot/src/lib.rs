@@ -13,7 +13,7 @@
 //!
 //! Godot is written in C++, which doesn't have the same strict guarantees about safety and
 //! mutability that Rust does. As a result, not everything in this crate will look and feel
-//! entirely "rusty".
+//! entirely "rusty". See also [Philosophy](https://godot-rust.github.io/book/contribute/philosophy.html).
 //!
 //! Traits such as `Clone`, `PartialEq` or `PartialOrd` are designed to mirror Godot semantics,
 //! except in cases where Rust is stricter (e.g. float ordering). Cloning a type results in the
@@ -43,8 +43,7 @@
 //!    from [`RefCounted`][crate::engine::RefCounted].
 //!
 //!    These types may share their underlying data between multiple instances: changes to one
-//!    instance are visible in another. Think of them as `Rc<RefCell<...>>` but without any runtime
-//!    borrow checking.
+//!    instance are visible in another. They are conceptually similar to `Rc<RefCell<...>>`.
 //!
 //!    Since there is no way to prevent or even detect this sharing from Rust, you need to be more
 //!    careful when using such types. For example, when iterating over an `Array`, make sure that
