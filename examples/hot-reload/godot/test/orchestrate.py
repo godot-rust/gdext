@@ -38,7 +38,7 @@ def send_udp():
 
 
 def receive_udp() -> bool:
-    timeout = 20
+    timeout = 30
     udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp.bind(("localhost", 1338))
 
