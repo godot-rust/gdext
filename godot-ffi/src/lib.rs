@@ -35,6 +35,8 @@ mod compat;
 mod extras;
 mod global;
 mod godot_ffi;
+#[cfg(target_os = "linux")]
+pub mod linux_reload_workaround;
 mod opaque;
 mod plugins;
 mod string_cache;
