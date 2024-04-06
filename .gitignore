@@ -14,7 +14,6 @@ Cargo.lock
 
 # Needed to run projects without having to open the editor first.
 !**/.godot/extension_list.cfg
-!**/.godot/global_script_class_cache.cfg
 
 # This project: input JSONs and code generation
 gen
