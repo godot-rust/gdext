@@ -20,7 +20,7 @@ experimental-wasm = []
 
 # Private features, they are under no stability guarantee
 codegen-full = ["godot-core/codegen-full"]
-trace = ["godot-core/trace"]
+debug-log = ["godot-core/debug-log"]
 
 [dependencies]
 godot-core = { path = "../godot-core" }
