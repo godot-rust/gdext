@@ -365,7 +365,7 @@ jobs:
           godot-binary: ${{ matrix.godot-binary }}
           godot-args: ${{ matrix.godot-args }} # currently unused
           godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
-          rust-extra-args: ${{ matrix.rust-extra-args }} --features godot/codegen-full
+          rust-extra-args: ${{ matrix.rust-extra-args }}
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
           rust-target: ${{ matrix.rust-target }}
