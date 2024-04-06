@@ -117,7 +117,7 @@ fn make_builtin_class(class: &BuiltinClass, ctx: &mut Context) -> GeneratedBuilt
             pub fn from_outer(outer: &#outer_class) -> Self {
                 Self {
                     _outer_lifetime: std::marker::PhantomData,
-                    sys_ptr: outer.sys(),
+                    sys_ptr: sys::SysPtr::force_mut(outer.sys()),
                 }
             }
             #special_constructors
@@ -154,7 +154,7 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
             {
                 Self {
                     _outer_lifetime: std::marker::PhantomData,
-                    sys_ptr: outer.sys(),
+                    sys_ptr: sys::SysPtr::force_mut(outer.sys()),
                 }
             }
         }

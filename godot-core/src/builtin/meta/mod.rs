@@ -246,7 +246,7 @@ where
 /// Rusty abstraction of `sys::GDExtensionPropertyInfo`.
 ///
 /// Keeps the actual allocated values (the `sys` equivalent only keeps pointers, which fall out of scope).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 // Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
 pub struct PropertyInfo {
     pub variant_type: VariantType,
@@ -265,10 +265,10 @@ impl PropertyInfo {
 
         sys::GDExtensionPropertyInfo {
             type_: self.variant_type.sys(),
-            name: self.property_name.string_sys(),
-            class_name: self.class_name.string_sys(),
+            name: sys::SysPtr::force_mut(self.property_name.string_sys()),
+            class_name: sys::SysPtr::force_mut(self.class_name.string_sys()),
             hint: u32::try_from(self.hint.ord()).expect("hint.ord()"),
-            hint_string: self.hint_string.string_sys(),
+            hint_string: sys::SysPtr::force_mut(self.hint_string.string_sys()),
             usage: u32::try_from(self.usage.ord()).expect("usage.ord()"),
         }
     }
@@ -288,7 +288,7 @@ impl PropertyInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MethodInfo {
     pub id: i32,
     pub method_name: StringName,
@@ -328,7 +328,7 @@ impl MethodInfo {
         let default_argument_vec = self
             .default_arguments
             .iter()
-            .map(|arg| arg.var_sys())
+            .map(|arg| sys::SysPtr::force_mut(arg.var_sys()))
             .collect::<Vec<_>>()
             .into_boxed_slice();
 
@@ -337,7 +337,7 @@ impl MethodInfo {
 
         sys::GDExtensionMethodInfo {
             id: self.id,
-            name: self.method_name.string_sys(),
+            name: sys::SysPtr::force_mut(self.method_name.string_sys()),
             return_value: self.return_type.property_sys(),
             argument_count,
             arguments,

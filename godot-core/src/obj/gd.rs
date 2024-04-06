@@ -10,7 +10,7 @@ use std::ops::{Deref, DerefMut};
 
 use godot_ffi as sys;
 
-use sys::{static_assert_eq_size, VariantType};
+use sys::{static_assert_eq_size_align, VariantType};
 
 use crate::builtin::meta::{
     CallContext, ConvertError, FromFfiError, FromGodot, GodotConvert, GodotType, ToGodot,
@@ -94,7 +94,7 @@ pub struct Gd<T: GodotClass> {
 }
 
 // Size equality check (should additionally be covered by mem::transmute())
-static_assert_eq_size!(
+static_assert_eq_size_align!(
     sys::GDExtensionObjectPtr,
     sys::types::OpaqueObject,
     "Godot FFI: pointer type `Object*` should have size advertised in JSON extension file"
@@ -407,6 +407,14 @@ impl<T: GodotClass> Gd<T> {
         self.raw.obj_sys()
     }
 
+    #[doc(hidden)]
+    pub fn script_sys(&self) -> sys::GDExtensionScriptLanguagePtr
+    where
+        T: Inherits<crate::engine::ScriptLanguage>,
+    {
+        self.raw.script_sys()
+    }
+
     /// Returns a callable referencing a method from this object named `method_name`.
     ///
     /// This is shorter syntax for [`Callable::from_object_method(self, method_name)`][Callable::from_object_method].
@@ -445,7 +453,7 @@ impl<T: GodotClass> Gd<T> {
     pub unsafe fn from_sys_init_opt(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Option<Self> {
         // TODO(uninit) - should we use GDExtensionUninitializedTypePtr instead? Then update all the builtin codegen...
         let init_fn = |ptr| {
-            init_fn(sys::AsUninit::force_init(ptr));
+            init_fn(sys::SysPtr::force_init(ptr));
         };
 
         // Note: see _call_native_mb_ret_obj() in godot-cpp, which does things quite different (e.g. querying the instance binding).

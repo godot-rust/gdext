@@ -116,12 +116,12 @@ impl ScriptInstance for TestScriptInstance {
         }
     }
 
-    fn get_property_list(&self) -> &[PropertyInfo] {
-        &self.prop_list
+    fn get_property_list(&self) -> Vec<PropertyInfo> {
+        self.prop_list.clone()
     }
 
-    fn get_method_list(&self) -> &[MethodInfo] {
-        &self.method_list
+    fn get_method_list(&self) -> Vec<MethodInfo> {
+        self.method_list.clone()
     }
 
     fn call(

@@ -24,9 +24,10 @@ pub use sys::{VariantOperator, VariantType};
 /// value.  
 ///
 /// See also [Godot documentation for `Variant`](https://docs.godotengine.org/en/stable/classes/class_variant.html).
-#[repr(C, align(8))]
+// We rely on the layout of `Variant` being the same as Godot's layout in `borrow_slice` and `borrow_slice_mut`.
+#[repr(transparent)]
 pub struct Variant {
-    opaque: OpaqueVariant,
+    _opaque: OpaqueVariant,
 }
 
 impl Variant {
@@ -81,7 +82,7 @@ impl Variant {
             let object_ptr = unsafe {
                 crate::obj::raw_object_init(|type_ptr| {
                     let converter = sys::builtin_fn!(object_from_variant);
-                    converter(type_ptr, self.var_sys());
+                    converter(type_ptr, sys::SysPtr::force_mut(self.var_sys()));
                 })
             };
 
@@ -111,13 +112,13 @@ impl Variant {
     }
 
     fn call_inner(&self, method: StringName, args: &[Variant]) -> Variant {
-        let args_sys: Vec<_> = args.iter().map(|v| v.var_sys_const()).collect();
+        let args_sys: Vec<_> = args.iter().map(|v| v.var_sys()).collect();
         let mut error = sys::default_call_error();
 
         let result = unsafe {
-            Variant::from_var_sys_init_or_init_default(|variant_ptr| {
+            Variant::new_with_var_uninit_or_init(|variant_ptr| {
                 interface_fn!(variant_call)(
-                    self.var_sys(),
+                    sys::SysPtr::force_mut(self.var_sys()),
                     method.string_sys(),
                     args_sys.as_ptr(),
                     args_sys.len() as i64,
@@ -145,7 +146,7 @@ impl Variant {
         let mut is_valid = false as u8;
 
         let result = unsafe {
-            Self::from_var_sys_init_or_init_default(|variant_ptr| {
+            Self::new_with_var_uninit_or_init(|variant_ptr| {
                 interface_fn!(variant_evaluate)(
                     op_sys,
                     self.var_sys(),
@@ -177,7 +178,7 @@ impl Variant {
     pub fn stringify(&self) -> GString {
         let mut result = GString::new();
         unsafe {
-            interface_fn!(variant_stringify)(self.var_sys(), result.string_sys());
+            interface_fn!(variant_stringify)(self.var_sys(), result.string_sys_mut());
         }
         result
     }
@@ -204,81 +205,106 @@ impl Variant {
         unsafe { interface_fn!(variant_booleanize)(self.var_sys()) != 0 }
     }
 
-    fn from_opaque(opaque: OpaqueVariant) -> Self {
-        Self { opaque }
-    }
-
     // Conversions from/to Godot C++ `Variant*` pointers
     ffi_methods! {
-        type sys::GDExtensionVariantPtr = *mut Opaque;
+        type sys::GDExtensionVariantPtr = *mut Self;
 
-        fn from_var_sys = from_sys;
-        fn from_var_sys_init = from_sys_init;
+        fn new_from_var_sys = new_from_sys;
+        fn new_with_var_uninit = new_with_uninit;
+        fn new_with_var_init = new_with_init;
         fn var_sys = sys;
+        fn var_sys_mut = sys_mut;
     }
+}
 
-    #[doc(hidden)]
-    pub unsafe fn from_var_sys_init_default(
-        init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
-    ) -> Self {
-        #[allow(unused_mut)]
-        let mut variant = Variant::nil();
-        init_fn(variant.var_sys());
-        variant
+// All manually implemented unsafe functions on `Variant`.
+// Deny `unsafe_op_in_unsafe_fn` so we don't forget to check safety invariants.
+#[doc(hidden)]
+#[deny(unsafe_op_in_unsafe_fn)]
+impl Variant {
+    /// Moves this variant into a variant sys pointer. This is the same as using [`GodotFfi::move_return_ptr`].
+    ///
+    /// # Safety
+    ///
+    /// `dst` must be a valid variant pointer.
+    pub(crate) unsafe fn move_into_var_ptr(self, dst: sys::GDExtensionVariantPtr) {
+        let dst: sys::GDExtensionTypePtr = dst.cast();
+        // SAFETY: `dst` is a valid Variant pointer. Additionally `Variant` doesn't behave differently for `Standard` and `Virtual`
+        // pointer calls.
+        unsafe {
+            self.move_return_ptr(dst, sys::PtrcallType::Standard);
+        }
     }
 
     /// # Safety
-    /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
+    ///
+    /// For Godot 4.0, see [`GodotFfi::new_with_init`].
+    /// For all other versions, see [`GodotFfi::new_with_uninit`].
     #[cfg(before_api = "4.1")]
-    pub unsafe fn from_var_sys_init_or_init_default(
+    #[doc(hidden)]
+    pub unsafe fn new_with_var_uninit_or_init(
         init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
     ) -> Self {
-        Self::from_var_sys_init_default(init_fn)
+        // SAFETY: We're in Godot 4.0, and so the caller must ensure this is safe.
+        Self::new_with_var_init(|value| init_fn(value.var_sys_mut()))
     }
 
     /// # Safety
-    /// See [`GodotFfi::from_sys_init`] and [`GodotFfi::from_sys_init_default`].
+    ///
+    /// For Godot 4.0, see [`GodotFfi::new_with_init`].
+    /// For all other versions, see [`GodotFfi::new_with_uninit`].
     #[cfg(since_api = "4.1")]
     #[doc(hidden)]
-    pub unsafe fn from_var_sys_init_or_init_default(
+    pub unsafe fn new_with_var_uninit_or_init(
         init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr),
     ) -> Self {
-        Self::from_var_sys_init(init_fn)
+        // SAFETY: We're not in Godot 4.0, and so the caller must ensure this is safe.
+        unsafe { Self::new_with_var_uninit(init_fn) }
     }
 
+    /// Fallible construction of a `Variant` using a fallible initialization function.
+    ///
     /// # Safety
-    /// See [`GodotFfi::from_sys_init`].
+    ///
+    /// If `init_fn` returns `Ok(())`, then it must have initialized the pointer passed to it in accordance with [`GodotFfi::new_with_uninit`].
     #[doc(hidden)]
-    pub unsafe fn from_var_sys_init_result<E>(
+    pub unsafe fn new_with_var_uninit_result<E>(
         init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr) -> Result<(), E>,
     ) -> Result<Self, E> {
         // Relies on current macro expansion of from_var_sys_init() having a certain implementation.
 
-        let mut raw = std::mem::MaybeUninit::<OpaqueVariant>::uninit();
+        let mut raw = std::mem::MaybeUninit::<Variant>::uninit();
 
         let var_uninit_ptr =
-            raw.as_mut_ptr() as <sys::GDExtensionVariantPtr as ::godot_ffi::AsUninit>::Ptr;
+            raw.as_mut_ptr() as <sys::GDExtensionVariantPtr as ::godot_ffi::SysPtr>::Uninit;
 
-        init_fn(var_uninit_ptr).map(|_err| Self::from_opaque(raw.assume_init()))
+        // SAFETY: `map` only runs the provided closure for the `Ok(())` variant, in which case `raw` has definitely been initialized.
+        init_fn(var_uninit_ptr).map(|_success| unsafe { raw.assume_init() })
     }
 
-    #[doc(hidden)]
-    pub fn var_sys_const(&self) -> sys::GDExtensionConstVariantPtr {
-        sys::to_const_ptr(self.var_sys())
-    }
-
-    /// Converts to variant pointer; can be a null pointer.
-    pub(crate) fn ptr_from_sys(variant_ptr: sys::GDExtensionConstVariantPtr) -> *const Variant {
-        variant_ptr as *const Variant
-    }
-
+    /// Convert a `Variant` sys pointer to a reference to a `Variant`.
+    ///
     /// # Safety
-    /// `variant_ptr_array` must be a valid pointer to an array of `length` variant pointers.
-    /// The caller is responsible of keeping the backing storage alive while the unbounded references exist.
-    pub(crate) unsafe fn unbounded_refs_from_sys<'a>(
+    ///
+    /// `ptr` must point to a live `Variant` for the duration of `'a`.
+    pub(crate) unsafe fn borrow_var_sys<'a>(ptr: sys::GDExtensionConstVariantPtr) -> &'a Variant {
+        sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
+
+        // SAFETY: `ptr` is a pointer to a live `Variant` for the duration of `'a`.
+        unsafe { &*(ptr.cast::<Variant>()) }
+    }
+
+    /// Convert an array of `Variant` sys pointers to a slice of `Variant` references all with unbounded lifetimes.
+    ///
+    /// # Safety
+    ///
+    /// Either `variant_ptr_array` is null, or it must be safe to call [`std::slice::from_raw_parts`] with
+    /// `variant_ptr_array` cast to `*const &'a Variant` and `length`.
+    pub(crate) unsafe fn borrow_ref_slice<'a>(
         variant_ptr_array: *const sys::GDExtensionConstVariantPtr,
         length: usize,
     ) -> &'a [&'a Variant] {
+        sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
         // Godot may pass null to signal "no arguments" (e.g. in custom callables).
         if variant_ptr_array.is_null() {
             debug_assert_eq!(
@@ -288,25 +314,66 @@ impl Variant {
             return &[];
         }
 
-        let variant_ptr_array: &'a [sys::GDExtensionConstVariantPtr] =
-            std::slice::from_raw_parts(variant_ptr_array, length);
-
-        // SAFETY: raw pointers and references have the same memory layout.
+        // Note: Raw pointers and references have the same memory layout.
         // See https://doc.rust-lang.org/reference/type-layout.html#pointers-and-references-layout.
-        unsafe { std::mem::transmute(variant_ptr_array) }
+        let variant_ptr_array = variant_ptr_array.cast::<&Variant>();
+
+        // SAFETY: `variant_ptr_array` isn't null so it is safe to call `from_raw_parts` on the pointer cast to `*const &Variant`.
+        unsafe { std::slice::from_raw_parts(variant_ptr_array, length) }
     }
 
-    /// Converts to variant mut pointer; can be a null pointer.
-    pub(crate) fn ptr_from_sys_mut(variant_ptr: sys::GDExtensionVariantPtr) -> *mut Variant {
-        variant_ptr as *mut Variant
-    }
-
-    /// Move `self` into a system pointer. This transfers ownership and thus does not call the destructor.
+    /// Convert an array of `Variant` sys pointers to a slice with unbounded lifetime.
     ///
     /// # Safety
-    /// `dst` must be a pointer to a [`Variant`] which is suitable for ffi with Godot.
-    pub(crate) unsafe fn move_var_ptr(self, dst: sys::GDExtensionVariantPtr) {
-        self.move_return_ptr(dst as *mut _, sys::PtrcallType::Standard);
+    ///
+    /// Either `variant_array` is null, or it must be safe to call [`std::slice::from_raw_parts`] with
+    /// `variant_array` cast to `*const Variant` and `length`.
+    pub(crate) unsafe fn borrow_slice<'a>(
+        variant_array: sys::GDExtensionConstVariantPtr,
+        length: usize,
+    ) -> &'a [Variant] {
+        sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
+
+        // Godot may pass null to signal "no arguments" (e.g. in custom callables).
+        if variant_array.is_null() {
+            debug_assert_eq!(
+                length, 0,
+                "Variant::unbounded_refs_from_sys(): pointer is null but length is not 0"
+            );
+            return &[];
+        }
+
+        let variant_array = variant_array.cast::<Variant>();
+
+        // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts` on the pointer cast to `*const Variant`.
+        unsafe { std::slice::from_raw_parts(variant_array, length) }
+    }
+
+    /// Convert an array of `Variant` sys pointers to a mutable slice with unbounded lifetime.
+    ///
+    /// # Safety
+    ///
+    /// Either `variant_array` is null, or it must be safe to call [`std::slice::from_raw_parts_mut`] with
+    /// `variant_array` cast to `*mut Variant` and `length`.
+    pub(crate) unsafe fn borrow_slice_mut<'a>(
+        variant_array: sys::GDExtensionVariantPtr,
+        length: usize,
+    ) -> &'a mut [Variant] {
+        sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
+
+        // Godot may pass null to signal "no arguments" (e.g. in custom callables).
+        if variant_array.is_null() {
+            debug_assert_eq!(
+                length, 0,
+                "Variant::unbounded_refs_from_sys(): pointer is null but length is not 0"
+            );
+            return &mut [];
+        }
+
+        let variant_array = variant_array.cast::<Variant>();
+
+        // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts_mut` on the pointer cast to `*mut Variant`.
+        unsafe { std::slice::from_raw_parts_mut(variant_array, length) }
     }
 }
 
@@ -318,13 +385,7 @@ unsafe impl GodotFfi for Variant {
         sys::VariantType::Nil
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
-
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self::default();
-        init_fn(result.sys_mut());
-        result
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
 impl_godot_as_self!(Variant);
@@ -332,7 +393,7 @@ impl_godot_as_self!(Variant);
 impl Default for Variant {
     fn default() -> Self {
         unsafe {
-            Self::from_var_sys_init(|variant_ptr| {
+            Self::new_with_var_uninit(|variant_ptr| {
                 interface_fn!(variant_new_nil)(variant_ptr);
             })
         }
@@ -342,7 +403,7 @@ impl Default for Variant {
 impl Clone for Variant {
     fn clone(&self) -> Self {
         unsafe {
-            Self::from_var_sys_init(|variant_ptr| {
+            Self::new_with_var_uninit(|variant_ptr| {
                 interface_fn!(variant_new_copy)(variant_ptr, self.var_sys());
             })
         }
@@ -352,7 +413,7 @@ impl Clone for Variant {
 impl Drop for Variant {
     fn drop(&mut self) {
         unsafe {
-            interface_fn!(variant_destroy)(self.var_sys());
+            interface_fn!(variant_destroy)(self.var_sys_mut());
         }
     }
 }

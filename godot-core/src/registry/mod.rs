@@ -8,7 +8,7 @@
 use crate::builtin::meta::ClassName;
 use crate::init::InitLevel;
 use crate::obj::{cap, GodotClass};
-use crate::out;
+use crate::{godot_error, out};
 use godot_ffi as sys;
 use std::any::Any;
 use std::collections::HashMap;
@@ -502,8 +502,7 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
     }
 
     // The explicit () type notifies us if Godot API ever adds a return type.
-    #[allow(clippy::let_unit_value)]
-    unsafe {
+    let registration_failed = unsafe {
         // Try to register class...
 
         #[cfg(before_api = "4.2")]
@@ -533,9 +532,14 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
         // ...then see if it worked.
         // This is necessary because the above registration does not report errors (apart from console output).
         let tag = interface_fn!(classdb_get_class_tag)(class_name.string_sys());
-        assert!(
-            !tag.is_null(),
-            "failed to register class `{class_name}`; check preceding Godot stderr messages",
+        tag.is_null()
+    };
+
+    // Do not panic here; otherwise lock is poisoned and the whole extension becomes unusable.
+    // This can happen during hot reload if a class changes base type in an incompatible way (e.g. RefCounted -> Node).
+    if registration_failed {
+        godot_error!(
+            "Failed to register class `{class_name}`; check preceding Godot stderr messages"
         );
     }
 

@@ -2,7 +2,7 @@
 name = "godot-macros"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.77.1"
 license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "derive", "macro"]
 categories = ["game-engines", "graphics"]
@@ -22,8 +22,7 @@ godot = { path = "../godot" }
 proc-macro2 = "1.0.63"
 quote = "1.0.29"
 
-venial = { git = "https://github.com/PoignardAzur/venial", rev = "32ade31408eb0ffba4ce7b02d3cdb2e78b496644" }
-#venial = "0.5"
+venial = "0.6"
 
 [build-dependencies]
 godot-bindings = { path = "../godot-bindings" } # emit_godot_version_cfg

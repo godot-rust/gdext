@@ -20,7 +20,7 @@ on:
 
 jobs:
   notify-docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       # Checkout is always needed, for the notify step
       - name: "Checkout"
@@ -30,7 +30,7 @@ jobs:
       # So we use the Rust version provided by the GitHub runners, which hopefully is >= MSRV.
       - name: "Compile"
         if: github.event_name == 'pull_request' && github.event.action != 'closed'
-        run: cargo check -p godot $GDEXT_FEATURES
+        run: cargo check -p godot $GDEXT_FEATURES --ignore-rust-version
 
 #      - name: "Dump GitHub context"
 #        env:

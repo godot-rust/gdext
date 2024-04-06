@@ -26,7 +26,13 @@ use crate::builtin::{GString, NodePath};
 /// relying on lexicographical ordering.
 ///
 /// Instead, we provide [`transient_ord()`][Self::transient_ord] for ordering relations.
-#[repr(C)]
+///
+/// # Null bytes
+///
+/// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and `"hello, world!\0 ignored by Godot"`
+/// will be treated as the same string if converted to a `StringName`.
+// Currently we rely on `transparent` for `borrow_string_sys`.
+#[repr(transparent)]
 pub struct StringName {
     opaque: sys::types::OpaqueStringName,
 }
@@ -53,26 +59,12 @@ impl StringName {
     ///
     /// Note that every byte is valid in Latin-1, so there is no encoding validation being performed.
     #[cfg(since_api = "4.2")]
+    #[deprecated = "Since Rust 1.77, you can use c-string literals with `From/Into` instead of this function."]
     pub fn from_latin1_with_nul(latin1_c_str: &'static [u8]) -> Self {
         let c_str = std::ffi::CStr::from_bytes_with_nul(latin1_c_str)
             .unwrap_or_else(|_| panic!("invalid or not nul-terminated CStr: '{latin1_c_str:?}'"));
 
-        // SAFETY: latin1_c_str is nul-terminated and remains valid for entire program duration.
-        let result = unsafe {
-            Self::from_string_sys_init(|ptr| {
-                sys::interface_fn!(string_name_new_with_latin1_chars)(
-                    ptr,
-                    c_str.as_ptr(),
-                    true as sys::GDExtensionBool, // p_is_static
-                )
-            })
-        };
-
-        // StringName expects that the destructor is not invoked on static instances (or only at global exit; see SNAME(..) macro in Godot).
-        // According to testing with godot4 --verbose, there is no mention of "Orphan StringName" at shutdown when incrementing the ref-count,
-        // so this should not leak memory.
-        result.inc_ref();
-        result
+        c_str.into()
     }
 
     /// Returns the number of characters in the string.
@@ -115,14 +107,22 @@ impl StringName {
         type sys::GDExtensionStringNamePtr = *mut Opaque;
 
         // Note: unlike from_sys, from_string_sys does not default-construct instance first. Typical usage in C++ is placement new.
-        fn from_string_sys = from_sys;
-        fn from_string_sys_init = from_sys_init;
+        fn new_from_string_sys = new_from_sys;
+        fn new_with_string_uninit = new_with_uninit;
         fn string_sys = sys;
+        fn string_sys_mut = sys_mut;
     }
 
-    #[doc(hidden)]
-    pub fn string_sys_const(&self) -> sys::GDExtensionConstStringNamePtr {
-        sys::to_const_ptr(self.string_sys())
+    /// Convert a `StringName` sys pointer to a reference with unbounded lifetime.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must point to a live `StringName` for the duration of `'a`.
+    pub(crate) unsafe fn borrow_string_sys<'a>(
+        ptr: sys::GDExtensionConstStringNamePtr,
+    ) -> &'a StringName {
+        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueStringName);
+        &*(ptr.cast::<StringName>())
     }
 
     #[doc(hidden)]
@@ -150,24 +150,7 @@ unsafe impl GodotFfi for StringName {
         sys::VariantType::StringName
     }
 
-    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
-        fn sys;
-        fn from_sys_init;
-        fn move_return_ptr;
-    }
-
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let string_name = Self::from_sys(ptr);
-        string_name.inc_ref();
-        string_name
-    }
-
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self::default();
-        init_fn(result.sys_mut());
-        result
-    }
+    ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
 impl_godot_as_self!(StringName);
@@ -211,23 +194,20 @@ unsafe impl Send for StringName {}
 
 impl_rust_string_conv!(StringName);
 
-impl<S> From<S> for StringName
-where
-    S: AsRef<str>,
-{
+impl From<&str> for StringName {
     #[cfg(before_api = "4.2")]
-    fn from(string: S) -> Self {
-        let intermediate = GString::from(string.as_ref());
+    fn from(string: &str) -> Self {
+        let intermediate = GString::from(string);
         Self::from(&intermediate)
     }
 
     #[cfg(since_api = "4.2")]
-    fn from(string: S) -> Self {
-        let utf8 = string.as_ref().as_bytes();
+    fn from(string: &str) -> Self {
+        let utf8 = string.as_bytes();
 
         // SAFETY: Rust guarantees validity and range of string.
         unsafe {
-            Self::from_string_sys_init(|ptr| {
+            Self::new_with_string_uninit(|ptr| {
                 sys::interface_fn!(string_name_new_with_utf8_chars_and_len)(
                     ptr,
                     utf8.as_ptr() as *const std::ffi::c_char,
@@ -238,12 +218,24 @@ where
     }
 }
 
+impl From<String> for StringName {
+    fn from(value: String) -> Self {
+        value.as_str().into()
+    }
+}
+
+impl From<&String> for StringName {
+    fn from(value: &String) -> Self {
+        value.as_str().into()
+    }
+}
+
 impl From<&GString> for StringName {
     fn from(string: &GString) -> Self {
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_name_from_string);
-                let args = [string.sys_const()];
+                let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         }
@@ -271,6 +263,42 @@ impl From<NodePath> for StringName {
     /// This is identical to `StringName::from(&path)`, and as such there is no performance benefit.
     fn from(path: NodePath) -> Self {
         Self::from(GString::from(path))
+    }
+}
+
+#[cfg(since_api = "4.2")]
+impl From<&'static std::ffi::CStr> for StringName {
+    /// Creates a `StringName` from a static ASCII/Latin-1 `c"string"`.
+    ///
+    /// This avoids unnecessary copies and allocations and directly uses the backing buffer. Useful for literals.
+    ///
+    /// Note that while Latin-1 encoding is the most common encoding for c-strings, it isn't a requirement. So if your c-string
+    /// uses a different encoding (e.g. UTF-8), it is possible that some characters will not show up as expected.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use godot::builtin::StringName;
+    ///
+    /// // '±' is a Latin-1 character with codepoint 0xB1. Note that this is not UTF-8, where it would need two bytes.
+    /// let sname = StringName::from(c"\xb1 Latin-1 string");
+    /// ```
+    fn from(c_str: &'static std::ffi::CStr) -> Self {
+        // SAFETY: c_str is nul-terminated and remains valid for entire program duration.
+        let result = unsafe {
+            Self::new_with_string_uninit(|ptr| {
+                sys::interface_fn!(string_name_new_with_latin1_chars)(
+                    ptr,
+                    c_str.as_ptr(),
+                    true as sys::GDExtensionBool, // p_is_static
+                )
+            })
+        };
+
+        // StringName expects that the destructor is not invoked on static instances (or only at global exit; see SNAME(..) macro in Godot).
+        // According to testing with godot4 --verbose, there is no mention of "Orphan StringName" at shutdown when incrementing the ref-count,
+        // so this should not leak memory.
+        result.inc_ref();
+        result
     }
 }
 

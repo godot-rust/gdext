@@ -14,10 +14,10 @@
 use std::sync::OnceLock;
 
 use super::GodotBinding;
-use crate::UnsafeOnceCell;
+use crate::ManualInitCell;
 
 pub(super) struct BindingStorage {
-    binding: UnsafeOnceCell<GodotBinding>,
+    binding: ManualInitCell<GodotBinding>,
 }
 
 impl BindingStorage {
@@ -25,7 +25,7 @@ impl BindingStorage {
     #[inline(always)]
     fn storage() -> &'static Self {
         static BINDING: BindingStorage = BindingStorage {
-            binding: UnsafeOnceCell::new(),
+            binding: ManualInitCell::new(),
         };
         &BINDING
     }
@@ -33,19 +33,34 @@ impl BindingStorage {
     /// Initialize the binding storage, this must be called before any other public functions.
     ///
     /// # Safety
-    ///
-    /// - Must not be called concurrently with [`get_binding_unchecked`](BindingStorage::get_binding_unchecked).
+    /// - Must be called on startup or strictly after [`deinitialize`](Self::deinitialize).
+    /// - Must not be called concurrently with [`get_binding_unchecked`](Self::get_binding_unchecked).
     pub unsafe fn initialize(binding: GodotBinding) {
         let storage = Self::storage();
 
         assert!(
             !storage.binding.is_initialized(),
-            "initialize must only be called once"
+            "initialize must only be called at startup or after deinitialize"
         );
 
-        // SAFETY: `initialize` is only called once, and is not called concurrently with `get_binding_unchecked`, which is the
-        // only place where other methods are called on the binding.
+        // SAFETY: per declared invariants.
         unsafe { storage.binding.set(binding) }
+    }
+
+    /// Deinitialize the binding storage.
+    ///
+    /// # Safety
+    /// See [`initialize`](BindingStorage::initialize).
+    pub unsafe fn deinitialize() {
+        let storage = Self::storage();
+
+        assert!(
+            storage.binding.is_initialized(),
+            "deinitialize must only be called after initialize"
+        );
+
+        // SAFETY: per declared invariants.
+        unsafe { storage.binding.clear() };
     }
 
     /// Get the binding from the binding storage.

@@ -21,7 +21,7 @@ env:
   # * report_objects: list individual leaked objects when running LeakSanitizer
   LSAN_OPTIONS: report_objects=1
 
-  CARGO_DENY_VERSION: "0.14.3"
+  CARGO_DENY_VERSION: "0.14.20"
   CARGO_MACHETE_VERSION: "0.6.0"
 
 defaults:
@@ -67,7 +67,7 @@ jobs:
         RUSTDOCFLAGS: >
           -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes 
           -D rustdoc::invalid-rust-codeblocks -D rustdoc::invalid-html-tags -D rustdoc::bare-urls -D rustdoc::unescaped-backticks
-      run: cargo doc -p godot
+      run: cargo doc -p godot --ignore-rust-version
 
 
   clippy:
@@ -126,7 +126,7 @@ jobs:
 
           - name: linux
             os: ubuntu-20.04
-            rust-toolchain: '1.70.0'
+            rust-toolchain: "1.77.1"
             rust-special: -msrv
 
     steps:
@@ -216,6 +216,7 @@ jobs:
             artifact-name: macos-nightly
             godot-binary: godot.macos.editor.dev.x86_64
             rust-extra-args: --features godot/custom-godot
+            with-hot-reload: true
 
           - name: macos-double
             os: macos-12
@@ -242,6 +243,7 @@ jobs:
             artifact-name: windows-nightly
             godot-binary: godot.windows.editor.dev.x86_64.exe
             rust-extra-args: --features godot/custom-godot
+            with-hot-reload: true
 
           - name: windows-double
             os: windows-latest
@@ -273,6 +275,7 @@ jobs:
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features codegen-full-experimental
+            with-hot-reload: true
 
           # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
           - name: linux-double-lazy
@@ -362,13 +365,19 @@ jobs:
           godot-binary: ${{ matrix.godot-binary }}
           godot-args: ${{ matrix.godot-args }} # currently unused
           godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
-          rust-extra-args: ${{ matrix.rust-extra-args }} --features godot/codegen-full
+          rust-extra-args: ${{ matrix.rust-extra-args }}
           rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
           rust-target: ${{ matrix.rust-target }}
           rust-cache-key: ${{ matrix.rust-cache-key }}
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'custom-godot') }}
           godot-check-header: ${{ matrix.godot-check-header }}
+          
+      - name: "Build and test hot-reload"
+        if: ${{ matrix.with-hot-reload }}
+        working-directory: examples/hot-reload/godot/test
+        run: ./run-test.sh
+        shell: bash
 
 
   run-examples:

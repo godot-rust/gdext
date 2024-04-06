@@ -69,7 +69,7 @@ jobs:
           RUSTDOCFLAGS: >
             -D rustdoc::broken-intra-doc-links -D rustdoc::private-intra-doc-links -D rustdoc::invalid-codeblock-attributes 
             -D rustdoc::invalid-rust-codeblocks -D rustdoc::invalid-html-tags -D rustdoc::bare-urls -D rustdoc::unescaped-backticks
-        run: cargo doc -p godot
+        run: cargo doc -p godot --ignore-rust-version
 
 
   clippy:
@@ -150,6 +150,7 @@ jobs:
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             rust-extra-args: --features codegen-full-experimental
+            with-hot-reload: true
 
           - name: linux-features
             os: ubuntu-20.04
@@ -210,6 +211,11 @@ jobs:
           with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'custom-godot') }}
           godot-check-header: ${{ matrix.godot-check-header }}
 
+      - name: "Build and test hot-reload"
+        if: ${{ matrix.with-hot-reload }}
+        working-directory: examples/hot-reload/godot/test
+        run: ./run-test.sh
+        shell: bash
 
   run-examples:
     runs-on: ubuntu-20.04

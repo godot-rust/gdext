@@ -26,7 +26,7 @@ runs:
       id: cache-llvm
       # Note: conditionals not yet supported; see https://github.com/actions/runner/issues/834
       # if: inputs.llvm == 'true'
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
 #        path: |
 #          C:/Program Files/LLVM

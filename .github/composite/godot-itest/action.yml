@@ -58,7 +58,7 @@ inputs:
 
   with-llvm:
     required: false
-    default: ''
+    default: 'false'
     description: "Set to 'true' if LLVM should be installed"
 
 

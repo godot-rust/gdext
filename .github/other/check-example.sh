@@ -12,7 +12,7 @@ set -euo pipefail
 # Opening in editor can take a while (import reosurces, load extensions for the first time, ...).
 # Unlike EXAMPLE_TIMEOUT, this is an upper bound, after which CI job fails, so not the entire time is necessarily spent.
 EXAMPLE_TIMEOUT=5
-EDITOR_TIMEOUT=20
+EDITOR_TIMEOUT=30 # already encountered 20s on macOS CI.
 
 example="$1"
 if [ -z "$example" ]; then
@@ -38,7 +38,7 @@ timeout "$EDITOR_TIMEOUT"s "$GODOT4_BIN" -e --headless --path "$dir" --quit || {
 
 # Could also use `timeout -s9`, but there were some issues and this gives more control.
 echo "$PRE Run example..."
-$GODOT4_BIN --headless --verbose --path "$dir" 2> "$logfile" &
+$GODOT4_BIN --headless --path "$dir" 2> "$logfile" &
 pid=$!
 
 # Keep open for some time (even just main menu or so).

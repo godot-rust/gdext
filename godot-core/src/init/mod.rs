@@ -143,6 +143,17 @@ fn gdext_on_level_init(level: InitLevel) {
 /// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
 fn gdext_on_level_deinit(level: InitLevel) {
     crate::unregister_classes(level);
+
+    if level == InitLevel::Core {
+        // If lowest level is unloaded, call global deinitialization.
+        // No business logic by itself, but ensures consistency if re-initialization (hot-reload on Linux) occurs.
+
+        // SAFETY: called after all other logic, so no concurrent access.
+        // TODO: multithreading must make sure other threads are joined/stopped here.
+        unsafe {
+            sys::deinitialize();
+        }
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -193,14 +204,16 @@ pub unsafe trait ExtensionLibrary {
     /// Custom logic when a certain init-level of Godot is loaded.
     ///
     /// This will only be invoked for levels >= [`Self::min_level()`], in ascending order. Use `if` or `match` to hook to specific levels.
-    fn on_level_init(_level: InitLevel) {
+    #[allow(unused_variables)]
+    fn on_level_init(level: InitLevel) {
         // Nothing by default.
     }
 
     /// Custom logic when a certain init-level of Godot is unloaded.
     ///
     /// This will only be invoked for levels >= [`Self::min_level()`], in descending order. Use `if` or `match` to hook to specific levels.
-    fn on_level_deinit(_level: InitLevel) {
+    #[allow(unused_variables)]
+    fn on_level_deinit(level: InitLevel) {
         // Nothing by default.
     }
 
@@ -300,8 +313,8 @@ fn ensure_godot_features_compatible() {
     // SAFETY: main thread, after initialize(), valid string pointers.
     let gdext_is_double = cfg!(feature = "double-precision");
     let godot_is_double = unsafe {
-        let is_single = sys::godot_has_feature(os_class.string_sys(), single.sys_const());
-        let is_double = sys::godot_has_feature(os_class.string_sys(), double.sys_const());
+        let is_single = sys::godot_has_feature(os_class.string_sys(), single.sys());
+        let is_double = sys::godot_has_feature(os_class.string_sys(), double.sys());
 
         assert_ne!(
             is_single, is_double,

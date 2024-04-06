@@ -25,7 +25,6 @@ use sys::{ffi_methods, GodotFfi};
 /// Currently it is impossible to use `bind` and `unbind` in GDExtension, see [godot-cpp#802].
 ///
 /// [godot-cpp#802]: https://github.com/godotengine/godot-cpp/issues/802
-#[repr(C, align(8))]
 pub struct Callable {
     opaque: sys::types::OpaqueCallable,
 }
@@ -48,10 +47,10 @@ impl Callable {
         // upcast not needed
         let method = method_name.into();
         unsafe {
-            sys::from_sys_init_or_init_default::<Self>(|self_ptr| {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
                 let ctor = sys::builtin_fn!(callable_from_object_method);
                 let raw = object.to_ffi();
-                let args = [raw.as_arg_ptr(), method.sys_const()];
+                let args = [raw.as_arg_ptr(), method.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
         }
@@ -140,7 +139,7 @@ impl Callable {
     fn from_custom_info(mut info: sys::GDExtensionCallableCustomInfo) -> Callable {
         // SAFETY: callable_custom_create() is a valid way of creating callables.
         unsafe {
-            Callable::from_sys_init(|type_ptr| {
+            Callable::new_with_uninit(|type_ptr| {
                 sys::interface_fn!(callable_custom_create)(type_ptr, ptr::addr_of_mut!(info))
             })
         }
@@ -151,7 +150,7 @@ impl Callable {
     /// _Godot equivalent: `Callable()`_
     pub fn invalid() -> Self {
         unsafe {
-            Self::from_sys_init(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(callable_construct_default);
                 ctor(self_ptr, ptr::null_mut())
             })
@@ -270,10 +269,6 @@ impl Callable {
     pub fn as_inner(&self) -> inner::InnerCallable {
         inner::InnerCallable::from_outer(self)
     }
-
-    fn inc_ref(&self) {
-        std::mem::forget(self.clone())
-    }
 }
 
 impl_builtin_traits! {
@@ -300,21 +295,17 @@ unsafe impl GodotFfi for Callable {
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;
-        fn from_sys;
+        fn new_from_sys;
+        fn new_with_uninit;
+        fn from_arg_ptr;
         fn sys;
-        fn from_sys_init;
+        fn sys_mut;
         fn move_return_ptr;
     }
 
-    unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, _call_type: sys::PtrcallType) -> Self {
-        let callable = Self::from_sys(ptr);
-        callable.inc_ref();
-        callable
-    }
-
-    unsafe fn from_sys_init_default(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+    fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self {
         let mut result = Self::invalid();
-        init_fn(result.sys_mut());
+        init_fn(&mut result);
         result
     }
 }
@@ -395,8 +386,7 @@ mod custom_callable {
         r_return: sys::GDExtensionVariantPtr,
         r_error: *mut sys::GDExtensionCallError,
     ) {
-        let arg_refs: &[&Variant] =
-            Variant::unbounded_refs_from_sys(p_args, p_argument_count as usize);
+        let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
         let c: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
 
@@ -413,8 +403,7 @@ mod custom_callable {
     ) where
         F: FnMut(&[&Variant]) -> Result<Variant, ()>,
     {
-        let arg_refs: &[&Variant] =
-            Variant::unbounded_refs_from_sys(p_args, p_argument_count as usize);
+        let arg_refs: &[&Variant] = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
 
         let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
@@ -454,7 +443,7 @@ mod custom_callable {
         let c: &T = CallableUserdata::inner_from_raw(callable_userdata);
         let s = crate::builtin::GString::from(c.to_string());
 
-        s.move_string_ptr(r_out);
+        s.move_into_string_ptr(r_out);
         *r_is_valid = true as sys::GDExtensionBool;
     }
 
@@ -465,7 +454,7 @@ mod custom_callable {
     ) {
         let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
-        w.name.clone().move_string_ptr(r_out);
+        w.name.clone().move_into_string_ptr(r_out);
         *r_is_valid = true as sys::GDExtensionBool;
     }
 }
