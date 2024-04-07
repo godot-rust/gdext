@@ -5,16 +5,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_ffi::Global;
 use std::collections::HashMap;
 use std::sync::{atomic, Arc, Mutex};
 
-pub use crate::gen::classes::class_macros;
-pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginItem};
-pub use crate::storage::{as_storage, Storage};
+use godot_ffi::Global;
 pub use sys::out;
 
+#[cfg(feature = "trace")]
+pub use crate::builtin::meta::trace;
 use crate::builtin::meta::{CallContext, CallError};
+pub use crate::gen::classes::class_macros;
+pub use crate::obj::rtti::ObjectRtti;
+pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginItem};
+pub use crate::storage::{as_storage, Storage};
 use crate::{log, sys};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -96,8 +99,6 @@ pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
 #[allow(non_camel_case_types)]
 pub trait You_forgot_the_attribute__godot_api {}
 
-pub use crate::obj::rtti::ObjectRtti;
-
 pub struct ClassConfig {
     pub is_tool: bool,
 }
@@ -154,6 +155,9 @@ pub fn is_class_runtime(is_tool: bool) -> bool {
     // If we run all classes in the editor (!tool_only_in_editor), then it's not a runtime class.
     global_config.tool_only_in_editor
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Trace handling
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Panic handling

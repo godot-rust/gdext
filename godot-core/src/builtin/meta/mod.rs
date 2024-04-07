@@ -26,6 +26,9 @@ use godot_ffi as sys;
 use registration::method::MethodParamOrReturnInfo;
 use sys::{GodotFfi, GodotNullableFfi};
 
+#[cfg(feature = "trace")]
+pub use signature::trace;
+
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].
 #[doc(hidden)]
 pub trait GodotFfiVariant: Sized + GodotFfi {
