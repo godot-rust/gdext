@@ -10,7 +10,11 @@ use std::fmt;
 
 use godot_ffi::VariantType;
 
-use crate::builtin::{array_inner, meta::ClassName};
+use crate::builtin::{
+    array_inner,
+    meta::{ClassName, ToGodot},
+    Variant,
+};
 
 type Cause = Box<dyn Error + Send + Sync>;
 
@@ -20,8 +24,7 @@ type Cause = Box<dyn Error + Send + Sync>;
 #[derive(Debug)]
 pub struct ConvertError {
     kind: ErrorKind,
-    cause: Option<Cause>,
-    value_str: Option<String>,
+    value: Option<Variant>,
 }
 
 impl ConvertError {
@@ -30,77 +33,71 @@ impl ConvertError {
     /// If you don't need a custom message, consider using [`ConvertError::default()`] instead.
     pub fn new(user_message: impl Into<String>) -> Self {
         Self {
-            kind: ErrorKind::Custom(Some(user_message.into())),
-            cause: None,
-            value_str: None,
+            kind: ErrorKind::Custom(Some(user_message.into().into())),
+            ..Default::default()
         }
     }
 
     /// Create a new custom error for a conversion with the value that failed to convert.
     pub(crate) fn with_kind_value<V>(kind: ErrorKind, value: V) -> Self
     where
-        V: fmt::Debug,
+        V: ToGodot,
     {
         Self {
             kind,
-            cause: None,
-            value_str: Some(format!("{value:?}")),
+            value: Some(value.to_variant()),
         }
     }
 
-    /// Create a new custom error with a rust-error as an underlying cause for the conversion error.
-    #[doc(hidden)]
-    pub fn with_cause<C>(cause: C) -> Self
+    /// Create a new custom error wrapping an [`Error`].
+    pub fn with_error<E>(error: E) -> Self
     where
-        C: Into<Cause>,
+        E: Into<Box<dyn Error + Send + Sync>>,
     {
         Self {
-            cause: Some(cause.into()),
+            kind: ErrorKind::Custom(Some(error.into())),
             ..Default::default()
         }
     }
 
-    /// Create a new custom error with a rust-error as an underlying cause for the conversion error, and the
-    /// value that failed to convert.
-    #[doc(hidden)]
-    pub fn with_cause_value<C, V>(cause: C, value: V) -> Self
+    /// Create a new custom error wrapping an [`Error`] and the value that failed to convert.
+    pub fn with_error_value<E, V>(error: E, value: V) -> Self
     where
-        C: Into<Cause>,
-        V: fmt::Debug,
+        E: Into<Box<dyn Error + Send + Sync>>,
+        V: ToGodot,
     {
         Self {
-            cause: Some(cause.into()),
-            value_str: Some(format!("{value:?}")),
-            ..Default::default()
+            kind: ErrorKind::Custom(Some(error.into())),
+            value: Some(value.to_variant()),
         }
     }
 
     /// Returns the rust-error that caused this error, if one exists.
-    pub fn cause(&self) -> Option<&(dyn Error + Send + Sync)> {
-        self.cause.as_deref()
+    pub fn cause(&self) -> Option<&(dyn Error + Send + Sync + 'static)> {
+        match &self.kind {
+            ErrorKind::Custom(Some(cause)) => Some(&**cause),
+            _ => None,
+        }
     }
 
-    /// Returns a string representation of the value that failed to convert, if one exists.
-    pub fn value_str(&self) -> Option<&str> {
-        self.value_str.as_deref()
+    /// Returns a reference of the value that failed to convert, if one exists.
+    pub fn value(&self) -> Option<&Variant> {
+        self.value.as_ref()
     }
 
-    fn description(&self) -> Option<String> {
-        self.kind.description()
+    /// Converts error into generic error type. It is useful to send error across thread.
+    /// Do note that some data might get lost during conversion.
+    pub fn into_erased(self) -> impl Error + Send + Sync {
+        ErasedConvertError::from(self)
     }
 }
 
 impl fmt::Display for ConvertError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match (self.description(), self.cause.as_ref()) {
-            (Some(desc), Some(cause)) => write!(f, "{desc}: {cause}")?,
-            (Some(desc), None) => write!(f, "{desc}")?,
-            (None, Some(cause)) => write!(f, "{cause}")?,
-            (None, None) => write!(f, "unknown error: {:?}", self.kind)?,
-        }
+        write!(f, "{}", self.kind)?;
 
-        if let Some(value) = self.value_str.as_ref() {
-            write!(f, ": {value}")?;
+        if let Some(value) = &self.value {
+            write!(f, ": {value:?}")?;
         }
 
         Ok(())
@@ -109,9 +106,7 @@ impl fmt::Display for ConvertError {
 
 impl Error for ConvertError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.cause
-            .as_ref()
-            .map(|cause| &**cause as &(dyn Error + 'static))
+        self.cause().map(|v| v as &(dyn Error + 'static))
     }
 }
 
@@ -122,27 +117,54 @@ impl Default for ConvertError {
     fn default() -> Self {
         Self {
             kind: ErrorKind::Custom(None),
-            cause: None,
-            value_str: None,
+            value: None,
         }
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+/// Erased type of [`ConvertError`].
+#[derive(Debug)]
+pub(crate) struct ErasedConvertError {
+    kind: ErrorKind,
+}
+
+impl From<ConvertError> for ErasedConvertError {
+    fn from(v: ConvertError) -> Self {
+        let ConvertError { kind, .. } = v;
+        Self { kind }
+    }
+}
+
+impl fmt::Display for ErasedConvertError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.kind)
+    }
+}
+
+impl Error for ErasedConvertError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match &self.kind {
+            ErrorKind::Custom(Some(cause)) => Some(&**cause),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub(crate) enum ErrorKind {
     FromGodot(FromGodotError),
     FromFfi(FromFfiError),
     FromVariant(FromVariantError),
-    Custom(Option<String>),
+    Custom(Option<Cause>),
 }
 
-impl ErrorKind {
-    fn description(&self) -> Option<String> {
+impl fmt::Display for ErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::FromGodot(from_godot) => Some(from_godot.description()),
-            Self::FromVariant(from_variant) => Some(from_variant.description()),
-            Self::FromFfi(from_ffi) => Some(from_ffi.description()),
-            Self::Custom(description) => description.clone(),
+            Self::FromGodot(from_godot) => write!(f, "{from_godot}"),
+            Self::FromVariant(from_variant) => write!(f, "{from_variant}"),
+            Self::FromFfi(from_ffi) => write!(f, "{from_ffi}"),
+            Self::Custom(cause) => write!(f, "{cause:?}"),
         }
     }
 }
@@ -162,23 +184,27 @@ pub(crate) enum FromGodotError {
 impl FromGodotError {
     pub fn into_error<V>(self, value: V) -> ConvertError
     where
-        V: fmt::Debug,
+        V: ToGodot,
     {
         ConvertError::with_kind_value(ErrorKind::FromGodot(self), value)
     }
+}
 
-    fn description(&self) -> String {
+impl fmt::Display for FromGodotError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::BadArrayType { expected, actual } => {
                 if expected.variant_type() != actual.variant_type() {
                     return if expected.is_typed() {
-                        format!(
+                        write!(
+                            f,
                             "expected array of type {:?}, got array of type {:?}",
                             expected.variant_type(),
                             actual.variant_type()
                         )
                     } else {
-                        format!(
+                        write!(
+                            f,
                             "expected untyped array, got array of type {:?}",
                             actual.variant_type()
                         )
@@ -191,14 +217,15 @@ impl FromGodotError {
                     "BadArrayType with expected == got, this is a gdext bug"
                 );
 
-                format!(
+                write!(
+                    f,
                     "expected array of class {}, got array of class {}",
                     expected.class_name(),
                     actual.class_name()
                 )
             }
-            Self::InvalidEnum => "invalid engine enum value".into(),
-            Self::ZeroInstanceId => "`InstanceId` cannot be 0".into(),
+            Self::InvalidEnum => write!(f, "invalid engine enum value"),
+            Self::ZeroInstanceId => write!(f, "`InstanceId` cannot be 0"),
         }
     }
 }
@@ -220,15 +247,19 @@ pub(crate) enum FromFfiError {
 impl FromFfiError {
     pub fn into_error<V>(self, value: V) -> ConvertError
     where
-        V: fmt::Debug,
+        V: ToGodot,
     {
         ConvertError::with_kind_value(ErrorKind::FromFfi(self), value)
     }
+}
 
-    fn description(&self) -> String {
+impl fmt::Display for FromFfiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let target = match self {
-            Self::NullRawGd => return "`Gd` cannot be null".into(),
-            Self::WrongObjectType => return "given object cannot be cast to target type".into(),
+            Self::NullRawGd => return write!(f, "`Gd` cannot be null"),
+            Self::WrongObjectType => {
+                return write!(f, "given object cannot be cast to target type")
+            }
             Self::I32 => "i32",
             Self::I16 => "i16",
             Self::I8 => "i8",
@@ -237,7 +268,7 @@ impl FromFfiError {
             Self::U8 => "u8",
         };
 
-        format!("`{target}` cannot store the given value")
+        write!(f, "`{target}` cannot store the given value")
     }
 }
 
@@ -257,19 +288,21 @@ pub(crate) enum FromVariantError {
 impl FromVariantError {
     pub fn into_error<V>(self, value: V) -> ConvertError
     where
-        V: fmt::Debug,
+        V: ToGodot,
     {
         ConvertError::with_kind_value(ErrorKind::FromVariant(self), value)
     }
+}
 
-    fn description(&self) -> String {
+impl fmt::Display for FromVariantError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::BadType { expected, actual } => {
                 // Note: wording is the same as in CallError::failed_param_conversion_engine()
-                format!("expected type `{expected:?}`, got `{actual:?}`")
+                write!(f, "expected type `{expected:?}`, got `{actual:?}`")
             }
             Self::WrongClass { expected } => {
-                format!("expected class `{expected}`")
+                write!(f, "expected class `{expected}`")
             }
         }
     }
@@ -277,5 +310,5 @@ impl FromVariantError {
 
 fn __ensure_send_sync() {
     fn check<T: Send + Sync>() {}
-    check::<ConvertError>();
+    check::<ErasedConvertError>();
 }
