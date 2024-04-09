@@ -246,7 +246,7 @@ impl Variant {
         init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
     ) -> Self {
         // SAFETY: We're in Godot 4.0, and so the caller must ensure this is safe.
-        Self::new_with_var_init(|value| init_fn(value.var_sys_mut()))
+        unsafe { Self::new_with_var_init(init_fn) }
     }
 
     /// # Safety

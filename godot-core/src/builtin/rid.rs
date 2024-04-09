@@ -132,9 +132,9 @@ unsafe impl GodotFfi for Rid {
         fn move_return_ptr;
     }
 
-    fn new_with_init(init: impl FnOnce(&mut Self)) -> Self {
+    unsafe fn new_with_init(init: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut rid = Self::Invalid;
-        init(&mut rid);
+        init(rid.sys_mut());
         rid
     }
 }

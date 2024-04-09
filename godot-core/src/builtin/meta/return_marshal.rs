@@ -7,7 +7,6 @@
 
 use crate::obj::{Gd, GodotClass};
 use crate::sys;
-use sys::GodotFfi;
 
 use super::{ConvertError, FromGodot, GodotType};
 
@@ -51,8 +50,7 @@ impl<T: FromGodot> PtrcallReturn for PtrcallReturnT<T> {
     unsafe fn call(
         mut process_return_ptr: impl FnMut(sys::GDExtensionTypePtr),
     ) -> Result<Self::Ret, ConvertError> {
-        let ffi = <<T::Via as GodotType>::Ffi as sys::GodotFfi>::new_with_init(|return_val| {
-            let return_ptr = return_val.sys_mut();
+        let ffi = <<T::Via as GodotType>::Ffi as sys::GodotFfi>::new_with_init(|return_ptr| {
             process_return_ptr(return_ptr)
         });
 

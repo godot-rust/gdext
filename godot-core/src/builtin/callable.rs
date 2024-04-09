@@ -303,9 +303,9 @@ unsafe impl GodotFfi for Callable {
         fn move_return_ptr;
     }
 
-    fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self {
+    unsafe fn new_with_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut result = Self::invalid();
-        init_fn(&mut result);
+        init_fn(result.sys_mut());
         result
     }
 }
