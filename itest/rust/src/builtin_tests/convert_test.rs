@@ -59,7 +59,7 @@ fn error_has_value_and_no_cause() {
 
     for (err, err_str) in errors.into_iter() {
         assert!(
-            err.value_str().is_some(),
+            err.value().is_some(),
             "{err_str} conversion has no value: {err:?}"
         );
         assert!(
@@ -76,15 +76,15 @@ fn error_has_value_and_no_cause() {
 fn error_maintains_value() {
     let value = i32::MAX;
     let err = Vector2Axis::try_from_godot(value).unwrap_err();
-    assert_eq!(format!("{value:?}"), err.value_str().unwrap());
+    assert_eq!(format!("{value:?}"), format!("{:?}", err.value().unwrap()));
 
     let value = i64::MAX;
     let err = value.to_variant().try_to::<i32>().unwrap_err();
-    assert_eq!(format!("{value:?}"), err.value_str().unwrap());
+    assert_eq!(format!("{value:?}"), format!("{:?}", err.value().unwrap()));
 
     let value = f64::MAX.to_variant();
     let err = value.try_to::<i32>().unwrap_err();
-    assert_eq!(format!("{value:?}"), err.value_str().unwrap());
+    assert_eq!(format!("{value:?}"), format!("{:?}", err.value().unwrap()));
 }
 
 // Manual implementation of `GodotConvert` and related traits to ensure conversion works.
@@ -117,16 +117,16 @@ impl FromGodot for Foo {
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
         let a = match via.get("a") {
             Some(a) => a,
-            None => return Err(ConvertError::with_cause_value(Self::MISSING_KEY_A, via)),
+            None => return Err(ConvertError::with_error_value(Self::MISSING_KEY_A, via)),
         };
 
         let b = match via.get("b") {
             Some(b) => b,
-            None => return Err(ConvertError::with_cause_value(Self::MISSING_KEY_B, via)),
+            None => return Err(ConvertError::with_error_value(Self::MISSING_KEY_B, via)),
         };
 
         if via.len() > 2 {
-            return Err(ConvertError::with_cause_value(Self::TOO_MANY_KEYS, via));
+            return Err(ConvertError::with_error_value(Self::TOO_MANY_KEYS, via));
         }
 
         Ok(Self {
@@ -198,7 +198,7 @@ fn custom_convert_error_from_variant() {
 
     assert!(err.cause().is_none());
     assert_eq!(
-        err.value_str().unwrap(),
+        format!("{:?}", err.value().unwrap()),
         format!("{:?}", "hello".to_variant())
     );
 
@@ -213,7 +213,7 @@ fn custom_convert_error_from_variant() {
 
     assert!(err.cause().is_none());
     assert_eq!(
-        err.value_str().unwrap(),
+        format!("{:?}", err.value().unwrap()),
         format!("{:?}", Vector2::new(1.0, 23.4).to_variant())
     );
 
@@ -227,5 +227,8 @@ fn custom_convert_error_from_variant() {
         .expect_err("should have too big value for field `a`");
 
     assert!(err.cause().is_none());
-    assert_eq!(err.value_str().unwrap(), format!("{:?}", i64::MAX));
+    assert_eq!(
+        format!("{:?}", err.value().unwrap()),
+        format!("{:?}", i64::MAX)
+    );
 }
