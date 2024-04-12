@@ -196,7 +196,7 @@ macro_rules! ffi_methods_one {
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_init:ident = new_with_init) => {
         $( #[$attr] )? $vis
         unsafe fn $new_with_init(init: impl FnOnce($Ptr)) -> Self {
-            let mut default: Self = Default::default();
+            let mut default = Self::default();
             init(default.sys_mut().cast());
             default
         }
@@ -246,7 +246,7 @@ macro_rules! ffi_methods_one {
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_init:ident = new_with_init) => {
         $( #[$attr] )? $vis
         unsafe fn $new_with_init(init: impl FnOnce($Ptr)) -> Self {
-            let mut default: Self = Default::default();
+            let mut default = Self::default();
             init(default.sys_mut().cast());
             default
         }
@@ -485,14 +485,18 @@ mod scalars {
             // Do nothing
         }
 
-        unsafe fn new_with_uninit(
-            _init: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
-        ) -> Self {
-            // Do nothing
+        unsafe fn new_with_uninit(init: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
+            // `init` may contain code that should be run, however it shouldn't actually write to the passed in pointer.
+            let mut unit = ();
+            init(std::ptr::addr_of_mut!(unit).cast());
+            unit
         }
 
-        unsafe fn new_with_init(_init: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-            // Do nothing
+        unsafe fn new_with_init(init: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+            // `init` may contain code that should be run, however it shouldn't actually write to the passed in pointer.
+            let mut unit = ();
+            init(std::ptr::addr_of_mut!(unit).cast());
+            unit
         }
 
         fn sys(&self) -> sys::GDExtensionConstTypePtr {

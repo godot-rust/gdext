@@ -88,7 +88,7 @@ pub trait PtrcallSignatureTuple {
         call_type: sys::PtrcallType,
     );
 
-    unsafe fn out_class_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
+    unsafe fn out_class_ptrcall(
         method_bind: ClassMethodBind,
         // Separate parameters to reduce tokens in generated class API.
         class_name: &'static str,
@@ -98,7 +98,7 @@ pub trait PtrcallSignatureTuple {
         args: Self::Params,
     ) -> Self::Ret;
 
-    unsafe fn out_builtin_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
+    unsafe fn out_builtin_ptrcall(
         builtin_fn: BuiltinMethodBind,
         // Separate parameters to reduce tokens in generated class API.
         class_name: &'static str,
@@ -306,7 +306,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 type_ptrs.extend(varargs.iter().map(sys::GodotFfi::sys));
 
                 // Important: this calls from_sys_init_default().
-                let result = PtrcallReturnT::<$R>::call(|return_ptr| {
+                let result = new_from_ptrcall::<Self::Ret>(|return_ptr| {
                     utility_fn(return_ptr, type_ptrs.as_ptr(), type_ptrs.len() as i32);
                 });
                 result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
@@ -360,7 +360,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
             }
 
             #[inline]
-            unsafe fn out_class_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
+            unsafe fn out_class_ptrcall(
                 method_bind: ClassMethodBind,
                 // Separate parameters to reduce tokens in generated class API.
                 class_name: &'static str,
@@ -391,14 +391,14 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                     )*
                 ];
 
-                let result = Rr::call(|return_ptr| {
+                let result = new_from_ptrcall::<Self::Ret>(|return_ptr| {
                     class_fn(method_bind.0, object_ptr, type_ptrs.as_ptr(), return_ptr);
                 });
                 result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
             }
 
             #[inline]
-            unsafe fn out_builtin_ptrcall<Rr: PtrcallReturn<Ret = Self::Ret>>(
+            unsafe fn out_builtin_ptrcall(
                 builtin_fn: BuiltinMethodBind,
                 // Separate parameters to reduce tokens in generated class API.
                 class_name: &'static str,
@@ -422,7 +422,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                     )*
                 ];
 
-                let result = Rr::call(|return_ptr| {
+                let result = new_from_ptrcall::<Self::Ret>(|return_ptr| {
                     builtin_fn(type_ptr, type_ptrs.as_ptr(), return_ptr, type_ptrs.len() as i32);
                 });
                 result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
@@ -450,7 +450,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                     )*
                 ];
 
-                let result = PtrcallReturnT::<$R>::call(|return_ptr| {
+                let result = new_from_ptrcall::<Self::Ret>(|return_ptr| {
                     utility_fn(return_ptr, arg_ptrs.as_ptr(), arg_ptrs.len() as i32);
                 });
                 result.unwrap_or_else(|err| return_error::<Self::Ret>(&call_ctx, err))
@@ -560,6 +560,16 @@ impl<T: FromGodot> FromVariantIndirect for T {
     fn convert(variant: Variant) -> Self {
         T::from_variant(&variant)
     }
+}
+
+unsafe fn new_from_ptrcall<T: FromGodot>(
+    process_return_ptr: impl FnOnce(sys::GDExtensionTypePtr),
+) -> Result<T, ConvertError> {
+    let ffi = <<T::Via as GodotType>::Ffi as sys::GodotFfi>::new_with_init(|return_ptr| {
+        process_return_ptr(return_ptr)
+    });
+
+    T::Via::try_from_ffi(ffi).and_then(T::try_from_godot)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

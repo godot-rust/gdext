@@ -42,24 +42,6 @@ impl<T: GodotClass> RawGd<T> {
         }
     }
 
-    /// # Safety
-    ///
-    /// `obj` must be a valid object pointer or a null pointer.
-    unsafe fn get_rtti_of(ptr: sys::GDExtensionObjectPtr) -> Option<ObjectRtti> {
-        if ptr.is_null() {
-            None
-        } else {
-            let raw_id = unsafe { interface_fn!(object_get_instance_id)(ptr) };
-
-            let instance_id = InstanceId::try_from_u64(raw_id)
-                .expect("constructed RawGd weak pointer with instance ID 0");
-
-            // TODO(bromeon): this should query dynamic type of object, which can be different from T (upcast, FromGodot, etc).
-            // See comment in ObjectRtti.
-            Some(ObjectRtti::of::<T>(instance_id))
-        }
-    }
-
     /// Initializes this `RawGd<T>` from the object pointer as a **weak ref**, meaning it does not
     /// initialize/increment the reference counter.
     ///
@@ -67,9 +49,22 @@ impl<T: GodotClass> RawGd<T> {
     ///
     /// `obj` must be a valid object pointer or a null pointer.
     pub(super) unsafe fn from_obj_sys_weak(obj: sys::GDExtensionObjectPtr) -> Self {
+        let rtti = if obj.is_null() {
+            None
+        } else {
+            let raw_id = unsafe { interface_fn!(object_get_instance_id)(obj) };
+
+            let instance_id = InstanceId::try_from_u64(raw_id)
+                .expect("constructed RawGd weak pointer with instance ID 0");
+
+            // TODO(bromeon): this should query dynamic type of object, which can be different from T (upcast, FromGodot, etc).
+            // See comment in ObjectRtti.
+            Some(ObjectRtti::of::<T>(instance_id))
+        };
+
         Self {
             obj: obj.cast::<T>(),
-            cached_rtti: Self::get_rtti_of(obj),
+            cached_rtti: rtti,
         }
     }
 

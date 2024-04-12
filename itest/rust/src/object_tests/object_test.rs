@@ -163,7 +163,7 @@ fn object_from_invalid_instance_id() {
         .expect_err("invalid instance id should not return a valid object");
 }
 
-// `instance_from_id` is a normal ffi-call so works slightly differently from `Gd::try_from_instance_id`.
+// `instance_from_id` is a normal FFI call, so works slightly differently from `Gd::try_from_instance_id`.
 #[itest]
 fn object_instance_from_id() {
     let node = Node::new_alloc();

@@ -439,7 +439,7 @@ fn make_class_method_definition(
     let ptrcall_invocation = quote! {
         let method_bind = sys::#get_method_table().#fptr_access;
 
-        <CallSig as PtrcallSignatureTuple>::out_class_ptrcall::<RetMarshal>(
+        <CallSig as PtrcallSignatureTuple>::out_class_ptrcall(
             method_bind,
             #rust_class_name,
             #rust_method_name,
