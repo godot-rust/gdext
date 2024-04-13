@@ -72,12 +72,12 @@ pub trait ScriptInstance {
     /// Property setter for Godot's virtual dispatch system.
     ///
     /// The engine will call this function when it wants to change a property on the script.
-    fn set_property(&mut self, name: StringName, value: &Variant) -> bool;
+    fn set_property(&mut self, name: impl Into<StringName>, value: &Variant) -> bool;
 
     /// Property getter for Godot's virtual dispatch system.
     ///
     /// The engine will call this function when it wants to read a property on the script.
-    fn get_property(&self, name: StringName) -> Option<Variant>;
+    fn get_property(&self, name: impl Into<StringName>) -> Option<Variant>;
 
     /// A list of all the properties a script exposes to the engine.
     fn get_property_list(&self) -> Vec<PropertyInfo>;
@@ -94,7 +94,7 @@ pub trait ScriptInstance {
     // TODO: map the sys::GDExtensionCallErrorType to some public API type.
     fn call(
         &mut self,
-        method: StringName,
+        method: impl Into<StringName>,
         args: &[&Variant],
     ) -> Result<Variant, sys::GDExtensionCallErrorType>;
 
@@ -104,7 +104,7 @@ pub trait ScriptInstance {
     fn is_placeholder(&self) -> bool;
 
     /// Validation function for the engine to verify if the script exposes a certain method.
-    fn has_method(&self, method: StringName) -> bool;
+    fn has_method(&self, method: impl Into<StringName>) -> bool;
 
     /// Lets the engine get a reference to the script this instance was created for.
     ///
@@ -114,7 +114,7 @@ pub trait ScriptInstance {
     fn get_script(&self) -> &Gd<Script>;
 
     /// Lets the engine fetch the type of a particular property.
-    fn get_property_type(&self, name: StringName) -> VariantType;
+    fn get_property_type(&self, name: impl Into<StringName>) -> VariantType;
 
     /// String representation of the script instance.
     fn to_string(&self) -> GString;
@@ -144,11 +144,11 @@ impl<T: ScriptInstance + ?Sized> ScriptInstance for Box<T> {
         self.as_ref().class_name()
     }
 
-    fn set_property(&mut self, name: StringName, value: &Variant) -> bool {
+    fn set_property(&mut self, name: impl Into<StringName>, value: &Variant) -> bool {
         self.as_mut().set_property(name, value)
     }
 
-    fn get_property(&self, name: StringName) -> Option<Variant> {
+    fn get_property(&self, name: impl Into<StringName>) -> Option<Variant> {
         self.as_ref().get_property(name)
     }
 
@@ -162,7 +162,7 @@ impl<T: ScriptInstance + ?Sized> ScriptInstance for Box<T> {
 
     fn call(
         &mut self,
-        method: StringName,
+        method: impl Into<StringName>,
         args: &[&Variant],
     ) -> Result<Variant, sys::GDExtensionCallErrorType> {
         self.as_mut().call(method, args)
@@ -172,7 +172,7 @@ impl<T: ScriptInstance + ?Sized> ScriptInstance for Box<T> {
         self.as_ref().is_placeholder()
     }
 
-    fn has_method(&self, method: StringName) -> bool {
+    fn has_method(&self, method: impl Into<StringName>) -> bool {
         self.as_ref().has_method(method)
     }
 
@@ -180,7 +180,7 @@ impl<T: ScriptInstance + ?Sized> ScriptInstance for Box<T> {
         self.as_ref().get_script()
     }
 
-    fn get_property_type(&self, name: StringName) -> VariantType {
+    fn get_property_type(&self, name: impl Into<StringName>) -> VariantType {
         self.as_ref().get_property_type(name)
     }
 

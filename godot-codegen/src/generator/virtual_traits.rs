@@ -89,7 +89,7 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         ///
         /// See also in Godot docs:
         /// * [`Object::_get`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-get).
-        fn get_property(&self, property: StringName) -> Option<Variant> {
+        fn get_property(&self, property: impl Into<StringName>) -> Option<Variant> {
             unimplemented!()
         }
 
@@ -100,7 +100,7 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         ///
         /// See also in Godot docs:
         /// * [`Object::_set`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-private-method-set).
-        fn set_property(&mut self, property: StringName, value: Variant) -> bool {
+        fn set_property(&mut self, property: impl Into<StringName>, value: Variant) -> bool {
             unimplemented!()
         }
 

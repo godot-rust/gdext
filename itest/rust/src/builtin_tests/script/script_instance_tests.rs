@@ -99,8 +99,8 @@ impl ScriptInstance for TestScriptInstance {
         GString::from("TestScript")
     }
 
-    fn set_property(&mut self, name: StringName, value: &Variant) -> bool {
-        if name.to_string() == "script_property_b" {
+    fn set_property(&mut self, name: impl Into<StringName>, value: &Variant) -> bool {
+        if name.into().to_string() == "script_property_b" {
             self.script_property_b = FromGodot::from_variant(value);
             true
         } else {
@@ -108,8 +108,8 @@ impl ScriptInstance for TestScriptInstance {
         }
     }
 
-    fn get_property(&self, name: StringName) -> Option<Variant> {
-        match name.to_string().as_str() {
+    fn get_property(&self, name: impl Into<StringName>) -> Option<Variant> {
+        match name.into().to_string().as_str() {
             "script_property_a" => Some(Variant::from(10)),
             "script_property_b" => Some(Variant::from(self.script_property_b)),
             _ => None,
@@ -126,10 +126,10 @@ impl ScriptInstance for TestScriptInstance {
 
     fn call(
         &mut self,
-        method: StringName,
+        method: impl Into<StringName>,
         args: &[&Variant],
     ) -> Result<Variant, sys::GDExtensionCallErrorType> {
-        match method.to_string().as_str() {
+        match method.into().to_string().as_str() {
             "script_method_a" => {
                 let arg_a = args[0].to::<GString>();
                 let arg_b = args[1].to::<i32>();
@@ -145,16 +145,16 @@ impl ScriptInstance for TestScriptInstance {
         panic!("is_placeholder is not implemented")
     }
 
-    fn has_method(&self, method: StringName) -> bool {
-        matches!(method.to_string().as_str(), "script_method_a")
+    fn has_method(&self, method: impl Into<StringName>) -> bool {
+        matches!(method.into().to_string().as_str(), "script_method_a")
     }
 
     fn get_script(&self) -> &Gd<Script> {
         &self.script
     }
 
-    fn get_property_type(&self, name: StringName) -> VariantType {
-        match name.to_string().as_str() {
+    fn get_property_type(&self, name: impl Into<StringName>) -> VariantType {
+        match name.into().to_string().as_str() {
             "script_property_a" => VariantType::Int,
             _ => VariantType::Nil,
         }

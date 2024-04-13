@@ -237,10 +237,10 @@ struct GetTest {
 
 #[godot_api]
 impl IRefCounted for GetTest {
-    fn get_property(&self, property: StringName) -> Option<Variant> {
+    fn get_property(&self, property: impl Into<StringName>) -> Option<Variant> {
         self.get_called.set(true);
 
-        match String::from(property).as_str() {
+        match String::from(property.into()).as_str() {
             "always_get_hello" => Some("hello".to_variant()),
             "gettable" => Some(self.gettable.to_variant()),
             _ => None,
@@ -263,10 +263,10 @@ struct SetTest {
 
 #[godot_api]
 impl IRefCounted for SetTest {
-    fn set_property(&mut self, property: StringName, value: Variant) -> bool {
+    fn set_property(&mut self, property: impl Into<StringName>, value: Variant) -> bool {
         self.set_called = true;
 
-        match String::from(property).as_str() {
+        match String::from(property.into()).as_str() {
             "always_set_to_100" => {
                 self.always_set_to_100 = 100;
                 true
@@ -609,20 +609,20 @@ pub struct GetSetTest {
 
 #[godot_api]
 impl IRefCounted for GetSetTest {
-    fn get_property(&self, property: StringName) -> Option<Variant> {
+    fn get_property(&self, property: impl Into<StringName>) -> Option<Variant> {
         self.get_called.set(true);
 
-        match String::from(property).as_str() {
+        match String::from(property.into()).as_str() {
             "always_get_100" => Some(100.to_variant()),
             "set_get" => Some(self.set_get.to_variant()),
             _ => None,
         }
     }
 
-    fn set_property(&mut self, property: StringName, value: Variant) -> bool {
+    fn set_property(&mut self, property: impl Into<StringName>, value: Variant) -> bool {
         self.set_called = true;
 
-        match String::from(property).as_str() {
+        match String::from(property.into()).as_str() {
             "always_get_100" => {
                 self.always_get_100 = value.to();
                 true
