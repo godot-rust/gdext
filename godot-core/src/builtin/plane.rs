@@ -276,9 +276,9 @@ unsafe impl GodotFfi for Plane {
         fn move_return_ptr;
     }
 
-    fn new_with_init(init: impl FnOnce(&mut Self)) -> Self {
+    unsafe fn new_with_init(init: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
         let mut plane = Plane::new(Vector3::UP, 0.0);
-        init(&mut plane);
+        init(plane.sys_mut());
         plane
     }
 }

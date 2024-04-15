@@ -126,8 +126,8 @@ pub fn print(varargs: &[Variant]) {
         args.extend(varargs.iter().map(Variant::sys));
 
         let args_ptr = args.as_ptr();
-        let _variant = Variant::new_with_init(|return_var| {
-            call_fn(return_var.sys_mut(), args_ptr, args.len() as i32);
+        let _variant = Variant::new_with_init(|return_ptr| {
+            call_fn(return_ptr, args_ptr, args.len() as i32);
         });
     }
 
@@ -150,8 +150,8 @@ pub fn print_rich(varargs: &[Variant]) {
         args.extend(varargs.iter().map(Variant::sys));
 
         let args_ptr = args.as_ptr();
-        let _variant = Variant::new_with_init(|return_var| {
-            call_fn(return_var.sys_mut(), args_ptr, args.len() as i32);
+        let _variant = Variant::new_with_init(|return_ptr| {
+            call_fn(return_ptr, args_ptr, args.len() as i32);
         });
     }
 

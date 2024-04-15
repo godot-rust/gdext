@@ -100,5 +100,8 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
             // Ensures that the init function matches the signature advertised in FFI header
             let _unused: ::godot::sys::GDExtensionInitializationFunction = Some(#entry_point);
         }
+
+        #[cfg(target_os = "linux")]
+        ::godot::sys::register_hot_reload_workaround!();
     })
 }

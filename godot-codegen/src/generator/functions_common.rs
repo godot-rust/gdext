@@ -220,15 +220,6 @@ pub fn make_function_definition(
         // Always ptrcall, no varargs
 
         let ptrcall_invocation = &code.ptrcall_invocation;
-        let maybe_return_ty = &sig.return_value().type_;
-
-        // This differentiation is needed because we need to differentiate between Option<Gd<T>>, T and () as return types.
-        // Rust traits don't provide specialization and thus would encounter overlapping blanket impls, so we cannot use the type system here.
-        let ret_marshal = match maybe_return_ty {
-            Some(RustTy::EngineClass { tokens, .. }) => quote! { PtrcallReturnOptionGdT<#tokens> },
-            Some(return_ty) => quote! { PtrcallReturnT<#return_ty> },
-            None => quote! { PtrcallReturnUnit },
-        };
 
         quote! {
             #maybe_safety_doc
@@ -236,7 +227,6 @@ pub fn make_function_definition(
                 #receiver_param
                 #( #params, )*
             ) #return_decl {
-                type RetMarshal = #ret_marshal;
                 type CallSig = #call_sig;
 
                 let args = (#( #arg_names, )*);
