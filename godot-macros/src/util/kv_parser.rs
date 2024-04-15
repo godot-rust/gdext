@@ -161,6 +161,31 @@ impl KvParser {
         Ok(Some(int))
     }
 
+    #[allow(dead_code)]
+    pub fn handle_bool(&mut self, key: &str) -> ParseResult<Option<bool>> {
+        let Some(expr) = self.handle_expr(key)? else {
+            return Ok(None);
+        };
+
+        let mut tokens = expr.into_iter();
+        let Some(TokenTree::Ident(id)) = tokens.next() else {
+            return bail!(key, "missing value for '{key}' (must be bool literal)");
+        };
+
+        if let Some(surplus) = tokens.next() {
+            return bail!(
+                key,
+                "value for '{key}' must be bool literal; found extra {surplus:?}"
+            );
+        }
+
+        let Ok(b) = id.to_string().parse() else {
+            return bail!(key, "value for '{key}' must be bool literal; found {id:?}");
+        };
+
+        Ok(Some(b))
+    }
+
     /// Handles a key that must be provided and must have an identifier as the value.
     pub fn handle_ident_required(&mut self, key: &str) -> ParseResult<Ident> {
         self.handle_ident(key)?

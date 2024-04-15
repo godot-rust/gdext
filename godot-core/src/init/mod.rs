@@ -24,6 +24,16 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
     init: *mut sys::GDExtensionInitialization,
 ) -> sys::GDExtensionBool {
     let init_code = || {
+        // Make sure the first thing we do is check whether hot reloading should be enabled or not. This is to ensure that if we do anything to
+        // cause TLS-destructors to run then we have a setting already for how to deal with them. Otherwise this could cause the default
+        // behavior to kick in and disable hot reloading.
+        #[cfg(target_os = "linux")]
+        match E::override_hot_reload() {
+            None => sys::linux_reload_workaround::default_set_hot_reload(),
+            Some(true) => sys::linux_reload_workaround::enable_hot_reload(),
+            Some(false) => sys::linux_reload_workaround::disable_hot_reload(),
+        }
+
         let tool_only_in_editor = match E::editor_run_behavior() {
             EditorRunBehavior::ToolClassesOnly => true,
             EditorRunBehavior::AllClasses => false,
@@ -208,6 +218,20 @@ pub unsafe trait ExtensionLibrary {
     #[allow(unused_variables)]
     fn on_level_deinit(level: InitLevel) {
         // Nothing by default.
+    }
+
+    /// Whether to enable hot reloading of this library. Return `None` to use the default behavior.
+    ///
+    /// Enabling this will ensure that the library can be hot reloaded. If this is disabled then hot reloading may still work, but there is no
+    /// guarantee. Enabling this may also lead to memory leaks, so it should not be enabled for builds that are intended to be final builds.
+    ///
+    /// By default this is enabled for debug builds and disabled for release builds.
+    ///
+    /// Note that this is only checked *once* upon initializing the library. Changing this from `true` to `false` will be picked up as the
+    /// library is then fully reloaded upon hot-reloading, however changing it from `false` to `true` is almost certainly not going to work
+    /// unless hot-reloading is already working regardless of this setting.
+    fn override_hot_reload() -> Option<bool> {
+        None
     }
 }
 
