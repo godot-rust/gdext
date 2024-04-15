@@ -63,7 +63,7 @@ pub unsafe trait GodotFfi {
     /// value may involve violating the value's safety invariant. In those cases it is important to ensure that this violation isn't
     /// leaked to user-code.
     #[doc(hidden)]
-    fn new_with_init(init_fn: impl FnOnce(&mut Self)) -> Self;
+    unsafe fn new_with_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self;
 
     /// Return Godot opaque pointer, for an immutable operation.
     #[doc(hidden)]
@@ -111,7 +111,7 @@ pub unsafe trait GodotFfi {
 pub unsafe fn new_with_uninit_or_init<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionTypePtr),
 ) -> T {
-    T::new_with_init(|value| init_fn(value.sys_mut()))
+    T::new_with_init(init_fn)
 }
 
 /// # Safety
@@ -195,9 +195,9 @@ macro_rules! ffi_methods_one {
     };
     (OpaquePtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_init:ident = new_with_init) => {
         $( #[$attr] )? $vis
-        fn $new_with_init(init: impl FnOnce(&mut Self)) -> Self {
-            let mut default = Default::default();
-            init(&mut default);
+        unsafe fn $new_with_init(init: impl FnOnce($Ptr)) -> Self {
+            let mut default = Self::default();
+            init(default.sys_mut().cast());
             default
         }
     };
@@ -245,9 +245,9 @@ macro_rules! ffi_methods_one {
     };
     (SelfPtr $Ptr:ty; $( #[$attr:meta] )? $vis:vis $new_with_init:ident = new_with_init) => {
         $( #[$attr] )? $vis
-        fn $new_with_init(init: impl FnOnce(&mut Self)) -> Self {
-            let mut default = Default::default();
-            init(&mut default);
+        unsafe fn $new_with_init(init: impl FnOnce($Ptr)) -> Self {
+            let mut default = Self::default();
+            init(default.sys_mut().cast());
             default
         }
     };
@@ -485,14 +485,18 @@ mod scalars {
             // Do nothing
         }
 
-        unsafe fn new_with_uninit(
-            _init: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
-        ) -> Self {
-            // Do nothing
+        unsafe fn new_with_uninit(init: impl FnOnce(sys::GDExtensionUninitializedTypePtr)) -> Self {
+            // `init` may contain code that should be run, however it shouldn't actually write to the passed in pointer.
+            let mut unit = ();
+            init(std::ptr::addr_of_mut!(unit).cast());
+            unit
         }
 
-        fn new_with_init(_init: impl FnOnce(&mut ())) -> Self {
-            // Do nothing
+        unsafe fn new_with_init(init: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+            // `init` may contain code that should be run, however it shouldn't actually write to the passed in pointer.
+            let mut unit = ();
+            init(std::ptr::addr_of_mut!(unit).cast());
+            unit
         }
 
         fn sys(&self) -> sys::GDExtensionConstTypePtr {

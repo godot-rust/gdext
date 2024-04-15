@@ -52,8 +52,7 @@ impl<T: GodotClass> RawGd<T> {
         let rtti = if obj.is_null() {
             None
         } else {
-            let raw_id =
-                unsafe { interface_fn!(object_get_instance_id)(obj as sys::GDExtensionObjectPtr) };
+            let raw_id = unsafe { interface_fn!(object_get_instance_id)(obj) };
 
             let instance_id = InstanceId::try_from_u64(raw_id)
                 .expect("constructed RawGd weak pointer with instance ID 0");
@@ -64,7 +63,7 @@ impl<T: GodotClass> RawGd<T> {
         };
 
         Self {
-            obj: obj as *mut T,
+            obj: obj.cast::<T>(),
             cached_rtti: rtti,
         }
     }
@@ -460,14 +459,9 @@ where
         Self::from_obj_sys_weak(obj)
     }
 
-    fn new_with_init(init: impl FnOnce(&mut Self)) -> Self {
-        let mut obj = Self {
-            obj: std::ptr::null_mut(),
-            cached_rtti: None,
-        };
-
-        init(&mut obj);
-        obj
+    unsafe fn new_with_init(init: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
+        // `new_with_uninit` creates an initialized pointer.
+        Self::new_with_uninit(|return_ptr| init(sys::SysPtr::force_init(return_ptr)))
     }
 
     fn sys(&self) -> sys::GDExtensionConstTypePtr {
