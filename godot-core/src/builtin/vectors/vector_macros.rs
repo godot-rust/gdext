@@ -12,8 +12,6 @@ macro_rules! impl_vector_unary_operator {
     (
         // Name of the vector type.
         $Vector:ty,
-        // Type of each individual component, for example `i32`.
-        $Scalar:ty,
         // Names of the components, with parentheses, for example `(x, y)`.
         ($($components:ident),*),
         // Name of the operator trait, for example `Neg`.
@@ -38,8 +36,6 @@ macro_rules! impl_vector_vector_binary_operator {
     (
         // Name of the vector type.
         $Vector:ty,
-        // Type of each individual component, for example `i32`.
-        $Scalar:ty,
         // Names of the components, with parentheses, for example `(x, y)`.
         ($($components:ident),*),
         // Name of the operator trait, for example `Add`.
@@ -119,8 +115,6 @@ macro_rules! impl_vector_vector_assign_operator {
     (
         // Name of the vector type.
         $Vector:ty,
-        // Type of each individual component, for example `i32`.
-        $Scalar:ty,
         // Names of the components, with parentheses, for example `(x, y)`.
         ($($components:ident),*),
         // Name of the operator trait, for example `AddAssign`.
@@ -163,6 +157,38 @@ macro_rules! impl_vector_scalar_assign_operator {
     }
 }
 
+/// Implements a reduction (sum or product) over an iterator of vectors.
+macro_rules! impl_iter_vector_reduction {
+    (
+        // Name of the vector type.
+        $Vector:ty,
+        // Name of the reduction trait: `Sum` or `Product`.
+        $Operator:ident,
+        // Name of the function on the operator trait, for example `add`.
+        $func:ident
+    ) => {
+        impl std::iter::$Operator<Self> for $Vector {
+            #[doc = concat!("Element-wise ", stringify!($func), " of all vectors in the iterator.")]
+            fn $func<I>(iter: I) -> Self
+            where
+                I: Iterator<Item = Self>,
+            {
+                Self::from_glam(iter.map(Self::to_glam).$func())
+            }
+        }
+
+        impl<'a> std::iter::$Operator<&'a Self> for $Vector {
+            #[doc = concat!("Element-wise ", stringify!($func), " of all vectors in the iterator.")]
+            fn $func<I>(iter: I) -> Self
+            where
+                I: Iterator<Item = &'a Self>,
+            {
+                Self::from_glam(iter.map(|x| Self::to_glam(*x)).$func())
+            }
+        }
+    };
+}
+
 /// Implements all common arithmetic operators on a built-in vector type.
 macro_rules! impl_vector_operators {
     (
@@ -173,19 +199,21 @@ macro_rules! impl_vector_operators {
         // Names of the components, with parentheses, for example `(x, y)`.
         ($($components:ident),*)
     ) => {
-        impl_vector_unary_operator!($Vector, $Scalar, ($($components),*), Neg, neg);
-        impl_vector_vector_binary_operator!($Vector, $Scalar, ($($components),*), Add, add);
-        impl_vector_vector_binary_operator!($Vector, $Scalar, ($($components),*), Sub, sub);
-        impl_vector_vector_binary_operator!($Vector, $Scalar, ($($components),*), Mul, mul);
+        impl_vector_unary_operator!($Vector, ($($components),*), Neg, neg);
+        impl_vector_vector_binary_operator!($Vector, ($($components),*), Add, add);
+        impl_vector_vector_binary_operator!($Vector, ($($components),*), Sub, sub);
+        impl_vector_vector_binary_operator!($Vector, ($($components),*), Mul, mul);
         impl_vector_scalar_binary_operator!($Vector, $Scalar, ($($components),*), Mul, mul);
         impl_scalar_vector_binary_operator!($Vector, $Scalar, ($($components),*), Mul, mul);
-        impl_vector_vector_binary_operator!($Vector, $Scalar, ($($components),*), Div, div);
+        impl_vector_vector_binary_operator!($Vector, ($($components),*), Div, div);
         impl_vector_scalar_binary_operator!($Vector, $Scalar, ($($components),*), Div, div);
-        impl_vector_vector_assign_operator!($Vector, $Scalar, ($($components),*), AddAssign, add_assign);
-        impl_vector_vector_assign_operator!($Vector, $Scalar, ($($components),*), SubAssign, sub_assign);
-        impl_vector_vector_assign_operator!($Vector, $Scalar, ($($components),*), MulAssign, mul_assign);
+        impl_iter_vector_reduction!($Vector, Sum, sum);
+        impl_iter_vector_reduction!($Vector, Product, product);
+        impl_vector_vector_assign_operator!($Vector, ($($components),*), AddAssign, add_assign);
+        impl_vector_vector_assign_operator!($Vector, ($($components),*), SubAssign, sub_assign);
+        impl_vector_vector_assign_operator!($Vector, ($($components),*), MulAssign, mul_assign);
         impl_vector_scalar_assign_operator!($Vector, $Scalar, ($($components),*), MulAssign, mul_assign);
-        impl_vector_vector_assign_operator!($Vector, $Scalar, ($($components),*), DivAssign, div_assign);
+        impl_vector_vector_assign_operator!($Vector, ($($components),*), DivAssign, div_assign);
         impl_vector_scalar_assign_operator!($Vector, $Scalar, ($($components),*), DivAssign, div_assign);
     }
 }
