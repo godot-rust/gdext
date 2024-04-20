@@ -347,7 +347,7 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> (TokenStream, T
 }
 
 fn make_deref_impl(class_name: &TyName, base_ty: &TokenStream) -> TokenStream {
-    // The base_ty of `Object` is `NoBase`, and we dont want every engine class to deref to `NoBase`.
+    // The base_ty of `Object` is `NoBase`, and we don't want every engine class to deref to `NoBase`.
     if class_name.rust_ty == "Object" {
         return TokenStream::new();
     }

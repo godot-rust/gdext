@@ -24,7 +24,7 @@ pub struct FuncDefinition {
 
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
 //
-// There are currently no virtual static methods. Additionally, virtual static methods dont really make a lot
+// There are currently no virtual static methods. Additionally, virtual static methods don't really make a lot
 // of sense. Therefore there is no need to support them.
 pub fn make_virtual_callback(
     class_name: &Ident,
