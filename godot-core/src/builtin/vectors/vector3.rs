@@ -414,6 +414,21 @@ mod test {
         assert_eq_approx!(vector1.slerp(vector2, 0.5).length(), real!(6.258_311));
     }
 
+    #[test]
+    fn iter_sum() {
+        let vecs = vec![
+            Vector3::new(1.0, 2.0, 3.0),
+            Vector3::new(4.0, 5.0, 6.0),
+            Vector3::new(7.0, 8.0, 9.0),
+        ];
+
+        let sum_refs = vecs.iter().sum();
+        let sum = vecs.into_iter().sum();
+
+        assert_eq_approx!(sum, Vector3::new(12.0, 15.0, 18.0));
+        assert_eq_approx!(sum_refs, Vector3::new(12.0, 15.0, 18.0));
+    }
+
     #[cfg(feature = "serde")]
     #[test]
     fn serde_roundtrip() {
