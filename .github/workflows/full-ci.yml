@@ -274,7 +274,7 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features codegen-full-experimental
+            rust-extra-args: --features godot/codegen-full
             with-hot-reload: true
 
           # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
@@ -284,11 +284,11 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
             rust-extra-args: --features godot/custom-godot,godot/double-precision,godot/codegen-full,godot/lazy-function-tables
 
-          - name: linux-features
+          - name: linux-features-experimental
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/custom-godot,godot/experimental-threads,godot/serde
+            rust-extra-args: --features godot/custom-godot,godot/experimental-threads,godot/serde,codegen-full-experimental
 
           - name: linux-release
             os: ubuntu-20.04
