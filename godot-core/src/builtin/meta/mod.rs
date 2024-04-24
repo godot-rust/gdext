@@ -288,6 +288,9 @@ impl PropertyInfo {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// TODO(bromeon): Rename to ScriptMethodInfo; check difference with with existing MethodInfo; public fields good as-is?
 #[derive(Debug, Clone)]
 pub struct MethodInfo {
     pub id: i32,

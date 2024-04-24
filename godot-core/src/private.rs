@@ -214,14 +214,14 @@ where
 }
 
 pub fn handle_varcall_panic<F, R>(
-    call_ctx: CallContext,
+    call_ctx: &CallContext,
     out_err: &mut sys::GDExtensionCallError,
     code: F,
 ) where
     F: FnOnce() -> Result<R, CallError> + std::panic::UnwindSafe,
 {
     let outcome: Result<Result<R, CallError>, String> =
-        handle_panic_with_print(|| &call_ctx, code, false);
+        handle_panic_with_print(|| call_ctx, code, false);
 
     let call_error = match outcome {
         // All good.
@@ -231,7 +231,7 @@ pub fn handle_varcall_panic<F, R>(
         Ok(Err(err)) => err,
 
         // Panic occurred (typically through user): forward message.
-        Err(panic_msg) => CallError::failed_by_user_panic(&call_ctx, panic_msg),
+        Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
     };
 
     // Print failed calls to Godot's console.
