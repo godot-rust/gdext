@@ -7,7 +7,7 @@
 
 use crate::context::Context;
 use crate::conv;
-use crate::generator::{enums, gdext_build_struct};
+use crate::generator::gdext_build_struct;
 use crate::models::domain::{Enumerator, ExtensionApi};
 use crate::util::ident;
 use proc_macro2::{Ident, Literal, TokenStream};
@@ -265,7 +265,7 @@ fn make_global_enums(api: &ExtensionApi) -> Vec<TokenStream> {
             continue;
         }
 
-        let def = enums::make_enum_definition(enum_);
+        let def = enum_.to_declaration();
         global_enum_defs.push(def);
     }
 

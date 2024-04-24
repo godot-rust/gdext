@@ -6,7 +6,6 @@
  */
 
 use crate::context::Context;
-use crate::generator::enums;
 use crate::models::domain::TyName;
 use crate::models::json::JsonClassConstant;
 use crate::{conv, util};
@@ -89,7 +88,7 @@ pub fn make_notification_enum(
     let mut notification_enumerators_ord = Vec::new();
     for (constant_ident, constant_value) in all_constants {
         notification_enumerators_pascal.push(constant_ident);
-        notification_enumerators_ord.push(enums::make_enumerator_ord(constant_value));
+        notification_enumerators_ord.push(constant_value);
     }
 
     let code = quote! {
