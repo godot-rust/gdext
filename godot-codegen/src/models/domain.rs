@@ -20,6 +20,10 @@ use quote::{format_ident, quote, ToTokens};
 use std::collections::HashMap;
 use std::fmt;
 
+mod enums;
+
+pub use enums::{Enum, Enumerator, EnumeratorValue};
+
 pub struct ExtensionApi {
     pub builtins: Vec<BuiltinVariant>,
     pub classes: Vec<Class>,
@@ -178,48 +182,6 @@ pub struct Singleton {
     pub name: TyName,
     // Note: `type` currently has always same value as `name`, thus redundant
     // type_: String,
-}
-
-pub struct Enum {
-    pub name: Ident,
-    pub godot_name: String,
-    pub is_bitfield: bool,
-    pub enumerators: Vec<Enumerator>,
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Enumerators
-
-pub struct Enumerator {
-    pub name: Ident,
-
-    pub godot_name: String,
-
-    // i64 is common denominator for enum, bitfield and constant values.
-    // Note that values > i64::MAX will be implicitly wrapped, see https://github.com/not-fl3/nanoserde/issues/89.
-    pub value: EnumeratorValue,
-}
-pub enum EnumeratorValue {
-    Enum(i32),
-    Bitfield(u64),
-}
-
-impl EnumeratorValue {
-    pub fn to_i64(&self) -> i64 {
-        // Conversion is safe because i64 is used in the original JSON.
-        match self {
-            EnumeratorValue::Enum(i) => *i as i64,
-            EnumeratorValue::Bitfield(i) => *i as i64,
-        }
-    }
-
-    /// This method is needed for platform-dependent types like raw `VariantOperator`, which can be `i32` or `u32`.
-    /// Do not suffix them.
-    ///
-    /// See also `BuiltinVariant::unsuffixed_ord_lit()`.
-    pub fn unsuffixed_lit(&self) -> Literal {
-        Literal::i64_unsuffixed(self.to_i64())
-    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
