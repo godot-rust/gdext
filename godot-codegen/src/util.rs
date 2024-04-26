@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::models::json::JsonClass;
+use crate::{models::json::JsonClass, special_cases};
 
 use crate::models::domain::ClassCodegenLevel;
 use proc_macro2::{Ident, Literal, TokenStream};
@@ -65,7 +65,7 @@ pub fn get_api_level(class: &JsonClass) -> ClassCodegenLevel {
             )
     }
 
-    if class.name.ends_with("Server") {
+    if special_cases::is_class_level_server(&class.name) {
         ClassCodegenLevel::Servers
     } else if class.api_type == "editor" || override_editor(&class.name) {
         ClassCodegenLevel::Editor
