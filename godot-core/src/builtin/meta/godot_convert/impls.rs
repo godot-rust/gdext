@@ -274,34 +274,33 @@ impl_godot_scalar!(
 // void* is used by ScriptExtension::instance_create().
 // Other impls for raw pointers are generated for native structures.
 
-impl GodotConvert for *const std::ffi::c_void {
-    type Via = i64;
+macro_rules! impl_pointer_convert {
+    ($Ptr:ty) => {
+        impl GodotConvert for $Ptr {
+            type Via = i64;
+        }
+
+        impl ToGodot for $Ptr {
+            fn to_godot(&self) -> Self::Via {
+                *self as i64
+            }
+        }
+
+        impl FromGodot for $Ptr {
+            fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+                Ok(via as Self)
+            }
+        }
+    };
 }
 
-impl ToGodot for *const std::ffi::c_void {
-    fn to_godot(&self) -> Self::Via {
-        *self as i64
-    }
-}
+impl_pointer_convert!(*const std::ffi::c_void);
+impl_pointer_convert!(*mut std::ffi::c_void);
 
-impl FromGodot for *const std::ffi::c_void {
-    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-        Ok(via as Self)
-    }
-}
+// Some other pointer types are used by various other methods, see https://github.com/godot-rust/gdext/issues/677
+// TODO: Find better solution to this, this may easily break still if godot decides to add more pointer arguments.
 
-impl GodotConvert for *mut std::ffi::c_void {
-    type Via = i64;
-}
-
-impl ToGodot for *mut std::ffi::c_void {
-    fn to_godot(&self) -> Self::Via {
-        *self as i64
-    }
-}
-
-impl FromGodot for *mut std::ffi::c_void {
-    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-        Ok(via as Self)
-    }
-}
+impl_pointer_convert!(*mut *const u8);
+impl_pointer_convert!(*mut i32);
+impl_pointer_convert!(*mut f64);
+impl_pointer_convert!(*mut u8);
