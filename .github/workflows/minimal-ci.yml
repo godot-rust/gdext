@@ -22,10 +22,10 @@ on:
 
 env:
   GDEXT_FEATURES: ''
+  #  GDEXT_FEATURES: '--features crate/feature'
+  #  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
   RETRY: ${{ github.workspace }}/.github/other/retry.sh
 
-#  GDEXT_FEATURES: '--features crate/feature'
-#  GDEXT_CRATE_ARGS: '-p godot-codegen -p godot-ffi -p godot-core -p godot-macros -p godot'
 
 defaults:
   run:
@@ -245,7 +245,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: "Check and fix license headers"
-        uses: apache/skywalking-eyes/header@v0.5.0
+        uses: 'apache/skywalking-eyes/header@v0.6.0'
         with:
           # log: debug # optional: set the log level. The default value is `info`.
           config: .github/other/licenserc.yml
