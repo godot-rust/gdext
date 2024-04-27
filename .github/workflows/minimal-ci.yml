@@ -160,11 +160,11 @@ jobs:
 
           # Linux compat
 
-          - name: linux-4.1.3
+          - name: linux-4.1.4
             os: ubuntu-20.04
             artifact-name: linux-4.1
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            godot-prebuilt-patch: '4.1.3'
+            godot-prebuilt-patch: '4.1.4'
 
           - name: linux-4.0.4
             os: ubuntu-20.04
