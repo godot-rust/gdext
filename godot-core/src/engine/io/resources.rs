@@ -8,11 +8,11 @@
 use crate::builtin::GString;
 use crate::engine::global::Error as GodotError;
 use crate::gen::classes::{Resource, ResourceLoader, ResourceSaver};
-use crate::obj::{Gd, GodotClass, Inherits};
+use crate::obj::{Gd, Inherits};
 
 use super::IoError;
 
-/// Loads a resource from the filesystem located at `path`, panicking on error.
+/// ⚠️ Loads a resource from the filesystem located at `path`, panicking on error.
 ///
 /// See [`try_load`] for more information.
 ///
@@ -29,7 +29,7 @@ use super::IoError;
 #[inline]
 pub fn load<T>(path: impl Into<GString>) -> Gd<T>
 where
-    T: GodotClass + Inherits<Resource>,
+    T: Inherits<Resource>,
 {
     let path = path.into();
     load_impl(&path).unwrap_or_else(|err| panic!("failed: {err}"))
@@ -37,16 +37,16 @@ where
 
 /// Loads a resource from the filesystem located at `path`.
 ///
-/// The resource is loaded on the method call (unless it's referenced already elsewhere, e.g. in another script or in the scene),
-/// which might cause slight delay, especially when loading scenes.
+/// The resource is loaded during the method call, unless it is already referenced elsewhere, e.g. in another script or in the scene.
+/// This might cause slight delay, especially when loading scenes.
 ///
 /// This function can fail if resource can't be loaded by [`ResourceLoader`] or if the subsequent cast into `T` fails.
 ///
 /// This method is a simplified version of [`ResourceLoader::load()`][crate::engine::ResourceLoader::load],
 /// which can be used for more advanced scenarios.
 ///
-/// # Note:
-/// Resource paths can be obtained by right-clicking on a resource in the Godot editor (_FileSystem_ dock) and choosing "Copy Path",
+/// # Note
+/// Resource paths can be obtained by right-clicking on a resource in the Godot editor (_FileSystem_ dock) and choosing _Copy Path_,
 /// or by dragging the file from the _FileSystem_ dock into the script.
 ///
 /// The path must be absolute (typically starting with `res://`), a local path will fail.
@@ -67,12 +67,12 @@ where
 #[inline]
 pub fn try_load<T>(path: impl Into<GString>) -> Result<Gd<T>, IoError>
 where
-    T: GodotClass + Inherits<Resource>,
+    T: Inherits<Resource>,
 {
     load_impl(&path.into())
 }
 
-/// Saves a [`Resource`]-inheriting [`GodotClass`] `obj` into file located at `path`.
+/// ⚠️ Saves a [`Resource`]-inheriting object into the file located at `path`.
 ///
 /// See [`try_save`] for more information.
 ///
@@ -84,20 +84,20 @@ where
 /// use godot::prelude::*;
 /// use godot::engine::save;
 ///
-/// save(Resource::new_gd(), "res://base_resource.tres")
+/// save(Resource::new_gd(), "res://BaseResource.tres")
 /// ```
 /// use godot::
 #[inline]
 pub fn save<T>(obj: Gd<T>, path: impl Into<GString>)
 where
-    T: GodotClass + Inherits<Resource>,
+    T: Inherits<Resource>,
 {
     let path = path.into();
     save_impl(obj, &path)
         .unwrap_or_else(|err| panic!("failed to save resource at path '{}': {}", &path, err));
 }
 
-/// Saves a [Resource]-inheriting [GodotClass] `obj` into file located at `path`.
+/// Saves a [`Resource`]-inheriting object into the file located at `path`.
 ///
 /// This function can fail if [`ResourceSaver`] can't save the resource to file, as it is a simplified version of
 /// [`ResourceSaver::save()`][crate::engine::ResourceSaver::save]. The underlying method can be used for more advances scenarios.
@@ -127,7 +127,7 @@ where
 #[inline]
 pub fn try_save<T>(obj: Gd<T>, path: impl Into<GString>) -> Result<(), IoError>
 where
-    T: GodotClass + Inherits<Resource>,
+    T: Inherits<Resource>,
 {
     save_impl(obj, &path.into())
 }
@@ -139,7 +139,7 @@ where
 // Note that more optimizations than that likely make no sense, as loading is quite expensive
 fn load_impl<T>(path: &GString) -> Result<Gd<T>, IoError>
 where
-    T: GodotClass + Inherits<Resource>,
+    T: Inherits<Resource>,
 {
     // TODO unclone GString
     match ResourceLoader::singleton()
@@ -163,7 +163,7 @@ where
 
 fn save_impl<T>(obj: Gd<T>, path: &GString) -> Result<(), IoError>
 where
-    T: GodotClass + Inherits<Resource>,
+    T: Inherits<Resource>,
 {
     // TODO unclone GString
     let res = ResourceSaver::singleton()
