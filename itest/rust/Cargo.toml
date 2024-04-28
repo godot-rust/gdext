@@ -19,7 +19,7 @@ serde = ["dep:serde", "dep:serde_json", "godot/serde"]
 
 
 [dependencies]
-godot = { path = "../../godot", default-features = false }
+godot = { path = "../../godot", default-features = false, features = ["trace"] }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 

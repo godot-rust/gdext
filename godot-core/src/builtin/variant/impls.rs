@@ -11,6 +11,8 @@ use crate::builtin::*;
 use crate::engine::global;
 use godot_ffi as sys;
 
+// For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macro definitions
 
@@ -211,12 +213,12 @@ impl GodotType for Variant {
             property_name: StringName::from(property_name),
             hint: global::PropertyHint::NONE,
             hint_string: GString::new(),
-            usage: global::PropertyUsageFlags::NIL_IS_VARIANT,
+            usage: global::PropertyUsageFlags::DEFAULT | global::PropertyUsageFlags::NIL_IS_VARIANT,
         }
     }
 
     fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8
+        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
     }
 
     fn godot_type_name() -> String {

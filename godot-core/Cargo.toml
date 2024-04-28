@@ -19,7 +19,8 @@ custom-godot = ["godot-ffi/custom-godot", "godot-codegen/custom-godot"]
 double-precision = ["godot-codegen/double-precision"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = ["godot-ffi/experimental-threads"]
-trace = ["godot-ffi/trace"]
+debug-log = ["godot-ffi/debug-log"]
+trace = []
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi" }

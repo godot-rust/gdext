@@ -69,7 +69,7 @@ jobs:
           --arg commitSha '${{ github.event.pull_request.head.sha }}' \
           --arg date '${{ github.event.pull_request.updated_at }}' \
           --arg prAuthor '${{ github.event.pull_request.user.login }}' \
-          --arg prTitle '$PR_TITLE' \
+          --arg prTitle "$PR_TITLE" \
           '{
             "op": "put",
             "repo": "gdext",

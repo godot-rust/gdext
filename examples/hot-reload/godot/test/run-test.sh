@@ -29,7 +29,7 @@ cp MainScene.tscn ../MainScene.tscn
 
 # Compile original Rust source.
 cargoArgs=""
-#cargoArgs="--features godot/trace"
+#cargoArgs="--features godot/debug-log"
 cargo build -p hot-reload $cargoArgs
 
 # Wait briefly so artifacts are present on file system.

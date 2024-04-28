@@ -43,7 +43,7 @@ macro_rules! static_assert_eq_size_align {
 }
 
 /// Trace output.
-#[cfg(feature = "trace")]
+#[cfg(feature = "debug-log")]
 #[macro_export]
 macro_rules! out {
     ()                          => (eprintln!());
@@ -52,7 +52,7 @@ macro_rules! out {
 }
 
 /// Trace output.
-#[cfg(not(feature = "trace"))]
+#[cfg(not(feature = "debug-log"))]
 // TODO find a better way than sink-writing to avoid warnings, #[allow(unused_variables)] doesn't work
 #[macro_export]
 macro_rules! out {

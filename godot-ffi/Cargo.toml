@@ -13,7 +13,7 @@ codegen-fmt = ["godot-codegen/codegen-fmt"]
 codegen-lazy-fptrs = ["godot-codegen/codegen-lazy-fptrs"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = []
-trace = []
+debug-log = []
 
 # TODO: get rid of paste and gensym, they are trivially implementable with proc-macros. Update cargo-deny.
 # Especially gensym which pulls in entire syn for 10 LoC. See https://github.com/regiontog/gensym/blob/master/src/lib.rs.
