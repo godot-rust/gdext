@@ -365,7 +365,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
 
 /// Extension trait for all reference-counted classes.
 pub trait NewGd: GodotClass {
-    /// Return a new Gd which contains a default-constructed instance.
+    /// Return a new, ref-counted `Gd` containing a default-constructed instance.
     ///
     /// `MyClass::new_gd()` is equivalent to `Gd::<MyClass>::default()`.
     fn new_gd() -> Gd<Self>;
@@ -382,7 +382,7 @@ where
 
 /// Extension trait for all manually managed classes.
 pub trait NewAlloc: GodotClass {
-    /// Return a new Gd which contains a default-constructed instance.
+    /// Return a new, manually-managed `Gd` containing a default-constructed instance.
     ///
     /// The result must be manually managed, e.g. by attaching it to the scene tree or calling `free()` after usage.
     /// Failure to do so will result in memory leaks.

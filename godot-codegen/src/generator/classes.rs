@@ -89,7 +89,8 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         None => (quote! { crate::obj::NoBase }, None),
     };
 
-    let (constructor, godot_default_impl) = make_constructor_and_default(class, ctx);
+    let (constructor, construct_doc, godot_default_impl) = make_constructor_and_default(class, ctx);
+    let construct_doc = construct_doc.replace("Self", &class_name.rust_ty.to_string());
     let api_level = class.api_level;
     let init_level = api_level.to_init_level();
 
@@ -164,6 +165,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
             use super::*;
 
             #[doc = #class_doc]
+            #[doc = #construct_doc]
             #[derive(Debug)]
             #[repr(C)]
             pub struct #class_name {
@@ -296,13 +298,16 @@ fn make_class_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> Tok
     }
 }
 
-fn make_constructor_and_default(class: &Class, ctx: &Context) -> (TokenStream, TokenStream) {
+fn make_constructor_and_default(
+    class: &Class,
+    ctx: &Context,
+) -> (TokenStream, &'static str, TokenStream) {
     let godot_class_name = &class.name().godot_ty;
     let godot_class_stringname = make_string_name(godot_class_name);
     // Note: this could use class_name() but is not yet done due to upcoming lazy-load refactoring.
     //let class_name_obj = quote! { <Self as crate::obj::GodotClass>::class_name() };
 
-    let (constructor, has_godot_default_impl);
+    let (constructor, construct_doc, has_godot_default_impl);
     if ctx.is_singleton(godot_class_name) {
         // Note: we cannot return &'static mut Self, as this would be very easy to mutably alias.
         // &'static Self would be possible, but we would lose the whole mutability information (even if that is best-effort and
@@ -318,15 +323,28 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> (TokenStream, T
                 }
             }
         };
+        construct_doc = "# Singleton\n\n\
+            This class is a singleton. You can get the one instance using [`Self::singleton()`][Self::singleton].";
         has_godot_default_impl = false;
     } else if !class.is_instantiable {
-        // Abstract base classes or non-singleton classes without constructor
+        // Abstract base classes or non-singleton classes without constructor.
         constructor = TokenStream::new();
+        construct_doc = "# Not instantiable\n\nThis class cannot be constructed. Obtain `Gd<Self>` instances via Godot APIs.";
         has_godot_default_impl = false;
     } else {
         // Manually managed classes (Object, Node, ...) as well as ref-counted ones (RefCounted, Resource, ...).
         // The constructors are provided as associated methods in NewGd::new_gd() and NewAlloc::new_alloc().
         constructor = TokenStream::new();
+
+        if class.is_refcounted {
+            construct_doc = "# Construction\n\n\
+                This class is reference-counted. You can create a new instance using [`Self::new_gd()`][crate::obj::NewGd::new_gd]."
+        } else {
+            construct_doc = "# Construction\n\n\
+                This class is manually managed. You can create a new instance using [`Self::new_alloc()`][crate::obj::NewAlloc::new_alloc].\n\n\
+                Do not forget to call [`free()`][crate::obj::Gd::free] or hand over ownership to Godot."
+        }
+
         has_godot_default_impl = true;
     }
 
@@ -343,7 +361,7 @@ fn make_constructor_and_default(class: &Class, ctx: &Context) -> (TokenStream, T
         TokenStream::new()
     };
 
-    (constructor, godot_default_impl)
+    (constructor, construct_doc, godot_default_impl)
 }
 
 fn make_deref_impl(class_name: &TyName, base_ty: &TokenStream) -> TokenStream {
