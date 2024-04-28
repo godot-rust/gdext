@@ -19,7 +19,7 @@ pub(crate) fn generate_rust_binding(in_h_path: &Path, out_rs_path: &Path) {
         .header(c_header_path)
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .prepend_enum_name(false);
 
     std::fs::create_dir_all(
@@ -53,6 +53,11 @@ pub(crate) fn generate_rust_binding(in_h_path: &Path, out_rs_path: &Path) {
 
 //#[cfg(target_os = "macos")]
 fn configure_platform_specific(builder: bindgen::Builder) -> bindgen::Builder {
+    // On macOS arm64 architecture, we currently get the following error. Tried using different LLVM versions.
+    // Not clear if bindgen can be configured in a better way.
+    //  error: linking with `cc` failed: signal: 6 (SIGABRT)
+    //   = note: dyld[6080]: weak-def symbol not found '__ZnwmSt19__type_descriptor_t'weak-def symbol not found '__ZnamSt19__type_descriptor_t'
+
     let target_vendor = env::var("CARGO_CFG_TARGET_VENDOR").unwrap();
     if target_vendor == "apple" {
         eprintln!("Build selected for macOS.");
@@ -64,6 +69,7 @@ fn configure_platform_specific(builder: bindgen::Builder) -> bindgen::Builder {
             .clang_arg(apple_include_path().expect("apple include path"))
             .clang_arg("-L")
             .clang_arg(format!("{path}/lib"))
+            .clang_arg("-Wl,-flat_namespace,-undefined,dynamic_lookup")
     } else {
         eprintln!("Build selected for Linux/Windows.");
         builder
