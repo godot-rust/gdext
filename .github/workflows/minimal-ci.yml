@@ -131,7 +131,7 @@ jobs:
 
           - name: macos
             os: macos-12
-            artifact-name: macos-nightly
+            artifact-name: macos-x86-nightly
             godot-binary: godot.macos.editor.dev.x86_64
             rust-extra-args: --features godot/custom-godot
 

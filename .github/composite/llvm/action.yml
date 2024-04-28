@@ -6,11 +6,11 @@
 name: llvm
 description: "Install LLVM + Clang, with caching"
 
-inputs:
-  llvm-version:
-    required: false
-    default: '15.0.7'
-    description: "LLVM versions. Greater than 15 may not be supported in all runners."
+#inputs:
+#  llvm-version:
+#    required: false
+#    default: '15.0.7'
+#    description: "LLVM versions. Greater than 15 may not be supported in all runners."
 
 runs:
   using: "composite"
@@ -19,7 +19,27 @@ runs:
     - name: "Set up install dir"
       run: |
         installDir=$(echo "${{ runner.temp }}/llvm" | sed "s!\\\\!/!")
-        echo "LLVM_INSTALL_DIR=$installDir" >> $GITHUB_ENV
+        echo "INSTALL_DIR=$installDir" >> $GITHUB_ENV
+      shell: bash
+
+    - name: "Print runner arch"
+      run: 'echo "Runner arch: ${{ runner.arch }}"'
+      shell: bash
+
+    # https://docs.github.com/en/actions/learn-github-actions/contexts#runner-context
+    # https://github.com/kylemayes/install-llvm-action?tab=readme-ov-file#arch
+    - name: "Enable x86 architecture"
+      if: runner.arch == 'X86' || runner.arch == 'X64'
+      run: |
+        echo "INSTALL_ARCH=x64" >> $GITHUB_ENV
+        echo "INSTALL_VERSION=15" >> $GITHUB_ENV
+      shell: bash
+
+    - name: "Enable ARM architecture"
+      if: runner.arch == 'ARM' || runner.arch == 'ARM64'
+      run: |
+        echo "INSTALL_ARCH=arm64" >> $GITHUB_ENV
+        echo "INSTALL_VERSION=17" >> $GITHUB_ENV
       shell: bash
 
     - name: "Cache LLVM and clang"
@@ -31,15 +51,17 @@ runs:
 #        path: |
 #          C:/Program Files/LLVM
 #          ./llvm
-        path: ${{ env.LLVM_INSTALL_DIR }}
-        key: "llvm-${{ inputs.llvm-version }}"
+        path: ${{ env.INSTALL_DIR }}
+        key: "llvm-${{ runner.os }}-${{ env.INSTALL_VERSION }}-${{ env.INSTALL_ARCH }}"
 
-    - uses: KyleMayes/install-llvm-action@v1
+    # LLVM version compatibility: https://github.com/KyleMayes/install-llvm-action/blob/master/assets.json
+    - uses: KyleMayes/install-llvm-action@v2
       # if: inputs.llvm == 'true'
       with:
         # Newer versions failed on macOS with "Unsupported target! (platform='darwin', version='17.0.2')"
-        version: "${{ inputs.llvm-version }}"
-        directory: ${{ env.LLVM_INSTALL_DIR }}
+        version: "${{ env.INSTALL_VERSION }}"
+        directory: ${{ env.INSTALL_DIR }}
+        arch: ${{ env.INSTALL_ARCH }}
         cached: ${{ steps.cache-llvm.outputs.cache-hit }}
 
     - name: "Print LLVM dir"
