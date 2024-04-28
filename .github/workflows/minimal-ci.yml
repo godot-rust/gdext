@@ -127,13 +127,12 @@ jobs:
       fail-fast: false # cancel all jobs as soon as one fails?
       matrix:
         include:
-          # macOS
+          # macOS (use arm64 for minimal CI)
 
           - name: macos
-            os: macos-12
-            artifact-name: macos-x86-nightly
-            godot-binary: godot.macos.editor.dev.x86_64
-            rust-extra-args: --features godot/custom-godot
+            os: macos-latest
+            artifact-name: macos-arm-nightly
+            godot-binary: godot.macos.editor.dev.arm64
 
           # Windows
 
@@ -141,7 +140,7 @@ jobs:
             os: windows-latest
             artifact-name: windows-nightly
             godot-binary: godot.windows.editor.dev.x86_64.exe
-            rust-extra-args: --features godot/custom-godot
+            # rust-extra-args: --features godot/custom-godot
 
           # Linux
 
