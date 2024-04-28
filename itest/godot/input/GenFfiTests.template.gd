@@ -78,5 +78,17 @@ func _check_callconv(function: String, expected: String) -> void:
 		# This test deliberately fails in case Godot implements support for either of the above, to notify us.
 		expected = "varcall"
 
+	# Special cases that were only implemented/fixed Godot 4.2+, but are still present in older versions.
+	# Covers Vector4, Vector4i, NewVector4(Vector4), NewVector4i(Vector4i), Projection
+	elif Engine.get_version_info().minor < 2 \
+	and (function.begins_with("return_") or function.begins_with("mirror_")) \
+	and ( \
+		function.ends_with("vector4") \
+		or function.ends_with("vector4i") \
+		or function.ends_with("projection") \
+		or function.ends_with("variant") \
+	):
+		expected = "varcall"
+
 	var ok = GenFfi.check_last_notrace(function, expected)
 	assert_that(ok, str("calling convention mismatch in function '", function, "'"))

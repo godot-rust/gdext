@@ -169,6 +169,7 @@ fn collect_inputs() -> Vec<Input> {
     push_newtype!(inputs; Vector4, NewVector4(Vector4), Vector4(-18.5, 24.75, -1.25, 777.875), NewVector4(Vector4::new(-18.5, 24.75, -1.25, 777.875)));
     push_newtype!(inputs; Vector2i, NewVector2i(Vector2i), Vector2i(-2147483648, 2147483647), NewVector2i(Vector2i::new(-2147483648, 2147483647)));
     push_newtype!(inputs; Vector3i, NewVector3i(Vector3i), Vector3i(-1, -2147483648, 2147483647), NewVector3i(Vector3i::new(-1, -2147483648, 2147483647)));
+    push_newtype!(inputs; Vector4i, NewVector4i(Vector4i), Vector4i(-1, -2147483648, 2147483647, 1), NewVector4i(Vector4i::new(-1, -2147483648, 2147483647, 1)));
     push_newtype!(inputs; Callable, NewCallable(Callable), Callable(), NewCallable(Callable::invalid()));
 
     // Data structures
