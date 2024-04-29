@@ -40,6 +40,11 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         // Already covered by manual APIs
         //| ("Object", "to_string")
         | ("Object", "get_instance_id")
+        
+        // Removed because it is a worse version of Node::get_node_or_null(): it _seems_ like it's fallible due to Option<T> return type,
+        // however Godot will emit an error message if the node is absent. In the future with non-null types, this may be re-introduced.
+        // Alternatively, both get_node/get_node_or_null could become generic and use the get_node_as/try_get_node_as impl (removing those).
+        | ("Node", "get_node")
 
         // Removed in https://github.com/godotengine/godot/pull/88418, but they cannot reasonably be used before, either.
         | ("GDExtension", "open_library")
