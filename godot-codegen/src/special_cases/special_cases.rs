@@ -319,3 +319,31 @@ pub fn get_interface_extra_docs(trait_name: &str) -> Option<&'static str> {
         _ => None,
     }
 }
+
+// Unclear on if some of these classes should be registered earlier than `Scene`:
+// - `RenderData` + `RenderDataExtension`
+// - `RenderSceneData` + `RenderSceneDataExtension`
+
+#[rustfmt::skip]
+pub fn is_class_level_server(class_name: &str) -> bool {
+    matches!(class_name, 
+        // TODO: These should actually be at level `Core`
+        "Object" | "OpenXRExtensionWrapperExtension" |
+
+        // Shouldn't be inherited from in rust but are still servers.
+        "AudioServer" | "CameraServer" | "NavigationServer2D" | "NavigationServer3D" | "RenderingServer" | "TranslationServer" | "XRServer" |
+
+        // PhysicsServer2D
+        "PhysicsDirectBodyState2D" | "PhysicsDirectBodyState2DExtension" |
+        "PhysicsDirectSpaceState2D" | "PhysicsDirectSpaceState2DExtension" | 
+        "PhysicsServer2D" | "PhysicsServer2DExtension" |
+        "PhysicsServer2DManager" |
+
+        // PhysicsServer3D
+        "PhysicsDirectBodyState3D" | "PhysicsDirectBodyState3DExtension" |
+        "PhysicsDirectSpaceState3D" | "PhysicsDirectSpaceState3DExtension" | 
+        "PhysicsServer3D" | "PhysicsServer3DExtension" | 
+        "PhysicsServer3DManager" |
+        "PhysicsServer3DRenderingServerHandler" 
+    )
+}
