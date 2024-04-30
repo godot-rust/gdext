@@ -113,6 +113,29 @@ impl StringName {
         fn string_sys_mut = sys_mut;
     }
 
+    /// Consumes self and turns it into a sys-ptr, should be used together with [`from_owned_string_sys`](Self::from_owned_string_sys).
+    ///
+    /// This will leak memory unless `from_owned_string_sys` is called on the returned pointer.
+    pub(crate) fn into_owned_string_sys(self) -> sys::GDExtensionStringNamePtr {
+        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueStringName);
+
+        let leaked = Box::into_raw(Box::new(self));
+        leaked.cast()
+    }
+
+    /// Creates a `StringName` from a sys-ptr without incrementing the refcount.
+    ///
+    /// # Safety
+    ///
+    /// * Must only be used on a pointer returned from a call to [`into_owned_string_sys`](Self::into_owned_string_sys).
+    /// * Must not be called more than once on the same pointer.
+    #[deny(unsafe_op_in_unsafe_fn)]
+    pub(crate) unsafe fn from_owned_string_sys(ptr: sys::GDExtensionStringNamePtr) -> Self {
+        let ptr = ptr.cast::<Self>();
+        let boxed = unsafe { Box::from_raw(ptr) };
+        *boxed
+    }
+
     /// Convert a `StringName` sys pointer to a reference with unbounded lifetime.
     ///
     /// # Safety

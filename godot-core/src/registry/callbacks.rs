@@ -201,6 +201,53 @@ pub unsafe extern "C" fn unreference<T: GodotClass>(instance: sys::GDExtensionCl
     storage.on_dec_ref();
 }
 
+#[deny(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
+    instance: sys::GDExtensionClassInstancePtr,
+    count: *mut u32,
+) -> *const sys::GDExtensionPropertyInfo {
+    // SAFETY: Godot provides us with a valid instance pointer to a `T`. And it will live until the end of this function.
+    let storage = unsafe { as_storage::<T>(instance) };
+    let mut instance = storage.get_mut();
+
+    let property_list = T::__godot_get_property_list(&mut *instance);
+    let property_list_sys: Box<[sys::GDExtensionPropertyInfo]> = property_list
+        .into_iter()
+        .map(|prop| prop.into_owned_property_sys())
+        .collect();
+
+    unsafe {
+        *count = property_list_sys
+            .len()
+            .try_into()
+            .expect("property list cannot be longer than `u32::MAX`");
+    }
+
+    Box::leak(property_list_sys).as_mut_ptr()
+}
+
+#[deny(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
+    _instance: sys::GDExtensionClassInstancePtr,
+    list: *const sys::GDExtensionPropertyInfo,
+    count: u32,
+) {
+    let list = list as *mut sys::GDExtensionPropertyInfo;
+    let property_list_sys = unsafe {
+        Box::from_raw(std::slice::from_raw_parts_mut(
+            list,
+            count.try_into().expect("`u32` should fit in `usize`"),
+        ))
+    };
+
+    for property_info in property_list_sys.iter() {
+        // SAFETY: The structs contained in this list were all returned from `into_owned_property_sys`.
+        // We only call this method once for each struct and for each list.
+        unsafe {
+            crate::builtin::meta::PropertyInfo::free_owned_property_sys(*property_info);
+        }
+    }
+}
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Safe, higher-level methods
 

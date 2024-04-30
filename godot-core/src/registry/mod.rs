@@ -182,6 +182,30 @@ pub enum PluginItem {
             p_userdata: *mut std::os::raw::c_void,
             p_name: sys::GDExtensionConstStringNamePtr,
         ) -> sys::GDExtensionClassCallVirtual,
+
+        /// Callback for other virtuals.
+        user_get_property_list_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr,
+                r_count: *mut u32,
+            ) -> *const sys::GDExtensionPropertyInfo,
+        >,
+
+        #[cfg(before_api = "4.3")]
+        user_free_property_list_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr,
+                p_list: *const sys::GDExtensionPropertyInfo,
+            ),
+        >,
+        #[cfg(since_api = "4.3")]
+        user_free_property_list_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr,
+                p_list: *const sys::GDExtensionPropertyInfo,
+                p_count: u32,
+            ),
+        >,
     },
 }
 
@@ -453,6 +477,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             user_set_fn,
             user_get_fn,
             get_virtual_fn,
+            user_get_property_list_fn,
+            user_free_property_list_fn,
         } => {
             c.user_register_fn = user_register_fn;
 
@@ -473,6 +499,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             c.godot_params.notification_func = user_on_notification_fn;
             c.godot_params.set_func = user_set_fn;
             c.godot_params.get_func = user_get_fn;
+            c.godot_params.get_property_list_func = user_get_property_list_fn;
+            c.godot_params.free_property_list_func = user_free_property_list_fn;
             c.user_virtual_fn = Some(get_virtual_fn);
         }
     }

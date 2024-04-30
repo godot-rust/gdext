@@ -523,6 +523,12 @@ pub mod cap {
         fn __godot_set_property(&mut self, property: StringName, value: Variant) -> bool;
     }
 
+    #[doc(hidden)]
+    pub trait GodotGetPropertyList: GodotClass {
+        #[doc(hidden)]
+        fn __godot_get_property_list(&mut self) -> Vec<crate::builtin::meta::PropertyInfo>;
+    }
+
     /// Auto-implemented for `#[godot_api] impl MyClass` blocks
     pub trait ImplementsGodotApi: GodotClass {
         #[doc(hidden)]

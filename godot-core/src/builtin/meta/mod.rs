@@ -20,8 +20,9 @@ pub use signature::*;
 
 pub(crate) use godot_convert::convert_error::*;
 
-use crate::builtin::*;
-use crate::engine::global;
+use crate::engine::global::{self, PropertyHint, PropertyUsageFlags};
+use crate::property::{Export, PropertyHintInfo};
+use crate::{builtin::*, property::Var};
 use godot_ffi as sys;
 use registration::method::MethodParamOrReturnInfo;
 use sys::{GodotFfi, GodotNullableFfi};
@@ -277,6 +278,62 @@ pub struct PropertyInfo {
 }
 
 impl PropertyInfo {
+    /// Create a new `PropertyInfo` representing a property named `property_name` with type `T`.
+    ///
+    /// This will generate property info equivalent to what a `#[var]` attribute would.
+    pub fn new_var<T: Var>(property_name: &str) -> Self {
+        let PropertyHintInfo { hint, hint_string } = T::property_hint();
+
+        Self {
+            hint,
+            hint_string,
+            ..<T as GodotConvert>::Via::property_info(property_name)
+        }
+    }
+
+    /// Create a new `PropertyInfo` representing an exported property named `property_name` with type `T`.
+    ///
+    /// This will generate property info equivalent to what an `#[export]` attribute would.
+    pub fn new_export<T: Export>(property_name: &str) -> Self {
+        let PropertyHintInfo { hint, hint_string } = T::default_export_info();
+
+        Self {
+            hint,
+            hint_string,
+            ..<T as GodotConvert>::Via::property_info(property_name)
+        }
+    }
+
+    /// Create a new `PropertyInfo` representing a group in Godot.
+    ///
+    /// See [`EditorInspector`](https://docs.godotengine.org/en/latest/classes/class_editorinspector.html#class-editorinspector) in Godot for
+    /// more information.
+    pub fn new_group(group_name: &str, group_prefix: &str) -> Self {
+        Self {
+            variant_type: VariantType::Nil,
+            class_name: ClassName::none(),
+            property_name: group_name.into(),
+            hint: PropertyHint::NONE,
+            hint_string: group_prefix.into(),
+            usage: PropertyUsageFlags::GROUP,
+        }
+    }
+
+    /// Create a new `PropertyInfo` representing a subgroup in Godot.
+    ///
+    /// See [`EditorInspector`](https://docs.godotengine.org/en/latest/classes/class_editorinspector.html#class-editorinspector) in Godot for
+    /// more information.
+    pub fn new_subgroup(subgroup_name: &str, subgroup_prefix: &str) -> Self {
+        Self {
+            variant_type: VariantType::Nil,
+            class_name: ClassName::none(),
+            property_name: subgroup_name.into(),
+            hint: PropertyHint::NONE,
+            hint_string: subgroup_prefix.into(),
+            usage: PropertyUsageFlags::SUBGROUP,
+        }
+    }
+
     /// Converts to the FFI type. Keep this object allocated while using that!
     pub fn property_sys(&self) -> sys::GDExtensionPropertyInfo {
         use crate::obj::EngineBitfield as _;
@@ -303,6 +360,40 @@ impl PropertyInfo {
             hint: global::PropertyHint::NONE.ord() as u32,
             hint_string: std::ptr::null_mut(),
             usage: global::PropertyUsageFlags::NONE.ord() as u32,
+        }
+    }
+
+    /// Consumes self and turns it into a `sys::GDExtensionPropertyInfo`, should be used together with
+    /// [`free_owned_property_sys`](Self::free_owned_property_sys).
+    ///
+    /// This will leak memory unless used together with `free_owned_property_sys`.
+    pub fn into_owned_property_sys(self) -> sys::GDExtensionPropertyInfo {
+        use crate::obj::EngineBitfield as _;
+        use crate::obj::EngineEnum as _;
+
+        sys::GDExtensionPropertyInfo {
+            type_: self.variant_type.sys(),
+            name: self.property_name.into_owned_string_sys(),
+            class_name: sys::SysPtr::force_mut(self.class_name.string_sys()),
+            hint: u32::try_from(self.hint.ord()).expect("hint.ord()"),
+            hint_string: self.hint_string.into_owned_string_sys(),
+            usage: u32::try_from(self.usage.ord()).expect("usage.ord()"),
+        }
+    }
+
+    /// Properly frees a `sys::GDExtensionPropertyInfo` created by [`into_owned_property_sys`](Self::into_owned_property_sys).
+    ///
+    /// # Safety
+    ///
+    /// * Must only be used on a struct returned from a call to [`into_owned_property_sys`], without modification.
+    /// * Must not be called more than once on a `sys::GDExtensionPropertyInfo` struct.
+    pub unsafe fn free_owned_property_sys(info: sys::GDExtensionPropertyInfo) {
+        // SAFETY: This function was called on a pointer returned from `into_owned_property_sys`, thus both `info.name` and
+        // `info.hint_string` were created from calls to `into_owned_string_sys` on their respective types.
+        // Additionally this function isn't called more than once on a struct containing the same `name` or `hint_string` pointers.
+        unsafe {
+            let _name = StringName::from_owned_string_sys(info.name);
+            let _hint_string = GString::from_owned_string_sys(info.hint_string);
         }
     }
 }

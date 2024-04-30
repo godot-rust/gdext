@@ -104,6 +104,10 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
             unimplemented!()
         }
 
+        #[cfg(since_api = "4.3")]
+        fn get_property_list(&mut self) -> Vec<crate::builtin::meta::PropertyInfo> {
+            unimplemented!()
+        }
     }
 }
 
