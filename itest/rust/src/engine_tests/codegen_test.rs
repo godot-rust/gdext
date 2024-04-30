@@ -79,10 +79,28 @@ impl TestBaseRenamed {
     fn with_unnamed(&self, _: i32) {}
 
     #[func]
+    fn with_unused(&self, _unused: i32) {}
+
+    #[func]
     fn with_mut(&self, mut param: i32) {}
 
     #[func]
     fn with_many_unnamed(&self, _: i32, _: GString) {}
+
+    #[func(virtual)]
+    fn with_virtual_unnamed(&self, _: i32) {}
+
+    #[func(virtual, gd_self)]
+    fn with_virtual_unnamed_gdself(this: Gd<Self>, _: i32) {}
+
+    #[func(virtual)]
+    fn with_virtual_unused(&self, _unused: i32) {}
+
+    #[func(virtual)]
+    fn with_virtual_mut(&self, mut param: i32) {}
+
+    #[func(virtual)]
+    fn with_virtual_many_unnamed(&self, _: i32, _: GString) {}
 }
 
 #[godot_api]

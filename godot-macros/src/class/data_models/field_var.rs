@@ -9,7 +9,8 @@ use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
 use crate::class::{
-    make_existence_check, make_method_registration, Field, FieldHint, FuncDefinition,
+    into_signature_info, make_existence_check, make_method_registration, Field, FieldHint,
+    FuncDefinition,
 };
 use crate::util::KvParser;
 use crate::{util, ParseResult};
@@ -194,7 +195,8 @@ impl GetterSetterImpl {
         let export_token = make_method_registration(
             class_name,
             FuncDefinition {
-                signature,
+                signature: signature.clone(),
+                signature_info: into_signature_info(signature, class_name, false),
                 // Since we're analyzing a struct's field, we don't have access to the corresponding get/set function's
                 // external (non-#[func]) attributes. We have to assume the function exists and has the name the user
                 // gave us, with the expected signature.
@@ -202,7 +204,7 @@ impl GetterSetterImpl {
                 // #[cfg()] (for instance) placed on the getter/setter function, but that is not currently supported.
                 external_attributes: Vec::new(),
                 rename: None,
-                is_virtual: false,
+                is_script_virtual: false,
                 has_gd_self: false,
             },
         );

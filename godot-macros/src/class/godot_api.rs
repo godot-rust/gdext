@@ -319,11 +319,16 @@ fn process_godot_fns(
                             );
                         };
 
+                        // Note: parameter is explicitly NOT renamed (maybe_rename_parameter).
                         Some(param.name)
                     }
                 } else {
                     None
                 };
+
+                // Clone might not strictly be necessary, but the 2 other callers of into_signature_info() are better off with pass-by-value.
+                let signature_info =
+                    into_signature_info(signature.clone(), class_name, gd_self_parameter.is_some());
 
                 // For virtual methods, rename/mangle existing user method and create a new method with the original name,
                 // which performs a dynamic dispatch.
@@ -331,7 +336,7 @@ fn process_godot_fns(
                     add_virtual_script_call(
                         &mut virtual_functions,
                         function,
-                        &signature,
+                        &signature_info,
                         class_name,
                         &rename,
                         gd_self_parameter,
@@ -340,9 +345,10 @@ fn process_godot_fns(
 
                 func_definitions.push(FuncDefinition {
                     signature,
+                    signature_info,
                     external_attributes,
                     rename,
-                    is_virtual,
+                    is_script_virtual: is_virtual,
                     has_gd_self,
                 });
             }
@@ -392,25 +398,29 @@ fn process_godot_fns(
 fn add_virtual_script_call(
     virtual_functions: &mut Vec<venial::Function>,
     function: &mut venial::Function,
-    reduced_signature: &venial::Function,
+    signature_info: &SignatureInfo,
     class_name: &Ident,
     rename: &Option<String>,
     gd_self_parameter: Option<Ident>,
 ) {
     assert!(cfg!(since_api = "4.3"));
 
+    // Update parameter names, so they can be forwarded (e.g. a "_" declared by the user cannot).
+    let is_params = function.params.iter_mut().skip(1); // skip receiver.
+    let should_param_names = signature_info.param_idents.iter();
+    is_params
+        .zip(should_param_names)
+        .for_each(|(param, should_param_name)| {
+            if let venial::FnParam::Typed(param) = &mut param.0 {
+                param.name = should_param_name.clone();
+            }
+        });
+
     let class_name_str = class_name.to_string();
     let early_bound_name = format_ident!("__earlybound_{}", &function.name);
     let method_name_str = rename
         .clone()
         .unwrap_or_else(|| format!("_{}", function.name));
-
-    // Clone might not strictly be necessary, but the 2 other callers of into_signature_info() are better off with pass-by-value.
-    let signature_info = into_signature_info(
-        reduced_signature.clone(),
-        class_name,
-        gd_self_parameter.is_some(),
-    );
 
     let sig_tuple = signature_info.tuple_type();
     let arg_names = &signature_info.param_idents;
@@ -428,9 +438,9 @@ fn add_virtual_script_call(
         let object_ptr = #object_ptr;
         let method_sname = ::godot::builtin::StringName::from(#method_name_str);
         let method_sname_ptr = method_sname.string_sys();
-        let has_virtual_method = unsafe { ::godot::private::has_virtual_script_method(object_ptr, method_sname_ptr) };
+        let has_virtual_override = unsafe { ::godot::private::has_virtual_script_method(object_ptr, method_sname_ptr) };
 
-        if has_virtual_method {
+        if has_virtual_override {
             // Dynamic dispatch.
             type CallSig = #sig_tuple;
             let args = (#( #arg_names, )*);
@@ -445,7 +455,7 @@ fn add_virtual_script_call(
             }
         } else {
             // Fall back to default implementation.
-            Self::#early_bound_name(#receiver, #(#arg_names),*)
+            Self::#early_bound_name(#receiver, #( #arg_names ),*)
         }
     };
 
