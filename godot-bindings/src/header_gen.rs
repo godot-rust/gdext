@@ -19,7 +19,7 @@ pub(crate) fn generate_rust_binding(in_h_path: &Path, out_rs_path: &Path) {
         .header(c_header_path)
         // Tell cargo to invalidate the built crate whenever any of the
         // included header files changed.
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .prepend_enum_name(false);
 
     std::fs::create_dir_all(
