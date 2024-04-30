@@ -134,7 +134,7 @@ impl<T: GodotType> Array<T> {
 
     /// Reverses the order of the elements in the array.
     pub fn reverse(&mut self) {
-        // SAFETY: We do not write any values that dont already exist in the array, so all values have the correct type.
+        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.reverse();
     }
 
@@ -145,7 +145,7 @@ impl<T: GodotType> Array<T> {
     /// considered equal may have their order changed when using `sort_unstable`.
     #[doc(alias = "sort")]
     pub fn sort_unstable(&mut self) {
-        // SAFETY: We do not write any values that dont already exist in the array, so all values have the correct type.
+        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.sort();
     }
 
@@ -158,7 +158,7 @@ impl<T: GodotType> Array<T> {
     /// `sort_unstable`.
     #[doc(alias = "sort_custom")]
     pub fn sort_unstable_custom(&mut self, func: Callable) {
-        // SAFETY: We do not write any values that dont already exist in the array, so all values have the correct type.
+        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.sort_custom(func);
     }
 
@@ -166,7 +166,7 @@ impl<T: GodotType> Array<T> {
     /// global random number generator common to methods such as `randi`. Call `randomize` to
     /// ensure that a new seed will be used each time if you want non-reproducible shuffling.
     pub fn shuffle(&mut self) {
-        // SAFETY: We do not write any values that dont already exist in the array, so all values have the correct type.
+        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.shuffle();
     }
 
@@ -1008,7 +1008,7 @@ impl<T: GodotType + FromGodot> From<&Array<T>> for Vec<T> {
         let mut vec = Vec::with_capacity(len);
 
         // SAFETY: Unless `experimental-threads` is enabled, then we cannot have concurrent access to this array.
-        // And since we dont concurrently access the array in this function, we can create a slice to its contents.
+        // And since we don't concurrently access the array in this function, we can create a slice to its contents.
         let elements = unsafe { Variant::borrow_slice(array.ptr(0), len) };
 
         vec.extend(elements.iter().map(T::from_variant));

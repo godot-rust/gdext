@@ -169,6 +169,7 @@ fn collect_inputs() -> Vec<Input> {
     push_newtype!(inputs; Vector4, NewVector4(Vector4), Vector4(-18.5, 24.75, -1.25, 777.875), NewVector4(Vector4::new(-18.5, 24.75, -1.25, 777.875)));
     push_newtype!(inputs; Vector2i, NewVector2i(Vector2i), Vector2i(-2147483648, 2147483647), NewVector2i(Vector2i::new(-2147483648, 2147483647)));
     push_newtype!(inputs; Vector3i, NewVector3i(Vector3i), Vector3i(-1, -2147483648, 2147483647), NewVector3i(Vector3i::new(-1, -2147483648, 2147483647)));
+    push_newtype!(inputs; Vector4i, NewVector4i(Vector4i), Vector4i(-1, -2147483648, 2147483647, 1), NewVector4i(Vector4i::new(-1, -2147483648, 2147483647, 1)));
     push_newtype!(inputs; Callable, NewCallable(Callable), Callable(), NewCallable(Callable::invalid()));
 
     // Data structures
@@ -213,6 +214,7 @@ fn main() {
 
         use godot::builtin::*;
         use godot::builtin::meta::*;
+        use godot::log::godot_error;
         use godot::obj::{Gd, InstanceId};
         use godot::engine::global::Error;
         use godot::engine::{Node, Resource};
@@ -288,7 +290,7 @@ fn rustfmt_if_needed(out_files: Vec<std::path::PathBuf>) {
 }
 
 fn generate_rust_methods(inputs: &[Input]) -> Vec<TokenStream> {
-    inputs
+    let mut generated_methods = inputs
         .iter()
         .map(|input| {
             let Input {
@@ -337,7 +339,50 @@ fn generate_rust_methods(inputs: &[Input]) -> Vec<TokenStream> {
                 }
             }
         })
-        .collect()
+        .collect::<Vec<_>>();
+
+    let manual_methods = quote! {
+        #[func]
+        fn check_last_notrace(last_method_name: String, expected_callconv: String) -> bool {
+            let last = godot::private::trace::pop();
+            let mut ok = true;
+
+            if last.class != "GenFfi" {
+                godot_error!("Expected class GenFfi, got {}", last.class);
+                ok = false;
+            }
+
+            if last.method != last_method_name {
+                godot_error!("Expected method {}, got {}", last_method_name, last.method);
+                ok = false;
+            }
+
+            if !last.is_inbound {
+                godot_error!("Expected inbound call, got outbound");
+                ok = false;
+            }
+
+            let expect_ptrcall = expected_callconv == "ptrcall";
+            if last.is_ptrcall != expect_ptrcall {
+                let actual = Self::to_string(last.is_ptrcall);
+                godot_error!("Expected {expected_callconv}, got {actual}");
+                ok = false;
+            }
+
+            ok
+        }
+
+        fn to_string(is_ptrcall: bool) -> &'static str {
+            if is_ptrcall {
+                "ptrcall"
+            } else {
+                "varcall"
+            }
+        }
+    };
+
+    generated_methods.push(manual_methods);
+    generated_methods
 }
 
 struct PropertyTests {

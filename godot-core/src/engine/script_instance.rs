@@ -568,34 +568,19 @@ mod script_instance_info {
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_prop_info: *const sys::GDExtensionPropertyInfo,
     ) {
-        let ctx = || {
-            format!(
-                "error while calling {}::get_property_list",
-                type_name::<T>()
-            )
-        };
-
-        let length = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).get_property_list().len()
-        })
-        .unwrap_or_default();
-
-        // SAFETY: p_prop_info is expected to have been created by get_property_list_func
-        // and therefore should have the same length as before. get_propery_list_func
-        // also guarantees that both vector length and capacity are equal.
-        let _drop = transfer_ptr_list_from_godot(p_prop_info, length);
-
-        // now drop the backing data
         let instance = instance_data_as_script_instance::<T>(p_instance);
 
-        let _drop = instance
+        let vec = instance
             .property_list
             .lock()
             .expect("mutex should not be poisoned")
             .remove(&p_prop_info)
-            .expect("we can not free a list that has not been allocated");
+            .expect("Godot is trying to free the property list, but none has been set");
+
+        // SAFETY: p_prop_info is expected to have been created by get_property_list_func
+        // and therefore should have the same length as before. get_propery_list_func
+        // also guarantees that both vector length and capacity are equal.
+        let _drop = transfer_ptr_list_from_godot(p_prop_info, vec.len());
     }
 
     /// # Safety
@@ -706,20 +691,20 @@ mod script_instance_info {
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_method_info: *const sys::GDExtensionMethodInfo,
     ) {
-        let ctx = || format!("error while calling {}::get_method_list", type_name::<T>());
+        let instance = instance_data_as_script_instance::<T>(p_instance);
 
-        let length = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).get_method_list().len()
-        })
-        .unwrap_or_default();
+        let vec = instance
+            .method_list
+            .lock()
+            .expect("method_list mutex should not be poisoned")
+            .remove(&p_method_info)
+            .expect("Godot is trying to free the method_list, but none has been set");
 
         // SAFETY: p_method_info is expected to have been created by get_method_list_func and therefore should have the same length as before.
         // get_method_list_func also guarantees that both vector length and capacity are equal.
-        let vec = transfer_ptr_list_from_godot(p_method_info, length);
+        let vec_sys = transfer_ptr_list_from_godot(p_method_info, vec.len());
 
-        vec.into_iter().for_each(|method_info| {
+        vec_sys.into_iter().for_each(|method_info| {
             transfer_ptr_list_from_godot(
                 method_info.arguments,
                 method_info.argument_count as usize,

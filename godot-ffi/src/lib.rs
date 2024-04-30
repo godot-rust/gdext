@@ -75,7 +75,7 @@ pub use string_cache::StringCache;
 pub use toolbox::*;
 
 // SAFETY: In Godot 4.0.4 the extension interface stores a c_char pointer, this is safe to access from different threads as no
-// mutation happens after initialization. This was changed in 4.1, so we dont need to manually implement `Sync` or `Send` after 4.0.
+// mutation happens after initialization. This was changed in 4.1, so we don't need to manually implement `Sync` or `Send` after 4.0.
 // So we instead rely on rust to infer that it is `Sync` and `Send`.
 #[cfg(before_api = "4.1")]
 unsafe impl Sync for GDExtensionInterface {}

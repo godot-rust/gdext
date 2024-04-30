@@ -40,6 +40,11 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         // Already covered by manual APIs
         //| ("Object", "to_string")
         | ("Object", "get_instance_id")
+        
+        // Removed because it is a worse version of Node::get_node_or_null(): it _seems_ like it's fallible due to Option<T> return type,
+        // however Godot will emit an error message if the node is absent. In the future with non-null types, this may be re-introduced.
+        // Alternatively, both get_node/get_node_or_null could become generic and use the get_node_as/try_get_node_as impl (removing those).
+        | ("Node", "get_node")
 
         // Removed in https://github.com/godotengine/godot/pull/88418, but they cannot reasonably be used before, either.
         | ("GDExtension", "open_library")
@@ -318,4 +323,32 @@ pub fn get_interface_extra_docs(trait_name: &str) -> Option<&'static str> {
 
         _ => None,
     }
+}
+
+// Unclear on if some of these classes should be registered earlier than `Scene`:
+// - `RenderData` + `RenderDataExtension`
+// - `RenderSceneData` + `RenderSceneDataExtension`
+
+#[rustfmt::skip]
+pub fn is_class_level_server(class_name: &str) -> bool {
+    matches!(class_name, 
+        // TODO: These should actually be at level `Core`
+        "Object" | "OpenXRExtensionWrapperExtension" |
+
+        // Shouldn't be inherited from in rust but are still servers.
+        "AudioServer" | "CameraServer" | "NavigationServer2D" | "NavigationServer3D" | "RenderingServer" | "TranslationServer" | "XRServer" |
+
+        // PhysicsServer2D
+        "PhysicsDirectBodyState2D" | "PhysicsDirectBodyState2DExtension" |
+        "PhysicsDirectSpaceState2D" | "PhysicsDirectSpaceState2DExtension" | 
+        "PhysicsServer2D" | "PhysicsServer2DExtension" |
+        "PhysicsServer2DManager" |
+
+        // PhysicsServer3D
+        "PhysicsDirectBodyState3D" | "PhysicsDirectBodyState3DExtension" |
+        "PhysicsDirectSpaceState3D" | "PhysicsDirectSpaceState3DExtension" | 
+        "PhysicsServer3D" | "PhysicsServer3DExtension" | 
+        "PhysicsServer3DManager" |
+        "PhysicsServer3DRenderingServerHandler" 
+    )
 }

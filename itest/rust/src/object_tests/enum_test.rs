@@ -64,7 +64,7 @@ fn enum_hash() {
 }
 
 // Testing https://github.com/godot-rust/gdext/issues/335
-// This fails upon calling the function, we dont actually need to make a good call.
+// This fails upon calling the function, we don't actually need to make a good call.
 #[itest]
 fn add_surface_from_arrays() {
     let mut mesh = ArrayMesh::new();

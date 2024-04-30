@@ -48,7 +48,7 @@ pub struct GdCell<T> {
     /// The actual value we're handing out references to, uses `UnsafeCell` as we're passing out `&mut`
     /// references to its contents even when we only have a `&` reference to the cell.
     value: UnsafeCell<T>,
-    /// We dont want to be able to take `GdCell` out of a pin, so `GdCell` cannot implement `Unpin`.
+    /// We don't want to be able to take `GdCell` out of a pin, so `GdCell` cannot implement `Unpin`.
     _pin: PhantomPinned,
 }
 
@@ -93,7 +93,7 @@ impl<T> GdCell<T> {
         // This is the case because the only way for a new `GdMut` or `GdRef` to be made after this is for
         // either this guard to be dropped or `make_inaccessible` to be called and succeed.
         //
-        // If this guard is dropped, then we dont need to worry.
+        // If this guard is dropped, then we don't need to worry.
         //
         // If `make_inaccessible` is called and succeeds, then a mutable reference from this guard is passed
         // in. In which case, we cannot use this guard again until the resulting inaccessible guard is

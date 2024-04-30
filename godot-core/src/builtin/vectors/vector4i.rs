@@ -223,4 +223,15 @@ mod test {
             Some(Vector4Axis::W),
         );
     }
+
+    #[test]
+    fn test_iter_elementwise_prod() {
+        let vecs = vec![Vector4i::new(1, 2, 3, 4), Vector4i::new(5, 6, 7, 8)];
+        let expected = Vector4i::new(5, 12, 21, 32);
+        let prod_refs: Vector4i = vecs.iter().product();
+        let prod: Vector4i = vecs.into_iter().product();
+
+        assert_eq!(prod_refs, expected);
+        assert_eq!(prod, expected);
+    }
 }

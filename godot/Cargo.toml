@@ -20,6 +20,7 @@ experimental-wasm = []
 
 # Private features, they are under no stability guarantee
 codegen-full = ["godot-core/codegen-full"]
+debug-log = ["godot-core/debug-log"]
 trace = ["godot-core/trace"]
 
 [dependencies]

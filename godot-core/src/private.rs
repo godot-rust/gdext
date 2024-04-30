@@ -5,16 +5,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_ffi::Global;
 use std::collections::HashMap;
 use std::sync::{atomic, Arc, Mutex};
 
-pub use crate::gen::classes::class_macros;
-pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginItem};
-pub use crate::storage::{as_storage, Storage};
+use godot_ffi::Global;
 pub use sys::out;
 
+#[cfg(feature = "trace")]
+pub use crate::builtin::meta::trace;
 use crate::builtin::meta::{CallContext, CallError};
+pub use crate::gen::classes::class_macros;
+pub use crate::obj::rtti::ObjectRtti;
+pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginItem};
+pub use crate::storage::{as_storage, Storage};
 use crate::{log, sys};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -96,8 +99,6 @@ pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
 #[allow(non_camel_case_types)]
 pub trait You_forgot_the_attribute__godot_api {}
 
-pub use crate::obj::rtti::ObjectRtti;
-
 pub struct ClassConfig {
     pub is_tool: bool,
 }
@@ -156,6 +157,9 @@ pub fn is_class_runtime(is_tool: bool) -> bool {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Trace handling
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Panic handling
 
 #[derive(Debug)]
@@ -210,14 +214,14 @@ where
 }
 
 pub fn handle_varcall_panic<F, R>(
-    call_ctx: CallContext,
+    call_ctx: &CallContext,
     out_err: &mut sys::GDExtensionCallError,
     code: F,
 ) where
     F: FnOnce() -> Result<R, CallError> + std::panic::UnwindSafe,
 {
     let outcome: Result<Result<R, CallError>, String> =
-        handle_panic_with_print(|| &call_ctx, code, false);
+        handle_panic_with_print(|| call_ctx, code, false);
 
     let call_error = match outcome {
         // All good.
@@ -227,7 +231,7 @@ pub fn handle_varcall_panic<F, R>(
         Ok(Err(err)) => err,
 
         // Panic occurred (typically through user): forward message.
-        Err(panic_msg) => CallError::failed_by_user_panic(&call_ctx, panic_msg),
+        Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
     };
 
     // Print failed calls to Godot's console.

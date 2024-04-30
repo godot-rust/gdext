@@ -15,7 +15,7 @@ extends TestSuiteSpecial
 # This tests #267, which was caused by us incorrectly handing Objects when passed as arguments to virtual 
 # methods. `_input_event` is the easiest such method to test. However it can only be triggered by letting a 
 # full physics frame pass after calling `push_unhandled_input`. Thus we cannot use the standard API for 
-# testing this at the moment, since we dont have any way to let frames pass in between the start and end of 
+# testing this at the moment, since we don't have any way to let frames pass in between the start and end of 
 # an integration test. 
 func test_collision_object_2d_input_event():
 	var collision_object := CollisionObject2DTest.new()

@@ -24,8 +24,8 @@ pub struct FuncDefinition {
 
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
 //
-// There are currently no virtual static methods. Additionally, virtual static methods dont really make a lot
-// of sense. Therefore there is no need to support them.
+// There are currently no virtual static methods. Additionally, virtual static methods don't really make a lot
+// of sense. Therefore, there is no need to support them.
 pub fn make_virtual_callback(
     class_name: &Ident,
     signature_info: SignatureInfo,
@@ -40,20 +40,22 @@ pub fn make_virtual_callback(
         class_name.to_string().as_str(),
         method_name.to_string().as_str(),
     );
-    let invocation = make_ptrcall_invocation(&call_ctx, &sig_tuple, &wrapped_method, true);
+    let invocation = make_ptrcall_invocation(&wrapped_method, true);
 
     quote! {
         {
             use ::godot::sys;
+            type Sig = #sig_tuple;
 
-            unsafe extern "C" fn function(
+            unsafe extern "C" fn virtual_fn(
                 instance_ptr: sys::GDExtensionClassInstancePtr,
                 args_ptr: *const sys::GDExtensionConstTypePtr,
                 ret: sys::GDExtensionTypePtr,
             ) {
+                let call_ctx = #call_ctx;
                 #invocation;
             }
-            Some(function)
+            Some(virtual_fn)
         }
     }
 }
@@ -89,8 +91,8 @@ pub fn make_method_registration(
     };
 
     let call_ctx = make_call_context(&class_name_str, &method_name_str);
-    let varcall_func = make_varcall_func(&call_ctx, &sig_tuple, &forwarding_closure);
-    let ptrcall_func = make_ptrcall_func(&call_ctx, &sig_tuple, &forwarding_closure);
+    let varcall_fn_decl = make_varcall_fn(&call_ctx, &forwarding_closure);
+    let ptrcall_fn_decl = make_ptrcall_fn(&call_ctx, &forwarding_closure);
 
     // String literals II
     let param_ident_strs = signature_info
@@ -116,8 +118,8 @@ pub fn make_method_registration(
 
             let method_name = StringName::from(#method_name_str);
 
-            let varcall_func = #varcall_func;
-            let ptrcall_func = #ptrcall_func;
+            #varcall_fn_decl;
+            #ptrcall_fn_decl;
 
             // SAFETY:
             // `get_varcall_func` upholds all the requirements for `call_func`.
@@ -126,8 +128,8 @@ pub fn make_method_registration(
                 ClassMethodInfo::from_signature::<Sig>(
                     #class_name::class_name(),
                     method_name,
-                    Some(varcall_func),
-                    Some(ptrcall_func),
+                    Some(varcall_fn),
+                    Some(ptrcall_fn),
                     #method_flags,
                     &[
                         #( #param_ident_strs ),*
@@ -259,7 +261,7 @@ fn make_forwarding_closure(
                         unsafe { ::godot::private::as_storage::<#class_name>(instance_ptr) };
 
                     #before_method_call
-                    <#class_name>::#method_name(::godot::private::Storage::get_gd(storage), #(#params),*)
+                    #class_name::#method_name(::godot::private::Storage::get_gd(storage), #(#params),*)
                 }
             }
         }
@@ -268,7 +270,7 @@ fn make_forwarding_closure(
             quote! {
                 |_, params| {
                     let ( #(#params,)* ) = params;
-                    <#class_name>::#method_name(#(#params),*)
+                    #class_name::#method_name(#(#params),*)
                 }
             }
         }
@@ -367,26 +369,26 @@ fn make_method_flags(
     method_type: ReceiverType,
     is_rust_virtual: bool,
 ) -> Result<TokenStream, String> {
-    let scope = quote! { ::godot::engine::global::MethodFlags };
+    let flags = quote! { ::godot::engine::global::MethodFlags };
 
     let base_flags = match method_type {
         ReceiverType::Ref => {
-            quote! { #scope::NORMAL | #scope::CONST }
+            quote! { #flags::NORMAL | #flags::CONST }
         }
         // Conservatively assume Gd<Self> receivers to mutate the object, since user can call bind_mut().
         ReceiverType::Mut | ReceiverType::GdSelf => {
-            quote! { #scope::NORMAL }
+            quote! { #flags::NORMAL }
         }
         ReceiverType::Static => {
             if is_rust_virtual {
                 return Err("Static methods cannot be virtual".to_string());
             }
-            quote! { #scope::STATIC }
+            quote! { #flags::NORMAL | #flags::STATIC }
         }
     };
 
     let flags = if is_rust_virtual {
-        quote! { #base_flags | #scope::VIRTUAL }
+        quote! { #base_flags | #flags::VIRTUAL }
     } else {
         base_flags
     };
@@ -395,74 +397,55 @@ fn make_method_flags(
 }
 
 /// Generate code for a C FFI function that performs a varcall.
-fn make_varcall_func(
-    call_ctx: &TokenStream,
-    sig_tuple: &TokenStream,
-    wrapped_method: &TokenStream,
-) -> TokenStream {
-    let invocation = make_varcall_invocation(call_ctx, sig_tuple, wrapped_method);
+fn make_varcall_fn(call_ctx: &TokenStream, wrapped_method: &TokenStream) -> TokenStream {
+    let invocation = make_varcall_invocation(wrapped_method);
 
     // TODO reduce amount of code generated, by delegating work to a library function. Could even be one that produces this function pointer.
     quote! {
-        {
-            unsafe extern "C" fn function(
-                _method_data: *mut std::ffi::c_void,
-                instance_ptr: sys::GDExtensionClassInstancePtr,
-                args_ptr: *const sys::GDExtensionConstVariantPtr,
-                arg_count: sys::GDExtensionInt,
-                ret: sys::GDExtensionVariantPtr,
-                err: *mut sys::GDExtensionCallError,
-            ) {
-                ::godot::private::handle_varcall_panic(
-                    #call_ctx,
-                    &mut *err,
-                    || #invocation
-                );
-            }
-
-            function
+        unsafe extern "C" fn varcall_fn(
+            _method_data: *mut std::ffi::c_void,
+            instance_ptr: sys::GDExtensionClassInstancePtr,
+            args_ptr: *const sys::GDExtensionConstVariantPtr,
+            arg_count: sys::GDExtensionInt,
+            ret: sys::GDExtensionVariantPtr,
+            err: *mut sys::GDExtensionCallError,
+        ) {
+            let call_ctx = #call_ctx;
+            ::godot::private::handle_varcall_panic(
+                &call_ctx,
+                &mut *err,
+                || #invocation
+            );
         }
     }
 }
 
 /// Generate code for a C FFI function that performs a ptrcall.
-fn make_ptrcall_func(
-    call_ctx: &TokenStream,
-    sig_tuple: &TokenStream,
-    wrapped_method: &TokenStream,
-) -> TokenStream {
-    let invocation = make_ptrcall_invocation(call_ctx, sig_tuple, wrapped_method, false);
+fn make_ptrcall_fn(call_ctx: &TokenStream, wrapped_method: &TokenStream) -> TokenStream {
+    let invocation = make_ptrcall_invocation(wrapped_method, false);
 
     quote! {
-        {
-            unsafe extern "C" fn function(
-                _method_data: *mut std::ffi::c_void,
-                instance_ptr: sys::GDExtensionClassInstancePtr,
-                args_ptr: *const sys::GDExtensionConstTypePtr,
-                ret: sys::GDExtensionTypePtr,
-            ) {
-                let _success = ::godot::private::handle_panic(
-                    || #call_ctx,
-                    || #invocation
-                );
+        unsafe extern "C" fn ptrcall_fn(
+            _method_data: *mut std::ffi::c_void,
+            instance_ptr: sys::GDExtensionClassInstancePtr,
+            args_ptr: *const sys::GDExtensionConstTypePtr,
+            ret: sys::GDExtensionTypePtr,
+        ) {
+            let call_ctx = #call_ctx;
+            let _success = ::godot::private::handle_panic(
+                || &call_ctx,
+                || #invocation
+            );
 
-                // if success.is_err() {
-                //     // TODO set return value to T::default()?
-                // }
-            }
-
-            function
+            // if success.is_err() {
+            //     // TODO set return value to T::default()?
+            // }
         }
     }
 }
 
 /// Generate code for a `ptrcall` call expression.
-fn make_ptrcall_invocation(
-    call_ctx: &TokenStream,
-    sig_tuple: &TokenStream,
-    wrapped_method: &TokenStream,
-    is_virtual: bool,
-) -> TokenStream {
+fn make_ptrcall_invocation(wrapped_method: &TokenStream, is_virtual: bool) -> TokenStream {
     let ptrcall_type = if is_virtual {
         quote! { sys::PtrcallType::Virtual }
     } else {
@@ -470,9 +453,9 @@ fn make_ptrcall_invocation(
     };
 
     quote! {
-         <#sig_tuple as ::godot::builtin::meta::PtrcallSignatureTuple>::in_ptrcall(
+         <Sig as ::godot::builtin::meta::PtrcallSignatureTuple>::in_ptrcall(
             instance_ptr,
-            & #call_ctx,
+            &call_ctx,
             args_ptr,
             ret,
             #wrapped_method,
@@ -482,15 +465,11 @@ fn make_ptrcall_invocation(
 }
 
 /// Generate code for a `varcall()` call expression.
-fn make_varcall_invocation(
-    call_ctx: &TokenStream,
-    sig_tuple: &TokenStream,
-    wrapped_method: &TokenStream,
-) -> TokenStream {
+fn make_varcall_invocation(wrapped_method: &TokenStream) -> TokenStream {
     quote! {
-        <#sig_tuple as ::godot::builtin::meta::VarcallSignatureTuple>::in_varcall(
+        <Sig as ::godot::builtin::meta::VarcallSignatureTuple>::in_varcall(
             instance_ptr,
-            & #call_ctx,
+            &call_ctx,
             args_ptr,
             arg_count,
             ret,

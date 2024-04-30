@@ -77,7 +77,7 @@ runs:
     # The `| xargs` pattern trims the output, since printed version may contain extra newline, which causes problems in env vars.
     - name: "Inspect Godot version"
       run: |
-        godotVer=$($GODOT4_BIN --version | xargs || true)
+        godotVer=$($GODOT4_BIN --version | xargs)
         gitSha=$(echo $godotVer | sed -E "s/.+custom_build\.//")
         echo "GODOT_BUILT_FROM=_Built from [\`$godotVer\`](https://github.com/godotengine/godot/commit/$gitSha)._" >> $GITHUB_ENV
       shell: bash

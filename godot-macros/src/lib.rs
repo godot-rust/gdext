@@ -105,9 +105,9 @@ use crate::util::ident;
 /// # Inheritance
 ///
 /// Unlike C++, Rust doesn't really have inheritance, but the GDExtension API lets us "inherit"
-/// from a built-in engine class.
+/// from a Godot-provided engine class.
 ///
-/// By default, classes created with this library inherit from `RefCounted`.
+/// By default, classes created with this library inherit from `RefCounted`, like GDScript.
 ///
 /// To specify a different class to inherit from, add `#[class(base = Base)]` as an annotation on
 /// your `struct`:
@@ -164,7 +164,7 @@ use crate::util::ident;
 ///
 /// If you want to implement your own getter and/or setter, write those as a function on your Rust
 /// type, expose it using `#[func]`, and annotate the field with
-/// `#[export(get = ..., set = ...)]`:
+/// `#[var(get = ..., set = ...)]`:
 ///
 /// ```
 /// # use godot::prelude::*;
@@ -226,7 +226,7 @@ use crate::util::ident;
 /// }
 /// ```
 ///
-/// If you dont also include a `#[var]` attribute, then a default one will be generated.
+/// If you don't also include a `#[var]` attribute, then a default one will be generated.
 /// `#[export]` also supports all of GDScript's annotations, in a slightly different format. The format is
 /// translated from an annotation by following these four rules:
 ///
@@ -403,7 +403,7 @@ use crate::util::ident;
 /// ```
 ///
 /// Even though this class is a `Node` and it has an init function, it still won't show up in the editor as a node you can add to a scene
-/// because we have added a `hide` key to the class. This will also prevent it from showing up in documentation.
+/// because we have added a `hidden` key to the class. This will also prevent it from showing up in documentation.
 ///
 /// # Further field customization
 ///

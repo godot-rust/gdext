@@ -7,8 +7,8 @@
 
 //! Godot engine classes and methods.
 
-use crate::builtin::{GString, NodePath};
-use crate::obj::{bounds, Bounds, Gd, GodotClass, Inherits, InstanceId};
+use crate::builtin::GString;
+use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId};
 
 // Re-exports of generated symbols
 pub use crate::gen::central::global;
@@ -21,6 +21,7 @@ use crate::builtin::meta::CallContext;
 use crate::sys;
 
 mod io;
+mod manual_extensions;
 mod script_instance;
 pub mod translate;
 
@@ -36,99 +37,6 @@ use crate::builtin::meta::ClassName;
 /// Most users will not need native structures, as they are very specialized.
 pub mod native {
     pub use crate::gen::native::*;
-}
-
-/// Extension trait for convenience functions on `PackedScene`
-pub trait PackedSceneExt {
-    /// ⚠️ Instantiates the scene as type `T`, panicking if not found or bad type.
-    ///
-    /// # Panics
-    /// If the scene is not type `T` or inherited.
-    fn instantiate_as<T>(&self) -> Gd<T>
-    where
-        T: Inherits<Node>,
-    {
-        self.try_instantiate_as::<T>()
-            .unwrap_or_else(|| panic!("Failed to instantiate {to}", to = T::class_name()))
-    }
-
-    /// Instantiates the scene as type `T` (fallible).
-    ///
-    /// If the scene is not type `T` or inherited.
-    fn try_instantiate_as<T>(&self) -> Option<Gd<T>>
-    where
-        T: Inherits<Node>;
-}
-
-impl PackedSceneExt for PackedScene {
-    fn try_instantiate_as<T>(&self) -> Option<Gd<T>>
-    where
-        T: Inherits<Node>,
-    {
-        self.instantiate().and_then(|gd| gd.try_cast::<T>().ok())
-    }
-}
-
-/// Extension trait with convenience functions for the node tree.
-pub trait NodeExt {
-    /// Retrieves the node at path `path`, panicking if not found or bad type.
-    ///
-    /// # Panics
-    /// If the node is not found, or if it does not have type `T` or inherited.
-    fn get_node_as<T>(&self, path: impl Into<NodePath>) -> Gd<T>
-    where
-        T: GodotClass + Inherits<Node>,
-    {
-        let path = path.into();
-        let copy = path.clone(); // TODO avoid copy
-
-        self.try_get_node_as(path).unwrap_or_else(|| {
-            panic!(
-                "There is no node of type {ty} path `{copy}`",
-                ty = T::class_name()
-            )
-        })
-    }
-
-    /// Retrieves the node at path `path` (fallible).
-    ///
-    /// If the node is not found, or if it does not have type `T` or inherited,
-    /// `None` will be returned.
-    fn try_get_node_as<T>(&self, path: impl Into<NodePath>) -> Option<Gd<T>>
-    where
-        T: GodotClass + Inherits<Node>;
-}
-
-impl NodeExt for Node {
-    fn try_get_node_as<T>(&self, path: impl Into<NodePath>) -> Option<Gd<T>>
-    where
-        T: GodotClass + Inherits<Node>,
-    {
-        let path = path.into();
-
-        // TODO differentiate errors (not found, bad type) with Result
-        self.get_node_or_null(path)
-            .and_then(|node| node.try_cast::<T>().ok())
-    }
-}
-
-impl<U> NodeExt for Gd<U>
-where
-    U: Bounds<Declarer = bounds::DeclEngine> + Inherits<Node>,
-{
-    fn try_get_node_as<T>(&self, path: impl Into<NodePath>) -> Option<Gd<T>>
-    where
-        T: GodotClass + Inherits<Node>,
-    {
-        // TODO this could be implemented without share(), but currently lacks the proper bounds
-        // This would need more sophisticated upcast design, e.g. T::upcast_{ref|mut}::<U>() for indirect relations
-        // to make the indirect Deref more explicit
-
-        let path = path.into();
-        let node = self.clone().upcast::<Node>();
-
-        <Node as NodeExt>::try_get_node_as(&*node, path)
-    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

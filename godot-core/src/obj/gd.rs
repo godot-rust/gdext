@@ -80,7 +80,7 @@ use crate::{callbacks, engine, out};
 /// on the owning `Gd<T>` is performed. This is important to keep in mind, as you can get into situations that violate dynamic borrow rules; for
 /// example if you are inside a `&mut self` method, make a call to GDScript and indirectly call another method on the same object (re-entrancy).
 ///
-/// [book]: https://godot-rust.github.io/book/intro/objects.html
+/// [book]: https://godot-rust.github.io/book/godot-api/objects.html
 /// [`Object`]: engine::Object
 /// [`RefCounted`]: engine::RefCounted
 #[repr(C)] // must be layout compatible with engine classes

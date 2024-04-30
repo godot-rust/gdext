@@ -5,13 +5,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt;
+use std::fmt::Debug;
+
+use godot_ffi as sys;
+use sys::{BuiltinMethodBind, ClassMethodBind, UtilityFunctionBind};
+
 use crate::builtin::meta::*;
 use crate::builtin::Variant;
 use crate::obj::{GodotClass, InstanceId};
-use godot_ffi as sys;
-use std::fmt;
-use std::fmt::Debug;
-use sys::{BuiltinMethodBind, ClassMethodBind, UtilityFunctionBind};
 
 // TODO:
 // separate arguments and return values, so that a type can be used in function arguments even if it doesn't
@@ -185,6 +187,9 @@ macro_rules! impl_varcall_signature_for_tuple {
                 //$crate::out!("in_varcall: {call_ctx}");
                 CallError::check_arg_count(call_ctx, arg_count as usize, $PARAM_COUNT)?;
 
+                #[cfg(feature = "trace")]
+                trace::push(true, false, &call_ctx);
+
                 let args = ($(
                     unsafe { varcall_arg::<$Pn, $n>(args_ptr, call_ctx)? },
                 )*) ;
@@ -348,6 +353,9 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 call_type: sys::PtrcallType,
             ) {
                 // $crate::out!("in_ptrcall: {call_ctx}");
+
+                #[cfg(feature = "trace")]
+                trace::push(true, true, &call_ctx);
 
                 let args = ($(
                     unsafe { ptrcall_arg::<$Pn, $n>(args_ptr, call_ctx, call_type) },
@@ -612,6 +620,7 @@ impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3,
 // Information about function and method calls.
 
 // Lazy Display, so we don't create tens of thousands of extra string literals.
+#[derive(Clone)]
 pub struct CallContext<'a> {
     pub class_name: &'a str,
     pub function_name: &'a str,
@@ -648,4 +657,48 @@ impl<'a> fmt::Display for CallContext<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}::{}", self.class_name, self.function_name)
     }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Trace diagnostics for integration tests
+#[cfg(feature = "trace")]
+pub mod trace {
+    use crate::builtin::meta::CallContext;
+
+    use super::sys::Global;
+
+    /// Stores information about the current call for diagnostic purposes.
+    pub struct CallReport {
+        pub class: String,
+        pub method: String,
+        pub is_inbound: bool,
+        pub is_ptrcall: bool,
+    }
+
+    pub fn pop() -> CallReport {
+        let lock = TRACE.lock().take();
+        // let th = std::thread::current().id();
+        // println!("trace::pop [{th:?}]...");
+
+        lock.expect("trace::pop() had no prior call stored.")
+    }
+
+    pub(crate) fn push(inbound: bool, ptrcall: bool, call_ctx: &CallContext) {
+        if call_ctx.function_name.contains("notrace") {
+            return;
+        }
+        // let th = std::thread::current().id();
+        // println!("trace::push [{th:?}] - inbound: {inbound}, ptrcall: {ptrcall}, ctx: {call_ctx}");
+
+        let report = CallReport {
+            class: call_ctx.class_name.to_string(),
+            method: call_ctx.function_name.to_string(),
+            is_inbound: inbound,
+            is_ptrcall: ptrcall,
+        };
+
+        *TRACE.lock() = Some(report);
+    }
+
+    static TRACE: Global<Option<CallReport>> = Global::default();
 }
