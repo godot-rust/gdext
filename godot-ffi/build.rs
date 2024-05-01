@@ -12,9 +12,8 @@ use std::path::Path;
 fn main() {
     let mut watch = godot_bindings::StopWatch::start();
 
-    // It would be better to generate this in /.generated or /target/godot-gen, however IDEs currently
-    // struggle with static analysis when symbols are outside the crate directory (April 2023).
-    let gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen"));
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let gen_path = Path::new(&out_dir);
 
     // C header is not strictly required, however it is generated for debugging.
     let h_path = gen_path.join("gdextension_interface.h");

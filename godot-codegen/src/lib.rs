@@ -27,7 +27,7 @@ use crate::generator::utility_functions::generate_utilities_file;
 use crate::generator::{
     generate_core_central_file, generate_core_mod_file, generate_sys_builtin_lifecycle_file,
     generate_sys_builtin_methods_file, generate_sys_central_file, generate_sys_classes_file,
-    generate_sys_utilities_file,
+    generate_sys_module_file, generate_sys_utilities_file,
 };
 use crate::models::domain::{ApiView, ExtensionApi};
 use crate::models::json::{load_extension_api, JsonExtensionApi};
@@ -90,6 +90,9 @@ pub fn generate_sys_files(
     let is_godot_4_0 = api.godot_version.major == 4 && api.godot_version.minor == 0;
     generate_sys_interface_file(h_path, sys_gen_path, is_godot_4_0, &mut submit_fn);
     watch.record("generate_interface_file");
+
+    generate_sys_module_file(sys_gen_path, &mut submit_fn);
+    watch.record("generate_module_file");
 }
 
 pub fn generate_core_files(core_gen_path: &Path) {

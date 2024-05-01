@@ -212,8 +212,6 @@ fn main() {
     let extras = inputs.iter().map(|input| &input.extra);
 
     let rust_tokens = quote::quote! {
-        #![allow(clippy::partialeq_to_none)]
-
         use godot::builtin::*;
         use godot::builtin::meta::*;
         use godot::log::godot_error;
@@ -242,7 +240,10 @@ fn main() {
         #(#extras)*
     };
 
-    let rust_output_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen"));
+    // Godot currently still uses local /gen folder. If this changes one day (no good reason right now),
+    // IntegrationTest class could get a func get_out_dir() which returns env!("OUT_DIR") and is called from GDScript.
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let rust_output_dir = Path::new(&out_dir);
     let godot_input_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../godot/input"));
     let godot_output_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../godot/gen"));
 

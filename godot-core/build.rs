@@ -8,9 +8,8 @@
 use std::path::Path;
 
 fn main() {
-    // It would be better to generate this in /.generated or /target/godot-gen, however IDEs currently
-    // struggle with static analysis when symbols are outside the crate directory (April 2023).
-    let gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen"));
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let gen_path = Path::new(&out_dir);
 
     godot_bindings::remove_dir_all_reliable(gen_path);
 

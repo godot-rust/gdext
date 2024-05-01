@@ -170,7 +170,7 @@ pub fn emit_godot_version_cfg() {
 
 // Function for safely removal of build directory. Workaround for errors happening during CI builds:
 // https://github.com/godot-rust/gdext/issues/616
-pub fn remove_dir_all_reliable(path: &std::path::Path) {
+pub fn remove_dir_all_reliable(path: &Path) {
     let mut retry_count = 0;
 
     while path.exists() {
@@ -189,3 +189,18 @@ pub fn remove_dir_all_reliable(path: &std::path::Path) {
         }
     }
 }
+//
+// pub fn write_module_file(path: &Path) {
+//     let code = quote! {
+//         pub mod table_builtins;
+//         pub mod table_builtins_lifecycle;
+//         pub mod table_servers_classes;
+//         pub mod table_scene_classes;
+//         pub mod table_editor_classes;
+//         pub mod table_utilities;
+//
+//         pub mod central;
+//         pub mod gdextension_interface;
+//         pub mod interface;
+//     };
+// }
