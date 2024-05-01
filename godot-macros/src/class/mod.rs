@@ -8,17 +8,25 @@
 mod derive_godot_class;
 mod godot_api;
 mod data_models {
+    pub mod constant;
     pub mod field;
     pub mod field_export;
     pub mod field_var;
     pub mod func;
+    pub mod inherent_impl;
+    pub mod interface_trait_impl;
     pub mod property;
+    pub mod signal;
 }
 
+pub(crate) use data_models::constant::*;
 pub(crate) use data_models::field::*;
 pub(crate) use data_models::field_export::*;
 pub(crate) use data_models::field_var::*;
 pub(crate) use data_models::func::*;
+pub(crate) use data_models::inherent_impl::*;
+pub(crate) use data_models::interface_trait_impl::*;
 pub(crate) use data_models::property::*;
+pub(crate) use data_models::signal::*;
 pub(crate) use derive_godot_class::*;
 pub(crate) use godot_api::*;
