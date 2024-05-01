@@ -50,6 +50,13 @@ impl Reloadable {
     #[func]
     // HOT-RELOAD: change returned value for dynamic code change.
     fn get_number(&self) -> i64 { 100 }
+
+    #[func]
+    fn from_string(s: GString) -> Gd<Self> {
+        Gd::from_object(Reloadable {
+            favorite_planet: Planet::from_godot(s),
+        })
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

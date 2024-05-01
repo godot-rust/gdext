@@ -214,7 +214,7 @@ pub unsafe fn initialize(
 /// # Safety
 /// See [`initialize`].
 pub unsafe fn deinitialize() {
-    unsafe { deinitialize_binding() }
+    deinitialize_binding()
 }
 
 fn print_preamble(version: GDExtensionGodotVersion) {
