@@ -41,7 +41,7 @@ mod sealed {
 
     use godot_ffi::GodotNullableFfi;
 
-    use super::GodotType;
+    use super::{ArrayElement, GodotType};
     use crate::builtin::*;
     use crate::obj::*;
 
@@ -92,7 +92,7 @@ mod sealed {
     impl Sealed for f32 {}
     impl Sealed for () {}
     impl Sealed for Variant {}
-    impl<T: GodotType> Sealed for Array<T> {}
+    impl<T: ArrayElement> Sealed for Array<T> {}
     impl<T: GodotClass> Sealed for RawGd<T> {}
     impl<T: GodotClass> Sealed for Gd<T> {}
     impl<T> Sealed for Option<T>
@@ -240,6 +240,18 @@ where
         T::godot_type_name()
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Marker trait to identify types that can be stored in [`Array<T>`][crate::builtin::Array].
+///
+/// The types for which this trait is implemented, overlap mostly with [`GodotType`].
+/// This is done consistently what GDScript allows inside `Array[T]`.
+///
+/// Notable differences are:
+/// - Only `VariantArray`, not `Array<T>` is allowed (typed arrays cannot be nested).
+/// - `Option` is only supported for `Option<Gd<T>>`, but not e.g. `Option<i32>`.
+pub trait ArrayElement: GodotType {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

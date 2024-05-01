@@ -6,7 +6,9 @@
  */
 
 use super::*;
-use crate::builtin::meta::{FromVariantError, GodotFfiVariant, GodotType, PropertyInfo};
+use crate::builtin::meta::{
+    ArrayElement, FromVariantError, GodotFfiVariant, GodotType, PropertyInfo,
+};
 use crate::builtin::*;
 use crate::engine::global;
 use godot_ffi as sys;
@@ -21,7 +23,7 @@ use godot_ffi as sys;
 // that requires the pointer the be initialized. But some other types will cause a memory leak in 4.1 if
 // initialized.
 //
-// Thus we can use `init` to indicate when it must be initialized in 4.0.
+// Therefore, we can use `init` to indicate when it must be initialized in 4.0.
 macro_rules! impl_ffi_variant {
     ($T:ty, $from_fn:ident, $to_fn:ident $(; $godot_type_name:ident)?) => {
         impl GodotFfiVariant for $T {
@@ -82,6 +84,8 @@ macro_rules! impl_ffi_variant {
 
             impl_ffi_variant!(@godot_type_name $T $(, $godot_type_name)?);
         }
+
+        impl ArrayElement for $T {}
     };
 
     (@godot_type_name $T:ty) => {
@@ -105,8 +109,11 @@ macro_rules! impl_ffi_variant {
 mod impls {
     use super::*;
 
-    impl_ffi_variant!(Aabb, aabb_to_variant, aabb_from_variant; AABB);
+    // Also implements ArrayType.
     impl_ffi_variant!(bool, bool_to_variant, bool_from_variant);
+    impl_ffi_variant!(i64, int_to_variant, int_from_variant; int);
+    impl_ffi_variant!(f64, float_to_variant, float_from_variant; float);
+    impl_ffi_variant!(Aabb, aabb_to_variant, aabb_from_variant; AABB);
     impl_ffi_variant!(Basis, basis_to_variant, basis_from_variant);
     impl_ffi_variant!(Callable, callable_to_variant, callable_from_variant);
     impl_ffi_variant!(Vector2, vector2_to_variant, vector2_from_variant);
@@ -138,8 +145,6 @@ mod impls {
     impl_ffi_variant!(Transform2D, transform_2d_to_variant, transform_2d_from_variant);
     impl_ffi_variant!(Transform3D, transform_3d_to_variant, transform_3d_from_variant);
     impl_ffi_variant!(Dictionary, dictionary_to_variant, dictionary_from_variant);
-    impl_ffi_variant!(i64, int_to_variant, int_from_variant; int);
-    impl_ffi_variant!(f64, float_to_variant, float_from_variant; float);
 
 }
 

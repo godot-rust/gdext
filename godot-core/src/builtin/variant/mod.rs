@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{impl_godot_as_self, ConvertError, FromGodot, ToGodot};
+use crate::builtin::meta::{impl_godot_as_self, ArrayElement, ConvertError, FromGodot, ToGodot};
 use crate::builtin::{GString, StringName};
 use crate::gen::central::VariantDispatch;
 use godot_ffi as sys;
@@ -376,6 +376,8 @@ impl Variant {
         unsafe { std::slice::from_raw_parts_mut(variant_array, length) }
     }
 }
+
+impl ArrayElement for Variant {}
 
 // SAFETY:
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.
