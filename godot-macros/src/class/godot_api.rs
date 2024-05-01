@@ -8,6 +8,7 @@
 use proc_macro2::{Delimiter, Group, Ident, TokenStream};
 use quote::spanned::Spanned;
 use quote::{format_ident, quote};
+use venial::ImplMember;
 
 use crate::class::{
     into_signature_info, make_method_registration, make_virtual_callback, BeforeKind,
@@ -82,12 +83,13 @@ struct SignalDefinition {
 }
 
 /// Codegen for `#[godot_api] impl MyType`
-fn transform_inherent_impl(mut original_impl: venial::Impl) -> ParseResult<TokenStream> {
-    let class_name = util::validate_impl(&original_impl, None, "godot_api")?;
+fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<TokenStream> {
+    let class_name = util::validate_impl(&impl_block, None, "godot_api")?;
     let class_name_obj = util::class_name_obj(&class_name);
     let prv = quote! { ::godot::private };
 
-    let (funcs, signals, out_virtual_impl) = process_godot_fns(&class_name, &mut original_impl)?;
+    // Can add extra functions to the end of the impl block.
+    let (funcs, signals) = process_godot_fns(&class_name, &mut impl_block)?;
 
     let signal_registrations = make_signal_registrations(signals, &class_name_obj);
 
@@ -97,11 +99,10 @@ fn transform_inherent_impl(mut original_impl: venial::Impl) -> ParseResult<Token
         .collect::<ParseResult<Vec<TokenStream>>>()?; // <- FIXME transpose this
 
     let constant_registration =
-        make_constant_registration(&mut original_impl, &class_name, &class_name_obj)?;
+        make_constant_registration(&mut impl_block, &class_name, &class_name_obj)?;
 
     let result = quote! {
-        #original_impl
-        #out_virtual_impl
+        #impl_block
 
         impl ::godot::obj::cap::ImplementsGodotApi for #class_name {
             fn __register_methods() {
@@ -259,7 +260,7 @@ fn make_constant_registration(
 fn process_godot_fns(
     class_name: &Ident,
     impl_block: &mut venial::Impl,
-) -> ParseResult<(Vec<FuncDefinition>, Vec<SignalDefinition>, TokenStream)> {
+) -> ParseResult<(Vec<FuncDefinition>, Vec<SignalDefinition>)> {
     let mut func_definitions = vec![];
     let mut signal_definitions = vec![];
     let mut virtual_functions = vec![];
@@ -382,17 +383,13 @@ fn process_godot_fns(
         impl_block.body_items.remove(index);
     }
 
-    let out_virtual_impl = if virtual_functions.is_empty() {
-        TokenStream::new()
-    } else {
-        quote! {
-            impl #class_name {
-                #(#virtual_functions)*
-            }
-        }
-    };
+    // Add script-virtual extra functions at the end of same impl block (subject to same attributes).
+    for f in virtual_functions.into_iter() {
+        let member = ImplMember::AssocFunction(f);
+        impl_block.body_items.push(member);
+    }
 
-    Ok((func_definitions, signal_definitions, out_virtual_impl))
+    Ok((func_definitions, signal_definitions))
 }
 
 fn add_virtual_script_call(
