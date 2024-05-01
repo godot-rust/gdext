@@ -14,11 +14,13 @@ use quote::{format_ident, quote};
 pub struct FuncDefinition {
     /// Raw information about the Rust function.
     pub signature: venial::Function,
+    /// Refined signature, with higher level info and renamed parameters.
+    pub signature_info: SignatureInfo,
     /// The function's non-gdext attributes (all except #[func]).
     pub external_attributes: Vec<venial::Attribute>,
     /// The name the function will be exposed as in Godot. If `None`, the Rust function name is used.
     pub rename: Option<String>,
-    pub is_virtual: bool,
+    pub is_script_virtual: bool,
     pub has_gd_self: bool,
 }
 
@@ -65,21 +67,17 @@ pub fn make_method_registration(
     class_name: &Ident,
     func_definition: FuncDefinition,
 ) -> ParseResult<TokenStream> {
-    let signature_info = into_signature_info(
-        func_definition.signature,
-        class_name,
-        func_definition.has_gd_self,
-    );
+    let signature_info = &func_definition.signature_info;
     let sig_tuple = signature_info.tuple_type();
 
-    let is_virtual = func_definition.is_virtual;
-    let method_flags = match make_method_flags(signature_info.receiver_type, is_virtual) {
+    let is_script_virtual = func_definition.is_script_virtual;
+    let method_flags = match make_method_flags(signature_info.receiver_type, is_script_virtual) {
         Ok(mf) => mf,
-        Err(msg) => return bail_fn(msg, signature_info.method_name),
+        Err(msg) => return bail_fn(msg, &signature_info.method_name),
     };
 
     let forwarding_closure =
-        make_forwarding_closure(class_name, &signature_info, BeforeKind::Without);
+        make_forwarding_closure(class_name, signature_info, BeforeKind::Without);
 
     // String literals
     let method_name = &signature_info.method_name;
@@ -97,7 +95,7 @@ pub fn make_method_registration(
     // String literals II
     let param_ident_strs = signature_info
         .param_idents
-        .into_iter()
+        .iter()
         .map(|ident| ident.to_string());
 
     // Transport #[cfg] attrs to the FFI glue to ensure functions which were conditionally
@@ -234,7 +232,7 @@ fn make_forwarding_closure(
             let method_call = if matches!(before_kind, BeforeKind::OnlyBefore) {
                 TokenStream::new()
             } else {
-                quote! { instance.#method_name(#(#params),*) }
+                quote! { instance.#method_name( #(#params),* ) }
             };
 
             quote! {
@@ -338,14 +336,7 @@ pub(crate) fn into_signature_info(
                 };
             }
             venial::FnParam::Typed(arg) => {
-                // Parameter will be forwarded as an argument to the instance, so we need to give `_` a name.
-                let ident = if arg.name == "_" {
-                    let ident = format_ident!("__unnamed_{next_unnamed_index}");
-                    next_unnamed_index += 1;
-                    ident
-                } else {
-                    arg.name
-                };
+                let ident = maybe_rename_parameter(arg.name, &mut next_unnamed_index);
                 let ty = venial::TypeExpr {
                     tokens: map_self_to_class_name(arg.ty.tokens, class_name),
                 };
@@ -365,9 +356,28 @@ pub(crate) fn into_signature_info(
     }
 }
 
+pub(crate) fn maybe_rename_parameter(param_ident: Ident, next_unnamed_index: &mut i32) -> Ident {
+    // Parameter will be forwarded as an argument to the instance, so we need to give `_` a name.
+    let param_str = param_ident.to_string(); // a pity that Ident has no string operations.
+
+    if param_str == "_" {
+        let ident = format_ident!("__unnamed_{next_unnamed_index}");
+        *next_unnamed_index += 1;
+        ident
+    } else if let Some(remain) = param_str.strip_prefix('_') {
+        // If parameters are currently unused, still use the actual name, as "used-ness" is an implementation detail.
+        // This could technically collide with another parameter of the same name (without "_"), but that's very unlikely and not
+        // something we really need to support.
+        // Note that the case of a single "_" is handled above.
+        ident(remain)
+    } else {
+        param_ident
+    }
+}
+
 fn make_method_flags(
     method_type: ReceiverType,
-    is_rust_virtual: bool,
+    is_script_virtual: bool,
 ) -> Result<TokenStream, String> {
     let flags = quote! { ::godot::engine::global::MethodFlags };
 
@@ -380,14 +390,16 @@ fn make_method_flags(
             quote! { #flags::NORMAL }
         }
         ReceiverType::Static => {
-            if is_rust_virtual {
-                return Err("Static methods cannot be virtual".to_string());
+            if is_script_virtual {
+                return Err(
+                    "#[func(virtual)] is not allowed for associated (static) functions".to_string(),
+                );
             }
             quote! { #flags::NORMAL | #flags::STATIC }
         }
     };
 
-    let flags = if is_rust_virtual {
+    let flags = if is_script_virtual {
         quote! { #base_flags | #flags::VIRTUAL }
     } else {
         base_flags

@@ -13,6 +13,8 @@ var udp := PacketPeerUDP.new()
 var thread := Thread.new()
 var extension_name: String
 
+var retained_obj: Reloadable
+
 
 func _ready() -> void:
 	print("[GD Editor] Start...")
@@ -21,7 +23,11 @@ func _ready() -> void:
 	var num = r.get_number()
 	r.free()
 
-	print("[GD Editor] Sanity check: initial number is ", num)
+	# Test construction from Rust (regression test for https://github.com/godot-rust/gdext/issues/543).
+	retained_obj = Reloadable.from_string("Mars")
+	var planet = retained_obj.favorite_planet
+
+	print("[GD Editor] Sanity check: initial number is ", num, "; planet is ", planet)
 	
 	var extensions = GDExtensionManager.get_loaded_extensions()
 	if extensions.size() == 1:
@@ -70,11 +76,18 @@ func _process(delta: float) -> void:
 	var num = r.get_number()
 	r.free()
 
-	if num == 777:
+	# Check if the property has been restored.
+	var planet = retained_obj.favorite_planet
+	retained_obj.free()
+
+	if num == 777 and planet == "Mars":
 		print("[GD Editor] Successful hot-reload! Exit...")
 		get_tree().quit(0)
-	else:
+	elif num != 777:
 		fail(str("Number was not updated correctly (is ", num, ")"))
+		return
+	else:
+		fail(str("Planet was not restored correctly (is ", planet, ")"))
 		return
 
 

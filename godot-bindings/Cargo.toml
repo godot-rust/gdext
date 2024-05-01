@@ -20,9 +20,10 @@ custom-godot-extheader = []
 [dependencies]
 godot4-prebuilt = { optional = true, git = "https://github.com/godot-rust/godot4-prebuilt", branch = "4.2" }
 
-# Version >= 1.5.5 for security: https://blog.rust-lang.org/2022/03/08/cve-2022-24713.html
+# Do not use bindgen 0.69, it contains regression that forces recompilation of code.
+bindgen = { optional = true, version = "0.68", default-features = false, features = ["runtime"] }
+# regex >= 1.5.5 for security: https://blog.rust-lang.org/2022/03/08/cve-2022-24713.html
 # 'unicode-gencat' needed for \d, see: https://docs.rs/regex/1.5.5/regex/#unicode-features
-bindgen = { optional = true, version = "0.69", default-features = false, features = ["runtime"] }
 regex = { optional = true, version = "1.5.5", default-features = false, features = ["std", "unicode-gencat"] }
 which = { optional = true, version = "6" }
 

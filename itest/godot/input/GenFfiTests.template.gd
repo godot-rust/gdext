@@ -26,9 +26,14 @@ func test_varcall_IDENT():
 	_check_callconv("mirror_IDENT", "varcall")
 #)
 
+# Godot currently does not support calling static methods via reflection, which is why we use an instance for the return_static_IDENT() call.
+# The call must be dynamic, as otherwise, Godot would have the static type info available and could use ptrcall.
+# This is only needed for return_static_IDENT() which takes no parameters -- the other two methods take Variant parameters,
+# so Godot cannot use ptrcalls anyway.
 #(
 func test_varcall_static_IDENT():
-	var from_rust: Variant = GenFfi.return_static_IDENT()
+	var instance = GenFfi.new() # workaround
+	var from_rust: Variant = instance.return_static_IDENT()
 	_check_callconv("return_static_IDENT", "varcall")
 
 	assert_that(GenFfi.accept_static_IDENT(from_rust), "ffi.accept_static_IDENT(from_rust)")
@@ -71,24 +76,15 @@ func test_ptrcall_static_IDENT():
 #)
 
 func _check_callconv(function: String, expected: String) -> void:
-	# TODO Ptrcall not yet implemented in Godot:
-	# * Methods that involve at least 1 parameter of type Variant (interestingly not a return value).
-	# * Static methods (oversight).
-	if function.contains("_static_") or function == "accept_variant" or function == "mirror_variant":
+	# Godot does not yet implement ptrcall for functions that involve at least 1 parameter of type Variant
+	# (interestingly not a return value).
+	if function in ["accept_variant", "mirror_variant", "accept_static_variant", "mirror_static_variant"]:
 		# This test deliberately fails in case Godot implements support for either of the above, to notify us.
 		expected = "varcall"
 
-	# Special cases that were only implemented/fixed Godot 4.2+, but are still present in older versions.
-	# Covers Vector4, Vector4i, NewVector4(Vector4), NewVector4i(Vector4i), Projection
-	elif Engine.get_version_info().minor < 2 \
-	and (function.begins_with("return_") or function.begins_with("mirror_")) \
-	and ( \
-		function.ends_with("vector4") \
-		or function.ends_with("vector4i") \
-		or function.ends_with("projection") \
-		or function.ends_with("variant") \
-	):
-		expected = "varcall"
-
 	var ok = GenFfi.check_last_notrace(function, expected)
-	assert_that(ok, str("calling convention mismatch in function '", function, "'"))
+
+	# A lot of this has only been fixed for Godot 4.3; tracking regressions for older versions doesn't make much sense.
+	# Do not move version check to the beginning -- traced function needs to be popped.
+	if Engine.get_version_info().minor >= 3:
+		assert_that(ok, str("calling convention mismatch in function '", function, "'"))

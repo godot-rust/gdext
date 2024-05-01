@@ -25,7 +25,7 @@ fn codegen_base_renamed() {
     // The registration is done at startup time, so it may already fail during GDExtension init.
     // Nevertheless, try to instantiate an object with base HttpRequest here.
 
-    let obj = Gd::from_init_fn(|base| TestBaseRenamed { _base: base });
+    let obj = Gd::from_init_fn(|base| CodegenTest { _base: base });
     let _id = obj.instance_id();
 
     obj.free();
@@ -64,19 +64,20 @@ fn cfg_test() {
     assert_ne!(cfg!(since_api = "4.2"), cfg!(before_api = "4.2"));
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
 #[derive(GodotClass)]
-#[class(base=HttpRequest)]
-pub struct TestBaseRenamed {
+#[class(base=HttpRequest)] // test a base class that is renamed in Godot
+pub struct CodegenTest {
     _base: Base<HttpRequest>,
 }
 
 #[allow(unused)]
 #[godot_api]
-impl TestBaseRenamed {
+impl CodegenTest {
     #[func]
     fn with_unnamed(&self, _: i32) {}
+
+    #[func]
+    fn with_unused(&self, _unused: i32) {}
 
     #[func]
     fn with_mut(&self, mut param: i32) {}
@@ -86,11 +87,44 @@ impl TestBaseRenamed {
 }
 
 #[godot_api]
-impl IHttpRequest for TestBaseRenamed {
+impl IHttpRequest for CodegenTest {
     fn init(base: Base<HttpRequest>) -> Self {
-        TestBaseRenamed { _base: base }
+        CodegenTest { _base: base }
     }
 
     // Test unnamed parameter in virtual function
     fn process(&mut self, _: f64) {}
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[cfg(since_api = "4.3")]
+#[derive(GodotClass)]
+#[class(no_init)]
+pub struct CodegenTest2 {
+    _base: Base<RefCounted>,
+}
+
+#[cfg(since_api = "4.3")]
+#[godot_api]
+#[allow(unused)]
+impl CodegenTest2 {
+    #[func(virtual)]
+    fn with_virtual_unnamed(&self, _: i32) {}
+
+    #[cfg(since_api = "4.3")]
+    #[func(virtual, gd_self)]
+    fn with_virtual_unnamed_gdself(this: Gd<Self>, _: i32) {}
+
+    #[cfg(since_api = "4.3")]
+    #[func(virtual)]
+    fn with_virtual_unused(&self, _unused: i32) {}
+
+    #[cfg(since_api = "4.3")]
+    #[func(virtual)]
+    fn with_virtual_mut(&self, mut param: i32) {}
+
+    #[cfg(since_api = "4.3")]
+    #[func(virtual)]
+    fn with_virtual_many_unnamed(&self, _: i32, _: GString) {}
 }
