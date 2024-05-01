@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::{models::json::JsonClass, special_cases};
-
 use crate::models::domain::ClassCodegenLevel;
+use crate::models::json::JsonClass;
+use crate::special_cases;
+
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{format_ident, quote};
 

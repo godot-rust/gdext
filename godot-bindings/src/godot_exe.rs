@@ -279,9 +279,9 @@ fn execute(cmd: Command, error_message: &str) -> Output {
 }
 
 fn try_execute(mut cmd: Command, error_message: &str) -> Result<Output, String> {
-    let output = cmd
-        .output()
-        .map_err(|_| format!("failed to invoke command ({error_message})\n\t{cmd:?}"))?;
+    let output = cmd.output().map_err(|e| {
+        format!("failed to invoke command ({error_message})\n\tError: {e}\n\tCommand: {cmd:?}")
+    })?;
 
     println!("[stdout] {}", std::str::from_utf8(&output.stdout).unwrap());
     println!("[stderr] {}", std::str::from_utf8(&output.stderr).unwrap());
