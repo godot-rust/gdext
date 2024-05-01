@@ -162,34 +162,6 @@ runs:
         fi
       shell: bash
 
-    # This step no longer fails if there's a diff, as we expect header to be forward-compatible; instead issues a warning
-    # However, still fails if patch cannot be applied (conflict).
-    # Step is only run in latest, not for compat 4.0.1 etc. -> no need to take into account different header versions.
-    - name: "Copy and compare GDExtension header"
-      if: inputs.godot-check-header == 'true'
-      run: |
-        mv godot-ffi/src/gen/gdextension_interface.h godot-ffi/src/gen/gdextension_interface_prebuilt.h
-        mv $RUNNER_DIR/godot_bin/gdextension_interface.h godot-ffi/src/gen/gdextension_interface.h
-        git apply godot-bindings/res/tweak.patch
-        cd godot-ffi/src/gen
-        git diff --no-index --exit-code --quiet gdextension_interface_prebuilt.h gdextension_interface.h || {
-            echo "OUTCOME=header-diff" >> $GITHUB_ENV
-            echo "::warning::gdextension_interface.h is not up-to-date."
-            echo ""
-        
-            echo "### :warning: Outdated GDExtension API header" >> $GITHUB_STEP_SUMMARY
-            echo "gdextension_interface.h contains the following differences:" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`diff" >> $GITHUB_STEP_SUMMARY
-            git diff --no-index gdextension_interface_prebuilt.h gdextension_interface.h >> $GITHUB_STEP_SUMMARY || true
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-            echo "After manually updating file, run:   \`git diff -R > tweak2.patch && mv tweak2.patch tweak.patch\`." >> $GITHUB_STEP_SUMMARY
-
-            # Undo modifications
-            mv gdextension_interface_prebuilt.h gdextension_interface.h
-        	#exit 1
-        }
-      shell: bash
-
     - name: "Run Godot integration tests"
       # Aborts immediately if Godot outputs certain keywords (would otherwise stall until CI runner times out).
       # Explanation:

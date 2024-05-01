@@ -16,8 +16,7 @@ fn main() {
     // struggle with static analysis when symbols are outside the crate directory (April 2023).
     let gen_path = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/src/gen"));
 
-    // C header is not strictly required, however it is generated for debugging, and to allow CI
-    // to check for differences (tweak.patch).
+    // C header is not strictly required, however it is generated for debugging.
     let h_path = gen_path.join("gdextension_interface.h");
     let rs_path = gen_path.join("gdextension_interface.rs");
 
