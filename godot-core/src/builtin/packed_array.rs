@@ -688,6 +688,24 @@ impl_packed_array!(
 );
 
 impl_packed_array!(
+    type_name: PackedVector4Array,
+    element_type: Vector4,
+    opaque_type: OpaquePackedVector4Array,
+    inner_type: InnerPackedVector4Array,
+    argument_type: Vector4,
+    return_type: __GdextType,
+    from_array: packed_vector4_array_from_array,
+    operator_index: packed_vector4_array_operator_index,
+    operator_index_const: packed_vector4_array_operator_index_const,
+    trait_impls: {
+        Default => packed_vector4_array_construct_default;
+        Clone => packed_vector4_array_construct_copy;
+        Drop => packed_vector4_array_destroy;
+        PartialEq => packed_vector4_array_operator_equal;
+    },
+);
+
+impl_packed_array!(
     type_name: PackedColorArray,
     element_type: Color,
     opaque_type: OpaquePackedColorArray,
