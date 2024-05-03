@@ -400,6 +400,7 @@ mod export_impls {
     impl_property_by_godot_convert!(PackedStringArray, no_export);
     impl_property_by_godot_convert!(PackedVector2Array, no_export);
     impl_property_by_godot_convert!(PackedVector3Array, no_export);
+    impl_property_by_godot_convert!(PackedVector4Array, no_export);
     impl_property_by_godot_convert!(PackedColorArray, no_export);
 
     // Primitives
