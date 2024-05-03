@@ -21,6 +21,11 @@ use super::{GodotFfiVariant, GodotType};
 ///
 /// [`GodotType`] is a stronger bound than [`GodotConvert`], since it expresses that a type is _directly_ representable
 /// in Godot (without intermediate "via"). Every `GodotType` also implements `GodotConvert` with `Via = Self`.
+
+#[diagnostic::on_unimplemented(
+    message = "`GodotConvert` is needed for `#[func]` parameters/returns, as well as `#[var]` and `#[export]` properties",
+    note = "check following errors for more information"
+)]
 pub trait GodotConvert {
     /// The type through which `Self` is represented in Godot.
     type Via: GodotType;

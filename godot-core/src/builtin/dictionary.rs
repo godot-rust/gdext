@@ -412,7 +412,7 @@ impl<'a> DictionaryIter<'a> {
             self.next_idx += 1;
         }
 
-        self.last_key = new_key.clone();
+        self.last_key.clone_from(&new_key);
         new_key
     }
 

@@ -34,6 +34,7 @@ runs:
       id: configure
       env:
         CS: ${{ inputs.components }}
+      # TODO use actual Rust version, e.g. 1.78 in cache, not just "stable"
       run: |
         echo "Rust cache shared-key: '${{ runner.os }}-${{ inputs.rust }}${{ inputs.cache-key }}'"
         echo "components=$( for c in ${CS//,/ }; do echo -n ' --component' $c; done )" >> $GITHUB_OUTPUT
