@@ -13,7 +13,8 @@ use godot_ffi as sys;
 use sys::{static_assert_eq_size_align, VariantType};
 
 use crate::builtin::meta::{
-    CallContext, ConvertError, FromFfiError, FromGodot, GodotConvert, GodotType, ToGodot,
+    ArrayElement, CallContext, ConvertError, FromFfiError, FromGodot, GodotConvert, GodotType,
+    ToGodot,
 };
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::obj::raw::RawGd;
@@ -619,6 +620,9 @@ impl<T: GodotClass> GodotType for Gd<T> {
         false
     }
 }
+
+impl<T: GodotClass> ArrayElement for Gd<T> {}
+impl<T: GodotClass> ArrayElement for Option<Gd<T>> {}
 
 impl<T> Default for Gd<T>
 where

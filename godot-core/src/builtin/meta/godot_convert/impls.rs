@@ -6,7 +6,7 @@
  */
 
 use crate::builtin::meta::{
-    impl_godot_as_self, ConvertError, FromGodot, GodotConvert, GodotType, ToGodot,
+    impl_godot_as_self, ArrayElement, ConvertError, FromGodot, GodotConvert, GodotType, ToGodot,
 };
 use crate::builtin::Variant;
 use godot_ffi as sys;
@@ -158,6 +158,8 @@ macro_rules! impl_godot_scalar {
             }
         }
 
+        impl ArrayElement for $T {}
+
         impl GodotConvert for $T {
             type Via = $T;
         }
@@ -202,6 +204,8 @@ macro_rules! impl_godot_scalar {
             }
         }
 
+        impl ArrayElement for $T {}
+
         impl GodotConvert for $T {
             type Via = $T;
         }
@@ -226,6 +230,7 @@ impl_godot_as_self!(i64);
 impl_godot_as_self!(f64);
 impl_godot_as_self!(());
 
+// Also implements ArrayElement.
 impl_godot_scalar!(
     i32 as i64,
     crate::builtin::meta::FromFfiError::I32,
