@@ -17,6 +17,9 @@ on:
     branches:
       - master
 
+env:
+  # Keep this a variable for easy search&replace.
+  MSRV: 1.78
 
 jobs:
   notify-docs:
@@ -25,6 +28,18 @@ jobs:
       # Checkout is always needed, for the notify step
       - name: "Checkout"
         uses: actions/checkout@v4
+
+      # If Rust version is below msrv, install latest stable.
+      - name: "Install Rust"
+        run: |
+          # Get middle part of version, e.g. 78 from 1.78.0
+          isMinorVer=$(rustc --version | sed -E 's/rustc [0-9]+\.([0-9]+)\..*/\1/')
+          shouldMinorVer=$(echo $MSRV | sed -E 's/[0-9]+\.([0-9]+)(\.|$).*/\1/')
+          
+          if [ $isMinorVer -lt $shouldMinorVer ]; then
+            echo "Rust version is below MSRV; install latest stable..."
+            rustup update stable
+          fi
 
       # This is just a sanity check to make sure that the follow-up docs generation doesn't break.
       # So we use the Rust version provided by the GitHub runners, which hopefully is >= MSRV.

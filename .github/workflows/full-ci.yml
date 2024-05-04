@@ -58,10 +58,9 @@ jobs:
     - name: "Patch Cargo.toml to use nightly extension API"
       run: .github/other/patch-prebuilt.sh nightly
 
+    # rustdoc is included as component.
     - name: "Install Rust"
       uses: ./.github/composite/rust
-      with:
-        components: rustdoc
 
     - name: "Check rustdoc"
       env:
