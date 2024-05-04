@@ -76,17 +76,19 @@ impl Debug for InstanceId {
 }
 
 impl GodotConvert for InstanceId {
-    type Via = u64;
+    // Use i64 and not u64 because the former can be represented in Variant, and is also the number format GDScript uses.
+    // The engine's C++ code can still use u64.
+    type Via = i64;
 }
 
 impl ToGodot for InstanceId {
     fn to_godot(&self) -> Self::Via {
-        self.value.get()
+        self.to_i64()
     }
 }
 
 impl FromGodot for InstanceId {
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-        Self::try_from_u64(via).ok_or_else(|| FromGodotError::ZeroInstanceId.into_error(via))
+        Self::try_from_i64(via).ok_or_else(|| FromGodotError::ZeroInstanceId.into_error(via))
     }
 }

@@ -27,6 +27,7 @@ func assert_that(what: bool, message: String = "") -> bool:
 		print_error("GDScript assertion failed:  %s" % message)
 	else:
 		print_error("GDScript assertion failed.")
+
 	return false
 
 func assert_eq(actual, expected, message: String = "") -> bool:
@@ -37,9 +38,11 @@ func assert_eq(actual, expected, message: String = "") -> bool:
 
 	print_newline() # previous line not yet broken
 	if message:
-		print_error("GDScript assertion failed:  %s\n  actual:   %s\n  expected: %s" % [message, actual, expected])
+		print_error("GDScript assertion failed:  %s\n    actual: %s\n  expected: %s" % [message, actual, expected])
 	else:
-		print_error("GDScript assertion failed:  `(actual == expected)`\n  actual: %s\n expected: %s" % [actual, expected])
+		print_error("GDScript assertion failed:  `(actual == expected)`\n    actual: %s\n  expected: %s" % [actual, expected])
+
+	# Note: stacktrace cannot be printed, because not connected to a debugging server (editor).
 	return false
 
 # Disable error message printing from godot. 

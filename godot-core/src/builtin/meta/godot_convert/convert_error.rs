@@ -236,12 +236,13 @@ impl fmt::Display for FromGodotError {
 pub(crate) enum FromFfiError {
     NullRawGd,
     WrongObjectType,
-    I32,
-    I16,
     I8,
-    U32,
-    U16,
     U8,
+    I16,
+    U16,
+    I32,
+    U32,
+    U64,
 }
 
 impl FromFfiError {
@@ -260,12 +261,13 @@ impl fmt::Display for FromFfiError {
             Self::WrongObjectType => {
                 return write!(f, "given object cannot be cast to target type")
             }
-            Self::I32 => "i32",
-            Self::I16 => "i16",
             Self::I8 => "i8",
-            Self::U32 => "u32",
-            Self::U16 => "u16",
             Self::U8 => "u8",
+            Self::I16 => "i16",
+            Self::U16 => "u16",
+            Self::I32 => "i32",
+            Self::U32 => "u32",
+            Self::U64 => "u64",
         };
 
         write!(f, "`{target}` cannot store the given value")
@@ -274,11 +276,14 @@ impl fmt::Display for FromFfiError {
 
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum FromVariantError {
-    /// Variant type does not match expected type
+    /// Variant type does not match expected type.
     BadType {
         expected: VariantType,
         actual: VariantType,
     },
+
+    /// Value cannot be represented in target type's domain.
+    BadValue,
 
     WrongClass {
         expected: ClassName,
@@ -299,10 +304,11 @@ impl fmt::Display for FromVariantError {
         match self {
             Self::BadType { expected, actual } => {
                 // Note: wording is the same as in CallError::failed_param_conversion_engine()
-                write!(f, "expected type `{expected:?}`, got `{actual:?}`")
+                write!(f, "expected type {expected:?}, got {actual:?}")
             }
+            Self::BadValue => write!(f, "value cannot be represented in target type's domain"),
             Self::WrongClass { expected } => {
-                write!(f, "expected class `{expected}`")
+                write!(f, "expected class {expected}")
             }
         }
     }

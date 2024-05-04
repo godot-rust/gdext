@@ -131,7 +131,7 @@ impl FromGodot for sys::VariantOperator {
 // Scalars
 
 macro_rules! impl_godot_scalar {
-    ($T:ty as $Via:ty, $err:path $(, $param_metadata:expr)?) => {
+    ($T:ty as $Via:ty, $err:path, $param_metadata:expr) => {
         impl GodotType for $T {
             type Ffi = $Via;
 
@@ -144,40 +144,20 @@ macro_rules! impl_godot_scalar {
             }
 
             fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
-                Self::try_from(ffi).map_err(|_| $err.into_error(ffi))
+                Self::try_from(ffi).map_err(|_rust_err| {
+                    // rust_err is something like "out of range integral type conversion attempted", not adding extra information.
+                    // TODO consider passing value into error message, but how thread-safely? don't eagerly convert to string.
+                    $err.into_error(ffi)
+                })
             }
 
-            $(
-                fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-                    $param_metadata
-                }
-            )?
-
-            fn godot_type_name() -> String {
-                <$Via as GodotType>::godot_type_name()
-            }
+            impl_godot_scalar!(@shared_fns; $Via, $param_metadata);
         }
 
-        impl ArrayElement for $T {}
-
-        impl GodotConvert for $T {
-            type Via = $T;
-        }
-
-        impl ToGodot for $T {
-            fn to_godot(&self) -> Self::Via {
-                *self
-            }
-        }
-
-        impl FromGodot for $T {
-            fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-                Ok(via)
-            }
-        }
+        impl_godot_scalar!(@shared_traits; $T);
     };
 
-    ($T:ty as $Via:ty $(, $param_metadata:expr)?; lossy) => {
+    ($T:ty as $Via:ty, $param_metadata:expr; lossy) => {
         impl GodotType for $T {
             type Ffi = $Via;
 
@@ -189,21 +169,27 @@ macro_rules! impl_godot_scalar {
                 self as $Via
             }
 
-            fn try_from_ffi(ffi: Self::Ffi) -> Result<Self,ConvertError> {
+            fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
                 Ok(ffi as $T)
             }
 
-            $(
-                fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-                    $param_metadata
-                }
-            )?
-
-            fn godot_type_name() -> String {
-                <$Via as GodotType>::godot_type_name()
-            }
+            impl_godot_scalar!(@shared_fns; $Via, $param_metadata);
         }
 
+        impl_godot_scalar!(@shared_traits; $T);
+    };
+
+    (@shared_fns; $Via:ty, $param_metadata:expr) => {
+        fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+            $param_metadata
+        }
+
+        fn godot_type_name() -> String {
+            <$Via as GodotType>::godot_type_name()
+        }
+    };
+
+    (@shared_traits; $T:ty) => {
         impl ArrayElement for $T {}
 
         impl GodotConvert for $T {
@@ -232,29 +218,9 @@ impl_godot_as_self!(());
 
 // Also implements ArrayElement.
 impl_godot_scalar!(
-    i32 as i64,
-    crate::builtin::meta::FromFfiError::I32,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32
-);
-impl_godot_scalar!(
-    i16 as i64,
-    crate::builtin::meta::FromFfiError::I16,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16
-);
-impl_godot_scalar!(
     i8 as i64,
     crate::builtin::meta::FromFfiError::I8,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8
-);
-impl_godot_scalar!(
-    u32 as i64,
-    crate::builtin::meta::FromFfiError::U32,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT32
-);
-impl_godot_scalar!(
-    u16 as i64,
-    crate::builtin::meta::FromFfiError::U16,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT16
 );
 impl_godot_scalar!(
     u8 as i64,
@@ -262,15 +228,88 @@ impl_godot_scalar!(
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT8
 );
 impl_godot_scalar!(
-    u64 as i64,
-    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT64;
-    lossy
+    i16 as i64,
+    crate::builtin::meta::FromFfiError::I16,
+    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16
+);
+impl_godot_scalar!(
+    u16 as i64,
+    crate::builtin::meta::FromFfiError::U16,
+    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT16
+);
+impl_godot_scalar!(
+    i32 as i64,
+    crate::builtin::meta::FromFfiError::I32,
+    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32
+);
+impl_godot_scalar!(
+    u32 as i64,
+    crate::builtin::meta::FromFfiError::U32,
+    sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT32
 );
 impl_godot_scalar!(
     f32 as f64,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_REAL_IS_FLOAT;
     lossy
 );
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// u64: manually implemented, to ensure that type is not altered during conversion.
+
+impl GodotType for u64 {
+    type Ffi = i64;
+
+    fn to_ffi(&self) -> Self::Ffi {
+        *self as i64
+    }
+
+    fn into_ffi(self) -> Self::Ffi {
+        self as i64
+    }
+
+    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
+        // Ok(ffi as u64)
+        Self::try_from(ffi)
+            .map_err(|_rust_err| crate::builtin::meta::FromFfiError::U64.into_error(ffi))
+    }
+
+    impl_godot_scalar!(@shared_fns; i64, sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT64);
+}
+
+impl GodotConvert for u64 {
+    type Via = u64;
+}
+
+impl ToGodot for u64 {
+    fn to_godot(&self) -> Self::Via {
+        *self
+    }
+
+    fn to_variant(&self) -> Variant {
+        // TODO panic doesn't fit the trait's infallibility too well; maybe in the future try_to_godot/try_to_variant() methods are possible.
+        i64::try_from(*self)
+            .map(|v| v.to_variant())
+            .unwrap_or_else(|_| {
+                panic!("to_variant(): u64 value {} is not representable inside Variant, which can only store i64 integers", self)
+            })
+    }
+}
+
+impl FromGodot for u64 {
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(via)
+    }
+
+    fn try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+        // Fail for values that are not representable as u64.
+        let value = variant.try_to::<i64>()?;
+
+        u64::try_from(value).map_err(|_rust_err| {
+            // TODO maybe use better error enumerator
+            crate::builtin::meta::FromVariantError::BadValue.into_error(value)
+        })
+    }
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Raw pointers
