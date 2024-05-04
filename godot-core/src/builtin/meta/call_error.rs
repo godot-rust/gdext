@@ -188,7 +188,7 @@ impl CallError {
     ) -> Self {
         // Note: reason is same wording as in FromVariantError::description().
         let reason = format!(
-            "parameter #{param_index} conversion -- expected type `{expected:?}`, got `{actual:?}`"
+            "parameter #{param_index} conversion -- expected type {expected:?}, got {actual:?}"
         );
 
         Self::new(call_ctx, reason, None)

@@ -135,7 +135,7 @@ fn dynamic_call_parameter_mismatch() {
         "godot-rust function call failed: Object::call(&\"take_1_int\", [va] \"string\")\
         \n  Source: ObjPayload::take_1_int()\
         \n    Reason: parameter #0 (i64) conversion\
-        \n  Source: expected type `Int`, got `String`: \"string\""
+        \n  Source: expected type Int, got String: \"string\""
     );
 
     obj.free();
@@ -256,7 +256,7 @@ fn dynamic_call_parameter_mismatch_engine() {
     assert_eq!(
         call_error.to_string(),
         "godot-rust function call failed: Object::call(&\"set_name\", [va] 123)\
-        \n    Reason: parameter #1 conversion -- expected type `String`, got `Int`"
+        \n    Reason: parameter #1 conversion -- expected type String, got Int"
     );
 
     node.free();
