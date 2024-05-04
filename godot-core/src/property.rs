@@ -21,6 +21,14 @@ use crate::engine::global::PropertyHint;
 ///
 /// This does not require [`FromGodot`] or [`ToGodot`], so that something can be used as a property even if it can't be used in function
 /// arguments/return types.
+
+// We also mention #[export] here, because we can't control the order of error messages. Missing Export often also means missing Var trait,
+// and so the Var error message appears first.
+#[diagnostic::on_unimplemented(
+    message = "`#[var]` properties require `Var` trait; #[export] ones require `Export` trait",
+    label = "type cannot be used as a property",
+    note = "see also: https://godot-rust.github.io/book/register/properties.html"
+)]
 pub trait Var: GodotConvert {
     fn get_property(&self) -> Self::Via;
     fn set_property(&mut self, value: Self::Via);
@@ -31,6 +39,12 @@ pub trait Var: GodotConvert {
 }
 
 /// Trait implemented for types that can be used as `#[export]` fields.
+// Mentioning both Var + Export: see above.
+#[diagnostic::on_unimplemented(
+    message = "`#[var]` properties require `Var` trait; #[export] ones require `Export` trait",
+    label = "type cannot be used as a property",
+    note = "see also: https://godot-rust.github.io/book/register/properties.html"
+)]
 pub trait Export: Var {
     /// The export info to use for an exported field of this type, if no other export info is specified.
     fn default_export_info() -> PropertyHintInfo;

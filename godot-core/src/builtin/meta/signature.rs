@@ -142,7 +142,7 @@ macro_rules! impl_varcall_signature_for_tuple {
         #[allow(unused_variables)]
         impl<$R, $($Pn,)*> VarcallSignatureTuple for ($R, $($Pn,)*)
             where
-                $R: ToGodot + FromGodot + FromVariantIndirect + Debug,
+                $R: ToGodot + FromGodot + Debug,
                 $(
                     $Pn: ToGodot + FromGodot + Debug,
                 )*
@@ -557,17 +557,6 @@ fn param_error<P>(call_ctx: &CallContext, index: i32, err: ConvertError) -> ! {
 fn return_error<R>(call_ctx: &CallContext, err: ConvertError) -> ! {
     let return_ty = std::any::type_name::<R>();
     panic!("in function `{call_ctx}` at return type {return_ty}: {err}");
-}
-
-/// Helper trait to support `()` which doesn't implement `FromVariant`.
-trait FromVariantIndirect {
-    fn convert(variant: Variant) -> Self;
-}
-
-impl<T: FromGodot> FromVariantIndirect for T {
-    fn convert(variant: Variant) -> Self {
-        T::from_variant(&variant)
-    }
 }
 
 unsafe fn new_from_ptrcall<T: FromGodot>(

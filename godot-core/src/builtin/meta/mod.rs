@@ -251,6 +251,11 @@ where
 /// Notable differences are:
 /// - Only `VariantArray`, not `Array<T>` is allowed (typed arrays cannot be nested).
 /// - `Option` is only supported for `Option<Gd<T>>`, but not e.g. `Option<i32>`.
+#[diagnostic::on_unimplemented(
+    message = "`Array<T>` can only store element types supported in Godot arrays (no nesting).",
+    label = "does not implement `Var`",
+    note = "see also: https://godot-rust.github.io/docs/gdext/master/godot/builtin/meta/trait.ArrayElement.html"
+)]
 pub trait ArrayElement: GodotType {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

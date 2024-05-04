@@ -34,6 +34,7 @@ runs:
       id: configure
       env:
         CS: ${{ inputs.components }}
+      # TODO use actual Rust version, e.g. 1.78 in cache, not just "stable"
       run: |
         echo "Rust cache shared-key: '${{ runner.os }}-${{ inputs.rust }}${{ inputs.cache-key }}'"
         echo "components=$( for c in ${CS//,/ }; do echo -n ' --component' $c; done )" >> $GITHUB_OUTPUT
@@ -48,12 +49,24 @@ runs:
         rustup default ${{ inputs.rust }}
       shell: bash
 
+    - name: "Extract Rust version"
+      # Transforms into format "1.78.0-stable" or "1.80.0-nightly-d2d24e395", which can be used as cache key.
+      run: |
+        version=$(rustc --version)
+        if echo "$version" | grep -q "nightly"; then
+          version=$(echo "$version" | sed -E 's/rustc ([0-9]+\.[0-9]+\.[0-9]+)-nightly \(([a-f0-9]+) .*/\1-nightly-\2/')
+        else
+          version=$(echo "$version" | sed -E 's/rustc ([0-9]+\.[0-9]+\.[0-9]+) .*/\1-stable/')
+        fi
+        echo "INSTALLED_RUST_VERSION=$version" >> $GITHUB_ENV
+      shell: bash
+
     - name: "Reuse cached dependencies"
       uses: Swatinem/rust-cache@v2
       with:
         # A cache key that is used instead of the automatic `job`-based key, and is stable over multiple jobs.
         # default: empty
-        shared-key: "${{ runner.os }}-${{ inputs.rust }}${{ inputs.cache-key }}"
+        shared-key: "${{ runner.os }}-${{ env.INSTALLED_RUST_VERSION }}${{ inputs.cache-key }}"
 
         # An additional cache key that is added alongside the automatic `job`-based
         # cache key and can be used to further differentiate jobs.

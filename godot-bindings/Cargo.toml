@@ -2,7 +2,7 @@
 name = "godot-bindings"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.77.1"
+rust-version = "1.78"
 license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "ffi", "sys"]
 categories = ["game-engines", "graphics"]

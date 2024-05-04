@@ -14,6 +14,7 @@ use crate::VariantType;
 // Static checks
 
 // The impls only compile if those are different types -- ensures type safety through patch
+#[allow(dead_code)]
 trait Distinct {}
 impl Distinct for GDExtensionVariantPtr {}
 impl Distinct for GDExtensionTypePtr {}

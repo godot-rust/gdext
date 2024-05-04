@@ -59,10 +59,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # rustdoc is included as component.
       - name: "Install Rust"
         uses: ./.github/composite/rust
-        with:
-          components: rustdoc
 
       - name: "Check rustdoc"
         env:

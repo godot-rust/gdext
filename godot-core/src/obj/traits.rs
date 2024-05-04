@@ -20,6 +20,11 @@ use godot_ffi as sys;
 ///
 /// Normally, you don't need to implement this trait yourself; use [`#[derive(GodotClass)]`](../register/derive.GodotClass.html) instead.
 // Above intra-doc link to the derive-macro only works as HTML, not as symbol link.
+#[diagnostic::on_unimplemented(
+    message = "Only classes registered with Godot are allowed in this context",
+    note = "you can use `#[derive(GodotClass)]` to register your own structs with Godot",
+    note = "see also: https://godot-rust.github.io/book/register/classes.html"
+)]
 pub trait GodotClass: Bounds + 'static
 where
     Self: Sized,
@@ -206,6 +211,12 @@ pub trait IndexEnum: EngineEnum {
 ///
 /// Gives direct access to the containing `Gd<Self>` from `Self`.
 // Possible alternative for builder APIs, although even less ergonomic: Base<T> could be Base<T, Self> and return Gd<Self>.
+#[diagnostic::on_unimplemented(
+    message = "Class `{Self}` requires a `Base<T>` field",
+    label = "missing field `_base: Base<...>`",
+    note = "A base field is required to access the base from within `self`, or when using script virtual functions",
+    note = "see also: https://godot-rust.github.io/book/register/classes.html#the-base-field"
+)]
 pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// Returns the `Gd` pointer containing this object.
     ///
@@ -243,7 +254,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// # unsafe impl ExtensionLibrary for Test {}
     /// ```
     ///
-    /// However we cannot call methods that require `&mut Base`, such as
+    /// However, we cannot call methods that require `&mut Base`, such as
     /// [`Node::add_child()`](crate::engine::Node::add_child).
     ///
     /// ```compile_fail
@@ -423,6 +434,13 @@ pub mod cap {
     /// This trait is not manually implemented, and you cannot call any methods. You can use it as a bound, but typically you'd use
     /// it indirectly through [`Gd::default()`][crate::obj::Gd::default()]. Note that `Gd::default()` has an additional requirement on
     /// being reference-counted, meaning not every `GodotDefault` class can automatically be used with `Gd::default()`.
+    #[diagnostic::on_unimplemented(
+        message = "Class `{Self}` requires either an `init` constructor, or explicit opt-out",
+        label = "needs `init`",
+        note = "To provide a default constructor, use `#[class(init)]` or implement an `init` method",
+        note = "To opt out, use `#[class(no_init)]`",
+        note = "see also: https://godot-rust.github.io/book/register/constructors.html"
+    )]
     pub trait GodotDefault: GodotClass {
         /// Provides a default smart pointer instance.
         ///
