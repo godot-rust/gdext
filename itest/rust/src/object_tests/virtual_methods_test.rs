@@ -12,7 +12,7 @@ use crate::framework::{itest, TestContext};
 use godot::builtin::meta::ToGodot;
 use godot::builtin::{
     real, varray, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,
-    PackedInt32Array, PackedStringArray, PackedVector2Array, PackedVector3Array, PackedVector4Array, RealConv,
+    PackedInt32Array, PackedStringArray, PackedVector2Array, PackedVector3Array, RealConv,
     StringName, Variant, VariantArray, Vector2, Vector3,
 };
 use godot::engine::notify::NodeNotification;
@@ -120,7 +120,7 @@ impl IPrimitiveMesh for VirtualReturnTest {
     fn create_mesh_array(&self) -> VariantArray {
         varray![
             PackedVector3Array::from_iter([Vector3::LEFT]),
-            PackedVector4Array::from_iter([Vector3::LEFT]),
+            PackedVector3Array::from_iter([Vector3::LEFT]),
             PackedFloat32Array::from_iter([0.0, 0.0, 0.0, 1.0]),
             PackedColorArray::from_iter([Color::from_rgb(1.0, 1.0, 1.0)]),
             PackedVector2Array::from_iter([Vector2::LEFT]),
@@ -383,10 +383,6 @@ fn test_virtual_method_with_return() {
     assert_eq_approx!(
         arr.get(0).to::<PackedVector3Array>().get(0),
         arr_rust.get(0).to::<PackedVector3Array>().get(0),
-    );
-    assert_eq_approx!(
-        arr.get(0).to::<PackedVector4Array>().get(0),
-        arr_rust.get(0).to::<PackedVector4Array>().get(0),
     );
     assert_eq_approx!(
         real::from_f32(arr.get(2).to::<PackedFloat32Array>().get(3)),

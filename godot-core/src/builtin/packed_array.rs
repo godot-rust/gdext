@@ -543,9 +543,6 @@ macro_rules! impl_specific_packed_array_functions {
     };
 }
 
-// TODO implement
-pub type PackedVector4Array = PackedVector2Array;
-
 impl_packed_array!(
     type_name: PackedByteArray,
     element_type: u8,
@@ -690,6 +687,7 @@ impl_packed_array!(
     },
 );
 
+#[cfg(since_api = "4.3")]
 impl_packed_array!(
     type_name: PackedVector4Array,
     element_type: Vector4,
