@@ -6,6 +6,7 @@
  */
 
 mod constant_test;
+mod conversion_test;
 mod derive_variant_test;
 mod func_test;
 mod gdscript_ffi_test;

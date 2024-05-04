@@ -75,8 +75,59 @@ fn variant_conversions() {
 }
 
 #[itest]
-fn variant_forbidden_conversions() {
+fn variant_bad_integer_conversions() {
     truncate_bad::<i8>(128);
+    truncate_bad::<i8>(-129);
+
+    truncate_bad::<u8>(256);
+    truncate_bad::<u8>(-1);
+
+    truncate_bad::<i16>(32768);
+    truncate_bad::<i16>(-32769);
+
+    truncate_bad::<u16>(65536);
+    truncate_bad::<u16>(-1);
+
+    truncate_bad::<i32>(2147483648);
+    truncate_bad::<i32>(-2147483649);
+
+    truncate_bad::<u32>(4294967296);
+    truncate_bad::<u32>(-1);
+
+    truncate_bad::<u64>(-1);
+}
+
+#[itest]
+fn variant_bad_conversions() {
+    fn assert_convert_err<T: ToGodot, U: FromGodot + std::fmt::Debug>(value: T) {
+        use std::any::type_name;
+        value.to_variant().try_to::<U>().expect_err(&format!(
+            "`{}` should not convert to `{}`",
+            type_name::<T>(),
+            type_name::<U>()
+        ));
+    }
+
+    assert_convert_err::<_, i64>("hello");
+    assert_convert_err::<i32, f32>(12);
+    assert_convert_err::<f32, i32>(1.23);
+    assert_convert_err::<i32, bool>(10);
+    assert_convert_err::<_, String>(false);
+    assert_convert_err::<_, StringName>(VariantArray::default());
+
+    // Special case: ToVariant is not yet fallible, so u64 -> i64 conversion error panics.
+    expect_panic("u64 -> i64 conversion error", || {
+        u64::MAX.to_variant();
+    });
+
+    //assert_eq!(
+    //    Dictionary::default().to_variant().try_to::<Array>(),
+    //    Err(VariantConversionError)
+    //);
+    Variant::nil()
+        .to_variant()
+        .try_to::<Dictionary>()
+        .expect_err("`nil` should not convert to `Dictionary`");
 }
 
 #[itest]
@@ -313,33 +364,6 @@ fn variant_null_object_is_nil() {
 }
 
 #[itest]
-fn variant_conversion_fails() {
-    fn assert_convert_err<T: ToGodot, U: FromGodot + std::fmt::Debug>(value: T) {
-        use std::any::type_name;
-        value.to_variant().try_to::<U>().expect_err(&format!(
-            "`{}` should not convert to `{}`",
-            type_name::<T>(),
-            type_name::<U>()
-        ));
-    }
-
-    assert_convert_err::<_, i64>("hello");
-    assert_convert_err::<i32, f32>(28);
-    assert_convert_err::<i32, bool>(10);
-    assert_convert_err::<_, String>(false);
-    assert_convert_err::<_, StringName>(VariantArray::default());
-
-    //assert_eq!(
-    //    Dictionary::default().to_variant().try_to::<Array>(),
-    //    Err(VariantConversionError)
-    //);
-    Variant::nil()
-        .to_variant()
-        .try_to::<Dictionary>()
-        .expect_err("`nil` should not convert to `Dictionary`");
-}
-
-#[itest]
 fn variant_type_correct() {
     assert_eq!(Variant::nil().get_type(), VariantType::Nil);
     assert_eq!(0.to_variant().get_type(), VariantType::Int);
@@ -431,7 +455,7 @@ where
 
     if let Ok(back) = result {
         panic!(
-            "{} - T::try_from_variant({}) should fail, but resulted in {}",
+            "{}::try_from_variant({}) should fail, but resulted in {}",
             std::any::type_name::<T>(),
             variant,
             back
