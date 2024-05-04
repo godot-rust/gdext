@@ -543,9 +543,6 @@ macro_rules! impl_specific_packed_array_functions {
     };
 }
 
-// TODO implement
-pub type PackedVector4Array = PackedVector2Array;
-
 impl_packed_array!(
     type_name: PackedByteArray,
     element_type: u8,
@@ -687,6 +684,25 @@ impl_packed_array!(
         Clone => packed_vector3_array_construct_copy;
         Drop => packed_vector3_array_destroy;
         PartialEq => packed_vector3_array_operator_equal;
+    },
+);
+
+#[cfg(since_api = "4.3")]
+impl_packed_array!(
+    type_name: PackedVector4Array,
+    element_type: Vector4,
+    opaque_type: OpaquePackedVector4Array,
+    inner_type: InnerPackedVector4Array,
+    argument_type: Vector4,
+    return_type: __GdextType,
+    from_array: packed_vector4_array_from_array,
+    operator_index: packed_vector4_array_operator_index,
+    operator_index_const: packed_vector4_array_operator_index_const,
+    trait_impls: {
+        Default => packed_vector4_array_construct_default;
+        Clone => packed_vector4_array_construct_copy;
+        Drop => packed_vector4_array_destroy;
+        PartialEq => packed_vector4_array_operator_equal;
     },
 );
 

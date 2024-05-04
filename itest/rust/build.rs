@@ -148,6 +148,8 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; PackedStringArray, PackedStringArray, PackedStringArray(), PackedStringArray::new());
     push!(inputs; PackedVector2Array, PackedVector2Array, PackedVector2Array(), PackedVector2Array::new());
     push!(inputs; PackedVector3Array, PackedVector3Array, PackedVector3Array(), PackedVector3Array::new());
+    #[cfg(since_api = "4.3")]
+    push!(inputs; PackedVector4Array, PackedVector4Array, PackedVector4Array(), PackedVector4Array::new());
     push!(inputs; PackedColorArray, PackedColorArray, PackedColorArray(), PackedColorArray::new());
 
     push_newtype!(inputs; int, NewI64(i64), -922337203685477580);

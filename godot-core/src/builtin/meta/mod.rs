@@ -69,6 +69,8 @@ mod sealed {
     impl Sealed for PackedStringArray {}
     impl Sealed for PackedVector2Array {}
     impl Sealed for PackedVector3Array {}
+    #[cfg(since_api = "4.3")]
+    impl Sealed for PackedVector4Array {}
     impl Sealed for PackedColorArray {}
     impl Sealed for Plane {}
     impl Sealed for Projection {}

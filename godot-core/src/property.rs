@@ -365,7 +365,7 @@ mod export_impls {
         (@type_string_hint $Ty:ty) => {
             impl TypeStringHint for $Ty {
                 fn type_string() -> String {
-                    use sys::GodotFfi;
+                    use sys::GodotFfi as _;
                     let variant_type = <$Ty as $crate::builtin::meta::GodotType>::Ffi::variant_type();
                     let type_name = <$Ty as $crate::builtin::meta::GodotType>::godot_type_name();
                     format!("{}:{}", variant_type as i32, type_name)
@@ -414,6 +414,8 @@ mod export_impls {
     impl_property_by_godot_convert!(PackedStringArray, no_export);
     impl_property_by_godot_convert!(PackedVector2Array, no_export);
     impl_property_by_godot_convert!(PackedVector3Array, no_export);
+    #[cfg(since_api = "4.3")]
+    impl_property_by_godot_convert!(PackedVector4Array, no_export);
     impl_property_by_godot_convert!(PackedColorArray, no_export);
 
     // Primitives

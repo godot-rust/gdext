@@ -90,6 +90,11 @@ impl_builtin_froms!(VariantArray;
     PackedVector3Array => array_from_packed_vector3_array,
 );
 
+#[cfg(since_api = "4.3")]
+impl_builtin_froms!(VariantArray;
+    PackedVector4Array => array_from_packed_vector4_array,
+);
+
 impl<T: ArrayElement> Array<T> {
     fn from_opaque(opaque: sys::types::OpaqueArray) -> Self {
         // Note: type is not yet checked at this point, because array has not yet been initialized!

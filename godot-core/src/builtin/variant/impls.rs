@@ -135,6 +135,8 @@ mod impls {
     impl_ffi_variant!(PackedStringArray, packed_string_array_to_variant, packed_string_array_from_variant);
     impl_ffi_variant!(PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant);
     impl_ffi_variant!(PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant);
+    #[cfg(since_api = "4.3")]
+    impl_ffi_variant!(PackedVector4Array, packed_vector4_array_to_variant, packed_vector4_array_from_variant);
     impl_ffi_variant!(PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant);
     impl_ffi_variant!(Plane, plane_to_variant, plane_from_variant);
     impl_ffi_variant!(Projection, projection_to_variant, projection_from_variant);
