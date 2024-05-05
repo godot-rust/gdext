@@ -248,6 +248,54 @@ pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
         }
     }
 }
+
+/// # Safety
+///
+/// * `instance` must be a valid `T` instance pointer for the duration of this function call.
+/// * `property_name` must be a valid `StringName` pointer for the duration of this function call.
+#[deny(unsafe_op_in_unsafe_fn)]
+unsafe fn raw_property_get_revert<T: cap::GodotPropertyGetRevert>(
+    instance: sys::GDExtensionClassInstancePtr,
+    property_name: sys::GDExtensionConstStringNamePtr,
+) -> Option<Variant> {
+    // SAFETY: `instance` is a valid `T` instance pointer for the duration of this function call.
+    let storage = unsafe { as_storage::<T>(instance) };
+    let instance = storage.get();
+
+    // SAFETY: `property_name` is a valid `StringName` pointer for the duration of this function call.
+    let property = unsafe { StringName::borrow_string_sys(property_name) };
+    T::__godot_property_get_revert(&*instance, property.clone())
+}
+
+#[deny(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn property_can_revert<T: cap::GodotPropertyGetRevert>(
+    instance: sys::GDExtensionClassInstancePtr,
+    property_name: sys::GDExtensionConstStringNamePtr,
+) -> sys::GDExtensionBool {
+    // SAFETY: Godot provides us with a valid `T` instance pointer and `StringName` pointer for the duration of this call.
+    let revert = unsafe { raw_property_get_revert::<T>(instance, property_name) };
+
+    revert.is_some() as sys::GDExtensionBool
+}
+
+#[deny(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn property_get_revert<T: cap::GodotPropertyGetRevert>(
+    instance: sys::GDExtensionClassInstancePtr,
+    property_name: sys::GDExtensionConstStringNamePtr,
+    ret: sys::GDExtensionVariantPtr,
+) -> sys::GDExtensionBool {
+    // SAFETY: Godot provides us with a valid `T` instance pointer and `StringName` pointer for the duration of this call.
+    let Some(revert) = (unsafe { raw_property_get_revert::<T>(instance, property_name) }) else {
+        return false as sys::GDExtensionBool;
+    };
+
+    // SAFETY: Godot provides us with a valid `Variant` pointer.
+    unsafe {
+        revert.move_into_var_ptr(ret);
+    }
+
+    true as sys::GDExtensionBool
+}
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Safe, higher-level methods
 

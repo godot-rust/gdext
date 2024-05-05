@@ -158,6 +158,8 @@ impl GString {
     ///
     /// This will leak memory unless `from_owned_string_sys` is called on the returned pointer.
     pub(crate) fn into_owned_string_sys(self) -> sys::GDExtensionStringPtr {
+        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueString);
+
         let leaked = Box::into_raw(Box::new(self));
         leaked.cast()
     }
@@ -170,6 +172,8 @@ impl GString {
     /// * Must not be called more than once on the same pointer.
     #[deny(unsafe_op_in_unsafe_fn)]
     pub(crate) unsafe fn from_owned_string_sys(ptr: sys::GDExtensionStringPtr) -> Self {
+        sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueString);
+
         let ptr = ptr.cast::<Self>();
         let boxed = unsafe { Box::from_raw(ptr) };
         *boxed

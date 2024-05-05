@@ -206,6 +206,21 @@ pub enum PluginItem {
                 p_count: u32,
             ),
         >,
+
+        user_property_can_revert_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr,
+                p_name: sys::GDExtensionConstStringNamePtr,
+            ) -> sys::GDExtensionBool,
+        >,
+
+        user_property_get_revert_fn: Option<
+            unsafe extern "C" fn(
+                p_instance: sys::GDExtensionClassInstancePtr,
+                p_name: sys::GDExtensionConstStringNamePtr,
+                r_ret: sys::GDExtensionVariantPtr,
+            ) -> sys::GDExtensionBool,
+        >,
     },
 }
 
@@ -479,6 +494,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             get_virtual_fn,
             user_get_property_list_fn,
             user_free_property_list_fn,
+            user_property_can_revert_fn,
+            user_property_get_revert_fn,
         } => {
             c.user_register_fn = user_register_fn;
 
@@ -501,6 +518,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             c.godot_params.get_func = user_get_fn;
             c.godot_params.get_property_list_func = user_get_property_list_fn;
             c.godot_params.free_property_list_func = user_free_property_list_fn;
+            c.godot_params.property_can_revert_func = user_property_can_revert_fn;
+            c.godot_params.property_get_revert_func = user_property_get_revert_fn;
             c.user_virtual_fn = Some(get_virtual_fn);
         }
     }

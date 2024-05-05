@@ -324,7 +324,6 @@ impl PropertyInfo {
     ///
     /// Creating an `@export_range` property.
     ///
-
     // TODO: Make this nicer to use.
     /// ```no_run
     /// # use crate::property::export_info_function;

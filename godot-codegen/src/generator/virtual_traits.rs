@@ -115,6 +115,23 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         fn get_property_list(&mut self) -> Vec<crate::builtin::meta::PropertyInfo> {
             unimplemented!()
         }
+
+        /// Called by Godot to tell if a property has a custom revert or not.
+        ///
+        /// Return `None` for no custom revert, and return `Some(value)` to specify the custom revert.
+        ///
+        /// This is a combination of Godot's [`Object::_property_get_revert`] and [`Object::_property_can_revert`]. This means that this
+        /// function will usually be called twice by Godot to find the revert.
+        ///
+        /// Note that this should be a _pure_ function. That is, it should always return the same value for a property as long as `self`
+        /// remains unchanged. Otherwise this may lead to unexpected (safe) behavior.
+        ///
+        /// [`Object::_property_get_revert`]: https://docs.godotengine.org/en/latest/classes/class_object.html#class-object-private-method-property-get-revert
+        /// [`Object::_property_can_revert`]: https://docs.godotengine.org/en/latest/classes/class_object.html#class-object-private-method-property-can-revert
+        #[doc(alias = "property_can_revert")]
+        fn property_get_revert(&self, property: StringName) -> Option<Variant> {
+            unimplemented!()
+        }
     }
 }
 
