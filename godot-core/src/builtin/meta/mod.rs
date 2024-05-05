@@ -269,11 +269,33 @@ pub trait ArrayElement: GodotType {}
 #[derive(Debug, Clone)]
 // Note: is not #[non_exhaustive], so adding fields is a breaking change. Mostly used internally at the moment though.
 pub struct PropertyInfo {
+    /// Which type this property has.
+    ///
+    /// For objects this should be set to [`VariantType::Object`], and the `class_name` field to the actual name of the class.
+    ///
+    /// For [`Variant`] this should be set to [`VariantType::Nil`].
     pub variant_type: VariantType,
+
+    /// Which class this property is.
+    ///
+    /// This should be set to [`ClassName::none()`] unless the variant type is object. You can use
+    /// [`GodotClass::class_name()`](crate::obj::GodotClass::class_name()) to get the right name to use here.
     pub class_name: ClassName,
+
+    /// The name of this property in Godot.
     pub property_name: StringName,
+
+    /// How the property is meant to be edited. See also [`PropertyHint`] in the Godot docs.
+    ///
+    /// [`PropertyHint`]: https://docs.godotengine.org/en/latest/classes/class_%40globalscope.html#enum-globalscope-propertyhint
     pub hint: global::PropertyHint,
+
+    /// Extra information passed to Godot for this property, what this means depends on the `hint` value.
     pub hint_string: GString,
+
+    /// How this property should be used. See [`PropertyUsageFlags`] in Godot for the meaning.
+    ///
+    /// [`PropertyUsageFlags`]: https://docs.godotengine.org/en/latest/classes/class_%40globalscope.html#enum-globalscope-propertyusageflags
     pub usage: global::PropertyUsageFlags,
 }
 
@@ -282,25 +304,52 @@ impl PropertyInfo {
     ///
     /// This will generate property info equivalent to what a `#[var]` attribute would.
     pub fn new_var<T: Var>(property_name: &str) -> Self {
-        let PropertyHintInfo { hint, hint_string } = T::property_hint();
-
-        Self {
-            hint,
-            hint_string,
-            ..<T as GodotConvert>::Via::property_info(property_name)
-        }
+        <T as GodotConvert>::Via::property_info(property_name).with_hint_info(T::property_hint())
     }
 
     /// Create a new `PropertyInfo` representing an exported property named `property_name` with type `T`.
     ///
     /// This will generate property info equivalent to what an `#[export]` attribute would.
     pub fn new_export<T: Export>(property_name: &str) -> Self {
-        let PropertyHintInfo { hint, hint_string } = T::default_export_info();
+        <T as GodotConvert>::Via::property_info(property_name)
+            .with_hint_info(T::default_export_info())
+    }
+
+    /// Change the `hint` and `hint_string` to be the given `hint_info`.
+    ///
+    /// See [`export_info_functions`](crate::property::export_info_function) for functions that return appropriate `PropertyHintInfo`s for
+    /// various Godot annotations.
+    ///
+    /// # Examples
+    ///
+    /// Creating an `@export_range` property.
+    ///
+
+    // TODO: Make this nicer to use.
+    /// ```no_run
+    /// # use crate::property::export_info_function;
+    /// # use crate::builtin::meta::PropertyInfo;
+    ///
+    /// let property = PropertyInfo::new_export::<f64>("my_range_property")
+    ///     .with_hint_info(export_info_function::export_range(
+    ///         0.0,
+    ///         10.0,
+    ///         Some(0.1),
+    ///         false,
+    ///         false,
+    ///         false,
+    ///         false,
+    ///         false,
+    ///         false,
+    ///     ))
+    /// ```
+    pub fn with_hint_info(self, hint_info: PropertyHintInfo) -> Self {
+        let PropertyHintInfo { hint, hint_string } = hint_info;
 
         Self {
             hint,
             hint_string,
-            ..<T as GodotConvert>::Via::property_info(property_name)
+            ..self
         }
     }
 

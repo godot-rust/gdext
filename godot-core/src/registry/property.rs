@@ -138,6 +138,8 @@ impl PropertyHintInfo {
 }
 
 /// Functions used to translate user-provided arguments into export hints.
+///
+/// Each function is named the same as the equivalent Godot annotation. E.g `@export_range` is `fn export_range`.
 pub mod export_info_functions {
     use crate::builtin::GString;
     use crate::engine::global::PropertyHint;
@@ -238,6 +240,15 @@ pub mod export_info_functions {
 
     type EnumVariant = ExportValueWithKey<i64>;
 
+    /// Equivalent to `@export_enum` in Godot.
+    ///
+    /// A name without a key would be represented as `(name, None)`, and a name with a key as `(name, Some(key))`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// export_enum(&[("a", None), ("b", "Some(10)")]);
+    /// ```
     pub fn export_enum<T>(variants: &[T]) -> PropertyHintInfo
     where
         for<'a> &'a T: Into<EnumVariant>,
@@ -261,6 +272,15 @@ pub mod export_info_functions {
 
     type BitFlag = ExportValueWithKey<u32>;
 
+    /// Equivalent to `@export_flags` in Godot.
+    ///
+    /// A flag without a key would be represented as `(flag, None)`, and a flag with a key as `(flag, Some(key))`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// export_flags(&[("a", None), ("b", "Some(10)")]);
+    /// ```
     pub fn export_flags<T>(bits: &[T]) -> PropertyHintInfo
     where
         for<'a> &'a T: Into<BitFlag>,
@@ -273,10 +293,16 @@ pub mod export_info_functions {
         }
     }
 
+    /// Equivalent to `@export_file` in Godot.
+    ///
+    /// Pass an empty string to have no filter.
     pub fn export_file<S: AsRef<str>>(filter: S) -> PropertyHintInfo {
         export_file_inner(false, filter)
     }
 
+    /// Equivalent to `@export_global_file` in Godot.
+    ///
+    /// Pass an empty string to have no filter.
     pub fn export_global_file<S: AsRef<str>>(filter: S) -> PropertyHintInfo {
         export_file_inner(true, filter)
     }

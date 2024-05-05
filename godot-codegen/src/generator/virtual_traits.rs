@@ -104,6 +104,13 @@ fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
             unimplemented!()
         }
 
+        /// Called whenever Godot [`get_property_list()`](crate::engine::Object::get_property_list) is called, the returned vector here is
+        /// appended to the existing list of properties.
+        ///
+        /// This should mainly be used for advanced purposes, such as dynamically updating the property list in the editor.
+        ///
+        /// See also in Godot docs:
+        /// * [`Object::_get_property_list`](https://docs.godotengine.org/en/latest/classes/class_object.html#class-object-private-method-get-property-list)
         #[cfg(since_api = "4.3")]
         fn get_property_list(&mut self) -> Vec<crate::builtin::meta::PropertyInfo> {
             unimplemented!()
