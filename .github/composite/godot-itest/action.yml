@@ -96,7 +96,7 @@ runs:
       # sed -i'' needed for macOS compatibility, see https://stackoverflow.com/q/4247068
       run: |
         # Find the godot4-prebuilt version that gdext currently depends on.
-        defaultVersion=$(grep 'godot4-prebuilt = {' godot-bindings/Cargo.toml | sed -n 's/.*branch = "\([^"]*\)".*/\1/p')
+        defaultVersion=$(grep '^default =' "godot-bindings/Cargo.toml" | sed -n 's/.*prebuilt-\([0-9]*-[0-9]*\).*/\1/p' | tr '-' '.')
         if [ -z "$defaultVersion" ]; then
           echo "::error::prebuilt version not found or format is incorrect."
           exit 1

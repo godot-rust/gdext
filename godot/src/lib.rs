@@ -177,11 +177,8 @@
 //! Please refrain from using undocumented and private features; if you are missing certain functionality, bring it up for discussion instead.
 //! This allows us to decide whether it fits the scope of the library and to design proper APIs for it.
 
-#[doc(inline)]
-pub use godot_core::{builtin, engine, log, obj};
-
-#[doc(hidden)]
-pub use godot_core::sys;
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Validations
 
 #[cfg(all(feature = "lazy-function-tables", feature = "experimental-threads"))]
 compile_error!("Thread safety for lazy function pointers is not yet implemented.");
@@ -192,6 +189,33 @@ compile_error!("Must opt-in using `experimental-wasm` Cargo feature; keep in min
 // See also https://github.com/godotengine/godot/issues/86346.
 #[cfg(all(feature = "double-precision", not(feature = "custom-godot")))]
 compile_error!("The feature `double-precision` currently requires `custom-godot` due to incompatibilities in the GDExtension API JSON.");
+
+const fn _validate_features() {
+    let mut count = 0;
+
+    if cfg!(feature = "api-4-0") {
+        count += 1;
+    }
+    if cfg!(feature = "api-4-1") {
+        count += 1;
+    }
+    if cfg!(feature = "custom-godot") {
+        count += 1;
+    }
+
+    assert!(count <= 1, "at most one `api-*` feature can be enabled");
+}
+
+const _: () = _validate_features();
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Modules
+
+#[doc(inline)]
+pub use godot_core::{builtin, engine, log, obj};
+
+#[doc(hidden)]
+pub use godot_core::sys;
 
 /// Entry point and global init/shutdown of the library.
 pub mod init {

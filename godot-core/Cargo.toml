@@ -21,6 +21,8 @@ experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = ["godot-ffi/experimental-threads"]
 debug-log = ["godot-ffi/debug-log"]
 trace = []
+api-4-0 = ["godot-ffi/api-4-0"]
+api-4-1 = ["godot-ffi/api-4-1"]
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi" }

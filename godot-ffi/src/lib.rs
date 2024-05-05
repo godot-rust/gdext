@@ -69,7 +69,6 @@ pub use gen::table_utilities::*;
 pub use extras::*;
 pub use gen::central::*;
 pub use gen::gdextension_interface::*;
-#[cfg(since_api = "4.1")]
 pub use gen::interface::*;
 pub use global::*;
 pub use string_cache::StringCache;

@@ -11,12 +11,18 @@ use std::path::Path;
 
 pub use watch::StopWatch;
 
-// Note: we cannot prevent both `custom-godot` and `prebuilt-godot` from being specified; see Cargo.toml for more information.
+#[cfg(feature = "api-4-0")]
+use prebuilt_4_0 as godot4_prebuilt;
+#[cfg(feature = "api-4-1")]
+use prebuilt_4_1 as godot4_prebuilt;
 
-#[cfg(not(any(feature = "custom-godot", feature = "prebuilt-godot")))]
-compile_error!(
-    "At least one of `custom-godot` or `prebuilt-godot` must be specified (none given)."
-);
+// If none of the api-* features are provided, use default prebuilt version (typically latest Godot stable release).
+#[cfg(not(any(
+    feature = "api-4-0", //
+    feature = "api-4-1", //
+    feature = "custom-godot", //
+)))]
+use prebuilt_4_2 as godot4_prebuilt;
 
 // This is outside of `godot_version` to allow us to use it even when we don't have the `custom-godot`
 // feature enabled.
