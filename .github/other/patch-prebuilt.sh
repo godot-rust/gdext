@@ -11,7 +11,7 @@ version="$1"
 
 # Add correct feature to `godot` dependency.
 if [[ "$version" == "nightly" ]]; then
-  # Do not use extraFeatures="custom-godot" here. They just want to use nightly Godot with current API.
+  # Do not use extraFeatures="api-custom" here. They just want to use nightly Godot with current API.
   extraFeatures=""
 else
   # Extract "major.minor" from "major.minor[.patch]".

@@ -13,7 +13,7 @@ codegen-fmt = []
 codegen-full = []
 codegen-lazy-fptrs = []
 double-precision = []
-custom-godot = ["godot-bindings/custom-godot"]
+api-custom = ["godot-bindings/api-custom"]
 experimental-godot-api = []
 
 [dependencies]

@@ -8,7 +8,7 @@ keywords = ["gamedev", "godot", "engine", "derive", "macro"]
 categories = ["game-engines", "graphics"]
 
 [features]
-custom-godot = ["godot-bindings/custom-godot"]
+api-custom = ["godot-bindings/api-custom"]
 
 [lib]
 proc-macro = true

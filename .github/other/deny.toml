@@ -224,7 +224,7 @@ deny = [
     { name = "im" },
     { name = "im-rc" },
 
-    # Too heavy in default setup. Can be included for custom-godot etc.
+    # Too heavy in default setup. Can be included for api-custom etc.
     { name = "syn", wrappers = ["bindgen", "gensym"] },
     { name = "serde", wrappers = ["godot-core", "serde_json"] },
 ]

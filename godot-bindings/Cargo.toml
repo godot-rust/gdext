@@ -8,15 +8,15 @@ keywords = ["gamedev", "godot", "engine", "ffi", "sys"]
 categories = ["game-engines", "graphics"]
 
 # Since features are additive and we want the user to user prebuilt by default, we need to have `prebuilt-godot` as the
-# default feature. However, it's not possible to _disable_ the prebuilt dependency when specifying `godot-custom` (without
+# default feature. However, it's not possible to _disable_ the prebuilt dependency when specifying `api-custom` (without
 # requiring no-default-features), so we unfortunately still need to depend on prebuilt and just ignore it.
 # The artifact generator explicitly excludes that though (to avoid a quasi-circular dependency back to its repo).
 [features]
 api-4-0 = ["dep:prebuilt-4-0"]
 api-4-1 = ["dep:prebuilt-4-1"]
 default = ["dep:prebuilt-4-2"]
-custom-godot = ["dep:bindgen", "dep:regex", "dep:which"]
-custom-godot-extheader = []
+api-custom = ["dep:bindgen", "dep:regex", "dep:which"]
+api-custom-extheader = []
 
 
 [dependencies]
