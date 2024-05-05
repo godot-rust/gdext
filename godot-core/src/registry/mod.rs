@@ -189,6 +189,7 @@ pub enum PluginItem {
 /// Besides the name, this type holds information relevant for the deregistration of the class.
 pub struct LoadedClass {
     name: ClassName,
+    #[cfg_attr(before_api = "4.1", allow(dead_code))]
     is_editor_plugin: bool,
 }
 
@@ -411,6 +412,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             )
             .expect("duplicate: create_instance_func (def)");
 
+            #[cfg(before_api = "4.2")]
+            let _ = is_hidden; // mark used
             #[cfg(since_api = "4.2")]
             {
                 fill_into(

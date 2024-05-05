@@ -131,6 +131,7 @@ impl StringName {
     }
 
     /// Increment ref-count. This may leak memory if used wrongly.
+    #[cfg(since_api = "4.2")]
     fn inc_ref(&self) {
         std::mem::forget(self.clone());
     }
