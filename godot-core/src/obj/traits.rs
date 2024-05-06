@@ -242,7 +242,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// #[godot_api]
     /// impl INode for MyClass {
-    ///     fn process(&mut self, _delta: f64) {
+    ///     fn process(&mut self, _delta: f32) {
     ///         let name = self.base().get_name();
     ///         godot_print!("name is {name}");
     ///     }
@@ -268,7 +268,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// #[godot_api]
     /// impl INode for MyClass {
-    ///     fn process(&mut self, _delta: f64) {
+    ///     fn process(&mut self, _delta: f32) {
     ///         let node = Node::new_alloc();
     ///         // fails because `add_child` requires a mutable reference.
     ///         self.base().add_child(node);
@@ -306,7 +306,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// #[godot_api]
     /// impl INode for MyClass {
-    ///     fn process(&mut self, _delta: f64) {
+    ///     fn process(&mut self, _delta: f32) {
     ///         let node = Node::new_alloc();
     ///         self.base_mut().add_child(node);
     ///     }
@@ -331,7 +331,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// #[godot_api]
     /// impl INode for MyClass {
-    ///     fn process(&mut self, _delta: f64) {
+    ///     fn process(&mut self, _delta: f32) {
     ///         self.base_mut().call("other_method".into(), &[]);
     ///     }
     /// }

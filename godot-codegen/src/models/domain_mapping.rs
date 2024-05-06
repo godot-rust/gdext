@@ -438,7 +438,6 @@ impl ClassMethod {
         }
 
         let is_private = special_cases::is_method_private(class_name, &method.name);
-
         let godot_method_name = method.name.clone();
 
         let qualifier = {
@@ -451,11 +450,14 @@ impl ClassMethod {
             FnQualifier::from_const_static(is_actually_const, method.is_static)
         };
 
+        let param_meta_overrides =
+            special_cases::get_class_method_meta_overrides(class_name, &method.name);
+
         Some(Self {
             common: FunctionCommon {
                 name: rust_method_name.to_string(),
                 godot_name: godot_method_name,
-                parameters: FnParam::new_range(&method.arguments, ctx),
+                parameters: FnParam::new_range(&method.arguments, &param_meta_overrides, ctx),
                 return_value: FnReturn::new(&method.return_value, ctx),
                 is_vararg: method.is_vararg,
                 is_private,
@@ -494,7 +496,7 @@ impl UtilityFunction {
             common: FunctionCommon {
                 name: rust_method_name,
                 godot_name: godot_method_name,
-                parameters: FnParam::new_range(&function.arguments, ctx),
+                parameters: FnParam::new_range(&function.arguments, &HashMap::new(), ctx),
                 return_value: FnReturn::new(&return_value, ctx),
                 is_vararg: function.is_vararg,
                 is_private: false,

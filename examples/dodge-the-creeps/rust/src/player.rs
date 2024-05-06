@@ -56,7 +56,7 @@ impl IArea2D for Player {
         self.base_mut().hide();
     }
 
-    fn process(&mut self, delta: f64) {
+    fn process(&mut self, delta: f32) {
         let mut animated_sprite = self
             .base()
             .get_node_as::<AnimatedSprite2D>("AnimatedSprite2D");
@@ -99,7 +99,7 @@ impl IArea2D for Player {
             animated_sprite.stop();
         }
 
-        let change = velocity * real::from_f64(delta);
+        let change = velocity * delta;
         let position = self.base().get_global_position() + change;
         let position = Vector2::new(
             position.x.clamp(0.0, self.screen_size.x),

@@ -90,7 +90,7 @@ pub fn make_function_definition(
     let has_default_params = default_parameters::function_uses_default_params(sig);
     let vis = if has_default_params {
         // Public API mapped by separate function.
-        // Needs to be crate-public because default-arg builder lives outside of the module.
+        // Needs to be crate-public because default-arg builder lives outside the module.
         quote! { pub(crate) }
     } else {
         make_vis(sig.is_private())

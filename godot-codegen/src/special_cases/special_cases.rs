@@ -27,6 +27,7 @@ use crate::models::domain::TyName;
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
 use crate::special_cases::codegen_special_cases;
 use crate::Context;
+use std::collections::HashMap;
 
 // Deliberately private -- all checks must go through `special_cases`.
 
@@ -353,4 +354,28 @@ pub fn is_class_level_server(class_name: &str) -> bool {
 
         => true, _ => false
     }
+}
+
+/// For certain methods like `_process()`, this can influence a parameter type's meta, e.g. represent `delta: f64` as `f32`.
+///
+/// Deliberately only operates on meta level and doesn't replace types, at it's very easy to introduce UB otherwise.
+#[rustfmt::skip]
+pub(crate) fn get_class_method_meta_overrides(
+    class: &TyName,
+    method_name: &str,
+) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+
+    match (class.godot_ty.as_str(), method_name) {
+        // Could also be `real`, but currently most docs use the resolved float type, e.g. VectorN x,y,z,w fields.
+        | ("Node", "_process")
+        | ("Node", "_physics_process") => {
+            #[cfg(not(feature = "double-precision"))]
+            map.insert("delta".to_string(), "float".to_string());
+        }
+
+        _ => {}
+    }
+
+    map
 }
