@@ -233,7 +233,7 @@ jobs:
             os: macos-12
             artifact-name: macos-double-x86-nightly
             godot-binary: godot.macos.editor.dev.double.x86_64
-            rust-extra-args: --features godot/custom-godot,godot/double-precision
+            rust-extra-args: --features godot/api-custom,godot/double-precision
 
           - name: macos-x86-4.2
             os: macos-12
@@ -247,12 +247,12 @@ jobs:
             godot-binary: godot.macos.editor.dev.arm64
             with-hot-reload: true
 
-           # custom-godot on macOS arm64 not working, due to clang linker issues.
+           # api-custom on macOS arm64 not working, due to clang linker issues.
 #          - name: macos-double-arm
 #            os: macos-latest
 #            artifact-name: macos-double-arm-nightly
 #            godot-binary: godot.macos.editor.dev.double.arm64
-#            rust-extra-args: --features godot/custom-godot,godot/double-precision
+#            rust-extra-args: --features godot/api-custom,godot/double-precision
 
           - name: macos-arm-4.2
             os: macos-latest
@@ -272,7 +272,7 @@ jobs:
             os: windows-latest
             artifact-name: windows-double-nightly
             godot-binary: godot.windows.editor.dev.double.x86_64.exe
-            rust-extra-args: --features godot/custom-godot,godot/double-precision
+            rust-extra-args: --features godot/api-custom,godot/double-precision
 
           - name: windows-4.2
             os: windows-latest
@@ -305,13 +305,13 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-double-nightly
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
-            rust-extra-args: --features godot/custom-godot,godot/double-precision,godot/codegen-full,godot/lazy-function-tables
+            rust-extra-args: --features godot/api-custom,godot/double-precision,godot/codegen-full,godot/lazy-function-tables
 
           - name: linux-features-experimental
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/custom-godot,godot/experimental-threads,godot/serde,codegen-full-experimental
+            rust-extra-args: --features godot/api-custom,godot/experimental-threads,godot/serde,codegen-full-experimental
 
           - name: linux-release
             os: ubuntu-20.04
@@ -354,7 +354,7 @@ jobs:
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
-            rust-extra-args: --features godot/custom-godot
+            rust-extra-args: --features godot/api-custom
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
             rust-target: x86_64-unknown-linux-gnu
 
@@ -393,7 +393,7 @@ jobs:
           rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
           rust-target: ${{ matrix.rust-target }}
           rust-cache-key: ${{ matrix.rust-cache-key }}
-          with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'custom-godot') }}
+          with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
           godot-check-header: ${{ matrix.godot-check-header }}
           
       - name: "Build and test hot-reload"

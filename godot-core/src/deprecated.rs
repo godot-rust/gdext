@@ -12,10 +12,13 @@
 // https://github.com/rust-lang/rust/pull/58994. Fortunately, an extra layer of indirection solves most problems: we generate a declarative
 // macro that itself isn't deprecated, but _its_ expansion is. Since the expansion happens in a later step, the warning is emitted.
 
-#[inline(always)]
 #[deprecated = "#[base] is no longer needed; Base<T> is recognized directly. \n\
         More information on https://github.com/godot-rust/gdext/pull/577."]
 pub const fn base_attribute() {}
+
+#[deprecated = "Cargo feature `custom-godot` has been renamed to `api-custom`. \n\
+        More information on https://github.com/godot-rust/gdext/pull/702."]
+pub const fn feature_custom_godot() {}
 
 #[macro_export]
 macro_rules! emit_deprecated_warning {

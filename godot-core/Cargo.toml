@@ -15,12 +15,14 @@ codegen-lazy-fptrs = [
     "godot-ffi/codegen-lazy-fptrs",
     "godot-codegen/codegen-lazy-fptrs",
 ]
-custom-godot = ["godot-ffi/custom-godot", "godot-codegen/custom-godot"]
+api-custom = ["godot-ffi/api-custom", "godot-codegen/api-custom"]
 double-precision = ["godot-codegen/double-precision"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = ["godot-ffi/experimental-threads"]
 debug-log = ["godot-ffi/debug-log"]
 trace = []
+api-4-0 = ["godot-ffi/api-4-0"]
+api-4-1 = ["godot-ffi/api-4-1"]
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi" }

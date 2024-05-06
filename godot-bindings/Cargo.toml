@@ -8,17 +8,21 @@ keywords = ["gamedev", "godot", "engine", "ffi", "sys"]
 categories = ["game-engines", "graphics"]
 
 # Since features are additive and we want the user to user prebuilt by default, we need to have `prebuilt-godot` as the
-# default feature. However, it's not possible to _disable_ the prebuilt dependency when specifying `godot-custom` (without
+# default feature. However, it's not possible to _disable_ the prebuilt dependency when specifying `api-custom` (without
 # requiring no-default-features), so we unfortunately still need to depend on prebuilt and just ignore it.
 # The artifact generator explicitly excludes that though (to avoid a quasi-circular dependency back to its repo).
 [features]
-default = ["prebuilt-godot"]
-prebuilt-godot = ["dep:godot4-prebuilt"]
-custom-godot = ["dep:bindgen", "dep:regex", "dep:which"]
-custom-godot-extheader = []
+api-4-0 = ["dep:prebuilt-4-0"]
+api-4-1 = ["dep:prebuilt-4-1"]
+default = ["dep:prebuilt-4-2"]
+api-custom = ["dep:bindgen", "dep:regex", "dep:which"]
+api-custom-extheader = []
+
 
 [dependencies]
-godot4-prebuilt = { optional = true, git = "https://github.com/godot-rust/godot4-prebuilt", branch = "4.2" }
+prebuilt-4-0 = { optional = true, package = "godot4-prebuilt", git = "https://github.com/godot-rust/godot4-prebuilt", branch = "4.0.4" }
+prebuilt-4-1 = { optional = true, package = "godot4-prebuilt", git = "https://github.com/godot-rust/godot4-prebuilt", branch = "4.1.4" }
+prebuilt-4-2 = { optional = true, package = "godot4-prebuilt", git = "https://github.com/godot-rust/godot4-prebuilt", branch = "4.2.2" }
 
 # Do not use bindgen 0.69, it contains regression that forces recompilation of code.
 bindgen = { optional = true, version = "0.68", default-features = false, features = ["runtime"] }

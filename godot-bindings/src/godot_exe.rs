@@ -268,7 +268,7 @@ pub(crate) fn locate_godot_binary() -> PathBuf {
         path
     } else {
         panic!(
-            "gdext with `custom-godot` feature requires 'godot4' executable or a GODOT4_BIN \
+            "gdext with `api-custom` feature requires 'godot4' executable or a GODOT4_BIN \
                  environment variable (with the path to the executable)."
         )
     }

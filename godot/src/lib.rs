@@ -113,18 +113,26 @@
 //!   Use `f64` instead of `f32` for the floating-point type [`real`][type@builtin::real]. Requires Godot to be compiled with the
 //!   scons flag `precision=double`.<br><br>
 //!
-//! * **`custom-godot`**
+//! * **`api-4-{minor}`**
+//!
+//!   Sets the [API level](https://godot-rust.github.io/book/toolchain/compatibility.html) to the specified Godot version, e.g. `api-4-1`.
+//!   You can use at most one `api-*` feature. By default, a recent stable Godot release is used.
+//!
+//!   The API level determines the lowest possible Godot version under which the extension can run. We support latest patch releases of each
+//!   Godot minor version, down to `4.0`. From `4.1` onwards, the API is forward-compatible (you can use `api-4-1` under a Godot 4.3 binary).
+//!   Level `4.0` is not compatible with newer versions.
+//!
+//!   If you want to share your extension with others, we recommend setting the level as low as possible. This can however mean you cannot
+//!   use newer Godot features. In certain cases, we provide polyfills for newer features on older versions.
+//!
+//!   The gdext-built extension will check compatibility on startup and refuse to load if it detects a mismatch.<br><br>
+//!
+//! * **`api-custom`**
 //!
 //!   Use a custom Godot build instead of the latest official release. This is useful when you like to use a
 //!   version compiled yourself, with custom flags.
 //!
-//!   If you simply want to use a different official release, use this pattern instead (here e.g. for version `4.0`):
-//!   ```toml
-//!   # Trick Cargo into seeing a different URL; https://github.com/rust-lang/cargo/issues/5478
-//!   [patch."https://github.com/godot-rust/godot4-prebuilt"]
-//!   godot4-prebuilt = { git = "https://github.com//godot-rust/godot4-prebuilt", branch = "4.0"}
-//!   ```
-//!   <br>
+//!   This feature is mutually exclusive with `api-4-*` features.<br><br>
 //!
 //! * **`serde`**
 //!
@@ -177,11 +185,8 @@
 //! Please refrain from using undocumented and private features; if you are missing certain functionality, bring it up for discussion instead.
 //! This allows us to decide whether it fits the scope of the library and to design proper APIs for it.
 
-#[doc(inline)]
-pub use godot_core::{builtin, engine, log, obj};
-
-#[doc(hidden)]
-pub use godot_core::sys;
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Validations
 
 #[cfg(all(feature = "lazy-function-tables", feature = "experimental-threads"))]
 compile_error!("Thread safety for lazy function pointers is not yet implemented.");
@@ -190,8 +195,38 @@ compile_error!("Thread safety for lazy function pointers is not yet implemented.
 compile_error!("Must opt-in using `experimental-wasm` Cargo feature; keep in mind that this is work in progress");
 
 // See also https://github.com/godotengine/godot/issues/86346.
-#[cfg(all(feature = "double-precision", not(feature = "custom-godot")))]
-compile_error!("The feature `double-precision` currently requires `custom-godot` due to incompatibilities in the GDExtension API JSON.");
+#[cfg(all(feature = "double-precision", not(feature = "api-custom")))]
+compile_error!("The feature `double-precision` currently requires `api-custom` due to incompatibilities in the GDExtension API JSON.");
+
+#[cfg(feature = "custom-godot")]
+__deprecated::emit_deprecated_warning!(feature_custom_godot);
+
+const fn _validate_features() {
+    let mut count = 0;
+
+    if cfg!(feature = "api-4-0") {
+        count += 1;
+    }
+    if cfg!(feature = "api-4-1") {
+        count += 1;
+    }
+    if cfg!(feature = "api-custom") {
+        count += 1;
+    }
+
+    assert!(count <= 1, "at most one `api-*` feature can be enabled");
+}
+
+const _: () = _validate_features();
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Modules
+
+#[doc(inline)]
+pub use godot_core::{builtin, engine, log, obj};
+
+#[doc(hidden)]
+pub use godot_core::sys;
 
 /// Entry point and global init/shutdown of the library.
 pub mod init {

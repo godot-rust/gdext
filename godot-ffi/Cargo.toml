@@ -8,12 +8,14 @@ keywords = ["gamedev", "godot", "engine", "ffi"]
 categories = ["game-engines", "graphics"]
 
 [features]
-custom-godot = ["godot-bindings/custom-godot"]
+api-custom = ["godot-bindings/api-custom"]
 codegen-fmt = ["godot-codegen/codegen-fmt"]
 codegen-lazy-fptrs = ["godot-codegen/codegen-lazy-fptrs"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = []
 debug-log = []
+api-4-0 = ["godot-bindings/api-4-0"]
+api-4-1 = ["godot-bindings/api-4-1"]
 
 # TODO: get rid of paste and gensym, they are trivially implementable with proc-macros. Update cargo-deny.
 # Especially gensym which pulls in entire syn for 10 LoC. See https://github.com/regiontog/gensym/blob/master/src/lib.rs.

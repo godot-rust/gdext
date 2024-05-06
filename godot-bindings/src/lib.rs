@@ -11,14 +11,20 @@ use std::path::Path;
 
 pub use watch::StopWatch;
 
-// Note: we cannot prevent both `custom-godot` and `prebuilt-godot` from being specified; see Cargo.toml for more information.
+#[cfg(feature = "api-4-0")]
+use prebuilt_4_0 as godot4_prebuilt;
+#[cfg(feature = "api-4-1")]
+use prebuilt_4_1 as godot4_prebuilt;
 
-#[cfg(not(any(feature = "custom-godot", feature = "prebuilt-godot")))]
-compile_error!(
-    "At least one of `custom-godot` or `prebuilt-godot` must be specified (none given)."
-);
+// If none of the api-* features are provided, use default prebuilt version (typically latest Godot stable release).
+#[cfg(not(any(
+    feature = "api-4-0", //
+    feature = "api-4-1", //
+    feature = "api-custom", //
+)))]
+use prebuilt_4_2 as godot4_prebuilt;
 
-// This is outside of `godot_version` to allow us to use it even when we don't have the `custom-godot`
+// This is outside of `godot_version` to allow us to use it even when we don't have the `api-custom`
 // feature enabled.
 #[derive(Eq, PartialEq, Debug)]
 pub struct GodotVersion {
@@ -45,7 +51,7 @@ pub struct GodotVersion {
 #[cfg(test)]
 mod godot_version;
 
-#[cfg(feature = "custom-godot")]
+#[cfg(feature = "api-custom")]
 #[path = ""]
 mod custom {
     use super::*;
@@ -62,7 +68,7 @@ mod custom {
         godot_exe::write_gdextension_headers(h_path, rs_path, false, watch);
     }
 
-    #[cfg(feature = "custom-godot-extheader")]
+    #[cfg(feature = "api-custom-extheader")]
     pub fn write_gdextension_headers_from_c(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
         godot_exe::write_gdextension_headers(h_path, rs_path, true, watch);
     }
@@ -72,13 +78,13 @@ mod custom {
     }
 }
 
-#[cfg(feature = "custom-godot")]
+#[cfg(feature = "api-custom")]
 pub use custom::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Reuse existing files
 
-#[cfg(not(feature = "custom-godot"))]
+#[cfg(not(feature = "api-custom"))]
 #[path = ""]
 mod prebuilt {
     use super::*;
@@ -118,7 +124,7 @@ mod prebuilt {
     }
 }
 
-#[cfg(not(feature = "custom-godot"))]
+#[cfg(not(feature = "api-custom"))]
 pub use prebuilt::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
