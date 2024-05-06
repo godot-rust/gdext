@@ -458,7 +458,6 @@ impl ClassMethod {
         }
 
         let is_private = special_cases::is_method_private(class_name, &method.name);
-
         let godot_method_name = method.name.clone();
 
         let qualifier = {
@@ -487,11 +486,14 @@ impl ClassMethod {
                 );
             });
 
+        let param_meta_overrides =
+            special_cases::get_class_method_meta_overrides(class_name, &method.name);
+
         Some(Self {
             common: FunctionCommon {
                 name: rust_method_name.to_string(),
                 godot_name: godot_method_name,
-                parameters: FnParam::new_range(&method.arguments, ctx),
+                parameters: FnParam::new_range(&method.arguments, &param_meta_overrides, ctx),
                 return_value: FnReturn::new(&method.return_value, ctx),
                 is_vararg: method.is_vararg,
                 is_private,
@@ -525,7 +527,7 @@ impl UtilityFunction {
         let parameters = if function.is_vararg && args.len() == 1 && args[0].name == "arg1" {
             vec![]
         } else {
-            FnParam::new_range(&function.arguments, ctx)
+            FnParam::new_range(&function.arguments, &HashMap::new(), ctx)
         };
 
         let godot_method_name = function.name.clone();

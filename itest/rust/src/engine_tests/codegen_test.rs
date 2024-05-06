@@ -94,7 +94,7 @@ impl IHttpRequest for CodegenTest {
     }
 
     // Test unnamed parameter in virtual function
-    fn process(&mut self, _: f64) {}
+    fn process(&mut self, _: real) {}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

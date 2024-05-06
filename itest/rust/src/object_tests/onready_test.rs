@@ -11,9 +11,8 @@ use crate::framework::{expect_panic, itest};
 use godot::classes::notify::NodeNotification;
 use godot::classes::{INode, Node};
 use godot::register::{godot_api, GodotClass};
-
-use godot::obj::{Gd, NewAlloc, OnReady};
-use godot::prelude::{Base, ToGodot};
+use godot::obj::{Gd, Base, NewAlloc, OnReady};
+use godot::meta::{ToGodot};
 
 #[itest]
 fn onready_deref() {
@@ -262,7 +261,7 @@ impl OnReadyWithImplWithoutReady {
 #[godot_api]
 impl INode for OnReadyWithImplWithoutReady {
     // Declare another function to ensure virtual getter must be provided.
-    fn process(&mut self, _delta: f64) {}
+    fn process(&mut self, _delta: real) {}
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

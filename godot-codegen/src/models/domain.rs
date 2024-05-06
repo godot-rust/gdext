@@ -498,10 +498,14 @@ pub struct FnParam {
 }
 
 impl FnParam {
-    pub fn new_range(method_args: &Option<Vec<JsonMethodArg>>, ctx: &mut Context) -> Vec<FnParam> {
+    pub fn new_range(
+        method_args: &Option<Vec<JsonMethodArg>>,
+        meta_overrides: &HashMap<String, String>,
+        ctx: &mut Context,
+    ) -> Vec<FnParam> {
         option_as_slice(method_args)
             .iter()
-            .map(|arg| Self::new(arg, ctx))
+            .map(|arg| Self::new(arg, ctx, meta_overrides))
             .collect()
     }
 
@@ -515,9 +519,18 @@ impl FnParam {
             .collect()
     }
 
-    pub fn new(method_arg: &JsonMethodArg, ctx: &mut Context) -> FnParam {
+    pub fn new(
+        method_arg: &JsonMethodArg,
+        ctx: &mut Context,
+        meta_overrides: &HashMap<String, String>,
+    ) -> FnParam {
+        // Some methods like _process(f64) have manual overrides to f32.
+        let forced_meta = meta_overrides.get(&method_arg.name);
+        let meta = forced_meta.or(method_arg.meta.as_ref());
+
         let name = safe_ident(&method_arg.name);
-        let type_ = conv::to_rust_type(&method_arg.type_, method_arg.meta.as_ref(), ctx);
+
+        let type_ = conv::to_rust_type(&method_arg.type_, meta, ctx);
         let default_value = method_arg
             .default_value
             .as_ref()

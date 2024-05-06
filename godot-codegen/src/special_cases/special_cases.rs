@@ -23,12 +23,14 @@
 
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
+use std::collections::HashMap;
+use proc_macro2::Ident;
 use crate::conv::to_enum_type_uncached;
 use crate::models::domain::{Enum, RustTy, TyName};
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
 use crate::special_cases::codegen_special_cases;
 use crate::Context;
-use proc_macro2::Ident;
+
 // Deliberately private -- all checks must go through `special_cases`.
 
 #[rustfmt::skip]
@@ -62,7 +64,7 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         | ("VisualShaderNodeComment", "set_description")
         | ("VisualShaderNodeComment", "get_description")
         => true,
-        
+
         // Workaround for methods unexposed in Release mode, see https://github.com/godotengine/godot/pull/100317
         // and https://github.com/godotengine/godot/pull/100328.
         #[cfg(not(debug_assertions))]
@@ -840,9 +842,9 @@ pub fn is_enum_private(class_name: Option<&TyName>, enum_name: &str) -> bool {
 }
 
 /// Certain enums that are extremely unlikely to get new identifiers in the future.
-/// 
+///
 /// `class_name` = None for global enums.
-/// 
+///
 /// Very conservative, only includes a few enums. Even `VariantType` was extended over time.
 /// Also does not work for any enums containing duplicate ordinals.
 #[rustfmt::skip]
@@ -873,7 +875,7 @@ pub fn is_enum_bitfield(class_name: Option<&TyName>, enum_name: &str) -> Option<
     match (class_name, enum_name) {
         | (Some("Object"), "ConnectFlags")
 
-        => Some(true), 
+        => Some(true),
         _ => None
     }
 }
@@ -911,4 +913,28 @@ pub fn as_enum_bitmaskable(enum_: &Enum) -> Option<RustTy> {
 
     let rust_ty = to_enum_type_uncached(mapped, true);
     Some(rust_ty)
+}
+
+/// For certain methods like `_process()`, this can influence a parameter type's meta, e.g. represent `delta: f64` as `f32`.
+///
+/// Deliberately only operates on meta level and doesn't replace types, at it's very easy to introduce UB otherwise.
+#[rustfmt::skip]
+pub(crate) fn get_class_method_meta_overrides(
+    class: &TyName,
+    method_name: &str,
+) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+
+    match (class.godot_ty.as_str(), method_name) {
+        // Could also be `real`, but currently most docs use the resolved float type, e.g. VectorN x,y,z,w fields.
+        | ("Node", "_process")
+        | ("Node", "_physics_process") => {
+            #[cfg(not(feature = "double-precision"))]
+            map.insert("delta".to_string(), "float".to_string());
+        }
+
+        _ => {}
+    }
+
+    map
 }
