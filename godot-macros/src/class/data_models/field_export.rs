@@ -9,7 +9,6 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use std::collections::HashSet;
 
-use crate::class::FieldHint;
 use crate::util::{KvParser, ListParser};
 use crate::ParseResult;
 
@@ -353,16 +352,16 @@ impl FieldExport {
 
 macro_rules! quote_export_func {
     ($function_name:ident($($tt:tt)*)) => {
-        FieldHint::HintFromExportFunction(quote! {
+        Some(quote! {
             ::godot::register::property::export_info_functions::$function_name($($tt)*)
         })
     }
 }
 
 impl FieldExport {
-    pub fn to_field_hint(&self) -> FieldHint {
+    pub fn to_export_hint(&self) -> Option<TokenStream> {
         match self {
-            FieldExport::Default => FieldHint::Inferred,
+            FieldExport::Default => None,
 
             FieldExport::Range {
                 min,
