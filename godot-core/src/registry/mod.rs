@@ -191,6 +191,8 @@ pub enum PluginItem {
             ) -> *const sys::GDExtensionPropertyInfo,
         >,
 
+        // We do not support using this in Godot < 4.3, however it's easier to leave this in and fail elsewhere when attempting to use
+        // this in Godot < 4.3.
         #[cfg(before_api = "4.3")]
         user_free_property_list_fn: Option<
             unsafe extern "C" fn(

@@ -228,7 +228,8 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     #(#cfg_attrs)*
                     impl ::godot::obj::cap::GodotGetPropertyList for #class_name {
                         fn __godot_get_property_list(&mut self) -> Vec<::godot::builtin::meta::PropertyInfo> {
-                            // Only supported in godot api > 4.3. If support is added for earlier versions this is still needed.
+                            // `get_property_list` is only supported in Godot API >= 4.3. If we add support for `get_property_list` to earlier
+                            // versions of Godot then this code is still needed and should be uncommented.
                             //
                             // use ::godot::obj::UserClass as _;
                             //

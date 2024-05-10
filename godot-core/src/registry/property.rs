@@ -139,7 +139,7 @@ impl PropertyHintInfo {
 
 /// Functions used to translate user-provided arguments into export hints.
 ///
-/// Each function is named the same as the equivalent Godot annotation. E.g `@export_range` is `fn export_range`.
+/// Each function is named the same as the equivalent Godot annotation. For instance `@export_range` in Godot is `fn export_range` here.
 pub mod export_info_functions {
     use crate::builtin::GString;
     use crate::engine::global::PropertyHint;
@@ -247,7 +247,8 @@ pub mod export_info_functions {
     /// # Examples
     ///
     /// ```no_run
-    /// export_enum(&[("a", None), ("b", "Some(10)")]);
+    /// # use godot::register::property::export_info_functions::export_enum;
+    /// export_enum(&[("a", None), ("b", Some(10))]);
     /// ```
     pub fn export_enum<T>(variants: &[T]) -> PropertyHintInfo
     where
@@ -279,7 +280,8 @@ pub mod export_info_functions {
     /// # Examples
     ///
     /// ```no_run
-    /// export_flags(&[("a", None), ("b", "Some(10)")]);
+    /// # use godot::register::property::export_info_functions::export_flags;
+    /// export_flags(&[("a", None), ("b", Some(10))]);
     /// ```
     pub fn export_flags<T>(bits: &[T]) -> PropertyHintInfo
     where

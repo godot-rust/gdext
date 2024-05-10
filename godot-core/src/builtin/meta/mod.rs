@@ -20,9 +20,10 @@ pub use signature::*;
 
 pub(crate) use godot_convert::convert_error::*;
 
+use crate::builtin::*;
 use crate::engine::global::{self, PropertyHint, PropertyUsageFlags};
+use crate::property::Var;
 use crate::property::{Export, PropertyHintInfo};
-use crate::{builtin::*, property::Var};
 use godot_ffi as sys;
 use registration::method::MethodParamOrReturnInfo;
 use sys::{GodotFfi, GodotNullableFfi};
@@ -278,7 +279,7 @@ pub struct PropertyInfo {
 
     /// Which class this property is.
     ///
-    /// This should be set to [`ClassName::none()`] unless the variant type is object. You can use
+    /// This should be set to [`ClassName::none()`] unless the variant type is `Object`. You can use
     /// [`GodotClass::class_name()`](crate::obj::GodotClass::class_name()) to get the right name to use here.
     pub class_name: ClassName,
 
@@ -317,7 +318,7 @@ impl PropertyInfo {
 
     /// Change the `hint` and `hint_string` to be the given `hint_info`.
     ///
-    /// See [`export_info_functions`](crate::property::export_info_function) for functions that return appropriate `PropertyHintInfo`s for
+    /// See [`export_info_functions`](crate::property::export_info_functions) for functions that return appropriate `PropertyHintInfo`s for
     /// various Godot annotations.
     ///
     /// # Examples
@@ -326,11 +327,11 @@ impl PropertyInfo {
     ///
     // TODO: Make this nicer to use.
     /// ```no_run
-    /// # use crate::property::export_info_function;
-    /// # use crate::builtin::meta::PropertyInfo;
+    /// use godot::register::property::export_info_functions;
+    /// use godot::builtin::meta::PropertyInfo;
     ///
     /// let property = PropertyInfo::new_export::<f64>("my_range_property")
-    ///     .with_hint_info(export_info_function::export_range(
+    ///     .with_hint_info(export_info_functions::export_range(
     ///         0.0,
     ///         10.0,
     ///         Some(0.1),
@@ -340,7 +341,7 @@ impl PropertyInfo {
     ///         false,
     ///         false,
     ///         false,
-    ///     ))
+    ///     ));
     /// ```
     pub fn with_hint_info(self, hint_info: PropertyHintInfo) -> Self {
         let PropertyHintInfo { hint, hint_string } = hint_info;
@@ -415,7 +416,7 @@ impl PropertyInfo {
     /// [`free_owned_property_sys`](Self::free_owned_property_sys).
     ///
     /// This will leak memory unless used together with `free_owned_property_sys`.
-    pub fn into_owned_property_sys(self) -> sys::GDExtensionPropertyInfo {
+    pub(crate) fn into_owned_property_sys(self) -> sys::GDExtensionPropertyInfo {
         use crate::obj::EngineBitfield as _;
         use crate::obj::EngineEnum as _;
 
@@ -433,9 +434,9 @@ impl PropertyInfo {
     ///
     /// # Safety
     ///
-    /// * Must only be used on a struct returned from a call to [`into_owned_property_sys`], without modification.
+    /// * Must only be used on a struct returned from a call to `into_owned_property_sys`, without modification.
     /// * Must not be called more than once on a `sys::GDExtensionPropertyInfo` struct.
-    pub unsafe fn free_owned_property_sys(info: sys::GDExtensionPropertyInfo) {
+    pub(crate) unsafe fn free_owned_property_sys(info: sys::GDExtensionPropertyInfo) {
         // SAFETY: This function was called on a pointer returned from `into_owned_property_sys`, thus both `info.name` and
         // `info.hint_string` were created from calls to `into_owned_string_sys` on their respective types.
         // Additionally this function isn't called more than once on a struct containing the same `name` or `hint_string` pointers.

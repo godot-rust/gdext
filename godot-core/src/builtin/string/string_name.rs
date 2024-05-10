@@ -134,6 +134,9 @@ impl StringName {
         sys::static_assert_eq_size_align!(StringName, sys::types::OpaqueStringName);
 
         let ptr = ptr.cast::<Self>();
+
+        // SAFETY: `ptr` was returned from a call to `into_owned_string_sys`, which means it was created by a call to
+        // `Box::into_raw`, thus we can use `Box::from_raw` here. Additionally this is only called once on this pointer.
         let boxed = unsafe { Box::from_raw(ptr) };
         *boxed
     }

@@ -296,6 +296,8 @@ impl IRefCounted for RevertTest {
         match String::from(property).as_str() {
             "property_not_revert" => None,
             "property_do_revert" => Some(GString::from("hello!").to_variant()),
+            // No UB or anything else like a crash or panic should happen when `property_can_revert` and `property_get_revert` return
+            // inconsistent values, but in case something like that happens we should be able to detect it through this function.
             "property_changes" => {
                 if INC.fetch_add(1, std::sync::atomic::Ordering::AcqRel) % 2 == 0 {
                     None

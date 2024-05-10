@@ -201,6 +201,9 @@ pub unsafe extern "C" fn unreference<T: GodotClass>(instance: sys::GDExtensionCl
     storage.on_dec_ref();
 }
 
+/// # Safety
+///
+/// Must only be called by Godot as a callback for `get_property_list` for a rust-defined class of type `T`.
 #[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
     instance: sys::GDExtensionClassInstancePtr,
@@ -216,6 +219,7 @@ pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
         .map(|prop| prop.into_owned_property_sys())
         .collect();
 
+    // SAFETY: Godot ensures that `count` is initialized and valid to write into.
     unsafe {
         *count = property_list_sys
             .len()
@@ -226,6 +230,10 @@ pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
     Box::leak(property_list_sys).as_mut_ptr()
 }
 
+/// # Safety
+///
+/// - Must only be called by Godot as a callback for `free_property_list` for a rust-defined class of type `T`.
+/// - Must only be passed to Godot as a callback when [`get_property_list`] is the corresponding `get_property_list` callback.
 #[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
     _instance: sys::GDExtensionClassInstancePtr,
@@ -233,12 +241,20 @@ pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
     count: u32,
 ) {
     let list = list as *mut sys::GDExtensionPropertyInfo;
-    let property_list_sys = unsafe {
-        Box::from_raw(std::slice::from_raw_parts_mut(
-            list,
-            count.try_into().expect("`u32` should fit in `usize`"),
-        ))
+
+    // SAFETY: `list` comes from `get_property_list` above, and `count` also comes from the same function.
+    // This means that `list` is a pointer to a `&[sys::GDExtensionPropertyInfo]` slice of length `count`.
+    // This means all the preconditions of this function are satisfied except uniqueness of this point.
+    // Uniqueness is guaranteed as Godot called this function at a point where the list is no longer accessed
+    // through any other pointer, and we dont access the slice through any other pointer after this call either.
+    let property_list_slice = unsafe {
+        std::slice::from_raw_parts_mut(list, count.try_into().expect("`u32` should fit in `usize`"))
     };
+
+    // SAFETY: This slice was created by calling `Box::leak` on a `Box<[sys::GDExtensionPropertyInfo]>`, we can thus
+    // call `Box::from_raw` on this slice to get back the original boxed slice.
+    // Note that this relies on coercion of `&mut` -> `*mut`.
+    let property_list_sys = unsafe { Box::from_raw(property_list_slice) };
 
     for property_info in property_list_sys.iter() {
         // SAFETY: The structs contained in this list were all returned from `into_owned_property_sys`.
@@ -267,6 +283,9 @@ unsafe fn raw_property_get_revert<T: cap::GodotPropertyGetRevert>(
     T::__godot_property_get_revert(&*instance, property.clone())
 }
 
+/// # Safety
+///
+/// - Must only be called by Godot as a callback for `property_can_revert` for a rust-defined class of type `T`.
 #[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "C" fn property_can_revert<T: cap::GodotPropertyGetRevert>(
     instance: sys::GDExtensionClassInstancePtr,
@@ -278,6 +297,9 @@ pub unsafe extern "C" fn property_can_revert<T: cap::GodotPropertyGetRevert>(
     revert.is_some() as sys::GDExtensionBool
 }
 
+/// # Safety
+///
+/// - Must only be called by Godot as a callback for `property_get_revert` for a rust-defined class of type `T`.
 #[deny(unsafe_op_in_unsafe_fn)]
 pub unsafe extern "C" fn property_get_revert<T: cap::GodotPropertyGetRevert>(
     instance: sys::GDExtensionClassInstancePtr,
