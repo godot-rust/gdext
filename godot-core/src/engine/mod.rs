@@ -15,7 +15,7 @@ pub use crate::gen::central::global;
 pub use crate::gen::classes::*;
 pub use crate::gen::utilities;
 pub use io::*;
-pub use script_instance::{create_script_instance, ScriptInstance};
+pub use script_instance::{create_script_instance, ScriptInstance, SiMut};
 
 use crate::builtin::meta::CallContext;
 use crate::sys;
