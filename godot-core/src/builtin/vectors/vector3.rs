@@ -205,7 +205,7 @@ impl Vector3 {
 
     pub fn signed_angle_to(self, to: Self, axis: Self) -> real {
         let cross_to = self.cross(to);
-        let unsigned_angle = self.dot(to).atan2(cross_to.length());
+        let unsigned_angle = cross_to.length().atan2(self.dot(to));
         let sign = cross_to.dot(axis);
         if sign < 0.0 {
             -unsigned_angle
