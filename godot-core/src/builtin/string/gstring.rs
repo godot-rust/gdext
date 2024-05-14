@@ -88,6 +88,12 @@ impl GString {
     ///
     /// Note: This operation is *O*(*n*). Consider using [`chars_unchecked`][Self::chars_unchecked]
     /// if you can make sure the string is a valid UTF-32.
+    #[cfg_attr(
+        since_api = "4.1",
+        deprecated = "Use `chars()` instead. \n\
+        Since version 4.1, Godot ensures valid UTF-32, checked and unchecked overloads are no longer needed. \n\
+        For details, see [godotengine/godot#74760](https://github.com/godotengine/godot/pull/74760)."
+    )]
     pub fn chars_checked(&self) -> &[char] {
         unsafe {
             let s = self.string_sys();
@@ -111,6 +117,12 @@ impl GString {
     /// Make sure the string only contains valid unicode scalar values, currently
     /// Godot allows for unpaired surrogates and out of range code points to be appended
     /// into the string.
+    #[cfg_attr(
+        since_api = "4.1",
+        deprecated = "Use `chars()` instead. \n\
+        Since version 4.1, ensures valid UTF-32, checked and unchecked overloads are no longer needed. \n\
+        For details, see [godotengine/godot#74760](https://github.com/godotengine/godot/pull/74760)."
+    )]
     pub unsafe fn chars_unchecked(&self) -> &[char] {
         let s = self.string_sys();
         let len = interface_fn!(string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
@@ -121,6 +133,16 @@ impl GString {
             return &[];
         }
         std::slice::from_raw_parts(ptr as *const char, len as usize)
+    }
+
+    /// Gets the internal chars slice from a [`GString`].
+    #[cfg(since_api = "4.1")]
+    pub fn chars(&self) -> &[char] {
+        // SAFETY: Godot 4.1 ensures valid UTF-32, making this safe to call.
+        #[allow(deprecated)]
+        unsafe {
+            self.chars_unchecked()
+        }
     }
 
     ffi_methods! {
@@ -181,7 +203,17 @@ impl_builtin_traits! {
 
 impl fmt::Display for GString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s: String = self.chars_checked().iter().collect();
+        let s: String;
+
+        #[cfg(before_api = "4.1")]
+        {
+            s = self.chars_checked().iter().collect();
+        }
+        #[cfg(since_api = "4.1")]
+        {
+            s = self.chars().iter().collect();
+        }
+
         f.write_str(s.as_str())
     }
 }
