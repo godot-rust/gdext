@@ -68,3 +68,18 @@ fn vector3_equiv() {
         );
     }
 }
+
+#[itest]
+fn vector3_signed_angle_to() {
+    let outer = Vector3::new(1.0, 1.0, 0.0);
+    let inner = InnerVector3::from_outer(&outer);
+
+    let to = Vector3::new(1.0, 1.0, 1.0);
+    let axis = Vector3::UP;
+
+    assert_eq_approx!(
+        outer.signed_angle_to(to, axis),
+        inner.signed_angle_to(to, axis) as real,
+        "signed_angle_to\n",
+    );
+}
