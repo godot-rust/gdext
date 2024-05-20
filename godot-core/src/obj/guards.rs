@@ -87,6 +87,54 @@ impl<T: GodotClass> Drop for GdMut<'_, T> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// Mutably/exclusively bound reference guard for a [`DynGd`][crate::obj::DynGd] smart pointer.
+///
+/// See [`DynGd::dbind_mut`][crate::obj::DynGd::dbind_mut] for usage.
+#[derive(Debug)]
+pub struct GdDynMut<'a, T: GodotClass, D: ?Sized> {
+    guard: MutGuard<'a, T>,
+    cached_ptr: *mut D,
+}
+
+impl<'a, T: GodotClass, D: ?Sized> GdDynMut<'a, T, D> {
+    pub(crate) fn from_guard(
+        guard: MutGuard<'a, T>,
+        dynamic_caster: fn(&mut T) -> &mut D,
+    ) -> Self {
+        let obj = &mut *guard;
+        let dyn_obj = dynamic_caster(obj);
+
+        // Note: this pointer is persisted because it is protected by the guard, and the original T instance is pinned during that.
+        // Caching prevents extra indirections; any calls through the dyn guard after the first is simply a Rust dyn-trait virtual call.
+        let cached_ptr = std::ptr::addr_of_mut!(*dyn_obj);
+        Self { guard, cached_ptr }
+    }
+}
+
+impl<T: GodotClass, D: ?Sized> Deref for GdDynMut<'_, T, D> {
+    type Target = D;
+
+    fn deref(&self) -> &D {
+        // SAFETY: pointer refers to object that is pinned while guard is alive.
+        unsafe { self.cached_ptr.read() }
+    }
+}
+
+impl<T: GodotClass, D: ?Sized> DerefMut for GdDynMut<'_, T, D> {
+    fn deref_mut(&mut self) -> &mut D {
+        // SAFETY: pointer refers to object that is pinned while guard is alive.
+        unsafe { self.cached_ptr.read() }
+    }
+}
+
+impl<T: GodotClass, D: ?Sized> Drop for GdDynMut<'_, T, D> {
+    fn drop(&mut self) {
+        out!("GdMut drop: {:?}", std::any::type_name::<D>());
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 macro_rules! make_base_ref {
     ($ident:ident, $bound:ident, $doc_type:ident, $doc_path:path, $object_name:literal) => {
         /// Shared reference guard for a [`Base`](crate::obj::Base) pointer.

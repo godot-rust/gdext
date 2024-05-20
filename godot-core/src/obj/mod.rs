@@ -13,6 +13,7 @@
 
 mod base;
 mod gd;
+mod dyn_gd;
 mod guards;
 mod instance_id;
 mod object_arg;

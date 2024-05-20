@@ -375,7 +375,7 @@ impl<T: GodotClass> Gd<T> {
     /// to the returned value.
     pub fn try_cast<Derived>(self) -> Result<Gd<Derived>, Self>
     where
-        Derived: GodotClass + Inherits<T>,
+        Derived:  Inherits<T>,
     {
         // Separate method due to more restrictive bounds.
         self.owned_cast()
@@ -387,7 +387,7 @@ impl<T: GodotClass> Gd<T> {
     /// If the class' dynamic type is not `Derived` or one of its subclasses. Use [`Self::try_cast()`] if you want to check the result.
     pub fn cast<Derived>(self) -> Gd<Derived>
     where
-        Derived: GodotClass + Inherits<T>,
+        Derived: Inherits<T>,
     {
         self.owned_cast().unwrap_or_else(|from_obj| {
             panic!(
