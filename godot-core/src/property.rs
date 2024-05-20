@@ -7,6 +7,8 @@
 
 //! Registration support for property types.
 
+use godot_ffi as sys;
+
 use crate::builtin::meta::{FromGodot, GodotConvert, ToGodot};
 use crate::builtin::GString;
 use crate::engine::global::PropertyHint;
@@ -117,14 +119,20 @@ pub struct PropertyHintInfo {
 }
 
 impl PropertyHintInfo {
-    /// Create a new `PropertyHintInfo` with a property hint of
-    /// [`PROPERTY_HINT_NONE`](PropertyHint::NONE).
+    /// Create a new `PropertyHintInfo` with a property hint of [`PROPERTY_HINT_NONE`](PropertyHint::NONE).
     ///
-    /// Usually Godot expects this to be combined with a `hint_string` containing the name of the type.
+    /// Starting with Godot version 4.3, the hint string will always be the empty string. Before that, the hint string is set to
+    /// be `type_name`.
     pub fn with_hint_none<S: Into<GString>>(type_name: S) -> Self {
+        let hint_string = if sys::GdextBuild::since_api("4.3") {
+            "".into()
+        } else {
+            type_name.into()
+        };
+
         Self {
             hint: PropertyHint::NONE,
-            hint_string: type_name.into(),
+            hint_string,
         }
     }
 }
@@ -367,8 +375,13 @@ mod export_impls {
                 fn type_string() -> String {
                     use sys::GodotFfi as _;
                     let variant_type = <$Ty as $crate::builtin::meta::GodotType>::Ffi::variant_type();
-                    let type_name = <$Ty as $crate::builtin::meta::GodotType>::godot_type_name();
-                    format!("{}:{}", variant_type as i32, type_name)
+
+                    if sys::GdextBuild::since_api("4.3") {
+                        format!("{}:", variant_type as i32)
+                    } else {
+                        let type_name = <$Ty as $crate::builtin::meta::GodotType>::godot_type_name();
+                        format!("{}:{}", variant_type as i32, type_name)
+                    }
                 }
             }
         }

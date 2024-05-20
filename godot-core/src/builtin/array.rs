@@ -834,7 +834,11 @@ impl<T: ArrayElement + TypeStringHint> TypeStringHint for Array<T> {
 
 impl TypeStringHint for VariantArray {
     fn type_string() -> String {
-        format!("{}:Array", VariantType::Array as i32)
+        if sys::GdextBuild::since_api("4.3") {
+            format!("{}:", VariantType::Array as i32)
+        } else {
+            format!("{}:Array", VariantType::Array as i32)
+        }
     }
 }
 
