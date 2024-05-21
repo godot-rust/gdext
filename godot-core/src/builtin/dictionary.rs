@@ -330,7 +330,11 @@ impl Var for Dictionary {
 
 impl TypeStringHint for Dictionary {
     fn type_string() -> String {
-        format!("{}:Dictionary", sys::VariantType::Dictionary as i32)
+        if sys::GdextBuild::since_api("4.3") {
+            format!("{}:", sys::VariantType::Dictionary as i32)
+        } else {
+            format!("{}:Dictionary", sys::VariantType::Dictionary as i32)
+        }
     }
 }
 
