@@ -7,6 +7,16 @@
 
 use crate as sys;
 
+#[cfg(since_api = "4.1")]
+mod compat_4_1plus;
+#[cfg(since_api = "4.1")]
+pub use compat_4_1plus::*;
+
+#[cfg(before_api = "4.1")]
+mod compat_4_0;
+#[cfg(before_api = "4.1")]
+pub use compat_4_0::*;
+
 /// Dispatch at runtime between Godot 4.0 legacy and 4.1+ APIs.
 ///
 /// Provides a compatibility layer to be able to use 4.0.x extensions under Godot versions >= 4.1.

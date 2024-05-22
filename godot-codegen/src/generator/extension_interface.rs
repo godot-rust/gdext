@@ -22,12 +22,8 @@ pub fn generate_sys_interface_file(
     let code = if is_godot_4_0 {
         // Compat for 4.0.x
         // Most polyfills are in godot_exe.rs, fn polyfill_legacy_header()
-        quote! {
-            #[path = "../compat/compat_4_0.rs"]
-            mod compat_4_0;
-
-            pub use compat_4_0::*;
-        }
+        // Module `compat_4_0` is directly imported in Rust code, behind #[cfg].
+        TokenStream::new()
     } else {
         generate_proc_address_funcs(h_path)
     };
@@ -80,10 +76,8 @@ fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
 
     // Do not derive Copy -- even though the struct is bitwise-copyable, this is rarely needed and may point to an error.
     let code = quote! {
-        #[path = "../compat/compat_4_1plus.rs"]
-        mod compat_4_1plus;
-
-        pub use compat_4_1plus::InitCompat;
+        pub use crate::compat::InitCompat;
+        // pub use crate::compat::compat_4_1plus::InitCompat;
 
         pub struct GDExtensionInterface {
             #( #fptr_decls )*
@@ -101,6 +95,7 @@ fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
             }
         }
     };
+
     code
 }
 

@@ -8,5 +8,7 @@
 #![allow(dead_code)]
 
 #[rustfmt::skip]
-#[path = "../gen/gen_ffi.rs"]
-pub mod gen_ffi;
+#[allow(clippy::partialeq_to_none)]
+pub mod gen_ffi {
+    include!(concat!(env!("OUT_DIR"), "/gen_ffi.rs"));
+}

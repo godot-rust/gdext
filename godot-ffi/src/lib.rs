@@ -19,16 +19,7 @@
     clippy::redundant_static_lifetimes
 )]
 pub(crate) mod gen {
-    pub mod table_builtins;
-    pub mod table_builtins_lifecycle;
-    pub mod table_servers_classes;
-    pub mod table_scene_classes;
-    pub mod table_editor_classes;
-    pub mod table_utilities;
-
-    pub mod central;
-    pub mod gdextension_interface;
-    pub mod interface;
+    include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 }
 
 mod compat;
@@ -74,14 +65,25 @@ pub use global::*;
 pub use string_cache::StringCache;
 pub use toolbox::*;
 
-// SAFETY: In Godot 4.0.4 the extension interface stores a c_char pointer, this is safe to access from different threads as no
-// mutation happens after initialization. This was changed in 4.1, so we don't need to manually implement `Sync` or `Send` after 4.0.
-// So we instead rely on rust to infer that it is `Sync` and `Send`.
 #[cfg(before_api = "4.1")]
-unsafe impl Sync for GDExtensionInterface {}
-// SAFETY: See `Sync` impl.
+mod godot_4_0_imported {
+    // SAFETY: In Godot 4.0.4, the extension interface stores a c_char pointer. This is safe to access from different threads, as no
+    // mutation happens after initialization. This was changed in 4.1, so we don't need to manually implement `Sync` or `Send` after 4.0.
+    // Instead, we rely on Rust to infer that it is `Sync` and `Send`.
+    unsafe impl Sync for super::GDExtensionInterface {}
+
+    // SAFETY: See `Sync` impl.
+    unsafe impl Send for super::GDExtensionInterface {}
+
+    // Re-import polyfills so that code can use the symbols as if 4.0 would natively define them.
+    pub use super::compat::InitCompat;
+    pub(crate) use super::compat::{
+        GDExtensionInterfaceClassdbGetMethodBind, GDExtensionInterfaceVariantGetPtrBuiltinMethod,
+    };
+}
+
 #[cfg(before_api = "4.1")]
-unsafe impl Send for GDExtensionInterface {}
+pub use godot_4_0_imported::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // API to access Godot via FFI

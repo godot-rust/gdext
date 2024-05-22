@@ -48,9 +48,9 @@ pub mod engine;
 #[allow(clippy::wrong_self_convention)] // to_string() is const
 #[allow(clippy::upper_case_acronyms)] // TODO remove this line once we transform names
 #[allow(unreachable_code, clippy::unimplemented)] // TODO remove once #153 is implemented
-mod gen;
-
-
+mod gen {
+    include!(concat!(env!("OUT_DIR"), "/mod.rs"));
+}
 
 macro_rules! generate_gdextension_api_version {
     (
