@@ -483,13 +483,15 @@ impl<T: ArrayElement + FromGodot> Array<T> {
         }
     }
 
-    /// Returns the value at the specified index.
+    /// ⚠️ Returns the value at the specified index.
+    ///
+    /// This replaces the `Index` trait, which cannot be implemented for `Array` as references are not guaranteed to remain valid.
     ///
     /// # Panics
     ///
-    /// If `index` is out of bounds.
-    pub fn get(&self, index: usize) -> T {
-        // Panics on out-of-bounds
+    /// If `index` is out of bounds. If you want to handle out-of-bounds access, use [`get()`](Self::get) instead.
+    pub fn at(&self, index: usize) -> T {
+        // Panics on out-of-bounds.
         let ptr = self.ptr(index);
 
         // SAFETY: `ptr` is a live pointer to a variant since `ptr.is_null()` just verified that the index is not out of bounds.
@@ -497,8 +499,10 @@ impl<T: ArrayElement + FromGodot> Array<T> {
         T::from_variant(variant)
     }
 
-    /// Returns the value at the specified index or `None` if the index is out-of-bounds.
-    pub fn try_get(&self, index: usize) -> Option<T> {
+    /// Returns the value at the specified index, or `None` if the index is out-of-bounds.
+    ///
+    /// If you know the index is correct, use [`at()`](Self::at) instead.
+    pub fn get(&self, index: usize) -> Option<T> {
         let ptr = self.ptr_or_null(index);
         if ptr.is_null() {
             None

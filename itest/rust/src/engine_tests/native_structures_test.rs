@@ -137,8 +137,8 @@ fn test_native_structure_pointer_to_array_parameter() {
 
     // Check the result array.
     assert_eq!(result.len(), 2);
-    assert_eq!(result.get(0).get("start"), Some(Variant::from(99)));
-    assert_eq!(result.get(1).get("start"), Some(Variant::from(700)));
+    assert_eq!(result.at(0).get("start"), Some(Variant::from(99)));
+    assert_eq!(result.at(1).get("start"), Some(Variant::from(700)));
 }
 
 #[itest]
