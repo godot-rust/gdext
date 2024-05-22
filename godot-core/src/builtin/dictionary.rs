@@ -40,66 +40,6 @@ impl Dictionary {
         Self::default()
     }
 
-    /// Removes all key-value pairs from the dictionary.
-    pub fn clear(&mut self) {
-        self.as_inner().clear()
-    }
-
-    /// Returns a deep copy of the dictionary. All nested arrays and dictionaries are duplicated and
-    /// will not be shared with the original dictionary. Note that any `Object`-derived elements will
-    /// still be shallow copied.
-    ///
-    /// To create a shallow copy, use [`Self::duplicate_shallow()`] instead.
-    /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
-    ///
-    /// _Godot equivalent: `dict.duplicate(true)`_
-    pub fn duplicate_deep(&self) -> Self {
-        self.as_inner().duplicate(true)
-    }
-
-    /// Returns a shallow copy of the dictionary. All dictionary keys and values are copied, but
-    /// any reference types (such as `Array`, `Dictionary` and `Object`) will still refer to the
-    /// same value.
-    ///
-    /// To create a deep copy, use [`Self::duplicate_deep()`] instead.
-    /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
-    ///
-    /// _Godot equivalent: `dict.duplicate(false)`_
-    pub fn duplicate_shallow(&self) -> Self {
-        self.as_inner().duplicate(false)
-    }
-
-    /// Removes a key from the map, and returns the value associated with
-    /// the key if the key was in the dictionary.
-    ///
-    /// _Godot equivalent: `erase`_
-    #[doc(alias = "erase")]
-    pub fn remove<K: ToGodot>(&mut self, key: K) -> Option<Variant> {
-        let key = key.to_variant();
-        let old_value = self.get(key.clone());
-        self.as_inner().erase(key);
-        old_value
-    }
-
-    /// Reverse-search a key by its value.
-    ///
-    /// Unlike Godot, this will return `None` if the key does not exist and `Some(Variant::nil())` the key is `NIL`.
-    ///
-    /// This operation is rarely needed and very inefficient. If you find yourself needing it a lot, consider
-    /// using a `HashMap` or `Dictionary` with the inverse mapping (`V` -> `K`).
-    ///
-    /// _Godot equivalent: `find_key`_
-    #[doc(alias = "find_key")]
-    pub fn find_key_by_value<V: ToGodot>(&self, value: V) -> Option<Variant> {
-        let key = self.as_inner().find_key(value.to_variant());
-
-        if !key.is_nil() || self.contains_key(key.clone()) {
-            Some(key)
-        } else {
-            None
-        }
-    }
-
     /// ⚠️ Returns the value for the given key, or panics.
     ///
     /// If you want to check for presence, use [`get()`][Self::get] or [`get_or_nil()`][Self::get_or_nil].
@@ -166,6 +106,79 @@ impl Dictionary {
         self.as_inner().has_all(keys)
     }
 
+    /// Returns the number of entries in the dictionary.
+    ///
+    /// _Godot equivalent: `size`_
+    #[doc(alias = "size")]
+    pub fn len(&self) -> usize {
+        self.as_inner().size().try_into().unwrap()
+    }
+
+    /// Returns true if the dictionary is empty.
+    pub fn is_empty(&self) -> bool {
+        self.as_inner().is_empty()
+    }
+
+    /// Reverse-search a key by its value.
+    ///
+    /// Unlike Godot, this will return `None` if the key does not exist and `Some(Variant::nil())` the key is `NIL`.
+    ///
+    /// This operation is rarely needed and very inefficient. If you find yourself needing it a lot, consider
+    /// using a `HashMap` or `Dictionary` with the inverse mapping (`V` -> `K`).
+    ///
+    /// _Godot equivalent: `find_key`_
+    #[doc(alias = "find_key")]
+    pub fn find_key_by_value<V: ToGodot>(&self, value: V) -> Option<Variant> {
+        let key = self.as_inner().find_key(value.to_variant());
+
+        if !key.is_nil() || self.contains_key(key.clone()) {
+            Some(key)
+        } else {
+            None
+        }
+    }
+
+    /// Removes all key-value pairs from the dictionary.
+    pub fn clear(&mut self) {
+        self.as_inner().clear()
+    }
+
+    /// Set a key to a given value.
+    ///
+    /// If you are interested in the previous value, use [`insert()`][Self::insert] instead.
+    ///
+    /// _Godot equivalent: `dict[key] = value`_
+    pub fn set<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) {
+        let key = key.to_variant();
+
+        // SAFETY: `self.get_ptr_mut(key)` always returns a valid pointer to a value in the dictionary; either pre-existing or newly inserted.
+        unsafe {
+            value.to_variant().move_into_var_ptr(self.get_ptr_mut(key));
+        }
+    }
+
+    /// Insert a value at the given key, returning the previous value for that key (if available).
+    ///
+    /// If you don't need the previous value, use [`set()`][Self::set] instead.
+    pub fn insert<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) -> Option<Variant> {
+        let key = key.to_variant();
+        let old_value = self.get(key.clone());
+        self.set(key, value);
+        old_value
+    }
+
+    /// Removes a key from the map, and returns the value associated with
+    /// the key if the key was in the dictionary.
+    ///
+    /// _Godot equivalent: `erase`_
+    #[doc(alias = "erase")]
+    pub fn remove<K: ToGodot>(&mut self, key: K) -> Option<Variant> {
+        let key = key.to_variant();
+        let old_value = self.get(key.clone());
+        self.as_inner().erase(key);
+        old_value
+    }
+
     /// Returns a 32-bit integer hash value representing the dictionary and its contents.
     #[must_use]
     pub fn hash(&self) -> u32 {
@@ -188,11 +201,6 @@ impl Dictionary {
         self.as_inner().values()
     }
 
-    /// Returns true if the dictionary is empty.
-    pub fn is_empty(&self) -> bool {
-        self.as_inner().is_empty()
-    }
-
     /// Copies all keys and values from `other` into `self`.
     ///
     /// If `overwrite` is true, it will overwrite pre-existing keys.
@@ -203,36 +211,28 @@ impl Dictionary {
         self.as_inner().merge(other, overwrite)
     }
 
-    /// Returns the number of entries in the dictionary.
+    /// Returns a deep copy of the dictionary. All nested arrays and dictionaries are duplicated and
+    /// will not be shared with the original dictionary. Note that any `Object`-derived elements will
+    /// still be shallow copied.
     ///
-    /// This is equivalent to `size` in Godot.
-    #[doc(alias = "size")]
-    pub fn len(&self) -> usize {
-        self.as_inner().size().try_into().unwrap()
+    /// To create a shallow copy, use [`Self::duplicate_shallow()`] instead.
+    /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
+    ///
+    /// _Godot equivalent: `dict.duplicate(true)`_
+    pub fn duplicate_deep(&self) -> Self {
+        self.as_inner().duplicate(true)
     }
 
-    /// Insert a value at the given key, returning the previous value for that key (if available).
+    /// Returns a shallow copy of the dictionary. All dictionary keys and values are copied, but
+    /// any reference types (such as `Array`, `Dictionary` and `Object`) will still refer to the
+    /// same value.
     ///
-    /// If you don't need the previous value, use [`Self::set`] instead.
-    pub fn insert<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) -> Option<Variant> {
-        let key = key.to_variant();
-        let old_value = self.get(key.clone());
-        self.set(key, value);
-        old_value
-    }
-
-    /// Set a key to a given value.
+    /// To create a deep copy, use [`Self::duplicate_deep()`] instead.
+    /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
     ///
-    /// If you are interested in the previous value, use [`Self::insert`] instead.
-    ///
-    /// _Godot equivalent: `dict[key] = value`_
-    pub fn set<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) {
-        let key = key.to_variant();
-
-        // SAFETY: `self.get_ptr_mut(key)` always returns a valid pointer to a value in the dictionary; either pre-existing or newly inserted.
-        unsafe {
-            value.to_variant().move_into_var_ptr(self.get_ptr_mut(key));
-        }
+    /// _Godot equivalent: `dict.duplicate(false)`_
+    pub fn duplicate_shallow(&self) -> Self {
+        self.as_inner().duplicate(false)
     }
 
     /// Returns an iterator over the key-value pairs of the `Dictionary`. The pairs are each of type `(Variant, Variant)`.

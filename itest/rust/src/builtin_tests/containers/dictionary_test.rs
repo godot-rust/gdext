@@ -219,11 +219,7 @@ fn dictionary_at() {
     };
 
     assert_eq!(dictionary.at("foo"), 0.to_variant(), "key = \"foo\"");
-    assert_eq!(
-        dictionary.at("baz"),
-        "foobar".to_variant(),
-        "key = \"baz\""
-    );
+    assert_eq!(dictionary.at("baz"), "foobar".to_variant(), "key = \"baz\"");
     assert_eq!(dictionary.at("nil"), Variant::nil(), "key = \"nil\"");
     expect_panic("key = \"bar\"", || {
         dictionary.at("bar");
