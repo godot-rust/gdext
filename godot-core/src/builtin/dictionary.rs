@@ -100,26 +100,51 @@ impl Dictionary {
         }
     }
 
+    /// ⚠️ Returns the value for the given key, or panics.
+    ///
+    /// If you want to check for presence, use [`get()`][Self::get] or [`get_or_nil()`][Self::get_or_nil].
+    ///
+    /// # Panics
+    ///
+    /// If there is no value for the given key. Note that this is distinct from a `NIL` value, which is returned as `Variant::nil()`.
+    pub fn at<K: ToGodot>(&self, key: K) -> Variant {
+        // Code duplication with get(), to avoid third clone (since K: ToGodot takes ownership).
+
+        let key = key.to_variant();
+        if self.contains_key(key.clone()) {
+            self.get_or_nil(key)
+        } else {
+            panic!("key {key:?} missing in dictionary: {self:?}")
+        }
+    }
+
     /// Returns the value for the given key, or `None`.
     ///
     /// Note that `NIL` values are returned as `Some(Variant::nil())`, while absent values are returned as `None`.
-    /// If you want to treat both as `NIL`, use [`Self::get_or_nil`].
+    /// If you want to treat both as `NIL`, use [`get_or_nil()`][Self::get_or_nil].
+    ///
+    /// When you are certain that a key is present, use [`at()`][`Self::at`] instead.
+    ///
+    /// This can be combined with Rust's `Option` methods, e.g. `dict.get(key).unwrap_or(default)`.
     pub fn get<K: ToGodot>(&self, key: K) -> Option<Variant> {
-        let key = key.to_variant();
-        if !self.contains_key(key.clone()) {
-            return None;
-        }
+        // If implementation is changed, make sure to update at().
 
-        Some(self.get_or_nil(key))
+        let key = key.to_variant();
+        if self.contains_key(key.clone()) {
+            Some(self.get_or_nil(key))
+        } else {
+            None
+        }
     }
 
     /// Returns the value at the key in the dictionary, or `NIL` otherwise.
     ///
     /// This method does not let you differentiate `NIL` values stored as values from absent keys.
-    /// If you need that, use [`Self::get`].
+    /// If you need that, use [`get()`][`Self::get`] instead.
+    ///
+    /// When you are certain that a key is present, use [`at()`][`Self::at`] instead.
     ///
     /// _Godot equivalent: `dict.get(key, null)`_
-    #[doc(alias = "get")]
     pub fn get_or_nil<K: ToGodot>(&self, key: K) -> Variant {
         self.as_inner().get(key.to_variant(), Variant::nil())
     }
