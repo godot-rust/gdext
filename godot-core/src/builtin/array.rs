@@ -133,6 +133,11 @@ impl<T: ArrayElement> Array<T> {
         }
     }
 
+    #[deprecated = "Renamed to `get`."]
+    pub fn try_get(&self, index: usize) -> Option<T> {
+        self.get(index)
+    }
+
     /// Returns `true` if the array contains the given value. Equivalent of `has` in GDScript.
     pub fn contains(&self, value: &T) -> bool {
         self.as_inner().has(value.to_variant())
@@ -172,10 +177,8 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// Returns the first element in the array, or `None` if the array is empty.
-    ///
-    /// Equivalent of `front()` in GDScript.
-    #[doc(alias = "front")]
-    pub fn first(&self) -> Option<T> {
+    #[doc(alias = "first")]
+    pub fn front(&self) -> Option<T> {
         (!self.is_empty()).then(|| {
             let variant = self.as_inner().front();
             T::from_variant(&variant)
@@ -183,14 +186,22 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// Returns the last element in the array, or `None` if the array is empty.
-    ///
-    /// Equivalent of `back()` in GDScript.
-    #[doc(alias = "back")]
-    pub fn last(&self) -> Option<T> {
+    #[doc(alias = "last")]
+    pub fn back(&self) -> Option<T> {
         (!self.is_empty()).then(|| {
             let variant = self.as_inner().back();
             T::from_variant(&variant)
         })
+    }
+
+    #[deprecated = "Renamed to `front`, in line with GDScript method and consistent with `push_front` and `pop_front`."]
+    pub fn first(&self) -> Option<T> {
+        self.front()
+    }
+
+    #[deprecated = "Renamed to `back`, in line with GDScript method."]
+    pub fn last(&self) -> Option<T> {
+        self.back()
     }
 
     /// Clears the array, removing all elements.
@@ -223,7 +234,7 @@ impl<T: ArrayElement> Array<T> {
         unsafe { self.as_inner_mut() }.push_back(value.to_variant());
     }
 
-    /// Adds an element at the beginning of the array, in O(n) time.
+    /// Adds an element at the beginning of the array, in O(n).
     ///
     /// On large arrays, this method is much slower than [`push()`][Self::push], as it will move all the array's elements.
     /// The larger the array, the slower `push_front()` will be.
@@ -243,7 +254,7 @@ impl<T: ArrayElement> Array<T> {
         })
     }
 
-    /// Removes and returns the first element of the array. Returns `None` if the array is empty.
+    /// Removes and returns the first element of the array, in O(n). Returns `None` if the array is empty.
     ///
     /// Note: On large arrays, this method is much slower than `pop()` as it will move all the
     /// array's elements. The larger the array, the slower `pop_front()` will be.

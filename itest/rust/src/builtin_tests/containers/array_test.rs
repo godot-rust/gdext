@@ -187,13 +187,13 @@ fn array_try_get() {
 fn array_first_last() {
     let array = array![1, 2];
 
-    assert_eq!(array.first(), Some(1));
-    assert_eq!(array.last(), Some(2));
+    assert_eq!(array.front(), Some(1));
+    assert_eq!(array.back(), Some(2));
 
     let empty_array = VariantArray::new();
 
-    assert_eq!(empty_array.first(), None);
-    assert_eq!(empty_array.last(), None);
+    assert_eq!(empty_array.front(), None);
+    assert_eq!(empty_array.back(), None);
 }
 
 #[itest]
