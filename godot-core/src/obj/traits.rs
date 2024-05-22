@@ -210,6 +210,24 @@ pub trait IndexEnum: EngineEnum {
 /// Trait that's implemented for user-defined classes that provide a `Base<T>` field.
 ///
 /// Gives direct access to the containing `Gd<Self>` from `Self`.
+///
+/// # Using WithBaseField as a bound
+///
+/// In order to call `self.base()` or `self.base_mut()` within a trait or on a type you define, the type of `Self::Base` must be specified via `WithBaseField<Base = T>`
+///
+/// E.g.
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// # use godot::obj::WithBaseField;
+/// fn some_fn<T>(value: &T)
+/// where
+///     T: WithBaseField<Base = Node3D>,
+/// {
+///     let base = value.base();
+/// }
+/// ```
+///
 // Possible alternative for builder APIs, although even less ergonomic: Base<T> could be Base<T, Self> and return Gd<Self>.
 #[diagnostic::on_unimplemented(
     message = "Class `{Self}` requires a `Base<T>` field",
