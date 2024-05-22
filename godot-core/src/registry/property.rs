@@ -123,9 +123,9 @@ impl PropertyHintInfo {
     ///
     /// Starting with Godot version 4.3, the hint string will always be the empty string. Before that, the hint string is set to
     /// be `type_name`.
-    pub fn with_hint_none<S: Into<GString>>(type_name: S) -> Self {
+    pub fn with_hint_none(type_name: impl Into<GString>) -> Self {
         let hint_string = if sys::GdextBuild::since_api("4.3") {
-            "".into()
+            GString::new()
         } else {
             type_name.into()
         };

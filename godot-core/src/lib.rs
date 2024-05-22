@@ -13,7 +13,6 @@ pub mod builtin;
 pub mod init;
 pub mod log;
 pub mod obj;
-pub mod property;
 
 #[doc(hidden)]
 #[path = "deprecated.rs"]

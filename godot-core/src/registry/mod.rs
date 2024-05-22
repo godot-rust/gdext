@@ -16,6 +16,7 @@ use std::{fmt, ptr};
 use sys::{interface_fn, Global, GlobalGuard, GlobalLockError};
 
 pub mod callbacks;
+pub mod property;
 
 // Needed for class unregistering. The variable is populated during class registering. There is no actual concurrency here, because Godot
 // calls register/unregister in the main thread. Mutex is just casual way to ensure safety in this non-performance-critical path.
