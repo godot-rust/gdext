@@ -64,6 +64,8 @@ pub(super) mod private {
     ///
     /// See [`bounds`](crate::obj::bounds) module for how to use this for bounds checking.
     ///
+    /// # No manual `impl`
+    ///
     /// <div class="warning">
     /// <strong>Never</strong> implement this trait manually.
     /// </div>
@@ -71,7 +73,7 @@ pub(super) mod private {
     /// Most of the time, this trait is covered by [`#[derive(GodotClass)]`](../register/derive.GodotClass.html).
     /// If you implement `GodotClass` manually, use the [`implement_godot_bounds!`][crate::implement_godot_bounds] macro.
     ///
-    /// There are two reasons to avoid a hand-written `impl Bounds`:
+    /// There are two reasons to avoid a handwritten `impl Bounds`:
     /// - The trait is `unsafe` and it is very easy to get internal bounds wrong. This will lead to immediate UB.
     /// - Apart from the documented members, the trait may have undocumented items that may be broken at any time and stand under no SemVer
     ///   guarantees.

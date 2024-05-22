@@ -9,7 +9,7 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::meta::{FromGodot, GodotConvert, ToGodot};
+use crate::builtin::meta::{FromGodot, GodotConvert, GodotType, ToGodot};
 use crate::builtin::GString;
 use crate::engine::global::PropertyHint;
 
@@ -123,9 +123,9 @@ impl PropertyHintInfo {
     ///
     /// Starting with Godot version 4.3, the hint string will always be the empty string. Before that, the hint string is set to
     /// be `type_name`.
-    pub fn with_hint_none<S: Into<GString>>(type_name: S) -> Self {
+    pub fn with_hint_none(type_name: impl Into<GString>) -> Self {
         let hint_string = if sys::GdextBuild::since_api("4.3") {
-            "".into()
+            GString::new()
         } else {
             type_name.into()
         };
@@ -336,7 +336,6 @@ pub mod export_info_functions {
 mod export_impls {
     use super::*;
     use crate::builtin::*;
-    use godot_ffi as sys;
 
     macro_rules! impl_property_by_godot_convert {
         ($Ty:ty, no_export) => {
@@ -373,15 +372,7 @@ mod export_impls {
         (@type_string_hint $Ty:ty) => {
             impl TypeStringHint for $Ty {
                 fn type_string() -> String {
-                    use sys::GodotFfi as _;
-                    let variant_type = <$Ty as $crate::builtin::meta::GodotType>::Ffi::variant_type();
-
-                    if sys::GdextBuild::since_api("4.3") {
-                        format!("{}:", variant_type as i32)
-                    } else {
-                        let type_name = <$Ty as $crate::builtin::meta::GodotType>::godot_type_name();
-                        format!("{}:{}", variant_type as i32, type_name)
-                    }
+                    builtin_type_string::<$Ty>()
                 }
             }
         }
@@ -466,4 +457,20 @@ mod export_impls {
     impl_property_by_godot_convert!(Rid, no_export);
 
     // impl_property_by_godot_convert!(Signal);
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Crate-local utilities
+
+pub(crate) fn builtin_type_string<T: GodotType>() -> String {
+    use sys::GodotFfi as _;
+
+    let variant_type = T::Ffi::variant_type();
+
+    // Godot 4.3 changed representation for type hints, see https://github.com/godotengine/godot/pull/90716.
+    if sys::GdextBuild::since_api("4.3") {
+        format!("{}:", variant_type.sys())
+    } else {
+        format!("{}:{}", variant_type.sys(), T::godot_type_name())
+    }
 }
