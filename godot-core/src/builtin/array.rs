@@ -8,7 +8,7 @@
 use godot_ffi as sys;
 
 use crate::builtin::*;
-use crate::property::{Export, PropertyHintInfo, TypeStringHint, Var};
+use crate::property::{builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var};
 use std::fmt;
 use std::marker::PhantomData;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -834,11 +834,7 @@ impl<T: ArrayElement + TypeStringHint> TypeStringHint for Array<T> {
 
 impl TypeStringHint for VariantArray {
     fn type_string() -> String {
-        if sys::GdextBuild::since_api("4.3") {
-            format!("{}:", VariantType::Array as i32)
-        } else {
-            format!("{}:Array", VariantType::Array as i32)
-        }
+        builtin_type_string::<VariantArray>()
     }
 }
 
