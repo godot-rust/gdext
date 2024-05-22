@@ -137,6 +137,7 @@ pub unsafe trait Inherits<Base: GodotClass>: GodotClass {}
 unsafe impl<T: GodotClass> Inherits<T> for T {}
 
 /// Implemented for all user-defined classes, providing extensions on the raw object to interact with `Gd`.
+#[doc(hidden)]
 pub trait UserClass: Bounds<Declarer = bounds::DeclUser> {
     #[doc(hidden)]
     fn __config() -> crate::private::ClassConfig;
@@ -207,15 +208,14 @@ pub trait IndexEnum: EngineEnum {
     }
 }
 
-/// Trait that's implemented for user-defined classes that provide a `Base<T>` field.
+/// Trait that is automatically implemented for user classes containing a `Base<T>` field.
 ///
-/// Gives direct access to the containing `Gd<Self>` from `Self`.
+/// Gives direct access to the containing `Gd<Self>` from `self`.
 ///
-/// # Using WithBaseField as a bound
+/// # Usage as a bound
 ///
-/// In order to call `self.base()` or `self.base_mut()` within a trait or on a type you define, the type of `Self::Base` must be specified via `WithBaseField<Base = T>`
-///
-/// E.g.
+/// In order to call `base()` or `base_mut()` within a function or on a type you define, you need a `WithBaseField<Base = T>` bound,
+/// where `T` is the base class of your type.
 ///
 /// ```no_run
 /// # use godot::prelude::*;
@@ -225,6 +225,7 @@ pub trait IndexEnum: EngineEnum {
 ///     T: WithBaseField<Base = Node3D>,
 /// {
 ///     let base = value.base();
+///     let pos = base.get_position();
 /// }
 /// ```
 ///
