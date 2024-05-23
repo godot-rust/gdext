@@ -13,11 +13,11 @@ use crate::models::domain::{Enum, Enumerator};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
-pub fn make_enums(enums: &[Enum]) -> TokenStream {
+pub fn make_enums(enums: &[Enum], cfg_attributes: &TokenStream) -> TokenStream {
     let definitions = enums.iter().map(make_enum_definition);
 
     quote! {
-        #( #definitions )*
+        #( #cfg_attributes #definitions )*
     }
 }
 

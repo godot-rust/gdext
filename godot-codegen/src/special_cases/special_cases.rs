@@ -135,7 +135,7 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
 }
 
 #[rustfmt::skip]
-fn is_class_experimental(godot_class_name: &str) -> bool {
+pub fn is_class_experimental(godot_class_name: &str) -> bool {
     // Note: parameter can be a class or builtin name, but also something like "enum::AESContext.Mode".
 
     // These classes are currently hardcoded, but the information is available in Godot's doc/classes directory.
