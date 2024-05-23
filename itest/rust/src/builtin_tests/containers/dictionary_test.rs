@@ -165,6 +165,7 @@ fn dictionary_duplicate_shallow() {
         "foo": 0,
         "bar": subdictionary.clone()
     };
+
     let mut clone = dictionary.duplicate_shallow();
     Dictionary::from_variant(&clone.get("bar").unwrap()).insert("baz", 4);
     assert_eq!(
@@ -172,6 +173,7 @@ fn dictionary_duplicate_shallow() {
         Some(4.to_variant()),
         "key = \"baz\""
     );
+
     clone.insert("foo", false.to_variant());
     assert_eq!(dictionary.get("foo"), Some(0.to_variant()));
     assert_eq!(clone.get("foo"), Some(false.to_variant()));
@@ -179,14 +181,12 @@ fn dictionary_duplicate_shallow() {
 
 #[itest]
 fn dictionary_get() {
-    let mut dictionary = dict! {
+    let dictionary = dict! {
         "foo": 0,
         "bar": true,
         "baz": "foobar",
         "nil": Variant::nil(),
     };
-
-    dictionary.insert("baz", "foobar");
 
     assert_eq!(dictionary.get("foo"), Some(0.to_variant()), "key = \"foo\"");
     assert_eq!(
@@ -208,6 +208,22 @@ fn dictionary_get() {
         "key = \"missing\""
     );
     assert_eq!(dictionary.get("foobar"), None, "key = \"foobar\"");
+}
+
+#[itest]
+fn dictionary_at() {
+    let dictionary = dict! {
+        "foo": 0,
+        "baz": "foobar",
+        "nil": Variant::nil(),
+    };
+
+    assert_eq!(dictionary.at("foo"), 0.to_variant(), "key = \"foo\"");
+    assert_eq!(dictionary.at("baz"), "foobar".to_variant(), "key = \"baz\"");
+    assert_eq!(dictionary.at("nil"), Variant::nil(), "key = \"nil\"");
+    expect_panic("key = \"bar\"", || {
+        dictionary.at("bar");
+    });
 }
 
 #[itest]

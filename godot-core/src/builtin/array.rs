@@ -30,7 +30,7 @@ use super::meta::{
 /// We represent this in Rust as `VariantArray`, which is just a type alias for `Array<Variant>`.
 ///
 /// Godot also supports typed arrays, which are also just `Variant` arrays under the hood, but with
-/// runtime checks that no values of the wrong type are put into the array. We represent this as
+/// runtime checks, so that no values of the wrong type are inserted into the array. We represent this as
 /// `Array<T>`, where the type `T` must implement `ArrayElement`. Some types like `Array<T>` cannot
 /// be stored inside arrays, as Godot prevents nesting.
 ///
@@ -48,13 +48,7 @@ use super::meta::{
 /// Usage is safe if the `Array` is used on a single thread only. Concurrent reads on
 /// different threads are also safe, but any writes must be externally synchronized. The Rust
 /// compiler will enforce this as long as you use only Rust threads, but it cannot protect against
-
 /// concurrent modification on other threads (e.g. created through GDScript).
-
-// `T` must be restricted to `GodotType` in the type, because `Drop` can only be implemented
-// for `T: GodotType` because `drop()` requires `sys_mut()`, which is on the `GodotFfi`
-// trait, whose `from_sys_init()` requires `Default`, which is only implemented for `T:
-// GodotType`. Whew. This could be fixed by splitting up `GodotFfi` if desired.
 pub struct Array<T: ArrayElement> {
     // Safety Invariant: The type of all values in `opaque` matches the type `T`.
     opaque: sys::types::OpaqueArray,
@@ -104,6 +98,56 @@ impl<T: ArrayElement> Array<T> {
         }
     }
 
+    /// Constructs an empty `Array`.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// ⚠️ Returns the value at the specified index.
+    ///
+    /// This replaces the `Index` trait, which cannot be implemented for `Array` as references are not guaranteed to remain valid.
+    ///
+    /// # Panics
+    ///
+    /// If `index` is out of bounds. If you want to handle out-of-bounds access, use [`get()`](Self::get) instead.
+    pub fn at(&self, index: usize) -> T {
+        // Panics on out-of-bounds.
+        let ptr = self.ptr(index);
+
+        // SAFETY: `ptr` is a live pointer to a variant since `ptr.is_null()` just verified that the index is not out of bounds.
+        let variant = unsafe { Variant::borrow_var_sys(ptr) };
+        T::from_variant(variant)
+    }
+
+    /// Returns the value at the specified index, or `None` if the index is out-of-bounds.
+    ///
+    /// If you know the index is correct, use [`at()`](Self::at) instead.
+    pub fn get(&self, index: usize) -> Option<T> {
+        let ptr = self.ptr_or_null(index);
+        if ptr.is_null() {
+            None
+        } else {
+            // SAFETY: `ptr` is a live pointer to a variant since `ptr.is_null()` just verified that the index is not out of bounds.
+            let variant = unsafe { Variant::borrow_var_sys(ptr) };
+            Some(T::from_variant(variant))
+        }
+    }
+
+    #[deprecated = "Renamed to `get`."]
+    pub fn try_get(&self, index: usize) -> Option<T> {
+        self.get(index)
+    }
+
+    /// Returns `true` if the array contains the given value. Equivalent of `has` in GDScript.
+    pub fn contains(&self, value: &T) -> bool {
+        self.as_inner().has(value.to_variant())
+    }
+
+    /// Returns the number of times a value is in the array.
+    pub fn count(&self, value: &T) -> usize {
+        to_usize(self.as_inner().count(value.to_variant()))
+    }
+
     /// Returns the number of elements in the array. Equivalent of `size()` in Godot.
     ///
     /// Retrieving the size incurs an FFI call. If you know the size hasn't changed, you may consider storing
@@ -132,65 +176,146 @@ impl<T: ArrayElement> Array<T> {
         self.as_inner().hash().try_into().unwrap()
     }
 
+    /// Returns the first element in the array, or `None` if the array is empty.
+    #[doc(alias = "first")]
+    pub fn front(&self) -> Option<T> {
+        (!self.is_empty()).then(|| {
+            let variant = self.as_inner().front();
+            T::from_variant(&variant)
+        })
+    }
+
+    /// Returns the last element in the array, or `None` if the array is empty.
+    #[doc(alias = "last")]
+    pub fn back(&self) -> Option<T> {
+        (!self.is_empty()).then(|| {
+            let variant = self.as_inner().back();
+            T::from_variant(&variant)
+        })
+    }
+
+    #[deprecated = "Renamed to `front`, in line with GDScript method and consistent with `push_front` and `pop_front`."]
+    pub fn first(&self) -> Option<T> {
+        self.front()
+    }
+
+    #[deprecated = "Renamed to `back`, in line with GDScript method."]
+    pub fn last(&self) -> Option<T> {
+        self.back()
+    }
+
     /// Clears the array, removing all elements.
     pub fn clear(&mut self) {
         // SAFETY: No new values are written to the array, we only remove values from the array.
         unsafe { self.as_inner_mut() }.clear();
     }
 
-    /// Reverses the order of the elements in the array.
-    pub fn reverse(&mut self) {
-        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
-        unsafe { self.as_inner_mut() }.reverse();
-    }
+    /// Sets the value at the specified index.
+    ///
+    /// # Panics
+    ///
+    /// If `index` is out of bounds.
+    pub fn set(&mut self, index: usize, value: T) {
+        let ptr_mut = self.ptr_mut(index);
 
-    /// Sorts the array.
-    ///
-    /// Note: The sorting algorithm used is not
-    /// [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability). This means that values
-    /// considered equal may have their order changed when using `sort_unstable`.
-    #[doc(alias = "sort")]
-    pub fn sort_unstable(&mut self) {
-        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
-        unsafe { self.as_inner_mut() }.sort();
-    }
-
-    /// Sorts the array.
-    ///
-    /// Uses the provided `Callable` to determine ordering.
-    ///
-    /// Note: The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
-    /// This means that values considered equal may have their order changed when using
-    /// `sort_unstable`.
-    #[doc(alias = "sort_custom")]
-    pub fn sort_unstable_custom(&mut self, func: Callable) {
-        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
-        unsafe { self.as_inner_mut() }.sort_custom(func);
-    }
-
-    /// Shuffles the array such that the items will have a random order. This method uses the
-    /// global random number generator common to methods such as `randi`. Call `randomize` to
-    /// ensure that a new seed will be used each time if you want non-reproducible shuffling.
-    pub fn shuffle(&mut self) {
-        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
-        unsafe { self.as_inner_mut() }.shuffle();
-    }
-
-    /// Shrinks the array down to `new_size`.
-    ///
-    /// This will only change the size of the array if `new_size` is smaller than the current size. Returns `true` if the array was shrunk.
-    ///
-    /// If you want to increase the size of the array, use [`resize_with`](Array::resize_with) instead.
-    #[doc(alias = "resize")]
-    pub fn shrink(&mut self, new_size: usize) -> bool {
-        if new_size >= self.len() {
-            return false;
+        // SAFETY: `ptr_mut` just checked that the index is not out of bounds.
+        unsafe {
+            value.to_variant().move_into_var_ptr(ptr_mut);
         }
+    }
 
-        // SAFETY: Since `new_size` is less than the current size, we'll only be removing elements from the array.
-        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+    /// Appends an element to the end of the array.
+    ///
+    /// _Godot equivalents: `append` and `push_back`_
+    #[doc(alias = "append")]
+    #[doc(alias = "push_back")]
+    pub fn push(&mut self, value: T) {
+        // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
+        unsafe { self.as_inner_mut() }.push_back(value.to_variant());
+    }
 
-        true
+    /// Adds an element at the beginning of the array, in O(n).
+    ///
+    /// On large arrays, this method is much slower than [`push()`][Self::push], as it will move all the array's elements.
+    /// The larger the array, the slower `push_front()` will be.
+    pub fn push_front(&mut self, value: T) {
+        // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
+        unsafe { self.as_inner_mut() }.push_front(value.to_variant());
+    }
+    /// Removes and returns the last element of the array. Returns `None` if the array is empty.
+    ///
+    /// _Godot equivalent: `pop_back`_
+    #[doc(alias = "pop_back")]
+    pub fn pop(&mut self) -> Option<T> {
+        (!self.is_empty()).then(|| {
+            // SAFETY: We do not write any values to the array, we just remove one.
+            let variant = unsafe { self.as_inner_mut() }.pop_back();
+            T::from_variant(&variant)
+        })
+    }
+
+    /// Removes and returns the first element of the array, in O(n). Returns `None` if the array is empty.
+    ///
+    /// Note: On large arrays, this method is much slower than `pop()` as it will move all the
+    /// array's elements. The larger the array, the slower `pop_front()` will be.
+    pub fn pop_front(&mut self) -> Option<T> {
+        (!self.is_empty()).then(|| {
+            // SAFETY: We do not write any values to the array, we just remove one.
+            let variant = unsafe { self.as_inner_mut() }.pop_front();
+            T::from_variant(&variant)
+        })
+    }
+
+    /// Inserts a new element before the index. The index must be valid or the end of the array (`index == len()`).
+    ///
+    /// On large arrays, this method is much slower than [`push()`][Self::push], as it will move all the array's elements after the inserted element.
+    /// The larger the array, the slower `insert()` will be.
+    ///
+    /// # Panics
+    /// If `index > len()`.
+    pub fn insert(&mut self, index: usize, value: T) {
+        let len = self.len();
+        assert!(
+            index <= len,
+            "Array insertion index {index} is out of bounds: length is {len}",
+        );
+
+        // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
+        unsafe { self.as_inner_mut() }.insert(to_i64(index), value.to_variant());
+    }
+
+    /// ⚠️ Removes and returns the element at the specified index. Equivalent of `pop_at` in GDScript.
+    ///
+    /// On large arrays, this method is much slower than `pop_back()` as it will move all the array's
+    /// elements after the removed element. The larger the array, the slower `remove()` will be.
+    ///
+    /// # Panics
+    ///
+    /// If `index` is out of bounds.
+    pub fn remove(&mut self, index: usize) -> T {
+        self.check_bounds(index);
+
+        // SAFETY: We do not write any values to the array, we just remove one.
+        let variant = unsafe { self.as_inner_mut() }.pop_at(to_i64(index));
+        T::from_variant(&variant)
+    }
+
+    /// Removes the first occurrence of a value from the array.
+    ///
+    /// If the value does not exist in the array, nothing happens. To remove an element by index, use [`remove()`][Self::remove] instead.
+    ///
+    /// On large arrays, this method is much slower than [`pop_back()`][Self::pop_back], as it will move all the array's
+    /// elements after the removed element.
+    pub fn erase(&mut self, value: &T) {
+        // SAFETY: We don't write anything to the array.
+        unsafe { self.as_inner_mut() }.erase(value.to_variant());
+    }
+
+    /// Assigns the given value to all elements in the array. This can be used together with
+    /// `resize` to create an array with a given size and initialized elements.
+    pub fn fill(&mut self, value: &T) {
+        // SAFETY: The array has type `T` and we're writing values of type `T` to it.
+        unsafe { self.as_inner_mut() }.fill(value.to_variant());
     }
 
     /// Resizes the array to contain a different number of elements.
@@ -210,6 +335,241 @@ impl<T: ArrayElement> Array<T> {
         for i in original_size..new_size {
             self.set(i, value.to_godot());
         }
+    }
+
+    /// Shrinks the array down to `new_size`.
+    ///
+    /// This will only change the size of the array if `new_size` is smaller than the current size. Returns `true` if the array was shrunk.
+    ///
+    /// If you want to increase the size of the array, use [`resize`](Array::resize) instead.
+    #[doc(alias = "resize")]
+    pub fn shrink(&mut self, new_size: usize) -> bool {
+        if new_size >= self.len() {
+            return false;
+        }
+
+        // SAFETY: Since `new_size` is less than the current size, we'll only be removing elements from the array.
+        unsafe { self.as_inner_mut() }.resize(to_i64(new_size));
+
+        true
+    }
+
+    /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
+    pub fn extend_array(&mut self, other: Array<T>) {
+        // SAFETY: `append_array` will only read values from `other`, and all types can be converted to `Variant`.
+        let other: VariantArray = unsafe { other.assume_type::<Variant>() };
+
+        // SAFETY: `append_array` will only write values gotten from `other` into `self`, and all values in `other` are guaranteed
+        // to be of type `T`.
+        let mut inner_self = unsafe { self.as_inner_mut() };
+        inner_self.append_array(other);
+    }
+
+    /// Returns a shallow copy of the array. All array elements are copied, but any reference types
+    /// (such as `Array`, `Dictionary` and `Object`) will still refer to the same value.
+    ///
+    /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
+    /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
+    pub fn duplicate_shallow(&self) -> Self {
+        // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
+        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(false) };
+
+        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
+        unsafe { duplicate.assume_type() }
+    }
+
+    /// Returns a deep copy of the array. All nested arrays and dictionaries are duplicated and
+    /// will not be shared with the original array. Note that any `Object`-derived elements will
+    /// still be shallow copied.
+    ///
+    /// To create a shallow copy, use [`duplicate_shallow()`][Self::duplicate_shallow] instead.
+    /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
+    pub fn duplicate_deep(&self) -> Self {
+        // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
+        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(true) };
+
+        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
+        unsafe { duplicate.assume_type() }
+    }
+
+    /// Returns a sub-range `begin..end`, as a new array.
+    ///
+    /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
+    ///
+    /// If specified, `step` is the relative index between source elements. It can be negative,
+    /// in which case `begin` must be higher than `end`. For example,
+    /// `Array::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
+    ///
+    /// Array elements are copied to the slice, but any reference types (such as `Array`,
+    /// `Dictionary` and `Object`) will still refer to the same value. To create a deep copy, use
+    /// [`subarray_deep()`][Self::subarray_deep] instead.
+    #[doc(alias = "slice")]
+    pub fn subarray_shallow(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
+        self.subarray_impl(begin, end, step, false)
+    }
+
+    /// Returns a sub-range `begin..end`, as a new `Array`.
+    ///
+    /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
+    ///
+    /// If specified, `step` is the relative index between source elements. It can be negative,
+    /// in which case `begin` must be higher than `end`. For example,
+    /// `Array::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
+    ///
+    /// All nested arrays and dictionaries are duplicated and will not be shared with the original
+    /// array. Note that any `Object`-derived elements will still be shallow copied. To create a
+    /// shallow copy, use [`subarray_shallow()`][Self::subarray_shallow] instead.
+    #[doc(alias = "slice")]
+    pub fn subarray_deep(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
+        self.subarray_impl(begin, end, step, true)
+    }
+
+    fn subarray_impl(&self, begin: usize, end: usize, step: Option<isize>, deep: bool) -> Self {
+        assert_ne!(step, Some(0), "subarray: step cannot be zero");
+
+        let len = self.len();
+        let begin = begin.min(len);
+        let end = end.min(len);
+        let step = step.unwrap_or(1);
+
+        // SAFETY: The type of the array is `T` and we convert the returned array to an `Array<T>` immediately.
+        let subarray: VariantArray = unsafe {
+            self.as_inner()
+                .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep)
+        };
+
+        // SAFETY: slice() returns a typed array with the same type as Self
+        unsafe { subarray.assume_type() }
+    }
+
+    /// Returns an iterator over the elements of the `Array`. Note that this takes the array
+    /// by reference but returns its elements by value, since they are internally converted from
+    /// `Variant`.
+    ///
+    /// Notice that it's possible to modify the `Array` through another reference while
+    /// iterating over it. This will not result in unsoundness or crashes, but will cause the
+    /// iterator to behave in an unspecified way.
+    pub fn iter_shared(&self) -> Iter<'_, T> {
+        Iter {
+            array: self,
+            next_idx: 0,
+        }
+    }
+
+    /// Returns the minimum value contained in the array if all elements are of comparable types.
+    ///
+    /// If the elements can't be compared or the array is empty, `None` is returned.
+    pub fn min(&self) -> Option<T> {
+        let min = self.as_inner().min();
+        (!min.is_nil()).then(|| T::from_variant(&min))
+    }
+
+    /// Returns the maximum value contained in the array if all elements are of comparable types.
+    ///
+    /// If the elements can't be compared or the array is empty, `None` is returned.
+    pub fn max(&self) -> Option<T> {
+        let max = self.as_inner().max();
+        (!max.is_nil()).then(|| T::from_variant(&max))
+    }
+
+    /// Returns a random element from the array, or `None` if it is empty.
+    pub fn pick_random(&self) -> Option<T> {
+        (!self.is_empty()).then(|| {
+            let variant = self.as_inner().pick_random();
+            T::from_variant(&variant)
+        })
+    }
+
+    /// Searches the array for the first occurrence of a value and returns its index, or `None` if
+    /// not found. Starts searching at index `from`; pass `None` to search the entire array.
+    pub fn find(&self, value: &T, from: Option<usize>) -> Option<usize> {
+        let from = to_i64(from.unwrap_or(0));
+        let index = self.as_inner().find(value.to_variant(), from);
+        if index >= 0 {
+            Some(index.try_into().unwrap())
+        } else {
+            None
+        }
+    }
+
+    /// Searches the array backwards for the last occurrence of a value and returns its index, or
+    /// `None` if not found. Starts searching at index `from`; pass `None` to search the entire
+    /// array.
+    pub fn rfind(&self, value: &T, from: Option<usize>) -> Option<usize> {
+        let from = from.map(to_i64).unwrap_or(-1);
+        let index = self.as_inner().rfind(value.to_variant(), from);
+        // It's not documented, but `rfind` returns -1 if not found.
+        if index >= 0 {
+            Some(to_usize(index))
+        } else {
+            None
+        }
+    }
+
+    /// Finds the index of an existing value in a sorted array using binary search.
+    /// Equivalent of `bsearch` in GDScript.
+    ///
+    /// If the value is not present in the array, returns the insertion index that
+    /// would maintain sorting order.
+    ///
+    /// Calling `bsearch` on an unsorted array results in unspecified behavior.
+    pub fn bsearch(&self, value: &T) -> usize {
+        to_usize(self.as_inner().bsearch(value.to_variant(), true))
+    }
+
+    /// Finds the index of an existing value in a sorted array using binary search.
+    /// Equivalent of `bsearch_custom` in GDScript.
+    ///
+    /// Takes a `Callable` and uses the return value of it to perform binary search.
+    ///
+    /// If the value is not present in the array, returns the insertion index that
+    /// would maintain sorting order.
+    ///
+    /// Calling `bsearch_custom` on an unsorted array results in unspecified behavior.
+    ///
+    /// Consider using `sort_custom()` to ensure the sorting order is compatible with
+    /// your callable's ordering
+    pub fn bsearch_custom(&self, value: &T, func: Callable) -> usize {
+        to_usize(
+            self.as_inner()
+                .bsearch_custom(value.to_variant(), func, true),
+        )
+    }
+
+    /// Reverses the order of the elements in the array.
+    pub fn reverse(&mut self) {
+        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
+        unsafe { self.as_inner_mut() }.reverse();
+    }
+
+    /// Sorts the array.
+    ///
+    /// Note: The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
+    /// This means that values considered equal may have their order changed when using `sort_unstable`.
+    #[doc(alias = "sort")]
+    pub fn sort_unstable(&mut self) {
+        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
+        unsafe { self.as_inner_mut() }.sort();
+    }
+
+    /// Sorts the array.
+    ///
+    /// Uses the provided `Callable` to determine ordering.
+    ///
+    /// Note: The sorting algorithm used is not [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability).
+    /// This means that values considered equal may have their order changed when using `sort_unstable_custom`.
+    #[doc(alias = "sort_custom")]
+    pub fn sort_unstable_custom(&mut self, func: Callable) {
+        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
+        unsafe { self.as_inner_mut() }.sort_custom(func);
+    }
+
+    /// Shuffles the array such that the items will have a random order. This method uses the
+    /// global random number generator common to methods such as `randi`. Call `randomize` to
+    /// ensure that a new seed will be used each time if you want non-reproducible shuffling.
+    pub fn shuffle(&mut self) {
+        // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
+        unsafe { self.as_inner_mut() }.shuffle();
     }
 
     /// Asserts that the given index refers to an existing element.
@@ -317,101 +677,6 @@ impl<T: ArrayElement> Array<T> {
         // SAFETY: The memory layout of `Array<T>` does not depend on `T`.
         unsafe { std::mem::transmute(self) }
     }
-}
-
-impl<T: ArrayElement> Array<T> {
-    /// Constructs an empty `Array`.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Returns a shallow copy of the array. All array elements are copied, but any reference types
-    /// (such as `Array`, `Dictionary` and `Object`) will still refer to the same value.
-    ///
-    /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
-    /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
-    pub fn duplicate_shallow(&self) -> Self {
-        // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
-        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(false) };
-
-        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
-        unsafe { duplicate.assume_type() }
-    }
-
-    /// Returns a deep copy of the array. All nested arrays and dictionaries are duplicated and
-    /// will not be shared with the original array. Note that any `Object`-derived elements will
-    /// still be shallow copied.
-    ///
-    /// To create a shallow copy, use [`duplicate_shallow()`][Self::duplicate_shallow] instead.
-    /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
-    pub fn duplicate_deep(&self) -> Self {
-        // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
-        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(true) };
-
-        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
-        unsafe { duplicate.assume_type() }
-    }
-
-    /// Returns a sub-range `begin..end`, as a new array.
-    ///
-    /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
-    ///
-    /// If specified, `step` is the relative index between source elements. It can be negative,
-    /// in which case `begin` must be higher than `end`. For example,
-    /// `Array::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
-    ///
-    /// Array elements are copied to the slice, but any reference types (such as `Array`,
-    /// `Dictionary` and `Object`) will still refer to the same value. To create a deep copy, use
-    /// [`subarray_deep()`][Self::subarray_deep] instead.
-    #[doc(alias = "slice")]
-    pub fn subarray_shallow(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
-        self.subarray_impl(begin, end, step, false)
-    }
-
-    /// Returns a sub-range `begin..end`, as a new `Array`.
-    ///
-    /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
-    ///
-    /// If specified, `step` is the relative index between source elements. It can be negative,
-    /// in which case `begin` must be higher than `end`. For example,
-    /// `Array::from(&[0, 1, 2, 3, 4, 5]).slice(5, 1, -2)` returns `[5, 3]`.
-    ///
-    /// All nested arrays and dictionaries are duplicated and will not be shared with the original
-    /// array. Note that any `Object`-derived elements will still be shallow copied. To create a
-    /// shallow copy, use [`subarray_shallow()`][Self::subarray_shallow] instead.
-    #[doc(alias = "slice")]
-    pub fn subarray_deep(&self, begin: usize, end: usize, step: Option<isize>) -> Self {
-        self.subarray_impl(begin, end, step, true)
-    }
-
-    fn subarray_impl(&self, begin: usize, end: usize, step: Option<isize>, deep: bool) -> Self {
-        assert_ne!(step, Some(0), "subarray: step cannot be zero");
-
-        let len = self.len();
-        let begin = begin.min(len);
-        let end = end.min(len);
-        let step = step.unwrap_or(1);
-
-        // SAFETY: The type of the array is `T` and we convert the returned array to an `Array<T>` immediately.
-        let subarray: VariantArray = unsafe {
-            self.as_inner()
-                .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep)
-        };
-
-        // SAFETY: slice() returns a typed array with the same type as Self
-        unsafe { subarray.assume_type() }
-    }
-
-    /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
-    pub fn extend_array(&mut self, other: Array<T>) {
-        // SAFETY: `append_array` will only read values from `other`, and all types can be converted to `Variant`.
-        let other: VariantArray = unsafe { other.assume_type::<Variant>() };
-
-        // SAFETY: `append_array` will only write values gotten from `other` into `self`, and all values in `other` are guaranteed
-        // to be of type `T`.
-        let mut inner_self = unsafe { self.as_inner_mut() };
-        inner_self.append_array(other);
-    }
 
     /// Returns the runtime type info of this array.
     fn type_info(&self) -> TypeInfo {
@@ -465,258 +730,6 @@ impl<T: ArrayElement> Array<T> {
                 );
             }
         }
-    }
-}
-
-impl<T: ArrayElement + FromGodot> Array<T> {
-    /// Returns an iterator over the elements of the `Array`. Note that this takes the array
-    /// by reference but returns its elements by value, since they are internally converted from
-    /// `Variant`.
-    ///
-    /// Notice that it's possible to modify the `Array` through another reference while
-    /// iterating over it. This will not result in unsoundness or crashes, but will cause the
-    /// iterator to behave in an unspecified way.
-    pub fn iter_shared(&self) -> Iter<'_, T> {
-        Iter {
-            array: self,
-            next_idx: 0,
-        }
-    }
-
-    /// Returns the value at the specified index.
-    ///
-    /// # Panics
-    ///
-    /// If `index` is out of bounds.
-    pub fn get(&self, index: usize) -> T {
-        // Panics on out-of-bounds
-        let ptr = self.ptr(index);
-
-        // SAFETY: `ptr` is a live pointer to a variant since `ptr.is_null()` just verified that the index is not out of bounds.
-        let variant = unsafe { Variant::borrow_var_sys(ptr) };
-        T::from_variant(variant)
-    }
-
-    /// Returns the value at the specified index or `None` if the index is out-of-bounds.
-    pub fn try_get(&self, index: usize) -> Option<T> {
-        let ptr = self.ptr_or_null(index);
-        if ptr.is_null() {
-            None
-        } else {
-            // SAFETY: `ptr` is a live pointer to a variant since `ptr.is_null()` just verified that the index is not out of bounds.
-            let variant = unsafe { Variant::borrow_var_sys(ptr) };
-            Some(T::from_variant(variant))
-        }
-    }
-
-    /// Returns the first element in the array, or `None` if the array is empty. Equivalent of
-    /// `front()` in GDScript.
-    pub fn first(&self) -> Option<T> {
-        (!self.is_empty()).then(|| {
-            let variant = self.as_inner().front();
-            T::from_variant(&variant)
-        })
-    }
-
-    /// Returns the last element in the array, or `None` if the array is empty. Equivalent of
-    /// `back()` in GDScript.
-    pub fn last(&self) -> Option<T> {
-        (!self.is_empty()).then(|| {
-            let variant = self.as_inner().back();
-            T::from_variant(&variant)
-        })
-    }
-
-    /// Returns the minimum value contained in the array if all elements are of comparable types.
-    /// If the elements can't be compared or the array is empty, `None` is returned.
-    pub fn min(&self) -> Option<T> {
-        let min = self.as_inner().min();
-        (!min.is_nil()).then(|| T::from_variant(&min))
-    }
-
-    /// Returns the maximum value contained in the array if all elements are of comparable types.
-    /// If the elements can't be compared or the array is empty, `None` is returned.
-    pub fn max(&self) -> Option<T> {
-        let max = self.as_inner().max();
-        (!max.is_nil()).then(|| T::from_variant(&max))
-    }
-
-    /// Returns a random element from the array, or `None` if it is empty.
-    pub fn pick_random(&self) -> Option<T> {
-        (!self.is_empty()).then(|| {
-            let variant = self.as_inner().pick_random();
-            T::from_variant(&variant)
-        })
-    }
-
-    /// Removes and returns the last element of the array. Returns `None` if the array is empty.
-    /// Equivalent of `pop_back` in GDScript.
-    pub fn pop(&mut self) -> Option<T> {
-        (!self.is_empty()).then(|| {
-            // SAFETY: We do not write any values to the array, we just remove one.
-            let variant = unsafe { self.as_inner_mut() }.pop_back();
-            T::from_variant(&variant)
-        })
-    }
-
-    /// Removes and returns the first element of the array. Returns `None` if the array is empty.
-    ///
-    /// Note: On large arrays, this method is much slower than `pop` as it will move all the
-    /// array's elements. The larger the array, the slower `pop_front` will be.
-    pub fn pop_front(&mut self) -> Option<T> {
-        (!self.is_empty()).then(|| {
-            // SAFETY: We do not write any values to the array, we just remove one.
-            let variant = unsafe { self.as_inner_mut() }.pop_front();
-            T::from_variant(&variant)
-        })
-    }
-
-    /// Removes and returns the element at the specified index. Equivalent of `pop_at` in GDScript.
-    ///
-    /// On large arrays, this method is much slower than `pop_back` as it will move all the array's
-    /// elements after the removed element. The larger the array, the slower `remove` will be.
-    ///
-    /// # Panics
-    ///
-    /// If `index` is out of bounds.
-    pub fn remove(&mut self, index: usize) -> T {
-        self.check_bounds(index);
-
-        // SAFETY: We do not write any values to the array, we just remove one.
-        let variant = unsafe { self.as_inner_mut() }.pop_at(to_i64(index));
-        T::from_variant(&variant)
-    }
-}
-
-impl<T: ArrayElement + ToGodot> Array<T> {
-    /// Finds the index of an existing value in a sorted array using binary search.
-    /// Equivalent of `bsearch` in GDScript.
-    ///
-    /// If the value is not present in the array, returns the insertion index that
-    /// would maintain sorting order.
-    ///
-    /// Calling `bsearch` on an unsorted array results in unspecified behavior.
-    pub fn bsearch(&self, value: &T) -> usize {
-        to_usize(self.as_inner().bsearch(value.to_variant(), true))
-    }
-
-    /// Finds the index of an existing value in a sorted array using binary search.
-    /// Equivalent of `bsearch_custom` in GDScript.
-    ///
-    /// Takes a `Callable` and uses the return value of it to perform binary search.
-    ///
-    /// If the value is not present in the array, returns the insertion index that
-    /// would maintain sorting order.
-    ///
-    /// Calling `bsearch_custom` on an unsorted array results in unspecified behavior.
-    ///
-    /// Consider using `sort_custom()` to ensure the sorting order is compatible with
-    /// your callable's ordering
-    pub fn bsearch_custom(&self, value: &T, func: Callable) -> usize {
-        to_usize(
-            self.as_inner()
-                .bsearch_custom(value.to_variant(), func, true),
-        )
-    }
-
-    /// Returns the number of times a value is in the array.
-    pub fn count(&self, value: &T) -> usize {
-        to_usize(self.as_inner().count(value.to_variant()))
-    }
-
-    /// Returns `true` if the array contains the given value. Equivalent of `has` in GDScript.
-    pub fn contains(&self, value: &T) -> bool {
-        self.as_inner().has(value.to_variant())
-    }
-
-    /// Searches the array for the first occurrence of a value and returns its index, or `None` if
-    /// not found. Starts searching at index `from`; pass `None` to search the entire array.
-    pub fn find(&self, value: &T, from: Option<usize>) -> Option<usize> {
-        let from = to_i64(from.unwrap_or(0));
-        let index = self.as_inner().find(value.to_variant(), from);
-        if index >= 0 {
-            Some(index.try_into().unwrap())
-        } else {
-            None
-        }
-    }
-
-    /// Searches the array backwards for the last occurrence of a value and returns its index, or
-    /// `None` if not found. Starts searching at index `from`; pass `None` to search the entire
-    /// array.
-    pub fn rfind(&self, value: &T, from: Option<usize>) -> Option<usize> {
-        let from = from.map(to_i64).unwrap_or(-1);
-        let index = self.as_inner().rfind(value.to_variant(), from);
-        // It's not documented, but `rfind` returns -1 if not found.
-        if index >= 0 {
-            Some(to_usize(index))
-        } else {
-            None
-        }
-    }
-
-    /// Sets the value at the specified index.
-    ///
-    /// # Panics
-    ///
-    /// If `index` is out of bounds.
-    pub fn set(&mut self, index: usize, value: T) {
-        let ptr_mut = self.ptr_mut(index);
-
-        // SAFETY: `ptr_mut` just checked that the index is not out of bounds.
-        unsafe {
-            value.to_variant().move_into_var_ptr(ptr_mut);
-        }
-    }
-
-    /// Appends an element to the end of the array. Equivalent of `append` and `push_back` in
-    /// GDScript.
-    pub fn push(&mut self, value: T) {
-        // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
-        unsafe { self.as_inner_mut() }.push_back(value.to_variant());
-    }
-
-    /// Adds an element at the beginning of the array. See also `push`.
-    ///
-    /// Note: On large arrays, this method is much slower than `push` as it will move all the
-    /// array's elements. The larger the array, the slower `push_front` will be.
-    pub fn push_front(&mut self, value: T) {
-        // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
-        unsafe { self.as_inner_mut() }.push_front(value.to_variant());
-    }
-
-    /// Inserts a new element at a given index in the array. The index must be valid, or at the end
-    /// of the array (`index == len()`).
-    ///
-    /// Note: On large arrays, this method is much slower than `push` as it will move all the
-    /// array's elements after the inserted element. The larger the array, the slower `insert` will
-    /// be.
-    pub fn insert(&mut self, index: usize, value: T) {
-        let len = self.len();
-        assert!(
-            index <= len,
-            "Array insertion index {index} is out of bounds: length is {len}",
-        );
-
-        // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
-        unsafe { self.as_inner_mut() }.insert(to_i64(index), value.to_variant());
-    }
-
-    /// Removes the first occurrence of a value from the array. If the value does not exist in the
-    /// array, nothing happens. To remove an element by index, use `remove` instead.
-    ///
-    /// On large arrays, this method is much slower than `pop_back` as it will move all the array's
-    /// elements after the removed element. The larger the array, the slower `remove` will be.
-    pub fn erase(&mut self, value: &T) {
-        // SAFETY: We don't write anything to the array.
-        unsafe { self.as_inner_mut() }.erase(value.to_variant());
-    }
-
-    /// Assigns the given value to all elements in the array. This can be used together with
-    /// `resize` to create an array with a given size and initialized elements.
-    pub fn fill(&mut self, value: &T) {
-        // SAFETY: The array has type `T` and we're writing values of type `T` to it.
-        unsafe { self.as_inner_mut() }.fill(value.to_variant());
     }
 }
 
@@ -814,7 +827,7 @@ impl<T: ArrayElement> Clone for Array<T> {
         // SAFETY: `self` is a valid array, since we have a reference that keeps it alive.
         let array = unsafe {
             Self::new_with_uninit(|self_ptr| {
-                let ctor = ::godot_ffi::builtin_fn!(array_construct_copy);
+                let ctor = sys::builtin_fn!(array_construct_copy);
                 let args = [self.sys()];
                 ctor(self_ptr, args.as_ptr());
             })
@@ -891,6 +904,9 @@ impl<T: ArrayElement> Default for Array<T> {
     }
 }
 
+// T must be GodotType (or subtrait ArrayElement), because drop() requires sys_mut(), which is on the GodotFfi trait.
+// Its sister method GodotFfi::from_sys_init() requires Default, which is only implemented for T: GodotType.
+// This could be addressed by splitting up GodotFfi if desired.
 impl<T: ArrayElement> Drop for Array<T> {
     #[inline]
     fn drop(&mut self) {
@@ -918,7 +934,7 @@ impl<T: ArrayElement> GodotType for Array<T> {
     }
 
     fn godot_type_name() -> String {
-        "Array".into()
+        "Array".to_string()
     }
 }
 
@@ -1080,7 +1096,7 @@ impl<T: ArrayElement> PartialOrd for Array<T> {
             let mut result = false;
             sys::builtin_call! {
                 array_operator_less(lhs, rhs, result.sys_mut())
-            };
+            }
             result
         };
 
@@ -1246,7 +1262,7 @@ mod serialize {
             {
                 type Value = Array<T>;
 
-                fn expecting(&self, formatter: &mut std::fmt::Formatter) -> fmt::Result {
+                fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
                     formatter.write_str(std::any::type_name::<Self::Value>())
                 }
 

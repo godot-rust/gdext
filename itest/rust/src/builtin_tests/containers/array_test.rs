@@ -62,8 +62,8 @@ fn array_from_iterator() {
     let array = Array::from_iter([1, 2]);
 
     assert_eq!(array.len(), 2);
-    assert_eq!(array.get(0), 1);
-    assert_eq!(array.get(1), 2);
+    assert_eq!(array.at(0), 1);
+    assert_eq!(array.at(1), 2);
 }
 
 #[itest]
@@ -71,8 +71,8 @@ fn array_from_slice() {
     let array = Array::from(&[1, 2]);
 
     assert_eq!(array.len(), 2);
-    assert_eq!(array.get(0), 1);
-    assert_eq!(array.get(1), 2);
+    assert_eq!(array.at(0), 1);
+    assert_eq!(array.at(1), 2);
 }
 
 #[itest]
@@ -108,7 +108,7 @@ fn array_share() {
     let mut array = array![1, 2];
     let shared = array.clone();
     array.set(0, 3);
-    assert_eq!(shared.get(0), 3);
+    assert_eq!(shared.at(0), 3);
 }
 
 #[itest]
@@ -116,10 +116,10 @@ fn array_duplicate_shallow() {
     let subarray = array![2, 3];
     let array = varray![1, subarray];
     let duplicate = array.duplicate_shallow();
-    Array::<i64>::try_from_variant(&duplicate.get(1))
+    Array::<i64>::try_from_variant(&duplicate.at(1))
         .unwrap()
         .set(0, 4);
-    assert_eq!(subarray.get(0), 4);
+    assert_eq!(subarray.at(0), 4);
 }
 
 #[itest]
@@ -127,10 +127,10 @@ fn array_duplicate_deep() {
     let subarray = array![2, 3];
     let array = varray![1, subarray];
     let duplicate = array.duplicate_deep();
-    Array::<i64>::try_from_variant(&duplicate.get(1))
+    Array::<i64>::try_from_variant(&duplicate.at(1))
         .unwrap()
         .set(0, 4);
-    assert_eq!(subarray.get(0), 2);
+    assert_eq!(subarray.at(0), 2);
 }
 
 #[itest]
@@ -142,10 +142,10 @@ fn array_subarray_shallow() {
     let subarray = array![2, 3];
     let array = varray![1, subarray];
     let slice = array.subarray_shallow(1, 2, None);
-    Array::<i64>::try_from_variant(&slice.get(0))
+    Array::<i64>::try_from_variant(&slice.at(0))
         .unwrap()
         .set(0, 4);
-    assert_eq!(subarray.get(0), 4);
+    assert_eq!(subarray.at(0), 4);
 }
 
 #[itest]
@@ -157,20 +157,20 @@ fn array_subarray_deep() {
     let subarray = array![2, 3];
     let array = varray![1, subarray];
     let slice = array.subarray_deep(1, 2, None);
-    Array::<i64>::try_from_variant(&slice.get(0))
+    Array::<i64>::try_from_variant(&slice.at(0))
         .unwrap()
         .set(0, 4);
-    assert_eq!(subarray.get(0), 2);
+    assert_eq!(subarray.at(0), 2);
 }
 
 #[itest]
 fn array_get() {
     let array = array![1, 2];
 
-    assert_eq!(array.get(0), 1);
-    assert_eq!(array.get(1), 2);
+    assert_eq!(array.at(0), 1);
+    assert_eq!(array.at(1), 2);
     expect_panic("Array index 2 out of bounds: length is 2", || {
-        array.get(2);
+        array.at(2);
     });
 }
 
@@ -178,22 +178,22 @@ fn array_get() {
 fn array_try_get() {
     let array = array![1, 2];
 
-    assert_eq!(array.try_get(0), Some(1));
-    assert_eq!(array.try_get(1), Some(2));
-    assert_eq!(array.try_get(2), None);
+    assert_eq!(array.get(0), Some(1));
+    assert_eq!(array.get(1), Some(2));
+    assert_eq!(array.get(2), None);
 }
 
 #[itest]
 fn array_first_last() {
     let array = array![1, 2];
 
-    assert_eq!(array.first(), Some(1));
-    assert_eq!(array.last(), Some(2));
+    assert_eq!(array.front(), Some(1));
+    assert_eq!(array.back(), Some(2));
 
     let empty_array = VariantArray::new();
 
-    assert_eq!(empty_array.first(), None);
-    assert_eq!(empty_array.last(), None);
+    assert_eq!(empty_array.front(), None);
+    assert_eq!(empty_array.back(), None);
 }
 
 #[itest]
@@ -254,7 +254,7 @@ fn array_set() {
     let mut array = array![1, 2];
 
     array.set(0, 3);
-    assert_eq!(array.get(0), 3);
+    assert_eq!(array.at(0), 3);
 
     expect_panic("Array index 2 out of bounds: length is 2", move || {
         array.set(2, 4);
@@ -340,34 +340,34 @@ fn array_mixed_values() {
         user_refc,
     ];
 
-    assert_eq!(i64::try_from_variant(&array.get(0)).unwrap(), int);
-    assert_eq!(GString::try_from_variant(&array.get(1)).unwrap(), string);
+    assert_eq!(i64::try_from_variant(&array.at(0)).unwrap(), int);
+    assert_eq!(GString::try_from_variant(&array.at(1)).unwrap(), string);
     assert_eq!(
-        PackedByteArray::try_from_variant(&array.get(2)).unwrap(),
+        PackedByteArray::try_from_variant(&array.at(2)).unwrap(),
         packed_array
     );
-    assert_eq!(Array::try_from_variant(&array.get(3)).unwrap(), typed_array);
+    assert_eq!(Array::try_from_variant(&array.at(3)).unwrap(), typed_array);
     assert_eq!(
-        Gd::<Object>::try_from_variant(&array.get(4))
+        Gd::<Object>::try_from_variant(&array.at(4))
             .unwrap()
             .instance_id(),
         object.instance_id()
     );
     assert_eq!(
-        Gd::<Node>::try_from_variant(&array.get(5))
+        Gd::<Node>::try_from_variant(&array.at(5))
             .unwrap()
             .instance_id(),
         node.instance_id()
     );
 
     assert_eq!(
-        Gd::<RefCounted>::try_from_variant(&array.get(6))
+        Gd::<RefCounted>::try_from_variant(&array.at(6))
             .unwrap()
             .instance_id(),
         engine_refc.instance_id()
     );
     assert_eq!(
-        Gd::<ArrayTest>::try_from_variant(&array.get(7))
+        Gd::<ArrayTest>::try_from_variant(&array.at(7))
             .unwrap()
             .instance_id(),
         user_refc.instance_id()
