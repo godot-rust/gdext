@@ -130,7 +130,13 @@ pub use prebuilt::*;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Common
 
-const NEXT_MINOR_VERSION: u8 = 3;
+// List of minor versions with the highest known patch number for each.
+//
+// We could have this just be a list of patch numbers, letting the index be the minor version. However it's more readable to include the
+// minor versions as well.
+//
+// Note that when the patch version is `0`, then the patch number is not included in Godot versioning, i.e. `4.1.0` is displayed as `4.1`.
+const HIGHEST_PATCH_VERSIONS: &[(u8, u8)] = &[(0, 4), (1, 4), (2, 2), (3, 0)];
 
 pub fn clear_dir(dir: &Path, watch: &mut StopWatch) {
     if dir.exists() {
@@ -148,8 +154,10 @@ pub fn emit_godot_version_cfg() {
         ..
     } = get_godot_version();
 
+    // This could also be done as `KNOWN_API_VERSIONS.len() - 1`, but this is more explicit.
+    let max = HIGHEST_PATCH_VERSIONS.last().unwrap().0;
+
     // Start at 1; checking for "since/before 4.0" makes no sense
-    let max = NEXT_MINOR_VERSION;
     for m in 1..=minor {
         println!(r#"cargo:rustc-cfg=since_api="{major}.{m}""#);
     }
@@ -165,6 +173,28 @@ pub fn emit_godot_version_cfg() {
         println!(r#"cargo:rustc-cfg=gdextension_exact_api="{major}.{minor}.{patch}""#);
     } else {
         println!(r#"cargo:rustc-cfg=gdextension_exact_api="{major}.{minor}""#);
+    }
+
+    // Emit `rustc-check-cfg` so cargo doesn't complain when we use the cfgs.
+    for (minor, highest_patch) in HIGHEST_PATCH_VERSIONS {
+        if *minor > 0 {
+            println!(r#"cargo::rustc-check-cfg=cfg(since_api, values("4.{minor}"))"#);
+            println!(r#"cargo::rustc-check-cfg=cfg(before_api, values("4.{minor}"))"#);
+        }
+
+        println!(r#"cargo::rustc-check-cfg=cfg(gdextension_minor_api, values("4.{minor}"))"#);
+
+        for patch in 0..=*highest_patch {
+            if patch == 0 {
+                println!(
+                    r#"cargo::rustc-check-cfg=cfg(gdextension_exact_api, values("4.{minor}"))"#
+                );
+            } else {
+                println!(
+                    r#"cargo::rustc-check-cfg=cfg(gdextension_exact_api, values("4.{minor}.{patch}"))"#
+                );
+            }
+        }
     }
 }
 
@@ -189,6 +219,29 @@ pub fn remove_dir_all_reliable(path: &Path) {
         }
     }
 }
+
+// Duplicates code from `make_gdext_build_struct` in `godot-codegen/generator/gdext_build_struct.rs`.
+pub fn before_api(major_minor: &str) -> bool {
+    let mut parts = major_minor.split('.');
+    let queried_major = parts
+        .next()
+        .unwrap()
+        .parse::<u8>()
+        .expect("invalid major version");
+    let queried_minor = parts
+        .next()
+        .unwrap()
+        .parse::<u8>()
+        .expect("invalid minor version");
+    assert_eq!(queried_major, 4, "major version must be 4");
+    let godot_version = get_godot_version();
+    godot_version.minor < queried_minor
+}
+
+pub fn since_api(major_minor: &str) -> bool {
+    !before_api(major_minor)
+}
+
 //
 // pub fn write_module_file(path: &Path) {
 //     let code = quote! {

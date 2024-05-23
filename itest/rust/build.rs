@@ -148,8 +148,11 @@ fn collect_inputs() -> Vec<Input> {
     push!(inputs; PackedStringArray, PackedStringArray, PackedStringArray(), PackedStringArray::new());
     push!(inputs; PackedVector2Array, PackedVector2Array, PackedVector2Array(), PackedVector2Array::new());
     push!(inputs; PackedVector3Array, PackedVector3Array, PackedVector3Array(), PackedVector3Array::new());
-    #[cfg(since_api = "4.3")]
-    push!(inputs; PackedVector4Array, PackedVector4Array, PackedVector4Array(), PackedVector4Array::new());
+    // This is being run in a build script at the same time as other build-scripts, so the `rustc-cfg` directives haven't been run for this
+    // build-script. This means that `#[cfg(since_api = "4.3")]` wouldn't do anything.
+    if godot_bindings::since_api("4.3") {
+        push!(inputs; PackedVector4Array, PackedVector4Array, PackedVector4Array(), PackedVector4Array::new());
+    }
     push!(inputs; PackedColorArray, PackedColorArray, PackedColorArray(), PackedColorArray::new());
 
     push_newtype!(inputs; int, NewI64(i64), -922337203685477580);
