@@ -9,7 +9,7 @@ use godot_ffi as sys;
 
 use crate::builtin::meta::ToGodot;
 use crate::builtin::*;
-use std::fmt;
+use std::{fmt, ops};
 use sys::types::*;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
@@ -391,6 +391,24 @@ macro_rules! impl_packed_array {
         impl_builtin_traits! {
             for $PackedArray {
                 $($trait_impls)*
+            }
+        }
+
+        impl ops::Index<usize> for $PackedArray {
+            type Output = $Element;
+
+            fn index(&self, index: usize) -> &Self::Output {
+                let ptr = self.ptr(index);
+                // SAFETY: `ptr` checked bounds.
+                unsafe { &*ptr }
+            }
+        }
+
+        impl ops::IndexMut<usize> for $PackedArray {
+            fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+                let ptr = self.ptr_mut(index);
+                // SAFETY: `ptr` checked bounds.
+                unsafe { &mut *ptr }
             }
         }
 

@@ -131,6 +131,31 @@ fn packed_array_as_mut_slice() {
 }
 
 #[itest]
+fn packed_array_index() {
+    let array = PackedByteArray::from(&[1, 2]);
+
+    assert_eq!(array[0], 1);
+    assert_eq!(array[1], 2);
+    expect_panic("Array index 2 out of bounds: length is 2", || {
+        let _ = array[2];
+    });
+
+    let mut array = PackedStringArray::new();
+    expect_panic("Array index 0 out of bounds: length is 0", || {
+        let _ = array[0];
+    });
+
+    array.push("first".into());
+    array.push("second".into());
+
+    assert_eq!(array[0], "first".into());
+    assert_eq!(array[1], "second".into());
+
+    array[0] = "begin".into();
+    assert_eq!(array[0], "begin".into());
+}
+
+#[itest]
 fn packed_array_get() {
     let array = PackedByteArray::from(&[1, 2]);
 
