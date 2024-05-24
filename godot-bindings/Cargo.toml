@@ -7,7 +7,7 @@ license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "ffi", "sys"]
 categories = ["game-engines", "graphics"]
 
-# Since features are additive and we want the user to user prebuilt by default, we need to have `prebuilt-godot` as the
+# Since features are additive, and we want the user to user prebuilt by default, we need to have `prebuilt-godot` as the
 # default feature. However, it's not possible to _disable_ the prebuilt dependency when specifying `api-custom` (without
 # requiring no-default-features), so we unfortunately still need to depend on prebuilt and just ignore it.
 # The artifact generator explicitly excludes that though (to avoid a quasi-circular dependency back to its repo).
@@ -34,3 +34,8 @@ which = { optional = true, version = "6" }
 [dev-dependencies]
 # For tests, we need regex unconditionally. Keep this in sync with above dependency.
 regex = { version = "1.5.5", default-features = false, features = ["std", "unicode-gencat"] }
+
+# https://docs.rs/about/metadata
+[package.metadata.docs.rs]
+features = ["experimental-godot-api"]
+rustdoc-args = ["--cfg", "published_docs"]

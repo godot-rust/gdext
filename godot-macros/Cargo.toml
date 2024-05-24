@@ -26,3 +26,8 @@ venial = "0.6"
 
 [build-dependencies]
 godot-bindings = { path = "../godot-bindings" } # emit_godot_version_cfg
+
+# https://docs.rs/about/metadata
+[package.metadata.docs.rs]
+features = ["experimental-godot-api"]
+rustdoc-args = ["--cfg", "published_docs"]

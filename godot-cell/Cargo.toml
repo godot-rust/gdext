@@ -12,3 +12,8 @@ proptest = ["dep:proptest"]
 
 [dependencies]
 proptest = { version = "1.4.0", optional = true }
+
+# https://docs.rs/about/metadata
+[package.metadata.docs.rs]
+features = ["experimental-godot-api"]
+rustdoc-args = ["--cfg", "published_docs"]
