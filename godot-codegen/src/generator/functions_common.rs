@@ -86,11 +86,12 @@ pub fn make_function_definition(
     sig: &dyn Function,
     code: &FnCode,
     safety_doc: Option<TokenStream>,
+    cfg_attributes: &TokenStream,
 ) -> FnDefinition {
     let has_default_params = default_parameters::function_uses_default_params(sig);
     let vis = if has_default_params {
         // Public API mapped by separate function.
-        // Needs to be crate-public because default-arg builder lives outside of the module.
+        // Needs to be crate-public because default-arg builder lives outside the module.
         quote! { pub(crate) }
     } else {
         make_vis(sig.is_private())
@@ -127,7 +128,12 @@ pub fn make_function_definition(
     };
 
     let (default_fn_code, default_structs_code) = if has_default_params {
-        default_parameters::make_function_definition_with_defaults(sig, code, &primary_fn_name)
+        default_parameters::make_function_definition_with_defaults(
+            sig,
+            code,
+            &primary_fn_name,
+            cfg_attributes,
+        )
     } else {
         (TokenStream::new(), TokenStream::new())
     };

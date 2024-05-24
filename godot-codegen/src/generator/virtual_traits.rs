@@ -19,12 +19,13 @@ pub fn make_virtual_methods_trait(
     all_base_names: &[TyName],
     trait_name_str: &str,
     notification_enum_name: &Ident,
+    cfg_attributes: &TokenStream,
     view: &ApiView,
 ) -> TokenStream {
     let trait_name = ident(trait_name_str);
 
     let virtual_method_fns = make_all_virtual_methods(class, all_base_names, view);
-    let special_virtual_methods = special_virtual_methods(notification_enum_name);
+    let special_virtual_methods = make_special_virtual_methods(notification_enum_name);
 
     let trait_doc = docs::make_virtual_trait_doc(trait_name_str, class.name());
 
@@ -32,6 +33,7 @@ pub fn make_virtual_methods_trait(
         #[doc = #trait_doc]
         #[allow(unused_variables)]
         #[allow(clippy::unimplemented)]
+        #cfg_attributes
         pub trait #trait_name: crate::obj::GodotClass + crate::private::You_forgot_the_attribute__godot_api {
             #special_virtual_methods
             #( #virtual_method_fns )*
@@ -42,7 +44,7 @@ pub fn make_virtual_methods_trait(
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-fn special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
+fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
     quote! {
         #[doc(hidden)]
         fn register_class(builder: &mut crate::builder::ClassBuilder<Self>) {
@@ -125,6 +127,7 @@ fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
             ptrcall_invocation: TokenStream::new(),
         },
         None,
+        &TokenStream::new(),
     );
 
     // Virtual methods have no builders.

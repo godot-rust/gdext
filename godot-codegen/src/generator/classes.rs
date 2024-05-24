@@ -94,19 +94,42 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     let api_level = class.api_level;
     let init_level = api_level.to_init_level();
 
+    // These attributes are for our nightly docs pipeline, which enables "only available in ..." labels in the HTML output. The website CI sets
+    // RUSTFLAGS="--cfg published_docs" during the `cargo +nightly doc` invocation. They are applied to classes, interface traits, sidecar modules,
+    // the notification enum, other enums and default-parameter extender structs.
+    //
+    // In other parts of the codebase, #[cfg] statements are replaced with #[doc(cfg)] using sed/sd. However, that doesn't work here, because
+    // generated files are output in ./target/build/debug. Upon doing sed/sd replacements on these files, cargo doc will either treat them as
+    // unchanged (doing nothing), or rebuild the generated files into a _different_ folder. Therefore, the generator itself must already provide
+    // the correct attributes from the start.
+    let (cfg_attributes, cfg_inner_attributes);
+    if class.is_experimental {
+        cfg_attributes = quote! {
+            // #[cfg(feature = "experimental-godot-api")]
+            #[cfg_attr(published_docs, doc(cfg(feature = "experimental-godot-api")))]
+        };
+        cfg_inner_attributes = quote! {
+            // #![cfg(feature = "experimental-godot-api")]
+            #![cfg_attr(published_docs, doc(cfg(feature = "experimental-godot-api")))]
+        };
+    } else {
+        cfg_attributes = TokenStream::new();
+        cfg_inner_attributes = TokenStream::new();
+    };
+
     let FnDefinitions {
         functions: methods,
         builders,
-    } = make_class_methods(class, &class.methods, ctx);
+    } = make_class_methods(class, &class.methods, &cfg_attributes, ctx);
 
-    let enums = enums::make_enums(&class.enums);
+    let enums = enums::make_enums(&class.enums, &cfg_attributes);
     let constants = constants::make_constants(&class.constants);
     let inherits_macro = format_ident!("unsafe_inherits_transitive_{}", class_name.rust_ty);
     let deref_impl = make_deref_impl(class_name, &base_ty);
 
     let all_bases = ctx.inheritance_tree().collect_all_bases(class_name);
     let (notification_enum, notification_enum_name) =
-        notifications::make_notification_enum(class_name, &all_bases, ctx);
+        notifications::make_notification_enum(class_name, &all_bases, &cfg_attributes, ctx);
 
     // Associated "sidecar" module is made public if there are other symbols related to the class, which are not
     // in top-level godot::engine module (notification enums are not in the sidecar, but in godot::engine::notify).
@@ -120,11 +143,13 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         has_sidecar_module,
     );
     let module_doc = docs::make_module_doc(class_name);
+
     let virtual_trait = virtual_traits::make_virtual_methods_trait(
         class,
         &all_bases,
         &virtual_trait_str,
         &notification_enum_name,
+        &cfg_attributes,
         view,
     );
 
@@ -156,6 +181,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     let imports = util::make_imports();
     let tokens = quote! {
         #![doc = #module_doc]
+        #cfg_inner_attributes
 
         #imports
         use crate::engine::notify::*;
@@ -166,6 +192,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
 
             #[doc = #class_doc]
             #[doc = #construct_doc]
+            #cfg_attributes
             #[derive(Debug)]
             #[repr(C)]
             pub struct #class_name {
@@ -406,12 +433,17 @@ fn make_bounds(class: &Class) -> (Ident, Ident) {
     (assoc_memory, assoc_dyn_memory)
 }
 
-fn make_class_methods(class: &Class, methods: &[ClassMethod], ctx: &mut Context) -> FnDefinitions {
+fn make_class_methods(
+    class: &Class,
+    methods: &[ClassMethod],
+    cfg_attributes: &TokenStream,
+    ctx: &mut Context,
+) -> FnDefinitions {
     let get_method_table = class.api_level.table_global_getter();
 
-    let definitions = methods
-        .iter()
-        .map(|method| make_class_method_definition(class, method, &get_method_table, ctx));
+    let definitions = methods.iter().map(|method| {
+        make_class_method_definition(class, method, &get_method_table, cfg_attributes, ctx)
+    });
 
     FnDefinitions::expand(definitions)
 }
@@ -420,6 +452,7 @@ fn make_class_method_definition(
     class: &Class,
     method: &ClassMethod,
     get_method_table: &Ident,
+    cfg_attributes: &TokenStream,
     ctx: &mut Context,
 ) -> FnDefinition {
     let FnDirection::Outbound { hash } = method.direction() else {
@@ -489,5 +522,6 @@ fn make_class_method_definition(
             ptrcall_invocation,
         },
         None,
+        cfg_attributes,
     )
 }

@@ -101,7 +101,7 @@ fn make_builtin_class(class: &BuiltinClass, ctx: &mut Context) -> GeneratedBuilt
     } = make_builtin_methods(class, &class.methods, ctx);
 
     let imports = util::make_imports();
-    let enums = enums::make_enums(&class.enums);
+    let enums = enums::make_enums(&class.enums, &TokenStream::new());
     let special_constructors = make_special_builtin_methods(class.name(), ctx);
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
@@ -245,5 +245,6 @@ fn make_builtin_method_definition(
             ptrcall_invocation,
         },
         safety_doc,
+        &TokenStream::new(),
     )
 }

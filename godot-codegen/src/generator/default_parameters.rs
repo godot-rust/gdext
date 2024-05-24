@@ -17,6 +17,7 @@ pub fn make_function_definition_with_defaults(
     sig: &dyn Function,
     code: &FnCode,
     full_fn_name: &Ident,
+    cfg_attributes: &TokenStream,
 ) -> (TokenStream, TokenStream) {
     let (default_fn_params, required_fn_params): (Vec<_>, Vec<_>) = sig
         .params()
@@ -62,6 +63,7 @@ pub fn make_function_definition_with_defaults(
     let builders = quote! {
         #[doc = #builder_doc]
         #[must_use]
+        #cfg_attributes
         pub struct #builder_ty #builder_lifetime {
             // #builder_surround_ref
             #( #builder_fields, )*

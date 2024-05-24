@@ -61,6 +61,7 @@ pub fn make_notify_methods(class_name: &TyName, ctx: &mut Context) -> TokenStrea
 pub fn make_notification_enum(
     class_name: &TyName,
     all_bases: &Vec<TyName>,
+    cfg_attributes: &TokenStream,
     ctx: &mut Context,
 ) -> (Option<TokenStream>, Ident) {
     let Some(all_constants) = ctx.notification_constants(class_name) else {
@@ -98,6 +99,7 @@ pub fn make_notification_enum(
         /// notifications defined in base classes.
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
         #[repr(i32)]
+        #cfg_attributes
         pub enum #enum_name {
             #(
                 #notification_enumerators_pascal = #notification_enumerators_ord,

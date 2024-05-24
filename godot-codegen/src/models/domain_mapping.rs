@@ -87,6 +87,9 @@ impl Class {
             return None;
         }
 
+        // Already checked in is_class_deleted(), but code remains more maintainable if those are separate, and it's cheap to validate.
+        let is_experimental = special_cases::is_class_experimental(&ty_name.godot_ty);
+
         let mod_name = ModName::from_godot(&ty_name.godot_ty);
 
         let constants = option_as_slice(&json.constants)
@@ -117,6 +120,7 @@ impl Class {
             },
             is_refcounted: json.is_refcounted,
             is_instantiable: json.is_instantiable,
+            is_experimental,
             inherits: json.inherits.clone(),
             api_level: get_api_level(json),
             constants,
