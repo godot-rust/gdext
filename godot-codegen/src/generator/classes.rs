@@ -94,13 +94,24 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     let api_level = class.api_level;
     let init_level = api_level.to_init_level();
 
-    // This is not strictly needed because the classes are included/excluded by codegen depending on that feature, however it helps the
-    // docs pipeline which converts #[ cfg(...) ] to #[ doc(cfg(...)) ], resulting in "only available in ..." labels in the HTML output.
-    // (The above has spaces because there's a primitive sed expression at work :) )
+    // These attributes are for our nightly docs pipeline, which enables "only available in ..." labels in the HTML output. The website CI sets
+    // RUSTFLAGS="--cfg published_docs" during the `cargo +nightly doc` invocation. They are applied to classes, interface traits, sidecar modules,
+    // the notification enum, other enums and default-parameter extender structs.
+    //
+    // In other parts of the codebase, #[cfg] statements are replaced with #[doc(cfg)] using sed/sd. However, that doesn't work here, because
+    // generated files are output in ./target/build/debug. Upon doing sed/sd replacements on these files, cargo doc will either treat them as
+    // unchanged (doing nothing), or rebuild the generated files into a _different_ folder. Therefore, the generator itself must already provide
+    // the correct attributes from the start.
     let (cfg_attributes, cfg_inner_attributes);
     if class.is_experimental {
-        cfg_attributes = quote! { #[cfg(feature = "experimental-godot-api")] };
-        cfg_inner_attributes = quote! { #![cfg(feature = "experimental-godot-api")] };
+        cfg_attributes = quote! {
+            // #[cfg(feature = "experimental-godot-api")]
+            #[cfg_attr(published_docs, doc(cfg(feature = "experimental-godot-api")))]
+        };
+        cfg_inner_attributes = quote! {
+            // #![cfg(feature = "experimental-godot-api")]
+            #![cfg_attr(published_docs, doc(cfg(feature = "experimental-godot-api")))]
+        };
     } else {
         cfg_attributes = TokenStream::new();
         cfg_inner_attributes = TokenStream::new();
