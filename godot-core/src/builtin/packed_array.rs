@@ -50,7 +50,9 @@ macro_rules! impl_packed_array {
     ) => {
         // TODO expand type names in doc comments (use e.g. `paste` crate)
         #[doc = concat!("Implements Godot's `", stringify!($PackedArray), "` type,")]
-        #[doc = concat!("which is an efficient array of `", stringify!($Element), "`s.")]
+        #[doc = concat!("which is a space-efficient array of `", stringify!($Element), "`s.")]
+        ///
+        /// Check out the [book](https://godot-rust.github.io/book/godot-api/builtins.html#packed-arrays) for a tutorial on packed arrays.
         ///
         /// Note that, unlike `Array`, this type has value semantics: each copy will be independent
         /// of the original. Under the hood, Godot uses copy-on-write, so copies are still cheap
@@ -62,7 +64,7 @@ macro_rules! impl_packed_array {
         /// editor (for `#[export]`) will effectively keep an independent copy of the array. Writes to the packed array from Rust are thus not
         /// reflected on the other side -- you may need to replace the entire array.
         ///
-        /// See also [#godot/76150](https://github.com/godotengine/godot/issues/76150) for details.
+        /// See also [godot/#76150](https://github.com/godotengine/godot/issues/76150) for details.
         ///
         /// # Thread safety
         ///
@@ -79,13 +81,33 @@ macro_rules! impl_packed_array {
             fn from_opaque(opaque: $Opaque) -> Self {
                 Self { opaque }
             }
-        }
 
-        // This impl relies on `$Inner` which is not (yet) available in unit tests
-        impl $PackedArray {
             /// Constructs an empty array.
             pub fn new() -> Self {
                 Self::default()
+            }
+
+            /// Returns a copy of the value at the specified index, or `None` if out-of-bounds.
+            ///
+            /// If you know the index is valid, use the `[]` operator (`Index`/`IndexMut` traits) instead.
+            pub fn get(&self, index: usize) -> Option<$Element> {
+                let ptr = self.ptr_or_none(index)?;
+
+                // SAFETY: if index was out of bounds, `ptr` would be `None` and return early.
+                unsafe { Some((*ptr).clone()) }
+            }
+
+            /// Returns `true` if the array contains the given value.
+            ///
+            /// _Godot equivalent: `has`_
+            #[doc(alias = "has")]
+            pub fn contains(&self, value: $Element) -> bool {
+                self.as_inner().has(Self::into_arg(value))
+            }
+
+            /// Returns the number of times a value is in the array.
+            pub fn count(&self, value: $Element) -> usize {
+                to_usize(self.as_inner().count(Self::into_arg(value)))
             }
 
             /// Returns the number of elements in the array. Equivalent of `size()` in Godot.
@@ -98,150 +120,9 @@ macro_rules! impl_packed_array {
                 self.as_inner().is_empty()
             }
 
-            /// Converts this array to a Rust vector, making a copy of its contents.
-            pub fn to_vec(&self) -> Vec<$Element> {
-                let len = self.len();
-                let mut vec = Vec::with_capacity(len);
-                if len > 0 {
-                    let ptr = self.ptr(0);
-                    for offset in 0..to_isize(len) {
-                        // SAFETY: Packed arrays are stored contiguously in memory, so we can use
-                        // pointer arithmetic instead of going through `$operator_index_const` for
-                        // every index.
-                        // Note that we do need to use `.clone()` because `GString` is refcounted;
-                        // we can't just do a memcpy.
-                        let element = unsafe { (*ptr.offset(offset)).clone() };
-                        vec.push(element);
-                    }
-                }
-                vec
-            }
-
             /// Clears the array, removing all elements.
             pub fn clear(&mut self) {
                 self.as_inner().clear();
-            }
-
-            /// Resizes the array to contain a different number of elements. If the new size is
-            /// smaller, elements are removed from the end. If the new size is larger, new elements
-            /// are set to [`Default::default()`].
-            pub fn resize(&mut self, size: usize) {
-                self.as_inner().resize(to_i64(size));
-            }
-
-            /// Returns a sub-range `begin..end`, as a new packed array.
-            ///
-            /// This method is called `slice()` in Godot.
-            /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
-            ///
-            /// To obtain Rust slices, see [`as_slice`][Self::as_slice] and [`as_mut_slice`][Self::as_mut_slice].
-            #[doc(alias = "slice")]
-            pub fn subarray(&self, begin: usize, end: usize) -> Self {
-                let len = self.len();
-                let begin = begin.min(len);
-                let end = end.min(len);
-                self.as_inner().slice(to_i64(begin), to_i64(end))
-            }
-
-            /// Returns a shared Rust slice of the array.
-            ///
-            /// The resulting slice can be further subdivided or converted into raw pointers.
-            ///
-            /// See also [`as_mut_slice`][Self::as_mut_slice] to get exclusive slices, and
-            /// [`subarray`][Self::subarray] to get a sub-array as a copy.
-            pub fn as_slice(&self) -> &[$Element] {
-                if self.is_empty() {
-                    &[]
-                } else {
-                    let data = self.ptr(0);
-
-                    // SAFETY: PackedArray holds `len` elements in contiguous storage, all of which are initialized.
-                    // The array uses copy-on-write semantics, so the slice may be aliased, but copies will use a new allocation.
-                    unsafe {
-                        std::slice::from_raw_parts(data, self.len())
-                    }
-                }
-            }
-
-            /// Returns an exclusive Rust slice of the array.
-            ///
-            /// The resulting slice can be further subdivided or converted into raw pointers.
-            ///
-            /// See also [`as_slice`][Self::as_slice] to get shared slices, and
-            /// [`subarray`][Self::subarray] to get a sub-array as a copy.
-            pub fn as_mut_slice(&mut self) -> &mut [$Element] {
-                if self.is_empty() {
-                    &mut []
-                } else {
-                    let data = self.ptr_mut(0);
-
-                    // SAFETY: PackedArray holds `len` elements in contiguous storage, all of which are initialized.
-                    // The array uses copy-on-write semantics. ptr_mut() triggers a copy if non-unique, after which the slice is never aliased.
-                    unsafe {
-                        std::slice::from_raw_parts_mut(data, self.len())
-                    }
-                }
-            }
-
-            /// Returns a copy of the value at the specified index.
-            ///
-            /// # Panics
-            ///
-            /// If `index` is out of bounds.
-            pub fn get(&self, index: usize) -> Option<$Element> {
-                let ptr = self.ptr_or_none(index)?;
-
-                // SAFETY: if index was out of bounds, `ptr` would be `None` and return early.
-                unsafe { Some((*ptr).clone()) }
-            }
-
-            /// Finds the index of an existing value in a sorted array using binary search.
-            /// Equivalent of `bsearch` in GDScript.
-            ///
-            /// If the value is not present in the array, returns the insertion index that would
-            /// maintain sorting order.
-            ///
-            /// Calling `binary_search` on an unsorted array results in unspecified behavior.
-            pub fn binary_search(&self, value: $Element) -> usize {
-                to_usize(self.as_inner().bsearch(Self::into_arg(value), true))
-            }
-
-            /// Returns the number of times a value is in the array.
-            pub fn count(&self, value: $Element) -> usize {
-                to_usize(self.as_inner().count(Self::into_arg(value)))
-            }
-
-            /// Returns `true` if the array contains the given value. Equivalent of `has` in
-            /// GDScript.
-            pub fn contains(&self, value: $Element) -> bool {
-                self.as_inner().has(Self::into_arg(value))
-            }
-
-            /// Searches the array for the first occurrence of a value and returns its index, or
-            /// `None` if not found. Starts searching at index `from`; pass `None` to search the
-            /// entire array.
-            pub fn find(&self, value: $Element, from: Option<usize>) -> Option<usize> {
-                let from = to_i64(from.unwrap_or(0));
-                let index = self.as_inner().find(Self::into_arg(value), from);
-                if index >= 0 {
-                    Some(index.try_into().unwrap())
-                } else {
-                    None
-                }
-            }
-
-            /// Searches the array backwards for the last occurrence of a value and returns its
-            /// index, or `None` if not found. Starts searching at index `from`; pass `None` to
-            /// search the entire array.
-            pub fn rfind(&self, value: $Element, from: Option<usize>) -> Option<usize> {
-                let from = from.map(to_i64).unwrap_or(-1);
-                let index = self.as_inner().rfind(Self::into_arg(value), from);
-                // It's not documented, but `rfind` returns -1 if not found.
-                if index >= 0 {
-                    Some(to_usize(index))
-                } else {
-                    None
-                }
             }
 
             /// Sets the value at the specified index.
@@ -249,6 +130,7 @@ macro_rules! impl_packed_array {
             /// # Panics
             ///
             /// If `index` is out of bounds.
+            #[deprecated = "Use [] operator (IndexMut) instead."]
             pub fn set(&mut self, index: usize, value: $Element) {
                 let ptr_mut = self.ptr_mut(index);
 
@@ -306,10 +188,130 @@ macro_rules! impl_packed_array {
                 self.as_inner().fill(Self::into_arg(value));
             }
 
-            /// Appends another array at the end of this array. Equivalent of `append_array` in
-            /// GDScript.
+            /// Resizes the array to contain a different number of elements. If the new size is
+            /// smaller, elements are removed from the end. If the new size is larger, new elements
+            /// are set to [`Default::default()`].
+            pub fn resize(&mut self, size: usize) {
+                self.as_inner().resize(to_i64(size));
+            }
+
+            /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
             pub fn extend_array(&mut self, other: &$PackedArray) {
                 self.as_inner().append_array(other.clone());
+            }
+
+            /// Converts this array to a Rust vector, making a copy of its contents.
+            pub fn to_vec(&self) -> Vec<$Element> {
+                let len = self.len();
+                let mut vec = Vec::with_capacity(len);
+                if len > 0 {
+                    let ptr = self.ptr(0);
+                    for offset in 0..to_isize(len) {
+                        // SAFETY: Packed arrays are stored contiguously in memory, so we can use
+                        // pointer arithmetic instead of going through `$operator_index_const` for
+                        // every index.
+                        // Note that we do need to use `.clone()` because `GString` is refcounted;
+                        // we can't just do a memcpy.
+                        let element = unsafe { (*ptr.offset(offset)).clone() };
+                        vec.push(element);
+                    }
+                }
+                vec
+            }
+
+            /// Returns a sub-range `begin..end`, as a new packed array.
+            ///
+            /// This method is called `slice()` in Godot.
+            /// The values of `begin` (inclusive) and `end` (exclusive) will be clamped to the array size.
+            ///
+            /// To obtain Rust slices, see [`as_slice`][Self::as_slice] and [`as_mut_slice`][Self::as_mut_slice].
+            #[doc(alias = "slice")]
+            pub fn subarray(&self, begin: usize, end: usize) -> Self {
+                let len = self.len();
+                let begin = begin.min(len);
+                let end = end.min(len);
+                self.as_inner().slice(to_i64(begin), to_i64(end))
+            }
+
+            /// Returns a shared Rust slice of the array.
+            ///
+            /// The resulting slice can be further subdivided or converted into raw pointers.
+            ///
+            /// See also [`as_mut_slice`][Self::as_mut_slice] to get exclusive slices, and
+            /// [`subarray`][Self::subarray] to get a sub-array as a copy.
+            pub fn as_slice(&self) -> &[$Element] {
+                if self.is_empty() {
+                    &[]
+                } else {
+                    let data = self.ptr(0);
+
+                    // SAFETY: PackedArray holds `len` elements in contiguous storage, all of which are initialized.
+                    // The array uses copy-on-write semantics, so the slice may be aliased, but copies will use a new allocation.
+                    unsafe {
+                        std::slice::from_raw_parts(data, self.len())
+                    }
+                }
+            }
+
+            /// Returns an exclusive Rust slice of the array.
+            ///
+            /// The resulting slice can be further subdivided or converted into raw pointers.
+            ///
+            /// See also [`as_slice`][Self::as_slice] to get shared slices, and
+            /// [`subarray`][Self::subarray] to get a sub-array as a copy.
+            pub fn as_mut_slice(&mut self) -> &mut [$Element] {
+                if self.is_empty() {
+                    &mut []
+                } else {
+                    let data = self.ptr_mut(0);
+
+                    // SAFETY: PackedArray holds `len` elements in contiguous storage, all of which are initialized.
+                    // The array uses copy-on-write semantics. ptr_mut() triggers a copy if non-unique, after which the slice is never aliased.
+                    unsafe {
+                        std::slice::from_raw_parts_mut(data, self.len())
+                    }
+                }
+            }
+
+            /// Searches the array for the first occurrence of a value and returns its index, or
+            /// `None` if not found. Starts searching at index `from`; pass `None` to search the
+            /// entire array.
+            pub fn find(&self, value: $Element, from: Option<usize>) -> Option<usize> {
+                let from = to_i64(from.unwrap_or(0));
+                let index = self.as_inner().find(Self::into_arg(value), from);
+                if index >= 0 {
+                    Some(index.try_into().unwrap())
+                } else {
+                    None
+                }
+            }
+
+            /// Searches the array backwards for the last occurrence of a value and returns its
+            /// index, or `None` if not found. Starts searching at index `from`; pass `None` to
+            /// search the entire array.
+            pub fn rfind(&self, value: $Element, from: Option<usize>) -> Option<usize> {
+                let from = from.map(to_i64).unwrap_or(-1);
+                let index = self.as_inner().rfind(Self::into_arg(value), from);
+                // It's not documented, but `rfind` returns -1 if not found.
+                if index >= 0 {
+                    Some(to_usize(index))
+                } else {
+                    None
+                }
+            }
+
+            /// Finds the index of an existing value in a _sorted_ array using binary search.
+            ///
+            /// If the value is not present in the array, returns the insertion index that would maintain sorting order.
+            ///
+            /// Calling `bsearch()` on an unsorted array results in unspecified (but safe) behavior.
+            pub fn bsearch(&self, value: $Element) -> usize {
+                to_usize(self.as_inner().bsearch(Self::into_arg(value), true))
+            }
+
+            #[deprecated = "Renamed to bsearch like in Godot, to avoid confusion with Rust's slice::binary_search."]
+            pub fn binary_search(&self, value: $Element) -> usize {
+                self.bsearch(value)
             }
 
             /// Reverses the order of the elements in the array.
@@ -318,16 +320,15 @@ macro_rules! impl_packed_array {
             }
 
             /// Sorts the elements of the array in ascending order.
-            // Presumably, just like `Array`, this is not a stable sort so we might call it
-            // `sort_unstable`. But Packed*Array elements that compare equal are always identical,
-            // so it doesn't matter.
+            ///
+            /// This sort is [stable](https://en.wikipedia.org/wiki/Sorting_algorithm#Stability), since elements inside packed arrays are
+            /// indistinguishable. Relative order between equal elements thus isn't observable.
             pub fn sort(&mut self) {
                 self.as_inner().sort();
             }
 
             // Include specific functions in the code only if the Packed*Array provides the function.
             impl_specific_packed_array_functions!($PackedArray);
-
 
             /// # Panics
             ///
