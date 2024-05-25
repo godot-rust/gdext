@@ -381,20 +381,20 @@ fn test_virtual_method_with_return() {
     assert_eq!(arr.len(), arr_rust.len());
     // can't just assert_eq because the values of some floats change slightly
     assert_eq_approx!(
-        arr.at(0).to::<PackedVector3Array>().get(0),
-        arr_rust.at(0).to::<PackedVector3Array>().get(0),
+        arr.at(0).to::<PackedVector3Array>()[0],
+        arr_rust.at(0).to::<PackedVector3Array>()[0],
     );
     assert_eq_approx!(
-        real::from_f32(arr.at(2).to::<PackedFloat32Array>().get(3)),
-        real::from_f32(arr_rust.at(2).to::<PackedFloat32Array>().get(3)),
+        real::from_f32(arr.at(2).to::<PackedFloat32Array>()[3]),
+        real::from_f32(arr_rust.at(2).to::<PackedFloat32Array>()[3]),
     );
     assert_eq_approx!(
-        arr.at(3).to::<PackedColorArray>().get(0),
-        arr_rust.at(3).to::<PackedColorArray>().get(0),
+        arr.at(3).to::<PackedColorArray>()[0],
+        arr_rust.at(3).to::<PackedColorArray>()[0],
     );
     assert_eq_approx!(
-        arr.at(4).to::<PackedVector2Array>().get(0),
-        arr_rust.at(4).to::<PackedVector2Array>().get(0),
+        arr.at(4).to::<PackedVector2Array>()[0],
+        arr_rust.at(4).to::<PackedVector2Array>()[0],
     );
     assert_eq!(
         arr.at(6).to::<PackedByteArray>(),

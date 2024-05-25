@@ -242,6 +242,7 @@ impl<T: ArrayElement> Array<T> {
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
         unsafe { self.as_inner_mut() }.push_front(value.to_variant());
     }
+
     /// Removes and returns the last element of the array. Returns `None` if the array is empty.
     ///
     /// _Godot equivalent: `pop_back`_
@@ -266,7 +267,7 @@ impl<T: ArrayElement> Array<T> {
         })
     }
 
-    /// Inserts a new element before the index. The index must be valid or the end of the array (`index == len()`).
+    /// ⚠️ Inserts a new element before the index. The index must be valid or the end of the array (`index == len()`).
     ///
     /// On large arrays, this method is much slower than [`push()`][Self::push], as it will move all the array's elements after the inserted element.
     /// The larger the array, the slower `insert()` will be.
@@ -286,12 +287,13 @@ impl<T: ArrayElement> Array<T> {
 
     /// ⚠️ Removes and returns the element at the specified index. Equivalent of `pop_at` in GDScript.
     ///
-    /// On large arrays, this method is much slower than `pop_back()` as it will move all the array's
+    /// On large arrays, this method is much slower than [`pop()`][Self::pop] as it will move all the array's
     /// elements after the removed element. The larger the array, the slower `remove()` will be.
     ///
     /// # Panics
     ///
     /// If `index` is out of bounds.
+    #[doc(alias = "pop_at")]
     pub fn remove(&mut self, index: usize) -> T {
         self.check_bounds(index);
 
@@ -304,7 +306,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// If the value does not exist in the array, nothing happens. To remove an element by index, use [`remove()`][Self::remove] instead.
     ///
-    /// On large arrays, this method is much slower than [`pop_back()`][Self::pop_back], as it will move all the array's
+    /// On large arrays, this method is much slower than [`pop()`][Self::pop], as it will move all the array's
     /// elements after the removed element.
     pub fn erase(&mut self, value: &T) {
         // SAFETY: We don't write anything to the array.
