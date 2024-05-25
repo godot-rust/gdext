@@ -201,6 +201,123 @@ pub unsafe extern "C" fn unreference<T: GodotClass>(instance: sys::GDExtensionCl
     storage.on_dec_ref();
 }
 
+/// # Safety
+///
+/// Must only be called by Godot as a callback for `get_property_list` for a rust-defined class of type `T`.
+#[deny(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn get_property_list<T: cap::GodotGetPropertyList>(
+    instance: sys::GDExtensionClassInstancePtr,
+    count: *mut u32,
+) -> *const sys::GDExtensionPropertyInfo {
+    // SAFETY: Godot provides us with a valid instance pointer to a `T`. And it will live until the end of this function.
+    let storage = unsafe { as_storage::<T>(instance) };
+    let mut instance = storage.get_mut();
+
+    let property_list = T::__godot_get_property_list(&mut *instance);
+    let property_list_sys: Box<[sys::GDExtensionPropertyInfo]> = property_list
+        .into_iter()
+        .map(|prop| prop.into_owned_property_sys())
+        .collect();
+
+    // SAFETY: Godot ensures that `count` is initialized and valid to write into.
+    unsafe {
+        *count = property_list_sys
+            .len()
+            .try_into()
+            .expect("property list cannot be longer than `u32::MAX`");
+    }
+
+    Box::leak(property_list_sys).as_mut_ptr()
+}
+
+/// # Safety
+///
+/// - Must only be called by Godot as a callback for `free_property_list` for a rust-defined class of type `T`.
+/// - Must only be passed to Godot as a callback when [`get_property_list`] is the corresponding `get_property_list` callback.
+#[deny(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
+    _instance: sys::GDExtensionClassInstancePtr,
+    list: *const sys::GDExtensionPropertyInfo,
+    count: u32,
+) {
+    let list = list as *mut sys::GDExtensionPropertyInfo;
+
+    // SAFETY: `list` comes from `get_property_list` above, and `count` also comes from the same function.
+    // This means that `list` is a pointer to a `&[sys::GDExtensionPropertyInfo]` slice of length `count`.
+    // This means all the preconditions of this function are satisfied except uniqueness of this point.
+    // Uniqueness is guaranteed as Godot called this function at a point where the list is no longer accessed
+    // through any other pointer, and we dont access the slice through any other pointer after this call either.
+    let property_list_slice = unsafe {
+        std::slice::from_raw_parts_mut(list, count.try_into().expect("`u32` should fit in `usize`"))
+    };
+
+    // SAFETY: This slice was created by calling `Box::leak` on a `Box<[sys::GDExtensionPropertyInfo]>`, we can thus
+    // call `Box::from_raw` on this slice to get back the original boxed slice.
+    // Note that this relies on coercion of `&mut` -> `*mut`.
+    let property_list_sys = unsafe { Box::from_raw(property_list_slice) };
+
+    for property_info in property_list_sys.iter() {
+        // SAFETY: The structs contained in this list were all returned from `into_owned_property_sys`.
+        // We only call this method once for each struct and for each list.
+        unsafe {
+            crate::builtin::meta::PropertyInfo::free_owned_property_sys(*property_info);
+        }
+    }
+}
+
+/// # Safety
+///
+/// * `instance` must be a valid `T` instance pointer for the duration of this function call.
+/// * `property_name` must be a valid `StringName` pointer for the duration of this function call.
+#[deny(unsafe_op_in_unsafe_fn)]
+unsafe fn raw_property_get_revert<T: cap::GodotPropertyGetRevert>(
+    instance: sys::GDExtensionClassInstancePtr,
+    property_name: sys::GDExtensionConstStringNamePtr,
+) -> Option<Variant> {
+    // SAFETY: `instance` is a valid `T` instance pointer for the duration of this function call.
+    let storage = unsafe { as_storage::<T>(instance) };
+    let instance = storage.get();
+
+    // SAFETY: `property_name` is a valid `StringName` pointer for the duration of this function call.
+    let property = unsafe { StringName::borrow_string_sys(property_name) };
+    T::__godot_property_get_revert(&*instance, property.clone())
+}
+
+/// # Safety
+///
+/// - Must only be called by Godot as a callback for `property_can_revert` for a rust-defined class of type `T`.
+#[deny(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn property_can_revert<T: cap::GodotPropertyGetRevert>(
+    instance: sys::GDExtensionClassInstancePtr,
+    property_name: sys::GDExtensionConstStringNamePtr,
+) -> sys::GDExtensionBool {
+    // SAFETY: Godot provides us with a valid `T` instance pointer and `StringName` pointer for the duration of this call.
+    let revert = unsafe { raw_property_get_revert::<T>(instance, property_name) };
+
+    revert.is_some() as sys::GDExtensionBool
+}
+
+/// # Safety
+///
+/// - Must only be called by Godot as a callback for `property_get_revert` for a rust-defined class of type `T`.
+#[deny(unsafe_op_in_unsafe_fn)]
+pub unsafe extern "C" fn property_get_revert<T: cap::GodotPropertyGetRevert>(
+    instance: sys::GDExtensionClassInstancePtr,
+    property_name: sys::GDExtensionConstStringNamePtr,
+    ret: sys::GDExtensionVariantPtr,
+) -> sys::GDExtensionBool {
+    // SAFETY: Godot provides us with a valid `T` instance pointer and `StringName` pointer for the duration of this call.
+    let Some(revert) = (unsafe { raw_property_get_revert::<T>(instance, property_name) }) else {
+        return false as sys::GDExtensionBool;
+    };
+
+    // SAFETY: Godot provides us with a valid `Variant` pointer.
+    unsafe {
+        revert.move_into_var_ptr(ret);
+    }
+
+    true as sys::GDExtensionBool
+}
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Safe, higher-level methods
 

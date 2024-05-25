@@ -282,6 +282,36 @@ impl IRefCounted for SetTest {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+#[derive(GodotClass)]
+#[class(init)]
+struct RevertTest {}
+
+#[godot_api]
+impl IRefCounted for RevertTest {
+    fn property_get_revert(&self, property: StringName) -> Option<Variant> {
+        use std::sync::atomic::AtomicUsize;
+
+        static INC: AtomicUsize = AtomicUsize::new(0);
+
+        match String::from(property).as_str() {
+            "property_not_revert" => None,
+            "property_do_revert" => Some(GString::from("hello!").to_variant()),
+            // No UB or anything else like a crash or panic should happen when `property_can_revert` and `property_get_revert` return
+            // inconsistent values, but in case something like that happens we should be able to detect it through this function.
+            "property_changes" => {
+                if INC.fetch_add(1, std::sync::atomic::Ordering::AcqRel) % 2 == 0 {
+                    None
+                } else {
+                    Some(true.to_variant())
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[itest]
 fn test_to_string() {
     let _obj = VirtualMethodTest::new_gd();
@@ -561,6 +591,32 @@ fn test_set_sets_correct() {
     obj.set("settable".into(), 500.to_variant());
     assert_eq!(obj.bind().always_set_to_100, 100);
     assert_eq!(obj.bind().settable, 500);
+}
+
+#[itest]
+fn test_revert() {
+    let revert = RevertTest::new_gd();
+
+    let not_revert = StringName::from("property_not_revert");
+    let do_revert = StringName::from("property_do_revert");
+    let changes = StringName::from("property_changes");
+
+    assert!(!revert.property_can_revert(not_revert.clone()));
+    assert_eq!(revert.property_get_revert(not_revert), Variant::nil());
+    assert!(revert.property_can_revert(do_revert.clone()));
+    assert_eq!(
+        revert.property_get_revert(do_revert),
+        GString::from("hello!").to_variant()
+    );
+
+    assert!(!revert.property_can_revert(changes.clone()));
+    assert!(revert.property_can_revert(changes.clone()));
+
+    assert_eq!(revert.property_get_revert(changes.clone()), Variant::nil());
+    assert_eq!(
+        revert.property_get_revert(changes.clone()),
+        true.to_variant()
+    );
 }
 
 // Used in `test_collision_object_2d_input_event` in `SpecialTests.gd`.
