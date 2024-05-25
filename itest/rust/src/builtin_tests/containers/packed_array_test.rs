@@ -67,7 +67,7 @@ fn packed_array_clone() {
     let mut array = PackedByteArray::from(&[1, 2]);
     #[allow(clippy::redundant_clone)]
     let clone = array.clone();
-    array.set(0, 3);
+    array[0] = 3;
 
     assert_eq!(clone[0], 1);
 }
@@ -159,41 +159,29 @@ fn packed_array_get() {
 fn packed_array_binary_search() {
     let array = PackedByteArray::from(&[1, 3]);
 
-    assert_eq!(array.binary_search(0), 0);
-    assert_eq!(array.binary_search(1), 0);
-    assert_eq!(array.binary_search(2), 1);
-    assert_eq!(array.binary_search(3), 1);
-    assert_eq!(array.binary_search(4), 2);
+    assert_eq!(array.bsearch(&0), 0);
+    assert_eq!(array.bsearch(&1), 0);
+    assert_eq!(array.bsearch(&2), 1);
+    assert_eq!(array.bsearch(&3), 1);
+    assert_eq!(array.bsearch(&4), 2);
 }
 
 #[itest]
 fn packed_array_find() {
     let array = PackedByteArray::from(&[1, 2, 1]);
 
-    assert_eq!(array.find(0, None), None);
-    assert_eq!(array.find(1, None), Some(0));
-    assert_eq!(array.find(1, Some(1)), Some(2));
+    assert_eq!(array.find(&0, None), None);
+    assert_eq!(array.find(&1, None), Some(0));
+    assert_eq!(array.find(&1, Some(1)), Some(2));
 }
 
 #[itest]
 fn packed_array_rfind() {
     let array = PackedByteArray::from(&[1, 2, 1]);
 
-    assert_eq!(array.rfind(0, None), None);
-    assert_eq!(array.rfind(1, None), Some(2));
-    assert_eq!(array.rfind(1, Some(1)), Some(0));
-}
-
-#[itest]
-fn packed_array_set() {
-    let mut array = PackedByteArray::from(&[1, 2]);
-
-    array.set(0, 3);
-    assert_eq!(array[0], 3);
-
-    expect_panic("Array index 2 out of bounds: length is 2", move || {
-        array.set(2, 4);
-    });
+    assert_eq!(array.rfind(&0, None), None);
+    assert_eq!(array.rfind(&1, None), Some(2));
+    assert_eq!(array.rfind(&1, Some(1)), Some(0));
 }
 
 #[itest]

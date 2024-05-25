@@ -101,13 +101,13 @@ macro_rules! impl_packed_array {
             ///
             /// _Godot equivalent: `has`_
             #[doc(alias = "has")]
-            pub fn contains(&self, value: $Element) -> bool {
-                self.as_inner().has(Self::into_arg(value))
+            pub fn contains(&self, value: &$Element) -> bool {
+                self.as_inner().has(Self::to_arg(value))
             }
 
             /// Returns the number of times a value is in the array.
-            pub fn count(&self, value: $Element) -> usize {
-                to_usize(self.as_inner().count(Self::into_arg(value)))
+            pub fn count(&self, value: &$Element) -> usize {
+                to_usize(self.as_inner().count(Self::to_arg(value)))
             }
 
             /// Returns the number of elements in the array. Equivalent of `size()` in Godot.
@@ -276,9 +276,9 @@ macro_rules! impl_packed_array {
             /// Searches the array for the first occurrence of a value and returns its index, or
             /// `None` if not found. Starts searching at index `from`; pass `None` to search the
             /// entire array.
-            pub fn find(&self, value: $Element, from: Option<usize>) -> Option<usize> {
+            pub fn find(&self, value: &$Element, from: Option<usize>) -> Option<usize> {
                 let from = to_i64(from.unwrap_or(0));
-                let index = self.as_inner().find(Self::into_arg(value), from);
+                let index = self.as_inner().find(Self::to_arg(value), from);
                 if index >= 0 {
                     Some(index.try_into().unwrap())
                 } else {
@@ -289,9 +289,9 @@ macro_rules! impl_packed_array {
             /// Searches the array backwards for the last occurrence of a value and returns its
             /// index, or `None` if not found. Starts searching at index `from`; pass `None` to
             /// search the entire array.
-            pub fn rfind(&self, value: $Element, from: Option<usize>) -> Option<usize> {
+            pub fn rfind(&self, value: &$Element, from: Option<usize>) -> Option<usize> {
                 let from = from.map(to_i64).unwrap_or(-1);
-                let index = self.as_inner().rfind(Self::into_arg(value), from);
+                let index = self.as_inner().rfind(Self::to_arg(value), from);
                 // It's not documented, but `rfind` returns -1 if not found.
                 if index >= 0 {
                     Some(to_usize(index))
@@ -305,13 +305,13 @@ macro_rules! impl_packed_array {
             /// If the value is not present in the array, returns the insertion index that would maintain sorting order.
             ///
             /// Calling `bsearch()` on an unsorted array results in unspecified (but safe) behavior.
-            pub fn bsearch(&self, value: $Element) -> usize {
-                to_usize(self.as_inner().bsearch(Self::into_arg(value), true))
+            pub fn bsearch(&self, value: &$Element) -> usize {
+                to_usize(self.as_inner().bsearch(Self::to_arg(value), true))
             }
 
             #[deprecated = "Renamed to bsearch like in Godot, to avoid confusion with Rust's slice::binary_search."]
             pub fn binary_search(&self, value: $Element) -> usize {
-                self.bsearch(value)
+                self.bsearch(&value)
             }
 
             /// Reverses the order of the elements in the array.
@@ -384,6 +384,12 @@ macro_rules! impl_packed_array {
             #[inline]
             fn into_arg(e: $Element) -> $Arg {
                 e.into()
+            }
+
+            #[inline]
+            fn to_arg(e: &$Element) -> $Arg {
+                // Once PackedArra<T> is generic, this could use a better tailored implementation that may not need to clone.
+                e.clone().into()
             }
 
             #[doc(hidden)]
