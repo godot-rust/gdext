@@ -188,10 +188,16 @@ macro_rules! impl_packed_array {
             /// # Panics
             ///
             /// If `index` is out of bounds.
-            pub fn get(&self, index: usize) -> $Element {
-                let ptr = self.ptr(index);
-                // SAFETY: `ptr` just verified that the index is not out of bounds.
-                unsafe { (*ptr).clone() }
+            pub fn get(&self, index: usize) -> Option<$Element> {
+                if index >= self.len() {
+                    return None;
+                }
+
+                // SAFETY: bounds check above.
+                unsafe {
+                    let ptr = self.ptr_unchecked(index);
+                    Some((*ptr).clone())
+                }
             }
 
             /// Finds the index of an existing value in a sorted array using binary search.
@@ -293,8 +299,7 @@ macro_rules! impl_packed_array {
             // elements to their new position, the overhead of retrieving this element is trivial.
             #[doc(alias = "remove_at")]
             pub fn remove(&mut self, index: usize) -> $Element {
-                self.check_bounds(index);
-                let element = self.get(index);
+                let element = self[index].clone(); // panics on out-of-bounds
                 self.as_inner().remove_at(to_i64(index));
                 element
             }
@@ -334,9 +339,7 @@ macro_rules! impl_packed_array {
             /// If `index` is out of bounds.
             fn check_bounds(&self, index: usize) {
                 let len = self.len();
-                assert!(
-                    index < len,
-                    "Array index {index} is out of bounds: length is {len}");
+                assert!(index < len, "Array index {index} is out of bounds: length is {len}");
             }
 
             /// Returns a pointer to the element at the given index.
@@ -346,12 +349,25 @@ macro_rules! impl_packed_array {
             /// If `index` is out of bounds.
             fn ptr(&self, index: usize) -> *const $Element {
                 self.check_bounds(index);
+
                 // SAFETY: We just checked that the index is not out of bounds.
                 let ptr = unsafe {
                     let item_ptr: *const $IndexRetType =
                         (interface_fn!($operator_index_const))(self.sys(), to_i64(index));
                     item_ptr as *const $Element
                 };
+                assert!(!ptr.is_null());
+                ptr
+            }
+
+            /// Returns a pointer to the element at the given index, or `None` if `index` is out of bounds.
+            ///
+            /// # Safety
+            /// Bound checking is responsibility of the caller.
+            unsafe fn ptr_unchecked(&self, index: usize) -> *const $Element {
+                let item_ptr: *const $IndexRetType = interface_fn!($operator_index_const)(self.sys(), to_i64(index));
+                let ptr = item_ptr as *const $Element;
+
                 assert!(!ptr.is_null());
                 ptr
             }
@@ -477,11 +493,11 @@ macro_rules! impl_packed_array {
             /// Formats `PackedArray` to match Godot's string representation.
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 write!(f, "[")?;
-                for i in 0..self.len() {
+                for (i, elem) in self.as_slice().iter().enumerate() {
                     if i != 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", self.get(i))?;
+                    write!(f, "{elem}")?;
                 }
                 write!(f, "]")
             }

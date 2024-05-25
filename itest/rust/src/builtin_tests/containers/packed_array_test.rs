@@ -23,17 +23,8 @@ fn packed_array_from_iterator() {
     let array = PackedByteArray::from_iter([1, 2]);
 
     assert_eq!(array.len(), 2);
-    assert_eq!(array.get(0), 1);
-    assert_eq!(array.get(1), 2);
-}
-
-#[itest]
-fn packed_array_from() {
-    let array = PackedByteArray::from(&[1, 2]);
-
-    assert_eq!(array.len(), 2);
-    assert_eq!(array.get(0), 1);
-    assert_eq!(array.get(1), 2);
+    assert_eq!(array[0], 1);
+    assert_eq!(array[1], 2);
 }
 
 #[itest]
@@ -78,7 +69,7 @@ fn packed_array_clone() {
     let clone = array.clone();
     array.set(0, 3);
 
-    assert_eq!(clone.get(0), 1);
+    assert_eq!(clone[0], 1);
 }
 
 #[itest]
@@ -159,11 +150,9 @@ fn packed_array_index() {
 fn packed_array_get() {
     let array = PackedByteArray::from(&[1, 2]);
 
-    assert_eq!(array.get(0), 1);
-    assert_eq!(array.get(1), 2);
-    expect_panic("Array index 2 out of bounds: length is 2", || {
-        array.get(2);
-    });
+    assert_eq!(array.get(0), Some(1));
+    assert_eq!(array.get(1), Some(2));
+    assert_eq!(array.get(2), None);
 }
 
 #[itest]
@@ -200,7 +189,7 @@ fn packed_array_set() {
     let mut array = PackedByteArray::from(&[1, 2]);
 
     array.set(0, 3);
-    assert_eq!(array.get(0), 3);
+    assert_eq!(array[0], 3);
 
     expect_panic("Array index 2 out of bounds: length is 2", move || {
         array.set(2, 4);
@@ -214,7 +203,7 @@ fn packed_array_push() {
     array.push(3);
 
     assert_eq!(array.len(), 3);
-    assert_eq!(array.get(2), 3);
+    assert_eq!(array[2], 3);
 }
 
 #[itest]
