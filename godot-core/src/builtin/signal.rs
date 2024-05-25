@@ -158,7 +158,7 @@ impl Signal {
 // beyond what is done in `from_opaque` and `drop`. So using `*mut Opaque` is safe.
 unsafe impl GodotFfi for Signal {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Signal
+        sys::VariantType::SIGNAL
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;

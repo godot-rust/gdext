@@ -530,7 +530,7 @@ impl GlamConv for Projection {
 // SAFETY: This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Projection {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Projection
+        sys::VariantType::PROJECTION
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }

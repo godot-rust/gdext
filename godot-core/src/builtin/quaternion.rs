@@ -281,7 +281,7 @@ impl Mul<Quaternion> for Quaternion {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Quaternion {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Quaternion
+        sys::VariantType::QUATERNION
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }

@@ -176,7 +176,7 @@ impl StringName {
 //   `std::mem::forget(string_name.clone())`.
 unsafe impl GodotFfi for StringName {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::StringName
+        sys::VariantType::STRING_NAME
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }

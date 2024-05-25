@@ -288,7 +288,7 @@ impl Dictionary {
 //   `std::mem::forget(dictionary.clone())`.
 unsafe impl GodotFfi for Dictionary {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Dictionary
+        sys::VariantType::DICTIONARY
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }

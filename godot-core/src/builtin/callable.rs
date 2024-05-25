@@ -291,7 +291,7 @@ impl_builtin_traits! {
 // beyond what is done in `from_opaque` and `drop`. So using `*mut Opaque` is safe.
 unsafe impl GodotFfi for Callable {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Callable
+        sys::VariantType::CALLABLE
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque;

@@ -54,6 +54,7 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
 pub fn make_core_central_code(api: &ExtensionApi, ctx: &mut Context) -> TokenStream {
     let VariantEnums {
         variant_ty_enumerators_pascal,
+        variant_ty_enumerators_shout,
         variant_ty_enumerators_rust,
         ..
     } = make_variant_enums(api, ctx);
@@ -83,9 +84,9 @@ pub fn make_core_central_code(api: &ExtensionApi, ctx: &mut Context) -> TokenStr
         impl VariantDispatch {
             pub fn from_variant(variant: &Variant) -> Self {
                 match variant.get_type() {
-                    VariantType::Nil => Self::Nil,
+                    VariantType::NIL => Self::Nil,
                     #(
-                        VariantType::#variant_ty_enumerators_pascal
+                        VariantType::#variant_ty_enumerators_shout
                             => Self::#variant_ty_enumerators_pascal(variant.to::<#variant_ty_enumerators_rust>()),
                     )*
 
@@ -124,6 +125,7 @@ pub fn make_core_central_code(api: &ExtensionApi, ctx: &mut Context) -> TokenStr
 
 struct VariantEnums {
     variant_ty_enumerators_pascal: Vec<Ident>,
+    variant_ty_enumerators_shout: Vec<Ident>,
     variant_ty_enumerators_rust: Vec<TokenStream>,
 }
 
@@ -158,18 +160,21 @@ fn make_variant_enums(api: &ExtensionApi, ctx: &mut Context) -> VariantEnums {
 
     let mut result = VariantEnums {
         variant_ty_enumerators_pascal: Vec::with_capacity(len),
+        variant_ty_enumerators_shout: Vec::with_capacity(len),
         variant_ty_enumerators_rust: Vec::with_capacity(len),
     };
 
     // Note: NIL is not part of this iteration, it will be added manually.
     for builtin in api.builtins.iter() {
         let original_name = builtin.godot_original_name();
+        let shout_case = builtin.godot_shout_name();
         let rust_ty = conv::to_rust_type(original_name, None, ctx);
         let pascal_case = conv::to_pascal_case(original_name);
 
         result
             .variant_ty_enumerators_pascal
             .push(ident(&pascal_case));
+        result.variant_ty_enumerators_shout.push(ident(shout_case));
         result
             .variant_ty_enumerators_rust
             .push(rust_ty.to_token_stream());

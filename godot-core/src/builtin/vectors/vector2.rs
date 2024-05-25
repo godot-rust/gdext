@@ -251,7 +251,7 @@ impl_from_tuple_for_vector2x!(Vector2, real);
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector2 {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Vector2
+        sys::VariantType::VECTOR2
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }

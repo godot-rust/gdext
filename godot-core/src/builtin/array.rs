@@ -865,7 +865,7 @@ impl<T: ArrayElement> Var for Array<T> {
 
     #[cfg(since_api = "4.2")]
     fn property_hint() -> PropertyHintInfo {
-        if T::Ffi::variant_type() == VariantType::Nil {
+        if T::Ffi::variant_type() == VariantType::NIL {
             return PropertyHintInfo::with_hint_none("");
         }
 
@@ -1196,7 +1196,7 @@ impl TypeInfo {
     }
 
     pub fn is_typed(&self) -> bool {
-        self.variant_type != VariantType::Nil
+        self.variant_type != VariantType::NIL
     }
 
     pub fn variant_type(&self) -> VariantType {

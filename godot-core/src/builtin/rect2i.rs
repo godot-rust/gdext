@@ -268,7 +268,7 @@ impl Rect2i {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Rect2i {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Rect2i
+        sys::VariantType::RECT2I
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }

@@ -141,19 +141,19 @@ fn variant_special_conversions() {
 #[itest]
 fn variant_get_type() {
     let variant = Variant::nil();
-    assert_eq!(variant.get_type(), VariantType::Nil);
+    assert_eq!(variant.get_type(), VariantType::NIL);
 
     let variant = 74i32.to_variant();
-    assert_eq!(variant.get_type(), VariantType::Int);
+    assert_eq!(variant.get_type(), VariantType::INT);
 
     let variant = true.to_variant();
-    assert_eq!(variant.get_type(), VariantType::Bool);
+    assert_eq!(variant.get_type(), VariantType::BOOL);
 
     let variant = gstr("hello").to_variant();
-    assert_eq!(variant.get_type(), VariantType::String);
+    assert_eq!(variant.get_type(), VariantType::STRING);
 
     let variant = TEST_BASIS.to_variant();
-    assert_eq!(variant.get_type(), VariantType::Basis)
+    assert_eq!(variant.get_type(), VariantType::BASIS)
 }
 
 #[itest]
@@ -192,7 +192,7 @@ fn variant_call() {
     assert_eq!(result, position);
 
     let result = variant.call("to_string", &[]);
-    assert_eq!(result.get_type(), VariantType::String);
+    assert_eq!(result.get_type(), VariantType::STRING);
 
     // Array
     let array = godot::builtin::varray![1, "hello", false];
@@ -229,25 +229,25 @@ fn variant_call() {
 #[rustfmt::skip]
 #[itest]
 fn variant_evaluate() {
-    evaluate(VariantOperator::Add, 20, -39, -19);
-    evaluate(VariantOperator::Greater, 20, 19, true);
-    evaluate(VariantOperator::Equal, 20, 20.0, true);
-    evaluate(VariantOperator::NotEqual, 20, 20.0, false);
-    evaluate(VariantOperator::Multiply, 5, 2.5, 12.5);
+    evaluate(VariantOperator::ADD, 20, -39, -19);
+    evaluate(VariantOperator::GREATER, 20, 19, true);
+    evaluate(VariantOperator::EQUAL, 20, 20.0, true);
+    evaluate(VariantOperator::NOT_EQUAL, 20, 20.0, false);
+    evaluate(VariantOperator::MULTIPLY, 5, 2.5, 12.5);
 
-    evaluate(VariantOperator::Equal, gstr("hello"), gstr("hello"), true);
-    evaluate(VariantOperator::Equal, gstr("hello"), gname("hello"), true);
-    evaluate(VariantOperator::Equal, gname("rust"), gstr("rust"), true);
-    evaluate(VariantOperator::Equal, gname("rust"), gname("rust"), true);
+    evaluate(VariantOperator::EQUAL, gstr("hello"), gstr("hello"), true);
+    evaluate(VariantOperator::EQUAL, gstr("hello"), gname("hello"), true);
+    evaluate(VariantOperator::EQUAL, gname("rust"), gstr("rust"), true);
+    evaluate(VariantOperator::EQUAL, gname("rust"), gname("rust"), true);
 
-    evaluate(VariantOperator::NotEqual, gstr("hello"), gstr("hallo"), true);
-    evaluate(VariantOperator::NotEqual, gstr("hello"), gname("hallo"), true);
-    evaluate(VariantOperator::NotEqual, gname("rust"), gstr("rest"), true);
-    evaluate(VariantOperator::NotEqual, gname("rust"), gname("rest"), true);
+    evaluate(VariantOperator::NOT_EQUAL, gstr("hello"), gstr("hallo"), true);
+    evaluate(VariantOperator::NOT_EQUAL, gstr("hello"), gname("hallo"), true);
+    evaluate(VariantOperator::NOT_EQUAL, gname("rust"), gstr("rest"), true);
+    evaluate(VariantOperator::NOT_EQUAL, gname("rust"), gname("rest"), true);
 
-    evaluate_fail(VariantOperator::Equal, 1, true);
-    evaluate_fail(VariantOperator::Equal, 0, false);
-    evaluate_fail(VariantOperator::Subtract, 2, Vector3::new(1.0, 2.0, 3.0));
+    evaluate_fail(VariantOperator::EQUAL, 1, true);
+    evaluate_fail(VariantOperator::EQUAL, 0, false);
+    evaluate_fail(VariantOperator::SUBTRACT, 2, Vector3::new(1.0, 2.0, 3.0));
 }
 
 #[itest]
@@ -358,29 +358,29 @@ fn variant_null_object_is_nil() {
 
     // Verify that this appears as NIL to the user, even though it's internally OBJECT with a null object pointer
     assert_eq!(raw_type, sys::GDEXTENSION_VARIANT_TYPE_OBJECT);
-    assert_eq!(variant.get_type(), VariantType::Nil);
+    assert_eq!(variant.get_type(), VariantType::NIL);
 
     node.free();
 }
 
 #[itest]
 fn variant_type_correct() {
-    assert_eq!(Variant::nil().get_type(), VariantType::Nil);
-    assert_eq!(0.to_variant().get_type(), VariantType::Int);
-    assert_eq!(3.8.to_variant().get_type(), VariantType::Float);
-    assert_eq!(false.to_variant().get_type(), VariantType::Bool);
-    assert_eq!("string".to_variant().get_type(), VariantType::String);
+    assert_eq!(Variant::nil().get_type(), VariantType::NIL);
+    assert_eq!(0.to_variant().get_type(), VariantType::INT);
+    assert_eq!(3.8.to_variant().get_type(), VariantType::FLOAT);
+    assert_eq!(false.to_variant().get_type(), VariantType::BOOL);
+    assert_eq!("string".to_variant().get_type(), VariantType::STRING);
     assert_eq!(
         StringName::from("string_name").to_variant().get_type(),
-        VariantType::StringName
+        VariantType::STRING_NAME
     );
     assert_eq!(
         VariantArray::default().to_variant().get_type(),
-        VariantType::Array
+        VariantType::ARRAY
     );
     assert_eq!(
         Dictionary::default().to_variant().get_type(),
-        VariantType::Dictionary
+        VariantType::DICTIONARY
     );
 }
 
@@ -391,9 +391,7 @@ fn variant_stringify_correct() {
     assert_eq!(true.to_variant().stringify(), gstr("true"));
     assert_eq!(30.to_variant().stringify(), gstr("30"));
     assert_eq!(
-        godot::builtin::varray![1, "hello", false]
-            .to_variant()
-            .stringify(),
+        varray![1, "hello", false].to_variant().stringify(),
         gstr("[1, \"hello\", false]")
     );
     assert_eq!(
@@ -511,12 +509,16 @@ where
     let lhs = lhs.to_variant();
     let rhs = rhs.to_variant();
 
-    let eq = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::Equal));
-    let ne = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::NotEqual));
-    let lt = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::Less));
-    let le = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::LessEqual));
-    let gt = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::Greater));
-    let ge = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::GreaterEqual));
+    let eq = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::EQUAL));
+    let ne = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::NOT_EQUAL));
+    let lt = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::LESS));
+    let le = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::LESS_EQUAL));
+    let gt = eval(Variant::evaluate(&lhs, &rhs, VariantOperator::GREATER));
+    let ge = eval(Variant::evaluate(
+        &lhs,
+        &rhs,
+        VariantOperator::GREATER_EQUAL,
+    ));
 
     let true_rels;
     let false_rels;

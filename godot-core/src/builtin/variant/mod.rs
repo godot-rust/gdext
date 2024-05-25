@@ -65,7 +65,7 @@ impl Variant {
     /// See also [`Self::get_type`].
     pub fn is_nil(&self) -> bool {
         // Use get_type() rather than sys_type(), to also cover nullptr OBJECT as NIL
-        self.get_type() == VariantType::Nil
+        self.get_type() == VariantType::NIL
     }
 
     /// Returns the type that is currently held by this variant.
@@ -92,7 +92,7 @@ impl Variant {
         };
 
         if is_null_object {
-            VariantType::Nil
+            VariantType::NIL
         } else {
             VariantType::from_sys(sys_type)
         }
@@ -386,7 +386,7 @@ impl ArrayElement for Variant {}
 // `std::mem::swap` is sufficient for returning a value.
 unsafe impl GodotFfi for Variant {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Nil
+        sys::VariantType::NIL
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }

@@ -165,7 +165,7 @@ impl GodotFfiVariant for () {
         }
 
         Err(FromVariantError::BadType {
-            expected: VariantType::Nil,
+            expected: VariantType::NIL,
             actual: variant.get_type(),
         }
         .into_error(variant.clone()))
