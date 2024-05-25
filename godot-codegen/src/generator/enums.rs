@@ -50,6 +50,8 @@ pub fn make_enum_definition_with(
     let engine_trait = enum_.engine_trait();
 
     let definition = define_enum.then(|| {
+        let debug_impl = make_enum_debug_impl(enum_);
+
         // Workaround because traits are defined in separate crate, but need access to field `ord`.
         let vis = (!define_traits).then(|| {
             quote! {
@@ -68,6 +70,8 @@ pub fn make_enum_definition_with(
             impl #name {
                 #( #enumerators )*
             }
+
+            #debug_impl
         }
     });
 
@@ -119,6 +123,41 @@ fn make_enum_index_impl(enum_: &Enum) -> Option<TokenStream> {
             const ENUMERATOR_COUNT: usize = #enum_max;
         }
     })
+}
+
+/// Implement `Debug` trait for the enum.
+fn make_enum_debug_impl(enum_: &Enum) -> TokenStream {
+    let enum_name = &enum_.name;
+    let enum_name_str = enum_name.to_string();
+
+    let enumerators = enum_.enumerators.iter().map(|enumerator| {
+        let Enumerator { name, .. } = enumerator;
+        let name_str = name.to_string();
+        quote! {
+            Self::#name => #name_str,
+        }
+    });
+
+    quote! {
+        impl std::fmt::Debug for #enum_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                // Many enums have duplicates, thus allow unreachable.
+                // In the future, we could print sth like "ONE|TWO" instead (at least for unstable Debug).
+                #[allow(unreachable_patterns)]
+                let enumerator = match *self {
+                    #( #enumerators )*
+                    _ => {
+                        f.debug_struct(#enum_name_str)
+                        .field("ord", &self.ord)
+                        .finish()?;
+                        return Ok(());
+                    }
+                };
+
+                f.write_str(enumerator)
+            }
+        }
+    }
 }
 
 /// Creates an implementation of the engine trait for the given enum.
