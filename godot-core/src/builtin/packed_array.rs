@@ -26,6 +26,8 @@ macro_rules! impl_packed_array {
     (
         // Name of the type to define, e.g. `PackedByteArray`.
         type_name: $PackedArray:ident,
+        // Name of the VariantType constant, e.g. `PACKED_BYTE_ARRAY`.
+        variant_type: $VariantType:ident,
         // Type of elements contained in the array, e.g. `u8`.
         element_type: $Element:ty,
         // Name of wrapped opaque type, e.g. `OpaquePackedByteArray`.
@@ -499,7 +501,7 @@ macro_rules! impl_packed_array {
 
         unsafe impl GodotFfi for $PackedArray {
             fn variant_type() -> sys::VariantType {
-                sys::VariantType::$PackedArray
+                sys::VariantType::$VariantType
             }
 
             ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
@@ -574,6 +576,7 @@ macro_rules! impl_specific_packed_array_functions {
 
 impl_packed_array!(
     type_name: PackedByteArray,
+    variant_type: PACKED_BYTE_ARRAY,
     element_type: u8,
     opaque_type: OpaquePackedByteArray,
     inner_type: InnerPackedByteArray,
@@ -592,6 +595,7 @@ impl_packed_array!(
 
 impl_packed_array!(
     type_name: PackedInt32Array,
+    variant_type: PACKED_INT32_ARRAY,
     element_type: i32,
     opaque_type: OpaquePackedInt32Array,
     inner_type: InnerPackedInt32Array,
@@ -610,6 +614,7 @@ impl_packed_array!(
 
 impl_packed_array!(
     type_name: PackedInt64Array,
+    variant_type: PACKED_INT64_ARRAY,
     element_type: i64,
     opaque_type: OpaquePackedInt64Array,
     inner_type: InnerPackedInt64Array,
@@ -628,6 +633,7 @@ impl_packed_array!(
 
 impl_packed_array!(
     type_name: PackedFloat32Array,
+    variant_type: PACKED_FLOAT32_ARRAY,
     element_type: f32,
     opaque_type: OpaquePackedFloat32Array,
     inner_type: InnerPackedFloat32Array,
@@ -646,6 +652,7 @@ impl_packed_array!(
 
 impl_packed_array!(
     type_name: PackedFloat64Array,
+    variant_type: PACKED_FLOAT64_ARRAY,
     element_type: f64,
     opaque_type: OpaquePackedFloat64Array,
     inner_type: InnerPackedFloat64Array,
@@ -664,6 +671,7 @@ impl_packed_array!(
 
 impl_packed_array!(
     type_name: PackedStringArray,
+    variant_type: PACKED_STRING_ARRAY,
     element_type: GString,
     opaque_type: OpaquePackedStringArray,
     inner_type: InnerPackedStringArray,
@@ -682,6 +690,7 @@ impl_packed_array!(
 
 impl_packed_array!(
     type_name: PackedVector2Array,
+    variant_type: PACKED_VECTOR2_ARRAY,
     element_type: Vector2,
     opaque_type: OpaquePackedVector2Array,
     inner_type: InnerPackedVector2Array,
@@ -700,6 +709,7 @@ impl_packed_array!(
 
 impl_packed_array!(
     type_name: PackedVector3Array,
+    variant_type: PACKED_VECTOR3_ARRAY,
     element_type: Vector3,
     opaque_type: OpaquePackedVector3Array,
     inner_type: InnerPackedVector3Array,
@@ -719,6 +729,7 @@ impl_packed_array!(
 #[cfg(since_api = "4.3")]
 impl_packed_array!(
     type_name: PackedVector4Array,
+    variant_type: PACKED_VECTOR4_ARRAY,
     element_type: Vector4,
     opaque_type: OpaquePackedVector4Array,
     inner_type: InnerPackedVector4Array,
@@ -737,6 +748,7 @@ impl_packed_array!(
 
 impl_packed_array!(
     type_name: PackedColorArray,
+    variant_type: PACKED_COLOR_ARRAY,
     element_type: Color,
     opaque_type: OpaquePackedColorArray,
     inner_type: InnerPackedColorArray,

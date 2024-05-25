@@ -59,7 +59,7 @@ impl NodePath {
 //   `std::mem::forget(node_path.clone())`.
 unsafe impl GodotFfi for NodePath {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::NodePath
+        sys::VariantType::NODE_PATH
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }

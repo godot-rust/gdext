@@ -156,9 +156,9 @@ pub trait GodotType:
             variant_type: Self::Ffi::variant_type(),
             class_name: Self::class_name(),
             property_name: StringName::from(property_name),
-            hint: global::PropertyHint::NONE,
+            hint: PropertyHint::NONE,
             hint_string: GString::new(),
-            usage: global::PropertyUsageFlags::DEFAULT,
+            usage: PropertyUsageFlags::DEFAULT,
         }
     }
 
@@ -272,9 +272,9 @@ pub trait ArrayElement: GodotType {}
 pub struct PropertyInfo {
     /// Which type this property has.
     ///
-    /// For objects this should be set to [`VariantType::Object`], and the `class_name` field to the actual name of the class.
+    /// For objects this should be set to [`VariantType::OBJECT`], and the `class_name` field to the actual name of the class.
     ///
-    /// For [`Variant`] this should be set to [`VariantType::Nil`].
+    /// For [`Variant`] this should be set to [`VariantType::NIL`].
     pub variant_type: VariantType,
 
     /// Which class this property is.
@@ -289,7 +289,7 @@ pub struct PropertyInfo {
     /// How the property is meant to be edited. See also [`PropertyHint`] in the Godot docs.
     ///
     /// [`PropertyHint`]: https://docs.godotengine.org/en/latest/classes/class_%40globalscope.html#enum-globalscope-propertyhint
-    pub hint: global::PropertyHint,
+    pub hint: PropertyHint,
 
     /// Extra information passed to Godot for this property, what this means depends on the `hint` value.
     pub hint_string: GString,
@@ -297,7 +297,7 @@ pub struct PropertyInfo {
     /// How this property should be used. See [`PropertyUsageFlags`] in Godot for the meaning.
     ///
     /// [`PropertyUsageFlags`]: https://docs.godotengine.org/en/latest/classes/class_%40globalscope.html#enum-globalscope-propertyusageflags
-    pub usage: global::PropertyUsageFlags,
+    pub usage: PropertyUsageFlags,
 }
 
 impl PropertyInfo {
@@ -359,7 +359,7 @@ impl PropertyInfo {
     /// more information.
     pub fn new_group(group_name: &str, group_prefix: &str) -> Self {
         Self {
-            variant_type: VariantType::Nil,
+            variant_type: VariantType::NIL,
             class_name: ClassName::none(),
             property_name: group_name.into(),
             hint: PropertyHint::NONE,
@@ -374,7 +374,7 @@ impl PropertyInfo {
     /// more information.
     pub fn new_subgroup(subgroup_name: &str, subgroup_prefix: &str) -> Self {
         Self {
-            variant_type: VariantType::Nil,
+            variant_type: VariantType::NIL,
             class_name: ClassName::none(),
             property_name: subgroup_name.into(),
             hint: PropertyHint::NONE,
@@ -403,12 +403,12 @@ impl PropertyInfo {
         use crate::obj::EngineEnum as _;
 
         sys::GDExtensionPropertyInfo {
-            type_: VariantType::Nil.sys(),
+            type_: VariantType::NIL.sys(),
             name: std::ptr::null_mut(),
             class_name: std::ptr::null_mut(),
-            hint: global::PropertyHint::NONE.ord() as u32,
+            hint: PropertyHint::NONE.ord() as u32,
             hint_string: std::ptr::null_mut(),
-            usage: global::PropertyUsageFlags::NONE.ord() as u32,
+            usage: PropertyUsageFlags::NONE.ord() as u32,
         }
     }
 

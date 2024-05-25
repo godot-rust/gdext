@@ -10,12 +10,12 @@ use crate::builtin::{GString, StringName};
 use crate::gen::central::VariantDispatch;
 use godot_ffi as sys;
 use std::{fmt, ptr};
-use sys::types::OpaqueVariant;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-mod impls;
+pub use crate::engine::global::VariantOperator;
+pub use sys::VariantType;
 
-pub use sys::{VariantOperator, VariantType};
+mod impls;
 
 /// Godot variant type, able to store a variety of different types.
 ///
@@ -27,7 +27,7 @@ pub use sys::{VariantOperator, VariantType};
 // We rely on the layout of `Variant` being the same as Godot's layout in `borrow_slice` and `borrow_slice_mut`.
 #[repr(transparent)]
 pub struct Variant {
-    _opaque: OpaqueVariant,
+    _opaque: sys::types::OpaqueVariant,
 }
 
 impl Variant {
@@ -65,7 +65,7 @@ impl Variant {
     /// See also [`Self::get_type`].
     pub fn is_nil(&self) -> bool {
         // Use get_type() rather than sys_type(), to also cover nullptr OBJECT as NIL
-        self.get_type() == VariantType::Nil
+        self.get_type() == VariantType::NIL
     }
 
     /// Returns the type that is currently held by this variant.
@@ -92,7 +92,7 @@ impl Variant {
         };
 
         if is_null_object {
-            VariantType::Nil
+            VariantType::NIL
         } else {
             VariantType::from_sys(sys_type)
         }
@@ -142,7 +142,9 @@ impl Variant {
     /// Recommended to be used with fully-qualified call syntax.
     /// For example, `Variant::evaluate(&a, &b, VariantOperator::Add)` is equivalent to `a + b` in GDScript.
     pub fn evaluate(&self, rhs: &Variant, op: VariantOperator) -> Option<Variant> {
-        let op_sys = op.sys();
+        use crate::obj::EngineEnum;
+
+        let op_sys = op.ord() as sys::GDExtensionVariantOperator;
         let mut is_valid = false as u8;
 
         let result = unsafe {
@@ -384,7 +386,7 @@ impl ArrayElement for Variant {}
 // `std::mem::swap` is sufficient for returning a value.
 unsafe impl GodotFfi for Variant {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Nil
+        sys::VariantType::NIL
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
@@ -423,7 +425,7 @@ impl Drop for Variant {
 // Variant is not Eq because it can contain floats and other types composed of floats.
 impl PartialEq for Variant {
     fn eq(&self, other: &Self) -> bool {
-        Self::evaluate(self, other, VariantOperator::Equal)
+        Self::evaluate(self, other, VariantOperator::EQUAL)
             .map(|v| v.to::<bool>())
             .unwrap_or(false) // if there is no defined conversion, then they are non-equal
     }

@@ -10,6 +10,7 @@
 //! See also models/domain/enums.rs for other enum-related methods.
 
 use crate::models::domain::{Enum, Enumerator};
+use crate::{conv, util};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
@@ -25,6 +26,14 @@ pub fn make_enums(enums: &[Enum], cfg_attributes: &TokenStream) -> TokenStream {
 ///
 /// This will also implement all relevant traits and generate appropriate constants for each enumerator.
 pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
+    make_enum_definition_with(enum_, true, true)
+}
+
+pub fn make_enum_definition_with(
+    enum_: &Enum,
+    define_enum: bool,
+    define_traits: bool,
+) -> TokenStream {
     // Things needed for the type definition
     let derives = enum_.derives();
     let enum_doc = make_enum_doc(enum_);
@@ -36,47 +45,69 @@ pub fn make_enum_definition(enum_: &Enum) -> TokenStream {
         .iter()
         .map(|enumerator| make_enumerator_definition(enumerator, name.to_token_stream()));
 
-    // Trait implementations
-    let engine_trait_impl = make_enum_engine_trait_impl(enum_);
-    let index_enum_impl = make_enum_index_impl(enum_);
-    let bitwise_impls = make_enum_bitwise_operators(enum_);
-
     // Various types
     let ord_type = enum_.ord_type();
     let engine_trait = enum_.engine_trait();
 
+    let definition = define_enum.then(|| {
+        let debug_impl = make_enum_debug_impl(enum_);
+
+        // Workaround because traits are defined in separate crate, but need access to field `ord`.
+        let vis = (!define_traits).then(|| {
+            quote! {
+                #[doc(hidden)] pub
+            }
+        });
+
+        quote! {
+            #[repr(transparent)]
+            #[derive( #( #derives ),* )]
+            #( #[doc = #enum_doc] )*
+            pub struct #name {
+                #vis ord: #ord_type
+            }
+
+            impl #name {
+                #( #enumerators )*
+            }
+
+            #debug_impl
+        }
+    });
+
+    let traits = define_traits.then(|| {
+        // Trait implementations
+        let engine_trait_impl = make_enum_engine_trait_impl(enum_);
+        let index_enum_impl = make_enum_index_impl(enum_);
+        let bitwise_impls = make_enum_bitwise_operators(enum_);
+
+        quote! {
+            #engine_trait_impl
+            #index_enum_impl
+            #bitwise_impls
+
+            impl crate::builtin::meta::GodotConvert for #name {
+                type Via = #ord_type;
+            }
+
+            impl crate::builtin::meta::ToGodot for #name {
+                fn to_godot(&self) -> Self::Via {
+                    <Self as #engine_trait>::ord(*self)
+                }
+            }
+
+            impl crate::builtin::meta::FromGodot for #name {
+                fn try_from_godot(via: Self::Via) -> std::result::Result<Self, crate::builtin::meta::ConvertError> {
+                    <Self as #engine_trait>::try_from_ord(via)
+                        .ok_or_else(|| crate::builtin::meta::FromGodotError::InvalidEnum.into_error(via))
+                }
+            }
+        }
+    });
+
     quote! {
-        #[repr(transparent)]
-        #[derive( #( #derives ),* )]
-        #( #[doc = #enum_doc] )*
-        pub struct #name {
-            ord: #ord_type
-        }
-
-        impl #name {
-            #( #enumerators )*
-        }
-
-        #engine_trait_impl
-        #index_enum_impl
-        #bitwise_impls
-
-        impl crate::builtin::meta::GodotConvert for #name {
-            type Via = #ord_type;
-        }
-
-        impl crate::builtin::meta::ToGodot for #name {
-            fn to_godot(&self) -> Self::Via {
-                <Self as #engine_trait>::ord(*self)
-            }
-        }
-
-        impl crate::builtin::meta::FromGodot for #name {
-            fn try_from_godot(via: Self::Via) -> std::result::Result<Self, crate::builtin::meta::ConvertError> {
-                <Self as #engine_trait>::try_from_ord(via)
-                    .ok_or_else(|| crate::builtin::meta::FromGodotError::InvalidEnum.into_error(via))
-            }
-        }
+        #definition
+        #traits
     }
 }
 
@@ -92,6 +123,41 @@ fn make_enum_index_impl(enum_: &Enum) -> Option<TokenStream> {
             const ENUMERATOR_COUNT: usize = #enum_max;
         }
     })
+}
+
+/// Implement `Debug` trait for the enum.
+fn make_enum_debug_impl(enum_: &Enum) -> TokenStream {
+    let enum_name = &enum_.name;
+    let enum_name_str = enum_name.to_string();
+
+    let enumerators = enum_.enumerators.iter().map(|enumerator| {
+        let Enumerator { name, .. } = enumerator;
+        let name_str = name.to_string();
+        quote! {
+            Self::#name => #name_str,
+        }
+    });
+
+    quote! {
+        impl std::fmt::Debug for #enum_name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                // Many enums have duplicates, thus allow unreachable.
+                // In the future, we could print sth like "ONE|TWO" instead (at least for unstable Debug).
+                #[allow(unreachable_patterns)]
+                let enumerator = match *self {
+                    #( #enumerators )*
+                    _ => {
+                        f.debug_struct(#enum_name_str)
+                        .field("ord", &self.ord)
+                        .finish()?;
+                        return Ok(());
+                    }
+                };
+
+                f.write_str(enumerator)
+            }
+        }
+    }
 }
 
 /// Creates an implementation of the engine trait for the given enum.
@@ -201,5 +267,34 @@ fn make_enumerator_definition(enumerator: &Enumerator, enum_type: TokenStream) -
         pub const #name: #enum_type = #enum_type {
             ord: #value
         };
+    }
+}
+
+pub(crate) fn make_deprecated_enumerators(enum_: &Enum) -> TokenStream {
+    let enum_name = &enum_.name;
+    let deprecated_enumerators = enum_.enumerators.iter().filter_map(|enumerator| {
+        let Enumerator { name, .. } = enumerator;
+
+        if name == "MAX" {
+            return None;
+        }
+
+        let converted = conv::to_pascal_case(&name.to_string())
+            .replace("2d", "2D")
+            .replace("3d", "3D");
+
+        let pascal_name = util::ident(&converted);
+        let msg = format!("Use `{enum_name}::{name}` instead.");
+
+        let decl = quote! {
+            #[deprecated = #msg]
+            pub const #pascal_name: #enum_name = Self::#name;
+        };
+
+        Some(decl)
+    });
+
+    quote! {
+        #( #deprecated_enumerators )*
     }
 }

@@ -8,6 +8,7 @@
 use godot_ffi as sys;
 
 use crate::builtin::*;
+use crate::obj::EngineEnum;
 use crate::property::{builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var};
 use std::fmt;
 use std::marker::PhantomData;
@@ -758,7 +759,7 @@ impl<T: ArrayElement> Array<T> {
 //   as that is the callee's responsibility. Which we do by calling `std::mem::forget(array.clone())`.
 unsafe impl<T: ArrayElement> GodotFfi for Array<T> {
     fn variant_type() -> VariantType {
-        VariantType::Array
+        VariantType::ARRAY
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
@@ -843,7 +844,7 @@ impl<T: ArrayElement> Clone for Array<T> {
 
 impl<T: ArrayElement + TypeStringHint> TypeStringHint for Array<T> {
     fn type_string() -> String {
-        format!("{}:{}", VariantType::Array as i32, T::type_string())
+        format!("{}:{}", VariantType::ARRAY.ord(), T::type_string())
     }
 }
 
@@ -864,7 +865,7 @@ impl<T: ArrayElement> Var for Array<T> {
 
     #[cfg(since_api = "4.2")]
     fn property_hint() -> PropertyHintInfo {
-        if T::Ffi::variant_type() == VariantType::Nil {
+        if T::Ffi::variant_type() == VariantType::NIL {
             return PropertyHintInfo::with_hint_none("");
         }
 
@@ -1195,7 +1196,7 @@ impl TypeInfo {
     }
 
     pub fn is_typed(&self) -> bool {
-        self.variant_type != VariantType::Nil
+        self.variant_type != VariantType::NIL
     }
 
     pub fn variant_type(&self) -> VariantType {

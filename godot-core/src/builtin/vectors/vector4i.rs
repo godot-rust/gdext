@@ -151,7 +151,7 @@ impl fmt::Display for Vector4i {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Vector4i {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Vector4i
+        sys::VariantType::VECTOR4I
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }

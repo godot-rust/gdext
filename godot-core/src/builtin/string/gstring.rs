@@ -210,7 +210,7 @@ impl GString {
 //   `std::mem::forget(string.clone())`.
 unsafe impl GodotFfi for GString {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::String
+        sys::VariantType::STRING
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }

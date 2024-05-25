@@ -23,7 +23,7 @@ fn basis_multiply_same() {
     let rust_res = TEST_BASIS * Basis::IDENTITY;
     let godot_res = TEST_BASIS
         .to_variant()
-        .evaluate(&Basis::IDENTITY.to_variant(), VariantOperator::Multiply)
+        .evaluate(&Basis::IDENTITY.to_variant(), VariantOperator::MULTIPLY)
         .unwrap()
         .to::<Basis>();
     assert_eq_approx!(rust_res, godot_res);
@@ -32,7 +32,7 @@ fn basis_multiply_same() {
     let rust_res = TEST_BASIS * rhs;
     let godot_res = TEST_BASIS
         .to_variant()
-        .evaluate(&rhs.to_variant(), VariantOperator::Multiply)
+        .evaluate(&rhs.to_variant(), VariantOperator::MULTIPLY)
         .unwrap()
         .to::<Basis>();
     assert_eq_approx!(rust_res, godot_res);

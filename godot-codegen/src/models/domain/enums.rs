@@ -24,7 +24,8 @@ pub struct Enum {
 impl Enum {
     /// Which traits should be derived for this enum.
     pub fn derives(&self) -> Vec<Ident> {
-        let mut derives = vec!["Copy", "Clone", "Eq", "PartialEq", "Hash", "Debug"];
+        // Debug is implemented manually, using enumerator name. This can be derived once we use proper enums.
+        let mut derives = vec!["Copy", "Clone", "Eq", "PartialEq", "Hash"];
 
         if self.is_bitfield {
             derives.push("Default");

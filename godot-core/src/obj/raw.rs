@@ -447,7 +447,7 @@ where
     T: GodotClass,
 {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Object
+        sys::VariantType::OBJECT
     }
 
     unsafe fn new_from_sys(ptr: sys::GDExtensionConstTypePtr) -> Self {

@@ -52,7 +52,7 @@ fn transform3d_xform_equiv() {
         TEST_TRANSFORM * vec,
         TEST_TRANSFORM
             .to_variant()
-            .evaluate(&vec.to_variant(), VariantOperator::Multiply)
+            .evaluate(&vec.to_variant(), VariantOperator::MULTIPLY)
             .unwrap()
             .to::<Vector3>(),
         "operator: Transform3D * Vector3"
@@ -64,7 +64,7 @@ fn transform3d_xform_equiv() {
         TEST_TRANSFORM * aabb,
         TEST_TRANSFORM
             .to_variant()
-            .evaluate(&aabb.to_variant(), VariantOperator::Multiply)
+            .evaluate(&aabb.to_variant(), VariantOperator::MULTIPLY)
             .unwrap()
             .to::<Aabb>(),
         "operator: Transform3D * Aabb"
@@ -76,7 +76,7 @@ fn transform3d_xform_equiv() {
         TEST_TRANSFORM * plane,
         TEST_TRANSFORM
             .to_variant()
-            .evaluate(&plane.to_variant(), VariantOperator::Multiply)
+            .evaluate(&plane.to_variant(), VariantOperator::MULTIPLY)
             .unwrap()
             .to::<Plane>(),
         "operator: Transform3D * Plane"

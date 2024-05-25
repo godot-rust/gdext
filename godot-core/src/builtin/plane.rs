@@ -264,7 +264,7 @@ impl Neg for Plane {
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Plane {
     fn variant_type() -> sys::VariantType {
-        sys::VariantType::Plane
+        sys::VariantType::PLANE
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self;

@@ -520,7 +520,18 @@ impl Enum {
 
         let rust_enum_name = conv::make_enum_name_str(godot_name);
         let rust_enumerator_names = {
-            let godot_enumerator_names = json_enum.values.iter().map(|e| e.name.as_str()).collect();
+            let godot_enumerator_names = json_enum
+                .values
+                .iter()
+                .map(|e| {
+                    // Special cases. Extract to special_cases mode if more are added.
+                    if e.name == "OP_MODULE" {
+                        "OP_MODULO"
+                    } else {
+                        e.name.as_str()
+                    }
+                })
+                .collect();
             let godot_class_name = surrounding_class.as_ref().map(|ty| ty.godot_ty.as_str());
 
             conv::make_enumerator_names(godot_class_name, &rust_enum_name, godot_enumerator_names)
