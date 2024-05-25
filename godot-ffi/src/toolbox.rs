@@ -97,6 +97,7 @@ pub fn force_mut_ptr<T>(ptr: *const T) -> *mut T {
 pub fn to_const_ptr<T>(ptr: *mut T) -> *const T {
     ptr as *const T
 }
+
 /// If `ptr` is not null, returns `Some(mapper(ptr))`; otherwise `None`.
 #[inline]
 pub fn ptr_then<T, R, F>(ptr: *mut T, mapper: F) -> Option<R>

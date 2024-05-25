@@ -189,15 +189,10 @@ macro_rules! impl_packed_array {
             ///
             /// If `index` is out of bounds.
             pub fn get(&self, index: usize) -> Option<$Element> {
-                if index >= self.len() {
-                    return None;
-                }
+                let ptr = self.ptr_or_none(index)?;
 
-                // SAFETY: bounds check above.
-                unsafe {
-                    let ptr = self.ptr_unchecked(index);
-                    Some((*ptr).clone())
-                }
+                // SAFETY: if index was out of bounds, `ptr` would be `None` and return early.
+                unsafe { Some((*ptr).clone()) }
             }
 
             /// Finds the index of an existing value in a sorted array using binary search.
@@ -278,10 +273,11 @@ macro_rules! impl_packed_array {
             /// the array's elements after the inserted element. The larger the array, the slower
             /// `insert` will be.
             pub fn insert(&mut self, index: usize, value: $Element) {
-                let len = self.len();
-                assert!(
-                    index <= len,
-                    "Array insertion index {index} is out of bounds: length is {len}");
+                // Intentional > and not >=.
+                if index > self.len() {
+                    self.panic_out_of_bounds(index);
+                }
+
                 self.as_inner().insert(to_i64(index), Self::into_arg(value));
             }
 
@@ -332,14 +328,12 @@ macro_rules! impl_packed_array {
             // Include specific functions in the code only if the Packed*Array provides the function.
             impl_specific_packed_array_functions!($PackedArray);
 
-            /// Asserts that the given index refers to an existing element.
-            ///
+
             /// # Panics
             ///
-            /// If `index` is out of bounds.
-            fn check_bounds(&self, index: usize) {
-                let len = self.len();
-                assert!(index < len, "Array index {index} is out of bounds: length is {len}");
+            /// Always.
+            fn panic_out_of_bounds(&self, index: usize) -> ! {
+                panic!("Array index {index} is out of bounds: length is {}", self.len());
             }
 
             /// Returns a pointer to the element at the given index.
@@ -348,28 +342,21 @@ macro_rules! impl_packed_array {
             ///
             /// If `index` is out of bounds.
             fn ptr(&self, index: usize) -> *const $Element {
-                self.check_bounds(index);
-
-                // SAFETY: We just checked that the index is not out of bounds.
-                let ptr = unsafe {
-                    let item_ptr: *const $IndexRetType =
-                        (interface_fn!($operator_index_const))(self.sys(), to_i64(index));
-                    item_ptr as *const $Element
-                };
-                assert!(!ptr.is_null());
-                ptr
+                self.ptr_or_none(index).unwrap_or_else(|| self.panic_out_of_bounds(index))
             }
 
-            /// Returns a pointer to the element at the given index, or `None` if `index` is out of bounds.
-            ///
-            /// # Safety
-            /// Bound checking is responsibility of the caller.
-            unsafe fn ptr_unchecked(&self, index: usize) -> *const $Element {
-                let item_ptr: *const $IndexRetType = interface_fn!($operator_index_const)(self.sys(), to_i64(index));
-                let ptr = item_ptr as *const $Element;
+            /// Returns a pointer to the element at the given index, or `None` if out of bounds.
+            fn ptr_or_none(&self, index: usize) -> Option<*const $Element> {
+                // SAFETY: The packed array index operators return a null pointer on out-of-bounds.
+                let item_ptr: *const $IndexRetType = unsafe {
+                    interface_fn!($operator_index_const)(self.sys(), to_i64(index))
+                };
 
-                assert!(!ptr.is_null());
-                ptr
+                if item_ptr.is_null() {
+                    None
+                } else {
+                    Some(item_ptr as *const $Element)
+                }
             }
 
             /// Returns a mutable pointer to the element at the given index.
@@ -378,16 +365,16 @@ macro_rules! impl_packed_array {
             ///
             /// If `index` is out of bounds.
             fn ptr_mut(&mut self, index: usize) -> *mut $Element {
-                self.check_bounds(index);
-
-                // SAFETY: We just checked that the index is not out of bounds.
-                let ptr = unsafe {
-                    let item_ptr: *mut $IndexRetType =
-                        (interface_fn!($operator_index))(self.sys_mut(), to_i64(index));
-                    item_ptr as *mut $Element
+                // SAFETY: The packed array index operators return a null pointer on out-of-bounds.
+                let item_ptr: *mut $IndexRetType = unsafe {
+                    interface_fn!($operator_index)(self.sys_mut(), to_i64(index))
                 };
-                assert!(!ptr.is_null());
-                ptr
+
+                if item_ptr.is_null() {
+                    self.panic_out_of_bounds(index)
+                } else {
+                    item_ptr as *mut $Element
+                }
             }
 
             #[doc = concat!("Converts a `", stringify!($Element), "` into a value that can be")]
