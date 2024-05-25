@@ -6,9 +6,9 @@
  */
 
 use crate::builtin::meta::{CallContext, ConvertError, ErasedConvertError, ToGodot};
-use crate::builtin::Variant;
+use crate::builtin::{Variant, VariantType};
 use crate::sys;
-use godot_ffi::{join_debug, VariantType};
+use godot_ffi::join_debug;
 use std::error::Error;
 use std::fmt;
 

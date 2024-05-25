@@ -655,12 +655,12 @@ impl<T: GodotClass> TypeStringHint for Gd<T> {
             hint @ (PropertyHint::RESOURCE_TYPE | PropertyHint::NODE_TYPE) => {
                 format!(
                     "{}/{}:{}",
-                    VariantType::Object as i32,
+                    VariantType::OBJECT.ord(),
                     hint.ord(),
                     T::class_name()
                 )
             }
-            _ => format!("{}:", VariantType::Object as i32),
+            _ => format!("{}:", VariantType::OBJECT.ord()),
         }
     }
 }

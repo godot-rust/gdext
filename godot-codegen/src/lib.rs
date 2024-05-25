@@ -72,7 +72,7 @@ pub fn generate_sys_files(
     // Deallocate all the JSON models; no longer needed for codegen.
     // drop(json_api);
 
-    generate_sys_central_file(&api, &mut ctx, sys_gen_path, &mut submit_fn);
+    generate_sys_central_file(&api, sys_gen_path, &mut submit_fn);
     watch.record("generate_central_file");
 
     generate_sys_builtin_methods_file(&api, sys_gen_path, &mut ctx, &mut submit_fn);

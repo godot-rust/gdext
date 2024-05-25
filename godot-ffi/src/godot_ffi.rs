@@ -446,7 +446,7 @@ mod scalars {
     */
     unsafe impl GodotFfi for bool {
         fn variant_type() -> sys::VariantType {
-            sys::VariantType::Bool
+            sys::VariantType::BOOL
         }
 
         ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
@@ -454,7 +454,7 @@ mod scalars {
 
     unsafe impl GodotFfi for i64 {
         fn variant_type() -> sys::VariantType {
-            sys::VariantType::Int
+            sys::VariantType::INT
         }
 
         fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
@@ -466,7 +466,7 @@ mod scalars {
 
     unsafe impl GodotFfi for f64 {
         fn variant_type() -> sys::VariantType {
-            sys::VariantType::Float
+            sys::VariantType::FLOAT
         }
 
         fn default_param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
@@ -478,7 +478,7 @@ mod scalars {
 
     unsafe impl GodotFfi for () {
         fn variant_type() -> sys::VariantType {
-            sys::VariantType::Nil
+            sys::VariantType::NIL
         }
 
         unsafe fn new_from_sys(_ptr: sys::GDExtensionConstTypePtr) -> Self {

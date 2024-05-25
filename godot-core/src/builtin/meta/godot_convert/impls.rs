@@ -85,49 +85,6 @@ where
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Builtin Godot types
-
-impl GodotConvert for sys::VariantType {
-    type Via = i32;
-}
-
-impl ToGodot for sys::VariantType {
-    fn to_godot(&self) -> Self::Via {
-        *self as i32
-    }
-
-    fn into_godot(self) -> Self::Via {
-        self as i32
-    }
-}
-
-impl FromGodot for sys::VariantType {
-    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-        Ok(Self::from_sys(via as sys::GDExtensionVariantType))
-    }
-}
-
-impl GodotConvert for sys::VariantOperator {
-    type Via = i32;
-}
-
-impl ToGodot for sys::VariantOperator {
-    fn to_godot(&self) -> Self::Via {
-        *self as i32
-    }
-
-    fn into_godot(self) -> Self::Via {
-        self as i32
-    }
-}
-
-impl FromGodot for sys::VariantOperator {
-    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-        Ok(Self::from_sys(via as sys::GDExtensionVariantOperator))
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Scalars
 
 macro_rules! impl_godot_scalar {

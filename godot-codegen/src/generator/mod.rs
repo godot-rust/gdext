@@ -55,11 +55,10 @@ pub fn generate_sys_module_file(sys_gen_path: &Path, submit_fn: &mut SubmitFn) {
 
 pub fn generate_sys_central_file(
     api: &ExtensionApi,
-    ctx: &mut Context,
     sys_gen_path: &Path,
     submit_fn: &mut SubmitFn,
 ) {
-    let sys_code = central_files::make_sys_central_code(api, ctx);
+    let sys_code = central_files::make_sys_central_code(api);
 
     submit_fn(sys_gen_path.join("central.rs"), sys_code);
 }
