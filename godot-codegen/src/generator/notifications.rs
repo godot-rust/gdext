@@ -98,7 +98,7 @@ pub fn make_notification_enum(
         /// Makes it easier to keep an overview all possible notification variants for a given class, including
         /// notifications defined in base classes.
         ///
-        /// Contains the [`Unknown`] variant for forward compatibility.
+        /// Contains the [`Unknown`][Self::Unknown] variant for forward compatibility.
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
         #[repr(i32)]
         #[allow(non_camel_case_types)]
@@ -110,6 +110,9 @@ pub fn make_notification_enum(
 
             /// Since Godot represents notifications as integers, it's always possible that a notification outside the known types
             /// is received. For example, the user can manually issue notifications through `Object::notify()`.
+            ///
+            /// This is also necessary if you develop an extension on a Godot version and want to be forward-compatible with newer
+            /// versions. If Godot adds new notifications, they will be unknown to your extension, but you can still handle them.
             Unknown(i32),
         }
 
@@ -153,16 +156,9 @@ pub fn try_to_notification(constant: &JsonClassConstant) -> Option<Ident> {
 /// Godot has a collision for two notification constants (DRAW, NODE_CACHE_REQUESTED) in the same inheritance branch (as of 4.0.2).
 /// This cannot be represented in a Rust enum, so we merge the two constants into a single enumerator.
 fn workaround_constant_collision(all_constants: &mut Vec<(Ident, i32)>) {
+    // This constant has never been used by the engine.
     #[cfg(before_api = "4.2")]
-    for first in ["Draw", "VisibilityChanged"] {
-        if let Some(index_of_draw) = all_constants
-            .iter()
-            .position(|(constant_name, _)| constant_name == first)
-        {
-            all_constants[index_of_draw].0 = quote::format_ident!("{first}OrNodeRecacheRequested");
-            all_constants.retain(|(constant_name, _)| constant_name != "NodeRecacheRequested");
-        }
-    }
+    all_constants.retain(|(constant_name, _)| constant_name != "NODE_RECACHE_REQUESTED");
 
     let _ = &all_constants; // unused warning
 }
