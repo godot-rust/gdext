@@ -13,14 +13,11 @@ use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId};
 // Re-exports of generated symbols
 
 pub use crate::gen::classes::*;
-pub use script_instance::{create_script_instance, ScriptInstance, SiMut};
 
 use crate::builtin::meta::CallContext;
 use crate::sys;
 
 mod manual_extensions;
-mod script_instance;
-pub mod translate;
 
 #[cfg(debug_assertions)]
 use crate::builtin::meta::ClassName;
@@ -49,6 +46,20 @@ pub mod global {
 pub mod utilities {
     pub use crate::global::*;
 }
+
+#[deprecated = "`godot::engine::translate` has been moved to `godot::extras`."]
+pub mod translate {
+    pub use crate::extras::{tr, tr_n};
+}
+
+#[deprecated = "`create_script_instance` has been moved to `godot::extras`."]
+pub use crate::extras::create_script_instance;
+
+#[deprecated = "`ScriptInstance` has been moved to `godot::extras`."]
+pub use crate::extras::ScriptInstance;
+
+#[deprecated = "`SiMut` has been moved to `godot::extras`."]
+pub use crate::extras::SiMut;
 
 #[deprecated = "`GFile` has been moved to `godot::extras`."]
 pub use crate::extras::GFile;
