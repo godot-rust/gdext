@@ -486,6 +486,15 @@ impl UtilityFunction {
             return None;
         }
 
+        // Some vararg functions like print() or str() are declared with a single argument "arg1: Variant", but that seems
+        // to be a mistake. We change their parameter list by removing that.
+        let args = option_as_slice(&function.arguments);
+        let parameters = if function.is_vararg && args.len() == 1 && args[0].name == "arg1" {
+            vec![]
+        } else {
+            FnParam::new_range(&function.arguments, ctx)
+        };
+
         let godot_method_name = function.name.clone();
         let rust_method_name = godot_method_name.clone(); // No change for now.
 
@@ -498,7 +507,7 @@ impl UtilityFunction {
             common: FunctionCommon {
                 name: rust_method_name,
                 godot_name: godot_method_name,
-                parameters: FnParam::new_range(&function.arguments, ctx),
+                parameters,
                 return_value: FnReturn::new(&return_value, ctx),
                 is_vararg: function.is_vararg,
                 is_private: false,
@@ -517,6 +526,7 @@ impl Enum {
     pub fn from_json(json_enum: &JsonEnum, surrounding_class: Option<&TyName>) -> Self {
         let godot_name = &json_enum.name;
         let is_bitfield = json_enum.is_bitfield;
+        let is_private = special_cases::is_enum_private(surrounding_class, godot_name);
         let is_exhaustive = special_cases::is_enum_exhaustive(surrounding_class, godot_name);
 
         let rust_enum_name = conv::make_enum_name_str(godot_name);
@@ -551,6 +561,7 @@ impl Enum {
             name: ident(&rust_enum_name),
             godot_name: godot_name.clone(),
             is_bitfield,
+            is_private,
             is_exhaustive,
             enumerators,
         }

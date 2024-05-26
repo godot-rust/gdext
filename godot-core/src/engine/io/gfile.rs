@@ -7,8 +7,8 @@
 
 use crate::builtin::{real, GString, PackedByteArray, PackedStringArray, Variant};
 use crate::engine::file_access::{CompressionMode, ModeFlags};
-use crate::gen::central::global::Error;
 use crate::gen::classes::FileAccess;
+use crate::global::Error;
 use crate::obj::Gd;
 
 use crate::engine::io::IoError;

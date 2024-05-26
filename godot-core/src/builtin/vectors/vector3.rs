@@ -276,7 +276,7 @@ impl_common_vector_fns!(Vector3, real);
 impl_float_vector_glam_fns!(Vector3, real);
 impl_float_vector_component_fns!(Vector3, real, (x, y, z));
 impl_vector_operators!(Vector3, real, (x, y, z));
-impl_from_tuple_for_vector3x!(Vector3, real);
+impl_swizzle_trait_for_vector3x!(Vector3, real);
 
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.

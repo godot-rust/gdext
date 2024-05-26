@@ -7,8 +7,8 @@
 
 use crate::framework::itest;
 
-use godot::builtin::Variant;
-use godot::engine::utilities::*;
+use godot::builtin::{GString, Variant};
+use godot::global::*;
 
 #[itest]
 fn utilities_abs() {
@@ -24,6 +24,21 @@ fn utilities_sign() {
     let output = sign(input);
 
     assert_eq!(output, Variant::from(-1));
+}
+
+#[itest]
+fn utilities_str() {
+    let concat = str(&[
+        Variant::from(12),
+        Variant::from(" is a "),
+        Variant::from(true),
+        Variant::from(" number"),
+    ]);
+
+    let empty = str(&[]);
+
+    assert_eq!(concat, "12 is a true number".into());
+    assert_eq!(empty, GString::new());
 }
 
 #[itest]

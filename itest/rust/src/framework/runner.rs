@@ -104,8 +104,10 @@ impl IntegrationTests {
             rust_file_count
         );
 
+        let clock = Instant::now();
         self.run_rust_benchmarks(benchmarks, scene_tree);
-        self.conclude_benchmarks();
+        let total_time = clock.elapsed();
+        self.conclude_benchmarks(total_time);
     }
 
     fn warn_if_debug(&self) {
@@ -275,7 +277,10 @@ impl IntegrationTests {
         }
     }
 
-    fn conclude_benchmarks(&self) {}
+    fn conclude_benchmarks(&self, total_time: Duration) {
+        let secs = total_time.as_secs_f32();
+        println!("\nBenchmarks completed in {secs:.2}s.");
+    }
 
     fn update_stats(&mut self, outcome: &TestOutcome, test_file: &str, test_name: &str) {
         self.total += 1;

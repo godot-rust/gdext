@@ -37,7 +37,7 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
     }
     
     match (class_name.godot_ty.as_str(), method.name.as_str()) {
-        // Already covered by manual APIs
+        // Already covered by manual APIs.
         //| ("Object", "to_string")
         | ("Object", "get_instance_id")
         
@@ -280,8 +280,15 @@ pub fn is_builtin_type_scalar(name: &str) -> bool {
     name.chars().next().unwrap().is_ascii_lowercase()
 }
 
+#[rustfmt::skip]
 pub fn is_utility_function_deleted(function: &JsonUtilityFunction, ctx: &mut Context) -> bool {
-    codegen_special_cases::is_utility_function_excluded(function, ctx)
+    /*let hardcoded = match function.name.as_str() {
+        | "..."
+
+        => true, _ => false
+    };
+
+    hardcoded ||*/ codegen_special_cases::is_utility_function_excluded(function, ctx)
 }
 
 pub fn maybe_rename_class_method<'m>(class_name: &TyName, godot_method_name: &'m str) -> &'m str {
@@ -350,6 +357,21 @@ pub fn is_class_level_server(class_name: &str) -> bool {
         | "PhysicsServer3D" | "PhysicsServer3DExtension" 
         | "PhysicsServer3DManager" 
         | "PhysicsServer3DRenderingServerHandler"
+
+        => true, _ => false
+    }
+}
+
+/// Whether a generated enum is `pub(crate)`; useful for manual re-exports.
+#[rustfmt::skip]
+pub fn is_enum_private(class_name: Option<&TyName>, enum_name: &str) -> bool {
+    match (class_name, enum_name) {
+        // Re-exported to godot::builtin.
+        | (None, "Corner")
+        | (None, "EulerOrder")
+        | (None, "Side")
+        | (None, "Variant.Operator")
+        | (None, "Variant.Type")
 
         => true, _ => false
     }

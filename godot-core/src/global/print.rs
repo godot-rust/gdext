@@ -82,7 +82,7 @@ macro_rules! godot_script_error {
 #[macro_export]
 macro_rules! godot_print {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
-        $crate::log::print(&[
+        $crate::global::print(&[
             $crate::builtin::Variant::from(
                 format!($fmt $(, $args)*)
             )
@@ -98,63 +98,10 @@ macro_rules! godot_print {
 #[macro_export]
 macro_rules! godot_print_rich {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
-        $crate::log::print_rich(&[
+        $crate::global::print_rich(&[
             $crate::builtin::Variant::from(
                 format!($fmt $(, $args)*)
             )
         ])
     };
-}
-
-pub use crate::{godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn};
-
-use crate::builtin::{StringName, Variant};
-use crate::sys::{self, GodotFfi};
-
-#[doc(hidden)]
-/// Prints to the Godot console, used by the [`godot_print!`] macro.
-pub fn print(varargs: &[Variant]) {
-    unsafe {
-        let method_name = StringName::from("print");
-        let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(
-            method_name.string_sys(),
-            2648703342i64,
-        );
-        let call_fn = call_fn.unwrap_unchecked();
-
-        let mut args = Vec::new();
-        args.extend(varargs.iter().map(Variant::sys));
-
-        let args_ptr = args.as_ptr();
-        let _variant = Variant::new_with_init(|return_ptr| {
-            call_fn(return_ptr, args_ptr, args.len() as i32);
-        });
-    }
-
-    // TODO use generated method, but figure out how print() with zero args can be called
-    // crate::engine::utilities::print(head, rest);
-}
-
-#[doc(hidden)]
-/// Prints to the Godot console, used by the [`godot_print_rich!`] macro.
-pub fn print_rich(varargs: &[Variant]) {
-    unsafe {
-        let method_name = StringName::from("print_rich");
-        let call_fn = sys::interface_fn!(variant_get_ptr_utility_function)(
-            method_name.string_sys(),
-            2648703342i64,
-        );
-        let call_fn = call_fn.unwrap_unchecked();
-
-        let mut args = Vec::new();
-        args.extend(varargs.iter().map(Variant::sys));
-
-        let args_ptr = args.as_ptr();
-        let _variant = Variant::new_with_init(|return_ptr| {
-            call_fn(return_ptr, args_ptr, args.len() as i32);
-        });
-    }
-
-    // TODO use generated method, but figure out how print_rich() with zero args can be called
-    // crate::engine::utilities::print_rich(head, rest);
 }

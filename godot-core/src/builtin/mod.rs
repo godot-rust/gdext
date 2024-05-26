@@ -36,6 +36,12 @@
 // Re-export macros.
 pub use crate::{array, dict, real, reals, varray};
 
+// Re-export generated enums.
+pub use crate::gen::central::global_reexported_enums::{Corner, EulerOrder, Side, VariantOperator};
+pub use crate::sys::VariantType;
+// Not yet public.
+pub(crate) use crate::gen::central::VariantDispatch;
+
 #[doc(hidden)]
 pub mod __prelude_reexport {
     use super::*;
@@ -62,6 +68,7 @@ pub mod __prelude_reexport {
     pub use variant::*;
     pub use vectors::*;
 
+    pub use super::{EulerOrder, Side, VariantOperator, VariantType};
     pub use crate::{array, dict, real, reals, varray};
 }
 
@@ -148,16 +155,14 @@ pub(crate) fn u8_to_bool(u: u8) -> bool {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Deprecated enums
+
 /// The side of a [`Rect2`] or [`Rect2i`].
 ///
 /// _Godot equivalent: `@GlobalScope.Side`_
-#[deprecated(note = "Merged with `godot::global::Side`.")]
-pub type RectSide = crate::engine::global::Side;
-use crate::engine::global::Side;
-
-/// The ordering used to interpret a set of euler angles as extrinsic rotations.
-#[deprecated(note = "Merged with `godot::global::EulerOrder`.")]
-pub type EulerOrder = crate::engine::global::EulerOrder;
+#[deprecated = "Merged with `godot::builtin::Side`."]
+pub type RectSide = Side;
 
 #[allow(non_upper_case_globals)]
 impl Side {

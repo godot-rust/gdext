@@ -57,16 +57,16 @@ pub trait ToGodot: Sized + GodotConvert {
 
 /// Defines the canonical conversion from Godot for a type.
 ///
-/// It is assumed that all the methods return equal values given equal inputs. Additionally it is assumed
+/// It is assumed that all the methods return equal values given equal inputs. Additionally, it is assumed
 /// that if [`ToGodot`] is implemented, converting to Godot and back again will return a value equal to the
 /// starting value.
 ///
 /// Violating these assumptions is safe but will give unexpected results.
 pub trait FromGodot: Sized + GodotConvert {
-    /// Performs the conversion.
+    /// Converts the Godot representation to this type, returning `Err` on failure.
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError>;
 
-    /// ⚠️ Performs the conversion.
+    /// ⚠️ Converts the Godot representation to this type.
     ///
     /// # Panics
     /// If the conversion fails.
@@ -75,7 +75,7 @@ pub trait FromGodot: Sized + GodotConvert {
             .unwrap_or_else(|err| panic!("FromGodot::from_godot() failed: {err}"))
     }
 
-    /// Performs the conversion from a [`Variant`].
+    /// Performs the conversion from a [`Variant`], returning `Err` on failure.
     fn try_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
         let ffi = <Self::Via as GodotType>::Ffi::ffi_from_variant(variant)?;
 

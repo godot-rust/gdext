@@ -18,6 +18,7 @@ pub struct Enum {
     pub name: Ident,
     pub godot_name: String,
     pub is_bitfield: bool,
+    pub is_private: bool,
     pub is_exhaustive: bool,
     pub enumerators: Vec<Enumerator>,
 }

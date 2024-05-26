@@ -476,42 +476,33 @@ macro_rules! impl_integer_vector_component_fns {
     };
 }
 
-macro_rules! impl_from_tuple_for_vector2x {
-    (
-        $Vector:ty,
-        $Scalar:ty
-    ) => {
-        impl $crate::builtin::ToVector for ($Scalar, $Scalar) {
+macro_rules! impl_swizzle_trait_for_vector2x {
+    ($Vector:ty, $Scalar:ty) => {
+        impl $crate::builtin::SwizzleToVector for ($Scalar, $Scalar) {
             type Output = $Vector;
-            fn to_vector(self) -> $Vector {
+            fn swizzle_to_vector(self) -> $Vector {
                 <$Vector>::new(self.0, self.1)
             }
         }
     };
 }
 
-macro_rules! impl_from_tuple_for_vector3x {
-    (
-        $Vector:ty,
-        $Scalar:ty
-    ) => {
-        impl $crate::builtin::ToVector for ($Scalar, $Scalar, $Scalar) {
+macro_rules! impl_swizzle_trait_for_vector3x {
+    ($Vector:ty, $Scalar:ty) => {
+        impl $crate::builtin::SwizzleToVector for ($Scalar, $Scalar, $Scalar) {
             type Output = $Vector;
-            fn to_vector(self) -> $Vector {
+            fn swizzle_to_vector(self) -> $Vector {
                 <$Vector>::new(self.0, self.1, self.2)
             }
         }
     };
 }
 
-macro_rules! impl_from_tuple_for_vector4x {
-    (
-        $Vector:ty,
-        $Scalar:ty
-    ) => {
-        impl $crate::builtin::ToVector for ($Scalar, $Scalar, $Scalar, $Scalar) {
+macro_rules! impl_swizzle_trait_for_vector4x {
+    ($Vector:ty, $Scalar:ty) => {
+        impl $crate::builtin::SwizzleToVector for ($Scalar, $Scalar, $Scalar, $Scalar) {
             type Output = $Vector;
-            fn to_vector(self) -> $Vector {
+            fn swizzle_to_vector(self) -> $Vector {
                 <$Vector>::new(self.0, self.1, self.2, self.3)
             }
         }

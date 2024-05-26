@@ -5,20 +5,20 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::collections::HashMap;
-use std::sync::{atomic, Arc, Mutex};
-
-use godot_ffi::Global;
-pub use sys::out;
-
 #[cfg(feature = "trace")]
 pub use crate::builtin::meta::trace;
-use crate::builtin::meta::{CallContext, CallError};
 pub use crate::gen::classes::class_macros;
 pub use crate::obj::rtti::ObjectRtti;
 pub use crate::registry::{callbacks, ClassPlugin, ErasedRegisterFn, PluginItem};
 pub use crate::storage::{as_storage, Storage};
-use crate::{log, sys};
+pub use sys::out;
+
+use crate::builtin::meta::{CallContext, CallError};
+use crate::global::godot_error;
+use crate::sys;
+use std::collections::HashMap;
+use std::sync::{atomic, Arc, Mutex};
+use sys::Global;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global variables
@@ -72,14 +72,14 @@ pub(crate) fn call_error_remove(in_error: &sys::GDExtensionCallError) -> Option<
     // Error checks are just quality-of-life diagnostic; do not throw panics if they fail.
 
     if in_error.error != sys::GODOT_RUST_CUSTOM_CALL_ERROR {
-        log::godot_error!("Tried to remove non-godot-rust call error {in_error:?}");
+        godot_error!("Tried to remove non-godot-rust call error {in_error:?}");
         return None;
     }
 
     let call_error = CALL_ERRORS.lock().remove(in_error.argument);
     if call_error.is_none() {
         // Just a quality-of-life diagnostic; do not throw panics if something like this fails.
-        log::godot_error!("Failed to remove call error {in_error:?}");
+        godot_error!("Failed to remove call error {in_error:?}");
     }
 
     call_error
@@ -162,9 +162,6 @@ pub fn is_class_runtime(is_tool: bool) -> bool {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Trace handling
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Panic handling
 
 #[derive(Debug)]
@@ -243,7 +240,7 @@ pub fn handle_varcall_panic<F, R>(
     // TODO Level 1 is not yet set, so this will always print if level != 0. Needs better logic to recognize try_* calls and avoid printing.
     // But a bit tricky with multiple threads and re-entrancy; maybe pass in info in error struct.
     if has_error_print_level(2) {
-        log::godot_error!("{call_error}");
+        godot_error!("{call_error}");
     }
 
     out_err.error = sys::GODOT_RUST_CUSTOM_CALL_ERROR;
@@ -292,7 +289,7 @@ where
             let info = guard.as_ref().expect("no panic info available");
 
             if print {
-                log::godot_error!(
+                godot_error!(
                     "Rust function panicked at {}:{}.\n  Context: {}",
                     info.file,
                     info.line,
@@ -305,7 +302,7 @@ where
             let msg = format_panic_message(msg);
 
             if print {
-                log::godot_error!("{msg}");
+                godot_error!("{msg}");
             }
 
             Err(msg)

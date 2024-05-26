@@ -10,7 +10,7 @@ use crate::builtin::meta::{
     ArrayElement, FromVariantError, GodotFfiVariant, GodotType, PropertyInfo,
 };
 use crate::builtin::*;
-use crate::engine::global;
+use crate::global;
 use godot_ffi as sys;
 
 // For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.

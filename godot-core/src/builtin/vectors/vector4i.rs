@@ -43,7 +43,7 @@ impl_vector_operators!(Vector4i, i32, (x, y, z, w));
 impl_integer_vector_glam_fns!(Vector4i, real);
 impl_integer_vector_component_fns!(Vector4i, real, (x, y, z, w));
 impl_common_vector_fns!(Vector4i, i32);
-impl_from_tuple_for_vector4x!(Vector4i, i32);
+impl_swizzle_trait_for_vector4x!(Vector4i, i32);
 
 impl Vector4i {
     /// Returns a `Vector4i` with the given components.
