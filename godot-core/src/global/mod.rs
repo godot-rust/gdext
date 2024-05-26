@@ -9,9 +9,9 @@
 //!
 //! See also [Godot docs for `@GlobalScope`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#methods).
 
-pub(crate) mod print;
+mod print;
+
+pub use crate::{godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn};
 
 pub use crate::gen::central::global_enums::*;
 pub use crate::gen::utilities::*;
-
-pub use print::*;

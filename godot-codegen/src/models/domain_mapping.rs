@@ -486,6 +486,15 @@ impl UtilityFunction {
             return None;
         }
 
+        // Some vararg functions like print() or str() are declared with a single argument "arg1: Variant", but that seems
+        // to be a mistake. We change their parameter list by removing that.
+        let args = option_as_slice(&function.arguments);
+        let parameters = if function.is_vararg && args.len() == 1 && args[0].name == "arg1" {
+            vec![]
+        } else {
+            FnParam::new_range(&function.arguments, ctx)
+        };
+
         let godot_method_name = function.name.clone();
         let rust_method_name = godot_method_name.clone(); // No change for now.
 
@@ -498,7 +507,7 @@ impl UtilityFunction {
             common: FunctionCommon {
                 name: rust_method_name,
                 godot_name: godot_method_name,
-                parameters: FnParam::new_range(&function.arguments, ctx),
+                parameters,
                 return_value: FnReturn::new(&return_value, ctx),
                 is_vararg: function.is_vararg,
                 is_private: false,

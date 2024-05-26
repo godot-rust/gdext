@@ -282,17 +282,13 @@ pub fn is_builtin_type_scalar(name: &str) -> bool {
 
 #[rustfmt::skip]
 pub fn is_utility_function_deleted(function: &JsonUtilityFunction, ctx: &mut Context) -> bool {
-    let hardcoded = match function.name.as_str() {
-        // We have prints manually defined, with (&[Variant]) instead of (Variant, &[Variant]) signature.
-        | "print"
-        | "print_rich"
-        // Should we map str, printt, prints, printerr, printraw manually as well?
+    /*let hardcoded = match function.name.as_str() {
+        | "..."
 
         => true, _ => false
     };
 
-
-    hardcoded || codegen_special_cases::is_utility_function_excluded(function, ctx)
+    hardcoded ||*/ codegen_special_cases::is_utility_function_excluded(function, ctx)
 }
 
 pub fn maybe_rename_class_method<'m>(class_name: &TyName, godot_method_name: &'m str) -> &'m str {
