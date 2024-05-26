@@ -368,31 +368,43 @@ impl ApproxEq for Color {
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ColorChannelOrder {
     /// RGBA channel order. Godot's default.
-    Rgba,
+    RGBA,
 
     /// ABGR channel order. Reverse of the default RGBA order.
-    Abgr,
+    ABGR,
 
     /// ARGB channel order. More compatible with DirectX.
-    Argb,
+    ARGB,
+}
+
+#[allow(non_upper_case_globals)]
+impl ColorChannelOrder {
+    #[deprecated(note = "Renamed to `ColorChannelOrder::RGBA`.")]
+    pub const Rgba: Self = Self::RGBA;
+
+    #[deprecated(note = "Renamed to `ColorChannelOrder::ABGR`.")]
+    pub const Abgr: Self = Self::ABGR;
+
+    #[deprecated(note = "Renamed to `ColorChannelOrder::ARGB`.")]
+    pub const Argb: Self = Self::ARGB;
 }
 
 impl ColorChannelOrder {
     fn pack<T>(self, rgba: [T; 4]) -> [T; 4] {
         let [r, g, b, a] = rgba;
         match self {
-            ColorChannelOrder::Rgba => [r, g, b, a],
-            ColorChannelOrder::Abgr => [a, b, g, r],
-            ColorChannelOrder::Argb => [a, r, g, b],
+            ColorChannelOrder::RGBA => [r, g, b, a],
+            ColorChannelOrder::ABGR => [a, b, g, r],
+            ColorChannelOrder::ARGB => [a, r, g, b],
         }
     }
 
     fn unpack<T>(self, xyzw: [T; 4]) -> [T; 4] {
         let [x, y, z, w] = xyzw;
         match self {
-            ColorChannelOrder::Rgba => [x, y, z, w],
-            ColorChannelOrder::Abgr => [w, z, y, x],
-            ColorChannelOrder::Argb => [y, z, w, x],
+            ColorChannelOrder::RGBA => [x, y, z, w],
+            ColorChannelOrder::ABGR => [w, z, y, x],
+            ColorChannelOrder::ARGB => [y, z, w, x],
         }
     }
 }

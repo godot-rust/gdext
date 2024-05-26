@@ -21,15 +21,15 @@ fn color_from_rgba8() {
 fn color_from_u32() {
     const D: f32 = 255.0;
     assert_eq!(
-        Color::from_u32_rgba(0x01020304, ColorChannelOrder::Rgba),
+        Color::from_u32_rgba(0x01020304, ColorChannelOrder::RGBA),
         Color::from_rgba(1.0 / D, 2.0 / D, 3.0 / D, 4.0 / D)
     );
     assert_eq!(
-        Color::from_u32_rgba(0x01020304, ColorChannelOrder::Abgr),
+        Color::from_u32_rgba(0x01020304, ColorChannelOrder::ABGR),
         Color::from_rgba(4.0 / D, 3.0 / D, 2.0 / D, 1.0 / D)
     );
     assert_eq!(
-        Color::from_u32_rgba(0x01020304, ColorChannelOrder::Argb),
+        Color::from_u32_rgba(0x01020304, ColorChannelOrder::ARGB),
         Color::from_rgba(2.0 / D, 3.0 / D, 4.0 / D, 1.0 / D)
     );
 }
@@ -38,15 +38,15 @@ fn color_from_u32() {
 fn color_from_u64() {
     const D: f32 = 65535.0;
     assert_eq!(
-        Color::from_u64_rgba(0x0001000200030004, ColorChannelOrder::Rgba),
+        Color::from_u64_rgba(0x0001000200030004, ColorChannelOrder::RGBA),
         Color::from_rgba(1.0 / D, 2.0 / D, 3.0 / D, 4.0 / D)
     );
     assert_eq!(
-        Color::from_u64_rgba(0x0001000200030004, ColorChannelOrder::Abgr),
+        Color::from_u64_rgba(0x0001000200030004, ColorChannelOrder::ABGR),
         Color::from_rgba(4.0 / D, 3.0 / D, 2.0 / D, 1.0 / D)
     );
     assert_eq!(
-        Color::from_u64_rgba(0x0001000200030004, ColorChannelOrder::Argb),
+        Color::from_u64_rgba(0x0001000200030004, ColorChannelOrder::ARGB),
         Color::from_rgba(2.0 / D, 3.0 / D, 4.0 / D, 1.0 / D)
     );
 }
@@ -100,17 +100,17 @@ fn color_blend() {
 #[itest]
 fn color_to_u32() {
     let c = Color::from_html("#01020304").unwrap();
-    assert_eq!(c.to_u32(ColorChannelOrder::Rgba), 0x01020304);
-    assert_eq!(c.to_u32(ColorChannelOrder::Abgr), 0x04030201);
-    assert_eq!(c.to_u32(ColorChannelOrder::Argb), 0x04010203);
+    assert_eq!(c.to_u32(ColorChannelOrder::RGBA), 0x01020304);
+    assert_eq!(c.to_u32(ColorChannelOrder::ABGR), 0x04030201);
+    assert_eq!(c.to_u32(ColorChannelOrder::ARGB), 0x04010203);
 }
 
 #[itest]
 fn color_to_u64() {
     let c = Color::from_html("#01020304").unwrap();
-    assert_eq!(c.to_u64(ColorChannelOrder::Rgba), 0x0101_0202_0303_0404);
-    assert_eq!(c.to_u64(ColorChannelOrder::Abgr), 0x0404_0303_0202_0101);
-    assert_eq!(c.to_u64(ColorChannelOrder::Argb), 0x0404_0101_0202_0303);
+    assert_eq!(c.to_u64(ColorChannelOrder::RGBA), 0x0101_0202_0303_0404);
+    assert_eq!(c.to_u64(ColorChannelOrder::ABGR), 0x0404_0303_0202_0101);
+    assert_eq!(c.to_u64(ColorChannelOrder::ARGB), 0x0404_0101_0202_0303);
 }
 
 // Multiple specific cases because HSV->RGB conversion algorithm used is very dependent on Hue value, taking into account different values
