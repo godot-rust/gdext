@@ -21,7 +21,7 @@ pub use signature::*;
 pub(crate) use godot_convert::convert_error::*;
 
 use crate::builtin::*;
-use crate::engine::global::{self, PropertyHint, PropertyUsageFlags};
+use crate::global::{self, PropertyHint, PropertyUsageFlags};
 use crate::property::Var;
 use crate::property::{Export, PropertyHintInfo};
 use godot_ffi as sys;

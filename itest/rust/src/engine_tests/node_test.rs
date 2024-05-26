@@ -8,7 +8,8 @@
 use std::str::FromStr;
 
 use godot::builtin::{NodePath, Variant};
-use godot::engine::{global, Node, Node3D, PackedScene, SceneTree};
+use godot::engine::{Node, Node3D, PackedScene, SceneTree};
+use godot::global;
 use godot::obj::{NewAlloc, NewGd};
 
 use crate::framework::{itest, TestContext};

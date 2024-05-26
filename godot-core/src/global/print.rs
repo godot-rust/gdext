@@ -82,7 +82,7 @@ macro_rules! godot_script_error {
 #[macro_export]
 macro_rules! godot_print {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
-        $crate::log::print(&[
+        $crate::global::print(&[
             $crate::builtin::Variant::from(
                 format!($fmt $(, $args)*)
             )
@@ -98,7 +98,7 @@ macro_rules! godot_print {
 #[macro_export]
 macro_rules! godot_print_rich {
     ($fmt:literal $(, $args:expr)* $(,)?) => {
-        $crate::log::print_rich(&[
+        $crate::global::print_rich(&[
             $crate::builtin::Variant::from(
                 format!($fmt $(, $args)*)
             )
@@ -111,8 +111,9 @@ pub use crate::{godot_error, godot_print, godot_print_rich, godot_script_error, 
 use crate::builtin::{StringName, Variant};
 use crate::sys::{self, GodotFfi};
 
-#[doc(hidden)]
-/// Prints to the Godot console, used by the [`godot_print!`] macro.
+/// Prints to the Godot console (raw variant args).
+///
+/// Typically, you'd want to use the [`godot_print!`] macro instead, which uses this function internally.
 pub fn print(varargs: &[Variant]) {
     unsafe {
         let method_name = StringName::from("print");
@@ -135,8 +136,9 @@ pub fn print(varargs: &[Variant]) {
     // crate::engine::utilities::print(head, rest);
 }
 
-#[doc(hidden)]
-/// Prints to the Godot console, used by the [`godot_print_rich!`] macro.
+/// Prints rich text to the Godot console (raw variant args).
+///
+/// Typically, you'd want to use the [`godot_print_rich!`] macro instead, which uses this function internally.
 pub fn print_rich(varargs: &[Variant]) {
     unsafe {
         let method_name = StringName::from("print_rich");

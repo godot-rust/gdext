@@ -27,13 +27,6 @@ pub(crate) fn generate_utilities_file(
     let imports = util::make_imports();
 
     let tokens = quote! {
-        //! Global utility functions.
-        //!
-        //! A list of global-scope built-in functions.
-        //! For global enums and constants, check out the [`global` module][crate::engine::global].
-        //!
-        //! See also [Godot docs for `@GlobalScope`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#methods).
-
         #imports
 
         #(#utility_fn_defs)*

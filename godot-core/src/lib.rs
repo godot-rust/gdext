@@ -10,9 +10,14 @@ mod storage;
 
 pub mod builder;
 pub mod builtin;
+pub mod global;
 pub mod init;
-pub mod log;
 pub mod obj;
+
+#[deprecated = "Print macros have been moved to `godot::global`."]
+pub mod log {
+    pub use crate::global::print::*;
+}
 
 #[doc(hidden)]
 #[path = "deprecated.rs"]

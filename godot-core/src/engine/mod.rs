@@ -11,9 +11,18 @@ use crate::builtin::GString;
 use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId};
 
 // Re-exports of generated symbols
-pub use crate::gen::central::global;
+
+#[deprecated = "Enums have been moved to `godot::global`."]
+pub mod global {
+    pub use crate::global::*;
+}
+
+#[deprecated = "Utility functions have been moved to `godot::global`."]
+pub mod utilities {
+    pub use crate::global::*;
+}
+
 pub use crate::gen::classes::*;
-pub use crate::gen::utilities;
 pub use io::*;
 pub use script_instance::{create_script_instance, ScriptInstance, SiMut};
 

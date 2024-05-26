@@ -113,7 +113,7 @@ pub fn make_core_central_code(api: &ExtensionApi, ctx: &mut Context) -> TokenStr
         /// For global built-in functions, check out the [`utilities` module][crate::engine::utilities].
         ///
         /// See also [Godot docs for `@GlobalScope`](https://docs.godotengine.org/en/stable/classes/class_@globalscope.html#enumerations).
-        pub mod global {
+        pub mod global_enums {
             use crate::sys;
             #( #global_enum_defs )*
         }

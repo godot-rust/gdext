@@ -8,7 +8,7 @@
 use crate::framework::itest;
 
 use godot::builtin::Variant;
-use godot::engine::utilities::*;
+use godot::global::*;
 
 #[itest]
 fn utilities_abs() {
