@@ -9,7 +9,9 @@ use std::fmt::Debug;
 
 use crate::framework::itest;
 use godot::builtin::inner::InnerRect2i;
-use godot::builtin::{Rect2i, RectSide, Vector2i};
+use godot::builtin::{Rect2i, Vector2i};
+use godot::engine::global::Side;
+use godot::obj::EngineEnum;
 
 #[itest]
 fn rect2i_equiv_unary() {
@@ -28,12 +30,7 @@ fn rect2i_equiv_unary() {
         Vector2i::new(10, 10),
     ];
     let test_ints = [0, 1, 10, 32];
-    let test_sides = [
-        RectSide::Left,
-        RectSide::Top,
-        RectSide::Right,
-        RectSide::Bottom,
-    ];
+    let test_sides = [Side::LEFT, Side::TOP, Side::RIGHT, Side::BOTTOM];
 
     fn evaluate_mappings<T>(key: &str, a: T, b: T)
     where
@@ -87,7 +84,7 @@ fn rect2i_equiv_unary() {
                 evaluate_mappings(
                     "grow_side",
                     a.grow_side(b, c),
-                    inner_a.grow_side(b as i64, c as i64),
+                    inner_a.grow_side(b.ord() as i64, c as i64),
                 );
             }
         }

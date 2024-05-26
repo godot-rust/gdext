@@ -7,10 +7,11 @@
 
 use std::cmp;
 
+use crate::engine::global::Side;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use super::{meta::impl_godot_as_self, Rect2, RectSide, Vector2i};
+use super::{meta::impl_godot_as_self, Rect2, Vector2i};
 
 /// 2D axis-aligned integer bounding box.
 ///
@@ -164,12 +165,12 @@ impl Rect2i {
     /// `amount` may be negative, but care must be taken: If the resulting `size` has
     /// negative components the computation may be incorrect.
     #[inline]
-    pub fn grow_side(self, side: RectSide, amount: i32) -> Self {
+    pub fn grow_side(self, side: Side, amount: i32) -> Self {
         match side {
-            RectSide::Left => self.grow_individual(amount, 0, 0, 0),
-            RectSide::Top => self.grow_individual(0, amount, 0, 0),
-            RectSide::Right => self.grow_individual(0, 0, amount, 0),
-            RectSide::Bottom => self.grow_individual(0, 0, 0, amount),
+            Side::LEFT => self.grow_individual(amount, 0, 0, 0),
+            Side::TOP => self.grow_individual(0, amount, 0, 0),
+            Side::RIGHT => self.grow_individual(0, 0, amount, 0),
+            Side::BOTTOM => self.grow_individual(0, 0, 0, amount),
         }
     }
 
@@ -502,25 +503,25 @@ mod test {
         assert!(end.encloses(begin));
 
         let now = begin.grow_individual(3, 0, 0, 0);
-        let now_side = begin.grow_side(RectSide::Left, 3);
+        let now_side = begin.grow_side(Side::LEFT, 3);
         assert_ne!(now, end);
         assert_eq!(now, now_side);
         assert!(end.encloses(now));
 
         let now = now.grow_individual(0, 3, 0, 0);
-        let now_side = now_side.grow_side(RectSide::Top, 3);
+        let now_side = now_side.grow_side(Side::TOP, 3);
         assert_ne!(now, end);
         assert_eq!(now, now_side);
         assert!(end.encloses(now));
 
         let now = now.grow_individual(0, 0, 3, 0);
-        let now_side = now_side.grow_side(RectSide::Right, 3);
+        let now_side = now_side.grow_side(Side::RIGHT, 3);
         assert_ne!(now, end);
         assert_eq!(now, now_side);
         assert!(end.encloses(now));
 
         let now = now.grow_individual(0, 0, 0, 3);
-        let now_side = now_side.grow_side(RectSide::Bottom, 3);
+        let now_side = now_side.grow_side(Side::BOTTOM, 3);
         assert_eq!(now, end);
         assert_eq!(now, now_side);
     }
