@@ -44,7 +44,7 @@ impl_vector_operators!(Vector4, real, (x, y, z, w));
 impl_common_vector_fns!(Vector4, real);
 impl_float_vector_glam_fns!(Vector4, real);
 impl_float_vector_component_fns!(Vector4, real, (x, y, z, w));
-impl_from_tuple_for_vector4x!(Vector4, real);
+impl_swizzle_trait_for_vector4x!(Vector4, real);
 
 impl Vector4 {
     /// Returns a `Vector4` with the given components.

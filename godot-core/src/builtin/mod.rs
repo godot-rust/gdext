@@ -46,30 +46,27 @@ pub(crate) use crate::gen::central::VariantDispatch;
 pub mod __prelude_reexport {
     use super::*;
 
-    pub use aabb::Aabb;
+    pub use aabb::*;
     pub use array_inner::{Array, VariantArray};
-    pub use basis::Basis;
-    pub use callable::{Callable, RustCallable};
-    pub use color::{Color, ColorChannelOrder};
-    pub use color_hsv::ColorHsv;
+    pub use basis::*;
+    pub use callable::*;
+    pub use color::*;
+    pub use color_hsv::*;
     pub use dictionary_inner::Dictionary;
     pub use packed_array::*;
-    pub use plane::Plane;
-    pub use projection::{Projection, ProjectionEye, ProjectionPlane};
-    pub use quaternion::Quaternion;
+    pub use plane::*;
+    pub use projection::*;
+    pub use quaternion::*;
     pub use real_inner::*;
-    pub use rect2::Rect2;
-    pub use rect2i::Rect2i;
-    pub use rid::Rid;
-    pub use signal::Signal;
+    pub use rect2::*;
+    pub use rect2i::*;
+    pub use rid::*;
+    pub use signal::*;
     pub use string::{GString, NodePath, StringName};
-    pub use transform2d::Transform2D;
-    pub use transform3d::Transform3D;
-    pub use variant::Variant;
-    pub use vectors::{
-        swizzle, ToVector, Vector2, Vector2Axis, Vector2i, Vector3, Vector3Axis, Vector3i,
-        Vector4, Vector4Axis, Vector4i,
-    };
+    pub use transform2d::*;
+    pub use transform3d::*;
+    pub use variant::*;
+    pub use vectors::*;
 
     pub use super::{EulerOrder, Side, VariantOperator, VariantType};
     pub use crate::{array, dict, real, reals, varray};
