@@ -11,7 +11,7 @@ use godot_ffi as sys;
 
 use crate::builtin::meta::{FromGodot, GodotConvert, GodotType, ToGodot};
 use crate::builtin::GString;
-use crate::engine::global::PropertyHint;
+use crate::global::PropertyHint;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
@@ -142,7 +142,7 @@ impl PropertyHintInfo {
 /// Each function is named the same as the equivalent Godot annotation. For instance `@export_range` in Godot is `fn export_range` here.
 pub mod export_info_functions {
     use crate::builtin::GString;
-    use crate::engine::global::PropertyHint;
+    use crate::global::PropertyHint;
 
     use super::PropertyHintInfo;
 

@@ -7,8 +7,8 @@
 
 use std::error::Error;
 
-use crate::engine::global::Error as GodotError;
 use crate::gen::classes::FileAccess;
+use crate::global::Error as GodotError;
 use crate::obj::{Gd, NotUniqueError};
 
 /// Error that can occur while using `gdext` IO utilities.

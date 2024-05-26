@@ -12,25 +12,12 @@ use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId};
 
 // Re-exports of generated symbols
 
-#[deprecated = "Enums have been moved to `godot::global`."]
-pub mod global {
-    pub use crate::builtin::{Corner, EulerOrder, Side};
-    pub use crate::global::*;
-}
-
-#[deprecated = "Utility functions have been moved to `godot::global`."]
-pub mod utilities {
-    pub use crate::global::*;
-}
-
 pub use crate::gen::classes::*;
-pub use io::*;
 pub use script_instance::{create_script_instance, ScriptInstance, SiMut};
 
 use crate::builtin::meta::CallContext;
 use crate::sys;
 
-mod io;
 mod manual_extensions;
 mod script_instance;
 pub mod translate;
@@ -48,6 +35,38 @@ use crate::builtin::meta::ClassName;
 pub mod native {
     pub use crate::gen::native::*;
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Deprecations
+
+// #[deprecated = "Enums have been moved to `godot::global`."]
+// pub mod global {
+//     pub use crate::builtin::{Corner, EulerOrder, Side};
+//     pub use crate::global::*;
+// }
+//
+// #[deprecated = "Utility functions have been moved to `godot::global`."]
+// pub mod utilities {
+//     pub use crate::global::*;
+// }
+//
+// #[deprecated = "`GFile` has been moved to `godot::extras`."]
+// pub use crate::extras::GFile;
+//
+// #[deprecated = "`IoError` has been moved to `godot::extras`."]
+// pub use crate::extras::IoError;
+//
+// #[deprecated = "`save` has been moved to `godot::global`."]
+// pub use crate::global::save;
+//
+// #[deprecated = "`try_save` has been moved to `godot::global`."]
+// pub use crate::global::try_save;
+//
+// #[deprecated = "`load` has been moved to `godot::global`."]
+// pub use crate::global::load;
+//
+// #[deprecated = "`try_load` has been moved to `godot::global`."]
+// pub use crate::global::try_load;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utilities for crate

@@ -7,8 +7,6 @@
 
 mod gfile;
 mod io_error;
-mod resources;
 
-pub use gfile::GFile;
+pub use gfile::*;
 pub use io_error::*;
-pub use resources::{load, save, try_load, try_save};

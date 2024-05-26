@@ -9,7 +9,8 @@ use std::io::{BufRead, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 
 use crate::framework::itest;
 use godot::builtin::GString;
-use godot::engine::{file_access::ModeFlags, GFile};
+use godot::engine::file_access::ModeFlags;
+use godot::extras::GFile;
 
 const TEST_FULL_PATH: &str = "res://file_tests";
 

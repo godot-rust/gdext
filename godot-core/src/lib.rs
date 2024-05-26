@@ -40,11 +40,15 @@ pub use registry::*;
 /// * Enum/flag modules: `canvas_item`, etc.
 ///
 /// Noteworthy sub-modules are:
-/// * [`notify`][crate::engine::notify]: all notification types, used when working with the virtual callback to handle lifecycle notifications.
-/// * [`global`][crate::engine::global]: global enums not belonging to a specific class.
-/// * [`utilities`][crate::engine::utilities]: utility methods that are global in Godot.
-/// * [`translate`][crate::engine::translate]: convenience macros for translation.
+/// * [`notify`][crate::engine::notify]: all notification enums, used when working with the virtual callback to handle lifecycle notifications.
+/// * [`native`][crate::engine::native]: definition of _native structure_ types.
 pub mod engine;
+
+/// Higher-level additions to the Godot engine API.
+///
+/// Contains functionality that extends existing Godot classes and functions, to make them more versatile
+/// or better integrated with Rust.
+pub mod extras;
 
 // Output of generated code. Mimics the file structure, symbols are re-exported.
 #[rustfmt::skip]

@@ -97,6 +97,8 @@ pub fn make_notification_enum(
         ///
         /// Makes it easier to keep an overview all possible notification variants for a given class, including
         /// notifications defined in base classes.
+        ///
+        /// Contains the [`Unknown`] variant for forward compatibility.
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
         #[repr(i32)]
         #cfg_attributes
