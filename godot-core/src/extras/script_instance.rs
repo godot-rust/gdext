@@ -15,10 +15,9 @@ use godot_cell::{GdCell, MutGuard};
 
 use crate::builtin::meta::{MethodInfo, PropertyInfo};
 use crate::builtin::{GString, StringName, Variant, VariantType};
+use crate::engine::{Script, ScriptLanguage};
 use crate::obj::{Base, Gd, GodotClass, ScriptBaseMut, ScriptBaseRef};
 use crate::sys;
-
-use super::{Script, ScriptLanguage};
 
 /// Implement custom scripts that can be attached to objects in Godot.
 ///

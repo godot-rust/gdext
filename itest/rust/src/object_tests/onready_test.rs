@@ -58,7 +58,7 @@ fn onready_lifecycle_forget() {
     expect_panic(
         "Forgetting to initialize OnReady during ready() panics",
         move || {
-            forgetful.notify(NodeNotification::Ready);
+            forgetful.notify(NodeNotification::READY);
         },
     );
 
@@ -69,7 +69,7 @@ fn onready_lifecycle_forget() {
 fn onready_lifecycle() {
     let mut obj = OnReadyWithImpl::create(true);
 
-    obj.notify(NodeNotification::Ready);
+    obj.notify(NodeNotification::READY);
 
     {
         let mut obj = obj.bind_mut();
@@ -87,7 +87,7 @@ fn onready_lifecycle() {
 fn onready_lifecycle_without_impl() {
     let mut obj = OnReadyWithoutImpl::create();
 
-    obj.notify(NodeNotification::Ready);
+    obj.notify(NodeNotification::READY);
 
     {
         let mut obj = obj.bind_mut();
@@ -104,7 +104,7 @@ fn onready_lifecycle_without_impl() {
 fn onready_lifecycle_with_impl_without_ready() {
     let mut obj = OnReadyWithImplWithoutReady::create();
 
-    obj.notify(NodeNotification::Ready);
+    obj.notify(NodeNotification::READY);
 
     {
         let mut obj = obj.bind_mut();
@@ -123,7 +123,7 @@ fn onready_lifecycle_with_impl_without_ready() {
 #[itest]
 fn onready_property_access() {
     let mut obj = OnReadyWithImpl::create(true);
-    obj.notify(NodeNotification::Ready);
+    obj.notify(NodeNotification::READY);
 
     obj.set("auto".into(), 33.to_variant());
     obj.set("manual".into(), 44.to_variant());

@@ -77,6 +77,7 @@ pub fn to_pascal_case(ty_name: &str) -> String {
         .replace("Sdfgiy", "SdfgiY")
 }
 
+#[allow(dead_code)] // Keep around in case we need it later.
 pub fn shout_to_pascal(shout_case: &str) -> String {
     // TODO use heck?
 

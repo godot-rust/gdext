@@ -172,7 +172,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             let bitfield_ty = conv::make_enum_name(bitfield);
 
             RustTy::EngineBitfield {
-                tokens: quote! { crate::engine::global::#bitfield_ty },
+                tokens: quote! { crate::global::#bitfield_ty },
                 surrounding_class: None,
             }
         };
@@ -193,7 +193,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             let enum_ty = conv::make_enum_name(qualified_enum);
 
             RustTy::EngineEnum {
-                tokens: quote! { crate::engine::global::#enum_ty },
+                tokens: quote! { crate::global::#enum_ty },
                 surrounding_class: None,
             }
         };

@@ -19,13 +19,20 @@
 //! - Rectangle: [`Side`][crate::builtin::Side], [`Corner`][crate::builtin::Corner] <sub>(godot-generated)</sub>
 //! - Rotation: [`EulerOrder`][crate::builtin::EulerOrder] <sub>(godot-generated)</sub>
 //! - Variant: [`VariantType`][crate::builtin::VariantType], [`VariantOperator`][crate::builtin::VariantOperator]
-//! - Vector: [`Vector2Axis`](crate::builtin::Vector2Axis), [`Vector3Axis`](crate::builtin::Vector3Axis), [`Vector4Axis`](crate::builtin::Vector4Axis)
+//! - Vector: [`Vector2Axis`][crate::builtin::Vector2Axis], [`Vector3Axis`][crate::builtin::Vector3Axis], [`Vector4Axis`][crate::builtin::Vector4Axis]
 //!
 
 mod print;
+mod save_load;
 
 pub use crate::{godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn};
 
 // Some enums are directly re-exported from crate::builtin.
 pub use crate::gen::central::global_enums::*;
 pub use crate::gen::utilities::*;
+
+pub use save_load::*;
+
+// This is needed for generated classes to find symbols, even those that have been moved to crate::builtin.
+#[allow(unused_imports)] // micromanaging imports for generated code is not fun
+pub(crate) use crate::builtin::{Corner, EulerOrder, Side};

@@ -74,7 +74,7 @@ fn class_singleton_access() -> Gd<Os> {
 
 #[bench]
 fn utilities_allocate_rid() -> i64 {
-    godot::engine::utilities::rid_allocate_id()
+    godot::global::rid_allocate_id()
 }
 
 #[bench]
@@ -90,7 +90,7 @@ fn utilities_ffi_call() -> f64 {
     let base = black_box(5.678);
     let exponent = black_box(3.456);
 
-    godot::engine::utilities::pow(base, exponent)
+    godot::global::pow(base, exponent)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

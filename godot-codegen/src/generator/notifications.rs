@@ -8,9 +8,9 @@
 use crate::context::Context;
 use crate::models::domain::TyName;
 use crate::models::json::JsonClassConstant;
-use crate::{conv, util};
+use crate::util;
 use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
+use quote::quote;
 
 pub fn make_notify_methods(class_name: &TyName, ctx: &mut Context) -> TokenStream {
     // Note: there are two more methods, but only from Node downwards, not from Object:
@@ -85,10 +85,10 @@ pub fn make_notification_enum(
         c = class_name.rust_ty
     );
 
-    let mut notification_enumerators_pascal = Vec::new();
+    let mut notification_enumerators_shout = Vec::new();
     let mut notification_enumerators_ord = Vec::new();
     for (constant_ident, constant_value) in all_constants {
-        notification_enumerators_pascal.push(constant_ident);
+        notification_enumerators_shout.push(constant_ident);
         notification_enumerators_ord.push(constant_value);
     }
 
@@ -97,16 +97,22 @@ pub fn make_notification_enum(
         ///
         /// Makes it easier to keep an overview all possible notification variants for a given class, including
         /// notifications defined in base classes.
+        ///
+        /// Contains the [`Unknown`][Self::Unknown] variant for forward compatibility.
         #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
         #[repr(i32)]
+        #[allow(non_camel_case_types)]
         #cfg_attributes
         pub enum #enum_name {
             #(
-                #notification_enumerators_pascal = #notification_enumerators_ord,
+                #notification_enumerators_shout = #notification_enumerators_ord,
             )*
 
             /// Since Godot represents notifications as integers, it's always possible that a notification outside the known types
             /// is received. For example, the user can manually issue notifications through `Object::notify()`.
+            ///
+            /// This is also necessary if you develop an extension on a Godot version and want to be forward-compatible with newer
+            /// versions. If Godot adds new notifications, they will be unknown to your extension, but you can still handle them.
             Unknown(i32),
         }
 
@@ -115,7 +121,7 @@ pub fn make_notification_enum(
             fn from(enumerator: i32) -> Self {
                 match enumerator {
                     #(
-                        #notification_enumerators_ord => Self::#notification_enumerators_pascal,
+                        #notification_enumerators_ord => Self::#notification_enumerators_shout,
                     )*
                     other_int => Self::Unknown(other_int),
                 }
@@ -126,7 +132,7 @@ pub fn make_notification_enum(
             fn from(notification: #enum_name) -> i32 {
                 match notification {
                     #(
-                        #enum_name::#notification_enumerators_pascal => #notification_enumerators_ord,
+                        #enum_name::#notification_enumerators_shout => #notification_enumerators_ord,
                     )*
                     #enum_name::Unknown(int) => int,
                 }
@@ -139,27 +145,20 @@ pub fn make_notification_enum(
 
 /// Tries to interpret the constant as a notification one, and transforms it to a Rust identifier on success.
 pub fn try_to_notification(constant: &JsonClassConstant) -> Option<Ident> {
-    constant
-        .name
-        .strip_prefix("NOTIFICATION_")
-        .map(|s| util::ident(&conv::shout_to_pascal(s)))
+    constant.name.strip_prefix("NOTIFICATION_").map(util::ident) // used to be conv::shout_to_pascal(s)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-/// Workaround for Godot bug https://github.com/godotengine/godot/issues/75839
+/// Workaround for Godot bug https://github.com/godotengine/godot/issues/75839, fixed in 4.2.
 ///
 /// Godot has a collision for two notification constants (DRAW, NODE_CACHE_REQUESTED) in the same inheritance branch (as of 4.0.2).
 /// This cannot be represented in a Rust enum, so we merge the two constants into a single enumerator.
 fn workaround_constant_collision(all_constants: &mut Vec<(Ident, i32)>) {
-    for first in ["Draw", "VisibilityChanged"] {
-        if let Some(index_of_draw) = all_constants
-            .iter()
-            .position(|(constant_name, _)| constant_name == first)
-        {
-            all_constants[index_of_draw].0 = format_ident!("{first}OrNodeRecacheRequested");
-            all_constants.retain(|(constant_name, _)| constant_name != "NodeRecacheRequested");
-        }
-    }
+    // This constant has never been used by the engine.
+    #[cfg(before_api = "4.2")]
+    all_constants.retain(|(constant_name, _)| constant_name != "NODE_RECACHE_REQUESTED");
+
+    let _ = &all_constants; // unused warning
 }

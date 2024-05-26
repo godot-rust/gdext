@@ -6,11 +6,10 @@
  */
 
 use crate::builtin::GString;
-use crate::engine::global::Error as GodotError;
-use crate::gen::classes::{Resource, ResourceLoader, ResourceSaver};
+use crate::engine::{Resource, ResourceLoader, ResourceSaver};
+use crate::extras::IoError;
+use crate::global::Error as GodotError;
 use crate::obj::{Gd, Inherits};
-
-use super::IoError;
 
 /// ⚠️ Loads a resource from the filesystem located at `path`, panicking on error.
 ///

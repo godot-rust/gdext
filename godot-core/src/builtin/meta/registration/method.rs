@@ -10,7 +10,7 @@ use sys::interface_fn;
 
 use crate::builtin::meta::{ClassName, PropertyInfo, VarcallSignatureTuple};
 use crate::builtin::{StringName, Variant};
-use crate::engine::global::MethodFlags;
+use crate::global::MethodFlags;
 
 /// Info relating to an argument or return type in a method.
 pub struct MethodParamOrReturnInfo {

@@ -10,9 +10,7 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType};
 use crate::builtin::real_consts::FRAC_PI_2;
-use crate::builtin::{real, Quaternion, RMat3, RQuat, RVec2, RVec3, Vector3};
-
-use crate::engine::global::EulerOrder;
+use crate::builtin::{real, EulerOrder, Quaternion, RMat3, RQuat, RVec2, RVec3, Vector3};
 use std::cmp::Ordering;
 use std::fmt::Display;
 use std::ops::{Mul, MulAssign};

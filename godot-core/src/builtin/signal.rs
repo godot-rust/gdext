@@ -10,10 +10,10 @@ use std::ptr;
 
 use godot_ffi as sys;
 
-use super::meta::{impl_godot_as_self, FromGodot, GodotType};
-use crate::builtin::meta::ToGodot;
+use crate::builtin::meta::{impl_godot_as_self, FromGodot, GodotType, ToGodot};
 use crate::builtin::{inner, Array, Callable, Dictionary, StringName, Variant};
-use crate::engine::{global::Error, Object};
+use crate::engine::Object;
+use crate::global::Error;
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
 use sys::{ffi_methods, GodotFfi};

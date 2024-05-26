@@ -11,9 +11,8 @@ use godot_ffi::out;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 
-use crate::engine::ScriptInstance;
-
-use super::{Gd, GodotClass};
+use crate::extras::ScriptInstance;
+use crate::obj::{Gd, GodotClass};
 
 /// Immutably/shared bound reference guard for a [`Gd`][crate::obj::Gd] smart pointer.
 ///

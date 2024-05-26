@@ -870,7 +870,7 @@ impl<T: ArrayElement> Var for Array<T> {
         }
 
         PropertyHintInfo {
-            hint: crate::engine::global::PropertyHint::ARRAY_TYPE,
+            hint: crate::global::PropertyHint::ARRAY_TYPE,
             hint_string: T::godot_type_name().into(),
         }
     }
@@ -879,7 +879,7 @@ impl<T: ArrayElement> Var for Array<T> {
 impl<T: ArrayElement + TypeStringHint> Export for Array<T> {
     fn default_export_info() -> PropertyHintInfo {
         PropertyHintInfo {
-            hint: crate::engine::global::PropertyHint::TYPE_STRING,
+            hint: crate::global::PropertyHint::TYPE_STRING,
             hint_string: T::type_string().into(),
         }
     }

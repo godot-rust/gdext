@@ -7,8 +7,8 @@
 
 use godot::builtin::meta::{GodotConvert, ToGodot};
 use godot::builtin::{dict, Color, Dictionary, GString, Variant, VariantType};
-use godot::engine::global::{PropertyHint, PropertyUsageFlags};
 use godot::engine::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
+use godot::global::{PropertyHint, PropertyUsageFlags};
 use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd};
 use godot::register::property::{Export, PropertyHintInfo, Var};
 use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};

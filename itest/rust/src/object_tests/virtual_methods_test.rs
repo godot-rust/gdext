@@ -523,19 +523,19 @@ fn test_input_event_multiple(test_context: &TestContext) {
 fn test_notifications() {
     let obj = NotificationTest::new_alloc();
     let mut node = obj.clone().upcast::<Node>();
-    node.notify(NodeNotification::Unpaused);
-    node.notify(NodeNotification::EditorPostSave);
-    node.notify(NodeNotification::Ready);
-    node.notify_reversed(NodeNotification::WmSizeChanged);
+    node.notify(NodeNotification::UNPAUSED);
+    node.notify(NodeNotification::EDITOR_POST_SAVE);
+    node.notify(NodeNotification::READY);
+    node.notify_reversed(NodeNotification::WM_SIZE_CHANGED);
 
     assert_eq!(
         obj.bind().sequence,
         vec![
-            ReceivedEvent::Notification(NodeNotification::Unpaused),
-            ReceivedEvent::Notification(NodeNotification::EditorPostSave),
+            ReceivedEvent::Notification(NodeNotification::UNPAUSED),
+            ReceivedEvent::Notification(NodeNotification::EDITOR_POST_SAVE),
             ReceivedEvent::Ready,
-            ReceivedEvent::Notification(NodeNotification::Ready),
-            ReceivedEvent::Notification(NodeNotification::WmSizeChanged),
+            ReceivedEvent::Notification(NodeNotification::READY),
+            ReceivedEvent::Notification(NodeNotification::WM_SIZE_CHANGED),
         ]
     );
     obj.free();
