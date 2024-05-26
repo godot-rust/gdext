@@ -73,147 +73,59 @@ pub trait ToVector: Sized {
     fn to_vector(self) -> Self::Output;
 }
 
-/// Enumerates the axes in a [`Vector2`].
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
-#[repr(i32)]
-pub enum Vector2Axis {
-    /// The X axis.
-    X,
-
-    /// The Y axis.
-    Y,
-}
-
-impl EngineEnum for Vector2Axis {
-    fn try_from_ord(ord: i32) -> Option<Self> {
-        match ord {
-            0 => Some(Self::X),
-            1 => Some(Self::Y),
-            _ => None,
+macro_rules! impl_vector_axis_enum {
+    ($Vector:ident, $AxisEnum:ident, ($($axis:ident),+)) => {
+        #[doc = concat!("Enumerates the axes in a [`", stringify!($Vector), "`].")]
+        ///
+        #[doc = concat!("`", stringify!($Vector), "` implements `Index<", stringify!($AxisEnum), ">` and `IndexMut<", stringify!($AxisEnum), ">`")]
+        #[doc = ", so you can use this type to access a vector component as `vec[axis]`."]
+        #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+        #[repr(i32)]
+        pub enum $AxisEnum {
+            $(
+                #[doc = concat!("The ", stringify!($axis), " axis.")]
+                $axis,
+            )+
         }
-    }
 
-    fn ord(self) -> i32 {
-        self as i32
-    }
-}
+        impl EngineEnum for $AxisEnum {
+            fn try_from_ord(ord: i32) -> Option<Self> {
+                match ord {
+                    $(
+                        x if x == Self::$axis as i32 => Some(Self::$axis),
+                    )+
+                    _ => None,
+                }
+            }
 
-impl GodotConvert for Vector2Axis {
-    type Via = i32;
-}
+            fn ord(self) -> i32 {
+                self as i32
+            }
+        }
 
-impl ToGodot for Vector2Axis {
-    fn to_godot(&self) -> Self::Via {
-        self.ord()
-    }
-}
+        impl GodotConvert for $AxisEnum {
+            type Via = i32;
+        }
 
-impl FromGodot for Vector2Axis {
-    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-        Self::try_from_ord(via).ok_or_else(|| FromGodotError::InvalidEnum.into_error(via))
+        impl ToGodot for $AxisEnum {
+            fn to_godot(&self) -> Self::Via {
+                self.ord()
+            }
+        }
+
+        impl FromGodot for $AxisEnum {
+            fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+                Self::try_from_ord(via).ok_or_else(|| FromGodotError::InvalidEnum.into_error(via))
+            }
+        }
     }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Enumerates the axes in a [`Vector3`].
-// TODO auto-generate this, alongside all the other builtin type's enums
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
-#[repr(i32)]
-pub enum Vector3Axis {
-    /// The X axis.
-    X,
-
-    /// The Y axis.
-    Y,
-
-    /// The Z axis.
-    Z,
-}
-
-impl EngineEnum for Vector3Axis {
-    fn try_from_ord(ord: i32) -> Option<Self> {
-        match ord {
-            0 => Some(Self::X),
-            1 => Some(Self::Y),
-            2 => Some(Self::Z),
-            _ => None,
-        }
-    }
-
-    fn ord(self) -> i32 {
-        self as i32
-    }
-}
-
-impl GodotConvert for Vector3Axis {
-    type Via = i32;
-}
-
-impl ToGodot for Vector3Axis {
-    fn to_godot(&self) -> Self::Via {
-        self.ord()
-    }
-}
-
-impl FromGodot for Vector3Axis {
-    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-        Self::try_from_ord(via).ok_or_else(|| FromGodotError::InvalidEnum.into_error(via))
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Enumerates the axes in a [`Vector4`].
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
-#[repr(i32)]
-pub enum Vector4Axis {
-    /// The X axis.
-    X,
-
-    /// The Y axis.
-    Y,
-
-    /// The Z axis.
-    Z,
-
-    /// The W axis.
-    W,
-}
-
-impl EngineEnum for Vector4Axis {
-    fn try_from_ord(ord: i32) -> Option<Self> {
-        match ord {
-            0 => Some(Self::X),
-            1 => Some(Self::Y),
-            2 => Some(Self::Z),
-            3 => Some(Self::W),
-            _ => None,
-        }
-    }
-
-    fn ord(self) -> i32 {
-        self as i32
-    }
-}
-
-impl GodotConvert for Vector4Axis {
-    type Via = i32;
-}
-
-impl ToGodot for Vector4Axis {
-    fn to_godot(&self) -> Self::Via {
-        self.ord()
-    }
-}
-
-impl FromGodot for Vector4Axis {
-    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
-        Self::try_from_ord(via).ok_or_else(|| FromGodotError::InvalidEnum.into_error(via))
-    }
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
+impl_vector_axis_enum!(Vector2, Vector2Axis, (X, Y));
+impl_vector_axis_enum!(Vector3, Vector3Axis, (X, Y, Z));
+impl_vector_axis_enum!(Vector4, Vector4Axis, (X, Y, Z, W));
 
 impl_vector_index!(Vector2, real, (x, y), Vector2Axis, (X, Y));
 impl_vector_index!(Vector2i, i32, (x, y), Vector2Axis, (X, Y));
