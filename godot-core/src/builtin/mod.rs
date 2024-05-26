@@ -88,8 +88,6 @@ pub mod strings {
     pub use super::string::TransientStringNameOrd;
 }
 
-use crate::engine::global::Side;
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
@@ -154,7 +152,12 @@ pub(crate) fn u8_to_bool(u: u8) -> bool {
 ///
 /// _Godot equivalent: `@GlobalScope.Side`_
 #[deprecated(note = "Merged with `godot::global::Side`.")]
-pub type RectSide = Side;
+pub type RectSide = crate::engine::global::Side;
+use crate::engine::global::Side;
+
+/// The ordering used to interpret a set of euler angles as extrinsic rotations.
+#[deprecated(note = "Merged with `godot::global::EulerOrder`.")]
+pub type EulerOrder = crate::engine::global::EulerOrder;
 
 #[allow(non_upper_case_globals)]
 impl Side {
