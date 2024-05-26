@@ -379,7 +379,7 @@ fn make_method_flags(
     method_type: ReceiverType,
     is_script_virtual: bool,
 ) -> Result<TokenStream, String> {
-    let flags = quote! { ::godot::engine::global::MethodFlags };
+    let flags = quote! { ::godot::global::MethodFlags };
 
     let base_flags = match method_type {
         ReceiverType::Ref => {

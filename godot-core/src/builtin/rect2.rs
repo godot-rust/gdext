@@ -9,8 +9,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::ApproxEq;
-use crate::builtin::{real, Rect2i, Vector2};
-use crate::engine::global::Side;
+use crate::builtin::{real, Rect2i, Side, Vector2};
 
 use super::meta::impl_godot_as_self;
 

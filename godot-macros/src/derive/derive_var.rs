@@ -61,7 +61,7 @@ fn create_property_hint_impl(convert: &GodotConvert) -> TokenStream {
 
             quote! {
                 ::godot::register::property::PropertyHintInfo {
-                    hint: ::godot::engine::global::PropertyHint::ENUM,
+                    hint: ::godot::global::PropertyHint::ENUM,
                     hint_string: #hint_string.into(),
                 }
             }

@@ -9,8 +9,7 @@ use std::fmt::Debug;
 
 use crate::framework::itest;
 use godot::builtin::inner::InnerRect2i;
-use godot::builtin::{Rect2i, Vector2i};
-use godot::engine::global::Side;
+use godot::builtin::{Rect2i, Side, Vector2i};
 use godot::obj::EngineEnum;
 
 #[itest]

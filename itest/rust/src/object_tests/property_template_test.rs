@@ -13,7 +13,7 @@
 use std::collections::HashMap;
 
 use crate::framework::itest;
-use godot::engine::global::PropertyUsageFlags;
+use godot::global::PropertyUsageFlags;
 use godot::prelude::*;
 use godot::sys::GdextBuild;
 

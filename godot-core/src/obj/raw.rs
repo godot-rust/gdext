@@ -19,7 +19,7 @@ use crate::obj::bounds::DynMemory as _;
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
 use crate::storage::{InstanceStorage, Storage};
-use crate::{engine, out};
+use crate::{engine, global, out};
 
 /// Low-level bindings for object pointers in Godot.
 ///
@@ -105,7 +105,7 @@ impl<T: GodotClass> RawGd<T> {
     pub(crate) fn is_instance_valid(&self) -> bool {
         self.cached_rtti
             .as_ref()
-            .map(|rtti| engine::utilities::is_instance_id_valid(rtti.instance_id().to_i64()))
+            .map(|rtti| global::is_instance_id_valid(rtti.instance_id().to_i64()))
             .unwrap_or(false)
     }
 

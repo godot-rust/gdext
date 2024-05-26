@@ -17,12 +17,14 @@ use crate::builtin::meta::{
     ToGodot,
 };
 use crate::builtin::{Callable, NodePath, StringName, Variant};
+use crate::global::PropertyHint;
 use crate::obj::raw::RawGd;
 use crate::obj::{
     bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
 };
+use crate::private::callbacks;
 use crate::property::{Export, PropertyHintInfo, TypeStringHint, Var};
-use crate::{callbacks, engine, out};
+use crate::{engine, out};
 
 /// Smart pointer to objects owned by the Godot engine.
 ///
@@ -649,7 +651,7 @@ impl<T: GodotClass> Clone for Gd<T> {
 
 impl<T: GodotClass> TypeStringHint for Gd<T> {
     fn type_string() -> String {
-        use engine::global::PropertyHint;
+        use crate::global::PropertyHint;
 
         match Self::default_export_info().hint {
             hint @ (PropertyHint::RESOURCE_TYPE | PropertyHint::NODE_TYPE) => {
@@ -680,11 +682,11 @@ impl<T: GodotClass> Var for Gd<T> {
 impl<T: GodotClass> Export for Gd<T> {
     fn default_export_info() -> PropertyHintInfo {
         let hint = if T::inherits::<engine::Resource>() {
-            engine::global::PropertyHint::RESOURCE_TYPE
+            PropertyHint::RESOURCE_TYPE
         } else if T::inherits::<engine::Node>() {
-            engine::global::PropertyHint::NODE_TYPE
+            PropertyHint::NODE_TYPE
         } else {
-            engine::global::PropertyHint::NONE
+            PropertyHint::NONE
         };
 
         // Godot does this by default too; the hint is needed when the class is a resource/node,
