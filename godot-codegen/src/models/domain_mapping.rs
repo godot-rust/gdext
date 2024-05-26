@@ -526,6 +526,7 @@ impl Enum {
     pub fn from_json(json_enum: &JsonEnum, surrounding_class: Option<&TyName>) -> Self {
         let godot_name = &json_enum.name;
         let is_bitfield = json_enum.is_bitfield;
+        let is_private = special_cases::is_enum_private(surrounding_class, godot_name);
         let is_exhaustive = special_cases::is_enum_exhaustive(surrounding_class, godot_name);
 
         let rust_enum_name = conv::make_enum_name_str(godot_name);
@@ -560,6 +561,7 @@ impl Enum {
             name: ident(&rust_enum_name),
             godot_name: godot_name.clone(),
             is_bitfield,
+            is_private,
             is_exhaustive,
             enumerators,
         }

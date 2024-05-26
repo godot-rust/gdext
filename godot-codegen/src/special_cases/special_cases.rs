@@ -362,6 +362,21 @@ pub fn is_class_level_server(class_name: &str) -> bool {
     }
 }
 
+/// Whether a generated enum is `pub(crate)`; useful for manual re-exports.
+#[rustfmt::skip]
+pub fn is_enum_private(class_name: Option<&TyName>, enum_name: &str) -> bool {
+    match (class_name, enum_name) {
+        // Re-exported to godot::builtin.
+        | (None, "Corner")
+        | (None, "EulerOrder")
+        | (None, "Side")
+        | (None, "Variant.Operator")
+        | (None, "Variant.Type")
+
+        => true, _ => false
+    }
+}
+
 /// Certain enums that are extremely unlikely to get new identifiers in the future.
 /// 
 /// `class_name` = None for global enums.

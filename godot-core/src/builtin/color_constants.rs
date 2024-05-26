@@ -7,7 +7,7 @@
 
 use crate::builtin::Color;
 
-/// Godot's predefined colors
+/// Godot's predefined colors.
 ///
 /// This [visual cheat sheet](https://raw.githubusercontent.com/godotengine/godot-docs/master/img/color_constants.png)
 /// shows how the colors look.

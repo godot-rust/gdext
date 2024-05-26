@@ -36,32 +36,42 @@
 // Re-export macros.
 pub use crate::{array, dict, real, reals, varray};
 
+// Re-export generated enums.
+pub use crate::gen::central::global_reexported_enums::{Corner, EulerOrder, Side, VariantOperator};
+pub use crate::sys::VariantType;
+// Not yet public.
+pub(crate) use crate::gen::central::VariantDispatch;
+
 #[doc(hidden)]
 pub mod __prelude_reexport {
     use super::*;
 
-    pub use aabb::*;
+    pub use aabb::Aabb;
     pub use array_inner::{Array, VariantArray};
-    pub use basis::*;
-    pub use callable::*;
-    pub use color::*;
-    pub use color_hsv::*;
+    pub use basis::Basis;
+    pub use callable::{Callable, RustCallable};
+    pub use color::{Color, ColorChannelOrder};
+    pub use color_hsv::ColorHsv;
     pub use dictionary_inner::Dictionary;
     pub use packed_array::*;
-    pub use plane::*;
-    pub use projection::*;
-    pub use quaternion::*;
+    pub use plane::Plane;
+    pub use projection::{Projection, ProjectionEye, ProjectionPlane};
+    pub use quaternion::Quaternion;
     pub use real_inner::*;
-    pub use rect2::*;
-    pub use rect2i::*;
-    pub use rid::*;
-    pub use signal::*;
+    pub use rect2::Rect2;
+    pub use rect2i::Rect2i;
+    pub use rid::Rid;
+    pub use signal::Signal;
     pub use string::{GString, NodePath, StringName};
-    pub use transform2d::*;
-    pub use transform3d::*;
-    pub use variant::*;
-    pub use vectors::*;
+    pub use transform2d::Transform2D;
+    pub use transform3d::Transform3D;
+    pub use variant::Variant;
+    pub use vectors::{
+        swizzle, ToVector, Vector2, Vector2Axis, Vector2i, Vector3, Vector3Axis, Vector3i,
+        Vector4, Vector4Axis, Vector4i,
+    };
 
+    pub use super::{EulerOrder, Side, VariantOperator, VariantType};
     pub use crate::{array, dict, real, reals, varray};
 }
 
@@ -148,16 +158,14 @@ pub(crate) fn u8_to_bool(u: u8) -> bool {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Deprecated enums
+
 /// The side of a [`Rect2`] or [`Rect2i`].
 ///
 /// _Godot equivalent: `@GlobalScope.Side`_
-#[deprecated(note = "Merged with `godot::global::Side`.")]
-pub type RectSide = crate::engine::global::Side;
-use crate::engine::global::Side;
-
-/// The ordering used to interpret a set of euler angles as extrinsic rotations.
-#[deprecated(note = "Merged with `godot::global::EulerOrder`.")]
-pub type EulerOrder = crate::engine::global::EulerOrder;
+#[deprecated = "Merged with `godot::builtin::Side`."]
+pub type RectSide = Side;
 
 #[allow(non_upper_case_globals)]
 impl Side {

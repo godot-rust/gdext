@@ -6,14 +6,10 @@
  */
 
 use crate::builtin::meta::{impl_godot_as_self, ArrayElement, ConvertError, FromGodot, ToGodot};
-use crate::builtin::{GString, StringName};
-use crate::gen::central::VariantDispatch;
+use crate::builtin::{GString, StringName, VariantDispatch, VariantOperator, VariantType};
 use godot_ffi as sys;
 use std::{fmt, ptr};
 use sys::{ffi_methods, interface_fn, GodotFfi};
-
-pub use crate::engine::global::VariantOperator;
-pub use sys::VariantType;
 
 mod impls;
 

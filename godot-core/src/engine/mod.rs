@@ -14,6 +14,7 @@ use crate::obj::{bounds, Bounds, Gd, GodotClass, InstanceId};
 
 #[deprecated = "Enums have been moved to `godot::global`."]
 pub mod global {
+    pub use crate::builtin::{Corner, EulerOrder, Side};
     pub use crate::global::*;
 }
 

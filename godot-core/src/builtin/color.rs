@@ -5,24 +5,21 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::builtin::color_hsv::rgba_to_hsva;
 use crate::builtin::inner::InnerColor;
 use crate::builtin::math::ApproxEq;
-use crate::builtin::GString;
-
+use crate::builtin::meta::impl_godot_as_self;
+use crate::builtin::{ColorHsv, GString};
 use godot_ffi as sys;
-use sys::{ffi_methods, GodotFfi};
-
 use std::ops;
-
-use super::meta::impl_godot_as_self;
-use super::{rgba_to_hsva, ColorHsv};
+use sys::{ffi_methods, GodotFfi};
 
 /// Color built-in type, in floating-point RGBA format.
 ///
 /// Channel values are _typically_ in the range of 0 to 1, but this is not a requirement, and
 /// values outside this range are explicitly allowed for e.g. High Dynamic Range (HDR).
 ///
-/// To access its [**HSVA**](super::ColorHsv) representation, use [`Color::to_hsv`].
+/// To access its [**HSVA**](ColorHsv) representation, use [`Color::to_hsv`].
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -100,8 +97,8 @@ impl Color {
     /// Constructs a `Color` from a string, which can be either:
     ///
     /// - An HTML color code as accepted by [`Color::from_html`].
-    /// - The name of a built-in color constant, such as `BLUE` or `lawn-green`. Matching is case
-    ///   insensitive and hyphens can be used interchangeably with underscores. See the [list of
+    /// - The name of a built-in color constant, such as `BLUE` or `lawn-green`. Matching is case-insensitive
+    ///   and hyphens can be used interchangeably with underscores. See the [list of
     ///   color constants][color_constants] in the Godot API documentation, or the visual [cheat
     ///   sheet][cheat_sheet] for the full list.
     ///
@@ -365,6 +362,7 @@ impl ApproxEq for Color {
     }
 }
 
+/// Defines how individual color channels are laid out in memory.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ColorChannelOrder {
     /// RGBA channel order. Godot's default.
@@ -566,7 +564,7 @@ impl std::fmt::Display for Color {
     /// # Example
     /// ```
     /// use godot::prelude::*;
-    /// let color = Color::from_rgba(1.0,1.0,1.0,1.0);
+    /// let color = Color::from_rgba(1.0, 1.0, 1.0, 1.0);
     /// assert_eq!(format!("{}", color), "(1, 1, 1, 1)");
     /// ```
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

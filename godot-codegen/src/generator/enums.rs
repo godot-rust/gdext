@@ -72,7 +72,7 @@ pub fn make_enum_definition_with(
         // Non-exhaustive enums are declared as newtype structs with associated constants.
         else {
             // Workaround because traits are defined in separate crate, but need access to field `ord`.
-            let vis = (!define_traits).then(|| {
+            let ord_vis = (!define_traits).then(|| {
                 quote! { #[doc(hidden)] pub }
             });
 
@@ -82,7 +82,7 @@ pub fn make_enum_definition_with(
                 #[derive( #( #derives ),* )]
                 #( #[doc = #enum_doc] )*
                 pub struct #name {
-                    #vis ord: #ord_type
+                    #ord_vis ord: #ord_type
                 }
 
                 impl #name {

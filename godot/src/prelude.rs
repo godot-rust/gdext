@@ -20,8 +20,7 @@ pub use super::engine::{
     Input, Node, Node2D, Node3D, Object, PackedScene, RefCounted, Resource, SceneTree,
 };
 pub use super::global::{
-    godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn, EulerOrder, Side,
-    VariantOperator,
+    godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn,
 };
 /* ProjectionEye etc */
 
