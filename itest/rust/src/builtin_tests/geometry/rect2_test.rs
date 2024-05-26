@@ -9,7 +9,8 @@ use crate::framework::itest;
 
 use godot::builtin::inner::InnerRect2;
 use godot::builtin::math::assert_eq_approx;
-use godot::builtin::{real, reals, RealConv, Rect2, RectSide, Vector2};
+use godot::builtin::{real, reals, RealConv, Rect2, Vector2};
+use godot::engine::global::Side;
 
 #[itest]
 fn rect2_inner_equivalence() {
@@ -29,12 +30,7 @@ fn rect2_inner_equivalence() {
     ];
     let reals = reals![0.0, 1.0, 32.0];
     let grow_values = reals![-1.0, 0.0, 7.0];
-    let sides = [
-        RectSide::Left,
-        RectSide::Top,
-        RectSide::Right,
-        RectSide::Bottom,
-    ];
+    let sides = [Side::LEFT, Side::TOP, Side::RIGHT, Side::BOTTOM];
 
     for rect in rects {
         let inner_rect = InnerRect2::from_outer(&rect);

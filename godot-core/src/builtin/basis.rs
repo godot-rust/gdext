@@ -12,6 +12,7 @@ use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType};
 use crate::builtin::real_consts::FRAC_PI_2;
 use crate::builtin::{real, Quaternion, RMat3, RQuat, RVec2, RVec3, Vector3};
 
+use crate::engine::global::EulerOrder;
 use std::cmp::Ordering;
 use std::fmt::Display;
 use std::ops::{Mul, MulAssign};
@@ -322,6 +323,7 @@ impl Basis {
         ))
     }
 
+    #[allow(clippy::wrong_self_convention)]
     fn to_euler_inner(major: real, pair0: RVec2, pair1: RVec2, pair2: RVec2) -> RVec3 {
         match Self::is_between_neg1_1(major) {
             // It's -1
@@ -605,19 +607,6 @@ unsafe impl GodotFfi for Basis {
 }
 
 impl_godot_as_self!(Basis);
-
-/// The ordering used to interpret a set of euler angles as extrinsic
-/// rotations.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-#[repr(C)]
-pub enum EulerOrder {
-    XYZ = 0,
-    XZY = 1,
-    YXZ = 2,
-    YZX = 3,
-    ZXY = 4,
-    ZYX = 5,
-}
 
 #[cfg(test)]
 mod test {

@@ -9,7 +9,8 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::ApproxEq;
-use crate::builtin::{real, Rect2i, RectSide, Vector2};
+use crate::builtin::{real, Rect2i, Vector2};
+use crate::engine::global::Side;
 
 use super::meta::impl_godot_as_self;
 
@@ -147,12 +148,12 @@ impl Rect2 {
     /// `amount` may be negative, but care must be taken: If the resulting `size` has
     /// negative components the computation may be incorrect.
     #[inline]
-    pub fn grow_side(&self, side: RectSide, amount: real) -> Self {
+    pub fn grow_side(&self, side: Side, amount: real) -> Self {
         match side {
-            RectSide::Left => self.grow_individual(amount, 0.0, 0.0, 0.0),
-            RectSide::Top => self.grow_individual(0.0, amount, 0.0, 0.0),
-            RectSide::Right => self.grow_individual(0.0, 0.0, amount, 0.0),
-            RectSide::Bottom => self.grow_individual(0.0, 0.0, 0.0, amount),
+            Side::LEFT => self.grow_individual(amount, 0.0, 0.0, 0.0),
+            Side::TOP => self.grow_individual(0.0, amount, 0.0, 0.0),
+            Side::RIGHT => self.grow_individual(0.0, 0.0, amount, 0.0),
+            Side::BOTTOM => self.grow_individual(0.0, 0.0, 0.0, amount),
         }
     }
 

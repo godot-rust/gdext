@@ -9,7 +9,7 @@
 //!
 //! See also models/domain/enums.rs for other enum-related methods.
 
-use crate::models::domain::{Enum, Enumerator};
+use crate::models::domain::{Enum, Enumerator, EnumeratorValue};
 use crate::{conv, util};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
@@ -34,46 +34,67 @@ pub fn make_enum_definition_with(
     define_enum: bool,
     define_traits: bool,
 ) -> TokenStream {
+    assert!(
+        !(enum_.is_bitfield && enum_.is_exhaustive),
+        "bitfields cannot be marked exhaustive"
+    );
+
     // Things needed for the type definition
     let derives = enum_.derives();
     let enum_doc = make_enum_doc(enum_);
     let name = &enum_.name;
 
     // Values
-    let enumerators = enum_
-        .enumerators
-        .iter()
-        .map(|enumerator| make_enumerator_definition(enumerator, name.to_token_stream()));
+    let enumerators = enum_.enumerators.iter().map(|enumerator| {
+        make_enumerator_definition(enumerator, name.to_token_stream(), !enum_.is_exhaustive)
+    });
 
     // Various types
     let ord_type = enum_.ord_type();
     let engine_trait = enum_.engine_trait();
 
-    let definition = define_enum.then(|| {
-        let debug_impl = make_enum_debug_impl(enum_);
-
-        // Workaround because traits are defined in separate crate, but need access to field `ord`.
-        let vis = (!define_traits).then(|| {
+    let definition = if define_enum {
+        // Exhaustive enums are declared as Rust enums.
+        if enum_.is_exhaustive {
             quote! {
-                #[doc(hidden)] pub
+                #[repr(i32)]
+                #[derive(Debug, #( #derives ),* )]
+                #( #[doc = #enum_doc] )*
+                ///
+                /// This enum is exhaustive; you should not expect future Godot versions to add new enumerators.
+                #[allow(non_camel_case_types)]
+                pub enum #name {
+                    #( #enumerators )*
+                }
             }
-        });
-
-        quote! {
-            #[repr(transparent)]
-            #[derive( #( #derives ),* )]
-            #( #[doc = #enum_doc] )*
-            pub struct #name {
-                #vis ord: #ord_type
-            }
-
-            impl #name {
-                #( #enumerators )*
-            }
-
-            #debug_impl
         }
-    });
+        //
+        // Non-exhaustive enums are declared as newtype structs with associated constants.
+        else {
+            // Workaround because traits are defined in separate crate, but need access to field `ord`.
+            let vis = (!define_traits).then(|| {
+                quote! { #[doc(hidden)] pub }
+            });
+
+            let debug_impl = make_enum_debug_impl(enum_);
+            quote! {
+                #[repr(transparent)]
+                #[derive( #( #derives ),* )]
+                #( #[doc = #enum_doc] )*
+                pub struct #name {
+                    #vis ord: #ord_type
+                }
+
+                impl #name {
+                    #( #enumerators )*
+                }
+
+                #debug_impl
+            }
+        }
+    } else {
+        TokenStream::new()
+    };
 
     let traits = define_traits.then(|| {
         // Trait implementations
@@ -185,6 +206,36 @@ fn make_enum_engine_trait_impl(enum_: &Enum) -> TokenStream {
                 }
             }
         }
+    } else if enum_.is_exhaustive {
+        let enumerators = enum_.enumerators.iter().map(|enumerator| {
+            let Enumerator {
+                name,
+                value: EnumeratorValue::Enum(ord),
+                ..
+            } = enumerator
+            else {
+                panic!("exhaustive enum contains bitfield enumerators")
+            };
+
+            quote! {
+                #ord => Some(Self::#name),
+            }
+        });
+
+        quote! {
+            impl #engine_trait for #name {
+                fn try_from_ord(ord: i32) -> Option<Self> {
+                    match ord {
+                        #( #enumerators )*
+                        _ => None,
+                    }
+                }
+
+                fn ord(self) -> i32 {
+                    self as i32
+                }
+            }
+        }
     } else {
         let unique_ords = enum_.unique_ords().expect("self is an enum");
 
@@ -238,13 +289,21 @@ fn make_enum_doc(enum_: &Enum) -> Vec<String> {
     docs
 }
 
-/// Creates a `const` definition for `enumerator` of the type `enum_type`.
+/// Creates a definition for `enumerator` of the type `enum_type`.
 ///
-/// That is, it'll be a definition like
+/// If `as_constant` is true, it will be a `const` definition like:
 /// ```ignore
-/// pub const NAME: enum_type = ..;
+/// pub const NAME: enum_type = ord;
 /// ```
-fn make_enumerator_definition(enumerator: &Enumerator, enum_type: TokenStream) -> TokenStream {
+/// Otherwise, it will be a regular enum variant like:
+/// ```ignore
+/// NAME = ord,
+/// ```
+fn make_enumerator_definition(
+    enumerator: &Enumerator,
+    enum_type: TokenStream,
+    as_constant: bool,
+) -> TokenStream {
     let Enumerator {
         name,
         godot_name,
@@ -262,11 +321,18 @@ fn make_enumerator_definition(enumerator: &Enumerator, enum_type: TokenStream) -
         TokenStream::new()
     };
 
-    quote! {
-        #docs
-        pub const #name: #enum_type = #enum_type {
-            ord: #value
-        };
+    if as_constant {
+        quote! {
+            #docs
+            pub const #name: #enum_type = #enum_type {
+                ord: #value
+            };
+        }
+    } else {
+        quote! {
+            #docs
+            #name = #value,
+        }
     }
 }
 

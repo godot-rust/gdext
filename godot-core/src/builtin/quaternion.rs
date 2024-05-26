@@ -9,8 +9,9 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType};
-use crate::builtin::{inner, real, Basis, EulerOrder, RQuat, RealConv, Vector3};
+use crate::builtin::{inner, real, Basis, RQuat, RealConv, Vector3};
 
+use crate::engine::global::EulerOrder;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use super::meta::impl_godot_as_self;

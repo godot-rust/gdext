@@ -122,8 +122,8 @@ impl Projection {
         f2 = (f2 + add) * near;
 
         match eye {
-            ProjectionEye::Left => Self::create_frustum(-f2, f1, -f3, f3, near, far),
-            ProjectionEye::Right => Self::create_frustum(-f1, f2, -f3, f3, near, far),
+            ProjectionEye::LEFT => Self::create_frustum(-f2, f1, -f3, f3, near, far),
+            ProjectionEye::RIGHT => Self::create_frustum(-f1, f2, -f3, f3, near, far),
         }
     }
 
@@ -302,12 +302,12 @@ impl Projection {
         let frustumshift = (intraocular_dist * near * 0.5) / convergence_dist;
 
         let (left, right, model_translation) = match eye {
-            ProjectionEye::Left => (
+            ProjectionEye::LEFT => (
                 frustumshift - xmax,
                 xmax + frustumshift,
                 intraocular_dist / 2.0,
             ),
-            ProjectionEye::Right => (
+            ProjectionEye::RIGHT => (
                 -frustumshift - xmax,
                 xmax - frustumshift,
                 intraocular_dist / -2.0,
@@ -544,24 +544,45 @@ impl_godot_as_self!(Projection);
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[repr(C)]
 pub enum ProjectionPlane {
-    Near = 0,
-    Far = 1,
-    Left = 2,
-    Top = 3,
-    Right = 4,
-    Bottom = 5,
+    NEAR = 0,
+    FAR = 1,
+    LEFT = 2,
+    TOP = 3,
+    RIGHT = 4,
+    BOTTOM = 5,
+}
+
+#[allow(non_upper_case_globals)]
+impl ProjectionPlane {
+    #[deprecated(note = "Renamed to `ProjectionPlane::NEAR`")]
+    pub const Near: Self = Self::NEAR;
+
+    #[deprecated(note = "Renamed to `ProjectionPlane::FAR`")]
+    pub const Far: Self = Self::FAR;
+
+    #[deprecated(note = "Renamed to `ProjectionPlane::LEFT`")]
+    pub const Left: Self = Self::LEFT;
+
+    #[deprecated(note = "Renamed to `ProjectionPlane::TOP`")]
+    pub const Top: Self = Self::TOP;
+
+    #[deprecated(note = "Renamed to `ProjectionPlane::RIGHT`")]
+    pub const Right: Self = Self::RIGHT;
+
+    #[deprecated(note = "Renamed to `ProjectionPlane::BOTTOM`")]
+    pub const Bottom: Self = Self::BOTTOM;
 }
 
 impl ProjectionPlane {
     /// Convert from one of GDScript's `Projection.PLANE_*` integer constants.
     pub fn try_from_ord(ord: i64) -> Option<Self> {
         match ord {
-            0 => Some(Self::Near),
-            1 => Some(Self::Far),
-            2 => Some(Self::Left),
-            3 => Some(Self::Top),
-            4 => Some(Self::Right),
-            5 => Some(Self::Bottom),
+            0 => Some(Self::NEAR),
+            1 => Some(Self::FAR),
+            2 => Some(Self::LEFT),
+            3 => Some(Self::TOP),
+            4 => Some(Self::RIGHT),
+            5 => Some(Self::BOTTOM),
             _ => None,
         }
     }
@@ -571,16 +592,25 @@ impl ProjectionPlane {
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[repr(C)]
 pub enum ProjectionEye {
-    Left = 1,
-    Right = 2,
+    LEFT = 1,
+    RIGHT = 2,
+}
+
+#[allow(non_upper_case_globals)]
+impl ProjectionEye {
+    #[deprecated(note = "Renamed to `ProjectionEye::LEFT`")]
+    pub const Left: Self = Self::LEFT;
+
+    #[deprecated(note = "Renamed to `ProjectionEye::RIGHT`")]
+    pub const Right: Self = Self::RIGHT;
 }
 
 impl ProjectionEye {
     /// Convert from numbers `1` and `2`.
     pub fn try_from_ord(ord: i64) -> Option<Self> {
         match ord {
-            1 => Some(Self::Left),
-            2 => Some(Self::Right),
+            1 => Some(Self::LEFT),
+            2 => Some(Self::RIGHT),
             _ => None,
         }
     }
