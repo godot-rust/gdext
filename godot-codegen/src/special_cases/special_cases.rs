@@ -354,3 +354,27 @@ pub fn is_class_level_server(class_name: &str) -> bool {
         => true, _ => false
     }
 }
+
+/// Certain enums that are extremely unlikely to get new identifiers in the future.
+/// 
+/// `class_name` = None for global enums.
+/// 
+/// Very conservative, only includes a few enums. Even `VariantType` was extended over time.
+/// Also does not work for any enums containing duplicate ordinals.
+#[rustfmt::skip]
+pub fn is_enum_exhaustive(class_name: Option<&TyName>, enum_name: &str) -> bool {
+    // Adding new enums here should generally not break existing code:
+    // * match _ patterns are still allowed, but cause a warning
+    // * Enum::CONSTANT access looks the same for proper enum and newtype+const
+    // Obviously, removing them will.
+
+    match (class_name, enum_name) {
+        | (None, "ClockDirection")
+        | (None, "Corner")
+        | (None, "EulerOrder")
+        | (None, "Side")
+        | (None, "Orientation")
+
+        => true, _ => false
+    }
+}
