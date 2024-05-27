@@ -21,10 +21,12 @@ use crate::builtin::real;
 pub(crate) trait GlamConv {
     type Glam: GlamType<Mapped = Self>;
 
+    #[inline]
     fn to_glam(&self) -> Self::Glam {
         Self::Glam::from_front(self)
     }
 
+    #[inline]
     fn glam<F, R>(&self, unary_fn: F) -> R::Mapped
     where
         R: GlamType,
@@ -36,6 +38,7 @@ pub(crate) trait GlamConv {
         result.to_front()
     }
 
+    #[inline]
     fn glam2<F, P, R>(&self, rhs: &P, binary_fn: F) -> R::Mapped
     where
         P: GlamConv,
