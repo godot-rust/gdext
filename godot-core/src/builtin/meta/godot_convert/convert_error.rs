@@ -10,11 +10,9 @@ use std::fmt;
 
 use godot_ffi::VariantType;
 
-use crate::builtin::{
-    array_inner,
-    meta::{ClassName, ToGodot},
-    Variant,
-};
+use crate::builtin::collections::ArrayTypeInfo;
+use crate::builtin::meta::{ClassName, ToGodot};
+use crate::builtin::Variant;
 
 type Cause = Box<dyn Error + Send + Sync>;
 
@@ -173,8 +171,8 @@ impl fmt::Display for ErrorKind {
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum FromGodotError {
     BadArrayType {
-        expected: array_inner::TypeInfo,
-        actual: array_inner::TypeInfo,
+        expected: ArrayTypeInfo,
+        actual: ArrayTypeInfo,
     },
     /// InvalidEnum is also used by bitfields.
     InvalidEnum,

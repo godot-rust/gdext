@@ -5,19 +5,18 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_ffi as sys;
-
-use crate::builtin::*;
-use crate::obj::EngineEnum;
-use crate::property::{builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var};
 use std::fmt;
 use std::marker::PhantomData;
-use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use super::meta::{
+use crate::builtin::meta::{
     ArrayElement, ConvertError, FromGodot, FromGodotError, FromVariantError, GodotConvert,
     GodotFfiVariant, GodotType, ToGodot,
 };
+use crate::builtin::*;
+use crate::obj::EngineEnum;
+use crate::property::{builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var};
+use godot_ffi as sys;
+use sys::{ffi_methods, interface_fn, GodotFfi};
 
 /// Godot's `Array` type.
 ///
@@ -682,13 +681,13 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// Returns the runtime type info of this array.
-    fn type_info(&self) -> TypeInfo {
+    fn type_info(&self) -> ArrayTypeInfo {
         let variant_type = VariantType::from_sys(
             self.as_inner().get_typed_builtin() as sys::GDExtensionVariantType
         );
         let class_name = self.as_inner().get_typed_class_name();
 
-        TypeInfo {
+        ArrayTypeInfo {
             variant_type,
             class_name,
         }
@@ -697,7 +696,7 @@ impl<T: ArrayElement> Array<T> {
     /// Checks that the inner array has the correct type set on it for storing elements of type `T`.
     fn with_checked_type(self) -> Result<Self, ConvertError> {
         let self_ty = self.type_info();
-        let target_ty = TypeInfo::of::<T>();
+        let target_ty = ArrayTypeInfo::of::<T>();
 
         if self_ty == target_ty {
             Ok(self)
@@ -719,7 +718,7 @@ impl<T: ArrayElement> Array<T> {
         debug_assert!(self.is_empty());
         debug_assert!(!self.type_info().is_typed());
 
-        let type_info = TypeInfo::of::<T>();
+        let type_info = ArrayTypeInfo::of::<T>();
         if type_info.is_typed() {
             let script = Variant::nil();
 
@@ -1047,6 +1046,7 @@ impl<T: ArrayElement + FromGodot> From<&Array<T>> for Vec<T> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// An iterator over typed elements of an [`Array`].
 pub struct Iter<'a, T: ArrayElement> {
     array: &'a Array<T>,
     next_idx: usize,
@@ -1180,14 +1180,14 @@ macro_rules! varray {
 ///
 /// We ignore the `script` parameter because it has no impact on typing in Godot.
 #[derive(Eq, PartialEq)]
-pub(crate) struct TypeInfo {
+pub(crate) struct ArrayTypeInfo {
     variant_type: VariantType,
 
     /// Not a `ClassName` because some values come from Godot engine API.
     class_name: StringName,
 }
 
-impl TypeInfo {
+impl ArrayTypeInfo {
     fn of<T: GodotType>() -> Self {
         Self {
             variant_type: <T::Via as GodotType>::Ffi::variant_type(),
@@ -1208,7 +1208,7 @@ impl TypeInfo {
     }
 }
 
-impl fmt::Debug for TypeInfo {
+impl fmt::Debug for ArrayTypeInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let class = self.class_name.to_string();
         let class_str = if class.is_empty() {
