@@ -13,9 +13,6 @@ members = [
     "itest/rust",
     "examples/dodge-the-creeps/rust",
     "examples/hot-reload/rust",
-
-    # utils
-    "godot-fmt",
 ]
 
 #[patch."https://github.com/godot-rust/godot4-prebuilt"]

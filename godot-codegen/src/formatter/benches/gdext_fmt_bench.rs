@@ -19,7 +19,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     let test_cases_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .unwrap()
-        .join("godot-fmt")
+        .join("godot-codegen")
+        .join("src")
+        .join("formatter")
         .join("test-cases");
 
     for dir_entry in std::fs::read_dir(test_cases_dir).unwrap() {
