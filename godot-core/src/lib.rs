@@ -10,6 +10,7 @@ mod storage;
 
 pub mod builder;
 pub mod builtin;
+pub mod classes;
 pub mod global;
 pub mod init;
 pub mod obj;
@@ -31,17 +32,6 @@ pub use godot_ffi as sys;
 #[doc(hidden)]
 pub use godot_ffi::out;
 pub use registry::*;
-
-/// Maps the Godot class API to Rust.
-///
-/// This module contains the following symbols:
-/// * Classes: `CanvasItem`, etc.
-/// * Virtual traits: `ICanvasItem`, etc.
-/// * Enum/flag modules: `canvas_item`, etc.
-///
-/// Noteworthy sub-modules are:
-/// * [`notify`][crate::engine::notify]: all notification enums, used when working with the virtual callback to handle lifecycle notifications.
-/// * [`native`][crate::engine::native]: definition of _native structure_ types.
 pub mod engine;
 
 /// Higher-level additions to the Godot engine API.
