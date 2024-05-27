@@ -9,7 +9,9 @@ use godot_ffi as sys;
 
 use crate::builtin::meta::{impl_godot_as_self, FromGodot, ToGodot};
 use crate::builtin::{inner, Variant, VariantArray};
-use crate::property::{builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var};
+use crate::registry::property::{
+    builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var,
+};
 use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 

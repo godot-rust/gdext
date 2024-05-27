@@ -46,7 +46,7 @@ pub fn make_constant_registration(
 
     let tokens = if !integer_constant_names.is_empty() {
         quote! {
-            use ::godot::builtin::meta::registration::constant::*;
+            use ::godot::register::private::constant::*;
             use ::godot::builtin::meta::ClassName;
             use ::godot::builtin::StringName;
 

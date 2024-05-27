@@ -14,7 +14,9 @@ use crate::builtin::meta::{
 };
 use crate::builtin::*;
 use crate::obj::EngineEnum;
-use crate::property::{builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var};
+use crate::registry::property::{
+    builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var,
+};
 use godot_ffi as sys;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 

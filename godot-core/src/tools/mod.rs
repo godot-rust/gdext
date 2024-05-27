@@ -5,6 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+//! Higher-level additions to the Godot engine API.
+//!
+//! Contains functionality that extends existing Godot classes and functions, to make them more versatile
+//! or better integrated with Rust.
+
 mod gfile;
 mod io_error;
 mod save_load;

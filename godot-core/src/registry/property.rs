@@ -139,7 +139,10 @@ impl PropertyHintInfo {
 
 /// Functions used to translate user-provided arguments into export hints.
 ///
-/// Each function is named the same as the equivalent Godot annotation. For instance `@export_range` in Godot is `fn export_range` here.
+/// You are not supposed to use these functions directly. They are used by the `#[export]` macro to generate the correct export hint.
+///
+/// Each function is named the same as the equivalent Godot annotation.  
+/// For instance, `@export_range` in Godot is `fn export_range` here.
 pub mod export_info_functions {
     use crate::builtin::GString;
     use crate::global::PropertyHint;
@@ -197,6 +200,7 @@ pub mod export_info_functions {
         }
     }
 
+    #[doc(hidden)]
     pub struct ExportValueWithKey<T> {
         variant: String,
         key: Option<T>,

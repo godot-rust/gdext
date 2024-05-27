@@ -6,7 +6,7 @@
  */
 
 use crate::builtin::meta::GodotConvert;
-use crate::property::{PropertyHintInfo, Var};
+use crate::registry::property::{PropertyHintInfo, Var};
 use std::mem;
 
 /// Ergonomic late-initialization container with `ready()` support.

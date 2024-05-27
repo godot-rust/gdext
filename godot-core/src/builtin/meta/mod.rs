@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-pub mod registration;
-
 mod call_error;
 mod class_name;
 mod godot_convert;
@@ -22,10 +20,9 @@ pub(crate) use godot_convert::convert_error::*;
 
 use crate::builtin::*;
 use crate::global::{self, PropertyHint, PropertyUsageFlags};
-use crate::property::Var;
-use crate::property::{Export, PropertyHintInfo};
+use crate::registry::method::MethodParamOrReturnInfo;
+use crate::registry::property::{Export, PropertyHintInfo, Var};
 use godot_ffi as sys;
-use registration::method::MethodParamOrReturnInfo;
 use sys::{GodotFfi, GodotNullableFfi};
 
 #[cfg(feature = "trace")]
@@ -318,7 +315,7 @@ impl PropertyInfo {
 
     /// Change the `hint` and `hint_string` to be the given `hint_info`.
     ///
-    /// See [`export_info_functions`](crate::property::export_info_functions) for functions that return appropriate `PropertyHintInfo`s for
+    /// See [`export_info_functions`](crate::registry::property::export_info_functions) for functions that return appropriate `PropertyHintInfo`s for
     /// various Godot annotations.
     ///
     /// # Examples

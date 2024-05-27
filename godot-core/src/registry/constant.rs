@@ -18,7 +18,10 @@ pub struct IntegerConstant {
 }
 
 impl IntegerConstant {
-    pub fn new<T: TryInto<i64> + std::fmt::Debug + Copy>(name: StringName, value: T) -> Self {
+    pub fn new<T>(name: StringName, value: T) -> Self
+    where
+        T: TryInto<i64> + Copy + std::fmt::Debug,
+    {
         Self {
             name,
             value: value.try_into().ok().unwrap_or_else(|| {

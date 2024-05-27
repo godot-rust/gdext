@@ -23,7 +23,7 @@ use crate::obj::{
     bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
 };
 use crate::private::callbacks;
-use crate::property::{Export, PropertyHintInfo, TypeStringHint, Var};
+use crate::registry::property::{Export, PropertyHintInfo, TypeStringHint, Var};
 use crate::{classes, out};
 
 /// Smart pointer to objects owned by the Godot engine.

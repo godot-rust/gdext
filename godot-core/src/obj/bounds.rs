@@ -48,8 +48,9 @@
 
 use crate::obj::cap::GodotDefault;
 use crate::obj::{Bounds, Gd, GodotClass, RawGd};
+use crate::registry::callbacks;
 use crate::storage::Storage;
-use crate::{callbacks, out, sys};
+use crate::{out, sys};
 use private::Sealed;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

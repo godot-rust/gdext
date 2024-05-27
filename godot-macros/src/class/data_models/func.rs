@@ -108,7 +108,7 @@ pub fn make_method_registration(
         #(#cfg_attrs)*
         {
             use ::godot::obj::GodotClass;
-            use ::godot::builtin::meta::registration::method::ClassMethodInfo;
+            use ::godot::register::private::method::ClassMethodInfo;
             use ::godot::builtin::{StringName, Variant};
             use ::godot::sys;
 

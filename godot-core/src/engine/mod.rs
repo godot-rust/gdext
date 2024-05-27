@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#![deprecated = "Module has been split into `godot::classes`, `godot::global` and `godot::tools`."]
-
 #[deprecated = "Classes have been moved to `godot::classes`."]
 pub use crate::classes::*;
 
