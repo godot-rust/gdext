@@ -11,10 +11,10 @@ use godot::builtin::meta::{ClassName, FromGodot, MethodInfo, PropertyInfo, ToGod
 use godot::builtin::{GString, StringName, Variant, VariantType};
 use godot::classes::{IScriptExtension, Object, Script, ScriptExtension, ScriptLanguage};
 use godot::global::{MethodFlags, PropertyHint, PropertyUsageFlags};
+use godot::obj::script::{create_script_instance, ScriptInstance, SiMut};
 use godot::obj::{Base, Gd, WithBaseField};
 use godot::register::{godot_api, GodotClass};
 use godot::sys;
-use godot::tools::{create_script_instance, ScriptInstance, SiMut};
 
 #[derive(GodotClass)]
 #[class(base = ScriptExtension, init)]

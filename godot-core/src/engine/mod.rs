@@ -31,14 +31,14 @@ pub mod translate {
     pub use crate::tools::{tr, tr_n};
 }
 
-#[deprecated = "`create_script_instance` has been moved to `godot::tools`."]
-pub use crate::tools::create_script_instance;
+#[deprecated = "`create_script_instance` has been moved to `godot::obj::script`."]
+pub use crate::obj::script::create_script_instance;
 
-#[deprecated = "`ScriptInstance` has been moved to `godot::tools`."]
-pub use crate::tools::ScriptInstance;
+#[deprecated = "`ScriptInstance` has been moved to `godot::obj::script`."]
+pub use crate::obj::script::ScriptInstance;
 
-#[deprecated = "`SiMut` has been moved to `godot::tools`."]
-pub use crate::tools::SiMut;
+#[deprecated = "`SiMut` has been moved to `godot::obj::script`."]
+pub use crate::obj::script::SiMut;
 
 #[deprecated = "`GFile` has been moved to `godot::tools`."]
 pub use crate::tools::GFile;

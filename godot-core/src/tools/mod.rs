@@ -8,11 +8,9 @@
 mod gfile;
 mod io_error;
 mod save_load;
-mod script_instance;
 mod translate;
 
 pub use gfile::*;
 pub use io_error::*;
 pub use save_load::*;
-pub use script_instance::*;
 pub use translate::*;
