@@ -18,10 +18,13 @@ pub use crate::obj::guards::{ScriptBaseMut, ScriptBaseRef};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ops::{Deref, DerefMut};
-use std::pin::Pin;
 use std::sync::Mutex;
 
-use godot_cell::{GdCell, MutGuard};
+#[cfg(not(feature = "experimental-threads"))]
+use godot_cell::panicking::{GdCell, MutGuard};
+
+#[cfg(feature = "experimental-threads")]
+use godot_cell::blocking::{GdCell, MutGuard};
 
 use crate::builtin::{GString, StringName, Variant, VariantType};
 use crate::classes::{Script, ScriptLanguage};
@@ -165,7 +168,7 @@ type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo;
 type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo2;
 
 struct ScriptInstanceData<T: ScriptInstance> {
-    inner: Pin<Box<GdCell<T>>>,
+    inner: GdCell<T>,
     script_instance_ptr: *mut ScriptInstanceInfo,
     property_list: Mutex<HashMap<*const sys::GDExtensionPropertyInfo, Vec<PropertyInfo>>>,
     method_list: Mutex<HashMap<*const sys::GDExtensionMethodInfo, Vec<MethodInfo>>>,
@@ -280,13 +283,13 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
 /// For details see [`SiMut::base_mut()`].
 pub struct SiMut<'a, T: ScriptInstance> {
     mut_ref: &'a mut T,
-    cell: Pin<&'a GdCell<T>>,
+    cell: &'a GdCell<T>,
     base_ref: &'a Base<T::Base>,
 }
 
 impl<'a, T: ScriptInstance> SiMut<'a, T> {
     fn new(
-        cell: Pin<&'a GdCell<T>>,
+        cell: &'a GdCell<T>,
         cell_guard: &'a mut MutGuard<T>,
         base_ref: &'a Base<T::Base>,
     ) -> Self {
@@ -421,9 +424,12 @@ mod script_instance_info {
     use std::any::type_name;
     use std::ffi::c_void;
     use std::mem::ManuallyDrop;
-    use std::pin::Pin;
 
-    use godot_cell::{GdCell, RefGuard};
+    #[cfg(not(feature = "experimental-threads"))]
+    use godot_cell::panicking::{GdCell, RefGuard};
+
+    #[cfg(feature = "experimental-threads")]
+    use godot_cell::blocking::{GdCell, RefGuard};
 
     use crate::builtin::{GString, StringName, Variant};
     use crate::classes::ScriptLanguage;
@@ -445,17 +451,11 @@ mod script_instance_info {
     }
 
     fn borrow_instance<T: ScriptInstance>(instance: &ScriptInstanceData<T>) -> RefGuard<'_, T> {
-        instance
-            .inner
-            .as_ref()
-            .borrow()
-            .unwrap_or_else(borrow_panic::<T, _>)
+        instance.inner.borrow().unwrap_or_else(borrow_panic::<T, _>)
     }
 
-    fn borrow_instance_cell<T: ScriptInstance>(
-        instance: &ScriptInstanceData<T>,
-    ) -> Pin<&GdCell<T>> {
-        instance.inner.as_ref()
+    fn borrow_instance_cell<T: ScriptInstance>(instance: &ScriptInstanceData<T>) -> &GdCell<T> {
+        &instance.inner
     }
 
     /// # Safety
@@ -559,10 +559,7 @@ mod script_instance_info {
         let result = handle_panic(ctx, || {
             let instance = instance_data_as_script_instance::<T>(p_instance);
             let cell = borrow_instance_cell(instance);
-            let mut guard = cell
-                .as_ref()
-                .borrow_mut()
-                .unwrap_or_else(borrow_panic::<T, _>);
+            let mut guard = cell.borrow_mut().unwrap_or_else(borrow_panic::<T, _>);
 
             let instance_guard = SiMut::new(cell, &mut guard, &instance.base);
 
