@@ -47,13 +47,13 @@ pub use crate::extras::GFile;
 pub use crate::extras::IoError;
 
 #[deprecated = "`save` has been moved to `godot::global`."]
-pub use crate::global::save;
+pub use crate::extras::save;
 
 #[deprecated = "`try_save` has been moved to `godot::global`."]
-pub use crate::global::try_save;
+pub use crate::extras::try_save;
 
 #[deprecated = "`load` has been moved to `godot::global`."]
-pub use crate::global::load;
+pub use crate::extras::load;
 
 #[deprecated = "`try_load` has been moved to `godot::global`."]
-pub use crate::global::try_load;
+pub use crate::extras::try_load;

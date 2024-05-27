@@ -19,10 +19,9 @@ pub use super::classes::{
     INode2D, INode3D, IObject, IPackedScene, IRefCounted, IResource, ISceneTree, Input, Node,
     Node2D, Node3D, Object, PackedScene, RefCounted, Resource, SceneTree,
 };
-pub use super::extras::{GFile, IoError};
+pub use super::extras::{load, save, try_load, try_save, GFile, IoError};
 pub use super::global::{
-    godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn, load, save,
-    try_load, try_save,
+    godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn,
 };
 
 pub use super::init::{gdextension, ExtensionLibrary, InitLevel};
