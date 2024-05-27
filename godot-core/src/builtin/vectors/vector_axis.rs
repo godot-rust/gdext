@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{ConvertError, FromGodot, FromGodotError, GodotConvert, ToGodot};
 use crate::builtin::{real, Vector2, Vector2i, Vector3, Vector3i, Vector4, Vector4i};
+use crate::meta::error::{ConvertError, FromGodotError};
+use crate::meta::{FromGodot, GodotConvert, ToGodot};
 use crate::obj::EngineEnum;
 
 macro_rules! impl_vector_axis_enum {

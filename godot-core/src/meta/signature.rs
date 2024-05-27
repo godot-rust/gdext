@@ -9,10 +9,12 @@ use std::fmt;
 use std::fmt::Debug;
 
 use godot_ffi as sys;
-use sys::{BuiltinMethodBind, ClassMethodBind, UtilityFunctionBind};
+use sys::{BuiltinMethodBind, ClassMethodBind, GodotFfi, UtilityFunctionBind};
 
-use crate::builtin::meta::*;
 use crate::builtin::Variant;
+use crate::meta::error::{CallError, ConvertError};
+use crate::meta::godot_convert::{into_ffi, try_from_ffi};
+use crate::meta::*;
 use crate::obj::{GodotClass, InstanceId};
 
 // TODO:
@@ -610,6 +612,7 @@ impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3,
 
 // Lazy Display, so we don't create tens of thousands of extra string literals.
 #[derive(Clone)]
+#[doc(hidden)] // currently exposed in godot::meta
 pub struct CallContext<'a> {
     pub class_name: &'a str,
     pub function_name: &'a str,
@@ -652,7 +655,7 @@ impl<'a> fmt::Display for CallContext<'a> {
 // Trace diagnostics for integration tests
 #[cfg(feature = "trace")]
 pub mod trace {
-    use crate::builtin::meta::CallContext;
+    use crate::meta::CallContext;
 
     use super::sys::Global;
 

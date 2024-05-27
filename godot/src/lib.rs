@@ -223,7 +223,7 @@ const _: () = _validate_features();
 // Modules
 
 #[doc(inline)]
-pub use godot_core::{builtin, classes, global, obj, tools};
+pub use godot_core::{builtin, classes, global, meta, obj, tools};
 
 #[allow(deprecated)]
 pub use godot_core::{engine, log};

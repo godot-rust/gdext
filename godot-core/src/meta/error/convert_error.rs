@@ -10,9 +10,8 @@ use std::fmt;
 
 use godot_ffi::VariantType;
 
-use crate::builtin::collections::ArrayTypeInfo;
-use crate::builtin::meta::{ClassName, ToGodot};
 use crate::builtin::Variant;
+use crate::meta::{ArrayTypeInfo, ClassName, ToGodot};
 
 type Cause = Box<dyn Error + Send + Sync>;
 
@@ -167,7 +166,7 @@ impl fmt::Display for ErrorKind {
     }
 }
 
-/// Conversion failed during a [`FromGodot`](crate::builtin::meta::FromGodot) call.
+/// Conversion failed during a [`FromGodot`](crate::meta::FromGodot) call.
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum FromGodotError {
     BadArrayType {
@@ -228,7 +227,7 @@ impl fmt::Display for FromGodotError {
     }
 }
 
-/// Conversion failed during a [`GodotType::try_from_ffi()`](crate::builtin::meta::GodotType::try_from_ffi()) call.
+/// Conversion failed during a [`GodotType::try_from_ffi()`](crate::meta::GodotType::try_from_ffi()) call.
 #[derive(Eq, PartialEq, Debug)]
 #[non_exhaustive]
 pub(crate) enum FromFfiError {

@@ -8,12 +8,12 @@
 use std::cmp::Ordering;
 use std::fmt::Display;
 
-use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{
     dict, varray, GString, NodePath, Signal, StringName, Variant, Vector2, Vector3,
 };
 use godot::builtin::{Basis, Dictionary, VariantArray, VariantOperator, VariantType};
 use godot::classes::{Node, Node2D};
+use godot::meta::{FromGodot, ToGodot};
 use godot::obj::{Gd, InstanceId, NewAlloc};
 use godot::sys::GodotFfi;
 

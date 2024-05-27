@@ -81,19 +81,19 @@ macro_rules! push_newtype {
             #[derive(Clone, PartialEq, Debug)]
             pub struct $name($T);
 
-            impl godot::builtin::meta::GodotConvert for $name {
+            impl godot::meta::GodotConvert for $name {
                 type Via = $T;
             }
 
-            impl godot::builtin::meta::ToGodot for $name {
+            impl godot::meta::ToGodot for $name {
                 #[allow(clippy::clone_on_copy)]
                 fn to_godot(&self) -> Self::Via {
                     self.0.clone()
                 }
             }
 
-            impl godot::builtin::meta::FromGodot for $name {
-                fn try_from_godot(via: Self::Via) -> Result<Self, godot::builtin::meta::ConvertError> {
+            impl godot::meta::FromGodot for $name {
+                fn try_from_godot(via: Self::Via) -> Result<Self, godot::meta::error::ConvertError> {
                     Ok(Self(via))
                 }
             }
@@ -213,7 +213,7 @@ fn main() {
 
     let rust_tokens = quote::quote! {
         use godot::builtin::*;
-        use godot::builtin::meta::*;
+        use godot::meta::*;
         use godot::log::godot_error;
         use godot::obj::{Gd, InstanceId};
         use godot::global::Error;

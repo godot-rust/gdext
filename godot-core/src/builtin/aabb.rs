@@ -11,8 +11,6 @@ use sys::{ffi_methods, GodotFfi};
 use crate::builtin::math::ApproxEq;
 use crate::builtin::{real, Plane, Vector3, Vector3Axis};
 
-use super::meta::impl_godot_as_self;
-
 /// Axis-aligned bounding box in 3D space.
 ///
 /// `Aabb` consists of a position, a size, and several utility functions. It is typically used for
@@ -406,7 +404,7 @@ unsafe impl GodotFfi for Aabb {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(Aabb);
+crate::meta::impl_godot_as_self!(Aabb);
 
 impl ApproxEq for Aabb {
     /// Returns `true` if the two `Aabb`s are approximately equal, by calling `is_equal_approx` on

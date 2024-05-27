@@ -23,12 +23,12 @@ pub fn derive_var(item: venial::Item) -> ParseResult<TokenStream> {
 
     Ok(quote! {
         impl ::godot::register::property::Var for #name {
-            fn get_property(&self) -> <Self as ::godot::builtin::meta::GodotConvert>::Via {
-                ::godot::builtin::meta::ToGodot::to_godot(self)
+            fn get_property(&self) -> <Self as ::godot::meta::GodotConvert>::Via {
+                ::godot::meta::ToGodot::to_godot(self)
             }
 
-            fn set_property(&mut self, value: <Self as ::godot::builtin::meta::GodotConvert>::Via) {
-                *self = ::godot::builtin::meta::FromGodot::from_godot(value);
+            fn set_property(&mut self, value: <Self as ::godot::meta::GodotConvert>::Via) {
+                *self = ::godot::meta::FromGodot::from_godot(value);
             }
 
             fn property_hint() -> ::godot::register::property::PropertyHintInfo {

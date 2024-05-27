@@ -5,8 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#[cfg(feature = "trace")]
-pub use crate::builtin::meta::trace;
 pub use crate::gen::classes::class_macros;
 pub use crate::obj::rtti::ObjectRtti;
 pub use crate::registry::callbacks;
@@ -14,8 +12,12 @@ pub use crate::registry::plugin::{ClassPlugin, ErasedRegisterFn, PluginItem};
 pub use crate::storage::{as_storage, Storage};
 pub use sys::out;
 
-use crate::builtin::meta::{CallContext, CallError};
+#[cfg(feature = "trace")]
+pub use crate::meta::trace;
+
 use crate::global::godot_error;
+use crate::meta::error::CallError;
+use crate::meta::CallContext;
 use crate::sys;
 use std::collections::HashMap;
 use std::sync::{atomic, Arc, Mutex};

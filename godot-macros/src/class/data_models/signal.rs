@@ -48,7 +48,7 @@ pub fn make_signal_registrations(
             [
                 // Don't use raw sys pointers directly; it's very easy to have objects going out of scope.
                 #(
-                    <#signature_tuple as godot::builtin::meta::VarcallSignatureTuple>
+                    <#signature_tuple as godot::meta::VarcallSignatureTuple>
                         ::param_property_info(#indexes, #param_names),
                 )*
             ]
@@ -68,7 +68,7 @@ pub fn make_signal_registrations(
             #(#signal_cfg_attrs)*
             unsafe {
                 use ::godot::sys;
-                let parameters_info: [::godot::builtin::meta::PropertyInfo; #signal_parameters_count] = #signal_parameters;
+                let parameters_info: [::godot::meta::PropertyInfo; #signal_parameters_count] = #signal_parameters;
 
                 let mut parameters_info_sys: [sys::GDExtensionPropertyInfo; #signal_parameters_count] =
                     std::array::from_fn(|i| parameters_info[i].property_sys());

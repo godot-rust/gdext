@@ -12,6 +12,7 @@ pub mod builtin;
 pub mod classes;
 pub mod global;
 pub mod init;
+pub mod meta;
 pub mod obj;
 pub mod registry;
 pub mod tools;

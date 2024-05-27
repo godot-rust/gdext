@@ -8,11 +8,11 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::builtin::meta::{
-    ArrayElement, ConvertError, FromGodot, FromGodotError, FromVariantError, GodotConvert,
-    GodotFfiVariant, GodotType, ToGodot,
-};
 use crate::builtin::*;
+use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
+use crate::meta::{
+    ArrayElement, ArrayTypeInfo, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
+};
 use crate::obj::EngineEnum;
 use crate::registry::property::{
     builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var,
@@ -1165,7 +1165,7 @@ macro_rules! varray {
     // Note: use to_variant() and not Variant::from(), as that works with both references and values
     ($($elements:expr),* $(,)?) => {
         {
-            use $crate::builtin::meta::ToGodot as _;
+            use $crate::meta::ToGodot as _;
             let mut array = $crate::builtin::VariantArray::default();
             $(
                 array.push($elements.to_variant());
@@ -1176,52 +1176,6 @@ macro_rules! varray {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Represents the type information of a Godot array. See
-/// [`set_typed`](https://docs.godotengine.org/en/latest/classes/class_array.html#class-array-method-set-typed).
-///
-/// We ignore the `script` parameter because it has no impact on typing in Godot.
-#[derive(Eq, PartialEq)]
-pub(crate) struct ArrayTypeInfo {
-    variant_type: VariantType,
-
-    /// Not a `ClassName` because some values come from Godot engine API.
-    class_name: StringName,
-}
-
-impl ArrayTypeInfo {
-    fn of<T: GodotType>() -> Self {
-        Self {
-            variant_type: <T::Via as GodotType>::Ffi::variant_type(),
-            class_name: T::Via::class_name().to_string_name(),
-        }
-    }
-
-    pub fn is_typed(&self) -> bool {
-        self.variant_type != VariantType::NIL
-    }
-
-    pub fn variant_type(&self) -> VariantType {
-        self.variant_type
-    }
-
-    pub fn class_name(&self) -> &StringName {
-        &self.class_name
-    }
-}
-
-impl fmt::Debug for ArrayTypeInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let class = self.class_name.to_string();
-        let class_str = if class.is_empty() {
-            String::new()
-        } else {
-            format!(" (class={class})")
-        };
-
-        write!(f, "{:?}{}", self.variant_type, class_str)
-    }
-}
 
 #[cfg(feature = "serde")]
 mod serialize {

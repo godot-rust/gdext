@@ -7,8 +7,8 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::meta::ToGodot;
 use crate::builtin::*;
+use crate::meta::ToGodot;
 use std::{fmt, ops};
 use sys::types::*;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -507,7 +507,7 @@ macro_rules! impl_packed_array {
             ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
         }
 
-        $crate::builtin::meta::impl_godot_as_self!($PackedArray);
+        $crate::meta::impl_godot_as_self!($PackedArray);
 
         impl $crate::registry::property::Export for $PackedArray {
             fn default_export_info() -> $crate::registry::property::PropertyHintInfo {
@@ -519,7 +519,7 @@ macro_rules! impl_packed_array {
                     }
                 } else {
                     $crate::registry::property::PropertyHintInfo::with_hint_none(
-                        <$PackedArray as $crate::builtin::meta::GodotType>::godot_type_name()
+                        <$PackedArray as $crate::meta::GodotType>::godot_type_name()
                     )
                 }
             }

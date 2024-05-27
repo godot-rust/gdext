@@ -12,7 +12,6 @@ use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
 use crate::builtin::inner;
-use crate::builtin::meta::impl_godot_as_self;
 
 use super::string_chars::validate_unicode_scalar_sequence;
 use super::{NodePath, StringName};
@@ -216,7 +215,7 @@ unsafe impl GodotFfi for GString {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(GString);
+crate::meta::impl_godot_as_self!(GString);
 
 impl_builtin_traits! {
     for GString {

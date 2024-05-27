@@ -15,8 +15,6 @@ use std::cmp::Ordering;
 use std::fmt::Display;
 use std::ops::{Mul, MulAssign};
 
-use super::meta::impl_godot_as_self;
-
 /// A 3x3 matrix, typically used as an orthogonal basis for [`Transform3D`](crate::builtin::Transform3D).
 ///
 /// Indexing into a `Basis` is done in row-major order. So `mat[1]` would return the first *row* and not
@@ -604,7 +602,7 @@ unsafe impl GodotFfi for Basis {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(Basis);
+crate::meta::impl_godot_as_self!(Basis);
 
 #[cfg(test)]
 mod test {

@@ -9,8 +9,8 @@ use crate::framework::itest;
 
 use godot::builtin::inner::InnerPlane;
 use godot::builtin::math::{assert_eq_approx, ApproxEq};
-use godot::builtin::meta::ToGodot;
 use godot::builtin::{real, Plane, RealConv, Vector3};
+use godot::meta::ToGodot;
 
 use std::fmt::Debug;
 

@@ -8,8 +8,8 @@
 use crate::framework::itest;
 
 use godot::builtin::inner::InnerTransform2D;
-use godot::builtin::meta::ToGodot;
 use godot::builtin::{real, RealConv, Rect2, Transform2D, VariantOperator, Vector2};
+use godot::meta::ToGodot;
 use godot::private::class_macros::assert_eq_approx;
 
 const TEST_TRANSFORM: Transform2D = Transform2D::from_cols(

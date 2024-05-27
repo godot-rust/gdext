@@ -11,7 +11,6 @@ use godot_ffi as sys;
 use godot_ffi::{ffi_methods, GodotFfi};
 
 use crate::builtin::inner;
-use crate::builtin::meta::impl_godot_as_self;
 
 use super::{GString, StringName};
 
@@ -65,7 +64,7 @@ unsafe impl GodotFfi for NodePath {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
-impl_godot_as_self!(NodePath);
+crate::meta::impl_godot_as_self!(NodePath);
 
 impl_builtin_traits! {
     for NodePath {

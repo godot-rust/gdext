@@ -5,7 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{ConvertError, FromGodot, FromGodotError, GodotConvert, ToGodot};
+use crate::meta::error::{ConvertError, FromGodotError};
+use crate::meta::{FromGodot, GodotConvert, ToGodot};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::num::NonZeroU64;
 

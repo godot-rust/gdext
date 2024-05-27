@@ -9,9 +9,9 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::meta::{FromGodot, GodotConvert, GodotType, ToGodot};
 use crate::builtin::GString;
 use crate::global::PropertyHint;
+use crate::meta::{FromGodot, GodotConvert, GodotType, ToGodot};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
@@ -396,7 +396,7 @@ mod export_impls {
         (@export $Ty:ty) => {
             impl Export for $Ty {
                 fn default_export_info() -> PropertyHintInfo {
-                    PropertyHintInfo::with_hint_none(<$Ty as $crate::builtin::meta::GodotType>::godot_type_name())
+                    PropertyHintInfo::with_hint_none(<$Ty as $crate::meta::GodotType>::godot_type_name())
                 }
             }
         };

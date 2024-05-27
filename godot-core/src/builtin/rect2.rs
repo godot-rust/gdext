@@ -11,8 +11,6 @@ use sys::{ffi_methods, GodotFfi};
 use crate::builtin::math::ApproxEq;
 use crate::builtin::{real, Rect2i, Side, Vector2};
 
-use super::meta::impl_godot_as_self;
-
 /// 2D axis-aligned bounding box.
 ///
 /// `Rect2` consists of a position, a size, and several utility functions. It is typically used for
@@ -264,7 +262,7 @@ unsafe impl GodotFfi for Rect2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(Rect2);
+crate::meta::impl_godot_as_self!(Rect2);
 
 impl ApproxEq for Rect2 {
     /// Returns if the two `Rect2`s are approximately equal, by comparing `position` and `size` separately.

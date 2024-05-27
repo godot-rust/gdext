@@ -7,8 +7,8 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::meta::{impl_godot_as_self, FromGodot, ToGodot};
 use crate::builtin::{inner, Variant, VariantArray};
+use crate::meta::{FromGodot, ToGodot};
 use crate::registry::property::{
     builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var,
 };
@@ -300,7 +300,7 @@ unsafe impl GodotFfi for Dictionary {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
-impl_godot_as_self!(Dictionary);
+crate::meta::impl_godot_as_self!(Dictionary);
 
 impl_builtin_traits! {
     for Dictionary {

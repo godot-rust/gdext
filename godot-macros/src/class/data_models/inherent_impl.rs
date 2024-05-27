@@ -310,7 +310,7 @@ fn add_virtual_script_call(
             type CallSig = #sig_tuple;
             let args = (#( #arg_names, )*);
             unsafe {
-                <CallSig as ::godot::builtin::meta::VarcallSignatureTuple>::out_script_virtual_call(
+                <CallSig as ::godot::meta::VarcallSignatureTuple>::out_script_virtual_call(
                     #class_name_str,
                     #method_name_str,
                     method_sname_ptr,

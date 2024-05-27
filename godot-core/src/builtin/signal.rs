@@ -10,10 +10,10 @@ use std::ptr;
 
 use godot_ffi as sys;
 
-use crate::builtin::meta::{impl_godot_as_self, FromGodot, GodotType, ToGodot};
 use crate::builtin::{inner, Array, Callable, Dictionary, StringName, Variant};
 use crate::classes::Object;
 use crate::global::Error;
+use crate::meta::{FromGodot, GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
 use sys::{ffi_methods, GodotFfi};
@@ -185,7 +185,7 @@ impl_builtin_traits! {
     }
 }
 
-impl_godot_as_self!(Signal);
+crate::meta::impl_godot_as_self!(Signal);
 
 impl fmt::Debug for Signal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

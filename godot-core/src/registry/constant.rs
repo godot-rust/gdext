@@ -9,7 +9,8 @@ use godot_ffi as sys;
 
 use sys::interface_fn;
 
-use crate::builtin::{meta::ClassName, StringName};
+use crate::builtin::StringName;
+use crate::meta::ClassName;
 
 /// A constant named `name` with the value `value`.
 pub struct IntegerConstant {

@@ -8,8 +8,8 @@
 use std::collections::HashMap;
 use std::ptr;
 
-use crate::builtin::meta::ClassName;
 use crate::init::InitLevel;
+use crate::meta::ClassName;
 use crate::obj::{cap, GodotClass};
 use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;

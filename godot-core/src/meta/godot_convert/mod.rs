@@ -5,14 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-pub(crate) mod convert_error;
 mod impls;
 
-pub use convert_error::ConvertError;
-
 use crate::builtin::Variant;
-
-use super::{GodotFfiVariant, GodotType};
+use crate::meta::error::ConvertError;
+use crate::meta::traits::GodotFfiVariant;
+use crate::meta::GodotType;
 
 /// Indicates that a type can be passed to/from Godot, either directly or through an intermediate "via" type.
 ///
@@ -104,13 +102,14 @@ pub(crate) fn try_from_ffi<T: FromGodot>(
     T::try_from_godot(via)
 }
 
+#[macro_export]
 macro_rules! impl_godot_as_self {
     ($T:ty) => {
-        impl $crate::builtin::meta::GodotConvert for $T {
+        impl $crate::meta::GodotConvert for $T {
             type Via = $T;
         }
 
-        impl $crate::builtin::meta::ToGodot for $T {
+        impl $crate::meta::ToGodot for $T {
             #[inline]
             fn to_godot(&self) -> Self::Via {
                 self.clone()
@@ -122,13 +121,11 @@ macro_rules! impl_godot_as_self {
             }
         }
 
-        impl $crate::builtin::meta::FromGodot for $T {
+        impl $crate::meta::FromGodot for $T {
             #[inline]
-            fn try_from_godot(via: Self::Via) -> Result<Self, $crate::builtin::meta::ConvertError> {
+            fn try_from_godot(via: Self::Via) -> Result<Self, $crate::meta::error::ConvertError> {
                 Ok(via)
             }
         }
     };
 }
-
-pub(crate) use impl_godot_as_self;

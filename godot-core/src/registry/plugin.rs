@@ -8,8 +8,8 @@
 use std::any::Any;
 use std::fmt;
 
-use crate::builtin::meta::ClassName;
 use crate::init::InitLevel;
+use crate::meta::ClassName;
 use crate::sys;
 
 // TODO(bromeon): some information coming from the proc-macro API is deferred through PluginItem, while others is directly

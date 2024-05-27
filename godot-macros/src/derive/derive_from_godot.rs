@@ -40,8 +40,8 @@ fn make_fromgodot_for_newtype_struct(name: &Ident, field: &NewtypeStruct) -> Tok
     let via_type = &field.ty;
 
     quote! {
-        impl ::godot::builtin::meta::FromGodot for #name {
-            fn try_from_godot(via: #via_type) -> ::std::result::Result<Self, ::godot::builtin::meta::ConvertError> {
+        impl ::godot::meta::FromGodot for #name {
+            fn try_from_godot(via: #via_type) -> ::std::result::Result<Self, ::godot::meta::error::ConvertError> {
                 Ok(Self { #field_name: via })
             }
         }
@@ -55,14 +55,14 @@ fn make_fromgodot_for_int_enum(name: &Ident, enum_: &CStyleEnum, int: &Ident) ->
     let bad_variant_error = format!("invalid {name} variant");
 
     quote! {
-        impl ::godot::builtin::meta::FromGodot for #name {
-            fn try_from_godot(via: #int) -> ::std::result::Result<Self, ::godot::builtin::meta::ConvertError> {
+        impl ::godot::meta::FromGodot for #name {
+            fn try_from_godot(via: #int) -> ::std::result::Result<Self, ::godot::meta::error::ConvertError> {
                 match via {
                     #(
                         #discriminants => Ok(#name::#names),
                     )*
                     // Pass `via` and not `other`, to retain debug info of original type.
-                    other => Err(::godot::builtin::meta::ConvertError::with_error_value(#bad_variant_error, via))
+                    other => Err(::godot::meta::error::ConvertError::with_error_value(#bad_variant_error, via))
                 }
             }
         }
@@ -76,14 +76,14 @@ fn make_fromgodot_for_gstring_enum(name: &Ident, enum_: &CStyleEnum) -> TokenStr
     let bad_variant_error = format!("invalid {name} variant");
 
     quote! {
-        impl ::godot::builtin::meta::FromGodot for #name {
-            fn try_from_godot(via: ::godot::builtin::GString) -> ::std::result::Result<Self, ::godot::builtin::meta::ConvertError> {
+        impl ::godot::meta::FromGodot for #name {
+            fn try_from_godot(via: ::godot::builtin::GString) -> ::std::result::Result<Self, ::godot::meta::error::ConvertError> {
                 match via.to_string().as_str() {
                     #(
                         #names_str => Ok(#name::#names),
                     )*
                     // Pass `via` and not `other`, to retain debug info of original type.
-                    other => Err(::godot::builtin::meta::ConvertError::with_error_value(#bad_variant_error, via))
+                    other => Err(::godot::meta::error::ConvertError::with_error_value(#bad_variant_error, via))
                 }
             }
         }

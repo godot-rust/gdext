@@ -260,7 +260,7 @@ pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
         // SAFETY: The structs contained in this list were all returned from `into_owned_property_sys`.
         // We only call this method once for each struct and for each list.
         unsafe {
-            crate::builtin::meta::PropertyInfo::free_owned_property_sys(*property_info);
+            crate::meta::PropertyInfo::free_owned_property_sys(*property_info);
         }
     }
 }

@@ -23,7 +23,7 @@ pub fn make_imports() -> TokenStream {
     quote! {
         use godot_ffi as sys;
         use crate::builtin::*;
-        use crate::builtin::meta::{ClassName, PtrcallSignatureTuple, VarcallSignatureTuple};
+        use crate::meta::{ClassName, PtrcallSignatureTuple, VarcallSignatureTuple};
         use crate::classes::native::*;
         use crate::classes::Object;
         use crate::obj::Gd;

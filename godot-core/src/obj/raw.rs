@@ -10,11 +10,11 @@ use std::ptr;
 use godot_ffi as sys;
 use sys::{interface_fn, GodotFfi, GodotNullableFfi, PtrcallType};
 
-use crate::builtin::meta::{
-    CallContext, ClassName, ConvertError, FromGodot, FromVariantError, GodotConvert,
-    GodotFfiVariant, GodotType, ToGodot,
-};
 use crate::builtin::Variant;
+use crate::meta::error::{ConvertError, FromVariantError};
+use crate::meta::{
+    CallContext, ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
+};
 use crate::obj::bounds::DynMemory as _;
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
@@ -551,10 +551,7 @@ impl<T: GodotClass> FromGodot for RawGd<T> {
 
 impl<T: GodotClass> GodotNullableFfi for RawGd<T> {
     fn flatten_option(opt: Option<Self>) -> Self {
-        match opt {
-            Some(raw) => raw,
-            None => Self::null(),
-        }
+        opt.unwrap_or_else(|| Self::null())
     }
 
     fn is_null(&self) -> bool {

@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{CallContext, ConvertError, ErasedConvertError, ToGodot};
 use crate::builtin::{Variant, VariantType};
+use crate::meta::error::{ConvertError, ErasedConvertError};
+use crate::meta::{CallContext, ToGodot};
 use crate::sys;
 use godot_ffi::join_debug;
 use std::error::Error;
@@ -39,7 +40,7 @@ use std::fmt;
 /// ```no_run
 /// use godot::prelude::*;
 /// use std::error::Error;
-/// # use godot_core::builtin::meta::CallError;
+/// # use godot_core::meta::error::{CallError, ConvertError};
 /// #[derive(GodotClass)]
 /// # #[class(init)]
 /// struct MyClass;

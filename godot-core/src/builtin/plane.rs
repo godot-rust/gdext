@@ -13,8 +13,6 @@ use crate::builtin::{real, Vector3};
 
 use std::ops::Neg;
 
-use super::meta::impl_godot_as_self;
-
 /// 3D plane in [Hessian normal form](https://mathworld.wolfram.com/HessianNormalForm.html).
 ///
 /// The Hessian form defines all points `point` which satisfy the equation
@@ -283,7 +281,7 @@ unsafe impl GodotFfi for Plane {
     }
 }
 
-impl_godot_as_self!(Plane);
+crate::meta::impl_godot_as_self!(Plane);
 
 impl ApproxEq for Plane {
     /// Finds whether the two planes are approximately equal.

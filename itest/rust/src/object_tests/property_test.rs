@@ -5,10 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::meta::{GodotConvert, ToGodot};
 use godot::builtin::{dict, Color, Dictionary, GString, Variant, VariantType};
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
 use godot::global::{PropertyHint, PropertyUsageFlags};
+use godot::meta::{GodotConvert, ToGodot};
 use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd};
 use godot::register::property::{Export, PropertyHintInfo, Var};
 use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};

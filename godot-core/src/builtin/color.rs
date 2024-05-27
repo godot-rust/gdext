@@ -8,8 +8,8 @@
 use crate::builtin::color_hsv::rgba_to_hsva;
 use crate::builtin::inner::InnerColor;
 use crate::builtin::math::ApproxEq;
-use crate::builtin::meta::impl_godot_as_self;
 use crate::builtin::{ColorHsv, GString};
+
 use godot_ffi as sys;
 use std::ops;
 use sys::{ffi_methods, GodotFfi};
@@ -353,7 +353,7 @@ unsafe impl GodotFfi for Color {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(Color);
+crate::meta::impl_godot_as_self!(Color);
 
 impl ApproxEq for Color {
     fn approx_eq(&self, other: &Self) -> bool {

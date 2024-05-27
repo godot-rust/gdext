@@ -5,8 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{impl_godot_as_self, ArrayElement, ConvertError, FromGodot, ToGodot};
 use crate::builtin::{GString, StringName, VariantDispatch, VariantOperator, VariantType};
+use crate::meta::error::ConvertError;
+use crate::meta::{ArrayElement, FromGodot, ToGodot};
 use godot_ffi as sys;
 use std::{fmt, ptr};
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -388,7 +389,7 @@ unsafe impl GodotFfi for Variant {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(Variant);
+crate::meta::impl_godot_as_self!(Variant);
 
 impl Default for Variant {
     fn default() -> Self {

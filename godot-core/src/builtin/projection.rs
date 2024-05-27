@@ -14,7 +14,6 @@ use crate::builtin::{real, Plane, RMat4, RealConv, Transform3D, Vector2, Vector4
 
 use std::ops::Mul;
 
-use super::meta::impl_godot_as_self;
 use super::{Aabb, Rect2, Vector3};
 
 /// A 4x4 matrix used for 3D projective transformations.
@@ -536,7 +535,7 @@ unsafe impl GodotFfi for Projection {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(Projection);
+crate::meta::impl_godot_as_self!(Projection);
 
 /// A projection's clipping plane.
 ///

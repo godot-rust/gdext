@@ -38,13 +38,13 @@ fn make_togodot_for_newtype_struct(name: &Ident, field: &NewtypeStruct) -> Token
     let via_type = &field.ty;
 
     quote! {
-        impl ::godot::builtin::meta::ToGodot for #name {
+        impl ::godot::meta::ToGodot for #name {
             fn to_godot(&self) -> #via_type {
-                ::godot::builtin::meta::ToGodot::to_godot(&self.#field_name)
+                ::godot::meta::ToGodot::to_godot(&self.#field_name)
             }
 
             fn into_godot(self) -> #via_type {
-                ::godot::builtin::meta::ToGodot::into_godot(self.#field_name)
+                ::godot::meta::ToGodot::into_godot(self.#field_name)
             }
         }
     }
@@ -56,7 +56,7 @@ fn make_togodot_for_int_enum(name: &Ident, enum_: &CStyleEnum, int: &Ident) -> T
     let names = enum_.names();
 
     quote! {
-        impl ::godot::builtin::meta::ToGodot for #name {
+        impl ::godot::meta::ToGodot for #name {
             fn to_godot(&self) -> #int {
                 match self {
                     #(
@@ -74,7 +74,7 @@ fn make_togodot_for_string_enum(name: &Ident, enum_: &CStyleEnum) -> TokenStream
     let names_str = names.iter().map(ToString::to_string).collect::<Vec<_>>();
 
     quote! {
-        impl ::godot::builtin::meta::ToGodot for #name {
+        impl ::godot::meta::ToGodot for #name {
             fn to_godot(&self) -> ::godot::builtin::GString {
                 match self {
                     #(

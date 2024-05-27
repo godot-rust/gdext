@@ -104,7 +104,7 @@ pub(super) mod private {
     /// ```no_run
     /// use godot::prelude::*;
     /// use godot::obj::bounds::implement_godot_bounds;
-    /// use godot::builtin::meta::ClassName;
+    /// use godot::meta::ClassName;
     ///
     /// struct MyClass {}
     ///

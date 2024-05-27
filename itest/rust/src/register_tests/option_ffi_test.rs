@@ -5,8 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::meta::GodotType;
 use godot::classes::{Node, Object, RefCounted};
+use godot::meta::GodotType;
 use godot::obj::{Gd, NewAlloc, NewGd, RawGd};
 use godot::register::{godot_api, GodotClass};
 use godot::sys::GodotFfi;

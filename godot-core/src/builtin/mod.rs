@@ -72,9 +72,6 @@ pub mod __prelude_reexport {
 
 pub use __prelude_reexport::*;
 
-/// Meta-information about variant types, properties and class names.
-pub mod meta;
-
 /// Math-related functions and traits like [`ApproxEq`][math::ApproxEq].
 pub mod math;
 
@@ -152,6 +149,12 @@ pub mod dictionary {
     pub type Keys<'a> = super::iter::DictKeys<'a>;
     pub type TypedIter<'a, K, V> = super::iter::DictTypedIter<'a, K, V>;
     pub type TypedKeys<'a, K> = super::iter::DictTypedKeys<'a, K>;
+}
+
+#[deprecated = "Moved to `godot::meta` and submodules."]
+pub mod meta {
+    pub use crate::meta::error::*;
+    pub use crate::meta::*;
 }
 
 /// The side of a [`Rect2`] or [`Rect2i`].

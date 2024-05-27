@@ -7,8 +7,8 @@
 
 use std::cell::Cell;
 
-use godot::builtin::meta::ToGodot;
 use godot::builtin::{Callable, GString, Signal, StringName, Variant};
+use godot::meta::ToGodot;
 use godot::register::{godot_api, GodotClass};
 
 use godot::classes::{Object, RefCounted};

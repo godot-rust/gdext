@@ -7,8 +7,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{dict, varray, Dictionary, Variant};
+use godot::meta::{FromGodot, ToGodot};
 use godot::sys::GdextBuild;
 
 use crate::framework::{expect_panic, itest};

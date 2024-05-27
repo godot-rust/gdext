@@ -24,6 +24,3 @@ pub(crate) mod iterators {
     pub use super::dictionary::TypedIter as DictTypedIter;
     pub use super::dictionary::TypedKeys as DictTypedKeys;
 }
-
-// Crate-local re-exports.
-pub(crate) use array::ArrayTypeInfo;
