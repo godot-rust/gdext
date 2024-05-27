@@ -7,7 +7,7 @@
 
 use godot::builtin::inner::InnerRid;
 use godot::builtin::Rid;
-use godot::engine::RenderingServer;
+use godot::classes::RenderingServer;
 
 use crate::framework::{itest, suppress_godot_print};
 

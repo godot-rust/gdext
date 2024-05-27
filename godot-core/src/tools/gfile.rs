@@ -6,11 +6,11 @@
  */
 
 use crate::builtin::{real, GString, PackedByteArray, PackedStringArray, Variant};
-use crate::engine::file_access::{CompressionMode, ModeFlags};
-use crate::engine::FileAccess;
-use crate::extras::IoError;
+use crate::classes::file_access::{CompressionMode, ModeFlags};
+use crate::classes::FileAccess;
 use crate::global::Error;
 use crate::obj::Gd;
+use crate::tools::IoError;
 
 use std::cmp;
 use std::io::{BufRead, ErrorKind, Read, Seek, SeekFrom, Write};
@@ -49,8 +49,8 @@ use std::io::{BufRead, ErrorKind, Read, Seek, SeekFrom, Write};
 ///
 /// ```no_run
 /// use godot::builtin::GString;
-/// use godot::engine::file_access::ModeFlags;
-/// use godot::extras::GFile;
+/// use godot::classes::file_access::ModeFlags;
+/// use godot::tools::GFile;
 ///
 /// fn save_game() -> Result<(), std::io::Error> {
 ///

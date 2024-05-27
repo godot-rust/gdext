@@ -9,7 +9,7 @@
 #![allow(clippy::non_minimal_cfg)]
 
 use crate::framework::itest;
-use godot::engine::GDScript;
+use godot::classes::GDScript;
 use godot::prelude::*;
 
 #[derive(GodotClass)]

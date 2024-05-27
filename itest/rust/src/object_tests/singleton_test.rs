@@ -7,7 +7,7 @@
 
 use crate::framework::itest;
 use godot::builtin::GString;
-use godot::engine::{Input, Os};
+use godot::classes::{Input, Os};
 use godot::obj::Gd;
 
 #[itest]

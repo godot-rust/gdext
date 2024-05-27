@@ -23,13 +23,14 @@ pub(crate) mod rtti;
 
 pub use base::*;
 pub use gd::*;
-pub use guards::*;
+pub use guards::{BaseMut, BaseRef, GdMut, GdRef};
 pub use instance_id::*;
 pub use onready::*;
 pub use raw::*;
 pub use traits::*;
 
 pub mod bounds;
+pub mod script;
 pub use bounds::private::Bounds;
 
 // Do not re-export rtti here.

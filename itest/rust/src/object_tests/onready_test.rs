@@ -6,8 +6,8 @@
  */
 
 use crate::framework::{expect_panic, itest};
-use godot::engine::notify::NodeNotification;
-use godot::engine::INode;
+use godot::classes::notify::NodeNotification;
+use godot::classes::INode;
 use godot::register::{godot_api, GodotClass};
 
 use godot::obj::{Gd, OnReady};

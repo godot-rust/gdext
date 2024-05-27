@@ -217,7 +217,7 @@ fn main() {
         use godot::log::godot_error;
         use godot::obj::{Gd, InstanceId};
         use godot::global::Error;
-        use godot::engine::{Node, Resource};
+        use godot::classes::{Node, Resource};
 
         #[derive(godot::register::GodotClass)]
         #[class(init)]

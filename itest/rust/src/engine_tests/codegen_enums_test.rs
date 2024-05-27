@@ -12,52 +12,52 @@
 
 use crate::framework::itest;
 
-use godot::engine::audio_effect_spectrum_analyzer::FftSize;
-use godot::engine::base_material_3d::Flags;
-use godot::engine::camera_2d::Camera2DProcessCallback;
-use godot::engine::camera_3d::ProjectionType;
-use godot::engine::cpu_particles_2d::{Parameter, ParticleFlags};
-use godot::engine::editor_plugin::CustomControlContainer;
-use godot::engine::environment::SdfgiYScale;
-use godot::engine::file_access::{CompressionMode, ModeFlags};
-use godot::engine::http_client::ResponseCode;
-use godot::engine::image::Format;
-use godot::engine::mesh::ArrayType;
-use godot::engine::navigation_path_query_parameters_2d::PathPostProcessing;
-use godot::engine::node::ProcessMode;
-use godot::engine::object::ConnectFlags;
-use godot::engine::open_xr_action::ActionType;
-use godot::engine::open_xr_hand::Hands;
-use godot::engine::open_xr_interface::HandJointFlags;
-use godot::engine::os::SystemDir;
-use godot::engine::physical_bone_3d::JointType;
-use godot::engine::physics_server_2d::{AreaParameter, BodyMode, CcdMode};
-use godot::engine::physics_server_3d::{
+use godot::classes::audio_effect_spectrum_analyzer::FftSize;
+use godot::classes::base_material_3d::Flags;
+use godot::classes::camera_2d::Camera2DProcessCallback;
+use godot::classes::camera_3d::ProjectionType;
+use godot::classes::cpu_particles_2d::{Parameter, ParticleFlags};
+use godot::classes::editor_plugin::CustomControlContainer;
+use godot::classes::environment::SdfgiYScale;
+use godot::classes::file_access::{CompressionMode, ModeFlags};
+use godot::classes::http_client::ResponseCode;
+use godot::classes::image::Format;
+use godot::classes::mesh::ArrayType;
+use godot::classes::navigation_path_query_parameters_2d::PathPostProcessing;
+use godot::classes::node::ProcessMode;
+use godot::classes::object::ConnectFlags;
+use godot::classes::open_xr_action::ActionType;
+use godot::classes::open_xr_hand::Hands;
+use godot::classes::open_xr_interface::HandJointFlags;
+use godot::classes::os::SystemDir;
+use godot::classes::physical_bone_3d::JointType;
+use godot::classes::physics_server_2d::{AreaParameter, BodyMode, CcdMode};
+use godot::classes::physics_server_3d::{
     AreaSpaceOverrideMode, G6dofJointAxisParam, ProcessInfo, SpaceParameter,
 };
-use godot::engine::rendering_device::{
+use godot::classes::rendering_device::{
     CompareOperator, PipelineDynamicStateFlags, StencilOperation,
 };
-use godot::engine::rendering_server::{
+use godot::classes::rendering_server::{
     ArrayFormat, CubeMapLayer, EnvironmentSdfgiYScale, EnvironmentSsaoQuality, Features,
     GlobalShaderParameterType, MultimeshTransformFormat, RenderingInfo, ViewportScaling3DMode,
     VoxelGiQuality,
 };
-use godot::engine::resource_format_loader::CacheMode;
-use godot::engine::resource_loader::ThreadLoadStatus;
-use godot::engine::rigid_body_2d::CenterOfMassMode;
-use godot::engine::scene_state::GenEditState;
-use godot::engine::shader::Mode;
-use godot::engine::sub_viewport::UpdateMode;
-use godot::engine::time::Month;
-use godot::engine::upnp::UpnpResult;
-use godot::engine::viewport::Msaa;
-use godot::engine::visual_shader_node_float_op::Operator;
-use godot::engine::visual_shader_node_vector_func::Function;
-use godot::engine::voxel_gi::Subdiv;
-use godot::engine::xr_interface::{EnvironmentBlendMode, TrackingStatus};
-use godot::engine::xr_pose::TrackingConfidence;
-use godot::engine::zip_packer::ZipAppend;
+use godot::classes::resource_format_loader::CacheMode;
+use godot::classes::resource_loader::ThreadLoadStatus;
+use godot::classes::rigid_body_2d::CenterOfMassMode;
+use godot::classes::scene_state::GenEditState;
+use godot::classes::shader::Mode;
+use godot::classes::sub_viewport::UpdateMode;
+use godot::classes::time::Month;
+use godot::classes::upnp::UpnpResult;
+use godot::classes::viewport::Msaa;
+use godot::classes::visual_shader_node_float_op::Operator;
+use godot::classes::visual_shader_node_vector_func::Function;
+use godot::classes::voxel_gi::Subdiv;
+use godot::classes::xr_interface::{EnvironmentBlendMode, TrackingStatus};
+use godot::classes::xr_pose::TrackingConfidence;
+use godot::classes::zip_packer::ZipAppend;
 
 #[itest]
 fn codegen_enums_exist() {

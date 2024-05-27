@@ -9,7 +9,7 @@ use godot_ffi as sys;
 
 use crate::builtin::meta::{impl_godot_as_self, GodotType, ToGodot};
 use crate::builtin::{inner, StringName, Variant, VariantArray};
-use crate::engine::Object;
+use crate::classes::Object;
 use crate::obj::bounds::DynMemory;
 use crate::obj::Bounds;
 use crate::obj::{Gd, GodotClass, InstanceId};

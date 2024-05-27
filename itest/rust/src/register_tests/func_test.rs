@@ -9,7 +9,7 @@
 #![allow(clippy::non_minimal_cfg)]
 
 use crate::framework::itest;
-use godot::engine::ClassDb;
+use godot::classes::ClassDb;
 use godot::prelude::*;
 
 #[derive(GodotClass)]
@@ -236,12 +236,12 @@ impl IRefCounted for GdSelfObj {
     }
 
     #[cfg(all())]
-    fn on_notification(&mut self, _: godot::engine::notify::ObjectNotification) {
+    fn on_notification(&mut self, _: godot::classes::notify::ObjectNotification) {
         // Do nothing.
     }
 
     #[cfg(any())]
-    fn on_notification(&mut self, _: godot::engine::notify::ObjectNotification) {
+    fn on_notification(&mut self, _: godot::classes::notify::ObjectNotification) {
         compile_error!("Removed by #[cfg]");
     }
 

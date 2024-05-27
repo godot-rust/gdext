@@ -406,8 +406,8 @@ fn untyped_array_return_from_godot_func() {
 // ancestors in the list.
 #[itest]
 fn typed_array_pass_to_godot_func() {
-    use godot::engine::image::Format;
-    use godot::engine::{Image, Texture2DArray};
+    use godot::classes::image::Format;
+    use godot::classes::{Image, Texture2DArray};
     use godot::global::Error;
 
     let mut image = Image::new_gd();

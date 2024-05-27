@@ -11,7 +11,7 @@ use std::rc::Rc;
 use godot::builtin::meta::GodotType;
 use godot::builtin::meta::{FromGodot, ToGodot};
 use godot::builtin::{GString, StringName, Variant, Vector3};
-use godot::engine::{
+use godot::classes::{
     file_access, Area2D, Camera3D, Engine, FileAccess, IRefCounted, Node, Node3D, Object,
     RefCounted,
 };
@@ -1058,7 +1058,7 @@ struct CustomEditorPlugin;
 
 #[itest]
 fn non_unique_error_works() {
-    use godot::engine::RefCounted;
+    use godot::classes::RefCounted;
     use godot::obj::NotUniqueError;
 
     let unique = RefCounted::new_gd();

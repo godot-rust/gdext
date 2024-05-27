@@ -11,7 +11,7 @@ use std::hint::black_box;
 
 use godot::builtin::inner::InnerRect2i;
 use godot::builtin::{GString, Rect2i, StringName, Vector2i};
-use godot::engine::{Node3D, Os, RefCounted};
+use godot::classes::{Node3D, Os, RefCounted};
 use godot::obj::{Gd, InstanceId, NewAlloc, NewGd};
 use godot::register::GodotClass;
 

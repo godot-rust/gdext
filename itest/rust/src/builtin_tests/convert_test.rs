@@ -9,7 +9,7 @@ use godot::builtin::meta::{ConvertError, FromGodot, GodotConvert, ToGodot};
 use godot::builtin::{
     dict, Array, Dictionary, GString, Variant, VariantArray, Vector2, Vector2Axis,
 };
-use godot::engine::{Node, Resource};
+use godot::classes::{Node, Resource};
 use godot::obj::{Gd, NewAlloc};
 
 use crate::framework::itest;

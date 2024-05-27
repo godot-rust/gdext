@@ -9,7 +9,7 @@
 #![allow(clippy::non_minimal_cfg)]
 
 use crate::framework::itest;
-use godot::engine::ClassDb;
+use godot::classes::ClassDb;
 use godot::prelude::*;
 use godot::sys::static_assert;
 

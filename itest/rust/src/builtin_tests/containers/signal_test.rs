@@ -11,7 +11,7 @@ use godot::builtin::meta::ToGodot;
 use godot::builtin::{Callable, GString, Signal, StringName, Variant};
 use godot::register::{godot_api, GodotClass};
 
-use godot::engine::{Object, RefCounted};
+use godot::classes::{Object, RefCounted};
 use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
 use godot::sys;
 

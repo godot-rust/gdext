@@ -81,7 +81,7 @@ pub fn make_notification_enum(
 
     let enum_name = ctx.notification_enum_name(class_name).name;
     let doc_str = format!(
-        "Notification type for class [`{c}`][crate::engine::{c}].",
+        "Notification type for class [`{c}`][crate::classes::{c}].",
         c = class_name.rust_ty
     );
 

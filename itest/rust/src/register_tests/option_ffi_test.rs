@@ -6,7 +6,7 @@
  */
 
 use godot::builtin::meta::GodotType;
-use godot::engine::{Node, Object, RefCounted};
+use godot::classes::{Node, Object, RefCounted};
 use godot::obj::{Gd, NewAlloc, NewGd, RawGd};
 use godot::register::{godot_api, GodotClass};
 use godot::sys::GodotFfi;

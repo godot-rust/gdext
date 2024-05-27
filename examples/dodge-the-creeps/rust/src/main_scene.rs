@@ -2,7 +2,7 @@ use crate::hud::Hud;
 use crate::mob;
 use crate::player;
 
-use godot::engine::{Marker2D, PathFollow2D, RigidBody2D, Timer};
+use godot::classes::{Marker2D, PathFollow2D, RigidBody2D, Timer};
 use godot::prelude::*;
 
 use rand::Rng as _;

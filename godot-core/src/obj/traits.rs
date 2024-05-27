@@ -61,7 +61,7 @@ where
 
 /// Type representing the absence of a base class, at the root of the hierarchy.
 ///
-/// `NoBase` is used as the base class for exactly one class: [`Object`][crate::engine::Object].
+/// `NoBase` is used as the base class for exactly one class: [`Object`][crate::classes::Object].
 ///
 /// This is an enum without any variants, as we should never construct an instance of this class.
 pub enum NoBase {}
@@ -274,7 +274,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     /// ```
     ///
     /// However, we cannot call methods that require `&mut Base`, such as
-    /// [`Node::add_child()`](crate::engine::Node::add_child).
+    /// [`Node::add_child()`](crate::classes::Node::add_child).
     ///
     /// ```compile_fail
     /// use godot::prelude::*;

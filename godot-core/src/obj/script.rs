@@ -5,6 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+//! Functionality related to script instances (Rust code that can be attached as node scripts).
+//!
+//! The features in this module are complemented by the [`ScriptExtension` class][crate::classes::ScriptExtension] and
+//! the [`IScriptExtension` trait][crate::classes::IScriptExtension].
+//!
+//! See [`ScriptInstance`](trait.ScriptInstance.html) for usage.
+
+// Re-export guards.
+pub use crate::obj::guards::{ScriptBaseMut, ScriptBaseRef};
+
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ops::{Deref, DerefMut};
@@ -15,8 +25,8 @@ use godot_cell::{GdCell, MutGuard};
 
 use crate::builtin::meta::{MethodInfo, PropertyInfo};
 use crate::builtin::{GString, StringName, Variant, VariantType};
-use crate::engine::{Script, ScriptLanguage};
-use crate::obj::{Base, Gd, GodotClass, ScriptBaseMut, ScriptBaseRef};
+use crate::classes::{Script, ScriptLanguage};
+use crate::obj::{Base, Gd, GodotClass};
 use crate::sys;
 
 /// Implement custom scripts that can be attached to objects in Godot.
@@ -24,15 +34,21 @@ use crate::sys;
 /// To use script instances, implement this trait for your own type.
 ///
 /// You can use the [`create_script_instance()`] function to create a low-level pointer to your script instance.
-/// This pointer should then be returned from [`IScriptExtension::instance_create()`](crate::engine::IScriptExtension::instance_create).
+/// This pointer should then be returned from [`IScriptExtension::instance_create()`](crate::classes::IScriptExtension::instance_create).
 ///
 /// # Example
 ///
 /// ```no_run
-/// # use godot::prelude::*;
-/// # use godot::engine::{IScriptExtension, Script, ScriptExtension};
-/// # trait ScriptInstance {} // trick 17 to avoid listing all the methods. Needs also a method.
-/// # fn create_script_instance(_: MyScriptInstance) -> *mut std::ffi::c_void { std::ptr::null_mut() }
+/// # // Trick 17 to avoid listing all the methods. Needs also a method.
+/// # mod godot {
+/// #     pub use ::godot::*;
+/// #     pub mod extras { pub trait ScriptInstance {} }
+/// # }
+/// # fn create_script_instance(_: MyInstance) -> *mut std::ffi::c_void { std::ptr::null_mut() }
+/// use godot::prelude::*;
+/// use godot::classes::{IScriptExtension, Script, ScriptExtension};
+/// use godot::extras::ScriptInstance;
+///
 /// // 1) Define the script.
 /// #[derive(GodotClass)]
 /// #[class(init, base=ScriptExtension)]
@@ -42,14 +58,14 @@ use crate::sys;
 /// }
 ///
 /// // 2) Define the script _instance_, and implement the trait for it.
-/// struct MyScriptInstance;
-/// impl MyScriptInstance {
+/// struct MyInstance;
+/// impl MyInstance {
 ///     fn from_gd(script: Gd<Script>) -> Self {
 ///         Self { /* ... */ }
 ///     }
 /// }
 ///
-/// impl ScriptInstance for MyScriptInstance {
+/// impl ScriptInstance for MyInstance {
 ///     // Implement all the methods...
 /// }
 ///
@@ -59,7 +75,7 @@ use crate::sys;
 ///     unsafe fn instance_create(&self, _for_object: Gd<Object>) -> *mut std::ffi::c_void {
 ///         // Upcast Gd<ScriptExtension> to Gd<Script>.
 ///         let script = self.to_gd().upcast();
-///         let script_instance = MyScriptInstance::from_gd(script);
+///         let script_instance = MyInstance::from_gd(script);
 ///
 ///         // Note on safety: the returned pointer must be obtained
 ///         // through create_script_instance().
@@ -103,7 +119,7 @@ pub trait ScriptInstance: Sized {
     ) -> Result<Variant, sys::GDExtensionCallErrorType>;
 
     /// Identifies the script instance as a placeholder. If this function and
-    /// [IScriptExtension::is_placeholder_fallback_enabled](crate::engine::IScriptExtension::is_placeholder_fallback_enabled) return true,
+    /// [IScriptExtension::is_placeholder_fallback_enabled](crate::classes::IScriptExtension::is_placeholder_fallback_enabled) return true,
     /// Godot will call [`Self::property_set_fallback`] instead of [`Self::set_property`].
     fn is_placeholder(&self) -> bool;
 
@@ -287,7 +303,8 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///
     /// ```no_run
     /// # use godot::prelude::*;
-    /// # use godot::engine::{ScriptInstance, SiMut, ScriptLanguage, Script};
+    /// # use godot::classes::{ScriptLanguage, Script};
+    /// # use godot::obj::script::{ScriptInstance, SiMut};
     /// # use godot::builtin::meta::{MethodInfo, PropertyInfo};
     /// # use godot::sys;
     /// struct ExampleScriptInstance;
@@ -307,21 +324,21 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///         Ok(Variant::nil())
     ///     }
     ///     # fn class_name(&self) -> GString { todo!() }
-    ///     # fn set_property(_: SiMut<'_, Self>, _: godot::prelude::StringName, _: &godot::prelude::Variant) -> bool { todo!() }
-    ///     # fn get_property(&self, _: godot::prelude::StringName) -> Option<godot::prelude::Variant> { todo!() }
+    ///     # fn set_property(_: SiMut<'_, Self>, _: StringName, _: &Variant) -> bool { todo!() }
+    ///     # fn get_property(&self, _: StringName) -> Option<Variant> { todo!() }
     ///     # fn get_property_list(&self) -> Vec<PropertyInfo> { todo!() }
     ///     # fn get_method_list(&self) -> Vec<MethodInfo> { todo!() }
     ///     # fn is_placeholder(&self) -> bool { todo!() }
-    ///     # fn has_method(&self, _: godot::prelude::StringName) -> bool { todo!() }
+    ///     # fn has_method(&self, _: StringName) -> bool { todo!() }
     ///     # fn get_script(&self) -> &Gd<Script> { todo!() }
-    ///     # fn get_property_type(&self, _: godot::prelude::StringName) -> VariantType { todo!() }
+    ///     # fn get_property_type(&self, _: StringName) -> VariantType { todo!() }
     ///     # fn to_string(&self) -> GString { todo!() }
-    ///     # fn get_property_state(&self) -> Vec<(godot::prelude::StringName, godot::prelude::Variant)> { todo!() }
+    ///     # fn get_property_state(&self) -> Vec<(StringName, Variant)> { todo!() }
     ///     # fn get_language(&self) -> Gd<ScriptLanguage> { todo!() }
     ///     # fn on_refcount_decremented(&self) -> bool { todo!() }
     ///     # fn on_refcount_incremented(&self) { todo!() }
-    ///     # fn property_get_fallback(&self, _: godot::prelude::StringName) -> Option<godot::prelude::Variant> { todo!() }
-    ///     # fn property_set_fallback(_: SiMut<'_, Self>, _: godot::prelude::StringName, _: &godot::prelude::Variant) -> bool { todo!() }
+    ///     # fn property_get_fallback(&self, _: StringName) -> Option<Variant> { todo!() }
+    ///     # fn property_set_fallback(_: SiMut<'_, Self>, _: StringName, _: &Variant) -> bool { todo!() }
     /// }
     /// ```
     pub fn base(&self) -> ScriptBaseRef<T> {
@@ -334,7 +351,8 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///
     /// ```no_run
     /// # use godot::prelude::*;
-    /// # use godot::engine::{ScriptInstance, SiMut, ScriptLanguage, Script};
+    /// # use godot::classes::{ScriptLanguage, Script};
+    /// # use godot::obj::script::{ScriptInstance, SiMut};
     /// # use godot::builtin::meta::{MethodInfo, PropertyInfo};
     /// # use godot::sys;
     /// struct ExampleScriptInstance;
@@ -361,21 +379,21 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///         Ok(Variant::nil())
     ///     }
     ///     # fn class_name(&self) -> GString { todo!() }
-    ///     # fn set_property(_: SiMut<'_, Self>, _: godot::prelude::StringName, _: &godot::prelude::Variant) -> bool { todo!() }
-    ///     # fn get_property(&self, _: godot::prelude::StringName) -> Option<godot::prelude::Variant> { todo!() }
+    ///     # fn set_property(_: SiMut<'_, Self>, _: StringName, _: &Variant) -> bool { todo!() }
+    ///     # fn get_property(&self, _: StringName) -> Option<Variant> { todo!() }
     ///     # fn get_property_list(&self) -> Vec<PropertyInfo> { todo!() }
     ///     # fn get_method_list(&self) -> Vec<MethodInfo> { todo!() }
     ///     # fn is_placeholder(&self) -> bool { todo!() }
-    ///     # fn has_method(&self, _: godot::prelude::StringName) -> bool { todo!() }
+    ///     # fn has_method(&self, _: StringName) -> bool { todo!() }
     ///     # fn get_script(&self) -> &Gd<Script> { todo!() }
-    ///     # fn get_property_type(&self, _: godot::prelude::StringName) -> VariantType { todo!() }
+    ///     # fn get_property_type(&self, _: StringName) -> VariantType { todo!() }
     ///     # fn to_string(&self) -> GString { todo!() }
-    ///     # fn get_property_state(&self) -> Vec<(godot::prelude::StringName, godot::prelude::Variant)> { todo!() }
+    ///     # fn get_property_state(&self) -> Vec<(StringName, Variant)> { todo!() }
     ///     # fn get_language(&self) -> Gd<ScriptLanguage> { todo!() }
     ///     # fn on_refcount_decremented(&self) -> bool { todo!() }
     ///     # fn on_refcount_incremented(&self) { todo!() }
-    ///     # fn property_get_fallback(&self, _: godot::prelude::StringName) -> Option<godot::prelude::Variant> { todo!() }
-    ///     # fn property_set_fallback(_: SiMut<'_, Self>, _: godot::prelude::StringName, _: &godot::prelude::Variant) -> bool { todo!() }
+    ///     # fn property_get_fallback(&self, _: StringName) -> Option<Variant> { todo!() }
+    ///     # fn property_set_fallback(_: SiMut<'_, Self>, _: StringName, _: &Variant) -> bool { todo!() }
     /// }
     /// ```
     pub fn base_mut(&mut self) -> ScriptBaseMut<T> {
@@ -408,7 +426,7 @@ mod script_instance_info {
     use godot_cell::{GdCell, RefGuard};
 
     use crate::builtin::{GString, StringName, Variant};
-    use crate::engine::ScriptLanguage;
+    use crate::classes::ScriptLanguage;
     use crate::obj::Gd;
     use crate::private::handle_panic;
     use crate::sys;
@@ -474,7 +492,7 @@ mod script_instance_info {
     }
 
     /// The returned pointer's lifetime is equal to the lifetime of `script`
-    fn transfer_script_to_godot(script: &Gd<crate::engine::Script>) -> sys::GDExtensionObjectPtr {
+    fn transfer_script_to_godot(script: &Gd<crate::classes::Script>) -> sys::GDExtensionObjectPtr {
         script.obj_sys()
     }
 

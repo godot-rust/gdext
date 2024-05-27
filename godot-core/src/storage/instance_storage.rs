@@ -168,7 +168,7 @@ pub type InstanceStorage<T> = crate::storage::multi_threaded::InstanceStorage<T>
 const fn _assert_implements_storage<T: Storage + StorageRefCounted>() {}
 
 const _INSTANCE_STORAGE_IMPLEMENTS_STORAGE: () =
-    _assert_implements_storage::<InstanceStorage<crate::engine::Object>>();
+    _assert_implements_storage::<InstanceStorage<crate::classes::Object>>();
 
 /// Interprets the opaque pointer as pointing to `InstanceStorage<T>`.
 ///
@@ -218,7 +218,7 @@ pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClass
         // In Debug mode, crash which may trigger breakpoint.
         // In Release mode, leak player object (Godot philosophy: don't crash if somehow avoidable). Likely leads to follow-up issues.
         if cfg!(debug_assertions) {
-            crate::engine::Os::singleton().crash(error.into());
+            crate::classes::Os::singleton().crash(error.into());
         } else {
             leak_rust_object = true;
             godot_error!("{}", error);

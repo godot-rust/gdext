@@ -15,9 +15,9 @@ use godot::builtin::{
     PackedInt32Array, PackedStringArray, PackedVector2Array, PackedVector3Array, RealConv,
     StringName, Variant, VariantArray, Vector2, Vector3,
 };
-use godot::engine::notify::NodeNotification;
-use godot::engine::resource_loader::CacheMode;
-use godot::engine::{
+use godot::classes::notify::NodeNotification;
+use godot::classes::resource_loader::CacheMode;
+use godot::classes::{
     BoxMesh, INode, INode2D, IPrimitiveMesh, IRefCounted, IResourceFormatLoader, IRigidBody2D,
     InputEvent, InputEventAction, Node, Node2D, PrimitiveMesh, RefCounted, ResourceFormatLoader,
     ResourceLoader, Viewport, Window,

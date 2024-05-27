@@ -24,7 +24,7 @@ use crate::obj::{
 };
 use crate::private::callbacks;
 use crate::property::{Export, PropertyHintInfo, TypeStringHint, Var};
-use crate::{engine, out};
+use crate::{classes, out};
 
 /// Smart pointer to objects owned by the Godot engine.
 ///
@@ -84,8 +84,8 @@ use crate::{engine, out};
 /// example if you are inside a `&mut self` method, make a call to GDScript and indirectly call another method on the same object (re-entrancy).
 ///
 /// [book]: https://godot-rust.github.io/book/godot-api/objects.html
-/// [`Object`]: engine::Object
-/// [`RefCounted`]: engine::RefCounted
+/// [`Object`]: classes::Object
+/// [`RefCounted`]: classes::RefCounted
 #[repr(C)] // must be layout compatible with engine classes
 pub struct Gd<T: GodotClass> {
     // Note: `opaque` has the same layout as GDExtensionObjectPtr == Object* in C++, i.e. the bytes represent a pointer
@@ -185,10 +185,10 @@ impl<T: GodotClass> Gd<T> {
     /// If no such instance ID is registered, or if the dynamic type of the object behind that instance ID
     /// is not compatible with `T`, then `None` is returned.
     pub fn try_from_instance_id(instance_id: InstanceId) -> Result<Self, ConvertError> {
-        let ptr = engine::object_ptr_from_id(instance_id);
+        let ptr = classes::object_ptr_from_id(instance_id);
 
         // SAFETY: assumes that the returned GDExtensionObjectPtr is convertible to Object* (i.e. C++ upcast doesn't modify the pointer)
-        let untyped = unsafe { Gd::<engine::Object>::from_obj_sys_or_none(ptr)? };
+        let untyped = unsafe { Gd::<classes::Object>::from_obj_sys_or_none(ptr)? };
         untyped
             .owned_cast::<T>()
             .map_err(|obj| FromFfiError::WrongObjectType.into_error(obj))
@@ -413,7 +413,7 @@ impl<T: GodotClass> Gd<T> {
     #[doc(hidden)]
     pub fn script_sys(&self) -> sys::GDExtensionScriptLanguagePtr
     where
-        T: Inherits<crate::engine::ScriptLanguage>,
+        T: Inherits<crate::classes::ScriptLanguage>,
     {
         self.raw.script_sys()
     }
@@ -681,9 +681,9 @@ impl<T: GodotClass> Var for Gd<T> {
 
 impl<T: GodotClass> Export for Gd<T> {
     fn default_export_info() -> PropertyHintInfo {
-        let hint = if T::inherits::<engine::Resource>() {
+        let hint = if T::inherits::<classes::Resource>() {
             PropertyHint::RESOURCE_TYPE
-        } else if T::inherits::<engine::Node>() {
+        } else if T::inherits::<classes::Node>() {
             PropertyHint::NODE_TYPE
         } else {
             PropertyHint::NONE
@@ -714,13 +714,13 @@ impl<T: GodotClass> Eq for Gd<T> {}
 
 impl<T: GodotClass> Display for Gd<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        engine::display_string(self, f)
+        classes::display_string(self, f)
     }
 }
 
 impl<T: GodotClass> Debug for Gd<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        engine::debug_string(self, f, "Gd")
+        classes::debug_string(self, f, "Gd")
     }
 }
 

@@ -164,7 +164,7 @@ pub trait DynMemory: Sealed {
     ///
     /// # Safety
     ///
-    /// If this method is used on a [`Gd`] that inherits from [`RefCounted`](crate::engine::RefCounted)
+    /// If this method is used on a [`Gd`] that inherits from [`RefCounted`](crate::classes::RefCounted)
     /// then the reference count must either be incremented before it hits 0, or some [`Gd`] referencing
     /// this object must be forgotten.
     #[doc(hidden)]

@@ -5,9 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::obj::Gd;
-use crate::obj::GodotClass;
-use crate::{engine, sys};
+use crate::obj::{Gd, GodotClass};
+use crate::{classes, sys};
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::mem::ManuallyDrop;
 
@@ -95,12 +94,12 @@ impl<T: GodotClass> Base<T> {
 
 impl<T: GodotClass> Debug for Base<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        engine::debug_string(&self.obj, f, "Base")
+        classes::debug_string(&self.obj, f, "Base")
     }
 }
 
 impl<T: GodotClass> Display for Base<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
-        engine::display_string(&self.obj, f)
+        classes::display_string(&self.obj, f)
     }
 }

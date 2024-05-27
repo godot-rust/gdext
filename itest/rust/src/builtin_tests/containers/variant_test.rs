@@ -13,7 +13,7 @@ use godot::builtin::{
     dict, varray, GString, NodePath, Signal, StringName, Variant, Vector2, Vector3,
 };
 use godot::builtin::{Basis, Dictionary, VariantArray, VariantOperator, VariantType};
-use godot::engine::{Node, Node2D};
+use godot::classes::{Node, Node2D};
 use godot::obj::{Gd, InstanceId, NewAlloc};
 use godot::sys::GodotFfi;
 

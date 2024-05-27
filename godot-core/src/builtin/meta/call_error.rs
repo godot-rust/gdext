@@ -15,7 +15,7 @@ use std::fmt;
 /// Error capable of representing failed function calls.
 ///
 /// This type is returned from _varcall_ functions in the Godot API that begin with `try_` prefixes,
-/// e.g. [`Object::try_call()`](crate::engine::Object::try_call) or [`Node::try_rpc()`](crate::engine::Node::try_rpc).
+/// e.g. [`Object::try_call()`](crate::classes::Object::try_call) or [`Node::try_rpc()`](crate::classes::Node::try_rpc).
 /// _Varcall_ refers to the "variant call" calling convention, meaning that arguments and return values are passed as `Variant` (as opposed
 /// to _ptrcall_, which passes direct pointers to Rust objects).
 ///

@@ -7,9 +7,9 @@
 
 use crate::framework::itest;
 use godot::builtin::varray;
-use godot::engine::input::CursorShape;
-use godot::engine::mesh::PrimitiveType;
-use godot::engine::{time, ArrayMesh};
+use godot::classes::input::CursorShape;
+use godot::classes::mesh::PrimitiveType;
+use godot::classes::{time, ArrayMesh};
 use std::collections::HashSet;
 
 #[itest]

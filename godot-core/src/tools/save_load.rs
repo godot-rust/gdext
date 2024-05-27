@@ -6,10 +6,10 @@
  */
 
 use crate::builtin::GString;
-use crate::engine::{Resource, ResourceLoader, ResourceSaver};
-use crate::extras::IoError;
+use crate::classes::{Resource, ResourceLoader, ResourceSaver};
 use crate::global::Error as GodotError;
 use crate::obj::{Gd, Inherits};
+use crate::tools::IoError;
 
 /// ⚠️ Loads a resource from the filesystem located at `path`, panicking on error.
 ///
@@ -41,7 +41,7 @@ where
 ///
 /// This function can fail if resource can't be loaded by [`ResourceLoader`] or if the subsequent cast into `T` fails.
 ///
-/// This method is a simplified version of [`ResourceLoader::load()`][crate::engine::ResourceLoader::load],
+/// This method is a simplified version of [`ResourceLoader::load()`][crate::classes::ResourceLoader::load],
 /// which can be used for more advanced scenarios.
 ///
 /// # Note
@@ -81,7 +81,6 @@ where
 /// # Example
 /// ```no_run
 /// use godot::prelude::*;
-/// use godot::engine::save;
 ///
 /// save(Resource::new_gd(), "res://BaseResource.tres")
 /// ```
@@ -99,7 +98,7 @@ where
 /// Saves a [`Resource`]-inheriting object into the file located at `path`.
 ///
 /// This function can fail if [`ResourceSaver`] can't save the resource to file, as it is a simplified version of
-/// [`ResourceSaver::save()`][crate::engine::ResourceSaver::save]. The underlying method can be used for more advances scenarios.
+/// [`ResourceSaver::save()`][crate::classes::ResourceSaver::save]. The underlying method can be used for more advances scenarios.
 ///
 /// # Note
 /// Target path must be presented in Godot-recognized format, mainly the ones beginning with `res://` and `user://`. Saving
@@ -108,7 +107,6 @@ where
 /// # Example
 /// ```no_run
 /// use godot::prelude::*;
-/// use godot::engine::try_save;
 ///
 /// #[derive(GodotClass)]
 /// #[class(base=Resource, init)]

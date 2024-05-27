@@ -312,10 +312,10 @@ pub fn maybe_rename_virtual_method(rust_method_name: &str) -> &str {
 pub fn get_class_extra_docs(class_name: &TyName) -> Option<&'static str> {
     match class_name.godot_ty.as_str() {
         "FileAccess" => {
-            Some("The gdext library provides a higher-level abstraction, which should be preferred: [`GFile`][crate::engine::GFile].")
+            Some("The gdext library provides a higher-level abstraction, which should be preferred: [`GFile`][crate::tools::GFile].")
         }
         "ScriptExtension" => {
-            Some("Use this in combination with [`ScriptInstance`][crate::engine::ScriptInstance].")
+            Some("Use this in combination with the [`obj::script` module][crate::obj::script].")
         }
 
         _ => None,
@@ -325,7 +325,7 @@ pub fn get_class_extra_docs(class_name: &TyName) -> Option<&'static str> {
 pub fn get_interface_extra_docs(trait_name: &str) -> Option<&'static str> {
     match trait_name {
         "IScriptExtension" => {
-            Some("Use this in combination with [`ScriptInstance`][crate::engine::ScriptInstance].")
+            Some("Use this in combination with the [`obj::script` module][crate::obj::script].")
         }
 
         _ => None,

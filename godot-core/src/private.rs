@@ -129,7 +129,7 @@ pub fn flush_stdout() {
 }
 
 /// Ensure `T` is an editor plugin.
-pub const fn is_editor_plugin<T: crate::obj::Inherits<crate::engine::EditorPlugin>>() {}
+pub const fn is_editor_plugin<T: crate::obj::Inherits<crate::classes::EditorPlugin>>() {}
 
 // Starting from 4.3, Godot has "runtime classes"; this emulation is no longer needed.
 #[cfg(before_api = "4.3")]
@@ -140,7 +140,7 @@ pub fn is_class_inactive(is_tool: bool) -> bool {
 
     // SAFETY: only invoked after global library initialization.
     let global_config = unsafe { sys::config() };
-    let is_editor = || crate::engine::Engine::singleton().is_editor_hint();
+    let is_editor = || crate::classes::Engine::singleton().is_editor_hint();
 
     global_config.tool_only_in_editor //.
         && global_config.is_editor_or_init(is_editor)
