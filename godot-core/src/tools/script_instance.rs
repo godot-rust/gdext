@@ -294,7 +294,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// ```no_run
     /// # use godot::prelude::*;
     /// # use godot::classes::{ScriptLanguage, Script};
-    /// # use godot::extras::{ScriptInstance, SiMut};
+    /// # use godot::tools::{ScriptInstance, SiMut};
     /// # use godot::builtin::meta::{MethodInfo, PropertyInfo};
     /// # use godot::sys;
     /// struct ExampleScriptInstance;
@@ -342,7 +342,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// ```no_run
     /// # use godot::prelude::*;
     /// # use godot::classes::{ScriptLanguage, Script};
-    /// # use godot::extras::{ScriptInstance, SiMut};
+    /// # use godot::tools::{ScriptInstance, SiMut};
     /// # use godot::builtin::meta::{MethodInfo, PropertyInfo};
     /// # use godot::sys;
     /// struct ExampleScriptInstance;

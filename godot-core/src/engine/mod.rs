@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#![deprecated = "Module has been split into `godot::classes`, `godot::global` and `godot::extras`."]
+#![deprecated = "Module has been split into `godot::classes`, `godot::global` and `godot::tools`."]
 
 #[deprecated = "Classes have been moved to `godot::classes`."]
 pub use crate::classes::*;
@@ -26,34 +26,34 @@ pub mod native {
     pub use crate::gen::native::*;
 }
 
-#[deprecated = "`godot::classes::translate` has been moved to `godot::extras`."]
+#[deprecated = "`godot::classes::translate` has been moved to `godot::tools`."]
 pub mod translate {
-    pub use crate::extras::{tr, tr_n};
+    pub use crate::tools::{tr, tr_n};
 }
 
-#[deprecated = "`create_script_instance` has been moved to `godot::extras`."]
-pub use crate::extras::create_script_instance;
+#[deprecated = "`create_script_instance` has been moved to `godot::tools`."]
+pub use crate::tools::create_script_instance;
 
-#[deprecated = "`ScriptInstance` has been moved to `godot::extras`."]
-pub use crate::extras::ScriptInstance;
+#[deprecated = "`ScriptInstance` has been moved to `godot::tools`."]
+pub use crate::tools::ScriptInstance;
 
-#[deprecated = "`SiMut` has been moved to `godot::extras`."]
-pub use crate::extras::SiMut;
+#[deprecated = "`SiMut` has been moved to `godot::tools`."]
+pub use crate::tools::SiMut;
 
-#[deprecated = "`GFile` has been moved to `godot::extras`."]
-pub use crate::extras::GFile;
+#[deprecated = "`GFile` has been moved to `godot::tools`."]
+pub use crate::tools::GFile;
 
-#[deprecated = "`IoError` has been moved to `godot::extras`."]
-pub use crate::extras::IoError;
+#[deprecated = "`IoError` has been moved to `godot::tools`."]
+pub use crate::tools::IoError;
 
 #[deprecated = "`save` has been moved to `godot::global`."]
-pub use crate::extras::save;
+pub use crate::tools::save;
 
 #[deprecated = "`try_save` has been moved to `godot::global`."]
-pub use crate::extras::try_save;
+pub use crate::tools::try_save;
 
 #[deprecated = "`load` has been moved to `godot::global`."]
-pub use crate::extras::load;
+pub use crate::tools::load;
 
 #[deprecated = "`try_load` has been moved to `godot::global`."]
-pub use crate::extras::try_load;
+pub use crate::tools::try_load;

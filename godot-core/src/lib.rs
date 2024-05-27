@@ -38,7 +38,7 @@ pub mod engine;
 ///
 /// Contains functionality that extends existing Godot classes and functions, to make them more versatile
 /// or better integrated with Rust.
-pub mod extras;
+pub mod tools;
 
 // Output of generated code. Mimics the file structure, symbols are re-exported.
 #[rustfmt::skip]

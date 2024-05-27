@@ -22,7 +22,7 @@ pub use crate::{tr, tr_n};
 /// # let a = Vector2i { x: 0, y: 0 };
 /// # let b = Vector2i { x: 0, y: 0 };
 /// # let context = "context";
-/// use godot::extras::tr;
+/// use godot::tools::tr;
 ///
 /// // Good.
 /// tr!(context; "{a} is a {b}"); // inlined, with context
@@ -65,7 +65,7 @@ macro_rules! tr {
 /// # let b = Vector2i { x: 0, y: 0 };
 /// # let context = "context";
 /// # let n = 2;
-/// use godot::extras::tr_n;
+/// use godot::tools::tr_n;
 ///
 /// // Good.
 /// tr_n!(n, context; "{a} is a {b}", "{a}s are {b}s"); // inlined, with context
