@@ -10,6 +10,7 @@
 
 mod context;
 mod conv;
+mod formatter;
 mod generator;
 mod models;
 mod special_cases;
@@ -47,7 +48,7 @@ fn write_file(path: &Path, contents: String) {
 
 #[cfg(feature = "codegen-fmt")]
 fn submit_fn(path: PathBuf, tokens: TokenStream) {
-    write_file(&path, godot_fmt::format_tokens(tokens));
+    write_file(&path, formatter::format_tokens(tokens));
 }
 
 #[cfg(not(feature = "codegen-fmt"))]

@@ -18,7 +18,6 @@ experimental-godot-api = []
 
 [dependencies]
 godot-bindings = { path = "../godot-bindings" }
-godot-fmt = { path = "../godot-fmt" }
 
 heck = "0.4"
 nanoserde = "0.1.35"
@@ -38,3 +37,14 @@ godot-bindings = { path = "../godot-bindings" } # emit_godot_version_cfg
 [package.metadata.docs.rs]
 features = ["experimental-godot-api"]
 rustdoc-args = ["--cfg", "published_docs"]
+
+
+# To check formatter: Disabled below, since it pulls in too many dependencies during `cargo test` but is not really used.
+# Dev-dependencies cannot be optional and feature-gated. Enable manually when needed.
+
+#[[bench]]
+#name = "gdext_fmt_bench"
+#harness = false
+#
+#[dev-dependencies]
+#criterion = "0.5"
