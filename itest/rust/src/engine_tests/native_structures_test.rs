@@ -8,9 +8,9 @@
 use crate::framework::itest;
 
 use godot::builtin::{Rect2, Rid, Variant};
-use godot::engine::native::{AudioFrame, CaretInfo, Glyph, ObjectId};
-use godot::engine::text_server::Direction;
-use godot::engine::{ITextServerExtension, TextServer, TextServerExtension};
+use godot::classes::native::{AudioFrame, CaretInfo, Glyph, ObjectId};
+use godot::classes::text_server::Direction;
+use godot::classes::{ITextServerExtension, TextServer, TextServerExtension};
 use godot::obj::{Base, NewGd};
 use godot::register::{godot_api, GodotClass};
 

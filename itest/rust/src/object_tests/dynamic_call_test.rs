@@ -7,7 +7,7 @@
 
 use godot::builtin::meta::{CallError, FromGodot, ToGodot};
 use godot::builtin::{StringName, Variant, Vector3};
-use godot::engine::{Node, Node3D, Object};
+use godot::classes::{Node, Node3D, Object};
 use godot::obj::{InstanceId, NewAlloc};
 use std::error::Error;
 

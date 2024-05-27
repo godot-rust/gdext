@@ -7,8 +7,6 @@
 
 #![deprecated = "Module has been split into `godot::classes`, `godot::global` and `godot::extras`."]
 
-use crate::obj::{Bounds, GodotClass};
-
 #[deprecated = "Classes have been moved to `godot::classes`."]
 pub use crate::classes::*;
 
@@ -28,7 +26,7 @@ pub mod native {
     pub use crate::gen::native::*;
 }
 
-#[deprecated = "`godot::engine::translate` has been moved to `godot::extras`."]
+#[deprecated = "`godot::classes::translate` has been moved to `godot::extras`."]
 pub mod translate {
     pub use crate::extras::{tr, tr_n};
 }

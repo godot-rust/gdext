@@ -9,12 +9,12 @@
 //!
 //! This module contains the following symbols:
 //! * Classes: `CanvasItem`, etc.
-//! * Virtual traits: `ICanvasItem`, etc.
+//! * Interface traits: `ICanvasItem`, etc.
 //! * Enum/flag modules: `canvas_item`, etc.
 //!
-//! Noteworthy sub-modules are:
-//! * [`notify`][crate::engine::notify]: all notification enums, used when working with the virtual callback to handle lifecycle notifications.
-//! * [`native`][crate::engine::native]: definition of _native structure_ types.
+//! Noteworthy sub-modules of `godot::classes` are:
+//! * [`native`]: definition of _native structure_ types.
+//! * [`notify`]: all notification enums, used when working with the virtual callback to handle lifecycle notifications.
 
 mod class_runtime;
 mod manual_extensions;

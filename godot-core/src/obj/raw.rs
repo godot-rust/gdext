@@ -19,7 +19,7 @@ use crate::obj::bounds::DynMemory as _;
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
 use crate::storage::{InstanceStorage, Storage};
-use crate::{engine, global, out};
+use crate::{classes, global, out};
 
 /// Low-level bindings for object pointers in Godot.
 ///
@@ -121,10 +121,10 @@ impl<T: GodotClass> RawGd<T> {
 
         // SAFETY: object is forgotten below.
         let as_obj =
-            unsafe { self.ffi_cast::<engine::Object>() }.expect("everything inherits Object");
+            unsafe { self.ffi_cast::<classes::Object>() }.expect("everything inherits Object");
 
         // SAFETY: Object is always a base class.
-        let cast_is_valid = unsafe { as_obj.as_upcast_ref::<engine::Object>() }
+        let cast_is_valid = unsafe { as_obj.as_upcast_ref::<classes::Object>() }
             .is_class(U::class_name().to_gstring());
 
         std::mem::forget(as_obj);
@@ -192,11 +192,11 @@ impl<T: GodotClass> RawGd<T> {
         sys::ptr_then(cast_object_ptr, |ptr| RawGd::from_obj_sys_weak(ptr))
     }
 
-    pub(crate) fn with_ref_counted<R>(&self, apply: impl Fn(&mut engine::RefCounted) -> R) -> R {
+    pub(crate) fn with_ref_counted<R>(&self, apply: impl Fn(&mut classes::RefCounted) -> R) -> R {
         // Note: this previously called Declarer::scoped_mut() - however, no need to go through bind() for changes in base RefCounted.
         // Any accesses to user objects (e.g. destruction if refc=0) would bind anyway.
 
-        let tmp = unsafe { self.ffi_cast::<engine::RefCounted>() };
+        let tmp = unsafe { self.ffi_cast::<classes::RefCounted>() };
         let mut tmp = tmp.expect("object expected to inherit RefCounted");
         let return_val = apply(tmp.as_target_mut());
 
@@ -205,11 +205,11 @@ impl<T: GodotClass> RawGd<T> {
     }
 
     // TODO replace the above with this -- last time caused UB; investigate.
-    // pub(crate) unsafe fn as_ref_counted_unchecked(&mut self) -> &mut engine::RefCounted {
+    // pub(crate) unsafe fn as_ref_counted_unchecked(&mut self) -> &mut classes::RefCounted {
     //     self.as_target_mut()
     // }
 
-    pub(crate) fn as_object(&self) -> &engine::Object {
+    pub(crate) fn as_object(&self) -> &classes::Object {
         // SAFETY: Object is always a valid upcast target.
         unsafe { self.as_upcast_ref() }
     }
@@ -328,7 +328,7 @@ impl<T: GodotClass> RawGd<T> {
         let call_ctx = CallContext::gd::<T>(method_name);
 
         let instance_id = self.check_dynamic_type(&call_ctx);
-        engine::ensure_object_alive(instance_id, self.obj_sys(), &call_ctx);
+        classes::ensure_object_alive(instance_id, self.obj_sys(), &call_ctx);
     }
 
     /// Checks only type, not alive-ness. Used in Gd<T> in case of `free()`.
@@ -351,7 +351,7 @@ impl<T: GodotClass> RawGd<T> {
 
     pub(super) fn script_sys(&self) -> sys::GDExtensionScriptLanguagePtr
     where
-        T: super::Inherits<crate::engine::ScriptLanguage>,
+        T: super::Inherits<crate::classes::ScriptLanguage>,
     {
         self.obj.cast()
     }
@@ -687,7 +687,7 @@ impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
             // TODO(uninit) - see if we can use from_sys_init()
 
             // raw_object_init?
-            RawGd::<engine::Object>::new_with_uninit(|self_ptr| {
+            RawGd::<classes::Object>::new_with_uninit(|self_ptr| {
                 let converter = sys::builtin_fn!(object_from_variant);
                 converter(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
             })

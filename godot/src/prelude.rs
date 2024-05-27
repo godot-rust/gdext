@@ -14,7 +14,7 @@ pub use super::builtin::__prelude_reexport::*;
 pub use super::builtin::math::FloatExt as _;
 pub use super::builtin::meta::{FromGodot, ToGodot};
 
-pub use super::engine::{
+pub use super::classes::{
     AudioStreamPlayer, Camera2D, Camera3D, IAudioStreamPlayer, ICamera2D, ICamera3D, INode,
     INode2D, INode3D, IObject, IPackedScene, IRefCounted, IResource, ISceneTree, Input, Node,
     Node2D, Node3D, Object, PackedScene, RefCounted, Resource, SceneTree,

@@ -1,4 +1,4 @@
-use godot::engine::{AnimatedSprite2D, IRigidBody2D, RigidBody2D};
+use godot::classes::{AnimatedSprite2D, IRigidBody2D, RigidBody2D};
 use godot::prelude::*;
 use rand::seq::SliceRandom;
 

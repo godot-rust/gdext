@@ -12,7 +12,7 @@ use godot_ffi as sys;
 
 use crate::builtin::meta::{impl_godot_as_self, FromGodot, GodotType, ToGodot};
 use crate::builtin::{inner, Array, Callable, Dictionary, StringName, Variant};
-use crate::engine::Object;
+use crate::classes::Object;
 use crate::global::Error;
 use crate::obj::bounds::DynMemory;
 use crate::obj::{Bounds, Gd, GodotClass, InstanceId};
@@ -63,12 +63,12 @@ impl Signal {
 
     /// Connects this signal to the specified callable.
     ///
-    /// Optional flags can be also added to configure the connection's behavior (see [`ConnectFlags`](crate::engine::object::ConnectFlags) constants).
+    /// Optional flags can be also added to configure the connection's behavior (see [`ConnectFlags`](crate::classes::object::ConnectFlags) constants).
     /// You can provide additional arguments to the connected callable by using `Callable::bind`.
     ///
     /// A signal can only be connected once to the same [`Callable`]. If the signal is already connected,
     /// returns [`Error::ERR_INVALID_PARAMETER`] and
-    /// pushes an error message, unless the signal is connected with [`ConnectFlags::REFERENCE_COUNTED`](crate::engine::object::ConnectFlags::REFERENCE_COUNTED).
+    /// pushes an error message, unless the signal is connected with [`ConnectFlags::REFERENCE_COUNTED`](crate::classes::object::ConnectFlags::REFERENCE_COUNTED).
     /// To prevent this, use [`Self::is_connected`] first to check for existing connections.
     pub fn connect(&self, callable: Callable, flags: i64) -> Error {
         let error = self.as_inner().connect(callable, flags);
@@ -99,7 +99,7 @@ impl Signal {
     /// Each connection is represented as a Dictionary that contains three entries:
     ///  - `signal` is a reference to this [`Signal`];
     ///  - `callable` is a reference to the connected [`Callable`];
-    ///  - `flags` is a combination of [`ConnectFlags`](crate::engine::object::ConnectFlags).
+    ///  - `flags` is a combination of [`ConnectFlags`](crate::classes::object::ConnectFlags).
     ///
     /// _Godot equivalent: `get_connections`_
     pub fn connections(&self) -> Array<Dictionary> {

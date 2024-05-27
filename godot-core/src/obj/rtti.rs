@@ -48,7 +48,7 @@ impl ObjectRtti {
     #[inline]
     pub fn check_type<T: GodotClass>(&self) -> InstanceId {
         #[cfg(debug_assertions)]
-        crate::engine::ensure_object_inherits(self.class_name, T::class_name(), self.instance_id);
+        crate::classes::ensure_object_inherits(self.class_name, T::class_name(), self.instance_id);
 
         self.instance_id
     }

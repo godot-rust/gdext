@@ -67,7 +67,7 @@ pub fn make_core_central_code(api: &ExtensionApi, ctx: &mut Context) -> TokenStr
     // But this requires that all the variant types support this.
     quote! {
         use crate::builtin::*;
-        use crate::engine::Object;
+        use crate::classes::Object;
         use crate::obj::Gd;
 
         // Remaining trait impls for sys::VariantType (traits only defined in godot-core).

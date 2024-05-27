@@ -215,7 +215,7 @@ macro_rules! impl_varcall_signature_for_tuple {
 
                 // Note: varcalls are not safe from failing, if they happen through an object pointer -> validity check necessary.
                 if let Some(instance_id) = maybe_instance_id {
-                    crate::engine::ensure_object_alive(instance_id, object_ptr, &call_ctx);
+                    crate::classes::ensure_object_alive(instance_id, object_ptr, &call_ctx);
                 }
 
                 let class_fn = sys::interface_fn!(object_method_bind_call);
@@ -381,7 +381,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 // $crate::out!("out_class_ptrcall: {call_ctx}");
 
                 if let Some(instance_id) = maybe_instance_id {
-                    crate::engine::ensure_object_alive(instance_id, object_ptr, &call_ctx);
+                    crate::classes::ensure_object_alive(instance_id, object_ptr, &call_ctx);
                 }
 
                 let class_fn = sys::interface_fn!(object_method_bind_ptrcall);

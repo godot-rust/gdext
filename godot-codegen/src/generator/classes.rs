@@ -84,7 +84,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
     let (base_ty, base_ident_opt) = match class.inherits.as_ref() {
         Some(base) => {
             let base = ident(&conv::to_pascal_case(base));
-            (quote! { crate::engine::#base }, Some(base))
+            (quote! { crate::classes::#base }, Some(base))
         }
         None => (quote! { crate::obj::NoBase }, None),
     };
@@ -132,7 +132,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         notifications::make_notification_enum(class_name, &all_bases, &cfg_attributes, ctx);
 
     // Associated "sidecar" module is made public if there are other symbols related to the class, which are not
-    // in top-level godot::engine module (notification enums are not in the sidecar, but in godot::engine::notify).
+    // in top-level godot::classes module (notification enums are not in the sidecar, but in godot::classes::notify).
     // This checks if token streams (i.e. code) is empty.
     let has_sidecar_module = !enums.is_empty() || !builders.is_empty();
 
@@ -184,7 +184,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
         #cfg_inner_attributes
 
         #imports
-        use crate::engine::notify::*;
+        use crate::classes::notify::*;
         use std::ffi::c_void;
 
         pub(super) mod re_export {
@@ -228,7 +228,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
 
             #(
                 // SAFETY: #all_bases is a list of classes provided by Godot such that #class_name is guaranteed a subclass of all of them.
-                unsafe impl crate::obj::Inherits<crate::engine::#all_bases> for #class_name {}
+                unsafe impl crate::obj::Inherits<crate::classes::#all_bases> for #class_name {}
             )*
 
             #godot_default_impl
@@ -241,9 +241,9 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
             #[allow(non_snake_case)]
             macro_rules! #inherits_macro {
                 ($Class:ident) => {
-                    unsafe impl ::godot::obj::Inherits<::godot::engine::#class_name> for $Class {}
+                    unsafe impl ::godot::obj::Inherits<::godot::classes::#class_name> for $Class {}
                     #(
-                        unsafe impl ::godot::obj::Inherits<::godot::engine::#all_bases> for $Class {}
+                        unsafe impl ::godot::obj::Inherits<::godot::classes::#all_bases> for $Class {}
                     )*
                 }
             }
@@ -313,6 +313,7 @@ fn make_class_module_file(classes_and_modules: Vec<GeneratedClassModule>) -> Tok
     quote! {
         #( #class_decls )*
 
+        /// Notification enums for all classes.
         pub mod notify {
             #( #notify_decls )*
         }
@@ -380,7 +381,7 @@ fn make_constructor_and_default(
         quote! {
             impl crate::obj::cap::GodotDefault for #class_name {
                 fn __godot_default() -> crate::obj::Gd<Self> {
-                    crate::engine::construct_engine_object::<Self>()
+                    crate::classes::construct_engine_object::<Self>()
                 }
             }
         }

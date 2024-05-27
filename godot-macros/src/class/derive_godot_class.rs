@@ -34,7 +34,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let is_editor_plugin = struct_cfg.is_editor_plugin;
     let is_hidden = struct_cfg.is_hidden;
     let base_ty = &struct_cfg.base_ty;
-    let base_class = quote! { ::godot::engine::#base_ty };
+    let base_class = quote! { ::godot::classes::#base_ty };
     let base_class_name_obj = util::class_name_obj(&base_class);
     let inherits_macro = format_ident!("unsafe_inherits_transitive_{}", base_ty);
 

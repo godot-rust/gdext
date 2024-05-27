@@ -14,7 +14,7 @@
 #![cfg(debug_assertions)]
 
 use godot::builtin::GString;
-use godot::engine::{Node, Node3D, Object};
+use godot::classes::{Node, Node3D, Object};
 use godot::obj::{Gd, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 

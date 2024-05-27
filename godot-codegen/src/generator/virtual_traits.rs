@@ -76,7 +76,7 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         /// to represent integers out of known constants (mistakes or future additions).
         ///
         /// This method is named `_notification` in Godot, but `on_notification` in Rust. To _send_ notifications, use the
-        /// [`Object::notify`][crate::engine::Object::notify] method.
+        /// [`Object::notify`][crate::classes::Object::notify] method.
         ///
         /// See also in Godot docs:
         /// * [`Object::_notification`](https://docs.godotengine.org/en/stable/classes/class_object.html#class-object-method-notification).
@@ -85,7 +85,7 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
             unimplemented!()
         }
 
-        /// Called whenever [`get()`](crate::engine::Object::get) is called or Godot gets the value of a property.
+        /// Called whenever [`get()`](crate::classes::Object::get) is called or Godot gets the value of a property.
         ///
         /// Should return the given `property`'s value as `Some(value)`, or `None` if the property should be handled normally.
         ///
@@ -95,7 +95,7 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
             unimplemented!()
         }
 
-        /// Called whenever Godot [`set()`](crate::engine::Object::set) is called or Godot sets the value of a property.
+        /// Called whenever Godot [`set()`](crate::classes::Object::set) is called or Godot sets the value of a property.
         ///
         /// Should set `property` to the given `value` and return `true`, or return `false` to indicate the `property`
         /// should be handled normally.
@@ -106,7 +106,7 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
             unimplemented!()
         }
 
-        /// Called whenever Godot [`get_property_list()`](crate::engine::Object::get_property_list) is called, the returned vector here is
+        /// Called whenever Godot [`get_property_list()`](crate::classes::Object::get_property_list) is called, the returned vector here is
         /// appended to the existing list of properties.
         ///
         /// This should mainly be used for advanced purposes, such as dynamically updating the property list in the editor.

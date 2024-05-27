@@ -8,7 +8,7 @@
 use godot::builtin::inner::InnerCallable;
 use godot::builtin::meta::ToGodot;
 use godot::builtin::{varray, Callable, GString, StringName, Variant};
-use godot::engine::{Node2D, Object};
+use godot::classes::{Node2D, Object};
 use godot::obj::{NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 

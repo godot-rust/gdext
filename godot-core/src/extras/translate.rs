@@ -9,7 +9,7 @@
 
 pub use crate::{tr, tr_n};
 
-/// A convenience macro for using the [`Object::tr()`](crate::engine::Object::tr()) and [`Object::tr_ex()`](crate::engine::Object::tr_ex())
+/// A convenience macro for using the [`Object::tr()`](crate::classes::Object::tr()) and [`Object::tr_ex()`](crate::classes::Object::tr_ex())
 ///  methods.
 ///
 /// Takes a format string literal, with optional arguments. Optionally, `context` for potentially ambiguous words can be
@@ -32,27 +32,27 @@ pub use crate::{tr, tr_n};
 /// // Not as good, much more fragile.
 /// tr!("{} is a {}", a, b);
 /// ```
-/// The methods are called from the [`Engine`](crate::engine::Engine) singleton.
+/// The methods are called from the [`Engine`](crate::classes::Engine) singleton.
 ///
 /// See also: [Translation contexts](https://docs.godotengine.org/en/stable/tutorials/i18n/internationalizing_games.html#translation-contexts)
 /// in Godot.
 #[macro_export]
 macro_rules! tr {
     ($fmt:literal $(, $($args:tt)*)?) => {
-        $crate::engine::Engine::singleton()
+        $crate::classes::Engine::singleton()
             .tr(format!($fmt $(, $($args)*)?).into())
     };
 
     ($context:expr; $fmt:literal $(, $($args:tt)*)?) => {
-        $crate::engine::Engine::singleton()
+        $crate::classes::Engine::singleton()
             .tr_ex(format!($fmt $(, $($args)*)?).into())
             .context(format!("{}", $context).into())
             .done()
     };
 }
 
-/// A convenience macro for using the [`Object::tr_n()`](crate::engine::Object::tr_n()) and
-/// [`Object::tr_n_ex()`](crate::engine::Object::tr_n_ex()) methods.
+/// A convenience macro for using the [`Object::tr_n()`](crate::classes::Object::tr_n()) and
+/// [`Object::tr_n_ex()`](crate::classes::Object::tr_n_ex()) methods.
 ///
 /// Allows for the use of format strings with arbitrary arguments. `n` is given prior to the format string, followed by `;`.
 /// Optionally, `context` for potentially ambiguous words can be added with `,` after `n` and before `;`.
@@ -76,14 +76,14 @@ macro_rules! tr {
 /// // Additionally, such syntax requires that BOTH format strings use ALL listed arguments.
 /// tr_n!(n; "{} is a {}", "{}s are {}s", a, b);
 /// ```
-/// The methods are called from the [`Engine`](crate::engine::Engine) singleton.
+/// The methods are called from the [`Engine`](crate::classes::Engine) singleton.
 ///
 /// See also: [Translation contexts](https://docs.godotengine.org/en/stable/tutorials/i18n/internationalizing_games.html#translation-contexts)
 /// in Godot.
 #[macro_export]
 macro_rules! tr_n {
     ($n:expr; $singular:literal, $plural:literal $(, $($args:tt)*)?) => {
-        $crate::engine::Engine::singleton()
+        $crate::classes::Engine::singleton()
             .tr_n(
                 format!($singular$(, $($args)*)?).into(),
                 format!($plural$(, $($args)*)?).into(),
@@ -92,7 +92,7 @@ macro_rules! tr_n {
     };
 
     ($n:expr, $context:expr; $singular:literal, $plural:literal $(, $($args:tt)*)?) => {
-        $crate::engine::Engine::singleton()
+        $crate::classes::Engine::singleton()
             .tr_n_ex(
                 format!($singular$(, $($args)*)?).into(),
                 format!($plural$(, $($args)*)?).into(),

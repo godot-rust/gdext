@@ -6,7 +6,7 @@
  */
 
 use crate::builtin::NodePath;
-use crate::engine::{Node, PackedScene};
+use crate::classes::{Node, PackedScene};
 use crate::obj::{Gd, Inherits};
 
 /// Manual extensions for the `Node` class.

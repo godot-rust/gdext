@@ -10,7 +10,7 @@
 
 use crate::framework::itest;
 use godot::builtin::inner::{InnerColor, InnerString};
-use godot::engine::{FileAccess, HttpRequest, IHttpRequest, Image};
+use godot::classes::{FileAccess, HttpRequest, IHttpRequest, Image};
 use godot::prelude::*;
 
 #[itest]

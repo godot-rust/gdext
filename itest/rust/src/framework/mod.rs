@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::engine::{Engine, Node, Os};
+use godot::classes::{Engine, Node, Os};
 use godot::obj::Gd;
 use godot::sys;
 use std::collections::HashSet;

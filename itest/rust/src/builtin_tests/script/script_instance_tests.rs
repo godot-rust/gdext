@@ -9,7 +9,7 @@ use std::ffi::c_void;
 
 use godot::builtin::meta::{ClassName, FromGodot, MethodInfo, PropertyInfo, ToGodot};
 use godot::builtin::{GString, StringName, Variant, VariantType};
-use godot::engine::{IScriptExtension, Object, Script, ScriptExtension, ScriptLanguage};
+use godot::classes::{IScriptExtension, Object, Script, ScriptExtension, ScriptLanguage};
 use godot::extras::{create_script_instance, ScriptInstance, SiMut};
 use godot::global::{MethodFlags, PropertyHint, PropertyUsageFlags};
 use godot::obj::{Base, Gd, WithBaseField};
