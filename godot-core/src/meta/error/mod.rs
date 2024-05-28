@@ -9,6 +9,8 @@
 
 mod call_error;
 mod convert_error;
+mod not_unique_error;
 
 pub use call_error::*;
 pub use convert_error::*;
+pub use not_unique_error::*;

@@ -175,6 +175,10 @@ pub trait DynMemory: Sealed {
     #[doc(hidden)]
     fn is_ref_counted<T: GodotClass>(obj: &RawGd<T>) -> Option<bool>;
 
+    /// Return the reference count, or `None` if the object is dead or manually managed.
+    #[doc(hidden)]
+    fn get_ref_count<T: GodotClass>(obj: &RawGd<T>) -> Option<usize>;
+
     /// Returns `true` if argument and return pointers are passed as `Ref<T>` pointers given this
     /// [`PtrcallType`].
     ///
@@ -236,6 +240,13 @@ impl DynMemory for MemRefCounted {
         Some(true)
     }
 
+    fn get_ref_count<T: GodotClass>(obj: &RawGd<T>) -> Option<usize> {
+        let ref_count = obj.with_ref_counted(|refc| refc.get_reference_count());
+
+        // TODO find a safer cast alternative, e.g. num-traits crate with ToPrimitive (Debug) + AsPrimitive (Release).
+        Some(ref_count as usize)
+    }
+
     fn pass_as_ref(call_type: sys::PtrcallType) -> bool {
         matches!(call_type, sys::PtrcallType::Virtual)
     }
@@ -244,30 +255,30 @@ impl DynMemory for MemRefCounted {
 /// Memory managed through Godot reference counter, if present; otherwise manual.
 /// This is used only for `Object` classes.
 pub struct MemDynamic {}
+impl MemDynamic {
+    /// Check whether dynamic type is ref-counted.
+    fn inherits_refcounted<T: GodotClass>(obj: &RawGd<T>) -> bool {
+        obj.instance_id_unchecked()
+            .map(|id| id.is_ref_counted())
+            .unwrap_or(false)
+    }
+}
 impl Sealed for MemDynamic {}
 impl DynMemory for MemDynamic {
     fn maybe_init_ref<T: GodotClass>(obj: &mut RawGd<T>) {
         out!("  MemDyn::init  <{}>", std::any::type_name::<T>());
-        if obj
-            .instance_id_unchecked()
-            .map(|id| id.is_ref_counted())
-            .unwrap_or(false)
-        {
+        if Self::inherits_refcounted(obj) {
             // Will call `RefCounted::init_ref()` which checks for liveness.
-            out!("MemDyn -> MemRefc");
+            out!("    MemDyn -> MemRefc");
             MemRefCounted::maybe_init_ref(obj)
         } else {
-            out!("MemDyn -> MemManu");
+            out!("    MemDyn -> MemManu");
         }
     }
 
     fn maybe_inc_ref<T: GodotClass>(obj: &mut RawGd<T>) {
         out!("  MemDyn::inc   <{}>", std::any::type_name::<T>());
-        if obj
-            .instance_id_unchecked()
-            .map(|id| id.is_ref_counted())
-            .unwrap_or(false)
-        {
+        if Self::inherits_refcounted(obj) {
             // Will call `RefCounted::reference()` which checks for liveness.
             MemRefCounted::maybe_inc_ref(obj)
         }
@@ -291,6 +302,14 @@ impl DynMemory for MemDynamic {
         // Return `None` if obj is dead
         obj.instance_id_unchecked().map(|id| id.is_ref_counted())
     }
+
+    fn get_ref_count<T: GodotClass>(obj: &RawGd<T>) -> Option<usize> {
+        if Self::inherits_refcounted(obj) {
+            MemRefCounted::get_ref_count(obj)
+        } else {
+            None
+        }
+    }
 }
 
 /// No memory management, user responsible for not leaking.
@@ -306,6 +325,9 @@ impl DynMemory for MemManual {
     }
     fn is_ref_counted<T: GodotClass>(_obj: &RawGd<T>) -> Option<bool> {
         Some(false)
+    }
+    fn get_ref_count<T: GodotClass>(_obj: &RawGd<T>) -> Option<usize> {
+        None
     }
 }
 

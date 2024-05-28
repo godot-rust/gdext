@@ -411,7 +411,7 @@ impl<T: GodotClass> Gd<T> {
     #[doc(hidden)]
     pub fn script_sys(&self) -> sys::GDExtensionScriptLanguagePtr
     where
-        T: Inherits<crate::classes::ScriptLanguage>,
+        T: Inherits<classes::ScriptLanguage>,
     {
         self.raw.script_sys()
     }
@@ -550,6 +550,43 @@ where
 
         // TODO: this might leak associated data in Gd<T>, e.g. ClassName.
         std::mem::forget(self);
+    }
+}
+
+/// _The methods in this impl block are only available for objects `T` that are reference-counted,
+/// i.e. anything that inherits `RefCounted`._ <br><br>
+impl<T> Gd<T>
+where
+    T: GodotClass + Bounds<Memory = bounds::MemRefCounted>,
+{
+    /// Makes sure that `self` does not share references with other `Gd` instances.
+    ///
+    /// If `self` is unique, i.e. its reference count is 1, then `Ok(self)` is returned.
+    ///
+    /// If `self` is shared or not reference-counted (`T=Object` pointing to a dynamic type that is manually managed),
+    /// then `Err((self, NotUniqueError))` is returned. You can thus reuse the original object (first element in the tuple).
+    ///
+    /// ## Example
+    ///
+    /// ```no_run
+    /// use godot::prelude::*;
+    /// use godot::meta::error::NotUniqueError;
+    ///
+    /// let unique = RefCounted::new_gd();
+    /// assert!(unique.try_to_unique().is_ok());
+    ///
+    /// let shared = RefCounted::new_gd();
+    /// let shared2 = shared.clone();
+    /// assert!(shared.try_to_unique().is_err());
+    /// ```
+    pub fn try_to_unique(mut self) -> Result<Self, (Self, NotUniqueError)> {
+        use crate::obj::bounds::DynMemory as _;
+
+        match <T as Bounds>::DynMemory::get_ref_count(&self.raw) {
+            Some(1) => Ok(self),
+            Some(ref_count) => Err((self, NotUniqueError::Shared { ref_count })),
+            None => Err((self, NotUniqueError::NotRefCounted)),
+        }
     }
 }
 
@@ -737,83 +774,5 @@ impl<T: GodotClass> std::hash::Hash for Gd<T> {
 impl<T: GodotClass> std::panic::UnwindSafe for Gd<T> {}
 impl<T: GodotClass> std::panic::RefUnwindSafe for Gd<T> {}
 
-/// Error stemming from the non-uniqueness of the [`Gd`] instance.
-///
-/// Keeping track of the uniqueness of references can be crucial in many applications, especially if we want to ensure
-/// that the passed [`Gd`] reference will be possessed by only one different object instance or function in its lifetime.
-///
-/// Only applicable to [`GodotClass`] objects that inherit from [`RefCounted`](crate::gen::classes::RefCounted). To check the
-/// uniqueness, call the `check()` associated method.
-///
-/// ## Example
-///
-/// ```no_run
-/// use godot::prelude::*;
-/// use godot::obj::NotUniqueError;
-///
-/// let shared = RefCounted::new_gd();
-/// let cloned = shared.clone();
-/// let result = NotUniqueError::check(shared);
-///
-/// assert!(result.is_err());
-///
-/// if let Err(error) = result {
-///     assert_eq!(error.get_reference_count(), 2)
-/// }
-/// ```
-#[derive(Debug)]
-pub struct NotUniqueError {
-    reference_count: i32,
-}
-
-impl NotUniqueError {
-    /// check [`Gd`] reference uniqueness.
-    ///
-    /// Checks the [`Gd`] of the [`GodotClass`](crate::obj::GodotClass) that inherits from [`RefCounted`](crate::gen::classes::RefCounted)
-    /// if it is an unique reference to the object.
-    ///
-    /// ## Example
-    ///
-    /// ```no_run
-    /// use godot::prelude::*;
-    /// use godot::obj::NotUniqueError;
-    ///
-    /// let unique = RefCounted::new_gd();
-    /// assert!(NotUniqueError::check(unique).is_ok());
-    ///
-    /// let shared = RefCounted::new_gd();
-    /// let cloned = shared.clone();
-    /// assert!(NotUniqueError::check(shared).is_err());
-    /// assert!(NotUniqueError::check(cloned).is_err());
-    /// ```
-    pub fn check<T>(rc: Gd<T>) -> Result<Gd<T>, Self>
-    where
-        T: Inherits<crate::gen::classes::RefCounted>,
-    {
-        let rc = rc.upcast::<crate::gen::classes::RefCounted>();
-        let reference_count = rc.get_reference_count();
-
-        if reference_count != 1 {
-            Err(Self { reference_count })
-        } else {
-            Ok(rc.cast::<T>())
-        }
-    }
-
-    /// Get the detected reference count
-    pub fn get_reference_count(&self) -> i32 {
-        self.reference_count
-    }
-}
-
-impl std::error::Error for NotUniqueError {}
-
-impl std::fmt::Display for NotUniqueError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "pointer is not unique, current reference count: {}",
-            self.reference_count
-        )
-    }
-}
+#[deprecated = "Moved to `godot::meta::error`"]
+pub use crate::meta::error::NotUniqueError;

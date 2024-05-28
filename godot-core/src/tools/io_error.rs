@@ -85,9 +85,9 @@ impl IoError {
             });
         }
 
-        match NotUniqueError::check(file_access) {
+        match file_access.try_to_unique() {
             Ok(gd) => Ok(gd),
-            Err(err) => Err(Self {
+            Err((_, err)) => Err(Self {
                 data: ErrorData::GFile(GFileError {
                     kind: GFileErrorKind::NotUniqueRef(err),
                     path: path.to_string(),
