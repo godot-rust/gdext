@@ -7,7 +7,7 @@
 
 //! Different ways how bounds of a `GodotClass` can be checked.
 //!
-//! This module contains three traits that can be used to check the characteristics of a `GodotClass` type:
+//! This module contains multiple traits that can be used to check the characteristics of a `GodotClass` type:
 //!
 //! 1. [`Declarer`] tells you whether the class is provided by the engine or user-defined.
 //!    - [`DeclEngine`] is used for all classes provided by the engine (e.g. `Node3D`).
@@ -19,15 +19,16 @@
 //!    - [`MemRefCounted`] is used for `RefCounted` classes and derived.
 //!    - [`MemManual`] is used for `Object` and all inherited classes, which are not `RefCounted` (e.g. `Node`).<br><br>
 //!
-//! 3. [`DynMemory`] is used to check the memory strategy of the **dynamic** type.
-//!
-//!    When you operate on methods of `T` or `Gd<T>` and are interested in instances, you can use this.
-//!    Most of the time, this is not what you want -- just use `Memory` if you want to know if a type is manually managed or ref-counted.
-//!    - [`MemRefCounted`] is used for `RefCounted` classes and derived. These are **always** reference-counted.
-//!    - [`MemManual`] is used instances inheriting `Object`, which are not `RefCounted` (e.g. `Node`). Excludes `Object` itself. These are
-//!      **always** manually managed.
-//!    - [`MemDynamic`] is used for `Object` instances. `Gd<Object>` can point to objects of any possible class, so whether we are dealing with
-//!      a ref-counted or manually-managed object is determined only at runtime.
+// FIXME excluded because broken; see below.
+// 3. [`DynMemory`] is used to check the memory strategy of the **dynamic** type.
+//
+//    When you operate on methods of `T` or `Gd<T>` and are interested in instances, you can use this.
+//    Most of the time, this is not what you want -- just use `Memory` if you want to know if a type is manually managed or ref-counted.
+//    - [`MemRefCounted`] is used for `RefCounted` classes and derived. These are **always** reference-counted.
+//    - [`MemManual`] is used instances inheriting `Object`, which are not `RefCounted` (e.g. `Node`). Excludes `Object` itself. These are
+//      **always** manually managed.
+//    - [`MemDynamic`] is used for `Object` instances. `Gd<Object>` can point to objects of any possible class, so whether we are dealing with
+//      a ref-counted or manually-managed object is determined only at runtime.
 //!
 //!
 //! # Example
@@ -44,7 +45,7 @@
 //! }
 //! ```
 //!
-//! Note that depending on if you want to exclude `Object`, you should use `DynMemory` instead of `Memory`.
+// Note that depending on if you want to exclude `Object`, you should use `DynMemory` instead of `Memory`.
 
 use crate::obj::cap::GodotDefault;
 use crate::obj::{Bounds, Gd, GodotClass, RawGd};
@@ -86,6 +87,10 @@ pub(super) mod private {
         /// Defines the memory strategy of the static type.
         type Memory: Memory;
 
+        // FIXME: this is broken as a bound: one cannot use T: Bounds<DynMemory = MemRefCounted> to include Object AND RefCounted,
+        // since Object itself has DynMemory = MemDynamic. Needs to either use traits like in gdnative, or more types to account for
+        // different combinations (as only positive ones can be expressed, not T: Bounds<Memory != MemManual>).
+        #[doc(hidden)]
         /// Defines the memory strategy of the instance (at runtime).
         type DynMemory: DynMemory;
 
@@ -146,6 +151,7 @@ pub trait Memory: Sealed {}
 /// Specifies the memory strategy of the dynamic type.
 ///
 /// For `Gd<Object>`, it is determined at runtime whether the instance is manually managed or ref-counted.
+#[doc(hidden)]
 pub trait DynMemory: Sealed {
     /// Initialize reference counter
     #[doc(hidden)]
@@ -254,6 +260,7 @@ impl DynMemory for MemRefCounted {
 
 /// Memory managed through Godot reference counter, if present; otherwise manual.
 /// This is used only for `Object` classes.
+#[doc(hidden)]
 pub struct MemDynamic {}
 impl MemDynamic {
     /// Check whether dynamic type is ref-counted.
