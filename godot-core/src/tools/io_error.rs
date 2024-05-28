@@ -6,10 +6,11 @@
  */
 
 use std::error::Error;
+use std::fmt;
 
 use crate::gen::classes::FileAccess;
 use crate::global::Error as GodotError;
-use crate::obj::{Gd, NotUniqueError};
+use crate::obj::Gd;
 
 /// Error that can occur while using `gdext` IO utilities.
 #[derive(Debug)]
@@ -17,8 +18,8 @@ pub struct IoError {
     data: ErrorData,
 }
 
-impl std::fmt::Display for IoError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for IoError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.data {
             ErrorData::Load(err) => err.fmt(f),
             ErrorData::Save(err) => err.fmt(f),
@@ -29,14 +30,12 @@ impl std::fmt::Display for IoError {
 
 impl Error for IoError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        if let ErrorData::GFile(GFileError {
-            kind: GFileErrorKind::NotUniqueRef(err),
-            ..
-        }) = &self.data
-        {
-            return Some(err);
+        // Note: inner types are not public, but the dyn trait can be used.
+        match &self.data {
+            ErrorData::Load(err) => Some(err),
+            ErrorData::Save(err) => Some(err),
+            ErrorData::GFile(err) => Some(err),
         }
-        None
     }
 }
 
@@ -87,9 +86,9 @@ impl IoError {
 
         match file_access.try_to_unique() {
             Ok(gd) => Ok(gd),
-            Err((_, err)) => Err(Self {
+            Err((_drop, ref_count)) => Err(Self {
                 data: ErrorData::GFile(GFileError {
-                    kind: GFileErrorKind::NotUniqueRef(err),
+                    kind: GFileErrorKind::NotUniqueRef { ref_count },
                     path: path.to_string(),
                 }),
             }),
@@ -97,12 +96,16 @@ impl IoError {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[derive(Debug)]
 enum ErrorData {
     Load(LoaderError),
     Save(SaverError),
     GFile(GFileError),
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(Debug)]
 struct LoaderError {
@@ -117,8 +120,10 @@ enum LoaderErrorKind {
     Cast,
 }
 
-impl std::fmt::Display for LoaderError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Error for LoaderError {}
+
+impl fmt::Display for LoaderError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let class = &self.class;
         let path = &self.path;
 
@@ -135,6 +140,8 @@ impl std::fmt::Display for LoaderError {
     }
 }
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 #[derive(Debug)]
 struct SaverError {
     class: String,
@@ -142,8 +149,10 @@ struct SaverError {
     godot_error: GodotError,
 }
 
-impl std::fmt::Display for SaverError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Error for SaverError {}
+
+impl fmt::Display for SaverError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let class = &self.class;
         let path = &self.path;
         let godot_error = &self.godot_error;
@@ -151,6 +160,8 @@ impl std::fmt::Display for SaverError {
         write!(f, "can't save resource of class: '{class}' to path: '{path}'; Godot error: {godot_error:?}")
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(Debug)]
 struct GFileError {
@@ -160,17 +171,22 @@ struct GFileError {
 
 #[derive(Debug)]
 enum GFileErrorKind {
-    NotUniqueRef(NotUniqueError),
+    NotUniqueRef { ref_count: usize },
     NotOpen,
 }
 
-impl std::fmt::Display for GFileError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Error for GFileError {}
+
+impl fmt::Display for GFileError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let path = &self.path;
 
         match &self.kind {
-            GFileErrorKind::NotUniqueRef(err) => {
-                write!(f, "access to file '{path}' is not unique: '{err}'")
+            GFileErrorKind::NotUniqueRef { ref_count } => {
+                write!(
+                    f,
+                    "Gd<FileAccess> for '{path}' is not unique (ref-count {ref_count})"
+                )
             }
             GFileErrorKind::NotOpen => write!(f, "access to file '{path}' is not open"),
         }

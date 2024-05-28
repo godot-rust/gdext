@@ -561,31 +561,32 @@ where
 {
     /// Makes sure that `self` does not share references with other `Gd` instances.
     ///
-    /// If `self` is unique, i.e. its reference count is 1, then `Ok(self)` is returned.
-    ///
-    /// If `self` is shared or not reference-counted (`T=Object` pointing to a dynamic type that is manually managed),
-    /// then `Err((self, NotUniqueError))` is returned. You can thus reuse the original object (first element in the tuple).
+    /// Succeeds if the reference count is 1.
+    /// Otherwise, returns the shared object and its reference count.
     ///
     /// ## Example
     ///
     /// ```no_run
     /// use godot::prelude::*;
-    /// use godot::meta::error::NotUniqueError;
     ///
-    /// let unique = RefCounted::new_gd();
-    /// assert!(unique.try_to_unique().is_ok());
-    ///
-    /// let shared = RefCounted::new_gd();
-    /// let shared2 = shared.clone();
-    /// assert!(shared.try_to_unique().is_err());
+    /// let obj = RefCounted::new_gd();
+    /// match obj.try_to_unique() {
+    ///    Ok(unique_obj) => {
+    ///        // No other Gd<T> shares a reference with `unique_obj`.
+    ///    },
+    ///    Err((shared_obj, ref_count)) => {
+    ///        // `shared_obj` is the original object `obj`.
+    ///        // `ref_count` is the total number of references (including one held by `shared_obj`).
+    ///    }
+    /// }
     /// ```
-    pub fn try_to_unique(mut self) -> Result<Self, (Self, NotUniqueError)> {
+    pub fn try_to_unique(self) -> Result<Self, (Self, usize)> {
         use crate::obj::bounds::DynMemory as _;
 
         match <T as Bounds>::DynMemory::get_ref_count(&self.raw) {
             Some(1) => Ok(self),
-            Some(ref_count) => Err((self, NotUniqueError::Shared { ref_count })),
-            None => Err((self, NotUniqueError::NotRefCounted)),
+            Some(ref_count) => Err((self, ref_count)),
+            None => unreachable!(),
         }
     }
 }
@@ -774,5 +775,5 @@ impl<T: GodotClass> std::hash::Hash for Gd<T> {
 impl<T: GodotClass> std::panic::UnwindSafe for Gd<T> {}
 impl<T: GodotClass> std::panic::RefUnwindSafe for Gd<T> {}
 
-#[deprecated = "Moved to `godot::meta::error`"]
-pub use crate::meta::error::NotUniqueError;
+#[deprecated = "Removed; see `Gd::try_to_unique()`"]
+pub type NotUniqueError = ();

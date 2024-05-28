@@ -14,7 +14,6 @@ use godot::classes::{
     RefCounted,
 };
 use godot::global::instance_from_id;
-use godot::meta::error::NotUniqueError;
 use godot::meta::{FromGodot, GodotType, ToGodot};
 use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd};
 use godot::register::{godot_api, GodotClass};
@@ -849,19 +848,9 @@ fn object_try_to_unique() {
     assert_eq!(a.instance_id(), id);
 
     let b = a.clone();
-    let (b, err) = b.try_to_unique().expect_err("b.try_to_unique()");
+    let (b, ref_count) = b.try_to_unique().expect_err("b.try_to_unique()");
     assert_eq!(b.instance_id(), id);
-    assert!(matches!(err, NotUniqueError::Shared { ref_count: 2 }));
-
-    /* Re-enable if DynMemory is fixed.
-
-    let c = Object::new_alloc(); // manually managed
-    let id = c.instance_id();
-    let (c, err) = c.try_to_unique().expect_err("c.try_to_unique()");
-    assert_eq!(c.instance_id(), id);
-    assert!(matches!(err, NotUniqueError::NotRefCounted));
-    c.free();
-    */
+    assert_eq!(ref_count, 2);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
