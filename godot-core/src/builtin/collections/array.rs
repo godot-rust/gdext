@@ -45,6 +45,60 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 /// If you want to create a copy of the data, use [`duplicate_shallow()`][Self::duplicate_shallow]
 /// or [`duplicate_deep()`][Self::duplicate_deep].
 ///
+/// # Typed array example
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// // Create typed Array<i64> and add values.
+/// let mut array = Array::new();
+/// array.push(10);
+/// array.push(20);
+/// array.push(30);
+///
+/// // Or create the same array in a single expression.
+/// let array = array![10, 20, 30];
+///
+/// // Access elements.
+/// let value: i64 = array.at(0); // 10
+/// let maybe: Option<i64> = array.get(3); // None
+///
+/// // Iterate over i64 elements.
+/// for value in array.iter_shared() {
+///    println!("{value}");
+/// }
+///
+/// // Clone array (shares the reference), and overwrite elements through clone.
+/// let mut cloned = array.clone();
+/// cloned.set(0, 50); // [50, 20, 30]
+/// cloned.remove(1);  // [50, 30]
+/// cloned.pop();      // [50]
+///
+/// // Changes will be reflected in the original array.
+/// assert_eq!(array.len(), 1);
+/// assert_eq!(array.front(), Some(50));
+/// ```
+///
+/// # Untyped array example
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// // VariantArray allows dynamic element types.
+/// let mut array = VariantArray::new();
+/// array.push(10.to_variant());
+/// array.push("Hello".to_variant());
+///
+/// // Or equivalent, use the `varray!` macro which converts each element.
+/// let array = varray![10, "Hello"];
+///
+/// // Access elements.
+/// let value: Variant = array.at(0);
+/// let value: i64 = array.at(0).to(); // Variant::to() extracts i64.
+/// let maybe: Result<i64, _> = array.at(1).try_to(); // "Hello" is not i64 -> Err.
+/// let maybe: Option<Variant> = array.get(3);
+///
+/// // ...and so on.
+/// ```
+///
 /// # Thread safety
 ///
 /// Usage is safe if the `Array` is used on a single thread only. Concurrent reads on

@@ -23,6 +23,53 @@ use std::{fmt, ptr};
 /// The keys and values of the dictionary are all `Variant`s, so they can be of different types.
 /// Variants are designed to be generally cheap to clone.
 ///
+/// # Dictionary example
+///
+/// ```no_run
+/// # use godot::prelude::*;
+/// // Create empty dictionary and add key-values pairs.
+/// let mut dict = Dictionary::new();
+/// dict.set("str", "Hello");
+/// dict.set("num", 23);
+///
+/// // Keys don't need to be strings.
+/// let coord = Vector2i::new(0, 1);
+/// dict.set(coord, "Tile77");
+///
+/// // Or create the same dictionary in a single expression.
+/// let dict = dict! {
+///    "str": "Hello",
+///    "num": 23,
+///    coord: "Tile77",
+/// };
+///
+/// // Access elements.
+/// let value: Variant = dict.at("str");
+/// let value: GString = dict.at("str").to(); // Variant::to() extracts GString.
+/// let maybe: Option<Variant> = dict.get("absent_key");
+///
+/// // Iterate over key-value pairs as (Variant, Variant).
+/// for (key, value) in dict.iter_shared() {
+///     println!("{key} => {value}");
+/// }
+///
+/// // Use typed::<K, V>() to get typed iterators.
+/// for (key, value) in dict.iter_shared().typed::<GString, Variant>() {
+///     println!("{key} => {value}");
+/// }
+///
+/// // Clone dictionary (shares the reference), and overwrite elements through clone.
+/// let mut cloned = dict.clone();
+/// cloned.remove("num");
+///
+/// // Overwrite with set(); use insert() to get the previous value.
+/// let prev = cloned.insert("str", "Goodbye"); // prev == Some("Hello")
+///
+/// // Changes will be reflected in the original dictionary.
+/// assert_eq!(dict.at("str"), "Goodbye".to_variant());
+/// assert_eq!(dict.get("num"), None);
+/// ```
+///
 /// # Thread safety
 ///
 /// The same principles apply as for [`VariantArray`]. Consult its documentation for details.
@@ -246,7 +293,7 @@ impl Dictionary {
     /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
     ///
-    /// Use `iter_shared().typed::<K, V>()` to iterate over `(K, V)` pairs instead.
+    /// Use `dict.iter_shared().typed::<K, V>()` to iterate over `(K, V)` pairs instead.
     pub fn iter_shared(&self) -> Iter<'_> {
         Iter::new(self)
     }
@@ -259,7 +306,7 @@ impl Dictionary {
     /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
     /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
     ///
-    /// Use `.keys_shared.typed::<K>()` to iterate over `K` keys instead.
+    /// Use `dict.keys_shared().typed::<K>()` to iterate over `K` keys instead.
     pub fn keys_shared(&self) -> Keys<'_> {
         Keys::new(self)
     }
