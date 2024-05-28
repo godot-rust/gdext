@@ -160,6 +160,7 @@ impl Dictionary {
     /// Insert a value at the given key, returning the previous value for that key (if available).
     ///
     /// If you don't need the previous value, use [`set()`][Self::set] instead.
+    #[must_use]
     pub fn insert<K: ToGodot, V: ToGodot>(&mut self, key: K, value: V) -> Option<Variant> {
         let key = key.to_variant();
         let old_value = self.get(key.clone());
