@@ -150,7 +150,7 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
         quote! {
             pub fn from_outer_typed<T>(outer: &Array<T>) -> Self
                 where
-                    T: crate::builtin::meta::ArrayElement
+                    T: crate::meta::ArrayElement
             {
                 Self {
                     _outer_lifetime: std::marker::PhantomData,

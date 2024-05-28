@@ -6,9 +6,9 @@
  */
 
 use crate::builder::ClassBuilder;
-use crate::builtin::meta::ClassName;
 use crate::builtin::GString;
 use crate::init::InitLevel;
+use crate::meta::ClassName;
 use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
 use crate::storage::Storage;
 
@@ -526,7 +526,7 @@ pub mod cap {
     #[doc(hidden)]
     pub trait GodotGetPropertyList: GodotClass {
         #[doc(hidden)]
-        fn __godot_get_property_list(&mut self) -> Vec<crate::builtin::meta::PropertyInfo>;
+        fn __godot_get_property_list(&mut self) -> Vec<crate::meta::PropertyInfo>;
     }
 
     #[doc(hidden)]

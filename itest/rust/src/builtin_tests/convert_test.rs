@@ -5,11 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::meta::{ConvertError, FromGodot, GodotConvert, ToGodot};
 use godot::builtin::{
     dict, Array, Dictionary, GString, Variant, VariantArray, Vector2, Vector2Axis,
 };
 use godot::classes::{Node, Resource};
+use godot::meta::error::ConvertError;
+use godot::meta::{FromGodot, GodotConvert, ToGodot};
 use godot::obj::{Gd, NewAlloc};
 
 use crate::framework::itest;

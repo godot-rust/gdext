@@ -47,13 +47,11 @@ pub mod __prelude_reexport {
     use super::*;
 
     pub use aabb::*;
-    pub use array_inner::{Array, VariantArray};
     pub use basis::*;
     pub use callable::*;
+    pub use collections::containers::*;
     pub use color::*;
     pub use color_hsv::*;
-    pub use dictionary_inner::Dictionary;
-    pub use packed_array::*;
     pub use plane::*;
     pub use projection::*;
     pub use quaternion::*;
@@ -74,20 +72,12 @@ pub mod __prelude_reexport {
 
 pub use __prelude_reexport::*;
 
-/// Meta-information about variant types, properties and class names.
-pub mod meta;
-
 /// Math-related functions and traits like [`ApproxEq`][math::ApproxEq].
 pub mod math;
 
-/// Specialized types related to arrays.
-pub mod array {
-    pub use super::array_inner::Iter;
-}
-
-/// Specialized types related to dictionaries.
-pub mod dictionary {
-    pub use super::dictionary_inner::{Iter, Keys, TypedIter, TypedKeys};
+/// Iterator types for arrays and dictionaries.
+pub mod iter {
+    pub use super::collections::iterators::*;
 }
 
 /// Specialized types related to Godot's various string implementations.
@@ -105,10 +95,10 @@ mod macros;
 mod aabb;
 mod basis;
 mod callable;
+mod collections;
 mod color;
 mod color_constants; // After color, so that constants are listed after methods in docs (alphabetic ensures that).
 mod color_hsv;
-mod packed_array;
 mod plane;
 mod projection;
 mod quaternion;
@@ -123,10 +113,6 @@ mod variant;
 mod vectors;
 
 // Rename imports because we re-export a subset of types under same module names.
-#[path = "array.rs"]
-mod array_inner;
-#[path = "dictionary.rs"]
-mod dictionary_inner;
 #[path = "real.rs"]
 mod real_inner;
 
@@ -147,16 +133,29 @@ pub(crate) fn to_isize(i: usize) -> isize {
     i.try_into().unwrap()
 }
 
-pub(crate) fn u8_to_bool(u: u8) -> bool {
-    match u {
-        0 => false,
-        1 => true,
-        _ => panic!("Invalid boolean value {u}"),
-    }
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Deprecated symbols
+
+/// Specialized types related to arrays.
+#[deprecated = "Merged into `godot::builtin::iter`."]
+pub mod array {
+    pub type Iter<'a, T> = super::iter::ArrayIter<'a, T>;
 }
 
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Deprecated enums
+/// Specialized types related to dictionaries.
+#[deprecated = "Merged into `godot::builtin::iter`."]
+pub mod dictionary {
+    pub type Iter<'a> = super::iter::DictIter<'a>;
+    pub type Keys<'a> = super::iter::DictKeys<'a>;
+    pub type TypedIter<'a, K, V> = super::iter::DictTypedIter<'a, K, V>;
+    pub type TypedKeys<'a, K> = super::iter::DictTypedKeys<'a, K>;
+}
+
+#[deprecated = "Moved to `godot::meta` and submodules."]
+pub mod meta {
+    pub use crate::meta::error::*;
+    pub use crate::meta::*;
+}
 
 /// The side of a [`Rect2`] or [`Rect2i`].
 ///

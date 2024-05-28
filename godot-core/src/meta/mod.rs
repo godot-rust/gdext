@@ -5,266 +5,41 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-pub mod registration;
+//! Meta-information about variant types, properties and class names.
 
-mod call_error;
+mod array_type_info;
 mod class_name;
 mod godot_convert;
+mod sealed;
 mod signature;
+mod traits;
 
-pub use call_error::*;
-pub use class_name::*;
-pub use godot_convert::*;
-#[doc(hidden)]
-pub use signature::*;
+pub mod error;
+pub use class_name::ClassName;
+pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
+pub use traits::{ArrayElement, GodotType};
 
-pub(crate) use godot_convert::convert_error::*;
+pub(crate) use crate::impl_godot_as_self;
+pub(crate) use array_type_info::ArrayTypeInfo;
+pub(crate) use traits::{GodotFfiVariant, GodotNullableFfi};
 
 use crate::builtin::*;
-use crate::global::{self, PropertyHint, PropertyUsageFlags};
-use crate::property::Var;
-use crate::property::{Export, PropertyHintInfo};
+use crate::global::{MethodFlags, PropertyHint, PropertyUsageFlags};
+use crate::registry::method::MethodParamOrReturnInfo;
+use crate::registry::property::{Export, PropertyHintInfo, Var};
 use godot_ffi as sys;
-use registration::method::MethodParamOrReturnInfo;
-use sys::{GodotFfi, GodotNullableFfi};
+
+#[doc(hidden)]
+pub use signature::*;
 
 #[cfg(feature = "trace")]
 pub use signature::trace;
 
-/// Conversion of [`GodotFfi`] types to/from [`Variant`].
-#[doc(hidden)]
-pub trait GodotFfiVariant: Sized + GodotFfi {
-    fn ffi_to_variant(&self) -> Variant;
-    fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError>;
-}
-
-mod sealed {
-    // To ensure the user does not implement `GodotType` for their own types.
-
-    use godot_ffi::GodotNullableFfi;
-
-    use super::{ArrayElement, GodotType};
-    use crate::builtin::*;
-    use crate::obj::*;
-
-    pub trait Sealed {}
-
-    impl Sealed for Aabb {}
-    impl Sealed for Basis {}
-    impl Sealed for Callable {}
-    impl Sealed for Vector2 {}
-    impl Sealed for Vector3 {}
-    impl Sealed for Vector4 {}
-    impl Sealed for Vector2i {}
-    impl Sealed for Vector3i {}
-    impl Sealed for Vector4i {}
-    impl Sealed for Quaternion {}
-    impl Sealed for Color {}
-    impl Sealed for GString {}
-    impl Sealed for StringName {}
-    impl Sealed for NodePath {}
-    impl Sealed for PackedByteArray {}
-    impl Sealed for PackedInt32Array {}
-    impl Sealed for PackedInt64Array {}
-    impl Sealed for PackedFloat32Array {}
-    impl Sealed for PackedFloat64Array {}
-    impl Sealed for PackedStringArray {}
-    impl Sealed for PackedVector2Array {}
-    impl Sealed for PackedVector3Array {}
-    #[cfg(since_api = "4.3")]
-    impl Sealed for PackedVector4Array {}
-    impl Sealed for PackedColorArray {}
-    impl Sealed for Plane {}
-    impl Sealed for Projection {}
-    impl Sealed for Rid {}
-    impl Sealed for Rect2 {}
-    impl Sealed for Rect2i {}
-    impl Sealed for Signal {}
-    impl Sealed for Transform2D {}
-    impl Sealed for Transform3D {}
-    impl Sealed for Dictionary {}
-    impl Sealed for bool {}
-    impl Sealed for i64 {}
-    impl Sealed for i32 {}
-    impl Sealed for i16 {}
-    impl Sealed for i8 {}
-    impl Sealed for u64 {}
-    impl Sealed for u32 {}
-    impl Sealed for u16 {}
-    impl Sealed for u8 {}
-    impl Sealed for f64 {}
-    impl Sealed for f32 {}
-    impl Sealed for () {}
-    impl Sealed for Variant {}
-    impl<T: ArrayElement> Sealed for Array<T> {}
-    impl<T: GodotClass> Sealed for RawGd<T> {}
-    impl<T: GodotClass> Sealed for Gd<T> {}
-    impl<T> Sealed for Option<T>
-    where
-        T: GodotType,
-        T::Ffi: GodotNullableFfi,
-    {
-    }
-}
-
-/// Type that is directly representable in the engine.
-///
-/// This trait cannot be implemented for custom user types; for those, [`GodotConvert`] exists instead.
-/// A type implements `GodotType` when Godot has a direct, native representation for it. For instance:
-/// - [`i64`] implements `GodotType`, since it can be directly represented by Godot's `int` type.
-/// - But [`VariantType`] does not implement `GodotType`. While it is an enum Godot uses, we have no native way to indicate
-///   to Godot that a value should be one of the variants of `VariantType`.
-//
-// Unlike `GodotFfi`, types implementing this trait don't need to fully represent its corresponding Godot
-// type. For instance [`i32`] does not implement `GodotFfi` because it cannot represent all values of
-// Godot's `int` type, however it does implement `GodotType` because we can set the metadata of values with
-// this type to indicate that they are 32 bits large.
-pub trait GodotType:
-    GodotConvert<Via = Self> + ToGodot + FromGodot + sealed::Sealed + 'static
-{
-    #[doc(hidden)]
-    type Ffi: GodotFfiVariant;
-
-    #[doc(hidden)]
-    fn to_ffi(&self) -> Self::Ffi;
-
-    #[doc(hidden)]
-    fn into_ffi(self) -> Self::Ffi;
-
-    #[doc(hidden)]
-    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError>;
-
-    #[doc(hidden)]
-    fn from_ffi(ffi: Self::Ffi) -> Self {
-        Self::try_from_ffi(ffi).unwrap()
-    }
-
-    #[doc(hidden)]
-    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-        Self::Ffi::default_param_metadata()
-    }
-
-    #[doc(hidden)]
-    fn class_name() -> ClassName {
-        // If we use `ClassName::of::<()>()` then this type shows up as `(no base)` in documentation.
-        ClassName::none()
-    }
-
-    #[doc(hidden)]
-    fn property_info(property_name: &str) -> PropertyInfo {
-        PropertyInfo {
-            variant_type: Self::Ffi::variant_type(),
-            class_name: Self::class_name(),
-            property_name: StringName::from(property_name),
-            hint: PropertyHint::NONE,
-            hint_string: GString::new(),
-            usage: PropertyUsageFlags::DEFAULT,
-        }
-    }
-
-    #[doc(hidden)]
-    fn argument_info(property_name: &str) -> MethodParamOrReturnInfo {
-        MethodParamOrReturnInfo::new(Self::property_info(property_name), Self::param_metadata())
-    }
-
-    #[doc(hidden)]
-    fn return_info() -> Option<MethodParamOrReturnInfo> {
-        Some(MethodParamOrReturnInfo::new(
-            Self::property_info(""),
-            Self::param_metadata(),
-        ))
-    }
-
-    #[doc(hidden)]
-    fn godot_type_name() -> String;
-
-    /// Special-casing for `FromVariant` conversions higher up: true if the variant can be interpreted as `Option<Self>::None`.
-    ///
-    /// Returning false only means that this is not a special case, not that it cannot be `None`. Regular checks are expected to run afterwards.
-    ///
-    /// This exists only for varcalls and serves a similar purpose as `GodotNullableFfi::is_null()` (although that handles general cases).
-    #[doc(hidden)]
-    fn qualifies_as_special_none(_from_variant: &Variant) -> bool {
-        false
-    }
-}
-
-impl<T> GodotType for Option<T>
-where
-    T: GodotType,
-    T::Ffi: GodotNullableFfi,
-{
-    type Ffi = T::Ffi;
-
-    fn to_ffi(&self) -> Self::Ffi {
-        GodotNullableFfi::flatten_option(self.as_ref().map(|t| t.to_ffi()))
-    }
-
-    fn into_ffi(self) -> Self::Ffi {
-        GodotNullableFfi::flatten_option(self.map(|t| t.into_ffi()))
-    }
-
-    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
-        if ffi.is_null() {
-            return Ok(None);
-        }
-
-        GodotType::try_from_ffi(ffi).map(Some)
-    }
-
-    fn from_ffi(ffi: Self::Ffi) -> Self {
-        if ffi.is_null() {
-            return None;
-        }
-
-        Some(GodotType::from_ffi(ffi))
-    }
-
-    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-        T::param_metadata()
-    }
-
-    fn class_name() -> ClassName {
-        T::class_name()
-    }
-
-    fn property_info(property_name: &str) -> PropertyInfo {
-        T::property_info(property_name)
-    }
-
-    fn argument_info(property_name: &str) -> MethodParamOrReturnInfo {
-        T::argument_info(property_name)
-    }
-
-    fn return_info() -> Option<MethodParamOrReturnInfo> {
-        T::return_info()
-    }
-
-    fn godot_type_name() -> String {
-        T::godot_type_name()
-    }
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Marker trait to identify types that can be stored in [`Array<T>`][crate::builtin::Array].
+/// Describes a property in Godot.
 ///
-/// The types for which this trait is implemented, overlap mostly with [`GodotType`].
-/// This is done consistently what GDScript allows inside `Array[T]`.
-///
-/// Notable differences are:
-/// - Only `VariantArray`, not `Array<T>` is allowed (typed arrays cannot be nested).
-/// - `Option` is only supported for `Option<Gd<T>>`, but not e.g. `Option<i32>`.
-#[diagnostic::on_unimplemented(
-    message = "`Array<T>` can only store element types supported in Godot arrays (no nesting).",
-    label = "does not implement `Var`",
-    note = "see also: https://godot-rust.github.io/docs/gdext/master/godot/builtin/meta/trait.ArrayElement.html"
-)]
-pub trait ArrayElement: GodotType {}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Rusty abstraction of `sys::GDExtensionPropertyInfo`.
+/// Abstraction of the low-level `sys::GDExtensionPropertyInfo`.
 ///
 /// Keeps the actual allocated values (the `sys` equivalent only keeps pointers, which fall out of scope).
 #[derive(Debug, Clone)]
@@ -318,7 +93,7 @@ impl PropertyInfo {
 
     /// Change the `hint` and `hint_string` to be the given `hint_info`.
     ///
-    /// See [`export_info_functions`](crate::property::export_info_functions) for functions that return appropriate `PropertyHintInfo`s for
+    /// See [`export_info_functions`](crate::registry::property::export_info_functions) for functions that return appropriate `PropertyHintInfo`s for
     /// various Godot annotations.
     ///
     /// # Examples
@@ -328,7 +103,7 @@ impl PropertyInfo {
     // TODO: Make this nicer to use.
     /// ```no_run
     /// use godot::register::property::export_info_functions;
-    /// use godot::builtin::meta::PropertyInfo;
+    /// use godot::meta::PropertyInfo;
     ///
     /// let property = PropertyInfo::new_export::<f64>("my_range_property")
     ///     .with_hint_info(export_info_functions::export_range(
@@ -449,7 +224,11 @@ impl PropertyInfo {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-// TODO(bromeon): Rename to ScriptMethodInfo; check difference with with existing MethodInfo; public fields good as-is?
+/// Describes a method in Godot.
+///
+/// Abstraction of the low-level `sys::GDExtensionMethodInfo`.
+// Currently used for ScriptInstance.
+// TODO check overlap with (private) ClassMethodInfo.
 #[derive(Debug, Clone)]
 pub struct MethodInfo {
     pub id: i32,
@@ -458,14 +237,14 @@ pub struct MethodInfo {
     pub return_type: PropertyInfo,
     pub arguments: Vec<PropertyInfo>,
     pub default_arguments: Vec<Variant>,
-    pub flags: global::MethodFlags,
+    pub flags: MethodFlags,
 }
 
 impl MethodInfo {
     /// Converts to the FFI type. Keep this object allocated while using that!
     ///
     /// The struct returned by this function contains pointers into the fields of `self`. `self` should therefore not be dropped while the
-    /// [`sys::GDExtensionMethodInfo`] is still in use.
+    /// `sys::GDExtensionMethodInfo` is still in use.
     ///
     /// This function also leaks memory that has to be cleaned up by the caller once it is no longer used. Specifically the `arguments` and
     /// `default_arguments` vectors have to be reconstructed from the pointer and length and then dropped/freed.

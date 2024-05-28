@@ -12,18 +12,16 @@ use godot_ffi as sys;
 
 use sys::{static_assert_eq_size_align, VariantType};
 
-use crate::builtin::meta::{
-    ArrayElement, CallContext, ConvertError, FromFfiError, FromGodot, GodotConvert, GodotType,
-    ToGodot,
-};
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::global::PropertyHint;
+use crate::meta::error::{ConvertError, FromFfiError};
+use crate::meta::{ArrayElement, CallContext, FromGodot, GodotConvert, GodotType, ToGodot};
 use crate::obj::raw::RawGd;
 use crate::obj::{
     bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
 };
 use crate::private::callbacks;
-use crate::property::{Export, PropertyHintInfo, TypeStringHint, Var};
+use crate::registry::property::{Export, PropertyHintInfo, TypeStringHint, Var};
 use crate::{classes, out};
 
 /// Smart pointer to objects owned by the Godot engine.
@@ -599,7 +597,7 @@ impl<T: GodotClass> GodotType for Gd<T> {
         }
     }
 
-    fn class_name() -> crate::builtin::meta::ClassName {
+    fn class_name() -> crate::meta::ClassName {
         T::class_name()
     }
 

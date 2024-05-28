@@ -5,10 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::{
-    impl_godot_as_self, ArrayElement, ConvertError, FromGodot, GodotConvert, GodotType, ToGodot,
-};
 use crate::builtin::Variant;
+use crate::meta::error::{ConvertError, FromFfiError, FromVariantError};
+use crate::meta::{
+    ArrayElement, ClassName, FromGodot, GodotConvert, GodotNullableFfi, GodotType, PropertyInfo,
+    ToGodot,
+};
+use crate::registry::method::MethodParamOrReturnInfo;
 use godot_ffi as sys;
 
 // The following ToGodot/FromGodot/Convert impls are auto-generated for each engine type, co-located with their definitions:
@@ -16,7 +19,63 @@ use godot_ffi as sys;
 // - const/mut pointer to native struct
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Option
+// Option<T>
+
+impl<T> GodotType for Option<T>
+where
+    T: GodotType,
+    T::Ffi: GodotNullableFfi,
+{
+    type Ffi = T::Ffi;
+
+    fn to_ffi(&self) -> Self::Ffi {
+        GodotNullableFfi::flatten_option(self.as_ref().map(|t| t.to_ffi()))
+    }
+
+    fn into_ffi(self) -> Self::Ffi {
+        GodotNullableFfi::flatten_option(self.map(|t| t.into_ffi()))
+    }
+
+    fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
+        if ffi.is_null() {
+            return Ok(None);
+        }
+
+        GodotType::try_from_ffi(ffi).map(Some)
+    }
+
+    fn from_ffi(ffi: Self::Ffi) -> Self {
+        if ffi.is_null() {
+            return None;
+        }
+
+        Some(GodotType::from_ffi(ffi))
+    }
+
+    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        T::param_metadata()
+    }
+
+    fn class_name() -> ClassName {
+        T::class_name()
+    }
+
+    fn property_info(property_name: &str) -> PropertyInfo {
+        T::property_info(property_name)
+    }
+
+    fn argument_info(property_name: &str) -> MethodParamOrReturnInfo {
+        T::argument_info(property_name)
+    }
+
+    fn return_info() -> Option<MethodParamOrReturnInfo> {
+        T::return_info()
+    }
+
+    fn godot_type_name() -> String {
+        T::godot_type_name()
+    }
+}
 
 impl<T: GodotConvert> GodotConvert for Option<T>
 where
@@ -168,40 +227,40 @@ macro_rules! impl_godot_scalar {
 }
 
 // `GodotType` for these three is implemented in `godot-core/src/builtin/variant/impls.rs`.
-impl_godot_as_self!(bool);
-impl_godot_as_self!(i64);
-impl_godot_as_self!(f64);
-impl_godot_as_self!(());
+crate::meta::impl_godot_as_self!(bool);
+crate::meta::impl_godot_as_self!(i64);
+crate::meta::impl_godot_as_self!(f64);
+crate::meta::impl_godot_as_self!(());
 
 // Also implements ArrayElement.
 impl_godot_scalar!(
     i8 as i64,
-    crate::builtin::meta::FromFfiError::I8,
+    FromFfiError::I8,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT8
 );
 impl_godot_scalar!(
     u8 as i64,
-    crate::builtin::meta::FromFfiError::U8,
+    FromFfiError::U8,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT8
 );
 impl_godot_scalar!(
     i16 as i64,
-    crate::builtin::meta::FromFfiError::I16,
+    FromFfiError::I16,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT16
 );
 impl_godot_scalar!(
     u16 as i64,
-    crate::builtin::meta::FromFfiError::U16,
+    FromFfiError::U16,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT16
 );
 impl_godot_scalar!(
     i32 as i64,
-    crate::builtin::meta::FromFfiError::I32,
+    FromFfiError::I32,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_INT32
 );
 impl_godot_scalar!(
     u32 as i64,
-    crate::builtin::meta::FromFfiError::U32,
+    FromFfiError::U32,
     sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT32
 );
 impl_godot_scalar!(
@@ -226,8 +285,7 @@ impl GodotType for u64 {
 
     fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError> {
         // Ok(ffi as u64)
-        Self::try_from(ffi)
-            .map_err(|_rust_err| crate::builtin::meta::FromFfiError::U64.into_error(ffi))
+        Self::try_from(ffi).map_err(|_rust_err| FromFfiError::U64.into_error(ffi))
     }
 
     impl_godot_scalar!(@shared_fns; i64, sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_INT_IS_UINT64);
@@ -263,7 +321,7 @@ impl FromGodot for u64 {
 
         u64::try_from(value).map_err(|_rust_err| {
             // TODO maybe use better error enumerator
-            crate::builtin::meta::FromVariantError::BadValue.into_error(value)
+            FromVariantError::BadValue.into_error(value)
         })
     }
 }

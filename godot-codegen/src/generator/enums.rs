@@ -107,20 +107,20 @@ pub fn make_enum_definition_with(
             #index_enum_impl
             #bitwise_impls
 
-            impl crate::builtin::meta::GodotConvert for #name {
+            impl crate::meta::GodotConvert for #name {
                 type Via = #ord_type;
             }
 
-            impl crate::builtin::meta::ToGodot for #name {
+            impl crate::meta::ToGodot for #name {
                 fn to_godot(&self) -> Self::Via {
                     <Self as #engine_trait>::ord(*self)
                 }
             }
 
-            impl crate::builtin::meta::FromGodot for #name {
-                fn try_from_godot(via: Self::Via) -> std::result::Result<Self, crate::builtin::meta::ConvertError> {
+            impl crate::meta::FromGodot for #name {
+                fn try_from_godot(via: Self::Via) -> std::result::Result<Self, crate::meta::error::ConvertError> {
                     <Self as #engine_trait>::try_from_ord(via)
-                        .ok_or_else(|| crate::builtin::meta::FromGodotError::InvalidEnum.into_error(via))
+                        .ok_or_else(|| crate::meta::error::FromGodotError::InvalidEnum.into_error(via))
                 }
             }
         }

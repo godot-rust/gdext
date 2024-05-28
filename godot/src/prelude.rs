@@ -12,7 +12,7 @@ pub use super::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 
 pub use super::builtin::__prelude_reexport::*;
 pub use super::builtin::math::FloatExt as _;
-pub use super::builtin::meta::{FromGodot, ToGodot};
+pub use super::meta::{FromGodot, ToGodot};
 
 pub use super::classes::{
     AudioStreamPlayer, Camera2D, Camera3D, IAudioStreamPlayer, ICamera2D, ICamera3D, INode,

@@ -10,7 +10,6 @@ use std::cmp::Ordering;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
-use crate::builtin::meta::impl_godot_as_self;
 use crate::builtin::{real, RVec2, Vector2, Vector2Axis};
 
 use std::fmt;
@@ -138,7 +137,7 @@ unsafe impl GodotFfi for Vector2i {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(Vector2i);
+crate::meta::impl_godot_as_self!(Vector2i);
 
 impl GlamType for glam::IVec2 {
     type Mapped = Vector2i;

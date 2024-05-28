@@ -71,7 +71,7 @@ fn make_native_structure(
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
         #imports
-        use crate::builtin::meta::{GodotConvert, FromGodot, ToGodot};
+        use crate::meta::{GodotConvert, FromGodot, ToGodot};
 
         /// Native structure; can be passed via pointer in APIs that are not exposed to GDScript.
         ///
@@ -93,7 +93,7 @@ fn make_native_structure(
         }
 
         impl FromGodot for *mut #class_name {
-            fn try_from_godot(via: Self::Via) -> Result<Self, crate::builtin::meta::ConvertError> {
+            fn try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
                 Ok(via as Self)
             }
         }
@@ -109,7 +109,7 @@ fn make_native_structure(
         }
 
         impl FromGodot for *const #class_name {
-            fn try_from_godot(via: Self::Via) -> Result<Self, crate::builtin::meta::ConvertError> {
+            fn try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
                 Ok(via as Self)
             }
         }

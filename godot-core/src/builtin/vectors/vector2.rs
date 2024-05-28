@@ -10,7 +10,6 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::inner;
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
-use crate::builtin::meta::impl_godot_as_self;
 use crate::builtin::vectors::Vector2Axis;
 use crate::builtin::{real, RAffine2, RVec2, Vector2i};
 
@@ -257,7 +256,7 @@ unsafe impl GodotFfi for Vector2 {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(Vector2);
+crate::meta::impl_godot_as_self!(Vector2);
 
 impl GlamConv for Vector2 {
     type Glam = RVec2;

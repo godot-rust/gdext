@@ -7,16 +7,16 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::meta::{FromGodot, ToGodot};
 use crate::builtin::{inner, Variant, VariantArray};
-use crate::property::{builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var};
+use crate::meta::{FromGodot, ToGodot};
+use crate::registry::property::{
+    builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var,
+};
 use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
 use std::marker::PhantomData;
 use std::{fmt, ptr};
-
-use super::meta::impl_godot_as_self;
 
 /// Godot's `Dictionary` type.
 ///
@@ -211,11 +211,12 @@ impl Dictionary {
         self.as_inner().merge(other, overwrite)
     }
 
-    /// Returns a deep copy of the dictionary. All nested arrays and dictionaries are duplicated and
-    /// will not be shared with the original dictionary. Note that any `Object`-derived elements will
-    /// still be shallow copied.
+    /// Deep copy, duplicating nested collections.
     ///
-    /// To create a shallow copy, use [`Self::duplicate_shallow()`] instead.
+    /// All nested arrays and dictionaries are duplicated and will not be shared with the original dictionary.
+    /// Note that any `Object`-derived elements will still be shallow copied.
+    ///
+    /// To create a shallow copy, use [`Self::duplicate_shallow()`] instead.  
     /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
     ///
     /// _Godot equivalent: `dict.duplicate(true)`_
@@ -223,11 +224,12 @@ impl Dictionary {
         self.as_inner().duplicate(true)
     }
 
-    /// Returns a shallow copy of the dictionary. All dictionary keys and values are copied, but
-    /// any reference types (such as `Array`, `Dictionary` and `Object`) will still refer to the
-    /// same value.
+    /// Shallow copy, copying elements but sharing nested collections.
     ///
-    /// To create a deep copy, use [`Self::duplicate_deep()`] instead.
+    /// All dictionary keys and values are copied, but any reference types (such as `Array`, `Dictionary` and `Gd<T>` objects)
+    /// will still refer to the same value.
+    ///
+    /// To create a deep copy, use [`Self::duplicate_deep()`] instead.  
     /// To create a new reference to the same dictionary data, use [`clone()`][Clone::clone].
     ///
     /// _Godot equivalent: `dict.duplicate(false)`_
@@ -235,24 +237,28 @@ impl Dictionary {
         self.as_inner().duplicate(false)
     }
 
-    /// Returns an iterator over the key-value pairs of the `Dictionary`. The pairs are each of type `(Variant, Variant)`.
-    /// Each pair references the original `Dictionary`, but instead of a `&`-reference to key-value pairs as
-    /// you might expect, the iterator returns a (cheap, shallow) copy of each key-value pair.
+    /// Returns an iterator over the key-value pairs of the `Dictionary`.
     ///
-    /// Note that it's possible to modify the `Dictionary` through another reference while iterating
-    /// over it. This will not result in unsoundness or crashes, but will cause the iterator to
-    /// behave in an unspecified way.
+    /// The pairs are each of type `(Variant, Variant)`. Each pair references the original `Dictionary`, but instead of a `&`-reference
+    /// to key-value pairs as you might expect, the iterator returns a (cheap, shallow) copy of each key-value pair.
+    ///
+    /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
+    /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
+    ///
+    /// Use `iter_shared().typed::<K, V>()` to iterate over `(K, V)` pairs instead.
     pub fn iter_shared(&self) -> Iter<'_> {
         Iter::new(self)
     }
 
-    /// Returns an iterator over the keys `Dictionary`. The keys are each of type `Variant`. Each key references
-    /// the original `Dictionary`, but instead of a `&`-reference to keys pairs as you might expect, the
-    /// iterator returns a (cheap, shallow) copy of each key pair.
+    /// Returns an iterator over the keys in a `Dictionary`.
     ///
-    /// Note that it's possible to modify the `Dictionary` through another reference while iterating
-    /// over it. This will not result in unsoundness or crashes, but will cause the iterator to
-    /// behave in an unspecified way.
+    /// The keys are each of type `Variant`. Each key references the original `Dictionary`, but instead of a `&`-reference to keys pairs
+    /// as you might expect, the iterator returns a (cheap, shallow) copy of each key pair.
+    ///
+    /// Note that it's possible to modify the `Dictionary` through another reference while iterating over it. This will not result in
+    /// unsoundness or crashes, but will cause the iterator to behave in an unspecified way.
+    ///
+    /// Use `.keys_shared.typed::<K>()` to iterate over `K` keys instead.
     pub fn keys_shared(&self) -> Keys<'_> {
         Keys::new(self)
     }
@@ -294,7 +300,7 @@ unsafe impl GodotFfi for Dictionary {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
 }
 
-impl_godot_as_self!(Dictionary);
+crate::meta::impl_godot_as_self!(Dictionary);
 
 impl_builtin_traits! {
     for Dictionary {
@@ -504,8 +510,8 @@ impl<'a> DictionaryIter<'a> {
                 ptr::addr_of_mut!(valid_u8),
             )
         };
-        let valid = super::u8_to_bool(valid_u8);
-        let has_next = super::u8_to_bool(has_next);
+        let valid = u8_to_bool(valid_u8);
+        let has_next = u8_to_bool(has_next);
 
         if has_next {
             assert!(valid);
@@ -518,9 +524,9 @@ impl<'a> DictionaryIter<'a> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// An iterator over key-value pairs from a `Dictionary`.
+/// Iterator over key-value pairs in a [`Dictionary`].
 ///
-/// See [Dictionary::iter_shared()] for more information about iteration over dictionaries.
+/// See [`Dictionary::iter_shared()`] for more information about iteration over dictionaries.
 pub struct Iter<'a> {
     iter: DictionaryIter<'a>,
 }
@@ -553,9 +559,9 @@ impl<'a> Iterator for Iter<'a> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// An iterator over keys from a `Dictionary`.
+/// Iterator over keys in a [`Dictionary`].
 ///
-/// See [Dictionary::keys_shared()] for more information about iteration over dictionaries.
+/// See [`Dictionary::keys_shared()`] for more information about iteration over dictionaries.
 pub struct Keys<'a> {
     iter: DictionaryIter<'a>,
 }
@@ -595,10 +601,9 @@ impl<'a> Iterator for Keys<'a> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// An iterator over key-value pairs from a `Dictionary` that will attempt to convert each
-/// key-value pair into a typed `(K, V)`.
+/// [`Dictionary`] iterator that converts each key-value pair into a typed `(K, V)`.
 ///
-/// See [Dictionary::iter_shared()] for more information about iteration over dictionaries.
+/// See [`Dictionary::iter_shared()`] for more information about iteration over dictionaries.
 pub struct TypedIter<'a, K, V> {
     iter: DictionaryIter<'a>,
     _k: PhantomData<K>,
@@ -631,9 +636,9 @@ impl<'a, K: FromGodot, V: FromGodot> Iterator for TypedIter<'a, K, V> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// An iterator over keys from a `Dictionary` that will attempt to convert each key into a `K`.
+/// [`Dictionary`] iterator that converts each key into a typed `K`.
 ///
-/// See [Dictionary::iter_shared()] for more information about iteration over dictionaries.
+/// See [`Dictionary::iter_shared()`] for more information about iteration over dictionaries.
 pub struct TypedKeys<'a, K> {
     iter: DictionaryIter<'a>,
     _k: PhantomData<K>,
@@ -657,6 +662,17 @@ impl<'a, K: FromGodot> Iterator for TypedKeys<'a, K> {
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.iter.size_hint()
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Helper functions
+
+fn u8_to_bool(u: u8) -> bool {
+    match u {
+        0 => false,
+        1 => true,
+        _ => panic!("Invalid boolean value {u}"),
     }
 }
 

@@ -10,8 +10,6 @@ use std::num::NonZeroU64;
 use godot_ffi as sys;
 use sys::{ffi_methods, static_assert, static_assert_eq_size_align, GodotFfi};
 
-use super::meta::impl_godot_as_self;
-
 /// A RID ("resource ID") is an opaque handle that refers to a Godot `Resource`.
 ///
 /// RIDs do not grant access to the resource itself. Instead, they can be used in lower-level resource APIs
@@ -139,4 +137,4 @@ unsafe impl GodotFfi for Rid {
     }
 }
 
-impl_godot_as_self!(Rid);
+crate::meta::impl_godot_as_self!(Rid);

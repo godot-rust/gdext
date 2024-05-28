@@ -23,9 +23,9 @@ use std::sync::Mutex;
 
 use godot_cell::{GdCell, MutGuard};
 
-use crate::builtin::meta::{MethodInfo, PropertyInfo};
 use crate::builtin::{GString, StringName, Variant, VariantType};
 use crate::classes::{Script, ScriptLanguage};
+use crate::meta::{MethodInfo, PropertyInfo};
 use crate::obj::{Base, Gd, GodotClass};
 use crate::sys;
 
@@ -305,7 +305,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// # use godot::prelude::*;
     /// # use godot::classes::{ScriptLanguage, Script};
     /// # use godot::obj::script::{ScriptInstance, SiMut};
-    /// # use godot::builtin::meta::{MethodInfo, PropertyInfo};
+    /// # use godot::meta::{MethodInfo, PropertyInfo};
     /// # use godot::sys;
     /// struct ExampleScriptInstance;
     ///
@@ -353,7 +353,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     /// # use godot::prelude::*;
     /// # use godot::classes::{ScriptLanguage, Script};
     /// # use godot::obj::script::{ScriptInstance, SiMut};
-    /// # use godot::builtin::meta::{MethodInfo, PropertyInfo};
+    /// # use godot::meta::{MethodInfo, PropertyInfo};
     /// # use godot::sys;
     /// struct ExampleScriptInstance;
     ///

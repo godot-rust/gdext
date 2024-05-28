@@ -223,7 +223,7 @@ const _: () = _validate_features();
 // Modules
 
 #[doc(inline)]
-pub use godot_core::{builtin, classes, global, obj, tools};
+pub use godot_core::{builtin, classes, global, meta, obj, tools};
 
 #[allow(deprecated)]
 pub use godot_core::{engine, log};
@@ -241,8 +241,14 @@ pub mod init {
 
 /// Register/export Rust symbols to Godot: classes, methods, enums...
 pub mod register {
-    pub use godot_core::property;
+    pub use godot_core::registry::property;
     pub use godot_macros::{godot_api, Export, GodotClass, GodotConvert, Var};
+
+    /// Re-exports used by proc-macro API.
+    #[doc(hidden)]
+    pub mod private {
+        pub use godot_core::registry::{constant, method};
+    }
 }
 
 /// Testing facilities (unstable).

@@ -25,7 +25,7 @@ pub fn derive_godot_convert(item: venial::Item) -> ParseResult<TokenStream> {
     let from_godot_impl = make_fromgodot(&convert);
 
     Ok(quote! {
-        impl ::godot::builtin::meta::GodotConvert for #name  {
+        impl ::godot::meta::GodotConvert for #name  {
             type Via = #via_type;
         }
 

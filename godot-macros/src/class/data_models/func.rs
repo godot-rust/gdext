@@ -108,7 +108,7 @@ pub fn make_method_registration(
         #(#cfg_attrs)*
         {
             use ::godot::obj::GodotClass;
-            use ::godot::builtin::meta::registration::method::ClassMethodInfo;
+            use ::godot::register::private::method::ClassMethodInfo;
             use ::godot::builtin::{StringName, Variant};
             use ::godot::sys;
 
@@ -465,7 +465,7 @@ fn make_ptrcall_invocation(wrapped_method: &TokenStream, is_virtual: bool) -> To
     };
 
     quote! {
-         <Sig as ::godot::builtin::meta::PtrcallSignatureTuple>::in_ptrcall(
+         <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
             instance_ptr,
             &call_ctx,
             args_ptr,
@@ -479,7 +479,7 @@ fn make_ptrcall_invocation(wrapped_method: &TokenStream, is_virtual: bool) -> To
 /// Generate code for a `varcall()` call expression.
 fn make_varcall_invocation(wrapped_method: &TokenStream) -> TokenStream {
     quote! {
-        <Sig as ::godot::builtin::meta::VarcallSignatureTuple>::in_varcall(
+        <Sig as ::godot::meta::VarcallSignatureTuple>::in_varcall(
             instance_ptr,
             &call_ctx,
             args_ptr,
@@ -493,6 +493,6 @@ fn make_varcall_invocation(wrapped_method: &TokenStream) -> TokenStream {
 
 fn make_call_context(class_name_str: &str, method_name_str: &str) -> TokenStream {
     quote! {
-        ::godot::builtin::meta::CallContext::func(#class_name_str, #method_name_str)
+        ::godot::meta::CallContext::func(#class_name_str, #method_name_str)
     }
 }

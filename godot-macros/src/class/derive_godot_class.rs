@@ -109,8 +109,8 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         impl ::godot::obj::GodotClass for #class_name {
             type Base = #base_class;
 
-            fn class_name() -> ::godot::builtin::meta::ClassName {
-                ::godot::builtin::meta::ClassName::from_ascii_cstr(#class_name_cstr)
+            fn class_name() -> ::godot::meta::ClassName {
+                ::godot::meta::ClassName::from_ascii_cstr(#class_name_cstr)
             }
         }
 

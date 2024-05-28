@@ -5,19 +5,20 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot_ffi as sys;
-
-use crate::builtin::*;
-use crate::obj::EngineEnum;
-use crate::property::{builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var};
 use std::fmt;
 use std::marker::PhantomData;
-use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use super::meta::{
-    ArrayElement, ConvertError, FromGodot, FromGodotError, FromVariantError, GodotConvert,
-    GodotFfiVariant, GodotType, ToGodot,
+use crate::builtin::*;
+use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
+use crate::meta::{
+    ArrayElement, ArrayTypeInfo, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
 };
+use crate::obj::EngineEnum;
+use crate::registry::property::{
+    builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var,
+};
+use godot_ffi as sys;
+use sys::{ffi_methods, interface_fn, GodotFfi};
 
 /// Godot's `Array` type.
 ///
@@ -682,13 +683,13 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// Returns the runtime type info of this array.
-    fn type_info(&self) -> TypeInfo {
+    fn type_info(&self) -> ArrayTypeInfo {
         let variant_type = VariantType::from_sys(
             self.as_inner().get_typed_builtin() as sys::GDExtensionVariantType
         );
         let class_name = self.as_inner().get_typed_class_name();
 
-        TypeInfo {
+        ArrayTypeInfo {
             variant_type,
             class_name,
         }
@@ -697,7 +698,7 @@ impl<T: ArrayElement> Array<T> {
     /// Checks that the inner array has the correct type set on it for storing elements of type `T`.
     fn with_checked_type(self) -> Result<Self, ConvertError> {
         let self_ty = self.type_info();
-        let target_ty = TypeInfo::of::<T>();
+        let target_ty = ArrayTypeInfo::of::<T>();
 
         if self_ty == target_ty {
             Ok(self)
@@ -719,7 +720,7 @@ impl<T: ArrayElement> Array<T> {
         debug_assert!(self.is_empty());
         debug_assert!(!self.type_info().is_typed());
 
-        let type_info = TypeInfo::of::<T>();
+        let type_info = ArrayTypeInfo::of::<T>();
         if type_info.is_typed() {
             let script = Variant::nil();
 
@@ -1047,6 +1048,7 @@ impl<T: ArrayElement + FromGodot> From<&Array<T>> for Vec<T> {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
+/// An iterator over typed elements of an [`Array`].
 pub struct Iter<'a, T: ArrayElement> {
     array: &'a Array<T>,
     next_idx: usize,
@@ -1163,7 +1165,7 @@ macro_rules! varray {
     // Note: use to_variant() and not Variant::from(), as that works with both references and values
     ($($elements:expr),* $(,)?) => {
         {
-            use $crate::builtin::meta::ToGodot as _;
+            use $crate::meta::ToGodot as _;
             let mut array = $crate::builtin::VariantArray::default();
             $(
                 array.push($elements.to_variant());
@@ -1174,52 +1176,6 @@ macro_rules! varray {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-
-/// Represents the type information of a Godot array. See
-/// [`set_typed`](https://docs.godotengine.org/en/latest/classes/class_array.html#class-array-method-set-typed).
-///
-/// We ignore the `script` parameter because it has no impact on typing in Godot.
-#[derive(Eq, PartialEq)]
-pub(crate) struct TypeInfo {
-    variant_type: VariantType,
-
-    /// Not a `ClassName` because some values come from Godot engine API.
-    class_name: StringName,
-}
-
-impl TypeInfo {
-    fn of<T: GodotType>() -> Self {
-        Self {
-            variant_type: <T::Via as GodotType>::Ffi::variant_type(),
-            class_name: T::Via::class_name().to_string_name(),
-        }
-    }
-
-    pub fn is_typed(&self) -> bool {
-        self.variant_type != VariantType::NIL
-    }
-
-    pub fn variant_type(&self) -> VariantType {
-        self.variant_type
-    }
-
-    pub fn class_name(&self) -> &StringName {
-        &self.class_name
-    }
-}
-
-impl fmt::Debug for TypeInfo {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let class = self.class_name.to_string();
-        let class_str = if class.is_empty() {
-            String::new()
-        } else {
-            format!(" (class={class})")
-        };
-
-        write!(f, "{:?}{}", self.variant_type, class_str)
-    }
-}
 
 #[cfg(feature = "serde")]
 mod serialize {

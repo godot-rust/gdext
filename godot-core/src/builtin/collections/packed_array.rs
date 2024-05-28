@@ -7,8 +7,8 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::meta::ToGodot;
 use crate::builtin::*;
+use crate::meta::ToGodot;
 use std::{fmt, ops};
 use sys::types::*;
 use sys::{ffi_methods, interface_fn, GodotFfi};
@@ -507,19 +507,19 @@ macro_rules! impl_packed_array {
             ffi_methods! { type sys::GDExtensionTypePtr = *mut Opaque; .. }
         }
 
-        $crate::builtin::meta::impl_godot_as_self!($PackedArray);
+        $crate::meta::impl_godot_as_self!($PackedArray);
 
-        impl $crate::property::Export for $PackedArray {
-            fn default_export_info() -> $crate::property::PropertyHintInfo {
+        impl $crate::registry::property::Export for $PackedArray {
+            fn default_export_info() -> $crate::registry::property::PropertyHintInfo {
                 // In 4.3 Godot can (and does) use type hint strings for packed arrays, see https://github.com/godotengine/godot/pull/82952.
                 if sys::GdextBuild::since_api("4.3") {
-                    $crate::property::PropertyHintInfo {
+                    $crate::registry::property::PropertyHintInfo {
                         hint: $crate::global::PropertyHint::TYPE_STRING,
-                        hint_string: <$Element as $crate::property::TypeStringHint>::type_string().into(),
+                        hint_string: <$Element as $crate::registry::property::TypeStringHint>::type_string().into(),
                     }
                 } else {
-                    $crate::property::PropertyHintInfo::with_hint_none(
-                        <$PackedArray as $crate::builtin::meta::GodotType>::godot_type_name()
+                    $crate::registry::property::PropertyHintInfo::with_hint_none(
+                        <$PackedArray as $crate::meta::GodotType>::godot_type_name()
                     )
                 }
             }

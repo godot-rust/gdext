@@ -13,11 +13,12 @@ mod node_path;
 mod string_chars;
 mod string_name;
 
+use crate::meta::error::ConvertError;
+use crate::meta::{FromGodot, GodotConvert, ToGodot};
+
 pub use gstring::*;
 pub use node_path::NodePath;
 pub use string_name::{StringName, TransientStringNameOrd};
-
-use super::meta::{ConvertError, FromGodot, GodotConvert, ToGodot};
 
 impl GodotConvert for &str {
     type Via = GString;

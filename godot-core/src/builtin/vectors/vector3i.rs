@@ -12,7 +12,6 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
-use crate::builtin::meta::impl_godot_as_self;
 use crate::builtin::{real, RVec3, Vector3, Vector3Axis};
 
 /// Vector used for 3D math using integer coordinates.
@@ -169,7 +168,7 @@ unsafe impl GodotFfi for Vector3i {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(Vector3i);
+crate::meta::impl_godot_as_self!(Vector3i);
 
 impl GlamType for glam::IVec3 {
     type Mapped = Vector3i;

@@ -9,9 +9,9 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::meta::{FromGodot, GodotConvert, GodotType, ToGodot};
 use crate::builtin::GString;
 use crate::global::PropertyHint;
+use crate::meta::{FromGodot, GodotConvert, GodotType, ToGodot};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
@@ -139,7 +139,10 @@ impl PropertyHintInfo {
 
 /// Functions used to translate user-provided arguments into export hints.
 ///
-/// Each function is named the same as the equivalent Godot annotation. For instance `@export_range` in Godot is `fn export_range` here.
+/// You are not supposed to use these functions directly. They are used by the `#[export]` macro to generate the correct export hint.
+///
+/// Each function is named the same as the equivalent Godot annotation.  
+/// For instance, `@export_range` in Godot is `fn export_range` here.
 pub mod export_info_functions {
     use crate::builtin::GString;
     use crate::global::PropertyHint;
@@ -197,6 +200,7 @@ pub mod export_info_functions {
         }
     }
 
+    #[doc(hidden)]
     pub struct ExportValueWithKey<T> {
         variant: String,
         key: Option<T>,
@@ -392,7 +396,7 @@ mod export_impls {
         (@export $Ty:ty) => {
             impl Export for $Ty {
                 fn default_export_info() -> PropertyHintInfo {
-                    PropertyHintInfo::with_hint_none(<$Ty as $crate::builtin::meta::GodotType>::godot_type_name())
+                    PropertyHintInfo::with_hint_none(<$Ty as $crate::meta::GodotType>::godot_type_name())
                 }
             }
         };

@@ -7,9 +7,9 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::meta::{impl_godot_as_self, GodotType, ToGodot};
 use crate::builtin::{inner, StringName, Variant, VariantArray};
 use crate::classes::Object;
+use crate::meta::{GodotType, ToGodot};
 use crate::obj::bounds::DynMemory;
 use crate::obj::Bounds;
 use crate::obj::{Gd, GodotClass, InstanceId};
@@ -310,7 +310,7 @@ unsafe impl GodotFfi for Callable {
     }
 }
 
-impl_godot_as_self!(Callable);
+crate::meta::impl_godot_as_self!(Callable);
 
 impl fmt::Debug for Callable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -391,7 +391,7 @@ mod custom_callable {
         let c: &mut C = CallableUserdata::inner_from_raw(callable_userdata);
 
         let result = c.invoke(arg_refs);
-        crate::builtin::meta::varcall_return_checked(result, r_return, r_error);
+        crate::meta::varcall_return_checked(result, r_return, r_error);
     }
 
     pub unsafe extern "C" fn rust_callable_call_fn<F>(
@@ -408,7 +408,7 @@ mod custom_callable {
         let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
         let result = (w.rust_function)(arg_refs);
-        crate::builtin::meta::varcall_return_checked(result, r_return, r_error);
+        crate::meta::varcall_return_checked(result, r_return, r_error);
     }
 
     pub unsafe extern "C" fn rust_callable_destroy<T>(callable_userdata: *mut std::ffi::c_void) {

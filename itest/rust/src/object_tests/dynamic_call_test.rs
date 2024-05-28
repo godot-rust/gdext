@@ -5,9 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use godot::builtin::meta::{CallError, FromGodot, ToGodot};
 use godot::builtin::{StringName, Variant, Vector3};
 use godot::classes::{Node, Node3D, Object};
+use godot::meta::error::CallError;
+use godot::meta::{FromGodot, ToGodot};
 use godot::obj::{InstanceId, NewAlloc};
 use std::error::Error;
 

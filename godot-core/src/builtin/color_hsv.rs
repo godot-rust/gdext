@@ -13,7 +13,7 @@ use super::Color;
 /// Godot's [`Color`] built-in type supports mainly RGBA floating point-based notation. `ColorHsv` supports manipulating its HSVA
 /// representation by introducing conversion methods between itself and `Color`.
 ///
-/// `ColorHsv` *is not* a [`GodotType`](crate::builtin::meta::GodotType). To use it in properties expecting `Color`, you need to convert
+/// `ColorHsv` *is not* a [`GodotType`](crate::meta::GodotType). To use it in properties expecting `Color`, you need to convert
 /// it back to this type.
 ///
 /// A `Color` created by [`ColorHsv::to_rgb()`] is equal to one created by [`Color::from_hsv(h, s, v)`](Color::from_hsv), but the conversion

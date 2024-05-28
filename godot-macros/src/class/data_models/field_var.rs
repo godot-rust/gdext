@@ -169,7 +169,7 @@ impl GetterSetterImpl {
         match kind {
             GetSet::Get => {
                 signature = quote! {
-                    fn #function_name(&self) -> <#field_type as ::godot::builtin::meta::GodotConvert>::Via
+                    fn #function_name(&self) -> <#field_type as ::godot::meta::GodotConvert>::Via
                 };
                 function_body = quote! {
                     <#field_type as ::godot::register::property::Var>::get_property(&self.#field_name)
@@ -177,7 +177,7 @@ impl GetterSetterImpl {
             }
             GetSet::Set => {
                 signature = quote! {
-                    fn #function_name(&mut self, #field_name: <#field_type as ::godot::builtin::meta::GodotConvert>::Via)
+                    fn #function_name(&mut self, #field_name: <#field_type as ::godot::meta::GodotConvert>::Via)
                 };
                 function_body = quote! {
                     <#field_type as ::godot::register::property::Var>::set_property(&mut self.#field_name, #field_name);

@@ -5,7 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! Helpers used for registering various things with Godot.
+//! Errors in the gdext library.
 
-pub mod constant;
-pub mod method;
+mod call_error;
+mod convert_error;
+
+pub use call_error::*;
+pub use convert_error::*;

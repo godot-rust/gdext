@@ -7,7 +7,7 @@
 
 use std::fmt::Debug;
 
-use godot::builtin::meta::{FromGodot, ToGodot};
+use godot::meta::{FromGodot, ToGodot};
 
 pub fn roundtrip<T>(value: T)
 where

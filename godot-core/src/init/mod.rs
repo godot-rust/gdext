@@ -139,13 +139,13 @@ fn gdext_on_level_init(level: InitLevel) {
                 sys::load_class_method_table(sys::ClassApiLevel::Editor);
             }
         }
-        crate::auto_register_classes(level);
+        crate::registry::class::auto_register_classes(level);
     }
 }
 
 /// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
 fn gdext_on_level_deinit(level: InitLevel) {
-    crate::unregister_classes(level);
+    crate::registry::class::unregister_classes(level);
 
     if level == InitLevel::Core {
         // If lowest level is unloaded, call global deinitialization.

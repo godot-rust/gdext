@@ -7,8 +7,8 @@
 
 use std::fmt::Debug;
 
-use godot::builtin::meta::ToGodot;
 use godot::builtin::{GString, Vector2};
+use godot::meta::ToGodot;
 use godot::register::GodotConvert;
 
 use crate::common::roundtrip;

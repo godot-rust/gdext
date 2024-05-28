@@ -5,8 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::meta::GodotConvert;
-use crate::property::{PropertyHintInfo, Var};
+use crate::meta::GodotConvert;
+use crate::registry::property::{PropertyHintInfo, Var};
 use std::mem;
 
 /// Ergonomic late-initialization container with `ready()` support.

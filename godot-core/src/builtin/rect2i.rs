@@ -7,8 +7,8 @@
 
 use std::cmp;
 
-use crate::builtin::meta::impl_godot_as_self;
 use crate::builtin::{Rect2, Side, Vector2i};
+
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
@@ -274,7 +274,7 @@ unsafe impl GodotFfi for Rect2i {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(Rect2i);
+crate::meta::impl_godot_as_self!(Rect2i);
 
 impl std::fmt::Display for Rect2i {
     /// Formats `Rect2i` to match Godot's string representation.

@@ -9,7 +9,6 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
-use crate::builtin::meta::impl_godot_as_self;
 use crate::builtin::{real, RVec4, Vector4, Vector4Axis};
 
 use std::fmt;
@@ -157,7 +156,7 @@ unsafe impl GodotFfi for Vector4i {
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
 }
 
-impl_godot_as_self!(Vector4i);
+crate::meta::impl_godot_as_self!(Vector4i);
 
 impl GlamType for glam::IVec4 {
     type Mapped = Vector4i;
