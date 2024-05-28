@@ -12,7 +12,8 @@ pub use super::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 
 pub use super::builtin::__prelude_reexport::*;
 pub use super::builtin::math::FloatExt as _;
-pub use super::meta::{FromGodot, ToGodot};
+pub use super::meta::error::{ConvertError, IoError};
+pub use super::meta::{FromGodot, GodotConvert, ToGodot};
 
 pub use super::classes::{
     AudioStreamPlayer, Camera2D, Camera3D, IAudioStreamPlayer, ICamera2D, ICamera3D, INode,
@@ -22,7 +23,7 @@ pub use super::classes::{
 pub use super::global::{
     godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn,
 };
-pub use super::tools::{load, save, try_load, try_save, GFile, IoError};
+pub use super::tools::{load, save, try_load, try_save, GFile};
 
 pub use super::init::{gdextension, ExtensionLibrary, InitLevel};
 pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnReady};

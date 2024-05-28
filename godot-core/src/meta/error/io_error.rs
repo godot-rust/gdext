@@ -8,7 +8,7 @@
 use std::error::Error;
 use std::fmt;
 
-use crate::gen::classes::FileAccess;
+use crate::classes::FileAccess;
 use crate::global::Error as GodotError;
 use crate::obj::Gd;
 
