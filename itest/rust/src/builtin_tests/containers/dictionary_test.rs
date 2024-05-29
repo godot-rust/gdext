@@ -101,7 +101,7 @@ fn dictionary_clone() {
 
     #[allow(clippy::redundant_clone)]
     let clone = dictionary.clone();
-    Dictionary::from_variant(&clone.get("bar").unwrap()).insert("final", 4);
+    Dictionary::from_variant(&clone.get("bar").unwrap()).set("final", 4);
     assert_eq!(subdictionary.get("final"), Some(4.to_variant()));
 }
 
@@ -147,7 +147,7 @@ fn dictionary_duplicate_deep() {
         "bar": subdictionary.clone()
     };
     let clone = dictionary.duplicate_deep();
-    Dictionary::from_variant(&clone.get("bar").unwrap()).insert("baz", 4);
+    Dictionary::from_variant(&clone.get("bar").unwrap()).set("baz", 4);
     assert_eq!(
         subdictionary.get("baz"),
         Some(true.to_variant()),
@@ -167,14 +167,14 @@ fn dictionary_duplicate_shallow() {
     };
 
     let mut clone = dictionary.duplicate_shallow();
-    Dictionary::from_variant(&clone.get("bar").unwrap()).insert("baz", 4);
+    Dictionary::from_variant(&clone.get("bar").unwrap()).set("baz", 4);
     assert_eq!(
         subdictionary.get("baz"),
         Some(4.to_variant()),
         "key = \"baz\""
     );
 
-    clone.insert("foo", false.to_variant());
+    clone.set("foo", false);
     assert_eq!(dictionary.get("foo"), Some(0.to_variant()));
     assert_eq!(clone.get("foo"), Some(false.to_variant()));
 }
@@ -256,13 +256,13 @@ fn dictionary_insert_multiple() {
     let mut dictionary = dict! {};
     assert!(dictionary.is_empty());
 
-    dictionary.insert(1, true);
+    dictionary.set(1, true);
     assert_eq!(dictionary.get(1), Some(true.to_variant()));
 
     let mut other = dict! {};
     assert!(other.is_empty());
 
-    other.insert(1, 2);
+    other.set(1, 2);
     assert_eq!(other.get(1), Some(2.to_variant()));
 }
 #[itest]
@@ -430,7 +430,7 @@ fn dictionary_iter_size_hint() {
     assert_eq!(iter.size_hint(), (0, Some(0)));
 
     // Insertion while iterating is allowed and might change size hint.
-    dictionary_clone.insert("new_key", "soma_val");
+    dictionary_clone.set("new_key", "soma_val");
     assert_eq!(iter.size_hint(), (1, Some(1)));
 
     // Removal while iterating is also allowed and might change size_hint.
@@ -465,7 +465,9 @@ fn dictionary_iter_insert() {
     iter.next();
     iter.next();
 
-    dictionary2.insert("new_key", 10);
+    let prev = dictionary2.insert("new_key", 10);
+    assert_eq!(prev, None);
+
     let v: Vec<_> = iter.collect();
     assert_eq!(dictionary.len(), 5);
     assert!(dictionary.contains_key("new_key"));
@@ -488,7 +490,7 @@ fn dictionary_iter_insert_after_completion() {
     }
     assert_eq!(iter.next(), None);
 
-    dictionary2.insert("new_key", 10);
+    dictionary2.set("new_key", 10);
     assert_eq!(iter.next(), None);
     assert_eq!(dictionary.len(), 5);
 }
@@ -504,7 +506,7 @@ fn dictionary_iter_big() {
             for _ in 0..16 {
                 iter.next();
             }
-            dictionary2.insert("a", "b");
+            dictionary2.set("a", "b");
         }
         dictionary2.clear();
         dictionary2.extend((0..64).zip(0..64));
@@ -531,7 +533,7 @@ fn dictionary_iter_simultaneous() {
         })
         .collect();
 
-    assert!(map.len() == 4);
+    assert_eq!(map.len(), 4);
 
     let mut tens = 0;
     let mut trues = 0;

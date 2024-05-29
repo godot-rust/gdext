@@ -41,8 +41,8 @@ pub use crate::obj::script::SiMut;
 #[deprecated = "`GFile` has been moved to `godot::tools`."]
 pub use crate::tools::GFile;
 
-#[deprecated = "`IoError` has been moved to `godot::tools`."]
-pub use crate::tools::IoError;
+#[deprecated = "`IoError` has been moved to `godot::meta::error`."]
+pub use crate::meta::error::IoError;
 
 #[deprecated = "`save` has been moved to `godot::global`."]
 pub use crate::tools::save;

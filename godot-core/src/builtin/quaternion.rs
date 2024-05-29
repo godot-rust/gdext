@@ -12,6 +12,9 @@ use crate::builtin::math::{ApproxEq, FloatExt, GlamConv, GlamType};
 use crate::builtin::{inner, real, Basis, EulerOrder, RQuat, RealConv, Vector3};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
+/// Unit quaternion to represent 3D rotations.
+///
+/// See also [`Quaternion`](https://docs.godotengine.org/en/stable/classes/class_quaternion.html) in the Godot documentation.
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

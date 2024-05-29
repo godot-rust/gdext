@@ -11,11 +11,9 @@
 //! or better integrated with Rust.
 
 mod gfile;
-mod io_error;
 mod save_load;
 mod translate;
 
 pub use gfile::*;
-pub use io_error::*;
 pub use save_load::*;
 pub use translate::*;

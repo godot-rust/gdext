@@ -10,8 +10,8 @@ use crate::classes::file_access::{CompressionMode, ModeFlags};
 use crate::classes::FileAccess;
 use crate::global::Error;
 use crate::obj::Gd;
-use crate::tools::IoError;
 
+use crate::engine::IoError;
 use std::cmp;
 use std::io::{BufRead, ErrorKind, Read, Seek, SeekFrom, Write};
 
