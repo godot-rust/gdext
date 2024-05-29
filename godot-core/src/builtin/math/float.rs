@@ -119,7 +119,7 @@ macro_rules! impl_float_ext {
 
             fn snapped(mut self, step: Self) -> Self {
                 if step != 0.0 {
-                    self = ((self / step + 0.5) * step).floor()
+                    self = (self / step + 0.5).floor() * step
                 }
                 self
             }
