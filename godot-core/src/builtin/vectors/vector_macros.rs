@@ -723,7 +723,7 @@ macro_rules! impl_vector3x_fns {
                         _ => None,
                     },
                     Some(Ordering::Equal) => match self.x.partial_cmp(&self.z) {
-                        Some(Ordering::Equal) => Some(Vector3Axis::Z),
+                        Some(Ordering::Greater) => Some(Vector3Axis::Z),
                         _ => None,
                     },
                     Some(Ordering::Greater) => match self.y.partial_cmp(&self.z) {

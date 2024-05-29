@@ -200,7 +200,7 @@ impl Aabb {
     /// Returns the index of the longest axis of the AABB (according to Vector3's AXIS_* constants).
     #[inline]
     pub fn longest_axis_index(&self) -> Vector3Axis {
-        self.size.max_axis_index()
+        self.size.max_axis().unwrap_or(Vector3Axis::X)
     }
 
     /// Returns the scalar length of the longest axis of the AABB.
@@ -222,7 +222,7 @@ impl Aabb {
     /// Returns the index of the shortest axis of the AABB (according to Vector3::AXIS* enum).
     #[inline]
     pub fn shortest_axis_index(&self) -> Vector3Axis {
-        self.size.min_axis_index()
+        self.size.min_axis().unwrap_or(Vector3Axis::Z)
     }
 
     /// Returns the scalar length of the shortest axis of the AABB.
