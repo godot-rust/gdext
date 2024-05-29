@@ -31,3 +31,6 @@ godot-bindings = { path = "../godot-bindings" } # emit_godot_version_cfg
 [package.metadata.docs.rs]
 features = ["experimental-godot-api"]
 rustdoc-args = ["--cfg", "published_docs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(published_docs)'] }

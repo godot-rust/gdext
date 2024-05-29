@@ -39,3 +39,6 @@ regex = { version = "1.5.5", default-features = false, features = ["std", "unico
 [package.metadata.docs.rs]
 features = ["experimental-godot-api"]
 rustdoc-args = ["--cfg", "published_docs"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(published_docs)'] }

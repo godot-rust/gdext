@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 [features]
 default = []
 codegen-full-experimental = ["godot/codegen-full", "godot/experimental-godot-api"]
+experimental-threads = ["godot/experimental-threads"]
 serde = ["dep:serde", "dep:serde_json", "godot/serde"]
 
 # Do not add features here that are 1:1 forwarded to the `godot` crate, unless they are needed by itest itself.
