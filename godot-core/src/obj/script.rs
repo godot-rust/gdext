@@ -21,10 +21,10 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Mutex;
 
 #[cfg(not(feature = "experimental-threads"))]
-use godot_cell::panicking::{GdCell, MutGuard};
+use godot_cell::panicking::{GdCell, MutGuard, RefGuard};
 
 #[cfg(feature = "experimental-threads")]
-use godot_cell::blocking::{GdCell, MutGuard};
+use godot_cell::blocking::{GdCell, MutGuard, RefGuard};
 
 use crate::builtin::{GString, StringName, Variant, VariantType};
 use crate::classes::{Script, ScriptLanguage};
@@ -173,6 +173,39 @@ struct ScriptInstanceData<T: ScriptInstance> {
     property_list: Mutex<HashMap<*const sys::GDExtensionPropertyInfo, Vec<PropertyInfo>>>,
     method_list: Mutex<HashMap<*const sys::GDExtensionMethodInfo, Vec<MethodInfo>>>,
     base: Base<T::Base>,
+}
+
+impl<T: ScriptInstance> ScriptInstanceData<T> {
+    unsafe fn borrow_script_sys<'a>(p_instance: sys::GDExtensionScriptInstanceDataPtr) -> &'a Self {
+        &*(p_instance as *mut ScriptInstanceData<T>)
+    }
+
+    fn borrow(&self) -> RefGuard<'_, T> {
+        self.inner
+            .borrow()
+            .unwrap_or_else(|err| Self::borrow_panic(err))
+    }
+
+    fn borrow_mut(&self) -> MutGuard<'_, T> {
+        self.inner
+            .borrow_mut()
+            .unwrap_or_else(|err| Self::borrow_panic(err))
+    }
+
+    fn cell_ref(&self) -> &GdCell<T> {
+        &self.inner
+    }
+
+    fn borrow_panic(err: Box<dyn std::error::Error>) -> ! {
+        panic!(
+            "\
+                ScriptInstance borrow failed, already bound; T = {}.\n  \
+                Make sure to use `SiMut::base_mut()` when possible.\n  \
+                Details: {err}.\
+            ",
+            std::any::type_name::<T>(),
+        )
+    }
 }
 
 impl<T: ScriptInstance> Drop for ScriptInstanceData<T> {
@@ -425,12 +458,6 @@ mod script_instance_info {
     use std::ffi::c_void;
     use std::mem::ManuallyDrop;
 
-    #[cfg(not(feature = "experimental-threads"))]
-    use godot_cell::panicking::{GdCell, RefGuard};
-
-    #[cfg(feature = "experimental-threads")]
-    use godot_cell::blocking::{GdCell, RefGuard};
-
     use crate::builtin::{GString, StringName, Variant};
     use crate::classes::ScriptLanguage;
     use crate::obj::Gd;
@@ -439,45 +466,12 @@ mod script_instance_info {
 
     use super::{ScriptInstance, ScriptInstanceData, SiMut};
 
-    fn borrow_panic<T: ScriptInstance, R>(err: Box<dyn std::error::Error>) -> R {
-        panic!(
-            "\
-                ScriptInstance borrow failed, already bound; T = {}.\n  \
-                Make sure to use `SiMut::base_mut()` when possible.\n  \
-                Details: {err}.\
-            ",
-            type_name::<T>(),
-        );
-    }
-
-    fn borrow_instance<T: ScriptInstance>(instance: &ScriptInstanceData<T>) -> RefGuard<'_, T> {
-        instance.inner.borrow().unwrap_or_else(borrow_panic::<T, _>)
-    }
-
-    fn borrow_instance_cell<T: ScriptInstance>(instance: &ScriptInstanceData<T>) -> &GdCell<T> {
-        &instance.inner
-    }
-
-    /// # Safety
-    ///
-    /// `p_instance` must be a valid pointer to a `ScriptInstanceData<T>` for the duration of `'a`.
-    /// This pointer must have been created by [super::create_script_instance] and transfered to Godot.
-    unsafe fn instance_data_as_script_instance<'a, T: ScriptInstance>(
-        p_instance: sys::GDExtensionScriptInstanceDataPtr,
-    ) -> &'a ScriptInstanceData<T> {
-        &*(p_instance as *mut ScriptInstanceData<T>)
-    }
-
-    fn transfer_bool_to_godot(value: bool) -> sys::GDExtensionBool {
+    const fn bool_into_sys(value: bool) -> sys::GDExtensionBool {
         value as sys::GDExtensionBool
     }
 
-    /// # Safety
-    ///
-    /// - We expect the engine to provide a valid variant pointer the return value can be moved into.
-    unsafe fn transfer_variant_to_godot(variant: Variant, return_ptr: sys::GDExtensionVariantPtr) {
-        variant.move_into_var_ptr(return_ptr)
-    }
+    const SYS_TRUE: sys::GDExtensionBool = bool_into_sys(true);
+    const SYS_FALSE: sys::GDExtensionBool = bool_into_sys(true);
 
     /// # Safety
     ///
@@ -557,18 +551,17 @@ mod script_instance_info {
         let ctx = || format!("error when calling {}::set", type_name::<T>());
 
         let result = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-            let cell = borrow_instance_cell(instance);
-            let mut guard = cell.borrow_mut().unwrap_or_else(borrow_panic::<T, _>);
+            let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
+            let mut guard = instance.borrow_mut();
 
-            let instance_guard = SiMut::new(cell, &mut guard, &instance.base);
+            let instance_guard = SiMut::new(instance.cell_ref(), &mut guard, &instance.base);
 
             ScriptInstance::set_property(instance_guard, name, value)
         })
         // Unwrapping to a default of false, to indicate that the assignment is not handled by the script.
         .unwrap_or_default();
 
-        transfer_bool_to_godot(result)
+        bool_into_sys(result)
     }
 
     /// # Safety
@@ -584,19 +577,18 @@ mod script_instance_info {
         let ctx = || format!("error when calling {}::get", type_name::<T>());
 
         let return_value = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).get_property(name.clone())
+            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .get_property(name)
         });
 
-        let result = match return_value {
-            Ok(return_value) => return_value
-                .map(|variant| transfer_variant_to_godot(variant, r_ret))
-                .is_some(),
-            Err(_) => false,
-        };
-
-        transfer_bool_to_godot(result)
+        match return_value {
+            Ok(Some(variant)) => {
+                variant.move_into_var_ptr(r_ret);
+                SYS_TRUE
+            }
+            _ => SYS_FALSE,
+        }
     }
 
     /// # Safety
@@ -610,9 +602,9 @@ mod script_instance_info {
         let ctx = || format!("error when calling {}::get_property_list", type_name::<T>());
 
         let (property_list, property_sys_list) = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            let property_list = borrow_instance(instance).get_property_list();
+            let property_list = ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .get_property_list();
 
             let property_sys_list: Box<[_]> = property_list
                 .iter()
@@ -627,7 +619,7 @@ mod script_instance_info {
         let list_length = unsafe { &mut *r_count };
         let return_pointer = transfer_ptr_list_to_godot(property_sys_list, list_length);
 
-        let instance = instance_data_as_script_instance::<T>(p_instance);
+        let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
         instance
             .property_list
             .lock()
@@ -648,9 +640,9 @@ mod script_instance_info {
         let ctx = || format!("error when calling {}::get_method_list", type_name::<T>());
 
         let (method_list, method_sys_list) = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            let method_list = borrow_instance(instance).get_method_list();
+            let method_list = ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .get_method_list();
 
             let method_sys_list = method_list
                 .iter()
@@ -665,7 +657,7 @@ mod script_instance_info {
         let list_length = unsafe { &mut *r_count };
         let return_pointer = transfer_ptr_list_to_godot(method_sys_list, list_length);
 
-        let instance = instance_data_as_script_instance::<T>(p_instance);
+        let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
 
         instance
             .method_list
@@ -684,7 +676,7 @@ mod script_instance_info {
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_prop_info: *const sys::GDExtensionPropertyInfo,
     ) {
-        let instance = instance_data_as_script_instance::<T>(p_instance);
+        let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
 
         let vec = instance
             .property_list
@@ -719,18 +711,17 @@ mod script_instance_info {
         let ctx = || format!("error when calling {}::call", type_name::<T>());
 
         let result = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_self);
-            let cell = borrow_instance_cell(instance);
-            let mut guard = cell.borrow_mut().unwrap_or_else(borrow_panic::<T, _>);
+            let instance = ScriptInstanceData::<T>::borrow_script_sys(p_self);
+            let mut guard = instance.borrow_mut();
 
-            let instance_guard = SiMut::new(cell, &mut guard, &instance.base);
+            let instance_guard = SiMut::new(instance.cell_ref(), &mut guard, &instance.base);
 
             ScriptInstance::call(instance_guard, method.clone(), args)
         });
 
         match result {
-            Ok(Ok(ret)) => {
-                transfer_variant_to_godot(ret, r_return);
+            Ok(Ok(variant)) => {
+                variant.move_into_var_ptr(r_return);
                 (*r_error).error = sys::GDEXTENSION_CALL_OK;
             }
 
@@ -753,9 +744,10 @@ mod script_instance_info {
         let ctx = || format!("error when calling {}::get_script", type_name::<T>());
 
         let script = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).get_script().to_owned()
+            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .get_script()
+                .to_owned()
         });
 
         match script {
@@ -774,13 +766,13 @@ mod script_instance_info {
         let ctx = || format!("error when calling {}::is_placeholder", type_name::<T>());
 
         let is_placeholder = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).is_placeholder()
+            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .is_placeholder()
         })
         .unwrap_or_default();
 
-        transfer_bool_to_godot(is_placeholder)
+        bool_into_sys(is_placeholder)
     }
 
     /// # Safety
@@ -795,13 +787,13 @@ mod script_instance_info {
         let ctx = || format!("error when calling {}::has_method", type_name::<T>());
 
         let has_method = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).has_method(method.clone())
+            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .has_method(method)
         })
         .unwrap_or_default();
 
-        transfer_bool_to_godot(has_method)
+        bool_into_sys(has_method)
     }
 
     /// # Safety
@@ -812,7 +804,7 @@ mod script_instance_info {
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_method_info: *const sys::GDExtensionMethodInfo,
     ) {
-        let instance = instance_data_as_script_instance::<T>(p_instance);
+        let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
 
         let vec = instance
             .method_list
@@ -856,16 +848,16 @@ mod script_instance_info {
         let name = StringName::new_from_string_sys(p_name);
 
         let result = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).get_property_type(name.clone())
+            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .get_property_type(name.clone())
         });
 
         if let Ok(result) = result {
-            *r_is_valid = transfer_bool_to_godot(true);
+            *r_is_valid = SYS_TRUE;
             result.sys()
         } else {
-            *r_is_valid = transfer_bool_to_godot(false);
+            *r_is_valid = SYS_FALSE;
             0
         }
     }
@@ -883,9 +875,9 @@ mod script_instance_info {
         let ctx = || format!("error when calling {}::to_string", type_name::<T>());
 
         let string = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).to_string()
+            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .to_string()
         })
         .ok();
 
@@ -893,7 +885,7 @@ mod script_instance_info {
             return;
         };
 
-        *r_is_valid = transfer_bool_to_godot(true);
+        *r_is_valid = SYS_TRUE;
         transfer_string_to_godot(string, r_str);
     }
 
@@ -916,9 +908,9 @@ mod script_instance_info {
         };
 
         let property_states = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).get_property_state()
+            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .get_property_state()
         })
         .unwrap_or_default();
 
@@ -936,9 +928,9 @@ mod script_instance_info {
         let ctx = || format!("error when calling {}::get_language", type_name::<T>());
 
         let language = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).get_language()
+            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .get_language()
         });
 
         if let Ok(language) = language {
@@ -972,13 +964,13 @@ mod script_instance_info {
         };
 
         let result = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).on_refcount_decremented()
+            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .on_refcount_decremented()
         })
         .unwrap_or(true);
 
-        transfer_bool_to_godot(result)
+        bool_into_sys(result)
     }
 
     /// # Safety
@@ -995,9 +987,9 @@ mod script_instance_info {
         };
 
         handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).on_refcount_incremented();
+            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .on_refcount_incremented();
         })
         .unwrap_or_default();
     }
@@ -1022,19 +1014,18 @@ mod script_instance_info {
         };
 
         let return_value = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-
-            borrow_instance(instance).property_get_fallback(name)
+            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+                .borrow()
+                .property_get_fallback(name)
         });
 
-        let result = match return_value {
-            Ok(return_value) => return_value
-                .map(|value| transfer_variant_to_godot(value, r_ret))
-                .is_some(),
-            Err(_) => false,
-        };
-
-        transfer_bool_to_godot(result)
+        match return_value {
+            Ok(Some(variant)) => {
+                variant.move_into_var_ptr(r_ret);
+                SYS_TRUE
+            }
+            _ => SYS_FALSE,
+        }
     }
 
     /// # Safety
@@ -1057,15 +1048,14 @@ mod script_instance_info {
         };
 
         let result = handle_panic(ctx, || {
-            let instance = instance_data_as_script_instance::<T>(p_instance);
-            let cell = borrow_instance_cell(instance);
-            let mut guard = cell.borrow_mut().unwrap_or_else(borrow_panic::<T, _>);
+            let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
+            let mut guard = instance.borrow_mut();
 
-            let instance_guard = SiMut::new(cell, &mut guard, &instance.base);
+            let instance_guard = SiMut::new(instance.cell_ref(), &mut guard, &instance.base);
             ScriptInstance::property_set_fallback(instance_guard, name, value)
         })
         .unwrap_or_default();
 
-        transfer_bool_to_godot(result)
+        bool_into_sys(result)
     }
 }
