@@ -9,7 +9,7 @@ use std::ffi::c_void;
 
 use godot::builtin::{GString, StringName, Variant, VariantType};
 use godot::classes::{IScriptExtension, Object, Script, ScriptExtension, ScriptLanguage};
-use godot::global::{MethodFlags, PropertyHint, PropertyUsageFlags};
+use godot::global::MethodFlags;
 use godot::meta::{ClassName, FromGodot, MethodInfo, PropertyInfo, ToGodot};
 use godot::obj::script::{create_script_instance, ScriptInstance, SiMut};
 use godot::obj::{Base, Gd, WithBaseField};
@@ -46,44 +46,16 @@ impl TestScriptInstance {
         Self {
             script,
             script_property_b: false,
-            prop_list: vec![PropertyInfo {
-                variant_type: VariantType::INT,
-                property_name: StringName::from("script_property_a"),
-                class_name: ClassName::from_ascii_cstr("\0".as_bytes()),
-                hint: PropertyHint::NONE,
-                hint_string: GString::new(),
-                usage: PropertyUsageFlags::NONE,
-            }],
+            prop_list: vec![PropertyInfo::new_var::<i64>("script_property_a")],
 
             method_list: vec![MethodInfo {
                 id: 1,
                 method_name: StringName::from("script_method_a"),
                 class_name: ClassName::from_ascii_cstr("TestScript\0".as_bytes()),
-                return_type: PropertyInfo {
-                    variant_type: VariantType::STRING,
-                    class_name: ClassName::none(),
-                    property_name: StringName::from(""),
-                    hint: PropertyHint::NONE,
-                    hint_string: GString::new(),
-                    usage: PropertyUsageFlags::NONE,
-                },
+                return_type: PropertyInfo::new_var::<GString>(""),
                 arguments: vec![
-                    PropertyInfo {
-                        variant_type: VariantType::STRING,
-                        class_name: ClassName::none(),
-                        property_name: StringName::from(""),
-                        hint: PropertyHint::NONE,
-                        hint_string: GString::new(),
-                        usage: PropertyUsageFlags::NONE,
-                    },
-                    PropertyInfo {
-                        variant_type: VariantType::INT,
-                        class_name: ClassName::none(),
-                        property_name: StringName::from(""),
-                        hint: PropertyHint::NONE,
-                        hint_string: GString::new(),
-                        usage: PropertyUsageFlags::NONE,
-                    },
+                    PropertyInfo::new_var::<GString>("arg_a"),
+                    PropertyInfo::new_var::<i32>("arg_b"),
                 ],
                 default_arguments: vec![],
                 flags: MethodFlags::NORMAL,

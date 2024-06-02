@@ -30,7 +30,7 @@ use crate::meta::{MethodInfo, PropertyInfo};
 use crate::obj::{Base, Gd, GodotClass};
 use crate::sys;
 
-use self::ptrlist_container::PtrlistContainer;
+use self::bounded_ptr_list::BoundedPtrList;
 
 /// Implement custom scripts that can be attached to objects in Godot.
 ///
@@ -131,7 +131,7 @@ pub trait ScriptInstance: Sized {
 
     /// Lets the engine get a reference to the script this instance was created for.
     ///
-    /// This function has to return a reference, because Scripts are reference counted in Godot and it has to be guaranteed that the object is
+    /// This function has to return a reference, because Scripts are reference counted in Godot and it must be guaranteed that the object is
     /// not freed before the engine increased the reference count. (every time a `Gd<T>` which contains a reference counted object is dropped the
     /// reference count is decremented.)
     fn get_script(&self) -> &Gd<Script>;
@@ -170,14 +170,19 @@ type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo2;
 struct ScriptInstanceData<T: ScriptInstance> {
     inner: GdCell<T>,
     script_instance_ptr: *mut ScriptInstanceInfo,
-    property_lists: PtrlistContainer<sys::GDExtensionPropertyInfo>,
-    method_lists: PtrlistContainer<sys::GDExtensionMethodInfo>,
+    property_lists: BoundedPtrList<sys::GDExtensionPropertyInfo>,
+    method_lists: BoundedPtrList<sys::GDExtensionMethodInfo>,
     base: Base<T::Base>,
 }
 
 impl<T: ScriptInstance> ScriptInstanceData<T> {
-    unsafe fn borrow_script_sys<'a>(p_instance: sys::GDExtensionScriptInstanceDataPtr) -> &'a Self {
-        &*(p_instance as *mut ScriptInstanceData<T>)
+    ///  Convert a `ScriptInstanceData` sys pointer to a reference with unbounded lifetime.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must point to a live `ScriptInstanceData<T>` for the duration of `'a`.
+    unsafe fn borrow_script_sys<'a>(ptr: sys::GDExtensionScriptInstanceDataPtr) -> &'a Self {
+        &*(ptr.cast::<ScriptInstanceData<T>>())
     }
 
     fn borrow(&self) -> RefGuard<'_, T> {
@@ -283,8 +288,8 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
     let data = ScriptInstanceData {
         inner: GdCell::new(rust_instance),
         script_instance_ptr: instance_ptr,
-        property_lists: PtrlistContainer::new(),
-        method_lists: PtrlistContainer::new(),
+        property_lists: BoundedPtrList::new(),
+        method_lists: BoundedPtrList::new(),
         // SAFETY: The script instance is always freed before the base object is destroyed. The weak reference should therefore never be
         // accessed after it has been freed.
         base: unsafe { Base::from_gd(&for_object) },
@@ -453,22 +458,30 @@ impl<'a, T: ScriptInstance> DerefMut for SiMut<'a, T> {
     }
 }
 
-// Encapsulate PtrlistContainer to help ensure safety.
-mod ptrlist_container {
+// Encapsulate BoundedPtrList to help ensure safety.
+mod bounded_ptr_list {
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    pub struct PtrlistContainer<T> {
+    use godot_ffi as sys;
+
+    /// Helper struct to store the lengths of lists so they can be properly freed.
+    ///
+    /// This uses the term `list` because it refers to property/method lists in gdextension.
+    pub struct BoundedPtrList<T> {
         list_lengths: Mutex<HashMap<*mut T, u32>>,
     }
 
-    impl<T> PtrlistContainer<T> {
+    impl<T> BoundedPtrList<T> {
         pub fn new() -> Self {
             Self {
                 list_lengths: Mutex::new(HashMap::new()),
             }
         }
 
+        /// Convert a list into a pointer + length pair. Should be used together with [`list_from_sys`](Self::list_from_sys).
+        ///
+        /// If `list_from_sys` is not called on this list then that will cause a memory leak.
         pub fn list_into_sys(&self, list: Vec<T>) -> (*const T, u32) {
             let len: u32 = list
                 .len()
@@ -482,9 +495,11 @@ mod ptrlist_container {
                 "attempted to insert the same list twice, this is a bug"
             );
 
-            (ptr as *const T, len)
+            (ptr.cast_const(), len)
         }
 
+        /// Get a list back from a previous call to [`list_into_sys`](Self::list_into_sys).
+        ///
         /// # Safety
         /// - `ptr` must have been returned from a call to `list_into_sys` on `self`.
         /// - `ptr` must not have been used in a call to this function before.
@@ -492,16 +507,14 @@ mod ptrlist_container {
         /// - `ptr` must not be accessed after calling this function.
         #[deny(unsafe_op_in_unsafe_fn)]
         pub unsafe fn list_from_sys(&self, ptr: *const T) -> Box<[T]> {
-            let ptr: *mut T = ptr as *mut T;
+            let ptr: *mut T = ptr.cast_mut();
             let len = self
                 .list_lengths
                 .lock()
                 .unwrap()
                 .remove(&ptr)
                 .expect("attempted to free list from wrong collection, this is a bug");
-            let len: usize = len
-                .try_into()
-                .expect("gdext only supports targets where u32 <= usize");
+            let len: usize = sys::conv::u32_to_usize(len);
 
             // SAFETY: `ptr` was created in `list_into_sys` from a slice of length `len`.
             // And has not been mutated since.
@@ -513,39 +526,40 @@ mod ptrlist_container {
     }
 }
 
+#[deny(unsafe_op_in_unsafe_fn)]
 mod script_instance_info {
     use std::any::type_name;
     use std::ffi::c_void;
 
+    use crate::builtin::meta::{MethodInfo, PropertyInfo};
     use crate::builtin::{StringName, Variant};
     use crate::private::handle_panic;
     use crate::sys;
 
     use super::{ScriptInstance, ScriptInstanceData, SiMut};
-
-    const fn bool_into_sys(value: bool) -> sys::GDExtensionBool {
-        value as sys::GDExtensionBool
-    }
-
-    const SYS_TRUE: sys::GDExtensionBool = bool_into_sys(true);
-    const SYS_FALSE: sys::GDExtensionBool = bool_into_sys(true);
+    use sys::conv::{bool_to_sys, SYS_FALSE, SYS_TRUE};
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - `p_name` has to be a valid pointer to a StringName.
-    /// - `p_value` has to be a valid pointer to a Variant.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_name` must be a valid [`StringName`] pointer.
+    /// - `p_value` must be a valid [`Variant`] pointer.
     pub(super) unsafe extern "C" fn set_property_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_name: sys::GDExtensionConstStringNamePtr,
         p_value: sys::GDExtensionConstVariantPtr,
     ) -> sys::GDExtensionBool {
-        let name = StringName::new_from_string_sys(p_name);
-        let value = Variant::borrow_var_sys(p_value);
+        let (name, value);
+        // SAFETY: `p_name` and `p_value` are valid pointers to a `StringName` and `Variant`.
+        unsafe {
+            name = StringName::new_from_string_sys(p_name);
+            value = Variant::borrow_var_sys(p_value);
+        }
         let ctx = || format!("error when calling {}::set", type_name::<T>());
 
         let result = handle_panic(ctx, || {
-            let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
             let mut guard = instance.borrow_mut();
 
             let instance_guard = SiMut::new(instance.cell_ref(), &mut guard, &instance.base);
@@ -555,30 +569,34 @@ mod script_instance_info {
         // Unwrapping to a default of false, to indicate that the assignment is not handled by the script.
         .unwrap_or_default();
 
-        bool_into_sys(result)
+        bool_to_sys(result)
     }
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - `r_ret` will be a valid owned variant pointer after this call.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_name` must be a valid [`StringName`] pointer.
+    /// - It must be safe to move a `Variant` into `r_ret`.
     pub(super) unsafe extern "C" fn get_property_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_name: sys::GDExtensionConstStringNamePtr,
         r_ret: sys::GDExtensionVariantPtr,
     ) -> sys::GDExtensionBool {
-        let name = StringName::new_from_string_sys(p_name);
+        // SAFETY: `p_name` is a valid [`StringName`] pointer.
+        let name = unsafe { StringName::new_from_string_sys(p_name) };
         let ctx = || format!("error when calling {}::get", type_name::<T>());
 
         let return_value = handle_panic(ctx, || {
-            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
                 .borrow()
                 .get_property(name)
         });
 
         match return_value {
             Ok(Some(variant)) => {
-                variant.move_into_var_ptr(r_ret);
+                // SAFETY: It is safe to move a `Variant` into `r_ret`.
+                unsafe { variant.move_into_var_ptr(r_ret) };
                 SYS_TRUE
             }
             _ => SYS_FALSE,
@@ -587,18 +605,22 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - `r_count` is expected to be a valid pointer to an u32.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - It must be safe to assign a `u32` to `r_count`.
     pub(super) unsafe extern "C" fn get_property_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         r_count: *mut u32,
     ) -> *const sys::GDExtensionPropertyInfo {
         let ctx = || format!("error when calling {}::get_property_list", type_name::<T>());
 
+        // Encapsulate this unsafe block to avoid repeating the safety comment.
+        // SAFETY: This closure is only used in this function, and we may dereference `p_instance` to an immutable reference for the duration of
+        // this call.
+        let borrow_instance =
+            move || unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
+
         let property_list = handle_panic(ctx, || {
-            let property_list = ScriptInstanceData::<T>::borrow_script_sys(p_instance)
-                .borrow()
-                .get_property_list();
+            let property_list = borrow_instance().borrow().get_property_list();
 
             property_list
                 .into_iter()
@@ -607,10 +629,11 @@ mod script_instance_info {
         })
         .unwrap_or_default();
 
-        let (list_ptr, list_length) = ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+        let (list_ptr, list_length) = borrow_instance()
             .property_lists
             .list_into_sys(property_list);
 
+        // SAFETY: It is safe to assign a `u32` to `r_count`.
         unsafe {
             *r_count = list_length;
         }
@@ -620,7 +643,7 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     /// - `r_count` is expected to be a valid pointer to an u32.
     pub(super) unsafe extern "C" fn get_method_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
@@ -628,23 +651,24 @@ mod script_instance_info {
     ) -> *const sys::GDExtensionMethodInfo {
         let ctx = || format!("error when calling {}::get_method_list", type_name::<T>());
 
-        let method_list = handle_panic(ctx, || {
-            let method_list = ScriptInstanceData::<T>::borrow_script_sys(p_instance)
-                .borrow()
-                .get_method_list();
+        // Encapsulate this unsafe block to avoid repeating the safety comment.
+        // SAFETY: This closure is only used in this function, and we may dereference `p_instance` to an immutable reference for the duration of
+        // this call.
+        let borrow_instance =
+            move || unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
 
-            let method_list = method_list
-                .into_iter()
-                .map(|method| method.into_owned_method_sys())
-                .collect();
+        let method_list = handle_panic(ctx, || {
+            let method_list = borrow_instance().borrow().get_method_list();
 
             method_list
+                .into_iter()
+                .map(|method| method.into_owned_method_sys())
+                .collect()
         })
         .unwrap_or_default();
 
-        let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
-
-        let (return_pointer, list_length) = instance.method_lists.list_into_sys(method_list);
+        let (return_pointer, list_length) =
+            borrow_instance().method_lists.list_into_sys(method_list);
 
         unsafe {
             *r_count = list_length;
@@ -655,24 +679,36 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - The length of `p_prop_info` list is expected to not have changed since it was transferred to the engine.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_prop_info` must have been returned from a call to [`get_property_list_func`] called with the same `p_instance` pointer.
+    /// - `p_prop_info` must not have been mutated since the call to `get_property_list_func`.
     pub(super) unsafe extern "C" fn free_property_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_prop_info: *const sys::GDExtensionPropertyInfo,
     ) {
-        let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
+        // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+        let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
 
-        let _drop = instance.property_lists.list_from_sys(p_prop_info);
+        // SAFETY: `p_prop_info` was returned from a call to `list_into_sys`, and has not been mutated since. This is also the first call
+        // to `list_from_sys` with this pointer.
+        let property_infos = unsafe { instance.property_lists.list_from_sys(p_prop_info) };
+
+        for info in property_infos.iter() {
+            // SAFETY: `info` was returned from a call to `into_owned_property_sys` and this is the first and only time this function is called
+            // on it.
+            unsafe { PropertyInfo::free_owned_property_sys(*info) };
+        }
     }
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - `p_method` has to be a valid Godot string name ptr.
+    /// - `p_self` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_method` must be a valid [`StringName`] pointer.
     /// - `p_args` has to point to a list of Variant pointers of length `p_argument_count`.
-    /// - `r_return` has to be a valid variant pointer into which the return value can be moved.
-    /// - `r_error` has to point to a valid [`GDExtenstionCallError`] which can be modified to reflect the outcome of the method call.
+    /// - All the variant pointers in `p_args`, as well the `p_args` pointer itself must be dereferenceable to an immutable reference for the
+    ///   duration of this call.
+    /// - It must be safe to move a [`Variant`] into `r_return`.
+    /// - `r_error` must point to an initialized [`sys::GDExtensionCallError`] which can be written to.
     pub(super) unsafe extern "C" fn call_func<T: ScriptInstance>(
         p_self: sys::GDExtensionScriptInstanceDataPtr,
         p_method: sys::GDExtensionConstStringNamePtr,
@@ -681,12 +717,22 @@ mod script_instance_info {
         r_return: sys::GDExtensionVariantPtr,
         r_error: *mut sys::GDExtensionCallError,
     ) {
-        let method = StringName::new_from_string_sys(p_method);
-        let args = Variant::borrow_ref_slice(p_args, p_argument_count as usize);
+        // SAFETY: `p_method` is a valid [`StringName`] pointer.
+        let method = unsafe { StringName::new_from_string_sys(p_method) };
+        // SAFETY: `p_args` is a valid array of length `p_argument_count`
+        let args = unsafe {
+            Variant::borrow_ref_slice(
+                p_args,
+                p_argument_count
+                    .try_into()
+                    .expect("argument count should be a valid `u32`"),
+            )
+        };
         let ctx = || format!("error when calling {}::call", type_name::<T>());
 
         let result = handle_panic(ctx, || {
-            let instance = ScriptInstanceData::<T>::borrow_script_sys(p_self);
+            // SAFETY: `p_self` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_self) };
             let mut guard = instance.borrow_mut();
 
             let instance_guard = SiMut::new(instance.cell_ref(), &mut guard, &instance.base);
@@ -694,32 +740,36 @@ mod script_instance_info {
             ScriptInstance::call(instance_guard, method.clone(), args)
         });
 
-        match result {
+        let error = match result {
             Ok(Ok(variant)) => {
-                variant.move_into_var_ptr(r_return);
-                (*r_error).error = sys::GDEXTENSION_CALL_OK;
+                // SAFETY: It is safe to move a `Variant` into `r_return`.
+                unsafe { variant.move_into_var_ptr(r_return) };
+                sys::GDEXTENSION_CALL_OK
             }
 
-            Ok(Err(err)) => (*r_error).error = err,
+            Ok(Err(err)) => err,
 
-            Err(_) => {
-                (*r_error).error = sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD;
-            }
+            Err(_) => sys::GDEXTENSION_CALL_ERROR_INVALID_METHOD,
         };
+
+        // SAFETY: `r_error` is an initialized pointer which we can write to.
+        unsafe { (*r_error).error = error };
     }
 
+    /// Ownership of the returned object is not transferred to the caller. The caller is therefore responsible for incrementing the reference
+    /// count.
+    ///
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - A pointer to a `Script` reference will be returned. The caller is then responsible for freeing the reference, including the adjustment
-    ///   of the reference count.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     pub(super) unsafe extern "C" fn get_script_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
     ) -> sys::GDExtensionObjectPtr {
         let ctx = || format!("error when calling {}::get_script", type_name::<T>());
 
         let script = handle_panic(ctx, || {
-            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
                 .borrow()
                 .get_script()
                 .clone()
@@ -733,62 +783,74 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - The boolean result is returned as an GDExtensionBool.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     pub(super) unsafe extern "C" fn is_placeholder_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
     ) -> sys::GDExtensionBool {
         let ctx = || format!("error when calling {}::is_placeholder", type_name::<T>());
 
         let is_placeholder = handle_panic(ctx, || {
-            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
                 .borrow()
                 .is_placeholder()
         })
         .unwrap_or_default();
 
-        bool_into_sys(is_placeholder)
+        bool_to_sys(is_placeholder)
     }
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - `p_method` has to point to a valid string name.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_method` has to point to a valid `StringName`.
     pub(super) unsafe extern "C" fn has_method_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_method: sys::GDExtensionConstStringNamePtr,
     ) -> sys::GDExtensionBool {
-        let method = StringName::new_from_string_sys(p_method);
+        // SAFETY: `p_method` is a valid [`StringName`] pointer.
+        let method = unsafe { StringName::new_from_string_sys(p_method) };
         let ctx = || format!("error when calling {}::has_method", type_name::<T>());
 
         let has_method = handle_panic(ctx, || {
-            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
                 .borrow()
                 .has_method(method)
         })
         .unwrap_or_default();
 
-        bool_into_sys(has_method)
+        bool_to_sys(has_method)
     }
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - The length of `p_method_info` list is expected to not have changed since it was transferred to the engine.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_method_info` must have been returned from a call to [`get_method_list_func`] called with the same `p_instance` pointer.
+    /// - `p_method_info` must not have been mutated since the call to `get_method_list_func`.
     pub(super) unsafe extern "C" fn free_method_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_method_info: *const sys::GDExtensionMethodInfo,
     ) {
-        let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
+        // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+        let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
 
-        let _drop = instance.method_lists.list_from_sys(p_method_info);
+        // SAFETY: `p_method_info` was returned from a call to `list_into_sys`, and has not been mutated since. This is also the first call
+        // to `list_from_sys` with this pointer.
+        let method_infos = unsafe { instance.method_lists.list_from_sys(p_method_info) };
+
+        for info in method_infos.iter() {
+            // SAFETY: `info` was returned from a call to `into_owned_method_sys`, and this is the first and only time we call this method on
+            // it.
+            unsafe { MethodInfo::free_owned_method_sys(*info) };
+        }
     }
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - `p_name` is expected to be a valid ptr to a Godot string name.
-    /// - `r_is_valid` is expected to be a valid ptr to a [`GDExtensionBool`] which can be modified to reflect the validity of the return value.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_name` must be a valid [`StringName`] pointer.
+    /// - `r_is_valid` must be assignable.
     pub(super) unsafe extern "C" fn get_property_type_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_name: sys::GDExtensionConstStringNamePtr,
@@ -800,28 +862,32 @@ mod script_instance_info {
                 type_name::<T>()
             )
         };
-        let name = StringName::new_from_string_sys(p_name);
+        // SAFETY: `p_name` is a valid [`StringName`] pointer.
+        let name = unsafe { StringName::new_from_string_sys(p_name) };
 
         let result = handle_panic(ctx, || {
-            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
                 .borrow()
                 .get_property_type(name.clone())
         });
 
-        if let Ok(result) = result {
-            *r_is_valid = SYS_TRUE;
-            result.sys()
+        let (is_valid, result) = if let Ok(result) = result {
+            (SYS_TRUE, result.sys())
         } else {
-            *r_is_valid = SYS_FALSE;
-            0
-        }
+            (SYS_FALSE, sys::GDEXTENSION_VARIANT_TYPE_NIL)
+        };
+
+        // SAFETY: `r_is_valid` is assignable.
+        unsafe { *r_is_valid = is_valid };
+        result
     }
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - `r_is_valid` is expected to be a valid `GDExtensionBool` ptr which can be modified to reflect the validity of the return value.
-    /// - `r_str` is expected to be a string pointer into which the return value can be moved.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `r_is_valid` must be assignable.
+    /// - It must be safe to move a [`GString`](crate::builtin::GString) into `r_str`.
     pub(super) unsafe extern "C" fn to_string_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         r_is_valid: *mut sys::GDExtensionBool,
@@ -830,7 +896,8 @@ mod script_instance_info {
         let ctx = || format!("error when calling {}::to_string", type_name::<T>());
 
         let string = handle_panic(ctx, || {
-            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
                 .borrow()
                 .to_string()
         })
@@ -840,16 +907,19 @@ mod script_instance_info {
             return;
         };
 
-        *r_is_valid = SYS_TRUE;
-        string.move_into_string_ptr(r_str);
+        // SAFETY: `r_is_valid` is assignable.
+        unsafe { *r_is_valid = SYS_TRUE };
+        // SAFETY: It is safe to move a `GString` into `r_str`.
+        unsafe { string.move_into_string_ptr(r_str) };
     }
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - A string name ptr and a const Variant ptr are passed for each script property to the `property_state_add` callback function. The callback is then
-    ///   responsible for freeing the memory.
-    /// - `userdata` has to be a valid pointer that satisfies the invariants of `property_state_add`.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    ///
+    /// If `property_state_add` is non-null, then:
+    /// - It is safe to call `property_state_add` using the provided `userdata`.
+    /// - `property_state_add` must take ownership of the `StringName` and `Variant` it is called with.
     pub(super) unsafe extern "C" fn get_property_state_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         property_state_add: sys::GDExtensionScriptInstancePropertyStateAdd,
@@ -863,7 +933,8 @@ mod script_instance_info {
         };
 
         let property_states = handle_panic(ctx, || {
-            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
                 .borrow()
                 .get_property_state()
         })
@@ -874,26 +945,31 @@ mod script_instance_info {
         };
 
         for (name, value) in property_states {
-            property_state_add(
-                name.into_owned_string_sys(),
-                value.into_owned_var_sys(),
-                userdata,
-            );
+            // SAFETY: `property_state_add` is non-null, therefore we can call the function with the provided `userdata`.
+            // Additionally `property_state_add` takes ownership of `name` and `value`.
+            unsafe {
+                property_state_add(
+                    name.into_owned_string_sys(),
+                    value.into_owned_var_sys(),
+                    userdata,
+                )
+            }
         }
     }
 
+    /// Ownership of the returned object is not transferred to the caller. The caller must therefore ensure it's not freed when used.
+    ///
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - A ptr to a [`ScriptLanguage´] reference will be returned, ScriptLanguage is a manually managed object and the caller has to verify
-    ///   it's validity as it could be freed at any time.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     pub(super) unsafe extern "C" fn get_language_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
     ) -> sys::GDExtensionScriptLanguagePtr {
         let ctx = || format!("error when calling {}::get_language", type_name::<T>());
 
         let language = handle_panic(ctx, || {
-            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
                 .borrow()
                 .get_language()
         });
@@ -907,17 +983,16 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - The instance data will be freed and the pointer won't be valid anymore after this function has been called.
+    /// - `p_instance` must fulfill the safety preconditions of [`Box::from_raw`] for `Box<ScriptInstanceData<T>>`.
     pub(super) unsafe extern "C" fn free_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
     ) {
-        drop(Box::from_raw(p_instance.cast::<ScriptInstanceData<T>>()));
+        unsafe { drop(Box::from_raw(p_instance.cast::<ScriptInstanceData<T>>())) }
     }
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     pub(super) unsafe extern "C" fn refcount_decremented_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
     ) -> sys::GDExtensionBool {
@@ -929,18 +1004,19 @@ mod script_instance_info {
         };
 
         let result = handle_panic(ctx, || {
-            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
                 .borrow()
                 .on_refcount_decremented()
         })
         .unwrap_or(true);
 
-        bool_into_sys(result)
+        bool_to_sys(result)
     }
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
     pub(super) unsafe extern "C" fn refcount_incremented_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
     ) {
@@ -952,7 +1028,8 @@ mod script_instance_info {
         };
 
         handle_panic(ctx, || {
-            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
                 .borrow()
                 .on_refcount_incremented();
         })
@@ -961,15 +1038,16 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - `p_name` has to be a valid pointer to a `StringName`.
-    /// - `r_ret` has to be a valid pointer to which the return value can be moved.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_name` must be a valid [`StringName`] pointer.
+    /// - It must be safe to move a `Variant` into `r_ret`.
     pub(super) unsafe extern "C" fn get_fallback_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_name: sys::GDExtensionConstStringNamePtr,
         r_ret: sys::GDExtensionVariantPtr,
     ) -> sys::GDExtensionBool {
-        let name = StringName::new_from_string_sys(p_name);
+        // SAFETY: `p_name` is a valid `StringName` pointer.
+        let name = unsafe { StringName::new_from_string_sys(p_name) };
 
         let ctx = || {
             format!(
@@ -979,14 +1057,16 @@ mod script_instance_info {
         };
 
         let return_value = handle_panic(ctx, || {
-            ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
                 .borrow()
                 .property_get_fallback(name)
         });
 
         match return_value {
             Ok(Some(variant)) => {
-                variant.move_into_var_ptr(r_ret);
+                // SAFETY: It is safe to move a `Variant` into `r_ret`.
+                unsafe { variant.move_into_var_ptr(r_ret) };
                 SYS_TRUE
             }
             _ => SYS_FALSE,
@@ -995,15 +1075,20 @@ mod script_instance_info {
 
     /// # Safety
     ///
-    /// - `p_instance` has to be a valid pointer that can be cast to `*mut ScriptInstanceData<T>`.
-    /// - `p_name` has to be a valid pointer to a `StringName`.
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_name` must be a valid [`StringName`] pointer.
+    /// - `p_value` must be a valid [`Variant`] pointer.
     pub(super) unsafe extern "C" fn set_fallback_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_name: sys::GDExtensionConstStringNamePtr,
         p_value: sys::GDExtensionConstVariantPtr,
     ) -> sys::GDExtensionBool {
-        let name = StringName::new_from_string_sys(p_name);
-        let value = Variant::borrow_var_sys(p_value);
+        let (name, value);
+        // SAFETY: `p_name` and `p_value` are valid `StringName` and `Variant` pointers respectively.
+        unsafe {
+            name = StringName::new_from_string_sys(p_name);
+            value = Variant::borrow_var_sys(p_value);
+        };
 
         let ctx = || {
             format!(
@@ -1013,7 +1098,8 @@ mod script_instance_info {
         };
 
         let result = handle_panic(ctx, || {
-            let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            let instance = unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) };
             let mut guard = instance.borrow_mut();
 
             let instance_guard = SiMut::new(instance.cell_ref(), &mut guard, &instance.base);
@@ -1021,6 +1107,6 @@ mod script_instance_info {
         })
         .unwrap_or_default();
 
-        bool_into_sys(result)
+        bool_to_sys(result)
     }
 }

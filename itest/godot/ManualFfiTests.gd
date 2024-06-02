@@ -86,13 +86,13 @@ func test_object_pass_to_user_func_ptrcall():
 
 func test_object_return_from_user_func_varcall():
 	var obj_test = ObjectTest.new()
-	var obj: MockObjRust = obj_test.return_object() 
+	var obj: MockObjRust = obj_test.return_object()
 	assert_eq(obj.i, 42)
 	obj.free()
 
 func test_object_return_from_user_func_ptrcall():
 	var obj_test: ObjectTest = ObjectTest.new()
-	var obj: MockObjRust = obj_test.return_object() 
+	var obj: MockObjRust = obj_test.return_object()
 	assert_eq(obj.i, 42)
 	obj.free()
 
@@ -124,22 +124,22 @@ func test_refcounted_as_object_pass_to_user_func_ptrcall():
 
 func test_refcounted_return_from_user_func_varcall():
 	var obj_test = ObjectTest.new()
-	var obj: MockRefCountedRust = obj_test.return_refcounted() 
+	var obj: MockRefCountedRust = obj_test.return_refcounted()
 	assert_eq(obj.i, 42)
 
 func test_refcounted_return_from_user_func_ptrcall():
 	var obj_test: ObjectTest = ObjectTest.new()
-	var obj: MockRefCountedRust = obj_test.return_refcounted() 
+	var obj: MockRefCountedRust = obj_test.return_refcounted()
 	assert_eq(obj.i, 42)
 
 func test_refcounted_as_object_return_from_user_func_varcall():
 	var obj_test = ObjectTest.new()
-	var obj: MockRefCountedRust = obj_test.return_refcounted_as_object() 
+	var obj: MockRefCountedRust = obj_test.return_refcounted_as_object()
 	assert_eq(obj.i, 42)
 
 func test_refcounted_as_object_return_from_user_func_ptrcall():
 	var obj_test: ObjectTest = ObjectTest.new()
-	var obj: MockRefCountedRust = obj_test.return_refcounted_as_object() 
+	var obj: MockRefCountedRust = obj_test.return_refcounted_as_object()
 	assert_eq(obj.i, 42)
 
 func test_custom_constructor():
@@ -263,7 +263,7 @@ func test_custom_property_wrong_values_2():
 
 	var has_property: HasCustomProperty = HasCustomProperty.new()
 	disable_error_messages()
-	has_property.not_exportable = {"a": "hello", "b": Callable()}  # Should fail.
+	has_property.not_exportable = {"a": "hello", "b": Callable()} # Should fail.
 	enable_error_messages()
 	assert_fail("HasCustomProperty.not_exportable should only accept dictionaries with float values")
 
@@ -360,4 +360,3 @@ func test_get_set():
 	assert_eq(obj.set_get, 1000)
 	assert(obj.is_set_called())
 	assert(obj.is_get_called())
-

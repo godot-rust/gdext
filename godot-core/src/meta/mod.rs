@@ -17,6 +17,7 @@ mod traits;
 pub mod error;
 pub use class_name::ClassName;
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
+use sys::conv::u32_to_usize;
 pub use traits::{ArrayElement, GodotType};
 
 pub(crate) use crate::impl_godot_as_self;
@@ -312,43 +313,46 @@ impl MethodInfo {
             default_arguments,
         } = info;
 
-        // SAFETY: `name` and `return_value` were created from the appropriate method calls, and have not been freed before this.
-        unsafe {
-            let _name = StringName::from_owned_string_sys(name);
-            PropertyInfo::free_owned_property_sys(return_value);
+        // SAFETY: `name` is a pointer that was returned from `StringName::into_owned_string_sys`, and has not been freed before this.
+        let _name = unsafe { StringName::from_owned_string_sys(name) };
+
+        // SAFETY: `return_value` is a pointer that was returned from `PropertyInfo::into_owned_property_sys`, and has not been freed before
+        // this.
+        unsafe { PropertyInfo::free_owned_property_sys(return_value) };
+
+        // SAFETY:
+        // - `from_raw_parts_mut`: `arguments` comes from `as_mut_ptr()` on a mutable slice of length `argument_count`, and no other
+        //    accesses to the pointer happens for the lifetime of the slice.
+        // - `Box::from_raw`: The slice was returned from a call to `Box::leak`, and we have ownership of the value behind this pointer.
+        let arguments = unsafe {
+            let slice = std::slice::from_raw_parts_mut(arguments, u32_to_usize(argument_count));
+
+            Box::from_raw(slice)
+        };
+
+        for info in arguments.iter() {
+            // SAFETY: These infos were originally created from a call to `PropertyInfo::into_owned_property_sys`, and this method
+            // will not be called again on this pointer.
+            unsafe { PropertyInfo::free_owned_property_sys(*info) }
         }
 
-        // SAFETY: These pointers were both created from a call to `as_mut_ptr` on a slice. Additionally these pointer will not be accessed
-        // again after this function call.
-        let (arguments_slice, default_arguments_slice) = unsafe {
-            (
-                std::slice::from_raw_parts_mut(
-                    arguments,
-                    argument_count
-                        .try_into()
-                        .expect("gdext only supports targets where u32 <= usize"),
-                ),
-                std::slice::from_raw_parts_mut(
-                    default_arguments,
-                    default_argument_count
-                        .try_into()
-                        .expect("gdext only supports targets where u32 <= usize"),
-                ),
-            )
+        // SAFETY:
+        // - `from_raw_parts_mut`: `default_arguments` comes from `as_mut_ptr()` on a mutable slice of length `default_argument_count`, and no
+        //    other accesses to the pointer happens for the lifetime of the slice.
+        // - `Box::from_raw`: The slice was returned from a call to `Box::leak`, and we have ownership of the value behind this pointer.
+        let default_arguments = unsafe {
+            let slice = std::slice::from_raw_parts_mut(
+                default_arguments,
+                u32_to_usize(default_argument_count),
+            );
+
+            Box::from_raw(slice)
         };
 
-        // SAFETY: We have exclusive ownership of these slices, and they were originally created from a call to `Box::leak`.
-        let (_arguments, default_arguments) = unsafe {
-            (
-                Box::from_raw(arguments_slice),
-                Box::from_raw(default_arguments_slice),
-            )
-        };
-
-        default_arguments.iter().for_each(|ptr| {
-            // SAFETY: These pointers were originally created from a call to `Variant::into_owner_var_sys`, and this method will not be
+        for variant in default_arguments.iter() {
+            // SAFETY: These pointers were originally created from a call to `Variant::into_owned_var_sys`, and this method will not be
             // called again on this pointer.
-            let _variant = unsafe { Variant::from_owned_var_sys(*ptr) };
-        });
+            let _variant = unsafe { Variant::from_owned_var_sys(*variant) };
+        }
     }
 }

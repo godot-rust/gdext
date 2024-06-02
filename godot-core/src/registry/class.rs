@@ -246,7 +246,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             // For some reason, certain ABCs like PhysicsBody2D are not marked "virtual" but "abstract".
             //
             // See also: https://github.com/godotengine/godot/pull/58972
-            c.godot_params.is_abstract = (!is_instantiable) as sys::GDExtensionBool;
+            c.godot_params.is_abstract = sys::conv::bool_to_sys(!is_instantiable);
             c.godot_params.free_instance_func = Some(free_fn);
 
             fill_into(
@@ -265,7 +265,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
                 )
                 .expect("duplicate: recreate_instance_func (def)");
 
-                c.godot_params.is_exposed = (!is_hidden) as sys::GDExtensionBool;
+                c.godot_params.is_exposed = sys::conv::bool_to_sys(!is_hidden);
             }
 
             #[cfg(before_api = "4.2")]
@@ -276,7 +276,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             #[cfg(since_api = "4.3")]
             {
                 c.godot_params.is_runtime =
-                    crate::private::is_class_runtime(is_tool) as sys::GDExtensionBool;
+                    sys::conv::bool_to_sys(crate::private::is_class_runtime(is_tool));
             }
         }
 
@@ -498,7 +498,7 @@ fn default_creation_info() -> sys::GDExtensionClassCreationInfo2 {
     sys::GDExtensionClassCreationInfo2 {
         is_virtual: false as u8,
         is_abstract: false as u8,
-        is_exposed: true as sys::GDExtensionBool,
+        is_exposed: sys::conv::SYS_TRUE,
         set_func: None,
         get_func: None,
         get_property_list_func: None,
@@ -526,8 +526,8 @@ fn default_creation_info() -> sys::GDExtensionClassCreationInfo3 {
     sys::GDExtensionClassCreationInfo3 {
         is_virtual: false as u8,
         is_abstract: false as u8,
-        is_exposed: true as sys::GDExtensionBool,
-        is_runtime: true as sys::GDExtensionBool,
+        is_exposed: sys::conv::SYS_TRUE,
+        is_runtime: sys::conv::SYS_TRUE,
         set_func: None,
         get_func: None,
         get_property_list_func: None,

@@ -432,7 +432,7 @@ mod custom_callable {
         let a: &T = CallableUserdata::inner_from_raw(callable_userdata_a);
         let b: &T = CallableUserdata::inner_from_raw(callable_userdata_b);
 
-        (a == b) as sys::GDExtensionBool
+        sys::conv::bool_to_sys(a == b)
     }
 
     pub unsafe extern "C" fn rust_callable_to_string_display<T: fmt::Display>(
@@ -444,7 +444,7 @@ mod custom_callable {
         let s = crate::builtin::GString::from(c.to_string());
 
         s.move_into_string_ptr(r_out);
-        *r_is_valid = true as sys::GDExtensionBool;
+        *r_is_valid = sys::conv::SYS_TRUE;
     }
 
     pub unsafe extern "C" fn rust_callable_to_string_named<F>(
@@ -455,6 +455,6 @@ mod custom_callable {
         let w: &mut FnWrapper<F> = CallableUserdata::inner_from_raw(callable_userdata);
 
         w.name.clone().move_into_string_ptr(r_out);
-        *r_is_valid = true as sys::GDExtensionBool;
+        *r_is_valid = sys::conv::SYS_TRUE;
     }
 }
