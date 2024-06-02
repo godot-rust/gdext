@@ -11,6 +11,7 @@ members = [
 
     # Godot integration
     "itest/rust",
+    "itest/repo-tweak",
     "examples/dodge-the-creeps/rust",
     "examples/hot-reload/rust",
 ]
