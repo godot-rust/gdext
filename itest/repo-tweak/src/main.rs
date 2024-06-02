@@ -10,6 +10,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 
+// Manual input.
 #[rustfmt::skip]
 pub const GODOT_LATEST_PATCH_VERSIONS: &[&str] = &[
     "4.0.4",
@@ -19,6 +20,11 @@ pub const GODOT_LATEST_PATCH_VERSIONS: &[&str] = &[
 ];
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Use lib.rs as module; so we don't need another crate just for that.
+// Lint #[allow(special_module_name)] is broken, thus rename.
+#[path = "lib.rs"]
+mod library;
 
 fn main() {
     let workspace_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."));
@@ -55,7 +61,8 @@ fn sync_versions_recursive(parent_dir: &Path, top_level: bool) {
             let content = std::fs::read_to_string(&path).expect("read file");
 
             let keys = ["repeat", "fmt", "pre", "post"];
-            let ranges = find_repeated_ranges(&content, "[version-sync] [[", "]]", &keys);
+            let ranges =
+                library::find_repeated_ranges(&content, "[version-sync] [[", "]]", &keys, true);
 
             let mut last_pos = 0;
             if !ranges.is_empty() {
@@ -173,78 +180,8 @@ fn substitute_template(
 }
 
 fn apply_char_substitutions(s: &str) -> String {
-    s.replace("\\t", "\t").replace("\\n", "\n")
-}
-
-fn find_repeated_ranges(entire: &str, start_pat: &str, end_pat: &str, keys: &[&str]) -> Vec<Match> {
-    let mut search_start = 0;
-    let mut found = vec![];
-
-    while let Some(start) = entire[search_start..].find(start_pat) {
-        let before_start = search_start + start;
-        let start = before_start + start_pat.len();
-
-        let mut key_values = HashMap::new();
-
-        let Some(end) = entire[start..].find(end_pat) else {
-            panic!("unmatched start pattern '{start_pat}' without end");
-        };
-
-        let end = start + end;
-        // Rewind until previous newline.
-        let end = entire[..end].rfind('\n').unwrap_or(end);
-        let after_end = end + end_pat.len();
-        let within = &entire[start..end];
-
-        let mut after_keys = start;
-        for key in keys {
-            let key_fmt = format!("[{key}] ");
-
-            println!("  Find '{key_fmt}' -> {:?}", within.find(&key_fmt));
-
-            let Some(pos) = within.find(&key_fmt) else {
-                continue;
-            };
-
-            let pos = pos + key_fmt.len();
-
-            // Read until end of line -> that's the value.
-            let eol = within[pos..]
-                .find(&['\n', '\r'])
-                .expect("unterminated line for key");
-
-            let value = &within[pos..pos + eol];
-            key_values.insert(key.to_string(), value.to_string());
-
-            after_keys = after_keys.max(start + pos + eol);
-        }
-
-        println!("Found {start}..{end}");
-        found.push(Match {
-            before_start,
-            start: after_keys,
-            end,
-            after_end,
-            key_values,
-        });
-        search_start = after_end;
-    }
-
-    found
-}
-
-#[derive(Debug)]
-struct Match {
-    /// Position before pattern start marker.
-    before_start: usize,
-    /// Position at the beginning of the repetition (after marker + keys).
-    start: usize,
-    /// Position 1 past the end of the repetition.
-    end: usize,
-    /// Position after the end pattern marker.
-    after_end: usize,
-    /// Extra keys following the start pattern marker.
-    key_values: HashMap<String, String>,
+    s.replace("\\t", "    ") // Not \t due to rustfmt.
+        .replace("\\n", "\n")
 }
 
 fn latest_patch_versions() -> Vec<(u8, u8)> {

@@ -7,7 +7,6 @@
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
 
@@ -561,7 +560,7 @@ fn write_gdscript_code(
     // let (mut last_start, mut prev_end) = (0, 0);
     let mut last = 0;
 
-    let ranges = find_repeated_ranges(&template, "#(", "#)", &[]);
+    let ranges = repo_tweak::find_repeated_ranges(&template, "#(", "#)", &[], false);
     for m in ranges {
         file.write_all(template[last..m.before_start].as_bytes())?;
 
@@ -599,81 +598,4 @@ fn replace_parts(
     }
 
     Ok(())
-}
-
-// FIXME deduplicate
-fn find_repeated_ranges(entire: &str, start_pat: &str, end_pat: &str, keys: &[&str]) -> Vec<Match> {
-    let mut search_start = 0;
-    let mut found = vec![];
-
-    while let Some(start) = entire[search_start..].find(start_pat) {
-        let before_start = search_start + start;
-        let start = before_start + start_pat.len();
-
-        let mut key_values = HashMap::new();
-
-        let Some(end) = entire[start..].find(end_pat) else {
-            panic!("unmatched start pattern '{start_pat}' without end");
-        };
-
-        let end = start + end;
-        // Rewind until previous newline.
-        let end = entire[..end].rfind('\n').unwrap_or(end);
-
-        let after_end = end + end_pat.len();
-
-        let within = &entire[start..end];
-        println!("Within: <<{within}>>");
-
-        let mut after_keys = start;
-        for key in keys {
-            let key_fmt = format!("[{key}] ");
-
-            println!("  Find '{key_fmt}' -> {:?}", within.find(&key_fmt));
-
-            let Some(pos) = within.find(&key_fmt) else {
-                continue;
-            };
-
-            let pos = pos + key_fmt.len();
-
-            // Read until end of line -> that's the value.
-            let eol = within[pos..]
-                .find(&['\n', '\r'])
-                .expect("unterminated line for key");
-
-            let value = &within[pos..pos + eol];
-            key_values.insert(key.to_string(), value.to_string());
-
-            after_keys = after_keys.max(start + pos + eol);
-        }
-
-        println!("Found {start}..{end}");
-        found.push(Match {
-            before_start,
-            start: after_keys,
-            end,
-            after_end,
-            key_values,
-        });
-        search_start = after_end;
-    }
-
-    found
-}
-
-// FIXME deduplicate
-#[derive(Debug)]
-struct Match {
-    /// Position before pattern start marker.
-    before_start: usize,
-    /// Position at the beginning of the repetition (after marker + keys).
-    start: usize,
-    /// Position 1 past the end of the repetition.
-    end: usize,
-    /// Position after the end pattern marker.
-    after_end: usize,
-    /// Extra keys following the start pattern marker.
-    #[allow(dead_code)]
-    key_values: HashMap<String, String>,
 }
