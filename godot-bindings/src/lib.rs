@@ -11,18 +11,7 @@ use std::path::Path;
 
 pub use watch::StopWatch;
 
-#[cfg(feature = "api-4-0")]
-use prebuilt_4_0 as godot4_prebuilt;
-#[cfg(feature = "api-4-1")]
-use prebuilt_4_1 as godot4_prebuilt;
-
-// If none of the api-* features are provided, use default prebuilt version (typically latest Godot stable release).
-#[cfg(not(any(
-    feature = "api-4-0", //
-    feature = "api-4-1", //
-    feature = "api-custom", //
-)))]
-use prebuilt_4_2 as godot4_prebuilt;
+mod import;
 
 // This is outside of `godot_version` to allow us to use it even when we don't have the `api-custom`
 // feature enabled.
@@ -45,7 +34,7 @@ pub struct GodotVersion {
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Regenerate all files
+// Custom mode: Regenerate all files
 
 // This file is explicitly included in unit tests. Needs regex dependency.
 #[cfg(test)]
@@ -82,12 +71,13 @@ mod custom {
 pub use custom::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Reuse existing files
+// Prebuilt mode: Reuse existing files
 
 #[cfg(not(feature = "api-custom"))]
 #[path = ""]
 mod prebuilt {
     use super::*;
+    use crate::import::godot4_prebuilt;
 
     pub fn load_gdextension_json(_watch: &mut StopWatch) -> &'static str {
         godot4_prebuilt::load_gdextension_json()
@@ -130,14 +120,6 @@ pub use prebuilt::*;
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Common
 
-// List of minor versions with the highest known patch number for each.
-//
-// We could have this just be a list of patch numbers, letting the index be the minor version. However it's more readable to include the
-// minor versions as well.
-//
-// Note that when the patch version is `0`, then the patch number is not included in Godot versioning, i.e. `4.1.0` is displayed as `4.1`.
-const HIGHEST_PATCH_VERSIONS: &[(u8, u8)] = &[(0, 4), (1, 4), (2, 2), (3, 0)];
-
 pub fn clear_dir(dir: &Path, watch: &mut StopWatch) {
     if dir.exists() {
         remove_dir_all_reliable(dir);
@@ -146,54 +128,43 @@ pub fn clear_dir(dir: &Path, watch: &mut StopWatch) {
     std::fs::create_dir_all(dir).unwrap_or_else(|e| panic!("failed to create dir: {e}"));
 }
 
+/// Emit the `cfg` flags for the current Godot version. Allows rustc to know about valid `cfg` values.
 pub fn emit_godot_version_cfg() {
+    // This could also be done as `KNOWN_API_VERSIONS.len() - 1`, but this is more explicit.
+    let all_versions = import::ALL_VERSIONS;
+
+    // Emit `rustc-check-cfg` for all minor versions (patch .0), so Cargo doesn't complain when we use the #[cfg]s.
+    for (_, minor, patch) in all_versions.iter().copied() {
+        if minor > 0 && patch == 0 {
+            println!(r#"cargo:rustc-check-cfg=cfg(since_api, values("4.{minor}"))"#);
+            println!(r#"cargo:rustc-check-cfg=cfg(before_api, values("4.{minor}"))"#);
+        }
+    }
+
     let GodotVersion {
-        major,
+        major: _,
         minor,
         patch,
         ..
     } = get_godot_version();
 
-    // This could also be done as `KNOWN_API_VERSIONS.len() - 1`, but this is more explicit.
-    let max = HIGHEST_PATCH_VERSIONS.last().unwrap().0;
-
+    // Emit `rustc-cfg` dependent on current API version.
     // Start at 1; checking for "since/before 4.0" makes no sense
+    let upcoming_minor = all_versions.last().unwrap().1;
     for m in 1..=minor {
-        println!(r#"cargo:rustc-cfg=since_api="{major}.{m}""#);
+        println!(r#"cargo:rustc-cfg=since_api="4.{m}""#);
     }
-    for m in minor + 1..=max {
-        println!(r#"cargo:rustc-cfg=before_api="{major}.{m}""#);
+    for m in minor + 1..=upcoming_minor {
+        println!(r#"cargo:rustc-cfg=before_api="4.{m}""#);
     }
 
     // The below configuration keys are very rarely needed and should generally not be used.
-    println!(r#"cargo:rustc-cfg=gdextension_minor_api="{major}.{minor}""#);
-
-    // Godot drops the patch version if it is 0.
-    if patch != 0 {
-        println!(r#"cargo:rustc-cfg=gdextension_exact_api="{major}.{minor}.{patch}""#);
-    } else {
-        println!(r#"cargo:rustc-cfg=gdextension_exact_api="{major}.{minor}""#);
-    }
-
-    // Emit `rustc-check-cfg` so cargo doesn't complain when we use the cfgs.
-    for (minor, highest_patch) in HIGHEST_PATCH_VERSIONS {
-        if *minor > 0 {
-            println!(r#"cargo::rustc-check-cfg=cfg(since_api, values("4.{minor}"))"#);
-            println!(r#"cargo::rustc-check-cfg=cfg(before_api, values("4.{minor}"))"#);
-        }
-
-        println!(r#"cargo::rustc-check-cfg=cfg(gdextension_minor_api, values("4.{minor}"))"#);
-
-        for patch in 0..=*highest_patch {
-            if patch == 0 {
-                println!(
-                    r#"cargo::rustc-check-cfg=cfg(gdextension_exact_api, values("4.{minor}"))"#
-                );
-            } else {
-                println!(
-                    r#"cargo::rustc-check-cfg=cfg(gdextension_exact_api, values("4.{minor}.{patch}"))"#
-                );
-            }
+    // Emit #[cfg]s since/before for patch level.
+    for (_, m, p) in all_versions.iter().copied() {
+        if (m, p) >= (minor, patch) {
+            println!(r#"cargo:rustc-cfg=since_patch_api="4.{m}.{p}""#);
+        } else {
+            println!(r#"cargo:rustc-cfg=before_patch_api="4.{m}.{p}""#);
         }
     }
 }
@@ -241,19 +212,3 @@ pub fn before_api(major_minor: &str) -> bool {
 pub fn since_api(major_minor: &str) -> bool {
     !before_api(major_minor)
 }
-
-//
-// pub fn write_module_file(path: &Path) {
-//     let code = quote! {
-//         pub mod table_builtins;
-//         pub mod table_builtins_lifecycle;
-//         pub mod table_servers_classes;
-//         pub mod table_scene_classes;
-//         pub mod table_editor_classes;
-//         pub mod table_utilities;
-//
-//         pub mod central;
-//         pub mod gdextension_interface;
-//         pub mod interface;
-//     };
-// }
