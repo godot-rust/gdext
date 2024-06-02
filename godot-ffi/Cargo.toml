@@ -38,5 +38,6 @@ godot-codegen = { path = "../godot-codegen" }
 features = ["experimental-godot-api"]
 rustdoc-args = ["--cfg", "published_docs"]
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(published_docs)'] }
+# Currently causes "unused manifest key" warnings. Maybe re-enable in the future, to make `published_docs` known.
+#[lints.rust]
+#unexpected_cfgs = { level = "warn", check-cfg = ['cfg(published_docs)'] }

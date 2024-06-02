@@ -133,6 +133,9 @@ pub fn emit_godot_version_cfg() {
     // This could also be done as `KNOWN_API_VERSIONS.len() - 1`, but this is more explicit.
     let all_versions = import::ALL_VERSIONS;
 
+    // Make `published_docs` #[cfg] known. This could be moved to Cargo.toml of all crates in the future.
+    println!(r#"cargo:rustc-check-cfg=published_docs"#);
+
     // Emit `rustc-check-cfg` for all minor versions (patch .0), so Cargo doesn't complain when we use the #[cfg]s.
     for (_, minor, patch) in all_versions.iter().copied() {
         if minor > 0 && patch == 0 {
