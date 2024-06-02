@@ -25,6 +25,8 @@ serde_json = { version = "1.0", optional = true }
 
 [build-dependencies]
 godot-bindings = { path = "../../godot-bindings" } # emit_godot_version_cfg
+repo-tweak = { path = "../repo-tweak" }
+
 # Minimum versions compatible with -Zminimal-versions
 proc-macro2 = "1.0.63"
 quote = "1.0.29"

@@ -560,7 +560,7 @@ fn write_gdscript_code(
     // let (mut last_start, mut prev_end) = (0, 0);
     let mut last = 0;
 
-    let ranges = find_repeated_ranges(&template);
+    let ranges = repo_tweak::find_repeated_ranges(&template, "#(", "#)", &[], false);
     for m in ranges {
         file.write_all(template[last..m.before_start].as_bytes())?;
 
@@ -598,41 +598,4 @@ fn replace_parts(
     }
 
     Ok(())
-}
-
-fn find_repeated_ranges(entire: &str) -> Vec<Match> {
-    const START_PAT: &str = "#(";
-    const END_PAT: &str = "#)";
-
-    let mut search_start = 0;
-    let mut found = vec![];
-    while let Some(start) = entire[search_start..].find(START_PAT) {
-        let before_start = search_start + start;
-        let start = before_start + START_PAT.len();
-        if let Some(end) = entire[start..].find(END_PAT) {
-            let end = start + end;
-            let after_end = end + END_PAT.len();
-
-            println!("Found {start}..{end}");
-            found.push(Match {
-                before_start,
-                start,
-                end,
-                after_end,
-            });
-            search_start = after_end;
-        } else {
-            panic!("unmatched start pattern without end");
-        }
-    }
-
-    found
-}
-
-#[derive(Debug)]
-struct Match {
-    before_start: usize,
-    start: usize,
-    end: usize,
-    after_end: usize,
 }

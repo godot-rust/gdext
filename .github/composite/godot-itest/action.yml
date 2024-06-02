@@ -104,7 +104,7 @@ runs:
           echo "Default prebuilt version: $defaultVersion"
         fi
         
-        # Apply [patch] for godot4-prebuilt crate if needed.
+        # Specify `api-*` feature for godot crate if needed.
         if [[ "$PATCHED_VERSION" != $defaultVersion ]]; then
           .github/other/patch-prebuilt.sh "$PATCHED_VERSION"
         fi

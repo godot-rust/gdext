@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+#![cfg(feature = "codegen-fmt")]
+
 use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 
 /// Perform a best-effort single-pass formatting pass over a stream of tokens
@@ -50,7 +52,7 @@ use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 ///   smoother.
 ///   Maybe it's worth to make ALL args on their own line, then function calls
 ///   get big, but `struct`s and `enum`s would be more natural?
-pub fn format_tokens(tokens: TokenStream) -> String {
+pub(crate) fn format_tokens(tokens: TokenStream) -> String {
     let mut out = String::new();
 
     format(FormatState::Start, 0, tokens.into_iter(), &mut out);
@@ -59,7 +61,7 @@ pub fn format_tokens(tokens: TokenStream) -> String {
 }
 
 fn indent(n: usize) -> &'static str {
-    // This looks strange but it means we don't need to actually allocate anything.
+    // This looks strange, but it means we don't need to actually allocate anything.
     // The downside is there's a limit to how deep we can nest.
     // The code that's generated doesn't seem like it's any deeper than this.
 

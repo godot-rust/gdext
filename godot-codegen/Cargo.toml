@@ -38,8 +38,9 @@ godot-bindings = { path = "../godot-bindings" } # emit_godot_version_cfg
 features = ["experimental-godot-api"]
 rustdoc-args = ["--cfg", "published_docs"]
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(published_docs)'] }
+# Currently causes "unused manifest key" warnings. Maybe re-enable in the future, to make `published_docs` known.
+#[lints.rust]
+#unexpected_cfgs = { level = "warn", check-cfg = ['cfg(published_docs)'] }
 
 # To check formatter: Disabled below, since it pulls in too many dependencies during `cargo test` but is not really used.
 # Dev-dependencies cannot be optional and feature-gated. Enable manually when needed.
