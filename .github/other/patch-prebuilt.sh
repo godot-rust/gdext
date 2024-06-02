@@ -14,8 +14,11 @@ if [[ "$version" == "nightly" ]]; then
   # Do not use extraFeatures="api-custom" here. They just want to use nightly Godot with current API.
   extraFeatures=""
 else
-  # Extract "major.minor" from "major.minor[.patch]".
-  dashedVersion=$(echo "$version" | cut -d '.' -f 1,2 | sed 's/\./-/')
+  # Extract "major.minor" from "major.minor[.patch]" -- disabled.
+  #  dashedVersion=$(echo "$version" | cut -d '.' -f 1,2 | sed 's/\./-/')
+
+  # Convert . to - for feature name.
+  dashedVersion="${version//./-}"
   extraFeatures=", \"api-$dashedVersion\""
 fi
 

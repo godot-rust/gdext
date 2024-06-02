@@ -48,6 +48,18 @@ jobs:
       - name: "Check rustfmt"
         run: cargo fmt --all -- --check
 
+      - name: "Run custom repo checks"
+        run: |
+          cargo run -p repo-tweak
+          git diff --quiet --exit-code || {
+            echo "::error::Godot versions out of sync; update with `cargo run -p repo-tweak`."
+            echo "Differences:"
+            echo "----------------------------------------------------"
+            git diff
+            echo "----------------------------------------------------"
+            exit 1
+          }
+
 
   # Needs to be its own job (apart from sync-doc), because lints don't work with --no-deps, and because it contributes to ci-status.
   doc-lints:
@@ -362,7 +374,7 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-memcheck-4.1
             godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            godot-prebuilt-patch: '4.1.4'
+            godot-prebuilt-patch: '4.1' # check compat of API 4.1.0 with newer binaries.
             rust-toolchain: nightly
             rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
             # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
