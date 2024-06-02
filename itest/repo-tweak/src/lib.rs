@@ -56,13 +56,12 @@ pub fn find_repeated_ranges(
         let after_end = end + end_pat.len();
 
         let within = &entire[start..end];
-        println!("Within: <<{within}>>");
+        // println!("Within: <<{within}>>");
 
         let mut after_keys = start;
         for key in keys {
             let key_fmt = format!("[{key}] ");
-
-            println!("  Find '{key_fmt}' -> {:?}", within.find(&key_fmt));
+            // println!("  Find '{key_fmt}' -> {:?}", within.find(&key_fmt));
 
             let Some(pos) = within.find(&key_fmt) else {
                 continue;
@@ -73,7 +72,7 @@ pub fn find_repeated_ranges(
             // Read until end of line -> that's the value.
             let eol = within[pos..]
                 .find(['\n', '\r'])
-                .expect("unterminated line for key");
+                .unwrap_or_else(|| panic!("unterminated line for key '{key}'"));
 
             let value = &within[pos..pos + eol];
             key_values.insert(key.to_string(), value.to_string());
@@ -81,7 +80,6 @@ pub fn find_repeated_ranges(
             after_keys = after_keys.max(start + pos + eol);
         }
 
-        println!("Found {start}..{end}");
         found.push(Match {
             before_start,
             start: after_keys,

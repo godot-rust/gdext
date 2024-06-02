@@ -42,7 +42,7 @@ mod godot_version;
 
 #[cfg(feature = "api-custom")]
 #[path = ""]
-mod custom {
+mod depend_on_custom {
     use super::*;
 
     pub(crate) mod godot_exe;
@@ -68,40 +68,38 @@ mod custom {
 }
 
 #[cfg(feature = "api-custom")]
-pub use custom::*;
+pub use depend_on_custom::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Prebuilt mode: Reuse existing files
 
 #[cfg(not(feature = "api-custom"))]
 #[path = ""]
-mod prebuilt {
+mod depend_on_prebuilt {
     use super::*;
-    use crate::import::godot4_prebuilt;
+    use crate::import::prebuilt;
 
     pub fn load_gdextension_json(_watch: &mut StopWatch) -> &'static str {
-        godot4_prebuilt::load_gdextension_json()
+        prebuilt::load_gdextension_json()
     }
 
     pub fn write_gdextension_headers(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
         // Note: prebuilt artifacts just return a static str.
-        let h_contents = godot4_prebuilt::load_gdextension_header_h();
+        let h_contents = prebuilt::load_gdextension_header_h();
         std::fs::write(h_path, h_contents)
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.h: {e}"));
         watch.record("write_header_h");
 
-        let rs_contents = godot4_prebuilt::load_gdextension_header_rs();
+        let rs_contents = prebuilt::load_gdextension_header_rs();
         std::fs::write(rs_path, rs_contents)
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.rs: {e}"));
         watch.record("write_header_rs");
     }
 
     pub(crate) fn get_godot_version() -> GodotVersion {
-        let version: Vec<&str> = godot4_prebuilt::GODOT_VERSION
-            .split('.')
-            .collect::<Vec<_>>();
+        let version: Vec<&str> = prebuilt::GODOT_VERSION.split('.').collect::<Vec<_>>();
         GodotVersion {
-            full_string: godot4_prebuilt::GODOT_VERSION.into(),
+            full_string: prebuilt::GODOT_VERSION.into(),
             major: version[0].parse().unwrap(),
             minor: version[1].parse().unwrap(),
             patch: version
@@ -115,7 +113,7 @@ mod prebuilt {
 }
 
 #[cfg(not(feature = "api-custom"))]
-pub use prebuilt::*;
+pub use depend_on_prebuilt::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Common
@@ -134,7 +132,7 @@ pub fn emit_godot_version_cfg() {
     let all_versions = import::ALL_VERSIONS;
 
     // Make `published_docs` #[cfg] known. This could be moved to Cargo.toml of all crates in the future.
-    println!(r#"cargo:rustc-check-cfg=published_docs"#);
+    println!(r#"cargo:rustc-check-cfg=cfg(published_docs, values(none()))"#);
 
     // Emit `rustc-check-cfg` for all minor versions (patch .0), so Cargo doesn't complain when we use the #[cfg]s.
     for (_, minor, patch) in all_versions.iter().copied() {

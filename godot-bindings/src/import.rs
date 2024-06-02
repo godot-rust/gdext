@@ -13,8 +13,8 @@
 /// All stable Godot releases _and_ upcoming next minor release.
 pub const ALL_VERSIONS: &[(u8, u8, u8)] = &[
     // [version-sync] [[
-    //  [repeat] past+current+future
-    //  [fmt] \t$triple,
+    //  [include] past+current+future
+    //  [line] \t$triple,
     (4, 0, 0),
     (4, 0, 1),
     (4, 0, 2),
@@ -33,54 +33,52 @@ pub const ALL_VERSIONS: &[(u8, u8, u8)] = &[
 ];
 
 // [version-sync] [[
-//  [repeat] past+current
-//  [fmt] #[cfg(feature = "api-$kebabVersion")]\npub use prebuilt_$snakeVersion as godot4_prebuilt;\n
+//  [line] #[cfg(feature = "api-$kebabVersion")]\npub use prebuilt_$snakeVersion as prebuilt;\n
 #[cfg(feature = "api-4-0")]
-pub use prebuilt_4_0 as godot4_prebuilt;
+pub use prebuilt_4_0 as prebuilt;
 
 #[cfg(feature = "api-4-0-1")]
-pub use prebuilt_4_0_1 as godot4_prebuilt;
+pub use prebuilt_4_0_1 as prebuilt;
 
 #[cfg(feature = "api-4-0-2")]
-pub use prebuilt_4_0_2 as godot4_prebuilt;
+pub use prebuilt_4_0_2 as prebuilt;
 
 #[cfg(feature = "api-4-0-3")]
-pub use prebuilt_4_0_3 as godot4_prebuilt;
+pub use prebuilt_4_0_3 as prebuilt;
 
 #[cfg(feature = "api-4-0-4")]
-pub use prebuilt_4_0_4 as godot4_prebuilt;
+pub use prebuilt_4_0_4 as prebuilt;
 
 #[cfg(feature = "api-4-1")]
-pub use prebuilt_4_1 as godot4_prebuilt;
+pub use prebuilt_4_1 as prebuilt;
 
 #[cfg(feature = "api-4-1-1")]
-pub use prebuilt_4_1_1 as godot4_prebuilt;
+pub use prebuilt_4_1_1 as prebuilt;
 
 #[cfg(feature = "api-4-1-2")]
-pub use prebuilt_4_1_2 as godot4_prebuilt;
+pub use prebuilt_4_1_2 as prebuilt;
 
 #[cfg(feature = "api-4-1-3")]
-pub use prebuilt_4_1_3 as godot4_prebuilt;
+pub use prebuilt_4_1_3 as prebuilt;
 
 #[cfg(feature = "api-4-1-4")]
-pub use prebuilt_4_1_4 as godot4_prebuilt;
+pub use prebuilt_4_1_4 as prebuilt;
 
 #[cfg(feature = "api-4-2")]
-pub use prebuilt_4_2 as godot4_prebuilt;
+pub use prebuilt_4_2 as prebuilt;
 
 #[cfg(feature = "api-4-2-1")]
-pub use prebuilt_4_2_1 as godot4_prebuilt;
+pub use prebuilt_4_2_1 as prebuilt;
 
 #[cfg(feature = "api-4-2-2")]
-pub use prebuilt_4_2_2 as godot4_prebuilt;
+pub use prebuilt_4_2_2 as prebuilt;
 
 // ]]
 
 // If none of the api-* features are provided, use default prebuilt version (typically latest Godot stable release).
 
 // [version-sync] [[
-//  [repeat] past+current+future
-//  [fmt] \tfeature = "api-$kebabVersion",
+//  [line] \tfeature = "api-$kebabVersion",
 //  [pre] #[cfg(not(any(
 //  [post] \tfeature = "api-custom",\n)))]
 #[cfg(not(any(
@@ -97,13 +95,12 @@ pub use prebuilt_4_2_2 as godot4_prebuilt;
     feature = "api-4-2",
     feature = "api-4-2-1",
     feature = "api-4-2-2",
-    feature = "api-4-3",
     feature = "api-custom",
 )))]
 // ]]
 
 // [version-sync] [[
-//  [repeat] current.minor
-//  [fmt] pub use prebuilt_$snakeVersion as godot4_prebuilt;
-pub use prebuilt_4_2 as godot4_prebuilt;
+//  [include] current.minor
+//  [line] pub use prebuilt_$snakeVersion as prebuilt;
+pub use prebuilt_4_2 as prebuilt;
 // ]]

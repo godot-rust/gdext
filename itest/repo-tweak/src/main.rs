@@ -5,6 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Usage note:
+// May require unlinking this crate from top-level workspace Cargo.toml, so that broken Cargo.toml can be
+// overridden. It can help to call `cargo run -p repo-tweak` directly from this crate's directory.
+
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
@@ -54,26 +58,22 @@ fn sync_versions_recursive(parent_dir: &Path, top_level: bool) {
             if !matches!(path.extension(), Some(ext) if ext == "rs" || ext == "toml") {
                 continue;
             }
-
             // println!("Check: {}", path.display());
 
             // Replace parts
             let content = std::fs::read_to_string(&path).expect("read file");
 
-            let keys = ["repeat", "fmt", "pre", "post"];
+            let keys = ["include", "line", "pre", "post"];
             let ranges =
                 library::find_repeated_ranges(&content, "[version-sync] [[", "]]", &keys, true);
 
             let mut last_pos = 0;
             if !ranges.is_empty() {
                 println!("-> Replace: {}", path.display());
-                // continue;
+                println!("  -> Found {} ranges", ranges.len());
 
                 let mut file = File::create(path).expect("create file");
-
                 for m in ranges {
-                    println!("  -> Found {m:?}");
-
                     file.write_all(content[last_pos..m.start].as_bytes())
                         .expect("write file (before start)");
 
@@ -118,17 +118,16 @@ fn substitute_template(
     key_values: &HashMap<String, String>,
 ) -> (Vec<String>, Option<String>, Option<String>) {
     let template = key_values
-        .get("fmt")
-        .expect("version-sync: missing required [fmt] key");
+        .get("line")
+        .expect("version-sync: missing required [line] key");
     let template = apply_char_substitutions(template);
 
     let versions_max = latest_patch_versions();
     let mut applicable_versions = vec![];
 
-    let parts = key_values
-        .get("repeat")
-        .expect("version-sync: missing required [repeat] key")
-        .split('+');
+    let default = "past+current".to_string();
+    let parts = key_values.get("include").unwrap_or(&default).split('+');
+
     for part in parts {
         let current_minor = versions_max[versions_max.len() - 2].0;
 
@@ -139,7 +138,7 @@ fn substitute_template(
             "current.minor" => Box::new(|m, p| m == current_minor && p == 0),
 
             other => {
-                panic!("version-sync: invalid value '{other}' for [repeat] key")
+                panic!("version-sync: invalid value '{other}' for [include] key")
             }
         };
 
