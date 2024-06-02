@@ -15,10 +15,8 @@
 // Re-export guards.
 pub use crate::obj::guards::{ScriptBaseMut, ScriptBaseRef};
 
-use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ops::{Deref, DerefMut};
-use std::sync::Mutex;
 
 #[cfg(not(feature = "experimental-threads"))]
 use godot_cell::panicking::{GdCell, MutGuard, RefGuard};
@@ -31,6 +29,8 @@ use crate::classes::{Script, ScriptLanguage};
 use crate::meta::{MethodInfo, PropertyInfo};
 use crate::obj::{Base, Gd, GodotClass};
 use crate::sys;
+
+use self::ptrlist_container::PtrlistContainer;
 
 /// Implement custom scripts that can be attached to objects in Godot.
 ///
@@ -170,8 +170,8 @@ type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo2;
 struct ScriptInstanceData<T: ScriptInstance> {
     inner: GdCell<T>,
     script_instance_ptr: *mut ScriptInstanceInfo,
-    property_list: Mutex<HashMap<*const sys::GDExtensionPropertyInfo, Vec<PropertyInfo>>>,
-    method_list: Mutex<HashMap<*const sys::GDExtensionMethodInfo, Vec<MethodInfo>>>,
+    property_lists: PtrlistContainer<sys::GDExtensionPropertyInfo>,
+    method_lists: PtrlistContainer<sys::GDExtensionMethodInfo>,
     base: Base<T::Base>,
 }
 
@@ -283,8 +283,8 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
     let data = ScriptInstanceData {
         inner: GdCell::new(rust_instance),
         script_instance_ptr: instance_ptr,
-        property_list: Default::default(),
-        method_list: Default::default(),
+        property_lists: PtrlistContainer::new(),
+        method_lists: PtrlistContainer::new(),
         // SAFETY: The script instance is always freed before the base object is destroyed. The weak reference should therefore never be
         // accessed after it has been freed.
         base: unsafe { Base::from_gd(&for_object) },
@@ -453,14 +453,71 @@ impl<'a, T: ScriptInstance> DerefMut for SiMut<'a, T> {
     }
 }
 
+// Encapsulate PtrlistContainer to help ensure safety.
+mod ptrlist_container {
+    use std::collections::HashMap;
+    use std::sync::Mutex;
+
+    pub struct PtrlistContainer<T> {
+        list_lengths: Mutex<HashMap<*mut T, u32>>,
+    }
+
+    impl<T> PtrlistContainer<T> {
+        pub fn new() -> Self {
+            Self {
+                list_lengths: Mutex::new(HashMap::new()),
+            }
+        }
+
+        pub fn list_into_sys(&self, list: Vec<T>) -> (*const T, u32) {
+            let len: u32 = list
+                .len()
+                .try_into()
+                .expect("list must have length that fits in u32");
+            let ptr = Box::leak(list.into_boxed_slice()).as_mut_ptr();
+
+            let old_value = self.list_lengths.lock().unwrap().insert(ptr, len);
+            assert_eq!(
+                old_value, None,
+                "attempted to insert the same list twice, this is a bug"
+            );
+
+            (ptr as *const T, len)
+        }
+
+        /// # Safety
+        /// - `ptr` must have been returned from a call to `list_into_sys` on `self`.
+        /// - `ptr` must not have been used in a call to this function before.
+        /// - `ptr` must not have been mutated since the call to `list_into_sys`.
+        /// - `ptr` must not be accessed after calling this function.
+        #[deny(unsafe_op_in_unsafe_fn)]
+        pub unsafe fn list_from_sys(&self, ptr: *const T) -> Box<[T]> {
+            let ptr: *mut T = ptr as *mut T;
+            let len = self
+                .list_lengths
+                .lock()
+                .unwrap()
+                .remove(&ptr)
+                .expect("attempted to free list from wrong collection, this is a bug");
+            let len: usize = len
+                .try_into()
+                .expect("gdext only supports targets where u32 <= usize");
+
+            // SAFETY: `ptr` was created in `list_into_sys` from a slice of length `len`.
+            // And has not been mutated since.
+            let slice = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
+
+            // SAFETY: This is the first call to this function, and the list will not be accessed again after this function call.
+            unsafe { Box::from_raw(slice) }
+        }
+    }
+}
+
 mod script_instance_info {
     use std::any::type_name;
     use std::ffi::c_void;
-    use std::mem::ManuallyDrop;
 
-    use crate::builtin::{GString, StringName, Variant};
-    use crate::classes::ScriptLanguage;
-    use crate::obj::Gd;
+    use crate::builtin::{StringName, Variant};
     use crate::private::handle_panic;
     use crate::sys;
 
@@ -472,69 +529,6 @@ mod script_instance_info {
 
     const SYS_TRUE: sys::GDExtensionBool = bool_into_sys(true);
     const SYS_FALSE: sys::GDExtensionBool = bool_into_sys(true);
-
-    /// # Safety
-    ///
-    /// - The returned `*const T` is guaranteed to point to a list that has an equal length and capacity.
-    fn transfer_ptr_list_to_godot<T>(ptr_list: Box<[T]>, list_length: &mut u32) -> *mut T {
-        *list_length = ptr_list.len() as u32;
-
-        let ptr = Box::into_raw(ptr_list);
-
-        // SAFETY: `ptr` was just created in the line above and should be safe to dereference.
-        unsafe { (*ptr).as_mut_ptr() }
-    }
-
-    /// The returned pointer's lifetime is equal to the lifetime of `script`
-    fn transfer_script_to_godot(script: &Gd<crate::classes::Script>) -> sys::GDExtensionObjectPtr {
-        script.obj_sys()
-    }
-
-    /// # Safety
-    ///
-    /// - `ptr` is expected to point to a list with both a length and capacity of `list_length`.
-    /// - The list pointer `ptr` must have been created with [`transfer_ptr_list_to_godot`].
-    unsafe fn transfer_ptr_list_from_godot<T>(ptr: *const T, list_length: usize) -> Vec<T> {
-        Vec::from_raw_parts(sys::force_mut_ptr(ptr), list_length, list_length)
-    }
-
-    /// # Safety
-    ///
-    /// - The engine has to provide a valid string return pointer.
-    unsafe fn transfer_string_to_godot(string: GString, return_ptr: sys::GDExtensionStringPtr) {
-        string.move_into_string_ptr(return_ptr);
-    }
-
-    /// # Safety
-    ///
-    /// - `userdata` has to be a valid pointer that upholds the invariants of `sys::GDExtensionScriptInstancePropertyStateAdd`.
-    unsafe fn transfer_property_state_to_godot(
-        propery_states: Vec<(StringName, Variant)>,
-        property_state_add: sys::GDExtensionScriptInstancePropertyStateAdd,
-        userdata: *mut c_void,
-    ) {
-        let Some(property_state_add) = property_state_add else {
-            return;
-        };
-
-        propery_states.into_iter().for_each(|(name, value)| {
-            let name = ManuallyDrop::new(name);
-            let value = ManuallyDrop::new(value);
-
-            // SAFETY: Godot expects a string name and a variant pointer for each property. After receiving the pointer, the engine is responsible
-            // for managing the memory behind those references.
-            unsafe { property_state_add(name.string_sys(), value.var_sys(), userdata) };
-        });
-    }
-
-    /// # Safety
-    ///
-    /// - `script_lang` must live for as long as the pointer may be dereferenced.
-    unsafe fn transfer_script_lang_to_godot(
-        script_lang: Gd<ScriptLanguage>,
-    ) -> sys::GDExtensionScriptLanguagePtr {
-        script_lang.obj_sys() as sys::GDExtensionScriptLanguagePtr
-    }
 
     /// # Safety
     ///
@@ -601,32 +595,27 @@ mod script_instance_info {
     ) -> *const sys::GDExtensionPropertyInfo {
         let ctx = || format!("error when calling {}::get_property_list", type_name::<T>());
 
-        let (property_list, property_sys_list) = handle_panic(ctx, || {
+        let property_list = handle_panic(ctx, || {
             let property_list = ScriptInstanceData::<T>::borrow_script_sys(p_instance)
                 .borrow()
                 .get_property_list();
 
-            let property_sys_list: Box<[_]> = property_list
-                .iter()
-                .map(|prop| prop.property_sys())
-                .collect();
-
-            (property_list, property_sys_list)
+            property_list
+                .into_iter()
+                .map(|prop| prop.into_owned_property_sys())
+                .collect::<Vec<_>>()
         })
         .unwrap_or_default();
 
-        // SAFETY: list_length has to be a valid pointer to a u32.
-        let list_length = unsafe { &mut *r_count };
-        let return_pointer = transfer_ptr_list_to_godot(property_sys_list, list_length);
+        let (list_ptr, list_length) = ScriptInstanceData::<T>::borrow_script_sys(p_instance)
+            .property_lists
+            .list_into_sys(property_list);
 
-        let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
-        instance
-            .property_list
-            .lock()
-            .expect("Mutex should not be poisoned")
-            .insert(return_pointer, property_list);
+        unsafe {
+            *r_count = list_length;
+        }
 
-        return_pointer
+        list_ptr
     }
 
     /// # Safety
@@ -639,31 +628,27 @@ mod script_instance_info {
     ) -> *const sys::GDExtensionMethodInfo {
         let ctx = || format!("error when calling {}::get_method_list", type_name::<T>());
 
-        let (method_list, method_sys_list) = handle_panic(ctx, || {
+        let method_list = handle_panic(ctx, || {
             let method_list = ScriptInstanceData::<T>::borrow_script_sys(p_instance)
                 .borrow()
                 .get_method_list();
 
-            let method_sys_list = method_list
-                .iter()
-                .map(|method| method.method_sys())
+            let method_list = method_list
+                .into_iter()
+                .map(|method| method.into_owned_method_sys())
                 .collect();
 
-            (method_list, method_sys_list)
+            method_list
         })
         .unwrap_or_default();
 
-        // SAFETY: list_length has to be a valid pointer to a u32.
-        let list_length = unsafe { &mut *r_count };
-        let return_pointer = transfer_ptr_list_to_godot(method_sys_list, list_length);
-
         let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
 
-        instance
-            .method_list
-            .lock()
-            .expect("mutex should not be poisoned")
-            .insert(return_pointer, method_list);
+        let (return_pointer, list_length) = instance.method_lists.list_into_sys(method_list);
+
+        unsafe {
+            *r_count = list_length;
+        }
 
         return_pointer
     }
@@ -678,17 +663,7 @@ mod script_instance_info {
     ) {
         let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
 
-        let vec = instance
-            .property_list
-            .lock()
-            .expect("mutex should not be poisoned")
-            .remove(&p_prop_info)
-            .expect("Godot is trying to free the property list, but none has been set");
-
-        // SAFETY: p_prop_info is expected to have been created by get_property_list_func
-        // and therefore should have the same length as before. get_propery_list_func
-        // also guarantees that both vector length and capacity are equal.
-        let _drop = transfer_ptr_list_from_godot(p_prop_info, vec.len());
+        let _drop = instance.property_lists.list_from_sys(p_prop_info);
     }
 
     /// # Safety
@@ -747,11 +722,11 @@ mod script_instance_info {
             ScriptInstanceData::<T>::borrow_script_sys(p_instance)
                 .borrow()
                 .get_script()
-                .to_owned()
+                .clone()
         });
 
         match script {
-            Ok(script) => transfer_script_to_godot(&script),
+            Ok(script) => script.obj_sys(),
             Err(_) => std::ptr::null_mut(),
         }
     }
@@ -806,27 +781,7 @@ mod script_instance_info {
     ) {
         let instance = ScriptInstanceData::<T>::borrow_script_sys(p_instance);
 
-        let vec = instance
-            .method_list
-            .lock()
-            .expect("method_list mutex should not be poisoned")
-            .remove(&p_method_info)
-            .expect("Godot is trying to free the method_list, but none has been set");
-
-        // SAFETY: p_method_info is expected to have been created by get_method_list_func and therefore should have the same length as before.
-        // get_method_list_func also guarantees that both vector length and capacity are equal.
-        let vec_sys = transfer_ptr_list_from_godot(p_method_info, vec.len());
-
-        vec_sys.into_iter().for_each(|method_info| {
-            transfer_ptr_list_from_godot(
-                method_info.arguments,
-                method_info.argument_count as usize,
-            );
-            transfer_ptr_list_from_godot(
-                method_info.default_arguments,
-                method_info.default_argument_count as usize,
-            );
-        })
+        let _drop = instance.method_lists.list_from_sys(p_method_info);
     }
 
     /// # Safety
@@ -886,7 +841,7 @@ mod script_instance_info {
         };
 
         *r_is_valid = SYS_TRUE;
-        transfer_string_to_godot(string, r_str);
+        string.move_into_string_ptr(r_str);
     }
 
     /// # Safety
@@ -914,7 +869,17 @@ mod script_instance_info {
         })
         .unwrap_or_default();
 
-        transfer_property_state_to_godot(property_states, property_state_add, userdata);
+        let Some(property_state_add) = property_state_add else {
+            return;
+        };
+
+        for (name, value) in property_states {
+            property_state_add(
+                name.into_owned_string_sys(),
+                value.into_owned_var_sys(),
+                userdata,
+            );
+        }
     }
 
     /// # Safety
@@ -934,9 +899,9 @@ mod script_instance_info {
         });
 
         if let Ok(language) = language {
-            transfer_script_lang_to_godot(language)
+            language.obj_sys().cast()
         } else {
-            std::ptr::null::<c_void>() as sys::GDExtensionScriptLanguagePtr
+            std::ptr::null_mut()
         }
     }
 
@@ -947,7 +912,7 @@ mod script_instance_info {
     pub(super) unsafe extern "C" fn free_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
     ) {
-        drop(Box::from_raw(p_instance as *mut ScriptInstanceData<T>));
+        drop(Box::from_raw(p_instance.cast::<ScriptInstanceData<T>>()));
     }
 
     /// # Safety

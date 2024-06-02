@@ -374,6 +374,34 @@ impl Variant {
         // SAFETY: `variant_array` isn't null so it is safe to call `from_raw_parts_mut` on the pointer cast to `*mut Variant`.
         unsafe { std::slice::from_raw_parts_mut(variant_array, length) }
     }
+
+    /// Consumes self and turns it into a sys-ptr, should be used together with [`from_owned_var_sys`](Self::from_owned_var_sys).
+    ///
+    /// This will leak memory unless `from_owned_var_sys` is called on the returned pointer.
+    pub(crate) fn into_owned_var_sys(self) -> sys::GDExtensionVariantPtr {
+        sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
+
+        let leaked = Box::into_raw(Box::new(self));
+        leaked.cast()
+    }
+
+    /// Creates a `Variant` from a sys-ptr without incrementing the refcount.
+    ///
+    /// # Safety
+    ///
+    /// * Must only be used on a pointer returned from a call to [`into_owned_var_sys`](Self::into_owned_var_sys).
+    /// * Must not be called more than once on the same pointer.
+    #[deny(unsafe_op_in_unsafe_fn)]
+    pub(crate) unsafe fn from_owned_var_sys(ptr: sys::GDExtensionVariantPtr) -> Self {
+        sys::static_assert_eq_size_align!(Variant, sys::types::OpaqueVariant);
+
+        let ptr = ptr.cast::<Self>();
+
+        // SAFETY: `ptr` was returned from a call to `into_owned_var_sys`, which means it was created by a call to
+        // `Box::into_raw`, thus we can use `Box::from_raw` here. Additionally this is only called once on this pointer.
+        let boxed = unsafe { Box::from_raw(ptr) };
+        *boxed
+    }
 }
 
 impl ArrayElement for Variant {}

@@ -241,50 +241,114 @@ pub struct MethodInfo {
 }
 
 impl MethodInfo {
-    /// Converts to the FFI type. Keep this object allocated while using that!
+    /// Consumes self and turns it into a `sys::GDExtensionMethodInfo`, should be used together with
+    /// [`free_owned_method_sys`](Self::free_owned_method_sys).
     ///
-    /// The struct returned by this function contains pointers into the fields of `self`. `self` should therefore not be dropped while the
-    /// `sys::GDExtensionMethodInfo` is still in use.
-    ///
-    /// This function also leaks memory that has to be cleaned up by the caller once it is no longer used. Specifically the `arguments` and
-    /// `default_arguments` vectors have to be reconstructed from the pointer and length and then dropped/freed.
-    ///
-    /// Each vector can be reconstructed with `Vec::from_raw_parts` since the pointers were created with `Vec::into_boxed_slice`, which
-    /// guarantees that the vector capacity and length are equal.
-    pub fn method_sys(&self) -> sys::GDExtensionMethodInfo {
+    /// This will leak memory unless used together with `free_owned_method_sys`.
+    pub fn into_owned_method_sys(self) -> sys::GDExtensionMethodInfo {
         use crate::obj::EngineBitfield as _;
 
-        let argument_count = self.arguments.len() as u32;
-        let argument_vec = self
-            .arguments
-            .iter()
-            .map(|arg| arg.property_sys())
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+        // Destructure self to ensure all fields are used.
+        let Self {
+            id,
+            method_name,
+            // TODO: Do we need this?
+            class_name: _class_name,
+            return_type,
+            arguments,
+            default_arguments,
+            flags,
+        } = self;
 
-        // SAFETY: dereferencing the new box pointer is fine as it is guaranteed to not be null
-        let arguments = unsafe { (*Box::into_raw(argument_vec)).as_mut_ptr() };
+        let argument_count: u32 = arguments
+            .len()
+            .try_into()
+            .expect("cannot have more than `u32::MAX` arguments");
+        let arguments = arguments
+            .into_iter()
+            .map(|arg| arg.into_owned_property_sys())
+            .collect::<Box<[_]>>();
+        let arguments = Box::leak(arguments).as_mut_ptr();
 
-        let default_argument_count = self.default_arguments.len() as u32;
-        let default_argument_vec = self
-            .default_arguments
-            .iter()
-            .map(|arg| sys::SysPtr::force_mut(arg.var_sys()))
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
-
-        // SAFETY: dereferencing the new box pointer is fine as it is guaranteed to not be null
-        let default_arguments = unsafe { (*Box::into_raw(default_argument_vec)).as_mut_ptr() };
+        let default_argument_count: u32 = default_arguments
+            .len()
+            .try_into()
+            .expect("cannot have more than `u32::MAX` default arguments");
+        let default_argument = default_arguments
+            .into_iter()
+            .map(|arg| arg.into_owned_var_sys())
+            .collect::<Box<[_]>>();
+        let default_arguments = Box::leak(default_argument).as_mut_ptr();
 
         sys::GDExtensionMethodInfo {
-            id: self.id,
-            name: sys::SysPtr::force_mut(self.method_name.string_sys()),
-            return_value: self.return_type.property_sys(),
+            id,
+            name: method_name.into_owned_string_sys(),
+            return_value: return_type.into_owned_property_sys(),
             argument_count,
             arguments,
             default_argument_count,
             default_arguments,
-            flags: u32::try_from(self.flags.ord()).expect("flags should be valid"),
+            flags: flags.ord().try_into().expect("flags should be valid"),
         }
+    }
+
+    /// Properly frees a `sys::GDExtensionMethodInfo` created by [`into_owned_method_sys`](Self::into_owned_method_sys).
+    ///
+    /// # Safety
+    ///
+    /// * Must only be used on a struct returned from a call to `into_owned_method_sys`, without modification.
+    /// * Must not be called more than once on a `sys::GDExtensionMethodInfo` struct.
+    #[deny(unsafe_op_in_unsafe_fn)]
+    pub unsafe fn free_owned_method_sys(info: sys::GDExtensionMethodInfo) {
+        // Destructure info to ensure all fields are used.
+        let sys::GDExtensionMethodInfo {
+            name,
+            return_value,
+            flags: _flags,
+            id: _id,
+            argument_count,
+            arguments,
+            default_argument_count,
+            default_arguments,
+        } = info;
+
+        // SAFETY: `name` and `return_value` were created from the appropriate method calls, and have not been freed before this.
+        unsafe {
+            let _name = StringName::from_owned_string_sys(name);
+            PropertyInfo::free_owned_property_sys(return_value);
+        }
+
+        // SAFETY: These pointers were both created from a call to `as_mut_ptr` on a slice. Additionally these pointer will not be accessed
+        // again after this function call.
+        let (arguments_slice, default_arguments_slice) = unsafe {
+            (
+                std::slice::from_raw_parts_mut(
+                    arguments,
+                    argument_count
+                        .try_into()
+                        .expect("gdext only supports targets where u32 <= usize"),
+                ),
+                std::slice::from_raw_parts_mut(
+                    default_arguments,
+                    default_argument_count
+                        .try_into()
+                        .expect("gdext only supports targets where u32 <= usize"),
+                ),
+            )
+        };
+
+        // SAFETY: We have exclusive ownership of these slices, and they were originally created from a call to `Box::leak`.
+        let (_arguments, default_arguments) = unsafe {
+            (
+                Box::from_raw(arguments_slice),
+                Box::from_raw(default_arguments_slice),
+            )
+        };
+
+        default_arguments.iter().for_each(|ptr| {
+            // SAFETY: These pointers were originally created from a call to `Variant::into_owner_var_sys`, and this method will not be
+            // called again on this pointer.
+            let _variant = unsafe { Variant::from_owned_var_sys(*ptr) };
+        });
     }
 }
