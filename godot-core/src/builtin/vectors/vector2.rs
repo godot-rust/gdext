@@ -102,11 +102,10 @@ impl Vector2 {
     ///
     /// ```no_run
     /// use godot::prelude::*;
-    /// use std::f32::consts::PI;
     ///
-    /// let a = Vector2::from_angle(0.0);       // (1.0, 0.0)
-    /// let b = Vector2::new(1.0, 0.0).angle(); // 0.0
-    /// let c = Vector2::from_angle(PI / 2.0);  // (0.0, 1.0)
+    /// let a = Vector2::from_angle(0.0);                       // (1.0, 0.0)
+    /// let b = Vector2::new(1.0, 0.0).angle();                 // 0.0
+    /// let c = Vector2::from_angle(real_consts::PI / 2.0);     // (0.0, 1.0)
     /// ```
     #[inline]
     pub fn from_angle(angle: real) -> Self {

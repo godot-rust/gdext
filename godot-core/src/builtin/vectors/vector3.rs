@@ -59,7 +59,7 @@ impl Vector3 {
     pub const MODEL_RIGHT: Self = Self::new(-1.0, 0.0, 0.0);
 
     /// Unit vector pointing towards the top side (up) of imported 3D assets.
-    pub const MODEL_UP: Self = Self::new(0.0, 1.0, 0.0);
+    pub const MODEL_TOP: Self = Self::new(0.0, 1.0, 0.0);
 
     /// Unit vector pointing towards the bottom side (down) of imported 3D assets.
     pub const MODEL_BOTTOM: Self = Self::new(0.0, -1.0, 0.0);
@@ -120,7 +120,7 @@ impl Vector3 {
     /// If vector is not normalized.
     #[inline]
     pub fn octahedron_encode(self) -> Vector2 {
-        assert!(self.is_normalized());
+        assert!(self.is_normalized(), "vector is not normalized!");
 
         let mut n = self;
         n /= n.x.abs() + n.y.abs() + n.z.abs();
@@ -156,7 +156,7 @@ impl Vector3 {
     /// If `axis` is not normalized.
     #[inline]
     pub fn rotated(self, axis: Self, angle: real) -> Self {
-        assert!(axis.is_normalized());
+        assert!(axis.is_normalized(), "axis is not normalized!");
         Basis::from_axis_angle(axis, angle) * self
     }
 

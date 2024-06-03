@@ -289,10 +289,10 @@ macro_rules! impl_integer_vector_consts {
         $Vector:ty
     ) => {
         impl $Vector {
-            /// Min vector, a vector with all components equal to [`i32::MIN`]. Can be used as a negative integer equivalent of [`Vector2::INF`].
+            /// Min vector, a vector with all components equal to [`i32::MIN`]. Can be used as a negative integer equivalent of `real::INF`.
             pub const MIN: Self = Self::splat(i32::MIN);
 
-            /// Max vector, a vector with all components equal to [`i32::MAX`]. Can be used as an integer equivalent of [`Vector2::INF`].
+            /// Max vector, a vector with all components equal to [`i32::MAX`]. Can be used as an integer equivalent of `real::INF`.
             pub const MAX: Self = Self::splat(i32::MAX);
         }
     };
@@ -402,8 +402,8 @@ macro_rules! impl_vector_fns {
 
             /// Returns a new vector with all components clamped between the components of `min` and `max`.
             ///
-            /// Panics
-            /// Panics if `min` > `max`, `min` is NaN, or `max` is NaN.
+            /// # Panics
+            /// If `min` > `max`, `min` is NaN, or `max` is NaN.
             #[inline]
             pub fn clamp(self, min: Self, max: Self) -> Self {
                 Self::from_glam(self.to_glam().clamp(min.to_glam(), max.to_glam()))
@@ -462,7 +462,9 @@ macro_rules! impl_float_vector_fns {
             }
 
             /// Performs a cubic interpolation between this vector and `b` using `pre_a` and `post_b` as handles,
-            /// and returns the result at position `weight`. `weight` is on the range of 0.0 to 1.0, representing the amount of interpolation.
+            /// and returns the result at position `weight`.
+            ///
+            /// `weight` is on the range of 0.0 to 1.0, representing the amount of interpolation.
             #[inline]
             pub fn cubic_interpolate(self, b: Self, pre_a: Self, post_b: Self, weight: real) -> Self {
                 Self::new(
@@ -473,7 +475,9 @@ macro_rules! impl_float_vector_fns {
             }
 
             /// Performs a cubic interpolation between this vector and `b` using `pre_a` and `post_b` as handles,
-            /// and returns the result at position `weight`. `weight` is on the range of 0.0 to 1.0, representing the amount of interpolation.
+            /// and returns the result at position `weight`.
+            ///
+            /// `weight` is on the range of 0.0 to 1.0, representing the amount of interpolation.
             /// It can perform smoother interpolation than [`Self::cubic_interpolate`] by the time values.
             #[inline]
             #[allow(clippy::too_many_arguments)]
@@ -496,7 +500,9 @@ macro_rules! impl_float_vector_fns {
                 )
             }
 
-            /// Returns the normalized vector pointing from this vector to `to`. This is equivalent to using `(b - a).normalized()`.
+            /// Returns the normalized vector pointing from this vector to `to`.
+            ///
+            /// This is equivalent to using `(b - a).normalized()`.
             #[inline]
             pub fn direction_to(self, to: Self) -> Self {
                 (to - self).normalized()
@@ -541,13 +547,15 @@ macro_rules! impl_float_vector_fns {
             }
 
             /// Returns `true` if this vector's values are approximately zero.
-            /// This method is faster than using [`Self::is_equal_approx`] with one value as a zero vector.
+            ///
+            /// This method is faster than using `approx_eq()` with one value as a zero vector.
             #[inline]
             pub fn is_zero_approx(self) -> bool {
                 $( self.$comp.is_zero_approx() )&&*
             }
 
             /// Returns the result of the linear interpolation between this vector and `to` by amount `weight`.
+            ///
             /// `weight` is on the range of `0.0` to `1.0`, representing the amount of interpolation.
             #[inline]
             pub fn lerp(self, other: Self, weight: real) -> Self {
@@ -559,19 +567,14 @@ macro_rules! impl_float_vector_fns {
             /// Returns the vector scaled to unit length. Equivalent to `self / self.length()`. See
             /// also `is_normalized()`.
             ///
-            /// If the vector is zero, the result is also zero.
+            /// # Panics
+            /// If called on a zero vector.
             #[inline]
             pub fn normalized(self) -> Self {
+                assert_ne!(self, Self::ZERO, "normalized() called on zero vector");
+
                 // Copy Godot's implementation since it's faster than using glam's normalize_or_zero().
-                if self == Self::ZERO {
-                    return self;
-                }
-
-                let l = self.length();
-
-                Self::new(
-                    $( self.$comp / l ),*
-                )
+                self / self.length()
             }
 
             /// Returns a vector composed of the [`FloatExt::fposmod`] of this vector's components and `pmod`.
@@ -612,7 +615,7 @@ macro_rules! impl_float_vector_fns {
         impl $crate::builtin::math::ApproxEq for $Vector {
             /// Returns `true` if this vector and `to` are approximately equal.
             #[inline]
-            #[doc(alias = "is_approx_eq")]
+            #[doc(alias = "is_equal_approx")]
             fn approx_eq(&self, other: &Self) -> bool {
                 $( self.$comp.approx_eq(&other.$comp) )&&*
             }
@@ -857,9 +860,13 @@ macro_rules! impl_vector2_vector3_fns {
             }
 
             /// Returns a new vector "bounced off" from a plane defined by the given normal.
+            ///
+            /// # Panics
+            /// If `n` is not normalized.
             #[inline]
-            pub fn bounce(self, normal: Self) -> Self {
-                -self.reflect(normal)
+            pub fn bounce(self, n: Self) -> Self {
+                assert!(n.is_normalized(), "n is not normalized!");
+                -self.reflect(n)
             }
 
             /// Returns the vector with a maximum length by limiting its length to `length`.
@@ -884,14 +891,22 @@ macro_rules! impl_vector2_vector3_fns {
             }
 
             /// Returns the result of reflecting the vector defined by the given direction vector `n`.
+            ///
+            /// # Panics
+            /// If `n` is not normalized.
             #[inline]
             pub fn reflect(self, n: Self) -> Self {
+                assert!(n.is_normalized(), "n is not normalized!");
                 2.0 * n * self.dot(n) - self
             }
 
             /// Returns a new vector slid along a plane defined by the given normal.
+            ///
+            /// # Panics
+            /// If `n` is not normalized.
             #[inline]
             pub fn slide(self, n: Self) -> Self {
+                assert!(n.is_normalized(), "n is not normalized!");
                 self - n * self.dot(n)
             }
         }
@@ -911,9 +926,7 @@ macro_rules! impl_vector3_vector4_fns {
             #[inline]
             #[doc(alias = "inverse")]
             pub fn recip(self) -> Self {
-                Self::new(
-                    $( 1.0 / self.$comp ),*
-                )
+                Self::from_glam(self.to_glam().recip())
             }
         }
     };
