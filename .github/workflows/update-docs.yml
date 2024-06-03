@@ -128,7 +128,7 @@ jobs:
           echo "DOCS_GENERATOR_TOKEN=github_pat_$token" >> $GITHUB_ENV
 
       - name: "Notify doc workflow"
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ env.DOCS_GENERATOR_TOKEN }}
           repository: godot-rust/dispatch-forwarder
