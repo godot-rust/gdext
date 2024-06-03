@@ -6,6 +6,9 @@ rust-version = "1.78"
 license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "2d", "3d"] # possibly: "ffi"
 categories = ["game-engines", "graphics"]
+description = "Internal crate used by godot-rust"
+repository = "https://github.com/godot-rust/gdext"
+homepage = "https://godot-rust.github.io"
 
 [features]
 default = []

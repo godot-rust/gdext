@@ -6,6 +6,9 @@ rust-version = "1.78"
 license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "derive", "macro"]
 categories = ["game-engines", "graphics"]
+description = "Internal crate used by godot-rust"
+repository = "https://github.com/godot-rust/gdext"
+homepage = "https://godot-rust.github.io"
 
 [features]
 api-custom = ["godot-bindings/api-custom"]
