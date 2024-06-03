@@ -5,6 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+//! # Internal crate of [**godot-rust**](https://godot-rust.github.io)
+//!
+//! Do not depend on this crate directly, instead use the `godot` crate.
+//! No SemVer or other guarantees are provided.
+
 // Note that a lot of those are public, but the godot crate still has the final say on what it wants to re-export.
 // Doing fine-grained visibility restrictions on every level is a useless maintenance chore.
 pub mod builder;

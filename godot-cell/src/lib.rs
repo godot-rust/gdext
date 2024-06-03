@@ -5,6 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+//! # Internal crate of [**godot-rust**](https://godot-rust.github.io)
+//!
+//! Do not depend on this crate directly, instead use the `godot` crate.
+//! No SemVer or other guarantees are provided.
+//!
+//! # Contributor docs
+//!
 //! A re-entrant cell implementation which allows for `&mut` references to be reborrowed even while `&mut`
 //! references still exist.
 //!
