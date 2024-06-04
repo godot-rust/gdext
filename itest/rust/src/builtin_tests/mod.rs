@@ -14,7 +14,14 @@ mod geometry {
     mod rect2i_test;
     mod transform2d_test;
     mod transform3d_test;
-    mod vector_test;
+    mod vector_test {
+        mod vector2_test;
+        mod vector2i_test;
+        mod vector3_test;
+        mod vector3i_test;
+        mod vector4_test;
+        mod vector4i_test;
+    }
 }
 
 mod containers {
