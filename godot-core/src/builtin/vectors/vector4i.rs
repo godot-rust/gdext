@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use core::cmp::Ordering;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 

@@ -440,7 +440,18 @@ macro_rules! impl_vector_fns {
             /// Returns a new vector with each component set to 1 if it's positive, -1 if it's negative, and 0 if it's zero.
             #[inline]
             pub fn sign(self) -> Self {
-                Self::from_glam(self.to_glam().signum())
+                #[inline]
+                fn f(x: i32) -> i32 {
+                    match x.cmp(&0) {
+                        Ordering::Equal => 0,
+                        Ordering::Greater => 1,
+                        Ordering::Less => -1,
+                    }
+                }
+
+                Self::new(
+                    $( f(self.$comp as i32) as $Scalar ),*
+                )
             }
         }
     }
