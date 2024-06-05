@@ -5,13 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use core::cmp::Ordering;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::inner;
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector2Axis;
-use crate::builtin::{real, RAffine2, RVec2, Vector2i};
+use crate::builtin::{inner, real, RAffine2, RVec2, Vector2i};
 
 use std::fmt;
 
@@ -36,39 +36,20 @@ pub struct Vector2 {
     pub y: real,
 }
 
+impl_vector_operators!(Vector2, real, (x, y));
+
+impl_vector_consts!(Vector2, real);
+impl_float_vector_consts!(Vector2);
+impl_vector2x_consts!(Vector2, real);
+
+impl_vector_fns!(Vector2, RVec2, real, (x, y));
+impl_float_vector_fns!(Vector2, (x, y));
+impl_vector2x_fns!(Vector2, real);
+impl_vector2_vector3_fns!(Vector2, (x, y));
+
 impl Vector2 {
-    /// Vector with all components set to `0.0`.
-    pub const ZERO: Self = Self::splat(0.0);
-
-    /// Vector with all components set to `1.0`.
-    pub const ONE: Self = Self::splat(1.0);
-
-    /// Vector with all components set to `real::INFINITY`.
-    pub const INF: Self = Self::splat(real::INFINITY);
-
-    /// Unit vector in -X direction (right in 2D coordinate system).
-    pub const LEFT: Self = Self::new(-1.0, 0.0);
-
-    /// Unit vector in +X direction (right in 2D coordinate system).
-    pub const RIGHT: Self = Self::new(1.0, 0.0);
-
-    /// Unit vector in -Y direction (up in 2D coordinate system).
-    pub const UP: Self = Self::new(0.0, -1.0);
-
-    /// Unit vector in +Y direction (down in 2D coordinate system).
-    pub const DOWN: Self = Self::new(0.0, 1.0);
-
-    /// Constructs a new `Vector2` from the given `x` and `y`.
-    pub const fn new(x: real, y: real) -> Self {
-        Self { x, y }
-    }
-
-    /// Constructs a new `Vector2` with both components set to `v`.
-    pub const fn splat(v: real) -> Self {
-        Self::new(v, v)
-    }
-
     /// Constructs a new `Vector2` from a [`Vector2i`].
+    #[inline]
     pub const fn from_vector2i(v: Vector2i) -> Self {
         Self {
             x: v.x as real,
@@ -76,132 +57,79 @@ impl Vector2 {
         }
     }
 
-    /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: RVec2) -> Self {
-        Self::new(v.x, v.y)
+    #[doc(hidden)]
+    #[inline]
+    pub fn as_inner(&self) -> inner::InnerVector2 {
+        inner::InnerVector2::from_outer(self)
     }
 
-    /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> RVec2 {
-        RVec2::new(self.x, self.y)
-    }
-
+    /// Returns this vector's angle with respect to the positive X axis, or `(1.0, 0.0)` vector, in radians.
+    ///
+    /// For example, `Vector2::RIGHT.angle()` will return zero, `Vector2::DOWN.angle()` will return `PI / 2` (a quarter turn, or 90 degrees),
+    ///  and `Vector2::new(1.0, -1.0).angle()` will return `-PI / 4` (a negative eighth turn, or -45 degrees).
+    ///
+    /// [Illustration of the returned angle.](https://raw.githubusercontent.com/godotengine/godot-docs/master/img/vector2_angle.png)
+    ///
+    /// Equivalent to the result of `y.atan2(x)`.
+    #[inline]
     pub fn angle(self) -> real {
         self.y.atan2(self.x)
     }
 
-    pub fn angle_to(self, to: Self) -> real {
-        self.to_glam().angle_between(to.to_glam())
-    }
-
+    /// Returns the angle to the given vector, in radians.
+    ///
+    /// [Illustration of the returned angle.](https://raw.githubusercontent.com/godotengine/godot-docs/master/img/vector2_angle_to.png)
+    #[inline]
     pub fn angle_to_point(self, to: Self) -> real {
         (to - self).angle()
     }
 
-    pub fn aspect(self) -> real {
-        self.x / self.y
-    }
-
-    pub fn bounce(self, normal: Self) -> Self {
-        -self.reflect(normal)
-    }
-
-    pub fn ceil(self) -> Self {
-        Self::from_glam(self.to_glam().ceil())
-    }
-
-    pub fn clamp(self, min: Self, max: Self) -> Self {
-        Self::from_glam(self.to_glam().clamp(min.to_glam(), max.to_glam()))
-    }
-
+    /// Returns the 2D analog of the cross product for this vector and `with`.
+    ///
+    /// This is the signed area of the parallelogram formed by the two vectors. If the second vector is clockwise from the first vector,
+    /// then the cross product is the positive area. If counter-clockwise, the cross product is the negative area. If the two vectors are
+    /// parallel this returns zero, making it useful for testing if two vectors are parallel.
+    ///
+    /// Note: Cross product is not defined in 2D mathematically. This method embeds the 2D vectors in the XY plane of 3D space and uses
+    /// their cross product's Z component as the analog.
+    #[inline]
     pub fn cross(self, with: Self) -> real {
         self.to_glam().perp_dot(with.to_glam())
     }
 
-    pub fn direction_to(self, to: Self) -> Self {
-        (to - self).normalized()
-    }
-
-    pub fn distance_squared_to(self, to: Self) -> real {
-        (to - self).length_squared()
-    }
-
-    pub fn distance_to(self, to: Self) -> real {
-        (to - self).length()
-    }
-
-    pub fn dot(self, other: Self) -> real {
-        self.to_glam().dot(other.to_glam())
-    }
-
-    pub fn floor(self) -> Self {
-        Self::from_glam(self.to_glam().floor())
-    }
-
+    /// Creates a unit Vector2 rotated to the given `angle` in radians. This is equivalent to doing `Vector2::new(angle.cos(), angle.sin())`
+    /// or `Vector2::RIGHT.rotated(angle)`.
+    ///
+    /// ```no_run
+    /// use godot::prelude::*;
+    ///
+    /// let a = Vector2::from_angle(0.0);                       // (1.0, 0.0)
+    /// let b = Vector2::new(1.0, 0.0).angle();                 // 0.0
+    /// let c = Vector2::from_angle(real_consts::PI / 2.0);     // (0.0, 1.0)
+    /// ```
+    #[inline]
     pub fn from_angle(angle: real) -> Self {
         Self::from_glam(RVec2::from_angle(angle))
     }
 
-    pub fn is_finite(self) -> bool {
-        self.to_glam().is_finite()
-    }
-
-    pub fn is_normalized(self) -> bool {
-        self.to_glam().is_normalized()
-    }
-
-    pub fn length_squared(self) -> real {
-        self.to_glam().length_squared()
-    }
-
-    pub fn limit_length(self, length: Option<real>) -> Self {
-        Self::from_glam(self.to_glam().clamp_length_max(length.unwrap_or(1.0)))
-    }
-
-    pub fn max_axis_index(self) -> Vector2Axis {
-        if self.x < self.y {
-            Vector2Axis::Y
-        } else {
-            Vector2Axis::X
-        }
-    }
-
-    pub fn min_axis_index(self) -> Vector2Axis {
-        if self.x < self.y {
-            Vector2Axis::X
-        } else {
-            Vector2Axis::Y
-        }
-    }
-
-    pub fn move_toward(self, to: Self, delta: real) -> Self {
-        let vd = to - self;
-        let len = vd.length();
-        if len <= delta || len < real::CMP_EPSILON {
-            to
-        } else {
-            self + vd / len * delta
-        }
-    }
-
+    /// Returns a perpendicular vector rotated 90 degrees counter-clockwise compared to the original, with the same length.
+    #[inline]
     pub fn orthogonal(self) -> Self {
         Self::new(self.y, -self.x)
     }
 
-    pub fn project(self, b: Self) -> Self {
-        Self::from_glam(self.to_glam().project_onto(b.to_glam()))
+    /// Returns the result of rotating this vector by `angle` (in radians).
+    #[inline]
+    pub fn rotated(self, angle: real) -> Self {
+        Self::from_glam(RAffine2::from_angle(angle).transform_vector2(self.to_glam()))
     }
 
-    pub fn reflect(self, normal: Self) -> Self {
-        2.0 * normal * self.dot(normal) - self
-    }
-
-    pub fn round(self) -> Self {
-        Self::from_glam(self.to_glam().round())
-    }
-
-    // TODO compare with gdnative implementation:
-    // https://github.com/godot-rust/gdnative/blob/master/gdnative-core/src/core_types/vector3.rs#L335-L343
+    /// Returns the result of spherical linear interpolation between this vector and `to`, by amount `weight`.
+    /// `weight` is on the range of 0.0 to 1.0, representing the amount of interpolation.
+    ///
+    /// This method also handles interpolating the lengths if the input vectors have different lengths.
+    /// For the special case of one or both input vectors having zero length, this method behaves like [`Vector2::lerp`].
+    #[inline]
     pub fn slerp(self, to: Self, weight: real) -> Self {
         let start_length_sq = self.length_squared();
         let end_length_sq = to.length_squared();
@@ -213,24 +141,6 @@ impl Vector2 {
         let angle = self.angle_to(to);
         self.rotated(angle * weight) * (result_length / start_length)
     }
-
-    pub fn slide(self, normal: Self) -> Self {
-        self - normal * self.dot(normal)
-    }
-
-    /// Returns the result of rotating this vector by `angle` (in radians).
-    pub fn rotated(self, angle: real) -> Self {
-        Self::from_glam(RAffine2::from_angle(angle).transform_vector2(self.to_glam()))
-    }
-
-    #[doc(hidden)]
-    pub fn as_inner(&self) -> inner::InnerVector2 {
-        inner::InnerVector2::from_outer(self)
-    }
-
-    pub fn coords(&self) -> (real, real) {
-        (self.x, self.y)
-    }
 }
 
 /// Formats the vector like Godot: `(x, y)`.
@@ -239,12 +149,6 @@ impl fmt::Display for Vector2 {
         write!(f, "({}, {})", self.x, self.y)
     }
 }
-
-impl_common_vector_fns!(Vector2, real);
-impl_float_vector_glam_fns!(Vector2, real);
-impl_float_vector_component_fns!(Vector2, real, (x, y));
-impl_vector_operators!(Vector2, real, (x, y));
-impl_swizzle_trait_for_vector2x!(Vector2, real);
 
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.

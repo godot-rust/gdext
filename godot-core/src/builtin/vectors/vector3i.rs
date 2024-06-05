@@ -11,8 +11,8 @@ use std::fmt;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{FloatExt, GlamConv, GlamType};
-use crate::builtin::{real, RVec3, Vector3, Vector3Axis};
+use crate::builtin::math::{GlamConv, GlamType};
+use crate::builtin::{inner, real, RVec3, Vector3, Vector3Axis};
 
 /// Vector used for 3D math using integer coordinates.
 ///
@@ -37,86 +37,18 @@ pub struct Vector3i {
     pub z: i32,
 }
 
+impl_vector_operators!(Vector3i, i32, (x, y, z));
+
+impl_vector_consts!(Vector3i, i32);
+impl_integer_vector_consts!(Vector3i);
+impl_vector3x_consts!(Vector3i, i32);
+
+impl_vector_fns!(Vector3i, glam::IVec3, i32, (x, y, z));
+impl_vector3x_fns!(Vector3i, i32);
+
 impl Vector3i {
-    /// Vector with all components set to `0`.
-    pub const ZERO: Self = Self::splat(0);
-
-    /// Vector with all components set to `1`.
-    pub const ONE: Self = Self::splat(1);
-
-    /// Unit vector in -X direction.
-    pub const LEFT: Self = Self::new(-1, 0, 0);
-
-    /// Unit vector in +X direction.
-    pub const RIGHT: Self = Self::new(1, 0, 0);
-
-    /// Unit vector in +Y direction.
-    pub const UP: Self = Self::new(0, 1, 0);
-
-    /// Unit vector in -Y direction.
-    pub const DOWN: Self = Self::new(0, -1, 0);
-
-    /// Unit vector in -Z direction.
-    pub const FORWARD: Self = Self::new(0, 0, -1);
-
-    /// Unit vector in +Z direction.
-    pub const BACK: Self = Self::new(0, 0, 1);
-
-    /// Returns a `Vector3i` with the given components.
-    pub const fn new(x: i32, y: i32, z: i32) -> Self {
-        Self { x, y, z }
-    }
-
-    /// Axis of the vector's highest value. [`None`] if at least two components are equal.
-    pub fn max_axis(self) -> Option<Vector3Axis> {
-        use Vector3Axis::*;
-
-        match self.x.cmp(&self.y) {
-            Ordering::Less => match self.y.cmp(&self.z) {
-                Ordering::Less => Some(Z),
-                Ordering::Equal => None,
-                Ordering::Greater => Some(Y),
-            },
-            Ordering::Equal => match self.x.cmp(&self.z) {
-                Ordering::Less => Some(Z),
-                _ => None,
-            },
-            Ordering::Greater => match self.x.cmp(&self.z) {
-                Ordering::Less => Some(Z),
-                Ordering::Equal => None,
-                Ordering::Greater => Some(X),
-            },
-        }
-    }
-
-    /// Axis of the vector's highest value. [`None`] if at least two components are equal.
-    pub fn min_axis(self) -> Option<Vector3Axis> {
-        use Vector3Axis::*;
-
-        match self.x.cmp(&self.y) {
-            Ordering::Less => match self.x.cmp(&self.z) {
-                Ordering::Less => Some(X),
-                Ordering::Equal => None,
-                Ordering::Greater => Some(Z),
-            },
-            Ordering::Equal => match self.x.cmp(&self.z) {
-                Ordering::Greater => Some(Z),
-                _ => None,
-            },
-            Ordering::Greater => match self.y.cmp(&self.z) {
-                Ordering::Less => Some(Y),
-                Ordering::Equal => None,
-                Ordering::Greater => Some(Z),
-            },
-        }
-    }
-
-    /// Constructs a new `Vector3i` with all components set to `v`.
-    pub const fn splat(v: i32) -> Self {
-        Self::new(v, v, v)
-    }
-
     /// Constructs a new `Vector3i` from a [`Vector3`]. The floating point coordinates will be truncated.
+    #[inline]
     pub const fn from_vector3(v: Vector3) -> Self {
         Self {
             x: v.x as i32,
@@ -125,23 +57,17 @@ impl Vector3i {
         }
     }
 
-    /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: glam::IVec3) -> Self {
-        Self::new(v.x, v.y, v.z)
-    }
-
-    /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> glam::IVec3 {
-        glam::IVec3::new(self.x, self.y, self.z)
-    }
-
     /// Converts `self` to the corresponding [`real`] `glam` type.
-    fn to_glam_real(self) -> RVec3 {
+    #[doc(hidden)]
+    #[inline]
+    pub fn to_glam_real(self) -> RVec3 {
         RVec3::new(self.x as real, self.y as real, self.z as real)
     }
 
-    pub fn coords(&self) -> (i32, i32, i32) {
-        (self.x, self.y, self.z)
+    #[doc(hidden)]
+    #[inline]
+    pub fn as_inner(&self) -> inner::InnerVector3i {
+        inner::InnerVector3i::from_outer(self)
     }
 }
 
@@ -151,12 +77,6 @@ impl fmt::Display for Vector3i {
         write!(f, "({}, {}, {})", self.x, self.y, self.z)
     }
 }
-
-impl_common_vector_fns!(Vector3i, i32);
-impl_integer_vector_glam_fns!(Vector3i, real);
-impl_integer_vector_component_fns!(Vector3i, real, (x, y, z));
-impl_vector_operators!(Vector3i, i32, (x, y, z));
-impl_swizzle_trait_for_vector3x!(Vector3i, i32);
 
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.

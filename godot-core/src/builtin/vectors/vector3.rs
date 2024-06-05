@@ -5,12 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use core::cmp::Ordering;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector3Axis;
-use crate::builtin::{real, Basis, RVec3, Vector3i};
+use crate::builtin::{inner, real, Basis, RVec3, Vector2, Vector3i};
 
 use std::fmt;
 
@@ -38,42 +39,39 @@ pub struct Vector3 {
     pub z: real,
 }
 
+impl_vector_operators!(Vector3, real, (x, y, z));
+
+impl_vector_consts!(Vector3, real);
+impl_float_vector_consts!(Vector3);
+impl_vector3x_consts!(Vector3, real);
+
+impl_vector_fns!(Vector3, RVec3, real, (x, y, z));
+impl_float_vector_fns!(Vector3, (x, y, z));
+impl_vector3x_fns!(Vector3, real);
+impl_vector2_vector3_fns!(Vector3, (x, y, z));
+impl_vector3_vector4_fns!(Vector3, (x, y, z));
+
 impl Vector3 {
-    /// Vector with all components set to `0.0`.
-    pub const ZERO: Self = Self::splat(0.0);
+    /// Unit vector pointing towards the left side of imported 3D assets.
+    pub const MODEL_LEFT: Self = Self::new(1.0, 0.0, 0.0);
 
-    /// Vector with all components set to `1.0`.
-    pub const ONE: Self = Self::splat(1.0);
+    /// Unit vector pointing towards the right side of imported 3D assets.
+    pub const MODEL_RIGHT: Self = Self::new(-1.0, 0.0, 0.0);
 
-    /// Unit vector in -X direction. Can be interpreted as left in an untransformed 3D world.
-    pub const LEFT: Self = Self::new(-1.0, 0.0, 0.0);
+    /// Unit vector pointing towards the top side (up) of imported 3D assets.
+    pub const MODEL_TOP: Self = Self::new(0.0, 1.0, 0.0);
 
-    /// Unit vector in +X direction. Can be interpreted as right in an untransformed 3D world.
-    pub const RIGHT: Self = Self::new(1.0, 0.0, 0.0);
+    /// Unit vector pointing towards the bottom side (down) of imported 3D assets.
+    pub const MODEL_BOTTOM: Self = Self::new(0.0, -1.0, 0.0);
 
-    /// Unit vector in +Y direction. Typically interpreted as up in a 3D world.
-    pub const UP: Self = Self::new(0.0, 1.0, 0.0);
+    /// Unit vector pointing towards the front side (facing forward) of imported 3D assets.
+    pub const MODEL_FRONT: Self = Self::new(0.0, 0.0, 1.0);
 
-    /// Unit vector in -Y direction. Typically interpreted as down in a 3D world.
-    pub const DOWN: Self = Self::new(0.0, -1.0, 0.0);
-
-    /// Unit vector in -Z direction. Can be interpreted as "into the screen" in an untransformed 3D world.
-    pub const FORWARD: Self = Self::new(0.0, 0.0, -1.0);
-
-    /// Unit vector in +Z direction. Can be interpreted as "out of the screen" in an untransformed 3D world.
-    pub const BACK: Self = Self::new(0.0, 0.0, 1.0);
-
-    /// Returns a `Vector3` with the given components.
-    pub const fn new(x: real, y: real, z: real) -> Self {
-        Self { x, y, z }
-    }
-
-    /// Returns a new `Vector3` with all components set to `v`.
-    pub const fn splat(v: real) -> Self {
-        Self::new(v, v, v)
-    }
+    /// Unit vector pointing towards the rear side (back) of imported 3D assets.
+    pub const MODEL_REAR: Self = Self::new(0.0, 0.0, -1.0);
 
     /// Constructs a new `Vector3` from a [`Vector3i`].
+    #[inline]
     pub const fn from_vector3i(v: Vector3i) -> Self {
         Self {
             x: v.x as real,
@@ -82,126 +80,89 @@ impl Vector3 {
         }
     }
 
-    /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: RVec3) -> Self {
-        Self::new(v.x, v.y, v.z)
+    #[doc(hidden)]
+    #[inline]
+    pub fn as_inner(&self) -> inner::InnerVector3 {
+        inner::InnerVector3::from_outer(self)
     }
 
-    /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> RVec3 {
-        RVec3::new(self.x, self.y, self.z)
-    }
-
-    pub fn angle_to(self, to: Self) -> real {
-        self.to_glam().angle_between(to.to_glam())
-    }
-
-    pub fn bounce(self, normal: Self) -> Self {
-        -self.reflect(normal)
-    }
-
-    pub fn ceil(self) -> Self {
-        Self::from_glam(self.to_glam().ceil())
-    }
-
-    pub fn clamp(self, min: Self, max: Self) -> Self {
-        Self::from_glam(self.to_glam().clamp(min.to_glam(), max.to_glam()))
-    }
-
+    /// Returns the cross product of this vector and `with`.
+    ///
+    /// This returns a vector perpendicular to both this and `with`, which would be the normal vector of the plane
+    /// defined by the two vectors. As there are two such vectors, in opposite directions,
+    /// this method returns the vector defined by a right-handed coordinate system.
+    /// If the two vectors are parallel this returns an empty vector, making it useful for testing if two vectors are parallel.
+    #[inline]
     pub fn cross(self, with: Self) -> Self {
         Self::from_glam(self.to_glam().cross(with.to_glam()))
     }
 
-    pub fn direction_to(self, to: Self) -> Self {
-        (to - self).normalized()
+    /// Returns the Vector3 from an octahedral-compressed form created using [`Vector3::octahedron_encode`] (stored as a [`Vector2`]).
+    #[inline]
+    pub fn octahedron_decode(uv: Vector2) -> Self {
+        let f = Vector2::new(uv.x * 2.0 - 1.0, uv.y * 2.0 - 1.0);
+        let mut n = Vector3::new(f.x, f.y, 1.0 - f.x.abs() - f.y.abs());
+
+        let t = (-n.z).clamp(0.0, 1.0);
+        n.x += if n.x >= 0.0 { -t } else { t };
+        n.y += if n.y >= 0.0 { -t } else { t };
+
+        n.normalized()
     }
 
-    pub fn distance_squared_to(self, to: Self) -> real {
-        (to - self).length_squared()
-    }
+    /// Returns the octahedral-encoded (oct32) form of this Vector3 as a [`Vector2`]. Since a [`Vector2`] occupies 1/3 less memory compared to Vector3,
+    /// this form of compression can be used to pass greater amounts of [`Vector3::normalized`] Vector3s without increasing storage or memory requirements.
+    /// See also [`Vector3::octahedron_decode`].
+    ///
+    /// Note: Octahedral compression is lossy, although visual differences are rarely perceptible in real world scenarios.
+    ///
+    /// # Panics
+    /// If vector is not normalized.
+    #[inline]
+    pub fn octahedron_encode(self) -> Vector2 {
+        assert!(self.is_normalized(), "vector is not normalized!");
 
-    pub fn distance_to(self, to: Self) -> real {
-        (to - self).length()
-    }
+        let mut n = self;
+        n /= n.x.abs() + n.y.abs() + n.z.abs();
 
-    pub fn dot(self, with: Self) -> real {
-        self.to_glam().dot(with.to_glam())
-    }
-
-    pub fn floor(self) -> Self {
-        Self::from_glam(self.to_glam().floor())
-    }
-
-    pub fn inverse(self) -> Self {
-        Self::new(1.0 / self.x, 1.0 / self.y, 1.0 / self.z)
-    }
-
-    pub fn is_finite(self) -> bool {
-        self.to_glam().is_finite()
-    }
-
-    pub fn is_normalized(self) -> bool {
-        self.to_glam().is_normalized()
-    }
-
-    pub fn length_squared(self) -> real {
-        self.to_glam().length_squared()
-    }
-
-    pub fn limit_length(self, length: Option<real>) -> Self {
-        Self::from_glam(self.to_glam().clamp_length_max(length.unwrap_or(1.0)))
-    }
-
-    pub fn max_axis_index(self) -> Vector3Axis {
-        if self.x < self.y {
-            if self.y < self.z {
-                Vector3Axis::Z
-            } else {
-                Vector3Axis::Y
-            }
-        } else if self.x < self.z {
-            Vector3Axis::Z
+        let mut o = if n.z >= 0.0 {
+            Vector2::new(n.x, n.y)
         } else {
-            Vector3Axis::X
-        }
+            let x = (1.0 - n.y.abs()) * (if n.x >= 0.0 { 1.0 } else { -1.0 });
+            let y = (1.0 - n.x.abs()) * (if n.y >= 0.0 { 1.0 } else { -1.0 });
+
+            Vector2::new(x, y)
+        };
+
+        o.x = o.x * 0.5 + 0.5;
+        o.y = o.y * 0.5 + 0.5;
+
+        o
     }
 
-    pub fn min_axis_index(self) -> Vector3Axis {
-        if self.x < self.y {
-            if self.x < self.z {
-                Vector3Axis::X
-            } else {
-                Vector3Axis::Z
-            }
-        } else if self.y < self.z {
-            Vector3Axis::Y
-        } else {
-            Vector3Axis::Z
-        }
+    /// Returns the outer product with `with`.
+    #[inline]
+    pub fn outer(self, with: Self) -> Basis {
+        let x = Vector3::new(self.x * with.x, self.x * with.y, self.x * with.z);
+        let y = Vector3::new(self.y * with.x, self.y * with.y, self.y * with.z);
+        let z = Vector3::new(self.z * with.x, self.z * with.y, self.z * with.z);
+
+        Basis::from_rows(x, y, z)
     }
 
-    pub fn move_toward(self, to: Self, delta: real) -> Self {
-        let vd = to - self;
-        let len = vd.length();
-        if len <= delta || len < real::CMP_EPSILON {
-            to
-        } else {
-            self + vd / len * delta
-        }
+    /// Returns this vector rotated around `axis` by `angle` radians. `axis` must be normalized.
+    ///
+    /// # Panics
+    /// If `axis` is not normalized.
+    #[inline]
+    pub fn rotated(self, axis: Self, angle: real) -> Self {
+        assert!(axis.is_normalized(), "axis is not normalized!");
+        Basis::from_axis_angle(axis, angle) * self
     }
 
-    pub fn project(self, b: Self) -> Self {
-        Self::from_glam(self.to_glam().project_onto(b.to_glam()))
-    }
-
-    pub fn reflect(self, normal: Self) -> Self {
-        2.0 * normal * self.dot(normal) - self
-    }
-
-    pub fn round(self) -> Self {
-        Self::from_glam(self.to_glam().round())
-    }
-
+    /// Returns the signed angle to the given vector, in radians. The sign of the angle is positive in a counter-clockwise direction and
+    /// negative in a clockwise direction when viewed from the side specified by the `axis`.
+    #[inline]
     pub fn signed_angle_to(self, to: Self, axis: Self) -> real {
         let cross_to = self.cross(to);
         let unsigned_angle = cross_to.length().atan2(self.dot(to));
@@ -221,6 +182,7 @@ impl Vector3 {
     /// Length is also interpolated in the case that the input vectors have different lengths. If both
     /// input vectors have zero length or are collinear to each other, the method instead behaves like
     /// [`Vector3::lerp`].
+    #[inline]
     pub fn slerp(self, to: Self, weight: real) -> Self {
         let start_length_sq: real = self.length_squared();
         let end_length_sq = to.length_squared();
@@ -245,23 +207,6 @@ impl Vector3 {
         let angle = self.angle_to(to);
         self.rotated(unit_axis, angle * weight) * (result_length / start_length)
     }
-
-    pub fn slide(self, normal: Self) -> Self {
-        self - normal * self.dot(normal)
-    }
-
-    /// Returns this vector rotated around `axis` by `angle` radians. `axis` must be normalized.
-    ///
-    /// # Panics
-    /// If `axis` is not normalized.
-    pub fn rotated(self, axis: Self, angle: real) -> Self {
-        assert!(axis.is_normalized());
-        Basis::from_axis_angle(axis, angle) * self
-    }
-
-    pub fn coords(&self) -> (real, real, real) {
-        (self.x, self.y, self.z)
-    }
 }
 
 /// Formats the vector like Godot: `(x, y, z)`.
@@ -270,12 +215,6 @@ impl fmt::Display for Vector3 {
         write!(f, "({}, {}, {})", self.x, self.y, self.z)
     }
 }
-
-impl_common_vector_fns!(Vector3, real);
-impl_float_vector_glam_fns!(Vector3, real);
-impl_float_vector_component_fns!(Vector3, real, (x, y, z));
-impl_vector_operators!(Vector3, real, (x, y, z));
-impl_swizzle_trait_for_vector3x!(Vector3, real);
 
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.

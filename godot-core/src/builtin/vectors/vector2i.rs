@@ -9,8 +9,8 @@ use godot_ffi as sys;
 use std::cmp::Ordering;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{FloatExt, GlamConv, GlamType};
-use crate::builtin::{real, RVec2, Vector2, Vector2Axis};
+use crate::builtin::math::{GlamConv, GlamType};
+use crate::builtin::{inner, real, RVec2, Vector2, Vector2Axis};
 
 use std::fmt;
 
@@ -34,59 +34,18 @@ pub struct Vector2i {
     pub y: i32,
 }
 
+impl_vector_operators!(Vector2i, i32, (x, y));
+
+impl_vector_consts!(Vector2i, i32);
+impl_integer_vector_consts!(Vector2i);
+impl_vector2x_consts!(Vector2i, i32);
+
+impl_vector_fns!(Vector2i, glam::IVec2, i32, (x, y));
+impl_vector2x_fns!(Vector2i, i32);
+
 impl Vector2i {
-    /// Vector with all components set to `0`.
-    pub const ZERO: Self = Self::splat(0);
-
-    /// Vector with all components set to `1`.
-    pub const ONE: Self = Self::splat(1);
-
-    /// Unit vector in -X direction (right in 2D coordinate system).
-    pub const LEFT: Self = Self::new(-1, 0);
-
-    /// Unit vector in +X direction (right in 2D coordinate system).
-    pub const RIGHT: Self = Self::new(1, 0);
-
-    /// Unit vector in -Y direction (up in 2D coordinate system).
-    pub const UP: Self = Self::new(0, -1);
-
-    /// Unit vector in +Y direction (down in 2D coordinate system).
-    pub const DOWN: Self = Self::new(0, 1);
-
-    /// Constructs a new `Vector2i` from the given `x` and `y`.
-    pub const fn new(x: i32, y: i32) -> Self {
-        Self { x, y }
-    }
-
-    /// Aspect ratio: x / y, as a `real` value.
-    pub fn aspect(self) -> real {
-        self.x as real / self.y as real
-    }
-
-    /// Axis of the vector's highest value. [`None`] if components are equal.
-    pub fn max_axis(self) -> Option<Vector2Axis> {
-        match self.x.cmp(&self.y) {
-            Ordering::Less => Some(Vector2Axis::Y),
-            Ordering::Equal => None,
-            Ordering::Greater => Some(Vector2Axis::X),
-        }
-    }
-
-    /// Axis of the vector's highest value. [`None`] if components are equal.
-    pub fn min_axis(self) -> Option<Vector2Axis> {
-        match self.x.cmp(&self.y) {
-            Ordering::Less => Some(Vector2Axis::X),
-            Ordering::Equal => None,
-            Ordering::Greater => Some(Vector2Axis::Y),
-        }
-    }
-
-    /// Constructs a new `Vector2i` with both components set to `v`.
-    pub const fn splat(v: i32) -> Self {
-        Self::new(v, v)
-    }
-
     /// Constructs a new `Vector2i` from a [`Vector2`]. The floating point coordinates will be truncated.
+    #[inline]
     pub const fn from_vector2(v: Vector2) -> Self {
         Self {
             x: v.x as i32,
@@ -94,23 +53,17 @@ impl Vector2i {
         }
     }
 
-    /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: glam::IVec2) -> Self {
-        Self::new(v.x, v.y)
-    }
-
-    /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> glam::IVec2 {
-        glam::IVec2::new(self.x, self.y)
-    }
-
     /// Converts `self` to the corresponding [`real`] `glam` type.
-    fn to_glam_real(self) -> RVec2 {
+    #[doc(hidden)]
+    #[inline]
+    pub fn to_glam_real(self) -> RVec2 {
         RVec2::new(self.x as real, self.y as real)
     }
 
-    pub fn coords(&self) -> (i32, i32) {
-        (self.x, self.y)
+    #[doc(hidden)]
+    #[inline]
+    pub fn as_inner(&self) -> inner::InnerVector2i {
+        inner::InnerVector2i::from_outer(self)
     }
 }
 
@@ -120,12 +73,6 @@ impl fmt::Display for Vector2i {
         write!(f, "({}, {})", self.x, self.y)
     }
 }
-
-impl_common_vector_fns!(Vector2i, i32);
-impl_integer_vector_glam_fns!(Vector2i, real);
-impl_integer_vector_component_fns!(Vector2i, real, (x, y));
-impl_vector_operators!(Vector2i, i32, (x, y));
-impl_swizzle_trait_for_vector2x!(Vector2i, i32);
 
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.

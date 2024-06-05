@@ -32,6 +32,7 @@ pub trait FloatExt: private::Sealed + Copy {
     /// Check if `self` is within [`Self::CMP_EPSILON`] of `0.0`.
     fn is_zero_approx(self) -> bool;
 
+    /// Returns the floating-point modulus of `self` divided by `pmod`, wrapping equally in positive and negative.
     fn fposmod(self, pmod: Self) -> Self;
 
     /// Returns the multiple of `step` that is closest to `self`.

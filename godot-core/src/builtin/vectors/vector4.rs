@@ -5,11 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use core::cmp::Ordering;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
-use crate::builtin::{real, RVec4, Vector4i};
+use crate::builtin::{inner, real, RVec4, Vector4Axis, Vector4i};
 
 use std::fmt;
 
@@ -40,23 +41,17 @@ pub struct Vector4 {
 }
 
 impl_vector_operators!(Vector4, real, (x, y, z, w));
-impl_common_vector_fns!(Vector4, real);
-impl_float_vector_glam_fns!(Vector4, real);
-impl_float_vector_component_fns!(Vector4, real, (x, y, z, w));
-impl_swizzle_trait_for_vector4x!(Vector4, real);
+
+impl_vector_consts!(Vector4, real);
+impl_float_vector_consts!(Vector4);
+
+impl_vector_fns!(Vector4, RVec4, real, (x, y, z, w));
+impl_float_vector_fns!(Vector4, (x, y, z, w));
+impl_vector4x_fns!(Vector4, real);
+impl_vector3_vector4_fns!(Vector4, (x, y, z, w));
 
 impl Vector4 {
-    /// Returns a `Vector4` with the given components.
-    pub const fn new(x: real, y: real, z: real, w: real) -> Self {
-        Self { x, y, z, w }
-    }
-
-    /// Returns a new `Vector4` with all components set to `v`.
-    pub const fn splat(v: real) -> Self {
-        Self::new(v, v, v, v)
-    }
-
-    /// Constructs a new `Vector3` from a [`Vector3i`][crate::builtin::Vector3i].
+    /// Constructs a new `Vector4` from a [`Vector4i`][crate::builtin::Vector4i].
     pub const fn from_vector4i(v: Vector4i) -> Self {
         Self {
             x: v.x as real,
@@ -66,27 +61,10 @@ impl Vector4 {
         }
     }
 
-    /// Zero vector, a vector with all components set to `0.0`.
-    pub const ZERO: Self = Self::splat(0.0);
-
-    /// One vector, a vector with all components set to `1.0`.
-    pub const ONE: Self = Self::splat(1.0);
-
-    /// Infinity vector, a vector with all components set to `real::INFINITY`.
-    pub const INF: Self = Self::splat(real::INFINITY);
-
-    /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: RVec4) -> Self {
-        Self::new(v.x, v.y, v.z, v.w)
-    }
-
-    /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> RVec4 {
-        RVec4::new(self.x, self.y, self.z, self.w)
-    }
-
-    pub fn coords(&self) -> (real, real, real, real) {
-        (self.x, self.y, self.z, self.w)
+    #[doc(hidden)]
+    #[inline]
+    pub fn as_inner(&self) -> inner::InnerVector4 {
+        inner::InnerVector4::from_outer(self)
     }
 }
 

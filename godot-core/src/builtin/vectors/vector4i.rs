@@ -5,11 +5,12 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use core::cmp::Ordering;
 use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
-use crate::builtin::math::{FloatExt, GlamConv, GlamType};
-use crate::builtin::{real, RVec4, Vector4, Vector4Axis};
+use crate::builtin::math::{GlamConv, GlamType};
+use crate::builtin::{inner, real, RVec4, Vector4, Vector4Axis};
 
 use std::fmt;
 
@@ -39,67 +40,18 @@ pub struct Vector4i {
 }
 
 impl_vector_operators!(Vector4i, i32, (x, y, z, w));
-impl_integer_vector_glam_fns!(Vector4i, real);
-impl_integer_vector_component_fns!(Vector4i, real, (x, y, z, w));
-impl_common_vector_fns!(Vector4i, i32);
-impl_swizzle_trait_for_vector4x!(Vector4i, i32);
+
+impl_vector_consts!(Vector4i, i32);
+impl_integer_vector_consts!(Vector4i);
+
+impl_vector_fns!(Vector4i, glam::IVec4, i32, (x, y, z, w));
+impl_vector4x_fns!(Vector4i, i32);
 
 impl Vector4i {
-    /// Returns a `Vector4i` with the given components.
-    pub const fn new(x: i32, y: i32, z: i32, w: i32) -> Self {
-        Self { x, y, z, w }
-    }
-
-    /// Axis of the vector's highest value. [`None`] if at least two components are equal.
-    pub fn max_axis(self) -> Option<Vector4Axis> {
-        use Vector4Axis::*;
-
-        let mut max_axis = X;
-        let mut previous = None;
-        let mut max_value = self.x;
-
-        let components = [(Y, self.y), (Z, self.z), (W, self.w)];
-
-        for (axis, value) in components {
-            if value >= max_value {
-                max_axis = axis;
-                previous = Some(max_value);
-                max_value = value;
-            }
-        }
-
-        (Some(max_value) != previous).then_some(max_axis)
-    }
-
-    /// Axis of the vector's highest value. [`None`] if at least two components are equal.
-    pub fn min_axis(self) -> Option<Vector4Axis> {
-        use Vector4Axis::*;
-
-        let mut min_axis = X;
-        let mut previous = None;
-        let mut min_value = self.x;
-
-        let components = [(Y, self.y), (Z, self.z), (W, self.w)];
-
-        for (axis, value) in components {
-            if value <= min_value {
-                min_axis = axis;
-                previous = Some(min_value);
-                min_value = value;
-            }
-        }
-
-        (Some(min_value) != previous).then_some(min_axis)
-    }
-
-    /// Constructs a new `Vector4i` with all components set to `v`.
-    pub const fn splat(v: i32) -> Self {
-        Self::new(v, v, v, v)
-    }
-
     /// Constructs a new `Vector4i` from a [`Vector4`]. The floating point coordinates will be
     /// truncated.
-    pub const fn from_vector3(v: Vector4) -> Self {
+    #[inline]
+    pub const fn from_vector4(v: Vector4) -> Self {
         Self {
             x: v.x as i32,
             y: v.y as i32,
@@ -108,24 +60,10 @@ impl Vector4i {
         }
     }
 
-    /// Zero vector, a vector with all components set to `0`.
-    pub const ZERO: Self = Self::splat(0);
-
-    /// One vector, a vector with all components set to `1`.
-    pub const ONE: Self = Self::splat(1);
-
-    /// Converts the corresponding `glam` type to `Self`.
-    fn from_glam(v: glam::IVec4) -> Self {
-        Self::new(v.x, v.y, v.z, v.w)
-    }
-
-    /// Converts `self` to the corresponding `glam` type.
-    fn to_glam(self) -> glam::IVec4 {
-        glam::IVec4::new(self.x, self.y, self.z, self.w)
-    }
-
     /// Converts `self` to the corresponding [`real`] `glam` type.
-    fn to_glam_real(self) -> RVec4 {
+    #[doc(hidden)]
+    #[inline]
+    pub fn to_glam_real(self) -> RVec4 {
         RVec4::new(
             self.x as real,
             self.y as real,
@@ -134,8 +72,10 @@ impl Vector4i {
         )
     }
 
-    pub fn coords(&self) -> (i32, i32, i32, i32) {
-        (self.x, self.y, self.z, self.w)
+    #[doc(hidden)]
+    #[inline]
+    pub fn as_inner(&self) -> inner::InnerVector4i {
+        inner::InnerVector4i::from_outer(self)
     }
 }
 

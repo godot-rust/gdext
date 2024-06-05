@@ -189,18 +189,18 @@ impl Aabb {
 
     /// Returns the normalized longest axis of the AABB.
     #[inline]
-    pub fn longest_axis(&self) -> Vector3 {
-        match self.longest_axis_index() {
+    pub fn longest_axis(&self) -> Option<Vector3> {
+        self.longest_axis_index().map(|axis| match axis {
             Vector3Axis::X => Vector3::RIGHT,
             Vector3Axis::Y => Vector3::UP,
             Vector3Axis::Z => Vector3::BACK,
-        }
+        })
     }
 
     /// Returns the index of the longest axis of the AABB (according to Vector3's AXIS_* constants).
     #[inline]
-    pub fn longest_axis_index(&self) -> Vector3Axis {
-        self.size.max_axis_index()
+    pub fn longest_axis_index(&self) -> Option<Vector3Axis> {
+        self.size.max_axis()
     }
 
     /// Returns the scalar length of the longest axis of the AABB.
@@ -211,18 +211,18 @@ impl Aabb {
 
     /// Returns the normalized shortest axis of the AABB.
     #[inline]
-    pub fn shortest_axis(&self) -> Vector3 {
-        match self.shortest_axis_index() {
+    pub fn shortest_axis(&self) -> Option<Vector3> {
+        self.shortest_axis_index().map(|axis| match axis {
             Vector3Axis::X => Vector3::RIGHT,
             Vector3Axis::Y => Vector3::UP,
             Vector3Axis::Z => Vector3::BACK,
-        }
+        })
     }
 
     /// Returns the index of the shortest axis of the AABB (according to Vector3::AXIS* enum).
     #[inline]
-    pub fn shortest_axis_index(&self) -> Vector3Axis {
-        self.size.min_axis_index()
+    pub fn shortest_axis_index(&self) -> Option<Vector3Axis> {
+        self.size.min_axis()
     }
 
     /// Returns the scalar length of the shortest axis of the AABB.
@@ -436,12 +436,12 @@ mod test {
             size: Vector3::new(4.0, 6.0, 8.0),
         };
 
-        assert_eq!(aabb.shortest_axis(), Vector3::RIGHT);
-        assert_eq!(aabb.longest_axis(), Vector3::BACK);
+        assert_eq!(aabb.shortest_axis(), Some(Vector3::RIGHT));
+        assert_eq!(aabb.longest_axis(), Some(Vector3::BACK));
         assert_eq!(aabb.shortest_axis_size(), 4.0);
         assert_eq!(aabb.longest_axis_size(), 8.0);
-        assert_eq!(aabb.shortest_axis_index(), Vector3Axis::X);
-        assert_eq!(aabb.longest_axis_index(), Vector3Axis::Z);
+        assert_eq!(aabb.shortest_axis_index(), Some(Vector3Axis::X));
+        assert_eq!(aabb.longest_axis_index(), Some(Vector3Axis::Z));
     }
 
     #[test]
