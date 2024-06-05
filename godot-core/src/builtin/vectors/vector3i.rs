@@ -58,6 +58,7 @@ impl Vector3i {
     }
 
     /// Converts `self` to the corresponding [`real`] `glam` type.
+    #[doc(hidden)]
     #[inline]
     pub fn to_glam_real(self) -> RVec3 {
         RVec3::new(self.x as real, self.y as real, self.z as real)

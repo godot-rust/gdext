@@ -61,6 +61,7 @@ impl Vector4i {
     }
 
     /// Converts `self` to the corresponding [`real`] `glam` type.
+    #[doc(hidden)]
     #[inline]
     pub fn to_glam_real(self) -> RVec4 {
         RVec4::new(

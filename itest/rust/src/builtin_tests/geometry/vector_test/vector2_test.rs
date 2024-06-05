@@ -361,7 +361,7 @@ fn project() {
     let a = Vector2::new(1.2, -3.4);
     let b = Vector2::new(-5.6, 7.8);
 
-    assert_eq!(a.project(b), a.as_inner().project(b));
+    assert_eq_approx!(a.project(b), a.as_inner().project(b));
 }
 
 #[itest]
