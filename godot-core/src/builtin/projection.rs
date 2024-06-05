@@ -552,6 +552,7 @@ pub enum ProjectionPlane {
 }
 
 #[allow(non_upper_case_globals)]
+#[doc(hidden)] // No longer advertise in API docs.
 impl ProjectionPlane {
     #[deprecated(note = "Renamed to `ProjectionPlane::NEAR`")]
     pub const Near: Self = Self::NEAR;

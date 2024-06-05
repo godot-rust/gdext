@@ -354,6 +354,7 @@ pub(crate) fn make_deprecated_enumerators(enum_: &Enum) -> TokenStream {
 
         let decl = quote! {
             #[deprecated = #msg]
+            #[doc(hidden)] // No longer advertise in API docs.
             pub const #pascal_name: #enum_name = Self::#name;
         };
 

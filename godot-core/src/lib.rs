@@ -60,9 +60,11 @@ pub use godot_ffi::out;
 // Deprecated modules
 
 #[deprecated = "Module has been split into `godot::classes`, `godot::global` and `godot::tools`."]
+#[doc(hidden)] // No longer advertise in API docs.
 pub mod engine;
 
 #[deprecated = "Print macros have been moved to `godot::global`."]
+#[doc(hidden)] // No longer advertise in API docs.
 pub mod log {
     pub use crate::global::{
         godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn,

@@ -812,4 +812,5 @@ impl<T: GodotClass> std::panic::UnwindSafe for Gd<T> {}
 impl<T: GodotClass> std::panic::RefUnwindSafe for Gd<T> {}
 
 #[deprecated = "Removed; see `Gd::try_to_unique()`"]
+#[doc(hidden)] // No longer advertise in API docs.
 pub type NotUniqueError = ();
