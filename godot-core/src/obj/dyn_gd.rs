@@ -10,8 +10,8 @@ use std::rc::Rc;
 use crate::engine;
 use crate::obj::{Gd, GdDynMut};
 
-struct Dyn<V> {
-}
+// struct Dyn<V> {
+// }
 
 pub struct DynGd<T, D>
 where
