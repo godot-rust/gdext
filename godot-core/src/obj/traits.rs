@@ -167,12 +167,12 @@ pub trait EngineEnum: Copy {
 
 /// Auto-implemented for all engine-provided bitfields.
 pub trait EngineBitfield: Copy {
-    fn try_from_ord(ord: u64) -> Option<Self>;
+    fn try_from_ord(ord: i64) -> Option<Self>;
 
     /// Ordinal value of the bit flag, as specified in Godot.
-    fn ord(self) -> u64;
+    fn ord(self) -> i64;
 
-    fn from_ord(ord: u64) -> Self {
+    fn from_ord(ord: i64) -> Self {
         Self::try_from_ord(ord)
             .unwrap_or_else(|| panic!("ordinal {ord} does not map to any valid bit flag"))
     }

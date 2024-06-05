@@ -197,11 +197,11 @@ fn make_enum_engine_trait_impl(enum_: &Enum) -> TokenStream {
             // }
 
             impl #engine_trait for #name {
-                fn try_from_ord(ord: u64) -> Option<Self> {
+                fn try_from_ord(ord: i64) -> Option<Self> {
                     Some(Self { ord })
                 }
 
-                fn ord(self) -> u64 {
+                fn ord(self) -> i64 {
                     self.ord
                 }
             }

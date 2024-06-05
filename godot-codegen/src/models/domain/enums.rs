@@ -39,7 +39,7 @@ impl Enum {
     /// The type we use to represent values of this enum.
     pub fn ord_type(&self) -> Ident {
         if self.is_bitfield {
-            ident("u64")
+            ident("i64")
         } else {
             ident("i32")
         }
@@ -126,7 +126,7 @@ pub struct Enumerator {
 #[derive(Clone)]
 pub enum EnumeratorValue {
     Enum(i32),
-    Bitfield(u64),
+    Bitfield(i64),
 }
 
 impl EnumeratorValue {
@@ -145,7 +145,7 @@ impl EnumeratorValue {
         // Conversion is safe because i64 is used in the original JSON.
         match self {
             EnumeratorValue::Enum(i) => *i as i64,
-            EnumeratorValue::Bitfield(i) => *i as i64,
+            EnumeratorValue::Bitfield(i) => *i,
         }
     }
 
