@@ -241,9 +241,11 @@ impl<T: GodotClass> Gd<T> {
     ///
     /// This method is safe and never panics.
     pub fn instance_id_unchecked(&self) -> InstanceId {
+        let instance_id = self.raw.instance_id_unchecked();
+
         // SAFETY: a `Gd` can only be created from a non-null `RawGd`, meaning `raw.instance_id_unchecked()` will
         // always return `Some`.
-        unsafe { self.raw.instance_id_unchecked().unwrap_unchecked() }
+        unsafe { instance_id.unwrap_unchecked() }
     }
 
     /// Checks if this smart pointer points to a live object (read description!).
