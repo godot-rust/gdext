@@ -5,7 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::ops::{Deref, DerefMut};
 use std::sync::{Mutex, MutexGuard, TryLockError};
 
 /// Ergonomic global variables.
@@ -66,7 +65,6 @@ impl<T> Global<T> {
         let guard = Self::ensure_init(mutex_guard, true)
             .unwrap_or_else(|| panic!("previous Global<T> initialization failed due to panic"));
 
-        debug_assert!(matches!(*guard.mutex_guard, InitState::Initialized(_)));
         guard
     }
 
@@ -79,45 +77,31 @@ impl<T> Global<T> {
             }
             Err(TryLockError::Poisoned(poisoned)) => {
                 return Err(GlobalLockError::Poisoned {
-                    circumvent: GlobalGuard {
-                        mutex_guard: poisoned.into_inner(),
-                    },
+                    // We can likely use `new_unchecked` here, but verifying that it's safe would need somewhat tricky reasoning.
+                    // Since this error condition isn't very common, it is likely not very important to optimize access to the value here.
+                    // Especially since most users will likely not want to access it anyway.
+                    circumvent: GlobalGuard::new(poisoned.into_inner())
+                        .expect("Poisoned global guard should always be initialized"),
                 });
             }
         };
 
-        match guard {
-            None => Err(GlobalLockError::InitFailed),
-            Some(guard) => {
-                debug_assert!(matches!(*guard.mutex_guard, InitState::Initialized(_)));
-                Ok(guard)
-            }
-        }
+        guard.ok_or(GlobalLockError::InitFailed)
     }
 
     fn ensure_init(
         mut mutex_guard: MutexGuard<'_, InitState<T>>,
         may_panic: bool,
     ) -> Option<GlobalGuard<'_, T>> {
-        let pending_state = match &mut *mutex_guard {
+        let init_fn = match &mut *mutex_guard {
             InitState::Initialized(_) => {
-                return Some(GlobalGuard { mutex_guard });
-            }
-            InitState::TransientInitializing => {
-                // SAFETY: only set inside this function and all paths (panic + return) leave the enum in a different state.
-                unsafe { std::hint::unreachable_unchecked() };
+                // SAFETY: `mutex_guard` is `Initialized`.
+                return Some(unsafe { GlobalGuard::new_unchecked(mutex_guard) });
             }
             InitState::Failed => {
                 return None;
             }
-            state @ InitState::Pending(_) => {
-                std::mem::replace(state, InitState::TransientInitializing)
-            }
-        };
-
-        let InitState::Pending(init_fn) = pending_state else {
-            // SAFETY: all other paths leave the function, see above.
-            unsafe { std::hint::unreachable_unchecked() }
+            InitState::Pending(init_fn) => init_fn,
         };
 
         // Unwinding should be safe here, as there is no unsafe code relying on it.
@@ -137,31 +121,63 @@ impl<T> Global<T> {
             }
         };
 
-        Some(GlobalGuard { mutex_guard })
+        // SAFETY: `mutex_guard` was either set to `Initialized` above, or we returned from the function.
+        Some(unsafe { GlobalGuard::new_unchecked(mutex_guard) })
     }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Guards
 
-/// Guard that temporarily gives access to a `Global<T>`'s inner value.
-pub struct GlobalGuard<'a, T> {
-    mutex_guard: MutexGuard<'a, InitState<T>>,
-}
+// Encapsulate private fields.
+mod global_guard {
+    use std::ops::{Deref, DerefMut};
+    use std::sync::MutexGuard;
 
-impl<T> Deref for GlobalGuard<'_, T> {
-    type Target = T;
+    use super::InitState;
 
-    fn deref(&self) -> &Self::Target {
-        self.mutex_guard.unwrap_ref()
+    /// Guard that temporarily gives access to a `Global<T>`'s inner value.
+    pub struct GlobalGuard<'a, T> {
+        // Safety invariant: Is `Initialized`.
+        mutex_guard: MutexGuard<'a, InitState<T>>,
+    }
+
+    impl<'a, T> GlobalGuard<'a, T> {
+        pub(super) fn new(mutex_guard: MutexGuard<'a, InitState<T>>) -> Option<Self> {
+            match &*mutex_guard {
+                InitState::Initialized(_) => Some(Self { mutex_guard }),
+                _ => None,
+            }
+        }
+
+        /// # Safety
+        ///
+        /// The value must be `Initialized`.
+        pub(super) unsafe fn new_unchecked(mutex_guard: MutexGuard<'a, InitState<T>>) -> Self {
+            debug_assert!(matches!(*mutex_guard, InitState::Initialized(_)));
+
+            Self::new(mutex_guard).unwrap_unchecked()
+        }
+    }
+
+    impl<T> Deref for GlobalGuard<'_, T> {
+        type Target = T;
+
+        fn deref(&self) -> &Self::Target {
+            // SAFETY: `self` is `Initialized`.
+            unsafe { self.mutex_guard.as_initialized().unwrap_unchecked() }
+        }
+    }
+
+    impl<T> DerefMut for GlobalGuard<'_, T> {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            // SAFETY: `self` is `Initialized`.
+            unsafe { self.mutex_guard.as_initialized_mut().unwrap_unchecked() }
+        }
     }
 }
 
-impl<T> DerefMut for GlobalGuard<'_, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.mutex_guard.unwrap_mut()
-    }
-}
+pub use global_guard::GlobalGuard;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Errors
@@ -184,28 +200,21 @@ pub enum GlobalLockError<'a, T> {
 enum InitState<T> {
     Initialized(T),
     Pending(fn() -> T),
-    TransientInitializing,
     Failed,
 }
 
 impl<T> InitState<T> {
-    fn unwrap_ref(&self) -> &T {
+    fn as_initialized(&self) -> Option<&T> {
         match self {
-            InitState::Initialized(t) => t,
-            _ => {
-                // SAFETY: This method is only called from a guard, which can only be obtained in Initialized state.
-                unsafe { std::hint::unreachable_unchecked() }
-            }
+            InitState::Initialized(t) => Some(t),
+            _ => None,
         }
     }
 
-    fn unwrap_mut(&mut self) -> &mut T {
+    fn as_initialized_mut(&mut self) -> Option<&mut T> {
         match self {
-            InitState::Initialized(t) => t,
-            _ => {
-                // SAFETY: This method is only called from a guard, which can only be obtained in Initialized state.
-                unsafe { std::hint::unreachable_unchecked() }
-            }
+            InitState::Initialized(t) => Some(t),
+            _ => None,
         }
     }
 }
