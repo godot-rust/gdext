@@ -14,6 +14,9 @@ use std::mem::ManuallyDrop;
 ///
 /// Behaves similarly to [`Gd`][crate::obj::Gd], but is more constrained. Cannot be constructed by the user.
 pub struct Base<T: GodotClass> {
+    // Like `Gd`, it's theoretically possible that Base is destroyed while there are still other Gd pointers to the underlying object. This is
+    // safe, may however lead to unintended behavior. The base_test.rs file checks some of these scenarios.
+
     // Internal smart pointer is never dropped. It thus acts like a weak pointer and is needed to break reference cycles between Gd<T>
     // and the user instance owned by InstanceStorage.
     //
@@ -34,19 +37,37 @@ pub struct Base<T: GodotClass> {
 }
 
 impl<T: GodotClass> Base<T> {
+    /// "Copy constructor": allows to share a `Base<T>` weak pointer.
+    ///
+    /// The return value is a weak pointer, so it will not keep the instance alive.
+    ///
     /// # Safety
-    /// The returned Base is a weak pointer, so holding it will not keep the object alive. It must not be accessed after the object is destroyed.
+    /// `base` must be alive at the time of invocation, i.e. user `init()` (which could technically destroy it) must not have run yet.
+    /// If `base` is destroyed while the returned `Base<T>` is in use, that constitutes a logic error, not a safety issue.
     pub(crate) unsafe fn from_base(base: &Base<T>) -> Base<T> {
-        Base::from_obj(Gd::from_obj_sys_weak(base.as_gd().obj_sys()))
+        debug_assert!(base.obj.is_instance_valid());
+        Base::from_obj(Gd::from_obj_sys_weak(base.obj.obj_sys()))
     }
 
+    /// Create base from existing object (used in script instances).
+    ///
+    /// The return value is a weak pointer, so it will not keep the instance alive.
+    ///
     /// # Safety
-    /// The returned Base is a weak pointer, so holding it will not keep the object alive. It must not be accessed after the object is destroyed.
+    /// `gd` must be alive at the time of invocation. If it is destroyed while the returned `Base<T>` is in use, that constitutes a logic
+    /// error, not a safety issue.
     pub(crate) unsafe fn from_gd(gd: &Gd<T>) -> Self {
+        debug_assert!(gd.is_instance_valid());
         Base::from_obj(Gd::from_obj_sys_weak(gd.obj_sys()))
     }
 
-    // Note: not &mut self, to only borrow one field and not the entire struct
+    /// Create new base from raw Godot object.
+    ///
+    /// The return value is a weak pointer, so it will not keep the instance alive.
+    ///
+    /// # Safety
+    /// `base_ptr` must point to a valid, live object at the time of invocation. If it is destroyed while the returned `Base<T>` is in use,
+    /// that constitutes a logic error, not a safety issue.
     pub(crate) unsafe fn from_sys(base_ptr: sys::GDExtensionObjectPtr) -> Self {
         assert!(!base_ptr.is_null(), "instance base is null pointer");
 
@@ -76,16 +97,7 @@ impl<T: GodotClass> Base<T> {
         (*self.obj).clone()
     }
 
-    /// Returns a [`Gd`] referencing the same object as this reference.
-    ///
-    /// Using this method to call methods on the base field of a Rust object is discouraged, instead use the
-    /// methods from [`WithBaseField`](super::WithBaseField) when possible.
-    #[doc(hidden)]
-    pub fn as_gd(&self) -> &Gd<T> {
-        &self.obj
-    }
-
-    // Currently only used in outbound virtual calls (for scripts).
+    // Currently only used in outbound virtual calls (for scripts); search for: base_field(self).obj_sys().
     #[doc(hidden)]
     pub fn obj_sys(&self) -> sys::GDExtensionObjectPtr {
         self.obj.obj_sys()
