@@ -7,14 +7,19 @@
 
 use std::any::type_name;
 use std::cell;
-use std::pin::Pin;
+
+#[cfg(not(feature = "experimental-threads"))]
+use godot_cell::panicking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
+
+#[cfg(feature = "experimental-threads")]
+use godot_cell::blocking::{GdCell, InaccessibleGuard, MutGuard, RefGuard};
 
 use crate::obj::{Base, GodotClass};
 use crate::out;
 use crate::storage::{Lifecycle, Storage, StorageRefCounted};
 
 pub struct InstanceStorage<T: GodotClass> {
-    user_instance: Pin<Box<godot_cell::GdCell<T>>>,
+    user_instance: GdCell<T>,
     pub(super) base: Base<T::Base>,
 
     // Declared after `user_instance`, is dropped last
@@ -39,7 +44,7 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
     ) -> Self {
         out!("    Storage::construct             <{}>", type_name::<T>());
         Self {
-            user_instance: godot_cell::GdCell::new(user_instance),
+            user_instance: GdCell::new(user_instance),
             base,
             lifecycle: cell::Cell::new(Lifecycle::Alive),
             godot_ref_count: cell::Cell::new(1),
@@ -47,15 +52,15 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
     }
 
     fn is_bound(&self) -> bool {
-        self.user_instance.as_ref().is_currently_bound()
+        self.user_instance.is_currently_bound()
     }
 
     fn base(&self) -> &Base<<Self::Instance as GodotClass>::Base> {
         &self.base
     }
 
-    fn get(&self) -> godot_cell::RefGuard<'_, T> {
-        self.user_instance.as_ref().borrow().unwrap_or_else(|err| {
+    fn get(&self) -> RefGuard<'_, T> {
+        self.user_instance.borrow().unwrap_or_else(|err| {
             panic!(
                 "\
                     Gd<T>::bind() failed, already bound; T = {}.\n  \
@@ -67,28 +72,24 @@ unsafe impl<T: GodotClass> Storage for InstanceStorage<T> {
         })
     }
 
-    fn get_mut(&self) -> godot_cell::MutGuard<'_, T> {
-        self.user_instance
-            .as_ref()
-            .borrow_mut()
-            .unwrap_or_else(|err| {
-                panic!(
-                    "\
+    fn get_mut(&self) -> MutGuard<'_, T> {
+        self.user_instance.borrow_mut().unwrap_or_else(|err| {
+            panic!(
+                "\
                     Gd<T>::bind_mut() failed, already bound; T = {}.\n  \
                     Make sure to use `self.base_mut()` instead of `self.to_gd()` when possible.\n  \
                     Details: {err}.\
                 ",
-                    type_name::<T>()
-                )
-            })
+                type_name::<T>()
+            )
+        })
     }
 
     fn get_inaccessible<'a: 'b, 'b>(
         &'a self,
         value: &'b mut Self::Instance,
-    ) -> godot_cell::InaccessibleGuard<'b, T> {
+    ) -> InaccessibleGuard<'b, T> {
         self.user_instance
-            .as_ref()
             .make_inaccessible(value)
             .unwrap_or_else(|err| {
                 // We should never hit this, except maybe in extreme cases like having more than

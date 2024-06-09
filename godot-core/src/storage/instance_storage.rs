@@ -5,9 +5,16 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use godot_ffi as sys;
+
+#[cfg(not(feature = "experimental-threads"))]
+use godot_cell::panicking::{InaccessibleGuard, MutGuard, RefGuard};
+
+#[cfg(feature = "experimental-threads")]
+use godot_cell::blocking::{InaccessibleGuard, MutGuard, RefGuard};
+
 use crate::obj::{Base, Gd, GodotClass, Inherits};
 use crate::{godot_error, out};
-use godot_ffi as sys;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Lifecycle {
@@ -77,13 +84,13 @@ pub unsafe trait Storage {
     ///
     /// This will ensure Rust's rules surrounding references are upheld. Possibly panicking at runtime if
     /// they are violated.
-    fn get(&self) -> godot_cell::RefGuard<'_, Self::Instance>;
+    fn get(&self) -> RefGuard<'_, Self::Instance>;
 
     /// Returns a mutable/exclusive reference to this storage's instance.
     ///
     /// This will ensure Rust's rules surrounding references are upheld. Possibly panicking at runtime if
     /// they are violated.
-    fn get_mut(&self) -> godot_cell::MutGuard<'_, Self::Instance>;
+    fn get_mut(&self) -> MutGuard<'_, Self::Instance>;
 
     /// Returns a guard that allows calling methods on `Gd<Base>` that take `&mut self`.
     ///
@@ -92,7 +99,7 @@ pub unsafe trait Storage {
     fn get_inaccessible<'a: 'b, 'b>(
         &'a self,
         instance: &'b mut Self::Instance,
-    ) -> godot_cell::InaccessibleGuard<'b, Self::Instance>;
+    ) -> InaccessibleGuard<'b, Self::Instance>;
 
     /// Returns whether this storage is currently alive or being destroyed.
     ///

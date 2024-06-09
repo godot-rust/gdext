@@ -9,7 +9,7 @@ use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use std::sync::{Mutex, MutexGuard};
 
-use crate::CellState;
+use crate::cell::CellState;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -70,7 +70,7 @@ impl<'a, T> Drop for RefGuard<'a, T> {
 /// Wraps a mutably borrowed value of type `T`.
 ///
 /// This prevents all other borrows of `value` while this guard is accessible. To make this guard
-/// inaccessible, use [`GdCell::make_inaccessible()`](crate::GdCell::make_inaccessible) on a mutable
+/// inaccessible, use [`GdCell::make_inaccessible()`](crate::panicking::GdCell::make_inaccessible) on a mutable
 /// reference handed out by this guard.
 #[derive(Debug)]
 pub struct MutGuard<'a, T> {
