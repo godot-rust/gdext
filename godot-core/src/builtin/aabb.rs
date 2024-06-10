@@ -45,7 +45,7 @@ impl Aabb {
 
     /// Returns an AABB with the same geometry, with most-negative corner as `position` and non-negative `size`.
     #[inline]
-    pub fn abs(&self) -> Self {
+    pub fn abs(self) -> Self {
         Aabb {
             position: self.position + self.size.coord_min(Vector3::ZERO),
             size: self.size.abs(),
@@ -54,7 +54,7 @@ impl Aabb {
 
     /// Whether `self` covers at least the entire area of `b` (and possibly more).
     #[inline]
-    pub fn encloses(&self, b: Aabb) -> bool {
+    pub fn encloses(self, b: Aabb) -> bool {
         let end = self.end();
         let b_end = b.end();
 
@@ -71,8 +71,8 @@ impl Aabb {
     /// # Panics
     /// If `self.size` is negative.
     #[inline]
-    pub fn expand(&self, to: Vector3) -> Self {
-        self.merge(&Aabb::new(to, Vector3::ZERO))
+    pub fn expand(self, to: Vector3) -> Self {
+        self.merge(Aabb::new(to, Vector3::ZERO))
     }
 
     /// Returns a larger AABB that contains this AABB and `b`.
@@ -80,7 +80,7 @@ impl Aabb {
     /// # Panics
     /// If either `self.size` or `b.size` is negative.
     #[inline]
-    pub fn merge(&self, b: &Aabb) -> Self {
+    pub fn merge(self, b: Aabb) -> Self {
         self.assert_nonnegative();
         b.assert_nonnegative();
 
@@ -95,21 +95,21 @@ impl Aabb {
     /// # Panics
     /// If `self.size` is negative.
     #[inline]
-    pub fn volume(&self) -> real {
+    pub fn volume(self) -> real {
         self.assert_nonnegative();
         self.size.x * self.size.y * self.size.z
     }
 
     /// Returns the center of the AABB, which is equal to `position + (size / 2)`.
     #[inline]
-    pub fn center(&self) -> Vector3 {
+    pub fn center(self) -> Vector3 {
         self.position + (self.size / 2.0)
     }
 
     /// Returns a copy of the AABB grown by the specified `amount` on all sides.
     #[inline]
     #[must_use]
-    pub fn grow(&self, amount: real) -> Self {
+    pub fn grow(self, amount: real) -> Self {
         let position = self.position - Vector3::new(amount, amount, amount);
         let size = self.size + Vector3::new(amount, amount, amount) * 2.0;
 
@@ -122,7 +122,7 @@ impl Aabb {
     /// # Panics
     /// If `self.size` is negative.
     #[inline]
-    pub fn has_point(&self, point: Vector3) -> bool {
+    pub fn has_point(self, point: Vector3) -> bool {
         self.assert_nonnegative();
 
         let point = point - self.position;
@@ -135,13 +135,13 @@ impl Aabb {
 
     /// Returns `true` if the AABB has area, and `false` if the AABB is linear, empty, or has a negative size. See also `Aabb.area()`.
     #[inline]
-    pub fn has_area(&self) -> bool {
+    pub fn has_area(self) -> bool {
         ((self.size.x > 0.0) as u8 + (self.size.y > 0.0) as u8 + (self.size.z > 0.0) as u8) >= 2
     }
 
     /// Returns true if the AABB has a volume, and false if the AABB is flat, linear, empty, or has a negative size.
     #[inline]
-    pub fn has_volume(&self) -> bool {
+    pub fn has_volume(self) -> bool {
         self.size.x > 0.0 && self.size.y > 0.0 && self.size.z > 0.0
     }
 
@@ -150,14 +150,14 @@ impl Aabb {
     /// # Panics
     /// If `self.size` is negative.
     #[inline]
-    pub fn intersection(&self, b: &Aabb) -> Option<Self> {
+    pub fn intersection(self, b: Aabb) -> Option<Self> {
         self.assert_nonnegative();
 
         if !self.intersects(b) {
             return None;
         }
 
-        let mut rect = *b;
+        let mut rect = b;
         rect.position = rect.position.coord_max(self.position);
 
         let end = self.end();
@@ -169,13 +169,13 @@ impl Aabb {
 
     /// Returns `true` if this AABB is finite, by calling `@GlobalScope.is_finite` on each component.
     #[inline]
-    pub fn is_finite(&self) -> bool {
+    pub fn is_finite(self) -> bool {
         self.position.is_finite() && self.size.is_finite()
     }
 
     /// The end of the `Aabb` calculated as `position + size`.
     #[inline]
-    pub fn end(&self) -> Vector3 {
+    pub fn end(self) -> Vector3 {
         self.position + self.size
     }
 
@@ -189,7 +189,7 @@ impl Aabb {
 
     /// Returns the normalized longest axis of the AABB.
     #[inline]
-    pub fn longest_axis(&self) -> Option<Vector3> {
+    pub fn longest_axis(self) -> Option<Vector3> {
         self.longest_axis_index().map(|axis| match axis {
             Vector3Axis::X => Vector3::RIGHT,
             Vector3Axis::Y => Vector3::UP,
@@ -199,19 +199,19 @@ impl Aabb {
 
     /// Returns the index of the longest axis of the AABB (according to Vector3's AXIS_* constants).
     #[inline]
-    pub fn longest_axis_index(&self) -> Option<Vector3Axis> {
+    pub fn longest_axis_index(self) -> Option<Vector3Axis> {
         self.size.max_axis()
     }
 
     /// Returns the scalar length of the longest axis of the AABB.
     #[inline]
-    pub fn longest_axis_size(&self) -> real {
+    pub fn longest_axis_size(self) -> real {
         self.size.x.max(self.size.y.max(self.size.z))
     }
 
     /// Returns the normalized shortest axis of the AABB.
     #[inline]
-    pub fn shortest_axis(&self) -> Option<Vector3> {
+    pub fn shortest_axis(self) -> Option<Vector3> {
         self.shortest_axis_index().map(|axis| match axis {
             Vector3Axis::X => Vector3::RIGHT,
             Vector3Axis::Y => Vector3::UP,
@@ -221,19 +221,19 @@ impl Aabb {
 
     /// Returns the index of the shortest axis of the AABB (according to Vector3::AXIS* enum).
     #[inline]
-    pub fn shortest_axis_index(&self) -> Option<Vector3Axis> {
+    pub fn shortest_axis_index(self) -> Option<Vector3Axis> {
         self.size.min_axis()
     }
 
     /// Returns the scalar length of the shortest axis of the AABB.
     #[inline]
-    pub fn shortest_axis_size(&self) -> real {
+    pub fn shortest_axis_size(self) -> real {
         self.size.x.min(self.size.y.min(self.size.z))
     }
 
     /// Returns the support point in a given direction. This is useful for collision detection algorithms.
     #[inline]
-    pub fn support(&self, dir: Vector3) -> Vector3 {
+    pub fn support(self, dir: Vector3) -> Vector3 {
         let half_extents = self.size * 0.5;
         let relative_center_point = self.position + half_extents;
 
@@ -253,7 +253,7 @@ impl Aabb {
     ///
     /// _Godot equivalent: `AABB.intersects(AABB b, bool include_borders = true)`_
     #[inline]
-    pub fn intersects(&self, b: &Aabb) -> bool {
+    pub fn intersects(self, b: Aabb) -> bool {
         let end = self.end();
         let end_b = b.end();
 
@@ -271,7 +271,7 @@ impl Aabb {
     ///
     /// _Godot equivalent: `AABB.intersects(AABB b, bool include_borders = false)`_
     #[inline]
-    pub fn intersects_exclude_borders(&self, &b: &Aabb) -> bool {
+    pub fn intersects_exclude_borders(self, b: Aabb) -> bool {
         let end = self.end();
         let end_b = b.end();
 
@@ -285,7 +285,7 @@ impl Aabb {
 
     /// Returns `true` if the AABB is on both sides of a plane.
     #[inline]
-    pub fn intersects_plane(&self, plane: &Plane) -> bool {
+    pub fn intersects_plane(self, plane: Plane) -> bool {
         // The set of the edges of the AABB.
         let points = [
             self.position,
@@ -318,7 +318,7 @@ impl Aabb {
     /// # Panics
     /// If `self.size` is negative.
     #[inline]
-    pub fn intersects_ray(&self, from: Vector3, dir: Vector3) -> bool {
+    pub fn intersects_ray(self, from: Vector3, dir: Vector3) -> bool {
         self.assert_nonnegative();
 
         let tmin = (self.position - from) / dir;
@@ -338,7 +338,7 @@ impl Aabb {
     /// # Panics
     /// If `self.size` is negative.
     #[inline]
-    pub fn intersects_segment(&self, from: Vector3, to: Vector3) -> bool {
+    pub fn intersects_segment(self, from: Vector3, to: Vector3) -> bool {
         self.assert_nonnegative();
 
         let segment_dir = to - from;
@@ -371,7 +371,7 @@ impl Aabb {
     ///
     /// Most functions will fail to give a correct result if the size is negative.
     #[inline]
-    pub fn assert_nonnegative(&self) {
+    pub fn assert_nonnegative(self) {
         assert!(
             self.size.x >= 0.0 && self.size.y >= 0.0 && self.size.z >= 0.0,
             "size {:?} is negative",
@@ -467,27 +467,27 @@ mod test {
         };
 
         // Check for intersection including border
-        assert!(aabb1.intersects(&aabb2));
-        assert!(aabb2.intersects(&aabb1));
+        assert!(aabb1.intersects(aabb2));
+        assert!(aabb2.intersects(aabb1));
 
         // Check for non-intersection including border
-        assert!(!aabb1.intersects(&aabb3));
-        assert!(!aabb3.intersects(&aabb1));
+        assert!(!aabb1.intersects(aabb3));
+        assert!(!aabb3.intersects(aabb1));
 
         // Check for intersection excluding border
-        assert!(aabb1.intersects_exclude_borders(&aabb2));
-        assert!(aabb2.intersects_exclude_borders(&aabb1));
+        assert!(aabb1.intersects_exclude_borders(aabb2));
+        assert!(aabb2.intersects_exclude_borders(aabb1));
 
         // Check for non-intersection excluding border
-        assert!(!aabb1.intersects_exclude_borders(&aabb3));
-        assert!(!aabb3.intersects_exclude_borders(&aabb1));
+        assert!(!aabb1.intersects_exclude_borders(aabb3));
+        assert!(!aabb3.intersects_exclude_borders(aabb1));
 
         // Check for non-intersection excluding border
-        assert!(!aabb1.intersects_exclude_borders(&aabb4));
-        assert!(!aabb4.intersects_exclude_borders(&aabb1));
+        assert!(!aabb1.intersects_exclude_borders(aabb4));
+        assert!(!aabb4.intersects_exclude_borders(aabb1));
 
         // Check for intersection with same AABB including border
-        assert!(aabb1.intersects(&aabb1));
+        assert!(aabb1.intersects(aabb1));
     }
 
     #[test]
@@ -515,17 +515,17 @@ mod test {
 
         // Test cases
         assert_eq!(
-            aabb1.intersection(&aabb2),
+            aabb1.intersection(aabb2),
             Some(Aabb {
                 position: Vector3::new(1.0, 1.0, 1.0),
                 size: Vector3::new(1.0, 1.0, 1.0),
             })
         );
 
-        assert_eq!(aabb1.intersection(&aabb3), None);
+        assert_eq!(aabb1.intersection(aabb3), None);
 
         assert_eq!(
-            aabb1.intersection(&aabb4),
+            aabb1.intersection(aabb4),
             Some(Aabb {
                 position: Vector3::new(0.0, 0.0, 0.0),
                 size: Vector3::new(0.0, 0.0, 0.0),
@@ -620,10 +620,10 @@ mod test {
         };
 
         // Test cases
-        assert!(aabb.intersects_plane(&plane_inside));
-        assert!(!aabb.intersects_plane(&plane_outside));
-        assert!(aabb.intersects_plane(&plane_intersect));
-        assert!(!aabb.intersects_plane(&plane_parallel));
+        assert!(aabb.intersects_plane(plane_inside));
+        assert!(!aabb.intersects_plane(plane_outside));
+        assert!(aabb.intersects_plane(plane_intersect));
+        assert!(!aabb.intersects_plane(plane_parallel));
     }
 
     #[test]
