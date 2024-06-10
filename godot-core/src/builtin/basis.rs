@@ -162,7 +162,7 @@ impl Basis {
     }
 
     /// Creates a `[Vector3; 3]` with the columns of the `Basis`.
-    pub fn to_cols(self) -> [Vector3; 3] {
+    pub fn to_cols(&self) -> [Vector3; 3] {
         self.transposed().rows
     }
 
@@ -170,7 +170,7 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis.get_rotation_quaternion()`_
     #[doc(alias = "get_rotation_quaternion")]
-    pub fn to_quat(self) -> Quaternion {
+    pub fn to_quat(&self) -> Quaternion {
         RQuat::from_mat3(&self.orthonormalized().to_glam()).to_front()
     }
 
@@ -211,7 +211,7 @@ impl Basis {
     /// The order of the angles are given by `order`.
     ///
     /// _Godot equivalent: `Basis.get_euler()`_
-    pub fn to_euler(self, order: EulerOrder) -> Vector3 {
+    pub fn to_euler(&self, order: EulerOrder) -> Vector3 {
         use glam::swizzles::Vec3Swizzles as _;
 
         let col_a = self.col_a().to_glam();
@@ -346,15 +346,15 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis.scaled()`_
     #[must_use]
-    pub fn scaled(self, scale: Vector3) -> Self {
-        Self::from_diagonal(scale.x, scale.y, scale.z) * self
+    pub fn scaled(&self, scale: Vector3) -> Self {
+        Self::from_diagonal(scale.x, scale.y, scale.z) * (*self)
     }
 
     /// Returns the inverse of the matrix.
     ///
     /// _Godot equivalent: `Basis.inverse()`_
     #[must_use]
-    pub fn inverse(self) -> Basis {
+    pub fn inverse(&self) -> Basis {
         self.glam(|mat| mat.inverse())
     }
 
@@ -362,7 +362,7 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis.transposed()`_
     #[must_use]
-    pub fn transposed(self) -> Self {
+    pub fn transposed(&self) -> Self {
         Self::from_cols(self.rows[0], self.rows[1], self.rows[2])
     }
 
@@ -376,7 +376,7 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis.orthonormalized()`_
     #[must_use]
-    pub fn orthonormalized(self) -> Self {
+    pub fn orthonormalized(&self) -> Self {
         assert!(
             !self.determinant().is_zero_approx(),
             "Determinant should not be zero."
@@ -401,8 +401,8 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis.rotated()`_
     #[must_use]
-    pub fn rotated(self, axis: Vector3, angle: real) -> Self {
-        Self::from_axis_angle(axis, angle) * self
+    pub fn rotated(&self, axis: Vector3, angle: real) -> Self {
+        Self::from_axis_angle(axis, angle) * (*self)
     }
 
     /// Assuming that the matrix is a proper rotation matrix, slerp performs
@@ -410,7 +410,7 @@ impl Basis {
     ///
     /// _Godot equivalent: `Basis.slerp()`_
     #[must_use]
-    pub fn slerp(self, other: Self, weight: real) -> Self {
+    pub fn slerp(&self, other: &Self, weight: real) -> Self {
         let from = self.to_quat();
         let to = other.to_quat();
 

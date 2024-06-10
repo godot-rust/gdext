@@ -26,15 +26,15 @@ fn transform2d_equiv() {
 
     #[rustfmt::skip]
         let mappings_transform = [
-        ("affine_inverse",   inner.affine_inverse(),                             outer.affine_inverse()                            ),
-        ("orthonormalized",  inner.orthonormalized(),                            outer.orthonormalized()                           ),
-        ("rotated",          inner.rotated(1.0),                                 outer.rotated(1.0)                                ),
-        ("rotated_local",    inner.rotated_local(1.0),                           outer.rotated_local(1.0)                          ),
-        ("scaled",           inner.scaled(vec),                                  outer.scaled(vec)                                 ),
-        ("scaled_local",     inner.scaled_local(vec),                            outer.scaled_local(vec)                           ),
-        ("translated",       inner.translated(vec),                              outer.translated(vec)                             ),
-        ("translated_local", inner.translated_local(vec),                        outer.translated_local(vec)                       ),
-        ("interpolate_with", inner.interpolate_with(Transform2D::IDENTITY, 0.5), outer.interpolate_with(Transform2D::IDENTITY, 0.5))
+        ("affine_inverse",   inner.affine_inverse(),                             outer.affine_inverse()                             ),
+        ("orthonormalized",  inner.orthonormalized(),                            outer.orthonormalized()                            ),
+        ("rotated",          inner.rotated(1.0),                                 outer.rotated(1.0)                                 ),
+        ("rotated_local",    inner.rotated_local(1.0),                           outer.rotated_local(1.0)                           ),
+        ("scaled",           inner.scaled(vec),                                  outer.scaled(vec)                                  ),
+        ("scaled_local",     inner.scaled_local(vec),                            outer.scaled_local(vec)                            ),
+        ("translated",       inner.translated(vec),                              outer.translated(vec)                              ),
+        ("translated_local", inner.translated_local(vec),                        outer.translated_local(vec)                        ),
+        ("interpolate_with", inner.interpolate_with(Transform2D::IDENTITY, 0.5), outer.interpolate_with(&Transform2D::IDENTITY, 0.5))
     ];
     for (name, inner, outer) in mappings_transform {
         assert_eq_approx!(inner, outer, "function: {name}\n");

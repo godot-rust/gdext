@@ -122,12 +122,12 @@ fn basis_equiv() {
 
     #[rustfmt::skip]
     let mappings_basis = [
-        ("inverse",         inner.inverse(),                      outer.inverse()                     ),
-        ("transposed",      inner.transposed(),                   outer.transposed()                  ),
-        ("orthonormalized", inner.orthonormalized(),              outer.orthonormalized()             ),
-        ("rotated",         inner.rotated(vec.normalized(), 0.1), outer.rotated(vec.normalized(), 0.1)),
-        ("scaled",          inner.scaled(vec),                    outer.scaled(vec)                   ),
-        ("slerp",           inner.slerp(Basis::IDENTITY, 0.5),    outer.slerp(Basis::IDENTITY, 0.5)   ),
+        ("inverse",         inner.inverse(),                      outer.inverse()                      ),
+        ("transposed",      inner.transposed(),                   outer.transposed()                   ),
+        ("orthonormalized", inner.orthonormalized(),              outer.orthonormalized()              ),
+        ("rotated",         inner.rotated(vec.normalized(), 0.1), outer.rotated(vec.normalized(), 0.1) ),
+        ("scaled",          inner.scaled(vec),                    outer.scaled(vec)                    ),
+        ("slerp",           inner.slerp(Basis::IDENTITY, 0.5),    outer.slerp(&Basis::IDENTITY, 0.5)   ),
     ];
     for (name, inner, outer) in mappings_basis {
         assert_eq_approx!(inner, outer, "function: {name}\n");
