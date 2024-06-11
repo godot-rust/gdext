@@ -8,10 +8,12 @@
 use crate::framework::itest;
 
 use godot::builtin::{Rect2, Rid, Variant};
-use godot::classes::native::{AudioFrame, CaretInfo, Glyph, ObjectId};
+use godot::classes::native::{
+    AudioFrame, CaretInfo, Glyph, ObjectId, PhysicsServer2DExtensionShapeResult,
+};
 use godot::classes::text_server::Direction;
-use godot::classes::{ITextServerExtension, TextServer, TextServerExtension};
-use godot::obj::{Base, NewGd};
+use godot::classes::{ITextServerExtension, Node3D, TextServer, TextServerExtension};
+use godot::obj::{Base, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 
 use std::cell::Cell;
@@ -71,7 +73,7 @@ impl ITextServerExtension for TestTextServer {
 }
 
 #[itest]
-fn test_native_structures_codegen() {
+fn native_structure_codegen() {
     // Test construction of a few simple types.
     let _ = AudioFrame {
         left: 0.0,
@@ -93,7 +95,7 @@ fn test_native_structures_codegen() {
 }
 
 #[itest]
-fn test_native_structure_out_parameter() {
+fn native_structure_out_parameter() {
     // Instantiate a TextServerExtension and then have Godot call a
     // function which uses an 'out' pointer parameter.
     let mut ext = TestTextServer::new_gd();
@@ -127,7 +129,7 @@ fn test_native_structure_out_parameter() {
 }
 
 #[itest]
-fn test_native_structure_pointer_to_array_parameter() {
+fn native_structure_pointer_to_array_parameter() {
     // Instantiate a TextServerExtension.
     let ext = TestTextServer::new_gd();
     let result = ext
@@ -142,7 +144,7 @@ fn test_native_structure_pointer_to_array_parameter() {
 }
 
 #[itest]
-fn test_native_structure_clone() {
+fn native_structure_clone() {
     // Instantiate CaretInfo directly.
     let caret1 = CaretInfo {
         leading_caret: Rect2::from_components(0.0, 0.0, 0.0, 0.0),
@@ -169,7 +171,7 @@ fn test_native_structure_clone() {
 }
 
 #[itest]
-fn test_native_structure_partialeq() {
+fn native_structure_partialeq() {
     // Test basic equality between two identically-constructed
     // (but distinct) native structures.
     assert_eq!(sample_glyph(5), sample_glyph(5));
@@ -177,7 +179,7 @@ fn test_native_structure_partialeq() {
 }
 
 #[itest]
-fn test_native_structure_debug() {
+fn native_structure_debug() {
     // Test debug output, both pretty-printed and not.
     let object_id = ObjectId { id: 256 };
     assert_eq!(
@@ -188,4 +190,25 @@ fn test_native_structure_debug() {
         format!("{:#?}", object_id),
         String::from("ObjectId {\n    id: 256,\n}")
     );
+}
+
+#[itest]
+fn native_structure_object_pointers() {
+    let object = Node3D::new_alloc();
+    let raw_object_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+
+    let result = PhysicsServer2DExtensionShapeResult {
+        rid: Rid::new(12),
+        collider_id: ObjectId {
+            id: object.instance_id().to_i64() as u64,
+        },
+        __unused_collider_ptr: raw_object_ptr,
+        shape: 0,
+    };
+
+    let retrieved = result.collider();
+    assert_eq!(retrieved, Some(object.clone().upcast()));
+
+    object.free();
+    assert_eq!(result.collider(), None);
 }

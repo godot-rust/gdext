@@ -11,7 +11,7 @@ use crate::models::domain::{ExtensionApi, ModName, NativeStructure, TyName};
 use crate::util::ident;
 use crate::{conv, util, SubmitFn};
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use std::path::Path;
 
 pub fn generate_native_structures_files(
@@ -52,8 +52,15 @@ pub fn generate_native_structures_files(
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub(crate) struct NativeStructuresField {
+    /// Identifier for the field name, e.g. `collider`.
     pub field_name: String,
+
+    /// Type which has a raw format that is latter mapped to `RustTy`.
+    ///
+    /// Corresponds to other Godot type names, e.g. `Object*` or `enum::TextServer.Direction`.
     pub field_type: String,
+
+    /// If the field is an array, this contains the number of elements.
     pub array_size: Option<usize>,
 }
 
@@ -65,12 +72,13 @@ fn make_native_structure(
     let class_name = &class_name.rust_ty;
 
     let imports = util::make_imports();
-    let fields = make_native_structure_fields(&structure.format, ctx);
+    let (fields, methods) = make_native_structure_fields_and_methods(&structure.format, ctx);
     let doc = format!("[`ToGodot`] and [`FromGodot`] are implemented for `*mut {class_name}` and `*const {class_name}`.");
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
         #imports
+        use std::ffi::c_void; // for opaque object pointers
         use crate::meta::{GodotConvert, FromGodot, ToGodot};
 
         /// Native structure; can be passed via pointer in APIs that are not exposed to GDScript.
@@ -80,6 +88,10 @@ fn make_native_structure(
         #[repr(C)]
         pub struct #class_name {
             #fields
+        }
+
+        impl #class_name {
+            #methods
         }
 
         impl GodotConvert for *mut #class_name {
@@ -119,25 +131,35 @@ fn make_native_structure(
     builtins::GeneratedBuiltin { code: tokens }
 }
 
-fn make_native_structure_fields(format_str: &str, ctx: &mut Context) -> TokenStream {
+fn make_native_structure_fields_and_methods(
+    format_str: &str,
+    ctx: &mut Context,
+) -> (TokenStream, TokenStream) {
     let fields = parse_native_structures_format(format_str)
         .expect("Could not parse native_structures format field");
 
-    let field_definitions = fields
-        .into_iter()
-        .map(|field| make_native_structure_field_definition(field, ctx));
+    let mut field_definitions = vec![];
+    let mut accessors = vec![];
 
-    quote! {
-        #( #field_definitions )*
+    for field in fields {
+        let (field_def, accessor) = make_native_structure_field_and_accessor(field, ctx);
+        field_definitions.push(field_def);
+        if let Some(accessor) = accessor {
+            accessors.push(accessor);
+        }
     }
+
+    let fields = quote! { #( #field_definitions )* };
+    let methods = quote! { #( #accessors )* };
+    (fields, methods)
 }
 
-fn make_native_structure_field_definition(
+fn make_native_structure_field_and_accessor(
     field: NativeStructuresField,
     ctx: &mut Context,
-) -> TokenStream {
+) -> (TokenStream, Option<TokenStream>) {
     let field_type = normalize_native_structure_field_type(&field.field_type);
-    let field_type = conv::to_rust_type_abi(&field_type, ctx);
+    let (field_type, is_object_ptr) = conv::to_rust_type_abi(&field_type, ctx);
 
     // Make array if needed.
     let field_type = if let Some(size) = field.array_size {
@@ -146,11 +168,36 @@ fn make_native_structure_field_definition(
         quote! { #field_type }
     };
 
-    let field_name = ident(&conv::to_snake_case(&field.field_name));
+    let snake_field_name = ident(&conv::to_snake_case(&field.field_name));
 
-    quote! {
+    let (field_name, accessor);
+    if is_object_ptr {
+        // Highlight that the pointer field is internal/opaque.
+        field_name = format_ident!("__unused_{}_ptr", snake_field_name);
+
+        // Generate method that converts from instance ID.
+        let id_field_name = format_ident!("{}_id", snake_field_name);
+        accessor = Some(quote! {
+            /// Returns the object as a `Gd<T>`, or `None` if it no longer exists.
+            pub fn #snake_field_name(&self) -> Option<Gd<Object>> {
+                crate::obj::InstanceId::try_from_u64(self.#id_field_name.id)
+                    .and_then(|id| Gd::try_from_instance_id(id).ok())
+
+                // Sanity check for consistency (if Some(...)):
+                // let ptr = self.#field_name as sys::GDExtensionObjectPtr;
+                // unsafe { Gd::from_obj_sys(ptr) }
+            }
+        });
+    } else {
+        field_name = snake_field_name;
+        accessor = None;
+    };
+
+    let field_def = quote! {
         pub #field_name: #field_type,
-    }
+    };
+
+    (field_def, accessor)
 }
 
 fn normalize_native_structure_field_type(field_type: &str) -> String {
