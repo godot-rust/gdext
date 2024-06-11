@@ -173,19 +173,43 @@ fn make_native_structure_field_and_accessor(
     let (field_name, accessor);
     if is_object_ptr {
         // Highlight that the pointer field is internal/opaque.
-        field_name = format_ident!("__unused_{}_ptr", snake_field_name);
+        field_name = format_ident!("raw_{}_ptr", snake_field_name);
 
         // Generate method that converts from instance ID.
+        let getter_name = &snake_field_name;
+        let setter_name = format_ident!("set_{}", snake_field_name);
         let id_field_name = format_ident!("{}_id", snake_field_name);
+
         accessor = Some(quote! {
             /// Returns the object as a `Gd<T>`, or `None` if it no longer exists.
-            pub fn #snake_field_name(&self) -> Option<Gd<Object>> {
+            pub fn #getter_name(&self) -> Option<Gd<Object>> {
                 crate::obj::InstanceId::try_from_u64(self.#id_field_name.id)
                     .and_then(|id| Gd::try_from_instance_id(id).ok())
 
                 // Sanity check for consistency (if Some(...)):
                 // let ptr = self.#field_name as sys::GDExtensionObjectPtr;
                 // unsafe { Gd::from_obj_sys(ptr) }
+            }
+
+            /// Sets the object from a `Gd<T>` pointer.
+            ///
+            /// `increment_refcount` is only relevant for ref-counted objects (inheriting `RefCounted`). It is ignored otherwise.
+            /// - Set it to true if you transfer `self` to Godot, e.g. via output parameter in a virtual function call.
+            ///   In this case, you can drop your own references and the object will remain alive.
+            ///   However, if you drop the native structure `self` without handing it over to Godot, you'll have a memory leak.
+            /// - Set it to false if you just manage the native structure yourself.
+            pub fn #setter_name(&mut self, mut obj: Gd<Object>, increment_refcount: bool) {
+                use crate::meta::GodotType as _;
+
+                assert!(obj.is_instance_valid(), "provided object is dead");
+
+                let id = obj.instance_id().to_u64();
+                if increment_refcount {
+                    obj = obj.with_inc_refcount();
+                }
+
+                self.#id_field_name = ObjectId { id };
+                self.#field_name = obj.obj_sys() as *mut std::ffi::c_void;
             }
         });
     } else {

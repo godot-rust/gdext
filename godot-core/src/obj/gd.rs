@@ -380,6 +380,13 @@ impl<T: GodotClass> Gd<T> {
         }
     }
 
+    /// Returns a callable referencing a method from this object named `method_name`.
+    ///
+    /// This is shorter syntax for [`Callable::from_object_method(self, method_name)`][Callable::from_object_method].
+    pub fn callable<S: Into<StringName>>(&self, method_name: S) -> Callable {
+        Callable::from_object_method(self, method_name)
+    }
+
     pub(crate) unsafe fn from_obj_sys_or_none(
         ptr: sys::GDExtensionObjectPtr,
     ) -> Result<Self, ConvertError> {
@@ -418,11 +425,10 @@ impl<T: GodotClass> Gd<T> {
         self.raw.script_sys()
     }
 
-    /// Returns a callable referencing a method from this object named `method_name`.
-    ///
-    /// This is shorter syntax for [`Callable::from_object_method(self, method_name)`][Callable::from_object_method].
-    pub fn callable<S: Into<StringName>>(&self, method_name: S) -> Callable {
-        Callable::from_object_method(self, method_name)
+    pub(crate) fn with_inc_refcount(self) -> Self {
+        Self {
+            raw: self.raw.with_inc_refcount(),
+        }
     }
 }
 

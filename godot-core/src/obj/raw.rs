@@ -82,7 +82,8 @@ impl<T: GodotClass> RawGd<T> {
     }
 
     /// Returns `self` but with initialized ref-count.
-    fn with_inc_refcount(mut self) -> Self {
+    // Could be private if not for Gd::with_inc_refcount(), which is used by native structure setters.
+    pub(crate) fn with_inc_refcount(mut self) -> Self {
         // Note: use init_ref and not inc_ref, since this might be the first reference increment.
         // Godot expects RefCounted::init_ref to be called instead of RefCounted::reference in that case.
         // init_ref also doesn't hurt (except 1 possibly unnecessary check).

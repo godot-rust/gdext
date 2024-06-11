@@ -12,8 +12,8 @@ use godot::classes::native::{
     AudioFrame, CaretInfo, Glyph, ObjectId, PhysicsServer2DExtensionShapeResult,
 };
 use godot::classes::text_server::Direction;
-use godot::classes::{ITextServerExtension, Node3D, TextServer, TextServerExtension};
-use godot::obj::{Base, NewAlloc, NewGd};
+use godot::classes::{ITextServerExtension, Node3D, RefCounted, TextServer, TextServerExtension};
+use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 
 use std::cell::Cell;
@@ -194,21 +194,52 @@ fn native_structure_debug() {
 
 #[itest]
 fn native_structure_object_pointers() {
+    // Object.
     let object = Node3D::new_alloc();
-    let raw_object_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
 
-    let result = PhysicsServer2DExtensionShapeResult {
+    let mut result = PhysicsServer2DExtensionShapeResult {
         rid: Rid::new(12),
-        collider_id: ObjectId {
-            id: object.instance_id().to_i64() as u64,
-        },
-        __unused_collider_ptr: raw_object_ptr,
+        collider_id: ObjectId { id: 0 },
+        raw_collider_ptr: std::ptr::null_mut(),
         shape: 0,
     };
+
+    result.set_collider(object.clone().upcast(), true);
+    assert_eq!(result.collider_id.id, object.instance_id().to_i64() as u64);
 
     let retrieved = result.collider();
     assert_eq!(retrieved, Some(object.clone().upcast()));
 
     object.free();
     assert_eq!(result.collider(), None);
+
+    // RefCounted, increment ref-count.
+    let object = RefCounted::new_gd();
+    let id = object.instance_id();
+    result.set_collider(object.clone().upcast(), true);
+    assert_eq!(result.collider_id.id, id.to_i64() as u64);
+
+    drop(object); // Test if Godot keeps ref-count.
+
+    let retrieved = result
+        .collider()
+        .expect("Ref-counted objects don't drop if ref-count is incremented");
+    assert_eq!(retrieved.instance_id(), id);
+
+    // Manually decrement refcount (method unexposed).
+    Gd::<RefCounted>::from_instance_id(id).call("unreference".into(), &[]);
+
+    // RefCounted, do NOT increment ref-count.
+    let object = RefCounted::new_gd();
+    let id = object.instance_id();
+    result.set_collider(object.clone().upcast(), false);
+    assert_eq!(result.collider_id.id, id.to_i64() as u64);
+
+    drop(object); // Test if Godot keeps ref-count.
+
+    let retrieved = result.collider();
+    assert!(
+        retrieved.is_none(),
+        "Ref-counted objects drop if ref-count is not incremented"
+    );
 }
