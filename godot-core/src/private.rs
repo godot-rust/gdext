@@ -62,13 +62,12 @@ impl CallErrors {
     }
 }
 
-fn call_error_insert(err: CallError, out_error: &mut sys::GDExtensionCallError) {
+/// Inserts a `CallError` into a global variable and returns its ID to later remove it.
+fn call_error_insert(err: CallError) -> i32 {
     // Wraps around if entire i32 is depleted. If this happens in practice (unlikely, users need to deliberately ignore errors that are printed),
-    // we just overwrite oldest errors, should still work.
+    // we just overwrite the oldest errors, should still work.
     let id = CALL_ERRORS.lock().insert(err);
-
-    // Abuse field to store our ID.
-    out_error.argument = id;
+    id
 }
 
 pub(crate) fn call_error_remove(in_error: &sys::GDExtensionCallError) -> Option<CallError> {
@@ -209,6 +208,9 @@ pub(crate) fn has_error_print_level(level: u8) -> bool {
 /// Executes `code`. If a panic is thrown, it is caught and an error message is printed to Godot.
 ///
 /// Returns `Err(message)` if a panic occurred, and `Ok(result)` with the result of `code` otherwise.
+///
+/// In contrast to [`handle_varcall_panic`] and [`handle_ptrcall_panic`], this function is not intended for use in `try_` functions,
+/// where the error is propagated as a `CallError` in a global variable.
 pub fn handle_panic<E, F, R, S>(error_context: E, code: F) -> Result<R, String>
 where
     E: FnOnce() -> S,
@@ -218,6 +220,8 @@ where
     handle_panic_with_print(error_context, code, has_error_print_level(1))
 }
 
+// TODO(bromeon): make call_ctx lazy-evaluated (like error_ctx) everywhere;
+// or make it eager everywhere and ensure it's cheaply constructed in the call sites.
 pub fn handle_varcall_panic<F, R>(
     call_ctx: &CallContext,
     out_err: &mut sys::GDExtensionCallError,
@@ -239,6 +243,36 @@ pub fn handle_varcall_panic<F, R>(
         Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
     };
 
+    let error_id = report_call_error(call_error);
+
+    // Abuse 'argument' field to store our ID.
+    *out_err = sys::GDExtensionCallError {
+        error: sys::GODOT_RUST_CUSTOM_CALL_ERROR,
+        argument: error_id,
+        expected: 0,
+    };
+
+    //sys::interface_fn!(variant_new_nil)(sys::AsUninit::as_uninit(ret));
+}
+
+pub fn handle_ptrcall_panic<F, R>(call_ctx: &CallContext, code: F)
+where
+    F: FnOnce() -> R + std::panic::UnwindSafe,
+{
+    let outcome: Result<R, String> = handle_panic_with_print(|| call_ctx, code, false);
+
+    let call_error = match outcome {
+        // All good.
+        Ok(_result) => return,
+
+        // Panic occurred (typically through user): forward message.
+        Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
+    };
+
+    let _id = report_call_error(call_error);
+}
+
+fn report_call_error(call_error: CallError) -> i32 {
     // Print failed calls to Godot's console.
     // TODO Level 1 is not yet set, so this will always print if level != 0. Needs better logic to recognize try_* calls and avoid printing.
     // But a bit tricky with multiple threads and re-entrancy; maybe pass in info in error struct.
@@ -246,10 +280,7 @@ pub fn handle_varcall_panic<F, R>(
         godot_error!("{call_error}");
     }
 
-    out_err.error = sys::GODOT_RUST_CUSTOM_CALL_ERROR;
-    call_error_insert(call_error, out_err);
-
-    //sys::interface_fn!(variant_new_nil)(sys::AsUninit::as_uninit(ret));
+    call_error_insert(call_error)
 }
 
 fn handle_panic_with_print<E, F, R, S>(error_context: E, code: F, print: bool) -> Result<R, String>

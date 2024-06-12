@@ -23,8 +23,7 @@ pub struct FuncDefinition {
 
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
 //
-// There are currently no virtual static methods. Additionally, virtual static methods don't really make a lot
-// of sense. Therefore, there is no need to support them.
+// Virtual methods are non-static by their nature; so there's no support for static ones.
 pub fn make_virtual_callback(
     class_name: &Ident,
     signature_info: SignatureInfo,
@@ -52,7 +51,10 @@ pub fn make_virtual_callback(
                 ret: sys::GDExtensionTypePtr,
             ) {
                 let call_ctx = #call_ctx;
-                #invocation;
+                let _success = ::godot::private::handle_ptrcall_panic(
+                    &call_ctx,
+                    || #invocation
+                );
             }
             Some(virtual_fn)
         }
