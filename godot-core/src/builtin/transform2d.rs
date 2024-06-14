@@ -136,7 +136,8 @@ impl Transform2D {
     }
 
     /// Create a [`Basis2D`] from the first two columns of the transform.
-    fn to_basis(self) -> Basis2D {
+    #[allow(clippy::wrong_self_convention)]
+    fn to_basis(&self) -> Basis2D {
         Basis2D::from_cols(self.a, self.b)
     }
 
@@ -145,7 +146,7 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.affine_inverse()`_
     #[must_use]
-    pub fn affine_inverse(self) -> Self {
+    pub fn affine_inverse(&self) -> Self {
         self.glam(|aff| aff.inverse())
     }
 
@@ -177,7 +178,7 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.interpolate_with()`_
     #[must_use]
-    pub fn interpolate_with(self, other: Self, weight: real) -> Self {
+    pub fn interpolate_with(&self, other: &Self, weight: real) -> Self {
         Self::from_angle_scale_skew_origin(
             self.rotation().lerp_angle(other.rotation(), weight),
             self.scale().lerp(other.scale(), weight),
@@ -199,7 +200,7 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.orthonormalized()`_
     #[must_use]
-    pub fn orthonormalized(self) -> Self {
+    pub fn orthonormalized(&self) -> Self {
         Self::from_basis_origin(self.basis().orthonormalized(), self.origin)
     }
 
@@ -210,8 +211,8 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.rotated()`_
     #[must_use]
-    pub fn rotated(self, angle: real) -> Self {
-        Self::from_angle(angle) * self
+    pub fn rotated(&self, angle: real) -> Self {
+        Self::from_angle(angle) * (*self)
     }
 
     /// Returns a copy of the transform rotated by the given `angle` (in radians).
@@ -221,8 +222,8 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.rotated_local()`_
     #[must_use]
-    pub fn rotated_local(self, angle: real) -> Self {
-        self * Self::from_angle(angle)
+    pub fn rotated_local(&self, angle: real) -> Self {
+        (*self) * Self::from_angle(angle)
     }
 
     /// Returns a copy of the transform scaled by the given scale factor.
@@ -232,7 +233,7 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.scaled()`_
     #[must_use]
-    pub fn scaled(self, scale: Vector2) -> Self {
+    pub fn scaled(&self, scale: Vector2) -> Self {
         let mut basis = self.to_basis();
         basis.set_row_a(basis.row_a() * scale.x);
         basis.set_row_b(basis.row_b() * scale.y);
@@ -246,7 +247,7 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.scaled_local()`_
     #[must_use]
-    pub fn scaled_local(self, scale: Vector2) -> Self {
+    pub fn scaled_local(&self, scale: Vector2) -> Self {
         Self::from_basis_origin(self.basis().scaled(scale), self.origin)
     }
 
@@ -257,7 +258,7 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.translated()`_
     #[must_use]
-    pub fn translated(self, offset: Vector2) -> Self {
+    pub fn translated(&self, offset: Vector2) -> Self {
         Self::from_cols(self.a, self.b, self.origin + offset)
     }
 
@@ -268,7 +269,7 @@ impl Transform2D {
     ///
     /// _Godot equivalent: `Transform2D.translated()`_
     #[must_use]
-    pub fn translated_local(self, offset: Vector2) -> Self {
+    pub fn translated_local(&self, offset: Vector2) -> Self {
         Self::from_cols(self.a, self.b, self.origin + (self.to_basis() * offset))
     }
 
@@ -670,7 +671,7 @@ mod test {
         );
 
         let interpolated: Transform2D =
-            Transform2D::IDENTITY.interpolate_with(rotate_scale_skew_pos, 0.5);
+            Transform2D::IDENTITY.interpolate_with(&rotate_scale_skew_pos, 0.5);
         assert_eq_approx!(interpolated.origin, rotate_scale_skew_pos_halfway.origin);
         assert_eq_approx!(
             interpolated.rotation(),
@@ -680,7 +681,7 @@ mod test {
         assert_eq_approx!(interpolated.skew(), rotate_scale_skew_pos_halfway.skew());
         assert_eq_approx!(interpolated, rotate_scale_skew_pos_halfway);
 
-        let interpolated = rotate_scale_skew_pos.interpolate_with(Transform2D::IDENTITY, 0.5);
+        let interpolated = rotate_scale_skew_pos.interpolate_with(&Transform2D::IDENTITY, 0.5);
         assert_eq_approx!(interpolated, rotate_scale_skew_pos_halfway);
     }
 

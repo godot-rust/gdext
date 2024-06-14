@@ -124,7 +124,7 @@ impl Plane {
     /// The distance will be positive if `point` is above the plane, and will be negative if
     /// `point` is below the plane.
     #[inline]
-    pub fn distance_to(&self, point: Vector3) -> real {
+    pub fn distance_to(self, point: Vector3) -> real {
         self.normal.dot(point) - self.d
     }
 
@@ -132,7 +132,7 @@ impl Plane {
     ///
     /// _Godot equivalent: `Plane.get_center()`_
     #[inline]
-    pub fn center(&self) -> Vector3 {
+    pub fn center(self) -> Vector3 {
         self.normal * self.d
     }
 
@@ -144,7 +144,7 @@ impl Plane {
     /// _Godot equivalent: `Plane.has_point(Vector3 point, float tolerance=1e-05)`_
     #[inline]
     #[doc(alias = "has_point")]
-    pub fn contains_point(&self, point: Vector3, tolerance: Option<real>) -> bool {
+    pub fn contains_point(self, point: Vector3, tolerance: Option<real>) -> bool {
         let dist: real = (self.normal.dot(point) - self.d).abs();
         dist <= tolerance.unwrap_or(real::CMP_EPSILON)
     }
@@ -153,7 +153,7 @@ impl Plane {
     ///
     /// If no intersection point is found, `None` will be returned.
     #[inline]
-    pub fn intersect_3(&self, b: &Self, c: &Self) -> Option<Vector3> {
+    pub fn intersect_3(self, b: Self, c: Self) -> Option<Vector3> {
         let normal0 = self.normal;
         let normal1 = b.normal;
         let normal2 = c.normal;
@@ -173,7 +173,7 @@ impl Plane {
     ///
     /// If no intersection is found (the ray is parallel to the plane or points away from it), `None` will be returned.
     #[inline]
-    pub fn intersect_ray(&self, from: Vector3, dir: Vector3) -> Option<Vector3> {
+    pub fn intersect_ray(self, from: Vector3, dir: Vector3) -> Option<Vector3> {
         let denom: real = self.normal.dot(dir);
         if denom.is_zero_approx() {
             return None;
@@ -191,7 +191,7 @@ impl Plane {
     ///
     /// If no intersection is found (the segment is parallel to the plane or does not intersect it), `None` will be returned.
     #[inline]
-    pub fn intersect_segment(&self, from: Vector3, to: Vector3) -> Option<Vector3> {
+    pub fn intersect_segment(self, from: Vector3, to: Vector3) -> Option<Vector3> {
         let segment = from - to;
         let denom: real = self.normal.dot(segment);
         if denom.is_zero_approx() {
@@ -206,13 +206,13 @@ impl Plane {
 
     /// Returns `true` if the plane is finite by calling `is_finite` on `normal` and `d`.
     #[inline]
-    pub fn is_finite(&self) -> bool {
+    pub fn is_finite(self) -> bool {
         self.normal.is_finite() && self.d.is_finite()
     }
 
     /// Returns `true` if `point` is located above the plane.
     #[inline]
-    pub fn is_point_over(&self, point: Vector3) -> bool {
+    pub fn is_point_over(self, point: Vector3) -> bool {
         self.normal.dot(point) > self.d
     }
 
@@ -234,7 +234,7 @@ impl Plane {
 
     /// Returns the orthogonal projection of `point` to the plane.
     #[inline]
-    pub fn project(&self, point: Vector3) -> Vector3 {
+    pub fn project(self, point: Vector3) -> Vector3 {
         point - self.normal * self.distance_to(point)
     }
 
@@ -444,53 +444,53 @@ mod test {
 
         // Planes that have 0 as its `d` would intersect in the origin point.
         assert_eq!(
-            origin_plane_a.intersect_3(&origin_plane_b, &origin_plane_c),
+            origin_plane_a.intersect_3(origin_plane_b, origin_plane_c),
             Some(vec_a)
         );
 
         // Three planes that parallel each other would not intersect in a point.
         assert_eq!(
-            origin_plane_a.intersect_3(&low_parallel_origin_a, &high_parallel_origin_a),
+            origin_plane_a.intersect_3(low_parallel_origin_a, high_parallel_origin_a),
             None
         );
 
         // Two planes that parallel each other with an unrelated third plane would not intersect in
         // a point.
         assert_eq!(
-            origin_plane_b.intersect_3(&low_parallel_origin_a, &high_parallel_origin_a),
+            origin_plane_b.intersect_3(low_parallel_origin_a, high_parallel_origin_a),
             None
         );
 
         // Three coincident planes would intersect in every point, thus no unique solution.
         assert_eq!(
-            origin_plane_a.intersect_3(&origin_plane_a, &origin_plane_a),
+            origin_plane_a.intersect_3(origin_plane_a, origin_plane_a),
             None
         );
 
         // Two coincident planes with an unrelated third plane would intersect in every point along the
         // intersection line, thus no unique solution.
         assert_eq!(
-            origin_plane_b.intersect_3(&origin_plane_b, &large_rotation_origin_a),
+            origin_plane_b.intersect_3(origin_plane_b, large_rotation_origin_a),
             None
         );
 
         // Two coincident planes with a parallel third plane would have no common intersection.
         assert_eq!(
-            origin_plane_a.intersect_3(&origin_plane_a, &low_parallel_origin_a),
+            origin_plane_a.intersect_3(origin_plane_a, low_parallel_origin_a),
             None
         );
 
         // Three planes that intersects each other in a common line would intersect in every point along
         // the line, thus no unique solution.
         assert_eq!(
-            origin_plane_a.intersect_3(&small_rotation_origin_a, &large_rotation_origin_a),
+            origin_plane_a.intersect_3(small_rotation_origin_a, large_rotation_origin_a),
             None
         );
 
         // Three planes that intersects each other in 3 parallel lines would not intersect in a common
         // point.
         assert_eq!(
-            prism_plane_a.intersect_3(&prism_plane_b, &prism_plane_c),
+            prism_plane_a.intersect_3(prism_plane_b, prism_plane_c),
             None
         );
     }

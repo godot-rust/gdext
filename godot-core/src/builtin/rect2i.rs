@@ -72,7 +72,7 @@ impl Rect2i {
     /// _Godot equivalent: `Rect2i.size` property_
     #[doc(alias = "size")]
     #[inline]
-    pub const fn end(&self) -> Vector2i {
+    pub const fn end(self) -> Vector2i {
         Vector2i::new(self.position.x + self.size.x, self.position.y + self.size.y)
     }
 
@@ -98,7 +98,7 @@ impl Rect2i {
     /// Any `Rect2i` encloses itself, i.e. an enclosed `Rect2i` does is not required to be a
     /// proper sub-rect.
     #[inline]
-    pub const fn encloses(&self, other: Self) -> bool {
+    pub const fn encloses(self, other: Self) -> bool {
         self.assert_nonnegative();
         other.assert_nonnegative();
 
@@ -124,7 +124,7 @@ impl Rect2i {
     ///
     /// _Godot equivalent: `Rect2i.get_area` function_
     #[inline]
-    pub const fn area(&self) -> i32 {
+    pub const fn area(self) -> i32 {
         self.size.x * self.size.y
     }
 
@@ -134,7 +134,7 @@ impl Rect2i {
     ///
     /// _Godot equivalent: `Rect2i.get_center` function_
     #[inline]
-    pub fn center(&self) -> Vector2i {
+    pub fn center(self) -> Vector2i {
         self.position + (self.size / 2)
     }
 
@@ -176,7 +176,7 @@ impl Rect2i {
     /// Returns `true` if the `Rect2i` has area, and `false` if the `Rect2i` is linear, empty, or
     /// has a negative `size`.
     #[inline]
-    pub const fn has_area(&self) -> bool {
+    pub const fn has_area(self) -> bool {
         self.size.x > 0 && self.size.y > 0
     }
 
@@ -186,7 +186,7 @@ impl Rect2i {
     /// _Godot equivalent: `Rect2i.has_point` function_
     #[doc(alias = "has_point")]
     #[inline]
-    pub const fn contains_point(&self, point: Vector2i) -> bool {
+    pub const fn contains_point(self, point: Vector2i) -> bool {
         self.assert_nonnegative();
 
         let end = self.end();
@@ -225,7 +225,7 @@ impl Rect2i {
     /// Returns `true` if the `Rect2i` overlaps with `b` (i.e. they have at least one
     /// point in common)
     #[inline]
-    pub fn intersects(&self, b: Self) -> bool {
+    pub fn intersects(self, b: Self) -> bool {
         self.intersection(b).is_some()
     }
 
@@ -243,7 +243,7 @@ impl Rect2i {
 
     /// Returns `true` if either of the coordinates of this `Rect2i`s `size` vector is negative.
     #[inline]
-    pub const fn is_negative(&self) -> bool {
+    pub const fn is_negative(self) -> bool {
         self.size.x < 0 || self.size.y < 0
     }
 
@@ -251,7 +251,7 @@ impl Rect2i {
     ///
     /// Certain functions will fail to give a correct result if the size is negative.
     #[inline]
-    pub const fn assert_nonnegative(&self) {
+    pub const fn assert_nonnegative(self) {
         assert!(
             !self.is_negative(),
             "Rect2i size is negative" /* Uncomment once formatting in const contexts is allowed.
