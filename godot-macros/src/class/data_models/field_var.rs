@@ -195,7 +195,6 @@ impl GetterSetterImpl {
         let export_token = make_method_registration(
             class_name,
             FuncDefinition {
-                signature: signature.clone(),
                 signature_info: into_signature_info(signature, class_name, false),
                 // Since we're analyzing a struct's field, we don't have access to the corresponding get/set function's
                 // external (non-#[func]) attributes. We have to assume the function exists and has the name the user
@@ -205,7 +204,6 @@ impl GetterSetterImpl {
                 external_attributes: Vec::new(),
                 rename: None,
                 is_script_virtual: false,
-                has_gd_self: false,
             },
         );
 

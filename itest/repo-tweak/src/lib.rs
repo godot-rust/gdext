@@ -10,6 +10,7 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct Match {
     /// Position before pattern start marker.
+    #[allow(dead_code)] // False-positive, regression introduced in Rust 1.79.
     pub before_start: usize,
 
     /// Position at the beginning of the repetition (after marker + keys).
