@@ -176,12 +176,10 @@ fn process_godot_fns(
                 };
 
                 func_definitions.push(FuncDefinition {
-                    signature,
                     signature_info,
                     external_attributes,
                     rename,
                     is_script_virtual: is_virtual,
-                    has_gd_self,
                 });
             }
             ItemAttrType::Signal(ref _attr_val) => {

@@ -34,7 +34,8 @@ macro_rules! swapped_free {
         let mut rhs = $rhs;
 
         // Standard DerefMut no longer works, as it checks the RTTI which then panics.
-        // std::mem::swap(&mut *lhs, &mut *rhs);
+        // #[allow]: we don't know the types inside the macro, and Rust still doesn't have typeof/decltype.
+        #[allow(clippy::missing_transmute_annotations)]
         std::mem::swap(&mut lhs, unsafe { std::mem::transmute(&mut rhs) });
 
         lhs.free();

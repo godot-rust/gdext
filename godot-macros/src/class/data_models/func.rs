@@ -12,8 +12,6 @@ use quote::{format_ident, quote};
 
 /// Information used for registering a Rust function with Godot.
 pub struct FuncDefinition {
-    /// Raw information about the Rust function.
-    pub signature: venial::Function,
     /// Refined signature, with higher level info and renamed parameters.
     pub signature_info: SignatureInfo,
     /// The function's non-gdext attributes (all except #[func]).
@@ -21,7 +19,6 @@ pub struct FuncDefinition {
     /// The name the function will be exposed as in Godot. If `None`, the Rust function name is used.
     pub rename: Option<String>,
     pub is_script_virtual: bool,
-    pub has_gd_self: bool,
 }
 
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.
