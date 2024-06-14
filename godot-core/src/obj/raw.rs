@@ -218,7 +218,8 @@ impl<T: GodotClass> RawGd<T> {
     /// If this `RawGd` is null. In Debug mode, sanity checks (valid upcast, ID comparisons) can also lead to panics.
     ///
     /// # Safety
-    /// It's the caller's responsibility to ensure `Base` is actually a base class of `T`.
+    /// - `Base` must actually be a base class of `T`.
+    /// - `Base` must be an engine class.
     ///
     /// This is not done via bounds because that would infect all APIs with `Inherits<T>` and leads to cycles in `Deref`.
     /// Bounds should be added on user-facing safe APIs.
@@ -254,7 +255,8 @@ impl<T: GodotClass> RawGd<T> {
     /// If this `RawGd` is null. In Debug mode, sanity checks (valid upcast, ID comparisons) can also lead to panics.
     ///
     /// # Safety
-    /// It's the caller's responsibility to ensure `Base` is actually a base class of `T`.
+    /// - `Base` must actually be a base class of `T`.
+    /// - `Base` must be an engine class.
     ///
     /// This is not done via bounds because that would infect all APIs with `Inherits<T>` and leads to cycles in `Deref`.
     /// Bounds should be added on user-facing safe APIs.

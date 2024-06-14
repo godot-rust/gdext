@@ -295,12 +295,29 @@ impl<T: GodotClass> Gd<T> {
     ///     println!("Node name: {}", node.upcast_ref().get_name());
     /// }
     /// ```
+    ///
+    /// Note that this cannot be used to get a reference to Rust classes, for that you should use [`Gd::bind()`]. For instance this
+    /// will fail:
+    /// ```compile_fail
+    /// # use godot::prelude::*;
+    /// #[derive(GodotClass)]
+    /// #[class(init, base = Node)]
+    /// struct SomeClass {}
+    ///
+    /// #[godot_api]
+    /// impl INode for SomeClass {
+    ///     fn ready(&mut self) {
+    ///         let other = SomeClass::new_alloc();
+    ///         let _ = other.upcast_ref::<SomeClass>();
+    ///     }
+    /// }
+    /// ```
     pub fn upcast_ref<Base>(&self) -> &Base
     where
-        Base: GodotClass,
+        Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
         T: Inherits<Base>,
     {
-        // SAFETY: valid upcast enforced by Inherits bound.
+        // SAFETY: `Base` is guaranteed to be an engine base class of `T` because of the generic bounds.
         unsafe { self.raw.as_upcast_ref::<Base>() }
     }
 
@@ -317,12 +334,29 @@ impl<T: GodotClass> Gd<T> {
     ///     node.upcast_mut().set_name(name.into());
     /// }
     /// ```
+    ///
+    /// Note that this cannot be used to get a mutable reference to Rust classes, for that you should use [`Gd::bind_mut()`]. For instance this
+    /// will fail:
+    /// ```compile_fail
+    /// # use godot::prelude::*;
+    /// #[derive(GodotClass)]
+    /// #[class(init, base = Node)]
+    /// struct SomeClass {}
+    ///
+    /// #[godot_api]
+    /// impl INode for SomeClass {
+    ///     fn ready(&mut self) {
+    ///         let mut other = SomeClass::new_alloc();
+    ///         let _ = other.upcast_mut::<SomeClass>();
+    ///     }
+    /// }
+    /// ```
     pub fn upcast_mut<Base>(&mut self) -> &mut Base
     where
-        Base: GodotClass,
+        Base: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
         T: Inherits<Base>,
     {
-        // SAFETY: valid upcast enforced by Inherits bound.
+        // SAFETY: `Base` is guaranteed to be an engine base class of `T` because of the generic bounds.
         unsafe { self.raw.as_upcast_mut::<Base>() }
     }
 
