@@ -23,6 +23,7 @@ pub fn make_virtual_methods_trait(
     view: &ApiView,
 ) -> TokenStream {
     let trait_name = ident(trait_name_str);
+    let class_name = &class.name().rust_ty;
 
     let virtual_method_fns = make_all_virtual_methods(class, all_base_names, view);
     let special_virtual_methods = make_special_virtual_methods(notification_enum_name);
@@ -34,7 +35,7 @@ pub fn make_virtual_methods_trait(
         #[allow(unused_variables)]
         #[allow(clippy::unimplemented)]
         #cfg_attributes
-        pub trait #trait_name: crate::obj::GodotClass + crate::private::You_forgot_the_attribute__godot_api {
+        pub trait #trait_name: crate::obj::GodotClass<Base = #class_name> + crate::private::You_forgot_the_attribute__godot_api {
             #special_virtual_methods
             #( #virtual_method_fns )*
         }

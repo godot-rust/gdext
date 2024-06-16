@@ -547,6 +547,21 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// Using _any_ trait other than the one corresponding with the base class will result in compilation failure.
+///
+/// ```compile_fail
+/// # use godot::prelude::*;
+/// #[derive(GodotClass)]
+/// #[class(init, base=Node3D)]
+/// pub struct My3DNode;
+///
+/// #[godot_api]
+/// impl INode for My3DNode {
+///     fn ready(&mut self) {
+///         godot_print!("Hello World!");
+///     }
+/// }
+/// ```
 ///
 /// # User-defined functions
 ///
