@@ -71,14 +71,20 @@ fn make_native_structure(
 ) -> builtins::GeneratedBuiltin {
     let class_name = &class_name.rust_ty;
 
+    // TODO for native structures holding object pointers, we should encapsulate the raw object, as follows:
+    // - Make raw object pointer field private (and maybe also ID field, to keep in sync).
+    // - Add constructor that takes Gd<Object> instead of ID/raw-ptr fields.
+    // - Add getter and setter methods with Gd<Object> (already present).
+    // - Add Drop impl, which decrements refcount if the constructor was used, and does nothing if FromGodot pointer conversion was used.
+
     let imports = util::make_imports();
-    let (fields, methods) = make_native_structure_fields_and_methods(&structure.format, ctx);
+    let (fields, methods) = make_native_structure_fields_and_methods(structure, ctx);
     let doc = format!("[`ToGodot`] and [`FromGodot`] are implemented for `*mut {class_name}` and `*const {class_name}`.");
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
         #imports
-        use std::ffi::c_void; // for opaque object pointers
+        use std::ffi::c_void; // for opaque object pointer fields
         use crate::meta::{GodotConvert, FromGodot, ToGodot};
 
         /// Native structure; can be passed via pointer in APIs that are not exposed to GDScript.
@@ -132,10 +138,10 @@ fn make_native_structure(
 }
 
 fn make_native_structure_fields_and_methods(
-    format_str: &str,
+    structure: &NativeStructure,
     ctx: &mut Context,
 ) -> (TokenStream, TokenStream) {
-    let fields = parse_native_structures_format(format_str)
+    let fields = parse_native_structures_format(&structure.format)
         .expect("Could not parse native_structures format field");
 
     let mut field_definitions = vec![];
@@ -151,6 +157,7 @@ fn make_native_structure_fields_and_methods(
 
     let fields = quote! { #( #field_definitions )* };
     let methods = quote! { #( #accessors )* };
+
     (fields, methods)
 }
 
@@ -176,12 +183,15 @@ fn make_native_structure_field_and_accessor(
         field_name = format_ident!("raw_{}_ptr", snake_field_name);
 
         // Generate method that converts from instance ID.
-        let getter_name = &snake_field_name;
+        let getter_name = format_ident!("get_{}", snake_field_name);
         let setter_name = format_ident!("set_{}", snake_field_name);
         let id_field_name = format_ident!("{}_id", snake_field_name);
 
+        // Current native structures treat all object pointers as Object (even if concrete ones like `collider` might be Node).
+        // Having node also avoids the lifetime issue with reference-counted objects (unclear if gdext should increment refcount or not).
+        // If other fields use different classes in the future, we'll need to update this.
         accessor = Some(quote! {
-            /// Returns the object as a `Gd<T>`, or `None` if it no longer exists.
+            /// Returns the object as a `Gd<Node>`, or `None` if it no longer exists.
             pub fn #getter_name(&self) -> Option<Gd<Object>> {
                 crate::obj::InstanceId::try_from_u64(self.#id_field_name.id)
                     .and_then(|id| Gd::try_from_instance_id(id).ok())
@@ -191,22 +201,16 @@ fn make_native_structure_field_and_accessor(
                 // unsafe { Gd::from_obj_sys(ptr) }
             }
 
-            /// Sets the object from a `Gd<T>` pointer.
-            ///
-            /// `increment_refcount` is only relevant for ref-counted objects (inheriting `RefCounted`). It is ignored otherwise.
-            /// - Set it to true if you transfer `self` to Godot, e.g. via output parameter in a virtual function call.
-            ///   In this case, you can drop your own references and the object will remain alive.
-            ///   However, if you drop the native structure `self` without handing it over to Godot, you'll have a memory leak.
-            /// - Set it to false if you just manage the native structure yourself.
-            pub fn #setter_name(&mut self, mut obj: Gd<Object>, increment_refcount: bool) {
+            /// Sets the object from a `Gd` pointer holding `Node` or a derived class.
+            pub fn #setter_name<T>(&mut self, #snake_field_name: Gd<T>)
+            where T: crate::obj::Inherits<Object> {
                 use crate::meta::GodotType as _;
 
-                assert!(obj.is_instance_valid(), "provided object is dead");
+                let obj = #snake_field_name.upcast();
+
+                assert!(obj.is_instance_valid(), "provided node is dead");
 
                 let id = obj.instance_id().to_u64();
-                if increment_refcount {
-                    obj = obj.with_inc_refcount();
-                }
 
                 self.#id_field_name = ObjectId { id };
                 self.#field_name = obj.obj_sys() as *mut std::ffi::c_void;

@@ -46,7 +46,7 @@ use crate::{classes, out};
 /// - **Manual**<br>
 ///   Objects inheriting from [`Object`] which are not `RefCounted` (or inherited) are **manually-managed**.
 ///   Their destructor is not automatically called (unless they are part of the scene tree). Creating a `Gd<T>` means that
-///   you are responsible of explicitly deallocating such objects using [`free()`][Self::free].<br><br>
+///   you are responsible for explicitly deallocating such objects using [`free()`][Self::free].<br><br>
 ///
 /// - **Dynamic**<br>
 ///   For `T=Object`, the memory strategy is determined **dynamically**. Due to polymorphism, a `Gd<Object>` can point to either
@@ -77,7 +77,7 @@ use crate::{classes, out};
 /// These provide interior mutability similar to [`RefCell`][std::cell::RefCell], with the addition that `Gd` simultaneously handles reference
 /// counting (for some types `T`).
 ///
-/// When you declare a `#[func]` method on your own class and it accepts `&self` or `&mut self`, an implicit `bind()` or `bind_mut()` call
+/// When you declare a `#[func]` method on your own class, and it accepts `&self` or `&mut self`, an implicit `bind()` or `bind_mut()` call
 /// on the owning `Gd<T>` is performed. This is important to keep in mind, as you can get into situations that violate dynamic borrow rules; for
 /// example if you are inside a `&mut self` method, make a call to GDScript and indirectly call another method on the same object (re-entrancy).
 ///
@@ -423,12 +423,6 @@ impl<T: GodotClass> Gd<T> {
         T: Inherits<classes::ScriptLanguage>,
     {
         self.raw.script_sys()
-    }
-
-    pub(crate) fn with_inc_refcount(self) -> Self {
-        Self {
-            raw: self.raw.with_inc_refcount(),
-        }
     }
 }
 
