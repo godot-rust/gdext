@@ -5,6 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+//! # Internal crate of [**godot-rust**](https://godot-rust.github.io)
+//!
+//! Do not depend on this crate directly, instead use the `godot` crate.
+//! No SemVer or other guarantees are provided.
+
 pub(crate) mod watch;
 
 use std::path::Path;
@@ -97,9 +102,12 @@ mod depend_on_prebuilt {
     }
 
     pub(crate) fn get_godot_version() -> GodotVersion {
-        let version: Vec<&str> = prebuilt::GODOT_VERSION.split('.').collect::<Vec<_>>();
+        let version: Vec<&str> = prebuilt::GODOT_VERSION_STRING
+            .split('.')
+            .collect::<Vec<_>>();
+
         GodotVersion {
-            full_string: prebuilt::GODOT_VERSION.into(),
+            full_string: prebuilt::GODOT_VERSION_STRING.to_string(),
             major: version[0].parse().unwrap(),
             minor: version[1].parse().unwrap(),
             patch: version

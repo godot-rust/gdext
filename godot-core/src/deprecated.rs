@@ -33,6 +33,7 @@ pub use crate::emit_deprecated_warning;
 // Old names for VariantOperator constants
 
 #[allow(non_upper_case_globals)]
+#[doc(hidden)] // No longer advertise in API docs.
 impl crate::builtin::VariantOperator {
     #[deprecated = "Renamed to `EQUAL`"]
     pub const Equal: Self = Self::EQUAL;

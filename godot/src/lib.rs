@@ -5,171 +5,40 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-//! The **gdext** library implements Rust bindings for GDExtension, the C API of [Godot 4](https://godotengine.org).
+//! # Rust bindings for Godot 4
 //!
-//! This documentation is a work in progress.
+//! The **gdext** library implements Rust bindings for the [Godot](https://godotengine.org) engine, more precisely its version 4.
+//! It does so using the GDExtension API, a C interface to integrate third-party language bindings with the engine.
 //!
-//! # Type categories
+//! This API doc is accompanied by the [book](https://github.com/godot-rust/book), which provides tutorials
+//! that guide you along the way.
 //!
-//! Godot is written in C++, which doesn't have the same strict guarantees about safety and
-//! mutability that Rust does. As a result, not everything in this crate will look and feel
-//! entirely "rusty". See also [Philosophy](https://godot-rust.github.io/book/contribute/philosophy.html).
+//! An overview of fundamental types and concepts can be found on [this page](__docs).
 //!
-//! Traits such as `Clone`, `PartialEq` or `PartialOrd` are designed to mirror Godot semantics,
-//! except in cases where Rust is stricter (e.g. float ordering). Cloning a type results in the
-//! same observable behavior as assignment or parameter-passing of a GDScript variable.
 //!
-//! We distinguish four different kinds of types:
+//! ## Module organization
 //!
-//! 1. **Value types**: `i64`, `f64`, and mathematical types like
-//!    [`Vector2`][crate::builtin::Vector2] and [`Color`][crate::builtin::Color].
+//! The contains generated code, which is derived from the GDExtension API specification. This code spans the official Godot API and
+//! is mostly the same as the API you would use in GDScript.
 //!
-//!    These are the simplest to understand and to work with. They implement `Clone` and often
-//!    `Copy` as well. They are implemented with the same memory layout as their counterparts in
-//!    Godot itself, and typically have public fields. <br><br>
+//! The Godot API is divided into several modules:
 //!
-//! 2. **Copy-on-write types**: [`GString`][crate::builtin::GString],
-//!    [`StringName`][crate::builtin::StringName], and `Packed*Array` types.
+//! * [`builtin`]: Built-in types, such as `Vector2`, `Color`, and `String`.
+//! * [`classes`]: Godot classes, such as `Node`, `RefCounted` or `Resource`.
+//! * [`global`]: Global functions and enums, such as `godot_print!`, `smoothstep` or `JoyAxis`.
 //!
-//!    These mostly act like value types, similar to Rust's own `Vec`. You can `Clone` them to get
-//!    a full copy of the entire object, as you would expect.
+//! In addition to generated code, we provide a framework that allows you to easily interface the Godot engine.
+//! Noteworthy modules in this context are:
 //!
-//!    Under the hood in Godot, these types are implemented with copy-on-write, so that data can be
-//!    shared until one of the copies needs to be modified. However, this performance optimization
-//!    is entirely hidden from the API and you don't normally need to worry about it. <br><br>
+//! * [`register`], used to register **your own** Rust symbols (classes, methods, constants etc.) with Godot.
+//! * [`obj`], everything related to handling Godot objects, such as the `Gd<T>` type.
+//! * [`tools`], higher-level utilities that extend the generated code, e.g. `load<T>()`.
 //!
-//! 3. **Reference-counted types**: [`Array`][crate::builtin::Array],
-//!    [`Dictionary`][crate::builtin::Dictionary], and [`Gd<T>`][crate::obj::Gd] where `T` inherits
-//!    from [`RefCounted`][crate::classes::RefCounted].
+//! The [`prelude`] contains often-imported symbols; feel free to `use godot::prelude::*` in your code.
+//! <br><br>
 //!
-//!    These types may share their underlying data between multiple instances: changes to one
-//!    instance are visible in another. They are conceptually similar to `Rc<RefCell<...>>`.
 //!
-//!    Since there is no way to prevent or even detect this sharing from Rust, you need to be more
-//!    careful when using such types. For example, when iterating over an `Array`, make sure that
-//!    it isn't being modified at the same time through another reference.
-//!
-//!    `Clone::clone()` on these types creates a new reference to the same instance, while
-//!    type-specific methods such as [`Array::duplicate_deep()`][crate::builtin::Array::duplicate_deep]
-//!    can be used to make actual copies. <br><br>
-//!
-//! 4. **Manually managed types**: [`Gd<T>`][crate::obj::Gd] where `T` inherits from
-//!    [`Object`][crate::classes::Object] but not from [`RefCounted`][crate::classes::RefCounted];
-//!    most notably, this includes all `Node` classes.
-//!
-//!    These also share data, but do not use reference counting to manage their memory. Instead,
-//!    you must either hand over ownership to Godot (e.g. by adding a node to the scene tree) or
-//!    free them manually using [`Gd::free()`][crate::obj::Gd::free]. <br><br>
-//!
-//! # Ergonomics and panics
-//!
-//! gdext is designed with usage ergonomics in mind, making it viable for fast prototyping.
-//! Part of this design means that users should not constantly be forced to write code such as
-//! `obj.cast::<T>().unwrap()`. Instead, they can just write `obj.cast::<T>()`, which may panic at runtime.
-//!
-//! This approach has several advantages:
-//! * The code is more concise and less cluttered.
-//! * Methods like `cast()` provide very sophisticated panic messages when they fail (e.g. involved
-//!   classes), immediately giving you the necessary context for debugging. This is certainly
-//!   preferable over a generic `unwrap()`, and in most cases also over a `expect("literal")`.
-//! * Usually, such methods panicking indicate bugs in the application. For example, you have a static
-//!   scene tree, and you _know_ that a node of certain type and name exists. `get_node_as::<T>("name")`
-//!   thus _must_ succeed, or your mental concept is wrong. In other words, there is not much you can
-//!   do at runtime to recover from such errors anyway; the code needs to be fixed.
-//!
-//! Now, there are of course cases where you _do_ want to check certain assumptions dynamically.
-//! Imagine a scene tree that is constructed at runtime, e.g. in a game editor.
-//! This is why the library provides "overloads" for most of these methods that return `Option` or `Result`.
-//! Such methods have more verbose names and highlight the attempt, e.g. `try_cast()`.
-//!
-//! To help you identify panicking methods, we use the symbol "⚠️" at the beginning of the documentation;
-//! this should also appear immediately in the auto-completion of your IDE. Note that this warning sign is
-//! not used as a general panic indicator, but particularly for methods which have a `Option`/`Result`-based
-//! overload. If you want to know whether and how a method can panic, check if its documentation has a
-//! _Panics_ section.
-//!
-//! # Thread safety
-//!
-//! [Godot's own thread safety
-//! rules](https://docs.godotengine.org/en/latest/tutorials/performance/thread_safe_apis.html)
-//! apply. Types in this crate implement (or don't implement) `Send` and `Sync` wherever
-//! appropriate, but the Rust compiler cannot check what happens to an object through C++ or
-//! GDScript.
-//!
-//! As a rule of thumb, if you must use threading, prefer to use [Rust threads](https://doc.rust-lang.org/std/thread)
-//! over Godot threads.
-//!
-//! The Cargo feature `experimental-threads` provides experimental support for multithreading. The underlying safety
-//! rules are still being worked out, as such you may encounter unsoundness and an unstable API.
-//!
-//! # Cargo features
-//!
-//! The following features can be enabled for this crate. All off them are off by default.
-//!
-//! Avoid `default-features = false` unless you know exactly what you are doing; it will disable some required internal features.
-//!
-//! * **`double-precision`**
-//!
-//!   Use `f64` instead of `f32` for the floating-point type [`real`][type@builtin::real]. Requires Godot to be compiled with the
-//!   scons flag `precision=double`.<br><br>
-//!
-//! * **`api-4-{minor}`**
-//!
-//!   Sets the [API level](https://godot-rust.github.io/book/toolchain/compatibility.html) to the specified Godot version, e.g. `api-4-1`.
-//!   You can use at most one `api-*` feature. By default, a recent stable Godot release is used.
-//!
-//!   The API level determines the lowest possible Godot version under which the extension can run. We support latest patch releases of each
-//!   Godot minor version, down to `4.0`. From `4.1` onwards, the API is forward-compatible (you can use `api-4-1` under a Godot 4.3 binary).
-//!   Level `4.0` is not compatible with newer versions.
-//!
-//!   If you want to share your extension with others, we recommend setting the level as low as possible. This can however mean you cannot
-//!   use newer Godot features. In certain cases, we provide polyfills for newer features on older versions.
-//!
-//!   The gdext-built extension will check compatibility on startup and refuse to load if it detects a mismatch.<br><br>
-//!
-//! * **`api-custom`**
-//!
-//!   Use a custom Godot build instead of the latest official release. This is useful when you like to use a
-//!   version compiled yourself, with custom flags.
-//!
-//!   This feature is mutually exclusive with `api-4-*` features.<br><br>
-//!
-//! * **`serde`**
-//!
-//!   Implement the [serde](https://serde.rs/) traits `Serialize` and `Deserialize` traits for certain built-in types.
-//!   The serialized representation underlies **no stability guarantees** and may change at any time, even without a SemVer-breaking change.
-//!   <br><br>
-//!
-//! * **`lazy-function-tables`**
-//!
-//!   Instead of loading all engine function pointers at startup, load them lazily on first use. This reduces startup time and RAM usage, but
-//!   incurs additional overhead in each FFI call. Also, you lose the guarantee that once the library has booted, all function pointers are
-//!   truly available. Function calls may thus panic only at runtime, possibly in deeply nested code paths.
-//!   This feature is not yet thread-safe and can thus not be combined with `experimental-threads`.<br><br>
-//!
-//! * **`formatted`**
-//!
-//!   Format the generated binding code with a custom-built formatter, which aims to strike a balance between runtime and human readability.
-//!   rustfmt generates nice output, but it is unfortunately excessively slow across hundreds of Godot classes.<br><br>
-//!
-//! * **`experimental-threads`**
-//!
-//!   Experimental threading support. This enables `Send`/`Sync` traits for `Gd<T>` and makes the guard types `Gd`/`GdMut` aware of
-//!   multi-threaded references. There safety aspects are not ironed out yet; there is a high risk of unsoundness at the moment.
-//!   As this evolves, it is very likely that the API becomes more strict.<br><br>
-//!
-//! * **`experimental-godot-api`**
-//!
-//!   Access to `godot::classes` APIs that Godot marks "experimental". These are under heavy development and may change at any time.
-//!   If you opt in to this feature, expect breaking changes at compile and runtime.<br><br>
-//!
-//! * **`experimental-wasm`**
-//!
-//!   Support for WebAssembly exports is still a work-in-progress and is not yet well tested. This feature is in place for users
-//!   to explicitly opt-in to any instabilities or rough edges that may result. Due to a limitation in Godot, it might currently not
-//!   work Firefox browser.<br><br>
-//!
-//! # Public API
+//! ## Public API
 //!
 //! Some symbols in the API are not intended for users, however Rust's visibility feature is not strong enough to express that in all cases
 //! (for example, proc-macros and separated crates may need access to internals).
@@ -180,10 +49,74 @@
 //! * Any of the dependency crates (crate `godot` is the only public interface).
 //! * Modules named `private` and all their contents.
 //!
-//! Being private means a workflow is not supported. As such, there are **no guarantees** regarding API stability, robustness or correctness.
-//! Problems arising from using such APIs are not considered bugs, and anything relying on them may stop working without announcement.
-//! Please refrain from using undocumented and private features; if you are missing certain functionality, bring it up for discussion instead.
-//! This allows us to decide whether it fits the scope of the library and to design proper APIs for it.
+//! This means there are **no guarantees** regarding API stability, robustness or correctness. Problems arising from using private APIs are
+//! not considered bugs, and anything relying on them may stop working without announcement. Please refrain from using undocumented and
+//! private features; if you are missing certain functionality, bring it up for discussion instead. This allows us to improve the library!
+//! <br><br>
+//!
+//!
+//! ## Cargo features
+//!
+//! The following features can be enabled for this crate. All off them are off by default.
+//!
+//! Avoid `default-features = false` unless you know exactly what you are doing; it will disable some required internal features.
+//!
+//! _Godot version and configuration:_
+//!
+//! * **`api-4-{minor}`**
+//! * **`api-4-{minor}-{patch}`**
+//! * **`api-custom`**
+//!
+//!   Sets the [**API level**](https://godot-rust.github.io/book/toolchain/godot-version.html) to the specified Godot version,
+//!   or a custom-built local binary.  
+//!   You can use at most one `api-*` feature. If absent, the current Godot minor version is used, with patch level 0.<br><br>
+//!
+//! * **`double-precision`**
+//!
+//!   Use `f64` instead of `f32` for the floating-point type [`real`][type@builtin::real]. Requires Godot to be compiled with the
+//!   scons flag `precision=double`.<br><br>
+//!
+//! * **`experimental-godot-api`**
+//!
+//!   Access to `godot::classes` APIs that Godot marks "experimental". These are under heavy development and may change at any time.
+//!   If you opt in to this feature, expect breaking changes at compile and runtime.
+//!
+//! _Rust functionality toggles:_
+//!
+//! * **`lazy-function-tables`**
+//!
+//!   Instead of loading all engine function pointers at startup, load them lazily on first use. This reduces startup time and RAM usage, but
+//!   incurs additional overhead in each FFI call. Also, you lose the guarantee that once the library has booted, all function pointers are
+//!   truly available. Function calls may thus panic only at runtime, possibly in deeply nested code paths.
+//!   This feature is not yet thread-safe and can thus not be combined with `experimental-threads`.<br><br>
+//!
+//! * **`experimental-threads`**
+//!
+//!   Experimental threading support. This enables `Send`/`Sync` traits for `Gd<T>` and makes the guard types `Gd`/`GdMut` aware of
+//!   multithreaded references. The safety aspects are not ironed out yet; there is a high risk of unsoundness at the moment.
+//!   As this evolves, it is very likely that the API becomes stricter.<br><br>
+//!
+//! * **`experimental-wasm`**
+//!
+//!   Support for WebAssembly exports is still a work-in-progress and is not yet well tested. This feature is in place for users
+//!   to explicitly opt in to any instabilities or rough edges that may result. Due to a limitation in Godot, it might currently not
+//!   work Firefox browser.<br><br>
+//!
+//! * **`rustfmt`**
+//!
+//!   Use rustfmt to format generated binding code. Because rustfmt is so slow, this is detrimental to initial compile time.
+//!   Without it, we use a lightweight and fast custom formatter to enable basic human readability.
+//!
+//! _Integrations:_
+//!
+//! * **`serde`**
+//!
+//!   Implement the [serde](https://serde.rs/) traits `Serialize` and `Deserialize` traits for certain built-in types.
+//!   The serialized representation underlies **no stability guarantees** and may change at any time, even without a SemVer-breaking change.
+//!
+
+#[cfg(doc)]
+pub mod __docs;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Validations

@@ -6,16 +6,15 @@ rust-version = "1.78"
 license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "derive", "macro"]
 categories = ["game-engines", "graphics"]
+description = "Internal crate used by godot-rust"
+repository = "https://github.com/godot-rust/gdext"
+homepage = "https://godot-rust.github.io"
 
 [features]
 api-custom = ["godot-bindings/api-custom"]
 
 [lib]
 proc-macro = true
-
-# Reverse dev dependencies so doctests can use `godot::` prefix
-[dev-dependencies]
-godot = { path = "../godot" }
 
 [dependencies]
 # Minimum versions compatible with -Zminimal-versions
@@ -25,7 +24,11 @@ quote = "1.0.29"
 venial = "0.6"
 
 [build-dependencies]
-godot-bindings = { path = "../godot-bindings" } # emit_godot_version_cfg
+godot-bindings = { path = "../godot-bindings", version = "=0.1.0" } # emit_godot_version_cfg
+
+# Reverse dev dependencies so doctests can use `godot::` prefix.
+[dev-dependencies]
+godot = { path = "../godot" }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]

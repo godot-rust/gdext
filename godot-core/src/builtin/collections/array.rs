@@ -190,6 +190,7 @@ impl<T: ArrayElement> Array<T> {
     }
 
     #[deprecated = "Renamed to `get`."]
+    #[doc(hidden)] // No longer advertise in API docs.
     pub fn try_get(&self, index: usize) -> Option<T> {
         self.get(index)
     }
@@ -251,11 +252,13 @@ impl<T: ArrayElement> Array<T> {
     }
 
     #[deprecated = "Renamed to `front`, in line with GDScript method and consistent with `push_front` and `pop_front`."]
+    #[doc(hidden)] // No longer advertise in API docs.
     pub fn first(&self) -> Option<T> {
         self.front()
     }
 
     #[deprecated = "Renamed to `back`, in line with GDScript method."]
+    #[doc(hidden)] // No longer advertise in API docs.
     pub fn last(&self) -> Option<T> {
         self.back()
     }

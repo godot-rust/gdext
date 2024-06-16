@@ -6,18 +6,21 @@ rust-version = "1.78"
 license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "codegen"]
 categories = ["game-engines", "graphics"]
+description = "Internal crate used by godot-rust"
+repository = "https://github.com/godot-rust/gdext"
+homepage = "https://godot-rust.github.io"
 
 [features]
-default = ["codegen-fmt"]
-codegen-fmt = []
+default = []
 codegen-full = []
 codegen-lazy-fptrs = []
+codegen-rustfmt = []
 double-precision = []
 api-custom = ["godot-bindings/api-custom"]
 experimental-godot-api = []
 
 [dependencies]
-godot-bindings = { path = "../godot-bindings" }
+godot-bindings = { path = "../godot-bindings", version = "=0.1.0" }
 
 heck = "0.4"
 nanoserde = "0.1.35"
@@ -31,7 +34,7 @@ quote = "1.0.29"
 regex = { version = "1.5.5", default-features = false, features = ["std", "unicode-bool", "unicode-gencat"] }
 
 [build-dependencies]
-godot-bindings = { path = "../godot-bindings" } # emit_godot_version_cfg
+godot-bindings = { path = "../godot-bindings", version = "=0.1.0" } # emit_godot_version_cfg
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]

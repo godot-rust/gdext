@@ -6,9 +6,12 @@ rust-version = "1.78"
 license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "ffi"]
 categories = ["game-engines", "graphics"]
+description = "Internal crate used by godot-rust"
+repository = "https://github.com/godot-rust/gdext"
+homepage = "https://godot-rust.github.io"
 
 [features]
-codegen-fmt = ["godot-codegen/codegen-fmt"]
+codegen-rustfmt = ["godot-codegen/codegen-rustfmt"]
 codegen-lazy-fptrs = ["godot-codegen/codegen-lazy-fptrs"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = []
@@ -45,8 +48,8 @@ libc = "0.2.153"
 gensym = "0.1.1"
 
 [build-dependencies]
-godot-bindings = { path = "../godot-bindings" }
-godot-codegen = { path = "../godot-codegen" }
+godot-bindings = { path = "../godot-bindings", version = "=0.1.0" }
+godot-codegen = { path = "../godot-codegen", version = "=0.1.0" }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]

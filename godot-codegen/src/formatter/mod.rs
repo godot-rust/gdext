@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-#![cfg(feature = "codegen-fmt")]
+#![cfg(not(feature = "codegen-rustfmt"))]
 
 use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 
@@ -37,7 +37,7 @@ use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 /// - anonymous function literals are a bit weird because the `|` don't have
 ///   joint spacing when they come out of a `TokenStream` and identifiers don't
 ///   have any spacing information attached, so it looks like `| arg |`.
-///   Also to know whether it's a chained bitwise or a closure would need more
+///   Also, to know whether it's a chained bitwise or, a closure would need more
 ///   information. `move | arg | x`
 /// - Because we don't keep track of what's a type and what's an expression,
 ///   generic parameters look a bit spaced out. `T < A, B >`

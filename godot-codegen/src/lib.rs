@@ -5,6 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+//! # Internal crate of [**godot-rust**](https://godot-rust.github.io)
+//!
+//! Do not depend on this crate directly, instead use the `godot` crate.
+//! No SemVer or other guarantees are provided.
+
 // Codegen has no FFI and thus no reason to use unsafe code.
 #![forbid(unsafe_code)]
 
@@ -46,15 +51,46 @@ fn write_file(path: &Path, contents: String) {
         .unwrap_or_else(|e| panic!("failed to write code file to {};\n\t{}", path.display(), e));
 }
 
-#[cfg(feature = "codegen-fmt")]
+#[cfg(not(feature = "codegen-rustfmt"))]
 fn submit_fn(path: PathBuf, tokens: TokenStream) {
     write_file(&path, formatter::format_tokens(tokens));
 }
 
-#[cfg(not(feature = "codegen-fmt"))]
-fn submit_fn(path: PathBuf, tokens: TokenStream) {
-    write_file(&path, tokens.to_string());
+#[cfg(feature = "codegen-rustfmt")]
+mod rustfmt {
+    use super::*;
+    use std::process::Command;
+    use std::sync::Mutex;
+
+    pub fn submit_fn(path: PathBuf, tokens: TokenStream) {
+        write_file(&path, tokens.to_string());
+        FILES_TO_RUSTFMT.lock().unwrap().push(path);
+    }
+
+    pub fn rustfmt_files() {
+        let out_files = FILES_TO_RUSTFMT.lock().unwrap();
+        println!("Format {} generated files...", out_files.len());
+
+        for files in out_files.chunks(20) {
+            let mut command = Command::new("rustfmt");
+            for file in files {
+                command.arg(file);
+            }
+
+            let status = command.status().expect("failed to invoke rustfmt");
+            if !status.success() {
+                panic!("rustfmt failed on {:?}", command);
+            }
+        }
+
+        println!("Rustfmt completed successfully");
+    }
+
+    static FILES_TO_RUSTFMT: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 }
+
+#[cfg(feature = "codegen-rustfmt")]
+pub(crate) use rustfmt::*;
 
 pub fn generate_sys_files(
     sys_gen_path: &Path,
@@ -94,6 +130,12 @@ pub fn generate_sys_files(
 
     generate_sys_module_file(sys_gen_path, &mut submit_fn);
     watch.record("generate_module_file");
+
+    #[cfg(feature = "codegen-rustfmt")]
+    {
+        rustfmt_files();
+        watch.record("rustfmt");
+    }
 }
 
 pub fn generate_core_files(core_gen_path: &Path) {
@@ -145,6 +187,12 @@ pub fn generate_core_files(core_gen_path: &Path) {
         &mut submit_fn,
     );
     watch.record("generate_native_structures_files");
+
+    #[cfg(feature = "codegen-rustfmt")]
+    {
+        rustfmt_files();
+        watch.record("rustfmt");
+    }
 
     watch.write_stats_to(&core_gen_path.join("codegen-stats.txt"));
 }

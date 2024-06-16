@@ -376,6 +376,7 @@ pub enum ColorChannelOrder {
 }
 
 #[allow(non_upper_case_globals)]
+#[doc(hidden)] // No longer advertise in API docs.
 impl ColorChannelOrder {
     #[deprecated(note = "Renamed to `ColorChannelOrder::RGBA`.")]
     pub const Rgba: Self = Self::RGBA;

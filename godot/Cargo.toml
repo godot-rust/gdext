@@ -6,6 +6,11 @@ rust-version = "1.78"
 license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "2d", "3d"] # possibly: "ffi"
 categories = ["game-engines", "graphics"]
+description = "Rust bindings for Godot 4"
+authors = ["Bromeon", "godot-rust contributors"]
+repository = "https://github.com/godot-rust/gdext"
+homepage = "https://godot-rust.github.io"
+documentation = "https://docs.rs/godot/0.1.0"
 
 [features]
 default = ["codegen-full"]
@@ -14,7 +19,7 @@ double-precision = ["godot-core/double-precision"]
 experimental-godot-api = ["godot-core/experimental-godot-api"]
 experimental-threads = ["godot-core/experimental-threads"]
 experimental-wasm = []
-formatted = ["godot-core/codegen-fmt"]
+rustfmt = ["godot-core/codegen-rustfmt"]
 lazy-function-tables = ["godot-core/codegen-lazy-fptrs"]
 serde = ["godot-core/serde"]
 
@@ -43,8 +48,8 @@ debug-log = ["godot-core/debug-log"]
 trace = ["godot-core/trace"]
 
 [dependencies]
-godot-core = { path = "../godot-core" }
-godot-macros = { path = "../godot-macros" }
+godot-core = { path = "../godot-core", version = "=0.1.0" }
+godot-macros = { path = "../godot-macros", version = "=0.1.0" }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]

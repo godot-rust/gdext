@@ -133,6 +133,7 @@ macro_rules! impl_packed_array {
             ///
             /// If `index` is out of bounds.
             #[deprecated = "Use [] operator (IndexMut) instead."]
+            #[doc(hidden)] // No longer advertise in API docs.
             pub fn set(&mut self, index: usize, value: $Element) {
                 let ptr_mut = self.ptr_mut(index);
 
@@ -312,6 +313,7 @@ macro_rules! impl_packed_array {
             }
 
             #[deprecated = "Renamed to bsearch like in Godot, to avoid confusion with Rust's slice::binary_search."]
+            #[doc(hidden)] // No longer advertise in API docs.
             pub fn binary_search(&self, value: $Element) -> usize {
                 self.bsearch(&value)
             }
