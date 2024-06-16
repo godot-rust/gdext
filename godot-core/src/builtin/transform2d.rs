@@ -150,6 +150,18 @@ impl Transform2D {
         self.glam(|aff| aff.inverse())
     }
 
+    /// Returns the determinant of the basis matrix.
+    ///
+    /// If the basis is uniformly scaled, then its determinant equals the square of the scale factor.
+    ///
+    /// A negative determinant means the basis was flipped, so one part of the scale is negative.
+    /// A zero determinant means the basis isn't invertible, and is usually considered invalid.
+    ///
+    /// _Godot equivalent: `Transform2D.determinant()`_
+    pub fn determinant(&self) -> real {
+        self.basis().determinant()
+    }
+
     /// Returns the transform's rotation (in radians).
     ///
     /// _Godot equivalent: `Transform2D.get_rotation()`_
@@ -443,7 +455,7 @@ impl Basis2D {
     }
 
     /// Returns the determinant of the matrix.
-    pub(crate) fn determinant(&self) -> real {
+    pub fn determinant(&self) -> real {
         self.glam(|mat| mat.determinant())
     }
 

@@ -57,6 +57,19 @@ fn transform2d_equiv() {
     );
 }
 
+#[cfg(since_api = "4.1")]
+#[itest]
+fn transform2d_determinant() {
+    let inner = InnerTransform2D::from_outer(&TEST_TRANSFORM);
+    let outer = TEST_TRANSFORM;
+
+    assert_eq_approx!(
+        real::from_f64(inner.determinant()),
+        outer.determinant(),
+        "function: determinant\n"
+    );
+}
+
 #[itest]
 fn transform2d_xform_equiv() {
     let vec = Vector2::new(1.0, 2.0);
