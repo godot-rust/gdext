@@ -35,6 +35,7 @@ defaults:
 #  cancel-in-progress: true
 
 jobs:
+  # Keep all in sync with minimal-ci and release-version.
   rustfmt:
     runs-on: ubuntu-20.04
     steps:

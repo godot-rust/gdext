@@ -39,6 +39,7 @@ mainCargoToml="$scriptPath/../../godot/Cargo.toml"
 newVersion="${args[0]}"
 oldVersion=$(grep -Po '^version = "\K[^"]*' "$mainCargoToml")
 
+# Keep in sync with release-version.yml.
 publishedCrates=(
     "godot-bindings"
     "godot-codegen"
