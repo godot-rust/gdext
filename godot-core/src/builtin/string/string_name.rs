@@ -317,7 +317,7 @@ impl From<&'static std::ffi::CStr> for StringName {
                 sys::interface_fn!(string_name_new_with_latin1_chars)(
                     ptr,
                     c_str.as_ptr(),
-                    true as sys::GDExtensionBool, // p_is_static
+                    sys::conv::SYS_TRUE, // p_is_static
                 )
             })
         };

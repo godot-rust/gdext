@@ -16,6 +16,7 @@ use crate::obj::{cap, Base, GodotClass, UserClass};
 use crate::storage::{as_storage, InstanceStorage, Storage, StorageRefCounted};
 use godot_ffi as sys;
 use std::any::Any;
+use sys::conv::u32_to_usize;
 use sys::interface_fn;
 
 pub unsafe extern "C" fn create<T: cap::GodotDefault>(
@@ -171,9 +172,9 @@ pub unsafe extern "C" fn get_property<T: cap::GodotGet>(
     match T::__godot_get_property(&*instance, property) {
         Some(value) => {
             value.move_into_var_ptr(ret);
-            true as sys::GDExtensionBool
+            sys::conv::SYS_TRUE
         }
-        None => false as sys::GDExtensionBool,
+        None => sys::conv::SYS_FALSE,
     }
 }
 
@@ -188,7 +189,7 @@ pub unsafe extern "C" fn set_property<T: cap::GodotSet>(
     let property = StringName::new_from_string_sys(name);
     let value = Variant::new_from_var_sys(value);
 
-    T::__godot_set_property(&mut *instance, property, value) as sys::GDExtensionBool
+    sys::conv::bool_to_sys(T::__godot_set_property(&mut *instance, property, value))
 }
 
 pub unsafe extern "C" fn reference<T: GodotClass>(instance: sys::GDExtensionClassInstancePtr) {
@@ -247,9 +248,7 @@ pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
     // This means all the preconditions of this function are satisfied except uniqueness of this point.
     // Uniqueness is guaranteed as Godot called this function at a point where the list is no longer accessed
     // through any other pointer, and we dont access the slice through any other pointer after this call either.
-    let property_list_slice = unsafe {
-        std::slice::from_raw_parts_mut(list, count.try_into().expect("`u32` should fit in `usize`"))
-    };
+    let property_list_slice = unsafe { std::slice::from_raw_parts_mut(list, u32_to_usize(count)) };
 
     // SAFETY: This slice was created by calling `Box::leak` on a `Box<[sys::GDExtensionPropertyInfo]>`, we can thus
     // call `Box::from_raw` on this slice to get back the original boxed slice.
@@ -294,7 +293,7 @@ pub unsafe extern "C" fn property_can_revert<T: cap::GodotPropertyGetRevert>(
     // SAFETY: Godot provides us with a valid `T` instance pointer and `StringName` pointer for the duration of this call.
     let revert = unsafe { raw_property_get_revert::<T>(instance, property_name) };
 
-    revert.is_some() as sys::GDExtensionBool
+    sys::conv::bool_to_sys(revert.is_some())
 }
 
 /// # Safety
@@ -308,7 +307,7 @@ pub unsafe extern "C" fn property_get_revert<T: cap::GodotPropertyGetRevert>(
 ) -> sys::GDExtensionBool {
     // SAFETY: Godot provides us with a valid `T` instance pointer and `StringName` pointer for the duration of this call.
     let Some(revert) = (unsafe { raw_property_get_revert::<T>(instance, property_name) }) else {
-        return false as sys::GDExtensionBool;
+        return sys::conv::SYS_FALSE;
     };
 
     // SAFETY: Godot provides us with a valid `Variant` pointer.
@@ -316,7 +315,7 @@ pub unsafe extern "C" fn property_get_revert<T: cap::GodotPropertyGetRevert>(
         revert.move_into_var_ptr(ret);
     }
 
-    true as sys::GDExtensionBool
+    sys::conv::SYS_TRUE
 }
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Safe, higher-level methods

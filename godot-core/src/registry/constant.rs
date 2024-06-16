@@ -39,7 +39,7 @@ impl IntegerConstant {
                 enum_name.string_sys(),
                 self.name.string_sys(),
                 self.value,
-                is_bitfield as sys::GDExtensionBool,
+                sys::conv::bool_to_sys(is_bitfield),
             );
         }
     }
