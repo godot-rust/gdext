@@ -12,7 +12,7 @@ homepage = "https://godot-rust.github.io"
 
 [features]
 default = []
-codegen-fmt = ["godot-ffi/codegen-fmt", "godot-codegen/codegen-fmt"]
+codegen-rustfmt = ["godot-ffi/codegen-rustfmt", "godot-codegen/codegen-rustfmt"]
 codegen-full = ["godot-codegen/codegen-full"]
 codegen-lazy-fptrs = [
     "godot-ffi/codegen-lazy-fptrs",

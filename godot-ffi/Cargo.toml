@@ -11,7 +11,7 @@ repository = "https://github.com/godot-rust/gdext"
 homepage = "https://godot-rust.github.io"
 
 [features]
-codegen-fmt = ["godot-codegen/codegen-fmt"]
+codegen-rustfmt = ["godot-codegen/codegen-rustfmt"]
 codegen-lazy-fptrs = ["godot-codegen/codegen-lazy-fptrs"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = []

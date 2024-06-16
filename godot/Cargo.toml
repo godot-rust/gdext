@@ -19,7 +19,7 @@ double-precision = ["godot-core/double-precision"]
 experimental-godot-api = ["godot-core/experimental-godot-api"]
 experimental-threads = ["godot-core/experimental-threads"]
 experimental-wasm = []
-formatted = ["godot-core/codegen-fmt"]
+rustfmt = ["godot-core/codegen-rustfmt"]
 lazy-function-tables = ["godot-core/codegen-lazy-fptrs"]
 serde = ["godot-core/serde"]
 

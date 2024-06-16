@@ -11,10 +11,10 @@ repository = "https://github.com/godot-rust/gdext"
 homepage = "https://godot-rust.github.io"
 
 [features]
-default = ["codegen-fmt"]
-codegen-fmt = []
+default = []
 codegen-full = []
 codegen-lazy-fptrs = []
+codegen-rustfmt = []
 double-precision = []
 api-custom = ["godot-bindings/api-custom"]
 experimental-godot-api = []
