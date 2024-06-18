@@ -15,6 +15,13 @@
 pub mod builder;
 pub mod builtin;
 pub mod classes;
+#[cfg(all(since_api = "4.3", feature = "docs"))]
+pub mod docs;
+#[doc(hidden)]
+pub mod possibly_docs {
+    #[cfg(all(since_api = "4.3", feature = "docs"))]
+    pub use crate::docs::*;
+}
 pub mod global;
 pub mod init;
 pub mod meta;
@@ -70,3 +77,9 @@ pub mod log {
         godot_error, godot_print, godot_print_rich, godot_script_error, godot_warn,
     };
 }
+
+// ----
+// Validation
+
+#[cfg(all(feature = "docs", before_api = "4.3"))]
+compile_error!("Documentation generation requires 4.3.");
