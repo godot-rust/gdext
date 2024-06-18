@@ -107,6 +107,13 @@
 //!   Use rustfmt to format generated binding code. Because rustfmt is so slow, this is detrimental to initial compile time.
 //!   Without it, we use a lightweight and fast custom formatter to enable basic human readability.
 //!
+//! * **`register-docs`**
+//!
+//!   Generates documentation for your structs from your Rust documentation.
+//!   Documentation is visible in Godot via `F1` -> searching for that class.
+//!   This feature requires at least Godot 4.3.
+//!   See also: [`#[derive(GodotClass)]`](register/derive.GodotClass.html#documentation)
+//!
 //! _Integrations:_
 //!
 //! * **`serde`**
@@ -170,6 +177,9 @@ pub use godot_core::{builtin, classes, global, meta, obj, tools};
 
 #[allow(deprecated)]
 pub use godot_core::{engine, log};
+
+#[doc(hidden)]
+pub use godot_core::possibly_docs as docs;
 
 #[doc(hidden)]
 pub use godot_core::sys;

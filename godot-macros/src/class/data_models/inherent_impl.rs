@@ -51,6 +51,11 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
     let (funcs, signals) = process_godot_fns(&class_name, &mut impl_block)?;
     let consts = process_godot_constants(&mut impl_block)?;
 
+    #[cfg(all(feature = "docs", since_api = "4.3"))]
+    let docs = crate::docs::make_inherent_impl_docs(&funcs, &consts, &signals);
+    #[cfg(not(all(feature = "docs", since_api = "4.3")))]
+    let docs = quote! {};
+
     let signal_registrations = make_signal_registrations(signals, &class_name_obj);
 
     let method_registrations: Vec<TokenStream> = funcs
@@ -80,6 +85,7 @@ pub fn transform_inherent_impl(mut impl_block: venial::Impl) -> ParseResult<Toke
                 register_methods_constants_fn: #prv::ErasedRegisterFn {
                     raw: #prv::callbacks::register_user_methods_constants::<#class_name>,
                 },
+                #docs
             },
             init_level: <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL,
         });

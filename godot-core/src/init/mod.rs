@@ -137,9 +137,16 @@ unsafe fn gdext_on_level_init(level: InitLevel) {
     // SAFETY: we are in the main thread, initialize has been called, has never been called with this level before.
     unsafe { sys::load_class_method_table(level) };
 
-    if level == InitLevel::Scene {
-        // SAFETY: On the main thread, api initialized, `Scene` was initialized above.
-        unsafe { ensure_godot_features_compatible() };
+    match level {
+        InitLevel::Scene => {
+            // SAFETY: On the main thread, api initialized, `Scene` was initialized above.
+            unsafe { ensure_godot_features_compatible() };
+        }
+        InitLevel::Editor => {
+            #[cfg(all(since_api = "4.3", feature = "docs"))]
+            crate::docs::register();
+        }
+        _ => (),
     }
 
     crate::registry::class::auto_register_classes(level);
