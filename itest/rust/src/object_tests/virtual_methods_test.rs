@@ -21,6 +21,7 @@ use godot::classes::{
     InputEvent, InputEventAction, Node, Node2D, PrimitiveMesh, RefCounted, ResourceFormatLoader,
     ResourceLoader, Viewport, Window,
 };
+use godot::engine::Material;
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::private::class_macros::assert_eq_approx;
@@ -133,6 +134,62 @@ impl IPrimitiveMesh for VirtualReturnTest {
             PackedFloat32Array::from_iter([0.0, 1.0, 2.0, 3.0]),
             PackedInt32Array::from_iter([0]),
         ]
+    }
+
+    fn get_surface_count(&self) -> i32 {
+        unreachable!()
+    }
+
+    fn surface_get_array_len(&self, _index: i32) -> i32 {
+        unreachable!()
+    }
+
+    fn surface_get_array_index_len(&self, _index: i32) -> i32 {
+        unreachable!()
+    }
+
+    fn surface_get_arrays(&self, _index: i32) -> VariantArray {
+        unreachable!()
+    }
+
+    fn surface_get_blend_shape_arrays(&self, _index: i32) -> godot::prelude::Array<VariantArray> {
+        unreachable!()
+    }
+
+    fn surface_get_lods(&self, _index: i32) -> godot::prelude::Dictionary {
+        unreachable!()
+    }
+
+    fn surface_get_format(&self, _index: i32) -> u32 {
+        unreachable!()
+    }
+
+    fn surface_get_primitive_type(&self, _index: i32) -> u32 {
+        unreachable!()
+    }
+
+    fn surface_set_material(&mut self, _index: i32, _material: Gd<Material>) {
+        unreachable!()
+    }
+
+    fn surface_get_material(&self, _index: i32) -> Option<Gd<Material>> {
+        unreachable!()
+    }
+
+    fn get_blend_shape_count(&self) -> i32 {
+        unreachable!()
+    }
+
+    fn get_blend_shape_name(&self, _index: i32) -> StringName {
+        unreachable!()
+    }
+
+    fn set_blend_shape_name(&mut self, _index: i32, _namee: StringName) {
+        unreachable!()
+    }
+
+    fn get_aabb(&self) -> godot::prelude::Aabb {
+        unreachable!()
     }
 }
 

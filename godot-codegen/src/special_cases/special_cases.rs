@@ -332,6 +332,175 @@ pub fn get_interface_extra_docs(trait_name: &str) -> Option<&'static str> {
     }
 }
 
+pub fn is_virtual_method_required(class_name: &str, method: &str) -> bool {
+    match (class_name, method) {
+        ("ScriptLanguageExtension", _) => method != "get_doc_comment_delimiters",
+
+        ("EditorExportPlugin", "customize_resource")
+        | ("EditorExportPlugin", "customize_scene")
+        | ("EditorExportPlugin", "get_customization_configuration_hash")
+        | ("EditorExportPlugin", "get_name") => true,
+
+        ("EditorVcsInterface", _) => true,
+
+        ("MovieWriter", _) => true,
+
+        ("TextServerExtension", "has_feature")
+        | ("TextServerExtension", "get_name")
+        | ("TextServerExtension", "get_features")
+        | ("TextServerExtension", "free_rid")
+        | ("TextServerExtension", "has")
+        | ("TextServerExtension", "create_font")
+        | ("TextServerExtension", "font_set_fixed_size")
+        | ("TextServerExtension", "font_get_fixed_size")
+        | ("TextServerExtension", "font_set_fixed_size_scale_mode")
+        | ("TextServerExtension", "font_get_fixed_size_scale_mode")
+        | ("TextServerExtension", "font_get_size_cache_list")
+        | ("TextServerExtension", "font_clear_size_cache")
+        | ("TextServerExtension", "font_remove_size_cache")
+        | ("TextServerExtension", "font_set_ascent")
+        | ("TextServerExtension", "font_get_ascent")
+        | ("TextServerExtension", "font_set_descent")
+        | ("TextServerExtension", "font_get_descent")
+        | ("TextServerExtension", "font_set_underline_position")
+        | ("TextServerExtension", "font_get_underline_position")
+        | ("TextServerExtension", "font_set_underline_thickness")
+        | ("TextServerExtension", "font_get_underline_thickness")
+        | ("TextServerExtension", "font_set_scale")
+        | ("TextServerExtension", "font_get_scale")
+        | ("TextServerExtension", "font_get_texture_count")
+        | ("TextServerExtension", "font_clear_textures")
+        | ("TextServerExtension", "font_remove_texture")
+        | ("TextServerExtension", "font_set_texture_image")
+        | ("TextServerExtension", "font_get_texture_image")
+        | ("TextServerExtension", "font_get_glyph_list")
+        | ("TextServerExtension", "font_clear_glyphs")
+        | ("TextServerExtension", "font_remove_glyph")
+        | ("TextServerExtension", "font_get_glyph_advance")
+        | ("TextServerExtension", "font_set_glyph_advance")
+        | ("TextServerExtension", "font_get_glyph_offset")
+        | ("TextServerExtension", "font_set_glyph_offset")
+        | ("TextServerExtension", "font_get_glyph_size")
+        | ("TextServerExtension", "font_set_glyph_size")
+        | ("TextServerExtension", "font_get_glyph_uv_rect")
+        | ("TextServerExtension", "font_set_glyph_uv_rect")
+        | ("TextServerExtension", "font_get_glyph_texture_idx")
+        | ("TextServerExtension", "font_set_glyph_texture_idx")
+        | ("TextServerExtension", "font_get_glyph_texture_rid")
+        | ("TextServerExtension", "font_get_glyph_texture_size")
+        | ("TextServerExtension", "font_get_glyph_index")
+        | ("TextServerExtension", "font_get_char_from_glyph_index")
+        | ("TextServerExtension", "font_has_char")
+        | ("TextServerExtension", "font_get_supported_chars")
+        | ("TextServerExtension", "font_draw_glyph")
+        | ("TextServerExtension", "font_draw_glyph_outline")
+        | ("TextServerExtension", "create_shaped_text")
+        | ("TextServerExtension", "shaped_text_clear")
+        | ("TextServerExtension", "shaped_text_add_string")
+        | ("TextServerExtension", "shaped_text_add_object")
+        | ("TextServerExtension", "shaped_text_resize_object")
+        | ("TextServerExtension", "shaped_get_span_count")
+        | ("TextServerExtension", "shaped_get_span_meta")
+        | ("TextServerExtension", "shaped_set_span_update_font")
+        | ("TextServerExtension", "shaped_text_substr")
+        | ("TextServerExtension", "shaped_text_get_parent")
+        | ("TextServerExtension", "shaped_text_shape")
+        | ("TextServerExtension", "shaped_text_is_ready")
+        | ("TextServerExtension", "shaped_text_get_glyphs")
+        | ("TextServerExtension", "shaped_text_sort_logical")
+        | ("TextServerExtension", "shaped_text_get_glyph_count")
+        | ("TextServerExtension", "shaped_text_get_range")
+        | ("TextServerExtension", "shaped_text_get_trim_pos")
+        | ("TextServerExtension", "shaped_text_get_ellipsis_pos")
+        | ("TextServerExtension", "shaped_text_get_ellipsis_glyphs")
+        | ("TextServerExtension", "shaped_text_get_ellipsis_glyph_count")
+        | ("TextServerExtension", "shaped_text_get_objects")
+        | ("TextServerExtension", "shaped_text_get_object_rect")
+        | ("TextServerExtension", "shaped_text_get_object_range")
+        | ("TextServerExtension", "shaped_text_get_object_glyph")
+        | ("TextServerExtension", "shaped_text_get_size")
+        | ("TextServerExtension", "shaped_text_get_ascent")
+        | ("TextServerExtension", "shaped_text_get_descent")
+        | ("TextServerExtension", "shaped_text_get_width")
+        | ("TextServerExtension", "shaped_text_get_underline_position")
+        | ("TextServerExtension", "shaped_text_get_underline_thickness") => true,
+
+        ("AudioStreamPlayback", "mix") => true,
+
+        ("AudioStreamPlaybackResampled", "mix_resampled")
+        | ("AudioStreamPlaybackResampled", "get_stream_sampling_rate") => true,
+
+        ("AudioEffectInstance ", "process") => true,
+
+        ("AudioEffect", "instantiate") => true,
+
+        ("PhysicsServer3DExtension", _) => true,
+
+        ("PhysicsServer2DExtension", _) => true,
+
+        ("EditorScript", "run") => true,
+
+        ("VideoStreamPlayback", "update") => true,
+
+        ("EditorFileSystemImportFormatSupportQuery ", _) => true,
+
+        ("Mesh", _) => true,
+
+        ("Texture2D", "get_width") | ("Texture2D", "get_height") => true,
+
+        ("Texture3D", _) => true,
+
+        ("TextureLayered", _) => true,
+
+        ("StyleBox", "draw") => true,
+
+        ("Material", "get_shader_rid") | ("Material", "get_shader_mode") => true,
+
+        ("PacketPeerExtension", "get_available_packet_count")
+        | ("PacketPeerExtension ", "get_max_packet_size") => true,
+
+        ("StreamPeerExtension", "get_available_bytes") => true,
+
+        ("WebRtcDataChannelExtension", "poll")
+        | ("WebRtcDataChannelExtension", "close")
+        | ("WebRtcDataChannelExtension", "set_write_mode")
+        | ("WebRtcDataChannelExtension", "get_write_mode")
+        | ("WebRtcDataChannelExtension", "was_string_packet")
+        | ("WebRtcDataChannelExtension", "get_ready_state")
+        | ("WebRtcDataChannelExtension", "get_label")
+        | ("WebRtcDataChannelExtension", "is_ordered")
+        | ("WebRtcDataChannelExtension", "get_id")
+        | ("WebRtcDataChannelExtension", "get_max_packet_life_time")
+        | ("WebRtcDataChannelExtension", "get_max_retransmits")
+        | ("WebRtcDataChannelExtension", "get_protocol")
+        | ("WebRtcDataChannelExtension", "is_negotiated")
+        | ("WebRtcDataChannelExtension", "get_buffered_amount")
+        | ("WebRtcDataChannelExtension", "get_available_packet_count")
+        | ("WebRtcDataChannelExtension", "get_max_packet_size") => true,
+
+        ("WebRtcPeerConnectionExtension", _) => true,
+
+        ("MultiplayerPeerExtension", "get_available_packet_count")
+        | ("MultiplayerPeerExtension", "get_max_packet_size")
+        | ("MultiplayerPeerExtension", "set_transfer_channel")
+        | ("MultiplayerPeerExtension", "get_transfer_channel")
+        | ("MultiplayerPeerExtension", "set_transfer_mode")
+        | ("MultiplayerPeerExtension", "get_transfer_mode")
+        | ("MultiplayerPeerExtension", "set_target_peer")
+        | ("MultiplayerPeerExtension", "get_packet_peer")
+        | ("MultiplayerPeerExtension", "get_packet_mode")
+        | ("MultiplayerPeerExtension", "get_packet_channel")
+        | ("MultiplayerPeerExtension", "is_server")
+        | ("MultiplayerPeerExtension", "poll")
+        | ("MultiplayerPeerExtension", "close")
+        | ("MultiplayerPeerExtension", "disconnect_peer")
+        | ("MultiplayerPeerExtension", "get_unique_id")
+        | ("MultiplayerPeerExtension", "get_connection_status") => true,
+
+        (_, _) => false,
+    }
+}
+
 #[rustfmt::skip]
 pub fn is_class_level_server(class_name: &str) -> bool {
     // Unclear on if some of these classes should be registered earlier than `Scene`:

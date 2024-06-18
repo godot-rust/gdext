@@ -147,6 +147,7 @@ const SELECTED_CLASSES: &[&str] = &[
     "InputEventAction",
     "Label",
     "MainLoop",
+    "Material",
     "Marker2D",
     "Mesh",
     "Node",
