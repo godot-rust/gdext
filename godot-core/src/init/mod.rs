@@ -71,26 +71,28 @@ unsafe extern "C" fn ffi_initialize_layer<E: ExtensionLibrary>(
     _userdata: *mut std::ffi::c_void,
     init_level: sys::GDExtensionInitializationLevel,
 ) {
-    let level = InitLevel::from_sys(init_level);
+    let level = ApiLevel::from_sys(init_level);
     let ctx = || format!("failed to initialize GDExtension level `{:?}`", level);
 
-    fn try_load<E: ExtensionLibrary>(level: InitLevel) {
+    fn try_load<E: ExtensionLibrary>(level: ApiLevel) {
         // Workaround for https://github.com/godot-rust/gdext/issues/629:
         // When using editor plugins, Godot may unload all levels but only reload from Scene upward.
         // Manually run initialization of lower levels.
 
         // TODO: Remove this workaround once after the upstream issue is resolved.
-        if level == InitLevel::Scene {
+        if level == ApiLevel::Scene {
             if !LEVEL_SERVERS_CORE_LOADED.load(Relaxed) {
-                try_load::<E>(InitLevel::Core);
-                try_load::<E>(InitLevel::Servers);
+                try_load::<E>(ApiLevel::Core);
+                try_load::<E>(ApiLevel::Server);
             }
-        } else if level == InitLevel::Core {
+        } else if level == ApiLevel::Core {
             // When it's normal initialization, the `Servers` level is normally initialized.
             LEVEL_SERVERS_CORE_LOADED.store(true, Relaxed);
         }
 
-        gdext_on_level_init(level);
+        // SAFETY: Godot will call this from the main thread, after `__gdext_load_library` where the library is initialized,
+        // and only once per level.
+        unsafe { gdext_on_level_init(level) };
         E::on_level_init(level);
     }
 
@@ -104,12 +106,12 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
     _userdata: *mut std::ffi::c_void,
     init_level: sys::GDExtensionInitializationLevel,
 ) {
-    let level = InitLevel::from_sys(init_level);
+    let level = ApiLevel::from_sys(init_level);
     let ctx = || format!("failed to deinitialize GDExtension level `{:?}`", level);
 
     // Swallow panics.
     let _ = crate::private::handle_panic(ctx, || {
-        if level == InitLevel::Core {
+        if level == ApiLevel::Core {
             // Once the CORE api is unloaded, reset the flag to initial state.
             LEVEL_SERVERS_CORE_LOADED.store(false, Relaxed);
         }
@@ -120,34 +122,34 @@ unsafe extern "C" fn ffi_deinitialize_layer<E: ExtensionLibrary>(
 }
 
 /// Tasks needed to be done by gdext internally upon loading an initialization level. Called before user code.
-fn gdext_on_level_init(level: InitLevel) {
-    // SAFETY: we are in the main thread, during initialization, no other logic is happening.
+///
+/// # Safety
+///
+/// - Must be called from the main thread.
+/// - The interface must have been initialized.
+/// - Must only be called once per level.
+#[deny(unsafe_op_in_unsafe_fn)]
+unsafe fn gdext_on_level_init(level: ApiLevel) {
     // TODO: in theory, a user could start a thread in one of the early levels, and run concurrent code that messes with the global state
     // (e.g. class registration). This would break the assumption that the load_class_method_table() calls are exclusive.
     // We could maybe protect globals with a mutex until initialization is complete, and then move it to a directly-accessible, read-only static.
-    unsafe {
-        match level {
-            InitLevel::Core => {}
-            InitLevel::Servers => {
-                sys::load_class_method_table(sys::ClassApiLevel::Server);
-            }
-            InitLevel::Scene => {
-                sys::load_class_method_table(sys::ClassApiLevel::Scene);
-                ensure_godot_features_compatible();
-            }
-            InitLevel::Editor => {
-                sys::load_class_method_table(sys::ClassApiLevel::Editor);
-            }
-        }
-        crate::registry::class::auto_register_classes(level);
+
+    // SAFETY: we are in the main thread, initialize has been called, has never been called with this level before.
+    unsafe { sys::load_class_method_table(level) };
+
+    if level == ApiLevel::Scene {
+        // SAFETY: On the main thread, api initialized, `Scene` was initialized above.
+        unsafe { ensure_godot_features_compatible() };
     }
+
+    crate::registry::class::auto_register_classes(level);
 }
 
 /// Tasks needed to be done by gdext internally upon unloading an initialization level. Called after user code.
-fn gdext_on_level_deinit(level: InitLevel) {
+fn gdext_on_level_deinit(level: ApiLevel) {
     crate::registry::class::unregister_classes(level);
 
-    if level == InitLevel::Core {
+    if level == ApiLevel::Core {
         // If lowest level is unloaded, call global deinitialization.
         // No business logic by itself, but ensures consistency if re-initialization (hot-reload on Linux) occurs.
 
@@ -199,16 +201,16 @@ pub unsafe trait ExtensionLibrary {
 
     /// Determines the initialization level at which the extension is loaded (`Scene` by default).
     ///
-    /// If the level is lower than [`InitLevel::Scene`], the engine needs to be restarted to take effect.
-    fn min_level() -> InitLevel {
-        InitLevel::Scene
+    /// If the level is lower than [`ApiLevel::Scene`], the engine needs to be restarted to take effect.
+    fn min_level() -> ApiLevel {
+        ApiLevel::Scene
     }
 
     /// Custom logic when a certain init-level of Godot is loaded.
     ///
     /// This will only be invoked for levels >= [`Self::min_level()`], in ascending order. Use `if` or `match` to hook to specific levels.
     #[allow(unused_variables)]
-    fn on_level_init(level: InitLevel) {
+    fn on_level_init(level: ApiLevel) {
         // Nothing by default.
     }
 
@@ -216,7 +218,7 @@ pub unsafe trait ExtensionLibrary {
     ///
     /// This will only be invoked for levels >= [`Self::min_level()`], in descending order. Use `if` or `match` to hook to specific levels.
     #[allow(unused_variables)]
-    fn on_level_deinit(level: InitLevel) {
+    fn on_level_deinit(level: ApiLevel) {
         // Nothing by default.
     }
 
@@ -271,49 +273,28 @@ pub enum EditorRunBehavior {
 /// See also:
 /// - [`ExtensionLibrary::on_level_init()`]
 /// - [`ExtensionLibrary::on_level_deinit()`]
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub enum InitLevel {
-    /// First level loaded by Godot. Builtin types are available, classes are not.
-    Core,
+pub type ApiLevel = sys::ApiLevel;
 
-    /// Second level loaded by Godot. Only server classes and builtins are available.
-    Servers,
-
-    /// Third level loaded by Godot. Most classes are available.
-    Scene,
-
-    /// Fourth level loaded by Godot, only in the editor. All classes are available.
-    Editor,
-}
-
-impl InitLevel {
-    #[doc(hidden)]
-    pub fn from_sys(level: godot_ffi::GDExtensionInitializationLevel) -> Self {
-        match level {
-            sys::GDEXTENSION_INITIALIZATION_CORE => Self::Core,
-            sys::GDEXTENSION_INITIALIZATION_SERVERS => Self::Servers,
-            sys::GDEXTENSION_INITIALIZATION_SCENE => Self::Scene,
-            sys::GDEXTENSION_INITIALIZATION_EDITOR => Self::Editor,
-            _ => {
-                eprintln!("WARNING: unknown initialization level {level}");
-                Self::Scene
-            }
-        }
-    }
-    #[doc(hidden)]
-    pub fn to_sys(self) -> godot_ffi::GDExtensionInitializationLevel {
-        match self {
-            Self::Core => sys::GDEXTENSION_INITIALIZATION_CORE,
-            Self::Servers => sys::GDEXTENSION_INITIALIZATION_SERVERS,
-            Self::Scene => sys::GDEXTENSION_INITIALIZATION_SCENE,
-            Self::Editor => sys::GDEXTENSION_INITIALIZATION_EDITOR,
-        }
-    }
-}
+/// Stage of the Godot initialization process.
+///
+/// Godot's initialization and deinitialization processes are split into multiple stages, like a stack. At each level,
+/// a different amount of engine functionality is available. Deinitialization happens in reverse order.
+///
+/// See also:
+/// - [`ExtensionLibrary::on_level_init()`]
+/// - [`ExtensionLibrary::on_level_deinit()`]
+#[deprecated = "`InitLevel` has been renamed to `ApiLevel`"]
+pub type InitLevel = ApiLevel;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-fn ensure_godot_features_compatible() {
+/// # Safety
+///
+/// - Must be called from the main thread.
+/// - The interface must be initialized.
+/// - The `Scene` api level must have been initialized.
+#[deny(unsafe_op_in_unsafe_fn)]
+unsafe fn ensure_godot_features_compatible() {
     // The reason why we don't simply call Os::has_feature() here is that we might move the high-level engine classes out of godot-core
     // later, and godot-core would only depend on godot-sys. This makes future migrations easier. We still have access to builtins though.
 
@@ -323,8 +304,9 @@ fn ensure_godot_features_compatible() {
     let single = GString::from("single");
     let double = GString::from("double");
 
-    // SAFETY: main thread, after initialize(), valid string pointers.
     let gdext_is_double = cfg!(feature = "double-precision");
+
+    // SAFETY: main thread, after initialize(), valid string pointers, `Scene` initialized.
     let godot_is_double = unsafe {
         let is_single = sys::godot_has_feature(os_class.string_sys(), single.sys());
         let is_double = sys::godot_has_feature(os_class.string_sys(), double.sys());

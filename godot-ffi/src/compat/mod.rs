@@ -21,7 +21,12 @@ pub use compat_4_0::*;
 ///
 /// Provides a compatibility layer to be able to use 4.0.x extensions under Godot versions >= 4.1.
 /// Also performs deterministic checks and expressive errors for cases where compatibility cannot be provided.
-pub(crate) trait BindingCompat {
+///
+/// # Safety
+///
+/// [`ensure_static_runtime_compatibility`](BindingCompat::ensure_static_runtime_compatibility) succeeding should be sufficient to ensure that
+/// both [`runtime_version`](BindingCompat::runtime_version) and [`load_interface`](BindingCompat::load_interface) can be called safely.
+pub(crate) unsafe trait BindingCompat {
     // Implementation note: these methods could be unsafe, but that would remove any `unsafe` statements _inside_
     // the function bodies, making reasoning about them harder. Also, the call site is already an unsafe function,
     // so it would not add safety there, either.
@@ -42,8 +47,16 @@ pub(crate) trait BindingCompat {
     fn ensure_static_runtime_compatibility(&self);
 
     /// Return version dynamically passed via `gdextension_interface.h` file.
-    fn runtime_version(&self) -> sys::GDExtensionGodotVersion;
+    ///
+    /// # Safety
+    ///
+    /// `self` must be a valid interface or get proc address pointer.
+    unsafe fn runtime_version(&self) -> sys::GDExtensionGodotVersion;
 
     /// Return the interface, either as-is from the header (legacy) or code-generated (modern API).
-    fn load_interface(&self) -> sys::GDExtensionInterface;
+    ///
+    /// # Safety
+    ///
+    /// `self` must be a valid interface or get proc address pointer.
+    unsafe fn load_interface(&self) -> sys::GDExtensionInterface;
 }

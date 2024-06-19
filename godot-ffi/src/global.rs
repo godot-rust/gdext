@@ -156,7 +156,8 @@ mod global_guard {
         pub(super) unsafe fn new_unchecked(mutex_guard: MutexGuard<'a, InitState<T>>) -> Self {
             debug_assert!(matches!(*mutex_guard, InitState::Initialized(_)));
 
-            Self::new(mutex_guard).unwrap_unchecked()
+            // SAFETY: The value is `Initialized` so `new` must return `Some`.
+            unsafe { Self::new(mutex_guard).unwrap_unchecked() }
         }
     }
 

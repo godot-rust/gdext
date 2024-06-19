@@ -7,7 +7,7 @@
 
 use crate::builder::ClassBuilder;
 use crate::builtin::GString;
-use crate::init::InitLevel;
+use crate::init::ApiLevel;
 use crate::meta::ClassName;
 use crate::obj::{bounds, Base, BaseMut, BaseRef, Bounds, Gd};
 use crate::storage::Storage;
@@ -41,7 +41,7 @@ where
     ///
     /// The default is a good choice in most cases; override only if you have very specific initialization requirements.
     /// It must not be less than `Base::INIT_LEVEL`.
-    const INIT_LEVEL: InitLevel = <Self::Base as GodotClass>::INIT_LEVEL;
+    const INIT_LEVEL: ApiLevel = <Self::Base as GodotClass>::INIT_LEVEL;
 
     /// Returns whether `Self` inherits from `U`.
     ///
@@ -73,7 +73,7 @@ impl GodotClass for NoBase {
         ClassName::none()
     }
 
-    const INIT_LEVEL: InitLevel = InitLevel::Core; // arbitrary; never read.
+    const INIT_LEVEL: ApiLevel = ApiLevel::Core; // arbitrary; never read.
 }
 
 unsafe impl Bounds for NoBase {
