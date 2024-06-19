@@ -106,22 +106,26 @@ pub unsafe trait GodotFfi {
 
 /// # Safety
 ///
-/// See [`GodotFfi::new_with_uninit`] and [`GodotFfi::new_with_init`].
+/// - For Godot version 4.0 see [`GodotFfi::new_with_init`].
+/// - For Godot versions >= 4.1 see [`GodotFfi::new_with_uninit`].
 #[cfg(before_api = "4.1")]
 pub unsafe fn new_with_uninit_or_init<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionTypePtr),
 ) -> T {
-    T::new_with_init(init_fn)
+    // SAFETY: `before_api = "4.1"` so the user must fulfil the safety preconditions of `new_with_init`.
+    unsafe { T::new_with_init(init_fn) }
 }
 
 /// # Safety
 ///
-/// See [`GodotFfi::new_with_uninit`] and [`GodotFfi::new_with_init`].
+/// - For Godot version 4.0 see [`GodotFfi::new_with_init`].
+/// - For Godot versions >= 4.1 see [`GodotFfi::new_with_uninit`].
 #[cfg(since_api = "4.1")]
 pub unsafe fn new_with_uninit_or_init<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
 ) -> T {
-    T::new_with_uninit(init_fn)
+    // SAFETY: `since_api = "4.1"` so the user must fulfil the safety preconditions of `new_with_uninit`.
+    unsafe { T::new_with_uninit(init_fn) }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -170,6 +174,7 @@ pub enum PtrcallType {
 // or a free-standing `impl` for concrete sys pointers such as GDExtensionObjectPtr.
 // See doc comment of `ffi_methods!` for information
 
+// TODO: explicitly document safety invariants.
 #[macro_export]
 #[doc(hidden)]
 macro_rules! ffi_methods_one {

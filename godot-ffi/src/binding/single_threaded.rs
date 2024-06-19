@@ -143,7 +143,9 @@ impl BindingStorage {
     /// - The binding must be initialized.
     #[inline(always)]
     pub unsafe fn get_binding_unchecked() -> &'static GodotBinding {
-        let storage = Self::storage();
+        // SAFETY: The bindings were initialized on the main thread because `initialize` must be called from the main thread,
+        // and this function is called from the main thread.
+        let storage = unsafe { Self::storage() };
 
         // We only check if we are in the main thread in debug builds if we aren't building for a non-threaded Godot build,
         // since we could otherwise assume there won't be multi-threading.
