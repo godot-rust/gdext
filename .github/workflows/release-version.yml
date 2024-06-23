@@ -15,7 +15,7 @@ on:
 
 env:
   # Note: used for test and clippy, not for publish
-  GDEXT_FEATURES: "--features godot/experimental-godot-api,godot/formatted,godot/serde"
+  GDEXT_FEATURES: "--features godot/experimental-godot-api,godot/codegen-rustfmt,godot/serde"
 
   # Crates to publish -- important, this doesn't work when there are spaces in any of the paths!
   # Keep in sync with update-version.sh
