@@ -81,6 +81,7 @@ pub unsafe fn thread_atexit(func: *mut c_void, obj: *mut c_void, dso_symbol: *mu
 macro_rules! register_hot_reload_workaround {
     () => {
         #[no_mangle]
+        #[doc(hidden)]
         pub unsafe extern "C" fn __cxa_thread_atexit_impl(
             func: *mut ::std::ffi::c_void,
             obj: *mut ::std::ffi::c_void,
