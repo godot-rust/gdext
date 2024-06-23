@@ -164,35 +164,40 @@ jobs:
       - name: "Install Rust (uncached)"
         run: rustup update stable
 
-      - name: "Commit raw changes"
-        run: |
-          # Backup current repo, so we can checkout.
-          mkdir -p /tmp/repo
-          rsync -av --exclude .git --exclude target ./ /tmp/repo/ 
-          git fetch origin releases && git switch releases || git switch --orphan releases
-          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-          # Restore.
-          rsync -av --ignore-existing /tmp/repo/ .
-          
-          # Commit.
-          git config user.name "Godot-Rust Automation"
-          git config user.email "GodotRust@users.noreply.github.com"
-          git add .
-          git commit -m "Repo state for v${{ env.GDEXT_PUBLISHED_VERSION }}"
+      - name: "Tag base commit"
+        run: git tag "v$GDEXT_PUBLISHED_VERSION"
+
+#      - name: "Commit raw changes"
+#        # Note: first block was for an alternative approach, where a separate `releases` branch tracks deployments.
+#        # Such a branch would however be disjoint and require quite a bit of extra space in the repo.
+#        run: |
+#          # Backup current repo, so we can checkout.
+#          mkdir -p /tmp/repo
+#          rsync -av --exclude .git --exclude target ./ /tmp/repo/
+#          git fetch origin releases && git switch releases || git switch --orphan releases
+#          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+#          # Restore.
+#          rsync -av --ignore-existing /tmp/repo/ .
+#
+#          git add .
+#          git commit -m "Repo state for v${{ env.GDEXT_PUBLISHED_VERSION }}"
 
       - name: "Apply #[doc(cfg(...))]"
         # Skip --rustfmt, as it causes weird reformatting of quote! {} statements.
         # #[doc(cfg(...))] on the same line is the lesser evil.
         run: .github/other/apply-doc-cfg.sh --install-sd
 
-      - name: "Commit post-processed changes"
-        run: git commit -am "Postprocess docs for v${{ env.GDEXT_PUBLISHED_VERSION }}"
+      - name: "Commit post-processed docs"
+        run: |
+          git config user.name "Godot-Rust Automation"
+          git config user.email "GodotRust@users.noreply.github.com"
+          git switch -c tmp
+          git commit -am "v${{ env.GDEXT_PUBLISHED_VERSION }} (with doc attributes)"
 
-      - name: "Push changes + tag version"
+      - name: "Tag processed commit + push"
         run: | 
-          versionTag="v$GDEXT_PUBLISHED_VERSION"
-          git tag "$versionTag"
-          git push origin releases "$versionTag"
+          git tag "docs-v$GDEXT_PUBLISHED_VERSION"
+          git push origin "v$GDEXT_PUBLISHED_VERSION" "docs-v$GDEXT_PUBLISHED_VERSION"
 
   publish:
     runs-on: ubuntu-latest
