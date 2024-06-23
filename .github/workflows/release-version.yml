@@ -7,17 +7,11 @@ name: "Release workflow"
 
 on:
   push:
-  workflow_dispatch:
-    inputs:
-      skip-release:
-        description: "Enter 'y' to skip release to crates.io"
-        default: ""
-        required: false
-#    branches:
-#      - '!**'
-#    tags:
-#      # To include pre-releases: 'v0.1.[0-9]+-?*'
-#      - 'v0.1.[0-9]+'
+    branches:
+      - '!**'
+    tags:
+      # To include pre-releases: 'v0.1.[0-9]+-?*'
+      - 'v0.[0-9]+.[0-9]+'
 
 env:
   # Note: used for test and clippy, not for publish
@@ -46,22 +40,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: "Parse crate version from Cargo.toml"
+#      - name: "Parse crate version from Cargo.toml"
+#        id: parse-crate-version
+#        run: |
+#          crateVer=$(grep -Po '^version = "\K[^"]*' godot/Cargo.toml)
+#          if [[ -z "$crateVer" ]]; then
+#              echo "::error::Failed to parse crate version from godot/Cargo.toml."
+#              exit 1
+#          fi
+#
+#          # Check if tag exists.
+#          git fetch --tags
+#          if git tag -l | grep -q "^v$crateVer$" ; then
+#            echo "::error::Tag 'v$crateVer' already exists."
+#            exit 2
+#          fi
+#
+#          echo "GDEXT_PUBLISHED_VERSION=$crateVer" >> $GITHUB_OUTPUT
+#          echo "Validated version: $crateVer"
+
+      - name: "Parse crate version from tag"
         id: parse-crate-version
         run: |
-          crateVer=$(grep -Po '^version = "\K[^"]*' godot/Cargo.toml)
+          crateVer=$(echo "$GITHUB_REF" | sed -n "s#refs/tags/v\(.*\)#\1#p")
           if [[ -z "$crateVer" ]]; then
-              echo "::error::Failed to parse crate version from godot/Cargo.toml."
-              exit 1
-          fi
-          
-          # Check if tag exists.
-          git fetch --tags
-          if git tag -l | grep -q "^v$crateVer$" ; then
-            echo "::error::Tag 'v$crateVer' already exists."
+            printf "\n::error::Failed to parse GitHub ref '$GITHUB_REF'.\n"
             exit 2
           fi
-          
+      
           echo "GDEXT_PUBLISHED_VERSION=$crateVer" >> $GITHUB_OUTPUT
           echo "Validated version: $crateVer"
 
@@ -160,12 +166,14 @@ jobs:
       GDEXT_PUBLISHED_VERSION: ${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
 
       - name: "Install Rust (uncached)"
         run: rustup update stable
 
-      - name: "Tag base commit"
-        run: git tag "v$GDEXT_PUBLISHED_VERSION"
+#      - name: "Tag base commit"
+#        run: git tag "v$GDEXT_PUBLISHED_VERSION"
 
 #      - name: "Commit raw changes"
 #        # Note: first block was for an alternative approach, where a separate `releases` branch tracks deployments.
@@ -195,22 +203,24 @@ jobs:
           git commit -am "v${{ env.GDEXT_PUBLISHED_VERSION }} (with doc attributes)"
 
       - name: "Tag processed commit + push"
-        run: | 
-          git tag "docs-v$GDEXT_PUBLISHED_VERSION"
-          git push origin "v$GDEXT_PUBLISHED_VERSION" "docs-v$GDEXT_PUBLISHED_VERSION"
+        run: |
+          docTag="docs-v$GDEXT_PUBLISHED_VERSION"
+          git tag "$docTag"
+          git push origin "$docTag"
 
   publish:
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.skip-release != 'y' }}
 #    environment: 'Crates.io'
     needs:
+      - validation
       - docs-and-commit
     steps:
       # Note: we cannot dry-run the publishing, since crates depend on each other, and dry-run will fail if they aren't yet on crates.io.
       # Sleep to leave crates.io and docs.rs some time to index the dependencies, before releasing dependents.
       - uses: actions/checkout@v4
         with:
-          ref: releases
+          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
 
       - name: "Install Rust (uncached)"
         run: rustup update stable

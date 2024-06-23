@@ -61,7 +61,7 @@ find . -type f -name '*.rs' \
 | while read -r file; do
     # Replace #[cfg(...)] with #[doc(cfg(...))]. Do not insert a newline, in case the #[cfg] is commented-out.
     # shellcheck disable=SC2016
-    $sd '(\#\[(cfg\(.+?\))\])\s*([A-Za-z]|#\[)' '$1 #[cfg_attr(published_docs, doc($2))]\n$3' "$file"
+    $sd '(\#\[(cfg\(.+?\))\])(\s*)([A-Za-z]|#\[)' '$1 #[cfg_attr(published_docs, doc($2))]$3$4' "$file"
     # $sd '(\#\[(cfg\(.+?\))\])\s*([A-Za-z]|#\[)' '$1 #[doc($2)]\n$3' "$file"
     #                               ^^^^^^^^^^^^^^^^^ require that #[cfg] is followed by an identifier or a #[ attribute start.
     # This avoids some usages of function-local #[cfg]s, although by far not all. Others generate warnings, which is fine.
