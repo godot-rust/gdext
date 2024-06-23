@@ -95,19 +95,8 @@ runs:
         PATCHED_VERSION: ${{ inputs.godot-prebuilt-patch }}
       # sed -i'' needed for macOS compatibility, see https://stackoverflow.com/q/4247068
       run: |
-        # Find the godot4-prebuilt version that gdext currently depends on.
-        defaultVersion=$(grep '^default =' "godot-bindings/Cargo.toml" | sed -n 's/.*prebuilt-\([0-9]*-[0-9]*\).*/\1/p' | tr '-' '.')
-        if [ -z "$defaultVersion" ]; then
-          echo "::error::prebuilt version not found or format is incorrect."
-          exit 1
-        else
-          echo "Default prebuilt version: $defaultVersion"
-        fi
-        
         # Specify `api-*` feature for godot crate if needed.
-        if [[ "$PATCHED_VERSION" != $defaultVersion ]]; then
-          .github/other/patch-prebuilt.sh "$PATCHED_VERSION"
-        fi
+        .github/other/patch-prebuilt.sh "$PATCHED_VERSION"
         
         # Reduce versions to "major.minor" format.
         apiVersion=$(echo "$PATCHED_VERSION" | sed -E 's/([0-9]+\.[0-9]+)\.[0-9]+/\1/')
