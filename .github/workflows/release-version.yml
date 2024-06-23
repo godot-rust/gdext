@@ -211,7 +211,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     if: ${{ github.event.inputs.skip-release != 'y' }}
-#    environment: 'Crates.io'
+    environment: 'Crates.io'
     needs:
       - validation
       - docs-and-commit
@@ -226,13 +226,13 @@ jobs:
         run: rustup update stable
 
       - name: "Execute crates.io publishing"
-#        env:
-#          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
         run: |
           IFS=' ' read -r -a publishedCrates <<< "$GDEXT_CRATES"
           for crate in "${publishedCrates[@]}"; do
             echo "Publish $crate..."
-            (cd "$crate" && cargo publish --dry-run) || {
+            (cd "$crate" && cargo publish -v) || {
               printf "\n::error::Failed to publish $crate\n"
               exit 2
             }
