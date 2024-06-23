@@ -49,13 +49,14 @@ mod godot_version;
 #[path = ""]
 mod depend_on_custom {
     use super::*;
+    use std::borrow::Cow;
 
     pub(crate) mod godot_exe;
     pub(crate) mod godot_version;
     pub(crate) mod header_gen;
 
-    pub fn load_gdextension_json(watch: &mut StopWatch) -> String {
-        godot_exe::load_gdextension_json(watch)
+    pub fn load_gdextension_json(watch: &mut StopWatch) -> Cow<'static, str> {
+        Cow::Owned(godot_exe::load_gdextension_json(watch))
     }
 
     pub fn write_gdextension_headers(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
@@ -84,19 +85,19 @@ mod depend_on_prebuilt {
     use super::*;
     use crate::import::prebuilt;
 
-    pub fn load_gdextension_json(_watch: &mut StopWatch) -> &'static str {
+    pub fn load_gdextension_json(_watch: &mut StopWatch) -> std::borrow::Cow<'static, str> {
         prebuilt::load_gdextension_json()
     }
 
     pub fn write_gdextension_headers(h_path: &Path, rs_path: &Path, watch: &mut StopWatch) {
         // Note: prebuilt artifacts just return a static str.
         let h_contents = prebuilt::load_gdextension_header_h();
-        std::fs::write(h_path, h_contents)
+        std::fs::write(h_path, h_contents.as_ref())
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.h: {e}"));
         watch.record("write_header_h");
 
         let rs_contents = prebuilt::load_gdextension_header_rs();
-        std::fs::write(rs_path, rs_contents)
+        std::fs::write(rs_path, rs_contents.as_ref())
             .unwrap_or_else(|e| panic!("failed to write gdextension_interface.rs: {e}"));
         watch.record("write_header_rs");
     }
