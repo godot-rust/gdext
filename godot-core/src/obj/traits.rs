@@ -248,6 +248,9 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
 
     /// Returns a shared reference suitable for calling engine methods on this object.
     ///
+    /// Holding a shared guard prevents other code paths from obtaining a _mutable_ reference to `self`, as such it is recommended to drop the
+    /// guard as soon as you no longer need it.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -311,6 +314,9 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
     ///
     /// This method will allow you to call back into the same object from Godot, unlike what would happen
     /// if you used [`to_gd()`](WithBaseField::to_gd).
+    ///
+    /// Holding a mutable guard prevents other code paths from obtaining _any_ reference to `self`, as such it is recommended to drop the
+    /// guard as soon as you no longer need it.
     ///
     /// # Examples
     ///
