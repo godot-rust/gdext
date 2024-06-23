@@ -7,6 +7,12 @@ name: "Release workflow"
 
 on:
   push:
+  workflow_dispatch:
+    inputs:
+      skip-release:
+        description: "Enter 'y' to skip release to crates.io"
+        default: ""
+        required: false
 #    branches:
 #      - '!**'
 #    tags:
@@ -36,28 +42,33 @@ jobs:
   validation:
     runs-on: ubuntu-latest
     outputs:
-      GDEXT_PUBLISHED_VERSION: ${{ steps.interpret-tag-version.outputs.GDEXT_PUBLISHED_VERSION }}
+      GDEXT_PUBLISHED_VERSION: ${{ steps.parse-crate-version.outputs.GDEXT_PUBLISHED_VERSION }}
     steps:
       - uses: actions/checkout@v4
 
-      # sed: https://unix.stackexchange.com/a/589584
-      - name: "Interpret tag version"
-        id: interpret-tag-version
+      - name: "Parse crate version from Cargo.toml"
+        id: parse-crate-version
         run: |
-          #version=$(echo "$GITHUB_REF" | sed -n "s#refs/tags/v\(.*\)#\1#p")
-          version="0.1.0" # DEBUG
-          [ -z "$version" ] && {
-            printf "\n::error::Failed to parse '$GITHUB_REF'.\n"
-            exit 2
-          }
+          crateVer=$(grep -Po '^version = "\K[^"]*' godot/Cargo.toml)
+          if [[ -z "$crateVer" ]]; then
+              echo "::error::Failed to parse crate version from godot/Cargo.toml."
+              exit 1
+          fi
           
-          echo "Published version: $version"
-          echo "GDEXT_PUBLISHED_VERSION=$version" >> $GITHUB_OUTPUT
+          # Check if tag exists.
+          git fetch --tags
+          if git tag -l | grep -q "^v$crateVer$" ; then
+            echo "::error::Tag 'v$crateVer' already exists."
+            exit 2
+          fi
+          
+          echo "GDEXT_PUBLISHED_VERSION=$crateVer" >> $GITHUB_OUTPUT
+          echo "Validated version: $crateVer"
 
-      - name: "Verify that Cargo.toml versions match ${{ steps.interpret-tag-version.outputs.GDEXT_PUBLISHED_VERSION }}"
+      - name: "Verify that Cargo.toml versions match ${{ steps.parse-crate-version.outputs.GDEXT_PUBLISHED_VERSION }}"
         run: |
           echo "Checking crate versions..."
-          publishedVersion="${{ steps.interpret-tag-version.outputs.GDEXT_PUBLISHED_VERSION }}"
+          publishedVersion="${{ steps.parse-crate-version.outputs.GDEXT_PUBLISHED_VERSION }}"
           
           # Check if each Cargo.toml has that version
           IFS=' ' read -r -a publishedCrates <<< "$GDEXT_CRATES"
@@ -158,7 +169,7 @@ jobs:
           # Backup current repo, so we can checkout.
           mkdir -p /tmp/repo
           rsync -av --exclude .git --exclude target ./ /tmp/repo/ 
-          git switch releases || git switch --orphan releases
+          git fetch origin releases && git switch releases || git switch --orphan releases
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           # Restore.
           rsync -av --ignore-existing /tmp/repo/ .
@@ -167,19 +178,25 @@ jobs:
           git config user.name "Godot-Rust Automation"
           git config user.email "GodotRust@users.noreply.github.com"
           git add .
-          git commit -m "Repo state for v${{ env.GDEXT_PUBLISHED_VERSION }}."
+          git commit -m "Repo state for v${{ env.GDEXT_PUBLISHED_VERSION }}"
 
       - name: "Apply #[doc(cfg(...))]"
-        run: .github/other/apply-doc-cfg.sh --install-sd --rustfmt
+        # Skip --rustfmt, as it causes weird reformatting of quote! {} statements.
+        # #[doc(cfg(...))] on the same line is the lesser evil.
+        run: .github/other/apply-doc-cfg.sh --install-sd
 
       - name: "Commit post-processed changes"
-        run: git commit -am "Postprocess docs for v${{ env.GDEXT_PUBLISHED_VERSION }}."
+        run: git commit -am "Postprocess docs for v${{ env.GDEXT_PUBLISHED_VERSION }}"
 
-      - name: "Push changes"
-        run: git push origin releases
+      - name: "Push changes + tag version"
+        run: | 
+          versionTag="v$GDEXT_PUBLISHED_VERSION"
+          git tag "$versionTag"
+          git push origin releases "$versionTag"
 
   publish:
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.skip-release != 'y' }}
 #    environment: 'Crates.io'
     needs:
       - docs-and-commit

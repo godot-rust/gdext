@@ -50,7 +50,7 @@ echo "$PRE preprocess docs..."
 
 # Enable feature in each lib.rs file.
 # Note: first command uses sed because it's easier, and only handful of files.
-find . -type f -name "lib.rs" -exec sed -i '1s/^/#![feature(doc_cfg)]\n/' {} +
+find . -type f -name "lib.rs" -exec sed -i '1s/^/#![cfg_attr(published_docs, feature(doc_cfg))]\n/' {} +
 
 # Then do the actual replacements.
 # Could use \( -path "..." -o -path "..." \) to limit to certain paths.
@@ -61,14 +61,15 @@ find . -type f -name '*.rs' \
 | while read -r file; do
     # Replace #[cfg(...)] with #[doc(cfg(...))]. Do not insert a newline, in case the #[cfg] is commented-out.
     # shellcheck disable=SC2016
-    $sd '(\#\[(cfg\(.+?\))\])\s*([A-Za-z]|#\[)' '$1 #[doc($2)]\n$3' "$file"
+    $sd '(\#\[(cfg\(.+?\))\])\s*([A-Za-z]|#\[)' '$1 #[cfg_attr(published_docs, doc($2))]\n$3' "$file"
+    # $sd '(\#\[(cfg\(.+?\))\])\s*([A-Za-z]|#\[)' '$1 #[doc($2)]\n$3' "$file"
     #                               ^^^^^^^^^^^^^^^^^ require that #[cfg] is followed by an identifier or a #[ attribute start.
     # This avoids some usages of function-local #[cfg]s, although by far not all. Others generate warnings, which is fine.
 done
 
 if [[ "$rustfmt" == "true" ]]; then
   echo "$PRE Format code using rustfmt..."
-  cargo fmt
+  cargo fmt --all
 fi
 
 echo "$PRE Docs post-processed."
