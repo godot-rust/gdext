@@ -38,7 +38,7 @@ api-custom = ["dep:bindgen", "dep:regex", "dep:which"]
 api-custom-extheader = []
 
 [dependencies]
-gdextension-api = { git = "https://github.com/godot-rust/godot4-prebuilt", branch = "releases" }
+gdextension-api = { version = "0.1", git = "https://github.com/godot-rust/godot4-prebuilt", branch = "releases" }
 
 # Do not use bindgen 0.69, it contains regression that forces recompilation of code.
 bindgen = { optional = true, version = "0.68", default-features = false, features = ["runtime"] }
