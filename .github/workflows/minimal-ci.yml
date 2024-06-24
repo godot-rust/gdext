@@ -46,7 +46,6 @@ jobs:
       - name: "Install Rust"
         uses: ./.github/composite/rust
         with:
-          rust: stable
           components: rustfmt
 
       - name: "Check rustfmt"
@@ -158,7 +157,7 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/codegen-full
+            rust-extra-args: --features godot/__codegen-full
             with-hot-reload: true
 
           - name: linux-features-experimental

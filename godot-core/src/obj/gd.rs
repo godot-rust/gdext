@@ -71,11 +71,14 @@ use crate::{classes, out};
 /// * [`Gd::from_instance_id(id)`][Gd::from_instance_id] and [`Gd::try_from_instance_id(id)`][Gd::try_from_instance_id]
 ///   to obtain a pointer to an object which is already alive in the engine.
 ///
-/// # Binds
+/// # Bind guards
 ///
 /// The [`bind()`][Self::bind] and [`bind_mut()`][Self::bind_mut] methods allow you to obtain a shared or exclusive guard to the user instance.
 /// These provide interior mutability similar to [`RefCell`][std::cell::RefCell], with the addition that `Gd` simultaneously handles reference
 /// counting (for some types `T`).
+///
+/// Holding a bind guard will prevent other code paths from obtaining their own shared/mutable bind. As such, you should drop the guard
+/// as soon as you don't need it anymore, by closing a `{ }` block or calling `std::mem::drop()`.
 ///
 /// When you declare a `#[func]` method on your own class, and it accepts `&self` or `&mut self`, an implicit `bind()` or `bind_mut()` call
 /// on the owning `Gd<T>` is performed. This is important to keep in mind, as you can get into situations that violate dynamic borrow rules; for
@@ -151,6 +154,8 @@ where
     /// `GodotClass` instance, independently of how many `Gd` smart pointers point to it. There are runtime
     /// checks to ensure that Rust safety rules (e.g. no `&` and `&mut` coexistence) are upheld.
     ///
+    /// Drop the guard as soon as you don't need it anymore. See also [Bind guards](#bind-guards).
+    ///
     /// # Panics
     /// * If another `Gd` smart pointer pointing to the same Rust instance has a live `GdMut` guard bound.
     /// * If there is an ongoing function call from GDScript to Rust, which currently holds a `&mut T`
@@ -166,6 +171,8 @@ where
     /// You can either have multiple `GdRef` shared guards, or a single `GdMut` exclusive guard to a Rust
     /// `GodotClass` instance, independently of how many `Gd` smart pointers point to it. There are runtime
     /// checks to ensure that Rust safety rules (e.g. no `&mut` aliasing) are upheld.
+    ///
+    /// Drop the guard as soon as you don't need it anymore. See also [Bind guards](#bind-guards).
     ///
     /// # Panics
     /// * If another `Gd` smart pointer pointing to the same Rust instance has a live `GdRef` or `GdMut` guard bound.

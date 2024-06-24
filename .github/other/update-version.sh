@@ -7,20 +7,24 @@
 # Small utility to run update crate versions, used by godot-rust developers.
 
 # No args specified: do everything.
-if [ "$#" -eq 0 ]; then
-    echo "Usage: update-version.sh <newVersion>"
+if [[ "$#" -eq 0 ]]; then
+    echo "Usage: update-version.sh <VER> [--no-tag]"
     exit 1
 fi
 
 # --help menu
 args=("$@")
 for arg in "${args[@]}"; do
-    if [ "$arg" == "--help" ]; then
-        echo "Usage: update-version.sh <newVersion>"
+    if [[ "$arg" == "--help" ]]; then
+        echo "Usage: update-version.sh <VER> [--no-tag]"
         echo ""
         echo "Replaces currently published version with <newVersion>".
         echo "Does not git commit."
         exit 0
+    fi
+
+    if [[ "$arg" == "--no-tag" ]]; then
+        noTag="true"
     fi
 done
 
@@ -39,6 +43,7 @@ mainCargoToml="$scriptPath/../../godot/Cargo.toml"
 newVersion="${args[0]}"
 oldVersion=$(grep -Po '^version = "\K[^"]*' "$mainCargoToml")
 
+# Keep in sync with release-version.yml.
 publishedCrates=(
     "godot-bindings"
     "godot-codegen"
@@ -60,6 +65,13 @@ done
 sed -i "s!documentation = \"https://docs.rs/godot/$oldVersion\"!documentation = \"https://docs.rs/godot/$newVersion\"!g" "$mainCargoToml" || exit 2
 
 git commit -am "Update crate version: $oldVersion -> $newVersion" || exit 2
-git tag "$newVersion" || exit 2
 
+if [[ "$noTag" == "true" ]]; then
+    echo "Skipped creating tag."
+else
+    git tag "v$newVersion" || exit 2
+    echo "Created tag v$newVersion."
+fi
+
+echo ""
 echo "SUCCESS: Updated version $oldVersion -> $newVersion"

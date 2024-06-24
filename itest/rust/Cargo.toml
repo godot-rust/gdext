@@ -1,6 +1,6 @@
 [package]
 name = "itest"
-version = "0.1.0"
+version = "0.0.0"
 edition = "2021"
 rust-version = "1.78"
 license = "MPL-2.0"
@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 
 [features]
 default = []
-codegen-full-experimental = ["godot/codegen-full", "godot/experimental-godot-api"]
+codegen-full-experimental = ["godot/__codegen-full", "godot/experimental-godot-api"]
 experimental-threads = ["godot/experimental-threads"]
 serde = ["dep:serde", "dep:serde_json", "godot/serde"]
 
@@ -19,7 +19,7 @@ serde = ["dep:serde", "dep:serde_json", "godot/serde"]
 # Instead, compile itest with `--features godot/my-feature`.
 
 [dependencies]
-godot = { path = "../../godot", default-features = false, features = ["trace"] }
+godot = { path = "../../godot", default-features = false, features = ["__trace"] }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 

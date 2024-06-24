@@ -342,6 +342,9 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
 
     /// Returns a shared reference suitable for calling engine methods on this object.
     ///
+    /// Holding a shared guard prevents other code paths from obtaining a _mutable_ reference to `self`, as such it is recommended to drop the
+    /// guard as soon as you no longer need it.
+    ///
     /// ```no_run
     /// # use godot::prelude::*;
     /// # use godot::classes::{ScriptLanguage, Script};
@@ -388,7 +391,10 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
 
     /// Returns a mutable reference suitable for calling engine methods on this object.
     ///
-    /// This method will allow you to call back into the same object from Godot.
+    /// This method will allow you to call back into the same object from Godot (re-entrancy).
+    ///
+    /// Holding a mutable guard prevents other code paths from obtaining _any_ reference to `self`, as such it is recommended to drop the
+    /// guard as soon as you no longer need it.
     ///
     /// ```no_run
     /// # use godot::prelude::*;

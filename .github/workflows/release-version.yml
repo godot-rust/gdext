@@ -1,0 +1,241 @@
+# Copyright (c) godot-rust; Bromeon and contributors.
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+name: "Release workflow"
+
+on:
+  push:
+    branches:
+      - '!**'
+    tags:
+      # To include pre-releases: 'v0.1.[0-9]+-?*'
+      - 'v0.[0-9]+.[0-9]+'
+
+env:
+  # Note: used for test and clippy, not for publish
+  GDEXT_FEATURES: "--features godot/experimental-godot-api,godot/codegen-rustfmt,godot/serde"
+
+  # Crates to publish -- important, this doesn't work when there are spaces in any of the paths!
+  # Keep in sync with update-version.sh
+  GDEXT_CRATES: >
+    godot-bindings
+    godot-codegen
+    godot-ffi
+    godot-cell
+    godot-core
+    godot-macros
+    godot
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    outputs:
+      GDEXT_PUBLISHED_VERSION: ${{ steps.parse-crate-version.outputs.GDEXT_PUBLISHED_VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+
+#      - name: "Parse crate version from Cargo.toml"
+#        id: parse-crate-version
+#        run: |
+#          crateVer=$(grep -Po '^version = "\K[^"]*' godot/Cargo.toml)
+#          if [[ -z "$crateVer" ]]; then
+#              echo "::error::Failed to parse crate version from godot/Cargo.toml."
+#              exit 1
+#          fi
+#
+#          # Check if tag exists.
+#          git fetch --tags
+#          if git tag -l | grep -q "^v$crateVer$" ; then
+#            echo "::error::Tag 'v$crateVer' already exists."
+#            exit 2
+#          fi
+#
+#          echo "GDEXT_PUBLISHED_VERSION=$crateVer" >> $GITHUB_OUTPUT
+#          echo "Validated version: $crateVer"
+
+      - name: "Parse crate version from tag"
+        id: parse-crate-version
+        run: |
+          crateVer=$(echo "$GITHUB_REF" | sed -n "s#refs/tags/v\(.*\)#\1#p")
+          if [[ -z "$crateVer" ]]; then
+            printf "\n::error::Failed to parse GitHub ref '$GITHUB_REF'.\n"
+            exit 2
+          fi
+      
+          echo "GDEXT_PUBLISHED_VERSION=$crateVer" >> $GITHUB_OUTPUT
+          echo "Validated version: $crateVer"
+
+      - name: "Verify that Cargo.toml versions match ${{ steps.parse-crate-version.outputs.GDEXT_PUBLISHED_VERSION }}"
+        run: |
+          echo "Checking crate versions..."
+          publishedVersion="${{ steps.parse-crate-version.outputs.GDEXT_PUBLISHED_VERSION }}"
+          
+          # Check if each Cargo.toml has that version
+          IFS=' ' read -r -a publishedCrates <<< "$GDEXT_CRATES"
+          for crate in "${publishedCrates[@]}"; do
+            readVersion=$(grep -Po '^version = "\K[^"]*' "$crate/Cargo.toml")
+            printf "* $crate -> $readVersion"
+          
+            if [[ "$readVersion" != "$publishedVersion" ]]; then
+              printf "     ERROR\n"
+              versionMismatch="1"
+            else
+              printf "\n"
+            fi
+          done
+          
+          if [[ -n "$versionMismatch" ]]; then
+            printf "\n::error::At least one crate has a version mismatching the git tag.\n"
+            exit 2
+          else
+            printf "\nAll versions OK.\n"
+          fi
+
+  # Keep all in sync with minimal-ci and full-ci.
+  unit-test:
+    runs-on: ubuntu-latest
+    needs: validation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Install Rust (uncached)"
+        run: rustup update stable
+
+      - name: "Compile and run test"
+        run: cargo test $GDEXT_FEATURES
+
+  clippy:
+    runs-on: ubuntu-latest
+    needs: validation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Install Rust (uncached)"
+        run: rustup update stable
+
+      - name: "Check clippy"
+        run: |
+          cargo clippy --all-targets $GDEXT_FEATURES -- \
+          -D clippy::suspicious \
+          -D clippy::style \
+          -D clippy::complexity \
+          -D clippy::perf \
+          -D clippy::dbg_macro \
+          -D clippy::todo \
+          -D clippy::unimplemented \
+          -D warnings
+
+  rustfmt:
+    runs-on: ubuntu-latest
+    needs: validation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Install Rust (uncached)"
+        run: rustup update stable
+
+      - name: "Check rustfmt"
+        run: cargo fmt --all -- --check
+
+      - name: "Run custom repo checks"
+        run: |
+          cargo run -p repo-tweak
+          git diff --quiet --exit-code || {
+            echo "::error::Godot versions out of sync; update with `cargo run -p repo-tweak`."
+            echo "Differences:"
+            echo "----------------------------------------------------"
+            git diff
+            echo "----------------------------------------------------"
+            exit 1
+          }
+
+  docs-and-commit:
+    runs-on: ubuntu-latest
+    needs:
+      - validation
+      - unit-test
+      - clippy
+      - rustfmt
+    env:
+      GDEXT_PUBLISHED_VERSION: ${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
+
+      - name: "Install Rust (uncached)"
+        run: rustup update stable
+
+#      - name: "Tag base commit"
+#        run: git tag "v$GDEXT_PUBLISHED_VERSION"
+
+#      - name: "Commit raw changes"
+#        # Note: first block was for an alternative approach, where a separate `releases` branch tracks deployments.
+#        # Such a branch would however be disjoint and require quite a bit of extra space in the repo.
+#        run: |
+#          # Backup current repo, so we can checkout.
+#          mkdir -p /tmp/repo
+#          rsync -av --exclude .git --exclude target ./ /tmp/repo/
+#          git fetch origin releases && git switch releases || git switch --orphan releases
+#          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+#          # Restore.
+#          rsync -av --ignore-existing /tmp/repo/ .
+#
+#          git add .
+#          git commit -m "Repo state for v${{ env.GDEXT_PUBLISHED_VERSION }}"
+
+      - name: "Apply #[doc(cfg(...))]"
+        # Skip --rustfmt, as it causes weird reformatting of quote! {} statements.
+        # #[doc(cfg(...))] on the same line is the lesser evil.
+        run: .github/other/apply-doc-cfg.sh --install-sd
+
+      - name: "Commit post-processed docs"
+        run: |
+          git config user.name "Godot-Rust Automation"
+          git config user.email "GodotRust@users.noreply.github.com"
+          git switch -c tmp
+          git commit -am "v${{ env.GDEXT_PUBLISHED_VERSION }} (with doc attributes)"
+
+      - name: "Tag processed commit + push"
+        run: |
+          docTag="docs-v$GDEXT_PUBLISHED_VERSION"
+          git tag "$docTag"
+          git push origin "$docTag"
+
+  publish:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.skip-release != 'y' }}
+    environment: 'Crates.io'
+    needs:
+      - validation
+      - docs-and-commit
+    steps:
+      # Note: we cannot dry-run the publishing, since crates depend on each other, and dry-run will fail if they aren't yet on crates.io.
+      # Sleep to leave crates.io and docs.rs some time to index the dependencies, before releasing dependents.
+      - uses: actions/checkout@v4
+        with:
+          ref: 'v${{ needs.validation.outputs.GDEXT_PUBLISHED_VERSION }}'
+
+      - name: "Install Rust (uncached)"
+        run: rustup update stable
+
+      - name: "Execute crates.io publishing"
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          IFS=' ' read -r -a publishedCrates <<< "$GDEXT_CRATES"
+          for crate in "${publishedCrates[@]}"; do
+            echo "Publish $crate..."
+            (cd "$crate" && cargo publish -v) || {
+              printf "\n::error::Failed to publish $crate\n"
+              exit 2
+            }
+            echo "Wait..."
+            sleep 10s
+          done

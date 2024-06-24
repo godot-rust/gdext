@@ -1,6 +1,6 @@
 [package]
 name = "godot"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.78"
 license = "MPL-2.0"
@@ -10,16 +10,15 @@ description = "Rust bindings for Godot 4"
 authors = ["Bromeon", "godot-rust contributors"]
 repository = "https://github.com/godot-rust/gdext"
 homepage = "https://godot-rust.github.io"
-documentation = "https://docs.rs/godot/0.1.0"
+documentation = "https://docs.rs/godot/0.1.1"
 
 [features]
-default = ["codegen-full"]
 custom-godot = ["api-custom"]
 double-precision = ["godot-core/double-precision"]
 experimental-godot-api = ["godot-core/experimental-godot-api"]
 experimental-threads = ["godot-core/experimental-threads"]
 experimental-wasm = []
-rustfmt = ["godot-core/codegen-rustfmt"]
+codegen-rustfmt = ["godot-core/codegen-rustfmt"]
 lazy-function-tables = ["godot-core/codegen-lazy-fptrs"]
 serde = ["godot-core/serde"]
 
@@ -41,15 +40,16 @@ api-4-2-1 = ["godot-core/api-4-2-1"]
 api-4-2-2 = ["godot-core/api-4-2-2"]
 # ]]
 
+default = ["__codegen-full"]
 
 # Private features, they are under no stability guarantee
-codegen-full = ["godot-core/codegen-full"]
-debug-log = ["godot-core/debug-log"]
-trace = ["godot-core/trace"]
+__codegen-full = ["godot-core/codegen-full"]
+__debug-log = ["godot-core/debug-log"]
+__trace = ["godot-core/trace"]
 
 [dependencies]
-godot-core = { path = "../godot-core", version = "=0.1.0" }
-godot-macros = { path = "../godot-macros", version = "=0.1.0" }
+godot-core = { path = "../godot-core", version = "=0.1.1" }
+godot-macros = { path = "../godot-macros", version = "=0.1.1" }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]

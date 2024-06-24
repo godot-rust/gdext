@@ -35,6 +35,7 @@ defaults:
 #  cancel-in-progress: true
 
 jobs:
+  # Keep all in sync with minimal-ci and release-version.
   rustfmt:
     runs-on: ubuntu-20.04
     steps:
@@ -304,12 +305,12 @@ jobs:
           # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
 
           # Uses full+experimental codegen, so that compatibility breakage towards nightly is detected.
-          # If the experimental part causes problems, consider using only godot/codegen-full.
+          # If the experimental part causes problems, consider using only godot/__codegen-full.
           - name: linux-full
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/codegen-full
+            rust-extra-args: --features godot/__codegen-full
             with-hot-reload: true
 
           # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
@@ -317,7 +318,7 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-double-nightly
             godot-binary: godot.linuxbsd.editor.dev.double.x86_64
-            rust-extra-args: --features godot/api-custom,godot/double-precision,godot/codegen-full,godot/lazy-function-tables
+            rust-extra-args: --features godot/api-custom,godot/double-precision,godot/__codegen-full,godot/lazy-function-tables
 
           - name: linux-features-experimental
             os: ubuntu-20.04
