@@ -20,8 +20,9 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         .as_struct()
         .ok_or_else(|| venial::Error::new("Not a valid struct"))?;
 
+    let named_fields = named_fields(class)?;
     let struct_cfg = parse_struct_attributes(class)?;
-    let fields = parse_fields(class, struct_cfg.init_strategy)?;
+    let fields = parse_fields(named_fields, struct_cfg.init_strategy)?;
 
     let class_name = &class.name;
     let class_name_str: String = struct_cfg
@@ -292,9 +293,6 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
             base_ty = base;
         }
 
-        // #[class(rename = NewName)]
-        rename = parser.handle_ident("rename")?;
-
         // #[class(init)], #[class(no_init)]
         match handle_opposite_keys(&mut parser, "init", "class")? {
             Some(true) => init_strategy = InitStrategy::Generated,
@@ -314,19 +312,24 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
             is_editor_plugin = true;
 
             // Requires #[class(tool, base=EditorPlugin)].
-            if !is_tool {
-                return bail!(
-                    attr_key,
-                    "#[class(editor_plugin)] requires additional key `tool`"
-                );
-            }
+            // The base=EditorPlugin check should come first to create the best compile errors since it's more complex to resolve.
+            // See https://github.com/godot-rust/gdext/pull/773
             if base_ty != ident("EditorPlugin") {
                 return bail!(
                     attr_key,
                     "#[class(editor_plugin)] requires additional key-value `base=EditorPlugin`"
                 );
             }
+            if !is_tool {
+                return bail!(
+                    attr_key,
+                    "#[class(editor_plugin)] requires additional key `tool`"
+                );
+            }
         }
+
+        // #[class(rename = NewName)]
+        rename = parser.handle_ident("rename")?;
 
         // #[class(hidden)]
         // TODO consider naming this "internal"; godot-cpp uses that terminology:
@@ -349,22 +352,30 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
     })
 }
 
-/// Returns field names and 1 base field, if available
-fn parse_fields(class: &venial::Struct, init_strategy: InitStrategy) -> ParseResult<Fields> {
-    let mut all_fields = vec![];
-    let mut base_field = Option::<Field>::None;
-    let mut has_deprecated_base = false;
-
-    let named_fields: Vec<(venial::NamedField, Punct)> = match &class.fields {
-        venial::Fields::Unit => {
-            vec![]
-        }
+/// Fetches data for all named fields for a struct.
+///
+/// Errors if `class` is a tuple struct.
+fn named_fields(class: &venial::Struct) -> ParseResult<Vec<(venial::NamedField, Punct)>> {
+    // This is separate from parse_fields to improve compile errors.  The errors from here demand larger and more non-local changes from the API
+    // user than those from parse_struct_attributes, so this must be run first.
+    match &class.fields {
+        venial::Fields::Unit => Ok(vec![]),
         venial::Fields::Tuple(_) => bail!(
             &class.fields,
             "#[derive(GodotClass)] not supported for tuple structs",
         )?,
-        venial::Fields::Named(fields) => fields.fields.inner.clone(),
-    };
+        venial::Fields::Named(fields) => Ok(fields.fields.inner.clone()),
+    }
+}
+
+/// Returns field names and 1 base field, if available.
+fn parse_fields(
+    named_fields: Vec<(venial::NamedField, Punct)>,
+    init_strategy: InitStrategy,
+) -> ParseResult<Fields> {
+    let mut all_fields = vec![];
+    let mut base_field = Option::<Field>::None;
+    let mut has_deprecated_base = false;
 
     // Attributes on struct fields
     for (named_field, _punct) in named_fields {
