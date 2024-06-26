@@ -69,7 +69,8 @@ impl Transform3D {
 
     /// Create a new transform from 4 matrix-columns.
     ///
-    /// _Godot equivalent: `Transform3D(Vector3 x_axis, Vector3 y_axis, Vector3 z_axis, Vector3 origin)`_
+    /// _Godot equivalent: `Transform3D(Vector3 x_axis, Vector3 y_axis, Vector3 z_axis, Vector3 origin)`_, see [`Basis`][crate::builtin::Basis]
+    /// for why it's changed
     pub const fn from_cols(a: Vector3, b: Vector3, c: Vector3, origin: Vector3) -> Self {
         Self {
             basis: Basis::from_cols(a, b, c),
@@ -265,10 +266,13 @@ impl Transform3D {
 }
 
 impl Display for Transform3D {
+    /// Formats the value with the given formatter.  [Read more](https://doc.rust-lang.org/1.79.0/core/fmt/trait.Display.html#tymethod.fmt)
+    ///
+    /// The output is similar to Godot's, but calls the columns a/b/c instead of X/Y/Z.  See [`Basis`][crate::builtin::Basis] for why.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Godot output:
         // [X: (1, 2, 3), Y: (4, 5, 6), Z: (7, 8, 9), O: (10, 11, 12)]
-        // Where X,Y,O are the columns
+        // Where X,Y,Z,O are the columns
         let [a, b, c] = self.basis.to_cols();
         let o = self.origin;
 

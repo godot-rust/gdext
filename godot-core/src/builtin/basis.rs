@@ -23,6 +23,12 @@ use std::ops::{Mul, MulAssign};
 ///
 /// The basis vectors are the columns of the matrix, whereas the [`rows`](Self::rows) field represents
 /// the row vectors.
+///
+/// Note that the names of the column vectors here are `a`, `b`, and `c`, which differs from Godot's convention of `x`, `y`, and `z`.  This is
+/// because columns are the basis vectors of the transform, while rows represent the X/Y/Z coordinates of each vector. Although basis vectors are
+/// the _transformed_ unit vectors of X/Y/Z axes, they have no direct relation to those axes in the _transformed_ coordinate system. Thus, an
+/// independent notion of a, b, c does not suggest such a relation.  Furthermore, there are sometimes expressions such as `x.x`, `x.y`, `y.x`
+/// etc. They are typically hard to read and error-prone to write. Having `a.x`, `a.y`, `b.x` makes things more understandable.
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
@@ -457,7 +463,7 @@ impl Basis {
 
     /// Returns the first column of the matrix,
     ///
-    /// _Godot equivalent: `Basis.x`_
+    /// _Godot equivalent: `Basis.x`_, see [`Basis`] for why it's changed
     #[doc(alias = "x")]
     #[must_use]
     pub fn col_a(&self) -> Vector3 {
@@ -473,7 +479,7 @@ impl Basis {
 
     /// Returns the second column of the matrix,
     ///
-    /// _Godot equivalent: `Basis.y`_
+    /// _Godot equivalent: `Basis.y`_, see [`Basis`] for why it's changed
     #[doc(alias = "y")]
     #[must_use]
     pub fn col_b(&self) -> Vector3 {
@@ -489,7 +495,7 @@ impl Basis {
 
     /// Returns the third column of the matrix,
     ///
-    /// _Godot equivalent: `Basis.z`_
+    /// _Godot equivalent: `Basis.z`_, see [`Basis`] for why it's changed
     #[doc(alias = "z")]
     #[must_use]
     pub fn col_c(&self) -> Vector3 {
