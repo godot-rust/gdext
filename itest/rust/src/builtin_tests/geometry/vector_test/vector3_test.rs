@@ -309,10 +309,12 @@ fn move_toward() {
 }
 
 #[itest]
-fn normalized() {
+fn try_normalized() {
     let a = Vector3::new(1.2, -3.4, 5.6);
+    let b = Vector3::ZERO;
 
-    assert_eq!(a.normalized(), a.as_inner().normalized());
+    assert_eq_approx!(a.try_normalized().unwrap(), a.as_inner().normalized());
+    assert_eq!(b.try_normalized(), None);
 }
 
 #[itest]

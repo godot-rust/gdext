@@ -511,12 +511,23 @@ macro_rules! impl_float_vector_fns {
                 )
             }
 
-            /// Returns the normalized vector pointing from this vector to `to`.
+            /// Returns the normalized vector pointing from this vector to `to` or [`None`], if `self` and `to` are equal.
             ///
-            /// This is equivalent to using `(b - a).normalized()`.
+            /// This is equivalent to using `(b - a).try_normalized()`. See also [`direction_to()`][Self::direction_to].
+            #[inline]
+            pub fn try_direction_to(self, to: Self) -> Option<Self> {
+                (to - self).try_normalized()
+            }
+
+            /// ⚠️ Returns the normalized vector pointing from this vector to `to`.
+            ///
+            /// This is equivalent to using `(b - a).normalized()`. See also [`try_direction_to()`][Self::try_direction_to].
+            ///
+            /// # Panics
+            /// If `self` and `to` are equal.
             #[inline]
             pub fn direction_to(self, to: Self) -> Self {
-                (to - self).normalized()
+                self.try_direction_to(to).expect("direction_to() called on equal vectors")
             }
 
             /// Returns the squared distance between this vector and `to`.
@@ -575,17 +586,36 @@ macro_rules! impl_float_vector_fns {
                 )
             }
 
-            /// Returns the vector scaled to unit length. Equivalent to `self / self.length()`. See
-            /// also `is_normalized()`.
+            /// Returns the vector scaled to unit length or [`None`], if called on a zero vector.
+            ///
+            /// Computes `self / self.length()`. See also [`normalized()`][Self::normalized] and [`is_normalized()`][Self::is_normalized].
+            #[inline]
+            pub fn try_normalized(self) -> Option<Self> {
+                if self == Self::ZERO {
+                    return None;
+                }
+
+                // Copy Godot's implementation since it's faster than using glam's normalize_or_zero().
+                Some(self / self.length())
+            }
+
+            /// ⚠️ Returns the vector scaled to unit length.
+            ///
+            /// Computes `self / self.length()`. See also [`try_normalized()`][Self::try_normalized] and [`is_normalized()`][Self::is_normalized].
             ///
             /// # Panics
             /// If called on a zero vector.
             #[inline]
             pub fn normalized(self) -> Self {
-                assert_ne!(self, Self::ZERO, "normalized() called on zero vector");
+                self.try_normalized().expect("normalized() called on zero vector")
+            }
 
-                // Copy Godot's implementation since it's faster than using glam's normalize_or_zero().
-                self / self.length()
+            /// Returns the vector scaled to unit length or [`Self::ZERO`], if called on a zero vector.
+            ///
+            /// Computes `self / self.length()`. See also [`try_normalized()`][Self::try_normalized] and [`is_normalized()`][Self::is_normalized].
+            #[inline]
+            pub fn normalized_or_zero(self) -> Self {
+                self.try_normalized().unwrap_or_default()
             }
 
             /// Returns a vector composed of the [`FloatExt::fposmod`] of this vector's components and `pmod`.
