@@ -92,7 +92,9 @@ impl BindingStorage {
     pub unsafe fn get_binding_unchecked() -> &'static GodotBinding {
         let storage = Self::storage();
 
-        if cfg!(debug_assertions) {
+        // CHECK Need to check on more platforms.
+        // Currently, a runtime panic occurs on Android.
+        if cfg!(all(debug_assertions, not(target_os = "android"))) {
             let main_thread_id = storage.main_thread_id.get().expect(
                 "Godot engine not available; make sure you are not calling it from unit/doc tests",
             );
