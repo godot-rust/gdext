@@ -168,6 +168,24 @@ pub mod export_info_functions {
     }
 
     // We want this to match the options available on `@export_range(..)`
+    /// Mark an exported numerical value to use the editor's range UI.
+    ///
+    /// You'll never call this function itself, but will instead use the macro `#[export(range=(...))]`, as below.  The syntax is
+    /// very similar to Godot's [`@export_range`](https://docs.godotengine.org/en/stable/classes/class_%40gdscript.html#class-gdscript-annotation-export-range).
+    /// `min`, `max`, and `step` are `f32` positional arguments, with `step` being optional and defaulting to `1.0`.  The rest of
+    /// the arguments can be written in any order.  The symbols of type `bool` just need to have those symbols written, and those of type `Option<T>` will be written as `{KEY}={VALUE}`, e.g. `suffix="px"`.
+    ///
+    /// ```
+    /// # use godot::prelude::*;
+    /// #[derive(GodotClass)]
+    /// #[class(init, base=Node)]
+    /// struct MyClassWithRangedValues {
+    ///     #[export(range=(0.0, 400.0, 1.0, or_greater, suffix="px"))]
+    ///     icon_width: i32,
+    ///     #[export(range=(-180.0, 180.0, degrees))]
+    ///     angle: f32,
+    /// }
+    /// ```
     #[allow(clippy::too_many_arguments)]
     pub fn export_range(
         min: f64,
@@ -176,23 +194,32 @@ pub mod export_info_functions {
         or_greater: bool,
         or_less: bool,
         exp: bool,
-        radians: bool,
+        radians_as_degrees: bool,
         degrees: bool,
         hide_slider: bool,
+        suffix: Option<String>,
     ) -> PropertyHintInfo {
         let hint_beginning = if let Some(step) = step {
             format!("{min},{max},{step}")
         } else {
             format!("{min},{max}")
         };
-        let rest =
-            comma_separate_boolean_idents!(or_greater, or_less, exp, radians, degrees, hide_slider);
+        let rest = comma_separate_boolean_idents!(
+            or_greater,
+            or_less,
+            exp,
+            radians_as_degrees,
+            degrees,
+            hide_slider
+        );
 
-        let hint_string = if rest.is_empty() {
-            hint_beginning
-        } else {
-            format!("{hint_beginning},{rest}")
-        };
+        let mut hint_string = hint_beginning;
+        if !rest.is_empty() {
+            hint_string.push_str(&format!(",{rest}"));
+        }
+        if let Some(suffix) = suffix {
+            hint_string.push_str(&format!(",suffix:{suffix}"));
+        }
 
         PropertyHintInfo {
             hint: PropertyHint::RANGE,

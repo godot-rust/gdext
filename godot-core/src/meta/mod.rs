@@ -117,6 +117,7 @@ impl PropertyInfo {
     ///         false,
     ///         false,
     ///         false,
+    ///         Some("mm".to_string()),
     ///     ));
     /// ```
     pub fn with_hint_info(self, hint_info: PropertyHintInfo) -> Self {
