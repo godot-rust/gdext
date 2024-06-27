@@ -571,14 +571,7 @@ impl Enum {
 impl Enumerator {
     pub fn from_json(json: &JsonEnumConstant, rust_name: Ident, is_bitfield: bool) -> Self {
         let value = if is_bitfield {
-            let ord = json.value.try_into().unwrap_or_else(|_| {
-                panic!(
-                    "bitfield value {} = {} is negative; please report this",
-                    json.name, json.value
-                )
-            });
-
-            EnumeratorValue::Bitfield(ord)
+            EnumeratorValue::Bitfield(json.value)
         } else {
             let ord = json.value.try_into().unwrap_or_else(|_| {
                 panic!(
