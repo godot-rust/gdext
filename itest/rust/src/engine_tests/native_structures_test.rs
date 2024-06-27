@@ -7,13 +7,18 @@
 
 use crate::framework::itest;
 
-use godot::builtin::{Rect2, Rid, Variant};
+use godot::builtin::{
+    Array, Color, Dictionary, GString, PackedInt32Array, Rect2, Rid, Variant, VariantArray,
+    Vector2, Vector2i,
+};
 use godot::classes::native::{
     AudioFrame, CaretInfo, Glyph, ObjectId, PhysicsServer2DExtensionShapeResult,
 };
 use godot::classes::text_server::Direction;
 use godot::classes::{ITextServerExtension, Node3D, RefCounted, TextServer, TextServerExtension};
-use godot::obj::{Base, NewAlloc, NewGd};
+use godot::engine::{text_server, Image};
+use godot::global::InlineAlignment;
+use godot::obj::{Base, Gd, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 
 use std::cell::Cell;
@@ -69,6 +74,419 @@ impl ITextServerExtension for TestTextServer {
 
     unsafe fn shaped_text_get_glyphs(&self, _shaped: Rid) -> *const Glyph {
         self.glyphs.as_ptr()
+    }
+
+    fn has_feature(&self, _feature: text_server::Feature) -> bool {
+        unreachable!()
+    }
+
+    fn get_name(&self) -> GString {
+        unreachable!()
+    }
+
+    fn get_features(&self) -> i64 {
+        unreachable!()
+    }
+
+    fn free_rid(&mut self, _rid: Rid) {
+        unreachable!()
+    }
+
+    fn has(&mut self, _rid: Rid) -> bool {
+        unreachable!()
+    }
+
+    fn create_font(&mut self) -> Rid {
+        unreachable!()
+    }
+
+    fn font_set_fixed_size(&mut self, _font_rid: Rid, _fixed_sizee: i64) {
+        unreachable!()
+    }
+
+    fn font_get_fixed_size(&self, _font_rid: Rid) -> i64 {
+        unreachable!()
+    }
+
+    fn font_set_fixed_size_scale_mode(
+        &mut self,
+        _font_rid: Rid,
+        _fixed_size_scale_mode: text_server::FixedSizeScaleMode,
+    ) {
+        unreachable!()
+    }
+
+    fn font_get_fixed_size_scale_mode(&self, _font_rid: Rid) -> text_server::FixedSizeScaleMode {
+        unreachable!()
+    }
+
+    fn font_get_size_cache_list(&self, _font_rid: Rid) -> Array<Vector2i> {
+        unreachable!()
+    }
+
+    fn font_clear_size_cache(&mut self, _font_rid: Rid) {
+        unreachable!()
+    }
+
+    fn font_remove_size_cache(&mut self, _font_rid: Rid, _size: Vector2i) {
+        unreachable!()
+    }
+
+    fn font_set_ascent(&mut self, _font_rid: Rid, _size: i64, _ascent: f64) {
+        unreachable!()
+    }
+
+    fn font_get_ascent(&self, _font_rid: Rid, _size: i64) -> f64 {
+        unreachable!()
+    }
+
+    fn font_set_descent(&mut self, _font_rid: Rid, _size: i64, _descent: f64) {
+        unreachable!()
+    }
+
+    fn font_get_descent(&self, _font_rid: Rid, _size: i64) -> f64 {
+        unreachable!()
+    }
+
+    fn font_set_underline_position(
+        &mut self,
+        _font_rid: Rid,
+        _size: i64,
+        _underline_position: f64,
+    ) {
+        unreachable!()
+    }
+
+    fn font_get_underline_position(&self, _font_rid: Rid, _size: i64) -> f64 {
+        unreachable!()
+    }
+
+    fn font_set_underline_thickness(
+        &mut self,
+        _font_rid: Rid,
+        _size: i64,
+        _underline_thickness: f64,
+    ) {
+        unreachable!()
+    }
+
+    fn font_get_underline_thickness(&self, _font_rid: Rid, _size: i64) -> f64 {
+        unreachable!()
+    }
+
+    fn font_set_scale(&mut self, _font_rid: Rid, _size: i64, _scale: f64) {
+        unreachable!()
+    }
+
+    fn font_get_scale(&self, _font_rid: Rid, _size: i64) -> f64 {
+        unreachable!()
+    }
+
+    fn font_get_texture_count(&self, _font_rid: Rid, _size: Vector2i) -> i64 {
+        unreachable!()
+    }
+
+    fn font_clear_textures(&mut self, _font_rid: Rid, _size: Vector2i) {
+        unreachable!()
+    }
+
+    fn font_remove_texture(&mut self, _font_rid: Rid, _size: Vector2i, _texture_index: i64) {
+        unreachable!()
+    }
+
+    fn font_set_texture_image(
+        &mut self,
+        _font_rid: Rid,
+        _size: Vector2i,
+        _texture_index: i64,
+        _image: Gd<Image>,
+    ) {
+        unreachable!()
+    }
+
+    fn font_get_texture_image(
+        &self,
+        _font_rid: Rid,
+        _size: Vector2i,
+        _texture_index: i64,
+    ) -> Option<Gd<Image>> {
+        unreachable!()
+    }
+
+    fn font_get_glyph_list(&self, _font_rid: Rid, _size: Vector2i) -> PackedInt32Array {
+        unreachable!()
+    }
+
+    fn font_clear_glyphs(&mut self, _font_rid: Rid, _size: Vector2i) {
+        unreachable!()
+    }
+
+    fn font_remove_glyph(&mut self, _font_rid: Rid, _size: Vector2i, _glyph: i64) {
+        unreachable!()
+    }
+
+    fn font_get_glyph_advance(&self, _font_rid: Rid, _size: i64, _glyph: i64) -> Vector2 {
+        unreachable!()
+    }
+
+    fn font_set_glyph_advance(
+        &mut self,
+        _font_rid: Rid,
+        _size: i64,
+        _glyph: i64,
+        _advance: Vector2,
+    ) {
+        unreachable!()
+    }
+
+    fn font_get_glyph_offset(&self, _font_rid: Rid, _size: Vector2i, _glyph: i64) -> Vector2 {
+        unreachable!()
+    }
+
+    fn font_set_glyph_offset(
+        &mut self,
+        _font_rid: Rid,
+        _size: Vector2i,
+        _glyph: i64,
+        _offset: Vector2,
+    ) {
+        unreachable!()
+    }
+
+    fn font_get_glyph_size(&self, _font_rid: Rid, _size: Vector2i, _glyph: i64) -> Vector2 {
+        unreachable!()
+    }
+
+    fn font_set_glyph_size(
+        &mut self,
+        _font_rid: Rid,
+        _size: Vector2i,
+        _glyph: i64,
+        _gl_size: Vector2,
+    ) {
+        unreachable!()
+    }
+
+    fn font_get_glyph_uv_rect(&self, _font_rid: Rid, _size: Vector2i, _glyph: i64) -> Rect2 {
+        unreachable!()
+    }
+
+    fn font_set_glyph_uv_rect(
+        &mut self,
+        _font_rid: Rid,
+        _size: Vector2i,
+        _glyph: i64,
+        _uv_rect: Rect2,
+    ) {
+        unreachable!()
+    }
+
+    fn font_get_glyph_texture_idx(&self, _font_rid: Rid, _size: Vector2i, _glyph: i64) -> i64 {
+        unreachable!()
+    }
+
+    fn font_set_glyph_texture_idx(
+        &mut self,
+        _font_rid: Rid,
+        _size: Vector2i,
+        _glyph: i64,
+        _texture_idx: i64,
+    ) {
+        unreachable!()
+    }
+
+    fn font_get_glyph_texture_rid(&self, _font_rid: Rid, _size: Vector2i, _glyph: i64) -> Rid {
+        unreachable!()
+    }
+
+    fn font_get_glyph_texture_size(&self, _font_rid: Rid, _size: Vector2i, _glyph: i64) -> Vector2 {
+        unreachable!()
+    }
+
+    fn font_get_glyph_index(
+        &self,
+        _font_rid: Rid,
+        _size: i64,
+        _char: i64,
+        _variation_selector: i64,
+    ) -> i64 {
+        unreachable!()
+    }
+
+    fn font_get_char_from_glyph_index(&self, _font_rid: Rid, _size: i64, _glyph_index: i64) -> i64 {
+        unreachable!()
+    }
+
+    fn font_has_char(&self, _font_rid: Rid, _char: i64) -> bool {
+        unreachable!()
+    }
+
+    fn font_get_supported_chars(&self, _font_rid: Rid) -> GString {
+        unreachable!()
+    }
+
+    fn font_draw_glyph(
+        &self,
+        _font_rid: Rid,
+        _canvas: Rid,
+        _size: i64,
+        _pos: Vector2,
+        _index: i64,
+        _color: Color,
+    ) {
+        unreachable!()
+    }
+
+    fn font_draw_glyph_outline(
+        &self,
+        _font_rid: Rid,
+        _canvas: Rid,
+        _size: i64,
+        _outline_size: i64,
+        _pos: Vector2,
+        _index: i64,
+        _color: Color,
+    ) {
+        unreachable!()
+    }
+
+    fn create_shaped_text(
+        &mut self,
+        _direction: text_server::Direction,
+        _orientation: text_server::Orientation,
+    ) -> Rid {
+        unreachable!()
+    }
+
+    fn shaped_text_clear(&mut self, _shaped: Rid) {
+        unreachable!()
+    }
+
+    fn shaped_text_add_string(
+        &mut self,
+        _shaped: Rid,
+        _text: GString,
+        _fonts: Array<Rid>,
+        _size: i64,
+        _opentype_features: Dictionary,
+        _language: GString,
+        _meta: Variant,
+    ) -> bool {
+        unreachable!()
+    }
+
+    fn shaped_text_add_object(
+        &mut self,
+        _shaped: Rid,
+        _key: Variant,
+        _size: Vector2,
+        _inline_align: InlineAlignment,
+        _length: i64,
+        _baseline: f64,
+    ) -> bool {
+        unreachable!()
+    }
+
+    fn shaped_text_resize_object(
+        &mut self,
+        _shaped: Rid,
+        _key: Variant,
+        _size: Vector2,
+        _inline_align: InlineAlignment,
+        _baseline: f64,
+    ) -> bool {
+        unreachable!()
+    }
+
+    fn shaped_get_span_count(&self, _shaped: Rid) -> i64 {
+        unreachable!()
+    }
+
+    fn shaped_get_span_meta(&self, _shaped: Rid, _index: i64) -> Variant {
+        unreachable!()
+    }
+
+    fn shaped_set_span_update_font(
+        &mut self,
+        _shaped: Rid,
+        _index: i64,
+        _fonts: Array<Rid>,
+        _size: i64,
+        _opentype_features: Dictionary,
+    ) {
+        unreachable!()
+    }
+
+    fn shaped_text_substr(&self, _shaped: Rid, _start: i64, _lengthh: i64) -> Rid {
+        unreachable!()
+    }
+
+    fn shaped_text_get_parent(&self, _shaped: Rid) -> Rid {
+        unreachable!()
+    }
+
+    fn shaped_text_shape(&mut self, _shaped: Rid) -> bool {
+        unreachable!()
+    }
+
+    fn shaped_text_is_ready(&self, _shaped: Rid) -> bool {
+        unreachable!()
+    }
+
+    unsafe fn shaped_text_sort_logical(&mut self, _shaped: Rid) -> *const Glyph {
+        unreachable!()
+    }
+
+    fn shaped_text_get_range(&self, _shaped: Rid) -> Vector2i {
+        unreachable!()
+    }
+
+    fn shaped_text_get_trim_pos(&self, _shaped: Rid) -> i64 {
+        unreachable!()
+    }
+
+    fn shaped_text_get_ellipsis_pos(&self, _shaped: Rid) -> i64 {
+        unreachable!()
+    }
+
+    fn shaped_text_get_ellipsis_glyph_count(&self, _shaped: Rid) -> i64 {
+        unreachable!()
+    }
+
+    unsafe fn shaped_text_get_ellipsis_glyphs(&self, _shaped: Rid) -> *const Glyph {
+        unreachable!()
+    }
+
+    fn shaped_text_get_objects(&self, _shaped: Rid) -> VariantArray {
+        unreachable!()
+    }
+
+    fn shaped_text_get_object_rect(&self, _shaped: Rid, _key: Variant) -> Rect2 {
+        unreachable!()
+    }
+
+    fn shaped_text_get_size(&self, _shaped: Rid) -> Vector2 {
+        unreachable!()
+    }
+
+    fn shaped_text_get_ascent(&self, _shaped: Rid) -> f64 {
+        unreachable!()
+    }
+
+    fn shaped_text_get_descent(&self, _shaped: Rid) -> f64 {
+        unreachable!()
+    }
+
+    fn shaped_text_get_width(&self, _shaped: Rid) -> f64 {
+        unreachable!()
+    }
+
+    fn shaped_text_get_underline_position(&self, _shaped: Rid) -> f64 {
+        unreachable!()
+    }
+
+    fn shaped_text_get_underline_thickness(&self, _shaped: Rid) -> f64 {
+        unreachable!()
     }
 }
 

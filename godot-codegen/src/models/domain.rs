@@ -280,6 +280,7 @@ pub struct FunctionCommon {
     pub return_value: FnReturn,
     pub is_vararg: bool,
     pub is_private: bool,
+    pub is_required: bool,
     pub direction: FnDirection,
 }
 
@@ -313,6 +314,9 @@ pub trait Function: fmt::Display {
     }
     fn direction(&self) -> FnDirection {
         self.common().direction
+    }
+    fn is_required(&self) -> bool {
+        self.common().is_required
     }
 }
 
