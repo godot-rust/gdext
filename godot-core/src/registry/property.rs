@@ -176,23 +176,32 @@ pub mod export_info_functions {
         or_greater: bool,
         or_less: bool,
         exp: bool,
-        radians: bool,
+        radians_as_degrees: bool,
         degrees: bool,
         hide_slider: bool,
+        suffix: Option<String>,
     ) -> PropertyHintInfo {
         let hint_beginning = if let Some(step) = step {
             format!("{min},{max},{step}")
         } else {
             format!("{min},{max}")
         };
-        let rest =
-            comma_separate_boolean_idents!(or_greater, or_less, exp, radians, degrees, hide_slider);
+        let rest = comma_separate_boolean_idents!(
+            or_greater,
+            or_less,
+            exp,
+            radians_as_degrees,
+            degrees,
+            hide_slider
+        );
 
-        let hint_string = if rest.is_empty() {
-            hint_beginning
-        } else {
-            format!("{hint_beginning},{rest}")
-        };
+        let mut hint_string = hint_beginning;
+        if !rest.is_empty() {
+            hint_string.push_str(&format!(",{rest}"));
+        }
+        if let Some(suffix) = suffix {
+            hint_string.push_str(&format!(",suffix:{suffix}"));
+        }
 
         PropertyHintInfo {
             hint: PropertyHint::RANGE,

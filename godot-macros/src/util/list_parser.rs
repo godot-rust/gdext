@@ -198,6 +198,33 @@ impl ListParser {
         }
     }
 
+    pub(crate) fn next_allowed_key_optional_value(
+        &mut self,
+        allowed_bool_keys: &[&str],
+        allowed_kv_keys: &[&str],
+    ) -> ParseResult<Option<(Ident, Option<KvValue>)>> {
+        let allowed_keys = || {
+            let allowed_bool_keys = allowed_bool_keys.join(",");
+            let allowed_kv_keys = allowed_kv_keys.join(",");
+            [allowed_bool_keys, allowed_kv_keys].join(",")
+        };
+        match self.next_key_optional_value()? {
+            Some((key, None)) if !allowed_bool_keys.contains(&key.to_string().as_str()) => {
+                if allowed_kv_keys.contains(&key.to_string().as_str()) {
+                    return bail!(key, "`{key}` requires a value `{key} = VALUE`");
+                }
+                bail!(key, "expected one of \"{}\"", allowed_keys())
+            }
+            Some((key, Some(_))) if !allowed_kv_keys.contains(&key.to_string().as_str()) => {
+                if allowed_bool_keys.contains(&key.to_string().as_str()) {
+                    return bail!(key, "key `{key}` mustn't have a value");
+                }
+                bail!(key, "expected one of \"{}\"", allowed_keys())
+            }
+            key_maybe_value => Ok(key_maybe_value),
+        }
+    }
+
     /// Ensure all values have been consumed.
     pub fn finish(&mut self) -> ParseResult<()> {
         if let Some(kv) = self.pop_next() {
