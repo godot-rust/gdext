@@ -129,30 +129,30 @@ fn box_to_sname_ptr(
 
 #[cfg(before_api = "4.2")]
 unsafe fn string_type_ptr(opaque_ptr: *mut sys::types::OpaqueString) -> sys::GDExtensionTypePtr {
-    ptr::addr_of_mut!(*opaque_ptr) as sys::GDExtensionTypePtr
+    opaque_ptr as sys::GDExtensionTypePtr
 }
 
 #[cfg(before_api = "4.2")]
 unsafe fn string_uninit_ptr(
     opaque_ptr: *mut sys::types::OpaqueString,
 ) -> sys::GDExtensionUninitializedStringPtr {
-    ptr::addr_of_mut!(*opaque_ptr) as sys::GDExtensionUninitializedStringPtr
+    opaque_ptr as sys::GDExtensionUninitializedStringPtr
 }
 
 #[cfg(since_api = "4.2")]
 unsafe fn sname_uninit_ptr(
     opaque_ptr: *mut sys::types::OpaqueStringName,
 ) -> sys::GDExtensionUninitializedStringNamePtr {
-    ptr::addr_of_mut!(*opaque_ptr) as sys::GDExtensionUninitializedStringNamePtr
+    opaque_ptr as sys::GDExtensionUninitializedStringNamePtr
 }
 
 unsafe fn sname_type_ptr(opaque_ptr: *mut sys::types::OpaqueStringName) -> sys::GDExtensionTypePtr {
-    ptr::addr_of_mut!(*opaque_ptr) as sys::GDExtensionTypePtr
+    opaque_ptr as sys::GDExtensionTypePtr
 }
 
 #[cfg(before_api = "4.2")]
 unsafe fn sname_uninit_type_ptr(
     opaque_ptr: *mut sys::types::OpaqueStringName,
 ) -> sys::GDExtensionUninitializedTypePtr {
-    ptr::addr_of_mut!(*opaque_ptr) as sys::GDExtensionUninitializedTypePtr
+    opaque_ptr as sys::GDExtensionUninitializedTypePtr
 }

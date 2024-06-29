@@ -6,7 +6,7 @@
  */
 
 use crate::framework::itest;
-use godot::init::InitLevel;
+use godot::init::ApiLevel;
 use godot::obj::NewAlloc;
 use godot::register::{godot_api, GodotClass};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -26,8 +26,8 @@ impl SomeObject {
 }
 
 // Run during on the `on_level_init` of the entry point.
-pub fn initialize_init_level_test(level: InitLevel) {
-    if level == InitLevel::Servers {
+pub fn initialize_init_level_test(level: ApiLevel) {
+    if level == ApiLevel::Server {
         assert!(!HAS_RUN.load(Ordering::Acquire));
 
         let mut some_object = SomeObject::new_alloc();

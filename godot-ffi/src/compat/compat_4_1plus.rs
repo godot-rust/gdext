@@ -17,7 +17,10 @@ use crate::compat::BindingCompat;
 
 pub type InitCompat = sys::GDExtensionInterfaceGetProcAddress;
 
-impl BindingCompat for sys::GDExtensionInterfaceGetProcAddress {
+// SAFETY: If `ensure_static_runtime_compatibility` succeeds then the other two functions should be safe to call, except on wasm where
+// `ensure_static_runtime_compatibility` is a no-op.
+// TODO: fix `ensure_static_runtime_compatibility` on wasm.
+unsafe impl BindingCompat for sys::GDExtensionInterfaceGetProcAddress {
     // In WebAssembly, function references and data pointers live in different memory spaces, so trying to read the "memory"
     // at a function pointer (an index into a table) to heuristically determine which API we have (as is done below) won't work.
     #[cfg(target_family = "wasm")]
@@ -82,7 +85,9 @@ impl BindingCompat for sys::GDExtensionInterfaceGetProcAddress {
         // From here we can assume Godot 4.1+. We need to make sure that the runtime version is >= static version.
         // Lexicographical tuple comparison does that.
         let static_version = crate::GdextBuild::godot_static_version_triple();
-        let runtime_version_raw = self.runtime_version();
+
+        // SAFETY: We are now reasonably sure the runtime version is 4.1.
+        let runtime_version_raw = unsafe { self.runtime_version() };
 
         // SAFETY: Godot provides this version struct.
         let runtime_version = (
@@ -105,21 +110,28 @@ impl BindingCompat for sys::GDExtensionInterfaceGetProcAddress {
         }
     }
 
-    fn runtime_version(&self) -> sys::GDExtensionGodotVersion {
-        unsafe {
-            let get_proc_address = self.expect("get_proc_address unexpectedly null");
-            let get_godot_version = get_proc_address(sys::c_str(b"get_godot_version\0")); //.expect("get_godot_version unexpectedly null");
+    unsafe fn runtime_version(&self) -> sys::GDExtensionGodotVersion {
+        let get_proc_address = self.expect("get_proc_address unexpectedly null");
 
-            let get_godot_version =
-                crate::cast_fn_ptr!(get_godot_version as sys::GDExtensionInterfaceGetGodotVersion);
+        // SAFETY: `self.0` is a valid `get_proc_address` pointer.
+        let get_godot_version = unsafe { get_proc_address(sys::c_str(b"get_godot_version\0")) }; //.expect("get_godot_version unexpectedly null");
 
-            let mut version = std::mem::MaybeUninit::<sys::GDExtensionGodotVersion>::zeroed();
-            get_godot_version(version.as_mut_ptr());
-            version.assume_init()
-        }
+        // SAFETY: `sys::GDExtensionInterfaceGetGodotVersion` is an `Option` of an `unsafe extern "C"` function pointer.
+        let get_godot_version = crate::cast_fn_ptr!(unsafe {
+            get_godot_version as sys::GDExtensionInterfaceGetGodotVersion
+        });
+
+        let mut version = std::mem::MaybeUninit::<sys::GDExtensionGodotVersion>::zeroed();
+
+        // SAFETY: `get_proc_address` with "get_godot_version" does return a valid `sys::GDExtensionInterfaceGetGodotVersion` pointer, and since we have a valid
+        // `get_proc_address` pointer then it must be callable.
+        unsafe { get_godot_version(version.as_mut_ptr()) };
+
+        // SAFETY: `get_godot_version` initializes `version`.
+        unsafe { version.assume_init() }
     }
 
-    fn load_interface(&self) -> sys::GDExtensionInterface {
+    unsafe fn load_interface(&self) -> sys::GDExtensionInterface {
         unsafe { sys::GDExtensionInterface::load(*self) }
     }
 }

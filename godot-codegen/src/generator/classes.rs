@@ -218,7 +218,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
                     ClassName::from_ascii_cstr(#class_name_cstr)
                 }
 
-                const INIT_LEVEL: crate::init::InitLevel = #init_level;
+                const INIT_LEVEL: crate::init::ApiLevel = #init_level;
             }
             unsafe impl crate::obj::Bounds for #class_name {
                 type Memory = crate::obj::bounds::#assoc_memory;

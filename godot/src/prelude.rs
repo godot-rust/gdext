@@ -25,7 +25,10 @@ pub use super::global::{
 };
 pub use super::tools::{load, save, try_load, try_save, GFile};
 
-pub use super::init::{gdextension, ExtensionLibrary, InitLevel};
+pub use super::init::{gdextension, ApiLevel, ExtensionLibrary};
+// `InitLevel` used to be in the prelude and we dont want to break people who used to rely on `InitLevel` being in the prelude.
+#[allow(deprecated)]
+pub use super::init::InitLevel;
 pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnReady};
 
 // Make trait methods available.

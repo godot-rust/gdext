@@ -15,7 +15,8 @@ use crate::compat::BindingCompat;
 
 pub type InitCompat = *const sys::GDExtensionInterface;
 
-impl BindingCompat for *const sys::GDExtensionInterface {
+// SAFETY: If `ensure_static_runtime_compatibility` succeeds then the other two functions should be safe to call.
+unsafe impl BindingCompat for *const sys::GDExtensionInterface {
     fn ensure_static_runtime_compatibility(&self) {
         // We try to read the first fields of the GDExtensionInterface struct, which are version numbers.
         // If those are unrealistic numbers, chances are high that `self` is in fact a function pointer (used for Godot 4.1.x).
@@ -40,7 +41,7 @@ impl BindingCompat for *const sys::GDExtensionInterface {
         );
     }
 
-    fn runtime_version(&self) -> sys::GDExtensionGodotVersion {
+    unsafe fn runtime_version(&self) -> sys::GDExtensionGodotVersion {
         // SAFETY: this method is only invoked after the static compatibility check has passed.
         // We thus know that Godot 4.0.x runs, and *self is a GDExtensionInterface pointer.
         let interface = unsafe { &**self };
@@ -52,7 +53,7 @@ impl BindingCompat for *const sys::GDExtensionInterface {
         }
     }
 
-    fn load_interface(&self) -> sys::GDExtensionInterface {
+    unsafe fn load_interface(&self) -> sys::GDExtensionInterface {
         unsafe { **self }
     }
 }

@@ -8,7 +8,7 @@
 use std::any::Any;
 use std::fmt;
 
-use crate::init::InitLevel;
+use crate::init::ApiLevel;
 use crate::meta::ClassName;
 use crate::sys;
 
@@ -26,7 +26,7 @@ pub struct ClassPlugin {
 
     // Init-level is per ClassPlugin and not per PluginItem, because all components of all classes are mixed together in one
     // huge linker list. There is no per-class aggregation going on, so this allows to easily filter relevant classes.
-    pub init_level: InitLevel,
+    pub init_level: ApiLevel,
 }
 
 /// Type-erased function object, holding a `register_class` function.

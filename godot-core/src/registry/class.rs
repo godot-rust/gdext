@@ -8,7 +8,7 @@
 use std::collections::HashMap;
 use std::ptr;
 
-use crate::init::InitLevel;
+use crate::init::ApiLevel;
 use crate::meta::ClassName;
 use crate::obj::{cap, GodotClass};
 use crate::private::{ClassPlugin, PluginItem};
@@ -22,7 +22,7 @@ use sys::{interface_fn, out, Global, GlobalGuard, GlobalLockError};
 // Note that we panic on concurrent access instead of blocking (fail-fast approach). If that happens, most likely something changed on Godot
 // side and analysis required to adopt these changes.
 static LOADED_CLASSES: Global<
-    HashMap<InitLevel, Vec<LoadedClass>>, //.
+    HashMap<ApiLevel, Vec<LoadedClass>>, //.
 > = Global::default();
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -58,7 +58,7 @@ struct ClassRegistrationInfo {
     godot_params: sys::GDExtensionClassCreationInfo3,
 
     #[allow(dead_code)] // Currently unused; may be useful for diagnostics in the future.
-    init_level: InitLevel,
+    init_level: ApiLevel,
     is_editor_plugin: bool,
 
     /// Used to ensure that each component is only filled once.
@@ -145,7 +145,7 @@ pub fn register_class<
 }
 
 /// Lets Godot know about all classes that have self-registered through the plugin system.
-pub fn auto_register_classes(init_level: InitLevel) {
+pub fn auto_register_classes(init_level: ApiLevel) {
     out!("Auto-register classes at level `{init_level:?}`...");
 
     // Note: many errors are already caught by the compiler, before this runtime validation even takes place:
@@ -190,7 +190,7 @@ pub fn auto_register_classes(init_level: InitLevel) {
     out!("All classes for level `{init_level:?}` auto-registered.");
 }
 
-pub fn unregister_classes(init_level: InitLevel) {
+pub fn unregister_classes(init_level: ApiLevel) {
     let mut loaded_classes_by_level = global_loaded_classes();
     let loaded_classes_current_level = loaded_classes_by_level
         .remove(&init_level)
@@ -201,7 +201,7 @@ pub fn unregister_classes(init_level: InitLevel) {
     }
 }
 
-fn global_loaded_classes() -> GlobalGuard<'static, HashMap<InitLevel, Vec<LoadedClass>>> {
+fn global_loaded_classes() -> GlobalGuard<'static, HashMap<ApiLevel, Vec<LoadedClass>>> {
     match LOADED_CLASSES.try_lock() {
         Ok(it) => it,
         Err(err) => match err {
@@ -464,7 +464,7 @@ fn default_registration_info(class_name: ClassName) -> ClassRegistrationInfo {
         default_virtual_fn: None,
         user_virtual_fn: None,
         godot_params: default_creation_info(),
-        init_level: InitLevel::Scene,
+        init_level: ApiLevel::Scene,
         is_editor_plugin: false,
         component_already_filled: Default::default(), // [false; N]
     }
