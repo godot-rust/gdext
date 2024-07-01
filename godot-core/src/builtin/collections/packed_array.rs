@@ -455,10 +455,10 @@ macro_rules! impl_packed_array {
             }
         }
 
+        #[doc = concat!("Creates a `", stringify!($PackedArray), "` from the given Rust vec.")]
         impl From<Vec<$Element>> for $PackedArray {
             fn from(vec: Vec<$Element>) -> Self{
                 vec.into_iter().collect()
-                
             }
         }
 
