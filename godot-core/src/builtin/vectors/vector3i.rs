@@ -47,6 +47,8 @@ impl_vector_fns!(Vector3i, glam::IVec3, i32, (x, y, z));
 impl_vector3x_fns!(Vector3i, i32);
 
 impl Vector3i {
+    impl_integer_vector_fns!(x, y, z);
+
     /// Constructs a new `Vector3i` from a [`Vector3`]. The floating point coordinates will be truncated.
     #[inline]
     pub const fn from_vector3(v: Vector3) -> Self {
