@@ -457,6 +457,60 @@ macro_rules! impl_vector_fns {
     }
 }
 
+pub(super) fn snap_one(mut value: i32, step: i32) -> i32 {
+    assert!(
+        value != i32::MIN || step != -1,
+        "snapped() called on vector component i32::MIN with step component -1"
+    );
+
+    if step != 0 {
+        // Can overflow if step / 2 + value is not in range of i32.
+        let a = (step / 2).checked_add(value).expect(
+            "snapped() overflowed, this happened because step / 2 + component is not in range of i32",
+        );
+
+        // Manually implement `a.div_floor(step)` since Rust's native method is still unstable, as of 1.79.0.
+
+        // Can overflow with a == i32::MIN and step == -1 when value == i32::MIN.
+        let mut d = a / step;
+        // Can't overflow because if a == i32::MIN and step == -1, value == -2147483647.5 which is impossible.
+        let r = a % step;
+        if (r > 0 && step < 0) || (r < 0 && step > 0) {
+            // Can't overflow because if d == i32::MIN than a == i32::MIN and step == 1 and value == -2147483648.5 which is impossible.
+            d -= 1;
+        }
+
+        value = step * d;
+    }
+
+    value
+}
+
+/// Implements functions that are present only on integer vectors.
+macro_rules! impl_integer_vector_fns {
+    (
+        // Names of the components, for example `x, y`.
+        $($comp:ident),*
+    ) => {
+        /// A new vector with each component snapped to the closest multiple of the corresponding
+        /// component in `step`.
+        ///
+        /// # Panics
+        /// On under- or overflow:
+        /// - If any component of `self` is [`i32::MIN`] while the same component on `step` is `-1`.
+        /// - If any component of `self` plus half of the same component of `step` is not in range on [`i32`].
+        pub fn snapped(self, step: Self) -> Self {
+            use crate::builtin::vectors::vector_macros::snap_one;
+
+            Self::new(
+                $(
+                    snap_one(self.$comp, step.$comp)
+                ),*
+            )
+        }
+    };
+}
+
 /// Implements functions that are present only on floating-point vectors.
 macro_rules! impl_float_vector_fns {
     (
@@ -642,7 +696,6 @@ macro_rules! impl_float_vector_fns {
 
             /// A new vector with each component snapped to the closest multiple of the corresponding
             /// component in `step`.
-            // TODO: also implement for integer vectors
             #[inline]
             pub fn snapped(self, step: Self) -> Self {
                 Self::new(

@@ -48,6 +48,8 @@ impl_vector_fns!(Vector4i, glam::IVec4, i32, (x, y, z, w));
 impl_vector4x_fns!(Vector4i, i32);
 
 impl Vector4i {
+    impl_integer_vector_fns!(x, y, z, w);
+
     /// Constructs a new `Vector4i` from a [`Vector4`]. The floating point coordinates will be
     /// truncated.
     #[inline]
