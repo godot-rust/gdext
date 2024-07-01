@@ -6,7 +6,7 @@
  */
 
 use crate::framework::{expect_panic, itest};
-use godot::builtin::{PackedByteArray, PackedFloat32Array, PackedStringArray};
+use godot::builtin::{PackedByteArray, PackedFloat32Array, PackedInt32Array, PackedStringArray};
 
 #[itest]
 fn packed_array_default() {
@@ -25,6 +25,24 @@ fn packed_array_from_iterator() {
     assert_eq!(array.len(), 2);
     assert_eq!(array[0], 1);
     assert_eq!(array[1], 2);
+}
+
+#[itest]
+fn packed_array_from_vec_str() {
+    let string_array = PackedStringArray::from(vec!["hello".into(), "world".into()]);
+
+    assert_eq!(string_array.len(), 2);
+    assert_eq!(string_array[0], "hello".into());
+    assert_eq!(string_array[1], "world".into());
+}
+
+#[itest]
+fn packed_array_from_vec_i32() {
+    let int32_array = PackedInt32Array::from(vec![1, 2]);
+
+    assert_eq!(int32_array.len(), 2);
+    assert_eq!(int32_array[0], 1);
+    assert_eq!(int32_array[1], 2);
 }
 
 #[itest]
