@@ -34,7 +34,7 @@
 //!   overloading would become impossible](https://github.com/kvark/mint/issues/75).
 
 // Re-export macros.
-pub use crate::{array, dict, real, reals, varray};
+pub use crate::{array, dict, real, reals, varray, parray};
 
 // Re-export generated enums.
 pub use crate::gen::central::global_reexported_enums::{Corner, EulerOrder, Side, VariantOperator};
@@ -67,7 +67,7 @@ pub mod __prelude_reexport {
     pub use vectors::*;
 
     pub use super::{EulerOrder, Side, VariantOperator, VariantType};
-    pub use crate::{array, dict, real, reals, varray};
+    pub use crate::{array, dict, real, reals, varray, parray};
 }
 
 pub use __prelude_reexport::*;
