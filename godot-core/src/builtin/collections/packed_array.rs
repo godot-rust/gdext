@@ -773,3 +773,17 @@ impl_packed_array!(
         PartialEq => packed_color_array_operator_equal;
     },
 );
+
+#[macro_export]
+macro_rules! parray {
+    ($array_type:ty, $($elements:expr),* $(,)?) => {
+        {
+            let mut parray = <$array_type>::new();
+            $(
+                parray.push($elements);
+            )*
+
+            parray
+        }
+    };
+}
