@@ -232,6 +232,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             is_editor_plugin,
             is_hidden,
             is_instantiable,
+            #[cfg(all(since_api = "4.3", feature = "docs"))]
+                docs: _,
         } => {
             c.parent_class_name = Some(base_class_name);
             c.default_virtual_fn = default_get_virtual_fn;
@@ -282,6 +284,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
 
         PluginItem::InherentImpl {
             register_methods_constants_fn,
+            #[cfg(all(since_api = "4.3", feature = "docs"))]
+                docs: _,
         } => {
             c.register_methods_constants_fn = Some(register_methods_constants_fn);
         }
@@ -299,6 +303,8 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             user_free_property_list_fn,
             user_property_can_revert_fn,
             user_property_get_revert_fn,
+            #[cfg(all(since_api = "4.3", feature = "docs"))]
+                virtual_method_docs: _,
         } => {
             c.user_register_fn = user_register_fn;
 

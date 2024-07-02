@@ -136,6 +136,8 @@ fn gdext_on_level_init(level: InitLevel) {
                 ensure_godot_features_compatible();
             }
             InitLevel::Editor => {
+                #[cfg(all(since_api = "4.3", feature = "docs"))]
+                crate::docs::register();
                 sys::load_class_method_table(sys::ClassApiLevel::Editor);
             }
         }
