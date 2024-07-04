@@ -55,7 +55,7 @@ pub fn validate_unicode_scalar_sequence(seq: &[u32]) -> Option<&[char]> {
                 break;
             }
 
-            let block = vld1q_u32(ptr as *const u32);
+            let block = vld1q_u32(ptr);
 
             // check if has any character bigger than `char::MAX`
             if vmaxvq_u32(block) >= char::MAX as u32 {
