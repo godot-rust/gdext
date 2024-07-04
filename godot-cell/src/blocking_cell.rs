@@ -54,9 +54,26 @@ impl<T> GdCellBlocking<T> {
             tracker_guard = self.block_immut(tracker_guard);
         }
 
+        let should_claim_mut = !self.is_currently_bound();
+
         let inner_guard = self.inner.as_ref().borrow()?;
 
         tracker_guard.increment_current_thread_shared_count();
+
+        // The ThreadTracker::mut_thread is always set to some ThreadId to avoid additional tracking overhead, but this causes an edge case:
+        // 1. mut_thread is initialized with the current Thread 1 (usually main thread).
+        // 2. Thread 2 acquires an immutable borrow from the cell.
+        // 3. Thread 1 attempts to acquire a mutable borrow from the cell.
+        // 4. No immutable borrow exists on Thread 1, but the thread is assigned as the mut_thread; no blocking occurs.
+        // 5. The mutable borrow fails and panics because there is already an immutable borrow on Thread 1.
+        //
+        // Solution:
+        // 1. Always reassign mut_thread to the current ThreadId (i.e. Thread 2) when the first immutable borrow is acquired.
+        // 2. Thread 1 will now block on mutable borrows because it is not the mut_thread.
+        // 3. Thread 2 should never block, as it already holds an immutable borrow.
+        if should_claim_mut {
+            tracker_guard.claim_mut_ref();
+        }
 
         Ok(RefGuardBlocking::new(
             inner_guard,
@@ -84,7 +101,7 @@ impl<T> GdCellBlocking<T> {
 
         let inner_guard = self.inner.as_ref().borrow_mut()?;
 
-        tracker_guard.mut_thread = thread::current().id();
+        tracker_guard.claim_mut_ref();
 
         Ok(MutGuardBlocking::new(
             inner_guard,
@@ -151,6 +168,10 @@ impl<T> GdCellBlocking<T> {
 #[derive(Debug)]
 pub(crate) struct ThreadTracker {
     /// Thread ID of the thread that currently can hold the mutable reference.
+    ///
+    /// This is not an Option, contrary to what one might expect. Making this an option would require reliable knowledge that not a single
+    /// MutGuardBlocking exists before setting it to None. This would require tracking a count of mutable borrows. Instead, we always set
+    /// the field to an acceptable value and avoid the overhead.
     mut_thread: thread::ThreadId,
 
     /// Shared reference count per thread.
@@ -203,5 +224,10 @@ impl ThreadTracker {
     /// Returns if the current thread can hold the mutable reference.
     pub fn current_thread_has_mut_ref(&self) -> bool {
         self.mut_thread == thread::current().id()
+    }
+
+    /// Claims the mutable reference for the current thread.
+    fn claim_mut_ref(&mut self) {
+        self.mut_thread = thread::current().id();
     }
 }
