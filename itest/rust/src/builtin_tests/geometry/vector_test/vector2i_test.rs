@@ -102,11 +102,13 @@ fn sign() {
     assert_eq!(b.sign(), b.as_inner().sign());
 }
 
-// TODO: implement snapped for integer vectors
-// #[itest]
-// fn snapped() {
-//     let a = Vector2i::new(12, 34);
-//     let b = Vector2i::new(5, -5);
+#[itest]
+fn snapped() {
+    let a = Vector2i::new(12, 34);
+    let b = Vector2i::new(5, -5);
+    let c = Vector2i::new(0, 0);
+    let d = Vector2i::new(3, 0);
 
-//     assert_eq!(a.snapped(b), a.as_inner().snapped(b));
-// }
+    assert_eq!(a.snapped(b), a.as_inner().snapped(b));
+    assert_eq!(c.snapped(d), c.as_inner().snapped(d));
+}

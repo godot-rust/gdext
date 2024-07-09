@@ -44,6 +44,8 @@ impl_vector_fns!(Vector2i, glam::IVec2, i32, (x, y));
 impl_vector2x_fns!(Vector2i, i32);
 
 impl Vector2i {
+    impl_integer_vector_fns!(x, y);
+
     /// Constructs a new `Vector2i` from a [`Vector2`]. The floating point coordinates will be truncated.
     #[inline]
     pub const fn from_vector2(v: Vector2) -> Self {
