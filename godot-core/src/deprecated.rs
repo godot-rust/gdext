@@ -20,6 +20,13 @@ pub const fn base_attribute() {}
         More information on https://github.com/godot-rust/gdext/pull/702."]
 pub const fn feature_custom_godot() {}
 
+#[cfg_attr(
+    since_api = "4.2",
+    deprecated = "Use #[export(range = (radians_as_degrees))] and not #[export(range = (radians))]. \n\
+	More information on https://github.com/godotengine/godot/pull/82195."
+)]
+pub const fn export_range_radians() {}
+
 #[macro_export]
 macro_rules! emit_deprecated_warning {
     ($warning_fn:ident) => {

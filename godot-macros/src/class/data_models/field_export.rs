@@ -7,7 +7,7 @@
 
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::util::{KvParser, ListParser};
 use crate::ParseResult;
@@ -35,9 +35,11 @@ pub enum FieldExport {
         or_greater: bool,
         or_less: bool,
         exp: bool,
+        radians_as_degrees: bool,
         radians: bool,
         degrees: bool,
         hide_slider: bool,
+        suffix: Option<TokenStream>,
     },
 
     /// ### GDScript annotations
@@ -255,20 +257,21 @@ impl FieldExport {
     }
 
     fn new_range_list(mut parser: ListParser) -> ParseResult<FieldExport> {
-        const ALLOWED_OPTIONS: [&str; 6] = [
+        const FLAG_OPTIONS: [&str; 7] = [
             "or_greater",
             "or_less",
             "exp",
-            "radians",
+            "radians_as_degrees",
+            "radians", // godot deprecated this key for 4.2 in favor of radians_as_degrees
             "degrees",
             "hide_slider",
         ];
+        const KV_OPTIONS: [&str; 1] = ["suffix"];
 
         let min = parser.next_expr()?;
         let max = parser.next_expr()?;
-        // If there is a next element and it is not an identifier,
-        // we take its tokens directly.
-        let step = if parser.peek().is_some_and(|kv| kv.as_ident().is_err()) {
+        // If there is a next element and it is a literal, we take its tokens directly.
+        let step = if parser.peek().is_some_and(|kv| kv.as_literal().is_ok()) {
             let value = parser
                 .next_expr()
                 .expect("already guaranteed there was a TokenTree to parse");
@@ -277,10 +280,21 @@ impl FieldExport {
             quote! { None }
         };
 
-        let mut options = HashSet::new();
+        let mut flags = HashSet::<String>::new();
+        let mut kvs = HashMap::<String, TokenStream>::new();
 
-        while let Some(option) = parser.next_allowed_ident(&ALLOWED_OPTIONS[..])? {
-            options.insert(option.to_string());
+        loop {
+            let key_maybe_value =
+                parser.next_allowed_key_optional_value(&FLAG_OPTIONS, &KV_OPTIONS)?;
+            match key_maybe_value {
+                Some((option, None)) => {
+                    flags.insert(option.to_string());
+                }
+                Some((option, Some(value))) => {
+                    kvs.insert(option.to_string(), value.expr()?);
+                }
+                None => break,
+            }
         }
 
         parser.finish()?;
@@ -289,12 +303,14 @@ impl FieldExport {
             min,
             max,
             step,
-            or_greater: options.contains("or_greater"),
-            or_less: options.contains("or_less"),
-            exp: options.contains("exp"),
-            radians: options.contains("radians"),
-            degrees: options.contains("degrees"),
-            hide_slider: options.contains("hide_slider"),
+            or_greater: flags.contains("or_greater"),
+            or_less: flags.contains("or_less"),
+            exp: flags.contains("exp"),
+            radians_as_degrees: flags.contains("radians_as_degrees"),
+            radians: flags.contains("radians"),
+            degrees: flags.contains("degrees"),
+            hide_slider: flags.contains("hide_slider"),
+            suffix: kvs.get("suffix").cloned(),
         })
     }
 
@@ -370,12 +386,35 @@ impl FieldExport {
                 or_greater,
                 or_less,
                 exp,
+                radians_as_degrees,
                 radians,
                 degrees,
                 hide_slider,
-            } => quote_export_func! {
-                export_range(#min, #max, #step, #or_greater, #or_less, #exp, #radians, #degrees, #hide_slider)
-            },
+                suffix,
+            } => {
+                let suffix = if suffix.is_some() {
+                    quote! { Some(#suffix.to_string()) }
+                } else {
+                    quote! { None }
+                };
+                let export_func = quote_export_func! {
+                    export_range(#min, #max, #step, #or_greater, #or_less, #exp, #radians_as_degrees || #radians, #degrees, #hide_slider, #suffix)
+                }?;
+                let deprecation_warning = if *radians {
+                    // For some reason, rustfmt formatting like this.  Probably a bug.
+                    // See https://github.com/godot-rust/gdext/pull/783#discussion_r1669105958 and
+                    // https://github.com/rust-lang/rustfmt/issues/6233
+                    quote! {
+                    #export_func;
+                    ::godot::__deprecated::emit_deprecated_warning!(export_range_radians);
+                            }
+                } else {
+                    quote! { #export_func }
+                };
+                Some(quote! {
+                    #deprecation_warning
+                })
+            }
 
             FieldExport::Enum { variants } => {
                 let variants = variants.iter().map(ValueWithKey::to_tuple_expression);

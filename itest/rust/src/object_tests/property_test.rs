@@ -239,10 +239,11 @@ struct CheckAllExports {
     #[export]
     normal: GString,
 
-    #[export(range = (0.0, 10.0, or_greater, or_less, exp, radians, hide_slider))]
+    // `suffix = "px"` should be in the third slot to test that key-value pairs in that position no longer error.
+    #[export(range = (0.0, 10.0, suffix = "px", or_greater, or_less, exp, degrees, hide_slider))]
     range_exported: f64,
 
-    #[export(range = (0.0, 10.0, 0.2, or_greater, or_less, exp, radians, hide_slider))]
+    #[export(range = (0.0, 10.0, 0.2, or_greater, or_less, exp, radians_as_degrees, hide_slider))]
     range_exported_with_step: f64,
 
     #[export(enum = (A = 10, B, C, D = 20))]

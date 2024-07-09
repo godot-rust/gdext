@@ -6,7 +6,7 @@
  */
 
 use crate::ParseResult;
-use proc_macro2::{Delimiter, Ident, Spacing, Span, TokenStream, TokenTree};
+use proc_macro2::{Delimiter, Ident, Literal, Spacing, Span, TokenStream, TokenTree};
 use quote::ToTokens;
 use std::collections::HashMap;
 
@@ -288,6 +288,17 @@ impl KvValue {
         match &self.tokens[0] {
             TokenTree::Ident(id) => Ok(id.clone()),
             other => bail!(other, "expected identifier"),
+        }
+    }
+
+    pub fn as_literal(&self) -> ParseResult<Literal> {
+        if self.tokens.len() > 1 {
+            return bail!(&self.tokens[1], "expected a single literal");
+        }
+
+        match &self.tokens[0] {
+            TokenTree::Literal(literal) => Ok(literal.clone()),
+            other => bail!(other, "expected literal"),
         }
     }
 }
