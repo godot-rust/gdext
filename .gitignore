@@ -23,3 +23,6 @@ gen
 *.bat
 config.toml
 exp.rs
+
+# Mac specific
+.DS_Store
