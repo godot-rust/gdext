@@ -15,6 +15,8 @@ homepage = "https://godot-rust.github.io"
 # requiring no-default-features), so we unfortunately still need to depend on prebuilt and just ignore it.
 # The artifact generator explicitly excludes that though (to avoid a quasi-circular dependency back to its repo).
 [features]
+experimental-wasm-nothreads = []
+
 # [version-sync] [[
 #  [line] api-$kebabVersion = []
 api-4-0 = []
