@@ -10,13 +10,21 @@
 //! If used from different threads then there will be runtime errors in debug mode and UB in release mode.
 
 use std::cell::Cell;
+
+#[cfg(not(wasm_nothreads))]
 use std::thread::ThreadId;
 
 use super::GodotBinding;
 use crate::ManualInitCell;
 
 pub(super) struct BindingStorage {
+    // No threading when linking against Godot with a nothreads Wasm build.
+    // Therefore, we just need to check if the bindings were initialized, as all accesses are from the main thread.
+    #[cfg(wasm_nothreads)]
+    initialized: Cell<bool>,
+
     // Is used in to check that we've been called from the right thread, so must be thread-safe to access.
+    #[cfg(not(wasm_nothreads))]
     main_thread_id: Cell<Option<ThreadId>>,
     binding: ManualInitCell<GodotBinding>,
 }
@@ -30,11 +38,57 @@ impl BindingStorage {
     #[inline(always)]
     unsafe fn storage() -> &'static Self {
         static BINDING: BindingStorage = BindingStorage {
+            #[cfg(wasm_nothreads)]
+            initialized: Cell::new(false),
+
+            #[cfg(not(wasm_nothreads))]
             main_thread_id: Cell::new(None),
             binding: ManualInitCell::new(),
         };
 
         &BINDING
+    }
+
+    /// Returns whether the binding storage has already been initialized.
+    ///
+    /// It is recommended to use this function for that purpose as the field to check varies depending on the compilation target.
+    fn initialized(&self) -> bool {
+        #[cfg(wasm_nothreads)]
+        return self.initialized.get();
+
+        #[cfg(not(wasm_nothreads))]
+        self.main_thread_id.get().is_some()
+    }
+
+    /// Marks the binding storage as initialized or deinitialized.
+    /// We store the thread ID to ensure future accesses to the binding only come from the main thread.
+    ///
+    /// # Safety
+    /// Must be called from the main thread. Additionally, the binding storage must be initialized immediately
+    /// after this function if `initialized` is `true`, or deinitialized if it is `false`.
+    ///
+    /// # Panics
+    /// If attempting to deinitialize before initializing, or vice-versa.
+    unsafe fn set_initialized(&self, initialized: bool) {
+        if initialized == self.initialized() {
+            if initialized {
+                panic!("already initialized");
+            } else {
+                panic!("deinitialize without prior initialize");
+            }
+        }
+
+        // 'std::thread::current()' fails when linking to a Godot web build without threads. When compiling to wasm-nothreads,
+        // we assume it is impossible to have multi-threading, so checking if we are in the main thread is not needed.
+        // Therefore, we don't store the thread ID, but rather just whether initialization already occurred.
+        #[cfg(wasm_nothreads)]
+        self.initialized.set(initialized);
+
+        #[cfg(not(wasm_nothreads))]
+        {
+            let thread_id = initialized.then(|| std::thread::current().id());
+            self.main_thread_id.set(thread_id);
+        }
     }
 
     /// Initialize the binding storage, this must be called before any other public functions.
@@ -49,9 +103,10 @@ impl BindingStorage {
         // in which case we can tell that the storage has been initialized, and we don't access `binding`.
         let storage = unsafe { Self::storage() };
 
-        storage
-            .main_thread_id
-            .set(Some(std::thread::current().id()));
+        // SAFETY: We are about to initialize the binding below, so marking the binding as initialized is correct.
+        // If we can't initialize the binding at this point, we get a panic before changing the status, thus the
+        // binding won't be set.
+        unsafe { storage.set_initialized(true) };
 
         // SAFETY: We are the first thread to set this binding (possibly after deinitialize), as otherwise the above set() would fail and
         // return early. We also know initialize() is not called concurrently with anything else that can call another method on the binding,
@@ -70,12 +125,10 @@ impl BindingStorage {
         // SAFETY: We only call this once no other operations happen anymore, i.e. no other access to the binding.
         let storage = unsafe { Self::storage() };
 
-        storage
-            .main_thread_id
-            .get()
-            .expect("deinitialize without prior initialize");
-
-        storage.main_thread_id.set(None);
+        // SAFETY: We are about to deinitialize the binding below, so marking the binding as deinitialized is correct.
+        // If we can't deinitialize the binding at this point, we get a panic before changing the status, thus the
+        // binding won't be deinitialized.
+        unsafe { storage.set_initialized(false) };
 
         // SAFETY: We are the only thread that can access the binding, and we know that it's initialized.
         unsafe {
@@ -92,7 +145,10 @@ impl BindingStorage {
     pub unsafe fn get_binding_unchecked() -> &'static GodotBinding {
         let storage = Self::storage();
 
-        if cfg!(debug_assertions) {
+        // We only check if we are in the main thread in debug builds if we aren't building for a non-threaded Godot build,
+        // since we could otherwise assume there won't be multi-threading.
+        #[cfg(all(debug_assertions, not(wasm_nothreads)))]
+        {
             let main_thread_id = storage.main_thread_id.get().expect(
                 "Godot engine not available; make sure you are not calling it from unit/doc tests",
             );
@@ -111,7 +167,8 @@ impl BindingStorage {
     pub fn is_initialized() -> bool {
         // SAFETY: We don't access the binding.
         let storage = unsafe { Self::storage() };
-        storage.main_thread_id.get().is_some()
+
+        storage.initialized()
     }
 }
 

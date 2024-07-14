@@ -21,6 +21,7 @@ codegen-lazy-fptrs = [
 double-precision = ["godot-codegen/double-precision"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
 experimental-threads = ["godot-ffi/experimental-threads"]
+experimental-wasm-nothreads = ["godot-ffi/experimental-wasm-nothreads"]
 debug-log = ["godot-ffi/debug-log"]
 trace = []
 

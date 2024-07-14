@@ -179,6 +179,22 @@ pub fn emit_godot_version_cfg() {
     }
 }
 
+/// Emit `#[cfg(wasm_nothreads)]` flag when compiling to Wasm with the "experimental-wasm-nothreads" feature.
+pub fn emit_wasm_nothreads_cfg() {
+    println!(r#"cargo:rustc-check-cfg=cfg(wasm_nothreads, values(none()))"#);
+
+    // The environment variable for target family has a list of applicable families separated by commas.
+    // For Emscripten in particular, this can be "unix,wasm". Therefore, to check for the Wasm target, we must check each item in the list.
+    #[cfg(feature = "experimental-wasm-nothreads")]
+    if std::env::var("CARGO_CFG_TARGET_FAMILY")
+        .expect("target family environment variable")
+        .split(',')
+        .any(|family| family == "wasm")
+    {
+        println!(r#"cargo:rustc-cfg=wasm_nothreads"#);
+    }
+}
+
 // Function for safely removal of build directory. Workaround for errors happening during CI builds:
 // https://github.com/godot-rust/gdext/issues/616
 pub fn remove_dir_all_reliable(path: &Path) {

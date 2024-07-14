@@ -68,7 +68,7 @@
 //! * **`api-custom`**
 //!
 //!   Sets the [**API level**](https://godot-rust.github.io/book/toolchain/godot-version.html) to the specified Godot version,
-//!   or a custom-built local binary.  
+//!   or a custom-built local binary.
 //!   You can use at most one `api-*` feature. If absent, the current Godot minor version is used, with patch level 0.<br><br>
 //!
 //! * **`double-precision`**
@@ -123,6 +123,12 @@ pub mod __docs;
 
 #[cfg(all(feature = "lazy-function-tables", feature = "experimental-threads"))]
 compile_error!("Thread safety for lazy function pointers is not yet implemented.");
+
+#[cfg(all(
+    feature = "experimental-wasm-nothreads",
+    feature = "experimental-threads"
+))]
+compile_error!("Cannot use 'experimental-threads' with a nothreads Wasm build yet.");
 
 #[cfg(all(target_family = "wasm", not(feature = "experimental-wasm")))]
 compile_error!("Must opt-in using `experimental-wasm` Cargo feature; keep in mind that this is work in progress");
