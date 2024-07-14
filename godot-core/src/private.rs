@@ -19,7 +19,6 @@ use crate::global::godot_error;
 use crate::meta::error::CallError;
 use crate::meta::CallContext;
 use crate::sys;
-use std::collections::HashMap;
 use std::sync::{atomic, Arc, Mutex};
 use sys::Global;
 
@@ -41,24 +40,57 @@ sys::plugin_registry!(pub __GODOT_PLUGIN_REGISTRY: ClassPlugin);
 
 // Note: if this leads to many allocated IDs that are not removed, we could limit to 1 per thread-ID.
 // Would need to check if re-entrant calls with multiple errors per thread are possible.
-#[derive(Default)]
 struct CallErrors {
-    map: HashMap<i32, CallError>,
-    next_id: i32,
+    ring_buffer: Vec<Option<CallError>>,
+    next_id: u8,
+    generation: u16,
+}
+
+impl Default for CallErrors {
+    fn default() -> Self {
+        Self {
+            // [None; N] requires Clone.
+            ring_buffer: std::iter::repeat_with(|| None)
+                .take(Self::MAX_ENTRIES as usize)
+                .collect(),
+            next_id: 0,
+            generation: 0,
+        }
+    }
 }
 
 impl CallErrors {
+    const MAX_ENTRIES: u8 = 32;
+
     fn insert(&mut self, err: CallError) -> i32 {
         let id = self.next_id;
-        self.next_id = self.next_id.wrapping_add(1);
 
-        self.map.insert(id, err);
-        id
+        self.next_id = self.next_id.wrapping_add(1) % Self::MAX_ENTRIES;
+        if self.next_id == 0 {
+            self.generation = self.generation.wrapping_add(1);
+        }
+
+        self.ring_buffer[id as usize] = Some(err);
+
+        (self.generation as i32) << 16 | id as i32
     }
 
     // Returns success or failure.
     fn remove(&mut self, id: i32) -> Option<CallError> {
-        self.map.remove(&id)
+        let generation = (id >> 16) as u16;
+        let id = id as u8;
+
+        // If id < next_id, the generation must be the current one -- otherwise the one before.
+        if id < self.next_id {
+            if generation != self.generation {
+                return None;
+            }
+        } else if generation != self.generation.wrapping_sub(1) {
+            return None;
+        }
+
+        // Returns Some if there's still an entry, None if it was already removed.
+        self.ring_buffer[id as usize].take()
     }
 }
 
@@ -346,5 +378,56 @@ where
 
             Err(msg)
         }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::{CallError, CallErrors};
+    use crate::meta::CallContext;
+
+    fn make(index: usize) -> CallError {
+        let method_name = format!("method_{index}");
+        let ctx = CallContext::func("Class", &method_name);
+        CallError::failed_by_user_panic(&ctx, "some panic reason".to_string())
+    }
+
+    #[test]
+    fn test_call_errors() {
+        let mut store = CallErrors::default();
+
+        let mut id07 = 0;
+        let mut id13 = 0;
+        let mut id20 = 0;
+        for i in 0..24 {
+            let id = store.insert(make(i));
+            match i {
+                7 => id07 = id,
+                13 => id13 = id,
+                20 => id20 = id,
+                _ => {}
+            }
+        }
+
+        let e = store.remove(id20).expect("must be present");
+        assert_eq!(e.method_name(), "method_20");
+
+        let e = store.remove(id20);
+        assert!(e.is_none());
+
+        for i in 24..CallErrors::MAX_ENTRIES as usize {
+            store.insert(make(i));
+        }
+        for i in 0..10 {
+            store.insert(make(i));
+        }
+
+        let e = store.remove(id07);
+        assert!(e.is_none(), "generation overwritten");
+
+        let e = store.remove(id13).expect("generation not yet overwritten");
+        assert_eq!(e.method_name(), "method_13");
     }
 }
