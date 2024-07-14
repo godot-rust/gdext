@@ -5,7 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::sync::{Mutex, MutexGuard, TryLockError};
+use std::cell::OnceCell;
+use std::sync::{Mutex, MutexGuard, PoisonError, TryLockError};
 
 /// Ergonomic global variables.
 ///
@@ -25,7 +26,8 @@ use std::sync::{Mutex, MutexGuard, TryLockError};
 /// For access, you should primarily use [`lock()`](Self::lock). There is also [`try_lock()`](Self::try_lock) for special cases.
 pub struct Global<T> {
     // When needed, this could be changed to use RwLock and separate read/write guards.
-    value: Mutex<InitState<T>>,
+    value: Mutex<OnceCell<T>>,
+    init_fn: fn() -> T,
 }
 
 impl<T> Global<T> {
@@ -35,7 +37,8 @@ impl<T> Global<T> {
     pub const fn new(init_fn: fn() -> T) -> Self {
         // Note: could be generalized to F: FnOnce() -> T + Send. See also once_cell::Lazy<T, F>.
         Self {
-            value: Mutex::new(InitState::Pending(init_fn)),
+            value: Mutex::new(OnceCell::new()),
+            init_fn,
         }
     }
 
@@ -57,72 +60,41 @@ impl<T> Global<T> {
     /// If the initialization function panics. Once that happens, the global is considered poisoned and all future calls to `lock()` will panic.
     /// This can currently not be recovered from.
     pub fn lock(&self) -> GlobalGuard<'_, T> {
-        let mutex_guard = self
-            .value
-            .lock()
-            .expect("Global<T> poisoned; a thread has panicked while holding a lock to it");
+        let guard = self.value.lock().unwrap_or_else(PoisonError::into_inner);
+        guard.get_or_init(self.init_fn);
 
-        let guard = Self::ensure_init(mutex_guard, true)
-            .unwrap_or_else(|| panic!("previous Global<T> initialization failed due to panic"));
-
-        guard
+        // SAFETY: `get_or_init()` has already panicked if it wants to, propogating the panic to its caller,
+        // so the object is guaranteed to be initialized.
+        unsafe { GlobalGuard::new_unchecked(guard) }
     }
 
-    /// Non-panicking access with error introspection.
+    /// Non-blocking access with error introspection.
     pub fn try_lock(&self) -> Result<GlobalGuard<'_, T>, GlobalLockError<'_, T>> {
-        let guard = match self.value.try_lock() {
-            Ok(mutex_guard) => Self::ensure_init(mutex_guard, false),
-            Err(TryLockError::WouldBlock) => {
-                return Err(GlobalLockError::WouldBlock);
-            }
-            Err(TryLockError::Poisoned(poisoned)) => {
-                return Err(GlobalLockError::Poisoned {
-                    // We can likely use `new_unchecked` here, but verifying that it's safe would need somewhat tricky reasoning.
-                    // Since this error condition isn't very common, it is likely not very important to optimize access to the value here.
-                    // Especially since most users will likely not want to access it anyway.
-                    circumvent: GlobalGuard::new(poisoned.into_inner())
-                        .expect("Poisoned global guard should always be initialized"),
-                });
-            }
-        };
+        /// Initializes the cell and returns a guard.
+        fn init<'mutex: 'cell, 'cell, T>(
+            g: MutexGuard<'mutex, OnceCell<T>>,
+            init_fn: fn() -> T,
+        ) -> Result<GlobalGuard<'cell, T>, GlobalLockError<'cell, T>> {
+            // Initialize the cell.
+            std::panic::catch_unwind(|| g.get_or_init(init_fn))
+                .map_err(|_| GlobalLockError::InitFailed)?;
 
-        guard.ok_or(GlobalLockError::InitFailed)
-    }
+            // SAFETY: `get_or_init()` has already panicked if it wants to, which has been successfully unwound,
+            // therefore the object is guaranteed to be initialized.
+            Ok(unsafe { GlobalGuard::new_unchecked(g) })
+        }
 
-    fn ensure_init(
-        mut mutex_guard: MutexGuard<'_, InitState<T>>,
-        may_panic: bool,
-    ) -> Option<GlobalGuard<'_, T>> {
-        let init_fn = match &mut *mutex_guard {
-            InitState::Initialized(_) => {
-                // SAFETY: `mutex_guard` is `Initialized`.
-                return Some(unsafe { GlobalGuard::new_unchecked(mutex_guard) });
+        match self.value.try_lock() {
+            Ok(guard) => init(guard, self.init_fn),
+            Err(TryLockError::WouldBlock) => Err(GlobalLockError::WouldBlock),
+
+            // This is a cold branch, where the initialization function panicked.
+            Err(TryLockError::Poisoned(x)) => {
+                // We do the same things as in the hot branch.
+                let circumvent = init(x.into_inner(), self.init_fn)?;
+                Err(GlobalLockError::Poisoned { circumvent })
             }
-            InitState::Failed => {
-                return None;
-            }
-            InitState::Pending(init_fn) => init_fn,
-        };
-
-        // Unwinding should be safe here, as there is no unsafe code relying on it.
-        let init_fn = std::panic::AssertUnwindSafe(init_fn);
-        match std::panic::catch_unwind(init_fn) {
-            Ok(value) => *mutex_guard = InitState::Initialized(value),
-            Err(e) => {
-                eprintln!("panic during Global<T> initialization");
-                *mutex_guard = InitState::Failed;
-
-                if may_panic {
-                    std::panic::resume_unwind(e);
-                } else {
-                    // Note: this currently swallows panic.
-                    return None;
-                }
-            }
-        };
-
-        // SAFETY: `mutex_guard` was either set to `Initialized` above, or we returned from the function.
-        Some(unsafe { GlobalGuard::new_unchecked(mutex_guard) })
+        }
     }
 }
 
@@ -131,56 +103,54 @@ impl<T> Global<T> {
 
 // Encapsulate private fields.
 mod global_guard {
+    use super::*;
     use std::ops::{Deref, DerefMut};
-    use std::sync::MutexGuard;
-
-    use super::InitState;
 
     /// Guard that temporarily gives access to a `Global<T>`'s inner value.
     pub struct GlobalGuard<'a, T> {
-        // Safety invariant: Is `Initialized`.
-        mutex_guard: MutexGuard<'a, InitState<T>>,
+        // Safety invariant: `OnceCell` has been initialized.
+        mutex_guard: MutexGuard<'a, OnceCell<T>>,
     }
 
     impl<'a, T> GlobalGuard<'a, T> {
-        pub(super) fn new(mutex_guard: MutexGuard<'a, InitState<T>>) -> Option<Self> {
-            match &*mutex_guard {
-                InitState::Initialized(_) => Some(Self { mutex_guard }),
+        pub(super) fn new(mutex_guard: MutexGuard<'a, OnceCell<T>>) -> Option<Self> {
+            // Use an eager map instead of `mutex_guard.get().map(|_| Self { mutex_guard })`
+            // as `.get().map(…)` trys to move `mutex_guard` while borrowing an ignored value.
+            match mutex_guard.get() {
+                Some(_) => Some(Self { mutex_guard }),
                 _ => None,
             }
         }
 
         /// # Safety
         ///
-        /// The value must be `Initialized`.
-        pub(super) unsafe fn new_unchecked(mutex_guard: MutexGuard<'a, InitState<T>>) -> Self {
-            debug_assert!(matches!(*mutex_guard, InitState::Initialized(_)));
-
+        /// The value must be initialized.
+        pub(super) unsafe fn new_unchecked(mutex_guard: MutexGuard<'a, OnceCell<T>>) -> Self {
+            debug_assert!(
+                mutex_guard.get().is_some(),
+                "safety precondition violated: cell not initialized"
+            );
             Self::new(mutex_guard).unwrap_unchecked()
         }
     }
 
     impl<T> Deref for GlobalGuard<'_, T> {
         type Target = T;
-
         fn deref(&self) -> &Self::Target {
-            // SAFETY: `self` is `Initialized`.
-            unsafe { self.mutex_guard.as_initialized().unwrap_unchecked() }
+            // SAFETY: `GlobalGuard` guarantees that the cell is initialized.
+            unsafe { self.mutex_guard.get().unwrap_unchecked() }
         }
     }
 
     impl<T> DerefMut for GlobalGuard<'_, T> {
         fn deref_mut(&mut self) -> &mut Self::Target {
-            // SAFETY: `self` is `Initialized`.
-            unsafe { self.mutex_guard.as_initialized_mut().unwrap_unchecked() }
+            // SAFETY: `GlobalGuard` guarantees that the cell is initialized.
+            unsafe { self.mutex_guard.get_mut().unwrap_unchecked() }
         }
     }
 }
 
 pub use global_guard::GlobalGuard;
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Errors
 
 /// Guard that temporarily gives access to a `Global<T>`'s inner value.
 pub enum GlobalLockError<'a, T> {
@@ -192,31 +162,6 @@ pub enum GlobalLockError<'a, T> {
 
     /// The initialization function panicked.
     InitFailed,
-}
-
-// ----------------------------------------------------------------------------------------------------------------------------------------------
-// Internals
-
-enum InitState<T> {
-    Initialized(T),
-    Pending(fn() -> T),
-    Failed,
-}
-
-impl<T> InitState<T> {
-    fn as_initialized(&self) -> Option<&T> {
-        match self {
-            InitState::Initialized(t) => Some(t),
-            _ => None,
-        }
-    }
-
-    fn as_initialized_mut(&mut self) -> Option<&mut T> {
-        match self {
-            InitState::Initialized(t) => Some(t),
-            _ => None,
-        }
-    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
