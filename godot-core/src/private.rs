@@ -243,7 +243,7 @@ pub fn handle_varcall_panic<F, R>(
         Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
     };
 
-    let error_id = report_call_error(call_error);
+    let error_id = report_call_error(call_error, true);
 
     // Abuse 'argument' field to store our ID.
     *out_err = sys::GDExtensionCallError {
@@ -269,10 +269,10 @@ where
         Err(panic_msg) => CallError::failed_by_user_panic(call_ctx, panic_msg),
     };
 
-    let _id = report_call_error(call_error);
+    let _id = report_call_error(call_error, false);
 }
 
-fn report_call_error(call_error: CallError) -> i32 {
+fn report_call_error(call_error: CallError, track_globally: bool) -> i32 {
     // Print failed calls to Godot's console.
     // TODO Level 1 is not yet set, so this will always print if level != 0. Needs better logic to recognize try_* calls and avoid printing.
     // But a bit tricky with multiple threads and re-entrancy; maybe pass in info in error struct.
@@ -280,7 +280,12 @@ fn report_call_error(call_error: CallError) -> i32 {
         godot_error!("{call_error}");
     }
 
-    call_error_insert(call_error)
+    // Once there is a way to auto-remove added errors, this could be always true.
+    if track_globally {
+        call_error_insert(call_error)
+    } else {
+        0
+    }
 }
 
 fn handle_panic_with_print<E, F, R, S>(error_context: E, code: F, print: bool) -> Result<R, String>
