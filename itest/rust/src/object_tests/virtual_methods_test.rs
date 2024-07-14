@@ -57,6 +57,7 @@ impl IRefCounted for VirtualMethodTest {
 struct VirtualReadyTest {
     some_base: Base<Node2D>,
     implementation_value: i32,
+    panics: bool,
 }
 
 #[godot_api]
@@ -65,10 +66,15 @@ impl INode2D for VirtualReadyTest {
         VirtualReadyTest {
             some_base: base,
             implementation_value: 0,
+            panics: false,
         }
     }
 
     fn ready(&mut self) {
+        if self.panics {
+            panic!("a bit too ready");
+        }
+
         self.implementation_value += 1;
     }
 
@@ -322,12 +328,46 @@ fn test_ready(test_context: &TestContext) {
     let obj = VirtualReadyTest::new_alloc();
     assert_eq!(obj.bind().implementation_value, 0);
 
-    // Add to scene tree
+    // Add to scene tree.
     let mut test_node = test_context.scene_tree.clone();
     test_node.add_child(obj.clone().upcast());
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
+}
+
+#[itest]
+fn test_ready_panic(test_context: &TestContext) {
+    let mut obj = VirtualReadyTest::new_alloc();
+    obj.bind_mut().panics = true;
+
+    // Add to scene tree -- this panics.
+    // NOTE: Current implementation catches panics, but does not propagate them to the user.
+    // Godot has no mechanism to transport errors across ptrcalls (e.g. virtual function calls), so this would need to be emulated somehow.
+    let mut test_node = test_context.scene_tree.clone();
+    // expect_panic("panic in ready() propagated to caller", || {
+    test_node.add_child(obj.clone().upcast());
+    // });
+
+    assert_eq!(obj.bind().implementation_value, 0);
+}
+
+#[itest]
+fn test_ready_dynamic_panic(test_context: &TestContext) {
+    let mut obj = VirtualReadyTest::new_alloc();
+    obj.bind_mut().panics = true;
+
+    // Add to scene tree -- this panics.
+    let mut test_node = test_context.scene_tree.clone();
+
+    // NOTE: Current implementation catches panics, but does not propagate them to the user.
+    // Godot has no mechanism to transport errors across ptrcalls (e.g. virtual function calls), so this would need to be emulated somehow.
+    let result = test_node.try_call("add_child".into(), &[obj.to_variant()]);
+    // let err = result.expect_err("add_child() should have panicked");
+    let returned = result.expect("at the moment, panics in virtual functions are swallowed");
+    assert_eq!(returned, Variant::nil());
+
+    assert_eq!(obj.bind().implementation_value, 0);
 }
 
 #[itest]
@@ -337,13 +377,13 @@ fn test_ready_multiple_fires(test_context: &TestContext) {
 
     let mut test_node = test_context.scene_tree.clone();
 
-    // Add to scene tree
+    // Add to scene tree.
     test_node.add_child(obj.clone().upcast());
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
 
-    // Remove and re-add to scene tree
+    // Remove and re-add to scene tree.
     test_node.remove_child(obj.clone().upcast());
     test_node.add_child(obj.clone().upcast());
 
@@ -358,23 +398,23 @@ fn test_ready_request_ready(test_context: &TestContext) {
 
     let mut test_node = test_context.scene_tree.clone();
 
-    // Add to scene tree
+    // Add to scene tree.
     test_node.add_child(obj.clone().upcast());
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
 
-    // Remove and re-add to scene tree
+    // Remove and re-add to scene tree.
     test_node.remove_child(obj.clone().upcast());
     test_node.add_child(obj.clone().upcast());
 
     // _ready does NOT run again, implementation_value should still be 1.
     assert_eq!(obj.bind().implementation_value, 1);
 
-    // Request ready
+    // Request ready.
     obj.clone().upcast::<Node>().request_ready();
 
-    // Remove and re-add to scene tree
+    // Remove and re-add to scene tree.
     test_node.remove_child(obj.clone().upcast());
     test_node.add_child(obj.clone().upcast());
 
@@ -389,12 +429,12 @@ fn test_tree_enters_exits(test_context: &TestContext) {
     assert_eq!(obj.bind().tree_exits, 0);
     let mut test_node = test_context.scene_tree.clone();
 
-    // Add to scene tree
+    // Add to scene tree.
     test_node.add_child(obj.clone().upcast());
     assert_eq!(obj.bind().tree_enters, 1);
     assert_eq!(obj.bind().tree_exits, 0);
 
-    // Remove and re-add to scene tree
+    // Remove and re-add to scene tree.
     test_node.remove_child(obj.clone().upcast());
     assert_eq!(obj.bind().tree_enters, 1);
     assert_eq!(obj.bind().tree_exits, 1);
