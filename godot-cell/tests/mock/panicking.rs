@@ -83,7 +83,7 @@ fn calls_different_thread() {
 /// Call each method from different threads, allowing them to run in parallel.
 ///
 /// This may cause borrow failures, we do a best-effort attempt at estimating the value then. We can detect
-/// if the first call failed, so then we know the integer was incremented by 0. Otherwise we at least know
+/// if the first call failed, so then we know the integer was incremented by 0. Otherwise, we at least know
 /// the range of values that it can be incremented by.
 #[test]
 fn calls_parallel() {
@@ -114,7 +114,7 @@ fn calls_parallel() {
 /// Call each method from different threads, allowing them to run in parallel.
 ///
 /// This may cause borrow failures, we do a best-effort attempt at estimating the value then. We can detect
-/// if the first call failed, so then we know the integer was incremented by 0. Otherwise we at least know
+/// if the first call failed, so then we know the integer was incremented by 0. Otherwise, we at least know
 /// the range of values that it can be incremented by.
 ///
 /// Runs each method several times in a row. This should reduce the non-determinism that comes from
@@ -150,7 +150,7 @@ fn calls_parallel_many_serial() {
 /// Call each method from different threads, allowing them to run in parallel.
 ///
 /// This may cause borrow failures, we do a best-effort attempt at estimating the value then. We can detect
-/// if the first call failed, so then we know the integer was incremented by 0. Otherwise we at least know
+/// if the first call failed, so then we know the integer was incremented by 0. Otherwise, we at least know
 /// the range of values that it can be incremented by.
 ///
 /// Runs all the tests several times. This is different from [`calls_parallel_many_serial`] as that calls the

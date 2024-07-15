@@ -69,7 +69,7 @@ pub(crate) fn is_class_method_excluded(method: &JsonClassMethod, ctx: &mut Conte
         // so passing in a class name while checking for any types is fine.
         let class_deleted = special_cases::is_godot_type_deleted(ty);
 
-        // Then also check if the type is excluded from codegen (due to current Cargo feature. RHS is always false in full-codegen.
+        // Then also check if the type is excluded from codegen (due to current Cargo feature). RHS is always false in full-codegen.
         class_deleted || is_type_excluded(ty, _ctx)
     };
 

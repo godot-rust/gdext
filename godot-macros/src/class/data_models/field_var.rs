@@ -84,7 +84,7 @@ pub enum GetterSetter {
     #[default]
     Generated,
 
-    /// Getter/setter is hand-written by the user, and here is its identifier.
+    /// Getter/setter is handwritten by the user, and here is its identifier.
     Custom(Ident),
 }
 

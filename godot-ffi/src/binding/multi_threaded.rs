@@ -9,7 +9,7 @@
 //!
 //! This can be used from different threads without issue, as late initialization must be synchronized.
 //!
-//! The user of these structs and functions must still ensure that multi-threaded usage of the various pointers is safe.
+//! The user of these structs and functions must still ensure that multithreaded usage of the various pointers is safe.
 
 use std::sync::OnceLock;
 

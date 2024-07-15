@@ -15,8 +15,9 @@ use crate::ParseResult;
 pub struct NewtypeStruct {
     /// The name of the field.
     ///
-    /// If `None`, then this is represents a tuple-struct with one field.
+    /// If `None`, then this represents a tuple-struct with one field.
     pub name: Option<Ident>,
+
     /// The type of the field.
     pub ty: venial::TypeExpr,
 }

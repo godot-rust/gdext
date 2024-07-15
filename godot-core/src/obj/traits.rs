@@ -187,7 +187,7 @@ pub trait EngineBitfield: Copy {
 ///
 /// The conditions for a Godot enum to be "index-like" are:
 /// - Contains an enumerator ending in `_MAX`, which has the highest ordinal (denotes the size).
-/// - All other enumerators are consecutive integers inside 0..max (no negative ordinals, no gaps).
+/// - All other enumerators are consecutive integers inside `0..max` (no negative ordinals, no gaps).
 ///
 /// Duplicates are explicitly allowed, to allow for renamings/deprecations. The order in which Godot exposes
 /// the enumerators in the JSON is irrelevant.
@@ -383,7 +383,7 @@ pub trait WithBaseField: GodotClass + Bounds<Declarer = bounds::DeclUser> {
         //
         // - Since we can get a `&'a Base<Self::Base>` from `&'a self`, that must mean we have a Rust object
         //   somewhere that has this base object. The only way to have such a base object is by being the
-        //   Rust object referenced by that base object. I.e this storage's user-instance is that Rust
+        //   Rust object referenced by that base object. I.e. this storage's user-instance is that Rust
         //   object. That means this storage cannot be destroyed for the lifetime of that Rust object. And
         //   since we have a reference to the base object derived from that Rust object, then that Rust
         //   object must outlive `'a`. And so the storage cannot be destroyed during the lifetime `'a`.

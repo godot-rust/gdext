@@ -127,7 +127,7 @@ fn make_special_virtual_methods(notification_enum_name: &Ident) -> TokenStream {
         /// function will usually be called twice by Godot to find the revert.
         ///
         /// Note that this should be a _pure_ function. That is, it should always return the same value for a property as long as `self`
-        /// remains unchanged. Otherwise this may lead to unexpected (safe) behavior.
+        /// remains unchanged. Otherwise, this may lead to unexpected (safe) behavior.
         ///
         /// [`Object::_property_get_revert`]: https://docs.godotengine.org/en/latest/classes/class_object.html#class-object-private-method-property-get-revert
         /// [`Object::_property_can_revert`]: https://docs.godotengine.org/en/latest/classes/class_object.html#class-object-private-method-property-can-revert

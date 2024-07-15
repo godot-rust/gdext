@@ -411,7 +411,7 @@ mod manual_init_cell {
         /// - Calls to this method must not happen concurrently with a call to any other method on this cell.
         #[inline]
         pub unsafe fn clear(&self) {
-            // SAFETY: `set` is only ever called once, and is not called concurrently with any other methods. Therefore we can take
+            // SAFETY: `set` is only ever called once, and is not called concurrently with any other methods. Therefore, we can take
             // a mutable reference to the contents of the cell.
             let option = unsafe { &mut *self.cell.get() };
 

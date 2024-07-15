@@ -51,7 +51,7 @@ where
 // with GDExt, custom object consists from two parts: Godot object and Rust object, that are
 // bound to each other. this method takes the first by pointer, creates the second with
 // supplied state and binds them together. that's used for both brand-new objects creation and
-// hot reload - during hot-reload, Rust objects are disposed and then created again with a
+// hot reload - during hot-reload, Rust objects are disposed and then created again with an
 // updated code, so that's necessary to link them to Godot objects again.
 fn create_rust_part_for_existing_godot_part<T, F>(
     make_user_instance: F,
@@ -247,7 +247,7 @@ pub unsafe extern "C" fn free_property_list<T: cap::GodotGetPropertyList>(
     // This means that `list` is a pointer to a `&[sys::GDExtensionPropertyInfo]` slice of length `count`.
     // This means all the preconditions of this function are satisfied except uniqueness of this point.
     // Uniqueness is guaranteed as Godot called this function at a point where the list is no longer accessed
-    // through any other pointer, and we dont access the slice through any other pointer after this call either.
+    // through any other pointer, and we don't access the slice through any other pointer after this call either.
     let property_list_slice = unsafe { std::slice::from_raw_parts_mut(list, u32_to_usize(count)) };
 
     // SAFETY: This slice was created by calling `Box::leak` on a `Box<[sys::GDExtensionPropertyInfo]>`, we can thus

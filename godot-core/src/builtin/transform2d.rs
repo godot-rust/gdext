@@ -54,12 +54,12 @@ impl Transform2D {
     /// _Godot equivalent: `Transform2D.IDENTITY`_
     pub const IDENTITY: Self = Self::from_basis_origin(Basis2D::IDENTITY, Vector2::ZERO);
 
-    /// The `Transform2D` that will flip something along its x axis.
+    /// The `Transform2D` that will flip something along its X axis.
     ///
     /// _Godot equivalent: `Transform2D.FLIP_X`_
     pub const FLIP_X: Self = Self::from_basis_origin(Basis2D::FLIP_X, Vector2::ZERO);
 
-    /// The `Transform2D` that will flip something along its y axis.
+    /// The `Transform2D` that will flip something along its Y axis.
     ///
     /// _Godot equivalent: `Transform2D.FLIP_Y`_
     pub const FLIP_Y: Self = Self::from_basis_origin(Basis2D::FLIP_Y, Vector2::ZERO);

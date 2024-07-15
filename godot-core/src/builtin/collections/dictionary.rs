@@ -333,7 +333,7 @@ impl Dictionary {
 
 // SAFETY:
 // - `move_return_ptr`
-//   Nothing special needs to be done beyond a `std::mem::swap` when returning an Dictionary.
+//   Nothing special needs to be done beyond a `std::mem::swap` when returning a Dictionary.
 //   So we can just use `ffi_methods`.
 //
 // - `from_arg_ptr`

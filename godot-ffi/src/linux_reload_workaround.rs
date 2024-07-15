@@ -40,7 +40,7 @@ pub fn disable_hot_reload() {
 }
 
 pub fn default_set_hot_reload() {
-    // By default we enable hot reloading for debug builds, as it's likely that the user may want hot reloading in debug builds.
+    // By default, we enable hot reloading for debug builds, as it's likely that the user may want hot reloading in debug builds.
     // Release builds however should avoid leaking memory, so we disable hot reloading support by default.
     if cfg!(debug_assertions) {
         enable_hot_reload()

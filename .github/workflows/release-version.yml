@@ -179,7 +179,7 @@ jobs:
 #        # Note: first block was for an alternative approach, where a separate `releases` branch tracks deployments.
 #        # Such a branch would however be disjoint and require quite a bit of extra space in the repo.
 #        run: |
-#          # Backup current repo, so we can checkout.
+#          # Backup current repo, so we can check out.
 #          mkdir -p /tmp/repo
 #          rsync -av --exclude .git --exclude target ./ /tmp/repo/
 #          git fetch origin releases && git switch releases || git switch --orphan releases

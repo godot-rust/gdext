@@ -217,7 +217,7 @@ pub fn transform_trait_impl(original_impl: venial::Impl) -> ParseResult<TokenStr
                     compile_error!("`get_property_list` is only supported for Godot versions of at least 4.3");
                 };
 
-                // Set these variables otherwise rust complains that these variables arent changed in Godot < 4.3.
+                // Set these variables otherwise rust complains that these variables aren't changed in Godot < 4.3.
                 get_property_list_fn = None;
                 free_property_list_fn = None;
             }

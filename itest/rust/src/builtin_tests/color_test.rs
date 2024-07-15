@@ -114,7 +114,7 @@ fn color_to_u64() {
 }
 
 // Multiple specific cases because HSV->RGB conversion algorithm used is very dependent on Hue value, taking into account different values
-// based on the the Hue sector.
+// based on the Hue sector.
 const COLOR_HSV_CASES_HSV: [(f32, f32, f32); 9] = [
     (0.0, 0.43, 1.),
     (0.05, 0.34, 0.23),

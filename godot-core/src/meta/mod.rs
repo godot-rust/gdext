@@ -216,7 +216,7 @@ impl PropertyInfo {
     pub(crate) unsafe fn free_owned_property_sys(info: sys::GDExtensionPropertyInfo) {
         // SAFETY: This function was called on a pointer returned from `into_owned_property_sys`, thus both `info.name` and
         // `info.hint_string` were created from calls to `into_owned_string_sys` on their respective types.
-        // Additionally this function isn't called more than once on a struct containing the same `name` or `hint_string` pointers.
+        // Additionally, this function isn't called more than once on a struct containing the same `name` or `hint_string` pointers.
         unsafe {
             let _name = StringName::from_owned_string_sys(info.name);
             let _hint_string = GString::from_owned_string_sys(info.hint_string);

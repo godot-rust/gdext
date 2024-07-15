@@ -27,7 +27,7 @@ pub fn validate_unicode_scalar_sequence(seq: &[u32]) -> Option<&[char]> {
 
             let block = _mm_loadu_si128(ptr as *const __m128i);
 
-            // check if has any character greater than `char::MAX` or less than 0, (SSE2 uses signed math)
+            // Check if there is any character greater than `char::MAX` or less than 0, (SSE2 uses signed math).
             if _mm_movemask_epi8(_mm_and_si128(
                 _mm_cmpgt_epi32(block, _mm_set1_epi32(-1)),
                 _mm_cmplt_epi32(block, _mm_set1_epi32(char::MAX as i32 + 1)),
@@ -36,7 +36,7 @@ pub fn validate_unicode_scalar_sequence(seq: &[u32]) -> Option<&[char]> {
                 return None;
             }
 
-            // check if has any high-surrogate and low-surrogate code points
+            // Check if there is any high-surrogate and low-surrogate code points.
             if _mm_testz_si128(
                 _mm_cmpgt_epi32(block, _mm_set1_epi32(0xD7FF)),
                 _mm_cmplt_epi32(block, _mm_set1_epi32(0xE000)),
@@ -57,12 +57,12 @@ pub fn validate_unicode_scalar_sequence(seq: &[u32]) -> Option<&[char]> {
 
             let block = vld1q_u32(ptr);
 
-            // check if has any character bigger than `char::MAX`
+            // Check if there is any character bigger than `char::MAX`.
             if vmaxvq_u32(block) >= char::MAX as u32 {
                 return None;
             }
 
-            // check if has any high-surrogate and low-surrogate code points
+            // Check if there is any high-surrogate and low-surrogate code points.
             // This is in the range `0xD800..0xE000`.
             if vminvq_u32(vsubq_u32(block, vdupq_n_u32(0xD800))) < (0xE000 - 0xD800) {
                 return None;
@@ -90,7 +90,7 @@ pub fn validate_unicode_scalar_sequence(seq: &[u32]) -> Option<&[char]> {
 
 #[cfg(test)]
 mod tests {
-    // simple random pseudorandom number generator using the linear congruential method
+    // Simple random pseudorandom number generator using the linear congruential method.
     struct Rand {
         state: u64,
     }

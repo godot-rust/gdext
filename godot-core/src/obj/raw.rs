@@ -593,7 +593,7 @@ impl<T: GodotClass> Drop for RawGd<T> {
 
         // out!("RawGd::drop   <{}>", std::any::type_name::<T>());
 
-        // SAFETY: This `Gd` wont be dropped again after this.
+        // SAFETY: This `Gd` won't be dropped again after this.
         let is_last = unsafe { T::DynMemory::maybe_dec_ref(self) }; // may drop
         if is_last {
             unsafe {

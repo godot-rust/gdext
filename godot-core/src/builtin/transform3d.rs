@@ -78,8 +78,7 @@ impl Transform3D {
         }
     }
 
-    /// Constructs a Transform3d from a Projection by trimming the last row of
-    /// the projection matrix.
+    /// Constructs a `Transform3D` from a `Projection` by trimming the last row of the projection matrix.
     ///
     /// _Godot equivalent: `Transform3D(Projection from)`_
     pub fn from_projection(proj: &Projection) -> Self {

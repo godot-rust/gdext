@@ -374,7 +374,7 @@ use crate::util::ident;
 ///
 /// ## Class renaming
 ///
-/// You may want to have structs with the same name. With Rust, this is allowed using `mod`. However in GDScript,
+/// You may want to have structs with the same name. With Rust, this is allowed using `mod`. However, in GDScript
 /// there are no modules, namespaces, or any such disambiguation.  Therefore, you need to change the names before they
 /// can get to Godot. You can use the `rename` key while defining your `GodotClass` for this.
 ///
@@ -696,7 +696,7 @@ pub fn godot_api(_meta: TokenStream, input: TokenStream) -> TokenStream {
 /// assert_eq!(obj.to_godot(), GString::from("hello!"));
 /// ```
 ///
-/// However it will not work for structs with more than one field, even if that field is zero sized:
+/// However, it will not work for structs with more than one field, even if that field is zero sized:
 /// ```compile_fail
 /// use godot::prelude::*;
 ///
@@ -809,7 +809,7 @@ pub fn itest(meta: TokenStream, input: TokenStream) -> TokenStream {
     translate_meta("itest", meta, input, itest::attribute_itest)
 }
 
-/// Similar to `#[test]`, but runs an benchmark with Godot.
+/// Similar to `#[test]`, but runs a benchmark with Godot.
 ///
 /// Calls the `fn` many times and gathers statistics from its execution time.
 #[proc_macro_attribute]

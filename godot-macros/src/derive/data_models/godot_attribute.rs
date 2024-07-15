@@ -11,7 +11,7 @@ use quote::ToTokens;
 use crate::util::{bail, KvParser};
 use crate::ParseResult;
 
-/// Stores data related to the `#[godot(..)]` attribute.
+/// Stores data related to the `#[godot(...)]` attribute.
 pub enum GodotAttribute {
     /// `#[godot(transparent)]`
     Transparent { span: Span },

@@ -702,7 +702,7 @@ impl<T: ArrayElement> Array<T> {
     /// This has the same safety issues as doing `self.assume_type::<Variant>()` and so the relevant safety invariants from
     /// [`assume_type`](Self::assume_type) must be upheld.
     ///
-    /// In particular this means that all reads are fine, since all values can be converted to `Variant`. However writes are only ok
+    /// In particular this means that all reads are fine, since all values can be converted to `Variant`. However, writes are only OK
     /// if they match the type `T`.
     #[doc(hidden)]
     pub unsafe fn as_inner_mut(&self) -> inner::InnerArray {
@@ -1077,7 +1077,7 @@ impl<T: ArrayElement + ToGodot> FromIterator<T> for Array<T> {
 impl<T: ArrayElement + ToGodot> Extend<T> for Array<T> {
     fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
-        // Otherwise we could use it to pre-allocate based on `iter.size_hint()`.
+        // Otherwise, we could use it to pre-allocate based on `iter.size_hint()`.
         //
         // A faster implementation using `resize()` and direct pointer writes might still be
         // possible.
@@ -1122,7 +1122,7 @@ impl<'a, T: ArrayElement + FromGodot> Iterator for Iter<'a, T> {
             let element_ptr = self.array.ptr_or_null(idx);
 
             // SAFETY: We just checked that the index is not out of bounds, so the pointer won't be null.
-            // We immediately convert this to the right element, so barring `experimental-threads` the pointer wont be invalidated in time.
+            // We immediately convert this to the right element, so barring `experimental-threads` the pointer won't be invalidated in time.
             let variant = unsafe { Variant::borrow_var_sys(element_ptr) };
             let element = T::from_variant(variant);
             Some(element)

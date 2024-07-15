@@ -49,7 +49,8 @@ struct CallErrors {
 impl Default for CallErrors {
     fn default() -> Self {
         Self {
-            // [None; N] requires Clone.
+            // [None; N] requires Clone. The following is possible once MSRV lifts to 1.79:
+            // ring_buffer: [const { None }; Self::MAX_ENTRIES as usize].into(),
             ring_buffer: std::iter::repeat_with(|| None)
                 .take(Self::MAX_ENTRIES as usize)
                 .collect(),

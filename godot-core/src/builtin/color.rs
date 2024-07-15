@@ -299,7 +299,7 @@ impl Color {
     ///
     /// # Panics
     ///
-    /// Method will panic if the RGBA values are outside of the valid range `0.0..=1.0`. You can use [`Color::normalized`] to ensure that
+    /// Method will panic if the RGBA values are outside the valid range `0.0..=1.0`. You can use [`Color::normalized`] to ensure that
     /// they are in range, or use [`Color::try_to_hsv`].
     pub fn to_hsv(self) -> ColorHsv {
         self.try_to_hsv().unwrap_or_else(|e| panic!("{e}"))
@@ -315,7 +315,9 @@ impl Color {
         Ok(ColorHsv { h, s, v, a })
     }
 
-    /// Clamps all components to an usually valid range `0.0..=1.0`. Useful for transformations between different color representations.
+    /// Clamps all components to a usually valid range `0.0..=1.0`.
+    ///
+    /// Useful for transformations between different color representations.
     #[must_use]
     pub fn normalized(self) -> Self {
         Self {

@@ -122,7 +122,7 @@ pub enum FieldExport {
 }
 
 impl FieldExport {
-    /// Parse an `#[export(..)]` attribute.
+    /// Parse an `#[export(...)]` attribute.
     ///
     /// The translation from GDScript annotations to rust attributes is given by:
     ///
@@ -270,7 +270,7 @@ impl FieldExport {
 
         let min = parser.next_expr()?;
         let max = parser.next_expr()?;
-        // If there is a next element and it is a literal, we take its tokens directly.
+        // If there is a next element, and it is a literal, we take its tokens directly.
         let step = if parser.peek().is_some_and(|kv| kv.as_literal().is_ok()) {
             let value = parser
                 .next_expr()

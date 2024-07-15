@@ -90,7 +90,7 @@ fn test_godot_versions() {
         ("4.0.rc1.official.8843d9ad3", 4, 0, 0, "rc1", s("8843d9ad3")),
         ("4.0.stable.arch_linux", 4, 0, 0, "stable", None),
         ("4.1.1.stable.arch_linux\n", 4, 1, 1, "stable", None),
-        // Output from 4.0.stable on MacOS in debug mode:
+        // Output from 4.0.stable on macOS in debug mode:
         // https://github.com/godotengine/godot/issues/74906
         ("arguments
 0: /Users/runner/work/_temp/godot_bin/godot.macos.editor.dev.x86_64

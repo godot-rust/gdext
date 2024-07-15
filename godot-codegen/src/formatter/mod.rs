@@ -45,7 +45,7 @@ use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 ///   after the `,` but because this only looks at one TokenKind at a time
 ///   and only keeps a single state, it's too much effort to keep track of which
 ///   `,` in a [`TokenTree`] should trigger a newline (it would involve a stack
-///   of infos whether that group is in a match or not, detecting pattern etc)
+///   of infos whether that group is in a match or not, detecting pattern etc.)
 /// - Because `,` can be used for function args (no-newline) and separators
 ///   in `struct` and `enum` definitons, those definitions are more awkward
 ///   and crammed into one line as a trade-off to make function calls and args

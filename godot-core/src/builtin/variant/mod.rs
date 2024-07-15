@@ -97,7 +97,7 @@ impl Variant {
 
     /// ⚠️ Calls the specified `method` with the given `args`.
     ///
-    /// Supports `Object` as well as built-ins with methods (e.g. `Array`, `Vector3`, `GString`, etc).
+    /// Supports `Object` as well as built-ins with methods (e.g. `Array`, `Vector3`, `GString`, etc.).
     ///
     /// # Panics
     /// * If `self` is not a variant type which supports method calls.
@@ -398,7 +398,7 @@ impl Variant {
         let ptr = ptr.cast::<Self>();
 
         // SAFETY: `ptr` was returned from a call to `into_owned_var_sys`, which means it was created by a call to
-        // `Box::into_raw`, thus we can use `Box::from_raw` here. Additionally this is only called once on this pointer.
+        // `Box::into_raw`, thus we can use `Box::from_raw` here. Additionally, this is only called once on this pointer.
         let boxed = unsafe { Box::from_raw(ptr) };
         *boxed
     }

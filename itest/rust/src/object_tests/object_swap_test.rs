@@ -63,7 +63,7 @@ fn object_subtype_swap_method() {
 
     // Previous behavior allowed calls as long as the runtime type would be compatible with the FFI caller type:
     // assert_eq!(user.get_class(), GString::from("Object"));
-    // This is now more strict and requires the type to be correct even before Deref, in an attempt to catch more errors.
+    // This is now stricter and requires the type to be correct even before Deref, in an attempt to catch more errors.
     expect_panic("method call on Gd<T> with invalid runtime type", || {
         node_3d.get_class();
     });
@@ -141,7 +141,7 @@ fn object_subtype_swap_bind() {
 
     // Previous behavior allowed calls as long as the runtime type would be compatible with the FFI caller type:
     // assert_eq!(user.get_class(), GString::from("Object"));
-    // This is now more strict and requires the type to be correct even before Deref, in an attempt to catch more errors.
+    // This is now stricter and requires the type to be correct even before Deref, in an attempt to catch more errors.
     expect_panic("method call on Gd<T> with invalid runtime type", || {
         user.get_class();
     });
@@ -218,7 +218,7 @@ fn object_freed_func_return() {
     }); // Destructor will not panic again (which would cause abort).
 }
 
-// This is not strictly testing subtype-swapping, but it's convenient to have hear due to SwapHolder's `gc` list.
+// This is not strictly testing subtype-swapping, but it's convenient to have here due to SwapHolder's `gc` list.
 #[itest]
 fn object_freed_panic_during_unwind() {
     expect_panic("free() in destructor will not panic again", || {
@@ -226,7 +226,7 @@ fn object_freed_panic_during_unwind() {
         let mut holder = SwapHolder::new_gd();
         holder.bind_mut().add_dead_object_and_panic();
     }); // Destructor will not panic again (which would cause abort).
-} // This is not strictly testing subtype-swapping, but it's convenient to have hear due to SwapHolder's `gc` list.
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

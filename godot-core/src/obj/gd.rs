@@ -576,7 +576,7 @@ where
         }
 
         // SAFETY: object must be alive, which was just checked above. No multithreading here.
-        // Also checked in the C free_instance_func callback, however error message can be more precise here and we don't need to instruct
+        // Also checked in the C free_instance_func callback, however error message can be more precise here, and we don't need to instruct
         // the engine about object destruction. Both paths are tested.
         let bound = unsafe { T::Declarer::is_currently_bound(&self.raw) };
         if bound {

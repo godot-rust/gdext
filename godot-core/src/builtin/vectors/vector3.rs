@@ -110,9 +110,10 @@ impl Vector3 {
         n.normalized()
     }
 
-    /// Returns the octahedral-encoded (oct32) form of this Vector3 as a [`Vector2`]. Since a [`Vector2`] occupies 1/3 less memory compared to Vector3,
-    /// this form of compression can be used to pass greater amounts of [`Vector3::normalized`] Vector3s without increasing storage or memory requirements.
-    /// See also [`Vector3::octahedron_decode`].
+    /// Returns the octahedral-encoded (oct32) form of this `Vector3` as a [`Vector2`].
+    ///
+    /// Since a [`Vector2`] occupies 1/3 less memory compared to `Vector3`, this form of compression can be used to pass greater amounts of
+    /// [`Vector3::normalized`] `Vector3`s without increasing storage or memory requirements. See also [`Vector3::octahedron_decode`].
     ///
     /// Note: Octahedral compression is lossy, although visual differences are rarely perceptible in real world scenarios.
     ///

@@ -59,7 +59,7 @@ pub fn make_function_definition_with_defaults(
     // #[allow] exceptions:
     // - wrong_self_convention:     to_*() and from_*() are taken from Godot
     // - redundant_field_names:     'value: value' is a possible initialization pattern
-    // - needless-update:           '..self' has nothing left to change
+    // - needless-update:           Remainder expression '..self' has nothing left to change
     let builders = quote! {
         #[doc = #builder_doc]
         #[must_use]

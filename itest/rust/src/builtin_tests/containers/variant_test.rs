@@ -437,9 +437,9 @@ fn variant_hash_correct() {
 
     assert_eq!(Variant::nil().hash(), 0);
 
-    // it's not guaranteed that different object will have different hash but it is
+    // It's not guaranteed that different object will have different hash, but it is
     // extremely unlikely for a collision to happen.
-    assert_ne!(dict! { 0: dict!{ 0: 0 } }, dict! { 0: dict!{ 0: 1 } });
+    assert_ne!(dict! { 0: dict! { 0: 0 } }, dict! { 0: dict! { 0: 1 } });
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

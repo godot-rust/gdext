@@ -32,7 +32,7 @@ impl MyClass {
 
 /// Call each method from different threads, allowing them to run in parallel.
 ///
-/// This should not cause borrow failures and should not lead to dead locks.
+/// This should not cause borrow failures and should not lead to deadlocks.
 #[test]
 fn calls_parallel() {
     use std::thread;
@@ -61,7 +61,7 @@ fn calls_parallel() {
 
 /// Call each method from different threads, allowing them to run in parallel.
 ///
-/// This should not cause borrow failures and should not lead to dead locks.
+/// This should not cause borrow failures and should not lead to deadlocks.
 ///
 /// Runs each method several times in a row. This should reduce the non-determinism that comes from
 /// scheduling of threads.
@@ -95,7 +95,7 @@ fn calls_parallel_many_serial() {
 
 /// Call each method from different threads, allowing them to run in parallel.
 ///
-/// This should not cause borrow failures and should not lead to dead locks.
+/// This should not cause borrow failures and should not lead to deadlocks.
 ///
 /// Runs all the tests several times. This is different from [`calls_parallel_many_serial`] as that calls the
 /// methods like AAA...BBB...CCC..., whereas this interleaves the methods like ABC...ABC...ABC...
