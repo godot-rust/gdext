@@ -94,13 +94,13 @@ impl<T: GodotClass> Drop for GdMut<'_, T> {
 /// See [`DynGd::dbind_mut`][crate::obj::DynGd::dbind_mut] for usage.
 #[derive(Debug)]
 pub struct DynGdMut<'a, T: GodotClass, D: ?Sized> {
-    guard: MutGuard<'a, T>,
+    guard: GdMut<'a, T>,
     cached_ptr: *mut D,
 }
 
 impl<'a, T: GodotClass, D: ?Sized> DynGdMut<'a, T, D> {
     pub fn from_guard(
-        mut guard: MutGuard<'a, T>,
+        mut guard: GdMut<'a, T>,
         dynamic_caster: fn(&mut T) -> &mut D,
     ) -> Self {
         let obj = &mut *guard;
@@ -110,6 +110,14 @@ impl<'a, T: GodotClass, D: ?Sized> DynGdMut<'a, T, D> {
         // Caching prevents extra indirections; any calls through the dyn guard after the first is simply a Rust dyn-trait virtual call.
         let cached_ptr = std::ptr::addr_of_mut!(*dyn_obj);
         Self { guard, cached_ptr }
+    }
+
+    pub fn from_guard_type_inference(
+         guard: GdMut<'a, T>,
+        dynamic_caster: fn(&mut T) -> &mut D,
+        t_type_infer: &T,
+    ) -> Self {
+        Self::from_guard(guard, dynamic_caster)
     }
 }
 

@@ -25,8 +25,8 @@ pub(crate) mod rtti;
 
 pub use base::*;
 pub use gd::*;
-pub use guards::{BaseMut, BaseRef, GdMut, GdRef};
-pub use instance_id::*;
+pub use dyn_gd::*;
+pub use guards::{BaseMut, BaseRef, GdMut, GdRef};pub use instance_id::*;
 pub use object_arg::*;
 pub use onready::*;
 pub use raw_gd::*;

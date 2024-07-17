@@ -8,7 +8,7 @@
 #![allow(unused, dead_code)] // FIXME
 
 use crate::engine;
-use crate::obj::{Gd, DynGdMut, GodotClass};
+use crate::obj::{DynGdMut, Gd, GodotClass};
 
 // struct Dyn<V> {
 // }
@@ -29,10 +29,16 @@ where
     T: GodotClass,
     D: ?Sized,
 {
+    pub fn new(obj: Gd<T>, erased_downcast: fn(&Gd<engine::Object>) -> DynGdMut<T, D>) -> Self {
+        Self {
+            obj,
+            erased_downcast,
+        }
+    }
+
     fn dbind_mut(&mut self) -> DynGdMut<T, D> {
         todo!()
     }
-
 }
 
 // fn make_dyn<T: GodotClass, D: ?Sized>(guard: DynGdMut<'_, T, D>) {
