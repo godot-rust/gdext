@@ -54,6 +54,11 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
             let script = std::ffi::CString::new(concat!(
                 "var pkgName = '", env!("CARGO_PKG_NAME"), "';", r#"
                 var libName = pkgName.replaceAll('-', '_') + '.wasm';
+                if (!(libName in LDSO.loadedLibsByName)) {
+                    // Always print to console, even if the error is suppressed.
+                    console.error(`godot-rust could not find the Wasm module '${libName}', needed to load the '${pkgName}' crate. Please ensure a file named '${libName}' exists in the game's web export files. This may require updating Wasm paths in the crate's corresponding '.gdextension' file, or just renaming the Wasm file to the correct name otherwise.`);
+                    throw new Error(`Wasm module '${libName}' not found. Check the console for more information.`);
+                }
                 var dso = LDSO.loadedLibsByName[libName];
                 // This property was renamed as of emscripten 3.1.34
                 var dso_exports = "module" in dso ? dso["module"] : dso["exports"];
