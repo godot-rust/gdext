@@ -21,7 +21,7 @@ where
     obj: Gd<T>,
     //rc: rc::Weak<B>
     // dyn_ptr: *mut B,
-    erased_downcast: fn(&Gd<engine::Object>) -> DynGdMut<T, D>,
+    erased_downcast: Box<dyn Fn(&Gd<engine::Object>) -> DynGdMut<T, D>>,
 }
 
 impl<T, D> DynGd<T, D>
@@ -29,10 +29,13 @@ where
     T: GodotClass,
     D: ?Sized,
 {
-    pub fn new(obj: Gd<T>, erased_downcast: fn(&Gd<engine::Object>) -> DynGdMut<T, D>) -> Self {
+    pub fn new(
+        obj: Gd<T>,
+        erased_downcast: impl Fn(&Gd<engine::Object>) -> DynGdMut<T, D> + 'static,
+    ) -> Self {
         Self {
             obj,
-            erased_downcast,
+            erased_downcast: Box::new(erased_downcast),
         }
     }
 

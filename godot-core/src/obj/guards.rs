@@ -99,10 +99,7 @@ pub struct DynGdMut<'a, T: GodotClass, D: ?Sized> {
 }
 
 impl<'a, T: GodotClass, D: ?Sized> DynGdMut<'a, T, D> {
-    pub fn from_guard(
-        mut guard: GdMut<'a, T>,
-        dynamic_caster: fn(&mut T) -> &mut D,
-    ) -> Self {
+    pub fn from_guard(mut guard: GdMut<'a, T>, dynamic_caster: fn(&mut T) -> &mut D) -> Self {
         let obj = &mut *guard;
         let dyn_obj = dynamic_caster(obj);
 
@@ -113,9 +110,8 @@ impl<'a, T: GodotClass, D: ?Sized> DynGdMut<'a, T, D> {
     }
 
     pub fn from_guard_type_inference(
-         guard: GdMut<'a, T>,
+        guard: GdMut<'a, T>,
         dynamic_caster: fn(&mut T) -> &mut D,
-        t_type_infer: &T,
     ) -> Self {
         Self::from_guard(guard, dynamic_caster)
     }

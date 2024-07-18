@@ -5,7 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-
 pub use godot_core::dyn_gd;
 
 pub use super::register::property::{Export, TypeStringHint, Var};

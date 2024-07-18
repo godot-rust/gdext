@@ -375,7 +375,7 @@ impl<T: GodotClass> Gd<T> {
     /// to the returned value.
     pub fn try_cast<Derived>(self) -> Result<Gd<Derived>, Self>
     where
-        Derived:  Inherits<T>,
+        Derived: Inherits<T>,
     {
         // Separate method due to more restrictive bounds.
         self.owned_cast()
