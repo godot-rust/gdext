@@ -10,7 +10,7 @@ struct Thing {}
 
 impl Health for Thing {}
 
-fn guard<'a, T>(gd: &'a mut Gd<T>, _type: TypeCapsule<T>) -> GdMut<'a, T>
+fn guard<'a, T>(gd: &'a mut Gd<T>, /*_type: TypeCapsule<T>*/) -> GdMut<'a, T>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclUser>,
 {
@@ -61,7 +61,7 @@ fn test() {
                 // let mut concrete: Gd<_> = obj.clone().cast();
                 let concrete: &mut Gd<_> = unsafe { std::mem::transmute(obj) };
 
-                let guard = guard(concrete, type_);
+                let guard = guard(concrete, /*type_*/);
 
                 DynGdMut::from_guard(guard, |t: &mut _| -> &mut dyn Health { t })
             });
