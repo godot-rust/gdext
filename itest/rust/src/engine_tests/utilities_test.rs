@@ -8,7 +8,9 @@
 use crate::framework::itest;
 
 use godot::builtin::{GString, Variant};
+use godot::classes::Node3D;
 use godot::global::*;
+use godot::obj::NewAlloc;
 
 #[itest]
 fn utilities_abs() {
@@ -69,4 +71,15 @@ fn utilities_max() {
         &[Variant::from(-5.0), Variant::from(-7.0)],
     );
     assert_eq!(output, Variant::from(-1.0));
+}
+
+// Checks that godot-rust is not susceptible to the godot-cpp issue https://github.com/godotengine/godot-cpp/issues/1390.
+#[itest]
+fn utilities_is_instance_valid() {
+    let node = Node3D::new_alloc();
+    let variant = Variant::from(node.clone());
+    assert!(is_instance_valid(variant.clone()));
+
+    node.free();
+    assert!(!is_instance_valid(variant));
 }

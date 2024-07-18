@@ -76,6 +76,7 @@ fn to_hardcoded_rust_enum(ty: &str) -> Option<&str> {
         "enum::Variant.Type" => "VariantType",
         "enum::Variant.Operator" => "VariantOperator",
         "enum::Vector3.Axis" => "Vector3Axis",
+        "enum::Vector3i.Axis" => "Vector3Axis",
         _ => return None,
     };
     Some(result)
