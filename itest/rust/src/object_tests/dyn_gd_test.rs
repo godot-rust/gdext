@@ -35,6 +35,7 @@ impl<T> Clone for TypeCapsule<T> {
 }
 impl<T> Copy for TypeCapsule<T> {}
 
+#[allow(dead_code)]
 fn test() {
     let user_obj = Thing {};
     // let d = dyn_gd!(Health; node);
@@ -44,26 +45,34 @@ fn test() {
         let gd = Gd::from_object(user_obj);
 
         // let type_ = type_.clone();
-        let downcast: Box<dyn Fn(&mut Gd<Object>) -> DynGdMut<Thing, dyn Health>> =
-            Box::new(|obj: &mut Gd<Object>| -> DynGdMut<Thing, dyn Health> {
+
+        // Without the explicit type annotation, we get the weird error:
+        // error[E0308]: mismatched types
+        //    |
+        // 59 |         DynGd::<Thing, dyn Health>::new(gd, downcast)
+        //    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ one type is more general than the other
+        //
+        // We can also not extract the closure into a separate variable, it needs to be inline in Box::new(...).
+        //
+        // Furthermore, we should be able to store this in a fn pointer without Box, however rustc
+        // doesn't tolerate captures (type_), *even if they are ZSTs*.
+        let downcast: Box<dyn Fn(&mut Gd<Object>) -> DynGdMut<_, dyn Health>> =
+            Box::new(|obj: &mut Gd<Object>| {
                 // let mut concrete: Gd<_> = obj.clone().cast();
                 let concrete: &mut Gd<_> = unsafe { std::mem::transmute(obj) };
 
-                // if false {
-                //     std::mem::swap(&mut user_obj, &mut concrete);
-                // }
-
                 let guard = guard(concrete, type_);
 
-                DynGdMut::from_guard(guard, |t: &mut Thing| -> &mut dyn Health { t })
+                DynGdMut::from_guard(guard, |t: &mut _| -> &mut dyn Health { t })
             });
 
-        DynGd::<Thing, dyn Health>::new(gd, downcast)
+        DynGd::<_, dyn Health>::new(gd, downcast)
     };
     let t = dyn_gd.dbind_mut();
     let _ = t;
 }
 
+#[allow(dead_code)]
 fn test2() {
     let user_obj = Thing {};
     let gd = Gd::from_object(user_obj);
