@@ -108,13 +108,6 @@ impl<'a, T: GodotClass, D: ?Sized> DynGdMut<'a, T, D> {
         let cached_ptr = std::ptr::addr_of_mut!(*dyn_obj);
         Self { guard, cached_ptr }
     }
-
-    pub fn from_guard_type_inference(
-        guard: GdMut<'a, T>,
-        dynamic_caster: fn(&mut T) -> &mut D,
-    ) -> Self {
-        Self::from_guard(guard, dynamic_caster)
-    }
 }
 
 impl<T: GodotClass, D: ?Sized> Deref for DynGdMut<'_, T, D> {

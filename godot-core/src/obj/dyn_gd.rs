@@ -21,7 +21,7 @@ where
     obj: Gd<T>,
     //rc: rc::Weak<B>
     // dyn_ptr: *mut B,
-    erased_downcast: Box<dyn Fn(&Gd<engine::Object>) -> DynGdMut<T, D>>,
+    erased_downcast: Box<dyn Fn(&mut Gd<engine::Object>) -> DynGdMut<T, D>>,
 }
 
 impl<T, D> DynGd<T, D>
@@ -31,7 +31,7 @@ where
 {
     pub fn new(
         obj: Gd<T>,
-        erased_downcast: impl Fn(&Gd<engine::Object>) -> DynGdMut<T, D> + 'static,
+        erased_downcast: impl Fn(&mut Gd<engine::Object>) -> DynGdMut<T, D> + 'static,
     ) -> Self {
         Self {
             obj,
@@ -41,7 +41,7 @@ where
 
     pub fn dbind_mut(&mut self) -> DynGdMut<T, D> {
         // TODO performance+safety
-        let object: &Gd<engine::Object> = unsafe { std::mem::transmute(&self.obj) };
+        let object: &mut Gd<engine::Object> = unsafe { std::mem::transmute(&mut self.obj) };
 
         (self.erased_downcast)(object)
     }

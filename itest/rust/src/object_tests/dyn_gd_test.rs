@@ -8,6 +8,8 @@ trait Health {}
 #[class(init)]
 struct Thing {}
 
+impl Health for Thing {}
+
 fn guard<'a, T>(gd: &'a mut Gd<T>, _type: TypeCapsule<T>) -> GdMut<'a, T>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclUser>,
@@ -42,17 +44,19 @@ fn test() {
         let gd = Gd::from_object(user_obj);
 
         // let type_ = type_.clone();
-        let downcast = move |obj: &Gd<Object>| {
-            let mut concrete: Gd<_> = obj.clone().cast();
+        let downcast = move |obj: &mut Gd<Object>| {
+            // let mut concrete: Gd<_> = obj.clone().cast();
+            let concrete: &mut Gd<_> = unsafe { std::mem::transmute(obj) };
+
             // if false {
             //     std::mem::swap(&mut user_obj, &mut concrete);
             // }
 
-            let guard = guard(&mut concrete, type_);
-            DynGdMut::from_guard_type_inference(guard, |t| t)
+            let guard = guard(concrete, type_);
+            DynGdMut::from_guard(guard, |t| -> &mut dyn Health { t })
         };
 
-        DynGd::new(gd, downcast)
+        DynGd::<_, dyn Health>::new(gd, downcast)
     };
 
     let t = dyn_gd.dbind_mut();
