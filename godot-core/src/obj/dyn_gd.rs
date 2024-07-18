@@ -39,8 +39,11 @@ where
         }
     }
 
-    fn dbind_mut(&mut self) -> DynGdMut<T, D> {
-        todo!()
+    pub fn dbind_mut(&mut self) -> DynGdMut<T, D> {
+        // TODO performance+safety
+        let object: &Gd<engine::Object> = unsafe { std::mem::transmute(&self.obj) };
+
+        (self.erased_downcast)(object)
     }
 }
 
