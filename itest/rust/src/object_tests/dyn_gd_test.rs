@@ -44,21 +44,36 @@ fn test() {
         let gd = Gd::from_object(user_obj);
 
         // let type_ = type_.clone();
-        let downcast = move |obj: &mut Gd<Object>| {
-            // let mut concrete: Gd<_> = obj.clone().cast();
-            let concrete: &mut Gd<_> = unsafe { std::mem::transmute(obj) };
+        let downcast: Box<dyn Fn(&mut Gd<Object>) -> DynGdMut<Thing, dyn Health>> =
+            Box::new(|obj: &mut Gd<Object>| -> DynGdMut<Thing, dyn Health> {
+                // let mut concrete: Gd<_> = obj.clone().cast();
+                let concrete: &mut Gd<_> = unsafe { std::mem::transmute(obj) };
 
-            // if false {
-            //     std::mem::swap(&mut user_obj, &mut concrete);
-            // }
+                // if false {
+                //     std::mem::swap(&mut user_obj, &mut concrete);
+                // }
 
-            let guard = guard(concrete, type_);
-            DynGdMut::from_guard(guard, |t| -> &mut dyn Health { t })
-        };
+                let guard = guard(concrete, type_);
 
-        DynGd::<_, dyn Health>::new(gd, downcast)
+                DynGdMut::from_guard(guard, |t: &mut Thing| -> &mut dyn Health { t })
+            });
+
+        DynGd::<Thing, dyn Health>::new(gd, downcast)
     };
-
     let t = dyn_gd.dbind_mut();
     let _ = t;
+}
+
+fn test2() {
+    let user_obj = Thing {};
+    let gd = Gd::from_object(user_obj);
+
+    // let type_ = type_.clone();
+    let downcast: fn(&mut Gd<Object>) -> DynGdMut<Thing, dyn Health> =
+        |_obj: &mut Gd<Object>| -> DynGdMut<Thing, dyn Health> {
+            // let mut concrete: Gd<_> = obj.clone().cast();
+            todo!()
+        };
+
+    let _ = DynGd::<Thing, dyn Health>::new(gd, downcast);
 }

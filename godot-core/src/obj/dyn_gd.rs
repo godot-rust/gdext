@@ -31,12 +31,13 @@ where
 {
     pub fn new(
         obj: Gd<T>,
-        erased_downcast: impl Fn(&mut Gd<engine::Object>) -> DynGdMut<T, D> + 'static,
+        erased_downcast: impl Fn(&mut Gd<engine::Object>) -> DynGdMut<T, D> ,
     ) -> Self {
-        Self {
-            obj,
-            erased_downcast: Box::new(erased_downcast),
-        }
+        // Self {
+        //     obj,
+        //     erased_downcast: Box::new(erased_downcast),
+        // }
+        todo!()
     }
 
     pub fn dbind_mut(&mut self) -> DynGdMut<T, D> {
