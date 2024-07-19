@@ -53,12 +53,16 @@ macro_rules! out {
 
 /// Trace output.
 #[cfg(not(feature = "debug-log"))]
-// TODO find a better way than sink-writing to avoid warnings, #[allow(unused_variables)] doesn't work
 #[macro_export]
 macro_rules! out {
     ()                          => ({});
-    ($fmt:literal)              => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt); });
-    ($fmt:literal, $($arg:tt)*) => ({ use std::io::{sink, Write}; let _ = write!(sink(), $fmt, $($arg)*); };)
+    ($fmt:literal)              => ({});
+    ($fmt:literal, $($arg:tt)*) => {{
+        // Discard; should not generate any code.
+        if false {
+            format_args!($fmt, $($arg)*);
+        }
+    }}
 }
 
 /// Extract a function pointer from its `Option` and convert it to the (dereferenced) target type.
