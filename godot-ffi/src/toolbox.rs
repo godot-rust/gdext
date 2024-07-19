@@ -71,12 +71,19 @@ macro_rules! out {
 ///  let get_godot_version = get_proc_address(sys::c_str(b"get_godot_version\0"));
 ///  let get_godot_version = sys::cast_fn_ptr!(get_godot_version as sys::GDExtensionInterfaceGetGodotVersion);
 /// ```
+///
+/// # Safety
+///
+/// `$ToType` must be an option of an `unsafe extern "C"` function pointer.
 #[allow(unused)]
 #[macro_export]
 macro_rules! cast_fn_ptr {
-    ($option:ident as $ToType:ty) => {{
-        let ptr = $option.expect("null function pointer");
-        std::mem::transmute::<unsafe extern "C" fn(), <$ToType as $crate::Inner>::FnPtr>(ptr)
+    (unsafe { $option:ident as $ToType:ty }) => {{
+        // SAFETY: `$ToType` is an `unsafe extern "C"` function pointer and is thus compatible with `unsafe extern "C" fn()`.
+        // And `Option<T>` is compatible with `Option<U>` when both `T` and `U` are compatible function pointers.
+        #[allow(unused_unsafe)]
+        let ptr: Option<_> = unsafe { std::mem::transmute::<Option<unsafe extern "C" fn()>, $ToType>($option) };
+        ptr.expect("null function pointer")
     }};
 }
 
@@ -137,16 +144,6 @@ pub fn hash_value<T: std::hash::Hash>(t: &T) -> u64 {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     t.hash(&mut hasher);
     hasher.finish()
-}
-
-/// Check whether contents of `lhs` and `rhs` are bitwise equal.
-///
-/// # Safety
-/// Requires valid pointers, properly aligned.
-pub unsafe fn bitwise_equal<T>(lhs: *const T, rhs: *const T) -> bool {
-    // Convert to raw parts
-    std::slice::from_raw_parts(lhs as *const u8, std::mem::size_of::<T>())
-        == std::slice::from_raw_parts(rhs as *const u8, std::mem::size_of::<T>())
 }
 
 pub fn join<T, I>(iter: I) -> String
@@ -250,6 +247,9 @@ pub type UtilityFunctionBind = unsafe extern "C" fn(
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Utility functions
+
+// TODO: Most of these should be `unsafe` since the caller passes an `unsafe extern "C"` function pointer which it must be legal to call.
+// But for now we can just rely on knowing that these aren't called in the wrong context.
 
 pub(crate) fn load_class_method(
     get_method_bind: GetClassMethod,

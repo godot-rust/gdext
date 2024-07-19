@@ -23,7 +23,7 @@
     non_upper_case_globals,
     non_snake_case,
     deref_nullptr,
-    clippy::redundant_static_lifetimes
+    clippy::redundant_static_lifetimes,
 )]
 pub(crate) mod gen {
     include!(concat!(env!("OUT_DIR"), "/mod.rs"));
@@ -106,11 +106,48 @@ use binding::{
     initialize_class_scene_method_table, initialize_class_server_method_table, runtime_metadata,
 };
 
-#[derive(Debug)]
-pub enum ClassApiLevel {
-    Server,
+/// Stage of the Godot initialization process.
+///
+/// Godot's initialization and deinitialization processes are split into multiple stages, like a stack. At each level,
+/// a different amount of engine functionality is available. Deinitialization happens in reverse order.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+pub enum InitLevel {
+    /// First level loaded by Godot. Builtin types are available, classes are not.
+    Core,
+
+    /// Second level loaded by Godot. Only server classes and builtins are available.
+    Servers,
+
+    /// Third level loaded by Godot. Most classes are available.
     Scene,
+
+    /// Fourth level loaded by Godot, only in the editor. All classes are available.
     Editor,
+}
+
+impl InitLevel {
+    #[doc(hidden)]
+    pub fn from_sys(level: crate::GDExtensionInitializationLevel) -> Self {
+        match level {
+            crate::GDEXTENSION_INITIALIZATION_CORE => Self::Core,
+            crate::GDEXTENSION_INITIALIZATION_SERVERS => Self::Servers,
+            crate::GDEXTENSION_INITIALIZATION_SCENE => Self::Scene,
+            crate::GDEXTENSION_INITIALIZATION_EDITOR => Self::Editor,
+            _ => {
+                eprintln!("WARNING: unknown initialization level {level}");
+                Self::Scene
+            }
+        }
+    }
+    #[doc(hidden)]
+    pub fn to_sys(self) -> crate::GDExtensionInitializationLevel {
+        match self {
+            Self::Core => crate::GDEXTENSION_INITIALIZATION_CORE,
+            Self::Servers => crate::GDEXTENSION_INITIALIZATION_SERVERS,
+            Self::Scene => crate::GDEXTENSION_INITIALIZATION_SCENE,
+            Self::Editor => crate::GDEXTENSION_INITIALIZATION_EDITOR,
+        }
+    }
 }
 
 pub struct GdextRuntimeMetadata {
@@ -157,21 +194,27 @@ pub unsafe fn initialize(
     // Before anything else: if we run into a Godot binary that's compiled differently from gdext, proceeding would be UB -> panic.
     compat.ensure_static_runtime_compatibility();
 
-    let version = compat.runtime_version();
+    // SAFETY: `ensure_static_runtime_compatibility` succeeded.
+    let version = unsafe { compat.runtime_version() };
     out!("Godot version of GDExtension API at runtime: {version:?}");
 
-    let interface = compat.load_interface();
+    // SAFETY: `ensure_static_runtime_compatibility` succeeded.
+    let interface = unsafe { compat.load_interface() };
     out!("Loaded interface.");
 
-    let global_method_table = BuiltinLifecycleTable::load(&interface);
+    // SAFETY: The interface was succesfully loaded from Godot and so we should be able to load the builtin lifecycle table.
+    let global_method_table = unsafe { BuiltinLifecycleTable::load(&interface) };
     out!("Loaded global method table.");
 
     let mut string_names = StringCache::new(&interface, &global_method_table);
 
-    let utility_function_table = UtilityFunctionTable::load(&interface, &mut string_names);
+    // SAFETY: The interface was succesfully loaded from Godot and so we should be able to load the utility function table.
+    let utility_function_table =
+        unsafe { UtilityFunctionTable::load(&interface, &mut string_names) };
     out!("Loaded utility function table.");
 
-    let runtime_metadata = GdextRuntimeMetadata::new(version);
+    // SAFETY: We do not touch `version` again after passing it to `new` here.
+    let runtime_metadata = unsafe { GdextRuntimeMetadata::new(version) };
 
     let builtin_method_table = {
         #[cfg(feature = "codegen-lazy-fptrs")]
@@ -180,7 +223,8 @@ pub unsafe fn initialize(
         }
         #[cfg(not(feature = "codegen-lazy-fptrs"))]
         {
-            let table = BuiltinMethodTable::load(&interface, &mut string_names);
+            // SAFETY: The interface was succesfully loaded from Godot and so we should be able to load the builtin function table.
+            let table = unsafe { BuiltinMethodTable::load(&interface, &mut string_names) };
             out!("Loaded builtin method table.");
             Some(table)
         }
@@ -188,17 +232,21 @@ pub unsafe fn initialize(
 
     drop(string_names);
 
-    initialize_binding(GodotBinding::new(
-        interface,
-        library,
-        global_method_table,
-        utility_function_table,
-        runtime_metadata,
-        config,
-    ));
+    // SAFETY: This function is only called at initialization and not from multiple threads.
+    unsafe {
+        initialize_binding(GodotBinding::new(
+            interface,
+            library,
+            global_method_table,
+            utility_function_table,
+            runtime_metadata,
+            config,
+        ))
+    }
 
     if let Some(table) = builtin_method_table {
-        initialize_builtin_method_table(table);
+        // SAFETY: We initialized the bindings above and haven't called this function before.
+        unsafe { initialize_builtin_method_table(table) }
     }
 
     out!("Assigned binding.");
@@ -206,9 +254,10 @@ pub unsafe fn initialize(
     // Lazy case: load afterwards because table's internal StringCache stores &'static references to the interface.
     #[cfg(feature = "codegen-lazy-fptrs")]
     {
-        let table = BuiltinMethodTable::load();
+        // SAFETY: The interface was succesfully loaded from Godot and so we should be able to load the builtin function table.
+        let table = unsafe { BuiltinMethodTable::load() };
 
-        initialize_builtin_method_table(table);
+        unsafe { initialize_builtin_method_table(table) }
 
         out!("Loaded builtin method table (lazily).");
     }
@@ -237,56 +286,65 @@ fn print_preamble(version: GDExtensionGodotVersion) {
 
 /// # Safety
 ///
-/// The interface must have been initialised with [`initialize`] before calling this function.
+/// - Must be called from the main thread.
+/// - The interface must have been initialised with [`initialize`] before calling this function.
+/// - Must only be called once for each `api_level`.
 #[inline]
-pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
+pub unsafe fn load_class_method_table(api_level: InitLevel) {
     out!("Load class method table for level '{:?}'...", api_level);
     let begin = std::time::Instant::now();
 
     #[cfg(not(feature = "codegen-lazy-fptrs"))]
-    let mut string_names = StringCache::new(get_interface(), builtin_lifecycle_api());
+    // SAFETY: The interface has been initialized.
+    let interface = unsafe { get_interface() };
+
+    #[cfg(not(feature = "codegen-lazy-fptrs"))]
+    // SAFETY: The interface has been initialized.
+    let mut string_names = StringCache::new(interface, unsafe { builtin_lifecycle_api() });
 
     let (class_count, method_count);
     match api_level {
-        ClassApiLevel::Server => {
-            #[cfg(feature = "codegen-lazy-fptrs")]
-            {
+        InitLevel::Core => {
+            // Currently we dont need to do anything in `Core`, this may change in the future.
+            class_count = 0;
+            method_count = 0;
+        }
+        InitLevel::Servers => {
+            // SAFETY: The interface has been initialized and this function hasn't been called before.
+            unsafe {
+                #[cfg(feature = "codegen-lazy-fptrs")]
                 initialize_class_server_method_table(ClassServersMethodTable::load());
-            }
-            #[cfg(not(feature = "codegen-lazy-fptrs"))]
-            {
+                #[cfg(not(feature = "codegen-lazy-fptrs"))]
                 initialize_class_server_method_table(ClassServersMethodTable::load(
-                    get_interface(),
+                    interface,
                     &mut string_names,
                 ));
             }
             class_count = ClassServersMethodTable::CLASS_COUNT;
             method_count = ClassServersMethodTable::METHOD_COUNT;
         }
-        ClassApiLevel::Scene => {
-            #[cfg(feature = "codegen-lazy-fptrs")]
-            {
+        InitLevel::Scene => {
+            // SAFETY: The interface has been initialized and this function hasn't been called before.
+            unsafe {
+                #[cfg(feature = "codegen-lazy-fptrs")]
                 initialize_class_scene_method_table(ClassSceneMethodTable::load());
-            }
-            #[cfg(not(feature = "codegen-lazy-fptrs"))]
-            {
+                #[cfg(not(feature = "codegen-lazy-fptrs"))]
                 initialize_class_scene_method_table(ClassSceneMethodTable::load(
-                    get_interface(),
+                    interface,
                     &mut string_names,
                 ));
             }
             class_count = ClassSceneMethodTable::CLASS_COUNT;
             method_count = ClassSceneMethodTable::METHOD_COUNT;
         }
-        ClassApiLevel::Editor => {
-            #[cfg(feature = "codegen-lazy-fptrs")]
-            {
+        InitLevel::Editor => {
+            // SAFETY: The interface has been initialized and this function hasn't been called before.
+            unsafe {
+                #[cfg(feature = "codegen-lazy-fptrs")]
                 initialize_class_editor_method_table(ClassEditorMethodTable::load());
-            }
-            #[cfg(not(feature = "codegen-lazy-fptrs"))]
-            {
+                #[cfg(not(feature = "codegen-lazy-fptrs"))]
                 initialize_class_editor_method_table(ClassEditorMethodTable::load(
-                    get_interface(),
+                    interface,
                     &mut string_names,
                 ));
             }
@@ -307,8 +365,11 @@ pub unsafe fn load_class_method_table(api_level: ClassApiLevel) {
 
 /// # Safety
 ///
-/// Must be accessed from the main thread, and the interface must have been initialized.
-/// `tag_string` must be a valid type pointer of a `String` instance.
+/// - Must be accessed from the main thread.
+/// - The interface must have been initialized.
+/// - The `Scene` api level must have been initialized.
+/// - `os_class_sname` must be a valid `StringName` pointer.
+/// - `tag_string` must be a valid type pointer of a `String` instance.
 #[inline]
 pub unsafe fn godot_has_feature(
     os_class_sname: GDExtensionConstStringNamePtr,
@@ -316,20 +377,29 @@ pub unsafe fn godot_has_feature(
 ) -> bool {
     // Issue a raw C call to OS.has_feature(tag_string).
 
-    let method_bind = class_scene_api().os__has_feature();
-    let get_singleton = get_interface().global_get_singleton.unwrap();
-    let class_ptrcall = get_interface().object_method_bind_ptrcall.unwrap();
+    // SAFETY: Called from main thread, interface has been initialized, and the scene api has been initialized.
+    let method_bind = unsafe { class_scene_api() }.os__has_feature();
 
-    let object_ptr = get_singleton(os_class_sname);
+    // SAFETY: Called from main thread, and interface has been initialized.
+    let interface = unsafe { get_interface() };
+    let get_singleton = interface.global_get_singleton.unwrap();
+    let class_ptrcall = interface.object_method_bind_ptrcall.unwrap();
+
+    // SAFETY: Interface has been initialized, and `Scene` has been initialized, so `get_singleton` can be called. `os_class_sname` is a valid
+    // `StringName` pointer.
+    let object_ptr = unsafe { get_singleton(os_class_sname) };
     let mut return_ptr = false;
     let type_ptrs = [tag_string];
 
-    class_ptrcall(
-        method_bind.0,
-        object_ptr,
-        type_ptrs.as_ptr(),
-        return_ptr.sys_mut(),
-    );
+    // SAFETY: We are properly passing arguments to make a ptrcall.
+    unsafe {
+        class_ptrcall(
+            method_bind.0,
+            object_ptr,
+            type_ptrs.as_ptr(),
+            return_ptr.sys_mut(),
+        )
+    }
 
     return_ptr
 }

@@ -80,6 +80,27 @@ unsafe impl Sync for ClassLibraryPtr {}
 unsafe impl Send for ClassLibraryPtr {}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// # Safety
+/// The table must not have been initialized yet.
+unsafe fn initialize_table<T>(table: &ManualInitCell<T>, value: T, what: &str) {
+    debug_assert!(
+        !table.is_initialized(),
+        "method table for {what} should only be initialized once"
+    );
+
+    table.set(value)
+}
+
+/// # Safety
+/// The table must have been initialized.
+unsafe fn get_table<T>(table: &'static ManualInitCell<T>, msg: &str) -> &'static T {
+    debug_assert!(table.is_initialized(), "{msg}");
+
+    table.get_unchecked()
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Public API
 
 /// # Safety
@@ -152,25 +173,6 @@ pub unsafe fn class_editor_api() -> &'static ClassEditorMethodTable {
         &get_binding().class_editor_method_table,
         "cannot fetch classes; init level 'Editor' not yet loaded",
     )
-}
-
-/// # Safety
-/// The table must not have been initialized yet.
-unsafe fn initialize_table<T>(table: &ManualInitCell<T>, value: T, what: &str) {
-    debug_assert!(
-        !table.is_initialized(),
-        "method table for {what} should only be initialized once"
-    );
-
-    table.set(value)
-}
-
-/// # Safety
-/// The table must have been initialized.
-unsafe fn get_table<T>(table: &'static ManualInitCell<T>, msg: &str) -> &'static T {
-    debug_assert!(table.is_initialized(), "{msg}");
-
-    table.get_unchecked()
 }
 
 /// # Safety

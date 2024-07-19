@@ -286,7 +286,10 @@ fn make_named_method_table(info: NamedMethodTable) -> TokenStream {
             pub const CLASS_COUNT: usize = #class_count;
             pub const METHOD_COUNT: usize = #method_count;
 
-            pub fn load(
+            // TODO: Figure out the right safety preconditions. This currently does not have any because incomplete safety docs
+            // can cause issues with people assuming they are sufficient.
+            #[allow(clippy::missing_safety_doc)]
+            pub unsafe fn load(
                 #ctor_parameters
             ) -> Self {
                 #pre_init_code
@@ -383,8 +386,11 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
             pub const CLASS_COUNT: usize = #class_count;
             pub const METHOD_COUNT: usize = #method_count;
 
+            // TODO: Figure out the right safety preconditions. This currently does not have any because incomplete safety docs
+            // can cause issues with people assuming they are sufficient.
+            #[allow(clippy::missing_safety_doc)]
             #unused_attr
-            pub fn load(
+            pub unsafe fn load(
                 #ctor_parameters
             ) -> Self {
                 #pre_init_code
@@ -455,8 +461,11 @@ fn make_method_table(info: IndexedMethodTable) -> TokenStream {
             pub const CLASS_COUNT: usize = #class_count;
             pub const METHOD_COUNT: usize = #method_count;
 
+            // TODO: Figure out the right safety preconditions. This currently does not have any because incomplete safety docs
+            // can cause issues with people assuming they are sufficient.
+            #[allow(clippy::missing_safety_doc)]
             #unused_attr
-            pub fn load() -> Self {
+            pub unsafe fn load() -> Self {
                 // SAFETY: interface and lifecycle tables are initialized at this point, so we can get 'static references to them.
                 let (interface, lifecycle_table) = unsafe {
                     (crate::get_interface(), crate::builtin_lifecycle_api())

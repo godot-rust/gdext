@@ -84,6 +84,9 @@ fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
         }
 
         impl GDExtensionInterface {
+            // TODO: Figure out the right safety preconditions. This currently does not have any because incomplete safety docs
+            // can cause issues with people assuming they are sufficient.
+            #[allow(clippy::missing_safety_doc)]
             pub(crate) unsafe fn load(
                 get_proc_address: crate::GDExtensionInterfaceGetProcAddress,
             ) -> Self {
