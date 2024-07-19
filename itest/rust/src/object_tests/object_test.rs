@@ -834,7 +834,7 @@ fn object_get_scene_tree(ctx: &TestContext) {
     let node = Node3D::new_alloc();
 
     let mut tree = ctx.scene_tree.clone();
-    tree.add_child(node.upcast());
+    tree.add_child(node);
 
     let count = tree.get_child_count();
     assert_eq!(count, 1);
