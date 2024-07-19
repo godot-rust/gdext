@@ -17,7 +17,7 @@ use crate::meta::{
 };
 use crate::obj::bounds::DynMemory as _;
 use crate::obj::rtti::ObjectRtti;
-use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
+use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId};
 use crate::storage::{InstanceStorage, Storage};
 use crate::{classes, global, out};
 
@@ -212,6 +212,38 @@ impl<T: GodotClass> RawGd<T> {
     pub(crate) fn as_object(&self) -> &classes::Object {
         // SAFETY: Object is always a valid upcast target.
         unsafe { self.as_upcast_ref() }
+    }
+
+    /// Creates a _view_ from the current `RawGd` without incrementing ref-count.
+    ///
+    /// The resulting object represents a weak reference, it can only be used as long as a backing `RawGd` is alive.
+    ///
+    /// # Panics
+    /// If the runtime checks for object validity fails or `self` is null.
+    ///
+    /// # Safety
+    /// Calling this method is always safe, however the returned object has weaker guarantees. The "view" `RawGd` must neither
+    /// be dropped nor outlive the original `RawGd`.
+    pub(super) unsafe fn as_upcast_view<Base>(&self) -> std::mem::ManuallyDrop<RawGd<Base>>
+    where
+        T: Inherits<Base>,
+        Base: GodotClass,
+    {
+        out!("RawGd::as_upcast_view");
+
+        if self.is_null() {
+            panic!("weak_clone() expects non-null; this could use Self::null() if needed")
+        } else {
+            // Runtime check is crucial for safety in outbound FFI calls.
+            self.check_rtti("clone_weak");
+
+            let upcast_raw_gd = RawGd::<Base> {
+                obj: self.obj.cast(),
+                cached_rtti: self.cached_rtti.clone(), // Reuse to avoid renewed lookup.
+            };
+
+            std::mem::ManuallyDrop::new(upcast_raw_gd)
+        }
     }
 
     /// # Panics

@@ -93,6 +93,9 @@ impl_sys_ptr!(
 // Helper functions
 
 /// Differentiate from `sys::GDEXTENSION_CALL_ERROR_*` codes.
+// Note: ASan marks 40 as an invalid enum value in C++. However, it's unclear if there's another way, as Godot doesn't foresee custom error types.
+// core/extension/gdextension_interface.cpp:1213:53: runtime error: load of value 40, which is not a valid value for type 'Callable::CallError::Error'
+// In practice, it should work because the type holding the error must be at least equivalent to int8_t.
 pub const GODOT_RUST_CUSTOM_CALL_ERROR: GDExtensionCallErrorType = 40;
 
 #[doc(hidden)]

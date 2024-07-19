@@ -118,24 +118,30 @@ pub fn make_function_definition(
         (TokenStream::new(), TokenStream::new())
     };
 
-    let [params, param_types, arg_names] = make_params_exprs(sig.params());
+    let [params, param_types, arg_names] = make_params_exprs(
+        sig.params().iter(),
+        sig.is_virtual(),
+        !has_default_params, // For *_full function, we don't need impl AsObjectArg<T> parameters
+        !has_default_params, // or arg.as_object_arg() calls.
+    );
 
     let rust_function_name_str = sig.name();
-    let primary_fn_name = if has_default_params {
-        format_ident!("{}_full", safe_ident(rust_function_name_str))
-    } else {
-        safe_ident(rust_function_name_str)
-    };
 
-    let (default_fn_code, default_structs_code) = if has_default_params {
-        default_parameters::make_function_definition_with_defaults(
-            sig,
-            code,
-            &primary_fn_name,
-            cfg_attributes,
-        )
+    let (primary_fn_name, default_fn_code, default_structs_code);
+    if has_default_params {
+        primary_fn_name = format_ident!("{}_full", safe_ident(rust_function_name_str));
+
+        (default_fn_code, default_structs_code) =
+            default_parameters::make_function_definition_with_defaults(
+                sig,
+                code,
+                &primary_fn_name,
+                cfg_attributes,
+            );
     } else {
-        (TokenStream::new(), TokenStream::new())
+        primary_fn_name = safe_ident(rust_function_name_str);
+        default_fn_code = TokenStream::new();
+        default_structs_code = TokenStream::new();
     };
 
     let return_ty = &sig.return_value().type_tokens();
@@ -189,6 +195,14 @@ pub fn make_function_definition(
             // Note: all varargs functions are non-static, which is why there are some shortcuts in try_*() argument forwarding.
             // This can be made more complex if ever necessary.
 
+            // A function() may call try_function(), its arguments should not have .as_object_arg().
+            let [_, _, arg_names_without_asarg] = make_params_exprs(
+                sig.params().iter(),
+                false,
+                !has_default_params, // For *_full function, we don't need impl AsObjectArg<T> parameters
+                false,               // or arg.as_object_arg() calls.
+            );
+
             quote! {
                 /// # Panics
                 /// This is a _varcall_ method, meaning parameters and return values are passed as `Variant`.
@@ -199,7 +213,7 @@ pub fn make_function_definition(
                     #( #params, )*
                     varargs: &[Variant]
                 ) #return_decl {
-                    Self::#try_fn_name(self, #( #arg_names, )* varargs)
+                    Self::#try_fn_name(self, #( #arg_names_without_asarg, )* varargs)
                         .unwrap_or_else(|e| panic!("{e}"))
                 }
 
@@ -278,19 +292,6 @@ pub fn make_receiver(qualifier: FnQualifier, ffi_arg_in: TokenStream) -> FnRecei
         self_prefix,
     }
 }
-
-pub fn make_params_and_args(method_args: &[&FnParam]) -> (Vec<TokenStream>, Vec<TokenStream>) {
-    method_args
-        .iter()
-        .map(|param| {
-            let param_name = &param.name;
-            let param_ty = &param.type_;
-
-            (quote! { #param_name: #param_ty }, quote! { #param_name })
-        })
-        .unzip()
-}
-
 pub fn make_vis(is_private: bool) -> TokenStream {
     if is_private {
         quote! { pub(crate) }
@@ -302,18 +303,50 @@ pub fn make_vis(is_private: bool) -> TokenStream {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-fn make_params_exprs(method_args: &[FnParam]) -> [Vec<TokenStream>; 3] {
+pub(crate) fn make_params_exprs<'a>(
+    method_args: impl Iterator<Item = &'a FnParam>,
+    is_virtual: bool,
+    param_is_impl_asarg: bool,
+    arg_is_asarg: bool,
+) -> [Vec<TokenStream>; 3] {
     let mut params = vec![];
-    let mut param_types = vec![];
+    let mut param_types = vec![]; // or non-generic params
     let mut arg_names = vec![];
 
-    for param in method_args.iter() {
+    for param in method_args {
         let param_name = &param.name;
         let param_ty = &param.type_;
 
-        params.push(quote! { #param_name: #param_ty });
-        param_types.push(quote! { #param_ty });
-        arg_names.push(quote! { #param_name });
+        // Objects (Gd<T>) use implicit conversions via AsObjectArg. Only use in non-virtual functions.
+        match &param.type_ {
+            RustTy::EngineClass {
+                arg_view,
+                impl_as_arg,
+                ..
+            } if !is_virtual => {
+                // Parameter declarations in signature: impl AsObjectArg<T>
+                if param_is_impl_asarg {
+                    params.push(quote! { #param_name: #impl_as_arg });
+                } else {
+                    params.push(quote! { #param_name: #arg_view });
+                }
+
+                // Argument names in function body: arg.as_object_arg() vs. arg
+                if arg_is_asarg {
+                    arg_names.push(quote! { #param_name.as_object_arg() });
+                } else {
+                    arg_names.push(quote! { #param_name });
+                }
+
+                param_types.push(quote! { #arg_view });
+            }
+
+            _ => {
+                params.push(quote! { #param_name: #param_ty });
+                arg_names.push(quote! { #param_name });
+                param_types.push(quote! { #param_ty });
+            }
+        }
     }
 
     [params, param_types, arg_names]
