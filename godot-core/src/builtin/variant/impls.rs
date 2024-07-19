@@ -211,6 +211,10 @@ impl GodotType for Variant {
         Ok(ffi)
     }
 
+    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
+    }
+
     fn property_info(property_name: &str) -> PropertyInfo {
         PropertyInfo {
             variant_type: Self::variant_type(),
@@ -220,10 +224,6 @@ impl GodotType for Variant {
             hint_string: GString::new(),
             usage: global::PropertyUsageFlags::DEFAULT | global::PropertyUsageFlags::NIL_IS_VARIANT,
         }
-    }
-
-    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
     }
 
     fn godot_type_name() -> String {

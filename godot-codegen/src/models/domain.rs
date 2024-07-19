@@ -473,7 +473,11 @@ impl FnQualifier {
 
 pub struct FnParam {
     pub name: Ident,
+
+    /// Type, as it appears in `type CallSig` tuple definition.
     pub type_: RustTy,
+
+    /// Rust expression for default value, if available.
     pub default_value: Option<TokenStream>,
 }
 
@@ -572,15 +576,6 @@ pub struct GodotTy {
     pub ty: String,
     pub meta: Option<String>,
 }
-
-// impl GodotTy {
-//     fn new<'a>(ty: &'a String, meta: &'a Option<String>) -> Self {
-//         Self {
-//             ty: ty.clone(),
-//             meta: meta.clone(),
-//         }
-//     }
-// }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Rust type

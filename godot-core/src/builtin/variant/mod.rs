@@ -275,7 +275,7 @@ impl Variant {
         let mut raw = std::mem::MaybeUninit::<Variant>::uninit();
 
         let var_uninit_ptr =
-            raw.as_mut_ptr() as <sys::GDExtensionVariantPtr as ::godot_ffi::SysPtr>::Uninit;
+            raw.as_mut_ptr() as <sys::GDExtensionVariantPtr as sys::SysPtr>::Uninit;
 
         // SAFETY: `map` only runs the provided closure for the `Ok(())` variant, in which case `raw` has definitely been initialized.
         init_fn(var_uninit_ptr).map(|_success| unsafe { raw.assume_init() })
@@ -410,8 +410,8 @@ impl ArrayElement for Variant {}
 // `from_opaque` properly initializes a dereferenced pointer to an `OpaqueVariant`.
 // `std::mem::swap` is sufficient for returning a value.
 unsafe impl GodotFfi for Variant {
-    fn variant_type() -> sys::VariantType {
-        sys::VariantType::NIL
+    fn variant_type() -> VariantType {
+        VariantType::NIL
     }
 
     ffi_methods! { type sys::GDExtensionTypePtr = *mut Self; .. }
