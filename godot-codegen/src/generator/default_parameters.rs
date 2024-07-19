@@ -191,10 +191,8 @@ fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
             ExtenderReceiver {
                 object_fn_param: Some(FnParam {
                     name: ident("surround_object"),
-                    // Not exactly EngineClass, but close enough
-                    type_: RustTy::EngineClass {
+                    type_: RustTy::ExtenderReceiver {
                         tokens: quote! { &'a #builder_mut re_export::#class },
-                        inner_class: ident("unknown"),
                     },
                     default_value: None,
                 }),

@@ -53,6 +53,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
                 Some(class) => is_class_excluded(class.as_str()),
             },
             RustTy::EngineClass { inner_class, .. } => is_class_excluded(&inner_class.to_string()),
+            RustTy::ExtenderReceiver { .. } => false,
         }
     }
     is_rust_type_excluded(&conv::to_rust_type(ty, None, ctx))

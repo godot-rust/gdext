@@ -622,6 +622,9 @@ pub enum RustTy {
         #[allow(dead_code)] // only read in minimal config
         inner_class: Ident,
     },
+
+    /// Receiver type of default parameters extender constructor.
+    ExtenderReceiver { tokens: TokenStream },
 }
 
 impl RustTy {
@@ -650,6 +653,7 @@ impl ToTokens for RustTy {
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineBitfield { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
+            RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
         }
     }
 }
