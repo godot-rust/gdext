@@ -11,7 +11,7 @@ use crate::meta::{ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType
 use crate::obj::{bounds, Bounds, Gd, GodotClass, Inherits, RawGd};
 use crate::sys;
 use godot_ffi::{GodotFfi, GodotNullableFfi, PtrcallType};
-use std::mem;
+use std::ptr;
 
 /// Objects that can be passed as arguments to Godot engine functions.
 ///
@@ -46,7 +46,7 @@ where
     U: Inherits<T>,
 {
     fn as_object_arg(&self) -> ObjectArg<T> {
-        ObjectArg::from_gd(self)
+        ObjectArg::from_raw_gd(&self.raw)
     }
 }
 
@@ -70,46 +70,47 @@ where
 #[doc(hidden)]
 pub struct ObjectArg<T: GodotClass> {
     // Never dropped since it's just a view; see constructor.
-    view_raw_gd: mem::ManuallyDrop<RawGd<T>>,
+    object_ptr: sys::GDExtensionObjectPtr,
+    _marker: std::marker::PhantomData<*mut T>,
 }
 
 impl<T> ObjectArg<T>
 where
     T: GodotClass,
 {
-    pub fn from_gd<Derived>(obj: &Gd<Derived>) -> Self
+    pub fn from_raw_gd<Derived>(obj: &RawGd<Derived>) -> Self
     where
         Derived: Inherits<T>,
     {
-        // SAFETY: the result is contained in this struct. The object pointer only escapes for FFI calls to Godot, which are unsafe.
-        let view_raw_gd = unsafe { obj.raw.as_upcast_view() };
+        // Runtime check is necessary, to ensure that object is still alive and has correct runtime type.
+        if !obj.is_null() {
+            obj.check_rtti("from_raw_gd");
+        }
 
-        Self { view_raw_gd }
+        Self {
+            object_ptr: obj.obj_sys(),
+            _marker: std::marker::PhantomData,
+        }
     }
 
     pub fn null() -> Self {
         Self {
-            view_raw_gd: mem::ManuallyDrop::new(RawGd::null()),
+            object_ptr: ptr::null_mut(),
+            _marker: std::marker::PhantomData,
         }
     }
 
     pub fn is_null(&self) -> bool {
-        self.view_raw_gd.is_null()
+        self.object_ptr.is_null()
     }
 }
 
 // #[derive(Clone)] doesn't seem to get bounds right.
 impl<T: GodotClass> Clone for ObjectArg<T> {
     fn clone(&self) -> Self {
-        // Do not call RawGd::clone(), as that increments the ref-count, and we keep self a weak pointer (view) at all times.
-
-        if self.is_null() {
-            Self::null()
-        } else {
-            // SAFETY: per struct invariant, original object pointer was valid, so copy is, too.
-            // Object must not be kept alive past the original `Gd`'s lifetime.
-            let view_raw_gd = unsafe { self.view_raw_gd.as_upcast_view() };
-            Self { view_raw_gd }
+        Self {
+            object_ptr: self.object_ptr,
+            _marker: std::marker::PhantomData,
         }
     }
 }
@@ -119,6 +120,8 @@ unsafe impl<T> GodotFfi for ObjectArg<T>
 where
     T: GodotClass,
 {
+    // If anything changes here, keep in sync with RawGd impl.
+
     fn variant_type() -> sys::VariantType {
         sys::VariantType::OBJECT
     }
@@ -136,18 +139,27 @@ where
     }
 
     fn sys(&self) -> sys::GDExtensionConstTypePtr {
-        self.view_raw_gd.sys()
+        self.object_ptr.cast()
     }
 
     fn sys_mut(&mut self) -> sys::GDExtensionTypePtr {
-        self.view_raw_gd.sys_mut()
+        self.object_ptr.cast()
     }
 
     // For more context around `ref_get_object` and `ref_set_object`, see:
     // https://github.com/godotengine/godot-cpp/issues/954
 
     fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
-        self.view_raw_gd.as_arg_ptr()
+        // See RawGd::as_arg_ptr().
+        #[cfg(before_api = "4.1")]
+        {
+            self.sys()
+        }
+
+        #[cfg(since_api = "4.1")]
+        {
+            ptr::addr_of!(self.object_ptr) as sys::GDExtensionConstTypePtr
+        }
     }
 
     unsafe fn from_arg_ptr(_ptr: sys::GDExtensionTypePtr, _call_type: PtrcallType) -> Self {
@@ -206,7 +218,7 @@ impl<T: GodotClass> GodotType for ObjectArg<T> {
 
 impl<T: GodotClass> GodotFfiVariant for ObjectArg<T> {
     fn ffi_to_variant(&self) -> Variant {
-        self.view_raw_gd.ffi_to_variant()
+        unreachable!("ObjectArg::ffi_to_variant() is not expected to be called.")
     }
 
     fn ffi_from_variant(_variant: &Variant) -> Result<Self, ConvertError> {

@@ -17,7 +17,7 @@ use crate::meta::{
 };
 use crate::obj::bounds::DynMemory as _;
 use crate::obj::rtti::ObjectRtti;
-use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId};
+use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
 use crate::storage::{InstanceStorage, Storage};
 use crate::{classes, global, out};
 
@@ -212,38 +212,6 @@ impl<T: GodotClass> RawGd<T> {
     pub(crate) fn as_object(&self) -> &classes::Object {
         // SAFETY: Object is always a valid upcast target.
         unsafe { self.as_upcast_ref() }
-    }
-
-    /// Creates a _view_ from the current `RawGd` without incrementing ref-count.
-    ///
-    /// The resulting object represents a weak reference, it can only be used as long as a backing `RawGd` is alive.
-    ///
-    /// # Panics
-    /// If the runtime checks for object validity fails or `self` is null.
-    ///
-    /// # Safety
-    /// Calling this method is always safe, however the returned object has weaker guarantees. The "view" `RawGd` must neither
-    /// be dropped nor outlive the original `RawGd`.
-    pub(super) unsafe fn as_upcast_view<Base>(&self) -> std::mem::ManuallyDrop<RawGd<Base>>
-    where
-        T: Inherits<Base>,
-        Base: GodotClass,
-    {
-        out!("RawGd::as_upcast_view");
-
-        if self.is_null() {
-            panic!("weak_clone() expects non-null; this could use Self::null() if needed")
-        } else {
-            // Runtime check is crucial for safety in outbound FFI calls.
-            self.check_rtti("clone_weak");
-
-            let upcast_raw_gd = RawGd::<Base> {
-                obj: self.obj.cast(),
-                cached_rtti: self.cached_rtti.clone(), // Reuse to avoid renewed lookup.
-            };
-
-            std::mem::ManuallyDrop::new(upcast_raw_gd)
-        }
     }
 
     /// # Panics
@@ -480,6 +448,8 @@ unsafe impl<T> GodotFfi for RawGd<T>
 where
     T: GodotClass,
 {
+    // If anything changes here, keep in sync with ObjectArg impl.
+
     fn variant_type() -> sys::VariantType {
         sys::VariantType::OBJECT
     }
@@ -510,6 +480,8 @@ where
     // https://github.com/godotengine/godot-cpp/issues/954
 
     fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
+        // Do not extract this code. Address of field pointer matters, copying it into a local variable will create use-after-free.
+
         // No need to call self.check_rtti("as_arg_ptr") here, since this is already done in ToGodot impl.
 
         // We pass an object to a Godot API. If the reference count needs to be incremented, then the callee (Godot C++ function) will do so.
