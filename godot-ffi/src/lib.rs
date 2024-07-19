@@ -202,13 +202,13 @@ pub unsafe fn initialize(
     let interface = unsafe { compat.load_interface() };
     out!("Loaded interface.");
 
-    // SAFETY: The interface was succesfully loaded from Godot and so we should be able to load the builtin lifecycle table.
+    // SAFETY: The interface was successfully loaded from Godot, so we should be able to load the builtin lifecycle table.
     let global_method_table = unsafe { BuiltinLifecycleTable::load(&interface) };
     out!("Loaded global method table.");
 
     let mut string_names = StringCache::new(&interface, &global_method_table);
 
-    // SAFETY: The interface was succesfully loaded from Godot and so we should be able to load the utility function table.
+    // SAFETY: The interface was successfully loaded from Godot, so we should be able to load the utility function table.
     let utility_function_table =
         unsafe { UtilityFunctionTable::load(&interface, &mut string_names) };
     out!("Loaded utility function table.");
@@ -223,7 +223,7 @@ pub unsafe fn initialize(
         }
         #[cfg(not(feature = "codegen-lazy-fptrs"))]
         {
-            // SAFETY: The interface was succesfully loaded from Godot and so we should be able to load the builtin function table.
+            // SAFETY: The interface was successfully loaded from Godot, so we should be able to load the builtin function table.
             let table = unsafe { BuiltinMethodTable::load(&interface, &mut string_names) };
             out!("Loaded builtin method table.");
             Some(table)
@@ -251,10 +251,10 @@ pub unsafe fn initialize(
 
     out!("Assigned binding.");
 
-    // Lazy case: load afterwards because table's internal StringCache stores &'static references to the interface.
+    // Lazy case: load afterward because table's internal StringCache stores &'static references to the interface.
     #[cfg(feature = "codegen-lazy-fptrs")]
     {
-        // SAFETY: The interface was succesfully loaded from Godot and so we should be able to load the builtin function table.
+        // SAFETY: The interface was successfully loaded from Godot, so we should be able to load the builtin function table.
         let table = unsafe { BuiltinMethodTable::load() };
 
         unsafe { initialize_builtin_method_table(table) }
@@ -287,7 +287,7 @@ fn print_preamble(version: GDExtensionGodotVersion) {
 /// # Safety
 ///
 /// - Must be called from the main thread.
-/// - The interface must have been initialised with [`initialize`] before calling this function.
+/// - The interface must have been initialized with [`initialize`] before calling this function.
 /// - Must only be called once for each `api_level`.
 #[inline]
 pub unsafe fn load_class_method_table(api_level: InitLevel) {
@@ -305,7 +305,7 @@ pub unsafe fn load_class_method_table(api_level: InitLevel) {
     let (class_count, method_count);
     match api_level {
         InitLevel::Core => {
-            // Currently we dont need to do anything in `Core`, this may change in the future.
+            // Currently we don't need to do anything in `Core`, this may change in the future.
             class_count = 0;
             method_count = 0;
         }

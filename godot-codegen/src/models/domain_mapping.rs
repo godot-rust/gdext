@@ -353,7 +353,7 @@ impl BuiltinMethod {
                 name: method.name.clone(),
                 godot_name: method.name.clone(),
                 // Disable default parameters for builtin classes.
-                // They are not public-facing and need more involved implementation (lifetimes etc). Also reduces number of symbols in API.
+                // They are not public-facing and need more involved implementation (lifetimes etc.). Also reduces number of symbols in API.
                 parameters: FnParam::new_range_no_defaults(&method.arguments, ctx),
                 return_value: FnReturn::new(&return_value, ctx),
                 is_vararg: method.is_vararg,

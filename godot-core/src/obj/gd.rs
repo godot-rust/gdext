@@ -16,9 +16,9 @@ use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::global::PropertyHint;
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{ArrayElement, CallContext, FromGodot, GodotConvert, GodotType, ToGodot};
-use crate::obj::raw::RawGd;
 use crate::obj::{
     bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
+    RawGd,
 };
 use crate::private::callbacks;
 use crate::registry::property::{Export, PropertyHintInfo, TypeStringHint, Var};
@@ -576,7 +576,7 @@ where
         }
 
         // SAFETY: object must be alive, which was just checked above. No multithreading here.
-        // Also checked in the C free_instance_func callback, however error message can be more precise here and we don't need to instruct
+        // Also checked in the C free_instance_func callback, however error message can be more precise here, and we don't need to instruct
         // the engine about object destruction. Both paths are tested.
         let bound = unsafe { T::Declarer::is_currently_bound(&self.raw) };
         if bound {

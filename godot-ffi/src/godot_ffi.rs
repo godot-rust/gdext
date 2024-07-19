@@ -102,7 +102,7 @@ pub unsafe trait GodotFfi {
 
 // In Godot 4.0.x, a lot of that are "constructed into" require a default-initialized value.
 // In Godot 4.1+, placement new is used, requiring no prior value.
-// This method abstracts over that. Outside of GodotFfi because it should not be overridden.
+// This method abstracts over that. Declared outside GodotFfi because it should not be overridden.
 
 /// # Safety
 ///
@@ -171,7 +171,7 @@ pub enum PtrcallType {
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Macros to choose a certain implementation of `GodotFfi` trait for GDExtensionTypePtr;
-// or a free-standing `impl` for concrete sys pointers such as GDExtensionObjectPtr.
+// or a freestanding `impl` for concrete sys pointers such as GDExtensionObjectPtr.
 // See doc comment of `ffi_methods!` for information
 
 // TODO: explicitly document safety invariants.
@@ -328,14 +328,14 @@ macro_rules! ffi_methods_rest {
 ///
 /// ## Using `*mut Opaque`
 ///
-/// Turning pointer call arguments into a value is simply calling `from_opaque` on the
+/// Turning ptrcall arguments into a value is simply calling `from_opaque` on the
 /// dereferenced argument pointer.
 /// Returning a value from a pointer call is simply calling [`std::ptr::swap`] on the return pointer
 /// and the address to the `opaque` field.
 ///  
 /// ## Using `*mut Self`
 ///
-/// Turning pointer call arguments into a value is a dereference.
+/// Turning ptrcall arguments into a value is a dereferencing.
 /// Returning a value from a pointer call is `*ret_ptr = value`.
 #[macro_export]
 macro_rules! ffi_methods {

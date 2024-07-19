@@ -237,7 +237,7 @@ pub unsafe fn destroy_storage<T: GodotClass>(instance_ptr: sys::GDExtensionClass
         // `leak_rust_object` is false, meaning that `is_bound()` returned `false`. Because if it were `true`
         // then the process would either be aborted, or we set `leak_rust_object = true`.
         //
-        // Therefore we can safely drop this storage as per the safety contract of `Storage`. Which we know
+        // Therefore, we can safely drop this storage as per the safety contract of `Storage`. Which we know
         // `InstanceStorage<T>` implements because of `_INSTANCE_STORAGE_IMPLEMENTS_STORAGE`.
         let _drop = unsafe { Box::from_raw(raw) };
     }

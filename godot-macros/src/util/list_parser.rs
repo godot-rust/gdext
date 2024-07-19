@@ -22,7 +22,7 @@ pub struct ListParser {
 }
 
 impl ListParser {
-    /// Create a new list parser from a `key = (elem1, elem2, ..)` attribute.
+    /// Create a new list parser from a `key = (elem1, elem2, ...)` attribute.
     ///
     /// The value is optional, and an attribute without a value will be treated as having an empty list.
     pub(crate) fn new_from_kv(

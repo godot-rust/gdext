@@ -34,7 +34,7 @@ pub(crate) unsafe trait BindingCompat {
 
     /// Panics on mismatch between compiled and runtime Godot version.
     ///
-    /// This can happen in the following cases, with their respective sub-cases:
+    /// This can happen in the following cases, with their respective subcases:
     ///
     /// 1) When a gdext version compiled against 4.1+ GDExtension API is invoked with an entry point using the legacy calling convention.
     ///    a) The .gdextension file's `[configuration]` section does not contain a `compatibility_minimum = 4.1` statement.

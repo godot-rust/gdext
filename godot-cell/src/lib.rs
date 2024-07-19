@@ -25,10 +25,10 @@
 //! reference (or other pointer) to some value is considered accessible when it is possible to either read
 //! from or write to the value it points to without using `unsafe`. Importantly, if we know that a reference
 //! `a` is inaccessible, and then we create a new reference `b` derived from `a` to the same value, then we
-//! know for sure that `b` wont alias `a`. This is because aliasing in rust is based on accesses, and if we
+//! know for sure that `b` won't alias `a`. This is because aliasing in rust is based on accesses, and if we
 //! never access `a` then we cannot ever violate aliasing for `a` and `b`. And since `b` is derived from `a`
 //! (that is, `b` was created from `a` somehow such as by casting `a` to a raw pointer then to a reference
-//! `b`), then `a` wont get invalidated by accesses to `b`.
+//! `b`), then `a` won't get invalidated by accesses to `b`.
 
 mod blocking_cell;
 mod blocking_guards;

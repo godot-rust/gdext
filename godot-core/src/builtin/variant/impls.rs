@@ -18,9 +18,8 @@ use godot_ffi as sys;
 // Macro definitions
 
 // Certain types need to be passed as initialized pointers in their from_variant implementations in 4.0. Because
-// 4.0 uses `*ptr = value` to return the type, and some types in c++ override `operator=` in c++ in a way
-// that requires the pointer the be initialized. But some other types will cause a memory leak in 4.1 if
-// initialized.
+// 4.0 uses `*ptr = value` to return the type, and some types in C++ override `operator=` in C++ in a way
+// that requires the pointer to be initialized. But some other types will cause a memory leak in 4.1 if initialized.
 //
 // Therefore, we can use `init` to indicate when it must be initialized in 4.0.
 macro_rules! impl_ffi_variant {
@@ -212,6 +211,10 @@ impl GodotType for Variant {
         Ok(ffi)
     }
 
+    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
+        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
+    }
+
     fn property_info(property_name: &str) -> PropertyInfo {
         PropertyInfo {
             variant_type: Self::variant_type(),
@@ -221,10 +224,6 @@ impl GodotType for Variant {
             hint_string: GString::new(),
             usage: global::PropertyUsageFlags::DEFAULT | global::PropertyUsageFlags::NIL_IS_VARIANT,
         }
-    }
-
-    fn param_metadata() -> sys::GDExtensionClassMethodArgumentMetadata {
-        sys::GDEXTENSION_METHOD_ARGUMENT_METADATA_NONE
     }
 
     fn godot_type_name() -> String {

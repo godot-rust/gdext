@@ -31,7 +31,7 @@ use std::mem;
 /// `OnReady<T>` cannot be used with `#[export]` fields, because `ready()` is typically not called in the editor (unless `#[class(tool)]`
 /// is specified). You can however use it with `#[var]` -- just make sure to access the fields in GDScript after `ready()`.
 ///
-/// This type is not thread-safe. `ready()` runs on the main thread and you are expected to access its value on the main thread, as well.
+/// This type is not thread-safe. `ready()` runs on the main thread, and you are expected to access its value on the main thread, as well.
 ///
 /// [option]: std::option::Option
 /// [lazy]: https://docs.rs/once_cell/1/once_cell/unsync/struct.Lazy.html

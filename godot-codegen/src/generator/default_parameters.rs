@@ -59,7 +59,7 @@ pub fn make_function_definition_with_defaults(
     // #[allow] exceptions:
     // - wrong_self_convention:     to_*() and from_*() are taken from Godot
     // - redundant_field_names:     'value: value' is a possible initialization pattern
-    // - needless-update:           '..self' has nothing left to change
+    // - needless-update:           Remainder expression '..self' has nothing left to change
     let builders = quote! {
         #[doc = #builder_doc]
         #[must_use]
@@ -191,10 +191,8 @@ fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
             ExtenderReceiver {
                 object_fn_param: Some(FnParam {
                     name: ident("surround_object"),
-                    // Not exactly EngineClass, but close enough
-                    type_: RustTy::EngineClass {
+                    type_: RustTy::ExtenderReceiver {
                         tokens: quote! { &'a #builder_mut re_export::#class },
-                        inner_class: ident("unknown"),
                     },
                     default_value: None,
                 }),

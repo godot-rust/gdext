@@ -31,7 +31,7 @@ pub trait GodotConvert {
 
 /// Defines the canonical conversion to Godot for a type.
 ///
-/// It is assumed that all the methods return equal values given equal inputs. Additionally it is assumed
+/// It is assumed that all the methods return equal values given equal inputs. Additionally, it is assumed
 /// that if [`FromGodot`] is implemented, converting to Godot and back again will return a value equal to the
 /// starting value.
 ///

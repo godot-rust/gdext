@@ -53,6 +53,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
                 Some(class) => is_class_excluded(class.as_str()),
             },
             RustTy::EngineClass { inner_class, .. } => is_class_excluded(&inner_class.to_string()),
+            RustTy::ExtenderReceiver { .. } => false,
         }
     }
     is_rust_type_excluded(&conv::to_rust_type(ty, None, ctx))
@@ -69,7 +70,7 @@ pub(crate) fn is_class_method_excluded(method: &JsonClassMethod, ctx: &mut Conte
         // so passing in a class name while checking for any types is fine.
         let class_deleted = special_cases::is_godot_type_deleted(ty);
 
-        // Then also check if the type is excluded from codegen (due to current Cargo feature. RHS is always false in full-codegen.
+        // Then also check if the type is excluded from codegen (due to current Cargo feature). RHS is always false in full-codegen.
         class_deleted || is_type_excluded(ty, _ctx)
     };
 

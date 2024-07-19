@@ -196,7 +196,7 @@ impl<'a, T> Drop for MutGuard<'a, T> {
 /// creation. When the guard is dropped, `state`'s pointer is reset to the original pointer.
 ///
 /// This ensures that any new references are derived from the new reference we pass in, and when this guard
-/// is dropped the state is reset to what it was before, as if this guard never existed.
+/// is dropped, it resets the state to what it was before, as if this guard never existed.
 #[derive(Debug)]
 pub struct InaccessibleGuard<'a, T> {
     state: &'a Mutex<CellState<T>>,

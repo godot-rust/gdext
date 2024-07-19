@@ -49,7 +49,7 @@ impl Signal {
         }
     }
 
-    /// Creates an invalid/empty signal that is not able to be called.
+    /// Creates an invalid/empty signal that cannot be called.
     ///
     /// _Godot equivalent: `Signal()`_
     pub fn invalid() -> Self {

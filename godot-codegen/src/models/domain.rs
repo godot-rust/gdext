@@ -473,7 +473,11 @@ impl FnQualifier {
 
 pub struct FnParam {
     pub name: Ident,
+
+    /// Type, as it appears in `type CallSig` tuple definition.
     pub type_: RustTy,
+
+    /// Rust expression for default value, if available.
     pub default_value: Option<TokenStream>,
 }
 
@@ -573,15 +577,6 @@ pub struct GodotTy {
     pub meta: Option<String>,
 }
 
-// impl GodotTy {
-//     fn new<'a>(ty: &'a String, meta: &'a Option<String>) -> Self {
-//         Self {
-//             ty: ty.clone(),
-//             meta: meta.clone(),
-//         }
-//     }
-// }
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Rust type
 
@@ -627,6 +622,9 @@ pub enum RustTy {
         #[allow(dead_code)] // only read in minimal config
         inner_class: Ident,
     },
+
+    /// Receiver type of default parameters extender constructor.
+    ExtenderReceiver { tokens: TokenStream },
 }
 
 impl RustTy {
@@ -655,6 +653,7 @@ impl ToTokens for RustTy {
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineBitfield { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
+            RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
         }
     }
 }

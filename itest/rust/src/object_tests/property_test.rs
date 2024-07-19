@@ -419,7 +419,7 @@ fn export_resource() {
 #[derive(GodotClass)]
 #[class(init)]
 struct ExportOverride {
-    // This is really a non-sensical set of values, but they're different from what `#[export]` here would generate.
+    // This is really a nonsensical set of values, but they're different from what `#[export]` here would generate.
     // So we should be able to ensure that we can override the values `#[export]` generates.
     #[export]
     #[var(

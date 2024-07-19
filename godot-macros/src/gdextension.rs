@@ -40,7 +40,7 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
         // host. See: https://github.com/rust-lang/rust/issues/42587
         #[cfg(target_os = "emscripten")]
         fn emscripten_preregistration() {
-            // Module is documented here[1] by emscripten so perhaps we can consider it a part
+            // Module is documented here[1] by emscripten, so perhaps we can consider it a part
             // of its public API? In any case for now we mutate global state directly in order
             // to get things working.
             // [1] https://emscripten.org/docs/api_reference/module.html

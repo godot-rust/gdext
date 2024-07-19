@@ -20,7 +20,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError, TryLockError};
 /// - `const` constructors, allowing to be used in `static` variables without `Option`.
 /// - Initialization function provided in constructor, not in each use site separately.
 /// - Ergonomic access through guards to both `&T` and `&mut T`.
-/// - Completely safe usage. Almost completely safe implementation (besides `unreachable_unchecked`).
+/// - Completely safe usage. Little use of `unsafe` in the implementation (for performance reasons).
 ///
 /// There are two `const` methods for construction: [`new()`](Self::new) and [`default()`](Self::default).
 /// For access, you should primarily use [`lock()`](Self::lock). There is also [`try_lock()`](Self::try_lock) for special cases.
@@ -63,7 +63,7 @@ impl<T> Global<T> {
         let guard = self.value.lock().unwrap_or_else(PoisonError::into_inner);
         guard.get_or_init(self.init_fn);
 
-        // SAFETY: `get_or_init()` has already panicked if it wants to, propogating the panic to its caller,
+        // SAFETY: `get_or_init()` has already panicked if it wants to, propagating the panic to its caller,
         // so the object is guaranteed to be initialized.
         unsafe { GlobalGuard::new_unchecked(guard) }
     }
@@ -115,7 +115,7 @@ mod global_guard {
     impl<'a, T> GlobalGuard<'a, T> {
         pub(super) fn new(mutex_guard: MutexGuard<'a, OnceCell<T>>) -> Option<Self> {
             // Use an eager map instead of `mutex_guard.get().map(|_| Self { mutex_guard })`
-            // as `.get().map(…)` trys to move `mutex_guard` while borrowing an ignored value.
+            // as `.get().map(…)` tries to move `mutex_guard` while borrowing an ignored value.
             match mutex_guard.get() {
                 Some(_) => Some(Self { mutex_guard }),
                 _ => None,

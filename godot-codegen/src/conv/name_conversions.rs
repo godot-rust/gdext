@@ -280,7 +280,7 @@ fn try_strip_prefixes<'e>(enumerator: &'e str, prefixes: &[&str]) -> &'e str {
     enumerator
 }
 
-/// Check if input is a valid identifier; ie. no special characters except '_' and not starting with a digit.
+/// Check if input is a valid identifier; i.e. no special characters except '_' and not starting with a digit.
 fn is_valid_ident(s: &str) -> bool {
     !starts_with_invalid_char(s) && s.chars().all(|c| c == '_' || c.is_ascii_alphanumeric())
 }

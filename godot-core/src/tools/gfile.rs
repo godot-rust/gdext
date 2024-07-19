@@ -220,7 +220,7 @@ impl GFile {
     // ----------------------------------------------------------------------------------------------------------------------------------------------
     // Remaps of the internal FileAccess methods.
 
-    /// Get last modified time as an unix timestamp.
+    /// Get last modified time as a Unix timestamp.
     #[doc(alias = "get_modified_time")]
     pub fn modified_time(path: impl Into<GString>) -> std::io::Result<u64> {
         let modified_time = FileAccess::get_modified_time(path.into());

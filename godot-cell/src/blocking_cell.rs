@@ -15,7 +15,7 @@ use crate::blocking_guards::{MutGuardBlocking, RefGuardBlocking};
 use crate::cell::GdCellInner;
 use crate::guards::InaccessibleGuard;
 
-/// Blocking version of [`panicking::GdCell`](crate::panicking::GdCell) for multi-threaded usage.
+/// Blocking version of [`panicking::GdCell`](crate::panicking::GdCell) for multithreaded usage.
 ///
 /// This version of GdCell blocks the current thread if it does not yet hold references to the cell.
 ///

@@ -121,7 +121,7 @@ impl<T> GdCellInner<T> {
         let value = state.get_ptr();
 
         // SAFETY: `increment_mut` succeeded, therefore any existing mutable references are inaccessible.
-        // Additionally no new references can be created, unless the returned guard is made inaccessible.
+        // Additionally, no new references can be created, unless the returned guard is made inaccessible.
         //
         // This is the case because the only way for a new `GdMut` or `GdRef` to be made after this is for
         // either this guard to be dropped or `make_inaccessible` to be called and succeed.
@@ -170,10 +170,9 @@ impl<T> GdCellInner<T> {
     }
 }
 
-// SAFETY: `T` is sync so we can return references to it on different threads, it is also send so we can return
-// mutable references to it on different threads.
-// Additionally all internal state is synchronized via a mutex, so we wont have race conditions when trying
-// to use it from multiple threads.
+// SAFETY: `T` is Sync, so we can return references to it on different threads.
+// It is also Send, so we can return mutable references to it on different threads.
+// Additionally, all internal state is synchronized via a mutex, so we won't have race conditions when trying to use it from multiple threads.
 unsafe impl<T: Send + Sync> Sync for GdCellInner<T> {}
 
 /// Mutable state of the `GdCell`, bundled together to make it easier to avoid deadlocks when locking the
@@ -227,7 +226,7 @@ impl<T> CellState<T> {
         NonNull::new(self.ptr).unwrap()
     }
 
-    /// Push a pointer to this state..
+    /// Push a pointer to this state.
     pub(crate) fn push_ptr(&mut self, new_ptr: NonNull<T>) -> usize {
         self.ptr = new_ptr.as_ptr();
         self.stack_depth += 1;

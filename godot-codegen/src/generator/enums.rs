@@ -258,7 +258,7 @@ fn make_enum_engine_trait_impl(enum_: &Enum) -> TokenStream {
 
 /// Creates implementations for bitwise operators for the given enum.
 ///
-/// Currently this is just [`BitOr`](std::ops::BitOr) for bitfields but that could be expanded in the future.
+/// Currently, this is just [`BitOr`](std::ops::BitOr) for bitfields but that could be expanded in the future.
 fn make_enum_bitwise_operators(enum_: &Enum) -> TokenStream {
     let name = &enum_.name;
 
@@ -278,7 +278,7 @@ fn make_enum_bitwise_operators(enum_: &Enum) -> TokenStream {
 }
 /// Returns the documentation for the given enum.
 ///
-/// Each string is one line of documentation, usually this needs to be wrapped in a `#[doc = ..]`.
+/// Each string is one line of documentation, usually this needs to be wrapped in a `#[doc = ...]`.
 fn make_enum_doc(enum_: &Enum) -> Vec<String> {
     let mut docs = Vec::new();
 
