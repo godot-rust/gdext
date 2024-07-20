@@ -11,22 +11,22 @@
 //! * [`GodotClass`], which is implemented for every class that Godot can work with (either engine- or user-provided).
 //! * [`Gd`], a smart pointer that manages instances of Godot classes.
 
-mod as_object_arg;
 mod base;
 mod gd;
 mod guards;
 mod instance_id;
+mod object_arg;
 mod onready;
 mod raw_gd;
 mod traits;
 
 pub(crate) mod rtti;
 
-pub use as_object_arg::*;
 pub use base::*;
 pub use gd::*;
 pub use guards::{BaseMut, BaseRef, GdMut, GdRef};
 pub use instance_id::*;
+pub use object_arg::*;
 pub use onready::*;
 pub use raw_gd::*;
 pub use traits::*;

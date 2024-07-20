@@ -26,7 +26,7 @@ pub use super::global::{
 pub use super::tools::{load, save, try_load, try_save, GFile};
 
 pub use super::init::{gdextension, ExtensionLibrary, InitLevel};
-pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, NullArg, OnReady};
+pub use super::obj::{Base, Gd, GdMut, GdRef, GodotClass, Inherits, InstanceId, OnReady};
 
 // Make trait methods available.
 pub use super::obj::EngineBitfield as _;

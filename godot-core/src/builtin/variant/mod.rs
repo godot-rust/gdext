@@ -29,6 +29,9 @@ pub struct Variant {
 
 impl Variant {
     /// Create an empty variant (`null` value in GDScript).
+    ///
+    /// If a Godot engine API accepts object (not variant) parameters and you'd like to pass `null`, use
+    /// [`Gd::null_arg()`][crate::obj::Gd::null_arg] instead.
     pub fn nil() -> Self {
         Self::default()
     }

@@ -8,7 +8,7 @@
 use godot::builtin::Variant;
 use godot::classes::{ClassDb, Node};
 use godot::global;
-use godot::obj::{Gd, NewAlloc, NullArg};
+use godot::obj::{Gd, NewAlloc};
 
 use crate::framework::itest;
 use crate::object_tests::object_test::{user_refc_instance, RefcPayload};
@@ -71,10 +71,10 @@ fn object_arg_option_none() {
 fn object_arg_null_arg() {
     // Will emit errors but should not crash.
     let db = ClassDb::singleton();
-    let error = db.class_set_property(NullArg, "name".into(), Variant::from("hello"));
+    let error = db.class_set_property(Gd::null_arg(), "name".into(), Variant::from("hello"));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 
-    let error = db.class_set_property(NullArg, "value".into(), Variant::from(-123));
+    let error = db.class_set_property(Gd::null_arg(), "value".into(), Variant::from(-123));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
 }
 
