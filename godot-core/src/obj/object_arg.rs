@@ -8,7 +8,7 @@
 use crate::builtin::Variant;
 use crate::meta::error::ConvertError;
 use crate::meta::{ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot};
-use crate::obj::{bounds, Bounds, Gd, GodotClass, Inherits, RawGd};
+use crate::obj::{bounds, raw_gd, Bounds, Gd, GodotClass, Inherits, RawGd};
 use crate::sys;
 use godot_ffi::{GodotFfi, GodotNullableFfi, PtrcallType};
 use std::ptr;
@@ -172,16 +172,7 @@ where
     // https://github.com/godotengine/godot-cpp/issues/954
 
     fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
-        // See RawGd::as_arg_ptr().
-        #[cfg(before_api = "4.1")]
-        {
-            self.sys()
-        }
-
-        #[cfg(since_api = "4.1")]
-        {
-            ptr::addr_of!(self.object_ptr) as sys::GDExtensionConstTypePtr
-        }
+        raw_gd::object_as_arg_ptr(self, &self.object_ptr)
     }
 
     unsafe fn from_arg_ptr(_ptr: sys::GDExtensionTypePtr, _call_type: PtrcallType) -> Self {
@@ -240,7 +231,8 @@ impl<T: GodotClass> GodotType for ObjectArg<T> {
 
 impl<T: GodotClass> GodotFfiVariant for ObjectArg<T> {
     fn ffi_to_variant(&self) -> Variant {
-        unreachable!("ObjectArg::ffi_to_variant() is not expected to be called.")
+        // Note: currently likely not invoked since there are no known varcall APIs taking Object parameters; however this might change.
+        raw_gd::object_ffi_to_variant(self)
     }
 
     fn ffi_from_variant(_variant: &Variant) -> Result<Self, ConvertError> {
