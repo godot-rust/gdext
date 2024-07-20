@@ -878,7 +878,7 @@ impl ObjPayload {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[inline(never)] // force to move "out of scope", can trigger potential dangling pointer errors
-fn user_refc_instance() -> Gd<RefcPayload> {
+pub(super) fn user_refc_instance() -> Gd<RefcPayload> {
     let value: i16 = 17943;
     let user = RefcPayload { value };
     Gd::from_object(user)
@@ -886,7 +886,8 @@ fn user_refc_instance() -> Gd<RefcPayload> {
 
 #[derive(GodotClass, Eq, PartialEq, Debug)]
 pub struct RefcPayload {
-    value: i16,
+    #[var]
+    pub(super) value: i16,
 }
 
 #[godot_api]

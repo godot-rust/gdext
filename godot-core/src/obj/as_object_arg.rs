@@ -18,15 +18,18 @@ use std::ptr;
 /// This trait is implemented for the following types:
 /// - [`Gd<T>`] and `&Gd<T>`, to pass objects. Subclasses of `T` are explicitly supported.
 /// - [`Option<Gd<T>>`] and `Option<&Gd<T>>`, to pass optional objects. `None` is mapped to a null argument.
+/// - [`NullArg`], to pass `null` arguments without using `Option`.
 ///
+/// # Nullability
 /// <div class="warning">
-/// The GDExtension API does not provide information about nullability of its function parameters. It is up to you to verify that the arguments
-/// you pass are only null when this is allowed. Doing this wrong _should_ be safe, but can lead to the function call failing.
+/// The GDExtension API does not inform about nullability of its function parameters. It is up to you to verify that the arguments you pass
+/// are only null when this is allowed. Doing this wrong should be safe, but can lead to the function call failing.
 /// </div>
 pub trait AsObjectArg<T>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
 {
+    #[doc(hidden)]
     fn as_object_arg(&self) -> ObjectArg<T>;
 }
 
@@ -50,15 +53,52 @@ where
     }
 }
 
-// impl<T, U> AsObjectArg<T> for Option<U>
-// where
-//     T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
-//     U: AsObjectArg<T>,
-// {
-//     fn as_object_arg(&self) -> ObjectArg<T> {
-//         self.as_ref().map_or_else(ObjectArg::null, AsObjectArg::as_object_arg)
-//     }
-// }
+impl<T, U> AsObjectArg<T> for Option<U>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    U: AsObjectArg<T>,
+{
+    fn as_object_arg(&self) -> ObjectArg<T> {
+        self.as_ref()
+            .map_or_else(ObjectArg::null, AsObjectArg::as_object_arg)
+    }
+}
+
+impl<T> AsObjectArg<T> for NullArg
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+{
+    fn as_object_arg(&self) -> ObjectArg<T> {
+        ObjectArg::null()
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// Represents `null` when passing an object argument to Godot.
+///
+/// This can be used whenever a Godot signature accepts [`AsObjectArg<T>`].
+/// Using `NullArg` is equivalent to passing `Option::<Gd<T>>::None`, but less wordy.
+///
+/// This expression is only intended for function argument lists. To work with objects that can be null, use `Option<Gd<T>>` instead.
+///
+/// For APIs that accept `Variant`, you can pass [`Variant::nil()`] instead.
+///
+/// # Nullability
+/// <div class="warning">
+/// The GDExtension API does not inform about nullability of its function parameters. It is up to you to verify that the arguments you pass
+/// are only null when this is allowed. Doing this wrong should be safe, but can lead to the function call failing.
+/// </div>
+///
+/// # Example
+/// ```no_run
+/// # fn some_shape() -> Gd<GltfPhysicsShape> { unimplemented!() }
+/// use godot::prelude::*;
+/// use godot_core::classes::GltfPhysicsShape;
+///
+/// let mut shape: Gd<GltfPhysicsShape> = some_shape();
+/// shape.set_importer_mesh(NullArg);
+pub struct NullArg;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

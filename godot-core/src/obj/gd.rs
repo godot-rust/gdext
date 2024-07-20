@@ -31,7 +31,8 @@ use crate::{classes, out};
 /// This smart pointer can only hold _objects_ in the Godot sense: instances of Godot classes (`Node`, `RefCounted`, etc.)
 /// or user-declared structs (declared with `#[derive(GodotClass)]`). It does **not** hold built-in types (`Vector3`, `Color`, `i32`).
 ///
-/// `Gd<T>` never holds null objects. If you need nullability, use `Option<Gd<T>>`.
+/// `Gd<T>` never holds null objects. If you need nullability, use `Option<Gd<T>>`. To pass null objects to engine APIs, use
+/// [`NullArg`][crate::obj::NullArg].
 ///
 /// # Memory management
 ///
