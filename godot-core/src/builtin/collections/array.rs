@@ -744,7 +744,12 @@ impl<T: ArrayElement> Array<T> {
         let variant_type = VariantType::from_sys(
             self.as_inner().get_typed_builtin() as sys::GDExtensionVariantType
         );
-        let class_name = self.as_inner().get_typed_class_name();
+
+        let class_name = if variant_type == VariantType::OBJECT {
+            Some(self.as_inner().get_typed_class_name())
+        } else {
+            None
+        };
 
         ArrayTypeInfo {
             variant_type,
@@ -781,12 +786,22 @@ impl<T: ArrayElement> Array<T> {
         if type_info.is_typed() {
             let script = Variant::nil();
 
+            // A bit contrived because empty StringName is lazy-initialized but must also remain valid.
+            #[allow(unused_assignments)]
+            let mut empty_string_name = None;
+            let class_name = if let Some(class_name) = &type_info.class_name {
+                class_name.string_sys()
+            } else {
+                empty_string_name = Some(StringName::default());
+                empty_string_name.unwrap().string_sys()
+            };
+
             // SAFETY: The array is a newly created empty untyped array.
             unsafe {
                 interface_fn!(array_set_typed)(
                     self.sys_mut(),
                     type_info.variant_type.sys(),
-                    type_info.class_name.string_sys(),
+                    class_name, // must be empty if variant_type != OBJECT.
                     script.var_sys(),
                 );
             }
