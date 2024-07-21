@@ -7,7 +7,7 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{inner, Variant, VariantArray};
+use crate::builtin::{inner, OutArray, Variant, VariantArray};
 use crate::meta::{FromGodot, ToGodot};
 use crate::registry::property::{
     builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var,
@@ -149,7 +149,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `has_all`_
     #[doc(alias = "has_all")]
-    pub fn contains_all_keys(&self, keys: VariantArray) -> bool {
+    pub fn contains_all_keys(&self, keys: OutArray) -> bool {
         self.as_inner().has_all(keys)
     }
 
@@ -238,7 +238,7 @@ impl Dictionary {
     /// _Godot equivalent: `keys`_
     #[doc(alias = "keys")]
     pub fn keys_array(&self) -> VariantArray {
-        self.as_inner().keys()
+        self.as_inner().keys().to_variant_array()
     }
 
     /// Creates a new `Array` containing all the values currently in the dictionary.
@@ -246,7 +246,7 @@ impl Dictionary {
     /// _Godot equivalent: `values`_
     #[doc(alias = "values")]
     pub fn values_array(&self) -> VariantArray {
-        self.as_inner().values()
+        self.as_inner().values().to_variant_array()
     }
 
     /// Copies all keys and values from `other` into `self`.

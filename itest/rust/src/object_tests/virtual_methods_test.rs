@@ -10,9 +10,9 @@
 use crate::framework::{itest, TestContext};
 
 use godot::builtin::{
-    real, varray, Color, GString, PackedByteArray, PackedColorArray, PackedFloat32Array,
+    real, varray, Color, GString, OutArray, PackedByteArray, PackedColorArray, PackedFloat32Array,
     PackedInt32Array, PackedStringArray, PackedVector2Array, PackedVector3Array, RealConv,
-    StringName, Variant, VariantArray, Vector2, Vector3,
+    StringName, Variant, Vector2, Vector3,
 };
 use godot::classes::notify::NodeNotification;
 use godot::classes::resource_loader::CacheMode;
@@ -123,7 +123,7 @@ struct VirtualReturnTest {
 
 #[godot_api]
 impl IPrimitiveMesh for VirtualReturnTest {
-    fn create_mesh_array(&self) -> VariantArray {
+    fn create_mesh_array(&self) -> OutArray {
         varray![
             PackedVector3Array::from_iter([Vector3::LEFT]),
             PackedVector3Array::from_iter([Vector3::LEFT]),
@@ -139,6 +139,7 @@ impl IPrimitiveMesh for VirtualReturnTest {
             PackedFloat32Array::from_iter([0.0, 1.0, 2.0, 3.0]),
             PackedInt32Array::from_iter([0]),
         ]
+        .to_out_array()
     }
 }
 

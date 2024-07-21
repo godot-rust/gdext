@@ -164,16 +164,9 @@ fn make_special_builtin_methods(class_name: &TyName, _ctx: &Context) -> TokenStr
 }
 
 /// Get the safety docs of an unsafe method, or `None` if it is safe.
-fn method_safety_doc(class_name: &TyName, method: &BuiltinMethod) -> Option<TokenStream> {
-    if class_name.godot_ty == "Array"
-        && &method.return_value().type_tokens().to_string() == "VariantArray"
-    {
-        return Some(quote! {
-            /// # Safety
-            ///
-            /// You must ensure that the returned array fulfils the safety invariants of [`Array`](crate::builtin::Array).
-        });
-    }
+fn method_safety_doc(_class_name: &TyName, _method: &BuiltinMethod) -> Option<TokenStream> {
+    // Was previously used for InnerArray methods returning VariantArray.
+    // Now safe with OutArray -> conversion happens in client code.
 
     None
 }

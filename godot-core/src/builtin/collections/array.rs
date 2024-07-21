@@ -9,6 +9,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use crate::builtin::*;
+use crate::meta::error::ArrayMismatch;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
     ArrayElement, ArrayTypeInfo, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
@@ -19,7 +20,6 @@ use crate::registry::property::{
 };
 use godot_ffi as sys;
 use sys::{ffi_methods, interface_fn, GodotFfi};
-use crate::builtin::meta::ArrayMismatch;
 
 /// Godot's `Array` type.
 ///
@@ -420,13 +420,10 @@ impl<T: ArrayElement> Array<T> {
 
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
     pub fn extend_array(&mut self, other: Array<T>) {
-        // SAFETY: `append_array` will only read values from `other`, and all types can be converted to `Variant`.
-        let other: VariantArray = unsafe { other.assume_type::<Variant>() };
-
-        // SAFETY: `append_array` will only write values gotten from `other` into `self`, and all values in `other` are guaranteed
+        // SAFETY: `append_array` only reads values from `other` and writes them to `self`, and all values in `other` are guaranteed
         // to be of type `T`.
         let mut inner_self = unsafe { self.as_inner_mut() };
-        inner_self.append_array(other);
+        inner_self.append_array(other.to_out_array());
     }
 
     /// Returns a shallow copy of the array. All array elements are copied, but any reference types
@@ -435,10 +432,9 @@ impl<T: ArrayElement> Array<T> {
     /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_shallow(&self) -> Self {
-        // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
-        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(false) };
+        let duplicate: OutArray = self.as_inner().duplicate(false);
 
-        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
+        // SAFETY: duplicate() returns a typed array with the same type as Self.
         unsafe { duplicate.assume_type() }
     }
 
@@ -449,10 +445,9 @@ impl<T: ArrayElement> Array<T> {
     /// To create a shallow copy, use [`duplicate_shallow()`][Self::duplicate_shallow] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_deep(&self) -> Self {
-        // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
-        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(true) };
+        let duplicate: OutArray = self.as_inner().duplicate(true);
 
-        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
+        // SAFETY: duplicate() returns a typed array with the same type as Self.
         unsafe { duplicate.assume_type() }
     }
 
@@ -497,12 +492,11 @@ impl<T: ArrayElement> Array<T> {
         let step = step.unwrap_or(1);
 
         // SAFETY: The type of the array is `T` and we convert the returned array to an `Array<T>` immediately.
-        let subarray: VariantArray = unsafe {
+        let subarray: OutArray =
             self.as_inner()
-                .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep)
-        };
+                .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep);
 
-        // SAFETY: slice() returns a typed array with the same type as Self
+        // SAFETY: slice() returns a typed array with the same type as Self.
         unsafe { subarray.assume_type() }
     }
 
@@ -743,7 +737,7 @@ impl<T: ArrayElement> Array<T> {
     // Visibility: shared with OutArray.
     pub(super) unsafe fn assume_type<U: ArrayElement>(self) -> Array<U> {
         // SAFETY: The memory layout of `Array<T>` does not depend on `T`.
-        unsafe { std::mem::transmute(self) }
+        std::mem::transmute(self)
     }
 
     /// # Safety

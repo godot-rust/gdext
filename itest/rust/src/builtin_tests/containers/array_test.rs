@@ -378,12 +378,25 @@ fn array_mixed_values() {
 }
 
 #[itest]
-fn untyped_array_pass_to_godot_func() {
+fn untyped_out_array_pass_to_godot_func() {
     let mut node = Node::new_alloc();
     node.queue_free(); // Do not leak even if the test fails.
 
+    let args: VariantArray = varray!["tree_entered"];
     assert_eq!(
-        node.callv(StringName::from("has_signal"), varray!["tree_entered"]),
+        node.callv(StringName::from("has_signal"), args.to_out_array()),
+        true.to_variant()
+    );
+}
+
+#[itest]
+fn typed_out_array_pass_to_godot_func() {
+    let mut node = Node::new_alloc();
+    node.queue_free(); // Do not leak even if the test fails.
+
+    let args: Array<GString> = array!["tree_entered".into()];
+    assert_eq!(
+        node.callv(StringName::from("has_signal"), args.to_out_array()),
         true.to_variant()
     );
 }
@@ -398,7 +411,10 @@ fn untyped_array_return_from_godot_func() {
     node.queue_free(); // Do not leak even if the test fails.
     let result = node.get_node_and_resource("child_node".into());
 
-    assert_eq!(result, varray![child, Variant::nil(), NodePath::default()]);
+    assert_eq!(
+        result,
+        varray![child, Variant::nil(), NodePath::default()].to_out_array()
+    );
 }
 
 // TODO All API functions that take a `Array` are even more obscure and not included in
@@ -545,7 +561,7 @@ fn array_resize() {
     assert_eq!(a, array![GString::from("hello"), GString::from("bar"),]);
 }
 
-#[itest(focus)]
+#[itest]
 fn array_out_conversions() {
     let typed = array![1, 2, 3];
     let typed_out = typed.to_out_array();
@@ -556,14 +572,19 @@ fn array_out_conversions() {
     assert_eq!(copy, typed_out);
 
     let err = copy
-        .try_to_typed_array::<i64>()
+        .try_to_typed_array::<GString>()
         .expect_err("conversion with wrong type fails");
 
-    // dbg!(err.to_string());
+    assert_eq!(
+        err.to_string(),
+        "expected array of type STRING, got array of type INT"
+    );
 
     let typed_back = typed_out
         .try_to_typed_array::<i32>()
         .expect("conversion back works");
+
+    assert_eq!(typed_back, typed);
 }
 
 #[derive(GodotClass, Debug)]

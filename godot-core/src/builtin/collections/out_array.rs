@@ -37,6 +37,12 @@ impl OutArray {
         }
     }
 
+    pub(crate) fn new_untyped() -> Self {
+        Self {
+            inner: VariantArray::new(),
+        }
+    }
+
     /// ⚠️ Returns the value at the specified index.
     ///
     /// This replaces the `Index` trait, which cannot be implemented for `Array` as references are not guaranteed to remain valid.
@@ -316,14 +322,28 @@ impl OutArray {
         self.inner.shuffle()
     }
 
+    /// Returns the dynamic element type.
+    ///
+    /// If the array is untyped (`Array<Variant>`), then `VariantType::NIL` will be returned.
+    ///
+    /// See also [`get_typed_class_name()`][Self::get_typed_class_name].
     pub fn get_typed_builtin(&self) -> VariantType {
         self.inner.type_info().variant_type
     }
 
+    /// Returns the dynamic class of the elements.
+    ///
+    /// If the array is untyped (`Array<Variant>`) or the builtin type is not `VariantType::OBJECT`, then `None` will be returned.
+    ///
+    /// See also [`get_typed_builtin()`][Self::get_typed_builtin].
+    pub fn get_typed_class_name(&self) -> Option<StringName> {
+        self.inner.type_info().class_name
+    }
+
     /// Attempts to convert to `Array<T>`.
     ///
-    /// If the dynamic type is not `T`, then `None` is returned. You can use [`get_typed_builtin()`][Self::get_typed_builtin] to check the
-    /// dynamic type.
+    /// If the dynamic type is not `T`, then `Err` is returned. You can use [`get_typed_builtin()`][Self::get_typed_builtin] and
+    /// [`get_typed_class_name()`][Self::get_typed_class_name] to check the dynamic type.
     pub fn try_to_typed_array<T: ArrayElement>(self) -> Result<Array<T>, ConvertError> {
         let from_type = self.inner.type_info();
         let to_type = ArrayTypeInfo::of::<T>();
@@ -342,8 +362,52 @@ impl OutArray {
         }
     }
 
+    /// Attempts to convert to `VariantArray` (== `Array<Variant>`).
+    ///
+    /// If the dynamic type is not `T`, then `Err` is returned. You can use [`get_typed_builtin()`][Self::get_typed_builtin] and
+    /// [`get_typed_class_name()`][Self::get_typed_class_name] to check the dynamic type.
+    ///
+    /// This is a shorthand for [`try_to_typed_array::<Variant>()`][Self::try_to_typed_array].
     pub fn try_to_variant_array(self) -> Result<VariantArray, ConvertError> {
         self.try_to_typed_array::<Variant>()
+    }
+
+    /// ⚠️  Converts to `Array<T>`, panicking on error.
+    ///
+    /// # Panics
+    /// If the dynamic type is not `T`.
+    // See what usage patterns emerge before making public.
+    #[allow(dead_code)] // not yet used.
+    pub(crate) fn to_typed_array<T: ArrayElement>(self) -> Array<T> {
+        self.try_to_typed_array().unwrap_or_else(|err| {
+            panic!(
+                "Failed to convert OutArray to Array<{}>: {}",
+                T::class_name(),
+                err.to_string()
+            )
+        })
+    }
+
+    /// ⚠️ Converts to `Array<Variant>`, panicking on error.
+    ///
+    /// # Panics
+    /// If the dynamic type is not `Variant`.
+    // See what usage patterns emerge before making public.
+    pub(crate) fn to_variant_array(self) -> VariantArray {
+        self.try_to_variant_array().unwrap_or_else(|err| {
+            panic!(
+                "Failed to convert OutArray to VariantArray: {}",
+                err.to_string()
+            )
+        })
+    }
+
+    // Visibility: shared with Array<T>.
+    /// # Safety
+    /// See [`Array::assume_type()`].
+    pub(super) unsafe fn assume_type<T: ArrayElement>(self) -> Array<T> {
+        debug_assert_eq!(self.inner.type_info(), ArrayTypeInfo::of::<T>());
+        self.inner.assume_type()
     }
 }
 
@@ -361,9 +425,7 @@ unsafe impl GodotFfi for OutArray {
 
     // No Default trait, thus manually defining this and ffi_methods!.
     unsafe fn new_with_init(init_fn: impl FnOnce(sys::GDExtensionTypePtr)) -> Self {
-        let mut result = Self {
-            inner: VariantArray::new(),
-        };
+        let mut result = Self::new_untyped();
         init_fn(result.sys_mut());
         result
     }

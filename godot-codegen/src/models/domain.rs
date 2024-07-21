@@ -636,6 +636,10 @@ impl RustTy {
             other => quote! { -> #other },
         }
     }
+
+    pub fn is_out_array(&self) -> bool {
+        matches!(self, Self::BuiltinIdent(id) if id == "OutArray")
+    }
 }
 
 impl ToTokens for RustTy {
