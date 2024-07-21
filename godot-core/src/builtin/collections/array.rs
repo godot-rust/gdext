@@ -741,9 +741,19 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// # Safety
-    /// Returned type may be inaccurate and must be checked separately.
+    /// Returned type may be inaccurate and must be type-checked after the call.
     // Visibility: shared with OutArray.
-    pub(super) unsafe fn unchecked_clone(&self) -> Array<T> {
+    pub(super) unsafe fn default_unchecked() -> Array<T> {
+        Self::new_with_uninit(|self_ptr| {
+            let ctor = sys::builtin_fn!(array_construct_default);
+            ctor(self_ptr, std::ptr::null_mut())
+        })
+    }
+
+    /// # Safety
+    /// Returned type may be inaccurate and must be type-checked after the call.
+    // Visibility: shared with OutArray.
+    pub(super) unsafe fn clone_unchecked(&self) -> Array<T> {
         Self::new_with_uninit(|self_ptr| {
             let ctor = sys::builtin_fn!(array_construct_copy);
             let args = [self.sys()];
@@ -936,7 +946,7 @@ impl<T: ArrayElement + fmt::Display> fmt::Display for Array<T> {
 impl<T: ArrayElement> Clone for Array<T> {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid array, since we have a reference that keeps it alive. Type is checked below.
-        let array = unsafe { self.unchecked_clone() };
+        let array = unsafe { self.clone_unchecked() };
 
         array
             .with_checked_type()
@@ -996,12 +1006,7 @@ impl Export for Array<Variant> {
 impl<T: ArrayElement> Default for Array<T> {
     #[inline]
     fn default() -> Self {
-        let mut array = unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(array_construct_default);
-                ctor(self_ptr, std::ptr::null_mut())
-            })
-        };
+        let mut array = unsafe { Self::default_unchecked() };
 
         // SAFETY: We just created this array, and haven't called `init_inner_type` before.
         unsafe { array.init_inner_type() };

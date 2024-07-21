@@ -38,9 +38,10 @@ impl OutArray {
     }
 
     pub(crate) fn new_untyped() -> Self {
-        Self {
-            inner: VariantArray::new(),
-        }
+        // SAFETY: we explicitly create an untyped array, so we don't need to set a type.
+        let inner = unsafe { VariantArray::default_unchecked() };
+
+        Self { inner }
     }
 
     /// ⚠️ Returns the value at the specified index.
@@ -448,7 +449,7 @@ unsafe impl GodotFfi for OutArray {
 impl Clone for OutArray {
     fn clone(&self) -> Self {
         // SAFETY: we don't want to check that static type (Variant) matches dynamic type (anything), because all types are valid in OutArray.
-        let inner = unsafe { VariantArray::unchecked_clone(&self.inner) };
+        let inner = unsafe { VariantArray::clone_unchecked(&self.inner) };
 
         Self { inner }
     }
