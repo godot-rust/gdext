@@ -11,6 +11,7 @@ authors = ["Bromeon", "godot-rust contributors"]
 repository = "https://github.com/godot-rust/gdext"
 homepage = "https://godot-rust.github.io"
 documentation = "https://docs.rs/godot/0.1.2"
+readme = "crate-readme.md"
 
 [features]
 custom-godot = ["api-custom"]

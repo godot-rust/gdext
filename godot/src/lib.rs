@@ -115,6 +115,10 @@
 //!   The serialized representation underlies **no stability guarantees** and may change at any time, even without a SemVer-breaking change.
 //!
 
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/godot-rust/assets/master/gdext/ferris.svg"
+)]
+
 #[cfg(doc)]
 pub mod __docs;
 
