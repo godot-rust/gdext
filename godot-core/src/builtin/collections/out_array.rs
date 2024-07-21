@@ -344,7 +344,7 @@ impl OutArray {
     ///
     /// If the dynamic type is not `T`, then `Err` is returned. You can use [`get_typed_builtin()`][Self::get_typed_builtin] and
     /// [`get_typed_class_name()`][Self::get_typed_class_name] to check the dynamic type.
-    pub fn try_to_typed_array<T: ArrayElement>(self) -> Result<Array<T>, ConvertError> {
+    pub fn try_into_typed_array<T: ArrayElement>(self) -> Result<Array<T>, ConvertError> {
         let from_type = self.inner.type_info();
         let to_type = ArrayTypeInfo::of::<T>();
 
@@ -367,9 +367,9 @@ impl OutArray {
     /// If the dynamic type is not `T`, then `Err` is returned. You can use [`get_typed_builtin()`][Self::get_typed_builtin] and
     /// [`get_typed_class_name()`][Self::get_typed_class_name] to check the dynamic type.
     ///
-    /// This is a shorthand for [`try_to_typed_array::<Variant>()`][Self::try_to_typed_array].
-    pub fn try_to_variant_array(self) -> Result<VariantArray, ConvertError> {
-        self.try_to_typed_array::<Variant>()
+    /// This is a shorthand for [`try_into_typed_array::<Variant>()`][Self::try_into_typed_array].
+    pub fn try_into_variant_array(self) -> Result<VariantArray, ConvertError> {
+        self.try_into_typed_array::<Variant>()
     }
 
     /// ⚠️  Converts to `Array<T>`, panicking on error.
@@ -378,12 +378,11 @@ impl OutArray {
     /// If the dynamic type is not `T`.
     // See what usage patterns emerge before making public.
     #[allow(dead_code)] // not yet used.
-    pub(crate) fn to_typed_array<T: ArrayElement>(self) -> Array<T> {
-        self.try_to_typed_array().unwrap_or_else(|err| {
+    pub(crate) fn into_typed_array<T: ArrayElement>(self) -> Array<T> {
+        self.try_into_typed_array().unwrap_or_else(|err| {
             panic!(
-                "Failed to convert OutArray to Array<{}>: {}",
-                T::class_name(),
-                err.to_string()
+                "Failed to convert OutArray to Array<{}>: {err}",
+                T::class_name()
             )
         })
     }
@@ -393,13 +392,9 @@ impl OutArray {
     /// # Panics
     /// If the dynamic type is not `Variant`.
     // See what usage patterns emerge before making public.
-    pub(crate) fn to_variant_array(self) -> VariantArray {
-        self.try_to_variant_array().unwrap_or_else(|err| {
-            panic!(
-                "Failed to convert OutArray to VariantArray: {}",
-                err.to_string()
-            )
-        })
+    pub(crate) fn into_variant_array(self) -> VariantArray {
+        self.try_into_variant_array()
+            .unwrap_or_else(|err| panic!("Failed to convert OutArray to VariantArray: {err}"))
     }
 
     // Visibility: shared with Array<T>.

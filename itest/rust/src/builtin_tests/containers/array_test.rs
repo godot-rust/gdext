@@ -572,7 +572,7 @@ fn array_out_conversions() {
     assert_eq!(copy, typed_out);
 
     let err = copy
-        .try_to_typed_array::<GString>()
+        .try_into_typed_array::<GString>()
         .expect_err("conversion with wrong type fails");
 
     assert_eq!(
@@ -581,7 +581,7 @@ fn array_out_conversions() {
     );
 
     let typed_back = typed_out
-        .try_to_typed_array::<i32>()
+        .try_into_typed_array::<i32>()
         .expect("conversion back works");
 
     assert_eq!(typed_back, typed);
