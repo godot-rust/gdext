@@ -208,17 +208,16 @@ impl fmt::Display for FromGodotError {
                     };
                 }
 
+                let exp_class = expected.class_name().expect("lhs class name present");
+                let act_class = actual.class_name().expect("rhs class name present");
                 assert_ne!(
-                    expected.class_name(),
-                    actual.class_name(),
+                    exp_class, act_class,
                     "BadArrayType with expected == got, this is a gdext bug"
                 );
 
                 write!(
                     f,
-                    "expected array of class {}, got array of class {}",
-                    expected.class_name(),
-                    actual.class_name()
+                    "expected array of class {exp_class}, got array of class {act_class}"
                 )
             }
             Self::InvalidEnum => write!(f, "invalid engine enum value"),
