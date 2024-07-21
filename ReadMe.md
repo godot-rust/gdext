@@ -1,12 +1,12 @@
-![logo.png](assets/gdext-ferris.png)
+![logo.png](misc/assets/gdext-ferris.png)
 
 # Rust bindings for Godot 4
 
 _**[Website]** | **[Book][book]** | **[API Docs]** | [Discord] | [Mastodon] | [Twitter] | [Sponsor]_
 
-**gdext** is a library to bind the Rust language to Godot 4.
+**gdext** is a library to integrate the Rust language with Godot 4.
 
-[Godot] is an open-source game engine, whose version 4 has brought large-scale improvements.  
+[Godot] is an open-source game engine, focusing on a productive and batteries-included 2D and 3D experience.  
 Its _GDExtension_ API allows integrating third-party languages and libraries.
 
 If you are looking for a Rust binding for Godot 3 (GDNative API), check out [`gdnative`].
@@ -32,7 +32,7 @@ However, there are still certain things to keep in mind.
 > improved ergonomics for existing ones. See also [API stability] in the book.
 
 **Features:** While most Godot features are available, some less commonly used ones are missing. See [#24] for an up-to-date overview.
-At this point, there is **no** support for [Android] or [iOS], and [WASM] is experimental. Contributions are very welcome!
+At this point, there is little support for [Android] or [iOS], and [Wasm] is experimental. Contributions are very welcome!
 
 **Bugs:** Most undefined behavior related to the FFI layer has been ironed out, but there may still be occasional safety issues. Apart from that,
 new additions to the library are typically not feature-complete from the start, but become more robust with feedback and testing over time.
