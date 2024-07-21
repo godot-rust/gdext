@@ -7,12 +7,14 @@
 
 mod array;
 mod dictionary;
+mod out_array;
 mod packed_array;
 
 // Re-export in godot::builtin.
 pub(crate) mod containers {
     pub use super::array::{Array, VariantArray};
     pub use super::dictionary::Dictionary;
+    pub use super::out_array::OutArray;
     pub use super::packed_array::*;
 }
 

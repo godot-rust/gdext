@@ -60,6 +60,7 @@ impl Sealed for f64 {}
 impl Sealed for f32 {}
 impl Sealed for () {}
 impl Sealed for Variant {}
+impl Sealed for OutArray {}
 impl<T: ArrayElement> Sealed for Array<T> {}
 impl<T: GodotClass> Sealed for RawGd<T> {}
 impl<T: GodotClass> Sealed for Gd<T> {}

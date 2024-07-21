@@ -35,6 +35,11 @@ impl ConvertError {
         }
     }
 
+    /// Create a new custom error for a conversion, excluding the value that failed to convert.
+    pub(crate) fn with_kind(kind: ErrorKind) -> Self {
+        Self { kind, value: None }
+    }
+
     /// Create a new custom error for a conversion with the value that failed to convert.
     pub(crate) fn with_kind_value<V>(kind: ErrorKind, value: V) -> Self
     where
@@ -152,6 +157,7 @@ pub(crate) enum ErrorKind {
     FromGodot(FromGodotError),
     FromFfi(FromFfiError),
     FromVariant(FromVariantError),
+    FromOutArray(ArrayMismatch),
     Custom(Option<Cause>),
 }
 
@@ -161,6 +167,7 @@ impl fmt::Display for ErrorKind {
             Self::FromGodot(from_godot) => write!(f, "{from_godot}"),
             Self::FromVariant(from_variant) => write!(f, "{from_variant}"),
             Self::FromFfi(from_ffi) => write!(f, "{from_ffi}"),
+            Self::FromOutArray(array_mismatch) => write!(f, "{array_mismatch}"),
             Self::Custom(cause) => write!(f, "{cause:?}"),
         }
     }
@@ -169,10 +176,7 @@ impl fmt::Display for ErrorKind {
 /// Conversion failed during a [`FromGodot`](crate::meta::FromGodot) call.
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum FromGodotError {
-    BadArrayType {
-        expected: ArrayTypeInfo,
-        actual: ArrayTypeInfo,
-    },
+    BadArrayType(ArrayMismatch),
     /// InvalidEnum is also used by bitfields.
     InvalidEnum,
     ZeroInstanceId,
@@ -190,36 +194,7 @@ impl FromGodotError {
 impl fmt::Display for FromGodotError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::BadArrayType { expected, actual } => {
-                if expected.variant_type() != actual.variant_type() {
-                    return if expected.is_typed() {
-                        write!(
-                            f,
-                            "expected array of type {:?}, got array of type {:?}",
-                            expected.variant_type(),
-                            actual.variant_type()
-                        )
-                    } else {
-                        write!(
-                            f,
-                            "expected untyped array, got array of type {:?}",
-                            actual.variant_type()
-                        )
-                    };
-                }
-
-                let exp_class = expected.class_name().expect("lhs class name present");
-                let act_class = actual.class_name().expect("rhs class name present");
-                assert_ne!(
-                    exp_class, act_class,
-                    "BadArrayType with expected == got, this is a gdext bug"
-                );
-
-                write!(
-                    f,
-                    "expected array of class {exp_class}, got array of class {act_class}"
-                )
-            }
+            Self::BadArrayType(mismatch) => mismatch.fmt(f),
             Self::InvalidEnum => write!(f, "invalid engine enum value"),
             Self::ZeroInstanceId => write!(f, "`InstanceId` cannot be 0"),
         }
@@ -309,6 +284,51 @@ impl fmt::Display for FromVariantError {
         }
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+#[derive(Eq, PartialEq, Debug)]
+pub(crate) struct ArrayMismatch {
+    pub expected: ArrayTypeInfo,
+    pub actual: ArrayTypeInfo,
+}
+
+impl fmt::Display for ArrayMismatch {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let ArrayMismatch { expected, actual } = self;
+
+        if expected.variant_type() != actual.variant_type() {
+            return if expected.is_typed() {
+                write!(
+                    f,
+                    "expected array of type {:?}, got array of type {:?}",
+                    expected.variant_type(),
+                    actual.variant_type()
+                )
+            } else {
+                write!(
+                    f,
+                    "expected untyped array, got array of type {:?}",
+                    actual.variant_type()
+                )
+            };
+        }
+
+        let exp_class = expected.class_name().expect("lhs class name present");
+        let act_class = actual.class_name().expect("rhs class name present");
+        assert_ne!(
+            exp_class, act_class,
+            "BadArrayType with expected == got, this is a gdext bug"
+        );
+
+        write!(
+            f,
+            "expected array of class {exp_class}, got array of class {act_class}"
+        )
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 fn __ensure_send_sync() {
     fn check<T: Send + Sync>() {}

@@ -19,6 +19,7 @@ use crate::registry::property::{
 };
 use godot_ffi as sys;
 use sys::{ffi_methods, interface_fn, GodotFfi};
+use crate::builtin::meta::ArrayMismatch;
 
 /// Godot's `Array` type.
 ///
@@ -107,7 +108,8 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 /// concurrent modification on other threads (e.g. created through GDScript).
 pub struct Array<T: ArrayElement> {
     // Safety Invariant: The type of all values in `opaque` matches the type `T`.
-    opaque: sys::types::OpaqueArray,
+    // Visibility: shared with OutArray.
+    pub(super) opaque: sys::types::OpaqueArray,
     _phantom: PhantomData<T>,
 }
 
@@ -146,7 +148,8 @@ impl_builtin_froms!(VariantArray;
 );
 
 impl<T: ArrayElement> Array<T> {
-    fn from_opaque(opaque: sys::types::OpaqueArray) -> Self {
+    // Visibility: shared with OutArray.
+    pub(super) fn from_opaque(opaque: sys::types::OpaqueArray) -> Self {
         // Note: type is not yet checked at this point, because array has not yet been initialized!
         Self {
             opaque,
@@ -554,8 +557,7 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// Searches the array backwards for the last occurrence of a value and returns its index, or
-    /// `None` if not found. Starts searching at index `from`; pass `None` to search the entire
-    /// array.
+    /// `None` if not found. Starts searching at index `from`; pass `None` to search the entire array.
     pub fn rfind(&self, value: &T, from: Option<usize>) -> Option<usize> {
         let from = from.map(to_i64).unwrap_or(-1);
         let index = self.as_inner().rfind(value.to_variant(), from);
@@ -631,6 +633,10 @@ impl<T: ArrayElement> Array<T> {
     pub fn shuffle(&mut self) {
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.shuffle();
+    }
+
+    pub fn to_out_array(&self) -> OutArray {
+        OutArray::consume_typed_array(self.clone())
     }
 
     /// Asserts that the given index refers to an existing element.
@@ -734,13 +740,26 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// In the current implementation, both cases will produce a panic rather than undefined
     /// behavior, but this should not be relied upon.
-    unsafe fn assume_type<U: ArrayElement>(self) -> Array<U> {
+    // Visibility: shared with OutArray.
+    pub(super) unsafe fn assume_type<U: ArrayElement>(self) -> Array<U> {
         // SAFETY: The memory layout of `Array<T>` does not depend on `T`.
         unsafe { std::mem::transmute(self) }
     }
 
+    /// # Safety
+    /// Returned type may be inaccurate and must be checked separately.
+    // Visibility: shared with OutArray.
+    pub(super) unsafe fn unchecked_clone(&self) -> Array<T> {
+        Self::new_with_uninit(|self_ptr| {
+            let ctor = sys::builtin_fn!(array_construct_copy);
+            let args = [self.sys()];
+            ctor(self_ptr, args.as_ptr());
+        })
+    }
+
     /// Returns the runtime type info of this array.
-    fn type_info(&self) -> ArrayTypeInfo {
+    // Visibility: shared with OutArray.
+    pub(super) fn type_info(&self) -> ArrayTypeInfo {
         let variant_type = VariantType::from_sys(
             self.as_inner().get_typed_builtin() as sys::GDExtensionVariantType
         );
@@ -765,10 +784,10 @@ impl<T: ArrayElement> Array<T> {
         if self_ty == target_ty {
             Ok(self)
         } else {
-            Err(FromGodotError::BadArrayType {
+            Err(FromGodotError::BadArrayType(ArrayMismatch {
                 expected: target_ty,
                 actual: self_ty,
-            }
+            })
             .into_error(self))
         }
     }
@@ -806,6 +825,28 @@ impl<T: ArrayElement> Array<T> {
                 );
             }
         }
+    }
+
+    /// # Safety
+    /// Does not validate the array element type; `with_checked_type()` should be called afterward.
+    // Visibility: shared with OutArray.
+    pub(super) unsafe fn unchecked_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+        if variant.get_type() != Self::variant_type() {
+            return Err(FromVariantError::BadType {
+                expected: Self::variant_type(),
+                actual: variant.get_type(),
+            }
+            .into_error(variant.clone()));
+        }
+
+        let array = unsafe {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
+                let array_from_variant = sys::builtin_fn!(array_from_variant);
+                array_from_variant(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
+            })
+        };
+
+        Ok(array)
     }
 }
 
@@ -900,14 +941,8 @@ impl<T: ArrayElement + fmt::Display> fmt::Display for Array<T> {
 /// [`Array::duplicate_deep()`].
 impl<T: ArrayElement> Clone for Array<T> {
     fn clone(&self) -> Self {
-        // SAFETY: `self` is a valid array, since we have a reference that keeps it alive.
-        let array = unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(array_construct_copy);
-                let args = [self.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        };
+        // SAFETY: `self` is a valid array, since we have a reference that keeps it alive. Type is checked below.
+        let array = unsafe { self.unchecked_clone() };
 
         array
             .with_checked_type()
@@ -1025,22 +1060,10 @@ impl<T: ArrayElement> GodotFfiVariant for Array<T> {
     }
 
     fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
-        if variant.get_type() != Self::variant_type() {
-            return Err(FromVariantError::BadType {
-                expected: Self::variant_type(),
-                actual: variant.get_type(),
-            }
-            .into_error(variant.clone()));
-        }
+        // SAFETY: with_checked_type() is called right after, ensuring the array has the correct type.
+        let unchecked_array = unsafe { Self::unchecked_from_variant(variant) };
 
-        let array = unsafe {
-            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
-                let array_from_variant = sys::builtin_fn!(array_from_variant);
-                array_from_variant(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
-            })
-        };
-
-        array.with_checked_type()
+        unchecked_array.and_then(|array| array.with_checked_type())
     }
 }
 

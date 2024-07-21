@@ -477,10 +477,7 @@ fn array_should_format_with_display() {
 #[cfg(since_api = "4.2")]
 fn array_sort_custom() {
     let mut a = array![1, 2, 3, 4];
-    let func = Callable::from_fn("sort backwards", |args: &[&Variant]| {
-        let res = i32::from_variant(args[0]) > i32::from_variant(args[1]);
-        Ok(Variant::from(res))
-    });
+    let func = make_sort_function();
     a.sort_unstable_custom(func);
     assert_eq!(a, array![4, 3, 2, 1]);
 }
@@ -489,12 +486,16 @@ fn array_sort_custom() {
 #[cfg(since_api = "4.2")]
 fn array_binary_search_custom() {
     let a = array![5, 4, 2, 1];
-    let func = Callable::from_fn("sort backwards", |args: &[&Variant]| {
-        let res = i32::from_variant(args[0]) > i32::from_variant(args[1]);
-        Ok(Variant::from(res))
-    });
+    let func = make_sort_function();
     assert_eq!(a.bsearch_custom(&1, func.clone()), 3);
     assert_eq!(a.bsearch_custom(&3, func), 2);
+}
+
+fn make_sort_function() -> Callable {
+    Callable::from_fn("sort backwards", |args: &[&Variant]| {
+        let res = i32::from_variant(args[0]) > i32::from_variant(args[1]);
+        Ok(Variant::from(res))
+    })
 }
 
 #[itest]
@@ -542,6 +543,27 @@ fn array_resize() {
     a.resize(2, &new);
 
     assert_eq!(a, array![GString::from("hello"), GString::from("bar"),]);
+}
+
+#[itest(focus)]
+fn array_out_conversions() {
+    let typed = array![1, 2, 3];
+    let typed_out = typed.to_out_array();
+
+    // assert_eq!(typed_out.at(0), 1.to_variant());
+
+    let copy = typed_out.clone();
+    assert_eq!(copy, typed_out);
+
+    let err = copy
+        .try_to_typed_array::<i64>()
+        .expect_err("conversion with wrong type fails");
+
+    // dbg!(err.to_string());
+
+    let typed_back = typed_out
+        .try_to_typed_array::<i32>()
+        .expect("conversion back works");
 }
 
 #[derive(GodotClass, Debug)]
