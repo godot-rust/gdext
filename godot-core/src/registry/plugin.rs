@@ -5,12 +5,13 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::any::Any;
-use std::fmt;
-
+#[cfg(all(since_api = "4.3", feature = "docs"))]
+use crate::docs::*;
 use crate::init::InitLevel;
 use crate::meta::ClassName;
 use crate::sys;
+use std::any::Any;
+use std::fmt;
 
 // TODO(bromeon): some information coming from the proc-macro API is deferred through PluginItem, while others is directly
 // translated to code. Consider moving more code to the PluginItem, which allows for more dynamic registration and will
@@ -96,6 +97,8 @@ pub enum PluginItem {
 
         /// Whether the class has a default constructor.
         is_instantiable: bool,
+        #[cfg(all(since_api = "4.3", feature = "docs"))]
+        docs: Option<StructDocs>,
     },
 
     /// Collected from `#[godot_api] impl MyClass`.
@@ -104,10 +107,15 @@ pub enum PluginItem {
         ///
         /// Always present since that's the entire point of this `impl` block.
         register_methods_constants_fn: ErasedRegisterFn,
+        #[cfg(all(since_api = "4.3", feature = "docs"))]
+        docs: Option<InherentImplDocs>,
     },
 
     /// Collected from `#[godot_api] impl I... for MyClass`.
     ITraitImpl {
+        #[cfg(all(since_api = "4.3", feature = "docs"))]
+        /// Virtual method documentation.
+        virtual_method_docs: &'static str,
         /// Callback to user-defined `register_class` function.
         user_register_fn: Option<ErasedRegisterFn>,
 

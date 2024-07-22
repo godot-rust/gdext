@@ -35,6 +35,14 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let is_editor_plugin = struct_cfg.is_editor_plugin;
     let is_hidden = struct_cfg.is_hidden;
     let base_ty = &struct_cfg.base_ty;
+    #[cfg(all(feature = "docs", since_api = "4.3"))]
+    let docs = crate::docs::make_definition_docs(
+        base_ty.to_string(),
+        &class.attributes,
+        &fields.all_fields,
+    );
+    #[cfg(not(all(feature = "docs", since_api = "4.3")))]
+    let docs = quote! {};
     let base_class = quote! { ::godot::classes::#base_ty };
     let base_class_name_obj = util::class_name_obj(&base_class);
     let inherits_macro = format_ident!("unsafe_inherits_transitive_{}", base_ty);
@@ -75,7 +83,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
 
     match struct_cfg.init_strategy {
         InitStrategy::Generated => {
-            godot_init_impl = make_godot_init_impl(class_name, fields);
+            godot_init_impl = make_godot_init_impl(class_name, &fields);
             create_fn = quote! { Some(#prv::callbacks::create::<#class_name>) };
 
             if cfg!(since_api = "4.2") {
@@ -142,6 +150,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
                 is_editor_plugin: #is_editor_plugin,
                 is_hidden: #is_hidden,
                 is_instantiable: #is_instantiable,
+                #docs
             },
             init_level: {
                 let level = <#class_name as ::godot::obj::GodotClass>::INIT_LEVEL;
@@ -193,17 +202,18 @@ struct ClassAttributes {
     rename: Option<Ident>,
 }
 
-fn make_godot_init_impl(class_name: &Ident, fields: Fields) -> TokenStream {
-    let base_init = if let Some(Field { name, .. }) = fields.base_field {
+fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
+    let base_init = if let Some(Field { name, .. }) = &fields.base_field {
         quote! { #name: base, }
     } else {
         TokenStream::new()
     };
 
-    let rest_init = fields.all_fields.into_iter().map(|field| {
-        let field_name = field.name;
+    let rest_init = fields.all_fields.iter().map(|field| {
+        let field_name = field.name.clone();
         let value_expr = field
             .default
+            .clone()
             .unwrap_or_else(|| quote! { ::std::default::Default::default() });
 
         quote! { #field_name: #value_expr, }
