@@ -538,12 +538,12 @@ mod script_instance_info {
     use std::any::type_name;
     use std::ffi::c_void;
 
-    use crate::builtin::meta::{MethodInfo, PropertyInfo};
     use crate::builtin::{StringName, Variant};
     use crate::private::handle_panic;
     use crate::sys;
 
     use super::{ScriptInstance, ScriptInstanceData, SiMut};
+    use crate::meta::{MethodInfo, PropertyInfo};
     use sys::conv::{bool_to_sys, SYS_FALSE, SYS_TRUE};
 
     /// # Safety

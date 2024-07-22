@@ -28,8 +28,14 @@ use crate::builtin::{GString, NodePath};
 ///
 /// # Null bytes
 ///
-/// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and `"hello, world!\0 ignored by Godot"`
-/// will be treated as the same string if converted to a `StringName`.
+/// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and  \
+/// `"hello, world!\0 ignored by Godot"` will be treated as the same string if converted to a `StringName`.
+///
+/// # Performance
+///
+/// The fastest way to create string names is by using null-terminated C-string literals such as `c"MyClass"`. These have `'static` lifetime and
+/// can be used directly by Godot, without allocation or conversion. The encoding is limited to Latin-1, however. See the corresponding
+/// [`From<&'static CStr>` impl](#impl-From<%26CStr>-for-StringName).
 // Currently we rely on `transparent` for `borrow_string_sys`.
 #[repr(transparent)]
 pub struct StringName {
@@ -39,31 +45,6 @@ pub struct StringName {
 impl StringName {
     fn from_opaque(opaque: sys::types::OpaqueStringName) -> Self {
         Self { opaque }
-    }
-
-    /// Creates a `StringName` from a static, nul-terminated ASCII/Latin-1 `b"string"` literal.
-    ///
-    /// Avoids unnecessary copies and allocations and directly uses the backing buffer. Useful for literals.
-    ///
-    /// # Example
-    /// ```no_run
-    /// use godot::builtin::StringName;
-    ///
-    /// // '±' is a Latin-1 character with codepoint 0xB1. Note that this is not UTF-8, where it would need two bytes.
-    /// let sname = StringName::from_latin1_with_nul(b"\xb1 Latin-1 string\0");
-    /// ```
-    ///
-    /// # Panics
-    /// When the string is not nul-terminated or contains interior nul bytes.
-    ///
-    /// Note that every byte is valid in Latin-1, so there is no encoding validation being performed.
-    #[cfg(since_api = "4.2")]
-    #[deprecated = "Since Rust 1.77, you can use c-string literals with `From/Into` instead of this function."]
-    pub fn from_latin1_with_nul(latin1_c_str: &'static [u8]) -> Self {
-        let c_str = std::ffi::CStr::from_bytes_with_nul(latin1_c_str)
-            .unwrap_or_else(|_| panic!("invalid or not nul-terminated CStr: '{latin1_c_str:?}'"));
-
-        c_str.into()
     }
 
     /// Returns the number of characters in the string.

@@ -262,7 +262,7 @@ impl FieldExport {
             "or_less",
             "exp",
             "radians_as_degrees",
-            "radians", // godot deprecated this key for 4.2 in favor of radians_as_degrees
+            "radians", // Godot deprecated this key since 4.2, in favor of `radians_as_degrees`.
             "degrees",
             "hide_slider",
         ];

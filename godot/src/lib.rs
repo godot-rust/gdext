@@ -148,8 +148,8 @@ compile_error!("Must opt-in using `experimental-wasm` Cargo feature; keep in min
 #[cfg(all(feature = "double-precision", not(feature = "api-custom")))]
 compile_error!("The feature `double-precision` currently requires `api-custom` due to incompatibilities in the GDExtension API JSON.");
 
-#[cfg(feature = "custom-godot")]
-__deprecated::emit_deprecated_warning!(feature_custom_godot);
+#[cfg(all(feature = "register-docs", before_api = "4.3"))]
+compile_error!("Generating editor docs for Rust symbols requires at least Godot 4.3.");
 
 const fn _validate_features() {
     let mut count = 0;
@@ -174,9 +174,6 @@ const _: () = _validate_features();
 
 #[doc(inline)]
 pub use godot_core::{builtin, classes, global, meta, obj, tools};
-
-#[allow(deprecated)]
-pub use godot_core::{engine, log};
 
 #[doc(hidden)]
 pub use godot_core::possibly_docs as docs;

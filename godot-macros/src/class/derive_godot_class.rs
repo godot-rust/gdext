@@ -66,12 +66,6 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         quote! {}
     };
 
-    let deprecated_base_warning = if fields.has_deprecated_base {
-        quote! { ::godot::__deprecated::emit_deprecated_warning!(base_attribute); }
-    } else {
-        TokenStream::new()
-    };
-
     let (user_class_impl, has_default_virtual) =
         make_user_class_impl(class_name, struct_cfg.is_tool, &fields.all_fields);
 
@@ -170,7 +164,6 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         });
 
         #prv::class_macros::#inherits_macro!(#class_name);
-        #deprecated_base_warning
     })
 }
 
@@ -385,7 +378,6 @@ fn parse_fields(
 ) -> ParseResult<Fields> {
     let mut all_fields = vec![];
     let mut base_field = Option::<Field>::None;
-    let mut has_deprecated_base = false;
 
     // Attributes on struct fields
     for (named_field, _punct) in named_fields {
@@ -394,12 +386,6 @@ fn parse_fields(
 
         // Base<T> type inference
         if path_ends_with_complex(&field.ty, "Base") {
-            is_base = true;
-        }
-
-        // deprecated #[base]
-        if KvParser::parse(&named_field.attributes, "base")?.is_some() {
-            has_deprecated_base = true;
             is_base = true;
         }
 
@@ -480,7 +466,6 @@ fn parse_fields(
     Ok(Fields {
         all_fields,
         base_field,
-        has_deprecated_base,
     })
 }
 

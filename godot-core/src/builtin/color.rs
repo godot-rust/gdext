@@ -377,19 +377,6 @@ pub enum ColorChannelOrder {
     ARGB,
 }
 
-#[allow(non_upper_case_globals)]
-#[doc(hidden)] // No longer advertise in API docs.
-impl ColorChannelOrder {
-    #[deprecated(note = "Renamed to `ColorChannelOrder::RGBA`.")]
-    pub const Rgba: Self = Self::RGBA;
-
-    #[deprecated(note = "Renamed to `ColorChannelOrder::ABGR`.")]
-    pub const Abgr: Self = Self::ABGR;
-
-    #[deprecated(note = "Renamed to `ColorChannelOrder::ARGB`.")]
-    pub const Argb: Self = Self::ARGB;
-}
-
 impl ColorChannelOrder {
     fn pack<T>(self, rgba: [T; 4]) -> [T; 4] {
         let [r, g, b, a] = rgba;

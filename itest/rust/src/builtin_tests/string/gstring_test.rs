@@ -66,7 +66,7 @@ fn string_clone() {
 
 #[itest]
 fn empty_string_chars() {
-    // Tests regression from #228: Null pointer passed to slice::from_raw_parts
+    // Tests regression from #228: Null pointer passed to slice::from_raw_parts().
     let s = GString::new();
 
     #[allow(deprecated)]

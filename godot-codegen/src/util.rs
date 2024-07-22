@@ -33,15 +33,10 @@ pub fn make_imports() -> TokenStream {
 
 #[cfg(since_api = "4.2")]
 pub fn make_string_name(identifier: &str) -> TokenStream {
-    let lit = Literal::byte_string(format!("{identifier}\0").as_bytes());
-    quote! {
-        // TODO: C-string literals cannot currently be constructed in proc-macros, see the tracking issue:
-        // https://github.com/rust-lang/rust/issues/119750
-        {
-            #[allow(deprecated)]
-            StringName::from_latin1_with_nul(#lit)
-        }
-    }
+    let c_string = std::ffi::CString::new(identifier).expect("CString::new() failed");
+    let lit = Literal::c_string(&c_string);
+
+    quote! { StringName::from(#lit) }
 }
 
 #[cfg(before_api = "4.2")]

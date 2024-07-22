@@ -9,9 +9,9 @@ use crate::builtin::{real, GString, PackedByteArray, PackedStringArray, Variant}
 use crate::classes::file_access::{CompressionMode, ModeFlags};
 use crate::classes::FileAccess;
 use crate::global::Error;
+use crate::meta::error::IoError;
 use crate::obj::Gd;
 
-use crate::engine::IoError;
 use std::cmp;
 use std::io::{BufRead, ErrorKind, Read, Seek, SeekFrom, Write};
 

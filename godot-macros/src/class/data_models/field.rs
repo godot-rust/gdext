@@ -40,7 +40,4 @@ pub struct Fields {
 
     /// The field with type `Base<T>`, if available.
     pub base_field: Option<Field>,
-
-    /// Whether a deprecated `#[base]` was used.
-    pub has_deprecated_base: bool,
 }
