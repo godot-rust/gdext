@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt::Write;
 use std::{convert::Infallible, ffi::c_char, fmt, str::FromStr};
 
 use godot_ffi as sys;
@@ -230,26 +231,19 @@ impl_builtin_traits! {
 
 impl fmt::Display for GString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s: String;
-
-        #[cfg(before_api = "4.1")]
-        {
-            s = self.chars_checked().iter().collect();
-        }
-        #[cfg(since_api = "4.1")]
-        {
-            s = self.chars().iter().collect();
+        for ch in self.chars() {
+            f.write_char(*ch)?;
         }
 
-        f.write_str(s.as_str())
+        Ok(())
     }
 }
 
 /// Uses literal syntax from GDScript: `"string"`
 impl fmt::Debug for GString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = String::from(self);
-        write!(f, "\"{s}\"")
+        // Reuse Display impl.
+        write!(f, "\"{self}\"")
     }
 }
 
