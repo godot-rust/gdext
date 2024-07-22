@@ -19,7 +19,7 @@ proc-macro = true
 
 [dependencies]
 # Minimum versions compatible with -Zminimal-versions
-proc-macro2 = "1.0.63"
+proc-macro2 = "1.0.80" # Literal::c_string() added in 1.0.80.
 quote = "1.0.29"
 
 # Enabled by `docs`
