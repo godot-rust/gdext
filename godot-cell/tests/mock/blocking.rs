@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::marker::PhantomData;
 use std::sync::{atomic::AtomicUsize, Mutex, OnceLock};
+use std::time::Duration;
 
 use godot_cell::blocking::{GdCell, InaccessibleGuard};
 
@@ -25,6 +26,10 @@ super::setup_test_class!();
 impl MyClass {
     fn immut_calls_mut_directly(&self) {
         unsafe { call_mut_method(self.base.instance_id, Self::mut_method).unwrap() }
+    }
+
+    fn immut_with_sleep(&self) {
+        std::thread::sleep(Duration::from_millis(100));
     }
 }
 
@@ -159,4 +164,26 @@ fn non_blocking_reborrow() {
     let panic_b = thread_b.join().err();
 
     assert_eq!(panic_b.unwrap().downcast_ref::<String>().unwrap(), "called `Result::unwrap()` on an `Err` value: Custom(\"cannot borrow mutable while shared borrow exists\")");
+}
+
+/// Mutable borrow on main thread with shared borrow on others.
+///
+/// This verifies that the thread which initialized the `GdCell` does not panic when it attempts to mutably borrow while there is already a
+/// shared borrow on an other thread.
+#[test]
+fn no_mut_panic_on_main() {
+    use std::thread;
+    let instance_id = MyClass::init();
+
+    let thread_a = thread::spawn(move || unsafe {
+        // Acquire an immutable reference and sleep for a while.
+        call_immut_method(instance_id, MyClass::immut_with_sleep).unwrap();
+    });
+
+    thread::sleep(Duration::from_millis(50));
+
+    let main_result = unsafe { call_mut_method(instance_id, MyClass::mut_method) };
+
+    main_result.expect("The main thread should not panic!");
+    thread_a.join().expect("Thread_a should not panic!");
 }
