@@ -116,7 +116,7 @@ impl Variant {
         let mut error = sys::default_call_error();
 
         let result = unsafe {
-            Variant::new_with_var_uninit_or_init(|variant_ptr| {
+            Variant::new_with_var_uninit(|variant_ptr| {
                 interface_fn!(variant_call)(
                     sys::SysPtr::force_mut(self.var_sys()),
                     method.string_sys(),
@@ -148,7 +148,7 @@ impl Variant {
         let mut is_valid = false as u8;
 
         let result = unsafe {
-            Self::new_with_var_uninit_or_init(|variant_ptr| {
+            Self::new_with_var_uninit(|variant_ptr| {
                 interface_fn!(variant_evaluate)(
                     op_sys,
                     self.var_sys(),
@@ -236,32 +236,6 @@ impl Variant {
         unsafe {
             self.move_return_ptr(dst, sys::PtrcallType::Standard);
         }
-    }
-
-    /// # Safety
-    ///
-    /// For Godot 4.0, see [`GodotFfi::new_with_init`].
-    /// For all other versions, see [`GodotFfi::new_with_uninit`].
-    #[cfg(before_api = "4.1")]
-    #[doc(hidden)]
-    pub unsafe fn new_with_var_uninit_or_init(
-        init_fn: impl FnOnce(sys::GDExtensionVariantPtr),
-    ) -> Self {
-        // SAFETY: We're in Godot 4.0, and so the caller must ensure this is safe.
-        unsafe { Self::new_with_var_init(init_fn) }
-    }
-
-    /// # Safety
-    ///
-    /// For Godot 4.0, see [`GodotFfi::new_with_init`].
-    /// For all other versions, see [`GodotFfi::new_with_uninit`].
-    #[cfg(since_api = "4.1")]
-    #[doc(hidden)]
-    pub unsafe fn new_with_var_uninit_or_init(
-        init_fn: impl FnOnce(sys::GDExtensionUninitializedVariantPtr),
-    ) -> Self {
-        // SAFETY: We're not in Godot 4.0, and so the caller must ensure this is safe.
-        unsafe { Self::new_with_var_uninit(init_fn) }
     }
 
     /// Fallible construction of a `Variant` using a fallible initialization function.

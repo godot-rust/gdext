@@ -43,7 +43,7 @@ impl<'a> StringCache<'a> {
         let mut sname = MaybeUninit::<sys::types::OpaqueStringName>::uninit();
         let sname_ptr = sname.as_mut_ptr();
 
-        // For Godot 4.0 and 4.1, construct StringName via String + conversion.
+        // For Godot 4.1, construct StringName via String + conversion.
         #[cfg(before_api = "4.2")]
         unsafe {
             let string_new_with_latin1_chars_and_len = self

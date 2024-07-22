@@ -252,7 +252,7 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         property_can_revert_func: None, // unimplemented until needed.
         property_get_revert_func: None, // unimplemented until needed.
 
-        // ScriptInstance::get_owner() is apparently not called by Godot 4.0 to 4.2 (to verify).
+        // ScriptInstance::get_owner() is apparently not called by Godot 4.1 to 4.2 (to verify).
         get_owner_func: None,
         get_property_state_func: Some(script_instance_info::get_property_state_func::<T>),
 

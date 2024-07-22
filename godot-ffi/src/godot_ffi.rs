@@ -105,27 +105,12 @@ pub unsafe trait GodotFfi {
 // This method abstracts over that. Declared outside GodotFfi because it should not be overridden.
 
 /// # Safety
-///
-/// - For Godot version 4.0 see [`GodotFfi::new_with_init`].
-/// - For Godot versions >= 4.1 see [`GodotFfi::new_with_uninit`].
-#[cfg(before_api = "4.1")]
-pub unsafe fn new_with_uninit_or_init<T: GodotFfi>(
-    init_fn: impl FnOnce(sys::GDExtensionTypePtr),
-) -> T {
-    // SAFETY: `before_api = "4.1"` so the user must fulfil the safety preconditions of `new_with_init`.
-    unsafe { T::new_with_init(init_fn) }
-}
-
-/// # Safety
-///
-/// - For Godot version 4.0 see [`GodotFfi::new_with_init`].
-/// - For Godot versions >= 4.1 see [`GodotFfi::new_with_uninit`].
+/// See [`GodotFfi::new_with_uninit`] (valid for Godot 4.1+).
 #[cfg(since_api = "4.1")]
 pub unsafe fn new_with_uninit_or_init<T: GodotFfi>(
     init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
 ) -> T {
-    // SAFETY: `since_api = "4.1"` so the user must fulfil the safety preconditions of `new_with_uninit`.
-    unsafe { T::new_with_uninit(init_fn) }
+    T::new_with_uninit(init_fn)
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

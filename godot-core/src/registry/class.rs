@@ -27,12 +27,11 @@ static LOADED_CLASSES: Global<
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
-/// Represents a class who is currently loaded and retained in memory.
+/// Represents a class which is currently loaded and retained in memory.
 ///
 /// Besides the name, this type holds information relevant for the deregistration of the class.
 pub struct LoadedClass {
     name: ClassName,
-    #[cfg_attr(before_api = "4.1", allow(dead_code))]
     is_editor_plugin: bool,
 }
 
@@ -424,7 +423,6 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
         (register_fn.raw)(&mut class_builder);
     }
 
-    #[cfg(since_api = "4.1")]
     if info.is_editor_plugin {
         unsafe { interface_fn!(editor_add_plugin)(class_name.string_sys()) };
     }
@@ -435,7 +433,6 @@ fn unregister_class_raw(class: LoadedClass) {
     out!("Unregister class: {class_name}");
 
     // If class is an editor plugin, unregister that first.
-    #[cfg(since_api = "4.1")]
     if class.is_editor_plugin {
         unsafe {
             interface_fn!(editor_remove_plugin)(class_name.string_sys());
