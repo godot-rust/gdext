@@ -5,6 +5,29 @@ This document tracks changes of released library versions.
 See also [Pulse](https://github.com/godot-rust/gdext/pulse/monthly) for recent activities.  
 Cutting-edge API docs of the `master` branch are available [here](https://godot-rust.github.io/docs/gdext).
 
+
+## [v0.1.3](https://docs.rs/godot/0.1.3)
+
+_22 July 2024_
+
+### 🧹 Quality of life
+
+- Add helpful error for renamed Wasm module ([#799](https://github.com/godot-rust/gdext/pull/799))
+- More thoroughly document `unsafe` in `godot-ffi` ([#774](https://github.com/godot-rust/gdext/pull/774))
+
+### 🛠️ Bugfixes
+
+- Map `Vector3i.Axis` enum to builtin `Vector3Axis` ([#797](https://github.com/godot-rust/gdext/pull/797))
+- Prevent `out!` from actually formatting the input if disabled ([#801](https://github.com/godot-rust/gdext/pull/801))
+- Disable `main_thread_id` assertion for Android debug build ([#780](https://github.com/godot-rust/gdext/pull/780))
+- `GdCell::borrow_mut` should block on main thread if shared ref exists ([#787](https://github.com/godot-rust/gdext/pull/787))
+
+### 📚 Documentation
+
+- Typos + code reordering ([#802](https://github.com/godot-rust/gdext/pull/802))
+- Add crates.io ReadMe + docs logo ([#804](https://github.com/godot-rust/gdext/pull/804))
+
+
 ## [v0.1.2](https://docs.rs/godot/0.1.2)
 
 _15 July 2024_
