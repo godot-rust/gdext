@@ -38,15 +38,16 @@ pub fn generate_builtin_class_files(
     std::fs::create_dir_all(gen_path).expect("create classes directory");
 
     let mut modules = vec![];
-    for class in api.builtins.iter() {
-        let Some(class) = class.builtin_class.as_ref() else {
+    for variant in api.builtins.iter() {
+        let Some(class) = variant.builtin_class.as_ref() else {
             continue;
         };
 
         // let godot_class_name = &class.name().godot_ty;
         let module_name = class.mod_name();
 
-        let generated_class = make_builtin_class(class, ctx);
+        let variant_shout_name = util::ident(variant.godot_shout_name());
+        let generated_class = make_builtin_class(class, &variant_shout_name, ctx);
         let file_contents = generated_class.code;
 
         let out_path = gen_path.join(format!("{}.rs", module_name.rust_mod));
@@ -87,7 +88,11 @@ pub fn make_builtin_module_file(classes_and_modules: Vec<GeneratedBuiltinModule>
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-fn make_builtin_class(class: &BuiltinClass, ctx: &mut Context) -> GeneratedBuiltin {
+fn make_builtin_class(
+    class: &BuiltinClass,
+    variant_shout_name: &Ident,
+    ctx: &mut Context,
+) -> GeneratedBuiltin {
     let godot_name = &class.name().godot_ty;
 
     let RustTy::BuiltinIdent(outer_class) = conv::to_rust_type(godot_name, None, ctx) else {
@@ -98,7 +103,7 @@ fn make_builtin_class(class: &BuiltinClass, ctx: &mut Context) -> GeneratedBuilt
     let FnDefinitions {
         functions: methods,
         builders,
-    } = make_builtin_methods(class, &class.methods, ctx);
+    } = make_builtin_methods(class, variant_shout_name, &class.methods, ctx);
 
     let imports = util::make_imports();
     let enums = enums::make_enums(&class.enums, &TokenStream::new());
@@ -134,12 +139,13 @@ fn make_builtin_class(class: &BuiltinClass, ctx: &mut Context) -> GeneratedBuilt
 
 fn make_builtin_methods(
     builtin_class: &BuiltinClass,
+    variant_shout_name: &Ident,
     methods: &[BuiltinMethod],
     ctx: &mut Context,
 ) -> FnDefinitions {
-    let definitions = methods
-        .iter()
-        .map(|method| make_builtin_method_definition(builtin_class, method, ctx));
+    let definitions = methods.iter().map(|method| {
+        make_builtin_method_definition(builtin_class, variant_shout_name, method, ctx)
+    });
 
     FnDefinitions::expand(definitions)
 }
@@ -180,6 +186,7 @@ fn method_safety_doc(class_name: &TyName, method: &BuiltinMethod) -> Option<Toke
 
 fn make_builtin_method_definition(
     builtin_class: &BuiltinClass,
+    variant_shout_name: &Ident,
     method: &BuiltinMethod,
     ctx: &mut Context,
 ) -> FnDefinition {
@@ -192,7 +199,7 @@ fn make_builtin_method_definition(
     let method_name_str = method.godot_name();
 
     let fptr_access = if cfg!(feature = "codegen-lazy-fptrs") {
-        let variant_type = quote! { sys::VariantType::#builtin_name };
+        let variant_type = quote! { sys::VariantType::#variant_shout_name };
         let variant_type_str = &builtin_name.godot_ty;
 
         quote! {
