@@ -31,7 +31,8 @@ use crate::{classes, out};
 /// This smart pointer can only hold _objects_ in the Godot sense: instances of Godot classes (`Node`, `RefCounted`, etc.)
 /// or user-declared structs (declared with `#[derive(GodotClass)]`). It does **not** hold built-in types (`Vector3`, `Color`, `i32`).
 ///
-/// `Gd<T>` never holds null objects. If you need nullability, use `Option<Gd<T>>`.
+/// `Gd<T>` never holds null objects. If you need nullability, use `Option<Gd<T>>`. To pass null objects to engine APIs, you can
+/// additionally use [`Gd::null_arg()`] as a shorthand.
 ///
 /// # Memory management
 ///
@@ -465,26 +466,7 @@ impl<T: GodotClass> Gd<T> {
     {
         self.raw.script_sys()
     }
-}
 
-impl<T: GodotClass> Deref for Gd<T> {
-    // Target is always an engine class:
-    // * if T is an engine class => T
-    // * if T is a user class => T::Base
-    type Target = GdDerefTarget<T>;
-
-    fn deref(&self) -> &Self::Target {
-        self.raw.as_target()
-    }
-}
-
-impl<T: GodotClass> DerefMut for Gd<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.raw.as_target_mut()
-    }
-}
-
-impl<T: GodotClass> Gd<T> {
     /// Runs `init_fn` on the address of a pointer (initialized to null). If that pointer is still null after the `init_fn` call,
     /// then `None` will be returned; otherwise `Gd::from_obj_sys(ptr)`.
     ///
@@ -634,8 +616,55 @@ where
     }
 }
 
+impl<T> Gd<T>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+{
+    /// Represents `null` when passing an object argument to Godot.
+    ///
+    /// This expression is only intended for function argument lists. It can be used whenever a Godot signature accepts
+    /// [`AsObjectArg<T>`][crate::obj::AsObjectArg]. `Gd::null_arg()` as an argument is equivalent to `Option::<Gd<T>>::None`, but less wordy.
+    ///
+    /// To work with objects that can be null, use `Option<Gd<T>>` instead. For APIs that accept `Variant`, you can pass [`Variant::nil()`].
+    ///
+    /// # Nullability
+    /// <div class="warning">
+    /// The GDExtension API does not inform about nullability of its function parameters. It is up to you to verify that the arguments you pass
+    /// are only null when this is allowed. Doing this wrong should be safe, but can lead to the function call failing.
+    /// </div>
+    ///
+    /// # Example
+    /// ```no_run
+    /// # fn some_shape() -> Gd<GltfPhysicsShape> { unimplemented!() }
+    /// use godot::prelude::*;
+    /// use godot::classes::GltfPhysicsShape;
+    ///
+    /// let mut shape: Gd<GltfPhysicsShape> = some_shape();
+    /// shape.set_importer_mesh(Gd::null_arg());
+    pub fn null_arg() -> crate::obj::ObjectNullArg<T> {
+        crate::obj::ObjectNullArg(std::marker::PhantomData)
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait impls
+
+impl<T: GodotClass> Deref for Gd<T> {
+    // Target is always an engine class:
+    // * if T is an engine class => T
+    // * if T is a user class => T::Base
+    type Target = GdDerefTarget<T>;
+
+    fn deref(&self) -> &Self::Target {
+        self.raw.as_target()
+    }
+}
+
+impl<T: GodotClass> DerefMut for Gd<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.raw.as_target_mut()
+    }
+}
 
 impl<T: GodotClass> GodotConvert for Gd<T> {
     type Via = Gd<T>;

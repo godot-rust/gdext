@@ -330,7 +330,7 @@ fn test_ready(test_context: &TestContext) {
 
     // Add to scene tree.
     let mut test_node = test_context.scene_tree.clone();
-    test_node.add_child(obj.clone().upcast());
+    test_node.add_child(&obj);
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
@@ -346,7 +346,7 @@ fn test_ready_panic(test_context: &TestContext) {
     // Godot has no mechanism to transport errors across ptrcalls (e.g. virtual function calls), so this would need to be emulated somehow.
     let mut test_node = test_context.scene_tree.clone();
     // expect_panic("panic in ready() propagated to caller", || {
-    test_node.add_child(obj.clone().upcast());
+    test_node.add_child(&obj);
     // });
 
     assert_eq!(obj.bind().implementation_value, 0);
@@ -378,14 +378,14 @@ fn test_ready_multiple_fires(test_context: &TestContext) {
     let mut test_node = test_context.scene_tree.clone();
 
     // Add to scene tree.
-    test_node.add_child(obj.clone().upcast());
+    test_node.add_child(&obj);
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
 
     // Remove and re-add to scene tree.
-    test_node.remove_child(obj.clone().upcast());
-    test_node.add_child(obj.clone().upcast());
+    test_node.remove_child(&obj);
+    test_node.add_child(&obj);
 
     // _ready does NOT run again, implementation_value should still be 1.
     assert_eq!(obj.bind().implementation_value, 1);
@@ -399,14 +399,14 @@ fn test_ready_request_ready(test_context: &TestContext) {
     let mut test_node = test_context.scene_tree.clone();
 
     // Add to scene tree.
-    test_node.add_child(obj.clone().upcast());
+    test_node.add_child(&obj);
 
     // _ready runs, increments implementation_value once.
     assert_eq!(obj.bind().implementation_value, 1);
 
     // Remove and re-add to scene tree.
-    test_node.remove_child(obj.clone().upcast());
-    test_node.add_child(obj.clone().upcast());
+    test_node.remove_child(&obj);
+    test_node.add_child(&obj);
 
     // _ready does NOT run again, implementation_value should still be 1.
     assert_eq!(obj.bind().implementation_value, 1);
@@ -415,8 +415,8 @@ fn test_ready_request_ready(test_context: &TestContext) {
     obj.clone().upcast::<Node>().request_ready();
 
     // Remove and re-add to scene tree.
-    test_node.remove_child(obj.clone().upcast());
-    test_node.add_child(obj.clone().upcast());
+    test_node.remove_child(&obj);
+    test_node.add_child(&obj);
 
     // _ready runs again since we asked it to; implementation_value should be 2.
     assert_eq!(obj.bind().implementation_value, 2);
@@ -430,15 +430,15 @@ fn test_tree_enters_exits(test_context: &TestContext) {
     let mut test_node = test_context.scene_tree.clone();
 
     // Add to scene tree.
-    test_node.add_child(obj.clone().upcast());
+    test_node.add_child(&obj);
     assert_eq!(obj.bind().tree_enters, 1);
     assert_eq!(obj.bind().tree_exits, 0);
 
     // Remove and re-add to scene tree.
-    test_node.remove_child(obj.clone().upcast());
+    test_node.remove_child(&obj);
     assert_eq!(obj.bind().tree_enters, 1);
     assert_eq!(obj.bind().tree_exits, 1);
-    test_node.add_child(obj.clone().upcast());
+    test_node.add_child(&obj);
     assert_eq!(obj.bind().tree_enters, 2);
     assert_eq!(obj.bind().tree_exits, 1);
 }
@@ -481,7 +481,7 @@ fn test_format_loader(_test_context: &TestContext) {
     let format_loader = FormatLoaderTest::new_gd();
     let mut loader = ResourceLoader::singleton();
     loader
-        .add_resource_format_loader_ex(format_loader.clone().upcast())
+        .add_resource_format_loader_ex(&format_loader)
         .at_front(true)
         .done();
 
@@ -496,7 +496,7 @@ fn test_format_loader(_test_context: &TestContext) {
         .unwrap();
     assert!(resource.try_cast::<BoxMesh>().is_ok());
 
-    loader.remove_resource_format_loader(format_loader.upcast());
+    loader.remove_resource_format_loader(format_loader);
 }
 
 #[itest]
@@ -505,19 +505,16 @@ fn test_input_event(test_context: &TestContext) {
     assert_eq!(obj.bind().event, None);
     let mut test_viewport = Window::new_alloc();
 
-    test_context
-        .scene_tree
-        .clone()
-        .add_child(test_viewport.clone().upcast());
+    test_context.scene_tree.clone().add_child(&test_viewport);
 
-    test_viewport.clone().add_child(obj.clone().upcast());
+    test_viewport.add_child(&obj);
 
     let mut event = InputEventAction::new_gd();
     event.set_action("debug".into());
     event.set_pressed(true);
 
     // We're running in headless mode, so Input.parse_input_event does not work
-    test_viewport.clone().push_input(event.clone().upcast());
+    test_viewport.clone().push_input(&event);
 
     assert_eq!(obj.bind().event, Some(event.upcast::<InputEvent>()));
 
@@ -536,13 +533,10 @@ fn test_input_event_multiple(test_context: &TestContext) {
     }
     let mut test_viewport = Window::new_alloc();
 
-    test_context
-        .scene_tree
-        .clone()
-        .add_child(test_viewport.clone().upcast());
+    test_context.scene_tree.clone().add_child(&test_viewport);
 
     for obj in objs.iter() {
-        test_viewport.clone().add_child(obj.clone().upcast())
+        test_viewport.add_child(obj)
     }
 
     let mut event = InputEventAction::new_gd();
@@ -550,7 +544,7 @@ fn test_input_event_multiple(test_context: &TestContext) {
     event.set_pressed(true);
 
     // We're running in headless mode, so Input.parse_input_event does not work
-    test_viewport.clone().push_input(event.clone().upcast());
+    test_viewport.push_input(&event);
 
     for obj in objs.iter() {
         assert_eq!(obj.bind().event, Some(event.clone().upcast::<InputEvent>()));

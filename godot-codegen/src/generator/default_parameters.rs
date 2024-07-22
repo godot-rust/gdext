@@ -48,8 +48,13 @@ pub fn make_function_definition_with_defaults(
 
     let receiver_param = &code.receiver.param;
     let receiver_self = &code.receiver.self_prefix;
-    let (required_params, required_args) =
-        functions_common::make_params_and_args(&required_fn_params);
+
+    let [required_params_impl_asarg, _, required_args_asarg] =
+        functions_common::make_params_exprs(required_fn_params.iter().cloned(), false, true, true);
+
+    let [required_params_plain, _, required_args_internal] =
+        functions_common::make_params_exprs(required_fn_params.into_iter(), false, false, false);
+
     let return_decl = &sig.return_value().decl;
 
     // Technically, the builder would not need a lifetime -- it could just maintain an `object_ptr` copy.
@@ -73,7 +78,7 @@ pub fn make_function_definition_with_defaults(
         impl #builder_lifetime #builder_ty #builder_lifetime {
             fn new(
                 #object_param
-                #( #required_params, )*
+                #( #required_params_plain, )*
             ) -> Self {
                 Self {
                     #( #builder_inits, )*
@@ -95,21 +100,21 @@ pub fn make_function_definition_with_defaults(
         #[inline]
         #vis fn #simple_fn_name(
             #receiver_param
-            #( #required_params, )*
+            #( #required_params_impl_asarg, )*
         ) #return_decl {
             #receiver_self #extended_fn_name(
-                #( #required_args, )*
+                #( #required_args_internal, )*
             ).done()
         }
 
         #[inline]
         #vis fn #extended_fn_name(
             #receiver_param
-            #( #required_params, )*
+            #( #required_params_impl_asarg, )*
         ) -> #builder_ty #builder_anon_lifetime {
             #builder_ty::new(
                 #object_arg
-                #( #required_args, )*
+                #( #required_args_asarg, )*
             )
         }
     };
@@ -242,6 +247,8 @@ fn make_extender(
             default_value,
         } = param;
 
+        let type_ = type_.param_decl();
+
         // Initialize with default parameters where available, forward constructor args otherwise
         let init = if let Some(value) = default_value {
             quote! { #name: #value }
@@ -256,6 +263,7 @@ fn make_extender(
 
     for param in default_fn_params {
         let FnParam { name, type_, .. } = param;
+        let type_ = type_.param_decl();
 
         let method = quote! {
             #[inline]

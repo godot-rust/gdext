@@ -232,8 +232,12 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
         RustTy::BuiltinIdent(rustify_ty(ty))
     } else {
         let ty = rustify_ty(ty);
+        let qualified_class = quote! { crate::classes::#ty };
+
         RustTy::EngineClass {
-            tokens: quote! { Gd<crate::classes::#ty> },
+            tokens: quote! { Gd<#qualified_class> },
+            arg_view: quote! { ObjectArg<#qualified_class> },
+            impl_as_arg: quote! { impl AsObjectArg<#qualified_class> },
             inner_class: ty,
         }
     }

@@ -37,6 +37,7 @@ pub trait GodotFfiVariant: Sized + GodotFfi {
 // this type to indicate that they are 32 bits large.
 pub trait GodotType:
     GodotConvert<Via = Self> + ToGodot + FromGodot + sealed::Sealed + 'static
+// 'static is not technically required, but it simplifies a few things (limits e.g. ObjectArg).
 {
     #[doc(hidden)]
     type Ffi: GodotFfiVariant;
