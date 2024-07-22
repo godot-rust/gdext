@@ -15,8 +15,7 @@ use quote::{format_ident, quote, ToTokens};
 
 pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
     let build_config_struct = gdext_build_struct::make_gdext_build_struct(&api.godot_version);
-    let (variant_type_enum, variant_type_deprecated_enumerators) =
-        make_variant_type_enum(api, true);
+    let variant_type_enum = make_variant_type_enum(api, true);
     let [opaque_32bit, opaque_64bit] = make_opaque_types(api);
 
     quote! {
@@ -45,8 +44,6 @@ pub fn make_sys_central_code(api: &ExtensionApi) -> TokenStream {
             pub fn sys(self) -> crate::GDExtensionVariantType {
                 self.ord as _
             }
-
-            #variant_type_deprecated_enumerators
         }
     }
 }
@@ -60,7 +57,7 @@ pub fn make_core_central_code(api: &ExtensionApi, ctx: &mut Context) -> TokenStr
     } = make_variant_enums(api, ctx);
 
     let (global_enum_defs, global_reexported_enum_defs) = make_global_enums(api);
-    let variant_type_traits = make_variant_type_enum(api, false).0;
+    let variant_type_traits = make_variant_type_enum(api, false);
 
     // TODO impl Clone, Debug, PartialEq, PartialOrd, Hash for VariantDispatch
     // TODO could use try_to().unwrap_unchecked(), since type is already verified. Also directly overload from_variant().
@@ -205,7 +202,7 @@ fn make_global_enums(api: &ExtensionApi) -> (Vec<TokenStream>, Vec<TokenStream>)
     (global_enum_defs, global_reexported_enum_defs)
 }
 
-fn make_variant_type_enum(api: &ExtensionApi, is_definition: bool) -> (TokenStream, TokenStream) {
+fn make_variant_type_enum(api: &ExtensionApi, is_definition: bool) -> TokenStream {
     let variant_type_enum = api
         .global_enums
         .iter()
@@ -215,9 +212,5 @@ fn make_variant_type_enum(api: &ExtensionApi, is_definition: bool) -> (TokenStre
     let define_enum = is_definition;
     let define_traits = !is_definition;
 
-    let enum_definition =
-        enums::make_enum_definition_with(variant_type_enum, define_enum, define_traits);
-    let deprecated_enumerators = enums::make_deprecated_enumerators(variant_type_enum);
-
-    (enum_definition, deprecated_enumerators)
+    enums::make_enum_definition_with(variant_type_enum, define_enum, define_traits)
 }

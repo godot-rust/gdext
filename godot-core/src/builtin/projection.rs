@@ -551,28 +551,6 @@ pub enum ProjectionPlane {
     BOTTOM = 5,
 }
 
-#[allow(non_upper_case_globals)]
-#[doc(hidden)] // No longer advertise in API docs.
-impl ProjectionPlane {
-    #[deprecated(note = "Renamed to `ProjectionPlane::NEAR`")]
-    pub const Near: Self = Self::NEAR;
-
-    #[deprecated(note = "Renamed to `ProjectionPlane::FAR`")]
-    pub const Far: Self = Self::FAR;
-
-    #[deprecated(note = "Renamed to `ProjectionPlane::LEFT`")]
-    pub const Left: Self = Self::LEFT;
-
-    #[deprecated(note = "Renamed to `ProjectionPlane::TOP`")]
-    pub const Top: Self = Self::TOP;
-
-    #[deprecated(note = "Renamed to `ProjectionPlane::RIGHT`")]
-    pub const Right: Self = Self::RIGHT;
-
-    #[deprecated(note = "Renamed to `ProjectionPlane::BOTTOM`")]
-    pub const Bottom: Self = Self::BOTTOM;
-}
-
 impl ProjectionPlane {
     /// Convert from one of GDScript's `Projection.PLANE_*` integer constants.
     pub fn try_from_ord(ord: i64) -> Option<Self> {
@@ -594,15 +572,6 @@ impl ProjectionPlane {
 pub enum ProjectionEye {
     LEFT = 1,
     RIGHT = 2,
-}
-
-#[allow(non_upper_case_globals)]
-impl ProjectionEye {
-    #[deprecated(note = "Renamed to `ProjectionEye::LEFT`")]
-    pub const Left: Self = Self::LEFT;
-
-    #[deprecated(note = "Renamed to `ProjectionEye::RIGHT`")]
-    pub const Right: Self = Self::RIGHT;
 }
 
 impl ProjectionEye {

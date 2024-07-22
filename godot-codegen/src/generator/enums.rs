@@ -10,7 +10,6 @@
 //! See also models/domain/enums.rs for other enum-related methods.
 
 use crate::models::domain::{Enum, Enumerator, EnumeratorValue};
-use crate::{conv, util};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
@@ -333,35 +332,5 @@ fn make_enumerator_definition(
             #docs
             #name = #value,
         }
-    }
-}
-
-pub(crate) fn make_deprecated_enumerators(enum_: &Enum) -> TokenStream {
-    let enum_name = &enum_.name;
-    let deprecated_enumerators = enum_.enumerators.iter().filter_map(|enumerator| {
-        let Enumerator { name, .. } = enumerator;
-
-        if name == "MAX" {
-            return None;
-        }
-
-        let converted = conv::to_pascal_case(&name.to_string())
-            .replace("2d", "2D")
-            .replace("3d", "3D");
-
-        let pascal_name = util::ident(&converted);
-        let msg = format!("Use `{enum_name}::{name}` instead.");
-
-        let decl = quote! {
-            #[deprecated = #msg]
-            #[doc(hidden)] // No longer advertise in API docs.
-            pub const #pascal_name: #enum_name = Self::#name;
-        };
-
-        Some(decl)
-    });
-
-    quote! {
-        #( #deprecated_enumerators )*
     }
 }

@@ -217,9 +217,8 @@ fn main() {
     let rust_tokens = quote::quote! {
         use godot::builtin::*;
         use godot::meta::*;
-        use godot::log::godot_error;
         use godot::obj::{Gd, InstanceId};
-        use godot::global::Error;
+        use godot::global::{Error, godot_error};
         use godot::classes::{Node, Resource};
 
         #[derive(godot::register::GodotClass)]

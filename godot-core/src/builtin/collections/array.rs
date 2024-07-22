@@ -189,12 +189,6 @@ impl<T: ArrayElement> Array<T> {
         }
     }
 
-    #[deprecated = "Renamed to `get`."]
-    #[doc(hidden)] // No longer advertise in API docs.
-    pub fn try_get(&self, index: usize) -> Option<T> {
-        self.get(index)
-    }
-
     /// Returns `true` if the array contains the given value. Equivalent of `has` in GDScript.
     pub fn contains(&self, value: &T) -> bool {
         self.as_inner().has(value.to_variant())
@@ -249,18 +243,6 @@ impl<T: ArrayElement> Array<T> {
             let variant = self.as_inner().back();
             T::from_variant(&variant)
         })
-    }
-
-    #[deprecated = "Renamed to `front`, in line with GDScript method and consistent with `push_front` and `pop_front`."]
-    #[doc(hidden)] // No longer advertise in API docs.
-    pub fn first(&self) -> Option<T> {
-        self.front()
-    }
-
-    #[deprecated = "Renamed to `back`, in line with GDScript method."]
-    #[doc(hidden)] // No longer advertise in API docs.
-    pub fn last(&self) -> Option<T> {
-        self.back()
     }
 
     /// Clears the array, removing all elements.

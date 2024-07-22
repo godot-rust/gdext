@@ -127,22 +127,6 @@ macro_rules! impl_packed_array {
                 self.as_inner().clear();
             }
 
-            /// Sets the value at the specified index.
-            ///
-            /// # Panics
-            ///
-            /// If `index` is out of bounds.
-            #[deprecated = "Use [] operator (IndexMut) instead."]
-            #[doc(hidden)] // No longer advertise in API docs.
-            pub fn set(&mut self, index: usize, value: $Element) {
-                let ptr_mut = self.ptr_mut(index);
-
-                // SAFETY: `ptr_mut` just checked that the index is not out of bounds.
-                unsafe {
-                    *ptr_mut = value;
-                }
-            }
-
             /// Appends an element to the end of the array. Equivalent of `append` and `push_back`
             /// in GDScript.
             #[doc(alias = "append")]
@@ -310,12 +294,6 @@ macro_rules! impl_packed_array {
             /// Calling `bsearch()` on an unsorted array results in unspecified (but safe) behavior.
             pub fn bsearch(&self, value: &$Element) -> usize {
                 to_usize(self.as_inner().bsearch(Self::to_arg(value), true))
-            }
-
-            #[deprecated = "Renamed to bsearch like in Godot, to avoid confusion with Rust's slice::binary_search."]
-            #[doc(hidden)] // No longer advertise in API docs.
-            pub fn binary_search(&self, value: $Element) -> usize {
-                self.bsearch(&value)
             }
 
             /// Reverses the order of the elements in the array.
