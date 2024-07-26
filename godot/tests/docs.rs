@@ -1,3 +1,4 @@
+#![cfg(feature = "register-docs")]
 /*
  * Copyright (c) godot-rust; Bromeon and contributors.
  * This Source Code Form is subject to the terms of the Mozilla Public
@@ -75,10 +76,13 @@ use godot::prelude::*;
 /// these
 #[derive(GodotClass)]
 #[class(base=Node)]
-pub struct ExtremelyDocumented {
+pub struct FairlyDocumented {
     #[doc = r#"this is very documented"#]
     #[var]
     item: f32,
+    /// is it documented?
+    #[var]
+    item_2: i64,
     /// this isnt documented
     _other_item: (),
     /// nor this
@@ -86,46 +90,78 @@ pub struct ExtremelyDocumented {
 }
 
 #[godot_api]
-impl INode for ExtremelyDocumented {
+impl INode for FairlyDocumented {
     /// initialize this
     fn init(base: Base<Node>) -> Self {
         Self {
             base,
             item: 883.0,
+            item_2: 25,
             _other_item: {},
         }
     }
 }
 
 #[godot_api]
-impl ExtremelyDocumented {
-    #[constant]
+impl FairlyDocumented {
     /// Documentation.
+    #[constant]
     const RANDOM: i64 = 4;
 
+    #[constant]
+    const PURPOSE: i64 = 42;
+
     #[func]
+    fn totally_undocumented_function(&self) -> i64 {
+        5
+    }
+
     /// huh
+    #[func]
     fn ye(&self) -> f32 {
         self.item
     }
 
-    #[func]
+    #[func(gd_self, virtual)]
+    fn virtual_undocumented(_s: Gd<Self>) {
+        panic!("no implementation")
+    }
+
+    /// some virtual function that should be overridden by a user
+    ///
+    /// some multiline doc
+    #[func(gd_self, virtual)]
+    fn virtual_documented(_s: Gd<Self>) {
+        panic!("please provide user implementation")
+    }
+
     /// wow
+    ///
+    /// some multiline doc
+    #[func]
     fn ne(_x: f32) -> Gd<Self> {
         panic!()
     }
+
+    #[signal]
+    fn undocumented_signal(p: Vector3, w: f64);
+
+    /// some user signal
+    ///
+    /// some multiline doc
+    #[signal]
+    fn documented_signal(p: Vector3, w: f64);
 }
 
 #[test]
-#[cfg(feature = "register-docs")]
 fn correct() {
     // Uncomment if implementation changes and expected output file should be rewritten.
     // std::fs::write(
-    //     "tests/docs.xml",
+    //     "tests/test_data/docs.xml",
     //     godot_core::docs::gather_xml_docs().next().unwrap(),
     // );
     assert_eq!(
-        include_str!("docs.xml"),
+        include_str!("test_data/docs.xml"),
         godot_core::docs::gather_xml_docs().next().unwrap()
     );
 }

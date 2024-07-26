@@ -108,7 +108,7 @@ pub enum PluginItem {
         /// Always present since that's the entire point of this `impl` block.
         register_methods_constants_fn: ErasedRegisterFn,
         #[cfg(all(since_api = "4.3", feature = "docs"))]
-        docs: Option<InherentImplDocs>,
+        docs: InherentImplDocs,
     },
 
     /// Collected from `#[godot_api] impl I... for MyClass`.
