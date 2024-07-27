@@ -9,6 +9,7 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use crate::builtin::*;
+use crate::meta::error::ArrayMismatch;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
     ArrayElement, ArrayTypeInfo, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
@@ -107,7 +108,8 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 /// concurrent modification on other threads (e.g. created through GDScript).
 pub struct Array<T: ArrayElement> {
     // Safety Invariant: The type of all values in `opaque` matches the type `T`.
-    opaque: sys::types::OpaqueArray,
+    // Visibility: shared with OutArray.
+    pub(super) opaque: sys::types::OpaqueArray,
     _phantom: PhantomData<T>,
 }
 
@@ -146,7 +148,8 @@ impl_builtin_froms!(VariantArray;
 );
 
 impl<T: ArrayElement> Array<T> {
-    fn from_opaque(opaque: sys::types::OpaqueArray) -> Self {
+    // Visibility: shared with OutArray.
+    pub(super) fn from_opaque(opaque: sys::types::OpaqueArray) -> Self {
         // Note: type is not yet checked at this point, because array has not yet been initialized!
         Self {
             opaque,
@@ -399,13 +402,10 @@ impl<T: ArrayElement> Array<T> {
 
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
     pub fn extend_array(&mut self, other: Array<T>) {
-        // SAFETY: `append_array` will only read values from `other`, and all types can be converted to `Variant`.
-        let other: VariantArray = unsafe { other.assume_type::<Variant>() };
-
-        // SAFETY: `append_array` will only write values gotten from `other` into `self`, and all values in `other` are guaranteed
+        // SAFETY: `append_array` only reads values from `other` and writes them to `self`, and all values in `other` are guaranteed
         // to be of type `T`.
         let mut inner_self = unsafe { self.as_inner_mut() };
-        inner_self.append_array(other);
+        inner_self.append_array(other.to_out_array());
     }
 
     /// Returns a shallow copy of the array. All array elements are copied, but any reference types
@@ -414,10 +414,9 @@ impl<T: ArrayElement> Array<T> {
     /// To create a deep copy, use [`duplicate_deep()`][Self::duplicate_deep] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_shallow(&self) -> Self {
-        // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
-        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(false) };
+        let duplicate: OutArray = self.as_inner().duplicate(false);
 
-        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
+        // SAFETY: duplicate() returns a typed array with the same type as Self.
         unsafe { duplicate.assume_type() }
     }
 
@@ -428,10 +427,9 @@ impl<T: ArrayElement> Array<T> {
     /// To create a shallow copy, use [`duplicate_shallow()`][Self::duplicate_shallow] instead.
     /// To create a new reference to the same array data, use [`clone()`][Clone::clone].
     pub fn duplicate_deep(&self) -> Self {
-        // SAFETY: We never write to the duplicated array, and all values read are read as `Variant`.
-        let duplicate: VariantArray = unsafe { self.as_inner().duplicate(true) };
+        let duplicate: OutArray = self.as_inner().duplicate(true);
 
-        // SAFETY: duplicate() returns a typed array with the same type as Self, and all values are taken from `self` so have the right type.
+        // SAFETY: duplicate() returns a typed array with the same type as Self.
         unsafe { duplicate.assume_type() }
     }
 
@@ -476,12 +474,11 @@ impl<T: ArrayElement> Array<T> {
         let step = step.unwrap_or(1);
 
         // SAFETY: The type of the array is `T` and we convert the returned array to an `Array<T>` immediately.
-        let subarray: VariantArray = unsafe {
+        let subarray: OutArray =
             self.as_inner()
-                .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep)
-        };
+                .slice(to_i64(begin), to_i64(end), step.try_into().unwrap(), deep);
 
-        // SAFETY: slice() returns a typed array with the same type as Self
+        // SAFETY: slice() returns a typed array with the same type as Self.
         unsafe { subarray.assume_type() }
     }
 
@@ -536,8 +533,7 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// Searches the array backwards for the last occurrence of a value and returns its index, or
-    /// `None` if not found. Starts searching at index `from`; pass `None` to search the entire
-    /// array.
+    /// `None` if not found. Starts searching at index `from`; pass `None` to search the entire array.
     pub fn rfind(&self, value: &T, from: Option<usize>) -> Option<usize> {
         let from = from.map(to_i64).unwrap_or(-1);
         let index = self.as_inner().rfind(value.to_variant(), from);
@@ -613,6 +609,10 @@ impl<T: ArrayElement> Array<T> {
     pub fn shuffle(&mut self) {
         // SAFETY: We do not write any values that don't already exist in the array, so all values have the correct type.
         unsafe { self.as_inner_mut() }.shuffle();
+    }
+
+    pub fn to_out_array(&self) -> OutArray {
+        OutArray::consume_typed_array(self.clone())
     }
 
     /// Asserts that the given index refers to an existing element.
@@ -716,17 +716,45 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// In the current implementation, both cases will produce a panic rather than undefined
     /// behavior, but this should not be relied upon.
-    unsafe fn assume_type<U: ArrayElement>(self) -> Array<U> {
+    // Visibility: shared with OutArray.
+    pub(super) unsafe fn assume_type<U: ArrayElement>(self) -> Array<U> {
         // SAFETY: The memory layout of `Array<T>` does not depend on `T`.
-        unsafe { std::mem::transmute(self) }
+        std::mem::transmute(self)
+    }
+
+    /// # Safety
+    /// Returned type may be inaccurate and must be type-checked after the call.
+    // Visibility: shared with OutArray.
+    pub(super) unsafe fn default_unchecked() -> Array<T> {
+        Self::new_with_uninit(|self_ptr| {
+            let ctor = sys::builtin_fn!(array_construct_default);
+            ctor(self_ptr, std::ptr::null_mut())
+        })
+    }
+
+    /// # Safety
+    /// Returned type may be inaccurate and must be type-checked after the call.
+    // Visibility: shared with OutArray.
+    pub(super) unsafe fn clone_unchecked(&self) -> Array<T> {
+        Self::new_with_uninit(|self_ptr| {
+            let ctor = sys::builtin_fn!(array_construct_copy);
+            let args = [self.sys()];
+            ctor(self_ptr, args.as_ptr());
+        })
     }
 
     /// Returns the runtime type info of this array.
-    fn type_info(&self) -> ArrayTypeInfo {
+    // Visibility: shared with OutArray.
+    pub(super) fn type_info(&self) -> ArrayTypeInfo {
         let variant_type = VariantType::from_sys(
             self.as_inner().get_typed_builtin() as sys::GDExtensionVariantType
         );
-        let class_name = self.as_inner().get_typed_class_name();
+
+        let class_name = if variant_type == VariantType::OBJECT {
+            Some(self.as_inner().get_typed_class_name())
+        } else {
+            None
+        };
 
         ArrayTypeInfo {
             variant_type,
@@ -742,10 +770,10 @@ impl<T: ArrayElement> Array<T> {
         if self_ty == target_ty {
             Ok(self)
         } else {
-            Err(FromGodotError::BadArrayType {
+            Err(FromGodotError::BadArrayType(ArrayMismatch {
                 expected: target_ty,
                 actual: self_ty,
-            }
+            })
             .into_error(self))
         }
     }
@@ -763,16 +791,48 @@ impl<T: ArrayElement> Array<T> {
         if type_info.is_typed() {
             let script = Variant::nil();
 
+            // A bit contrived because empty StringName is lazy-initialized but must also remain valid.
+            #[allow(unused_assignments)]
+            let mut empty_string_name = None;
+            let class_name = if let Some(class_name) = &type_info.class_name {
+                class_name.string_sys()
+            } else {
+                empty_string_name = Some(StringName::default());
+                empty_string_name.unwrap().string_sys()
+            };
+
             // SAFETY: The array is a newly created empty untyped array.
             unsafe {
                 interface_fn!(array_set_typed)(
                     self.sys_mut(),
                     type_info.variant_type.sys(),
-                    type_info.class_name.string_sys(),
+                    class_name, // must be empty if variant_type != OBJECT.
                     script.var_sys(),
                 );
             }
         }
+    }
+
+    /// # Safety
+    /// Does not validate the array element type; `with_checked_type()` should be called afterward.
+    // Visibility: shared with OutArray.
+    pub(super) unsafe fn unchecked_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+        if variant.get_type() != Self::variant_type() {
+            return Err(FromVariantError::BadType {
+                expected: Self::variant_type(),
+                actual: variant.get_type(),
+            }
+            .into_error(variant.clone()));
+        }
+
+        let array = unsafe {
+            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
+                let array_from_variant = sys::builtin_fn!(array_from_variant);
+                array_from_variant(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
+            })
+        };
+
+        Ok(array)
     }
 }
 
@@ -867,14 +927,8 @@ impl<T: ArrayElement + fmt::Display> fmt::Display for Array<T> {
 /// [`Array::duplicate_deep()`].
 impl<T: ArrayElement> Clone for Array<T> {
     fn clone(&self) -> Self {
-        // SAFETY: `self` is a valid array, since we have a reference that keeps it alive.
-        let array = unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(array_construct_copy);
-                let args = [self.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        };
+        // SAFETY: `self` is a valid array, since we have a reference that keeps it alive. Type is checked below.
+        let array = unsafe { self.clone_unchecked() };
 
         array
             .with_checked_type()
@@ -934,12 +988,7 @@ impl Export for Array<Variant> {
 impl<T: ArrayElement> Default for Array<T> {
     #[inline]
     fn default() -> Self {
-        let mut array = unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(array_construct_default);
-                ctor(self_ptr, std::ptr::null_mut())
-            })
-        };
+        let mut array = unsafe { Self::default_unchecked() };
 
         // SAFETY: We just created this array, and haven't called `init_inner_type` before.
         unsafe { array.init_inner_type() };
@@ -992,22 +1041,10 @@ impl<T: ArrayElement> GodotFfiVariant for Array<T> {
     }
 
     fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
-        if variant.get_type() != Self::variant_type() {
-            return Err(FromVariantError::BadType {
-                expected: Self::variant_type(),
-                actual: variant.get_type(),
-            }
-            .into_error(variant.clone()));
-        }
+        // SAFETY: with_checked_type() is called right after, ensuring the array has the correct type.
+        let unchecked_array = unsafe { Self::unchecked_from_variant(variant) };
 
-        let array = unsafe {
-            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
-                let array_from_variant = sys::builtin_fn!(array_from_variant);
-                array_from_variant(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
-            })
-        };
-
-        array.with_checked_type()
+        unchecked_array.and_then(|array| array.with_checked_type())
     }
 }
 

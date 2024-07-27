@@ -583,11 +583,13 @@ pub struct GodotTy {
 
 #[derive(Clone, Debug)]
 pub enum RustTy {
-    /// `bool`, `Vector3i`
+    /// `bool`, `Vector3i`, `Array`
     BuiltinIdent(Ident),
 
     /// `Array<i32>`
-    BuiltinArray(TokenStream),
+    ///
+    /// Note that untyped arrays are mapped as `BuiltinIdent("Array")`.
+    BuiltinArray { elem_type: TokenStream },
 
     /// C-style raw pointer to a `RustTy`.
     RawPointer { inner: Box<RustTy>, is_const: bool },
@@ -651,13 +653,17 @@ impl RustTy {
             other => quote! { -> #other },
         }
     }
+
+    pub fn is_out_array(&self) -> bool {
+        matches!(self, Self::BuiltinIdent(id) if id == "OutArray")
+    }
 }
 
 impl ToTokens for RustTy {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             RustTy::BuiltinIdent(ident) => ident.to_tokens(tokens),
-            RustTy::BuiltinArray(path) => path.to_tokens(tokens),
+            RustTy::BuiltinArray { elem_type } => elem_type.to_tokens(tokens),
             RustTy::RawPointer {
                 inner,
                 is_const: true,

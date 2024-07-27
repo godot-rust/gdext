@@ -7,8 +7,9 @@
 
 use std::collections::{HashMap, HashSet};
 
-use godot::builtin::{dict, varray, Dictionary, Variant};
+use godot::builtin::{dict, varray, Dictionary, GString, Variant};
 use godot::meta::{FromGodot, ToGodot};
+use godot::prelude::array; // Move to builtin, as soon as builtin::array module is removed.
 use godot::sys::GdextBuild;
 
 use crate::framework::{expect_panic, itest};
@@ -345,12 +346,19 @@ fn dictionary_contains_keys() {
     assert!(dictionary.contains_key("foo"), "key = \"foo\"");
     assert!(dictionary.contains_key("bar"), "key = \"bar\"");
     assert!(
-        dictionary.contains_all_keys(varray!["foo", "bar"]),
+        // untyped
+        dictionary.contains_all_keys(varray!["foo", "bar"].to_out_array()),
+        "keys = [\"foo\", \"bar\"]"
+    );
+    assert!(
+        // typed
+        dictionary
+            .contains_all_keys(array![GString::from("foo"), GString::from("bar")].to_out_array()),
         "keys = [\"foo\", \"bar\"]"
     );
     assert!(!dictionary.contains_key("missing"), "key = \"missing\"");
     assert!(
-        !dictionary.contains_all_keys(varray!["foo", "bar", "missing"]),
+        !dictionary.contains_all_keys(varray!["foo", "bar", "missing"].to_out_array()),
         "keys = [\"foo\", \"bar\", \"missing\"]"
     );
 }

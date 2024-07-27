@@ -48,7 +48,7 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
         // Others
         ("bool", None) => "bool",
         ("String", None) => "GString",
-        ("Array", None) => "VariantArray",
+        ("Array", None) => "OutArray",
 
         // Types needed for native structures mapping
         ("uint8_t", None) => "u8",
@@ -217,7 +217,9 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
         let rust_elem_ty = to_rust_type(elem_ty, None, ctx);
         return if ctx.is_builtin(elem_ty) {
-            RustTy::BuiltinArray(quote! { Array<#rust_elem_ty> })
+            RustTy::BuiltinArray {
+                elem_type: quote! { Array<#rust_elem_ty> },
+            }
         } else {
             RustTy::EngineArray {
                 tokens: quote! { Array<#rust_elem_ty> },
@@ -260,6 +262,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
         "true" => return quote! { true },
         "false" => return quote! { false },
         "[]" | "{}" if is_inner => return quote! {},
+        "[]" if ty.is_out_array() => return quote! { OutArray::new_untyped() },
         "[]" => return quote! { Array::new() }, // VariantArray or Array<T>
         "{}" => return quote! { Dictionary::new() },
         "null" => {

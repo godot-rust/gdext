@@ -378,12 +378,25 @@ fn array_mixed_values() {
 }
 
 #[itest]
-fn untyped_array_pass_to_godot_func() {
+fn untyped_out_array_pass_to_godot_func() {
     let mut node = Node::new_alloc();
     node.queue_free(); // Do not leak even if the test fails.
 
+    let args: VariantArray = varray!["tree_entered"];
     assert_eq!(
-        node.callv(StringName::from("has_signal"), varray!["tree_entered"]),
+        node.callv(StringName::from("has_signal"), args.to_out_array()),
+        true.to_variant()
+    );
+}
+
+#[itest]
+fn typed_out_array_pass_to_godot_func() {
+    let mut node = Node::new_alloc();
+    node.queue_free(); // Do not leak even if the test fails.
+
+    let args: Array<GString> = array!["tree_entered".into()];
+    assert_eq!(
+        node.callv(StringName::from("has_signal"), args.to_out_array()),
         true.to_variant()
     );
 }
@@ -398,7 +411,10 @@ fn untyped_array_return_from_godot_func() {
     node.queue_free(); // Do not leak even if the test fails.
     let result = node.get_node_and_resource("child_node".into());
 
-    assert_eq!(result, varray![child, Variant::nil(), NodePath::default()]);
+    assert_eq!(
+        result,
+        varray![child, Variant::nil(), NodePath::default()].to_out_array()
+    );
 }
 
 // TODO All API functions that take a `Array` are even more obscure and not included in
@@ -477,10 +493,7 @@ fn array_should_format_with_display() {
 #[cfg(since_api = "4.2")]
 fn array_sort_custom() {
     let mut a = array![1, 2, 3, 4];
-    let func = Callable::from_fn("sort backwards", |args: &[&Variant]| {
-        let res = i32::from_variant(args[0]) > i32::from_variant(args[1]);
-        Ok(Variant::from(res))
-    });
+    let func = make_sort_function();
     a.sort_unstable_custom(func);
     assert_eq!(a, array![4, 3, 2, 1]);
 }
@@ -489,12 +502,16 @@ fn array_sort_custom() {
 #[cfg(since_api = "4.2")]
 fn array_binary_search_custom() {
     let a = array![5, 4, 2, 1];
-    let func = Callable::from_fn("sort backwards", |args: &[&Variant]| {
-        let res = i32::from_variant(args[0]) > i32::from_variant(args[1]);
-        Ok(Variant::from(res))
-    });
+    let func = make_sort_function();
     assert_eq!(a.bsearch_custom(&1, func.clone()), 3);
     assert_eq!(a.bsearch_custom(&3, func), 2);
+}
+
+fn make_sort_function() -> Callable {
+    Callable::from_fn("sort backwards", |args: &[&Variant]| {
+        let res = i32::from_variant(args[0]) > i32::from_variant(args[1]);
+        Ok(Variant::from(res))
+    })
 }
 
 #[itest]
@@ -542,6 +559,32 @@ fn array_resize() {
     a.resize(2, &new);
 
     assert_eq!(a, array![GString::from("hello"), GString::from("bar"),]);
+}
+
+#[itest]
+fn array_out_conversions() {
+    let typed = array![1, 2, 3];
+    let typed_out = typed.to_out_array();
+
+    // assert_eq!(typed_out.at(0), 1.to_variant());
+
+    let copy = typed_out.clone();
+    assert_eq!(copy, typed_out);
+
+    let err = copy
+        .try_into_typed_array::<GString>()
+        .expect_err("conversion with wrong type fails");
+
+    assert_eq!(
+        err.to_string(),
+        "expected array of type STRING, got array of type INT"
+    );
+
+    let typed_back = typed_out
+        .try_into_typed_array::<i32>()
+        .expect("conversion back works");
+
+    assert_eq!(typed_back, typed);
 }
 
 #[derive(GodotClass, Debug)]
