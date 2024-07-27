@@ -146,8 +146,8 @@ pub struct ClassConfig {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Capability queries and internal access
 
-pub fn auto_init<T>(l: &mut crate::obj::OnReady<T>) {
-    l.init_auto();
+pub fn auto_init<T>(l: &mut crate::obj::OnReady<T>, base: &crate::obj::Gd<crate::classes::Node>) {
+    l.init_auto(base);
 }
 
 #[cfg(since_api = "4.3")]

@@ -63,7 +63,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
             }
         }
     } else {
-        quote! {}
+        TokenStream::new()
     };
 
     let (user_class_impl, has_default_virtual) =
@@ -229,15 +229,29 @@ fn make_user_class_impl(
     is_tool: bool,
     all_fields: &[Field],
 ) -> (TokenStream, bool) {
-    let onready_field_inits = all_fields
-        .iter()
-        .filter(|&field| field.is_onready)
-        .map(|field| {
-            let field = &field.name;
+    let onready_inits = {
+        let mut onready_fields = all_fields
+            .iter()
+            .filter(|&field| field.is_onready)
+            .map(|field| {
+                let field = &field.name;
+                quote! {
+                    ::godot::private::auto_init(&mut self.#field, &base);
+                }
+            });
+
+        if let Some(first) = onready_fields.next() {
             quote! {
-                ::godot::private::auto_init(&mut self.#field);
+                {
+                    let base = <Self as godot::obj::WithBaseField>::to_gd(self).upcast();
+                    #first
+                    #( #onready_fields )*
+                }
             }
-        });
+        } else {
+            TokenStream::new()
+        }
+    };
 
     let default_virtual_fn = if all_fields.iter().any(|field| field.is_onready) {
         let tool_check = util::make_virtual_tool_check();
@@ -270,7 +284,7 @@ fn make_user_class_impl(
             }
 
             fn __before_ready(&mut self) {
-                #( #onready_field_inits )*
+                #onready_inits
             }
 
             #default_virtual_fn
@@ -403,8 +417,37 @@ fn parse_fields(
             }
 
             // #[init(default = expr)]
-            let default = parser.handle_expr("default")?;
-            field.default = default;
+            if let Some(default) = parser.handle_expr("default")? {
+                field.default = Some(default);
+            }
+
+            // #[init(node = "NodePath")]
+            if let Some(node_path) = parser.handle_expr("node")? {
+                if !field.is_onready {
+                    return bail!(
+                        parser.span(),
+                        "The key `node` in attribute #[init] requires field of type `OnReady<T>`\n\
+				         Help: The syntax #[init(node = \"NodePath\")] is equivalent to \
+				         #[init(default = OnReady::node(\"NodePath\"))], \
+				         which can only be assigned to fields of type `OnReady<T>`"
+                    );
+                }
+
+                if field.default.is_some() {
+                    return bail!(
+				        parser.span(),
+				        "The key `node` in attribute #[init] is mutually exclusive with the key `default`\n\
+				         Help: The syntax #[init(node = \"NodePath\")] is equivalent to \
+				         #[init(default = OnReady::node(\"NodePath\"))], \
+				         both aren't allowed since they would override each other"
+			        );
+                }
+
+                field.default = Some(quote! {
+                    OnReady::node(#node_path)
+                });
+            }
+
             parser.finish()?;
         }
 
