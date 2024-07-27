@@ -151,24 +151,6 @@ compile_error!("The feature `double-precision` currently requires `api-custom` d
 #[cfg(all(feature = "register-docs", before_api = "4.3"))]
 compile_error!("Generating editor docs for Rust symbols requires at least Godot 4.3.");
 
-const fn _validate_features() {
-    let mut count = 0;
-
-    if cfg!(feature = "api-4-0") {
-        count += 1;
-    }
-    if cfg!(feature = "api-4-1") {
-        count += 1;
-    }
-    if cfg!(feature = "api-custom") {
-        count += 1;
-    }
-
-    assert!(count <= 1, "at most one `api-*` feature can be enabled");
-}
-
-const _: () = _validate_features();
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Modules
 
