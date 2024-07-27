@@ -33,6 +33,12 @@ mod storage;
 pub use godot_ffi as sys;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
+// Validations (see also godot/lib.rs)
+
+#[cfg(all(feature = "docs", before_api = "4.3"))]
+compile_error!("Generating editor docs for Rust symbols requires at least Godot 4.3.");
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 // Generated code
 
 // Output of generated code. Mimics the file structure, symbols are re-exported.
