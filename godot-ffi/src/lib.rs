@@ -53,9 +53,7 @@ pub use paste;
 #[cfg(target_family = "wasm")]
 pub use gensym::gensym;
 
-pub use crate::godot_ffi::{
-    new_with_uninit_or_init, GodotFfi, GodotNullableFfi, PrimitiveConversionError, PtrcallType,
-};
+pub use crate::godot_ffi::{GodotFfi, GodotNullableFfi, PrimitiveConversionError, PtrcallType};
 
 // Method tables
 pub use gen::table_builtins::*;

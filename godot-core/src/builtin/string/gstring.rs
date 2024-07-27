@@ -277,7 +277,7 @@ impl FromStr for GString {
 impl From<&StringName> for GString {
     fn from(string: &StringName) -> Self {
         unsafe {
-            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_string_name);
                 let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());
@@ -298,7 +298,7 @@ impl From<StringName> for GString {
 impl From<&NodePath> for GString {
     fn from(path: &NodePath) -> Self {
         unsafe {
-            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_node_path);
                 let args = [path.sys()];
                 ctor(self_ptr, args.as_ptr());

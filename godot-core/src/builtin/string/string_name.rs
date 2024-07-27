@@ -242,7 +242,7 @@ impl From<&String> for StringName {
 impl From<&GString> for StringName {
     fn from(string: &GString) -> Self {
         unsafe {
-            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_name_from_string);
                 let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());

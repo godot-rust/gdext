@@ -118,7 +118,7 @@ impl From<&String> for NodePath {
 impl From<&GString> for NodePath {
     fn from(string: &GString) -> Self {
         unsafe {
-            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(node_path_from_string);
                 let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());

@@ -100,19 +100,6 @@ pub unsafe trait GodotFfi {
     unsafe fn move_return_ptr(self, dst: sys::GDExtensionTypePtr, call_type: PtrcallType);
 }
 
-// In Godot 4.0.x, a lot of that are "constructed into" require a default-initialized value.
-// In Godot 4.1+, placement new is used, requiring no prior value.
-// This method abstracts over that. Declared outside GodotFfi because it should not be overridden.
-
-/// # Safety
-/// See [`GodotFfi::new_with_uninit`] (valid for Godot 4.1+).
-#[cfg(since_api = "4.1")]
-pub unsafe fn new_with_uninit_or_init<T: GodotFfi>(
-    init_fn: impl FnOnce(sys::GDExtensionUninitializedTypePtr),
-) -> T {
-    T::new_with_uninit(init_fn)
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Types that can represent null-values.
