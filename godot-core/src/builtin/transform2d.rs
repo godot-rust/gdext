@@ -25,6 +25,17 @@ use std::ops::{Mul, MulAssign};
 /// [ a.x  b.x  origin.x ]
 /// [ a.y  b.y  origin.y ]
 /// ```
+///
+/// # All matrix types
+///
+/// | Dimension | Orthogonal basis | Affine transform        | Projective transform |
+/// |-----------|------------------|-------------------------|----------------------|
+/// | 2D        |                  | **`Transform2D`** (2x3) |                      |
+/// | 3D        | [`Basis`] (3x3)  | [`Transform3D`] (3x4)   | [`Projection`] (4x4) |
+///
+/// [`Basis`]: crate::builtin::Basis
+/// [`Transform3D`]: crate::builtin::Transform3D
+/// [`Projection`]: crate::builtin::Projection
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

@@ -20,7 +20,7 @@ use crate::builtin::{inner, real, RVec3, Vector3, Vector3Axis};
 /// as well as any other triple of numeric values.
 ///
 /// It uses integer coordinates and is therefore preferable to [`Vector3`] when exact precision is
-/// required. Note that the values are limited to 32 bits, and unlike [`Vector3`] this cannot be
+/// required. Note that the values are limited to 32 bits, and unlike `Vector3` this cannot be
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`][crate::builtin::PackedInt64Array]
 /// if 64-bit values are needed.
 ///
@@ -31,6 +31,14 @@ use crate::builtin::{inner, real, RVec3, Vector3, Vector3Axis};
 /// - [Specialized `Vector3i` functions](#specialized-vector3i-functions)
 /// - [3D functions](#3d-functions)
 /// - [Trait impls + operators](#trait-implementations)
+///
+/// # All vector types
+///
+/// | Dimension | Floating-point                       | Integer                                |
+/// |-----------|--------------------------------------|----------------------------------------|
+/// | 2D        | [`Vector2`][crate::builtin::Vector2] | [`Vector2i`][crate::builtin::Vector2i] |
+/// | 3D        | [`Vector3`][crate::builtin::Vector3] | **`Vector3i`**                         |
+/// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
 #[derive(Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

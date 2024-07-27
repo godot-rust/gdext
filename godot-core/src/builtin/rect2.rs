@@ -16,9 +16,14 @@ use crate::builtin::{real, Rect2i, Side, Vector2};
 /// `Rect2` consists of a position, a size, and several utility functions. It is typically used for
 /// fast overlap tests.
 ///
-/// Currently most methods are only available through [`InnerRect2`](super::inner::InnerRect2).
+/// # All bounding-box types
 ///
-/// The 3D counterpart to `Rect2` is [`Aabb`](super::Aabb).
+/// | Dimension | Floating-point  | Integer      |
+/// |-----------|-----------------|--------------|
+/// | 2D        | **`Rect2`**     | [`Rect2i`]   |
+/// | 3D        | [`Aabb`]        |              |
+///
+/// [`Aabb`]: crate::builtin::Aabb
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

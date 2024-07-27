@@ -18,7 +18,15 @@ use crate::builtin::{real, Plane, Vector3, Vector3Axis};
 ///
 /// Currently most methods are only available through [`InnerAabb`](super::inner::InnerAabb).
 ///
-/// The 2D counterpart to `Aabb` is [`Rect2`](super::Rect2).
+/// # All bounding-box types
+///
+/// | Dimension | Floating-point | Integer      |
+/// |-----------|----------------|--------------|
+/// | 2D        | [`Rect2`]      | [`Rect2i`]   |
+/// | 3D        | **`Aabb`**       |              |
+///
+/// [`Rect2`]: crate::builtin::Rect2
+/// [`Rect2i`]: crate::builtin::Rect2i
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

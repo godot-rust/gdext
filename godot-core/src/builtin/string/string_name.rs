@@ -36,6 +36,14 @@ use crate::builtin::{GString, NodePath};
 /// The fastest way to create string names is by using null-terminated C-string literals such as `c"MyClass"`. These have `'static` lifetime and
 /// can be used directly by Godot, without allocation or conversion. The encoding is limited to Latin-1, however. See the corresponding
 /// [`From<&'static CStr>` impl](#impl-From<%26CStr>-for-StringName).
+///
+/// # All string types
+///
+/// | Intended use case | String type                                |
+/// |-------------------|--------------------------------------------|
+/// | General purpose   | [`GString`][crate::builtin::GString]       |
+/// | Interned names    | **`StringName`**                           |
+/// | Scene-node paths  | [`NodePath`][crate::builtin::NodePath]     |
 // Currently we rely on `transparent` for `borrow_string_sys`.
 #[repr(transparent)]
 pub struct StringName {

@@ -29,6 +29,17 @@ use std::ops::{Mul, MulAssign};
 /// the _transformed_ unit vectors of X/Y/Z axes, they have no direct relation to those axes in the _transformed_ coordinate system. Thus, an
 /// independent notion of a, b, c does not suggest such a relation.  Furthermore, there are sometimes expressions such as `x.x`, `x.y`, `y.x`
 /// etc. They are typically hard to read and error-prone to write. Having `a.x`, `a.y`, `b.x` makes things more understandable.
+///
+/// # All matrix types
+///
+/// | Dimension | Orthogonal basis   | Affine transform      | Projective transform |
+/// |-----------|--------------------|-----------------------|----------------------|
+/// | 2D        |                    | [`Transform2D`] (2x3) |                      |
+/// | 3D        | **`Basis`** (3x3)  | [`Transform3D`] (3x4) | [`Projection`] (4x4) |
+///
+/// [`Transform2D`]: crate::builtin::Transform2D
+/// [`Transform3D`]: crate::builtin::Transform3D
+/// [`Projection`]: crate::builtin::Projection
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

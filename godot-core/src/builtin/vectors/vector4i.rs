@@ -19,7 +19,7 @@ use std::fmt;
 /// 4-element structure that can be used to represent 4D grid coordinates or sets of integers.
 ///
 /// It uses integer coordinates and is therefore preferable to [`Vector4`] when exact precision is
-/// required. Note that the values are limited to 32 bits, and unlike [`Vector4`] this cannot be
+/// required. Note that the values are limited to 32 bits, and unlike `Vector4` this cannot be
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`][crate::builtin::PackedInt64Array]
 /// if 64-bit values are needed.
 ///
@@ -30,6 +30,14 @@ use std::fmt;
 /// - [Specialized `Vector4i` functions](#specialized-vector4i-functions)
 /// - [4D functions](#4d-functions)
 /// - [Trait impls + operators](#trait-implementations)
+///
+/// # All vector types
+///
+/// | Dimension | Floating-point                       | Integer                                |
+/// |-----------|--------------------------------------|----------------------------------------|
+/// | 2D        | [`Vector2`][crate::builtin::Vector2] | [`Vector2i`][crate::builtin::Vector2i] |
+/// | 3D        | [`Vector3`][crate::builtin::Vector3] | [`Vector3i`][crate::builtin::Vector3i] |
+/// | 4D        | [`Vector4`][crate::builtin::Vector4] | **`Vector4i`**                         |
 #[derive(Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

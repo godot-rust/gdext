@@ -24,8 +24,6 @@ use std::fmt;
 /// is always 64-bit. The engine can be compiled with the option `precision=double` to use 64-bit
 /// vectors; use the gdext library with the `double-precision` feature in that case.
 ///
-/// See [`Vector2i`] for its integer counterpart.
-///
 /// ### Navigation to `impl` blocks within this page
 ///
 /// - [Constants](#constants)
@@ -35,6 +33,14 @@ use std::fmt;
 /// - [2D functions](#2d-functions)
 /// - [2D and 3D functions](#2d-and-3d-functions)
 /// - [Trait impls + operators](#trait-implementations)
+///
+/// # All vector types
+///
+/// | Dimension | Floating-point                       | Integer                                |
+/// |-----------|--------------------------------------|----------------------------------------|
+/// | 2D        | **`Vector2`**                        | [`Vector2i`][crate::builtin::Vector2i] |
+/// | 3D        | [`Vector3`][crate::builtin::Vector3] | [`Vector3i`][crate::builtin::Vector3i] |
+/// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

@@ -25,6 +25,17 @@ use super::{Aabb, Rect2, Vector3};
 /// more performant and has a lower memory footprint.
 ///
 /// This builtin comes with two related types [`ProjectionEye`] and [`ProjectionPlane`], that are type-safe pendants to Godot's integers.
+///
+/// # All matrix types
+///
+/// | Dimension | Orthogonal basis | Affine transform      | Projective transform   |
+/// |-----------|------------------|-----------------------|------------------------|
+/// | 2D        |                  | [`Transform2D`] (2x3) |                        |
+/// | 3D        | [`Basis`] (3x3)  | [`Transform3D`] (3x4) | **`Projection`** (4x4) |
+///
+/// [`Basis`]: crate::builtin::Basis
+/// [`Transform2D`]: crate::builtin::Transform2D
+/// [`Transform3D`]: Transform3D
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

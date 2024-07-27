@@ -16,6 +16,15 @@ use sys::{ffi_methods, GodotFfi};
 ///
 /// `Rect2i` consists of a position, a size, and several utility functions. It is typically used for
 /// fast overlap tests.
+///
+/// # All bounding-box types
+///
+/// | Dimension | Floating-point  | Integer      |
+/// |-----------|-----------------|--------------|
+/// | 2D        | [`Rect2`]       | **`Rect2i`** |
+/// | 3D        | [`Aabb`]        |              |
+///
+/// [`Aabb`]: crate::builtin::Aabb
 #[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
