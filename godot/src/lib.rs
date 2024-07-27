@@ -148,8 +148,7 @@ compile_error!("Must opt-in using `experimental-wasm` Cargo feature; keep in min
 #[cfg(all(feature = "double-precision", not(feature = "api-custom")))]
 compile_error!("The feature `double-precision` currently requires `api-custom` due to incompatibilities in the GDExtension API JSON.");
 
-#[cfg(all(feature = "register-docs", before_api = "4.3"))]
-compile_error!("Generating editor docs for Rust symbols requires at least Godot 4.3.");
+// Note: #[cfg]s are not emitted in this crate, so move checks for those up to godot-core.
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Modules
