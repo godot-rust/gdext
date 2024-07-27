@@ -142,27 +142,11 @@ impl Basis {
         }
     }
 
-    /// Creates a `Basis` with a rotation such that the forward axis (-Z) points
-    /// towards the `target` position.
-    ///
-    /// The up axis (+Y) points as close to the `up` vector as possible while
-    /// staying perpendicular to the forward axis. The resulting Basis is
-    /// orthonormalized. The `target` and `up` vectors cannot be zero, and
-    /// cannot be parallel to each other.
-    ///
-    #[cfg(before_api = "4.1")]
-    /// _Godot equivalent: `Basis.looking_at()`_
-    #[doc(alias = "looking_at")]
-    pub fn new_looking_at(target: Vector3, up: Vector3) -> Self {
-        super::inner::InnerBasis::looking_at(target, up)
-    }
-
     /// If `use_model_front` is true, the +Z axis (asset front) is treated as forward (implies +X is left)
     /// and points toward the target position. By default, the -Z axis (camera forward) is treated as forward
     /// (implies +X is right).
     ///
     /// _Godot equivalent: `Basis.looking_at()`_
-    #[cfg(since_api = "4.1")]
     pub fn new_looking_at(target: Vector3, up: Vector3, use_model_front: bool) -> Self {
         super::inner::InnerBasis::looking_at(target, up, use_model_front)
     }

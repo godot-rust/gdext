@@ -136,8 +136,8 @@ impl<T: GodotClass> RawGd<T> {
     where
         U: GodotClass,
     {
-        // Workaround for bug in Godot 4.0 that makes casts always succeed (https://github.com/godot-rust/gdext/issues/158).
-        // TODO once fixed in Godot, use #[cfg(before_api = "4.1")]
+        // Workaround for bug in Godot that makes casts always succeed (https://github.com/godot-rust/gdext/issues/158).
+        // TODO once fixed in Godot, remove this.
         if !self.is_cast_valid::<U>() {
             return Err(self);
         }
@@ -482,7 +482,7 @@ where
     fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
         // Even though ObjectArg exists, this function is still relevant, e.g. in Callable.
 
-        object_as_arg_ptr(self, &self.obj)
+        object_as_arg_ptr(&self.obj)
     }
 
     unsafe fn from_arg_ptr(ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) -> Self {
@@ -494,12 +494,9 @@ where
             // ptr is `Ref<T>*`
             // See the docs for `PtrcallType::Virtual` for more info on `Ref<T>`.
             interface_fn!(ref_get_object)(ptr as sys::GDExtensionRefPtr)
-        } else if cfg!(since_api = "4.1") || matches!(call_type, PtrcallType::Virtual) {
-            // ptr is `T**`
-            *(ptr as *mut sys::GDExtensionObjectPtr)
         } else {
-            // ptr is `T*`
-            ptr as sys::GDExtensionObjectPtr
+            // ptr is `T**` from Godot 4.1 onwards, also in virtual functions.
+            *(ptr as *mut sys::GDExtensionObjectPtr)
         };
 
         // obj_ptr is `T*`
@@ -689,10 +686,7 @@ pub(super) fn object_ffi_to_variant<T: GodotFfi>(self_: &T) -> Variant {
     }
 }
 
-pub(super) fn object_as_arg_ptr<T: GodotFfi, F>(
-    _self: &T,
-    _object_ptr_field: &*mut F,
-) -> sys::GDExtensionConstTypePtr {
+pub(super) fn object_as_arg_ptr<F>(_object_ptr_field: &*mut F) -> sys::GDExtensionConstTypePtr {
     // Be careful when refactoring this code. Address of field pointer matters, copying it into a local variable will create use-after-free.
 
     // No need to call self.check_rtti("as_arg_ptr") here, since this is already done in ToGodot impl.
@@ -701,17 +695,6 @@ pub(super) fn object_as_arg_ptr<T: GodotFfi, F>(
     // We do not need to prematurely do so. In Rust terms, if `T` is ref-counted, then we are effectively passing a `&Arc<T>`, and the
     // callee would need to invoke `.clone()` if desired.
 
-    // In 4.0, argument pointers are passed to godot as `T*`, except for in virtual method calls. We can't perform virtual method calls
-    // currently, so they are always `T*`.
-    //
-    // In 4.1, argument pointers were standardized to always be `T**`.
-    #[cfg(before_api = "4.1")]
-    {
-        _self.sys()
-    }
-
-    #[cfg(since_api = "4.1")]
-    {
-        ptr::addr_of!(*_object_ptr_field) as sys::GDExtensionConstTypePtr
-    }
+    // Since 4.1, argument pointers were standardized to always be `T**`.
+    ptr::addr_of!(*_object_ptr_field) as sys::GDExtensionConstTypePtr
 }

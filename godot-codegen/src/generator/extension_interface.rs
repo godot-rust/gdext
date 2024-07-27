@@ -76,9 +76,6 @@ fn generate_proc_address_funcs(h_path: &Path) -> TokenStream {
 
     // Do not derive Copy -- even though the struct is bitwise-copyable, this is rarely needed and may point to an error.
     let code = quote! {
-        pub use crate::compat::InitCompat;
-        // pub use crate::compat::compat_4_1plus::InitCompat;
-
         pub struct GDExtensionInterface {
             #( #fptr_decls )*
         }

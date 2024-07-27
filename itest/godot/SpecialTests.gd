@@ -41,11 +41,8 @@ func test_collision_object_2d_input_event():
 	# FIXME: https://github.com/godotengine/godot/pull/88992 changed behavior here. Adjust code depending on resolution.
 	return
 
-	# Godot 4.0 compat: behavior of `push_unhandled_input` was not consistent with `push_input`.
-	if Engine.get_version_info().minor == 0:
-		window.push_unhandled_input(event)
-	else:
-		window.push_input(event)
+	# Needed push_unhandled_input() in Godot 4.0; no longer supported.
+	window.push_input(event)
 
 	# Ensure we run a full physics frame
 	await root.get_tree().physics_frame

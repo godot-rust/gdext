@@ -10,7 +10,6 @@
 mod gstring;
 mod macros;
 mod node_path;
-mod string_chars;
 mod string_name;
 
 use crate::meta::error::ConvertError;

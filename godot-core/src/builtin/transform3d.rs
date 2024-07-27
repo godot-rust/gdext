@@ -145,20 +145,6 @@ impl Transform3D {
         self.basis.is_finite() && self.origin.is_finite()
     }
 
-    /// Returns a copy of the transform rotated such that the forward axis (-Z)
-    /// points towards the `target` position.
-    ///
-    /// See [`Basis::new_looking_at()`] for more information.
-    #[cfg(before_api = "4.1")]
-    #[must_use]
-    pub fn looking_at(&self, target: Vector3, up: Vector3) -> Self {
-        Self {
-            basis: Basis::new_looking_at(target - self.origin, up),
-            origin: self.origin,
-        }
-    }
-
-    #[cfg(since_api = "4.1")]
     #[must_use]
     pub fn looking_at(&self, target: Vector3, up: Vector3, use_model_front: bool) -> Self {
         Self {

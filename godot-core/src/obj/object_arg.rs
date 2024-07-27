@@ -172,7 +172,7 @@ where
     // https://github.com/godotengine/godot-cpp/issues/954
 
     fn as_arg_ptr(&self) -> sys::GDExtensionConstTypePtr {
-        raw_gd::object_as_arg_ptr(self, &self.object_ptr)
+        raw_gd::object_as_arg_ptr(&self.object_ptr)
     }
 
     unsafe fn from_arg_ptr(_ptr: sys::GDExtensionTypePtr, _call_type: PtrcallType) -> Self {

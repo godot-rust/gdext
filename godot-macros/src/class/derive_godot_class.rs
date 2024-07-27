@@ -310,8 +310,6 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
 
         // #[class(editor_plugin)]
         if let Some(attr_key) = parser.handle_alone_with_span("editor_plugin")? {
-            require_api_version!("4.1", &attr_key, "#[class(editor_plugin)]")?;
-
             is_editor_plugin = true;
 
             // Requires #[class(tool, base=EditorPlugin)].

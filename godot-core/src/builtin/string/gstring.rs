@@ -5,16 +5,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::fmt::Write;
 use std::{convert::Infallible, ffi::c_char, fmt, str::FromStr};
 
 use godot_ffi as sys;
 use sys::types::OpaqueString;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
-use crate::builtin::inner;
-
-use super::string_chars::validate_unicode_scalar_sequence;
-use super::{NodePath, StringName};
+use crate::builtin::{inner, NodePath, StringName};
 
 /// Godot's reference counted string type.
 ///
@@ -84,16 +82,9 @@ impl GString {
     }
 
     /// Gets the internal chars slice from a [`GString`].
-    ///
-    /// Note: This operation is *O*(*n*). Consider using [`chars_unchecked`][Self::chars_unchecked]
-    /// if you can make sure the string is a valid UTF-32.
-    #[cfg_attr(
-        since_api = "4.1",
-        deprecated = "Use `chars()` instead. \n\
-        Since version 4.1, Godot ensures valid UTF-32, checked and unchecked overloads are no longer needed. \n\
-        For details, see [godotengine/godot#74760](https://github.com/godotengine/godot/pull/74760)."
-    )]
-    pub fn chars_checked(&self) -> &[char] {
+    pub fn chars(&self) -> &[char] {
+        // SAFETY: Godot 4.1 ensures valid UTF-32, making interpreting as char slice safe.
+        // See https://github.com/godotengine/godot/pull/74760.
         unsafe {
             let s = self.string_sys();
             let len = interface_fn!(string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
@@ -104,43 +95,7 @@ impl GString {
                 return &[];
             }
 
-            validate_unicode_scalar_sequence(std::slice::from_raw_parts(ptr, len as usize))
-                .expect("GString::chars_checked: string contains invalid unicode scalar values")
-        }
-    }
-
-    /// Gets the internal chars slice from a [`GString`].
-    ///
-    /// # Safety
-    ///
-    /// Make sure the string only contains valid unicode scalar values, currently
-    /// Godot allows for unpaired surrogates and out of range code points to be appended
-    /// into the string.
-    #[cfg_attr(
-        since_api = "4.1",
-        deprecated = "Use `chars()` instead. \n\
-        Since version 4.1, ensures valid UTF-32, checked and unchecked overloads are no longer needed. \n\
-        For details, see [godotengine/godot#74760](https://github.com/godotengine/godot/pull/74760)."
-    )]
-    pub unsafe fn chars_unchecked(&self) -> &[char] {
-        let s = self.string_sys();
-        let len = interface_fn!(string_to_utf32_chars)(s, std::ptr::null_mut(), 0);
-        let ptr = interface_fn!(string_operator_index_const)(s, 0);
-
-        // Even when len == 0, from_raw_parts requires ptr != 0
-        if ptr.is_null() {
-            return &[];
-        }
-        std::slice::from_raw_parts(ptr as *const char, len as usize)
-    }
-
-    /// Gets the internal chars slice from a [`GString`].
-    #[cfg(since_api = "4.1")]
-    pub fn chars(&self) -> &[char] {
-        // SAFETY: Godot 4.1 ensures valid UTF-32, making this safe to call.
-        #[allow(deprecated)]
-        unsafe {
-            self.chars_unchecked()
+            std::slice::from_raw_parts(ptr as *const char, len as usize)
         }
     }
 
@@ -230,26 +185,19 @@ impl_builtin_traits! {
 
 impl fmt::Display for GString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s: String;
-
-        #[cfg(before_api = "4.1")]
-        {
-            s = self.chars_checked().iter().collect();
-        }
-        #[cfg(since_api = "4.1")]
-        {
-            s = self.chars().iter().collect();
+        for ch in self.chars() {
+            f.write_char(*ch)?;
         }
 
-        f.write_str(s.as_str())
+        Ok(())
     }
 }
 
 /// Uses literal syntax from GDScript: `"string"`
 impl fmt::Debug for GString {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = String::from(self);
-        write!(f, "\"{s}\"")
+        // Reuse Display impl.
+        write!(f, "\"{self}\"")
     }
 }
 
@@ -329,7 +277,7 @@ impl FromStr for GString {
 impl From<&StringName> for GString {
     fn from(string: &StringName) -> Self {
         unsafe {
-            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_string_name);
                 let args = [string.sys()];
                 ctor(self_ptr, args.as_ptr());
@@ -350,7 +298,7 @@ impl From<StringName> for GString {
 impl From<&NodePath> for GString {
     fn from(path: &NodePath) -> Self {
         unsafe {
-            sys::new_with_uninit_or_init::<Self>(|self_ptr| {
+            Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(string_from_node_path);
                 let args = [path.sys()];
                 ctor(self_ptr, args.as_ptr());

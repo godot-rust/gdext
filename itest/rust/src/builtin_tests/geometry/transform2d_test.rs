@@ -57,7 +57,6 @@ fn transform2d_equiv() {
     );
 }
 
-#[cfg(since_api = "4.1")]
 #[itest]
 fn transform2d_determinant() {
     let inner = InnerTransform2D::from_outer(&TEST_TRANSFORM);

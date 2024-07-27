@@ -86,7 +86,7 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
 
         #[no_mangle]
         unsafe extern "C" fn #entry_point(
-            interface_or_get_proc_address: ::godot::sys::InitCompat,
+            get_proc_address: ::godot::sys::GDExtensionInterfaceGetProcAddress,
             library: ::godot::sys::GDExtensionClassLibraryPtr,
             init: *mut ::godot::sys::GDExtensionInitialization,
         ) -> ::godot::sys::GDExtensionBool {
@@ -95,7 +95,7 @@ pub fn attribute_gdextension(item: venial::Item) -> ParseResult<TokenStream> {
             emscripten_preregistration();
 
             ::godot::init::__gdext_load_library::<#impl_ty>(
-                interface_or_get_proc_address,
+                get_proc_address,
                 library,
                 init
             )

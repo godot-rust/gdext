@@ -1062,7 +1062,6 @@ fn double_use_reference() {
 
 // There isn't a good way to test editor plugins, but we can at least declare one to ensure that the macro
 // compiles.
-#[cfg(since_api = "4.1")]
 #[derive(GodotClass)]
 #[class(no_init, base = EditorPlugin, editor_plugin, tool)]
 struct CustomEditorPlugin;
