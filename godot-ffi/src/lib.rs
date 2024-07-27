@@ -31,15 +31,10 @@ pub(crate) mod gen {
 
 pub mod conv;
 
-mod compat {
-    pub(super) mod compat_4_1plus;
-}
 mod extras;
 mod global;
 mod godot_ffi;
-mod interface_init {
-    pub use super::compat::compat_4_1plus::*;
-}
+mod interface_init;
 #[cfg(target_os = "linux")]
 pub mod linux_reload_workaround;
 mod opaque;
