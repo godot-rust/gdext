@@ -17,14 +17,24 @@ use std::fmt;
 
 /// Vector used for 2D math using floating point coordinates.
 ///
-/// 2-element structure that can be used to represent positions in 2D space or any other pair of
-/// numeric values.
+/// 2-element structure that can be used to represent continuous positions or directions in 2D space,
+/// as well as any other pair of numeric values.
 ///
 /// It uses floating-point coordinates of 32-bit precision, unlike the engine's `float` type which
 /// is always 64-bit. The engine can be compiled with the option `precision=double` to use 64-bit
 /// vectors; use the gdext library with the `double-precision` feature in that case.
 ///
 /// See [`Vector2i`] for its integer counterpart.
+///
+/// ### Navigation to `impl` blocks within this page
+///
+/// - [Constants](#constants)
+/// - [Constructors and general vector functions](#constructors-and-general-vector-functions)
+/// - [Specialized `Vector2` functions](#specialized-vector2-functions)
+/// - [Float-specific functions](#float-specific-functions)
+/// - [2D functions](#2d-functions)
+/// - [2D and 3D functions](#2d-and-3d-functions)
+/// - [Trait impls + operators](#trait-implementations)
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
@@ -36,17 +46,16 @@ pub struct Vector2 {
     pub y: real,
 }
 
-impl_vector_operators!(Vector2, real, (x, y));
-
-impl_vector_consts!(Vector2, real);
-impl_float_vector_consts!(Vector2);
-impl_vector2x_consts!(Vector2, real);
+/// # Constants
+impl Vector2 {
+    impl_vector_consts!(real);
+    impl_float_vector_consts!();
+    impl_vector2x_consts!(real);
+}
 
 impl_vector_fns!(Vector2, RVec2, real, (x, y));
-impl_float_vector_fns!(Vector2, (x, y));
-impl_vector2x_fns!(Vector2, real);
-impl_vector2_vector3_fns!(Vector2, (x, y));
 
+/// # Specialized `Vector2` functions
 impl Vector2 {
     /// Constructs a new `Vector2` from a [`Vector2i`].
     #[inline]
@@ -55,12 +64,6 @@ impl Vector2 {
             x: v.x as real,
             y: v.y as real,
         }
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    pub fn as_inner(&self) -> inner::InnerVector2 {
-        inner::InnerVector2::from_outer(self)
     }
 
     /// Returns this vector's angle with respect to the positive X axis, or `(1.0, 0.0)` vector, in radians.
@@ -141,7 +144,19 @@ impl Vector2 {
         let angle = self.angle_to(to);
         self.rotated(angle * weight) * (result_length / start_length)
     }
+
+    #[doc(hidden)]
+    #[inline]
+    pub fn as_inner(&self) -> inner::InnerVector2 {
+        inner::InnerVector2::from_outer(self)
+    }
 }
+
+impl_float_vector_fns!(Vector2, (x, y));
+impl_vector2x_fns!(Vector2, real);
+impl_vector2_vector3_fns!(Vector2, (x, y));
+
+impl_vector_operators!(Vector2, real, (x, y));
 
 /// Formats the vector like Godot: `(x, y)`.
 impl fmt::Display for Vector2 {

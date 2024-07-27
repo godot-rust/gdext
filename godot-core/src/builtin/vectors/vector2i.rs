@@ -16,13 +16,21 @@ use std::fmt;
 
 /// Vector used for 2D math using integer coordinates.
 ///
-/// 2-element structure that can be used to represent positions in 2D space or any other pair of
-/// numeric values.
+/// 2-element structure that can be used to represent discrete positions or directions in 2D space,
+/// as well as any other pair of numeric values.
 ///
 /// It uses integer coordinates and is therefore preferable to [`Vector2`] when exact precision is
 /// required. Note that the values are limited to 32 bits, and unlike [`Vector2`] this cannot be
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`][crate::builtin::PackedInt64Array]
 /// if 64-bit values are needed.
+///
+/// ### Navigation to `impl` blocks within this page
+///
+/// - [Constants](#constants)
+/// - [Constructors and general vector functions](#constructors-and-general-vector-functions)
+/// - [Specialized `Vector2i` functions](#specialized-vector2i-functions)
+/// - [2D functions](#2d-functions)
+/// - [Trait impls + operators](#trait-implementations)
 #[derive(Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
@@ -34,17 +42,16 @@ pub struct Vector2i {
     pub y: i32,
 }
 
-impl_vector_operators!(Vector2i, i32, (x, y));
-
-impl_vector_consts!(Vector2i, i32);
-impl_integer_vector_consts!(Vector2i);
-impl_vector2x_consts!(Vector2i, i32);
-
-impl_vector_fns!(Vector2i, glam::IVec2, i32, (x, y));
-impl_vector2x_fns!(Vector2i, i32);
-
+/// # Constants
 impl Vector2i {
-    impl_integer_vector_fns!(x, y);
+    impl_vector_consts!(i32);
+    impl_integer_vector_consts!();
+    impl_vector2x_consts!(i32);
+}
+
+/// # Specialized `Vector2i` functions
+impl Vector2i {
+    inline_impl_integer_vector_fns!(x, y);
 
     /// Constructs a new `Vector2i` from a [`Vector2`]. The floating point coordinates will be truncated.
     #[inline]
@@ -68,6 +75,11 @@ impl Vector2i {
         inner::InnerVector2i::from_outer(self)
     }
 }
+
+impl_vector_fns!(Vector2i, glam::IVec2, i32, (x, y));
+impl_vector2x_fns!(Vector2i, i32);
+
+impl_vector_operators!(Vector2i, i32, (x, y));
 
 /// Formats the vector like Godot: `(x, y)`.
 impl fmt::Display for Vector2i {

@@ -22,6 +22,14 @@ use std::fmt;
 /// required. Note that the values are limited to 32 bits, and unlike [`Vector4`] this cannot be
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`][crate::builtin::PackedInt64Array]
 /// if 64-bit values are needed.
+///
+/// ### Navigation to `impl` blocks within this page
+///
+/// - [Constants](#constants)
+/// - [Constructors and general vector functions](#constructors-and-general-vector-functions)
+/// - [Specialized `Vector4i` functions](#specialized-vector4i-functions)
+/// - [4D functions](#4d-functions)
+/// - [Trait impls + operators](#trait-implementations)
 #[derive(Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
@@ -39,16 +47,17 @@ pub struct Vector4i {
     pub w: i32,
 }
 
-impl_vector_operators!(Vector4i, i32, (x, y, z, w));
-
-impl_vector_consts!(Vector4i, i32);
-impl_integer_vector_consts!(Vector4i);
+/// # Constants
+impl Vector4i {
+    impl_vector_consts!(i32);
+    impl_integer_vector_consts!();
+}
 
 impl_vector_fns!(Vector4i, glam::IVec4, i32, (x, y, z, w));
-impl_vector4x_fns!(Vector4i, i32);
 
+/// # Specialized `Vector4i` functions
 impl Vector4i {
-    impl_integer_vector_fns!(x, y, z, w);
+    inline_impl_integer_vector_fns!(x, y, z, w);
 
     /// Constructs a new `Vector4i` from a [`Vector4`]. The floating point coordinates will be
     /// truncated.
@@ -80,6 +89,9 @@ impl Vector4i {
         inner::InnerVector4i::from_outer(self)
     }
 }
+
+impl_vector4x_fns!(Vector4i, i32);
+impl_vector_operators!(Vector4i, i32, (x, y, z, w));
 
 /// Formats the vector like Godot: `(x, y, z, w)`.
 impl fmt::Display for Vector4i {

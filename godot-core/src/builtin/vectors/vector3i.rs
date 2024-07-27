@@ -16,13 +16,21 @@ use crate::builtin::{inner, real, RVec3, Vector3, Vector3Axis};
 
 /// Vector used for 3D math using integer coordinates.
 ///
-/// 3-element structure that can be used to represent positions in 3D space or any other triple of
-/// numeric values.
+/// 3-element structure that can be used to represent discrete positions or directions in 3D space,
+/// as well as any other triple of numeric values.
 ///
 /// It uses integer coordinates and is therefore preferable to [`Vector3`] when exact precision is
 /// required. Note that the values are limited to 32 bits, and unlike [`Vector3`] this cannot be
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`][crate::builtin::PackedInt64Array]
 /// if 64-bit values are needed.
+///
+/// ### Navigation to `impl` blocks within this page
+///
+/// - [Constants](#constants)
+/// - [Constructors and general vector functions](#constructors-and-general-vector-functions)
+/// - [Specialized `Vector3i` functions](#specialized-vector3i-functions)
+/// - [3D functions](#3d-functions)
+/// - [Trait impls + operators](#trait-implementations)
 #[derive(Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
@@ -37,18 +45,17 @@ pub struct Vector3i {
     pub z: i32,
 }
 
-impl_vector_operators!(Vector3i, i32, (x, y, z));
-
-impl_vector_consts!(Vector3i, i32);
-impl_integer_vector_consts!(Vector3i);
-impl_vector3x_consts!(Vector3i, i32);
+/// # Constants
+impl Vector3i {
+    impl_vector_consts!(i32);
+    impl_integer_vector_consts!();
+    impl_vector3x_consts!(i32);
+}
 
 impl_vector_fns!(Vector3i, glam::IVec3, i32, (x, y, z));
-impl_vector3x_fns!(Vector3i, i32);
 
+/// # Specialized `Vector3i` functions
 impl Vector3i {
-    impl_integer_vector_fns!(x, y, z);
-
     /// Constructs a new `Vector3i` from a [`Vector3`]. The floating point coordinates will be truncated.
     #[inline]
     pub const fn from_vector3(v: Vector3) -> Self {
@@ -58,6 +65,8 @@ impl Vector3i {
             z: v.z as i32,
         }
     }
+
+    inline_impl_integer_vector_fns!(x, y, z);
 
     /// Converts `self` to the corresponding [`real`] `glam` type.
     #[doc(hidden)]
@@ -72,6 +81,10 @@ impl Vector3i {
         inner::InnerVector3i::from_outer(self)
     }
 }
+
+impl_vector3x_fns!(Vector3i, i32);
+
+impl_vector_operators!(Vector3i, i32, (x, y, z));
 
 /// Formats the vector like Godot: `(x, y, z)`.
 impl fmt::Display for Vector3i {

@@ -17,14 +17,25 @@ use std::fmt;
 
 /// Vector used for 3D math using floating point coordinates.
 ///
-/// 3-element structure that can be used to represent positions in 3D space or any other triple of
-/// numeric values.
+/// 3-element structure that can be used to represent continuous positions or directions in 3D space,
+/// as well as any other triple of numeric values.
 ///
 /// It uses floating-point coordinates of 32-bit precision, unlike the engine's `float` type which
 /// is always 64-bit. The engine can be compiled with the option `precision=double` to use 64-bit
-/// vectors; use the gdext library with the `double-precision` feature in that case.
+/// vectors instead; use the gdext library with the `double-precision` feature in that case.
 ///
 /// See [`Vector3i`] for its integer counterpart.
+///
+/// ### Navigation to `impl` blocks within this page
+///
+/// - [Constants](#constants)
+/// - [Constructors and general vector functions](#constructors-and-general-vector-functions)
+/// - [Specialized `Vector3` functions](#specialized-vector3-functions)
+/// - [Float-specific functions](#float-specific-functions)
+/// - [3D functions](#3d-functions)
+/// - [2D and 3D functions](#2d-and-3d-functions)
+/// - [3D and 4D functions](#3d-and-4d-functions)
+/// - [Trait impls + operators](#trait-implementations)
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
@@ -39,18 +50,16 @@ pub struct Vector3 {
     pub z: real,
 }
 
-impl_vector_operators!(Vector3, real, (x, y, z));
-
-impl_vector_consts!(Vector3, real);
-impl_float_vector_consts!(Vector3);
-impl_vector3x_consts!(Vector3, real);
+/// # Constants
+impl Vector3 {
+    impl_vector_consts!(real);
+    impl_float_vector_consts!();
+    impl_vector3x_consts!(real);
+}
 
 impl_vector_fns!(Vector3, RVec3, real, (x, y, z));
-impl_float_vector_fns!(Vector3, (x, y, z));
-impl_vector3x_fns!(Vector3, real);
-impl_vector2_vector3_fns!(Vector3, (x, y, z));
-impl_vector3_vector4_fns!(Vector3, (x, y, z));
 
+/// # Specialized `Vector3` functions
 impl Vector3 {
     /// Unit vector pointing towards the left side of imported 3D assets.
     pub const MODEL_LEFT: Self = Self::new(1.0, 0.0, 0.0);
@@ -209,6 +218,13 @@ impl Vector3 {
         self.rotated(unit_axis, angle * weight) * (result_length / start_length)
     }
 }
+
+impl_float_vector_fns!(Vector3, (x, y, z));
+impl_vector3x_fns!(Vector3, real);
+impl_vector2_vector3_fns!(Vector3, (x, y, z));
+impl_vector3_vector4_fns!(Vector3, (x, y, z));
+
+impl_vector_operators!(Vector3, real, (x, y, z));
 
 /// Formats the vector like Godot: `(x, y, z)`.
 impl fmt::Display for Vector3 {
