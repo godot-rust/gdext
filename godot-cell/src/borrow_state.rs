@@ -10,10 +10,10 @@
 /// This state upholds these invariants:
 /// - You can only take a shared borrow when there is no accessible mutable borrow.
 /// - You can only take a mutable borrow when there is neither an accessible mutable borrow, nor a shared
-/// borrow.
+///   borrow.
 /// - You can only set a mutable borrow as inaccessible when an accessible mutable borrow exists.
 /// - You can only unset a mutable borrow as inaccessible when there is no accessible mutable borrow and no
-/// shared borrows.  
+///   shared borrows.
 ///
 /// If a catastrophic error occurs, then the state will be poisoned. If the state is poisoned then that's
 /// almost certainly an implementation bug, and should never happen. But in an abundance of caution it is
