@@ -19,7 +19,7 @@ pub use sys::GdextBuild;
 #[doc(hidden)]
 // TODO consider body safe despite unsafe function, and explicitly mark unsafe {} locations
 pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
-    interface_or_get_proc_address: sys::InitCompat,
+    get_proc_address: sys::GDExtensionInterfaceGetProcAddress,
     library: sys::GDExtensionClassLibraryPtr,
     init: *mut sys::GDExtensionInitialization,
 ) -> sys::GDExtensionBool {
@@ -41,7 +41,7 @@ pub unsafe fn __gdext_load_library<E: ExtensionLibrary>(
 
         let config = sys::GdextConfig::new(tool_only_in_editor);
 
-        sys::initialize(interface_or_get_proc_address, library, config);
+        sys::initialize(get_proc_address, library, config);
 
         // Currently no way to express failure; could be exposed to E if necessary.
         // No early exit, unclear if Godot still requires output parameters to be set.

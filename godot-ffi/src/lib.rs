@@ -31,18 +31,21 @@ pub(crate) mod gen {
 
 pub mod conv;
 
-mod compat;
+mod compat {
+    pub(super) mod compat_4_1plus;
+}
 mod extras;
 mod global;
 mod godot_ffi;
+mod interface_init {
+    pub use super::compat::compat_4_1plus::*;
+}
 #[cfg(target_os = "linux")]
 pub mod linux_reload_workaround;
 mod opaque;
 mod plugins;
 mod string_cache;
 mod toolbox;
-
-use compat::BindingCompat;
 
 // See https://github.com/dtolnay/paste/issues/69#issuecomment-962418430
 // and https://users.rust-lang.org/t/proc-macros-using-third-party-crate/42465/4
@@ -71,26 +74,6 @@ pub use gen::interface::*;
 pub use global::*;
 pub use string_cache::StringCache;
 pub use toolbox::*;
-
-#[cfg(before_api = "4.1")]
-mod godot_4_0_imported {
-    // SAFETY: In Godot 4.0.4, the extension interface stores a c_char pointer. This is safe to access from different threads, as no
-    // mutation happens after initialization. This was changed in 4.1, so we don't need to manually implement `Sync` or `Send` after 4.0.
-    // Instead, we rely on Rust to infer that it is `Sync` and `Send`.
-    unsafe impl Sync for super::GDExtensionInterface {}
-
-    // SAFETY: See `Sync` impl.
-    unsafe impl Send for super::GDExtensionInterface {}
-
-    // Re-import polyfills so that code can use the symbols as if 4.0 would natively define them.
-    pub use super::compat::InitCompat;
-    pub(crate) use super::compat::{
-        GDExtensionInterfaceClassdbGetMethodBind, GDExtensionInterfaceVariantGetPtrBuiltinMethod,
-    };
-}
-
-#[cfg(before_api = "4.1")]
-pub use godot_4_0_imported::*;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // API to access Godot via FFI
@@ -171,14 +154,12 @@ unsafe impl Send for GdextRuntimeMetadata {}
 ///
 /// # Safety
 ///
-/// - The `interface` pointer must be either:
-///   - a data pointer to a [`GDExtensionInterface`] object (for Godot 4.0.x)
-///   - a function pointer of type [`GDExtensionInterfaceGetProcAddress`] (for Godot 4.1+)
+/// - The `get_proc_address` pointer must be a function pointer of type [`GDExtensionInterfaceGetProcAddress`] (valid for Godot 4.1+).
 /// - The `library` pointer must be the pointer given by Godot at initialisation.
 /// - This function must not be called from multiple threads.
 /// - This function must be called before any use of [`get_library`].
 pub unsafe fn initialize(
-    compat: InitCompat,
+    get_proc_address: GDExtensionInterfaceGetProcAddress,
     library: GDExtensionClassLibraryPtr,
     config: GdextConfig,
 ) {
@@ -190,14 +171,14 @@ pub unsafe fn initialize(
     );
 
     // Before anything else: if we run into a Godot binary that's compiled differently from gdext, proceeding would be UB -> panic.
-    compat.ensure_static_runtime_compatibility();
+    interface_init::ensure_static_runtime_compatibility(get_proc_address);
 
     // SAFETY: `ensure_static_runtime_compatibility` succeeded.
-    let version = unsafe { compat.runtime_version() };
+    let version = unsafe { interface_init::runtime_version(get_proc_address) };
     out!("Godot version of GDExtension API at runtime: {version:?}");
 
     // SAFETY: `ensure_static_runtime_compatibility` succeeded.
-    let interface = unsafe { compat.load_interface() };
+    let interface = unsafe { interface_init::load_interface(get_proc_address) };
     out!("Loaded interface.");
 
     // SAFETY: The interface was successfully loaded from Godot, so we should be able to load the builtin lifecycle table.

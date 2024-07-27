@@ -77,8 +77,8 @@ macro_rules! out {
 /// `$ToType` must be an option of an `unsafe extern "C"` function pointer.
 #[allow(unused)]
 #[macro_export]
-macro_rules! cast_fn_ptr {
-    (unsafe { $option:ident as $ToType:ty }) => {{
+macro_rules! unsafe_cast_fn_ptr {
+    ($option:ident as $ToType:ty) => {{
         // SAFETY: `$ToType` is an `unsafe extern "C"` function pointer and is thus compatible with `unsafe extern "C" fn()`.
         // And `Option<T>` is compatible with `Option<U>` when both `T` and `U` are compatible function pointers.
         #[allow(unused_unsafe)]
@@ -191,7 +191,7 @@ pub fn unqualified_type_name<T>() -> &'static str {
 // Private helpers
 
 /// Metafunction to extract inner function pointer types from all the bindgen Option<F> type names.
-/// Needed for `cast_fn_ptr` macro.
+/// Needed for `unsafe_cast_fn_ptr` macro.
 pub(crate) trait Inner: Sized {
     type FnPtr: Sized;
 }
