@@ -144,7 +144,10 @@ unsafe fn gdext_on_level_init(level: InitLevel) {
         }
         InitLevel::Editor => {
             #[cfg(all(since_api = "4.3", feature = "docs"))]
-            crate::docs::register();
+            // SAFETY: Godot binding is initialized, and this is called from the main thread.
+            unsafe {
+                crate::docs::register();
+            }
         }
         _ => (),
     }
