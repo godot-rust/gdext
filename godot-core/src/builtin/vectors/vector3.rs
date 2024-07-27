@@ -42,6 +42,10 @@ use std::fmt;
 /// | 2D        | [`Vector2`][crate::builtin::Vector2] | [`Vector2i`][crate::builtin::Vector2i] |
 /// | 3D        | **`Vector3`**                        | [`Vector3i`][crate::builtin::Vector3i] |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
+///
+/// # Godot docs
+///
+/// [`Vector3` (stable)](https://docs.godotengine.org/en/stable/classes/class_vector3.html)
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

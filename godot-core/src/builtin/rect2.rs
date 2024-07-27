@@ -24,6 +24,10 @@ use crate::builtin::{real, Rect2i, Side, Vector2};
 /// | 3D        | [`Aabb`]        |              |
 ///
 /// [`Aabb`]: crate::builtin::Aabb
+///
+/// # Godot docs
+///
+/// [`Rect2` (stable)](https://docs.godotengine.org/en/stable/classes/class_rect2.html)
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

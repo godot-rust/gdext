@@ -105,6 +105,10 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 /// different threads are also safe, but any writes must be externally synchronized. The Rust
 /// compiler will enforce this as long as you use only Rust threads, but it cannot protect against
 /// concurrent modification on other threads (e.g. created through GDScript).
+///
+/// # Godot docs
+///
+/// [`Array[T]` (stable)](https://docs.godotengine.org/en/stable/classes/class_array.html)
 pub struct Array<T: ArrayElement> {
     // Safety Invariant: The type of all values in `opaque` matches the type `T`.
     opaque: sys::types::OpaqueArray,

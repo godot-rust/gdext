@@ -36,6 +36,10 @@ use std::ops::Mul;
 /// [`Basis`]: Basis
 /// [`Transform2D`]: crate::builtin::Transform2D
 /// [`Projection`]: Projection
+///
+/// # Godot docs
+///
+/// [`Transform3D` (stable)](https://docs.godotengine.org/en/stable/classes/class_transform3d.html)
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

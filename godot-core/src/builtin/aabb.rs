@@ -27,6 +27,10 @@ use crate::builtin::{real, Plane, Vector3, Vector3Axis};
 ///
 /// [`Rect2`]: crate::builtin::Rect2
 /// [`Rect2i`]: crate::builtin::Rect2i
+///
+/// # Godot docs
+///
+/// [`AABB`](https://docs.godotengine.org/en/stable/classes/class_aabb.html)
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

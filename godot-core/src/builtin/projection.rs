@@ -36,6 +36,10 @@ use super::{Aabb, Rect2, Vector3};
 /// [`Basis`]: crate::builtin::Basis
 /// [`Transform2D`]: crate::builtin::Transform2D
 /// [`Transform3D`]: Transform3D
+///
+/// # Godot docs
+///
+/// [`Projection` (stable)](https://docs.godotengine.org/en/stable/classes/class_projection.html)
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

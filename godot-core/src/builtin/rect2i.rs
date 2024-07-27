@@ -25,6 +25,10 @@ use sys::{ffi_methods, GodotFfi};
 /// | 3D        | [`Aabb`]        |              |
 ///
 /// [`Aabb`]: crate::builtin::Aabb
+///
+/// # Godot docs
+///
+/// [`Rect2i` (stable)](https://docs.godotengine.org/en/stable/classes/class_rect2i.html)
 #[derive(Default, Copy, Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

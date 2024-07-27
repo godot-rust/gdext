@@ -26,6 +26,10 @@ use sys::{ffi_methods, static_assert, static_assert_eq_size_align, GodotFfi};
 ///
 /// [servers]: https://docs.godotengine.org/en/stable/tutorials/optimization/using_servers.html
 /// [docs]: https://docs.godotengine.org/en/stable/classes/class_rid.html
+///
+/// # Godot docs
+///
+/// [`RID` (stable)](https://docs.godotengine.org/en/stable/classes/class_rid.html)
 
 // Using normal Rust repr to take advantage of the nullable pointer optimization. As this enum is
 // eligible for it, it is also guaranteed to have it. Meaning the layout of this type is identical to `u64`.
