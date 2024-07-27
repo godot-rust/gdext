@@ -20,6 +20,14 @@ use super::{GString, StringName};
 ///
 /// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and `"hello, world!\0 ignored by Godot"`
 /// will be treated as the same string if converted to a `NodePath`.
+///
+/// # All string types
+///
+/// | Intended use case | String type                                |
+/// |-------------------|--------------------------------------------|
+/// | General purpose   | [`GString`][crate::builtin::GString]       |
+/// | Interned names    | [`StringName`][crate::builtin::StringName] |
+/// | Scene-node paths  | **`NodePath`**                             |
 pub struct NodePath {
     opaque: sys::types::OpaqueNodePath,
 }

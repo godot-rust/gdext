@@ -73,6 +73,10 @@ use std::{fmt, ptr};
 /// # Thread safety
 ///
 /// The same principles apply as for [`VariantArray`]. Consult its documentation for details.
+///
+/// # Godot docs
+///
+/// [`Dictionary` (stable)](https://docs.godotengine.org/en/stable/classes/class_dictionary.html)
 pub struct Dictionary {
     opaque: OpaqueDictionary,
 }

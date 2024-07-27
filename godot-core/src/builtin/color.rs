@@ -20,6 +20,10 @@ use sys::{ffi_methods, GodotFfi};
 /// values outside this range are explicitly allowed for e.g. High Dynamic Range (HDR).
 ///
 /// To access its [**HSVA**](ColorHsv) representation, use [`Color::to_hsv`].
+///
+/// # Godot docs
+///
+/// [`Color` (stable)](https://docs.godotengine.org/en/stable/classes/class_color.html)
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

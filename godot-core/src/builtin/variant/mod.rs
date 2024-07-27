@@ -21,6 +21,10 @@ mod impls;
 /// value.  
 ///
 /// See also [Godot documentation for `Variant`](https://docs.godotengine.org/en/stable/classes/class_variant.html).
+///
+/// # Godot docs
+///
+/// [`Variant` (stable)](https://docs.godotengine.org/en/stable/classes/class_variant.html)
 // We rely on the layout of `Variant` being the same as Godot's layout in `borrow_slice` and `borrow_slice_mut`.
 #[repr(transparent)]
 pub struct Variant {

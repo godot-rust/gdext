@@ -22,7 +22,27 @@ use std::fmt;
 /// is always 64-bit. The engine can be compiled with the option `precision=double` to use 64-bit
 /// vectors; use the gdext library with the `double-precision` feature in that case.
 ///
-/// See [`Vector4i`] for its integer counterpart.
+/// ### Navigation to `impl` blocks within this page
+///
+/// - [Constants](#constants)
+/// - [Constructors and general vector functions](#constructors-and-general-vector-functions)
+/// - [Specialized `Vector4` functions](#specialized-vector4-functions)
+/// - [Float-specific functions](#float-specific-functions)
+/// - [4D functions](#4d-functions)
+/// - [3D and 4D functions](#3d-and-4d-functions)
+/// - [Trait impls + operators](#trait-implementations)
+///
+/// # All vector types
+///
+/// | Dimension | Floating-point                       | Integer                                |
+/// |-----------|--------------------------------------|----------------------------------------|
+/// | 2D        | [`Vector2`][crate::builtin::Vector2] | [`Vector2i`][crate::builtin::Vector2i] |
+/// | 3D        | [`Vector3`][crate::builtin::Vector3] | [`Vector3i`][crate::builtin::Vector3i] |
+/// | 4D        | **`Vector4`**                        | [`Vector4i`][crate::builtin::Vector4i] |
+///
+/// # Godot docs
+///
+/// [`Vector4` (stable)](https://docs.godotengine.org/en/stable/classes/class_vector4.html)
 #[derive(Default, Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]
@@ -40,16 +60,15 @@ pub struct Vector4 {
     pub w: real,
 }
 
-impl_vector_operators!(Vector4, real, (x, y, z, w));
-
-impl_vector_consts!(Vector4, real);
-impl_float_vector_consts!(Vector4);
+/// # Constants
+impl Vector4 {
+    impl_vector_consts!(real);
+    impl_float_vector_consts!();
+}
 
 impl_vector_fns!(Vector4, RVec4, real, (x, y, z, w));
-impl_float_vector_fns!(Vector4, (x, y, z, w));
-impl_vector4x_fns!(Vector4, real);
-impl_vector3_vector4_fns!(Vector4, (x, y, z, w));
 
+/// # Specialized `Vector4` functions
 impl Vector4 {
     /// Constructs a new `Vector4` from a [`Vector4i`][crate::builtin::Vector4i].
     pub const fn from_vector4i(v: Vector4i) -> Self {
@@ -67,6 +86,12 @@ impl Vector4 {
         inner::InnerVector4::from_outer(self)
     }
 }
+
+impl_float_vector_fns!(Vector4, (x, y, z, w));
+impl_vector4x_fns!(Vector4, real);
+impl_vector3_vector4_fns!(Vector4, (x, y, z, w));
+
+impl_vector_operators!(Vector4, real, (x, y, z, w));
 
 /// Formats the vector like Godot: `(x, y, z, w)`.
 impl fmt::Display for Vector4 {

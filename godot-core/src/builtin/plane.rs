@@ -22,6 +22,10 @@ use std::ops::Neg;
 /// Note: almost all methods on `Plane` require that the `normal` vector have
 /// unit length and will panic if this invariant is violated. This is not separately
 /// annotated for each method.
+///
+/// # Godot docs
+///
+/// [Plane (stable)](https://docs.godotengine.org/en/stable/classes/class_plane.html)
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[repr(C)]

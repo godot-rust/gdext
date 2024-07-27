@@ -44,14 +44,18 @@ use crate::builtin::{inner, NodePath, StringName};
 /// * you have a large number of method calls per string instance (which are more expensive due to indirectly calling into Godot)
 /// * you need UTF-8 encoding (`GString`'s encoding is platform-dependent and unspecified)
 ///
-/// # Other string types
-///
-/// Godot also provides two separate string classes with slightly different semantics: [`StringName`] and [`NodePath`].
-///
 /// # Null bytes
 ///
 /// Note that Godot ignores any bytes after a null-byte. This means that for instance `"hello, world!"` and `"hello, world!\0 ignored by Godot"`
 /// will be treated as the same string if converted to a `GString`.
+///
+/// # All string types
+///
+/// | Intended use case | String type                                |
+/// |-------------------|--------------------------------------------|
+/// | General purpose   | **`GString`**                              |
+/// | Interned names    | [`StringName`][crate::builtin::StringName] |
+/// | Scene-node paths  | [`NodePath`][crate::builtin::NodePath]     |
 #[doc(alias = "String")]
 // #[repr] is needed on GString itself rather than the opaque field, because PackedStringArray::as_slice() relies on a packed representation.
 #[repr(transparent)]

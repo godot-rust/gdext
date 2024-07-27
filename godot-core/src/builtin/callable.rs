@@ -25,6 +25,10 @@ use sys::{ffi_methods, GodotFfi};
 /// Currently, it is impossible to use `bind` and `unbind` in GDExtension, see [godot-cpp#802].
 ///
 /// [godot-cpp#802]: https://github.com/godotengine/godot-cpp/issues/802
+///
+/// # Godot docs
+///
+/// [`Callable` (stable)](https://docs.godotengine.org/en/stable/classes/class_callable.html)
 pub struct Callable {
     opaque: sys::types::OpaqueCallable,
 }
