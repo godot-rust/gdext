@@ -17,7 +17,7 @@ use std::path::Path;
 // Manual input.
 #[rustfmt::skip]
 pub const GODOT_LATEST_PATCH_VERSIONS: &[&str] = &[
-    "4.0.4",
+    // 4.0.x no longer supported.
     "4.1.4",
     "4.2.2",
     "4.3.0",
