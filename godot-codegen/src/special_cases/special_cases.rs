@@ -100,14 +100,6 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
         }
     }
 
-    // ThemeDB was previously loaded lazily
-    // in 4.2 it loads at the Scene level
-    // see: https://github.com/godotengine/godot/pull/81305
-    #[cfg(before_api = "4.2")]
-    if godot_ty == "ThemeDB" {
-        return true;
-    }
-
     match godot_ty {
         // Hardcoded cases that are not accessible.
         // Only on Android.
@@ -135,9 +127,14 @@ pub fn is_godot_type_deleted(godot_ty: &str) -> bool {
         | "MovieWriterMJPEG"
         | "MovieWriterPNGWAV"
         | "ResourceFormatImporterSaver"
+        => true,
+        // Previously loaded lazily; in 4.2 it loads at the Scene level. See: https://github.com/godotengine/godot/pull/81305
+        | "ThemeDB"
+        => cfg!(before_api = "4.2"),
+        // reintroduced in 4.3. See: https://github.com/godotengine/godot/pull/80214
         | "UniformSetCacheRD"
-
-        => true, _ => false
+        => cfg!(before_api = "4.3"),
+        _ => false
     }
 }
 
