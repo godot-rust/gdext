@@ -266,7 +266,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
             return match ty {
                 RustTy::BuiltinIdent(ident) if ident == "Variant" => quote! { Variant::nil() },
                 RustTy::EngineClass { .. } => {
-                    quote! { unimplemented!("see https://github.com/godot-rust/gdext/issues/156") }
+                    quote! { ObjectArg::null() }
                 }
                 _ => panic!("null not representable in target type {ty:?}"),
             }
