@@ -7,7 +7,7 @@
 
 #![allow(unused, dead_code)] // FIXME
 
-use crate::engine;
+use crate::classes;
 use crate::obj::{DynGdMut, Gd, GodotClass};
 
 // struct Dyn<V> {
@@ -21,7 +21,7 @@ where
     obj: Gd<T>,
     //rc: rc::Weak<B>
     // dyn_ptr: *mut B,
-    erased_downcast: Box<dyn Fn(&mut Gd<engine::Object>) -> DynGdMut<T, D>>,
+    erased_downcast: Box<dyn Fn(&mut Gd<classes::Object>) -> DynGdMut<T, D>>,
 }
 
 impl<T, D> DynGd<T, D>
@@ -31,7 +31,7 @@ where
 {
     pub fn new(
         obj: Gd<T>,
-        erased_downcast: impl Fn(&mut Gd<engine::Object>) -> DynGdMut<T, D> ,
+        erased_downcast: impl Fn(&mut Gd<classes::Object>) -> DynGdMut<T, D>,
     ) -> Self {
         // Self {
         //     obj,
@@ -42,35 +42,8 @@ where
 
     pub fn dbind_mut(&mut self) -> DynGdMut<T, D> {
         // TODO performance+safety
-        let object: &mut Gd<engine::Object> = unsafe { std::mem::transmute(&mut self.obj) };
+        let object: &mut Gd<classes::Object> = unsafe { std::mem::transmute(&mut self.obj) };
 
         (self.erased_downcast)(object)
     }
-}
-
-// fn make_dyn<T: GodotClass, D: ?Sized>(guard: DynGdMut<'_, T, D>) {
-//
-// }
-
-#[macro_export]
-macro_rules! dyn_gd {
-    ($obj:expr) => {{
-        ...
-    }};
-
-    ($Trait:ty; $obj:expr) => {{
-        use $crate::obj::Gd;
-        use $crate::engine::Object;
-        let gd = Gd::from_object($obj);
-
-        let downcast = |obj: Gd<Object>| {
-            let concrete: Gd<_> = obj.cast();
-            if false {
-                std::mem::swap(&mut $obj, &mut concrete);
-            }
-            DynGdMut::from_guard(concrete.bind_mut())
-        };
-
-        make_dyn(downcast)
-    }};
 }

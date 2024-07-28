@@ -10,7 +10,7 @@ struct Thing {}
 
 impl Health for Thing {}
 
-fn guard<'a, T>(gd: &'a mut Gd<T>, /*_type: TypeCapsule<T>*/) -> GdMut<'a, T>
+fn guard<'a, T>(gd: &'a mut Gd<T> /*_type: TypeCapsule<T>*/) -> GdMut<'a, T>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclUser>,
 {

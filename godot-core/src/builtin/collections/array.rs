@@ -909,12 +909,12 @@ impl<T: ArrayElement> Var for Array<T> {
 
     #[cfg(all(since_api = "4.2", before_api = "4.3"))]
     fn property_hint() -> PropertyHintInfo {
-        if T::Ffi::variant_type() == VariantType::Nil {
+        if T::Ffi::variant_type() == VariantType::NIL {
             return PropertyHintInfo::with_hint_none("");
         }
 
         PropertyHintInfo {
-            hint: crate::engine::global::PropertyHint::ARRAY_TYPE,
+            hint: crate::global::PropertyHint::ARRAY_TYPE,
             hint_string: T::godot_type_name().into(),
         }
     }
