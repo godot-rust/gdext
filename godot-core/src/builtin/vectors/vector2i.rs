@@ -10,7 +10,7 @@ use std::cmp::Ordering;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{GlamConv, GlamType};
-use crate::builtin::{inner, real, RVec2, Vector2, Vector2Axis};
+use crate::builtin::{inner, real, RVec2, Vector2, Vector2Axis, Vector3i};
 
 use std::fmt;
 
@@ -91,7 +91,7 @@ impl Vector2i {
 }
 
 impl_vector_fns!(Vector2i, glam::IVec2, i32, (x, y));
-impl_vector2x_fns!(Vector2i, i32);
+impl_vector2x_fns!(Vector2i, Vector3i, i32);
 
 impl_vector_operators!(Vector2i, i32, (x, y));
 

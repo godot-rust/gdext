@@ -12,7 +12,7 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{GlamConv, GlamType};
-use crate::builtin::{inner, real, RVec3, Vector3, Vector3Axis};
+use crate::builtin::{inner, real, RVec3, Vector2i, Vector3, Vector3Axis};
 
 /// Vector used for 3D math using integer coordinates.
 ///
@@ -96,7 +96,7 @@ impl Vector3i {
     }
 }
 
-impl_vector3x_fns!(Vector3i, i32);
+impl_vector3x_fns!(Vector3i, Vector2i, i32);
 
 impl_vector_operators!(Vector3i, i32, (x, y, z));
 

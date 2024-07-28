@@ -11,7 +11,7 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector2Axis;
-use crate::builtin::{inner, real, RAffine2, RVec2, Vector2i};
+use crate::builtin::{inner, real, RAffine2, RVec2, Vector2i, Vector3};
 
 use std::fmt;
 
@@ -165,7 +165,7 @@ impl Vector2 {
 }
 
 impl_float_vector_fns!(Vector2, (x, y));
-impl_vector2x_fns!(Vector2, real);
+impl_vector2x_fns!(Vector2, Vector3, real);
 impl_vector2_vector3_fns!(Vector2, (x, y));
 
 impl_vector_operators!(Vector2, real, (x, y));
