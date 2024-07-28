@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+#![allow(unused, dead_code)] // FIXME
+
 #[cfg(not(feature = "experimental-threads"))]
 use godot_cell::panicking::{InaccessibleGuard, MutGuard, RefGuard};
 
@@ -91,14 +93,14 @@ impl<T: GodotClass> Drop for GdMut<'_, T> {
 ///
 /// See [`DynGd::dbind_mut`][crate::obj::DynGd::dbind_mut] for usage.
 #[derive(Debug)]
-pub struct GdDynMut<'a, T: GodotClass, D: ?Sized> {
+pub struct DynGdMut<'a, T: GodotClass, D: ?Sized> {
     guard: MutGuard<'a, T>,
     cached_ptr: *mut D,
 }
 
-impl<'a, T: GodotClass, D: ?Sized> GdDynMut<'a, T, D> {
-    pub(crate) fn from_guard(
-        guard: MutGuard<'a, T>,
+impl<'a, T: GodotClass, D: ?Sized> DynGdMut<'a, T, D> {
+    pub fn from_guard(
+        mut guard: MutGuard<'a, T>,
         dynamic_caster: fn(&mut T) -> &mut D,
     ) -> Self {
         let obj = &mut *guard;
@@ -111,23 +113,23 @@ impl<'a, T: GodotClass, D: ?Sized> GdDynMut<'a, T, D> {
     }
 }
 
-impl<T: GodotClass, D: ?Sized> Deref for GdDynMut<'_, T, D> {
+impl<T: GodotClass, D: ?Sized> Deref for DynGdMut<'_, T, D> {
     type Target = D;
 
     fn deref(&self) -> &D {
         // SAFETY: pointer refers to object that is pinned while guard is alive.
-        unsafe { self.cached_ptr.read() }
+        unsafe { &*self.cached_ptr }
     }
 }
 
-impl<T: GodotClass, D: ?Sized> DerefMut for GdDynMut<'_, T, D> {
+impl<T: GodotClass, D: ?Sized> DerefMut for DynGdMut<'_, T, D> {
     fn deref_mut(&mut self) -> &mut D {
         // SAFETY: pointer refers to object that is pinned while guard is alive.
-        unsafe { self.cached_ptr.read() }
+        unsafe { &mut *self.cached_ptr }
     }
 }
 
-impl<T: GodotClass, D: ?Sized> Drop for GdDynMut<'_, T, D> {
+impl<T: GodotClass, D: ?Sized> Drop for DynGdMut<'_, T, D> {
     fn drop(&mut self) {
         out!("GdMut drop: {:?}", std::any::type_name::<D>());
     }

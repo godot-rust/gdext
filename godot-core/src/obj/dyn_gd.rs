@@ -5,10 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::rc;
-use std::rc::Rc;
+#![allow(unused, dead_code)] // FIXME
+
 use crate::engine;
-use crate::obj::{Gd, GdDynMut};
+use crate::obj::{Gd, DynGdMut, GodotClass};
 
 // struct Dyn<V> {
 // }
@@ -21,7 +21,7 @@ where
     obj: Gd<T>,
     //rc: rc::Weak<B>
     // dyn_ptr: *mut B,
-    erased_downcast: fn(Gd<engine::Object>) -> GdDynMut<T, D>,
+    erased_downcast: fn(&Gd<engine::Object>) -> DynGdMut<T, D>,
 }
 
 impl<T, D> DynGd<T, D>
@@ -29,33 +29,35 @@ where
     T: GodotClass,
     D: ?Sized,
 {
-    fn dbind_mut(&mut self) -> GdDynMut<T, D> {
-
+    fn dbind_mut(&mut self) -> DynGdMut<T, D> {
+        todo!()
     }
 
 }
 
-fn make_fn<T: GodotClass, D: ?Sized>() -> fn(&mut T) -> &mut D {
-    todo!()
-}
+// fn make_dyn<T: GodotClass, D: ?Sized>(guard: DynGdMut<'_, T, D>) {
+//
+// }
 
-macro_rules! downcast {
-    () => {};
-}
-
+#[macro_export]
 macro_rules! dyn_gd {
     ($obj:expr) => {{
         ...
     }};
 
     ($Trait:ty; $obj:expr) => {{
-        use ::godot::obj::Gd;
-        use ::godot::engine::Object;
+        use $crate::obj::Gd;
+        use $crate::engine::Object;
         let gd = Gd::from_object($obj);
 
-        fn downcast<T>(obj: Gd<Object>) -> &$Trait {
-            let concrete: Gd<T> = obj.cast::<T>();
-            concrete.bind()
-        }
+        let downcast = |obj: Gd<Object>| {
+            let concrete: Gd<_> = obj.cast();
+            if false {
+                std::mem::swap(&mut $obj, &mut concrete);
+            }
+            DynGdMut::from_guard(concrete.bind_mut())
+        };
+
+        make_dyn(downcast)
     }};
 }
