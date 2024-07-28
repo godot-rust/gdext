@@ -71,18 +71,12 @@ impl_vector_fns!(Vector4i, glam::IVec4, i32, (x, y, z, w));
 
 /// # Specialized `Vector4i` functions
 impl Vector4i {
-    inline_impl_integer_vector_fns!(x, y, z, w);
+    inline_impl_integer_vector_fns!(Vector4, x, y, z, w);
 
-    /// Constructs a new `Vector4i` from a [`Vector4`]. The floating point coordinates will be
-    /// truncated.
+    #[deprecated = "Moved to `Vector4::cast_int()`"]
     #[inline]
     pub const fn from_vector4(v: Vector4) -> Self {
-        Self {
-            x: v.x as i32,
-            y: v.y as i32,
-            z: v.z as i32,
-            w: v.w as i32,
-        }
+        v.cast_int()
     }
 
     /// Converts `self` to the corresponding [`real`] `glam` type.

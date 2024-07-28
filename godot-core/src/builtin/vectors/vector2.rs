@@ -44,6 +44,8 @@ use std::fmt;
 /// | 3D        | [`Vector3`][crate::builtin::Vector3] | [`Vector3i`][crate::builtin::Vector3i] |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
 ///
+/// <br>You can convert to 3D vectors using [`to_3d(z)`][Self::to_3d], and to `Vector2i` using [`cast_int()`][Self::cast_int].
+///
 /// # Godot docs
 ///
 /// [`Vector2` (stable)](https://docs.godotengine.org/en/stable/classes/class_vector2.html)
@@ -69,13 +71,10 @@ impl_vector_fns!(Vector2, RVec2, real, (x, y));
 
 /// # Specialized `Vector2` functions
 impl Vector2 {
-    /// Constructs a new `Vector2` from a [`Vector2i`].
+    #[deprecated = "Moved to `Vector2i::cast_float()`"]
     #[inline]
     pub const fn from_vector2i(v: Vector2i) -> Self {
-        Self {
-            x: v.x as real,
-            y: v.y as real,
-        }
+        v.cast_float()
     }
 
     /// Returns this vector's angle with respect to the positive X axis, or `(1.0, 0.0)` vector, in radians.
@@ -164,7 +163,7 @@ impl Vector2 {
     }
 }
 
-impl_float_vector_fns!(Vector2, (x, y));
+impl_float_vector_fns!(Vector2, Vector2i, (x, y));
 impl_vector2x_fns!(Vector2, Vector3, real);
 impl_vector2_vector3_fns!(Vector2, (x, y));
 

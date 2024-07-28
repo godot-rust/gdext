@@ -532,6 +532,8 @@ pub(super) fn snap_one(mut value: i32, step: i32) -> i32 {
 /// Implements functions that are present only on integer vectors.
 macro_rules! inline_impl_integer_vector_fns {
     (
+        // Name of the float-equivalent vector type.
+        $VectorFloat:ty,
         // Names of the components, for example `x, y`.
         $($comp:ident),*
     ) => {
@@ -542,6 +544,7 @@ macro_rules! inline_impl_integer_vector_fns {
         /// On under- or overflow:
         /// - If any component of `self` is [`i32::MIN`] while the same component on `step` is `-1`.
         /// - If any component of `self` plus half of the same component of `step` is not in range on [`i32`].
+        #[inline]
         pub fn snapped(self, step: Self) -> Self {
             use crate::builtin::vectors::vector_macros::snap_one;
 
@@ -551,6 +554,12 @@ macro_rules! inline_impl_integer_vector_fns {
                 ),*
             )
         }
+
+        /// Converts to a vector with floating-point [`real`](type.real.html) components, using `as` casts.
+        #[inline]
+        pub const fn cast_float(self) -> $VectorFloat {
+            <$VectorFloat>::new( $(self.$comp as real),* )
+        }
     };
 }
 
@@ -558,6 +567,8 @@ macro_rules! impl_float_vector_fns {
     (
         // Name of the vector type.
         $Vector:ty,
+        // Name of the integer-equivalent vector type.
+        $VectorInt:ty,
         // Names of the components, with parentheses, for example `(x, y)`.
         ($($comp:ident),*)
     ) => {
@@ -565,6 +576,17 @@ macro_rules! impl_float_vector_fns {
         ///
         /// The following methods are only available on floating-point vectors.
         impl $Vector {
+            /// Converts to a vector with integer components, using `as` casts.
+            pub const fn cast_int(self) -> $VectorInt {
+                <$VectorInt>::new( $(self.$comp as i32),* )
+            }
+
+            /// Returns a new vector with all components rounded down (towards negative infinity).
+            #[inline]
+            pub fn floor(self) -> Self {
+                Self::from_glam(self.to_glam().floor())
+            }
+
             /// Returns a new vector with all components rounded up (towards positive infinity).
             #[inline]
             pub fn ceil(self) -> Self {
@@ -647,12 +669,6 @@ macro_rules! impl_float_vector_fns {
             #[inline]
             pub fn dot(self, with: Self) -> real {
                 self.to_glam().dot(with.to_glam())
-            }
-
-            /// Returns a new vector with all components rounded down (towards negative infinity).
-            #[inline]
-            pub fn floor(self) -> Self {
-                Self::from_glam(self.to_glam().floor())
             }
 
             /// Returns true if each component of this vector is finite.

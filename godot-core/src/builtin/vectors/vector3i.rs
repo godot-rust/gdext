@@ -42,6 +42,8 @@ use crate::builtin::{inner, real, RVec3, Vector2i, Vector3, Vector3Axis};
 /// | 3D        | [`Vector3`][crate::builtin::Vector3] | **`Vector3i`**                         |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
 ///
+/// <br>You can convert to 2D vectors using [`to_2d()`][Self::to_2d], and to `Vector3` using [`cast_float()`][Self::cast_float].
+///
 /// # Godot docs
 ///
 /// [`Vector3i` (stable)](https://docs.godotengine.org/en/stable/classes/class_vector3i.html)
@@ -70,17 +72,13 @@ impl_vector_fns!(Vector3i, glam::IVec3, i32, (x, y, z));
 
 /// # Specialized `Vector3i` functions
 impl Vector3i {
-    /// Constructs a new `Vector3i` from a [`Vector3`]. The floating point coordinates will be truncated.
+    #[deprecated = "Moved to `Vector3::cast_int()`"]
     #[inline]
     pub const fn from_vector3(v: Vector3) -> Self {
-        Self {
-            x: v.x as i32,
-            y: v.y as i32,
-            z: v.z as i32,
-        }
+        v.cast_int()
     }
 
-    inline_impl_integer_vector_fns!(x, y, z);
+    inline_impl_integer_vector_fns!(Vector3, x, y, z);
 
     /// Converts `self` to the corresponding [`real`] `glam` type.
     #[doc(hidden)]

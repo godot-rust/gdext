@@ -45,6 +45,8 @@ use std::fmt;
 /// | 3D        | **`Vector3`**                        | [`Vector3i`][crate::builtin::Vector3i] |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
 ///
+/// <br>You can convert to 2D vectors using [`to_2d()`][Self::to_2d], and to `Vector3i` using [`cast_int()`][Self::cast_int].
+///
 /// # Godot docs
 ///
 /// [`Vector3` (stable)](https://docs.godotengine.org/en/stable/classes/class_vector3.html)
@@ -67,12 +69,7 @@ impl Vector3 {
     impl_vector_consts!(real);
     impl_float_vector_consts!();
     impl_vector3x_consts!(real);
-}
 
-impl_vector_fns!(Vector3, RVec3, real, (x, y, z));
-
-/// # Specialized `Vector3` functions
-impl Vector3 {
     /// Unit vector pointing towards the left side of imported 3D assets.
     pub const MODEL_LEFT: Self = Self::new(1.0, 0.0, 0.0);
 
@@ -90,15 +87,16 @@ impl Vector3 {
 
     /// Unit vector pointing towards the rear side (back) of imported 3D assets.
     pub const MODEL_REAR: Self = Self::new(0.0, 0.0, -1.0);
+}
 
-    /// Constructs a new `Vector3` from a [`Vector3i`].
+impl_vector_fns!(Vector3, RVec3, real, (x, y, z));
+
+/// # Specialized `Vector3` functions
+impl Vector3 {
+    #[deprecated = "Moved to `Vector3i::cast_float()`"]
     #[inline]
     pub const fn from_vector3i(v: Vector3i) -> Self {
-        Self {
-            x: v.x as real,
-            y: v.y as real,
-            z: v.z as real,
-        }
+        v.cast_float()
     }
 
     #[doc(hidden)]
@@ -231,7 +229,7 @@ impl Vector3 {
     }
 }
 
-impl_float_vector_fns!(Vector3, (x, y, z));
+impl_float_vector_fns!(Vector3, Vector3i, (x, y, z));
 impl_vector3x_fns!(Vector3, Vector2, real);
 impl_vector2_vector3_fns!(Vector3, (x, y, z));
 impl_vector3_vector4_fns!(Vector3, (x, y, z));
