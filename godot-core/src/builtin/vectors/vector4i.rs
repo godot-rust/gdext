@@ -18,10 +18,12 @@ use std::fmt;
 ///
 /// 4-element structure that can be used to represent 4D grid coordinates or sets of integers.
 ///
-/// It uses integer coordinates and is therefore preferable to [`Vector4`] when exact precision is
+/// `Vector4i` uses integer coordinates and is therefore preferable to [`Vector4`] when exact precision is
 /// required. Note that the values are limited to 32 bits, and unlike `Vector4` this cannot be
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`][crate::builtin::PackedInt64Array]
 /// if 64-bit values are needed.
+///
+#[doc = shared_vector_docs!()]
 ///
 /// ### Navigation to `impl` blocks within this page
 ///

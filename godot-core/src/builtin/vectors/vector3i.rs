@@ -19,10 +19,12 @@ use crate::builtin::{inner, real, RVec3, Vector3, Vector3Axis};
 /// 3-element structure that can be used to represent discrete positions or directions in 3D space,
 /// as well as any other triple of numeric values.
 ///
-/// It uses integer coordinates and is therefore preferable to [`Vector3`] when exact precision is
+/// `Vector3i` uses integer coordinates and is therefore preferable to [`Vector3`] when exact precision is
 /// required. Note that the values are limited to 32 bits, and unlike `Vector3` this cannot be
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`][crate::builtin::PackedInt64Array]
 /// if 64-bit values are needed.
+///
+#[doc = shared_vector_docs!()]
 ///
 /// ### Navigation to `impl` blocks within this page
 ///

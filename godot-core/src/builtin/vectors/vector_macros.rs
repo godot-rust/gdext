@@ -330,6 +330,37 @@ macro_rules! impl_vector3x_consts {
     };
 }
 
+macro_rules! shared_vector_docs {
+    () => {
+        "Conversions are provided via various `from_*` and `to_*` functions, not via the `From` trait. This encourages `new()` as the main \
+         way to construct vectors, is explicit about the conversion taking place, needs no type inference, and works in `const` contexts."
+    };
+}
+
+macro_rules! tuple_type {
+    ($Scalar:ty; $x:ident, $y:ident) => {
+        ($Scalar, $Scalar)
+    };
+    ($Scalar:ty; $x:ident, $y:ident, $z:ident) => {
+        ($Scalar, $Scalar, $Scalar)
+    };
+    ($Scalar:ty; $x:ident, $y:ident, $z:ident, $w:ident) => {
+        ($Scalar, $Scalar, $Scalar, $Scalar)
+    };
+}
+
+macro_rules! array_type {
+    ($Scalar:ty; $x:ident, $y:ident) => {
+        [$Scalar; 2]
+    };
+    ($Scalar:ty; $x:ident, $y:ident, $z:ident) => {
+        [$Scalar; 3]
+    };
+    ($Scalar:ty; $x:ident, $y:ident, $z:ident, $w:ident) => {
+        [$Scalar; 4]
+    };
+}
+
 /// Implements functions that are present on floating-point and integer vectors.
 macro_rules! impl_vector_fns {
     (
@@ -345,18 +376,46 @@ macro_rules! impl_vector_fns {
         /// # Constructors and general vector functions
         /// The following associated functions and methods are available on all vectors (2D, 3D, 4D; float and int).
         impl $Vector {
-            /// Returns a vector with the given components.
+            /// Creates a vector with the given components.
+            #[inline]
             pub const fn new($($comp: $Scalar),*) -> Self {
                 Self {
                     $( $comp ),*
                 }
             }
 
-            /// Returns a new vector with all components set to `v`.
+            /// Creates a vector with all components set to `v`.
+            #[inline]
             pub const fn splat(v: $Scalar) -> Self {
                 Self {
                     $( $comp: v ),*
                 }
+            }
+
+            /// Creates a vector from the given tuple.
+            #[inline]
+            pub const fn from_tuple(tuple: tuple_type!($Scalar; $($comp),*)) -> Self {
+                let ( $($comp,)* ) = tuple;
+                Self::new( $($comp),* )
+            }
+
+            /// Creates a vector from the given array.
+            #[inline]
+            pub const fn from_array(array: array_type!($Scalar; $($comp),*)) -> Self {
+                let [ $($comp,)* ] = array;
+                Self::new( $($comp),* )
+            }
+
+            /// Returns a tuple with the components of the vector.
+            #[inline]
+            pub const fn to_tuple(&self) -> tuple_type!($Scalar; $($comp),*) {
+                ( $(self.$comp,)* )
+            }
+
+            /// Returns an array with the components of the vector.
+            #[inline]
+            pub const fn to_array(&self) -> array_type!($Scalar; $($comp),*) {
+                [ $(self.$comp,)* ]
             }
 
             /// Converts the corresponding `glam` type to `Self`.

@@ -24,6 +24,8 @@ use std::fmt;
 /// is always 64-bit. The engine can be compiled with the option `precision=double` to use 64-bit
 /// vectors instead; use the gdext library with the `double-precision` feature in that case.
 ///
+#[doc = shared_vector_docs!()]
+///
 /// ### Navigation to `impl` blocks within this page
 ///
 /// - [Constants](#constants)
