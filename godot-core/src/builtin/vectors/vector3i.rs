@@ -12,17 +12,19 @@ use godot_ffi as sys;
 use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{GlamConv, GlamType};
-use crate::builtin::{inner, real, RVec3, Vector3, Vector3Axis};
+use crate::builtin::{inner, real, RVec3, Vector2i, Vector3, Vector3Axis};
 
 /// Vector used for 3D math using integer coordinates.
 ///
 /// 3-element structure that can be used to represent discrete positions or directions in 3D space,
 /// as well as any other triple of numeric values.
 ///
-/// It uses integer coordinates and is therefore preferable to [`Vector3`] when exact precision is
+/// `Vector3i` uses integer coordinates and is therefore preferable to [`Vector3`] when exact precision is
 /// required. Note that the values are limited to 32 bits, and unlike `Vector3` this cannot be
 /// configured with an engine build option. Use `i64` or [`PackedInt64Array`][crate::builtin::PackedInt64Array]
 /// if 64-bit values are needed.
+///
+#[doc = shared_vector_docs!()]
 ///
 /// ### Navigation to `impl` blocks within this page
 ///
@@ -39,6 +41,8 @@ use crate::builtin::{inner, real, RVec3, Vector3, Vector3Axis};
 /// | 2D        | [`Vector2`][crate::builtin::Vector2] | [`Vector2i`][crate::builtin::Vector2i] |
 /// | 3D        | [`Vector3`][crate::builtin::Vector3] | **`Vector3i`**                         |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
+///
+/// <br>You can convert to 2D vectors using [`to_2d()`][Self::to_2d], and to `Vector3` using [`cast_float()`][Self::cast_float].
 ///
 /// # Godot docs
 ///
@@ -68,17 +72,13 @@ impl_vector_fns!(Vector3i, glam::IVec3, i32, (x, y, z));
 
 /// # Specialized `Vector3i` functions
 impl Vector3i {
-    /// Constructs a new `Vector3i` from a [`Vector3`]. The floating point coordinates will be truncated.
+    #[deprecated = "Moved to `Vector3::cast_int()`"]
     #[inline]
     pub const fn from_vector3(v: Vector3) -> Self {
-        Self {
-            x: v.x as i32,
-            y: v.y as i32,
-            z: v.z as i32,
-        }
+        v.cast_int()
     }
 
-    inline_impl_integer_vector_fns!(x, y, z);
+    inline_impl_integer_vector_fns!(Vector3, x, y, z);
 
     /// Converts `self` to the corresponding [`real`] `glam` type.
     #[doc(hidden)]
@@ -94,7 +94,7 @@ impl Vector3i {
     }
 }
 
-impl_vector3x_fns!(Vector3i, i32);
+impl_vector3x_fns!(Vector3i, Vector2i, i32);
 
 impl_vector_operators!(Vector3i, i32, (x, y, z));
 

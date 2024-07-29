@@ -22,6 +22,8 @@ use std::fmt;
 /// is always 64-bit. The engine can be compiled with the option `precision=double` to use 64-bit
 /// vectors; use the gdext library with the `double-precision` feature in that case.
 ///
+#[doc = shared_vector_docs!()]
+///
 /// ### Navigation to `impl` blocks within this page
 ///
 /// - [Constants](#constants)
@@ -70,14 +72,9 @@ impl_vector_fns!(Vector4, RVec4, real, (x, y, z, w));
 
 /// # Specialized `Vector4` functions
 impl Vector4 {
-    /// Constructs a new `Vector4` from a [`Vector4i`][crate::builtin::Vector4i].
+    #[deprecated = "Moved to `Vector4i::cast_float()`"]
     pub const fn from_vector4i(v: Vector4i) -> Self {
-        Self {
-            x: v.x as real,
-            y: v.y as real,
-            z: v.z as real,
-            w: v.w as real,
-        }
+        v.cast_float()
     }
 
     #[doc(hidden)]
@@ -87,7 +84,7 @@ impl Vector4 {
     }
 }
 
-impl_float_vector_fns!(Vector4, (x, y, z, w));
+impl_float_vector_fns!(Vector4, Vector4i, (x, y, z, w));
 impl_vector4x_fns!(Vector4, real);
 impl_vector3_vector4_fns!(Vector4, (x, y, z, w));
 

@@ -330,6 +330,37 @@ macro_rules! impl_vector3x_consts {
     };
 }
 
+macro_rules! shared_vector_docs {
+    () => {
+        "Conversions are provided via various `from_*` and `to_*` functions, not via the `From` trait. This encourages `new()` as the main \
+         way to construct vectors, is explicit about the conversion taking place, needs no type inference, and works in `const` contexts."
+    };
+}
+
+macro_rules! tuple_type {
+    ($Scalar:ty; $x:ident, $y:ident) => {
+        ($Scalar, $Scalar)
+    };
+    ($Scalar:ty; $x:ident, $y:ident, $z:ident) => {
+        ($Scalar, $Scalar, $Scalar)
+    };
+    ($Scalar:ty; $x:ident, $y:ident, $z:ident, $w:ident) => {
+        ($Scalar, $Scalar, $Scalar, $Scalar)
+    };
+}
+
+macro_rules! array_type {
+    ($Scalar:ty; $x:ident, $y:ident) => {
+        [$Scalar; 2]
+    };
+    ($Scalar:ty; $x:ident, $y:ident, $z:ident) => {
+        [$Scalar; 3]
+    };
+    ($Scalar:ty; $x:ident, $y:ident, $z:ident, $w:ident) => {
+        [$Scalar; 4]
+    };
+}
+
 /// Implements functions that are present on floating-point and integer vectors.
 macro_rules! impl_vector_fns {
     (
@@ -345,18 +376,46 @@ macro_rules! impl_vector_fns {
         /// # Constructors and general vector functions
         /// The following associated functions and methods are available on all vectors (2D, 3D, 4D; float and int).
         impl $Vector {
-            /// Returns a vector with the given components.
+            /// Creates a vector with the given components.
+            #[inline]
             pub const fn new($($comp: $Scalar),*) -> Self {
                 Self {
                     $( $comp ),*
                 }
             }
 
-            /// Returns a new vector with all components set to `v`.
+            /// Creates a vector with all components set to `v`.
+            #[inline]
             pub const fn splat(v: $Scalar) -> Self {
                 Self {
                     $( $comp: v ),*
                 }
+            }
+
+            /// Creates a vector from the given tuple.
+            #[inline]
+            pub const fn from_tuple(tuple: tuple_type!($Scalar; $($comp),*)) -> Self {
+                let ( $($comp,)* ) = tuple;
+                Self::new( $($comp),* )
+            }
+
+            /// Creates a vector from the given array.
+            #[inline]
+            pub const fn from_array(array: array_type!($Scalar; $($comp),*)) -> Self {
+                let [ $($comp,)* ] = array;
+                Self::new( $($comp),* )
+            }
+
+            /// Returns a tuple with the components of the vector.
+            #[inline]
+            pub const fn to_tuple(&self) -> tuple_type!($Scalar; $($comp),*) {
+                ( $(self.$comp,)* )
+            }
+
+            /// Returns an array with the components of the vector.
+            #[inline]
+            pub const fn to_array(&self) -> array_type!($Scalar; $($comp),*) {
+                [ $(self.$comp,)* ]
             }
 
             /// Converts the corresponding `glam` type to `Self`.
@@ -473,6 +532,8 @@ pub(super) fn snap_one(mut value: i32, step: i32) -> i32 {
 /// Implements functions that are present only on integer vectors.
 macro_rules! inline_impl_integer_vector_fns {
     (
+        // Name of the float-equivalent vector type.
+        $VectorFloat:ty,
         // Names of the components, for example `x, y`.
         $($comp:ident),*
     ) => {
@@ -483,6 +544,7 @@ macro_rules! inline_impl_integer_vector_fns {
         /// On under- or overflow:
         /// - If any component of `self` is [`i32::MIN`] while the same component on `step` is `-1`.
         /// - If any component of `self` plus half of the same component of `step` is not in range on [`i32`].
+        #[inline]
         pub fn snapped(self, step: Self) -> Self {
             use crate::builtin::vectors::vector_macros::snap_one;
 
@@ -492,6 +554,12 @@ macro_rules! inline_impl_integer_vector_fns {
                 ),*
             )
         }
+
+        /// Converts to a vector with floating-point [`real`](type.real.html) components, using `as` casts.
+        #[inline]
+        pub const fn cast_float(self) -> $VectorFloat {
+            <$VectorFloat>::new( $(self.$comp as real),* )
+        }
     };
 }
 
@@ -499,6 +567,8 @@ macro_rules! impl_float_vector_fns {
     (
         // Name of the vector type.
         $Vector:ty,
+        // Name of the integer-equivalent vector type.
+        $VectorInt:ty,
         // Names of the components, with parentheses, for example `(x, y)`.
         ($($comp:ident),*)
     ) => {
@@ -506,6 +576,17 @@ macro_rules! impl_float_vector_fns {
         ///
         /// The following methods are only available on floating-point vectors.
         impl $Vector {
+            /// Converts to a vector with integer components, using `as` casts.
+            pub const fn cast_int(self) -> $VectorInt {
+                <$VectorInt>::new( $(self.$comp as i32),* )
+            }
+
+            /// Returns a new vector with all components rounded down (towards negative infinity).
+            #[inline]
+            pub fn floor(self) -> Self {
+                Self::from_glam(self.to_glam().floor())
+            }
+
             /// Returns a new vector with all components rounded up (towards positive infinity).
             #[inline]
             pub fn ceil(self) -> Self {
@@ -588,12 +669,6 @@ macro_rules! impl_float_vector_fns {
             #[inline]
             pub fn dot(self, with: Self) -> real {
                 self.to_glam().dot(with.to_glam())
-            }
-
-            /// Returns a new vector with all components rounded down (towards negative infinity).
-            #[inline]
-            pub fn floor(self) -> Self {
-                Self::from_glam(self.to_glam().floor())
             }
 
             /// Returns true if each component of this vector is finite.
@@ -707,12 +782,20 @@ macro_rules! impl_vector2x_fns {
     (
         // Name of the vector type.
         $Vector:ty,
+        // Name of the 3D-equivalent vector type.
+        $Vector3D:ty,
         // Type of target component, for example `real`.
         $Scalar:ty
     ) => {
         /// # 2D functions
         /// The following methods are only available on 2D vectors (for both float and int).
         impl $Vector {
+            /// Increases dimension to 3D, accepting a new value for the Z component.
+            #[inline]
+            pub fn to_3d(self, z: $Scalar) -> $Vector3D {
+                <$Vector3D>::new(self.x, self.y, z)
+            }
+
             /// Returns the aspect ratio of this vector, the ratio of [`Self::x`] to [`Self::y`].
             #[inline]
             pub fn aspect(self) -> real {
@@ -761,12 +844,23 @@ macro_rules! impl_vector3x_fns {
     (
         // Name of the vector type.
         $Vector:ty,
+        // Name of the vector type.
+        $Vector2D:ty,
         // Type of target component, for example `real`.
         $Scalar:ty
     ) => {
         /// # 3D functions
         /// The following methods are only available on 3D vectors (for both float and int).
         impl $Vector {
+            /// Reduces dimension to 2D, discarding the Z component.
+            ///
+            /// See also [`swizzle!`][crate::builtin::swizzle] for a more general way to extract components.
+            /// `self.to_2d()` is equivalent to `swizzle!(self => x, y)`.
+            #[inline]
+            pub fn to_2d(self) -> $Vector2D {
+                <$Vector2D>::new(self.x, self.y)
+            }
+
             /// Returns the axis of the vector's highest value. See [`Vector3Axis`] enum. If all components are equal, this method returns [`None`].
             ///
             /// To mimic Godot's behavior, unwrap this function's result with `unwrap_or(Vector3Axis::X)`.

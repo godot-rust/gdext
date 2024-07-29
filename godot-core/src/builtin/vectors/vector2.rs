@@ -11,7 +11,7 @@ use sys::{ffi_methods, GodotFfi};
 
 use crate::builtin::math::{FloatExt, GlamConv, GlamType};
 use crate::builtin::vectors::Vector2Axis;
-use crate::builtin::{inner, real, RAffine2, RVec2, Vector2i};
+use crate::builtin::{inner, real, RAffine2, RVec2, Vector2i, Vector3};
 
 use std::fmt;
 
@@ -23,6 +23,8 @@ use std::fmt;
 /// It uses floating-point coordinates of 32-bit precision, unlike the engine's `float` type which
 /// is always 64-bit. The engine can be compiled with the option `precision=double` to use 64-bit
 /// vectors; use the gdext library with the `double-precision` feature in that case.
+///
+#[doc = shared_vector_docs!()]
 ///
 /// ### Navigation to `impl` blocks within this page
 ///
@@ -41,6 +43,8 @@ use std::fmt;
 /// | 2D        | **`Vector2`**                        | [`Vector2i`][crate::builtin::Vector2i] |
 /// | 3D        | [`Vector3`][crate::builtin::Vector3] | [`Vector3i`][crate::builtin::Vector3i] |
 /// | 4D        | [`Vector4`][crate::builtin::Vector4] | [`Vector4i`][crate::builtin::Vector4i] |
+///
+/// <br>You can convert to 3D vectors using [`to_3d(z)`][Self::to_3d], and to `Vector2i` using [`cast_int()`][Self::cast_int].
 ///
 /// # Godot docs
 ///
@@ -67,13 +71,10 @@ impl_vector_fns!(Vector2, RVec2, real, (x, y));
 
 /// # Specialized `Vector2` functions
 impl Vector2 {
-    /// Constructs a new `Vector2` from a [`Vector2i`].
+    #[deprecated = "Moved to `Vector2i::cast_float()`"]
     #[inline]
     pub const fn from_vector2i(v: Vector2i) -> Self {
-        Self {
-            x: v.x as real,
-            y: v.y as real,
-        }
+        v.cast_float()
     }
 
     /// Returns this vector's angle with respect to the positive X axis, or `(1.0, 0.0)` vector, in radians.
@@ -162,8 +163,8 @@ impl Vector2 {
     }
 }
 
-impl_float_vector_fns!(Vector2, (x, y));
-impl_vector2x_fns!(Vector2, real);
+impl_float_vector_fns!(Vector2, Vector2i, (x, y));
+impl_vector2x_fns!(Vector2, Vector3, real);
 impl_vector2_vector3_fns!(Vector2, (x, y));
 
 impl_vector_operators!(Vector2, real, (x, y));

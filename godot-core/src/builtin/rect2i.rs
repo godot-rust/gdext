@@ -24,6 +24,8 @@ use sys::{ffi_methods, GodotFfi};
 /// | 2D        | [`Rect2`]       | **`Rect2i`** |
 /// | 3D        | [`Aabb`]        |              |
 ///
+/// <br>You can convert to `Rect2` using [`cast_float()`][Self::cast_float].
+///
 /// [`Aabb`]: crate::builtin::Aabb
 ///
 /// # Godot docs
@@ -60,23 +62,29 @@ impl Rect2i {
         }
     }
 
-    /// Create a new `Rect2i` from a `Rect2`, using `as` for `real` to `i32` conversions.
-    ///
-    /// _Godot equivalent: `Rect2i(Rect2 from)`_
-    #[inline]
-    pub const fn from_rect2(rect: Rect2) -> Self {
-        Self {
-            position: Vector2i::from_vector2(rect.position),
-            size: Vector2i::from_vector2(rect.size),
-        }
-    }
-
     /// Create a new `Rect2i` with the first corner at `position` and the opposite corner at `end`.
     #[inline]
     pub fn from_corners(position: Vector2i, end: Vector2i) -> Self {
         Self {
             position,
             size: end - position,
+        }
+    }
+
+    #[deprecated = "Moved to `Rect2::cast_int()`"]
+    #[inline]
+    pub const fn from_rect2(rect: Rect2) -> Self {
+        rect.cast_int()
+    }
+
+    /// Create a new `Rect2` from a `Rect2i`, using `as` for `i32` to `real` conversions.
+    ///
+    /// _Godot equivalent: `Rect2(Rect2i from)`_
+    #[inline]
+    pub const fn cast_float(self) -> Rect2 {
+        Rect2 {
+            position: self.position.cast_float(),
+            size: self.size.cast_float(),
         }
     }
 
@@ -312,7 +320,7 @@ mod test {
         let zero = Rect2i::default();
         let new = Rect2i::new(Vector2i::new(0, 100), Vector2i::new(1280, 720));
         let from_components = Rect2i::from_components(0, 100, 1280, 720);
-        let from_rect2 = Rect2i::from_rect2(Rect2::from_components(0.1, 100.3, 1280.1, 720.42));
+        let from_rect2 = Rect2::from_components(0.1, 100.3, 1280.1, 720.42).cast_int();
         let from_corners = Rect2i::from_corners(Vector2i::new(0, 100), Vector2i::new(1280, 820));
 
         assert_eq!(zero.position.x, 0);
