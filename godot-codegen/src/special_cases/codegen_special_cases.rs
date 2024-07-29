@@ -137,6 +137,7 @@ const SELECTED_CLASSES: &[&str] = &[
     "CollisionShape2D",
     "Control",
     "EditorPlugin",
+    "EditorExportPlugin",
     "Engine",
     "FileAccess",
     "GDScript",

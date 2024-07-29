@@ -83,6 +83,7 @@ pub fn cstr_u8_slice(string: &str) -> Literal {
     Literal::byte_string(format!("{string}\0").as_bytes())
 }
 
+// This function is duplicated in godot-macros\src\util\mod.rs
 #[rustfmt::skip]
 pub fn safe_ident(s: &str) -> Ident {
     // See also: https://doc.rust-lang.org/reference/keywords.html

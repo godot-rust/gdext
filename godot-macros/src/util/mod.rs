@@ -273,3 +273,27 @@ pub fn make_virtual_tool_check() -> TokenStream {
 pub fn make_virtual_tool_check() -> TokenStream {
     TokenStream::new()
 }
+
+// This function is duplicated in godot-codegen\src\util.rs
+#[rustfmt::skip]
+pub fn safe_ident(s: &str) -> Ident {
+    // See also: https://doc.rust-lang.org/reference/keywords.html
+    match s {
+        // Lexer
+        | "as" | "break" | "const" | "continue" | "crate" | "else" | "enum" | "extern" | "false" | "fn" | "for" | "if"
+        | "impl" | "in" | "let" | "loop" | "match" | "mod" | "move" | "mut" | "pub" | "ref" | "return" | "self" | "Self"
+        | "static" | "struct" | "super" | "trait" | "true" | "type" | "unsafe" | "use" | "where" | "while"
+
+        // Lexer 2018+
+        | "async" | "await" | "dyn"
+
+        // Reserved
+        | "abstract" | "become" | "box" | "do" | "final" | "macro" | "override" | "priv" | "typeof" | "unsized" | "virtual" | "yield"
+
+        // Reserved 2018+
+        | "try"
+           => format_ident!("{}_", s),
+
+         _ => ident(s)
+    }
+}

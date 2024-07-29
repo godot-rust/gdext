@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::util::{bail_fn, ident};
+use crate::util::{bail_fn, ident, safe_ident};
 use crate::{util, ParseResult};
 use proc_macro2::{Group, Ident, TokenStream, TokenTree};
 use quote::{format_ident, quote};
@@ -368,7 +368,7 @@ pub(crate) fn maybe_rename_parameter(param_ident: Ident, next_unnamed_index: &mu
         // This could technically collide with another parameter of the same name (without "_"), but that's very unlikely and not
         // something we really need to support.
         // Note that the case of a single "_" is handled above.
-        ident(remain)
+        safe_ident(remain)
     } else {
         param_ident
     }
