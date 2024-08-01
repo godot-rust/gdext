@@ -9,7 +9,7 @@ use godot_ffi as sys;
 
 use crate::builtin::*;
 use crate::meta::ToGodot;
-use std::{fmt, ops};
+use std::{fmt, ops, ptr};
 use sys::types::*;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
@@ -378,6 +378,30 @@ macro_rules! impl_packed_array {
             pub fn as_inner(&self) -> inner::$Inner<'_> {
                 inner::$Inner::from_outer(self)
             }
+
+            /// Create array filled with default elements.
+            fn default_with_size(n: usize) -> Self {
+                let mut array = Self::new();
+                array.resize(n);
+                array
+            }
+
+            /// Drops all elements in `self` and replaces them with data from an array of values.
+            ///
+            /// # Safety
+            ///
+            /// * Pointer must be valid slice of data with `len` size.
+            /// * Pointer must not point to `self` data.
+            /// * Length must be equal to `self.len()`.
+            /// * Source data must not be dropped later.
+            unsafe fn move_from_slice(&mut self, src: *const $Element, len: usize) {
+                let ptr = self.ptr_mut(0);
+                debug_assert_eq!(len, self.len(), "length precondition violated");
+                // Drops all elements in place. Drop impl must not panic.
+                ptr::drop_in_place(ptr::slice_from_raw_parts_mut(ptr, len));
+                // Copy is okay since all elements are dropped.
+                ptr.copy_from_nonoverlapping(src, len);
+            }
         }
 
         impl_builtin_traits! {
@@ -414,29 +438,53 @@ macro_rules! impl_packed_array {
         #[doc = concat!("Creates a `", stringify!($PackedArray), "` from the given slice.")]
         impl From<&[$Element]> for $PackedArray {
             fn from(slice: &[$Element]) -> Self {
-                let mut array = Self::new();
-                let len = slice.len();
-                if len == 0 {
-                    return array;
+                if slice.is_empty() {
+                    return Self::new();
                 }
-                array.resize(len);
-                let ptr = array.ptr_mut(0);
-                for (i, element) in slice.iter().enumerate() {
-                    // SAFETY: The array contains exactly `len` elements, stored contiguously in memory.
-                    unsafe {
-                        // `GString` does not implement `Copy` so we have to call `.clone()`
-                        // here.
-                        *ptr.offset(to_isize(i)) = element.clone();
-                    }
-                }
+                let mut array = Self::default_with_size(slice.len());
+
+                // SAFETY: The array contains exactly `len` elements, stored contiguously in memory.
+                let dst = unsafe { std::slice::from_raw_parts_mut(array.ptr_mut(0), slice.len()) };
+                dst.clone_from_slice(slice);
                 array
+            }
+        }
+
+        #[doc = concat!("Creates a `", stringify!($PackedArray), "` from the given Rust array.")]
+        impl<const N: usize> From<[$Element; N]> for $PackedArray {
+            fn from(arr: [$Element; N]) -> Self {
+                if N == 0 {
+                    return Self::new();
+                }
+                let mut packed_array = Self::default_with_size(N);
+
+                // Not using forget() so if move_from_slice somehow panics then there is no double-free.
+                let arr = std::mem::ManuallyDrop::new(arr);
+
+                // SAFETY: The packed array contains exactly N elements and the source array will be forgotten.
+                unsafe {
+                    packed_array.move_from_slice(arr.as_ptr(), N);
+                }
+                packed_array
             }
         }
 
         #[doc = concat!("Creates a `", stringify!($PackedArray), "` from the given Rust vec.")]
         impl From<Vec<$Element>> for $PackedArray {
-            fn from(vec: Vec<$Element>) -> Self{
-                vec.into_iter().collect()
+            fn from(mut vec: Vec<$Element>) -> Self {
+                if vec.is_empty() {
+                    return Self::new();
+                }
+                let len = vec.len();
+                let mut array = Self::default_with_size(len);
+
+                // SAFETY: The packed array and vector contain exactly `len` elements.
+                // The vector is forcibly set to empty, so its contents are forgotten.
+                unsafe {
+                    vec.set_len(0);
+                    array.move_from_slice(vec.as_ptr(), len);
+                }
+                array
             }
         }
 
