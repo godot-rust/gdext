@@ -4,70 +4,88 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
-use godot_ffi as sys;
+use std::any::TypeId;
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::fmt;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
-use crate::builtin::*;
+use godot_ffi as sys;
 use sys::Global;
 
-// Box is needed for pointer stability (HashMap insertion may invalidate pointers -- with_capacity() would be an alternative,
-// but we don't know how many classes).
-static CACHED_STRING_NAMES: Global<HashMap<ClassName, Box<StringName>>> = Global::default();
+use crate::builtin::*;
+use crate::obj::GodotClass;
+
+// Alternative optimizations:
+// - Small-array optimization for common string lengths.
+// - Use HashMap and store pre-computed hash. Would need a custom S parameter for HashMap<K, V, S>, see
+//   https://doc.rust-lang.org/std/hash/trait.BuildHasher.html (the default hasher recomputes the hash repeatedly).
+//
+// First element (index 0) is always the empty string name, which is used for "no class".
+static CLASS_NAMES: Global<Vec<StringName>> = Global::new(|| vec![StringName::default()]);
+static DYNAMIC_INDEX_BY_CLASS_TYPE: Global<HashMap<TypeId, u16>> = Global::default();
 
 /// Name of a class registered with Godot.
 ///
 /// Holds the Godot name, not the Rust name (they sometimes differ, e.g. Godot `CSGMesh3D` vs Rust `CsgMesh3D`).
 ///
-/// You cannot construct instances of this type yourself; use [`GodotClass::class_name()`](crate::obj::GodotClass::class_name()).
-/// This struct is very cheap to copy.
-#[derive(Copy, Clone, Debug)]
+/// This struct is very cheap to copy. The actual names are cached globally.
+///
+/// If you need to create your own class name, use [`new_cached()`][Self::new_cached].
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct ClassName {
-    c_str: &'static CStr,
-    // Could use small-array optimization for common string lengths.
-    // Possible optimization: could store pre-computed hash. Would need a custom S parameter for HashMap<K, V, S>, see
-    // https://doc.rust-lang.org/std/hash/trait.BuildHasher.html. (The default hasher recomputes the hash repeatedly).
-    // Alternatively, it could become CoW-style:
-    // pub enum ClassName {
-    //    Static(&'static CStr),
-    //    Dynamic(StringName),
-    // }
+    global_index: u16,
 }
 
 impl ClassName {
-    /// Construct from a null-terminated ASCII string.
+    /// Construct a new ASCII class name.
+    ///
+    /// This is expensive the first time it called for a given `T`, but will be cached for subsequent calls.
+    ///
+    /// It is not specified when exactly `init_fn` is invoked. However, it must return the same value for the same `T`. Generally, we expect
+    /// to keep the invocations limited, so you can use more expensive construction in the closure.
     ///
     /// # Panics
-    /// If the string is not null-terminated or contains internal null bytes.
-    pub fn from_ascii_cstr(bytes: &'static [u8]) -> Self {
-        assert!(bytes.is_ascii(), "string must be ASCII"); // only half of u8 range
-        let c_str = CStr::from_bytes_with_nul(bytes).expect("string must be null-terminated");
+    /// If the string is not ASCII.
+    pub fn new_cached<T: GodotClass>(init_fn: impl FnOnce() -> String) -> Self {
+        // Check if class name exists.
+        let type_id = TypeId::of::<T>();
+        let mut map = DYNAMIC_INDEX_BY_CLASS_TYPE.lock();
 
-        Self { c_str }
+        // Insert into linear vector. Note: this doesn't check for overlaps of TypeId between static and dynamic class names.
+        let global_index = *map.entry(type_id).or_insert_with(|| {
+            let name = init_fn();
+            debug_assert!(name.is_ascii(), "Class name must be ASCII: '{name}'");
+
+            insert_class(StringName::from(name))
+        });
+
+        ClassName { global_index }
     }
 
     #[doc(hidden)]
     pub fn none() -> Self {
-        // In Godot, an empty class name means "no class".
-        Self::from_ascii_cstr(b"\0")
+        // First element is always the empty string name.
+        Self { global_index: 0 }
     }
 
     #[doc(hidden)]
-    pub fn is_empty(&self) -> bool {
-        // From Rust 1.71 onward:
-        // self.c_str.is_empty()
+    pub fn alloc_next(class_name_cstr: &'static CStr) -> Self {
+        let global_index = insert_class(StringName::from(class_name_cstr));
 
-        self.c_str.to_bytes().is_empty()
+        Self { global_index }
     }
 
-    /// Returns the class name as a string slice with static storage duration.
-    pub fn as_str(&self) -> &'static str {
-        // unwrap() safe, checked in constructor
-        self.c_str.to_str().unwrap()
+    #[doc(hidden)]
+    pub fn is_none(&self) -> bool {
+        self.global_index == 0
     }
+    //
+    // /// Returns the class name as a string slice with static storage duration.
+    // pub fn as_str(&self) -> &'static str {
+    //     // unwrap() safe, checked in constructor
+    //     self.c_str.to_str().unwrap()
+    // }
 
     /// Converts the class name to a `GString`.
     pub fn to_gstring(&self) -> GString {
@@ -88,36 +106,26 @@ impl ClassName {
 
     // Takes a closure because the mutex guard protects the reference; so the &StringName cannot leave the scope.
     fn with_string_name<R>(&self, func: impl FnOnce(&StringName) -> R) -> R {
-        let mut map = CACHED_STRING_NAMES.lock();
-
-        let value = map
-            .entry(*self)
-            .or_insert_with(|| Box::new(self.load_string_name()));
-
-        func(value)
-    }
-
-    fn load_string_name(&self) -> StringName {
-        StringName::from(self.c_str.to_str().unwrap())
+        let cached_names = CLASS_NAMES.lock();
+        let name = &cached_names[self.global_index as usize];
+        func(name)
     }
 }
 
-impl PartialEq for ClassName {
-    fn eq(&self, other: &Self) -> bool {
-        self.c_str == other.c_str
-    }
-}
+/// Adds a new class name to the cache, returning its index.
+fn insert_class(name: StringName) -> u16 {
+    let mut names = CLASS_NAMES.lock();
+    let index = names
+        .len()
+        .try_into()
+        .expect("Currently limited to 65536 class names");
 
-impl Eq for ClassName {}
-
-impl Hash for ClassName {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.c_str.hash(state)
-    }
+    names.push(name);
+    index
 }
 
 impl fmt::Display for ClassName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.as_str().fmt(f)
+        self.with_string_name(|s| s.fmt(f))
     }
 }

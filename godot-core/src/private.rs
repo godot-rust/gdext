@@ -121,7 +121,12 @@ pub(crate) fn call_error_remove(in_error: &sys::GDExtensionCallError) -> Option<
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Plugin handling
+// Plugin and global state handling
+
+pub fn next_class_id() -> u16 {
+    static NEXT_CLASS_ID: atomic::AtomicU16 = atomic::AtomicU16::new(0);
+    NEXT_CLASS_ID.fetch_add(1, atomic::Ordering::Relaxed)
+}
 
 pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
     sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);

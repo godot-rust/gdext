@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-// Note: some code duplication with codegen crate
+// Note: some code duplication with godot-codegen crate.
 
 use crate::ParseResult;
 use proc_macro2::{Delimiter, Group, Ident, Literal, TokenStream, TokenTree};
@@ -22,8 +22,9 @@ pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
 }
 
-pub fn cstr_u8_slice(string: &str) -> Literal {
-    Literal::byte_string(format!("{string}\0").as_bytes())
+pub fn c_str(string: &str) -> Literal {
+    let c_string = std::ffi::CString::new(string).expect("CString::new() failed");
+    Literal::c_string(&c_string)
 }
 
 pub fn class_name_obj(class: &impl ToTokens) -> TokenStream {

@@ -637,7 +637,11 @@ impl<'a> CallContext<'a> {
 
     /// Outbound call from Rust into the engine, via Gd methods.
     pub fn gd<T: GodotClass>(function_name: &'a str) -> Self {
-        let class_name = T::class_name().as_str();
+        let class_name = T::class_name();
+
+        // FIXME no leaks
+        let class_name = class_name.to_string().leak();
+
         Self {
             class_name,
             function_name,

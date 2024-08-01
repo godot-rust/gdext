@@ -51,7 +51,7 @@ impl TestScriptInstance {
             method_list: vec![MethodInfo {
                 id: 1,
                 method_name: StringName::from("script_method_a"),
-                class_name: ClassName::from_ascii_cstr("TestScript\0".as_bytes()),
+                class_name: ClassName::new_cached::<TestScript>(|| "TestScript".to_string()),
                 return_type: PropertyInfo::new_var::<GString>(""),
                 arguments: vec![
                     PropertyInfo::new_var::<GString>("arg_a"),
