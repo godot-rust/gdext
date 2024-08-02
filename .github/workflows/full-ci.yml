@@ -21,7 +21,7 @@ env:
   # * report_objects: list individual leaked objects when running LeakSanitizer
   LSAN_OPTIONS: report_objects=1
 
-  CARGO_DENY_VERSION: "0.14.22"
+  CARGO_DENY_VERSION: "0.15.1"
   CARGO_MACHETE_VERSION: "0.6.2"
 
 
