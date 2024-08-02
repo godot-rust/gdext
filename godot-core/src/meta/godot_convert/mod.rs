@@ -19,7 +19,8 @@ use crate::meta::GodotType;
 ///
 /// [`GodotType`] is a stronger bound than [`GodotConvert`], since it expresses that a type is _directly_ representable
 /// in Godot (without intermediate "via"). Every `GodotType` also implements `GodotConvert` with `Via = Self`.
-
+///
+/// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
 #[diagnostic::on_unimplemented(
     message = "`GodotConvert` is needed for `#[func]` parameters/returns, as well as `#[var]` and `#[export]` properties",
     note = "check following errors for more information"
@@ -36,6 +37,8 @@ pub trait GodotConvert {
 /// starting value.
 ///
 /// Violating these assumptions is safe but will give unexpected results.
+///
+/// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
 pub trait ToGodot: Sized + GodotConvert {
     /// Converts this type to the Godot type by reference, usually by cloning.
     fn to_godot(&self) -> Self::Via;
@@ -60,6 +63,8 @@ pub trait ToGodot: Sized + GodotConvert {
 /// starting value.
 ///
 /// Violating these assumptions is safe but will give unexpected results.
+///
+/// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
 pub trait FromGodot: Sized + GodotConvert {
     /// Converts the Godot representation to this type, returning `Err` on failure.
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError>;

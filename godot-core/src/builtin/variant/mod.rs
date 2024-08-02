@@ -20,7 +20,9 @@ mod impls;
 /// dynamic APIs. For example, if you want to call a method on an object based on a string, you will need variants to store arguments and return
 /// value.  
 ///
-/// See also [Godot documentation for `Variant`](https://docs.godotengine.org/en/stable/classes/class_variant.html).
+/// # Conversions
+///
+/// For type conversions, please read the [`godot::meta` module docs][crate::meta].
 ///
 /// # Godot docs
 ///
