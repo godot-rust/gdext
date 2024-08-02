@@ -15,7 +15,7 @@ use crate::obj::{GodotClass, InstanceId};
 /// This is persisted independently of the static type system (e.g. `T` in `Gd<T>`) and can be used to perform sanity checks at runtime.
 ///
 /// See also <https://github.com/godot-rust/gdext/issues/23>.
-#[derive(Debug)]
+#[derive(Debug, Clone)] // Clone is needed to make RawGd::clone() more efficient.
 pub struct ObjectRtti {
     /// Cached instance ID. May point to dead objects.
     instance_id: InstanceId,
