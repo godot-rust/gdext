@@ -50,7 +50,7 @@
 use crate::obj::cap::GodotDefault;
 use crate::obj::{Bounds, Gd, GodotClass, RawGd};
 use crate::registry::callbacks;
-use crate::storage::Storage;
+use crate::storage::{InstanceCache, Storage};
 use crate::{out, sys};
 use private::Sealed;
 
@@ -343,7 +343,14 @@ impl DynMemory for MemManual {
 
 /// Trait that specifies who declares a given `GodotClass`.
 pub trait Declarer: Sealed {
+    /// The target type of a `Deref` operation on a `Gd<T>`.
+    #[doc(hidden)]
     type DerefTarget<T: GodotClass>: GodotClass;
+
+    /// Used as a field in `RawGd`; only set for user-defined classes.
+    #[doc(hidden)]
+    #[allow(private_bounds)]
+    type InstanceCache: InstanceCache;
 
     /// Check if the object is a user object *and* currently locked by a `bind()` or `bind_mut()` guard.
     ///
@@ -365,6 +372,7 @@ pub enum DeclEngine {}
 impl Sealed for DeclEngine {}
 impl Declarer for DeclEngine {
     type DerefTarget<T: GodotClass> = T;
+    type InstanceCache = ();
 
     unsafe fn is_currently_bound<T>(_obj: &RawGd<T>) -> bool
     where
@@ -390,6 +398,7 @@ pub enum DeclUser {}
 impl Sealed for DeclUser {}
 impl Declarer for DeclUser {
     type DerefTarget<T: GodotClass> = T::Base;
+    type InstanceCache = std::cell::Cell<sys::GDExtensionClassInstancePtr>;
 
     unsafe fn is_currently_bound<T>(obj: &RawGd<T>) -> bool
     where

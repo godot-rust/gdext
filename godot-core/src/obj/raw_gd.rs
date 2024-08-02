@@ -5,7 +5,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::cell::Cell;
 use std::{fmt, ptr};
 
 use godot_ffi as sys;
@@ -16,10 +15,10 @@ use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
     CallContext, ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
 };
-use crate::obj::bounds::DynMemory as _;
+use crate::obj::bounds::{Declarer, DynMemory as _};
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
-use crate::storage::{InstanceStorage, Storage};
+use crate::storage::{InstanceCache, InstanceStorage, Storage};
 use crate::{classes, global, out};
 
 /// Low-level bindings for object pointers in Godot.
@@ -34,8 +33,9 @@ pub struct RawGd<T: GodotClass> {
     // Must not be changed after initialization.
     cached_rtti: Option<ObjectRtti>,
 
-    // Initially null, may also be invalid. Access to InstanceStorage.
-    cached_storage_ptr: Cell<sys::GDExtensionClassInstancePtr>,
+    // Direct access to InstanceStorage -- initially null.
+    // Only set for user-defined types; ZST otherwise.
+    cached_storage_ptr: <<T as Bounds>::Declarer as Declarer>::InstanceCache,
 }
 
 impl<T: GodotClass> RawGd<T> {
@@ -44,7 +44,7 @@ impl<T: GodotClass> RawGd<T> {
         Self {
             obj: ptr::null_mut(),
             cached_rtti: None,
-            cached_storage_ptr: Cell::new(ptr::null_mut()),
+            cached_storage_ptr: InstanceCache::null(),
         }
     }
 
@@ -71,7 +71,7 @@ impl<T: GodotClass> RawGd<T> {
         Self {
             obj: obj.cast::<T>(),
             cached_rtti: rtti,
-            cached_storage_ptr: Cell::new(ptr::null_mut()),
+            cached_storage_ptr: InstanceCache::null(),
         }
     }
 
