@@ -56,7 +56,7 @@ enum ClassNameSource {
 }
 
 impl ClassNameSource {
-    pub fn to_string_name(&self) -> StringName {
+    fn to_string_name(&self) -> StringName {
         match self {
             ClassNameSource::Owned(s) => StringName::from(s),
 
@@ -64,6 +64,13 @@ impl ClassNameSource {
             ClassNameSource::Borrowed(cstr) => StringName::from(*cstr),
             #[cfg(before_api = "4.2")] // no C-string support for StringName.
             ClassNameSource::Borrowed(cstr) => StringName::from(self.as_str()),
+        }
+    }
+
+    fn as_str(&self) -> &str {
+        match self {
+            ClassNameSource::Owned(s) => s,
+            ClassNameSource::Borrowed(cstr) => cstr.to_str().expect("should be validated ASCII"),
         }
     }
 }
@@ -142,6 +149,14 @@ impl ClassName {
         self.with_string_name(|s| s.clone())
     }
 
+    /// Invokes a closure with the `&str` ASCII representation of the class name.
+    pub fn with_str(&self, accept_str: impl FnOnce(&str)) {
+        let cached_names = CLASS_NAMES.lock();
+        let entry = &cached_names[self.global_index as usize];
+
+        accept_str(entry.rust_str.as_str());
+    }
+
     /// The returned pointer is valid indefinitely, as entries are never deleted from the cache.
     /// Since we use `Box<StringName>`, `HashMap` reallocations don't affect the validity of the StringName.
     #[doc(hidden)]
@@ -153,6 +168,7 @@ impl ClassName {
     fn with_string_name<R>(&self, func: impl FnOnce(&StringName) -> R) -> R {
         let cached_names = CLASS_NAMES.lock();
         let entry = &cached_names[self.global_index as usize];
+
         let string_name = entry
             .godot_str
             .get_or_init(|| entry.rust_str.to_string_name());
