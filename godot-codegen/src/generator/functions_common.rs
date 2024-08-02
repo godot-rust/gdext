@@ -320,15 +320,15 @@ pub(crate) fn make_params_exprs<'a>(
         // Objects (Gd<T>) use implicit conversions via AsObjectArg. Only use in non-virtual functions.
         match &param.type_ {
             RustTy::EngineClass {
-                arg_view,
-                impl_as_arg,
+                object_arg,
+                impl_as_object_arg,
                 ..
             } if !is_virtual => {
                 // Parameter declarations in signature: impl AsObjectArg<T>
                 if param_is_impl_asarg {
-                    params.push(quote! { #param_name: #impl_as_arg });
+                    params.push(quote! { #param_name: #impl_as_object_arg });
                 } else {
-                    params.push(quote! { #param_name: #arg_view });
+                    params.push(quote! { #param_name: #object_arg });
                 }
 
                 // Argument names in function body: arg.as_object_arg() vs. arg
@@ -338,7 +338,7 @@ pub(crate) fn make_params_exprs<'a>(
                     arg_names.push(quote! { #param_name });
                 }
 
-                param_types.push(quote! { #arg_view });
+                param_types.push(quote! { #object_arg });
             }
 
             _ => {

@@ -236,8 +236,8 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 
         RustTy::EngineClass {
             tokens: quote! { Gd<#qualified_class> },
-            arg_view: quote! { ObjectArg<#qualified_class> },
-            impl_as_arg: quote! { impl AsObjectArg<#qualified_class> },
+            object_arg: quote! { ObjectArg<#qualified_class> },
+            impl_as_object_arg: quote! { impl AsObjectArg<#qualified_class> },
             inner_class: ty,
         }
     }
@@ -266,7 +266,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
             return match ty {
                 RustTy::BuiltinIdent(ident) if ident == "Variant" => quote! { Variant::nil() },
                 RustTy::EngineClass { .. } => {
-                    quote! { ObjectArg::null() }
+                    quote! { Gd::null_arg() }
                 }
                 _ => panic!("null not representable in target type {ty:?}"),
             }
