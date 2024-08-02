@@ -176,7 +176,7 @@ godot::sys::plugin_add!(
                 raw: ::godot::private::callbacks::register_user_methods_constants::<HasOtherConstants>,
             },
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
-            docs: None,
+            docs: ::godot::docs::InherentImplDocs::default(),
         },
         init_level: HasOtherConstants::INIT_LEVEL,
     }

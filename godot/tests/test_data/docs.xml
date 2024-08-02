@@ -1,6 +1,6 @@
 
 <?xml version="1.0" encoding="UTF-8"?>
-<class name="ExtremelyDocumented" inherits="Node" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+<class name="FairlyDocumented" inherits="Node" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
 <brief_description>[i]documented[/i] ~ [b]documented[/b] ~ [AABB] [url=https://github.com/godot-rust/gdext/pull/748]pr[/url]</brief_description>
 <description>[i]documented[/i] ~ [b]documented[/b] ~ [AABB] [url=https://github.com/godot-rust/gdext/pull/748]pr[/url][br][br]a few tests:[br][br]headings:[br][br]Some heading[br][br]lists:[br][br][br][br][br][br]links with back-references:[br][br]Blah blah [br][br][br][br]footnotes:[br][br]We cannot florbinate the glorb[br][br][br][br]task lists:[br][br]We must ensure that we've completed[br][br][br][br]tables:[br][br][br][br]images:[br][br][img]http://url/a.png[/img][br][br]blockquotes:[br][br][br][br]ordered list:[br][br][br][br]Something here < this is technically header syntax[br][br]And here[br][br]smart punctuation[br][br]codeblocks:[br][br][codeblock]#![no_main]
 #[link_section=\".text\"]
@@ -16,11 +16,19 @@ these</description>
   </description>
 </method>
 
+<method name="virtual_documented">
+  <return type="()" />
+  
+  <description>
+  some virtual function that should be overridden by a user[br][br]some multiline doc
+  </description>
+</method>
+
 <method name="ne">
-  <return type="Gd < ExtremelyDocumented >" />
+  <return type="Gd < FairlyDocumented >" />
   <param index="0" name="x" type="f32" />
   <description>
-  wow
+  wow[br][br]some multiline doc
   </description>
 </method>
 
@@ -33,6 +41,13 @@ these</description>
 </method>
 </methods>
 <constants><constant name="RANDOM" value="4">Documentation.</constant></constants>
-<signals></signals>
-<members><member name="item" type="f32" default="">this is very documented</member></members>
+<signals>
+<signal name="documented_signal">
+  <param index="0" name="p" type="Vector3" /><param index="1" name="w" type="f64" />
+  <description>
+  some user signal[br][br]some multiline doc
+  </description>
+</signal>
+</signals>
+<members><member name="item" type="f32" default="">this is very documented</member><member name="item_2" type="i64" default="">is it documented?</member></members>
 </class>

@@ -21,8 +21,8 @@ pub fn make_definition_docs(
         let members = members
             .into_iter()
             .filter(|x| x.var.is_some() | x.export.is_some())
-            .map(member)
-            .collect::<Option<String>>()?;
+            .filter_map(member)
+            .collect::<String>();
         Some(quote! {
             docs: ::godot::docs::StructDocs {
                 base: #base,
@@ -39,53 +39,63 @@ pub fn make_inherent_impl_docs(
     constants: &[ConstDefinition],
     signals: &[SignalDefinition],
 ) -> TokenStream {
+    /// Generates TokenStream containing field definitions for documented methods and documentation blocks for constants and signals.
     fn pieces(
         functions: &[FuncDefinition],
         signals: &[SignalDefinition],
         constants: &[ConstDefinition],
-    ) -> Option<TokenStream> {
+    ) -> TokenStream {
+        let to_tagged = |s: String, tag: &str| -> String {
+            if s.is_empty() {
+                s
+            } else {
+                format!("<{tag}>{s}</{tag}>")
+            }
+        };
+
+        let signals_block = to_tagged(
+            signals
+                .iter()
+                .filter_map(make_signal_docs)
+                .collect::<String>(),
+            "signals",
+        );
+        let constants_block = to_tagged(
+            constants
+                .iter()
+                .map(|ConstDefinition { raw_constant }| raw_constant)
+                .filter_map(make_constant_docs)
+                .collect::<String>(),
+            "constants",
+        );
+
         let methods = functions
             .iter()
-            .map(make_method_docs)
-            .collect::<Option<String>>()?;
-        let signals = signals
-            .iter()
-            .map(make_signal_docs)
-            .collect::<Option<String>>()?;
-        let constants = constants
-            .iter()
-            .map(|ConstDefinition { raw_constant: x }| x)
-            .map(make_constant_docs)
-            .collect::<Option<String>>()?;
-        let field_definition = quote! {
+            .filter_map(make_method_docs)
+            .collect::<String>();
+
+        quote! {
             docs: ::godot::docs::InherentImplDocs {
                 methods: #methods,
-                signals: #signals,
-                constants: #constants,
-            }.into()
-        };
-        Some(field_definition)
+                signals_block: #signals_block,
+                constants_block: #constants_block,
+            }
+        }
     }
-    pieces(functions, signals, constants).unwrap_or_else(|| quote! { docs: None })
+    pieces(functions, signals, constants)
 }
 
 pub fn make_virtual_impl_docs(vmethods: &[ImplMember]) -> TokenStream {
-    match vmethods
+    let virtual_methods = vmethods
         .iter()
         .filter_map(|x| match x {
             venial::ImplMember::AssocFunction(f) => Some(f.clone()),
             _ => None,
         })
-        .map(make_virtual_method_docs)
-        .collect::<Option<String>>()
-    {
-        Some(vmethods) => quote! {
-            virtual_method_docs: #vmethods,
-        },
-        None => quote! {
-            virtual_method_docs: ""
-        },
-    }
+        .filter_map(make_virtual_method_docs)
+        .collect::<String>();
+
+    quote! { virtual_method_docs: #virtual_methods, }
 }
 
 /// `///` is expanded to `#[doc = "…"]`.

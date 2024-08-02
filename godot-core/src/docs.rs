@@ -23,20 +23,27 @@ pub struct StructDocs {
     pub members: &'static str,
 }
 
-/// Created for documentation on
+/// Keeps documentation for inherent `impl` blocks, such as:
 /// ```ignore
 /// #[godot_api]
 /// impl Struct {
-///     #[func]
 ///     /// This function panics!
+///     #[func]
 ///     fn panic() -> f32 { panic!() }
+///     /// this signal signals
+///     #[signal]
+///     fn documented_signal(p: Vector3, w: f64);
+///     /// this constant consts
+///     #[constant]
+///     const CON: i64 = 42;
+///
 /// }
 /// ```
 #[derive(Clone, Copy, Debug, Default)]
 pub struct InherentImplDocs {
     pub methods: &'static str,
-    pub signals: &'static str,
-    pub constants: &'static str,
+    pub signals_block: &'static str,
+    pub constants_block: &'static str,
 }
 
 #[derive(Default)]
@@ -46,17 +53,25 @@ struct DocPieces {
     virtual_methods: &'static str,
 }
 
-#[doc(hidden)]
 /// This function scours the registered plugins to find their documentation pieces,
 /// and strings them together.
 ///
-/// It returns an iterator over XML documents.
+/// Returns an iterator over XML documents.
+///
+/// Documentation for signals and constants is being processed at compile time
+/// and can take the form of an already formatted XML `<block><doc></doc>…</block>`, or an
+/// empty string if no such attribute has been documented.
+///
+/// Since documentation for methods comes from two different sources
+/// -- inherent implementations (`methods`) and `I*` trait implementations (`virtual_method_docs`) --
+/// it is undesirable to merge them at compile time. Instead, they are being kept as a
+/// strings of not-yet-parented XML tags (or empty string if no method has been documented).
 pub fn gather_xml_docs() -> impl Iterator<Item = String> {
     let mut map = HashMap::<&'static str, DocPieces>::new();
     crate::private::iterate_plugins(|x| match x.item {
-        PluginItem::InherentImpl {
-            docs: Some(docs), ..
-        } => map.entry(x.class_name.as_str()).or_default().inherent = docs,
+        PluginItem::InherentImpl { docs, .. } => {
+            map.entry(x.class_name.as_str()).or_default().inherent = docs
+        }
         PluginItem::ITraitImpl {
             virtual_method_docs,
             ..
@@ -70,7 +85,9 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
         } => map.entry(x.class_name.as_str()).or_default().definition = docs,
         _ => (),
     });
-    map.into_iter().map(|(class, pieces)| {
+    map
+        .into_iter()
+        .map(|(class, pieces)| {
             let StructDocs {
                 base,
                 description,
@@ -79,24 +96,32 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
 
             let InherentImplDocs {
                 methods,
-                signals,
-                constants,
+                signals_block,
+                constants_block,
             } = pieces.inherent;
 
             let virtual_methods = pieces.virtual_methods;
-            let brief = description.split_once("[br]").map(|(x, _)| x).unwrap_or_default();
-format!(r#"
+            let methods_block = (virtual_methods.is_empty() && methods.is_empty())
+                .then(String::new)
+                .unwrap_or_else(|| format!("<methods>{methods}{virtual_methods}</methods>"));
+
+            let brief = description
+                .split_once("[br]")
+                .map(|(x, _)| x)
+                .unwrap_or_default();
+
+            format!(r#"
 <?xml version="1.0" encoding="UTF-8"?>
 <class name="{class}" inherits="{base}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
 <brief_description>{brief}</brief_description>
 <description>{description}</description>
-<methods>{methods}{virtual_methods}</methods>
-<constants>{constants}</constants>
-<signals>{signals}</signals>
+{methods_block}
+{constants_block}
+{signals_block}
 <members>{members}</members>
 </class>"#)
         },
-    )
+        )
 }
 
 /// # Safety
