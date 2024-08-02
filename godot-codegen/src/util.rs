@@ -5,6 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// Note: some code duplication with godot-macros crate.
+
 use crate::models::domain::ClassCodegenLevel;
 use crate::models::json::JsonClass;
 use crate::special_cases;
@@ -31,10 +33,14 @@ pub fn make_imports() -> TokenStream {
     }
 }
 
+pub fn c_str(string: &str) -> Literal {
+    let c_string = std::ffi::CString::new(string).expect("CString::new() failed");
+    Literal::c_string(&c_string)
+}
+
 #[cfg(since_api = "4.2")]
 pub fn make_string_name(identifier: &str) -> TokenStream {
-    let c_string = std::ffi::CString::new(identifier).expect("CString::new() failed");
-    let lit = Literal::c_string(&c_string);
+    let lit = c_str(identifier);
 
     quote! { StringName::from(#lit) }
 }
@@ -77,10 +83,6 @@ pub fn get_api_level(class: &JsonClass) -> ClassCodegenLevel {
 
 pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
-}
-
-pub fn cstr_u8_slice(string: &str) -> Literal {
-    Literal::byte_string(format!("{string}\0").as_bytes())
 }
 
 // This function is duplicated in godot-macros\src\util\mod.rs

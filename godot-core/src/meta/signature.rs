@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
+use std::borrow::Cow;
 use std::fmt;
 use std::fmt::Debug;
 
@@ -614,15 +614,15 @@ impl_ptrcall_signature_for_tuple!(R, (p0, 0): P0, (p1, 1): P1, (p2, 2): P2, (p3,
 #[derive(Clone)]
 #[doc(hidden)] // currently exposed in godot::meta
 pub struct CallContext<'a> {
-    pub class_name: &'a str,
-    pub function_name: &'a str,
+    pub(crate) class_name: Cow<'a, str>,
+    pub(crate) function_name: &'a str,
 }
 
 impl<'a> CallContext<'a> {
     /// Call from Godot into a user-defined #[func] function.
     pub const fn func(class_name: &'a str, function_name: &'a str) -> Self {
         Self {
-            class_name,
+            class_name: Cow::Borrowed(class_name),
             function_name,
         }
     }
@@ -630,16 +630,15 @@ impl<'a> CallContext<'a> {
     /// Outbound call from Rust into the engine, class/builtin APIs.
     pub const fn outbound(class_name: &'a str, function_name: &'a str) -> Self {
         Self {
-            class_name,
+            class_name: Cow::Borrowed(class_name),
             function_name,
         }
     }
 
     /// Outbound call from Rust into the engine, via Gd methods.
     pub fn gd<T: GodotClass>(function_name: &'a str) -> Self {
-        let class_name = T::class_name().as_str();
         Self {
-            class_name,
+            class_name: T::class_name().to_cow_str(),
             function_name,
         }
     }

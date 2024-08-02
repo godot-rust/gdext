@@ -363,8 +363,7 @@ mod manual_init_cell {
     /// Similar to a [`OnceLock`](std::sync::OnceLock), but without the overhead of locking for initialization. In most cases the compiler
     /// seems able to optimize `OnceLock` to equivalent code. But this guaranteed does not have any overhead at runtime.
     ///
-    /// This cell additionally allows to deinitialize the value, which is useful in scenarios where the state needs to be reset (e.g.
-    /// hot-reloading on Linux).
+    /// This cell additionally allows to deinitialize the value. Access to uninitialized values is UB, but checked in Debug mode.
     pub(crate) struct ManualInitCell<T> {
         // Invariant: Is `None` until initialized, and then never modified after (except, possibly, through interior mutability).
         cell: UnsafeCell<Option<T>>,

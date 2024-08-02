@@ -30,6 +30,6 @@ fn renaming_changes_the_name() {
         dont_rename::RepeatMe::class_name(),
         rename::RepeatMe::class_name()
     );
-    assert_eq!(dont_rename::RepeatMe::class_name().as_str(), "RepeatMe");
-    assert_eq!(rename::RepeatMe::class_name().as_str(), "NoRepeat");
+    assert_eq!(dont_rename::RepeatMe::class_name().to_string(), "RepeatMe");
+    assert_eq!(rename::RepeatMe::class_name().to_string(), "NoRepeat");
 }

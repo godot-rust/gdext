@@ -29,7 +29,8 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         .rename
         .map_or_else(|| class.name.clone(), |rename| rename)
         .to_string();
-    let class_name_cstr = util::cstr_u8_slice(&class_name_str);
+
+    let class_name_cstr = util::c_str(&class_name_str);
     let class_name_obj = util::class_name_obj(class_name);
 
     let is_editor_plugin = struct_cfg.is_editor_plugin;
@@ -112,8 +113,15 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         impl ::godot::obj::GodotClass for #class_name {
             type Base = #base_class;
 
+            // Code duplicated in godot-codegen.
             fn class_name() -> ::godot::meta::ClassName {
-                ::godot::meta::ClassName::from_ascii_cstr(#class_name_cstr)
+                use ::godot::meta::ClassName;
+
+                // Optimization note: instead of lazy init, could use separate static which is manually initialized during registration.
+                static CLASS_NAME: std::sync::OnceLock<ClassName> = std::sync::OnceLock::new();
+
+                let name: &'static ClassName = CLASS_NAME.get_or_init(|| ClassName::alloc_next(#class_name_cstr));
+                *name
             }
         }
 

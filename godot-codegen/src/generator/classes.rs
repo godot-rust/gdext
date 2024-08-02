@@ -4,7 +4,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
 use crate::context::{Context, NotificationEnum};
 use crate::generator::functions_common::{FnCode, FnDefinition, FnDefinitions};
 use crate::generator::method_tables::MethodTableKey;
@@ -77,7 +76,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
 
     // Strings
     let godot_class_str = &class_name.godot_ty;
-    let class_name_cstr = util::cstr_u8_slice(godot_class_str);
+    let class_name_cstr = util::c_str(godot_class_str);
     let virtual_trait_str = class_name.virtual_trait_name();
 
     // Idents and tokens
@@ -214,8 +213,13 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
             impl crate::obj::GodotClass for #class_name {
                 type Base = #base_ty;
 
+                // Code duplicated in godot-macros.
                 fn class_name() -> ClassName {
-                    ClassName::from_ascii_cstr(#class_name_cstr)
+                    // Optimization note: instead of lazy init, could use separate static which is manually initialized during registration.
+                    static CLASS_NAME: std::sync::OnceLock<ClassName> = std::sync::OnceLock::new();
+
+                    let name: &'static ClassName = CLASS_NAME.get_or_init(|| ClassName::alloc_next(#class_name_cstr));
+                    *name
                 }
 
                 const INIT_LEVEL: crate::init::InitLevel = #init_level;

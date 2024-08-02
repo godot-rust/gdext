@@ -6,6 +6,7 @@
  */
 
 mod base_test;
+mod class_name_test;
 mod class_rename_test;
 mod dynamic_call_test;
 // `get_property_list` is only supported in Godot 4.3+

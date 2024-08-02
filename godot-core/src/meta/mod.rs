@@ -384,3 +384,11 @@ impl MethodInfo {
         }
     }
 }
+
+/// Clean up various resources at end of usage.
+///
+/// # Safety
+/// Must not use meta facilities (e.g. `ClassName`) after this call.
+pub(crate) unsafe fn cleanup() {
+    class_name::cleanup();
+}

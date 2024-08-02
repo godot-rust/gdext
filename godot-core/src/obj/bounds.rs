@@ -117,7 +117,7 @@ pub(super) mod private {
     ///     type Base = Node;
     ///
     ///     fn class_name() -> ClassName {
-    ///         ClassName::from_ascii_cstr(b"MyClass\0")
+    ///         ClassName::new_cached::<MyClass>(|| "MyClass".to_string())
     ///     }
     /// }
     ///
