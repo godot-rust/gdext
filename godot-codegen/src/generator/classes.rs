@@ -76,7 +76,7 @@ fn make_class(class: &Class, ctx: &mut Context, view: &ApiView) -> GeneratedClas
 
     // Strings
     let godot_class_str = &class_name.godot_ty;
-    let class_name_cstr = util::c_str(&godot_class_str);
+    let class_name_cstr = util::c_str(godot_class_str);
     let virtual_trait_str = class_name.virtual_trait_name();
 
     // Idents and tokens

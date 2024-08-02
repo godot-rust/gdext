@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 use std::any::TypeId;
+use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::fmt;
@@ -22,8 +23,52 @@ use crate::obj::GodotClass;
 //   https://doc.rust-lang.org/std/hash/trait.BuildHasher.html (the default hasher recomputes the hash repeatedly).
 //
 // First element (index 0) is always the empty string name, which is used for "no class".
-static CLASS_NAMES: Global<Vec<StringName>> = Global::new(|| vec![StringName::default()]);
+static CLASS_NAMES: Global<Vec<ClassNameEntry>> = Global::new(|| vec![ClassNameEntry::none()]);
 static DYNAMIC_INDEX_BY_CLASS_TYPE: Global<HashMap<TypeId, u16>> = Global::default();
+
+/// Entry in the class name cache.
+///
+/// `StringName` needs to be lazy-initialized because the Godot binding may not be initialized yet.
+struct ClassNameEntry {
+    rust_str: ClassNameSource,
+    godot_str: OnceCell<StringName>,
+}
+
+impl ClassNameEntry {
+    fn new(rust_str: ClassNameSource) -> Self {
+        Self {
+            rust_str,
+            godot_str: OnceCell::new(),
+        }
+    }
+
+    fn none() -> Self {
+        Self::new(ClassNameSource::Borrowed(c""))
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// `Cow`-like enum for class names, but with C strings as the borrowed variant.
+enum ClassNameSource {
+    Owned(String),
+    Borrowed(&'static CStr),
+}
+
+impl ClassNameSource {
+    pub fn to_string_name(&self) -> StringName {
+        match self {
+            ClassNameSource::Owned(s) => StringName::from(s),
+
+            #[cfg(since_api = "4.2")]
+            ClassNameSource::Borrowed(cstr) => StringName::from(*cstr),
+            #[cfg(before_api = "4.2")] // no C-string support for StringName.
+            ClassNameSource::Borrowed(cstr) => StringName::from(self.as_str()),
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
 /// Name of a class registered with Godot.
 ///
@@ -57,7 +102,7 @@ impl ClassName {
             let name = init_fn();
             debug_assert!(name.is_ascii(), "Class name must be ASCII: '{name}'");
 
-            insert_class(StringName::from(name))
+            insert_class(ClassNameSource::Owned(name))
         });
 
         ClassName { global_index }
@@ -71,7 +116,7 @@ impl ClassName {
 
     #[doc(hidden)]
     pub fn alloc_next(class_name_cstr: &'static CStr) -> Self {
-        let global_index = insert_class(StringName::from(class_name_cstr));
+        let global_index = insert_class(ClassNameSource::Borrowed(class_name_cstr));
 
         Self { global_index }
     }
@@ -107,20 +152,24 @@ impl ClassName {
     // Takes a closure because the mutex guard protects the reference; so the &StringName cannot leave the scope.
     fn with_string_name<R>(&self, func: impl FnOnce(&StringName) -> R) -> R {
         let cached_names = CLASS_NAMES.lock();
-        let name = &cached_names[self.global_index as usize];
-        func(name)
+        let entry = &cached_names[self.global_index as usize];
+        let string_name = entry
+            .godot_str
+            .get_or_init(|| entry.rust_str.to_string_name());
+
+        func(string_name)
     }
 }
 
 /// Adds a new class name to the cache, returning its index.
-fn insert_class(name: StringName) -> u16 {
+fn insert_class(name: ClassNameSource) -> u16 {
     let mut names = CLASS_NAMES.lock();
     let index = names
         .len()
         .try_into()
         .expect("Currently limited to 65536 class names");
 
-    names.push(name);
+    names.push(ClassNameEntry::new(name));
     index
 }
 
