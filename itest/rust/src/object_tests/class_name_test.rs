@@ -10,6 +10,7 @@ use godot::meta::ClassName;
 use godot::obj::bounds::implement_godot_bounds;
 use godot::obj::GodotClass;
 use godot::sys;
+use std::borrow::Cow;
 
 struct A;
 
@@ -34,6 +35,5 @@ fn class_name_dynamic() {
     assert_eq!(a.to_string(), "A");
     assert_eq!(a.to_gstring(), GString::from("A"));
     assert_eq!(a.to_string_name(), StringName::from("A"));
-
-    a.with_str(|s| assert_eq!(s, "A"));
+    assert_eq!(a.to_cow_str(), Cow::<'static, str>::Owned("A".to_string()));
 }

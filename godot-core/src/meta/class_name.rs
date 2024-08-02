@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 use std::any::TypeId;
+use std::borrow::Cow;
 use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::ffi::CStr;
@@ -74,14 +75,14 @@ impl ClassNameSource {
             #[cfg(since_api = "4.2")]
             ClassNameSource::Borrowed(cstr) => StringName::from(*cstr),
             #[cfg(before_api = "4.2")] // no C-string support for StringName.
-            ClassNameSource::Borrowed(cstr) => StringName::from(self.as_str()),
+            ClassNameSource::Borrowed(cstr) => StringName::from(ascii_cstr_to_str(cstr)),
         }
     }
 
-    fn as_str(&self) -> &str {
+    fn as_cow_str(&self) -> Cow<'static, str> {
         match self {
-            ClassNameSource::Owned(s) => s,
-            ClassNameSource::Borrowed(cstr) => cstr.to_str().expect("should be validated ASCII"),
+            ClassNameSource::Owned(s) => Cow::Owned(s.clone()),
+            ClassNameSource::Borrowed(cstr) => Cow::Borrowed(ascii_cstr_to_str(cstr)),
         }
     }
 }
@@ -160,12 +161,12 @@ impl ClassName {
         self.with_string_name(|s| s.clone())
     }
 
-    /// Invokes a closure with the `&str` ASCII representation of the class name.
-    pub fn with_str(&self, accept_str: impl FnOnce(&str)) {
+    /// Returns an owned or borrowed `str`.
+    pub fn to_cow_str(&self) -> Cow<'static, str> {
         let cached_names = CLASS_NAMES.lock();
         let entry = &cached_names[self.global_index as usize];
 
-        accept_str(entry.rust_str.as_str());
+        entry.rust_str.as_cow_str()
     }
 
     /// The returned pointer is valid indefinitely, as entries are never deleted from the cache.
@@ -204,4 +205,8 @@ fn insert_class(name: ClassNameSource) -> u16 {
 
     names.push(ClassNameEntry::new(name));
     index
+}
+
+fn ascii_cstr_to_str(cstr: &CStr) -> &str {
+    cstr.to_str().expect("should be validated ASCII")
 }
