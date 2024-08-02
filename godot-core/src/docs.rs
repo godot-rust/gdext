@@ -4,6 +4,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
+use crate::meta::ClassName;
 use crate::registry::plugin::PluginItem;
 use std::collections::HashMap;
 
@@ -66,28 +68,30 @@ struct DocPieces {
 /// -- inherent implementations (`methods`) and `I*` trait implementations (`virtual_method_docs`) --
 /// it is undesirable to merge them at compile time. Instead, they are being kept as a
 /// strings of not-yet-parented XML tags (or empty string if no method has been documented).
+#[doc(hidden)]
 pub fn gather_xml_docs() -> impl Iterator<Item = String> {
-    let mut map = HashMap::<&'static str, DocPieces>::new();
-    crate::private::iterate_plugins(|x| match x.item {
-        PluginItem::InherentImpl { docs, .. } => {
-            map.entry(x.class_name.as_str()).or_default().inherent = docs
+    let mut map = HashMap::<ClassName, DocPieces>::new();
+    crate::private::iterate_plugins(|x| {
+        let class_name = x.class_name;
+
+        match x.item {
+            PluginItem::InherentImpl { docs, .. } => {
+                map.entry(class_name).or_default().inherent = docs
+            }
+
+            PluginItem::ITraitImpl {
+                virtual_method_docs,
+                ..
+            } => map.entry(class_name).or_default().virtual_methods = virtual_method_docs,
+
+            PluginItem::Struct {
+                docs: Some(docs), ..
+            } => map.entry(class_name).or_default().definition = docs,
+            _ => (),
         }
-        PluginItem::ITraitImpl {
-            virtual_method_docs,
-            ..
-        } => {
-            map.entry(x.class_name.as_str())
-                .or_default()
-                .virtual_methods = virtual_method_docs
-        }
-        PluginItem::Struct {
-            docs: Some(docs), ..
-        } => map.entry(x.class_name.as_str()).or_default().definition = docs,
-        _ => (),
     });
-    map
-        .into_iter()
-        .map(|(class, pieces)| {
+
+    map.into_iter().map(|(class, pieces)| {
             let StructDocs {
                 base,
                 description,
