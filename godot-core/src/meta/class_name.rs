@@ -26,6 +26,17 @@ use crate::obj::GodotClass;
 static CLASS_NAMES: Global<Vec<ClassNameEntry>> = Global::new(|| vec![ClassNameEntry::none()]);
 static DYNAMIC_INDEX_BY_CLASS_TYPE: Global<HashMap<TypeId, u16>> = Global::default();
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+/// # Safety
+/// Must not use any `ClassName` APIs after this call.
+pub unsafe fn cleanup() {
+    CLASS_NAMES.lock().clear();
+    DYNAMIC_INDEX_BY_CLASS_TYPE.lock().clear();
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
 /// Entry in the class name cache.
 ///
 /// `StringName` needs to be lazy-initialized because the Godot binding may not be initialized yet.
@@ -177,6 +188,12 @@ impl ClassName {
     }
 }
 
+impl fmt::Display for ClassName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.with_string_name(|s| s.fmt(f))
+    }
+}
+
 /// Adds a new class name to the cache, returning its index.
 fn insert_class(name: ClassNameSource) -> u16 {
     let mut names = CLASS_NAMES.lock();
@@ -187,10 +204,4 @@ fn insert_class(name: ClassNameSource) -> u16 {
 
     names.push(ClassNameEntry::new(name));
     index
-}
-
-impl fmt::Display for ClassName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.with_string_name(|s| s.fmt(f))
-    }
 }
