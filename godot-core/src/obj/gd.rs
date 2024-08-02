@@ -85,6 +85,10 @@ use crate::{classes, out};
 /// on the owning `Gd<T>` is performed. This is important to keep in mind, as you can get into situations that violate dynamic borrow rules; for
 /// example if you are inside a `&mut self` method, make a call to GDScript and indirectly call another method on the same object (re-entrancy).
 ///
+/// # Conversions
+///
+/// For type conversions, please read the [`godot::meta` module docs][crate::meta].
+///
 /// [book]: https://godot-rust.github.io/book/godot-api/objects.html
 /// [`Object`]: classes::Object
 /// [`RefCounted`]: classes::RefCounted
