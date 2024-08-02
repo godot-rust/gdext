@@ -404,3 +404,13 @@ pub fn is_enum_exhaustive(class_name: Option<&TyName>, enum_name: &str) -> bool 
         => true, _ => false
     }
 }
+
+
+/// Whether an enum can be combined with another enum (return value) for bitmasking purposes.
+pub fn is_enum_bitmaskable(class_name: Option<&TyName>, enum_name: &str) -> Option<&'static str> {
+    match (class_name, enum_name) {
+        "Key" => "KeyModifierMask"
+
+    }
+
+}

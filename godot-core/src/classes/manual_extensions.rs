@@ -7,7 +7,9 @@
 
 use crate::builtin::NodePath;
 use crate::classes::{Node, PackedScene};
-use crate::obj::{Gd, Inherits};
+use crate::global::{Key, KeyModifierMask};
+use crate::obj::{EngineBitfield, EngineEnum, Gd, Inherits};
+use std::ops::BitOr;
 
 /// Manual extensions for the `Node` class.
 impl Node {
@@ -70,5 +72,26 @@ impl PackedScene {
         T: Inherits<Node>,
     {
         self.instantiate().and_then(|gd| gd.try_cast::<T>().ok())
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Manual Key
+
+impl BitOr<KeyModifierMask> for Key {
+    type Output = Key;
+
+    fn bitor(self, rhs: KeyModifierMask) -> Self::Output {
+        Key {
+            ord: self.ord() | rhs.ord(),
+        }
+    }
+}
+
+impl BitOr<Key> for KeyModifierMask {
+    type Output = Key;
+
+    fn bitor(self, rhs: Key) -> Self::Output {
+        rhs | self
     }
 }
