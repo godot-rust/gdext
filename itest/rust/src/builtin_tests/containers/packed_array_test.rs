@@ -6,7 +6,10 @@
  */
 
 use crate::framework::{expect_panic, itest};
-use godot::builtin::{PackedByteArray, PackedFloat32Array, PackedInt32Array, PackedStringArray};
+use godot::builtin::{
+    Color, PackedByteArray, PackedColorArray, PackedFloat32Array, PackedInt32Array,
+    PackedStringArray,
+};
 
 #[itest]
 fn packed_array_default() {
@@ -43,6 +46,54 @@ fn packed_array_from_vec_i32() {
     assert_eq!(int32_array.len(), 2);
     assert_eq!(int32_array[0], 1);
     assert_eq!(int32_array[1], 2);
+}
+
+#[itest]
+fn packed_array_from_vec_color() {
+    const SRC: [Color; 3] = [
+        Color::from_rgb(1., 0., 0.),
+        Color::from_rgb(0., 1., 0.),
+        Color::from_rgb(0., 0., 1.),
+    ];
+    let color_array = PackedColorArray::from(Vec::from(SRC));
+
+    assert_eq!(color_array.len(), SRC.len());
+    for (i, c) in SRC.into_iter().enumerate() {
+        assert_eq!(color_array[i], c, "value mismatch at index {}", i);
+    }
+}
+
+#[itest]
+fn packed_array_from_array_str() {
+    let string_array = PackedStringArray::from(["hello".into(), "world".into()]);
+
+    assert_eq!(string_array.len(), 2);
+    assert_eq!(string_array[0], "hello".into());
+    assert_eq!(string_array[1], "world".into());
+}
+
+#[itest]
+fn packed_array_from_array_i32() {
+    let int32_array = PackedInt32Array::from([1, 2]);
+
+    assert_eq!(int32_array.len(), 2);
+    assert_eq!(int32_array[0], 1);
+    assert_eq!(int32_array[1], 2);
+}
+
+#[itest]
+fn packed_array_from_array_color() {
+    const SRC: [Color; 3] = [
+        Color::from_rgb(1., 0., 0.),
+        Color::from_rgb(0., 1., 0.),
+        Color::from_rgb(0., 0., 1.),
+    ];
+    let color_array = PackedColorArray::from(SRC);
+
+    assert_eq!(color_array.len(), SRC.len());
+    for (i, c) in SRC.into_iter().enumerate() {
+        assert_eq!(color_array[i], c, "value mismatch at index {}", i);
+    }
 }
 
 #[itest]
