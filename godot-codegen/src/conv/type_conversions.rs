@@ -443,7 +443,7 @@ fn gdscript_to_rust_expr() {
     };
     let ty_enum = Some(&ty_enum);
 
-    let ty_bitfield = RustTy::EngineBitfield {
+    let ty_bitfield = RustTy::EngineEnum {
         tokens: quote! { SomeEnum },
         surrounding_class: None,
         is_bitfield: true,
