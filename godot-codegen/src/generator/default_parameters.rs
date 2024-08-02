@@ -247,30 +247,33 @@ fn make_extender(
             default_value,
         } = param;
 
-        let type_ = type_.param_decl();
+        let (field_type, needs_conversion) = type_.private_field_decl();
 
         // Initialize with default parameters where available, forward constructor args otherwise
         let init = if let Some(value) = default_value {
-            quote! { #name: #value }
+            make_field_init(name, value, needs_conversion)
         } else {
             quote! { #name }
         };
 
-        result.builder_fields.push(quote! { #name: #type_ });
+        result.builder_fields.push(quote! { #name: #field_type });
         result.builder_args.push(quote! { self.#name });
         result.builder_inits.push(init);
     }
 
     for param in default_fn_params {
         let FnParam { name, type_, .. } = param;
-        let type_ = type_.param_decl();
+        let param_type = type_.param_decl();
+        let (_, field_needs_conversion) = type_.private_field_decl();
+
+        let field_init = make_field_init(name, &quote! { value }, field_needs_conversion);
 
         let method = quote! {
             #[inline]
-            pub fn #name(self, value: #type_) -> Self {
+            pub fn #name(self, value: #param_type) -> Self {
                 // Currently not testing whether the parameter was already set
                 Self {
-                    #name: value,
+                    #field_init,
                     ..self
                 }
             }
@@ -280,4 +283,12 @@ fn make_extender(
     }
 
     result
+}
+
+fn make_field_init(name: &Ident, expr: &TokenStream, needs_conversion: bool) -> TokenStream {
+    if needs_conversion {
+        quote! { #name: #expr.as_object_arg() }
+    } else {
+        quote! { #name: #expr }
+    }
 }

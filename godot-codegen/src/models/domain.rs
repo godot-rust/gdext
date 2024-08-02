@@ -621,10 +621,10 @@ pub enum RustTy {
         tokens: TokenStream,
 
         /// Tokens with `ObjectArg<T>` (used in `type CallSig` tuple types).
-        arg_view: TokenStream,
+        object_arg: TokenStream,
 
         /// Signature declaration with `impl AsObjectArg<T>`.
-        impl_as_arg: TokenStream,
+        impl_as_object_arg: TokenStream,
 
         /// only inner `T`
         #[allow(dead_code)] // only read in minimal config
@@ -639,9 +639,17 @@ impl RustTy {
     pub fn param_decl(&self) -> TokenStream {
         match self {
             RustTy::EngineClass {
-                arg_view: raw_gd, ..
-            } => raw_gd.clone(),
+                impl_as_object_arg, ..
+            } => impl_as_object_arg.clone(),
             other => other.to_token_stream(),
+        }
+    }
+
+    /// Returns `( <field tokens>, <needs .as_object_arg()> )`.
+    pub fn private_field_decl(&self) -> (TokenStream, bool) {
+        match self {
+            RustTy::EngineClass { object_arg, .. } => (object_arg.clone(), true),
+            other => (other.to_token_stream(), false),
         }
     }
 
