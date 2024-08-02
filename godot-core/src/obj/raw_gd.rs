@@ -15,10 +15,10 @@ use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
     CallContext, ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
 };
-use crate::obj::bounds::DynMemory as _;
+use crate::obj::bounds::{Declarer, DynMemory as _};
 use crate::obj::rtti::ObjectRtti;
 use crate::obj::{bounds, Bounds, GdDerefTarget, GdMut, GdRef, GodotClass, InstanceId};
-use crate::storage::{InstanceStorage, Storage};
+use crate::storage::{InstanceCache, InstanceStorage, Storage};
 use crate::{classes, global, out};
 
 /// Low-level bindings for object pointers in Godot.
@@ -29,8 +29,13 @@ use crate::{classes, global, out};
 #[doc(hidden)]
 pub struct RawGd<T: GodotClass> {
     pub(super) obj: *mut T,
+
     // Must not be changed after initialization.
     cached_rtti: Option<ObjectRtti>,
+
+    // Direct access to InstanceStorage -- initially null.
+    // Only set for user-defined types; ZST otherwise.
+    cached_storage_ptr: <<T as Bounds>::Declarer as Declarer>::InstanceCache,
 }
 
 impl<T: GodotClass> RawGd<T> {
@@ -39,6 +44,7 @@ impl<T: GodotClass> RawGd<T> {
         Self {
             obj: ptr::null_mut(),
             cached_rtti: None,
+            cached_storage_ptr: InstanceCache::null(),
         }
     }
 
@@ -65,6 +71,7 @@ impl<T: GodotClass> RawGd<T> {
         Self {
             obj: obj.cast::<T>(),
             cached_rtti: rtti,
+            cached_storage_ptr: InstanceCache::null(),
         }
     }
 
@@ -423,6 +430,11 @@ where
             return ptr::null_mut();
         }
 
+        let cached = self.cached_storage_ptr.get();
+        if !cached.is_null() {
+            return cached;
+        }
+
         let callbacks = crate::storage::nop_instance_callbacks();
         let token = sys::get_library() as *mut std::ffi::c_void;
         let binding = interface_fn!(object_get_instance_binding)(self.obj_sys(), token, &callbacks);
@@ -432,7 +444,10 @@ where
             "Class {} -- null instance; does the class have a Godot creator function?",
             std::any::type_name::<T>()
         );
-        binding as sys::GDExtensionClassInstancePtr
+
+        let ptr = binding as sys::GDExtensionClassInstancePtr;
+        self.cached_storage_ptr.set(ptr);
+        ptr
     }
 }
 
@@ -628,7 +643,14 @@ impl<T: GodotClass> Clone for RawGd<T> {
             Self::null()
         } else {
             self.check_rtti("clone");
-            unsafe { Self::from_obj_sys(self.obj as sys::GDExtensionObjectPtr) }
+
+            // Create new object, adopt cached fields.
+            let copy = Self {
+                obj: self.obj,
+                cached_rtti: self.cached_rtti.clone(),
+                cached_storage_ptr: self.cached_storage_ptr.clone(),
+            };
+            copy.with_inc_refcount()
         }
     }
 }
