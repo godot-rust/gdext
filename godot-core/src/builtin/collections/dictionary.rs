@@ -9,9 +9,7 @@ use godot_ffi as sys;
 
 use crate::builtin::{inner, Variant, VariantArray};
 use crate::meta::{FromGodot, ToGodot};
-use crate::registry::property::{
-    builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var,
-};
+use crate::registry::property::{Export, PropertyHintInfo, Var};
 use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
@@ -409,12 +407,6 @@ impl Var for Dictionary {
 
     fn set_property(&mut self, value: Self::Via) {
         *self = FromGodot::from_godot(value)
-    }
-}
-
-impl TypeStringHint for Dictionary {
-    fn type_string() -> String {
-        builtin_type_string::<Dictionary>()
     }
 }
 

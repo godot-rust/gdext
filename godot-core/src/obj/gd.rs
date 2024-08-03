@@ -21,7 +21,7 @@ use crate::obj::{
     RawGd,
 };
 use crate::private::callbacks;
-use crate::registry::property::{Export, PropertyHintInfo, TypeStringHint, Var};
+use crate::registry::property::{Export, PropertyHintInfo, Var};
 use crate::{classes, out};
 
 /// Smart pointer to objects owned by the Godot engine.
@@ -734,8 +734,27 @@ impl<T: GodotClass> GodotType for Gd<T> {
     }
 }
 
-impl<T: GodotClass> ArrayElement for Gd<T> {}
-impl<T: GodotClass> ArrayElement for Option<Gd<T>> {}
+impl<T: GodotClass> ArrayElement for Gd<T> {
+    fn element_type_string() -> String {
+        match Self::default_export_info().hint {
+            hint @ (PropertyHint::RESOURCE_TYPE | PropertyHint::NODE_TYPE) => {
+                format!(
+                    "{}/{}:{}",
+                    VariantType::OBJECT.ord(),
+                    hint.ord(),
+                    T::class_name()
+                )
+            }
+            _ => format!("{}:", VariantType::OBJECT.ord()),
+        }
+    }
+}
+
+impl<T: GodotClass> ArrayElement for Option<Gd<T>> {
+    fn element_type_string() -> String {
+        Gd::<T>::element_type_string()
+    }
+}
 
 impl<T> Default for Gd<T>
 where
@@ -757,24 +776,6 @@ impl<T: GodotClass> Clone for Gd<T> {
     fn clone(&self) -> Self {
         out!("Gd::clone");
         Self::from_ffi(self.raw.clone())
-    }
-}
-
-impl<T: GodotClass> TypeStringHint for Gd<T> {
-    fn type_string() -> String {
-        use crate::global::PropertyHint;
-
-        match Self::default_export_info().hint {
-            hint @ (PropertyHint::RESOURCE_TYPE | PropertyHint::NODE_TYPE) => {
-                format!(
-                    "{}/{}:{}",
-                    VariantType::OBJECT.ord(),
-                    hint.ord(),
-                    T::class_name()
-                )
-            }
-            _ => format!("{}:", VariantType::OBJECT.ord()),
-        }
     }
 }
 

@@ -11,7 +11,7 @@ use godot_ffi as sys;
 
 use crate::builtin::GString;
 use crate::global::PropertyHint;
-use crate::meta::{FromGodot, GodotConvert, GodotType, ToGodot};
+use crate::meta::{ArrayElement, FromGodot, GodotConvert, GodotType, ToGodot};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
@@ -53,28 +53,8 @@ pub trait Export: Var {
     fn default_export_info() -> PropertyHintInfo;
 }
 
-/// Marks types that are registered via "type string hint" in Godot.
-///
-/// See [`PropertyHint::TYPE_STRING`] and [upstream docs].
-///
-/// [upstream docs]: https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint
-pub trait TypeStringHint {
-    /// Returns the representation of this type as a type string.
-    ///
-    /// See [`PropertyHint.PROPERTY_HINT_TYPE_STRING`](
-    ///     https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint
-    /// ).
-    fn type_string() -> String;
-}
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Blanket impls for Option<T>
-
-impl<T: TypeStringHint> TypeStringHint for Option<T> {
-    fn type_string() -> String {
-        T::type_string()
-    }
-}
 
 impl<T> Var for Option<T>
 where
@@ -143,6 +123,17 @@ impl PropertyHintInfo {
             hint: PropertyHint::NONE,
             hint_string,
         }
+    }
+
+    pub fn with_array_element<T: ArrayElement>() -> Self {
+        Self {
+            hint: PropertyHint::TYPE_STRING,
+            hint_string: GString::from(T::element_type_string()),
+        }
+    }
+
+    pub fn with_type_name<T: GodotType>() -> Self {
+        Self::with_hint_none(T::godot_type_name())
     }
 }
 
@@ -408,13 +399,11 @@ mod export_impls {
     macro_rules! impl_property_by_godot_convert {
         ($Ty:ty, no_export) => {
             impl_property_by_godot_convert!(@property $Ty);
-            impl_property_by_godot_convert!(@type_string_hint $Ty);
         };
 
         ($Ty:ty) => {
             impl_property_by_godot_convert!(@property $Ty);
             impl_property_by_godot_convert!(@export $Ty);
-            impl_property_by_godot_convert!(@type_string_hint $Ty);
         };
 
         (@property $Ty:ty) => {
@@ -432,18 +421,10 @@ mod export_impls {
         (@export $Ty:ty) => {
             impl Export for $Ty {
                 fn default_export_info() -> PropertyHintInfo {
-                    PropertyHintInfo::with_hint_none(<$Ty as $crate::meta::GodotType>::godot_type_name())
+                    PropertyHintInfo::with_type_name::<$Ty>()
                 }
             }
         };
-
-        (@type_string_hint $Ty:ty) => {
-            impl TypeStringHint for $Ty {
-                fn type_string() -> String {
-                    builtin_type_string::<$Ty>()
-                }
-            }
-        }
     }
 
     // Bounding Boxes
