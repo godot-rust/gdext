@@ -9,7 +9,7 @@ use crate::builtin::NodePath;
 use crate::classes::Node;
 use crate::meta::GodotConvert;
 use crate::obj::{Gd, GodotClass, Inherits};
-use crate::registry::property::{PropertyHintInfo, Var};
+use crate::registry::property::Var;
 use std::mem;
 
 /// Ergonomic late-initialization container with `ready()` support.
@@ -266,10 +266,6 @@ impl<T: Var> Var for OnReady<T> {
     fn set_property(&mut self, value: Self::Via) {
         let deref: &mut T = self;
         deref.set_property(value);
-    }
-
-    fn property_hint() -> PropertyHintInfo {
-        T::property_hint()
     }
 }
 

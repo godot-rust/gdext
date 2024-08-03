@@ -906,18 +906,6 @@ impl<T: ArrayElement> Var for Array<T> {
     fn set_property(&mut self, value: Self::Via) {
         *self = FromGodot::from_godot(value)
     }
-
-    #[cfg(since_api = "4.2")]
-    fn property_hint() -> PropertyHintInfo {
-        if T::Ffi::variant_type() == VariantType::NIL {
-            return PropertyHintInfo::with_hint_none("");
-        }
-
-        PropertyHintInfo {
-            hint: crate::global::PropertyHint::ARRAY_TYPE,
-            hint_string: T::godot_type_name().into(),
-        }
-    }
 }
 
 impl<T: ArrayElement + TypeStringHint> Export for Array<T> {
@@ -982,6 +970,20 @@ impl<T: ArrayElement> GodotType for Array<T> {
 
     fn godot_type_name() -> String {
         "Array".to_string()
+    }
+
+    #[cfg(since_api = "4.2")]
+    fn property_hint_info() -> PropertyHintInfo {
+        // Array<Variant>, aka untyped array, has no hints.
+        if T::Ffi::variant_type() == VariantType::NIL {
+            return PropertyHintInfo::none();
+        }
+
+        // Typed arrays use type hint.
+        PropertyHintInfo {
+            hint: crate::global::PropertyHint::ARRAY_TYPE,
+            hint_string: T::godot_type_name().into(),
+        }
     }
 }
 

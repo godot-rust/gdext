@@ -12,8 +12,8 @@ use crate::meta::{
     ToGodot,
 };
 use crate::registry::method::MethodParamOrReturnInfo;
+use crate::registry::property::PropertyHintInfo;
 use godot_ffi as sys;
-
 // The following ToGodot/FromGodot/Convert impls are auto-generated for each engine type, co-located with their definitions:
 // - enum
 // - const/mut pointer to native struct
@@ -62,6 +62,10 @@ where
 
     fn property_info(property_name: &str) -> PropertyInfo {
         T::property_info(property_name)
+    }
+
+    fn property_hint_info() -> PropertyHintInfo {
+        T::property_hint_info()
     }
 
     fn argument_info(property_name: &str) -> MethodParamOrReturnInfo {

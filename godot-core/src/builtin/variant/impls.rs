@@ -10,8 +10,8 @@ use crate::builtin::*;
 use crate::global;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{ArrayElement, GodotFfiVariant, GodotType, PropertyInfo};
+use crate::registry::property::PropertyHintInfo;
 use godot_ffi as sys;
-
 // For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -212,8 +212,7 @@ impl GodotType for Variant {
             variant_type: Self::variant_type(),
             class_name: Self::class_name(),
             property_name: StringName::from(property_name),
-            hint: global::PropertyHint::NONE,
-            hint_string: GString::new(),
+            hint_info: PropertyHintInfo::none(),
             usage: global::PropertyUsageFlags::DEFAULT | global::PropertyUsageFlags::NIL_IS_VARIANT,
         }
     }

@@ -38,8 +38,8 @@ fn property_dict_eq_property_info(dict: &Dictionary, info: &PropertyInfo) -> boo
     dict.get("name").unwrap().to::<GString>().to_string() == info.property_name.to_string()
         && dict.get("class_name").unwrap().to::<StringName>() == info.class_name.to_string_name()
         && dict.get("type").unwrap().to::<VariantType>() == info.variant_type
-        && dict.get("hint").unwrap().to::<PropertyHint>() == info.hint
-        && dict.get("hint_string").unwrap().to::<GString>() == info.hint_string
+        && dict.get("hint").unwrap().to::<PropertyHint>() == info.hint_info.hint
+        && dict.get("hint_string").unwrap().to::<GString>() == info.hint_info.hint_string
         && dict.get("usage").unwrap().to::<PropertyUsageFlags>() == info.usage
 }
 

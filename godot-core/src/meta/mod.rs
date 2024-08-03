@@ -89,13 +89,12 @@ pub struct PropertyInfo {
     /// The name of this property in Godot.
     pub property_name: StringName,
 
-    /// How the property is meant to be edited. See also [`PropertyHint`] in the Godot docs.
+    /// Additional type information for this property, e.g. about array types or enum values. Split into `hint` and `hint_string` members.
+    ///
+    /// See also [`PropertyHint`] in the Godot docs.
     ///
     /// [`PropertyHint`]: https://docs.godotengine.org/en/latest/classes/class_%40globalscope.html#enum-globalscope-propertyhint
-    pub hint: PropertyHint,
-
-    /// Extra information passed to Godot for this property, what this means depends on the `hint` value.
-    pub hint_string: GString,
+    pub hint_info: PropertyHintInfo,
 
     /// How this property should be used. See [`PropertyUsageFlags`] in Godot for the meaning.
     ///
@@ -148,13 +147,7 @@ impl PropertyInfo {
     ///     ));
     /// ```
     pub fn with_hint_info(self, hint_info: PropertyHintInfo) -> Self {
-        let PropertyHintInfo { hint, hint_string } = hint_info;
-
-        Self {
-            hint,
-            hint_string,
-            ..self
-        }
+        Self { hint_info, ..self }
     }
 
     /// Create a new `PropertyInfo` representing a group in Godot.
@@ -166,8 +159,10 @@ impl PropertyInfo {
             variant_type: VariantType::NIL,
             class_name: ClassName::none(),
             property_name: group_name.into(),
-            hint: PropertyHint::NONE,
-            hint_string: group_prefix.into(),
+            hint_info: PropertyHintInfo {
+                hint: PropertyHint::NONE,
+                hint_string: group_prefix.into(),
+            },
             usage: PropertyUsageFlags::GROUP,
         }
     }
@@ -181,8 +176,10 @@ impl PropertyInfo {
             variant_type: VariantType::NIL,
             class_name: ClassName::none(),
             property_name: subgroup_name.into(),
-            hint: PropertyHint::NONE,
-            hint_string: subgroup_prefix.into(),
+            hint_info: PropertyHintInfo {
+                hint: PropertyHint::NONE,
+                hint_string: subgroup_prefix.into(),
+            },
             usage: PropertyUsageFlags::SUBGROUP,
         }
     }
@@ -196,8 +193,8 @@ impl PropertyInfo {
             type_: self.variant_type.sys(),
             name: sys::SysPtr::force_mut(self.property_name.string_sys()),
             class_name: sys::SysPtr::force_mut(self.class_name.string_sys()),
-            hint: u32::try_from(self.hint.ord()).expect("hint.ord()"),
-            hint_string: sys::SysPtr::force_mut(self.hint_string.string_sys()),
+            hint: u32::try_from(self.hint_info.hint.ord()).expect("hint.ord()"),
+            hint_string: sys::SysPtr::force_mut(self.hint_info.hint_string.string_sys()),
             usage: u32::try_from(self.usage.ord()).expect("usage.ord()"),
         }
     }
@@ -228,8 +225,8 @@ impl PropertyInfo {
             type_: self.variant_type.sys(),
             name: self.property_name.into_owned_string_sys(),
             class_name: sys::SysPtr::force_mut(self.class_name.string_sys()),
-            hint: u32::try_from(self.hint.ord()).expect("hint.ord()"),
-            hint_string: self.hint_string.into_owned_string_sys(),
+            hint: u32::try_from(self.hint_info.hint.ord()).expect("hint.ord()"),
+            hint_string: self.hint_info.hint_string.into_owned_string_sys(),
             usage: u32::try_from(self.usage.ord()).expect("usage.ord()"),
         }
     }

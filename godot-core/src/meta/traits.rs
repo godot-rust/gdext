@@ -7,13 +7,14 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{GString, StringName, Variant};
-use crate::global::{PropertyHint, PropertyUsageFlags};
+use crate::builtin::{StringName, Variant};
+use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
 use crate::meta::{sealed, ClassName, FromGodot, GodotConvert, PropertyInfo, ToGodot};
 use crate::registry::method::MethodParamOrReturnInfo;
 
 // Re-export sys traits in this module, so all are in one place.
+use crate::registry::property::PropertyHintInfo;
 pub use sys::{GodotFfi, GodotNullableFfi};
 
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].
@@ -73,10 +74,14 @@ pub trait GodotType:
             variant_type: Self::Ffi::variant_type(),
             class_name: Self::class_name(),
             property_name: StringName::from(property_name),
-            hint: PropertyHint::NONE,
-            hint_string: GString::new(),
+            hint_info: Self::property_hint_info(),
             usage: PropertyUsageFlags::DEFAULT,
         }
+    }
+
+    #[doc(hidden)]
+    fn property_hint_info() -> PropertyHintInfo {
+        PropertyHintInfo::none()
     }
 
     #[doc(hidden)]
