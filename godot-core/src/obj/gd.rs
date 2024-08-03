@@ -374,9 +374,8 @@ impl<T: GodotClass> Gd<T> {
 
     /// **Downcast:** try to convert into a smart pointer to a derived class.
     ///
-    /// If `T`'s dynamic type is not `Derived` or one of its subclasses, `None` is returned
-    /// and the reference is dropped. Otherwise, `Some` is returned and the ownership is moved
-    /// to the returned value.
+    /// If `T`'s dynamic type is not `Derived` or one of its subclasses, `Err(self)` is returned, meaning you can reuse the original
+    /// object for further casts.
     pub fn try_cast<Derived>(self) -> Result<Gd<Derived>, Self>
     where
         Derived: GodotClass + Inherits<T>,

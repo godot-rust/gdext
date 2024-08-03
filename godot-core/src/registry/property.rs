@@ -35,8 +35,9 @@ pub trait Var: GodotConvert {
     fn get_property(&self) -> Self::Via;
     fn set_property(&mut self, value: Self::Via);
 
+    /// Specific property hints, only override if they deviate from [`GodotType::property_info`], e.g. for enums/newtypes.
     fn property_hint() -> PropertyHintInfo {
-        PropertyHintInfo::with_hint_none("")
+        Self::Via::property_hint_info()
     }
 }
 
@@ -119,6 +120,14 @@ pub struct PropertyHintInfo {
 }
 
 impl PropertyHintInfo {
+    /// Create a new `PropertyHintInfo` with a property hint of [`PROPERTY_HINT_NONE`](PropertyHint::NONE), and no hint string.
+    pub fn none() -> Self {
+        Self {
+            hint: PropertyHint::NONE,
+            hint_string: GString::new(),
+        }
+    }
+
     /// Create a new `PropertyHintInfo` with a property hint of [`PROPERTY_HINT_NONE`](PropertyHint::NONE).
     ///
     /// Starting with Godot version 4.3, the hint string will always be the empty string. Before that, the hint string is set to
