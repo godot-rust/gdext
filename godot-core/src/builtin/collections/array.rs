@@ -895,8 +895,21 @@ impl<T: ArrayElement> Var for Array<T> {
     fn get_property(&self) -> Self::Via {
         self.to_godot()
     }
+
     fn set_property(&mut self, value: Self::Via) {
         *self = FromGodot::from_godot(value)
+    }
+
+    fn property_hint() -> PropertyHintInfo {
+        // For array #[var], the hint string is "PackedInt32Array", "Node" etc. for typed arrays, and "" for untyped arrays.
+        if Self::has_variant_t() {
+            PropertyHintInfo::none()
+        } else if sys::GdextBuild::since_api("4.2") {
+            PropertyHintInfo::var_array_element::<T>()
+        } else {
+            // Godot 4.1 was missing PropertyHint::ARRAY_TYPE, so we use the type name instead.
+            PropertyHintInfo::none()
+        }
     }
 }
 
@@ -906,7 +919,7 @@ impl<T: ArrayElement> Export for Array<T> {
         if Self::has_variant_t() {
             PropertyHintInfo::with_type_name::<VariantArray>()
         } else {
-            PropertyHintInfo::with_array_element::<T>()
+            PropertyHintInfo::export_array_element::<T>()
         }
     }
 }

@@ -34,7 +34,6 @@ pub fn derive_var(item: venial::Item) -> ParseResult<TokenStream> {
             fn property_hint() -> ::godot::register::property::PropertyHintInfo {
                 #property_hint_impl
             }
-
         }
     })
 }

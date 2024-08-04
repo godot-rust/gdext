@@ -73,7 +73,7 @@ fn property_template_test(ctx: &TestContext) {
 
         if rust_prop != property {
             errors.push(format!(
-                "mismatch in property {name}, GDScript: {property:?}, Rust: {rust_prop:?}"
+                "mismatch in property {name}:\n  GDScript: {property:?}\n  Rust:     {rust_prop:?}"
             ));
         }
     }

@@ -81,6 +81,9 @@ pub trait GodotType:
 
     #[doc(hidden)]
     fn property_hint_info() -> PropertyHintInfo {
+        // The default implementation is mostly good for builtin types.
+        //PropertyHintInfo::with_type_name::<Self>()
+
         PropertyHintInfo::none()
     }
 

@@ -37,6 +37,15 @@ pub trait Var: GodotConvert {
 
     /// Specific property hints, only override if they deviate from [`GodotType::property_info`], e.g. for enums/newtypes.
     fn property_hint() -> PropertyHintInfo {
+        // From Godot 4.3 onward, properties are typically exported with "" hint_string. This needs to be manually overridden for types
+        // that need a hint string, like arrays. See also https://github.com/godotengine/godot/pull/82952 and property_template_test.rs.
+        // if sys::GdextBuild::since_api("4.3") {
+        //     PropertyHintInfo::with_type_name::<Self::Via>()
+        // } else {
+        //     Self::Via::property_hint_info()
+        // }
+
+        //PropertyHintInfo::with_hint_none("")
         Self::Via::property_hint_info()
     }
 }
@@ -50,7 +59,9 @@ pub trait Var: GodotConvert {
 )]
 pub trait Export: Var {
     /// The export info to use for an exported field of this type, if no other export info is specified.
-    fn default_export_info() -> PropertyHintInfo;
+    fn default_export_info() -> PropertyHintInfo {
+        <Self as Var>::property_hint()
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -125,13 +136,19 @@ impl PropertyHintInfo {
         }
     }
 
-    pub fn with_array_element<T: ArrayElement>() -> Self {
+    pub fn var_array_element<T: ArrayElement>() -> Self {
+        Self {
+            hint: PropertyHint::ARRAY_TYPE,
+            hint_string: GString::from(T::godot_type_name()),
+        }
+    }
+
+    pub fn export_array_element<T: ArrayElement>() -> Self {
         Self {
             hint: PropertyHint::TYPE_STRING,
             hint_string: GString::from(T::element_type_string()),
         }
     }
-
     pub fn with_type_name<T: GodotType>() -> Self {
         Self::with_hint_none(T::godot_type_name())
     }
@@ -457,8 +474,10 @@ mod export_impls {
 
     impl_property_by_godot_convert!(Color);
 
-    // Arrays
-    // We manually implement `Export`.
+    // Dictionary: will need to be done manually once they become typed.
+    impl_property_by_godot_convert!(Dictionary);
+
+    // Packed arrays: we manually implement `Export`.
     impl_property_by_godot_convert!(PackedByteArray, no_export);
     impl_property_by_godot_convert!(PackedInt32Array, no_export);
     impl_property_by_godot_convert!(PackedInt64Array, no_export);

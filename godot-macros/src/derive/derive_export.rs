@@ -19,10 +19,6 @@ pub fn derive_export(item: venial::Item) -> ParseResult<TokenStream> {
     let GodotConvert { ty_name: name, .. } = GodotConvert::parse_declaration(item)?;
 
     Ok(quote! {
-        impl ::godot::register::property::Export for #name {
-            fn default_export_info() -> ::godot::register::property::PropertyHintInfo {
-                <#name as ::godot::register::property::Var>::property_hint()
-            }
-        }
+        impl ::godot::register::property::Export for #name {}
     })
 }
