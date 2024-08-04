@@ -414,6 +414,7 @@ mod export_impls {
 
     // Dictionary: will need to be done manually once they become typed.
     impl_property_by_godot_convert!(Dictionary);
+    impl_property_by_godot_convert!(Variant);
 
     // Packed arrays: we manually implement `Export`.
     impl_property_by_godot_convert!(PackedByteArray, no_export);
