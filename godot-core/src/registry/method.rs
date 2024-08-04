@@ -11,6 +11,7 @@ use sys::interface_fn;
 use crate::builtin::{StringName, Variant};
 use crate::global::MethodFlags;
 use crate::meta::{ClassName, PropertyInfo, VarcallSignatureTuple};
+use crate::obj::GodotClass;
 
 /// Info relating to an argument or return type in a method.
 pub struct MethodParamOrReturnInfo {
@@ -52,14 +53,13 @@ impl ClassMethodInfo {
     /// `call_func` and `ptrcall_func`, if provided, must:
     ///
     /// - Follow the behavior expected from the `method_flags`.
-    pub unsafe fn from_signature<S: VarcallSignatureTuple>(
-        class_name: ClassName,
+    pub unsafe fn from_signature<C: GodotClass, S: VarcallSignatureTuple>(
         method_name: StringName,
         call_func: sys::GDExtensionClassMethodCall,
         ptrcall_func: sys::GDExtensionClassMethodPtrCall,
         method_flags: MethodFlags,
         param_names: &[&str],
-        default_arguments: Vec<Variant>,
+        // default_arguments: Vec<Variant>, - not yet implemented
     ) -> Self {
         let return_value = S::return_info();
         let mut arguments = Vec::new();
@@ -79,13 +79,14 @@ impl ClassMethodInfo {
             }))
         }
 
+        let default_arguments = vec![]; // not yet implemented.
         assert!(
             default_arguments.len() <= arguments.len(),
             "cannot have more default arguments than arguments"
         );
 
         Self {
-            class_name,
+            class_name: C::class_name(),
             method_name,
             call_func,
             ptrcall_func,
