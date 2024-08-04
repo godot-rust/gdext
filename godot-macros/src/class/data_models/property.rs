@@ -106,22 +106,22 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 if let Some(export_hint) = export_hint {
                     quote! {
                         {
-                            let ::godot::register::property::PropertyHintInfo { hint, hint_string } = #export_hint;
+                            let ::godot::meta::PropertyHintInfo { hint, hint_string } = #export_hint;
                             (hint, hint_string)
                         }
                     }
                 } else if export.is_some() {
                     quote! {
                         {
-                            let default_export_info = <#field_type as ::godot::register::property::Export>::default_export_info();
-                            (default_export_info.hint, default_export_info.hint_string)
+                            let export_hint = <#field_type as ::godot::register::property::Export>::export_hint();
+                            (export_hint.hint, export_hint.hint_string)
                         }
                     }
                 } else {
                     quote! {
                         {
-                            let default_export_info = <#field_type as ::godot::register::property::Var>::property_hint();
-                            (default_export_info.hint, default_export_info.hint_string)
+                            let export_hint = <#field_type as ::godot::register::property::Var>::var_hint();
+                            (export_hint.hint, export_hint.hint_string)
                         }
                     }
                 }
@@ -169,7 +169,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 variant_type: #field_variant_type,
                 class_name: #field_class_name,
                 property_name: #field_name.into(),
-                hint_info: ::godot::register::property::PropertyHintInfo {
+                hint_info: ::godot::meta::PropertyHintInfo {
                     hint,
                     hint_string,
                 },

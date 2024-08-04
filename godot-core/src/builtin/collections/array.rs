@@ -11,12 +11,10 @@ use std::marker::PhantomData;
 use crate::builtin::*;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
-    ArrayElement, ArrayTypeInfo, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
+    ArrayElement, ArrayTypeInfo, FromGodot, GodotConvert, GodotFfiVariant, GodotType,
+    PropertyHintInfo, ToGodot,
 };
-use crate::obj::EngineEnum;
-use crate::registry::property::{
-    builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var,
-};
+use crate::registry::property::{Export, Var};
 use godot_ffi as sys;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
@@ -778,6 +776,14 @@ impl<T: ArrayElement> Array<T> {
             }
         }
     }
+
+    /// Whether this array is untyped and holds `Variant` elements (compile-time check).
+    ///
+    /// Used as `if` statement in trait impls. Avoids defining yet another trait or non-local overridden function just for this case;
+    /// `Variant` is the only Godot type that has variant type NIL and can be used as an array element.
+    fn has_variant_t() -> bool {
+        T::Ffi::variant_type() == VariantType::NIL
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -886,18 +892,6 @@ impl<T: ArrayElement> Clone for Array<T> {
     }
 }
 
-impl<T: ArrayElement + TypeStringHint> TypeStringHint for Array<T> {
-    fn type_string() -> String {
-        format!("{}:{}", VariantType::ARRAY.ord(), T::type_string())
-    }
-}
-
-impl TypeStringHint for VariantArray {
-    fn type_string() -> String {
-        builtin_type_string::<VariantArray>()
-    }
-}
-
 impl<T: ArrayElement> Var for Array<T> {
     fn get_property(&self) -> Self::Via {
         self.to_godot()
@@ -906,20 +900,28 @@ impl<T: ArrayElement> Var for Array<T> {
     fn set_property(&mut self, value: Self::Via) {
         *self = FromGodot::from_godot(value)
     }
-}
 
-impl<T: ArrayElement + TypeStringHint> Export for Array<T> {
-    fn default_export_info() -> PropertyHintInfo {
-        PropertyHintInfo {
-            hint: crate::global::PropertyHint::TYPE_STRING,
-            hint_string: T::type_string().into(),
+    fn var_hint() -> PropertyHintInfo {
+        // For array #[var], the hint string is "PackedInt32Array", "Node" etc. for typed arrays, and "" for untyped arrays.
+        if Self::has_variant_t() {
+            PropertyHintInfo::none()
+        } else if sys::GdextBuild::since_api("4.2") {
+            PropertyHintInfo::var_array_element::<T>()
+        } else {
+            // Godot 4.1 was not using PropertyHint::ARRAY_TYPE, but the empty hint instead.
+            PropertyHintInfo::none()
         }
     }
 }
 
-impl Export for Array<Variant> {
-    fn default_export_info() -> PropertyHintInfo {
-        PropertyHintInfo::with_hint_none("Array")
+impl<T: ArrayElement> Export for Array<T> {
+    fn export_hint() -> PropertyHintInfo {
+        // If T == Variant, then we return "Array" builtin type hint.
+        if Self::has_variant_t() {
+            PropertyHintInfo::type_name::<VariantArray>()
+        } else {
+            PropertyHintInfo::export_array_element::<T>()
+        }
     }
 }
 
@@ -975,7 +977,7 @@ impl<T: ArrayElement> GodotType for Array<T> {
     #[cfg(since_api = "4.2")]
     fn property_hint_info() -> PropertyHintInfo {
         // Array<Variant>, aka untyped array, has no hints.
-        if T::Ffi::variant_type() == VariantType::NIL {
+        if Self::has_variant_t() {
             return PropertyHintInfo::none();
         }
 

@@ -9,9 +9,6 @@ use godot_ffi as sys;
 
 use crate::builtin::{inner, Variant, VariantArray};
 use crate::meta::{FromGodot, ToGodot};
-use crate::registry::property::{
-    builtin_type_string, Export, PropertyHintInfo, TypeStringHint, Var,
-};
 use sys::types::OpaqueDictionary;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
@@ -399,28 +396,6 @@ impl Clone for Dictionary {
                 ctor(self_ptr, args.as_ptr());
             })
         }
-    }
-}
-
-impl Var for Dictionary {
-    fn get_property(&self) -> Self::Via {
-        self.to_godot()
-    }
-
-    fn set_property(&mut self, value: Self::Via) {
-        *self = FromGodot::from_godot(value)
-    }
-}
-
-impl TypeStringHint for Dictionary {
-    fn type_string() -> String {
-        builtin_type_string::<Dictionary>()
-    }
-}
-
-impl Export for Dictionary {
-    fn default_export_info() -> PropertyHintInfo {
-        PropertyHintInfo::with_hint_none("Dictionary")
     }
 }
 

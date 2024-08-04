@@ -10,11 +10,13 @@ use godot_ffi as sys;
 use crate::builtin::{StringName, Variant};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
-use crate::meta::{sealed, ClassName, FromGodot, GodotConvert, PropertyInfo, ToGodot};
+use crate::meta::{
+    sealed, ClassName, FromGodot, GodotConvert, PropertyHintInfo, PropertyInfo, ToGodot,
+};
 use crate::registry::method::MethodParamOrReturnInfo;
 
 // Re-export sys traits in this module, so all are in one place.
-use crate::registry::property::PropertyHintInfo;
+use crate::registry::property::builtin_type_string;
 pub use sys::{GodotFfi, GodotNullableFfi};
 
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].
@@ -81,6 +83,9 @@ pub trait GodotType:
 
     #[doc(hidden)]
     fn property_hint_info() -> PropertyHintInfo {
+        // The default implementation is mostly good for builtin types.
+        //PropertyHintInfo::with_type_name::<Self>()
+
         PropertyHintInfo::none()
     }
 
@@ -126,4 +131,17 @@ pub trait GodotType:
     label = "does not implement `Var`",
     note = "see also: https://godot-rust.github.io/docs/gdext/master/godot/builtin/meta/trait.ArrayElement.html"
 )]
-pub trait ArrayElement: GodotType {}
+pub trait ArrayElement: GodotType + sealed::Sealed {
+    /// Returns the representation of this type as a type string.
+    ///
+    /// Used for elements in arrays and packed arrays (the latter despite `ArrayElement` not having a direct relation).
+    ///
+    /// See [`PropertyHint::TYPE_STRING`] and [upstream docs].
+    ///
+    /// [upstream docs]: https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint
+    #[doc(hidden)]
+    fn element_type_string() -> String {
+        // Most array elements and all packed array elements are builtin types, so this is a good default.
+        builtin_type_string::<Self>()
+    }
+}

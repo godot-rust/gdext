@@ -8,9 +8,9 @@
 use godot::builtin::{dict, Color, Dictionary, GString, Variant, VariantType};
 use godot::classes::{INode, IRefCounted, Node, Object, RefCounted, Resource, Texture};
 use godot::global::{PropertyHint, PropertyUsageFlags};
-use godot::meta::{GodotConvert, ToGodot};
+use godot::meta::{GodotConvert, PropertyHintInfo, ToGodot};
 use godot::obj::{Base, EngineBitfield, EngineEnum, Gd, NewAlloc, NewGd};
-use godot::register::property::{Export, PropertyHintInfo, Var};
+use godot::register::property::{Export, Var};
 use godot::register::{godot_api, Export, GodotClass, GodotConvert, Var};
 use godot::test::itest;
 
@@ -174,7 +174,7 @@ impl Var for SomeCStyleEnum {
 }
 
 impl Export for SomeCStyleEnum {
-    fn default_export_info() -> PropertyHintInfo {
+    fn export_hint() -> PropertyHintInfo {
         PropertyHintInfo {
             hint: PropertyHint::ENUM,
             hint_string: "A,B,C".into(),

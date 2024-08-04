@@ -9,8 +9,7 @@ use super::*;
 use crate::builtin::*;
 use crate::global;
 use crate::meta::error::{ConvertError, FromVariantError};
-use crate::meta::{ArrayElement, GodotFfiVariant, GodotType, PropertyInfo};
-use crate::registry::property::PropertyHintInfo;
+use crate::meta::{ArrayElement, GodotFfiVariant, GodotType, PropertyHintInfo, PropertyInfo};
 use godot_ffi as sys;
 // For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.
 
