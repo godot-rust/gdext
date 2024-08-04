@@ -39,12 +39,12 @@ fn property_template_test(ctx: &TestContext) {
         // For now, just ignore array properties when we compile for 4.1 but run in 4.2.
         if GdextBuild::since_api("4.2")
             && cfg!(before_api = "4.2")
-            && name.starts_with("property_array_")
+            && name.starts_with("var_array_")
         {
             continue;
         }
 
-        if name.starts_with("property_") || name.starts_with("export_") {
+        if name.starts_with("var_") || name.starts_with("export_") {
             properties.insert(name, property);
         }
     }
