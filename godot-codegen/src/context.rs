@@ -329,13 +329,32 @@ impl InheritanceTree {
 
     /// Returns all base classes, without the class itself, in order from nearest to furthest (object).
     pub fn collect_all_bases(&self, derived_name: &TyName) -> Vec<TyName> {
-        let mut maybe_base = derived_name;
+        let mut upgoer = derived_name;
         let mut result = vec![];
 
-        while let Some(base) = self.derived_to_base.get(maybe_base) {
+        while let Some(base) = self.derived_to_base.get(upgoer) {
             result.push(base.clone());
-            maybe_base = base;
+            upgoer = base;
         }
         result
+    }
+
+    /// Whether a class is a direct or indirect subclass of another (true for derived == base).
+    pub fn inherits(&self, derived: &TyName, base_name: &str) -> bool {
+        // Reflexive: T inherits T.
+        if derived.godot_ty == base_name {
+            return true;
+        }
+
+        let mut upgoer = derived;
+
+        while let Some(next_base) = self.derived_to_base.get(upgoer) {
+            if next_base.godot_ty == base_name {
+                return true;
+            }
+            upgoer = next_base;
+        }
+
+        false
     }
 }

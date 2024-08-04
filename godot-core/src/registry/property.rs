@@ -22,8 +22,8 @@ use crate::meta::{FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot}
 /// This does not require [`FromGodot`] or [`ToGodot`], so that something can be used as a property even if it can't be used in function
 /// arguments/return types.
 
-// We also mention #[export] here, because we can't control the order of error messages. Missing Export often also means missing Var trait,
-// and so the Var error message appears first.
+// on_unimplemented: we also mention #[export] here, because we can't control the order of error messages.
+// Missing Export often also means missing Var trait, and so the Var error message appears first.
 #[diagnostic::on_unimplemented(
     message = "`#[var]` properties require `Var` trait; #[export] ones require `Export` trait",
     label = "type cannot be used as a property",
@@ -41,7 +41,10 @@ pub trait Var: GodotConvert {
 }
 
 /// Trait implemented for types that can be used as `#[export]` fields.
-// Mentioning both Var + Export: see above.
+///
+/// `Export` is only implemented for objects `Gd<T>` if either `T: Inherits<Node>` or `T: Inherits<Resource>`, just like GDScript.
+/// This means you cannot use `#[export]` with `Gd<RefCounted>`, for example.
+// on_unimplemented: mentioning both Var + Export; see above.
 #[diagnostic::on_unimplemented(
     message = "`#[var]` properties require `Var` trait; #[export] ones require `Export` trait",
     label = "type cannot be used as a property",

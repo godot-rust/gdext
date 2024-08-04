@@ -58,7 +58,7 @@ use private::Sealed;
 // Sealed trait
 
 pub(super) mod private {
-    use super::{Declarer, DynMemory, Memory};
+    use super::{Declarer, DynMemory, Exportable, Memory};
 
     // Bounds trait declared here for code locality; re-exported in crate::obj.
 
@@ -97,6 +97,12 @@ pub(super) mod private {
         /// Whether this class is a core Godot class provided by the engine, or declared by the user as a Rust struct.
         // TODO what about GDScript user classes?
         type Declarer: Declarer;
+
+        /// True if *either* `T: Inherits<Node>` *or* `T: Inherits<Resource>` is fulfilled.
+        ///
+        /// Enables `#[export]` for those classes.
+        #[doc(hidden)]
+        type Exportable: Exportable;
     }
 
     /// Implements [`Bounds`] for a user-defined class.
@@ -130,6 +136,7 @@ pub(super) mod private {
                 type Memory = <<$UserClass as $crate::obj::GodotClass>::Base as $crate::obj::Bounds>::Memory;
                 type DynMemory = <<$UserClass as $crate::obj::GodotClass>::Base as $crate::obj::Bounds>::DynMemory;
                 type Declarer = $crate::obj::bounds::DeclUser;
+                type Exportable = <<$UserClass as $crate::obj::GodotClass>::Base as $crate::obj::Bounds>::Exportable;
             }
         };
     }
@@ -417,3 +424,19 @@ impl Declarer for DeclUser {
         }
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Exportable bounds (still hidden)
+
+#[doc(hidden)]
+pub trait Exportable: Sealed {}
+
+#[doc(hidden)]
+pub enum Yes {}
+impl Sealed for Yes {}
+impl Exportable for Yes {}
+
+#[doc(hidden)]
+pub enum No {}
+impl Sealed for No {}
+impl Exportable for No {}
