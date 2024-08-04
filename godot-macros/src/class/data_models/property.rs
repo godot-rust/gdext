@@ -106,7 +106,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 if let Some(export_hint) = export_hint {
                     quote! {
                         {
-                            let ::godot::register::property::PropertyHintInfo { hint, hint_string } = #export_hint;
+                            let ::godot::meta::PropertyHintInfo { hint, hint_string } = #export_hint;
                             (hint, hint_string)
                         }
                     }
@@ -169,7 +169,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 variant_type: #field_variant_type,
                 class_name: #field_class_name,
                 property_name: #field_name.into(),
-                hint_info: ::godot::register::property::PropertyHintInfo {
+                hint_info: ::godot::meta::PropertyHintInfo {
                     hint,
                     hint_string,
                 },

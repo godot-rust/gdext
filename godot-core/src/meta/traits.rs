@@ -10,11 +10,13 @@ use godot_ffi as sys;
 use crate::builtin::{StringName, Variant};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
-use crate::meta::{sealed, ClassName, FromGodot, GodotConvert, PropertyInfo, ToGodot};
+use crate::meta::{
+    sealed, ClassName, FromGodot, GodotConvert, PropertyHintInfo, PropertyInfo, ToGodot,
+};
 use crate::registry::method::MethodParamOrReturnInfo;
 
 // Re-export sys traits in this module, so all are in one place.
-use crate::registry::property::{builtin_type_string, PropertyHintInfo};
+use crate::registry::property::builtin_type_string;
 pub use sys::{GodotFfi, GodotNullableFfi};
 
 /// Conversion of [`GodotFfi`] types to/from [`Variant`].

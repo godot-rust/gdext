@@ -8,12 +8,12 @@
 use crate::builtin::Variant;
 use crate::meta::error::{ConvertError, FromFfiError, FromVariantError};
 use crate::meta::{
-    ArrayElement, ClassName, FromGodot, GodotConvert, GodotNullableFfi, GodotType, PropertyInfo,
-    ToGodot,
+    ArrayElement, ClassName, FromGodot, GodotConvert, GodotNullableFfi, GodotType,
+    PropertyHintInfo, PropertyInfo, ToGodot,
 };
 use crate::registry::method::MethodParamOrReturnInfo;
-use crate::registry::property::PropertyHintInfo;
 use godot_ffi as sys;
+
 // The following ToGodot/FromGodot/Convert impls are auto-generated for each engine type, co-located with their definitions:
 // - enum
 // - const/mut pointer to native struct

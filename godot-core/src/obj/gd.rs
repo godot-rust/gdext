@@ -15,13 +15,15 @@ use sys::{static_assert_eq_size_align, VariantType};
 use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::global::PropertyHint;
 use crate::meta::error::{ConvertError, FromFfiError};
-use crate::meta::{ArrayElement, CallContext, FromGodot, GodotConvert, GodotType, ToGodot};
+use crate::meta::{
+    ArrayElement, CallContext, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot,
+};
 use crate::obj::{
     bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
     RawGd,
 };
 use crate::private::callbacks;
-use crate::registry::property::{Export, PropertyHintInfo, Var};
+use crate::registry::property::{Export, Var};
 use crate::{classes, out};
 
 /// Smart pointer to objects owned by the Godot engine.

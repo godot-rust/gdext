@@ -31,7 +31,7 @@ pub fn derive_var(item: venial::Item) -> ParseResult<TokenStream> {
                 *self = ::godot::meta::FromGodot::from_godot(value);
             }
 
-            fn var_hint() -> ::godot::register::property::PropertyHintInfo {
+            fn var_hint() -> ::godot::meta::PropertyHintInfo {
                 #property_hint_impl
             }
         }
@@ -59,7 +59,7 @@ fn create_property_hint_impl(convert: &GodotConvert) -> TokenStream {
             };
 
             quote! {
-                ::godot::register::property::PropertyHintInfo {
+                ::godot::meta::PropertyHintInfo {
                     hint: ::godot::global::PropertyHint::ENUM,
                     hint_string: #hint_string.into(),
                 }

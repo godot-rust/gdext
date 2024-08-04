@@ -11,9 +11,10 @@ use std::marker::PhantomData;
 use crate::builtin::*;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
-    ArrayElement, ArrayTypeInfo, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
+    ArrayElement, ArrayTypeInfo, FromGodot, GodotConvert, GodotFfiVariant, GodotType,
+    PropertyHintInfo, ToGodot,
 };
-use crate::registry::property::{Export, PropertyHintInfo, Var};
+use crate::registry::property::{Export, Var};
 use godot_ffi as sys;
 use sys::{ffi_methods, interface_fn, GodotFfi};
 
@@ -907,7 +908,7 @@ impl<T: ArrayElement> Var for Array<T> {
         } else if sys::GdextBuild::since_api("4.2") {
             PropertyHintInfo::var_array_element::<T>()
         } else {
-            // Godot 4.1 was missing PropertyHint::ARRAY_TYPE, so we use the type name instead.
+            // Godot 4.1 was not using PropertyHint::ARRAY_TYPE, but the empty hint instead.
             PropertyHintInfo::none()
         }
     }

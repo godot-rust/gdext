@@ -9,9 +9,7 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::GString;
-use crate::global::PropertyHint;
-use crate::meta::{ArrayElement, FromGodot, GodotConvert, GodotType, ToGodot};
+use crate::meta::{FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
@@ -95,57 +93,6 @@ where
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Export machinery
 
-/// Info needed by Godot, for how to export a type to the editor.
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct PropertyHintInfo {
-    pub hint: PropertyHint,
-    pub hint_string: GString,
-}
-
-impl PropertyHintInfo {
-    /// Create a new `PropertyHintInfo` with a property hint of [`PROPERTY_HINT_NONE`](PropertyHint::NONE), and no hint string.
-    pub fn none() -> Self {
-        Self {
-            hint: PropertyHint::NONE,
-            hint_string: GString::new(),
-        }
-    }
-
-    /// Use [`PROPERTY_HINT_NONE`](PropertyHint::NONE) with `T`'s Godot type name.
-    ///
-    /// Starting with Godot version 4.3, the hint string will always be the empty string. Before that, the hint string is set to
-    /// be the Godot type name of `T`.
-    pub fn type_name<T: GodotType>() -> Self {
-        let type_name = T::godot_type_name();
-        let hint_string = if sys::GdextBuild::since_api("4.3") {
-            GString::new()
-        } else {
-            GString::from(type_name)
-        };
-
-        Self {
-            hint: PropertyHint::NONE,
-            hint_string,
-        }
-    }
-
-    /// Use for `#[var]` properties -- [`PROPERTY_HINT_ARRAY_TYPE`](PropertyHint::ARRAY_TYPE) with the type name as hint string.
-    pub fn var_array_element<T: ArrayElement>() -> Self {
-        Self {
-            hint: PropertyHint::ARRAY_TYPE,
-            hint_string: GString::from(T::godot_type_name()),
-        }
-    }
-
-    /// Use for `#[export]` properties -- [`PROPERTY_HINT_TYPE_STRING`](PropertyHint::TYPE_STRING) with the **element** type string as hint string.
-    pub fn export_array_element<T: ArrayElement>() -> Self {
-        Self {
-            hint: PropertyHint::TYPE_STRING,
-            hint_string: GString::from(T::element_type_string()),
-        }
-    }
-}
-
 /// Functions used to translate user-provided arguments into export hints.
 ///
 /// You are not supposed to use these functions directly. They are used by the `#[export]` macro to generate the correct export hint.
@@ -155,8 +102,7 @@ impl PropertyHintInfo {
 pub mod export_info_functions {
     use crate::builtin::GString;
     use crate::global::PropertyHint;
-
-    use super::PropertyHintInfo;
+    use crate::meta::PropertyHintInfo;
 
     /// Turn a list of variables into a comma separated string containing only the identifiers corresponding
     /// to a true boolean variable.
