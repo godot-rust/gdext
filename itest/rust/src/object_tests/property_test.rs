@@ -174,7 +174,7 @@ impl Var for SomeCStyleEnum {
 }
 
 impl Export for SomeCStyleEnum {
-    fn default_export_info() -> PropertyHintInfo {
+    fn export_hint() -> PropertyHintInfo {
         PropertyHintInfo {
             hint: PropertyHint::ENUM,
             hint_string: "A,B,C".into(),

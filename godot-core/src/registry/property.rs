@@ -33,19 +33,11 @@ use crate::meta::{ArrayElement, FromGodot, GodotConvert, GodotType, ToGodot};
 )]
 pub trait Var: GodotConvert {
     fn get_property(&self) -> Self::Via;
+
     fn set_property(&mut self, value: Self::Via);
 
     /// Specific property hints, only override if they deviate from [`GodotType::property_info`], e.g. for enums/newtypes.
-    fn property_hint() -> PropertyHintInfo {
-        // From Godot 4.3 onward, properties are typically exported with "" hint_string. This needs to be manually overridden for types
-        // that need a hint string, like arrays. See also https://github.com/godotengine/godot/pull/82952 and property_template_test.rs.
-        // if sys::GdextBuild::since_api("4.3") {
-        //     PropertyHintInfo::with_type_name::<Self::Via>()
-        // } else {
-        //     Self::Via::property_hint_info()
-        // }
-
-        //PropertyHintInfo::with_hint_none("")
+    fn var_hint() -> PropertyHintInfo {
         Self::Via::property_hint_info()
     }
 }
@@ -59,8 +51,8 @@ pub trait Var: GodotConvert {
 )]
 pub trait Export: Var {
     /// The export info to use for an exported field of this type, if no other export info is specified.
-    fn default_export_info() -> PropertyHintInfo {
-        <Self as Var>::property_hint()
+    fn export_hint() -> PropertyHintInfo {
+        <Self as Var>::var_hint()
     }
 }
 
@@ -95,8 +87,8 @@ where
     T: Export,
     Option<T>: Var,
 {
-    fn default_export_info() -> PropertyHintInfo {
-        T::default_export_info()
+    fn export_hint() -> PropertyHintInfo {
+        T::export_hint()
     }
 }
 
@@ -119,15 +111,16 @@ impl PropertyHintInfo {
         }
     }
 
-    /// Create a new `PropertyHintInfo` with a property hint of [`PROPERTY_HINT_NONE`](PropertyHint::NONE).
+    /// Use [`PROPERTY_HINT_NONE`](PropertyHint::NONE) with `T`'s Godot type name.
     ///
     /// Starting with Godot version 4.3, the hint string will always be the empty string. Before that, the hint string is set to
-    /// be `type_name`.
-    pub fn with_hint_none(type_name: impl Into<GString>) -> Self {
+    /// be the Godot type name of `T`.
+    pub fn type_name<T: GodotType>() -> Self {
+        let type_name = T::godot_type_name();
         let hint_string = if sys::GdextBuild::since_api("4.3") {
             GString::new()
         } else {
-            type_name.into()
+            GString::from(type_name)
         };
 
         Self {
@@ -136,6 +129,7 @@ impl PropertyHintInfo {
         }
     }
 
+    /// Use for `#[var]` properties -- [`PROPERTY_HINT_ARRAY_TYPE`](PropertyHint::ARRAY_TYPE) with the type name as hint string.
     pub fn var_array_element<T: ArrayElement>() -> Self {
         Self {
             hint: PropertyHint::ARRAY_TYPE,
@@ -143,14 +137,12 @@ impl PropertyHintInfo {
         }
     }
 
+    /// Use for `#[export]` properties -- [`PROPERTY_HINT_TYPE_STRING`](PropertyHint::TYPE_STRING) with the **element** type string as hint string.
     pub fn export_array_element<T: ArrayElement>() -> Self {
         Self {
             hint: PropertyHint::TYPE_STRING,
             hint_string: GString::from(T::element_type_string()),
         }
-    }
-    pub fn with_type_name<T: GodotType>() -> Self {
-        Self::with_hint_none(T::godot_type_name())
     }
 }
 
@@ -437,8 +429,8 @@ mod export_impls {
 
         (@export $Ty:ty) => {
             impl Export for $Ty {
-                fn default_export_info() -> PropertyHintInfo {
-                    PropertyHintInfo::with_type_name::<$Ty>()
+                fn export_hint() -> PropertyHintInfo {
+                    PropertyHintInfo::type_name::<$Ty>()
                 }
             }
         };

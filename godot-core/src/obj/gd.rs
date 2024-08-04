@@ -736,7 +736,7 @@ impl<T: GodotClass> GodotType for Gd<T> {
 
 impl<T: GodotClass> ArrayElement for Gd<T> {
     fn element_type_string() -> String {
-        match Self::default_export_info().hint {
+        match Self::export_hint().hint {
             hint @ (PropertyHint::RESOURCE_TYPE | PropertyHint::NODE_TYPE) => {
                 format!(
                     "{}/{}:{}",
@@ -792,7 +792,7 @@ impl<T: GodotClass> Var for Gd<T> {
 }
 
 impl<T: GodotClass> Export for Gd<T> {
-    fn default_export_info() -> PropertyHintInfo {
+    fn export_hint() -> PropertyHintInfo {
         let hint = if T::inherits::<classes::Resource>() {
             PropertyHint::RESOURCE_TYPE
         } else if T::inherits::<classes::Node>() {

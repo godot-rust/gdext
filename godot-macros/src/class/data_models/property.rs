@@ -113,15 +113,15 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
                 } else if export.is_some() {
                     quote! {
                         {
-                            let default_export_info = <#field_type as ::godot::register::property::Export>::default_export_info();
-                            (default_export_info.hint, default_export_info.hint_string)
+                            let export_hint = <#field_type as ::godot::register::property::Export>::export_hint();
+                            (export_hint.hint, export_hint.hint_string)
                         }
                     }
                 } else {
                     quote! {
                         {
-                            let default_export_info = <#field_type as ::godot::register::property::Var>::property_hint();
-                            (default_export_info.hint, default_export_info.hint_string)
+                            let export_hint = <#field_type as ::godot::register::property::Var>::var_hint();
+                            (export_hint.hint, export_hint.hint_string)
                         }
                     }
                 }

@@ -107,15 +107,14 @@ impl PropertyInfo {
     ///
     /// This will generate property info equivalent to what a `#[var]` attribute would.
     pub fn new_var<T: Var>(property_name: &str) -> Self {
-        <T as GodotConvert>::Via::property_info(property_name).with_hint_info(T::property_hint())
+        <T as GodotConvert>::Via::property_info(property_name).with_hint_info(T::var_hint())
     }
 
     /// Create a new `PropertyInfo` representing an exported property named `property_name` with type `T`.
     ///
     /// This will generate property info equivalent to what an `#[export]` attribute would.
     pub fn new_export<T: Export>(property_name: &str) -> Self {
-        <T as GodotConvert>::Via::property_info(property_name)
-            .with_hint_info(T::default_export_info())
+        <T as GodotConvert>::Via::property_info(property_name).with_hint_info(T::export_hint())
     }
 
     /// Change the `hint` and `hint_string` to be the given `hint_info`.

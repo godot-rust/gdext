@@ -900,7 +900,7 @@ impl<T: ArrayElement> Var for Array<T> {
         *self = FromGodot::from_godot(value)
     }
 
-    fn property_hint() -> PropertyHintInfo {
+    fn var_hint() -> PropertyHintInfo {
         // For array #[var], the hint string is "PackedInt32Array", "Node" etc. for typed arrays, and "" for untyped arrays.
         if Self::has_variant_t() {
             PropertyHintInfo::none()
@@ -914,10 +914,10 @@ impl<T: ArrayElement> Var for Array<T> {
 }
 
 impl<T: ArrayElement> Export for Array<T> {
-    fn default_export_info() -> PropertyHintInfo {
+    fn export_hint() -> PropertyHintInfo {
         // If T == Variant, then we return "Array" builtin type hint.
         if Self::has_variant_t() {
-            PropertyHintInfo::with_type_name::<VariantArray>()
+            PropertyHintInfo::type_name::<VariantArray>()
         } else {
             PropertyHintInfo::export_array_element::<T>()
         }
