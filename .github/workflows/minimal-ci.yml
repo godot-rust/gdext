@@ -157,7 +157,7 @@ jobs:
             os: ubuntu-20.04
             artifact-name: linux-nightly
             godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features godot/__codegen-full
+            rust-extra-args: --features itest/codegen-full
             with-hot-reload: true
 
           - name: linux-features-experimental
