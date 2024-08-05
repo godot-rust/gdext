@@ -45,12 +45,12 @@ use self::bounded_ptr_list::BoundedPtrList;
 /// # // Trick 17 to avoid listing all the methods. Needs also a method.
 /// # mod godot {
 /// #     pub use ::godot::*;
-/// #     pub mod extras { pub trait ScriptInstance {} }
+/// #     pub mod extras { pub trait ScriptInstance {} pub trait IScriptExtension {} }
 /// # }
 /// # fn create_script_instance(_: MyInstance) -> *mut std::ffi::c_void { std::ptr::null_mut() }
 /// use godot::prelude::*;
-/// use godot::classes::{IScriptExtension, Script, ScriptExtension};
-/// use godot::extras::ScriptInstance;
+/// use godot::classes::{Script, ScriptExtension};
+/// use godot::extras::{IScriptExtension, ScriptInstance};
 ///
 /// // 1) Define the script.
 /// #[derive(GodotClass)]
@@ -75,15 +75,7 @@ use self::bounded_ptr_list::BoundedPtrList;
 /// // 3) Implement the script's virtual interface to wire up 1) and 2).
 /// #[godot_api]
 /// impl IScriptExtension for MyScript {
-///     unsafe fn instance_create(&self, _for_object: Gd<Object>) -> *mut std::ffi::c_void {
-///         // Upcast Gd<ScriptExtension> to Gd<Script>.
-///         let script = self.to_gd().upcast();
-///         let script_instance = MyInstance::from_gd(script);
-///
-///         // Note on safety: the returned pointer must be obtained
-///         // through create_script_instance().
-///         create_script_instance(script_instance)
-///     }
+///     // Implement all the methods...
 /// }
 /// ```
 pub trait ScriptInstance: Sized {
