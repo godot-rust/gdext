@@ -11,11 +11,34 @@ use crate::builtin::StringName;
 use crate::global::PropertyUsageFlags;
 use crate::meta::{ClassName, GodotConvert, GodotType, PropertyHintInfo, PropertyInfo};
 use crate::obj::GodotClass;
-use crate::registry::property::Var;
-use crate::sys;
+use crate::registry::property::{Export, Var};
+use crate::{classes, sys};
 use godot_ffi::GodotFfi;
 
-pub fn register_var_or_export<C: GodotClass, T: Var>(
+/// Same as [`register_var()`], but statically verifies the `Export` trait (again) and the fact that nodes can only be exported from nodes.
+pub fn register_export<C: GodotClass, T: Export>(
+    property_name: &str,
+    getter_name: &str,
+    setter_name: &str,
+    hint_info: PropertyHintInfo,
+    usage: PropertyUsageFlags,
+) {
+    // Note: if the user manually specifies `hint`, `hint_string` or `usage` keys, and thus is routed to `register_var()` instead,
+    // they can bypass this validation.
+    if !C::inherits::<classes::Node>() {
+        if let Some(class) = T::as_node_class() {
+            panic!(
+                "#[export] for Gd<{t}>: nodes can only be exported in Node-derived classes, but the current class is {c}.",
+                t = class,
+                c = C::class_name()
+            );
+        }
+    }
+
+    register_var::<C, T>(property_name, getter_name, setter_name, hint_info, usage);
+}
+
+pub fn register_var<C: GodotClass, T: Var>(
     property_name: &str,
     getter_name: &str,
     setter_name: &str,

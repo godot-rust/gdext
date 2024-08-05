@@ -16,7 +16,8 @@ use crate::builtin::{Callable, NodePath, StringName, Variant};
 use crate::global::PropertyHint;
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
-    ArrayElement, CallContext, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot,
+    ArrayElement, CallContext, ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo,
+    ToGodot,
 };
 use crate::obj::{
     bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
@@ -822,6 +823,11 @@ where
         let hint_string = T::class_name().to_gstring();
 
         PropertyHintInfo { hint, hint_string }
+    }
+
+    #[doc(hidden)]
+    fn as_node_class() -> Option<ClassName> {
+        T::inherits::<classes::Node>().then(|| T::class_name())
     }
 }
 
