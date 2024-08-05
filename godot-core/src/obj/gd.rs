@@ -738,16 +738,27 @@ impl<T: GodotClass> GodotType for Gd<T> {
 
 impl<T: GodotClass> ArrayElement for Gd<T> {
     fn element_type_string() -> String {
-        match Self::export_hint().hint {
-            hint @ (PropertyHint::RESOURCE_TYPE | PropertyHint::NODE_TYPE) => {
-                format!(
-                    "{}/{}:{}",
-                    VariantType::OBJECT.ord(),
-                    hint.ord(),
-                    T::class_name()
-                )
-            }
-            _ => format!("{}:", VariantType::OBJECT.ord()),
+        // See also impl Export for Gd<T>.
+
+        let hint = if T::inherits::<classes::Resource>() {
+            Some(PropertyHint::RESOURCE_TYPE)
+        } else if T::inherits::<classes::Node>() {
+            Some(PropertyHint::NODE_TYPE)
+        } else {
+            None
+        };
+
+        // Exportable classes (Resource/Node based) include the {RESOURCE|NODE}_TYPE hint + the class name.
+        if let Some(export_hint) = hint {
+            format!(
+                "{variant}/{hint}:{class}",
+                variant = VariantType::OBJECT.ord(),
+                hint = export_hint.ord(),
+                class = T::class_name()
+            )
+        } else {
+            // Previous impl: format!("{variant}:", variant = VariantType::OBJECT.ord())
+            unreachable!("element_type_string() should only be invoked for exportable classes")
         }
     }
 }
@@ -793,14 +804,17 @@ impl<T: GodotClass> Var for Gd<T> {
     }
 }
 
-impl<T: GodotClass> Export for Gd<T> {
+impl<T> Export for Gd<T>
+where
+    T: GodotClass + Bounds<Exportable = bounds::Yes>,
+{
     fn export_hint() -> PropertyHintInfo {
         let hint = if T::inherits::<classes::Resource>() {
             PropertyHint::RESOURCE_TYPE
         } else if T::inherits::<classes::Node>() {
             PropertyHint::NODE_TYPE
         } else {
-            PropertyHint::NONE
+            unreachable!("classes not inheriting from Resource or Node should not be exportable")
         };
 
         // Godot does this by default too; the hint is needed when the class is a resource/node,
