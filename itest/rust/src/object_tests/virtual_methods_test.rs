@@ -16,6 +16,8 @@ use godot::builtin::{
 };
 use godot::classes::notify::NodeNotification;
 use godot::classes::resource_loader::CacheMode;
+#[cfg(feature = "codegen-full")]
+use godot::classes::Material;
 use godot::classes::{
     BoxMesh, INode, INode2D, IPrimitiveMesh, IRefCounted, IResourceFormatLoader, IRigidBody2D,
     InputEvent, InputEventAction, Node, Node2D, PrimitiveMesh, RefCounted, ResourceFormatLoader,
@@ -121,6 +123,7 @@ struct VirtualReturnTest {
     base: Base<PrimitiveMesh>,
 }
 
+#[rustfmt::skip]
 #[godot_api]
 impl IPrimitiveMesh for VirtualReturnTest {
     fn create_mesh_array(&self) -> VariantArray {
@@ -140,6 +143,23 @@ impl IPrimitiveMesh for VirtualReturnTest {
             PackedInt32Array::from_iter([0]),
         ]
     }
+
+    fn get_surface_count(&self) -> i32 { unreachable!() }
+    fn surface_get_array_len(&self, _index: i32) -> i32 { unreachable!() }
+    fn surface_get_array_index_len(&self, _index: i32) -> i32 { unreachable!() }
+    fn surface_get_arrays(&self, _index: i32) -> VariantArray { unreachable!() }
+    fn surface_get_blend_shape_arrays(&self, _index: i32) -> godot::prelude::Array<VariantArray> { unreachable!() }
+    fn surface_get_lods(&self, _index: i32) -> godot::prelude::Dictionary { unreachable!() }
+    fn surface_get_format(&self, _index: i32) -> u32 { unreachable!() }
+    fn surface_get_primitive_type(&self, _index: i32) -> u32 { unreachable!() }
+    #[cfg(feature = "codegen-full")]
+    fn surface_set_material(&mut self, _index: i32, _material: Gd<Material>) { unreachable!() }
+    #[cfg(feature = "codegen-full")]
+    fn surface_get_material(&self, _index: i32) -> Option<Gd<Material>> { unreachable!() }
+    fn get_blend_shape_count(&self) -> i32 { unreachable!() }
+    fn get_blend_shape_name(&self, _index: i32) -> StringName { unreachable!() }
+    fn set_blend_shape_name(&mut self, _index: i32, _namee: StringName) { unreachable!() }
+    fn get_aabb(&self) -> godot::prelude::Aabb { unreachable!() }
 }
 
 #[derive(GodotClass, Debug)]

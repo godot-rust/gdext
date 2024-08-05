@@ -37,6 +37,7 @@ pub struct FnCode {
     pub receiver: FnReceiver,
     pub varcall_invocation: TokenStream,
     pub ptrcall_invocation: TokenStream,
+    pub is_virtual_required: bool,
 }
 
 pub struct FnDefinition {
@@ -150,6 +151,11 @@ pub fn make_function_definition(
     };
 
     let return_decl = &sig.return_value().decl;
+    let fn_body = if code.is_virtual_required {
+        quote! { ; }
+    } else {
+        quote! { { unimplemented!() } }
+    };
 
     let receiver_param = &code.receiver.param;
     let primary_function = if sig.is_virtual() {
@@ -160,9 +166,7 @@ pub fn make_function_definition(
             #maybe_unsafe fn #primary_fn_name(
                 #receiver_param
                 #( #params, )*
-            ) #return_decl {
-                unimplemented!()
-            }
+            ) #return_decl #fn_body
         }
     } else if sig.is_vararg() {
         // Varargs (usually varcall, but not necessarily -- utilities use ptrcall)

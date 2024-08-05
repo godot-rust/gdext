@@ -5,24 +5,60 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use std::ptr;
+
 use crate::framework::itest;
 
-use godot::builtin::{Rect2, Rid, Variant};
+use godot::builtin::{Dictionary, Rect2, Rid};
 use godot::classes::native::{
     AudioFrame, CaretInfo, Glyph, ObjectId, PhysicsServer2DExtensionShapeResult,
 };
 use godot::classes::text_server::Direction;
-use godot::classes::{ITextServerExtension, Node3D, RefCounted, TextServer, TextServerExtension};
+use godot::classes::{IRefCounted, Node3D, RefCounted};
+use godot::meta::ToGodot;
 use godot::obj::{Base, NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
 
-use std::cell::Cell;
-
-#[derive(GodotClass)]
-#[class(base=TextServerExtension)]
-pub struct TestTextServer {
+#[derive(GodotClass, Debug)]
+#[class(base = RefCounted)]
+struct NativeStructTests {
     glyphs: [Glyph; 2],
-    cell: Cell<Option<(Rid, i64)>>,
+}
+
+#[godot_api]
+impl IRefCounted for NativeStructTests {
+    fn init(_base: Base<Self::Base>) -> Self {
+        Self {
+            glyphs: [sample_glyph(99), sample_glyph(700)],
+        }
+    }
+}
+
+#[godot_api]
+impl NativeStructTests {
+    #[func]
+    fn pass_native_struct(&self, caret_info: *const CaretInfo) -> Dictionary {
+        let CaretInfo {
+            leading_caret,
+            trailing_caret,
+            leading_direction,
+            trailing_direction,
+        } = unsafe { &*caret_info };
+
+        let mut result = Dictionary::new();
+
+        result.set("leading_caret", *leading_caret);
+        result.set("trailing_caret", *trailing_caret);
+        result.set("leading_direction", *leading_direction);
+        result.set("trailing_direction", *trailing_direction);
+
+        result
+    }
+
+    #[func]
+    fn native_struct_array_ret(&self) -> *const Glyph {
+        self.glyphs.as_ptr()
+    }
 }
 
 // Simple function to make these up with one field differing.
@@ -39,36 +75,6 @@ fn sample_glyph(start: i32) -> Glyph {
         font_rid: Rid::new(1024),
         font_size: 1025,
         index: 1026,
-    }
-}
-
-#[godot_api]
-impl ITextServerExtension for TestTextServer {
-    fn init(_base: Base<TextServerExtension>) -> Self {
-        TestTextServer {
-            glyphs: [sample_glyph(99), sample_glyph(700)],
-            cell: Cell::new(None),
-        }
-    }
-
-    unsafe fn shaped_text_get_carets(&self, shaped: Rid, position: i64, caret: *mut CaretInfo) {
-        // Record the arguments we were called with.
-        self.cell.set(Some((shaped, position)));
-        // Now put something in the out param.
-        *caret = CaretInfo {
-            leading_caret: Rect2::from_components(0.0, 0.0, 0.0, 0.0),
-            trailing_caret: Rect2::from_components(1.0, 1.0, 1.0, 1.0),
-            leading_direction: Direction::AUTO,
-            trailing_direction: Direction::LTR,
-        };
-    }
-
-    fn shaped_text_get_glyph_count(&self, _shaped: Rid) -> i64 {
-        self.glyphs.len() as i64
-    }
-
-    unsafe fn shaped_text_get_glyphs(&self, _shaped: Rid) -> *const Glyph {
-        self.glyphs.as_ptr()
     }
 }
 
@@ -95,52 +101,48 @@ fn native_structure_codegen() {
 }
 
 #[itest]
-fn native_structure_out_parameter() {
-    // Instantiate a TextServerExtension and then have Godot call a
-    // function which uses an 'out' pointer parameter.
-    let mut ext = TestTextServer::new_gd();
-    let result = ext
-        .clone()
-        .upcast::<TextServer>()
-        .shaped_text_get_carets(Rid::new(100), 200);
+fn native_structure_parameter() {
+    let caret = CaretInfo {
+        leading_caret: Rect2::from_components(0.0, 0.0, 0.0, 0.0),
+        trailing_caret: Rect2::from_components(1.0, 1.0, 1.0, 1.0),
+        leading_direction: Direction::AUTO,
+        trailing_direction: Direction::LTR,
+    };
 
-    // Check that we called the virtual function.
-    let cell = ext.bind_mut().cell.take();
-    assert_eq!(cell, Some((Rid::new(100), 200)));
+    let ptr = ptr::addr_of!(caret);
+    let mut object = NativeStructTests::new_gd();
+    let result: Dictionary = object
+        .call("pass_native_struct".into(), &[ptr.to_variant()])
+        .to();
 
-    // Check the result dictionary (Godot made it out of our 'out'
-    // param).
     assert_eq!(
-        result.get("leading_rect"),
-        Some(Variant::from(Rect2::from_components(0.0, 0.0, 0.0, 0.0)))
+        result.at("leading_caret").to::<Rect2>(),
+        caret.leading_caret
     );
     assert_eq!(
-        result.get("trailing_rect"),
-        Some(Variant::from(Rect2::from_components(1.0, 1.0, 1.0, 1.0)))
+        result.at("trailing_caret").to::<Rect2>(),
+        caret.trailing_caret
     );
     assert_eq!(
-        result.get("leading_direction"),
-        Some(Variant::from(Direction::AUTO))
+        result.at("leading_direction").to::<Direction>(),
+        caret.leading_direction
     );
     assert_eq!(
-        result.get("trailing_direction"),
-        Some(Variant::from(Direction::LTR))
+        result.at("trailing_direction").to::<Direction>(),
+        caret.trailing_direction
     );
 }
 
 #[itest]
 fn native_structure_pointer_to_array_parameter() {
-    // Instantiate a TextServerExtension.
-    let ext = TestTextServer::new_gd();
-    let result = ext
-        .clone()
-        .upcast::<TextServer>()
-        .shaped_text_get_glyphs(Rid::new(100));
+    // Instantiate a custom class.
+    let mut object = NativeStructTests::new_gd();
+    let result_ptr: *const Glyph = object.call("native_struct_array_ret".into(), &[]).to();
+    let result = unsafe { std::slice::from_raw_parts(result_ptr, 2) };
 
     // Check the result array.
-    assert_eq!(result.len(), 2);
-    assert_eq!(result.at(0).get("start"), Some(Variant::from(99)));
-    assert_eq!(result.at(1).get("start"), Some(Variant::from(700)));
+    assert_eq!(result[0].start, 99);
+    assert_eq!(result[1].start, 700);
 }
 
 #[itest]

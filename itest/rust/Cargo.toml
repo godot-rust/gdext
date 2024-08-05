@@ -10,8 +10,9 @@ publish = false
 crate-type = ["cdylib"]
 
 [features]
-default = []
-codegen-full-experimental = ["godot/__codegen-full", "godot/experimental-godot-api"]
+default = ["codegen-full"]
+codegen-full = ["godot/__codegen-full"]
+codegen-full-experimental = ["codegen-full", "godot/experimental-godot-api"]
 experimental-threads = ["godot/experimental-threads"]
 register-docs = ["godot/register-docs"] # TODO remove as soon as constant_test.rs checks bitfields with #[constant] proc-macro
 serde = ["dep:serde", "dep:serde_json", "godot/serde"]
