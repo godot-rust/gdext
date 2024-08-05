@@ -118,12 +118,9 @@ pub fn make_method_registration(
             #varcall_fn_decl;
             #ptrcall_fn_decl;
 
-            // SAFETY:
-            // `get_varcall_func` upholds all the requirements for `call_func`.
-            // `get_ptrcall_func` upholds all the requirements for `ptrcall_func`
+            // SAFETY: varcall_fn + ptrcall_fn interpret their in/out parameters correctly.
             let method_info = unsafe {
-                ClassMethodInfo::from_signature::<Sig>(
-                    #class_name::class_name(),
+                ClassMethodInfo::from_signature::<#class_name, Sig>(
                     method_name,
                     Some(varcall_fn),
                     Some(ptrcall_fn),
@@ -131,7 +128,6 @@ pub fn make_method_registration(
                     &[
                         #( #param_ident_strs ),*
                     ],
-                    Vec::new()
                 )
             };
 

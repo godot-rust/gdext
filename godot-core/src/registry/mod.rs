@@ -14,3 +14,6 @@ pub mod constant;
 pub mod method;
 pub mod plugin;
 pub mod property;
+
+#[doc(hidden)]
+pub mod godot_register_wrappers;

@@ -178,6 +178,7 @@ pub mod register {
     /// Re-exports used by proc-macro API.
     #[doc(hidden)]
     pub mod private {
+        pub use godot_core::registry::godot_register_wrappers::*;
         pub use godot_core::registry::{constant, method};
     }
 }

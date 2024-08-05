@@ -8,7 +8,6 @@
 //! Parsing the `var` and `export` attributes on fields.
 
 use crate::class::{Field, FieldVar, Fields, GetSet, GetterSetterImpl, UsageFlags};
-use crate::util;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
@@ -38,8 +37,6 @@ impl FieldHint {
 }
 
 pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
-    let class_name_obj = util::class_name_obj(class_name);
-
     let mut getter_setter_impls = Vec::new();
     let mut export_tokens = Vec::new();
 
@@ -66,8 +63,6 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             continue;
         };
 
-        let field_variant_type = util::property_variant_type(field_type);
-        let field_class_name = util::property_variant_class_name(field_type);
         let field_name = field_ident.to_string();
 
         let FieldVar {
@@ -104,47 +99,32 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         let hint = match hint {
             FieldHint::Inferred => {
                 if let Some(export_hint) = export_hint {
-                    quote! {
-                        {
-                            let ::godot::meta::PropertyHintInfo { hint, hint_string } = #export_hint;
-                            (hint, hint_string)
-                        }
-                    }
+                    quote! { #export_hint }
                 } else if export.is_some() {
-                    quote! {
-                        {
-                            let export_hint = <#field_type as ::godot::register::property::Export>::export_hint();
-                            (export_hint.hint, export_hint.hint_string)
-                        }
-                    }
+                    quote! { <#field_type as ::godot::register::property::Export>::export_hint() }
                 } else {
-                    quote! {
-                        {
-                            let export_hint = <#field_type as ::godot::register::property::Var>::var_hint();
-                            (export_hint.hint, export_hint.hint_string)
-                        }
-                    }
+                    quote! { <#field_type as ::godot::register::property::Var>::var_hint() }
                 }
             }
             FieldHint::Hint(hint) => {
                 let hint_string = if let Some(export_hint) = export_hint {
                     quote! { #export_hint.hint_string }
                 } else {
-                    quote! { :godot::builtin::GString::new() }
+                    quote! { ::godot::builtin::GString::new() }
                 };
 
                 quote! {
-                    (
-                        ::godot::global::PropertyHint::#hint,
-                        #hint_string
-                    )
+                    ::godot::meta::PropertyHintInfo {
+                        hint: ::godot::global::PropertyHint::#hint,
+                        hint_string: #hint_string,
+                    }
                 }
             }
             FieldHint::HintWithString { hint, hint_string } => quote! {
-                (
-                    ::godot::global::PropertyHint::#hint,
-                    ::godot::builtin::GString::from(#hint_string)
-                )
+                ::godot::meta::PropertyHintInfo {
+                    hint: ::godot::global::PropertyHint::#hint,
+                    hint_string: ::godot::builtin::GString::from(#hint_string),
+                }
             },
         };
 
@@ -160,36 +140,13 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         );
 
         export_tokens.push(quote! {
-            use ::godot::sys::GodotFfi;
-
-            let (hint, hint_string) = #hint;
-            let usage = #usage_flags;
-
-            let property_info = ::godot::meta::PropertyInfo {
-                variant_type: #field_variant_type,
-                class_name: #field_class_name,
-                property_name: #field_name.into(),
-                hint_info: ::godot::meta::PropertyHintInfo {
-                    hint,
-                    hint_string,
-                },
-                usage,
-            };
-
-            let getter_name = ::godot::builtin::StringName::from(#getter_name);
-            let setter_name = ::godot::builtin::StringName::from(#setter_name);
-
-            let property_info_sys = property_info.property_sys();
-
-            unsafe {
-                ::godot::sys::interface_fn!(classdb_register_extension_class_property)(
-                    ::godot::sys::get_library(),
-                    #class_name_obj.string_sys(),
-                    std::ptr::addr_of!(property_info_sys),
-                    setter_name.string_sys(),
-                    getter_name.string_sys(),
-                );
-            }
+            ::godot::register::private::register_var_or_export::<#class_name, #field_type>(
+                #field_name,
+                #getter_name,
+                #setter_name,
+                #hint,
+                #usage_flags,
+            );
         });
     }
 
