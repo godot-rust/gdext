@@ -31,7 +31,7 @@ godot-bindings = { path = "../godot-bindings", version = "=0.1.3" } # emit_godot
 
 # Reverse dev dependencies so doctests can use `godot::` prefix.
 [dev-dependencies]
-godot = { path = "../godot" }
+godot = { path = "../godot", default-features = false }
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]
