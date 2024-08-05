@@ -25,11 +25,14 @@ pub fn register_export<C: GodotClass, T: Export>(
 ) {
     // Note: if the user manually specifies `hint`, `hint_string` or `usage` keys, and thus is routed to `register_var()` instead,
     // they can bypass this validation.
-    if T::is_node_class() && !C::inherits::<classes::Node>() {
-        panic!(
-            "Node export is only supported in Node-derived classes, but the current class is {}.",
-            C::class_name()
-        );
+    if !C::inherits::<classes::Node>() {
+        if let Some(class) = T::as_node_class() {
+            panic!(
+                "#[export] for Gd<{t}>: nodes can only be exported in Node-derived classes, but the current class is {c}.",
+                t = class,
+                c = C::class_name()
+            );
+        }
     }
 
     register_var::<C, T>(property_name, getter_name, setter_name, hint_info, usage);

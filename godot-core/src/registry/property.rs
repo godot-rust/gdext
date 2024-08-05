@@ -9,7 +9,7 @@
 
 use godot_ffi as sys;
 
-use crate::meta::{FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
+use crate::meta::{ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo, ToGodot};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Trait definitions
@@ -56,9 +56,12 @@ pub trait Export: Var {
         <Self as Var>::var_hint()
     }
 
+    /// If this is a class inheriting `Node`, returns the `ClassName`; otherwise `None`.
+    ///
     /// Only overridden for `Gd<T>`, to detect erroneous exports of `Node` inside a `Resource` class.
-    fn is_node_class() -> bool {
-        false
+    #[allow(clippy::wrong_self_convention)]
+    fn as_node_class() -> Option<ClassName> {
+        None
     }
 }
 
