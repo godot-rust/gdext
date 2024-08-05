@@ -72,14 +72,19 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
             mut usage_flags,
         } = var;
 
-        let mut export_hint = None;
+        let export_hint;
+        let registration_fn;
 
         if let Some(export) = export {
-            export_hint = export.to_export_hint();
-
             if usage_flags.is_inferred() {
                 usage_flags = UsageFlags::InferredExport;
             }
+
+            export_hint = export.to_export_hint();
+            registration_fn = quote! { register_export };
+        } else {
+            export_hint = None;
+            registration_fn = quote! { register_var };
         }
 
         let usage_flags = match usage_flags {
@@ -140,7 +145,7 @@ pub fn make_property_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
         );
 
         export_tokens.push(quote! {
-            ::godot::register::private::register_var_or_export::<#class_name, #field_type>(
+            ::godot::register::private::#registration_fn::<#class_name, #field_type>(
                 #field_name,
                 #getter_name,
                 #setter_name,

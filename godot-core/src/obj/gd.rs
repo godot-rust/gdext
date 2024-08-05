@@ -823,6 +823,10 @@ where
 
         PropertyHintInfo { hint, hint_string }
     }
+
+    fn is_node_class() -> bool {
+        T::inherits::<classes::Node>()
+    }
 }
 
 // Trait impls Property, Export and TypeStringHint for Option<Gd<T>> are covered by blanket impl for Option<T>

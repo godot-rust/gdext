@@ -55,6 +55,11 @@ pub trait Export: Var {
     fn export_hint() -> PropertyHintInfo {
         <Self as Var>::var_hint()
     }
+
+    /// Only overridden for `Gd<T>`, to detect erroneous exports of `Node` inside a `Resource` class.
+    fn is_node_class() -> bool {
+        false
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
