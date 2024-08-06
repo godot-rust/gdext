@@ -641,12 +641,11 @@ where
     ///
     /// # Example
     /// ```no_run
-    /// # fn some_shape() -> Gd<GltfPhysicsShape> { unimplemented!() }
+    /// # fn some_node() -> Gd<Node> { unimplemented!() }
     /// use godot::prelude::*;
-    /// use godot::classes::GltfPhysicsShape;
     ///
-    /// let mut shape: Gd<GltfPhysicsShape> = some_shape();
-    /// shape.set_importer_mesh(Gd::null_arg());
+    /// let mut shape: Gd<Node> = some_node();
+    /// shape.set_owner(Gd::null_arg());
     pub fn null_arg() -> crate::obj::ObjectNullArg<T> {
         crate::obj::ObjectNullArg(std::marker::PhantomData)
     }
