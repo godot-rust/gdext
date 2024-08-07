@@ -31,9 +31,11 @@ struct NamedNewtype {
 #[godot(via = GString)]
 enum EnumStringy {
     A,
-    B,
+    B = (1 + 2),
     C = 10,
     D = 50,
+    E,
+    F = (EnumInty::B as isize),
 }
 
 #[derive(GodotConvert, Clone, PartialEq, Debug)]
@@ -44,6 +46,14 @@ enum EnumInty {
     C,
     D = 1,
     E,
+}
+
+#[derive(GodotConvert, Clone, PartialEq, Debug)]
+#[godot(via = i64)]
+enum EnumIntyWithExprs {
+    G = (1 + 2),
+    H,
+    I = (EnumInty::B as isize),
 }
 
 #[itest]
@@ -64,11 +74,23 @@ fn enum_stringy() {
     roundtrip(EnumStringy::B);
     roundtrip(EnumStringy::C);
     roundtrip(EnumStringy::D);
+    roundtrip(EnumStringy::E);
+    roundtrip(EnumStringy::F);
 
     assert_eq!(EnumStringy::A.to_godot(), "A".into());
     assert_eq!(EnumStringy::B.to_godot(), "B".into());
     assert_eq!(EnumStringy::C.to_godot(), "C".into());
     assert_eq!(EnumStringy::D.to_godot(), "D".into());
+    assert_eq!(EnumStringy::E.to_godot(), "E".into());
+    assert_eq!(EnumStringy::F.to_godot(), "F".into());
+
+    // Rust-side discriminants.
+    assert_eq!(EnumStringy::A as isize, 0);
+    assert_eq!(EnumStringy::B as isize, 3);
+    assert_eq!(EnumStringy::C as isize, 10);
+    assert_eq!(EnumStringy::D as isize, 50);
+    assert_eq!(EnumStringy::E as isize, 51);
+    assert_eq!(EnumStringy::F as isize, 11);
 }
 
 #[itest]
@@ -84,6 +106,22 @@ fn enum_inty() {
     assert_eq!(EnumInty::C.to_godot(), 12);
     assert_eq!(EnumInty::D.to_godot(), 1);
     assert_eq!(EnumInty::E.to_godot(), 2);
+}
+
+#[itest]
+fn enum_inty_with_complex_exprs() {
+    roundtrip(EnumIntyWithExprs::G);
+    roundtrip(EnumIntyWithExprs::H);
+    roundtrip(EnumIntyWithExprs::I);
+
+    assert_eq!(EnumIntyWithExprs::G.to_godot(), 3);
+    assert_eq!(EnumIntyWithExprs::H.to_godot(), 4);
+    assert_eq!(EnumIntyWithExprs::I.to_godot(), 11);
+
+    // Rust-side discriminants.
+    assert_eq!(EnumIntyWithExprs::G as isize, 3);
+    assert_eq!(EnumIntyWithExprs::H as isize, 4);
+    assert_eq!(EnumIntyWithExprs::I as isize, 11);
 }
 
 macro_rules! test_inty {

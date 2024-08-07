@@ -5,18 +5,24 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Ident, Literal, Span, TokenTree};
-
-use crate::util::{bail, error};
+use crate::util::bail;
 use crate::ParseResult;
+use proc_macro2::{Ident, Span, TokenStream, TokenTree};
+use quote::{quote, ToTokens};
 
-/// Stores info from c-style enums for use in deriving `GodotConvert` and other related traits.
+/// Stores info from C-style enums for use in deriving `GodotConvert` and other related traits.
 #[derive(Clone, Debug)]
 pub struct CStyleEnum {
-    /// The names of each variant.
+    /// The names of each enumerator.
     enumerator_names: Vec<Ident>,
+
     /// The discriminants of each variant, both explicit and implicit.
-    enumerator_ords: Vec<Literal>,
+    ///
+    /// Can be simple or complex expressions, the latter with parentheses:
+    /// - `13`
+    /// - `(1 + 2)`
+    /// - `Enum::Variant as isize`
+    enumerator_ords: Vec<TokenStream>,
 }
 
 impl CStyleEnum {
@@ -30,49 +36,53 @@ impl CStyleEnum {
             .map(CStyleEnumerator::parse_enum_variant)
             .collect::<ParseResult<Vec<_>>>()?;
 
-        let (names, discriminants) = Self::create_discriminant_mapping(variants)?;
+        let (names, ord_exprs) = Self::create_discriminant_mapping(variants)?;
 
         Ok(Self {
             enumerator_names: names,
-            enumerator_ords: discriminants,
+            enumerator_ords: ord_exprs,
         })
     }
 
     fn create_discriminant_mapping(
         enumerators: Vec<CStyleEnumerator>,
-    ) -> ParseResult<(Vec<Ident>, Vec<Literal>)> {
-        // See here for how implicit discriminants are decided
+    ) -> ParseResult<(Vec<Ident>, Vec<TokenStream>)> {
+        // See here for how implicit discriminants are decided:
         // https://doc.rust-lang.org/reference/items/enumerations.html#implicit-discriminants
         let mut names = Vec::new();
-        let mut discriminants = Vec::new();
+        let mut ord_exprs = Vec::new();
 
-        let mut last_discriminant = None;
+        let mut last_ord = None;
         for enumerator in enumerators.into_iter() {
-            let discriminant_span = enumerator.discriminant_span();
-
-            let discriminant = match enumerator.discriminant_as_i64()? {
-                Some(discriminant) => discriminant,
-                None => last_discriminant.unwrap_or(0) + 1,
+            let span = enumerator.discriminant_span();
+            let ord = match enumerator.discriminant {
+                Some(mut discriminant) => {
+                    discriminant.set_span(span);
+                    discriminant.to_token_stream()
+                }
+                None if last_ord.is_none() => quote! { 0 },
+                None => quote! { #last_ord + 1 },
             };
-            last_discriminant = Some(discriminant);
 
-            let mut discriminant = Literal::i64_unsuffixed(discriminant);
-            discriminant.set_span(discriminant_span);
+            last_ord = Some(ord.clone());
+
+            // let discriminant_span = enumerator.discriminant_span();
+            // discriminant.set_span(discriminant_span);
 
             names.push(enumerator.name);
-            discriminants.push(discriminant)
+            ord_exprs.push(ord)
         }
 
-        Ok((names, discriminants))
+        Ok((names, ord_exprs))
     }
 
-    /// Returns the names of the variants, in order of the variants.
-    pub fn names(&self) -> &[Ident] {
+    /// Returns the names of the enumerators, in order of declaration.
+    pub fn enumerator_names(&self) -> &[Ident] {
         &self.enumerator_names
     }
 
-    /// Returns the discriminants of each variant, in order of the variants.
-    pub fn discriminants(&self) -> &[Literal] {
+    /// Returns the ordinal expression (discriminant) of each enumerator, in order of declaration.
+    pub fn enumerator_ord_exprs(&self) -> &[TokenStream] {
         &self.enumerator_ords
     }
 
@@ -122,20 +132,6 @@ impl CStyleEnumerator {
             name: enum_variant.name.clone(),
             discriminant: enum_variant.value.as_ref().map(|val| &val.value).cloned(),
         })
-    }
-
-    /// Returns the discriminant parsed as an i64 literal.
-    fn discriminant_as_i64(&self) -> ParseResult<Option<i64>> {
-        let Some(discriminant) = self.discriminant.as_ref() else {
-            return Ok(None);
-        };
-
-        let int = discriminant
-            .to_string()
-            .parse::<i64>()
-            .map_err(|_| error!(discriminant, "expected i64 literal"))?;
-
-        Ok(Some(int))
     }
 
     /// Returns a span suitable for the discriminant of the variant.
