@@ -5,8 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::derive::adjust_ord_exprs;
 use crate::derive::data_models::{CStyleEnum, ConvertType, GodotConvert, NewtypeStruct, ViaType};
+use crate::derive::derive_godot_convert::EnumeratorExprCache;
 use crate::util;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
@@ -14,7 +14,7 @@ use quote::quote;
 /// Creates a `FromGodot` impl for the given `GodotConvert`.
 ///
 /// There is no dedicated `FromGodot` derive macro currently, this is instead called by the `GodotConvert` derive macro.
-pub fn make_fromgodot(convert: &GodotConvert) -> TokenStream {
+pub fn make_fromgodot(convert: &GodotConvert, cache: &mut EnumeratorExprCache) -> TokenStream {
     let GodotConvert {
         ty_name: name,
         convert_type: data,
@@ -31,7 +31,7 @@ pub fn make_fromgodot(convert: &GodotConvert) -> TokenStream {
         ConvertType::Enum {
             variants,
             via: ViaType::Int { int_ident },
-        } => make_fromgodot_for_int_enum(name, variants, int_ident),
+        } => make_fromgodot_for_int_enum(name, variants, int_ident, cache),
     }
 }
 
@@ -52,9 +52,15 @@ fn make_fromgodot_for_newtype_struct(name: &Ident, field: &NewtypeStruct) -> Tok
 }
 
 /// Derives `FromGodot` for enums with a via type of integers.
-fn make_fromgodot_for_int_enum(name: &Ident, enum_: &CStyleEnum, int: &Ident) -> TokenStream {
-    let discriminants = adjust_ord_exprs(enum_.discriminants(), int);
-    let names = enum_.names();
+fn make_fromgodot_for_int_enum(
+    name: &Ident,
+    enum_: &CStyleEnum,
+    int: &Ident,
+    cache: &mut EnumeratorExprCache,
+) -> TokenStream {
+    let discriminants =
+        cache.map_ord_exprs(int, enum_.enumerator_names(), enum_.enumerator_ord_exprs());
+    let names = enum_.enumerator_names();
     let bad_variant_error = format!("invalid {name} variant");
 
     let ord_variables: Vec<Ident> = names
@@ -86,7 +92,7 @@ fn make_fromgodot_for_int_enum(name: &Ident, enum_: &CStyleEnum, int: &Ident) ->
 
 /// Derives `FromGodot` for enums with a via type of `GString`.
 fn make_fromgodot_for_gstring_enum(name: &Ident, enum_: &CStyleEnum) -> TokenStream {
-    let names = enum_.names();
+    let names = enum_.enumerator_names();
     let names_str = names.iter().map(ToString::to_string).collect::<Vec<_>>();
     let bad_variant_error = format!("invalid {name} variant");
 

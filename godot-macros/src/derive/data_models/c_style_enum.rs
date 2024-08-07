@@ -10,12 +10,18 @@ use crate::ParseResult;
 use proc_macro2::{Ident, Span, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 
-/// Stores info from c-style enums for use in deriving `GodotConvert` and other related traits.
+/// Stores info from C-style enums for use in deriving `GodotConvert` and other related traits.
 #[derive(Clone, Debug)]
 pub struct CStyleEnum {
-    /// The names of each variant.
+    /// The names of each enumerator.
     enumerator_names: Vec<Ident>,
+
     /// The discriminants of each variant, both explicit and implicit.
+    ///
+    /// Can be simple or complex expressions, the latter with parentheses:
+    /// - `13`
+    /// - `(1 + 2)`
+    /// - `Enum::Variant as isize`
     enumerator_ords: Vec<TokenStream>,
 }
 
@@ -41,7 +47,7 @@ impl CStyleEnum {
     fn create_discriminant_mapping(
         enumerators: Vec<CStyleEnumerator>,
     ) -> ParseResult<(Vec<Ident>, Vec<TokenStream>)> {
-        // See here for how implicit discriminants are decided
+        // See here for how implicit discriminants are decided:
         // https://doc.rust-lang.org/reference/items/enumerations.html#implicit-discriminants
         let mut names = Vec::new();
         let mut ord_exprs = Vec::new();
@@ -70,13 +76,13 @@ impl CStyleEnum {
         Ok((names, ord_exprs))
     }
 
-    /// Returns the names of the variants, in order of the variants.
-    pub fn names(&self) -> &[Ident] {
+    /// Returns the names of the enumerators, in order of declaration.
+    pub fn enumerator_names(&self) -> &[Ident] {
         &self.enumerator_names
     }
 
-    /// Returns the discriminants of each variant, in order of the variants.
-    pub fn discriminants(&self) -> &[TokenStream] {
+    /// Returns the ordinal expression (discriminant) of each enumerator, in order of declaration.
+    pub fn enumerator_ord_exprs(&self) -> &[TokenStream] {
         &self.enumerator_ords
     }
 
