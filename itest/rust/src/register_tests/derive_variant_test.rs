@@ -46,6 +46,14 @@ enum EnumInty {
     E,
 }
 
+#[derive(GodotConvert, Clone, PartialEq, Debug)]
+#[godot(via = i64)]
+enum EnumIntyWithExprs {
+    G = (1 + 2),
+    H,
+    I = (EnumInty::B as isize),
+}
+
 #[itest]
 fn newtype_tuple_struct() {
     roundtrip(TupleNewtype("hello!".into()));
@@ -84,6 +92,17 @@ fn enum_inty() {
     assert_eq!(EnumInty::C.to_godot(), 12);
     assert_eq!(EnumInty::D.to_godot(), 1);
     assert_eq!(EnumInty::E.to_godot(), 2);
+}
+
+#[itest]
+fn enum_inty_with_complex_exprs() {
+    roundtrip(EnumIntyWithExprs::G);
+    roundtrip(EnumIntyWithExprs::H);
+    roundtrip(EnumIntyWithExprs::I);
+
+    assert_eq!(EnumIntyWithExprs::G.to_godot(), 3);
+    assert_eq!(EnumIntyWithExprs::H.to_godot(), 4);
+    assert_eq!(EnumIntyWithExprs::I.to_godot(), 11);
 }
 
 macro_rules! test_inty {

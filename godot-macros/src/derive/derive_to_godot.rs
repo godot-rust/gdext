@@ -9,6 +9,7 @@ use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 
 use crate::derive::data_models::{CStyleEnum, ConvertType, GodotConvert, NewtypeStruct, ViaType};
+use crate::derive::derive_godot_convert::adjust_ord_exprs;
 
 /// Creates a `ToGodot` impl for the given `GodotConvert`.
 ///
@@ -21,10 +22,12 @@ pub fn make_togodot(convert: &GodotConvert) -> TokenStream {
 
     match data {
         ConvertType::NewType { field } => make_togodot_for_newtype_struct(name, field),
+
         ConvertType::Enum {
             variants,
             via: ViaType::GString { .. },
         } => make_togodot_for_string_enum(name, variants),
+
         ConvertType::Enum {
             variants,
             via: ViaType::Int { int_ident },
@@ -52,11 +55,12 @@ fn make_togodot_for_newtype_struct(name: &Ident, field: &NewtypeStruct) -> Token
 
 /// Derives `ToGodot` for enums with a via type of integers.
 fn make_togodot_for_int_enum(name: &Ident, enum_: &CStyleEnum, int: &Ident) -> TokenStream {
-    let discriminants = enum_.discriminants();
+    let discriminants = adjust_ord_exprs(enum_.discriminants(), int);
     let names = enum_.names();
 
     quote! {
         impl ::godot::meta::ToGodot for #name {
+            #[allow(unused_parens)] // Error "unnecessary parentheses around block return value"; comes from ord expressions like (1 + 2).
             fn to_godot(&self) -> #int {
                 match self {
                     #(

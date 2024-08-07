@@ -62,7 +62,7 @@ impl Reloadable {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[derive(GodotConvert, Var, Export)]
-#[godot(via=GString)]
+#[godot(via = GString)]
 enum Planet {
     Earth,
     Mars,

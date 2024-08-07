@@ -5,10 +5,11 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::derive::adjust_ord_exprs;
+use crate::derive::data_models::{CStyleEnum, ConvertType, GodotConvert, NewtypeStruct, ViaType};
+use crate::util;
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
-
-use crate::derive::data_models::{CStyleEnum, ConvertType, GodotConvert, NewtypeStruct, ViaType};
 
 /// Creates a `FromGodot` impl for the given `GodotConvert`.
 ///
@@ -21,10 +22,12 @@ pub fn make_fromgodot(convert: &GodotConvert) -> TokenStream {
 
     match data {
         ConvertType::NewType { field } => make_fromgodot_for_newtype_struct(name, field),
+
         ConvertType::Enum {
             variants,
             via: ViaType::GString { .. },
         } => make_fromgodot_for_gstring_enum(name, variants),
+
         ConvertType::Enum {
             variants,
             via: ViaType::Int { int_ident },
@@ -50,16 +53,28 @@ fn make_fromgodot_for_newtype_struct(name: &Ident, field: &NewtypeStruct) -> Tok
 
 /// Derives `FromGodot` for enums with a via type of integers.
 fn make_fromgodot_for_int_enum(name: &Ident, enum_: &CStyleEnum, int: &Ident) -> TokenStream {
-    let discriminants = enum_.discriminants();
+    let discriminants = adjust_ord_exprs(enum_.discriminants(), int);
     let names = enum_.names();
     let bad_variant_error = format!("invalid {name} variant");
 
+    let ord_variables: Vec<Ident> = names
+        .iter()
+        .map(|e| util::ident(&format!("ORD_{e}")))
+        .collect();
+
     quote! {
         impl ::godot::meta::FromGodot for #name {
+            #[allow(unused_parens)] // Error "unnecessary parentheses around match arm expression"; comes from ord° expressions like (1 + 2).
             fn try_from_godot(via: #int) -> ::std::result::Result<Self, ::godot::meta::error::ConvertError> {
+                #(
+                    // Interesting: using let instead of const would introduce a runtime bug. Its values cannot be used in match lhs (binding).
+                    // However, bindings silently shadow variables, so the first match arm always runs; no warning in generated proc-macro code.
+                    const #ord_variables: #int = #discriminants;
+                )*
+
                 match via {
                     #(
-                        #discriminants => Ok(#name::#names),
+                        #ord_variables => Ok(#name::#names),
                     )*
                     // Pass `via` and not `other`, to retain debug info of original type.
                     other => Err(::godot::meta::error::ConvertError::with_error_value(#bad_variant_error, via))
