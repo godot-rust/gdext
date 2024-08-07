@@ -273,7 +273,7 @@ struct InitWithNodeOrBase {
     base: Base<Node>,
     #[init(node = "child")]
     node: OnReady<Gd<Node>>,
-    #[init(default = OnReady::from_base_fn(|b| b.get_name().to_string()))]
+    #[init(val = OnReady::from_base_fn(|b| b.get_name().to_string()))]
     self_name: OnReady<String>,
 }
 

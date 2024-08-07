@@ -433,7 +433,7 @@ fn parse_fields(
                 field.default_val = Some(default);
             }
 
-            // #[init(default = expr)]
+            // Deprecated #[init(default = expr)]
             if let Some(default) = parser.handle_expr("default")? {
                 if field.default_val.is_some() {
                     return bail!(
@@ -454,7 +454,7 @@ fn parse_fields(
                         parser.span(),
                         "The key `node` in attribute #[init] requires field of type `OnReady<T>`\n\
 				         Help: The syntax #[init(node = \"NodePath\")] is equivalent to \
-				         #[init(default = OnReady::node(\"NodePath\"))], \
+				         #[init(val = OnReady::node(\"NodePath\"))], \
 				         which can only be assigned to fields of type `OnReady<T>`"
                     );
                 }
@@ -464,7 +464,7 @@ fn parse_fields(
 				        parser.span(),
 				        "The key `node` in attribute #[init] is mutually exclusive with the key `default`\n\
 				         Help: The syntax #[init(node = \"NodePath\")] is equivalent to \
-				         #[init(default = OnReady::node(\"NodePath\"))], \
+				         #[init(val = OnReady::node(\"NodePath\"))], \
 				         both aren't allowed since they would override each other"
 			        );
                 }
