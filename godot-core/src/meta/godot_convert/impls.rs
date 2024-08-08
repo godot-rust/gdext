@@ -5,8 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::Variant;
-use crate::meta::error::{ConvertError, FromFfiError, FromVariantError};
+use crate::builtin::{Array, Variant};
+use crate::meta::error::{ConvertError, ErrorKind, FromFfiError, FromVariantError};
 use crate::meta::{
     ArrayElement, ClassName, FromGodot, GodotConvert, GodotNullableFfi, GodotType,
     PropertyHintInfo, PropertyInfo, ToGodot,
@@ -329,6 +329,61 @@ impl FromGodot for u64 {
         })
     }
 }
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Collections
+
+impl<T: ArrayElement> GodotConvert for Vec<T> {
+	type Via = Array<T>;
+}
+
+impl<T: ArrayElement> ToGodot for Vec<T> {
+	fn to_godot(&self) -> Self::Via {
+		Array::from(&*self)
+	}
+}
+
+impl<T: ArrayElement> FromGodot for Vec<T> {
+	fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+		Ok(via.iter_shared().collect())
+	}
+}
+
+impl<T: ArrayElement, const LEN: usize> GodotConvert for [T; LEN] {
+	type Via = Array<T>;
+}
+
+impl<T: ArrayElement, const LEN: usize> ToGodot for [T; LEN] {
+	fn to_godot(&self) -> Self::Via {
+		Array::from(self)
+	}
+}
+
+impl<T: ArrayElement, const LEN: usize> FromGodot for [T; LEN] {
+	fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+		let vec = via.iter_shared().collect::<Vec<T>>();
+		
+		Self::try_from(vec)
+			.map_err(|vec| {
+				let message = format!(
+					"Array length mismatch, expected: `{}`, got: `{}`", LEN, vec.len()
+				);
+				
+				ConvertError::with_kind_value(ErrorKind::Custom(Some(message.into())), vec)
+			})
+	}
+}
+
+impl<T: ArrayElement> GodotConvert for &[T] {
+	type Via = Array<T>;
+}
+
+impl<T: ArrayElement> ToGodot for &[T] {
+	fn to_godot(&self) -> Self::Via {
+		Array::from(*self)
+	}
+}
+
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Raw pointers
