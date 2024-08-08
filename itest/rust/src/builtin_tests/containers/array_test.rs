@@ -394,7 +394,7 @@ fn untyped_array_return_from_godot_func() {
     let mut node = Node::new_alloc();
     let mut child = Node::new_alloc();
     child.set_name("child_node".into());
-    node.add_child(child.clone());
+    node.add_child(&child);
     node.queue_free(); // Do not leak even if the test fails.
     let result = node.get_node_and_resource("child_node".into());
 
@@ -431,7 +431,7 @@ fn typed_array_return_from_godot_func() {
     let mut node = Node::new_alloc();
     let mut child = Node::new_alloc();
     child.set_name("child_node".into());
-    node.add_child(child.clone());
+    node.add_child(&child);
     node.queue_free(); // Do not leak even if the test fails.
     let children = node.get_children();
 
@@ -477,10 +477,7 @@ fn array_should_format_with_display() {
 #[cfg(since_api = "4.2")]
 fn array_sort_custom() {
     let mut a = array![1, 2, 3, 4];
-    let func = Callable::from_fn("sort backwards", |args: &[&Variant]| {
-        let res = i32::from_variant(args[0]) > i32::from_variant(args[1]);
-        Ok(Variant::from(res))
-    });
+    let func = backwards_sort_callable();
     a.sort_unstable_custom(func);
     assert_eq!(a, array![4, 3, 2, 1]);
 }
@@ -489,12 +486,17 @@ fn array_sort_custom() {
 #[cfg(since_api = "4.2")]
 fn array_binary_search_custom() {
     let a = array![5, 4, 2, 1];
-    let func = Callable::from_fn("sort backwards", |args: &[&Variant]| {
-        let res = i32::from_variant(args[0]) > i32::from_variant(args[1]);
-        Ok(Variant::from(res))
-    });
+    let func = backwards_sort_callable();
     assert_eq!(a.bsearch_custom(&1, func.clone()), 3);
     assert_eq!(a.bsearch_custom(&3, func), 2);
+}
+
+#[cfg(since_api = "4.2")]
+fn backwards_sort_callable() -> Callable {
+    Callable::from_fn("sort backwards", |args: &[&Variant]| {
+        let res = args[0].to::<i32>() > args[1].to::<i32>();
+        Ok(res.to_variant())
+    })
 }
 
 #[itest]
