@@ -627,7 +627,8 @@ pub enum RustTy {
         impl_as_object_arg: TokenStream,
 
         /// only inner `T`
-        #[allow(dead_code)] // only read in minimal config
+        #[allow(dead_code)]
+        // only read in minimal config + RustTy::default_extender_field_decl()
         inner_class: Ident,
     },
 
@@ -645,10 +646,13 @@ impl RustTy {
         }
     }
 
-    /// Returns `( <field tokens>, <needs .as_object_arg()> )`.
-    pub fn private_field_decl(&self) -> (TokenStream, bool) {
+    /// Returns `( <field tokens>, <needs .consume_object()> )`.
+    pub fn default_extender_field_decl(&self) -> (TokenStream, bool) {
         match self {
-            RustTy::EngineClass { object_arg, .. } => (object_arg.clone(), true),
+            RustTy::EngineClass { inner_class, .. } => {
+                let cow_tokens = quote! { ObjectCow<crate::classes::#inner_class> };
+                (cow_tokens, true)
+            }
             other => (other.to_token_stream(), false),
         }
     }

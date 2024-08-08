@@ -31,6 +31,10 @@ where
 {
     #[doc(hidden)]
     fn as_object_arg(&self) -> ObjectArg<T>;
+
+    /// Returns
+    #[doc(hidden)]
+    fn consume_object(self) -> ObjectCow<T>;
 }
 
 impl<T, U> AsObjectArg<T> for Gd<U>
@@ -40,6 +44,10 @@ where
 {
     fn as_object_arg(&self) -> ObjectArg<T> {
         <&Gd<U>>::as_object_arg(&self)
+    }
+
+    fn consume_object(self) -> ObjectCow<T> {
+        ObjectCow::Owned(self.upcast())
     }
 }
 
@@ -53,6 +61,10 @@ where
         // This function is not part of the public API.
         unsafe { ObjectArg::from_raw_gd(&self.raw) }
     }
+
+    fn consume_object(self) -> ObjectCow<T> {
+        ObjectCow::Borrowed(self.as_object_arg())
+    }
 }
 
 impl<T, U> AsObjectArg<T> for Option<U>
@@ -64,6 +76,13 @@ where
         self.as_ref()
             .map_or_else(ObjectArg::null, AsObjectArg::as_object_arg)
     }
+
+    fn consume_object(self) -> ObjectCow<T> {
+        match self {
+            Some(obj) => obj.consume_object(),
+            None => Gd::null_arg().consume_object(),
+        }
+    }
 }
 
 impl<T> AsObjectArg<T> for ObjectNullArg<T>
@@ -73,12 +92,42 @@ where
     fn as_object_arg(&self) -> ObjectArg<T> {
         ObjectArg::null()
     }
+
+    fn consume_object(self) -> ObjectCow<T> {
+        // Null pointer is safe to borrow.
+        ObjectCow::Borrowed(ObjectArg::null())
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 #[doc(hidden)]
 pub struct ObjectNullArg<T>(pub(crate) std::marker::PhantomData<*mut T>);
+
+/// Exists for cases where a value must be moved, and retaining `ObjectArg<T>` may not be possible if the source is owned.
+///
+/// Only used in default-param extender structs.
+#[doc(hidden)]
+pub enum ObjectCow<T: GodotClass> {
+    Owned(Gd<T>),
+    Borrowed(ObjectArg<T>),
+}
+
+impl<T> ObjectCow<T>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+{
+    /// Returns the actual `ObjectArg` to be passed to function calls.
+    ///
+    /// [`ObjectCow`] does not implement [`AsObjectArg<T>`] because a differently-named method is more explicit (less errors in codegen),
+    /// and because [`AsObjectArg::consume_object()`] is not meaningful.
+    pub fn cow_as_object_arg(&self) -> ObjectArg<T> {
+        match self {
+            ObjectCow::Owned(gd) => gd.as_object_arg(),
+            ObjectCow::Borrowed(obj) => obj.clone(),
+        }
+    }
+}
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 

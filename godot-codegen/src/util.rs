@@ -28,7 +28,8 @@ pub fn make_imports() -> TokenStream {
         use crate::meta::{ClassName, PtrcallSignatureTuple, VarcallSignatureTuple};
         use crate::classes::native::*;
         use crate::classes::Object;
-        use crate::obj::{Gd, ObjectArg, AsObjectArg};
+        use crate::obj::{Gd, AsObjectArg};
+        use crate::obj::object_arg::{ObjectArg, ObjectCow};
         use crate::sys::GodotFfi as _;
     }
 }
