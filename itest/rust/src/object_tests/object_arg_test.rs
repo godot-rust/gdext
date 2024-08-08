@@ -34,6 +34,16 @@ fn object_arg_borrowed() {
 }
 
 #[itest]
+fn object_arg_borrowed_mut() {
+    with_objects(|mut manual, mut refc| {
+        let db = ClassDb::singleton();
+        let a = db.class_set_property(&mut manual, "name".into(), Variant::from("hello"));
+        let b = db.class_set_property(&mut refc, "value".into(), Variant::from(-123));
+        (a, b)
+    });
+}
+
+#[itest]
 fn object_arg_option_owned() {
     with_objects(|manual, refc| {
         let db = ClassDb::singleton();
@@ -49,6 +59,16 @@ fn object_arg_option_borrowed() {
         let db = ClassDb::singleton();
         let a = db.class_set_property(Some(&manual), "name".into(), Variant::from("hello"));
         let b = db.class_set_property(Some(&refc), "value".into(), Variant::from(-123));
+        (a, b)
+    });
+}
+
+#[itest]
+fn object_arg_option_borrowed_mut() {
+    with_objects(|mut manual, mut refc| {
+        let db = ClassDb::singleton();
+        let a = db.class_set_property(Some(&mut manual), "name".into(), Variant::from("hello"));
+        let b = db.class_set_property(Some(&mut refc), "value".into(), Variant::from(-123));
         (a, b)
     });
 }
