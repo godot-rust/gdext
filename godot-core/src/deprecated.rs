@@ -35,12 +35,19 @@ macro_rules! emit_deprecated_warning {
 pub use crate::emit_deprecated_warning;
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
-// Concrete deprecations
+// Library-side deprecations
+
+#[deprecated = "\nThe attribute key #[init(val = ...)] replaces #[init(default = ...)].\n\
+	More information on https://github.com/godot-rust/gdext/pull/844."]
+pub const fn init_default() {}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Godot-side deprecations
 
 // This is a Godot-side deprecation. Since it's the only way in Godot 4.1, we keep compatibility for now.
 #[cfg_attr(
     since_api = "4.2",
-    deprecated = "Use #[export(range = (radians_as_degrees))] and not #[export(range = (radians))]. \n\
+    deprecated = "\nUse #[export(range = (radians_as_degrees))] and not #[export(range = (radians))].\n\
 	More information on https://github.com/godotengine/godot/pull/82195."
 )]
 pub const fn export_range_radians() {}

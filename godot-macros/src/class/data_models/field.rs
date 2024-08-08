@@ -11,7 +11,7 @@ use proc_macro2::{Ident, TokenStream};
 pub struct Field {
     pub name: Ident,
     pub ty: venial::TypeExpr,
-    pub default: Option<TokenStream>,
+    pub default_val: Option<TokenStream>,
     pub var: Option<FieldVar>,
     pub export: Option<FieldExport>,
     pub is_onready: bool,
@@ -24,7 +24,7 @@ impl Field {
         Self {
             name: field.name.clone(),
             ty: field.ty.clone(),
-            default: None,
+            default_val: None,
             var: None,
             export: None,
             is_onready: false,
@@ -40,4 +40,7 @@ pub struct Fields {
 
     /// The field with type `Base<T>`, if available.
     pub base_field: Option<Field>,
+
+    /// Deprecation warnings.
+    pub deprecations: Vec<TokenStream>,
 }

@@ -167,7 +167,7 @@ pub fn member(member: &Field) -> Option<String> {
     let docs = make_docs_from_attributes(&member.attributes)?;
     let name = &member.name;
     let ty = member.ty.to_token_stream().to_string();
-    let default = member.default.to_token_stream().to_string();
+    let default = member.default_val.to_token_stream().to_string();
     Some(format!(
         r#"<member name="{name}" type="{ty}" default="{default}">{docs}</member>"#
     ))

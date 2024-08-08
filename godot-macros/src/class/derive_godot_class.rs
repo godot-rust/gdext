@@ -75,6 +75,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let mut create_fn = quote! { None };
     let mut recreate_fn = quote! { None };
     let mut is_instantiable = true;
+    let deprecations = &fields.deprecations;
 
     match struct_cfg.init_strategy {
         InitStrategy::Generated => {
@@ -137,6 +138,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         #godot_exports_impl
         #user_class_impl
         #init_expecter
+        #( #deprecations )*
 
         ::godot::sys::plugin_add!(__GODOT_PLUGIN_REGISTRY in #prv; #prv::ClassPlugin {
             class_name: #class_name_obj,
@@ -214,7 +216,7 @@ fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
     let rest_init = fields.all_fields.iter().map(|field| {
         let field_name = field.name.clone();
         let value_expr = field
-            .default
+            .default_val
             .clone()
             .unwrap_or_else(|| quote! { ::std::default::Default::default() });
 
@@ -399,6 +401,7 @@ fn parse_fields(
 ) -> ParseResult<Fields> {
     let mut all_fields = vec![];
     let mut base_field = Option::<Field>::None;
+    let mut deprecations = vec![];
 
     // Attributes on struct fields
     for (named_field, _punct) in named_fields {
@@ -425,9 +428,23 @@ fn parse_fields(
                 );
             }
 
-            // #[init(default = expr)]
+            // #[init(val = expr)]
+            if let Some(default) = parser.handle_expr("val")? {
+                field.default_val = Some(default);
+            }
+
+            // Deprecated #[init(default = expr)]
             if let Some(default) = parser.handle_expr("default")? {
-                field.default = Some(default);
+                if field.default_val.is_some() {
+                    return bail!(
+                        parser.span(),
+                        "Cannot use both `val` and `default` keys in #[init]; prefer using `val`"
+                    );
+                }
+                field.default_val = Some(default);
+                deprecations.push(quote! {
+                    ::godot::__deprecated::emit_deprecated_warning!(init_default);
+                })
             }
 
             // #[init(node = "NodePath")]
@@ -437,22 +454,22 @@ fn parse_fields(
                         parser.span(),
                         "The key `node` in attribute #[init] requires field of type `OnReady<T>`\n\
 				         Help: The syntax #[init(node = \"NodePath\")] is equivalent to \
-				         #[init(default = OnReady::node(\"NodePath\"))], \
+				         #[init(val = OnReady::node(\"NodePath\"))], \
 				         which can only be assigned to fields of type `OnReady<T>`"
                     );
                 }
 
-                if field.default.is_some() {
+                if field.default_val.is_some() {
                     return bail!(
 				        parser.span(),
 				        "The key `node` in attribute #[init] is mutually exclusive with the key `default`\n\
 				         Help: The syntax #[init(node = \"NodePath\")] is equivalent to \
-				         #[init(default = OnReady::node(\"NodePath\"))], \
+				         #[init(val = OnReady::node(\"NodePath\"))], \
 				         both aren't allowed since they would override each other"
 			        );
                 }
 
-                field.default = Some(quote! {
+                field.default_val = Some(quote! {
                     OnReady::node(#node_path)
                 });
             }
@@ -491,7 +508,7 @@ fn parse_fields(
             if field.is_onready
                 || field.var.is_some()
                 || field.export.is_some()
-                || field.default.is_some()
+                || field.default_val.is_some()
             {
                 return bail!(
                     named_field,
@@ -516,6 +533,7 @@ fn parse_fields(
     Ok(Fields {
         all_fields,
         base_field,
+        deprecations,
     })
 }
 

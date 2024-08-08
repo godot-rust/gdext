@@ -421,7 +421,7 @@ fn generate_property_template(inputs: &[Input]) -> PropertyTests {
 
         let initializer = initializer
             .as_ref()
-            .map(|init| quote! { #[init(default = #init)] });
+            .map(|init| quote! { #[init(val = #init)] });
 
         rust.extend([
             quote! {

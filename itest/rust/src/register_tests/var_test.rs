@@ -14,10 +14,10 @@ struct WithInitDefaults {
     default_int: i64,
 
     #[var(get)]
-    #[init(default = 42)]
+    #[init(val = 42)]
     literal_int: i64,
 
     #[var(get)]
-    #[init(default = -42)]
+    #[init(val = -42)]
     expr_int: i64,
 }

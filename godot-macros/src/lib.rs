@@ -67,14 +67,14 @@ use crate::util::ident;
 /// ```
 ///
 /// The generated `init` function will initialize each struct field (except the field of type `Base<T>`, if any)
-/// using `Default::default()`. To assign some other value, annotate the field with `#[init(default = ...)]`:
+/// using `Default::default()`. To assign some other value, annotate the field with `#[init(val = ...)]`:
 ///
 /// ```
 /// # use godot_macros::GodotClass;
 /// #[derive(GodotClass)]
 /// #[class(init)]
 /// struct MyStruct {
-///     #[init(default = 42)]
+///     #[init(val = 42)]
 ///     my_field: i64
 /// }
 /// ```
@@ -91,7 +91,7 @@ use crate::util::ident;
 /// # #[derive(GodotClass)]
 /// # #[class(init)]
 /// # struct MyStruct {
-/// #[init(default = (HashMap::<i64, i64>::new()))]
+/// #[init(val = (HashMap::<i64, i64>::new()))]
 /// //                             ^ parentheses needed due to this comma
 /// my_field: HashMap<i64, i64>,
 /// # }
@@ -544,7 +544,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 ///
 /// ## Generated `init`
 ///
-/// This initializes the `Base<T>` field, and every other field with either `Default::default()` or the value specified in `#[init(default = ...)]`.
+/// This initializes the `Base<T>` field, and every other field with either `Default::default()` or the value specified in `#[init(val = ...)]`.
 ///
 /// ```no_run
 /// # use godot::prelude::*;
@@ -553,7 +553,7 @@ pub fn derive_godot_class(input: TokenStream) -> TokenStream {
 /// pub struct MyNode {
 ///     base: Base<Node>,
 ///
-///     #[init(default = 42)]
+///     #[init(val = 42)]
 ///     some_integer: i64,
 /// }
 /// ```
