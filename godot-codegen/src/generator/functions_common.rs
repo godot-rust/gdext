@@ -303,6 +303,7 @@ pub fn make_vis(is_private: bool) -> TokenStream {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
+// Method could possibly be split -- only one invocation uses all 3 return values, the rest uses only index [0] or [2].
 pub(crate) fn make_params_exprs<'a>(
     method_args: impl Iterator<Item = &'a FnParam>,
     is_virtual: bool,

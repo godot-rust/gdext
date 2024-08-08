@@ -49,10 +49,10 @@ pub fn make_function_definition_with_defaults(
     let receiver_param = &code.receiver.param;
     let receiver_self = &code.receiver.self_prefix;
 
-    let [required_params_impl_asarg, _, required_args_asarg] =
+    let [required_params_impl_asarg, _, _] =
         functions_common::make_params_exprs(required_fn_params.iter().cloned(), false, true, true);
 
-    let [required_params_plain, _, required_args_internal] =
+    let [_, _, required_args_internal] =
         functions_common::make_params_exprs(required_fn_params.into_iter(), false, false, false);
 
     let return_decl = &sig.return_value().decl;
@@ -78,7 +78,7 @@ pub fn make_function_definition_with_defaults(
         impl #builder_lifetime #builder_ty #builder_lifetime {
             fn new(
                 #object_param
-                #( #required_params_plain, )*
+                #( #required_params_impl_asarg, )*
             ) -> Self {
                 Self {
                     #( #builder_inits, )*
@@ -114,7 +114,7 @@ pub fn make_function_definition_with_defaults(
         ) -> #builder_ty #builder_anon_lifetime {
             #builder_ty::new(
                 #object_arg
-                #( #required_args_asarg, )*
+                #( #required_args_internal, )*
             )
         }
     };
@@ -247,26 +247,33 @@ fn make_extender(
             default_value,
         } = param;
 
-        let (field_type, needs_conversion) = type_.private_field_decl();
+        let (field_type, needs_conversion) = type_.default_extender_field_decl();
 
         // Initialize with default parameters where available, forward constructor args otherwise
         let init = if let Some(value) = default_value {
-            make_field_init(name, value, needs_conversion)
+            make_field_init(name, Some(value), needs_conversion)
         } else {
-            quote! { #name }
+            //quote! { #name }
+            make_field_init(name, None, needs_conversion)
+        };
+
+        let builder_arg = if needs_conversion {
+            quote! { self.#name.cow_as_object_arg() }
+        } else {
+            quote! { self.#name }
         };
 
         result.builder_fields.push(quote! { #name: #field_type });
-        result.builder_args.push(quote! { self.#name });
+        result.builder_args.push(builder_arg);
         result.builder_inits.push(init);
     }
 
     for param in default_fn_params {
         let FnParam { name, type_, .. } = param;
         let param_type = type_.param_decl();
-        let (_, field_needs_conversion) = type_.private_field_decl();
+        let (_, field_needs_conversion) = type_.default_extender_field_decl();
 
-        let field_init = make_field_init(name, &quote! { value }, field_needs_conversion);
+        let field_init = make_field_init(name, Some(&quote! { value }), field_needs_conversion);
 
         let method = quote! {
             #[inline]
@@ -285,10 +292,16 @@ fn make_extender(
     result
 }
 
-fn make_field_init(name: &Ident, expr: &TokenStream, needs_conversion: bool) -> TokenStream {
-    if needs_conversion {
-        quote! { #name: #expr.as_object_arg() }
-    } else {
-        quote! { #name: #expr }
+// Rewrite the above using match
+fn make_field_init(
+    name: &Ident,
+    expr: Option<&TokenStream>, // None if the parameter has the same name as the field, and can use shorthand syntax.
+    needs_conversion: bool,
+) -> TokenStream {
+    match (needs_conversion, expr) {
+        (true, Some(expr)) => quote! { #name: #expr.consume_object() },
+        (true, None) /*.             */ => quote! { #name: #name.consume_object() },
+        (false, Some(expr)) => quote! { #name: #expr },
+        (false, None) /*.             */ => quote! { #name },
     }
 }

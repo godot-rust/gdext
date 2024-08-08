@@ -164,7 +164,7 @@ where
 {
     // TODO unclone GString
     let res = ResourceSaver::singleton()
-        .save_ex(obj.upcast())
+        .save_ex(obj)
         .path(path.clone())
         .done();
 

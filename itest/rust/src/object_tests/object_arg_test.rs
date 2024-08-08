@@ -6,9 +6,9 @@
  */
 
 use godot::builtin::Variant;
-use godot::classes::{ClassDb, Node};
+use godot::classes::{ClassDb, Node, ResourceFormatLoader, ResourceLoader};
 use godot::global;
-use godot::obj::{Gd, NewAlloc};
+use godot::obj::{Gd, NewAlloc, NewGd};
 
 use crate::framework::itest;
 use crate::object_tests::object_test::{user_refc_instance, RefcPayload};
@@ -76,6 +76,24 @@ fn object_arg_null_arg() {
 
     let error = db.class_set_property(Gd::null_arg(), "value".into(), Variant::from(-123));
     assert_eq!(error, global::Error::ERR_UNAVAILABLE);
+}
+
+// Regression test for https://github.com/godot-rust/gdext/issues/835.
+#[itest]
+fn object_arg_owned_default_params() {
+    // Calls the _ex() variant behind the scenes.
+    let a = ResourceFormatLoader::new_gd();
+    let b = ResourceFormatLoader::new_gd();
+
+    // Use direct and explicit _ex() call syntax.
+    ResourceLoader::singleton().add_resource_format_loader(a.clone()); // by value
+    ResourceLoader::singleton()
+        .add_resource_format_loader_ex(b.clone()) // by value
+        .done();
+
+    // Clean up (no leaks).
+    ResourceLoader::singleton().remove_resource_format_loader(a);
+    ResourceLoader::singleton().remove_resource_format_loader(b);
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

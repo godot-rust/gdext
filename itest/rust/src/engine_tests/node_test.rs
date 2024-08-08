@@ -67,10 +67,10 @@ fn node_scene_tree() {
 
     let mut parent = Node::new_alloc();
     parent.set_name("parent".into());
-    parent.add_child(child.clone());
+    parent.add_child(&child);
 
     let mut scene = PackedScene::new_gd();
-    let err = scene.pack(parent.clone());
+    let err = scene.pack(&parent);
     assert_eq!(err, global::Error::OK);
 
     let mut tree = SceneTree::new_alloc();
