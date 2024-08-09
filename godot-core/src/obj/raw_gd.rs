@@ -522,10 +522,10 @@ where
         if T::DynMemory::pass_as_ref(call_type) {
             interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys())
         } else {
-            ptr::write(ptr as *mut _, self.obj)
+            ptr::write(ptr as *mut _, self.obj);
+            // We've passed ownership to caller.
+            std::mem::forget(self);
         }
-        // We've passed ownership to caller.
-        std::mem::forget(self);
     }
 }
 
