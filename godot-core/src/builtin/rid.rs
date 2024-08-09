@@ -142,3 +142,5 @@ unsafe impl GodotFfi for Rid {
 }
 
 crate::meta::impl_godot_as_self!(Rid);
+
+

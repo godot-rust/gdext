@@ -105,7 +105,7 @@ mod quaternion;
 mod rect2;
 mod rect2i;
 mod rid;
-mod signal;
+mod signal;mod rid_new;
 mod string;
 mod transform2d;
 mod transform3d;

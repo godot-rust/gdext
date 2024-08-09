@@ -355,7 +355,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
             "NodePath" => ("NodePath", "from"),
             "String" => ("GString", "from"),
             "StringName" => ("StringName", "from"),
-            "RID" => ("Rid", "default"),
+            "RID" => ("Rid", "--"),
             "Rect2" => ("Rect2", "from_components"),
             "Rect2i" => ("Rect2i", "from_components"),
             "Vector2" | "Vector2i" | "Vector3" | "Vector3i" => (godot_ty, "new"),
