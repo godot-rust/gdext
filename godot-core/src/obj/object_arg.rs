@@ -67,6 +67,22 @@ where
     }
 }
 
+impl<T, U> AsObjectArg<T> for &mut Gd<U>
+where
+    T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
+    U: Inherits<T>,
+{
+    // Delegate to &Gd impl.
+
+    fn as_object_arg(&self) -> ObjectArg<T> {
+        <&Gd<U>>::as_object_arg(&&**self)
+    }
+
+    fn consume_object(self) -> ObjectCow<T> {
+        <&Gd<U>>::consume_object(&*self)
+    }
+}
+
 impl<T, U> AsObjectArg<T> for Option<U>
 where
     T: GodotClass + Bounds<Declarer = bounds::DeclEngine>,
