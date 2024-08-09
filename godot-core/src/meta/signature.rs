@@ -654,9 +654,9 @@ impl<'a> fmt::Display for CallContext<'a> {
 // Trace diagnostics for integration tests
 #[cfg(feature = "trace")]
 pub mod trace {
-    use crate::meta::CallContext;
+    use std::cell::Cell;
 
-    use super::sys::Global;
+    use crate::meta::CallContext;
 
     /// Stores information about the current call for diagnostic purposes.
     pub struct CallReport {
@@ -667,7 +667,7 @@ pub mod trace {
     }
 
     pub fn pop() -> CallReport {
-        let lock = TRACE.lock().take();
+        let lock = TRACE.take();
         // let th = std::thread::current().id();
         // println!("trace::pop [{th:?}]...");
 
@@ -688,8 +688,10 @@ pub mod trace {
             is_ptrcall: ptrcall,
         };
 
-        *TRACE.lock() = Some(report);
+        TRACE.set(Some(report));
     }
 
-    static TRACE: Global<Option<CallReport>> = Global::default();
+    thread_local! {
+        static TRACE: Cell<Option<CallReport>> = Cell::default();
+    }
 }
