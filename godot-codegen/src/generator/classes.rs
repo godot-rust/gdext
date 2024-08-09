@@ -535,6 +535,7 @@ fn make_class_method_definition(
             receiver,
             varcall_invocation,
             ptrcall_invocation,
+            is_virtual_required: false,
         },
         None,
         cfg_attributes,

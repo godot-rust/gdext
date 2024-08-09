@@ -250,6 +250,7 @@ fn make_builtin_method_definition(
             receiver,
             varcall_invocation,
             ptrcall_invocation,
+            is_virtual_required: false,
         },
         safety_doc,
         &TokenStream::new(),

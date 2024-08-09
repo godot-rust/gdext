@@ -70,6 +70,7 @@ pub(crate) fn make_utility_function_definition(function: &UtilityFunction) -> To
             receiver: FnReceiver::global_function(),
             varcall_invocation,
             ptrcall_invocation,
+            is_virtual_required: false,
         },
         None,
         &TokenStream::new(),

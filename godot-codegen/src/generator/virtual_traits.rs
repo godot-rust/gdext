@@ -154,6 +154,7 @@ fn make_virtual_method(method: &ClassMethod) -> Option<TokenStream> {
             // make_return() requests following args, but they are not used for virtual methods. We can provide empty streams.
             varcall_invocation: TokenStream::new(),
             ptrcall_invocation: TokenStream::new(),
+            is_virtual_required: method.is_virtual_required(),
         },
         None,
         &TokenStream::new(),

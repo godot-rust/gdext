@@ -358,6 +358,7 @@ impl BuiltinMethod {
                 return_value: FnReturn::new(&return_value, ctx),
                 is_vararg: method.is_vararg,
                 is_private: special_cases::is_method_private(builtin_name, &method.name),
+                is_virtual_required: false,
                 direction: FnDirection::Outbound {
                     hash: method.hash.expect("hash absent for builtin method"),
                 },
@@ -463,6 +464,10 @@ impl ClassMethod {
                 return_value: FnReturn::new(&method.return_value, ctx),
                 is_vararg: method.is_vararg,
                 is_private,
+                is_virtual_required: special_cases::is_virtual_method_required(
+                    &class_name.rust_ty.to_string(),
+                    rust_method_name,
+                ),
                 direction,
             },
             qualifier,
@@ -511,6 +516,7 @@ impl UtilityFunction {
                 return_value: FnReturn::new(&return_value, ctx),
                 is_vararg: function.is_vararg,
                 is_private: false,
+                is_virtual_required: false,
                 direction: FnDirection::Outbound {
                     hash: function.hash,
                 },
