@@ -520,12 +520,14 @@ where
 
     unsafe fn move_return_ptr(self, ptr: sys::GDExtensionTypePtr, call_type: PtrcallType) {
         if T::DynMemory::pass_as_ref(call_type) {
-            interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys())
+            // ref_set_object creates a new Ref<T> in the engine and increments the reference count. We have to drop our Gd<T> to decrement
+            // the reference count again.
+            interface_fn!(ref_set_object)(ptr as sys::GDExtensionRefPtr, self.obj_sys());
         } else {
-            ptr::write(ptr as *mut _, self.obj)
+            ptr::write(ptr as *mut _, self.obj);
+            // We've passed ownership to caller.
+            std::mem::forget(self);
         }
-        // We've passed ownership to caller.
-        std::mem::forget(self);
     }
 }
 
