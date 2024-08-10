@@ -23,7 +23,7 @@ proc-macro2 = "1.0.80" # Literal::c_string() added in 1.0.80.
 quote = "1.0.29"
 
 # Enabled by `docs`
-markdown = { version = "1.0.0-alpha.17", optional = true }
+markdown = { version = "1.0.0-alpha.19", optional = true }
 venial = "0.6"
 
 [build-dependencies]
