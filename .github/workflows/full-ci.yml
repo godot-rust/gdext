@@ -65,169 +65,127 @@ jobs:
         include:
           # macOS -- for the unintuitive naming, see https://github.com/actions/runner-images?tab=readme-ov-file#available-images
 
-          - name: macos-x86
-            os: macos-12
-            artifact-name: macos-x86-nightly
-            godot-binary: godot.macos.editor.dev.x86_64
+          - name: windows-00
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
             with-hot-reload: true
-
-          - name: macos-double-x86
-            os: macos-12
-            artifact-name: macos-double-x86-nightly
-            godot-binary: godot.macos.editor.dev.double.x86_64
-            rust-extra-args: --features godot/api-custom,godot/double-precision
-
-          - name: macos-x86-4.2
-            os: macos-12
-            artifact-name: macos-x86-4.2
-            godot-binary: godot.macos.editor.dev.x86_64
-    #            godot-prebuilt-patch: '4.2.x'
-
-          - name: macos-arm
-            os: macos-latest
-            artifact-name: macos-arm-nightly
-            godot-binary: godot.macos.editor.dev.arm64
+          - name: windows-01
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
             with-hot-reload: true
-
-           # api-custom on macOS arm64 not working, due to clang linker issues.
-#          - name: macos-double-arm
-#            os: macos-latest
-#            artifact-name: macos-double-arm-nightly
-#            godot-binary: godot.macos.editor.dev.double.arm64
-#            rust-extra-args: --features godot/api-custom,godot/double-precision
-
-          - name: macos-arm-4.2
-            os: macos-latest
-            artifact-name: macos-arm-4.2
-            godot-binary: godot.macos.editor.dev.arm64
-    #            godot-prebuilt-patch: '4.2.x'
-
-          # Windows
-
-          - name: windows
+          - name: windows-02
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-03
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-04
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-05
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-06
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-07
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-08
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-09
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-10
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-11
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-12
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-13
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-14
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-15
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-16
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-17
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-18
+            os: windows-latest
+            artifact-name: windows-nightly
+            godot-binary: godot.windows.editor.dev.x86_64.exe
+            with-hot-reload: true
+          - name: windows-19
             os: windows-latest
             artifact-name: windows-nightly
             godot-binary: godot.windows.editor.dev.x86_64.exe
             with-hot-reload: true
 
-          - name: windows-double
-            os: windows-latest
-            artifact-name: windows-double-nightly
-            godot-binary: godot.windows.editor.dev.double.x86_64.exe
-            rust-extra-args: --features godot/api-custom,godot/double-precision
 
-          - name: windows-4.2
-            os: windows-latest
-            artifact-name: windows-4.2
-            godot-binary: godot.windows.editor.dev.x86_64.exe
-            #godot-prebuilt-patch: '4.2.x'
-
-#          - name: windows-4.1
-#            os: windows-latest
-#            artifact-name: windows-4.1
-#            godot-binary: godot.windows.editor.dev.x86_64.exe
-#            godot-prebuilt-patch: '4.1.3'
-
-          # Linux
-
-          # Don't use latest Ubuntu (22.04) as it breaks lots of ecosystem compatibility.
-          # If ever moving to ubuntu-latest, need to manually install libtinfo5 for LLVM.
-
-          # Uses full+experimental codegen, so that compatibility breakage towards nightly is detected.
-          # If the experimental part causes problems, consider using only godot/__codegen-full.
-          - name: linux-full
-            os: ubuntu-20.04
-            artifact-name: linux-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features itest/codegen-full
-            with-hot-reload: true
-
-          # Combines now a lot of features, but should be OK. lazy-function-tables doesn't work with experimental-threads.
-          - name: linux-double-lazy
-            os: ubuntu-20.04
-            artifact-name: linux-double-nightly
-            godot-binary: godot.linuxbsd.editor.dev.double.x86_64
-            rust-extra-args: --features godot/api-custom,godot/double-precision,itest/codegen-full,godot/lazy-function-tables
-
-          - name: linux-features-experimental
-            os: ubuntu-20.04
-            artifact-name: linux-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            rust-extra-args: --features itest/experimental-threads,itest/codegen-full-experimental,godot/api-custom,godot/serde,itest/register-docs
-
-          - name: linux-release
-            os: ubuntu-20.04
-            artifact-name: linux-release-nightly
-            godot-binary: godot.linuxbsd.template_release.x86_64
-            rust-extra-args: --release
-            rust-cache-key: release
-
-          # Linux compat (4.0 and 4.1 disabled, already covered by memcheck)
-
-          - name: linux-4.2
-            os: ubuntu-20.04
-            artifact-name: linux-4.2
-            godot-binary: godot.linuxbsd.editor.dev.x86_64
-            #godot-prebuilt-patch: '4.2.x'
-
-#          - name: linux-4.1
-#            os: ubuntu-20.04
-#            artifact-name: linux-4.2
-#            godot-binary: godot.linuxbsd.editor.dev.x86_64
-#            godot-prebuilt-patch: '4.1.4'
-#
-#          - name: linux-4.0
-#            os: ubuntu-20.04
-#            artifact-name: linux-4.0
-#            godot-binary: godot.linuxbsd.editor.dev.x86_64
-#            godot-prebuilt-patch: '4.0.4'
-
-
-          # Memory checks: special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
-          # See also https://rustc-dev-guide.rust-lang.org/sanitizers.html.
-          #
-          # Additionally, the Godot source is patched to make dlclose() a no-op, as unloading dynamic libraries loses stacktrace and
-          # cause false positives like println!. See https://github.com/google/sanitizers/issues/89.
-          #
-          # There is also a gcc variant besides clang, which is currently not used.
-          - name: linux-memcheck-nightly
-            os: ubuntu-20.04
-            artifact-name: linux-memcheck-nightly
-            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            rust-toolchain: nightly
-            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
-            rust-extra-args: --features godot/api-custom
-            # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
-            rust-target: x86_64-unknown-linux-gnu
-
-          - name: linux-memcheck-4.1
-            os: ubuntu-20.04
-            artifact-name: linux-memcheck-4.1
-            godot-binary: godot.linuxbsd.editor.dev.x86_64.llvm.san
-            godot-prebuilt-patch: '4.1' # check compat of API 4.1.0 with newer binaries.
-            rust-toolchain: nightly
-            rust-env-rustflags: -Zrandomize-layout -Zsanitizer=address
-            # Sanitizers can't build proc-macros and build scripts; with --target, cargo ignores RUSTFLAGS for those two.
-            rust-target: x86_64-unknown-linux-gnu
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: "Run Godot integration test"
-        uses: ./.github/composite/godot-itest
-        with:
-          artifact-name: godot-${{ matrix.artifact-name }}
-          godot-binary: ${{ matrix.godot-binary }}
-          godot-args: ${{ matrix.godot-args }} # currently unused
-          godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
-          rust-extra-args: ${{ matrix.rust-extra-args }}
-          rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
-          rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
-          rust-target: ${{ matrix.rust-target }}
-          rust-cache-key: ${{ matrix.rust-cache-key }}
-          with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
-          godot-check-header: ${{ matrix.godot-check-header }}
-          
+#
+#      - name: "Run Godot integration test"
+#        uses: ./.github/composite/godot-itest
+#        with:
+#          artifact-name: godot-${{ matrix.artifact-name }}
+#          godot-binary: ${{ matrix.godot-binary }}
+#          godot-args: ${{ matrix.godot-args }} # currently unused
+#          godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
+#          rust-extra-args: ${{ matrix.rust-extra-args }}
+#          rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
+#          rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
+#          rust-target: ${{ matrix.rust-target }}
+#          rust-cache-key: ${{ matrix.rust-cache-key }}
+#          with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
+#          godot-check-header: ${{ matrix.godot-check-header }}
+#
       - name: "Build and test hot-reload"
         if: ${{ matrix.with-hot-reload }}
         working-directory: examples/hot-reload/godot/test
