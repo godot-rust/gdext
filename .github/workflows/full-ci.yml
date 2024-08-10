@@ -170,22 +170,22 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-#
-#      - name: "Run Godot integration test"
-#        uses: ./.github/composite/godot-itest
-#        with:
-#          artifact-name: godot-${{ matrix.artifact-name }}
-#          godot-binary: ${{ matrix.godot-binary }}
-#          godot-args: ${{ matrix.godot-args }} # currently unused
-#          godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
-#          rust-extra-args: ${{ matrix.rust-extra-args }}
-#          rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
-#          rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
-#          rust-target: ${{ matrix.rust-target }}
-#          rust-cache-key: ${{ matrix.rust-cache-key }}
-#          with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
-#          godot-check-header: ${{ matrix.godot-check-header }}
-#
+
+      - name: "Run Godot integration test"
+        uses: ./.github/composite/godot-itest
+        with:
+          artifact-name: godot-${{ matrix.artifact-name }}
+          godot-binary: ${{ matrix.godot-binary }}
+          godot-args: ${{ matrix.godot-args }} # currently unused
+          godot-prebuilt-patch: ${{ matrix.godot-prebuilt-patch }}
+          rust-extra-args: ${{ matrix.rust-extra-args }}
+          rust-toolchain: ${{ matrix.rust-toolchain || 'stable' }}
+          rust-env-rustflags: ${{ matrix.rust-env-rustflags }}
+          rust-target: ${{ matrix.rust-target }}
+          rust-cache-key: ${{ matrix.rust-cache-key }}
+          with-llvm: ${{ contains(matrix.name, 'macos') && contains(matrix.rust-extra-args, 'api-custom') }}
+          godot-check-header: ${{ matrix.godot-check-header }}
+
       - name: "Build and test hot-reload"
         if: ${{ matrix.with-hot-reload }}
         working-directory: examples/hot-reload/godot/test
