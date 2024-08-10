@@ -77,6 +77,21 @@ impl Vector2 {
         v.cast_float()
     }
 
+    /// Creates a unit Vector2 rotated to the given `angle` in radians. This is equivalent to doing `Vector2::new(angle.cos(), angle.sin())`
+    /// or `Vector2::RIGHT.rotated(angle)`.
+    ///
+    /// ```no_run
+    /// use godot::prelude::*;
+    ///
+    /// let a = Vector2::from_angle(0.0);                       // (1.0, 0.0)
+    /// let b = Vector2::new(1.0, 0.0).angle();                 // 0.0
+    /// let c = Vector2::from_angle(real_consts::PI / 2.0);     // (0.0, 1.0)
+    /// ```
+    #[inline]
+    pub fn from_angle(angle: real) -> Self {
+        Self::from_glam(RVec2::from_angle(angle))
+    }
+
     /// Returns this vector's angle with respect to the positive X axis, or `(1.0, 0.0)` vector, in radians.
     ///
     /// For example, `Vector2::RIGHT.angle()` will return zero, `Vector2::DOWN.angle()` will return `PI / 2` (a quarter turn, or 90 degrees),
@@ -88,6 +103,14 @@ impl Vector2 {
     #[inline]
     pub fn angle(self) -> real {
         self.y.atan2(self.x)
+    }
+
+    /// Returns the **signed** angle between `self` and the given vector, as radians in `[-π, +π]`.
+    ///
+    /// Note that behavior is different from 3D [`Vector3::angle_to()`] which returns the **unsigned** angle.
+    #[inline]
+    pub fn angle_to(self, to: Self) -> real {
+        self.glam2(&to, |a, b| a.angle_to(b))
     }
 
     /// Returns the angle to the given vector, in radians.
@@ -109,21 +132,6 @@ impl Vector2 {
     #[inline]
     pub fn cross(self, with: Self) -> real {
         self.to_glam().perp_dot(with.to_glam())
-    }
-
-    /// Creates a unit Vector2 rotated to the given `angle` in radians. This is equivalent to doing `Vector2::new(angle.cos(), angle.sin())`
-    /// or `Vector2::RIGHT.rotated(angle)`.
-    ///
-    /// ```no_run
-    /// use godot::prelude::*;
-    ///
-    /// let a = Vector2::from_angle(0.0);                       // (1.0, 0.0)
-    /// let b = Vector2::new(1.0, 0.0).angle();                 // 0.0
-    /// let c = Vector2::from_angle(real_consts::PI / 2.0);     // (0.0, 1.0)
-    /// ```
-    #[inline]
-    pub fn from_angle(angle: real) -> Self {
-        Self::from_glam(RVec2::from_angle(angle))
     }
 
     /// Returns a perpendicular vector rotated 90 degrees counter-clockwise compared to the original, with the same length.
