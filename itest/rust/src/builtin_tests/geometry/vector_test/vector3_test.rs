@@ -7,13 +7,11 @@
 
 use crate::framework::itest;
 
-use godot::builtin::{
-    inner::InnerVector3,
-    math::{assert_eq_approx, ApproxEq},
-    real,
-    real_consts::PI,
-    Vector3, Vector3Axis,
-};
+use godot::builtin::inner::InnerVector3;
+use godot::builtin::math::{assert_eq_approx, ApproxEq};
+use godot::builtin::real;
+use godot::builtin::real_consts::{FRAC_PI_4, PI};
+use godot::builtin::{Vector3, Vector3Axis};
 
 #[itest]
 fn abs() {
@@ -28,6 +26,36 @@ fn angle_to() {
     let b = Vector3::new(-7.8, 9.1, -11.12);
 
     assert_eq_approx!(a.angle_to(b), a.as_inner().angle_to(b) as real);
+
+    // Concrete example (135°).
+    let right = Vector3::new(1.0, 0.0, 0.0);
+    let back_left = Vector3::new(-1.0, 0.0, 1.0);
+
+    assert_eq_approx!(right.angle_to(back_left), 3.0 * FRAC_PI_4);
+    assert_eq_approx!(back_left.angle_to(right), 3.0 * FRAC_PI_4);
+}
+
+#[itest]
+fn signed_angle_to() {
+    let a = Vector3::new(1.0, 1.0, 0.0);
+    let b = Vector3::new(1.0, 1.0, 1.0);
+    let c = Vector3::UP;
+
+    assert_eq_approx!(
+        a.signed_angle_to(b, c),
+        a.as_inner().signed_angle_to(b, c) as real,
+        "signed_angle_to\n",
+    );
+
+    // Concrete example (135°).
+    let right = Vector3::new(1.0, 0.0, 0.0);
+    let back_left = Vector3::new(-1.0, 0.0, 1.0);
+
+    let pi_3_4 = 3.0 * FRAC_PI_4;
+    assert_eq_approx!(right.signed_angle_to(back_left, Vector3::UP), -pi_3_4);
+    assert_eq_approx!(right.signed_angle_to(back_left, Vector3::DOWN), pi_3_4);
+    assert_eq_approx!(back_left.signed_angle_to(right, Vector3::UP), pi_3_4);
+    assert_eq_approx!(back_left.signed_angle_to(right, Vector3::DOWN), -pi_3_4);
 }
 
 #[itest]
@@ -400,19 +428,6 @@ fn sign() {
 
     assert_eq!(a.sign(), a.as_inner().sign());
     assert_eq!(b.sign(), b.as_inner().sign());
-}
-
-#[itest]
-fn signed_angle_to() {
-    let a = Vector3::new(1.0, 1.0, 0.0);
-    let b = Vector3::new(1.0, 1.0, 1.0);
-    let c = Vector3::UP;
-
-    assert_eq_approx!(
-        a.signed_angle_to(b, c),
-        a.as_inner().signed_angle_to(b, c) as real,
-        "signed_angle_to\n",
-    );
 }
 
 #[itest]
