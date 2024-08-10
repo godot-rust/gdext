@@ -53,8 +53,9 @@ use self::bounded_ptr_list::BoundedPtrList;
 /// use godot::extras::{IScriptExtension, ScriptInstance};
 ///
 /// // 1) Define the script.
+/// // This needs #[class(tool)] since the script extension runs in the editor.
 /// #[derive(GodotClass)]
-/// #[class(init, base=ScriptExtension)]
+/// #[class(init, base=ScriptExtension, tool)]
 /// struct MyScript {
 ///    base: Base<ScriptExtension>,
 ///    // ... other fields

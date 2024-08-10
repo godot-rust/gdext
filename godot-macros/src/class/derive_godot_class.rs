@@ -368,6 +368,8 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         parser.finish()?;
     }
 
+    post_validate(&base_ty, is_tool)?;
+
     Ok(ClassAttributes {
         base_ty,
         init_strategy,
@@ -555,5 +557,38 @@ fn handle_opposite_keys(
             parser.span(),
             "#[{attribute}] attribute keys `{key}` and `{antikey}` are mutually exclusive",
         ),
+    }
+}
+
+/// Checks more logical combinations of attributes.
+fn post_validate(base_ty: &Ident, is_tool: bool) -> ParseResult<()> {
+    // TODO: this should be delegated to either:
+    // a) the type system: have a trait IsTool which is implemented when #[class(tool)] is set.
+    //    Then, for certain base classes, require a tool bound (e.g. generate method `fn type_check<T: IsTool>()`).
+    //    This would also allow moving the logic to godot-codegen.
+    // b) a runtime check in class.rs > register_class_raw() and validate_class_constraints().
+
+    let is_extension = is_class_virtual_extension(&base_ty.to_string());
+    if is_extension && !is_tool {
+        return bail!(
+            base_ty,
+            "Base class `{}` is a virtual extension class, which runs in the editor and thus requires #[class(tool)].",
+            base_ty
+        );
+    }
+
+    Ok(())
+}
+
+/// Whether a class exists primarily for GDExtension to overload virtual methods.
+// See post_validate(). Should be moved to godot-codegen > special_cases.rs.
+fn is_class_virtual_extension(godot_class_name: &str) -> bool {
+    // Heuristic: suffix, with some exceptions.
+    // Generally, a rule might also be "there is another class without that suffix", however that doesn't apply to e.g. OpenXRAPIExtension.
+
+    match godot_class_name {
+        "GDExtension" => false,
+
+        _ => godot_class_name.ends_with("Extension"),
     }
 }

@@ -17,7 +17,7 @@ use godot::register::{godot_api, GodotClass};
 use godot::sys;
 
 #[derive(GodotClass)]
-#[class(base = ScriptExtension, init)]
+#[class(base = ScriptExtension, init, tool)]
 struct TestScript {
     base: Base<ScriptExtension>,
 }
