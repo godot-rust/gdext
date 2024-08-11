@@ -169,12 +169,19 @@ impl fmt::Display for ErrorKind {
 /// Conversion failed during a [`FromGodot`](crate::meta::FromGodot) call.
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum FromGodotError {
+    /// Destination `Array<T>` has different type than source's runtime type.
     BadArrayType {
         expected: ArrayTypeInfo,
         actual: ArrayTypeInfo,
     },
+
+    /// Special case of `BadArrayType` where a custom int type such as `i8` cannot hold a dynamic `i64` value.
+    BadArrayTypeInt { expected: ArrayTypeInfo, value: i64 },
+
     /// InvalidEnum is also used by bitfields.
     InvalidEnum,
+
+    /// `InstanceId` cannot be 0.
     ZeroInstanceId,
 }
 
@@ -218,6 +225,12 @@ impl fmt::Display for FromGodotError {
                 write!(
                     f,
                     "expected array of class {exp_class}, got array of class {act_class}"
+                )
+            }
+            Self::BadArrayTypeInt { expected, value } => {
+                write!(
+                    f,
+                    "integer value {value} does not fit into Array of type {expected:?}"
                 )
             }
             Self::InvalidEnum => write!(f, "invalid engine enum value"),

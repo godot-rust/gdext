@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::Variant;
+use crate::builtin::{Array, Variant};
 use crate::meta::error::{ConvertError, FromFfiError, FromVariantError};
 use crate::meta::{
     ArrayElement, ClassName, FromGodot, GodotConvert, GodotNullableFfi, GodotType,
@@ -174,6 +174,13 @@ macro_rules! impl_godot_scalar {
             impl_godot_scalar!(@shared_fns; $Via, $param_metadata);
         }
 
+        // For integer types, we can validate the conversion.
+        impl ArrayElement for $T {
+            fn debug_validate_elements(array: &Array<Self>) -> Result<(), ConvertError> {
+                array.debug_validate_elements()
+            }
+        }
+
         impl_godot_scalar!(@shared_traits; $T);
     };
 
@@ -196,6 +203,9 @@ macro_rules! impl_godot_scalar {
             impl_godot_scalar!(@shared_fns; $Via, $param_metadata);
         }
 
+        // For f32, conversion from f64 is lossy but will always succeed. Thus no debug validation needed.
+        impl ArrayElement for $T {}
+
         impl_godot_scalar!(@shared_traits; $T);
     };
 
@@ -210,8 +220,6 @@ macro_rules! impl_godot_scalar {
     };
 
     (@shared_traits; $T:ty) => {
-        impl ArrayElement for $T {}
-
         impl GodotConvert for $T {
             type Via = $T;
         }

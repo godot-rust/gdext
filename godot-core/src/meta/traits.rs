@@ -7,7 +7,7 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{StringName, Variant};
+use crate::builtin::{Array, StringName, Variant};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
 use crate::meta::{
@@ -157,6 +157,11 @@ pub trait ArrayElement: GodotType + sealed::Sealed {
         // Most array elements and all packed array elements are builtin types, so this is a good default.
         builtin_type_string::<Self>()
     }
+
+    fn debug_validate_elements(_array: &Array<Self>) -> Result<(), ConvertError> {
+        // No-op for most element types.
+        Ok(())
+    }
 }
 
 /// Marker trait to identify types that can be stored in `Packed*Array` types.
@@ -184,3 +189,4 @@ impl PackedArrayElement for crate::builtin::Vector3 {}
 impl PackedArrayElement for crate::builtin::Vector4 {}
 impl PackedArrayElement for crate::builtin::Color {}
 impl PackedArrayElement for crate::builtin::GString {}
+

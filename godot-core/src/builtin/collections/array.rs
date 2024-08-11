@@ -719,11 +719,44 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// Note also that any `GodotType` can be written to a `Variant` array.
     ///
-    /// In the current implementation, both cases will produce a panic rather than undefined
-    /// behavior, but this should not be relied upon.
+    /// In the current implementation, both cases will produce a panic rather than undefined behavior, but this should not be relied upon.
     unsafe fn assume_type<U: ArrayElement>(self) -> Array<U> {
-        // SAFETY: The memory layout of `Array<T>` does not depend on `T`.
-        unsafe { std::mem::transmute(self) }
+        // The memory layout of `Array<T>` does not depend on `T`.
+        std::mem::transmute::<Array<T>, Array<U>>(self)
+    }
+
+    /// # Safety
+    /// See [`assume_type`](Self::assume_type).
+    unsafe fn assume_type_ref<U: ArrayElement>(&self) -> &Array<U> {
+        // The memory layout of `Array<T>` does not depend on `T`.
+        std::mem::transmute::<&Array<T>, &Array<U>>(self)
+    }
+
+    #[cfg(debug_assertions)]
+    pub(crate) fn debug_validate_elements(&self) -> Result<(), ConvertError> {
+        // SAFETY: every element is internally represented as Variant.
+        let canonical_array = unsafe { self.assume_type_ref::<Variant>() };
+
+        // If any element is not convertible, this will return an error.
+        for elem in canonical_array.iter_shared() {
+            elem.try_to::<T>().map_err(|_err| {
+                FromGodotError::BadArrayTypeInt {
+                    expected: self.type_info(),
+                    value: elem
+                        .try_to::<i64>()
+                        .expect("origin must be i64 compatible; this is a bug"),
+                }
+                .into_error(self.clone())
+            })?;
+        }
+
+        Ok(())
+    }
+
+    // No-op in Release. Avoids O(n) conversion checks, but still panics on access.
+    #[cfg(not(debug_assertions))]
+    pub(crate) fn debug_validate_elements(&self) -> Result<(), ConvertError> {
+        Ok(())
     }
 
     /// Returns the runtime type info of this array.
@@ -856,6 +889,7 @@ impl<T: ArrayElement> ToGodot for Array<T> {
 
 impl<T: ArrayElement> FromGodot for Array<T> {
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        T::debug_validate_elements(&via)?;
         Ok(via)
     }
 }

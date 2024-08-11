@@ -9,7 +9,7 @@ use std::cmp::Ordering;
 use std::fmt::Display;
 
 use godot::builtin::{
-    dict, varray, GString, NodePath, Signal, StringName, Variant, Vector2, Vector3,
+    array, dict, varray, Array, GString, NodePath, Signal, StringName, Variant, Vector2, Vector3,
 };
 use godot::builtin::{Basis, Dictionary, VariantArray, VariantOperator, VariantType};
 use godot::classes::{Node, Node2D};
@@ -128,6 +128,29 @@ fn variant_bad_conversions() {
         .to_variant()
         .try_to::<Dictionary>()
         .expect_err("`nil` should not convert to `Dictionary`");
+}
+
+#[itest(focus)]
+fn variant_array_bad_conversions() {
+    let i32_array: Array<i32> = array![1, 2, 160, -40];
+    let i32_variant = i32_array.to_variant();
+    let i8_back = i32_variant.try_to::<Array<i8>>();
+
+    // In Debug mode, we expect an error upon conversion.
+    #[cfg(debug_assertions)]
+    {
+        let err = i8_back.expect_err("Array<i32> -> Array<i8> conversion should fail");
+        assert_eq!(err.to_string(), "`i8` cannot store the given value: 160")
+    }
+
+    // In Release mode, we expect the conversion to succeed, but a panic to occur on element access.
+    #[cfg(not(debug_assertions))]
+    {
+        let i8_array = i8_back.expect("Array<i32> -> Array<i8> conversion should succeed");
+        expect_panic("i8_array[2] should panic", || {
+            i8_array[2];
+        });
+    }
 }
 
 #[itest]
