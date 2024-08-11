@@ -189,4 +189,3 @@ impl PackedArrayElement for crate::builtin::Vector3 {}
 impl PackedArrayElement for crate::builtin::Vector4 {}
 impl PackedArrayElement for crate::builtin::Color {}
 impl PackedArrayElement for crate::builtin::GString {}
-

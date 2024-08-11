@@ -130,7 +130,7 @@ fn variant_bad_conversions() {
         .expect_err("`nil` should not convert to `Dictionary`");
 }
 
-#[itest(focus)]
+#[itest]
 fn variant_array_bad_conversions() {
     let i32_array: Array<i32> = array![1, 2, 160, -40];
     let i32_variant = i32_array.to_variant();
@@ -140,15 +140,19 @@ fn variant_array_bad_conversions() {
     #[cfg(debug_assertions)]
     {
         let err = i8_back.expect_err("Array<i32> -> Array<i8> conversion should fail");
-        assert_eq!(err.to_string(), "`i8` cannot store the given value: 160")
+        assert_eq!(
+            err.to_string(),
+            "integer value 160 does not fit into Array of type INT: [1, 2, 160, -40]"
+        )
     }
 
     // In Release mode, we expect the conversion to succeed, but a panic to occur on element access.
     #[cfg(not(debug_assertions))]
     {
         let i8_array = i8_back.expect("Array<i32> -> Array<i8> conversion should succeed");
-        expect_panic("i8_array[2] should panic", || {
-            i8_array[2];
+        expect_panic("accessing element 160 as i8 should panic", || {
+            // Note: get() returns Err on out-of-bounds, but currently panics on bad element type, since that's always a bug.
+            i8_array.get(2);
         });
     }
 }

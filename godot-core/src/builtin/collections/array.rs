@@ -837,6 +837,19 @@ impl<T: ArrayElement> Array<T> {
     }
 }
 
+impl VariantArray {
+    /// # Safety
+    /// - Variant must have type `VariantType::ARRAY`.
+    /// - Subsequent operations on this array must not rely on the type of the array.
+    pub(crate) unsafe fn from_variant_unchecked(variant: &Variant) -> Self {
+        // See also ffi_from_variant().
+        Self::new_with_uninit(|self_ptr| {
+            let array_from_variant = sys::builtin_fn!(array_from_variant);
+            array_from_variant(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
+        })
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Traits
 
@@ -897,7 +910,8 @@ impl<T: ArrayElement> FromGodot for Array<T> {
 impl<T: ArrayElement> fmt::Debug for Array<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Going through `Variant` because there doesn't seem to be a direct way.
-        write!(f, "{:?}", self.to_variant().stringify())
+        // Reuse Display.
+        write!(f, "{}", self.to_variant().stringify())
     }
 }
 
@@ -930,7 +944,7 @@ impl<T: ArrayElement + fmt::Display> fmt::Display for Array<T> {
 impl<T: ArrayElement> Clone for Array<T> {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid array, since we have a reference that keeps it alive.
-        let array = unsafe {
+        let copy = unsafe {
             Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(array_construct_copy);
                 let args = [self.sys()];
@@ -938,9 +952,13 @@ impl<T: ArrayElement> Clone for Array<T> {
             })
         };
 
-        array
-            .with_checked_type()
-            .expect("copied array should have same type as original array")
+        // Double-check copy's runtime type in Debug mode.
+        if cfg!(debug_assertions) {
+            copy.with_checked_type()
+                .expect("copied array should have same type as original array")
+        } else {
+            copy
+        }
     }
 }
 
@@ -1052,6 +1070,7 @@ impl<T: ArrayElement> GodotFfiVariant for Array<T> {
     }
 
     fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+        // First check if the variant is an array. The array conversion shouldn't be called otherwise.
         if variant.get_type() != Self::variant_type() {
             return Err(FromVariantError::BadType {
                 expected: Self::variant_type(),
@@ -1067,6 +1086,7 @@ impl<T: ArrayElement> GodotFfiVariant for Array<T> {
             })
         };
 
+        // Then, check the runtime type of the array.
         array.with_checked_type()
     }
 }
