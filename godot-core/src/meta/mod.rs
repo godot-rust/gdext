@@ -46,7 +46,7 @@ mod traits;
 pub mod error;
 pub use class_name::ClassName;
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
-pub use traits::{ArrayElement, GodotType};
+pub use traits::{ArrayElement, GodotType, PackedArrayElement};
 
 pub(crate) use crate::impl_godot_as_self;
 pub(crate) use array_type_info::ArrayTypeInfo;

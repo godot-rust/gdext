@@ -128,20 +128,44 @@ pub trait GodotType:
 /// - `Option` is only supported for `Option<Gd<T>>`, but not e.g. `Option<i32>`.
 #[diagnostic::on_unimplemented(
     message = "`Array<T>` can only store element types supported in Godot arrays (no nesting).",
-    label = "does not implement `Var`",
-    note = "see also: https://godot-rust.github.io/docs/gdext/master/godot/builtin/meta/trait.ArrayElement.html"
+    label = "has invalid element type",
 )]
 pub trait ArrayElement: GodotType + sealed::Sealed {
     /// Returns the representation of this type as a type string.
     ///
-    /// Used for elements in arrays and packed arrays (the latter despite `ArrayElement` not having a direct relation).
+    /// Used for elements in arrays (the latter despite `ArrayElement` not having a direct relation).
     ///
-    /// See [`PropertyHint::TYPE_STRING`] and [upstream docs].
-    ///
-    /// [upstream docs]: https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint
+    /// See [`PropertyHint::TYPE_STRING`] and
+    /// [upstream docs](https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint).
     #[doc(hidden)]
     fn element_type_string() -> String {
         // Most array elements and all packed array elements are builtin types, so this is a good default.
         builtin_type_string::<Self>()
     }
 }
+
+/// Marker trait to identify types that can be stored in `Packed*Array` types.
+#[diagnostic::on_unimplemented(
+    message = "`Packed*Array` can only store element types supported in Godot packed arrays.",
+    label = "has invalid element type"
+)]
+pub trait PackedArrayElement: GodotType + sealed::Sealed {
+    /// See [`ArrayElement::element_type_string()`].
+    #[doc(hidden)]
+    fn element_type_string() -> String {
+        builtin_type_string::<Self>()
+    }
+}
+
+// Implement all packed array element types.
+impl PackedArrayElement for u8 {}
+impl PackedArrayElement for i32 {}
+impl PackedArrayElement for i64 {}
+impl PackedArrayElement for f32 {}
+impl PackedArrayElement for f64 {}
+impl PackedArrayElement for crate::builtin::Vector2 {}
+impl PackedArrayElement for crate::builtin::Vector3 {}
+#[cfg(since_api = "4.3")]
+impl PackedArrayElement for crate::builtin::Vector4 {}
+impl PackedArrayElement for crate::builtin::Color {}
+impl PackedArrayElement for crate::builtin::GString {}
