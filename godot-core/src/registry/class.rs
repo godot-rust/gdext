@@ -348,6 +348,7 @@ fn fill_into<T>(dst: &mut Option<T>, src: Option<T>) -> Result<(), ()> {
 /// Registers a class with given the dynamic type information `info`.
 fn register_class_raw(mut info: ClassRegistrationInfo) {
     // First register class...
+    validate_class_constraints(&info);
 
     let class_name = info.class_name;
     let parent_class_name = info
@@ -426,6 +427,10 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
     if info.is_editor_plugin {
         unsafe { interface_fn!(editor_add_plugin)(class_name.string_sys()) };
     }
+}
+
+fn validate_class_constraints(_class: &ClassRegistrationInfo) {
+    // TODO: if we add builder API, the proc-macro checks in parse_struct_attributes() etc. should be duplicated here.
 }
 
 fn unregister_class_raw(class: LoadedClass) {
