@@ -813,7 +813,8 @@ impl<T: ArrayElement> Array<T> {
                 class_name.string_sys()
             } else {
                 empty_string_name = Some(StringName::default());
-                empty_string_name.unwrap().string_sys()
+                // as_ref() crucial here -- otherwise the StringName is dropped.
+                empty_string_name.as_ref().unwrap().string_sys()
             };
 
             // SAFETY: The array is a newly created empty untyped array.
