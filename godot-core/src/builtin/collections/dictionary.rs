@@ -606,7 +606,7 @@ impl<'a> Keys<'a> {
         TypedKeys::from_untyped(self)
     }
 
-    /// Returns an array of the keys
+    /// Returns an array of the keys.
     pub fn array(self) -> VariantArray {
         // Can only be called
         assert!(self.iter.is_first);

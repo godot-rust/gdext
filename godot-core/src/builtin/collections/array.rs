@@ -34,6 +34,9 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 /// `Array<T>`, where the type `T` must implement `ArrayElement`. Some types like `Array<T>` cannot
 /// be stored inside arrays, as Godot prevents nesting.
 ///
+/// If you plan to use any integer or float types apart from `i64` and `f64`, read
+/// [this documentation](../meta/trait.ArrayElement.html#integer-and-float-types).
+///
 /// # Reference semantics
 ///
 /// Like in GDScript, `Array` acts as a reference type: multiple `Array` instances may
