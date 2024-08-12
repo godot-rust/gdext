@@ -6,7 +6,7 @@
  */
 
 use godot::builtin::{
-    dict, Array, Dictionary, GString, Variant, VariantArray, Vector2, Vector2Axis,
+    array, dict, Array, Dictionary, GString, Variant, VariantArray, Vector2, Vector2Axis,
 };
 use godot::classes::{Node, Resource};
 use godot::meta::error::ConvertError;
@@ -232,4 +232,84 @@ fn custom_convert_error_from_variant() {
         format!("{:?}", err.value().unwrap()),
         format!("{:?}", i64::MAX)
     );
+}
+
+#[itest]
+fn vec_to_array() {
+    let from = vec![1, 2, 3];
+    let to = from.to_variant().to::<Array<i32>>();
+    assert_eq!(to, array![1, 2, 3]);
+
+    let from = vec![GString::from("Hello"), GString::from("World")];
+    let to = from.to_variant().to::<Array<GString>>();
+    assert_eq!(to, array![GString::from("Hello"), GString::from("World")]);
+
+    // Invalid conversion.
+    let from = vec![1, 2, 3];
+    let to = from.to_variant().try_to::<Array<f32>>();
+    assert!(to.is_err());
+}
+
+#[itest]
+fn array_to_vec() {
+    let from = array![1, 2, 3];
+    let to = from.to_variant().to::<Vec<i32>>();
+    assert_eq!(to, vec![1, 2, 3]);
+
+    let from = array![GString::from("Hello"), GString::from("World")];
+    let to = from.to_variant().to::<Vec<GString>>();
+    assert_eq!(to, vec![GString::from("Hello"), GString::from("World")]);
+
+    // Invalid conversion.
+    let from = array![1, 2, 3];
+    let to = from.to_variant().try_to::<Vec<f32>>();
+    assert!(to.is_err());
+}
+
+#[itest]
+fn rust_array_to_array() {
+    let from = [1, 2, 3];
+    let to = from.to_variant().to::<Array<i32>>();
+    assert_eq!(to, array![1, 2, 3]);
+
+    let from = [GString::from("Hello"), GString::from("World")];
+    let to = from.to_variant().to::<Array<GString>>();
+    assert_eq!(to, array![GString::from("Hello"), GString::from("World")]);
+
+    // Invalid conversion.
+    let from = [1, 2, 3];
+    let to = from.to_variant().try_to::<Array<f32>>();
+    assert!(to.is_err());
+}
+
+#[itest]
+fn array_to_rust_array() {
+    let from = array![1, 2, 3];
+    let to = from.to_variant().to::<[i32; 3]>();
+    assert_eq!(to, [1, 2, 3]);
+
+    let from = array![GString::from("Hello"), GString::from("World")];
+    let to = from.to_variant().to::<[GString; 2]>();
+    assert_eq!(to, [GString::from("Hello"), GString::from("World")]);
+
+    // Invalid conversion.
+    let from = array![1, 2, 3];
+    let to = from.to_variant().try_to::<[f32; 3]>();
+    assert!(to.is_err());
+}
+
+#[itest]
+fn slice_to_array() {
+    let from = &[1, 2, 3];
+    let to = from.to_variant().to::<Array<i32>>();
+    assert_eq!(to, array![1, 2, 3]);
+
+    let from = &[GString::from("Hello"), GString::from("World")];
+    let to = from.to_variant().to::<Array<GString>>();
+    assert_eq!(to, array![GString::from("Hello"), GString::from("World")]);
+
+    // Invalid conversion.
+    let from = &[1, 2, 3];
+    let to = from.to_variant().try_to::<Array<f32>>();
+    assert!(to.is_err());
 }
