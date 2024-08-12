@@ -548,7 +548,7 @@ macro_rules! impl_packed_array {
             fn export_hint() -> $crate::meta::PropertyHintInfo {
                 // In 4.3 Godot can (and does) use type hint strings for packed arrays, see https://github.com/godotengine/godot/pull/82952.
                 if sys::GdextBuild::since_api("4.3") {
-                    $crate::meta::PropertyHintInfo::export_array_element::<$Element>()
+                    $crate::meta::PropertyHintInfo::export_packed_array_element::<$Element>()
                 } else {
                     $crate::meta::PropertyHintInfo::type_name::<$PackedArray>()
                 }

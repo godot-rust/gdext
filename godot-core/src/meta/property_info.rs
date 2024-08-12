@@ -7,7 +7,7 @@
 
 use crate::builtin::{GString, StringName};
 use crate::global::{PropertyHint, PropertyUsageFlags};
-use crate::meta::{ArrayElement, ClassName, GodotType};
+use crate::meta::{ArrayElement, ClassName, GodotType, PackedArrayElement};
 use crate::registry::property::{Export, Var};
 use crate::sys;
 use godot_ffi::VariantType;
@@ -240,6 +240,14 @@ impl PropertyHintInfo {
 
     /// Use for `#[export]` properties -- [`PROPERTY_HINT_TYPE_STRING`](PropertyHint::TYPE_STRING) with the **element** type string as hint string.
     pub fn export_array_element<T: ArrayElement>() -> Self {
+        Self {
+            hint: PropertyHint::TYPE_STRING,
+            hint_string: GString::from(T::element_type_string()),
+        }
+    }
+
+    /// Use for `#[export]` properties -- [`PROPERTY_HINT_TYPE_STRING`](PropertyHint::TYPE_STRING) with the **element** type string as hint string.
+    pub fn export_packed_array_element<T: PackedArrayElement>() -> Self {
         Self {
             hint: PropertyHint::TYPE_STRING,
             hint_string: GString::from(T::element_type_string()),

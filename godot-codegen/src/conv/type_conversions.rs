@@ -217,7 +217,9 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
         let rust_elem_ty = to_rust_type(elem_ty, None, ctx);
         return if ctx.is_builtin(elem_ty) {
-            RustTy::BuiltinArray(quote! { Array<#rust_elem_ty> })
+            RustTy::BuiltinArray {
+                elem_type: quote! { Array<#rust_elem_ty> },
+            }
         } else {
             RustTy::EngineArray {
                 tokens: quote! { Array<#rust_elem_ty> },

@@ -16,17 +16,27 @@ use std::fmt;
 /// We ignore the `script` parameter because it has no impact on typing in Godot.
 #[derive(Eq, PartialEq)]
 pub(crate) struct ArrayTypeInfo {
+    /// The builtin type; always set.
     pub variant_type: VariantType,
 
+    /// If [`variant_type`] is [`VariantType::OBJECT`], then the class name; otherwise `None`.
+    ///
     /// Not a `ClassName` because some values come from Godot engine API.
-    pub class_name: StringName,
+    pub class_name: Option<StringName>,
 }
 
 impl ArrayTypeInfo {
     pub fn of<T: GodotType>() -> Self {
+        let variant_type = <T::Via as GodotType>::Ffi::variant_type();
+        let class_name = if variant_type == VariantType::OBJECT {
+            Some(T::Via::class_name().to_string_name())
+        } else {
+            None
+        };
+
         Self {
-            variant_type: <T::Via as GodotType>::Ffi::variant_type(),
-            class_name: T::Via::class_name().to_string_name(),
+            variant_type,
+            class_name,
         }
     }
 
@@ -38,18 +48,17 @@ impl ArrayTypeInfo {
         self.variant_type
     }
 
-    pub fn class_name(&self) -> &StringName {
-        &self.class_name
+    pub fn class_name(&self) -> Option<&StringName> {
+        self.class_name.as_ref()
     }
 }
 
 impl fmt::Debug for ArrayTypeInfo {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let class = self.class_name.to_string();
-        let class_str = if class.is_empty() {
-            String::new()
-        } else {
+        let class_str = if let Some(class) = &self.class_name {
             format!(" (class={class})")
+        } else {
+            String::new()
         };
 
         write!(f, "{:?}{}", self.variant_type, class_str)
