@@ -2,7 +2,7 @@
 name = "repo-tweak"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.78"
+rust-version = "1.80"
 license = "MPL-2.0"
 publish = false
 
