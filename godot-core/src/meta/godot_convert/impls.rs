@@ -6,7 +6,7 @@
  */
 
 use crate::builtin::{Array, Variant};
-use crate::meta::error::{ConvertError, FromFfiError, FromVariantError};
+use crate::meta::error::{ConvertError, ErrorKind, FromFfiError, FromVariantError};
 use crate::meta::{
     ArrayElement, ClassName, FromGodot, GodotConvert, GodotNullableFfi, GodotType,
     PropertyHintInfo, PropertyInfo, ToGodot,
@@ -335,6 +335,73 @@ impl FromGodot for u64 {
             // TODO maybe use better error enumerator
             FromVariantError::BadValue.into_error(value)
         })
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Collections
+
+impl<T: ArrayElement> GodotConvert for Vec<T> {
+    type Via = Array<T>;
+}
+
+impl<T: ArrayElement> ToGodot for Vec<T> {
+    fn to_godot(&self) -> Self::Via {
+        Array::from(self.as_slice())
+    }
+}
+
+impl<T: ArrayElement> FromGodot for Vec<T> {
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(via.iter_shared().collect())
+    }
+}
+
+impl<T: ArrayElement, const LEN: usize> GodotConvert for [T; LEN] {
+    type Via = Array<T>;
+}
+
+impl<T: ArrayElement, const LEN: usize> ToGodot for [T; LEN] {
+    fn to_godot(&self) -> Self::Via {
+        Array::from(self)
+    }
+}
+
+impl<T: ArrayElement, const LEN: usize> FromGodot for [T; LEN] {
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        let via_len = via.len(); // Caching this avoids an FFI call
+        if via_len != LEN {
+            let message =
+                format!("Array<T> of length {via_len} cannot be stored in [T; {LEN}] Rust array");
+            return Err(ConvertError::with_kind_value(
+                ErrorKind::Custom(Some(message.into())),
+                via,
+            ));
+        }
+
+        let mut option_array = [const { None }; LEN];
+
+        for (element, destination) in via.iter_shared().zip(&mut option_array) {
+            *destination = Some(element);
+        }
+
+        let array = option_array.map(|some| {
+            some.expect(
+                "Elements were removed from Array during `iter_shared()`, this is not allowed",
+            )
+        });
+
+        Ok(array)
+    }
+}
+
+impl<T: ArrayElement> GodotConvert for &[T] {
+    type Via = Array<T>;
+}
+
+impl<T: ArrayElement> ToGodot for &[T] {
+    fn to_godot(&self) -> Self::Via {
+        Array::from(*self)
     }
 }
 
