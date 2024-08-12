@@ -213,4 +213,9 @@ impl ScriptInstance for TestScriptInstance {
     fn property_set_fallback(_this: SiMut<Self>, _name: StringName, _value: &Variant) -> bool {
         false
     }
+
+    #[cfg(since_api = "4.3")]
+    fn get_method_argument_count(&self, _method: StringName) -> Option<u32> {
+        None
+    }
 }

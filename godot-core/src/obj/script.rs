@@ -30,6 +30,7 @@ use crate::meta::{MethodInfo, PropertyInfo};
 use crate::obj::{Base, Gd, GodotClass};
 use crate::sys;
 
+#[cfg(before_api = "4.3")]
 use self::bounded_ptr_list::BoundedPtrList;
 
 /// Implement custom scripts that can be attached to objects in Godot.
@@ -154,17 +155,28 @@ pub trait ScriptInstance: Sized {
     /// The engine may call this function if
     /// [`IScriptExtension::is_placeholder_fallback_enabled`](crate::classes::IScriptExtension::is_placeholder_fallback_enabled) is enabled.
     fn property_set_fallback(this: SiMut<Self>, name: StringName, value: &Variant) -> bool;
+
+    /// This function will be called to handle calls to [`Object::get_method_argument_count`](crate::classes::Object::get_method_argument_count)
+    /// and `Callable::get_argument_count`.
+    ///
+    /// If `None` is returned the public methods will return `0`.
+    #[cfg(since_api = "4.3")]
+    fn get_method_argument_count(&self, _method: StringName) -> Option<u32>;
 }
 
 #[cfg(before_api = "4.2")]
 type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo;
-#[cfg(since_api = "4.2")]
+#[cfg(all(since_api = "4.2", before_api = "4.3"))]
 type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo2;
+#[cfg(since_api = "4.3")]
+type ScriptInstanceInfo = sys::GDExtensionScriptInstanceInfo3;
 
 struct ScriptInstanceData<T: ScriptInstance> {
     inner: GdCell<T>,
     script_instance_ptr: *mut ScriptInstanceInfo,
+    #[cfg(before_api = "4.3")]
     property_lists: BoundedPtrList<sys::GDExtensionPropertyInfo>,
+    #[cfg(before_api = "4.3")]
     method_lists: BoundedPtrList<sys::GDExtensionMethodInfo>,
     base: Base<T::Base>,
 }
@@ -237,7 +249,10 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         set_func: Some(script_instance_info::set_property_func::<T>),
         get_func: Some(script_instance_info::get_property_func::<T>),
         get_property_list_func: Some(script_instance_info::get_property_list_func::<T>),
+        #[cfg(before_api = "4.3")]
         free_property_list_func: Some(script_instance_info::free_property_list_func::<T>),
+        #[cfg(since_api = "4.3")]
+        free_property_list_func: Some(script_instance_info::free_property_list_func),
 
         #[cfg(since_api = "4.2")]
         get_class_category_func: None, // not yet implemented.
@@ -250,7 +265,10 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         get_property_state_func: Some(script_instance_info::get_property_state_func::<T>),
 
         get_method_list_func: Some(script_instance_info::get_method_list_func::<T>),
+        #[cfg(before_api = "4.3")]
         free_method_list_func: Some(script_instance_info::free_method_list_func::<T>),
+        #[cfg(since_api = "4.3")]
+        free_method_list_func: Some(script_instance_info::free_method_list_func),
         get_property_type_func: Some(script_instance_info::get_property_type_func::<T>),
         #[cfg(since_api = "4.2")]
         validate_property_func: None, // not yet implemented.
@@ -275,6 +293,11 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         get_language_func: Some(script_instance_info::get_language_func::<T>),
 
         free_func: Some(script_instance_info::free_func::<T>),
+
+        #[cfg(since_api = "4.3")]
+        get_method_argument_count_func: Some(
+            script_instance_info::get_method_argument_count_func::<T>,
+        ),
     };
 
     let instance_ptr = Box::into_raw(Box::new(gd_instance));
@@ -282,7 +305,9 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
     let data = ScriptInstanceData {
         inner: GdCell::new(rust_instance),
         script_instance_ptr: instance_ptr,
+        #[cfg(before_api = "4.3")]
         property_lists: BoundedPtrList::new(),
+        #[cfg(before_api = "4.3")]
         method_lists: BoundedPtrList::new(),
         // SAFETY: The script instance is always freed before the base object is destroyed. The weak reference should therefore never be
         // accessed after it has been freed.
@@ -299,8 +324,11 @@ pub unsafe fn create_script_instance<T: ScriptInstance>(
         #[cfg(before_api = "4.2")]
         let create_fn = sys::interface_fn!(script_instance_create);
 
-        #[cfg(since_api = "4.2")]
+        #[cfg(all(since_api = "4.2", before_api = "4.3"))]
         let create_fn = sys::interface_fn!(script_instance_create2);
+
+        #[cfg(since_api = "4.3")]
+        let create_fn = sys::interface_fn!(script_instance_create3);
 
         create_fn(
             instance_ptr,
@@ -459,6 +487,7 @@ impl<'a, T: ScriptInstance> DerefMut for SiMut<'a, T> {
 }
 
 // Encapsulate BoundedPtrList to help ensure safety.
+#[cfg(before_api = "4.3")]
 mod bounded_ptr_list {
     use std::collections::HashMap;
     use std::sync::Mutex;
@@ -538,6 +567,8 @@ mod script_instance_info {
     use super::{ScriptInstance, ScriptInstanceData, SiMut};
     use crate::meta::{MethodInfo, PropertyInfo};
     use sys::conv::{bool_to_sys, SYS_FALSE, SYS_TRUE};
+    #[cfg(since_api = "4.3")]
+    use sys::conv::{ptr_list_from_sys, ptr_list_into_sys};
 
     /// # Safety
     ///
@@ -629,9 +660,13 @@ mod script_instance_info {
         })
         .unwrap_or_default();
 
+        #[cfg(before_api = "4.3")]
         let (list_ptr, list_length) = borrow_instance()
             .property_lists
             .list_into_sys(property_list);
+
+        #[cfg(since_api = "4.3")]
+        let (list_ptr, list_length) = ptr_list_into_sys(property_list);
 
         // SAFETY: It is safe to assign a `u32` to `r_count`.
         unsafe {
@@ -667,8 +702,11 @@ mod script_instance_info {
         })
         .unwrap_or_default();
 
+        #[cfg(before_api = "4.3")]
         let (return_pointer, list_length) =
             borrow_instance().method_lists.list_into_sys(method_list);
+        #[cfg(since_api = "4.3")]
+        let (return_pointer, list_length) = ptr_list_into_sys(method_list);
 
         unsafe {
             *r_count = list_length;
@@ -677,11 +715,12 @@ mod script_instance_info {
         return_pointer
     }
 
+    /// Provides the same functionality as the function below, but for Godot 4.2 and lower.
+    ///
     /// # Safety
     ///
-    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
-    /// - `p_prop_info` must have been returned from a call to [`get_property_list_func`] called with the same `p_instance` pointer.
-    /// - `p_prop_info` must not have been mutated since the call to `get_property_list_func`.
+    /// See latest version below.
+    #[cfg(before_api = "4.3")]
     pub(super) unsafe extern "C" fn free_property_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_prop_info: *const sys::GDExtensionPropertyInfo,
@@ -692,6 +731,27 @@ mod script_instance_info {
         // SAFETY: `p_prop_info` was returned from a call to `list_into_sys`, and has not been mutated since. This is also the first call
         // to `list_from_sys` with this pointer.
         let property_infos = unsafe { instance.property_lists.list_from_sys(p_prop_info) };
+
+        for info in property_infos.iter() {
+            // SAFETY: `info` was returned from a call to `into_owned_property_sys` and this is the first and only time this function is called
+            // on it.
+            unsafe { PropertyInfo::free_owned_property_sys(*info) };
+        }
+    }
+
+    /// # Safety
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_prop_info` must have been returned from a call to [`get_property_list_func`] called with the same `p_instance` pointer.
+    /// - `p_prop_info` must not have been mutated since the call to `get_property_list_func`.
+    #[cfg(since_api = "4.3")]
+    pub(super) unsafe extern "C" fn free_property_list_func(
+        _p_instance: sys::GDExtensionScriptInstanceDataPtr,
+        p_prop_info: *const sys::GDExtensionPropertyInfo,
+        p_len: u32,
+    ) {
+        // SAFETY: `p_prop_info` was returned from a call to `list_into_sys`, and has not been mutated since. This is also the first call
+        // to `list_from_sys` with this pointer.
+        let property_infos = unsafe { ptr_list_from_sys(p_prop_info, p_len) };
 
         for info in property_infos.iter() {
             // SAFETY: `info` was returned from a call to `into_owned_property_sys` and this is the first and only time this function is called
@@ -823,11 +883,12 @@ mod script_instance_info {
         bool_to_sys(has_method)
     }
 
+    /// Provides the same functionality as the function below, but for Godot 4.2 and lower.
+    ///
     /// # Safety
     ///
-    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
-    /// - `p_method_info` must have been returned from a call to [`get_method_list_func`] called with the same `p_instance` pointer.
-    /// - `p_method_info` must not have been mutated since the call to `get_method_list_func`.
+    /// See latest version below.
+    #[cfg(before_api = "4.3")]
     pub(super) unsafe extern "C" fn free_method_list_func<T: ScriptInstance>(
         p_instance: sys::GDExtensionScriptInstanceDataPtr,
         p_method_info: *const sys::GDExtensionMethodInfo,
@@ -838,6 +899,28 @@ mod script_instance_info {
         // SAFETY: `p_method_info` was returned from a call to `list_into_sys`, and has not been mutated since. This is also the first call
         // to `list_from_sys` with this pointer.
         let method_infos = unsafe { instance.method_lists.list_from_sys(p_method_info) };
+
+        for info in method_infos.iter() {
+            // SAFETY: `info` was returned from a call to `into_owned_method_sys`, and this is the first and only time we call this method on
+            // it.
+            unsafe { MethodInfo::free_owned_method_sys(*info) };
+        }
+    }
+
+    /// # Safety
+    ///
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_method_info` must have been returned from a call to [`get_method_list_func`] called with the same `p_instance` pointer.
+    /// - `p_method_info` must not have been mutated since the call to `get_method_list_func`.
+    #[cfg(since_api = "4.3")]
+    pub(super) unsafe extern "C" fn free_method_list_func(
+        _p_instance: sys::GDExtensionScriptInstanceDataPtr,
+        p_method_info: *const sys::GDExtensionMethodInfo,
+        p_len: u32,
+    ) {
+        // SAFETY: `p_method_info` was returned from a call to `list_into_sys`, and has not been mutated since. This is also the first call
+        // to `list_from_sys` with this pointer.
+        let method_infos = unsafe { ptr_list_from_sys(p_method_info, p_len) };
 
         for info in method_infos.iter() {
             // SAFETY: `info` was returned from a call to `into_owned_method_sys`, and this is the first and only time we call this method on
@@ -1108,5 +1191,47 @@ mod script_instance_info {
         .unwrap_or_default();
 
         bool_to_sys(result)
+    }
+
+    /// # Safety
+    ///
+    /// - `p_instance` must point to a live immutable [`ScriptInstanceData<T>`] for the duration of this function call
+    /// - `p_method` has to point to a valid [`StringName`].
+    /// - `p_value` must be a valid [`sys::GDExtensionBool`] pointer.
+    #[cfg(since_api = "4.3")]
+    pub(super) unsafe extern "C" fn get_method_argument_count_func<T: ScriptInstance>(
+        p_instance: sys::GDExtensionScriptInstanceDataPtr,
+        p_method: sys::GDExtensionConstStringNamePtr,
+        r_is_valid: *mut sys::GDExtensionBool,
+    ) -> sys::GDExtensionInt {
+        // SAFETY: `p_method` is a valid [`StringName`] pointer.
+        let method = unsafe { StringName::new_from_string_sys(p_method) };
+        let ctx = || {
+            format!(
+                "error when calling {}::get_method_argument_count_func",
+                type_name::<T>()
+            )
+        };
+
+        let method_argument_count = handle_panic(ctx, || {
+            // SAFETY: `p_instance` points to a live immutable `ScriptInstanceData<T>` for the duration of this call.
+            unsafe { ScriptInstanceData::<T>::borrow_script_sys(p_instance) }
+                // Can panic if the GdCell is currently mutably bound.
+                .borrow()
+                // This is user code and could cause a panic.
+                .get_method_argument_count(method)
+        })
+        // In case of a panic, handle_panic will print an error message. We will recover from the panic by falling back to the default value None.
+        .unwrap_or_default();
+
+        let (result, is_valid) = match method_argument_count {
+            Some(count) => (count, SYS_TRUE),
+            None => (0, SYS_FALSE),
+        };
+
+        // SAFETY: `r_is_valid` is assignable.
+        unsafe { *r_is_valid = is_valid };
+
+        result.into()
     }
 }
