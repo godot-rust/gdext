@@ -170,45 +170,9 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
     }
 
     if let Some(bitfield) = ty.strip_prefix("bitfield::") {
-        return if let Some((class, enum_)) = bitfield.split_once('.') {
-            // Class-local bitfield.
-            let module = ModName::from_godot(class);
-            let bitfield_ty = conv::make_enum_name(enum_);
-
-            RustTy::EngineBitfield {
-                tokens: quote! { crate::classes::#module::#bitfield_ty},
-                surrounding_class: Some(class.to_string()),
-            }
-        } else {
-            // Global bitfield.
-            let bitfield_ty = conv::make_enum_name(bitfield);
-
-            RustTy::EngineBitfield {
-                tokens: quote! { crate::global::#bitfield_ty },
-                surrounding_class: None,
-            }
-        };
-    }
-
-    if let Some(qualified_enum) = ty.strip_prefix("enum::") {
-        return if let Some((class, enum_)) = qualified_enum.split_once('.') {
-            // Class-local enum
-            let module = ModName::from_godot(class);
-            let enum_ty = conv::make_enum_name(enum_);
-
-            RustTy::EngineEnum {
-                tokens: quote! { crate::classes::#module::#enum_ty },
-                surrounding_class: Some(class.to_string()),
-            }
-        } else {
-            // Global enum
-            let enum_ty = conv::make_enum_name(qualified_enum);
-
-            RustTy::EngineEnum {
-                tokens: quote! { crate::global::#enum_ty },
-                surrounding_class: None,
-            }
-        };
+        return to_enum_type_uncached(bitfield);
+    } else if let Some(qualified_enum) = ty.strip_prefix("enum::") {
+        return to_enum_type_uncached(qualified_enum);
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {
@@ -241,6 +205,31 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             object_arg: quote! { ObjectArg<#qualified_class> },
             impl_as_object_arg: quote! { impl AsObjectArg<#qualified_class> },
             inner_class: ty,
+        }
+    }
+}
+
+/// Converts a Godot JSON type-name to a Rust enum/bitfield.
+///
+/// Input: `bitfield::Mesh.ArrayFormat` or `enum::Error` **without** the `bitfield::` or `enum::` prefix.  \
+/// I.e. just `Mesh.ArrayFormat` or `Error`.
+fn to_enum_type_uncached(enum_or_bitfield: &str) -> RustTy {
+    if let Some((class, enum_)) = enum_or_bitfield.split_once('.') {
+        // Class-local enum or bitfield.
+        let module = ModName::from_godot(class);
+        let enum_or_bitfield_name = conv::make_enum_name(enum_);
+
+        RustTy::EngineBitfield {
+            tokens: quote! { crate::classes::#module::#enum_or_bitfield_name },
+            surrounding_class: Some(class.to_string()),
+        }
+    } else {
+        // Global enum or bitfield.
+        let enum_or_bitfield_name = conv::make_enum_name(enum_or_bitfield);
+
+        RustTy::EngineBitfield {
+            tokens: quote! { crate::global::#enum_or_bitfield_name },
+            surrounding_class: None,
         }
     }
 }
