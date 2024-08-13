@@ -51,12 +51,6 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         | ("GDExtension", "initialize_library")
         | ("GDExtension", "close_library")
 
-        // Thread APIs
-        | ("ResourceLoader", "load_threaded_get")
-        | ("ResourceLoader", "load_threaded_get_status")
-        | ("ResourceLoader", "load_threaded_request")
-        // also: enum ThreadLoadStatus
-
         // TODO: Godot exposed methods that are unavailable, bug reported in https://github.com/godotengine/godot/issues/90303.
         | ("OpenXRHand", "set_hand_skeleton")
         | ("OpenXRHand", "get_hand_skeleton")
@@ -66,8 +60,16 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         | ("VisualShaderNodeComment", "get_title")
         | ("VisualShaderNodeComment", "set_description")
         | ("VisualShaderNodeComment", "get_description")
+        => true,
 
-        => true, _ => false
+        // Thread APIs
+        #[cfg(not(feature = "experimental-threads"))]
+        | ("ResourceLoader", "load_threaded_get")
+        | ("ResourceLoader", "load_threaded_get_status")
+        | ("ResourceLoader", "load_threaded_request") => true,
+        // also: enum ThreadLoadStatus
+
+        _ => false
     }
 }
 
