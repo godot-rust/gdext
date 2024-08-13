@@ -606,20 +606,13 @@ pub enum RustTy {
         elem_class: String,
     },
 
-    /// `module::Enum`
+    /// `module::Enum` or `module::Bitfield`
     EngineEnum {
         tokens: TokenStream,
         /// `None` for globals
         #[allow(dead_code)] // only read in minimal config
         surrounding_class: Option<String>,
-    },
-
-    /// `module::Bitfield`
-    EngineBitfield {
-        tokens: TokenStream,
-        /// `None` for globals
-        #[allow(dead_code)] // only read in minimal config
-        surrounding_class: Option<String>,
+        is_bitfield: bool,
     },
 
     /// `Gd<Node>`
@@ -687,7 +680,6 @@ impl ToTokens for RustTy {
             } => quote! { *mut #inner }.to_tokens(tokens),
             RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
-            RustTy::EngineBitfield { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
         }

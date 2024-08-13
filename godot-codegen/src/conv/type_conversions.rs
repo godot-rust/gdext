@@ -166,13 +166,14 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
         return RustTy::EngineEnum {
             tokens: ident(hardcoded).to_token_stream(),
             surrounding_class: None, // would need class passed in
+            is_bitfield: false,
         };
     }
 
     if let Some(bitfield) = ty.strip_prefix("bitfield::") {
-        return to_enum_type_uncached(bitfield);
+        return to_enum_type_uncached(bitfield, true);
     } else if let Some(qualified_enum) = ty.strip_prefix("enum::") {
-        return to_enum_type_uncached(qualified_enum);
+        return to_enum_type_uncached(qualified_enum, false);
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {
@@ -213,23 +214,25 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 ///
 /// Input: `bitfield::Mesh.ArrayFormat` or `enum::Error` **without** the `bitfield::` or `enum::` prefix.  \
 /// I.e. just `Mesh.ArrayFormat` or `Error`.
-fn to_enum_type_uncached(enum_or_bitfield: &str) -> RustTy {
+pub(crate) fn to_enum_type_uncached(enum_or_bitfield: &str, is_bitfield: bool) -> RustTy {
     if let Some((class, enum_)) = enum_or_bitfield.split_once('.') {
         // Class-local enum or bitfield.
         let module = ModName::from_godot(class);
         let enum_or_bitfield_name = conv::make_enum_name(enum_);
 
-        RustTy::EngineBitfield {
+        RustTy::EngineEnum {
             tokens: quote! { crate::classes::#module::#enum_or_bitfield_name },
             surrounding_class: Some(class.to_string()),
+            is_bitfield,
         }
     } else {
         // Global enum or bitfield.
         let enum_or_bitfield_name = conv::make_enum_name(enum_or_bitfield);
 
-        RustTy::EngineBitfield {
+        RustTy::EngineEnum {
             tokens: quote! { crate::global::#enum_or_bitfield_name },
             surrounding_class: None,
+            is_bitfield,
         }
     }
 }
@@ -279,15 +282,24 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
     if let Ok(num) = expr.parse::<i64>() {
         let lit = Literal::i64_unsuffixed(num);
         return match ty {
-            RustTy::EngineBitfield { .. } => quote! { crate::obj::EngineBitfield::from_ord(#lit) },
-            RustTy::EngineEnum { .. } => quote! { crate::obj::EngineEnum::from_ord(#lit) },
+            RustTy::EngineEnum {
+                is_bitfield: true, ..
+            } => quote! { crate::obj::EngineBitfield::from_ord(#lit) },
+
+            RustTy::EngineEnum {
+                is_bitfield: false, ..
+            } => quote! { crate::obj::EngineEnum::from_ord(#lit) },
+
             RustTy::BuiltinIdent(ident) if ident == "Variant" => quote! { Variant::from(#lit) },
+
             RustTy::BuiltinIdent(ident)
                 if ident == "i64" || ident == "f64" || unmap_meta(ty).is_some() =>
             {
                 suffixed_lit(num, ident)
             }
+
             _ if is_inner => quote! { #lit as _ },
+
             // _ => quote! { #lit as #ty },
             _ => panic!("cannot map integer literal {expr} to type {ty:?}"),
         };
@@ -427,12 +439,14 @@ fn gdscript_to_rust_expr() {
     let ty_enum = RustTy::EngineEnum {
         tokens: quote! { SomeEnum },
         surrounding_class: None,
+        is_bitfield: false,
     };
     let ty_enum = Some(&ty_enum);
 
     let ty_bitfield = RustTy::EngineBitfield {
         tokens: quote! { SomeEnum },
         surrounding_class: None,
+        is_bitfield: true,
     };
     let ty_bitfield = Some(&ty_bitfield);
 
