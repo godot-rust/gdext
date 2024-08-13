@@ -14,7 +14,7 @@ homepage = "https://godot-rust.github.io"
 codegen-rustfmt = ["godot-codegen/codegen-rustfmt"]
 codegen-lazy-fptrs = ["godot-codegen/codegen-lazy-fptrs"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
-experimental-threads = []
+experimental-threads = ["godot-codegen/experimental-threads"]
 experimental-wasm-nothreads = ["godot-bindings/experimental-wasm-nothreads"]
 debug-log = []
 

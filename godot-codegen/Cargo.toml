@@ -18,6 +18,7 @@ codegen-rustfmt = []
 double-precision = []
 api-custom = ["godot-bindings/api-custom"]
 experimental-godot-api = []
+experimental-threads = []
 
 [dependencies]
 godot-bindings = { path = "../godot-bindings", version = "=0.1.3" }
