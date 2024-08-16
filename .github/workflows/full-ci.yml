@@ -333,26 +333,19 @@ jobs:
             rust-extra-args: --release
             rust-cache-key: release
 
-          # Linux compat (4.0 and 4.1 disabled, already covered by memcheck)
+          # Linux compat (4.1 disabled, already covered by memcheck)
+
+          - name: linux-4.3
+            os: ubuntu-20.04
+            artifact-name: linux-4.3
+            godot-binary: godot.linuxbsd.editor.dev.x86_64
+            #godot-prebuilt-patch: '4.2.x'
 
           - name: linux-4.2
             os: ubuntu-20.04
             artifact-name: linux-4.2
             godot-binary: godot.linuxbsd.editor.dev.x86_64
             #godot-prebuilt-patch: '4.2.x'
-
-#          - name: linux-4.1
-#            os: ubuntu-20.04
-#            artifact-name: linux-4.2
-#            godot-binary: godot.linuxbsd.editor.dev.x86_64
-#            godot-prebuilt-patch: '4.1.4'
-#
-#          - name: linux-4.0
-#            os: ubuntu-20.04
-#            artifact-name: linux-4.0
-#            godot-binary: godot.linuxbsd.editor.dev.x86_64
-#            godot-prebuilt-patch: '4.0.4'
-
 
           # Memory checks: special Godot binaries compiled with AddressSanitizer/LeakSanitizer to detect UB/leaks.
           # See also https://rustc-dev-guide.rust-lang.org/sanitizers.html.
