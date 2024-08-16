@@ -7,13 +7,10 @@
 
 use crate::framework::itest;
 
-use godot::builtin::{
-    inner::InnerVector2,
-    math::{assert_eq_approx, ApproxEq},
-    real,
-    real_consts::PI,
-    Vector2, Vector2Axis,
-};
+use godot::builtin::inner::InnerVector2;
+use godot::builtin::math::{assert_eq_approx, ApproxEq};
+use godot::builtin::real_consts::{FRAC_PI_2, PI};
+use godot::builtin::{real, Vector2, Vector2Axis};
 
 #[itest]
 fn abs() {
@@ -25,8 +22,16 @@ fn abs() {
 #[itest]
 fn angle() {
     let a = Vector2::new(1.2, -3.4);
+    let b = Vector2::new(-5.6, 7.8);
 
     assert_eq!(a.angle(), a.as_inner().angle() as real);
+    assert_eq!(b.angle(), b.as_inner().angle() as real);
+
+    // Check direction (note: DOWN=(0, 1)).
+    assert_eq_approx!(Vector2::RIGHT.angle(), 0.0);
+    assert_eq_approx!(Vector2::DOWN.angle(), FRAC_PI_2);
+    assert_eq_approx!(Vector2::LEFT.angle(), PI);
+    assert_eq_approx!(Vector2::UP.angle(), -FRAC_PI_2);
 }
 
 #[itest]
@@ -35,6 +40,11 @@ fn angle_to() {
     let b = Vector2::new(-5.6, 7.8);
 
     assert_eq_approx!(a.angle_to(b), a.as_inner().angle_to(b) as real);
+    assert_eq_approx!(b.angle_to(a), b.as_inner().angle_to(a) as real);
+
+    // Check direction (note: DOWN=(0, 1)).
+    assert_eq_approx!(Vector2::RIGHT.angle_to(Vector2::DOWN), FRAC_PI_2);
+    assert_eq_approx!(Vector2::DOWN.angle_to(Vector2::RIGHT), -FRAC_PI_2);
 }
 
 #[itest]
@@ -43,6 +53,17 @@ fn angle_to_point() {
     let b = Vector2::new(-5.6, 7.8);
 
     assert_eq!(a.angle_to_point(b), a.as_inner().angle_to_point(b) as real);
+    assert_eq!(b.angle_to_point(a), b.as_inner().angle_to_point(a) as real);
+
+    // Check absolute value.
+    assert_eq_approx!(
+        Vector2::new(1.0, 1.0).angle_to_point(Vector2::new(1.0, 2.0)),
+        FRAC_PI_2
+    ); // up
+    assert_eq_approx!(
+        Vector2::new(1.0, 1.0).angle_to_point(Vector2::new(1.0, -1.0)),
+        -FRAC_PI_2
+    ); // down
 }
 
 #[itest]

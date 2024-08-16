@@ -1009,12 +1009,6 @@ macro_rules! impl_vector2_vector3_fns {
         /// # 2D and 3D functions
         /// The following methods are available on both 2D and 3D float vectors.
         impl $Vector {
-            /// Returns the angle to the given vector, in radians.
-            #[inline]
-            pub fn angle_to(self, to: Self) -> real {
-                self.glam2(&to, |a, b| a.angle_between(b))
-            }
-
            /// Returns the derivative at the given `t` on the [Bézier](https://en.wikipedia.org/wiki/B%C3%A9zier_curve)
            /// curve defined by this vector and the given `control_1`, `control_2`, and `end` points.
            #[inline]
