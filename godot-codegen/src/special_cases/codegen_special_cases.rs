@@ -46,12 +46,6 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
                 None => false,
                 Some(class) => is_class_excluded(class.as_str()),
             },
-            RustTy::EngineBitfield {
-                surrounding_class, ..
-            } => match surrounding_class.as_ref() {
-                None => false,
-                Some(class) => is_class_excluded(class.as_str()),
-            },
             RustTy::EngineClass { inner_class, .. } => is_class_excluded(&inner_class.to_string()),
             RustTy::ExtenderReceiver { .. } => false,
         }

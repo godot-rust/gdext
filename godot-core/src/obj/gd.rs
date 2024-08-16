@@ -788,7 +788,9 @@ where
 impl<T: GodotClass> Clone for Gd<T> {
     fn clone(&self) -> Self {
         out!("Gd::clone");
-        Self::from_ffi(self.raw.clone())
+        Self {
+            raw: self.raw.clone(),
+        }
     }
 }
 
