@@ -405,6 +405,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///     # fn on_refcount_incremented(&self) { todo!() }
     ///     # fn property_get_fallback(&self, _: StringName) -> Option<Variant> { todo!() }
     ///     # fn property_set_fallback(_: SiMut<'_, Self>, _: StringName, _: &Variant) -> bool { todo!() }
+    ///     # fn get_method_argument_count(&self, _: StringName) -> Option<u32> { todo!() }
     /// }
     /// ```
     pub fn base(&self) -> ScriptBaseRef<T> {
@@ -463,6 +464,7 @@ impl<'a, T: ScriptInstance> SiMut<'a, T> {
     ///     # fn on_refcount_incremented(&self) { todo!() }
     ///     # fn property_get_fallback(&self, _: StringName) -> Option<Variant> { todo!() }
     ///     # fn property_set_fallback(_: SiMut<'_, Self>, _: StringName, _: &Variant) -> bool { todo!() }
+    ///     # fn get_method_argument_count(&self, _: StringName) -> Option<u32> { todo!() }
     /// }
     /// ```
     pub fn base_mut(&mut self) -> ScriptBaseMut<T> {

@@ -23,6 +23,8 @@ else
 fi
 
 # Add extra features to the godot dependency (expects existing `features` key).
-sed -i "/^godot = /s/\(features = \[\([^]]*\)\)\]/\1$extraFeatures]/g" itest/rust/Cargo.toml
+# -i'' for macOS sed compat (BSD-based), see https://stackoverflow.com/a/14813278.
+sed -i'' -e "/^godot = /s/\(features = \[\([^]]*\)\)\]/\1$extraFeatures]/g" itest/rust/Cargo.toml
 
-echo "Patched Cargo.toml for version $version$extraFeatures."
+echo "Patched Cargo.toml for version $version$extraFeatures:"
+grep "features =" itest/rust/Cargo.toml
