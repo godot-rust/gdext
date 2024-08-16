@@ -158,8 +158,10 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
     }
 
     // Only place where meta is relevant is here.
-    if let Some(hardcoded) = to_hardcoded_rust_ident(full_ty) {
-        return RustTy::BuiltinIdent(ident(hardcoded));
+    if !ty.starts_with("typedarray::") {
+        if let Some(hardcoded) = to_hardcoded_rust_ident(full_ty) {
+            return RustTy::BuiltinIdent(ident(hardcoded));
+        }
     }
 
     if let Some(hardcoded) = to_hardcoded_rust_enum(ty) {
@@ -180,7 +182,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
             return RustTy::BuiltinIdent(rustify_ty(ty));
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
-        let rust_elem_ty = to_rust_type(elem_ty, None, ctx);
+        let rust_elem_ty = to_rust_type(elem_ty, full_ty.meta.as_ref(), ctx);
         return if ctx.is_builtin(elem_ty) {
             RustTy::BuiltinArray {
                 elem_type: quote! { Array<#rust_elem_ty> },
