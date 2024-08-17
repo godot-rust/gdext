@@ -225,6 +225,22 @@ impl From<&str> for GString {
     }
 }
 
+impl From<&[char]> for GString {
+    fn from(chars: &[char]) -> Self {
+        // SAFETY: A `char` value is by definition a valid Unicode code point.
+        unsafe {
+            Self::new_with_string_uninit(|string_ptr| {
+                let ctor = interface_fn!(string_new_with_utf32_chars_and_len);
+                ctor(
+                    string_ptr,
+                    chars.as_ptr() as *const sys::char32_t,
+                    chars.len() as i64,
+                );
+            })
+        }
+    }
+}
+
 impl From<String> for GString {
     fn from(value: String) -> Self {
         value.as_str().into()
