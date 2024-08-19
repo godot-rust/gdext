@@ -227,6 +227,14 @@ mod test {
         assert_eq_approx!(a.coord_max(b), Vector2::new(1.2, 5.6));
     }
 
+    #[test]
+    fn sign() {
+        let vector = Vector2::new(0.2, -0.5);
+        assert_eq!(vector.sign(), Vector2::new(1., -1.));
+        let vector = Vector2::new(0.1, 0.0);
+        assert_eq!(vector.sign(), Vector2::new(1., 0.));
+    }
+
     #[cfg(feature = "serde")]
     #[test]
     fn serde_roundtrip() {

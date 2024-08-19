@@ -484,16 +484,17 @@ macro_rules! impl_vector_fns {
             #[inline]
             pub fn sign(self) -> Self {
                 #[inline]
-                fn f(x: i32) -> i32 {
-                    match x.cmp(&0) {
-                        Ordering::Equal => 0,
-                        Ordering::Greater => 1,
-                        Ordering::Less => -1,
+                fn f(c: $Scalar) -> $Scalar {
+                    let r = c.partial_cmp(&(0 as $Scalar)).unwrap_or_else(|| panic!("Vector component {c} isn't signed!"));
+                    match r {
+                        Ordering::Equal => 0 as $Scalar,
+                        Ordering::Greater => 1 as $Scalar,
+                        Ordering::Less => -1 as $Scalar,
                     }
                 }
 
                 Self::new(
-                    $( f(self.$comp as i32) as $Scalar ),*
+                    $( f(self.$comp) ),*
                 )
             }
         }
