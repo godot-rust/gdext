@@ -34,6 +34,9 @@ use sys::{ffi_methods, interface_fn, GodotFfi};
 /// `Array<T>`, where the type `T` must implement `ArrayElement`. Some types like `Array<T>` cannot
 /// be stored inside arrays, as Godot prevents nesting.
 ///
+/// If you plan to use any integer or float types apart from `i64` and `f64`, read
+/// [this documentation](../meta/trait.ArrayElement.html#integer-and-float-types).
+///
 /// # Reference semantics
 ///
 /// Like in GDScript, `Array` acts as a reference type: multiple `Array` instances may
@@ -716,11 +719,44 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// Note also that any `GodotType` can be written to a `Variant` array.
     ///
-    /// In the current implementation, both cases will produce a panic rather than undefined
-    /// behavior, but this should not be relied upon.
+    /// In the current implementation, both cases will produce a panic rather than undefined behavior, but this should not be relied upon.
     unsafe fn assume_type<U: ArrayElement>(self) -> Array<U> {
-        // SAFETY: The memory layout of `Array<T>` does not depend on `T`.
-        unsafe { std::mem::transmute(self) }
+        // The memory layout of `Array<T>` does not depend on `T`.
+        std::mem::transmute::<Array<T>, Array<U>>(self)
+    }
+
+    /// # Safety
+    /// See [`assume_type`](Self::assume_type).
+    unsafe fn assume_type_ref<U: ArrayElement>(&self) -> &Array<U> {
+        // The memory layout of `Array<T>` does not depend on `T`.
+        std::mem::transmute::<&Array<T>, &Array<U>>(self)
+    }
+
+    #[cfg(debug_assertions)]
+    pub(crate) fn debug_validate_elements(&self) -> Result<(), ConvertError> {
+        // SAFETY: every element is internally represented as Variant.
+        let canonical_array = unsafe { self.assume_type_ref::<Variant>() };
+
+        // If any element is not convertible, this will return an error.
+        for elem in canonical_array.iter_shared() {
+            elem.try_to::<T>().map_err(|_err| {
+                FromGodotError::BadArrayTypeInt {
+                    expected: self.type_info(),
+                    value: elem
+                        .try_to::<i64>()
+                        .expect("origin must be i64 compatible; this is a bug"),
+                }
+                .into_error(self.clone())
+            })?;
+        }
+
+        Ok(())
+    }
+
+    // No-op in Release. Avoids O(n) conversion checks, but still panics on access.
+    #[cfg(not(debug_assertions))]
+    pub(crate) fn debug_validate_elements(&self) -> Result<(), ConvertError> {
+        Ok(())
     }
 
     /// Returns the runtime type info of this array.
@@ -728,7 +764,12 @@ impl<T: ArrayElement> Array<T> {
         let variant_type = VariantType::from_sys(
             self.as_inner().get_typed_builtin() as sys::GDExtensionVariantType
         );
-        let class_name = self.as_inner().get_typed_class_name();
+
+        let class_name = if variant_type == VariantType::OBJECT {
+            Some(self.as_inner().get_typed_class_name())
+        } else {
+            None
+        };
 
         ArrayTypeInfo {
             variant_type,
@@ -765,12 +806,23 @@ impl<T: ArrayElement> Array<T> {
         if type_info.is_typed() {
             let script = Variant::nil();
 
+            // A bit contrived because empty StringName is lazy-initialized but must also remain valid.
+            #[allow(unused_assignments)]
+            let mut empty_string_name = None;
+            let class_name = if let Some(class_name) = &type_info.class_name {
+                class_name.string_sys()
+            } else {
+                empty_string_name = Some(StringName::default());
+                // as_ref() crucial here -- otherwise the StringName is dropped.
+                empty_string_name.as_ref().unwrap().string_sys()
+            };
+
             // SAFETY: The array is a newly created empty untyped array.
             unsafe {
                 interface_fn!(array_set_typed)(
                     self.sys_mut(),
                     type_info.variant_type.sys(),
-                    type_info.class_name.string_sys(),
+                    class_name, // must be empty if variant_type != OBJECT.
                     script.var_sys(),
                 );
             }
@@ -783,6 +835,19 @@ impl<T: ArrayElement> Array<T> {
     /// `Variant` is the only Godot type that has variant type NIL and can be used as an array element.
     fn has_variant_t() -> bool {
         T::Ffi::variant_type() == VariantType::NIL
+    }
+}
+
+impl VariantArray {
+    /// # Safety
+    /// - Variant must have type `VariantType::ARRAY`.
+    /// - Subsequent operations on this array must not rely on the type of the array.
+    pub(crate) unsafe fn from_variant_unchecked(variant: &Variant) -> Self {
+        // See also ffi_from_variant().
+        Self::new_with_uninit(|self_ptr| {
+            let array_from_variant = sys::builtin_fn!(array_from_variant);
+            array_from_variant(self_ptr, sys::SysPtr::force_mut(variant.var_sys()));
+        })
     }
 }
 
@@ -838,6 +903,7 @@ impl<T: ArrayElement> ToGodot for Array<T> {
 
 impl<T: ArrayElement> FromGodot for Array<T> {
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        T::debug_validate_elements(&via)?;
         Ok(via)
     }
 }
@@ -845,7 +911,8 @@ impl<T: ArrayElement> FromGodot for Array<T> {
 impl<T: ArrayElement> fmt::Debug for Array<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Going through `Variant` because there doesn't seem to be a direct way.
-        write!(f, "{:?}", self.to_variant().stringify())
+        // Reuse Display.
+        write!(f, "{}", self.to_variant().stringify())
     }
 }
 
@@ -878,7 +945,7 @@ impl<T: ArrayElement + fmt::Display> fmt::Display for Array<T> {
 impl<T: ArrayElement> Clone for Array<T> {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid array, since we have a reference that keeps it alive.
-        let array = unsafe {
+        let copy = unsafe {
             Self::new_with_uninit(|self_ptr| {
                 let ctor = sys::builtin_fn!(array_construct_copy);
                 let args = [self.sys()];
@@ -886,9 +953,13 @@ impl<T: ArrayElement> Clone for Array<T> {
             })
         };
 
-        array
-            .with_checked_type()
-            .expect("copied array should have same type as original array")
+        // Double-check copy's runtime type in Debug mode.
+        if cfg!(debug_assertions) {
+            copy.with_checked_type()
+                .expect("copied array should have same type as original array")
+        } else {
+            copy
+        }
     }
 }
 
@@ -1000,6 +1071,7 @@ impl<T: ArrayElement> GodotFfiVariant for Array<T> {
     }
 
     fn ffi_from_variant(variant: &Variant) -> Result<Self, ConvertError> {
+        // First check if the variant is an array. The array conversion shouldn't be called otherwise.
         if variant.get_type() != Self::variant_type() {
             return Err(FromVariantError::BadType {
                 expected: Self::variant_type(),
@@ -1015,6 +1087,7 @@ impl<T: ArrayElement> GodotFfiVariant for Array<T> {
             })
         };
 
+        // Then, check the runtime type of the array.
         array.with_checked_type()
     }
 }

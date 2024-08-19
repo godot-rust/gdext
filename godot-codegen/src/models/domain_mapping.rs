@@ -566,6 +566,7 @@ impl Enum {
         Self {
             name: ident(&rust_enum_name),
             godot_name: godot_name.clone(),
+            surrounding_class: surrounding_class.cloned(),
             is_bitfield,
             is_private,
             is_exhaustive,

@@ -2,7 +2,7 @@
 name = "godot-core"
 version = "0.1.3"
 edition = "2021"
-rust-version = "1.78"
+rust-version = "1.80"
 license = "MPL-2.0"
 keywords = ["gamedev", "godot", "engine", "2d", "3d"] # possibly: "ffi"
 categories = ["game-engines", "graphics"]
@@ -21,7 +21,7 @@ codegen-lazy-fptrs = [
 ]
 double-precision = ["godot-codegen/double-precision"]
 experimental-godot-api = ["godot-codegen/experimental-godot-api"]
-experimental-threads = ["godot-ffi/experimental-threads"]
+experimental-threads = ["godot-ffi/experimental-threads", "godot-codegen/experimental-threads"]
 experimental-wasm-nothreads = ["godot-ffi/experimental-wasm-nothreads"]
 debug-log = ["godot-ffi/debug-log"]
 trace = []
@@ -37,13 +37,14 @@ api-4-1-4 = ["godot-ffi/api-4-1-4"]
 api-4-2 = ["godot-ffi/api-4-2"]
 api-4-2-1 = ["godot-ffi/api-4-2-1"]
 api-4-2-2 = ["godot-ffi/api-4-2-2"]
+api-4-3 = ["godot-ffi/api-4-3"]
 # ]]
 
 [dependencies]
 godot-ffi = { path = "../godot-ffi", version = "=0.1.3" }
 
 # See https://docs.rs/glam/latest/glam/index.html#feature-gates
-glam = { version = "0.27", features = ["debug-glam-assert"] }
+glam = { version = "0.28", features = ["debug-glam-assert"] }
 serde = { version = "1", features = ["derive"], optional = true }
 godot-cell = { path = "../godot-cell", version = "=0.1.3" }
 

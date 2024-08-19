@@ -5,7 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::{GString, StringName, VariantDispatch, VariantOperator, VariantType};
+use crate::builtin::{
+    GString, StringName, VariantArray, VariantDispatch, VariantOperator, VariantType,
+};
 use crate::meta::error::ConvertError;
 use crate::meta::{ArrayElement, FromGodot, ToGodot};
 use godot_ffi as sys;
@@ -448,6 +450,16 @@ impl fmt::Display for Variant {
 
 impl fmt::Debug for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        VariantDispatch::from_variant(self).fmt(f)
+        // Special case for arrays: avoids converting to VariantArray (the only Array type in VariantDispatch), which fails
+        // for typed arrays and causes a panic. This can cause an infinite loop with Debug, or abort.
+        // Can be removed if there's ever a "possibly typed" Array type (e.g. OutArray) in the library.
+
+        if self.get_type() == VariantType::ARRAY {
+            // SAFETY: type is checked, and only operation is print (out data flow, no covariant in access).
+            let array = unsafe { VariantArray::from_variant_unchecked(self) };
+            array.fmt(f)
+        } else {
+            VariantDispatch::from_variant(self).fmt(f)
+        }
     }
 }

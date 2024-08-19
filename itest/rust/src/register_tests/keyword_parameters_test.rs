@@ -11,7 +11,7 @@ use godot::obj::Gd;
 use godot::register::{godot_api, GodotClass};
 
 #[derive(GodotClass)]
-#[class(base=EditorExportPlugin, init)]
+#[class(base=EditorExportPlugin, init, tool)]
 struct KeywordParameterEditorExportPlugin;
 
 #[godot_api]

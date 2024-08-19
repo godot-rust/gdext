@@ -9,7 +9,8 @@
 //!
 //! See also models/domain/enums.rs for other enum-related methods.
 
-use crate::models::domain::{Enum, Enumerator, EnumeratorValue};
+use crate::models::domain::{Enum, Enumerator, EnumeratorValue, RustTy};
+use crate::special_cases;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 
@@ -262,12 +263,46 @@ fn make_enum_bitwise_operators(enum_: &Enum) -> TokenStream {
     let name = &enum_.name;
 
     if enum_.is_bitfield {
+        // Regular bitfield.
         quote! {
             impl std::ops::BitOr for #name {
                 type Output = Self;
 
+                #[inline]
                 fn bitor(self, rhs: Self) -> Self::Output {
                     Self { ord: self.ord | rhs.ord }
+                }
+            }
+        }
+    } else if let Some(mask_enum) = special_cases::as_enum_bitmaskable(enum_) {
+        // Enum that has an accompanying bitfield for masking.
+        let RustTy::EngineEnum { tokens: mask, .. } = mask_enum else {
+            panic!("as_enum_bitmaskable() must return enum/bitfield type")
+        };
+
+        quote! {
+            impl std::ops::BitOr<#mask> for #name {
+                type Output = Self;
+
+                #[inline]
+                fn bitor(self, rhs: #mask) -> Self::Output {
+                    Self { ord: self.ord | i32::try_from(rhs.ord).expect("masking bitfield outside integer range") }
+                }
+            }
+
+            impl std::ops::BitOr<#name> for #mask {
+                type Output = #name;
+
+                #[inline]
+                fn bitor(self, rhs: #name) -> Self::Output {
+                    rhs | self
+                }
+            }
+
+            impl std::ops::BitOrAssign<#mask> for #name {
+                #[inline]
+                fn bitor_assign(&mut self, rhs: #mask) {
+                    *self = *self | rhs;
                 }
             }
         }

@@ -68,13 +68,16 @@ fn string_clone() {
 fn string_chars() {
     // Empty tests regression from #228: Null pointer passed to slice::from_raw_parts().
     let string = GString::new();
-    assert_eq!(string.chars(), &[]);
+    let empty_char_slice: &[char] = &[];
+    assert_eq!(string.chars(), empty_char_slice);
+    assert_eq!(string, GString::from(empty_char_slice));
 
     let string = String::from("some_string");
     let string_chars: Vec<char> = string.chars().collect();
     let gstring = GString::from(string);
 
     assert_eq!(string_chars, gstring.chars().to_vec());
+    assert_eq!(gstring, GString::from(string_chars.as_slice()));
 }
 
 #[itest]

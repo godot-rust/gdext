@@ -37,16 +37,10 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
     fn is_rust_type_excluded(ty: &RustTy) -> bool {
         match ty {
             RustTy::BuiltinIdent(_) => false,
-            RustTy::BuiltinArray(_) => false,
+            RustTy::BuiltinArray { .. } => false,
             RustTy::RawPointer { inner, .. } => is_rust_type_excluded(inner),
             RustTy::EngineArray { elem_class, .. } => is_class_excluded(elem_class.as_str()),
             RustTy::EngineEnum {
-                surrounding_class, ..
-            } => match surrounding_class.as_ref() {
-                None => false,
-                Some(class) => is_class_excluded(class.as_str()),
-            },
-            RustTy::EngineBitfield {
                 surrounding_class, ..
             } => match surrounding_class.as_ref() {
                 None => false,

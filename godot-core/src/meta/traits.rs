@@ -7,7 +7,7 @@
 
 use godot_ffi as sys;
 
-use crate::builtin::{StringName, Variant};
+use crate::builtin::{Array, StringName, Variant};
 use crate::global::PropertyUsageFlags;
 use crate::meta::error::ConvertError;
 use crate::meta::{
@@ -120,28 +120,72 @@ pub trait GodotType:
 
 /// Marker trait to identify types that can be stored in [`Array<T>`][crate::builtin::Array].
 ///
-/// The types for which this trait is implemented, overlap mostly with [`GodotType`].
-/// This is done consistently what GDScript allows inside `Array[T]`.
+/// The types, for which this trait is implemented, overlap mostly with [`GodotType`].
 ///
 /// Notable differences are:
 /// - Only `VariantArray`, not `Array<T>` is allowed (typed arrays cannot be nested).
 /// - `Option` is only supported for `Option<Gd<T>>`, but not e.g. `Option<i32>`.
+///
+/// # Integer and float types
+/// `u8`, `i8`, `u16`, `i16`, `u32`, `i32` and `f32` are supported by this trait, however they don't have their own array type in Godot.
+/// The engine only knows about `i64` ("int") and `f64` ("float") types. This means that when using any integer or float type, Godot
+/// will treat it as the equivalent of GDScript's `Array[int]` or `Array[float]`, respectively.
+///
+/// As a result, when converting from a Godot typed array to a Rust `Array<T>`, the values stored may not actually fit into a `T`.
+/// For example, you have a GDScript `Array[int]` which stores value 160, and you convert it to a Rust `Array<i8>`. This means that you may
+/// end up with panics on element access (since the `Variant` storing 160 will fail to convert to `i8`). In Debug mode, we add additional
+/// best-effort checks to detect such errors, however they are expensive and not bullet-proof. If you need very rigid type safety, stick to
+/// `i64` and `f64`. The other types however can be extremely convenient and work well, as long as you are aware of the limitations.
+///
+/// `u64` is entirely unsupported since it cannot be safely stored inside a `Variant`.
+///
+/// Also, keep in mind that Godot uses `Variant` for each element. If performance matters and you have small element types such as `u8`,
+/// consider using packed arrays (e.g. `PackedByteArray`) instead.
 #[diagnostic::on_unimplemented(
     message = "`Array<T>` can only store element types supported in Godot arrays (no nesting).",
-    label = "does not implement `Var`",
-    note = "see also: https://godot-rust.github.io/docs/gdext/master/godot/builtin/meta/trait.ArrayElement.html"
+    label = "has invalid element type"
 )]
 pub trait ArrayElement: GodotType + sealed::Sealed {
     /// Returns the representation of this type as a type string.
     ///
-    /// Used for elements in arrays and packed arrays (the latter despite `ArrayElement` not having a direct relation).
+    /// Used for elements in arrays (the latter despite `ArrayElement` not having a direct relation).
     ///
-    /// See [`PropertyHint::TYPE_STRING`] and [upstream docs].
-    ///
-    /// [upstream docs]: https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint
+    /// See [`PropertyHint::TYPE_STRING`] and
+    /// [upstream docs](https://docs.godotengine.org/en/stable/classes/class_%40globalscope.html#enum-globalscope-propertyhint).
     #[doc(hidden)]
     fn element_type_string() -> String {
         // Most array elements and all packed array elements are builtin types, so this is a good default.
         builtin_type_string::<Self>()
     }
+
+    fn debug_validate_elements(_array: &Array<Self>) -> Result<(), ConvertError> {
+        // No-op for most element types.
+        Ok(())
+    }
 }
+
+/// Marker trait to identify types that can be stored in `Packed*Array` types.
+#[diagnostic::on_unimplemented(
+    message = "`Packed*Array` can only store element types supported in Godot packed arrays.",
+    label = "has invalid element type"
+)]
+pub trait PackedArrayElement: GodotType + sealed::Sealed {
+    /// See [`ArrayElement::element_type_string()`].
+    #[doc(hidden)]
+    fn element_type_string() -> String {
+        builtin_type_string::<Self>()
+    }
+}
+
+// Implement all packed array element types.
+impl PackedArrayElement for u8 {}
+impl PackedArrayElement for i32 {}
+impl PackedArrayElement for i64 {}
+impl PackedArrayElement for f32 {}
+impl PackedArrayElement for f64 {}
+impl PackedArrayElement for crate::builtin::Vector2 {}
+impl PackedArrayElement for crate::builtin::Vector3 {}
+#[cfg(since_api = "4.3")]
+impl PackedArrayElement for crate::builtin::Vector4 {}
+impl PackedArrayElement for crate::builtin::Color {}
+impl PackedArrayElement for crate::builtin::GString {}

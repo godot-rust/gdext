@@ -7,6 +7,7 @@
 
 mod codegen_enums_test;
 mod codegen_test;
+mod engine_enum_test;
 mod gfile_test;
 /// Native audio structure tests are only enabled when both the `experimental-threads` and `codegen-full` features are active. The tests
 /// require these features to be able to execute.

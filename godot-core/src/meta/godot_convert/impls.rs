@@ -5,8 +5,8 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use crate::builtin::Variant;
-use crate::meta::error::{ConvertError, FromFfiError, FromVariantError};
+use crate::builtin::{Array, Variant};
+use crate::meta::error::{ConvertError, ErrorKind, FromFfiError, FromVariantError};
 use crate::meta::{
     ArrayElement, ClassName, FromGodot, GodotConvert, GodotNullableFfi, GodotType,
     PropertyHintInfo, PropertyInfo, ToGodot,
@@ -174,6 +174,13 @@ macro_rules! impl_godot_scalar {
             impl_godot_scalar!(@shared_fns; $Via, $param_metadata);
         }
 
+        // For integer types, we can validate the conversion.
+        impl ArrayElement for $T {
+            fn debug_validate_elements(array: &Array<Self>) -> Result<(), ConvertError> {
+                array.debug_validate_elements()
+            }
+        }
+
         impl_godot_scalar!(@shared_traits; $T);
     };
 
@@ -196,6 +203,9 @@ macro_rules! impl_godot_scalar {
             impl_godot_scalar!(@shared_fns; $Via, $param_metadata);
         }
 
+        // For f32, conversion from f64 is lossy but will always succeed. Thus no debug validation needed.
+        impl ArrayElement for $T {}
+
         impl_godot_scalar!(@shared_traits; $T);
     };
 
@@ -210,8 +220,6 @@ macro_rules! impl_godot_scalar {
     };
 
     (@shared_traits; $T:ty) => {
-        impl ArrayElement for $T {}
-
         impl GodotConvert for $T {
             type Via = $T;
         }
@@ -327,6 +335,73 @@ impl FromGodot for u64 {
             // TODO maybe use better error enumerator
             FromVariantError::BadValue.into_error(value)
         })
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Collections
+
+impl<T: ArrayElement> GodotConvert for Vec<T> {
+    type Via = Array<T>;
+}
+
+impl<T: ArrayElement> ToGodot for Vec<T> {
+    fn to_godot(&self) -> Self::Via {
+        Array::from(self.as_slice())
+    }
+}
+
+impl<T: ArrayElement> FromGodot for Vec<T> {
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        Ok(via.iter_shared().collect())
+    }
+}
+
+impl<T: ArrayElement, const LEN: usize> GodotConvert for [T; LEN] {
+    type Via = Array<T>;
+}
+
+impl<T: ArrayElement, const LEN: usize> ToGodot for [T; LEN] {
+    fn to_godot(&self) -> Self::Via {
+        Array::from(self)
+    }
+}
+
+impl<T: ArrayElement, const LEN: usize> FromGodot for [T; LEN] {
+    fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
+        let via_len = via.len(); // Caching this avoids an FFI call
+        if via_len != LEN {
+            let message =
+                format!("Array<T> of length {via_len} cannot be stored in [T; {LEN}] Rust array");
+            return Err(ConvertError::with_kind_value(
+                ErrorKind::Custom(Some(message.into())),
+                via,
+            ));
+        }
+
+        let mut option_array = [const { None }; LEN];
+
+        for (element, destination) in via.iter_shared().zip(&mut option_array) {
+            *destination = Some(element);
+        }
+
+        let array = option_array.map(|some| {
+            some.expect(
+                "Elements were removed from Array during `iter_shared()`, this is not allowed",
+            )
+        });
+
+        Ok(array)
+    }
+}
+
+impl<T: ArrayElement> GodotConvert for &[T] {
+    type Via = Array<T>;
+}
+
+impl<T: ArrayElement> ToGodot for &[T] {
+    fn to_godot(&self) -> Self::Via {
+        Array::from(*self)
     }
 }
 

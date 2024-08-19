@@ -180,8 +180,20 @@ impl Vector3 {
         Basis::from_axis_angle(axis, angle) * self
     }
 
-    /// Returns the signed angle to the given vector, in radians. The sign of the angle is positive in a counter-clockwise direction and
-    /// negative in a clockwise direction when viewed from the side specified by the `axis`.
+    /// Returns the **unsigned** angle between `self` and the given vector, as radians in `[0, +π]`.
+    ///
+    /// Note that behavior is different from 2D [`Vector2::angle_to()`], which returns the **signed** angle.
+    #[inline]
+    pub fn angle_to(self, to: Self) -> real {
+        self.glam2(&to, |a, b| a.angle_between(b))
+    }
+
+    /// Returns the signed angle to the given vector, as radians in `[-π, +π]`.
+    ///
+    /// The sign of the angle is positive in a counter-clockwise direction and negative in a clockwise direction, when viewed from
+    /// the side specified by the `axis`.
+    ///
+    /// For unsigned angles, use [`Vector3::angle_to()`].
     #[inline]
     pub fn signed_angle_to(self, to: Self, axis: Self) -> real {
         let cross_to = self.cross(to);
@@ -311,6 +323,12 @@ mod test {
             vector.rotated(Vector3::new(0.0, 0.0, 1.0), TAU / 2.0),
             vector.rotated(Vector3::new(0.0, 0.0, 1.0), TAU / -2.0),
         );
+    }
+
+    #[test]
+    fn sign() {
+        let vector = Vector3::new(0.2, -0.5, 0.0);
+        assert_eq!(vector.sign(), Vector3::new(1., -1., 0.));
     }
 
     #[test]

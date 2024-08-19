@@ -23,11 +23,11 @@
 
 #![allow(clippy::match_like_matches_macro)] // if there is only one rule
 
-use crate::models::domain::TyName;
+use crate::conv::to_enum_type_uncached;
+use crate::models::domain::{Enum, RustTy, TyName};
 use crate::models::json::{JsonBuiltinMethod, JsonClassMethod, JsonUtilityFunction};
 use crate::special_cases::codegen_special_cases;
 use crate::Context;
-
 // Deliberately private -- all checks must go through `special_cases`.
 
 #[rustfmt::skip]
@@ -51,12 +51,6 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         | ("GDExtension", "initialize_library")
         | ("GDExtension", "close_library")
 
-        // Thread APIs
-        | ("ResourceLoader", "load_threaded_get")
-        | ("ResourceLoader", "load_threaded_get_status")
-        | ("ResourceLoader", "load_threaded_request")
-        // also: enum ThreadLoadStatus
-
         // TODO: Godot exposed methods that are unavailable, bug reported in https://github.com/godotengine/godot/issues/90303.
         | ("OpenXRHand", "set_hand_skeleton")
         | ("OpenXRHand", "get_hand_skeleton")
@@ -66,8 +60,16 @@ pub fn is_class_method_deleted(class_name: &TyName, method: &JsonClassMethod, ct
         | ("VisualShaderNodeComment", "get_title")
         | ("VisualShaderNodeComment", "set_description")
         | ("VisualShaderNodeComment", "get_description")
+        => true,
 
-        => true, _ => false
+        // Thread APIs
+        #[cfg(not(feature = "experimental-threads"))]
+        | ("ResourceLoader", "load_threaded_get")
+        | ("ResourceLoader", "load_threaded_get_status")
+        | ("ResourceLoader", "load_threaded_request") => true,
+        // also: enum ThreadLoadStatus
+
+        _ => false
     }
 }
 
@@ -587,4 +589,34 @@ pub fn is_enum_exhaustive(class_name: Option<&TyName>, enum_name: &str) -> bool 
 
         => true, _ => false
     }
+}
+
+/// Whether an enum can be combined with another enum (return value) for bitmasking purposes.
+///
+/// If multiple masks are ever necessary, this can be extended to return a slice instead of Option.
+///
+/// If a mapping is found, returns the corresponding `RustTy`.
+pub fn as_enum_bitmaskable(enum_: &Enum) -> Option<RustTy> {
+    let class_name = enum_.surrounding_class.as_ref();
+    let class_name_str = class_name.map(|ty| ty.godot_ty.as_str());
+    let enum_name = enum_.godot_name.as_str();
+
+    let mapped = match (class_name_str, enum_name) {
+        (None, "Key") => "KeyModifierMask",
+        (None, "MouseButton") => "MouseButtonMask",
+
+        // For class enums:
+        // (Some("ThisClass"), "Enum") => "SomeClass.MaskedEnum"
+        _ => return None,
+    };
+
+    // Exhaustive enums map to Rust `enum`, which cannot hold other values.
+    // Code flow: this is as_enum_bitmaskable() is still called even if is_enum_exhaustive() previously returned true.
+    assert!(
+        !is_enum_exhaustive(class_name, enum_name),
+        "Enum {enum_name} with bitmask mapping cannot be exhaustive"
+    );
+
+    let rust_ty = to_enum_type_uncached(mapped, true);
+    Some(rust_ty)
 }

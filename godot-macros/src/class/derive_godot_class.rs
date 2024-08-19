@@ -738,6 +738,8 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         parser.finish()?;
     }
 
+    post_validate(&base_ty, is_tool, is_editor_plugin)?;
+
     Ok(ClassAttributes {
         base_ty,
         init_strategy,
@@ -926,5 +928,68 @@ fn handle_opposite_keys(
             parser.span(),
             "#[{attribute}] attribute keys `{key}` and `{antikey}` are mutually exclusive",
         ),
+    }
+}
+
+/// Checks more logical combinations of attributes.
+fn post_validate(base_ty: &Ident, is_tool: bool, is_editor_plugin: bool) -> ParseResult<()> {
+    // TODO: this should be delegated to either:
+    // a) the type system: have a trait IsTool which is implemented when #[class(tool)] is set.
+    //    Then, for certain base classes, require a tool bound (e.g. generate method `fn type_check<T: IsTool>()`).
+    //    This would also allow moving the logic to godot-codegen.
+    // b) a runtime check in class.rs > register_class_raw() and validate_class_constraints().
+
+    let class_name = base_ty.to_string();
+
+    let is_class_extension = is_class_virtual_extension(&class_name);
+    let is_class_editor = is_class_editor_only(&class_name);
+
+    if is_class_extension && !is_tool {
+        return bail!(
+            base_ty,
+            "Base class `{}` is a virtual extension class, which runs in the editor and thus requires #[class(tool)].",
+            base_ty
+        );
+    } else if class_name == "EditorPlugin" && !is_editor_plugin {
+        return bail!(
+            base_ty,
+            "Classes extending `{}` require #[class(editor_plugin)] to get registered as a plugin in the editor. See: https://godot-rust.github.io/book/recipes/editor-plugin/index.html", 
+            base_ty
+        );
+    } else if is_class_editor && !is_tool {
+        return bail!(
+            base_ty,
+            "Base class `{}` is an editor-only class and thus requires #[class(tool)].",
+            base_ty
+        );
+    }
+
+    Ok(())
+}
+
+/// Whether a class exists primarily for GDExtension to overload virtual methods.
+// See post_validate(). Should be moved to godot-codegen > special_cases.rs.
+fn is_class_virtual_extension(godot_class_name: &str) -> bool {
+    // Heuristic: suffix, with some exceptions.
+    // Generally, a rule might also be "there is another class without that suffix", however that doesn't apply to e.g. OpenXRAPIExtension.
+
+    match godot_class_name {
+        "GDExtension" => false,
+
+        _ => godot_class_name.ends_with("Extension"),
+    }
+}
+
+/// Whether a class exists primarily as a plugin for the editor.
+// See post_validate(). Should be moved to godot-codegen > special_cases.rs.
+// TODO: This information is available in extension_api.json under classes.*.api_type and should be taken from there.
+fn is_class_editor_only(godot_class_name: &str) -> bool {
+    match godot_class_name {
+        "FileSystemDock" | "ScriptCreateDialog" | "ScriptEditor" | "ScriptEditorBase" => true,
+        _ => {
+            (godot_class_name.starts_with("ResourceImporter")
+                && godot_class_name != "ResourceImporter")
+                || godot_class_name.starts_with("Editor")
+        }
     }
 }

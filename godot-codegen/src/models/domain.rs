@@ -588,11 +588,13 @@ pub struct GodotTy {
 
 #[derive(Clone, Debug)]
 pub enum RustTy {
-    /// `bool`, `Vector3i`
+    /// `bool`, `Vector3i`, `Array`
     BuiltinIdent(Ident),
 
     /// `Array<i32>`
-    BuiltinArray(TokenStream),
+    ///
+    /// Note that untyped arrays are mapped as `BuiltinIdent("Array")`.
+    BuiltinArray { elem_type: TokenStream },
 
     /// C-style raw pointer to a `RustTy`.
     RawPointer { inner: Box<RustTy>, is_const: bool },
@@ -604,20 +606,13 @@ pub enum RustTy {
         elem_class: String,
     },
 
-    /// `module::Enum`
+    /// `module::Enum` or `module::Bitfield`
     EngineEnum {
         tokens: TokenStream,
         /// `None` for globals
         #[allow(dead_code)] // only read in minimal config
         surrounding_class: Option<String>,
-    },
-
-    /// `module::Bitfield`
-    EngineBitfield {
-        tokens: TokenStream,
-        /// `None` for globals
-        #[allow(dead_code)] // only read in minimal config
-        surrounding_class: Option<String>,
+        is_bitfield: bool,
     },
 
     /// `Gd<Node>`
@@ -674,7 +669,7 @@ impl ToTokens for RustTy {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             RustTy::BuiltinIdent(ident) => ident.to_tokens(tokens),
-            RustTy::BuiltinArray(path) => path.to_tokens(tokens),
+            RustTy::BuiltinArray { elem_type } => elem_type.to_tokens(tokens),
             RustTy::RawPointer {
                 inner,
                 is_const: true,
@@ -685,7 +680,6 @@ impl ToTokens for RustTy {
             } => quote! { *mut #inner }.to_tokens(tokens),
             RustTy::EngineArray { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineEnum { tokens: path, .. } => path.to_tokens(tokens),
-            RustTy::EngineBitfield { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
         }

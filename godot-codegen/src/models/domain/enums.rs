@@ -9,14 +9,15 @@
 //!
 //! See also generator/enums.rs for functions related to turning enums into `TokenStream`s.
 
+use crate::models::domain::TyName;
 use crate::util::ident;
-
 use proc_macro2::{Ident, Literal, TokenStream};
 use quote::{quote, ToTokens};
 
 pub struct Enum {
     pub name: Ident,
     pub godot_name: String,
+    pub surrounding_class: Option<TyName>,
     pub is_bitfield: bool,
     pub is_private: bool,
     pub is_exhaustive: bool,
