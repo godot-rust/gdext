@@ -127,9 +127,8 @@ impl GlamConv for Vector4 {
 
 #[cfg(test)]
 mod test {
-    use crate::assert_eq_approx;
-
     use super::*;
+    use crate::builtin::math::assert_eq_approx;
 
     #[test]
     fn coord_min_max() {
@@ -137,6 +136,12 @@ mod test {
         let b = Vector4::new(0.1, 5.6, 2.3, 1.2);
         assert_eq_approx!(a.coord_min(b), Vector4::new(0.1, 3.4, 2.3, 0.1),);
         assert_eq_approx!(a.coord_max(b), Vector4::new(1.2, 5.6, 5.6, 1.2),);
+    }
+
+    #[test]
+    fn sign() {
+        let vector = Vector4::new(0.2, -0.5, 0., 999.0);
+        assert_eq!(vector.sign(), Vector4::new(1., -1., 0., 1.));
     }
 
     #[cfg(feature = "serde")]

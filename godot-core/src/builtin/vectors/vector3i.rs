@@ -155,6 +155,12 @@ mod test {
     }
 
     #[test]
+    fn sign() {
+        let vector = Vector3i::new(2, -5, 0);
+        assert_eq!(vector.sign(), Vector3i::new(1, -1, 0));
+    }
+
+    #[test]
     fn axis_min_max() {
         assert_eq!(Vector3i::new(10, 5, -5).max_axis(), Some(Vector3Axis::X));
         assert_eq!(Vector3i::new(5, 10, -5).max_axis(), Some(Vector3Axis::Y));

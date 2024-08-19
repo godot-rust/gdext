@@ -326,6 +326,12 @@ mod test {
     }
 
     #[test]
+    fn sign() {
+        let vector = Vector3::new(0.2, -0.5, 0.0);
+        assert_eq!(vector.sign(), Vector3::new(1., -1., 0.));
+    }
+
+    #[test]
     fn coord_min_max() {
         let a = Vector3::new(1.2, 3.4, 5.6);
         let b = Vector3::new(0.1, 5.6, 2.3);
