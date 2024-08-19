@@ -1,0 +1,1811 @@
+#![feature(prelude_import)]
+#[prelude_import]
+use std::prelude::rust_2021::*;
+#[macro_use]
+extern crate std;
+use godot::{classes::ScriptExtension, prelude::*};
+struct ScriptMacro;
+unsafe impl ExtensionLibrary for ScriptMacro {}
+#[no_mangle]
+unsafe extern "C" fn gdext_rust_init(
+    get_proc_address: ::godot::sys::GDExtensionInterfaceGetProcAddress,
+    library: ::godot::sys::GDExtensionClassLibraryPtr,
+    init: *mut ::godot::sys::GDExtensionInitialization,
+) -> ::godot::sys::GDExtensionBool {
+    ::godot::init::__gdext_load_library::<ScriptMacro>(get_proc_address, library, init)
+}
+fn __static_type_check() {
+    let _unused: ::godot::sys::GDExtensionInitializationFunction = Some(gdext_rust_init);
+}
+#[no_mangle]
+#[doc(hidden)]
+pub unsafe extern "C" fn __cxa_thread_atexit_impl(
+    func: *mut ::std::ffi::c_void,
+    obj: *mut ::std::ffi::c_void,
+    dso_symbol: *mut ::std::ffi::c_void,
+) {
+    ::godot_ffi::linux_reload_workaround::thread_atexit(func, obj, dso_symbol);
+}
+#[class(script, base = ScriptExtension, tool, init)]
+struct ExampleScript {
+    #[var]
+    ex_prop: i32,
+    base: Base<ScriptExtension>,
+}
+impl ::godot::obj::GodotClass for ExampleScript {
+    type Base = ::godot::classes::ScriptExtension;
+    fn class_name() -> ::godot::meta::ClassName {
+        use ::godot::meta::ClassName;
+        static CLASS_NAME: std::sync::OnceLock<ClassName> = std::sync::OnceLock::new();
+        let name: &'static ClassName = CLASS_NAME
+            .get_or_init(|| ClassName::alloc_next(c"ExampleScript"));
+        *name
+    }
+}
+unsafe impl ::godot::obj::Bounds for ExampleScript {
+    type Memory = <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::Bounds>::Memory;
+    type DynMemory = <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::Bounds>::DynMemory;
+    type Declarer = ::godot::obj::bounds::DeclUser;
+    type Exportable = <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::Bounds>::Exportable;
+}
+use ::godot::classes::IScriptExtension;
+impl ::godot::classes::IScriptExtension for ExampleScript {
+    fn editor_can_reload_from_file(&mut self) -> bool {
+        false
+    }
+    fn get_method_info(&self, method: StringName) -> Dictionary {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn can_instantiate(&self) -> bool {
+        true
+    }
+    fn get_base_script(&self) -> Option<::godot::obj::Gd<::godot::classes::Script>> {
+        Some(self.base().clone().upcast())
+    }
+    fn get_global_name(&self) -> ::godot::builtin::StringName {
+        ::godot::builtin::StringName::from("ExampleScript")
+    }
+    fn inherits_script(
+        &self,
+        script: ::godot::obj::Gd<::godot::classes::Script>,
+    ) -> bool {
+        if self.get_base_script().unwrap() == script {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    fn get_instance_base_type(&self) -> StringName {
+        ::godot::builtin::StringName::from(c"ScriptExtension")
+    }
+    unsafe fn instance_create(
+        &self,
+        for_object: ::godot::obj::Gd<::godot::classes::Object>,
+    ) -> *mut ::std::ffi::c_void {
+        let inst: ExampleScriptInstance = ExampleScriptInstance::from(self);
+        let for_dcast: ::godot::obj::Gd<::godot::classes::ScriptExtension> = for_object
+            .cast();
+        ::godot::obj::script::create_script_instance(inst, for_dcast)
+    }
+    unsafe fn placeholder_instance_create(
+        &self,
+        _for_object: ::godot::obj::Gd<::godot::classes::Object>,
+    ) -> *mut ::std::ffi::c_void {
+        {
+            ::core::panicking::panic_fmt(
+                format_args!(
+                    "internal error: entered unreachable code: {0}",
+                    format_args!("{0} is not a placeholder!", "ExampleScript"),
+                ),
+            );
+        };
+    }
+    fn instance_has(&self, object: ::godot::obj::Gd<::godot::classes::Object>) -> bool {
+        return match object.get_script().try_to::<::godot::obj::Gd<Self>>() {
+            Ok(_) => true,
+            Err(_) => false,
+        };
+    }
+    fn has_source_code(&self) -> bool {
+        false
+    }
+    fn get_source_code(&self) -> ::godot::builtin::GString {
+        {
+            ::core::panicking::panic_fmt(
+                format_args!(
+                    "internal error: entered unreachable code: {0}",
+                    format_args!("{0} has no source code!", "ExampleScript"),
+                ),
+            );
+        };
+    }
+    fn set_source_code(&mut self, code: ::godot::builtin::GString) {
+        {
+            ::core::panicking::panic_fmt(
+                format_args!(
+                    "internal error: entered unreachable code: {0}",
+                    format_args!("{0} has no source code!", "ExampleScript"),
+                ),
+            );
+        };
+    }
+    fn reload(&mut self, keep_state: bool) -> ::godot::global::Error {
+        {
+            ::core::panicking::panic_fmt(
+                format_args!(
+                    "internal error: entered unreachable code: {0}",
+                    format_args!("{0} should never be reloaded!", "ExampleScript"),
+                ),
+            );
+        };
+    }
+    fn get_documentation(
+        &self,
+    ) -> ::godot::builtin::Array<::godot::builtin::Dictionary> {
+        {
+            ::core::panicking::panic_fmt(
+                format_args!(
+                    "not yet implemented: {0}",
+                    format_args!("Parse custom methods for #[script(doc = blah)]"),
+                ),
+            );
+        }
+    }
+    fn has_method(&self, method: ::godot::builtin::StringName) -> bool {
+        {
+            ::core::panicking::panic_fmt(
+                format_args!("not yet implemented: {0}", format_args!("Custom methods")),
+            );
+        }
+    }
+    fn has_static_method(&self, method: ::godot::builtin::StringName) -> bool {
+        {
+            ::core::panicking::panic_fmt(
+                format_args!("not yet implemented: {0}", format_args!("Custom methods")),
+            );
+        }
+    }
+    fn is_tool(&self) -> bool {
+        true
+    }
+    fn is_valid(&self) -> bool {
+        true
+    }
+    fn get_language(
+        &self,
+    ) -> Option<::godot::obj::Gd<::godot::classes::ScriptLanguage>> {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn has_script_signal(&self, signal: ::godot::builtin::StringName) -> bool {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn get_script_method_list(
+        &self,
+    ) -> ::godot::builtin::Array<::godot::builtin::Dictionary> {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn has_property_default_value(
+        &self,
+        property: ::godot::builtin::StringName,
+    ) -> bool {
+        {
+            ::core::panicking::panic_fmt(
+                format_args!("not yet implemented: {0}", format_args!("What is this?")),
+            );
+        }
+    }
+    fn get_property(
+        &self,
+        property: ::godot::builtin::StringName,
+    ) -> Option<::godot::builtin::Variant> {
+        return match property {
+            ::godot::builtin::StringName::from("ex_prop") => Some(self.ex_prop),
+            _ => None,
+        };
+    }
+    fn update_exports(&mut self) {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn get_script_property_list(
+        &self,
+    ) -> ::godot::builtin::Array<::godot::builtin::Dictionary> {
+        (/*ERROR*/)
+    }
+    fn get_member_line(&self, member: ::godot::builtin::StringName) -> i32 {
+        {
+            ::core::panicking::panic_fmt(
+                format_args!(
+                    "internal error: entered unreachable code: {0}",
+                    format_args!("{0} has no source code!", "ExampleScript"),
+                ),
+            );
+        };
+    }
+    fn get_constants(&self) -> ::godot::builtin::Dictionary {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn get_members(&self) -> ::godot::builtin::Array<::godot::builtin::StringName> {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn is_placeholder_fallback_enabled(&self) -> bool {
+        false
+    }
+    fn get_rpc_config(&self) -> ::godot::builtin::Variant {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn get_script_signal_list(
+        &self,
+    ) -> ::godot::builtin::Array<::godot::builtin::Dictionary> {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn get_property_default_value(
+        &self,
+        property: ::godot::builtin::StringName,
+    ) -> ::godot::builtin::Variant {
+        ::core::panicking::panic("not yet implemented")
+    }
+}
+impl ::godot::obj::cap::GodotGet for ExampleScript {
+    fn __godot_get_property(
+        &self,
+        property: ::godot::builtin::StringName,
+    ) -> Option<::godot::builtin::Variant> {
+        use ::godot::obj::UserClass as _;
+        <Self as ::godot::classes::IScriptExtension>::get_property(self, property)
+    }
+}
+impl ::godot::private::You_forgot_the_attribute__godot_api for ExampleScript {}
+impl ::godot::obj::cap::ImplementsGodotVirtual for ExampleScript {
+    fn __virtual_call(name: &str) -> ::godot::sys::GDExtensionClassCallVirtual {
+        use ::godot::obj::UserClass as _;
+        if ::godot::private::is_class_inactive(Self::__config().is_tool) {
+            return None;
+        }
+        match name {
+            "_editor_can_reload_from_file" => {
+                use ::godot::sys;
+                type Sig = (bool,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "editor_can_reload_from_file",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let mut instance = ::godot::private::Storage::get_mut(
+                                    storage,
+                                );
+                                instance.editor_can_reload_from_file()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_method_info" => {
+                use ::godot::sys;
+                type Sig = (Dictionary, StringName);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_method_info",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (method,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_method_info(method)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_can_instantiate" => {
+                use ::godot::sys;
+                type Sig = (bool,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "can_instantiate",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.can_instantiate()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_base_script" => {
+                use ::godot::sys;
+                type Sig = (Option<::godot::obj::Gd<::godot::classes::Script>>,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_base_script",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_base_script()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_global_name" => {
+                use ::godot::sys;
+                type Sig = (::godot::builtin::StringName,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_global_name",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_global_name()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_inherits_script" => {
+                use ::godot::sys;
+                type Sig = (bool, ::godot::obj::Gd<::godot::classes::Script>);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "inherits_script",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (script,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.inherits_script(script)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_instance_base_type" => {
+                use ::godot::sys;
+                type Sig = (StringName,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_instance_base_type",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_instance_base_type()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_instance_create" => {
+                use ::godot::sys;
+                type Sig = (
+                    *mut ::std::ffi::c_void,
+                    ::godot::obj::Gd<::godot::classes::Object>,
+                );
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "instance_create",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (for_object,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.instance_create(for_object)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_placeholder_instance_create" => {
+                use ::godot::sys;
+                type Sig = (
+                    *mut ::std::ffi::c_void,
+                    ::godot::obj::Gd<::godot::classes::Object>,
+                );
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "placeholder_instance_create",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (for_object,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.placeholder_instance_create(for_object)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_instance_has" => {
+                use ::godot::sys;
+                type Sig = (bool, ::godot::obj::Gd<::godot::classes::Object>);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "instance_has",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (object,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.instance_has(object)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_has_source_code" => {
+                use ::godot::sys;
+                type Sig = (bool,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "has_source_code",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.has_source_code()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_source_code" => {
+                use ::godot::sys;
+                type Sig = (::godot::builtin::GString,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_source_code",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_source_code()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_set_source_code" => {
+                use ::godot::sys;
+                type Sig = ((), ::godot::builtin::GString);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "set_source_code",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (code,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let mut instance = ::godot::private::Storage::get_mut(
+                                    storage,
+                                );
+                                instance.set_source_code(code)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_reload" => {
+                use ::godot::sys;
+                type Sig = (::godot::global::Error, bool);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "reload",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (keep_state,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let mut instance = ::godot::private::Storage::get_mut(
+                                    storage,
+                                );
+                                instance.reload(keep_state)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_documentation" => {
+                use ::godot::sys;
+                type Sig = (::godot::builtin::Array<::godot::builtin::Dictionary>,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_documentation",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_documentation()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_has_method" => {
+                use ::godot::sys;
+                type Sig = (bool, ::godot::builtin::StringName);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "has_method",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (method,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.has_method(method)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_has_static_method" => {
+                use ::godot::sys;
+                type Sig = (bool, ::godot::builtin::StringName);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "has_static_method",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (method,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.has_static_method(method)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_is_tool" => {
+                use ::godot::sys;
+                type Sig = (bool,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "is_tool",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.is_tool()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_is_valid" => {
+                use ::godot::sys;
+                type Sig = (bool,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "is_valid",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.is_valid()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_language" => {
+                use ::godot::sys;
+                type Sig = (Option<::godot::obj::Gd<::godot::classes::ScriptLanguage>>,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_language",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_language()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_has_script_signal" => {
+                use ::godot::sys;
+                type Sig = (bool, ::godot::builtin::StringName);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "has_script_signal",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (signal,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.has_script_signal(signal)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_script_method_list" => {
+                use ::godot::sys;
+                type Sig = (::godot::builtin::Array<::godot::builtin::Dictionary>,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_script_method_list",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_script_method_list()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_has_property_default_value" => {
+                use ::godot::sys;
+                type Sig = (bool, ::godot::builtin::StringName);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "has_property_default_value",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (property,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.has_property_default_value(property)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_update_exports" => {
+                use ::godot::sys;
+                type Sig = ((),);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "update_exports",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let mut instance = ::godot::private::Storage::get_mut(
+                                    storage,
+                                );
+                                instance.update_exports()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_script_property_list" => {
+                use ::godot::sys;
+                type Sig = (::godot::builtin::Array<::godot::builtin::Dictionary>,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_script_property_list",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_script_property_list()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_member_line" => {
+                use ::godot::sys;
+                type Sig = (i32, ::godot::builtin::StringName);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_member_line",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (member,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_member_line(member)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_constants" => {
+                use ::godot::sys;
+                type Sig = (::godot::builtin::Dictionary,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_constants",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_constants()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_members" => {
+                use ::godot::sys;
+                type Sig = (::godot::builtin::Array<::godot::builtin::StringName>,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_members",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_members()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_is_placeholder_fallback_enabled" => {
+                use ::godot::sys;
+                type Sig = (bool,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "is_placeholder_fallback_enabled",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.is_placeholder_fallback_enabled()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_rpc_config" => {
+                use ::godot::sys;
+                type Sig = (::godot::builtin::Variant,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_rpc_config",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_rpc_config()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_script_signal_list" => {
+                use ::godot::sys;
+                type Sig = (::godot::builtin::Array<::godot::builtin::Dictionary>,);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_script_signal_list",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_script_signal_list()
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_get_property_default_value" => {
+                use ::godot::sys;
+                type Sig = (::godot::builtin::Variant, ::godot::builtin::StringName);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_property_default_value",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (property,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_property_default_value(property)
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            "_ready" => {
+                use ::godot::sys;
+                type Sig = ((),);
+                unsafe extern "C" fn virtual_fn(
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "ready",
+                    );
+                    let _success = ::godot::private::handle_ptrcall_panic(
+                        &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let mut instance = ::godot::private::Storage::get_mut(
+                                    storage,
+                                );
+                                instance.__before_ready();
+                            },
+                            sys::PtrcallType::Virtual,
+                        ),
+                    );
+                }
+                Some(virtual_fn)
+            }
+            _ => None,
+        }
+    }
+}
+const _: () = {
+    #[allow(non_upper_case_globals)]
+    #[used]
+    #[link_section = ".init_array"]
+    static __init: extern "C" fn() = {
+        #[link_section = ".text.startup"]
+        extern "C" fn __inner_init() {
+            let mut guard = ::godot::private::__godot_rust_plugin___GODOT_PLUGIN_REGISTRY
+                .lock()
+                .unwrap();
+            guard
+                .push(::godot::private::ClassPlugin {
+                    class_name: <ExampleScript as ::godot::obj::GodotClass>::class_name(),
+                    item: ::godot::private::PluginItem::ITraitImpl {
+                        user_register_fn: None,
+                        user_create_fn: None,
+                        user_recreate_fn: None,
+                        user_to_string_fn: None,
+                        user_on_notification_fn: None,
+                        user_set_fn: None,
+                        user_get_fn: {
+                            #[allow(unreachable_patterns)]
+                            #[allow(clippy::match_single_binding)]
+                            match () {
+                                () => {
+                                    Some(
+                                        ::godot::private::callbacks::get_property::<ExampleScript>,
+                                    )
+                                }
+                                _ => None,
+                            }
+                        },
+                        user_get_property_list_fn: None,
+                        user_free_property_list_fn: None,
+                        user_property_get_revert_fn: None,
+                        user_property_can_revert_fn: None,
+                        get_virtual_fn: ::godot::private::callbacks::get_virtual::<
+                            ExampleScript,
+                        >,
+                    },
+                    init_level: <ExampleScript as ::godot::obj::GodotClass>::INIT_LEVEL,
+                });
+        }
+        __inner_init
+    };
+};
+struct ExampleScriptInstance {
+    script: ::godot::obj::Gd<::godot::classes::Script>,
+}
+impl ::std::convert::From<&ExampleScript> for ExampleScriptInstance {
+    fn from(value: &ExampleScript) -> Self {
+        let gd_cast: ::godot::obj::Gd<::godot::classes::Script> = ::godot::obj::WithBaseField::to_gd(
+                value,
+            )
+            .upcast();
+        ExampleScriptInstance {
+            script: gd_cast,
+        }
+    }
+}
+impl ::godot::obj::script::ScriptInstance for ExampleScriptInstance {
+    type Base = ScriptExtension;
+    fn class_name(&self) -> ::godot::builtin::GString {
+        ::godot::builtin::GString::from("ExampleScript")
+    }
+    fn set_property(
+        this: ::godot::obj::script::SiMut<Self>,
+        name: ::godot::builtin::StringName,
+        value: &::godot::builtin::Variant,
+    ) -> bool {
+        false
+    }
+    fn get_property(
+        &self,
+        name: ::godot::builtin::StringName,
+    ) -> Option<::godot::builtin::Variant> {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn get_property_list(&self) -> Vec<::godot::meta::PropertyInfo> {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn get_method_list(&self) -> Vec<::godot::meta::MethodInfo> {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn call(
+        this: ::godot::obj::script::SiMut<Self>,
+        method: ::godot::builtin::StringName,
+        args: &[&::godot::builtin::Variant],
+    ) -> Result<::godot::builtin::Variant, ::godot::sys::GDExtensionCallErrorType> {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn is_placeholder(&self) -> bool {
+        false
+    }
+    fn has_method(&self, method: ::godot::builtin::StringName) -> bool {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn get_script(&self) -> &::godot::obj::Gd<::godot::classes::Script> {
+        &self.script
+    }
+    fn get_property_type(&self, name: ::godot::builtin::StringName) -> VariantType {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn to_string(&self) -> ::godot::builtin::GString {
+        ::godot::builtin::GString::from("ExampleScriptInstance")
+    }
+    fn get_property_state(
+        &self,
+    ) -> Vec<(::godot::builtin::StringName, ::godot::builtin::Variant)> {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn get_language(&self) -> ::godot::obj::Gd<::godot::classes::ScriptLanguage> {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn on_refcount_decremented(&self) -> bool {
+        false
+    }
+    fn on_refcount_incremented(&self) {}
+    fn property_get_fallback(
+        &self,
+        name: ::godot::builtin::StringName,
+    ) -> Option<::godot::builtin::Variant> {
+        ::core::panicking::panic("not yet implemented")
+    }
+    fn property_set_fallback(
+        this: ::godot::obj::script::SiMut<Self>,
+        name: ::godot::builtin::StringName,
+        value: &::godot::builtin::Variant,
+    ) -> bool {
+        ::core::panicking::panic("not yet implemented")
+    }
+}
+impl ::godot::obj::cap::GodotDefault for ExampleScript {
+    fn __godot_user_init(base: ::godot::obj::Base<Self::Base>) -> Self {
+        Self {
+            ex_prop: ::std::default::Default::default(),
+            base: base,
+        }
+    }
+}
+impl ::godot::obj::WithBaseField for ExampleScript {
+    fn to_gd(&self) -> ::godot::obj::Gd<Self> {
+        self.base.to_gd().cast()
+    }
+    fn base_field(
+        &self,
+    ) -> &::godot::obj::Base<<Self as ::godot::obj::GodotClass>::Base> {
+        &self.base
+    }
+}
+impl ExampleScript {
+    pub fn get_ex_prop(&self) -> <i32 as ::godot::meta::GodotConvert>::Via {
+        <i32 as ::godot::register::property::Var>::get_property(&self.ex_prop)
+    }
+    pub fn set_ex_prop(&mut self, ex_prop: <i32 as ::godot::meta::GodotConvert>::Via) {
+        <i32 as ::godot::register::property::Var>::set_property(
+            &mut self.ex_prop,
+            ex_prop,
+        );
+    }
+}
+impl ::godot::obj::cap::ImplementsGodotExports for ExampleScript {
+    fn __register_exports() {
+        {
+            {
+                use ::godot::obj::GodotClass;
+                use ::godot::register::private::method::ClassMethodInfo;
+                use ::godot::builtin::{StringName, Variant};
+                use ::godot::sys;
+                type Sig = (<i32 as ::godot::meta::GodotConvert>::Via,);
+                let method_name = StringName::from("get_ex_prop");
+                unsafe extern "C" fn varcall_fn(
+                    _method_data: *mut std::ffi::c_void,
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstVariantPtr,
+                    arg_count: sys::GDExtensionInt,
+                    ret: sys::GDExtensionVariantPtr,
+                    err: *mut sys::GDExtensionCallError,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_ex_prop",
+                    );
+                    ::godot::private::handle_varcall_panic(
+                        &call_ctx,
+                        &mut *err,
+                        || <Sig as ::godot::meta::VarcallSignatureTuple>::in_varcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            arg_count,
+                            ret,
+                            err,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_ex_prop()
+                            },
+                        ),
+                    );
+                }
+                unsafe extern "C" fn ptrcall_fn(
+                    _method_data: *mut std::ffi::c_void,
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "get_ex_prop",
+                    );
+                    let _success = ::godot::private::handle_panic(
+                        || &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let () = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let instance = ::godot::private::Storage::get(storage);
+                                instance.get_ex_prop()
+                            },
+                            sys::PtrcallType::Standard,
+                        ),
+                    );
+                }
+                let method_info = unsafe {
+                    ClassMethodInfo::from_signature::<
+                        ExampleScript,
+                        Sig,
+                    >(
+                        method_name,
+                        Some(varcall_fn),
+                        Some(ptrcall_fn),
+                        ::godot::global::MethodFlags::NORMAL
+                            | ::godot::global::MethodFlags::CONST,
+                        &[],
+                    )
+                };
+                {
+                    if false {
+                        format_args!(
+                            "   Register fn:   {0}::{1}",
+                            "ExampleScript",
+                            "get_ex_prop",
+                        );
+                    }
+                };
+                method_info.register_extension_class_method();
+            };
+        }
+        {
+            {
+                use ::godot::obj::GodotClass;
+                use ::godot::register::private::method::ClassMethodInfo;
+                use ::godot::builtin::{StringName, Variant};
+                use ::godot::sys;
+                type Sig = ((), <i32 as ::godot::meta::GodotConvert>::Via);
+                let method_name = StringName::from("set_ex_prop");
+                unsafe extern "C" fn varcall_fn(
+                    _method_data: *mut std::ffi::c_void,
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstVariantPtr,
+                    arg_count: sys::GDExtensionInt,
+                    ret: sys::GDExtensionVariantPtr,
+                    err: *mut sys::GDExtensionCallError,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "set_ex_prop",
+                    );
+                    ::godot::private::handle_varcall_panic(
+                        &call_ctx,
+                        &mut *err,
+                        || <Sig as ::godot::meta::VarcallSignatureTuple>::in_varcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            arg_count,
+                            ret,
+                            err,
+                            |instance_ptr, params| {
+                                let (ex_prop,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let mut instance = ::godot::private::Storage::get_mut(
+                                    storage,
+                                );
+                                instance.set_ex_prop(ex_prop)
+                            },
+                        ),
+                    );
+                }
+                unsafe extern "C" fn ptrcall_fn(
+                    _method_data: *mut std::ffi::c_void,
+                    instance_ptr: sys::GDExtensionClassInstancePtr,
+                    args_ptr: *const sys::GDExtensionConstTypePtr,
+                    ret: sys::GDExtensionTypePtr,
+                ) {
+                    let call_ctx = ::godot::meta::CallContext::func(
+                        "ExampleScript",
+                        "set_ex_prop",
+                    );
+                    let _success = ::godot::private::handle_panic(
+                        || &call_ctx,
+                        || <Sig as ::godot::meta::PtrcallSignatureTuple>::in_ptrcall(
+                            instance_ptr,
+                            &call_ctx,
+                            args_ptr,
+                            ret,
+                            |instance_ptr, params| {
+                                let (ex_prop,) = params;
+                                let storage = unsafe {
+                                    ::godot::private::as_storage::<ExampleScript>(instance_ptr)
+                                };
+                                let mut instance = ::godot::private::Storage::get_mut(
+                                    storage,
+                                );
+                                instance.set_ex_prop(ex_prop)
+                            },
+                            sys::PtrcallType::Standard,
+                        ),
+                    );
+                }
+                let method_info = unsafe {
+                    ClassMethodInfo::from_signature::<
+                        ExampleScript,
+                        Sig,
+                    >(
+                        method_name,
+                        Some(varcall_fn),
+                        Some(ptrcall_fn),
+                        ::godot::global::MethodFlags::NORMAL,
+                        &["ex_prop"],
+                    )
+                };
+                {
+                    if false {
+                        format_args!(
+                            "   Register fn:   {0}::{1}",
+                            "ExampleScript",
+                            "set_ex_prop",
+                        );
+                    }
+                };
+                method_info.register_extension_class_method();
+            };
+        }
+        {
+            ::godot::register::private::register_var::<
+                ExampleScript,
+                i32,
+            >(
+                "ex_prop",
+                "get_ex_prop",
+                "set_ex_prop",
+                <i32 as ::godot::register::property::Var>::var_hint(),
+                ::godot::global::PropertyUsageFlags::NONE,
+            );
+        }
+    }
+}
+impl ::godot::obj::UserClass for ExampleScript {
+    fn __config() -> ::godot::private::ClassConfig {
+        ::godot::private::ClassConfig {
+            is_tool: true,
+        }
+    }
+    fn __before_ready(&mut self) {}
+}
+const _: () = {
+    #[allow(non_upper_case_globals)]
+    #[used]
+    #[link_section = ".init_array"]
+    static __init: extern "C" fn() = {
+        #[link_section = ".text.startup"]
+        extern "C" fn __inner_init() {
+            let mut guard = ::godot::private::__godot_rust_plugin___GODOT_PLUGIN_REGISTRY
+                .lock()
+                .unwrap();
+            guard
+                .push(::godot::private::ClassPlugin {
+                    class_name: <ExampleScript as ::godot::obj::GodotClass>::class_name(),
+                    item: ::godot::private::PluginItem::Struct {
+                        base_class_name: <::godot::classes::ScriptExtension as ::godot::obj::GodotClass>::class_name(),
+                        generated_create_fn: Some(
+                            ::godot::private::callbacks::create::<ExampleScript>,
+                        ),
+                        generated_recreate_fn: Some(
+                            ::godot::private::callbacks::recreate::<ExampleScript>,
+                        ),
+                        register_properties_fn: ::godot::private::ErasedRegisterFn {
+                            raw: ::godot::private::callbacks::register_user_properties::<
+                                ExampleScript,
+                            >,
+                        },
+                        free_fn: ::godot::private::callbacks::free::<ExampleScript>,
+                        default_get_virtual_fn: None,
+                        is_tool: true,
+                        is_editor_plugin: false,
+                        is_hidden: false,
+                        is_instantiable: true,
+                    },
+                    init_level: {
+                        let level = <ExampleScript as ::godot::obj::GodotClass>::INIT_LEVEL;
+                        let base_level = <::godot::classes::ScriptExtension as ::godot::obj::GodotClass>::INIT_LEVEL;
+                        if !(level >= base_level) {
+                            {
+                                ::core::panicking::panic_fmt(
+                                    format_args!(
+                                        "Class `{0}` has init level `{1:?}`, but its base class has init level `{2:?}`.\nA class cannot be registered before its base class.",
+                                        "ExampleScript",
+                                        level,
+                                        base_level,
+                                    ),
+                                );
+                            }
+                        }
+                        level
+                    },
+                });
+        }
+        __inner_init
+    };
+};
+unsafe impl ::godot::obj::Inherits<::godot::classes::ScriptExtension> for ExampleScript {}
+unsafe impl ::godot::obj::Inherits<::godot::classes::Script> for ExampleScript {}
+unsafe impl ::godot::obj::Inherits<::godot::classes::Resource> for ExampleScript {}
+unsafe impl ::godot::obj::Inherits<::godot::classes::RefCounted> for ExampleScript {}
+unsafe impl ::godot::obj::Inherits<::godot::classes::Object> for ExampleScript {}

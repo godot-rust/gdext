@@ -1,0 +1,13 @@
+[package]
+name = "script-macro"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+license = "MPL-2.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+godot = { path = "../../../godot", default-features = false }

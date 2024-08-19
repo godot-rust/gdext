@@ -44,3 +44,18 @@ pub struct Fields {
     /// Deprecation warnings.
     pub deprecations: Vec<TokenStream>,
 }
+
+impl Fields {
+    /// Returns all the fields annotated with `#[var]`.
+    pub fn vars(&self) -> Vec<&Field> {
+        let mut vars = Vec::new();
+
+        for field in &self.all_fields {
+            if field.var.is_some() {
+                vars.push(field);
+            }
+        }
+
+        return vars;
+    }
+}

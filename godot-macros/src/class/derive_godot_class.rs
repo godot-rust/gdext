@@ -5,7 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use proc_macro2::{Ident, Punct, TokenStream};
+use proc_macro2::{Ident, Punct, Span, TokenStream};
 use quote::{format_ident, quote};
 
 use crate::class::{
@@ -23,6 +23,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let named_fields = named_fields(class)?;
     let struct_cfg = parse_struct_attributes(class)?;
     let fields = parse_fields(named_fields, struct_cfg.init_strategy)?;
+    let var_fields = fields.vars();
 
     let class_name = &class.name;
     let class_name_str: String = struct_cfg
@@ -36,6 +37,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let is_editor_plugin = struct_cfg.is_editor_plugin;
     let is_hidden = struct_cfg.is_hidden;
     let base_ty = &struct_cfg.base_ty;
+    let script = struct_cfg.script;
     #[cfg(all(feature = "docs", since_api = "4.3"))]
     let docs = crate::docs::make_definition_docs(
         base_ty.to_string(),
@@ -69,6 +71,12 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
 
     let (user_class_impl, has_default_virtual) =
         make_user_class_impl(class_name, struct_cfg.is_tool, &fields.all_fields);
+    
+    let script_impl = if script {
+        make_script_impl(class_name, class_name_str.clone(), base_ty, var_fields)?
+    } else {
+        quote!{}
+    };
 
     let mut init_expecter = TokenStream::new();
     let mut godot_init_impl = TokenStream::new();
@@ -133,6 +141,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
             type Exportable = <<Self as ::godot::obj::GodotClass>::Base as ::godot::obj::Bounds>::Exportable;
         }
 
+        #script_impl
         #godot_init_impl
         #godot_withbase_impl
         #godot_exports_impl
@@ -190,7 +199,7 @@ pub fn make_existence_check(ident: &Ident) -> TokenStream {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 enum InitStrategy {
     Generated,
     UserDefined,
@@ -204,6 +213,7 @@ struct ClassAttributes {
     is_editor_plugin: bool,
     is_hidden: bool,
     rename: Option<Ident>,
+    script: bool
 }
 
 fn make_godot_init_impl(class_name: &Ident, fields: &Fields) -> TokenStream {
@@ -305,6 +315,339 @@ fn make_user_class_impl(
     (user_class_impl, default_virtual_fn.is_some())
 }
 
+/// Creates the script instance struct and implements [crate::obj::script::ScriptInstance]
+/// and [crate::classes::IScriptExtension] on their appropriate types.
+fn make_script_impl(class_name: &Ident, class_name_str: String, base_ty: &Ident, var_fields: Vec<&Field>) -> ParseResult<TokenStream> {
+    let instance_class_name_str = format!("{}Instance", class_name_str);
+    let instance_class_name = Ident::new(&instance_class_name_str, Span::call_site());
+
+    // turn var_fields into a useful property list
+
+    // for get_script_property_list (Array<Dictionary>)
+    let mut prop_list = quote! {};
+    for prop in &var_fields {
+        let name = format!("{}", prop.name);
+        let f_type = if let Some(path) = prop.ty.as_path() {
+            path
+        } else {
+            return Err(venial::Error::new(format!("The property {} is not a valid type", name)));
+        };
+
+        // Check if it is a Gd<>
+        // Left empty if it is a builtin type
+        let mut prop_class_name = String::new();
+        let mut gd_builtin_type = quote! { r#""type": 0"# };
+        if format!("{}", f_type.segments[0].ident) == "godot" {
+            if format!("{}", f_type.segments[1].ident) == "obj" {
+                if format!("{}", f_type.segments[2].ident) == "Gd" {
+                    if let Some(generic) = &f_type.segments[2].generic_args {
+                        if let Some((generic, _)) = generic.args.first() {
+                            if let venial::GenericArg::TypeOrConst { expr } = generic {
+                                if let Some(path) = expr.as_path() {
+                                    // The contained generic cannot contain a generic as that's
+                                    // not supported by godot yet, so the last argument is guaranteed the actual type
+                                    prop_class_name = format!("{}", path.segments[path.segments.len() - 1].ident);
+                                    // 24 = Object
+                                    gd_builtin_type = quote! { r#""type": 24"# };
+                                } else {
+                                    return Err(venial::Error::new(format!("The property {} is not a valid type", name)));
+                                };
+                            }
+                        }
+                    } else {
+                        let ident: proc_macro2::Ident = f_type.segments[2].ident.clone();
+
+                        return bail! {
+                            ident,
+                            "One of the properties is a godot::obj::Gd with no generic argument. This should be impossible."
+                        };
+                    }
+                }
+            } else if format!("{}", f_type.segments[1].ident) == "builtin" {
+                gd_builtin_type = quote! { "type": ::godot::builtin::Variant::from(#f_type::new()).get_type() as u8 };
+            }
+        }
+
+        // determine meta info about the property, e.g. exported
+        // TODO 
+
+        prop_list = quote!{
+            #prop_list,
+            ::godot::builtin::dict! {
+                "name": ::godot::builtin::GString::from(#name),
+                "class_name": ::godot::builtin::StringName::from(#prop_class_name),
+                "type": 0,
+                "hint": 0,
+                "hint_string": ::godot::builtin::GString::new(),
+                "usage": 0
+            }
+        };
+    }
+
+    // All into one Array
+    prop_list = quote! {
+        ::godot::builtin::array! [#prop_list]
+    };
+
+    // create a match for get_property
+    let mut get_property_match = quote! {};
+    for prop in &var_fields {
+        let name_str = format!("{}", prop.name);
+        let name = prop.name.clone();
+
+        get_property_match = quote!{
+            ::godot::builtin::StringName::from(#name_str) => Some(self.#name),
+        };
+    }
+
+    get_property_match = quote! {
+        match property {
+            #get_property_match
+            _ => None
+        }
+    };
+
+    return Ok(quote! {
+        use ::godot::classes::IScriptExtension;
+        #[godot_api]
+        impl ::godot::classes::IScriptExtension for #class_name {
+            fn editor_can_reload_from_file(&mut self) -> bool {
+                // The script is compiled along with the GDExtension, and reloaded with it.
+                false
+            }
+            fn get_method_info(&self, method: StringName) -> Dictionary {
+                todo!()
+            }
+
+            fn can_instantiate(&self) -> bool {
+                true
+            }
+
+            fn get_base_script(&self) -> Option<::godot::obj::Gd<::godot::classes::Script>> {
+                Some(self.base().clone().upcast())
+            }
+
+            fn get_global_name(&self) -> ::godot::builtin::StringName {
+                ::godot::builtin::StringName::from(#class_name_str)
+            }
+
+            fn inherits_script(&self, script: ::godot::obj::Gd<::godot::classes::Script>) -> bool {
+                // unwrap safe: get_base_script always succeeds
+                if self.get_base_script().unwrap() == script {
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+
+            fn get_instance_base_type(&self) -> StringName {
+                ::godot::builtin::StringName::from(c"ScriptExtension")
+            }
+
+            unsafe fn instance_create(&self, for_object: ::godot::obj::Gd<::godot::classes::Object>) -> *mut ::std::ffi::c_void {
+                let inst: #instance_class_name = #instance_class_name::from(self);
+                let for_dcast: ::godot::obj::Gd<::godot::classes::ScriptExtension> = for_object.cast();
+                ::godot::obj::script::create_script_instance(inst, for_dcast)
+            }
+
+            unsafe fn placeholder_instance_create(&self, _for_object: ::godot::obj::Gd<::godot::classes::Object>) -> *mut ::std::ffi::c_void {
+                unreachable!("{} is not a placeholder!", #class_name_str);
+            }
+
+            fn instance_has(&self, object: ::godot::obj::Gd<::godot::classes::Object>) -> bool {
+                return match object.get_script().try_to::<::godot::obj::Gd<Self>>() {
+                    Ok(_) => true,
+                    Err(_) => false
+                };
+            }
+
+            fn has_source_code(&self) -> bool {
+                false
+            }
+
+            fn get_source_code(&self) -> ::godot::builtin::GString {
+                // has_source_code returns false, should never be called
+                unreachable!("{} has no source code!", #class_name_str);
+            }
+
+            fn set_source_code(&mut self, code: ::godot::builtin::GString) {
+                // has_source_code returns false, should never be called
+                unreachable!("{} has no source code!", #class_name_str);
+            }
+
+            fn reload(&mut self, keep_state: bool) -> ::godot::global::Error {
+                // editor_can_reload_from_file returns false, should never be called
+                unreachable!("{} should never be reloaded!", #class_name_str);
+            }
+
+            fn get_documentation(&self) -> ::godot::builtin::Array<::godot::builtin::Dictionary> {
+                todo!("Parse custom methods for #[script(doc = blah)]")
+            }
+
+            fn has_method(&self, method: ::godot::builtin::StringName) -> bool {
+                todo!("Custom methods")
+            }
+
+            fn has_static_method(&self, method: ::godot::builtin::StringName) -> bool {
+                todo!("Custom methods")
+            }
+
+            fn is_tool(&self) -> bool {
+                true
+            }
+
+            fn is_valid(&self) -> bool {
+                true
+            }
+
+            fn get_language(&self) -> Option<::godot::obj::Gd<::godot::classes::ScriptLanguage>> {
+                todo!()
+            }
+
+            fn has_script_signal(&self, signal: ::godot::builtin::StringName) -> bool {
+                todo!()
+            }
+
+            fn get_script_method_list(&self) -> ::godot::builtin::Array<::godot::builtin::Dictionary> {
+                todo!()
+            }
+
+            fn has_property_default_value(&self, property: ::godot::builtin::StringName) -> bool {
+                todo!("What is this?")
+            }
+
+            fn get_property(&self, property: ::godot::builtin::StringName) -> Option<::godot::builtin::Variant> {
+                return #get_property_match
+            }
+
+            fn update_exports(&mut self) {
+                todo!()
+            }
+
+            fn get_script_property_list(&self) -> ::godot::builtin::Array<::godot::builtin::Dictionary> {
+                #prop_list
+            }
+
+            fn get_member_line(&self, member: ::godot::builtin::StringName) -> i32 {
+                // Script is compiled Rust, should never be called
+                unreachable!("{} has no source code!", #class_name_str);
+            }
+
+            fn get_constants(&self) -> ::godot::builtin::Dictionary {
+                todo!()
+            }
+
+            fn get_members(&self) -> ::godot::builtin::Array<::godot::builtin::StringName> {
+                todo!()
+            }
+
+            fn is_placeholder_fallback_enabled(&self) -> bool {
+                false
+            }
+
+            fn get_rpc_config(&self) -> ::godot::builtin::Variant {
+                todo!()
+            }
+
+            fn get_script_signal_list(&self) -> ::godot::builtin::Array<::godot::builtin::Dictionary> {
+                todo!()
+            }
+
+            fn get_property_default_value(&self, property: ::godot::builtin::StringName) -> ::godot::builtin::Variant {
+                todo!()
+            }
+        }
+
+        struct #instance_class_name {
+            script: ::godot::obj::Gd<::godot::classes::Script>
+        }
+
+        impl ::std::convert::From<&#class_name> for #instance_class_name {
+            fn from(value: &#class_name) -> Self {
+                let gd_cast: ::godot::obj::Gd<::godot::classes::Script> = ::godot::obj::WithBaseField::to_gd(value).upcast();
+
+                #instance_class_name {
+                    script: gd_cast
+                }
+            }
+        }
+
+        impl ::godot::obj::script::ScriptInstance for #instance_class_name {
+            type Base = #base_ty;
+
+            fn class_name(&self) -> ::godot::builtin::GString {
+                ::godot::builtin::GString::from(#class_name_str)
+            }
+
+            fn set_property(this: ::godot::obj::script::SiMut<Self>, name: ::godot::builtin::StringName, value: &::godot::builtin::Variant) -> bool {
+                false
+            }
+
+            fn get_property(&self, name: ::godot::builtin::StringName) -> Option<::godot::builtin::Variant> {
+                todo!()
+            }
+
+            fn get_property_list(&self) -> Vec<::godot::meta::PropertyInfo> {
+                todo!()
+            }
+
+            fn get_method_list(&self) -> Vec<::godot::meta::MethodInfo> {
+                todo!()
+            }
+
+            fn call(
+                this: ::godot::obj::script::SiMut<Self>,
+                method: ::godot::builtin::StringName,
+                args: &[&::godot::builtin::Variant],
+            ) -> Result<::godot::builtin::Variant, ::godot::sys::GDExtensionCallErrorType> {
+                todo!()
+            }
+
+            fn is_placeholder(&self) -> bool {
+                false
+            }
+
+            fn has_method(&self, method: ::godot::builtin::StringName) -> bool {
+                todo!()
+            }
+
+            fn get_script(&self) -> &::godot::obj::Gd<::godot::classes::Script> {
+                &self.script
+            }
+
+            fn get_property_type(&self, name: ::godot::builtin::StringName) -> VariantType {
+                todo!()
+            }
+
+            fn to_string(&self) -> ::godot::builtin::GString {
+                ::godot::builtin::GString::from(#instance_class_name_str)
+            }
+
+            fn get_property_state(&self) -> Vec<(::godot::builtin::StringName, ::godot::builtin::Variant)> {
+                todo!()
+            }
+
+            fn get_language(&self) -> ::godot::obj::Gd<::godot::classes::ScriptLanguage> {
+                todo!()
+            }
+
+            fn on_refcount_decremented(&self) -> bool {
+                false
+            }
+
+            fn on_refcount_incremented(&self) {}
+
+            fn property_get_fallback(&self, name: ::godot::builtin::StringName) -> Option<::godot::builtin::Variant> {
+                todo!()
+            }
+
+            fn property_set_fallback(this: ::godot::obj::script::SiMut<Self>, name: ::godot::builtin::StringName, value: &::godot::builtin::Variant) -> bool {
+                todo!()
+            }
+        }
+    });
+}
+
 /// Returns the name of the base and the default mode
 fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttributes> {
     let mut base_ty = ident("RefCounted");
@@ -313,6 +656,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
     let mut is_editor_plugin = false;
     let mut is_hidden = false;
     let mut rename: Option<Ident> = None;
+    let mut script = false;
 
     // #[class] attribute on struct
     if let Some(mut parser) = KvParser::parse(&class.attributes, "class")? {
@@ -365,6 +709,32 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
             is_hidden = true;
         }
 
+        // #[class(script)]
+        if let Some(attr_key) = parser.handle_alone_with_span("script")? {
+            script = true;
+
+            if base_ty != ident("ScriptExtension") {
+                return bail!(
+                    attr_key,
+                    "#[class(script)] requires additional key-value base=ScriptExtension"
+                );
+            }
+
+            if !is_tool {
+                return bail!(
+                    attr_key,
+                    "#[class(script)] requires additional key `tool`"
+                );
+            }
+
+            if init_strategy != InitStrategy::Generated {
+                return bail!(
+                    attr_key,
+                    "#[class(script)] requires additional key `init`"
+                );
+            }
+        }
+
         parser.finish()?;
     }
 
@@ -375,6 +745,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         is_editor_plugin,
         is_hidden,
         rename,
+        script
     })
 }
 
