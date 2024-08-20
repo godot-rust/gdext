@@ -442,3 +442,4 @@ impl_pointer_convert!(*mut *const u8);
 impl_pointer_convert!(*mut i32);
 impl_pointer_convert!(*mut f64);
 impl_pointer_convert!(*mut u8);
+impl_pointer_convert!(*const u8);
