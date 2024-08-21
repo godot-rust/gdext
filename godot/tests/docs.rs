@@ -7,7 +7,7 @@
  */
 use godot::prelude::*;
 
-/// *documented* ~ **documented** ~ [AABB] [pr](https://github.com/godot-rust/gdext/pull/748)
+/// *documented* ~ **documented** ~ [AABB] < [pr](https://github.com/godot-rust/gdext/pull/748)
 ///
 /// a few tests:
 ///
@@ -72,6 +72,22 @@ use godot::prelude::*;
 /// static main: u64 = 0x31c0678b10;
 /// ```
 ///
+/// Some HTML to make sure it's properly escaped:
+///
+/// <br/> <- this is inline HTML
+///
+/// &lt;br/&gt; <- not considered HTML (manually escaped)
+///
+/// `inline<br/>code`
+///
+/// ```html
+/// <div>
+///   code&nbsp;block
+/// </div>
+/// ```
+///
+/// [Google: 2 + 2 < 5](https://www.google.com/search?q=2+%2B+2+<+5)
+///
 /// connect
 /// these
 #[derive(GodotClass)]
@@ -83,6 +99,9 @@ pub struct FairlyDocumented {
     /// is it documented?
     #[var]
     item_2: i64,
+    #[var]
+    /// this docstring has < a special character
+    item_xml: GString,
     /// this isnt documented
     _other_item: (),
     /// nor this
@@ -97,6 +116,7 @@ impl INode for FairlyDocumented {
             base,
             item: 883.0,
             item_2: 25,
+            item_xml: "".into(),
             _other_item: {},
         }
     }
@@ -111,6 +131,10 @@ impl FairlyDocumented {
     #[constant]
     const PURPOSE: i64 = 42;
 
+    /// this docstring has < a special character
+    #[constant]
+    const XML: i64 = 1;
+
     #[func]
     fn totally_undocumented_function(&self) -> i64 {
         5
@@ -122,6 +146,12 @@ impl FairlyDocumented {
         self.item
     }
 
+    /// Function with lots of special characters (`Gd<Node>`)
+    #[func]
+    fn process_node(&self, node: Gd<Node>) -> Gd<Node> {
+        node
+    }
+
     #[func(gd_self, virtual)]
     fn virtual_undocumented(_s: Gd<Self>) {
         panic!("no implementation")
@@ -130,8 +160,10 @@ impl FairlyDocumented {
     /// some virtual function that should be overridden by a user
     ///
     /// some multiline doc
+    ///
+    /// The `Gd<Node>` param should be properly escaped
     #[func(gd_self, virtual)]
-    fn virtual_documented(_s: Gd<Self>) {
+    fn virtual_documented(_s: Gd<Self>, _node: Gd<Node>) {
         panic!("please provide user implementation")
     }
 
@@ -149,8 +181,10 @@ impl FairlyDocumented {
     /// some user signal
     ///
     /// some multiline doc
+    ///
+    /// The `Gd<Node>` param should be properly escaped
     #[signal]
-    fn documented_signal(p: Vector3, w: f64);
+    fn documented_signal(p: Vector3, w: f64, node: Gd<Node>);
 }
 
 #[test]

@@ -17,7 +17,8 @@ pub fn make_definition_docs(
     members: &[Field],
 ) -> TokenStream {
     (|| {
-        let desc = make_docs_from_attributes(description)?;
+        let base_escaped = xml_escape(base);
+        let desc_escaped = xml_escape(make_docs_from_attributes(description)?);
         let members = members
             .into_iter()
             .filter(|x| x.var.is_some() | x.export.is_some())
@@ -25,8 +26,8 @@ pub fn make_definition_docs(
             .collect::<String>();
         Some(quote! {
             docs: ::godot::docs::StructDocs {
-                base: #base,
-                description: #desc,
+                base: #base_escaped,
+                description: #desc_escaped,
                 members: #members,
             }.into()
         })
@@ -122,6 +123,28 @@ fn siphon_docs_from_attributes(doc: &[Attribute]) -> impl Iterator<Item = String
         })
 }
 
+fn xml_escape(value: String) -> String {
+    // Most strings have no special characters, so this check helps avoid unnecessary string copying
+    if !value.contains(&['&', '<', '>', '"', '\'']) {
+        return value;
+    }
+
+    let mut result = String::with_capacity(value.len());
+
+    for c in value.chars() {
+        match c {
+            '&' => result.push_str("&amp;"),
+            '<' => result.push_str("&lt;"),
+            '>' => result.push_str("&gt;"),
+            '"' => result.push_str("&quot;"),
+            '\'' => result.push_str("&#39;"),
+            c => result.push(c),
+        }
+    }
+
+    result
+}
+
 /// Calls [`siphon_docs_from_attributes`] and converts the result to BBCode
 /// for Godot's consumption.
 fn make_docs_from_attributes(doc: &[Attribute]) -> Option<String> {
@@ -146,7 +169,9 @@ fn make_signal_docs(signal: &SignalDefinition) -> Option<String> {
   {desc}
   </description>
 </signal>
-"#
+"#,
+        name = xml_escape(name.to_string()),
+        desc = xml_escape(desc),
     ))
 }
 
@@ -159,7 +184,10 @@ fn make_constant_docs(constant: &Constant) -> Option<String> {
         .map(|x| x.to_token_stream().to_string())
         .unwrap_or("null".into());
     Some(format!(
-        r#"<constant name="{name}" value="{value}">{docs}</constant>"#
+        r#"<constant name="{name}" value="{value}">{docs}</constant>"#,
+        name = xml_escape(name),
+        value = xml_escape(value),
+        docs = xml_escape(docs),
     ))
 }
 
@@ -169,7 +197,11 @@ pub fn member(member: &Field) -> Option<String> {
     let ty = member.ty.to_token_stream().to_string();
     let default = member.default_val.to_token_stream().to_string();
     Some(format!(
-        r#"<member name="{name}" type="{ty}" default="{default}">{docs}</member>"#
+        r#"<member name="{name}" type="{ty}" default="{default}">{docs}</member>"#,
+        name = xml_escape(name.to_string()),
+        ty = xml_escape(ty),
+        default = xml_escape(default),
+        docs = xml_escape(docs),
     ))
 }
 
@@ -178,7 +210,8 @@ fn params<'a, 'b>(params: impl Iterator<Item = (&'a Ident, &'b TypeExpr)>) -> St
     for (index, (name, ty)) in params.enumerate() {
         output.push_str(&format!(
             r#"<param index="{index}" name="{name}" type="{ty}" />"#,
-            ty = ty.to_token_stream()
+            name = xml_escape(name.to_string()),
+            ty = xml_escape(ty.to_token_stream().to_string()),
         ));
     }
     output
@@ -204,7 +237,10 @@ pub fn make_virtual_method_docs(method: Function) -> Option<String> {
   {desc}
   </description>
 </method>
-"#
+"#,
+        name = xml_escape(name),
+        ret = xml_escape(ret),
+        desc = xml_escape(desc),
     ))
 }
 
@@ -214,7 +250,7 @@ pub fn make_method_docs(method: &FuncDefinition) -> Option<String> {
         .rename
         .clone()
         .unwrap_or_else(|| method.signature_info.method_name.to_string());
-    let ret = method.signature_info.ret_type.to_token_stream();
+    let ret = method.signature_info.ret_type.to_token_stream().to_string();
     let params = params(
         method
             .signature_info
@@ -231,6 +267,9 @@ pub fn make_method_docs(method: &FuncDefinition) -> Option<String> {
   {desc}
   </description>
 </method>
-"#
+"#,
+        name = xml_escape(name),
+        ret = xml_escape(ret),
+        desc = xml_escape(desc),
     ))
 }

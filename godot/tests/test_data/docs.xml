@@ -1,11 +1,12 @@
-
 <?xml version="1.0" encoding="UTF-8"?>
 <class name="FairlyDocumented" inherits="Node" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
-<brief_description>[i]documented[/i] ~ [b]documented[/b] ~ [AABB] [url=https://github.com/godot-rust/gdext/pull/748]pr[/url]</brief_description>
-<description>[i]documented[/i] ~ [b]documented[/b] ~ [AABB] [url=https://github.com/godot-rust/gdext/pull/748]pr[/url][br][br]a few tests:[br][br]headings:[br][br]Some heading[br][br]lists:[br][br][br][br][br][br]links with back-references:[br][br]Blah blah [br][br][br][br]footnotes:[br][br]We cannot florbinate the glorb[br][br][br][br]task lists:[br][br]We must ensure that we've completed[br][br][br][br]tables:[br][br][br][br]images:[br][br][img]http://url/a.png[/img][br][br]blockquotes:[br][br][br][br]ordered list:[br][br][br][br]Something here < this is technically header syntax[br][br]And here[br][br]smart punctuation[br][br]codeblocks:[br][br][codeblock]#![no_main]
-#[link_section=\".text\"]
+<brief_description>[i]documented[/i] ~ [b]documented[/b] ~ [AABB] &lt; [url=https://github.com/godot-rust/gdext/pull/748]pr[/url]</brief_description>
+<description>[i]documented[/i] ~ [b]documented[/b] ~ [AABB] &lt; [url=https://github.com/godot-rust/gdext/pull/748]pr[/url][br][br]a few tests:[br][br]headings:[br][br]Some heading[br][br]lists:[br][br][br][br][br][br]links with back-references:[br][br]Blah blah [br][br][br][br]footnotes:[br][br]We cannot florbinate the glorb[br][br][br][br]task lists:[br][br]We must ensure that we&#39;ve completed[br][br][br][br]tables:[br][br][br][br]images:[br][br][img]http://url/a.png[/img][br][br]blockquotes:[br][br][br][br]ordered list:[br][br][br][br]Something here &lt; this is technically header syntax[br][br]And here[br][br]smart punctuation[br][br]codeblocks:[br][br][codeblock]#![no_main]
+#[link_section=\&quot;.text\&quot;]
 #[no_mangle]
-static main: u64 = 0x31c0678b10;[/codeblock][br][br]connect
+static main: u64 = 0x31c0678b10;[/codeblock][br][br]Some HTML to make sure it&#39;s properly escaped:[br][br]&lt;br/&gt; &lt;- this is inline HTML[br][br]&lt;br/&gt; &lt;- not considered HTML (manually escaped)[br][br][code]inline&lt;br/&gt;code[/code][br][br][codeblock]&lt;div&gt;
+  code&amp;nbsp;block
+&lt;/div&gt;[/codeblock][br][br][url=https://www.google.com/search?q=2+%2B+2+&lt;+5]Google: 2 + 2 &lt; 5[/url][br][br]connect
 these</description>
 <methods>
 <method name="ye">
@@ -16,16 +17,24 @@ these</description>
   </description>
 </method>
 
+<method name="process_node">
+  <return type="Gd &lt; Node &gt;" />
+  <param index="0" name="node" type="Gd &lt; Node &gt;" />
+  <description>
+  Function with lots of special characters ([code]Gd&lt;Node&gt;[/code])
+  </description>
+</method>
+
 <method name="virtual_documented">
   <return type="()" />
-  
+  <param index="0" name="node" type="Gd &lt; Node &gt;" />
   <description>
-  some virtual function that should be overridden by a user[br][br]some multiline doc
+  some virtual function that should be overridden by a user[br][br]some multiline doc[br][br]The [code]Gd&lt;Node&gt;[/code] param should be properly escaped
   </description>
 </method>
 
 <method name="ne">
-  <return type="Gd < FairlyDocumented >" />
+  <return type="Gd &lt; FairlyDocumented &gt;" />
   <param index="0" name="x" type="f32" />
   <description>
   wow[br][br]some multiline doc
@@ -34,20 +43,20 @@ these</description>
 
 <method name="_init">
   <return type="Self" />
-  <param index="0" name="base" type="Base < Node >" />
+  <param index="0" name="base" type="Base &lt; Node &gt;" />
   <description>
   initialize this
   </description>
 </method>
 </methods>
-<constants><constant name="RANDOM" value="4">Documentation.</constant></constants>
+<constants><constant name="RANDOM" value="4">Documentation.</constant><constant name="XML" value="1">this docstring has &lt; a special character</constant></constants>
 <signals>
 <signal name="documented_signal">
-  <param index="0" name="p" type="Vector3" /><param index="1" name="w" type="f64" />
+  <param index="0" name="p" type="Vector3" /><param index="1" name="w" type="f64" /><param index="2" name="node" type="Gd &lt; Node &gt;" />
   <description>
-  some user signal[br][br]some multiline doc
+  some user signal[br][br]some multiline doc[br][br]The [code]Gd&lt;Node&gt;[/code] param should be properly escaped
   </description>
 </signal>
 </signals>
-<members><member name="item" type="f32" default="">this is very documented</member><member name="item_2" type="i64" default="">is it documented?</member></members>
+<members><member name="item" type="f32" default="">this is very documented</member><member name="item_2" type="i64" default="">is it documented?</member><member name="item_xml" type="GString" default="">this docstring has &lt; a special character</member></members>
 </class>
