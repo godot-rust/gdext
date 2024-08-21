@@ -62,6 +62,7 @@ fn walk_node(node: &Node, definitions: &HashMap<&str, &str>) -> Option<String> {
         List(_) | BlockQuote(_) | FootnoteReference(_) | FootnoteDefinition(_) | Table(_) => {
             "".into()
         }
+        Html(html) => html.value.clone(),
         _ => walk_nodes(&node.children()?, definitions, ""),
     };
     Some(bbcode)

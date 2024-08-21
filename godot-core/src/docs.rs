@@ -18,6 +18,7 @@ use std::collections::HashMap;
 ///    x: f32,
 /// }
 /// ```
+/// All fields are XML parts, escaped where necessary.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct StructDocs {
     pub base: &'static str,
@@ -41,6 +42,7 @@ pub struct StructDocs {
 ///
 /// }
 /// ```
+/// All fields are XML parts, escaped where necessary.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct InherentImplDocs {
     pub methods: &'static str,
@@ -114,8 +116,7 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
                 .map(|(x, _)| x)
                 .unwrap_or_default();
 
-            format!(r#"
-<?xml version="1.0" encoding="UTF-8"?>
+            format!(r#"<?xml version="1.0" encoding="UTF-8"?>
 <class name="{class}" inherits="{base}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
 <brief_description>{brief}</brief_description>
 <description>{description}</description>
