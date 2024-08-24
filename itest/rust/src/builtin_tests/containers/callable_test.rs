@@ -4,13 +4,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
 use godot::builtin::inner::InnerCallable;
 use godot::builtin::{varray, Callable, GString, StringName, Variant};
 use godot::classes::{Node2D, Object};
 use godot::meta::ToGodot;
 use godot::obj::{NewAlloc, NewGd};
 use godot::register::{godot_api, GodotClass};
+use std::fmt::{Display, Formatter};
+use std::hash::Hasher;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::framework::itest;
 
@@ -159,10 +161,10 @@ impl CallableRefcountTest {
 // Tests and infrastructure for custom callables
 
 #[cfg(since_api = "4.2")]
-mod custom_callable {
+pub mod custom_callable {
     use super::*;
     use crate::framework::assert_eq_self;
-    use godot::builtin::Dictionary;
+    use godot::builtin::{Dictionary, RustCallable};
     use std::fmt;
     use std::hash::Hash;
     use std::sync::{Arc, Mutex};
@@ -287,6 +289,29 @@ mod custom_callable {
         assert_eq!(eq_count(&bt), 1, "hash collision, eq for b needed");
     }
 
+    #[itest]
+    fn callable_callv_panic_from_fn() {
+        let received = Arc::new(AtomicU32::new(0));
+        let received_callable = received.clone();
+        let callable = Callable::from_fn("test", move |_args| {
+            panic!("TEST: {}", received_callable.fetch_add(1, Ordering::SeqCst))
+        });
+
+        assert_eq!(Variant::nil(), callable.callv(varray![]));
+
+        assert_eq!(1, received.load(Ordering::SeqCst));
+    }
+
+    #[itest]
+    fn callable_callv_panic_from_custom() {
+        let received = Arc::new(AtomicU32::new(0));
+        let callable = Callable::from_custom(PanicCallable(received.clone()));
+
+        assert_eq!(Variant::nil(), callable.callv(varray![]));
+
+        assert_eq!(1, received.load(Ordering::SeqCst));
+    }
+
     struct Adder {
         sum: i32,
 
@@ -364,6 +389,32 @@ mod custom_callable {
 
     fn hash_count(tracker: &Arc<Mutex<Tracker>>) -> usize {
         tracker.lock().unwrap().hash_counter
+    }
+
+    pub struct PanicCallable(pub Arc<AtomicU32>);
+
+    impl PartialEq for PanicCallable {
+        fn eq(&self, other: &Self) -> bool {
+            Arc::ptr_eq(&self.0, &other.0)
+        }
+    }
+
+    impl Hash for PanicCallable {
+        fn hash<H: Hasher>(&self, state: &mut H) {
+            state.write_usize(Arc::as_ptr(&self.0) as usize)
+        }
+    }
+
+    impl Display for PanicCallable {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "test")
+        }
+    }
+
+    impl RustCallable for PanicCallable {
+        fn invoke(&mut self, _args: &[&Variant]) -> Result<Variant, ()> {
+            panic!("TEST: {}", self.0.fetch_add(1, Ordering::SeqCst))
+        }
     }
 }
 

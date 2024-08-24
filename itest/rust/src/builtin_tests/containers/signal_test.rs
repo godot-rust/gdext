@@ -5,11 +5,10 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-use std::cell::Cell;
-
 use godot::builtin::{Callable, GString, Signal, StringName, Variant};
 use godot::meta::ToGodot;
 use godot::register::{godot_api, GodotClass};
+use std::cell::Cell;
 
 use godot::classes::{Object, RefCounted};
 use godot::obj::{Base, Gd, NewAlloc, NewGd, WithBaseField};
@@ -148,4 +147,156 @@ fn connect_signal() {
     assert!(receiver.bind().used[1].get());
 
     receiver.free();
+}
+
+#[cfg(since_api = "4.2")]
+mod custom_callable {
+    use godot::builtin::{Callable, Signal, StringName};
+    use godot::meta::ToGodot;
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::sync::Arc;
+
+    use godot::classes::Node;
+    use godot::obj::{Gd, NewAlloc};
+
+    use crate::builtin_tests::containers::callable_test::custom_callable::PanicCallable;
+    use crate::framework::{itest, TestContext};
+
+    #[itest]
+    fn connect_signal_panic_user_from_fn() {
+        connect_signal_panic_shared(
+            "test_signal",
+            connect_signal_panic_from_fn,
+            |node| {
+                node.add_user_signal("test_signal".into());
+            },
+            |node| {
+                node.emit_signal(StringName::from("test_signal"), &[987i64.to_variant()]);
+            },
+        );
+    }
+
+    #[itest]
+    fn connect_signal_panic_user_from_custom() {
+        connect_signal_panic_shared(
+            "test_signal",
+            connect_signal_panic_from_custom,
+            |node| {
+                node.add_user_signal("test_signal".into());
+            },
+            |node| {
+                node.emit_signal(StringName::from("test_signal"), &[987i64.to_variant()]);
+            },
+        );
+    }
+
+    #[itest]
+    fn connect_signal_panic_from_fn_tree_entered(ctx: &TestContext) {
+        connect_signal_panic_shared(
+            "tree_entered",
+            connect_signal_panic_from_fn,
+            |_node| {},
+            |node| {
+                ctx.scene_tree.clone().add_child(&*node);
+                ctx.scene_tree.clone().remove_child(&*node);
+            },
+        );
+    }
+
+    #[itest]
+    fn connect_signal_panic_from_custom_tree_entered(ctx: &TestContext) {
+        connect_signal_panic_shared(
+            "tree_entered",
+            connect_signal_panic_from_custom,
+            |_node| {},
+            |node| {
+                ctx.scene_tree.clone().add_child(&*node);
+                ctx.scene_tree.clone().remove_child(&*node);
+            },
+        );
+    }
+
+    #[itest]
+    fn connect_signal_panic_from_fn_tree_exiting(ctx: &TestContext) {
+        connect_signal_panic_shared(
+            "tree_exiting",
+            connect_signal_panic_from_fn,
+            |_node| {},
+            |node| {
+                ctx.scene_tree.clone().add_child(&*node);
+                ctx.scene_tree.clone().remove_child(&*node);
+            },
+        );
+    }
+
+    #[itest]
+    fn connect_signal_panic_from_custom_tree_exiting(ctx: &TestContext) {
+        connect_signal_panic_shared(
+            "tree_exiting",
+            connect_signal_panic_from_custom,
+            |_node| {},
+            |node| {
+                ctx.scene_tree.clone().add_child(&*node);
+                ctx.scene_tree.clone().remove_child(&*node);
+            },
+        );
+    }
+
+    #[itest]
+    fn connect_signal_panic_from_fn_tree_exited(ctx: &TestContext) {
+        connect_signal_panic_shared(
+            "tree_exited",
+            connect_signal_panic_from_fn,
+            |_node| {},
+            |node| {
+                ctx.scene_tree.clone().add_child(&*node);
+                ctx.scene_tree.clone().remove_child(&*node);
+            },
+        );
+    }
+
+    #[itest]
+    fn connect_signal_panic_from_custom_tree_exited(ctx: &TestContext) {
+        connect_signal_panic_shared(
+            "tree_exited",
+            connect_signal_panic_from_custom,
+            |_node| {},
+            |node| {
+                ctx.scene_tree.clone().add_child(&*node);
+                ctx.scene_tree.clone().remove_child(&*node);
+            },
+        );
+    }
+
+    fn connect_signal_panic_shared(
+        signal: &str,
+        callable: impl FnOnce(Arc<AtomicU32>) -> Callable,
+        before: impl FnOnce(&mut Gd<Node>),
+        emit: impl FnOnce(&mut Gd<Node>),
+    ) {
+        let mut node = Node::new_alloc();
+        before(&mut node);
+
+        let signal = Signal::from_object_signal(&node, signal);
+
+        let received = Arc::new(AtomicU32::new(0));
+        let callable = callable(received.clone());
+        signal.connect(callable, 0);
+
+        emit(&mut node);
+
+        assert_eq!(1, received.load(Ordering::SeqCst));
+
+        node.free();
+    }
+
+    fn connect_signal_panic_from_fn(received: Arc<AtomicU32>) -> Callable {
+        Callable::from_fn("test", move |_args| {
+            panic!("TEST: {}", received.fetch_add(1, Ordering::SeqCst))
+        })
+    }
+
+    fn connect_signal_panic_from_custom(received: Arc<AtomicU32>) -> Callable {
+        Callable::from_custom(PanicCallable(received))
+    }
 }
