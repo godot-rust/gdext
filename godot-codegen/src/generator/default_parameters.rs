@@ -26,6 +26,7 @@ pub fn make_function_definition_with_defaults(
 
     let simple_fn_name = safe_ident(sig.name());
     let extended_fn_name = format_ident!("{}_ex", simple_fn_name);
+    let default_parameter_usage = format!("To set the default parameters, use [`Self::{}`] and its builder methods.  See [the book](https://godot-rust.github.io/book/godot-api/functions.html#default-parameters) for detailed usage instructions.", extended_fn_name);
     let vis = functions_common::make_vis(sig.is_private());
 
     let (builder_doc, surround_class_prefix) = make_extender_doc(sig, &extended_fn_name);
@@ -101,6 +102,7 @@ pub fn make_function_definition_with_defaults(
     };
 
     let functions = quote! {
+    #[doc = #default_parameter_usage]
         #[inline]
         #vis fn #simple_fn_name(
             #receiver_param
