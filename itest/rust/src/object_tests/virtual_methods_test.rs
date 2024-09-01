@@ -153,12 +153,12 @@ impl IPrimitiveMesh for VirtualReturnTest {
     fn surface_get_format(&self, _index: i32) -> u32 { unreachable!() }
     fn surface_get_primitive_type(&self, _index: i32) -> u32 { unreachable!() }
     #[cfg(feature = "codegen-full")]
-    fn surface_set_material(&mut self, _index: i32, _material: Gd<Material>) { unreachable!() }
+    fn surface_set_material(&mut self, _index: i32, _material: Option<Gd<Material>>) { unreachable!() }
     #[cfg(feature = "codegen-full")]
     fn surface_get_material(&self, _index: i32) -> Option<Gd<Material>> { unreachable!() }
     fn get_blend_shape_count(&self) -> i32 { unreachable!() }
     fn get_blend_shape_name(&self, _index: i32) -> StringName { unreachable!() }
-    fn set_blend_shape_name(&mut self, _index: i32, _namee: StringName) { unreachable!() }
+    fn set_blend_shape_name(&mut self, _index: i32, _name: StringName) { unreachable!() }
     fn get_aabb(&self) -> godot::prelude::Aabb { unreachable!() }
 }
 

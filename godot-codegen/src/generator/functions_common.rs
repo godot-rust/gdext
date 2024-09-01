@@ -322,8 +322,8 @@ pub(crate) fn make_params_exprs<'a>(
         let param_name = &param.name;
         let param_ty = &param.type_;
 
-        // Objects (Gd<T>) use implicit conversions via AsObjectArg. Only use in non-virtual functions.
         match &param.type_ {
+            // Non-virtual functions: Objects (Gd<T>) use implicit conversions via AsObjectArg.
             RustTy::EngineClass {
                 object_arg,
                 impl_as_object_arg,
@@ -346,6 +346,14 @@ pub(crate) fn make_params_exprs<'a>(
                 param_types.push(quote! { #object_arg });
             }
 
+            // Virtual methods accept Option<Gd<T>>, since we don't know whether objects are nullable or required.
+            RustTy::EngineClass { .. } if is_virtual => {
+                params.push(quote! { #param_name: Option<#param_ty> });
+                arg_names.push(quote! { #param_name });
+                param_types.push(quote! { #param_ty });
+            }
+
+            // All other methods and parameter types: standard handling.
             _ => {
                 params.push(quote! { #param_name: #param_ty });
                 arg_names.push(quote! { #param_name });
