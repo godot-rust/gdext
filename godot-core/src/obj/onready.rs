@@ -10,6 +10,7 @@ use crate::classes::Node;
 use crate::meta::GodotConvert;
 use crate::obj::{Gd, GodotClass, Inherits};
 use crate::registry::property::Var;
+use std::fmt::{self, Debug, Formatter};
 use std::mem;
 
 /// Ergonomic late-initialization container with `ready()` support.
@@ -103,6 +104,7 @@ use std::mem;
 ///     }
 /// }
 /// ```
+#[derive(Debug)]
 pub struct OnReady<T> {
     state: InitState<T>,
 }
@@ -279,4 +281,20 @@ enum InitState<T> {
     AutoPrepared { initializer: Box<InitFn<T>> },
     AutoInitializing, // needed because state cannot be empty
     Initialized { value: T },
+}
+
+impl<T: Debug> Debug for InitState<T> {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            InitState::ManualUninitialized => fmt.debug_struct("ManualUninitialized").finish(),
+            InitState::AutoPrepared { .. } => {
+                fmt.debug_struct("AutoPrepared").finish_non_exhaustive()
+            }
+            InitState::AutoInitializing => fmt.debug_struct("AutoInitializing").finish(),
+            InitState::Initialized { value } => fmt
+                .debug_struct("Initialized")
+                .field("value", value)
+                .finish(),
+        }
+    }
 }
