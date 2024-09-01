@@ -7,6 +7,7 @@
 
 use crate::generator::default_parameters;
 use crate::models::domain::{FnParam, FnQualifier, Function, RustTy};
+use crate::special_cases;
 use crate::util::safe_ident;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -119,12 +120,15 @@ pub fn make_function_definition(
         (TokenStream::new(), TokenStream::new())
     };
 
-    let [params, param_types, arg_names] = make_params_exprs(
-        sig.params().iter(),
-        sig.is_virtual(),
-        !has_default_params, // For *_full function, we don't need impl AsObjectArg<T> parameters
-        !has_default_params, // or arg.as_object_arg() calls.
-    );
+    let [params, param_types, arg_names] = if sig.is_virtual() {
+        make_params_exprs_virtual(sig.params().iter(), sig)
+    } else {
+        make_params_exprs(
+            sig.params().iter(),
+            !has_default_params, // For *_full function, we don't need impl AsObjectArg<T> parameters
+            !has_default_params, // or arg.as_object_arg() calls.
+        )
+    };
 
     let rust_function_name_str = sig.name();
 
@@ -202,7 +206,6 @@ pub fn make_function_definition(
             // A function() may call try_function(), its arguments should not have .as_object_arg().
             let [_, _, arg_names_without_asarg] = make_params_exprs(
                 sig.params().iter(),
-                false,
                 !has_default_params, // For *_full function, we don't need impl AsObjectArg<T> parameters
                 false,               // or arg.as_object_arg() calls.
             );
@@ -307,10 +310,9 @@ pub fn make_vis(is_private: bool) -> TokenStream {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Implementation
 
-// Method could possibly be split -- only one invocation uses all 3 return values, the rest uses only index [0] or [2].
+/// For non-virtual functions, returns the parameter declarations, type tokens, and names.
 pub(crate) fn make_params_exprs<'a>(
     method_args: impl Iterator<Item = &'a FnParam>,
-    is_virtual: bool,
     param_is_impl_asarg: bool,
     arg_is_asarg: bool,
 ) -> [Vec<TokenStream>; 3] {
@@ -328,7 +330,7 @@ pub(crate) fn make_params_exprs<'a>(
                 object_arg,
                 impl_as_object_arg,
                 ..
-            } if !is_virtual => {
+            } => {
                 // Parameter declarations in signature: impl AsObjectArg<T>
                 if param_is_impl_asarg {
                     params.push(quote! { #param_name: #impl_as_object_arg });
@@ -346,8 +348,40 @@ pub(crate) fn make_params_exprs<'a>(
                 param_types.push(quote! { #object_arg });
             }
 
+            // All other methods and parameter types: standard handling.
+            _ => {
+                params.push(quote! { #param_name: #param_ty });
+                arg_names.push(quote! { #param_name });
+                param_types.push(quote! { #param_ty });
+            }
+        }
+    }
+
+    [params, param_types, arg_names]
+}
+
+/// For virtual functions, returns the parameter declarations, type tokens, and names.
+pub(crate) fn make_params_exprs_virtual<'a>(
+    method_args: impl Iterator<Item = &'a FnParam>,
+    function_sig: &dyn Function,
+) -> [Vec<TokenStream>; 3] {
+    let mut params = vec![];
+    let mut param_types = vec![]; // or non-generic params
+    let mut arg_names = vec![];
+
+    for param in method_args {
+        let param_name = &param.name;
+        let param_ty = &param.type_;
+
+        match &param.type_ {
             // Virtual methods accept Option<Gd<T>>, since we don't know whether objects are nullable or required.
-            RustTy::EngineClass { .. } if is_virtual => {
+            RustTy::EngineClass { .. }
+                if !special_cases::is_class_method_param_required(
+                    function_sig.surrounding_class().unwrap(),
+                    function_sig.name(),
+                    param_name,
+                ) =>
+            {
                 params.push(quote! { #param_name: Option<#param_ty> });
                 arg_names.push(quote! { #param_name });
                 param_types.push(quote! { #param_ty });

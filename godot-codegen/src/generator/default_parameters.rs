@@ -50,10 +50,10 @@ pub fn make_function_definition_with_defaults(
     let receiver_self = &code.receiver.self_prefix;
 
     let [required_params_impl_asarg, _, _] =
-        functions_common::make_params_exprs(required_fn_params.iter().cloned(), false, true, true);
+        functions_common::make_params_exprs(required_fn_params.iter().cloned(), true, true);
 
     let [_, _, required_args_internal] =
-        functions_common::make_params_exprs(required_fn_params.into_iter(), false, false, false);
+        functions_common::make_params_exprs(required_fn_params.into_iter(), false, false);
 
     let return_decl = &sig.return_value().decl;
 
