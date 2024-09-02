@@ -9,7 +9,7 @@ use crate::generator::default_parameters;
 use crate::models::domain::{FnParam, FnQualifier, Function, RustTy};
 use crate::special_cases;
 use crate::util::safe_ident;
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
 pub struct FnReceiver {
@@ -84,6 +84,22 @@ impl FnDefinitions {
     }
 }
 
+// Gathers multiple token vectors related to function parameters.
+#[derive(Default)]
+pub struct FnParamTokens {
+    pub params: Vec<TokenStream>,
+    pub param_types: Vec<TokenStream>,
+    pub arg_names: Vec<TokenStream>,
+}
+
+impl FnParamTokens {
+    pub fn push_regular(&mut self, param_name: &Ident, param_ty: &RustTy) {
+        self.params.push(quote! { #param_name: #param_ty });
+        self.arg_names.push(quote! { #param_name });
+        self.param_types.push(quote! { #param_ty });
+    }
+}
+
 pub fn make_function_definition(
     sig: &dyn Function,
     code: &FnCode,
@@ -120,7 +136,11 @@ pub fn make_function_definition(
         (TokenStream::new(), TokenStream::new())
     };
 
-    let [params, param_types, arg_names] = if sig.is_virtual() {
+    let FnParamTokens {
+        params,
+        param_types,
+        arg_names,
+    } = if sig.is_virtual() {
         make_params_exprs_virtual(sig.params().iter(), sig)
     } else {
         make_params_exprs(
@@ -204,7 +224,10 @@ pub fn make_function_definition(
             // This can be made more complex if ever necessary.
 
             // A function() may call try_function(), its arguments should not have .as_object_arg().
-            let [_, _, arg_names_without_asarg] = make_params_exprs(
+            let FnParamTokens {
+                arg_names: arg_names_without_asarg,
+                ..
+            } = make_params_exprs(
                 sig.params().iter(),
                 !has_default_params, // For *_full function, we don't need impl AsObjectArg<T> parameters
                 false,               // or arg.as_object_arg() calls.
@@ -315,10 +338,8 @@ pub(crate) fn make_params_exprs<'a>(
     method_args: impl Iterator<Item = &'a FnParam>,
     param_is_impl_asarg: bool,
     arg_is_asarg: bool,
-) -> [Vec<TokenStream>; 3] {
-    let mut params = vec![];
-    let mut param_types = vec![]; // or non-generic params
-    let mut arg_names = vec![];
+) -> FnParamTokens {
+    let mut ret = FnParamTokens::default();
 
     for param in method_args {
         let param_name = &param.name;
@@ -333,41 +354,35 @@ pub(crate) fn make_params_exprs<'a>(
             } => {
                 // Parameter declarations in signature: impl AsObjectArg<T>
                 if param_is_impl_asarg {
-                    params.push(quote! { #param_name: #impl_as_object_arg });
+                    ret.params.push(quote! { #param_name: #impl_as_object_arg });
                 } else {
-                    params.push(quote! { #param_name: #object_arg });
+                    ret.params.push(quote! { #param_name: #object_arg });
                 }
 
                 // Argument names in function body: arg.as_object_arg() vs. arg
                 if arg_is_asarg {
-                    arg_names.push(quote! { #param_name.as_object_arg() });
+                    ret.arg_names.push(quote! { #param_name.as_object_arg() });
                 } else {
-                    arg_names.push(quote! { #param_name });
+                    ret.arg_names.push(quote! { #param_name });
                 }
 
-                param_types.push(quote! { #object_arg });
+                ret.param_types.push(quote! { #object_arg });
             }
 
             // All other methods and parameter types: standard handling.
-            _ => {
-                params.push(quote! { #param_name: #param_ty });
-                arg_names.push(quote! { #param_name });
-                param_types.push(quote! { #param_ty });
-            }
+            _ => ret.push_regular(param_name, param_ty),
         }
     }
 
-    [params, param_types, arg_names]
+    ret
 }
 
 /// For virtual functions, returns the parameter declarations, type tokens, and names.
 pub(crate) fn make_params_exprs_virtual<'a>(
     method_args: impl Iterator<Item = &'a FnParam>,
     function_sig: &dyn Function,
-) -> [Vec<TokenStream>; 3] {
-    let mut params = vec![];
-    let mut param_types = vec![]; // or non-generic params
-    let mut arg_names = vec![];
+) -> FnParamTokens {
+    let mut ret = FnParamTokens::default();
 
     for param in method_args {
         let param_name = &param.name;
@@ -382,21 +397,17 @@ pub(crate) fn make_params_exprs_virtual<'a>(
                     param_name,
                 ) =>
             {
-                params.push(quote! { #param_name: Option<#param_ty> });
-                arg_names.push(quote! { #param_name });
-                param_types.push(quote! { #param_ty });
+                ret.params.push(quote! { #param_name: Option<#param_ty> });
+                ret.arg_names.push(quote! { #param_name });
+                ret.param_types.push(quote! { #param_ty });
             }
 
             // All other methods and parameter types: standard handling.
-            _ => {
-                params.push(quote! { #param_name: #param_ty });
-                arg_names.push(quote! { #param_name });
-                param_types.push(quote! { #param_ty });
-            }
+            _ => ret.push_regular(param_name, param_ty),
         }
     }
 
-    [params, param_types, arg_names]
+    ret
 }
 
 fn function_uses_pointers(sig: &dyn Function) -> bool {

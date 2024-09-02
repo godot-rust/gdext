@@ -6,7 +6,7 @@
  */
 
 use crate::generator::functions_common;
-use crate::generator::functions_common::FnCode;
+use crate::generator::functions_common::{FnCode, FnParamTokens};
 use crate::models::domain::{FnParam, FnQualifier, Function, RustTy, TyName};
 use crate::util::{ident, safe_ident};
 use crate::{conv, special_cases};
@@ -49,11 +49,15 @@ pub fn make_function_definition_with_defaults(
     let receiver_param = &code.receiver.param;
     let receiver_self = &code.receiver.self_prefix;
 
-    let [required_params_impl_asarg, _, _] =
-        functions_common::make_params_exprs(required_fn_params.iter().cloned(), true, true);
+    let FnParamTokens {
+        params: required_params_impl_asarg,
+        ..
+    } = functions_common::make_params_exprs(required_fn_params.iter().cloned(), true, true);
 
-    let [_, _, required_args_internal] =
-        functions_common::make_params_exprs(required_fn_params.into_iter(), false, false);
+    let FnParamTokens {
+        arg_names: required_args_internal,
+        ..
+    } = functions_common::make_params_exprs(required_fn_params.into_iter(), false, false);
 
     let return_decl = &sig.return_value().decl;
 
