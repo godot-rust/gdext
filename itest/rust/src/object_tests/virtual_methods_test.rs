@@ -19,9 +19,9 @@ use godot::classes::resource_loader::CacheMode;
 #[cfg(feature = "codegen-full")]
 use godot::classes::Material;
 use godot::classes::{
-    BoxMesh, INode, INode2D, IPrimitiveMesh, IRefCounted, IResourceFormatLoader, IRigidBody2D,
-    InputEvent, InputEventAction, Node, Node2D, PrimitiveMesh, RefCounted, ResourceFormatLoader,
-    ResourceLoader, Viewport, Window,
+    BoxMesh, IEditorPlugin, INode, INode2D, IPrimitiveMesh, IRefCounted, IResourceFormatLoader,
+    IRigidBody2D, InputEvent, InputEventAction, Node, Node2D, Object, PrimitiveMesh, RefCounted,
+    ResourceFormatLoader, ResourceLoader, Viewport, Window,
 };
 use godot::meta::ToGodot;
 use godot::obj::{Base, Gd, NewAlloc, NewGd};
@@ -771,5 +771,27 @@ impl GetSetTest {
     #[func]
     fn get_real_always_get_100(&self) -> i64 {
         self.always_get_100
+    }
+}
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// There isn't a good way to test editor plugins, but we can at least declare one to ensure that the macro
+// compiles.
+#[derive(GodotClass)]
+#[class(no_init, base = EditorPlugin, editor_plugin, tool)]
+struct CustomEditorPlugin;
+
+// Just override EditorPlugin::edit() to verify method is declared with Option<T>.
+// See https://github.com/godot-rust/gdext/issues/494.
+#[godot_api]
+impl IEditorPlugin for CustomEditorPlugin {
+    fn edit(&mut self, _object: Option<Gd<Object>>) {
+        // Do nothing.
+    }
+
+    // This parameter is non-null.
+    fn handles(&self, _object: Gd<Object>) -> bool {
+        true
     }
 }
