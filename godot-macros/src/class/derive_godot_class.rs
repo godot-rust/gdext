@@ -26,7 +26,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let is_editor_plugin = struct_cfg.is_editor_plugin();
 
     let mut deprecations = std::mem::take(&mut struct_cfg.deprecations);
-    deprecations.extend(fields.deprecations.drain(..));
+    deprecations.append(&mut fields.deprecations);
 
     let class_name = &class.name;
     let class_name_str: String = struct_cfg
@@ -37,7 +37,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let class_name_cstr = util::c_str(&class_name_str);
     let class_name_obj = util::class_name_obj(class_name);
 
-    let is_hidden = struct_cfg.is_hidden;
+    let is_internal = struct_cfg.is_internal;
     let base_ty = &struct_cfg.base_ty;
     #[cfg(all(feature = "docs", since_api = "4.3"))]
     let docs = crate::docs::make_definition_docs(
@@ -155,7 +155,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
                 default_get_virtual_fn: #default_get_virtual_fn,
                 is_tool: #is_tool,
                 is_editor_plugin: #is_editor_plugin,
-                is_hidden: #is_hidden,
+                is_internal: #is_internal,
                 is_instantiable: #is_instantiable,
                 #docs
             },
@@ -203,7 +203,7 @@ struct ClassAttributes {
     base_ty: Ident,
     init_strategy: InitStrategy,
     is_tool: bool,
-    is_hidden: bool,
+    is_internal: bool,
     rename: Option<Ident>,
     deprecations: Vec<TokenStream>,
 }
@@ -318,7 +318,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
     let mut base_ty = ident("RefCounted");
     let mut init_strategy = InitStrategy::UserDefined;
     let mut is_tool = false;
-    let mut is_hidden = false;
+    let mut is_internal = false;
     let mut rename: Option<Ident> = None;
     let mut deprecations = vec![];
 
@@ -341,22 +341,31 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
             is_tool = true;
         }
 
-        // #[class(editor_plugin)]
+        // Deprecated #[class(editor_plugin)]
         if let Some(_attr_key) = parser.handle_alone_with_span("editor_plugin")? {
             deprecations.push(quote! {
-                ::godot::__deprecated::emit_deprecated_warning!(editor_plugin);
+                ::godot::__deprecated::emit_deprecated_warning!(class_editor_plugin);
             });
         }
 
         // #[class(rename = NewName)]
         rename = parser.handle_ident("rename")?;
 
-        // #[class(hidden)]
-        // TODO consider naming this "internal"; godot-cpp uses that terminology:
-        // https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/class_db.hpp#L327
+        // #[class(internal)]
+        // Named "internal" following Godot terminology: https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/class_db.hpp#L327
+        if let Some(span) = parser.handle_alone_with_span("internal")? {
+            require_api_version!("4.2", span, "#[class(internal)]")?;
+            is_internal = true;
+        }
+
+        // Deprecated #[class(hidden)]
         if let Some(span) = parser.handle_alone_with_span("hidden")? {
             require_api_version!("4.2", span, "#[class(hidden)]")?;
-            is_hidden = true;
+            is_internal = true;
+
+            deprecations.push(quote! {
+                ::godot::__deprecated::emit_deprecated_warning!(class_hidden);
+            });
         }
 
         parser.finish()?;
@@ -368,7 +377,7 @@ fn parse_struct_attributes(class: &venial::Struct) -> ParseResult<ClassAttribute
         base_ty,
         init_strategy,
         is_tool,
-        is_hidden,
+        is_internal,
         rename,
         deprecations,
     })
