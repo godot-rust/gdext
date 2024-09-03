@@ -36,7 +36,7 @@ fn is_type_excluded(ty: &str, ctx: &mut Context) -> bool {
 
     fn is_rust_type_excluded(ty: &RustTy) -> bool {
         match ty {
-            RustTy::BuiltinIdent(_) => false,
+            RustTy::BuiltinIdent { .. } => false,
             RustTy::BuiltinArray { .. } => false,
             RustTy::RawPointer { inner, .. } => is_rust_type_excluded(inner),
             RustTy::EngineArray { elem_class, .. } => is_class_excluded(elem_class.as_str()),

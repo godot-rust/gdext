@@ -95,13 +95,15 @@ pub(crate) fn to_rust_type_abi(ty: &str, ctx: &mut Context) -> (RustTy, bool) {
         "Object*" => {
             is_obj = true;
             RustTy::RawPointer {
-                inner: Box::new(RustTy::BuiltinIdent(ident("c_void"))),
+                inner: Box::new(RustTy::BuiltinIdent {
+                    ty: ident("c_void"),
+                }),
                 is_const: false,
             }
         }
-        "int" => RustTy::BuiltinIdent(ident("i32")),
-        "float" => RustTy::BuiltinIdent(ident("f32")),
-        "double" => RustTy::BuiltinIdent(ident("f64")),
+        "int" => RustTy::BuiltinIdent { ty: ident("i32") },
+        "float" => RustTy::BuiltinIdent { ty: ident("f32") },
+        "double" => RustTy::BuiltinIdent { ty: ident("f64") },
         _ => to_rust_type(ty, None, ctx),
     };
 
@@ -163,7 +165,9 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
     // Only place where meta is relevant is here.
     if !ty.starts_with("typedarray::") {
         if let Some(hardcoded) = to_hardcoded_rust_ident(full_ty) {
-            return RustTy::BuiltinIdent(ident(hardcoded));
+            return RustTy::BuiltinIdent {
+                ty: ident(hardcoded),
+            };
         }
     }
 
@@ -182,7 +186,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
     } else if let Some(packed_arr_ty) = ty.strip_prefix("Packed") {
         // Don't trigger on PackedScene ;P
         if packed_arr_ty.ends_with("Array") {
-            return RustTy::BuiltinIdent(rustify_ty(ty));
+            return RustTy::BuiltinIdent { ty: rustify_ty(ty) };
         }
     } else if let Some(elem_ty) = ty.strip_prefix("typedarray::") {
         let rust_elem_ty = to_rust_type(elem_ty, full_ty.meta.as_ref(), ctx);
@@ -201,7 +205,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
     // Note: do not check if it's a known engine class, because that will not work in minimal mode (since not all classes are stored)
     if ctx.is_builtin(ty) || ctx.is_native_structure(ty) {
         // Unchanged
-        RustTy::BuiltinIdent(rustify_ty(ty))
+        RustTy::BuiltinIdent { ty: rustify_ty(ty) }
     } else {
         let ty = rustify_ty(ty);
         let qualified_class = quote! { crate::classes::#ty };
@@ -263,7 +267,9 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
         "{}" => return quote! { Dictionary::new() },
         "null" => {
             return match ty {
-                RustTy::BuiltinIdent(ident) if ident == "Variant" => quote! { Variant::nil() },
+                RustTy::BuiltinIdent { ty: ident } if ident == "Variant" => {
+                    quote! { Variant::nil() }
+                }
                 RustTy::EngineClass { .. } => {
                     quote! { Gd::null_arg() }
                 }
@@ -273,8 +279,8 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
         // empty string appears only for Callable/Rid in 4.0; default ctor syntax in 4.1+
         "" | "RID()" | "Callable()" if !is_inner => {
             return match ty {
-                RustTy::BuiltinIdent(ident) if ident == "Rid" => quote! { Rid::Invalid },
-                RustTy::BuiltinIdent(ident) if ident == "Callable" => {
+                RustTy::BuiltinIdent { ty: ident } if ident == "Rid" => quote! { Rid::Invalid },
+                RustTy::BuiltinIdent { ty: ident } if ident == "Callable" => {
                     quote! { Callable::invalid() }
                 }
                 _ => panic!("empty string not representable in target type {ty:?}"),
@@ -295,9 +301,11 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
                 is_bitfield: false, ..
             } => quote! { crate::obj::EngineEnum::from_ord(#lit) },
 
-            RustTy::BuiltinIdent(ident) if ident == "Variant" => quote! { Variant::from(#lit) },
+            RustTy::BuiltinIdent { ty: ident } if ident == "Variant" => {
+                quote! { Variant::from(#lit) }
+            }
 
-            RustTy::BuiltinIdent(ident)
+            RustTy::BuiltinIdent { ty: ident }
                 if ident == "i64" || ident == "f64" || unmap_meta(ty).is_some() =>
             {
                 suffixed_lit(num, ident)
@@ -313,7 +321,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
     // Float literals (some floats already handled by integer literals)
     if let Ok(num) = expr.parse::<f64>() {
         return match ty {
-            RustTy::BuiltinIdent(ident) if ident == "f64" || unmap_meta(ty).is_some() => {
+            RustTy::BuiltinIdent { ty: ident } if ident == "f64" || unmap_meta(ty).is_some() => {
                 suffixed_lit(num, ident)
             }
             _ if is_inner => {
@@ -331,7 +339,7 @@ fn to_rust_expr_inner(expr: &str, ty: &RustTy, is_inner: bool) -> TokenStream {
             quote! { #expr }
         } else {
             match ty {
-                RustTy::BuiltinIdent(ident)
+                RustTy::BuiltinIdent { ty: ident }
                     if ident == "GString" || ident == "StringName" || ident == "NodePath" =>
                 {
                     quote! { #ident::from(#expr) }
@@ -429,16 +437,16 @@ fn gdscript_to_rust_expr() {
     // The 'None' type is used to simulate absence of type information. Some tests are commented out, because this functionality is not
     // yet needed. If we ever want to reuse to_rust_expr() in other contexts, we could re-enable them.
 
-    let ty_int = RustTy::BuiltinIdent(ident("i64"));
+    let ty_int = RustTy::BuiltinIdent { ty: ident("i64") };
     let ty_int = Some(&ty_int);
 
-    let ty_int_u16 = RustTy::BuiltinIdent(ident("u16"));
+    let ty_int_u16 = RustTy::BuiltinIdent { ty: ident("u16") };
     let ty_int_u16 = Some(&ty_int_u16);
 
-    let ty_float = RustTy::BuiltinIdent(ident("f64"));
+    let ty_float = RustTy::BuiltinIdent { ty: ident("f64") };
     let ty_float = Some(&ty_float);
 
-    let ty_float_f32 = RustTy::BuiltinIdent(ident("f32"));
+    let ty_float_f32 = RustTy::BuiltinIdent { ty: ident("f32") };
     let ty_float_f32 = Some(&ty_float_f32);
 
     let ty_enum = RustTy::EngineEnum {
@@ -455,7 +463,9 @@ fn gdscript_to_rust_expr() {
     };
     let ty_bitfield = Some(&ty_bitfield);
 
-    let ty_variant = RustTy::BuiltinIdent(ident("Variant"));
+    let ty_variant = RustTy::BuiltinIdent {
+        ty: ident("Variant"),
+    };
     let ty_variant = Some(&ty_variant);
 
     // let ty_object = RustTy::EngineClass {
@@ -464,13 +474,19 @@ fn gdscript_to_rust_expr() {
     // };
     // let ty_object = Some(&ty_object);
 
-    let ty_string = RustTy::BuiltinIdent(ident("GString"));
+    let ty_string = RustTy::BuiltinIdent {
+        ty: ident("GString"),
+    };
     let ty_string = Some(&ty_string);
 
-    let ty_stringname = RustTy::BuiltinIdent(ident("StringName"));
+    let ty_stringname = RustTy::BuiltinIdent {
+        ty: ident("StringName"),
+    };
     let ty_stringname = Some(&ty_stringname);
 
-    let ty_nodepath = RustTy::BuiltinIdent(ident("NodePath"));
+    let ty_nodepath = RustTy::BuiltinIdent {
+        ty: ident("NodePath"),
+    };
     let ty_nodepath = Some(&ty_nodepath);
 
     #[rustfmt::skip]
@@ -581,7 +597,7 @@ fn gdscript_to_rust_expr() {
 ///
 /// Avoids dragging along the meta type through [`RustTy::BuiltinIdent`].
 pub(crate) fn unmap_meta(rust_ty: &RustTy) -> Option<Ident> {
-    let RustTy::BuiltinIdent(rust_ty) = rust_ty else {
+    let RustTy::BuiltinIdent { ty: rust_ty } = rust_ty else {
         return None;
     };
 
