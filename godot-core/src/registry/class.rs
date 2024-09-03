@@ -229,7 +229,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             default_get_virtual_fn,
             is_tool,
             is_editor_plugin,
-            is_hidden,
+            is_internal,
             is_instantiable,
             #[cfg(all(since_api = "4.3", feature = "docs"))]
                 docs: _,
@@ -257,7 +257,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             .expect("duplicate: create_instance_func (def)");
 
             #[cfg(before_api = "4.2")]
-            let _ = is_hidden; // mark used
+            let _ = is_internal; // mark used
             #[cfg(since_api = "4.2")]
             {
                 fill_into(
@@ -266,7 +266,7 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
                 )
                 .expect("duplicate: recreate_instance_func (def)");
 
-                c.godot_params.is_exposed = sys::conv::bool_to_sys(!is_hidden);
+                c.godot_params.is_exposed = sys::conv::bool_to_sys(!is_internal);
             }
 
             #[cfg(before_api = "4.2")]

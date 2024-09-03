@@ -89,11 +89,11 @@ pub enum PluginItem {
         /// Whether `#[class(tool)]` was used.
         is_tool: bool,
 
-        /// Whether `#[class(editor_plugin)]` was used.
+        /// Whether the base class is an `EditorPlugin`.
         is_editor_plugin: bool,
 
-        /// Whether `#[class(hidden)]` was used.
-        is_hidden: bool,
+        /// Whether `#[class(internal)]` was used.
+        is_internal: bool,
 
         /// Whether the class has a default constructor.
         is_instantiable: bool,
