@@ -15,3 +15,8 @@ members = [
     "examples/dodge-the-creeps/rust",
     "examples/hot-reload/rust",
 ]
+
+# Note about Jetbrains IDEs: "IDE Sync" (Refresh Cargo projects) may cause static analysis errors such as
+# "at most one `api-*` feature can be enabled". This is because by default, all Cargo features are enabled,
+# which isn't a setup we support. To address this, individual features can be enabled in the various
+# Cargo.toml files: https://www.jetbrains.com/help/rust/rust-cfg-support.html#enable-disable-feature-manually.
