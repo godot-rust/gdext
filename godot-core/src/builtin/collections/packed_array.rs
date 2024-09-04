@@ -184,7 +184,7 @@ macro_rules! impl_packed_array {
 
             /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
             pub fn extend_array(&mut self, other: &$PackedArray) {
-                self.as_inner().append_array(other.clone());
+                self.as_inner().append_array(other);
             }
 
             /// Converts this array to a Rust vector, making a copy of its contents.

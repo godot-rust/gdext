@@ -134,7 +134,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `dict.get(key, null)`_
     pub fn get_or_nil<K: ToGodot>(&self, key: K) -> Variant {
-        self.as_inner().get(key.to_variant(), Variant::nil())
+        self.as_inner().get(&key.to_variant(), &Variant::nil())
     }
 
     /// Returns `true` if the dictionary contains the given key.
@@ -143,14 +143,14 @@ impl Dictionary {
     #[doc(alias = "has")]
     pub fn contains_key<K: ToGodot>(&self, key: K) -> bool {
         let key = key.to_variant();
-        self.as_inner().has(key)
+        self.as_inner().has(&key)
     }
 
     /// Returns `true` if the dictionary contains all the given keys.
     ///
     /// _Godot equivalent: `has_all`_
     #[doc(alias = "has_all")]
-    pub fn contains_all_keys(&self, keys: VariantArray) -> bool {
+    pub fn contains_all_keys(&self, keys: &VariantArray) -> bool {
         self.as_inner().has_all(keys)
     }
 
@@ -177,7 +177,7 @@ impl Dictionary {
     /// _Godot equivalent: `find_key`_
     #[doc(alias = "find_key")]
     pub fn find_key_by_value<V: ToGodot>(&self, value: V) -> Option<Variant> {
-        let key = self.as_inner().find_key(value.to_variant());
+        let key = self.as_inner().find_key(&value.to_variant());
 
         if !key.is_nil() || self.contains_key(key.clone()) {
             Some(key)
@@ -224,7 +224,7 @@ impl Dictionary {
     pub fn remove<K: ToGodot>(&mut self, key: K) -> Option<Variant> {
         let key = key.to_variant();
         let old_value = self.get(key.clone());
-        self.as_inner().erase(key);
+        self.as_inner().erase(&key);
         old_value
     }
 
@@ -256,7 +256,7 @@ impl Dictionary {
     ///
     /// _Godot equivalent: `merge`_
     #[doc(alias = "merge")]
-    pub fn extend_dictionary(&mut self, other: Self, overwrite: bool) {
+    pub fn extend_dictionary(&mut self, other: &Self, overwrite: bool) {
         self.as_inner().merge(other, overwrite)
     }
 
@@ -481,7 +481,7 @@ impl<'a> DictionaryIter<'a> {
             return None;
         }
 
-        let value = self.dictionary.as_inner().get(key.clone(), Variant::nil());
+        let value = self.dictionary.as_inner().get(&key, &Variant::nil());
         Some((key, value))
     }
 

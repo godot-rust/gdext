@@ -263,6 +263,7 @@ impl<T: GodotClass> ToGodot for ObjectArg<T> {
     }
 }
 
+// TODO refactor signature tuples into separate in+out traits, so FromGodot is no longer needed.
 impl<T: GodotClass> FromGodot for ObjectArg<T> {
     fn try_from_godot(_via: Self::Via) -> Result<Self, ConvertError> {
         unreachable!("ObjectArg should only be passed *to* Godot, not *from*.")

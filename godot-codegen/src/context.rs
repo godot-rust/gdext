@@ -238,6 +238,12 @@ impl<'a> Context<'a> {
         self.builtin_types.contains(ty_name)
     }
 
+    pub fn is_builtin_copy(&self, ty_name: &str) -> bool {
+        debug_assert!(!ty_name.starts_with("Packed")); // Already handled separately.
+
+        !matches!(ty_name, "Variant" | "VariantArray" | "Dictionary")
+    }
+
     pub fn is_native_structure(&self, ty_name: &str) -> bool {
         self.native_structures_types.contains(ty_name)
     }

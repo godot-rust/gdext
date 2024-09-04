@@ -39,6 +39,7 @@ mod class_name;
 mod godot_convert;
 mod method_info;
 mod property_info;
+mod ref_arg;
 mod sealed;
 mod signature;
 mod traits;
@@ -54,6 +55,8 @@ pub(crate) use traits::{GodotFfiVariant, GodotNullableFfi};
 
 use crate::registry::method::MethodParamOrReturnInfo;
 
+#[doc(hidden)]
+pub use ref_arg::*;
 #[doc(hidden)]
 pub use signature::*;
 

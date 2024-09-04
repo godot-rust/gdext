@@ -431,7 +431,7 @@ fn variant_stringify_correct() {
 fn variant_booleanize_correct() {
     assert!(gstr("string").to_variant().booleanize());
     assert!(10.to_variant().booleanize());
-    assert!(varray![""].to_variant().booleanize());
+    assert!(&varray![""].to_variant().booleanize());
     assert!(dict! { "Key": 50 }.to_variant().booleanize());
 
     assert!(!Dictionary::new().to_variant().booleanize());

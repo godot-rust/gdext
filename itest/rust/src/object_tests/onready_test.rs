@@ -133,8 +133,8 @@ fn onready_property_access() {
     let mut obj = OnReadyWithImpl::create(true);
     obj.notify(NodeNotification::READY);
 
-    obj.set("auto".into(), 33.to_variant());
-    obj.set("manual".into(), 44.to_variant());
+    obj.set("auto".into(), &33.to_variant());
+    obj.set("manual".into(), &44.to_variant());
 
     {
         let obj = obj.bind();

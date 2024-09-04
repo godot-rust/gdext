@@ -21,11 +21,9 @@ use crate::util::ident;
 // Godot -> Rust types
 
 /// Returns `(identifier, is_copy)` for a hardcoded Rust type, if it exists.
-fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<(&str, bool)> {
+fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
     let ty = full_ty.ty.as_str();
     let meta = full_ty.meta.as_deref();
-
-    let mut is_copy = true;
 
     let result = match (ty, meta) {
         // Integers
@@ -53,14 +51,11 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<(&str, bool)> {
 
         // Others
         ("bool", None) => "bool",
-        ("String", None) => {
-            is_copy = false;
-            "GString"
-        }
-        ("Array", None) => {
-            is_copy = false;
+        ("String", None) => 
+            "GString",
+        ("Array", None) => 
             "VariantArray"
-        }
+        ,
 
         // Types needed for native structures mapping
         ("uint8_t", None) => "u8",
@@ -79,7 +74,7 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<(&str, bool)> {
         _ => return None,
     };
 
-    Some((result, is_copy))
+    Some(result)
 }
 
 fn to_hardcoded_rust_enum(ty: &str) -> Option<&str> {
@@ -158,6 +153,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
         if is_builtin_type_scalar(ty) {
             ident(ty)
         } else {
+            // Convert as-is. Includes StringName and NodePath.
             TyName::from_godot(ty).rust_ty
         }
     }
@@ -183,10 +179,10 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
 
     // Only place where meta is relevant is here.
     if !ty.starts_with("typedarray::") {
-        if let Some((hardcoded, is_copy)) = to_hardcoded_rust_ident(full_ty) {
+        if let Some(hardcoded) = to_hardcoded_rust_ident(full_ty) {
             return RustTy::BuiltinIdent {
                 ty: ident(hardcoded),
-                is_copy,
+                is_copy: ctx.is_builtin_copy(hardcoded),
             };
         }
     }
@@ -231,7 +227,7 @@ fn to_rust_type_uncached(full_ty: &GodotTy, ctx: &mut Context) -> RustTy {
         // Native structures might not all be Copy, but they should have value semantics.
         RustTy::BuiltinIdent {
             ty: rustify_ty(ty),
-            is_copy: true,
+            is_copy: ctx.is_builtin_copy(ty),
         }
     } else {
         let ty = rustify_ty(ty);

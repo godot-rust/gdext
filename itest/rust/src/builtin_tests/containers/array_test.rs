@@ -293,7 +293,7 @@ fn array_insert() {
 fn array_extend() {
     let mut array = array![1, 2];
     let other = array![3, 4];
-    array.extend_array(other);
+    array.extend_array(&other);
     assert_eq!(array, array![1, 2, 3, 4]);
 }
 
@@ -383,7 +383,7 @@ fn untyped_array_pass_to_godot_func() {
     node.queue_free(); // Do not leak even if the test fails.
 
     assert_eq!(
-        node.callv(StringName::from("has_signal"), varray!["tree_entered"]),
+        node.callv(StringName::from("has_signal"), &varray!["tree_entered"]),
         true.to_variant()
     );
 }
@@ -416,11 +416,11 @@ fn typed_array_pass_to_godot_func() {
         4,
         false,
         Format::L8,
-        PackedByteArray::from(&[255, 0, 255, 0, 0, 255, 0, 255]),
+        &PackedByteArray::from(&[255, 0, 255, 0, 0, 255, 0, 255]),
     );
     let images = array![image];
     let mut texture = Texture2DArray::new_gd();
-    let error = texture.create_from_images(images);
+    let error = texture.create_from_images(&images);
 
     assert_eq!(error, Error::OK);
     assert_eq!((texture.get_width(), texture.get_height()), (2, 4));

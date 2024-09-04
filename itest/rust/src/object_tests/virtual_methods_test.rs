@@ -626,12 +626,12 @@ fn test_get_returns_correct() {
 fn test_set_called() {
     let mut obj = SetTest::new_gd();
     assert!(!obj.bind().set_called);
-    obj.set("inexistent_property".into(), Variant::nil());
+    obj.set("inexistent_property".into(), &Variant::nil());
     assert!(obj.bind().set_called);
 
     let mut obj = SetTest::new_gd();
     assert!(!obj.bind().set_called);
-    obj.set("settable".into(), 20.to_variant());
+    obj.set("settable".into(), &20.to_variant());
     assert!(obj.bind().set_called);
 }
 
@@ -641,8 +641,8 @@ fn test_set_sets_correct() {
 
     assert_eq!(obj.bind().always_set_to_100, i64::default());
     assert_eq!(obj.bind().settable, i64::default());
-    obj.set("always_set_to_100".into(), "hello".to_variant());
-    obj.set("settable".into(), 500.to_variant());
+    obj.set("always_set_to_100".into(), &"hello".to_variant());
+    obj.set("settable".into(), &500.to_variant());
     assert_eq!(obj.bind().always_set_to_100, 100);
     assert_eq!(obj.bind().settable, 500);
 }

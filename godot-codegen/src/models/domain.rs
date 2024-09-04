@@ -646,22 +646,20 @@ impl RustTy {
         }
     }
 
-    /// Returns `( <field tokens>, <needs .consume_object()> )`.
-    pub fn default_extender_field_decl(&self) -> (TokenStream, bool) {
-        match self {
-            RustTy::EngineClass { inner_class, .. } => {
-                let cow_tokens = quote! { ObjectCow<crate::classes::#inner_class> };
-                (cow_tokens, true)
-            }
-            other => (other.to_token_stream(), false),
-        }
-    }
-
     pub fn return_decl(&self) -> TokenStream {
         match self {
             Self::EngineClass { tokens, .. } => quote! { -> Option<#tokens> },
             other => quote! { -> #other },
         }
+    }
+
+    pub fn is_pass_by_ref(&self) -> bool {
+        matches!(
+            self,
+            RustTy::BuiltinIdent { is_copy: false, .. }
+                | RustTy::BuiltinArray { .. }
+                | RustTy::EngineArray { .. }
+        )
     }
 }
 

@@ -196,12 +196,12 @@ impl<T: ArrayElement> Array<T> {
 
     /// Returns `true` if the array contains the given value. Equivalent of `has` in GDScript.
     pub fn contains(&self, value: &T) -> bool {
-        self.as_inner().has(value.to_variant())
+        self.as_inner().has(&value.to_variant())
     }
 
     /// Returns the number of times a value is in the array.
     pub fn count(&self, value: &T) -> usize {
-        to_usize(self.as_inner().count(value.to_variant()))
+        to_usize(self.as_inner().count(&value.to_variant()))
     }
 
     /// Returns the number of elements in the array. Equivalent of `size()` in Godot.
@@ -277,7 +277,7 @@ impl<T: ArrayElement> Array<T> {
     #[doc(alias = "push_back")]
     pub fn push(&mut self, value: T) {
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
-        unsafe { self.as_inner_mut() }.push_back(value.to_variant());
+        unsafe { self.as_inner_mut() }.push_back(&value.to_variant());
     }
 
     /// Adds an element at the beginning of the array, in O(n).
@@ -286,7 +286,7 @@ impl<T: ArrayElement> Array<T> {
     /// The larger the array, the slower `push_front()` will be.
     pub fn push_front(&mut self, value: T) {
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
-        unsafe { self.as_inner_mut() }.push_front(value.to_variant());
+        unsafe { self.as_inner_mut() }.push_front(&value.to_variant());
     }
 
     /// Removes and returns the last element of the array. Returns `None` if the array is empty.
@@ -328,7 +328,7 @@ impl<T: ArrayElement> Array<T> {
         );
 
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
-        unsafe { self.as_inner_mut() }.insert(to_i64(index), value.to_variant());
+        unsafe { self.as_inner_mut() }.insert(to_i64(index), &value.to_variant());
     }
 
     /// ⚠️ Removes and returns the element at the specified index. Equivalent of `pop_at` in GDScript.
@@ -356,14 +356,14 @@ impl<T: ArrayElement> Array<T> {
     /// elements after the removed element.
     pub fn erase(&mut self, value: &T) {
         // SAFETY: We don't write anything to the array.
-        unsafe { self.as_inner_mut() }.erase(value.to_variant());
+        unsafe { self.as_inner_mut() }.erase(&value.to_variant());
     }
 
     /// Assigns the given value to all elements in the array. This can be used together with
     /// `resize` to create an array with a given size and initialized elements.
     pub fn fill(&mut self, value: &T) {
         // SAFETY: The array has type `T` and we're writing values of type `T` to it.
-        unsafe { self.as_inner_mut() }.fill(value.to_variant());
+        unsafe { self.as_inner_mut() }.fill(&value.to_variant());
     }
 
     /// Resizes the array to contain a different number of elements.
@@ -403,9 +403,9 @@ impl<T: ArrayElement> Array<T> {
     }
 
     /// Appends another array at the end of this array. Equivalent of `append_array` in GDScript.
-    pub fn extend_array(&mut self, other: Array<T>) {
+    pub fn extend_array(&mut self, other: &Array<T>) {
         // SAFETY: `append_array` will only read values from `other`, and all types can be converted to `Variant`.
-        let other: VariantArray = unsafe { other.assume_type::<Variant>() };
+        let other: &VariantArray = unsafe { other.assume_type_ref::<Variant>() };
 
         // SAFETY: `append_array` will only write values gotten from `other` into `self`, and all values in `other` are guaranteed
         // to be of type `T`.
@@ -532,7 +532,7 @@ impl<T: ArrayElement> Array<T> {
     /// not found. Starts searching at index `from`; pass `None` to search the entire array.
     pub fn find(&self, value: &T, from: Option<usize>) -> Option<usize> {
         let from = to_i64(from.unwrap_or(0));
-        let index = self.as_inner().find(value.to_variant(), from);
+        let index = self.as_inner().find(&value.to_variant(), from);
         if index >= 0 {
             Some(index.try_into().unwrap())
         } else {
@@ -545,7 +545,7 @@ impl<T: ArrayElement> Array<T> {
     /// array.
     pub fn rfind(&self, value: &T, from: Option<usize>) -> Option<usize> {
         let from = from.map(to_i64).unwrap_or(-1);
-        let index = self.as_inner().rfind(value.to_variant(), from);
+        let index = self.as_inner().rfind(&value.to_variant(), from);
         // It's not documented, but `rfind` returns -1 if not found.
         if index >= 0 {
             Some(to_usize(index))
@@ -562,7 +562,7 @@ impl<T: ArrayElement> Array<T> {
     ///
     /// Calling `bsearch` on an unsorted array results in unspecified behavior.
     pub fn bsearch(&self, value: &T) -> usize {
-        to_usize(self.as_inner().bsearch(value.to_variant(), true))
+        to_usize(self.as_inner().bsearch(&value.to_variant(), true))
     }
 
     /// Finds the index of an existing value in a sorted array using binary search.
@@ -580,7 +580,7 @@ impl<T: ArrayElement> Array<T> {
     pub fn bsearch_custom(&self, value: &T, func: Callable) -> usize {
         to_usize(
             self.as_inner()
-                .bsearch_custom(value.to_variant(), func, true),
+                .bsearch_custom(&value.to_variant(), func, true),
         )
     }
 
