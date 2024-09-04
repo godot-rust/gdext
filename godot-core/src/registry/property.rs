@@ -65,6 +65,47 @@ pub trait Export: Var {
     }
 }
 
+/// This function only exists as a place to add doc-tests for the `Export` trait.
+///
+/// Test with export of exportable type should succeed:
+/// ```no_run
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct Foo {
+///     #[export]
+///     obj: Option<Gd<Resource>>,
+///     #[export]
+///     array: Array<Gd<Resource>>,
+/// }
+/// ```
+///
+/// Tests with export of non-exportable type should fail:
+/// ```compile_fail
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct Foo {
+///     #[export]
+///     obj: Option<Gd<Object>>,
+/// }
+/// ```
+///
+/// ```compile_fail
+/// use godot::prelude::*;
+///
+/// #[derive(GodotClass)]
+/// #[class(init)]
+/// struct Foo {
+///     #[export]
+///     array: Array<Gd<Object>>,
+/// }
+/// ```
+#[allow(dead_code)]
+fn export_doctests() {}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Blanket impls for Option<T>
 

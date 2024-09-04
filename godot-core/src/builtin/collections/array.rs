@@ -985,7 +985,10 @@ impl<T: ArrayElement> Var for Array<T> {
     }
 }
 
-impl<T: ArrayElement> Export for Array<T> {
+impl<T> Export for Array<T>
+where
+    T: ArrayElement + Export,
+{
     fn export_hint() -> PropertyHintInfo {
         // If T == Variant, then we return "Array" builtin type hint.
         if Self::has_variant_t() {
