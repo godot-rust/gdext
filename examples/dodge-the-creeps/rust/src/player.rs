@@ -24,7 +24,7 @@ impl Player {
             .base()
             .get_node_as::<CollisionShape2D>("CollisionShape2D");
 
-        collision_shape.set_deferred("disabled".into(), true.to_variant());
+        collision_shape.set_deferred("disabled".into(), &true.to_variant());
     }
 
     #[func]
