@@ -188,7 +188,7 @@ struct FormatLoaderTest {
 
 impl FormatLoaderTest {
     fn resource_type() -> GString {
-        GString::from("foo")
+        GString::from("some_resource_type")
     }
 }
 
@@ -599,7 +599,7 @@ fn test_notifications() {
 fn test_get_called() {
     let obj = GetTest::new_gd();
     assert!(!obj.bind().get_called.get());
-    assert!(obj.get("foo".into()).is_nil());
+    assert!(obj.get("inexistent".into()).is_nil());
     assert!(obj.bind().get_called.get());
 
     let obj = GetTest::new_gd();
@@ -626,7 +626,7 @@ fn test_get_returns_correct() {
 fn test_set_called() {
     let mut obj = SetTest::new_gd();
     assert!(!obj.bind().set_called);
-    obj.set("foo".into(), Variant::nil());
+    obj.set("inexistent_property".into(), Variant::nil());
     assert!(obj.bind().set_called);
 
     let mut obj = SetTest::new_gd();
