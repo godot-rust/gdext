@@ -77,14 +77,14 @@ fn dictionary_macro() {
     let empty = dict!();
     assert!(empty.is_empty());
 
-    let foo = "foo";
+    let key = "num";
     let dict_complex = dict! {
-        foo: 10,
-        "bar": true,
+        key: 10,
+        "bool": true,
         (1 + 2): Variant::nil(),
     };
-    assert_eq!(dict_complex.get("foo"), Some(10.to_variant()));
-    assert_eq!(dict_complex.get("bar"), Some(true.to_variant()));
+    assert_eq!(dict_complex.get("num"), Some(10.to_variant()));
+    assert_eq!(dict_complex.get("bool"), Some(true.to_variant()));
     assert_eq!(dict_complex.get(3), Some(Variant::nil()));
 }
 

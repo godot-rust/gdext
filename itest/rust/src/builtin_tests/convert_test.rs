@@ -90,22 +90,22 @@ fn error_maintains_value() {
 
 // Manual implementation of `GodotConvert` and related traits to ensure conversion works.
 #[derive(PartialEq, Debug)]
-struct Foo {
+struct ConvertedStruct {
     a: i32,
     b: f32,
 }
 
-impl Foo {
+impl ConvertedStruct {
     const MISSING_KEY_A: &'static str = "missing `a` key";
     const MISSING_KEY_B: &'static str = "missing `b` key";
     const TOO_MANY_KEYS: &'static str = "too many keys provided";
 }
 
-impl GodotConvert for Foo {
+impl GodotConvert for ConvertedStruct {
     type Via = Dictionary;
 }
 
-impl ToGodot for Foo {
+impl ToGodot for ConvertedStruct {
     fn to_godot(&self) -> Self::Via {
         dict! {
             "a": self.a,
@@ -114,7 +114,7 @@ impl ToGodot for Foo {
     }
 }
 
-impl FromGodot for Foo {
+impl FromGodot for ConvertedStruct {
     fn try_from_godot(via: Self::Via) -> Result<Self, ConvertError> {
         let a = match via.get("a") {
             Some(a) => a,
@@ -139,20 +139,20 @@ impl FromGodot for Foo {
 
 #[itest]
 fn custom_convert_roundtrip() {
-    let foo = Foo { a: 10, b: 12.34 };
+    let m = ConvertedStruct { a: 10, b: 12.34 };
 
-    let as_dict = foo.to_godot();
-    assert_eq!(as_dict.get("a"), Some(foo.a.to_variant()));
-    assert_eq!(as_dict.get("b"), Some(foo.b.to_variant()));
+    let as_dict = m.to_godot();
+    assert_eq!(as_dict.get("a"), Some(m.a.to_variant()));
+    assert_eq!(as_dict.get("b"), Some(m.b.to_variant()));
 
-    let foo2 = as_dict.to_variant().to::<Foo>();
-    assert_eq!(foo, foo2, "from_variant");
+    let n = as_dict.to_variant().to::<ConvertedStruct>();
+    assert_eq!(m, n, "from_variant");
 
-    let foo3 = Foo::from_godot(as_dict);
-    assert_eq!(foo, foo3, "from_godot");
+    let o = ConvertedStruct::from_godot(as_dict);
+    assert_eq!(m, o, "from_godot");
 }
 
-// Ensure all failure states for the `FromGodot` conversion of `Foo` are propagated through the `try_to`
+// Ensure all failure states for the `FromGodot` conversion of `ManuallyConverted` are propagated through the `try_to`
 // method of `Variant` as they should be.
 #[itest]
 fn custom_convert_error_from_variant() {
@@ -161,20 +161,26 @@ fn custom_convert_error_from_variant() {
     };
     let err = missing_a
         .to_variant()
-        .try_to::<Foo>()
+        .try_to::<ConvertedStruct>()
         .expect_err("should be missing key `a`");
 
-    assert_eq!(err.cause().unwrap().to_string(), Foo::MISSING_KEY_A);
+    assert_eq!(
+        err.cause().unwrap().to_string(),
+        ConvertedStruct::MISSING_KEY_A
+    );
 
     let missing_b = dict! {
         "a": 58,
     };
     let err = missing_b
         .to_variant()
-        .try_to::<Foo>()
+        .try_to::<ConvertedStruct>()
         .expect_err("should be missing key `b`");
 
-    assert_eq!(err.cause().unwrap().to_string(), Foo::MISSING_KEY_B);
+    assert_eq!(
+        err.cause().unwrap().to_string(),
+        ConvertedStruct::MISSING_KEY_B
+    );
 
     let too_many_keys = dict! {
         "a": 12,
@@ -183,10 +189,13 @@ fn custom_convert_error_from_variant() {
     };
     let err = too_many_keys
         .to_variant()
-        .try_to::<Foo>()
+        .try_to::<ConvertedStruct>()
         .expect_err("should have too many keys");
 
-    assert_eq!(err.cause().unwrap().to_string(), Foo::TOO_MANY_KEYS);
+    assert_eq!(
+        err.cause().unwrap().to_string(),
+        ConvertedStruct::TOO_MANY_KEYS
+    );
 
     let wrong_type_a = dict! {
         "a": "hello",
@@ -194,7 +203,7 @@ fn custom_convert_error_from_variant() {
     };
     let err = wrong_type_a
         .to_variant()
-        .try_to::<Foo>()
+        .try_to::<ConvertedStruct>()
         .expect_err("should have wrongly typed key `a`");
 
     assert!(err.cause().is_none());
@@ -209,7 +218,7 @@ fn custom_convert_error_from_variant() {
     };
     let err = wrong_type_b
         .to_variant()
-        .try_to::<Foo>()
+        .try_to::<ConvertedStruct>()
         .expect_err("should have wrongly typed key `b`");
 
     assert!(err.cause().is_none());
@@ -224,7 +233,7 @@ fn custom_convert_error_from_variant() {
     };
     let err = too_big_value
         .to_variant()
-        .try_to::<Foo>()
+        .try_to::<ConvertedStruct>()
         .expect_err("should have too big value for field `a`");
 
     assert!(err.cause().is_none());
