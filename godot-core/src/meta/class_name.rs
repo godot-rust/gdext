@@ -134,8 +134,37 @@ impl ClassName {
     }
 
     #[doc(hidden)]
-    pub fn alloc_next(class_name_cstr: &'static CStr) -> Self {
+    pub fn alloc_next_ascii(class_name_cstr: &'static CStr) -> Self {
+        let utf8 = class_name_cstr
+            .to_str()
+            .expect("class name is invalid UTF-8");
+
+        assert!(
+            utf8.is_ascii(),
+            "ClassName::alloc_next_ascii() with non-ASCII Unicode string '{}'",
+            utf8
+        );
+
         let global_index = insert_class(ClassNameSource::Borrowed(class_name_cstr));
+
+        Self { global_index }
+    }
+
+    #[doc(hidden)]
+    pub fn alloc_next_unicode(class_name_str: &'static str) -> Self {
+        assert!(
+            cfg!(since_api = "4.4"),
+            "Before Godot 4.4, class names must be ASCII, but '{class_name_str}' is not.\nSee https://github.com/godotengine/godot/pull/96501."
+        );
+
+        assert!(
+            !class_name_str.is_ascii(),
+            "ClassName::alloc_next_unicode() with ASCII string '{}'",
+            class_name_str
+        );
+
+        // StringNames use optimized 1-byte-per-char layout for Latin-1/ASCII, so Unicode can as well use the regular constructor.
+        let global_index = insert_class(ClassNameSource::Owned(class_name_str.to_owned()));
 
         Self { global_index }
     }

@@ -10,7 +10,7 @@ mod conversion_test;
 mod derive_godotconvert_test;
 mod func_test;
 mod gdscript_ffi_test;
-mod keyword_parameters_test;
+mod naming_tests;
 mod option_ffi_test;
 mod var_test;
 

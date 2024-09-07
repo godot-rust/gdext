@@ -399,7 +399,7 @@ fn register_class_raw(mut info: ClassRegistrationInfo) {
     // This can happen during hot reload if a class changes base type in an incompatible way (e.g. RefCounted -> Node).
     if registration_failed {
         godot_error!(
-            "Failed to register class `{class_name}`; check preceding Godot stderr messages"
+            "Failed to register class `{class_name}`; check preceding Godot stderr messages."
         );
     }
 
