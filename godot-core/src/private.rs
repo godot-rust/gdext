@@ -200,6 +200,7 @@ pub fn is_class_runtime(is_tool: bool) -> bool {
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Panic handling
 
+#[cfg(debug_assertions)]
 #[derive(Debug)]
 struct GodotPanicInfo {
     line: u32,
@@ -328,12 +329,15 @@ where
     F: FnOnce() -> R + std::panic::UnwindSafe,
     S: std::fmt::Display,
 {
+    #[cfg(debug_assertions)]
     let info: Arc<Mutex<Option<GodotPanicInfo>>> = Arc::new(Mutex::new(None));
 
-    // Back up previous hook, set new one
-    let prev_hook = std::panic::take_hook();
-    {
+    // Back up previous hook, set new one.
+    #[cfg(debug_assertions)]
+    let prev_hook = {
         let info = info.clone();
+        let prev_hook = std::panic::take_hook();
+
         std::panic::set_hook(Box::new(move |panic_info| {
             if let Some(location) = panic_info.location() {
                 *info.lock().unwrap() = Some(GodotPanicInfo {
@@ -345,30 +349,38 @@ where
                 eprintln!("panic occurred, but can't get location information");
             }
         }));
-    }
 
-    // Run code that should panic, restore hook
+        prev_hook
+    };
+
+    // Run code that should panic, restore hook.
     let panic = std::panic::catch_unwind(code);
+
+    // Restore the previous panic hook if in Debug mode.
+    #[cfg(debug_assertions)]
     std::panic::set_hook(prev_hook);
 
     match panic {
         Ok(result) => Ok(result),
         Err(err) => {
             // Flush, to make sure previous Rust output (e.g. test announcement, or debug prints during app) have been printed
-            // TODO write custom panic handler and move this there, before panic backtrace printing
+            // TODO write custom panic handler and move this there, before panic backtrace printing.
             flush_stdout();
 
-            let guard = info.lock().unwrap();
-            let info = guard.as_ref().expect("no panic info available");
-
-            if print {
-                godot_error!(
-                    "Rust function panicked at {}:{}.\n  Context: {}",
-                    info.file,
-                    info.line,
-                    error_context()
-                );
-                //eprintln!("Backtrace:\n{}", info.backtrace);
+            // Handle panic info only in Debug mode.
+            #[cfg(debug_assertions)]
+            {
+                let guard = info.lock().unwrap();
+                let info = guard.as_ref().expect("no panic info available");
+                if print {
+                    godot_error!(
+                        "Rust function panicked at {}:{}.\n  Context: {}",
+                        info.file,
+                        info.line,
+                        error_context()
+                    );
+                    //eprintln!("Backtrace:\n{}", info.backtrace);
+                }
             }
 
             let msg = extract_panic_message(err);
