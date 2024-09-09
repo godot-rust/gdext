@@ -829,6 +829,19 @@ impl<T: ArrayElement> Array<T> {
         }
     }
 
+    /// Returns a clone of the array without checking the resulting type.
+    ///
+    /// # Safety
+    /// Should be used only in scenarios where the caller can guarantee that the resulting array will have the correct type,
+    /// or when an incorrect Rust type is acceptable (passing raw arrays to Godot FFI).
+    unsafe fn clone_unchecked(&self) -> Self {
+        Self::new_with_uninit(|self_ptr| {
+            let ctor = sys::builtin_fn!(array_construct_copy);
+            let args = [self.sys()];
+            ctor(self_ptr, args.as_ptr());
+        })
+    }
+
     /// Whether this array is untyped and holds `Variant` elements (compile-time check).
     ///
     /// Used as `if` statement in trait impls. Avoids defining yet another trait or non-local overridden function just for this case;
@@ -889,7 +902,12 @@ impl<T: ArrayElement> GodotConvert for Array<T> {
 
 impl<T: ArrayElement> ToGodot for Array<T> {
     fn to_godot(&self) -> Self::Via {
-        self.clone()
+        // SAFETY: only safe when passing to FFI in a context where Rust-side type doesn't matter.
+        // TODO: avoid unsafety with either of the following:
+        // * OutArray -- https://github.com/godot-rust/gdext/pull/806.
+        // * Instead of cloning, use ArgRef<Array<T>>.
+        unsafe { self.clone_unchecked() }
+        //self.clone()
     }
 
     fn into_godot(self) -> Self::Via {
@@ -945,13 +963,8 @@ impl<T: ArrayElement + fmt::Display> fmt::Display for Array<T> {
 impl<T: ArrayElement> Clone for Array<T> {
     fn clone(&self) -> Self {
         // SAFETY: `self` is a valid array, since we have a reference that keeps it alive.
-        let copy = unsafe {
-            Self::new_with_uninit(|self_ptr| {
-                let ctor = sys::builtin_fn!(array_construct_copy);
-                let args = [self.sys()];
-                ctor(self_ptr, args.as_ptr());
-            })
-        };
+        // Type-check follows below.
+        let copy = unsafe { self.clone_unchecked() };
 
         // Double-check copy's runtime type in Debug mode.
         if cfg!(debug_assertions) {
