@@ -31,5 +31,30 @@ pub use crate::gen::central::global_enums::*;
 pub use crate::gen::utilities::*;
 
 // This is needed for generated classes to find symbols, even those that have been moved to crate::builtin.
+use crate::builtin::Variant;
 #[allow(unused_imports)] // micromanaging imports for generated code is not fun
 pub(crate) use crate::builtin::{Corner, EulerOrder, Side};
+use crate::obj::Gd;
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+// Deprecations
+
+// Reminder: remove #![allow(deprecated)] in utilities.test along with the below functions.
+
+#[deprecated = "Instance utilities in `godot::global` will be removed. Use methods on `Gd` and `InstanceId` instead.\n\
+    For detailed reasons, see https://github.com/godot-rust/gdext/pull/892."]
+pub fn instance_from_id(instance_id: i64) -> Option<Gd<crate::classes::Object>> {
+    crate::gen::utilities::instance_from_id(instance_id)
+}
+
+#[deprecated = "Instance utilities in `godot::global` will be removed. Use methods on `Gd` and `InstanceId` instead.\n\
+    For detailed reasons, see https://github.com/godot-rust/gdext/pull/892."]
+pub fn is_instance_valid(instance: Variant) -> bool {
+    crate::gen::utilities::is_instance_valid(instance)
+}
+
+#[deprecated = "Instance utilities in `godot::global` will be removed. Use methods on `Gd` and `InstanceId` instead.\n\
+    For detailed reasons, see https://github.com/godot-rust/gdext/pull/892."]
+pub fn is_instance_id_valid(instance_id: i64) -> bool {
+    crate::gen::utilities::is_instance_id_valid(instance_id)
+}

@@ -13,6 +13,7 @@ use godot::classes::{
     file_access, Area2D, Camera3D, Engine, FileAccess, IRefCounted, Node, Node3D, Object,
     RefCounted,
 };
+#[allow(deprecated)]
 use godot::global::instance_from_id;
 use godot::meta::{FromGodot, GodotType, ToGodot};
 use godot::obj::{Base, Gd, Inherits, InstanceId, NewAlloc, NewGd, RawGd};
@@ -171,6 +172,7 @@ fn object_instance_from_id() {
 
     let instance_id = node.instance_id();
 
+    #[allow(deprecated)]
     let gd_from_instance_id = instance_from_id(instance_id.to_i64())
         .expect("instance should be valid")
         .cast::<Node>();
@@ -182,6 +184,7 @@ fn object_instance_from_id() {
 
 #[itest]
 fn object_instance_from_invalid_id() {
+    #[allow(deprecated)]
     let gd_from_instance_id = instance_from_id(0);
 
     assert!(
