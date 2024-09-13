@@ -419,14 +419,14 @@ macro_rules! impl_vector_fns {
             }
 
             /// Converts the corresponding `glam` type to `Self`.
-            fn from_glam(v: $GlamVector) -> Self {
+            pub(crate) fn from_glam(v: $GlamVector) -> Self {
                 Self::new(
                     $( v.$comp ),*
                 )
             }
 
             /// Converts `self` to the corresponding `glam` type.
-            fn to_glam(self) -> $GlamVector {
+            pub(crate) fn to_glam(self) -> $GlamVector {
                 <$GlamVector>::new(
                     $( self.$comp ),*
                 )
