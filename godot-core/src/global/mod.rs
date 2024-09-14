@@ -16,8 +16,8 @@
 //!
 //! - Color: [`ColorChannelOrder`][crate::builtin::ColorChannelOrder]
 //! - Projection: [`ProjectionEye`][crate::builtin::ProjectionEye], [`ProjectionPlane`][crate::builtin::ProjectionPlane]
-//! - Rectangle: [`Side`][crate::builtin::Side], [`Corner`][crate::builtin::Corner] <sub>(godot-generated)</sub>
-//! - Rotation: [`EulerOrder`][crate::builtin::EulerOrder] <sub>(godot-generated)</sub>
+//! - Rectangle: [`Side`], [`Corner`] <sub>(godot-generated)</sub>
+//! - Rotation: [`EulerOrder`] <sub>(godot-generated)</sub>
 //! - Variant: [`VariantType`][crate::builtin::VariantType], [`VariantOperator`][crate::builtin::VariantOperator]
 //! - Vector: [`Vector2Axis`][crate::builtin::Vector2Axis], [`Vector3Axis`][crate::builtin::Vector3Axis], [`Vector4Axis`][crate::builtin::Vector4Axis]
 //!
