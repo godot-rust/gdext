@@ -34,6 +34,9 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
         ("int", Some("uint32")) => "u32",
         ("int", Some("uint16")) => "u16",
         ("int", Some("uint8")) => "u8",
+        // TODO handle char types as `char`?
+        ("int", Some("char16")) => "u16",
+        ("int", Some("char32")) => "u32",
         ("int", Some(meta)) => panic!("unhandled type int with meta {meta:?}"),
 
         // Floats (with single precision builds)
