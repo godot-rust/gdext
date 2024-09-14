@@ -178,4 +178,40 @@ fn quaternion_spherical_cubic_interpolate_in_time() {
     );
     assert_eq!(outcome, Quaternion::default())
 }
+
+#[itest]
+fn quaternion_mul1() {
+    use godot::builtin::real;
+    use std::f32::consts::PI;
+
+    let q = Quaternion::from_axis_angle(Vector3::UP, (PI / 2.0) as real);
+    let rotated = q * Vector3::new(1.0, 4.2, 0.0);
+    assert_eq_approx!(rotated.x, 0.0);
+    assert_eq_approx!(rotated.y, 4.2);
+    assert_eq_approx!(rotated.z, -1.0);
+}
+
+#[itest]
+fn quaternion_mul2() {
+    use godot::builtin::real;
+    use std::f32::consts::PI;
+
+    let q = Quaternion::from_axis_angle(-Vector3::UP, (PI / 2.0) as real);
+    let rotated = q * Vector3::new(1.0, 4.2, 2.0);
+    assert_eq_approx!(rotated.x, -2.0);
+    assert_eq_approx!(rotated.y, 4.2);
+    assert_eq_approx!(rotated.z, 1.0);
+}
+
+#[itest]
+fn quaternion_mul3() {
+    use godot::builtin::real;
+    use std::f32::consts::PI;
+
+    let q = Quaternion::from_axis_angle(Vector3::UP, (-PI * 3.0 / 4.0) as real);
+    let rotated = q * Vector3::new(1.0, 3.0, 5.0);
+    assert_eq_approx!(rotated.x, -4.2426405);
+    assert_eq_approx!(rotated.y, 3.0);
+    assert_eq_approx!(rotated.z, -2.828427);
+}
 // TODO more tests

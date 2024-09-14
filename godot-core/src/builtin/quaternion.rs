@@ -281,6 +281,18 @@ impl Mul<Quaternion> for Quaternion {
     }
 }
 
+impl Mul<Vector3> for Quaternion {
+    type Output = Vector3;
+
+    /// Applies the quaternion's rotation to the 3D point represented by the vector.
+    ///
+    /// # Panics
+    /// If the quaternion is not normalized.
+    fn mul(self, rhs: Vector3) -> Self::Output {
+        Vector3::from_glam(self.to_glam().mul_vec3(rhs.to_glam()))
+    }
+}
+
 // SAFETY:
 // This type is represented as `Self` in Godot, so `*mut Self` is sound.
 unsafe impl GodotFfi for Quaternion {
