@@ -146,16 +146,24 @@ pub fn is_class_experimental(godot_class_name: &str) -> bool {
     // Note: parameter can be a class or builtin name, but also something like "enum::AESContext.Mode".
 
     // These classes are currently hardcoded, but the information is available in Godot's doc/classes directory.
-    // The XML file contains a property <class name="NavigationMesh" ... is_experimental="true">.
+    // The XML file contains a property <class name="NavigationMesh" ... experimental="">.
 
+    // Last update: 2024-09-15; Godot rev 6681f2563b99e14929a8acb27f4908fece398ef1.
     match godot_class_name {
+        | "AudioSample"
+        | "AudioSamplePlayback"
+        | "Compositor"
+        | "CompositorEffect"
         | "GraphEdit"
+        | "GraphElement"
+        | "GraphFrame"
         | "GraphNode"
         | "NavigationAgent2D"
         | "NavigationAgent3D"
         | "NavigationLink2D"
         | "NavigationLink3D"
         | "NavigationMesh"
+        | "NavigationMeshSourceGeometryData2D"
         | "NavigationMeshSourceGeometryData3D"
         | "NavigationObstacle2D"
         | "NavigationObstacle3D"
@@ -168,6 +176,7 @@ pub fn is_class_experimental(godot_class_name: &str) -> bool {
         | "NavigationRegion3D"
         | "NavigationServer2D"
         | "NavigationServer3D"
+        | "Parallax2D"
         | "SkeletonModification2D"
         | "SkeletonModification2DCCDIK"
         | "SkeletonModification2DFABRIK"
@@ -178,8 +187,11 @@ pub fn is_class_experimental(godot_class_name: &str) -> bool {
         | "SkeletonModification2DTwoBoneIK"
         | "SkeletonModificationStack2D"
         | "StreamPeerGZIP"
-        | "TextureRect"
-        
+        | "XRBodyModifier3D"
+        | "XRBodyTracker"
+        | "XRFaceModifier3D"
+        | "XRFaceTracker"
+
         => true, _ => false
     }
 }
