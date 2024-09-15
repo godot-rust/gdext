@@ -685,11 +685,6 @@ impl<T: GodotClass> ToGodot for Gd<T> {
         self.raw.check_rtti("to_godot");
         self.clone()
     }
-
-    fn into_godot(self) -> Self::Via {
-        self.raw.check_rtti("into_godot");
-        self
-    }
 }
 
 impl<T: GodotClass> FromGodot for Gd<T> {

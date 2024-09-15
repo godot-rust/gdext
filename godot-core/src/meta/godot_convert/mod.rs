@@ -47,14 +47,6 @@ pub trait ToGodot: Sized + GodotConvert {
     /// Converts this type to the Godot type by reference, usually by cloning.
     fn to_godot(&self) -> Self::ToVia<'_>;
 
-    /// Converts this type to the Godot type.
-    ///
-    /// This can in some cases enable minor optimizations, such as avoiding reference counting operations.
-    fn into_godot(self) -> Self::Via {
-        //self.to_godot()
-        todo!()
-    }
-
     /// Converts this type to a [Variant].
     fn to_variant(&self) -> Variant {
         self.to_godot().to_ffi().ffi_to_variant()
@@ -103,8 +95,22 @@ pub trait FromGodot: Sized + GodotConvert {
     }
 }
 
-pub(crate) fn into_ffi<T: ToGodot>(value: T) -> <T::Via as GodotType>::Ffi {
-    value.into_godot().into_ffi()
+// pub(crate) fn into_ffi<'v, T: ToGodot >(value: T) -> <T::ToVia<'v> as GodotType>::Ffi {
+//     let by_ref = value.to_godot();
+//     let ffi = by_ref.to_ffi();
+//
+//     ffi
+// }
+
+pub(crate) fn into_ffi<'v, T: ToGodot>(value: &'v T) -> <T::ToVia<'v> as GodotType>::Ffi {
+    let by_ref = value.to_godot();
+    let ffi = by_ref.to_ffi();
+
+    ffi
+}
+
+pub(crate) fn into_ffi_variant<T: ToGodot>(value: &T) -> Variant {
+    GodotFfiVariant::ffi_to_variant(&into_ffi(value))
 }
 
 pub(crate) fn try_from_ffi<T: FromGodot>(
@@ -127,11 +133,6 @@ macro_rules! impl_godot_as_self {
             #[inline]
             fn to_godot(&self) -> Self::ToVia<'_> {
                 self.clone()
-            }
-
-            #[inline]
-            fn into_godot(self) -> Self::Via {
-                self
             }
         }
 

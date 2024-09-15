@@ -48,10 +48,6 @@ fn make_togodot_for_newtype_struct(name: &Ident, field: &NewtypeStruct) -> Token
             fn to_godot(&self) -> #via_type {
                 ::godot::meta::ToGodot::to_godot(&self.#field_name)
             }
-
-            fn into_godot(self) -> #via_type {
-                ::godot::meta::ToGodot::into_godot(self.#field_name)
-            }
         }
     }
 }

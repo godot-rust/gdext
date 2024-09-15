@@ -917,10 +917,6 @@ impl<T: ArrayElement> ToGodot for Array<T> {
         //self.clone()
     }
 
-    fn into_godot(self) -> Self::Via {
-        self
-    }
-
     fn to_variant(&self) -> Variant {
         self.ffi_to_variant()
     }
@@ -1052,8 +1048,9 @@ impl<T: ArrayElement> GodotType for Array<T> {
     type Ffi = Self;
 
     fn to_ffi(&self) -> Self::Ffi {
-        // `to_ffi` is sometimes intentionally called with an array in an invalid state.
-        self.clone()
+        // SAFETY: we may pass type-transmuted arrays to FFI (e.g. Array<T> as Array<Variant>). This would fail the regular
+        // type-check in clone(), so we disable it. Type invariants are upheld by the "front-end" APIs.
+        unsafe { self.clone_unchecked() }
     }
 
     fn into_ffi(self) -> Self::Ffi {

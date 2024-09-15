@@ -42,7 +42,7 @@ pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 // 'static is not technically required, but it simplifies a few things (limits e.g. ObjectArg).
 {
     #[doc(hidden)]
-    type Ffi: GodotFfiVariant;
+    type Ffi: GodotFfiVariant + 'static;
 
     #[doc(hidden)]
     fn to_ffi(&self) -> Self::Ffi;

@@ -259,10 +259,6 @@ impl<T: GodotClass> ToGodot for ObjectArg<T> {
     fn to_godot(&self) -> Self::ToVia<'_> {
         (*self).clone()
     }
-
-    fn into_godot(self) -> Self::Via {
-        self
-    }
 }
 
 // TODO refactor signature tuples into separate in+out traits, so FromGodot is no longer needed.

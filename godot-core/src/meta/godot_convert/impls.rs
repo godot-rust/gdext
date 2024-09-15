@@ -101,10 +101,6 @@ where
         self.as_ref().map(ToGodot::to_godot)
     }
 
-    fn into_godot(self) -> Self::Via {
-        self.map(ToGodot::into_godot)
-    }
-
     fn to_variant(&self) -> Variant {
         match self {
             Some(inner) => inner.to_variant(),
