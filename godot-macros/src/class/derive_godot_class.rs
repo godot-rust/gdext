@@ -34,7 +34,14 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
         .map_or_else(|| class.name.clone(), |rename| rename)
         .to_string();
 
-    let class_name_cstr = util::c_str(&class_name_str);
+    // Determine if we can use ASCII for the class name (in most cases).
+    let class_name_allocation = if class_name_str.is_ascii() {
+        let c_str = util::c_str(&class_name_str);
+        quote! { ClassName::alloc_next_ascii(#c_str) }
+    } else {
+        quote! { ClassName::alloc_next_unicode(#class_name_str) }
+    };
+
     let class_name_obj = util::class_name_obj(class_name);
 
     let is_internal = struct_cfg.is_internal;
@@ -123,7 +130,7 @@ pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
                 // Optimization note: instead of lazy init, could use separate static which is manually initialized during registration.
                 static CLASS_NAME: std::sync::OnceLock<ClassName> = std::sync::OnceLock::new();
 
-                let name: &'static ClassName = CLASS_NAME.get_or_init(|| ClassName::alloc_next(#class_name_cstr));
+                let name: &'static ClassName = CLASS_NAME.get_or_init(|| #class_name_allocation);
                 *name
             }
         }

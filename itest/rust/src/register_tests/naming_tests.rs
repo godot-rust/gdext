@@ -26,3 +26,8 @@ impl IEditorExportPlugin for KeywordParameterEditorExportPlugin {
     fn get_customization_configuration_hash(&self) -> u64 { unreachable!() }
     fn get_name(&self) -> GString { unreachable!() }
 }
+
+#[cfg(since_api = "4.4")]
+#[derive(GodotClass)]
+#[class(no_init)]
+struct 统一码 {}
