@@ -48,6 +48,7 @@ compile_error!("Generating editor docs for Rust symbols requires at least Godot 
 #[allow(clippy::let_unit_value)] // let args = ();
 #[allow(clippy::wrong_self_convention)] // to_string() is const
 #[allow(clippy::upper_case_acronyms)] // TODO remove this line once we transform names
+#[allow(clippy::needless_lifetimes)]  // the following explicit lifetimes could be elided: 'a
 #[allow(unreachable_code, clippy::unimplemented)] // TODO remove once #153 is implemented
 mod gen {
     include!(concat!(env!("OUT_DIR"), "/mod.rs"));
