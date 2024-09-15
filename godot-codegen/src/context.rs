@@ -64,14 +64,19 @@ impl<'a> Context<'a> {
             }
 
             // Populate class lookup by name
-            println!("-- add engine class {}", class_name.description());
             engine_classes.insert(class_name.clone(), class);
 
             // Populate derived-to-base relations
             if let Some(base) = class.inherits.as_ref() {
                 let base_name = TyName::from_godot(base);
-                println!("  -- inherits {}", base_name.description());
+                println!(
+                    "* Add engine class {} <- inherits {}",
+                    class_name.description(),
+                    base_name.description()
+                );
                 ctx.inheritance_tree.insert(class_name.clone(), base_name);
+            } else {
+                println!("* Add engine class {}", class_name.description());
             }
 
             // Populate notification constants (first, only for classes that declare them themselves).

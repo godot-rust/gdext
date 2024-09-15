@@ -530,6 +530,17 @@ impl FnParam {
     }
 }
 
+impl fmt::Debug for FnParam {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let def_val = self
+            .default_value
+            .as_ref()
+            .map_or(String::new(), |v| format!(" (default {v})"));
+
+        write!(f, "{}: {}{}", self.name, self.type_, def_val)
+    }
+}
+
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 pub struct FnReturn {
@@ -681,6 +692,12 @@ impl ToTokens for RustTy {
             RustTy::EngineClass { tokens: path, .. } => path.to_tokens(tokens),
             RustTy::ExtenderReceiver { tokens: path } => path.to_tokens(tokens),
         }
+    }
+}
+
+impl fmt::Display for RustTy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.to_token_stream().to_string().replace(" ", ""))
     }
 }
 
