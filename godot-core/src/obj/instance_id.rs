@@ -94,7 +94,9 @@ impl GodotConvert for InstanceId {
 }
 
 impl ToGodot for InstanceId {
-    fn to_godot(&self) -> Self::Via {
+    type ToVia<'v> = i64;
+
+    fn to_godot(&self) -> Self::ToVia<'_> {
         self.to_i64()
     }
 }

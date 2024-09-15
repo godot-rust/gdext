@@ -261,7 +261,7 @@ impl<T: ArrayElement> Array<T> {
     /// # Panics
     ///
     /// If `index` is out of bounds.
-    pub fn set(&mut self, index: usize, value: T) {
+    pub fn set(&mut self, index: usize, value: &T) {
         let ptr_mut = self.ptr_mut(index);
 
         // SAFETY: `ptr_mut` just checked that the index is not out of bounds.
@@ -275,7 +275,7 @@ impl<T: ArrayElement> Array<T> {
     /// _Godot equivalents: `append` and `push_back`_
     #[doc(alias = "append")]
     #[doc(alias = "push_back")]
-    pub fn push(&mut self, value: T) {
+    pub fn push(&mut self, value: &T) {
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
         unsafe { self.as_inner_mut() }.push_back(&value.to_variant());
     }
@@ -381,7 +381,7 @@ impl<T: ArrayElement> Array<T> {
 
         // If new_size < original_size then this is an empty iterator and does nothing.
         for i in original_size..new_size {
-            self.set(i, value.to_godot());
+            self.set(i, value);
         }
     }
 
@@ -901,7 +901,9 @@ impl<T: ArrayElement> GodotConvert for Array<T> {
 }
 
 impl<T: ArrayElement> ToGodot for Array<T> {
-    fn to_godot(&self) -> Self::Via {
+    type ToVia<'v> = Self::Via;
+
+    fn to_godot(&self) -> Self::ToVia<'_> {
         // SAFETY: only safe when passing to FFI in a context where Rust-side type doesn't matter.
         // TODO: avoid unsafety with either of the following:
         // * OutArray -- https://github.com/godot-rust/gdext/pull/806.
@@ -1158,10 +1160,10 @@ impl<T: ArrayElement + ToGodot> Extend<T> for Array<T> {
         // Unfortunately the GDExtension API does not offer the equivalent of `Vec::reserve`.
         // Otherwise, we could use it to pre-allocate based on `iter.size_hint()`.
         //
-        // A faster implementation using `resize()` and direct pointer writes might still be
-        // possible.
+        // A faster implementation using `resize()` and direct pointer writes might still be possible.
+        // Note that this could technically also use iter(), since no moves need to happen (however Extend requires IntoIterator).
         for item in iter.into_iter() {
-            self.push(item);
+            self.push(&item);
         }
     }
 }

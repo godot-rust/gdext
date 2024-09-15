@@ -8,34 +8,37 @@ use crate::meta::error::ConvertError;
 use crate::meta::{FromGodot, GodotConvert, ToGodot};
 use std::fmt;
 
-pub struct RefArg<'a, T> {
-    pub(crate) shared_ref: &'a T,
+pub struct RefArg<'r, T> {
+    pub(crate) shared_ref: &'r T,
 }
 
-impl<'a, T> RefArg<'a, T> {
-    pub fn new(shared_ref: &'a T) -> Self {
+impl<'r, T> RefArg<'r, T> {
+    pub fn new(shared_ref: &'r T) -> Self {
         RefArg { shared_ref }
     }
 }
 
-impl<'a, T> GodotConvert for RefArg<'a, T>
+impl<'r, T> GodotConvert for RefArg<'r, T>
 where
     T: GodotConvert,
 {
     type Via = T::Via;
 }
 
-impl<'a, T> ToGodot for RefArg<'a, T>
+impl<'r, T> ToGodot for RefArg<'r, T>
 where
     T: ToGodot,
 {
-    fn to_godot(&self) -> T::Via {
+    type ToVia<'v> = Self::Via
+    where Self: 'v;
+
+    fn to_godot(&self) -> Self::ToVia<'_> {
         self.shared_ref.to_godot()
     }
 }
 
 // TODO refactor signature tuples into separate in+out traits, so FromGodot is no longer needed.
-impl<'a, T> FromGodot for RefArg<'a, T>
+impl<'r, T> FromGodot for RefArg<'r, T>
 where
     T: FromGodot,
 {
@@ -44,7 +47,7 @@ where
     }
 }
 
-impl<'a, T> fmt::Debug for RefArg<'a, T>
+impl<'r, T> fmt::Debug for RefArg<'r, T>
 where
     T: fmt::Debug,
 {

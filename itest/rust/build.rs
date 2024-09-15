@@ -87,7 +87,8 @@ macro_rules! push_newtype {
 
             impl godot::meta::ToGodot for $name {
                 #[allow(clippy::clone_on_copy)]
-                fn to_godot(&self) -> Self::Via {
+                fn to_godot(&self) -> Self::ToVia<'_>
+ {
                     self.0.clone()
                 }
             }

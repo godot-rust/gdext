@@ -679,7 +679,9 @@ impl<T: GodotClass> GodotConvert for Gd<T> {
 }
 
 impl<T: GodotClass> ToGodot for Gd<T> {
-    fn to_godot(&self) -> Self::Via {
+    type ToVia<'v> = Gd<T>;
+
+    fn to_godot(&self) -> Self::ToVia<'_> {
         self.raw.check_rtti("to_godot");
         self.clone()
     }

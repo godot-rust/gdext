@@ -40,14 +40,19 @@ pub trait GodotConvert {
 ///
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
 pub trait ToGodot: Sized + GodotConvert {
+    type ToVia<'v>
+    where
+        Self: 'v;
+
     /// Converts this type to the Godot type by reference, usually by cloning.
-    fn to_godot(&self) -> Self::Via;
+    fn to_godot(&self) -> Self::ToVia<'_>;
 
     /// Converts this type to the Godot type.
     ///
     /// This can in some cases enable minor optimizations, such as avoiding reference counting operations.
     fn into_godot(self) -> Self::Via {
-        self.to_godot()
+        //self.to_godot()
+        todo!()
     }
 
     /// Converts this type to a [Variant].
@@ -117,8 +122,10 @@ macro_rules! impl_godot_as_self {
         }
 
         impl $crate::meta::ToGodot for $T {
+            type ToVia<'v> = Self::Via;
+
             #[inline]
-            fn to_godot(&self) -> Self::Via {
+            fn to_godot(&self) -> Self::ToVia<'_> {
                 self.clone()
             }
 
