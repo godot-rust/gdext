@@ -29,7 +29,7 @@ impl<'r, T> ToGodot for RefArg<'r, T>
 where
     T: ToGodot,
 {
-    type ToVia<'v> = Self::Via
+    type ToVia<'v> = T::ToVia<'v>
     where Self: 'v;
 
     fn to_godot(&self) -> Self::ToVia<'_> {

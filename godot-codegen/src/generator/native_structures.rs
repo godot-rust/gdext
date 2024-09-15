@@ -83,59 +83,59 @@ fn make_native_structure(
 
     // mod re_export needed, because class should not appear inside the file module, and we can't re-export private struct as pub
     let tokens = quote! {
-           #imports
-           use std::ffi::c_void; // for opaque object pointer fields
-           use crate::meta::{GodotConvert, FromGodot, ToGodot};
+        #imports
+        use std::ffi::c_void; // for opaque object pointer fields
+        use crate::meta::{GodotConvert, FromGodot, ToGodot};
 
-           /// Native structure; can be passed via pointer in APIs that are not exposed to GDScript.
-           ///
-           #[doc = #doc]
-           #[derive(Clone, PartialEq, Debug)]
-           #[repr(C)]
-           pub struct #class_name {
-               #fields
-           }
+        /// Native structure; can be passed via pointer in APIs that are not exposed to GDScript.
+        ///
+        #[doc = #doc]
+        #[derive(Clone, PartialEq, Debug)]
+        #[repr(C)]
+        pub struct #class_name {
+            #fields
+        }
 
-           impl #class_name {
-               #methods
-           }
+        impl #class_name {
+            #methods
+        }
 
-           impl GodotConvert for *mut #class_name {
-               type Via = i64;
-           }
+        impl GodotConvert for *mut #class_name {
+            type Via = i64;
+        }
 
-           impl ToGodot for *mut #class_name {
-               type ToVia<'v> = i64;
+        impl ToGodot for *mut #class_name {
+            type ToVia<'v> = i64;
 
-               fn to_godot(&self) -> Self::ToVia<'_> {
-                   *self as i64
-               }
-           }
+            fn to_godot(&self) -> Self::ToVia<'_> {
+                *self as i64
+            }
+        }
 
-           impl FromGodot for *mut #class_name {
-               fn try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
-                   Ok(via as Self)
-               }
-           }
+        impl FromGodot for *mut #class_name {
+            fn try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
+                Ok(via as Self)
+            }
+        }
 
-           impl GodotConvert for *const #class_name {
-               type Via = i64;
-           }
+        impl GodotConvert for *const #class_name {
+            type Via = i64;
+        }
 
-           impl ToGodot for *const #class_name {
-               type ToVia<'v> = i64;
+        impl ToGodot for *const #class_name {
+            type ToVia<'v> = i64;
 
-               fn to_godot(&self) -> Self::ToVia<'_> {
-                   *self as i64
-               }
-           }
+            fn to_godot(&self) -> Self::ToVia<'_> {
+                *self as i64
+            }
+        }
 
-           impl FromGodot for *const #class_name {
-               fn try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
-                   Ok(via as Self)
-               }
-           }
-       };
+        impl FromGodot for *const #class_name {
+            fn try_from_godot(via: Self::Via) -> Result<Self, crate::meta::error::ConvertError> {
+                Ok(via as Self)
+            }
+        }
+    };
     // note: TypePtr -> ObjectPtr conversion OK?
 
     builtins::GeneratedBuiltin { code: tokens }

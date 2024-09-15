@@ -53,7 +53,7 @@ fn array_from_packed_array() {
     // This tests that the resulting array doesn't secretly have a runtime type assigned to it,
     // which is not reflected in our static type. It would make sense if it did, but Godot decided
     // otherwise: we get an untyped array.
-    array.push(GString::from("hi").to_variant());
+    array.push(&GString::from("hi").to_variant());
     assert_eq!(array, varray![42, "hi"]);
 }
 

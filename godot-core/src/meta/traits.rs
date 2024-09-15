@@ -38,8 +38,7 @@ pub trait GodotFfiVariant: Sized + GodotFfi {
 // type. For instance [`i32`] does not implement `GodotFfi` because it cannot represent all values of
 // Godot's `int` type, however it does implement `GodotType` because we can set the metadata of values with
 // this type to indicate that they are 32 bits large.
-pub trait GodotType:
-    GodotConvert<Via = Self> + ToGodot + FromGodot + sealed::Sealed + 'static
+pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 // 'static is not technically required, but it simplifies a few things (limits e.g. ObjectArg).
 {
     #[doc(hidden)]
@@ -145,7 +144,7 @@ pub trait GodotType:
     message = "`Array<T>` can only store element types supported in Godot arrays (no nesting).",
     label = "has invalid element type"
 )]
-pub trait ArrayElement: GodotType + sealed::Sealed {
+pub trait ArrayElement: GodotType + ToGodot + FromGodot + sealed::Sealed {
     /// Returns the representation of this type as a type string.
     ///
     /// Used for elements in arrays (the latter despite `ArrayElement` not having a direct relation).

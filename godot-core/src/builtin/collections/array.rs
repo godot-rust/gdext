@@ -4,7 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
-
+use std::borrow::Borrow;
 use std::fmt;
 use std::marker::PhantomData;
 
@@ -258,26 +258,31 @@ impl<T: ArrayElement> Array<T> {
 
     /// Sets the value at the specified index.
     ///
+    /// `value` uses `Borrow<T>` to accept either by value or by reference.
+    ///
     /// # Panics
     ///
     /// If `index` is out of bounds.
-    pub fn set(&mut self, index: usize, value: &T) {
+    pub fn set(&mut self, index: usize, value: impl Borrow<T>) {
         let ptr_mut = self.ptr_mut(index);
 
+        let variant = value.borrow().to_variant();
+
         // SAFETY: `ptr_mut` just checked that the index is not out of bounds.
-        unsafe {
-            value.to_variant().move_into_var_ptr(ptr_mut);
-        }
+        unsafe { variant.move_into_var_ptr(ptr_mut) };
     }
 
     /// Appends an element to the end of the array.
     ///
+    /// `value` uses `Borrow<T>` to accept either by value or by reference.
+    ///
     /// _Godot equivalents: `append` and `push_back`_
     #[doc(alias = "append")]
     #[doc(alias = "push_back")]
-    pub fn push(&mut self, value: &T) {
+    pub fn push(&mut self, value: impl Borrow<T>) {
         // SAFETY: The array has type `T` and we're writing a value of type `T` to it.
-        unsafe { self.as_inner_mut() }.push_back(&value.to_variant());
+        let mut inner = unsafe { self.as_inner_mut() };
+        inner.push_back(&value.borrow().to_variant());
     }
 
     /// Adds an element at the beginning of the array, in O(n).

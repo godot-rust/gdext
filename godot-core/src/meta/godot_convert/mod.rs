@@ -40,7 +40,7 @@ pub trait GodotConvert {
 ///
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
 pub trait ToGodot: Sized + GodotConvert {
-    type ToVia<'v>
+    type ToVia<'v>: GodotType
     where
         Self: 'v;
 

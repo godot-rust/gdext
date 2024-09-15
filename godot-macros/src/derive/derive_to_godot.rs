@@ -42,6 +42,9 @@ fn make_togodot_for_newtype_struct(name: &Ident, field: &NewtypeStruct) -> Token
 
     quote! {
         impl ::godot::meta::ToGodot for #name {
+            // For now by-value, may change.
+            type ToVia<'v> = #via_type;
+
             fn to_godot(&self) -> #via_type {
                 ::godot::meta::ToGodot::to_godot(&self.#field_name)
             }
@@ -67,6 +70,8 @@ fn make_togodot_for_int_enum(
 
     quote! {
         impl ::godot::meta::ToGodot for #name {
+            type ToVia<'v> = #int;
+
             #[allow(unused_parens)] // Error "unnecessary parentheses around block return value"; comes from ord expressions like (1 + 2).
             fn to_godot(&self) -> #int {
                 match self {
@@ -86,6 +91,8 @@ fn make_togodot_for_string_enum(name: &Ident, enum_: &CStyleEnum) -> TokenStream
 
     quote! {
         impl ::godot::meta::ToGodot for #name {
+            type ToVia<'v> = ::godot::builtin::GString;
+
             fn to_godot(&self) -> ::godot::builtin::GString {
                 match self {
                     #(

@@ -91,8 +91,10 @@ where
 impl<T: ToGodot> ToGodot for Option<T>
 where
     Option<T::Via>: GodotType,
+    for<'f> T::ToVia<'f>: GodotType<Ffi: GodotNullableFfi>,
 {
     type ToVia<'v> = Option<T::ToVia<'v>>
+    // type ToVia<'v> = Self::Via
     where Self: 'v;
 
     fn to_godot(&self) -> Self::ToVia<'_> {
