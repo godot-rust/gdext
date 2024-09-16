@@ -165,6 +165,7 @@ pub mod custom_callable {
     use super::*;
     use crate::framework::assert_eq_self;
     use godot::builtin::{Dictionary, RustCallable};
+    use godot::sys::GdextBuild;
     use std::fmt;
     use std::hash::Hash;
     use std::sync::{Arc, Mutex};
@@ -285,8 +286,12 @@ pub mod custom_callable {
         dict.set(b, "hi");
         assert_eq!(hash_count(&at), 1, "hash for a untouched if b is inserted");
         assert_eq!(hash_count(&bt), 1, "hash needed for b dict key");
-        assert_eq!(eq_count(&at), 1, "hash collision, eq for a needed");
-        assert_eq!(eq_count(&bt), 1, "hash collision, eq for b needed");
+
+        // Introduced in https://github.com/godotengine/godot/pull/96797.
+        let eq = if GdextBuild::since_api("4.4") { 2 } else { 1 };
+
+        assert_eq!(eq_count(&at), eq, "hash collision, eq for a needed");
+        assert_eq!(eq_count(&bt), eq, "hash collision, eq for b needed");
     }
 
     #[itest]
