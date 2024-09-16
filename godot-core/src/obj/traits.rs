@@ -164,6 +164,16 @@ pub trait EngineEnum: Copy {
         Self::try_from_ord(ord)
             .unwrap_or_else(|| panic!("ordinal {ord} does not map to any enumerator"))
     }
+
+    // The name of the enumerator, as it appears in Rust.
+    //
+    // If the value does not match one of the known enumerators, the empty string is returned.
+    fn as_str(&self) -> &'static str;
+
+    // The equivalent name of the enumerator, as specified in Godot.
+    //
+    // If the value does not match one of the known enumerators, the empty string is returned.
+    fn godot_name(&self) -> &'static str;
 }
 
 /// Auto-implemented for all engine-provided bitfields.
