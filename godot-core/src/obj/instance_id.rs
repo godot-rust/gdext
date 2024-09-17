@@ -58,6 +58,17 @@ impl InstanceId {
         self.to_u64() & (1u64 << 63) != 0
     }
 
+    /// Dynamically checks if the instance behind the ID exists.
+    ///
+    /// Rather slow, involves engine round-trip plus object DB lookup. If you need the object, use
+    /// [`Gd::from_instance_id()`][crate::obj::Gd::from_instance_id] instead.
+    ///
+    /// This corresponds to Godot's global function `is_instance_id_valid()`.
+    #[doc(alias = "is_instance_id_valid")]
+    pub fn lookup_validity(self) -> bool {
+        crate::gen::utilities::is_instance_id_valid(self.to_i64())
+    }
+
     // Private: see rationale above
     pub(crate) fn to_u64(self) -> u64 {
         self.value.get()

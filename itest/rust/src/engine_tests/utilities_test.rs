@@ -5,6 +5,9 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+// TODO remove once instance_from_id() etc are removed.
+#![allow(deprecated)]
+
 use crate::framework::itest;
 
 use godot::builtin::{GString, Variant};
