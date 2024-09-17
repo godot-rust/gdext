@@ -102,7 +102,7 @@ pub struct ClassName {
 }
 
 impl ClassName {
-    /// Construct a new ASCII class name.
+    /// Construct a new class name.
     ///
     /// This is expensive the first time it called for a given `T`, but will be cached for subsequent calls.
     ///
@@ -110,7 +110,7 @@ impl ClassName {
     /// to keep the invocations limited, so you can use more expensive construction in the closure.
     ///
     /// # Panics
-    /// If the string is not ASCII.
+    /// If the string is not ASCII and the Godot version is older than 4.4. From Godot 4.4 onwards, class names can be Unicode.
     pub fn new_cached<T: GodotClass>(init_fn: impl FnOnce() -> String) -> Self {
         // Check if class name exists.
         let type_id = TypeId::of::<T>();
@@ -119,7 +119,12 @@ impl ClassName {
         // Insert into linear vector. Note: this doesn't check for overlaps of TypeId between static and dynamic class names.
         let global_index = *map.entry(type_id).or_insert_with(|| {
             let name = init_fn();
-            debug_assert!(name.is_ascii(), "Class name must be ASCII: '{name}'");
+
+            #[cfg(before_api = "4.4")]
+            assert!(
+                name.is_ascii(),
+                "In Godot < 4.4, class name must be ASCII: '{name}'"
+            );
 
             insert_class(ClassNameSource::Owned(name))
         });
