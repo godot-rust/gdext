@@ -51,11 +51,8 @@ fn to_hardcoded_rust_ident(full_ty: &GodotTy) -> Option<&str> {
 
         // Others
         ("bool", None) => "bool",
-        ("String", None) => 
-            "GString",
-        ("Array", None) => 
-            "VariantArray"
-        ,
+        ("String", None) => "GString",
+        ("Array", None) => "VariantArray",
 
         // Types needed for native structures mapping
         ("uint8_t", None) => "u8",

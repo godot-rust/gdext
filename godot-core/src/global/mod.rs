@@ -50,7 +50,7 @@ pub fn instance_from_id(instance_id: i64) -> Option<Gd<crate::classes::Object>> 
 #[deprecated = "Instance utilities in `godot::global` will be removed. Use methods on `Gd` and `InstanceId` instead.\n\
     For detailed reasons, see https://github.com/godot-rust/gdext/pull/892."]
 pub fn is_instance_valid(instance: Variant) -> bool {
-    crate::gen::utilities::is_instance_valid(instance)
+    crate::gen::utilities::is_instance_valid(&instance)
 }
 
 #[deprecated = "Instance utilities in `godot::global` will be removed. Use methods on `Gd` and `InstanceId` instead.\n\

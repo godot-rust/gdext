@@ -609,7 +609,7 @@ fn test_get_called() {
 }
 
 #[itest]
-fn test_get_returns_correct() {
+fn test_get_returns() {
     let mut obj = GetTest::new_gd();
 
     {
@@ -636,7 +636,7 @@ fn test_set_called() {
 }
 
 #[itest]
-fn test_set_sets_correct() {
+fn test_set_sets() {
     let mut obj = SetTest::new_gd();
 
     assert_eq!(obj.bind().always_set_to_100, i64::default());
