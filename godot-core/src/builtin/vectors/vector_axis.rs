@@ -38,6 +38,22 @@ macro_rules! impl_vector_axis_enum {
             fn ord(self) -> i32 {
                 self as i32
             }
+
+            fn as_str(&self) -> &'static str {
+                match *self {
+                    $(
+                        Self::$axis => stringify!($axis),
+                    )+
+                }
+            }
+
+            fn godot_name(&self) -> &'static str {
+                match *self {
+                    $(
+                        Self::$axis => concat!("AXIS_", stringify!($axis)),
+                    )+
+                }
+            }
         }
 
         impl GodotConvert for $AxisEnum {

@@ -10,6 +10,7 @@ use godot::builtin::varray;
 use godot::classes::input::CursorShape;
 use godot::classes::mesh::PrimitiveType;
 use godot::classes::{time, ArrayMesh};
+use godot::global::{Orientation, Key};
 use std::collections::HashSet;
 
 #[itest]
@@ -69,4 +70,30 @@ fn enum_hash() {
 fn add_surface_from_arrays() {
     let mut mesh = ArrayMesh::new();
     mesh.add_surface_from_arrays(PrimitiveType::PRIMITIVE_TRIANGLES, varray![]);
+}
+
+#[itest]
+fn enum_as_str_correct() {
+    use godot::obj::EngineEnum;
+    assert_eq!(Orientation::Vertical.as_str(), "VERTICAL");
+    assert_eq!(Orientation::Horizontal.as_str(), "HORIZONTAL");
+
+    assert_eq!(Key::NONE.as_str(), "NONE");
+    assert_eq!(Key::SPECIAL.as_str(), "SPECIAL");
+    assert_eq!(Key::ESCAPE.as_str(), "ESCAPE");
+    assert_eq!(Key::TAB.as_str(), "TAB");
+    assert_eq!(Key::A.as_str(), "A");
+}
+
+#[itest]
+fn enum_godot_name_correct() {
+    use godot::obj::EngineEnum;
+    assert_eq!(Orientation::Vertical.godot_name(), Orientation::Vertical.as_str());
+    assert_eq!(Orientation::Horizontal.godot_name(), Orientation::Vertical.as_str());
+
+    assert_eq!(Key::NONE.godot_name(), "KEY_NONE");
+    assert_eq!(Key::SPECIAL.godot_name(), "KEY_SPECIAL");
+    assert_eq!(Key::ESCAPE.godot_name(), "KEY_ESCAPE");
+    assert_eq!(Key::TAB.godot_name(), "KEY_TAB");
+    assert_eq!(Key::A.godot_name(), "KEY_A");
 }
