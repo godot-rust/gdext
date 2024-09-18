@@ -14,7 +14,7 @@ use sys::{BuiltinMethodBind, ClassMethodBind, GodotFfi, UtilityFunctionBind};
 
 use crate::builtin::Variant;
 use crate::meta::error::{CallError, ConvertError};
-use crate::meta::godot_convert::{into_ffi, into_ffi_variant, try_from_ffi};
+use crate::meta::godot_convert::{into_ffi_variant, try_from_ffi};
 use crate::meta::*;
 use crate::obj::{GodotClass, InstanceId};
 
@@ -118,23 +118,6 @@ pub trait PtrcallSignatureTuple {
         args: Self::Params,
     ) -> Self::Ret;
 }
-
-// impl<P, const N: usize> Sig for [P; N]
-// impl<P, T0> Sig for (T0)
-// where P: VariantMetadata {
-//     fn variant_type(index: usize) -> sys::GDExtensionVariantType {
-//           Self[index]::
-//     }
-//
-//     fn param_metadata(index: usize) -> sys::GDExtensionClassMethodArgumentMetadata {
-//         todo!()
-//     }
-//
-//     fn property_info(index: usize, param_name: &str) -> sys::GDExtensionPropertyInfo {
-//         todo!()
-//     }
-// }
-//
 
 macro_rules! impl_varcall_signature_for_tuple {
     (
@@ -333,6 +316,31 @@ macro_rules! impl_varcall_signature_for_tuple {
     };
 }
 
+macro_rules! marshal_args {
+    (
+        let $out:ident = $( $pn:ident: $n:tt )* ;
+    ) => {
+        // Note: this used to be done in a single `into_ffi()` function, however with reference semantics, this causes issues with lifetimes:
+        // The to_godot() call creates a temporary value local to the function, and even when using the same 'v lifetime throughout, rustc
+        // assumes that the temporary value may store other state that would go out of scope after the function returns.
+        // Thus, this is now done in 2 steps, and abstracted with a macro.
+
+        #[allow(clippy::let_unit_value)]
+        let vias = (
+            $(
+                ToGodot::to_godot(&$pn),
+            )*
+        );
+
+        #[allow(clippy::let_unit_value)]
+        let $out = (
+            $(
+                GodotType::to_ffi(&vias.$n),
+            )*
+        );
+    }
+}
+
 macro_rules! impl_ptrcall_signature_for_tuple {
     (
         $R:ident
@@ -389,12 +397,9 @@ macro_rules! impl_ptrcall_signature_for_tuple {
 
                 let class_fn = sys::interface_fn!(object_method_bind_ptrcall);
 
-                #[allow(clippy::let_unit_value)]
-                let marshalled_args = (
-                    $(
-                        into_ffi(&$pn),
-                    )*
-                );
+                marshal_args! {
+                    let marshalled_args = $($pn: $n)*;
+                }
 
                 let type_ptrs = [
                     $(
@@ -420,12 +425,9 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 let call_ctx = CallContext::outbound(class_name, method_name);
                 // $crate::out!("out_builtin_ptrcall: {call_ctx}");
 
-                #[allow(clippy::let_unit_value)]
-                let marshalled_args = (
-                    $(
-                        into_ffi(&$pn),
-                    )*
-                );
+                marshal_args! {
+                    let marshalled_args = $($pn: $n)*;
+                }
 
                 let type_ptrs = [
                     $(
@@ -448,12 +450,9 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 let call_ctx = CallContext::outbound("", function_name);
                 // $crate::out!("out_utility_ptrcall: {call_ctx}");
 
-                #[allow(clippy::let_unit_value)]
-                let marshalled_args = (
-                    $(
-                        into_ffi(&$pn),
-                    )*
-                );
+                marshal_args! {
+                    let marshalled_args = $($pn: $n)*;
+                }
 
                 let arg_ptrs = [
                     $(
@@ -548,10 +547,10 @@ unsafe fn ptrcall_return<R: ToGodot>(
     _call_ctx: &CallContext,
     call_type: sys::PtrcallType,
 ) {
-    //let val = into_ffi(ret_val);
-    let val = ret_val.to_godot().to_ffi();
+    let val = ret_val.to_godot();
+    let ffi = val.into_ffi();
 
-    val.move_return_ptr(ret, call_type);
+    ffi.move_return_ptr(ret, call_type);
 }
 
 fn param_error<P>(call_ctx: &CallContext, index: i32, err: ConvertError) -> ! {

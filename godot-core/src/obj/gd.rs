@@ -17,7 +17,7 @@ use crate::global::PropertyHint;
 use crate::meta::error::{ConvertError, FromFfiError};
 use crate::meta::{
     ArrayElement, CallContext, ClassName, FromGodot, GodotConvert, GodotType, PropertyHintInfo,
-    ToGodot,
+    RefArg, ToGodot,
 };
 use crate::obj::{
     bounds, cap, Bounds, EngineEnum, GdDerefTarget, GdMut, GdRef, GodotClass, Inherits, InstanceId,
@@ -696,8 +696,11 @@ impl<T: GodotClass> FromGodot for Gd<T> {
 impl<T: GodotClass> GodotType for Gd<T> {
     type Ffi = RawGd<T>;
 
-    fn to_ffi(&self) -> Self::Ffi {
-        self.raw.clone()
+    type ToFfi<'f> = RefArg<'f, RawGd<T>>
+    where Self: 'f;
+
+    fn to_ffi(&self) -> Self::ToFfi<'_> {
+        RefArg::new(&self.raw)
     }
 
     fn into_ffi(self) -> Self::Ffi {

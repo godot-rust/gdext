@@ -25,10 +25,13 @@ impl<T> GodotType for Option<T>
 where
     T: GodotType,
     T::Ffi: GodotNullableFfi,
+    for<'f> T::ToFfi<'f>: GodotNullableFfi,
 {
     type Ffi = T::Ffi;
 
-    fn to_ffi(&self) -> Self::Ffi {
+    type ToFfi<'f> = T::ToFfi<'f>;
+
+    fn to_ffi(&self) -> Self::ToFfi<'_> {
         GodotNullableFfi::flatten_option(self.as_ref().map(|t| t.to_ffi()))
     }
 
@@ -91,7 +94,11 @@ where
 impl<T: ToGodot> ToGodot for Option<T>
 where
     Option<T::Via>: GodotType,
-    for<'f> T::ToVia<'f>: GodotType<Ffi: GodotNullableFfi>,
+    for<'v, 'f> T::ToVia<'v>: GodotType<
+        // Associated types need to be nullable.
+        Ffi: GodotNullableFfi,
+        ToFfi<'f>: GodotNullableFfi,
+    >,
 {
     type ToVia<'v> = Option<T::ToVia<'v>>
     // type ToVia<'v> = Self::Via
@@ -155,8 +162,9 @@ macro_rules! impl_godot_scalar {
     ($T:ty as $Via:ty, $err:path, $param_metadata:expr) => {
         impl GodotType for $T {
             type Ffi = $Via;
+            type ToFfi<'f> = $Via;
 
-            fn to_ffi(&self) -> Self::Ffi {
+            fn to_ffi(&self) -> Self::ToFfi<'_> {
                 (*self).into()
             }
 
@@ -188,8 +196,9 @@ macro_rules! impl_godot_scalar {
     ($T:ty as $Via:ty, $param_metadata:expr; lossy) => {
         impl GodotType for $T {
             type Ffi = $Via;
+            type ToFfi<'f> = $Via;
 
-            fn to_ffi(&self) -> Self::Ffi {
+            fn to_ffi(&self) -> Self::ToFfi<'_> {
                 *self as $Via
             }
 
@@ -289,8 +298,9 @@ impl_godot_scalar!(
 
 impl GodotType for u64 {
     type Ffi = i64;
+    type ToFfi<'f> = i64;
 
-    fn to_ffi(&self) -> Self::Ffi {
+    fn to_ffi(&self) -> Self::ToFfi<'_> {
         *self as i64
     }
 

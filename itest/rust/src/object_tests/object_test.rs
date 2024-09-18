@@ -68,7 +68,9 @@ fn object_user_roundtrip_write() {
 
     let obj: Gd<RefcPayload> = Gd::from_object(user);
     assert_eq!(obj.bind().value, value);
-    let raw = obj.to_ffi();
+
+    // Use into_ffi() instead of to_ffi(), as the latter returns a reference and isn't used for returns anymore.
+    let raw = obj.into_ffi();
 
     let raw2 = unsafe {
         RawGd::<RefcPayload>::new_with_uninit(|ptr| {
@@ -94,6 +96,20 @@ fn object_engine_roundtrip() {
     let obj2 = Gd::from_ffi(raw2);
     assert_eq!(obj2.get_position(), pos);
     obj.free();
+}
+
+#[itest]
+fn object_null_argument() {
+    // Objects currently use ObjectArg instead of RefArg, so this scenario shouldn't occur. Test can be updated if code is refactored.
+
+    let null_obj = Option::<Gd<Node>>::None;
+
+    let via = null_obj.to_godot();
+    let ffi = via.to_ffi();
+
+    expect_panic("not yet implemented: pass objects through RefArg", || {
+        ffi.to_godot();
+    });
 }
 
 #[itest]

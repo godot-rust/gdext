@@ -40,6 +40,7 @@ pub trait GodotConvert {
 ///
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
 pub trait ToGodot: Sized + GodotConvert {
+    /// Target type of [`to_godot()`](ToGodot::to_godot), which differs from [`Via`](GodotConvert::Via) for pass-by-reference types.
     type ToVia<'v>: GodotType
     where
         Self: 'v;
@@ -95,16 +96,10 @@ pub trait FromGodot: Sized + GodotConvert {
     }
 }
 
-// Note: removing the implicit lifetime (by taking value: T instead of &T) causes issues due to allegedly returning a lifetime
-// to a local variable, even though the result Ffi is 'static by definition.
-#[allow(clippy::needless_lifetimes)] // eliding causes error: missing generics for associated type `godot_convert::ToGodot::ToVia`
-pub(crate) fn into_ffi<'v, T: ToGodot>(value: &'v T) -> <T::ToVia<'v> as GodotType>::Ffi {
-    let by_ref = value.to_godot();
-    by_ref.to_ffi()
-}
-
 pub(crate) fn into_ffi_variant<T: ToGodot>(value: &T) -> Variant {
-    GodotFfiVariant::ffi_to_variant(&into_ffi(value))
+    let via = value.to_godot();
+    let ffi = via.to_ffi();
+    GodotFfiVariant::ffi_to_variant(&ffi)
 }
 
 pub(crate) fn try_from_ffi<T: FromGodot>(

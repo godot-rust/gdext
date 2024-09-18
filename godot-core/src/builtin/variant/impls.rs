@@ -9,7 +9,9 @@ use super::*;
 use crate::builtin::*;
 use crate::global;
 use crate::meta::error::{ConvertError, FromVariantError};
-use crate::meta::{ArrayElement, GodotFfiVariant, GodotType, PropertyHintInfo, PropertyInfo};
+use crate::meta::{
+    ArrayElement, GodotFfiVariant, GodotType, PropertyHintInfo, PropertyInfo, RefArg,
+};
 use godot_ffi as sys;
 // For godot-cpp, see https://github.com/godotengine/godot-cpp/blob/master/include/godot_cpp/core/type_info.hpp.
 
@@ -22,7 +24,15 @@ use godot_ffi as sys;
 //
 // Therefore, we can use `init` to indicate when it must be initialized in 4.0.
 macro_rules! impl_ffi_variant {
-    ($T:ty, $from_fn:ident, $to_fn:ident $(; $godot_type_name:ident)?) => {
+    (ref $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
+        impl_ffi_variant!(@impls by_ref; $T, $from_fn, $to_fn $(; $GodotTy)?);
+    };
+    ($T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
+        impl_ffi_variant!(@impls by_val; $T, $from_fn, $to_fn $(; $GodotTy)?);
+    };
+
+    // Implementations
+    (@impls $by_ref_or_val:ident; $T:ty, $from_fn:ident, $to_fn:ident $(; $GodotTy:ident)?) => {
         impl GodotFfiVariant for $T {
             fn ffi_to_variant(&self) -> Variant {
                 let variant = unsafe {
@@ -58,10 +68,7 @@ macro_rules! impl_ffi_variant {
 
         impl GodotType for $T {
             type Ffi = Self;
-
-            fn to_ffi(&self) -> Self::Ffi {
-                self.clone()
-            }
+            impl_ffi_variant!(@assoc_to_ffi $by_ref_or_val);
 
             fn into_ffi(self) -> Self::Ffi {
                 self
@@ -71,7 +78,7 @@ macro_rules! impl_ffi_variant {
                 Ok(ffi)
             }
 
-            impl_ffi_variant!(@godot_type_name $T $(, $godot_type_name)?);
+            impl_ffi_variant!(@godot_type_name $T $(, $GodotTy)?);
         }
 
         impl ArrayElement for $T {}
@@ -86,6 +93,22 @@ macro_rules! impl_ffi_variant {
     (@godot_type_name $T:ty, $godot_type_name:ident) => {
         fn godot_type_name() -> String {
             stringify!($godot_type_name).into()
+        }
+    };
+
+    (@assoc_to_ffi by_ref) => {
+        type ToFfi<'a> =  RefArg<'a, Self>;
+
+        fn to_ffi(&self) -> Self::ToFfi<'_> {
+            RefArg::new(self)
+        }
+    };
+
+    (@assoc_to_ffi by_val) => {
+        type ToFfi<'a> = Self;
+
+        fn to_ffi(&self) -> Self::ToFfi<'_> {
+            self.clone()
         }
     };
 }
@@ -116,17 +139,17 @@ mod impls {
     impl_ffi_variant!(GString, string_to_variant, string_from_variant; String);
     impl_ffi_variant!(StringName, string_name_to_variant, string_name_from_variant);
     impl_ffi_variant!(NodePath, node_path_to_variant, node_path_from_variant);
-    impl_ffi_variant!(PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant);
-    impl_ffi_variant!(PackedInt32Array, packed_int32_array_to_variant, packed_int32_array_from_variant);
-    impl_ffi_variant!(PackedInt64Array, packed_int64_array_to_variant, packed_int64_array_from_variant);
-    impl_ffi_variant!(PackedFloat32Array, packed_float32_array_to_variant, packed_float32_array_from_variant);
-    impl_ffi_variant!(PackedFloat64Array, packed_float64_array_to_variant, packed_float64_array_from_variant);
-    impl_ffi_variant!(PackedStringArray, packed_string_array_to_variant, packed_string_array_from_variant);
-    impl_ffi_variant!(PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant);
-    impl_ffi_variant!(PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant);
+    impl_ffi_variant!(ref PackedByteArray, packed_byte_array_to_variant, packed_byte_array_from_variant);
+    impl_ffi_variant!(ref PackedInt32Array, packed_int32_array_to_variant, packed_int32_array_from_variant);
+    impl_ffi_variant!(ref PackedInt64Array, packed_int64_array_to_variant, packed_int64_array_from_variant);
+    impl_ffi_variant!(ref PackedFloat32Array, packed_float32_array_to_variant, packed_float32_array_from_variant);
+    impl_ffi_variant!(ref PackedFloat64Array, packed_float64_array_to_variant, packed_float64_array_from_variant);
+    impl_ffi_variant!(ref PackedStringArray, packed_string_array_to_variant, packed_string_array_from_variant);
+    impl_ffi_variant!(ref PackedVector2Array, packed_vector2_array_to_variant, packed_vector2_array_from_variant);
+    impl_ffi_variant!(ref PackedVector3Array, packed_vector3_array_to_variant, packed_vector3_array_from_variant);
     #[cfg(since_api = "4.3")]
-    impl_ffi_variant!(PackedVector4Array, packed_vector4_array_to_variant, packed_vector4_array_from_variant);
-    impl_ffi_variant!(PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant);
+    impl_ffi_variant!(ref PackedVector4Array, packed_vector4_array_to_variant, packed_vector4_array_from_variant);
+    impl_ffi_variant!(ref PackedColorArray, packed_color_array_to_variant, packed_color_array_from_variant);
     impl_ffi_variant!(Plane, plane_to_variant, plane_from_variant);
     impl_ffi_variant!(Projection, projection_to_variant, projection_from_variant);
     impl_ffi_variant!(Rid, rid_to_variant, rid_from_variant; RID);
@@ -135,7 +158,7 @@ mod impls {
     impl_ffi_variant!(Signal, signal_to_variant, signal_from_variant);
     impl_ffi_variant!(Transform2D, transform_2d_to_variant, transform_2d_from_variant);
     impl_ffi_variant!(Transform3D, transform_3d_to_variant, transform_3d_from_variant);
-    impl_ffi_variant!(Dictionary, dictionary_to_variant, dictionary_from_variant);
+    impl_ffi_variant!(ref Dictionary, dictionary_to_variant, dictionary_from_variant);
 
 }
 
@@ -162,9 +185,10 @@ impl GodotFfiVariant for () {
 }
 
 impl GodotType for () {
-    type Ffi = Self;
+    type Ffi = ();
+    type ToFfi<'a> = ();
 
-    fn to_ffi(&self) -> Self::Ffi {}
+    fn to_ffi(&self) -> Self::ToFfi<'_> {}
 
     fn into_ffi(self) -> Self::Ffi {}
 
@@ -189,9 +213,10 @@ impl GodotFfiVariant for Variant {
 
 impl GodotType for Variant {
     type Ffi = Variant;
+    type ToFfi<'a> = RefArg<'a, Variant>;
 
-    fn to_ffi(&self) -> Self::Ffi {
-        self.clone()
+    fn to_ffi(&self) -> Self::ToFfi<'_> {
+        RefArg::new(self)
     }
 
     fn into_ffi(self) -> Self::Ffi {

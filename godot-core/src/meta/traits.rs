@@ -41,21 +41,38 @@ pub trait GodotFfiVariant: Sized + GodotFfi {
 pub trait GodotType: GodotConvert<Via = Self> + sealed::Sealed + Sized + 'static
 // 'static is not technically required, but it simplifies a few things (limits e.g. ObjectArg).
 {
+    // Value type for this type's FFI representation.
     #[doc(hidden)]
     type Ffi: GodotFfiVariant + 'static;
 
+    // Value or reference type when passing this type *to* Godot FFI.
     #[doc(hidden)]
-    fn to_ffi(&self) -> Self::Ffi;
+    type ToFfi<'f>: GodotFfiVariant
+    where
+        Self: 'f;
 
+    /// Returns the FFI representation of this type, used for argument passing.
+    ///
+    /// Often returns a reference to the value, which can then be used to interact with Godot without cloning/inc-ref-ing the value.
+    /// For scalars and `Copy` types, this usually returns a copy of the value.
+    #[doc(hidden)]
+    fn to_ffi(&self) -> Self::ToFfi<'_>;
+
+    /// Consumes value and converts into FFI representation, used for return types.
+    ///
+    /// Unlike [`to_ffi()`][Self:to_ffi], this method consumes the value and is used for return types rather than argument passing.
+    /// Using `to_ffi()` for return types can be incorrect, since the associated types `Ffi` and `ToFfi<'f>` may differ and the latter
+    /// may not implement return type conversions such as [`GodotFfi::move_return_ptr()`].
     #[doc(hidden)]
     fn into_ffi(self) -> Self::Ffi;
 
+    /// Converts from FFI representation to Rust type.
     #[doc(hidden)]
     fn try_from_ffi(ffi: Self::Ffi) -> Result<Self, ConvertError>;
 
     #[doc(hidden)]
     fn from_ffi(ffi: Self::Ffi) -> Self {
-        Self::try_from_ffi(ffi).unwrap()
+        Self::try_from_ffi(ffi).expect("Failed conversion from FFI representation to Rust type")
     }
 
     #[doc(hidden)]

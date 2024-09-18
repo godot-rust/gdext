@@ -12,7 +12,7 @@ use crate::builtin::*;
 use crate::meta::error::{ConvertError, FromGodotError, FromVariantError};
 use crate::meta::{
     ArrayElement, ArrayTypeInfo, FromGodot, GodotConvert, GodotFfiVariant, GodotType,
-    PropertyHintInfo, ToGodot,
+    PropertyHintInfo, RefArg, ToGodot,
 };
 use crate::registry::property::{Export, Var};
 use godot_ffi as sys;
@@ -1047,10 +1047,11 @@ impl<T: ArrayElement> Drop for Array<T> {
 impl<T: ArrayElement> GodotType for Array<T> {
     type Ffi = Self;
 
-    fn to_ffi(&self) -> Self::Ffi {
-        // SAFETY: we may pass type-transmuted arrays to FFI (e.g. Array<T> as Array<Variant>). This would fail the regular
-        // type-check in clone(), so we disable it. Type invariants are upheld by the "front-end" APIs.
-        unsafe { self.clone_unchecked() }
+    type ToFfi<'f> = RefArg<'f, Array<T>>
+    where Self: 'f;
+
+    fn to_ffi(&self) -> Self::ToFfi<'_> {
+        RefArg::new(self)
     }
 
     fn into_ffi(self) -> Self::Ffi {
