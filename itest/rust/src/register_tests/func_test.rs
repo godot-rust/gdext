@@ -196,7 +196,8 @@ impl GdSelfObj {
             "update_internal_signal".into(),
             &[new_internal.to_variant()],
         );
-        return this.bind().internal_value;
+
+        this.bind().internal_value
     }
 
     #[func(gd_self)]

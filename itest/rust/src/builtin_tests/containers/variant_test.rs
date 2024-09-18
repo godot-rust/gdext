@@ -179,6 +179,9 @@ fn variant_get_type() {
     let variant = gstr("hello").to_variant();
     assert_eq!(variant.get_type(), VariantType::STRING);
 
+    let variant = sname("hello").to_variant();
+    assert_eq!(variant.get_type(), VariantType::STRING_NAME);
+
     let variant = TEST_BASIS.to_variant();
     assert_eq!(variant.get_type(), VariantType::BASIS)
 }
@@ -263,14 +266,14 @@ fn variant_evaluate() {
     evaluate(VariantOperator::MULTIPLY, 5, 2.5, 12.5);
 
     evaluate(VariantOperator::EQUAL, gstr("hello"), gstr("hello"), true);
-    evaluate(VariantOperator::EQUAL, gstr("hello"), gname("hello"), true);
-    evaluate(VariantOperator::EQUAL, gname("rust"), gstr("rust"), true);
-    evaluate(VariantOperator::EQUAL, gname("rust"), gname("rust"), true);
+    evaluate(VariantOperator::EQUAL, gstr("hello"), sname("hello"), true);
+    evaluate(VariantOperator::EQUAL, sname("rust"), gstr("rust"), true);
+    evaluate(VariantOperator::EQUAL, sname("rust"), sname("rust"), true);
 
     evaluate(VariantOperator::NOT_EQUAL, gstr("hello"), gstr("hallo"), true);
-    evaluate(VariantOperator::NOT_EQUAL, gstr("hello"), gname("hallo"), true);
-    evaluate(VariantOperator::NOT_EQUAL, gname("rust"), gstr("rest"), true);
-    evaluate(VariantOperator::NOT_EQUAL, gname("rust"), gname("rest"), true);
+    evaluate(VariantOperator::NOT_EQUAL, gstr("hello"), sname("hallo"), true);
+    evaluate(VariantOperator::NOT_EQUAL, sname("rust"), gstr("rest"), true);
+    evaluate(VariantOperator::NOT_EQUAL, sname("rust"), sname("rest"), true);
 
     evaluate_fail(VariantOperator::EQUAL, 1, true);
     evaluate_fail(VariantOperator::EQUAL, 0, false);
@@ -391,28 +394,7 @@ fn variant_null_object_is_nil() {
 }
 
 #[itest]
-fn variant_type_correct() {
-    assert_eq!(Variant::nil().get_type(), VariantType::NIL);
-    assert_eq!(0.to_variant().get_type(), VariantType::INT);
-    assert_eq!(3.8.to_variant().get_type(), VariantType::FLOAT);
-    assert_eq!(false.to_variant().get_type(), VariantType::BOOL);
-    assert_eq!("string".to_variant().get_type(), VariantType::STRING);
-    assert_eq!(
-        StringName::from("string_name").to_variant().get_type(),
-        VariantType::STRING_NAME
-    );
-    assert_eq!(
-        VariantArray::default().to_variant().get_type(),
-        VariantType::ARRAY
-    );
-    assert_eq!(
-        Dictionary::default().to_variant().get_type(),
-        VariantType::DICTIONARY
-    );
-}
-
-#[itest]
-fn variant_stringify_correct() {
+fn variant_stringify() {
     assert_eq!("value".to_variant().stringify(), gstr("value"));
     assert_eq!(Variant::nil().stringify(), gstr("<null>"));
     assert_eq!(true.to_variant().stringify(), gstr("true"));
@@ -428,7 +410,7 @@ fn variant_stringify_correct() {
 }
 
 #[itest]
-fn variant_booleanize_correct() {
+fn variant_booleanize() {
     assert!(gstr("string").to_variant().booleanize());
     assert!(10.to_variant().booleanize());
     assert!(varray![""].to_variant().booleanize());
@@ -442,7 +424,7 @@ fn variant_booleanize_correct() {
 }
 
 #[itest]
-fn variant_hash_correct() {
+fn variant_hash() {
     let hash_is_not_0 = [
         dict! {}.to_variant(),
         gstr("").to_variant(),
@@ -583,6 +565,6 @@ fn gstr(s: &str) -> GString {
     GString::from(s)
 }
 
-fn gname(s: &str) -> StringName {
+fn sname(s: &str) -> StringName {
     StringName::from(s)
 }

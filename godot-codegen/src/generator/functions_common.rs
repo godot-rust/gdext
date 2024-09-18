@@ -8,13 +8,16 @@
 use crate::generator::default_parameters;
 use crate::models::domain::{FnParam, FnQualifier, Function, RustTy};
 use crate::special_cases;
-use crate::util::safe_ident;
+use crate::util::{lifetime, safe_ident};
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote};
 
 pub struct FnReceiver {
     /// `&self`, `&mut self`, (none)
     pub param: TokenStream,
+
+    /// `&self`, `&mut self`, (none)
+    pub param_lifetime_a: TokenStream,
 
     /// `ptr::null_mut()`, `self.object_ptr`, `self.sys_ptr`, (none)
     pub ffi_arg: TokenStream,
@@ -28,6 +31,7 @@ impl FnReceiver {
     pub fn global_function() -> FnReceiver {
         FnReceiver {
             param: TokenStream::new(),
+            param_lifetime_a: TokenStream::new(),
             ffi_arg: TokenStream::new(),
             self_prefix: TokenStream::new(),
         }
@@ -89,14 +93,46 @@ impl FnDefinitions {
 pub struct FnParamTokens {
     pub params: Vec<TokenStream>,
     pub param_types: Vec<TokenStream>,
+    pub param_lifetime_count: usize,
     pub arg_names: Vec<TokenStream>,
+    pub func_general_lifetime: Option<TokenStream>,
 }
 
 impl FnParamTokens {
-    pub fn push_regular(&mut self, param_name: &Ident, param_ty: &RustTy) {
-        self.params.push(quote! { #param_name: #param_ty });
-        self.arg_names.push(quote! { #param_name });
-        self.param_types.push(quote! { #param_ty });
+    pub fn push_regular(
+        &mut self,
+        param_name: &Ident,
+        param_ty: &RustTy,
+        // TODO refactor into single enum
+        by_value: bool,
+        arg_is_ref_arg: bool,
+        explicit_lifetimes: bool,
+    ) {
+        if by_value {
+            self.params.push(quote! { #param_name: #param_ty });
+            self.param_types.push(quote! { #param_ty });
+            self.arg_names.push(quote! { #param_name });
+        } else {
+            if explicit_lifetimes {
+                self.params.push(quote! { #param_name: &'a #param_ty });
+            } else {
+                self.params.push(quote! { #param_name: & #param_ty });
+            }
+
+            if arg_is_ref_arg {
+                let lft = lifetime(&format!("a{}", self.param_lifetime_count));
+
+                self.param_types.push(quote! { RefArg<#lft, #param_ty> });
+                self.arg_names.push(quote! { RefArg::new(#param_name) });
+
+                self.param_lifetime_count += 1;
+            } else {
+                self.param_types.push(quote! { #param_ty });
+                self.arg_names.push(quote! { #param_name });
+
+                self.func_general_lifetime = Some(quote! { <'a> });
+            }
+        }
     }
 }
 
@@ -139,14 +175,19 @@ pub fn make_function_definition(
     let FnParamTokens {
         params,
         param_types,
+        param_lifetime_count,
         arg_names,
+        func_general_lifetime: fn_lifetime,
     } = if sig.is_virtual() {
         make_params_exprs_virtual(sig.params().iter(), sig)
     } else {
+        // primary_function() if not default-params, or full_function() otherwise.
         make_params_exprs(
             sig.params().iter(),
             !has_default_params, // For *_full function, we don't need impl AsObjectArg<T> parameters
             !has_default_params, // or arg.as_object_arg() calls.
+            true,                // but we do need RefArg.
+            false,
         )
     };
 
@@ -169,9 +210,25 @@ pub fn make_function_definition(
         default_structs_code = TokenStream::new();
     };
 
-    let return_ty = &sig.return_value().type_tokens();
-    let call_sig = quote! {
-        ( #return_ty, #(#param_types),* )
+    let call_sig_decl = {
+        let return_ty = &sig.return_value().type_tokens();
+
+        // Build <'a0, 'a1, ...> for lifetimes.
+        let param_lifetimes = if param_lifetime_count > 0 {
+            let mut tokens = quote! { < };
+            for i in 0..param_lifetime_count {
+                let i = lifetime(&format!("a{i}"));
+                tokens.extend(quote! {  #i, });
+            }
+            tokens.extend(quote! { > });
+            tokens
+        } else {
+            TokenStream::new()
+        };
+
+        quote! {
+            type CallSig #param_lifetimes = ( #return_ty, #(#param_types),* );
+        }
     };
 
     let return_decl = &sig.return_value().decl;
@@ -187,7 +244,7 @@ pub fn make_function_definition(
 
         quote! {
             #maybe_safety_doc
-            #maybe_unsafe fn #primary_fn_name(
+            #maybe_unsafe fn #primary_fn_name (
                 #receiver_param
                 #( #params, )*
             ) #return_decl #fn_body
@@ -202,12 +259,12 @@ pub fn make_function_definition(
         if code.receiver.param.is_empty() {
             quote! {
                 #maybe_safety_doc
-                #vis #maybe_unsafe fn #primary_fn_name(
+                #vis #maybe_unsafe fn #primary_fn_name (
                     #receiver_param
                     #( #params, )*
                     varargs: &[Variant]
                 ) #return_decl {
-                    type CallSig = #call_sig;
+                    #call_sig_decl
 
                     let args = (#( #arg_names, )*);
 
@@ -231,6 +288,8 @@ pub fn make_function_definition(
                 sig.params().iter(),
                 !has_default_params, // For *_full function, we don't need impl AsObjectArg<T> parameters
                 false,               // or arg.as_object_arg() calls.
+                true,                // but we do need RefArg.
+                false,
             );
 
             quote! {
@@ -238,7 +297,7 @@ pub fn make_function_definition(
                 /// This is a _varcall_ method, meaning parameters and return values are passed as `Variant`.
                 /// It can detect call failures and will panic in such a case.
                 #maybe_safety_doc
-                #vis #maybe_unsafe fn #primary_fn_name(
+                #vis #maybe_unsafe fn #primary_fn_name (
                     #receiver_param
                     #( #params, )*
                     varargs: &[Variant]
@@ -256,7 +315,7 @@ pub fn make_function_definition(
                     #( #params, )*
                     varargs: &[Variant]
                 ) #try_return_decl {
-                    type CallSig = #call_sig;
+                    #call_sig_decl
 
                     let args = (#( #arg_names, )*);
 
@@ -273,11 +332,11 @@ pub fn make_function_definition(
 
         quote! {
             #maybe_safety_doc
-            #vis #maybe_unsafe fn #primary_fn_name(
+            #vis #maybe_unsafe fn #primary_fn_name #fn_lifetime (
                 #receiver_param
                 #( #params, )*
             ) #return_decl {
-                type CallSig = #call_sig;
+                #call_sig_decl
 
                 let args = (#( #arg_names, )*);
 
@@ -300,11 +359,11 @@ pub fn make_function_definition(
 pub fn make_receiver(qualifier: FnQualifier, ffi_arg_in: TokenStream) -> FnReceiver {
     assert_ne!(qualifier, FnQualifier::Global, "expected class");
 
-    let param = match qualifier {
-        FnQualifier::Const => quote! { &self, },
-        FnQualifier::Mut => quote! { &mut self, },
-        FnQualifier::Static => quote! {},
-        FnQualifier::Global => quote! {},
+    let (param, param_lifetime_a) = match qualifier {
+        FnQualifier::Const => (quote! { &self, }, quote! { &'a self, }),
+        FnQualifier::Mut => (quote! { &mut self, }, quote! { &'a mut self, }),
+        FnQualifier::Static => (quote! {}, quote! {}),
+        FnQualifier::Global => (quote! {}, quote! {}),
     };
 
     let (ffi_arg, self_prefix);
@@ -318,6 +377,7 @@ pub fn make_receiver(qualifier: FnQualifier, ffi_arg_in: TokenStream) -> FnRecei
 
     FnReceiver {
         param,
+        param_lifetime_a,
         ffi_arg,
         self_prefix,
     }
@@ -338,6 +398,8 @@ pub(crate) fn make_params_exprs<'a>(
     method_args: impl Iterator<Item = &'a FnParam>,
     param_is_impl_asarg: bool,
     arg_is_asarg: bool,
+    arg_is_ref_arg: bool,
+    explicit_lifetimes: bool,
 ) -> FnParamTokens {
     let mut ret = FnParamTokens::default();
 
@@ -369,8 +431,19 @@ pub(crate) fn make_params_exprs<'a>(
                 ret.param_types.push(quote! { #object_arg });
             }
 
+            // Arrays and non-Copy builtins: pass by ref.
+            ty if ty.is_pass_by_ref() => {
+                ret.push_regular(
+                    param_name,
+                    param_ty,
+                    false,
+                    arg_is_ref_arg,
+                    explicit_lifetimes,
+                );
+            }
+
             // All other methods and parameter types: standard handling.
-            _ => ret.push_regular(param_name, param_ty),
+            _ => ret.push_regular(param_name, param_ty, true, false, false),
         }
     }
 
@@ -403,7 +476,8 @@ pub(crate) fn make_params_exprs_virtual<'a>(
             }
 
             // All other methods and parameter types: standard handling.
-            _ => ret.push_regular(param_name, param_ty),
+            // For now, virtual methods always receive their parameter by value.
+            _ => ret.push_regular(param_name, param_ty, true, false, false),
         }
     }
 

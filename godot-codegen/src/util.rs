@@ -11,7 +11,7 @@ use crate::models::domain::ClassCodegenLevel;
 use crate::models::json::JsonClass;
 use crate::special_cases;
 
-use proc_macro2::{Ident, Literal, TokenStream};
+use proc_macro2::{Ident, Literal, Punct, Spacing, TokenStream, TokenTree};
 use quote::{format_ident, quote};
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ pub fn make_imports() -> TokenStream {
     quote! {
         use godot_ffi as sys;
         use crate::builtin::*;
-        use crate::meta::{ClassName, PtrcallSignatureTuple, VarcallSignatureTuple};
+        use crate::meta::{ClassName, PtrcallSignatureTuple, RefArg, VarcallSignatureTuple};
         use crate::classes::native::*;
         use crate::classes::Object;
         use crate::obj::{Gd, AsObjectArg};
@@ -84,6 +84,13 @@ pub fn get_api_level(class: &JsonClass) -> ClassCodegenLevel {
 
 pub fn ident(s: &str) -> Ident {
     format_ident!("{}", s)
+}
+
+pub fn lifetime(s: &str) -> TokenStream {
+    let tk_apostrophe = TokenTree::Punct(Punct::new('\'', Spacing::Joint));
+    let tk_lifetime = TokenTree::Ident(ident(s));
+
+    TokenStream::from_iter([tk_apostrophe, tk_lifetime])
 }
 
 // This function is duplicated in godot-macros\src\util\mod.rs

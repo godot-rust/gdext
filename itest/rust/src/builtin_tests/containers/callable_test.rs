@@ -85,19 +85,19 @@ fn callable_call() {
     let callable = obj.callable("foo");
 
     assert_eq!(obj.bind().value, 0);
-    callable.callv(varray![10]);
+    callable.callv(&varray![10]);
     assert_eq!(obj.bind().value, 10);
 
     // Too many arguments: this call fails, its logic is not applied.
     // In the future, panic should be propagated to caller.
-    callable.callv(varray![20, 30]);
+    callable.callv(&varray![20, 30]);
     assert_eq!(obj.bind().value, 10);
 
     // TODO(bromeon): this causes a Rust panic, but since call() is routed to Godot, the panic is handled at the FFI boundary.
     // Can there be a way to notify the caller about failed calls like that?
-    assert_eq!(callable.callv(varray!["string"]), Variant::nil());
+    assert_eq!(callable.callv(&varray!["string"]), Variant::nil());
 
-    assert_eq!(Callable::invalid().callv(varray![1, 2, 3]), Variant::nil());
+    assert_eq!(Callable::invalid().callv(&varray![1, 2, 3]), Variant::nil());
 }
 
 #[itest]
@@ -106,11 +106,11 @@ fn callable_call_return() {
     let callable = obj.callable("bar");
 
     assert_eq!(
-        callable.callv(varray![10]),
+        callable.callv(&varray![10]),
         10.to_variant().stringify().to_variant()
     );
     // errors in godot but does not crash
-    assert_eq!(callable.callv(varray!["string"]), Variant::nil());
+    assert_eq!(callable.callv(&varray!["string"]), Variant::nil());
 }
 
 #[itest]
@@ -137,10 +137,10 @@ fn callable_call_engine() {
 fn callable_bindv() {
     let obj = CallableTestObj::new_gd();
     let callable = obj.callable("bar");
-    let callable_bound = callable.bindv(varray![10]);
+    let callable_bound = callable.bindv(&varray![10]);
 
     assert_eq!(
-        callable_bound.callv(varray![]),
+        callable_bound.callv(&varray![]),
         10.to_variant().stringify().to_variant()
     );
 }
@@ -179,14 +179,14 @@ pub mod custom_callable {
         assert!(callable.is_custom());
         assert!(callable.object().is_none());
 
-        let sum1 = callable.callv(varray![1, 2, 4, 8]);
+        let sum1 = callable.callv(&varray![1, 2, 4, 8]);
         assert_eq!(sum1, 15.to_variant());
 
-        let sum2 = callable.callv(varray![5]);
+        let sum2 = callable.callv(&varray![5]);
         assert_eq!(sum2, 5.to_variant());
 
         // Important to test 0 arguments, as the FFI call passes a null pointer for the argument array.
-        let sum3 = callable.callv(varray![]);
+        let sum3 = callable.callv(&varray![]);
         assert_eq!(sum3, 0.to_variant());
     }
 
@@ -215,10 +215,10 @@ pub mod custom_callable {
         assert!(callable.is_custom());
         assert!(callable.object().is_none());
 
-        let sum1 = callable.callv(varray![3, 9, 2, 1]);
+        let sum1 = callable.callv(&varray![3, 9, 2, 1]);
         assert_eq!(sum1, 15.to_variant());
 
-        let sum2 = callable.callv(varray![4]);
+        let sum2 = callable.callv(&varray![4]);
         assert_eq!(sum2, 19.to_variant());
     }
 
@@ -302,7 +302,7 @@ pub mod custom_callable {
             panic!("TEST: {}", received_callable.fetch_add(1, Ordering::SeqCst))
         });
 
-        assert_eq!(Variant::nil(), callable.callv(varray![]));
+        assert_eq!(Variant::nil(), callable.callv(&varray![]));
 
         assert_eq!(1, received.load(Ordering::SeqCst));
     }
@@ -312,7 +312,7 @@ pub mod custom_callable {
         let received = Arc::new(AtomicU32::new(0));
         let callable = Callable::from_custom(PanicCallable(received.clone()));
 
-        assert_eq!(Variant::nil(), callable.callv(varray![]));
+        assert_eq!(Variant::nil(), callable.callv(&varray![]));
 
         assert_eq!(1, received.load(Ordering::SeqCst));
     }

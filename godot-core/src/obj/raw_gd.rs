@@ -536,12 +536,10 @@ impl<T: GodotClass> GodotConvert for RawGd<T> {
 }
 
 impl<T: GodotClass> ToGodot for RawGd<T> {
-    fn to_godot(&self) -> Self::Via {
-        self.clone()
-    }
+    type ToVia<'v> = Self;
 
-    fn into_godot(self) -> Self::Via {
-        self
+    fn to_godot(&self) -> Self::ToVia<'_> {
+        self.clone()
     }
 }
 

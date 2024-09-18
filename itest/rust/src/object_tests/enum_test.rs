@@ -14,7 +14,7 @@ use godot::global::{Orientation, Key};
 use std::collections::HashSet;
 
 #[itest]
-fn enum_ords_correct() {
+fn enum_ords() {
     use godot::obj::EngineEnum;
     assert_eq!(CursorShape::CURSOR_ARROW.ord(), 0);
     assert_eq!(CursorShape::CURSOR_IBEAM.ord(), 1);
@@ -73,7 +73,7 @@ fn add_surface_from_arrays() {
 }
 
 #[itest]
-fn enum_as_str_correct() {
+fn enum_as_str() {
     use godot::obj::EngineEnum;
     assert_eq!(Orientation::Vertical.as_str(), "VERTICAL");
     assert_eq!(Orientation::Horizontal.as_str(), "HORIZONTAL");
@@ -86,7 +86,7 @@ fn enum_as_str_correct() {
 }
 
 #[itest]
-fn enum_godot_name_correct() {
+fn enum_godot_name() {
     use godot::obj::EngineEnum;
     assert_eq!(Orientation::Vertical.godot_name(), Orientation::Vertical.as_str());
     assert_eq!(Orientation::Horizontal.godot_name(), Orientation::Vertical.as_str());

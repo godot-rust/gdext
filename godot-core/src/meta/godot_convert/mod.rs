@@ -40,15 +40,12 @@ pub trait GodotConvert {
 ///
 /// Please read the [`godot::meta` module docs][crate::meta] for further information about conversions.
 pub trait ToGodot: Sized + GodotConvert {
-    /// Converts this type to the Godot type by reference, usually by cloning.
-    fn to_godot(&self) -> Self::Via;
+    type ToVia<'v>: GodotType
+    where
+        Self: 'v;
 
-    /// Converts this type to the Godot type.
-    ///
-    /// This can in some cases enable minor optimizations, such as avoiding reference counting operations.
-    fn into_godot(self) -> Self::Via {
-        self.to_godot()
-    }
+    /// Converts this type to the Godot type by reference, usually by cloning.
+    fn to_godot(&self) -> Self::ToVia<'_>;
 
     /// Converts this type to a [Variant].
     fn to_variant(&self) -> Variant {
@@ -98,8 +95,16 @@ pub trait FromGodot: Sized + GodotConvert {
     }
 }
 
-pub(crate) fn into_ffi<T: ToGodot>(value: T) -> <T::Via as GodotType>::Ffi {
-    value.into_godot().into_ffi()
+// Note: removing the implicit lifetime (by taking value: T instead of &T) causes issues due to allegedly returning a lifetime
+// to a local variable, even though the result Ffi is 'static by definition.
+#[allow(clippy::needless_lifetimes)] // eliding causes error: missing generics for associated type `godot_convert::ToGodot::ToVia`
+pub(crate) fn into_ffi<'v, T: ToGodot>(value: &'v T) -> <T::ToVia<'v> as GodotType>::Ffi {
+    let by_ref = value.to_godot();
+    by_ref.to_ffi()
+}
+
+pub(crate) fn into_ffi_variant<T: ToGodot>(value: &T) -> Variant {
+    GodotFfiVariant::ffi_to_variant(&into_ffi(value))
 }
 
 pub(crate) fn try_from_ffi<T: FromGodot>(
@@ -117,14 +122,11 @@ macro_rules! impl_godot_as_self {
         }
 
         impl $crate::meta::ToGodot for $T {
-            #[inline]
-            fn to_godot(&self) -> Self::Via {
-                self.clone()
-            }
+            type ToVia<'v> = Self::Via;
 
             #[inline]
-            fn into_godot(self) -> Self::Via {
-                self
+            fn to_godot(&self) -> Self::ToVia<'_> {
+                self.clone()
             }
         }
 

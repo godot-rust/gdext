@@ -61,7 +61,9 @@ macro_rules! impl_vector_axis_enum {
         }
 
         impl ToGodot for $AxisEnum {
-            fn to_godot(&self) -> Self::Via {
+            type ToVia<'v> = i32;
+
+            fn to_godot(&self) -> Self::ToVia<'_> {
                 self.ord()
             }
         }

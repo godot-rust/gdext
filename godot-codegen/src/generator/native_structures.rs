@@ -105,7 +105,9 @@ fn make_native_structure(
         }
 
         impl ToGodot for *mut #class_name {
-            fn to_godot(&self) -> Self::Via {
+            type ToVia<'v> = i64;
+
+            fn to_godot(&self) -> Self::ToVia<'_> {
                 *self as i64
             }
         }
@@ -121,7 +123,9 @@ fn make_native_structure(
         }
 
         impl ToGodot for *const #class_name {
-            fn to_godot(&self) -> Self::Via {
+            type ToVia<'v> = i64;
+
+            fn to_godot(&self) -> Self::ToVia<'_> {
                 *self as i64
             }
         }

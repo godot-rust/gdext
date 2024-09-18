@@ -173,14 +173,14 @@ impl Callable {
     /// - If called on an invalid Callable then no error is printed, and `NIL` is returned.
     ///
     /// _Godot equivalent: `callv`_
-    pub fn callv(&self, arguments: VariantArray) -> Variant {
+    pub fn callv(&self, arguments: &VariantArray) -> Variant {
         self.as_inner().callv(arguments)
     }
 
     /// Returns a copy of this Callable with one or more arguments bound, reading them from an array.
     ///
     /// _Godot equivalent: `bindv`_
-    pub fn bindv(&self, arguments: VariantArray) -> Self {
+    pub fn bindv(&self, arguments: &VariantArray) -> Self {
         self.as_inner().bindv(arguments)
     }
 

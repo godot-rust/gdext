@@ -4,6 +4,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
+
 use std::borrow::Cow;
 use std::fmt;
 use std::fmt::Debug;
@@ -13,7 +14,7 @@ use sys::{BuiltinMethodBind, ClassMethodBind, GodotFfi, UtilityFunctionBind};
 
 use crate::builtin::Variant;
 use crate::meta::error::{CallError, ConvertError};
-use crate::meta::godot_convert::{into_ffi, try_from_ffi};
+use crate::meta::godot_convert::{into_ffi, into_ffi_variant, try_from_ffi};
 use crate::meta::*;
 use crate::obj::{GodotClass, InstanceId};
 
@@ -224,7 +225,7 @@ macro_rules! impl_varcall_signature_for_tuple {
 
                 let explicit_args = [
                     $(
-                        GodotFfiVariant::ffi_to_variant(&into_ffi($pn)),
+                       into_ffi_variant(&$pn),
                     )*
                 ];
 
@@ -269,7 +270,7 @@ macro_rules! impl_varcall_signature_for_tuple {
                 let object_call_script_method = sys::interface_fn!(object_call_script_method);
                 let explicit_args = [
                     $(
-                        GodotFfiVariant::ffi_to_variant(&into_ffi($pn)),
+                        into_ffi_variant(&$pn),
                     )*
                 ];
 
@@ -304,7 +305,7 @@ macro_rules! impl_varcall_signature_for_tuple {
 
                 let explicit_args: [Variant; $PARAM_COUNT] = [
                     $(
-                        GodotFfiVariant::ffi_to_variant(&into_ffi($pn)),
+                       into_ffi_variant(&$pn),
                     )*
                 ];
 
@@ -391,7 +392,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 #[allow(clippy::let_unit_value)]
                 let marshalled_args = (
                     $(
-                        into_ffi($pn),
+                        into_ffi(&$pn),
                     )*
                 );
 
@@ -422,7 +423,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 #[allow(clippy::let_unit_value)]
                 let marshalled_args = (
                     $(
-                        into_ffi($pn),
+                        into_ffi(&$pn),
                     )*
                 );
 
@@ -450,7 +451,7 @@ macro_rules! impl_ptrcall_signature_for_tuple {
                 #[allow(clippy::let_unit_value)]
                 let marshalled_args = (
                     $(
-                        into_ffi($pn),
+                        into_ffi(&$pn),
                     )*
                 );
 
@@ -547,7 +548,9 @@ unsafe fn ptrcall_return<R: ToGodot>(
     _call_ctx: &CallContext,
     call_type: sys::PtrcallType,
 ) {
-    let val = into_ffi(ret_val);
+    //let val = into_ffi(ret_val);
+    let val = ret_val.to_godot().to_ffi();
+
     val.move_return_ptr(ret, call_type);
 }
 

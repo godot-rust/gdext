@@ -254,15 +254,14 @@ impl<T: GodotClass> GodotConvert for ObjectArg<T> {
 }
 
 impl<T: GodotClass> ToGodot for ObjectArg<T> {
-    fn to_godot(&self) -> Self::Via {
-        (*self).clone()
-    }
+    type ToVia<'v> = Self;
 
-    fn into_godot(self) -> Self::Via {
-        self
+    fn to_godot(&self) -> Self::ToVia<'_> {
+        (*self).clone()
     }
 }
 
+// TODO refactor signature tuples into separate in+out traits, so FromGodot is no longer needed.
 impl<T: GodotClass> FromGodot for ObjectArg<T> {
     fn try_from_godot(_via: Self::Via) -> Result<Self, ConvertError> {
         unreachable!("ObjectArg should only be passed *to* Godot, not *from*.")

@@ -11,7 +11,7 @@ use crate::models::domain::{FnParam, FnQualifier, Function, RustTy, TyName};
 use crate::util::{ident, safe_ident};
 use crate::{conv, special_cases};
 use proc_macro2::{Ident, TokenStream};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 
 pub fn make_function_definition_with_defaults(
     sig: &dyn Function,
@@ -40,27 +40,60 @@ pub fn make_function_definition_with_defaults(
     let Extender {
         builder_ty,
         builder_lifetime,
-        builder_anon_lifetime,
         builder_methods,
         builder_fields,
         builder_args,
         builder_inits,
-    } = make_extender(sig, object_fn_param, default_fn_params);
+    } = make_extender(
+        sig.name(),
+        object_fn_param,
+        &required_fn_params,
+        &default_fn_params,
+    );
 
-    let receiver_param = &code.receiver.param;
-    let receiver_self = &code.receiver.self_prefix;
-
+    // ExBuilder::new() constructor signature.
     let FnParamTokens {
-        params: required_params_impl_asarg,
+        //params: required_params_builder_constructor,
+        params: required_params_class_methods,
+        func_general_lifetime,
         ..
-    } = functions_common::make_params_exprs(required_fn_params.iter().cloned(), true, true);
+    } = functions_common::make_params_exprs(
+        required_fn_params.iter().cloned(),
+        true,
+        true,
+        false,
+        true,
+    );
+    let required_params_builder_constructor = &required_params_class_methods;
 
+    // Forwarded args by some_function() and some_function_ex().
     let FnParamTokens {
         arg_names: required_args_internal,
         ..
-    } = functions_common::make_params_exprs(required_fn_params.into_iter(), false, false);
+    } = functions_common::make_params_exprs(
+        required_fn_params.into_iter(),
+        false,
+        false,
+        false,
+        false,
+    );
 
     let return_decl = &sig.return_value().decl;
+
+    // If either the builder has a lifetime (non-static/global method), or one of its parameters is a reference,
+    // then we need to annotate the _ex() function with an explicit lifetime. Also adjust &self -> &'a self.
+    let receiver_self = &code.receiver.self_prefix;
+
+    let (simple_receiver_param, extended_receiver_param, func_or_builder_lifetime);
+    if let Some(func_lt) = func_general_lifetime.as_ref().or(builder_lifetime.as_ref()) {
+        simple_receiver_param = &code.receiver.param;
+        extended_receiver_param = &code.receiver.param_lifetime_a;
+        func_or_builder_lifetime = Some(func_lt);
+    } else {
+        simple_receiver_param = &code.receiver.param;
+        extended_receiver_param = &code.receiver.param;
+        func_or_builder_lifetime = None;
+    };
 
     // Technically, the builder would not need a lifetime -- it could just maintain an `object_ptr` copy.
     // However, this increases the risk that it is used out of place (not immediately for a default-param call).
@@ -83,7 +116,7 @@ pub fn make_function_definition_with_defaults(
         impl #builder_lifetime #builder_ty #builder_lifetime {
             fn new(
                 #object_param
-                #( #required_params_impl_asarg, )*
+                #( #required_params_builder_constructor, )*
             ) -> Self {
                 Self {
                     #( #builder_inits, )*
@@ -102,22 +135,26 @@ pub fn make_function_definition_with_defaults(
     };
 
     let functions = quote! {
-    #[doc = #default_parameter_usage]
+        // Simple function:
+        // Lifetime is set if any parameter is a reference.
+        #[doc = #default_parameter_usage]
         #[inline]
-        #vis fn #simple_fn_name(
-            #receiver_param
-            #( #required_params_impl_asarg, )*
+        #vis fn #simple_fn_name #func_general_lifetime  (
+            #simple_receiver_param
+            #( #required_params_class_methods, )*
         ) #return_decl {
             #receiver_self #extended_fn_name(
                 #( #required_args_internal, )*
             ).done()
         }
 
+        // _ex() function:
+        // Lifetime is set if any parameter is a reference OR if the method is not static/global (and thus can refer to self).
         #[inline]
-        #vis fn #extended_fn_name(
-            #receiver_param
-            #( #required_params_impl_asarg, )*
-        ) -> #builder_ty #builder_anon_lifetime {
+        #vis fn #extended_fn_name #func_or_builder_lifetime (
+            #extended_receiver_param
+            #( #required_params_class_methods, )*
+        ) -> #builder_ty #builder_lifetime {
             #builder_ty::new(
                 #object_arg
                 #( #required_args_internal, )*
@@ -147,12 +184,27 @@ struct ExtenderReceiver {
 
 struct Extender {
     builder_ty: Ident,
-    builder_lifetime: TokenStream,
-    builder_anon_lifetime: TokenStream,
+    /// `None` if function is global/associated.
+    builder_lifetime: Option<TokenStream>,
     builder_methods: Vec<TokenStream>,
     builder_fields: Vec<TokenStream>,
     builder_args: Vec<TokenStream>,
     builder_inits: Vec<TokenStream>,
+}
+
+#[derive(Copy, Clone, Debug)]
+enum ExtenderFieldConversion {
+    /// Regular type.
+    None,
+
+    /// Object argument.
+    ObjectArg,
+
+    /// Pass-by-ref type.
+    Reference,
+
+    /// Pass-by-ref type, but a default param means a value needs to be stored.
+    ReferenceWithDefault,
 }
 
 fn make_extender_doc(sig: &dyn Function, extended_fn_name: &Ident) -> (String, TokenStream) {
@@ -220,27 +272,34 @@ fn make_extender_receiver(sig: &dyn Function) -> ExtenderReceiver {
 }
 
 fn make_extender(
-    sig: &dyn Function,
-    object_fn_param: Option<FnParam>,
-    default_fn_params: Vec<&FnParam>,
+    fn_name: &str,
+    receiver_param: Option<FnParam>,
+    required_params: &[&FnParam],
+    default_params: &[&FnParam],
 ) -> Extender {
     // Note: could build a documentation string with default values here, but the Rust tokens are not very readable,
     // and often not helpful, such as Enum::from_ord(13). Maybe one day those could be resolved and curated.
 
-    let (lifetime, anon_lifetime) = if sig.qualifier().is_static_or_global() {
-        (TokenStream::new(), TokenStream::new())
-    } else {
-        (quote! { <'a> }, quote! { <'_> })
-    };
-
-    let all_fn_params = object_fn_param.iter().chain(sig.params().iter());
+    let all_fn_params = receiver_param
+        .iter()
+        .chain(required_params.iter().cloned())
+        .chain(default_params.iter().cloned());
     let len = all_fn_params.size_hint().0;
 
+    // If builder is a method with a receiver OR any *required* parameter is by-ref, use lifetime.
+    // Default parameters cannot be by-ref, since they need to store a default value. Potential optimization later.
+    let lifetime = if receiver_param.is_some() // !sig.qualifier().is_static_or_global()
+        || required_params.iter().any(|p| p.type_.is_pass_by_ref())
+    {
+        Some(quote! { <'a> })
+    } else {
+        None
+    };
+
     let mut result = Extender {
-        builder_ty: format_ident!("Ex{}", conv::to_pascal_case(sig.name())),
+        builder_ty: format_ident!("Ex{}", conv::to_pascal_case(fn_name)),
         builder_lifetime: lifetime,
-        builder_anon_lifetime: anon_lifetime,
-        builder_methods: Vec::with_capacity(default_fn_params.len()),
+        builder_methods: Vec::with_capacity(default_params.len()),
         builder_fields: Vec::with_capacity(len),
         builder_args: Vec::with_capacity(len),
         builder_inits: Vec::with_capacity(len),
@@ -253,20 +312,24 @@ fn make_extender(
             default_value,
         } = param;
 
-        let (field_type, needs_conversion) = type_.default_extender_field_decl();
+        let (field_type, conversion) = default_extender_field_decl(type_, default_value.is_some());
 
         // Initialize with default parameters where available, forward constructor args otherwise
         let init = if let Some(value) = default_value {
-            make_field_init(name, Some(value), needs_conversion)
+            make_field_init(name, Some(value), conversion)
         } else {
-            //quote! { #name }
-            make_field_init(name, None, needs_conversion)
+            make_field_init(name, None, conversion)
         };
 
-        let builder_arg = if needs_conversion {
-            quote! { self.#name.cow_as_object_arg() }
-        } else {
-            quote! { self.#name }
+        let builder_arg = match conversion {
+            ExtenderFieldConversion::None => quote! { self.#name },
+            ExtenderFieldConversion::ObjectArg => quote! { self.#name.cow_as_object_arg() },
+
+            // Two cases:
+            // * Param is required  ->  field type RefArg<'a, T>  ->  pass as-is.
+            // * Param is default   ->  field type T              ->  pass as &self.
+            ExtenderFieldConversion::ReferenceWithDefault => quote! { &self.#name },
+            ExtenderFieldConversion::Reference => quote! { self.#name },
         };
 
         result.builder_fields.push(quote! { #name: #field_type });
@@ -274,10 +337,10 @@ fn make_extender(
         result.builder_inits.push(init);
     }
 
-    for param in default_fn_params {
+    for param in default_params {
         let FnParam { name, type_, .. } = param;
         let param_type = type_.param_decl();
-        let (_, field_needs_conversion) = type_.default_extender_field_decl();
+        let (_, field_needs_conversion) = default_extender_field_decl(type_, true);
 
         let field_init = make_field_init(name, Some(&quote! { value }), field_needs_conversion);
 
@@ -298,16 +361,46 @@ fn make_extender(
     result
 }
 
+/// Returns `( <field tokens>, <needs .consume_object()> )`.
+fn default_extender_field_decl(
+    ty: &RustTy,
+    is_default_param: bool,
+) -> (TokenStream, ExtenderFieldConversion) {
+    match ty {
+        RustTy::EngineClass { inner_class, .. } => {
+            let cow_tokens = quote! { ObjectCow<crate::classes::#inner_class> };
+            (cow_tokens, ExtenderFieldConversion::ObjectArg)
+        }
+
+        // Default parameters cannot be stored by reference, as they would need a backing storage. Alternative: Cow.
+        ty if ty.is_pass_by_ref() => {
+            if is_default_param {
+                let ref_tokens = quote! { #ty };
+                (ref_tokens, ExtenderFieldConversion::ReferenceWithDefault)
+            } else {
+                let ref_tokens = quote! { &'a #ty };
+                (ref_tokens, ExtenderFieldConversion::Reference)
+            }
+        }
+
+        other => (other.to_token_stream(), ExtenderFieldConversion::None),
+    }
+}
+
 // Rewrite the above using match
 fn make_field_init(
     name: &Ident,
     expr: Option<&TokenStream>, // None if the parameter has the same name as the field, and can use shorthand syntax.
-    needs_conversion: bool,
+    conversion: ExtenderFieldConversion,
 ) -> TokenStream {
-    match (needs_conversion, expr) {
-        (true, Some(expr)) => quote! { #name: #expr.consume_object() },
-        (true, None) /*.             */ => quote! { #name: #name.consume_object() },
-        (false, Some(expr)) => quote! { #name: #expr },
-        (false, None) /*.             */ => quote! { #name },
+    type Conv = ExtenderFieldConversion;
+
+    match (conversion, expr) {
+        (Conv::ObjectArg, Some(expr)) => quote! { #name: #expr.consume_object() },
+        (Conv::ObjectArg, None) /*.             */ => quote! { #name: #name.consume_object() },
+
+        // Currently no differentiation between None|Reference|ReferenceWithDefault; this may change...
+        (Conv::None | Conv::Reference | Conv::ReferenceWithDefault, Some(expr)) => quote! { #name: #expr },
+        (Conv::None | Conv::Reference | Conv::ReferenceWithDefault, None) /*.             */ => quote! { #name },
     }
 }

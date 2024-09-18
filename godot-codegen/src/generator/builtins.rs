@@ -95,7 +95,10 @@ fn make_builtin_class(
 ) -> GeneratedBuiltin {
     let godot_name = &class.name().godot_ty;
 
-    let RustTy::BuiltinIdent(outer_class) = conv::to_rust_type(godot_name, None, ctx) else {
+    let RustTy::BuiltinIdent {
+        ty: outer_class, ..
+    } = conv::to_rust_type(godot_name, None, ctx)
+    else {
         panic!("Rust type `{}` categorized wrong", godot_name)
     };
     let inner_class = class.inner_name();
