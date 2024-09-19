@@ -5,6 +5,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
+use crate::class::RpcAttr;
 use crate::util::{bail_fn, ident, safe_ident};
 use crate::{util, ParseResult};
 use proc_macro2::{Group, Ident, TokenStream, TokenTree};
@@ -19,6 +20,8 @@ pub struct FuncDefinition {
     /// The name the function will be exposed as in Godot. If `None`, the Rust function name is used.
     pub rename: Option<String>,
     pub is_script_virtual: bool,
+    /// Information about the RPC configuration, if provided.
+    pub rpc_info: Option<RpcAttr>,
 }
 
 /// Returns a C function which acts as the callback when a virtual method of this instance is invoked.

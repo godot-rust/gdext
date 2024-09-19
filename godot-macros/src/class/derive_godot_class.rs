@@ -13,7 +13,7 @@ use crate::class::{
     SignatureInfo,
 };
 use crate::util::{bail, ident, path_ends_with_complex, require_api_version, KvParser};
-use crate::{util, ParseResult};
+use crate::{handle_mutually_exclusive_keys, util, ParseResult};
 
 pub fn derive_godot_class(item: venial::Item) -> ParseResult<TokenStream> {
     let class = item
@@ -255,6 +255,12 @@ fn make_user_class_impl(
     is_tool: bool,
     all_fields: &[Field],
 ) -> (TokenStream, bool) {
+    #[cfg(feature = "codegen-full")]
+    let rpc_registrations =
+        quote! { ::godot::register::private::auto_register_rpcs::<#class_name>(self); };
+    #[cfg(not(feature = "codegen-full"))]
+    let rpc_registrations = TokenStream::new();
+
     let onready_inits = {
         let mut onready_fields = all_fields
             .iter()
@@ -310,6 +316,7 @@ fn make_user_class_impl(
             }
 
             fn __before_ready(&mut self) {
+                #rpc_registrations
                 #onready_inits
             }
 
@@ -555,18 +562,12 @@ fn handle_opposite_keys(
     attribute: &str,
 ) -> ParseResult<Option<bool>> {
     let antikey = format!("no_{}", key);
+    let result = handle_mutually_exclusive_keys(parser, attribute, &[key, &antikey])?;
 
-    let is_key = parser.handle_alone(key)?;
-    let is_no_key = parser.handle_alone(&antikey)?;
-
-    match (is_key, is_no_key) {
-        (true, false) => Ok(Some(true)),
-        (false, true) => Ok(Some(false)),
-        (false, false) => Ok(None),
-        (true, true) => bail!(
-            parser.span(),
-            "#[{attribute}] attribute keys `{key}` and `{antikey}` are mutually exclusive",
-        ),
+    if let Some(idx) = result {
+        Ok(Some(idx == 0))
+    } else {
+        Ok(None)
     }
 }
 

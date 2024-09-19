@@ -171,13 +171,14 @@ godot::sys::plugin_add!(
     __GODOT_PLUGIN_REGISTRY in ::godot::private;
     ::godot::private::ClassPlugin {
         class_name: HasOtherConstants::class_name(),
-        item: ::godot::private::PluginItem::InherentImpl {
+        item: ::godot::private::PluginItem::InherentImpl(::godot::private::InherentImpl {
             register_methods_constants_fn: ::godot::private::ErasedRegisterFn {
                 raw: ::godot::private::callbacks::register_user_methods_constants::<HasOtherConstants>,
             },
+            register_rpcs_fn: None,
             #[cfg(all(since_api = "4.3", feature = "register-docs"))]
             docs: ::godot::docs::InherentImplDocs::default(),
-        },
+        }),
         init_level: HasOtherConstants::INIT_LEVEL,
     }
 );

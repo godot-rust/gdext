@@ -40,6 +40,10 @@ mod godot_convert;
 mod method_info;
 mod property_info;
 mod ref_arg;
+// RpcConfig uses `MultiplayerPeer::TransferMode` and `MultiplayerApi::RpcMode`,
+//   which are only available when `codegen-full` is enabled.
+#[cfg(feature = "codegen-full")]
+mod rpc_config;
 mod sealed;
 mod signature;
 mod traits;
@@ -47,6 +51,8 @@ mod traits;
 pub mod error;
 pub use class_name::ClassName;
 pub use godot_convert::{FromGodot, GodotConvert, ToGodot};
+#[cfg(feature = "codegen-full")]
+pub use rpc_config::RpcConfig;
 pub use traits::{ArrayElement, GodotType, PackedArrayElement};
 
 pub(crate) use crate::impl_godot_as_self;

@@ -23,7 +23,7 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
-use crate::util::ident;
+use crate::util::{bail, ident, KvParser};
 
 // Below intra-doc link to the trait only works as HTML, not as symbol link.
 /// Derive macro for [`GodotClass`](../obj/trait.GodotClass.html) on structs.
@@ -902,4 +902,42 @@ where
         .unwrap_or_else(|e| e.to_compile_error());
 
     TokenStream::from(result2)
+}
+
+/// Returns the index of the key in `keys` (if any) that is present.
+fn handle_mutually_exclusive_keys(
+    parser: &mut KvParser,
+    attribute: &str,
+    keys: &[&str],
+) -> ParseResult<Option<usize>> {
+    let (oks, errs) = keys
+        .iter()
+        .enumerate()
+        .map(|(idx, key)| Ok(parser.handle_alone(key)?.then_some(idx)))
+        .partition::<Vec<_>, _>(|result: &ParseResult<Option<usize>>| result.is_ok());
+
+    if !errs.is_empty() {
+        return bail!(parser.span(), "{errs:?}");
+    }
+
+    let found_idxs = oks
+        .into_iter()
+        .filter_map(|r| r.unwrap()) // `partition` guarantees that this is `Ok`
+        .collect::<Vec<_>>();
+
+    match found_idxs.len() {
+        0 => Ok(None),
+        1 => Ok(Some(found_idxs[0])),
+        _ => {
+            let offending_keys = keys
+                .iter()
+                .enumerate()
+                .filter(|(idx, _)| found_idxs.contains(idx));
+
+            bail!(
+                parser.span(),
+                "{attribute} attribute keys {offending_keys:?} are mutually exclusive"
+            )
+        }
+    }
 }

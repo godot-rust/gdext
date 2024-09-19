@@ -455,6 +455,7 @@ pub mod cap {
     use super::*;
     use crate::builtin::{StringName, Variant};
     use crate::obj::{Base, Bounds, Gd};
+    use std::any::Any;
 
     /// Trait for all classes that are default-constructible from the Godot engine.
     ///
@@ -558,6 +559,8 @@ pub mod cap {
         fn __register_methods();
         #[doc(hidden)]
         fn __register_constants();
+        #[doc(hidden)]
+        fn __register_rpcs(_: &mut dyn Any) {}
     }
 
     pub trait ImplementsGodotExports: GodotClass {

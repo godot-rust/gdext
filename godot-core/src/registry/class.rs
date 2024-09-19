@@ -13,7 +13,7 @@ use crate::meta::ClassName;
 use crate::obj::{cap, GodotClass};
 use crate::private::{ClassPlugin, PluginItem};
 use crate::registry::callbacks;
-use crate::registry::plugin::ErasedRegisterFn;
+use crate::registry::plugin::{ErasedRegisterFn, InherentImpl};
 use crate::{godot_error, sys};
 use sys::{interface_fn, out, Global, GlobalGuard, GlobalLockError};
 
@@ -71,7 +71,7 @@ impl ClassRegistrationInfo {
         // Note: when changing this match, make sure the array has sufficient size.
         let index = match item {
             PluginItem::Struct { .. } => 0,
-            PluginItem::InherentImpl { .. } => 1,
+            PluginItem::InherentImpl(InherentImpl { .. }) => 1,
             PluginItem::ITraitImpl { .. } => 2,
         };
 
@@ -200,6 +200,18 @@ pub fn unregister_classes(init_level: InitLevel) {
     }
 }
 
+#[cfg(feature = "codegen-full")]
+pub fn auto_register_rpcs<T: GodotClass>(object: &mut T) {
+    // Find the element that matches our class, and call the closure if it exists.
+    if let Some(InherentImpl {
+        register_rpcs_fn: Some(closure),
+        ..
+    }) = crate::private::find_inherent_impl(T::class_name())
+    {
+        (closure.raw)(object);
+    }
+}
+
 fn global_loaded_classes() -> GlobalGuard<'static, HashMap<InitLevel, Vec<LoadedClass>>> {
     match LOADED_CLASSES.try_lock() {
         Ok(it) => it,
@@ -281,11 +293,12 @@ fn fill_class_info(item: PluginItem, c: &mut ClassRegistrationInfo) {
             }
         }
 
-        PluginItem::InherentImpl {
+        PluginItem::InherentImpl(InherentImpl {
             register_methods_constants_fn,
+            register_rpcs_fn: _,
             #[cfg(all(since_api = "4.3", feature = "docs"))]
                 docs: _,
-        } => {
+        }) => {
             c.register_methods_constants_fn = Some(register_methods_constants_fn);
         }
 

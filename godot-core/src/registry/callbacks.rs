@@ -354,3 +354,7 @@ pub fn register_user_methods_constants<T: cap::ImplementsGodotApi>(_class_builde
     T::__register_methods();
     T::__register_constants();
 }
+
+pub fn register_user_rpcs<T: cap::ImplementsGodotApi>(object: &mut dyn Any) {
+    T::__register_rpcs(object);
+}
