@@ -178,6 +178,8 @@ pub mod register {
     /// Re-exports used by proc-macro API.
     #[doc(hidden)]
     pub mod private {
+        #[cfg(feature = "__codegen-full")]
+        pub use godot_core::registry::class::auto_register_rpcs;
         pub use godot_core::registry::godot_register_wrappers::*;
         pub use godot_core::registry::{constant, method};
     }

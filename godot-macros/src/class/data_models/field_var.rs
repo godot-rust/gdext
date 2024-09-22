@@ -204,6 +204,7 @@ impl GetterSetterImpl {
                 external_attributes: Vec::new(),
                 rename: None,
                 is_script_virtual: false,
+                rpc_info: None,
             },
         );
 

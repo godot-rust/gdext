@@ -43,7 +43,7 @@ api-4-3 = ["godot-core/api-4-3"]
 default = ["__codegen-full"]
 
 # Private features, they are under no stability guarantee
-__codegen-full = ["godot-core/codegen-full"]
+__codegen-full = ["godot-core/codegen-full", "godot-macros/codegen-full"]
 __debug-log = ["godot-core/debug-log"]
 __trace = ["godot-core/trace"]
 

@@ -8,7 +8,9 @@
 pub use crate::gen::classes::class_macros;
 pub use crate::obj::rtti::ObjectRtti;
 pub use crate::registry::callbacks;
-pub use crate::registry::plugin::{ClassPlugin, ErasedRegisterFn, PluginItem};
+pub use crate::registry::plugin::{
+    ClassPlugin, ErasedRegisterFn, ErasedRegisterRpcsFn, InherentImpl, PluginItem,
+};
 pub use crate::storage::{as_storage, Storage};
 pub use sys::out;
 
@@ -21,7 +23,6 @@ use crate::meta::CallContext;
 use crate::sys;
 use std::sync::{atomic, Arc, Mutex};
 use sys::Global;
-
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 // Global variables
 
@@ -126,6 +127,22 @@ pub fn next_class_id() -> u16 {
 
 pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
     sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
+}
+
+#[cfg(feature = "codegen-full")] // Remove if used in other scenarios.
+pub(crate) fn find_inherent_impl(class_name: crate::meta::ClassName) -> Option<InherentImpl> {
+    // We do this manually instead of using `iterate_plugins()` because we want to break as soon as we find a match.
+    let plugins = __godot_rust_plugin___GODOT_PLUGIN_REGISTRY.lock().unwrap();
+
+    plugins.iter().find_map(|elem| {
+        if elem.class_name == class_name {
+            if let PluginItem::InherentImpl(inherent_impl) = &elem.item {
+                return Some(inherent_impl.clone());
+            }
+        }
+
+        None
+    })
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

@@ -6,7 +6,7 @@
  */
 
 use crate::meta::ClassName;
-use crate::registry::plugin::PluginItem;
+use crate::registry::plugin::{InherentImpl, PluginItem};
 use std::collections::HashMap;
 
 /// Created for documentation on
@@ -77,7 +77,7 @@ pub fn gather_xml_docs() -> impl Iterator<Item = String> {
         let class_name = x.class_name;
 
         match x.item {
-            PluginItem::InherentImpl { docs, .. } => {
+            PluginItem::InherentImpl(InherentImpl { docs, .. }) => {
                 map.entry(class_name).or_default().inherent = docs
             }
 
