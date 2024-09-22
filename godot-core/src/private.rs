@@ -19,7 +19,7 @@ pub use crate::meta::trace;
 
 use crate::global::godot_error;
 use crate::meta::error::CallError;
-use crate::meta::{CallContext, ClassName};
+use crate::meta::CallContext;
 use crate::sys;
 use std::sync::{atomic, Arc, Mutex};
 use sys::Global;
@@ -129,7 +129,8 @@ pub(crate) fn iterate_plugins(mut visitor: impl FnMut(&ClassPlugin)) {
     sys::plugin_foreach!(__GODOT_PLUGIN_REGISTRY; visitor);
 }
 
-pub(crate) fn find_inherent_impl(class_name: ClassName) -> Option<InherentImpl> {
+#[cfg(feature = "codegen-full")] // Remove if used in other scenarios.
+pub(crate) fn find_inherent_impl(class_name: crate::meta::ClassName) -> Option<InherentImpl> {
     // We do this manually instead of using `iterate_plugins()` because we want to break as soon as we find a match.
     let plugins = __godot_rust_plugin___GODOT_PLUGIN_REGISTRY.lock().unwrap();
 

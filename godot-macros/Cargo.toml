@@ -13,7 +13,7 @@ homepage = "https://godot-rust.github.io"
 [features]
 api-custom = ["godot-bindings/api-custom"]
 docs = ["dep:markdown"]
-codegen-full = []
+codegen-full = ["godot/__codegen-full"]
 
 [lib]
 proc-macro = true
@@ -32,7 +32,7 @@ godot-bindings = { path = "../godot-bindings", version = "=0.1.3" } # emit_godot
 
 # Reverse dev dependencies so doctests can use `godot::` prefix.
 [dev-dependencies]
-godot = { path = "../godot", default-features = false, features = ["__codegen-full"] }
+godot = { path = "../godot", default-features = false}
 
 # https://docs.rs/about/metadata
 [package.metadata.docs.rs]

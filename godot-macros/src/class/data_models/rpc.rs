@@ -154,7 +154,7 @@ fn make_rpc_registration(func_def: &FuncDefinition) -> Option<TokenStream> {
     let registration = quote! {
         {
             #create_struct
-            args.register(node, #method_name_str)
+            args.configure_node(node, #method_name_str)
         }
     };
 

@@ -71,7 +71,7 @@ impl ClassRegistrationInfo {
         // Note: when changing this match, make sure the array has sufficient size.
         let index = match item {
             PluginItem::Struct { .. } => 0,
-            PluginItem::InherentImpl(InherentImpl { .. }) => 1,
+            PluginItem::InherentImpl(_) => 1,
             PluginItem::ITraitImpl { .. } => 2,
         };
 

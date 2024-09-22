@@ -40,8 +40,7 @@ mod godot_convert;
 mod method_info;
 mod property_info;
 mod ref_arg;
-// RpcConfig uses `MultiplayerPeer::TransferMode` and `MultiplayerApi::RpcMode`,
-//   which are only available when `codegen-full` is enabled.
+// RpcConfig uses MultiplayerPeer::TransferMode and MultiplayerApi::RpcMode, which are only enabled in `codegen-full` feature.
 #[cfg(feature = "codegen-full")]
 mod rpc_config;
 mod sealed;
