@@ -389,6 +389,7 @@ pub fn get_interface_extra_docs(trait_name: &str) -> Option<&'static str> {
     }
 }
 
+#[cfg(before_api = "4.4")]
 pub fn is_virtual_method_required(class_name: &str, method: &str) -> bool {
     match (class_name, method) {
         ("ScriptLanguageExtension", _) => method != "get_doc_comment_delimiters",
