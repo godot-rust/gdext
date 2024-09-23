@@ -1,6 +1,5 @@
-[gd_scene load_steps=20 format=3 uid="uid://dp50474qin2xu"]
+[gd_scene load_steps=19 format=3 uid="uid://dp50474qin2xu"]
 
-[ext_resource type="Script" path="res://player.gd" id="1_3us0m"]
 [ext_resource type="Texture2D" uid="uid://dld54qw3mao0w" path="res://Main Character - Male - Full spritesheet - No Guide.png" id="1_grirq"]
 [ext_resource type="Texture2D" uid="uid://tcgb3bjp6hyi" path="res://Famas.png" id="2_8kqsh"]
 [ext_resource type="PackedScene" uid="uid://dmnqqew4xpfhw" path="res://bullet.tscn" id="2_niiqb"]
@@ -106,22 +105,18 @@ animations = [{
 size = Vector2(32, 40)
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_c85fd"]
-properties/0/path = NodePath(".:position")
-properties/0/spawn = false
-properties/0/replication_mode = 0
-properties/1/path = NodePath("GunRotation:rotation")
+properties/0/path = NodePath("GunRotation:rotation")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:sync_position")
 properties/1/spawn = true
 properties/1/replication_mode = 1
-properties/2/path = NodePath(".:syncPos")
+properties/2/path = NodePath(".:sync_rotation")
 properties/2/spawn = true
 properties/2/replication_mode = 1
-properties/3/path = NodePath(".:syncRot")
-properties/3/spawn = true
-properties/3/replication_mode = 1
 
-[node name="Player" type="CharacterBody2D" groups=["Player"]]
-script = ExtResource("1_3us0m")
-bullet = ExtResource("2_niiqb")
+[node name="Player" type="Player" groups=["Player"]]
+bullet_scene = ExtResource("2_niiqb")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 texture_filter = 1

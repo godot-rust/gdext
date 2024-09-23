@@ -1,6 +1,6 @@
 extends Control
 
-@export var Address = "159.65.228.214"
+@export var Address = "127.0.0.1"
 @export var port = 8910
 var peer
 
