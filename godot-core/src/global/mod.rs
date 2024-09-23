@@ -42,19 +42,19 @@ use crate::obj::Gd;
 // Reminder: remove #![allow(deprecated)] in utilities.test along with the below functions.
 
 #[deprecated = "Instance utilities in `godot::global` will be removed. Use methods on `Gd` and `InstanceId` instead.\n\
-    For detailed reasons, see https://github.com/godot-rust/gdext/pull/892."]
+    For detailed reasons, see https://github.com/godot-rust/gdext/pull/901."]
 pub fn instance_from_id(instance_id: i64) -> Option<Gd<crate::classes::Object>> {
     crate::gen::utilities::instance_from_id(instance_id)
 }
 
 #[deprecated = "Instance utilities in `godot::global` will be removed. Use methods on `Gd` and `InstanceId` instead.\n\
-    For detailed reasons, see https://github.com/godot-rust/gdext/pull/892."]
+    For detailed reasons, see https://github.com/godot-rust/gdext/pull/901."]
 pub fn is_instance_valid(instance: Variant) -> bool {
     crate::gen::utilities::is_instance_valid(&instance)
 }
 
 #[deprecated = "Instance utilities in `godot::global` will be removed. Use methods on `Gd` and `InstanceId` instead.\n\
-    For detailed reasons, see https://github.com/godot-rust/gdext/pull/892."]
+    For detailed reasons, see https://github.com/godot-rust/gdext/pull/901."]
 pub fn is_instance_id_valid(instance_id: i64) -> bool {
     crate::gen::utilities::is_instance_id_valid(instance_id)
 }
