@@ -1,0 +1,13 @@
+[configuration]
+entry_symbol = "gdext_rust_init"
+compatibility_minimum = 4.1
+
+[libraries]
+linux.debug.x86_64 = "res://../../../target/debug/libmultiplayer_lan.so"
+linux.release.x86_64 = "res://../../../target/release/libmultiplayer_lan.so"
+windows.debug.x86_64 = "res://../../../target/debug/multiplayer_lan.dll"
+windows.release.x86_64 = "res://../../../target/release/multiplayer_lan.dll"
+macos.debug = "res://../../../target/debug/libmultiplayer_lan.dylib"
+macos.release = "res://../../../target/release/libmultiplayer_lan.dylib"
+macos.debug.arm64 = "res://../../../target/debug/libmultiplayer_lan.dylib"
+macos.release.arm64 = "res://../../../target/release/libmultiplayer_lan.dylib"

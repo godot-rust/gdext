@@ -1,0 +1,55 @@
+[gd_scene load_steps=2 format=3 uid="uid://bwtcufnykv2gk"]
+
+[ext_resource type="Script" path="res://MutiplayerController.gd" id="1_omkav"]
+
+[node name="Control" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_omkav")
+
+[node name="Host" type="Button" parent="."]
+layout_mode = 0
+offset_left = 74.0
+offset_top = 120.0
+offset_right = 251.0
+offset_bottom = 168.0
+text = "Host"
+
+[node name="Join" type="Button" parent="."]
+layout_mode = 0
+offset_left = 270.0
+offset_top = 120.0
+offset_right = 447.0
+offset_bottom = 168.0
+text = "Join"
+
+[node name="StartGame" type="Button" parent="."]
+layout_mode = 0
+offset_left = 479.0
+offset_top = 120.0
+offset_right = 656.0
+offset_bottom = 168.0
+text = "Start Game"
+
+[node name="LineEdit" type="LineEdit" parent="."]
+layout_mode = 0
+offset_left = 156.0
+offset_top = 68.0
+offset_right = 508.0
+offset_bottom = 99.0
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 0
+offset_left = 75.0
+offset_top = 70.0
+offset_right = 122.0
+offset_bottom = 96.0
+text = "Name"
+
+[connection signal="button_down" from="Host" to="." method="_on_host_button_down"]
+[connection signal="button_down" from="Join" to="." method="_on_join_button_down"]
+[connection signal="button_down" from="StartGame" to="." method="_on_start_game_button_down"]
