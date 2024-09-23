@@ -1,5 +1,5 @@
 use godot::prelude::*;
-use godot::classes::{CharacterBody2D, ICharacterBody2D, ProjectSettings};
+use godot::classes::{CharacterBody2D, ICharacterBody2D, MultiplayerSynchronizer, ProjectSettings};
 use godot::global::{move_toward};
 
 use crate::bullet::Bullet;
@@ -11,6 +11,9 @@ struct Player {
     gravity : f64,
     #[export]
     bullet_scene : Gd<PackedScene>,
+    multiplayer_synchronizer : OnReady<Gd<MultiplayerSynchronizer>>,
+    #[var]
+    peer_id: i32,
     base: Base<CharacterBody2D>
 }
 
@@ -34,22 +37,29 @@ impl ICharacterBody2D for Player {
             jump_velocity: -400.0,
             gravity,
             bullet_scene: PackedScene::new_gd(),
+            multiplayer_synchronizer : OnReady::node("MultiplayerSynchronizer"),
+            peer_id: 1,
             base,
         }
     }
 
+    fn ready(&mut self) {
+        let peer_id = self.get_peer_id();
+        self.multiplayer_synchronizer.set_multiplayer_authority(peer_id);
+    }
+
     fn physics_process(&mut self, delta: f64) {
-        let velocity : &mut Vector2 = &mut self.base_mut().get_velocity();
+        let mut velocity : Vector2 = self.base().get_velocity();
         // Add the gravity.
 		if !self.base().is_on_floor()
         {
-			velocity.x += (self.gravity * delta) as f32;
+			velocity.y += (self.gravity * delta) as f32;
         }
 			
 		//$GunRotation.look_at(get_viewport().get_mouse_position())
         let input = Input::singleton();
 		// Handle Jump.
-		if input.is_action_just_pressed("ui_accept".into()) && self.base().is_on_floor()
+		if input.is_action_just_pressed("jump".into()) && self.base().is_on_floor()
         {
 			velocity.y = self.jump_velocity;
         }
@@ -66,7 +76,7 @@ impl ICharacterBody2D for Player {
 		// Get the input direction and handle the movement/deceleration.
 		// As good practice, you should replace UI actions with custom gameplay actions.
          
-        let direction = input.get_axis("ui_left".into(), "ui_right".into());
+        let direction = input.get_axis("move_left".into(), "move_right".into());
 		if direction != 0.0
         {
 			velocity.x = direction * self.speed;
@@ -75,6 +85,8 @@ impl ICharacterBody2D for Player {
         {
 			velocity.x = move_toward(velocity.x.into(), 0.0, self.speed.into()) as f32;
         }
+
+        self.base_mut().set_velocity(velocity);
 
 		self.base_mut().move_and_slide();
     }
