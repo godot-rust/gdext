@@ -8,10 +8,15 @@ use godot::obj::WithBaseField;
 use godot::prelude::*;
 
 use crate::scene_manager::SceneManager;
-use crate::{NetworkId, PlayerData};
+use crate::{NetworkId};
 
 const LOCALHOST: &str = "127.0.0.1";
 const PORT: i32 = 8910;
+#[derive(GodotClass, Clone)]
+#[class(init)]
+pub struct PlayerData {
+    pub name: GString,
+}
 
 #[derive(GodotClass)]
 #[class(base=Control)]
@@ -39,9 +44,8 @@ impl MultiplayerController {
     #[func]
     fn on_peer_disconnected(&mut self, network_id: NetworkId) {
         godot_print!("Player Disconnected: {network_id}");
-        if let Some ((_id, data)) = &mut self.player_database.remove_entry(&network_id) {
-            data.delete_player_ref();
-        }
+        self.player_database.remove(&network_id);
+        // TODO: delete player from game when player leaves lobby
     }
 
     // called only from clients
@@ -67,8 +71,7 @@ impl MultiplayerController {
         let mut string = String::from("");
         for (network_id, data) in self.player_database.iter() {
             let username = &data.name;
-            let score = data.score;
-            string.push_str(&format!("network_id: {network_id}, username: {username}, score: {score} \n"));
+            string.push_str(&format!("network_id: {network_id}, username: {username} \n"));
         }
         string
     }
@@ -78,7 +81,7 @@ impl MultiplayerController {
     #[rpc(any_peer)]
     fn send_player_information(&mut self, name: GString, network_id: NetworkId) {
         let mut multiplayer = self.base().get_multiplayer().unwrap();
-        self.player_database.entry(network_id).or_insert(PlayerData{name, network_id, score: 0, player_ref: None});
+        self.player_database.entry(network_id).or_insert(PlayerData{name});
         // print player information onto multiplayer log
         let mut multiplayer_log = self
             .base_mut()
@@ -97,12 +100,7 @@ impl MultiplayerController {
     #[rpc(any_peer, call_local, reliable)]
     fn load_game(&mut self) {
             // start up game scene
-            let scene = self.game_scene.instantiate().unwrap();
-            // give game scene our player database
-            if let Ok(scene) = &mut scene.clone().try_cast::<SceneManager>() {
-                scene.bind_mut().player_database = self.player_database.clone();
-            }
-            
+            let mut scene = self.game_scene.instantiate_as::<SceneManager>();
             // have to put this into a block to avoid borrowing self as immutable when its already mutable
             {
                 let mut base = self.base_mut();
@@ -110,13 +108,20 @@ impl MultiplayerController {
                     .unwrap()
                     .get_root()
                     .unwrap()
-                    .add_child(scene);
+                    .add_child(scene.clone());
                 // hide multiplayer menu
                 base.hide();
+            }
+
+            // add players to scene
+            for (&network_id, data) in &self.player_database {
+                scene.bind_mut().add_player(network_id, data.name.clone());
             }
     }
 
     #[rpc(any_peer, call_local, reliable)]
+    fn load_in_player(&mut self)
+    {
         // if server, start up game on everyone else's client
         let mut multiplayer = self.base_mut().get_multiplayer().unwrap();
         if multiplayer.is_server() {

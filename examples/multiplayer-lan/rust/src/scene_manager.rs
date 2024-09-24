@@ -2,14 +2,14 @@ use std::{collections::HashMap};
 
 use godot::{classes::RandomNumberGenerator, prelude::*};
 
-use crate::{multiplayer_controller::{self, MultiplayerController}, player::Player, NetworkId, PlayerData};
+use crate::{multiplayer_controller::{self, MultiplayerController}, player::Player, NetworkId};
 
 #[derive(GodotClass)]
 #[class(base=Node2D)]
 pub struct SceneManager {
     #[export]
     player_scene: Gd<PackedScene>,
-    pub player_database: HashMap<NetworkId, PlayerData>,
+    pub player_list: HashMap<NetworkId, Gd<Player>>,
     base: Base<Node2D>,
 }
 
@@ -31,6 +31,21 @@ impl SceneManager {
     }
 
     #[func]
+    pub fn add_player(&mut self, network_id: NetworkId, username: GString)
+    {
+        let mut player = self.player_scene.instantiate_as::<Player>();
+
+        // setup player
+        {
+            let mut binding = player.bind_mut();
+            binding.set_network_id(network_id);
+            binding.set_username(username);
+        }
+
+        self.player_list.insert(network_id, player);
+    }
+
+    #[func]
     fn respawn_player(&self, &mut player: Gd<Player>)
     {
         // get random spawnpoint
@@ -43,17 +58,10 @@ impl SceneManager {
     // called only from the server
     #[rpc(authority, call_local)]
     pub fn start_game(&mut self) {
-        // get players from player database
-        let mut player_vec = Vec::<Gd<Player>>::new();
-        for (_, player_data) in self.player_database.clone() {
-            if let Some(player) = player_data.player_ref {
-                player_vec.push(player);
-            }
-        }
-        // actually add them into the scene
+        // actually add players into the scene
         let spawn_points = self.get_spawn_points();
         let mut index = 0;
-        for mut player in player_vec {
+        for (_, player) in &mut self.player_list {
             // spawn each player next to each spawn point
             let spawn_position = spawn_points.at(index).get_global_position();
             player.set_global_position(spawn_position);
@@ -79,34 +87,12 @@ impl INode2D for SceneManager {
     fn init(base: Base<Node2D>) -> Self {
         Self {
             player_scene: PackedScene::new_gd(),
-            player_database: HashMap::new(),
+            player_list: HashMap::new(),
             base,
         }
     }
 
     fn ready(&mut self) {
-        // get players from player database
-        let mut player_vec = Vec::<Gd<Player>>::new();
-        // set up players
-        for (network_id, data) in self.player_database.iter_mut() {
-            let mut player = self.player_scene.instantiate_as::<Player>();
-            // add reference in player database to the instantiated player scene
-            data.set_player_ref(player.clone());
-
-            // setup player
-            {
-                let mut binding = player.bind_mut();
-                binding.set_network_id(*network_id);
-                binding.set_username(data.name.clone());
-            }
-            
-            player_vec.push(player.clone());
-        }
-
-        for player in player_vec {
-            self.base_mut().add_child(player);
-        }
-
         let mut multiplayer_controller = self.base_mut().get_tree().unwrap().get_root().unwrap().get_node_as::<MultiplayerController>("MultiplayerController");
         // Tell the server that this peer has loaded.
         multiplayer_controller.rpc_id(1, "load_in_player".into(), &[]);
