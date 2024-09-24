@@ -1,3 +1,4 @@
+use godot::obj::WithBaseField;
 use godot::prelude::*;
 use godot::classes::{Area2D, CharacterBody2D, ICharacterBody2D, MultiplayerSynchronizer, PhysicsBody2D, ProjectSettings};
 use godot::global::{move_toward};
@@ -184,5 +185,6 @@ impl ICharacterBody2D for Player {
             self.base_mut().set_global_position(position);
             gun_rotation.set_global_rotation_degrees(rotation);
         }
+        //godot_print!("{}", self.base_mut().get_global_position());
     }
 }

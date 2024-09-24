@@ -1,6 +1,6 @@
 use std::{collections::HashMap};
 
-use godot::{classes::RandomNumberGenerator, prelude::*};
+use godot::{classes::{RandomNumberGenerator, RichTextLabel}, prelude::*};
 
 use crate::{multiplayer_controller::{self, MultiplayerController}, player::Player, NetworkId};
 
@@ -10,6 +10,7 @@ pub struct SceneManager {
     #[export]
     player_scene: Gd<PackedScene>,
     pub player_list: HashMap<NetworkId, Gd<Player>>,
+    text_log: OnReady<Gd<RichTextLabel>>,
     base: Base<Node2D>,
 }
 
@@ -42,7 +43,8 @@ impl SceneManager {
             binding.set_username(username);
         }
 
-        self.player_list.insert(network_id, player);
+        self.player_list.insert(network_id, player.clone());
+        self.base_mut().add_child(player.clone());
     }
 
     #[func]
@@ -88,6 +90,7 @@ impl INode2D for SceneManager {
         Self {
             player_scene: PackedScene::new_gd(),
             player_list: HashMap::new(),
+            text_log: OnReady::from_base_fn(|base| base.get_node_as::<RichTextLabel>("TextLog")),
             base,
         }
     }
@@ -96,6 +99,20 @@ impl INode2D for SceneManager {
         let mut multiplayer_controller = self.base_mut().get_tree().unwrap().get_root().unwrap().get_node_as::<MultiplayerController>("MultiplayerController");
         // Tell the server that this peer has loaded.
         multiplayer_controller.rpc_id(1, "load_in_player".into(), &[]);
-
     }
+
+    
+    fn process(&mut self, delta: f64) {
+        let mut string = String::from("");
+        for (_, player) in self.player_list.iter() {
+            let player_bind = player.bind();
+            let username = &player_bind.username;
+            let position = player.get_global_position();
+            let network_id = &player_bind.get_network_id();
+            string.push_str(&format!("network_id: {network_id}, username: {username}, position: {position} \n"));
+        }
+        self.text_log.set_text(GString::from(string));
+    }
+    
+
 }

@@ -27,3 +27,7 @@ position = Vector2(227, 486)
 
 [node name="1" type="Node2D" parent="SpawnLocations" groups=["PlayerSpawnPoint"]]
 position = Vector2(769, 486)
+
+[node name="TextLog" type="RichTextLabel" parent="."]
+offset_right = 762.0
+offset_bottom = 162.0
