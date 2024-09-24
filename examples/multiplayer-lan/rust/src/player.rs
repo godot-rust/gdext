@@ -48,23 +48,28 @@ impl Player {
     // TODO: Figure out how to make this work
     #[func]
     fn on_player_body_entered(&mut self, body: Gd<PhysicsBody2D>) {
-        if let Ok(bullet) = body.try_cast::<Bullet>()
+        if let Ok(mut bullet) = body.try_cast::<Bullet>()
         {
-            godot_print!("got hit by {}", bullet.bind().network_id);
+            // don't get hit by your own bullet
+            let bullet_id = bullet.bind().get_network_id();
+            if bullet_id != self.get_network_id() {
+                self.base_mut().rpc("take_damage".into(), &[Variant::from(bullet_id), Variant::from(1)]);
+            }
+            bullet.queue_free();
         }    
     }
-    /*
+    
     #[rpc(any_peer, call_local)]
     fn take_damage(&mut self, attacker_id: NetworkId, damage: i32) {
+        godot_print!("player {0} got hit by player {1}", self.get_network_id(), attacker_id);
+        self.health -= damage;
         if self.health <= 0 
         {
-            let mut binding = GameManager::singleton();
-            let mut game_manager = binding.bind_mut();
-            game_manager.player_database.entry(attacker_id).and_modify(|data| data.score += 1);
             self.base_mut().emit_signal("death".into(), &[]);
         }    
     }
 
+    /*
     #[func]
     fn respawn(&mut self, position: Vector2){
         self.health = MAX_HEALTH;

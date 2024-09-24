@@ -22,6 +22,7 @@ pub struct MultiplayerController {
     #[export]
     game_scene: Gd<PackedScene>,
     player_database: HashMap<NetworkId, PlayerData>,
+    has_game_started: bool,
     base: Base<Control>,
 }
 
@@ -92,22 +93,42 @@ impl MultiplayerController {
         }
     }
 
-    #[rpc(any_peer, call_local)]
+    #[rpc(any_peer)]
     fn start_game(&mut self) {
-        // start up game scene
-        let scene = self.game_scene.instantiate().unwrap();
-        // give game scene our player database
-        if let Ok(scene) = &mut scene.clone().try_cast::<SceneManager>() {
-            scene.bind_mut().player_database = self.player_database.clone();
+        if !self.has_game_started {
+            // start up game scene
+            let scene = self.game_scene.instantiate().unwrap();
+            // give game scene our player database
+            if let Ok(scene) = &mut scene.clone().try_cast::<SceneManager>() {
+                scene.bind_mut().player_database = self.player_database.clone();
+            }
+            
+            // have to put this into a block to avoid borrowing self as immutable when its already mutable
+            {
+                let mut base = self.base_mut();
+                base.get_tree()
+                    .unwrap()
+                    .get_root()
+                    .unwrap()
+                    .add_child(scene);
+                // hide multiplayer menu
+                base.hide();
+            }
+
+            // if server, start up game on everyone else's client
+            let mut multiplayer = self.base_mut().get_multiplayer().unwrap();
+            if multiplayer.is_server() {
+                godot_print!("game started on server!");
+                for (&network_id, _) in self.player_database.clone().iter_mut() {
+                    godot_print!("staring game for player {network_id}");
+                    self.base_mut().rpc_id(network_id.into(), "start_game".into(), &[]);
+                }
+            }
+            else {
+                godot_print!("game started for client {}", multiplayer.get_unique_id());
+            }
+            self.has_game_started = true;
         }
-        self.base()
-            .get_tree()
-            .unwrap()
-            .get_root()
-            .unwrap()
-            .add_child(scene);
-        // hide multiplayer menu
-        self.base_mut().hide();
     }
 
     #[func]
@@ -133,6 +154,7 @@ impl MultiplayerController {
             .get_node_as::<Button>("JoinButton")
             .set_visible(false);
         self.host_game();
+        // in this instance, the host is also playing, so add their information
         self.send_player_information(
             self.base().get_node_as::<LineEdit>("UsernameLineEdit").get_text(),
             self.base().get_multiplayer().unwrap().get_unique_id(),
@@ -164,8 +186,9 @@ impl MultiplayerController {
         // https://forum.godotengine.org/t/how-to-fix-trying-to-call-an-rpc-via-a-multiplayer-peer-which-is-not-connected/37037
         // this might fix some weird edge cases
 	    // probably just takes a while for the connection to be established?
-        thread::sleep(time::Duration::from_secs(1));
-        self.base_mut().rpc("start_game".into(), &[]);
+        //thread::sleep(time::Duration::from_secs(1));
+        // tell server to start game
+        self.base_mut().rpc_id(1,"start_game".into(), &[]);
     }
 }
 
@@ -177,6 +200,7 @@ impl IControl for MultiplayerController {
             port: PORT,
             game_scene: PackedScene::new_gd(),
             player_database: HashMap::new(),
+            has_game_started: false,
             base,
         }
     }
