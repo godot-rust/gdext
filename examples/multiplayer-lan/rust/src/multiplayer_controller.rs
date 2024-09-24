@@ -1,4 +1,4 @@
-use godot::classes::{Button, Control, ENetMultiplayerPeer, IControl, LineEdit};
+use godot::classes::{Button, Control, ENetMultiplayerPeer, IControl, LineEdit, RichTextLabel};
 use godot::global::Error;
 use godot::obj::WithBaseField;
 use godot::prelude::*;
@@ -22,6 +22,7 @@ pub struct MultiplayerController {
 
 #[godot_api]
 impl MultiplayerController {
+    // called when a new "peer" gets connected with the server. Both client and server get notified about this
     #[func]
     fn on_peer_connected(&self, network_id: NetworkId) {
         godot_print!("Player connected: {network_id}");
@@ -38,35 +39,41 @@ impl MultiplayerController {
 
     // called only from clients
     #[func]
-    fn connected_to_server(&self) {
+    fn on_connected_to_server(&mut self) {
         godot_print!("Connected to Server!");
+        // send information to server
+        let mut multiplayer = self.base().get_multiplayer().unwrap();
+        let username = self.base().get_node_as::<LineEdit>("LineEdit").get_text();
+        let network_id = multiplayer.get_unique_id();
+        // server always has peer id of 1
+        self.base_mut().rpc_id(1, "send_player_information".into(), &[Variant::from(username), Variant::from(network_id)]);
     }
 
     // called only from clients
     #[func]
-    fn connection_failed(&self) {
+    fn on_connection_failed(&self) {
         godot_print!("Couldn't Connect");
     }
 
+    // this function should first be called by the player connecting to the server
+    // and then, the server should call this function on all the other players to propagate the information out
     #[rpc(any_peer)]
     fn send_player_information(&mut self, name: GString, id: i32) {
         let mut multiplayer = self.base().get_multiplayer().unwrap();
         let mut binding = GameManager::singleton();
         let mut game_manager = binding.bind_mut();
         game_manager.add_player_data(id, name, 0);
+        // print player information onto multiplayer log
+        let mut multiplayer_log = self
+            .base_mut()
+            .get_node_as::<RichTextLabel>("MultiplayerLog");
+        multiplayer_log.set_text(game_manager.get_player_database_as_string());
 
         if multiplayer.is_server() {
             for network_id in game_manager.get_list_of_network_ids().iter_shared() {
-                self.base_mut().rpc(
-                    "send_player_information".into(),
-                    &[
-                        game_manager
-                            .get_player_data(network_id)
-                            .get("name")
-                            .unwrap(),
-                        Variant::from(network_id),
-                    ],
-                );
+                godot_print!("sending player {network_id} data");
+                let username = game_manager.get_player_data(network_id).unwrap().name.clone();
+                self.base_mut().rpc("send_player_information".into(), &[Variant::from(username), Variant::from(network_id)]);
             }
         }
     }
@@ -80,6 +87,7 @@ impl MultiplayerController {
             .get_root()
             .unwrap()
             .add_child(scene);
+        // hide multiplayer menu
         self.base_mut().hide();
     }
 
@@ -102,14 +110,21 @@ impl MultiplayerController {
 
     #[func]
     fn on_host_button_down(&mut self) {
-        self.base_mut().get_node_as::<Button>("Join").set_visible(false);
+        self.base_mut()
+            .get_node_as::<Button>("JoinButton")
+            .set_visible(false);
         self.host_game();
-        self.send_player_information(self.base().get_node_as::<LineEdit>("LineEdit").get_text(), self.base().get_multiplayer().unwrap().get_unique_id());
+        self.send_player_information(
+            self.base().get_node_as::<LineEdit>("LineEdit").get_text(),
+            self.base().get_multiplayer().unwrap().get_unique_id(),
+        );
     }
 
     #[func]
     fn on_join_button_down(&mut self) {
-        self.base_mut().get_node_as::<Button>("Host").set_visible(false);
+        self.base_mut()
+            .get_node_as::<Button>("HostButton")
+            .set_visible(false);
         let mut peer = ENetMultiplayerPeer::new_gd();
         let error = peer.create_client(self.address.clone(), self.port);
         if error != Error::OK {
@@ -126,11 +141,9 @@ impl MultiplayerController {
     }
 
     #[func]
-    fn on_start_button_down(&mut self)
-    {
+    fn on_start_button_down(&mut self) {
         self.base_mut().rpc("start_game".into(), &[]);
     }
-
 }
 
 #[godot_api]
@@ -145,14 +158,22 @@ impl IControl for MultiplayerController {
     }
 
     fn ready(&mut self) {
-
         // setup ui
-        let mut host_button = self.base_mut().get_node_as::<Button>("Host");
-        host_button.connect("button_down".into(), self.base().callable("on_host_button_down"));
-        let mut join_button = self.base_mut().get_node_as::<Button>("Join");
-        join_button.connect("button_down".into(), self.base().callable("on_join_button_down"));
-        let mut start_button = self.base_mut().get_node_as::<Button>("StartGame");
-        start_button.connect("button_down".into(), self.base().callable("on_start_button_down"));
+        let mut host_button = self.base_mut().get_node_as::<Button>("HostButton");
+        host_button.connect(
+            "button_down".into(),
+            self.base().callable("on_host_button_down"),
+        );
+        let mut join_button = self.base_mut().get_node_as::<Button>("JoinButton");
+        join_button.connect(
+            "button_down".into(),
+            self.base().callable("on_join_button_down"),
+        );
+        let mut start_button = self.base_mut().get_node_as::<Button>("StartButton");
+        start_button.connect(
+            "button_down".into(),
+            self.base().callable("on_start_button_down"),
+        );
 
         let mut multiplayer = self.base().get_multiplayer().unwrap();
 

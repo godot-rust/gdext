@@ -43,11 +43,17 @@ impl GameManager {
         &mut self.player_database
     }
 
+    // returns the actual struct
+    pub fn get_player_data(&self, network_id: NetworkId) -> Option<&PlayerData> {
+        self.player_database.get(&network_id)
+    }
+
     // Expose these to GDScript
 
     // Will panic on the GDScript side if there isnt a network id there
+    // returns dictionary of data
     #[func]
-    pub fn get_player_data(&mut self, network_id: NetworkId) -> Dictionary
+    pub fn get_player_entry(&mut self, network_id: NetworkId) -> Dictionary
     {
         let player_data = self.player_database.get(&network_id).unwrap();
         dict![
@@ -112,6 +118,17 @@ impl GameManager {
     pub fn update_score(&mut self, network_id: NetworkId, score : i64)
     {
         self.player_database.entry(network_id).and_modify(|data| data.score = score);
+    }
+
+    #[func]
+    pub fn get_player_database_as_string(&self) -> GString {
+        let mut string = String::from("");
+        for (network_id, data) in self.player_database.iter() {
+            let username = &data.name;
+            let score = data.score;
+            string.push_str(&format!("network_id: {network_id}, username: {username}, score: {score} \n"));
+        }
+        return GString::from(string);
     }
 
 }

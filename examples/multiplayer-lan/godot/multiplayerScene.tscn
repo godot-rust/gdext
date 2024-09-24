@@ -10,7 +10,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Host" type="Button" parent="."]
+[node name="HostButton" type="Button" parent="."]
 layout_mode = 0
 offset_left = 74.0
 offset_top = 120.0
@@ -18,7 +18,7 @@ offset_right = 251.0
 offset_bottom = 168.0
 text = "Host"
 
-[node name="Join" type="Button" parent="."]
+[node name="JoinButton" type="Button" parent="."]
 layout_mode = 0
 offset_left = 270.0
 offset_top = 120.0
@@ -26,7 +26,7 @@ offset_right = 447.0
 offset_bottom = 168.0
 text = "Join"
 
-[node name="StartGame" type="Button" parent="."]
+[node name="StartButton" type="Button" parent="."]
 layout_mode = 0
 offset_left = 479.0
 offset_top = 120.0
@@ -49,6 +49,13 @@ offset_right = 122.0
 offset_bottom = 96.0
 text = "Name"
 
-[connection signal="button_down" from="Host" to="." method="_on_host_button_down"]
-[connection signal="button_down" from="Join" to="." method="_on_join_button_down"]
-[connection signal="button_down" from="StartGame" to="." method="_on_start_game_button_down"]
+[node name="MultiplayerLog" type="RichTextLabel" parent="."]
+layout_mode = 0
+offset_left = 66.0
+offset_top = 185.0
+offset_right = 705.0
+offset_bottom = 425.0
+
+[connection signal="button_down" from="HostButton" to="." method="_on_host_button_down"]
+[connection signal="button_down" from="JoinButton" to="." method="_on_join_button_down"]
+[connection signal="button_down" from="StartButton" to="." method="_on_start_game_button_down"]
