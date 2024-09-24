@@ -1,9 +1,8 @@
-[gd_scene load_steps=12 format=3 uid="uid://bmxv4ilh115ct"]
+[gd_scene load_steps=11 format=3 uid="uid://bmxv4ilh115ct"]
 
 [ext_resource type="Texture2D" uid="uid://4hxff102a1as" path="res://icon.svg" id="1_0m6ke"]
 [ext_resource type="Texture2D" uid="uid://chlnt56mtnfqo" path="res://parallax_background_layer_6.png" id="1_07yi8"]
-[ext_resource type="Script" path="res://SceneManager.gd" id="1_br64h"]
-[ext_resource type="PackedScene" uid="uid://dp50474qin2xu" path="res://player.tscn" id="2_7bveh"]
+[ext_resource type="PackedScene" uid="uid://dp50474qin2xu" path="res://player.tscn" id="1_nyjlg"]
 [ext_resource type="Texture2D" uid="uid://cg5nd8583ee0n" path="res://building_05.png" id="2_ncww1"]
 [ext_resource type="Texture2D" uid="uid://6r0yoxgn80ir" path="res://main_tileset.png" id="3_0df68"]
 [ext_resource type="Texture2D" uid="uid://b6y0w06xobc7d" path="res://building_04.png" id="3_vfe3b"]
@@ -336,9 +335,8 @@ texture = ExtResource("3_0df68")
 [sub_resource type="TileSet" id="TileSet_wtlbr"]
 sources/0 = SubResource("TileSetAtlasSource_awss8")
 
-[node name="Node2D" type="Node2D"]
-script = ExtResource("1_br64h")
-PlayerScene = ExtResource("2_7bveh")
+[node name="Node2D" type="SceneManager"]
+player_scene = ExtResource("1_nyjlg")
 
 [node name="ParallaxBackgroundLayer6" type="Sprite2D" parent="."]
 texture_filter = 1

@@ -14,7 +14,9 @@ pub struct Player {
     bullet_scene : Gd<PackedScene>,
     // multiplayer stuff
     multiplayer_synchronizer : OnReady<Gd<MultiplayerSynchronizer>>,
-    #[var]
+    #[export]
+    username: GString,
+    #[export]
     peer_id: NetworkId,
     #[export]
     sync_position: Vector2,
@@ -46,6 +48,7 @@ impl ICharacterBody2D for Player {
             bullet_scene: PackedScene::new_gd(),
             multiplayer_synchronizer : OnReady::node("MultiplayerSynchronizer"),
             peer_id: 1,
+            username: "Player".into(),
             sync_position: Vector2::new(0., 0.),
             sync_rotation: 0.,
             base,

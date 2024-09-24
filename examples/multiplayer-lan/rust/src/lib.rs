@@ -6,6 +6,7 @@ type NetworkId = i32;
 mod player;
 mod bullet;
 mod game_manager;
+mod scene_manager;
 mod multiplayer_controller;
 
 struct MultiplayerLan;

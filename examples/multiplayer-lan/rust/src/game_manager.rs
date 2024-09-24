@@ -7,8 +7,8 @@ use crate::NetworkId;
 #[derive(GodotClass)]
 #[class(init)]
 pub struct PlayerData {
-    name: GString,
-    score: i64,
+    pub name: GString,
+    pub score: i64,
 }
 
 #[derive(GodotClass)]
@@ -20,6 +20,25 @@ pub struct GameManager {
 
 #[godot_api] 
 impl GameManager {
+
+    // Rust only functions
+    pub fn get_as_singleton() -> Option::<Gd<GameManager>>
+    {
+        if let Some(game_manager) = godot::classes::Engine::singleton().get_singleton(StringName::from("GameManager")) {
+            if let Ok(game_manager) = game_manager.try_cast::<GameManager>() {
+                return Some(game_manager);
+            }
+        }
+        None
+    }
+
+    pub fn get_player_data(&self) -> &HashMap<NetworkId, PlayerData>
+    {
+        &self.player_data
+    }
+
+    // Expose these to GDScript
+
     // Will panic on the GDScript side if there isnt a network id there
     #[func]
     fn get_player(&mut self, network_id: NetworkId) -> Dictionary

@@ -9,7 +9,7 @@ func _ready():
 		var currentPlayer = PlayerScene.instantiate()
 		currentPlayer.peer_id = network_id
 		add_child(currentPlayer)
-		for spawn in get_tree().get_nodes_in_group("PlayerSpawnPoint"):
+		for spawn in get_tree().get_nodes_in_group("&mut *&mut *&mut *"):
 			if spawn.name == str(index):
 				currentPlayer.global_position = spawn.global_position
 		index += 1
