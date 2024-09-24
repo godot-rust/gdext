@@ -1,4 +1,6 @@
-use godot::prelude::*;
+use std::thread::spawn;
+
+use godot::{classes::RandomNumberGenerator, prelude::*};
 
 use crate::{game_manager::GameManager, player::Player};
 
@@ -26,6 +28,16 @@ impl SceneManager {
             .collect::<Array<Gd<Node2D>>>();
         spawn_points
     }
+
+    #[func]
+    fn respawn_player(&self, &mut player: Gd<Player>)
+    {
+        // get random spawnpoint
+        let spawn_points = self.get_spawn_points();
+        let mut random = RandomNumberGenerator::new_gd();
+        let spawn = spawn_points.get(random.randi_range(0, spawn_points.len() as i32 - 1) as usize).unwrap();
+        player.bind_mut().base_mut().set_global_position(spawn.get_global_position());
+    }   
 }
 
 #[godot_api]
@@ -59,6 +71,16 @@ impl INode2D for SceneManager {
 
             // spawn each player next to each spawn point
             current_player.set_global_position(spawn_points.at(index).get_global_position());
+
+            // set up signal on death
+            // TODO: figure out how to do this
+            /* 
+            current_player.connect("death".into(), Callable::from_fn("on_death", |args: &[&Variant]| {
+                let player = *args.first().unwrap().try_to::<Gd<Player>>().unwrap();
+                self.respawn_player(player);
+                Ok(Variant::nil())
+            }));
+            */
 
             index += 1;
             

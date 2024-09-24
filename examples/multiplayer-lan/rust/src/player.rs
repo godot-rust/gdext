@@ -1,15 +1,21 @@
 use godot::prelude::*;
-use godot::classes::{CharacterBody2D, ICharacterBody2D, MultiplayerSynchronizer, ProjectSettings};
+use godot::classes::{CharacterBody2D, ICharacterBody2D, MultiplayerSynchronizer, PhysicsBody2D, ProjectSettings};
 use godot::global::{move_toward};
 
 use crate::bullet::Bullet;
+use crate::game_manager::GameManager;
 use crate::NetworkId;
+
+const MAX_HEALTH : i32 = 2;
+
 #[derive(GodotClass)]
 #[class(base=CharacterBody2D)]
 pub struct Player {
     speed : f32,
     jump_velocity : f32,
     gravity : f64,
+    #[var]
+    health : i32,
     #[export]
     bullet_scene : Gd<PackedScene>,
     // multiplayer stuff
@@ -27,13 +33,49 @@ pub struct Player {
 
 #[godot_api]
 impl Player {
+    #[signal]
+    fn death();
+
     #[rpc(any_peer, call_local)]
     fn fire(&self) {
         let mut bullet = self.bullet_scene.instantiate_as::<Bullet>();
 	    bullet.set_global_position(self.base().get_node_as::<Node2D>("GunRotation/BulletSpawn").get_global_position());
 	    bullet.set_rotation_degrees(self.base().get_node_as::<Node2D>("GunRotation").get_rotation_degrees());
+        bullet.bind_mut().set_attacker_id(self.peer_id);
 	    self.base().get_tree().unwrap().get_root().unwrap().add_child(bullet);
     }
+
+    // Tried to make this an actual game by having a respawn system and health.
+    // TODO: Figure out how to make this work
+    /* 
+    #[func]
+    fn on_player_body_entered(&mut self, body: Gd<PhysicsBody2D>) {
+        if let Ok(bullet) = body.try_cast::<Bullet>()
+        {
+            let mut binding = GameManager::singleton();
+            let mut game_manager = binding.bind_mut();
+            game_manager.player_database.entry(bullet.bind().attacker_id).and_modify(|data| data.score += 1);
+        }    
+    }
+
+    #[rpc(any_peer, call_local)]
+    fn take_damage(&mut self, attacker_id: NetworkId, damage: i32) {
+        if self.health <= 0 
+        {
+            let mut binding = GameManager::singleton();
+            let mut game_manager = binding.bind_mut();
+            game_manager.player_database.entry(attacker_id).and_modify(|data| data.score += 1);
+            self.base_mut().emit_signal("death".into(), &[]);
+        }    
+    }
+
+    #[func]
+    fn respawn(&mut self, position: Vector2){
+        self.health = MAX_HEALTH;
+        self.base_mut().set_global_position(position);
+        self.sync_position = position;
+    }
+    */
 }
 
 #[godot_api]
@@ -44,6 +86,7 @@ impl ICharacterBody2D for Player {
             speed: 300.0,
             jump_velocity: -400.0,
             gravity,
+            health: MAX_HEALTH,
             bullet_scene: PackedScene::new_gd(),
             multiplayer_synchronizer : OnReady::node("MultiplayerSynchronizer"),
             peer_id: 1,

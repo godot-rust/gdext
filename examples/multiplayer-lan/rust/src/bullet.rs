@@ -1,13 +1,21 @@
 use godot::prelude::*;
 use godot::classes::{CharacterBody2D, ICharacterBody2D, ProjectSettings};
 
+use crate::NetworkId;
+
 const SPEED : f32 = 500.0;
+const LIFETIME : f64 = 2.0;
 
 #[derive(GodotClass)]
 #[class(base=CharacterBody2D)]
 pub struct Bullet {
     gravity : f64,
     direction : Vector2,
+    // who shot the bullet
+    #[var]
+    pub attacker_id : NetworkId,
+    // dont want the bullets to live forever
+    time_left : f64,
     base: Base<CharacterBody2D>
 }
 
@@ -19,6 +27,8 @@ impl ICharacterBody2D for Bullet {
         Self {
             gravity,
             direction: Vector2::new(1., 0.),
+            attacker_id: 1,
+            time_left: LIFETIME,
             base,
         }
     }
@@ -31,6 +41,11 @@ impl ICharacterBody2D for Bullet {
     }
 
     fn physics_process(&mut self, delta: f64) {
+        // delete bullet once LIFETIME seconds have passed
+        self.time_left -= delta;
+        if self.time_left <= 0.0 {
+            self.base_mut().queue_free();
+        }
         // have bullet fall down while flying
         if !self.base().is_on_floor() { 
             self.base_mut().get_velocity().x += (self.gravity * 1. * delta) as f32;
