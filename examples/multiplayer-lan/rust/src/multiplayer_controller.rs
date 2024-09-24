@@ -1,3 +1,6 @@
+use core::time;
+use std::thread;
+
 use godot::classes::{Button, Control, ENetMultiplayerPeer, IControl, LineEdit, RichTextLabel};
 use godot::global::Error;
 use godot::obj::WithBaseField;
@@ -43,7 +46,7 @@ impl MultiplayerController {
         godot_print!("Connected to Server!");
         // send information to server
         let mut multiplayer = self.base().get_multiplayer().unwrap();
-        let username = self.base().get_node_as::<LineEdit>("LineEdit").get_text();
+        let username = self.base().get_node_as::<LineEdit>("UsernameLineEdit").get_text();
         let network_id = multiplayer.get_unique_id();
         // server always has peer id of 1
         self.base_mut().rpc_id(1, "send_player_information".into(), &[Variant::from(username), Variant::from(network_id)]);
@@ -116,7 +119,7 @@ impl MultiplayerController {
             .set_visible(false);
         self.host_game();
         self.send_player_information(
-            self.base().get_node_as::<LineEdit>("LineEdit").get_text(),
+            self.base().get_node_as::<LineEdit>("UsernameLineEdit").get_text(),
             self.base().get_multiplayer().unwrap().get_unique_id(),
         );
     }
@@ -143,6 +146,10 @@ impl MultiplayerController {
 
     #[func]
     fn on_start_button_down(&mut self) {
+        // https://forum.godotengine.org/t/how-to-fix-trying-to-call-an-rpc-via-a-multiplayer-peer-which-is-not-connected/37037
+        // this might fix some weird edge cases
+	    // probably just takes a while for the connection to be established?
+        thread::sleep(time::Duration::from_secs(1));
         self.base_mut().rpc("start_game".into(), &[]);
     }
 }

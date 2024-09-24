@@ -34,12 +34,13 @@ offset_right = 656.0
 offset_bottom = 168.0
 text = "Start Game"
 
-[node name="LineEdit" type="LineEdit" parent="."]
+[node name="UsernameLineEdit" type="LineEdit" parent="."]
 layout_mode = 0
 offset_left = 156.0
 offset_top = 68.0
 offset_right = 508.0
 offset_bottom = 99.0
+text = "Player"
 
 [node name="Label" type="Label" parent="."]
 layout_mode = 0
