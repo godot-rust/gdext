@@ -80,6 +80,7 @@ impl MultiplayerController {
 
     #[rpc(any_peer, call_local)]
     fn start_game(&mut self) {
+        // start up game scene
         let scene = self.game_scene.instantiate().unwrap();
         self.base()
             .get_tree()

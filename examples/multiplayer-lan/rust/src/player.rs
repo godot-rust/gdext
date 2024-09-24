@@ -16,7 +16,7 @@ pub struct Player {
     multiplayer_synchronizer : OnReady<Gd<MultiplayerSynchronizer>>,
     #[export]
     pub username: GString,
-    #[export]
+    #[var]
     pub peer_id: NetworkId,
     #[export]
     sync_position: Vector2,
@@ -65,6 +65,7 @@ impl ICharacterBody2D for Player {
          */
         let peer_id = self.get_peer_id();
         self.multiplayer_synchronizer.set_multiplayer_authority(peer_id);
+        //godot_print!("peer id {peer_id}");
         
         // set up networked version of position and rotation
         let position = self.base().get_global_position();
