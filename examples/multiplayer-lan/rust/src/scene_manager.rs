@@ -46,7 +46,7 @@ func _ready():
             // make sure all the spawn points are Node2D
             let spawn_points = spawn_points.iter_shared().map(|spawn_point| spawn_point.cast::<Node2D>()).collect::<Vec<Gd<Node2D>>>();
             let mut spawn_iterator = spawn_points.iter();
-            for (&network_id, data) in game_manager.get_player_data() {
+            for (&network_id, data) in game_manager.get_player_database() {
                 let current_player = &mut self.player_scene.instantiate_as::<Player>();
 
                 // setup player

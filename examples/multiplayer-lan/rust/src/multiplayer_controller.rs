@@ -1,6 +1,9 @@
 use godot::prelude::*;
 use godot::classes::{Control, ENetMultiplayerPeer, IControl};
 
+use crate::game_manager::GameManager;
+use crate::NetworkId;
+
 const LOCALHOST : &str = "127.0.0.1";
 const PORT : u32 = 8910;
 
@@ -16,18 +19,17 @@ pub struct MultiplayerController {
 
 #[godot_api] 
 impl MultiplayerController {
+    #[func]
+    fn on_peer_connected(&self, network_id : NetworkId) {
+	    godot_print!("Player connected: {network_id}");
+    }
+
     // called when a new "peer" gets disconnected with the server. Both client and server get notified about this
     #[func]
-    fn on_peer_disconnected(&self, id : i64) {
-	    godot_print!("Player Disconnected: {id}");
-	    //godot::classes::Engine::singleton().get_singleton(StringName::from("GameManager")).players.erase(id);
-        for player in self.base().get_tree().unwrap().get_nodes_in_group("players".into()).iter_shared(){
-            /*
-            if player.peer_id == id {
-                player.queue_free();
-            }
-            */
-            todo!();
+    fn on_peer_disconnected(&self, network_id : NetworkId) {
+	    godot_print!("Player Disconnected: {network_id}");
+	    if let Some(mut game_manager) = GameManager::get_as_singleton() {
+            game_manager.bind_mut().remove_player(network_id);
         }
     }
 }
@@ -48,12 +50,10 @@ impl IControl for MultiplayerController {
         let mut multiplayer = self.base().get_multiplayer().unwrap();
 
         // currently callable/signal API is really ugly
-        let on_peer_connected = Callable::from_fn("on_peer_connected", |args: &[&Variant]| {
-            let peer_id: i32 = args.get(0).unwrap().try_to::<i32>().unwrap();
-            godot_print!("Player Connected: {peer_id}");
-            Ok(Variant::nil())
-        });
-        multiplayer.connect("peer_connected".into(), on_peer_connected);
+        multiplayer.connect("peer_connected".into(), self.base().callable("on_peer_connected"));
+        multiplayer.connect("peer_disconnected".into(), self.base().callable("on_peer_disconnected"));
+        multiplayer.connect("connected_to_server".into(), self.base().callable("on_connected_to_server"));
+        multiplayer.connect("connection_failed".into(), self.base().callable("on_connection_failed"));
     }
 
     fn physics_process(&mut self, delta: f64) {

@@ -15,9 +15,9 @@ pub struct Player {
     // multiplayer stuff
     multiplayer_synchronizer : OnReady<Gd<MultiplayerSynchronizer>>,
     #[export]
-    username: GString,
+    pub username: GString,
     #[export]
-    peer_id: NetworkId,
+    pub peer_id: NetworkId,
     #[export]
     sync_position: Vector2,
     #[export]

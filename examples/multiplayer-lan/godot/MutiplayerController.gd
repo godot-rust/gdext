@@ -42,11 +42,11 @@ func connection_failed():
 
 @rpc("any_peer")
 func SendPlayerInformation(name : String, id : int):
-	GameManager.add_player(id, name, 0)
+	GameManager.add_player_data(id, name, 0)
 	
 	if multiplayer.is_server():
-		for network_id in GameManager.get_list_of_players():
-			SendPlayerInformation.rpc(GameManager.get_player(network_id).get("name"), network_id)
+		for network_id in GameManager.get_list_of_network_ids():
+			SendPlayerInformation.rpc(GameManager.get_player_data(network_id).get("name"), network_id)
 
 @rpc("any_peer","call_local")
 func StartGame():
@@ -66,12 +66,14 @@ func hostGame():
 	print("Waiting For Players!")
 
 func _on_host_button_down():
+	$Join.visible = false
 	hostGame()
 	SendPlayerInformation($LineEdit.text, multiplayer.get_unique_id())
 	pass # Replace with function body.
 
 
 func _on_join_button_down():
+	$Host.visible = false
 	peer = ENetMultiplayerPeer.new()
 	peer.create_client(Address, port)
 	peer.get_host().compress(ENetConnection.COMPRESS_RANGE_CODER)
