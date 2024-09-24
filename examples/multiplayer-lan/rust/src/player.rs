@@ -1,5 +1,5 @@
 use godot::prelude::*;
-use godot::classes::{CharacterBody2D, ICharacterBody2D, MultiplayerSynchronizer, ProjectSettings};
+use godot::classes::{Area2D, CharacterBody2D, ICharacterBody2D, MultiplayerSynchronizer, PhysicsBody2D, ProjectSettings};
 use godot::global::{move_toward};
 
 use crate::bullet::Bullet;
@@ -22,7 +22,7 @@ pub struct Player {
     #[export]
     pub username: GString,
     #[var]
-    pub peer_id: NetworkId,
+    pub network_id: NetworkId,
     #[export]
     sync_position: Vector2,
     #[export]
@@ -40,23 +40,20 @@ impl Player {
         let mut bullet = self.bullet_scene.instantiate_as::<Bullet>();
 	    bullet.set_global_position(self.base().get_node_as::<Node2D>("GunRotation/BulletSpawn").get_global_position());
 	    bullet.set_rotation_degrees(self.base().get_node_as::<Node2D>("GunRotation").get_rotation_degrees());
-        bullet.bind_mut().set_attacker_id(self.peer_id);
+        bullet.bind_mut().set_network_id(self.network_id);
 	    self.base().get_tree().unwrap().get_root().unwrap().add_child(bullet);
     }
 
     // Tried to make this an actual game by having a respawn system and health.
     // TODO: Figure out how to make this work
-    /* 
     #[func]
     fn on_player_body_entered(&mut self, body: Gd<PhysicsBody2D>) {
         if let Ok(bullet) = body.try_cast::<Bullet>()
         {
-            let mut binding = GameManager::singleton();
-            let mut game_manager = binding.bind_mut();
-            game_manager.player_database.entry(bullet.bind().attacker_id).and_modify(|data| data.score += 1);
+            godot_print!("got hit by {}", bullet.bind().network_id);
         }    
     }
-
+    /*
     #[rpc(any_peer, call_local)]
     fn take_damage(&mut self, attacker_id: NetworkId, damage: i32) {
         if self.health <= 0 
@@ -88,7 +85,7 @@ impl ICharacterBody2D for Player {
             health: MAX_HEALTH,
             bullet_scene: PackedScene::new_gd(),
             multiplayer_synchronizer : OnReady::node("MultiplayerSynchronizer"),
-            peer_id: 1,
+            network_id: 1,
             username: "Player".into(),
             sync_position: Vector2::new(0., 0.),
             sync_rotation: 0.,
@@ -98,15 +95,17 @@ impl ICharacterBody2D for Player {
 
     fn ready(&mut self) {
         self.base_mut().add_to_group("Player".into());
-
+        // set up signals
+        let mut hurt_box = self.base_mut().get_node_as::<Area2D>("HurtBox");
+        hurt_box.connect("body_entered".into(), self.base().callable("on_player_body_entered"));
         /*
             set multiplayer authority of each player to their correct peer id
 	        basically, we need to make sure that client with peer 34 (for example) 
             should ONLY control player 34 in everyone else's game simulation
 	        and that their data gets replicated everywhere
          */
-        let peer_id = self.get_peer_id();
-        self.multiplayer_synchronizer.set_multiplayer_authority(peer_id);
+        let network_id = self.get_network_id();
+        self.multiplayer_synchronizer.set_multiplayer_authority(network_id);
         //godot_print!("peer id {peer_id}");
         
         // set up networked version of position and rotation

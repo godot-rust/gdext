@@ -62,7 +62,7 @@ impl INode2D for SceneManager {
             // setup player
             {
                 let mut binding = player.bind_mut();
-                binding.set_peer_id(*network_id);
+                binding.set_network_id(*network_id);
                 binding.set_username(data.name.clone());
             }
             

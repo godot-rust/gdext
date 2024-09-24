@@ -13,7 +13,7 @@ pub struct Bullet {
     direction : Vector2,
     // who shot the bullet
     #[var]
-    pub attacker_id : NetworkId,
+    pub network_id : NetworkId,
     // dont want the bullets to live forever
     time_left : f64,
     base: Base<CharacterBody2D>
@@ -27,7 +27,7 @@ impl ICharacterBody2D for Bullet {
         Self {
             gravity,
             direction: Vector2::new(1., 0.),
-            attacker_id: 1,
+            network_id: 1,
             time_left: LIFETIME,
             base,
         }

@@ -1,10 +1,14 @@
-[gd_scene load_steps=5 format=3 uid="uid://dp50474qin2xu"]
+[gd_scene load_steps=6 format=3 uid="uid://dp50474qin2xu"]
 
 [ext_resource type="Texture2D" uid="uid://60wa7yj1fufb" path="res://art/playerGrey_walk1.png" id="2_h8a1g"]
 [ext_resource type="PackedScene" uid="uid://dmnqqew4xpfhw" path="res://bullet.tscn" id="2_niiqb"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_m1yx7"]
-size = Vector2(32, 40)
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_f0ham"]
+radius = 30.0
+height = 70.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_paly2"]
+radius = 38.71
 
 [sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_c85fd"]
 properties/0/path = NodePath(".:sync_position")
@@ -21,11 +25,16 @@ properties/2/replication_mode = 1
 bullet_scene = ExtResource("2_niiqb")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
-scale = Vector2(0.3, 0.3)
+scale = Vector2(0.5, 0.5)
 texture = ExtResource("2_h8a1g")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-shape = SubResource("RectangleShape2D_m1yx7")
+shape = SubResource("CapsuleShape2D_f0ham")
+
+[node name="HurtBox" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="HurtBox"]
+shape = SubResource("CircleShape2D_paly2")
 
 [node name="GunRotation" type="Node2D" parent="."]
 
