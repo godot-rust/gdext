@@ -3,9 +3,10 @@ use godot::classes::{CharacterBody2D, ICharacterBody2D, MultiplayerSynchronizer,
 use godot::global::{move_toward};
 
 use crate::bullet::Bullet;
+use crate::NetworkId;
 #[derive(GodotClass)]
 #[class(base=CharacterBody2D)]
-struct Player {
+pub struct Player {
     speed : f32,
     jump_velocity : f32,
     gravity : f64,
@@ -14,7 +15,7 @@ struct Player {
     // multiplayer stuff
     multiplayer_synchronizer : OnReady<Gd<MultiplayerSynchronizer>>,
     #[var]
-    peer_id: i32,
+    peer_id: NetworkId,
     #[export]
     sync_position: Vector2,
     #[export]
@@ -52,7 +53,7 @@ impl ICharacterBody2D for Player {
     }
 
     fn ready(&mut self) {
-        self.base_mut().add_to_group("players".into());
+        self.base_mut().add_to_group("Player".into());
 
         /*
             set multiplayer authority of each player to their correct peer id

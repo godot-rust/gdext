@@ -26,10 +26,10 @@ func peer_connected(id):
 # this get called on the server and clients
 func peer_disconnected(id):
 	print("Player Disconnected " + str(id))
-	GameManager.Players.erase(id)
+	GameManager.remove_player(id)
 	var players = get_tree().get_nodes_in_group("Player")
 	for i in players:
-		if i.name == str(id):
+		if i.peer_id == id:
 			i.queue_free()
 # called only from clients
 func connected_to_server():
@@ -41,17 +41,12 @@ func connection_failed():
 	print("Couldnt Connect")
 
 @rpc("any_peer")
-func SendPlayerInformation(name, id):
-	if !GameManager.Players.has(id):
-		GameManager.Players[id] ={
-			"name" : name,
-			"id" : id,
-			"score": 0
-		}
+func SendPlayerInformation(name : String, id : int):
+	GameManager.add_player(id, name, 0)
 	
 	if multiplayer.is_server():
-		for i in GameManager.Players:
-			SendPlayerInformation.rpc(GameManager.Players[i].name, i)
+		for network_id in GameManager.get_list_of_players():
+			SendPlayerInformation.rpc(GameManager.get_player(network_id).get("name"), network_id)
 
 @rpc("any_peer","call_local")
 func StartGame():
@@ -69,8 +64,7 @@ func hostGame():
 	
 	multiplayer.set_multiplayer_peer(peer)
 	print("Waiting For Players!")
-	
-	
+
 func _on_host_button_down():
 	hostGame()
 	SendPlayerInformation($LineEdit.text, multiplayer.get_unique_id())

@@ -5,9 +5,9 @@ extends Node2D
 # Called when the node enters the scene tree for the first time.
 func _ready():
 	var index = 0
-	for i in GameManager.Players:
+	for network_id in GameManager.get_list_of_players():
 		var currentPlayer = PlayerScene.instantiate()
-		currentPlayer.name = str(GameManager.Players[i].id)
+		currentPlayer.peer_id = network_id
 		add_child(currentPlayer)
 		for spawn in get_tree().get_nodes_in_group("PlayerSpawnPoint"):
 			if spawn.name == str(index):
