@@ -23,7 +23,7 @@ impl PlayerData{
 #[derive(GodotClass)]
 #[class(init, base=Object)]
 pub struct GameManager {
-    player_database: HashMap<NetworkId, PlayerData>,
+    pub player_database: HashMap<NetworkId, PlayerData>,
     base: Base<Object>,
 }
 
@@ -31,19 +31,14 @@ pub struct GameManager {
 impl GameManager {
 
     // Rust only functions
-    pub fn get_as_singleton() -> Option::<Gd<GameManager>>
+    pub fn singleton() -> Gd<Self>
     {
-        if let Some(game_manager) = godot::classes::Engine::singleton().get_singleton(StringName::from("GameManager")) {
-            if let Ok(game_manager) = game_manager.try_cast::<GameManager>() {
-                return Some(game_manager);
-            }
-        }
-        None
+         godot::classes::Engine::singleton().get_singleton(StringName::from("GameManager")).unwrap().try_cast::<GameManager>().unwrap()
     }
 
-    pub fn get_player_database(&self) -> &HashMap<NetworkId, PlayerData>
+    pub fn get_player_database(&mut self) -> &mut HashMap<NetworkId, PlayerData>
     {
-        &self.player_database
+        &mut self.player_database
     }
 
     // Expose these to GDScript
@@ -102,7 +97,7 @@ impl GameManager {
     }
 
     #[func]
-    pub fn add_player_reference(&mut self, network_id: NetworkId, player_ref: Option<Gd<Player>>)
+    pub fn register_player_reference(&mut self, network_id: NetworkId, player_ref: Option<Gd<Player>>)
     {
         godot_print!("adding player reference for {network_id}");
         self.player_database.entry(network_id).and_modify(|data|  data.player_ref = player_ref);
