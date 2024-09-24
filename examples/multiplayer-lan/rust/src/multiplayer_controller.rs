@@ -1,4 +1,5 @@
 use core::time;
+use std::collections::HashMap;
 use std::thread;
 
 use godot::classes::{Button, Control, ENetMultiplayerPeer, IControl, LineEdit, RichTextLabel};
@@ -6,8 +7,8 @@ use godot::global::Error;
 use godot::obj::WithBaseField;
 use godot::prelude::*;
 
-use crate::game_manager::GameManager;
-use crate::NetworkId;
+use crate::scene_manager::SceneManager;
+use crate::{NetworkId, PlayerData};
 
 const LOCALHOST: &str = "127.0.0.1";
 const PORT: i32 = 8910;
@@ -20,6 +21,7 @@ pub struct MultiplayerController {
     port: i32,
     #[export]
     game_scene: Gd<PackedScene>,
+    player_database: HashMap<NetworkId, PlayerData>,
     base: Base<Control>,
 }
 
@@ -33,11 +35,11 @@ impl MultiplayerController {
 
     // called when a new "peer" gets disconnected with the server. Both client and server get notified about this
     #[func]
-    fn on_peer_disconnected(&self, network_id: NetworkId) {
+    fn on_peer_disconnected(&mut self, network_id: NetworkId) {
         godot_print!("Player Disconnected: {network_id}");
-        GameManager::singleton()
-            .bind_mut()
-            .remove_player(network_id);
+        if let Some ((_id, data)) = &mut self.player_database.remove_entry(&network_id) {
+            data.delete_player_ref();
+        }
     }
 
     // called only from clients
@@ -58,25 +60,34 @@ impl MultiplayerController {
         godot_print!("Couldn't Connect");
     }
 
+    fn player_database_to_string(&self) -> String 
+    {
+        let mut string = String::from("");
+        for (network_id, data) in self.player_database.iter() {
+            let username = &data.name;
+            let score = data.score;
+            string.push_str(&format!("network_id: {network_id}, username: {username}, score: {score} \n"));
+        }
+        string
+    }
+
     // this function should first be called by the player connecting to the server
     // and then, the server should call this function on all the other players to propagate the information out
     #[rpc(any_peer)]
-    fn send_player_information(&mut self, name: GString, id: i32) {
+    fn send_player_information(&mut self, name: GString, network_id: NetworkId) {
         let mut multiplayer = self.base().get_multiplayer().unwrap();
-        let mut binding = GameManager::singleton();
-        let mut game_manager = binding.bind_mut();
-        game_manager.add_player_data(id, name, 0);
+        self.player_database.entry(network_id).or_insert(PlayerData{name, network_id, score: 0, player_ref: None});
         // print player information onto multiplayer log
         let mut multiplayer_log = self
             .base_mut()
             .get_node_as::<RichTextLabel>("MultiplayerLog");
-        multiplayer_log.set_text(game_manager.get_player_database_as_string());
+        multiplayer_log.set_text(self.player_database_to_string().into());
 
         if multiplayer.is_server() {
-            for network_id in game_manager.get_list_of_network_ids().iter_shared() {
-                godot_print!("sending player {network_id} data");
-                let username = game_manager.get_player_data(network_id).unwrap().name.clone();
-                self.base_mut().rpc("send_player_information".into(), &[Variant::from(username), Variant::from(network_id)]);
+            for (id, data) in self.player_database.clone().into_iter() {
+                godot_print!("sending player {id} data");
+                let username = data.name;
+                self.base_mut().rpc("send_player_information".into(), &[Variant::from(username), Variant::from(id)]);
             }
         }
     }
@@ -85,6 +96,10 @@ impl MultiplayerController {
     fn start_game(&mut self) {
         // start up game scene
         let scene = self.game_scene.instantiate().unwrap();
+        // give game scene our player database
+        if let Ok(scene) = &mut scene.clone().try_cast::<SceneManager>() {
+            scene.bind_mut().player_database = self.player_database.clone();
+        }
         self.base()
             .get_tree()
             .unwrap()
@@ -161,6 +176,7 @@ impl IControl for MultiplayerController {
             address: LOCALHOST.into(),
             port: PORT,
             game_scene: PackedScene::new_gd(),
+            player_database: HashMap::new(),
             base,
         }
     }

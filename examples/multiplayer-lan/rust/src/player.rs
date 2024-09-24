@@ -1,9 +1,8 @@
 use godot::prelude::*;
-use godot::classes::{CharacterBody2D, ICharacterBody2D, MultiplayerSynchronizer, PhysicsBody2D, ProjectSettings};
+use godot::classes::{CharacterBody2D, ICharacterBody2D, MultiplayerSynchronizer, ProjectSettings};
 use godot::global::{move_toward};
 
 use crate::bullet::Bullet;
-use crate::game_manager::GameManager;
 use crate::NetworkId;
 
 const MAX_HEALTH : i32 = 2;

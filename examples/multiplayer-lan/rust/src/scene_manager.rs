@@ -1,14 +1,15 @@
-use std::thread::spawn;
+use std::{collections::HashMap, thread::spawn};
 
 use godot::{classes::RandomNumberGenerator, prelude::*};
 
-use crate::{game_manager::GameManager, player::Player};
+use crate::{player::Player, NetworkId, PlayerData};
 
 #[derive(GodotClass)]
 #[class(base=Node2D)]
 pub struct SceneManager {
     #[export]
     player_scene: Gd<PackedScene>,
+    pub player_database: HashMap<NetworkId, PlayerData>,
     base: Base<Node2D>,
 }
 
@@ -45,32 +46,38 @@ impl INode2D for SceneManager {
     fn init(base: Base<Node2D>) -> Self {
         Self {
             player_scene: PackedScene::new_gd(),
+            player_database: HashMap::new(),
             base,
         }
     }
 
     fn ready(&mut self) {
-        let mut binding = GameManager::singleton();
-        let mut game_manager = binding.bind_mut();
-        let spawn_points = self.get_spawn_points();
-        let mut index = 0;
-        for (network_id, data) in game_manager.get_player_database().iter_mut() {
-            let mut current_player = self.player_scene.instantiate_as::<Player>();
+        let mut player_vec = Vec::<Gd<Player>>::new();
+        // set up players
+        for (network_id, data) in self.player_database.iter_mut() {
+            let mut player = self.player_scene.instantiate_as::<Player>();
             // add reference in player database to the instantiated player scene
-            data.set_player_ref(current_player.clone());
+            data.set_player_ref(player.clone());
 
             // setup player
             {
-                let mut binding = current_player.bind_mut();
+                let mut binding = player.bind_mut();
                 binding.set_peer_id(*network_id);
                 binding.set_username(data.name.clone());
             }
+            
+            player_vec.push(player);
+        }
 
+        // actually add them into the scene
+        let spawn_points = self.get_spawn_points();
+        let mut index = 0;
+        for mut player in player_vec {
             // gotta make a new borrow since we're adding current_player as a child
-            self.base_mut().add_child(current_player.clone());
+            self.base_mut().add_child(player.clone());
 
             // spawn each player next to each spawn point
-            current_player.set_global_position(spawn_points.at(index).get_global_position());
+            player.set_global_position(spawn_points.at(index).get_global_position());
 
             // set up signal on death
             // TODO: figure out how to do this

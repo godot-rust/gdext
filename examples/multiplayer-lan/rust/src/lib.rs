@@ -1,47 +1,39 @@
-use game_manager::GameManager;
-use godot::{classes::Engine, prelude::*};
+use player::Player;
+use godot::{prelude::*};
 
 type NetworkId = i32;
 
 mod player;
 mod bullet;
-mod game_manager;
 mod scene_manager;
 mod multiplayer_controller;
+
+#[derive(GodotClass, Clone)]
+#[class(init)]
+pub struct PlayerData {
+    pub name: GString,
+    pub network_id: NetworkId,
+    pub score: i64,
+    // reference to the Player Scene that is instantiated
+    pub player_ref: Option<Gd<Player>>,
+}
+
+#[godot_api]
+impl PlayerData{
+    pub fn set_player_ref(&mut self, player_ref : Gd<Player>)
+    {
+        godot_print!("adding player reference for {0}", self.network_id);
+        self.player_ref = Some(player_ref);
+    }
+    pub fn delete_player_ref(&mut self){
+        if let Some(player_ref) = &mut self.player_ref {
+            player_ref.queue_free();
+        }
+    }
+}
 
 struct MultiplayerLan;
 
 
 #[gdextension]
-unsafe impl ExtensionLibrary for MultiplayerLan {
-    fn on_level_init(level: InitLevel) {
-        if level == InitLevel::Scene {
-            // The StringName identifies your singleton and can be
-            // used later to access it.
-            Engine::singleton().register_singleton(
-                StringName::from("GameManager"),
-                GameManager::new_alloc().upcast::<Object>(),
-            );
-        }
-    }
-
-    fn on_level_deinit(level: InitLevel) {
-        if level == InitLevel::Scene {
-            // Get the `Engine` instance and `StringName` for your singleton.
-            let mut engine = Engine::singleton();
-            let singleton_name = StringName::from("GameManager");
-
-            // We need to retrieve the pointer to the singleton object,
-            // as it has to be freed manually - unregistering singleton 
-            // doesn't do it automatically.
-            let singleton = engine
-                .get_singleton(singleton_name.clone())
-                .expect("cannot retrieve the singleton");
-
-            // Unregistering singleton and freeing the object itself is needed 
-            // to avoid memory leaks and warnings, especially for hot reloading.
-            engine.unregister_singleton(singleton_name);
-            singleton.free();
-        }
-    }
-}
+unsafe impl ExtensionLibrary for MultiplayerLan { }
