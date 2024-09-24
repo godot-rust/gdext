@@ -6,7 +6,7 @@
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_bsyir"]
 size = Vector2(785, 120)
 
-[node name="Node2D" type="SceneManager"]
+[node name="Game" type="SceneManager"]
 player_scene = ExtResource("1_nyjlg")
 
 [node name="StaticBody2D" type="StaticBody2D" parent="."]

@@ -22,6 +22,7 @@ pub struct MultiplayerController {
     #[export]
     game_scene: Gd<PackedScene>,
     player_database: HashMap<NetworkId, PlayerData>,
+    number_of_players_loaded: u32,
     has_game_started: bool,
     base: Base<Control>,
 }
@@ -93,9 +94,8 @@ impl MultiplayerController {
         }
     }
 
-    #[rpc(any_peer)]
-    fn start_game(&mut self) {
-        if !self.has_game_started {
+    #[rpc(any_peer, call_local, reliable)]
+    fn load_game(&mut self) {
             // start up game scene
             let scene = self.game_scene.instantiate().unwrap();
             // give game scene our player database
@@ -114,21 +114,25 @@ impl MultiplayerController {
                 // hide multiplayer menu
                 base.hide();
             }
+    }
 
-            // if server, start up game on everyone else's client
-            let mut multiplayer = self.base_mut().get_multiplayer().unwrap();
-            if multiplayer.is_server() {
-                godot_print!("game started on server!");
-                for (&network_id, _) in self.player_database.clone().iter_mut() {
-                    godot_print!("staring game for player {network_id}");
-                    self.base_mut().rpc_id(network_id.into(), "start_game".into(), &[]);
-                }
+    #[rpc(any_peer, call_local, reliable)]
+        // if server, start up game on everyone else's client
+        let mut multiplayer = self.base_mut().get_multiplayer().unwrap();
+        if multiplayer.is_server() {
+            let network_id= multiplayer.get_remote_sender_id();
+            if !self.player_database.contains_key(&network_id) {
+                return;
             }
-            else {
-                godot_print!("game started for client {}", multiplayer.get_unique_id());
+            godot_print!("loading in player {network_id}");
+            self.number_of_players_loaded += 1;
+            // start game once everyone is loaded in
+            if self.number_of_players_loaded == self.player_database.len() as u32 {
+                let mut game_scene = self.base_mut().get_tree().unwrap().get_root().unwrap().get_node_as::<SceneManager>("Game");
+                game_scene.rpc("start_game".into(), &[]);
             }
-            self.has_game_started = true;
         }
+        self.has_game_started = true;
     }
 
     #[func]
@@ -187,8 +191,7 @@ impl MultiplayerController {
         // this might fix some weird edge cases
 	    // probably just takes a while for the connection to be established?
         //thread::sleep(time::Duration::from_secs(1));
-        // tell server to start game
-        self.base_mut().rpc_id(1,"start_game".into(), &[]);
+        self.base_mut().rpc("load_game".into(), &[]);
     }
 }
 
@@ -201,6 +204,7 @@ impl IControl for MultiplayerController {
             game_scene: PackedScene::new_gd(),
             player_database: HashMap::new(),
             has_game_started: false,
+            number_of_players_loaded: 0,
             base,
         }
     }

@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://bmxv4ilh115ct" path="res://testScene.tscn" id="1_2n0a4"]
 
-[node name="Control" type="MultiplayerController"]
+[node name="MultiplayerController" type="MultiplayerController"]
 game_scene = ExtResource("1_2n0a4")
 anchors_preset = 15
 anchor_right = 1.0

@@ -2,7 +2,7 @@ use std::{collections::HashMap};
 
 use godot::{classes::RandomNumberGenerator, prelude::*};
 
-use crate::{player::Player, NetworkId, PlayerData};
+use crate::{multiplayer_controller::{self, MultiplayerController}, player::Player, NetworkId, PlayerData};
 
 #[derive(GodotClass)]
 #[class(base=Node2D)]
@@ -39,6 +39,39 @@ impl SceneManager {
         let spawn = spawn_points.get(random.randi_range(0, spawn_points.len() as i32 - 1) as usize).unwrap();
         player.bind_mut().base_mut().set_global_position(spawn.get_global_position());
     }   
+
+    // called only from the server
+    #[rpc(authority, call_local)]
+    pub fn start_game(&mut self) {
+        // get players from player database
+        let mut player_vec = Vec::<Gd<Player>>::new();
+        for (_, player_data) in self.player_database.clone() {
+            if let Some(player) = player_data.player_ref {
+                player_vec.push(player);
+            }
+        }
+        // actually add them into the scene
+        let spawn_points = self.get_spawn_points();
+        let mut index = 0;
+        for mut player in player_vec {
+            // spawn each player next to each spawn point
+            let spawn_position = spawn_points.at(index).get_global_position();
+            player.set_global_position(spawn_position);
+            
+            {
+                let mut bind = player.bind_mut();
+                bind.set_sync_position(spawn_position);
+
+                godot_print!("id {0} position {1}", bind.get_network_id(), bind.get_sync_position());
+            }
+
+            index += 1;
+            
+            if index >= spawn_points.len() {
+                index = 0;
+            }
+        }
+    }
 }
 
 #[godot_api]
@@ -52,6 +85,7 @@ impl INode2D for SceneManager {
     }
 
     fn ready(&mut self) {
+        // get players from player database
         let mut player_vec = Vec::<Gd<Player>>::new();
         // set up players
         for (network_id, data) in self.player_database.iter_mut() {
@@ -66,34 +100,16 @@ impl INode2D for SceneManager {
                 binding.set_username(data.name.clone());
             }
             
-            player_vec.push(player);
+            player_vec.push(player.clone());
         }
 
-        // actually add them into the scene
-        let spawn_points = self.get_spawn_points();
-        let mut index = 0;
-        for mut player in player_vec {
-            // gotta make a new borrow since we're adding current_player as a child
-            self.base_mut().add_child(player.clone());
-
-            // spawn each player next to each spawn point
-            player.set_global_position(spawn_points.at(index).get_global_position());
-
-            // set up signal on death
-            // TODO: figure out how to do this
-            /* 
-            current_player.connect("death".into(), Callable::from_fn("on_death", |args: &[&Variant]| {
-                let player = *args.first().unwrap().try_to::<Gd<Player>>().unwrap();
-                self.respawn_player(player);
-                Ok(Variant::nil())
-            }));
-            */
-
-            index += 1;
-            
-            if index >= spawn_points.len() {
-                index = 0;
-            }
+        for player in player_vec {
+            self.base_mut().add_child(player);
         }
+
+        let mut multiplayer_controller = self.base_mut().get_tree().unwrap().get_root().unwrap().get_node_as::<MultiplayerController>("MultiplayerController");
+        // Tell the server that this peer has loaded.
+        multiplayer_controller.rpc_id(1, "load_in_player".into(), &[]);
+
     }
 }

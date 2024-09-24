@@ -44,6 +44,16 @@ impl Player {
 	    self.base().get_tree().unwrap().get_root().unwrap().add_child(bullet);
     }
 
+    // only the server/host player can call this function
+    /*
+    #[rpc(call_local)]
+    fn set_player_position_from_server(&mut self, position: Vector2)
+    {
+        self.base_mut().set_global_position(position);
+        self.set_sync_position(position);
+    }
+    */
+
     // Tried to make this an actual game by having a respawn system and health.
     // TODO: Figure out how to make this work
     #[func]
@@ -66,6 +76,7 @@ impl Player {
         if self.health <= 0 
         {
             self.base_mut().emit_signal("death".into(), &[]);
+            self.base_mut().queue_free();
         }    
     }
 
