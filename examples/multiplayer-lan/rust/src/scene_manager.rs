@@ -11,6 +11,24 @@ pub struct SceneManager {
 }
 
 #[godot_api]
+impl SceneManager {
+    #[func]
+    fn get_spawn_points(&self) -> Array<Gd<Node2D>> {
+        let spawn_nodes = self
+            .base()
+            .get_tree()
+            .unwrap()
+            .get_nodes_in_group("PlayerSpawnPoint".into());
+        // make sure all the spawn points are Node2D
+        let spawn_points = spawn_nodes
+            .iter_shared()
+            .map(|spawn_point| spawn_point.cast::<Node2D>())
+            .collect::<Array<Gd<Node2D>>>();
+        spawn_points
+    }
+}
+
+#[godot_api]
 impl INode2D for SceneManager {
     fn init(base: Base<Node2D>) -> Self {
         Self {
@@ -22,19 +40,10 @@ impl INode2D for SceneManager {
     fn ready(&mut self) {
         let mut binding = GameManager::singleton();
         let mut game_manager = binding.bind_mut();
-        let spawn_points = self
-            .base()
-            .get_tree()
-            .unwrap()
-            .get_nodes_in_group("PlayerSpawnPoint".into());
-        // make sure all the spawn points are Node2D
-        let spawn_points = spawn_points
-            .iter_shared()
-            .map(|spawn_point| spawn_point.cast::<Node2D>())
-            .collect::<Vec<Gd<Node2D>>>();
-        let mut spawn_iterator = spawn_points.iter();
+        let spawn_points = self.get_spawn_points();
+        let mut index = 0;
         for (network_id, data) in game_manager.get_player_database().iter_mut() {
-            let current_player = &mut self.player_scene.instantiate_as::<Player>();
+            let mut current_player = self.player_scene.instantiate_as::<Player>();
             // add reference in player database to the instantiated player scene
             data.set_player_ref(current_player.clone());
 
@@ -46,16 +55,15 @@ impl INode2D for SceneManager {
             }
 
             // gotta make a new borrow since we're adding current_player as a child
-            self.base_mut().add_child(&mut *current_player);
+            self.base_mut().add_child(current_player.clone());
 
             // spawn each player next to each spawn point
-            if let Some(spawn_point) = spawn_iterator.next() {
-                current_player.set_global_position(spawn_point.get_global_position());
-            } else {
-                // start from beginning if we reached the end
-                spawn_iterator = spawn_points.iter();
-                current_player
-                    .set_global_position(spawn_iterator.next().unwrap().get_global_position());
+            current_player.set_global_position(spawn_points.at(index).get_global_position());
+
+            index += 1;
+            
+            if index >= spawn_points.len() {
+                index = 0;
             }
         }
     }

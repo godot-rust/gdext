@@ -8,6 +8,7 @@ use crate::{player::Player, NetworkId};
 #[class(init)]
 pub struct PlayerData {
     pub name: GString,
+    pub network_id: NetworkId,
     pub score: i64,
     pub player_ref: Option<Gd<Player>>,
 }
@@ -16,6 +17,7 @@ pub struct PlayerData {
 impl PlayerData{
     pub fn set_player_ref(&mut self, player_ref : Gd<Player>)
     {
+        godot_print!("adding player reference for {0}", self.network_id);
         self.player_ref = Some(player_ref);
     }
 }
@@ -93,16 +95,17 @@ impl GameManager {
     pub fn add_player_data(&mut self, network_id: NetworkId, name: GString, score: i64)
     {
         godot_print!("adding player {network_id}");
-        self.player_database.entry(network_id).or_insert(PlayerData{name, score, player_ref: None});
+        self.player_database.entry(network_id).or_insert(PlayerData{name, network_id, score, player_ref: None});
     }
 
+    /*
     #[func]
     pub fn register_player_reference(&mut self, network_id: NetworkId, player_ref: Option<Gd<Player>>)
     {
         godot_print!("adding player reference for {network_id}");
         self.player_database.entry(network_id).and_modify(|data|  data.player_ref = player_ref);
     }
-
+    */
 
 
     #[func]

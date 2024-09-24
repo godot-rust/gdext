@@ -113,7 +113,7 @@ impl MultiplayerController {
         let mut peer = ENetMultiplayerPeer::new_gd();
         let error = peer.create_client(self.address.clone(), self.port);
         if error != Error::OK {
-            godot_print!("cannot host");
+            godot_print!("cannot join");
             return;
         }
         peer.get_host()

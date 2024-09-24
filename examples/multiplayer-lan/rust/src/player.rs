@@ -39,7 +39,6 @@ impl Player {
 #[godot_api]
 impl ICharacterBody2D for Player {
     fn init(base: Base<CharacterBody2D>) -> Self {
-        godot_print!("Registering Player"); // Prints to the Godot console
         let gravity : f64 = Result::expect(ProjectSettings::singleton().get_setting("physics/2d/default_gravity".into()).try_to::<f64>(), "default setting in Godot");
         Self {
             speed: 300.0,
