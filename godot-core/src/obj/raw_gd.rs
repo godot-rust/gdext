@@ -13,7 +13,7 @@ use sys::{interface_fn, GodotFfi, GodotNullableFfi, PtrcallType};
 use crate::builtin::Variant;
 use crate::meta::error::{ConvertError, FromVariantError};
 use crate::meta::{
-    CallContext, ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, ToGodot,
+    CallContext, ClassName, FromGodot, GodotConvert, GodotFfiVariant, GodotType, RefArg, ToGodot,
 };
 use crate::obj::bounds::{Declarer, DynMemory as _};
 use crate::obj::rtti::ObjectRtti;
@@ -39,15 +39,6 @@ pub struct RawGd<T: GodotClass> {
 }
 
 impl<T: GodotClass> RawGd<T> {
-    /// Create a new object representing a null in Godot.
-    pub(super) fn null() -> Self {
-        Self {
-            obj: ptr::null_mut(),
-            cached_rtti: None,
-            cached_storage_ptr: InstanceCache::null(),
-        }
-    }
-
     /// Initializes this `RawGd<T>` from the object pointer as a **weak ref**, meaning it does not
     /// initialize/increment the reference counter.
     ///
@@ -552,8 +543,11 @@ impl<T: GodotClass> FromGodot for RawGd<T> {
 impl<T: GodotClass> GodotType for RawGd<T> {
     type Ffi = Self;
 
-    fn to_ffi(&self) -> Self::Ffi {
-        self.clone()
+    type ToFfi<'f> = RefArg<'f, RawGd<T>>
+    where Self: 'f;
+
+    fn to_ffi(&self) -> Self::ToFfi<'_> {
+        RefArg::new(self)
     }
 
     fn into_ffi(self) -> Self::Ffi {
@@ -602,8 +596,13 @@ impl<T: GodotClass> GodotFfiVariant for RawGd<T> {
 }
 
 impl<T: GodotClass> GodotNullableFfi for RawGd<T> {
-    fn flatten_option(opt: Option<Self>) -> Self {
-        opt.unwrap_or_else(Self::null)
+    /// Create a new object representing a null in Godot.
+    fn null() -> Self {
+        Self {
+            obj: ptr::null_mut(),
+            cached_rtti: None,
+            cached_storage_ptr: InstanceCache::null(),
+        }
     }
 
     fn is_null(&self) -> bool {

@@ -109,8 +109,13 @@ pub unsafe trait GodotFfi {
 /// This is currently only implemented for `RawGd`.
 // TODO: Consider implementing for `Variant`.
 pub trait GodotNullableFfi: Sized + GodotFfi {
-    fn flatten_option(opt: Option<Self>) -> Self;
+    fn null() -> Self;
+
     fn is_null(&self) -> bool;
+
+    fn flatten_option(opt: Option<Self>) -> Self {
+        opt.unwrap_or_else(Self::null)
+    }
 }
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------

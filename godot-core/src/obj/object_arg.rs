@@ -270,8 +270,9 @@ impl<T: GodotClass> FromGodot for ObjectArg<T> {
 
 impl<T: GodotClass> GodotType for ObjectArg<T> {
     type Ffi = Self;
+    type ToFfi<'f> = Self; // TODO: maybe ObjectArg becomes redundant with RefArg?
 
-    fn to_ffi(&self) -> Self::Ffi {
+    fn to_ffi(&self) -> Self::ToFfi<'_> {
         (*self).clone()
     }
 
@@ -305,8 +306,8 @@ impl<T: GodotClass> GodotFfiVariant for ObjectArg<T> {
 }
 
 impl<T: GodotClass> GodotNullableFfi for ObjectArg<T> {
-    fn flatten_option(opt: Option<Self>) -> Self {
-        opt.unwrap_or_else(Self::null)
+    fn null() -> Self {
+        Self::null()
     }
 
     fn is_null(&self) -> bool {
