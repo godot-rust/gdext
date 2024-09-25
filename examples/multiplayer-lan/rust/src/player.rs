@@ -14,7 +14,7 @@ pub struct Player {
     speed : f32,
     jump_velocity : f32,
     gravity : f64,
-    #[var]
+    #[export]
     health : i32,
     #[export]
     bullet_scene : Gd<PackedScene>,
@@ -45,15 +45,26 @@ impl Player {
 	    self.base().get_tree().unwrap().get_root().unwrap().add_child(bullet);
     }
 
-    // only the server/host player can call this function
     /*
-    #[rpc(call_local)]
-    fn set_player_position_from_server(&mut self, position: Vector2)
-    {
-        self.base_mut().set_global_position(position);
-        self.set_sync_position(position);
+    // only the server/host player can call this function
+    #[rpc(authority, call_local, reliable)]
+    fn respawn(&mut self, position: Vector2, network_id: NetworkId){
+        if self.network_id == network_id {
+            self.health = MAX_HEALTH;
+            self.set_player_position_from_server(position, network_id);
+        }
     }
     */
+    
+    // only the server/host player can call this function
+    #[rpc(authority, call_local, reliable)]
+    fn set_player_position_from_server(&mut self, position: Vector2, network_id: NetworkId)
+    {
+        if self.network_id == network_id {
+            self.base_mut().set_global_position(position);
+            self.set_sync_position(position);
+        }
+    }
 
     // Tried to make this an actual game by having a respawn system and health.
     // TODO: Figure out how to make this work
@@ -76,19 +87,10 @@ impl Player {
         self.health -= damage;
         if self.health <= 0 
         {
-            self.base_mut().emit_signal("death".into(), &[]);
-            self.base_mut().queue_free();
+            let network_id = self.get_network_id();
+            self.base_mut().emit_signal("death".into(), &[Variant::from(network_id)]);
         }    
     }
-
-    /*
-    #[func]
-    fn respawn(&mut self, position: Vector2){
-        self.health = MAX_HEALTH;
-        self.base_mut().set_global_position(position);
-        self.sync_position = position;
-    }
-    */
 }
 
 #[godot_api]

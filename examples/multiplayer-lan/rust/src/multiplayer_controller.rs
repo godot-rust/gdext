@@ -2,7 +2,7 @@ use core::time;
 use std::collections::HashMap;
 use std::thread;
 
-use godot::classes::{Button, Control, ENetMultiplayerPeer, IControl, LineEdit, RichTextLabel};
+use godot::classes::{Button, Control, ENetMultiplayerPeer, IControl, LineEdit, MultiplayerApi, RichTextLabel};
 use godot::global::Error;
 use godot::obj::WithBaseField;
 use godot::prelude::*;
@@ -28,7 +28,7 @@ pub struct MultiplayerController {
     game_scene: Gd<PackedScene>,
     player_database: HashMap<NetworkId, PlayerData>,
     number_of_players_loaded: u32,
-    has_game_started: bool,
+    multiplayer: OnReady<Gd<MultiplayerApi>>,
     base: Base<Control>,
 }
 
@@ -48,14 +48,13 @@ impl MultiplayerController {
         // TODO: delete player from game when player leaves lobby
     }
 
-    // called only from clients
+    // called only from client to send information to server through send_player_information
     #[func]
     fn on_connected_to_server(&mut self) {
         godot_print!("Connected to Server!");
         // send information to server
-        let mut multiplayer = self.base().get_multiplayer().unwrap();
         let username = self.base().get_node_as::<LineEdit>("UsernameLineEdit").get_text();
-        let network_id = multiplayer.get_unique_id();
+        let network_id = self.multiplayer.get_unique_id();
         // server always has peer id of 1
         self.base_mut().rpc_id(1, "send_player_information".into(), &[Variant::from(username), Variant::from(network_id)]);
     }
@@ -66,6 +65,7 @@ impl MultiplayerController {
         godot_print!("Couldn't Connect");
     }
 
+    // utility function that converts our player database hashmap to a string
     fn player_database_to_string(&self) -> String 
     {
         let mut string = String::from("");
@@ -78,17 +78,19 @@ impl MultiplayerController {
 
     // this function should first be called by the player connecting to the server
     // and then, the server should call this function on all the other players to propagate the information out
+    // this should result in each player having a fully populated player database containing everyone else in the lobby
     #[rpc(any_peer)]
     fn send_player_information(&mut self, name: GString, network_id: NetworkId) {
-        let mut multiplayer = self.base().get_multiplayer().unwrap();
+        // insert new player data with network_id if it doesn't already exist
         self.player_database.entry(network_id).or_insert(PlayerData{name});
+
         // print player information onto multiplayer log
         let mut multiplayer_log = self
             .base_mut()
             .get_node_as::<RichTextLabel>("MultiplayerLog");
         multiplayer_log.set_text(self.player_database_to_string().into());
 
-        if multiplayer.is_server() {
+        if self.multiplayer.is_server() {
             for (id, data) in self.player_database.clone().into_iter() {
                 godot_print!("sending player {id} data");
                 let username = data.name;
@@ -114,18 +116,33 @@ impl MultiplayerController {
             }
 
             // add players to scene
+            let mut player_ids = Vec::<NetworkId>::new();
             for (&network_id, data) in &self.player_database {
                 scene.bind_mut().add_player(network_id, data.name.clone());
+                player_ids.push(network_id);
+            }
+
+            if self.multiplayer.is_server() {
+                for id in player_ids {
+                    // don't call rpc on server
+                    if id == 1 {
+                        continue;
+                    }
+                    // force other clients to also load the game up
+                    self.base_mut().rpc_id(id.into(), "load_game".into(), &[]);
+                }
             }
     }
 
+    // callback from scene_manager, tells the multiplayer_controller that this player has loaded in
+    // Every peer will call this when they have loaded the game scene.
     #[rpc(any_peer, call_local, reliable)]
     fn load_in_player(&mut self)
     {
         // if server, start up game on everyone else's client
-        let mut multiplayer = self.base_mut().get_multiplayer().unwrap();
-        if multiplayer.is_server() {
-            let network_id= multiplayer.get_remote_sender_id();
+        if self.multiplayer.is_server() {
+            let network_id= self.multiplayer.get_remote_sender_id();
+            // only load in players that are actually in the player database
             if !self.player_database.contains_key(&network_id) {
                 return;
             }
@@ -134,12 +151,12 @@ impl MultiplayerController {
             // start game once everyone is loaded in
             if self.number_of_players_loaded == self.player_database.len() as u32 {
                 let mut game_scene = self.base_mut().get_tree().unwrap().get_root().unwrap().get_node_as::<SceneManager>("Game");
-                game_scene.rpc("start_game".into(), &[]);
+                game_scene.bind_mut().start_game();
             }
         }
-        self.has_game_started = true;
     }
 
+    // set up server 
     #[func]
     fn host_game(&mut self) {
         let mut peer = ENetMultiplayerPeer::new_gd();
@@ -151,9 +168,8 @@ impl MultiplayerController {
         peer.get_host()
             .unwrap()
             .compress(godot::classes::enet_connection::CompressionMode::RANGE_CODER);
-        let mut multiplayer = self.base().get_multiplayer().unwrap();
 
-        multiplayer.set_multiplayer_peer(peer);
+        self.multiplayer.set_multiplayer_peer(peer);
         godot_print!("Waiting For Players!");
     }
 
@@ -163,13 +179,13 @@ impl MultiplayerController {
             .get_node_as::<Button>("JoinButton")
             .set_visible(false);
         self.host_game();
-        // in this instance, the host is also playing, so add their information
-        self.send_player_information(
-            self.base().get_node_as::<LineEdit>("UsernameLineEdit").get_text(),
-            self.base().get_multiplayer().unwrap().get_unique_id(),
-        );
+        let username = self.base().get_node_as::<LineEdit>("UsernameLineEdit").get_text();
+        let network_id = self.multiplayer.get_unique_id();
+        // in this instance, the host is also playing, so add their information to player_database
+        self.send_player_information(username, network_id);
     }
 
+    // if join button is clicked, set up peer as client
     #[func]
     fn on_join_button_down(&mut self) {
         self.base_mut()
@@ -184,19 +200,15 @@ impl MultiplayerController {
         peer.get_host()
             .unwrap()
             .compress(godot::classes::enet_connection::CompressionMode::RANGE_CODER);
-        let mut multiplayer = self.base().get_multiplayer().unwrap();
 
-        multiplayer.set_multiplayer_peer(peer);
+        self.multiplayer.set_multiplayer_peer(peer);
         godot_print!("Waiting For Server...");
     }
 
     #[func]
     fn on_start_button_down(&mut self) {
-        // https://forum.godotengine.org/t/how-to-fix-trying-to-call-an-rpc-via-a-multiplayer-peer-which-is-not-connected/37037
-        // this might fix some weird edge cases
-	    // probably just takes a while for the connection to be established?
-        //thread::sleep(time::Duration::from_secs(1));
-        self.base_mut().rpc("load_game".into(), &[]);
+        // have client call server to start up game
+        self.base_mut().rpc_id(1,"load_game".into(), &[]);
     }
 }
 
@@ -208,8 +220,8 @@ impl IControl for MultiplayerController {
             port: PORT,
             game_scene: PackedScene::new_gd(),
             player_database: HashMap::new(),
-            has_game_started: false,
             number_of_players_loaded: 0,
+            multiplayer: OnReady::from_base_fn(|base| base.get_multiplayer().unwrap()),
             base,
         }
     }
@@ -232,8 +244,10 @@ impl IControl for MultiplayerController {
             self.base().callable("on_start_button_down"),
         );
 
-        let mut multiplayer = self.base().get_multiplayer().unwrap();
+        // make clone to avoid borrowing errors
+        let mut multiplayer = self.multiplayer.clone();
 
+        // setup multiplayer signal callbacks
         // currently callable/signal API is really ugly
         multiplayer.connect(
             "peer_connected".into(),

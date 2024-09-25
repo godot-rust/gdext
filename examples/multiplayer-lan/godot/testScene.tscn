@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" uid="uid://dp50474qin2xu" path="res://player.tscn" id="1_nyjlg"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_bsyir"]
-size = Vector2(785, 120)
+size = Vector2(1226.5, 120)
 
 [node name="Game" type="SceneManager"]
 player_scene = ExtResource("1_nyjlg")
@@ -13,11 +13,11 @@ player_scene = ExtResource("1_nyjlg")
 
 [node name="Sprite2D" type="Sprite2D" parent="StaticBody2D"]
 position = Vector2(539, 582)
-scale = Vector2(6, 0.2)
+scale = Vector2(10, 0.333)
 texture = ExtResource("1_0m6ke")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D"]
-position = Vector2(537.5, 622)
+position = Vector2(550, 622)
 shape = SubResource("RectangleShape2D_bsyir")
 
 [node name="SpawnLocations" type="Node2D" parent="."]

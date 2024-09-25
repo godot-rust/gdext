@@ -16,6 +16,7 @@ pub struct SceneManager {
 
 #[godot_api]
 impl SceneManager {
+    // get list of spawn points
     #[func]
     fn get_spawn_points(&self) -> Array<Gd<Node2D>> {
         let spawn_nodes = self
@@ -47,6 +48,7 @@ impl SceneManager {
         self.base_mut().add_child(player.clone());
     }
 
+    /*
     #[func]
     fn respawn_player(&self, &mut player: Gd<Player>)
     {
@@ -55,25 +57,38 @@ impl SceneManager {
         let mut random = RandomNumberGenerator::new_gd();
         let spawn = spawn_points.get(random.randi_range(0, spawn_points.len() as i32 - 1) as usize).unwrap();
         player.bind_mut().base_mut().set_global_position(spawn.get_global_position());
-    }   
+    } 
+    */  
 
     // called only from the server
-    #[rpc(authority, call_local)]
+    // should only be called after ready()
+    #[func]
     pub fn start_game(&mut self) {
-        // actually add players into the scene
+        // All peers are ready to receive RPCs in this scene since they are all now ready.
+        // actually move players into their proper spawn points
         let spawn_points = self.get_spawn_points();
         let mut index = 0;
         for (_, player) in &mut self.player_list {
             // spawn each player next to each spawn point
             let spawn_position = spawn_points.at(index).get_global_position();
-            player.set_global_position(spawn_position);
-            
             {
-                let mut bind = player.bind_mut();
-                bind.set_sync_position(spawn_position);
-
-                godot_print!("id {0} position {1}", bind.get_network_id(), bind.get_sync_position());
+                let network_id = player.bind().get_network_id();
+                player.rpc("set_player_position_from_server".into(), &[Variant::from(spawn_position), Variant::from(network_id)]);
+                godot_print!("spawn player id {0} position {1}", network_id , player.get_global_position());
             }
+
+            let callable = Callable::from_fn("on_death", |args: &[&Variant]| {
+                let network_id = args[0].try_to::<NetworkId>().unwrap();
+                godot_print!("player {network_id} has died, respawning");
+                // only server can respawn player
+                //self.base_mut().rpc("respawn_player".into(), &[Variant::from(spawn_position), Variant::from(network_id)]);
+                Ok(Variant::nil())
+            });
+
+            player.connect(
+                "death".into(),
+                callable,
+            );
 
             index += 1;
             
@@ -82,6 +97,16 @@ impl SceneManager {
             }
         }
     }
+
+    /*
+    // only the server/host player can call this function
+    #[rpc(authority, call_local, reliable)]
+    fn respawn_player(&mut self, spawn_position: Vector2, network_id: NetworkId)
+    {
+        let mut player: &mut Gd<Player> = self.player_list.get_mut(&network_id).unwrap();
+        player.rpc("respawn".into(), &[Variant::from(spawn_position), Variant::from(network_id)]);
+    }
+    */
 }
 
 #[godot_api]
@@ -97,7 +122,7 @@ impl INode2D for SceneManager {
 
     fn ready(&mut self) {
         let mut multiplayer_controller = self.base_mut().get_tree().unwrap().get_root().unwrap().get_node_as::<MultiplayerController>("MultiplayerController");
-        // Tell the server that this peer has loaded.
+        // Tell the server that this peer has loaded in.
         multiplayer_controller.rpc_id(1, "load_in_player".into(), &[]);
     }
 
