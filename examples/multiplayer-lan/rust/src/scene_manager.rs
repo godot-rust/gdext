@@ -1,8 +1,15 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
-use godot::{classes::{RandomNumberGenerator, RichTextLabel}, prelude::*};
+use godot::{
+    classes::{RandomNumberGenerator, RichTextLabel},
+    prelude::*,
+};
 
-use crate::{multiplayer_controller::{self, MultiplayerController}, player::Player, NetworkId};
+use crate::{
+    multiplayer_controller::{self, MultiplayerController},
+    player::Player,
+    NetworkId,
+};
 
 #[derive(GodotClass)]
 #[class(base=Node2D)]
@@ -33,8 +40,7 @@ impl SceneManager {
     }
 
     #[func]
-    pub fn add_player(&mut self, network_id: NetworkId, username: GString)
-    {
+    pub fn add_player(&mut self, network_id: NetworkId, username: GString) {
         let mut player = self.player_scene.instantiate_as::<Player>();
 
         // setup player
@@ -50,10 +56,7 @@ impl SceneManager {
             Ok(Variant::nil())
         });
 
-        player.connect(
-            "death".into(),
-            callable,
-        );
+        player.connect("death".into(), callable);
 
         self.player_list.insert(network_id, player.clone());
         self.base_mut().add_child(player.clone());
@@ -68,8 +71,8 @@ impl SceneManager {
         let mut random = RandomNumberGenerator::new_gd();
         let spawn = spawn_points.get(random.randi_range(0, spawn_points.len() as i32 - 1) as usize).unwrap();
         player.bind_mut().base_mut().set_global_position(spawn.get_global_position());
-    } 
-    */  
+    }
+    */
 
     // called only from the server
     // should only be called after ready()
@@ -84,12 +87,19 @@ impl SceneManager {
             let spawn_position = spawn_points.at(index).get_global_position();
             {
                 let network_id = player.bind().get_network_id();
-                player.rpc("set_player_position_from_server".into(), &[Variant::from(spawn_position), Variant::from(network_id)]);
-                godot_print!("spawn player id {0} position {1}", network_id , player.get_global_position());
+                player.rpc(
+                    "set_player_position_from_server".into(),
+                    &[Variant::from(spawn_position), Variant::from(network_id)],
+                );
+                godot_print!(
+                    "spawn player id {0} position {1}",
+                    network_id,
+                    player.get_global_position()
+                );
             }
 
             index += 1;
-            
+
             if index >= spawn_points.len() {
                 index = 0;
             }
@@ -119,12 +129,17 @@ impl INode2D for SceneManager {
     }
 
     fn ready(&mut self) {
-        let mut multiplayer_controller = self.base_mut().get_tree().unwrap().get_root().unwrap().get_node_as::<MultiplayerController>("MultiplayerController");
+        let mut multiplayer_controller =
+            self.base_mut()
+                .get_tree()
+                .unwrap()
+                .get_root()
+                .unwrap()
+                .get_node_as::<MultiplayerController>("MultiplayerController");
         // Tell the server that this peer has loaded in.
         multiplayer_controller.rpc_id(1, "load_in_player".into(), &[]);
     }
 
-    
     fn process(&mut self, delta: f64) {
         let mut string = String::from("");
         for (_, player) in self.player_list.iter() {
@@ -132,10 +147,10 @@ impl INode2D for SceneManager {
             let username = &player_bind.username;
             let position = player.get_global_position();
             let network_id = &player_bind.get_network_id();
-            string.push_str(&format!("network_id: {network_id}, username: {username}, position: {position} \n"));
+            string.push_str(&format!(
+                "network_id: {network_id}, username: {username}, position: {position} \n"
+            ));
         }
         self.text_log.set_text(GString::from(string));
     }
-    
-
 }
