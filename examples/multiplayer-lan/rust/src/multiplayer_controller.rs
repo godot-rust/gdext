@@ -192,6 +192,7 @@ impl MultiplayerController {
             .get_node_as::<Button>("HostButton")
             .set_visible(false);
         let mut peer = ENetMultiplayerPeer::new_gd();
+        self.address = self.base().get_node_as::<LineEdit>("AddressLineEdit").get_text();
         let error = peer.create_client(self.address.clone(), self.port);
         if error != Error::OK {
             godot_print!("cannot join");

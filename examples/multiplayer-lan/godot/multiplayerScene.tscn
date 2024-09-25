@@ -13,49 +13,65 @@ grow_vertical = 2
 [node name="HostButton" type="Button" parent="."]
 layout_mode = 0
 offset_left = 74.0
-offset_top = 120.0
+offset_top = 163.0
 offset_right = 251.0
-offset_bottom = 168.0
+offset_bottom = 211.0
 text = "Host"
 
 [node name="JoinButton" type="Button" parent="."]
 layout_mode = 0
 offset_left = 270.0
-offset_top = 120.0
+offset_top = 163.0
 offset_right = 447.0
-offset_bottom = 168.0
+offset_bottom = 211.0
 text = "Join"
 
 [node name="StartButton" type="Button" parent="."]
 layout_mode = 0
 offset_left = 479.0
-offset_top = 120.0
+offset_top = 163.0
 offset_right = 656.0
-offset_bottom = 168.0
+offset_bottom = 211.0
 text = "Start Game"
 
 [node name="UsernameLineEdit" type="LineEdit" parent="."]
 layout_mode = 0
 offset_left = 156.0
-offset_top = 68.0
+offset_top = 104.0
 offset_right = 508.0
-offset_bottom = 99.0
+offset_bottom = 135.0
 text = "Player"
 
-[node name="Label" type="Label" parent="."]
+[node name="UsernameLabel" type="Label" parent="."]
 layout_mode = 0
 offset_left = 75.0
-offset_top = 70.0
-offset_right = 122.0
-offset_bottom = 96.0
-text = "Name"
+offset_top = 106.0
+offset_right = 126.0
+offset_bottom = 132.0
+text = "Name:"
+
+[node name="AddressLineEdit" type="LineEdit" parent="."]
+layout_mode = 0
+offset_left = 156.0
+offset_top = 55.0
+offset_right = 508.0
+offset_bottom = 86.0
+text = "127.0.0.1"
+
+[node name="AddressLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 75.0
+offset_top = 57.0
+offset_right = 142.0
+offset_bottom = 83.0
+text = "Address:"
 
 [node name="MultiplayerLog" type="RichTextLabel" parent="."]
 layout_mode = 0
 offset_left = 66.0
-offset_top = 185.0
+offset_top = 228.0
 offset_right = 705.0
-offset_bottom = 425.0
+offset_bottom = 468.0
 
 [connection signal="button_down" from="HostButton" to="." method="_on_host_button_down"]
 [connection signal="button_down" from="JoinButton" to="." method="_on_join_button_down"]

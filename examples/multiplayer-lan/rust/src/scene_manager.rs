@@ -44,6 +44,17 @@ impl SceneManager {
             binding.set_username(username);
         }
 
+        let callable = Callable::from_fn("on_death", |args: &[&Variant]| {
+            let network_id = args[0].try_to::<NetworkId>().unwrap();
+            godot_print!("player {network_id} has died, respawning");
+            Ok(Variant::nil())
+        });
+
+        player.connect(
+            "death".into(),
+            callable,
+        );
+
         self.player_list.insert(network_id, player.clone());
         self.base_mut().add_child(player.clone());
     }
@@ -76,19 +87,6 @@ impl SceneManager {
                 player.rpc("set_player_position_from_server".into(), &[Variant::from(spawn_position), Variant::from(network_id)]);
                 godot_print!("spawn player id {0} position {1}", network_id , player.get_global_position());
             }
-
-            let callable = Callable::from_fn("on_death", |args: &[&Variant]| {
-                let network_id = args[0].try_to::<NetworkId>().unwrap();
-                godot_print!("player {network_id} has died, respawning");
-                // only server can respawn player
-                //self.base_mut().rpc("respawn_player".into(), &[Variant::from(spawn_position), Variant::from(network_id)]);
-                Ok(Variant::nil())
-            });
-
-            player.connect(
-                "death".into(),
-                callable,
-            );
 
             index += 1;
             
