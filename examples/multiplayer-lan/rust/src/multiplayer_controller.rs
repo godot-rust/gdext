@@ -84,9 +84,7 @@ impl MultiplayerController {
     #[rpc(any_peer)]
     fn send_player_information(&mut self, name: GString, network_id: NetworkId) {
         // insert new player data with network_id if it doesn't already exist
-        self.player_database
-            .entry(network_id)
-            .or_insert(name);
+        self.player_database.entry(network_id).or_insert(name);
 
         // print player information onto multiplayer log
         let mut multiplayer_log = self
@@ -108,7 +106,11 @@ impl MultiplayerController {
     #[rpc(any_peer, call_local, reliable)]
     fn load_game(&mut self) {
         // start up game scene
-        let mut scene = self.game_scene.as_mut().unwrap().instantiate_as::<SceneManager>();
+        let mut scene = self
+            .game_scene
+            .as_mut()
+            .unwrap()
+            .instantiate_as::<SceneManager>();
         // have to put this into its own scope to avoid borrowing self as immutable when its already mutable
         // note: you could also use drop(..) to drop reference to base
         {
@@ -265,7 +267,7 @@ impl IControl for MultiplayerController {
 
         // make clone to avoid following borrowing error:
         // cannot move out of `self.multiplayer` which is behind a mutable reference
-        // move occurs because `self.multiplayer` has type `godot::prelude::OnReady<godot::prelude::Gd<MultiplayerApi>>`, 
+        // move occurs because `self.multiplayer` has type `godot::prelude::OnReady<godot::prelude::Gd<MultiplayerApi>>`,
         // which does not implement the `Copy` trait
 
         let mut multiplayer = self.multiplayer.clone();

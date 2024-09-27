@@ -1,15 +1,8 @@
 use std::collections::HashMap;
 
-use godot::{
-    classes::RichTextLabel,
-    prelude::*,
-};
+use godot::{classes::RichTextLabel, prelude::*};
 
-use crate::{
-    multiplayer_controller::MultiplayerController,
-    player::Player,
-    NetworkId,
-};
+use crate::{multiplayer_controller::MultiplayerController, player::Player, NetworkId};
 
 #[derive(GodotClass)]
 #[class(base=Node2D)]
@@ -142,7 +135,7 @@ impl INode2D for SceneManager {
 
     fn process(&mut self, _delta: f64) {
         let mut string = String::from("");
-        for player in self.player_list.values_mut() { 
+        for player in self.player_list.values_mut() {
             let player_bind = player.bind();
             let username = &player_bind.username;
             let position = player.get_global_position();
